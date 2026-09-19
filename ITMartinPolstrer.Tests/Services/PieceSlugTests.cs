@@ -1,5 +1,5 @@
 using FluentAssertions;
-using ITMartinPolstrer.Server.Services;
+using ITMartinPolstrer.Core.Services;
 
 namespace ITMartinPolstrer.Tests.Services;
 
@@ -9,7 +9,7 @@ public class PieceSlugTests
     [Test]
     public void Lowercases_and_replaces_spaces_with_hyphens()
     {
-        PieceSlug.From("Lænestol Marianne").Should().StartWith("lænestol-marianne-");
+        PieceSlug.From("Lænestol Marianne").Should().StartWith("laenestol-marianne-");
     }
 
     [Test]

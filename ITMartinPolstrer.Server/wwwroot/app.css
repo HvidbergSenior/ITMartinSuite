@@ -233,3 +233,18 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
 #components-reconnect-modal.components-reconnect-show .reconnect-msg { display: block; }
 #components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg { display: block; }
 #components-reconnect-modal button { margin-left: 8px; }
+
+/* Tag billede: thumbnails of what is already uploaded */
+.thumb-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: var(--bg-soft, #222); display: flex; align-items: center; justify-content: center; font-size: 28px; }
+#cat-chips { margin-bottom: 8px; }
+
+/* Erfaring: the archive as tiles, grouped by furniture type */
+.piece-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.piece-tile { display: block; background: var(--card, #1c1c1c); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; color: inherit; text-decoration: none; border-left-width: 4px; }
+.piece-tile img, .piece-tile-empty { width: 100%; aspect-ratio: 1; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 40px; background: #111; }
+.piece-tile-body { padding: 8px 10px 10px; }
+.piece-tile-title { font-weight: 600; font-size: 15px; }
+.piece-tile-meta { font-size: 12px; color: var(--ink-soft); margin: 2px 0 6px; }
+.piece-tile.urgent-soon { border-left-color: var(--warn); }
+.piece-tile.urgent-over { border-left-color: var(--danger); }

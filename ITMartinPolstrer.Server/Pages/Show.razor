@@ -1,4 +1,5 @@
 @page "/vis/{Slug}"
+@rendermode InteractiveServer
 @layout EmptyLayout
 @inject IDbContextFactory<PolstrerDbContext> DbFactory
 
@@ -17,7 +18,7 @@
         <h1>@_piece.Title</h1>
         <div class="piece-sub">
             Modtaget @_piece.ReceivedAt.ToLocalTime().ToString("d. MMMM yyyy")
-            · <span class="status status-@_piece.Status.ToString().ToLower()">@Index.StatusText(_piece.Status)</span>
+            · <span class="status status-@_piece.Status.ToString().ToLower()">@PieceText.StatusText(_piece.Status)</span>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_piece.Instructions))

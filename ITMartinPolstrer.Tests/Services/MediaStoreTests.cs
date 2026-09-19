@@ -1,5 +1,5 @@
 using FluentAssertions;
-using ITMartinPolstrer.Server.Services;
+using ITMartinPolstrer.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using SixLabors.ImageSharp;

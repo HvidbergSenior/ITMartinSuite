@@ -1,105 +1,88 @@
+@page "/"
 @page "/ny"
-@inject IDbContextFactory<PolstrerDbContext> DbFactory
-@inject MediaStore Media
-@inject NavigationManager Nav
 
-<PageTitle>Nyt møbel</PageTitle>
+<PageTitle>Tag billede</PageTitle>
 
-<h1>Nyt møbel</h1>
+@* Photo first: the piece is standing in front of you, the person who
+   brought it is still talking. Every photo is uploaded by the browser the
+   moment it is taken (see tag-billede.js) - nothing here depends on the
+   Blazor connection, which is exactly what the phone drops while the camera
+   is open. The details form is a plain POST; every field is optional. *@
 
-@* Photo first: the piece is standing in front of her, the person who
-   brought it is still talking. Details can be filled in after. *@
-<div class="section-label">1. Tag billede af møblet</div>
-<CameraUpload Text="@(_files.Count == 0 ? "Tag billede" : "Tag et til")" FilesChosen="OnFiles" />
-@if (_files.Count > 0)
-{
-    <div class="chosen-files">@_files.Count @(_files.Count == 1 ? "fil" : "filer") valgt</div>
-}
-
-<div class="section-label">2. Hvad er det, og hvornår skal det være færdigt?</div>
-<div class="field">
-    <label>Møbel</label>
-    <input type="text" @bind="_title" placeholder="fx Lænestol, grøn – Marianne" />
+<div class="top-row">
+    <h1>Tag billede</h1>
+    <a class="top-link" href="/api/auth/logout">Log ud</a>
 </div>
-<div class="field-row">
+
+<div class="section-label">1. Billeder af møblet</div>
+<div class="camera-block" id="camera">
+    <label class="camera-btn" for="cam-input">
+        <span class="camera-icon">📷</span>
+        <span id="cam-text">Tag billede</span>
+    </label>
+    <input id="cam-input" class="camera-input" type="file" accept="image/*" capture="environment" />
+    <label class="camera-secondary" for="lib-input">Vælg billeder eller video fra telefonen</label>
+    <input id="lib-input" class="camera-input" type="file" accept="image/*,video/*" multiple />
+    <div id="upload-status" class="chosen-files"></div>
+    <div id="upload-thumbs" class="thumb-row"></div>
+    <div id="upload-error" class="error-box" hidden></div>
+</div>
+
+<form method="post" action="/api/pieces" id="piece-form">
+    <input type="hidden" name="pieceId" id="pieceId" />
+
+    <div class="section-label">2. Hvad er det? <span class="muted">(alt er valgfrit)</span></div>
     <div class="field">
-        <label>Kunde</label>
-        <input type="text" @bind="_customer" placeholder="Navn" />
+        <label>Møbel</label>
+        <input type="text" name="title" placeholder="fx Lænestol, grøn" />
     </div>
     <div class="field">
-        <label>Deadline</label>
-        <input type="date" @bind="_deadline" />
-    </div>
-</div>
-
-<div class="section-label">3. Hvad blev der sagt?</div>
-<p class="hint">Skriv det ned nu – det er det, du glemmer senere.</p>
-<div class="field">
-    <label>Hvem fortalte dig det?</label>
-    <input type="text" @bind="_instructedBy" placeholder="fx kunden, Peter" />
-</div>
-<div class="field">
-    <label>Besked / instruktion</label>
-    <textarea rows="6" @bind="_instructions" placeholder="Nyt betræk i samme stof, behold nakkerullen, fjedrene skal efterses…"></textarea>
-</div>
-
-@if (_error is not null)
-{
-    <div class="error-box">@_error</div>
-}
-
-<button class="btn btn-primary btn-block" @onclick="SaveAsync" disabled="@_saving">
-    @(_saving ? "Gemmer…" : "Gem møbel")
-</button>
-
-@code {
-    private readonly List<CameraUpload.Chosen> _files = [];
-    private string _title = "";
-    private string _customer = "";
-    private string _instructedBy = "";
-    private string _instructions = "";
-    private DateOnly? _deadline;
-    private bool _saving;
-    private string? _error;
-
-    private void OnFiles(IReadOnlyList<CameraUpload.Chosen> files) => _files.AddRange(files);
-
-    private async Task SaveAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_title)) { _error = "Skriv hvad møblet er."; return; }
-        _saving = true; _error = null;
-        try
-        {
-            var piece = new Piece
+        <label>Type</label>
+        <div class="tag-row" id="cat-chips">
+            @foreach (var c in FurnitureCategories.All)
             {
-                Title = _title.Trim(),
-                Customer = _customer.Trim(),
-                InstructedBy = _instructedBy.Trim(),
-                Instructions = _instructions.Trim(),
-                Deadline = _deadline,
-                Slug = PieceSlug.From(_title),
-                Folder = Media.NewFolderFor(_title)
-            };
-
-            var step = new Step { PieceId = piece.Id, Note = "Modtaget" };
-            foreach (var f in _files)
-            {
-                var m = await Media.SaveFromTempAsync(piece.Folder, f.FileName, f.TempPath);
-                m.StepId = step.Id;
-                step.Media.Add(m);
+                <button type="button" class="tag" data-cat="@c">@c</button>
             }
-            piece.Steps.Add(step);
+        </div>
+        <input type="text" name="category" id="category" placeholder="eller skriv selv" />
+    </div>
+    <div class="field-row">
+        <div class="field">
+            <label>Polstrer</label>
+            <input type="text" name="worker" placeholder="Hvem arbejder på det" autocomplete="on" />
+        </div>
+        <div class="field">
+            <label>Kunde</label>
+            <input type="text" name="customer" placeholder="Navn" />
+        </div>
+    </div>
+    <div class="field-row">
+        <div class="field">
+            <label>Stof / materiale</label>
+            <input type="text" name="material" placeholder="fx uld, læder, Kvadrat Hallingdal" />
+        </div>
+        <div class="field">
+            <label>Deadline</label>
+            <input type="date" name="deadline" />
+        </div>
+    </div>
+    <div class="field">
+        <label>Teknikker (adskilt med komma)</label>
+        <input type="text" name="techniques" placeholder="fjedre, nakkerulle, kantsyning" />
+    </div>
 
-            await using var db = await DbFactory.CreateDbContextAsync();
-            db.Pieces.Add(piece);
-            await db.SaveChangesAsync();
+    <div class="section-label">3. Hvad blev der sagt?</div>
+    <div class="field">
+        <label>Hvem fortalte dig det?</label>
+        <input type="text" name="instructedBy" placeholder="fx kunden, Peter" />
+    </div>
+    <div class="field">
+        <label>Besked / instruktion</label>
+        <textarea rows="5" name="instructions" placeholder="Nyt betræk i samme stof, behold nakkerullen, fjedrene skal efterses…"></textarea>
+    </div>
 
-            Nav.NavigateTo($"/moebel/{piece.Slug}");
-        }
-        catch (Exception ex)
-        {
-            _error = "Kunne ikke gemme: " + ex.Message;
-            _saving = false;
-        }
-    }
-}
+    <button type="submit" class="btn btn-primary btn-block" id="save-btn">Gem møblet</button>
+    <p class="hint" style="text-align:center">Billederne er allerede gemt når de vises herover – Gem tilføjer bare oplysningerne.</p>
+</form>
+
+<script src="tag-billede.js?v=@DateTime.UtcNow.Ticks"></script>

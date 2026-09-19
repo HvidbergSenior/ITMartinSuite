@@ -1,62 +1,110 @@
 @page "/erfaring"
+@rendermode InteractiveServer
 @inject IDbContextFactory<PolstrerDbContext> DbFactory
 
 <PageTitle>Erfaring</PageTitle>
 
-<h1>Erfaring</h1>
-<p class="hint">Har du gjort det før? Søg i alle møbler, instruktioner, trin og teknikker.</p>
+<div class="top-row">
+    <h1>Erfaring</h1>
+    <a class="top-link" href="/api/auth/logout">Log ud</a>
+</div>
+<p class="hint">Alle møbler der har været igennem værkstedet. Søg, eller tryk på en type, en polstrer eller en teknik.</p>
 
 <div class="field">
-    <input type="search" @bind="_q" @bind:event="oninput" placeholder="fx nakkerulle, fjedre, læder…" autofocus />
+    <input type="search" @bind="_q" @bind:event="oninput" placeholder="fx nakkerulle, fjedre, læder, Marianne…" />
 </div>
-
-@if (_allTags.Count > 0)
-{
-    <div class="tag-row">
-        @foreach (var t in _allTags)
-        {
-            <button class="tag @(string.Equals(_q, t, StringComparison.OrdinalIgnoreCase) ? "tag-on" : "")" @onclick="() => _q = t">@t</button>
-        }
-    </div>
-}
 
 @if (_pieces is null)
 {
     <p class="muted">Henter…</p>
 }
-else if (string.IsNullOrWhiteSpace(_q))
-{
-    <p class="muted">Skriv et ord, eller tryk på en teknik.</p>
-}
 else
 {
-    var hits = Find(_q.Trim());
-    if (hits.Count == 0)
+    <div class="tag-row">
+        <button class="chip @(_status is null ? "chip-on" : "")" @onclick="() => _status = null">Alle</button>
+        <button class="chip @(_status == "open" ? "chip-on" : "")" @onclick='() => _status = "open"'>I arbejde</button>
+        <button class="chip @(_status == "done" ? "chip-on" : "")" @onclick='() => _status = "done"'>Afleveret</button>
+    </div>
+
+    @if (_categories.Count > 0)
     {
-        <p class="muted">Ingen møbler matcher "@_q".</p>
-    }
-    foreach (var h in hits)
-    {
-        <div class="card hit">
-            <a class="hit-title" href="/moebel/@h.Piece.Slug">@h.Piece.Title <span class="muted">· @h.Piece.ReceivedAt.ToLocalTime().ToString("MMM yyyy")</span></a>
-            @if (h.InstructionsHit)
+        <div class="tag-row">
+            @foreach (var c in _categories)
             {
-                <div class="hit-snippet"><b>Instruktion:</b> @Snippet(h.Piece.Instructions, _q)</div>
-            }
-            @foreach (var s in h.Steps)
-            {
-                <div class="hit-step">
-                    <div class="hit-snippet">@s.At.ToLocalTime().ToString("d. MMM yyyy") – @Snippet(s.Note, _q)</div>
-                    <MediaGrid Items="s.Media" />
-                </div>
-            }
-            @if (!h.InstructionsHit && h.Steps.Count == 0)
-            {
-                <div class="hit-snippet muted">Match på titel, kunde eller teknik</div>
-                var firstMedia = h.Piece.Steps.SelectMany(s => s.Media).Take(6).ToList();
-                <MediaGrid Items="firstMedia" />
+                <button class="tag @(_cat == c ? "tag-on" : "")" @onclick="() => _cat = _cat == c ? null : c">@c</button>
             }
         </div>
+    }
+    @if (_workers.Count > 0)
+    {
+        <div class="tag-row">
+            @foreach (var w in _workers)
+            {
+                <button class="tag @(_worker == w ? "tag-on" : "")" @onclick="() => _worker = _worker == w ? null : w">👤 @w</button>
+            }
+        </div>
+    }
+    @if (_allTags.Count > 0)
+    {
+        <div class="tag-row">
+            @foreach (var t in _allTags)
+            {
+                <button class="tag @(string.Equals(_q, t, StringComparison.OrdinalIgnoreCase) ? "tag-on" : "")" @onclick="() => _q = string.Equals(_q, t, StringComparison.OrdinalIgnoreCase) ? string.Empty : t">@t</button>
+            }
+        </div>
+    }
+
+    var list = Filtered();
+    if (list.Count == 0)
+    {
+        <p class="muted">Ingen møbler matcher.</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(_q))
+    {
+        @* A word typed: show where it was found, not just the card. *@
+        foreach (var h in ExperienceSearch.Find(list, _q.Trim()))
+        {
+            <div class="card hit">
+                <a class="hit-title" href="/moebel/@h.Piece.Slug">@PieceText.TitleOrDefault(h.Piece) <span class="muted">· @Meta(h.Piece)</span></a>
+                @if (h.InstructionsHit)
+                {
+                    <div class="hit-snippet"><b>Instruktion:</b> @ExperienceSearch.Snippet(h.Piece.Instructions, _q)</div>
+                }
+                @foreach (var s in h.Steps)
+                {
+                    <div class="hit-step">
+                        <div class="hit-snippet">@s.At.ToLocalTime().ToString("d. MMM yyyy") – @ExperienceSearch.Snippet(s.Note, _q)</div>
+                        <MediaGrid Items="s.Media" />
+                    </div>
+                }
+                @if (!h.InstructionsHit && h.Steps.Count == 0)
+                {
+                    <MediaGrid Items="h.Piece.Steps.SelectMany(s => s.Media).Take(6).ToList()" />
+                }
+            </div>
+        }
+    }
+    else
+    {
+        @* Browsing: grouped by furniture type, newest first inside each. *@
+        foreach (var group in list.GroupBy(p => string.IsNullOrWhiteSpace(p.Category) ? "Uden type" : p.Category).OrderBy(g => g.Key == "Uden type" ? 1 : 0).ThenBy(g => g.Key))
+        {
+            <div class="section-label">@group.Key <span class="muted">· @group.Count()</span></div>
+            <div class="piece-grid">
+                @foreach (var p in group)
+                {
+                    var cover = PieceText.Cover(p);
+                    <a class="piece-tile @PieceText.UrgencyClass(p)" href="/moebel/@p.Slug">
+                        @if (cover is not null) { <img src="@MediaStore.Url(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> } else { <div class="piece-tile-empty">🪑</div> }
+                        <div class="piece-tile-body">
+                            <div class="piece-tile-title">@PieceText.TitleOrDefault(p)</div>
+                            <div class="piece-tile-meta">@Meta(p)</div>
+                            <span class="status status-@p.Status.ToString().ToLower()">@PieceText.StatusText(p.Status)</span>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
     }
 }
 
@@ -64,8 +112,9 @@ else
     [SupplyParameterFromQuery(Name = "q")] public string? InitialQ { get; set; }
 
     private string _q = "";
+    private string? _status, _cat, _worker;
     private List<Piece>? _pieces;
-    private List<string> _allTags = [];
+    private List<string> _allTags = [], _categories = [], _workers = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,9 +123,22 @@ else
         _pieces = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).AsNoTracking()
             .OrderByDescending(p => p.ReceivedAt).ToListAsync();
         _allTags = ExperienceSearch.Tags(_pieces);
+        _categories = _pieces.Select(p => p.Category.Trim()).Where(c => c.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToList();
+        _workers = _pieces.Select(p => p.Worker.Trim()).Where(w => w.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(w => w).ToList();
     }
 
-    private List<ExperienceSearch.Hit> Find(string q) => ExperienceSearch.Find(_pieces!, q);
+    private List<Piece> Filtered() => _pieces!
+        .Where(p => _status switch { "open" => p.Status < PieceStatus.Afleveret, "done" => p.Status == PieceStatus.Afleveret, _ => true })
+        .Where(p => _cat is null || string.Equals(p.Category.Trim(), _cat, StringComparison.OrdinalIgnoreCase))
+        .Where(p => _worker is null || string.Equals(p.Worker.Trim(), _worker, StringComparison.OrdinalIgnoreCase))
+        .ToList();
 
-    private static string Snippet(string text, string q) => ExperienceSearch.Snippet(text, q);
+    private static string Meta(Piece p)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(p.Worker)) parts.Add(p.Worker);
+        if (!string.IsNullOrWhiteSpace(p.Customer)) parts.Add("kunde " + p.Customer);
+        parts.Add(p.ReceivedAt.ToLocalTime().ToString("MMM yyyy"));
+        return string.Join(" · ", parts);
+    }
 }

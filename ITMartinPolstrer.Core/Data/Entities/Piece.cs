@@ -1,4 +1,4 @@
-namespace ITMartinPolstrer.Server.Data.Entities;
+namespace ITMartinPolstrer.Core.Data.Entities;
 
 public enum PieceStatus { Modtaget = 0, IGang = 1, Faerdig = 2, Afleveret = 3 }
 
@@ -20,6 +20,12 @@ public sealed class Piece
     // Comma-separated technique tags ("fjedre, nakkerulle") - this is what
     // makes an old job findable when she meets the same problem again.
     public string Techniques { get; set; } = string.Empty;
+    // Who is working on it, what kind of furniture, and the fabric/material.
+    // All optional - the phone form must never block on a field.
+    public string Worker { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string Material { get; set; } = string.Empty;
+    public List<Comment> Comments { get; set; } = [];
 
     // URL key (random suffix so it is unguessable on the public /vis page).
     public string Slug { get; set; } = string.Empty;
@@ -57,4 +63,23 @@ public sealed class MediaFile
     public string? ThumbPath { get; set; }
     public bool IsVideo { get; set; }
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+}
+
+// A remark from anyone in the workshop, written on the board app: "spring
+// ordered", "customer called, wants it Friday". Author is free text.
+public sealed class Comment
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PieceId { get; set; }
+    public Piece Piece { get; set; } = null!;
+    public DateTime At { get; set; } = DateTime.UtcNow;
+    public string Author { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+}
+
+// The furniture categories offered on the phone form; free text is allowed
+// too, these are just the chips.
+public static class FurnitureCategories
+{
+    public static readonly string[] All = ["Stol", "Lænestol", "Sofa", "Skammel / puf", "Bænk", "Sengegavl", "Bil / båd", "Andet"];
 }

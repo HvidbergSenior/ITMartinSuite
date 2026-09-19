@@ -1,4 +1,5 @@
 @page "/moebel/{Slug}"
+@rendermode InteractiveServer
 @inject IDbContextFactory<PolstrerDbContext> DbFactory
 @inject MediaStore Media
 @inject NavigationManager Nav
@@ -10,24 +11,27 @@
     return;
 }
 
-<PageTitle>@_piece.Title</PageTitle>
+<PageTitle>@PieceText.TitleOrDefault(_piece)</PageTitle>
 
 <div class="top-row">
-    <a class="top-link" href="/">← Møbler</a>
+    <a class="top-link" href="/erfaring">← Erfaring</a>
     <button class="top-link" @onclick="() => _editing = !_editing">@(_editing ? "Luk" : "Ret")</button>
 </div>
 
-<h1>@_piece.Title</h1>
+<h1>@PieceText.TitleOrDefault(_piece)</h1>
 <div class="piece-sub">
-    @if (!string.IsNullOrWhiteSpace(_piece.Customer)) { <span>@_piece.Customer · </span> }
+    @if (!string.IsNullOrWhiteSpace(_piece.Category)) { <span>@_piece.Category · </span> }
+    @if (!string.IsNullOrWhiteSpace(_piece.Worker)) { <span>polstrer @_piece.Worker · </span> }
+    @if (!string.IsNullOrWhiteSpace(_piece.Customer)) { <span>kunde @_piece.Customer · </span> }
+    @if (!string.IsNullOrWhiteSpace(_piece.Material)) { <span>@_piece.Material · </span> }
     <span>modtaget @_piece.ReceivedAt.ToLocalTime().ToString("d. MMM yyyy")</span>
-    @if (_piece.Deadline is { } d) { <span> · deadline <b>@Index.DeadlineText(d)</b></span> }
+    @if (_piece.Deadline is { } d) { <span> · deadline <b>@PieceText.DeadlineText(d)</b></span> }
 </div>
 
 <div class="status-row">
     @foreach (var s in Enum.GetValues<PieceStatus>())
     {
-        <button class="chip @(_piece.Status == s ? "chip-on" : "")" @onclick="() => SetStatusAsync(s)">@Index.StatusText(s)</button>
+        <button class="chip @(_piece.Status == s ? "chip-on" : "")" @onclick="() => SetStatusAsync(s)">@PieceText.StatusText(s)</button>
     }
 </div>
 
@@ -35,6 +39,11 @@
 {
     <div class="card">
         <div class="field"><label>Møbel</label><input type="text" @bind="_piece.Title" /></div>
+        <div class="field-row">
+            <div class="field"><label>Type</label><input type="text" @bind="_piece.Category" list="cats" /><datalist id="cats">@foreach (var c in FurnitureCategories.All) { <option value="@c" /> }</datalist></div>
+            <div class="field"><label>Polstrer</label><input type="text" @bind="_piece.Worker" /></div>
+        </div>
+        <div class="field"><label>Stof / materiale</label><input type="text" @bind="_piece.Material" /></div>
         <div class="field-row">
             <div class="field"><label>Kunde</label><input type="text" @bind="_piece.Customer" /></div>
             <div class="field"><label>Deadline</label><input type="date" @bind="_piece.Deadline" /></div>
@@ -133,7 +142,7 @@ else
             .Include(p => p.Steps).ThenInclude(s => s.Media)
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Slug == Slug);
-        if (_piece is null) Nav.NavigateTo("/");
+        if (_piece is null) Nav.NavigateTo("/erfaring");
     }
 
     private void OnNewFiles(IReadOnlyList<CameraUpload.Chosen> files) => _newFiles.AddRange(files);
@@ -208,6 +217,9 @@ else
         await db.Pieces.Where(x => x.Id == p.Id).ExecuteUpdateAsync(u => u
             .SetProperty(x => x.Title, p.Title.Trim())
             .SetProperty(x => x.Customer, p.Customer.Trim())
+            .SetProperty(x => x.Category, p.Category.Trim())
+            .SetProperty(x => x.Worker, p.Worker.Trim())
+            .SetProperty(x => x.Material, p.Material.Trim())
             .SetProperty(x => x.Deadline, p.Deadline)
             .SetProperty(x => x.InstructedBy, p.InstructedBy.Trim())
             .SetProperty(x => x.Instructions, p.Instructions.Trim())
@@ -223,7 +235,7 @@ else
         Media.DeleteFolder(_piece.Folder);
         await using var db = await DbFactory.CreateDbContextAsync();
         await db.Pieces.Where(p => p.Id == _piece.Id).ExecuteDeleteAsync();
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("/erfaring");
     }
 
     private async Task CopyShareLinkAsync()

@@ -1,6 +1,6 @@
 using FluentAssertions;
-using ITMartinPolstrer.Server.Data.Entities;
-using ITMartinPolstrer.Server.Services;
+using ITMartinPolstrer.Core.Data.Entities;
+using ITMartinPolstrer.Core.Services;
 
 namespace ITMartinPolstrer.Tests.Services;
 

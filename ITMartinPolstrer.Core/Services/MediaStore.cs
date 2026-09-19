@@ -1,8 +1,10 @@
-using ITMartinPolstrer.Server.Data.Entities;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using ITMartinPolstrer.Core.Data.Entities;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
-namespace ITMartinPolstrer.Server.Services;
+namespace ITMartinPolstrer.Core.Services;
 
 // Media lives on disk under the data volume on the NAS, one folder per
 // piece, named after the piece so the same folder tree reads well when
@@ -129,6 +131,34 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
         var p = Path.Combine(Root, folder);
         try { if (Directory.Exists(p)) Directory.Delete(p, recursive: true); }
         catch (Exception ex) { logger.LogWarning(ex, "Folder delete failed {Path}", p); }
+    }
+
+    // A draft is photographed before it has a name, so its folder is "Møbel".
+    // Once the title arrives the folder moves to match it (the gallery shows
+    // one folder per piece, named after the piece). Returns the new folder
+    // and rewrites the media paths; the caller saves them.
+    public string RenameFolderForTitle(string oldFolder, string title, IEnumerable<MediaFile> media)
+    {
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(oldFolder)) return oldFolder;
+        var newFolder = NewFolderFor(title);
+        var from = Path.Combine(Root, oldFolder);
+        var to = Path.Combine(Root, newFolder);
+        try
+        {
+            Directory.Delete(to); // NewFolderFor created it empty; Move needs it absent
+            Directory.Move(from, to);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Folder rename failed {From} -> {To}", from, to);
+            return oldFolder;
+        }
+        foreach (var m in media)
+        {
+            m.RelativePath = newFolder + m.RelativePath[oldFolder.Length..];
+            if (m.ThumbPath is not null) m.ThumbPath = newFolder + m.ThumbPath[oldFolder.Length..];
+        }
+        return newFolder;
     }
 
     public static string Url(string relativePath) =>
