@@ -74,7 +74,7 @@ app.MapGet("/login", (HttpContext ctx) =>
 {
     var showError = ctx.Request.Query.ContainsKey("err");
     var html = $$"""
-    <!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mit El – Log ind</title>
+    <!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MinElpris – Log ind</title>
     <style>
     body{font-family:system-ui,sans-serif;background:#0b1220;color:#e5e7eb;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
     form{background:#111a2e;padding:2rem 2.5rem;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.4);text-align:center}
@@ -84,7 +84,7 @@ app.MapGet("/login", (HttpContext ctx) =>
     .sub{color:#94a3b8;font-size:.8rem;margin-top:1rem}
     </style></head><body>
     <form method="post" action="/login">
-    <div style="font-size:1.6rem">⚡</div><div style="margin-bottom:.75rem;font-weight:700">Mit El</div>
+    <div style="font-size:1.6rem">⚡</div><div style="margin-bottom:.75rem;font-weight:700">MinElpris</div>
     <input type="password" name="pin" inputmode="numeric" autofocus autocomplete="off" />
     <button type="submit">Log ind</button>
     {{(showError ? "<div class=\"err\">Forkert PIN</div>" : "")}}
@@ -160,7 +160,7 @@ app.MapPost("/api/push/test", async (UnsubscribeRequest req, HouseholdStore stor
     var data = store.Get();
     var snap = PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data.Settings, data.Appliances, DkTime.Now);
     var body = snap.NowKrPerKwh is { } p ? $"Lige nu koster strømmen {p:0.00} kr/kWh. Beskeder virker ✓" : "Beskeder virker ✓";
-    var ok = await push.SendAsync(sub, new PushService.Message("Mit El", body));
+    var ok = await push.SendAsync(sub, new PushService.Message("MinElpris", body));
     return ok ? Results.Ok() : Results.StatusCode(410);
 }).DisableAntiforgery();
 

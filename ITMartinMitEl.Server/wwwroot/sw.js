@@ -4,7 +4,7 @@ self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });
 
 self.addEventListener('push', function (e) {
-    var data = { title: 'Mit El', body: '', url: '/' };
+    var data = { title: 'MinElpris', body: '', url: '/' };
     try { data = Object.assign(data, e.data.json()); } catch (err) { }
     e.waitUntil(self.registration.showNotification(data.title, {
         body: data.body,
