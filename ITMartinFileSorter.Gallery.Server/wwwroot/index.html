@@ -1249,11 +1249,30 @@ function openViewer(idx) {
   if (f && f.isDoc) { window.open(f.webPath, '_blank'); return; }
   playIdx = idx;
   document.getElementById('viewer').classList.add('active');
+  keepAwake(true);
   renderViewer();
   document.addEventListener('keydown', onKey);
 }
 
+// Keep the phone awake while the viewer is open - reading a song sheet or
+// watching a slideshow should not end in a black screen after 10 seconds.
+// The lock is dropped by the browser when the tab is hidden, so it is taken
+// again when the tab comes back and the viewer is still up.
+let _wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && !_wakeLock && 'wakeLock' in navigator) {
+      _wakeLock = await navigator.wakeLock.request('screen');
+      _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+    } else if (!on && _wakeLock) { await _wakeLock.release(); _wakeLock = null; }
+  } catch (e) { _wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && document.getElementById('viewer').classList.contains('active')) keepAwake(true);
+});
+
 function closeViewer() {
+  keepAwake(false);
   document.getElementById('viewer').classList.remove('active');
   document.removeEventListener('keydown', onKey);
   const stage = document.getElementById('vStage');
