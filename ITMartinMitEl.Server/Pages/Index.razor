@@ -1,15 +1,16 @@
 @page "/"
 @using System.Globalization
 @inject ElectricityPriceService Prices
-@inject PrefsService Prefs
+@inject HouseholdStore Store
+@inject RunLogService RunLog
 @implements IDisposable
 
-<PageTitle>ElPriser</PageTitle>
+<PageTitle>Mit El</PageTitle>
 
 <div class="ep-header">
     <div class="ep-logo">⚡</div>
     <div>
-        <div class="ep-title">ElPriser</div>
+        <div class="ep-title">Mit El</div>
         <div class="ep-sub">@(_snap?.AllIn == false ? "Spotpris" : "Alt inkl. moms, afgift og nettarif") · @_area</div>
     </div>
 </div>
@@ -40,37 +41,9 @@ else
         }
     </div>
 
-    @if (_snap.Appliances.FirstOrDefault() is { } w)
-    {
-        <div class="card">
-            <div class="card-title">Hvornår er det billigst?</div>
-            <div class="muted small" style="margin-bottom:8px">De billigste to timer i træk – til en vask, en opvask eller en opladning. Der foreslås ikke tider mellem kl. @_quietFrom og @_quietTo.</div>
-            @if (w.CheapestToday is { } c && (w.Now is null || c.Start >= w.Now.Start))
-            {
-                <div class="appl-row"><span>🟢 I dag kl. @c.Start.ToString("HH:mm")–@c.End.ToString("HH:mm")</span><b class="lvl-cheap">@Kr(c.AvgKrPerKwh) kr/kWh</b></div>
-            }
-            else if (w.Now is not null)
-            {
-                <div class="appl-row"><span class="lvl-cheap">🟢 Nu er det billigste tidspunkt i dag</span><b></b></div>
-            }
-            @if (w.DearestUpcoming is { } d && d.Start.AddHours(2) > _snap.At)
-            {
-                <div class="appl-row"><span>🔴 Dyrest i dag kl. @d.Start.ToString("HH:mm")–@d.End.ToString("HH:mm")</span><b class="lvl-expensive">@Kr(d.AvgKrPerKwh) kr/kWh</b></div>
-            }
-            @if (w.CheapestTomorrow is { } tm)
-            {
-                <div class="appl-row"><span>🟢 I morgen kl. @tm.Start.ToString("HH:mm")–@tm.End.ToString("HH:mm")</span><b>@Kr(tm.AvgKrPerKwh) kr/kWh</b></div>
-            }
-            else
-            {
-                <div class="appl-row muted small"><span>Morgendagens priser kommer ca. kl. 13.</span><b></b></div>
-            }
-        </div>
-    }
-
     <div class="card">
         <div class="card-title">Hvad koster en tur?</div>
-        @foreach (var a in _snap.Appliances.Skip(1))
+        @foreach (var a in _snap.Appliances)
         {
             <div class="appl">
                 <div class="appl-icon">@a.Appliance.Icon</div>
@@ -94,9 +67,26 @@ else
                 {
                     <div class="appl-row"><span>I morgen kl. @tm.Start.ToString("HH:mm")</span><b>@tm.CostKr.ToString("0.00") kr</b></div>
                 }
+                <div class="run-row">
+                    @if (_logged.TryGetValue(a.Appliance.Id, out var done))
+                    {
+                        <span class="ok">✓ Registreret kl. @done.StartedAt.ToString("HH:mm") – @done.CostKr.ToString("0.00") kr</span>
+                    }
+                    else if (_pickTime == a.Appliance.Id)
+                    {
+                        <input type="time" @bind="_pickedTime" step="900" />
+                        <button class="btn btn-small btn-primary" @onclick="() => LogAsync(a.Appliance, _pickedTime)">Registrér</button>
+                        <button class="btn btn-small" @onclick="() => _pickTime = null">Luk</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-small btn-primary" @onclick="() => LogAsync(a.Appliance, null)">▶ Startet nu</button>
+                        <button class="btn btn-small" @onclick="() => { _pickTime = a.Appliance.Id; _pickedTime = TimeOnly.FromDateTime(DkTime.Now); }">Anden tid</button>
+                    }
+                </div>
             </div>
         }
-        <div class="muted small" style="margin-top:8px">Typiske maskiner. Prisen er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris.</div>
+        <div class="muted small" style="margin-top:8px">Prisen er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris. Ret maskinerne under Indstillinger.</div>
     </div>
 
     <div class="card">
@@ -142,26 +132,26 @@ else
             <div class="legend"><span><i style="background:var(--cheap)"></i>billig</span><span><i style="background:var(--mid)"></i>middel</span><span><i style="background:var(--expensive)"></i>dyr</span></div>
         }
     </div>
-
-    <div class="card cta">
-        <div class="card-title">Dine egne maskiner, din måler, din regning</div>
-        <div class="small">Mit El regner på <b>dine</b> apparater, læser din elmåler og viser hvad hver linje på din regning koster – og hvor du kan spare.</div>
-        <a class="btn btn-primary btn-block" href="https://mitel.itmartin.dk" style="margin-top:10px">Åbn Mit El →</a>
-    </div>
 }
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
     private PriceSnapshot? _snap;
     private string _area = "DK1";
-    private int _quietFrom = 23, _quietTo = 6;
     private bool _showTomorrow;
     private DateTime? _selected;
     private Timer? _timer;
+    private readonly Dictionary<Guid, RunEntry> _logged = new();
+    private Guid? _pickTime;
+    private TimeOnly _pickedTime;
 
-    // The first entry is the two-hour "window" (never listed as a machine);
-    // the rest are the typical machines shown under "Hvad koster en tur?".
-    private static List<Appliance> Examples() => [NotificationScheduler.Window, .. Appliance.Defaults()];
+    private async Task LogAsync(Appliance a, TimeOnly? at)
+    {
+        var start = at is { } t ? DkTime.Now.Date.Add(t.ToTimeSpan()) : DkTime.Now;
+        var entry = await RunLog.LogAsync(a.Id, start);
+        if (entry is not null) _logged[a.Id] = entry;
+        _pickTime = null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -174,12 +164,10 @@ else
 
     private async Task LoadAsync()
     {
-        var s = Prefs.Get();
-        _area = s.PriceArea;
-        _quietFrom = s.QuietFromHour;
-        _quietTo = s.QuietToHour;
+        var data = Store.Get();
+        _area = data.Settings.PriceArea;
         var raw = await Prices.GetPricesAsync(_area);
-        _snap = PriceModel.Build(raw, s, Examples(), DkTime.Now);
+        _snap = PriceModel.Build(raw, data.Settings, data.Appliances, DkTime.Now);
     }
 
     public void Dispose() => _timer?.Dispose();

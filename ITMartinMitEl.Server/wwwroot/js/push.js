@@ -27,15 +27,6 @@ window.elpush = (function () {
             return sub ? 'on' : 'off';
         },
 
-        // This phone's own record on the server, or null if it forgot us.
-        status: async function () {
-            var r = await reg();
-            var sub = r ? await r.pushManager.getSubscription() : null;
-            if (!sub) return null;
-            var res = await fetch('/api/push/status?endpoint=' + encodeURIComponent(sub.endpoint));
-            return res.ok ? await res.json() : null;
-        },
-
         endpoint: async function () {
             var r = await reg();
             var sub = r ? await r.pushManager.getSubscription() : null;
@@ -76,10 +67,3 @@ window.elpush = (function () {
         }
     };
 })();
-
-// Your region and tariffs, kept on this phone only (one-year cookie).
-window.elprefs = {
-    save: function (name, value) {
-        document.cookie = name + "=" + value + ";path=/;max-age=31536000;samesite=lax";
-    }
-};

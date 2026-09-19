@@ -2,8 +2,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ITMartinElPriser.Core;
 
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinMitEl.Server.Services;
 
 // Reads the household's own meter through Energinet's Datahub customer
 // API (eloverblik.dk). The user creates a personal "refresh token" on

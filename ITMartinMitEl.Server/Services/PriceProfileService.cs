@@ -1,4 +1,6 @@
-namespace ITMartinElPriser.Server.Services;
+using ITMartinElPriser.Core;
+
+namespace ITMartinMitEl.Server.Services;
 
 // The "typical day" curve: hour-by-hour average over the last two weeks of
 // published prices. Built once and kept for six hours - the days it is made

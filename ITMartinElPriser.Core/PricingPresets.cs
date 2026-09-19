@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinElPriser.Core;
 
 // Nettarif presets, sourced July 2026. Most Danish grid companies use the
 // Forsyningstilsynet-aligned 3-band winter model (lav/høj/spidslast); Radius

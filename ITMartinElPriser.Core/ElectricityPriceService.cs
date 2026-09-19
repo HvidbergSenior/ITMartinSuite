@@ -1,6 +1,8 @@
+using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinElPriser.Core;
 
 // One 15-minute slot of the day-ahead market. The Danish market went from
 // hourly to quarter-hourly in 2025; Energinet's old "Elspotprices" dataset

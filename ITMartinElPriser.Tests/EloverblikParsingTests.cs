@@ -1,6 +1,7 @@
 using System.Net;
 using FluentAssertions;
-using ITMartinElPriser.Server.Services;
+using ITMartinElPriser.Core;
+using ITMartinMitEl.Server.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ITMartinElPriser.Tests;

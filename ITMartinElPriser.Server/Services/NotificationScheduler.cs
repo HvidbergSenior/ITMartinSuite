@@ -1,27 +1,30 @@
-using System.Globalization;
+using ITMartinElPriser.Core;
 
 namespace ITMartinElPriser.Server.Services;
 
-// Every few minutes: look at today's cheapest (and dearest) window and, if
-// it starts about an hour from now, tell everyone who asked. The "window"
-// is the first appliance's run length (normally the washing machine, 2 h)
-// so the message matches what people actually want to start.
+// Every few minutes: find today's cheapest (and dearest) two-hour window for
+// each subscriber's own region and tariffs, and tell them an hour before it
+// starts. Two hours is a wash or a dishwasher cycle - the thing people are
+// actually waiting to start. Subscribers with identical settings share one
+// price calculation.
 //
-// Sends are logged per subscriber+kind+day in HouseholdStore, so a restart
-// or a second tick in the same window never sends twice.
+// Sends are logged per subscriber+kind+day so a restart or a second tick in
+// the same window never sends twice.
 public sealed class NotificationScheduler(
     ElectricityPriceService prices,
-    HouseholdStore store,
+    SubscriberStore store,
     PushService push,
     ILogger<NotificationScheduler> logger) : BackgroundService
 {
     private static readonly TimeSpan Tick = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan LeadTime = TimeSpan.FromHours(1);
-    private static readonly CultureInfo Da = new("da-DK");
+
+    // The generic "one wash": 1 kWh over two hours. Only the window matters
+    // for the message; the kr amount is shown per kWh.
+    public static readonly Appliance Window = new() { Name = "Vask", Icon = "🧺", KwhPerRun = 1.0, DurationHours = 2 };
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        // Let the web host come up first
         await Task.Delay(TimeSpan.FromSeconds(20), ct);
         while (!ct.IsCancellationRequested)
         {
@@ -33,46 +36,40 @@ public sealed class NotificationScheduler(
 
     public async Task RunOnceAsync(DateTime now, CancellationToken ct)
     {
-        var data = store.Get();
-        if (data.Subscribers.Count == 0) return;
+        var subs = store.Get().Subscribers.ToList();
+        if (subs.Count == 0) return;
 
-        var raw = await prices.GetPricesAsync(data.Settings.PriceArea, ct);
-        var snap = PriceModel.Build(raw, data, now);
-        if (!snap.HasData || snap.Appliances.Count == 0) return;
-
-        var lead = snap.Appliances[0];
-        var unit = snap.AllIn ? "kr/kWh alt inkl." : "kr/kWh spot";
-
-        // Cheapest run today that has not started yet; also consider tomorrow's
-        // when today's is already behind us (late evening), so a 00:30 start
-        // still gets its 23:30 heads-up.
-        var cheapest = Pick(lead.CheapestToday, lead.CheapestTomorrow, now);
-        if (cheapest is not null && Due(cheapest.Start, now))
+        foreach (var group in subs.GroupBy(s => SettingsKey(s.Settings)))
         {
-            var others = string.Join(", ", snap.Appliances.Skip(1).Take(2)
-                .Select(a => (a.CheapestToday ?? a.CheapestTomorrow) is { } o ? $"{a.Appliance.Name.ToLower(Da)} {o.CostKr:0.00} kr" : null)
-                .Where(x => x is not null));
-            var body = $"Kl. {cheapest.Start:HH:mm}–{cheapest.End:HH:mm}: {lead.Appliance.Name.ToLower(Da)} koster {cheapest.CostKr:0.00} kr ({cheapest.AvgKrPerKwh:0.00} {unit})."
-                     + (others.Length > 0 ? $" Også {others}." : "");
-            await Broadcast("cheapest", cheapest.Start, s => s.NotifyCheapest,
-                new PushService.Message("Billigste strøm om en time ⚡", body), ct);
-        }
+            var settings = group.First().Settings;
+            var raw = await prices.GetPricesAsync(settings.PriceArea, ct);
+            var snap = PriceModel.Build(raw, settings, [Window], now);
+            if (!snap.HasData || snap.Appliances.Count == 0) continue;
 
-        var dearest = lead.DearestUpcoming;
-        if (dearest is not null && Due(dearest.Start, now))
-        {
-            var body = $"Kl. {dearest.Start:HH:mm}–{dearest.End:HH:mm} er dagens dyreste: {lead.Appliance.Name.ToLower(Da)} ville koste {dearest.CostKr:0.00} kr"
-                     + (cheapest is not null ? $" mod {cheapest.CostKr:0.00} kr kl. {cheapest.Start:HH:mm}." : ".");
-            await Broadcast("dearest", dearest.Start, s => s.NotifyExpensive,
-                new PushService.Message("Dyr strøm om en time 💸", body), ct);
+            var w = snap.Appliances[0];
+            var unit = snap.AllIn ? "kr/kWh alt inkl." : "kr/kWh spot";
+
+            var cheapest = w.CheapestToday is { } t && t.Start > now ? t : w.CheapestTomorrow;
+            if (cheapest is not null && Due(cheapest.Start, now))
+            {
+                var body = $"Kl. {cheapest.Start:HH:mm}–{cheapest.End:HH:mm} er dagens billigste to timer: {cheapest.AvgKrPerKwh:0.00} {unit}. En vask (1 kWh) koster {cheapest.CostKr:0.00} kr.";
+                await Broadcast(group, "cheapest", cheapest.Start, s => s.NotifyCheapest,
+                    new PushService.Message("Billigste strøm om en time ⚡", body), ct);
+            }
+
+            var dearest = w.DearestUpcoming;
+            if (dearest is not null && Due(dearest.Start, now))
+            {
+                var body = $"Kl. {dearest.Start:HH:mm}–{dearest.End:HH:mm} er dagens dyreste: {dearest.AvgKrPerKwh:0.00} {unit}"
+                         + (cheapest is not null ? $" mod {cheapest.AvgKrPerKwh:0.00} kl. {cheapest.Start:HH:mm}." : ".");
+                await Broadcast(group, "dearest", dearest.Start, s => s.NotifyExpensive,
+                    new PushService.Message("Dyr strøm om en time 💸", body), ct);
+            }
         }
     }
 
-    private static RunOption? Pick(RunOption? today, RunOption? tomorrow, DateTime now)
-    {
-        if (today is not null && today.Start > now) return today;
-        return tomorrow;
-    }
+    private static string SettingsKey(HouseholdSettings s) =>
+        $"{s.PriceArea}|{s.ShowAllIn}|{s.GridCompanyId}|{s.CustomNettarifOre}|{s.SupplierId}|{s.CustomTillaegOre}|{s.QuietFromHour}|{s.QuietToHour}";
 
     // Fire in the tick that lands 60-65 minutes before the start. With a
     // 5-minute tick this is exactly one tick; the sent-log covers the rest.
@@ -82,10 +79,10 @@ public sealed class NotificationScheduler(
         return ahead <= LeadTime && ahead > LeadTime - Tick;
     }
 
-    private async Task Broadcast(string kind, DateTime windowStart, Func<PushSubscriber, bool> wants, PushService.Message msg, CancellationToken ct)
+    private async Task Broadcast(IEnumerable<PushSubscriber> group, string kind, DateTime windowStart, Func<PushSubscriber, bool> wants, PushService.Message msg, CancellationToken ct)
     {
         var key = $"{kind}|{windowStart:yyyy-MM-dd HH:mm}";
-        var targets = store.Get().Subscribers.Where(wants).ToList();
+        var targets = group.Where(wants).ToList();
         foreach (var sub in targets)
         {
             var logKey = $"{sub.Id}|{key}";

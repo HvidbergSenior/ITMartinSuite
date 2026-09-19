@@ -1,7 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using FluentAssertions;
-using ITMartinElPriser.Server.Services;
+using ITMartinElPriser.Core;
+using ITMartinMitEl.Server.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ITMartinElPriser.Tests;
@@ -118,7 +119,7 @@ public class ReferenceApiTests
         // (all-in on/off matters) - spot-only comparison keeps it independent
         // of grid/supplier presets that might differ between here and there.
         var ours = await OursAsync("DK1");
-        var local = PriceModel.Build(ours, new HouseholdData { Settings = new HouseholdSettings { ShowAllIn = false } }, DateTime.Now);
+        var local = PriceModel.Build(ours, new HouseholdSettings { ShowAllIn = false }, Appliance.Defaults(), DateTime.Now);
         var liveSpotNow = live.AllIn ? null : live.NowKrPerKwh;
         if (liveSpotNow is { } s)
             local.NowKrPerKwh.Should().BeApproximately(s, 0.001);

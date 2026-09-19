@@ -1,7 +1,8 @@
 using System.Text.Json;
 using WebPush;
+using ITMartinElPriser.Core;
 
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinMitEl.Server.Services;
 
 // Web Push (VAPID). Keys are generated once and kept on the data volume -
 // regenerating them would silently orphan every phone that already
@@ -10,12 +11,12 @@ public sealed class PushService
 {
     private readonly VapidDetails _vapid;
     private readonly WebPushClient _client = new();
-    private readonly SubscriberStore _store;
+    private readonly HouseholdStore _store;
     private readonly ILogger<PushService> _logger;
 
     public string PublicKey => _vapid.PublicKey;
 
-    public PushService(IConfiguration config, SubscriberStore store, ILogger<PushService> logger)
+    public PushService(IConfiguration config, HouseholdStore store, ILogger<PushService> logger)
     {
         _store = store;
         _logger = logger;

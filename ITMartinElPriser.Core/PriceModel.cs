@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinElPriser.Core;
 
 public sealed record HourBar(DateTime Start, double KrPerKwh, bool IsNow, bool IsPast, double Rank01);
 
@@ -43,9 +43,9 @@ public static class PriceModel
 {
     private const int SlotMinutes = 15;
 
-    public static PriceSnapshot Build(List<PricePoint> raw, HouseholdData household, DateTime now)
+    public static PriceSnapshot Build(List<PricePoint> raw, HouseholdSettings s, IEnumerable<Appliance> householdAppliances, DateTime now)
     {
-        var s = household.Settings;
+
         var allIn = s.ShowAllIn;
         var points = raw.Select(p => PriceBreakdownCalculator.Compute(p, s)).OrderBy(p => p.TimeDk).ToList();
         if (points.Count == 0)
@@ -63,7 +63,7 @@ public static class PriceModel
         if (nowPrice is { } np && todayView is { } tv && tv.Max > tv.Min)
             rank = (np - tv.Min) / (tv.Max - tv.Min);
 
-        var appliances = household.Appliances.OrderBy(a => a.SortOrder)
+        var appliances = householdAppliances.OrderBy(a => a.SortOrder)
             .Select(a => BuildAppliance(a, points, s, now, allIn))
             .ToList();
 

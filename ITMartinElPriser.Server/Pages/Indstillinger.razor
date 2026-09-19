@@ -1,68 +1,10 @@
 @page "/indstillinger"
-@inject HouseholdStore Store
-@inject EloverblikService Eloverblik
-@inject ConsumptionSync Sync
-@inject ConsumptionStore Consumption
+@inject PrefsService Prefs
 
 <PageTitle>Indstillinger – ElPriser</PageTitle>
 
 <h1>Indstillinger</h1>
-<p class="muted small" style="margin:4px 0 14px">Fælles for alle der bruger appen.</p>
-
-<div class="card">
-    <div class="card-title">Maskiner</div>
-    <div class="muted small" style="margin-bottom:8px">Den øverste maskine bestemmer hvad beskederne regner på. kWh pr. tur står typisk i manualen eller på energimærket.</div>
-    @foreach (var a in _appliances)
-    {
-        <div class="dev-edit">
-            <div class="row2">
-                <div class="field" style="flex:0 0 3rem"><label>Ikon</label><input type="text" @bind="a.Icon" /></div>
-                <div class="field" style="flex:3"><label>Navn</label><input type="text" @bind="a.Name" /></div>
-                <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern" @onclick="() => _appliances.Remove(a)">✕</button></div>
-            </div>
-            <div class="row2">
-                <div class="field"><label>Timer pr. tur</label><input type="number" step="0.25" min="0.25" max="12" @bind="a.DurationHours" /></div>
-                <div class="field"><label>kWh pr. tur</label><input type="number" step="0.1" min="0.05" max="100" @bind="a.KwhPerRun" /></div>
-                <div class="field"><label>Ture pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="a.RunsPerWeek" /></div>
-            </div>
-        </div>
-    }
-    <div class="btn-row">
-        <button class="btn" @onclick="AddAppliance">+ Tilføj maskine</button>
-        <button class="btn" @onclick="() => { _catalogRuns = !_catalogRuns; _catalogDevices = false; }">@(_catalogRuns ? "Luk liste" : "Vælg fra liste")</button>
-    </div>
-    @if (_catalogRuns) { @Catalog(true) }
-</div>
-
-<div class="card">
-    <div class="card-title">Enheder</div>
-    <div class="muted small" style="margin-bottom:8px">
-        Alt der bare bruger strøm: køleskab, fryser, tv, router, varmepumpe… Watt = gennemsnitligt forbrug mens den er tændt.
-        Står der kWh/år på energimærket, så ret watt til tallet i parentesen passer. Sæt <b>Fra kl.</b> hvis den bruges på et fast tidspunkt, og kryds <b>Flytbar</b> af hvis tidspunktet kan ændres (vandvarmer, varmepumpe-boost).
-    </div>
-    @foreach (var d in _devices)
-    {
-        <div class="dev-edit">
-            <div class="row2">
-                <div class="field" style="flex:0 0 3rem"><label>Ikon</label><input type="text" @bind="d.Icon" /></div>
-                <div class="field" style="flex:3"><label>Navn <span class="muted">(≈ @d.KwhPerYear.ToString("0") kWh/år)</span></label><input type="text" @bind="d.Name" /></div>
-                <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern" @onclick="() => _devices.Remove(d)">✕</button></div>
-            </div>
-            <div class="row2">
-                <div class="field"><label>Watt</label><input type="number" step="1" min="0" max="20000" @bind="d.Watts" /></div>
-                <div class="field"><label>Timer/dag</label><input type="number" step="0.5" min="0" max="24" @bind="d.HoursPerDay" /></div>
-                <div class="field"><label>Dage/uge</label><input type="number" step="1" min="1" max="7" @bind="d.DaysPerWeek" /></div>
-                <div class="field"><label>Fra kl.</label><input type="number" min="0" max="23" placeholder="–" @bind="d.UsualFromHour" disabled="@(d.HoursPerDay >= 24)" /></div>
-            </div>
-            <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" @bind="d.Shiftable" disabled="@(d.HoursPerDay >= 24)" /> Flytbar – kan køre på et andet tidspunkt</label>
-        </div>
-    }
-    <div class="btn-row">
-        <button class="btn" @onclick="AddDevice">+ Tilføj enhed</button>
-        <button class="btn" @onclick="() => { _catalogDevices = !_catalogDevices; _catalogRuns = false; }">@(_catalogDevices ? "Luk liste" : "Vælg fra liste")</button>
-    </div>
-    @if (_catalogDevices) { @Catalog(false) }
-</div>
+<p class="muted small" style="margin:4px 0 14px">Gemmes kun på denne telefon. Vi opretter ingen konto og gemmer intet om dig på serveren.</p>
 
 <div class="card">
     <div class="card-title">Pris</div>
@@ -80,7 +22,7 @@
     @if (_s.ShowAllIn)
     {
         <div class="field">
-            <label>Netselskab</label>
+            <label>Netselskab <span class="muted">(står på regningen – du kan ikke vælge det selv)</span></label>
             <select @bind="_s.GridCompanyId">
                 @foreach (var g in GridCompanyPreset.All) { <option value="@g.Id">@g.Name @(string.IsNullOrEmpty(g.Region) ? "" : $"– {g.Region}")</option> }
             </select>
@@ -111,113 +53,24 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-title">Din elmåler (eloverblik.dk)</div>
-    <div class="muted small" style="margin-bottom:8px">
-        Log ind på <a href="https://eloverblik.dk" target="_blank">eloverblik.dk</a> med MitID → profilikonet øverst → <b>Datadeling</b> → <b>Opret token</b>. Kopiér den lange tekst herind. Tokenet gælder i et år og kan kun læse dit forbrug.
-    </div>
-    <div class="field"><label>Token</label><input type="text" @bind="_s.EloverblikToken" placeholder="eyJ…" autocomplete="off" /></div>
-    @if (!string.IsNullOrWhiteSpace(_s.MeteringPointId))
-    {
-        <div class="note ok">Forbundet: @_s.MeteringPointAddress <span class="muted small">(@_s.MeteringPointId)</span></div>
-    }
-    <div class="btn-row">
-        <button class="btn" @onclick="ConnectAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_s.EloverblikToken))">@(_busy ? "Forbinder…" : "Forbind og hent måler")</button>
-    </div>
-    @if (_meterMsg is not null) { <div class="note @(_meterOk ? "ok" : "err")">@_meterMsg</div> }
-</div>
+<button class="btn btn-primary btn-block" @onclick="SaveAsync">Gem</button>
+@if (_saved) { <div class="note ok">Gemt ✓ – har du beskeder slået til, så tryk "Gem valg" under Besked, så de følger de nye indstillinger.</div> }
 
-<button class="btn btn-primary btn-block" @onclick="Save">Gem</button>
-@if (_saved) { <div class="note ok">Gemt ✓</div> }
+<div class="card cta" style="margin-top:14px">
+    <div class="card-title">Mit El</div>
+    <div class="small">Vil du have dine egne maskiner, din elmåler og din rigtige regning med? Det er en anden app – med login, så det kun er dig der kan se det.</div>
+    <a class="btn btn-block" href="https://mitel.itmartin.dk" style="margin-top:10px">Åbn Mit El →</a>
+</div>
 
 @code {
     private HouseholdSettings _s = new();
-    private List<Appliance> _appliances = [];
-    private List<Device> _devices = [];
-    private bool _catalogRuns;
-    private bool _catalogDevices;
-
-    // The catalogue as a tap-to-add list, grouped, with what is already on
-    // the list greyed out (by catalog id for devices, by name for machines).
-    private RenderFragment Catalog(bool runs) => __builder =>
-    {
-        foreach (var g in DeviceCatalog.All.Where(e => e.IsRun == runs).GroupBy(e => e.Group))
-        {
-            <div class="cat-group">@g.Key</div>
-            foreach (var e in g)
-            {
-                var owned = runs
-                    ? _appliances.Any(a => string.Equals(a.Name, e.Name, StringComparison.OrdinalIgnoreCase))
-                    : _devices.Any(d => d.CatalogId == e.Id);
-                <div class="cat-item @(owned ? "owned" : "")">
-                    <span>@e.Icon @e.Name <span class="muted">· @(runs ? $"{e.KwhPerRun:0.##} kWh · {e.DurationHours:0.##} t" : $"{e.Watts:0} W · {(e.HoursPerDay >= 24 ? "altid" : e.HoursPerDay.ToString("0.#") + " t/dag")}")@(string.IsNullOrEmpty(e.Note) ? "" : $" · {e.Note}")</span></span>
-                    <button class="btn btn-small" @onclick="() => AddFromCatalog(e)">@(owned ? "+1" : "+")</button>
-                </div>
-            }
-        }
-    };
-
-    private void AddFromCatalog(CatalogEntry e)
-    {
-        if (e.IsRun) _appliances.Add(e.ToAppliance(_appliances.Count));
-        else _devices.Add(e.ToDevice(_devices.Count));
-    }
-
-    private void AddDevice() => _devices.Add(new Device { Name = "", Watts = 10, HoursPerDay = 24, SortOrder = _devices.Count });
     private bool _saved;
-    private bool _busy;
-    private bool _meterOk;
-    private string? _meterMsg;
 
-    protected override void OnInitialized()
+    protected override void OnInitialized() => _s = Prefs.Get();
+
+    private async Task SaveAsync()
     {
-        var d = Store.Get();
-        _s = new HouseholdSettings
-        {
-            PriceArea = d.Settings.PriceArea, ShowAllIn = d.Settings.ShowAllIn,
-            GridCompanyId = d.Settings.GridCompanyId, CustomNettarifOre = d.Settings.CustomNettarifOre,
-            SupplierId = d.Settings.SupplierId, CustomTillaegOre = d.Settings.CustomTillaegOre,
-            QuietFromHour = d.Settings.QuietFromHour, QuietToHour = d.Settings.QuietToHour,
-            EloverblikToken = d.Settings.EloverblikToken, MeteringPointId = d.Settings.MeteringPointId, MeteringPointAddress = d.Settings.MeteringPointAddress,
-        };
-        _appliances = d.Appliances.OrderBy(a => a.SortOrder)
-            .Select(a => new Appliance { Id = a.Id, Name = a.Name, Icon = a.Icon, KwhPerRun = a.KwhPerRun, DurationHours = a.DurationHours, RunsPerWeek = a.RunsPerWeek, SortOrder = a.SortOrder })
-            .ToList();
-        _devices = d.Devices.OrderBy(x => x.SortOrder)
-            .Select(x => new Device { Id = x.Id, Name = x.Name, Icon = x.Icon, CatalogId = x.CatalogId, Watts = x.Watts, HoursPerDay = x.HoursPerDay, DaysPerWeek = x.DaysPerWeek, UsualFromHour = x.UsualFromHour, Shiftable = x.Shiftable, SortOrder = x.SortOrder })
-            .ToList();
-    }
-
-    private async Task ConnectAsync()
-    {
-        _busy = true; _meterMsg = null;
-        try
-        {
-            var points = await Eloverblik.GetMeteringPointsAsync(_s.EloverblikToken);
-            var mp = points.FirstOrDefault(p => p.TypeOfMp == "E17") ?? points.FirstOrDefault();
-            if (mp is null) { _meterOk = false; _meterMsg = "Tokenet virker, men der er ingen målere på det."; return; }
-            _s.MeteringPointId = mp.Id; _s.MeteringPointAddress = mp.Address;
-            Save();
-            var ok = await Sync.SyncAsync();
-            _meterOk = ok;
-            _meterMsg = ok ? $"Forbundet til {mp.Address}. Forbruget hentes - se Forbrug."
-                : $"Måleren på {mp.Address} er fundet, men: {Consumption.LastSyncError ?? "ingen målinger endnu (Datahub er 1-2 dage bagud)"}";
-        }
-        catch (Exception ex) { _meterOk = false; _meterMsg = "Kunne ikke forbinde: " + ex.Message; }
-        finally { _busy = false; }
-    }
-
-    private void AddAppliance() => _appliances.Add(new Appliance { Name = "", KwhPerRun = 1, DurationHours = 1, RunsPerWeek = 3, SortOrder = _appliances.Count });
-
-    private void Save()
-    {
-        _s.QuietFromHour = Math.Clamp(_s.QuietFromHour, 0, 23);
-        _s.QuietToHour = Math.Clamp(_s.QuietToHour, 0, 23);
-        var list = _appliances.Where(a => !string.IsNullOrWhiteSpace(a.Name) && a.KwhPerRun > 0 && a.DurationHours > 0).ToList();
-        for (var i = 0; i < list.Count; i++) list[i].SortOrder = i;
-        var devices = _devices.Where(d => !string.IsNullOrWhiteSpace(d.Name) && d.Watts > 0).ToList();
-        for (var i = 0; i < devices.Count; i++) { devices[i].SortOrder = i; if (devices[i].HoursPerDay >= 24) { devices[i].UsualFromHour = null; devices[i].Shiftable = false; } }
-        Store.Update(d => { d.Settings = _s; d.Appliances = list; d.Devices = devices; });
+        await Prefs.SaveAsync(_s);
         _saved = true;
     }
 }

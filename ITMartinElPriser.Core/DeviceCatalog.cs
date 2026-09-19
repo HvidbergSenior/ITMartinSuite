@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinElPriser.Core;
 
 // Typical Danish household devices with starting-point numbers (SparEnergi /
 // Bolius / energy-label ballparks). The user ticks what they own and adjusts

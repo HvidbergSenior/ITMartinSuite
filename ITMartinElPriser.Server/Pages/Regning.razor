@@ -1,57 +1,41 @@
 @page "/regning"
 @using System.Globalization
 @inject ElectricityPriceService Prices
-@inject HouseholdStore Store
-@inject ConsumptionStore Consumption
+@inject PrefsService Prefs
 
 <PageTitle>Regning – ElPriser</PageTitle>
 
-<h1>Din elregning</h1>
-<p class="muted small" style="margin:4px 0 14px">Regnet fra måleren time for time – og hvad hver linje på regningen egentlig er. Time for time: <a href="/forbrug">Forbrug</a>.</p>
+<h1>Hvad betyder regningen?</h1>
+<p class="muted small" style="margin:4px 0 14px">Skriv dit forbrug, så viser vi hvordan en måned fordeler sig – linje for linje, med de seneste 30 dages priser i @_area – og hvad hver linje egentlig er.</p>
 
-@if (string.IsNullOrWhiteSpace(Store.Get().Settings.MeteringPointId))
-{
-    <div class="card">
-        <div class="card-title">Ikke forbundet</div>
-        <p class="small">Forbind din elmåler under <a href="/indstillinger">Indstillinger</a> – så regnes regningen her fra dit faktiske forbrug.</p>
+<div class="card">
+    <div class="row2">
+        <div class="field" style="flex:2">
+            <label>Dit forbrug, kWh pr. måned</label>
+            <input type="number" min="10" max="5000" step="10" @bind="_kwh" @bind:after="RecalcAsync" />
+        </div>
+        <div class="field" style="flex:1"><label>&nbsp;</label><span class="muted small">≈ @((_kwh * 12).ToString("N0", Da)) kWh/år</span></div>
     </div>
-}
-else if (_bill is null)
+    <div class="muted small">Typisk: lejlighed 150–200, hus 250–350, hus med varmepumpe eller elbil 500+. Tallet står på din seneste regning eller på eloverblik.dk.</div>
+</div>
+
+@if (_bill is null)
 {
     <div class="card muted">Regner…</div>
 }
 else
 {
     var b = _bill;
-    <div class="day-tabs" style="overflow-x:auto">
-        @for (var i = 0; i < _months.Count; i++)
-        {
-            var idx = i;
-            <button class="tab @(idx == _sel ? "on" : "")" style="flex:none;padding:8px 12px" @onclick="() => SelectAsync(idx)">@_months[idx].ToString("MMM yyyy", Da)</button>
-        }
-    </div>
-
     <div class="card now-tile">
-        @if (b.IsComplete)
-        {
-            <div class="now-price">@b.TotalKr.ToString("0", Da)</div>
-            <div class="now-unit">kr for @b.From.ToString("MMMM", Da) · @b.Kwh.ToString("0", Da) kWh · @((b.Kwh > 0 ? b.TotalKr / b.Kwh : 0).ToString("0.00", Da)) kr/kWh alt inkl.</div>
-        }
-        else if (b.DaysMeasured > 0)
-        {
-            <div class="now-price">≈ @b.ProjectedKr.ToString("0", Da)</div>
-            <div class="now-unit">kr forventet for hele @b.From.ToString("MMMM", Da) · ≈ @b.ProjectedKwh.ToString("0", Da) kWh</div>
-            <div class="now-compare">Indtil nu: <b>@b.TotalKr.ToString("0.00", Da) kr</b> for @b.Kwh.ToString("0.0", Da) kWh over @b.DaysMeasured af @b.DaysInPeriod dage (måleren er 1–2 dage bagud).</div>
-        }
-        else
-        {
-            <div class="now-verdict lvl-mid">Ingen målinger for måneden</div>
-        }
-        @if (b.DaysMeasured > 0)
-        {
+        <div class="now-price">≈ @b.TotalKr.ToString("0", Da)</div>
+        <div class="now-unit">kr pr. måned · @_kwh kWh · @((b.Kwh > 0 ? b.TotalKr / b.Kwh : 0).ToString("0.00", Da)) kr/kWh alt inkl.</div>
+        @{
             var moms = b.Lines.First(l => l.Id == "moms").Kr;
             var stat = b.Lines.Where(l => l.Id is "afgift" or "energinet").Sum(l => l.Kr) + moms;
             var el = b.Lines.First(l => l.Id == "spot").Kr;
+        }
+        @if (b.TotalKr > 0)
+        {
             <div class="now-compare">Selve strømmen er <b>@((el / b.TotalKr * 100).ToString("0", Da)) %</b> af regningen · staten (afgift, Energinet, moms) <b>@((stat / b.TotalKr * 100).ToString("0", Da)) %</b> · resten er transport og abonnementer.</div>
         }
     </div>
@@ -77,7 +61,7 @@ else
                 }
             </div>
         }
-        <div class="appl-row" style="padding-top:10px;font-weight:700"><span>I alt@(b.IsComplete ? "" : " indtil nu")</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
+        <div class="appl-row" style="padding-top:10px;font-weight:700"><span>I alt</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
     </div>
 
     <div class="card">
@@ -86,52 +70,55 @@ else
             <p><b>Én regning, tre modtagere.</b> Elleverandøren (@_supplierName) sender regningen, men beholder kun strømmen, tillægget og sit abonnement. Nettarif og net-abonnement sendes videre til netselskabet (@_gridName), og afgift, Energinet-tariffer og moms går til staten. Leverandøren er altså bare kassereren for det meste af beløbet.</p>
             <p><b>Det du kan vælge:</b> kun leverandøren. Netselskab, tariffer og afgifter er de samme uanset hvem du handler hos. Når du sammenligner tilbud, så se udelukkende på tillæg pr. kWh + abonnement.</p>
             <p><b>Det du kan flytte:</b> spotprisen og nettariffen afhænger af tidspunktet. Det er derfor appen sender besked om billigste tid – de to poster er typisk halvdelen af regningen.</p>
-            <p><b>Det du kun kan skrue ned:</b> Energinet, elafgift og moms følger antal kWh. Mindre forbrug er det eneste der virker – se <a href="/enheder">Enheder</a> for hvor det sidder.</p>
-            <p><b>Aconto og årsopgørelse:</b> mange betaler et fast aconto-beløb hver måned og får en efterregning eller penge tilbage én gang om året. Beløbet her er hvad måneden <i>faktisk</i> kostede – ikke det der blev trukket. Sammenlign med "forbrug i perioden" på årsopgørelsen.</p>
-            <p class="muted">Tallene for abonnementer er fra appens forudsætninger (@_supplierName / @_gridName) – ret dem under Indstillinger hvis regningen siger noget andet. Vinterens høj- og spidslasttariffer er skøn indtil en vinterregning er tjekket.</p>
+            <p><b>Det du kun kan skrue ned:</b> Energinet, elafgift og moms følger antal kWh. Mindre forbrug er det eneste der virker.</p>
+            <p><b>Aconto og årsopgørelse:</b> mange betaler et fast aconto-beløb hver måned og får en efterregning eller penge tilbage én gang om året. Beløbet her er hvad en måned <i>faktisk</i> koster – ikke det der bliver trukket. Sammenlign med "forbrug i perioden" på årsopgørelsen.</p>
+            <p class="muted">Regnet som om forbruget er jævnt fordelt over døgnet. Abonnementerne er fra appens forudsætninger (@_supplierName / @_gridName) – vælg dit eget netselskab og leverandør under Indstillinger. Vinterens høj- og spidslasttariffer er skøn.</p>
         </div>
+    </div>
+
+    <div class="card cta">
+        <div class="card-title">Vil du se din rigtige regning?</div>
+        <div class="small">Mit El læser din elmåler time for time og regner regningen ud fra det du faktisk brugte – og finder de apparater der koster mest.</div>
+        <a class="btn btn-primary btn-block" href="https://mitel.itmartin.dk" style="margin-top:10px">Åbn Mit El →</a>
     </div>
 }
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
-    private List<DateOnly> _months = [];
-    private int _sel;
+    private const int Days = 30;
+    private int _kwh = 300;
     private Bill? _bill;
     private string? _open;
+    private string _area = "DK1";
     private string _supplierName = "";
     private string _gridName = "";
+    private List<PricedPoint>? _priced;
 
     protected override async Task OnInitializedAsync()
     {
-        var s = Store.Get().Settings;
+        var s = Prefs.Get();
+        _area = s.PriceArea;
         _supplierName = SupplierPreset.All.FirstOrDefault(p => p.Id == s.SupplierId)?.Name ?? "elleverandøren";
         _gridName = GridCompanyPreset.All.FirstOrDefault(g => g.Id == s.GridCompanyId)?.Name ?? "netselskabet";
-
-        var today = DateOnly.FromDateTime(DkTime.Now);
-        var thisMonth = new DateOnly(today.Year, today.Month, 1);
-        _months = [thisMonth];
-        // Earlier months only if the store has readings in them.
-        for (var m = thisMonth.AddMonths(-1); m >= thisMonth.AddMonths(-12); m = m.AddMonths(-1))
-            if (Consumption.Range(m, m.AddMonths(1)).Count > 0) _months.Add(m);
-        await SelectAsync(0);
+        var to = DateOnly.FromDateTime(DkTime.Now);
+        var raw = await Prices.GetRangeAsync(to.AddDays(-Days), to, s.PriceArea);
+        _priced = raw.Select(p => PriceBreakdownCalculator.Compute(p, s)).ToList();
+        await RecalcAsync();
     }
 
-    private async Task SelectAsync(int idx)
+    // The month's kWh spread evenly over every hour of the last 30 days, so
+    // the split between spot, tariffs and fees reflects real recent prices.
+    private Task RecalcAsync()
     {
-        _sel = idx;
-        _bill = null;
-        var s = Store.Get().Settings;
-        var from = _months[idx];
-        var to = from.AddMonths(1);
-        var kwh = Consumption.Range(from, to);
-        var priced = new List<PricedPoint>();
-        if (kwh.Count > 0)
-        {
-            var lo = DateOnly.FromDateTime(kwh.Keys.Min());
-            var hi = DateOnly.FromDateTime(kwh.Keys.Max()).AddDays(1);
-            priced = (await Prices.GetRangeAsync(lo, hi, s.PriceArea)).Select(p => PriceBreakdownCalculator.Compute(p, s)).ToList();
-        }
-        _bill = BillCalculator.Build(from, to, kwh, priced, s);
+        if (_priced is null) return Task.CompletedTask;
+        var s = Prefs.Get();
+        var to = DateOnly.FromDateTime(DkTime.Now);
+        var from = to.AddDays(-Days);
+        var perHour = Math.Clamp(_kwh, 1, 10000) / (double)(Days * 24);
+        var kwhByHour = new Dictionary<DateTime, double>();
+        for (var t = from.ToDateTime(TimeOnly.MinValue); t < to.ToDateTime(TimeOnly.MinValue); t = t.AddHours(1))
+            kwhByHour[t] = perHour;
+        _bill = BillCalculator.Build(from, to, kwhByHour, _priced, s);
+        return Task.CompletedTask;
     }
 }

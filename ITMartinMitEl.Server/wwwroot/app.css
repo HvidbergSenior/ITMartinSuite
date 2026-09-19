@@ -172,7 +172,3 @@ a { color: var(--accent); text-decoration: none; }
 .bill-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
 .bill-explain { font-size: .86rem; margin-top: 8px; }
 .bill-explain p { margin: 0 0 6px; }
-
-/* "Åbn Mit El" cards on the free app */
-.cta { border: 1px solid var(--accent, #3b82f6); }
-.cta a.btn { text-decoration: none; text-align: center; }

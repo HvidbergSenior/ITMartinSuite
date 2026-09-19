@@ -1,4 +1,6 @@
-namespace ITMartinElPriser.Server.Services;
+using ITMartinElPriser.Core;
+
+namespace ITMartinMitEl.Server.Services;
 
 // "I just started the dishwasher" -> a priced, permanent entry.
 public sealed class RunLogService(ElectricityPriceService prices, HouseholdStore store)

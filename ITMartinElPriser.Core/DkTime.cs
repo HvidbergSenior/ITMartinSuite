@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinElPriser.Core;
 
 // Wall-clock time in Denmark, regardless of the container's own timezone.
 // The NAS container runs in UTC, and with plain DkTime.Now the app showed

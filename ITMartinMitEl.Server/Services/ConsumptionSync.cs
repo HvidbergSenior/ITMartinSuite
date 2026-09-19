@@ -1,4 +1,6 @@
-namespace ITMartinElPriser.Server.Services;
+using ITMartinElPriser.Core;
+
+namespace ITMartinMitEl.Server.Services;
 
 // Pulls the last week of meter readings a few times a day. Datahub is
 // typically 1-2 days behind, so re-fetching a whole week each time picks

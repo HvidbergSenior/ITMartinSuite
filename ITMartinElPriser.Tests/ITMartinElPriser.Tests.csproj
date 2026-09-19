@@ -20,7 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ITMartinElPriser.Server\ITMartinElPriser.Server.csproj" />
+    <ProjectReference Include="..\ITMartinElPriser.Core\ITMartinElPriser.Core.csproj" />
+    <ProjectReference Include="..\ITMartinMitEl.Server\ITMartinMitEl.Server.csproj" />
   </ItemGroup>
 
 </Project>

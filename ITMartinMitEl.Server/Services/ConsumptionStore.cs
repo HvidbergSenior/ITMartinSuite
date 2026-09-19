@@ -1,6 +1,7 @@
 using System.Text.Json;
+using ITMartinElPriser.Core;
 
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinMitEl.Server.Services;
 
 // Hourly kWh from the meter, kept on disk so the history survives restarts
 // and the daily sync only has to fetch the last few days.

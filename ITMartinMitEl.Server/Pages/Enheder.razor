@@ -5,7 +5,7 @@
 @inject HouseholdStore Store
 @inject ConsumptionStore Consumption
 
-<PageTitle>Enheder – ElPriser</PageTitle>
+<PageTitle>Enheder – Mit El</PageTitle>
 
 <h1>Hvad koster hver enhed?</h1>
 <p class="muted small" style="margin:4px 0 14px">Hver maskine og hvert apparat i huset, prissat med jeres egen elpris.</p>
@@ -209,7 +209,7 @@ else
 
         // Today's actual curve for the "now / cheapest / dearest" per run.
         var raw = await Prices.GetPricesAsync(data.Settings.PriceArea);
-        _snap = PriceModel.Build(raw, data, DkTime.Now);
+        _snap = PriceModel.Build(raw, data.Settings, data.Appliances, DkTime.Now);
 
         // No history yet (first run of the day after a restart)? Fall back to today.
         if (profileDays == 0 && _snap.HasData)

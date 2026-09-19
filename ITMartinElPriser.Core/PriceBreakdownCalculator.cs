@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinElPriser.Core;
 
 public sealed class PricedPoint
 {

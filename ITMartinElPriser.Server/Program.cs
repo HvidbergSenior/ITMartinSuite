@@ -1,21 +1,17 @@
+using ITMartinElPriser.Core;
 using ITMartinElPriser.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-// Singletons with their own HttpClient: both services cache (prices for
-// 30 min, the Eloverblik access token for 12 h) - a transient-per-request
-// registration would throw the cache away every call.
+builder.Services.AddHttpContextAccessor();
+// Singleton with its own HttpClient: it caches prices for 30 min - a
+// transient-per-request registration would throw the cache away every call.
 builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
-builder.Services.AddSingleton<HouseholdStore>();
+builder.Services.AddSingleton<SubscriberStore>();
 builder.Services.AddSingleton<PushService>();
-builder.Services.AddSingleton<RunLogService>();
 builder.Services.AddHostedService<NotificationScheduler>();
-builder.Services.AddSingleton(sp => new EloverblikService(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, sp.GetRequiredService<ILogger<EloverblikService>>()));
-builder.Services.AddSingleton<ConsumptionStore>();
-builder.Services.AddSingleton<ConsumptionSync>();
-builder.Services.AddSingleton<PriceProfileService>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<ConsumptionSync>());
+builder.Services.AddScoped<PrefsService>();
 
 var app = builder.Build();
 
@@ -31,9 +27,10 @@ app.UseAntiforgery();
 
 app.MapGet("/api/push/public-key", (PushService push) => Results.Text(push.PublicKey));
 
-app.MapPost("/api/push/subscribe", (SubscribeRequest req, HouseholdStore store) =>
+app.MapPost("/api/push/subscribe", (SubscribeRequest req, HttpContext http, SubscriberStore store) =>
 {
     if (string.IsNullOrWhiteSpace(req.Endpoint)) return Results.BadRequest();
+    var settings = PrefsService.ReadCookie(http);
     PushSubscriber? sub = null;
     store.Update(d =>
     {
@@ -48,39 +45,41 @@ app.MapPost("/api/push/subscribe", (SubscribeRequest req, HouseholdStore store) 
         sub.Name = string.IsNullOrWhiteSpace(req.Name) ? sub.Name : req.Name.Trim();
         sub.NotifyCheapest = req.NotifyCheapest;
         sub.NotifyExpensive = req.NotifyExpensive;
+        sub.Settings = settings;
     });
     return Results.Ok(new { id = sub!.Id });
 }).DisableAntiforgery();
 
-app.MapPost("/api/push/unsubscribe", (UnsubscribeRequest req, HouseholdStore store) =>
+app.MapPost("/api/push/unsubscribe", (UnsubscribeRequest req, SubscriberStore store) =>
 {
     store.Update(d => d.Subscribers.RemoveAll(s => s.Endpoint == req.Endpoint));
     return Results.Ok();
 }).DisableAntiforgery();
 
-app.MapGet("/api/push/status", (string endpoint, HouseholdStore store) =>
+app.MapGet("/api/push/status", (string endpoint, SubscriberStore store) =>
 {
     var s = store.Get().Subscribers.FirstOrDefault(x => x.Endpoint == endpoint);
     return s is null ? Results.NotFound() : Results.Ok(new { s.Name, s.NotifyCheapest, s.NotifyExpensive });
 });
 
 // "Send mig en test" - proves the whole chain on this phone right now.
-app.MapPost("/api/push/test", async (UnsubscribeRequest req, HouseholdStore store, PushService push, ElectricityPriceService prices) =>
+app.MapPost("/api/push/test", async (UnsubscribeRequest req, SubscriberStore store, PushService push, ElectricityPriceService prices) =>
 {
     var sub = store.Get().Subscribers.FirstOrDefault(s => s.Endpoint == req.Endpoint);
     if (sub is null) return Results.NotFound();
-    var data = store.Get();
-    var snap = PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DkTime.Now);
+    var snap = PriceModel.Build(await prices.GetPricesAsync(sub.Settings.PriceArea), sub.Settings, [], DkTime.Now);
     var body = snap.NowKrPerKwh is { } p ? $"Lige nu koster strømmen {p:0.00} kr/kWh. Beskeder virker ✓" : "Beskeder virker ✓";
     var ok = await push.SendAsync(sub, new PushService.Message("ElPriser", body));
     return ok ? Results.Ok() : Results.StatusCode(410);
 }).DisableAntiforgery();
 
-// Plain JSON for anyone who wants the numbers (or for tests).
-app.MapGet("/api/snapshot", async (ElectricityPriceService prices, HouseholdStore store) =>
+// Plain JSON for anyone who wants the numbers: ?area=DK2&allIn=false
+app.MapGet("/api/snapshot", async (ElectricityPriceService prices, HttpContext http, string? area, bool? allIn) =>
 {
-    var data = store.Get();
-    return Results.Ok(PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DkTime.Now));
+    var s = PrefsService.ReadCookie(http);
+    if (area is "DK1" or "DK2") s.PriceArea = area;
+    if (allIn is { } a) s.ShowAllIn = a;
+    return Results.Ok(PriceModel.Build(await prices.GetPricesAsync(s.PriceArea), s, Appliance.Defaults(), DkTime.Now));
 });
 
 app.MapRazorComponents<ITMartinElPriser.Server.App>()

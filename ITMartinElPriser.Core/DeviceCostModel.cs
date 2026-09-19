@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Server.Services;
+namespace ITMartinElPriser.Core;
 
 // 24 prices, one per hour of the day. Either one real day (today) or an
 // average over recent days - the "typical" curve used for kr/month and kr/year

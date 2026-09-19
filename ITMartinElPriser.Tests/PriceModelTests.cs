@@ -1,5 +1,6 @@
 using FluentAssertions;
-using ITMartinElPriser.Server.Services;
+using ITMartinElPriser.Core;
+using ITMartinMitEl.Server.Services;
 
 namespace ITMartinElPriser.Tests;
 
@@ -33,7 +34,7 @@ public class PriceModelTests
     [Test]
     public void Now_price_is_the_current_quarter_and_ranked_against_the_day()
     {
-        var snap = PriceModel.Build(Day(Today, Shape), Household(), Today.ToDateTime(new TimeOnly(17, 40)));
+        var snap = PriceModel.Build(Day(Today, Shape), Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(17, 40)));
 
         snap.HasData.Should().BeTrue();
         snap.NowKrPerKwh.Should().Be(2.00);
@@ -47,7 +48,7 @@ public class PriceModelTests
     {
         // Start 16:00: first hour at 1.00, second hour at 2.00 -> 1 kWh spread
         // evenly = 0.5 kWh * 1.00 + 0.5 kWh * 2.00 = 1.50 kr, NOT 1.00 kr.
-        var snap = PriceModel.Build(Day(Today, Shape), Household(), Today.ToDateTime(new TimeOnly(16, 0)));
+        var snap = PriceModel.Build(Day(Today, Shape), Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(16, 0)));
 
         var wash = snap.Appliances.Single();
         wash.Now!.Start.Should().Be(Today.ToDateTime(new TimeOnly(16, 0)));
@@ -59,7 +60,7 @@ public class PriceModelTests
     {
         // Cheap hours are 02-04 but that's night (quiet) and already past at
         // 10:00 - the best daytime start is any 2 h block at 1.00 = 1.00 kr.
-        var snap = PriceModel.Build(Day(Today, Shape), Household(), Today.ToDateTime(new TimeOnly(10, 0)));
+        var snap = PriceModel.Build(Day(Today, Shape), Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(10, 0)));
 
         var wash = snap.Appliances.Single();
         wash.CheapestToday!.CostKr.Should().Be(1.00);
@@ -73,7 +74,7 @@ public class PriceModelTests
     {
         // At 23:00 with only today's data, a 2 h run starting 23:00 would need
         // slots into tomorrow that don't exist - so there is no "Now" option.
-        var snap = PriceModel.Build(Day(Today, Shape), Household(), Today.ToDateTime(new TimeOnly(23, 0)));
+        var snap = PriceModel.Build(Day(Today, Shape), Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(23, 0)));
 
         snap.Appliances.Single().Now.Should().BeNull();
         snap.Tomorrow.Should().BeNull();
@@ -83,7 +84,7 @@ public class PriceModelTests
     public void Tomorrow_appears_once_published_and_gets_its_own_cheapest()
     {
         var points = Day(Today, Shape).Concat(Day(Today.AddDays(1), _ => 0.50)).ToList();
-        var snap = PriceModel.Build(points, Household(), Today.ToDateTime(new TimeOnly(14, 0)));
+        var snap = PriceModel.Build(points, Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(14, 0)));
 
         snap.Tomorrow.Should().NotBeNull();
         snap.Tomorrow!.Hours.Should().HaveCount(24);
@@ -93,8 +94,8 @@ public class PriceModelTests
     [Test]
     public void All_in_price_is_higher_than_spot_and_includes_vat()
     {
-        var spot = PriceModel.Build(Day(Today, _ => 1.00), Household(allIn: false), Today.ToDateTime(new TimeOnly(10, 0)));
-        var allIn = PriceModel.Build(Day(Today, _ => 1.00), Household(allIn: true), Today.ToDateTime(new TimeOnly(10, 0)));
+        var spot = PriceModel.Build(Day(Today, _ => 1.00), Household(allIn: false).Settings, Household(allIn: false).Appliances, Today.ToDateTime(new TimeOnly(10, 0)));
+        var allIn = PriceModel.Build(Day(Today, _ => 1.00), Household(allIn: true).Settings, Household(allIn: true).Appliances, Today.ToDateTime(new TimeOnly(10, 0)));
 
         spot.NowKrPerKwh.Should().Be(1.00);
         allIn.NowKrPerKwh.Should().BeGreaterThan(1.25, "spot + nettarif + afgift + tillæg, times 1.25 moms");
@@ -103,7 +104,7 @@ public class PriceModelTests
     [Test]
     public void No_data_means_no_made_up_numbers()
     {
-        var snap = PriceModel.Build([], Household(), DateTime.Now);
+        var snap = PriceModel.Build([], Household().Settings, Household().Appliances, DateTime.Now);
 
         snap.HasData.Should().BeFalse();
         snap.NowKrPerKwh.Should().BeNull();
