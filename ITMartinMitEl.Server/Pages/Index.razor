@@ -1,8 +1,53 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @page "/"
 @using System.Globalization
 @inject ElectricityPriceService Prices
 @inject HouseholdStore Store
 @inject RunLogService RunLog
+@inject ConsumptionStore Consumption
 @implements IDisposable
 
 <PageTitle>MinElpris</PageTitle>
@@ -11,7 +56,7 @@
     <div class="ep-logo">⚡</div>
     <div>
         <div class="ep-title">MinElpris</div>
-        <div class="ep-sub">@(_snap?.AllIn == false ? "Spotpris" : "Alt inkl. moms, afgift og nettarif") · @_area</div>
+        <div class="ep-sub">@(string.IsNullOrWhiteSpace(_address) ? (_snap?.AllIn == false ? "Spotpris" : "Alt inkl.") + " · " + _area : _address)</div>
     </div>
 </div>
 
@@ -42,7 +87,51 @@ else
     </div>
 
     <div class="card">
-        <div class="card-title">Hvad koster en tur?</div>
+        <div class="card-title">Dit hjem</div>
+        @if (string.IsNullOrWhiteSpace(_address))
+        {
+            <div class="small">Forbind din elmåler under <a href="/indstillinger">Indstillinger</a>, så står her hvad I faktisk bruger – dag for dag, og hvad måneden lander på.</div>
+        }
+        else if (_home is null)
+        {
+            <div class="muted small">Regner på måleren…</div>
+        }
+        else
+        {
+            var h = _home;
+            <div class="muted small" style="margin-bottom:8px">@_address</div>
+            @if (h.LatestDay is { } ld)
+            {
+                <div class="appl-row"><span>@ld.ToString("dddd d. MMM", Da): <b>@h.DayKwh.ToString("0.0", Da) kWh</b></span><b>@h.DayKr.ToString("0.00", Da) kr</b></div>
+                @if (h.DearestHour is { } dh)
+                {
+                    <div class="appl-row muted small"><span>Dyreste time kl. @dh.ToString("00")–@((dh + 1).ToString("00")): @h.DearestHourKwh.ToString("0.0", Da) kWh</span><b>@h.DearestHourKr.ToString("0.00", Da) kr</b></div>
+                }
+                @if (h.BaseLoadW is { } bw)
+                {
+                    <div class="appl-row muted small"><span>Natforbrug (det der altid kører)</span><b>@bw.ToString("0", Da) W ≈ @h.BaseLoadKrPerYear.ToString("0", Da) kr/år</b></div>
+                }
+            }
+            <div class="appl-row" style="margin-top:6px"><span>@DkTime.Now.ToString("MMMM", Da) indtil nu: <b>@h.MonthKwh.ToString("0", Da) kWh</b></span><b>@h.MonthKr.ToString("0", Da) kr</b></div>
+            @if (h.MonthProjectedKr > 0)
+            {
+                <div class="appl-row muted small"><span>Forventet for hele måneden</span><b>≈ @h.MonthProjectedKr.ToString("0", Da) kr</b></div>
+            }
+            @if (h.LastRun is { } lr)
+            {
+                <div class="appl-row muted small" style="margin-top:6px"><span>Sidste tur: @lr.Icon @lr.ApplianceName @lr.StartedAt.ToString("d. MMM HH:mm", Da)</span><b>@lr.CostKr.ToString("0.00", Da) kr</b></div>
+            }
+            <div class="btn-row" style="margin-top:10px">
+                <a class="btn btn-small" href="/regning">Regning</a>
+                <a class="btn btn-small" href="/forbrug">Time for time</a>
+                <a class="btn btn-small" href="/enheder">Strømslugere</a>
+            </div>
+            <div class="muted small" style="margin-top:6px">Måleren er 1–2 dage bagud – det er Datahub, ikke appen.</div>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-title">Dine maskiner</div>
         @foreach (var a in _snap.Appliances)
         {
             <div class="appl">
@@ -144,6 +233,62 @@ else
     private readonly Dictionary<Guid, RunEntry> _logged = new();
     private Guid? _pickTime;
     private TimeOnly _pickedTime;
+    private string _address = "";
+    private HomeSummary? _home;
+
+    // What the meter says about *this* household: the latest measured day,
+    // its dearest hour, the always-on base load, and the month so far.
+    private sealed record HomeSummary(
+        DateOnly? LatestDay, double DayKwh, double DayKr,
+        int? DearestHour, double DearestHourKwh, double DearestHourKr,
+        double? BaseLoadW, double BaseLoadKrPerYear,
+        double MonthKwh, double MonthKr, double MonthProjectedKr,
+        RunEntry? LastRun);
+
+    // One Energinet range call (month start -> latest reading) covers every
+    // figure on the card; Energinet 429s on bursts, so never per day.
+    private async Task LoadHomeAsync()
+    {
+        var data = Store.Get();
+        var s = data.Settings;
+        _address = s.MeteringPointAddress;
+        if (string.IsNullOrWhiteSpace(_address)) return;
+        var lastRun = data.Runs.OrderByDescending(r => r.StartedAt).FirstOrDefault();
+
+        var today = DateOnly.FromDateTime(DkTime.Now);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var latest = Consumption.LatestDay;
+        var kwh = Consumption.Range(monthStart, today.AddDays(1));
+        if (latest is null || kwh.Count == 0)
+        {
+            _home = new HomeSummary(null, 0, 0, null, 0, 0, null, 0, 0, 0, 0, lastRun);
+            return;
+        }
+
+        var from = latest.Value < monthStart ? latest.Value : monthStart;
+        var raw = await Prices.GetRangeAsync(from, latest.Value.AddDays(1), s.PriceArea);
+        var priced = raw.Select(p => PriceBreakdownCalculator.Compute(p, s)).ToList();
+        var priceByHour = priced.GroupBy(p => new DateTime(p.TimeDk.Year, p.TimeDk.Month, p.TimeDk.Day, p.TimeDk.Hour, 0, 0))
+            .ToDictionary(g => g.Key, g => g.Average(p => p.KrPerKwh(s.ShowAllIn)));
+
+        var day = Consumption.Day(latest.Value);
+        double dayKwh = 0, dayKr = 0; int? dearest = null; double dearestKwh = 0, dearestKr = 0;
+        foreach (var (hour, k) in day)
+        {
+            var kr = k * priceByHour.GetValueOrDefault(latest.Value.ToDateTime(new TimeOnly(hour, 0)), 0);
+            dayKwh += k; dayKr += kr;
+            if (kr > dearestKr) { dearest = hour; dearestKwh = k; dearestKr = kr; }
+        }
+        // Base load = the quietest hour between 01 and 05, when nobody is up.
+        var night = day.Where(kv => kv.Key is >= 1 and <= 5).Select(kv => kv.Value).ToList();
+        double? baseW = night.Count > 0 ? night.Min() * 1000 : null;
+        var avgKr = priced.Count > 0 ? priced.Average(p => p.KrPerKwh(s.ShowAllIn)) : 0;
+        var baseKrYear = baseW is { } w ? w / 1000 * 24 * 365 * avgKr : 0;
+
+        var bill = BillCalculator.Build(monthStart, monthStart.AddMonths(1), kwh, priced, s);
+        _home = new HomeSummary(latest, dayKwh, dayKr, dearest, dearestKwh, dearestKr, baseW, baseKrYear,
+            bill.Kwh, bill.TotalKr, bill.DaysMeasured > 0 ? bill.ProjectedKr : 0, lastRun);
+    }
 
     private async Task LogAsync(Appliance a, TimeOnly? at)
     {
@@ -151,11 +296,13 @@ else
         var entry = await RunLog.LogAsync(a.Id, start);
         if (entry is not null) _logged[a.Id] = entry;
         _pickTime = null;
+        await LoadHomeAsync();
     }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
+        try { await LoadHomeAsync(); } catch { _home = new HomeSummary(null, 0, 0, null, 0, 0, null, 0, 0, 0, 0, null); }
         // The "now" price steps every 15 minutes; refresh a bit more often so
         // the tile is never more than a couple of minutes stale on a phone
         // left open on the counter.
