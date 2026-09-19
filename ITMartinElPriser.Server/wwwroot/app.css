@@ -190,3 +190,18 @@ a { color: var(--accent); text-decoration: none; }
 .area-toggle { display: flex; gap: 4px; }
 .area-toggle .tab { flex: none; padding: 5px 10px; font-size: .8rem; line-height: 1.1; display: flex; flex-direction: column; align-items: center; }
 .area-toggle .tab small { font-weight: 400; font-size: .65rem; }
+
+/* Example bill laid out like the paper one */
+.bill-paper { background: #fffdf5; color: #1f2937; border-radius: 8px; padding: 12px 14px; font-size: .84rem; font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.bill-paper .muted { color: #6b7280; }
+.bill-head { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #d1d5db; padding-bottom: 8px; margin-bottom: 6px; line-height: 1.35; }
+.bill-sec { font-weight: 700; margin: 10px 0 3px; }
+.bill-r { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 8px; padding: 3px 0; align-items: baseline; }
+.bill-r b { text-align: right; }
+.bill-r.tap { cursor: pointer; border-radius: 4px; }
+.bill-r.tap:hover, .bill-r.tap.on { background: #fef3c7; }
+.bill-sum { border-top: 1px solid #d1d5db; margin-top: 8px; padding-top: 6px; }
+.bill-total { border-top: 2px solid #1f2937; font-size: .95rem; font-weight: 700; padding-top: 6px; }
+.paper-explain { background: #fef9c3; color: #1f2937; border-radius: 6px; padding: 8px 10px; margin: 2px 0 6px; font-size: .82rem; }
+.paper-explain p { margin: 0 0 6px; }
+@media (max-width: 400px) { .bill-r { grid-template-columns: 1.2fr auto; } .bill-r span:nth-child(2) { grid-column: 1 / -1; font-size: .75rem; margin-top: -3px; } }

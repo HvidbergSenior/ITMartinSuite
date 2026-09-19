@@ -1,3 +1,41 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @page "/regning"
 @using System.Globalization
 @inject ElectricityPriceService Prices
@@ -70,6 +108,44 @@ else
     </div>
 
     <div class="card">
+        <div class="card-title">Sådan ser regningen ud</div>
+        <div class="muted small" style="margin-bottom:8px">Et eksempel med dine tal, stillet op som elselskaberne gør det. Tryk på en linje for at få ordet forklaret. Tallene i cirklerne viser hvem pengene ender hos.</div>
+        @{
+            var perKwh = b.Kwh > 0 ? 1 / b.Kwh : 0;
+            var exMoms = b.TotalKr - Kr("moms");
+            var aconto = Math.Round(b.TotalKr / 50) * 50;
+            string Unit(string id) => $"{b.Kwh.ToString("0", Da)} kWh × {(Kr(id) * perKwh).ToString("0.000", Da)}";
+        }
+        <div class="bill-paper">
+            <div class="bill-head">
+                <div><b>@_supplierName</b><br /><span class="muted">Elregning</span></div>
+                <div style="text-align:right" class="muted">Kundenr. 1234567<br />Periode: @b.From.ToString("d/M", Da)–@b.To.AddDays(-1).ToString("d/M yyyy", Da)<br />Målt forbrug: <b>@b.Kwh.ToString("0", Da) kWh</b></div>
+            </div>
+
+            <div class="bill-sec">① Elhandel <span class="muted">– @_supplierName</span></div>
+            @Paper("spot", "Strøm, spotpris", Unit("spot"))
+            @Paper("tillaeg", "Tillæg", Unit("tillaeg"))
+            @Paper("abo-lev", "Abonnement", "1 md.")
+
+            <div class="bill-sec">② Transport <span class="muted">– @_gridName, opkræves af @_supplierName</span></div>
+            @Paper("net", "Nettarif", Unit("net"))
+            @Paper("abo-net", "Netabonnement", "1 md.")
+
+            <div class="bill-sec">③ Afgifter og tariffer <span class="muted">– staten / Energinet</span></div>
+            @Paper("energinet", "Transmissions- og systemtarif", Unit("energinet"))
+            @Paper("afgift", "Elafgift", Unit("afgift"))
+
+            <div class="bill-r bill-sum"><span>I alt ekskl. moms</span><span></span><b>@exMoms.ToString("N2", Da)</b></div>
+            @Paper("moms", "③ Moms 25 %", "")
+            <div class="bill-r bill-total"><span>I alt inkl. moms</span><span></span><b>@b.TotalKr.ToString("N2", Da) kr</b></div>
+
+            <div class="bill-r muted" style="margin-top:8px"><span>Betalt aconto</span><span></span><b>-@aconto.ToString("N2", Da)</b></div>
+            <div class="bill-r"><span>@((b.TotalKr - aconto) >= 0 ? "Til betaling" : "Til udbetaling")</span><span></span><b>@Math.Abs(b.TotalKr - aconto).ToString("N2", Da) kr</b></div>
+        </div>
+        <div class="muted small" style="margin-top:8px">Rækkefølgen og navnene varierer fra selskab til selskab – nogle skriver "Nettarif C" eller "Transport af el", andre lægger transporten sammen i én linje. Beløbene og hvem de går til er de samme. Aconto-linjen er kun et eksempel.</div>
+    </div>
+
+    <div class="card">
         <div class="card-title">Linje for linje – tryk for forklaring</div>
         @foreach (var l in b.Lines)
         {
@@ -114,6 +190,22 @@ else
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
+    private double Kr(string id) => _bill?.Lines.FirstOrDefault(l => l.Id == id)?.Kr ?? 0;
+
+    // One line on the "paper" bill: tap it and the same explanation as in the
+    // list below unfolds right under it, so the words are learned where they appear.
+    private RenderFragment Paper(string id, string name, string detail) => __builder =>
+    {
+        var l = _bill?.Lines.FirstOrDefault(x => x.Id == id);
+        if (l is null) return;
+        var open = _open == id;
+        <div class="bill-r tap @(open ? "on" : "")" @onclick="() => _open = open ? null : id"><span>@name</span><span class="muted">@detail</span><b>@l.Kr.ToString("N2", Da)</b></div>
+        if (open)
+        {
+            <div class="bill-explain paper-explain"><p><b>@l.Title</b> – @l.What</p><p><b>Kan du gøre noget?</b> @l.Influence</p>@if (!string.IsNullOrEmpty(l.Tip)) { <p class="lvl-cheap">💡 @l.Tip</p> }</div>
+        }
+    };
+
     private const int Days = 30;
     private int _kwh = 300;
     private Bill? _bill;
