@@ -76,12 +76,14 @@
                     var value = ResolveSpec(field.Key);
                     <div class="specs-row">
                         <div class="specs-label">@field.Label</div>
-                        <textarea class="specs-input" rows="1" placeholder="Ikke sat - skriv selv" title="@value"
+                        <textarea class="specs-input" rows="1" placeholder="@(field.Key == "headset_software" ? "Ingen (normalt)" : "Ikke sat - skriv selv")" title="@value"
                                   @onchange="e => SetManualSpec(field.Key, e.Value?.ToString())">@value</textarea>
                     </div>
                 }
 
-                var missing = SpecFields.Where(f => string.IsNullOrWhiteSpace(ResolveSpec(f.Key))).Select(f => f.Label).ToList();
+                // Headset software is optional - most headsets need none, so an
+                // empty value is normal and must not count as "missing".
+                var missing = SpecFields.Where(f => f.Key != "headset_software" && string.IsNullOrWhiteSpace(ResolveSpec(f.Key))).Select(f => f.Label).ToList();
                 <div class="specs-status @(missing.Count == 0 ? "specs-status-ok" : "specs-status-warn")">
                     @(missing.Count == 0 ? "✅ Alle specifikationer kendt - klar til at gå videre." : $"⚠ Mangler: {string.Join(", ", missing)}")
                 </div>
