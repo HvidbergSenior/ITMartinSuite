@@ -22,7 +22,14 @@ public sealed class PollReader(IConfiguration cfg, ILogger<PollReader> log)
         if (!File.Exists(_path)) return _cache;
         try
         {
-            using var db = new SqliteConnection($"Data Source={_path};Mode=ReadOnly");
+            // The poll volume is mounted read-only and the db runs in WAL mode, which
+            // SQLite cannot open without writing a -shm file. Copy db + wal to a
+            // private temp file and read that; the poll app never sees us.
+            var tmp = Path.Combine(Path.GetTempPath(), "poll-copy.db");
+            File.Copy(_path, tmp, overwrite: true);
+            if (File.Exists(_path + "-wal")) File.Copy(_path + "-wal", tmp + "-wal", overwrite: true);
+            else File.Delete(tmp + "-wal");
+            using var db = new SqliteConnection($"Data Source={tmp}");
             db.Open();
 
             var questions = new List<PollQuestion>();
