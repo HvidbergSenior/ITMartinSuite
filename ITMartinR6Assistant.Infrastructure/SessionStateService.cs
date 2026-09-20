@@ -50,6 +50,8 @@ public class SessionStateService
     public string? Site { get; private set; }
     public string Side { get; private set; } = "Attack";
     public HashSet<string> Bans { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
+    // Maps struck during this match's map-ban phase (ours and theirs).
+    public HashSet<string> MapBans { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
     public int? ActivePlan { get; private set; }
 
     // Fixed prep-time budget per phase - Lobby and InGame are deliberately
@@ -90,6 +92,31 @@ public class SessionStateService
         {
             _team.DefaultLoadouts[operatorName] = loadout;
             SaveTeamSettings();
+        }
+        NotifyStateChanged();
+    }
+
+    public IReadOnlyDictionary<string, string> MapPreferences => _team.MapPreferences;
+
+    // Cycle none -> ban -> play -> none.
+    public void CycleMapPreference(string map)
+    {
+        lock (_lock)
+        {
+            var cur = _team.MapPreferences.GetValueOrDefault(map);
+            if (cur is null) _team.MapPreferences[map] = "ban";
+            else if (cur == "ban") _team.MapPreferences[map] = "play";
+            else _team.MapPreferences.Remove(map);
+            SaveTeamSettings();
+        }
+        NotifyStateChanged();
+    }
+
+    public void ToggleMapBan(string map)
+    {
+        lock (_lock)
+        {
+            if (!MapBans.Remove(map)) MapBans.Add(map);
         }
         NotifyStateChanged();
     }
@@ -267,6 +294,7 @@ public class SessionStateService
             Site = null;
             Side = "Attack";
             Bans.Clear();
+            MapBans.Clear();
             ActivePlan = null;
             Phase = MatchPhase.Lobby;
             PhaseStartedAtUtc = DateTimeOffset.UtcNow;

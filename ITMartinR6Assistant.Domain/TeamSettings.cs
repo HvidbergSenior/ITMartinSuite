@@ -8,6 +8,11 @@ namespace ITMartinR6Assistant.Domain;
 public class TeamSettings
 {
     public bool ShowBanners { get; set; } = true;
+
+    // Standing map-ban plan: map name -> "ban" (vote to ban it) or "play"
+    // (vote to keep it). In ranked 5 maps are offered and every teammate has
+    // one vote, so the point is that all five votes go the same way.
+    public Dictionary<string, string> MapPreferences { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, OperatorLoadout> DefaultLoadouts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     // Per-player personal loadout choices (player name -> operator -> their

@@ -66,6 +66,44 @@
         </div>
     }
 
+    @if (Session.Phase == MatchPhase.MapBans && _gameData is not null)
+    {
+        var ranked = _gameData.Maps.Where(m => m.IsRanked).ToList();
+        var planBan = ranked.Where(m => Session.MapPreferences.GetValueOrDefault(m.Name) == "ban").Select(m => m.Name).ToList();
+        var planPlay = ranked.Where(m => Session.MapPreferences.GetValueOrDefault(m.Name) == "play").Select(m => m.Name).ToList();
+        <div class="mapban-card">
+            <div class="mapban-plan">
+                <div><span class="mapban-tag mapban-tag-ban">🚫 Vi stemmer ban p&aring;</span> @(planBan.Count == 0 ? "– ikke aftalt" : string.Join(", ", planBan))</div>
+                <div><span class="mapban-tag mapban-tag-play">⭐ Vi vil spille</span> @(planPlay.Count == 0 ? "– ikke aftalt" : string.Join(", ", planPlay))</div>
+            </div>
+            <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det af de 5, der st&aring;r f&oslash;rst p&aring; ban-listen. Tryk p&aring; et map n&aring;r det er bannet. Det lille hj&oslash;rne-m&aelig;rke skifter planen: 🚫 &rarr; ⭐ &rarr; ingen. Tryk <b>Spil</b> p&aring; det map, der st&aring;r tilbage.</div>
+            <div class="mapban-grid">
+                @foreach (var map in ranked)
+                {
+                    var name = map.Name;
+                    var pref = Session.MapPreferences.GetValueOrDefault(name);
+                    var banned = Session.MapBans.Contains(name);
+                    var chosen = Session.Map == name;
+                    <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
+                        <button class="mapban-pref @(pref == "ban" ? "mapban-pref-ban" : pref == "play" ? "mapban-pref-play" : "")" title="Skift plan" @onclick="() => Session.CycleMapPreference(name)">@(pref == "ban" ? "🚫" : pref == "play" ? "⭐" : "·")</button>
+                        <button class="mapban-main" @onclick="() => Session.ToggleMapBan(name)">
+                            @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
+                            <div class="mapban-name">@name</div>
+                        </button>
+                        @if (!banned)
+                        {
+                            <button class="mapban-play @(chosen ? "mapban-play-on" : "")" @onclick="() => Session.SetMap(name)">@(chosen ? "✓ Valgt" : "Spil")</button>
+                        }
+                    </div>
+                }
+            </div>
+            @if (Session.Map is not null)
+            {
+                <div class="mapban-result">Vi spiller <b>@Session.Map</b> &ndash; sites og planer ligger klar under <a href="/admin">Admin</a>.</div>
+            }
+        </div>
+    }
+
     @if (Session.Phase == MatchPhase.Lobby)
     {
         <div class="specs-card">
@@ -362,7 +400,7 @@
     private static string PhaseBlurb(MatchPhase phase) => phase switch
     {
         MatchPhase.Lobby => "Venter på at sessionen starter.",
-        MatchPhase.MapBans => "Ban maps med modstanderen.",
+        MatchPhase.MapBans => "30 sekunder, 5 maps, én stemme hver - stem efter planen.",
         MatchPhase.OperatorBans => "Ban én operator (15 s) - sker før hver runde.",
         MatchPhase.OperatorPick => "Vælg jeres loadout.",
         MatchPhase.InGame => "Følg med i planen på siden her, mens kampen kører.",
