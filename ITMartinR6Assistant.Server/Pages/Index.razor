@@ -86,7 +86,7 @@
                     var banned = Session.MapBans.Contains(name);
                     var chosen = Session.Map == name;
                     <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
-                        <button class="mapban-pref @(pref == "ban" ? "mapban-pref-ban" : pref == "play" ? "mapban-pref-play" : "")" title="Skift plan" @onclick="() => Session.CycleMapPreference(name)">@(pref == "ban" ? "🚫" : pref == "play" ? "⭐" : "·")</button>
+                        <button class="mapban-pref @(pref == "ban" ? "mapban-pref-ban" : pref == "play" ? "mapban-pref-play" : "")" title="Holdets plan: tryk for 🚫 ban → ⭐ spil → ingen" @onclick="() => Session.CycleMapPreference(name)">@(pref == "ban" ? "🚫" : pref == "play" ? "⭐" : "plan")</button>
                         <button class="mapban-main" @onclick="() => Session.ToggleMapBan(name)">
                             @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
                             <div class="mapban-name">@name</div>
