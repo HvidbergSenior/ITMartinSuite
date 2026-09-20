@@ -1,0 +1,79 @@
+@page "/maps"
+@layout R6AssistantLayout
+@inject SessionStateService Session
+@inject IR6DataService DataService
+@implements IDisposable
+@using ITMartinR6Assistant.Domain
+
+@* Read-only overview of every map with its bomb sites and the stats we
+   have (attack win rate, typical picks, suggested bans) plus the team's
+   own ban/play mark from the map-ban plan. Editing lives in /admin. *@
+<div class="maps-page">
+    <h1 style="margin:0 0 4px">🗺 Maps</h1>
+    <div class="maps-sub">Alle maps med bombsites og tal. 🚫/⭐ er holdets egen plan fra map-ban-fasen.</div>
+
+    @if (_gameData is null)
+    {
+        <div class="sg-loading"><span class="sg-spinner"></span> Henter...</div>
+    }
+    else
+    {
+        foreach (var group in new[] { ("Rankede maps", _gameData.Maps.Where(m => m.IsRanked)), ("Andre maps", _gameData.Maps.Where(m => !m.IsRanked)) })
+        {
+            var maps = group.Item2.OrderBy(m => m.Name).ToList();
+            if (maps.Count == 0) continue;
+            <div class="maps-section">@group.Item1 (@maps.Count)</div>
+            <div class="maps-grid">
+                @foreach (var map in maps)
+                {
+                    var pref = Session.MapPreferences.GetValueOrDefault(map.Name);
+                    <div class="maps-card">
+                        <div class="maps-head">
+                            @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@map.Name" /> }
+                            <div class="maps-title">
+                                <b>@map.Name</b>
+                                @if (pref == "ban") { <span class="mapban-tag mapban-tag-ban">🚫 vi banner</span> }
+                                else if (pref == "play") { <span class="mapban-tag mapban-tag-play">⭐ vi vil spille</span> }
+                                <small>@map.Sites.Count sites</small>
+                            </div>
+                        </div>
+                        @if (map.Sites.Count > 0)
+                        {
+                            <table class="maps-sites">
+                                <tr><th>Site</th><th>Etage</th><th class="n">ATK win</th><th>ATK picks</th><th>DEF picks</th><th>Bans</th></tr>
+                                @foreach (var s in map.Sites)
+                                {
+                                    <tr>
+                                        <td><b>@s.Name</b></td>
+                                        <td>@s.Floor</td>
+                                        <td class="n @(s.AttackWinRate >= 55 ? "good" : s.AttackWinRate > 0 && s.AttackWinRate <= 45 ? "bad" : "")">@(s.AttackWinRate > 0 ? s.AttackWinRate + " %" : "–")</td>
+                                        <td>@string.Join(", ", s.AttackPicks)</td>
+                                        <td>@string.Join(", ", s.DefensePicks)</td>
+                                        <td>@string.Join(", ", s.SuggestedBans)</td>
+                                    </tr>
+                                }
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="maps-empty">Ingen sites lagt ind endnu – tilføj dem under <a href="/admin">Admin</a>.</div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private R6GameData? _gameData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _gameData = await DataService.GetData();
+        Session.OnStateChanged += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.OnStateChanged -= OnChanged;
+}
