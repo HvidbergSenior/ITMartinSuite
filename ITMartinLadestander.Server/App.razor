@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('lade_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1e6b48" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Ladestander" />
+    <title>Ladestander</title>
+    <base href="/" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+</head>
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.server.js"></script>
+    <button id="themeToggleBtn" class="theme-toggle" title="Skift lys/mørk visning">🌓</button>
+    <script>
+    (function () {
+        var btn = document.getElementById('themeToggleBtn');
+        btn.addEventListener('click', function () {
+            var next = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('lade_theme', next);
+        });
+    })();
+    </script>
+    <div id="components-reconnect-modal">
+        <span class="reconnect-msg">Forbinder igen...</span>
+        <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+    </div>
+</body>
+</html>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

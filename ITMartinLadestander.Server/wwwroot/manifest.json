@@ -1,0 +1,9 @@
+{
+  "name": "Ladestander Skelagerhøjen",
+  "short_name": "Ladestander",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f4",
+  "theme_color": "#1e6b48",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

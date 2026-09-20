@@ -85,6 +85,7 @@ $ServiceMap = @{
     "forloebet-web"          = @{ Dockerfile = "ITMartinForloebet.Server/Dockerfile";                         Context = "." }
     "bibliotek-web"          = @{ Dockerfile = "ITMartinBibliotek.Server/Dockerfile";                         Context = "." }
     "skrivsange-web"         = @{ Dockerfile = "ITMartinSkrivSange.Server/Dockerfile";                        Context = "." }
+    "ladestander-web"        = @{ Dockerfile = "ITMartinLadestander.Server/Dockerfile";                       Context = "."; Profile = "manual" }
 }
 
 if (-not $ServiceMap.ContainsKey($Service)) {

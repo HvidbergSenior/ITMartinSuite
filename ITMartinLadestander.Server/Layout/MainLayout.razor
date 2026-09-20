@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    @Body
+    <footer><a href="/logout">Log ud</a> · <a href="https://all-apps.itmartin.dk/vilkaar" target="_blank">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
+</div>
+
+<nav class="bottom-nav">
+    <NavLink href="/" Match="NavLinkMatch.All"><span>📊</span>Overblik</NavLink>
+    <NavLink href="/looad"><span>🧾</span>Looad</NavLink>
+    <NavLink href="/priser"><span>⚡</span>Priser</NavLink>
+    <NavLink href="/biler"><span>🚗</span>Biler</NavLink>
+    <NavLink href="/indstillinger"><span>⚙️</span>Indstillinger</NavLink>
+</nav>

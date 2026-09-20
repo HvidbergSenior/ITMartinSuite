@@ -1,0 +1,103 @@
+@page "/priser"
+@inject ElectricityPriceService Prices
+@inject ForeningStore Store
+
+<PageTitle>Priser · Ladestander</PageTitle>
+
+<div class="eyebrow">Strømpris ved standeren · @_f.Settings.PriceArea · alt inkl. moms</div>
+<h1>Hvornår er det billigt at lade?</h1>
+
+@if (_snap is null)
+{
+    <div class="card"><span class="muted">Henter priser…</span></div>
+}
+else if (!_snap.HasData)
+{
+    <div class="card"><b>Ingen priser lige nu</b><div class="muted">Energinet svarer ikke. Prøv igen om lidt.</div></div>
+}
+else
+{
+    <div class="card" style="text-align:center">
+        <div class="now-price">@Kr(_snap.NowKrPerKwh)</div>
+        <div class="muted">kr/kWh for foreningen lige nu · kl. @_snap.At.ToString("HH:mm")</div>
+        <div style="margin-top:6px"><b>@Kr(_snap.NowKrPerKwh + _cutIncl)</b> <span class="muted">kr/kWh for beboeren (+ @_f.OperatorName-cut @_cutIncl.ToString("0.00"))</span></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">En opladning</div>
+        <div class="row">
+            <div><label for="kwh">kWh</label><input id="kwh" type="number" step="5" min="5" max="100" @bind="_kwh" @bind:after="Recalc" /></div>
+            <div><label for="kw">Effekt (kW)</label><input id="kw" type="number" step="1" min="3" max="22" @bind="_kw" @bind:after="Recalc" /></div>
+            <div><label>Varighed</label><div style="padding:8px 0">@Hours(_kwh / _kw)</div></div>
+        </div>
+        @if (_view is not null)
+        {
+            <div class="wrap"><table>
+                <tr><th>Start</th><th class="n">Foreningen</th><th class="n">Beboeren</th><th class="n">Snit kr/kWh</th></tr>
+                @Row("Nu", _view.Now)
+                @Row("Billigst i dag", _view.CheapestToday)
+                @Row("Billigst i morgen", _view.CheapestTomorrow)
+                @Row("Dyrest fremad", _view.DearestUpcoming)
+            </table></div>
+            @if (_view.Now is { } n && _view.CheapestToday is { } c && c.CostKr < n.CostKr - 1)
+            {
+                <div class="note">Vent til kl. @c.Start.ToString("HH:mm") og spar @((n.CostKr - c.CostKr).ToString("0")) kr på denne opladning.</div>
+            }
+        }
+    </div>
+
+    @foreach (var day in new[] { _snap.Today, _snap.Tomorrow })
+    {
+        if (day is null) continue;
+        <div class="card">
+            <div class="card-title">@(day.Date == DateOnly.FromDateTime(_snap.At) ? "I dag" : "I morgen") · min @Kr(day.Min) · snit @Kr(day.Avg) · max @Kr(day.Max)</div>
+            <div class="hours">
+                @foreach (var h in day.Hours)
+                {
+                    var pct = day.Max > 0 ? Math.Max(3, 100 * h.KrPerKwh / day.Max) : 3;
+                    <div class="h @(h.Rank01 < .33 ? "cheap" : h.Rank01 > .66 ? "expensive" : "") @(h.IsPast ? "past" : "") @(h.IsNow ? "now" : "") @(InWindow(h.Start) ? "win" : "")" style="height:@(pct.ToString(System.Globalization.CultureInfo.InvariantCulture))%" title="@h.Start.ToString("HH:mm") @Kr(h.KrPerKwh)"></div>
+                }
+            </div>
+            <div class="axis">@for (var i = 0; i < 24; i += 3) { <span>@i</span> }</div>
+        </div>
+    }
+    <p class="small muted">Spotpris + KONSTANT nettarif + Energinet + elafgift + moms, via ElPriser. Beboerprisen lægger @_f.OperatorName-cuttet oveni. Kan ændres under Indstillinger.</p>
+}
+
+@code {
+    private ForeningData _f = new();
+    private PriceSnapshot? _snap;
+    private ApplianceView? _view;
+    private List<PricePoint> _raw = [];
+    private double _kwh = 30, _kw = 11, _cutIncl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _f = Store.Get();
+        _kw = Math.Min(_f.OutletKw, 11);
+        _cutIncl = _f.OperatorCutOrePerKwh / 100.0 * 1.25;
+        _raw = await Prices.GetPricesAsync(_f.Settings.PriceArea);
+        Recalc();
+    }
+
+    private void Recalc()
+    {
+        if (_kw <= 0) _kw = 11;
+        var a = new Appliance { Name = "Opladning", KwhPerRun = _kwh, DurationHours = Math.Round(_kwh / _kw * 4) / 4 };
+        _snap = PriceModel.Build(_raw, _f.Settings, [a], DkTime.Now);
+        _view = _snap.Appliances.FirstOrDefault();
+    }
+
+    private bool InWindow(DateTime t) =>
+        (_view?.CheapestToday is { } c && t >= c.Start && t < c.End) ||
+        (_view?.CheapestTomorrow is { } d && t >= d.Start && t < d.End);
+
+    private RenderFragment Row(string label, RunOption? o) => __builder =>
+    {
+        if (o is null) return;
+        <tr><td>@label <span class="muted small">@o.Start.ToString("ddd HH:mm")</span></td><td class="n">@o.CostKr.ToString("0") kr</td><td class="n">@((o.CostKr + _cutIncl * _kwh).ToString("0")) kr</td><td class="n">@o.AvgKrPerKwh.ToString("0.00")</td></tr>
+    };
+
+    private static string Kr(double? v) => v is { } x ? x.ToString("0.00") : "–";
+    private static string Hours(double h) => h < 1 ? $"{h * 60:0} min" : $"{Math.Floor(h):0} t {(h - Math.Floor(h)) * 60:0} min";
+}

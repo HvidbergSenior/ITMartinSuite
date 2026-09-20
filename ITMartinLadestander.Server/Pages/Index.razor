@@ -1,0 +1,134 @@
+@page "/"
+@inject PollReader Poll
+@inject ForeningStore Store
+
+<PageTitle>Overblik · Ladestander</PageTitle>
+
+<div class="eyebrow">@_f.Name · @_f.Households husstande · @_f.Outlets udtag i dag</div>
+<h1>Ladestandere: hvad siger beboerne, og hvad koster alternativerne?</h1>
+<p class="lede">Forespørgslen på stem.itmartin.dk læses live. Sammenligningen bygger på leverandørernes listepriser fra september 2026.</p>
+
+<h2>1. Resultat af forespørgslen</h2>
+@if (_poll is null)
+{
+    <p class="muted">Kunne ikke læse forespørgslen.</p>
+}
+else
+{
+    <p>@_poll.Households af @_f.Households husstande har svaret@(_live ? "" : " (tal fra 20. september 2026)").</p>
+    <div class="tiles">
+        <div class="tile"><b>@_hasEv</b><span>har elbil i dag</span></div>
+        <div class="tile"><b>+@_willGet</b><span>får en inden for 1–3 år</span></div>
+        <div class="tile"><b>@(_hasEv + _willGet) / @_poll.Households</b><span>af svarene har eller får elbil</span></div>
+        <div class="tile"><b>≈ @_projLow–@_projHigh</b><span>elbiler i foreningen, hvis alle @_f.Households huse ligner de @_poll.Households</span></div>
+    </div>
+    <div class="cols">
+        @foreach (var q in _poll.Questions.Where(q => q.Options.Sum(o => o.Votes) > 0))
+        {
+            var max = Math.Max(1, q.Options.Max(o => o.Votes));
+            <div class="card">
+                <h3>@q.Title</h3>
+                <table>
+                    @foreach (var o in q.Options.OrderByDescending(o => o.Votes))
+                    {
+                        <tr><td>@o.Label</td><td><div class="bar"><i style="width:@(20 + 100 * o.Votes / max)px"></i>@o.Votes</div></td></tr>
+                    }
+                </table>
+            </div>
+        }
+        <div class="card">
+            <h3>Erfaring med ladeoperatører (1–5)</h3>
+            <table>
+                @foreach (var o in _poll.Operators)
+                {
+                    <tr><td>@o.Name</td><td class="n">@o.Avg.ToString("0.0")</td><td class="n">@o.Votes svar</td></tr>
+                }
+            </table>
+            @foreach (var c in _poll.Operators.SelectMany(o => o.Comments.Select(c => (o.Name, c))))
+            {
+                <p class="small muted" style="margin-top:6px">Om @c.Name: «@c.c»</p>
+            }
+        </div>
+    </div>
+    <div class="note">Dimensionering: ~@_projLow–@_projHigh elbiler à ca. 250 kWh/md ≈ <b>@((_projMid * 3000).ToString("N0")) kWh om året</b>. December 2024 lå på 555 kWh (≈ 4 biler). @_f.Outlets udtag i dag – 4 er minimum, kabel og sikring bør dimensioneres til 8.</div>
+}
+
+<h2>2. Alternativer</h2>
+<div class="wrap"><table>
+    <tr><th>Model</th><th>Foreningen betaler</th><th>Løbende</th><th>Beboerpris</th><th>Vurdering</th></tr>
+    @foreach (var s in Suppliers.All)
+    {
+        <tr>
+            <td><b>@s.Name</b><br><span class="small muted">@s.Model</span></td>
+            <td>@s.UpFront</td>
+            <td>@s.Running</td>
+            <td>@s.ResidentPrice</td>
+            <td><span class="pill @s.TagKind">@s.Tag</span> @s.Verdict <a href="@s.Url" target="_blank" class="small">kilde</a></td>
+        </tr>
+    }
+</table></div>
+
+<h3 style="margin-top:18px">Groft overslag, 4 udtag, 30.000 kWh/år, 5 år</h3>
+<div class="wrap"><table>
+    <tr><th>Model</th><th class="n">Investering</th><th class="n">Betalt til operatør over 5 år</th><th>Indtægt til foreningen</th></tr>
+    @foreach (var s in Suppliers.All)
+    {
+        <tr><td>@s.Name</td><td class="n">@s.InvestKr kr</td><td class="n">@s.PaidOver5YrsKr kr</td><td>@s.IncomeToForening</td></tr>
+    }
+</table></div>
+<p class="small muted" style="margin-top:8px">Gravning ud over det inkluderede, ny tilslutning hos KONSTANT og evt. større sikring kommer oveni for alle modeller.</p>
+
+<h2>3. Spørg alle leverandører om</h2>
+<div class="cols">
+    <div class="card"><ul>
+        <li>Afregning pr. bruger – og hvad sker der med afgiftsrefusionen?</li>
+        <li>Gæsteladning (QR/MobilePay uden app?)</li>
+        <li>Kø eller reservation i appen</li>
+        <li>Åben adgang til data (API) – så denne app kan vise «hvem lader nu»</li>
+    </ul></div>
+    <div class="card"><ul>
+        <li>Hvad koster det at gå fra 4 til 8 udtag senere?</li>
+        <li>Bindingsperiode og udtrædelse – hvem ejer hardware bagefter?</li>
+        <li>Hvem har elaftalen og prisrisikoen – foreningen eller operatøren?</li>
+        <li>Dispensation fra OK's krav om 40 enheder?</li>
+    </ul></div>
+</div>
+
+<h2>4. Forslag til næste skridt</h2>
+<ol>
+    <li>Skriv ned, hvad der konkret ikke fungerer med Looad i dag – se <a href="/looad">Looad-analysen</a>.</li>
+    <li>Indhent tilbud på 4 udtag (forberedt til 8) fra Clever, OK, Spirii og NRGi Zapp/Zaptec.</li>
+    <li>Beslut princip: <b>foreningen som ejer</b> (indtægt, mere arbejde) eller <b>operatør ejer alt</b> (nul arbejde, brugerne betaler mere).</li>
+    <li>Fremlæg på generalforsamlingen sammen med forespørgslens tal.</li>
+</ol>
+
+<p class="small muted">Kilder: @foreach (var s in Suppliers.Sources) { <a href="@s.Url" target="_blank">@s.Text</a><text> · </text> } Looad regneeksempel dec. 2024 · stem.itmartin.dk</p>
+
+@code {
+    private ForeningData _f = new();
+    private PollResult? _poll;
+    private bool _live;
+    private int _hasEv, _willGet, _projLow, _projHigh;
+    private double _projMid;
+
+    protected override void OnInitialized()
+    {
+        _f = Store.Get();
+        _poll = Poll.Read();
+        _live = _poll is not null;
+        _poll ??= PollReader.Snapshot20260920();
+
+        var today = _poll.Questions.FirstOrDefault(q => q.Title.Contains("i dag"));
+        _hasEv = today?.Options.Where(o => o.Label.StartsWith("Ja")).Sum(o => o.Votes) ?? 0;
+        var plan = _poll.Questions.FirstOrDefault(q => q.Title.Contains("anskaffe"));
+        _willGet = plan?.Options.Where(o => o.Label.StartsWith("Ja")).Sum(o => o.Votes) ?? 0;
+
+        if (_poll.Households > 0)
+        {
+            var share = (double)(_hasEv + _willGet) / _poll.Households;
+            _projMid = share * _f.Households;
+            _projLow = (int)Math.Floor(_projMid * 0.85);
+            _projHigh = (int)Math.Ceiling(_projMid * 1.15);
+        }
+    }
+}

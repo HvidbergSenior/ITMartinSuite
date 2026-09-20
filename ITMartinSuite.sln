@@ -236,6 +236,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinPolstrer.Core", "IT
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinPolstrerTavle.Server", "ITMartinPolstrerTavle.Server\ITMartinPolstrerTavle.Server.csproj", "{B6C371C0-931F-4E08-9E63-59BB4D372917}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLadestander.Server", "ITMartinLadestander.Server\ITMartinLadestander.Server.csproj", "{48EB4D05-A669-42E9-AD2A-A6DAA8268E08}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -693,5 +695,9 @@ Global
 		{B6C371C0-931F-4E08-9E63-59BB4D372917}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6C371C0-931F-4E08-9E63-59BB4D372917}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6C371C0-931F-4E08-9E63-59BB4D372917}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48EB4D05-A669-42E9-AD2A-A6DAA8268E08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48EB4D05-A669-42E9-AD2A-A6DAA8268E08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48EB4D05-A669-42E9-AD2A-A6DAA8268E08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48EB4D05-A669-42E9-AD2A-A6DAA8268E08}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

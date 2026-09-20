@@ -1,0 +1,53 @@
+@page "/indstillinger"
+@inject ForeningStore Store
+
+<PageTitle>Indstillinger · Ladestander</PageTitle>
+
+<h1>Indstillinger</h1>
+
+<div class="card">
+    <div class="card-title">Foreningen</div>
+    <div class="row">
+        <div><label for="name">Navn</label><input id="name" @bind="_f.Name" /></div>
+        <div><label for="hh">Husstande</label><input id="hh" type="number" @bind="_f.Households" /></div>
+        <div><label for="out">Udtag</label><input id="out" type="number" min="1" max="16" @bind="_f.Outlets" /></div>
+        <div><label for="okw">kW pr. udtag</label><input id="okw" type="number" @bind="_f.OutletKw" /></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">Strømpris ved standeren</div>
+    <div class="row">
+        <div><label for="area">Prisområde</label><select id="area" @bind="_f.Settings.PriceArea"><option>DK1</option><option>DK2</option></select></div>
+        <div><label for="net">Nettarif, øre/kWh ekskl. moms</label><input id="net" type="number" step="0.01" @bind="_f.Settings.CustomNettarifOre" /></div>
+        <div><label for="sup">Elleverandør</label>
+            <select id="sup" @bind="_f.Settings.SupplierId">
+                @foreach (var s in SupplierPreset.All) { <option value="@s.Id">@s.Name</option> }
+            </select></div>
+        <div><label for="til">Tillæg hvis "Andet", øre ekskl. moms</label><input id="til" type="number" step="0.1" @bind="_f.Settings.CustomTillaegOre" /></div>
+    </div>
+    <p class="small muted">Nettarif 26,77 = KONSTANT C-time 33,46 − rabat 6,69 (okt–dec 2024-regningen). Energinet-tariffer, elafgift og moms lægges automatisk til.</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Operatør</div>
+    <div class="row">
+        <div><label for="op">Navn</label><input id="op" @bind="_f.OperatorName" /></div>
+        <div><label for="cut">Cut, øre/kWh ekskl. moms</label><input id="cut" type="number" step="1" @bind="_f.OperatorCutOrePerKwh" /></div>
+    </div>
+    <p class="small muted">Looad: 40 øre/kWh. Bruges til «beboerpris» på Priser og Biler.</p>
+</div>
+
+<button @onclick="Save">Gem</button> @if (_saved) { <span class="muted"> Gemt</span> }
+
+@code {
+    private ForeningData _f = new();
+    private bool _saved;
+    protected override void OnInitialized() => _f = Store.Get();
+    private void Save()
+    {
+        _f.Settings.GridCompanyId = "custom";
+        Store.Update(_ => { });
+        _saved = true;
+    }
+}
