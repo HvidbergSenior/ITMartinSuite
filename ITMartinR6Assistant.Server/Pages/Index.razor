@@ -70,23 +70,15 @@
     {
         // Until maps are flagged ranked under Admin, show them all.
         var ranked = _gameData.Maps.Any(m => m.IsRanked) ? _gameData.Maps.Where(m => m.IsRanked).ToList() : _gameData.Maps.ToList();
-        var planBan = ranked.Where(m => Session.MapPreferences.GetValueOrDefault(m.Name) == "ban").Select(m => m.Name).ToList();
-        var planPlay = ranked.Where(m => Session.MapPreferences.GetValueOrDefault(m.Name) == "play").Select(m => m.Name).ToList();
         <div class="mapban-card">
-            <div class="mapban-plan">
-                <div><span class="mapban-tag mapban-tag-ban">🚫 Vi stemmer ban p&aring;</span> @(planBan.Count == 0 ? "– ikke aftalt" : string.Join(", ", planBan))</div>
-                <div><span class="mapban-tag mapban-tag-play">⭐ Vi vil spille</span> @(planPlay.Count == 0 ? "– ikke aftalt" : string.Join(", ", planPlay))</div>
-            </div>
-            <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det af de 5, der st&aring;r f&oslash;rst p&aring; ban-listen. Tryk p&aring; et map n&aring;r det er bannet. Det lille hj&oslash;rne-m&aelig;rke skifter planen: 🚫 &rarr; ⭐ &rarr; ingen. Tryk <b>Spil</b> p&aring; det map, der st&aring;r tilbage.</div>
+            <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det samme. Tallene er vores egne kampe. Tryk p&aring; et map n&aring;r det er bannet; tryk <b>Spil</b> p&aring; det, vi ender med.</div>
             <div class="mapban-grid">
                 @foreach (var map in ranked)
                 {
                     var name = map.Name;
-                    var pref = Session.MapPreferences.GetValueOrDefault(name);
                     var banned = Session.MapBans.Contains(name);
                     var chosen = Session.Map == name;
                     <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
-                        <button class="mapban-pref @(pref == "ban" ? "mapban-pref-ban" : pref == "play" ? "mapban-pref-play" : "")" title="Holdets plan: tryk for 🚫 ban → ⭐ spil → ingen" @onclick="() => Session.CycleMapPreference(name)">@(pref == "ban" ? "🚫" : pref == "play" ? "⭐" : "plan")</button>
                         <button class="mapban-main" @onclick="() => Session.ToggleMapBan(name)">
                             @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
                             <div class="mapban-name">@name</div>
