@@ -57,10 +57,11 @@ public sealed class PreGameCheckService
                   hardware-niveau problem, ofte PCIe/GPU/strøm-relateret - foreslå at tjekke GPU-kablet/PSU-kablet
                   sidder ordentligt, eller opdatere/rulle GPU-driveren tilbage), og at det kan forklare stutter/
                   freeze/crash under spillet, ikke kun noget der sker "ved siden af" spillet.
-                - Strømplan: kun "Høj ydelse"/"High performance" (eller "Ultimate Performance") er ✅. "Balanced"/
-                  "Balanceret" eller "Strømbesparelse" er en ⚠-linje med forslaget: åbn Indstillinger -> System ->
-                  Strøm (eller kør `powercfg /setactive SCHEME_MIN`) og vælg Høj ydelse - det fjerner CPU-nedklokning
-                  mellem runder og er gratis fps.
+                - Strømplan: scriptet ser kun den klassiske plan (powercfg). "Høj ydelse"/"High performance"/
+                  "Ultimate Performance" er ✅. Står der "Balanced"/"Balanceret", så lav en ⚠-linje der siger:
+                  tjek at Strømtilstand er sat til "Bedste ydeevne" (Windows 11: Indstillinger -> System -> Strøm ->
+                  Strømtilstand) - scriptet kan ikke se den indstilling, og den fjerner CPU-nedklokning mellem
+                  runder. "Strømbesparelse" er altid ⚠.
                 - Svar KUN med tjeklisten, ingen indledning eller afsluttende kommentarer.
                 """,
             Messages =
