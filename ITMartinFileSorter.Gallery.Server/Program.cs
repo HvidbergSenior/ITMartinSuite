@@ -408,11 +408,15 @@ app.MapPost("/api/login", (LoginRequest req, HttpContext ctx) =>
     if (g is null) return Results.NotFound();
     if (string.IsNullOrEmpty(g.Password) || g.Password == req.Password)
     {
+        // Lax, not Strict: a Strict cookie is not sent on a navigation that
+        // starts on another site - which is every tap on a link in Messenger
+        // or Mail - so people were asked to log in on every visit (2026-09-21).
         ctx.Response.Cookies.Append($"gallery_{req.Gallery}", req.Password ?? "", new CookieOptions
         {
             HttpOnly = false,
-            SameSite = SameSiteMode.Strict,
-            MaxAge   = TimeSpan.FromDays(30),
+            Secure   = ctx.Request.IsHttps || ctx.Request.Headers.ContainsKey("CF-Connecting-IP"),
+            SameSite = SameSiteMode.Lax,
+            MaxAge   = TimeSpan.FromDays(365),
         });
         return Results.Ok();
     }
