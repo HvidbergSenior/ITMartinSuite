@@ -68,7 +68,8 @@
 
     @if (Session.Phase == MatchPhase.MapBans && _gameData is not null)
     {
-        var ranked = _gameData.Maps.Where(m => m.IsRanked).ToList();
+        // Until maps are flagged ranked under Admin, show them all.
+        var ranked = _gameData.Maps.Any(m => m.IsRanked) ? _gameData.Maps.Where(m => m.IsRanked).ToList() : _gameData.Maps.ToList();
         var planBan = ranked.Where(m => Session.MapPreferences.GetValueOrDefault(m.Name) == "ban").Select(m => m.Name).ToList();
         var planPlay = ranked.Where(m => Session.MapPreferences.GetValueOrDefault(m.Name) == "play").Select(m => m.Name).ToList();
         <div class="mapban-card">

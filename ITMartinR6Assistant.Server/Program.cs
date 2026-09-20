@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using ITMartinR6Assistant.Application;
 using ITMartinR6Assistant.Domain;
 using ITMartinR6Assistant.Infrastructure;
@@ -6,6 +7,12 @@ using ITMartinR6Assistant.Server.Services;
 using Microsoft.AspNetCore.StaticFiles;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Persist the antiforgery/data-protection keys - otherwise every container
+// restart invalidates every open tab ("key not found in the key ring").
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "Data", "keys")))
+    .SetApplicationName("r6assistant");
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
