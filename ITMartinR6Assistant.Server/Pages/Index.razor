@@ -76,8 +76,8 @@
                     var value = ResolveSpec(field.Key);
                     <div class="specs-row">
                         <div class="specs-label">@field.Label</div>
-                        <input class="specs-input" placeholder="Ikke sat - skriv selv" value="@value"
-                               @onchange="e => SetManualSpec(field.Key, e.Value?.ToString())" />
+                        <textarea class="specs-input" rows="1" placeholder="Ikke sat - skriv selv" title="@value"
+                                  @onchange="e => SetManualSpec(field.Key, e.Value?.ToString())">@value</textarea>
                     </div>
                 }
 
