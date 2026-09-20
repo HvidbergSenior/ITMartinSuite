@@ -186,6 +186,22 @@ public class SessionStateService
         SetPhase(next);
     }
 
+    // Back one step (Lobby stays Lobby - going "back" from the lobby would
+    // wrap to PostMatch, which is never what a mis-click meant).
+    public void PreviousPhase()
+    {
+        var prev = Phase switch
+        {
+            MatchPhase.MapBans => MatchPhase.Lobby,
+            MatchPhase.OperatorBans => MatchPhase.MapBans,
+            MatchPhase.OperatorPick => MatchPhase.OperatorBans,
+            MatchPhase.InGame => MatchPhase.OperatorPick,
+            MatchPhase.PostMatch => MatchPhase.InGame,
+            _ => MatchPhase.Lobby,
+        };
+        if (prev != Phase) SetPhase(prev);
+    }
+
     public void SetPhase(MatchPhase phase)
     {
         lock (_lock)

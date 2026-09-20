@@ -44,7 +44,13 @@
         <div class="phase-timer-total">forløbet</div>
     }
 
-    <button class="phase-advance-btn" @onclick="Session.AdvancePhase">Næste fase →</button>
+    <div class="phase-nav">
+        @if (Session.Phase != MatchPhase.Lobby)
+        {
+            <button class="phase-back-btn" @onclick="Session.PreviousPhase">← Tilbage</button>
+        }
+        <button class="phase-advance-btn" @onclick="Session.AdvancePhase">Næste fase →</button>
+    </div>
 
     @{ var checklist = PhaseChecklist(Session.Phase); }
     @if (checklist.Count > 0)

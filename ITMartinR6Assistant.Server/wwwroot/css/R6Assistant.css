@@ -150,8 +150,20 @@ body {
     margin-top: -8px;
 }
 
+.phase-nav { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 28px; flex-wrap: wrap; }
+.phase-back-btn {
+    padding: 14px 20px;
+    font-size: 1rem;
+    font-weight: 700;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+}
+.phase-back-btn:hover { color: var(--text); border-color: var(--text-muted); }
 .phase-advance-btn {
-    margin-top: 28px;
+    margin-top: 0;
     padding: 14px 32px;
     font-size: 1.1rem;
     font-weight: 700;
