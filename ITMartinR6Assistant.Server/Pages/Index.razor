@@ -155,6 +155,67 @@
         </div>
     }
 
+    @if (Session.Phase == MatchPhase.OperatorBans && _gameData is not null)
+    {
+        var opMap = _gameData.Maps.FirstOrDefault(m => m.Name == Session.Map);
+        var weAttack = Session.Side == "Attack";
+        // Attack bans a defender, defence bans an attacker.
+        var banSide = weAttack ? "Defense" : "Attack";
+        var opsOfSide = _gameData.Operators.Where(o => o.Side == banSide).Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        <div class="opban-card">
+            <div class="opban-head">
+                <div>
+                    <div class="specs-title">🚫 Operator-ban</div>
+                    <div class="opban-sub">
+                        @if (opMap is null) { <span>Intet map valgt &ndash; g&aring; <a href="#" @onclick="Session.PreviousPhase" @onclick:preventDefault="true">tilbage</a> og tryk Spil p&aring; mappet.</span> }
+                        else { <span>Map: <b>@opMap.Name</b></span> }
+                    </div>
+                </div>
+                <div class="opban-side">
+                    <button class="admin-side-btn @(weAttack ? "side-btn-atk-active" : "")" @onclick='() => Session.SetSide("Attack")'>Vi er ATK</button>
+                    <button class="admin-side-btn @(!weAttack ? "side-btn-def-active" : "")" @onclick='() => Session.SetSide("Defense")'>Vi er DEF</button>
+                </div>
+            </div>
+            <div class="mapban-hint">Hver runde: ATK banner &eacute;n <b>defender</b>, DEF banner &eacute;n <b>attacker</b>. Vi er @(weAttack ? "ATK, s&aring; vi banner en defender" : "DEF, s&aring; vi banner en attacker"). Ban efter bombsite &ndash; tryk p&aring; det site, der er i spil.</div>
+
+            @if (opMap is not null)
+            {
+                @if (opMap.Sites.Count == 0)
+                {
+                    <div class="maps-empty">Ingen sites lagt ind for @opMap.Name endnu &ndash; tilf&oslash;j dem under <a href="/admin">Admin</a>.</div>
+                }
+                <div class="opban-sites">
+                    @foreach (var site in opMap.Sites)
+                    {
+                        var st = Session.SiteStats(opMap.Name, site.Name);
+                        var active = Session.Site == site.Name;
+                        var bans = site.SuggestedBans.Where(b => opsOfSide.Count == 0 || opsOfSide.Contains(b)).ToList();
+                        var theirPicks = weAttack ? site.DefensePicks : site.AttackPicks;
+                        var ourPicks = weAttack ? site.AttackPicks : site.DefensePicks;
+                        <div class="opban-site @(active ? "opban-site-active" : "")" @onclick="() => Session.SetSite(site.Name)">
+                            <div class="opban-site-head">
+                                <b>@site.Name</b> <span class="muted small">@site.Floor</span>
+                                <span class="opban-stat">@(site.AttackWinRate > 0 ? $"ATK win {site.AttackWinRate} %" : "")</span>
+                            </div>
+                            <div class="opban-stat-row">
+                                @if (st.Played > 0)
+                                {
+                                    <span>Vi: @st.Won&ndash;@(st.Played - st.Won) (<b class="@Cls(st.WinPct)">@st.WinPct %</b>)</span>
+                                    <span>ATK-runder <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> (@st.AtkWon&ndash;@st.AtkLost)</span>
+                                    <span>DEF-runder <b class="@Cls(st.DefPct)">@st.DefPct %</b> (@st.DefWon&ndash;@st.DefLost)</span>
+                                }
+                                else { <span class="muted">Vi har ikke spillet dette site endnu</span> }
+                            </div>
+                            <div class="opban-line"><span class="opban-label">Ban:</span> @(bans.Count > 0 ? string.Join(", ", bans) : "–")</div>
+                            <div class="opban-line"><span class="opban-label">De spiller typisk:</span> @(theirPicks.Count > 0 ? string.Join(", ", theirPicks) : "–")</div>
+                            <div class="opban-line"><span class="opban-label">Vi spiller typisk:</span> @(ourPicks.Count > 0 ? string.Join(", ", ourPicks) : "–")</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
     @if (Session.Phase == MatchPhase.Lobby)
     {
         <div class="specs-card">
@@ -469,7 +530,7 @@
     {
         MatchPhase.Lobby => "Venter på at sessionen starter.",
         MatchPhase.MapBans => "30 sekunder, 5 maps, én stemme hver - stem efter planen.",
-        MatchPhase.OperatorBans => "Ban én operator (15 s) - sker før hver runde.",
+        MatchPhase.OperatorBans => "15 s pr. runde. ATK banner en defender, DEF banner en attacker - efter site.",
         MatchPhase.OperatorPick => "Vælg jeres loadout.",
         MatchPhase.InGame => "Følg med i planen på siden her, mens kampen kører.",
         MatchPhase.PostMatch => "Log kampen (map, site, resultat) - så bliver map-planen klogere.",

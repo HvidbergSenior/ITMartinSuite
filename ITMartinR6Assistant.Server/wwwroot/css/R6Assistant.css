@@ -1579,3 +1579,18 @@ body {
 .matchlog-sides { font-size: .8rem; }
 .matchlog-side { font-weight: 700; color: var(--text-muted); min-width: 34px; }
 .maps-title .good, .maps-title .bad { font-weight: 700; } .maps-title .good { color: #4ade80; } .maps-title .bad { color: var(--ban); }
+
+/* Operator-ban phase panel */
+.opban-card { max-width: 720px; margin: 20px auto 0; text-align: left; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.opban-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.opban-sub { color: var(--text-muted); font-size: .9rem; }
+.opban-side { display: flex; gap: 6px; }
+.opban-sites { display: grid; gap: 8px; margin-top: 10px; }
+.opban-site { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--bg-card2); cursor: pointer; }
+.opban-site-active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.opban-site-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.opban-stat { margin-left: auto; font-size: .78rem; color: var(--text-muted); }
+.opban-stat-row { display: flex; gap: 12px; flex-wrap: wrap; font-size: .8rem; color: var(--text-muted); margin: 4px 0 6px; }
+.opban-stat-row .good, .opban-line .good { color: #4ade80; } .opban-stat-row .bad { color: var(--ban); }
+.opban-line { font-size: .85rem; margin-top: 2px; }
+.opban-label { color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
