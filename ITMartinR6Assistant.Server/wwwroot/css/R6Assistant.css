@@ -1559,3 +1559,16 @@ body {
 .maps-sites .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .maps-sites .good { color: #4ade80; font-weight: 700; } .maps-sites .bad { color: var(--ban); font-weight: 700; }
 .maps-empty { padding: 8px 10px 12px; color: var(--text-muted); font-size: .8rem; }
+
+/* Match log (PostMatch phase) */
+.matchlog-card { max-width: 520px; margin: 20px auto 0; text-align: left; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
+.matchlog-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.matchlog-row .quick-op-select { flex: 1; min-width: 140px; }
+.matchlog-result { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text); font-weight: 700; cursor: pointer; }
+.matchlog-win { border-color: #22c55e; color: #4ade80; } .matchlog-loss { border-color: #ef4444; color: var(--ban); }
+.matchlog-score { width: 64px; padding: 7px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card2); color: var(--text); text-align: center; }
+.matchlog-recent { margin-top: 10px; font-size: .8rem; color: var(--text-muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.matchlog-chip { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: .75rem; }
+.matchlog-del { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: .9rem; }
+.matchlog-del:hover { color: var(--ban); }
+.maps-log { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }

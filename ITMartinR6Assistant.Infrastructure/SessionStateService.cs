@@ -121,6 +121,37 @@ public class SessionStateService
         NotifyStateChanged();
     }
 
+    public IReadOnlyList<MatchRecord> Matches => _team.Matches;
+
+    public void LogMatch(MatchRecord m)
+    {
+        lock (_lock)
+        {
+            _team.Matches.Add(m);
+            SaveTeamSettings();
+        }
+        NotifyStateChanged();
+    }
+
+    public void DeleteMatch(MatchRecord m)
+    {
+        lock (_lock)
+        {
+            _team.Matches.Remove(m);
+            SaveTeamSettings();
+        }
+        NotifyStateChanged();
+    }
+
+    // Per-map and per-site record from the logged matches: (played, won).
+    public (int Played, int Won) MapRecord(string map) =>
+        (_team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase)),
+         _team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Won));
+
+    public (int Played, int Won) SiteRecord(string map, string site) =>
+        (_team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Site.Equals(site, StringComparison.OrdinalIgnoreCase)),
+         _team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Site.Equals(site, StringComparison.OrdinalIgnoreCase) && x.Won));
+
     public void SetShowBanners(bool show)
     {
         lock (_lock)

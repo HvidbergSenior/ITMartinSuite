@@ -10,7 +10,7 @@
    own ban/play mark from the map-ban plan. Editing lives in /admin. *@
 <div class="maps-page">
     <h1 style="margin:0 0 4px">🗺 Maps</h1>
-    <div class="maps-sub">Alle maps med bombsites og tal. 🚫/⭐ er holdets egen plan fra map-ban-fasen.</div>
+    <div class="maps-sub">Alle maps med bombsites og tal. 🚫/⭐ er holdets egen plan fra map-ban-fasen. "Vi" er vores egne loggede kampe (@Session.Matches.Count i alt); ATK win/picks/bans er indtastet under Admin.</div>
 
     @if (_gameData is null)
     {
@@ -34,18 +34,21 @@
                                 <b>@map.Name</b>
                                 @if (pref == "ban") { <span class="mapban-tag mapban-tag-ban">🚫 vi banner</span> }
                                 else if (pref == "play") { <span class="mapban-tag mapban-tag-play">⭐ vi vil spille</span> }
-                                <small>@map.Sites.Count sites</small>
+                                @{ var mr = Session.MapRecord(map.Name); }
+                                <small>@map.Sites.Count sites@(mr.Played > 0 ? $" · vi: {mr.Won}–{mr.Played - mr.Won} ({100 * mr.Won / mr.Played} %)" : "")</small>
                             </div>
                         </div>
                         @if (map.Sites.Count > 0)
                         {
                             <table class="maps-sites">
-                                <tr><th>Site</th><th>Etage</th><th class="n">ATK win</th><th>ATK picks</th><th>DEF picks</th><th>Bans</th></tr>
+                                <tr><th>Site</th><th>Etage</th><th class="n">Vi</th><th class="n">ATK win</th><th>ATK picks</th><th>DEF picks</th><th>Bans</th></tr>
                                 @foreach (var s in map.Sites)
                                 {
                                     <tr>
                                         <td><b>@s.Name</b></td>
                                         <td>@s.Floor</td>
+                                        @{ var sr = Session.SiteRecord(map.Name, s.Name); }
+                                        <td class="n @(sr.Played > 0 && 100 * sr.Won / sr.Played >= 55 ? "good" : sr.Played > 0 && 100 * sr.Won / sr.Played <= 45 ? "bad" : "")">@(sr.Played > 0 ? $"{sr.Won}–{sr.Played - sr.Won}" : "–")</td>
                                         <td class="n @(s.AttackWinRate >= 55 ? "good" : s.AttackWinRate > 0 && s.AttackWinRate <= 45 ? "bad" : "")">@(s.AttackWinRate > 0 ? s.AttackWinRate + " %" : "–")</td>
                                         <td>@string.Join(", ", s.AttackPicks)</td>
                                         <td>@string.Join(", ", s.DefensePicks)</td>
@@ -62,6 +65,24 @@
                 }
             </div>
         }
+    }
+
+    @if (Session.Matches.Count > 0)
+    {
+        <div class="maps-section">Loggede kampe (@Session.Matches.Count)</div>
+        <table class="maps-sites maps-log">
+            <tr><th>Dato</th><th>Map</th><th>Site</th><th class="n">Resultat</th><th>Note</th><th></th></tr>
+            @foreach (var m in Session.Matches.OrderByDescending(x => x.PlayedAtUtc).Take(50))
+            {
+                <tr>
+                    <td>@m.PlayedAtUtc.ToLocalTime().ToString("dd.MM HH:mm")</td>
+                    <td>@m.Map</td><td>@m.Site</td>
+                    <td class="n @(m.Won ? "good" : "bad")">@(m.Won ? "W" : "L") @(m.RoundsWon)–@(m.RoundsLost)</td>
+                    <td>@m.Note</td>
+                    <td><button class="matchlog-del" title="Slet" @onclick="() => Session.DeleteMatch(m)">✕</button></td>
+                </tr>
+            }
+        </table>
     }
 </div>
 

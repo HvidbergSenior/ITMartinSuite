@@ -26,4 +26,7 @@ public class TeamSettings
     // Manual fallback values for fields the Specifikationer card couldn't
     // determine automatically (mouse/headset model, headset software) - see PlayerSpecs.
     public Dictionary<string, PlayerSpecs> PlayerSpecs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    // Hand-logged match results (PostMatch phase) - see MatchRecord.
+    public List<MatchRecord> Matches { get; set; } = new();
 }
