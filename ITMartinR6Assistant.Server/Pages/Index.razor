@@ -113,57 +113,19 @@
         </div>
     }
 
-    @* Quick-switch: loadout or settings, one panel at a time, available in
-       every phase - not the full /loadouts or /indstillinger pages, just a
+    @* Quick settings explainer, available in every phase - not the full
+       /indstillinger page, just a
        fast condensed check without leaving this screen. *@
     <div class="quick-check">
         <div class="quick-check-tabs">
-            <button class="quick-tab-btn @(_quickTab == "loadout" ? "quick-tab-active" : "")" @onclick='() => SelectTab("loadout")'>🎒 Loadout</button>
             <button class="quick-tab-btn @(_quickTab == "settings" ? "quick-tab-active" : "")" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
         </div>
 
         @if (_quickTab is null)
         {
             <div class="quick-intro">
-                <b>🎒 Loadout</b> – holdets aftalte udstyr pr. operator (våben, sigte, gadget). Vælg en operator og se
-                standarden; skriv din egen variant, hvis du spiller anderledes.<br>
                 <b>⚙ Settings</b> – Sieges egne indstillinger (sigte-følsomhed, FOV, lyd, grafik). Vælg én og få en
                 kort forklaring på, hvad den gør, og hvad der er en fornuftig værdi.
-            </div>
-        }
-        else if (_quickTab == "loadout")
-        {
-            <div class="quick-panel">
-                <div class="quick-intro">Holdets standard-loadout pr. operator. <b>Standard</b> er det, vi er enige om;
-                <b>Min</b> er din egen afvigelse (kun du ser den). Tomt felt = du bruger standarden.</div>
-                <select class="quick-op-select" @bind="_selectedOperator">
-                    <option value="">-- vælg operator --</option>
-                    @if (_gameData is not null)
-                    {
-                        <optgroup label="ATK">
-                            @foreach (var op in _gameData.Operators.Where(o => o.Side == "Attack"))
-                            {
-                                <option value="@op.Name">@op.Name</option>
-                            }
-                        </optgroup>
-                        <optgroup label="DEF">
-                            @foreach (var op in _gameData.Operators.Where(o => o.Side == "Defense"))
-                            {
-                                <option value="@op.Name">@op.Name</option>
-                            }
-                        </optgroup>
-                    }
-                </select>
-
-                @if (!string.IsNullOrEmpty(_selectedOperator))
-                {
-                    var opName = _selectedOperator;
-                    var def = Session.GetDefaultLoadout(opName);
-                    var mine = Identity.Name is { } player ? Session.GetPlayerLoadout(player, opName) : null;
-
-                    <OperatorLoadoutEditor Default="def" DefaultChanged="l => SetDefault(opName, l)"
-                                           Mine="mine" MineChanged="l => SetMine(opName, l)" />
-                }
             </div>
         }
         else if (_quickTab == "settings")
@@ -203,7 +165,6 @@
 
     private R6GameData? _gameData;
     private string? _quickTab;
-    private string? _selectedOperator;
 
     private SettingsGuideService.SettingEntry? _selectedSetting;
     private string? _settingExplanation;
@@ -354,13 +315,6 @@
 
     private void SelectTab(string tab) => _quickTab = _quickTab == tab ? null : tab;
 
-    private void SetDefault(string opName, OperatorLoadout loadout) => Session.SetDefaultLoadout(opName, loadout);
-
-    private void SetMine(string opName, OperatorLoadout? loadout)
-    {
-        if (Identity.Name is { } player)
-            Session.SetPlayerLoadout(player, opName, loadout);
-    }
 
     private async Task OnSettingSelected(ChangeEventArgs e)
     {
