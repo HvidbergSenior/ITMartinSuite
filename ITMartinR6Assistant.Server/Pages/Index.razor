@@ -90,6 +90,19 @@
                         <button class="mapban-main" @onclick="() => Session.ToggleMapBan(name)">
                             @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
                             <div class="mapban-name">@name</div>
+                            @{
+                                var rec = Session.MapRecord(name);
+                                var atk = map.Sites.Where(x => x.AttackWinRate > 0).Select(x => x.AttackWinRate).DefaultIfEmpty(0).Average();
+                            }
+                            <div class="mapban-stats">
+                                @if (rec.Played > 0)
+                                {
+                                    var pct = 100 * rec.Won / rec.Played;
+                                    <span class="@(pct >= 55 ? "good" : pct <= 45 ? "bad" : "")">Vi @(rec.Won)–@(rec.Played - rec.Won) (@pct %)</span>
+                                }
+                                else { <span class="muted">Vi: ingen kampe</span> }
+                                @if (atk > 0) { <span title="Gennemsnitlig attack-winrate for sites">ATK @(Math.Round(atk)) %</span> }
+                            </div>
                         </button>
                         @if (!banned)
                         {

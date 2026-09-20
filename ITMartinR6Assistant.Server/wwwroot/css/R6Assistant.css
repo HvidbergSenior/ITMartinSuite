@@ -1572,3 +1572,6 @@ body {
 .matchlog-del { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: .9rem; }
 .matchlog-del:hover { color: var(--ban); }
 .maps-log { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+
+.mapban-stats { display: flex; justify-content: space-between; gap: 6px; padding: 0 8px 6px; font-size: .72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.mapban-stats .good { color: #4ade80; font-weight: 700; } .mapban-stats .bad { color: var(--ban); font-weight: 700; } .mapban-stats .muted { opacity: .7; }
