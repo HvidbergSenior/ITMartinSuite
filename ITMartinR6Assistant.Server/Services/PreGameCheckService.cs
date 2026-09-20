@@ -37,6 +37,8 @@ public sealed class PreGameCheckService
                 - Grupper svaret i sektioner: Netværk, Lyd & Discord, Spil & Launcher, System.
                 - Brug ✅ for ting der er fine, ⚠ for ting der bør tjekkes/rettes.
                 - Hver ⚠-linje skal have ét konkret, praktisk forslag til at rette det - ikke bare "tjek dette".
+                - Når du nævner et sted i Windows, skriv stien både på dansk og engelsk (fx "Indstillinger -> System ->
+                  Strøm / Settings -> System -> Power") - spillerne har både dansk og engelsk Windows.
                 - Vær kortfattet - dette skal kunne læses på under et minut, ikke en rapport.
                 - Hvis noget mangler i data (fx en check der fejlede lokalt), spring det roligt over i stedet for at gætte.
                 - Hvis r6_dage_siden_opdateret er højt (fx over 14 dage), er det TOP PRIORITET: gør klart at der
@@ -60,7 +62,7 @@ public sealed class PreGameCheckService
                 - Strømplan: scriptet ser kun den klassiske plan (powercfg). "Høj ydelse"/"High performance"/
                   "Ultimate Performance" er ✅. Står der "Balanced"/"Balanceret", så lav en ⚠-linje der siger:
                   tjek at Strømtilstand er sat til "Bedste ydeevne" (Windows 11: Indstillinger -> System -> Strøm ->
-                  Strømtilstand) - scriptet kan ikke se den indstilling, og den fjerner CPU-nedklokning mellem
+                  Strømtilstand / Settings -> System -> Power -> Power mode = Best performance) - scriptet kan ikke se den indstilling, og den fjerner CPU-nedklokning mellem
                   runder. "Strømbesparelse" er altid ⚠.
                 - Svar KUN med tjeklisten, ingen indledning eller afsluttende kommentarer.
                 """,
