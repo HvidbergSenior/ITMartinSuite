@@ -1594,3 +1594,5 @@ body {
 .opban-stat-row .good, .opban-line .good { color: #4ade80; } .opban-stat-row .bad { color: var(--ban); }
 .opban-line { font-size: .85rem; margin-top: 2px; }
 .opban-label { color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+.mapban-play-banned { color: var(--ban); border-color: var(--ban); }
+.mapban-chosen .mapban-name::after { content: " ✓"; color: var(--accent); }

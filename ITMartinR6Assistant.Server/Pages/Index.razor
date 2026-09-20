@@ -71,7 +71,7 @@
         // Until maps are flagged ranked under Admin, show them all.
         var ranked = _gameData.Maps.Any(m => m.IsRanked) ? _gameData.Maps.Where(m => m.IsRanked).ToList() : _gameData.Maps.ToList();
         <div class="mapban-card">
-            <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det samme. Tallene er vores egne kampe. Tryk p&aring; et map n&aring;r det er bannet; tryk <b>Spil</b> p&aring; det, vi ender med.</div>
+            <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det samme. Tallene er vores egne kampe. <b>Tryk p&aring; det map, vi ender med</b> &ndash; s&aring; handler Operator-bans om det map. Marker evt. de bannede med &#x2715;.</div>
             <div class="mapban-grid">
                 @foreach (var map in ranked)
                 {
@@ -79,7 +79,7 @@
                     var banned = Session.MapBans.Contains(name);
                     var chosen = Session.Map == name;
                     <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
-                        <button class="mapban-main" @onclick="() => Session.ToggleMapBan(name)">
+                        <button class="mapban-main" @onclick="() => Session.SetMap(name)">
                             @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
                             <div class="mapban-name">@name</div>
                             @{ var st = Session.MapStats(name); }
@@ -100,16 +100,13 @@
                                 <div class="mapban-stats"><span class="muted">sidst @st.LastPlayedUtc?.ToLocalTime().ToString("dd.MM")</span></div>
                             }
                         </button>
-                        @if (!banned)
-                        {
-                            <button class="mapban-play @(chosen ? "mapban-play-on" : "")" @onclick="() => Session.SetMap(name)">@(chosen ? "✓ Valgt" : "Spil")</button>
-                        }
+                        <button class="mapban-play @(banned ? "mapban-play-banned" : "")" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "↩ Fortryd ban" : "✕ Bannet")</button>
                     </div>
                 }
             </div>
             @if (Session.Map is not null)
             {
-                <div class="mapban-result">Vi spiller <b>@Session.Map</b>.</div>
+                <div class="mapban-result">Vi spiller <b>@Session.Map</b> &ndash; Operator-bans viser nu dets sites.</div>
             }
         </div>
     }
