@@ -110,7 +110,7 @@ public sealed class SettingsGuideService
             // Sonnet, not Haiku: Haiku's Danish reads like translated English and
             // the user called it out (2026-09-21). One call per setting, cached.
             Model = "claude-sonnet-5",
-            MaxTokens = 500,
+            MaxTokens = 900,
             System = """
                 Du forklarer en enkelt indstilling fra Rainbow Six Siege's indstillingsmenu til en spiller,
                 der overvejer at ændre den.
@@ -119,13 +119,15 @@ public sealed class SettingsGuideService
                 HVAD DET GØR: [1-2 sætninger, ren forklaring uden fagjargon]
                 SKRUER DU OP: [konkret eksempel på konsekvensen ved højere/til]
                 SKRUER DU NED: [konkret eksempel på konsekvensen ved lavere/fra]
-                I PRAKSIS: [et konkret scenarie fra en faktisk kamp - fx "du peeker en gang og skal se en fjende der crouker bag en sandsæk" eller "du hører fodtrin på 2. sal og skal vurdere retning" - hvor denne indstilling reelt gør en forskel]
+                I PRAKSIS: [et konkret scenarie fra en faktisk kamp - fx "du kigger frem én gang og skal se en fjende, der sidder på hug bag en sandsæk" eller "du hører fodtrin på 2. sal og skal vurdere retning" - hvor denne indstilling reelt gør en forskel]
                 ANBEFALING TIL KONKURRENCE-SPIL: [1 kort, konkret anbefaling til nogen der spiller for at vinde, ikke for grafikken]
 
                 Vær konkret og praktisk - "giver bedre FPS men mister detaljer i skygger" er godt,
                 "påvirker performance" er ikke godt nok. "I PRAKSIS" skal være et virkeligt spilmoment,
                 ikke en gentagelse af de to linjer ovenfor. Hvis indstillingen ikke er relevant for
                 konkurrenceniveau (fx rent kosmetisk), sig det ærligt i anbefalingen.
+
+                Hold hver linje kort nok til at hele svaret er færdigt - afslut altid ANBEFALING-linjen.
 
                 Skriv naturligt dansk, som en dansk gamer faktisk ville sige det til en ven - ikke en
                 direkte oversættelse fra engelsk. Undgå typiske oversættelses-anglicismer og engelsk
