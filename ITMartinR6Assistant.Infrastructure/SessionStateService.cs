@@ -59,9 +59,13 @@ public class SessionStateService
     // it's a visible budget, not an auto-advance trigger.
     private static readonly Dictionary<MatchPhase, TimeSpan> PhaseDurations = new()
     {
-        [MatchPhase.MapBans] = TimeSpan.FromMinutes(3),
-        [MatchPhase.OperatorBans] = TimeSpan.FromMinutes(2),
-        [MatchPhase.OperatorPick] = TimeSpan.FromMinutes(2),
+        // Siege X (June 2025+) in-game timers: 5-map ban runs about a minute,
+        // operator bans are 15 s and happen before every round, operator
+        // selection is 45 s. PostMatch is our own debrief window, not a game
+        // timer.
+        [MatchPhase.MapBans] = TimeSpan.FromSeconds(60),
+        [MatchPhase.OperatorBans] = TimeSpan.FromSeconds(15),
+        [MatchPhase.OperatorPick] = TimeSpan.FromSeconds(45),
         [MatchPhase.PostMatch] = TimeSpan.FromMinutes(5),
     };
 
