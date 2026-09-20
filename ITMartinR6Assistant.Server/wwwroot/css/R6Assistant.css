@@ -1503,3 +1503,7 @@ body {
     color: var(--text);
 }
 .explain-recommend-label { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); margin-bottom: 5px; }
+
+/* Short "what is this" text under the Loadout/Settings quick tabs */
+.quick-intro { color: var(--text-muted); font-size: .85rem; line-height: 1.45; margin: 8px 0 10px; text-align: left; }
+.quick-intro b { color: var(--text); }

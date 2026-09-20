@@ -122,9 +122,20 @@
             <button class="quick-tab-btn @(_quickTab == "settings" ? "quick-tab-active" : "")" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
         </div>
 
-        @if (_quickTab == "loadout")
+        @if (_quickTab is null)
+        {
+            <div class="quick-intro">
+                <b>🎒 Loadout</b> – holdets aftalte udstyr pr. operator (våben, sigte, gadget). Vælg en operator og se
+                standarden; skriv din egen variant, hvis du spiller anderledes.<br>
+                <b>⚙ Settings</b> – Sieges egne indstillinger (sigte-følsomhed, FOV, lyd, grafik). Vælg én og få en
+                kort forklaring på, hvad den gør, og hvad der er en fornuftig værdi.
+            </div>
+        }
+        else if (_quickTab == "loadout")
         {
             <div class="quick-panel">
+                <div class="quick-intro">Holdets standard-loadout pr. operator. <b>Standard</b> er det, vi er enige om;
+                <b>Min</b> er din egen afvigelse (kun du ser den). Tomt felt = du bruger standarden.</div>
                 <select class="quick-op-select" @bind="_selectedOperator">
                     <option value="">-- vælg operator --</option>
                     @if (_gameData is not null)
@@ -158,6 +169,8 @@
         else if (_quickTab == "settings")
         {
             <div class="quick-panel">
+                <div class="quick-intro">Forklaring af Sieges indstillinger (Options / Indstillinger inde i spillet) –
+                hvad de gør, og hvilken værdi der giver mening for os. Ændrer ikke noget på din PC.</div>
                 <select class="quick-op-select" value="@_selectedSetting?.Key" @onchange="OnSettingSelected">
                     <option value="">-- vælg indstilling --</option>
                     @foreach (var group in SettingsGuideService.Settings.GroupBy(s => s.Category))
