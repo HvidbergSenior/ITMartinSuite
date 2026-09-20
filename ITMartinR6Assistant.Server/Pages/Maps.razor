@@ -34,21 +34,27 @@
                                 <b>@map.Name</b>
                                 @if (pref == "ban") { <span class="mapban-tag mapban-tag-ban">🚫 vi banner</span> }
                                 else if (pref == "play") { <span class="mapban-tag mapban-tag-play">⭐ vi vil spille</span> }
-                                @{ var mr = Session.MapRecord(map.Name); }
-                                <small>@map.Sites.Count sites@(mr.Played > 0 ? $" · vi: {mr.Won}–{mr.Played - mr.Won} ({100 * mr.Won / mr.Played} %)" : "")</small>
+                                @{ var st = Session.MapStats(map.Name); }
+                                <small>@map.Sites.Count sites</small>
+                                @if (st.Played > 0)
+                                {
+                                    <small><b>@st.Played kampe</b> · @st.Won–@(st.Played - st.Won) (<span class="@Cls(st.WinPct)">@st.WinPct %</span>) · ATK <span class="@Cls(st.AtkPct)">@st.AtkPct %</span> (@st.AtkWon–@st.AtkLost) · DEF <span class="@Cls(st.DefPct)">@st.DefPct %</span> (@st.DefWon–@st.DefLost) · sidst @st.LastPlayedUtc?.ToLocalTime().ToString("dd.MM.yy")</small>
+                                }
                             </div>
                         </div>
                         @if (map.Sites.Count > 0)
                         {
                             <table class="maps-sites">
-                                <tr><th>Site</th><th>Etage</th><th class="n">Vi</th><th class="n">ATK win</th><th>ATK picks</th><th>DEF picks</th><th>Bans</th></tr>
+                                <tr><th>Site</th><th>Etage</th><th class="n">Vi</th><th class="n">Vi ATK</th><th class="n">Vi DEF</th><th class="n">ATK win</th><th>ATK picks</th><th>DEF picks</th><th>Bans</th></tr>
                                 @foreach (var s in map.Sites)
                                 {
                                     <tr>
                                         <td><b>@s.Name</b></td>
                                         <td>@s.Floor</td>
-                                        @{ var sr = Session.SiteRecord(map.Name, s.Name); }
-                                        <td class="n @(sr.Played > 0 && 100 * sr.Won / sr.Played >= 55 ? "good" : sr.Played > 0 && 100 * sr.Won / sr.Played <= 45 ? "bad" : "")">@(sr.Played > 0 ? $"{sr.Won}–{sr.Played - sr.Won}" : "–")</td>
+                                        @{ var sr = Session.SiteStats(map.Name, s.Name); }
+                                        <td class="n @(sr.Played > 0 ? Cls(sr.WinPct) : "")">@(sr.Played > 0 ? $"{sr.Won}–{sr.Played - sr.Won}" : "–")</td>
+                                        <td class="n @(sr.AtkWon + sr.AtkLost > 0 ? Cls(sr.AtkPct) : "")">@(sr.AtkWon + sr.AtkLost > 0 ? $"{sr.AtkWon}–{sr.AtkLost}" : "–")</td>
+                                        <td class="n @(sr.DefWon + sr.DefLost > 0 ? Cls(sr.DefPct) : "")">@(sr.DefWon + sr.DefLost > 0 ? $"{sr.DefWon}–{sr.DefLost}" : "–")</td>
                                         <td class="n @(s.AttackWinRate >= 55 ? "good" : s.AttackWinRate > 0 && s.AttackWinRate <= 45 ? "bad" : "")">@(s.AttackWinRate > 0 ? s.AttackWinRate + " %" : "–")</td>
                                         <td>@string.Join(", ", s.AttackPicks)</td>
                                         <td>@string.Join(", ", s.DefensePicks)</td>
@@ -71,13 +77,14 @@
     {
         <div class="maps-section">Loggede kampe (@Session.Matches.Count)</div>
         <table class="maps-sites maps-log">
-            <tr><th>Dato</th><th>Map</th><th>Site</th><th class="n">Resultat</th><th>Note</th><th></th></tr>
+            <tr><th>Dato</th><th>Map</th><th>Site</th><th class="n">Resultat</th><th class="n">ATK</th><th class="n">DEF</th><th>Note</th><th></th></tr>
             @foreach (var m in Session.Matches.OrderByDescending(x => x.PlayedAtUtc).Take(50))
             {
                 <tr>
                     <td>@m.PlayedAtUtc.ToLocalTime().ToString("dd.MM HH:mm")</td>
                     <td>@m.Map</td><td>@m.Site</td>
                     <td class="n @(m.Won ? "good" : "bad")">@(m.Won ? "W" : "L") @(m.RoundsWon)–@(m.RoundsLost)</td>
+                    <td class="n">@m.AtkWon–@m.AtkLost</td><td class="n">@m.DefWon–@m.DefLost</td>
                     <td>@m.Note</td>
                     <td><button class="matchlog-del" title="Slet" @onclick="() => Session.DeleteMatch(m)">✕</button></td>
                 </tr>
@@ -88,6 +95,7 @@
 
 @code {
     private R6GameData? _gameData;
+    private static string Cls(int pct) => pct >= 55 ? "good" : pct <= 45 ? "bad" : "";
 
     protected override async Task OnInitializedAsync()
     {

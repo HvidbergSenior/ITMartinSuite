@@ -143,14 +143,18 @@ public class SessionStateService
         NotifyStateChanged();
     }
 
-    // Per-map and per-site record from the logged matches: (played, won).
-    public (int Played, int Won) MapRecord(string map) =>
-        (_team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase)),
-         _team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Won));
+    private static Domain.MapStats Aggregate(IEnumerable<MatchRecord> ms)
+    {
+        var l = ms.ToList();
+        return l.Count == 0 ? Domain.MapStats.Empty : new Domain.MapStats(l.Count, l.Count(x => x.Won),
+            l.Sum(x => x.AtkWon), l.Sum(x => x.AtkLost), l.Sum(x => x.DefWon), l.Sum(x => x.DefLost), l.Max(x => x.PlayedAtUtc));
+    }
 
-    public (int Played, int Won) SiteRecord(string map, string site) =>
-        (_team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Site.Equals(site, StringComparison.OrdinalIgnoreCase)),
-         _team.Matches.Count(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Site.Equals(site, StringComparison.OrdinalIgnoreCase) && x.Won));
+    public Domain.MapStats MapStats(string map) =>
+        Aggregate(_team.Matches.Where(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase)));
+
+    public Domain.MapStats SiteStats(string map, string site) =>
+        Aggregate(_team.Matches.Where(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Site.Equals(site, StringComparison.OrdinalIgnoreCase)));
 
     public void SetShowBanners(bool show)
     {

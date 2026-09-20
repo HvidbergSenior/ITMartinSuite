@@ -9,7 +9,23 @@ public class MatchRecord
     public string Map { get; set; } = "";
     public string Site { get; set; } = "";
     public bool Won { get; set; }
-    public int RoundsWon { get; set; }
-    public int RoundsLost { get; set; }
+    // Rounds split by side - the map-ban vote cares whether we win a map
+    // on attack, on defence, or both.
+    public int AtkWon { get; set; }
+    public int AtkLost { get; set; }
+    public int DefWon { get; set; }
+    public int DefLost { get; set; }
+    public int RoundsWon => AtkWon + DefWon;
+    public int RoundsLost => AtkLost + DefLost;
     public string Note { get; set; } = "";
+}
+
+// Aggregate over logged matches for a map or a site.
+public sealed record MapStats(int Played, int Won, int AtkWon, int AtkLost, int DefWon, int DefLost, DateTime? LastPlayedUtc)
+{
+    public int WinPct => Played > 0 ? 100 * Won / Played : 0;
+    public int AtkPct => AtkWon + AtkLost > 0 ? 100 * AtkWon / (AtkWon + AtkLost) : 0;
+    public int DefPct => DefWon + DefLost > 0 ? 100 * DefWon / (DefWon + DefLost) : 0;
+    public int RoundPct => AtkWon + DefWon + AtkLost + DefLost > 0 ? 100 * (AtkWon + DefWon) / (AtkWon + DefWon + AtkLost + DefLost) : 0;
+    public static readonly MapStats Empty = new(0, 0, 0, 0, 0, 0, null);
 }

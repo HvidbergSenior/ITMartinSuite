@@ -90,19 +90,23 @@
                         <button class="mapban-main" @onclick="() => Session.ToggleMapBan(name)">
                             @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
                             <div class="mapban-name">@name</div>
-                            @{
-                                var rec = Session.MapRecord(name);
-                                var atk = map.Sites.Where(x => x.AttackWinRate > 0).Select(x => x.AttackWinRate).DefaultIfEmpty(0).Average();
+                            @{ var st = Session.MapStats(name); }
+                            @if (st.Played == 0)
+                            {
+                                <div class="mapban-stats"><span class="muted">Ikke spillet endnu</span></div>
                             }
-                            <div class="mapban-stats">
-                                @if (rec.Played > 0)
-                                {
-                                    var pct = 100 * rec.Won / rec.Played;
-                                    <span class="@(pct >= 55 ? "good" : pct <= 45 ? "bad" : "")">Vi @(rec.Won)–@(rec.Played - rec.Won) (@pct %)</span>
-                                }
-                                else { <span class="muted">Vi: ingen kampe</span> }
-                                @if (atk > 0) { <span title="Gennemsnitlig attack-winrate for sites">ATK @(Math.Round(atk)) %</span> }
-                            </div>
+                            else
+                            {
+                                <div class="mapban-stats">
+                                    <span class="@Cls(st.WinPct)">@st.Won–@(st.Played - st.Won) · @st.WinPct %</span>
+                                    <span>@st.Played @(st.Played == 1 ? "kamp" : "kampe")</span>
+                                </div>
+                                <div class="mapban-stats">
+                                    <span title="Attack-runder vundet–tabt">ATK @st.AtkWon–@st.AtkLost <b class="@Cls(st.AtkPct)">@st.AtkPct %</b></span>
+                                    <span title="Defence-runder vundet–tabt">DEF @st.DefWon–@st.DefLost <b class="@Cls(st.DefPct)">@st.DefPct %</b></span>
+                                </div>
+                                <div class="mapban-stats"><span class="muted">sidst @st.LastPlayedUtc?.ToLocalTime().ToString("dd.MM")</span></div>
+                            }
                         </button>
                         @if (!banned)
                         {
@@ -135,9 +139,12 @@
             <div class="matchlog-row">
                 <button class="matchlog-result @(_logWon == true ? "matchlog-win" : "")" @onclick="() => _logWon = true">✅ Vundet</button>
                 <button class="matchlog-result @(_logWon == false ? "matchlog-loss" : "")" @onclick="() => _logWon = false">❌ Tabt</button>
-                <input class="matchlog-score" type="number" min="0" max="9" placeholder="vores" @bind="_logRw" />
-                <span>–</span>
-                <input class="matchlog-score" type="number" min="0" max="9" placeholder="deres" @bind="_logRl" />
+            </div>
+            <div class="matchlog-row matchlog-sides">
+                <span class="matchlog-side">ATK</span>
+                <input class="matchlog-score" type="number" min="0" max="9" placeholder="vundet" @bind="_logAw" /><span>–</span><input class="matchlog-score" type="number" min="0" max="9" placeholder="tabt" @bind="_logAl" />
+                <span class="matchlog-side">DEF</span>
+                <input class="matchlog-score" type="number" min="0" max="9" placeholder="vundet" @bind="_logDw" /><span>–</span><input class="matchlog-score" type="number" min="0" max="9" placeholder="tabt" @bind="_logDl" />
             </div>
             <div class="matchlog-row">
                 <input class="specs-input" placeholder="Note (valgfri) – fx 'tabte alle rush på site B'" @bind="_logNote" />
@@ -265,16 +272,18 @@
     private string _logMap = "";
     private string _logSite = "";
     private bool? _logWon;
-    private int _logRw, _logRl;
+    private int _logAw, _logAl, _logDw, _logDl;
     private string _logNote = "";
     private bool _logSaved;
+
+    private static string Cls(int pct) => pct >= 55 ? "good" : pct <= 45 ? "bad" : "";
 
     private void SaveMatch()
     {
         if (string.IsNullOrEmpty(_logMap) || _logWon is null) return;
-        Session.LogMatch(new MatchRecord { Map = _logMap, Site = _logSite, Won = _logWon.Value, RoundsWon = _logRw, RoundsLost = _logRl, Note = _logNote.Trim() });
+        Session.LogMatch(new MatchRecord { Map = _logMap, Site = _logSite, Won = _logWon.Value, AtkWon = _logAw, AtkLost = _logAl, DefWon = _logDw, DefLost = _logDl, Note = _logNote.Trim() });
         _logSaved = true;
-        _logSite = ""; _logWon = null; _logRw = 0; _logRl = 0; _logNote = "";
+        _logSite = ""; _logWon = null; _logAw = _logAl = _logDw = _logDl = 0; _logNote = "";
     }
 
     private SettingsGuideService.SettingEntry? _selectedSetting;
