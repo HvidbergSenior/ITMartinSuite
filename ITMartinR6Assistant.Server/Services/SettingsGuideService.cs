@@ -107,7 +107,9 @@ public sealed class SettingsGuideService
 
         var response = await _client.Messages.Create(new MessageCreateParams
         {
-            Model = Model.ClaudeHaiku4_5,
+            // Sonnet, not Haiku: Haiku's Danish reads like translated English and
+            // the user called it out (2026-09-21). One call per setting, cached.
+            Model = "claude-sonnet-5",
             MaxTokens = 500,
             System = """
                 Du forklarer en enkelt indstilling fra Rainbow Six Siege's indstillingsmenu til en spiller,
