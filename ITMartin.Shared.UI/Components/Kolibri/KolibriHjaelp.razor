@@ -1,0 +1,30 @@
+@page "/hjaelp"
+@using ITMartin.Shared.UI.Kolibri
+@inject KolibriAppInfo Info
+@inject NavigationManager Nav
+<PageTitle>Noget virker ikke – @Info.Name</PageTitle>
+<KolibriHeader Title="Noget virker ikke?" />
+<main class="k-main"><div class="k-content">
+    <p>Skriv med dine egne ord, hvad du prøvede, og hvad der skete. Det går direkte til Martin, som ringer eller skriver tilbage.</p>
+    @* Plain HTML form: works without the Blazor circuit, which is exactly when people need it. *@
+    <form method="post" action="/api/hjaelp" onsubmit="setTimeout(function(){document.getElementById('k-thanks').style.display='block';document.getElementById('k-form').style.display='none';},50);return kSend(this);">
+        <div id="k-form" class="k-card">
+            <label class="k-label" for="k-text">Hvad skete der?</label>
+            <textarea class="k-textarea" id="k-text" name="text" required placeholder="Fx: Jeg trykkede på Stem, og der skete ingenting."></textarea>
+            <label class="k-label" for="k-name">Dit navn</label>
+            <input class="k-input" id="k-name" name="name" autocomplete="name" />
+            <label class="k-label" for="k-contact">Telefon eller mail</label>
+            <input class="k-input" id="k-contact" name="contact" autocomplete="tel" />
+            <input type="hidden" name="page" value="@Nav.Uri" />
+            <button class="k-btn k-btn-primary k-btn-block k-mt" type="submit">Send til Martin</button>
+            <p class="k-help k-mt">Der sendes: din besked, hvilken side du var på, og hvilken telefon/browser du bruger. Ikke andet.</p>
+        </div>
+    </form>
+    <div id="k-thanks" class="k-alert k-alert-ok" style="display:none">Tak – beskeden er sendt. Martin vender tilbage.
+        @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> Haster det? Ring </text><a href="tel:@Info.ContactPhone">@Info.ContactPhone</a><text>.</text> }
+    </div>
+    <p class="k-center k-mt"><a class="k-btn" href="/">Tilbage</a></p>
+</div></main>
+<script>
+function kSend(f){var d=new FormData(f);fetch(f.action,{method:'POST',body:d}).catch(function(){});return false;}
+</script>

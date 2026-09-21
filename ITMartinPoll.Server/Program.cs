@@ -4,6 +4,7 @@ using ITMartinPoll.Server.Components;
 using ITMartinPoll.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using ITMartin.Shared.UI.Kolibri;
 
 // The container's base image defaults to invariant/en-US, so ToString("dddd d.
 // MMMM")-style date formatting (used throughout - deadlines, date polls) came
@@ -22,9 +23,35 @@ builder.Services.AddDbContext<PollDb>(o =>
              ?? "Data Source=/app/data/poll.db"));
 
 builder.Services.AddScoped<AdminSession>();
+
+// Kolibri.UI identity: names, /om text, /hjaelp contact, /health, PWA manifest.
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Stem";
+    k.KolibriName = "Kolibri Bestøver";
+    k.Family = "bestoever";
+    k.Tagline = "Beslut noget sammen – uden gruppechat.";
+    k.About =
+    [
+        "Stem er til, når flere skal beslutte noget: en dato, en farve, hvilket foto der skal på væggen, hvem der tager hvad.",
+        "Den, der spørger, laver en afstemning på et minut og deler ét link. Alle stemmer fra telefonen – ingen konto, ingen app at hente. Resultatet ligger der bagefter, så ingen behøver spørge igen.",
+        "Fire slags: almindelig afstemning, billedvurdering (giv billeder point), datoafstemning (ja/nej/måske pr. dato) og pakker, hvor flere spørgsmål samles til én gruppe.",
+    ];
+    k.HowTo =
+    [
+        "Åbn linket, du har fået.",
+        "Læs, hvad der spørges om, og sæt dit kryds eller dine point.",
+        "Skriv dit navn, hvis der bliver bedt om det, og tryk Stem.",
+        "Kom tilbage til samme link for at se resultatet.",
+    ];
+    k.Version = "2026.09";
+    k.ThemeColor = "#f4f6f5";
+});
+
 builder.Services.AddSingleton<ITMartinPoll.Server.Services.DatePollBroadcastService>();
 
 var app = builder.Build();
+app.MapKolibri();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -175,6 +202,7 @@ app.MapGet("/pakke/{id:int}/pdf", async (int id, PollDb db) =>
 });
 
 app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

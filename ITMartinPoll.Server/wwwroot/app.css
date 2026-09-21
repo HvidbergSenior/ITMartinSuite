@@ -1,30 +1,5 @@
-/* Lyst tema, og kun lyst (bruger, 2026-09-10). Paletten står direkte i :root
-   frem for bag en html[data-theme="light"]-selector, så siden ser ens ud uanset
-   hvad browseren, systemet eller en gammel gemt indstilling måtte foretrække -
-   der er ikke længere en temaknap til at sætte attributten. */
-:root {
-    --bg: #f4f5f9;
-    --bg-deep: #e5e7f0;
-    --card: #ffffff;
-    --border: #dde1ea;
-    --border-2: #e5e8f0;
-    --border-3: #d0d5e0;
-    --text: #14161f;
-    --muted: #5b6172;
-    --muted-2: #6b7280;
-    --muted-3: #94a3b8;
-    --muted-4: #6b7280;
-    --accent: #4338CA;
-    --accent-strong: #4338CA;
-    --accent-dark: #3730A3;
-    --accent-subtle-bg: #e0e2fb;
-    --accent-light: #4338CA;
-    --danger: #dc2626;
-    --danger-border: #fca5a5;
-    --success: #16a34a;
-    --warning: #b45309;
-    --warning-2: #d97706;
-}
+/* Tokens (colours, radius, spacing) come from Kolibri.UI: _content/ITMartin.Shared.UI/css/kolibri.css.
+   The old light-only :root lived here until 2026-09-21; the same variable names are aliased there. */
 
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

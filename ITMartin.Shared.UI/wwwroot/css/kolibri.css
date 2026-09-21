@@ -1,0 +1,211 @@
+/* =====================================================================
+   Kolibri.UI – ITMartin design system (2026-09-21)
+   One token layer for every app. Light by default (user decision
+   2026-09-10 for Stem: light only); dark ONLY when the app opts in with
+   <html data-theme="dark">, never from prefers-color-scheme.
+   Family colour: <html data-family="puls|nektar|bestoever|baglaens|syn|rede|svaev">
+   Load this BEFORE the app's own css:
+     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css" />
+   ===================================================================== */
+
+/* ---------- 1. Tokens ---------- */
+:root {
+    /* neutral palette (light) */
+    --k-bg:        #f4f6f5;
+    --k-bg-deep:   #e7ebe9;
+    --k-card:      #ffffff;
+    --k-text:      #17211d;
+    --k-muted:     #5b6864;
+    --k-muted-2:   #7a8783;
+    --k-border:    #dbe2df;
+    --k-border-2:  #e6ebe9;
+    --k-border-3:  #cfd7d3;
+
+    /* family colour – default = kolibri green */
+    --k-accent:        #1f7a5c;
+    --k-accent-dark:   #175f47;
+    --k-accent-soft:   #e3f2ea;
+    --k-accent-text:   #ffffff;
+
+    /* semantic */
+    --k-success:       #16a34a;
+    --k-warning:       #b45309;
+    --k-warning-2:     #d97706;
+    --k-danger:        #dc2626;
+    --k-danger-border: #fca5a5;
+    --k-info:          #2563eb;
+
+    /* shape & rhythm */
+    --k-radius-sm: 8px;
+    --k-radius:    12px;
+    --k-radius-lg: 18px;
+    --k-space-1: 4px;
+    --k-space-2: 8px;
+    --k-space-3: 12px;
+    --k-space-4: 16px;
+    --k-space-5: 24px;
+    --k-space-6: 32px;
+    --k-shadow:    0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.05);
+    --k-transition: .15s ease;
+
+    /* type – large by default: many customers are older */
+    --k-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --k-fs-body: 17px;
+    --k-fs-small: 14px;
+    --k-fs-h1: clamp(26px, 5vw, 34px);
+    --k-fs-h2: 21px;
+    --k-lh: 1.5;
+
+    /* touch */
+    --k-tap: 44px;
+    --k-content-max: 640px;
+    --k-content-wide: 1100px;
+}
+
+html[data-family="puls"]      { --k-accent:#c96a2b; --k-accent-dark:#a3521f; --k-accent-soft:#f9e9de; }
+html[data-family="nektar"],
+html[data-family="hukommelse"]{ --k-accent:#1f7a5c; --k-accent-dark:#175f47; --k-accent-soft:#e3f2ea; }
+html[data-family="bestoever"] { --k-accent:#4338ca; --k-accent-dark:#3730a3; --k-accent-soft:#e0e2fb; }
+html[data-family="baglaens"]  { --k-accent:#475569; --k-accent-dark:#334155; --k-accent-soft:#e2e8f0; }
+html[data-family="syn"]       { --k-accent:#0e7490; --k-accent-dark:#155e75; --k-accent-soft:#dff3f8; }
+html[data-family="rede"]      { --k-accent:#92400e; --k-accent-dark:#78350f; --k-accent-soft:#fbeedd; }
+html[data-family="svaev"]     { --k-accent:#1d4ed8; --k-accent-dark:#1e40af; --k-accent-soft:#dbe6fb; }
+
+html[data-theme="dark"] {
+    --k-bg:#121917; --k-bg-deep:#0d1311; --k-card:#1b2420; --k-text:#ecf2ee;
+    --k-muted:#9fb0a8; --k-muted-2:#7f8f88; --k-border:#2b3733; --k-border-2:#243029; --k-border-3:#36443f;
+    --k-accent-soft:#1f3a30; --k-shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35);
+}
+
+/* ---------- 2. Aliases for existing app css (Stem etc.) ----------
+   Apps that already use these names keep working; delete their own :root. */
+:root {
+    --bg: var(--k-bg); --bg-deep: var(--k-bg-deep); --card: var(--k-card);
+    --border: var(--k-border); --border-2: var(--k-border-2); --border-3: var(--k-border-3);
+    --text: var(--k-text); --muted: var(--k-muted); --muted-2: var(--k-muted-2);
+    --muted-3: var(--k-muted-2); --muted-4: var(--k-muted-2);
+    --accent: var(--k-accent); --accent-strong: var(--k-accent); --accent-dark: var(--k-accent-dark);
+    --accent-subtle-bg: var(--k-accent-soft); --accent-light: var(--k-accent); --accent-hover: var(--k-accent-dark);
+    --danger: var(--k-danger); --danger-border: var(--k-danger-border);
+    --success: var(--k-success); --warning: var(--k-warning); --warning-2: var(--k-warning-2);
+    /* Shared.css (dark legacy) names */
+    --bg-main: var(--k-bg); --bg-card: var(--k-card); --bg-soft: var(--k-bg-deep);
+    --text-main: var(--k-text); --text-muted: var(--k-muted);
+    --radius-sm: var(--k-radius-sm); --radius-md: var(--k-radius); --radius-lg: var(--k-radius-lg);
+    --space-sm: var(--k-space-3); --space-md: var(--k-space-4); --space-lg: var(--k-space-5);
+}
+
+/* ---------- 3. Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+    margin: 0; background: var(--k-bg); color: var(--k-text);
+    font-family: var(--k-font); font-size: var(--k-fs-body); line-height: var(--k-lh);
+    -webkit-font-smoothing: antialiased;
+}
+a { color: var(--k-accent); }
+h1 { font-size: var(--k-fs-h1); line-height: 1.15; margin: 0 0 var(--k-space-3); }
+h2 { font-size: var(--k-fs-h2); margin: 0 0 var(--k-space-2); }
+p  { margin: 0 0 var(--k-space-3); }
+small, .k-small { font-size: var(--k-fs-small); color: var(--k-muted); }
+
+/* ---------- 4. Shell ---------- */
+.k-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+.k-header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--k-bg); border-bottom: 1px solid var(--k-border);
+    padding: max(env(safe-area-inset-top), 10px) 16px 10px;
+}
+.k-header-in { max-width: var(--k-content-max); margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+.k-header-in.wide { max-width: var(--k-content-wide); }
+.k-logo { width: 32px; height: 32px; flex: none; }
+.k-brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.k-brand b { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-brand span { font-size: 12px; color: var(--k-muted); }
+.k-header-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.k-main { flex: 1; padding: var(--k-space-4) 16px var(--k-space-6); }
+.k-content { max-width: var(--k-content-max); margin: 0 auto; }
+.k-content.wide { max-width: var(--k-content-wide); }
+.k-footer {
+    border-top: 1px solid var(--k-border); padding: 12px 16px max(env(safe-area-inset-bottom), 12px);
+    font-size: 13px; color: var(--k-muted); display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center;
+}
+.k-footer a { color: var(--k-muted); }
+
+/* ---------- 5. Buttons (44px tap, one primary per screen) ---------- */
+.k-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: var(--k-tap); padding: 10px 16px; border-radius: var(--k-radius);
+    border: 1px solid var(--k-border-3); background: var(--k-card); color: var(--k-text);
+    font: inherit; font-weight: 600; cursor: pointer; text-decoration: none;
+    transition: background var(--k-transition), border-color var(--k-transition), transform .05s;
+}
+.k-btn:hover { background: var(--k-bg-deep); }
+.k-btn:active { transform: translateY(1px); }
+.k-btn:disabled { opacity: .5; cursor: default; }
+.k-btn-primary { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text); }
+.k-btn-primary:hover { background: var(--k-accent-dark); border-color: var(--k-accent-dark); }
+.k-btn-danger { background: var(--k-danger); border-color: var(--k-danger); color: #fff; }
+.k-btn-ghost { background: transparent; border-color: transparent; color: var(--k-accent); }
+.k-btn-block { width: 100%; }
+.k-btn-sm { min-height: 36px; padding: 6px 12px; font-size: var(--k-fs-small); }
+
+/* ---------- 6. Cards & lists ---------- */
+.k-card {
+    background: var(--k-card); border: 1px solid var(--k-border); border-radius: var(--k-radius-lg);
+    padding: var(--k-space-4); box-shadow: var(--k-shadow); margin-bottom: var(--k-space-3);
+}
+.k-card-title { font-size: var(--k-fs-h2); font-weight: 700; margin: 0 0 4px; }
+.k-card-sub { color: var(--k-muted); font-size: var(--k-fs-small); margin: 0 0 var(--k-space-3); }
+.k-tag { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .3px; color: var(--k-accent); background: var(--k-accent-soft); padding: 2px 8px; border-radius: 999px; }
+.k-list { list-style: none; margin: 0; padding: 0; }
+.k-list li { display: flex; align-items: center; gap: 12px; min-height: var(--k-tap); padding: 10px 0; border-bottom: 1px solid var(--k-border-2); }
+.k-list li:last-child { border-bottom: 0; }
+.k-stack { display: flex; flex-direction: column; gap: var(--k-space-3); }
+.k-row { display: flex; align-items: center; gap: var(--k-space-3); flex-wrap: wrap; }
+.k-row.between { justify-content: space-between; }
+.k-grid { display: grid; gap: var(--k-space-3); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+/* ---------- 7. Forms ---------- */
+.k-label { display: block; font-weight: 600; font-size: 15px; margin: var(--k-space-3) 0 4px; }
+.k-input, .k-select, .k-textarea {
+    width: 100%; min-height: var(--k-tap); padding: 10px 12px; font: inherit;
+    border: 1px solid var(--k-border-3); border-radius: var(--k-radius); background: var(--k-card); color: var(--k-text);
+}
+.k-input:focus, .k-select:focus, .k-textarea:focus { outline: 2px solid var(--k-accent); outline-offset: 1px; border-color: var(--k-accent); }
+.k-textarea { min-height: 96px; resize: vertical; }
+.k-help { font-size: var(--k-fs-small); color: var(--k-muted); margin-top: 4px; }
+.k-error { color: var(--k-danger); font-size: var(--k-fs-small); margin-top: 4px; }
+
+/* ---------- 8. States ---------- */
+.k-empty { text-align: center; color: var(--k-muted); padding: var(--k-space-6) var(--k-space-4); }
+.k-empty .k-empty-icon { font-size: 40px; margin-bottom: var(--k-space-2); }
+.k-alert { border-radius: var(--k-radius); padding: 12px 14px; margin-bottom: var(--k-space-3); border: 1px solid; }
+.k-alert-info { background: var(--k-accent-soft); border-color: var(--k-accent); color: var(--k-text); }
+.k-alert-ok { background: #e8f7ee; border-color: var(--k-success); }
+.k-alert-warn { background: #fdf3e3; border-color: var(--k-warning-2); }
+.k-alert-danger { background: #fdecec; border-color: var(--k-danger-border); }
+html[data-theme="dark"] .k-alert-ok { background: #16321f; }
+html[data-theme="dark"] .k-alert-warn { background: #3a2a10; }
+html[data-theme="dark"] .k-alert-danger { background: #3a1616; }
+.k-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--k-fs-small); font-weight: 600; }
+.k-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--k-muted-2); }
+.k-dot.ok { background: var(--k-success); } .k-dot.warn { background: var(--k-warning-2); } .k-dot.bad { background: var(--k-danger); }
+
+/* ---------- 9. PIN screen ---------- */
+.k-pin { max-width: 360px; margin: 10vh auto 0; text-align: center; }
+.k-pin .k-logo { width: 56px; height: 56px; margin-bottom: var(--k-space-3); }
+.k-pin .k-input { text-align: center; font-size: 24px; letter-spacing: .3em; }
+
+/* ---------- 10. TV / tavle variant ---------- */
+html[data-mode="tv"] { --k-fs-body: 26px; --k-fs-h1: 48px; --k-fs-h2: 32px; --k-fs-small: 20px; --k-content-max: 100%; --k-tap: 64px; }
+html[data-mode="tv"] .k-header { position: static; }
+html[data-mode="tv"] .k-main { padding: 32px 40px; }
+html[data-mode="tv"] .k-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px; }
+
+/* ---------- 11. Utilities ---------- */
+.k-muted { color: var(--k-muted); }
+.k-center { text-align: center; }
+.k-mt { margin-top: var(--k-space-4); } .k-mb { margin-bottom: var(--k-space-4); }
+.k-hide-mobile { display: none; } @media (min-width: 640px) { .k-hide-mobile { display: initial; } }
+.k-visually-hidden { position: absolute; left: -9999px; }

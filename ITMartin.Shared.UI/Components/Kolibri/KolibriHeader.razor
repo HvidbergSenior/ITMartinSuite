@@ -1,0 +1,21 @@
+@using ITMartin.Shared.UI.Kolibri
+@inject KolibriAppInfo Info
+@* Standard header: logo + app name + kolibri name. Put page-specific buttons in ChildContent. *@
+<header class="k-header">
+    <div class="k-header-in @(Wide ? "wide" : "")">
+        <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0">
+            <img class="k-logo" src="/@Info.IconPath.TrimStart('/')" alt="" />
+            <div class="k-brand">
+                <b>@(string.IsNullOrWhiteSpace(Title) ? Info.Name : Title)</b>
+                @if (!string.IsNullOrWhiteSpace(Info.KolibriName)) { <span>@Info.KolibriName@(string.IsNullOrWhiteSpace(Info.Tenant) ? "" : $" · {Info.Tenant}")</span> }
+            </div>
+        </a>
+        @if (ChildContent is not null) { <div class="k-header-actions">@ChildContent</div> }
+    </div>
+</header>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public bool Wide { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}
