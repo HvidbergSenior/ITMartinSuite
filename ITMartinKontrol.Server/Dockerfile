@@ -2,8 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 WORKDIR /src
 
-COPY ITMartinKontrol.Server/ ITMartinKontrol.Server/
-COPY ITMartin.Shared.UI/ ITMartin.Shared.UI/
+COPY . .
 
 RUN dotnet restore ITMartinKontrol.Server/ITMartinKontrol.Server.csproj
 
