@@ -70,6 +70,13 @@ html[data-family="baglaens"]  { --k-accent:#475569; --k-accent-dark:#334155; --k
 html[data-family="syn"]       { --k-accent:#0e7490; --k-accent-dark:#155e75; --k-accent-soft:#dff3f8; }
 html[data-family="rede"]      { --k-accent:#92400e; --k-accent-dark:#78350f; --k-accent-soft:#fbeedd; }
 html[data-family="svaev"]     { --k-accent:#1d4ed8; --k-accent-dark:#1e40af; --k-accent-soft:#dbe6fb; }
+/* Added 2026-09-21 - one family per hummingbird ability (see the plan doc's Pilot-tavle). */
+html[data-family="reagere"]   { --k-accent:#c2410c; --k-accent-dark:#9a3412; --k-accent-soft:#fde7d8; }
+html[data-family="glans"]     { --k-accent:#a16207; --k-accent-dark:#854d0e; --k-accent-soft:#fdf1d2; }
+html[data-family="kommunikere"]{ --k-accent:#7c3aed; --k-accent-dark:#6d28d9; --k-accent-soft:#ece4fd; }
+html[data-family="flyve"]     { --k-accent:#0369a1; --k-accent-dark:#075985; --k-accent-soft:#dcedf8; }
+html[data-family="navigere"]  { --k-accent:#0f766e; --k-accent-dark:#115e59; --k-accent-soft:#d9f2ef; }
+html[data-family="tunge"]     { --k-accent:#be185d; --k-accent-dark:#9d174d; --k-accent-soft:#fbe1ec; }
 
 html[data-theme="dark"] {
     --k-bg:#121917; --k-bg-deep:#0d1311; --k-card:#1b2420; --k-text:#ecf2ee;

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="da" data-family="reagere">
 <head>
     <script>
         (function () {
@@ -11,7 +11,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Live Auktion</title>
     <base href="/" />
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="ITMartinAuction.Server.styles.css" />
 </head>
 <body>
@@ -79,3 +81,7 @@
     </script>
 </body>
 </html>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

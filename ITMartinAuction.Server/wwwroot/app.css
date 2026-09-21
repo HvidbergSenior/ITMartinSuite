@@ -1,25 +1,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root, [data-theme="dark"] {
-    --bg:      #0f1117;
-    --bg2:     #1a1d27;
-    --bg3:     #23263a;
-    --accent:  #6366f1;
-    --accent2: #4f52d4;
-    --text:    #f0f0f0;
-    --muted:   #8890a6;
-    --radius:  14px;
-    --danger:  #ef4444;
-    --success: #22c55e;
-    --sold:    #22c55e;
-}
-
-[data-theme="light"] {
-    --bg:      #f5f5f7;
-    --bg2:     #ffffff;
-    --bg3:     #ececf1;
-    --text:    #16181d;
-    --muted:   #6b7280;
+/* Colours come from Kolibri.UI (kolibri.css, family "reagere"); light/dark follow html[data-theme].
+   Only Auction-specific names are defined here, mapped onto the shared tokens (2026-09-21). */
+:root {
+    --bg2:     var(--k-card);
+    --bg3:     var(--k-bg-deep);
+    --accent2: var(--k-accent-dark);
+    --radius:  var(--k-radius);
+    --sold:    var(--k-success);
 }
 
 body {

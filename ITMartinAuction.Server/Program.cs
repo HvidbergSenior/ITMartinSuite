@@ -1,3 +1,4 @@
+using ITMartin.Shared.UI.Kolibri;
 using ITMartinAuction.Server.Data;
 using ITMartinAuction.Server.Hubs;
 using ITMartinAuction.Server.Services;
@@ -5,6 +6,27 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Live Auktion";
+    k.KolibriName = "Kolibri Reagere";
+    k.Family = "reagere";
+    k.Tagline = "Byd fra telefonen – i lokalet eller hjemmefra – og se det højeste bud i samme sekund.";
+    k.About =
+    [
+        "Live Auktion er til foreningens loppemarked, dødsboet eller klubbens støtteauktion. Auktionarius lægger tingene ind med foto og mindstepris; deltagerne byder fra telefonen.",
+        "Alle ser det højeste bud med det samme. Efter hammerslaget står listen klar: hvem vandt hvad, og hvad de hver især skal betale.",
+    ];
+    k.HowTo =
+    [
+        "Auktionarius: tryk Admin, læg tingene ind med foto og mindstepris.",
+        "Deltagere: åbn linket, skriv dit navn, og byd.",
+        "Vis Skærm-siden på en stor skærm i lokalet, så alle kan følge med.",
+    ];
+    k.Version = "2026.09";
+    k.ThemeColor = "#0f1117";
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -89,7 +111,10 @@ app.UseAntiforgery();
 
 app.MapHub<AuctionHub>("/hubs/auction");
 
+app.MapKolibri();
+
 app.MapRazorComponents<ITMartinAuction.Server.App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();
