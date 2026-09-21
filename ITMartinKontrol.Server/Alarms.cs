@@ -156,6 +156,10 @@ public sealed class AlarmService(DockerClient docker, Sampler sampler, PushStore
             Sustained($"app:{a.Name}", !ok, now, seen, $"{a.Name} er nede ({a.Url})", sustainMinutes: 3);
         }
 
+        // 5. Weekly backup: missing, failed or older than the allowed age.
+        var b = BackupStatus.Read(cfg);
+        Immediate("backup:weekly", b.Stale, seen, b.Found ? (b.Ok ? $"Backup er {b.AgeDays:0} dage gammel (sidst {b.LastRun})" : $"Backup fejlede {b.LastRun}: {b.Error}") : "Backup-status mangler");
+
         // Anything active that was not seen this round has recovered.
         List<string> recovered;
         lock (_active) recovered = _active.Keys.Where(k => !seen.Contains(k)).ToList();
@@ -173,6 +177,7 @@ public sealed class AlarmService(DockerClient docker, Sampler sampler, PushStore
         ["disk", var h] => $"Disk under grænsen på {h}",
         ["down", var rest] => $"{rest.Split(':').Last()} kører igen",
         ["peer", var p] => $"{p} svarer igen",
+        ["backup", _] => "Backup kørte igen",
         ["app", var a] => $"{a} svarer igen",
         _ => key
     };

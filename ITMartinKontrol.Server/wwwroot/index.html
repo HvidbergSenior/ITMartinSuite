@@ -62,7 +62,7 @@ button.restart{color:var(--muted)}
   <h1>⏻ Kontrol</h1>
   <div class="sub">Alle containere på NAS og photoserver. Tænd, sluk, genstart – PIN første gang. Forbrug samples hvert minut, 48 timer tilbage.</div>
   <div class="filters"><button id="fAll" class="on">Alle</button><button id="fRun">Kun kørende</button><button id="bell" title="Push-alarmer til denne telefon">🔔 Alarmer</button><span class="lock" id="stamp"></span></div>
-  <div class="host" id="kolibri"><h2>🐦 Kolibri-apps <small id="kstamp"></small></h2><div id="kolibriList" class="klist"></div></div>
+  <div class="host" id="kolibri"><h2>🐦 Kolibri-apps <small id="kstamp"></small></h2><div id="kolibriList" class="klist"></div><div id="backup" class="kapp" style="margin-top:8px"><span class="dot"></span><div><span class="kn">💾 Ugentlig backup</span><small id="backupSub">henter…</small></div></div></div>
 <div id="hosts"></div>
   <div class="msg" id="msg"></div>
   <div class="foot">ITMartin Suite · <a href="#" id="forget">Glem PIN</a></div>
@@ -163,7 +163,14 @@ function renderKolibri(items) {
   });
   document.getElementById("kstamp").textContent = bad ? bad + " nede" : "alle oppe";
 }
+function renderBackup(b) {
+  var el = document.getElementById("backup"); el.className = "kapp " + (b.stale ? "bad" : "ok");
+  var sub = !b.found ? (b.error || "ingen status") : (b.ok ? "sidst " + b.lastRun + " (" + Math.round(b.ageDays) + " d)" : "FEJL " + b.lastRun + ": " + (b.error || ""));
+  if (b.nasToPhotoserver) sub += " · NAS→photo " + b.nasToPhotoserver + " · photo→NAS " + b.photoserverToNas;
+  document.getElementById("backupSub").textContent = sub;
+}
 function refreshKolibri() {
+  fetch("/api/backup").then(function (r) { return r.json(); }).then(renderBackup).catch(function () {});
   return fetch("/api/kolibri").then(function (r) { return r.json(); }).then(renderKolibri).catch(function () {});
 }
 function refresh() {

@@ -112,6 +112,10 @@ app.MapPost("/api/hosts/{host}/apps/{name}/{action}", async (string host, string
     return Results.Ok();
 });
 
+// Weekly cross-backup (weekly-backup.sh on the NAS writes Backups/status.json).
+// /volume1 is mounted read-only at /host/disk, so the file is read straight from there.
+app.MapGet("/api/backup", () => Results.Ok(BackupStatus.Read(cfg)));
+
 // Kolibri product overview: every app that speaks the Kolibri /health contract
 // (see ITMartin.Shared.UI MapKolibri) is polled through its public URL, so the
 // whole chain - tunnel, container, db - is what gets the green dot.
@@ -198,3 +202,26 @@ public sealed record Peer(string Name, string Url, string? RemoteHostName = "*")
 public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory);
 public sealed record History(DateTime[] T, double[] Cpu, double[] Mem);
 public sealed record HostView(string Name, bool Local, string? Error, HostUsage Host, DateTime At, List<ContainerView> Containers, History History);
+
+public sealed record BackupView(bool Found, string? LastRun, bool Ok, double AgeDays, bool Stale, string? Error, string? NasToPhotoserver, string? PhotoserverToNas);
+public static class BackupStatus
+{
+    public static BackupView Read(IConfiguration cfg)
+    {
+        var path = cfg["Kontrol:BackupStatus"] ?? "/host/disk/homes/MartinHvidberg/Backups/status.json";
+        var maxAge = cfg.GetValue("Kontrol:BackupMaxAgeDays", 8);
+        try
+        {
+            if (!File.Exists(path)) return new(false, null, false, 0, true, "status.json findes ikke", null, null);
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            var r = doc.RootElement;
+            var last = r.TryGetProperty("lastRun", out var l) ? l.GetString() : null;
+            var ok = r.TryGetProperty("ok", out var o) && o.ValueKind == System.Text.Json.JsonValueKind.True;
+            var age = DateOnly.TryParse(last, out var d) ? (DateTime.UtcNow.Date - d.ToDateTime(TimeOnly.MinValue)).TotalDays : 999;
+            string? Sum(string key) => r.TryGetProperty(key, out var x) && x.ValueKind == System.Text.Json.JsonValueKind.Object
+                ? $"{(x.TryGetProperty("files", out var f) ? f.ToString() : "?")} filer, {(x.TryGetProperty("size", out var sz) ? sz.GetString() : "?")}" : null;
+            return new(true, last, ok, age, !ok || age > maxAge, r.TryGetProperty("error", out var e) ? e.GetString() : null, Sum("nasToPhotoserver"), Sum("photoserverToNas"));
+        }
+        catch (Exception ex) { return new(false, null, false, 0, true, ex.Message, null, null); }
+    }
+}
