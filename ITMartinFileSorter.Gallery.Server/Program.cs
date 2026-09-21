@@ -313,6 +313,24 @@ var manifestCache = new System.Collections.Concurrent.ConcurrentDictionary<strin
 var manifestLoader = new QuickSortManifestLoader();
 
 // Guard static library files with cookie auth
+// Short links: gallery.itmartin.dk/<slug> instead of /?g=<slug>. A single path segment that
+// names a gallery serves the same static page; the page reads the slug off the path.
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value ?? "/";
+    if (HttpMethods.IsGet(ctx.Request.Method) && path.Length > 1 && path.IndexOf('/', 1) < 0 && !path.Contains('.'))
+    {
+        var slug = path[1..];
+        if (galleries.Any(g => string.Equals(g.Slug, slug, StringComparison.OrdinalIgnoreCase)))
+        {
+            ctx.Request.Path = "/index.html";
+            await next();
+            return;
+        }
+    }
+    await next();
+});
+
 app.Use(async (ctx, next) =>
 {
     var path = ctx.Request.Path.Value ?? "";

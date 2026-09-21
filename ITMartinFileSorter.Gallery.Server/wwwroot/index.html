@@ -414,7 +414,9 @@ startUp();
 // admin view, reached only with the right PIN, never shown by default.
 async function startUp() {
   const params = new URLSearchParams(location.search);
-  const slug = params.get('g');
+  // /<slug> is the short link; ?g=<slug> still works for old links.
+  const pathSlug = location.pathname.split('/').filter(Boolean)[0] || null;
+  const slug = params.get('g') || pathSlug;
   const adminPin = params.get('admin');
 
   if (slug) {
@@ -554,10 +556,11 @@ async function doLogin() {
 // bookmarked. fromHistory=true means we are answering popstate and must
 // not push again.
 function folderUrl(relPath) {
+  // Always the short form /<slug>[?p=folder] - an old ?g= link becomes /<slug> on first navigation.
   const q = new URLSearchParams();
-  q.set('g', currentGallery);
   if (relPath) q.set('p', relPath);
-  return `${location.pathname}?${q}`;
+  const qs = q.toString();
+  return `/${encodeURIComponent(currentGallery)}${qs ? '?' + qs : ''}`;
 }
 
 window.addEventListener('popstate', (e) => {
