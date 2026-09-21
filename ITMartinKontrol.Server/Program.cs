@@ -28,10 +28,21 @@ var pin = cfg["Kontrol:Pin"];
 if (string.IsNullOrWhiteSpace(pin))
     app.Logger.LogWarning("Kontrol__Pin is not set - start/stop endpoints will refuse every request.");
 
-bool PinOk(HttpRequest req) =>
-    !string.IsNullOrWhiteSpace(pin)
-    && req.Headers.TryGetValue("X-Kontrol-Pin", out var v)
-    && string.Equals(v.ToString(), pin, StringComparison.Ordinal);
+// Admin PIN = everything. Limited PINs (Kontrol__Limited__0__Pin / __Apps__0 in compose) may
+// only start/stop/restart the containers listed for them - e.g. a family member who is
+// allowed to switch star-realms-web on and off, nothing else.
+var limited = cfg.GetSection("Kontrol:Limited").Get<List<LimitedPin>>() ?? [];
+
+// null = not authorised; empty = admin (all apps); otherwise the allowed container names.
+string[]? PinScope(HttpRequest req)
+{
+    if (!req.Headers.TryGetValue("X-Kontrol-Pin", out var v)) return null;
+    var given = v.ToString();
+    if (!string.IsNullOrWhiteSpace(pin) && string.Equals(given, pin, StringComparison.Ordinal)) return [];
+    var l = limited.FirstOrDefault(x => string.Equals(x.Pin, given, StringComparison.Ordinal));
+    return l?.Apps ?? null;
+}
+bool PinOk(HttpRequest req) => PinScope(req) is { Length: 0 };
 
 // One host as the UI sees it: live container list + usage + 48 h history.
 async Task<HostView> LocalViewAsync(DockerClient docker, Sampler sampler, CancellationToken ct)
@@ -69,7 +80,10 @@ app.MapGet("/api/hosts", async (DockerClient docker, Sampler sampler, IHttpClien
 
 app.MapPost("/api/hosts/{host}/apps/{name}/{action}", async (string host, string name, string action, HttpRequest req, DockerClient docker, Sampler sampler, IHttpClientFactory f, CancellationToken ct) =>
 {
-    if (!PinOk(req)) return Results.StatusCode(401);
+    var scope = PinScope(req);
+    if (scope is null) return Results.StatusCode(401);
+    if (scope.Length > 0 && !scope.Contains(name, StringComparer.Ordinal))
+        return Results.Problem($"Din PIN må kun styre: {string.Join(", ", scope)}.");
     if (action is not ("start" or "stop" or "restart")) return Results.BadRequest();
 
     // "*" = "whichever host you are" - used when a peer forwards to us.
@@ -179,6 +193,7 @@ public sealed record KolibriView(string Name, string Url, bool Ok, int Http, str
 public sealed class KolibriCache { public List<KolibriView> Items { get; set; } = []; public DateTime At { get; set; } }
 public sealed record PushSubscribeRequest(string Endpoint, string P256dh, string Auth, string? Name);
 public sealed record PushEndpointRequest(string Endpoint);
+public sealed record LimitedPin(string Pin, string[] Apps);
 public sealed record Peer(string Name, string Url, string? RemoteHostName = "*");
 public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory);
 public sealed record History(DateTime[] T, double[] Cpu, double[] Mem);
