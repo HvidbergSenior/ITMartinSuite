@@ -323,8 +323,10 @@ app.Use(async (ctx, next) =>
         var slug = path[1..];
         if (galleries.Any(g => string.Equals(g.Slug, slug, StringComparison.OrdinalIgnoreCase)))
         {
-            ctx.Request.Path = "/index.html";
-            await next();
+            // StaticFiles already ran higher up the pipeline, so serve the page directly.
+            ctx.Response.ContentType = "text/html; charset=utf-8";
+            ctx.Response.Headers.CacheControl = "no-cache";
+            await ctx.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
             return;
         }
     }
