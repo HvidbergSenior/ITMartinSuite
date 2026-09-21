@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ITMartinKontrol.Server;
+using ITMartin.Shared.UI.Kolibri;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<DockerClient>();
@@ -10,7 +11,25 @@ builder.Services.AddSingleton<AlarmService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AlarmService>());
 builder.Services.AddHttpClient("peer", c => c.Timeout = TimeSpan.FromSeconds(8));
 
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Kontrol";
+    k.KolibriName = "Kolibri Rede";
+    k.Family = "rede";
+    k.Tagline = "Alle apps og servere på ét sted - tænd, sluk, og få besked når noget falder.";
+    k.Version = "2026.09";
+    k.ThemeColor = "#0a0d14";
+    k.OwnOmPage = true;
+    k.OwnHjaelpPage = true;
+    k.HealthChecks = sp =>
+    {
+        var b = BackupStatus.Read(sp.GetRequiredService<IConfiguration>());
+        return Task.FromResult<IReadOnlyList<KolibriHealthItem>>([new KolibriHealthItem("backup", !b.Stale, b.LastRun ?? "ingen")]);
+    };
+});
+
 var app = builder.Build();
+app.MapKolibri();
 var JsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
 app.UseDefaultFiles();
@@ -187,8 +206,6 @@ app.MapPost("/api/push/test", async (HttpRequest http, PushStore push, Cancellat
     return Results.Ok(new { sent = n });
 });
 app.MapGet("/api/alarms", (AlarmService alarms, PushStore push) => Results.Ok(new { subscribers = push.Count, active = alarms.Active.Select(a => new { key = a.Key, since = a.Value }) }));
-
-app.MapGet("/health", () => Results.Ok("ok"));
 
 app.Run();
 
