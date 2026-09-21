@@ -61,7 +61,7 @@ button.restart{color:var(--muted)}
 <div class="wrap">
   <h1>⏻ Kontrol</h1>
   <div class="sub">Alle containere på NAS og photoserver. Tænd, sluk, genstart – PIN første gang. Forbrug samples hvert minut, 48 timer tilbage.</div>
-  <div class="filters"><button id="fAll" class="on">Alle</button><button id="fRun">Kun kørende</button><span class="lock" id="stamp"></span></div>
+  <div class="filters"><button id="fAll" class="on">Alle</button><button id="fRun">Kun kørende</button><button id="bell" title="Push-alarmer til denne telefon">🔔 Alarmer</button><span class="lock" id="stamp"></span></div>
   <div class="host" id="kolibri"><h2>🐦 Kolibri-apps <small id="kstamp"></small></h2><div id="kolibriList" class="klist"></div></div>
 <div id="hosts"></div>
   <div class="msg" id="msg"></div>
@@ -189,6 +189,23 @@ function power(host, name, action, btn) {
 
 refresh();
 setInterval(refresh, 20000);
+</script>
+<script src="/push.js"></script>
+<script>
+(function () {
+  var bell = document.getElementById("bell");
+  function paint(st) { bell.textContent = st === "on" ? "🔔 Alarmer: til" : st === "denied" ? "🔕 Alarmer blokeret" : st === "unsupported" ? "🔕 Ingen push her" : "🔔 Alarmer: fra"; bell.className = st === "on" ? "on" : ""; }
+  kpush.state().then(paint);
+  bell.addEventListener("click", async function () {
+    var st = await kpush.state();
+    if (st === "on") { paint(await kpush.unsubscribe()); msg.textContent = "Alarmer slået fra på denne telefon."; return; }
+    var pin = getPin(); if (!pin) return;
+    var r = await kpush.subscribe(pin);
+    if (r === "pin") { forgetPin(); msg.textContent = "Forkert PIN – prøv igen."; return; }
+    paint(r);
+    if (r === "on") { msg.textContent = "Alarmer slået til. Sender en test…"; await kpush.test(pin); }
+  });
+})();
 </script>
 </body>
 </html>

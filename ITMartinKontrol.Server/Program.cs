@@ -5,6 +5,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<DockerClient>();
 builder.Services.AddSingleton<Sampler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Sampler>());
+builder.Services.AddSingleton<PushStore>();
+builder.Services.AddSingleton<AlarmService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AlarmService>());
 builder.Services.AddHttpClient("peer", c => c.Timeout = TimeSpan.FromSeconds(8));
 
 var app = builder.Build();
@@ -150,6 +153,23 @@ app.MapGet("/api/kolibri", async (IHttpClientFactory f, CancellationToken ct) =>
     return Results.Ok(items);
 });
 
+// Push alarms to Martin's phone. Subscribing needs the PIN; the browser side is wwwroot/push.js + sw.js.
+app.MapGet("/api/push/public-key", (PushStore push) => Results.Text(push.PublicKey));
+app.MapPost("/api/push/subscribe", (PushSubscribeRequest req, HttpRequest http, PushStore push) =>
+{
+    if (!PinOk(http)) return Results.StatusCode(401);
+    push.Add(new PushStore.Subscriber(req.Endpoint, req.P256dh, req.Auth, req.Name ?? "telefon", DateTime.UtcNow));
+    return Results.Ok(new { count = push.Count });
+});
+app.MapPost("/api/push/unsubscribe", (PushEndpointRequest req, PushStore push) => { push.Remove(req.Endpoint); return Results.Ok(); });
+app.MapPost("/api/push/test", async (HttpRequest http, PushStore push, CancellationToken ct) =>
+{
+    if (!PinOk(http)) return Results.StatusCode(401);
+    var n = await push.SendAllAsync("Kontrol: test", "Alarmer virker på denne telefon.", "/", ct);
+    return Results.Ok(new { sent = n });
+});
+app.MapGet("/api/alarms", (AlarmService alarms, PushStore push) => Results.Ok(new { subscribers = push.Count, active = alarms.Active.Select(a => new { key = a.Key, since = a.Value }) }));
+
 app.MapGet("/health", () => Results.Ok("ok"));
 
 app.Run();
@@ -157,6 +177,8 @@ app.Run();
 public sealed record KolibriApp(string Name, string Url);
 public sealed record KolibriView(string Name, string Url, bool Ok, int Http, string Status, string? Version, string? Kolibri, string? Tenant, int? UptimeSeconds, int LatencyMs, string? Error, bool SpeaksKolibri);
 public sealed class KolibriCache { public List<KolibriView> Items { get; set; } = []; public DateTime At { get; set; } }
+public sealed record PushSubscribeRequest(string Endpoint, string P256dh, string Auth, string? Name);
+public sealed record PushEndpointRequest(string Endpoint);
 public sealed record Peer(string Name, string Url, string? RemoteHostName = "*");
 public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory);
 public sealed record History(DateTime[] T, double[] Cpu, double[] Mem);
