@@ -1,3 +1,4 @@
+using ITMartin.Shared.UI.Kolibri;
 using ITMartinPolstrer.Server;
 using ITMartinPolstrer.Core.Data;
 using ITMartinPolstrer.Core.Data.Entities;
@@ -8,6 +9,28 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Møbelpolstrer";
+    k.KolibriName = "Kolibri Hukommelse";
+    k.Family = "hukommelse";
+    k.Tagline = "Ét tryk – og billedet ligger på dagens job.";
+    k.About =
+    [
+        "Værkstedets hukommelse: hvert job får sine fotos og noter, trin for trin, mens arbejdet sker. Tag billede fra forsiden, og det ligger på dagens job med det samme.",
+        "Under Erfaring finder du alt, du har lavet før – søg på møbel, stof, teknik eller kunde og se, hvordan du gjorde det sidste gang.",
+        "Tavlen viser, hvad der er i gang, og hvad der er næste trin – på telefonen eller på et tv i værkstedet.",
+    ];
+    k.HowTo =
+    [
+        "Tryk Tag billede, når du er i gang – vælg jobbet, hvis appen ikke selv har fundet det.",
+        "Skriv en kort note, hvis der er noget, du vil huske (stof, mål, hvad der drillede).",
+        "Søg i Erfaring næste gang du står med noget lignende.",
+    ];
+    k.Version = "2026.09";
+    k.ThemeColor = "#121917";
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
@@ -26,6 +49,7 @@ builder.Services.AddDataProtection()
     .SetApplicationName("polstrer");
 
 var app = builder.Build();
+app.MapKolibri();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -60,6 +84,13 @@ app.Use(async (ctx, next) =>
     var open = path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/om", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/hjaelp", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/hjaelp", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/manifest.webmanifest", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/kolibri-sw.js", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/vis/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/media/", StringComparison.OrdinalIgnoreCase)
@@ -172,6 +203,7 @@ app.MapPost("/api/pieces", async (HttpContext ctx, IDbContextFactory<PolstrerDbC
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

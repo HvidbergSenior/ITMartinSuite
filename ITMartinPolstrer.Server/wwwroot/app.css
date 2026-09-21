@@ -1,15 +1,13 @@
+/* Colours come from Kolibri.UI (kolibri.css, family "hukommelse", dark). Only Polstrer's own
+   names are kept here, mapped onto the shared tokens (2026-09-21). */
 :root {
-    --bg: #17140f;
-    --surface: #221d16;
-    --surface-2: #2b241b;
-    --border: #3a3225;
-    --ink: #f2ece1;
-    --ink-soft: #b8ab94;
-    --accent: #c98a3e;
-    --accent-ink: #1a1408;
-    --accent-soft: #3a2b16;
-    --danger: #d16a5a;
-    --warn: #d9a441;
+    --surface:    var(--k-card);
+    --surface-2:  var(--k-bg-deep);
+    --ink:        var(--k-text);
+    --ink-soft:   var(--k-muted);
+    --accent-ink: #ffffff;
+    --accent-soft: var(--k-accent-soft);
+    --warn:       var(--k-warning-2);
 }
 
 * { box-sizing: border-box; }

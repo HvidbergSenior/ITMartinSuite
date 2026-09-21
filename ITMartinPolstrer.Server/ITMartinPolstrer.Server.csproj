@@ -18,6 +18,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\ITMartinPolstrer.Core\ITMartinPolstrer.Core.csproj" />
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
     </ItemGroup>
 
 </Project>
