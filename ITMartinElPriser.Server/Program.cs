@@ -1,7 +1,31 @@
+using ITMartin.Shared.UI.Kolibri;
 using ITMartinElPriser.Core;
 using ITMartinElPriser.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "ElPriser";
+    k.KolibriName = "Kolibri Puls";
+    k.Family = "puls";
+    k.Tagline = "Hvad koster strømmen lige nu – og hvornår er den billig?";
+    k.About =
+    [
+        "ElPriser viser timeprisen på strøm i dag og i morgen, så du kan lægge vask, opvask og opladning på de billige timer.",
+        "Regning forklarer din elregning linje for linje, og Besked sender et prik til telefonen, når prisen falder.",
+        "Vil du have din egen elmåler og dine apparater med, er MinElpris den store søster.",
+    ];
+    k.HowTo =
+    [
+        "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
+        "Slå Besked til for at få et prik, når strømmen er billig.",
+        "Tryk Regning, hvis du vil forstå din elregning.",
+    ];
+    k.Version = "2026.09";
+    k.IconPath = "icon.svg";
+    k.ThemeColor = "#0b1220";
+});
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddHttpContextAccessor();
@@ -82,7 +106,10 @@ app.MapGet("/api/snapshot", async (ElectricityPriceService prices, HttpContext h
     return Results.Ok(PriceModel.Build(await prices.GetPricesAsync(s.PriceArea), s, Appliance.Defaults(), DkTime.Now));
 });
 
+app.MapKolibri();
+
 app.MapRazorComponents<ITMartinElPriser.Server.App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

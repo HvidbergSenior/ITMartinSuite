@@ -1,4 +1,4 @@
-<Router AppAssembly="typeof(App).Assembly">
+<Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
