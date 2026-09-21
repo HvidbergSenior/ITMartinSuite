@@ -95,10 +95,61 @@ app.MapPost("/api/hosts/{host}/apps/{name}/{action}", async (string host, string
     return Results.Ok();
 });
 
+// Kolibri product overview: every app that speaks the Kolibri /health contract
+// (see ITMartin.Shared.UI MapKolibri) is polled through its public URL, so the
+// whole chain - tunnel, container, db - is what gets the green dot.
+// Kontrol__Kolibri__0__Name / __Url in compose.
+var kolibriApps = cfg.GetSection("Kontrol:Kolibri").Get<List<KolibriApp>>() ?? [];
+var kolibriCache = new KolibriCache();
+
+app.MapGet("/api/kolibri", async (IHttpClientFactory f, CancellationToken ct) =>
+{
+    if (DateTime.UtcNow - kolibriCache.At < TimeSpan.FromSeconds(20) && kolibriCache.Items.Count > 0)
+        return Results.Ok(kolibriCache.Items);
+    var client = f.CreateClient("peer");
+    var tasks = kolibriApps.Select(async a =>
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            using var r = await client.GetAsync(a.Url.TrimEnd('/') + "/health", ct);
+            var body = await r.Content.ReadAsStringAsync(ct);
+            string? version = null, kolibri = null, status = null, tenant = null; int? uptime = null;
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    version = root.TryGetProperty("version", out var v) ? v.GetString() : null;
+                    kolibri = root.TryGetProperty("kolibri", out var k) ? k.GetString() : null;
+                    status  = root.TryGetProperty("status", out var st) ? st.GetString() : null;
+                    tenant  = root.TryGetProperty("tenant", out var t) ? t.GetString() : null;
+                    uptime  = root.TryGetProperty("uptimeSeconds", out var u) && u.TryGetInt32(out var ui) ? ui : null;
+                }
+            }
+            catch { /* plain "ok" bodies (older apps) are fine */ }
+            var ok = r.IsSuccessStatusCode && status != "fail";
+            return new KolibriView(a.Name, a.Url, ok, (int)r.StatusCode, status ?? (r.IsSuccessStatusCode ? "ok" : "fail"),
+                version, kolibri, tenant, uptime, (int)sw.ElapsedMilliseconds, null, version is not null);
+        }
+        catch (Exception ex)
+        {
+            return new KolibriView(a.Name, a.Url, false, 0, "down", null, null, null, null, (int)sw.ElapsedMilliseconds, ex.GetType().Name, false);
+        }
+    });
+    var items = (await Task.WhenAll(tasks)).ToList();
+    kolibriCache.Items = items; kolibriCache.At = DateTime.UtcNow;
+    return Results.Ok(items);
+});
+
 app.MapGet("/health", () => Results.Ok("ok"));
 
 app.Run();
 
+public sealed record KolibriApp(string Name, string Url);
+public sealed record KolibriView(string Name, string Url, bool Ok, int Http, string Status, string? Version, string? Kolibri, string? Tenant, int? UptimeSeconds, int LatencyMs, string? Error, bool SpeaksKolibri);
+public sealed class KolibriCache { public List<KolibriView> Items { get; set; } = []; public DateTime At { get; set; } }
 public sealed record Peer(string Name, string Url, string? RemoteHostName = "*");
 public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory);
 public sealed record History(DateTime[] T, double[] Cpu, double[] Mem);
