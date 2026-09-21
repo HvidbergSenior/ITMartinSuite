@@ -130,6 +130,13 @@ app.MapGet("/api/kolibri", async (IHttpClientFactory f, CancellationToken ct) =>
             }
             catch { /* plain "ok" bodies (older apps) are fine */ }
             var ok = r.IsSuccessStatusCode && status != "fail";
+            if (r.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // No /health yet (Kolibri not rolled out) - the app is still up if its front page answers.
+                try { using var front = await client.GetAsync(a.Url, ct); ok = front.IsSuccessStatusCode || (int)front.StatusCode is 302 or 401; }
+                catch { ok = false; }
+                return new KolibriView(a.Name, a.Url, ok, 404, ok ? "ok" : "fail", null, null, null, null, (int)sw.ElapsedMilliseconds, ok ? null : "front page down", false);
+            }
             return new KolibriView(a.Name, a.Url, ok, (int)r.StatusCode, status ?? (r.IsSuccessStatusCode ? "ok" : "fail"),
                 version, kolibri, tenant, uptime, (int)sw.ElapsedMilliseconds, null, version is not null);
         }
