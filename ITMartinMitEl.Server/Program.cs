@@ -1,3 +1,4 @@
+using ITMartin.Shared.UI.Kolibri;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -8,6 +9,30 @@ using ITMartinMitEl.Server.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "MinElpris";
+    k.KolibriName = "Kolibri Puls";
+    k.Family = "puls";
+    k.Tagline = "Dine apparater, din elmåler, din regning – og hvor du kan spare.";
+    k.About =
+    [
+        "MinElpris viser, hvad strømmen koster lige nu og i morgen, og siger til, når den er billig – så vaskemaskine, opvasker og elbil kører på de billige timer.",
+        "Med din elmåler koblet på (eloverblik) ser du dit forbrug time for time, og under Enheder finder du de apparater, der trækker mest – også dem der kører om natten, når alt burde være slukket.",
+        "Regning forklarer din elregning linje for linje, og Besked sender push til telefonen, når det er tid til at tænde eller slukke.",
+    ];
+    k.HowTo =
+    [
+        "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
+        "Slå Besked til for at få et prik, når strømmen er billig.",
+        "Under Enheder skriver du dine apparater ind – så ser du kr/md pr. apparat.",
+        "Har du spørgsmål til regningen, så tryk Regning eller skriv til Martin under Noget virker ikke.",
+    ];
+    k.Version = "2026.09";
+    k.IconPath = "icon.svg";
+    k.ThemeColor = "#0b1220";
+});
 // Singletons with their own HttpClient: both services cache (prices for
 // 30 min, the Eloverblik access token for 12 h) - a transient-per-request
 // registration would throw the cache away every call.
@@ -59,6 +84,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+app.MapKolibri();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -172,6 +198,7 @@ app.MapGet("/api/snapshot", async (ElectricityPriceService prices, HouseholdStor
 });
 
 app.MapRazorComponents<ITMartinMitEl.Server.App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();
