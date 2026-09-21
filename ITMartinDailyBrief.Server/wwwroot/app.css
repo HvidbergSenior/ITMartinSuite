@@ -1,21 +1,9 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root, [data-theme="dark"] {
-    --bg: #0F1117;
-    --surface: #161825;
-    --border: #1E2030;
-    --text: #F0F0F0;
-    --muted: #6B7280;
-    --accent: #4338CA;
-}
-
-[data-theme="light"] {
-    --bg: #f5f5f7;
-    --surface: #ffffff;
-    --border: #e2e2e8;
-    --text: #16181d;
-    --muted: #6b7280;
-    --accent: #4338CA;
+/* Colours come from Kolibri.UI (kolibri.css, family "kommunikere"); light/dark follow html[data-theme].
+   Only DailyBrief-specific names are defined here (2026-09-21). */
+:root {
+    --surface: var(--k-card);
 }
 
 .btn-primary, button[type="submit"]:not(#themeToggleBtn) {
