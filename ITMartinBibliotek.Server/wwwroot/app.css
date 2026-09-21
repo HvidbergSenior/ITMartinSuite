@@ -1,18 +1,16 @@
+/* Colours come from Kolibri.UI (kolibri.css, family "syn", dark). Only Bibliotek's own
+   names are kept here, mapped onto the shared tokens (2026-09-21). */
 :root {
-    --bg: #0f1418;
-    --surface: #171e24;
-    --surface-2: #1f282f;
-    --border: #2b363e;
-    --ink: #e8edf0;
-    --ink-soft: #97a6b1;
-    --accent: #3fb8c2;
-    --accent-ink: #06181a;
-    --accent-soft: #143338;
-    --danger: #e06c5c;
-    --ok: #6fcf8c;
-    --ok-soft: #173224;
-    --amber: #e0b34a;
-    --amber-soft: #3a2f13;
+    --surface:     var(--k-card);
+    --surface-2:   var(--k-bg-deep);
+    --ink:         var(--k-text);
+    --ink-soft:    var(--k-muted);
+    --accent-ink:  #ffffff;
+    --accent-soft: var(--k-accent-soft);
+    --ok:          var(--k-success);
+    --ok-soft:     #173224;
+    --amber:       var(--k-warning-2);
+    --amber-soft:  #3a2f13;
 }
 
 * { box-sizing: border-box; }

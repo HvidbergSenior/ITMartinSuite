@@ -1,3 +1,4 @@
+using ITMartin.Shared.UI.Kolibri;
 using ITMartinBibliotek.Server;
 using ITMartinBibliotek.Server.Data;
 using ITMartinBibliotek.Server.Services;
@@ -6,6 +7,27 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Bibliotek";
+    k.KolibriName = "Kolibri Syn";
+    k.Family = "syn";
+    k.Tagline = "Dine cd'er, dvd'er og blu-rays – på hylden og på skærmen.";
+    k.About =
+    [
+        "Bibliotek er kataloget over din egen samling. Scan stregkoden, og skiven står på listen med cover, år og spor.",
+        "Det der er rippet, kan afspilles direkte i Jellyfin – resten ved du hvor står. Så køber du ikke den samme film to gange.",
+    ];
+    k.HowTo =
+    [
+        "Tryk Scan og hold stregkoden foran kameraet.",
+        "Ret titlen hvis opslaget tog fejl – eller skriv den ind selv.",
+        "Tryk Jellyfin for at se eller høre det der er rippet.",
+    ];
+    k.Version = "2026.09";
+    k.ThemeColor = "#121917";
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -62,6 +84,14 @@ app.Use(async (ctx, next) =>
             || path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/om", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/hjaelp", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/hjaelp", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/manifest.webmanifest", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/kolibri-sw.js", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/kolibri/", StringComparison.OrdinalIgnoreCase)
             || path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
             || path.EndsWith(".js", StringComparison.OrdinalIgnoreCase)
             || path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
@@ -98,7 +128,10 @@ app.MapGet("/api/auth/logout", (HttpContext ctx) =>
 
 app.UseAntiforgery();
 
+app.MapKolibri();
+
 app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

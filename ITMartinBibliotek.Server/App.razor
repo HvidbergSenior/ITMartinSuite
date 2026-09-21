@@ -1,16 +1,21 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="da" data-family="syn" data-theme="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Bibliotek</title>
     <base href="/" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
     <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <meta name="theme-color" content="#121917" />
 </head>
 <body>
     <Routes @rendermode="InteractiveServer" />
     <script src="scanner.js?v=@CacheBuster"></script>
     <script src="_framework/blazor.server.js"></script>
+    <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/kolibri-sw.js").catch(function(){});}</script>
     <div id="components-reconnect-modal">
         <span class="reconnect-msg">Forbinder igen...</span>
         <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
