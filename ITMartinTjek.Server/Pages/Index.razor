@@ -1,0 +1,229 @@
+@page "/"
+@using System.Text.Json
+@implements IDisposable
+@inject IJSRuntime JS
+@inject IDbContextFactory<TjekDbContext> DbFactory
+@inject TjekAi Ai
+@inject AiBudget Budget
+
+<PageTitle>Tjek</PageTitle>
+
+<h1>Er din enhed klar?</h1>
+<p class="lead">Et minut, ingen installation. Alt kører i din egen browser.</p>
+
+<div class="device-row">
+    <input class="device-name" type="text" placeholder="Navn på enheden (fx 'Mors iPad')" @bind="_device" @bind:after="SaveDeviceNameAsync" />
+    <button class="btn btn-primary" @onclick="RunAsync" disabled="@_running">@(_running ? "Tjekker…" : _checks.Count == 0 ? "Tjek nu" : "Tjek igen")</button>
+</div>
+
+@if (_checks.Count > 0)
+{
+    <div class="summary">
+        <span class="pill pill-ok">@Count("ok") ok</span>
+        <span class="pill pill-warn">@Count("warn") gule</span>
+        <span class="pill pill-bad">@Count("bad") røde</span>
+        <button class="link" @onclick="SaveSnapshotAsync" disabled="@(_saved || string.IsNullOrWhiteSpace(_device))">@(_saved ? "Gemt i historik" : "Gem i historik")</button>
+    </div>
+
+    <div class="checks">
+        @foreach (var c in _checks.OrderBy(Rank))
+        {
+            <div class="check check-@c.Status">
+                <span class="dot"></span>
+                <div class="check-body">
+                    <div class="check-name">@c.Name</div>
+                    <div class="check-value">@c.Value</div>
+                    @if (!string.IsNullOrWhiteSpace(c.Hint)) { <div class="check-hint">@c.Hint</div> }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<h2>Lyd og kamera</h2>
+<p class="muted">Browseren spørger om lov første gang – det er meningen.</p>
+<div class="card">
+    <div class="btn-row">
+        <button class="btn" @onclick="MicTestAsync" disabled="@_micRunning">🎤 @(_micRunning ? $"Sig noget… {_micLevel} %" : "Test mikrofon (5 s)")</button>
+        <button class="btn" @onclick="CamTestAsync">📷 Test kamera</button>
+    </div>
+    @if (_micRunning) { <div class="meter"><div class="meter-fill" style="width:@(_micLevel)%"></div></div> }
+    @if (_micResult is not null) { <div class="result @(_micResult.Status)">@_micResult.Value @(string.IsNullOrEmpty(_micResult.Hint) ? "" : "– " + _micResult.Hint)</div> }
+    @if (_camResult is not null) { <div class="result @(_camResult.Status)">@_camResult.Value @(string.IsNullOrEmpty(_camResult.Hint) ? "" : "– " + _camResult.Hint)</div> }
+
+    <div class="tone-row">
+        <select @bind="_outputId">
+            <option value="">Standardudgang</option>
+            @foreach (var o in _outputs) { <option value="@o.Id">@o.Label</option> }
+        </select>
+        <button class="btn" @onclick="ToneAsync">🔊 Afspil testtone</button>
+    </div>
+    @if (_toneResult is not null) { <div class="result @(_toneResult.Status)">@_toneResult.Value @(string.IsNullOrEmpty(_toneResult.Hint) ? "" : "– " + _toneResult.Hint)</div> }
+</div>
+
+<h2>Dybt tjek (Windows)</h2>
+<div class="card">
+    <p>Browseren kan ikke se drivere og USB-enheder. Det kan et lille script. Hent det, højreklik → <b>Kør med PowerShell</b> (Run with PowerShell), skriv enhedens navn – så lander resultatet her.</p>
+    <div class="btn-row">
+        <a class="btn" href="/scripts/Tjek.ps1" download>⬇ Hent Tjek.ps1</a>
+        <button class="btn" @onclick="LoadDeepAsync" disabled="@(string.IsNullOrWhiteSpace(_device))">Hent seneste dybe tjek for '@_device'</button>
+    </div>
+    @if (_deepChecks is not null)
+    {
+        <p class="muted">Dybt tjek fra @_deepAt?.ToLocalTime().ToString("d. MMM HH:mm")</p>
+        <div class="checks">
+            @foreach (var c in _deepChecks.OrderBy(Rank))
+            {
+                <div class="check check-@c.Status">
+                    <span class="dot"></span>
+                    <div class="check-body">
+                        <div class="check-name">@c.Name</div>
+                        <div class="check-value">@c.Value</div>
+                        @if (!string.IsNullOrWhiteSpace(c.Hint)) { <div class="check-hint">@c.Hint</div> }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (_deepMissing) { <p class="muted">Intet dybt tjek fundet for '@_device' endnu.</p> }
+</div>
+
+@if (Ai.Enabled)
+{
+    <h2>Hvad er galt?</h2>
+    <div class="card">
+        <textarea rows="3" @bind="_problem" placeholder="Skriv hvad der driller – fx 'lyden virker ikke i Teams' eller 'alt er langsomt'"></textarea>
+        <button class="btn btn-primary btn-block" @onclick="AskAsync" disabled="@(_asking || _checks.Count == 0)">@(_asking ? "Tænker…" : _checks.Count == 0 ? "Kør 'Tjek nu' først" : "Hvad er galt?")</button>
+        @if (_askError is not null) { <div class="error-box">@_askError</div> }
+        @if (_answer is not null)
+        {
+            <div class="answer">
+                <p class="diagnose">@_answer.Diagnose</p>
+                @if (_answer.Problemer.Length > 0) { <h3>Fund</h3><ul>@foreach (var x in _answer.Problemer) { <li>@x</li> }</ul> }
+                @if (_answer.GoerNu.Length > 0) { <h3>Gør nu</h3><ol>@foreach (var x in _answer.GoerNu) { <li>@x</li> }</ol> }
+                @if (_answer.Fint.Length > 0) { <h3>Det er fint</h3><ul>@foreach (var x in _answer.Fint) { <li>@x</li> }</ul> }
+                @if (_answer.KanFjernes.Length > 0) { <h3>Kan fjernes (gør det selv, vi rører intet)</h3><ul>@foreach (var x in _answer.KanFjernes) { <li>@x</li> }</ul> }
+            </div>
+        }
+        <p class="muted small">AI-svar i dag: @Budget.Used / @Budget.Max</p>
+    </div>
+}
+
+@code {
+    public sealed record Check(string Id, string Name, string Status, string Value, string Hint);
+    public sealed record Output(string Id, string Label);
+    private sealed record MicResult(bool Ok, string? Error, string? Label, int Peak, int Avg, int SampleRate, bool? EchoCancellation, bool? NoiseSuppression);
+    private sealed record ToneResult(bool Ok, string? Error, bool SinkSupported);
+    private sealed record CamResult(bool Ok, string? Error, string? Label, int? Width, int? Height, double? Fps);
+
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    private string _device = "";
+    private List<Check> _checks = [];
+    private bool _running, _saved;
+    private bool _micRunning; private int _micLevel;
+    private Check? _micResult, _camResult, _toneResult;
+    private List<Output> _outputs = [];
+    private string _outputId = "";
+    private List<Check>? _deepChecks; private DateTime? _deepAt; private string? _deepJson; private bool _deepMissing;
+    private string _problem = ""; private bool _asking; private string? _askError; private TjekAi.Answer? _answer;
+    private DotNetObjectReference<Index>? _self;
+    private bool _first = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !_first) return;
+        _first = false;
+        _device = await JS.InvokeAsync<string>("tjek.deviceName");
+        StateHasChanged();
+    }
+
+    private static int Rank(Check c) => c.Status switch { "bad" => 0, "warn" => 1, "ok" => 2, _ => 3 };
+    private int Count(string s) => _checks.Count(c => c.Status == s);
+
+    private async Task SaveDeviceNameAsync() => await JS.InvokeVoidAsync("tjek.setDeviceName", _device.Trim());
+
+    private async Task RunAsync()
+    {
+        _running = true; _saved = false; _answer = null;
+        try
+        {
+            _checks = await JS.InvokeAsync<List<Check>>("tjek.run");
+            _outputs = await JS.InvokeAsync<List<Output>>("tjek.outputs");
+        }
+        catch (Exception ex) { _checks = [new Check("err", "Tjek kunne ikke køre", "bad", ex.Message, "")]; }
+        finally { _running = false; }
+    }
+
+    [JSInvokable]
+    public void MicLevel(int level) { _micLevel = level; StateHasChanged(); }
+
+    private async Task MicTestAsync()
+    {
+        _micRunning = true; _micLevel = 0; _micResult = null;
+        _self ??= DotNetObjectReference.Create(this);
+        try
+        {
+            var r = await JS.InvokeAsync<MicResult>("tjek.micTest", 5, _self);
+            _micResult = !r.Ok ? new Check("mic", "Mikrofon", "bad", r.Error ?? "Fejl", "Tjek at browseren har lov til mikrofonen, og at den rigtige mikrofon er valgt.")
+                : r.Peak < 3 ? new Check("mic", "Mikrofon", "bad", $"{r.Label}: ingen lyd opfanget", "Mikrofonen er stum - forkert enhed valgt, slået fra (mute-knap), eller lydstyrken står på 0.")
+                : r.Peak < 15 ? new Check("mic", "Mikrofon", "warn", $"{r.Label}: svag (top {r.Peak} %)", "Meget lavt niveau - tal tættere på, eller skru op for mikrofonens indgangsniveau.")
+                : new Check("mic", "Mikrofon", "ok", $"{r.Label}: top {r.Peak} %, {r.SampleRate} Hz", "");
+            _checks.RemoveAll(c => c.Id == "mic"); _checks.Add(_micResult);
+            _outputs = await JS.InvokeAsync<List<Output>>("tjek.outputs");
+        }
+        catch (Exception ex) { _micResult = new Check("mic", "Mikrofon", "bad", ex.Message, ""); }
+        finally { _micRunning = false; }
+    }
+
+    private async Task ToneAsync()
+    {
+        var r = await JS.InvokeAsync<ToneResult>("tjek.tone", _outputId);
+        _toneResult = r.Ok
+            ? new Check("tone", "Testtone", "info", "Afspillet 1 sekund" + (r.SinkSupported ? "" : " (browseren kan ikke vælge udgang - brugte standard)"), "Hørte du intet? Tjek lydstyrke, mute og at den rigtige udgang er valgt i styresystemet.")
+            : new Check("tone", "Testtone", "bad", r.Error ?? "Fejl", "");
+    }
+
+    private async Task CamTestAsync()
+    {
+        var r = await JS.InvokeAsync<CamResult>("tjek.camTest");
+        _camResult = r.Ok
+            ? new Check("cam", "Kamera", "ok", $"{r.Label}: {r.Width}×{r.Height}" + (r.Fps is { } f ? $" @ {f:0} fps" : ""), "")
+            : new Check("cam", "Kamera", "bad", r.Error ?? "Fejl", "Er kameraet i brug af et andet program, eller afvist i browseren?");
+        _checks.RemoveAll(c => c.Id == "cam"); _checks.Add(_camResult);
+    }
+
+    private async Task SaveSnapshotAsync()
+    {
+        if (_checks.Count == 0 || string.IsNullOrWhiteSpace(_device)) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Snapshots.Add(new Snapshot
+        {
+            Device = _device.Trim(), Kind = "browser", Json = JsonSerializer.Serialize(_checks),
+            Ok = Count("ok"), Warn = Count("warn"), Bad = Count("bad"), Summary = $"{Count("ok")} ok, {Count("warn")} gule, {Count("bad")} røde",
+        });
+        await db.SaveChangesAsync();
+        _saved = true;
+    }
+
+    private async Task LoadDeepAsync()
+    {
+        _deepMissing = false; _deepChecks = null;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var s = await db.Snapshots.AsNoTracking().Where(x => x.Kind == "deep" && x.Device == _device.Trim()).OrderByDescending(x => x.At).FirstOrDefaultAsync();
+        if (s is null) { _deepMissing = true; return; }
+        using var doc = JsonDocument.Parse(s.Json);
+        _deepJson = s.Json; _deepAt = s.At;
+        _deepChecks = doc.RootElement.TryGetProperty("checks", out var c) ? JsonSerializer.Deserialize<List<Check>>(c.GetRawText(), JsonOpts) ?? [] : [];
+    }
+
+    private async Task AskAsync()
+    {
+        _asking = true; _askError = null; _answer = null;
+        try { _answer = await Ai.AskAsync(string.IsNullOrWhiteSpace(_device) ? "ukendt" : _device, JsonSerializer.Serialize(_checks), _deepJson, _problem); }
+        catch (Exception ex) { _askError = ex.Message; }
+        finally { _asking = false; }
+    }
+
+    public void Dispose() => _self?.Dispose();
+}

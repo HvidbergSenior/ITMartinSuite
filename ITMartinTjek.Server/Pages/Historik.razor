@@ -1,0 +1,103 @@
+@page "/historik"
+@using System.Text.Json
+@inject IDbContextFactory<TjekDbContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Historik – Tjek</PageTitle>
+
+<h1>Historik</h1>
+<p class="lead">Gemte tjek pr. enhed – så du kan se, hvad der var anderledes, da det virkede.</p>
+
+@if (_devices.Count == 0)
+{
+    <p class="muted">Ingen gemte tjek endnu. Kør et tjek og tryk "Gem i historik".</p>
+}
+else
+{
+    <div class="device-tabs">
+        @foreach (var d in _devices)
+        {
+            <button class="chip @(d == _device ? "chip-on" : "")" @onclick="() => SelectAsync(d)">@d</button>
+        }
+    </div>
+
+    @foreach (var s in _runs)
+    {
+        <div class="card run">
+            <div class="run-head" @onclick="() => Toggle(s.Id)">
+                <span>@s.At.ToLocalTime().ToString("ddd d. MMM HH:mm") · @(s.Kind == "deep" ? "dybt tjek" : "browser")</span>
+                <span><span class="pill pill-ok">@s.Ok</span> <span class="pill pill-warn">@s.Warn</span> <span class="pill pill-bad">@s.Bad</span></span>
+            </div>
+            @if (_open == s.Id)
+            {
+                <div class="checks">
+                    @foreach (var c in Parse(s))
+                    {
+                        <div class="check check-@c.Status">
+                            <span class="dot"></span>
+                            <div class="check-body">
+                                <div class="check-name">@c.Name</div>
+                                <div class="check-value">@c.Value</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button class="btn btn-small btn-danger" @onclick="() => DeleteAsync(s)">Slet</button>
+            }
+        </div>
+    }
+}
+
+@code {
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+    private List<string> _devices = [];
+    private string _device = "";
+    private List<Snapshot> _runs = [];
+    private int _open;
+    private bool _first = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _devices = await db.Snapshots.Select(s => s.Device).Distinct().OrderBy(d => d).ToListAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !_first) return;
+        _first = false;
+        var mine = await JS.InvokeAsync<string>("tjek.deviceName");
+        await SelectAsync(_devices.Contains(mine) ? mine : _devices.FirstOrDefault() ?? "");
+        StateHasChanged();
+    }
+
+    private void Toggle(int id) => _open = _open == id ? 0 : id;
+
+    private async Task SelectAsync(string d)
+    {
+        _device = d; _open = 0;
+        if (d == "") { _runs = []; return; }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _runs = await db.Snapshots.AsNoTracking().Where(s => s.Device == d).OrderByDescending(s => s.At).Take(30).ToListAsync();
+    }
+
+    private static List<Index.Check> Parse(Snapshot s)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(s.Json);
+            var el = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement
+                : doc.RootElement.TryGetProperty("checks", out var c) ? c : default;
+            return el.ValueKind == JsonValueKind.Array ? JsonSerializer.Deserialize<List<Index.Check>>(el.GetRawText(), JsonOpts) ?? [] : [];
+        }
+        catch { return []; }
+    }
+
+    private async Task DeleteAsync(Snapshot s)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Slet dette tjek?")) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Snapshots.Where(x => x.Id == s.Id).ExecuteDeleteAsync();
+        await SelectAsync(_device);
+    }
+}
