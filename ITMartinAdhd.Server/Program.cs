@@ -1,3 +1,4 @@
+using ITMartin.Shared.UI.Kolibri;
 using ITMartinAdhd.Domain.Entities;
 using ITMartinAdhd.Infrastructure;
 using ITMartinAdhd.Infrastructure.Persistence;
@@ -15,7 +16,31 @@ builder.Services.AddAdhdInfrastructure(
 
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 
+// Kolibri contract (/health, manifest, /api/hjaelp); the page is the static wwwroot/index.html.
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "FindIt";
+    k.KolibriName = "Kolibri Hukommelse Hjem";
+    k.Family = "hukommelse";
+    k.Tagline = "Tag ét foto, når du lægger noget fra dig – så husker appen, hvor det er.";
+    k.About =
+    [
+        "FindIt er til nøgler, briller, pas og opladere – alt det, der forsvinder lige når man skal bruge det.",
+        "Tag et foto, når du lægger noget fra dig. Appen genkender selv tingen og stedet. Når du leder, søger du bare.",
+    ];
+    k.HowTo =
+    [
+        "Tryk Kamera og tag et foto af tingen der, hvor du lægger den.",
+        "Leder du? Skriv et ord i søgefeltet eller kig på de seneste.",
+    ];
+    k.Version = "2026.09";
+    k.ThemeColor = "#0d0d14";
+    k.OwnOmPage = true;
+    k.OwnHjaelpPage = true;
+});
+
 var app = builder.Build();
+app.MapKolibri();
 
 using (var scope = app.Services.CreateScope())
 {
