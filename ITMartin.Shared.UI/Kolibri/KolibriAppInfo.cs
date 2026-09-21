@@ -46,6 +46,12 @@ public sealed class KolibriAppInfo
 
     public string ThemeColor { get; set; } = "#f4f6f5";
 
+    /// <summary>True when the app has its own /om page; the shared one then only lives at /kolibri/om.</summary>
+    public bool OwnOmPage { get; set; }
+
+    /// <summary>True when the app has its own /hjaelp page; the shared one then only lives at /kolibri/hjaelp.</summary>
+    public bool OwnHjaelpPage { get; set; }
+
     public string DisplayTitle => string.IsNullOrWhiteSpace(KolibriName) ? Name : $"{Name} · {KolibriName}";
 }
 

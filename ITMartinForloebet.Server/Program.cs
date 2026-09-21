@@ -1,3 +1,4 @@
+using ITMartin.Shared.UI.Kolibri;
 using ITMartinForloebet.Server;
 using ITMartinForloebet.Server.Data;
 using ITMartinForloebet.Server.Services;
@@ -5,6 +6,29 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Forløbet";
+    k.KolibriName = "Kolibri Baglæns";
+    k.Family = "baglaens";
+    k.Tagline = "Hvad gælder, hvad behøver du ikke, og hvad gør du nu.";
+    k.About =
+    [
+        "Forløbet er til, når du står i en sag mod et system: en afgift, et afslag, en afgørelse, en klage. Brevene er lange, fristerne korte, og det meste af teksten er støj.",
+        "Hvert brev bliver kogt ned til tre bokse: Hvad gælder, Hvad behøver du ikke, og Gør nu – med dato. Sagen ligger som en tidslinje, så du altid ved, hvor du er.",
+        "Når sagen lukkes, skriver du, hvad du lærte – så næste gang går hurtigere.",
+    ];
+    k.HowTo =
+    [
+        "Læg det seneste brev ind (foto eller tekst).",
+        "Læs de tre bokse – og gør det, der står under Gør nu.",
+        "Kom tilbage, når der kommer et nyt brev.",
+    ];
+    k.Version = "2026.09";
+    k.ThemeColor = "#f4f6f5";
+    k.OwnOmPage = true; // Pages/Om.razor is the editorial statement - keep it
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
@@ -25,6 +49,7 @@ builder.Services.AddDataProtection()
     .SetApplicationName("forloebet");
 
 var app = builder.Build();
+app.MapKolibri();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -54,6 +79,7 @@ app.MapGet("/dok/{slug}/{id:int}", async (string slug, int id, string? k, IDbCon
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

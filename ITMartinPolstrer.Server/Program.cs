@@ -91,6 +91,7 @@ app.Use(async (ctx, next) =>
             || path.StartsWith("/manifest.webmanifest", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/kolibri-sw.js", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/kolibri/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/vis/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/media/", StringComparison.OrdinalIgnoreCase)

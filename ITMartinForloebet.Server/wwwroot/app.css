@@ -1,22 +1,15 @@
-/* Forløbet – a feed you read. Light, paper-like, calm. */
+/* Forløbet – a feed you read. Light, paper-like, calm.
+   Colours come from Kolibri.UI (kolibri.css, family "baglaens"); only Forløbet's own names live here.
+   Light only - the earlier prefers-color-scheme dark block is gone (Kolibri rule: dark only via data-theme). */
 :root {
-    --bg: #f7f5f0;
-    --surface: #ffffff;
-    --border: #e3ded4;
-    --ink: #1e1b16;
-    --ink-soft: #6d665b;
-    --accent: #1f5f8b;
+    --surface:    var(--k-card);
+    --ink:        var(--k-text);
+    --ink-soft:   var(--k-muted);
     --accent-ink: #ffffff;
-    --ok: #2f7d4f;
-    --bad: #a83a2f;
-    --warn: #9a6b12;
-    --quote: #f1ede4;
-}
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg: #16140f; --surface: #201d17; --border: #35302a; --ink: #f0ebe2; --ink-soft: #a89f91;
-        --accent: #7fb3d8; --accent-ink: #0d1a24; --quote: #2a2620;
-    }
+    --ok:         var(--k-success);
+    --bad:        var(--k-danger);
+    --warn:       var(--k-warning);
+    --quote:      var(--k-bg-deep);
 }
 
 * { box-sizing: border-box; }
