@@ -10,6 +10,18 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <meta name="theme-color" content="#121917" />
+    <script>
+        // Theme choice lives in the phone's localStorage; applied before first paint to avoid a flash.
+        (function () {
+            try { var t = localStorage.getItem("polstrer-theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) { }
+        })();
+        window.polstrerToggleTheme = function () {
+            var h = document.documentElement, next = h.getAttribute("data-theme") === "dark" ? "light" : "dark";
+            h.setAttribute("data-theme", next);
+            try { localStorage.setItem("polstrer-theme", next); } catch (e) { }
+            var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", next === "dark" ? "#121917" : "#f4f6f5");
+        };
+    </script>
 </head>
 <body>
     <Routes />

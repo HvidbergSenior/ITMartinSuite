@@ -41,6 +41,7 @@ var dbPath = builder.Configuration.GetConnectionString("PolstrerDb")
 
 builder.Services.AddDbContextFactory<PolstrerDbContext>(o => o.UseSqlite(dbPath));
 builder.Services.AddSingleton<MediaStore>();
+builder.Services.AddSingleton<ITMartinPolstrer.Server.Services.AiSuggestionService>();
 
 // Keys on the data volume, otherwise every deploy invalidates every
 // antiforgery cookie already sitting in her browser.

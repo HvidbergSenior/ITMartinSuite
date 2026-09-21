@@ -4,6 +4,7 @@
 @inject MediaStore Media
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ITMartinPolstrer.Server.Services.AiSuggestionService Ai
 
 @if (_piece is null)
 {
@@ -87,6 +88,44 @@ else
     <button class="btn btn-ghost" @onclick="CopyShareLinkAsync">🔗 @(_copied ? "Link kopieret" : "Del proces")</button>
 </div>
 
+@if (Ai.Enabled)
+{
+    <div class="section-label">AI-forslag</div>
+    <div class="card ai-card">
+        @if (_ai is null)
+        {
+            <p class="muted">Lad AI se billederne og noterne og foreslå type, materialer, konstruktion og arbejdsgang. Dine egne ord bliver aldrig overskrevet.</p>
+            <div class="btn-row">
+                <button class="btn btn-small" @onclick="() => SuggestAsync(AiSuggestionService.Level.Hurtig)" disabled="@_aiBusy">⚡ Hurtig (ca. 5 øre)</button>
+                <button class="btn btn-small btn-primary" @onclick="() => SuggestAsync(AiSuggestionService.Level.Grundig)" disabled="@_aiBusy">🔎 Grundig (ca. 30 øre)</button>
+            </div>
+            @if (_aiBusy) { <p class="muted">Kigger på billederne…</p> }
+            @if (_aiError is not null) { <div class="error-box">@_aiError</div> }
+        }
+        else
+        {
+            <div class="ai-row"><b>Møbel</b><span>@_ai.NavnType</span></div>
+            <div class="ai-row"><b>Type</b><span>@_ai.Type</span></div>
+            <div class="ai-row"><b>Periode / stil</b><span>@_ai.PeriodeStil</span></div>
+            <div class="ai-row"><b>Materialer</b><span>@_ai.Materialer</span></div>
+            <div class="ai-row"><b>Konstruktion</b><span>@_ai.Konstruktion</span></div>
+            <div class="ai-row"><b>Stand</b><span>@_ai.Stand</span></div>
+            @if (_ai.Teknikker.Length > 0) { <div class="ai-row"><b>Teknikker</b><span>@string.Join(", ", _ai.Teknikker)</span></div> }
+            @if (_ai.SaadanGoerDu.Length > 0)
+            {
+                <div class="ai-row"><b>Sådan gør du</b><ol class="ai-steps">@foreach (var t in _ai.SaadanGoerDu) { <li>@t</li> }</ol></div>
+            }
+            <div class="ai-row"><b>Usikkert</b><span class="muted">@_ai.Usikkerhed</span></div>
+            <div class="btn-row">
+                <button class="btn btn-small btn-primary" @onclick="ApplySuggestionAsync">Udfyld tomme felter</button>
+                <button class="btn btn-small" @onclick="AddSuggestionAsStepAsync">Gem som trin</button>
+                <button class="btn btn-small" @onclick="() => _ai = null">Luk</button>
+            </div>
+            <p class="muted ai-cost">@(_ai.Model.Contains("haiku") ? "Hurtig" : "Grundig") · @_ai.Oere.ToString("0") øre</p>
+        }
+    </div>
+}
+
 <div class="section-label">Nyt trin</div>
 <div class="card">
     <textarea rows="2" @bind="_newNote" @bind:event="oninput" placeholder="Hvad har du gjort? fx Afmonteret betræk, fandt rådne fjedre"></textarea>
@@ -132,6 +171,9 @@ else
     private bool _saving;
     private bool _copied;
     private string? _error;
+    private AiSuggestionService.Suggestion? _ai;
+    private bool _aiBusy;
+    private string? _aiError;
 
     protected override async Task OnParametersSetAsync() => await LoadAsync();
 
@@ -236,6 +278,48 @@ else
         await using var db = await DbFactory.CreateDbContextAsync();
         await db.Pieces.Where(p => p.Id == _piece.Id).ExecuteDeleteAsync();
         Nav.NavigateTo("/erfaring");
+    }
+
+    private async Task SuggestAsync(AiSuggestionService.Level level)
+    {
+        if (_piece is null) return;
+        _aiBusy = true; _aiError = null;
+        try { _ai = await Ai.SuggestAsync(_piece, level); }
+        catch (Exception ex) { _aiError = "AI-forslag fejlede: " + ex.Message; }
+        finally { _aiBusy = false; }
+    }
+
+    // Only empty fields are filled - what she wrote herself always wins.
+    private async Task ApplySuggestionAsync()
+    {
+        if (_piece is null || _ai is null) return;
+        var p = _piece;
+        if (string.IsNullOrWhiteSpace(p.Category)) p.Category = _ai.Type;
+        if (string.IsNullOrWhiteSpace(p.Material)) p.Material = _ai.Materialer;
+        if (string.IsNullOrWhiteSpace(p.Techniques)) p.Techniques = string.Join(", ", _ai.Teknikker);
+        if (string.IsNullOrWhiteSpace(p.Title) || p.Title == "Uden navn") p.Title = _ai.NavnType;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Pieces.Where(x => x.Id == p.Id).ExecuteUpdateAsync(u => u
+            .SetProperty(x => x.Title, p.Title.Trim())
+            .SetProperty(x => x.Category, p.Category.Trim())
+            .SetProperty(x => x.Material, p.Material.Trim())
+            .SetProperty(x => x.Techniques, p.Techniques.Trim()));
+        await LoadAsync();
+    }
+
+    private async Task AddSuggestionAsStepAsync()
+    {
+        if (_piece is null || _ai is null) return;
+        var nl = Environment.NewLine;
+        var note = $"AI-forslag ({(_ai.Model.Contains("haiku") ? "hurtig" : "grundig")}):{nl}"
+                 + $"{_ai.NavnType} – {_ai.PeriodeStil}{nl}Materialer: {_ai.Materialer}{nl}Konstruktion: {_ai.Konstruktion}{nl}Stand: {_ai.Stand}{nl}"
+                 + "Sådan gør du:" + nl + string.Join(nl, _ai.SaadanGoerDu.Select((t, i) => $"{i + 1}. {t}"))
+                 + $"{nl}Usikkert: {_ai.Usikkerhed}";
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Steps.Add(new Step { PieceId = _piece.Id, Note = note });
+        await db.SaveChangesAsync();
+        _ai = null;
+        await LoadAsync();
     }
 
     private async Task CopyShareLinkAsync()
