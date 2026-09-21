@@ -19,7 +19,7 @@
         <div class="k-card-title">Hvem står bag</div>
         <p style="margin:0">@Info.ContactName<br />
             <a href="mailto:@Info.ContactMail">@Info.ContactMail</a>
-            @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> · </text><a href="tel:@Info.ContactPhone">@Info.ContactPhone</a> }
+            @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> · </text><a href="tel:+45@(Info.ContactPhone.Replace(" ", ""))">@Info.ContactPhone</a> }
         </p>
         <p class="k-small" style="margin:10px 0 0">Version @Info.Version@(string.IsNullOrWhiteSpace(Info.Tenant) ? "" : $" · {Info.Tenant}") · <a href="/hjaelp">Noget virker ikke?</a></p>
     </div>

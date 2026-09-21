@@ -29,8 +29,8 @@ public sealed class KolibriAppInfo
     public string[] HowTo { get; set; } = [];
 
     public string ContactName { get; set; } = "Martin Hvidberg, ITMartin";
-    public string ContactMail { get; set; } = "kontakt@itmartin.dk";
-    public string ContactPhone { get; set; } = "";
+    public string ContactMail { get; set; } = "ITMartin@Mensa.dk";
+    public string ContactPhone { get; set; } = "31 19 47 30";
 
     /// <summary>Semantic version shown on /om and returned by /health.</summary>
     public string Version { get; set; } = "1.0";

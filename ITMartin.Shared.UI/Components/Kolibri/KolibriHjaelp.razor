@@ -22,7 +22,7 @@
         </div>
     </form>
     <div id="k-thanks" class="k-alert k-alert-ok" style="display:none">Tak – beskeden er sendt. Martin vender tilbage.
-        @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> Haster det? Ring </text><a href="tel:@Info.ContactPhone">@Info.ContactPhone</a><text>.</text> }
+        @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> Haster det? Ring </text><a href="tel:+45@(Info.ContactPhone.Replace(" ", ""))">@Info.ContactPhone</a><text>.</text> }
     </div>
     <p class="k-center k-mt"><a class="k-btn" href="/">Tilbage</a></p>
 </div></main>
