@@ -4,13 +4,28 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
+using ITMartin.Shared.UI.Kolibri;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 
+// Kolibri contract only (/health, /api/hjaelp, manifest) - the gallery page itself is the
+// static wwwroot/index.html with its own signed-off look, so no shared CSS or /om page here.
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Galleri";
+    k.KolibriName = "Kolibri Syn";
+    k.Family = "syn";
+    k.Tagline = "Familiens billeder og film - sorteret, sikret og delt med dem, der skal se dem.";
+    k.Version = "2026.09";
+    k.OwnOmPage = true;
+    k.OwnHjaelpPage = true;
+});
+
 var app = builder.Build();
+app.MapKolibri();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
