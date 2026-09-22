@@ -235,3 +235,25 @@ html, body {
     border: 1px solid var(--border); border-radius: 10px;
 }
 .filter:focus { outline: none; border-color: var(--accent); }
+
+/* The list of what the customer has already sent: preview, open, remove */
+.file-thumb {
+    flex: 0 0 auto; width: 54px; height: 54px; border-radius: 10px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface); border: 1px solid var(--border); text-decoration: none;
+}
+.file-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-icon { font-size: 22px; }
+.file-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.btn-link, .btn-remove, .btn-cancel {
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    border-radius: 8px; padding: 7px 11px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+}
+.btn-link:hover { color: var(--text); border-color: var(--accent); }
+.btn-remove { background: var(--warm); border-color: var(--warm); color: #1b1108; }
+.btn-cancel { color: var(--text); }
+.remove-error {
+    font-size: 13px; color: var(--warm); border: 1px solid var(--warm);
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
+}

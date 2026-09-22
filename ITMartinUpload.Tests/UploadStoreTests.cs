@@ -152,6 +152,71 @@ public class UploadStoreTests
     public void AlreadyHave_is_false_for_a_customer_with_no_files() =>
         _store.AlreadyHave("nobody", "ferie.jpg", 5).Should().BeFalse();
 
+    [Test]
+    public async Task Remove_parks_the_file_instead_of_deleting_it()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "12345");
+
+        _store.Remove("annette-kent", "ferie.jpg").Should().BeTrue();
+
+        var folder = Path.Combine(_root, "annette-kent");
+        File.Exists(Path.Combine(folder, "ferie.jpg")).Should().BeFalse();
+        File.Exists(Path.Combine(folder, UploadStore.TrashFolderName, "ferie.jpg")).Should().BeTrue();
+        _store.List("annette-kent").Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Remove_keeps_both_when_the_same_name_is_removed_twice()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "first");
+        _store.Remove("annette-kent", "ferie.jpg");
+        await SaveAsync("annette-kent", "ferie.jpg", "second");
+        _store.Remove("annette-kent", "ferie.jpg");
+
+        var trash = Path.Combine(_root, "annette-kent", UploadStore.TrashFolderName);
+        Directory.GetFiles(trash).Should().HaveCount(2);
+    }
+
+    [Test]
+    public void Remove_says_no_for_a_file_the_customer_does_not_have() =>
+        _store.Remove("annette-kent", "findes-ikke.jpg").Should().BeFalse();
+
+    [Test]
+    public async Task Remove_cannot_reach_outside_the_customer_folder()
+    {
+        await SaveAsync("bogshoppen", "hemmelig.jpg", "12345");
+
+        _store.Remove("annette-kent", "../bogshoppen/hemmelig.jpg").Should().BeFalse();
+        File.Exists(Path.Combine(_root, "bogshoppen", "hemmelig.jpg")).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ResolveOwnFile_only_resolves_the_customers_own_files()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "12345");
+        await SaveAsync("bogshoppen", "hemmelig.jpg", "12345");
+
+        _store.ResolveOwnFile("annette-kent", "ferie.jpg").Should().NotBeNull();
+        _store.ResolveOwnFile("annette-kent", "../bogshoppen/hemmelig.jpg").Should().BeNull();
+        _store.ResolveOwnFile("annette-kent", "findes-ikke.jpg").Should().BeNull();
+    }
+
+    [Test]
+    public async Task A_removed_file_is_not_counted_as_already_sent()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "12345");
+        _store.Remove("annette-kent", "ferie.jpg");
+
+        _store.AlreadyHave("annette-kent", "ferie.jpg", 5).Should().BeFalse();
+    }
+
+    [TestCase("ferie.jpg", true)]
+    [TestCase("FERIE.JPEG", true)]
+    [TestCase("film.mp4", false)]
+    [TestCase("kontrakt.pdf", false)]
+    public void IsImage_knows_what_can_be_shown_as_a_preview(string name, bool expected) =>
+        UploadStore.IsImage(name).Should().Be(expected);
+
     private async Task SaveAsync(string slug, string name, string content)
     {
         using var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));

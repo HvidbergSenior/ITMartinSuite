@@ -124,6 +124,10 @@
                 Alt herunder ligger trygt hos Martin. I behøver ikke sende det igen – og hvis I kommer til det,
                 opdager siden selv, at filen er den samme, og springer den over.
             </p>
+            @if (_removeError is not null)
+            {
+                <div class="remove-error">@_removeError</div>
+            }
             @if (_existing.Count > 12)
             {
                 <input class="filter" type="search" placeholder="Søg i det, I har sendt …"
@@ -133,11 +137,31 @@
                 @foreach (var f in FilteredExisting)
                 {
                     <div class="file-row done">
-                        <div class="file-status">@FileIcon(f.Name)</div>
+                        <a class="file-thumb" href="@FileUrl(f.Name, thumb: false)" target="_blank" title="Åben @f.Name">
+                            @if (IsImage(f.Name))
+                            {
+                                <img src="@FileUrl(f.Name, thumb: true)" alt="@f.Name" loading="lazy" />
+                            }
+                            else
+                            {
+                                <span class="thumb-icon">@FileIcon(f.Name)</span>
+                            }
+                        </a>
                         <div class="file-body">
                             <div class="file-name" title="@f.Name">@f.Name</div>
                             <div class="file-meta">@FormatSize(f.Size) · @f.Modified.ToLocalTime().ToString("d. MMM yyyy")</div>
                         </div>
+                        @if (_confirmRemove == f.Name)
+                        {
+                            <div class="file-actions">
+                                <button class="btn-remove" @onclick="() => Remove(f.Name)">Ja, fjern</button>
+                                <button class="btn-cancel" @onclick="() => _confirmRemove = null">Fortryd</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="btn-link" @onclick="() => _confirmRemove = f.Name">Fjern</button>
+                        }
                     </div>
                 }
             </div>
@@ -165,6 +189,28 @@
     private List<ExistingFile> _existing = [];
     private bool _loaded;
     private string _filter = "";
+    private string? _confirmRemove;
+    private string? _removeError;
+
+    private bool IsImage(string name) =>
+        ITMartinUpload.Server.Services.UploadStore.IsImage(name);
+
+    private string FileUrl(string name, bool thumb) =>
+        $"/api/file/{Uri.EscapeDataString(Slug)}/{Uri.EscapeDataString(name)}"
+        + $"?token={Uri.EscapeDataString(_token)}"
+        + (thumb ? "&thumb=true" : "");
+
+    private void Remove(string name)
+    {
+        _confirmRemove = null;
+        if (!Store.Remove(Slug, name))
+        {
+            _removeError = $"Kunne ikke fjerne {name}. Prøv igen, eller ring til Martin.";
+            return;
+        }
+        _removeError = null;
+        LoadExisting();
+    }
 
     private IEnumerable<ExistingFile> FilteredExisting =>
         string.IsNullOrWhiteSpace(_filter)

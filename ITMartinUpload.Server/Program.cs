@@ -76,6 +76,34 @@ app.MapPost("/api/upload/{slug}", async (
     return Results.Ok();
 }).DisableAntiforgery();
 
+// The customer's own files, so they can see what they sent and take something back out.
+app.MapGet("/api/file/{slug}/{name}", (
+    string slug, string name, string? token, bool? thumb,
+    UploadStore store, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+{
+    if (!options.Value.IsAuthorized(slug, token)) return Results.Unauthorized();
+
+    var path = store.ResolveOwnFile(slug, name);
+    if (path is null) return Results.NotFound();
+
+    var contentType = UploadStore.ContentTypeFor(path);
+    if (thumb == true && UploadStore.IsImage(path))
+    {
+        var jpeg = ThumbnailFactory.Create(path);
+        if (jpeg is not null) return Results.File(jpeg, "image/jpeg");
+    }
+
+    return Results.File(path, contentType, enableRangeProcessing: true);
+});
+
+app.MapPost("/api/remove/{slug}/{name}", (
+    string slug, string name, string? token,
+    UploadStore store, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+{
+    if (!options.Value.IsAuthorized(slug, token)) return Results.Unauthorized();
+    return store.Remove(slug, name) ? Results.Ok() : Results.NotFound();
+}).DisableAntiforgery();
+
 app.MapRazorComponents<ITMartinUpload.Server.App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly);

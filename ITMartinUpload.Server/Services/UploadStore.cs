@@ -82,6 +82,63 @@ public sealed class UploadStore
             string.Equals(f.Name, safeName, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static readonly string[] ImageExtensions =
+        [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff"];
+
+    public static bool IsImage(string path) =>
+        ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+
+    public static string ContentTypeFor(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".heic" or ".heif" => "image/heic",
+            ".mp4" or ".m4v" => "video/mp4",
+            ".mov" => "video/quicktime",
+            ".pdf" => "application/pdf",
+            _ => "application/octet-stream",
+        };
+
+    /// <summary>The folder a removed file is parked in - nothing is ever really deleted here.</summary>
+    public const string TrashFolderName = "_fjernet";
+
+    /// <summary>
+    /// Resolves a file the customer refers to by name, inside their own folder only.
+    /// Returns null when the name is not one of theirs - never a path outside the folder.
+    /// </summary>
+    public string? ResolveOwnFile(string slug, string fileName)
+    {
+        var safeName = SafeFileName(fileName);
+        if (safeName is null || !IsValidSlug(slug)) return null;
+
+        var folder = FolderFor(slug);
+        var full = Path.GetFullPath(Path.Combine(folder, safeName));
+        if (!full.StartsWith(Path.GetFullPath(folder) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            return null;
+
+        return File.Exists(full) ? full : null;
+    }
+
+    /// <summary>
+    /// Takes a file out of the customer's folder when they say it should not have been
+    /// sent. It is moved into <see cref="TrashFolderName"/>, not deleted: if they regret it,
+    /// or the wrong one goes, the file is still on the NAS.
+    /// </summary>
+    public bool Remove(string slug, string fileName)
+    {
+        var source = ResolveOwnFile(slug, fileName);
+        if (source is null) return false;
+
+        var trash = Path.Combine(FolderFor(slug), TrashFolderName);
+        Directory.CreateDirectory(trash);
+        var dest = UniquePath(trash, Path.GetFileName(source), File.Exists);
+        File.Move(source, dest);
+        return true;
+    }
+
     public IReadOnlyList<StoredFile> List(string slug)
     {
         try
