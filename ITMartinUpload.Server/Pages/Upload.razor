@@ -4,8 +4,10 @@
 @inject IJSRuntime JS
 @inject IConfiguration Config
 @inject NavigationManager Nav
+@inject ITMartinUpload.Server.Services.UploadStore Store
+@inject Microsoft.Extensions.Options.IOptions<ITMartinUpload.Server.Services.UploadOptions> Options
 
-<PageTitle>Upload – @Slug – ITMartin</PageTitle>
+<PageTitle>Upload – @DisplayName – ITMartin</PageTitle>
 
 @if (!_authorized)
 {
@@ -13,7 +15,7 @@
         <div class="header">
             <div class="logo">🔒</div>
             <h1 class="title">Adgang nægtet</h1>
-            <p class="sub">Ugyldig eller manglende adgangskode i URL'en. Kontakt Martin for at få det korrekte link.</p>
+            <p class="sub">Linket mangler sin kode, eller den er forkert. Skriv til Martin på ITMartin@Mensa.dk eller ring 31 19 47 30, så sender han et nyt.</p>
         </div>
     </div>
     return;
@@ -21,24 +23,26 @@
 
 <div class="root">
     <div class="header">
-        <div class="logo">📤</div>
-        <h1 class="title">Hej @Slug!</h1>
-        <p class="sub">Send dine filer til Martin's server – billeder, videoer, dokumenter</p>
+        <div class="logo">🐦</div>
+        <h1 class="title">@Greeting</h1>
+        <p class="sub">@Intro</p>
     </div>
 
-    <ProblemPurposeBanner
-        Problem="At dele filer med andre kræver normalt en ekstern tjeneste eller besværlig e-mail-vedhæftning."
-        Formaal="Hurtig upload og deling af filer, direkte fra browseren." />
+    <div class="steps">
+        <div class="step"><span class="step-emoji">🗂️</span><span class="step-no">1</span><div class="step-text"><b>Find billederne</b><span>På telefonen, computeren, USB-stikket eller den gamle harddisk.</span></div></div>
+        <div class="step"><span class="step-emoji">📤</span><span class="step-no">2</span><div class="step-text"><b>Træk dem herind</b><span>Mange ad gangen. Lad siden være åben, mens de sendes.</span></div></div>
+        <div class="step"><span class="step-emoji">✨</span><span class="step-no">3</span><div class="step-text"><b>Martin sorterer</b><span>Dubletter væk, orden efter år og begivenhed – og et galleri til jer.</span></div></div>
+    </div>
 
     <div class="dropzone" id="dz">
         <div class="dz-icon">🗂️</div>
         <div class="dz-text">Træk filer hertil</div>
         <div class="dz-or">eller</div>
         <label class="dz-btn">
-            Vælg filer fra din enhed
+            Vælg billeder på telefon eller computer
             <input type="file" id="fi" multiple style="display:none" />
         </label>
-        <div class="dz-hint">Alle filtyper · Billeder, videoer, dokumenter</div>
+        <div class="dz-hint">Billeder, film, scanninger, dokumenter – alt kan sendes</div>
     </div>
 
     @if (_uploads.Count > 0)
@@ -87,7 +91,7 @@
             @if (AllDone)
             {
                 <div class="done-banner">
-                    ✅ @DoneCount fil@(DoneCount == 1 ? "" : "er") uploadet til Martin
+                    ✅ @DoneCount fil@(DoneCount == 1 ? "" : "er") er kommet frem til Martin. Tak!
                     @if (ErrorCount > 0)
                     {
                         <span class="err-note"> · @ErrorCount mislykkedes</span>
@@ -122,7 +126,7 @@
     @if (_loaded && _uploads.Count == 0 && _existing.Count == 0)
     {
         <div class="empty-hint">
-            📭 Ingen filer uploadet endnu – brug boksen ovenfor til at starte
+            📭 I har ikke sendt noget endnu – træk de første billeder ind i boksen ovenfor
         </div>
     }
     <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06);margin-top:2rem"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
@@ -140,8 +144,14 @@
     private List<ExistingFile> _existing = [];
     private bool _loaded;
     private bool _authorized = true;
-    private string _uploadRoot = "/app/data";
     private string _token = "";
+    private ITMartinUpload.Server.Services.UploadCustomer? _customer;
+
+    private string DisplayName => string.IsNullOrWhiteSpace(_customer?.Name) ? Slug : _customer!.Name;
+    private string Greeting => _customer?.GreetingOrDefault ?? $"Hej {Slug}!";
+    private string Intro => string.IsNullOrWhiteSpace(_customer?.Intro)
+        ? "Her sender I jeres billeder direkte til Martins server i Danmark – ingen cloud, ingen mail der er for stor."
+        : _customer!.Intro;
 
     private IJSObjectReference? _js;
     private DotNetObjectReference<Upload>? _ref;
@@ -152,12 +162,11 @@
 
     protected override void OnInitialized()
     {
-        _uploadRoot = Config["UploadRoot"] ?? "/app/data";
-        var uri = new Uri(Nav.Uri);
-        var qs = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var qs = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
         _token = qs["token"] ?? "";
-        var expectedToken = Config["Upload:Token"] ?? "";
-        if (!string.IsNullOrEmpty(expectedToken) && _token != expectedToken)
+        _customer = Options.Value.Find(Slug);
+
+        if (!Options.Value.IsAuthorized(Slug, _token))
         {
             _authorized = false;
             return;
@@ -218,17 +227,9 @@
 
     private void LoadExisting()
     {
-        try
-        {
-            var folder = Path.Combine(_uploadRoot, Slug.ToLowerInvariant());
-            if (!Directory.Exists(folder)) { _existing = []; _loaded = true; return; }
-            _existing = Directory.GetFiles(folder)
-                .Select(p => new System.IO.FileInfo(p))
-                .OrderByDescending(fi => fi.LastWriteTimeUtc)
-                .Select(fi => new ExistingFile(fi.Name, fi.Length, fi.LastWriteTimeUtc))
-                .ToList();
-        }
-        catch { _existing = []; }
+        _existing = Store.List(Slug)
+            .Select(f => new ExistingFile(f.Name, f.Size, f.ModifiedUtc))
+            .ToList();
         _loaded = true;
     }
 

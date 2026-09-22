@@ -1,25 +1,36 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ITKolibri palette - same greens as itmartin.dk/pilot and the other Kolibri apps. */
 :root, [data-theme="dark"] {
-    --bg: #080c18;
+    --bg: #121917;
     --surface: rgba(255,255,255,.04);
-    --border: rgba(255,255,255,.14);
-    --text: #e8eeff;
-    --muted: #64748b;
-    --accent: #2563eb;
+    --card: #1b2420;
+    --border: rgba(255,255,255,.12);
+    --text: #ecf2ee;
+    --muted: #9fb0a8;
+    --accent: #4fc394;
+    --accent-ink: #08211a;
+    --warm: #e8a87c;
+    --glow: radial-gradient(1200px 500px at 50% -10%, rgba(79,195,148,.18), transparent 70%);
 }
 
 [data-theme="light"] {
-    --bg: #f5f5f7;
+    --bg: #f7faf8;
     --surface: #ffffff;
     --card: #ffffff;
-    --border: #e2e2e8;
-    --text: #16181d;
-    --muted: #6b7280;
+    --border: #dfe7e3;
+    --text: #1d2a25;
+    --muted: #5c6b65;
+    --accent: #1f7a5c;
+    --accent-ink: #ffffff;
+    --warm: #c96a2b;
+    --glow: radial-gradient(1200px 500px at 50% -10%, rgba(31,122,92,.10), transparent 70%);
 }
 
 html, body {
     background: var(--bg);
+    background-image: var(--glow);
+    background-repeat: no-repeat;
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     min-height: 100vh;
@@ -32,14 +43,37 @@ html, body {
 }
 
 /* Header */
-.header { text-align: center; margin-bottom: 32px; }
-.logo { font-size: 52px; margin-bottom: 12px; }
-.title { font-size: 26px; font-weight: 800; letter-spacing: -.3px; margin-bottom: 6px; }
-.sub { font-size: 14px; color: var(--muted); }
+.header { text-align: center; margin-bottom: 28px; }
+.logo {
+    font-size: 40px; margin: 0 auto 14px; width: 84px; height: 84px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--warm)));
+    box-shadow: 0 12px 30px rgba(0,0,0,.28);
+}
+.title { font-size: clamp(26px, 6vw, 34px); font-weight: 800; letter-spacing: -.4px; margin-bottom: 8px; }
+.sub { font-size: 15px; color: var(--muted); max-width: 30rem; margin: 0 auto; line-height: 1.55; }
+
+/* Three steps - what happens with the pictures they send */
+.steps { display: grid; gap: 10px; margin-bottom: 26px; }
+@media (min-width: 620px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+.step {
+    position: relative; display: flex; align-items: flex-start; gap: 10px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+}
+.step-emoji { font-size: 22px; line-height: 1.2; }
+.step-no {
+    position: absolute; top: 10px; right: 12px; font-size: 11px; font-weight: 700;
+    color: var(--accent); opacity: .8;
+}
+.step-text { display: flex; flex-direction: column; gap: 3px; }
+.step-text b { font-size: 14px; }
+.step-text span { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
 
 /* Drop zone */
 .dropzone {
-    border: 2px dashed var(--border);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent);
+    border: 2px dashed color-mix(in srgb, var(--accent) 55%, var(--border));
+    transition: border-color .15s ease, background .15s ease, transform .15s ease;
     border-radius: 20px;
     padding: 44px 24px 36px;
     text-align: center;
@@ -48,11 +82,13 @@ html, body {
     margin-bottom: 28px;
 }
 .dropzone.dragover {
+    transform: scale(1.01);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 22%, transparent), transparent);
     border-color: var(--accent);
     background: rgba(59,130,246,.08);
 }
 .dz-icon { font-size: 40px; margin-bottom: 10px; }
-.dz-text { font-size: 16px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.dz-text { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
 .dz-or { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
 .dz-btn {
     display: inline-block;
@@ -176,3 +212,15 @@ html, body {
     transition: opacity 0.15s ease;
 }
 .btn-primary:hover, button[type="submit"]:not(#themeToggleBtn):hover { opacity: 0.85; }
+
+
+/* Buttons and bars pick up the Kolibri green */
+.dz-btn { color: var(--accent-ink) !important; font-weight: 700; }
+.bar-fill { background: var(--accent); }
+.bar-fill.done { background: color-mix(in srgb, var(--accent) 80%, #ffffff); }
+.done-banner {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-weight: 600;
+}
+.empty-hint { text-align: center; color: var(--muted); font-size: 14px; padding: 18px; }
