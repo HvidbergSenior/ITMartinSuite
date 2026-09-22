@@ -1,0 +1,137 @@
+@page "/svar"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject ITMartinUpload.Server.Services.MessageStore Messages
+@inject ITMartinUpload.Server.Services.UploadStore Store
+@inject Microsoft.Extensions.Options.IOptions<ITMartinUpload.Server.Services.UploadOptions> Options
+@inject IConfiguration Config
+@inject NavigationManager Nav
+@inject ITMartinUpload.Server.Services.UploadPushService Push
+@inject IJSRuntime JS
+
+<PageTitle>Svar kunderne – ITMartin</PageTitle>
+
+<div class="root">
+    <div class="header">
+        <div class="logo">💬</div>
+        <h1 class="title">Kundernes spørgsmål</h1>
+        <p class="sub">Alt, dine uploadkunder har skrevet – og dine svar.</p>
+    </div>
+
+    @if (!_authorized)
+    {
+        <div class="section">
+            <div class="section-header"><span class="section-label">Adgangskode</span></div>
+            <div class="chat-form">
+                <input class="chat-input" type="password" placeholder="PIN" @bind="_pin" @bind:event="oninput" />
+                <button class="chat-send" @onclick="Unlock">Luk op</button>
+            </div>
+            @if (_wrongPin)
+            {
+                <div class="remove-error">Forkert PIN.</div>
+            }
+        </div>
+    }
+    else
+    {
+
+    <div class="push-row">
+        <button class="btn-link" @onclick="EnablePush">🔔 Giv mig besked, når en kunde skriver eller uploader</button>
+        @if (_pushStatus is not null)
+        {
+            <span class="push-status">@_pushStatus</span>
+        }
+    </div>
+
+    @foreach (var customer in Customers)
+    {
+        var thread = Messages.Read(customer.Slug);
+        var unanswered = Messages.UnansweredCount(customer.Slug);
+        <div class="section">
+            <div class="section-header">
+                <span class="section-label">
+                    @(string.IsNullOrWhiteSpace(customer.Name) ? customer.Slug : customer.Name)
+                    @if (unanswered > 0)
+                    {
+                        <span class="badge">@unanswered nye</span>
+                    }
+                </span>
+                <span class="section-meta">@Store.List(customer.Slug).Count filer uploadet</span>
+            </div>
+
+            <div class="chat-log">
+                @if (thread.Count == 0)
+                {
+                    <div class="chat-empty">Ingen beskeder.</div>
+                }
+                @foreach (var m in thread)
+                {
+                    <div class="chat-msg @(m.IsFromMartin ? "from-martin" : "from-customer")">
+                        <div class="chat-who">@(m.IsFromMartin ? "Martin" : customer.Name)</div>
+                        <div class="chat-text">@m.Text</div>
+                        <div class="chat-time">@m.AtUtc.ToLocalTime().ToString("d. MMM HH:mm")</div>
+                    </div>
+                }
+            </div>
+
+            <div class="chat-form">
+                <textarea class="chat-input" rows="3" placeholder="Svar @customer.Name …"
+                          value="@Draft(customer.Slug)"
+                          @oninput="e => _drafts[customer.Slug] = e.Value?.ToString() ?? string.Empty"></textarea>
+                <button class="chat-send" @onclick="() => Reply(customer.Slug)">Send svar</button>
+            </div>
+        </div>
+    }
+    }
+</div>
+
+@code {
+    private bool _authorized;
+    private bool _wrongPin;
+    private string _pin = "";
+    private readonly Dictionary<string, string> _drafts = new();
+    private string? _pushStatus;
+    private IJSObjectReference? _pushJs;
+
+    private IEnumerable<ITMartinUpload.Server.Services.UploadCustomer> Customers =>
+        Options.Value.Customers.OrderByDescending(c => Messages.LastActivityUtc(c.Slug) ?? DateTime.MinValue);
+
+    private string ExpectedPin => Config["Upload:AdminPin"] ?? "";
+
+    protected override void OnInitialized()
+    {
+        var qs = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
+        var fromUrl = qs["pin"] ?? "";
+        if (!string.IsNullOrEmpty(ExpectedPin) && fromUrl == ExpectedPin) _authorized = true;
+    }
+
+    private void Unlock()
+    {
+        _authorized = !string.IsNullOrEmpty(ExpectedPin) && _pin == ExpectedPin;
+        _wrongPin = !_authorized;
+        _pin = "";
+    }
+
+    private string Draft(string slug) => _drafts.TryGetValue(slug, out var d) ? d : "";
+
+    private void Reply(string slug)
+    {
+        var text = Draft(slug);
+        if (!Messages.Add(slug, ITMartinUpload.Server.Services.ChatMessage.Martin, text)) return;
+        _drafts[slug] = "";
+
+        var preview = text.Length > 80 ? text[..80] + "…" : text;
+        _ = Push.SendAsync(slug, "Martin har svaret", preview, "/upload/" + slug);
+    }
+
+    private async Task EnablePush()
+    {
+        _pushJs ??= await JS.InvokeAsync<IJSObjectReference>("import", "/push.js");
+        _pushStatus = await _pushJs.InvokeAsync<string>("subscribeMartin", ExpectedPin, Push.GetPublicKey());
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_pushJs is not null) await _pushJs.DisposeAsync();
+    }
+}

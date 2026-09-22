@@ -40,6 +40,9 @@ builder.Services.Configure<UploadOptions>(options =>
     options.Root = builder.Configuration["UploadRoot"] ?? options.Root;
 });
 builder.Services.AddSingleton<UploadStore>();
+builder.Services.AddSingleton<MessageStore>();
+builder.Services.AddSingleton<UploadPushService>();
+builder.Services.AddSingleton<UploadActivity>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -58,6 +61,8 @@ app.MapPost("/api/upload/{slug}", async (
     string? token,
     HttpRequest request,
     UploadStore store,
+    UploadPushService push,
+    UploadActivity activity,
     Microsoft.Extensions.Options.IOptions<UploadOptions> options,
     CancellationToken ct) =>
 {
@@ -73,8 +78,40 @@ app.MapPost("/api/upload/{slug}", async (
     if (safeName is null) return Results.BadRequest("Ugyldigt filnavn");
 
     await store.SaveAsync(slug, safeName, file.OpenReadStream(), ct);
+
+    // One ping per batch, not one per photo: a customer sending 400 pictures
+    // must not put 400 notifications on Martin's phone.
+    if (activity.ShouldAnnounceUpload(slug))
+    {
+        var name = options.Value.Find(slug)?.Name ?? slug;
+        _ = push.SendAsync(UploadPushService.Martin,
+            $"{name} sender billeder",
+            "Filerne lander i deres mappe på NAS'en.",
+            $"/svar");
+    }
+
     return Results.Ok();
 }).DisableAntiforgery();
+
+// Push sign-up. A customer may only subscribe to their own thread, and only with
+// the token from their link; "martin" is behind the admin pin.
+app.MapPost("/api/push/{who}", async (
+    string who, string? token, string? pin, PushRegistration registration,
+    UploadPushService push, IConfiguration config,
+    Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+{
+    var allowed = who == UploadPushService.Martin
+        ? !string.IsNullOrEmpty(config["Upload:AdminPin"]) && pin == config["Upload:AdminPin"]
+        : options.Value.IsAuthorized(who, token);
+
+    if (!allowed) return Results.Unauthorized();
+
+    push.Subscribe(who, registration with { Who = who });
+    await Task.CompletedTask;
+    return Results.Ok();
+}).DisableAntiforgery();
+
+app.MapGet("/api/push-key", (UploadPushService push) => Results.Text(push.GetPublicKey()));
 
 // The customer's own files, so they can see what they sent and take something back out.
 app.MapGet("/api/file/{slug}/{name}", (

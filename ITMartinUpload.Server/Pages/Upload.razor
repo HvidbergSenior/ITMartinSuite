@@ -6,6 +6,8 @@
 @inject NavigationManager Nav
 @inject ITMartinUpload.Server.Services.UploadStore Store
 @inject Microsoft.Extensions.Options.IOptions<ITMartinUpload.Server.Services.UploadOptions> Options
+@inject ITMartinUpload.Server.Services.MessageStore Messages
+@inject ITMartinUpload.Server.Services.UploadPushService Push
 
 <PageTitle>Upload – @DisplayName – ITMartin</PageTitle>
 
@@ -174,6 +176,56 @@
             📭 I har ikke sendt noget endnu – træk de første billeder ind i boksen ovenfor
         </div>
     }
+    <div class="section chat">
+        <div class="section-header">
+            <span class="section-label">Spørg Martin</span>
+            <span class="section-meta">Svar samme dag eller dagen efter</span>
+        </div>
+        <p class="section-note">
+            Er der noget, I er i tvivl om – hvilke billeder der skal med, om en gammel harddisk kan bruges,
+            eller om noget gik galt undervejs? Skriv det her, så svarer Martin på samme side.
+            I kan roligt lukke siden imens.
+        </p>
+
+        <div class="chat-log">
+            @if (_messages.Count == 0)
+            {
+                <div class="chat-empty">Ingen beskeder endnu – skriv løs, intet spørgsmål er for lille.</div>
+            }
+            @foreach (var m in _messages)
+            {
+                <div class="chat-msg @(m.IsFromMartin ? "from-martin" : "from-customer")">
+                    <div class="chat-who">@(m.IsFromMartin ? "Martin" : DisplayName)</div>
+                    <div class="chat-text">@m.Text</div>
+                    <div class="chat-time">@m.AtUtc.ToLocalTime().ToString("d. MMM HH:mm")</div>
+                </div>
+            }
+        </div>
+
+        <div class="chat-form">
+            <textarea class="chat-input" placeholder="Skriv dit spørgsmål her …"
+                      @bind="_draft" @bind:event="oninput" rows="3"></textarea>
+            <button class="chat-send" @onclick="SendMessage" disabled="@string.IsNullOrWhiteSpace(_draft)">
+                Send til Martin
+            </button>
+        </div>
+        @if (_messageSent)
+        {
+            <div class="chat-sent">✅ Sendt. Martin får besked og svarer her på siden.</div>
+        }
+        <div class="push-row">
+            <button class="btn-link" @onclick="EnablePush">🔔 Giv mig besked, når Martin svarer</button>
+            @if (_pushStatus is not null)
+            {
+                <span class="push-status">@_pushStatus</span>
+            }
+        </div>
+        <p class="chat-alt">
+            Haster det? Ring til Martin på <a href="tel:+4531194730">31 19 47 30</a>
+            eller skriv til <a href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a>.
+        </p>
+    </div>
+
     <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06);margin-top:2rem"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
 </div>
 
@@ -190,6 +242,12 @@
     private bool _loaded;
     private string _filter = "";
     private string? _confirmRemove;
+    private List<ITMartinUpload.Server.Services.ChatMessage> _messages = [];
+    private string _draft = "";
+    private bool _messageSent;
+    private System.Threading.Timer? _poll;
+    private string? _pushStatus;
+    private IJSObjectReference? _pushJs;
     private string? _removeError;
 
     private bool IsImage(string name) =>
@@ -247,6 +305,30 @@
             return;
         }
         LoadExisting();
+        LoadMessages();
+    }
+
+    private void LoadMessages() =>
+        _messages = Messages.Read(Slug).ToList();
+
+    private void SendMessage()
+    {
+        var text = _draft;
+        if (!Messages.Add(Slug, ITMartinUpload.Server.Services.ChatMessage.Customer, text)) return;
+        _draft = "";
+        _messageSent = true;
+        LoadMessages();
+
+        var preview = text.Length > 80 ? text[..80] + "…" : text;
+        _ = Push.SendAsync(ITMartinUpload.Server.Services.UploadPushService.Martin,
+            $"{DisplayName} spørger", preview, "/svar");
+    }
+
+    private async Task EnablePush()
+    {
+        _pushJs ??= await JS.InvokeAsync<IJSObjectReference>("import", "/push.js");
+        var key = Push.GetPublicKey();
+        _pushStatus = await _pushJs.InvokeAsync<string>("subscribe", Slug, _token, key);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -255,6 +337,15 @@
         _ref = DotNetObjectReference.Create(this);
         _js = await JS.InvokeAsync<IJSObjectReference>("import", "/upload.js");
         await _js.InvokeVoidAsync("init", "dz", "fi", Slug, _token, _ref);
+
+        // Martin answers while they are still on the page, so pick his reply up
+        // without the customer having to know to reload anything.
+        _poll = new System.Threading.Timer(_ =>
+        {
+            var before = _messages.Count;
+            LoadMessages();
+            if (_messages.Count != before) InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
     }
 
     /// <summary>
@@ -370,6 +461,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_poll is not null) await _poll.DisposeAsync();
+        if (_pushJs is not null) await _pushJs.DisposeAsync();
         if (_js is not null) await _js.DisposeAsync();
         _ref?.Dispose();
     }
