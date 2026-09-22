@@ -116,6 +116,42 @@ public class UploadStoreTests
     public void List_is_empty_for_a_customer_who_has_not_sent_anything_yet() =>
         _store.List("nobody").Should().BeEmpty();
 
+    [Test]
+    public async Task AlreadyHave_recognises_the_same_file_sent_again()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "12345");
+
+        _store.AlreadyHave("annette-kent", "ferie.jpg", 5).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task AlreadyHave_ignores_the_path_the_browser_sends()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "12345");
+
+        _store.AlreadyHave("annette-kent", @"C:\Billeder\ferie.jpg", 5).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task AlreadyHave_is_false_when_a_different_picture_has_the_same_name()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "12345");
+
+        _store.AlreadyHave("annette-kent", "ferie.jpg", 999).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AlreadyHave_does_not_look_in_another_customers_folder()
+    {
+        await SaveAsync("annette-kent", "ferie.jpg", "12345");
+
+        _store.AlreadyHave("bogshoppen", "ferie.jpg", 5).Should().BeFalse();
+    }
+
+    [Test]
+    public void AlreadyHave_is_false_for_a_customer_with_no_files() =>
+        _store.AlreadyHave("nobody", "ferie.jpg", 5).Should().BeFalse();
+
     private async Task SaveAsync(string slug, string name, string content)
     {
         using var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));

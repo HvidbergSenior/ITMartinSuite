@@ -32,8 +32,10 @@ export function init(dropZoneId, inputId, slug, token, dotNetRef) {
 
 async function enqueue(files, slug, token, dotNetRef) {
     const infos = files.map(f => ({ name: f.name, size: f.size }));
+    // An empty id means the server already has that exact file - don't send it again.
     const ids = await dotNetRef.invokeMethodAsync('AddFiles', infos);
     for (let i = 0; i < files.length; i++) {
+        if (!ids[i]) continue;
         _queue.push({ file: files[i], id: ids[i], slug, token, dotNetRef });
     }
     drain();

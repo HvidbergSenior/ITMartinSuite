@@ -50,7 +50,11 @@
         <div class="section">
             <div class="section-header">
                 <span class="section-label">Uploadkø</span>
-                <span class="section-meta">@DoneCount af @_uploads.Count filer · @ErrorCount fejl</span>
+                <span class="section-meta">
+                    @DoneCount af @_uploads.Count filer
+                    @if (SkippedCount > 0) { <text> · @SkippedCount havde I sendt før</text> }
+                    @if (ErrorCount > 0) { <text> · @ErrorCount fejl</text> }
+                </span>
             </div>
             <div class="file-list">
                 @foreach (var f in _uploads)
@@ -61,6 +65,10 @@
                             <div class="file-name" title="@f.Name">@f.Name</div>
                             <div class="file-meta">
                                 @FormatSize(f.Size)
+                                @if (f.Status == UploadStatus.Skipped)
+                                {
+                                    <span class="file-skip"> · havde I sendt før – sendes ikke igen</span>
+                                }
                                 @if (f.Error != null)
                                 {
                                     <span class="file-err"> · @f.Error</span>
@@ -92,6 +100,10 @@
             {
                 <div class="done-banner">
                     ✅ @DoneCount fil@(DoneCount == 1 ? "" : "er") er kommet frem til Martin. Tak!
+                    @if (SkippedCount > 0)
+                    {
+                        <span class="skip-note"> · @SkippedCount havde I sendt før og blev sprunget over</span>
+                    }
                     @if (ErrorCount > 0)
                     {
                         <span class="err-note"> · @ErrorCount mislykkedes</span>
@@ -105,11 +117,20 @@
     {
         <div class="section">
             <div class="section-header">
-                <span class="section-label">Allerede uploadet</span>
+                <span class="section-label">Det, I har sendt</span>
                 <span class="section-meta">@_existing.Count filer · @FormatSize(_existing.Sum(f => f.Size))</span>
             </div>
+            <p class="section-note">
+                Alt herunder ligger trygt hos Martin. I behøver ikke sende det igen – og hvis I kommer til det,
+                opdager siden selv, at filen er den samme, og springer den over.
+            </p>
+            @if (_existing.Count > 12)
+            {
+                <input class="filter" type="search" placeholder="Søg i det, I har sendt …"
+                       @bind="_filter" @bind:event="oninput" />
+            }
             <div class="file-list">
-                @foreach (var f in _existing)
+                @foreach (var f in FilteredExisting)
                 {
                     <div class="file-row done">
                         <div class="file-status">@FileIcon(f.Name)</div>
@@ -135,7 +156,7 @@
 @code {
     [Parameter] public string Slug { get; set; } = "";
 
-    private enum UploadStatus { Queued, Uploading, Done, Error }
+    private enum UploadStatus { Queued, Uploading, Done, Error, Skipped }
     private record UploadFile(string Id, string Name, long Size, UploadStatus Status, int Progress, string? Error);
     private record ExistingFile(string Name, long Size, DateTime Modified);
     public record FileInfoJs(string Name, long Size);
@@ -143,6 +164,12 @@
     private List<UploadFile> _uploads = [];
     private List<ExistingFile> _existing = [];
     private bool _loaded;
+    private string _filter = "";
+
+    private IEnumerable<ExistingFile> FilteredExisting =>
+        string.IsNullOrWhiteSpace(_filter)
+            ? _existing
+            : _existing.Where(f => f.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase));
     private bool _authorized = true;
     private string _token = "";
     private ITMartinUpload.Server.Services.UploadCustomer? _customer;
@@ -158,7 +185,9 @@
 
     private int DoneCount => _uploads.Count(f => f.Status == UploadStatus.Done);
     private int ErrorCount => _uploads.Count(f => f.Status == UploadStatus.Error);
-    private bool AllDone => _uploads.Count > 0 && _uploads.All(f => f.Status is UploadStatus.Done or UploadStatus.Error);
+    private int SkippedCount => _uploads.Count(f => f.Status == UploadStatus.Skipped);
+    private bool AllDone => _uploads.Count > 0 &&
+        _uploads.All(f => f.Status is UploadStatus.Done or UploadStatus.Error or UploadStatus.Skipped);
 
     protected override void OnInitialized()
     {
@@ -182,12 +211,27 @@
         await _js.InvokeVoidAsync("init", "dz", "fi", Slug, _token, _ref);
     }
 
+    /// <summary>
+    /// Called from the browser with what the customer just picked. Files we already have
+    /// get an empty id, which tells the browser not to send them again - so dropping the
+    /// same folder twice costs nothing.
+    /// </summary>
     [JSInvokable]
     public async Task<string[]> AddFiles(FileInfoJs[] files)
     {
-        var ids = files.Select(_ => Guid.NewGuid().ToString()).ToArray();
-        for (int i = 0; i < files.Length; i++)
-            _uploads.Add(new(ids[i], files[i].Name, files[i].Size, UploadStatus.Queued, 0, null));
+        var ids = new string[files.Length];
+        for (var i = 0; i < files.Length; i++)
+        {
+            var already = Store.AlreadyHave(Slug, files[i].Name, files[i].Size);
+            ids[i] = already ? "" : Guid.NewGuid().ToString();
+            _uploads.Add(new(
+                already ? $"skip-{i}-{Guid.NewGuid():N}" : ids[i],
+                files[i].Name,
+                files[i].Size,
+                already ? UploadStatus.Skipped : UploadStatus.Queued,
+                already ? 100 : 0,
+                null));
+        }
         await InvokeAsync(StateHasChanged);
         return ids;
     }
@@ -246,6 +290,7 @@
         return s switch
         {
             UploadStatus.Done => "✅",
+            UploadStatus.Skipped => "⏭️",
             UploadStatus.Error => "❌",
             UploadStatus.Uploading => "⬆️",
             _ => "⏳"
@@ -257,6 +302,7 @@
         return s switch
         {
             UploadStatus.Done => "done",
+            UploadStatus.Skipped => "skip",
             UploadStatus.Error => "err",
             UploadStatus.Uploading => "active",
             _ => ""

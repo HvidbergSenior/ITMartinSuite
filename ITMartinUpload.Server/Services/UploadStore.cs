@@ -68,6 +68,20 @@ public sealed class UploadStore
         return dest;
     }
 
+    /// <summary>
+    /// True when this customer already sent a file with the same name and the same size.
+    /// Good enough to stop the common "did I send these already?" re-upload without
+    /// hashing every byte of a 4 GB video on the customer's phone.
+    /// </summary>
+    public bool AlreadyHave(string slug, string fileName, long size)
+    {
+        var safeName = SafeFileName(fileName);
+        if (safeName is null) return false;
+        return List(slug).Any(f =>
+            f.Size == size &&
+            string.Equals(f.Name, safeName, StringComparison.OrdinalIgnoreCase));
+    }
+
     public IReadOnlyList<StoredFile> List(string slug)
     {
         try

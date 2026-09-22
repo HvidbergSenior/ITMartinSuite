@@ -224,3 +224,14 @@ html, body {
     border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-weight: 600;
 }
 .empty-hint { text-align: center; color: var(--muted); font-size: 14px; padding: 18px; }
+
+/* Files the customer already sent - shown, but not uploaded again */
+.file-row.skip { opacity: .72; }
+.file-skip, .skip-note { color: var(--warm); }
+.section-note { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: -4px 0 10px; }
+.filter {
+    width: 100%; padding: 10px 12px; margin-bottom: 10px; font: inherit; font-size: 14px;
+    color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+}
+.filter:focus { outline: none; border-color: var(--accent); }
