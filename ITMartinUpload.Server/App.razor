@@ -11,7 +11,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Upload – ITMartin</title>
     <base href="/" />
-    <link rel="stylesheet" href="app.css" />
+    @* The version makes Cloudflare fetch the stylesheet again after a deploy
+       instead of serving the cached one next to freshly rendered markup. *@
+    <link rel="stylesheet" href="@($"app.css?v={AssetVersion}")" />
 </head>
 <body>
     <Routes />
@@ -62,3 +64,8 @@
     </script>
 </body>
 </html>
+
+@code {
+    private static readonly string AssetVersion =
+        File.GetLastWriteTimeUtc(typeof(App).Assembly.Location).Ticks.ToString();
+}
