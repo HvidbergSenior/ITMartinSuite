@@ -1,25 +1,27 @@
 using System.Text.Json;
-using ITMartinElPriser.Core;
 
 namespace ITMartinMitEl.Server.Services;
 
-// Hourly kWh from the meter, kept on disk so the history survives restarts
-// and the daily sync only has to fetch the last few days.
+/// <summary>
+/// Hourly kWh from one household's meter, kept so the history survives restarts and the
+/// daily sync only has to fetch the last few days. One instance per household, handed out
+/// by <see cref="HouseholdRegistry"/>.
+/// </summary>
 public sealed class ConsumptionStore
 {
-    private readonly string _path;
     private readonly object _lock = new();
+    private readonly Action<Guid, string> _persist;
     private Dictionary<string, double> _hours; // "yyyy-MM-dd HH" -> kWh
 
+    public Guid HouseholdId { get; }
     public DateTime? LastSyncUtc { get; private set; }
     public string? LastSyncError { get; set; }
 
-    public ConsumptionStore(IConfiguration config)
+    public ConsumptionStore(Guid householdId, string? json, Action<Guid, string> persist)
     {
-        var dataDir = config["DataDir"] ?? "/data";
-        Directory.CreateDirectory(dataDir);
-        _path = Path.Combine(dataDir, "consumption.json");
-        _hours = Load();
+        HouseholdId = householdId;
+        _persist = persist;
+        _hours = Parse(json);
     }
 
     private static string Key(DateTime hourDk) => hourDk.ToString("yyyy-MM-dd HH");
@@ -30,7 +32,7 @@ public sealed class ConsumptionStore
         {
             foreach (var r in readings) _hours[Key(r.HourDk)] = r.Kwh;
             LastSyncUtc = DateTime.UtcNow;
-            File.WriteAllText(_path, JsonSerializer.Serialize(_hours));
+            _persist(HouseholdId, JsonSerializer.Serialize(_hours));
         }
     }
 
@@ -70,10 +72,15 @@ public sealed class ConsumptionStore
         }
     }
 
-    private Dictionary<string, double> Load()
+    public string Serialize()
     {
-        if (!File.Exists(_path)) return new();
-        try { return JsonSerializer.Deserialize<Dictionary<string, double>>(File.ReadAllText(_path)) ?? new(); }
-        catch { return new(); }
+        lock (_lock) return JsonSerializer.Serialize(_hours);
+    }
+
+    public static Dictionary<string, double> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, double>();
+        try { return JsonSerializer.Deserialize<Dictionary<string, double>>(json) ?? new(); }
+        catch (JsonException) { return new Dictionary<string, double>(); }
     }
 }

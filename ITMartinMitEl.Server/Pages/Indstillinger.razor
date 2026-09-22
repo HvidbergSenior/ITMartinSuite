@@ -199,7 +199,7 @@
             if (mp is null) { _meterOk = false; _meterMsg = "Tokenet virker, men der er ingen målere på det."; return; }
             _s.MeteringPointId = mp.Id; _s.MeteringPointAddress = mp.Address;
             Save();
-            var ok = await Sync.SyncAsync();
+            var ok = await Sync.SyncAsync(Store.HouseholdId);
             _meterOk = ok;
             _meterMsg = ok ? $"Forbundet til {mp.Address}. Forbruget hentes - se Forbrug."
                 : $"Måleren på {mp.Address} er fundet, men: {Consumption.LastSyncError ?? "ingen målinger endnu (Datahub er 1-2 dage bagud)"}";

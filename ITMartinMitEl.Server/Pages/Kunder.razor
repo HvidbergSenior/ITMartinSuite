@@ -1,0 +1,94 @@
+@page "/kunder"
+@rendermode InteractiveServer
+@inject TenantContext Tenant
+@inject AdvisorService Advisors
+@inject HouseholdRegistry Registry
+@inject NavigationManager Nav
+
+<PageTitle>Kunder – MinElpris</PageTitle>
+
+<h1>Kunder</h1>
+
+@if (!Tenant.IsAdvisor)
+{
+    <p class="muted">Den her side er for rådgivere. <a href="/">Tilbage til dit eget forbrug</a>.</p>
+}
+else
+{
+    <p class="muted small" style="margin:4px 0 14px">
+        Du ser kun de kunder, der selv har givet dig en kode – og kun så længe de lader adgangen stå åben.
+    </p>
+
+    <div class="card">
+        <div class="card-title">Ny kunde</div>
+        <div class="muted small" style="margin-bottom:8px">
+            Kunden laver koden under <b>Konto</b> i sin egen app og giver dig den.
+        </div>
+        <div class="field"><label>Kode</label><input @bind="_code" placeholder="ABCD-EFGH" /></div>
+        <button class="btn btn-primary" @onclick="Redeem">Hent kunden ind</button>
+        @if (_message is not null)
+        {
+            <p class="small @(_ok ? "ok" : "err")">@_message</p>
+        }
+    </div>
+
+    @if (_customers.Count == 0)
+    {
+        <p class="muted">Ingen kunder endnu.</p>
+    }
+    else
+    {
+        @foreach (var c in _customers)
+        {
+            <div class="card">
+                <div class="card-title">@c.HouseholdName</div>
+                <div class="muted small">@c.OwnerEmail</div>
+                <div class="muted small">
+                    Adgang siden @c.GrantedUtc.ToLocalTime().ToString("d. MMM yyyy") ·
+                    udløber @c.ExpiresUtc.ToLocalTime().ToString("d. MMM yyyy")
+                </div>
+                <div class="muted small" style="margin-top:6px">
+                    @Summary(c.HouseholdId)
+                </div>
+                <a class="btn btn-primary" style="margin-top:10px" href="@($"/vaelg/{c.HouseholdId}")">Åbn @c.HouseholdName</a>
+            </div>
+        }
+    }
+}
+
+@code {
+    private string _code = "";
+    private string? _message;
+    private bool _ok;
+    private List<AdvisorCustomer> _customers = [];
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (!Tenant.IsAdvisor || Tenant.UserId is not { } advisorId) return;
+        _customers = await Advisors.CustomersAsync(advisorId);
+    }
+
+    private async Task Redeem()
+    {
+        if (Tenant.UserId is not { } advisorId) return;
+        (_ok, _message) = await Advisors.RedeemAsync(_code, advisorId);
+        if (_ok) { _code = ""; await LoadAsync(); }
+    }
+
+    /// <summary>A line of context so the list is useful before opening anything.</summary>
+    private string Summary(Guid householdId)
+    {
+        var data = Registry.Household(householdId).Get();
+        var consumption = Registry.Consumption(householdId);
+        var devices = data.Devices.Count;
+        var latest = consumption.LatestDay;
+
+        var meter = latest is { } day
+            ? $"måler til og med {day:dd.MM.yyyy}"
+            : string.IsNullOrWhiteSpace(data.Settings.EloverblikToken) ? "ingen måler tilsluttet" : "måler tilsluttet, ingen tal endnu";
+
+        return $"{devices} enheder · {data.Runs.Count} kørsler · {meter}";
+    }
+}

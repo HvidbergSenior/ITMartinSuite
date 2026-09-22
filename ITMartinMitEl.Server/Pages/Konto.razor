@@ -1,0 +1,150 @@
+@page "/konto"
+@rendermode InteractiveServer
+@inject TenantContext Tenant
+@inject AccountService Accounts
+@inject AdvisorService Advisors
+@inject HouseholdRegistry Registry
+@inject NavigationManager Nav
+
+<PageTitle>Konto – MinElpris</PageTitle>
+
+<h1>Konto</h1>
+<p class="muted small" style="margin:4px 0 14px">@Tenant.DisplayName · @Tenant.Email</p>
+
+<div class="card">
+    <div class="card-title">Skift adgangskode</div>
+    <div class="field"><label>Nuværende</label><input type="password" @bind="_current" /></div>
+    <div class="field"><label>Ny (mindst @AccountService.MinPasswordLength tegn)</label><input type="password" @bind="_replacement" /></div>
+    <button class="btn btn-primary" @onclick="ChangePassword">Gem ny adgangskode</button>
+    @if (_passwordMessage is not null)
+    {
+        <p class="small @(_passwordOk ? "ok" : "err")">@_passwordMessage</p>
+    }
+</div>
+
+@if (!Tenant.IsAdvisor)
+{
+    <div class="card">
+        <div class="card-title">Giv Martin adgang</div>
+        <div class="muted small" style="margin-bottom:8px">
+            Skal Martin kigge med i dine tal og hjælpe dig med at spare? Lav en kode og giv ham den.
+            Han kan først se noget, når koden er brugt – og du kan altid trække adgangen tilbage igen.
+        </div>
+
+        <button class="btn btn-primary" @onclick="CreateCode">Lav en kode</button>
+        @if (_newCode is not null)
+        {
+            <p class="code">@AdvisorService.Pretty(_newCode)</p>
+            <p class="muted small">Giv koden til Martin. Den kan bruges én gang og udløber om 30 dage.</p>
+        }
+
+        @if (_grants.Count > 0)
+        {
+            <div style="margin-top:14px">
+                @foreach (var g in _grants)
+                {
+                    <div class="grant">
+                        <div>
+                            <b>@g.AdvisorName</b>
+                            <div class="muted small">
+                                @if (g.RevokedUtc is { } revoked)
+                                {
+                                    <text>Trukket tilbage @revoked.ToLocalTime().ToString("d. MMM yyyy")</text>
+                                }
+                                else if (g.RedeemedUtc is { } redeemed)
+                                {
+                                    <text>Adgang siden @redeemed.ToLocalTime().ToString("d. MMM yyyy") · udløber @g.ExpiresUtc.ToLocalTime().ToString("d. MMM yyyy")</text>
+                                }
+                                else
+                                {
+                                    <text>Kode @AdvisorService.Pretty(g.Code) – ikke brugt endnu</text>
+                                }
+                            </div>
+                        </div>
+                        @if (g.RevokedUtc is null)
+                        {
+                            <button class="btn" @onclick="() => Revoke(g.Id)">Træk tilbage</button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+<div class="card">
+    <div class="card-title">Dine data</div>
+    <div class="muted small">
+        Appen gemmer det, du selv taster – apparater, enheder og indstillinger – og de timetal, den henter
+        fra din elmåler, når du har givet den en token fra Eloverblik. Tallene ligger på Martins server i
+        Danmark og bliver ikke delt med nogen, medmindre du selv giver adgang med en kode.
+    </div>
+
+    @if (!_confirmDelete)
+    {
+        <button class="btn btn-danger" style="margin-top:10px" @onclick="() => _confirmDelete = true">Slet min konto</button>
+    }
+    else
+    {
+        <p class="small err" style="margin-top:10px">
+            Sletter du kontoen, forsvinder hjemmet, målertoken, forbrugshistorik og alle adgange. Det kan ikke fortrydes.
+        </p>
+        <button class="btn btn-danger" @onclick="DeleteAccount">Ja, slet det hele</button>
+        <button class="btn" @onclick="() => _confirmDelete = false">Fortryd</button>
+    }
+</div>
+
+<div class="card">
+    <div class="card-title">Log ud</div>
+    <a class="btn" href="/logout">Log ud af MinElpris</a>
+</div>
+
+@code {
+    private string _current = "";
+    private string _replacement = "";
+    private string? _passwordMessage;
+    private bool _passwordOk;
+    private string? _newCode;
+    private bool _confirmDelete;
+    private List<GrantView> _grants = [];
+
+    protected override async Task OnInitializedAsync() => await LoadGrantsAsync();
+
+    private async Task LoadGrantsAsync()
+    {
+        if (Tenant.IsAdvisor) return;
+        if (await Tenant.CurrentHouseholdIdAsync() is not { } householdId) return;
+        _grants = await Advisors.GrantsForHouseholdAsync(householdId);
+    }
+
+    private async Task ChangePassword()
+    {
+        if (Tenant.UserId is not { } userId) return;
+        var result = await Accounts.ChangePasswordAsync(userId, _current, _replacement);
+        _passwordOk = result.Ok;
+        _passwordMessage = result.Ok ? "Adgangskoden er skiftet." : result.Error;
+        if (result.Ok) { _current = ""; _replacement = ""; }
+    }
+
+    private async Task CreateCode()
+    {
+        if (await Tenant.CurrentHouseholdIdAsync() is not { } householdId) return;
+        _newCode = await Advisors.CreateCodeAsync(householdId);
+        await LoadGrantsAsync();
+    }
+
+    private async Task Revoke(Guid grantId)
+    {
+        if (await Tenant.CurrentHouseholdIdAsync() is not { } householdId) return;
+        await Advisors.RevokeAsync(householdId, grantId);
+        await LoadGrantsAsync();
+    }
+
+    private async Task DeleteAccount()
+    {
+        if (Tenant.UserId is not { } userId) return;
+        var householdId = await Tenant.CurrentHouseholdIdAsync();
+        if (await Accounts.DeleteAccountAsync(userId) && householdId is { } id) Registry.Forget(id);
+        Nav.NavigateTo("/logout", forceLoad: true);
+    }
+}

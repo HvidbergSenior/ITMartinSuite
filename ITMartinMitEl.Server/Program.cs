@@ -1,5 +1,7 @@
 using ITMartin.Shared.UI.Kolibri;
 using System.Security.Claims;
+using ITMartinMitEl.Server.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -37,23 +39,45 @@ builder.Services.AddKolibri(k =>
 // 30 min, the Eloverblik access token for 12 h) - a transient-per-request
 // registration would throw the cache away every call.
 builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
-builder.Services.AddSingleton<HouseholdStore>();
+// Accounts and per-household data (phase 2). The stores are resolved per request
+// from the signed-in user's household, so a page can only ever read its own home.
+var dbPath = builder.Configuration["MitEl:DbPath"]
+    ?? Path.Combine(builder.Configuration["DataDir"] ?? "/data", "mitel.db");
+Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+builder.Services.AddDbContextFactory<MitElDbContext>(o => o.UseSqlite($"Data Source={dbPath}"));
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<HouseholdRegistry>();
+builder.Services.AddSingleton<AccountService>();
+builder.Services.AddSingleton<AdvisorService>();
+builder.Services.AddScoped<TenantContext>();
+
+builder.Services.AddScoped<HouseholdStore>(sp =>
+{
+    var registry = sp.GetRequiredService<HouseholdRegistry>();
+    var tenant = sp.GetRequiredService<TenantContext>();
+    // No household (not signed in, or an advisor who has not picked a customer):
+    // an empty throwaway home, so a page never crashes and never shows someone else's data.
+    return registry.Household(tenant.CurrentHouseholdId() ?? Guid.Empty);
+});
+
+builder.Services.AddScoped<ConsumptionStore>(sp =>
+{
+    var registry = sp.GetRequiredService<HouseholdRegistry>();
+    var tenant = sp.GetRequiredService<TenantContext>();
+    return registry.Consumption(tenant.CurrentHouseholdId() ?? Guid.Empty);
+});
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<RunLogService>();
 builder.Services.AddHostedService<NotificationScheduler>();
 builder.Services.AddSingleton(sp => new EloverblikService(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, sp.GetRequiredService<ILogger<EloverblikService>>()));
-builder.Services.AddSingleton<ConsumptionStore>();
 builder.Services.AddSingleton<ConsumptionSync>();
 builder.Services.AddSingleton<PriceProfileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ConsumptionSync>());
 
 
-// PIN gate (phase 1 of the split: family only). The household file holds
-// the meter token, devices and run log, so nothing may be served without
-// it. Real value comes from magic.env (MitEl__Pin); accounts replace this
-// in phase 2.
-var pin = builder.Configuration["MitEl:Pin"] ?? "1234";
-
+// Accounts (phase 2). The household holds the meter token, devices and run log,
+// so nothing is served without a login.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -86,6 +110,9 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 app.MapKolibri();
 
+// First start after the accounts change: household.json becomes household #1.
+StartupMigration.Run(app.Services, app.Configuration, app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("MitEl"));
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -96,50 +123,57 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapGet("/login", (HttpContext ctx) =>
-{
-    var showError = ctx.Request.Query.ContainsKey("err");
-    var html = $$"""
-    <!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MinElpris – Log ind</title>
-    <style>
-    body{font-family:system-ui,sans-serif;background:#0b1220;color:#e5e7eb;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-    form{background:#111a2e;padding:2rem 2.5rem;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.4);text-align:center}
-    input{font-size:1.5rem;padding:.5rem;width:8rem;text-align:center;letter-spacing:.4rem;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
-    button{display:block;margin:1rem auto 0;font-size:1rem;padding:.55rem 1.5rem;border-radius:8px;border:none;background:#facc15;color:#111;font-weight:700;cursor:pointer}
-    .err{color:#f87171;margin-top:.75rem;font-size:.9rem}
-    .sub{color:#94a3b8;font-size:.8rem;margin-top:1rem}
-    </style></head><body>
-    <form method="post" action="/login">
-    <div style="font-size:1.6rem">⚡</div><div style="margin-bottom:.75rem;font-weight:700">MinElpris</div>
-    <input type="password" name="pin" inputmode="numeric" autofocus autocomplete="off" />
-    <button type="submit">Log ind</button>
-    {{(showError ? "<div class=\"err\">Forkert PIN</div>" : "")}}
-    <div class="sub">Bare priserne? <a href="https://elpriser.itmartin.dk" style="color:#facc15">ElPriser</a> er åben for alle.</div>
-    </form></body></html>
-    """;
-    return Results.Content(html, "text/html");
-}).AllowAnonymous();
+app.MapGet("/login", (HttpContext ctx) => Results.Content(LoginPages.SignIn(
+    error: ctx.Request.Query.ContainsKey("err") ? "Forkert mail eller adgangskode." : null,
+    notice: ctx.Request.Query.ContainsKey("ny") ? "Kontoen er oprettet – log ind." : null,
+    email: ctx.Request.Query["mail"].ToString()), "text/html")).AllowAnonymous();
 
-app.MapPost("/login", async (HttpContext ctx) =>
+app.MapPost("/login", async (HttpContext ctx, AccountService accounts) =>
 {
     var form = await ctx.Request.ReadFormAsync();
-    if (form["pin"].ToString() != pin)
-        return Results.Redirect("/login?err=1");
+    var email = form["email"].ToString();
+    var result = await accounts.AuthenticateAsync(email, form["password"].ToString());
+    if (!result.Ok || result.User is null)
+        return Results.Redirect($"/login?err=1&mail={Uri.EscapeDataString(email)}");
 
-    // Razor Components' antiforgery system requires every authenticated
-    // identity to carry a Name claim, even for a PIN gate with no accounts.
-    var claims = new[] { new Claim(ClaimTypes.Name, "household") };
-    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-    await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity),
-        new AuthenticationProperties { IsPersistent = true });
-    return Results.Redirect("/");
+    await SignInAsync(ctx, result.User);
+    return Results.Redirect(result.User.Role == UserRoles.Advisor ? "/kunder" : "/");
+}).AllowAnonymous();
+
+app.MapGet("/opret", (HttpContext ctx) => Results.Content(LoginPages.Register(
+    error: ctx.Request.Query["fejl"].ToString() is { Length: > 0 } e ? e : null,
+    email: ctx.Request.Query["mail"].ToString()), "text/html")).AllowAnonymous();
+
+app.MapPost("/opret", async (HttpContext ctx, AccountService accounts) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var email = form["email"].ToString();
+    var result = await accounts.RegisterAsync(email, form["password"].ToString(), form["name"].ToString(), form["home"].ToString());
+
+    if (!result.Ok)
+        return Results.Redirect($"/opret?fejl={Uri.EscapeDataString(result.Error ?? "Noget gik galt.")}&mail={Uri.EscapeDataString(email)}");
+
+    await SignInAsync(ctx, result.User!);
+    return Results.Redirect("/indstillinger");
 }).AllowAnonymous();
 
 app.MapGet("/logout", async (HttpContext ctx) =>
 {
+    ctx.Response.Cookies.Delete(TenantContext.HouseholdCookie);
     await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 }).AllowAnonymous();
+
+// An advisor picking which customer to look at; the grant is checked again on
+// every request, so a revoked customer disappears by themselves.
+app.MapGet("/vaelg/{householdId:guid}", async (Guid householdId, HttpContext ctx, TenantContext tenant, AdvisorService advisors) =>
+{
+    if (!tenant.IsAdvisor || tenant.UserId is not { } advisorId) return Results.Forbid();
+    if (!await advisors.HasAccessAsync(advisorId, householdId)) return Results.Forbid();
+
+    tenant.SelectHousehold(householdId);
+    return Results.Redirect("/");
+});
 
 // ── Push subscription API (called from wwwroot/js/push.js) ──────────────────
 
@@ -202,6 +236,23 @@ app.MapRazorComponents<ITMartinMitEl.Server.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+static async Task SignInAsync(HttpContext ctx, UserAccount user)
+{
+    // Razor Components' antiforgery system requires a Name claim on every identity.
+    var claims = new List<Claim>
+    {
+        new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new(ClaimTypes.Name, string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName),
+        new(ClaimTypes.Email, user.Email),
+        new(ClaimTypes.Role, user.Role),
+    };
+    if (user.HouseholdId is { } householdId) claims.Add(new Claim("household", householdId.ToString()));
+
+    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity),
+        new AuthenticationProperties { IsPersistent = true });
+}
 
 public sealed record SubscribeRequest(string Endpoint, string P256dh, string Auth, string? Name, bool NotifyCheapest, bool NotifyExpensive);
 public sealed record UnsubscribeRequest(string Endpoint);

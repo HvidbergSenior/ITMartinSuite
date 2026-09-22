@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <PackageReference Include="WebPush" Version="1.0.12" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
     </ItemGroup>
 
     <ItemGroup>

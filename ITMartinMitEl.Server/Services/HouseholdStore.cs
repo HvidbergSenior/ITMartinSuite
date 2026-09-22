@@ -3,8 +3,8 @@ using ITMartinElPriser.Core;
 
 namespace ITMartinMitEl.Server.Services;
 
-// One phone that asked for notifications. Anyone with the link can join;
-// each device subscribes on its own and picks what it wants to hear about.
+// One phone that asked for notifications. Each device subscribes on its own
+// and picks what it wants to hear about.
 public sealed class PushSubscriber
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -31,23 +31,27 @@ public sealed class HouseholdData
     public List<string> SentPushes { get; set; } = [];
 }
 
-// Whole state in one JSON file on the data volume, same no-login single-
-// household pattern the rest of this app always used. Tiny data, so the
-// simplicity beats a database.
+/// <summary>
+/// One home's state. Up to phase 1 this was the app's single json file; since accounts
+/// arrived there is one of these per household, handed out by <see cref="HouseholdRegistry"/>
+/// and written back to the database. The in-memory shape is unchanged, so the pages and
+/// the notification jobs did not have to learn anything new.
+/// </summary>
 public sealed class HouseholdStore
 {
-    private readonly string _path;
-    private readonly object _lock = new();
-    private HouseholdData _data;
-
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
-    public HouseholdStore(IConfiguration config)
+    private readonly object _lock = new();
+    private readonly Action<Guid, string> _persist;
+    private HouseholdData _data;
+
+    public Guid HouseholdId { get; }
+
+    public HouseholdStore(Guid householdId, string? json, Action<Guid, string> persist)
     {
-        var dataDir = config["DataDir"] ?? "/data";
-        Directory.CreateDirectory(dataDir);
-        _path = Path.Combine(dataDir, "household.json");
-        _data = Load();
+        HouseholdId = householdId;
+        _persist = persist;
+        _data = Parse(json);
     }
 
     public HouseholdData Get()
@@ -63,20 +67,25 @@ public sealed class HouseholdStore
             // Keep the sent-log from growing forever: three days is plenty.
             var cutoff = DkTime.Now.AddDays(-3).ToString("yyyy-MM-dd");
             _data.SentPushes.RemoveAll(s => string.CompareOrdinal(s.Split('|').Last(), cutoff) < 0);
-            File.WriteAllText(_path, JsonSerializer.Serialize(_data, JsonOpts));
+            _persist(HouseholdId, JsonSerializer.Serialize(_data, JsonOpts));
         }
     }
 
-    private HouseholdData Load()
+    public string Serialize()
     {
-        if (!File.Exists(_path)) return new HouseholdData();
+        lock (_lock) return JsonSerializer.Serialize(_data, JsonOpts);
+    }
+
+    public static HouseholdData Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new HouseholdData();
         try
         {
-            var d = JsonSerializer.Deserialize<HouseholdData>(File.ReadAllText(_path)) ?? new HouseholdData();
+            var d = JsonSerializer.Deserialize<HouseholdData>(json) ?? new HouseholdData();
             if (d.Appliances.Count == 0) d.Appliances = Appliance.Defaults();
             return d;
         }
-        catch
+        catch (JsonException)
         {
             return new HouseholdData();
         }

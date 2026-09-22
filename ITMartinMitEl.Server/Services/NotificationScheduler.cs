@@ -8,11 +8,13 @@ namespace ITMartinMitEl.Server.Services;
 // is the first appliance's run length (normally the washing machine, 2 h)
 // so the message matches what people actually want to start.
 //
-// Sends are logged per subscriber+kind+day in HouseholdStore, so a restart
-// or a second tick in the same window never sends twice.
+// Sends are logged per subscriber+kind+day in the household, so a restart
+// or a second tick in the same window never sends twice. Since accounts arrived
+// the tick runs for every household - each has its own price area, appliances
+// and subscribers.
 public sealed class NotificationScheduler(
     ElectricityPriceService prices,
-    HouseholdStore store,
+    HouseholdRegistry registry,
     PushService push,
     ILogger<NotificationScheduler> logger) : BackgroundService
 {
@@ -26,14 +28,25 @@ public sealed class NotificationScheduler(
         await Task.Delay(TimeSpan.FromSeconds(20), ct);
         while (!ct.IsCancellationRequested)
         {
-            try { await RunOnceAsync(DkTime.Now, ct); }
+            try { await RunAllAsync(DkTime.Now, ct); }
             catch (Exception ex) { logger.LogError(ex, "Notification tick failed"); }
             await Task.Delay(Tick, ct);
         }
     }
 
-    public async Task RunOnceAsync(DateTime now, CancellationToken ct)
+    public async Task RunAllAsync(DateTime now, CancellationToken ct)
     {
+        foreach (var householdId in registry.AllHouseholdIds())
+        {
+            if (ct.IsCancellationRequested) return;
+            try { await RunOnceAsync(householdId, now, ct); }
+            catch (Exception ex) { logger.LogError(ex, "Notification tick failed for household {Household}", householdId); }
+        }
+    }
+
+    public async Task RunOnceAsync(Guid householdId, DateTime now, CancellationToken ct)
+    {
+        var store = registry.Household(householdId);
         var data = store.Get();
         if (data.Subscribers.Count == 0) return;
 
@@ -55,7 +68,7 @@ public sealed class NotificationScheduler(
                 .Where(x => x is not null));
             var body = $"Kl. {cheapest.Start:HH:mm}–{cheapest.End:HH:mm}: {lead.Appliance.Name.ToLower(Da)} koster {cheapest.CostKr:0.00} kr ({cheapest.AvgKrPerKwh:0.00} {unit})."
                      + (others.Length > 0 ? $" Også {others}." : "");
-            await Broadcast("cheapest", cheapest.Start, s => s.NotifyCheapest,
+            await Broadcast(store, "cheapest", cheapest.Start, s => s.NotifyCheapest,
                 new PushService.Message("Billigste strøm om en time ⚡", body), ct);
         }
 
@@ -64,7 +77,7 @@ public sealed class NotificationScheduler(
         {
             var body = $"Kl. {dearest.Start:HH:mm}–{dearest.End:HH:mm} er dagens dyreste: {lead.Appliance.Name.ToLower(Da)} ville koste {dearest.CostKr:0.00} kr"
                      + (cheapest is not null ? $" mod {cheapest.CostKr:0.00} kr kl. {cheapest.Start:HH:mm}." : ".");
-            await Broadcast("dearest", dearest.Start, s => s.NotifyExpensive,
+            await Broadcast(store, "dearest", dearest.Start, s => s.NotifyExpensive,
                 new PushService.Message("Dyr strøm om en time 💸", body), ct);
         }
     }
@@ -83,7 +96,7 @@ public sealed class NotificationScheduler(
         return ahead <= LeadTime && ahead > LeadTime - Tick;
     }
 
-    private async Task Broadcast(string kind, DateTime windowStart, Func<PushSubscriber, bool> wants, PushService.Message msg, CancellationToken ct)
+    private async Task Broadcast(HouseholdStore store, string kind, DateTime windowStart, Func<PushSubscriber, bool> wants, PushService.Message msg, CancellationToken ct)
     {
         var key = $"{kind}|{windowStart:yyyy-MM-dd HH:mm}";
         var targets = store.Get().Subscribers.Where(wants).ToList();

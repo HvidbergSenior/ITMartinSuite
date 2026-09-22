@@ -110,7 +110,7 @@ else
     private async Task ResyncAsync()
     {
         _busy = true;
-        try { await Sync.SyncAsync(); await LoadAsync(); }
+        try { await Sync.SyncAsync(Store.HouseholdId); await LoadAsync(); }
         finally { _busy = false; }
     }
 

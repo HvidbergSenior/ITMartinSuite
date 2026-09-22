@@ -1,0 +1,89 @@
+@page "/admin"
+@rendermode InteractiveServer
+@inject AccountService Accounts
+@inject IConfiguration Config
+@inject TenantContext Tenant
+
+<PageTitle>Administration – MinElpris</PageTitle>
+
+<h1>Administration</h1>
+
+@if (!_unlocked)
+{
+    <div class="card">
+        <div class="card-title">Adgangskode</div>
+        <div class="field"><label>Admin-PIN</label><input type="password" @bind="_pin" /></div>
+        <button class="btn btn-primary" @onclick="Unlock">Luk op</button>
+        @if (_wrongPin)
+        {
+            <p class="small err">Forkert PIN.</p>
+        }
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-title">Nulstil en adgangskode</div>
+        <div class="muted small" style="margin-bottom:8px">
+            Der er ingen mailserver i systemet endnu, så en glemt adgangskode sættes her og siges til kunden.
+        </div>
+        <div class="field"><label>Mail</label><input @bind="_email" /></div>
+        <div class="field"><label>Ny adgangskode</label><input @bind="_password" /></div>
+        <button class="btn btn-primary" @onclick="Reset">Sæt ny adgangskode</button>
+        @if (_message is not null)
+        {
+            <p class="small @(_ok ? "ok" : "err")">@_message</p>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-title">Brugere (@_users.Count)</div>
+        @foreach (var u in _users)
+        {
+            <div class="grant">
+                <div>
+                    <b>@(string.IsNullOrWhiteSpace(u.DisplayName) ? u.Email : u.DisplayName)</b>
+                    <div class="muted small">
+                        @u.Email · @(u.Role == UserRoles.Advisor ? "rådgiver" : "kunde") ·
+                        oprettet @u.CreatedAtUtc.ToLocalTime().ToString("d. MMM yyyy")
+                        @if (u.LastLoginUtc is { } seen)
+                        {
+                            <text> · sidst inde @seen.ToLocalTime().ToString("d. MMM HH:mm")</text>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _unlocked;
+    private bool _wrongPin;
+    private string _pin = "";
+    private string _email = "";
+    private string _password = "";
+    private string? _message;
+    private bool _ok;
+    private List<UserAccount> _users = [];
+
+    private string ExpectedPin => Config["MitEl:AdminPin"] ?? "";
+
+    private async Task Unlock()
+    {
+        _unlocked = ExpectedPin.Length > 0 && _pin == ExpectedPin;
+        _wrongPin = !_unlocked;
+        _pin = "";
+        if (_unlocked) await LoadAsync();
+    }
+
+    private async Task LoadAsync() => _users = await Accounts.AllUsersAsync();
+
+    private async Task Reset()
+    {
+        var result = await Accounts.ResetPasswordAsync(_email, _password);
+        _ok = result.Ok;
+        _message = result.Ok ? $"Adgangskoden for {_email} er sat. Sig den til kunden." : result.Error;
+        if (result.Ok) { _email = ""; _password = ""; await LoadAsync(); }
+    }
+}

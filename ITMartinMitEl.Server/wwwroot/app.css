@@ -163,3 +163,16 @@ a { color: var(--accent); text-decoration: none; }
 
 /* Light/dark switch - sits just above the bottom nav, out of the thumb's way */
 .theme-toggle { position: fixed; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 150; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg2); color: var(--text); font-size: 18px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; }
+
+/* Accounts and advisor access (phase 2/3) */
+.grant { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+.grant:first-child { border-top: 0; }
+.code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.5rem; font-weight: 700;
+    letter-spacing: .12em; text-align: center; margin: 12px 0 4px; color: var(--accent);
+}
+.advisor-bar {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 9px 12px; font-size: .85rem; margin-bottom: 12px;
+    display: flex; justify-content: space-between; gap: 10px; align-items: center;
+}

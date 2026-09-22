@@ -1,7 +1,17 @@
 @inherits LayoutComponentBase
+@inject TenantContext Tenant
+@inject HouseholdRegistry Registry
 
 <div class="ep-root">
     <div class="ep-page">
+        @if (Tenant.IsAdvisor && _viewing is not null)
+        {
+            @* An advisor must never be in doubt about whose numbers are on the screen. *@
+            <div class="advisor-bar">
+                Du ser <b>@_viewing</b> som rådgiver.
+                <a href="/kunder">Skift kunde</a>
+            </div>
+        }
         @Body
         <KolibriFooter />
     </div>
@@ -14,4 +24,20 @@
     <NavLink href="/regning"><span>🧾</span>Regning</NavLink>
     <NavLink href="/besked"><span>🔔</span>Besked</NavLink>
     <NavLink href="/indstillinger"><span>⚙️</span>Indstillinger</NavLink>
+    <NavLink href="/konto"><span>👤</span>Konto</NavLink>
+    @if (Tenant.IsAdvisor)
+    {
+        <NavLink href="/kunder"><span>🧑‍🤝‍🧑</span>Kunder</NavLink>
+    }
 </nav>
+
+@code {
+    private string? _viewing;
+
+    protected override void OnInitialized()
+    {
+        if (!Tenant.IsAdvisor) return;
+        if (Tenant.CurrentHouseholdId() is not { } householdId) return;
+        _viewing = Registry.HouseholdName(householdId);
+    }
+}
