@@ -54,6 +54,13 @@ public class SessionStateService
     public HashSet<string> MapBans { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
     public int? ActivePlan { get; private set; }
 
+    // A match is several rounds; op-ban -> op-pick -> in-game repeats every round.
+    public int Round { get; private set; } = 1;
+    private readonly List<RoundResult> _rounds = new();
+    public IReadOnlyList<RoundResult> Rounds => _rounds;
+    public int RoundsWon => _rounds.Count(r => r.Won);
+    public int RoundsLost => _rounds.Count(r => !r.Won);
+
     // Fixed prep-time budget per phase - Lobby and InGame are deliberately
     // absent (open-ended: "before anything starts" and "however long the
     // round takes" don't have a natural fixed duration). Advancing is always
@@ -280,6 +287,41 @@ public class SessionStateService
         NotifyStateChanged();
     }
 
+    // Round over: remember it, then the next round starts at operator bans with a fresh site and bans.
+    public void EndRound(bool won)
+    {
+        lock (_lock)
+        {
+            _rounds.Add(new RoundResult(Round, Side, Site, won));
+            Round++;
+            Bans.Clear();
+            Site = null;
+            ActivePlan = null;
+            Phase = MatchPhase.OperatorBans;
+            PhaseStartedAtUtc = DateTimeOffset.UtcNow;
+        }
+        NotifyStateChanged();
+    }
+
+    // Mis-tap on "Runde vundet/tabt": take the last round back.
+    public void UndoLastRound()
+    {
+        lock (_lock)
+        {
+            if (_rounds.Count == 0) return;
+            var last = _rounds[^1];
+            _rounds.RemoveAt(_rounds.Count - 1);
+            Round = last.Number;
+            Side = last.Side;
+            Site = last.Site;
+            Phase = MatchPhase.InGame;
+            PhaseStartedAtUtc = DateTimeOffset.UtcNow;
+        }
+        NotifyStateChanged();
+    }
+
+    public void EndMatch() => SetPhase(MatchPhase.PostMatch);
+
     public void SetMap(string map)
     {
         lock (_lock)
@@ -333,6 +375,8 @@ public class SessionStateService
             Bans.Clear();
             MapBans.Clear();
             ActivePlan = null;
+            _rounds.Clear();
+            Round = 1;
             Phase = MatchPhase.Lobby;
             PhaseStartedAtUtc = DateTimeOffset.UtcNow;
         }

@@ -33,6 +33,15 @@
 
     <div class="phase-badge phase-@Session.Phase.ToString().ToLower()">@PhaseLabel(Session.Phase)</div>
 
+    @if (InRounds)
+    {
+        <div class="round-bar">
+            <span class="round-no">Runde @Session.Round</span>
+            <span class="round-score"><b class="good">@Session.RoundsWon</b> – <b class="bad">@Session.RoundsLost</b></span>
+            <span class="round-side @(Session.Side == "Attack" ? "side-attack" : "side-defense")">@(Session.Side == "Attack" ? "ATK" : "DEF")</span>
+            @if (Session.Map is not null) { <span class="muted">@Session.Map@(Session.Site is not null ? " · " + Session.Site : "")</span> }
+        </div>
+    }
     <div class="phase-sub">@PhaseBlurb(Session.Phase)</div>
 
     @if (Session.PhaseDuration is { } duration)
@@ -53,8 +62,28 @@
         {
             <button class="phase-back-btn" @onclick="Session.PreviousPhase">← Tilbage</button>
         }
-        <button class="phase-advance-btn" @onclick="Advance">@(Session.Phase == MatchPhase.PostMatch ? "✅ Afslut kamp" : "Næste fase →")</button>
-        @if (HasGameState && !_confirmNew)
+        @if (Session.Phase == MatchPhase.InGame)
+        {
+            <button class="phase-advance-btn round-win-btn" @onclick="() => EndRound(true)">✅ Runde vundet</button>
+            <button class="phase-advance-btn round-loss-btn" @onclick="() => EndRound(false)">❌ Runde tabt</button>
+        }
+        else
+        {
+            <button class="phase-advance-btn" @onclick="Advance">@(Session.Phase == MatchPhase.PostMatch ? "✅ Afslut kamp" : "Næste fase →")</button>
+        }
+    </div>
+    @if (InRounds)
+    {
+        <div class="phase-nav round-nav">
+            @if (Session.Rounds.Count > 0 && Session.Phase == MatchPhase.OperatorBans)
+            {
+                <button class="phase-back-btn" @onclick="Session.UndoLastRound" title="Fortryd sidste runde-resultat">↩ Fortryd runde @(Session.Round - 1)</button>
+            }
+            <button class="phase-back-btn" @onclick="EndMatch">🏁 Kampen er slut</button>
+        </div>
+    }
+    <div class="phase-nav">
+        @if (HasGameState && !InRounds && !_confirmNew)
         {
             <button class="phase-back-btn" @onclick="() => _confirmNew = true" title="Ryd map, site, bans og side og start forfra">🔄 Ny kamp</button>
         }
@@ -72,7 +101,8 @@
         <div class="muted small" style="margin-top:6px">Log kampen herunder, og tryk så <b>✅ Afslut kamp</b> &ndash; så er alt klar til næste kamp.</div>
     }
 
-    @if (_gameData is not null)
+    @* Map + site panel only where it helps: picking operators and in the round (op-ban has its own site cards). *@
+    @if (_gameData is not null && Session.Phase is MatchPhase.OperatorPick or MatchPhase.InGame)
     {
         <PhaseReference Data="_gameData" Phase="Session.Phase" MapName="@Session.Map" SiteName="@Session.Site" WeAttack='Session.Side == "Attack"' />
     }
@@ -381,6 +411,25 @@
 
 @code {
     private bool _confirmNew;
+    // Op-ban -> op-pick -> in-game repeat once per round.
+    private bool InRounds => Session.Phase is MatchPhase.OperatorBans or MatchPhase.OperatorPick or MatchPhase.InGame;
+    private void EndRound(bool won) { _confirmNew = false; Session.EndRound(won); }
+
+    // "Kampen er slut": fill the match log from the rounds we tapped, so logging is one tap on Gem.
+    private void EndMatch()
+    {
+        var rounds = Session.Rounds;
+        if (rounds.Count > 0)
+        {
+            _logMap = Session.Map ?? _logMap;
+            _logSite = rounds.Where(r => r.Site is not null).GroupBy(r => r.Site!).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? "";
+            _logAw = rounds.Count(r => r.Side == "Attack" && r.Won); _logAl = rounds.Count(r => r.Side == "Attack" && !r.Won);
+            _logDw = rounds.Count(r => r.Side == "Defense" && r.Won); _logDl = rounds.Count(r => r.Side == "Defense" && !r.Won);
+            _logWon = Session.RoundsWon > Session.RoundsLost ? true : Session.RoundsWon < Session.RoundsLost ? false : null;
+            _logSaved = false;
+        }
+        Session.EndMatch();
+    }
     // Anything left over from a game: a phase past the lobby, or a map/site/bans still chosen.
     private bool HasGameState => Session.Phase != MatchPhase.Lobby || Session.Map is not null || Session.Site is not null || Session.MapBans.Count > 0 || Session.Bans.Count > 0;
     private void Advance() { _confirmNew = false; Session.AdvancePhase(); }
