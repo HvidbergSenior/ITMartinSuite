@@ -52,6 +52,11 @@
         <button class="phase-advance-btn" @onclick="Session.AdvancePhase">Næste fase →</button>
     </div>
 
+    @if (_gameData is not null)
+    {
+        <PhaseReference Data="_gameData" Phase="Session.Phase" MapName="@Session.Map" SiteName="@Session.Site" WeAttack='Session.Side == "Attack"' />
+    }
+
     @{ var checklist = PhaseChecklist(Session.Phase); }
     @if (checklist.Count > 0)
     {
@@ -352,10 +357,7 @@
         }
     </div>
 
-    @if (_gameData is not null)
-    {
-        <PhaseReference Data="_gameData" Phase="Session.Phase" MapName="@Session.Map" SiteName="@Session.Site" WeAttack='Session.Side == "Attack"' />
-    }
+
 </div>
 
 @code {

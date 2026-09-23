@@ -1808,3 +1808,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .maps-sites td, .maps-sites th { white-space: nowrap; }
 .maps-sites td:first-child { white-space: normal; min-width: 150px; }
 .maps-card .pro-box { margin: 10px 12px 12px; width: auto; }
+
+/* "Kort & site" panel sits right under the phase buttons; the summary is a big, obvious tap target. */
+.ref-panel { width: 100%; margin: 16px auto 0; border-color: rgba(232,200,75,.45); }
+.ref-panel > summary { font-size: 1.05rem; font-weight: 800; padding: 8px 2px; min-height: var(--tap); display: flex; align-items: center; }
+.ref-panel[open] > summary { margin-bottom: 8px; border-bottom: 1px solid var(--border); }
