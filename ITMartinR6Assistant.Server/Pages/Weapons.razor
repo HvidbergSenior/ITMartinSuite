@@ -24,7 +24,7 @@
     {
         @foreach (var group in _data.Weapons.GroupBy(w => w.Type).OrderByDescending(g => g.Count()))
         {
-            <div class="maps-section">@group.Key (@group.Count())</div>
+            <Fold Key="@($"guns-{group.Key}")" Title="@($"{group.Key} ({group.Count()})")" Class="fold-plain">
             <div class="table-scroll"><table class="opa-table opa-weapons">
                 <thead><tr><th>Tier</th><th>Våben</th><th>Skade</th><th>RPM</th><th>TTK</th><th>Mag.</th><th>Genlad</th><th>Hvem</th><th>Styrker / svagheder</th></tr></thead>
                 <tbody>
@@ -46,7 +46,7 @@
                         </tr>
                     }
                 </tbody>
-            </table></div>
+            </table></div></Fold>
         }
     }
 </div>

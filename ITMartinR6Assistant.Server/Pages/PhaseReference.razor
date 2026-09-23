@@ -5,7 +5,7 @@
    not playing and live on /operatorer and /vaaben. Hidden until a map is chosen. *@
 @if (CurrentMap is not null)
 {
-    <details class="ref-panel" open="@StartOpen">
+    <details class="ref-panel" data-fold="kort-site" open="@StartOpen">
         <summary>🗺 Kort & site: @CurrentMap.Name@(CurrentSite is not null ? $" · {CurrentSite.Name}" : "")@(Phase == MatchPhase.InGame ? " – død? læs op her" : "")</summary>
 
         @if (CurrentSite is null)

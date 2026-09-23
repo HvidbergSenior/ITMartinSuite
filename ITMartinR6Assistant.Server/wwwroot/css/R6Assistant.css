@@ -1813,3 +1813,19 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .ref-panel { width: 100%; margin: 16px auto 0; border-color: rgba(232,200,75,.45); }
 .ref-panel > summary { font-size: 1.05rem; font-weight: 800; padding: 8px 2px; min-height: var(--tap); display: flex; align-items: center; }
 .ref-panel[open] > summary { margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+/* Show/hide cards (Fold.razor): the header is the tap target, a chevron shows the state. */
+details.fold > summary.fold-head {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: var(--tap);
+    font-weight: 800; font-size: 1.05rem; color: var(--text); user-select: none;
+}
+details.fold > summary.fold-head::-webkit-details-marker { display: none; }
+details.fold > summary.fold-head::after { content: "▾"; margin-left: auto; color: var(--text-muted); font-size: 1rem; transition: transform .15s; }
+details.fold:not([open]) > summary.fold-head::after { transform: rotate(-90deg); }
+details.fold:not([open]) { padding-bottom: 4px; }
+details.fold > summary.fold-head:hover { color: var(--accent); }
+details.fold[open] > .fold-body { margin-top: 4px; }
+.pro-box > summary.fold-head { color: var(--accent); }
+.maps-card > summary.fold-head { padding: 8px 14px; }
+.fold-plain { margin: 12px 0 4px; }
+.fold-plain > summary.fold-head { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }

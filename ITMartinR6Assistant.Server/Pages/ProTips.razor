@@ -12,8 +12,7 @@ else
     var tips = Tips();
     @if (tips.Count > 0)
     {
-        <div class="pro-box">
-            <div class="pro-title">🏆 Pro league gør sådan her@(MapStats is not null ? $" på {MapName}" : "")</div>
+        <Fold Key="@($"pro-{Mode}")" Title="@($"🏆 Pro league gør sådan her{(MapStats is not null ? $" på {MapName}" : "")}")" Class="pro-box">
             <ul class="pro-list">
                 @foreach (var t in tips) { <li>@((MarkupString)t)</li> }
             </ul>
@@ -28,7 +27,7 @@ else
                 </div>
             }
             <div class="pro-source muted">Kilde: Liquipedia, @Pro.Matches pro-kampe (@Pro.MapsPlayed maps) @Pro.From?.ToString("MMM yyyy") &ndash; @Pro.To?.ToString("MMM yyyy"). Nyere kampe tæller mest.</div>
-        </div>
+        </Fold>
     }
 }
 

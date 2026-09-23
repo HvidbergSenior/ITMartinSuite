@@ -27,11 +27,10 @@
                 @foreach (var map in maps)
                 {
                     var pref = Session.MapPreferences.GetValueOrDefault(map.Name);
-                    <div class="maps-card">
+                    <Fold Key="@($"map-{map.Name}")" Title="@map.Name" Class="maps-card">
                         <div class="maps-head">
                             @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@map.Name" /> }
                             <div class="maps-title">
-                                <b>@map.Name</b>
                                 @if (pref == "ban") { <span class="mapban-tag mapban-tag-ban">🚫 vi banner</span> }
                                 else if (pref == "play") { <span class="mapban-tag mapban-tag-play">⭐ vi vil spille</span> }
                                 @{ var st = Session.MapStats(map.Name); }
@@ -68,7 +67,7 @@
                         {
                             <div class="maps-empty">Ingen sites lagt ind endnu – tilføj dem under <a href="/admin">Admin</a>.</div>
                         }
-                    </div>
+                    </Fold>
                 }
             </div>
         }

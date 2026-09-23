@@ -1,0 +1,16 @@
+@* A card that can be shown/hidden by tapping its header (user: "everything, cards, boxes etc should be possible to
+   show/hide"). Native <details>, so it works without a server round-trip; wwwroot/js/fold.js remembers each card's
+   open/closed state per device under its Key. Blazor only renders "open" as the default, so a re-render never undoes
+   what the user chose. *@
+<details class="fold @Class" data-fold="@Key" open="@Open">
+    <summary class="fold-head">@Title</summary>
+    <div class="fold-body">@ChildContent</div>
+</details>
+
+@code {
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string Class { get; set; } = "";
+    [Parameter] public bool Open { get; set; } = true;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

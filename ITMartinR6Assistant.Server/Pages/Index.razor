@@ -60,22 +60,21 @@
     @{ var checklist = PhaseChecklist(Session.Phase); }
     @if (checklist.Count > 0)
     {
-        <div class="phase-checklist">
-            <div class="phase-checklist-title">Gør dette nu:</div>
+        <Fold Key="checklist" Title="✅ Gør dette nu" Class="phase-checklist">
             <ul>
                 @foreach (var item in checklist)
                 {
                     <li>@((MarkupString)item)</li>
                 }
             </ul>
-        </div>
+        </Fold>
     }
 
     @if (Session.Phase == MatchPhase.MapBans && _gameData is not null)
     {
         // Until maps are flagged ranked under Admin, show them all.
         var ranked = _gameData.Maps.Any(m => m.IsRanked) ? _gameData.Maps.Where(m => m.IsRanked).ToList() : _gameData.Maps.ToList();
-        <div class="mapban-card">
+        <Fold Key="mapbans" Title="🗺 Map-ban" Class="mapban-card">
             <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det samme. Tallene er vores egne kampe. <b>Tryk p&aring; det map, vi ender med</b> &ndash; s&aring; handler Operator-bans om det map. Marker evt. de bannede med &#x2715;.</div>
             <ProTips Data="_gameData" Mode="mapbans" />
             <div class="mapban-grid">
@@ -118,13 +117,12 @@
             {
                 <div class="mapban-result">Vi spiller <b>@Session.Map</b> &ndash; Operator-bans viser nu dets sites.</div>
             }
-        </div>
+        </Fold>
     }
 
     @if (Session.Phase == MatchPhase.PostMatch && _gameData is not null)
     {
-        <div class="matchlog-card">
-            <div class="specs-title">📝 Log kampen</div>
+        <Fold Key="matchlog" Title="📝 Log kampen" Class="matchlog-card">
             <div class="matchlog-row">
                 <select class="quick-op-select" @bind="_logMap">
                     <option value="">-- map --</option>
@@ -159,7 +157,7 @@
                     }
                 </div>
             }
-        </div>
+        </Fold>
     }
 
     @if (Session.Phase == MatchPhase.OperatorBans && _gameData is not null)
@@ -169,10 +167,9 @@
         // Attack bans a defender, defence bans an attacker.
         var banSide = weAttack ? "Defense" : "Attack";
         var opsOfSide = _gameData.Operators.Where(o => o.Side == banSide).Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        <div class="opban-card">
+        <Fold Key="opbans" Title="🚫 Operator-ban" Class="opban-card">
             <div class="opban-head">
                 <div>
-                    <div class="specs-title">🚫 Operator-ban</div>
                     <div class="opban-sub">
                         @if (opMap is null) { <span>Intet map valgt &ndash; g&aring; <a href="#" @onclick="Session.PreviousPhase" @onclick:preventDefault="true">tilbage</a> og tryk Spil p&aring; mappet.</span> }
                         else { <span>Map: <b>@opMap.Name</b></span> }
@@ -256,13 +253,12 @@
                     }
                 </div>
             }
-        </div>
+        </Fold>
     }
 
     @if (Session.Phase == MatchPhase.Lobby)
     {
-        <div class="specs-card">
-            <div class="specs-title">🖥️ Specifikationer</div>
+        <Fold Key="specs" Title="🖥️ Specifikationer" Class="specs-card">
 
             @if (string.IsNullOrEmpty(Identity.Name))
             {
@@ -309,13 +305,13 @@
                     </div>
                 }
             }
-        </div>
+        </Fold>
     }
 
     @* Quick settings explainer, available in every phase - not the full
        /indstillinger page, just a
        fast condensed check without leaving this screen. *@
-    <div class="quick-check">
+    <Fold Key="settings" Title="⚙ Sieges indstillinger forklaret" Class="quick-check">
         <div class="quick-check-tabs">
             <button class="quick-tab-btn @(_quickTab == "settings" ? "quick-tab-active" : "")" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
         </div>
@@ -355,7 +351,7 @@
                 }
             </div>
         }
-    </div>
+    </Fold>
 
 
 </div>
