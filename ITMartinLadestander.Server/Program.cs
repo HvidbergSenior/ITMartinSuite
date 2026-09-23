@@ -12,14 +12,17 @@ builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient()
 builder.Services.AddSingleton<ForeningStore>();
 builder.Services.AddSingleton<PollReader>();
 builder.Services.AddSingleton<LiveBoard>();
-// Live charger data: Zaptec when the association's Zaptec Portal login is in magic.env
-// (Ladestander__Zaptec__Username / __Password / __InstallationId), otherwise the simulator.
+// Live charger data from magic.env: Spirii (Ladestander__Spirii__ApiKey) - the platform the chargers report to -
+// else Zaptec (Ladestander__Zaptec__Username / __Password / __InstallationId), else the simulator.
 builder.Services.AddSingleton<IChargerFeed>(sp =>
 {
+    var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+    var spiriiKey = builder.Configuration["Ladestander:Spirii:ApiKey"];
+    if (!string.IsNullOrWhiteSpace(spiriiKey)) return new SpiriiFeed(http, spiriiKey);
     var z = builder.Configuration.GetSection("Ladestander:Zaptec");
     return string.IsNullOrWhiteSpace(z["Username"]) || string.IsNullOrWhiteSpace(z["InstallationId"])
         ? new SimulatedFeed()
-        : new ZaptecFeed(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, z["Username"]!, z["Password"] ?? "", z["InstallationId"]!);
+        : new ZaptecFeed(http, z["Username"]!, z["Password"] ?? "", z["InstallationId"]!);
 });
 builder.Services.AddHostedService<ChargerSync>();
 

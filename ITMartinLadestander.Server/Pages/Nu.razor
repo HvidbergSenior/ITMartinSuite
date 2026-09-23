@@ -13,7 +13,7 @@
     @if (_now is not null) { <span> Strømmen koster nu <b>@_now.Value.ToString("0.00") kr/kWh</b> for beboerne.</span> }
 </p>
 <div class="source-line small muted">
-    @if (Board.Simulated) { <span class="pill w">Simulator</span> <span>Viser eksempeldata, indtil foreningens Zaptec-login er sat ind.</span> }
+    @if (Board.Simulated) { <span class="pill w">Simulator</span> <span>Viser eksempeldata, indtil foreningens Spirii-nøgle er sat ind.</span> }
     else { <span class="pill ok">Live</span> <span>@Board.Source</span> }
     @if (Board.UpdatedDk is { } u) { <span> · opdateret @u.ToString("HH:mm:ss")</span> }
     @if (Board.Error is { } err) { <span class="bad-text"> · fejl: @err</span> }
@@ -36,7 +36,7 @@
                 @if (since is { } s) { <div class="small muted">siden kl. @s.ToString("HH:mm")</div> }
             }
             else if (state == OutletState.Free) { <div class="outlet-who muted">Klar til næste bil</div> }
-            <div class="small muted">@(o.Source == "manual" ? "Indtastes under Manuel" : "Zaptec")</div>
+            <div class="small muted">@(o.Source switch { "manual" => "Indtastes under Manuel", "zaptec" => "Zaptec", _ => "Spirii" })</div>
         </div>
     }
 </div>
@@ -88,7 +88,7 @@
         catch { /* prices unavailable - the board still works */ }
     }
 
-    // Zaptec outlets come from the live feed; the Looad outlets from sessions typed in on Manuel.
+    // Spirii/Zaptec outlets come from the live feed; the Looad outlets from sessions typed in on Manuel.
     private (OutletState State, double Kw, double Kwh, DateTime? Since, string Who) Status(OutletConfig o)
     {
         if (o.Source == "manual")

@@ -30,10 +30,11 @@ public sealed class ForeningData
     public List<Car> Cars { get; set; } = [];
     public List<ChargeSession> Sessions { get; set; } = [];
 
-    // The chosen solution (2026-09-23): the association owns the chargers, Spirii bills, this app shows prices,
-    // live status and each household's consumption. Every outlet has its own data source: "zaptec" = live from
-    // the Zaptec API (or the simulator until the association's login exists), "manual" = typed in on Biler
-    // (the old Looad stand, until we know whether it can move to Spirii over OCPP).
+    // The chosen solution (2026-09-23): the association owns Zaptec chargers, Spirii runs access and billing,
+    // this app shows prices, live status, each household's consumption and checks Spirii's billing. Every outlet
+    // has a data source: "spirii" = live from the Spirii API (the chargers report to Spirii), "zaptec" = straight
+    // from Zaptec, "manual" = typed in on Manuel (the old Looad stand, until we know if it can move to Spirii).
+    // Without API keys the simulator stands in for Spirii/Zaptec.
     public List<OutletConfig> OutletSetup { get; set; } = [];
     public List<Household> HouseholdList { get; set; } = [];
     // What the association adds per kWh on top of the meter cost (ex moms) - covers Spirii, chargers, buffer.
@@ -44,7 +45,8 @@ public sealed class OutletConfig
 {
     public int Number { get; set; }
     public string Name { get; set; } = "";        // "Stander B · udtag 1"
-    public string Source { get; set; } = "zaptec"; // "zaptec" | "manual"
+    public string Source { get; set; } = "spirii"; // "spirii" | "zaptec" | "manual"
+    public string SpiriiEvseId { get; set; } = "";    // EVSE id from Spirii Connect (e.g. DK*SPI*E123*1)
     public string ZaptecChargerId { get; set; } = "";
     public double MaxKw { get; set; } = 11;
 }
@@ -86,4 +88,6 @@ public sealed class ChargeSession
     public string ExternalId { get; set; } = "";
     public string Token { get; set; } = "";
     public Guid? HouseholdId { get; set; }
+    // What Spirii actually charged the resident (incl. moms) - compared with UserPriceKr on Afregning.
+    public double? BilledKr { get; set; }
 }

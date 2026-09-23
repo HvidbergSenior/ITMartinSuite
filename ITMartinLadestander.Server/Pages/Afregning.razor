@@ -1,0 +1,86 @@
+@page "/afregning"
+@inject ForeningStore Store
+@implements IDisposable
+
+<PageTitle>Afregning · Ladestander</PageTitle>
+
+<div class="eyebrow">Månedens kontrol · Spiriis opkrævning mod de faktiske priser</div>
+<h1>Afregning i @_month.ToString("MMMM yyyy", Da)</h1>
+<div class="row month-nav">
+    <button class="ghost" @onclick="() => Shift(-1)">‹ Forrige</button>
+    <button class="ghost" @onclick="() => Shift(1)" disabled="@(_month >= ThisMonth)">Næste ›</button>
+    @if (Month.Any(s => s.Source == "simulator")) { <span class="pill w">Eksempeldata fra simulatoren</span> }
+</div>
+
+@if (Checked.Count == 0)
+{
+    <p class="muted">Ingen opladninger med Spiriis beløb i denne måned endnu.</p>
+}
+else
+{
+    var billed = Checked.Sum(s => s.BilledKr ?? 0);
+    var ours = Checked.Sum(s => s.UserPriceKr ?? 0);
+    var meter = Checked.Sum(s => s.CostKr ?? 0);
+    var diff = billed - ours;
+    <div class="tiles">
+        <div class="tile"><b>@billed.ToString("N0") kr</b><span>opkrævet af Spirii (@Checked.Count opladninger)</span></div>
+        <div class="tile"><b>@ours.ToString("N0") kr</b><span>efter foreningens regel: strøm + @_f.TillaegOrePerKwh øre tillæg + moms</span></div>
+        <div class="tile @(Math.Abs(diff) > ours * 0.03 ? "w" : "")"><b>@(diff >= 0 ? "+" : "")@diff.ToString("N0") kr</b><span>forskel (@((ours > 0 ? diff / ours * 100 : 0).ToString("+0.0;-0.0")) %)</span></div>
+        <div class="tile"><b>@((billed - meter).ToString("N0")) kr</b><span>over strømregningen – dækker Spiriis gebyr, laderne og foreningens buffer</span></div>
+    </div>
+
+    <div class="note @(Math.Abs(diff) > ours * 0.03 ? "w" : "")">
+        @if (Math.Abs(diff) <= ours * 0.03)
+        {
+            <span>Spiriis opkrævning ligger inden for 3 % af foreningens regel. Intet at gøre.</span>
+        }
+        else if (diff > 0)
+        {
+            <span>Beboerne har betalt <b>@diff.ToString("N0") kr mere</b> end foreningens regel. Tjek tariffen i Spirii Connect – tillægget eller spotpris-margenen kan være sat for højt.</span>
+        }
+        else
+        {
+            <span>Beboerne har betalt <b>@((-diff).ToString("N0")) kr mindre</b> end foreningens regel – foreningen dækker forskellen. Tjek tariffen i Spirii Connect.</span>
+        }
+    </div>
+
+    <h2>Opladninger med størst afvigelse</h2>
+    <div class="wrap">
+    <table>
+        <tr><th>Opladning</th><th>Husstand</th><th class="n">kWh</th><th class="n">Spirii</th><th class="n">Regel</th><th class="n">Forskel</th></tr>
+        @foreach (var s in Checked.OrderByDescending(s => Math.Abs((s.BilledKr ?? 0) - (s.UserPriceKr ?? 0))).Take(15))
+        {
+            var d = (s.BilledKr ?? 0) - (s.UserPriceKr ?? 0);
+            <tr>
+                <td class="small">@s.StartedAt.ToString("ddd dd.MM HH:mm", Da)–@s.EndedAt?.ToString("HH:mm")</td>
+                <td class="small">@HouseholdName(s)</td>
+                <td class="n">@s.Kwh?.ToString("0.0")</td>
+                <td class="n">@s.BilledKr?.ToString("0.00")</td>
+                <td class="n">@s.UserPriceKr?.ToString("0.00")</td>
+                <td class="n @(Math.Abs(d) > 2 ? "bad-text" : "")">@d.ToString("+0.00;-0.00")</td>
+            </tr>
+        }
+    </table>
+    </div>
+    <p class="small muted" style="margin-top:8px">Regel = strøm (spotpris + nettarif + Energinet + elafgift + moms for de kvarterer, bilen ladede i) + foreningens tillæg inkl. moms. Små forskelle er normale, hvis Spiriis tarif bruger timepriser i stedet for kvarterpriser.</p>
+}
+
+@code {
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private ForeningData _f = default!;
+    private DateOnly _month;
+    private DateOnly ThisMonth => new(DkTime.Now.Year, DkTime.Now.Month, 1);
+
+    protected override void OnInitialized() { _f = Store.Get(); _month = ThisMonth; Store.Changed += Refresh; }
+
+    private List<ChargeSession> Month => _f.Sessions
+        .Where(s => !s.Active && s.StartedAt >= _month.ToDateTime(TimeOnly.MinValue) && s.StartedAt < _month.AddMonths(1).ToDateTime(TimeOnly.MinValue)).ToList();
+    private List<ChargeSession> Checked => Month.Where(s => s.BilledKr is not null && s.UserPriceKr is not null).ToList();
+
+    private string HouseholdName(ChargeSession s) =>
+        s.HouseholdId is { } id ? _f.HouseholdList.FirstOrDefault(h => h.Id == id)?.Name ?? "?" : s.Token.Length > 0 ? $"Ukendt brik: {s.Token}" : "Ukendt";
+
+    private void Shift(int months) => _month = _month.AddMonths(months);
+    private void Refresh() => InvokeAsync(() => { _f = Store.Get(); StateHasChanged(); });
+    public void Dispose() => Store.Changed -= Refresh;
+}

@@ -77,7 +77,8 @@ public sealed class ChargerSync : BackgroundService
             var (cost, user) = SessionPricing.Price(raw, f, s.StartDk, s.EndDk, s.Kwh);
             return new ChargeSession
             {
-                Source = _feed.IsSimulated ? "simulator" : "zaptec",
+                Source = _feed.IsSimulated ? "simulator" : _feed.Name.StartsWith("Spirii") ? "spirii" : "zaptec",
+                BilledKr = s.BilledKr,
                 ExternalId = s.ExternalId, Outlet = s.Outlet, StartedAt = s.StartDk, EndedAt = s.EndDk,
                 PlannedKwh = s.Kwh, Kwh = s.Kwh, CostKr = cost, UserPriceKr = user, Token = s.Token,
                 HouseholdId = byToken.TryGetValue(s.Token.Trim(), out var h) ? h : null,

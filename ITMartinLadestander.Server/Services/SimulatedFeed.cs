@@ -7,7 +7,7 @@ namespace ITMartinLadestander.Server.Services;
 // sessions (seeded by date), so live status and history agree and pages are stable between refreshes.
 public sealed class SimulatedFeed : IChargerFeed
 {
-    public string Name => "Simulator (ingen Zaptec-login endnu)";
+    public string Name => "Simulator (ingen Spirii-nøgle endnu)";
     public bool IsSimulated => true;
 
     public Task<List<OutletLive>> LiveAsync(ForeningData f, CancellationToken ct)
@@ -15,7 +15,7 @@ public sealed class SimulatedFeed : IChargerFeed
         var now = DkTime.Now;
         var live = new List<OutletLive>();
         var today = Day(f, DateOnly.FromDateTime(now)).Concat(Day(f, DateOnly.FromDateTime(now).AddDays(-1))).ToList();
-        foreach (var o in f.OutletSetup.Where(o => o.Source == "zaptec"))
+        foreach (var o in f.OutletSetup.Where(o => o.Source != "manual"))
         {
             var s = today.FirstOrDefault(x => x.Outlet == o.Number && x.StartDk <= now && now < x.EndDk.AddHours(1.5));
             if (s is null) { live.Add(new OutletLive(o.Number, OutletState.Free, 0, 0, null, "")); continue; }
@@ -43,7 +43,7 @@ public sealed class SimulatedFeed : IChargerFeed
         var evCount = Math.Min(12, f.HouseholdList.Count);
         var owners = f.HouseholdList.Take(evCount).Where(h => h.Tokens.Count > 0).ToList();
         if (owners.Count == 0) yield break;
-        foreach (var o in f.OutletSetup.Where(o => o.Source == "zaptec"))
+        foreach (var o in f.OutletSetup.Where(o => o.Source != "manual"))
         {
             var start = day.ToDateTime(new TimeOnly(16, 0)).AddMinutes(rng.Next(0, 9 * 60) / 15 * 15);
             for (var n = rng.Next(0, 3); n > 0; n--)
@@ -52,7 +52,9 @@ public sealed class SimulatedFeed : IChargerFeed
                 var kw = Math.Min(o.MaxKw, rng.Next(0, 3) == 0 ? 7.4 : 11);
                 var end = start.AddHours(kwh / kw);
                 var who = owners[rng.Next(owners.Count)].Tokens[0];
-                yield return new FeedSession($"sim-{day:yyyyMMdd}-{o.Number}-{n}", o.Number, start, end, kwh, who);
+                // "Spirii's" bill: a spot-based tariff priced a little differently from our 15-minute maths.
+                var billedPerKwh = 2.30 + rng.NextDouble() * 0.5;
+                yield return new FeedSession($"sim-{day:yyyyMMdd}-{o.Number}-{n}", o.Number, start, end, kwh, who, Math.Round(kwh * billedPerKwh, 2));
                 start = end.AddMinutes(30 + rng.Next(0, 8) * 15);
             }
         }

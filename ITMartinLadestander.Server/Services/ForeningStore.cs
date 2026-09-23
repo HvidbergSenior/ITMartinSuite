@@ -34,10 +34,10 @@ public sealed class ForeningStore
             [
                 new() { Number = 1, Name = "Looad-stander · udtag 1", Source = "manual", MaxKw = d.OutletKw },
                 new() { Number = 2, Name = "Looad-stander · udtag 2", Source = "manual", MaxKw = d.OutletKw },
-                new() { Number = 3, Name = "Stander B · udtag 1", Source = "zaptec" },
-                new() { Number = 4, Name = "Stander B · udtag 2", Source = "zaptec" },
-                new() { Number = 5, Name = "Stander C · udtag 1", Source = "zaptec" },
-                new() { Number = 6, Name = "Stander C · udtag 2", Source = "zaptec" },
+                new() { Number = 3, Name = "Stander B · udtag 1", Source = "spirii" },
+                new() { Number = 4, Name = "Stander B · udtag 2", Source = "spirii" },
+                new() { Number = 5, Name = "Stander C · udtag 1", Source = "spirii" },
+                new() { Number = 6, Name = "Stander C · udtag 2", Source = "spirii" },
             ];
             d.Outlets = d.OutletSetup.Count;
             changed = true;

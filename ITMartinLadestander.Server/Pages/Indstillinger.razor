@@ -41,33 +41,38 @@
 <div class="card">
     <div class="card-title">Datakilde</div>
     <p>@(Board.Simulated ? "Simulator – viser eksempeldata." : "Zaptec, live.") @if (Board.UpdatedDk is { } u) { <span class="muted small">Sidst hentet @u.ToString("HH:mm:ss").</span> }</p>
-    <p class="small muted">Live-data slås til ved at lægge foreningens Zaptec Portal-login i magic.env: <code>Ladestander__Zaptec__Username</code>, <code>Ladestander__Zaptec__Password</code> og <code>Ladestander__Zaptec__InstallationId</code>, og indsætte hver laders Charger ID herunder (kopieres fra Zaptec Portal).</p>
+    <p class="small muted">Live-data slås til ved at lægge en API-nøgle fra Spirii Connect (Team Access → API tokens, kræver rollen Operator) i magic.env som <code>Ladestander__Spirii__ApiKey</code> og skrive hvert udtags EVSE-id herunder (står i Spirii Connect under laderen). Zaptec direkte er en reserve: <code>Ladestander__Zaptec__Username</code>, <code>__Password</code>, <code>__InstallationId</code>.</p>
+    <p class="small"><a href="/overblik">Leverandøranalyse og beboerundersøgelse →</a></p>
 </div>
 
 <div class="card">
     <div class="card-title">Udtag (@_f.OutletSetup.Count)</div>
     <div class="wrap"><table>
-        <tr><th>Nr.</th><th>Navn</th><th>Data</th><th>Zaptec Charger ID</th><th>kW</th><th></th></tr>
+        <tr><th>Nr.</th><th>Navn</th><th>Data</th><th>Spirii EVSE-id / Zaptec Charger ID</th><th>kW</th><th></th></tr>
         @foreach (var o in _f.OutletSetup.OrderBy(o => o.Number))
         {
             <tr>
                 <td>@o.Number</td>
                 <td><input aria-label="Navn på udtag @o.Number" @bind="o.Name" /></td>
-                <td><select aria-label="Datakilde for udtag @o.Number" @bind="o.Source"><option value="zaptec">Zaptec (live)</option><option value="manual">Manuel (indtastes)</option></select></td>
-                <td><input aria-label="Zaptec Charger ID for udtag @o.Number" placeholder="GUID fra Zaptec Portal" @bind="o.ZaptecChargerId" disabled="@(o.Source != "zaptec")" /></td>
+                <td><select aria-label="Datakilde for udtag @o.Number" @bind="o.Source"><option value="spirii">Spirii (live)</option><option value="zaptec">Zaptec (live)</option><option value="manual">Manuel (indtastes)</option></select></td>
+                <td>
+                    @if (o.Source == "spirii") { <input aria-label="Spirii EVSE-id for udtag @o.Number" placeholder="fx DK*SPI*E123*1" @bind="o.SpiriiEvseId" /> }
+                    else if (o.Source == "zaptec") { <input aria-label="Zaptec Charger ID for udtag @o.Number" placeholder="GUID fra Zaptec Portal" @bind="o.ZaptecChargerId" /> }
+                    else { <span class="muted small">–</span> }
+                </td>
                 <td><input aria-label="kW for udtag @o.Number" type="number" style="width:5em" @bind="o.MaxKw" /></td>
                 <td><button class="danger" @onclick="() => _f.OutletSetup.Remove(o)">Fjern</button></td>
             </tr>
         }
     </table></div>
     <button class="ghost" @onclick="AddOutlet">+ Tilføj udtag</button>
-    <p class="small muted">Looad-standeren står som "Manuel", indtil vi ved, om den kan flyttes til Spirii (OCPP) – så skiftes den til Zaptec eller fjernes.</p>
+    <p class="small muted">Looad-standeren står som "Manuel", indtil vi ved, om den kan flyttes til Spirii (OCPP) – så skiftes den til Spirii eller fjernes.</p>
 </div>
 
 <div class="card">
     <div class="card-title">Husstande og ladebrikker (@_f.HouseholdList.Count)</div>
     <div class="wrap"><table>
-        <tr><th>Husstand</th><th>Ladebrikker / Zaptec-brugere (komma mellem)</th><th></th></tr>
+        <tr><th>Husstand</th><th>Ladebrikker (navn på brikken i Spirii eller dens UID, komma mellem)</th><th></th></tr>
         @foreach (var h in _f.HouseholdList)
         {
             <tr>
@@ -78,7 +83,7 @@
         }
     </table></div>
     <button class="ghost" @onclick="AddHousehold">+ Tilføj husstand</button>
-    <p class="small muted">Opladninger fra Zaptec knyttes til en husstand via brikkens navn (eller brugerens navn i Zaptec). Retter du en brik, gælder det nye opladninger.</p>
+    <p class="small muted">Opladninger knyttes til en husstand via ladebrikkens navn i Spirii (eller dens UID). Retter du en brik, gælder det nye opladninger.</p>
 </div>
 
 <button @onclick="Save">Gem</button> @if (_saved) { <span class="muted"> Gemt</span> }
