@@ -84,3 +84,22 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 #components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed { display: flex; }
 #components-reconnect-modal .reconnect-failed-msg { display: none; } .components-reconnect-failed .reconnect-failed-msg { display: inline; } .components-reconnect-failed .reconnect-msg { display: none; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Live board (Nu) */
+.source-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 14px; }
+.bad-text { color: var(--bad); }
+.pill.live { background: var(--accent); color: var(--paper); font-weight: 700; }
+.outlets { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.outlet { background: var(--paper); border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.outlet-free { border-left-color: var(--accent); }
+.outlet-charging { border-left-color: var(--accent); background: var(--accent-soft); }
+.outlet-finished, .outlet-connected { border-left-color: var(--warn); }
+.outlet-unknown, .outlet-offline { border-left-color: var(--bad); }
+.outlet-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.outlet-who { font-weight: 600; }
+.outlet-nums { display: flex; flex-wrap: wrap; gap: 12px; font-variant-numeric: tabular-nums; }
+.outlet-nums b { font-size: 1.2rem; }
+/* Forbrug */
+.month-nav { align-items: center; gap: 8px; margin: 6px 0 4px; }
+tr.clickable { cursor: pointer; } tr.clickable:hover td { background: var(--note); }
+tr.sub td { background: var(--bg); padding-top: 4px; padding-bottom: 4px; }

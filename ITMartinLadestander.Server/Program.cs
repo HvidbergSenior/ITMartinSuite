@@ -11,6 +11,17 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
 builder.Services.AddSingleton<ForeningStore>();
 builder.Services.AddSingleton<PollReader>();
+builder.Services.AddSingleton<LiveBoard>();
+// Live charger data: Zaptec when the association's Zaptec Portal login is in magic.env
+// (Ladestander__Zaptec__Username / __Password / __InstallationId), otherwise the simulator.
+builder.Services.AddSingleton<IChargerFeed>(sp =>
+{
+    var z = builder.Configuration.GetSection("Ladestander:Zaptec");
+    return string.IsNullOrWhiteSpace(z["Username"]) || string.IsNullOrWhiteSpace(z["InstallationId"])
+        ? new SimulatedFeed()
+        : new ZaptecFeed(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, z["Username"]!, z["Password"] ?? "", z["InstallationId"]!);
+});
+builder.Services.AddHostedService<ChargerSync>();
 
 // PIN gate: board only until the supplier decision is made. Real value comes
 // from magic.env (Ladestander__Pin).

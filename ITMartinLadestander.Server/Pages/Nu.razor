@@ -1,0 +1,124 @@
+@page "/"
+@inject ForeningStore Store
+@inject LiveBoard Board
+@inject ElectricityPriceService Prices
+@implements IDisposable
+
+<PageTitle>Nu · Ladestander</PageTitle>
+
+<div class="eyebrow">@_f.Name · @_f.OutletSetup.Count udtag</div>
+<h1>Ladestanderne lige nu</h1>
+<p class="lede">
+    <b>@FreeCount af @_f.OutletSetup.Count ledige.</b>
+    @if (_now is not null) { <span> Strømmen koster nu <b>@_now.Value.ToString("0.00") kr/kWh</b> for beboerne.</span> }
+</p>
+<div class="source-line small muted">
+    @if (Board.Simulated) { <span class="pill w">Simulator</span> <span>Viser eksempeldata, indtil foreningens Zaptec-login er sat ind.</span> }
+    else { <span class="pill ok">Live</span> <span>@Board.Source</span> }
+    @if (Board.UpdatedDk is { } u) { <span> · opdateret @u.ToString("HH:mm:ss")</span> }
+    @if (Board.Error is { } err) { <span class="bad-text"> · fejl: @err</span> }
+</div>
+
+<div class="outlets">
+    @foreach (var o in _f.OutletSetup.OrderBy(o => o.Number))
+    {
+        var (state, kw, kwh, since, who) = Status(o);
+        <div class="outlet outlet-@state.ToString().ToLowerInvariant()">
+            <div class="outlet-head"><b>@o.Name</b><span class="pill @Pill(state)">@Label(state)</span></div>
+            @if (state is OutletState.Charging or OutletState.Connected or OutletState.Finished)
+            {
+                <div class="outlet-who">@(who.Length > 0 ? who : "Ukendt bruger")</div>
+                <div class="outlet-nums">
+                    @if (state == OutletState.Charging) { <span><b>@kw.ToString("0.0")</b> kW</span> }
+                    <span><b>@kwh.ToString("0.0")</b> kWh</span>
+                    @if (_now is not null && kwh > 0) { <span>≈ <b>@((kwh * _now.Value).ToString("0"))</b> kr</span> }
+                </div>
+                @if (since is { } s) { <div class="small muted">siden kl. @s.ToString("HH:mm")</div> }
+            }
+            else if (state == OutletState.Free) { <div class="outlet-who muted">Klar til næste bil</div> }
+            <div class="small muted">@(o.Source == "manual" ? "Indtastes under Manuel" : "Zaptec")</div>
+        </div>
+    }
+</div>
+
+@if (_cheap is { } c)
+{
+    <h2>Billigst at lade</h2>
+    <div class="tiles">
+        <div class="tile"><b>kl. @c.Start.ToString("HH:mm")–@c.Start.AddHours(3).ToString("HH:mm")</b><span>billigste 3 timer inden for et døgn · @c.Price.ToString("0.00") kr/kWh</span></div>
+        @if (_now is { } n && n > c.Price)
+        {
+            <div class="tile"><b>@(((n - c.Price) * 30).ToString("0")) kr</b><span>sparet på en opladning på 30 kWh ved at vente</span></div>
+        }
+        <div class="tile"><b>@_dayMin.ToString("0.00")–@_dayMax.ToString("0.00")</b><span>kr/kWh det næste døgn, inkl. foreningens tillæg</span></div>
+    </div>
+}
+
+@code {
+    private ForeningData _f = default!;
+    private double? _now;
+    private (DateTime Start, double Price)? _cheap;
+    private double _dayMin, _dayMax;
+
+    private int FreeCount => _f.OutletSetup.Count(o => Status(o).State == OutletState.Free);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _f = Store.Get();
+        Board.Changed += Refresh;
+        Store.Changed += Refresh;
+        await LoadPricesAsync();
+    }
+
+    private async Task LoadPricesAsync()
+    {
+        try
+        {
+            var tillaeg = _f.TillaegOrePerKwh / 100.0 * 1.25;
+            var now = DkTime.Now;
+            var pts = (await Prices.GetPricesAsync(_f.Settings.PriceArea))
+                .Select(p => PriceBreakdownCalculator.Compute(p, _f.Settings)).Where(p => p.TimeDk >= now.AddMinutes(-15) && p.TimeDk < now.AddHours(24))
+                .OrderBy(p => p.TimeDk).Select(p => (p.TimeDk, Price: p.KrPerKwh(true) + tillaeg)).ToList();
+            if (pts.Count == 0) return;
+            _now = pts[0].Price;
+            _dayMin = pts.Min(p => p.Price); _dayMax = pts.Max(p => p.Price);
+            // Cheapest 3 hours in a row (12 quarter-hours).
+            _cheap = Enumerable.Range(0, Math.Max(0, pts.Count - 11)).Select(i => (pts[i].TimeDk, pts.Skip(i).Take(12).Average(p => p.Price))).MinBy(x => x.Item2);
+        }
+        catch { /* prices unavailable - the board still works */ }
+    }
+
+    // Zaptec outlets come from the live feed; the Looad outlets from sessions typed in on Manuel.
+    private (OutletState State, double Kw, double Kwh, DateTime? Since, string Who) Status(OutletConfig o)
+    {
+        if (o.Source == "manual")
+        {
+            var s = _f.Sessions.FirstOrDefault(x => x.Active && x.Outlet == o.Number);
+            if (s is null) return (OutletState.Free, 0, 0, null, "");
+            var car = _f.Cars.FirstOrDefault(c => c.Id == s.CarId);
+            var hours = Math.Max(0, (DkTime.Now - s.StartedAt).TotalHours);
+            var kw = Math.Min(o.MaxKw, car?.MaxKw ?? o.MaxKw);
+            return (OutletState.Charging, kw, Math.Min(s.PlannedKwh, hours * kw), s.StartedAt, $"{car?.Owner} {car?.Name}".Trim());
+        }
+        var live = Board.Outlets.FirstOrDefault(x => x.Outlet == o.Number);
+        if (live is null) return (OutletState.Unknown, 0, 0, null, "");
+        return (live.State, live.Kw, live.SessionKwh, live.SinceDk, Who(live.Token));
+    }
+
+    private string Who(string token) =>
+        token.Length == 0 ? "" : _f.HouseholdList.FirstOrDefault(h => h.Tokens.Contains(token, StringComparer.OrdinalIgnoreCase))?.Name ?? token;
+
+    private static string Label(OutletState s) => s switch
+    {
+        OutletState.Free => "Ledig", OutletState.Connected => "Tilsluttet", OutletState.Charging => "Lader",
+        OutletState.Finished => "Færdig", OutletState.Offline => "Offline", _ => "Ukendt",
+    };
+    private static string Pill(OutletState s) => s switch
+    {
+        OutletState.Free => "ok", OutletState.Charging => "live", OutletState.Finished => "w", OutletState.Connected => "w", _ => "b",
+    };
+
+    private void Refresh() => InvokeAsync(() => { _f = Store.Get(); StateHasChanged(); });
+
+    public void Dispose() { Board.Changed -= Refresh; Store.Changed -= Refresh; }
+}

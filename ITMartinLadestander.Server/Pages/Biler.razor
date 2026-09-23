@@ -5,20 +5,21 @@
 
 <PageTitle>Biler · Ladestander</PageTitle>
 
-<div class="eyebrow">@_f.Outlets udtag · selvrapporteret indtil operatøren har et API</div>
-<h1>Hvem lader nu?</h1>
+<div class="eyebrow">Udtag uden live-data · indtastes her</div>
+<h1>Manuel opladning</h1>
+<p class="lede">Til udtag, der ikke sender data til appen (i dag Looad-standeren). Zaptec-udtagene ses automatisk under Nu og Forbrug.</p>
 
 <div class="card">
     <div class="card-title">Udtag</div>
     <div class="list">
-        @for (var i = 1; i <= _f.Outlets; i++)
+        @foreach (var oc in _f.OutletSetup.Where(o => o.Source == "manual").OrderBy(o => o.Number))
         {
-            var outlet = i;
+            var outlet = oc.Number;
             var s = _f.Sessions.FirstOrDefault(x => x.Active && x.Outlet == outlet);
             var car = s is null ? null : _f.Cars.FirstOrDefault(c => c.Id == s.CarId);
             <div class="item @(s is null ? "" : "active")">
                 <div>
-                    <b>Udtag @outlet</b>
+                    <b>@oc.Name</b>
                     @if (s is null) { <span class="muted"> · ledigt</span> }
                     else
                     {
@@ -62,6 +63,7 @@
         <div><label for="bat">Batteri kWh</label><input id="bat" type="number" @bind="_new.BatteryKwh" /></div>
         <div><label for="kw">Max kW (AC)</label><input id="kw" type="number" @bind="_new.MaxKw" /></div>
         <div><label for="typ">Typisk opladning kWh</label><input id="typ" type="number" @bind="_new.TypicalKwh" /></div>
+        <div><label for="hh">Husstand</label><select id="hh" @bind="_newHousehold"><option value="">–</option>@foreach (var h in _f.HouseholdList) { <option value="@h.Id">@h.Name</option> }</select></div>
     </div>
     <button @onclick="Add" disabled="@(string.IsNullOrWhiteSpace(_new.Owner))">Tilføj</button>
 </div>
@@ -98,9 +100,13 @@
 
     private void Add()
     {
+        _new.HouseholdId = Guid.TryParse(_newHousehold, out var hid) ? hid : null;
         Store.Update(d => d.Cars.Add(_new));
         _new = new();
+        _newHousehold = "";
     }
+
+    private string _newHousehold = "";
 
     private void Remove(Car c) => Store.Update(d => d.Cars.RemoveAll(x => x.Id == c.Id));
 
@@ -122,14 +128,15 @@
         var hours = Math.Max(0.25, (end - s.StartedAt).TotalHours);
         var kwh = Math.Round(Math.Min(s.PlannedKwh, hours * kw), 1);
         var raw = await Prices.GetRangeAsync(DateOnly.FromDateTime(s.StartedAt), DateOnly.FromDateTime(end).AddDays(1), _f.Settings.PriceArea);
-        var run = PriceModel.CostOfRun(raw, _f.Settings, new Appliance { KwhPerRun = kwh, DurationHours = Math.Round(hours * 4) / 4 }, s.StartedAt);
+        var (meter, user) = SessionPricing.Price(raw, _f, s.StartedAt, end, kwh);
         Store.Update(d =>
         {
             var x = d.Sessions.First(z => z.Id == s.Id);
             x.EndedAt = end;
             x.Kwh = kwh;
-            x.CostKr = run?.CostKr;
-            x.UserPriceKr = run is null ? null : Math.Round(run.CostKr + kwh * d.OperatorCutOrePerKwh / 100.0 * 1.25, 2);
+            x.CostKr = meter;
+            x.UserPriceKr = user;
+            x.HouseholdId = car?.HouseholdId;
         });
     }
 }

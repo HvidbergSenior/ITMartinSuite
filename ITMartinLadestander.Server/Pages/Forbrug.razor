@@ -1,0 +1,85 @@
+@page "/forbrug"
+@inject ForeningStore Store
+@implements IDisposable
+
+<PageTitle>Forbrug · Ladestander</PageTitle>
+
+<div class="eyebrow">Opladning pr. husstand · til kassereren</div>
+<h1>Forbrug i @_month.ToString("MMMM yyyy", Da)</h1>
+<div class="row month-nav">
+    <button class="ghost" @onclick="() => Shift(-1)">‹ Forrige</button>
+    <button class="ghost" @onclick="() => Shift(1)" disabled="@(_month >= ThisMonth)">Næste ›</button>
+    @if (_f.Sessions.Any(s => s.Source == "simulator")) { <span class="pill w">Indeholder eksempeldata fra simulatoren</span> }
+</div>
+
+<div class="tiles">
+    <div class="tile"><b>@Month.Sum(s => s.Kwh ?? 0).ToString("N0") kWh</b><span>@Month.Count opladninger</span></div>
+    <div class="tile"><b>@Month.Sum(s => s.UserPriceKr ?? 0).ToString("N0") kr</b><span>betalt af beboerne</span></div>
+    <div class="tile"><b>@Month.Sum(s => s.CostKr ?? 0).ToString("N0") kr</b><span>strømregning (måler)</span></div>
+    <div class="tile"><b>@Month.Sum(s => (s.UserPriceKr ?? 0) - (s.CostKr ?? 0)).ToString("N0") kr</b><span>foreningens tillæg (@_f.TillaegOrePerKwh øre/kWh ekskl. moms)</span></div>
+</div>
+
+<div class="wrap">
+<table>
+    <tr><th>Husstand</th><th class="n">Opladninger</th><th class="n">kWh</th><th class="n">Strøm</th><th class="n">Tillæg</th><th class="n">I alt</th><th class="n">Snit kr/kWh</th></tr>
+    @foreach (var g in Groups)
+    {
+        var kwh = g.Sessions.Sum(s => s.Kwh ?? 0);
+        var user = g.Sessions.Sum(s => s.UserPriceKr ?? 0);
+        var meter = g.Sessions.Sum(s => s.CostKr ?? 0);
+        <tr class="clickable" @onclick="() => _open = _open == g.Key ? null : g.Key">
+            <td>@(_open == g.Key ? "▾" : "▸") <b>@g.Name</b></td>
+            <td class="n">@g.Sessions.Count</td>
+            <td class="n">@kwh.ToString("0.0")</td>
+            <td class="n">@meter.ToString("0.00")</td>
+            <td class="n">@((user - meter).ToString("0.00"))</td>
+            <td class="n"><b>@user.ToString("0.00") kr</b></td>
+            <td class="n">@(kwh > 0 ? (user / kwh).ToString("0.00") : "–")</td>
+        </tr>
+        @if (_open == g.Key)
+        {
+            @foreach (var s in g.Sessions.OrderBy(s => s.StartedAt))
+            {
+                <tr class="sub"><td class="small muted">@s.StartedAt.ToString("ddd dd.MM HH:mm", Da)–@s.EndedAt?.ToString("HH:mm") · @OutletName(s.Outlet)</td>
+                    <td></td><td class="n small">@s.Kwh?.ToString("0.0")</td><td class="n small">@s.CostKr?.ToString("0.00")</td>
+                    <td class="n small">@(((s.UserPriceKr ?? 0) - (s.CostKr ?? 0)).ToString("0.00"))</td><td class="n small">@s.UserPriceKr?.ToString("0.00")</td>
+                    <td class="n small">@(s.Kwh > 0 ? ((s.UserPriceKr ?? 0) / s.Kwh.Value).ToString("0.00") : "")</td></tr>
+            }
+        }
+    }
+    <tr class="sum"><td>I alt</td><td class="n">@Month.Count</td><td class="n">@Month.Sum(s => s.Kwh ?? 0).ToString("0.0")</td>
+        <td class="n">@Month.Sum(s => s.CostKr ?? 0).ToString("0.00")</td><td class="n">@Month.Sum(s => (s.UserPriceKr ?? 0) - (s.CostKr ?? 0)).ToString("0.00")</td>
+        <td class="n">@Month.Sum(s => s.UserPriceKr ?? 0).ToString("0.00") kr</td><td></td></tr>
+</table>
+</div>
+<p class="small muted" style="margin-top:8px">Strøm = spotpris + nettarif + Energinet + elafgift + moms for de kvarterer, bilen ladede i. Tillæg = foreningens tillæg pr. kWh inkl. moms. Opladninger uden kendt ladebrik står under "Ukendt brik" – tilføj brikken til en husstand under Indstillinger.</p>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private ForeningData _f = default!;
+    private DateOnly _month;
+    private string? _open;
+    private DateOnly ThisMonth => new(DkTime.Now.Year, DkTime.Now.Month, 1);
+
+    protected override void OnInitialized() { _f = Store.Get(); _month = ThisMonth; Store.Changed += Refresh; }
+
+    private List<ChargeSession> Month => _f.Sessions
+        .Where(s => !s.Active && s.StartedAt >= _month.ToDateTime(TimeOnly.MinValue) && s.StartedAt < _month.AddMonths(1).ToDateTime(TimeOnly.MinValue)).ToList();
+
+    private sealed record Group(string Key, string Name, List<ChargeSession> Sessions);
+
+    private IEnumerable<Group> Groups => Month
+        .GroupBy(s => s.HouseholdId?.ToString() ?? (s.Token.Length > 0 ? "token:" + s.Token : "none"))
+        .Select(g => new Group(g.Key, Name(g.Key), g.ToList()))
+        .OrderByDescending(g => g.Sessions.Sum(s => s.UserPriceKr ?? 0));
+
+    private string Name(string key) =>
+        Guid.TryParse(key, out var id) ? _f.HouseholdList.FirstOrDefault(h => h.Id == id)?.Name ?? "Slettet husstand"
+        : key.StartsWith("token:") ? $"Ukendt brik: {key[6..]}" : "Ukendt";
+
+    private string OutletName(int n) => _f.OutletSetup.FirstOrDefault(o => o.Number == n)?.Name ?? $"Udtag {n}";
+
+    private void Shift(int months) { _month = _month.AddMonths(months); _open = null; }
+    private void Refresh() => InvokeAsync(() => { _f = Store.Get(); StateHasChanged(); });
+    public void Dispose() => Store.Changed -= Refresh;
+}

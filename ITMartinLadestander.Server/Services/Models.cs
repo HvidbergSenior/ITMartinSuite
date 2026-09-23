@@ -29,6 +29,32 @@ public sealed class ForeningData
 
     public List<Car> Cars { get; set; } = [];
     public List<ChargeSession> Sessions { get; set; } = [];
+
+    // The chosen solution (2026-09-23): the association owns the chargers, Spirii bills, this app shows prices,
+    // live status and each household's consumption. Every outlet has its own data source: "zaptec" = live from
+    // the Zaptec API (or the simulator until the association's login exists), "manual" = typed in on Biler
+    // (the old Looad stand, until we know whether it can move to Spirii over OCPP).
+    public List<OutletConfig> OutletSetup { get; set; } = [];
+    public List<Household> HouseholdList { get; set; } = [];
+    // What the association adds per kWh on top of the meter cost (ex moms) - covers Spirii, chargers, buffer.
+    public double TillaegOrePerKwh { get; set; } = 30;
+}
+
+public sealed class OutletConfig
+{
+    public int Number { get; set; }
+    public string Name { get; set; } = "";        // "Stander B · udtag 1"
+    public string Source { get; set; } = "zaptec"; // "zaptec" | "manual"
+    public string ZaptecChargerId { get; set; } = "";
+    public double MaxKw { get; set; } = 11;
+}
+
+// A house in the association. Tokens = the RFID tags / Zaptec user names that identify its charging sessions.
+public sealed class Household
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";         // "Nr. 222 · Martin"
+    public List<string> Tokens { get; set; } = [];
 }
 
 public sealed class Car
@@ -39,6 +65,7 @@ public sealed class Car
     public double BatteryKwh { get; set; } = 60;
     public double MaxKw { get; set; } = 11;
     public double TypicalKwh { get; set; } = 30;  // what a normal top-up needs
+    public Guid? HouseholdId { get; set; }        // links hand-typed sessions to a household on Forbrug
 }
 
 public sealed class ChargeSession
@@ -53,4 +80,10 @@ public sealed class ChargeSession
     public double? CostKr { get; set; }           // meter cost incl. moms
     public double? UserPriceKr { get; set; }      // what the resident pays (meter + operator cut)
     public bool Active => EndedAt is null;
+
+    // Sessions read from the chargers (Zaptec) carry their source id and who charged.
+    public string Source { get; set; } = "manual"; // "manual" | "zaptec" | "simulator"
+    public string ExternalId { get; set; } = "";
+    public string Token { get; set; } = "";
+    public Guid? HouseholdId { get; set; }
 }

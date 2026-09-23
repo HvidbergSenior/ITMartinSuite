@@ -1,5 +1,6 @@
 @page "/indstillinger"
 @inject ForeningStore Store
+@inject LiveBoard Board
 
 <PageTitle>Indstillinger · Ladestander</PageTitle>
 
@@ -10,7 +11,6 @@
     <div class="row">
         <div><label for="name">Navn</label><input id="name" @bind="_f.Name" /></div>
         <div><label for="hh">Husstande</label><input id="hh" type="number" @bind="_f.Households" /></div>
-        <div><label for="out">Udtag</label><input id="out" type="number" min="1" max="16" @bind="_f.Outlets" /></div>
         <div><label for="okw">kW pr. udtag</label><input id="okw" type="number" @bind="_f.OutletKw" /></div>
     </div>
 </div>
@@ -30,12 +30,55 @@
 </div>
 
 <div class="card">
-    <div class="card-title">Operatør</div>
+    <div class="card-title">Foreningens tillæg</div>
     <div class="row">
-        <div><label for="op">Navn</label><input id="op" @bind="_f.OperatorName" /></div>
-        <div><label for="cut">Cut, øre/kWh ekskl. moms</label><input id="cut" type="number" step="1" @bind="_f.OperatorCutOrePerKwh" /></div>
+        <div><label for="till">Tillæg, øre/kWh ekskl. moms</label><input id="till" type="number" step="1" @bind="_f.TillaegOrePerKwh" /></div>
+        <div><label for="op">Platform</label><input id="op" @bind="_f.OperatorName" /></div>
     </div>
-    <p class="small muted">Looad: 40 øre/kWh. Bruges til «beboerpris» på Priser og Biler.</p>
+    <p class="small muted">Lægges oven i strømprisen og dækker platform (Spirii), laderne og en buffer. Beboerprisen = strøm + tillæg + moms. Looads gamle cut var 40 øre.</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Datakilde</div>
+    <p>@(Board.Simulated ? "Simulator – viser eksempeldata." : "Zaptec, live.") @if (Board.UpdatedDk is { } u) { <span class="muted small">Sidst hentet @u.ToString("HH:mm:ss").</span> }</p>
+    <p class="small muted">Live-data slås til ved at lægge foreningens Zaptec Portal-login i magic.env: <code>Ladestander__Zaptec__Username</code>, <code>Ladestander__Zaptec__Password</code> og <code>Ladestander__Zaptec__InstallationId</code>, og indsætte hver laders Charger ID herunder (kopieres fra Zaptec Portal).</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Udtag (@_f.OutletSetup.Count)</div>
+    <div class="wrap"><table>
+        <tr><th>Nr.</th><th>Navn</th><th>Data</th><th>Zaptec Charger ID</th><th>kW</th><th></th></tr>
+        @foreach (var o in _f.OutletSetup.OrderBy(o => o.Number))
+        {
+            <tr>
+                <td>@o.Number</td>
+                <td><input aria-label="Navn på udtag @o.Number" @bind="o.Name" /></td>
+                <td><select aria-label="Datakilde for udtag @o.Number" @bind="o.Source"><option value="zaptec">Zaptec (live)</option><option value="manual">Manuel (indtastes)</option></select></td>
+                <td><input aria-label="Zaptec Charger ID for udtag @o.Number" placeholder="GUID fra Zaptec Portal" @bind="o.ZaptecChargerId" disabled="@(o.Source != "zaptec")" /></td>
+                <td><input aria-label="kW for udtag @o.Number" type="number" style="width:5em" @bind="o.MaxKw" /></td>
+                <td><button class="danger" @onclick="() => _f.OutletSetup.Remove(o)">Fjern</button></td>
+            </tr>
+        }
+    </table></div>
+    <button class="ghost" @onclick="AddOutlet">+ Tilføj udtag</button>
+    <p class="small muted">Looad-standeren står som "Manuel", indtil vi ved, om den kan flyttes til Spirii (OCPP) – så skiftes den til Zaptec eller fjernes.</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Husstande og ladebrikker (@_f.HouseholdList.Count)</div>
+    <div class="wrap"><table>
+        <tr><th>Husstand</th><th>Ladebrikker / Zaptec-brugere (komma mellem)</th><th></th></tr>
+        @foreach (var h in _f.HouseholdList)
+        {
+            <tr>
+                <td><input aria-label="Navn på husstand" @bind="h.Name" /></td>
+                <td><input aria-label="Ladebrikker for @h.Name" style="width:100%" value="@string.Join(", ", h.Tokens)" @onchange="e => SetTokens(h, e)" /></td>
+                <td><button class="danger" @onclick="() => _f.HouseholdList.Remove(h)">Fjern</button></td>
+            </tr>
+        }
+    </table></div>
+    <button class="ghost" @onclick="AddHousehold">+ Tilføj husstand</button>
+    <p class="small muted">Opladninger fra Zaptec knyttes til en husstand via brikkens navn (eller brugerens navn i Zaptec). Retter du en brik, gælder det nye opladninger.</p>
 </div>
 
 <button @onclick="Save">Gem</button> @if (_saved) { <span class="muted"> Gemt</span> }
@@ -44,9 +87,20 @@
     private ForeningData _f = new();
     private bool _saved;
     protected override void OnInitialized() => _f = Store.Get();
+
+    private void AddOutlet() => _f.OutletSetup.Add(new OutletConfig
+    {
+        Number = _f.OutletSetup.Count == 0 ? 1 : _f.OutletSetup.Max(o => o.Number) + 1, Name = $"Udtag {_f.OutletSetup.Count + 1}",
+    });
+
+    private void AddHousehold() => _f.HouseholdList.Add(new Household { Name = "Ny husstand" });
+
+    private static void SetTokens(Household h, ChangeEventArgs e) =>
+        h.Tokens = (e.Value?.ToString() ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
     private void Save()
     {
         _f.Settings.GridCompanyId = "custom";
+        _f.Outlets = _f.OutletSetup.Count;
         Store.Update(_ => { });
         _saved = true;
     }
