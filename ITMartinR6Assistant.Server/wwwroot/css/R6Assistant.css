@@ -1843,3 +1843,14 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .round-win-btn { background: #16a34a; color: #fff; }
 .round-loss-btn { background: #dc2626; color: #fff; }
 .round-nav { margin-top: 8px; }
+
+/* Round focus: our five and their five, nothing else. */
+.round-card { width: 100%; max-width: 900px; margin: 12px auto 0; text-align: left; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 14px 10px; }
+.op-picker { margin: 6px 0 10px; }
+.op-chip-full { opacity: .4; }
+.focus-op { border-left: 4px solid var(--def); background: var(--bg-card2); border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
+.focus-op-them { border-left-color: var(--ban); }
+.focus-op-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 1.05rem; margin-bottom: 2px; }
+.focus-warn { color: #fbbf24; font-weight: 700; font-size: .9rem; margin-top: 4px; }
+.focus-answer { display: inline-block; margin: 2px 4px 0 0; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: .85rem; }
+.focus-answer-have { border-color: var(--def); color: #4ade80; font-weight: 700; }

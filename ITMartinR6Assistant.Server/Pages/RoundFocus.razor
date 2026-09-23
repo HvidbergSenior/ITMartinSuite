@@ -1,0 +1,81 @@
+@using ITMartinR6Assistant.Domain
+@using ITMartinR6Assistant.Infrastructure
+@inject SessionStateService Session
+
+@* The round, and only the round (user: "when match starts focus on the map that has been selected and the ops
+   that has been selected ... also opponents operators ... and site selections"). Op-pick: site + "Hvem spiller vi?".
+   In-game: our five and their five with gadgets, threats and who counters whom - nothing else. *@
+@if (Map is not null)
+{
+    @if (Map.Sites.Count > 0 && (Phase == MatchPhase.OperatorPick || Session.Site is null))
+    {
+        <Fold Key="round-site" Title="@($"📍 Site{(Session.Site is not null ? ": " + Session.Site : " - hvilket er i spil?")}")" Class="round-card">
+            <div class="opa-chips">
+                @foreach (var s in Map.Sites)
+                {
+                    <button class="opa-chip @(Session.Site == s.Name ? "opa-chip-on" : "")" @onclick="() => Session.SetSite(s.Name)">@s.Name <span class="muted small">@s.Floor</span></button>
+                }
+            </div>
+        </Fold>
+    }
+
+    <Fold Key="round-ours" Title="@($"🟢 Hvem spiller vi? ({Session.OurOps.Count}/5)")" Class="round-card">
+        @if (Phase == MatchPhase.OperatorPick || Session.OurOps.Count == 0)
+        {
+            <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" />
+        }
+        @if (Phase == MatchPhase.InGame)
+        {
+            @foreach (var op in Ops(Session.OurOps))
+            {
+                var danger = op.CounteredBy.Where(Session.TheirOps.Contains).ToList();
+                <div class="focus-op">
+                    <div class="focus-op-head"><span class="opa-tier opa-tier-@op.Tier.ToLowerInvariant()">@op.Tier</span> <b>@op.Name</b>
+                        <span class="muted small">@op.Armor-armor · @op.Speed-speed</span></div>
+                    @if (op.Ability.Length > 0) { <div class="small"><b>Gadget:</b> @op.Ability@(op.Gadgets.Count > 0 ? " · " + string.Join(", ", op.Gadgets) : "")</div> }
+                    <div class="small"><b>Våben:</b> @string.Join(" / ", op.Primaries)</div>
+                    @if (danger.Count > 0) { <div class="focus-warn">⚠ Kontres af deres @string.Join(", ", danger) &ndash; pas på.</div> }
+                </div>
+            }
+            @if (Session.OurOps.Count > 0) { <button class="ref-tab" @onclick="() => _editOurs = !_editOurs">@(_editOurs ? "Færdig" : "Ret vores")</button> }
+            @if (_editOurs) { <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" /> }
+        }
+    </Fold>
+
+    <Fold Key="round-theirs" Title="@($"🔴 Hvem spiller de? ({Session.TheirOps.Count}/5)")" Class="round-card" Open="Phase == MatchPhase.InGame">
+        <OpPicker Names="Roster(TheirSide)" Selected="Session.TheirOps" SitePicks="SitePicks(TheirSide)" OnToggle="Session.ToggleTheirOp" />
+        @foreach (var op in Ops(Session.TheirOps))
+        {
+            var answers = op.CounteredBy.Where(n => Roster(OurSide).Contains(n)).ToList();
+            <div class="focus-op focus-op-them">
+                <div class="focus-op-head"><span class="opa-tier opa-tier-@op.Tier.ToLowerInvariant()">@op.Tier</span> <b>@op.Name</b>
+                    <span class="muted small">@op.Armor-armor · @op.Speed-speed</span></div>
+                @if (op.Threat.Length > 0) { <div class="small">@op.Threat</div> }
+                @if (answers.Count > 0)
+                {
+                    <div class="small"><b>Svar:</b>
+                        @foreach (var a in answers) { <span class="focus-answer @(Session.OurOps.Contains(a) ? "focus-answer-have" : "")">@(Session.OurOps.Contains(a) ? "✅ " : "")@a</span> }
+                    </div>
+                }
+            </div>
+        }
+    </Fold>
+}
+
+@code {
+    [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
+    [Parameter] public MatchPhase Phase { get; set; }
+
+    private bool _editOurs;
+    private R6Map? Map => Data.Maps.FirstOrDefault(m => m.Name == Session.Map);
+    private BombSite? Site => Map?.Sites.FirstOrDefault(s => s.Name == Session.Site);
+    private string OurSide => Session.Side;
+    private string TheirSide => Session.Side == "Attack" ? "Defense" : "Attack";
+
+    private static readonly string TierOrder = "SABC";
+    private List<string> Roster(string side) => Data.Operators.Where(o => o.Side == side)
+        .OrderBy(o => TierOrder.IndexOf(o.Tier) is var i && i >= 0 ? i : 9).ThenBy(o => o.Name).Select(o => o.Name).ToList();
+    private List<string> SitePicks(string side) => Site is null ? new() : (side == "Attack" ? Site.AttackPicks : Site.DefensePicks).ToList();
+    private IEnumerable<R6Operator> Ops(IEnumerable<string> names) =>
+        names.Select(n => Data.Operators.FirstOrDefault(o => o.Name.Equals(n, StringComparison.OrdinalIgnoreCase))).Where(o => o is not null)!;
+}

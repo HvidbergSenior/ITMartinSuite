@@ -61,6 +61,23 @@ public class SessionStateService
     public int RoundsWon => _rounds.Count(r => r.Won);
     public int RoundsLost => _rounds.Count(r => !r.Won);
 
+    // The operators in this round: who we play (max 5) and who the opponents play (seen in the round).
+    // The in-round screens show only these, so the team reads about the fight they are actually in.
+    public HashSet<string> OurOps { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> TheirOps { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public void ToggleOurOp(string name)
+    {
+        lock (_lock) { if (!OurOps.Remove(name) && OurOps.Count < 5) OurOps.Add(name); }
+        NotifyStateChanged();
+    }
+
+    public void ToggleTheirOp(string name)
+    {
+        lock (_lock) { if (!TheirOps.Remove(name) && TheirOps.Count < 5) TheirOps.Add(name); }
+        NotifyStateChanged();
+    }
+
     // Fixed prep-time budget per phase - Lobby and InGame are deliberately
     // absent (open-ended: "before anything starts" and "however long the
     // round takes" don't have a natural fixed duration). Advancing is always
@@ -292,9 +309,11 @@ public class SessionStateService
     {
         lock (_lock)
         {
-            _rounds.Add(new RoundResult(Round, Side, Site, won));
+            _rounds.Add(new RoundResult(Round, Side, Site, won, OurOps.ToList(), TheirOps.ToList()));
             Round++;
             Bans.Clear();
+            OurOps.Clear();
+            TheirOps.Clear();
             Site = null;
             ActivePlan = null;
             Phase = MatchPhase.OperatorBans;
@@ -314,6 +333,8 @@ public class SessionStateService
             Round = last.Number;
             Side = last.Side;
             Site = last.Site;
+            OurOps.Clear(); OurOps.UnionWith(last.OurOps);
+            TheirOps.Clear(); TheirOps.UnionWith(last.TheirOps);
             Phase = MatchPhase.InGame;
             PhaseStartedAtUtc = DateTimeOffset.UtcNow;
         }
@@ -345,7 +366,8 @@ public class SessionStateService
 
     public void SetSide(string side)
     {
-        lock (_lock) { Side = side; }
+        // Switching side means other operators on both teams.
+        lock (_lock) { if (Side != side) { OurOps.Clear(); TheirOps.Clear(); } Side = side; }
         NotifyStateChanged();
     }
 
@@ -377,6 +399,8 @@ public class SessionStateService
             ActivePlan = null;
             _rounds.Clear();
             Round = 1;
+            OurOps.Clear();
+            TheirOps.Clear();
             Phase = MatchPhase.Lobby;
             PhaseStartedAtUtc = DateTimeOffset.UtcNow;
         }

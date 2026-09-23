@@ -101,6 +101,11 @@
         <div class="muted small" style="margin-top:6px">Log kampen herunder, og tryk så <b>✅ Afslut kamp</b> &ndash; så er alt klar til næste kamp.</div>
     }
 
+    @if (_gameData is not null && Session.Phase is MatchPhase.OperatorPick or MatchPhase.InGame)
+    {
+        <RoundFocus Data="_gameData" Phase="Session.Phase" />
+    }
+
     @* Map + site panel only where it helps: picking operators and in the round (op-ban has its own site cards). *@
     @if (_gameData is not null && Session.Phase is MatchPhase.OperatorPick or MatchPhase.InGame)
     {

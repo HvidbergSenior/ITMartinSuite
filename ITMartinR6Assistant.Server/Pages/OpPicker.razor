@@ -1,0 +1,16 @@
+@* Tap-to-pick operator chips: the site's typical picks first (★), then everyone else by tier. Max 5 (the session
+   ignores a sixth tap). *@
+<div class="opa-chips op-picker">
+    @foreach (var n in SitePicks.Where(Names.Contains).Concat(Names.Where(n => !SitePicks.Contains(n))))
+    {
+        <button class="opa-chip @(Selected.Contains(n) ? "opa-chip-on" : "") @(!Selected.Contains(n) && Selected.Count >= 5 ? "op-chip-full" : "")"
+                @onclick="() => OnToggle(n)">@(SitePicks.Contains(n) ? "★ " : "")@n</button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<string> Names { get; set; } = new();
+    [Parameter, EditorRequired] public HashSet<string> Selected { get; set; } = new();
+    [Parameter] public List<string> SitePicks { get; set; } = new();
+    [Parameter, EditorRequired] public Action<string> OnToggle { get; set; } = default!;
+}
