@@ -41,7 +41,7 @@
                 @if (logEntries.Count > 0)
                 {
                     <div class="overview-loadout-title">⚠ Fejl i hændelsesloggen (sidste 3 dage)</div>
-                    <table class="overview-loadout-table">
+                    <div class="table-scroll"><table class="overview-loadout-table">
                         <thead><tr><th>Tidspunkt</th><th>Kilde</th><th>Besked</th></tr></thead>
                         <tbody>
                             @foreach (var (time, source, message) in logEntries)
@@ -53,7 +53,7 @@
                                 </tr>
                             }
                         </tbody>
-                    </table>
+                    </table></div>
                 }
             }
             else
@@ -65,7 +65,7 @@
             @if (loadouts.Count > 0)
             {
                 <div class="overview-loadout-title">Egne loadout-valg</div>
-                <table class="overview-loadout-table">
+                <div class="table-scroll"><table class="overview-loadout-table">
                     <thead><tr><th>Operator</th><th>Primær</th><th>Sekundær</th><th>Gadget</th></tr></thead>
                     <tbody>
                         @foreach (var (opName, loadout) in loadouts)
@@ -78,7 +78,7 @@
                             </tr>
                         }
                     </tbody>
-                </table>
+                </table></div>
             }
         </div>
     }

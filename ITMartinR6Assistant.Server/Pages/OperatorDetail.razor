@@ -23,7 +23,7 @@
 
         <div>
             <div class="opban-label">Bedste loadout</div>
-            <table class="opa-table">
+            <div class="table-scroll"><table class="opa-table">
                 <thead><tr><th>Våben</th><th>Tier</th><th>Skade</th><th>RPM</th><th>Mag.</th><th>TTK*</th></tr></thead>
                 <tbody>
                     @foreach (var w in Primaries)
@@ -35,7 +35,7 @@
                         </tr>
                     }
                 </tbody>
-            </table>
+            </table></div>
             <div class="muted small">* Tid til at dræbe en 3-armor med skud i kroppen. Tier er inden for våbnets egen klasse.</div>
             @if (Primaries.FirstOrDefault() is { } best && (best.Strengths.Count + best.Weaknesses.Count) > 0)
             {

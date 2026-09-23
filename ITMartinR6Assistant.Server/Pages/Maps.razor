@@ -44,7 +44,7 @@
                         </div>
                         @if (map.Sites.Count > 0)
                         {
-                            <table class="maps-sites">
+                            <div class="table-scroll"><table class="maps-sites">
                                 <tr><th>Site</th><th>Etage</th><th class="n">Vi</th><th class="n">Vi ATK</th><th class="n">Vi DEF</th><th class="n">ATK win</th><th>ATK picks</th><th>DEF picks</th><th>Bans</th></tr>
                                 @foreach (var s in map.Sites)
                                 {
@@ -61,7 +61,7 @@
                                         <td>@string.Join(", ", s.SuggestedBans)</td>
                                     </tr>
                                 }
-                            </table>
+                            </table></div>
                         }
                         else
                         {
@@ -76,7 +76,7 @@
     @if (Session.Matches.Count > 0)
     {
         <div class="maps-section">Loggede kampe (@Session.Matches.Count)</div>
-        <table class="maps-sites maps-log">
+        <div class="table-scroll"><table class="maps-sites maps-log">
             <tr><th>Dato</th><th>Map</th><th>Site</th><th class="n">Resultat</th><th class="n">ATK</th><th class="n">DEF</th><th>Note</th><th></th></tr>
             @foreach (var m in Session.Matches.OrderByDescending(x => x.PlayedAtUtc).Take(50))
             {
@@ -89,7 +89,7 @@
                     <td><button class="matchlog-del" title="Slet" @onclick="() => Session.DeleteMatch(m)">✕</button></td>
                 </tr>
             }
-        </table>
+        </table></div>
     }
 </div>
 

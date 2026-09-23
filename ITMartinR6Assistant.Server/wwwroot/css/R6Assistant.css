@@ -1677,3 +1677,114 @@ body {
 .editor-room-wrap img { width: 800px; height: 450px; display: block; pointer-events: none; }
 .editor-room-wrap .mv-room { font-size: 10px; }
 .editor-room-list { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ==============================
+   UX PASS 2026-09-23 - readable mid-game, big tap targets, no sideways scrolling on phones.
+   Kept at the end so it overrides the older rules above.
+   ============================== */
+
+:root { --tap: 44px; --on-accent: #0d0d0d; }
+html { -webkit-text-size-adjust: 100%; }
+body { font-size: 16px; line-height: 1.45; overflow-x: hidden; }
+.r6-app-main { min-width: 0; }
+img { max-width: 100%; }
+
+/* Keyboard users see where they are; mouse/touch clicks stay clean. */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px;
+}
+button, [role="button"], summary { cursor: pointer; touch-action: manipulation; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Header: brand, who-am-I, main menu ── */
+.r6-app-header { position: sticky; top: 0; z-index: 50; padding: 10px 20px; }
+.r6-header-inner { flex-wrap: wrap; row-gap: 8px; max-width: 1400px; margin: 0 auto; }
+.r6-brand { display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
+.player-name-btn, .r6-name-form { margin-left: auto; }
+.player-name-btn { min-height: 36px; padding: 6px 12px; font-size: .9rem; color: var(--text); max-width: 45vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r6-name-form { display: flex; gap: 6px; }
+.r6-name-form input { width: 140px; min-height: 36px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card2); color: var(--text); font-size: .95rem; }
+.player-name-save-btn { min-height: 36px; padding: 4px 14px; font-size: .9rem; }
+
+.r6-nav { display: flex; gap: 4px; }
+.r6-nav a {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 12px;
+    border-radius: 8px; color: var(--text-muted); text-decoration: none; font-size: .95rem; font-weight: 600; white-space: nowrap;
+    border: 1px solid transparent;
+}
+.r6-nav a:hover { color: var(--text); background: rgba(255,255,255,.06); }
+.r6-nav a.active { color: var(--on-accent); background: var(--accent); }
+[data-theme="light"] .r6-nav a:hover { background: rgba(0,0,0,.05); }
+[data-theme="light"] .r6-nav a.active { color: #fff; }
+
+.r6-footer { text-align: center; padding: .7rem 1rem; font-size: .8rem; color: var(--text-muted); border-top: 1px solid var(--border); }
+.r6-footer a { color: var(--text-muted); }
+
+/* ── Phase page: content starts at the top, big obvious buttons ── */
+.phase-page { justify-content: flex-start; min-height: auto; padding: 28px 16px 48px; }
+.phase-advance-btn, .phase-back-btn { min-height: 52px; }
+.phase-advance-btn { font-size: 1.15rem; padding: 14px 36px; box-shadow: 0 4px 16px rgba(232,200,75,.25); }
+.phase-advance-btn:active, .phase-back-btn:active { transform: translateY(1px); }
+.phase-checklist, .specs-card, .mapban-card, .opban-card, .matchlog-card { width: 100%; }
+.phase-checklist li { margin: 6px 0; }
+
+/* ── Tabs / chips: readable text on gold, reachable with a thumb ── */
+.ref-tab { min-height: 36px; padding: 6px 12px; font-size: .9rem; }
+.ref-tab-on, .opa-best-tag { color: var(--on-accent); }
+[data-theme="light"] .ref-tab-on, [data-theme="light"] .opa-best-tag { color: #fff; }
+.mv-bar .ref-tab-on { color: var(--on-accent); }
+.opa-chip { min-height: 34px; padding: 6px 12px; font-size: .9rem; }
+.opa-chip:hover { border-color: var(--text-muted); }
+
+/* ── Reading pages: a bit more room and larger text ── */
+.maps-page { max-width: 1100px; }
+.maps-sites { font-size: .9rem; }
+.maps-sites th { font-size: .75rem; }
+.maps-sites th, .maps-sites td { padding: 7px 10px; }
+.opa-table { font-size: .9rem; }
+.opa-table th, .opa-table td { padding: 6px 8px; }
+.opa-table thead th { position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.opa-list, .opa-line { font-size: .92rem; }
+.muted.small, .small { font-size: .85rem; }
+
+.table-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.opa-weapons { display: table; overflow: visible; }
+
+/* ── Phones: one-row scrollable menu, tables scroll inside themselves ── */
+@media (max-width: 700px) {
+    .r6-app-header { padding: 8px 12px; }
+    .r6-logo { font-size: 16px; padding: 3px 9px; }
+    .r6-header-title { font-size: 16px; letter-spacing: 3px; }
+    .r6-nav {
+        order: 3; width: 100%; overflow-x: auto; scrollbar-width: none;
+        margin: 0 -12px; padding: 0 12px; width: calc(100% + 24px);
+    }
+    .r6-nav::-webkit-scrollbar { display: none; }
+    .r6-nav a { flex: 1 0 auto; justify-content: center; min-height: var(--tap); padding: 6px 10px; font-size: .9rem; }
+
+    /* Tables keep their natural width and swipe sideways inside their box, instead of squeezing into tall rows. */
+    .maps-sites, .overview-loadout-table { min-width: 620px; }
+    .opa-table { min-width: 560px; }
+    .opa-weapons { min-width: 900px; }
+    .editor-table { display: block; max-width: 100%; overflow-x: auto; }
+    .maps-sites td, .maps-sites th, .overview-loadout-table td, .opa-table td, .opa-table th { white-space: nowrap; }
+    .maps-sites td:first-child { white-space: normal; min-width: 130px; }
+    .opa-weapons td:last-child { white-space: normal; min-width: 340px; }
+    .admin-side-btn { letter-spacing: .04em; font-size: 1rem; padding: 10px 14px; flex: 1; }
+
+    .phase-page { padding: 18px 12px 40px; }
+    .phase-nav { width: 100%; }
+    .phase-advance-btn { flex: 1; }
+    .session-page, .maps-page { padding: 12px; }
+    .mv-bar { gap: 4px; padding: 6px 8px; }
+    .mv-search { min-width: 0; flex: 1 1 140px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* Plain text links were browser-default dark blue - unreadable on the dark background. */
+.r6-app-main a:not([class]) { color: #60a5fa; }
+.r6-app-main a:not([class]):hover { color: #93c5fd; }
+[data-theme="light"] .r6-app-main a:not([class]) { color: #1d4ed8; }
