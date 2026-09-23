@@ -239,6 +239,8 @@ public class SessionStateService
 
     public void AdvancePhase()
     {
+        // After the match: "Afslut kamp" clears map, site, bans and side, so the next game starts clean.
+        if (Phase == MatchPhase.PostMatch) { Reset(); return; }
         var next = Phase switch
         {
             MatchPhase.Lobby => MatchPhase.MapBans,

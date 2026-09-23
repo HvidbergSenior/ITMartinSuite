@@ -1829,3 +1829,7 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .maps-card > summary.fold-head { padding: 8px 14px; }
 .fold-plain { margin: 12px 0 4px; }
 .fold-plain > summary.fold-head { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+
+/* "Ny kamp" confirmation under the phase buttons. */
+.newgame-confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin-top: 10px; padding: 10px 14px; max-width: 720px; border: 1px solid var(--ban); border-radius: var(--radius); background: rgba(239,68,68,.08); }
+.newgame-confirm span { flex: 1 1 260px; text-align: left; }

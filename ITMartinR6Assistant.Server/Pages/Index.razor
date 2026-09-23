@@ -49,8 +49,24 @@
         {
             <button class="phase-back-btn" @onclick="Session.PreviousPhase">← Tilbage</button>
         }
-        <button class="phase-advance-btn" @onclick="Session.AdvancePhase">Næste fase →</button>
+        <button class="phase-advance-btn" @onclick="Advance">@(Session.Phase == MatchPhase.PostMatch ? "✅ Afslut kamp" : "Næste fase →")</button>
+        @if (HasGameState && !_confirmNew)
+        {
+            <button class="phase-back-btn" @onclick="() => _confirmNew = true" title="Ryd map, site, bans og side og start forfra">🔄 Ny kamp</button>
+        }
     </div>
+    @if (_confirmNew)
+    {
+        <div class="newgame-confirm">
+            <span>Starte en ny kamp? Map@(Session.Map is not null ? $" ({Session.Map})" : ""), site, bans og side bliver ryddet for alle.</span>
+            <button class="phase-advance-btn" @onclick="NewGame">Ja, ny kamp</button>
+            <button class="phase-back-btn" @onclick="() => _confirmNew = false">Nej</button>
+        </div>
+    }
+    @if (Session.Phase == MatchPhase.PostMatch)
+    {
+        <div class="muted small" style="margin-top:6px">Log kampen herunder, og tryk så <b>✅ Afslut kamp</b> &ndash; så er alt klar til næste kamp.</div>
+    }
 
     @if (_gameData is not null)
     {
@@ -357,6 +373,11 @@
 </div>
 
 @code {
+    private bool _confirmNew;
+    // Anything left over from a game: a phase past the lobby, or a map/site/bans still chosen.
+    private bool HasGameState => Session.Phase != MatchPhase.Lobby || Session.Map is not null || Session.Site is not null || Session.MapBans.Count > 0 || Session.Bans.Count > 0;
+    private void Advance() { _confirmNew = false; Session.AdvancePhase(); }
+    private void NewGame() { _confirmNew = false; Session.Reset(); }
     private System.Threading.Timer? _tickTimer;
 
     private R6GameData? _gameData;
