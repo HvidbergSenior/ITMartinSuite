@@ -44,6 +44,7 @@
             <div class="opa-line"><span class="opban-label">Sekundært</span> @string.Join(", ", Op.Secondaries)</div>
             <div class="opa-line"><span class="opban-label">Gadgets</span> @string.Join(", ", Op.Gadgets)</div>
             @if (Op.Ability.Length > 0) { <div class="opa-line"><span class="opban-label">Evne</span> @Op.Ability</div> }
+            @if (Op.CounteredBy.Count > 0) { <div class="opa-line"><span class="opban-label">Kontres af</span> @string.Join(", ", Op.CounteredBy)</div> }
         </div>
     </div>
 
@@ -93,7 +94,8 @@
         {
             if (Op.Speed == 3) yield return "3-speed: hurtig at komme rundt - god til at roame eller gå først ind.";
             if (Op.Armor == 3) yield return "3-armor: tåler flest skud - god til at holde en position.";
-            if (Ban >= 30) yield return $"Så stærk, at modstanderne banner {Op.Name} i {Ban} % af kampene.";
+            if (Ban >= 30) yield return $"Så stærk, at pro league banner {Op.Name} på {Ban} % af alle maps.";
+            else if (Ban >= 10) yield return $"Pro league frygter {Op.Name}: bannet på {Ban} % af alle maps.";
             if (Primaries.FirstOrDefault() is { Tier: "S" or "A" } w) yield return $"Stærkt våben: {w.Name} er tier {w.Tier} blandt {w.Type.ToLowerInvariant()}s.";
             if (Sites.Count >= 5) yield return $"Fleksibel: typisk pick på {Sites.Count} ranked sites.";
         }
@@ -107,6 +109,7 @@
             if (Op.Speed == 1) yield return "1-speed: langsom - svær at rotere med, når planen ændrer sig.";
             if (Primaries.Count > 0 && Primaries.All(w => w.Tier is "C")) yield return "Svage våben: alle primære våben er tier C i deres klasse.";
             if (Ban >= 30) yield return $"Bliver tit bannet - hav en plan uden {Op.Name}.";
+            if (Op.CounteredBy.Count > 0) yield return $"Kontres af {string.Join(", ", Op.CounteredBy)} - se om modstanderne har dem.";
             if (Sites.Count == 0) yield return "Bruges sjældent på de nuværende ranked sites.";
         }
     }

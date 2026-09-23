@@ -10,7 +10,7 @@
    own ban/play mark from the map-ban plan. Editing lives in /admin. *@
 <div class="maps-page">
     <h1 style="margin:0 0 4px">🗺 Maps</h1>
-    <div class="maps-sub">Alle maps med bombsites og tal. 🚫/⭐ er holdets egen plan fra map-ban-fasen. "Vi" er vores egne loggede kampe (@Session.Matches.Count i alt); ATK win/picks/bans er indtastet under Admin.</div>
+    <div class="maps-sub">Alle maps med bombsites og tal. 🚫/⭐ er holdets egen plan fra map-ban-fasen. "Vi" er vores egne loggede kampe (@Session.Matches.Count i alt); Picks er fra r6coaching; bans og 🏆 pro-tal er fra pro league (Liquipedia, sidste to år).</div>
 
     @if (_gameData is null)
     {
@@ -58,12 +58,13 @@
                                         <td class="n @(s.AttackWinRate >= 55 ? "good" : s.AttackWinRate > 0 && s.AttackWinRate <= 45 ? "bad" : "")">@(s.AttackWinRate > 0 ? s.AttackWinRate + " %" : "–")</td>
                                         <td>@string.Join(", ", s.AttackPicks)</td>
                                         <td>@string.Join(", ", s.DefensePicks)</td>
-                                        <td>@string.Join(", ", s.SuggestedBans)</td>
+                                        <td title="@string.Join(", ", s.SuggestedBans)">@string.Join(", ", s.SuggestedBans.Take(5))@(s.SuggestedBans.Count > 5 ? " …" : "")</td>
                                     </tr>
                                 }
                             </table></div>
                         }
-                        else
+                        @if (_gameData is not null) { <ProTips Data="_gameData" Mode="map" MapName="@map.Name" /> }
+                        @if (map.Sites.Count == 0)
                         {
                             <div class="maps-empty">Ingen sites lagt ind endnu – tilføj dem under <a href="/admin">Admin</a>.</div>
                         }

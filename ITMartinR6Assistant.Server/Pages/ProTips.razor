@@ -1,0 +1,103 @@
+@using ITMartinR6Assistant.Domain
+
+@* "Pro league does this ..." - tips from Liquipedia's pro match records (last two years), worded for the phase the
+   team is in. Mode: "mapbans" (which maps pros pick/ban), "opbans" (what pros ban on this map, per side),
+   "ingame" (side win rates + pro matches to watch), "map" (everything for one map, used on /maps). *@
+@if (Pro.MapsPlayed == 0)
+{
+    <div class="pro-box pro-empty">🏆 Ingen pro-data endnu &ndash; tryk "Hent nyeste data" under <a href="/rediger">Rediger</a>.</div>
+}
+else
+{
+    var tips = Tips();
+    @if (tips.Count > 0)
+    {
+        <div class="pro-box">
+            <div class="pro-title">🏆 Pro league gør sådan her@(MapStats is not null ? $" på {MapName}" : "")</div>
+            <ul class="pro-list">
+                @foreach (var t in tips) { <li>@((MarkupString)t)</li> }
+            </ul>
+            @if ((Mode is "ingame" or "map") && MapStats is { RecentMatches.Count: > 0 } ms)
+            {
+                <div class="pro-matches">
+                    <span class="pro-label">Se pro-kampe på @MapName:</span>
+                    @foreach (var m in ms.RecentMatches.Take(Mode == "map" ? 6 : 3))
+                    {
+                        <a class="pro-match" href="@m.Url" target="_blank" rel="noopener">@m.Teams <span class="muted">@m.Score · @m.Date.ToString("dd.MM.yy")</span></a>
+                    }
+                </div>
+            }
+            <div class="pro-source muted">Kilde: Liquipedia, @Pro.Matches pro-kampe (@Pro.MapsPlayed maps) @Pro.From?.ToString("MMM yyyy") &ndash; @Pro.To?.ToString("MMM yyyy"). Nyere kampe tæller mest.</div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
+    [Parameter, EditorRequired] public string Mode { get; set; } = "";
+    [Parameter] public string? MapName { get; set; }
+    // Which side we are on; null = show both.
+    [Parameter] public bool? WeAttack { get; set; }
+
+    private ProStats Pro => Data.Pro;
+    private ProMapStats? MapStats => MapName is not null && Pro.Maps.TryGetValue(MapName, out var s) && s.Played >= 5 ? s : null;
+    private HashSet<string> Side(string side) => Data.Operators.Where(o => o.Side == side).Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    private static string P(double v) => $"{v:0} %";
+
+    private List<string> Tips()
+    {
+        var tips = new List<string>();
+        var ranked = Data.Maps.Where(m => m.IsRanked).Select(m => m.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var maps = Pro.Maps.Where(m => m.Value.Vetoes >= 10 && (ranked.Count == 0 || ranked.Contains(m.Key))).ToList();
+
+        if (Mode == "mapbans")
+        {
+            var picked = maps.OrderByDescending(m => m.Value.PickPct).Take(3).Select(m => $"<b>{m.Key}</b> ({P(m.Value.PickPct)})");
+            var banned = maps.OrderByDescending(m => m.Value.BanPct).Take(3).Select(m => $"<b>{m.Key}</b> ({P(m.Value.BanPct)})");
+            tips.Add($"Pro league vælger oftest: {string.Join(", ", picked)}.");
+            tips.Add($"Pro league banner oftest: {string.Join(", ", banned)}.");
+            var defMaps = maps.Where(m => m.Value.AtkRoundPct is > 0 and < 45).OrderBy(m => m.Value.AtkRoundPct).Take(3).Select(m => $"{m.Key} (ATK {P(m.Value.AtkRoundPct)})").ToList();
+            if (defMaps.Count > 0) tips.Add($"Forsvaret vinder klart flest runder på: {string.Join(", ", defMaps)} &ndash; pro-hold banner dem, hvis de er stærkest i angreb.");
+            var atkMaps = maps.Where(m => m.Value.AtkRoundPct >= 48).OrderByDescending(m => m.Value.AtkRoundPct).Take(3).Select(m => $"{m.Key} (ATK {P(m.Value.AtkRoundPct)})").ToList();
+            if (atkMaps.Count > 0) tips.Add($"Mest lige/angrebsvenlige maps: {string.Join(", ", atkMaps)}.");
+            return tips;
+        }
+
+        if (MapStats is not { } s) return tips;
+
+        if (Mode is "opbans" or "map")
+        {
+            foreach (var (side, label) in WeAttack switch
+                     {
+                         true => new[] { ("Defense", "Vi er ATK, så vi banner en defender") },
+                         false => new[] { ("Attack", "Vi er DEF, så vi banner en attacker") },
+                         _ => new[] { ("Defense", "Defenders"), ("Attack", "Attackers") },
+                     })
+            {
+                var roster = Side(side);
+                var top = s.OperatorBanPct.Where(kv => roster.Contains(kv.Key)).Take(5).Select(kv => $"<b>{kv.Key}</b> {P(kv.Value)}").ToList();
+                if (top.Count > 0) tips.Add($"{label}: pro league banner på {MapName}: {string.Join(", ", top)}.");
+            }
+            var special = s.OperatorBanPct.Where(kv => kv.Value >= 15 && kv.Value >= 1.5 * Pro.OperatorBanPct.GetValueOrDefault(kv.Key)).Take(3).Select(kv => kv.Key).ToList();
+            if (special.Count > 0) tips.Add($"Særligt for {MapName}: pro league banner {string.Join(", ", special)} langt oftere her end på andre maps.");
+        }
+
+        if (Mode is "ingame" or "map" or "opbans")
+        {
+            var atk = s.AtkRoundPct;
+            tips.Add(atk < 47
+                ? $"Forsvaret vinder {P(100 - atk)} af runderne på {MapName} &ndash; angreb skal være tålmodigt og bruge utility."
+                : atk > 53 ? $"Angrebet vinder {P(atk)} af runderne på {MapName} &ndash; forsvaret skal spille aktivt."
+                : $"Runderne på {MapName} er lige delt (ATK {P(atk)}).");
+            if (s.DefStartWinPct > 0)
+                tips.Add(s.DefStartWinPct >= 52
+                    ? $"Hold der starter på <b>forsvar</b> vinder {P(s.DefStartWinPct)} af kampene &ndash; vælg DEF først, hvis I kan."
+                    : s.DefStartWinPct <= 48 ? $"Hold der starter på <b>angreb</b> vinder {P(100 - s.DefStartWinPct)} af kampene &ndash; vælg ATK først, hvis I kan."
+                    : "Det betyder ikke noget, hvilken side man starter på.");
+        }
+
+        if (Mode == "map")
+            tips.Add($"Pro league: valgt i {P(s.PickPct)} og bannet i {P(s.BanPct)} af map-vetoer, spillet {s.Played} gange.");
+        return tips;
+    }
+}

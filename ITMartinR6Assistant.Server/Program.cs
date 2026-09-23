@@ -24,6 +24,12 @@ builder.Services.AddSingleton<SettingsGuideService>();
 builder.Services.AddSingleton<R6RefreshService>();
 builder.Services.AddScoped<PlayerIdentityService>();
 builder.Services.AddHttpClient();
+// Liquipedia's API terms: identify the app and accept gzip.
+builder.Services.AddHttpClient("liquipedia", c =>
+{
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("ITMartinR6Assistant/1.0 (r6.itmartin.dk; itmartin@mensa.dk)");
+    c.Timeout = TimeSpan.FromSeconds(60);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All });
 
 var app = builder.Build();
 

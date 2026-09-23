@@ -9,13 +9,15 @@ public class R6Operator
     // One plain-Danish line on what the gadget does to the other team - used as the ban reason.
     public string Threat { get; set; } = "";
 
-    // Fetched from the Siege wiki by "Hent nyeste data" (free, no AI).
+    // Fetched from Liquipedia by "Hent nyeste data" (free, no AI).
     public int Armor { get; set; }   // 1-3
     public int Speed { get; set; }   // 1-3
     public List<string> Primaries { get; set; } = new();
     public List<string> Secondaries { get; set; } = new();
     public List<string> Gadgets { get; set; } = new();
     public string Ability { get; set; } = "";
+    // Operators whose gadgets counter this one (Liquipedia's gadget card).
+    public List<string> CounteredBy { get; set; } = new();
 
     // Computed from the numbers: tier within the side and the reasons behind it.
     public string Tier { get; set; } = "";

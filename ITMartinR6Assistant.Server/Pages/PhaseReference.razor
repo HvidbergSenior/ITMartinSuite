@@ -21,6 +21,7 @@
         else if (CurrentSite is null)
         {
             <MapViewer Map="CurrentMap" />
+            <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" />
             <div class="muted small">@CurrentMap.Name - vælg et site i operator-ban-fasen. Sites:</div>
             <ul class="opa-list">@foreach (var s in CurrentMap.Sites) { <li><b>@s.Name</b> (@s.Floor)@(s.Note.Length > 0 ? $" - {s.Note}" : "")</li> }</ul>
         }
@@ -28,6 +29,7 @@
         {
             var s = CurrentSite;
             <div class="opa-detail-head"><b>@CurrentMap.Name: @s.Name</b> <span class="muted small">@s.Floor</span></div>
+            <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" />
             <div class="opban-intro">
                 <MapViewer Map="CurrentMap" Site="s" />
                 <div style="flex:1 1 220px">

@@ -72,6 +72,7 @@
         var ranked = _gameData.Maps.Any(m => m.IsRanked) ? _gameData.Maps.Where(m => m.IsRanked).ToList() : _gameData.Maps.ToList();
         <div class="mapban-card">
             <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det samme. Tallene er vores egne kampe. <b>Tryk p&aring; det map, vi ender med</b> &ndash; s&aring; handler Operator-bans om det map. Marker evt. de bannede med &#x2715;.</div>
+            <ProTips Data="_gameData" Mode="mapbans" />
             <div class="mapban-grid">
                 @foreach (var map in ranked)
                 {
@@ -98,6 +99,10 @@
                                     <span title="Defence-runder vundet–tabt">DEF @st.DefWon–@st.DefLost <b class="@Cls(st.DefPct)">@st.DefPct %</b></span>
                                 </div>
                                 <div class="mapban-stats"><span class="muted">sidst @st.LastPlayedUtc?.ToLocalTime().ToString("dd.MM")</span></div>
+                            }
+                            @if (_gameData.Pro.Maps.TryGetValue(name, out var pm) && pm.Vetoes >= 10)
+                            {
+                                <div class="mapban-stats mapban-pro" title="Pro league (Liquipedia, sidste to år)">🏆 pick @pm.PickPct.ToString("0") % · ban @pm.BanPct.ToString("0") % · ATK @pm.AtkRoundPct.ToString("0") %</div>
                             }
                         </button>
                         <button class="mapban-play @(banned ? "mapban-play-banned" : "")" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "↩ Fortryd ban" : "✕ Bannet")</button>
@@ -174,6 +179,7 @@
                 </div>
             </div>
             <div class="mapban-hint">Hver runde: ATK banner &eacute;n <b>defender</b>, DEF banner &eacute;n <b>attacker</b>. Vi er @(weAttack ? "ATK, så vi banner en defender" : "DEF, så vi banner en attacker"). Ban efter bombsite &ndash; tryk p&aring; det site, der er i spil.</div>
+            @if (opMap is not null) { <ProTips Data="_gameData" Mode="opbans" MapName="@opMap.Name" WeAttack="weAttack" /> }
 
             @if (opMap is not null)
             {

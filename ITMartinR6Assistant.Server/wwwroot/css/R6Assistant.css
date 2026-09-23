@@ -1788,3 +1788,23 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .r6-app-main a:not([class]) { color: #60a5fa; }
 .r6-app-main a:not([class]):hover { color: #93c5fd; }
 [data-theme="light"] .r6-app-main a:not([class]) { color: #1d4ed8; }
+
+/* 🏆 Pro league tips (ProTips.razor) */
+.pro-box { width: 100%; max-width: 720px; margin: 12px auto; text-align: left; background: linear-gradient(135deg, rgba(232,200,75,.10), var(--bg-card)); border: 1px solid rgba(232,200,75,.45); border-radius: var(--radius); padding: 12px 16px; }
+.pro-empty { font-size: .9rem; color: var(--text-muted); }
+.pro-title { font-weight: 800; color: var(--accent); margin-bottom: 6px; }
+.pro-list { margin: 0 0 6px 1.1rem; padding: 0; }
+.pro-list li { margin: 4px 0; font-size: .95rem; }
+.pro-matches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.pro-label { font-weight: 700; font-size: .85rem; color: var(--text-muted); }
+.pro-match { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card2); color: var(--text); text-decoration: none; font-size: .85rem; }
+.pro-match:hover { border-color: var(--accent); }
+.pro-source { font-size: .75rem; margin-top: 4px; }
+.mapban-pro { color: var(--accent); font-size: .78rem; }
+.opa-detail .pro-box, .maps-card .pro-box { max-width: none; }
+
+/* /maps: one wide card per map so the site table has room; cells stay on one line and the table scrolls if needed. */
+.maps-grid { grid-template-columns: 1fr; }
+.maps-sites td, .maps-sites th { white-space: nowrap; }
+.maps-sites td:first-child { white-space: normal; min-width: 150px; }
+.maps-card .pro-box { margin: 10px 12px 12px; width: auto; }
