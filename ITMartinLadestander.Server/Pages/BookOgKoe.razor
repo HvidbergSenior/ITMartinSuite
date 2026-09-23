@@ -1,0 +1,206 @@
+@page "/booking"
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ForeningStore Store
+@inject LiveBoard Board
+@inject ElectricityPriceService Prices
+@inject ProtectedLocalStorage Local
+@implements IDisposable
+
+<PageTitle>Book & kø · Ladestander</PageTitle>
+
+<div class="eyebrow">Aftaler mellem naboer – laderne virker som altid, også uden appen</div>
+<h1>Book et udtag eller stil dig i kø</h1>
+
+<div class="card">
+    <div class="row" style="align-items:end">
+        <div><label for="me">Hvem er du?</label>
+            <select id="me" value="@_me?.ToString()" @onchange="PickMe">
+                <option value="">Vælg husstand…</option>
+                @foreach (var h in _f.HouseholdList) { <option value="@h.Id">@h.Name</option> }
+            </select></div>
+        @if (_me is not null) { <span class="small muted">Huskes på denne telefon.</span> }
+    </div>
+</div>
+
+<h2>Kø (@_f.Queue.Count)</h2>
+@if (_f.Queue.Count == 0) { <p class="muted">Ingen i kø. Er et udtag ledigt, så lad bare.</p> }
+else
+{
+    <ol class="queue">
+        @foreach (var q in _f.Queue.OrderBy(q => q.JoinedDk))
+        {
+            <li class="@(q.HouseholdId == _me ? "mine" : "")"><b>@Name(q.HouseholdId)</b> <span class="muted small">· @q.Kwh.ToString("0") kWh · stillet i kø kl. @q.JoinedDk.ToString("HH:mm")</span></li>
+        }
+    </ol>
+    <p class="small muted">Den første i køen tager det næste ledige udtag. Man fjernes automatisk, når man begynder at lade, eller efter 12 timer.</p>
+}
+@if (_me is { } me)
+{
+    @if (_f.Queue.Any(q => q.HouseholdId == me))
+    {
+        <button class="ghost" @onclick="LeaveQueue">Forlad køen</button>
+    }
+    else
+    {
+        <div class="row" style="align-items:end">
+            <div><label for="qkwh">Hvor meget skal du lade? (kWh)</label><input id="qkwh" type="number" min="1" max="100" @bind="_queueKwh" /></div>
+            <button @onclick="JoinQueue">Stil mig i kø</button>
+        </div>
+        @if (FreeNow > 0) { <p class="small muted">Der er @FreeNow ledigt udtag lige nu – du behøver ikke stå i kø.</p> }
+    }
+}
+
+<h2>Book en tid</h2>
+@if (_me is null) { <p class="muted">Vælg først, hvem du er.</p> }
+else
+{
+    var mine = _f.Bookings.FirstOrDefault(b => b.HouseholdId == _me && b.EndDk > DkTime.Now);
+    @if (mine is not null)
+    {
+        <div class="note">
+            Du har booket <b>@OutletName(mine.Outlet)</b> @Day(mine.StartDk) kl. <b>@mine.StartDk.ToString("HH:mm")–@mine.EndDk.ToString("HH:mm")</b>
+            (@mine.Kwh.ToString("0") kWh@(mine.EstimatedKr is { } kr ? $", ca. {kr:0} kr" : "")).
+            <button class="ghost" @onclick="() => Cancel(mine)">Aflys</button>
+        </div>
+    }
+    else
+    {
+        <div class="row" style="align-items:end">
+            <div><label for="bkwh">kWh der skal lades</label><input id="bkwh" type="number" min="1" max="100" @bind="_bookKwh" /></div>
+            <div><label for="ready">Bilen skal være klar</label>
+                <select id="ready" @bind="_readyBy">
+                    @foreach (var t in ReadyOptions) { <option value="@t.ToString("o")">@Day(t) kl. @t.ToString("HH:mm")</option> }
+                </select></div>
+            <div><label for="ckw">Bilens ladeeffekt</label>
+                <select id="ckw" @bind="_carKw"><option value="11">11 kW</option><option value="7.4">7,4 kW</option><option value="3.7">3,7 kW</option></select></div>
+            <button @onclick="Suggest">Find billigste tid</button>
+        </div>
+        @if (_suggestion is { } s)
+        {
+            <div class="note">
+                Billigst: <b>@OutletName(s.Outlet)</b> @Day(s.StartDk) kl. <b>@s.StartDk.ToString("HH:mm")–@s.EndDk.ToString("HH:mm")</b>, ca. <b>@s.EstimatedKr.ToString("0") kr</b>
+                (@((s.EstimatedKr / _bookKwh).ToString("0.00")) kr/kWh).
+                <button @onclick="Book">Book den</button>
+            </div>
+        }
+        @if (_message is not null) { <p class="small bad-text">@_message</p> }
+    }
+}
+
+<h2>Bookinger de næste 36 timer</h2>
+<div class="wrap">
+    <div class="timeline">
+        <div class="tl-row tl-head"><span class="tl-name"></span>
+            <div class="tl-track">@for (var h = 0; h < 36; h += 3) { <span class="tl-tick" style="left:@Pct(h)%">@TimelineStart.AddHours(h).ToString("HH")</span> }</div>
+        </div>
+        @foreach (var o in _f.OutletSetup.Where(o => o.Source != "manual").OrderBy(o => o.Number))
+        {
+            <div class="tl-row">
+                <span class="tl-name small">@o.Name</span>
+                <div class="tl-track">
+                    @foreach (var b in _f.Bookings.Where(b => b.Outlet == o.Number && b.EndDk > TimelineStart && b.StartDk < TimelineStart.AddHours(36)))
+                    {
+                        var left = Math.Max(0, (b.StartDk - TimelineStart).TotalHours);
+                        var width = Math.Min(36, (b.EndDk - TimelineStart).TotalHours) - left;
+                        <span class="tl-bar @(b.HouseholdId == _me ? "mine" : "")" style="left:@Pct(left)%;width:@Pct(width)%" title="@Name(b.HouseholdId) @b.StartDk.ToString("HH:mm")–@b.EndDk.ToString("HH:mm")">@Name(b.HouseholdId)</span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+<p class="small muted" style="margin-top:6px">En booking er en aftale mellem naboer: laderne ved ikke noget om den. Står en anden bil i dit udtag, så tal sammen – eller tag et andet ledigt udtag.</p>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private ForeningData _f = default!;
+    private Guid? _me;
+    private double _queueKwh = 20, _bookKwh = 30, _carKw = 11;
+    private string _readyBy = "";
+    private BookingSuggestion? _suggestion;
+    private string? _message;
+
+    protected override void OnInitialized()
+    {
+        _f = Store.Get();
+        _readyBy = ReadyOptions.First().ToString("o");
+        Store.Changed += Refresh;
+        Board.Changed += Refresh;
+    }
+
+    // The household is remembered on the phone (encrypted local storage), read after the first render.
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try
+        {
+            var saved = await Local.GetAsync<Guid>("household");
+            if (saved.Success && _f.HouseholdList.Any(h => h.Id == saved.Value)) { _me = saved.Value; StateHasChanged(); }
+        }
+        catch { /* storage unavailable - pick again */ }
+    }
+
+    private async Task PickMe(ChangeEventArgs e)
+    {
+        _me = Guid.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _suggestion = null;
+        try { if (_me is { } m) await Local.SetAsync("household", m); else await Local.DeleteAsync("household"); } catch { }
+    }
+
+    private DateTime TimelineStart => DkTime.Now.Date.AddHours(DkTime.Now.Hour);
+    private static double Pct(double hours) => Math.Round(hours / 36 * 100, 2);
+    private int FreeNow => Board.Outlets.Count(o => o.State == OutletState.Free);
+
+    // Tomorrow 07:00 first (the usual "ready for work"), then the rest of the next 36 hours in 3-hour steps.
+    private IEnumerable<DateTime> ReadyOptions
+    {
+        get
+        {
+            var now = DkTime.Now;
+            var morning = now.Date.AddDays(now.Hour < 5 ? 0 : 1).AddHours(7);
+            yield return morning;
+            for (var t = now.Date.AddHours(now.Hour + 3); t <= now.AddHours(36); t = t.AddHours(3))
+                if (t != morning) yield return t;
+        }
+    }
+
+    private string Name(Guid id) => _f.HouseholdList.FirstOrDefault(h => h.Id == id)?.Name ?? "?";
+    private string OutletName(int n) => _f.OutletSetup.FirstOrDefault(o => o.Number == n)?.Name ?? $"Udtag {n}";
+    private static string Day(DateTime t) => t.Date == DkTime.Now.Date ? "i dag" : t.Date == DkTime.Now.Date.AddDays(1) ? "i morgen" : t.ToString("dddd", Da);
+
+    private void JoinQueue()
+    {
+        if (_me is not { } me) return;
+        Store.Update(d => { if (!d.Queue.Any(q => q.HouseholdId == me)) d.Queue.Add(new QueueEntry { HouseholdId = me, Kwh = _queueKwh, JoinedDk = DkTime.Now }); });
+    }
+
+    private void LeaveQueue() { if (_me is { } me) Store.Update(d => d.Queue.RemoveAll(q => q.HouseholdId == me)); }
+
+    private async Task Suggest()
+    {
+        _message = null; _suggestion = null;
+        if (!DateTime.TryParse(_readyBy, null, System.Globalization.DateTimeStyles.RoundtripKind, out var readyBy)) return;
+        var raw = await Prices.GetRangeAsync(DateOnly.FromDateTime(DkTime.Now), DateOnly.FromDateTime(readyBy).AddDays(1), _f.Settings.PriceArea);
+        _suggestion = BookingRules.Cheapest(_f, raw, _bookKwh, readyBy, _carKw);
+        if (_suggestion is null) _message = "Ingen ledig tid med kendte priser før det tidspunkt. Morgendagens priser kommer ca. kl. 13.";
+    }
+
+    private void Book()
+    {
+        if (_me is not { } me || _suggestion is not { } s) return;
+        var ok = false;
+        Store.Update(d =>
+        {
+            if (d.Bookings.Any(b => b.HouseholdId == me && b.EndDk > DkTime.Now) || BookingRules.Overlaps(d.Bookings, s.Outlet, s.StartDk, s.EndDk)) return;
+            d.Bookings.Add(new Booking { HouseholdId = me, Outlet = s.Outlet, StartDk = s.StartDk, EndDk = s.EndDk, Kwh = _bookKwh, EstimatedKr = s.EstimatedKr, CreatedDk = DkTime.Now });
+            ok = true;
+        });
+        _message = ok ? null : "Tiden blev taget imens – find en ny.";
+        _suggestion = null;
+    }
+
+    private void Cancel(Booking b) => Store.Update(d => d.Bookings.RemoveAll(x => x.Id == b.Id));
+
+    private void Refresh() => InvokeAsync(() => { _f = Store.Get(); StateHasChanged(); });
+    public void Dispose() { Store.Changed -= Refresh; Board.Changed -= Refresh; }
+}

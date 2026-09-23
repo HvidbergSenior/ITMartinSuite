@@ -45,7 +45,9 @@ public sealed class ChargerSync : BackgroundService
             try
             {
                 var f = _store.Get();
-                _board.Set(await _feed.LiveAsync(f, ct), _feed.Name, _feed.IsSimulated, null);
+                var live = await _feed.LiveAsync(f, ct);
+                _board.Set(live, _feed.Name, _feed.IsSimulated, null);
+                if (f.Queue.Count > 0 || f.Bookings.Count > 0) _store.Update(d => BookingRules.Tidy(d, live));
                 if (DateTime.UtcNow - lastSessions > TimeSpan.FromMinutes(10))
                 {
                     await ImportSessionsAsync(DkTime.Now.AddDays(firstRun ? -45 : -3), ct);

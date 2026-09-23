@@ -39,6 +39,31 @@ public sealed class ForeningData
     public List<Household> HouseholdList { get; set; } = [];
     // What the association adds per kWh on top of the meter cost (ex moms) - covers Spirii, chargers, buffer.
     public double TillaegOrePerKwh { get; set; } = 30;
+
+    // Booking and queue are agreements between neighbours, not locks: the chargers do not know about them, so
+    // charging works exactly the same when this app is down.
+    public List<Booking> Bookings { get; set; } = [];
+    public List<QueueEntry> Queue { get; set; } = [];
+}
+
+public sealed class Booking
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid HouseholdId { get; set; }
+    public int Outlet { get; set; }
+    public DateTime StartDk { get; set; }
+    public DateTime EndDk { get; set; }
+    public double Kwh { get; set; }
+    public double? EstimatedKr { get; set; }
+    public DateTime CreatedDk { get; set; }
+}
+
+public sealed class QueueEntry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid HouseholdId { get; set; }
+    public double Kwh { get; set; } = 20;
+    public DateTime JoinedDk { get; set; }
 }
 
 public sealed class OutletConfig

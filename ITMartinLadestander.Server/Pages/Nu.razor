@@ -19,6 +19,11 @@
     @if (Board.Error is { } err) { <span class="bad-text"> · fejl: @err</span> }
 </div>
 
+@if (_f.Queue.Count > 0)
+{
+    <div class="note"><b>@_f.Queue.Count i kø</b> – næste ledige udtag går til <b>@HouseholdName(_f.Queue.OrderBy(q => q.JoinedDk).First().HouseholdId)</b>. <a href="/booking">Se køen</a></div>
+}
+
 <div class="outlets">
     @foreach (var o in _f.OutletSetup.OrderBy(o => o.Number))
     {
@@ -36,7 +41,11 @@
                 @if (since is { } s) { <div class="small muted">siden kl. @s.ToString("HH:mm")</div> }
             }
             else if (state == OutletState.Free) { <div class="outlet-who muted">Klar til næste bil</div> }
-            <div class="small muted">@(o.Source switch { "manual" => "Indtastes under Manuel", "zaptec" => "Zaptec", _ => "Spirii" })</div>
+            @if (NextBooking(o.Number) is { } b)
+            {
+                <div class="small booked">Booket @(b.StartDk <= DkTime.Now ? "nu" : $"kl. {b.StartDk:HH:mm}")–@b.EndDk.ToString("HH:mm") af @HouseholdName(b.HouseholdId)</div>
+            }
+            <div class="small muted">@if (o.Source == "manual") { <a href="/biler">Registrér opladning</a> } else { @(o.Source == "zaptec" ? "Zaptec" : "Spirii") }</div>
         </div>
     }
 </div>
@@ -104,6 +113,11 @@
         if (live is null) return (OutletState.Unknown, 0, 0, null, "");
         return (live.State, live.Kw, live.SessionKwh, live.SinceDk, Who(live.Token));
     }
+
+    private Booking? NextBooking(int outlet) =>
+        _f.Bookings.Where(b => b.Outlet == outlet && b.EndDk > DkTime.Now && b.StartDk < DkTime.Now.AddHours(12)).MinBy(b => b.StartDk);
+
+    private string HouseholdName(Guid id) => _f.HouseholdList.FirstOrDefault(h => h.Id == id)?.Name ?? "?";
 
     private string Who(string token) =>
         token.Length == 0 ? "" : _f.HouseholdList.FirstOrDefault(h => h.Tokens.Contains(token, StringComparer.OrdinalIgnoreCase))?.Name ?? token;

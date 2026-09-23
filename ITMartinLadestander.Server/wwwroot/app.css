@@ -103,3 +103,15 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .month-nav { align-items: center; gap: 8px; margin: 6px 0 4px; }
 tr.clickable { cursor: pointer; } tr.clickable:hover td { background: var(--note); }
 tr.sub td { background: var(--bg); padding-top: 4px; padding-bottom: 4px; }
+
+/* Booking & kø */
+.booked { color: var(--warn); font-weight: 600; }
+ol.queue { margin: 6px 0 8px 1.3rem; display: grid; gap: 4px; }
+ol.queue li.mine { font-weight: 700; color: var(--accent); }
+.timeline { min-width: 560px; display: grid; gap: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.tl-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center; }
+.tl-track { position: relative; height: 26px; background: var(--note); border-radius: 4px; }
+.tl-head .tl-track { background: none; height: 16px; }
+.tl-tick { position: absolute; top: 0; font-size: .7rem; color: var(--muted); transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.tl-bar { position: absolute; top: 2px; bottom: 2px; background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 4px; font-size: .72rem; padding: 0 4px; overflow: hidden; white-space: nowrap; }
+.tl-bar.mine { background: var(--accent-soft); border-color: var(--accent); font-weight: 700; }
