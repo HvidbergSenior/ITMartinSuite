@@ -2,6 +2,7 @@
 @layout R6AssistantLayout
 @inject IR6DataService DataService
 @inject SessionStateService Session
+@inject ITMartinR6Assistant.Server.Services.R6RefreshService Refresher
 @implements IDisposable
 @using ITMartinR6Assistant.Domain
 
@@ -26,6 +27,23 @@
     }
     else
     {
+        <div class="editor-update">
+            <div>
+                <b>Spil-data:</b> @(_data.UpdatedAtUtc is { } upd ? $"hentet {upd.ToLocalTime():d. MMM yyyy HH:mm}" : "ikke hentet endnu")
+            </div>
+            <button class="editor-add-btn" disabled="@Refresher.IsRunning" @onclick="StartRefresh">
+                @(Refresher.IsRunning ? "Henter ..." : "Hent nyeste data")
+            </button>
+            <div class="editor-summary-sub">Gratis - ingen AI. Henter loadouts og våben-stats fra Siege-wikien og Ubisofts officielle ban-rater, og beregner tiers, styrker/svagheder og bans ud fra tallene. Jeres markører, picks og site-info bliver ikke rørt.</div>
+            @if (!string.IsNullOrEmpty(Refresher.Status)) { <div class="editor-update-status">@Refresher.Status</div> }
+            @if (_data.LastChanges.Count > 0)
+            {
+                <details>
+                    <summary class="editor-summary-sub">Ændret ved sidste hentning (@_data.LastChanges.Count)</summary>
+                    <ul class="editor-changes">@foreach (var c in _data.LastChanges) { <li>@c</li> }</ul>
+                </details>
+            }
+        </div>
         <details open class="editor-section">
             <summary>Operatorer (@_data.Operators.Count)</summary>
             <table class="editor-table">
@@ -67,6 +85,35 @@
                         <button class="editor-del-btn" @onclick="() => RemoveMap(map)">✕ Slet map</button>
                     </div>
 
+                    @if (!string.IsNullOrEmpty(map.BlueprintSlug))
+                    {
+                        <details class="editor-site-block">
+                            <summary>Rumnavne <span class="editor-summary-sub">(@map.Rooms.Count)</span></summary>
+                            @{ var floor = RoomFloor(map); }
+                            <div class="editor-field-row">
+                                @foreach (var f in new[] { "B", "1F", "2F", "3F", "Tag" })
+                                {
+                                    <button class="ref-tab @(f == floor ? "ref-tab-on" : "")" @onclick="() => _roomFloor[map.Name] = f">@f (@map.Rooms.Count(r => r.Floor == f))</button>
+                                }
+                                <label>Navn <input placeholder="fx Bunks" @bind="_roomName" @bind:event="oninput" /></label>
+                            </div>
+                            <div class="editor-summary-sub">Skriv navnet, klik midt i rummet. Klik på et navn i listen for at slette det.</div>
+                            <div class="editor-room-wrap" @onclick="e => AddRoom(map, floor, e)">
+                                <img src="/blueprints/@map.BlueprintSlug/@(floor).jpg" alt="" draggable="false" onerror="this.style.opacity=.2" />
+                                @foreach (var r in map.Rooms.Where(r => r.Floor == floor))
+                                {
+                                    <span class="mv-room" style="@(FormattableString.Invariant($"left:{r.X}%;top:{r.Y}%"))">@r.Name</span>
+                                }
+                            </div>
+                            <div class="editor-room-list">
+                                @foreach (var r in map.Rooms.Where(r => r.Floor == floor).OrderBy(r => r.Name))
+                                {
+                                    <button class="editor-del-btn" @onclick="() => RemoveRoom(map, r)">✕ @r.Name</button>
+                                }
+                            </div>
+                        </details>
+                    }
+
                     @foreach (var site in map.Sites.ToList())
                     {
                         <details class="editor-site-block">
@@ -87,6 +134,24 @@
                             <div class="editor-field-row">
                                 <label style="flex:1">Note <input @bind="site.Note" @bind:after="Save" /></label>
                             </div>
+                            <div class="editor-field-row">
+                                <label style="flex:1">Hurtig info (én pr. linje)
+                                    <textarea rows="4" value="@QuickText(site)" @onchange="e => SetQuickInfo(site, e.Value)"></textarea>
+                                </label>
+                            </div>
+                            @if (!string.IsNullOrEmpty(map.BlueprintSlug))
+                            {
+                                <div class="editor-bp">
+                                    <div class="editor-summary-sub">Klik på kortet, hvor sitet ligger (@site.Floor)</div>
+                                    <div class="editor-bp-wrap" @onclick="e => SetMarker(site, e)">
+                                        <img src="/blueprints/@map.BlueprintSlug/@(site.Floor).jpg" alt="" draggable="false" />
+                                        @if (site.MarkerX is double mx && site.MarkerY is double my)
+                                        {
+                                            <span class="opban-bp-marker" style="left:@(mx.ToString(System.Globalization.CultureInfo.InvariantCulture))%;top:@(my.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span>
+                                        }
+                                    </div>
+                                </div>
+                            }
 
                             <div class="editor-plan-list">
                                 <div class="editor-plan-title">Battle plans</div>
@@ -120,8 +185,13 @@
     {
         DataService.OnDataChanged += OnDataChanged;
         Session.OnStateChanged += OnSessionChanged;
+        Refresher.OnStatusChanged += OnSessionChanged;
         _data = await DataService.GetData();
     }
+
+    // Fire and forget: the fetch takes a little while and must survive the user navigating away;
+    // progress comes back through Refresher.OnStatusChanged.
+    private void StartRefresh() => _ = Task.Run(() => Refresher.RefreshAsync());
 
     private void OnDataChanged() => InvokeAsync(async () =>
     {
@@ -134,6 +204,51 @@
     private async Task Save()
     {
         if (_data is not null) await DataService.SaveAsync(_data);
+    }
+
+    // The editor image is rendered at a fixed 480 px width (see .editor-bp-wrap), so the click offset maps straight to percent.
+    private const double EditorBlueprintWidth = 480, EditorBlueprintHeight = 270;
+
+    private static string QuickText(BombSite site) => string.Join(Environment.NewLine, site.QuickInfo);
+
+    private async Task SetQuickInfo(BombSite site, object? value)
+    {
+        site.QuickInfo = (value?.ToString() ?? "").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+        await Save();
+    }
+
+    // Room editor: rendered at a fixed 800 x 450 px (the blueprints are 16:9), so the click offset maps to percent.
+    private const double RoomEditorWidth = 800, RoomEditorHeight = 450;
+    private readonly Dictionary<string, string> _roomFloor = new();
+    private string _roomName = "";
+
+    private string RoomFloor(R6Map map) => _roomFloor.TryGetValue(map.Name, out var f) ? f : "1F";
+
+    private async Task AddRoom(R6Map map, string floor, MouseEventArgs e)
+    {
+        var name = _roomName.Trim();
+        if (name.Length == 0) return;
+        map.Rooms.Add(new RoomLabel
+        {
+            Name = name, Floor = floor,
+            X = Math.Round(Math.Clamp(e.OffsetX / RoomEditorWidth * 100, 0, 100), 1),
+            Y = Math.Round(Math.Clamp(e.OffsetY / RoomEditorHeight * 100, 0, 100), 1),
+        });
+        _roomName = "";
+        await Save();
+    }
+
+    private async Task RemoveRoom(R6Map map, RoomLabel room)
+    {
+        map.Rooms.Remove(room);
+        await Save();
+    }
+
+    private async Task SetMarker(BombSite site, MouseEventArgs e)
+    {
+        site.MarkerX = Math.Round(Math.Clamp(e.OffsetX / EditorBlueprintWidth * 100, 0, 100), 1);
+        site.MarkerY = Math.Round(Math.Clamp(e.OffsetY / EditorBlueprintHeight * 100, 0, 100), 1);
+        await Save();
     }
 
     private static List<string> ParseList(object? value) =>
@@ -194,5 +309,6 @@
     {
         DataService.OnDataChanged -= OnDataChanged;
         Session.OnStateChanged -= OnSessionChanged;
+        Refresher.OnStatusChanged -= OnSessionChanged;
     }
 }

@@ -21,6 +21,7 @@ builder.Services.AddSingleton<IR6DataService, R6DataService>();
 builder.Services.AddSingleton<SessionStateService>();
 builder.Services.AddSingleton<PreGameCheckService>();
 builder.Services.AddSingleton<SettingsGuideService>();
+builder.Services.AddSingleton<R6RefreshService>();
 builder.Services.AddScoped<PlayerIdentityService>();
 builder.Services.AddHttpClient();
 
@@ -33,6 +34,15 @@ var app = builder.Build();
 var staticFileTypes = new FileExtensionContentTypeProvider();
 staticFileTypes.Mappings[".ps1"] = "text/plain";
 app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticFileTypes });
+
+// Map floor plans live in the mounted data folder (not wwwroot), so they can be refreshed without a rebuild.
+var blueprintDir = Path.Combine(AppContext.BaseDirectory, "Data", "blueprints");
+Directory.CreateDirectory(blueprintDir);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(blueprintDir),
+    RequestPath = "/blueprints"
+});
 app.UseAntiforgery();
 
 // Hit by the local pre-game PowerShell script (see /pregame page for the
@@ -78,6 +88,15 @@ app.MapGet("/api/settings-guide/{setting}", async (string setting, SettingsGuide
 {
     var explanation = await svc.ExplainAsync(Uri.UnescapeDataString(setting));
     return Results.Text(explanation, "text/plain; charset=utf-8");
+});
+
+// Same free fetch as the "Hent nyeste data" button, for scripted runs; PIN-protected so it can't be spammed.
+app.MapPost("/api/refresh-data", async (HttpContext ctx, IConfiguration config, R6RefreshService svc) =>
+{
+    var pin = config["R6:UpdatePin"];
+    if (string.IsNullOrEmpty(pin) || ctx.Request.Headers["X-Pin"] != pin) return Results.Unauthorized();
+    await svc.RefreshAsync(ctx.RequestAborted);
+    return Results.Text(svc.Status, "text/plain; charset=utf-8");
 });
 
 app.MapRazorComponents<App>()

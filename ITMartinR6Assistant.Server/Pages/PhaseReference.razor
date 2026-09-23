@@ -1,0 +1,130 @@
+@using ITMartinR6Assistant.Domain
+
+@* Reference panel shown inside every phase, so the team can read up without leaving the phase screen -
+   in the pre-phases and in-game while dead. The starting tab follows the phase; the operator list
+   follows the current map/site and side from the session. *@
+<details class="ref-panel" open="@StartOpen">
+    <summary>📖 Opslag @(Phase == MatchPhase.InGame ? "- død? læs op her" : "")</summary>
+
+    <div class="ref-tabs">
+        <button class="ref-tab @(_tab == "site" ? "ref-tab-on" : "")" @onclick='() => _tab = "site"'>Site</button>
+        <button class="ref-tab @(_tab == "ops" ? "ref-tab-on" : "")" @onclick='() => _tab = "ops"'>Operatører</button>
+        <button class="ref-tab @(_tab == "guns" ? "ref-tab-on" : "")" @onclick='() => _tab = "guns"'>Våben</button>
+    </div>
+
+    @if (_tab == "site")
+    {
+        if (CurrentMap is null)
+        {
+            <div class="muted small">Intet map valgt endnu - det sættes i map-ban-fasen.</div>
+        }
+        else if (CurrentSite is null)
+        {
+            <MapViewer Map="CurrentMap" />
+            <div class="muted small">@CurrentMap.Name - vælg et site i operator-ban-fasen. Sites:</div>
+            <ul class="opa-list">@foreach (var s in CurrentMap.Sites) { <li><b>@s.Name</b> (@s.Floor)@(s.Note.Length > 0 ? $" - {s.Note}" : "")</li> }</ul>
+        }
+        else
+        {
+            var s = CurrentSite;
+            <div class="opa-detail-head"><b>@CurrentMap.Name: @s.Name</b> <span class="muted small">@s.Floor</span></div>
+            <div class="opban-intro">
+                <MapViewer Map="CurrentMap" Site="s" />
+                <div style="flex:1 1 220px">
+                    @if (s.QuickInfo.Count > 0) { <ol class="opban-quick">@foreach (var q in s.QuickInfo) { <li>@q</li> }</ol> }
+                    @if (s.Note.Length > 0) { <div class="opa-line"><b>Tip:</b> @s.Note</div> }
+                    <div class="opa-line"><span class="opban-label">Vi spiller typisk</span> @string.Join(", ", WeAttack ? s.AttackPicks : s.DefensePicks)</div>
+                    <div class="opa-line"><span class="opban-label">De spiller typisk</span> @string.Join(", ", WeAttack ? s.DefensePicks : s.AttackPicks)</div>
+                </div>
+            </div>
+        }
+    }
+    else if (_tab == "ops")
+    {
+        <div class="opa-filter">
+            <button class="admin-side-btn @(OpsSide == "Attack" ? "side-btn-atk-active" : "")" @onclick='() => _opsSide = "Attack"'>Angribere</button>
+            <button class="admin-side-btn @(OpsSide == "Defense" ? "side-btn-def-active" : "")" @onclick='() => _opsSide = "Defense"'>Forsvarere</button>
+        </div>
+        @if (CurrentSite is { } site)
+        {
+            var here = (OpsSide == "Attack" ? site.AttackPicks : site.DefensePicks);
+            if (here.Count > 0)
+            {
+                <div class="opa-tier-row">
+                    <span class="opban-label" style="min-width:5em">På @site.Name</span>
+                    <div class="opa-chips">@foreach (var n in here) { <button class="opa-chip @(_selected == n ? "opa-chip-on" : "")" @onclick="() => Toggle(n)">@n</button> }</div>
+                </div>
+                @if (_selected is not null && here.Contains(_selected) && Data.Operators.FirstOrDefault(o => o.Name == _selected) is { } picked)
+                {
+                    <OperatorDetail Data="Data" Op="picked" />
+                }
+            }
+        }
+        @foreach (var tier in new[] { "S", "A", "B", "C" })
+        {
+            var ops = Data.Operators.Where(o => o.Side == OpsSide && o.Tier == tier).OrderBy(o => o.Name).ToList();
+            if (ops.Count == 0) continue;
+            <div class="opa-tier-row">
+                <span class="opa-tier opa-tier-@tier.ToLowerInvariant()">@tier</span>
+                <div class="opa-chips">@foreach (var o in ops) { <button class="opa-chip @(_selected == o.Name ? "opa-chip-on" : "")" @onclick="() => Toggle(o.Name)">@o.Name</button> }</div>
+            </div>
+            @if (_selected is not null && ops.FirstOrDefault(o => o.Name == _selected) is { } op && !(CurrentSite is { } cs && (OpsSide == "Attack" ? cs.AttackPicks : cs.DefensePicks).Contains(op.Name)))
+            {
+                <OperatorDetail Data="Data" Op="op" />
+            }
+        }
+    }
+    else
+    {
+        @foreach (var group in Data.Weapons.GroupBy(w => w.Type).OrderByDescending(g => g.Count()))
+        {
+            <div class="opa-tier-row">
+                <span class="opban-label" style="min-width:8em">@group.Key</span>
+                <div class="opa-chips">
+                    @foreach (var w in group.OrderBy(w => "SABC".IndexOf(w.Tier)).ThenBy(w => w.TtkMs > 0 ? w.TtkMs : int.MaxValue))
+                    {
+                        <span class="opa-chip" title="@string.Join(" ", w.Strengths.Concat(w.Weaknesses))"><span class="opa-tier opa-tier-@w.Tier.ToLowerInvariant()">@w.Tier</span> @w.Name @(w.TtkMs > 0 ? $"· {w.TtkMs} ms" : "")</span>
+                    }
+                </div>
+            </div>
+        }
+        <div class="muted small">TTK = tid til at dræbe en 3-armor. Hold musen over et våben for styrker/svagheder, eller se <a href="/vaaben">Våben</a>.</div>
+    }
+</details>
+
+@code {
+    [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
+    [Parameter] public MatchPhase Phase { get; set; }
+    [Parameter] public string? MapName { get; set; }
+    [Parameter] public string? SiteName { get; set; }
+    [Parameter] public bool WeAttack { get; set; }
+
+    private string? _tab;
+    private string? _opsSide;
+    private string? _selected;
+    private MatchPhase? _tabPhase;
+
+    private R6Map? CurrentMap => Data.Maps.FirstOrDefault(m => m.Name == MapName);
+    private BombSite? CurrentSite => CurrentMap?.Sites.FirstOrDefault(s => s.Name == SiteName);
+
+    // Open by default where there's time to read: picking operators and in-game (while dead).
+    private bool StartOpen => Phase is MatchPhase.OperatorPick or MatchPhase.InGame;
+
+    // Operator bans are about the other side; everything else about our own side.
+    private string OpsSide => _opsSide ?? (Phase == MatchPhase.OperatorBans ? (WeAttack ? "Defense" : "Attack") : (WeAttack ? "Attack" : "Defense"));
+
+    protected override void OnParametersSet()
+    {
+        if (_tabPhase == Phase) return;
+        _tabPhase = Phase;
+        _opsSide = null;
+        _tab = Phase switch
+        {
+            MatchPhase.OperatorBans or MatchPhase.OperatorPick => "ops",
+            MatchPhase.InGame => "site",
+            _ => _tab ?? "ops",
+        };
+    }
+
+    private void Toggle(string name) => _selected = _selected == name ? null : name;
+}

@@ -9,6 +9,15 @@ public class BombSite
     public List<string> AttackPicks { get; set; } = new();
     public List<string> DefensePicks { get; set; } = new();
     public List<string> SuggestedBans { get; set; } = new();
+    // Bans the statistics say are mandatory (official ban rate >= 30 %), shown first and marked.
+    public List<string> MustBans { get; set; } = new();
+    // Operator name -> why he is banned on THIS site.
+    public Dictionary<string, string> BanReasons { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    // Short numbered facts about exactly this site (entry routes, hatches, a plan, the usual defence).
+    public List<string> QuickInfo { get; set; } = new();
+    // Site position on its floor blueprint, in percent of the image (set by clicking in the editor).
+    public double? MarkerX { get; set; }
+    public double? MarkerY { get; set; }
     public List<BattlePlan> BattlePlans { get; set; } = new();
     public string Note { get; set; } = "";
 }

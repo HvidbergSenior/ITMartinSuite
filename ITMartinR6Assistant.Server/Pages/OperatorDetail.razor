@@ -1,0 +1,113 @@
+@using ITMartinR6Assistant.Domain
+@using ITMartinR6Assistant.Server.Services
+
+<div class="opa-detail">
+    <div class="opa-detail-head">
+        <b>@Op.Name</b>
+        <span class="muted small">@(Op.Side == "Attack" ? "Angriber" : "Forsvarer") · @Op.Role · @Op.Armor-armor / @Op.Speed-speed</span>
+        <span class="opa-tier opa-tier-@Op.Tier.ToLowerInvariant()">@Op.Tier</span>
+    </div>
+
+    @if (Op.Threat.Length > 0) { <div class="opa-line">@Op.Threat</div> }
+
+    <div class="opa-grid">
+        <div>
+            <div class="opban-label">Hvorfor tier @Op.Tier</div>
+            <ul class="opa-list">@foreach (var w in Op.TierWhy) { <li>@w</li> }</ul>
+
+            <div class="opban-label">Styrker</div>
+            <ul class="opa-list opa-good">@foreach (var s in Strengths) { <li>@s</li> }</ul>
+            <div class="opban-label">Svagheder</div>
+            <ul class="opa-list opa-bad">@foreach (var s in Weaknesses) { <li>@s</li> }</ul>
+        </div>
+
+        <div>
+            <div class="opban-label">Bedste loadout</div>
+            <table class="opa-table">
+                <thead><tr><th>Våben</th><th>Tier</th><th>Skade</th><th>RPM</th><th>Mag.</th><th>TTK*</th></tr></thead>
+                <tbody>
+                    @foreach (var w in Primaries)
+                    {
+                        <tr class="@(w == Primaries.FirstOrDefault() ? "opa-best" : "")">
+                            <td>@w.Name @if (w == Primaries.FirstOrDefault()) { <span class="opa-best-tag">bedst</span> }<div class="muted small">@w.Type</div></td>
+                            <td><span class="opa-tier opa-tier-@w.Tier.ToLowerInvariant()">@w.Tier</span></td>
+                            <td>@w.Damage</td><td>@(w.Rpm > 0 ? w.Rpm : "–")</td><td>@w.Magazine</td><td>@(w.TtkMs > 0 ? $"{w.TtkMs} ms" : "–")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="muted small">* Tid til at dræbe en 3-armor med skud i kroppen. Tier er inden for våbnets egen klasse.</div>
+            @if (Primaries.FirstOrDefault() is { } best && (best.Strengths.Count + best.Weaknesses.Count) > 0)
+            {
+                <div class="opa-line"><b>@best.Name:</b> @string.Join(" ", best.Strengths.Concat(best.Weaknesses))</div>
+            }
+            <div class="opa-line"><span class="opban-label">Sekundært</span> @string.Join(", ", Op.Secondaries)</div>
+            <div class="opa-line"><span class="opban-label">Gadgets</span> @string.Join(", ", Op.Gadgets)</div>
+            @if (Op.Ability.Length > 0) { <div class="opa-line"><span class="opban-label">Evne</span> @Op.Ability</div> }
+        </div>
+    </div>
+
+    <div class="opban-label">Bruges typisk på</div>
+    <div class="opa-line">@(Sites.Count > 0 ? string.Join(" · ", Sites) : "Ikke et typisk pick på nogen ranked site lige nu.")</div>
+
+    <div class="opban-label">Gode makkere</div>
+    @if (Partners.Count == 0)
+    {
+        <div class="opa-line muted">Ingen data endnu - makkere findes ud fra hvem der er typiske picks på de samme sites.</div>
+    }
+    else
+    {
+        <ul class="opa-list">
+            @foreach (var (name, n) in Partners)
+            {
+                var partner = Data.Operators.FirstOrDefault(o => o.Name == name);
+                <li><b>@name</b> - spilles sammen med @Op.Name på @n sites.@(partner?.Threat is { Length: > 0 } t ? $" {t}" : "")</li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
+    [Parameter, EditorRequired] public R6Operator Op { get; set; } = default!;
+
+    private static readonly Dictionary<string, int> TierPoints = new() { ["S"] = 3, ["A"] = 2, ["B"] = 1, ["C"] = 0 };
+
+    // Primaries with stats, best first (tier, then time to kill).
+    private List<R6Weapon> Primaries => Op.Primaries
+        .Select(p => Data.Weapons.FirstOrDefault(w => w.Name.Equals(p, StringComparison.OrdinalIgnoreCase)))
+        .Where(w => w is not null).Select(w => w!)
+        .OrderByDescending(w => TierPoints.GetValueOrDefault(w.Tier)).ThenBy(w => w.TtkMs > 0 ? w.TtkMs : int.MaxValue).ToList();
+
+    private List<string> Sites => Data.Maps.Where(m => m.IsRanked)
+        .SelectMany(m => m.Sites.Where(s => (Op.Side == "Attack" ? s.AttackPicks : s.DefensePicks).Contains(Op.Name, StringComparer.OrdinalIgnoreCase))
+            .Select(s => $"{m.Name}: {s.Name} ({s.Floor})")).ToList();
+
+    private List<(string, int)> Partners => R6RefreshService.Partners(Data, Op);
+
+    private int Ban => Data.BanRates.TryGetValue(Op.Name, out var r) ? r : 0;
+
+    private IEnumerable<string> Strengths
+    {
+        get
+        {
+            if (Op.Speed == 3) yield return "3-speed: hurtig at komme rundt - god til at roame eller gå først ind.";
+            if (Op.Armor == 3) yield return "3-armor: tåler flest skud - god til at holde en position.";
+            if (Ban >= 30) yield return $"Så stærk, at modstanderne banner {Op.Name} i {Ban} % af kampene.";
+            if (Primaries.FirstOrDefault() is { Tier: "S" or "A" } w) yield return $"Stærkt våben: {w.Name} er tier {w.Tier} blandt {w.Type.ToLowerInvariant()}s.";
+            if (Sites.Count >= 5) yield return $"Fleksibel: typisk pick på {Sites.Count} ranked sites.";
+        }
+    }
+
+    private IEnumerable<string> Weaknesses
+    {
+        get
+        {
+            if (Op.Armor == 1) yield return "1-armor: dør hurtigt - undgå lange skudkampe.";
+            if (Op.Speed == 1) yield return "1-speed: langsom - svær at rotere med, når planen ændrer sig.";
+            if (Primaries.Count > 0 && Primaries.All(w => w.Tier is "C")) yield return "Svage våben: alle primære våben er tier C i deres klasse.";
+            if (Ban >= 30) yield return $"Bliver tit bannet - hav en plan uden {Op.Name}.";
+            if (Sites.Count == 0) yield return "Bruges sjældent på de nuværende ranked sites.";
+        }
+    }
+}

@@ -189,23 +189,58 @@
                         var bans = site.SuggestedBans.Where(b => opsOfSide.Count == 0 || opsOfSide.Contains(b)).ToList();
                         var theirPicks = weAttack ? site.DefensePicks : site.AttackPicks;
                         var ourPicks = weAttack ? site.AttackPicks : site.DefensePicks;
-                        <div class="opban-site @(active ? "opban-site-active" : "")" @onclick="() => Session.SetSite(site.Name)">
-                            <div class="opban-site-head">
+                        var isOpen = _openSites.Contains(opMap.Name + "|" + site.Name);
+                        <div class="opban-site @(active ? "opban-site-active" : "") @(isOpen ? "opban-site-open" : "")">
+                            <div class="opban-site-head" @onclick="() => ToggleSite(opMap.Name, site.Name)">
+                                <span class="opban-caret">@(isOpen ? "▾" : "▸")</span>
                                 <b>@site.Name</b> <span class="muted small">@site.Floor</span>
                                 <span class="opban-stat">@(site.AttackWinRate > 0 ? $"ATK win {site.AttackWinRate} %" : "")</span>
+                                @if (!isOpen && site.MustBans.Any(b => bans.Contains(b))) { <span class="opban-must-name small">SKAL: @string.Join(", ", site.MustBans.Where(b => bans.Contains(b)))</span> }
                             </div>
-                            <div class="opban-stat-row">
-                                @if (st.Played > 0)
+                            @if (isOpen)
+                            {
+                                @if (!string.IsNullOrEmpty(opMap.BlueprintSlug) || site.QuickInfo.Count > 0)
                                 {
-                                    <span>Vi: @st.Won&ndash;@(st.Played - st.Won) (<b class="@Cls(st.WinPct)">@st.WinPct %</b>)</span>
-                                    <span>ATK-runder <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> (@st.AtkWon&ndash;@st.AtkLost)</span>
-                                    <span>DEF-runder <b class="@Cls(st.DefPct)">@st.DefPct %</b> (@st.DefWon&ndash;@st.DefLost)</span>
+                                    <div class="opban-intro">
+                                        <MapViewer Map="opMap" Site="site" />
+                                        @if (site.QuickInfo.Count > 0)
+                                        {
+                                            <ol class="opban-quick">
+                                                @foreach (var q in site.QuickInfo) { <li>@q</li> }
+                                            </ol>
+                                        }
+                                    </div>
                                 }
-                                else { <span class="muted">Vi har ikke spillet dette site endnu</span> }
-                            </div>
-                            <div class="opban-line"><span class="opban-label">Ban:</span> @(bans.Count > 0 ? string.Join(", ", bans) : "–")</div>
-                            <div class="opban-line"><span class="opban-label">De spiller typisk:</span> @(theirPicks.Count > 0 ? string.Join(", ", theirPicks) : "–")</div>
-                            <div class="opban-line"><span class="opban-label">Vi spiller typisk:</span> @(ourPicks.Count > 0 ? string.Join(", ", ourPicks) : "–")</div>
+                                <div class="opban-stat-row">
+                                    @if (st.Played > 0)
+                                    {
+                                        <span>Vi: @st.Won&ndash;@(st.Played - st.Won) (<b class="@Cls(st.WinPct)">@st.WinPct %</b>)</span>
+                                        <span>ATK-runder <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> (@st.AtkWon&ndash;@st.AtkLost)</span>
+                                        <span>DEF-runder <b class="@Cls(st.DefPct)">@st.DefPct %</b> (@st.DefWon&ndash;@st.DefLost)</span>
+                                    }
+                                    else { <span class="muted">Vi har ikke spillet dette site endnu</span> }
+                                </div>
+                                @if (bans.Count == 0)
+                                {
+                                    <div class="opban-line"><span class="opban-label">Ban:</span> –</div>
+                                }
+                                else
+                                {
+                                    <div class="opban-line"><span class="opban-label">Ban i denne rækkefølge</span></div>
+                                    <ol class="opban-list">
+                                        @foreach (var b in bans)
+                                        {
+                                            var must = site.MustBans.Contains(b, StringComparer.OrdinalIgnoreCase);
+                                            <li class="@(must ? "opban-must" : "")">
+                                                <b>@b</b>@if (must) { <span class="opban-must-tag">SKAL bannes</span> }
+                                                @if (site.BanReasons.TryGetValue(b, out var why)) { <div class="opban-why">@why</div> }
+                                            </li>
+                                        }
+                                    </ol>
+                                }
+                                <div class="opban-line"><span class="opban-label">De spiller typisk:</span> @(theirPicks.Count > 0 ? string.Join(", ", theirPicks) : "–")</div>
+                                <div class="opban-line"><span class="opban-label">Vi spiller typisk:</span> @(ourPicks.Count > 0 ? string.Join(", ", ourPicks) : "–")</div>
+                            }
                         </div>
                     }
                 </div>
@@ -311,6 +346,10 @@
         }
     </div>
 
+    @if (_gameData is not null)
+    {
+        <PhaseReference Data="_gameData" Phase="Session.Phase" MapName="@Session.Map" SiteName="@Session.Site" WeAttack='Session.Side == "Attack"' />
+    }
 </div>
 
 @code {
@@ -480,6 +519,18 @@
     }
 
     private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private readonly HashSet<string> _openSites = new();
+
+    private void ToggleSite(string map, string site)
+    {
+        var key = map + "|" + site;
+        if (!_openSites.Remove(key))
+        {
+            _openSites.Add(key);
+            Session.SetSite(site);
+        }
+    }
 
     private void ToggleBanners() => Session.SetShowBanners(!Session.ShowBanners);
 

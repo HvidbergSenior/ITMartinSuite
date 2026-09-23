@@ -1,0 +1,205 @@
+@using ITMartinR6Assistant.Domain
+@inject IJSRuntime JS
+@inject IR6DataService DataService
+@implements IDisposable
+
+@* Thumbnail of a map floor that opens a full-screen viewer: floor tabs, zoom/pan (wheel, pinch, +/-),
+   every site on the floor marked (the current one highlighted) and a tap-to-ping "you are here" dot,
+   so a player can see where they are compared with the bombsite. Zoom/pan/ping run in mapviewer.js. *@
+@if (string.IsNullOrEmpty(Map.BlueprintSlug))
+{
+    <div class="muted small">Intet kort til @Map.Name@(Map.Name == "Fortress" ? " (Ubisofts kort er fra før reworket i dec. 2025)" : "").</div>
+}
+else
+{
+    var thumbFloor = Site?.Floor ?? Floors.FirstOrDefault() ?? "1F";
+    <button class="mv-thumb" @onclick="() => Open(thumbFloor)" title="Åbn kortet - zoom og find dig selv">
+        <img src="@Src(thumbFloor)" alt="@Map.Name @thumbFloor" loading="lazy" />
+        @foreach (var s in Map.Sites.Where(s => s.Floor == thumbFloor && s.MarkerX.HasValue))
+        {
+            <span class="mv-site @(s.Name == Site?.Name ? "mv-site-on" : "")" style="@Pos(s)"></span>
+        }
+        <span class="opban-bp-cap">@thumbFloor &middot; tryk for at zoome</span>
+    </button>
+
+    @if (_open)
+    {
+        <div class="mv-overlay" @onclick:stopPropagation="true">
+            <div class="mv-bar">
+                <b>@Map.Name</b>
+                @foreach (var f in Floors)
+                {
+                    <button class="ref-tab @(f == _floor ? "ref-tab-on" : "")" @onclick="() => SetFloor(f)">@f@(Map.Sites.Any(s => s.Floor == f) ? " •" : "")</button>
+                }
+                <span style="flex:1"></span>
+                @if (Map.Rooms.Count > 0)
+                {
+                    <input class="mv-search" placeholder="Find rum ..." @bind="_find" @bind:event="oninput" />
+                    <button class="ref-tab @(_showRooms ? "ref-tab-on" : "")" @onclick="() => _showRooms = !_showRooms">Rum</button>
+                }
+                <button class="ref-tab @(_naming ? "ref-tab-on" : "")" @onclick="ToggleNaming" title="Tryk på et rum på kortet og skriv navnet">✎ Skriv rum</button>
+                <button class="ref-tab" @onclick="() => Zoom(1.4)">+</button>
+                <button class="ref-tab" @onclick="() => Zoom(1 / 1.4)">−</button>
+                <button class="ref-tab" @onclick="Reset">⟲</button>
+                <button class="ref-tab" @onclick="Close">✕ Luk</button>
+            </div>
+            @if (_naming)
+            {
+                <div class="mv-bar mv-namebar">
+                    @if (_pending is null)
+                    {
+                        <span>Tryk på et rum på kortet (@_floor) for at skrive navnet - eller på et navn for at rette/slette det.</span>
+                    }
+                    else
+                    {
+                        <input class="mv-search" @ref="_nameInput" placeholder="Rummets navn, fx Bar" @bind="_roomName" @bind:event="oninput" @onkeydown="NameKey" />
+                        <button class="ref-tab ref-tab-on" @onclick="SaveRoom" disabled="@(string.IsNullOrWhiteSpace(_roomName))">Gem</button>
+                        @if (_editing is not null) { <button class="ref-tab" @onclick="DeleteRoom">Slet</button> }
+                        <button class="ref-tab" @onclick="CancelRoom">Annuller</button>
+                    }
+                    @if (_saved is not null) { <span>Gemt: @_saved</span> }
+                </div>
+            }
+            <div class="mv-viewport" @ref="_viewport">
+                <div class="mv-stage"><div class="mv-img">
+                    <img src="@Src(_floor)" alt="@Map.Name @_floor" draggable="false" />
+                    @foreach (var s in Map.Sites.Where(s => s.Floor == _floor && s.MarkerX.HasValue))
+                    {
+                        <span class="mv-site @(s.Name == Site?.Name ? "mv-site-on" : "")" style="@Pos(s)"><span class="mv-label">@s.Name</span></span>
+                    }
+                    @if (_showRooms)
+                    {
+                        @foreach (var r in Map.Rooms.Where(r => r.Floor == _floor))
+                        {
+                            <span class="mv-room @(IsFound(r) ? "mv-room-found" : "") @(r == _editing ? "mv-room-edit" : "")" style="@RoomPos(r)">@r.Name</span>
+                        }
+                    }
+                    <span class="mv-ping" style="display:none"><span class="mv-label">Her er jeg</span></span>
+                </div></div>
+            </div>
+            <div class="mv-help muted small">
+                Scroll/knib for at zoome, træk for at flytte, tryk for at sætte "her er jeg", dobbeltklik for at nulstille.
+                @if (FoundElsewhere is { Count: > 0 } other) { <b>"@_find" ligger på: @string.Join(", ", other). </b> }
+                Røde ringe = bombsites på denne etage@(Site is not null ? $" (fyldt = {Site.Name})" : ""). Bogstaver på kortet = spawns, gul/sort tern = luger.
+                @if (!Map.Sites.Any(s => s.MarkerX.HasValue)) { <span>Ingen site-markører sat endnu - de sættes under Rediger.</span> }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public R6Map Map { get; set; } = default!;
+    [Parameter] public BombSite? Site { get; set; }
+
+    private static readonly string[] FloorOrder = { "B", "1F", "2F", "3F", "Tag" };
+    private bool _open;
+    private bool _needsInit;
+    private string _floor = "1F";
+    private ElementReference _viewport;
+    private bool _showRooms = true;
+    private string _find = "";
+
+    private bool IsFound(RoomLabel r) => _find.Length >= 2 && r.Name.Contains(_find, StringComparison.OrdinalIgnoreCase);
+    // Search hits on other floors, so "Find rum" also tells you which floor to switch to.
+    private List<string>? FoundElsewhere => _find.Length < 2 ? null
+        : Map.Rooms.Where(r => r.Floor != _floor && IsFound(r)).Select(r => r.Floor).Distinct().ToList();
+    private static string RoomPos(RoomLabel r) => FormattableString.Invariant($"left:{r.X}%;top:{r.Y}%");
+
+    // Floors that exist for this map: every floor a site is on, plus the roof, in building order.
+    private IEnumerable<string> Floors => FloorOrder.Where(f => f == "Tag" || f == "1F" || f == "2F" || Map.Sites.Any(s => s.Floor == f));
+
+    private string Src(string floor) => $"/blueprints/{Map.BlueprintSlug}/{floor}.jpg";
+
+    private static string Pos(BombSite s) => FormattableString.Invariant($"left:{s.MarkerX}%;top:{s.MarkerY}%");
+
+    private void Open(string floor) { _floor = floor; _open = true; _needsInit = true; }
+
+    private void SetFloor(string floor) { _floor = floor; _needsInit = true; CancelRoom(); }
+
+    private void Close() { _open = false; _naming = false; CancelRoom(); }
+
+    // "Skriv rum": a tap on the map (instead of the ping) picks the spot; the name is typed in the bar and saved
+    // straight into the shared game data, so everyone sees it. A tap near an existing name selects it for rename/delete.
+    private bool _naming;
+    private (double X, double Y)? _pending;
+    private RoomLabel? _editing;
+    private string _roomName = "";
+    private string? _saved;
+    private bool _focusName;
+    private ElementReference _nameInput;
+    private DotNetObjectReference<MapViewer>? _self;
+
+    private async Task ToggleNaming()
+    {
+        _naming = !_naming;
+        _showRooms = true;
+        CancelRoom();
+        _self ??= DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("mapViewer.setNaming", _viewport, _naming ? _self : null);
+    }
+
+    [JSInvokable]
+    public Task RoomTap(double x, double y)
+    {
+        _saved = null;
+        _editing = Map.Rooms.Where(r => r.Floor == _floor && Math.Abs(r.X - x) < 3 && Math.Abs(r.Y - y) < 2.5)
+            .OrderBy(r => Math.Pow(r.X - x, 2) + Math.Pow(r.Y - y, 2))
+            .FirstOrDefault();
+        _pending = _editing is null ? (Math.Round(x, 1), Math.Round(y, 1)) : (_editing.X, _editing.Y);
+        _roomName = _editing?.Name ?? "";
+        _focusName = true;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task NameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SaveRoom();
+        else if (e.Key == "Escape") CancelRoom();
+    }
+
+    private async Task SaveRoom()
+    {
+        var name = _roomName.Trim();
+        if (name.Length == 0 || _pending is not { } p) return;
+        var rooms = await SharedRooms();
+        if (_editing is not null) _editing.Name = name;
+        else rooms.Add(new RoomLabel { Name = name, Floor = _floor, X = p.X, Y = p.Y });
+        await DataService.SaveAsync(await DataService.GetData());
+        _saved = name;
+        CancelRoom();
+    }
+
+    private async Task DeleteRoom()
+    {
+        if (_editing is null) return;
+        (await SharedRooms()).Remove(_editing);
+        await DataService.SaveAsync(await DataService.GetData());
+        _saved = null;
+        CancelRoom();
+    }
+
+    private void CancelRoom() { _pending = null; _editing = null; _roomName = ""; }
+
+    // The map passed in is normally the cached instance; if not, point it at the cached room list so the save sticks.
+    private async Task<List<RoomLabel>> SharedRooms()
+    {
+        var shared = (await DataService.GetData()).Maps.FirstOrDefault(m => m.Name == Map.Name);
+        if (shared is not null && !ReferenceEquals(shared.Rooms, Map.Rooms)) Map.Rooms = shared.Rooms;
+        return Map.Rooms;
+    }
+
+    public void Dispose() => _self?.Dispose();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusName && _pending is not null) { _focusName = false; await _nameInput.FocusAsync(); }
+        if (!_needsInit || !_open) return;
+        _needsInit = false;
+        await JS.InvokeVoidAsync("mapViewer.init", _viewport);
+        await JS.InvokeVoidAsync("mapViewer.reset", _viewport);
+        if (_naming) await JS.InvokeVoidAsync("mapViewer.setNaming", _viewport, _self);
+    }
+
+    private async Task Zoom(double factor) => await JS.InvokeVoidAsync("mapViewer.zoom", _viewport, factor);
+    private async Task Reset() => await JS.InvokeVoidAsync("mapViewer.reset", _viewport);
+}

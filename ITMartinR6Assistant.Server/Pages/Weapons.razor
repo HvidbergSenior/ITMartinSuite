@@ -1,0 +1,65 @@
+@page "/vaaben"
+@layout R6AssistantLayout
+@inject IR6DataService DataService
+@implements IDisposable
+@using ITMartinR6Assistant.Domain
+
+@* Weapon tiers per class, computed from the wiki's Siege stats (time to kill, DPS, damage). *@
+<div class="maps-page">
+    <h1 style="margin:0 0 4px">🔫 Våben</h1>
+    <div class="maps-sub">
+        Tier inden for hver våbenklasse, beregnet ud fra tid-til-dræb mod en 3-armor (125 HP, skud i kroppen), skade pr. sekund og skade pr. skud. Hagl-geværer er rangeret groft efter skade, da deres skade afhænger af afstand og hagl.
+        <a href="/operatorer">← Operatører</a>
+    </div>
+
+    @if (_data is null)
+    {
+        <div class="sg-loading"><span class="sg-spinner"></span> Henter...</div>
+    }
+    else if (_data.Weapons.Count == 0)
+    {
+        <div class="maps-empty">Ingen våben-stats endnu - tryk "Hent nyeste data" under <a href="/rediger">Rediger</a>.</div>
+    }
+    else
+    {
+        @foreach (var group in _data.Weapons.GroupBy(w => w.Type).OrderByDescending(g => g.Count()))
+        {
+            <div class="maps-section">@group.Key (@group.Count())</div>
+            <table class="opa-table opa-weapons">
+                <thead><tr><th>Tier</th><th>Våben</th><th>Skade</th><th>RPM</th><th>TTK</th><th>Mag.</th><th>Genlad</th><th>Hvem</th><th>Styrker / svagheder</th></tr></thead>
+                <tbody>
+                    @foreach (var w in group.OrderBy(w => "SABC".IndexOf(w.Tier)).ThenBy(w => w.TtkMs > 0 ? w.TtkMs : int.MaxValue))
+                    {
+                        <tr>
+                            <td><span class="opa-tier opa-tier-@w.Tier.ToLowerInvariant()">@w.Tier</span></td>
+                            <td><b>@w.Name</b></td>
+                            <td>@w.Damage</td>
+                            <td>@(w.Rpm > 0 ? w.Rpm : "–")</td>
+                            <td>@(w.TtkMs > 0 ? $"{w.TtkMs} ms" : "–")</td>
+                            <td>@w.Magazine</td>
+                            <td>@(w.ReloadTactical > 0 ? $"{w.ReloadTactical:0.0} s" : "–")</td>
+                            <td class="small">@string.Join(", ", w.Users)</td>
+                            <td class="small">
+                                @foreach (var s in w.Strengths) { <div class="opa-good">+ @s</div> }
+                                @foreach (var s in w.Weaknesses) { <div class="opa-bad">− @s</div> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+</div>
+
+@code {
+    private R6GameData? _data;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _data = await DataService.GetData();
+        DataService.OnDataChanged += OnDataChanged;
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () => { _data = await DataService.GetData(); StateHasChanged(); });
+    public void Dispose() => DataService.OnDataChanged -= OnDataChanged;
+}

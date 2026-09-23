@@ -1,0 +1,72 @@
+@page "/operatorer"
+@layout R6AssistantLayout
+@inject IR6DataService DataService
+@implements IDisposable
+@using ITMartinR6Assistant.Domain
+@using ITMartinR6Assistant.Server.Services
+
+@* Operator analysis built only from numbers (wiki loadouts + weapon stats, official ban rates, and
+   which sites list the operator as a typical pick). Nothing here is AI-written. *@
+<div class="maps-page">
+    <h1 style="margin:0 0 4px">👤 Operatører</h1>
+    <div class="maps-sub">
+        Tier, bedste loadout, styrker/svagheder, hvor de bruges og gode makkere - beregnet ud fra tallene (våben-stats, Ubisofts ban-rater og hvilke sites de er typiske picks på).
+        @if (_data?.UpdatedAtUtc is { } upd) { <span>Data hentet @upd.ToLocalTime().ToString("d. MMM yyyy").</span> }
+        <a href="/vaaben">Se våben-tiers →</a>
+    </div>
+
+    @if (_data is null)
+    {
+        <div class="sg-loading"><span class="sg-spinner"></span> Henter...</div>
+    }
+    else if (_data.Operators.All(o => o.Primaries.Count == 0))
+    {
+        <div class="maps-empty">Ingen loadouts endnu - tryk "Hent nyeste data" under <a href="/rediger">Rediger</a>.</div>
+    }
+    else
+    {
+        <div class="opa-filter">
+            <button class="admin-side-btn @(_side == "Attack" ? "side-btn-atk-active" : "")" @onclick='() => _side = "Attack"'>Angribere</button>
+            <button class="admin-side-btn @(_side == "Defense" ? "side-btn-def-active" : "")" @onclick='() => _side = "Defense"'>Forsvarere</button>
+        </div>
+
+        @foreach (var tier in new[] { "S", "A", "B", "C" })
+        {
+            var ops = _data.Operators.Where(o => o.Side == _side && o.Tier == tier).OrderBy(o => o.Name).ToList();
+            if (ops.Count == 0) continue;
+            <div class="opa-tier-row">
+                <span class="opa-tier opa-tier-@tier.ToLowerInvariant()">@tier</span>
+                <div class="opa-chips">
+                    @foreach (var o in ops)
+                    {
+                        <button class="opa-chip @(_selected == o.Name ? "opa-chip-on" : "")" @onclick="() => Toggle(o.Name)">@o.Name</button>
+                    }
+                </div>
+            </div>
+            @if (_selected is not null && ops.FirstOrDefault(o => o.Name == _selected) is { } op)
+            {
+                <OperatorDetail Data="_data" Op="op" />
+            }
+        }
+        <div class="maps-sub" style="margin-top:14px">
+            Sådan beregnes tier: ban-rate (Ubisoft, Plat+), det bedste primære våbens tier i sin klasse og hvor mange ranked sites operatøren er et typisk pick på. Ubisoft offentliggør kun pick- og win-rate for alle operatører som et billede, så de tal er ikke med.
+        </div>
+    }
+</div>
+
+@code {
+    private R6GameData? _data;
+    private string _side = "Attack";
+    private string? _selected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _data = await DataService.GetData();
+        DataService.OnDataChanged += OnDataChanged;
+    }
+
+    private void Toggle(string name) => _selected = _selected == name ? null : name;
+
+    private void OnDataChanged() => InvokeAsync(async () => { _data = await DataService.GetData(); StateHasChanged(); });
+    public void Dispose() => DataService.OnDataChanged -= OnDataChanged;
+}
