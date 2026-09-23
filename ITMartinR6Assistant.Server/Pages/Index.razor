@@ -12,6 +12,9 @@
 
 <div class="phase-page">
 
+    @* General info is for before the match; from map-ban on only what the phase needs is shown. *@
+    @if (Session.Phase == MatchPhase.Lobby)
+    {
     <div style="max-width:520px;margin:0 auto 18px">
         <button class="banner-toggle-btn" @onclick="ToggleBanners">@(Session.ShowBanners ? "ℹ️ Skjul info (for alle)" : "ℹ️ Vis info (for alle)")</button>
 
@@ -26,6 +29,7 @@
             "Følg den nedtællende (eller forløbne) tid for den aktuelle fase."
         })' />
     </div>
+    }
 
     <div class="phase-badge phase-@Session.Phase.ToString().ToLower()">@PhaseLabel(Session.Phase)</div>
 
@@ -327,6 +331,8 @@
     @* Quick settings explainer, available in every phase - not the full
        /indstillinger page, just a
        fast condensed check without leaving this screen. *@
+    @if (Session.Phase == MatchPhase.Lobby)
+    {
     <Fold Key="settings" Title="⚙ Sieges indstillinger forklaret" Class="quick-check">
         <div class="quick-check-tabs">
             <button class="quick-tab-btn @(_quickTab == "settings" ? "quick-tab-active" : "")" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
@@ -368,6 +374,7 @@
             </div>
         }
     </Fold>
+    }
 
 
 </div>
