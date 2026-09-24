@@ -86,16 +86,35 @@
         <div class="dev-edit">
             <div class="row2">
                 <div class="field" style="flex:0 0 3rem"><label>Ikon</label><input type="text" @bind="d.Icon" /></div>
-                <div class="field" style="flex:3"><label>Navn <span class="muted">(≈ @d.KwhPerYear.ToString("0") kWh/år)</span></label><input type="text" @bind="d.Name" /></div>
+                <div class="field" style="flex:3"><label>Navn</label><input type="text" @bind="d.Name" placeholder="fx Køleskab" /></div>
                 <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern" @onclick="() => _devices.Remove(d)">✕</button></div>
             </div>
             <div class="row2">
-                <div class="field"><label>Watt</label><input type="number" step="1" min="0" max="20000" @bind="d.Watts" /></div>
-                <div class="field"><label>Timer/dag</label><input type="number" step="0.5" min="0" max="24" @bind="d.HoursPerDay" /></div>
-                <div class="field"><label>Dage/uge</label><input type="number" step="1" min="1" max="7" @bind="d.DaysPerWeek" /></div>
-                <div class="field"><label>Fra kl.</label><input type="number" min="0" max="23" placeholder="–" @bind="d.UsualFromHour" disabled="@(d.HoursPerDay >= 24)" /></div>
+                <div class="field" style="flex:3"><label>Modelnummer</label><input type="text" @bind="d.Model" placeholder="fx Samsung RB38" /></div>
+                <div class="field" style="flex:0"><label>&nbsp;</label>
+                    <button class="btn btn-primary" disabled="@(_looking == d.Id || string.IsNullOrWhiteSpace(d.Model))" @onclick="() => LookupDeviceAsync(d)">@(_looking == d.Id ? "Søger…" : "🔍 Find forbrug")</button>
+                </div>
             </div>
-            <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" @bind="d.Shiftable" disabled="@(d.HoursPerDay >= 24)" /> Flytbar – kan køre på et andet tidspunkt</label>
+            @if (_lookupMsg.TryGetValue(d.Id, out var dmsg))
+            {
+                <div class="small @(dmsg.Ok ? "muted" : "err")" style="margin:4px 0">@dmsg.Text
+                    @foreach (var src in dmsg.Sources) { <br /><a href="@src" target="_blank" rel="noopener">@Host(src)</a> }
+                </div>
+            }
+            <div class="row2">
+                <div class="field"><label>kWh/år</label><input type="number" step="1" min="0" max="100000" value="@d.KwhPerYear.ToString("0", System.Globalization.CultureInfo.InvariantCulture)" @onchange="e => SetKwhPerYear(d, e.Value)" /></div>
+            </div>
+            <div class="muted small" style="margin-top:4px">≈ @d.Watts.ToString("0.#") W @(d.HoursPerDay >= 24 ? "hele døgnet" : $"i {d.HoursPerDay:0.#} timer om dagen{(d.UsualFromHour is int h ? $" fra kl. {h}" : "")}").</div>
+            <details class="small" style="margin-top:4px">
+                <summary>Ret watt og tider</summary>
+                <div class="row2">
+                    <div class="field"><label>Watt</label><input type="number" step="1" min="0" max="20000" @bind="d.Watts" /></div>
+                    <div class="field"><label>Timer/dag</label><input type="number" step="0.5" min="0" max="24" @bind="d.HoursPerDay" /></div>
+                    <div class="field"><label>Dage/uge</label><input type="number" step="1" min="1" max="7" @bind="d.DaysPerWeek" /></div>
+                    <div class="field"><label>Fra kl.</label><input type="number" min="0" max="23" placeholder="–" @bind="d.UsualFromHour" disabled="@(d.HoursPerDay >= 24)" /></div>
+                </div>
+                <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" @bind="d.Shiftable" disabled="@(d.HoursPerDay >= 24)" /> Flytbar – kan køre på et andet tidspunkt</label>
+            </details>
         </div>
     }
     <div class="btn-row">
@@ -226,7 +245,7 @@
             .Select(a => a.Clone())
             .ToList();
         _devices = d.Devices.OrderBy(x => x.SortOrder)
-            .Select(x => new Device { Id = x.Id, Name = x.Name, Icon = x.Icon, CatalogId = x.CatalogId, Watts = x.Watts, HoursPerDay = x.HoursPerDay, DaysPerWeek = x.DaysPerWeek, UsualFromHour = x.UsualFromHour, Shiftable = x.Shiftable, SortOrder = x.SortOrder })
+            .Select(x => new Device { Id = x.Id, Name = x.Name, Icon = x.Icon, Model = x.Model, CatalogId = x.CatalogId, Watts = x.Watts, HoursPerDay = x.HoursPerDay, DaysPerWeek = x.DaysPerWeek, UsualFromHour = x.UsualFromHour, Shiftable = x.Shiftable, SortOrder = x.SortOrder })
             .ToList();
     }
 
@@ -284,6 +303,34 @@
         }
         catch (Exception ex) { _lookupMsg[a.Id] = (false, ex.Message, []); }
         finally { _looking = null; }
+    }
+
+    private async Task LookupDeviceAsync(Device d)
+    {
+        _looking = d.Id;
+        _lookupMsg.Remove(d.Id);
+        try
+        {
+            var r = await Lookup.LookupDeviceAsync(d.Model);
+            if (string.IsNullOrWhiteSpace(d.Name)) d.Name = r.Name;
+            if (string.IsNullOrWhiteSpace(d.Icon) || d.Icon == "🔌") d.Icon = r.Icon;
+            d.Model = r.Model;
+            d.Watts = r.Watts;
+            d.HoursPerDay = r.HoursPerDay;
+            d.UsualFromHour = r.UsualFromHour;
+            _lookupMsg[d.Id] = (true, "Fundet af AI – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
+        }
+        catch (Exception ex) { _lookupMsg[d.Id] = (false, ex.Message, []); }
+        finally { _looking = null; }
+    }
+
+    // kWh/år is what the energy label says; watts follow from the hours it is on.
+    private static void SetKwhPerYear(Device d, object? value)
+    {
+        if (!double.TryParse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)?.Replace(',', '.'),
+                System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var kwh) || kwh < 0) return;
+        var hoursPerYear = Math.Clamp(d.HoursPerDay, 0.25, 24) * Math.Clamp(d.DaysPerWeek, 1, 7) / 7.0 * 365;
+        d.Watts = Math.Round(kwh * 1000 / hoursPerYear, 1);
     }
 
     private static string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : url;

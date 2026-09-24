@@ -109,6 +109,8 @@ public sealed class Device
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string Icon { get; set; } = "🔌";
+    // Model number from the energy label, e.g. "Samsung RB38" - used by the AI lookup.
+    public string Model { get; set; } = "";
     public string CatalogId { get; set; } = "";
     // Average draw while it is on, in watts (a 150 kWh/yr fridge is ~17 W).
     public double Watts { get; set; }
