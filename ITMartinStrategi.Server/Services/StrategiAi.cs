@@ -28,6 +28,10 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
         "Ingen indledning og ingen afrunding. Format: '## ' for mellemoverskrifter, '- ' for punkter, " +
         "'**fed**' for det vigtigste. Højst ca. 350 ord.";
 
+    // Paid Claude API calls are off unless Strategi:AiEnabled=true - Martin does
+    // not want the app to cost money; guides are written in Claude Code instead.
+    public bool Enabled { get; } = config.GetValue("Strategi:AiEnabled", false);
+
     public int Used { get { lock (_lock) { Roll(); return _used; } } }
     public int Max => _maxPerDay;
 
@@ -120,6 +124,7 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
 
     private void Take()
     {
+        if (!Enabled) throw new InvalidOperationException("AI er slået fra i appen.");
         lock (_lock)
         {
             Roll();

@@ -85,6 +85,7 @@ else
     [Parameter] public int Id { get; set; }
     [Parameter] public string? Slug { get; set; }
     [Parameter] public string? NewSection { get; set; }
+    [SupplyParameterFromQuery(Name = "emne")] public string? Emne { get; set; }
 
     private static readonly System.Globalization.CultureInfo Da = new("da-DK");
     private Game? _game;
@@ -107,7 +108,11 @@ else
         {
             _game = await db.Games.AsNoTracking().FirstOrDefaultAsync(g => g.Slug == Slug);
             var section = Sections.All.Contains(NewSection) ? NewSection! : Sections.Mine;
-            _guide = _game is null ? null : new Guide { GameId = _game.Id, Section = section, Source = "Martin", Checked = true };
+            _guide = _game is null ? null : new Guide
+            {
+                GameId = _game.Id, Section = section, Source = "Martin", Checked = true,
+                Title = Emne ?? "", Trigger = section == Sections.Valg ? Emne ?? "" : "",
+            };
             _editing = true;
         }
         _originalBody = _guide?.Body ?? "";

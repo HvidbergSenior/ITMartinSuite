@@ -16,6 +16,12 @@ public static class Seed
             {
                 Slug = "galciv4", Name = "Galactic Civilizations IV", Platform = "PC", Icon = "🪐", SortOrder = 0,
                 Version = "Supernova med Federations & Empires (v4.x)",
+                Links = Lines(
+                    "Stardock: udvikler-journaler og nyheder|https://www.galciv4.com/news",
+                    "Dev journal: Oligarkiet|https://www.galciv4.com/article/541655/galciv-iv-dev-journal-118-oligarchies-in-federations-empires",
+                    "Federations & Empires: regeringsformerne|https://www.galciv4.com/article/541465/galactic-civilizations-iv-federations-empires-brings-distinct-government-fo",
+                    "Steam-guides fra spillere|https://steamcommunity.com/app/1357210/guides/",
+                    "Reddit r/GalCiv|https://www.reddit.com/r/GalCiv/"),
                 Topics = Lines(
                     "mekanik|Kerneverdener, kolonier og kontrol",
                     "mekanik|Administratorer og ledere",
@@ -36,6 +42,10 @@ public static class Seed
             {
                 Slug = "dune-imperium", Name = "Dune: Imperium", Platform = "Digitalt brætspil", Icon = "🏜️", SortOrder = 1,
                 Version = "Digital udgave med Rise of Ix og Immortality",
+                Links = Lines(
+                    "BoardGameGeek: cymerdowns store strategiguide|https://boardgamegeek.com/thread/2623493/cymerdowns-comprehensive-dune-imperium-strategy-gu",
+                    "BoardGameGeek: strategi-forum|https://boardgamegeek.com/boardgame/316554/dune-imperium/forums/66",
+                    "Steam-guides fra spillere|https://steamcommunity.com/app/1480560/guides/"),
                 Topics = Lines(
                     "mekanik|Agenter og felter på brættet",
                     "mekanik|Konflikter og kamp",
@@ -53,6 +63,9 @@ public static class Seed
             {
                 Slug = "wingspan", Name = "Wingspan", Platform = "Digitalt brætspil", Icon = "🐦", SortOrder = 2,
                 Version = "Digital udgave med udvidelser",
+                Links = Lines(
+                    "BoardGameGeek: strategi-forum|https://boardgamegeek.com/boardgame/266192/wingspan/forums/66",
+                    "Steam-guides fra spillere|https://steamcommunity.com/app/1054490/guides/"),
                 Topics = Lines(
                     "mekanik|De fire handlinger",
                     "mekanik|Bonuskort og rundemål",
@@ -64,8 +77,11 @@ public static class Seed
             },
         ];
 
-        var existing = await db.Games.Select(g => g.Slug).ToListAsync();
-        db.Games.AddRange(games.Where(g => !existing.Contains(g.Slug)));
+        var existing = await db.Games.ToListAsync();
+        db.Games.AddRange(games.Where(g => existing.All(e => e.Slug != g.Slug)));
+        // Games created before links existed get the seeded ones once.
+        foreach (var e in existing.Where(e => e.Links.Length == 0))
+            e.Links = games.FirstOrDefault(g => g.Slug == e.Slug)?.Links ?? "";
         await db.SaveChangesAsync();
     }
 

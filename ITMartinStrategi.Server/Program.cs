@@ -1,6 +1,7 @@
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinStrategi.Server;
 using ITMartinStrategi.Server.Data;
+using ITMartinStrategi.Server.Data.Entities;
 using ITMartinStrategi.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,9 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<StrategiDbContext>>();
     await using var db = await factory.CreateDbContextAsync();
     await db.Database.EnsureCreatedAsync();
+    // EnsureCreated does not alter existing tables: add columns introduced later.
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Games ADD COLUMN Links TEXT NOT NULL DEFAULT ''"); }
+    catch (Microsoft.Data.Sqlite.SqliteException e) when (e.Message.Contains("duplicate column")) { }
     await Seed.EnsureAsync(db);
 }
 
@@ -89,6 +93,30 @@ app.MapGet("/api/auth/logout", (HttpContext ctx) =>
     return Results.Redirect("/login");
 });
 
+// Guides written elsewhere (in a Claude Code session, at no API cost) are
+// posted here as JSON. Behind the PIN gate like every other page.
+app.MapPost("/api/guides", async (List<ImportGuide> items, IDbContextFactory<StrategiDbContext> factory) =>
+{
+    await using var db = await factory.CreateDbContextAsync();
+    var games = await db.Games.ToDictionaryAsync(g => g.Slug);
+    var added = new List<int>();
+    foreach (var i in items)
+    {
+        if (!games.TryGetValue(i.Game, out var game) || !Sections.All.Contains(i.Section)
+            || string.IsNullOrWhiteSpace(i.Title) || string.IsNullOrWhiteSpace(i.Body)) continue;
+        var g = new Guide
+        {
+            GameId = game.Id, Section = i.Section, Title = i.Title.Trim(), Trigger = (i.Trigger ?? "").Trim(),
+            Body = i.Body.Trim(), Source = string.IsNullOrWhiteSpace(i.Source) ? "AI" : i.Source.Trim(),
+            SourceUrls = string.Join('\n', i.Sources ?? []),
+        };
+        db.Guides.Add(g);
+        await db.SaveChangesAsync();
+        added.Add(g.Id);
+    }
+    return Results.Ok(new { added = added.Count, ids = added });
+}).DisableAntiforgery();
+
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
@@ -96,3 +124,5 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+public sealed record ImportGuide(string Game, string Section, string Title, string? Trigger, string Body, string? Source, List<string>? Sources);

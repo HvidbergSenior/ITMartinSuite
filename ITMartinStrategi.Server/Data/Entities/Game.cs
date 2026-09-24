@@ -11,8 +11,16 @@ public sealed class Game
     public string Version { get; set; } = "";           // patch/expansions the guides are written for
     public string Icon { get; set; } = "🎲";
     public string Topics { get; set; } = "";
+    // Free places to read more, one per line as "label|url".
+    public string Links { get; set; } = "";
     public int SortOrder { get; set; }
     public List<Guide> Guides { get; set; } = [];
+
+    public IEnumerable<(string Label, string Url)> LinkList() =>
+        Links.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(l => l.Split('|', 2))
+            .Where(p => p.Length == 2)
+            .Select(p => (p[0].Trim(), p[1].Trim()));
 
     public IEnumerable<(string Section, string Topic)> TopicList() =>
         Topics.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

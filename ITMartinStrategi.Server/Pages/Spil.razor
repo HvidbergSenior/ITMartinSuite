@@ -70,7 +70,24 @@
     }
 </div>
 
-@if (_section != Sections.Mine)
+@if (!Ai.Enabled && _section != Sections.Mine)
+{
+    var missing = _game.TopicList().Where(t => t.Section == _section && !Covered(t.Topic)).Select(t => t.Topic).ToList();
+    @if (missing.Count > 0)
+    {
+        <div class="k-card">
+            <div class="k-card-title">Emner uden guide endnu</div>
+            <div class="chips">
+                @foreach (var t in missing)
+                {
+                    <a class="chip" href="/spil/@_game.Slug/ny/@_section?emne=@Uri.EscapeDataString(t)">+ @t</a>
+                }
+            </div>
+            <div class="muted small">Skriv den selv – eller bed Claude i Claude Code om at skrive guides til @_game.Name. Det koster ingenting i appen.</div>
+        </div>
+    }
+}
+@if (Ai.Enabled && _section != Sections.Mine)
 {
     var open = _game.TopicList().Where(t => t.Section == _section && !Covered(t.Topic)).Select(t => t.Topic).ToList();
     <div class="k-card">
@@ -95,6 +112,21 @@
     <a class="k-btn k-btn-ghost" href="/spil/@_game.Slug/ny/@_section">✎ Skriv selv</a>
 </div>
 
+@if (_game.LinkList().Any())
+{
+    <div class="k-card">
+        <div class="k-card-title">Læs mere – gratis kilder</div>
+        <ul class="links">
+            @foreach (var (label, url) in _game.LinkList())
+            {
+                <li><a href="@url" target="_blank" rel="noopener">@label</a></li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Ai.Enabled)
+{
 <div class="k-card ask">
     <div class="k-card-title">Spørg</div>
     <textarea class="k-textarea" rows="2" @bind="_question" @bind:event="oninput" placeholder="@AskPlaceholder"></textarea>
@@ -113,6 +145,7 @@
     }
     <div class="muted small">Svarer ud fra dine guides og AI'ens viden om spillet. Et svar koster under 50 øre.</div>
 </div>
+}
 
 @code {
     [Parameter] public string Slug { get; set; } = "";

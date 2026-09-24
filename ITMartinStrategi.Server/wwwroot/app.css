@@ -68,3 +68,6 @@ h1 { margin: 4px 0 0; text-wrap: balance; }
 #components-reconnect-modal .reconnect-failed-msg { display: none; }
 #components-reconnect-modal.components-reconnect-failed .reconnect-msg { display: none; }
 #components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg { display: inline; }
+
+.links { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+a.chip { text-decoration: none; display: inline-flex; align-items: center; }
