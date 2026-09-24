@@ -14,7 +14,9 @@ public sealed record DeviceLookupResult(
     string Name, string Icon, string Model, double Watts, double HoursPerDay, int? UsualFromHour,
     string Note, List<string> Sources, double CostUsd);
 
-/// <summary>Model number in, energy numbers out, looked up on the web by Claude.
+/// <summary>Model number in, energy numbers out: Claude's estimate from what it
+/// knows about the model (no web search - an approximation is enough here and
+/// costs a tenth).
 /// Machines (washer, dishwasher ...) get run time + kWh per program; devices
 /// (fridge, TV, router ...) get average watts + hours per day. One call per
 /// button press, with a hard daily cap - the lookup is a convenience, not a loop.</summary>
@@ -90,23 +92,18 @@ public sealed class ApplianceLookup(IConfiguration config, ILogger<ApplianceLook
         var res = await client.Messages.Create(new MessageCreateParams
         {
             Model = ModelId,
-            MaxTokens = 4000,
+            MaxTokens = 2000,
             System = system,
             OutputConfig = new OutputConfig { Effort = Effort.Low },
-            Tools = [new ToolUnion(new WebSearchTool20260209 { MaxUses = 4 })],
             Messages = [new() { Role = Role.User, Content = $"Modelnummer: {modelText.Trim()}" }],
         }, ct);
 
         var sources = new List<string>();
-        foreach (var block in res.Content)
-            if (block.TryPickWebSearchToolResult(out var wr))
-                sources.AddRange(Urls(wr));
 
-        // Claude Opus 5 list price: $5 / $25 per million tokens, web search $10 per 1,000 searches.
-        var searches = res.Usage.ServerToolUse?.WebSearchRequests ?? 0;
-        var cost = res.Usage.InputTokens * 5e-6 + res.Usage.OutputTokens * 25e-6 + searches * 0.01;
-        logger.LogInformation("Lookup {Model}: {In} in / {Out} out tokens, {Searches} searches, ~${Cost:0.000}",
-            modelText, res.Usage.InputTokens, res.Usage.OutputTokens, searches, cost);
+        // Claude Opus 5 list price: $5 / $25 per million tokens.
+        var cost = res.Usage.InputTokens * 5e-6 + res.Usage.OutputTokens * 25e-6;
+        logger.LogInformation("Lookup {Model}: {In} in / {Out} out tokens, ~${Cost:0.000}",
+            modelText, res.Usage.InputTokens, res.Usage.OutputTokens, cost);
 
         if (res.StopReason == "refusal") throw new InvalidOperationException("AI'en ville ikke svare på det modelnummer.");
 
@@ -134,9 +131,6 @@ public sealed class ApplianceLookup(IConfiguration config, ILogger<ApplianceLook
     }
 
     private static string Or(string? v, string fallback) => string.IsNullOrWhiteSpace(v) ? fallback : v.Trim();
-
-    private static IEnumerable<string> Urls(WebSearchToolResultBlock wr) =>
-        wr.Content.TryPickWebSearchResultBlocks(out var list) ? list.Select(r => r.Url) : [];
 
     private sealed class RawMachine
     {

@@ -24,7 +24,7 @@
             <div class="row2">
                 <div class="field" style="flex:3"><label>Modelnummer</label><input type="text" @bind="a.Model" placeholder="fx Asko W6884" /></div>
                 <div class="field" style="flex:0"><label>&nbsp;</label>
-                    <button class="btn btn-primary" disabled="@(_looking == a.Id || string.IsNullOrWhiteSpace(a.Model))" @onclick="() => LookupAsync(a)">@(_looking == a.Id ? "Søger…" : "🔍 Find forbrug")</button>
+                    <button class="btn btn-primary" disabled="@(_looking == a.Id || string.IsNullOrWhiteSpace(a.Model))" @onclick="() => LookupAsync(a)">@(_looking == a.Id ? "Søger…" : "✨ Skøn forbrug")</button>
                 </div>
             </div>
             @if (_lookupMsg.TryGetValue(a.Id, out var msg))
@@ -92,7 +92,7 @@
             <div class="row2">
                 <div class="field" style="flex:3"><label>Modelnummer</label><input type="text" @bind="d.Model" placeholder="fx Samsung RB38" /></div>
                 <div class="field" style="flex:0"><label>&nbsp;</label>
-                    <button class="btn btn-primary" disabled="@(_looking == d.Id || string.IsNullOrWhiteSpace(d.Model))" @onclick="() => LookupDeviceAsync(d)">@(_looking == d.Id ? "Søger…" : "🔍 Find forbrug")</button>
+                    <button class="btn btn-primary" disabled="@(_looking == d.Id || string.IsNullOrWhiteSpace(d.Model))" @onclick="() => LookupDeviceAsync(d)">@(_looking == d.Id ? "Søger…" : "✨ Skøn forbrug")</button>
                 </div>
             </div>
             @if (_lookupMsg.TryGetValue(d.Id, out var dmsg))
@@ -299,7 +299,7 @@
             if (a.RunsPerWeek <= 0) a.RunsPerWeek = DeviceCatalog.ProgramsFor(a.Name)?.RunsPerWeek ?? 3;
             a.Programs = r.Programs.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.Kwh, DurationHours = r.DurationHours }).ToList();
             if (a.Programs.Count == 1) { a.KwhPerRun = a.Programs[0].KwhPerRun; a.Programs.Clear(); }
-            _lookupMsg[a.Id] = (true, "Fundet af AI – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
+            _lookupMsg[a.Id] = (true, "AI-skøn – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
         }
         catch (Exception ex) { _lookupMsg[a.Id] = (false, ex.Message, []); }
         finally { _looking = null; }
@@ -318,7 +318,7 @@
             d.Watts = r.Watts;
             d.HoursPerDay = r.HoursPerDay;
             d.UsualFromHour = r.UsualFromHour;
-            _lookupMsg[d.Id] = (true, "Fundet af AI – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
+            _lookupMsg[d.Id] = (true, "AI-skøn – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
         }
         catch (Exception ex) { _lookupMsg[d.Id] = (false, ex.Message, []); }
         finally { _looking = null; }
