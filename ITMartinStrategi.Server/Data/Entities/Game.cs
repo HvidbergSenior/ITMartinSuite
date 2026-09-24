@@ -14,6 +14,8 @@ public sealed class Game
     // Free places to read more, one per line as "label|url".
     public string Links { get; set; } = "";
     public int SortOrder { get; set; }
+    // Steam app id, when the game is on Steam: hours, news and achievements.
+    public int? SteamAppId { get; set; }
     public List<Guide> Guides { get; set; } = [];
 
     public IEnumerable<(string Label, string Url)> LinkList() =>

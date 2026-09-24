@@ -35,6 +35,9 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 var dbPath = builder.Configuration.GetConnectionString("StrategiDb") ?? "Data Source=/app/data/strategi.db";
 builder.Services.AddDbContextFactory<StrategiDbContext>(o => o.UseSqlite(dbPath));
 builder.Services.AddSingleton<StrategiAi>();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient("steam", c => c.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<SteamService>();
 
 var app = builder.Build();
 app.MapKolibri();
@@ -46,6 +49,8 @@ using (var scope = app.Services.CreateScope())
     await db.Database.EnsureCreatedAsync();
     // EnsureCreated does not alter existing tables: add columns introduced later.
     try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Games ADD COLUMN Links TEXT NOT NULL DEFAULT ''"); }
+    catch (Microsoft.Data.Sqlite.SqliteException e) when (e.Message.Contains("duplicate column")) { }
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Games ADD COLUMN SteamAppId INTEGER NULL"); }
     catch (Microsoft.Data.Sqlite.SqliteException e) when (e.Message.Contains("duplicate column")) { }
     await Seed.EnsureAsync(db);
 }

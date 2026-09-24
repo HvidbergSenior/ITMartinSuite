@@ -71,3 +71,14 @@ h1 { margin: 4px 0 0; text-wrap: balance; }
 
 .links { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
 a.chip { text-decoration: none; display: inline-flex; align-items: center; }
+
+.game-art { width: 116px; height: 44px; object-fit: cover; border-radius: var(--k-radius-sm, 6px); flex: 0 0 auto; }
+.game-art.big { width: 184px; height: 69px; }
+.game .now { margin-left: auto; }
+.tag-warn { background: var(--k-warning-2, #fbf0dc); color: var(--k-text); }
+.news, .achievements { margin: 6px 0 0; padding-left: 1.1rem; display: grid; gap: 8px; }
+.steam-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; max-height: 60vh; overflow-y: auto; }
+.steam-list li { display: flex; gap: 10px; align-items: center; }
+.steam-list img { width: 92px; height: 35px; object-fit: cover; border-radius: 4px; }
+.steam-list span { flex: 1; }
+@media (max-width: 480px) { .game-art { width: 80px; height: 30px; } .game-art.big { width: 120px; height: 45px; } }

@@ -1,6 +1,7 @@
 @page "/spil/{Slug}"
 @inject IDbContextFactory<StrategiDbContext> DbFactory
 @inject StrategiAi Ai
+@inject SteamService Steam
 @inject NavigationManager Nav
 
 <PageTitle>@(_game?.Name ?? "Spil") – Strategi</PageTitle>
@@ -12,7 +13,14 @@
 }
 
 <div class="game-head">
-    <span class="game-icon big">@_game.Icon</span>
+    @if (_game.SteamAppId is int headAppId)
+    {
+        <img class="game-art big" src="@SteamService.HeaderImage(headAppId)" alt="" />
+    }
+    else
+    {
+        <span class="game-icon big">@_game.Icon</span>
+    }
     <div>
         <h1>@_game.Name</h1>
         @if (_editVersion)
@@ -25,6 +33,10 @@
         else
         {
             <div class="muted small">@_game.Platform · @_game.Version <button class="linkish" @onclick="() => _editVersion = true">ret</button></div>
+            @if (_mySteam is not null)
+            {
+                <div class="small">@_mySteam.Hours.ToString("0", Da) timer i alt@(_mySteam.Hours2Weeks > 0 ? $" · {_mySteam.Hours2Weeks.ToString("0.#", Da)} de sidste 2 uger" : "")</div>
+            }
         }
     </div>
 </div>
@@ -64,6 +76,10 @@
                 @if (g.Trigger.Length > 0) { <span class="k-tag">Valg: @g.Trigger</span> }
                 <span class="k-tag @(g.Source == "Martin" ? "tag-mine" : "")">@g.Source</span>
                 @if (g.Checked) { <span class="k-tag tag-ok">✓ Tjekket</span> } else { <span class="k-tag tag-draft">Udkast</span> }
+                @if (_latestDevNews is { } ln && ln.Date > g.UpdatedAt && g.Section != Sections.Mine)
+                {
+                    <span class="k-tag tag-warn" title="@ln.Title">⚠ Skrevet før “@Short(ln.Title)”</span>
+                }
             </div>
             <div class="guide-preview"><GuideText Text="@Preview(g.Body)" /></div>
         </a>
@@ -111,6 +127,41 @@
 <div class="btn-row">
     <a class="k-btn k-btn-ghost" href="/spil/@_game.Slug/ny/@_section">✎ Skriv selv</a>
 </div>
+
+@if (_news.Count > 0)
+{
+    <div class="k-card">
+        <div class="k-card-title">Nyt i spillet</div>
+        <ul class="news">
+            @foreach (var n in _news.Take(5))
+            {
+                <li>
+                    <span class="muted small">@n.Date.ToLocalTime().ToString("d. MMM yyyy", Da)@(n.FromDevelopers ? " · udviklerne" : "")</span><br />
+                    <a href="@n.Url" target="_blank" rel="noopener">@n.Title</a>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@if (_achievements.Count > 0)
+{
+    var got = _achievements.Count(a => a.Achieved);
+    var next = _achievements.Where(a => !a.Achieved).OrderByDescending(a => a.GlobalPercent).Take(8).ToList();
+    <div class="k-card">
+        <div class="k-card-title">Næste udfordringer</div>
+        <div class="muted small">Du har @got af @_achievements.Count achievements. Her er dem, du mangler, som flest andre spillere har klaret.</div>
+        <ul class="achievements">
+            @foreach (var a in next)
+            {
+                <li>
+                    <b>@a.Name</b> <span class="muted small">· @a.GlobalPercent.ToString("0.#", Da) % har den</span>
+                    @if (a.Description.Length > 0) { <br /><span class="small">@a.Description</span> }
+                </li>
+            }
+        </ul>
+    </div>
+}
 
 @if (_game.LinkList().Any())
 {
@@ -162,6 +213,13 @@
     private bool _asking;
     private string? _answer;
     private string _saveSection = Sections.Mekanik;
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private SteamGame? _mySteam;
+    private IReadOnlyList<SteamNews> _news = [];
+    private SteamNews? _latestDevNews;
+    private IReadOnlyList<SteamAchievement> _achievements = [];
+
+    private static string Short(string s) => s.Length <= 40 ? s : s[..40] + "…";
 
     private string TopicPlaceholder => _section switch
     {
@@ -188,6 +246,16 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         _game = await db.Games.FirstOrDefaultAsync(g => g.Slug == Slug);
         _guides = _game is null ? [] : await db.Guides.Where(g => g.GameId == _game.Id).ToListAsync();
+        if (_game?.SteamAppId is int appId)
+        {
+            var owned = Steam.OwnedGamesAsync();
+            var news = Steam.NewsAsync(appId);
+            var ach = Steam.AchievementsAsync(appId);
+            _mySteam = (await owned).FirstOrDefault(s => s.AppId == appId);
+            _news = await news;
+            _latestDevNews = _news.FirstOrDefault(n => n.FromDevelopers);
+            _achievements = await ach;
+        }
     }
 
     private void Pick(string s) { _section = s; _error = null; }

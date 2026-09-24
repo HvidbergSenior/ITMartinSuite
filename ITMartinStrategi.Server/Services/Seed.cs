@@ -14,7 +14,7 @@ public static class Seed
         [
             new()
             {
-                Slug = "galciv4", Name = "Galactic Civilizations IV", Platform = "PC", Icon = "🪐", SortOrder = 0,
+                Slug = "galciv4", Name = "Galactic Civilizations IV", Platform = "PC", Icon = "🪐", SortOrder = 0, SteamAppId = 1357210,
                 Version = "Supernova med Federations & Empires (v4.x)",
                 Links = Lines(
                     "Stardock: udvikler-journaler og nyheder|https://www.galciv4.com/news",
@@ -40,12 +40,12 @@ public static class Seed
             },
             new()
             {
-                Slug = "dune-imperium", Name = "Dune: Imperium", Platform = "Digitalt brætspil", Icon = "🏜️", SortOrder = 1,
+                Slug = "dune-imperium", Name = "Dune: Imperium", Platform = "Digitalt brætspil", Icon = "🏜️", SortOrder = 1, SteamAppId = 1689500,
                 Version = "Digital udgave med Rise of Ix og Immortality",
                 Links = Lines(
                     "BoardGameGeek: cymerdowns store strategiguide|https://boardgamegeek.com/thread/2623493/cymerdowns-comprehensive-dune-imperium-strategy-gu",
                     "BoardGameGeek: strategi-forum|https://boardgamegeek.com/boardgame/316554/dune-imperium/forums/66",
-                    "Steam-guides fra spillere|https://steamcommunity.com/app/1480560/guides/"),
+                    "Steam-guides fra spillere|https://steamcommunity.com/app/1689500/guides/"),
                 Topics = Lines(
                     "mekanik|Agenter og felter på brættet",
                     "mekanik|Konflikter og kamp",
@@ -61,7 +61,7 @@ public static class Seed
             },
             new()
             {
-                Slug = "wingspan", Name = "Wingspan", Platform = "Digitalt brætspil", Icon = "🐦", SortOrder = 2,
+                Slug = "wingspan", Name = "Wingspan", Platform = "Digitalt brætspil", Icon = "🐦", SortOrder = 2, SteamAppId = 1054490,
                 Version = "Digital udgave med udvidelser",
                 Links = Lines(
                     "BoardGameGeek: strategi-forum|https://boardgamegeek.com/boardgame/266192/wingspan/forums/66",
@@ -79,9 +79,14 @@ public static class Seed
 
         var existing = await db.Games.ToListAsync();
         db.Games.AddRange(games.Where(g => existing.All(e => e.Slug != g.Slug)));
-        // Games created before links existed get the seeded ones once.
-        foreach (var e in existing.Where(e => e.Links.Length == 0))
-            e.Links = games.FirstOrDefault(g => g.Slug == e.Slug)?.Links ?? "";
+        // The seeded games keep their curated links and Steam id up to date.
+        foreach (var e in existing)
+        {
+            var s = games.FirstOrDefault(g => g.Slug == e.Slug);
+            if (s is null) continue;
+            e.Links = s.Links;
+            e.SteamAppId ??= s.SteamAppId;
+        }
         await db.SaveChangesAsync();
     }
 
