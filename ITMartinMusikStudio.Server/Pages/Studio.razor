@@ -1903,6 +1903,9 @@ Chorus
                 var line = raw.Trim();
                 if (!IsSectionLabel(line)) continue;
                 var label = line.Trim('[', ']', ':').Trim();
+                // "[Comment: Capo 3 …]" is a note, not something you sing - as a section it
+                // never got a take and kept "Flet sammen" locked forever.
+                if (label.StartsWith("Comment", StringComparison.OrdinalIgnoreCase)) continue;
                 if (label.Length > 0 && seen.Add(label)) result.Add(label);
             }
             return result;
