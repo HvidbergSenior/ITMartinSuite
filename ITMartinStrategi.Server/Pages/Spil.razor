@@ -1,0 +1,231 @@
+@page "/spil/{Slug}"
+@inject IDbContextFactory<StrategiDbContext> DbFactory
+@inject StrategiAi Ai
+@inject NavigationManager Nav
+
+<PageTitle>@(_game?.Name ?? "Spil") – Strategi</PageTitle>
+
+@if (_game is null)
+{
+    <p class="muted">Spillet findes ikke. <a href="/">Tilbage</a></p>
+    return;
+}
+
+<div class="game-head">
+    <span class="game-icon big">@_game.Icon</span>
+    <div>
+        <h1>@_game.Name</h1>
+        @if (_editVersion)
+        {
+            <div class="form-row">
+                <input class="k-input" @bind="_game.Version" placeholder="Version / udvidelser" />
+                <button class="k-btn k-btn-sm k-btn-primary" @onclick="SaveVersionAsync">Gem</button>
+            </div>
+        }
+        else
+        {
+            <div class="muted small">@_game.Platform · @_game.Version <button class="linkish" @onclick="() => _editVersion = true">ret</button></div>
+        }
+    </div>
+</div>
+
+<nav class="tabs" aria-label="Afsnit">
+    @foreach (var s in Sections.All)
+    {
+        var n = _guides.Count(g => g.Section == s);
+        <button class="tab @(s == _section ? "on" : "")" @onclick="() => Pick(s)">@Sections.Label(s)@(n > 0 ? $" ({n})" : "")</button>
+    }
+</nav>
+
+<p class="muted small">@Sections.Hint(_section)</p>
+
+@if (_busy is not null)
+{
+    <div class="k-alert k-alert-info">AI'en skriver om “@_busy” – det tager op til et minut …</div>
+}
+@if (_error is not null)
+{
+    <div class="k-alert k-alert-danger">@_error</div>
+}
+
+@{
+    var inSection = _guides.Where(g => g.Section == _section).OrderByDescending(g => g.Checked).ThenBy(g => g.Title).ToList();
+}
+@if (inSection.Count == 0)
+{
+    <p class="muted">Ingen guides her endnu.</p>
+}
+<div class="guides">
+    @foreach (var g in inSection)
+    {
+        <a class="guide-card" href="/guide/@g.Id">
+            <div class="guide-top">
+                <b>@g.Title</b>
+                @if (g.Trigger.Length > 0) { <span class="k-tag">Valg: @g.Trigger</span> }
+                <span class="k-tag @(g.Source == "Martin" ? "tag-mine" : "")">@g.Source</span>
+                @if (g.Checked) { <span class="k-tag tag-ok">✓ Tjekket</span> } else { <span class="k-tag tag-draft">Udkast</span> }
+            </div>
+            <div class="guide-preview"><GuideText Text="@Preview(g.Body)" /></div>
+        </a>
+    }
+</div>
+
+@if (_section != Sections.Mine)
+{
+    var open = _game.TopicList().Where(t => t.Section == _section && !Covered(t.Topic)).Select(t => t.Topic).ToList();
+    <div class="k-card">
+        <div class="k-card-title">Lav et AI-udkast</div>
+        @if (open.Count > 0)
+        {
+            <div class="chips">
+                @foreach (var t in open)
+                {
+                    <button class="chip" disabled="@(_busy is not null)" @onclick="() => DraftAsync(t)">+ @t</button>
+                }
+            </div>
+        }
+        <div class="form-row">
+            <input class="k-input" @bind="_topic" @bind:event="oninput" placeholder="@TopicPlaceholder" />
+            <button class="k-btn k-btn-primary" disabled="@(_busy is not null || string.IsNullOrWhiteSpace(_topic))" @onclick="() => DraftAsync(_topic)">Lav udkast</button>
+        </div>
+        <div class="muted small">AI'en søger på nettet efter den nuværende version og bygger videre på dine egne strategier. Et udkast tager op til et minut og koster ca. 2–3 kr.</div>
+    </div>
+}
+<div class="btn-row">
+    <a class="k-btn k-btn-ghost" href="/spil/@_game.Slug/ny/@_section">✎ Skriv selv</a>
+</div>
+
+<div class="k-card ask">
+    <div class="k-card-title">Spørg</div>
+    <textarea class="k-textarea" rows="2" @bind="_question" @bind:event="oninput" placeholder="@AskPlaceholder"></textarea>
+    <div class="btn-row">
+        <button class="k-btn k-btn-primary" disabled="@(_asking || string.IsNullOrWhiteSpace(_question))" @onclick="AskAsync">@(_asking ? "Tænker …" : "Spørg")</button>
+    </div>
+    @if (_answer is not null)
+    {
+        <div class="answer"><GuideText Text="@_answer" /></div>
+        <div class="btn-row">
+            <select class="k-input" style="max-width:14rem" @bind="_saveSection">
+                @foreach (var s in Sections.All) { <option value="@s">@Sections.Label(s)</option> }
+            </select>
+            <button class="k-btn k-btn-sm" @onclick="SaveAnswerAsync">Gem som guide</button>
+        </div>
+    }
+    <div class="muted small">Svarer ud fra dine guides og AI'ens viden om spillet. Et svar koster under 50 øre.</div>
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "afsnit")] public string? Afsnit { get; set; }
+
+    private Game? _game;
+    private List<Guide> _guides = [];
+    private string _section = Sections.Mekanik;
+    private string _topic = "";
+    private string? _busy;
+    private string? _error;
+    private bool _editVersion;
+    private string _question = "";
+    private bool _asking;
+    private string? _answer;
+    private string _saveSection = Sections.Mekanik;
+
+    private string TopicPlaceholder => _section switch
+    {
+        Sections.Valg => "Hvad har du valgt? fx Oligarki",
+        Sections.Start => "fx De første 20 ture",
+        _ => "Hvilken mekanik? fx Indflydelse",
+    };
+
+    private string AskPlaceholder => _game?.Slug switch
+    {
+        "galciv4" => "fx Jeg har valgt oligarki – hvad skal jeg forske i nu?",
+        "wingspan" => "fx Hvornår skal jeg skifte fra at samle føde til at lægge æg?",
+        _ => "Spørg om noget konkret i spillet",
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Afsnit is { } a && Sections.All.Contains(a)) _section = a;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _game = await db.Games.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _guides = _game is null ? [] : await db.Guides.Where(g => g.GameId == _game.Id).ToListAsync();
+    }
+
+    private void Pick(string s) { _section = s; _error = null; }
+
+    private bool Covered(string topic) =>
+        _guides.Any(g => g.Section == _section &&
+            (string.Equals(g.Trigger, topic, StringComparison.OrdinalIgnoreCase) ||
+             g.Title.Contains(topic, StringComparison.OrdinalIgnoreCase)));
+
+    private static string Preview(string body)
+    {
+        var lines = body.Replace("\r", "").Split('\n').Where(l => l.Trim().Length > 0).Take(4);
+        return string.Join('\n', lines);
+    }
+
+    private async Task DraftAsync(string topic)
+    {
+        if (_game is null || string.IsNullOrWhiteSpace(topic)) return;
+        _busy = topic.Trim();
+        _error = null;
+        StateHasChanged();
+        try
+        {
+            var d = await Ai.DraftAsync(_game, _section, _busy, _guides);
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var guide = new Guide
+            {
+                GameId = _game.Id, Section = _section, Title = d.Title, Trigger = d.Trigger, Body = d.Body,
+                Source = "AI", SourceUrls = string.Join('\n', d.Sources),
+            };
+            db.Guides.Add(guide);
+            await db.SaveChangesAsync();
+            Nav.NavigateTo($"/guide/{guide.Id}");
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = null; _topic = ""; }
+    }
+
+    private async Task AskAsync()
+    {
+        if (_game is null) return;
+        _asking = true;
+        _answer = null;
+        _error = null;
+        try { _answer = await Ai.AskAsync(_game, _question.Trim(), _guides); _saveSection = _section; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _asking = false; }
+    }
+
+    private async Task SaveAnswerAsync()
+    {
+        if (_game is null || _answer is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var q = _question.Trim();
+        var guide = new Guide
+        {
+            GameId = _game.Id, Section = _saveSection, Title = q.Length > 80 ? q[..80] + "…" : q,
+            Body = _answer, Source = "AI",
+        };
+        db.Guides.Add(guide);
+        await db.SaveChangesAsync();
+        Nav.NavigateTo($"/guide/{guide.Id}");
+    }
+
+    private async Task SaveVersionAsync()
+    {
+        if (_game is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var g = await db.Games.FirstAsync(x => x.Id == _game.Id);
+        g.Version = _game.Version.Trim();
+        await db.SaveChangesAsync();
+        _editVersion = false;
+    }
+}

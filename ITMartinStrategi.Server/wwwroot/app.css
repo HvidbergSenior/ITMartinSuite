@@ -1,0 +1,70 @@
+/* Strategi - on top of kolibri.css (tokens --k-*, family "navigere"). */
+
+.page { max-width: var(--k-content-max, 760px); margin: 0 auto; padding-inline: 16px; padding-block: 12px 40px; display: grid; gap: 14px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; padding-block: 6px; border-bottom: 1px solid var(--k-border); }
+.brand { font-weight: 700; color: var(--k-text); text-decoration: none; font-size: 1.1rem; }
+h1 { margin: 4px 0 0; text-wrap: balance; }
+.muted { color: var(--k-muted); }
+.small { font-size: var(--k-fs-small, .88rem); }
+.err { color: var(--k-danger); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.form-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-top: 6px; }
+.form-row > * { flex: 1 1 12rem; }
+.form-row > button { flex: 0 0 auto; }
+.linkish { background: none; border: 0; padding: 0; color: var(--k-accent); cursor: pointer; font: inherit; text-decoration: underline; }
+
+/* Front page */
+.games { display: grid; gap: 10px; }
+.game { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-card); color: var(--k-text); text-decoration: none; }
+.game:hover, .game:focus-visible { border-color: var(--k-accent); }
+.game-body { display: grid; gap: 2px; }
+.game-icon { font-size: 2rem; line-height: 1; }
+.game-icon.big { font-size: 2.6rem; }
+.game-head { display: flex; gap: 14px; align-items: center; }
+
+/* Sections */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab { border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); border-radius: 999px; padding: 8px 14px; min-height: 40px; cursor: pointer; font: inherit; }
+.tab.on { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text, #fff); }
+
+/* Guide cards */
+.guides { display: grid; gap: 10px; }
+.guide-card { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-card); color: var(--k-text); text-decoration: none; }
+.guide-card:hover, .guide-card:focus-visible { border-color: var(--k-accent); }
+.guide-top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.guide-top b { margin-right: 4px; }
+.guide-preview { color: var(--k-muted); font-size: .92rem; max-height: 6.5em; overflow: hidden; }
+.guide-preview h3 { font-size: .95rem; margin: 0; }
+.guide-preview p, .guide-preview ul { margin: 2px 0; }
+.tag-ok { background: var(--k-accent-soft); color: var(--k-accent-dark); }
+.tag-draft { background: var(--k-warning-2, #fbf0dc); }
+.tag-mine { background: var(--k-accent); color: var(--k-accent-text, #fff); }
+
+/* Full guide */
+.guide-full { display: grid; gap: 8px; }
+.guide-full h3 { margin: 14px 0 2px; font-size: 1.1rem; }
+.guide-full p { margin: 4px 0; max-width: 68ch; }
+.guide-full ul { margin: 4px 0; padding-left: 1.2rem; display: grid; gap: 4px; max-width: 68ch; }
+.guide-edit { font-family: ui-monospace, Consolas, monospace; font-size: .92rem; width: 100%; }
+.sources ul { padding-left: 1.2rem; }
+
+/* AI */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip { border: 1px dashed var(--k-accent); background: var(--k-accent-soft); color: var(--k-accent-dark); border-radius: 999px; padding: 6px 12px; min-height: 36px; cursor: pointer; font: inherit; }
+.chip:disabled { opacity: .5; cursor: default; }
+.ask textarea { width: 100%; }
+.answer { border-left: 3px solid var(--k-accent); padding: 4px 0 4px 12px; margin-top: 10px; }
+.answer h3 { margin: 10px 0 2px; font-size: 1rem; }
+.answer p { margin: 4px 0; }
+
+/* Login */
+.login-wrap { min-height: 80vh; display: grid; place-items: center; }
+.login-box { display: grid; gap: 12px; width: min(320px, 100%); text-align: center; }
+.login-icon { font-size: 2.6rem; }
+
+#components-reconnect-modal { display: none; }
+#components-reconnect-modal.components-reconnect-show,
+#components-reconnect-modal.components-reconnect-failed { display: block; position: fixed; bottom: 16px; left: 16px; right: 16px; padding: 12px; background: var(--k-card); border: 1px solid var(--k-border); border-radius: var(--k-radius); }
+#components-reconnect-modal .reconnect-failed-msg { display: none; }
+#components-reconnect-modal.components-reconnect-failed .reconnect-msg { display: none; }
+#components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg { display: inline; }

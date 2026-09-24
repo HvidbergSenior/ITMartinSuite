@@ -1,0 +1,101 @@
+@page "/"
+@inject IDbContextFactory<StrategiDbContext> DbFactory
+@inject NavigationManager Nav
+
+<PageTitle>Strategi</PageTitle>
+
+<h1>Dine spil</h1>
+<p class="muted">Guides til at forstå spillet og spille bedre – skrevet af AI ud fra den nuværende version, rettet til af dig.</p>
+
+<div class="games">
+    @foreach (var g in _games)
+    {
+        var count = _counts.GetValueOrDefault(g.Id);
+        <a class="game" href="/spil/@g.Slug">
+            <span class="game-icon">@g.Icon</span>
+            <span class="game-body">
+                <b>@g.Name</b>
+                <span class="muted small">@g.Platform · @g.Version</span>
+                <span class="small">@(count.Total == 0 ? "Ingen guides endnu" : $"{count.Total} guides · {count.Checked} tjekket · {count.Mine} egne")</span>
+            </span>
+        </a>
+    }
+</div>
+
+@if (_adding)
+{
+    <div class="k-card add-game">
+        <div class="k-card-title">Nyt spil</div>
+        <div class="form-row">
+            <label class="k-label" style="flex:0 0 4rem">Ikon<input class="k-input" @bind="_icon" /></label>
+            <label class="k-label">Navn<input class="k-input" @bind="_name" placeholder="fx Civilization VII" /></label>
+        </div>
+        <div class="form-row">
+            <label class="k-label">Platform
+                <select class="k-input" @bind="_platform">
+                    <option>PC</option>
+                    <option>Digitalt brætspil</option>
+                    <option>Brætspil</option>
+                    <option>Konsol</option>
+                </select>
+            </label>
+            <label class="k-label">Version / udvidelser<input class="k-input" @bind="_version" placeholder="fx seneste patch" /></label>
+        </div>
+        @if (_error is not null) { <div class="err">@_error</div> }
+        <div class="btn-row">
+            <button class="k-btn k-btn-primary" @onclick="AddAsync">Tilføj</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _adding = false">Annullér</button>
+        </div>
+    </div>
+}
+else
+{
+    <button class="k-btn k-btn-ghost" @onclick="() => _adding = true">+ Tilføj spil</button>
+}
+
+@code {
+    private List<Game> _games = [];
+    private Dictionary<int, (int Total, int Checked, int Mine)> _counts = new();
+    private bool _adding;
+    private string _icon = "🎮", _name = "", _platform = "PC", _version = "";
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _games = await db.Games.OrderBy(g => g.SortOrder).ThenBy(g => g.Name).ToListAsync();
+        _counts = (await db.Guides.Select(x => new { x.GameId, x.Checked, x.Section }).ToListAsync())
+            .GroupBy(x => x.GameId)
+            .ToDictionary(g => g.Key, g => (g.Count(), g.Count(x => x.Checked), g.Count(x => x.Section == Sections.Mine)));
+    }
+
+    private async Task AddAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv spillets navn."; return; }
+        var slug = Slugify(_name);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (await db.Games.AnyAsync(g => g.Slug == slug)) { _error = "Det spil findes allerede."; return; }
+        db.Games.Add(new Game
+        {
+            Slug = slug, Name = _name.Trim(), Platform = _platform, Version = _version.Trim(),
+            Icon = string.IsNullOrWhiteSpace(_icon) ? "🎮" : _icon.Trim(),
+            SortOrder = _games.Count,
+        });
+        await db.SaveChangesAsync();
+        Nav.NavigateTo($"/spil/{slug}");
+    }
+
+    private static string Slugify(string s)
+    {
+        var map = new Dictionary<char, string> { ['æ'] = "ae", ['ø'] = "oe", ['å'] = "aa" };
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in s.Trim().ToLowerInvariant())
+        {
+            if (map.TryGetValue(c, out var r)) sb.Append(r);
+            else if (char.IsLetterOrDigit(c) && c < 128) sb.Append(c);
+            else if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
+        }
+        return sb.ToString().Trim('-');
+    }
+}

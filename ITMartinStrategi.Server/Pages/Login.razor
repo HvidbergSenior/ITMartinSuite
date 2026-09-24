@@ -1,0 +1,21 @@
+@page "/login"
+@layout EmptyLayout
+
+<PageTitle>Log ind – Strategi</PageTitle>
+
+<div class="login-wrap">
+    <form class="login-box" method="post" action="/api/auth/login">
+        <div class="login-icon">♟️</div>
+        <h1>Strategi</h1>
+        @if (Error == "1")
+        {
+            <div class="err">Forkert PIN – prøv igen</div>
+        }
+        <input type="password" name="pin_" class="k-input" placeholder="PIN-kode" autofocus maxlength="30" />
+        <button type="submit" class="k-btn k-btn-primary k-btn-block">Log ind</button>
+    </form>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+}

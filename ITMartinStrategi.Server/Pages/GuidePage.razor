@@ -1,0 +1,179 @@
+@page "/guide/{Id:int}"
+@page "/spil/{Slug}/ny/{NewSection}"
+@inject IDbContextFactory<StrategiDbContext> DbFactory
+@inject NavigationManager Nav
+
+<PageTitle>@(_guide?.Title is { Length: > 0 } t ? t : "Ny guide") – Strategi</PageTitle>
+
+@if (_game is null || _guide is null)
+{
+    <p class="muted">Guiden findes ikke. <a href="/">Tilbage</a></p>
+    return;
+}
+
+<a class="muted small" href="/spil/@_game.Slug?afsnit=@_guide.Section">← @_game.Name · @Sections.Label(_guide.Section)</a>
+
+@if (_editing)
+{
+    <h1>@(_guide.Id == 0 ? "Ny guide" : "Ret guide")</h1>
+    <div class="k-card">
+        <label class="k-label">Titel<input class="k-input" @bind="_guide.Title" /></label>
+        <div class="form-row">
+            <label class="k-label">Afsnit
+                <select class="k-input" @bind="_guide.Section">
+                    @foreach (var s in Sections.All) { <option value="@s">@Sections.Label(s)</option> }
+                </select>
+            </label>
+            @if (_guide.Section == Sections.Valg)
+            {
+                <label class="k-label">Valget<input class="k-input" @bind="_guide.Trigger" placeholder="fx Oligarki" /></label>
+            }
+        </div>
+        <label class="k-label">Tekst
+            <textarea class="k-textarea guide-edit" rows="18" @bind="_guide.Body" placeholder="## Overskrift&#10;- punkt&#10;**vigtigt**"></textarea>
+        </label>
+        <div class="muted small">“## ” giver en overskrift, “- ” et punkt og **to stjerner** fed skrift.</div>
+        @if (_error is not null) { <div class="err">@_error</div> }
+        <div class="btn-row">
+            <button class="k-btn k-btn-primary" @onclick="SaveAsync">Gem</button>
+            @if (_guide.Id != 0) { <button class="k-btn k-btn-ghost" @onclick="CancelAsync">Annullér</button> }
+        </div>
+    </div>
+}
+else
+{
+    <article class="guide-full">
+        <h1>@_guide.Title</h1>
+        <div class="guide-top">
+            @if (_guide.Trigger.Length > 0) { <span class="k-tag">Valg: @_guide.Trigger</span> }
+            <span class="k-tag @(_guide.Source == "Martin" ? "tag-mine" : "")">@_guide.Source</span>
+            @if (_guide.Checked) { <span class="k-tag tag-ok">✓ Tjekket</span> } else { <span class="k-tag tag-draft">Udkast – ikke tjekket</span> }
+            <span class="muted small">Opdateret @_guide.UpdatedAt.ToLocalTime().ToString("d. MMM yyyy", Da)</span>
+        </div>
+        <GuideText Text="@_guide.Body" />
+    </article>
+
+    @if (_guide.SourceUrls.Length > 0)
+    {
+        <details class="small sources">
+            <summary>Kilder AI'en brugte</summary>
+            <ul>
+                @foreach (var u in _guide.SourceUrls.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <li><a href="@u" target="_blank" rel="noopener">@Host(u)</a></li>
+                }
+            </ul>
+        </details>
+    }
+
+    <div class="btn-row">
+        <button class="k-btn k-btn-primary" @onclick="() => _editing = true">✎ Ret</button>
+        <button class="k-btn" @onclick="ToggleCheckedAsync">@(_guide.Checked ? "Markér som udkast" : "✓ Jeg er enig – markér som tjekket")</button>
+        @if (_confirmDelete)
+        {
+            <button class="k-btn k-btn-danger" @onclick="DeleteAsync">Ja, slet guiden</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = false">Fortryd</button>
+        }
+        else
+        {
+            <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = true">Slet</button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    [Parameter] public string? Slug { get; set; }
+    [Parameter] public string? NewSection { get; set; }
+
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private Game? _game;
+    private Guide? _guide;
+    private string _originalBody = "";
+    private bool _editing;
+    private bool _confirmDelete;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (Id != 0)
+        {
+            _guide = await db.Guides.Include(g => g.Game).AsNoTracking().FirstOrDefaultAsync(g => g.Id == Id);
+            _game = _guide?.Game;
+            _editing = false;
+        }
+        else
+        {
+            _game = await db.Games.AsNoTracking().FirstOrDefaultAsync(g => g.Slug == Slug);
+            var section = Sections.All.Contains(NewSection) ? NewSection! : Sections.Mine;
+            _guide = _game is null ? null : new Guide { GameId = _game.Id, Section = section, Source = "Martin", Checked = true };
+            _editing = true;
+        }
+        _originalBody = _guide?.Body ?? "";
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_guide is null) return;
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_guide.Title) || string.IsNullOrWhiteSpace(_guide.Body)) { _error = "Skriv en titel og en tekst."; return; }
+        if (_guide.Section != Sections.Valg) _guide.Trigger = "";
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (_guide.Id == 0)
+        {
+            var g = new Guide
+            {
+                GameId = _guide.GameId, Section = _guide.Section, Title = _guide.Title.Trim(), Trigger = _guide.Trigger.Trim(),
+                Body = _guide.Body.Trim(), Source = "Martin", Checked = true,
+            };
+            db.Guides.Add(g);
+            await db.SaveChangesAsync();
+            Nav.NavigateTo($"/guide/{g.Id}");
+            return;
+        }
+
+        var row = await db.Guides.FirstAsync(x => x.Id == _guide.Id);
+        var bodyChanged = row.Body != _guide.Body.Trim();
+        row.Title = _guide.Title.Trim();
+        row.Section = _guide.Section;
+        row.Trigger = _guide.Trigger.Trim();
+        row.Body = _guide.Body.Trim();
+        // An AI draft Martin has rewritten is his too.
+        if (bodyChanged && row.Source == "AI") row.Source = "AI + Martin";
+        row.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        _guide.Source = row.Source;
+        _guide.UpdatedAt = row.UpdatedAt;
+        _originalBody = row.Body;
+        _editing = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        _editing = false;
+        await OnParametersSetAsync();
+    }
+
+    private async Task ToggleCheckedAsync()
+    {
+        if (_guide is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var row = await db.Guides.FirstAsync(x => x.Id == _guide.Id);
+        row.Checked = !row.Checked;
+        row.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        _guide.Checked = row.Checked;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_guide is null || _game is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Guides.Where(x => x.Id == _guide.Id).ExecuteDeleteAsync();
+        Nav.NavigateTo($"/spil/{_game.Slug}?afsnit={_guide.Section}");
+    }
+
+    private static string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : url;
+}

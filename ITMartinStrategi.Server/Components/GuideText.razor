@@ -1,0 +1,41 @@
+@* Light markdown for guide bodies: "## heading", "- bullet", "**bold**".
+   Everything is HTML-encoded first, so AI text can never inject markup. *@
+@((MarkupString)Render(Text))
+
+@code {
+    [Parameter] public string Text { get; set; } = "";
+
+    public static string Render(string? text)
+    {
+        var sb = new System.Text.StringBuilder();
+        var inList = false;
+        foreach (var raw in (text ?? "").Replace("\r", "").Split('\n'))
+        {
+            var trimmed = raw.Trim();
+            var isBullet = trimmed.StartsWith("- ") || trimmed.StartsWith("* ");
+            if (!isBullet && inList) { sb.Append("</ul>"); inList = false; }
+            if (trimmed.Length == 0) continue;
+            if (trimmed.StartsWith('#'))
+            {
+                sb.Append("<h3>").Append(Inline(trimmed.TrimStart('#').Trim())).Append("</h3>");
+            }
+            else if (isBullet)
+            {
+                if (!inList) { sb.Append("<ul>"); inList = true; }
+                sb.Append("<li>").Append(Inline(trimmed[2..].Trim())).Append("</li>");
+            }
+            else
+            {
+                sb.Append("<p>").Append(Inline(trimmed)).Append("</p>");
+            }
+        }
+        if (inList) sb.Append("</ul>");
+        return sb.ToString();
+    }
+
+    private static string Inline(string s)
+    {
+        var e = System.Net.WebUtility.HtmlEncode(s);
+        return System.Text.RegularExpressions.Regex.Replace(e, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+    }
+}
