@@ -8,6 +8,7 @@ public class ApplianceProgramTests
     private static Appliance Washer() => new()
     {
         Name = "Vaskemaskine",
+        DurationHours = 2,
         Programs =
         [
             new() { Name = "40 °C", KwhPerRun = 0.7, DurationHours = 2, RunsPerWeek = 3 },
@@ -32,7 +33,7 @@ public class ApplianceProgramTests
         var p = a.WithProgram(1);
         Assert.That(p.Id, Is.EqualTo(a.Id));
         Assert.That(p.KwhPerRun, Is.EqualTo(1.2));
-        Assert.That(p.DurationHours, Is.EqualTo(2.5));
+        Assert.That(p.DurationHours, Is.EqualTo(2), "run time belongs to the machine");
         Assert.That(a.WithProgram(9), Is.SameAs(a));
     }
 

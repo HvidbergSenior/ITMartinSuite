@@ -136,7 +136,7 @@ else
         {
             <div class="appl">
                 <div class="appl-icon">@a.Appliance.Icon</div>
-                <div class="appl-name">@a.Appliance.Name <span class="muted">· @a.Appliance.DurationHours.ToString("0.#") t · @a.Appliance.KwhPerRun.ToString("0.#") kWh</span></div>
+                <div class="appl-name">@a.Appliance.Name <span class="muted">· @a.Appliance.KwhPerRun.ToString("0.0#", Da) kWh · regnet med @a.Appliance.DurationHours.ToString("0.##", Da) timer</span></div>
                 @if (a.Appliance.Programs.Count > 1)
                 {
                     var sel = ProgramOf(a.Appliance);

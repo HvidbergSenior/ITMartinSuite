@@ -51,17 +51,18 @@ public sealed class Appliance
     public List<ApplianceProgram> Programs { get; set; } = [];
 
     // Makes KwhPerRun the weighted average over the programs and RunsPerWeek
-    // their sum; DurationHours follows the first (standard) program.
+    // their sum. The run time belongs to the machine, not the program - a
+    // washer that takes 2 hours whatever the temperature is priced as 2 hours.
     public void SyncFromPrograms()
     {
-        Programs.RemoveAll(p => string.IsNullOrWhiteSpace(p.Name) || p.KwhPerRun <= 0 || p.DurationHours <= 0);
+        Programs.RemoveAll(p => string.IsNullOrWhiteSpace(p.Name) || p.KwhPerRun <= 0);
         if (Programs.Count == 0) return;
         var runs = Programs.Sum(p => Math.Max(0, p.RunsPerWeek));
         KwhPerRun = runs > 0
             ? Math.Round(Programs.Sum(p => p.KwhPerRun * Math.Max(0, p.RunsPerWeek)) / runs, 3)
             : Programs[0].KwhPerRun;
         RunsPerWeek = runs;
-        DurationHours = Programs[0].DurationHours;
+        foreach (var p in Programs) p.DurationHours = DurationHours;
     }
 
     // The same machine running one program - same Id, so run logging and
@@ -71,7 +72,7 @@ public sealed class Appliance
             ? new Appliance
             {
                 Id = Id, Name = Name, Icon = Icon, SortOrder = SortOrder, Programs = Programs,
-                KwhPerRun = Programs[i].KwhPerRun, DurationHours = Programs[i].DurationHours, RunsPerWeek = Programs[i].RunsPerWeek,
+                KwhPerRun = Programs[i].KwhPerRun, DurationHours = DurationHours, RunsPerWeek = Programs[i].RunsPerWeek,
             }
             : this;
 
