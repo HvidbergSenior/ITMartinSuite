@@ -1,4 +1,4 @@
-@page "/studio/{SongKey}"
+﻿@page "/studio/{SongKey}"
 @rendermode InteractiveServer
 @implements IDisposable
 @inject StudioDbContext Db
@@ -1352,6 +1352,7 @@ Chorus
                 {
                     var line = lines[__i];
                     var lineIndex = __i;
+                    if (!InSelectedSection(lines, lineIndex)) continue;
                     @if (string.IsNullOrWhiteSpace(line))
                     {
                         <div class="perform-spacer"></div>
@@ -1398,6 +1399,7 @@ Chorus
                 {
                     var line = lines[__i];
                     var lineIndex = __i;
+                    if (!InSelectedSection(lines, lineIndex)) continue;
                     @if (string.IsNullOrWhiteSpace(line))
                     {
                         <div class="perform-spacer"></div>
@@ -3738,6 +3740,17 @@ Chorus
         "verse", "vers", "chorus", "omkvæd", "refræn", "bridge", "bro",
         "intro", "outro", "instrumental", "vocal", "hook", "headline", "comment"
     };
+
+    // Recording one section ("Vers 2"): the sheet shows just that section, so the
+    // words start where the take starts instead of at Vers 1. "Hele sangen" shows all.
+    private bool InSelectedSection(string[] lines, int lineIndex)
+    {
+        if (_selectedSection is null) return true;
+        string? current = null;
+        for (var i = 0; i <= lineIndex && i < lines.Length; i++)
+            if (IsSectionLabel(lines[i])) current = lines[i].Trim().Trim('[', ']', ':').Trim();
+        return string.Equals(current, _selectedSection, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool IsSectionLabel(string line)
     {
