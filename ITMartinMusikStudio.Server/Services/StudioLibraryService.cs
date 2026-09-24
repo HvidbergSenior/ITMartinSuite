@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace ITMartinMusikStudio.Server.Services;
 
@@ -313,7 +313,12 @@ public sealed class StudioLibraryService
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        // Quiet ffmpeg: stdout/stderr are redirected, and a chatty ffmpeg (banner, stream
+        // info, progress lines) could fill the pipe and stall. Errors still come through.
         psi.ArgumentList.Add("-y");
+        psi.ArgumentList.Add("-hide_banner");
+        psi.ArgumentList.Add("-nostats");
+        psi.ArgumentList.Add("-loglevel"); psi.ArgumentList.Add("error");
         foreach (var p in fullPaths) { psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(p); }
 
         var inputTags = string.Concat(Enumerable.Range(0, fullPaths.Count).Select(i => $"[{i}:a]"));
@@ -328,11 +333,23 @@ public sealed class StudioLibraryService
         {
             using var proc = System.Diagnostics.Process.Start(psi);
             if (proc is null) return false;
+            // Drain both pipes while waiting - an unread pipe blocks ffmpeg for good.
+            var stdout = proc.StandardOutput.ReadToEndAsync();
+            var stderr = proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
-            return proc.ExitCode == 0 && File.Exists(dest);
+            var err = await stderr; await stdout;
+            var ok = proc.ExitCode == 0 && File.Exists(dest) && new FileInfo(dest).Length > 0;
+            if (!ok)
+            {
+                Console.Error.WriteLine($"Merge for {songKey} failed (ffmpeg exit {proc.ExitCode}): {err}");
+                try { if (File.Exists(dest)) File.Delete(dest); } catch { }   // no empty "Flettet take" left behind
+            }
+            return ok;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"Merge for {songKey} failed: {ex.Message}");
+            try { if (File.Exists(dest)) File.Delete(dest); } catch { }
             return false;
         }
     }
