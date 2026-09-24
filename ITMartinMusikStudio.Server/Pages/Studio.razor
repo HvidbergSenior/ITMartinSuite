@@ -1545,7 +1545,20 @@ Chorus
     private StudioSong? _song;
     private bool _loading = true;
 
-    private string _tab = "forbered";
+    // The Trin editors are rebuilt from the *Dom snapshots whenever the Trin tab is
+    // shown again, and those snapshots only follow programmatic changes - so after
+    // Trin -> Indspil -> Trin the text boxes showed the text from page load, and
+    // typing there saved that old text over the newer one. Refresh them on the way back.
+    private string _tabValue = "forbered";
+    private string _tab
+    {
+        get => _tabValue;
+        set
+        {
+            if (value == "forbered" && _tabValue != "forbered") SyncEditorsToDom();
+            _tabValue = value;
+        }
+    }
 
     // ── Spotify ───────────────────────────────────────────────────────────
     private string _spotifyQuery = "";
