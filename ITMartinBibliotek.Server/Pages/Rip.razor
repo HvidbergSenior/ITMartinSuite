@@ -1,0 +1,132 @@
+@page "/rip"
+@implements IDisposable
+@inject RipStatusStore Store
+
+<PageTitle>Rip – Bibliotek</PageTitle>
+
+<h1>Rip-station</h1>
+
+@{
+    var jobs = Store.Jobs();
+    var active = jobs.Where(j => j.Status is not ("done" or "failed")).ToList();
+    var failed = jobs.Where(j => j.Status == "failed").ToList();
+    var check = jobs.Where(j => j.Status == "done" && j.NeedsName).ToList();
+    var done = jobs.Where(j => j.Status == "done").ToList();
+    var seen = Store.LastSeen;
+    var online = seen is { } s && DateTime.UtcNow - s < TimeSpan.FromMinutes(3);
+    var today = DateTime.Now.Date;
+}
+
+<div class="card rip-station @(online ? "rip-online" : "rip-offline")">
+    @if (online)
+    {
+        <b>● Rip-stationen kører</b>
+        <div class="muted">Læg en cd eller dvd i. Skuffen åbner af sig selv, når den er færdig.</div>
+    }
+    else
+    {
+        <b>○ Rip-stationen er ikke tændt</b>
+        <div class="muted">@(seen is { } ls ? $"Sidst set {ls.ToLocalTime():d. MMM HH:mm}." : "Den har ikke meldt sig endnu.") Den starter, når du logger ind på pc'en.</div>
+    }
+    <div class="rip-counts muted">@done.Count(j => j.UpdatedAt.ToLocalTime().Date == today) i dag · @done.Count i alt</div>
+</div>
+
+@foreach (var j in active)
+{
+    <div class="card">
+        <div class="rip-head">
+            <span class="rip-icon">@Icon(j.Kind)</span>
+            <div>
+                <b>@(j.Title.Length > 0 ? j.Title : j.Label)</b>
+                <div class="muted small">@j.Step</div>
+            </div>
+        </div>
+        <div class="rip-bar"><div style="width:@(Math.Clamp(j.Progress, 0, 100))%"></div></div>
+        <div class="muted small">@StatusText(j.Status) · @Math.Clamp(j.Progress, 0, 100) % · startet @j.StartedAt.ToLocalTime().ToString("HH:mm")</div>
+    </div>
+}
+
+@if (failed.Count > 0 || check.Count > 0)
+{
+    <div class="section-label">Kræver dig</div>
+    @foreach (var j in failed)
+    {
+        <div class="card rip-failed">
+            <div class="rip-head">
+                <span class="rip-icon">⚠️</span>
+                <div>
+                    <b>@(j.Title.Length > 0 ? j.Title : j.Label) kunne ikke rippes</b>
+                    <div class="small">@j.Error</div>
+                    <div class="muted small">Rens disken med en blød klud (inde fra midten og ud) og læg den i igen. @j.UpdatedAt.ToLocalTime().ToString("d. MMM HH:mm")</div>
+                </div>
+            </div>
+            <button class="top-link" @onclick="() => Store.Remove(j.Id)">Fjern fra listen</button>
+        </div>
+    }
+    @foreach (var j in check)
+    {
+        <div class="card">
+            <div class="rip-head">
+                <span class="rip-icon">🏷️</span>
+                <div>
+                    <b>@j.Title</b>
+                    <div class="muted small">Navnet er gættet ud fra diskens etiket “@j.Label”. Passer det ikke, så sig det rigtige navn til Claude.</div>
+                    <div class="muted small">@j.Target</div>
+                </div>
+            </div>
+            <button class="top-link" @onclick="() => MarkOk(j)">Navnet er rigtigt</button>
+        </div>
+    }
+}
+
+<div class="section-label">Færdige</div>
+@if (done.Count == 0)
+{
+    <p class="muted">Intet rippet endnu.</p>
+}
+<div class="card rip-done">
+    @foreach (var j in done.Take(60))
+    {
+        <div class="rip-row">
+            <span>@Icon(j.Kind)</span>
+            <span class="rip-row-title">@j.Title</span>
+            <span class="muted small">@j.UpdatedAt.ToLocalTime().ToString("d. MMM HH:mm")</span>
+        </div>
+    }
+</div>
+
+@code {
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        // "Last seen" ages even when nothing is posted.
+        _timer = new Timer(_ => OnChanged(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void MarkOk(RipJob j)
+    {
+        j.NeedsName = false;
+        Store.Upsert(j);
+    }
+
+    private static string Icon(string kind) => kind switch { "cd" => "💿", "bluray" => "🔵", _ => "📀" };
+
+    private static string StatusText(string s) => s switch
+    {
+        "ripping" => "Læser disken",
+        "copying" => "Kopierer til NAS",
+        "converting" => "Komprimerer",
+        "finishing" => "Navne og cover",
+        _ => s,
+    };
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        _timer?.Dispose();
+    }
+}

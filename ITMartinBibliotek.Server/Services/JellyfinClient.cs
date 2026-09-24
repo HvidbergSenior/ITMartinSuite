@@ -67,6 +67,15 @@ public sealed class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore
         return string.IsNullOrEmpty(b) ? "" : $"{b}/web/index.html#!/details?id={jellyfinId}";
     }
 
+    // Asks Jellyfin to scan its libraries, so a fresh rip shows up without waiting
+    // for the scheduled scan.
+    public async Task RefreshLibraryAsync()
+    {
+        var http = await ClientAsync();
+        using var res = await http.PostAsync("Library/Refresh", null);
+        res.EnsureSuccessStatusCode();
+    }
+
     private async Task<string> PublicBaseAsync()
     {
         var pub = await settings.GetAsync(SettingsStore.JellyfinPublicUrl);

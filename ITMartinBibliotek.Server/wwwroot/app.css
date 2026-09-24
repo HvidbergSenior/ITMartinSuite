@@ -217,3 +217,18 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
     background: var(--ok-soft); color: var(--ok); border-radius: 8px; padding: 6px 0;
 }
 .chip b { font-weight: 600; opacity: .7; margin-left: 2px; }
+
+/* Rip-station status page */
+.rip-station b { font-size: 17px; }
+.rip-online b { color: var(--ok); }
+.rip-offline b { color: var(--ink-soft); }
+.rip-counts { margin-top: 6px; font-size: 13px; }
+.rip-head { display: flex; gap: 12px; align-items: flex-start; }
+.rip-icon { font-size: 26px; line-height: 1; }
+.rip-bar { height: 8px; border-radius: 4px; background: var(--border); margin: 12px 0 6px; overflow: hidden; }
+.rip-bar div { height: 100%; background: var(--accent); transition: width .6s ease; }
+.rip-failed { border-color: var(--k-danger, #c0392b); }
+.rip-row { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.rip-row:last-child { border-bottom: none; }
+.rip-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.small { font-size: 13px; }

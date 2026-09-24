@@ -40,6 +40,7 @@ builder.Services.AddSingleton<SettingsStore>();
 builder.Services.AddSingleton<JellyfinClient>();
 builder.Services.AddSingleton<MetadataLookup>();
 builder.Services.AddSingleton<JellyfinSync>();
+builder.Services.AddSingleton<RipStatusStore>();
 
 // MusicBrainz and Discogs reject requests without a descriptive User-Agent.
 const string userAgent = "ITMartinBibliotek/1.0 (hvidbergsenior@gmail.com)";
@@ -84,6 +85,7 @@ app.Use(async (ctx, next) =>
             || path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/rip/", StringComparison.OrdinalIgnoreCase)   // own key check below
             || path.StartsWith("/om", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/hjaelp", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/hjaelp", StringComparison.OrdinalIgnoreCase)
@@ -125,6 +127,41 @@ app.MapGet("/api/auth/logout", (HttpContext ctx) =>
     ctx.Response.Cookies.Delete("bibliotek_auth");
     return Results.Redirect("/login");
 });
+
+// The rip station on the PC reports here (ripstation.ps1). It has no browser
+// session, so it authenticates with its own key instead of the PIN cookie.
+var ripKey = app.Configuration["Bibliotek:RipKey"] ?? "";
+bool RipKeyOk(HttpContext ctx) =>
+    ripKey.Length >= 16 && ctx.Request.Headers.TryGetValue("X-Rip-Key", out var k) && k == ripKey;
+
+app.MapPost("/api/rip/job", async (HttpContext ctx, RipJob job, RipStatusStore store, JellyfinClient jellyfin, ILogger<RipStatusStore> log) =>
+{
+    if (!RipKeyOk(ctx)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(job.Id)) return Results.BadRequest();
+    var wasDone = store.Jobs().Any(j => j.Id == job.Id && j.Status == "done");
+    store.Upsert(job);
+    if (job.Status == "done" && !wasDone)
+    {
+        try { await jellyfin.RefreshLibraryAsync(); }
+        catch (Exception ex) { log.LogWarning(ex, "Jellyfin refresh after rip {Id} failed", job.Id); }
+    }
+    return Results.Ok();
+}).DisableAntiforgery();
+
+// Title lookup for a disc label (TMDB in Danish, so "Ørkenens Sønner" is found too).
+app.MapGet("/api/rip/lookup", async (HttpContext ctx, string q, MetadataLookup lookup) =>
+{
+    if (!RipKeyOk(ctx)) return Results.Unauthorized();
+    var hits = await lookup.SearchTitleAsync(q, ITMartinBibliotek.Server.Data.Entities.MediaKind.Film);
+    return Results.Ok(hits.Select(h => new { h.Title, h.Year, Kind = h.Kind.ToString() }));
+});
+
+app.MapPost("/api/rip/heartbeat", (HttpContext ctx, RipStatusStore store) =>
+{
+    if (!RipKeyOk(ctx)) return Results.Unauthorized();
+    store.Heartbeat();
+    return Results.Ok();
+}).DisableAntiforgery();
 
 app.UseAntiforgery();
 
