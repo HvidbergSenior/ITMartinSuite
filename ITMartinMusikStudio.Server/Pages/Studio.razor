@@ -3028,7 +3028,9 @@ Chorus
 
         if (Library.DeleteRecording(r.RelativePath))
         {
-            _recordings = Library.GetRecordings(SongKey);
+            // A take still open in a player is only "delete pending" until the player lets
+            // go of it, so it can still be listed for a moment - leave it out right away.
+            _recordings = Library.GetRecordings(SongKey).Where(x => x.RelativePath != r.RelativePath).ToList();
             _saveStatus = null;
         }
         else

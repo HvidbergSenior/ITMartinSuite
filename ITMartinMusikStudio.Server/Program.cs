@@ -98,7 +98,12 @@ app.MapGet("/stream", (string path, HttpContext ctx, StudioLibraryService lib) =
         _       => "application/octet-stream"
     };
 
-    return Results.File(full, mime, enableRangeProcessing: true);
+    // Open with FileShare.Delete: the page keeps an <audio> connection to every take in
+    // the list, and Results.File(path) locks the file for as long as that lasts - so
+    // 🗑 failed with "filen er i brug" on any take that had been loaded in a player.
+    var stream = new FileStream(full, FileMode.Open, FileAccess.Read,
+        FileShare.ReadWrite | FileShare.Delete, 64 * 1024, useAsync: true);
+    return Results.Stream(stream, mime, lastModified: File.GetLastWriteTimeUtc(full), enableRangeProcessing: true);
 });
 
 // Save a recording take to /musik/recordings/{songKey}/take-{timestamp}.webm
