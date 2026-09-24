@@ -49,6 +49,22 @@ public sealed class WorkflowRecoveryHostedService
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)
     {
+        // AddMediaRuntime is also used by hosts without FileSorter's QuickSort
+        // pipeline (magic-web). Recovery only knows QuickSort, so there it
+        // failed every 5 s forever (~17,000 log errors a day). Nothing to
+        // recover in such a host - switch off once instead.
+        using (var probeScope = _scopeFactory.CreateScope())
+        {
+            if (probeScope.ServiceProvider
+                    .GetService<QuickSortWorkflowDefinition>() is null)
+            {
+                _logger.LogInformation(
+                    "Workflow recovery disabled - no QuickSort workflow registered in this host");
+
+                return;
+            }
+        }
+
         _logger.LogInformation(
             "Workflow recovery started");
 
