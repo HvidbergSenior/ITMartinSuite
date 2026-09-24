@@ -56,12 +56,22 @@ public sealed class WikiLibrary(IHttpClientFactory http, IDbContextFactory<Strat
             Importing = true; Progress = "Starting …"; Changed?.Invoke();
             await using var db = await dbFactory.CreateDbContextAsync(ct);
             var game = await db.Games.FirstAsync(g => g.Id == gameId, ct);
+            // "base|namespace" plus optional "|ns:text" extras: pages in another namespace whose
+            // title contains the text (GalCiv IV keeps "Approval GC4", "GC4 Artifacts Table" … in main).
             var parts = game.Wiki.Split('|');
-            if (parts.Length != 2) return 0;
+            if (parts.Length < 2) return 0;
             var (baseUrl, ns) = (parts[0].TrimEnd('/'), parts[1]);
             var client = http.CreateClient("wiki");
 
             var titles = await ListPagesAsync(client, baseUrl, ns, ct);
+            foreach (var extra in parts.Skip(2))
+            {
+                var kv = extra.Split(':', 2);
+                if (kv.Length != 2) continue;
+                titles.AddRange((await ListPagesAsync(client, baseUrl, kv[0], ct))
+                    .Where(t => t.Contains(kv[1], StringComparison.OrdinalIgnoreCase) && !t.Contains("Test", StringComparison.OrdinalIgnoreCase)));
+            }
+            titles = titles.Distinct().ToList();
             var entries = new List<WikiEntry>();
             var n = 0;
             foreach (var title in titles)
@@ -118,7 +128,9 @@ public sealed class WikiLibrary(IHttpClientFactory http, IDbContextFactory<Strat
         var doc = new HtmlParser().ParseDocument(html);
         var pageName = Short(title);
         var pageUrl = $"{baseUrl}/index.php?title={Uri.EscapeDataString(title.Replace(' ', '_'))}";
-        var kind = pageName.EndsWith(" Table") ? pageName[..^6] : pageName;
+        var kind = System.Text.RegularExpressions.Regex.Replace(pageName, @"^GC4[ :]|\s*GC4$|\s*Table$", "").Trim();
+        if (kind.Length == 0) kind = pageName;
+        pageName = System.Text.RegularExpressions.Regex.Replace(pageName, @"^GC4[ :]|\s*GC4$", "").Trim();
         var result = new List<WikiEntry>();
 
         // Each row of a wiki table is one thing to look up.

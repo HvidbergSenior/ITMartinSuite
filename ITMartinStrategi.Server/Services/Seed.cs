@@ -15,7 +15,7 @@ public static class Seed
             new()
             {
                 Slug = "galciv4", Name = "Galactic Civilizations IV", Platform = "PC", Icon = "🪐", SortOrder = 0, SteamAppId = 1357210,
-                Wiki = "https://wiki.galciv.com|3006",
+                Wiki = "https://wiki.galciv.com|3006|0:GC4",
                 Version = "Supernova with Federations & Empires (v4.x)",
                 Links = Lines(
                     "Stardock: dev journals and news|https://www.galciv4.com/news",
@@ -87,7 +87,7 @@ public static class Seed
             if (s is null) continue;
             e.Links = s.Links;
             e.Topics = s.Topics;
-            if (string.IsNullOrEmpty(e.Wiki)) e.Wiki = s.Wiki;
+            if (s.Wiki.Length > 0) e.Wiki = s.Wiki;
             e.SteamAppId ??= s.SteamAppId;
         }
         await db.SaveChangesAsync();
