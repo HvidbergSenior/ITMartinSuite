@@ -10,21 +10,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddKolibri(k =>
 {
-    k.Name = "Strategi";
-    k.KolibriName = "Kolibri Navigere";
+    k.Name = "Strategy";
+    k.Language = "en";
+    k.KolibriName = "Kolibri Navigate";
     k.Family = "navigere";
-    k.Tagline = "Forstå spillet og spil bedre – uden at snyde.";
+    k.Tagline = "Understand the game and play better – without cheating.";
     k.About =
     [
-        "Strategi samler guides til de spil, du spiller: hvordan mekanikkerne virker, hvad du gør først, og hvad du gør, når du har valgt noget – en regeringsform, en leder, en strategi.",
-        "AI'en skriver et udkast ud fra den nuværende version af spillet. Du retter det til og skriver dine egne strategier ved siden af.",
+        "Strategy collects guides for the games you play: how the mechanics work, what to do first, and what to do once you have chosen something – a government, a leader, a strategy.",
+        "Guides are drafted for the current version of the game. You adjust them and write your own strategies alongside.",
     ];
     k.HowTo =
     [
-        "Vælg et spil.",
-        "Tryk på et emne for at få et AI-udkast – eller skriv din egen strategi.",
-        "Ret udkastet og marker det som tjekket, når du er enig.",
-        "Spørg om noget konkret nederst på spillets side.",
+        "Pick a game.",
+        "Pick a topic to write a guide – or write your own strategy.",
+        "Edit the draft and mark it as checked when you agree.",
+        "Read what is new in the game and your next achievements on the game page.",
     ];
     k.Version = "2026.09";
     k.ThemeColor = "#f4f6f5";

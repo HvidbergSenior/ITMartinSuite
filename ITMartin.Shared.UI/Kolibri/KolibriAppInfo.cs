@@ -46,6 +46,12 @@ public sealed class KolibriAppInfo
 
     public string ThemeColor { get; set; } = "#f4f6f5";
 
+    /// <summary>UI language of the shared pages and footer: "da" (default) or "en".</summary>
+    public string Language { get; set; } = "da";
+
+    /// <summary>Picks the Danish or English text for the configured <see cref="Language"/>.</summary>
+    public string T(string da, string en) => Language == "en" ? en : da;
+
     /// <summary>True when the app has its own /om page; the shared one then only lives at /kolibri/om.</summary>
     public bool OwnOmPage { get; set; }
 

@@ -3,17 +3,17 @@
 @inject SteamService Steam
 @inject NavigationManager Nav
 
-<PageTitle>Strategi</PageTitle>
+<PageTitle>Strategy</PageTitle>
 
-<h1>Dine spil</h1>
-<p class="muted">Guides til at forstå spillet og spille bedre. Sorteret efter hvad du spiller nu på Steam.</p>
+<h1>Your games</h1>
+<p class="muted">Guides to understand the game and play better. Sorted by what you are playing on Steam right now.</p>
 
 <div class="games">
     @foreach (var g in Sorted())
     {
         var count = _counts.GetValueOrDefault(g.Id);
         var s = SteamOf(g);
-        <a class="game" href="/spil/@g.Slug">
+        <a class="game" href="/game/@g.Slug">
             @if (g.SteamAppId is int appId)
             {
                 <img class="game-art" src="@SteamService.HeaderImage(appId)" alt="" loading="lazy" />
@@ -26,11 +26,11 @@
                 <b>@g.Name</b>
                 @if (s is not null)
                 {
-                    <span class="small">@Hours(s.Hours) i alt@(s.Hours2Weeks > 0 ? $" · {Hours(s.Hours2Weeks)} de sidste 2 uger" : "")</span>
+                    <span class="small">@Hours(s.Hours) total@(s.Hours2Weeks > 0 ? $" · {Hours(s.Hours2Weeks)} in the last 2 weeks" : "")</span>
                 }
-                <span class="muted small">@(count.Total == 0 ? "Ingen guides endnu" : $"{count.Total} guides · {count.Checked} tjekket · {count.Mine} egne")</span>
+                <span class="muted small">@(count.Total == 0 ? "No guides yet" : $"{count.Total} guides · {count.Checked} checked · {count.Mine} your own")</span>
             </span>
-            @if (s is { Hours2Weeks: > 0 }) { <span class="k-tag tag-ok now">Spiller nu</span> }
+            @if (s is { Hours2Weeks: > 0 }) { <span class="k-tag tag-ok now">Playing now</span> }
         </a>
     }
 </div>
@@ -41,8 +41,8 @@
     {
         var candidates = _steam.Where(s => _games.All(g => g.SteamAppId != s.AppId)).Take(40).ToList();
         <div class="k-card">
-            <div class="k-card-title">Tilføj fra Steam</div>
-            <div class="muted small">Dine spil sorteret efter timer. Tryk + for at få en side med guides til spillet.</div>
+            <div class="k-card-title">Add from Steam</div>
+            <div class="muted small">Your games sorted by hours. Press + to get a guides page for the game.</div>
             <ul class="steam-list">
                 @foreach (var s in candidates)
                 {
@@ -53,45 +53,45 @@
                     </li>
                 }
             </ul>
-            <button class="k-btn k-btn-ghost" @onclick="() => _showSteam = false">Luk</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _showSteam = false">Close</button>
         </div>
     }
     else
     {
         <div class="btn-row">
-            <button class="k-btn k-btn-primary" @onclick="() => _showSteam = true">+ Tilføj fra Steam</button>
-            <button class="k-btn k-btn-ghost" @onclick="() => _manual = !_manual">+ Andet spil</button>
+            <button class="k-btn k-btn-primary" @onclick="() => _showSteam = true">+ Add from Steam</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _manual = !_manual">+ Other game</button>
         </div>
     }
 }
 else
 {
-    <button class="k-btn k-btn-ghost" @onclick="() => _manual = !_manual">+ Tilføj spil</button>
+    <button class="k-btn k-btn-ghost" @onclick="() => _manual = !_manual">+ Add game</button>
 }
 
 @if (_manual)
 {
     <div class="k-card add-game">
-        <div class="k-card-title">Nyt spil (ikke på Steam)</div>
+        <div class="k-card-title">New game (not on Steam)</div>
         <div class="form-row">
-            <label class="k-label" style="flex:0 0 4rem">Ikon<input class="k-input" @bind="_icon" /></label>
-            <label class="k-label">Navn<input class="k-input" @bind="_name" placeholder="fx Terraforming Mars" /></label>
+            <label class="k-label" style="flex:0 0 4rem">Icon<input class="k-input" @bind="_icon" /></label>
+            <label class="k-label">Name<input class="k-input" @bind="_name" placeholder="e.g. Terraforming Mars" /></label>
         </div>
         <div class="form-row">
             <label class="k-label">Platform
                 <select class="k-input" @bind="_platform">
                     <option>PC</option>
-                    <option>Digitalt brætspil</option>
-                    <option>Brætspil</option>
-                    <option>Konsol</option>
+                    <option>Digital board game</option>
+                    <option>Board game</option>
+                    <option>Console</option>
                 </select>
             </label>
-            <label class="k-label">Version / udvidelser<input class="k-input" @bind="_version" placeholder="fx seneste patch" /></label>
+            <label class="k-label">Version / expansions<input class="k-input" @bind="_version" placeholder="e.g. latest patch" /></label>
         </div>
         @if (_error is not null) { <div class="err">@_error</div> }
         <div class="btn-row">
-            <button class="k-btn k-btn-primary" @onclick="AddManualAsync">Tilføj</button>
-            <button class="k-btn k-btn-ghost" @onclick="() => _manual = false">Annullér</button>
+            <button class="k-btn k-btn-primary" @onclick="AddManualAsync">Add</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _manual = false">Cancel</button>
         </div>
     </div>
 }
@@ -122,8 +122,8 @@ else
         .ThenByDescending(g => SteamOf(g)?.Hours ?? 0)
         .ThenBy(g => g.SortOrder).ThenBy(g => g.Name);
 
-    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
-    private static string Hours(double h) => (h >= 10 ? h.ToString("0", Da) : h.ToString("0.#", Da)) + " t";
+    private static readonly System.Globalization.CultureInfo En = new("en-GB");
+    private static string Hours(double h) => (h >= 10 ? h.ToString("0", En) : h.ToString("0.#", En)) + " h";
 
     private async Task AddFromSteamAsync(SteamGame s)
     {
@@ -136,11 +136,11 @@ else
             db.Games.Add(new Game
             {
                 Slug = slug, Name = s.Name, Platform = "PC", Icon = "🎮", SteamAppId = s.AppId, SortOrder = _games.Count,
-                Topics = "mekanik|Kernemekanikkerne\nstart|De første timer",
-                Links = $"Steam-guides fra spillere|https://steamcommunity.com/app/{s.AppId}/guides/",
+                Topics = "mekanik|The core mechanics\nstart|The first hours",
+                Links = $"Steam guides by players|https://steamcommunity.com/app/{s.AppId}/guides/",
             });
             await db.SaveChangesAsync();
-            Nav.NavigateTo($"/spil/{slug}");
+            Nav.NavigateTo($"/game/{slug}");
         }
         finally { _adding = false; }
     }
@@ -148,17 +148,17 @@ else
     private async Task AddManualAsync()
     {
         _error = null;
-        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv spillets navn."; return; }
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Enter the name of the game."; return; }
         var slug = Slugify(_name);
         await using var db = await DbFactory.CreateDbContextAsync();
-        if (await db.Games.AnyAsync(g => g.Slug == slug)) { _error = "Det spil findes allerede."; return; }
+        if (await db.Games.AnyAsync(g => g.Slug == slug)) { _error = "That game already exists."; return; }
         db.Games.Add(new Game
         {
             Slug = slug, Name = _name.Trim(), Platform = _platform, Version = _version.Trim(),
             Icon = string.IsNullOrWhiteSpace(_icon) ? "🎮" : _icon.Trim(), SortOrder = _games.Count,
         });
         await db.SaveChangesAsync();
-        Nav.NavigateTo($"/spil/{slug}");
+        Nav.NavigateTo($"/game/{slug}");
     }
 
     private static string Slugify(string s)

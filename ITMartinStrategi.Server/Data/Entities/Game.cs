@@ -7,7 +7,7 @@ public sealed class Game
     public int Id { get; set; }
     public string Slug { get; set; } = "";
     public string Name { get; set; } = "";
-    public string Platform { get; set; } = "";          // "PC" | "Digitalt brætspil"
+    public string Platform { get; set; } = "";          // "PC" | "Digital board game"
     public string Version { get; set; } = "";           // patch/expansions the guides are written for
     public string Icon { get; set; } = "🎲";
     public string Topics { get; set; } = "";

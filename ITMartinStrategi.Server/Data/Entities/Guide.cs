@@ -30,19 +30,19 @@ public static class Sections
 
     public static string Label(string s) => s switch
     {
-        Mekanik => "Sådan virker det",
-        Start => "Åbning",
-        Valg => "Hvis du vælger …",
-        Mine => "Mine strategier",
+        Mekanik => "How it works",
+        Start => "Opening",
+        Valg => "If you choose …",
+        Mine => "My strategies",
         _ => s,
     };
 
     public static string Hint(string s) => s switch
     {
-        Mekanik => "Enkle forklaringer af spillets mekanikker.",
-        Start => "Hvad du gør først: de første træk, ture eller runder.",
-        Valg => "Når du har valgt noget – en regeringsform, en leder, en strategi – hvad gør du så?",
-        Mine => "Dine egne strategier og erfaringer.",
+        Mekanik => "Simple explanations of the game's mechanics.",
+        Start => "What you do first: the first moves, turns or rounds.",
+        Valg => "Once you have chosen something – a government, a leader, a strategy – what do you do next?",
+        Mine => "Your own strategies and experience.",
         _ => "",
     };
 }

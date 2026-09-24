@@ -3,28 +3,28 @@
 @using ITMartin.Shared.UI.Kolibri
 @inject KolibriAppInfo Info
 @inject NavigationManager Nav
-<PageTitle>Noget virker ikke – @Info.Name</PageTitle>
-<KolibriHeader Title="Noget virker ikke?" />
+<PageTitle>@Info.T("Noget virker ikke", "Something not working") – @Info.Name</PageTitle>
+<KolibriHeader Title="@Info.T("Noget virker ikke?", "Something not working?")" />
 <main class="k-main"><div class="k-content">
-    <p>Skriv med dine egne ord, hvad du prøvede, og hvad der skete. Det går direkte til Martin, som ringer eller skriver tilbage.</p>
+    <p>@Info.T("Skriv med dine egne ord, hvad du prøvede, og hvad der skete. Det går direkte til Martin, som ringer eller skriver tilbage.", "Describe in your own words what you tried and what happened. It goes straight to Martin, who will call or write back.")</p>
     @* Plain HTML form: works without the Blazor circuit, which is exactly when people need it. *@
     <form method="post" action="/api/hjaelp" onsubmit="setTimeout(function(){document.getElementById('k-thanks').style.display='block';document.getElementById('k-form').style.display='none';},50);return kSend(this);">
         <div id="k-form" class="k-card">
-            <label class="k-label" for="k-text">Hvad skete der?</label>
-            <textarea class="k-textarea" id="k-text" name="text" required placeholder="Fx: Jeg trykkede på Stem, og der skete ingenting."></textarea>
-            <label class="k-label" for="k-name">Dit navn</label>
+            <label class="k-label" for="k-text">@Info.T("Hvad skete der?", "What happened?")</label>
+            <textarea class="k-textarea" id="k-text" name="text" required placeholder="@Info.T("Fx: Jeg trykkede på Stem, og der skete ingenting.", "E.g. I pressed Save and nothing happened.")"></textarea>
+            <label class="k-label" for="k-name">@Info.T("Dit navn", "Your name")</label>
             <input class="k-input" id="k-name" name="name" autocomplete="name" />
-            <label class="k-label" for="k-contact">Telefon eller mail</label>
+            <label class="k-label" for="k-contact">@Info.T("Telefon eller mail", "Phone or email")</label>
             <input class="k-input" id="k-contact" name="contact" autocomplete="tel" />
             <input type="hidden" name="page" value="@Nav.Uri" />
-            <button class="k-btn k-btn-primary k-btn-block k-mt" type="submit">Send til Martin</button>
-            <p class="k-help k-mt">Der sendes: din besked, hvilken side du var på, og hvilken telefon/browser du bruger. Ikke andet.</p>
+            <button class="k-btn k-btn-primary k-btn-block k-mt" type="submit">@Info.T("Send til Martin", "Send to Martin")</button>
+            <p class="k-help k-mt">@Info.T("Der sendes: din besked, hvilken side du var på, og hvilken telefon/browser du bruger. Ikke andet.", "What is sent: your message, the page you were on and which phone/browser you use. Nothing else.")</p>
         </div>
     </form>
-    <div id="k-thanks" class="k-alert k-alert-ok" style="display:none">Tak – beskeden er sendt. Martin vender tilbage.
-        @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> Haster det? Ring </text><a href="tel:+45@(Info.ContactPhone.Replace(" ", ""))">@Info.ContactPhone</a><text>.</text> }
+    <div id="k-thanks" class="k-alert k-alert-ok" style="display:none">@Info.T("Tak – beskeden er sendt. Martin vender tilbage.", "Thanks – the message has been sent. Martin will get back to you.")
+        @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> @Info.T("Haster det? Ring", "Urgent? Call") </text><a href="tel:+45@(Info.ContactPhone.Replace(" ", ""))">@Info.ContactPhone</a><text>.</text> }
     </div>
-    <p class="k-center k-mt"><a class="k-btn" href="/">Tilbage</a></p>
+    <p class="k-center k-mt"><a class="k-btn" href="/">@Info.T("Tilbage", "Back")</a></p>
 </div></main>
 <script>
 function kSend(f){var d=new FormData(f);fetch(f.action,{method:'POST',body:d}).catch(function(){});return false;}

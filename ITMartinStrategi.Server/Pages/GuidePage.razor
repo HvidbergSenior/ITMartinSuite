@@ -1,42 +1,43 @@
 @page "/guide/{Id:int}"
+@page "/game/{Slug}/new/{NewSection}"
 @page "/spil/{Slug}/ny/{NewSection}"
 @inject IDbContextFactory<StrategiDbContext> DbFactory
 @inject NavigationManager Nav
 
-<PageTitle>@(_guide?.Title is { Length: > 0 } t ? t : "Ny guide") – Strategi</PageTitle>
+<PageTitle>@(_guide?.Title is { Length: > 0 } t ? t : "New guide") – Strategy</PageTitle>
 
 @if (_game is null || _guide is null)
 {
-    <p class="muted">Guiden findes ikke. <a href="/">Tilbage</a></p>
+    <p class="muted">Guide not found. <a href="/">Back</a></p>
     return;
 }
 
-<a class="muted small" href="/spil/@_game.Slug?afsnit=@_guide.Section">← @_game.Name · @Sections.Label(_guide.Section)</a>
+<a class="muted small" href="/game/@_game.Slug?section=@_guide.Section">← @_game.Name · @Sections.Label(_guide.Section)</a>
 
 @if (_editing)
 {
-    <h1>@(_guide.Id == 0 ? "Ny guide" : "Ret guide")</h1>
+    <h1>@(_guide.Id == 0 ? "New guide" : "Edit guide")</h1>
     <div class="k-card">
-        <label class="k-label">Titel<input class="k-input" @bind="_guide.Title" /></label>
+        <label class="k-label">Title<input class="k-input" @bind="_guide.Title" /></label>
         <div class="form-row">
-            <label class="k-label">Afsnit
+            <label class="k-label">Section
                 <select class="k-input" @bind="_guide.Section">
                     @foreach (var s in Sections.All) { <option value="@s">@Sections.Label(s)</option> }
                 </select>
             </label>
             @if (_guide.Section == Sections.Valg)
             {
-                <label class="k-label">Valget<input class="k-input" @bind="_guide.Trigger" placeholder="fx Oligarki" /></label>
+                <label class="k-label">The choice<input class="k-input" @bind="_guide.Trigger" placeholder="e.g. Oligarchy" /></label>
             }
         </div>
-        <label class="k-label">Tekst
-            <textarea class="k-textarea guide-edit" rows="18" @bind="_guide.Body" placeholder="## Overskrift&#10;- punkt&#10;**vigtigt**"></textarea>
+        <label class="k-label">Text
+            <textarea class="k-textarea guide-edit" rows="18" @bind="_guide.Body" placeholder="## Heading&#10;- point&#10;**important**"></textarea>
         </label>
-        <div class="muted small">“## ” giver en overskrift, “- ” et punkt og **to stjerner** fed skrift.</div>
+        <div class="muted small">“## ” makes a heading, “- ” a bullet point and **two asterisks** bold text.</div>
         @if (_error is not null) { <div class="err">@_error</div> }
         <div class="btn-row">
-            <button class="k-btn k-btn-primary" @onclick="SaveAsync">Gem</button>
-            @if (_guide.Id != 0) { <button class="k-btn k-btn-ghost" @onclick="CancelAsync">Annullér</button> }
+            <button class="k-btn k-btn-primary" @onclick="SaveAsync">Save</button>
+            @if (_guide.Id != 0) { <button class="k-btn k-btn-ghost" @onclick="CancelAsync">Cancel</button> }
         </div>
     </div>
 }
@@ -45,10 +46,10 @@ else
     <article class="guide-full">
         <h1>@_guide.Title</h1>
         <div class="guide-top">
-            @if (_guide.Trigger.Length > 0) { <span class="k-tag">Valg: @_guide.Trigger</span> }
+            @if (_guide.Trigger.Length > 0) { <span class="k-tag">Choice: @_guide.Trigger</span> }
             <span class="k-tag @(_guide.Source == "Martin" ? "tag-mine" : "")">@_guide.Source</span>
-            @if (_guide.Checked) { <span class="k-tag tag-ok">✓ Tjekket</span> } else { <span class="k-tag tag-draft">Udkast – ikke tjekket</span> }
-            <span class="muted small">Opdateret @_guide.UpdatedAt.ToLocalTime().ToString("d. MMM yyyy", Da)</span>
+            @if (_guide.Checked) { <span class="k-tag tag-ok">✓ Checked</span> } else { <span class="k-tag tag-draft">Draft – not checked</span> }
+            <span class="muted small">Updated @_guide.UpdatedAt.ToLocalTime().ToString("d MMM yyyy", En)</span>
         </div>
         <GuideText Text="@_guide.Body" />
     </article>
@@ -56,7 +57,7 @@ else
     @if (_guide.SourceUrls.Length > 0)
     {
         <details class="small sources">
-            <summary>Kilder AI'en brugte</summary>
+            <summary>Sources the AI used</summary>
             <ul>
                 @foreach (var u in _guide.SourceUrls.Split('\n', StringSplitOptions.RemoveEmptyEntries))
                 {
@@ -67,16 +68,16 @@ else
     }
 
     <div class="btn-row">
-        <button class="k-btn k-btn-primary" @onclick="() => _editing = true">✎ Ret</button>
-        <button class="k-btn" @onclick="ToggleCheckedAsync">@(_guide.Checked ? "Markér som udkast" : "✓ Jeg er enig – markér som tjekket")</button>
+        <button class="k-btn k-btn-primary" @onclick="() => _editing = true">✎ Edit</button>
+        <button class="k-btn" @onclick="ToggleCheckedAsync">@(_guide.Checked ? "Mark as draft" : "✓ I agree – mark as checked")</button>
         @if (_confirmDelete)
         {
-            <button class="k-btn k-btn-danger" @onclick="DeleteAsync">Ja, slet guiden</button>
-            <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = false">Fortryd</button>
+            <button class="k-btn k-btn-danger" @onclick="DeleteAsync">Yes, delete the guide</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = false">Undo</button>
         }
         else
         {
-            <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = true">Slet</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = true">Delete</button>
         }
     </div>
 }
@@ -85,9 +86,9 @@ else
     [Parameter] public int Id { get; set; }
     [Parameter] public string? Slug { get; set; }
     [Parameter] public string? NewSection { get; set; }
-    [SupplyParameterFromQuery(Name = "emne")] public string? Emne { get; set; }
+    [SupplyParameterFromQuery(Name = "topic")] public string? Emne { get; set; }
 
-    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private static readonly System.Globalization.CultureInfo En = new("en-GB");
     private Game? _game;
     private Guide? _guide;
     private string _originalBody = "";
@@ -122,7 +123,7 @@ else
     {
         if (_guide is null) return;
         _error = null;
-        if (string.IsNullOrWhiteSpace(_guide.Title) || string.IsNullOrWhiteSpace(_guide.Body)) { _error = "Skriv en titel og en tekst."; return; }
+        if (string.IsNullOrWhiteSpace(_guide.Title) || string.IsNullOrWhiteSpace(_guide.Body)) { _error = "Enter a title and a text."; return; }
         if (_guide.Section != Sections.Valg) _guide.Trigger = "";
 
         await using var db = await DbFactory.CreateDbContextAsync();
@@ -177,7 +178,7 @@ else
         if (_guide is null || _game is null) return;
         await using var db = await DbFactory.CreateDbContextAsync();
         await db.Guides.Where(x => x.Id == _guide.Id).ExecuteDeleteAsync();
-        Nav.NavigateTo($"/spil/{_game.Slug}?afsnit={_guide.Section}");
+        Nav.NavigateTo($"/game/{_game.Slug}?section={_guide.Section}");
     }
 
     private static string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : url;

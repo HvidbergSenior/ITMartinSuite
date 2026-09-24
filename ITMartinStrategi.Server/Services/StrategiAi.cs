@@ -22,11 +22,11 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
     private const string Style =
-        "Du skriver korte, praktiske strategiguides på dansk til en erfaren spiller, der ikke vil snyde, " +
-        "men gerne vil forstå spillet og spille bedre. Skriv konkret: hvad gør man, hvornår og hvorfor. " +
-        "Brug spillets egne navne på ting (det engelske navn i parentes, hvis den danske oversættelse er uklar). " +
+        "You write short, practical strategy guides in English for an experienced player who does not want to cheat, " +
+        "but wants to understand the game and play better. Be concrete: what to do, when and why. " +
+        "Use the game's own names for things. " +
         "Ingen indledning og ingen afrunding. Format: '## ' for mellemoverskrifter, '- ' for punkter, " +
-        "'**fed**' for det vigtigste. Højst ca. 350 ord.";
+        "'**bold**' for the most important. At most about 350 words.";
 
     // Paid Claude API calls are off unless Strategi:AiEnabled=true - Martin does
     // not want the app to cost money; guides are written in Claude Code instead.
@@ -42,20 +42,20 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
         var titles = existing.Where(g => g.Section != Sections.Mine).Select(g => $"- {Sections.Label(g.Section)}: {g.Title}").ToList();
 
         var prompt = new StringBuilder()
-            .AppendLine($"Spil: {game.Name} ({game.Platform}, {game.Version}).")
-            .AppendLine($"Afsnit: {Sections.Label(section)} – {Sections.Hint(section)}")
-            .AppendLine($"Emne: {topic}")
+            .AppendLine($"Game: {game.Name} ({game.Platform}, {game.Version}).")
+            .AppendLine($"Section: {Sections.Label(section)} – {Sections.Hint(section)}")
+            .AppendLine($"Topic: {topic}")
             .AppendLine()
-            .AppendLine("Søg først på nettet, så guiden passer til den nuværende version af spillet (patch-noter, wiki, " +
-                        "strategiguides fra erfarne spillere). Brug ikke forældede regler.")
+            .AppendLine("Search the web first so the guide fits the current version of the game (patch notes, wiki, " +
+                        "strategy guides by experienced players). Do not use outdated rules.")
             .AppendLine()
-            .AppendLine("Guides der allerede findes (gentag dem ikke, henvis hellere):")
-            .AppendLine(titles.Count > 0 ? string.Join('\n', titles) : "- ingen endnu")
+            .AppendLine("Guides that already exist (do not repeat them, refer to them instead):")
+            .AppendLine(titles.Count > 0 ? string.Join('\n', titles) : "- none yet")
             .AppendLine()
-            .AppendLine("Spillerens egne strategier (byg videre på dem, modsig dem kun med en god grund):")
-            .AppendLine(mine.Count > 0 ? string.Join('\n', mine) : "- ingen endnu")
+            .AppendLine("The player's own strategies (build on them, contradict them only for a good reason):")
+            .AppendLine(mine.Count > 0 ? string.Join('\n', mine) : "- none yet")
             .AppendLine()
-            .AppendLine("Svar til sidst med KUN ét JSON-objekt: {\"title\": \"kort titel\", \"body\": \"guiden i det aftalte format\"}")
+            .AppendLine("Finish with ONLY one JSON object: {\"title\": \"short title\", \"body\": \"the guide in the agreed format\"}")
             .ToString();
 
         var res = await Client().Messages.Create(new MessageCreateParams
@@ -77,7 +77,7 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
 
         var text = string.Concat(res.Content.Select(b => b.TryPickText(out var t) ? t.Text : ""));
         var raw = ParseJson<RawDraft>(text);
-        if (string.IsNullOrWhiteSpace(raw.Body)) throw new InvalidOperationException("AI'en gav et tomt udkast. Prøv igen.");
+        if (string.IsNullOrWhiteSpace(raw.Body)) throw new InvalidOperationException("The AI returned an empty draft. Try again.");
         return new GuideDraft(
             string.IsNullOrWhiteSpace(raw.Title) ? topic : raw.Title.Trim(),
             // The chip/topic the player picked is the cleanest label for the choice.
@@ -100,19 +100,19 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
         {
             Model = ModelId,
             MaxTokens = 4000,
-            System = Style + " Svar på spørgsmålet. Brug spillerens egne guides nedenfor først – især 'Mine strategier' – " +
-                     "og din egen viden om spillet til resten. Sig det, hvis du er usikker på noget i den nuværende version.",
+            System = Style + " Answer the question. Use the player's own guides below first – especially 'My strategies' – " +
+                     "and your own knowledge of the game for the rest. Say so if you are unsure about something in the current version.",
             OutputConfig = new OutputConfig { Effort = Effort.Low },
             Messages = [new() { Role = Role.User, Content =
-                $"Spil: {game.Name} ({game.Version}).\n\nSpillerens guides:\n{(context.Length > 0 ? context.ToString() : "(ingen endnu)")}\n\nSpørgsmål: {question}" }],
+                $"Game: {game.Name} ({game.Version}).\n\nThe player's guides:\n{(context.Length > 0 ? context.ToString() : "(none yet)")}\n\nQuestion: {question}" }],
         }, ct);
         LogUsage("ask", res, 0);
-        if (res.StopReason == "refusal") throw new InvalidOperationException("AI'en ville ikke svare på det.");
+        if (res.StopReason == "refusal") throw new InvalidOperationException("The AI would not answer that.");
         return string.Concat(res.Content.Select(b => b.TryPickText(out var t) ? t.Text : "")).Trim();
     }
 
     private AnthropicClient Client() =>
-        new() { ApiKey = config["Claude:ApiKey"] ?? throw new InvalidOperationException("Mangler Claude-nøgle på serveren.") };
+        new() { ApiKey = config["Claude:ApiKey"] ?? throw new InvalidOperationException("Missing Claude key on the server.") };
 
     private void LogUsage(string what, Message res, long searches)
     {
@@ -124,11 +124,11 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
 
     private void Take()
     {
-        if (!Enabled) throw new InvalidOperationException("AI er slået fra i appen.");
+        if (!Enabled) throw new InvalidOperationException("AI is turned off in the app.");
         lock (_lock)
         {
             Roll();
-            if (_used >= _maxPerDay) throw new InvalidOperationException("Dagens AI-kvote er brugt op. Prøv igen i morgen.");
+            if (_used >= _maxPerDay) throw new InvalidOperationException("Today's AI quota is used up. Try again tomorrow.");
             _used++;
         }
     }
@@ -143,7 +143,7 @@ public sealed class StrategiAi(IConfiguration config, ILogger<StrategiAi> logger
     {
         var start = text.IndexOf('{');
         var end = text.LastIndexOf('}');
-        if (start < 0 || end <= start) throw new InvalidOperationException("AI'en svarede ikke i det aftalte format. Prøv igen.");
+        if (start < 0 || end <= start) throw new InvalidOperationException("The AI did not answer in the agreed format. Try again.");
         return JsonSerializer.Deserialize<T>(text[start..(end + 1)], Json) ?? throw new InvalidOperationException("Tomt svar.");
     }
 

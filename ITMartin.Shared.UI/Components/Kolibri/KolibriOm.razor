@@ -2,8 +2,8 @@
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @using ITMartin.Shared.UI.Kolibri
 @inject KolibriAppInfo Info
-<PageTitle>Om @Info.Name</PageTitle>
-<KolibriHeader Title="@("Om " + Info.Name)" />
+<PageTitle>@Info.T("Om", "About") @Info.Name</PageTitle>
+<KolibriHeader Title="@(Info.T("Om ", "About ") + Info.Name)" />
 <main class="k-main"><div class="k-content">
     @if (!string.IsNullOrWhiteSpace(Info.KolibriName)) { <span class="k-tag">@Info.KolibriName</span> }
     <h1 style="margin-top:8px">@Info.Name</h1>
@@ -11,17 +11,17 @@
     @foreach (var p in Info.About) { <p>@p</p> }
     @if (Info.HowTo.Length > 0)
     {
-        <div class="k-card"><div class="k-card-title">Sådan bruger du den</div>
+        <div class="k-card"><div class="k-card-title">@Info.T("Sådan bruger du den", "How to use it")</div>
             <ol style="margin:0;padding-left:22px">@foreach (var s in Info.HowTo) { <li style="margin:6px 0">@s</li> }</ol>
         </div>
     }
     <div class="k-card">
-        <div class="k-card-title">Hvem står bag</div>
+        <div class="k-card-title">@Info.T("Hvem står bag", "Who is behind it")</div>
         <p style="margin:0">@Info.ContactName<br />
             <a href="mailto:@Info.ContactMail">@Info.ContactMail</a>
             @if (!string.IsNullOrWhiteSpace(Info.ContactPhone)) { <text> · </text><a href="tel:+45@(Info.ContactPhone.Replace(" ", ""))">@Info.ContactPhone</a> }
         </p>
-        <p class="k-small" style="margin:10px 0 0">Version @Info.Version@(string.IsNullOrWhiteSpace(Info.Tenant) ? "" : $" · {Info.Tenant}") · <a href="/hjaelp">Noget virker ikke?</a></p>
+        <p class="k-small" style="margin:10px 0 0">Version @Info.Version@(string.IsNullOrWhiteSpace(Info.Tenant) ? "" : $" · {Info.Tenant}") · <a href="/hjaelp">@Info.T("Noget virker ikke?", "Something not working?")</a></p>
     </div>
-    <p class="k-center"><a class="k-btn" href="/">Tilbage</a></p>
+    <p class="k-center"><a class="k-btn" href="/">@Info.T("Tilbage", "Back")</a></p>
 </div></main>

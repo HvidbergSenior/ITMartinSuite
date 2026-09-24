@@ -1,14 +1,15 @@
+@page "/game/{Slug}"
 @page "/spil/{Slug}"
 @inject IDbContextFactory<StrategiDbContext> DbFactory
 @inject StrategiAi Ai
 @inject SteamService Steam
 @inject NavigationManager Nav
 
-<PageTitle>@(_game?.Name ?? "Spil") – Strategi</PageTitle>
+<PageTitle>@(_game?.Name ?? "Game") – Strategy</PageTitle>
 
 @if (_game is null)
 {
-    <p class="muted">Spillet findes ikke. <a href="/">Tilbage</a></p>
+    <p class="muted">Game not found. <a href="/">Back</a></p>
     return;
 }
 
@@ -26,22 +27,22 @@
         @if (_editVersion)
         {
             <div class="form-row">
-                <input class="k-input" @bind="_game.Version" placeholder="Version / udvidelser" />
-                <button class="k-btn k-btn-sm k-btn-primary" @onclick="SaveVersionAsync">Gem</button>
+                <input class="k-input" @bind="_game.Version" placeholder="Version / expansions" />
+                <button class="k-btn k-btn-sm k-btn-primary" @onclick="SaveVersionAsync">Save</button>
             </div>
         }
         else
         {
-            <div class="muted small">@_game.Platform · @_game.Version <button class="linkish" @onclick="() => _editVersion = true">ret</button></div>
+            <div class="muted small">@_game.Platform · @_game.Version <button class="linkish" @onclick="() => _editVersion = true">edit</button></div>
             @if (_mySteam is not null)
             {
-                <div class="small">@_mySteam.Hours.ToString("0", Da) timer i alt@(_mySteam.Hours2Weeks > 0 ? $" · {_mySteam.Hours2Weeks.ToString("0.#", Da)} de sidste 2 uger" : "")</div>
+                <div class="small">@_mySteam.Hours.ToString("0", En) hours total@(_mySteam.Hours2Weeks > 0 ? $" · {_mySteam.Hours2Weeks.ToString("0.#", En)} in the last 2 weeks" : "")</div>
             }
         }
     </div>
 </div>
 
-<nav class="tabs" aria-label="Afsnit">
+<nav class="tabs" aria-label="Sections">
     @foreach (var s in Sections.All)
     {
         var n = _guides.Count(g => g.Section == s);
@@ -53,7 +54,7 @@
 
 @if (_busy is not null)
 {
-    <div class="k-alert k-alert-info">AI'en skriver om “@_busy” – det tager op til et minut …</div>
+    <div class="k-alert k-alert-info">The AI is writing about “@_busy” – it takes up to a minute …</div>
 }
 @if (_error is not null)
 {
@@ -65,7 +66,7 @@
 }
 @if (inSection.Count == 0)
 {
-    <p class="muted">Ingen guides her endnu.</p>
+    <p class="muted">No guides here yet.</p>
 }
 <div class="guides">
     @foreach (var g in inSection)
@@ -73,12 +74,12 @@
         <a class="guide-card" href="/guide/@g.Id">
             <div class="guide-top">
                 <b>@g.Title</b>
-                @if (g.Trigger.Length > 0) { <span class="k-tag">Valg: @g.Trigger</span> }
+                @if (g.Trigger.Length > 0) { <span class="k-tag">Choice: @g.Trigger</span> }
                 <span class="k-tag @(g.Source == "Martin" ? "tag-mine" : "")">@g.Source</span>
-                @if (g.Checked) { <span class="k-tag tag-ok">✓ Tjekket</span> } else { <span class="k-tag tag-draft">Udkast</span> }
+                @if (g.Checked) { <span class="k-tag tag-ok">✓ Checked</span> } else { <span class="k-tag tag-draft">Draft</span> }
                 @if (_latestDevNews is { } ln && ln.Date > g.UpdatedAt && g.Section != Sections.Mine)
                 {
-                    <span class="k-tag tag-warn" title="@ln.Title">⚠ Skrevet før “@Short(ln.Title)”</span>
+                    <span class="k-tag tag-warn" title="@ln.Title">⚠ Written before “@Short(ln.Title)”</span>
                 }
             </div>
             <div class="guide-preview"><GuideText Text="@Preview(g.Body)" /></div>
@@ -92,14 +93,14 @@
     @if (missing.Count > 0)
     {
         <div class="k-card">
-            <div class="k-card-title">Emner uden guide endnu</div>
+            <div class="k-card-title">Topics without a guide yet</div>
             <div class="chips">
                 @foreach (var t in missing)
                 {
-                    <a class="chip" href="/spil/@_game.Slug/ny/@_section?emne=@Uri.EscapeDataString(t)">+ @t</a>
+                    <a class="chip" href="/game/@_game.Slug/new/@_section?topic=@Uri.EscapeDataString(t)">+ @t</a>
                 }
             </div>
-            <div class="muted small">Skriv den selv – eller bed Claude i Claude Code om at skrive guides til @_game.Name. Det koster ingenting i appen.</div>
+            <div class="muted small">Write it yourself – or ask Claude in Claude Code to write guides for @_game.Name. It costs nothing in the app.</div>
         </div>
     }
 }
@@ -107,7 +108,7 @@
 {
     var open = _game.TopicList().Where(t => t.Section == _section && !Covered(t.Topic)).Select(t => t.Topic).ToList();
     <div class="k-card">
-        <div class="k-card-title">Lav et AI-udkast</div>
+        <div class="k-card-title">Make an AI draft</div>
         @if (open.Count > 0)
         {
             <div class="chips">
@@ -119,24 +120,24 @@
         }
         <div class="form-row">
             <input class="k-input" @bind="_topic" @bind:event="oninput" placeholder="@TopicPlaceholder" />
-            <button class="k-btn k-btn-primary" disabled="@(_busy is not null || string.IsNullOrWhiteSpace(_topic))" @onclick="() => DraftAsync(_topic)">Lav udkast</button>
+            <button class="k-btn k-btn-primary" disabled="@(_busy is not null || string.IsNullOrWhiteSpace(_topic))" @onclick="() => DraftAsync(_topic)">Make draft</button>
         </div>
-        <div class="muted small">AI'en søger på nettet efter den nuværende version og bygger videre på dine egne strategier. Et udkast tager op til et minut og koster ca. 2–3 kr.</div>
+        <div class="muted small">The AI searches the web for the current version and builds on your own strategies. A draft takes up to a minute and costs about 2–3 DKK.</div>
     </div>
 }
 <div class="btn-row">
-    <a class="k-btn k-btn-ghost" href="/spil/@_game.Slug/ny/@_section">✎ Skriv selv</a>
+    <a class="k-btn k-btn-ghost" href="/game/@_game.Slug/new/@_section">✎ Write it yourself</a>
 </div>
 
 @if (_news.Count > 0)
 {
     <div class="k-card">
-        <div class="k-card-title">Nyt i spillet</div>
+        <div class="k-card-title">What's new in the game</div>
         <ul class="news">
             @foreach (var n in _news.Take(5))
             {
                 <li>
-                    <span class="muted small">@n.Date.ToLocalTime().ToString("d. MMM yyyy", Da)@(n.FromDevelopers ? " · udviklerne" : "")</span><br />
+                    <span class="muted small">@n.Date.ToLocalTime().ToString("d MMM yyyy", En)@(n.FromDevelopers ? " · the developers" : "")</span><br />
                     <a href="@n.Url" target="_blank" rel="noopener">@n.Title</a>
                 </li>
             }
@@ -149,13 +150,13 @@
     var got = _achievements.Count(a => a.Achieved);
     var next = _achievements.Where(a => !a.Achieved).OrderByDescending(a => a.GlobalPercent).Take(8).ToList();
     <div class="k-card">
-        <div class="k-card-title">Næste udfordringer</div>
-        <div class="muted small">Du har @got af @_achievements.Count achievements. Her er dem, du mangler, som flest andre spillere har klaret.</div>
+        <div class="k-card-title">Next challenges</div>
+        <div class="muted small">You have @got of @_achievements.Count achievements. These are the ones you're missing that most other players have.</div>
         <ul class="achievements">
             @foreach (var a in next)
             {
                 <li>
-                    <b>@a.Name</b> <span class="muted small">· @a.GlobalPercent.ToString("0.#", Da) % har den</span>
+                    <b>@a.Name</b> <span class="muted small">· @a.GlobalPercent.ToString("0.#", En) % have it</span>
                     @if (a.Description.Length > 0) { <br /><span class="small">@a.Description</span> }
                 </li>
             }
@@ -166,7 +167,7 @@
 @if (_game.LinkList().Any())
 {
     <div class="k-card">
-        <div class="k-card-title">Læs mere – gratis kilder</div>
+        <div class="k-card-title">Read more – free sources</div>
         <ul class="links">
             @foreach (var (label, url) in _game.LinkList())
             {
@@ -179,10 +180,10 @@
 @if (Ai.Enabled)
 {
 <div class="k-card ask">
-    <div class="k-card-title">Spørg</div>
+    <div class="k-card-title">Ask</div>
     <textarea class="k-textarea" rows="2" @bind="_question" @bind:event="oninput" placeholder="@AskPlaceholder"></textarea>
     <div class="btn-row">
-        <button class="k-btn k-btn-primary" disabled="@(_asking || string.IsNullOrWhiteSpace(_question))" @onclick="AskAsync">@(_asking ? "Tænker …" : "Spørg")</button>
+        <button class="k-btn k-btn-primary" disabled="@(_asking || string.IsNullOrWhiteSpace(_question))" @onclick="AskAsync">@(_asking ? "Thinking …" : "Ask")</button>
     </div>
     @if (_answer is not null)
     {
@@ -191,16 +192,16 @@
             <select class="k-input" style="max-width:14rem" @bind="_saveSection">
                 @foreach (var s in Sections.All) { <option value="@s">@Sections.Label(s)</option> }
             </select>
-            <button class="k-btn k-btn-sm" @onclick="SaveAnswerAsync">Gem som guide</button>
+            <button class="k-btn k-btn-sm" @onclick="SaveAnswerAsync">Save as guide</button>
         </div>
     }
-    <div class="muted small">Svarer ud fra dine guides og AI'ens viden om spillet. Et svar koster under 50 øre.</div>
+    <div class="muted small">Answers from your guides and the AI's knowledge of the game. An answer costs under 0.50 DKK.</div>
 </div>
 }
 
 @code {
     [Parameter] public string Slug { get; set; } = "";
-    [SupplyParameterFromQuery(Name = "afsnit")] public string? Afsnit { get; set; }
+    [SupplyParameterFromQuery(Name = "section")] public string? Afsnit { get; set; }
 
     private Game? _game;
     private List<Guide> _guides = [];
@@ -213,7 +214,7 @@
     private bool _asking;
     private string? _answer;
     private string _saveSection = Sections.Mekanik;
-    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private static readonly System.Globalization.CultureInfo En = new("en-GB");
     private SteamGame? _mySteam;
     private IReadOnlyList<SteamNews> _news = [];
     private SteamNews? _latestDevNews;
@@ -223,16 +224,16 @@
 
     private string TopicPlaceholder => _section switch
     {
-        Sections.Valg => "Hvad har du valgt? fx Oligarki",
-        Sections.Start => "fx De første 20 ture",
-        _ => "Hvilken mekanik? fx Indflydelse",
+        Sections.Valg => "What did you choose? e.g. Oligarchy",
+        Sections.Start => "e.g. The first 20 turns",
+        _ => "Which mechanic? e.g. Influence",
     };
 
     private string AskPlaceholder => _game?.Slug switch
     {
-        "galciv4" => "fx Jeg har valgt oligarki – hvad skal jeg forske i nu?",
-        "wingspan" => "fx Hvornår skal jeg skifte fra at samle føde til at lægge æg?",
-        _ => "Spørg om noget konkret i spillet",
+        "galciv4" => "e.g. I chose oligarchy – what should I research now?",
+        "wingspan" => "e.g. When should I switch from gathering food to laying eggs?",
+        _ => "Ask about something specific in the game",
     };
 
     protected override async Task OnParametersSetAsync()

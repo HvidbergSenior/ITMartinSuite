@@ -1,8 +1,8 @@
 @using ITMartin.Shared.UI.Kolibri
 @inject KolibriAppInfo Info
 <footer class="k-footer">
-    <span>&copy; @DateTime.Now.Year ITMartin · Den digitale kolibri</span>
-    <a href="/om">Om @Info.Name</a>
-    <a href="/hjaelp">Noget virker ikke?</a>
-    <a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" rel="noopener">Vilkår &amp; privatliv</a>
+    <span>&copy; @DateTime.Now.Year ITMartin · @Info.T("Den digitale kolibri", "The digital hummingbird")</span>
+    <a href="/om">@Info.T("Om", "About") @Info.Name</a>
+    <a href="/hjaelp">@Info.T("Noget virker ikke?", "Something not working?")</a>
+    <a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" rel="noopener">@Info.T("Vilkår & privatliv", "Terms & privacy")</a>
 </footer>

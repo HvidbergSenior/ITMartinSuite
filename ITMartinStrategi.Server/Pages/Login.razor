@@ -1,18 +1,18 @@
 @page "/login"
 @layout EmptyLayout
 
-<PageTitle>Log ind – Strategi</PageTitle>
+<PageTitle>Log in – Strategy</PageTitle>
 
 <div class="login-wrap">
     <form class="login-box" method="post" action="/api/auth/login">
         <div class="login-icon">♟️</div>
-        <h1>Strategi</h1>
+        <h1>Strategy</h1>
         @if (Error == "1")
         {
-            <div class="err">Forkert PIN – prøv igen</div>
+            <div class="err">Wrong PIN – try again</div>
         }
-        <input type="password" name="pin_" class="k-input" placeholder="PIN-kode" autofocus maxlength="30" />
-        <button type="submit" class="k-btn k-btn-primary k-btn-block">Log ind</button>
+        <input type="password" name="pin_" class="k-input" placeholder="PIN code" autofocus maxlength="30" />
+        <button type="submit" class="k-btn k-btn-primary k-btn-block">Log in</button>
     </form>
 </div>
 
