@@ -49,11 +49,11 @@ public static class DeviceCatalog
     [
         // Machines that run a cycle - these go on the front page with a start button.
         new("vaskemaskine", "Vask og opvask", "🧺", "Vaskemaskine", true, KwhPerRun: 1.0, DurationHours: 2, RunsPerWeek: 4, Note: "30 °C ~0,4 · 40 °C ~0,7 · 60 °C ~1,2 · 90 °C ~2 kWh",
-            Programs: [P("30 °C", 0.4, 2, 1), P("40 °C", 0.7, 2, 2), P("60 °C", 1.2, 2, 1), P("90 °C", 2.0, 2, 0)]),
+            Programs: [P("40 °C", 0.7, 2, 0), P("30 °C", 0.4, 2, 0), P("60 °C", 1.2, 2, 0), P("90 °C", 2.0, 2, 0)]),
         new("toerretumbler", "Vask og opvask", "🌀", "Tørretumbler (kondens)", true, KwhPerRun: 2.5, DurationHours: 1.5, RunsPerWeek: 2),
         new("toerretumbler-vp", "Vask og opvask", "🌀", "Tørretumbler (varmepumpe)", true, KwhPerRun: 1.2, DurationHours: 2.5, RunsPerWeek: 2),
         new("opvaskemaskine", "Vask og opvask", "🍽️", "Opvaskemaskine", true, KwhPerRun: 1.2, DurationHours: 2, RunsPerWeek: 5, Note: "Eco ~0,8 · Normal ~1,2 · Intensiv ~1,6 kWh",
-            Programs: [P("Eco", 0.8, 3.5, 4), P("Normal", 1.2, 2, 1), P("Intensiv", 1.6, 2.5, 0)]),
+            Programs: [P("Eco", 0.8, 2, 0), P("Normal", 1.2, 2, 0), P("Intensiv", 1.6, 2, 0)]),
         new("ovn", "Køkken", "🔥", "Ovn (1 time)", true, KwhPerRun: 1.5, DurationHours: 1, RunsPerWeek: 4),
         new("kogeplade", "Køkken", "🍳", "Kogeplade/induktion (aftensmad)", true, KwhPerRun: 0.6, DurationHours: 0.5, RunsPerWeek: 7),
         new("airfryer", "Køkken", "🍟", "Airfryer", true, KwhPerRun: 0.5, DurationHours: 0.5, RunsPerWeek: 3),

@@ -38,6 +38,9 @@ public sealed class Appliance
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string Icon { get; set; } = "🔌";
+    // Model number from the plate/energy label, e.g. "Asko W6884" - shown
+    // with the name so the kWh can be checked against the right manual.
+    public string Model { get; set; } = "";
     public double KwhPerRun { get; set; }
     public double DurationHours { get; set; }
     // How often it typically runs - turns "kr pr. tur" into kr pr. måned.
@@ -50,19 +53,16 @@ public sealed class Appliance
     // up right, and a single program is picked with WithProgram.
     public List<ApplianceProgram> Programs { get; set; } = [];
 
-    // Makes KwhPerRun the weighted average over the programs and RunsPerWeek
-    // their sum. The run time belongs to the machine, not the program - a
-    // washer that takes 2 hours whatever the temperature is priced as 2 hours.
+    // The first program is the one used most, so the flat KwhPerRun (what
+    // the month price and the notifications use) follows it. The run time
+    // and runs per week belong to the machine: a washer takes 2 hours
+    // whatever the temperature, and nobody should have to count washes.
     public void SyncFromPrograms()
     {
         Programs.RemoveAll(p => string.IsNullOrWhiteSpace(p.Name) || p.KwhPerRun <= 0);
         if (Programs.Count == 0) return;
-        var runs = Programs.Sum(p => Math.Max(0, p.RunsPerWeek));
-        KwhPerRun = runs > 0
-            ? Math.Round(Programs.Sum(p => p.KwhPerRun * Math.Max(0, p.RunsPerWeek)) / runs, 3)
-            : Programs[0].KwhPerRun;
-        RunsPerWeek = runs;
-        foreach (var p in Programs) p.DurationHours = DurationHours;
+        KwhPerRun = Programs[0].KwhPerRun;
+        foreach (var p in Programs) { p.DurationHours = DurationHours; p.RunsPerWeek = 0; }
     }
 
     // The same machine running one program - same Id, so run logging and
@@ -71,14 +71,14 @@ public sealed class Appliance
         index is int i && i >= 0 && i < Programs.Count
             ? new Appliance
             {
-                Id = Id, Name = Name, Icon = Icon, SortOrder = SortOrder, Programs = Programs,
-                KwhPerRun = Programs[i].KwhPerRun, DurationHours = DurationHours, RunsPerWeek = Programs[i].RunsPerWeek,
+                Id = Id, Name = Name, Icon = Icon, Model = Model, SortOrder = SortOrder, Programs = Programs,
+                KwhPerRun = Programs[i].KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek,
             }
             : this;
 
     public Appliance Clone() => new()
     {
-        Id = Id, Name = Name, Icon = Icon, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = SortOrder,
+        Id = Id, Name = Name, Icon = Icon, Model = Model, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = SortOrder,
         Programs = Programs.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.KwhPerRun, DurationHours = p.DurationHours, RunsPerWeek = p.RunsPerWeek }).ToList(),
     };
 

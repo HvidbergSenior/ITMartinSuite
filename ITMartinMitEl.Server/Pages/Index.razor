@@ -136,7 +136,7 @@ else
         {
             <div class="appl">
                 <div class="appl-icon">@a.Appliance.Icon</div>
-                <div class="appl-name">@a.Appliance.Name <span class="muted">· @a.Appliance.KwhPerRun.ToString("0.0#", Da) kWh · regnet med @a.Appliance.DurationHours.ToString("0.##", Da) timer</span></div>
+                <div class="appl-name">@a.Appliance.Name@(string.IsNullOrWhiteSpace(a.Appliance.Model) ? "" : $" ({a.Appliance.Model})") <span class="muted">· @a.Appliance.KwhPerRun.ToString("0.0#", Da) kWh · regnet med @a.Appliance.DurationHours.ToString("0.##", Da) timer</span></div>
                 @if (a.Appliance.Programs.Count > 1)
                 {
                     var sel = ProgramOf(a.Appliance);
@@ -144,7 +144,7 @@ else
                         @for (var i = 0; i < a.Appliance.Programs.Count; i++)
                         {
                             var idx = i;
-                            <button class="btn btn-small @(idx == sel ? "btn-primary" : "")" @onclick="() => PickProgram(a.Appliance.Id, idx)">@a.Appliance.Programs[idx].Name</button>
+                            <button class="btn btn-small @(idx == sel ? "btn-primary" : "")" @onclick="() => PickProgram(a.Appliance.Id, idx)">@a.Appliance.Programs[idx].Name@(ProgramPrice(a.Appliance.Id, idx) is { } pp ? $" · {pp.ToString("0.00", Da)} kr" : "")</button>
                         }
                     </div>
                 }
@@ -341,7 +341,19 @@ else
         var data = Store.Get();
         var appliances = data.Appliances.Select(a => a.Programs.Count > 0 ? a.WithProgram(ProgramOf(a)) : a).ToList();
         _snap = PriceModel.Build(_raw, data.Settings, appliances, DkTime.Now);
+        // What each program costs if started now, for the price on its button.
+        _programNow.Clear();
+        foreach (var a in data.Appliances.Where(x => x.Programs.Count > 1))
+        {
+            var views = PriceModel.Build(_raw, data.Settings, a.Programs.Select((_, i) => a.WithProgram(i)).ToList(), DkTime.Now).Appliances;
+            _programNow[a.Id] = views.Select(v => (v.Now ?? v.CheapestToday)?.CostKr).ToList();
+        }
     }
+
+    private readonly Dictionary<Guid, List<double?>> _programNow = new();
+
+    private double? ProgramPrice(Guid id, int index) =>
+        _programNow.TryGetValue(id, out var list) && index < list.Count ? list[index] : null;
 
     private void PickProgram(Guid id, int index)
     {

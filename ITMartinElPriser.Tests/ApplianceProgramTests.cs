@@ -17,13 +17,14 @@ public class ApplianceProgramTests
     };
 
     [Test]
-    public void Sync_makes_flat_fields_the_weekly_mix()
+    public void Sync_uses_the_first_program_and_the_machines_time()
     {
         var a = Washer();
+        a.RunsPerWeek = 4;
         a.SyncFromPrograms();
+        Assert.That(a.KwhPerRun, Is.EqualTo(0.7));
         Assert.That(a.RunsPerWeek, Is.EqualTo(4));
-        Assert.That(a.KwhPerRun * a.RunsPerWeek, Is.EqualTo(0.7 * 3 + 1.2).Within(0.01));
-        Assert.That(a.DurationHours, Is.EqualTo(2));
+        Assert.That(a.Programs.Select(p => p.DurationHours), Is.All.EqualTo(2));
     }
 
     [Test]

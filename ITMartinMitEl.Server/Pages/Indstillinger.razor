@@ -3,6 +3,7 @@
 @inject EloverblikService Eloverblik
 @inject ConsumptionSync Sync
 @inject ConsumptionStore Consumption
+@inject ApplianceLookup Lookup
 
 <PageTitle>Indstillinger – MinElpris</PageTitle>
 
@@ -17,35 +18,54 @@
         <div class="dev-edit">
             <div class="row2">
                 <div class="field" style="flex:0 0 3rem"><label>Ikon</label><input type="text" @bind="a.Icon" /></div>
-                <div class="field" style="flex:3"><label>Navn</label><input type="text" @bind="a.Name" /></div>
+                <div class="field" style="flex:3"><label>Navn</label><input type="text" @bind="a.Name" placeholder="fx Vaskemaskine" /></div>
                 <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern" @onclick="() => _appliances.Remove(a)">✕</button></div>
             </div>
             <div class="row2">
-                <div class="field"><label>Timer pr. tur</label><input type="number" step="0.25" min="0.25" max="12" @bind="a.DurationHours" /></div>
-                @if (a.Programs.Count == 0)
-                {
-                    <div class="field"><label>kWh pr. tur</label><input type="number" step="0.1" min="0.05" max="100" @bind="a.KwhPerRun" /></div>
-                    <div class="field"><label>Ture pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="a.RunsPerWeek" /></div>
-                }
+                <div class="field" style="flex:3"><label>Modelnummer</label><input type="text" @bind="a.Model" placeholder="fx Asko W6884" /></div>
+                <div class="field" style="flex:0"><label>&nbsp;</label>
+                    <button class="btn btn-primary" disabled="@(_looking == a.Id || string.IsNullOrWhiteSpace(a.Model))" @onclick="() => LookupAsync(a)">@(_looking == a.Id ? "Søger…" : "🔍 Find forbrug")</button>
+                </div>
             </div>
+            @if (_lookupMsg.TryGetValue(a.Id, out var msg))
+            {
+                <div class="small @(msg.Ok ? "muted" : "err")" style="margin:4px 0">@msg.Text
+                    @foreach (var src in msg.Sources) { <br /><a href="@src" target="_blank" rel="noopener">@Host(src)</a> }
+                </div>
+            }
             @if (a.Programs.Count == 0)
             {
-                <button class="btn btn-small" @onclick="() => AddPrograms(a)">+ Programmer (fx 30/40/60 °C)</button>
+                <div class="row2">
+                    <div class="field"><label>kWh pr. tur</label><input type="number" step="0.1" min="0.05" max="100" @bind="a.KwhPerRun" /></div>
+                </div>
             }
             else
             {
-                <div class="muted small" style="margin:6px 0 2px">Programmer – alle regnes med @a.DurationHours.ToString("0.##") timer. Det øverste er standard. Pr. uge bruges til månedsprisen.</div>
                 @foreach (var p in a.Programs)
                 {
                     <div class="row2">
                         <div class="field" style="flex:1.4"><label>Program</label><input type="text" @bind="p.Name" /></div>
                         <div class="field"><label>kWh</label><input type="number" step="0.1" min="0.05" max="100" @bind="p.KwhPerRun" /></div>
-                        <div class="field"><label>Pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="p.RunsPerWeek" /></div>
                         <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern program" @onclick="() => a.Programs.Remove(p)">✕</button></div>
                     </div>
                 }
-                <button class="btn btn-small" @onclick="() => AddProgram(a)">+ Program</button>
             }
+            <div class="muted small" style="margin-top:4px">Regnet med <b>@a.DurationHours.ToString("0.##") timer</b> pr. tur og ca. @a.RunsPerWeek.ToString("0.#") ture om ugen@(a.Programs.Count > 0 ? " – det øverste program er det, du bruger mest" : "").</div>
+            <details class="small" style="margin-top:4px">
+                <summary>Ret tid, antal og programmer</summary>
+                <div class="row2">
+                    <div class="field"><label>Timer pr. tur</label><input type="number" step="0.25" min="0.25" max="12" @bind="a.DurationHours" /></div>
+                    <div class="field"><label>Ture pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="a.RunsPerWeek" /></div>
+                </div>
+                @if (a.Programs.Count == 0)
+                {
+                    <button class="btn btn-small" @onclick="() => AddPrograms(a)">+ Programmer (fx 30/40/60 °C)</button>
+                }
+                else
+                {
+                    <button class="btn btn-small" @onclick="() => AddProgram(a)">+ Program</button>
+                }
+            </details>
         </div>
     }
     <div class="btn-row">
@@ -240,6 +260,33 @@
         else
             a.Programs = [new ApplianceProgram { Name = "Standard", KwhPerRun = a.KwhPerRun, DurationHours = a.DurationHours, RunsPerWeek = a.RunsPerWeek }];
     }
+
+    private Guid? _looking;
+    private readonly Dictionary<Guid, (bool Ok, string Text, List<string> Sources)> _lookupMsg = new();
+
+    // Model number in, kWh per program + run time out - filled into the form;
+    // nothing is saved until Gem, so a wrong guess costs nothing.
+    private async Task LookupAsync(Appliance a)
+    {
+        _looking = a.Id;
+        _lookupMsg.Remove(a.Id);
+        try
+        {
+            var r = await Lookup.LookupAsync(a.Model);
+            if (string.IsNullOrWhiteSpace(a.Name)) a.Name = r.Name;
+            if (string.IsNullOrWhiteSpace(a.Icon) || a.Icon == "🔌") a.Icon = r.Icon;
+            a.Model = r.Model;
+            a.DurationHours = r.DurationHours;
+            if (a.RunsPerWeek <= 0) a.RunsPerWeek = DeviceCatalog.ProgramsFor(a.Name)?.RunsPerWeek ?? 3;
+            a.Programs = r.Programs.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.Kwh, DurationHours = r.DurationHours }).ToList();
+            if (a.Programs.Count == 1) { a.KwhPerRun = a.Programs[0].KwhPerRun; a.Programs.Clear(); }
+            _lookupMsg[a.Id] = (true, "Fundet af AI – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
+        }
+        catch (Exception ex) { _lookupMsg[a.Id] = (false, ex.Message, []); }
+        finally { _looking = null; }
+    }
+
+    private static string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : url;
 
     private static void AddProgram(Appliance a)
     {

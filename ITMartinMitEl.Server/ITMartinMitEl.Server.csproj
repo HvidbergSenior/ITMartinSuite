@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Anthropic" Version="12.29.0" />
         <PackageReference Include="WebPush" Version="1.0.12" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
     </ItemGroup>

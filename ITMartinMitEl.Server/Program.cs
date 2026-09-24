@@ -69,6 +69,7 @@ builder.Services.AddScoped<ConsumptionStore>(sp =>
 });
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<RunLogService>();
+builder.Services.AddSingleton<ApplianceLookup>();
 builder.Services.AddHostedService<NotificationScheduler>();
 builder.Services.AddSingleton(sp => new EloverblikService(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, sp.GetRequiredService<ILogger<EloverblikService>>()));
 builder.Services.AddSingleton<ConsumptionSync>();
