@@ -171,6 +171,14 @@
                     disabled="@(string.IsNullOrWhiteSpace(_ownerName) || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
                 📷 Start kamera
             </button>
+            @if (string.IsNullOrWhiteSpace(_ownerName))
+            {
+                <div class="text-warning small mt-1 text-center">Skriv dit navn under "Hvem scanner?" øverst og tryk Gem først.</div>
+            }
+            else if (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)
+            {
+                <div class="text-muted small mt-1 text-center">Vælg et sæt først.</div>
+            }
 
         </div>
     }
