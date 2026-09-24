@@ -1,0 +1,158 @@
+@page "/game/{Slug}/library"
+@implements IDisposable
+@inject IDbContextFactory<StrategiDbContext> DbFactory
+@using ITMartinStrategi.Server.Services
+@inject WikiLibrary Wiki
+
+<PageTitle>Library – @(_game?.Name ?? "Game") – Strategy</PageTitle>
+
+@if (_game is null)
+{
+    <p class="muted">Game not found. <a href="/">Back</a></p>
+    return;
+}
+
+<a class="muted small" href="/game/@_game.Slug">← @_game.Name</a>
+<h1>📚 Library</h1>
+
+@if (string.IsNullOrEmpty(_game.Wiki))
+{
+    <p class="muted">There is no wiki connected to this game yet.</p>
+    return;
+}
+
+<input class="k-input lib-search" @bind="_query" @bind:event="oninput" @bind:after="SearchAsync"
+       placeholder="Look anything up – an artifact, a tech, a civilization …" autofocus />
+
+@if (_kinds.Count > 0)
+{
+    <div class="chips lib-kinds">
+        <button class="tab @(_kind is null ? "on" : "")" @onclick="() => PickKind(null)">All (@_total)</button>
+        @foreach (var (k, n) in _kinds)
+        {
+            <button class="tab @(_kind == k ? "on" : "")" @onclick="() => PickKind(k)">@k (@n)</button>
+        }
+    </div>
+}
+
+@if (Wiki.Importing)
+{
+    <div class="k-alert k-alert-info">Updating the library from the wiki … @Wiki.Progress</div>
+}
+else if (_total == 0)
+{
+    <div class="k-card">
+        <div class="k-card-title">The library is empty</div>
+        <div class="muted small">It is built from the official wiki. This takes a minute the first time.</div>
+        <button class="k-btn k-btn-primary" @onclick="UpdateAsync">Build the library now</button>
+    </div>
+}
+
+@if (_hits.Count == 0 && _query.Trim().Length > 0 && _total > 0)
+{
+    <div class="k-card">
+        <b>Nothing found for “@_query”.</b>
+        <div class="muted small">The wiki stops at an older version of the game, so newer content (Federations &amp; Empires) may be missing. Ask Claude in Claude Code – it looks it up on the web and can save the answer as a guide, free.</div>
+    </div>
+}
+else if (_hits.Any(h => h.Close) && _hits.All(h => h.Close))
+{
+    <p class="muted small">No exact match for “@_query” – these are the closest spellings:</p>
+}
+
+<div class="lib-results">
+    @foreach (var h in _hits)
+    {
+        var e = h.Entry;
+        var open = _open == e.Id;
+        <div class="guide-card lib-entry @(open ? "open" : "")" @onclick="() => Toggle(e.Id)">
+            <div class="lib-head">
+                @if (e.Icon.Length > 0) { <img class="lib-icon" src="@e.Icon" alt="" loading="lazy" /> }
+                <b>@e.Title</b>
+                <span class="k-tag">@e.Kind</span>
+            </div>
+            @if (open)
+            {
+                <div class="lib-text"><GuideText Text="@e.Text" /></div>
+                <a class="small" href="@e.Url" target="_blank" rel="noopener" @onclick:stopPropagation>On the wiki ↗</a>
+            }
+            else
+            {
+                <div class="muted small lib-snippet">@Snippet(e.Text)</div>
+            }
+        </div>
+    }
+</div>
+
+<p class="muted small lib-foot">
+    @_total entries from the official wiki@(_game.WikiUpdatedAt is { } u ? $", updated {u.ToLocalTime():d MMM yyyy}" : "").
+    It refreshes by itself every week.
+    <button class="linkish" disabled="@Wiki.Importing" @onclick="UpdateAsync">Update now</button>
+</p>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
+    private Game? _game;
+    private string _query = "";
+    private string? _kind;
+    private int? _open;
+    private int _total;
+    private List<(string Kind, int Count)> _kinds = [];
+    private List<WikiLibrary.Hit> _hits = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Wiki.Changed += OnLibraryChanged;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _game = await db.Games.AsNoTracking().FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (Q is { Length: > 0 }) _query = Q;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_game is null) return;
+        var all = await Wiki.EntriesAsync(_game.Id);
+        _total = all.Count;
+        // Tables first (they are the things you look up), then the pages.
+        _kinds = all.GroupBy(e => e.Kind).Select(g => (g.Key, g.Count()))
+            .OrderBy(k => k.Key == "Page").ThenByDescending(k => k.Item2).ToList();
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        if (_game is null) return;
+        _hits = _query.Trim().Length == 0 && _kind is null ? [] : await Wiki.SearchAsync(_game.Id, _query, _kind);
+        _open = _hits.Count == 1 ? _hits[0].Entry.Id : null;
+    }
+
+    private async Task PickKind(string? k) { _kind = _kind == k ? null : k; await SearchAsync(); }
+
+    private void Toggle(int id) => _open = _open == id ? null : id;
+
+    private async Task UpdateAsync()
+    {
+        if (_game is null) return;
+        _ = Task.Run(async () =>
+        {
+            await Wiki.ImportAsync(_game.Id);
+            await using var db = await DbFactory.CreateDbContextAsync();
+            _game = await db.Games.AsNoTracking().FirstOrDefaultAsync(g => g.Id == _game.Id);
+            await InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+        });
+        await Task.Delay(300);
+    }
+
+    private void OnLibraryChanged() => InvokeAsync(StateHasChanged);
+
+    private static string Snippet(string text)
+    {
+        var t = System.Text.RegularExpressions.Regex.Replace(text.Replace("**", ""), @"\s+", " ").Trim();
+        return t.Length <= 140 ? t : t[..140] + " …";
+    }
+
+    public void Dispose() => Wiki.Changed -= OnLibraryChanged;
+}

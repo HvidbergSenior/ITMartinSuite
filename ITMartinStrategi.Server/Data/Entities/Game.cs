@@ -1,4 +1,4 @@
-namespace ITMartinStrategi.Server.Data.Entities;
+﻿namespace ITMartinStrategi.Server.Data.Entities;
 
 /// <summary>A game Martin plays. Topics are the suggested things to draft a
 /// guide about, one per line as "section|topic" (e.g. "valg|Oligarki").</summary>
@@ -16,6 +16,9 @@ public sealed class Game
     public int SortOrder { get; set; }
     // Steam app id, when the game is on Steam: hours, news and achievements.
     public int? SteamAppId { get; set; }
+    // MediaWiki the library is built from, as "base url|namespace id" ("https://wiki.galciv.com|3006").
+    public string Wiki { get; set; } = "";
+    public DateTime? WikiUpdatedAt { get; set; }
     public List<Guide> Guides { get; set; } = [];
 
     public IEnumerable<(string Label, string Url)> LinkList() =>

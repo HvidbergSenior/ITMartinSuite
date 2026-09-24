@@ -1,4 +1,4 @@
-@page "/game/{Slug}"
+﻿@page "/game/{Slug}"
 @page "/spil/{Slug}"
 @inject IDbContextFactory<StrategiDbContext> DbFactory
 @inject StrategiAi Ai
@@ -41,6 +41,14 @@
         }
     </div>
 </div>
+
+@if (!string.IsNullOrEmpty(_game.Wiki))
+{
+    <form class="lib-jump" action="/game/@_game.Slug/library" method="get">
+        <input class="k-input" name="q" placeholder="📚 Look up anything in the library …" />
+        <a class="k-btn k-btn-ghost" href="/game/@_game.Slug/library">Library</a>
+    </form>
+}
 
 <nav class="tabs" aria-label="Sections">
     @foreach (var s in Sections.All)

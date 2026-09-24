@@ -1,4 +1,4 @@
-using ITMartin.Shared.UI.Kolibri;
+﻿using ITMartin.Shared.UI.Kolibri;
 using ITMartinStrategi.Server;
 using ITMartinStrategi.Server.Data;
 using ITMartinStrategi.Server.Data.Entities;
@@ -39,6 +39,9 @@ builder.Services.AddSingleton<StrategiAi>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient("steam", c => c.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddSingleton<SteamService>();
+builder.Services.AddHttpClient("wiki", c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd("ITMartinStrategi/1.0 (ITMartin@Mensa.dk)"); });
+builder.Services.AddSingleton<WikiLibrary>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<WikiLibrary>());
 
 var app = builder.Build();
 app.MapKolibri();
@@ -53,6 +56,16 @@ using (var scope = app.Services.CreateScope())
     catch (Microsoft.Data.Sqlite.SqliteException e) when (e.Message.Contains("duplicate column")) { }
     try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Games ADD COLUMN SteamAppId INTEGER NULL"); }
     catch (Microsoft.Data.Sqlite.SqliteException e) when (e.Message.Contains("duplicate column")) { }
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Games ADD COLUMN Wiki TEXT NOT NULL DEFAULT ''"); }
+    catch (Microsoft.Data.Sqlite.SqliteException e) when (e.Message.Contains("duplicate column")) { }
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Games ADD COLUMN WikiUpdatedAt TEXT NULL"); }
+    catch (Microsoft.Data.Sqlite.SqliteException e) when (e.Message.Contains("duplicate column")) { }
+    await db.Database.ExecuteSqlRawAsync("""
+        CREATE TABLE IF NOT EXISTS WikiEntries (
+            Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, GameId INTEGER NOT NULL, Title TEXT NOT NULL, Kind TEXT NOT NULL,
+            Text TEXT NOT NULL, Url TEXT NOT NULL, Icon TEXT NOT NULL, UpdatedAt TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS IX_WikiEntries_GameId ON WikiEntries (GameId);
+        """);
     await Seed.EnsureAsync(db);
 }
 

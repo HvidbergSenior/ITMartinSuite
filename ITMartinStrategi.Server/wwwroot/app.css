@@ -82,3 +82,15 @@ a.chip { text-decoration: none; display: inline-flex; align-items: center; }
 .steam-list img { width: 92px; height: 35px; object-fit: cover; border-radius: 4px; }
 .steam-list span { flex: 1; }
 @media (max-width: 480px) { .game-art { width: 80px; height: 30px; } .game-art.big { width: 120px; height: 45px; } }
+
+/* Library (wiki lookup) */
+.lib-search { width: 100%; font-size: 17px; margin: 6px 0 10px; }
+.lib-kinds { margin-bottom: 12px; }
+.lib-results { display: grid; gap: 8px; }
+.lib-entry { cursor: pointer; }
+.lib-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lib-icon { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; background: var(--k-bg); }
+.lib-snippet { overflow: hidden; text-overflow: ellipsis; }
+.lib-text p { margin: 4px 0; }
+.lib-foot { margin-top: 16px; }
+.lib-jump { display: flex; gap: 8px; margin: 10px 0 14px; } .lib-jump .k-input { flex: 1; }
