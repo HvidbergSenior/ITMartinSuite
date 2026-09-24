@@ -20,11 +20,30 @@
                 <div class="field" style="flex:3"><label>Navn</label><input type="text" @bind="a.Name" /></div>
                 <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern" @onclick="() => _appliances.Remove(a)">✕</button></div>
             </div>
-            <div class="row2">
-                <div class="field"><label>Timer pr. tur</label><input type="number" step="0.25" min="0.25" max="12" @bind="a.DurationHours" /></div>
-                <div class="field"><label>kWh pr. tur</label><input type="number" step="0.1" min="0.05" max="100" @bind="a.KwhPerRun" /></div>
-                <div class="field"><label>Ture pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="a.RunsPerWeek" /></div>
-            </div>
+            @if (a.Programs.Count == 0)
+            {
+                <div class="row2">
+                    <div class="field"><label>Timer pr. tur</label><input type="number" step="0.25" min="0.25" max="12" @bind="a.DurationHours" /></div>
+                    <div class="field"><label>kWh pr. tur</label><input type="number" step="0.1" min="0.05" max="100" @bind="a.KwhPerRun" /></div>
+                    <div class="field"><label>Ture pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="a.RunsPerWeek" /></div>
+                </div>
+                <button class="btn btn-small" @onclick="() => AddPrograms(a)">+ Programmer (fx 30/40/60 °C)</button>
+            }
+            else
+            {
+                <div class="muted small" style="margin:6px 0 2px">Programmer – det øverste er standard. Ture pr. uge bruges til månedsprisen.</div>
+                @foreach (var p in a.Programs)
+                {
+                    <div class="row2">
+                        <div class="field" style="flex:1.4"><label>Program</label><input type="text" @bind="p.Name" /></div>
+                        <div class="field"><label>kWh</label><input type="number" step="0.1" min="0.05" max="100" @bind="p.KwhPerRun" /></div>
+                        <div class="field"><label>Timer</label><input type="number" step="0.25" min="0.25" max="12" @bind="p.DurationHours" /></div>
+                        <div class="field"><label>Pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="p.RunsPerWeek" /></div>
+                        <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern program" @onclick="() => a.Programs.Remove(p)">✕</button></div>
+                    </div>
+                }
+                <button class="btn btn-small" @onclick="() => AddProgram(a)">+ Program</button>
+            }
         </div>
     }
     <div class="btn-row">
@@ -182,7 +201,7 @@
             EloverblikToken = d.Settings.EloverblikToken, MeteringPointId = d.Settings.MeteringPointId, MeteringPointAddress = d.Settings.MeteringPointAddress,
         };
         _appliances = d.Appliances.OrderBy(a => a.SortOrder)
-            .Select(a => new Appliance { Id = a.Id, Name = a.Name, Icon = a.Icon, KwhPerRun = a.KwhPerRun, DurationHours = a.DurationHours, RunsPerWeek = a.RunsPerWeek, SortOrder = a.SortOrder })
+            .Select(a => a.Clone())
             .ToList();
         _devices = d.Devices.OrderBy(x => x.SortOrder)
             .Select(x => new Device { Id = x.Id, Name = x.Name, Icon = x.Icon, CatalogId = x.CatalogId, Watts = x.Watts, HoursPerDay = x.HoursPerDay, DaysPerWeek = x.DaysPerWeek, UsualFromHour = x.UsualFromHour, Shiftable = x.Shiftable, SortOrder = x.SortOrder })
@@ -210,10 +229,27 @@
 
     private void AddAppliance() => _appliances.Add(new Appliance { Name = "", KwhPerRun = 1, DurationHours = 1, RunsPerWeek = 3, SortOrder = _appliances.Count });
 
+    // First programs for a machine: the catalogue's set when the name matches
+    // one (Vaskemaskine -> 30/40/60/90 °C), otherwise its current numbers as "Standard".
+    private static void AddPrograms(Appliance a)
+    {
+        if (DeviceCatalog.ProgramsFor(a.Name)?.Programs is { } preset)
+            a.Programs = preset.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.KwhPerRun, DurationHours = p.DurationHours, RunsPerWeek = p.RunsPerWeek }).ToList();
+        else
+            a.Programs = [new ApplianceProgram { Name = "Standard", KwhPerRun = a.KwhPerRun, DurationHours = a.DurationHours, RunsPerWeek = a.RunsPerWeek }];
+    }
+
+    private static void AddProgram(Appliance a)
+    {
+        var last = a.Programs[^1];
+        a.Programs.Add(new ApplianceProgram { Name = "", KwhPerRun = last.KwhPerRun, DurationHours = last.DurationHours });
+    }
+
     private void Save()
     {
         _s.QuietFromHour = Math.Clamp(_s.QuietFromHour, 0, 23);
         _s.QuietToHour = Math.Clamp(_s.QuietToHour, 0, 23);
+        foreach (var a in _appliances) a.SyncFromPrograms();
         var list = _appliances.Where(a => !string.IsNullOrWhiteSpace(a.Name) && a.KwhPerRun > 0 && a.DurationHours > 0).ToList();
         for (var i = 0; i < list.Count; i++) list[i].SortOrder = i;
         var devices = _devices.Where(d => !string.IsNullOrWhiteSpace(d.Name) && d.Watts > 0).ToList();

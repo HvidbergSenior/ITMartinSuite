@@ -5,11 +5,19 @@ namespace ITMartinMitEl.Server.Services;
 // "I just started the dishwasher" -> a priced, permanent entry.
 public sealed class RunLogService(ElectricityPriceService prices, HouseholdStore store)
 {
-    public async Task<RunEntry?> LogAsync(Guid applianceId, DateTime startedAt, CancellationToken ct = default)
+    public async Task<RunEntry?> LogAsync(Guid applianceId, DateTime startedAt, int? program = null, CancellationToken ct = default)
     {
         var data = store.Get();
         var a = data.Appliances.FirstOrDefault(x => x.Id == applianceId);
         if (a is null) return null;
+        // A picked program prices the run with its own kWh and length, and
+        // the history shows it ("Vaskemaskine 40 °C").
+        var name = a.Name;
+        if (program is int pi && pi >= 0 && pi < a.Programs.Count)
+        {
+            name = $"{a.Name} {a.Programs[pi].Name}";
+            a = a.WithProgram(pi);
+        }
 
         var day = DateOnly.FromDateTime(startedAt);
         var raw = await prices.GetDayAsync(day, data.Settings.PriceArea, ct);
@@ -24,7 +32,7 @@ public sealed class RunLogService(ElectricityPriceService prices, HouseholdStore
         var entry = new RunEntry
         {
             ApplianceId = a.Id,
-            ApplianceName = a.Name,
+            ApplianceName = name,
             Icon = a.Icon,
             StartedAt = cost.Start,
             DurationHours = a.DurationHours,

@@ -137,6 +137,17 @@ else
             <div class="appl">
                 <div class="appl-icon">@a.Appliance.Icon</div>
                 <div class="appl-name">@a.Appliance.Name <span class="muted">· @a.Appliance.DurationHours.ToString("0.#") t · @a.Appliance.KwhPerRun.ToString("0.#") kWh</span></div>
+                @if (a.Appliance.Programs.Count > 1)
+                {
+                    var sel = ProgramOf(a.Appliance);
+                    <div class="btn-row" style="margin:4px 0 6px">
+                        @for (var i = 0; i < a.Appliance.Programs.Count; i++)
+                        {
+                            var idx = i;
+                            <button class="btn btn-small @(idx == sel ? "btn-primary" : "")" @onclick="() => PickProgram(a.Appliance.Id, idx)">@a.Appliance.Programs[idx].Name</button>
+                        }
+                    </div>
+                }
                 @if (a.Now is { } n)
                 {
                     <div class="appl-row"><span>Starter du nu</span><b class="@Level(RankOf(a, n))">@n.CostKr.ToString("0.00") kr</b></div>
@@ -293,7 +304,7 @@ else
     private async Task LogAsync(Appliance a, TimeOnly? at)
     {
         var start = at is { } t ? DkTime.Now.Date.Add(t.ToTimeSpan()) : DkTime.Now;
-        var entry = await RunLog.LogAsync(a.Id, start);
+        var entry = await RunLog.LogAsync(a.Id, start, a.Programs.Count > 0 ? ProgramOf(a) : null);
         if (entry is not null) _logged[a.Id] = entry;
         _pickTime = null;
         await LoadHomeAsync();
@@ -313,8 +324,30 @@ else
     {
         var data = Store.Get();
         _area = data.Settings.PriceArea;
-        var raw = await Prices.GetPricesAsync(_area);
-        _snap = PriceModel.Build(raw, data.Settings, data.Appliances, DkTime.Now);
+        _raw = await Prices.GetPricesAsync(_area);
+        Rebuild();
+    }
+
+    // Each machine is priced for the program picked on its card (the first,
+    // standard program until another is tapped).
+    private readonly Dictionary<Guid, int> _program = new();
+    private List<PricePoint>? _raw;
+
+    private int ProgramOf(Appliance a) => _program.TryGetValue(a.Id, out var i) && i < a.Programs.Count ? i : 0;
+
+    private void Rebuild()
+    {
+        if (_raw is null) return;
+        var data = Store.Get();
+        var appliances = data.Appliances.Select(a => a.Programs.Count > 0 ? a.WithProgram(ProgramOf(a)) : a).ToList();
+        _snap = PriceModel.Build(_raw, data.Settings, appliances, DkTime.Now);
+    }
+
+    private void PickProgram(Guid id, int index)
+    {
+        _program[id] = index;
+        _logged.Remove(id);
+        Rebuild();
     }
 
     public void Dispose() => _timer?.Dispose();

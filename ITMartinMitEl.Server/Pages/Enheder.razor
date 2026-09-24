@@ -127,7 +127,7 @@ else
                 var v = _snap?.Appliances.FirstOrDefault(x => x.Appliance.Id == a.Appliance.Id);
                 <div class="dev-row">
                     <div class="dev-icon">@a.Appliance.Icon</div>
-                    <div class="dev-name">@a.Appliance.Name <span class="muted">· @a.Appliance.KwhPerRun.ToString("0.#", Da) kWh · @a.Appliance.RunsPerWeek.ToString("0.#", Da) ture/uge</span></div>
+                    <div class="dev-name">@a.Appliance.Name <span class="muted">· @(a.Appliance.Programs.Count > 0 ? "gns. " : "")@a.Appliance.KwhPerRun.ToString("0.#", Da) kWh · @a.Appliance.RunsPerWeek.ToString("0.#", Da) ture/uge@(a.Appliance.Programs.Count > 0 ? $" ({string.Join(", ", a.Appliance.Programs.Select(p => p.Name))})" : "")</span></div>
                     <div class="dev-kr">@Kr(Pick(a.MonthKr * 12 / 365, a.MonthKr, a.YearKr)) kr</div>
                     <div class="dev-sub">
                         <span>Én tur: <b>@a.PerRunKr.ToString("0.00", Da) kr</b> <span class="muted">(@a.Basis)</span></span>

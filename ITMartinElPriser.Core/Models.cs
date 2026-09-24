@@ -44,12 +44,58 @@ public sealed class Appliance
     public double RunsPerWeek { get; set; } = 3;
     public int SortOrder { get; set; }
 
+    // Optional programs (30/40/60/90 °C, Eco/Normal). When there are any, the
+    // flat fields above are kept in sync as the weekly mix (see
+    // SyncFromPrograms), so everything that only knows "one run" still adds
+    // up right, and a single program is picked with WithProgram.
+    public List<ApplianceProgram> Programs { get; set; } = [];
+
+    // Makes KwhPerRun the weighted average over the programs and RunsPerWeek
+    // their sum; DurationHours follows the first (standard) program.
+    public void SyncFromPrograms()
+    {
+        Programs.RemoveAll(p => string.IsNullOrWhiteSpace(p.Name) || p.KwhPerRun <= 0 || p.DurationHours <= 0);
+        if (Programs.Count == 0) return;
+        var runs = Programs.Sum(p => Math.Max(0, p.RunsPerWeek));
+        KwhPerRun = runs > 0
+            ? Math.Round(Programs.Sum(p => p.KwhPerRun * Math.Max(0, p.RunsPerWeek)) / runs, 3)
+            : Programs[0].KwhPerRun;
+        RunsPerWeek = runs;
+        DurationHours = Programs[0].DurationHours;
+    }
+
+    // The same machine running one program - same Id, so run logging and
+    // history still point at it. Out-of-range or no programs = itself.
+    public Appliance WithProgram(int? index) =>
+        index is int i && i >= 0 && i < Programs.Count
+            ? new Appliance
+            {
+                Id = Id, Name = Name, Icon = Icon, SortOrder = SortOrder, Programs = Programs,
+                KwhPerRun = Programs[i].KwhPerRun, DurationHours = Programs[i].DurationHours, RunsPerWeek = Programs[i].RunsPerWeek,
+            }
+            : this;
+
+    public Appliance Clone() => new()
+    {
+        Id = Id, Name = Name, Icon = Icon, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = SortOrder,
+        Programs = Programs.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.KwhPerRun, DurationHours = p.DurationHours, RunsPerWeek = p.RunsPerWeek }).ToList(),
+    };
+
     public static List<Appliance> Defaults() =>
     [
         new() { Name = "Vaskemaskine", Icon = "🧺", KwhPerRun = 1.0, DurationHours = 2, RunsPerWeek = 4, SortOrder = 0 },
         new() { Name = "Opvaskemaskine", Icon = "🍽️", KwhPerRun = 1.2, DurationHours = 2, RunsPerWeek = 5, SortOrder = 1 },
         new() { Name = "Tørretumbler", Icon = "🌀", KwhPerRun = 2.5, DurationHours = 1.5, RunsPerWeek = 2, SortOrder = 2 },
     ];
+}
+
+// One program on a machine, e.g. "40 °C" at 0.7 kWh over 2 hours.
+public sealed class ApplianceProgram
+{
+    public string Name { get; set; } = "";
+    public double KwhPerRun { get; set; }
+    public double DurationHours { get; set; }
+    public double RunsPerWeek { get; set; }
 }
 
 // Everything that is not "a run": the fridge, the router, the TV in the

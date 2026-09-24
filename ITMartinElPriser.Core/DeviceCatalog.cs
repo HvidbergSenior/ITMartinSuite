@@ -12,12 +12,20 @@ public sealed record CatalogEntry(
     double KwhPerRun = 0, double DurationHours = 0, double RunsPerWeek = 0,
     // Device entries: average draw while on, hours per day, usual start hour, shiftable.
     double Watts = 0, double HoursPerDay = 24, int? UsualFromHour = null, bool Shiftable = false,
-    string Note = "")
+    string Note = "",
+    // Optional programs for machines where the temperature/program decides the kWh.
+    ApplianceProgram[]? Programs = null)
 {
-    public Appliance ToAppliance(int sortOrder) => new()
+    public Appliance ToAppliance(int sortOrder)
     {
-        Name = Name, Icon = Icon, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = sortOrder,
-    };
+        var a = new Appliance
+        {
+            Name = Name, Icon = Icon, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = sortOrder,
+            Programs = (Programs ?? []).Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.KwhPerRun, DurationHours = p.DurationHours, RunsPerWeek = p.RunsPerWeek }).ToList(),
+        };
+        a.SyncFromPrograms();
+        return a;
+    }
 
     public Device ToDevice(int sortOrder) => new()
     {
@@ -28,13 +36,24 @@ public sealed record CatalogEntry(
 
 public static class DeviceCatalog
 {
+    private static ApplianceProgram P(string name, double kwh, double hours, double perWeek) =>
+        new() { Name = name, KwhPerRun = kwh, DurationHours = hours, RunsPerWeek = perWeek };
+
+    // The catalogue's programs for a machine with this name, if it has any -
+    // used to offer "30/40/60/90 °C" on a washer added before programs existed.
+    public static CatalogEntry? ProgramsFor(string applianceName) =>
+        All.FirstOrDefault(e => e.IsRun && e.Programs is { Length: > 0 } &&
+            applianceName.Trim().StartsWith(e.Name, StringComparison.OrdinalIgnoreCase));
+
     public static readonly IReadOnlyList<CatalogEntry> All =
     [
         // Machines that run a cycle - these go on the front page with a start button.
-        new("vaskemaskine", "Vask og opvask", "🧺", "Vaskemaskine", true, KwhPerRun: 1.0, DurationHours: 2, RunsPerWeek: 4, Note: "40 °C bomuld ~0,7 kWh, 60 °C ~1,2 kWh"),
+        new("vaskemaskine", "Vask og opvask", "🧺", "Vaskemaskine", true, KwhPerRun: 1.0, DurationHours: 2, RunsPerWeek: 4, Note: "30 °C ~0,4 · 40 °C ~0,7 · 60 °C ~1,2 · 90 °C ~2 kWh",
+            Programs: [P("30 °C", 0.4, 1, 1), P("40 °C", 0.7, 2, 2), P("60 °C", 1.2, 2, 1), P("90 °C", 2.0, 2.5, 0)]),
         new("toerretumbler", "Vask og opvask", "🌀", "Tørretumbler (kondens)", true, KwhPerRun: 2.5, DurationHours: 1.5, RunsPerWeek: 2),
         new("toerretumbler-vp", "Vask og opvask", "🌀", "Tørretumbler (varmepumpe)", true, KwhPerRun: 1.2, DurationHours: 2.5, RunsPerWeek: 2),
-        new("opvaskemaskine", "Vask og opvask", "🍽️", "Opvaskemaskine", true, KwhPerRun: 1.2, DurationHours: 2, RunsPerWeek: 5, Note: "Eco-program ~0,8 kWh"),
+        new("opvaskemaskine", "Vask og opvask", "🍽️", "Opvaskemaskine", true, KwhPerRun: 1.2, DurationHours: 2, RunsPerWeek: 5, Note: "Eco ~0,8 · Normal ~1,2 · Intensiv ~1,6 kWh",
+            Programs: [P("Eco", 0.8, 3.5, 4), P("Normal", 1.2, 2, 1), P("Intensiv", 1.6, 2.5, 0)]),
         new("ovn", "Køkken", "🔥", "Ovn (1 time)", true, KwhPerRun: 1.5, DurationHours: 1, RunsPerWeek: 4),
         new("kogeplade", "Køkken", "🍳", "Kogeplade/induktion (aftensmad)", true, KwhPerRun: 0.6, DurationHours: 0.5, RunsPerWeek: 7),
         new("airfryer", "Køkken", "🍟", "Airfryer", true, KwhPerRun: 0.5, DurationHours: 0.5, RunsPerWeek: 3),
