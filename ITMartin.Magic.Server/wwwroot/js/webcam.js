@@ -61,7 +61,8 @@
             console.log("CAMERA READY", this.video.videoWidth, this.video.videoHeight);
         } catch (err) {
             console.error("CAMERA FAILED", err.name, err.message);
-            throw err;
+            this.stop();
+            throw new Error((err && err.name ? err.name + ": " : "") + (err && err.message ? err.message : err));
         }
     },
 

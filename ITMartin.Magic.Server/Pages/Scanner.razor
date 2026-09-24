@@ -161,6 +161,11 @@
                 </div>
             }
 
+            @if (!string.IsNullOrWhiteSpace(_cameraError))
+            {
+                <div class="alert alert-danger mt-3 mb-0">⚠️ @_cameraError</div>
+            }
+
             <button class="btn btn-primary mt-3 w-100"
                     @onclick="StartCamera"
                     disabled="@(string.IsNullOrWhiteSpace(_ownerName) || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
@@ -421,6 +426,7 @@
     private sealed record ScanFeedItem(string Text, bool Success, CardScanContext? Result);
 
     private string? _detectedText;
+    private string? _cameraError;
     private bool _cameraStarted;
     private CardScanContext? _scanResult;
     private string? _selectedSetCode;
@@ -536,6 +542,7 @@
     {
         try
         {
+            _cameraError = null;
             _cameraStarted = true;
             StateHasChanged();
             await Task.Delay(300);
@@ -544,9 +551,20 @@
         catch (Exception ex)
         {
             _cameraStarted = false;
-            _detectedText = ex.Message;
+            _cameraError = DescribeCameraError(ex.Message);
         }
         StateHasChanged();
+    }
+
+    private static string DescribeCameraError(string message)
+    {
+        if (message.Contains("NotAllowedError") || message.Contains("SecurityError"))
+            return "Browseren har ikke lov til at bruge kameraet. Tryk på låsen/ikonet ved adresselinjen, tillad Kamera, og prøv igen.";
+        if (message.Contains("NotFoundError") || message.Contains("OverconstrainedError"))
+            return "Der blev ikke fundet noget kamera på enheden.";
+        if (message.Contains("NotReadableError") || message.Contains("AbortError"))
+            return "Kameraet er i brug af en anden app eller fane. Luk den og prøv igen.";
+        return "Kameraet kunne ikke starte: " + message;
     }
 
     private async Task ChangeSet()
