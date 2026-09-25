@@ -65,7 +65,7 @@ else if (_hits.Any(h => h.Close) && _hits.All(h => h.Close))
     {
         var e = h.Entry;
         var open = _open == e.Id;
-        <div class="guide-card lib-entry @(open ? "open" : "")" @onclick="() => Toggle(e.Id)">
+        <div class="guide-card lib-entry @(open ? "open" : "")" @onclick="() => Toggle(e)">
             <div class="lib-head">
                 @if (e.Icon.Length > 0) { <img class="lib-icon" src="@e.Icon" alt="" loading="lazy" /> }
                 <b>@e.Title</b>
@@ -74,6 +74,21 @@ else if (_hits.Any(h => h.Close) && _hits.All(h => h.Close))
             @if (open)
             {
                 <div class="lib-text"><GuideText Text="@e.Text" /></div>
+                @if (_uses.Count > 0)
+                {
+                    <div class="lib-uses" @onclick:stopPropagation>
+                        <b>🔧 Used for (@_uses.Count)</b>
+                        @foreach (var use in _uses)
+                        {
+                            <button class="lib-use" @onclick="() => OpenAsync(use.Entry)">
+                                @if (use.Entry.Icon.Length > 0) { <img class="lib-icon-sm" src="@use.Entry.Icon" alt="" loading="lazy" /> }
+                                <span>@use.Entry.Title</span>
+                                <span class="muted small">@use.Amount · @use.Entry.Kind</span>
+                                <span class="lib-use-go">→</span>
+                            </button>
+                        }
+                    </div>
+                }
                 <a class="small" href="@e.Url" target="_blank" rel="noopener" @onclick:stopPropagation>On the wiki ↗</a>
             }
             else
@@ -101,6 +116,7 @@ else if (_hits.Any(h => h.Close) && _hits.All(h => h.Close))
     private int _total;
     private List<(string Kind, int Count)> _kinds = [];
     private List<WikiLibrary.Hit> _hits = [];
+    private List<WikiLibrary.Use> _uses = [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -126,12 +142,27 @@ else if (_hits.Any(h => h.Close) && _hits.All(h => h.Close))
     {
         if (_game is null) return;
         _hits = _query.Trim().Length == 0 && _kind is null ? [] : await Wiki.SearchAsync(_game.Id, _query, _kind);
-        _open = _hits.Count == 1 ? _hits[0].Entry.Id : null;
+        await SetOpenAsync(_hits.Count == 1 ? _hits[0].Entry : null);
+    }
+
+    // A resource lists what spends it; clicking one of those jumps straight to it.
+    private async Task SetOpenAsync(WikiEntry? e)
+    {
+        _open = e?.Id;
+        _uses = e is null || _game is null ? [] : await Wiki.UsedForAsync(_game.Id, e);
+    }
+
+    private async Task OpenAsync(WikiEntry e)
+    {
+        _query = e.Title;
+        _kind = null;
+        _hits = [new WikiLibrary.Hit(e, 1, false)];
+        await SetOpenAsync(e);
     }
 
     private async Task PickKind(string? k) { _kind = _kind == k ? null : k; await SearchAsync(); }
 
-    private void Toggle(int id) => _open = _open == id ? null : id;
+    private async Task Toggle(WikiEntry e) => await SetOpenAsync(_open == e.Id ? null : e);
 
     private async Task UpdateAsync()
     {

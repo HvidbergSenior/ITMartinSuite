@@ -1,6 +1,7 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using ITMartinStrategi.Server.Data;
@@ -206,6 +207,45 @@ public sealed class WikiLibrary(IHttpClientFactory http, IDbContextFactory<Strat
     }
 
     public sealed record Hit(WikiEntry Entry, double Score, bool Close);
+
+    public sealed record Use(WikiEntry Entry, int Amount);
+
+    private static readonly Regex CostLine = new(@"-?(\d+) ([A-Z][A-Za-z' ]+?) Cost", RegexOptions.Compiled);
+
+    public static bool IsResource(WikiEntry e) => e.Kind is "Resource" or "Trade Resource";
+
+    /// <summary>Everything whose cost line spends this resource. The wiki names a resource
+    /// differently in cost lines ("Prometheus Stone" costs "Promethion", "Arnor Spice" costs
+    /// "Ultra Spice"), so a cost name matches when any word shares its first 4 letters.</summary>
+    public async Task<List<Use>> UsedForAsync(int gameId, WikiEntry resource)
+    {
+        if (!IsResource(resource)) return [];
+        var all = await EntriesAsync(gameId);
+        var words = Words(resource.Title);
+        var uses = new List<Use>();
+        foreach (var e in all)
+        {
+            if (e.Id == resource.Id) continue;
+            foreach (Match m in CostLine.Matches(e.Text))
+            {
+                var name = m.Groups[2].Value;
+                if (name is "Manufacturing" or "Construction" or "Leader") continue;
+                if (!Words(name).Any(w => words.Contains(w))) continue;
+                uses.Add(new Use(e, int.Parse(m.Groups[1].Value)));
+                break;
+            }
+        }
+        // The same building sits in several wiki tables; keep one row per title.
+        return uses.GroupBy(u => u.Entry.Title).Select(g => g.First())
+            .OrderBy(u => u.Entry.Kind).ThenBy(u => u.Entry.Title).ToList();
+    }
+
+    private static HashSet<string> Words(string s) =>
+        s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => w.Length >= 4)
+            .Select(w => w[..4].ToLowerInvariant()).Where(w => !GenericWords.Contains(w)).ToHashSet();
+
+    // "Thulium Deposit" must not match "Xanthium Deposit", "Crystallized Elerium" not "Harmony Crystals".
+    private static readonly HashSet<string> GenericWords = ["depo", "ston", "colo", "crys", "frui", "hive"];
 
     /// <summary>Best matches first. "Close" = found only by spelling similarity.</summary>
     public async Task<List<Hit>> SearchAsync(int gameId, string query, string? kind = null, int max = 40)

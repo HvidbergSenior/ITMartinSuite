@@ -101,3 +101,11 @@ a.chip { text-decoration: none; display: inline-flex; align-items: center; }
 .micro-row { display: grid; grid-template-columns: 22px 1fr; gap: 6px; align-items: start; }
 .micro-row p { margin: 2px 0; }
 .micro-row ul { margin: 2px 0; padding-left: 18px; }
+
+/* Library: what a resource is used for */
+.lib-uses { display: grid; gap: 4px; margin: 8px 0; cursor: default; }
+.lib-use { display: flex; align-items: center; gap: 8px; text-align: left; font: inherit; color: var(--k-text); background: var(--k-bg); border: 1px solid var(--k-border); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+.lib-use:hover, .lib-use:focus-visible { border-color: var(--k-accent); }
+.lib-use span:first-of-type { flex: 1; min-width: 0; }
+.lib-use-go { color: var(--k-accent); font-weight: 700; }
+.lib-icon-sm { width: 22px; height: 22px; object-fit: contain; }
