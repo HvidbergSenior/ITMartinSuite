@@ -51,9 +51,12 @@ else
                 {
                     var pct = span > 0 ? 15 + 85 * (h.Grams - min) / span : 50;
                     var rank = span > 0 ? (h.Grams - min) / span : 0.5;
-                    <div class="bar @(h.IsNow ? "now" : "") @(_selected == h.Start ? "sel" : "")"
-                         style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@(rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)")"
-                         @onclick="() => _selected = _selected == h.Start ? null : h.Start"></div>
+                    <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="Kl. @h.Start.ToString("HH") · @h.Grams.ToString("0", Da) g CO₂/kWh"
+                         @onclick="() => _selected = _selected == h.Start ? null : h.Start">
+                        @if (_selected == h.Start) { <span class="bar-tip">@h.Grams.ToString("0", Da) g</span> }
+                        <div class="bar @(h.IsNow ? "now" : "")"
+                             style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@(rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)")"></div>
+                    </div>
                 }
             </div>
             <div class="bar-axis">

@@ -85,10 +85,13 @@ else
                 {
                     var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
                     var rank = span > 0 ? (h.KrPerKwh - min) / span : 0.5;
-                    <div class="bar @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "") @(_selected == h.Start ? "sel" : "")"
-                         style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(rank)"
-                         title="@When(h.Start) @Kr(h.KrPerKwh)"
-                         @onclick="() => _selected = _selected == h.Start ? null : h.Start"></div>
+                    @* The whole column is the tap target; the price sits right above the tapped bar. *@
+                    <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
+                         @onclick="() => _selected = _selected == h.Start ? null : h.Start">
+                        @if (_selected == h.Start) { <span class="bar-tip">@Kr(h.KrPerKwh)</span> }
+                        <div class="bar @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
+                             style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(rank)"></div>
+                    </div>
                 }
             </div>
             <div class="bar-axis">
