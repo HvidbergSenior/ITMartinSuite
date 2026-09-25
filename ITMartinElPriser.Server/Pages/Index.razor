@@ -1,56 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @page "/"
 @using System.Globalization
 @inject ElectricityPriceService Prices
@@ -59,16 +6,14 @@
 
 <PageTitle>ElPriser</PageTitle>
 
+@* The front page answers one question in five seconds: what does power cost now, and
+   should I wait? Planning (start times, night, EV) lives on /planlaeg. *@
 <div class="ep-header">
     <div class="ep-logo">⚡</div>
-    <div>
-        <div class="ep-title">ElPriser</div>
-        <div class="ep-sub">@(_snap?.AllIn == false ? "Spotpris" : "Alt inkl. moms, afgift og nettarif")</div>
-    </div>
-    <div class="area-toggle">
-        <button class="tab @(_area == "DK1" ? "on" : "")" @onclick='() => SetAreaAsync("DK1")'>DK1<small>Vest</small></button>
-        <button class="tab @(_area == "DK2" ? "on" : "")" @onclick='() => SetAreaAsync("DK2")'>DK2<small>Øst</small></button>
-    </div>
+    <div class="ep-title">ElPriser</div>
+    <button class="area-chip" title="Skift prisområde" @onclick="ToggleAreaAsync">
+        @_area <small>@(_area == "DK1" ? "Vest" : "Øst")</small> ⇄
+    </button>
 </div>
 
 @if (_snap is null)
@@ -84,247 +29,80 @@ else if (!_snap.HasData)
 }
 else
 {
-    var lvl = Level(_snap.NowRank01);
+    // "Cheap" next to "wait – 34 % cheaper later" reads as a contradiction: when waiting pays,
+    // the tile is never shown as cheap.
+    var adv = Advice();
+    var lvl = adv?.Wait == true && _snap.NowRank01 <= 0.33 ? "lvl-mid" : Level(_snap.NowRank01);
     <div class="card now-tile @lvl">
         <div class="now-price @lvl">@Kr(_snap.NowKrPerKwh)</div>
-        <div class="now-unit">kr/kWh lige nu · kl. @_snap.At.ToString("HH:mm")</div>
-        <div class="now-verdict @lvl">@Verdict(_snap.NowRank01)</div>
-        @if (_snap.Today is { } t)
+        <div class="now-unit">kr/kWh lige nu · kl. @_snap.At.ToString("HH:mm")@(_snap.AllIn ? " · alt inkl." : " · spotpris")</div>
+        <div class="now-verdict @lvl">@Verdict(_snap.NowRank01, adv?.Wait == true)</div>
+        @if (adv is not null)
         {
-            <div class="now-compare">
-                I dag: billigst <b>@Kr(t.Min)</b> kl. @t.Cheapest?.Start.ToString("HH") · dyrest <b>@Kr(t.Max)</b> kl. @t.Dearest?.Start.ToString("HH") · snit @Kr(t.Avg)
-            </div>
+            <div class="now-advice @(adv.Wait ? "" : "lvl-cheap")">➜ @adv.Text</div>
         }
     </div>
 
-    @if (_snap.Appliances.FirstOrDefault() is { } w)
+    var strip = Strip();
+    @if (strip.Count > 0)
     {
+        var min = strip.Min(h => h.KrPerKwh);
+        var max = strip.Max(h => h.KrPerKwh);
+        var span = max - min;
+        var lo = strip.MinBy(h => h.KrPerKwh)!;
+        var hi = strip.MaxBy(h => h.KrPerKwh)!;
         <div class="card">
-            <div class="card-title">Hvornår er det billigst?</div>
-            <div class="muted small" style="margin-bottom:8px">De billigste to timer i træk – til en vask, en opvask eller en opladning. Nattetimer (@_quietFrom–@_quietTo) foreslås ikke.</div>
-            @if (w.CheapestToday is { } c && (w.Now is null || c.Start >= w.Now.Start))
-            {
-                <div class="appl-row"><span>🟢 I dag kl. @c.Start.ToString("HH:mm")–@c.End.ToString("HH:mm")</span><b class="lvl-cheap">@Kr(c.AvgKrPerKwh) kr/kWh</b></div>
-            }
-            else if (w.Now is not null)
-            {
-                <div class="appl-row"><span class="lvl-cheap">🟢 Nu er det billigste tidspunkt i dag</span><b></b></div>
-            }
-            @if (w.DearestUpcoming is { } d && d.Start.AddHours(2) > _snap.At)
-            {
-                <div class="appl-row"><span>🔴 Dyrest i dag kl. @d.Start.ToString("HH:mm")–@d.End.ToString("HH:mm")</span><b class="lvl-expensive">@Kr(d.AvgKrPerKwh) kr/kWh</b></div>
-            }
-            @if (w.CheapestTomorrow is { } tm)
-            {
-                <div class="appl-row"><span>🟢 I morgen kl. @tm.Start.ToString("HH:mm")–@tm.End.ToString("HH:mm")</span><b>@Kr(tm.AvgKrPerKwh) kr/kWh</b></div>
-            }
-            else
-            {
-                <div class="appl-row muted small"><span>Morgendagens priser kommer ca. kl. 13.</span><b></b></div>
-            }
-            @if (_snap.Today is { } td)
-            {
-                <button class="btn btn-small" style="margin-top:8px" @onclick="() => _showWindows = !_showWindows">@(_showWindows ? "Skjul alle to-timers-vinduer" : "Vis alle to-timers-vinduer i dag")</button>
-                @if (_showWindows)
+            <div class="bars">
+                @foreach (var h in strip)
                 {
-                    <div class="windows">
-                        @foreach (var win in TwoHourWindows(td))
-                        {
-                            <div class="appl-row @(win.Past ? "past" : "")">
-                                <span>Kl. @win.Start.ToString("HH")–@win.Start.AddHours(2).ToString("HH")@(win.Now ? " · nu" : "")</span>
-                                <b class="@Level(win.Rank)">@Kr(win.Avg) kr/kWh</b>
-                            </div>
-                        }
-                    </div>
-                    <div class="muted small" style="margin-top:6px">Gennemsnit for de to timer – det du betaler pr. kWh hvis maskinen kører hele vinduet.</div>
+                    var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
+                    var rank = span > 0 ? (h.KrPerKwh - min) / span : 0.5;
+                    <div class="bar @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "") @(_selected == h.Start ? "sel" : "")"
+                         style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(rank)"
+                         title="@When(h.Start) @Kr(h.KrPerKwh)"
+                         @onclick="() => _selected = _selected == h.Start ? null : h.Start"></div>
                 }
+            </div>
+            <div class="bar-axis">
+                @foreach (var h in strip)
+                {
+                    <span>@(h.IsNow ? "nu" : h.Start.Hour == 0 ? "0" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "")</span>
+                }
+            </div>
+            <div class="bar-info">
+                @if (_selected is { } sel && strip.FirstOrDefault(h => h.Start == sel) is { } hb)
+                {
+                    <span>@When(hb.Start)–@hb.Start.AddHours(1).ToString("HH:00")</span>
+                    <b class="@Level(span > 0 ? (hb.KrPerKwh - min) / span : 0.5)">@Kr(hb.KrPerKwh) kr/kWh</b>
+                }
+                else
+                {
+                    <span>🟢 Billigst @When(lo.Start) · <b>@Kr(lo.KrPerKwh)</b></span>
+                    <span>🔴 Dyrest @When(hi.Start) · <b>@Kr(hi.KrPerKwh)</b></span>
+                }
+            </div>
+            @if (_snap.Tomorrow is null)
+            {
+                <div class="muted small" style="margin-top:6px">Morgendagens priser kommer ca. kl. 13.</div>
             }
         </div>
     }
 
-    <div class="card">
-        <div class="card-title">🌙 I nat – sæt timeren</div>
-        <div class="muted small" style="margin-bottom:8px">Til det der kører af sig selv: opvaskemaskine på timer, varmtvandsbeholder, elbil. Natten er 22–07.</div>
-        @if (_night is null)
-        {
-            <div class="muted small">Regner…</div>
-        }
-        else
-        {
-            var n = _night;
-            @foreach (var (hours, best) in n.Windows)
-            {
-                var what = hours switch { 2 => "vask/opvask", 4 => "varmtvand, elbil 11 kW", _ => "elbil 1-fase, hele natten" };
-                <div class="appl-row">
-                    <span>@hours.ToString("0") timer <span class="muted small">· @what</span></span>
-                    @if (best is { } b) { <b class="lvl-cheap">start kl. @b.Start.ToString("HH:mm") · @Kr(b.AvgKrPerKwh) kr/kWh</b> } else { <b class="muted small">–</b> }
-                </div>
-            }
-            @if (!n.Complete)
-            {
-                <div class="muted small" style="margin-top:6px">Morgendagens priser kommer ca. kl. 13 – indtil da er kun den del af natten der ligger i dag regnet med.</div>
-            }
-
-            <div class="ev">
-                <div class="appl-name" style="margin-top:10px">🚗 Elbil</div>
-                <div class="row2">
-                    <div class="field"><label>Skal lades, kWh</label><input type="number" min="1" max="120" step="1" @bind="_evKwh" @bind:after="EvChangedAsync" /></div>
-                    <div class="field"><label>Lader, kW</label><input type="number" min="1" max="22" step="0.1" @bind="_evKw" @bind:after="EvChangedAsync" /></div>
-                </div>
-                @if (n.Ev is { } ev)
-                {
-                    <div class="appl-row"><span>🟢 Billigst: start kl. @ev.Start.ToString("HH:mm") (@n.EvKw.ToString("0.#") kW i @((n.EvKwh / n.EvKw).ToString("0.#", Da)) t)</span><b class="lvl-cheap">@ev.CostKr.ToString("0", Da) kr</b></div>
-                }
-                @if (n.EvAllNight is { } all)
-                {
-                    <div class="appl-row"><span>Timer fra kl. 22</span><b>@all.CostKr.ToString("0", Da) kr</b></div>
-                }
-                @if (n.EvFromHome is { } home)
-                {
-                    <div class="appl-row"><span>🔴 Sat til at lade kl. 17 (når du kommer hjem)</span><b class="lvl-expensive">@home.CostKr.ToString("0", Da) kr</b></div>
-                }
-                @if (n.Ev is { } e2 && n.EvFromHome is { } h2 && h2.CostKr > e2.CostKr)
-                {
-                    <div class="muted small" style="margin-top:4px">Forskellen er <b>@((h2.CostKr - e2.CostKr).ToString("0", Da)) kr</b> pr. opladning – om vinteren mest fordi nettariffen kl. 17–21 er op til 9 gange nattens. Sæt starttid i bilen eller laderen, ikke bare stikket i.</div>
-                }
-                else if (n.Ev is null)
-                {
-                    <div class="muted small">Ingen fuld nat i priserne endnu.</div>
-                }
-            </div>
-        }
-    </div>
-
-    <div class="card">
-        <div class="card-title">Hvad koster en tur?</div>
-        @foreach (var a in _snap.Appliances.Skip(1))
-        {
-            <div class="appl">
-                <div class="appl-icon">@a.Appliance.Icon</div>
-                <div class="appl-name">@a.Appliance.Name <span class="muted">· @a.Appliance.DurationHours.ToString("0.#") t · @a.Appliance.KwhPerRun.ToString("0.#") kWh</span></div>
-                @if (a.Now is { } n)
-                {
-                    <div class="appl-row"><span>Starter du nu</span><b class="@Level(RankOf(a, n))">@n.CostKr.ToString("0.00") kr</b></div>
-                }
-                @if (a.CheapestToday is { } c && (a.Now is null || c.Start > a.Now.Start))
-                {
-                    <div class="appl-row">
-                        <span>Billigst i dag kl. @c.Start.ToString("HH:mm")</span>
-                        <b class="lvl-cheap">@c.CostKr.ToString("0.00") kr @if (a.Now is { } nn && nn.CostKr > c.CostKr) { <span class="saving">(spar @((nn.CostKr - c.CostKr).ToString("0.00")))</span> }</b>
-                    </div>
-                }
-                else if (a.Now is not null)
-                {
-                    <div class="appl-row"><span class="lvl-cheap">Nu er det billigste tidspunkt i dag</span><b></b></div>
-                }
-                @if (a.CheapestTomorrow is { } tm)
-                {
-                    <div class="appl-row"><span>I morgen kl. @tm.Start.ToString("HH:mm")</span><b>@tm.CostKr.ToString("0.00") kr</b></div>
-                }
-            </div>
-        }
-        <div class="muted small" style="margin-top:8px">Typiske maskiner. Prisen er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris.</div>
-    </div>
-
-    <div class="card">
-        <div class="day-tabs">
-            <button class="tab @(_showTomorrow ? "" : "on")" @onclick="() => { _showTomorrow = false; _selected = null; }">I dag</button>
-            <button class="tab @(_showTomorrow ? "on" : "")" @onclick="() => { _showTomorrow = true; _selected = null; }">
-                @(_snap.Tomorrow is null ? "I morgen (fra kl. 13)" : "I morgen")
-            </button>
-        </div>
-        @{ var day = _showTomorrow ? _snap.Tomorrow : _snap.Today; }
-        @if (day is null)
-        {
-            <div class="muted">Morgendagens priser er ikke offentliggjort endnu. Energinet lægger dem ud ca. kl. 13 – appen tjekker igen hvert 5. minut.</div>
-        }
-        else
-        {
-            var span = day.Max - day.Min;
-            <div class="bars">
-                @foreach (var h in day.Hours)
-                {
-                    var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - day.Min) / span : 50;
-                    <div class="bar @(h.IsPast ? "past" : "") @(h.IsNow ? "now" : "") @(_selected == h.Start ? "sel" : "")"
-                         style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(h.Rank01)"
-                         title="@h.Start.ToString("HH:00") @Kr(h.KrPerKwh)"
-                         @onclick="() => _selected = h.Start"></div>
-                }
-            </div>
-            <div class="bar-axis">
-                @foreach (var h in day.Hours) { <span>@(h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "")</span> }
-            </div>
-            <div class="bar-info">
-                @if (_selected is { } sel && day.Hours.FirstOrDefault(h => h.Start == sel) is { } hb)
-                {
-                    <span>Kl. @hb.Start.ToString("HH:00")–@hb.Start.AddHours(1).ToString("HH:00")</span>
-                    <b class="@Level(hb.Rank01)">@Kr(hb.KrPerKwh) kr/kWh</b>
-                }
-                else
-                {
-                    <span class="muted">Tryk på en søjle for prisen</span>
-                    <span class="muted">@day.Date.ToString("dddd d. MMM", Da)</span>
-                }
-            </div>
-            <div class="legend"><span><i style="background:var(--cheap)"></i>billig</span><span><i style="background:var(--mid)"></i>middel</span><span><i style="background:var(--expensive)"></i>dyr</span></div>
-        }
-    </div>
-
-    <div class="card cta">
-        <div class="card-title">Dine egne maskiner, din måler, din regning</div>
-        <div class="small">MinElpris regner på <b>dine</b> apparater, læser din elmåler og viser hvad hver linje på din regning koster – og hvor du kan spare.</div>
-        <a class="btn btn-primary btn-block" href="https://minelpris.itmartin.dk" style="margin-top:10px">Åbn MinElpris →</a>
-    </div>
+    <a class="plan-link" href="/planlaeg">📅 Hvornår skal vaskemaskinen, opvasken eller elbilen starte? →</a>
 }
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
     private PriceSnapshot? _snap;
     private string _area = "DK1";
-    private int _quietFrom = 23, _quietTo = 6;
-    private bool _showTomorrow;
-    private bool _showWindows;
     private DateTime? _selected;
-
-    private sealed record Window(DateTime Start, double Avg, double Rank, bool Past, bool Now);
-
-    // Today cut into fixed two-hour blocks (00–02, 02–04, …), each priced as
-    // the average of its two hours, coloured against the day's own range.
-    private static List<Window> TwoHourWindows(DayView day)
-    {
-        var list = new List<Window>();
-        for (var i = 0; i + 1 < day.Hours.Count; i += 2)
-        {
-            var a = day.Hours[i]; var b = day.Hours[i + 1];
-            var avg = (a.KrPerKwh + b.KrPerKwh) / 2;
-            var rank = day.Max > day.Min ? (avg - day.Min) / (day.Max - day.Min) : 0.5;
-            list.Add(new Window(a.Start, avg, rank, b.IsPast, a.IsNow || b.IsNow));
-        }
-        return list;
-    }
     private Timer? _timer;
-    private NightPlan? _night;
-    private double _evKwh = 30, _evKw = 11;
-
-    private async Task EvChangedAsync()
-    {
-        var s = Prefs.Get();
-        s.EvKwh = Math.Clamp(_evKwh, 1, 200);
-        s.EvKw = Math.Clamp(_evKw, 0.5, 50);
-        await Prefs.SaveAsync(s);
-        await LoadAsync();
-    }
-
-    // The first entry is the two-hour "window" (never listed as a machine);
-    // the rest are the typical machines shown under "Hvad koster en tur?".
-    private static List<Appliance> Examples() => [NotificationScheduler.Window, .. Appliance.Defaults()];
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
-        // The "now" price steps every 15 minutes; refresh a bit more often so
-        // the tile is never more than a couple of minutes stale on a phone
-        // left open on the counter.
+        // The "now" price steps every 15 minutes; a phone left open on the counter
+        // must never be more than a couple of minutes stale.
         _timer = new Timer(async _ => { await LoadAsync(); await InvokeAsync(StateHasChanged); }, null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
     }
 
@@ -332,24 +110,49 @@ else
     {
         var s = Prefs.Get();
         _area = s.PriceArea;
-        _quietFrom = s.QuietFromHour;
-        _quietTo = s.QuietToHour;
         var raw = await Prices.GetPricesAsync(_area);
-        _snap = PriceModel.Build(raw, s, Examples(), DkTime.Now);
-        _evKwh = s.EvKwh; _evKw = s.EvKw;
-        _night = NightPlanner.Plan(raw, s, DkTime.Now, s.EvKwh, s.EvKw);
+        _snap = PriceModel.Build(raw, s, [], DkTime.Now);
     }
 
-    // DK1 = Jylland/Fyn, DK2 = Sjælland og øerne. Saved on the phone so
-    // Regning and Besked follow the same choice.
-    private async Task SetAreaAsync(string area)
+    // DK1 = Jylland/Fyn, DK2 = Sjælland og øerne. Saved on the phone, so it is chosen once.
+    private async Task ToggleAreaAsync()
     {
         var s = Prefs.Get();
-        if (s.PriceArea == area) return;
-        s.PriceArea = area;
+        s.PriceArea = s.PriceArea == "DK1" ? "DK2" : "DK1";
         await Prefs.SaveAsync(s);
         _snap = null;
+        _selected = null;
         await LoadAsync();
+    }
+
+    // The current hour onwards, today and tomorrow in one strip.
+    private List<HourBar> Strip() =>
+        [.. (_snap?.Today?.Hours ?? []).Concat(_snap?.Tomorrow?.Hours ?? []).Where(h => !h.IsPast)];
+
+    private sealed record Answer(string Text, bool Wait);
+
+    // One line: wait until the cheapest hour in the next 12 hours, or run now. "Now" is
+    // compared with hourly averages; within 10 % of the best counts as "now is fine".
+    private Answer? Advice()
+    {
+        if (_snap?.NowKrPerKwh is not { } now) return null;
+        var ahead = Strip().Where(h => !h.IsNow && h.Start < _snap.At.AddHours(12)).ToList();
+        if (ahead.Count == 0) return null;
+        var best = ahead.MinBy(h => h.KrPerKwh)!;
+        if (best.KrPerKwh >= now * 0.9)
+            return new Answer("Kør nu – det bliver ikke billigere de næste 12 timer", false);
+        var pct = (int)Math.Round(100 * (now - best.KrPerKwh) / now);
+        return new Answer($"Vent til {When(best.Start)} – {pct} % billigere", true);
+    }
+
+    // "kl. 13" today, "i nat kl. 03", "i morgen kl. 14".
+    private string When(DateTime t)
+    {
+        var today = DateOnly.FromDateTime(_snap?.At ?? DkTime.Now);
+        var d = DateOnly.FromDateTime(t);
+        if (d == today) return $"kl. {t:HH}";
+        if (t.Hour < 7) return $"i nat kl. {t:HH}";
+        return $"i morgen kl. {t:HH}";
     }
 
     public void Dispose() => _timer?.Dispose();
@@ -364,22 +167,16 @@ else
         _ => "lvl-mid",
     };
 
-    private static string Verdict(double? rank) => rank switch
+    private static string Verdict(double? rank, bool wait) => rank switch
     {
         null => "",
-        <= 0.15 => "Blandt dagens billigste – kør nu",
+        < 0.67 when wait => "Middel – det bliver billigere",
+        <= 0.15 => "Blandt dagens billigste",
         <= 0.33 => "Billigt lige nu",
-        >= 0.85 => "Dagens dyreste – vent hvis du kan",
+        >= 0.85 => "Dagens dyreste",
         >= 0.67 => "Dyrt lige nu",
         _ => "Middel – hverken billigt eller dyrt",
     };
-
-    private static double? RankOf(ApplianceView a, RunOption o)
-    {
-        var lo = a.CheapestToday?.CostKr ?? o.CostKr;
-        var hi = a.DearestUpcoming?.CostKr ?? o.CostKr;
-        return hi > lo ? (o.CostKr - lo) / (hi - lo) : 0.5;
-    }
 
     private static string Color(double rank) => rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)";
 }

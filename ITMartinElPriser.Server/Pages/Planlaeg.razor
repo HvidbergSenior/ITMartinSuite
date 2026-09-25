@@ -1,0 +1,164 @@
+@page "/planlaeg"
+@using System.Globalization
+@inject ElectricityPriceService Prices
+@inject PrefsService Prefs
+@inject IJSRuntime JS
+
+<PageTitle>Planlæg – ElPriser</PageTitle>
+
+<h1>Hvornår skal den starte?</h1>
+<p class="muted small" style="margin:4px 0 12px">Vælg hvor længe den kører – så får du det billigste starttidspunkt.</p>
+
+<div class="chips">
+    @foreach (var c in Choices)
+    {
+        <button class="chip @(_choice == c.Key ? "on" : "")" @onclick="() => PickAsync(c.Key)">@c.Label</button>
+    }
+</div>
+
+@if (_raw is null)
+{
+    <div class="card"><div class="muted">Regner…</div></div>
+}
+else
+{
+    <div class="card plan-result">
+        @switch (_choice)
+        {
+            case "2":
+                @if (_wash is { } w && Best2(w) is { } b)
+                {
+                    var saving = w.Now is { } n && n.AvgKrPerKwh > b.AvgKrPerKwh ? (int)Math.Round(100 * (n.AvgKrPerKwh - b.AvgKrPerKwh) / n.AvgKrPerKwh) : 0;
+                    <div class="plan-when lvl-cheap">@(b == w.Now ? "Start nu" : $"Start {When(b.Start)}:{b.Start:mm}")</div>
+                    <div class="plan-price">@Kr(b.AvgKrPerKwh) kr/kWh i snit de 2 timer</div>
+                    @if (w.Now is { } now && b != now)
+                    {
+                        <div class="muted small">Starter du nu: @Kr(now.AvgKrPerKwh) kr/kWh@(saving > 0 ? $" · du sparer {saving} %" : "")</div>
+                    }
+                    <div class="muted small" style="margin-top:6px">Vask, opvask, tørretumbler. Nattetimer (23–06) foreslås ikke.</div>
+                }
+                else
+                {
+                    <div class="muted">Ingen priser at regne på endnu.</div>
+                }
+                break;
+
+            case "4":
+            case "8":
+                var hours = _choice == "4" ? 4.0 : 8.0;
+                @if (_night?.Windows.FirstOrDefault(x => x.Hours == hours).Best is { } nb)
+                {
+                    <div class="plan-when lvl-cheap">Start i nat kl. @nb.Start.ToString("HH:mm")</div>
+                    <div class="plan-price">@Kr(nb.AvgKrPerKwh) kr/kWh i snit de @hours.ToString("0") timer</div>
+                    <div class="muted small" style="margin-top:6px">@(hours == 4 ? "Varmtvandsbeholder, elbil på 11 kW, opvask på timer." : "Det der kører hele natten – fx elbil på 1-faset lader.") Natten regnes 22–07.</div>
+                    @if (_night is { Complete: false })
+                    {
+                        <div class="muted small">Morgendagens priser kommer ca. kl. 13 – indtil da er kun aftenen regnet med.</div>
+                    }
+                }
+                else
+                {
+                    <div class="muted">Nattens priser er ikke kendt endnu – de kommer ca. kl. 13.</div>
+                }
+                break;
+
+            case "ev":
+                <div class="row2">
+                    <div class="field"><label>Skal lades, kWh</label><input type="number" min="1" max="120" step="1" @bind="_evKwh" @bind:after="EvChangedAsync" /></div>
+                    <div class="field"><label>Lader, kW</label><input type="number" min="1" max="22" step="0.1" @bind="_evKw" @bind:after="EvChangedAsync" /></div>
+                </div>
+                @if (_night?.Ev is { } ev)
+                {
+                    <div class="plan-when lvl-cheap">Start i nat kl. @ev.Start.ToString("HH:mm")</div>
+                    <div class="plan-price">@ev.CostKr.ToString("0", Da) kr for opladningen (@((_night.EvKwh / _night.EvKw).ToString("0.#", Da)) timer)</div>
+                    @if (_night.EvFromHome is { } home && home.CostKr > ev.CostKr)
+                    {
+                        <div class="muted small">Sat i kl. 17 når du kommer hjem: @home.CostKr.ToString("0", Da) kr – du sparer <b>@((home.CostKr - ev.CostKr).ToString("0", Da)) kr</b> pr. opladning.</div>
+                    }
+                }
+                else
+                {
+                    <div class="muted">Nattens priser er ikke kendt endnu – de kommer ca. kl. 13.</div>
+                }
+                break;
+        }
+    </div>
+
+    <details class="card fold" data-remember="why-evening">
+        <summary>Hvorfor er strøm dyrest kl. 17–21?</summary>
+        <div class="small" style="margin-top:8px">Nettariffen – det dit netselskab tager for at levere strømmen – er højest når alle kommer hjem og laver mad. Om vinteren kan den være op til 9 gange nattens. Derfor: sæt starttid i bilen, laderen eller maskinen i stedet for bare at sætte stikket i.</div>
+    </details>
+
+    <details class="card fold" data-remember="how">
+        <summary>Sådan regner vi</summary>
+        <div class="small" style="margin-top:8px">Priserne kommer fra Energinet i kvarterer og er inkl. moms, elafgift og nettarif for dit område. Et starttidspunkt er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris.</div>
+    </details>
+
+    <div class="card cta">
+        <div class="card-title">Dine egne maskiner og din måler</div>
+        <div class="small">MinElpris regner på <b>dine</b> apparater, læser din elmåler og viser hvor du kan spare.</div>
+        <a class="btn btn-primary btn-block" href="https://minelpris.itmartin.dk" style="margin-top:10px">Åbn MinElpris →</a>
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private static readonly (string Key, string Label)[] Choices =
+        [("2", "🧺 2 timer"), ("4", "♨️ 4 timer"), ("8", "🌙 Hele natten"), ("ev", "🚗 Elbil")];
+
+    private string _choice = "2";
+    private List<PricePoint>? _raw;
+    private ApplianceView? _wash;
+    private NightPlan? _night;
+    private double _evKwh = 30, _evKw = 11;
+    private DateTime _now;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // The chosen chip and the open/closed cards are remembered on the phone.
+        var saved = await JS.InvokeAsync<string?>("epUi.get", "plan-choice");
+        if (saved is not null && Choices.Any(c => c.Key == saved) && saved != _choice) { _choice = saved; StateHasChanged(); }
+        await JS.InvokeVoidAsync("epUi.restoreDetails");
+    }
+
+    private async Task LoadAsync()
+    {
+        var s = Prefs.Get();
+        _now = DkTime.Now;
+        _raw = await Prices.GetPricesAsync(s.PriceArea);
+        _wash = PriceModel.Build(_raw, s, [NotificationScheduler.Window], _now).Appliances.FirstOrDefault();
+        _evKwh = s.EvKwh; _evKw = s.EvKw;
+        _night = NightPlanner.Plan(_raw, s, _now, s.EvKwh, s.EvKw);
+    }
+
+    private async Task PickAsync(string key)
+    {
+        _choice = key;
+        await JS.InvokeVoidAsync("epUi.set", "plan-choice", key);
+    }
+
+    private async Task EvChangedAsync()
+    {
+        var s = Prefs.Get();
+        s.EvKwh = Math.Clamp(_evKwh, 1, 200);
+        s.EvKw = Math.Clamp(_evKw, 0.5, 50);
+        await Prefs.SaveAsync(s);
+        await LoadAsync();
+    }
+
+    // Best 2-hour start from now on: now itself, later today, or tomorrow (awake hours).
+    private static RunOption? Best2(ApplianceView w) =>
+        new[] { w.Now, w.CheapestToday, w.CheapestTomorrow }.Where(o => o is not null).MinBy(o => o!.AvgKrPerKwh);
+
+    private string When(DateTime t)
+    {
+        var d = DateOnly.FromDateTime(t);
+        if (d == DateOnly.FromDateTime(_now)) return $"kl. {t:HH}";
+        return t.Hour < 7 ? $"i nat kl. {t:HH}" : $"i morgen kl. {t:HH}";
+    }
+
+    private static string Kr(double v) => v.ToString("0.00", Da);
+}
