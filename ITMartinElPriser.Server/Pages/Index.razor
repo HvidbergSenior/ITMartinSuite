@@ -48,8 +48,17 @@ else
     var adv = Advice();
     var lvl = adv?.Wait == true && _snap.NowRank01 <= 0.33 ? "lvl-mid" : Level(_snap.NowRank01);
     <div class="card now-tile @lvl">
-        <div class="now-price @lvl">@Kr(_snap.NowKrPerKwh)</div>
-        <div class="now-unit">kr/kWh lige nu · kl. @_snap.At.ToString("HH:mm")@(_snap.AllIn ? " · alt inkl." : " · spotpris")</div>
+        @if (_devKw > 0 && DeviceHour(QuarterNow()) is { } devNow)
+        {
+            <div class="now-price @lvl">@Kr(devNow.CostKr)</div>
+            <div class="now-unit">kr for din @_devName.ToLowerInvariant() (@_devKw?.ToString("0.##", Da) kW) en time fra nu</div>
+            <div class="now-unit">@Kr(_snap.NowKrPerKwh) kr/kWh lige nu · kl. @_snap.At.ToString("HH:mm") · alt inkl.</div>
+        }
+        else
+        {
+            <div class="now-price @lvl">@Kr(_snap.NowKrPerKwh)</div>
+            <div class="now-unit">kr/kWh lige nu · kl. @_snap.At.ToString("HH:mm")@(_snap.AllIn ? " · alt inkl." : " · spotpris")</div>
+        }
         <div class="now-verdict @lvl">@Verdict(_snap.NowRank01, adv?.Wait == true)</div>
         @if (adv is not null)
         {
@@ -74,7 +83,7 @@ else
                     @* The whole column is the tap target; the price sits right above the tapped bar. *@
                     <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
                          @onclick="() => _selected = _selected == h.Start ? null : h.Start">
-                        @if (_selected == h.Start) { <span class="bar-tip">@(DeviceHour(h.Start) is { } dh ? $"{Kr(dh.CostKr)} kr" : Kr(h.KrPerKwh))</span> }
+                        @if (_selected == h.Start) { <span class="bar-tip">@(DeviceHour(h.Start) is { } dh ? $"{_devName}: {Kr(dh.CostKr)} kr" : Kr(h.KrPerKwh))</span> }
                         <div class="bar @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
                              style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(rank)"></div>
                     </div>
@@ -107,13 +116,23 @@ else
                 }
             </div>
             <details class="my-device" data-remember="my-device">
-                <summary>🔌 @(_devKw > 0 ? $"Din enhed: {_devName}, {_devKw?.ToString("0.##", Da)} kW" : "Se prisen for din egen enhed")</summary>
+                <summary>🔌 @(_devKw > 0 ? $"Din {_devName.ToLowerInvariant()}: {_devKw?.ToString("0.##", Da)} kW" : "Se prisen for din opvaskemaskine")</summary>
                 <div class="my-device-body">
                     <div class="row2">
-                        <div class="field"><label for="devname">Hvad er det?</label><input id="devname" type="text" maxlength="24" placeholder="Fx ovn" @bind="_devName" @bind:after="SaveDeviceAsync" /></div>
+                        <div class="field">
+                            <label for="devname">Maskine</label>
+                            @* The free app prices one machine; the rest are in MinElpris, shown but greyed out. *@
+                            <select id="devname" @bind="_devName" @bind:after="SaveDeviceAsync">
+                                <option value="Opvaskemaskine">Opvaskemaskine</option>
+                                <option disabled>Vaskemaskine (MinElpris)</option>
+                                <option disabled>Tørretumbler (MinElpris)</option>
+                                <option disabled>Ovn (MinElpris)</option>
+                            </select>
+                        </div>
                         <div class="field"><label for="devkw">Effekt, kW</label><input id="devkw" type="number" inputmode="decimal" min="0" max="50" step="0.1" placeholder="Fx 2" @bind="_devKw" @bind:after="SaveDeviceAsync" /></div>
                     </div>
-                    <div class="muted small">Står på mærkeskiltet. 2.000 W = 2 kW. Tryk så på en time i søjlerne, så ser du hvad din enhed koster at have tændt i præcis den time – regnet kvarter for kvarter.</div>
+                    <div class="muted small">kW står på mærkeskiltet. 2.000 W = 2 kW. Tryk så på en time i søjlerne, så ser du hvad maskinen koster at have kørende i præcis den time – regnet kvarter for kvarter.</div>
+                    <a class="small" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Vaskemaskine, tørretumbler, ovn og flere maskiner: MinElpris →</a>
                 </div>
             </details>
             @if (_snap.Tomorrow is null)
@@ -143,7 +162,7 @@ else
 
     private List<PricePoint> _raw = [];
     private HouseholdSettings _s = new();
-    private string _devName = "";
+    private string _devName = "Opvaskemaskine";
     private double? _devKw;   // null = nothing typed yet, so the field starts empty
 
     // The user's own device running for exactly one hour from `start`: kW × each quarter's price.
@@ -151,10 +170,20 @@ else
         _devKw is not > 0 || _raw.Count == 0 ? null
         : PriceModel.CostOfRun(_raw, _s, new Appliance { Name = _devName, KwhPerRun = _devKw.Value, DurationHours = 1 }, start);
 
+    private DateTime QuarterNow()
+    {
+        var n = _snap?.At ?? DkTime.Now;
+        return new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute / 15 * 15, 0);
+    }
+
+    private DateTime? CurrentHour() => Strip().FirstOrDefault(h => h.IsNow)?.Start;
+
     private async Task SaveDeviceAsync()
     {
         if (_devKw is { } kw) _devKw = Math.Clamp(kw, 0, 50);
-        if (string.IsNullOrWhiteSpace(_devName)) _devName = "Min enhed";
+        _devName = "Opvaskemaskine";
+        // Show the price at once: the current hour is picked when nothing is.
+        if (_devKw > 0 && _selected is null) _selected = CurrentHour();
         await JS.InvokeVoidAsync("epUi.set", "device", $"{_devName}|{(_devKw ?? 0).ToString(CultureInfo.InvariantCulture)}");
     }
 
@@ -165,7 +194,8 @@ else
         if (await JS.InvokeAsync<string?>("epUi.get", "device") is { } d && d.Split('|') is [var n, var k]
             && double.TryParse(k, CultureInfo.InvariantCulture, out var kw) && kw > 0)
         {
-            _devName = n; _devKw = kw;
+            _devName = n == "Opvaskemaskine" ? n : "Opvaskemaskine"; _devKw = kw;
+            _selected ??= CurrentHour();
             StateHasChanged();
         }
     }
