@@ -329,3 +329,24 @@ html, body {
 .ev-install-body ol { padding-left: 20px; display: grid; gap: 8px; }
 .ev-install-btn { min-height: 60px; font-size: 18px; }
 .ev-key { display: inline-block; border: 1px solid var(--border); border-radius: 6px; padding: 0 6px; }
+
+.ev-warn { background: color-mix(in srgb, var(--warm) 18%, var(--card)); border: 2px solid var(--warm); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
+.ev-guide { background: var(--card); border: 2px solid var(--accent); border-radius: 18px; padding: 16px; margin-bottom: 18px; display: grid; gap: 12px; }
+.ev-guide-title { font-weight: 800; font-size: 18px; }
+.ev-step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; opacity: .55; }
+.ev-step.active, .ev-step.done { opacity: 1; }
+.ev-step-no { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; border: 2px solid var(--border); }
+.ev-step.active .ev-step-no { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.ev-step.done .ev-step-no { color: var(--accent); border-color: var(--accent); }
+.ev-step-body { display: grid; gap: 8px; padding-top: 5px; }
+.ev-step-body ol { padding-left: 20px; display: grid; gap: 6px; }
+.ev-step-head { display: flex; align-items: center; gap: 10px; }
+.ev-step-head img { width: 40px; height: 40px; border-radius: 9px; }
+.ev-small { min-height: 54px; font-size: 18px; }
+.ev-dev { border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.ev-dev summary { padding: 10px 12px; cursor: pointer; font-weight: 700; list-style: none; display: flex; }
+.ev-dev summary::-webkit-details-marker { display: none; }
+.ev-dev summary::after { content: "＋"; margin-left: auto; color: var(--muted); font-weight: 400; }
+.ev-dev[open] summary::after { content: "－"; }
+.ev-dev ol, .ev-dev .ev-camera { margin: 0 12px 12px; }
+.ev-dev ol { padding-left: 32px; }

@@ -40,59 +40,81 @@
         <p class="sub">@(string.IsNullOrWhiteSpace(_customer?.Intro) ? "Tag billeder – alle med linket ser dem med det samme." : _customer!.Intro)</p>
     </div>
 
-    @if (_showInstall)
+    @if (_inApp)
     {
-        @* Clickable box: how to get the camera icon on the home screen. Hidden once it is installed. *@
-        <details class="ev-install" open="@(_installOpen)">
-            <summary><img src="/event-icon-192.png" alt="" /> <span>@(_pc ? "💻" : "📲") Læg <b>@DisplayName</b> på @(_pc ? "skrivebordet" : "hjemmeskærmen")</span></summary>
-            <div class="ev-install-body">
-                @if (_canPrompt)
-                {
-                    <button class="ev-camera ev-install-btn" @onclick="InstallAsync">Installer @DisplayName</button>
-                }
-                else if (_pc && _edge)
-                {
-                    <ol>
-                        <li>Klik på <b>···</b> øverst til højre i Edge.</li>
-                        <li>Vælg <b>Apps</b> → <b>Installer dette websted som en app</b> → <b>Installer</b>.</li>
-                    </ol>
-                }
-                else if (_pc)
-                {
-                    <ol>
-                        <li>Klik på <b>⋮</b> øverst til højre i Chrome.</li>
-                        <li>Vælg <b>Cast, gem og del</b> → <b>Installer side som app</b> → <b>Installer</b>.</li>
-                    </ol>
-                }
-                else if (_ios)
-                {
-                    <ol>
-                        <li>Tryk på <b>Del</b> – firkanten med pilen op <span class="ev-key">⬆︎</span> nederst i Safari.</li>
-                        <li>Vælg <b>Føj til hjemmeskærm</b> og tryk <b>Tilføj</b>.</li>
-                    </ol>
-                }
-                else
-                {
-                    <ol>
-                        <li>Tryk på <b>⋮</b> øverst til højre i Chrome.</li>
-                        <li>Vælg <b>Føj til startskærm</b> (eller <b>Installer app</b>) og tryk <b>Tilføj</b>.</li>
-                    </ol>
-                }
-                <p class="ev-hint">@(_pc ? "Så får du et grønt kamera-ikon på skrivebordet og i proceslinjen, der åbner siden som et lille program." : "Så ligger der et grønt kamera-ikon, der åbner lige ind til kameraet.")</p>
-            </div>
-        </details>
-    }
-
-    @if (!_nameReady)
-    {
-        <div class="ev-card">
-            <label class="ev-label" for="who">Hvad hedder du?</label>
-            <input id="who" class="ev-input" type="text" maxlength="30" placeholder="Fx Martin" @bind="_nameInput" @onkeydown="NameKey" />
-            <button class="ev-camera" @onclick="SaveName" disabled="@(_nameInput.Trim().Length == 0)">Fortsæt</button>
-            <p class="ev-hint">Så kan de andre se, hvem der tog billedet. Det huskes på telefonen.</p>
+        @* Messenger, Facebook, Instagram, Mail previews: a mini-browser that cannot add a home-screen icon. *@
+        <div class="ev-warn">
+            <b>Du har åbnet linket inde i en app.</b> Tryk på <b>⋯</b> eller <b>⋮</b> øverst og vælg <b>Åbn i @(_ios ? "Safari" : "Chrome")</b> – så virker det hele.
         </div>
     }
-    else
+
+    @if (!_guideDone)
+    {
+        @* The whole instruction lives here, so the message with the link only has to say "følg de 3 trin". *@
+        <div class="ev-guide">
+            <div class="ev-guide-title">Sådan gør du – 3 trin</div>
+
+            <div class="ev-step @(_nameReady ? "done" : "active")">
+                <span class="ev-step-no">@(_nameReady ? "✓" : "1")</span>
+                <div class="ev-step-body">
+                    @if (!_nameReady)
+                    {
+                        <label class="ev-label" for="who">Skriv dit navn</label>
+                        <input id="who" class="ev-input" type="text" maxlength="30" placeholder="Fx Martin" @bind="_nameInput" @onkeydown="NameKey" />
+                        <button class="ev-camera ev-small" @onclick="SaveName" disabled="@(_nameInput.Trim().Length == 0)">Gem navn</button>
+                        <p class="ev-hint">Så kan de andre se, hvem der tog billedet.</p>
+                    }
+                    else
+                    {
+                        <span>Du er <b>@_name</b> · <button class="ev-link" @onclick="() => _nameReady = false">skift</button></span>
+                    }
+                </div>
+            </div>
+
+            <div class="ev-step @(!_showInstall ? "done" : _nameReady ? "active" : "")">
+                <span class="ev-step-no">@(!_showInstall ? "✓" : "2")</span>
+                <div class="ev-step-body">
+                    @if (!_showInstall)
+                    {
+                        <span>@(_installSkipped ? "Sprunget over" : "Ikonet ligger på skærmen")</span>
+                    }
+                    else
+                    {
+                        <div class="ev-step-head"><img src="/event-icon-192.png" alt="" /><b>Læg ikonet på @(_pc ? "skrivebordet" : "din skærm")</b></div>
+                        @* One show/hide box per kind of device; the one you are on is already open. *@
+                        <details class="ev-dev" open="@(_ios)">
+                            <summary>📱 iPhone</summary>
+                            <ol><li>Åbn linket i <b>Safari</b>.</li><li>Tryk på <b>Del</b> <span class="ev-key">⬆︎</span> nederst.</li><li>Rul ned, vælg <b>Føj til hjemmeskærm</b> og tryk <b>Tilføj</b>.</li></ol>
+                        </details>
+                        <details class="ev-dev" open="@(!_ios && !_pc)">
+                            <summary>🤖 Android</summary>
+                            @if (_canPrompt && !_pc)
+                            {
+                                <button class="ev-camera ev-small" @onclick="InstallAsync">Installer @DisplayName</button>
+                            }
+                            <ol><li>Åbn linket i <b>Chrome</b>.</li><li>Tryk på <b>⋮</b> øverst til højre.</li><li>Vælg <b>Føj til startskærm</b> og tryk <b>Tilføj</b>.</li></ol>
+                        </details>
+                        <details class="ev-dev" open="@(_pc)">
+                            <summary>💻 PC</summary>
+                            @if (_canPrompt && _pc)
+                            {
+                                <button class="ev-camera ev-small" @onclick="InstallAsync">Installer @DisplayName</button>
+                            }
+                            <ol><li><b>Chrome:</b> ⋮ øverst til højre → <b>Cast, gem og del</b> → <b>Installer side som app</b>.</li><li><b>Edge:</b> ··· øverst til højre → <b>Apps</b> → <b>Installer dette websted som en app</b>.</li></ol>
+                        </details>
+                        <p class="ev-hint">Så får du et grønt kamera-ikon, der åbner lige ind her. <button class="ev-link" @onclick="SkipInstallAsync">Spring over</button></p>
+                    }
+                </div>
+            </div>
+
+            <div class="ev-step @(_nameReady && !_showInstall ? "active" : "")">
+                <span class="ev-step-no">3</span>
+                <div class="ev-step-body"><span><b>@(_pc ? "Vælg billeder" : "Tag billeder")</b> med knappen herunder – alle ser dem med det samme.</span></div>
+            </div>
+        </div>
+    }
+
+    @if (_nameReady)
     {
         <div class="ev-card">
             @if (_pc)
@@ -114,7 +136,10 @@
             }
             <InputFile id="ev-lib" class="ev-file" OnChange="OnFiles" accept="image/*,video/*" multiple disabled="@_busy" />
             @if (_error is not null) { <div class="ev-error">@_error</div> }
-            <p class="ev-hint">Du er <b>@_name</b> · <button class="ev-link" @onclick="() => _nameReady = false">skift navn</button></p>
+            @if (_guideDone)
+            {
+                <p class="ev-hint">Du er <b>@_name</b> · <button class="ev-link" @onclick="() => _nameReady = false">skift navn</button></p>
+            }
         </div>
     }
 
@@ -162,7 +187,16 @@
     private string? _error;
     private List<ITMartinUpload.Server.Services.StoredFile> _files = [];
     private Timer? _poll;
-    private bool _showInstall, _installOpen = true, _canPrompt, _ios, _pc, _edge;
+    private bool _showInstall, _canPrompt, _ios, _pc, _edge, _inApp, _installSkipped;
+
+    // The guide disappears when the name is saved and the icon is on the screen (or skipped).
+    private bool _guideDone => _nameReady && !_showInstall;
+
+    private async Task SkipInstallAsync()
+    {
+        _showInstall = false; _installSkipped = true;
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "event-install-skipped", "1"); } catch (JSException) { }
+    }
 
     private async Task InstallAsync()
     {
@@ -189,7 +223,10 @@
         {
             var saved = await JS.InvokeAsync<string?>("localStorage.getItem", NameKeyStorage);
             if (!string.IsNullOrWhiteSpace(saved)) { _name = _nameInput = saved; _nameReady = true; }
-            _showInstall = !await JS.InvokeAsync<bool>("eventApp.installed");
+            var skipped = await JS.InvokeAsync<string?>("localStorage.getItem", "event-install-skipped") == "1";
+            _installSkipped = skipped;
+            _showInstall = !skipped && !await JS.InvokeAsync<bool>("eventApp.installed");
+            _inApp = await JS.InvokeAsync<bool>("eventApp.inApp");
             _ios = await JS.InvokeAsync<bool>("eventApp.isIos");
             _pc = !await JS.InvokeAsync<bool>("eventApp.isMobile");
             _edge = await JS.InvokeAsync<bool>("eventApp.isEdge");

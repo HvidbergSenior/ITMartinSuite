@@ -22,6 +22,7 @@
             installed: function () { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; },
             canPrompt: function () { return !!window._installPrompt; },
             isIos: function () { return /iphone|ipad|ipod/i.test(navigator.userAgent); },
+            inApp: function () { return /FBAN|FBAV|FB_IAB|Instagram|Messenger|Snapchat|MicroMessenger|Line\/|GSA\//.test(navigator.userAgent); },
             isMobile: function () { return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent); },
             isEdge: function () { return /Edg\//.test(navigator.userAgent); },
             prompt: async function () {
