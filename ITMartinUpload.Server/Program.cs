@@ -141,6 +141,30 @@ app.MapPost("/api/remove/{slug}/{name}", (
     return store.Remove(slug, name) ? Results.Ok() : Results.NotFound();
 }).DisableAntiforgery();
 
+// Home-screen app for one event: its own name and start page, the camera icon.
+app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+{
+    var c = options.Value.Find(slug);
+    if (c is null || !UploadStore.IsValidSlug(slug)) return Results.NotFound();
+    var name = string.IsNullOrWhiteSpace(c.Name) ? slug : c.Name;
+    var manifest = new
+    {
+        name = $"{name} – billeder",
+        short_name = name,
+        start_url = $"/event/{slug}",
+        scope = $"/event/{slug}",
+        display = "standalone",
+        background_color = "#121917",
+        theme_color = "#1f7a5c",
+        icons = new[]
+        {
+            new { src = "/event-icon-192.png", sizes = "192x192", type = "image/png", purpose = "any" },
+            new { src = "/event-icon-512.png", sizes = "512x512", type = "image/png", purpose = "any" },
+        },
+    };
+    return Results.Json(manifest, contentType: "application/manifest+json");
+});
+
 app.MapRazorComponents<ITMartinUpload.Server.App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly);

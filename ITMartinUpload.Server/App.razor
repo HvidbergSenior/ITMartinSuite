@@ -14,6 +14,24 @@
     @* The version makes Cloudflare fetch the stylesheet again after a deploy
        instead of serving the cached one next to freshly rendered markup. *@
     <link rel="stylesheet" href="@($"app.css?v={AssetVersion}")" />
+    <HeadOutlet />
+    <script>
+        // Android: keep the browser's install offer so the event page can show its own button.
+        window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window._installPrompt = e; });
+        window.eventApp = {
+            installed: function () { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; },
+            canPrompt: function () { return !!window._installPrompt; },
+            isIos: function () { return /iphone|ipad|ipod/i.test(navigator.userAgent); },
+            prompt: async function () {
+                if (!window._installPrompt) return false;
+                window._installPrompt.prompt();
+                var r = await window._installPrompt.userChoice;
+                window._installPrompt = null;
+                return r && r.outcome === 'accepted';
+            }
+        };
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () {});
+    </script>
 </head>
 <body>
     <Routes />

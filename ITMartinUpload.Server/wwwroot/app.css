@@ -319,3 +319,13 @@ html, body {
 .ev-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ev-video { width: 100%; height: 100%; display: grid; place-items: center; font-size: 40px; }
 .ev-by { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+.ev-install { background: var(--card); border: 2px solid var(--accent); border-radius: 18px; margin-bottom: 18px; }
+.ev-install summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; font-weight: 600; }
+.ev-install summary::-webkit-details-marker { display: none; }
+.ev-install summary::after { content: "＋"; margin-left: auto; color: var(--muted); }
+.ev-install[open] summary::after { content: "－"; }
+.ev-install summary img { width: 44px; height: 44px; border-radius: 10px; }
+.ev-install-body { padding: 0 16px 16px; display: grid; gap: 10px; }
+.ev-install-body ol { padding-left: 20px; display: grid; gap: 8px; }
+.ev-install-btn { min-height: 60px; font-size: 18px; }
+.ev-key { display: inline-block; border: 1px solid var(--border); border-radius: 6px; padding: 0 6px; }

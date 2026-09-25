@@ -12,6 +12,14 @@
    the photo is saved the moment it is taken. Files land in the event's folder on the NAS. *@
 
 <PageTitle>@DisplayName – billeder</PageTitle>
+<HeadContent>
+    <link rel="manifest" href="/event/@Slug/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/event-icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="@DisplayName" />
+    <meta name="theme-color" content="#1f7a5c" />
+</HeadContent>
 
 @if (!_authorized)
 {
@@ -31,6 +39,35 @@
         <h1 class="title">@DisplayName</h1>
         <p class="sub">@(string.IsNullOrWhiteSpace(_customer?.Intro) ? "Tag billeder – alle med linket ser dem med det samme." : _customer!.Intro)</p>
     </div>
+
+    @if (_showInstall)
+    {
+        @* Clickable box: how to get the camera icon on the home screen. Hidden once it is installed. *@
+        <details class="ev-install" open="@(_installOpen)">
+            <summary><img src="/event-icon-192.png" alt="" /> <span>📲 Læg <b>@DisplayName</b> på hjemmeskærmen</span></summary>
+            <div class="ev-install-body">
+                @if (_canPrompt)
+                {
+                    <button class="ev-camera ev-install-btn" @onclick="InstallAsync">Installer @DisplayName</button>
+                }
+                else if (_ios)
+                {
+                    <ol>
+                        <li>Tryk på <b>Del</b> – firkanten med pilen op <span class="ev-key">⬆︎</span> nederst i Safari.</li>
+                        <li>Vælg <b>Føj til hjemmeskærm</b> og tryk <b>Tilføj</b>.</li>
+                    </ol>
+                }
+                else
+                {
+                    <ol>
+                        <li>Tryk på <b>⋮</b> øverst til højre i Chrome.</li>
+                        <li>Vælg <b>Føj til startskærm</b> (eller <b>Installer app</b>) og tryk <b>Tilføj</b>.</li>
+                    </ol>
+                }
+                <p class="ev-hint">Så ligger der et grønt kamera-ikon, der åbner lige ind til kameraet.</p>
+            </div>
+        </details>
+    }
 
     @if (!_nameReady)
     {
@@ -100,6 +137,12 @@
     private string? _error;
     private List<ITMartinUpload.Server.Services.StoredFile> _files = [];
     private Timer? _poll;
+    private bool _showInstall, _installOpen = true, _canPrompt, _ios;
+
+    private async Task InstallAsync()
+    {
+        try { if (await JS.InvokeAsync<bool>("eventApp.prompt")) _showInstall = false; } catch (JSException) { }
+    }
 
     private string DisplayName => string.IsNullOrWhiteSpace(_customer?.Name) ? Slug : _customer!.Name;
 
@@ -120,7 +163,18 @@
         try
         {
             var saved = await JS.InvokeAsync<string?>("localStorage.getItem", NameKeyStorage);
-            if (!string.IsNullOrWhiteSpace(saved)) { _name = _nameInput = saved; _nameReady = true; StateHasChanged(); }
+            if (!string.IsNullOrWhiteSpace(saved)) { _name = _nameInput = saved; _nameReady = true; }
+            _showInstall = !await JS.InvokeAsync<bool>("eventApp.installed");
+            _ios = await JS.InvokeAsync<bool>("eventApp.isIos");
+            // Chrome offers install a moment after load; look again shortly.
+            _canPrompt = await JS.InvokeAsync<bool>("eventApp.canPrompt");
+            StateHasChanged();
+            if (!_canPrompt && !_ios)
+            {
+                await Task.Delay(2500);
+                _canPrompt = await JS.InvokeAsync<bool>("eventApp.canPrompt");
+                StateHasChanged();
+            }
         }
         catch (JSException) { }
     }
