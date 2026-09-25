@@ -93,7 +93,7 @@ else
                     <b class="@Level(span > 0 ? (hb.KrPerKwh - min) / span : 0.5)">@Kr(hb.KrPerKwh) kr/kWh</b>
                     @if (_devKw > 0 && DeviceHour(hb.Start) is { } dev)
                     {
-                        <span class="bar-example">🔌 <b>@_devName</b> på @_devKw.ToString("0.##", Da) kW i timen @When(hb.Start)–@hb.Start.AddHours(1).ToString("HH:00") → <b>@Kr(dev.CostKr) kr</b></span>
+                        <span class="bar-example">🔌 <b>@_devName</b> på @_devKw?.ToString("0.##", Da) kW i timen @When(hb.Start)–@hb.Start.AddHours(1).ToString("HH:00") → <b>@Kr(dev.CostKr) kr</b></span>
                     }
                     else if (WashAt(hb.Start) is { } wash)
                     {
@@ -107,7 +107,7 @@ else
                 }
             </div>
             <details class="my-device" data-remember="my-device">
-                <summary>🔌 @(_devKw > 0 ? $"Din enhed: {_devName}, {_devKw.ToString("0.##", Da)} kW" : "Se prisen for din egen enhed")</summary>
+                <summary>🔌 @(_devKw > 0 ? $"Din enhed: {_devName}, {_devKw?.ToString("0.##", Da)} kW" : "Se prisen for din egen enhed")</summary>
                 <div class="my-device-body">
                     <div class="row2">
                         <div class="field"><label for="devname">Hvad er det?</label><input id="devname" type="text" maxlength="24" placeholder="Fx ovn" @bind="_devName" @bind:after="SaveDeviceAsync" /></div>
@@ -144,18 +144,18 @@ else
     private List<PricePoint> _raw = [];
     private HouseholdSettings _s = new();
     private string _devName = "";
-    private double _devKw;
+    private double? _devKw;   // null = nothing typed yet, so the field starts empty
 
     // The user's own device running for exactly one hour from `start`: kW × each quarter's price.
     private RunOption? DeviceHour(DateTime start) =>
-        _devKw <= 0 || _raw.Count == 0 ? null
-        : PriceModel.CostOfRun(_raw, _s, new Appliance { Name = _devName, KwhPerRun = _devKw, DurationHours = 1 }, start);
+        _devKw is not > 0 || _raw.Count == 0 ? null
+        : PriceModel.CostOfRun(_raw, _s, new Appliance { Name = _devName, KwhPerRun = _devKw.Value, DurationHours = 1 }, start);
 
     private async Task SaveDeviceAsync()
     {
-        _devKw = Math.Clamp(_devKw, 0, 50);
+        if (_devKw is { } kw) _devKw = Math.Clamp(kw, 0, 50);
         if (string.IsNullOrWhiteSpace(_devName)) _devName = "Min enhed";
-        await JS.InvokeVoidAsync("epUi.set", "device", $"{_devName}|{_devKw.ToString(CultureInfo.InvariantCulture)}");
+        await JS.InvokeVoidAsync("epUi.set", "device", $"{_devName}|{(_devKw ?? 0).ToString(CultureInfo.InvariantCulture)}");
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
