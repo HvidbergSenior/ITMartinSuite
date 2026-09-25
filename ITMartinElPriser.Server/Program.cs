@@ -33,6 +33,7 @@ builder.Services.AddHttpContextAccessor();
 // transient-per-request registration would throw the cache away every call.
 builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
 builder.Services.AddSingleton(sp => new Co2Service(new HttpClient(), sp.GetRequiredService<ILogger<Co2Service>>()));
+builder.Services.AddSingleton(sp => new SupplierCatalog(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<SupplierCatalog>>()));
 builder.Services.AddSingleton<SubscriberStore>();
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddHostedService<NotificationScheduler>();

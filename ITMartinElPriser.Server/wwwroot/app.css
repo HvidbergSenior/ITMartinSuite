@@ -238,3 +238,18 @@ details.fold[open] summary::after { content: "－"; }
 .fold-body { margin-top: 8px; }
 .fold-body p + p { margin-top: 8px; }
 .fold-body ul { padding-left: 18px; display: grid; gap: 6px; }
+
+/* ── Elselskab ── */
+.sup-list { padding: 6px 8px; }
+.sup { border-top: 1px solid var(--border); }
+.sup:first-child { border-top: none; }
+.sup summary { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: center; padding: 10px 6px; cursor: pointer; list-style: none; }
+.sup summary::-webkit-details-marker { display: none; }
+.sup-rank { color: var(--muted); font-weight: 700; text-align: center; }
+.sup-name { display: flex; flex-direction: column; min-width: 0; }
+.sup-name .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sup-cost { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sup.mine summary { background: var(--bg3); border-radius: 10px; }
+.sup.mine .sup-rank::after { content: " ⭐"; }
+.sup-detail { padding: 4px 6px 12px 42px; display: grid; gap: 4px; }
+.cta-link { display: block; font-weight: 700; }
