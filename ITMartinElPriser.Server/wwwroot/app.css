@@ -218,10 +218,14 @@ details.fold summary::after { content: "＋"; float: right; color: var(--muted);
 details.fold[open] summary::after { content: "－"; }
 
 /* ── page description (fold) ── */
-.page-help { margin: 0 0 12px; font-size: .9rem; }
-.page-help summary { cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; }
+/* The page description is ONE clickable box: the frame is the button, the text opens inside it. */
+.page-help { margin: 0 0 12px; font-size: .9rem; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); }
+.page-help summary { cursor: pointer; font-weight: 700; list-style: none; padding: 12px 14px; display: flex; align-items: center; gap: 8px; }
 .page-help summary::-webkit-details-marker { display: none; }
-.page-help-body { margin-top: 8px; padding: 12px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); }
+.page-help summary::after { content: "＋"; margin-left: auto; color: var(--muted); font-weight: 400; }
+.page-help[open] summary::after { content: "－"; }
+.page-help summary:hover, .page-help summary:focus-visible { color: var(--accent); }
+.page-help-body { padding: 0 14px 14px; }
 .page-help-body ul { padding-left: 18px; display: grid; gap: 6px; }
 .page-help-body p + p { margin-top: 8px; }
 .area-pick .chip { display: block; width: 100%; text-align: left; margin-top: 6px; }
