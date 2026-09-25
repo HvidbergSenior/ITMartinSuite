@@ -7,7 +7,14 @@
 <PageTitle>Planlæg – ElPriser</PageTitle>
 
 <h1>Hvornår skal den starte?</h1>
-<p class="muted small" style="margin:4px 0 12px">Vælg hvor længe den kører – så får du det billigste starttidspunkt.</p>
+<PageHelp Key="help-plan">
+    <ul>
+        <li>Vælg <b>hvor længe</b> maskinen kører – så viser vi det billigste tidspunkt at starte.</li>
+        <li><b>2 timer</b> er vask, opvask og tørretumbler – kun dagtimer foreslås. <b>4 timer</b> og <b>hele natten</b> er ting på timer om natten.</li>
+        <li><b>🔌 Hvad koster det?</b> viser den præcise pris for én tur – nu, om 1, 2, 3 og 6 timer, og det billigste tidspunkt. Vælg maskinen, eller ✏️ Egen med watt og timer.</li>
+        <li>Dit valg huskes på telefonen.</li>
+    </ul>
+</PageHelp>
 
 <div class="chips">
     @foreach (var c in Choices)
@@ -62,6 +69,44 @@ else
                 }
                 break;
 
+            case "dev":
+                <div class="chips chips-small">
+                    @foreach (var m in Machines)
+                    {
+                        <button class="chip @(_machine == m.Name ? "on" : "")" @onclick="() => PickMachineAsync(m.Name)">@m.Icon @m.Name</button>
+                    }
+                    <button class="chip @(_machine == "" ? "on" : "")" @onclick='() => PickMachineAsync("")'>✏️ Egen</button>
+                </div>
+                @if (_machine == "")
+                {
+                    <div class="row2">
+                        <div class="field"><label>Effekt, watt</label><input type="number" min="1" max="20000" step="10" @bind="_watt" @bind:after="DeviceChangedAsync" /></div>
+                        <div class="field"><label>Kører i, timer</label><input type="number" min="0.25" max="24" step="0.25" @bind="_hours" @bind:after="DeviceChangedAsync" /></div>
+                    </div>
+                }
+                var dev = Device();
+                <div class="muted small" style="margin-bottom:8px">@dev.KwhPerRun.ToString("0.##", Da) kWh over @dev.DurationHours.ToString("0.##", Da) timer</div>
+                var rows = CostRows(dev);
+                @if (rows.Count == 0)
+                {
+                    <div class="muted">Priserne dækker ikke en hel tur endnu.</div>
+                }
+                else
+                {
+                    var best = rows.MinBy(r => r.Run.CostKr)!.Run.CostKr;
+                    <div class="cost-rows">
+                        @foreach (var r in rows)
+                        {
+                            <div class="cost-row @(r.Run.CostKr <= best + 0.005 ? "best" : "")">
+                                <span>@r.Label <span class="muted small">kl. @r.Run.Start.ToString("HH:mm")</span></span>
+                                <b>@r.Run.CostKr.ToString("0.00", Da) kr</b>
+                            </div>
+                        }
+                    </div>
+                    <div class="muted small" style="margin-top:8px">Præcis pris for én tur: hvert kvarter maskinen kører, til det kvarters pris.</div>
+                }
+                break;
+
             case "ev":
                 <div class="row2">
                     <div class="field"><label>Skal lades, kWh</label><input type="number" min="1" max="120" step="1" @bind="_evKwh" @bind:after="EvChangedAsync" /></div>
@@ -104,7 +149,7 @@ else
 @code {
     private static readonly CultureInfo Da = new("da-DK");
     private static readonly (string Key, string Label)[] Choices =
-        [("2", "🧺 2 timer"), ("4", "♨️ 4 timer"), ("8", "🌙 Hele natten"), ("ev", "🚗 Elbil")];
+        [("2", "🧺 2 timer"), ("4", "♨️ 4 timer"), ("8", "🌙 Hele natten"), ("ev", "🚗 Elbil"), ("dev", "🔌 Hvad koster det?")];
 
     private string _choice = "2";
     private List<PricePoint>? _raw;
@@ -112,6 +157,17 @@ else
     private NightPlan? _night;
     private double _evKwh = 30, _evKw = 11;
     private DateTime _now;
+    private double _watt = 2000, _hours = 1;
+    private string _machine = "Vaskemaskine";
+
+    // Typical machines, so "what does a wash cost?" needs no numbers; ✏️ Egen takes watt and hours.
+    private static readonly List<Appliance> Machines =
+    [
+        .. Appliance.Defaults(),
+        new() { Name = "Ovn", Icon = "🔥", KwhPerRun = 1.5, DurationHours = 1 },
+        new() { Name = "Elbil 30 kWh", Icon = "🚗", KwhPerRun = 30, DurationHours = 3 },
+    ];
+    private RunOption? _cheapestDev;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -121,7 +177,12 @@ else
         // The chosen chip and the open/closed cards are remembered on the phone.
         var saved = await JS.InvokeAsync<string?>("epUi.get", "plan-choice");
         if (saved is not null && Choices.Any(c => c.Key == saved) && saved != _choice) { _choice = saved; StateHasChanged(); }
-        await JS.InvokeVoidAsync("epUi.restoreDetails");
+        if (await JS.InvokeAsync<string?>("epUi.get", "dev") is { } dev && dev.Split('|') is [var w, var h]
+            && double.TryParse(w, CultureInfo.InvariantCulture, out var wv) && double.TryParse(h, CultureInfo.InvariantCulture, out var hv))
+        {
+            _watt = wv; _hours = hv; StateHasChanged();
+        }
+        if (await JS.InvokeAsync<string?>("epUi.get", "machine") is { } mach) { _machine = mach; StateHasChanged(); }
     }
 
     private async Task LoadAsync()
@@ -132,6 +193,50 @@ else
         _wash = PriceModel.Build(_raw, s, [NotificationScheduler.Window], _now).Appliances.FirstOrDefault();
         _evKwh = s.EvKwh; _evKw = s.EvKw;
         _night = NightPlanner.Plan(_raw, s, _now, s.EvKwh, s.EvKw);
+    }
+
+    private Appliance Device() => Machines.FirstOrDefault(m => m.Name == _machine)
+        ?? new() { Name = "Egen", KwhPerRun = Math.Max(0.001, _watt * _hours / 1000), DurationHours = Math.Clamp(_hours, 0.25, 24) };
+
+    private sealed record CostRow(string Label, RunOption Run);
+
+    // "What does it cost now? In an hour? In three?" - plus the cheapest start, exact per quarter.
+    private List<CostRow> CostRows(Appliance a)
+    {
+        var rows = new List<CostRow>();
+        if (_raw is null) return rows;
+        var s = Prefs.Get();
+        foreach (var (label, h) in new[] { ("Nu", 0), ("Om 1 time", 1), ("Om 2 timer", 2), ("Om 3 timer", 3), ("Om 6 timer", 6) })
+            if (PriceModel.CostOfRun(_raw, s, a, _now.AddHours(h)) is { } o) rows.Add(new CostRow(label, o));
+        UpdateCheapest(a);
+        if (_cheapestDev is { } c && rows.All(r => r.Run.Start != c.Start))
+            rows.Add(new CostRow($"Billigst {When(c.Start)}", c));
+        return rows;
+    }
+
+    // Cheapest start on the 15-minute grid anywhere in the known prices (night included).
+    private void UpdateCheapest(Appliance a)
+    {
+        _cheapestDev = null;
+        if (_raw is null) return;
+        var s = Prefs.Get();
+        var t = new DateTime(_now.Year, _now.Month, _now.Day, _now.Hour, _now.Minute / 15 * 15, 0);
+        var last = _raw.Count > 0 ? _raw.Max(p => p.TimeDk) : _now;
+        for (; t <= last; t = t.AddMinutes(15))
+            if (PriceModel.CostOfRun(_raw, s, a, t) is { } o && (_cheapestDev is null || o.CostKr < _cheapestDev.CostKr)) _cheapestDev = o;
+    }
+
+    private async Task DeviceChangedAsync()
+    {
+        _watt = Math.Clamp(_watt, 1, 20000);
+        _hours = Math.Clamp(_hours, 0.25, 24);
+        await JS.InvokeVoidAsync("epUi.set", "dev", string.Create(CultureInfo.InvariantCulture, $"{_watt}|{_hours}"));
+    }
+
+    private async Task PickMachineAsync(string name)
+    {
+        _machine = name;
+        await JS.InvokeVoidAsync("epUi.set", "machine", name);
     }
 
     private async Task PickAsync(string key)

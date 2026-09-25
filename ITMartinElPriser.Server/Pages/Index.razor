@@ -11,10 +11,29 @@
 <div class="ep-header">
     <div class="ep-logo">⚡</div>
     <div class="ep-title">ElPriser</div>
-    <button class="area-chip" title="Skift prisområde" @onclick="ToggleAreaAsync">
-        @_area <small>@(_area == "DK1" ? "Vest" : "Øst")</small> ⇄
+    <button class="area-chip" title="Vælg prisområde" @onclick="() => _pickArea = !_pickArea">
+        @_area <small>@(_area == "DK1" ? "Vest" : "Øst")</small> ▾
     </button>
 </div>
+
+@if (_pickArea)
+{
+    <div class="card area-pick">
+        <div class="small" style="margin-bottom:8px">Hvor bor du? Danmark har to prisområder, delt ved Storebælt.</div>
+        <button class="chip @(_area == "DK1" ? "on" : "")" @onclick='() => SetAreaAsync("DK1")'>DK1 – Jylland og Fyn</button>
+        <button class="chip @(_area == "DK2" ? "on" : "")" @onclick='() => SetAreaAsync("DK2")'>DK2 – Sjælland, Lolland-Falster, Bornholm</button>
+    </div>
+}
+
+<PageHelp Key="help-nu">
+    <ul>
+        <li><b>Det store tal</b> er prisen for 1 kWh lige nu – alt inkl. moms, elafgift og nettarif. Den skifter hvert kvarter.</li>
+        <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
+        <li><b>➜-linjen</b> svarer på “skal jeg vente?”: er strømmen mindst 10 % billigere inden for 12 timer, står der hvornår.</li>
+        <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle for prisen.</li>
+        <li><b>DK1/DK2</b> øverst: bor du i Jylland eller på Fyn er det DK1, på Sjælland og øerne DK2. Tryk for at skifte.</li>
+    </ul>
+</PageHelp>
 
 @if (_snap is null)
 {
@@ -114,11 +133,15 @@ else
         _snap = PriceModel.Build(raw, s, [], DkTime.Now);
     }
 
+    private bool _pickArea;
+
     // DK1 = Jylland/Fyn, DK2 = Sjælland og øerne. Saved on the phone, so it is chosen once.
-    private async Task ToggleAreaAsync()
+    private async Task SetAreaAsync(string area)
     {
+        _pickArea = false;
         var s = Prefs.Get();
-        s.PriceArea = s.PriceArea == "DK1" ? "DK2" : "DK1";
+        if (s.PriceArea == area) return;
+        s.PriceArea = area;
         await Prefs.SaveAsync(s);
         _snap = null;
         _selected = null;
