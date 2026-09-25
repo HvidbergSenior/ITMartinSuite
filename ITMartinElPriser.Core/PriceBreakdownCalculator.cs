@@ -64,6 +64,9 @@ public static class PriceBreakdownCalculator
     // published than the winter ones, so this errs cheap/simple over guessing.
     private static double GetNettarifOre(DateTime timeDk, HouseholdSettings settings)
     {
+        // The grid company's own published tariff, when the postcode has picked one.
+        if (settings.NettarifLookup?.Invoke(timeDk) is { } exact) return exact * 100;
+
         if (settings.GridCompanyId == "custom") return settings.CustomNettarifOre;
 
         var preset = GridCompanyPreset.All.FirstOrDefault(g => g.Id == settings.GridCompanyId);

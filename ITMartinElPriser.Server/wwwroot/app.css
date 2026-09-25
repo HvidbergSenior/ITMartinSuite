@@ -253,3 +253,9 @@ details.fold[open] summary::after { content: "－"; }
 .sup.mine .sup-rank::after { content: " ⭐"; }
 .sup-detail { padding: 4px 6px 12px 42px; display: grid; gap: 4px; }
 .cta-link { display: block; font-weight: 700; }
+
+/* ── power mix ── */
+.mix-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: var(--bg3); margin: 4px 0 8px; }
+.mix-bar i { display: block; height: 100%; }
+.mix-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.area-pick .chip small { font-weight: 400; }

@@ -73,6 +73,22 @@ else
     }
 }
 
+@if (_mix is { } m)
+{
+    var wind = m.Share(m.Wind); var sun = m.Share(m.Solar); var plants = m.Share(m.Plants); var imp = m.NetImport > 0 ? m.Share(m.NetImport) : 0;
+    <div class="card">
+        <div class="card-title">Danmarks strøm lige nu · kl. @m.TimeDk.ToString("HH:mm")</div>
+        <div class="mix-bar">
+            <i style="width:@P(wind);background:#38bdf8" title="Vind"></i><i style="width:@P(sun);background:#facc15" title="Sol"></i><i style="width:@P(plants);background:#94a3b8" title="Kraftværker"></i><i style="width:@P(imp);background:#a78bfa" title="Import"></i>
+        </div>
+        <div class="mix-legend small">
+            <span>🌬️ Vind <b>@Pct(wind)</b></span><span>☀️ Sol <b>@Pct(sun)</b></span><span>🏭 Kraftværker <b>@Pct(plants)</b></span>
+            @if (m.NetImport > 0) { <span>🔌 Import <b>@Pct(imp)</b></span> } else { <span>⤴️ Vi eksporterer @((-m.NetImport).ToString("N0", Da)) MW</span> }
+        </div>
+        <div class="muted small" style="margin-top:4px">Kraftværker er mest biomasse og affald, men også lidt kul og gas. Kilde: Energinet, opdateres hvert minut.</div>
+    </div>
+}
+
 <h2 class="section-h">Hvorfor tidspunktet betyder noget</h2>
 
 <details class="card fold" data-remember="learn-peak">
@@ -138,7 +154,16 @@ else
 
     private sealed record Hour(DateTime Start, double Grams, bool IsNow);
 
-    protected override async Task OnInitializedAsync() => _snap = await Co2.GetAsync(Prefs.Get().PriceArea);
+    private PowerMix? _mix;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _snap = await Co2.GetAsync(Prefs.Get().PriceArea);
+        _mix = await Co2.GetMixAsync();
+    }
+
+    private static string P(double share) => (share * 100).ToString("0.#", CultureInfo.InvariantCulture) + "%";
+    private static string Pct(double share) => (share * 100).ToString("0", Da) + " %";
 
     // The forecast averaged per hour, from the current hour on.
     private List<Hour> Hours()

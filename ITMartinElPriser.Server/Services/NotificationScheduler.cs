@@ -14,6 +14,7 @@ public sealed class NotificationScheduler(
     ElectricityPriceService prices,
     SubscriberStore store,
     PushService push,
+    GridTariffs tariffs,
     ILogger<NotificationScheduler> logger) : BackgroundService
 {
     private static readonly TimeSpan Tick = TimeSpan.FromMinutes(5);
@@ -42,6 +43,7 @@ public sealed class NotificationScheduler(
         foreach (var group in subs.GroupBy(s => SettingsKey(s.Settings)))
         {
             var settings = group.First().Settings;
+            await tariffs.AttachAsync(settings);
             var raw = await prices.GetPricesAsync(settings.PriceArea, ct);
             var snap = PriceModel.Build(raw, settings, [Window], now);
             if (!snap.HasData || snap.Appliances.Count == 0) continue;
@@ -69,7 +71,7 @@ public sealed class NotificationScheduler(
     }
 
     private static string SettingsKey(HouseholdSettings s) =>
-        $"{s.PriceArea}|{s.ShowAllIn}|{s.GridCompanyId}|{s.CustomNettarifOre}|{s.SupplierId}|{s.CustomTillaegOre}|{s.QuietFromHour}|{s.QuietToHour}";
+        $"{s.PriceArea}|{s.ShowAllIn}|{s.GridCompanyId}|{s.GridSupplierId}|{s.CustomNettarifOre}|{s.SupplierId}|{s.CustomTillaegOre}|{s.QuietFromHour}|{s.QuietToHour}";
 
     // Fire in the tick that lands 60-65 minutes before the start. With a
     // 5-minute tick this is exactly one tick; the sent-log covers the rest.

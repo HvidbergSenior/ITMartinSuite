@@ -2,6 +2,8 @@
 @using System.Globalization
 @inject SupplierCatalog Catalog
 @inject IJSRuntime JS
+@inject PrefsService Prefs
+@inject GridTariffs Grids
 
 <PageTitle>Elselskab – ElPriser</PageTitle>
 
@@ -138,6 +140,33 @@ else
     </div>
 </details>
 
+<details class="card fold" data-remember="sup-mygrid">
+    <summary>🔌 Dit netselskab@(_gridName.Length > 0 ? $": {_gridName}" : "") – tarif i dag</summary>
+    <div class="small fold-body">
+        @if (_gridName.Length == 0)
+        {
+            <p>Skriv dit postnummer på forsiden (📍 øverst), så viser vi dit netselskabs tarif time for time.</p>
+        }
+        else if (_tariff.Count == 0)
+        {
+            <p class="muted">Tariffen kan ikke hentes lige nu.</p>
+        }
+        else
+        {
+            <p>Det betaler du til @_gridName for at få strømmen leveret – oven i selve strømmen. Samme pris uanset elselskab. Inkl. moms.</p>
+            <div class="cost-rows">
+                @foreach (var band in Bands())
+                {
+                    <div class="cost-row @(band.Ore <= _tariff.Min(x => x.OreInclVat) + 0.05 ? "best" : "")">
+                        <span>kl. @band.From.ToString("00")–@band.To.ToString("00")</span><b>@band.Ore.ToString("0.0", Da) øre/kWh</b>
+                    </div>
+                }
+            </div>
+            <p class="muted" style="margin-top:6px">Om vinteren (oktober–marts) er aftentimerne typisk flere gange dyrere end om sommeren.</p>
+        }
+    </div>
+</details>
+
 <details class="card fold" data-remember="sup-grid">
     <summary>🔌 Hvorfor kan jeg ikke skifte netselskab?</summary>
     <div class="small fold-body">
@@ -158,7 +187,30 @@ else
     private bool _showAll;
     private string? _currentId;
 
-    protected override async Task OnInitializedAsync() => _all = await Catalog.GetAsync();
+    private string _gridName = "";
+    private List<(int Hour, double OreInclVat)> _tariff = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _all = await Catalog.GetAsync();
+        var s = Prefs.Get();
+        _gridName = s.GridName;
+        if (s.GridSupplierId.Length > 0) _tariff = await Grids.TodayAsync(s.GridSupplierId);
+    }
+
+    private sealed record Band(int From, int To, double Ore);
+
+    // Neighbouring hours with the same tariff merged: "kl. 00–06 · 7,6 øre".
+    private List<Band> Bands()
+    {
+        var bands = new List<Band>();
+        foreach (var (h, ore) in _tariff)
+        {
+            if (bands.Count > 0 && Math.Abs(bands[^1].Ore - ore) < 0.05 && bands[^1].To == h) bands[^1] = bands[^1] with { To = h + 1 };
+            else bands.Add(new Band(h, h + 1, ore));
+        }
+        return bands;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -185,9 +185,11 @@ else
         if (await JS.InvokeAsync<string?>("epUi.get", "machine") is { } mach) { _machine = mach; StateHasChanged(); }
     }
 
+    private HouseholdSettings _s = new();
+
     private async Task LoadAsync()
     {
-        var s = Prefs.Get();
+        var s = _s = await Prefs.GetAsync();
         _now = DkTime.Now;
         _raw = await Prices.GetPricesAsync(s.PriceArea);
         _wash = PriceModel.Build(_raw, s, [NotificationScheduler.Window], _now).Appliances.FirstOrDefault();
@@ -205,7 +207,7 @@ else
     {
         var rows = new List<CostRow>();
         if (_raw is null) return rows;
-        var s = Prefs.Get();
+        var s = _s;
         foreach (var (label, h) in new[] { ("Nu", 0), ("Om 1 time", 1), ("Om 2 timer", 2), ("Om 3 timer", 3), ("Om 6 timer", 6) })
             if (PriceModel.CostOfRun(_raw, s, a, _now.AddHours(h)) is { } o) rows.Add(new CostRow(label, o));
         UpdateCheapest(a);
@@ -219,7 +221,7 @@ else
     {
         _cheapestDev = null;
         if (_raw is null) return;
-        var s = Prefs.Get();
+        var s = _s;
         var t = new DateTime(_now.Year, _now.Month, _now.Day, _now.Hour, _now.Minute / 15 * 15, 0);
         var last = _raw.Count > 0 ? _raw.Max(p => p.TimeDk) : _now;
         for (; t <= last; t = t.AddMinutes(15))

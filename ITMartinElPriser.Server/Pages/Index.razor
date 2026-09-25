@@ -2,6 +2,7 @@
 @using System.Globalization
 @inject ElectricityPriceService Prices
 @inject PrefsService Prefs
+@inject GridTariffs Grids
 @implements IDisposable
 
 <PageTitle>ElPriser</PageTitle>
@@ -11,17 +12,36 @@
 <div class="ep-header">
     <div class="ep-logo">⚡</div>
     <div class="ep-title">ElPriser</div>
-    <button class="area-chip" title="Vælg prisområde" @onclick="() => _pickArea = !_pickArea">
-        @_area <small>@(_area == "DK1" ? "Vest" : "Øst")</small> ▾
+    <button class="area-chip" title="Hvor bor du?" @onclick="() => _pickArea = !_pickArea">
+        @if (_gridName.Length > 0) { <text>@_postal <small>@_gridName</small> ▾</text> }
+        else { <text>📍 Postnr. ▾</text> }
     </button>
 </div>
 
 @if (_pickArea)
 {
     <div class="card area-pick">
-        <div class="small" style="margin-bottom:8px">Hvor bor du? Danmark har to prisområder, delt ved Storebælt.</div>
-        <button class="chip @(_area == "DK1" ? "on" : "")" @onclick='() => SetAreaAsync("DK1")'>DK1 – Jylland og Fyn</button>
-        <button class="chip @(_area == "DK2" ? "on" : "")" @onclick='() => SetAreaAsync("DK2")'>DK2 – Sjælland, Lolland-Falster, Bornholm</button>
+        <div class="small" style="margin-bottom:8px">Skriv dit postnummer – så finder vi dit netselskab og regner med <b>dine</b> tariffer.</div>
+        <div class="row2">
+            <div class="field"><input type="text" inputmode="numeric" maxlength="4" placeholder="fx 8200" @bind="_postalInput" @bind:event="oninput" @bind:after="FindAsync" /></div>
+        </div>
+        @if (_found.Count > 1)
+        {
+            <div class="small" style="margin-bottom:4px">Der er flere netselskaber i @_postalInput. Hvilket står på din elregning?</div>
+        }
+        @foreach (var g in _found)
+        {
+            <button class="chip" @onclick="() => SetGridAsync(g)">@g.Name <small class="muted">· @g.Company</small></button>
+        }
+        @if (_postalInput.Length == 4 && _found.Count == 0 && !_searching)
+        {
+            <div class="muted small">Ingen netselskab fundet for @_postalInput.</div>
+        }
+        <details class="fold" style="margin-top:10px">
+            <summary class="small">Kender ikke netselskabet? Vælg bare landsdel</summary>
+            <button class="chip @(_area == "DK1" ? "on" : "")" @onclick='() => SetAreaAsync("DK1")'>DK1 – Jylland og Fyn</button>
+            <button class="chip @(_area == "DK2" ? "on" : "")" @onclick='() => SetAreaAsync("DK2")'>DK2 – Sjælland, Lolland-Falster, Bornholm</button>
+        </details>
     </div>
 }
 
@@ -31,7 +51,7 @@
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
         <li><b>➜-linjen</b> svarer på “skal jeg vente?”: er strømmen mindst 10 % billigere inden for 12 timer, står der hvornår.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle for prisen.</li>
-        <li><b>DK1/DK2</b> øverst: bor du i Jylland eller på Fyn er det DK1, på Sjælland og øerne DK2. Tryk for at skifte.</li>
+        <li><b>📍 Postnummer</b> øverst: skriv dit postnummer, så regner vi med dit netselskabs rigtige tariffer. Det huskes på telefonen.</li>
     </ul>
 </PageHelp>
 
@@ -102,7 +122,7 @@ else
             </div>
             @if (_snap.Tomorrow is null)
             {
-                <div class="muted small" style="margin-top:6px">Morgendagens priser kommer ca. kl. 13.</div>
+                <div class="muted small" style="margin-top:6px">Morgendagens priser kommer ca. kl. 13.@(ForecastText() is { } f ? " " + f : "")</div>
             }
         </div>
     }
@@ -127,21 +147,66 @@ else
 
     private async Task LoadAsync()
     {
-        var s = Prefs.Get();
+        var s = await Prefs.GetAsync();
         _area = s.PriceArea;
+        _postal = s.PostalCode;
+        _gridName = s.GridName;
         var raw = await Prices.GetPricesAsync(_area);
+        _forecast = await Grids.TomorrowForecastAsync(_area);
         _snap = PriceModel.Build(raw, s, [], DkTime.Now);
     }
 
     private bool _pickArea;
+    private string _postal = "", _gridName = "", _postalInput = "";
+    private bool _searching;
+    private List<GridCompany> _found = [];
+    private List<(DateTime Hour, double Price)> _forecast = [];
+
+    private async Task FindAsync()
+    {
+        _found = [];
+        if (_postalInput.Length != 4) return;
+        _searching = true;
+        _found = await Grids.FindAsync(_postalInput);
+        _searching = false;
+        if (_found.Count == 1) await SetGridAsync(_found[0]);
+    }
+
+    private async Task SetGridAsync(GridCompany g)
+    {
+        var s = Prefs.Get();
+        s.PostalCode = _postalInput;
+        s.GridSupplierId = g.Id;
+        s.GridName = g.Name;
+        s.PriceArea = g.PriceArea;
+        s.NettarifLookup = null;
+        await Prefs.SaveAsync(s);
+        _pickArea = false;
+        _found = [];
+        _snap = null;
+        await LoadAsync();
+    }
+
+    // Before ~13:00 tomorrow is unknown; Strømligning's forecast gives its shape.
+    // Only the cheapest hours are named - never a forecast price as if it were real.
+    private string? ForecastText()
+    {
+        if (_forecast.Count < 12) return null;
+        var night = _forecast.Where(h => h.Hour.Hour is >= 0 and < 7).MinBy(h => h.Price);
+        var day = _forecast.Where(h => h.Hour.Hour is >= 7 and < 23).MinBy(h => h.Price);
+        if (night == default || day == default) return null;
+        return $"Prognose: billigst i nat omkring kl. {night.Hour:HH} og i morgen omkring kl. {day.Hour:HH}.";
+    }
 
     // DK1 = Jylland/Fyn, DK2 = Sjælland og øerne. Saved on the phone, so it is chosen once.
     private async Task SetAreaAsync(string area)
     {
         _pickArea = false;
         var s = Prefs.Get();
-        if (s.PriceArea == area) return;
+        if (s.PriceArea == area && s.GridSupplierId.Length == 0) return;
         s.PriceArea = area;
+        s.GridSupplierId = s.GridName = s.PostalCode = "";
+        s.NettarifLookup = null;
         await Prefs.SaveAsync(s);
         _snap = null;
         _selected = null;

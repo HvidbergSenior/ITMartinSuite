@@ -9,6 +9,14 @@ public sealed record Co2Point(DateTime TimeDk, double Grams);
 
 public sealed record Co2Snapshot(Co2Point? Now, List<Co2Point> Forecast, double? DayAvg);
 
+// Denmark's production right now (whole country, MW): wind, sun, power stations, and the
+// net import (negative = we export).
+public sealed record PowerMix(DateTime TimeDk, double Wind, double Solar, double Plants, double NetImport)
+{
+    public double Consumption => Math.Max(1, Wind + Solar + Plants + NetImport);
+    public double Share(double mw) => Math.Clamp(mw / Consumption, 0, 1);
+}
+
 // Energinet's free CO2 data: CO2Emis = measured (5-min, a few minutes behind),
 // CO2EmisProg = forecast for the rest of today. No key needed.
 public sealed class Co2Service(HttpClient http, ILogger<Co2Service> logger)
@@ -38,6 +46,44 @@ public sealed class Co2Service(HttpClient http, ILogger<Co2Service> logger)
             logger.LogWarning(ex, "CO2 fetch failed for {Area}", area);
             return new Co2Snapshot(null, [], null);
         }
+    }
+
+    private (PowerMix? Mix, DateTime At) _mix;
+
+    // PowerSystemRightNow: one row per minute for all of Denmark.
+    public async Task<PowerMix?> GetMixAsync()
+    {
+        if (_mix.Mix is not null && DateTime.UtcNow - _mix.At < TimeSpan.FromMinutes(2)) return _mix.Mix;
+        try
+        {
+            var page = await http.GetFromJsonAsync<MixPage>($"{Api}PowerSystemRightNow?limit=1&sort=Minutes1DK%20DESC");
+            if (page?.Records.FirstOrDefault() is not { } r) return _mix.Mix;
+            var mix = new PowerMix(r.Minutes1DK, (r.OffshoreWindPower ?? 0) + (r.OnshoreWindPower ?? 0), r.SolarPower ?? 0,
+                (r.ProductionGe100MW ?? 0) + (r.ProductionLt100MW ?? 0), r.Exchange_Sum ?? 0);
+            _mix = (mix, DateTime.UtcNow);
+            return mix;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Power mix fetch failed");
+            return _mix.Mix;
+        }
+    }
+
+    private sealed class MixPage
+    {
+        [JsonPropertyName("records")] public List<MixRec> Records { get; set; } = [];
+    }
+
+    private sealed class MixRec
+    {
+        public DateTime Minutes1DK { get; set; }
+        public double? OffshoreWindPower { get; set; }
+        public double? OnshoreWindPower { get; set; }
+        public double? SolarPower { get; set; }
+        public double? ProductionGe100MW { get; set; }
+        public double? ProductionLt100MW { get; set; }
+        public double? Exchange_Sum { get; set; }
     }
 
     private sealed class Page
