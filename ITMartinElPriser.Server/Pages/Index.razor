@@ -88,7 +88,7 @@ else
                     @* The whole column is the tap target; the price sits right above the tapped bar. *@
                     <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
                          @onclick="() => _selected = _selected == h.Start ? null : h.Start">
-                        @if (_selected == h.Start) { <span class="bar-tip">@Kr(h.KrPerKwh)</span> }
+                        @if (_selected == h.Start) { <span class="bar-tip">@(DeviceHour(h.Start) is { } dh ? $"{Kr(dh.CostKr)} kr" : Kr(h.KrPerKwh))</span> }
                         <div class="bar @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
                              style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(rank)"></div>
                     </div>
@@ -105,7 +105,11 @@ else
                 {
                     <span>@When(hb.Start)–@hb.Start.AddHours(1).ToString("HH:00")</span>
                     <b class="@Level(span > 0 ? (hb.KrPerKwh - min) / span : 0.5)">@Kr(hb.KrPerKwh) kr/kWh</b>
-                    @if (WashAt(hb.Start) is { } wash)
+                    @if (_devKw > 0 && DeviceHour(hb.Start) is { } dev)
+                    {
+                        <span class="bar-example">🔌 <b>@_devName</b> på @_devKw.ToString("0.##", Da) kW i timen @When(hb.Start)–@hb.Start.AddHours(1).ToString("HH:00") → <b>@Kr(dev.CostKr) kr</b></span>
+                    }
+                    else if (WashAt(hb.Start) is { } wash)
                     {
                         <span class="bar-example">🧺 Eksempel: vaskemaskine, 1 kWh over 2 timer, startet @When(hb.Start) → <b>@Kr(wash.CostKr) kr</b></span>
                     }
@@ -116,6 +120,16 @@ else
                     <span>🔴 Dyrest @When(hi.Start) · <b>@Kr(hi.KrPerKwh)</b></span>
                 }
             </div>
+            <details class="my-device" data-remember="my-device">
+                <summary>🔌 @(_devKw > 0 ? $"Din enhed: {_devName}, {_devKw.ToString("0.##", Da)} kW" : "Se prisen for din egen enhed")</summary>
+                <div class="my-device-body">
+                    <div class="row2">
+                        <div class="field"><label for="devname">Hvad er det?</label><input id="devname" type="text" maxlength="24" placeholder="Fx ovn" @bind="_devName" @bind:after="SaveDeviceAsync" /></div>
+                        <div class="field"><label for="devkw">Effekt, kW</label><input id="devkw" type="number" inputmode="decimal" min="0" max="50" step="0.1" placeholder="Fx 2" @bind="_devKw" @bind:after="SaveDeviceAsync" /></div>
+                    </div>
+                    <div class="muted small">Står på mærkeskiltet. 2.000 W = 2 kW. Tryk så på en time i søjlerne, så ser du hvad din enhed koster at have tændt i præcis den time – regnet kvarter for kvarter.</div>
+                </div>
+            </details>
             @if (_snap.Tomorrow is null)
             {
                 <div class="muted small" style="margin-top:6px">Morgendagens priser kommer ca. kl. 13.@(ForecastText() is { } f ? " " + f : "")</div>
@@ -143,6 +157,31 @@ else
 
     private List<PricePoint> _raw = [];
     private HouseholdSettings _s = new();
+    private string _devName = "";
+    private double _devKw;
+
+    // The user's own device running for exactly one hour from `start`: kW × each quarter's price.
+    private RunOption? DeviceHour(DateTime start) =>
+        _devKw <= 0 || _raw.Count == 0 ? null
+        : PriceModel.CostOfRun(_raw, _s, new Appliance { Name = _devName, KwhPerRun = _devKw, DurationHours = 1 }, start);
+
+    private async Task SaveDeviceAsync()
+    {
+        _devKw = Math.Clamp(_devKw, 0, 50);
+        if (string.IsNullOrWhiteSpace(_devName)) _devName = "Min enhed";
+        await JS.InvokeVoidAsync("epUi.set", "device", $"{_devName}|{_devKw.ToString(CultureInfo.InvariantCulture)}");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (await JS.InvokeAsync<string?>("epUi.get", "device") is { } d && d.Split('|') is [var n, var k]
+            && double.TryParse(k, CultureInfo.InvariantCulture, out var kw) && kw > 0)
+        {
+            _devName = n; _devKw = kw;
+            StateHasChanged();
+        }
+    }
 
     // What one typical wash costs if started at this hour - the 2 hours priced quarter by quarter.
     private RunOption? WashAt(DateTime start) =>

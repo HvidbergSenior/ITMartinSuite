@@ -280,3 +280,11 @@ details.fold[open] summary::after { content: "－"; }
 /* ── kWh explainer ── */
 .kwh-formula { font-weight: 700; background: var(--bg3); border-radius: 8px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
 .kwh-list { display: grid; gap: 4px; margin: 4px 0; }
+
+/* ── one device of your own under the chart ── */
+.my-device { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+.my-device summary { cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; display: flex; }
+.my-device summary::-webkit-details-marker { display: none; }
+.my-device summary::after { content: "＋"; margin-left: auto; color: var(--muted); }
+.my-device[open] summary::after { content: "－"; }
+.my-device-body { margin-top: 10px; }
