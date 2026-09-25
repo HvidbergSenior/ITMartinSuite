@@ -6,6 +6,10 @@ namespace ITMartinElPriser.Core;
 
 public sealed record GridCompany(string Id, string Name, string Company, string PriceArea);
 
+// Where the household is: a readable label, its postcode and the point used to find the
+// ONE grid company that serves it (postcodes can be shared by two).
+public sealed record Place(string Label, string PostalCode, double Lat, double Lon);
+
 // Exact grid tariffs and the postcode -> grid company lookup, from Strømligning's open API
 // (CC BY-NC 4.0: free, non-commercial ElPriser only, with attribution). Energinet's own
 // DatahubPricelist has the same numbers but several codes, discounts and local tariffs per
@@ -17,6 +21,78 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
     private readonly Dictionary<string, (List<GridCompany> List, DateTime At)> _find = new();
     private readonly Dictionary<string, (List<(DateTime Hour, double Price)> List, DateTime At)> _forecast = new();
     private readonly object _lock = new();
+
+    private const string Dawa = "https://api.dataforsyningen.dk/";
+
+    // Address or postcode typed by the user -> one point. Dataforsyningen (the state's free
+    // address register). A bare postcode uses its visual centre.
+    public async Task<Place?> ResolveAsync(string text)
+    {
+        text = text.Trim();
+        if (text.Length == 0) return null;
+        try
+        {
+            if (text.Length == 4 && text.All(char.IsDigit))
+            {
+                var pn = await http.GetFromJsonAsync<PostcodeDto>($"{Dawa}postnumre/{text}");
+                return pn is { Visueltcenter.Length: 2 } ? new Place($"{pn.Nr} {pn.Navn}", pn.Nr, pn.Visueltcenter[1], pn.Visueltcenter[0]) : null;
+            }
+            var hits = await http.GetFromJsonAsync<List<AddressDto>>($"{Dawa}adresser?q={Uri.EscapeDataString(text)}&per_side=1&struktur=mini");
+            return hits?.FirstOrDefault() is { } a ? new Place(a.Betegnelse, a.Postnr, a.Y, a.X) : null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Address lookup failed for {Text}", text);
+            return null;
+        }
+    }
+
+    // The phone's location -> the nearest address, so the confirmation line is readable.
+    public async Task<Place?> ReverseAsync(double lat, double lon)
+    {
+        try
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var a = await http.GetFromJsonAsync<AddressDto>($"{Dawa}adgangsadresser/reverse?x={lon.ToString(inv)}&y={lat.ToString(inv)}&struktur=mini");
+            return a is null ? null : new Place(a.Betegnelse, a.Postnr, lat, lon);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Reverse lookup failed");
+            return null;
+        }
+    }
+
+    // The one grid company serving this exact point.
+    public async Task<GridCompany?> FindAtAsync(double lat, double lon)
+    {
+        try
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var list = await http.GetFromJsonAsync<List<SupplierDto>>($"{Api}suppliers/find?lat={lat.ToString(inv)}&long={lon.ToString(inv)}") ?? [];
+            return list.Select(s => new GridCompany(s.Id, ShortName(s.CompanyName), s.CompanyName, s.PriceArea)).FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Grid lookup failed at {Lat},{Lon}", lat, lon);
+            return null;
+        }
+    }
+
+    private sealed class PostcodeDto
+    {
+        [JsonPropertyName("nr")] public string Nr { get; set; } = "";
+        [JsonPropertyName("navn")] public string Navn { get; set; } = "";
+        [JsonPropertyName("visueltcenter")] public double[] Visueltcenter { get; set; } = [];
+    }
+
+    private sealed class AddressDto
+    {
+        [JsonPropertyName("betegnelse")] public string Betegnelse { get; set; } = "";
+        [JsonPropertyName("postnr")] public string Postnr { get; set; } = "";
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
+    }
 
     public async Task<List<GridCompany>> FindAsync(string postalCode)
     {

@@ -3,6 +3,7 @@
 @inject ElectricityPriceService Prices
 @inject PrefsService Prefs
 @inject GridTariffs Grids
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>ElPriser</PageTitle>
@@ -21,27 +22,15 @@
 @if (_pickArea)
 {
     <div class="card area-pick">
-        <div class="small" style="margin-bottom:8px">Skriv dit postnummer – så finder vi dit netselskab og regner med <b>dine</b> tariffer.</div>
-        <div class="row2">
-            <div class="field"><input type="text" inputmode="numeric" maxlength="4" placeholder="fx 8200" @bind="_postalInput" @bind:event="oninput" @bind:after="FindAsync" /></div>
+        <div class="small" style="margin-bottom:10px">Hvor bor du? Så finder vi dit netselskab og regner med <b>dine</b> tariffer.</div>
+        <button class="btn btn-primary btn-block" @onclick="LocateAsync" disabled="@_searching">📍 Brug min placering</button>
+        <div class="field" style="margin-top:10px">
+            <label for="addr">…eller skriv din adresse eller dit postnummer</label>
+            <input id="addr" type="text" autocomplete="street-address" placeholder="fx Skelagervej 230, 8200" @bind="_addrInput" @onkeydown="AddrKeyAsync" />
         </div>
-        @if (_found.Count > 1)
-        {
-            <div class="small" style="margin-bottom:4px">Der er flere netselskaber i @_postalInput. Hvilket står på din elregning?</div>
-        }
-        @foreach (var g in _found)
-        {
-            <button class="chip" @onclick="() => SetGridAsync(g)">@g.Name <small class="muted">· @g.Company</small></button>
-        }
-        @if (_postalInput.Length == 4 && _found.Count == 0 && !_searching)
-        {
-            <div class="muted small">Ingen netselskab fundet for @_postalInput.</div>
-        }
-        <details class="fold" style="margin-top:10px">
-            <summary class="small">Kender ikke netselskabet? Vælg bare landsdel</summary>
-            <button class="chip @(_area == "DK1" ? "on" : "")" @onclick='() => SetAreaAsync("DK1")'>DK1 – Jylland og Fyn</button>
-            <button class="chip @(_area == "DK2" ? "on" : "")" @onclick='() => SetAreaAsync("DK2")'>DK2 – Sjælland, Lolland-Falster, Bornholm</button>
-        </details>
+        <button class="btn btn-block" @onclick="ResolveAsync" disabled="@(_searching || _addrInput.Trim().Length == 0)">Find mit netselskab</button>
+        @if (_searching) { <div class="muted small" style="margin-top:8px">Finder…</div> }
+        @if (_placeMsg is not null) { <div class="small @(_placeOk ? "ok" : "err")" style="margin-top:8px">@_placeMsg</div> }
     </div>
 }
 
@@ -51,7 +40,7 @@
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
         <li><b>➜-linjen</b> svarer på “skal jeg vente?”: er strømmen mindst 10 % billigere inden for 12 timer, står der hvornår.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle for prisen.</li>
-        <li><b>📍 Postnummer</b> øverst: skriv dit postnummer, så regner vi med dit netselskabs rigtige tariffer. Det huskes på telefonen.</li>
+        <li><b>📍 øverst:</b> brug din placering eller skriv din adresse, så finder vi dit netselskab og regner med dets rigtige tariffer. Det huskes på telefonen.</li>
     </ul>
 </PageHelp>
 
@@ -157,32 +146,65 @@ else
     }
 
     private bool _pickArea;
-    private string _postal = "", _gridName = "", _postalInput = "";
-    private bool _searching;
-    private List<GridCompany> _found = [];
+    private string _postal = "", _gridName = "", _addrInput = "";
+    private bool _searching, _placeOk;
+    private string? _placeMsg;
     private List<(DateTime Hour, double Price)> _forecast = [];
 
-    private async Task FindAsync()
+    private sealed record GeoPoint(double Lat, double Lon);
+
+    // The phone's location -> exact grid company. No lists: one point gives one company.
+    private async Task LocateAsync()
     {
-        _found = [];
-        if (_postalInput.Length != 4) return;
-        _searching = true;
-        _found = await Grids.FindAsync(_postalInput);
-        _searching = false;
-        if (_found.Count == 1) await SetGridAsync(_found[0]);
+        _searching = true; _placeMsg = null;
+        var pos = await JS.InvokeAsync<GeoPoint?>("epUi.locate");
+        if (pos is null)
+        {
+            _searching = false; _placeOk = false;
+            _placeMsg = "Placeringen kunne ikke hentes. Skriv din adresse i stedet.";
+            return;
+        }
+        var place = await Grids.ReverseAsync(pos.Lat, pos.Lon) ?? new Place("din placering", "", pos.Lat, pos.Lon);
+        await UsePlaceAsync(place);
     }
 
-    private async Task SetGridAsync(GridCompany g)
+    private async Task AddrKeyAsync(KeyboardEventArgs e)
     {
+        if (e.Key == "Enter") await ResolveAsync();
+    }
+
+    private async Task ResolveAsync()
+    {
+        _searching = true; _placeMsg = null;
+        var place = await Grids.ResolveAsync(_addrInput);
+        if (place is null)
+        {
+            _searching = false; _placeOk = false;
+            _placeMsg = "Adressen blev ikke fundet. Prøv med vej, husnummer og postnummer.";
+            return;
+        }
+        await UsePlaceAsync(place);
+    }
+
+    private async Task UsePlaceAsync(Place place)
+    {
+        var g = await Grids.FindAtAsync(place.Lat, place.Lon);
+        _searching = false;
+        if (g is null)
+        {
+            _placeOk = false;
+            _placeMsg = $"Vi kunne ikke finde netselskabet for {place.Label}.";
+            return;
+        }
         var s = Prefs.Get();
-        s.PostalCode = _postalInput;
+        s.PostalCode = place.PostalCode;
         s.GridSupplierId = g.Id;
         s.GridName = g.Name;
         s.PriceArea = g.PriceArea;
         s.NettarifLookup = null;
         await Prefs.SaveAsync(s);
-        _pickArea = false;
-        _found = [];
+        _placeOk = true;
+        _placeMsg = $"✓ {place.Label} · netselskab {g.Name} · {g.PriceArea}";
         _snap = null;
         await LoadAsync();
     }
@@ -198,20 +220,6 @@ else
         return $"Prognose: billigst i nat omkring kl. {night.Hour:HH} og i morgen omkring kl. {day.Hour:HH}.";
     }
 
-    // DK1 = Jylland/Fyn, DK2 = Sjælland og øerne. Saved on the phone, so it is chosen once.
-    private async Task SetAreaAsync(string area)
-    {
-        _pickArea = false;
-        var s = Prefs.Get();
-        if (s.PriceArea == area && s.GridSupplierId.Length == 0) return;
-        s.PriceArea = area;
-        s.GridSupplierId = s.GridName = s.PostalCode = "";
-        s.NettarifLookup = null;
-        await Prefs.SaveAsync(s);
-        _snap = null;
-        _selected = null;
-        await LoadAsync();
-    }
 
     // The current hour onwards, today and tomorrow in one strip.
     private List<HourBar> Strip() =>

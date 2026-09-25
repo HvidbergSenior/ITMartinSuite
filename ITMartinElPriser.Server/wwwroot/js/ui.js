@@ -21,3 +21,14 @@ document.addEventListener('toggle', function (e) {
 }, true);
 new MutationObserver(function () { epUi.restoreDetails(); }).observe(document.documentElement, { childList: true, subtree: true });
 epUi.restoreDetails();
+
+// The phone's position for finding the grid company. Resolves to null when refused or slow.
+epUi.locate = function () {
+    return new Promise(function (resolve) {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            function (p) { resolve({ lat: p.coords.latitude, lon: p.coords.longitude }); },
+            function () { resolve(null); },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+    });
+};
