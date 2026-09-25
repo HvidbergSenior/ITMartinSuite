@@ -276,3 +276,7 @@ details.fold[open] summary::after { content: "－"; }
 .bar-col:last-child .bar-tip { left: auto; right: 0; transform: none; }
 .bar-example { flex-basis: 100%; font-size: .85rem; color: var(--muted); }
 .bar-example b { color: var(--text); }
+
+/* ── kWh explainer ── */
+.kwh-formula { font-weight: 700; background: var(--bg3); border-radius: 8px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
+.kwh-list { display: grid; gap: 4px; margin: 4px 0; }

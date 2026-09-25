@@ -32,3 +32,14 @@ epUi.locate = function () {
             { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
     });
 };
+
+// A link to /groen#kwh opens that card - once per page visit, so later re-renders never jump.
+var epHashDone = '';
+function epOpenHash() {
+    var id = location.hash.slice(1);
+    if (!id || epHashDone === location.pathname + '#' + id) return;
+    var d = document.getElementById(id);
+    if (d && d.tagName === 'DETAILS') { d.open = true; d.scrollIntoView({ block: 'start' }); epHashDone = location.pathname + '#' + id; }
+}
+window.addEventListener('hashchange', function () { epHashDone = ''; epOpenHash(); });
+new MutationObserver(epOpenHash).observe(document.documentElement, { childList: true, subtree: true });

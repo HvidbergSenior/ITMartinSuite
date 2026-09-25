@@ -2,6 +2,7 @@
 @using System.Globalization
 @inject Co2Service Co2
 @inject PrefsService Prefs
+@inject ElectricityPriceService Prices
 
 <PageTitle>Grøn strøm – ElPriser</PageTitle>
 
@@ -94,6 +95,31 @@ else
 
 <h2 class="section-h">Hvorfor tidspunktet betyder noget</h2>
 
+<details class="card fold" id="kwh" data-remember="learn-kwh">
+    <summary>⚡ Hvad er en kWh?</summary>
+    <div class="small fold-body">
+        <p><b>En kWh (kilowatttime) er en mængde strøm</b> – det du betaler for. <b>1 kWh = 1.000 watt i 1 time.</b></p>
+        <p><b>Watt</b> er hvor hurtigt et apparat bruger strøm, som farten på en bil. <b>kWh</b> er hvor meget det har brugt i alt, som kilometer kørt. En elkedel på 2.000 W bruger strøm hurtigt, men kun i få minutter. En LED-pære på 8 W bruger lidt ad gangen, men er tændt i timevis.</p>
+        <p class="kwh-formula">watt × timer ÷ 1.000 = kWh &nbsp;·&nbsp; kWh × pris = kr</p>
+        @if (_nowKr is { } kr)
+        {
+            <p>Lige nu koster <b>1 kWh @kr.ToString("0.00", Da) kr</b> alt inkl. Så koster det:</p>
+        }
+        else
+        {
+            <p>Med en pris på 2 kr pr. kWh koster det:</p>
+        }
+        <div class="kwh-list">
+            @foreach (var (what, kwh, how) in Examples)
+            {
+                <div class="appl-row"><span>@what <span class="muted">· @how</span></span><b>@Cost(kwh)</b></div>
+            }
+        </div>
+        <p>En almindelig familie bruger 3.000–5.000 kWh om året – omkring 10 kWh om dagen. Du kan se dit eget forbrug på eloverblik.dk.</p>
+        <p class="muted">Tallene er typiske. Det præcise tal for din egen maskine finder du under <a href="/planlaeg">Planlæg → 🔌 Hvad koster det?</a></p>
+    </div>
+</details>
+
 <details class="card fold" data-remember="learn-peak">
     <summary>🚗 Elnettet har myldretid kl. 17–21</summary>
     <div class="small fold-body">
@@ -158,11 +184,32 @@ else
     private sealed record Hour(DateTime Start, double Grams, bool IsNow);
 
     private PowerMix? _mix;
+    private double? _nowKr;
+
+    // Everyday amounts of energy - typical figures, rounded.
+    private static readonly (string What, double Kwh, string How)[] Examples =
+    [
+        ("☕ Kog vand i elkedlen", 0.1, "2.000 W i 3 min = 0,1 kWh"),
+        ("💡 LED-pære en hel aften", 0.04, "8 W i 5 timer = 0,04 kWh"),
+        ("📺 Fjernsyn en aften", 0.3, "100 W i 3 timer = 0,3 kWh"),
+        ("🧺 En vask på 40 °C", 0.8, "ca. 0,8 kWh"),
+        ("🍽️ En opvask", 1.0, "ca. 1 kWh"),
+        ("🔥 Ovnen en time", 1.2, "ca. 1,2 kWh"),
+        ("🚗 Elbil 100 km", 18, "ca. 18 kWh"),
+    ];
+
+    private string Cost(double kwh)
+    {
+        var kr = kwh * (_nowKr ?? 2.0);
+        return kr < 1 ? $"{kr * 100:0} øre" : $"{kr.ToString("0.00", Da)} kr";
+    }
 
     protected override async Task OnInitializedAsync()
     {
         _snap = await Co2.GetAsync(Prefs.Get().PriceArea);
         _mix = await Co2.GetMixAsync();
+        var s = await Prefs.GetAsync();
+        _nowKr = PriceModel.Build(await Prices.GetPricesAsync(s.PriceArea), s, [], DkTime.Now).NowKrPerKwh;
     }
 
     private static string P(double share) => (share * 100).ToString("0.#", CultureInfo.InvariantCulture) + "%";
