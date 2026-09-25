@@ -44,11 +44,25 @@
     {
         @* Clickable box: how to get the camera icon on the home screen. Hidden once it is installed. *@
         <details class="ev-install" open="@(_installOpen)">
-            <summary><img src="/event-icon-192.png" alt="" /> <span>📲 Læg <b>@DisplayName</b> på hjemmeskærmen</span></summary>
+            <summary><img src="/event-icon-192.png" alt="" /> <span>@(_pc ? "💻" : "📲") Læg <b>@DisplayName</b> på @(_pc ? "skrivebordet" : "hjemmeskærmen")</span></summary>
             <div class="ev-install-body">
                 @if (_canPrompt)
                 {
                     <button class="ev-camera ev-install-btn" @onclick="InstallAsync">Installer @DisplayName</button>
+                }
+                else if (_pc && _edge)
+                {
+                    <ol>
+                        <li>Klik på <b>···</b> øverst til højre i Edge.</li>
+                        <li>Vælg <b>Apps</b> → <b>Installer dette websted som en app</b> → <b>Installer</b>.</li>
+                    </ol>
+                }
+                else if (_pc)
+                {
+                    <ol>
+                        <li>Klik på <b>⋮</b> øverst til højre i Chrome.</li>
+                        <li>Vælg <b>Cast, gem og del</b> → <b>Installer side som app</b> → <b>Installer</b>.</li>
+                    </ol>
                 }
                 else if (_ios)
                 {
@@ -64,7 +78,7 @@
                         <li>Vælg <b>Føj til startskærm</b> (eller <b>Installer app</b>) og tryk <b>Tilføj</b>.</li>
                     </ol>
                 }
-                <p class="ev-hint">Så ligger der et grønt kamera-ikon, der åbner lige ind til kameraet.</p>
+                <p class="ev-hint">@(_pc ? "Så får du et grønt kamera-ikon på skrivebordet og i proceslinjen, der åbner siden som et lille program." : "Så ligger der et grønt kamera-ikon, der åbner lige ind til kameraet.")</p>
             </div>
         </details>
     }
@@ -81,12 +95,23 @@
     else
     {
         <div class="ev-card">
-            <label class="ev-camera @(_busy ? "busy" : "")" for="ev-cam">
-                @if (_busy) { <span>Sender… @_sent/@_total</span> }
-                else { <span class="ev-cam-icon">📷</span><span>Tag billede</span> }
-            </label>
-            <InputFile id="ev-cam" class="ev-file" OnChange="OnFiles" accept="image/*" capture="environment" disabled="@_busy" />
-            <label class="ev-secondary" for="ev-lib">Vælg billeder eller video fra telefonen</label>
+            @if (_pc)
+            {
+                @* A PC has no camera to point at the stand: one button that picks files, several at once. *@
+                <label class="ev-camera @(_busy ? "busy" : "")" for="ev-lib">
+                    @if (_busy) { <span>Sender… @_sent/@_total</span> }
+                    else { <span class="ev-cam-icon">📁</span><span>Vælg billeder fra computeren</span> }
+                </label>
+            }
+            else
+            {
+                <label class="ev-camera @(_busy ? "busy" : "")" for="ev-cam">
+                    @if (_busy) { <span>Sender… @_sent/@_total</span> }
+                    else { <span class="ev-cam-icon">📷</span><span>Tag billede</span> }
+                </label>
+                <InputFile id="ev-cam" class="ev-file" OnChange="OnFiles" accept="image/*" capture="environment" disabled="@_busy" />
+                <label class="ev-secondary" for="ev-lib">Vælg billeder eller video fra telefonen</label>
+            }
             <InputFile id="ev-lib" class="ev-file" OnChange="OnFiles" accept="image/*,video/*" multiple disabled="@_busy" />
             @if (_error is not null) { <div class="ev-error">@_error</div> }
             <p class="ev-hint">Du er <b>@_name</b> · <button class="ev-link" @onclick="() => _nameReady = false">skift navn</button></p>
@@ -137,7 +162,7 @@
     private string? _error;
     private List<ITMartinUpload.Server.Services.StoredFile> _files = [];
     private Timer? _poll;
-    private bool _showInstall, _installOpen = true, _canPrompt, _ios;
+    private bool _showInstall, _installOpen = true, _canPrompt, _ios, _pc, _edge;
 
     private async Task InstallAsync()
     {
@@ -166,6 +191,8 @@
             if (!string.IsNullOrWhiteSpace(saved)) { _name = _nameInput = saved; _nameReady = true; }
             _showInstall = !await JS.InvokeAsync<bool>("eventApp.installed");
             _ios = await JS.InvokeAsync<bool>("eventApp.isIos");
+            _pc = !await JS.InvokeAsync<bool>("eventApp.isMobile");
+            _edge = await JS.InvokeAsync<bool>("eventApp.isEdge");
             // Chrome offers install a moment after load; look again shortly.
             _canPrompt = await JS.InvokeAsync<bool>("eventApp.canPrompt");
             StateHasChanged();
