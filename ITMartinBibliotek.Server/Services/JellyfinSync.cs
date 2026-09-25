@@ -37,6 +37,7 @@ public sealed class JellyfinSync(IDbContextFactory<BibliotekDbContext> dbFactory
                     Kind = jf.Kind,
                     Format = MediaFormat.Digital,
                     Year = jf.Year,
+                    Collection = jf.Collection,
                     TmdbId = jf.TmdbId,
                     MusicBrainzId = jf.MusicBrainzId,
                 };
@@ -54,6 +55,7 @@ public sealed class JellyfinSync(IDbContextFactory<BibliotekDbContext> dbFactory
             if (string.IsNullOrEmpty(item.TmdbId)) item.TmdbId = jf.TmdbId;
             if (string.IsNullOrEmpty(item.MusicBrainzId)) item.MusicBrainzId = jf.MusicBrainzId;
             item.Year ??= jf.Year;
+            item.Collection = jf.Collection;
             if (string.IsNullOrEmpty(item.CoverUrl)) item.CoverUrl = await jellyfin.CoverUrlAsync(jf.Id);
             item.UpdatedAt = DateTime.UtcNow;
         }

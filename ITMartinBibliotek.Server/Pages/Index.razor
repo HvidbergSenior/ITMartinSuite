@@ -56,9 +56,41 @@ else if (_all.Count == 0)
 else
 {
     var shown = Filtered().ToList();
-    <p class="hint">@shown.Count vist</p>
+    // Grouped shelf: one tile per main category / artist. A search, or an opened
+    // group, shows the plain titles.
+    var grouped = _group is null && _query.Trim().Length == 0;
+    var groups = grouped
+        ? shown.GroupBy(GroupKey).OrderBy(g => g.Key == "" ? 1 : 0).ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase).ToList()
+        : [];
+    var singles = grouped ? groups.FirstOrDefault(g => g.Key == "")?.ToList() ?? [] : shown;
+    @if (_group is not null)
+    {
+        <p class="group-head"><a href="@KindUrl()">← Alle</a> <b>@_group</b> · @shown.Count titler</p>
+    }
+    else
+    {
+        <p class="hint">@shown.Count vist</p>
+    }
     <div class="grid">
-        @foreach (var i in shown)
+        @foreach (var g in groups.Where(g => g.Key != ""))
+        {
+            var first = g.OrderBy(i => i.Year ?? 9999).ThenBy(i => i.Title).First();
+            <div class="tile tile-group">
+              <a class="tile-link" href="@($"{KindUrl()}&gruppe={Uri.EscapeDataString(g.Key)}")">
+                <div class="tile-cover">
+                    @if (!string.IsNullOrEmpty(first.CoverUrl))
+                    {
+                        <img src="@first.CoverUrl" alt="" loading="lazy" onerror="this.style.display='none'" />
+                    }
+                    <span class="tile-icon">@Icon(first.Kind)</span>
+                    <span class="badge badge-group">@g.Count() @(first.Kind == MediaKind.Musik ? "album" : (g.Count() == 1 ? "titel" : "titler"))</span>
+                </div>
+                <div class="tile-title">@g.Key</div>
+                <div class="tile-sub">@string.Join(", ", g.OrderBy(i => i.Year ?? 9999).Select(i => i.Title))</div>
+              </a>
+            </div>
+        }
+        @foreach (var i in singles)
         {
             <div class="tile">
               <a class="tile-link" href="/titel/@i.Id">
@@ -91,6 +123,9 @@ else
     private string _query = "";
     private MediaKind? _kind = MediaKind.Film;
     private MediaStatus? _status;
+    private string? _group;
+
+    [SupplyParameterFromQuery(Name = "gruppe")] public string? GroupText { get; set; }
     private string _playBase = "";
 
     // The kind filter lives in the URL (/?kind=musik) so Back from a title lands on the
@@ -114,12 +149,18 @@ else
             "musik" => MediaKind.Musik,
             _ => MediaKind.Film
         };
+        _group = string.IsNullOrWhiteSpace(GroupText) ? null : GroupText;
     }
+
+    // Music groups by artist, films and series by the folder they sit in (Film\X-Men\...).
+    private static string GroupKey(MediaItem i) => i.Kind == MediaKind.Musik ? i.Artist.Trim() : i.Collection;
+
+    private string KindUrl() => "/?kind=" + (_kind switch { null => "alle", MediaKind.Serie => "serier", MediaKind.Musik => "musik", _ => "film" });
 
     private void SetKind(MediaKind? k)
     {
-        var text = k switch { null => "alle", MediaKind.Serie => "serier", MediaKind.Musik => "musik", _ => "film" };
-        Nav.NavigateTo($"/?kind={text}", replace: true);
+        _kind = k;
+        Nav.NavigateTo(KindUrl(), replace: true);
     }
 
     private int Count(MediaKind k) => _all?.Count(i => i.Kind == k) ?? 0;
@@ -133,6 +174,7 @@ else
         {
             if (_kind is { } k && i.Kind != k) continue;
             if (_status is { } s && i.Status != s) continue;
+            if (_group is not null && GroupKey(i) != _group) continue;
             if (q.Length > 0
                 && !i.Title.Contains(q, StringComparison.OrdinalIgnoreCase)
                 && !i.Artist.Contains(q, StringComparison.OrdinalIgnoreCase)

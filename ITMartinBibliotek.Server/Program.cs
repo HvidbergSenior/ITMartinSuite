@@ -65,6 +65,15 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<BibliotekDbContext>>();
     using var db = factory.CreateDbContext();
     db.Database.EnsureCreated();
+    // EnsureCreated never alters an existing file, so columns added later are added by hand.
+    var conn = db.Database.GetDbConnection();
+    conn.Open();
+    using (var cmd = conn.CreateCommand())
+    {
+        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = 'Collection'";
+        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+            db.Database.ExecuteSqlRaw("ALTER TABLE Items ADD COLUMN Collection TEXT NOT NULL DEFAULT ''");
+    }
 }
 
 if (!app.Environment.IsDevelopment())

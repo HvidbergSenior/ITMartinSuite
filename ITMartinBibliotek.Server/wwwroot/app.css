@@ -232,3 +232,9 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .rip-row:last-child { border-bottom: none; }
 .rip-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .small { font-size: 13px; }
+
+/* Grouped shelf: a category / artist tile opens its titles */
+.tile-group .tile-cover { box-shadow: 4px 4px 0 -1px var(--surface-2), 4px 4px 0 0 var(--border); }
+.badge-group { background: var(--accent); color: var(--accent-ink); }
+.group-head { margin: 4px 0 12px; font-size: 15px; }
+.group-head a { margin-right: 8px; }

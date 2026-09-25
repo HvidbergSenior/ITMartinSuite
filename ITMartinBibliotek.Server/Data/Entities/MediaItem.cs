@@ -13,6 +13,10 @@ public sealed class MediaItem
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;   // music only
+
+    // Main category for films/series (Anders Matthesen, X-Men...), taken from the
+    // folder the title sits in on disk: Film\<Collection>\<Title>\. Music groups by Artist.
+    public string Collection { get; set; } = string.Empty;
     public MediaKind Kind { get; set; }
     public MediaFormat Format { get; set; }
     public MediaStatus Status { get; set; }
