@@ -103,11 +103,11 @@ else
         <p class="kwh-formula">watt × timer ÷ 1.000 = kWh &nbsp;·&nbsp; kWh × pris = kr</p>
         @if (_nowKr is { } kr)
         {
-            <p>Lige nu koster <b>1 kWh @kr.ToString("0.00", Da) kr</b> alt inkl. Så koster det:</p>
+            <p>Lige nu koster <b>1 kWh @kr.ToString("0.00", Da) kr</b> alt inkl. <b>Prisen er pr. kWh – ikke pr. time.</b> Hvad en time koster afhænger af, hvor mange kWh apparatet bruger på den time. Prisen for én gang:</p>
         }
         else
         {
-            <p>Med en pris på 2 kr pr. kWh koster det:</p>
+            <p>Med en pris på 2 kr pr. kWh (prisen er pr. kWh – ikke pr. time) koster én gang:</p>
         }
         <div class="kwh-list">
             @foreach (var (what, kwh, how) in Examples)
