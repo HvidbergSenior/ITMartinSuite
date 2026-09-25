@@ -274,3 +274,5 @@ details.fold[open] summary::after { content: "－"; }
     background: var(--text); color: var(--bg); padding: 2px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; z-index: 2; pointer-events: none; }
 .bar-col:first-child .bar-tip { left: 0; transform: none; }
 .bar-col:last-child .bar-tip { left: auto; right: 0; transform: none; }
+.bar-example { flex-basis: 100%; font-size: .85rem; color: var(--muted); }
+.bar-example b { color: var(--text); }

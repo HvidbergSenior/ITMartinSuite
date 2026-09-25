@@ -105,6 +105,10 @@ else
                 {
                     <span>@When(hb.Start)–@hb.Start.AddHours(1).ToString("HH:00")</span>
                     <b class="@Level(span > 0 ? (hb.KrPerKwh - min) / span : 0.5)">@Kr(hb.KrPerKwh) kr/kWh</b>
+                    @if (WashAt(hb.Start) is { } wash)
+                    {
+                        <span class="bar-example">🧺 Eksempel: vaskemaskine, 1 kWh over 2 timer, startet @When(hb.Start) → <b>@Kr(wash.CostKr) kr</b></span>
+                    }
                 }
                 else
                 {
@@ -137,13 +141,20 @@ else
         _timer = new Timer(async _ => { await LoadAsync(); await InvokeAsync(StateHasChanged); }, null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
     }
 
+    private List<PricePoint> _raw = [];
+    private HouseholdSettings _s = new();
+
+    // What one typical wash costs if started at this hour - the 2 hours priced quarter by quarter.
+    private RunOption? WashAt(DateTime start) =>
+        _raw.Count == 0 ? null : PriceModel.CostOfRun(_raw, _s, NotificationScheduler.Window, start);
+
     private async Task LoadAsync()
     {
-        var s = await Prefs.GetAsync();
+        var s = _s = await Prefs.GetAsync();
         _area = s.PriceArea;
         _postal = s.PostalCode;
         _gridName = s.GridName;
-        var raw = await Prices.GetPricesAsync(_area);
+        var raw = _raw = await Prices.GetPricesAsync(_area);
         _forecast = await Grids.TomorrowForecastAsync(_area);
         _snap = PriceModel.Build(raw, s, [], DkTime.Now);
     }
