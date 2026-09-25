@@ -38,7 +38,7 @@
     <ul>
         <li><b>Det store tal</b> er prisen for 1 kWh lige nu – alt inkl. moms, elafgift og nettarif. Det er prisen pr. kWh, ikke pr. time. Den skifter hvert kvarter. <a href="/groen#kwh">Hvad er en kWh?</a></li>
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
-        <li><b>➜-linjen</b> svarer på “skal jeg vente?”: er strømmen mindst 10 % billigere inden for 12 timer, står der hvornår.</li>
+        <li><b>➜-linjen</b> svarer på “skal jeg vente?”: er strømmen mindst 10 % billigere inden for 12 timer, står der hvornår. Er forskellen mindre, står der hvor lille den er.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle for prisen.</li>
     </ul>
 </PageHelp>
@@ -287,9 +287,12 @@ else
         var ahead = Strip().Where(h => !h.IsNow && h.Start < _snap.At.AddHours(12)).ToList();
         if (ahead.Count == 0) return null;
         var best = ahead.MinBy(h => h.KrPerKwh)!;
-        if (best.KrPerKwh >= now * 0.9)
+        // Say what is true: never "not cheaper" when a slightly cheaper hour exists.
+        if (best.KrPerKwh >= now)
             return new Answer("Kør nu – det bliver ikke billigere de næste 12 timer", false);
         var pct = (int)Math.Round(100 * (now - best.KrPerKwh) / now);
+        if (pct < 10)
+            return new Answer(pct < 1 ? "Kør nu – det bliver næsten ikke billigere de næste 12 timer" : $"Kør bare nu – {When(best.Start)} er kun {pct} % billigere", false);
         return new Answer($"Vent til {When(best.Start)} – {pct} % billigere", true);
     }
 
