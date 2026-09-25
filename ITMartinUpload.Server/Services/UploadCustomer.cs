@@ -16,6 +16,12 @@ public sealed class UploadCustomer
     public string Greeting { get; set; } = "";
     public string Intro { get; set; } = "";
 
+    /// <summary>
+    /// An open event (Customers__N__Public=true): the link works without a code, for anyone
+    /// who has it. Only this folder is opened - every other customer still needs its token.
+    /// </summary>
+    public bool Public { get; set; }
+
     /// <summary>"Hej Annette og Kent!" unless the customer has its own greeting.</summary>
     public string GreetingOrDefault =>
         !string.IsNullOrWhiteSpace(Greeting) ? Greeting
@@ -51,6 +57,7 @@ public sealed class UploadOptions
 
     public bool IsAuthorized(string? slug, string? token)
     {
+        if (Find(slug)?.Public == true) return true;
         var expected = ExpectedToken(slug);
         return string.IsNullOrEmpty(expected) || string.Equals(expected, token, StringComparison.Ordinal);
     }

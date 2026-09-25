@@ -57,14 +57,28 @@ public sealed class UploadStore
         }
     }
 
+    public const string PartSuffix = ".part";
+
     public async Task<string> SaveAsync(string slug, string safeName, Stream content, CancellationToken ct = default)
     {
         var folder = FolderFor(slug);
         Directory.CreateDirectory(folder);
         var dest = UniquePath(folder, safeName, File.Exists);
 
-        await using var file = File.Create(dest);
-        await content.CopyToAsync(file, ct);
+        // Written under a temporary name and renamed when complete, so a list taken
+        // mid-upload (the event feed polls every few seconds) never shows a half file.
+        var part = dest + PartSuffix;
+        try
+        {
+            await using (var file = File.Create(part))
+                await content.CopyToAsync(file, ct);
+            File.Move(part, dest);
+        }
+        catch
+        {
+            try { File.Delete(part); } catch (IOException) { }
+            throw;
+        }
         return dest;
     }
 
@@ -146,6 +160,7 @@ public sealed class UploadStore
             var folder = FolderFor(slug);
             if (!Directory.Exists(folder)) return [];
             return Directory.GetFiles(folder)
+                .Where(p => !p.EndsWith(PartSuffix, StringComparison.OrdinalIgnoreCase))
                 .Select(p => new FileInfo(p))
                 .OrderByDescending(fi => fi.LastWriteTimeUtc)
                 .Select(fi => new StoredFile(fi.Name, fi.Length, fi.LastWriteTimeUtc))

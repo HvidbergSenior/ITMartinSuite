@@ -12,8 +12,20 @@ public class UploadOptionsTests
         [
             new UploadCustomer { Slug = "annette-kent", Name = "Annette og Kent", Token = "kolibri-2026" },
             new UploadCustomer { Slug = "bogshoppen", Name = "Bogshoppen" },
+            new UploadCustomer { Slug = "messe1", Name = "Messe1", Public = true },
         ],
     };
+
+    [Test]
+    public void A_public_event_opens_without_a_code()
+    {
+        Options().IsAuthorized("messe1", null).Should().BeTrue();
+        Options().IsAuthorized("messe1", "anything").Should().BeTrue();
+    }
+
+    [Test]
+    public void A_public_event_does_not_open_the_other_customers() =>
+        Options().IsAuthorized("annette-kent", null).Should().BeFalse();
 
     [Test]
     public void Find_is_case_insensitive() =>
