@@ -144,8 +144,9 @@ app.MapPost("/api/remove/{slug}/{name}", (
 // Home-screen app for one event: its own name and start page, the camera icon.
 app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
 {
-    var c = options.Value.Find(slug);
+    var c = options.Value.Find(slug) ?? options.Value.Renamed(slug);
     if (c is null || !UploadStore.IsValidSlug(slug)) return Results.NotFound();
+    slug = c.Slug;
     var name = string.IsNullOrWhiteSpace(c.Name) ? slug : c.Name;
     var manifest = new
     {

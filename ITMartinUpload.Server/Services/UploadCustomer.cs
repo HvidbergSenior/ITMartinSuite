@@ -22,6 +22,14 @@ public sealed class UploadCustomer
     /// </summary>
     public bool Public { get; set; }
 
+    /// <summary>Earlier slugs of a renamed event (Customers__N__OldSlugs=messe1,…): links and
+    /// home-screen icons made before the rename are forwarded instead of refused.</summary>
+    public string OldSlugs { get; set; } = "";
+
+    public bool HadSlug(string slug) =>
+        OldSlugs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(slug, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>"Hej Annette og Kent!" unless the customer has its own greeting.</summary>
     public string GreetingOrDefault =>
         !string.IsNullOrWhiteSpace(Greeting) ? Greeting
@@ -38,6 +46,10 @@ public sealed class UploadOptions
     public string Token { get; set; } = "";
 
     public List<UploadCustomer> Customers { get; set; } = [];
+
+    /// <summary>The customer that used to be called <paramref name="slug"/>, if it was renamed.</summary>
+    public UploadCustomer? Renamed(string? slug) =>
+        string.IsNullOrWhiteSpace(slug) || Find(slug) is not null ? null : Customers.FirstOrDefault(c => c.HadSlug(slug));
 
     public UploadCustomer? Find(string? slug) =>
         string.IsNullOrWhiteSpace(slug)

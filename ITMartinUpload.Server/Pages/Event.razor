@@ -209,6 +209,11 @@
     {
         var qs = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
         _token = qs["token"] ?? "";
+        if (Options.Value.Renamed(Slug) is { } moved)
+        {
+            Nav.NavigateTo($"/event/{moved.Slug}", replace: true);
+            return;
+        }
         _customer = Options.Value.Find(Slug);
         if (!Options.Value.IsAuthorized(Slug, _token)) { _authorized = false; return; }
         Load();

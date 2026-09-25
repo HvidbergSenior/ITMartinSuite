@@ -12,15 +12,23 @@ public class UploadOptionsTests
         [
             new UploadCustomer { Slug = "annette-kent", Name = "Annette og Kent", Token = "kolibri-2026" },
             new UploadCustomer { Slug = "bogshoppen", Name = "Bogshoppen" },
-            new UploadCustomer { Slug = "messe1", Name = "Messe1", Public = true },
+            new UploadCustomer { Slug = "polstrermesse", Name = "Polstrermesse", Public = true, OldSlugs = "messe1" },
         ],
     };
 
     [Test]
     public void A_public_event_opens_without_a_code()
     {
-        Options().IsAuthorized("messe1", null).Should().BeTrue();
-        Options().IsAuthorized("messe1", "anything").Should().BeTrue();
+        Options().IsAuthorized("polstrermesse", null).Should().BeTrue();
+        Options().IsAuthorized("polstrermesse", "anything").Should().BeTrue();
+    }
+
+    [Test]
+    public void An_old_event_name_points_to_the_renamed_event()
+    {
+        Options().Renamed("messe1")!.Slug.Should().Be("polstrermesse");
+        Options().Renamed("polstrermesse").Should().BeNull();
+        Options().Renamed("unknown").Should().BeNull();
     }
 
     [Test]
