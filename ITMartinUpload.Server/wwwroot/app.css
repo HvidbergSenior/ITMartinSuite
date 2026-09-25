@@ -297,3 +297,25 @@ html, body {
 
 .push-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
 .push-status { font-size: 12.5px; color: var(--muted); }
+
+/* ── Event: take a picture, everyone sees it ── */
+.ev-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 18px; display: grid; gap: 12px; margin-bottom: 22px; }
+.ev-label { font-weight: 700; }
+.ev-input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; font-size: 18px; }
+.ev-camera { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 92px; border-radius: 16px; border: none;
+    background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 22px; font-weight: 800; cursor: pointer; }
+.ev-camera:disabled { opacity: .5; }
+.ev-camera.busy { opacity: .7; cursor: progress; }
+.ev-cam-icon { font-size: 34px; }
+.ev-secondary { text-align: center; padding: 12px; border-radius: 12px; border: 1px solid var(--border); cursor: pointer; font-weight: 600; }
+.ev-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ev-hint { color: var(--muted); font-size: 14px; }
+.ev-link { background: none; border: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+.ev-error { color: var(--warm); font-weight: 600; }
+.ev-feed-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; font-weight: 700; }
+.ev-empty { color: var(--muted); text-align: center; padding: 30px 0; }
+.ev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.ev-tile { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--card); display: block; }
+.ev-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ev-video { width: 100%; height: 100%; display: grid; place-items: center; font-size: 40px; }
+.ev-by { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }

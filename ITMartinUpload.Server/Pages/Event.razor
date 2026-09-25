@@ -1,0 +1,188 @@
+@page "/event/{Slug}"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject ITMartinUpload.Server.Services.UploadStore Store
+@inject Microsoft.Extensions.Options.IOptions<ITMartinUpload.Server.Services.UploadOptions> Options
+@inject ILogger<Event> Logger
+
+@* An event for a few people: everyone opens the same link, takes pictures, and sees everyone
+   else's straight away. The same pattern as Polstrer's "Tag billede": one big camera button,
+   the photo is saved the moment it is taken. Files land in the event's folder on the NAS. *@
+
+<PageTitle>@DisplayName – billeder</PageTitle>
+
+@if (!_authorized)
+{
+    <div class="root">
+        <div class="header">
+            <div class="logo">🔒</div>
+            <h1 class="title">Adgang nægtet</h1>
+            <p class="sub">Linket mangler sin kode, eller den er forkert. Spørg den der sendte dig linket.</p>
+        </div>
+    </div>
+    return;
+}
+
+<div class="root ev-root">
+    <div class="header">
+        <div class="logo">📸</div>
+        <h1 class="title">@DisplayName</h1>
+        <p class="sub">@(string.IsNullOrWhiteSpace(_customer?.Intro) ? "Tag billeder – alle med linket ser dem med det samme." : _customer!.Intro)</p>
+    </div>
+
+    @if (!_nameReady)
+    {
+        <div class="ev-card">
+            <label class="ev-label" for="who">Hvad hedder du?</label>
+            <input id="who" class="ev-input" type="text" maxlength="30" placeholder="Fx Martin" @bind="_nameInput" @onkeydown="NameKey" />
+            <button class="ev-camera" @onclick="SaveName" disabled="@(_nameInput.Trim().Length == 0)">Fortsæt</button>
+            <p class="ev-hint">Så kan de andre se, hvem der tog billedet. Det huskes på telefonen.</p>
+        </div>
+    }
+    else
+    {
+        <div class="ev-card">
+            <label class="ev-camera @(_busy ? "busy" : "")" for="ev-cam">
+                @if (_busy) { <span>Sender… @_sent/@_total</span> }
+                else { <span class="ev-cam-icon">📷</span><span>Tag billede</span> }
+            </label>
+            <InputFile id="ev-cam" class="ev-file" OnChange="OnFiles" accept="image/*" capture="environment" disabled="@_busy" />
+            <label class="ev-secondary" for="ev-lib">Vælg billeder eller video fra telefonen</label>
+            <InputFile id="ev-lib" class="ev-file" OnChange="OnFiles" accept="image/*,video/*" multiple disabled="@_busy" />
+            @if (_error is not null) { <div class="ev-error">@_error</div> }
+            <p class="ev-hint">Du er <b>@_name</b> · <button class="ev-link" @onclick="() => _nameReady = false">skift navn</button></p>
+        </div>
+    }
+
+    <div class="ev-feed-head">
+        <span>@_files.Count billeder</span>
+        @if (_files.Count > 0) { <span class="ev-hint">Nyeste først · opdateres af sig selv</span> }
+    </div>
+
+    @if (_files.Count == 0)
+    {
+        <p class="ev-empty">Ingen billeder endnu. Tag det første!</p>
+    }
+    else
+    {
+        <div class="ev-grid">
+            @foreach (var f in _files)
+            {
+                <a class="ev-tile" href="@FileUrl(f.Name, false)" target="_blank" rel="noopener">
+                    @if (IsVideo(f.Name))
+                    {
+                        <div class="ev-video">🎬</div>
+                    }
+                    else
+                    {
+                        <img src="@FileUrl(f.Name, true)" alt="" loading="lazy" />
+                    }
+                    <span class="ev-by">@By(f.Name)</span>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private const string NameKeyStorage = "event-name";
+    private bool _authorized = true;
+    private string _token = "";
+    private ITMartinUpload.Server.Services.UploadCustomer? _customer;
+    private string _name = "", _nameInput = "";
+    private bool _nameReady;
+    private bool _busy;
+    private int _sent, _total;
+    private string? _error;
+    private List<ITMartinUpload.Server.Services.StoredFile> _files = [];
+    private Timer? _poll;
+
+    private string DisplayName => string.IsNullOrWhiteSpace(_customer?.Name) ? Slug : _customer!.Name;
+
+    protected override void OnInitialized()
+    {
+        var qs = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
+        _token = qs["token"] ?? "";
+        _customer = Options.Value.Find(Slug);
+        if (!Options.Value.IsAuthorized(Slug, _token)) { _authorized = false; return; }
+        Load();
+        // Everyone's new photos appear without reloading.
+        _poll = new Timer(_ => InvokeAsync(() => { Load(); StateHasChanged(); }), null, TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(8));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !_authorized) return;
+        try
+        {
+            var saved = await JS.InvokeAsync<string?>("localStorage.getItem", NameKeyStorage);
+            if (!string.IsNullOrWhiteSpace(saved)) { _name = _nameInput = saved; _nameReady = true; StateHasChanged(); }
+        }
+        catch (JSException) { }
+    }
+
+    private void Load() =>
+        _files = Store.List(Slug).Where(f => ITMartinUpload.Server.Services.UploadStore.IsImage(f.Name) || IsVideo(f.Name)).ToList();
+
+    private async Task NameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SaveName();
+    }
+
+    private async Task SaveName()
+    {
+        var n = new string(_nameInput.Trim().Where(c => char.IsLetterOrDigit(c) || c is ' ' or '-').ToArray()).Trim();
+        if (n.Length == 0) return;
+        _name = _nameInput = n;
+        _nameReady = true;
+        try { await JS.InvokeVoidAsync("localStorage.setItem", NameKeyStorage, n); } catch (JSException) { }
+    }
+
+    // Saved the moment they are chosen: a browser file handle is only reliably readable
+    // during the change event (iOS drops it), which Polstrer learned the hard way.
+    private async Task OnFiles(InputFileChangeEventArgs e)
+    {
+        _busy = true; _error = null; _sent = 0;
+        var files = e.GetMultipleFiles(maximumFileCount: 50);
+        _total = files.Count;
+        foreach (var f in files)
+        {
+            try
+            {
+                var ext = Path.GetExtension(f.Name);
+                var name = ITMartinUpload.Server.Services.UploadStore.SafeFileName($"{_name} - {DateTime.Now:yyyyMMdd-HHmmss}-{_sent + 1}{ext}");
+                if (name is null) continue;
+                await using var src = f.OpenReadStream(maxAllowedSize: 500L * 1024 * 1024);
+                await Store.SaveAsync(Slug, name, src);
+                _sent++;
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Event upload failed for {Slug}", Slug);
+                _error = "Et billede kunne ikke sendes – prøv igen.";
+            }
+        }
+        _busy = false;
+        Load();
+    }
+
+    // "Martin - 20260925-143012-1.jpg" -> "Martin".
+    private static string By(string fileName)
+    {
+        var i = fileName.IndexOf(" - ", StringComparison.Ordinal);
+        return i > 0 ? fileName[..i] : "";
+    }
+
+    private static bool IsVideo(string name) =>
+        Path.GetExtension(name).ToLowerInvariant() is ".mp4" or ".mov" or ".m4v" or ".3gp" or ".webm";
+
+    private string FileUrl(string name, bool thumb) =>
+        $"/api/file/{Uri.EscapeDataString(Slug)}/{Uri.EscapeDataString(name)}?token={Uri.EscapeDataString(_token)}" + (thumb ? "&thumb=true" : "");
+
+    public void Dispose() => _poll?.Dispose();
+}
