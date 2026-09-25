@@ -1,0 +1,156 @@
+@page "/groen"
+@using System.Globalization
+@inject Co2Service Co2
+@inject PrefsService Prefs
+
+<PageTitle>Grøn strøm – ElPriser</PageTitle>
+
+<h1>🌱 Grøn strøm</h1>
+
+<PageHelp Key="help-groen">
+    <ul>
+        <li><b>Tallet</b> er hvor meget CO₂ der udledes for hver kWh du bruger lige nu – målt af Energinet hvert 5. minut.</li>
+        <li><b>Søjlerne</b> er Energinets prognose for resten af dagen: lav søjle = mere vind og sol i nettet.</li>
+        <li><b>Kortene nedenunder</b> forklarer hvorfor det betyder noget <i>hvornår</i> du bruger strøm – for dig, for elnettet og for klimaet.</li>
+    </ul>
+</PageHelp>
+
+@if (_snap is null)
+{
+    <div class="card now-tile"><div class="muted">Henter…</div></div>
+}
+else if (_snap.Now is null)
+{
+    <div class="card now-tile"><div class="muted">Energinet svarer ikke lige nu. Prøv igen om lidt.</div></div>
+}
+else
+{
+    var g = _snap.Now.Grams;
+    var cls = _snap.DayAvg is { } avg ? (g <= avg * 0.85 ? "lvl-cheap" : g >= avg * 1.15 ? "lvl-expensive" : "lvl-mid") : "lvl-mid";
+    <div class="card now-tile @cls">
+        <div class="now-price @cls">@g.ToString("0", Da)</div>
+        <div class="now-unit">g CO₂ pr. kWh lige nu · kl. @_snap.Now.TimeDk.ToString("HH:mm")</div>
+        <div class="now-verdict @cls">@(cls switch { "lvl-cheap" => "Grønnere end resten af dagen", "lvl-expensive" => "Mere sort strøm end resten af dagen", _ => "Som dagens gennemsnit" })</div>
+        @if (Greenest() is { } best && best.Grams < g * 0.9)
+        {
+            <div class="now-advice">➜ Grønnest kl. @best.Start.ToString("HH") – @(((int)Math.Round(100 * (g - best.Grams) / g)).ToString()) % mindre CO₂</div>
+        }
+        else
+        {
+            <div class="now-advice lvl-cheap">➜ Nu er et af dagens grønneste tidspunkter</div>
+        }
+    </div>
+
+    var hours = Hours();
+    @if (hours.Count > 0)
+    {
+        var min = hours.Min(h => h.Grams); var max = hours.Max(h => h.Grams); var span = max - min;
+        <div class="card">
+            <div class="bars">
+                @foreach (var h in hours)
+                {
+                    var pct = span > 0 ? 15 + 85 * (h.Grams - min) / span : 50;
+                    var rank = span > 0 ? (h.Grams - min) / span : 0.5;
+                    <div class="bar @(h.IsNow ? "now" : "") @(_selected == h.Start ? "sel" : "")"
+                         style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@(rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)")"
+                         @onclick="() => _selected = _selected == h.Start ? null : h.Start"></div>
+                }
+            </div>
+            <div class="bar-axis">
+                @foreach (var h in hours) { <span>@(h.IsNow ? "nu" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "")</span> }
+            </div>
+            <div class="bar-info">
+                @if (_selected is { } sel && hours.FirstOrDefault(h => h.Start == sel) is { } hb)
+                {
+                    <span>Kl. @hb.Start.ToString("HH")–@hb.Start.AddHours(1).ToString("HH")</span><b>@hb.Grams.ToString("0", Da) g CO₂/kWh</b>
+                }
+                else
+                {
+                    <span class="muted">Prognose resten af dagen · tryk på en søjle</span>
+                }
+            </div>
+        </div>
+    }
+}
+
+<h2 class="section-h">Hvorfor tidspunktet betyder noget</h2>
+
+<details class="card fold" data-remember="learn-peak">
+    <summary>🚗 Elnettet har myldretid kl. 17–21</summary>
+    <div class="small fold-body">
+        <p>Elnettet er som en motorvej: det skal bygges til den travleste time, ikke til gennemsnittet. Kl. 17–21 kommer alle hjem, laver mad, vasker og sætter elbilen til. Derfor er <b>nettariffen</b> højest der – om vinteren op til ca. 9 gange nattens.</p>
+        <p>Hver gang du flytter noget ud af myldretiden, skal der bruges lidt mindre kobber, færre transformere og færre master. Den regning betaler vi alle over elregningen.</p>
+    </div>
+</details>
+
+<details class="card fold" data-remember="learn-flex">
+    <summary>🔄 Hvad er fleksibilitet?</summary>
+    <div class="small fold-body">
+        <p>Fleksibilitet er at bruge strømmen <b>når der er plads og overskud</b> – ikke når alle andre gør. Det kan være en opvasker på timer, en elbil der lader om natten, en varmepumpe der varmer lidt ekstra op før myldretiden, eller et batteri der lader op fra solceller midt på dagen.</p>
+        <p>Danmark mangler kapacitet i elnettet: virksomheder, ladeparker og nye boligområder venter på at blive koblet på. Det er dyrt og tager år at bygge nyt net – det er billigt og hurtigt at flytte forbrug.</p>
+    </div>
+</details>
+
+<details class="card fold" data-remember="learn-green-cheap">
+    <summary>💚 Billig strøm og grøn strøm følges ofte ad</summary>
+    <div class="small fold-body">
+        <p>Når det blæser og solen skinner, er der meget strøm fra vind og sol. Den koster næsten intet at producere, så <b>spotprisen falder</b> – og <b>CO₂ pr. kWh falder</b>. Når der er vindstille om aftenen, skal kraftværker og import dække behovet: dyrere og mere sort.</p>
+        <p>Derfor giver de to faner <b>Nu</b> og <b>Grøn</b> ofte samme råd: flytter du forbruget til de billige timer, flytter du det som regel også til de grønne.</p>
+    </div>
+</details>
+
+<details class="card fold" data-remember="learn-faelledby">
+    <summary>🏙️ Case: Fælledby og batterierne</summary>
+    <div class="small fold-body">
+        <p>Fælledby på Amager bliver Danmarks største energifællesskab: solceller på tagene og batterier på ca. 4 MW, så bydelen kan bruge sin egen solstrøm og lade være med at trække på nettet, når det er presset.</p>
+        <p>Men netselskabet Cerius-Radius regner med det værste tilfælde – at batterierne lader kl. 17, når nettet er mest belastet – og vil derfor bygge <b>24 transformerstationer</b>, hvor Fælledbys rådgivere mener <b>13</b> er nok. Der findes ikke et netprodukt, hvor man kan love at holde sig ude af myldretiden mod en lavere pris. Tarifferne gør også, at bydelen reelt må deles op i mange små fællesskaber.</p>
+        <p>En ny rapport fra Energistyrelsen peger på, at reguleringen af netselskaberne kan belønne at bygge nyt net frem for fleksible løsninger. Energistyrelsen vil nu undersøge det nærmere; netselskabet afviser, at der er et problem.</p>
+        <p><b>Hvad viser sagen?</b> At fleksibilitet er noget af det billigste og hurtigste Danmark kan gøre ved det pressede elnet – og at reglerne endnu ikke er fulgt med. Ekstra transformere bliver betalt af alle netselskabets kunder over tarifferne.</p>
+        <p class="muted">Kilde: Finans/Jyllands-Posten, 24. september 2026: “Fælledby vil tænke strømmen smartere – men reglerne og et monopol står i vejen”.</p>
+    </div>
+</details>
+
+<details class="card fold" data-remember="learn-do">
+    <summary>✅ Det kan du gøre – i dag</summary>
+    <div class="small fold-body">
+        <ul>
+            <li><b>Sæt timer</b> på opvasker og vaskemaskine i stedet for at starte dem kl. 17–21. Se <a href="/planlaeg">Planlæg</a>.</li>
+            <li><b>Elbilen:</b> sæt starttid i bilen eller laderen – ikke bare stikket i, når du kommer hjem.</li>
+            <li><b>Varmepumpe og varmtvandsbeholder:</b> lad dem varme lidt ekstra op før kl. 17.</li>
+            <li><b>Få en besked</b> før de billige timer under <a href="/besked">Besked</a>.</li>
+            <li><b>Bor du i en forening</b> med solceller eller planer om et energifællesskab: spørg netselskabet om fleksible løsninger – jo flere der spørger, jo hurtigere kommer de.</li>
+        </ul>
+    </div>
+</details>
+
+<details class="card fold" data-remember="learn-scale">
+    <summary>🇩🇰 Hvad betyder det, hvis mange gør det?</summary>
+    <div class="small fold-body">
+        <p>Der er ca. 2,8 millioner husstande i Danmark. Flytter bare hver tiende én opvask eller vask på ca. 1 kWh ud af myldretiden hver dag, er det <b>ca. 280.000 kWh om dagen</b> – omkring <b>70 MW mindre belastning</b> i hver af de fire myldretimer. Det svarer til forbruget i en mellemstor by, fjernet fra nettet netop når det er mest presset.</p>
+        <p>Det er den slags forbrug, der kan udskyde nye transformere og kabler – og holde tarifferne nede for alle.</p>
+    </div>
+</details>
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private Co2Snapshot? _snap;
+    private DateTime? _selected;
+
+    private sealed record Hour(DateTime Start, double Grams, bool IsNow);
+
+    protected override async Task OnInitializedAsync() => _snap = await Co2.GetAsync(Prefs.Get().PriceArea);
+
+    // The forecast averaged per hour, from the current hour on.
+    private List<Hour> Hours()
+    {
+        var now = DkTime.Now;
+        var cur = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
+        return [.. (_snap?.Forecast ?? [])
+            .GroupBy(p => new DateTime(p.TimeDk.Year, p.TimeDk.Month, p.TimeDk.Day, p.TimeDk.Hour, 0, 0))
+            .Where(g => g.Key >= cur)
+            .OrderBy(g => g.Key)
+            .Select(g => new Hour(g.Key, g.Average(p => p.Grams), g.Key == cur))];
+    }
+
+    private Hour? Greenest() => Hours().Where(h => !h.IsNow).MinBy(h => h.Grams);
+}

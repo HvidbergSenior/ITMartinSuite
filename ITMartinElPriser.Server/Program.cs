@@ -32,6 +32,7 @@ builder.Services.AddHttpContextAccessor();
 // Singleton with its own HttpClient: it caches prices for 30 min - a
 // transient-per-request registration would throw the cache away every call.
 builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
+builder.Services.AddSingleton(sp => new Co2Service(new HttpClient(), sp.GetRequiredService<ILogger<Co2Service>>()));
 builder.Services.AddSingleton<SubscriberStore>();
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddHostedService<NotificationScheduler>();
