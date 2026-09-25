@@ -1,0 +1,107 @@
+@page "/game/{Slug}/micro"
+@inject IDbContextFactory<StrategiDbContext> DbFactory
+
+<PageTitle>Micromanagement – @(_game?.Name ?? "Game") – Strategy</PageTitle>
+
+@if (_game is null)
+{
+    <p class="muted">Game not found. <a href="/">Back</a></p>
+    return;
+}
+
+<a class="muted small" href="/game/@_game.Slug">← @_game.Name</a>
+<h1>🔧 Micromanagement</h1>
+<p class="muted small">What each thing does to a planet, which planet to put it on, and which to skip. Effect numbers come from the wiki.</p>
+
+<input class="k-input lib-search" @bind="_query" @bind:event="oninput" placeholder="Find an artifact or improvement …" />
+
+@if (_groups.Count > 1)
+{
+    <div class="chips lib-kinds">
+        <button class="tab @(_group is null ? "on" : "")" @onclick="() => _group = null">All (@_items.Count)</button>
+        @foreach (var g in _groups)
+        {
+            <button class="tab @(_group == g ? "on" : "")" @onclick="() => _group = _group == g ? null : g">@g (@_items.Count(i => i.Advice.Group == g))</button>
+        }
+    </div>
+}
+
+@if (_items.Count == 0)
+{
+    <div class="k-card"><div class="muted small">No advice written yet. Ask Claude in Claude Code: “write micromanagement advice for @_game.Name”.</div></div>
+}
+
+<div class="lib-results">
+    @foreach (var (a, wiki) in Shown())
+    {
+        <div class="guide-card micro-card">
+            <div class="lib-head">
+                @if (wiki?.Icon is { Length: > 0 } icon) { <img class="lib-icon" src="@icon" alt="" loading="lazy" /> }
+                <b>@a.Title</b>
+                <span class="k-tag">@a.Group</span>
+            </div>
+            @if (Effect(wiki) is { Length: > 0 } eff)
+            {
+                <div class="micro-effect">⚙️ @eff</div>
+            }
+            <div class="micro-row"><span>🎯</span><div><b>Purpose</b><GuideText Text="@a.Purpose" /></div></div>
+            <div class="micro-row"><span>✅</span><div><b>Use it on</b><GuideText Text="@a.UseOn" /></div></div>
+            <div class="micro-row"><span>❌</span><div><b>Skip it on</b><GuideText Text="@a.AvoidOn" /></div></div>
+            @if (a.Example.Length > 0)
+            {
+                <div class="micro-row"><span>💡</span><div><b>Example</b><GuideText Text="@a.Example" /></div></div>
+            }
+            @if (wiki is not null)
+            {
+                <a class="small" href="@wiki.Url" target="_blank" rel="noopener">On the wiki ↗</a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Game? _game;
+    private string _query = "";
+    private string? _group;
+    private List<string> _groups = [];
+    private List<(ItemAdvice Advice, WikiEntry? Wiki)> _items = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _game = await db.Games.AsNoTracking().FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_game is null) return;
+        var advice = await db.Advice.AsNoTracking().Where(a => a.GameId == _game.Id).ToListAsync();
+        var titles = advice.Select(a => a.Title).ToList();
+        // The same item can sit in several wiki tables; prefer the row with an Effects line.
+        var wiki = (await db.WikiEntries.AsNoTracking().Where(e => e.GameId == _game.Id && titles.Contains(e.Title)).ToListAsync())
+            .GroupBy(e => e.Title)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(e => e.Text.Contains("Effects:")).First());
+        _items = advice.OrderBy(a => a.Group).ThenBy(a => a.Title)
+            .Select(a => (a, wiki.GetValueOrDefault(a.Title))).ToList();
+        _groups = _items.Select(i => i.Advice.Group).Distinct().ToList();
+    }
+
+    private IEnumerable<(ItemAdvice, WikiEntry?)> Shown()
+    {
+        var q = _query.Trim();
+        return _items.Where(i => (_group is null || i.Advice.Group == _group)
+            && (q.Length == 0 || i.Advice.Title.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || i.Advice.Purpose.Contains(q, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    // "**Effects:** +3 Planet Influence" plus any "- " continuation lines -> "+3 Planet Influence".
+    private static string Effect(WikiEntry? e)
+    {
+        if (e is null) return "";
+        var lines = e.Text.Replace("\r", "").Split('\n');
+        var start = Array.FindIndex(lines, l => l.Contains("Effects:**"));
+        if (start < 0) return "";
+        var parts = new List<string> { lines[start][(lines[start].IndexOf(":**") + 3)..].Trim() };
+        for (var i = start + 1; i < lines.Length && lines[i].TrimStart().StartsWith("- "); i++)
+            parts.Add(lines[i].Trim()[2..].Trim());
+        return string.Join(" · ", parts.Where(p => p.Length > 0));
+    }
+}

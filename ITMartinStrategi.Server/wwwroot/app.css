@@ -94,3 +94,10 @@ a.chip { text-decoration: none; display: inline-flex; align-items: center; }
 .lib-text p { margin: 4px 0; }
 .lib-foot { margin-top: 16px; }
 .lib-jump { display: flex; gap: 8px; margin: 10px 0 14px; } .lib-jump .k-input { flex: 1; }
+
+/* Micromanagement cards */
+.micro-card { gap: 8px; }
+.micro-effect { font-weight: 600; padding: 6px 10px; border-radius: 8px; background: var(--k-bg); width: fit-content; }
+.micro-row { display: grid; grid-template-columns: 22px 1fr; gap: 6px; align-items: start; }
+.micro-row p { margin: 2px 0; }
+.micro-row ul { margin: 2px 0; padding-left: 18px; }

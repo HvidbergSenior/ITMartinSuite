@@ -65,6 +65,10 @@ using (var scope = app.Services.CreateScope())
             Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, GameId INTEGER NOT NULL, Title TEXT NOT NULL, Kind TEXT NOT NULL,
             Text TEXT NOT NULL, Url TEXT NOT NULL, Icon TEXT NOT NULL, UpdatedAt TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS IX_WikiEntries_GameId ON WikiEntries (GameId);
+        CREATE TABLE IF NOT EXISTS ItemAdvice (
+            Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, GameId INTEGER NOT NULL, Title TEXT NOT NULL, "Group" TEXT NOT NULL,
+            Purpose TEXT NOT NULL, UseOn TEXT NOT NULL, AvoidOn TEXT NOT NULL, Example TEXT NOT NULL, UpdatedAt TEXT NOT NULL);
+        CREATE UNIQUE INDEX IF NOT EXISTS IX_ItemAdvice_GameId_Title ON ItemAdvice (GameId, Title);
         """);
     await Seed.EnsureAsync(db);
 }
@@ -136,6 +140,31 @@ app.MapPost("/api/guides", async (List<ImportGuide> items, IDbContextFactory<Str
     return Results.Ok(new { added = added.Count, ids = added });
 }).DisableAntiforgery();
 
+// Micromanagement advice, written in a Claude Code session like the guides.
+// Upsert by (game, title) so a corrected batch can simply be posted again.
+app.MapPost("/api/advice", async (List<ImportAdvice> items, IDbContextFactory<StrategiDbContext> factory) =>
+{
+    await using var db = await factory.CreateDbContextAsync();
+    var games = await db.Games.ToDictionaryAsync(g => g.Slug);
+    var saved = 0;
+    foreach (var i in items)
+    {
+        if (!games.TryGetValue(i.Game, out var game) || string.IsNullOrWhiteSpace(i.Title)) continue;
+        var title = i.Title.Trim();
+        var a = await db.Advice.FirstOrDefaultAsync(x => x.GameId == game.Id && x.Title == title);
+        if (a is null) db.Advice.Add(a = new ItemAdvice { GameId = game.Id, Title = title });
+        a.Group = i.Group.Trim();
+        a.Purpose = i.Purpose.Trim();
+        a.UseOn = i.UseOn.Trim();
+        a.AvoidOn = i.AvoidOn.Trim();
+        a.Example = (i.Example ?? "").Trim();
+        a.UpdatedAt = DateTime.UtcNow;
+        saved++;
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { saved });
+}).DisableAntiforgery();
+
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
@@ -144,4 +173,5 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
+public sealed record ImportAdvice(string Game, string Title, string Group, string Purpose, string UseOn, string AvoidOn, string? Example);
 public sealed record ImportGuide(string Game, string Section, string Title, string? Trigger, string Body, string? Source, List<string>? Sources);
