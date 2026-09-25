@@ -13,26 +13,13 @@
 <div class="ep-header">
     <div class="ep-logo">⚡</div>
     <div class="ep-title">ElPriser</div>
-    <button class="area-chip" title="Hvor bor du?" @onclick="() => _pickArea = !_pickArea">
-        @if (_gridName.Length > 0) { <text>@_postal <small>@_gridName</small> ▾</text> }
-        else { <text>📍 Postnr. ▾</text> }
+    @* Location only: found automatically on the first visit, tap to look again. Nothing to choose. *@
+    <button class="area-chip" title="Find mit netselskab ud fra min placering" @onclick="LocateAsync" disabled="@_searching">
+        @if (_searching) { <text>📍 Finder dig…</text> }
+        else if (_gridName.Length > 0) { <text>📍 @_postal <small>@_gridName</small></text> }
+        else { <text>📍 Find mig</text> }
     </button>
 </div>
-
-@if (_pickArea)
-{
-    <div class="card area-pick">
-        <div class="small" style="margin-bottom:10px">Hvor bor du? Så finder vi dit netselskab og regner med <b>dine</b> tariffer.</div>
-        <button class="btn btn-primary btn-block" @onclick="LocateAsync" disabled="@_searching">📍 Brug min placering</button>
-        <div class="field" style="margin-top:10px">
-            <label for="addr">…eller skriv din adresse eller dit postnummer</label>
-            <input id="addr" type="text" autocomplete="street-address" placeholder="fx Skelagervej 230, 8200" @bind="_addrInput" @onkeydown="AddrKeyAsync" />
-        </div>
-        <button class="btn btn-block" @onclick="ResolveAsync" disabled="@(_searching || _addrInput.Trim().Length == 0)">Find mit netselskab</button>
-        @if (_searching) { <div class="muted small" style="margin-top:8px">Finder…</div> }
-        @if (_placeMsg is not null) { <div class="small @(_placeOk ? "ok" : "err")" style="margin-top:8px">@_placeMsg</div> }
-    </div>
-}
 
 <PageHelp Key="help-nu">
     <ul>
@@ -174,6 +161,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+        if (_s.GridSupplierId.Length == 0) _ = InvokeAsync(LocateAsync);
         if (await JS.InvokeAsync<string?>("epUi.get", "device") is { } d && d.Split('|') is [var n, var k]
             && double.TryParse(k, CultureInfo.InvariantCulture, out var kw) && kw > 0)
         {
@@ -197,10 +185,8 @@ else
         _snap = PriceModel.Build(raw, s, [], DkTime.Now);
     }
 
-    private bool _pickArea;
-    private string _postal = "", _gridName = "", _addrInput = "";
-    private bool _searching, _placeOk;
-    private string? _placeMsg;
+    private string _postal = "", _gridName = "";
+    private bool _searching;
     private List<(DateTime Hour, double Price)> _forecast = [];
 
     private sealed record GeoPoint(double Lat, double Lon);
@@ -208,35 +194,20 @@ else
     // The phone's location -> exact grid company. No lists: one point gives one company.
     private async Task LocateAsync()
     {
-        _searching = true; _placeMsg = null;
+        _searching = true;
+        StateHasChanged();
         var pos = await JS.InvokeAsync<GeoPoint?>("epUi.locate");
         if (pos is null)
         {
-            _searching = false; _placeOk = false;
-            _placeMsg = "Placeringen kunne ikke hentes. Skriv din adresse i stedet.";
+            _searching = false;
+            StateHasChanged();
             return;
         }
         var place = await Grids.ReverseAsync(pos.Lat, pos.Lon) ?? new Place("din placering", "", pos.Lat, pos.Lon);
         await UsePlaceAsync(place);
     }
 
-    private async Task AddrKeyAsync(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") await ResolveAsync();
-    }
 
-    private async Task ResolveAsync()
-    {
-        _searching = true; _placeMsg = null;
-        var place = await Grids.ResolveAsync(_addrInput);
-        if (place is null)
-        {
-            _searching = false; _placeOk = false;
-            _placeMsg = "Adressen blev ikke fundet. Prøv med vej, husnummer og postnummer.";
-            return;
-        }
-        await UsePlaceAsync(place);
-    }
 
     private async Task UsePlaceAsync(Place place)
     {
@@ -244,8 +215,6 @@ else
         _searching = false;
         if (g is null)
         {
-            _placeOk = false;
-            _placeMsg = $"Vi kunne ikke finde netselskabet for {place.Label}.";
             return;
         }
         var s = Prefs.Get();
@@ -255,8 +224,7 @@ else
         s.PriceArea = g.PriceArea;
         s.NettarifLookup = null;
         await Prefs.SaveAsync(s);
-        _placeOk = true;
-        _placeMsg = $"✓ {place.Label} · netselskab {g.Name} · {g.PriceArea}";
+       
         _snap = null;
         await LoadAsync();
     }
