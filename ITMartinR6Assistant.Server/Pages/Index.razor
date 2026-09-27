@@ -197,6 +197,19 @@
                             }
                         </ol>
                     </div>
+                    <div class="info-box">
+                        <div class="info-box-title">⚔ Runder vundet: ATK vs DEF</div>
+                        <ol class="rank-list rank-list-split">
+                            @foreach (var m in proMaps.Where(m => m.Value.AtkRoundPct > 0).OrderByDescending(m => m.Value.AtkRoundPct))
+                            {
+                                var atk = m.Value.AtkRoundPct;
+                                <li><span class="rank-name">@m.Key</span>
+                                    <span class="split-bar"><span class="split-atk" style="width:@atk.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></span></span>
+                                    <b><span class="atk-txt">@atk.ToString("0")</span>/<span class="def-txt">@((100 - atk).ToString("0"))</span></b></li>
+                            }
+                        </ol>
+                        <div class="muted small">ATK % / DEF % af pro-runderne. Øverst = bedst for angreb, nederst = forsvaret vinder.</div>
+                    </div>
                 </div>
                 <div class="muted small" style="margin:4px 0 10px">Kilde: Liquipedia, @_gameData.Pro.Matches pro-kampe @_gameData.Pro.From?.ToString("MMM yyyy") &ndash; @_gameData.Pro.To?.ToString("MMM yyyy").</div>
             }

@@ -1897,3 +1897,7 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .loadout-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
 .wchip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: .85rem; background: var(--bg-card); }
 .pick-banned > b { text-decoration: line-through; opacity: .6; }
+/* ATK vs DEF split bar per map (orange = attack, blue = defence). */
+.split-bar { height: 10px; border-radius: 5px; background: #3b82f6; overflow: hidden; }
+.split-atk { display: block; height: 100%; background: #f59e0b; }
+.atk-txt { color: #f59e0b; } .def-txt { color: #3b82f6; }

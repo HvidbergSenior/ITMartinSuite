@@ -51,11 +51,7 @@ else
 
         if (Mode == "mapbans")
         {
-            // Pick/ban order is shown as ranked boxes on the map-ban card itself.
-            var defMaps = maps.Where(m => m.Value.AtkRoundPct is > 0 and < 45).OrderBy(m => m.Value.AtkRoundPct).Take(3).Select(m => $"{m.Key} (ATK {P(m.Value.AtkRoundPct)})").ToList();
-            if (defMaps.Count > 0) tips.Add($"Forsvaret vinder klart flest runder på: {string.Join(", ", defMaps)} &ndash; pro-hold banner dem, hvis de er stærkest i angreb.");
-            var atkMaps = maps.Where(m => m.Value.AtkRoundPct >= 48).OrderByDescending(m => m.Value.AtkRoundPct).Take(3).Select(m => $"{m.Key} (ATK {P(m.Value.AtkRoundPct)})").ToList();
-            if (atkMaps.Count > 0) tips.Add($"Mest lige/angrebsvenlige maps: {string.Join(", ", atkMaps)}.");
+            // Pick/ban order and ATK/DEF round split per map are ranked boxes on the map-ban card itself.
             return tips;
         }
 
