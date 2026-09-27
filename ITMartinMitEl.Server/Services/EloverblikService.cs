@@ -51,11 +51,25 @@ public sealed class EloverblikService(HttpClient http, ILogger<EloverblikService
     }
 
     // Hourly kWh for [from, to] inclusive, Danish local hours.
-    public async Task<List<HourReading>> GetHourlyAsync(string refreshToken, string meteringPointId, DateOnly from, DateOnly to, CancellationToken ct = default)
+    public async Task<List<HourReading>> GetHourlyAsync(string refreshToken, string meteringPointId, DateOnly from, DateOnly to, CancellationToken ct = default) =>
+        FoldToHours(await GetSeriesAsync(refreshToken, meteringPointId, from, to, "Hour", ct));
+
+    // kWh per quarter-hour (the meter's own resolution on a PT15M meter), Danish local time.
+    // HourReading.HourDk is then the quarter's start.
+    public Task<List<HourReading>> GetQuartersAsync(string refreshToken, string meteringPointId, DateOnly from, DateOnly to, CancellationToken ct = default) =>
+        GetSeriesAsync(refreshToken, meteringPointId, from, to, "Quarter", ct);
+
+    public static List<HourReading> FoldToHours(IEnumerable<HourReading> readings) => readings
+        .GroupBy(r => new DateTime(r.HourDk.Year, r.HourDk.Month, r.HourDk.Day, r.HourDk.Hour, 0, 0))
+        .Select(g => new HourReading(g.Key, Math.Round(g.Sum(r => r.Kwh), 3), g.All(r => r.Quality == "A04") ? "A04" : g.First().Quality))
+        .OrderBy(r => r.HourDk)
+        .ToList();
+
+    private async Task<List<HourReading>> GetSeriesAsync(string refreshToken, string meteringPointId, DateOnly from, DateOnly to, string aggregation, CancellationToken ct)
     {
         var token = await AccessTokenAsync(refreshToken, ct);
         // The API's dateTo is exclusive.
-        var url = $"{Base}/meterdata/gettimeseries/{from:yyyy-MM-dd}/{to.AddDays(1):yyyy-MM-dd}/Hour";
+        var url = $"{Base}/meterdata/gettimeseries/{from:yyyy-MM-dd}/{to.AddDays(1):yyyy-MM-dd}/{aggregation}";
         using var req = new HttpRequestMessage(HttpMethod.Post, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         req.Content = JsonContent.Create(new { meteringPoints = new { meteringPoint = new[] { meteringPointId } } });
@@ -104,13 +118,73 @@ public sealed class EloverblikService(HttpClient http, ILogger<EloverblikService
                 ? "Datahub har ingen data til dette token for måleren - typisk fordi elaftalen står i en andens navn. Opret tokenet med den persons MitID, eller giv en fuldmagt på eloverblik.dk."
                 : $"Eloverblik: {apiError}");
 
-        // Quarter-hour meters: fold into hours so the rest of the app has one shape.
-        return readings
-            .GroupBy(r => new DateTime(r.HourDk.Year, r.HourDk.Month, r.HourDk.Day, r.HourDk.Hour, 0, 0))
-            .Select(g => new HourReading(g.Key, Math.Round(g.Sum(r => r.Kwh), 3), g.All(r => r.Quality == "A04") ? "A04" : g.First().Quality))
-            .OrderBy(r => r.HourDk)
-            .ToList();
+        return readings.OrderBy(r => r.HourDk).ToList();
     }
+
+    // Grid company, supplier and every charge Datahub lists on the meter, in one object.
+    // Tariffs come per hour ("PT1H", 24 prices) or flat ("P1D", one price); rebates are
+    // negative lines and are simply added in. Energinet's lines are told apart by owner GLN.
+    public async Task<MeterCharges> GetMeterChargesAsync(string refreshToken, string meteringPointId, CancellationToken ct = default)
+    {
+        const string EnerginetGln = "5790000432752";
+        var token = await AccessTokenAsync(refreshToken, ct);
+        var body = new { meteringPoints = new { meteringPoint = new[] { meteringPointId } } };
+
+        using var detailsDoc = await PostAsync($"{Base}/meteringpoints/meteringpoint/getdetails", body, token, ct);
+        var d = detailsDoc.RootElement.GetProperty("result")[0].GetProperty("result");
+        using var chargesDoc = await PostAsync($"{Base}/meteringpoints/meteringpoint/getcharges", body, token, ct);
+        var c = chargesDoc.RootElement.GetProperty("result")[0].GetProperty("result");
+
+        var m = new MeterCharges
+        {
+            GridOperatorName = Str(d, "gridOperatorName"),
+            SupplierName = Str(d, "balanceSupplierName"),
+            MeterReadingOccurrence = Str(d, "meterReadingOccurrence"),
+            FetchedUtc = DateTime.UtcNow,
+        };
+        var net = new double[24];
+        var hasNet = false;
+        if (c.TryGetProperty("tariffs", out var tariffs) && tariffs.ValueKind == JsonValueKind.Array)
+            foreach (var t in tariffs.EnumerateArray())
+            {
+                var prices = t.TryGetProperty("prices", out var p) && p.ValueKind == JsonValueKind.Array
+                    ? p.EnumerateArray().Select(x => Num(x, "price")).ToList() : [];
+                if (prices.Count == 0) continue;
+                var name = Str(t, "name");
+                if (Str(t, "owner") == EnerginetGln)
+                {
+                    if (name.Contains("afgift", StringComparison.OrdinalIgnoreCase)) m.ElafgiftKrPerKwh += prices[0];
+                    else m.EnerginetKrPerKwh += prices[0];
+                    continue;
+                }
+                hasNet = true;
+                for (var h = 0; h < 24; h++) net[h] += prices.Count >= 24 ? prices[h] : prices[0];
+            }
+        if (hasNet) m.NetTariffByHour = [.. net.Select(x => Math.Round(x, 5))];
+        if (c.TryGetProperty("subscriptions", out var subs) && subs.ValueKind == JsonValueKind.Array)
+            foreach (var sub in subs.EnumerateArray()) m.SubscriptionsKrPerMonth += Num(sub, "price");
+        m.SubscriptionsKrPerMonth = Math.Round(m.SubscriptionsKrPerMonth, 2);
+        return m;
+    }
+
+    private async Task<JsonDocument> PostAsync(string url, object body, string token, CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Content = JsonContent.Create(body);
+        using var res = await http.SendAsync(req, ct);
+        res.EnsureSuccessStatusCode();
+        return JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
+    }
+
+    private static string Str(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+
+    private static double Num(JsonElement e, string name) =>
+        !e.TryGetProperty(name, out var v) ? 0
+        : v.ValueKind == JsonValueKind.Number ? v.GetDouble()
+        : v.ValueKind == JsonValueKind.String && double.TryParse(v.GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x) ? x
+        : 0;
 
     private sealed record TokenResponse([property: JsonPropertyName("result")] string? Result);
     private sealed record MeteringPointsResponse([property: JsonPropertyName("result")] List<MpDto>? Result);

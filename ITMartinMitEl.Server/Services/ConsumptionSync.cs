@@ -41,16 +41,56 @@ public sealed class ConsumptionSync(
         try
         {
             var to = DateOnly.FromDateTime(DkTime.Now).AddDays(-1);
-            var readings = await eloverblik.GetHourlyAsync(s.EloverblikToken, s.MeteringPointId, to.AddDays(-days), to, ct);
-            consumption.Merge(readings);
+            var quarters = await eloverblik.GetQuartersAsync(s.EloverblikToken, s.MeteringPointId, to.AddDays(-days), to, ct);
+            consumption.MergeQuarters(quarters);
             consumption.LastSyncError = null;
-            logger.LogInformation("Synced {Count} hourly readings for household {Household}", readings.Count, householdId);
+            logger.LogInformation("Synced {Count} quarter readings for household {Household}", quarters.Count, householdId);
+            await RefreshChargesAsync(store, s, ct);
             return true;
         }
         catch (Exception ex)
         {
             consumption.LastSyncError = ex.Message;
             logger.LogWarning(ex, "Eloverblik sync failed for household {Household}", householdId);
+            return false;
+        }
+    }
+
+    // The meter's own grid company, supplier and charges - once a day is plenty (tariffs change
+    // a few times a year). A slow or failing charges call never stops the consumption sync.
+    private async Task RefreshChargesAsync(HouseholdStore store, HouseholdSettings s, CancellationToken ct)
+    {
+        if (s.Meter is { } m && DateTime.UtcNow - m.FetchedUtc < TimeSpan.FromHours(20)) return;
+        try
+        {
+            var charges = await eloverblik.GetMeterChargesAsync(s.EloverblikToken, s.MeteringPointId, ct);
+            store.Update(d => d.Settings.Meter = charges);
+            logger.LogInformation("Meter charges: {Grid}, {Supplier}, {Subs} kr/md", charges.GridOperatorName, charges.SupplierName, charges.SubscriptionsKrPerMonth);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Meter charges fetch failed");
+        }
+    }
+
+    // A day further back than the regular sync window: fetch its quarters on demand.
+    public async Task<bool> EnsureDayAsync(Guid householdId, DateOnly date, CancellationToken ct = default)
+    {
+        var consumption = registry.Consumption(householdId);
+        if (consumption.Quarters(date).Count >= 92) return true;
+        var s = registry.Household(householdId).Get().Settings;
+        if (string.IsNullOrWhiteSpace(s.EloverblikToken) || string.IsNullOrWhiteSpace(s.MeteringPointId)) return false;
+        try
+        {
+            var quarters = await eloverblik.GetQuartersAsync(s.EloverblikToken, s.MeteringPointId, date, date, ct);
+            if (quarters.Count == 0) return false;
+            consumption.MergeQuarters(quarters);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            consumption.LastSyncError = ex.Message;
+            logger.LogWarning(ex, "Eloverblik day fetch failed for {Date}", date);
             return false;
         }
     }

@@ -1,0 +1,175 @@
+@page "/dag"
+@using System.Globalization
+@inject ElectricityPriceService Prices
+@inject HouseholdStore Store
+@inject ConsumptionStore Consumption
+@inject ConsumptionSync Sync
+@inject NavigationManager Nav
+
+<PageTitle>Dag – MinElpris</PageTitle>
+
+@* One day from the household's own meter: what it cost, and which machines most likely
+   made up the bill - worked out from the quarter-hour shape, see DayAnalyzer. *@
+<h1>Hvad brugte vi?</h1>
+
+<PageHelp Key="help-dag">
+    <ul>
+        <li><b>Det store tal</b> er hvad dagen kostede: strømmen kvarter for kvarter til det kvarters pris (med nettariffen fra din egen måler) plus dagens andel af abonnementerne.</li>
+        <li><b>Søjlerne</b> er dit forbrug hvert kvarter. De farvede er noget der var tændt; det grå er grundforbruget – det der altid kører.</li>
+        <li><b>Listen</b> er hvad vi tror det var. <b>✔ registreret</b> = du trykkede ▶ Startet nu. <b>sandsynligvis</b> = forbruget passer med en af dine maskiner eller apparater. <b>gæt</b> = kun ud fra størrelse og tidspunkt.</li>
+        <li>Måleren kender kun hele husets forbrug. Jo flere apparater du lægger ind under <a href="/enheder">Enheder</a> med watt og tidspunkt, jo bedre kan de genkendes.</li>
+    </ul>
+</PageHelp>
+
+<div class="day-nav">
+    <button class="btn" @onclick="() => GoAsync(_date.AddDays(-1))">‹</button>
+    <input type="date" value="@_date.ToString("yyyy-MM-dd")" max="@_latest.ToString("yyyy-MM-dd")" @onchange="PickAsync" />
+    <button class="btn" disabled="@(_date >= _latest)" @onclick="() => GoAsync(_date.AddDays(1))">›</button>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="muted">Henter @_date.ToString("dddd d. MMMM", Da) fra din måler…</div></div>
+}
+else if (_noToken)
+{
+    <div class="card">
+        <div class="card-title">Ingen måler forbundet</div>
+        <p class="small">Forbind din elmåler under <a href="/indstillinger">Indstillinger</a> med et token fra eloverblik.dk.</p>
+    </div>
+}
+else if (_report is not { Quarters.Count: > 0 } r)
+{
+    <div class="card">
+        <div class="card-title">Ingen målinger for @_date.ToString("d. MMMM", Da)</div>
+        <p class="small">@(Consumption.LastSyncError ?? "Datahub har ikke data for den dag endnu – typisk 1–2 dage bagud.")</p>
+    </div>
+}
+else
+{
+    var total = r.EnergyKr + r.SubscriptionsKr;
+    <div class="card now-tile">
+        <div class="now-device">@_date.ToString("dddd d. MMMM yyyy", Da)</div>
+        <div class="now-price">@Kr(total) KR</div>
+        <div class="now-calc">@Kwh(r.TotalKwh) kWh strøm = @Kr(r.EnergyKr) kr@(r.SubscriptionsKr > 0 ? $" + abonnementer {Kr(r.SubscriptionsKr)} kr" : "")</div>
+        @if (r.Quarters.Count < 96 && r.Quarters.Count != 92 && r.Quarters.Count != 100)
+        {
+            <div class="muted small">Kun @r.Quarters.Count af dagens kvarterer er målt endnu.</div>
+        }
+    </div>
+
+    var maxKw = Math.Max(0.5, r.Quarters.Max(q => q.Kw));
+    <div class="card">
+        <div class="bars qbars">
+            @foreach (var q in r.Quarters)
+            {
+                var ev = r.Events.FirstOrDefault(e => q.Start >= e.Start && q.Start < e.End);
+                var pct = 3 + 97 * q.Kw / maxKw;
+                <div class="bar @(ev is null ? "q-base" : "q-event")" title="@q.Start.ToString("HH:mm") · @((q.Kw * 1000).ToString("0", Da)) W · @Kr(q.Kr) kr@(ev is null ? "" : " · " + ev.Label)"
+                     style="height:@pct.ToString("0.#", CultureInfo.InvariantCulture)%"></div>
+            }
+        </div>
+        <div class="bar-axis qaxis"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Det var sandsynligvis</div>
+        <div class="day-events">
+            @foreach (var e in r.Events.OrderByDescending(e => e.Kr))
+            {
+                <div class="day-event">
+                    <span class="de-icon">@e.Icon</span>
+                    <div class="de-main">
+                        <b>@e.Label</b> <span class="de-sure s-@e.Sure.ToString().ToLowerInvariant()">@Sure(e.Sure)</span>
+                        <div class="muted small">kl. @e.Start.ToString("HH:mm")–@e.End.ToString("HH:mm") · @Kwh(e.Kwh) kWh · op til @((e.PeakKw * 1000).ToString("0", Da)) W · @e.Why</div>
+                    </div>
+                    <b class="de-kr">@Kr(e.Kr) kr</b>
+                </div>
+            }
+            <div class="day-event">
+                <span class="de-icon">🔌</span>
+                <div class="de-main">
+                    <b>Grundforbrug</b> <span class="de-sure s-registered">målt</span>
+                    <div class="muted small">ca. @((r.BaseKw * 1000).ToString("0", Da)) W hele døgnet (køleskab, router, standby …) · @Kwh(r.BaseKwh) kWh@(r.AlwaysOnKnownKw > 0 ? $" · dine altid-tændte apparater: {(r.AlwaysOnKnownKw * 1000).ToString("0", Da)} W" : "")</div>
+                </div>
+                <b class="de-kr">@Kr(r.BaseKr) kr</b>
+            </div>
+            @{ var rest = r.EnergyKr - r.BaseKr - r.Events.Sum(e => e.Kr); }
+            @if (rest > 0.05)
+            {
+                <div class="day-event">
+                    <span class="de-icon">·</span>
+                    <div class="de-main"><b>Småt</b><div class="muted small">lys, tv, opladere og andet under @((0.4 * 1000).ToString("0", Da)) W over grundforbruget</div></div>
+                    <b class="de-kr">@Kr(rest) kr</b>
+                </div>
+            }
+        </div>
+        <a class="small" href="/enheder">+ Læg flere apparater ind med watt, så bliver gættene bedre →</a>
+    </div>
+
+    @if (Store.Get().Settings.Meter is { } m)
+    {
+        <details class="card fold">
+            <summary>🔎 Fra din måler</summary>
+            <div class="fold-body small">
+                <p>Netselskab: <b>@m.GridOperatorName</b> · Elhandel: <b>@m.SupplierName</b> · måles hvert @(m.MeterReadingOccurrence == "PT15M" ? "kvarter" : "time").</p>
+                <p>Nettarif (ex. moms, rabat trukket fra): nat @Ore(m.NetTariffByHour, 3) · dag @Ore(m.NetTariffByHour, 12) · kl. 17–21 @Ore(m.NetTariffByHour, 18) øre/kWh.
+                   Energinet @((m.EnerginetKrPerKwh * 100).ToString("0.0", Da)) øre · elafgift @((m.ElafgiftKrPerKwh * 100).ToString("0.0", Da)) øre · abonnementer @m.SubscriptionsKrPerMonth.ToString("0.00", Da) kr/md.</p>
+                <p class="muted">Hentet fra eloverblik.dk @DkTime.FromUtc(m.FetchedUtc).ToString("d/M HH:mm").</p>
+            </div>
+        </details>
+    }
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    [SupplyParameterFromQuery(Name = "d")] public string? D { get; set; }
+
+    private DateOnly _date, _latest;
+    private DayAnalyzer.Report? _report;
+    private bool _loading = true, _noToken;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _latest = Consumption.LatestDay ?? DateOnly.FromDateTime(DkTime.Now).AddDays(-1);
+        _date = DateOnly.TryParseExact(D, "yyyy-MM-dd", out var d) ? d : _latest;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        var data = Store.Get();
+        var s = data.Settings;
+        _noToken = string.IsNullOrWhiteSpace(s.EloverblikToken) || string.IsNullOrWhiteSpace(s.MeteringPointId);
+        _report = null;
+        if (!_noToken)
+        {
+            await Sync.EnsureDayAsync(Store.HouseholdId, _date);
+            var quarters = Consumption.Quarters(_date);
+            var prices = await Prices.GetDayAsync(_date, s.PriceArea);
+            _report = DayAnalyzer.Analyze(_date, quarters, prices, s, data.Appliances, data.Devices, data.Runs);
+        }
+        _loading = false;
+    }
+
+    private Task GoAsync(DateOnly d)
+    {
+        Nav.NavigateTo($"/dag?d={d:yyyy-MM-dd}");
+        return Task.CompletedTask;
+    }
+
+    private Task PickAsync(ChangeEventArgs e) =>
+        DateOnly.TryParseExact(e.Value?.ToString(), "yyyy-MM-dd", out var d) ? GoAsync(d) : Task.CompletedTask;
+
+    private static string Sure(DayAnalyzer.Certainty c) => c switch
+    {
+        DayAnalyzer.Certainty.Registered => "✔ registreret",
+        DayAnalyzer.Certainty.Likely => "sandsynligvis",
+        _ => "gæt",
+    };
+
+    private static string Kr(double v) => v.ToString("0.00", Da);
+    private static string Kwh(double v) => v.ToString("0.0#", Da);
+    private static string Ore(double[] byHour, int h) => byHour.Length == 24 ? (byHour[h] * 100).ToString("0.0", Da) : "–";
+}

@@ -241,3 +241,23 @@ a { color: var(--accent); text-decoration: none; }
 /* ── kWh explainer ── */
 .kwh-formula { font-weight: 700; background: var(--bg3); border-radius: 8px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
 .kwh-list { display: grid; gap: 4px; margin: 4px 0; }
+
+/* Dag: one day from the meter (2026-09-27) */
+.now-device { color: var(--muted); font-size: .95rem; font-weight: 600; margin-bottom: 8px; }
+.now-calc { color: var(--accent); font-size: .92rem; font-weight: 600; margin-top: 6px; }
+.day-nav { display: flex; gap: 8px; align-items: center; justify-content: center; margin-bottom: 12px; }
+.day-nav input[type=date] { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
+.qbars { gap: 0; height: 120px; }
+.qbars .bar { cursor: default; border-radius: 1px 1px 0 0; }
+.q-base { background: var(--muted); opacity: .45; }
+.q-event { background: var(--accent); }
+.qaxis { justify-content: space-between; }
+.qaxis span { flex: 0 0 auto; }
+.day-events { display: grid; gap: 6px; margin-bottom: 10px; }
+.day-event { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 10px; background: var(--bg3); }
+.de-icon { font-size: 1.4rem; width: 1.6rem; text-align: center; }
+.de-main { flex: 1; min-width: 0; }
+.de-kr { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.de-sure { font-size: .72rem; padding: 1px 7px; border-radius: 100px; border: 1px solid var(--border); color: var(--muted); }
+.de-sure.s-registered { border-color: var(--cheap); color: var(--cheap); }
+.de-sure.s-likely { border-color: var(--accent); color: var(--accent); }

@@ -64,6 +64,9 @@ public static class PriceBreakdownCalculator
     // published than the winter ones, so this errs cheap/simple over guessing.
     private static double GetNettarifOre(DateTime timeDk, HouseholdSettings settings)
     {
+        // The tariff Datahub lists on the household's own meter beats everything else.
+        if (settings.Meter?.NetTariffByHour is { Length: 24 } meter) return meter[timeDk.Hour] * 100;
+
         // The grid company's own published tariff, when the postcode has picked one.
         if (settings.NettarifLookup?.Invoke(timeDk) is { } exact) return exact * 100;
 

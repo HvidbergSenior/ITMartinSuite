@@ -11,7 +11,10 @@ public sealed class ConsumptionStore
 {
     private readonly object _lock = new();
     private readonly Action<Guid, string> _persist;
-    private Dictionary<string, double> _hours; // "yyyy-MM-dd HH" -> kWh
+    // "yyyy-MM-dd HH" -> kWh per hour, and "q|yyyy-MM-dd HH:mm" -> kWh per quarter (15-minute meters).
+    // One dictionary so the stored JSON keeps its shape; the "q|" keys never match an hour lookup.
+    private Dictionary<string, double> _hours;
+    private const string Q = "q|";
 
     public Guid HouseholdId { get; }
     public DateTime? LastSyncUtc { get; private set; }
@@ -33,6 +36,29 @@ public sealed class ConsumptionStore
             foreach (var r in readings) _hours[Key(r.HourDk)] = r.Kwh;
             LastSyncUtc = DateTime.UtcNow;
             _persist(HouseholdId, JsonSerializer.Serialize(_hours));
+        }
+    }
+
+    // Quarter readings replace the hours they fall in, so both views always agree.
+    public void MergeQuarters(IReadOnlyCollection<EloverblikService.HourReading> quarters)
+    {
+        lock (_lock)
+        {
+            foreach (var r in quarters) _hours[Q + r.HourDk.ToString("yyyy-MM-dd HH:mm")] = r.Kwh;
+            foreach (var h in EloverblikService.FoldToHours(quarters)) _hours[Key(h.HourDk)] = h.Kwh;
+            LastSyncUtc = DateTime.UtcNow;
+            _persist(HouseholdId, JsonSerializer.Serialize(_hours));
+        }
+    }
+
+    // kWh per quarter-hour for one day, keyed by the quarter's start. Empty when only hours are known.
+    public SortedDictionary<DateTime, double> Quarters(DateOnly date)
+    {
+        lock (_lock)
+        {
+            var prefix = Q + date.ToString("yyyy-MM-dd ");
+            return new SortedDictionary<DateTime, double>(_hours.Where(kv => kv.Key.StartsWith(prefix))
+                .ToDictionary(kv => DateTime.ParseExact(kv.Key[Q.Length..], "yyyy-MM-dd HH:mm", null), kv => kv.Value));
         }
     }
 
@@ -66,8 +92,8 @@ public sealed class ConsumptionStore
         {
             lock (_lock)
             {
-                if (_hours.Count == 0) return null;
-                return DateOnly.Parse(_hours.Keys.Max()![..10]);
+                var latest = _hours.Keys.Where(k => !k.StartsWith(Q)).DefaultIfEmpty().Max();
+                return latest is null ? null : DateOnly.Parse(latest[..10]);
             }
         }
     }

@@ -37,6 +37,25 @@ public sealed class HouseholdSettings
     public string EloverblikToken { get; set; } = "";
     public string MeteringPointId { get; set; } = "";
     public string MeteringPointAddress { get; set; } = "";
+
+    // What Datahub itself says about the meter: grid company, supplier and the exact
+    // charges on it. When present it beats every preset and postcode guess.
+    public MeterCharges? Meter { get; set; }
+}
+
+// The charges Datahub lists on one metering point (eloverblik getcharges + getdetails).
+// All kr ex VAT. Refreshed by the meter sync about once a day.
+public sealed class MeterCharges
+{
+    public string GridOperatorName { get; set; } = "";
+    public string SupplierName { get; set; } = "";
+    public string MeterReadingOccurrence { get; set; } = "";   // "PT15M" or "PT1H"
+    // The grid company's own tariff per hour 0-23, rebates already subtracted.
+    public double[] NetTariffByHour { get; set; } = [];
+    public double EnerginetKrPerKwh { get; set; }      // transmission + system tariff
+    public double ElafgiftKrPerKwh { get; set; }
+    public double SubscriptionsKrPerMonth { get; set; }  // grid + Energinet subscriptions
+    public DateTime FetchedUtc { get; set; }
 }
 
 // A machine and what one run of it draws. Energy is assumed to be spread
