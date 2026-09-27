@@ -26,7 +26,7 @@
 
 <PageHelp Key="help-nu">
     <ul>
-        <li><b>Det store tal</b> er hvad det koster at køre din opvaskemaskine, hvis du starter den nu – regnet med 1 kWh over 2 timer, kvarter for kvarter. Alt inkl. moms, elafgift og nettarif.</li>
+        <li><b>Det store tal</b> er hvad én opvask koster, hvis du starter den nu – regnet over 2 timer, kvarter for kvarter. Vælg <b>🌱 Ny sparemodel</b> (Bosch SMD6TCX00E, energiklasse A: 0,54 kWh pr. opvask på Eco ifølge EU-energimærket) eller <b>🕰️ Gammel</b> (typisk opvasker fra ca. 2005: ca. 1,5 kWh). Under tallet ser du de to side om side og hvad den nye sparer. Alt inkl. moms, elafgift og nettarif.</li>
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle, så viser det store tal hvad opvasken koster hvis den starter der. Tryk igen for at gå tilbage til nu.</li>
         <li><b>I morgen</b> er den samme opvask, startet på samme klokkeslæt i morgen. Morgendagens priser kommer ca. kl. 13.</li>
@@ -60,13 +60,22 @@ else
     var isTomorrow = DateOnly.FromDateTime(start) > DateOnly.FromDateTime(_snap.At);
     var other = isTomorrow ? Dishes(start.AddDays(-1)) : Dishes(start.AddDays(1));
     if (isTomorrow && start.AddDays(-1) < QuarterNow()) other = null;
+    var m = Machines[_machine];
     <div class="card now-tile @lvl">
-        <div class="now-device">🍽️ Opvaskemaskinen · 2 timer · ca. 1 kWh · start @(picked is null ? "nu" : When(start))</div>
+        @* Two predefined machines - a new energy-saving one and an old one - to compare. *@
+        <div class="chips chips-small machine-pick">
+            @for (var i = 0; i < Machines.Length; i++)
+            {
+                var k = i;
+                <button class="chip @(_machine == k ? "on" : "")" @onclick="() => PickMachineAsync(k)">@Machines[k].Short</button>
+            }
+        </div>
+        <div class="now-device">🍽️ @m.Name · 2 timer · @Kwh(m.Kwh) kWh · start @(picked is null ? "nu" : When(start))</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
             @* The sum behind the big number, in its own colour: 1 kWh × the average price over the 2 hours. *@
-            <div class="now-calc">1 kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over 2 timer = @Kr(run.CostKr) kr</div>
+            <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over 2 timer = @Kr(run.CostKr) kr</div>
         }
         <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele opvasken endnu" : Verdict(rank))</div>
         <div class="now-tomorrow">
@@ -80,6 +89,15 @@ else
                 <span class="muted">I morgen: prisen kommer ca. kl. 13</span>
             }
         </div>
+        @if (run is not null && Dishes(start, 0) is { } newRun && Dishes(start, 1) is { } oldRun)
+        {
+            var diff = oldRun.CostKr - newRun.CostKr;
+            <div class="now-compare-machines">
+                <div class="@(_machine == 0 ? "on" : "")"><span>@Machines[0].Short</span><b>@Kr(newRun.CostKr) KR</b></div>
+                <div class="@(_machine == 1 ? "on" : "")"><span>@Machines[1].Short</span><b>@Kr(oldRun.CostKr) KR</b></div>
+            </div>
+            <div class="now-saving">Den nye sparer @Kr(diff) kr pr. opvask · ca. @((diff * CyclesPerYear).ToString("0", Da)) kr om året ved @CyclesPerYear opvask og samme pris</div>
+        }
         @if (picked is not null)
         {
             <button class="linkish small" @onclick="() => _selected = null">↺ Tilbage til nu</button>
@@ -132,10 +150,39 @@ else
     private List<PricePoint> _raw = [];
     private HouseholdSettings _s = new();
     // The free app prices one machine: a dishwasher, 1 kWh over 2 hours, each quarter at its own price.
-    private static readonly Appliance Dishwasher = new() { Name = "Opvaskemaskine", Icon = "🍽️", KwhPerRun = 1.0, DurationHours = 2 };
+    // Two fixed machines, always 2 hours (user's wish) so the prices compare like for like.
+    // New: Bosch SMD6TCX00E, energy class A, 54 kWh / 100 Eco cycles (EU energy label, EPREL).
+    // Old: a typical 15-20 year old machine on its normal programme, about 1.5 kWh.
+    private sealed record Machine(string Short, string Name, double Kwh);
+    private static readonly Machine[] Machines =
+    [
+        new("🌱 Ny sparemodel", "Bosch SMD6TCX00E (A, Eco)", 0.54),
+        new("🕰️ Gammel", "Gammel opvasker (ca. 2005)", 1.5),
+    ];
+    private const int CyclesPerYear = 280;   // the EU energy label's yearly basis
+    private int _machine;
 
-    private RunOption? Dishes(DateTime start) =>
-        _raw.Count == 0 ? null : PriceModel.CostOfRun(_raw, _s, Dishwasher, start);
+    private RunOption? Dishes(DateTime start) => Dishes(start, _machine);
+
+    private RunOption? Dishes(DateTime start, int machine) =>
+        _raw.Count == 0 ? null
+        : PriceModel.CostOfRun(_raw, _s, new Appliance { Name = Machines[machine].Name, KwhPerRun = Machines[machine].Kwh, DurationHours = 2 }, start);
+
+    private async Task PickMachineAsync(int i)
+    {
+        _machine = i;
+        await JS.InvokeVoidAsync("epUi.set", "machine", i.ToString(CultureInfo.InvariantCulture));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // First visit: find the grid company from the location at once.
+        if (_s.GridSupplierId.Length == 0) _ = InvokeAsync(LocateAsync);
+        if (await JS.InvokeAsync<string?>("epUi.get", "machine") == "1") { _machine = 1; StateHasChanged(); }
+    }
+
+    private static string Kwh(double v) => v.ToString("0.##", Da);
 
     private DateTime QuarterNow()
     {
