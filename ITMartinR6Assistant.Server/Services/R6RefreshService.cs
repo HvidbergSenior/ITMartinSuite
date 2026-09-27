@@ -498,7 +498,7 @@ public class R6RefreshService
             var topMaps = pro.Maps.Where(m => m.Value.Played >= 10 && m.Value.OperatorBanPct.GetValueOrDefault(o.Name) >= Math.Max(10, ban * 1.3))
                 .OrderByDescending(m => m.Value.OperatorBanPct[o.Name]).Take(3)
                 .Select(m => $"{m.Key} ({m.Value.OperatorBanPct[o.Name]:0} %)").ToList();
-            if (topMaps.Count > 0) why.Add($"Pro league banner ham mest på: {string.Join(", ", topMaps)}.");
+            if (topMaps.Count > 0) why.Add($"Pro league banner {o.Name} mest på: {string.Join(", ", topMaps)}.");
             if (o.CounteredBy.Count > 0) why.Add($"Kontres af: {string.Join(", ", o.CounteredBy)}.");
             o.TierWhy = why;
         }
@@ -534,8 +534,8 @@ public class R6RefreshService
                     foreach (var name in top)
                     {
                         var parts = new List<string>();
-                        if (MapRate(name) > 0) parts.Add($"Pro league banner ham på {map.Name} i {MapRate(name):0} % af kampene.");
-                        else if (Rate(name) > 0) parts.Add($"Pro league banner ham i {Rate(name)} % af alle kampe.");
+                        if (MapRate(name) > 0) parts.Add($"Pro league banner {name} på {map.Name} i {MapRate(name):0} % af kampene.");
+                        else if (Rate(name) > 0) parts.Add($"Pro league banner {name} i {Rate(name)} % af alle kampe.");
                         if (picks.Contains(name)) parts.Add("Bliver tit spillet på dette site.");
                         if (threat.TryGetValue(name, out var t) && t.Length > 0) parts.Add(t);
                         if (parts.Count == 0) parts.Add("Sjældent bannet af pro league - kun med for at fylde listen.");

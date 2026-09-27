@@ -175,6 +175,31 @@
         var ranked = _gameData.Maps.Any(m => m.IsRanked) ? _gameData.Maps.Where(m => m.IsRanked).ToList() : _gameData.Maps.ToList();
         <Fold Key="mapbans" Title="🗺 Map-ban" Class="mapban-card">
             <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det samme. Tallene er vores egne kampe. <b>Tryk p&aring; det map, vi ender med</b> &ndash; s&aring; handler Operator-bans om det map. Marker evt. de bannede med &#x2715;.</div>
+            @{ var proMaps = _gameData.Pro.Maps.Where(m => m.Value.Vetoes >= 10 && ranked.Any(r => r.Name.Equals(m.Key, StringComparison.OrdinalIgnoreCase))).ToList(); }
+            @if (proMaps.Count > 0)
+            {
+                <div class="box-grid">
+                    <div class="info-box">
+                        <div class="info-box-title">🏆 Pro league vælger oftest</div>
+                        <ol class="rank-list">
+                            @foreach (var m in proMaps.OrderByDescending(m => m.Value.PickPct))
+                            {
+                                <li><span class="rank-name">@m.Key</span><span class="rank-bar"><span style="width:@Bar(m.Value.PickPct, proMaps.Max(x => x.Value.PickPct))%"></span></span><b>@m.Value.PickPct.ToString("0") %</b></li>
+                            }
+                        </ol>
+                    </div>
+                    <div class="info-box info-box-bad">
+                        <div class="info-box-title">🚫 Pro league banner oftest</div>
+                        <ol class="rank-list">
+                            @foreach (var m in proMaps.OrderByDescending(m => m.Value.BanPct))
+                            {
+                                <li><span class="rank-name">@m.Key</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(m.Value.BanPct, proMaps.Max(x => x.Value.BanPct))%"></span></span><b>@m.Value.BanPct.ToString("0") %</b></li>
+                            }
+                        </ol>
+                    </div>
+                </div>
+                <div class="muted small" style="margin:4px 0 10px">Kilde: Liquipedia, @_gameData.Pro.Matches pro-kampe @_gameData.Pro.From?.ToString("MMM yyyy") &ndash; @_gameData.Pro.To?.ToString("MMM yyyy").</div>
+            }
             <ProTips Data="_gameData" Mode="mapbans" />
             <div class="mapban-grid">
                 @foreach (var map in ranked)
@@ -206,6 +231,18 @@
                             @if (_gameData.Pro.Maps.TryGetValue(name, out var pm) && pm.Vetoes >= 10)
                             {
                                 <div class="mapban-stats mapban-pro" title="Pro league (Liquipedia, sidste to år)">🏆 pick @pm.PickPct.ToString("0") % · ban @pm.BanPct.ToString("0") % · ATK @pm.AtkRoundPct.ToString("0") %</div>
+                            }
+                            @* Our rounds per site, and where to start. *@
+                            @foreach (var s in map.Sites)
+                            {
+                                var sr = Session.SiteRounds(name, s.Name);
+                                if (sr.Played == 0) continue;
+                                <div class="mapban-site"><span>@s.Name</span> <b class="@Cls(sr.WinPct)">@sr.Won–@(sr.Played - sr.Won) · @sr.WinPct %</b></div>
+                            }
+                            @{ var best = Session.BestSite(name, map.Sites.Select(s => s.Name), "Defense"); }
+                            @if (best is { } b)
+                            {
+                                <div class="mapban-start">🎯 DEF: start på <b>@b.Site</b> (@b.Pct % af @b.Rounds runder)</div>
                             }
                         </button>
                         <button class="mapban-play @(banned ? "mapban-play-banned" : "")" disabled="@(!Coach.CanControl)" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "↩ Fortryd ban" : "✕ Bannet")</button>
@@ -281,7 +318,53 @@
                 </div>
             </div>
             <div class="mapban-hint">Hver runde: ATK banner &eacute;n <b>defender</b>, DEF banner &eacute;n <b>attacker</b>. Vi er @(weAttack ? "ATK, så vi banner en defender" : "DEF, så vi banner en attacker"). Ban efter bombsite &ndash; tryk p&aring; det site, der er i spil.</div>
-            @if (opMap is not null) { <ProTips Data="_gameData" Mode="opbans" MapName="@opMap.Name" WeAttack="weAttack" /> }
+            @if (opMap is not null)
+            {
+                var best = Session.BestSite(opMap.Name, opMap.Sites.Select(s => s.Name), Session.Side);
+                var proBans = _gameData.Pro.Maps.TryGetValue(opMap.Name, out var pms)
+                    ? pms.OperatorBanPct.Where(kv => opsOfSide.Contains(kv.Key)).OrderByDescending(kv => kv.Value).Take(8).ToList()
+                    : new();
+                <div class="box-grid">
+                    <div class="info-box info-box-good">
+                        <div class="info-box-title">🎯 @(weAttack ? "Vores bedste ATK-site" : "Start med dette site")</div>
+                        @if (best is { } b)
+                        {
+                            <div class="info-box-big">@b.Site</div>
+                            <div class="small">Vi vinder <b>@b.Pct %</b> af vores @(weAttack ? "ATK" : "DEF")-runder her (@b.Rounds runder).</div>
+                        }
+                        else
+                        {
+                            <div class="small muted">Ingen site-data endnu. Vælg site hver runde og tryk ✅/❌ &ndash; så lærer appen, hvor vi vinder.</div>
+                        }
+                        <ul class="site-pct">
+                            @foreach (var s in opMap.Sites)
+                            {
+                                var sr = Session.SiteRounds(opMap.Name, s.Name);
+                                var n = weAttack ? sr.AtkWon + sr.AtkLost : sr.DefWon + sr.DefLost;
+                                var pct = weAttack ? sr.AtkPct : sr.DefPct;
+                                <li><span>@s.Name</span>@if (n > 0) { <b class="@Cls(pct)">@pct % <span class="muted">(@n)</span></b> } else { <span class="muted">–</span> }</li>
+                            }
+                        </ul>
+                    </div>
+                    @if (proBans.Count > 0)
+                    {
+                        <div class="info-box info-box-bad">
+                            <div class="info-box-title">🚫 Pro ban-rækkefølge på @opMap.Name</div>
+                            <ol class="rank-list rank-list-why">
+                                @foreach (var kv in proBans)
+                                {
+                                    var op = _gameData.Operators.FirstOrDefault(o => o.Name.Equals(kv.Key, StringComparison.OrdinalIgnoreCase));
+                                    <li>
+                                        <span class="rank-name">@kv.Key</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(kv.Value, proBans[0].Value)%"></span></span><b>@kv.Value.ToString("0") %</b>
+                                        @if (op is { Threat.Length: > 0 }) { <div class="rank-why">@op.Threat</div> }
+                                    </li>
+                                }
+                            </ol>
+                        </div>
+                    }
+                </div>
+                <ProTips Data="_gameData" Mode="opbans" MapName="@opMap.Name" WeAttack="weAttack" />
+            }
 
             @if (opMap is not null)
             {
@@ -292,7 +375,7 @@
                 <div class="opban-sites">
                     @foreach (var site in opMap.Sites)
                     {
-                        var st = Session.SiteStats(opMap.Name, site.Name);
+                        var st = Session.SiteRounds(opMap.Name, site.Name);
                         var active = Session.Site == site.Name;
                         var bans = site.SuggestedBans.Where(b => opsOfSide.Count == 0 || opsOfSide.Contains(b)).ToList();
                         var theirPicks = weAttack ? site.DefensePicks : site.AttackPicks;
@@ -302,7 +385,8 @@
                             <div class="opban-site-head" @onclick="() => ToggleSite(opMap.Name, site.Name)">
                                 <span class="opban-caret">@(isOpen ? "▾" : "▸")</span>
                                 <b>@site.Name</b> <span class="muted small">@site.Floor</span>
-                                <span class="opban-stat">@(site.AttackWinRate > 0 ? $"ATK win {site.AttackWinRate} %" : "")</span>
+                                @{ var ssr = Session.SiteRounds(opMap.Name, site.Name); }
+                                <span class="opban-stat">@(ssr.Played > 0 ? $"Vi: {ssr.Won}–{ssr.Played - ssr.Won} ({ssr.WinPct} %)" : "")</span>
                                 @if (!isOpen && site.MustBans.Any(b => bans.Contains(b))) { <span class="opban-must-name small">SKAL: @string.Join(", ", site.MustBans.Where(b => bans.Contains(b)))</span> }
                             </div>
                             @if (isOpen)
@@ -319,10 +403,11 @@
                                         }
                                     </div>
                                 }
+                                @if (site.Note.Length > 0) { <div class="info-box site-rule">📜 @site.Note</div> }
                                 <div class="opban-stat-row">
                                     @if (st.Played > 0)
                                     {
-                                        <span>Vi: @st.Won&ndash;@(st.Played - st.Won) (<b class="@Cls(st.WinPct)">@st.WinPct %</b>)</span>
+                                        <span>Vi: @st.Won&ndash;@(st.Played - st.Won) runder (<b class="@Cls(st.WinPct)">@st.WinPct %</b>)</span>
                                         <span>ATK-runder <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> (@st.AtkWon&ndash;@st.AtkLost)</span>
                                         <span>DEF-runder <b class="@Cls(st.DefPct)">@st.DefPct %</b> (@st.DefWon&ndash;@st.DefLost)</span>
                                     }
@@ -514,12 +599,14 @@
     private string _logNote = "";
     private bool _logSaved;
 
+    private static string Bar(double v, double max) => (max > 0 ? Math.Max(4, 100 * v / max) : 0).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
     private static string Cls(int pct) => pct >= 55 ? "good" : pct <= 45 ? "bad" : "";
 
     private void SaveMatch()
     {
         if (string.IsNullOrEmpty(_logMap) || _logWon is null) return;
-        Session.LogMatch(new MatchRecord { Map = _logMap, Site = _logSite, Won = _logWon.Value, AtkWon = _logAw, AtkLost = _logAl, DefWon = _logDw, DefLost = _logDl, Note = _logNote.Trim() });
+        Session.LogMatch(new MatchRecord { Map = _logMap, Site = _logSite, Won = _logWon.Value, AtkWon = _logAw, AtkLost = _logAl, DefWon = _logDw, DefLost = _logDl, Note = _logNote.Trim(),
+            Rounds = Session.Map == _logMap ? Session.Rounds.ToList() : new() });
         _logSaved = true;
         _logSite = ""; _logWon = null; _logAw = _logAl = _logDw = _logDl = 0; _logNote = "";
     }

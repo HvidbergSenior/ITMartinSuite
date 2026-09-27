@@ -51,10 +51,7 @@ else
 
         if (Mode == "mapbans")
         {
-            var picked = maps.OrderByDescending(m => m.Value.PickPct).Take(3).Select(m => $"<b>{m.Key}</b> ({P(m.Value.PickPct)})");
-            var banned = maps.OrderByDescending(m => m.Value.BanPct).Take(3).Select(m => $"<b>{m.Key}</b> ({P(m.Value.BanPct)})");
-            tips.Add($"Pro league vælger oftest: {string.Join(", ", picked)}.");
-            tips.Add($"Pro league banner oftest: {string.Join(", ", banned)}.");
+            // Pick/ban order is shown as ranked boxes on the map-ban card itself.
             var defMaps = maps.Where(m => m.Value.AtkRoundPct is > 0 and < 45).OrderBy(m => m.Value.AtkRoundPct).Take(3).Select(m => $"{m.Key} (ATK {P(m.Value.AtkRoundPct)})").ToList();
             if (defMaps.Count > 0) tips.Add($"Forsvaret vinder klart flest runder på: {string.Join(", ", defMaps)} &ndash; pro-hold banner dem, hvis de er stærkest i angreb.");
             var atkMaps = maps.Where(m => m.Value.AtkRoundPct >= 48).OrderByDescending(m => m.Value.AtkRoundPct).Take(3).Select(m => $"{m.Key} (ATK {P(m.Value.AtkRoundPct)})").ToList();

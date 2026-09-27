@@ -18,6 +18,8 @@ public class MatchRecord
     public int RoundsWon => AtkWon + DefWon;
     public int RoundsLost => AtkLost + DefLost;
     public string Note { get; set; } = "";
+    // The rounds as tapped during the match (side + site + won) - feeds the per-site win %. Empty for older logs.
+    public List<RoundResult> Rounds { get; set; } = new();
 }
 
 // Aggregate over logged matches for a map or a site.

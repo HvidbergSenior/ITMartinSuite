@@ -152,6 +152,8 @@ public class SessionStateService
         lock (_lock)
         {
             _team.Matches.Add(m);
+            // Its rounds now live in the log - drop the live copy so they are not counted twice.
+            if (m.Rounds.Count > 0) _rounds.Clear();
             SaveTeamSettings();
         }
         NotifyStateChanged();
@@ -179,6 +181,34 @@ public class SessionStateService
 
     public Domain.MapStats SiteStats(string map, string site) =>
         Aggregate(_team.Matches.Where(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase) && x.Site.Equals(site, StringComparison.OrdinalIgnoreCase)));
+
+    // Per-site round record (user: "pct win/lose on each map and on each site"): every round tapped won/lost is
+    // stored with its site, from logged matches plus the match running right now. Played/Won = rounds.
+    private IEnumerable<RoundResult> RoundsOn(string map)
+    {
+        var logged = _team.Matches.Where(x => x.Map.Equals(map, StringComparison.OrdinalIgnoreCase)).SelectMany(x => x.Rounds);
+        return Map is not null && Map.Equals(map, StringComparison.OrdinalIgnoreCase) ? logged.Concat(_rounds) : logged;
+    }
+
+    public Domain.MapStats SiteRounds(string map, string site)
+    {
+        var r = RoundsOn(map).Where(x => site.Equals(x.Site, StringComparison.OrdinalIgnoreCase)).ToList();
+        return r.Count == 0 ? Domain.MapStats.Empty : new Domain.MapStats(r.Count, r.Count(x => x.Won),
+            r.Count(x => x.Side == "Attack" && x.Won), r.Count(x => x.Side == "Attack" && !x.Won),
+            r.Count(x => x.Side != "Attack" && x.Won), r.Count(x => x.Side != "Attack" && !x.Won), null);
+    }
+
+    // "Start med dette site": the site where we win the most rounds on this side (needs 2+ rounds there).
+    public (string Site, int Pct, int Rounds)? BestSite(string map, IEnumerable<string> sites, string side)
+    {
+        var atk = side == "Attack";
+        return sites.Select(s => (s, st: SiteRounds(map, s)))
+            .Select(x => (x.s, won: atk ? x.st.AtkWon : x.st.DefWon, n: atk ? x.st.AtkWon + x.st.AtkLost : x.st.DefWon + x.st.DefLost))
+            .Where(x => x.n >= 2)
+            .OrderByDescending(x => (double)x.won / x.n).ThenByDescending(x => x.n)
+            .Select(x => ((string Site, int Pct, int Rounds)?)(x.s, 100 * x.won / x.n, x.n))
+            .FirstOrDefault();
+    }
 
     public void SetShowBanners(bool show)
     {

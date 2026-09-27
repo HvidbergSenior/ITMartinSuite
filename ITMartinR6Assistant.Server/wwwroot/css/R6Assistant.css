@@ -1868,3 +1868,31 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 /* Followers: buttons show state but can't be tapped - keep them fully readable, not greyed. */
 .follow-mode button:disabled { opacity: 1; cursor: default; }
 .follow-mode .opban-site-head, summary.fold-locked { cursor: default; }
+
+/* INFO BOXES - ranked pro lists, start-site, site rules (map-ban + operator-ban). */
+.box-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0; text-align: left; }
+.info-box { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; background: var(--bg-card2); padding: 12px 14px; }
+.info-box-good { border-left-color: #3fb950; }
+.info-box-bad { border-left-color: #f85149; }
+.info-box-title { font-weight: 800; font-size: 1rem; margin-bottom: 8px; }
+.info-box-big { font-size: 1.4rem; font-weight: 800; color: #3fb950; margin: 2px 0 4px; }
+.rank-list { margin: 0; padding-left: 1.6em; }
+.rank-list > li { display: grid; grid-template-columns: minmax(90px, 1fr) 1fr auto; gap: 8px; align-items: center; padding: 3px 0; }
+.rank-list > li::marker { font-weight: 700; color: var(--text-muted); }
+.rank-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-bar { height: 8px; border-radius: 4px; background: rgba(127,127,127,.18); overflow: hidden; }
+.rank-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.rank-bar-bad > span { background: #f85149; }
+.rank-list-why > li { padding: 5px 0; border-bottom: 1px solid var(--border); }
+.rank-list-why > li:last-child { border-bottom: 0; }
+.rank-why { grid-column: 1 / -1; font-size: .85rem; color: var(--text-muted); }
+.site-pct { list-style: none; margin: 8px 0 0; padding: 0; }
+.site-pct > li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-top: 1px solid var(--border); font-size: .9rem; }
+.site-rule { margin: 8px 0; border-left-color: var(--accent); font-size: .92rem; }
+.mapban-site { display: flex; justify-content: space-between; gap: 6px; font-size: .8rem; }
+.mapban-start { font-size: .8rem; color: #3fb950; margin-top: 2px; }
+/* Loadout suggestion + weapon tier chips (operator-valg). */
+.loadout-box .info-box-title { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.loadout-rec { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: rgba(63,185,80,.12); }
+.loadout-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+.wchip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: .85rem; background: var(--bg-card); }

@@ -1,0 +1,42 @@
+@using ITMartinR6Assistant.Domain
+@using ITMartinR6Assistant.Infrastructure
+@inject SessionStateService Session
+
+@* Suggested loadout for a picked operator (user: "when pushing an operator get suggested loadout like the weapons ..
+   S-tier, B-tier"). Weapons sorted by our weapon tier (TTK/DPS per class, from the data refresh); the team's
+   "Foretrukket" loadout from /loadouts wins if one is set. *@
+<div class="info-box loadout-box">
+    <div class="info-box-title">
+        <span class="opa-tier opa-tier-@Op.Tier.ToLowerInvariant()">@Op.Tier</span> @Op.Name
+        <span class="muted small">@Op.Armor-armor · @Op.Speed-speed</span>
+    </div>
+    @if (Op.Ability.Length > 0) { <div class="small"><b>Gadget:</b> @Op.Ability@(Op.Gadgets.Count > 0 ? " · " + string.Join(", ", Op.Gadgets) : "")</div> }
+    @{ var team = Session.GetDefaultLoadout(Op.Name); }
+    @if (!string.IsNullOrEmpty(team.Primary))
+    {
+        <div class="loadout-rec">⭐ Holdets valg: <b>@team.Primary</b>@(string.IsNullOrEmpty(team.Secondary) ? "" : " + " + team.Secondary)</div>
+    }
+    else if (Ranked(Op.Primaries).FirstOrDefault() is { } bestP)
+    {
+        <div class="loadout-rec">👉 Tag: <b>@bestP.Name</b>@(Ranked(Op.Secondaries).FirstOrDefault() is { } bestS ? " + " + bestS.Name : "")</div>
+    }
+    <div class="loadout-row"><span class="opban-label">Primær</span>
+        @foreach (var w in Ranked(Op.Primaries)) { <WeaponChip W="w" /> }
+        @foreach (var n in Op.Primaries.Where(n => Find(n) is null)) { <span class="wchip">@n</span> }
+    </div>
+    <div class="loadout-row"><span class="opban-label">Sekundær</span>
+        @foreach (var w in Ranked(Op.Secondaries)) { <WeaponChip W="w" /> }
+        @foreach (var n in Op.Secondaries.Where(n => Find(n) is null)) { <span class="wchip">@n</span> }
+    </div>
+    @if (Op.TierWhy.Count > 0) { <div class="rank-why">@Op.TierWhy[0]</div> }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
+    [Parameter, EditorRequired] public R6Operator Op { get; set; } = default!;
+
+    private const string TierOrder = "SABC";
+    private R6Weapon? Find(string n) => Data.Weapons.FirstOrDefault(w => w.Name.Equals(n, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<R6Weapon> Ranked(IEnumerable<string> names) => names.Select(Find).Where(w => w is not null)!
+        .OrderBy(w => TierOrder.IndexOf(w!.Tier) is var i && i >= 0 ? i : 9).ThenBy(w => w!.TtkMs > 0 ? w.TtkMs : int.MaxValue)!;
+}

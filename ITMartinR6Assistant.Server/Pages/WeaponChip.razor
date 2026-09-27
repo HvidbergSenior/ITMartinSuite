@@ -1,0 +1,9 @@
+@using ITMartinR6Assistant.Domain
+
+<span class="wchip" title="@(W.TtkMs > 0 ? $"TTK {W.TtkMs} ms · {W.Rpm} RPM · {W.Damage} skade" : W.Type)">
+    <span class="opa-tier opa-tier-@W.Tier.ToLowerInvariant()">@W.Tier</span> @W.Name
+</span>
+
+@code {
+    [Parameter, EditorRequired] public R6Weapon W { get; set; } = default!;
+}

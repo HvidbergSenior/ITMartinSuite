@@ -20,10 +20,42 @@
         </Fold>
     }
 
+    @if (Phase == MatchPhase.OperatorPick)
+    {
+        @* Who the top teams play here and why. Liquipedia has no pick data, so picks come from the current-season site
+           guides (r6coaching, Y11S3); tier + reason from the pro ban rates. *@
+        <div class="box-grid">
+            @foreach (var (side, label, cls) in new[] { (OurSide, "🟢 Vores side", "info-box-good"), (TheirSide, "🔴 Deres side", "info-box-bad") })
+            {
+                var picks = Ops(SitePicks(side)).ToList();
+                if (picks.Count == 0) picks = Ops(Roster(side)).Take(5).ToList();
+                <div class="info-box @cls">
+                    <div class="info-box-title">🏆 Top-picks @(Site is not null ? "på " + Site.Name : "(meta)") &ndash; @(side == "Attack" ? "ATK" : "DEF")</div>
+                    <ol class="rank-list rank-list-why">
+                        @foreach (var op in picks)
+                        {
+                            <li>
+                                <span class="rank-name">@op.Name</span><span></span><span class="opa-tier opa-tier-@op.Tier.ToLowerInvariant()">@op.Tier</span>
+                                <div class="rank-why">@(op.Ability.Length > 0 ? op.Ability + ". " : "")@(side == OurSide ? "" : op.Threat)</div>
+                            </li>
+                        }
+                    </ol>
+                    <div class="muted small">@label &middot; kilde: r6coaching Y11S3 site-guides + pro ban-rater (Liquipedia)</div>
+                </div>
+            }
+        </div>
+    }
+
     <Fold Key="round-ours" Title="@($"🟢 Hvem spiller vi? ({Session.OurOps.Count}/5)")" Class="round-card">
         @if (Phase == MatchPhase.OperatorPick || Session.OurOps.Count == 0)
         {
             <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" ReadOnly="!Coach.CanControl" />
+        }
+        @if (Phase == MatchPhase.OperatorPick && Session.OurOps.Count > 0)
+        {
+            <div class="box-grid">
+                @foreach (var op in Ops(Session.OurOps)) { <LoadoutSuggest Data="Data" Op="op" /> }
+            </div>
         }
         @if (Phase == MatchPhase.InGame)
         {
@@ -34,7 +66,7 @@
                     <div class="focus-op-head"><span class="opa-tier opa-tier-@op.Tier.ToLowerInvariant()">@op.Tier</span> <b>@op.Name</b>
                         <span class="muted small">@op.Armor-armor · @op.Speed-speed</span></div>
                     @if (op.Ability.Length > 0) { <div class="small"><b>Gadget:</b> @op.Ability@(op.Gadgets.Count > 0 ? " · " + string.Join(", ", op.Gadgets) : "")</div> }
-                    <div class="small"><b>Våben:</b> @string.Join(" / ", op.Primaries)</div>
+                    <div class="small"><b>Våben:</b> @foreach (var w in op.Primaries.Select(n => Data.Weapons.FirstOrDefault(x => x.Name.Equals(n, StringComparison.OrdinalIgnoreCase))).Where(x => x is not null).OrderBy(x => TierOrder.IndexOf(x!.Tier) is var i && i >= 0 ? i : 9)) { <WeaponChip W="w!" /> }</div>
                     @if (danger.Count > 0) { <div class="focus-warn">⚠ Kontres af deres @string.Join(", ", danger) &ndash; pas på.</div> }
                 </div>
             }
