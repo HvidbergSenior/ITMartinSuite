@@ -208,6 +208,18 @@
                                     <b><span class="atk-txt">@atk.ToString("0")</span>/<span class="def-txt">@((100 - atk).ToString("0"))</span></b></li>
                             }
                         </ol>
+                        @{ var noPro = ranked.Where(r => !proMaps.Any(p => p.Key.Equals(r.Name, StringComparison.OrdinalIgnoreCase))).ToList(); }
+                        @if (noPro.Count > 0)
+                        {
+                            <ul class="site-pct">
+                                @foreach (var r in noPro)
+                                {
+                                    var os = Session.MapStats(r.Name);
+                                    <li><span>@r.Name <span class="muted small">(ikke i pro-poolen)</span></span>
+                                        @if (os.AtkWon + os.AtkLost + os.DefWon + os.DefLost > 0) { <b>vores: <span class="atk-txt">@os.AtkPct</span>/<span class="def-txt">@os.DefPct</span></b> } else { <span class="muted">–</span> }</li>
+                                }
+                            </ul>
+                        }
                         <div class="muted small">ATK % / DEF % af pro-runderne. Øverst = bedst for angreb, nederst = forsvaret vinder.</div>
                     </div>
                 </div>
