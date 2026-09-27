@@ -5,7 +5,8 @@
 
 @* The round, and only the round (user: "when match starts focus on the map that has been selected and the ops
    that has been selected ... also opponents operators ... and site selections"). Op-pick: site + "Hvem spiller vi?".
-   In-game: our five and their five with gadgets, threats and who counters whom - nothing else. *@
+   In-game (user: only what is relevant during play): their ops -> our answer first, then our five as one line with
+   warnings. Gadget/weapon/loadout text is for op-pick. *@
 @if (Map is not null)
 {
     @if (Map.Sites.Count > 0 && (Phase == MatchPhase.OperatorPick || Session.Site is null))
@@ -47,6 +48,8 @@
         </div>
     }
 
+    @if (Phase == MatchPhase.OperatorPick)
+    {
     <Fold Key="round-ours" Title="@($"🟢 Hvem spiller vi? ({Session.OurOps.Count}/5)")" Class="round-card">
         @if (Phase == MatchPhase.OperatorPick || Session.OurOps.Count == 0)
         {
@@ -58,33 +61,20 @@
                 @foreach (var op in Ops(Session.OurOps)) { <LoadoutSuggest Data="Data" Op="op" /> }
             </div>
         }
-        @if (Phase == MatchPhase.InGame)
-        {
-            @foreach (var op in Ops(Session.OurOps))
-            {
-                var danger = op.CounteredBy.Where(Session.TheirOps.Contains).ToList();
-                <div class="focus-op">
-                    <div class="focus-op-head"><span class="opa-tier opa-tier-@op.Tier.ToLowerInvariant()">@op.Tier</span> <b>@op.Name</b>
-                        <span class="muted small">@op.Armor-armor · @op.Speed-speed</span></div>
-                    @if (op.Ability.Length > 0) { <div class="small"><b>Gadget:</b> @op.Ability@(op.Gadgets.Count > 0 ? " · " + string.Join(", ", op.Gadgets) : "")</div> }
-                    <div class="small"><b>Våben:</b> @foreach (var w in op.Primaries.Select(n => Data.Weapons.FirstOrDefault(x => x.Name.Equals(n, StringComparison.OrdinalIgnoreCase))).Where(x => x is not null).OrderBy(x => TierOrder.IndexOf(x!.Tier) is var i && i >= 0 ? i : 9)) { <WeaponChip W="w!" /> }</div>
-                    @if (danger.Count > 0) { <div class="focus-warn">⚠ Kontres af deres @string.Join(", ", danger) &ndash; pas på.</div> }
-                </div>
-            }
-            @if (Session.OurOps.Count > 0 && Coach.CanControl) { <button class="ref-tab" @onclick="() => _editOurs = !_editOurs">@(_editOurs ? "Færdig" : "Ret vores")</button> }
-            @if (_editOurs) { <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" ReadOnly="!Coach.CanControl" /> }
-        }
     </Fold>
+    }
 
     <Fold Key="round-theirs" Title="@($"🔴 Hvem spiller de? ({Session.TheirOps.Count}/5)")" Class="round-card" Open="Phase == MatchPhase.InGame">
-        <OpPicker Names="Roster(TheirSide)" Selected="Session.TheirOps" SitePicks="SitePicks(TheirSide)" OnToggle="Session.ToggleTheirOp" ReadOnly="!Coach.CanControl" />
+        @if (Phase != MatchPhase.InGame || Session.TheirOps.Count < 5 || _editTheirs)
+        {
+            <OpPicker Names="Roster(TheirSide)" Selected="Session.TheirOps" SitePicks="SitePicks(TheirSide)" OnToggle="Session.ToggleTheirOp" ReadOnly="!Coach.CanControl" />
+        }
+        else if (Coach.CanControl) { <button class="ref-tab" @onclick="() => _editTheirs = true">Ret deres</button> }
         @foreach (var op in Ops(Session.TheirOps))
         {
             var answers = op.CounteredBy.Where(n => Roster(OurSide).Contains(n)).ToList();
             <div class="focus-op focus-op-them">
-                <div class="focus-op-head"><span class="opa-tier opa-tier-@op.Tier.ToLowerInvariant()">@op.Tier</span> <b>@op.Name</b>
-                    <span class="muted small">@op.Armor-armor · @op.Speed-speed</span></div>
-                @if (op.Threat.Length > 0) { <div class="small">@op.Threat</div> }
+                <div class="focus-op-head"><b>@op.Name</b> <span class="muted small">@op.Threat</span></div>
                 @if (answers.Count > 0)
                 {
                     <div class="small"><b>Svar:</b>
@@ -94,13 +84,29 @@
             </div>
         }
     </Fold>
+
+    @if (Phase == MatchPhase.InGame)
+    {
+        @* In-game: our five as one line - you know your own operator; only the warnings matter. *@
+        <div class="info-box ours-line">
+            <b>🟢 Vi:</b>
+            @if (Session.OurOps.Count == 0) { <span class="muted">ikke valgt</span> }
+            @foreach (var op in Ops(Session.OurOps))
+            {
+                var danger = op.CounteredBy.Where(Session.TheirOps.Contains).ToList();
+                <span class="ours-op @(danger.Count > 0 ? "ours-op-warn" : "")" title="@(danger.Count > 0 ? "Kontres af " + string.Join(", ", danger) : "")">@op.Name@(danger.Count > 0 ? " ⚠ " + string.Join(", ", danger) : "")</span>
+            }
+            @if (Coach.CanControl) { <button class="ref-tab" @onclick="() => _editOurs = !_editOurs">@(_editOurs ? "Færdig" : "Ret")</button> }
+            @if (_editOurs) { <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" ReadOnly="!Coach.CanControl" /> }
+        </div>
+    }
 }
 
 @code {
     [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
     [Parameter] public MatchPhase Phase { get; set; }
 
-    private bool _editOurs;
+    private bool _editOurs, _editTheirs;
     private R6Map? Map => Data.Maps.FirstOrDefault(m => m.Name == Session.Map);
     private BombSite? Site => Map?.Sites.FirstOrDefault(s => s.Name == Session.Site);
     private string OurSide => Session.Side;

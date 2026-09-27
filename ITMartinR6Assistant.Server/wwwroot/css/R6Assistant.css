@@ -1901,3 +1901,7 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .split-bar { height: 10px; border-radius: 5px; background: #3b82f6; overflow: hidden; }
 .split-atk { display: block; height: 100%; background: #f59e0b; }
 .atk-txt { color: #f59e0b; } .def-txt { color: #3b82f6; }
+/* In-game: our five on one line, countered ones in red. */
+.ours-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.ours-op { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card); font-weight: 600; }
+.ours-op-warn { border-color: #f85149; color: #f85149; }

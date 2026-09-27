@@ -10,7 +10,7 @@
         @if (CurrentSite is null)
         {
             <MapViewer Map="CurrentMap" />
-            <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" />
+            @if (!InGame) { <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" /> }
             <div class="muted small">Vælg et site i operator-ban-fasen. Sites:</div>
             <ul class="opa-list">@foreach (var s in CurrentMap.Sites) { <li><b>@s.Name</b> (@s.Floor)@(s.Note.Length > 0 ? $" - {s.Note}" : "")</li> }</ul>
         }
@@ -22,12 +22,15 @@
                 <div style="flex:1 1 220px">
                     <div class="opa-line"><b>@s.Name</b> <span class="muted small">@s.Floor</span></div>
                     @if (s.QuickInfo.Count > 0) { <ol class="opban-quick">@foreach (var q in s.QuickInfo) { <li>@q</li> }</ol> }
-                    @if (s.Note.Length > 0) { <div class="opa-line"><b>Tip:</b> @s.Note</div> }
-                    <div class="opa-line"><span class="opban-label">Vi spiller typisk</span> @string.Join(", ", WeAttack ? s.AttackPicks : s.DefensePicks)</div>
-                    <div class="opa-line"><span class="opban-label">De spiller typisk</span> @string.Join(", ", WeAttack ? s.DefensePicks : s.AttackPicks)</div>
+                    @if (s.Note.Length > 0) { <div class="opa-line">📜 @s.Note</div> }
+                    @if (!InGame)
+                    {
+                        <div class="opa-line"><span class="opban-label">Vi spiller typisk</span> @string.Join(", ", WeAttack ? s.AttackPicks : s.DefensePicks)</div>
+                        <div class="opa-line"><span class="opban-label">De spiller typisk</span> @string.Join(", ", WeAttack ? s.DefensePicks : s.AttackPicks)</div>
+                    }
                 </div>
             </div>
-            <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" />
+            @if (!InGame) { <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" /> }
         }
     </Fold>
 }
@@ -43,5 +46,7 @@
     private BombSite? CurrentSite => CurrentMap?.Sites.FirstOrDefault(s => s.Name == SiteName);
 
     // Open by default where there's time to read: picking operators and in-game (while dead).
+    // In the round only the map and the site tip - pro numbers and typical picks are for the pre-phases.
+    private bool InGame => Phase == MatchPhase.InGame;
     private bool StartOpen => Phase is MatchPhase.OperatorPick or MatchPhase.InGame;
 }
