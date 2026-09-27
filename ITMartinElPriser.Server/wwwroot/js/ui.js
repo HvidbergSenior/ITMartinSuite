@@ -6,18 +6,30 @@ window.epUi = {
     set: function (key, value) {
         try { localStorage.setItem('ep_ui_' + key, value); } catch (e) { }
     },
-    // Opens remembered cards once each; Blazor adds them on every page change, so this
-    // also runs from a MutationObserver below.
+    // Every show/hide box remembers open/closed on the phone (user rule 2026-09-27). A box names
+    // itself with data-remember; any other box is keyed by page + its summary text.
+    // Blazor adds boxes on every page change, so this also runs from a MutationObserver below.
+    keyOf: function (d) {
+        if (d.dataset.remember) return d.dataset.remember;
+        var s = d.querySelector(':scope > summary');
+        return s ? location.pathname + '|' + s.textContent.trim().replace(/\s+/g, ' ').slice(0, 60) : null;
+    },
     restoreDetails: function () {
-        document.querySelectorAll('details[data-remember]:not([data-restored])').forEach(function (d) {
+        document.querySelectorAll('details:not([data-restored])').forEach(function (d) {
+            var key = epUi.keyOf(d);
+            if (!key) return;
             d.dataset.restored = '1';
-            if (epUi.get('open_' + d.dataset.remember) === '1') d.open = true;
+            var v = epUi.get('open_' + key);
+            if (v === '1') d.open = true;
+            else if (v === '0') d.open = false;
         });
     }
 };
 document.addEventListener('toggle', function (e) {
     var d = e.target;
-    if (d.tagName === 'DETAILS' && d.dataset.remember && d.dataset.restored) epUi.set('open_' + d.dataset.remember, d.open ? '1' : '0');
+    if (d.tagName !== 'DETAILS' || !d.dataset.restored) return;
+    var key = epUi.keyOf(d);
+    if (key) epUi.set('open_' + key, d.open ? '1' : '0');
 }, true);
 new MutationObserver(function () { epUi.restoreDetails(); }).observe(document.documentElement, { childList: true, subtree: true });
 epUi.restoreDetails();
