@@ -288,3 +288,8 @@ details.fold[open] summary::after { content: "－"; }
 .my-device summary::after { content: "＋"; margin-left: auto; color: var(--muted); }
 .my-device[open] summary::after { content: "－"; }
 .my-device-body { margin-top: 10px; }
+
+/* One machine, one price: the dishwasher line above, tomorrow's price below. */
+.now-device { color: var(--muted); font-size: .95rem; font-weight: 600; margin-bottom: 8px; }
+.now-tomorrow { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 1.1rem; display: flex; justify-content: center; gap: 10px; align-items: baseline; }
+.now-tomorrow b { font-size: 1.4rem; }

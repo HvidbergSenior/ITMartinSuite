@@ -176,3 +176,22 @@ a { color: var(--accent); text-decoration: none; }
     padding: 9px 12px; font-size: .85rem; margin-bottom: 12px;
     display: flex; justify-content: space-between; gap: 10px; align-items: center;
 }
+
+/* Planlæg (moved from the free ElPriser app 2026-09-27) */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip { padding: 10px 14px; border-radius: 100px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #1a1408; }
+.plan-result { text-align: center; }
+.plan-result .row2 { text-align: left; }
+.plan-when { font-size: 1.9rem; font-weight: 800; line-height: 1.15; }
+.plan-price { font-size: 1rem; font-weight: 600; margin: 6px 0 4px; }
+.chips-small { justify-content: center; }
+.chips-small .chip { padding: 7px 11px; font-size: .88rem; }
+.cost-rows { display: grid; gap: 4px; text-align: left; }
+.cost-row { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 12px; border-radius: 10px; background: var(--bg3); font-size: 1rem; }
+.cost-row b { font-variant-numeric: tabular-nums; font-size: 1.1rem; }
+.cost-row.best { outline: 2px solid var(--cheap); }
+.cost-row.best b { color: var(--cheap); }
+.fold-body { margin-top: 8px; }
+.fold-body p + p { margin-top: 8px; }
+.fold-body ul { padding-left: 18px; display: grid; gap: 6px; }
