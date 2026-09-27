@@ -304,3 +304,4 @@ details.fold[open] summary::after { content: "－"; }
 .now-compare-machines > div.on { outline: 2px solid var(--accent); }
 .now-compare-machines b { font-size: 1.15rem; }
 .now-saving { color: var(--cheap); font-weight: 600; font-size: .9rem; margin-top: 8px; }
+.bottom-nav a.nav-locked { opacity: .55; }

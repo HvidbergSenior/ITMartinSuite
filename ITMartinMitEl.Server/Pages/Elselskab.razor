@@ -1,0 +1,240 @@
+@page "/elselskab"
+@using System.Globalization
+@inject SupplierCatalog Catalog
+@inject IJSRuntime JS
+@inject HouseholdStore Store
+@inject GridTariffs Grids
+
+<PageTitle>Elselskab – MinElpris</PageTitle>
+
+<h1>🏢 Elselskab</h1>
+
+<PageHelp Key="help-elselskab">
+    <ul>
+        <li>Her kan du sammenligne <b>elselskaber</b> – dem der sælger dig strømmen. Det kan du frit skifte.</li>
+        <li><b>“ca. kr/år”</b> er kun den del der er forskellig fra selskab til selskab: tillæg pr. kWh, abonnement og gebyrer, inkl. moms. Spotpris, elafgift og nettarif er ens uanset hvem du køber hos.</li>
+        <li>Skriv dit <b>forbrug</b> (står på din regning – en typisk familie bruger 3.000–5.000 kWh om året) og vælg dit <b>nuværende</b> produkt, så viser vi hvad du kan spare.</li>
+        <li>Tryk på et selskab for alle detaljer og et link til produktet.</li>
+        <li>Korte introtilbud og særaftaler er ikke med, og kun produkter der passer til dit forbrug vises.</li>
+    </ul>
+</PageHelp>
+
+<div class="card">
+    <div class="row2">
+        <div class="field"><label>Dit forbrug, kWh om året</label><input type="number" min="100" max="50000" step="100" @bind="_kwh" @bind:after="SaveKwhAsync" /></div>
+    </div>
+    <div class="chips">
+        <button class="chip @(!_fixed ? "on" : "")" @onclick="() => _fixed = false">Variabel pris</button>
+        <button class="chip @(_fixed ? "on" : "")" @onclick="() => _fixed = true">Fast pris</button>
+    </div>
+    <div class="muted small">@(_fixed
+        ? "Fast pris: du betaler den samme pris pr. kWh i hele aftalens periode – inkl. selve strømmen. Kan ikke sammenlignes direkte med variabel."
+        : "Variabel pris: du betaler spotprisen time for time + selskabets tillæg. Det er her ElPriser-rådene om at flytte forbrug virker.")</div>
+</div>
+
+@if (_all is null)
+{
+    <div class="card"><div class="muted">Henter selskaber…</div></div>
+}
+else if (_all.Count == 0)
+{
+    <div class="card"><div class="muted">Listen over selskaber kan ikke hentes lige nu. Se <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</div></div>
+}
+else
+{
+    var list = _all.Where(p => p.Fixed == _fixed && (p.FitsFor(_kwh) || p.Id == _currentId)).OrderBy(p => p.YearlyKr(_kwh)).ToList();
+    var current = _all.FirstOrDefault(p => p.Id == _currentId);
+    var cheapest = list.FirstOrDefault();
+
+    @if (current is not null && cheapest is not null)
+    {
+        var diff = current.YearlyKr(_kwh) - cheapest.YearlyKr(_kwh);
+        <div class="card now-tile @(diff > 100 ? "lvl-expensive" : "lvl-cheap")">
+            <div class="small muted">Dit nuværende: <b>@current.Company – @current.Name</b></div>
+            <div class="now-price @(diff > 100 ? "lvl-expensive" : "lvl-cheap")">@Kr0(current.YearlyKr(_kwh)) kr/år</div>
+            @if (current.Fixed != _fixed)
+            {
+                <div class="now-compare">Dit produkt har @(current.Fixed ? "fast" : "variabel") pris – skift fanen ovenfor for at sammenligne med samme slags.</div>
+            }
+            else if (diff > 100)
+            {
+                <div class="now-advice">➜ Du kan spare ca. @Kr0(diff) kr om året</div>
+            }
+            else
+            {
+                <div class="now-advice lvl-cheap">➜ Du har et af de billigste produkter</div>
+            }
+        </div>
+    }
+
+    <div class="card sup-list">
+        @foreach (var (p, i) in list.Take(_showAll ? list.Count : 10).Select((p, i) => (p, i)))
+        {
+            <details class="sup @(p.Id == _currentId ? "mine" : "")">
+                <summary>
+                    <span class="sup-rank">@(i + 1)</span>
+                    <span class="sup-name"><b>@p.Company</b><span class="muted small">@p.Name@(p.Binding.Length > 0 ? " · binding" : "")</span></span>
+                    <span class="sup-cost">ca. @Kr0(p.YearlyKr(_kwh)) kr/år</span>
+                </summary>
+                <div class="sup-detail small">
+                    @if (p.Fixed)
+                    {
+                        <div class="appl-row"><span>Fast pris pr. kWh</span><b>@Ore(p.FixedKrPerKwh) øre</b></div>
+                    }
+                    else
+                    {
+                        <div class="appl-row"><span>Tillæg til spotprisen pr. kWh</span><b>@Ore(p.SurchargeKrPerKwh) øre</b></div>
+                    }
+                    <div class="appl-row"><span>Abonnement pr. måned</span><b>@Kr2(p.SubscriptionMonthly * SupplierProduct.Vat) kr</b></div>
+                    @if (p.FeesMonthly > 0)
+                    {
+                        <div class="appl-row"><span>Gebyrer pr. måned (fx betaling)</span><b>@Kr2(p.FeesMonthly * SupplierProduct.Vat) kr</b></div>
+                    }
+                    @if (p.CreationFee > 0)
+                    {
+                        <div class="appl-row"><span>Oprettelse (én gang)</span><b>@Kr2(p.CreationFee * SupplierProduct.Vat) kr</b></div>
+                    }
+                    <div class="appl-row"><span>Binding</span><b>@(p.Binding.Length > 0 ? p.Binding : "Ingen")</b></div>
+                    <div class="muted">Alle beløb inkl. moms.@(p.Updated is { } u ? $" Opdateret {u.ToLocalTime().ToString("d. MMM yyyy", Da)}." : "")</div>
+                    <div class="btn-row">
+                        @if (p.Id == _currentId)
+                        {
+                            <button class="btn" @onclick="() => SetCurrentAsync(null)">✓ Mit nuværende – fjern</button>
+                        }
+                        else
+                        {
+                            <button class="btn" @onclick="() => SetCurrentAsync(p.Id)">Det er mit nuværende</button>
+                        }
+                        @if (p.Link.Length > 0)
+                        {
+                            <a class="btn" href="@p.Link" target="_blank" rel="noopener">Se produktet ↗</a>
+                        }
+                    </div>
+                </div>
+            </details>
+        }
+        @if (!_showAll && list.Count > 10)
+        {
+            <button class="btn btn-block" @onclick="() => _showAll = true">Vis alle @list.Count</button>
+        }
+    </div>
+}
+
+<details class="card fold" data-remember="sup-howto">
+    <summary>🔁 Sådan skifter du elselskab</summary>
+    <div class="small fold-body">
+        <ul>
+            <li><b>Tjek din binding</b> hos det nuværende selskab – står i din aftale eller på “Mit overblik”.</li>
+            <li><b>Tilmeld dig det nye selskab</b> på deres hjemmeside. Du skal bruge adresse og evt. målernummer (står på regningen).</li>
+            <li><b>Det nye selskab klarer resten:</b> skiftet sker via Energinets DataHub, og det gamle selskab får besked automatisk. Du skal ikke opsige selv.</li>
+            <li><b>Strømmen går aldrig</b> – skiftet tager typisk få dage. Du får en slutregning fra det gamle selskab.</li>
+        </ul>
+    </div>
+</details>
+
+<details class="card fold" data-remember="sup-fixed">
+    <summary>⚖️ Fast eller variabel pris?</summary>
+    <div class="small fold-body">
+        <p><b>Variabel</b> følger spotprisen time for time. Den er som regel billigst i længden, og du kan spare mere ved at flytte forbrug til de billige timer – det er det ElPriser hjælper med.</p>
+        <p><b>Fast</b> giver den samme pris hele perioden. Du betaler for tryghed: prisen er typisk sat højere end den forventede spotpris, og du får intet ud af at flytte dit forbrug.</p>
+    </div>
+</details>
+
+<details class="card fold" data-remember="sup-mygrid">
+    <summary>🔌 Dit netselskab@(_gridName.Length > 0 ? $": {_gridName}" : "") – tarif i dag</summary>
+    <div class="small fold-body">
+        @if (_gridName.Length == 0)
+        {
+            <p>Skriv dit postnummer på forsiden (📍 øverst), så viser vi dit netselskabs tarif time for time.</p>
+        }
+        else if (_tariff.Count == 0)
+        {
+            <p class="muted">Tariffen kan ikke hentes lige nu.</p>
+        }
+        else
+        {
+            <p>Det betaler du til @_gridName for at få strømmen leveret – oven i selve strømmen. Samme pris uanset elselskab. Inkl. moms.</p>
+            <div class="cost-rows">
+                @foreach (var band in Bands())
+                {
+                    <div class="cost-row @(band.Ore <= _tariff.Min(x => x.OreInclVat) + 0.05 ? "best" : "")">
+                        <span>kl. @band.From.ToString("00")–@band.To.ToString("00")</span><b>@band.Ore.ToString("0.0", Da) øre/kWh</b>
+                    </div>
+                }
+            </div>
+            <p class="muted" style="margin-top:6px">Om vinteren (oktober–marts) er aftentimerne typisk flere gange dyrere end om sommeren.</p>
+        }
+    </div>
+</details>
+
+<details class="card fold" data-remember="sup-grid">
+    <summary>🔌 Hvorfor kan jeg ikke skifte netselskab?</summary>
+    <div class="small fold-body">
+        <p>Netselskabet (fx Radius/Cerius, N1, Trefor, Konstant) ejer kablerne til dit hus og har monopol i sit område. Deres del af regningen – <b>nettariffen</b> – er den samme uanset hvilket elselskab du vælger. Den er højest kl. 17–21, og det er den del du påvirker ved at flytte forbrug.</p>
+        <p>Læs mere om netselskaber og fleksibilitet under <a href="/groen">🌱 Grøn</a>.</p>
+    </div>
+</details>
+
+<a class="card cta-link" href="/regning">🧾 Forstå din elregning – linje for linje →</a>
+
+<p class="muted small" style="margin-top:8px">Data: <a href="https://stromligning.dk" target="_blank" rel="noopener">Strømligning</a> (CC BY-NC 4.0), opdateres dagligt. Den officielle sammenligning er <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> fra Forsyningstilsynet.</p>
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private List<SupplierProduct>? _all;
+    private double _kwh = 4000;
+    private bool _fixed;
+    private bool _showAll;
+    private string? _currentId;
+
+    private string _gridName = "";
+    private List<(int Hour, double OreInclVat)> _tariff = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _all = await Catalog.GetAsync();
+        var s = Store.Get().Settings;
+        _gridName = s.GridName;
+        if (s.GridSupplierId.Length > 0) _tariff = await Grids.TodayAsync(s.GridSupplierId);
+    }
+
+    private sealed record Band(int From, int To, double Ore);
+
+    // Neighbouring hours with the same tariff merged: "kl. 00–06 · 7,6 øre".
+    private List<Band> Bands()
+    {
+        var bands = new List<Band>();
+        foreach (var (h, ore) in _tariff)
+        {
+            if (bands.Count > 0 && Math.Abs(bands[^1].Ore - ore) < 0.05 && bands[^1].To == h) bands[^1] = bands[^1] with { To = h + 1 };
+            else bands.Add(new Band(h, h + 1, ore));
+        }
+        return bands;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // Consumption and "my current product" live on the phone only.
+        if (double.TryParse(await JS.InvokeAsync<string?>("epUi.get", "kwh"), CultureInfo.InvariantCulture, out var k)) _kwh = k;
+        _currentId = await JS.InvokeAsync<string?>("epUi.get", "current-product");
+        if (_all?.FirstOrDefault(p => p.Id == _currentId) is { } cur) _fixed = cur.Fixed;
+        StateHasChanged();
+    }
+
+    private async Task SaveKwhAsync()
+    {
+        _kwh = Math.Clamp(_kwh, 100, 50000);
+        await JS.InvokeVoidAsync("epUi.set", "kwh", _kwh.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private async Task SetCurrentAsync(string? id)
+    {
+        _currentId = id;
+        await JS.InvokeVoidAsync("epUi.set", "current-product", id ?? "");
+    }
+
+    private static string Kr0(double v) => v.ToString("#,##0", Da);
+    private static string Kr2(double v) => v.ToString("0.00", Da);
+    private static string Ore(double krExVat) => (krExVat * 100 * SupplierProduct.Vat).ToString("0.0", Da);
+}

@@ -1,0 +1,12 @@
+@* A page's own description, folded away: one tap to read it, and the phone remembers
+   whether it was left open (js/ui.js). Every page starts with one. *@
+<details class="page-help" data-remember="@Key">
+    <summary>ⓘ @Title</summary>
+    <div class="page-help-body">@ChildContent</div>
+</details>
+
+@code {
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+    [Parameter] public string Title { get; set; } = "Hvad viser siden?";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

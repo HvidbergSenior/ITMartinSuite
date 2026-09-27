@@ -39,6 +39,10 @@ builder.Services.AddKolibri(k =>
 // 30 min, the Eloverblik access token for 12 h) - a transient-per-request
 // registration would throw the cache away every call.
 builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
+// Grøn + Elselskab pages (moved from the free app 2026-09-27).
+builder.Services.AddSingleton(sp => new Co2Service(new HttpClient(), sp.GetRequiredService<ILogger<Co2Service>>()));
+builder.Services.AddSingleton(sp => new SupplierCatalog(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<SupplierCatalog>>()));
+builder.Services.AddSingleton(sp => new GridTariffs(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<GridTariffs>>()));
 // Accounts and per-household data (phase 2). The stores are resolved per request
 // from the signed-in user's household, so a page can only ever read its own home.
 var dbPath = builder.Configuration["MitEl:DbPath"]
