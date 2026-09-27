@@ -43,3 +43,22 @@ function epOpenHash() {
 }
 window.addEventListener('hashchange', function () { epHashDone = ''; epOpenHash(); });
 new MutationObserver(epOpenHash).observe(document.documentElement, { childList: true, subtree: true });
+
+// Install on the phone: keep the browser's install offer so the guide can show a real button.
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window._epInstall = e; });
+epUi.device = function () {
+    var ua = navigator.userAgent;
+    return {
+        installed: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+        ios: /iphone|ipad|ipod/i.test(ua),
+        pc: !/android|iphone|ipad|ipod|mobile/i.test(ua),
+        canPrompt: !!window._epInstall
+    };
+};
+epUi.install = async function () {
+    if (!window._epInstall) return false;
+    window._epInstall.prompt();
+    var r = await window._epInstall.userChoice;
+    window._epInstall = null;
+    return !!r && r.outcome === 'accepted';
+};

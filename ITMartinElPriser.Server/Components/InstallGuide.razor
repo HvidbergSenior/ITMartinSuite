@@ -1,0 +1,62 @@
+@inject IJSRuntime JS
+
+@* "Læg på telefonen" - the same three boxes as the Upload event page; the box for the device
+   you are on is already open. Hidden when the app already runs from the home screen. *@
+@if (_d is { Installed: false } d)
+{
+    <details class="card fold install-guide" data-remember="install">
+        <summary>📲 Læg ElPriser på @(d.Pc ? "skrivebordet" : "telefonen")</summary>
+        <div class="fold-body small">
+            <p>Så åbner prisen med ét tryk – som en app, uden at gå via browseren.</p>
+            <details class="install-dev" open="@d.Ios">
+                <summary>📱 iPhone</summary>
+                <ol>
+                    <li>Åbn siden i <b>Safari</b>.</li>
+                    <li>Tryk på <b>(⋯)</b> – de tre prikker i en cirkel nederst til højre – og vælg <b>Del</b> ⬆︎. <span class="muted">(Ældre iPhone: tryk direkte på Del ⬆︎ nederst.)</span></li>
+                    <li>Rul ned, vælg <b>Føj til hjemmeskærm</b> og tryk <b>Tilføj</b>.</li>
+                </ol>
+            </details>
+            <details class="install-dev" open="@(!d.Ios && !d.Pc)">
+                <summary>🤖 Android</summary>
+                @if (d.CanPrompt && !d.Pc)
+                {
+                    <button class="btn btn-primary btn-block" @onclick="InstallAsync">Installer ElPriser</button>
+                }
+                <ol>
+                    <li>Åbn siden i <b>Chrome</b>.</li>
+                    <li>Tryk på <b>⋮</b> øverst til højre.</li>
+                    <li>Vælg <b>Føj til startskærm</b> og tryk <b>Tilføj</b>.</li>
+                </ol>
+            </details>
+            <details class="install-dev" open="@d.Pc">
+                <summary>💻 PC</summary>
+                @if (d.CanPrompt && d.Pc)
+                {
+                    <button class="btn btn-primary btn-block" @onclick="InstallAsync">Installer ElPriser</button>
+                }
+                <ol>
+                    <li><b>Chrome:</b> ⋮ øverst til højre → <b>Cast, gem og del</b> → <b>Installer side som app</b>.</li>
+                    <li><b>Edge:</b> ··· øverst til højre → <b>Apps</b> → <b>Installer dette websted som en app</b>.</li>
+                </ol>
+            </details>
+        </div>
+    </details>
+}
+
+@code {
+    private sealed record Device(bool Installed, bool Ios, bool Pc, bool CanPrompt);
+    private Device? _d;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _d = await JS.InvokeAsync<Device>("epUi.device");
+        StateHasChanged();
+    }
+
+    private async Task InstallAsync()
+    {
+        if (await JS.InvokeAsync<bool>("epUi.install")) _d = _d! with { Installed = true };
+        else _d = _d! with { CanPrompt = false };
+    }
+}
