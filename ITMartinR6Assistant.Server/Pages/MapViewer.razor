@@ -13,6 +13,8 @@
 else
 {
     var thumbFloor = Site?.Floor ?? Floors.FirstOrDefault() ?? "1F";
+    @if (!Inline)
+    {
     <button class="mv-thumb" @onclick="() => Open(thumbFloor)" title="Åbn kortet - zoom og find dig selv">
         <img src="@Src(thumbFloor)" alt="@Map.Name @thumbFloor" loading="lazy" />
         @foreach (var s in Map.Sites.Where(s => s.Floor == thumbFloor && s.MarkerX.HasValue))
@@ -21,10 +23,11 @@ else
         }
         <span class="opban-bp-cap">@thumbFloor &middot; tryk for at zoome</span>
     </button>
+    }
 
     @if (_open)
     {
-        <div class="mv-overlay" @onclick:stopPropagation="true">
+        <div class="@(Inline && !_full ? "mv-inline" : "mv-overlay")" @onclick:stopPropagation="true">
             <div class="mv-bar">
                 <b>@Map.Name</b>
                 @foreach (var f in Floors)
@@ -41,7 +44,8 @@ else
                 <button class="ref-tab" @onclick="() => Zoom(1.4)">+</button>
                 <button class="ref-tab" @onclick="() => Zoom(1 / 1.4)">−</button>
                 <button class="ref-tab" @onclick="Reset">⟲</button>
-                <button class="ref-tab" @onclick="Close">✕ Luk</button>
+                @if (Inline) { <button class="ref-tab" @onclick="ToggleFull">@(_full ? "⤡ Mindre" : "⛶ Fuld skærm")</button> }
+                else { <button class="ref-tab" @onclick="Close">✕ Luk</button> }
             </div>
             @if (_naming)
             {
@@ -90,6 +94,20 @@ else
 @code {
     [Parameter, EditorRequired] public R6Map Map { get; set; } = default!;
     [Parameter] public BombSite? Site { get; set; }
+    // In the round (user: "large view of the floors with room names, so you can see where you are - during match"):
+    // the viewer sits open on the page instead of behind a thumbnail, on the chosen site's floor.
+    [Parameter] public bool Inline { get; set; }
+    private bool _full;
+    private string? _lastSite;
+
+    protected override void OnParametersSet()
+    {
+        if (!Inline || string.IsNullOrEmpty(Map.BlueprintSlug)) return;
+        if (!_open) { _open = true; _needsInit = true; _floor = Site?.Floor ?? "1F"; _lastSite = Site?.Name; }
+        else if (Site?.Name != _lastSite) { _lastSite = Site?.Name; if (Site is not null) SetFloor(Site.Floor); }
+    }
+
+    private async Task ToggleFull() { _full = !_full; await Task.Yield(); await Reset(); }
 
     private static readonly string[] FloorOrder = { "B", "1F", "2F", "3F", "Tag" };
     private bool _open;

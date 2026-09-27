@@ -1905,3 +1905,8 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .ours-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
 .ours-op { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card); font-weight: 600; }
 .ours-op-warn { border-color: #f85149; color: #f85149; }
+/* In-game map: the viewer embedded large on the page (dark stage, floor tabs, room names). */
+.mv-inline { position: relative; display: flex; flex-direction: column; height: min(78vh, 900px); margin: 8px 0; border-radius: 12px; overflow: hidden; background: #0b0d10; color: #fff; border: 1px solid var(--border); }
+.mv-inline .mv-img img { max-width: 100%; max-height: calc(min(78vh, 900px) - 110px); }
+.mv-inline .mv-room { font-size: 11px; }
+.mv-inline .mv-bar { flex-wrap: wrap; }

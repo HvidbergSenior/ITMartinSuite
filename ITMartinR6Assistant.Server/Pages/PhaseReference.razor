@@ -7,7 +7,12 @@
 {
     <Fold Key="kort-site" Class="ref-panel" Open="StartOpen" Title="@($"🗺 Kort & site: {CurrentMap.Name}{(CurrentSite is not null ? " · " + CurrentSite.Name : "")}{(Phase == MatchPhase.InGame ? " – død? læs op her" : "")}")">
 
-        @if (CurrentSite is null)
+        @if (InGame)
+        {
+            <MapViewer Map="CurrentMap" Site="CurrentSite" Inline="true" />
+            @if (CurrentSite is { Note.Length: > 0 } cs) { <div class="opa-line">📜 @cs.Note</div> }
+        }
+        else if (CurrentSite is null)
         {
             <MapViewer Map="CurrentMap" />
             @if (!InGame) { <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" /> }
