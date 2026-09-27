@@ -505,14 +505,18 @@ public class R6RefreshService
         data.Tiers = data.Operators.Where(o => o.Tier.Length > 0).ToDictionary(o => o.Name, o => o.Tier, StringComparer.OrdinalIgnoreCase);
     }
 
-    // 10 bans per side per site: "SKAL bannes" first (pro ban rate >= 30 %), then what the pro league bans on
-    // this map, then the site's typical picks, then the rest by pro ban rate. Every ban gets a reason.
+    // Per SITE (user: "it says the same five on each bomb site - 10 to ban and 10 to pick, and why, FOR EACH
+    // BOMBSITE"). The site decides the order, the pro/global ban rate only breaks ties:
+    //   ban  = they play it on this site (+100), it shuts down our site picks (+25 each), pro ban % on the map.
+    //   pick = our typical pick on this site (+100), it counters their site picks (+25 each), tier, pro rate.
+    // 10 bans + 10 picks per side, every one with a reason. "SKAL bannes" = played here AND pro bans it >= 30 %.
     public static void RecomputeBans(R6GameData data)
     {
         int Rate(string n) => data.BanRates.TryGetValue(n, out var r) ? r : 0;
-        bool Must(string n) => Rate(n) >= MustBanRate;
+        var ops = data.Operators.ToDictionary(o => o.Name, StringComparer.OrdinalIgnoreCase);
         var bySide = data.Operators.GroupBy(o => o.Side).ToDictionary(g => g.Key, g => g.Select(o => o.Name).ToList());
-        var threat = data.Operators.ToDictionary(o => o.Name, o => o.Threat, StringComparer.OrdinalIgnoreCase);
+        static int TierScore(string t) => t switch { "S" => 30, "A" => 20, "B" => 10, _ => 0 };
+        static string Other(string side) => side == "Attack" ? "Defense" : "Attack";
 
         foreach (var map in data.Maps)
         {
@@ -520,32 +524,67 @@ public class R6RefreshService
             double MapRate(string n) => mapPro is { Played: >= 5 } ? mapPro.OperatorBanPct.GetValueOrDefault(n) : 0;
             foreach (var site in map.Sites)
             {
+                List<string> PicksOf(string side) => side == "Attack" ? site.AttackPicks : site.DefensePicks;
+                // Which of these site picks does `name` counter (they list `name` in CounteredBy)?
+                List<string> Counters(string name, IEnumerable<string> targets) =>
+                    targets.Where(t => ops.TryGetValue(t, out var o) && o.CounteredBy.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList();
+
                 var bans = new List<string>();
-                var reasons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var (side, picks) in new[] { ("Defense", site.DefensePicks), ("Attack", site.AttackPicks) })
+                var banWhy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var must = new List<string>();
+                var picks = new List<string>();
+                var pickWhy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var side in new[] { "Defense", "Attack" })
                 {
                     if (!bySide.TryGetValue(side, out var roster)) continue;
-                    var top = roster.Where(Must).OrderByDescending(MapRate).ThenByDescending(Rate)
-                        .Concat(roster.Where(n => MapRate(n) >= 5).OrderByDescending(MapRate))
-                        .Concat(picks.Where(roster.Contains).OrderByDescending(Rate))
-                        .Concat(roster.OrderByDescending(Rate).ThenByDescending(MapRate))
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .Take(10);
-                    foreach (var name in top)
+                    var theirs = PicksOf(side);          // when banning `side`, these are the enemy's picks here
+                    var ours = PicksOf(Other(side));     // ... and these are ours
+
+                    // --- bans of `side` operators ---
+                    foreach (var name in roster
+                                 .OrderByDescending(n => (theirs.Contains(n, StringComparer.OrdinalIgnoreCase) ? 100 : 0)
+                                                         + 25 * Counters(n, ours).Count + 0.5 * MapRate(n) + 0.2 * Rate(n))
+                                 .ThenBy(n => n).Take(10))
                     {
                         var parts = new List<string>();
-                        if (MapRate(name) > 0) parts.Add($"Pro league banner {name} på {map.Name} i {MapRate(name):0} % af kampene.");
+                        var played = theirs.Contains(name, StringComparer.OrdinalIgnoreCase);
+                        var stops = Counters(name, ours);
+                        if (played) parts.Add($"Spilles typisk på {site.Name}.");
+                        if (stops.Count > 0) parts.Add($"Ødelægger vores {string.Join(" og ", stops)} her.");
+                        if (MapRate(name) > 0) parts.Add($"Pro league banner {name} på {map.Name} i {MapRate(name):0} %.");
                         else if (Rate(name) > 0) parts.Add($"Pro league banner {name} i {Rate(name)} % af alle kampe.");
-                        if (picks.Contains(name)) parts.Add("Bliver tit spillet på dette site.");
-                        if (threat.TryGetValue(name, out var t) && t.Length > 0) parts.Add(t);
-                        if (parts.Count == 0) parts.Add("Sjældent bannet af pro league - kun med for at fylde listen.");
-                        reasons[name] = string.Join(" ", parts);
+                        if (ops.TryGetValue(name, out var o) && o.Threat.Length > 0) parts.Add(o.Threat);
+                        banWhy[name] = string.Join(" ", parts);
                         bans.Add(name);
+                        if (played && Math.Max(MapRate(name), Rate(name)) >= MustBanRate) must.Add(name);
+                    }
+
+                    // --- picks for `side` (we are `side`, they are the other side) ---
+                    var enemy = PicksOf(Other(side));
+                    var mine = PicksOf(side);
+                    foreach (var name in roster
+                                 .OrderByDescending(n => (mine.Contains(n, StringComparer.OrdinalIgnoreCase) ? 100 : 0)
+                                                         + 25 * Counters(n, enemy).Count + TierScore(ops[n].Tier) + 0.2 * MapRate(n))
+                                 .ThenBy(n => n).Take(10))
+                    {
+                        var o = ops[name];
+                        var parts = new List<string>();
+                        if (mine.Contains(name, StringComparer.OrdinalIgnoreCase)) parts.Add($"Typisk pick på {site.Name}.");
+                        var beats = Counters(name, enemy);
+                        if (beats.Count > 0) parts.Add($"Kontrer deres {string.Join(" og ", beats)}.");
+                        if (o.Tier.Length > 0) parts.Add($"{o.Tier}-tier.");
+                        if (o.Ability.Length > 0) parts.Add($"Gadget: {o.Ability}.");
+                        if (MapRate(name) >= 20) parts.Add($"Bannes tit her ({MapRate(name):0} %) - hav en reserve.");
+                        pickWhy[name] = string.Join(" ", parts);
+                        picks.Add(name);
                     }
                 }
                 site.SuggestedBans = bans;
-                site.MustBans = bans.Where(Must).ToList();
-                site.BanReasons = reasons;
+                site.MustBans = must;
+                site.BanReasons = banWhy;
+                site.PickSuggestions = picks;
+                site.PickReasons = pickWhy;
             }
         }
     }

@@ -27,16 +27,17 @@
         <div class="box-grid">
             @foreach (var (side, label, cls) in new[] { (OurSide, "🟢 Vores side", "info-box-good"), (TheirSide, "🔴 Deres side", "info-box-bad") })
             {
-                var picks = Ops(SitePicks(side)).ToList();
-                if (picks.Count == 0) picks = Ops(Roster(side)).Take(5).ToList();
+                // The site's 10 computed picks for this side (with reasons); no site yet = best tiers.
+                var picks = Site is not null ? Ops(Site.PickSuggestions).Where(o => o.Side == side).ToList() : new();
+                if (picks.Count == 0) picks = Ops(Roster(side)).Take(10).ToList();
                 <div class="info-box @cls">
-                    <div class="info-box-title">🏆 Top-picks @(Site is not null ? "på " + Site.Name : "(meta)") &ndash; @(side == "Attack" ? "ATK" : "DEF")</div>
+                    <div class="info-box-title">🏆 10 bedste picks @(Site is not null ? "på " + Site.Name : "(meta)") &ndash; @(side == "Attack" ? "ATK" : "DEF")</div>
                     <ol class="rank-list rank-list-why">
                         @foreach (var op in picks)
                         {
                             <li>
                                 <span class="rank-name">@op.Name</span><span></span><span class="opa-tier opa-tier-@op.Tier.ToLowerInvariant()">@op.Tier</span>
-                                <div class="rank-why">@(op.Ability.Length > 0 ? op.Ability + ". " : "")@(side == OurSide ? "" : op.Threat)</div>
+                                <div class="rank-why">@(Site is not null && Site.PickReasons.TryGetValue(op.Name, out var why) ? why : op.Ability)@(side == OurSide ? "" : " " + op.Threat)</div>
                             </li>
                         }
                     </ol>

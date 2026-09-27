@@ -378,8 +378,6 @@
                         var st = Session.SiteRounds(opMap.Name, site.Name);
                         var active = Session.Site == site.Name;
                         var bans = site.SuggestedBans.Where(b => opsOfSide.Count == 0 || opsOfSide.Contains(b)).ToList();
-                        var theirPicks = weAttack ? site.DefensePicks : site.AttackPicks;
-                        var ourPicks = weAttack ? site.AttackPicks : site.DefensePicks;
                         var isOpen = (Coach.Synced ? Session.OpenSites : _openSites).Contains(opMap.Name + "|" + site.Name);
                         <div class="opban-site @(active ? "opban-site-active" : "") @(isOpen ? "opban-site-open" : "")">
                             <div class="opban-site-head" @onclick="() => ToggleSite(opMap.Name, site.Name)">
@@ -413,26 +411,38 @@
                                     }
                                     else { <span class="muted">Vi har ikke spillet dette site endnu</span> }
                                 </div>
-                                @if (bans.Count == 0)
-                                {
-                                    <div class="opban-line"><span class="opban-label">Ban:</span> –</div>
-                                }
-                                else
-                                {
-                                    <div class="opban-line"><span class="opban-label">Ban i denne rækkefølge</span></div>
-                                    <ol class="opban-list">
-                                        @foreach (var b in bans)
-                                        {
-                                            var must = site.MustBans.Contains(b, StringComparer.OrdinalIgnoreCase);
-                                            <li class="@(must ? "opban-must" : "")">
-                                                <b>@b</b>@if (must) { <span class="opban-must-tag">SKAL bannes</span> }
-                                                @if (site.BanReasons.TryGetValue(b, out var why)) { <div class="opban-why">@why</div> }
-                                            </li>
-                                        }
-                                    </ol>
-                                }
-                                <div class="opban-line"><span class="opban-label">De spiller typisk:</span> @(theirPicks.Count > 0 ? string.Join(", ", theirPicks) : "–")</div>
-                                <div class="opban-line"><span class="opban-label">Vi spiller typisk:</span> @(ourPicks.Count > 0 ? string.Join(", ", ourPicks) : "–")</div>
+                                var ourSide = weAttack ? "Attack" : "Defense";
+                                var pickList = site.PickSuggestions.Where(n => _gameData.Operators.Any(o => o.Side == ourSide && o.Name.Equals(n, StringComparison.OrdinalIgnoreCase))).ToList();
+                                <div class="box-grid">
+                                    <div class="info-box info-box-bad">
+                                        <div class="info-box-title">🚫 Ban @(weAttack ? "en defender" : "en attacker") &ndash; i denne rækkefølge</div>
+                                        @if (bans.Count == 0) { <div class="muted small">Ingen forslag endnu.</div> }
+                                        <ol class="opban-list">
+                                            @foreach (var b in bans)
+                                            {
+                                                var must = site.MustBans.Contains(b, StringComparer.OrdinalIgnoreCase);
+                                                <li class="@(must ? "opban-must" : "")">
+                                                    <b>@b</b>@if (must) { <span class="opban-must-tag">SKAL bannes</span> }
+                                                    @if (site.BanReasons.TryGetValue(b, out var why)) { <div class="opban-why">@why</div> }
+                                                </li>
+                                            }
+                                        </ol>
+                                    </div>
+                                    <div class="info-box info-box-good">
+                                        <div class="info-box-title">✅ Vi vælger &ndash; @(weAttack ? "ATK" : "DEF") på @site.Name</div>
+                                        @if (pickList.Count == 0) { <div class="muted small">Ingen forslag endnu.</div> }
+                                        <ol class="opban-list">
+                                            @foreach (var n in pickList)
+                                            {
+                                                var banned = Session.Bans.Contains(n);
+                                                <li class="@(banned ? "pick-banned" : "")">
+                                                    <b>@n</b>@if (banned) { <span class="opban-must-tag">bannet</span> }
+                                                    @if (site.PickReasons.TryGetValue(n, out var pwhy)) { <div class="opban-why">@pwhy</div> }
+                                                </li>
+                                            }
+                                        </ol>
+                                    </div>
+                                </div>
                             }
                         </div>
                     }

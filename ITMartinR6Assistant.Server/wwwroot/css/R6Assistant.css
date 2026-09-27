@@ -1896,3 +1896,4 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .loadout-rec { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: rgba(63,185,80,.12); }
 .loadout-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
 .wchip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: .85rem; background: var(--bg-card); }
+.pick-banned > b { text-decoration: line-through; opacity: .6; }
