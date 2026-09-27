@@ -76,6 +76,9 @@ public sealed class Appliance
     public double RunsPerWeek { get; set; } = 3;
     public int SortOrder { get; set; }
 
+    // Set from a photo of the rating plate / energy label (MinElpris: camera only, not editable).
+    public PhotoFacts? Photo { get; set; }
+
     // Optional programs (30/40/60/90 °C, Eco/Normal). When there are any, the
     // flat fields above are kept in sync as the weekly mix (see
     // SyncFromPrograms), so everything that only knows "one run" still adds
@@ -107,7 +110,7 @@ public sealed class Appliance
 
     public Appliance Clone() => new()
     {
-        Id = Id, Name = Name, Icon = Icon, Model = Model, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = SortOrder,
+        Id = Id, Name = Name, Icon = Icon, Model = Model, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = SortOrder, Photo = Photo,
         Programs = Programs.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.KwhPerRun, DurationHours = p.DurationHours, RunsPerWeek = p.RunsPerWeek }).ToList(),
     };
 
@@ -117,6 +120,21 @@ public sealed class Appliance
         new() { Name = "Opvaskemaskine", Icon = "🍽️", KwhPerRun = 1.2, DurationHours = 2, RunsPerWeek = 5, SortOrder = 1 },
         new() { Name = "Tørretumbler", Icon = "🌀", KwhPerRun = 2.5, DurationHours = 1.5, RunsPerWeek = 2, SortOrder = 2 },
     ];
+}
+
+// What a photo of the plate or energy label told us, plus the energy-saving model it is compared with.
+public sealed class PhotoFacts
+{
+    public string Brand { get; set; } = "";
+    public string EnergyClass { get; set; } = "";
+    // What the label or the AI says it uses in a year at normal use.
+    public double KwhPerYear { get; set; }
+    public string Note { get; set; } = "";
+    // A new energy-saving model of the same kind, for "what you could save".
+    public string NewModelName { get; set; } = "";
+    public double NewModelKwhPerYear { get; set; }
+    public string NewModelSource { get; set; } = "";
+    public DateTime TakenUtc { get; set; } = DateTime.UtcNow;
 }
 
 // One program on a machine, e.g. "40 °C" at 0.7 kWh over 2 hours.
@@ -149,6 +167,9 @@ public sealed class Device
     public int? UsualFromHour { get; set; }
     public bool Shiftable { get; set; }
     public int SortOrder { get; set; }
+
+    // Set from a photo of the rating plate / energy label (MinElpris: camera only, not editable).
+    public PhotoFacts? Photo { get; set; }
 
     public double KwhPerDay => Watts / 1000.0 * Math.Clamp(HoursPerDay, 0, 24) * Math.Clamp(DaysPerWeek, 0, 7) / 7.0;
     public double KwhPerYear => KwhPerDay * 365;

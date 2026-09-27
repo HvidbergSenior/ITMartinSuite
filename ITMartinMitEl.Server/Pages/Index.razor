@@ -46,6 +46,7 @@
 @using System.Globalization
 @inject ElectricityPriceService Prices
 @inject HouseholdStore Store
+@inject PhotoReader Photos
 @inject RunLogService RunLog
 @inject ConsumptionStore Consumption
 @implements IDisposable
@@ -132,6 +133,10 @@ else
 
     <details class="card fold" open>
         <summary class="card-title">Dine maskiner</summary>
+        @* Camera only: a photo of the display when you start a machine logs the run; "3h" on a
+           delay-start display starts it three hours from now. No buttons with typed times. *@
+        <CameraButton Text="📷 Jeg starter en maskine" BusyText="Læser displayet…" Busy="_readingStart" OnPhoto="StartFromPhotoAsync" />
+        @if (_startMessage is { } sm) { <div class="small @(_startOk ? "lvl-cheap" : "err")" style="margin:8px 0">@sm</div> }
         @foreach (var a in _snap.Appliances)
         {
             <div class="appl">
@@ -167,26 +172,13 @@ else
                 {
                     <div class="appl-row"><span>I morgen kl. @tm.Start.ToString("HH:mm")</span><b>@tm.CostKr.ToString("0.00") kr</b></div>
                 }
-                <div class="run-row">
-                    @if (_logged.TryGetValue(a.Appliance.Id, out var done))
-                    {
-                        <span class="ok">✓ Registreret kl. @done.StartedAt.ToString("HH:mm") – @done.CostKr.ToString("0.00") kr</span>
-                    }
-                    else if (_pickTime == a.Appliance.Id)
-                    {
-                        <input type="time" @bind="_pickedTime" step="900" />
-                        <button class="btn btn-small btn-primary" @onclick="() => LogAsync(a.Appliance, _pickedTime)">Registrér</button>
-                        <button class="btn btn-small" @onclick="() => _pickTime = null">Luk</button>
-                    }
-                    else
-                    {
-                        <button class="btn btn-small btn-primary" @onclick="() => LogAsync(a.Appliance, null)">▶ Startet nu</button>
-                        <button class="btn btn-small" @onclick="() => { _pickTime = a.Appliance.Id; _pickedTime = TimeOnly.FromDateTime(DkTime.Now); }">Anden tid</button>
-                    }
-                </div>
+                @if (_logged.TryGetValue(a.Appliance.Id, out var done))
+                {
+                    <div class="run-row"><span class="ok">✓ Registreret @done.ApplianceName kl. @done.StartedAt.ToString("HH:mm") – @done.CostKr.ToString("0.00") kr</span></div>
+                }
             </div>
         }
-        <div class="muted small" style="margin-top:8px">Prisen er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris. Ret maskinerne under Indstillinger.</div>
+        <div class="muted small" style="margin-top:8px">Prisen er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris. Nye maskiner tilføjes med 📷 under <a href="/enheder">Enheder</a>.</div>
     </details>
 
     <div class="card">
@@ -242,8 +234,6 @@ else
     private DateTime? _selected;
     private Timer? _timer;
     private readonly Dictionary<Guid, RunEntry> _logged = new();
-    private Guid? _pickTime;
-    private TimeOnly _pickedTime;
     private string _address = "";
     private HomeSummary? _home;
 
@@ -301,13 +291,36 @@ else
             bill.Kwh, bill.TotalKr, bill.DaysMeasured > 0 ? bill.ProjectedKr : 0, lastRun);
     }
 
-    private async Task LogAsync(Appliance a, TimeOnly? at)
+    private bool _readingStart, _startOk;
+    private string? _startMessage;
+
+    private async Task StartFromPhotoAsync((byte[] Bytes, string Mime) photo)
     {
-        var start = at is { } t ? DkTime.Now.Date.Add(t.ToTimeSpan()) : DkTime.Now;
-        var entry = await RunLog.LogAsync(a.Id, start, a.Programs.Count > 0 ? ProgramOf(a) : null);
-        if (entry is not null) _logged[a.Id] = entry;
-        _pickTime = null;
-        await LoadHomeAsync();
+        _readingStart = true; _startMessage = null;
+        StateHasChanged();
+        try
+        {
+            var machines = Store.Get().Appliances;
+            var read = await Photos.ReadStartAsync(photo.Bytes, photo.Mime, machines);
+            var start = DkTime.Now.AddHours(read.DelayHours);
+            var entry = await RunLog.LogAsync(read.ApplianceId!.Value, start, read.Program);
+            if (entry is null)
+            {
+                _startOk = false;
+                _startMessage = $"Så {read.Note} – men prisen for kl. {start:HH:mm} kendes ikke endnu (kommer ca. kl. 13).";
+                return;
+            }
+            _logged[entry.ApplianceId] = entry;
+            _startOk = true;
+            _startMessage = $"✔ {entry.ApplianceName} {(read.DelayHours > 0 ? $"starter om {read.DelayHours.ToString("0.#", Da)} t, kl. {entry.StartedAt:HH:mm}" : $"startet kl. {entry.StartedAt:HH:mm}")} – koster {entry.CostKr.ToString("0.00", Da)} kr. ({read.Note})";
+            await LoadHomeAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or System.Text.Json.JsonException)
+        {
+            _startOk = false;
+            _startMessage = ex.Message;
+        }
+        finally { _readingStart = false; }
     }
 
     protected override async Task OnInitializedAsync()

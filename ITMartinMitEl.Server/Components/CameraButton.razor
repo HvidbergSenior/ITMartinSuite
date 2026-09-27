@@ -1,0 +1,21 @@
+@* One big "take a photo" button. On a phone it opens the camera straight away; the browser shrinks
+   the picture to 1600 px before upload, so it is quick and small enough for the AI. *@
+<label class="btn btn-primary btn-block camera-btn @(Busy ? "busy" : "")">
+    @(Busy ? BusyText : Text)
+    <InputFile OnChange="PickedAsync" accept="image/*" capture="environment" disabled="@Busy" class="camera-input" />
+</label>
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = "📷 Tag billede";
+    [Parameter] public string BusyText { get; set; } = "Læser billedet…";
+    [Parameter] public bool Busy { get; set; }
+    [Parameter, EditorRequired] public EventCallback<(byte[] Bytes, string Mime)> OnPhoto { get; set; }
+
+    private async Task PickedAsync(InputFileChangeEventArgs e)
+    {
+        var file = await e.File.RequestImageFileAsync("image/jpeg", 1600, 1600);
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(maxAllowedSize: 8 * 1024 * 1024).CopyToAsync(ms);
+        await OnPhoto.InvokeAsync((ms.ToArray(), "image/jpeg"));
+    }
+}

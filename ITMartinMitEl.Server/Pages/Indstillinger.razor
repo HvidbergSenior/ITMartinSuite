@@ -3,7 +3,6 @@
 @inject EloverblikService Eloverblik
 @inject ConsumptionSync Sync
 @inject ConsumptionStore Consumption
-@inject ApplianceLookup Lookup
 
 <PageTitle>Indstillinger – MinElpris</PageTitle>
 
@@ -12,119 +11,11 @@
     <p>Fælles for alle der bruger appen.</p>
 </PageHelp>
 
+@* Machines and devices are camera-only since 2026-09-27 - set up and removed under Enheder, never typed here. *@
 <div class="card">
-    <div class="card-title">Maskiner</div>
-    <div class="muted small" style="margin-bottom:8px">Den øverste maskine bestemmer hvad beskederne regner på. kWh pr. tur står typisk i manualen eller på energimærket.</div>
-    @foreach (var a in _appliances)
-    {
-        <div class="dev-edit">
-            <div class="row2">
-                <div class="field" style="flex:0 0 3rem"><label>Ikon</label><input type="text" @bind="a.Icon" /></div>
-                <div class="field" style="flex:3"><label>Navn</label><input type="text" @bind="a.Name" placeholder="fx Vaskemaskine" /></div>
-                <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern" @onclick="() => _appliances.Remove(a)">✕</button></div>
-            </div>
-            <div class="row2">
-                <div class="field" style="flex:3"><label>Modelnummer</label><input type="text" @bind="a.Model" placeholder="fx Asko W6884" /></div>
-                <div class="field" style="flex:0"><label>&nbsp;</label>
-                    <button class="btn btn-primary" disabled="@(_looking == a.Id || string.IsNullOrWhiteSpace(a.Model))" @onclick="() => LookupAsync(a)">@(_looking == a.Id ? "Søger…" : "✨ Skøn forbrug")</button>
-                </div>
-            </div>
-            @if (_lookupMsg.TryGetValue(a.Id, out var msg))
-            {
-                <div class="small @(msg.Ok ? "muted" : "err")" style="margin:4px 0">@msg.Text
-                    @foreach (var src in msg.Sources) { <br /><a href="@src" target="_blank" rel="noopener">@Host(src)</a> }
-                </div>
-            }
-            @if (a.Programs.Count == 0)
-            {
-                <div class="row2">
-                    <div class="field"><label>kWh pr. tur</label><input type="number" step="0.1" min="0.05" max="100" @bind="a.KwhPerRun" /></div>
-                </div>
-            }
-            else
-            {
-                @foreach (var p in a.Programs)
-                {
-                    <div class="row2">
-                        <div class="field" style="flex:1.4"><label>Program</label><input type="text" @bind="p.Name" /></div>
-                        <div class="field"><label>kWh</label><input type="number" step="0.1" min="0.05" max="100" @bind="p.KwhPerRun" /></div>
-                        <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern program" @onclick="() => a.Programs.Remove(p)">✕</button></div>
-                    </div>
-                }
-            }
-            <div class="muted small" style="margin-top:4px">Regnet med <b>@a.DurationHours.ToString("0.##") timer</b> pr. tur og ca. @a.RunsPerWeek.ToString("0.#") ture om ugen@(a.Programs.Count > 0 ? " – det øverste program er det, du bruger mest" : "").</div>
-            <details class="small" style="margin-top:4px">
-                <summary>Ret tid, antal og programmer</summary>
-                <div class="row2">
-                    <div class="field"><label>Timer pr. tur</label><input type="number" step="0.25" min="0.25" max="12" @bind="a.DurationHours" /></div>
-                    <div class="field"><label>Ture pr. uge</label><input type="number" step="0.5" min="0" max="50" @bind="a.RunsPerWeek" /></div>
-                </div>
-                @if (a.Programs.Count == 0)
-                {
-                    <button class="btn btn-small" @onclick="() => AddPrograms(a)">+ Programmer (fx 30/40/60 °C)</button>
-                }
-                else
-                {
-                    <button class="btn btn-small" @onclick="() => AddProgram(a)">+ Program</button>
-                }
-            </details>
-        </div>
-    }
-    <div class="btn-row">
-        <button class="btn" @onclick="AddAppliance">+ Tilføj maskine</button>
-        <button class="btn" @onclick="() => { _catalogRuns = !_catalogRuns; _catalogDevices = false; }">@(_catalogRuns ? "Luk liste" : "Vælg fra liste")</button>
-    </div>
-    @if (_catalogRuns) { @Catalog(true) }
+    <div class="card-title">Maskiner og apparater</div>
+    <div class="small">Tilføjes med et billede af mærkepladen under <a href="/enheder">📷 Enheder</a>. Når du starter en maskine, tager du et billede af displayet på forsiden.</div>
 </div>
-
-<details class="card fold" open>
-    <summary class="card-title">Enheder</summary>
-    <div class="muted small" style="margin-bottom:8px">
-        Alt der bare bruger strøm: køleskab, fryser, tv, router, varmepumpe… Watt = gennemsnitligt forbrug mens den er tændt.
-        Står der kWh/år på energimærket, så ret watt til tallet i parentesen passer. Sæt <b>Fra kl.</b> hvis den bruges på et fast tidspunkt, og kryds <b>Flytbar</b> af hvis tidspunktet kan ændres (vandvarmer, varmepumpe-boost).
-    </div>
-    @foreach (var d in _devices)
-    {
-        <div class="dev-edit">
-            <div class="row2">
-                <div class="field" style="flex:0 0 3rem"><label>Ikon</label><input type="text" @bind="d.Icon" /></div>
-                <div class="field" style="flex:3"><label>Navn</label><input type="text" @bind="d.Name" placeholder="fx Køleskab" /></div>
-                <div class="field" style="flex:0"><label>&nbsp;</label><button class="btn" title="Fjern" @onclick="() => _devices.Remove(d)">✕</button></div>
-            </div>
-            <div class="row2">
-                <div class="field" style="flex:3"><label>Modelnummer</label><input type="text" @bind="d.Model" placeholder="fx Samsung RB38" /></div>
-                <div class="field" style="flex:0"><label>&nbsp;</label>
-                    <button class="btn btn-primary" disabled="@(_looking == d.Id || string.IsNullOrWhiteSpace(d.Model))" @onclick="() => LookupDeviceAsync(d)">@(_looking == d.Id ? "Søger…" : "✨ Skøn forbrug")</button>
-                </div>
-            </div>
-            @if (_lookupMsg.TryGetValue(d.Id, out var dmsg))
-            {
-                <div class="small @(dmsg.Ok ? "muted" : "err")" style="margin:4px 0">@dmsg.Text
-                    @foreach (var src in dmsg.Sources) { <br /><a href="@src" target="_blank" rel="noopener">@Host(src)</a> }
-                </div>
-            }
-            <div class="row2">
-                <div class="field"><label>kWh/år</label><input type="number" step="1" min="0" max="100000" value="@d.KwhPerYear.ToString("0", System.Globalization.CultureInfo.InvariantCulture)" @onchange="e => SetKwhPerYear(d, e.Value)" /></div>
-            </div>
-            <div class="muted small" style="margin-top:4px">≈ @d.Watts.ToString("0.#") W @(d.HoursPerDay >= 24 ? "hele døgnet" : $"i {d.HoursPerDay:0.#} timer om dagen{(d.UsualFromHour is int h ? $" fra kl. {h}" : "")}").</div>
-            <details class="small" style="margin-top:4px">
-                <summary>Ret watt og tider</summary>
-                <div class="row2">
-                    <div class="field"><label>Watt</label><input type="number" step="1" min="0" max="20000" @bind="d.Watts" /></div>
-                    <div class="field"><label>Timer/dag</label><input type="number" step="0.5" min="0" max="24" @bind="d.HoursPerDay" /></div>
-                    <div class="field"><label>Dage/uge</label><input type="number" step="1" min="1" max="7" @bind="d.DaysPerWeek" /></div>
-                    <div class="field"><label>Fra kl.</label><input type="number" min="0" max="23" placeholder="–" @bind="d.UsualFromHour" disabled="@(d.HoursPerDay >= 24)" /></div>
-                </div>
-                <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" @bind="d.Shiftable" disabled="@(d.HoursPerDay >= 24)" /> Flytbar – kan køre på et andet tidspunkt</label>
-            </details>
-        </div>
-    }
-    <div class="btn-row">
-        <button class="btn" @onclick="AddDevice">+ Tilføj enhed</button>
-        <button class="btn" @onclick="() => { _catalogDevices = !_catalogDevices; _catalogRuns = false; }">@(_catalogDevices ? "Luk liste" : "Vælg fra liste")</button>
-    </div>
-    @if (_catalogDevices) { @Catalog(false) }
-</details>
 
 <details class="card fold" open>
     <summary class="card-title">Pris</summary>
@@ -195,38 +86,6 @@
 
 @code {
     private HouseholdSettings _s = new();
-    private List<Appliance> _appliances = [];
-    private List<Device> _devices = [];
-    private bool _catalogRuns;
-    private bool _catalogDevices;
-
-    // The catalogue as a tap-to-add list, grouped, with what is already on
-    // the list greyed out (by catalog id for devices, by name for machines).
-    private RenderFragment Catalog(bool runs) => __builder =>
-    {
-        foreach (var g in DeviceCatalog.All.Where(e => e.IsRun == runs).GroupBy(e => e.Group))
-        {
-            <div class="cat-group">@g.Key</div>
-            foreach (var e in g)
-            {
-                var owned = runs
-                    ? _appliances.Any(a => string.Equals(a.Name, e.Name, StringComparison.OrdinalIgnoreCase))
-                    : _devices.Any(d => d.CatalogId == e.Id);
-                <div class="cat-item @(owned ? "owned" : "")">
-                    <span>@e.Icon @e.Name <span class="muted">· @(runs ? $"{e.KwhPerRun:0.##} kWh · {e.DurationHours:0.##} t" : $"{e.Watts:0} W · {(e.HoursPerDay >= 24 ? "altid" : e.HoursPerDay.ToString("0.#") + " t/dag")}")@(string.IsNullOrEmpty(e.Note) ? "" : $" · {e.Note}")</span></span>
-                    <button class="btn btn-small" @onclick="() => AddFromCatalog(e)">@(owned ? "+1" : "+")</button>
-                </div>
-            }
-        }
-    };
-
-    private void AddFromCatalog(CatalogEntry e)
-    {
-        if (e.IsRun) _appliances.Add(e.ToAppliance(_appliances.Count));
-        else _devices.Add(e.ToDevice(_devices.Count));
-    }
-
-    private void AddDevice() => _devices.Add(new Device { Name = "", Watts = 10, HoursPerDay = 24, SortOrder = _devices.Count });
     private bool _saved;
     private bool _busy;
     private bool _meterOk;
@@ -243,12 +102,6 @@
             QuietFromHour = d.Settings.QuietFromHour, QuietToHour = d.Settings.QuietToHour,
             EloverblikToken = d.Settings.EloverblikToken, MeteringPointId = d.Settings.MeteringPointId, MeteringPointAddress = d.Settings.MeteringPointAddress,
         };
-        _appliances = d.Appliances.OrderBy(a => a.SortOrder)
-            .Select(a => a.Clone())
-            .ToList();
-        _devices = d.Devices.OrderBy(x => x.SortOrder)
-            .Select(x => new Device { Id = x.Id, Name = x.Name, Icon = x.Icon, Model = x.Model, CatalogId = x.CatalogId, Watts = x.Watts, HoursPerDay = x.HoursPerDay, DaysPerWeek = x.DaysPerWeek, UsualFromHour = x.UsualFromHour, Shiftable = x.Shiftable, SortOrder = x.SortOrder })
-            .ToList();
     }
 
     private async Task ConnectAsync()
@@ -270,61 +123,13 @@
         finally { _busy = false; }
     }
 
-    private void AddAppliance() => _appliances.Add(new Appliance { Name = "", KwhPerRun = 1, DurationHours = 1, RunsPerWeek = 3, SortOrder = _appliances.Count });
-
-    // First programs for a machine: the catalogue's set when the name matches
-    // one (Vaskemaskine -> 30/40/60/90 °C), otherwise its current numbers as "Standard".
-    private static void AddPrograms(Appliance a)
-    {
-        if (DeviceCatalog.ProgramsFor(a.Name)?.Programs is { } preset)
-            a.Programs = preset.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.KwhPerRun, DurationHours = a.DurationHours, RunsPerWeek = p.RunsPerWeek }).ToList();
-        else
-            a.Programs = [new ApplianceProgram { Name = "Standard", KwhPerRun = a.KwhPerRun, DurationHours = a.DurationHours, RunsPerWeek = a.RunsPerWeek }];
-    }
 
     private Guid? _looking;
     private readonly Dictionary<Guid, (bool Ok, string Text, List<string> Sources)> _lookupMsg = new();
 
     // Model number in, kWh per program + run time out - filled into the form;
     // nothing is saved until Gem, so a wrong guess costs nothing.
-    private async Task LookupAsync(Appliance a)
-    {
-        _looking = a.Id;
-        _lookupMsg.Remove(a.Id);
-        try
-        {
-            var r = await Lookup.LookupAsync(a.Model);
-            if (string.IsNullOrWhiteSpace(a.Name)) a.Name = r.Name;
-            if (string.IsNullOrWhiteSpace(a.Icon) || a.Icon == "🔌") a.Icon = r.Icon;
-            a.Model = r.Model;
-            a.DurationHours = r.DurationHours;
-            if (a.RunsPerWeek <= 0) a.RunsPerWeek = DeviceCatalog.ProgramsFor(a.Name)?.RunsPerWeek ?? 3;
-            a.Programs = r.Programs.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.Kwh, DurationHours = r.DurationHours }).ToList();
-            if (a.Programs.Count == 1) { a.KwhPerRun = a.Programs[0].KwhPerRun; a.Programs.Clear(); }
-            _lookupMsg[a.Id] = (true, "AI-skøn – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
-        }
-        catch (Exception ex) { _lookupMsg[a.Id] = (false, ex.Message, []); }
-        finally { _looking = null; }
-    }
 
-    private async Task LookupDeviceAsync(Device d)
-    {
-        _looking = d.Id;
-        _lookupMsg.Remove(d.Id);
-        try
-        {
-            var r = await Lookup.LookupDeviceAsync(d.Model);
-            if (string.IsNullOrWhiteSpace(d.Name)) d.Name = r.Name;
-            if (string.IsNullOrWhiteSpace(d.Icon) || d.Icon == "🔌") d.Icon = r.Icon;
-            d.Model = r.Model;
-            d.Watts = r.Watts;
-            d.HoursPerDay = r.HoursPerDay;
-            d.UsualFromHour = r.UsualFromHour;
-            _lookupMsg[d.Id] = (true, "AI-skøn – tryk Gem for at bruge tallene. " + r.Note, r.Sources);
-        }
-        catch (Exception ex) { _lookupMsg[d.Id] = (false, ex.Message, []); }
-        finally { _looking = null; }
-    }
 
     // kWh/år is what the energy label says; watts follow from the hours it is on.
     private static void SetKwhPerYear(Device d, object? value)
@@ -347,12 +152,17 @@
     {
         _s.QuietFromHour = Math.Clamp(_s.QuietFromHour, 0, 23);
         _s.QuietToHour = Math.Clamp(_s.QuietToHour, 0, 23);
-        foreach (var a in _appliances) a.SyncFromPrograms();
-        var list = _appliances.Where(a => !string.IsNullOrWhiteSpace(a.Name) && a.KwhPerRun > 0 && a.DurationHours > 0).ToList();
-        for (var i = 0; i < list.Count; i++) list[i].SortOrder = i;
-        var devices = _devices.Where(d => !string.IsNullOrWhiteSpace(d.Name) && d.Watts > 0).ToList();
-        for (var i = 0; i < devices.Count; i++) { devices[i].SortOrder = i; if (devices[i].HoursPerDay >= 24) { devices[i].UsualFromHour = null; devices[i].Shiftable = false; } }
-        Store.Update(d => { d.Settings = _s; d.Appliances = list; d.Devices = devices; });
+        // Copy only the fields this page edits: a whole-object replace used to wipe the meter's
+        // own charges, the EV numbers and the grid id every time someone pressed Gem.
+        Store.Update(d =>
+        {
+            var t = d.Settings;
+            t.PriceArea = _s.PriceArea; t.ShowAllIn = _s.ShowAllIn;
+            t.GridCompanyId = _s.GridCompanyId; t.CustomNettarifOre = _s.CustomNettarifOre;
+            t.SupplierId = _s.SupplierId; t.CustomTillaegOre = _s.CustomTillaegOre;
+            t.QuietFromHour = _s.QuietFromHour; t.QuietToHour = _s.QuietToHour;
+            t.EloverblikToken = _s.EloverblikToken; t.MeteringPointId = _s.MeteringPointId; t.MeteringPointAddress = _s.MeteringPointAddress;
+        });
         _saved = true;
     }
 }

@@ -4,6 +4,7 @@
 @inject PriceProfileService Profiles
 @inject HouseholdStore Store
 @inject ConsumptionStore Consumption
+@inject PhotoReader Photos
 
 <PageTitle>Enheder – MinElpris</PageTitle>
 
@@ -22,6 +23,51 @@ else
     var alwaysOnKwhDay = _devices.Where(d => d.Device.HoursPerDay >= 24).Sum(d => d.KwhPerDay);
     var yearKwh = _meterKwhPerDay is { } mkY ? mkY * 365 : (double?)null;
     var avgPrice = _profile?.Average ?? 0;
+
+    @* Camera only (user decision 2026-09-27): a photo of the plate or energy label sets the machine up.
+       Nothing here can be typed or edited - a wrong one is removed and photographed again. *@
+    <div class="card">
+        <div class="card-title">📷 Dine maskiner og apparater</div>
+        <div class="muted small" style="margin-bottom:8px">Tag et billede af mærkepladen eller energimærket – så finder appen model, forbrug og hvad en ny sparemodel ville spare.</div>
+        <CameraButton Text="📷 Tilføj med kamera" BusyText="Læser mærkepladen…" Busy="_reading" OnPhoto="AddFromPhotoAsync" />
+        @if (_photoError is { } pe) { <div class="small err" style="margin-top:8px">@pe</div> }
+        @if (_photoAdded is { } pa) { <div class="small lvl-cheap" style="margin-top:8px">✔ @pa</div> }
+
+        @foreach (var a in Store.Get().Appliances.OrderBy(x => x.SortOrder))
+        {
+            var aYear = a.Photo?.KwhPerYear is > 0 ? a.Photo.KwhPerYear : a.KwhPerRun * a.RunsPerWeek * 52;
+            <div class="dev-card">
+                <div class="dev-head">
+                    <span class="de-icon">@a.Icon</span>
+                    <div class="de-main"><b>@a.Name</b> <span class="muted small">@a.Model</span>
+                        <div class="muted small">@a.KwhPerRun.ToString("0.0#", Da) kWh pr. tur · @a.DurationHours.ToString("0.#", Da) t · ca. @a.RunsPerWeek.ToString("0.#", Da) gange om ugen</div></div>
+                    @if (a.Photo?.EnergyClass is { Length: > 0 } ec) { <span class="dev-class">@ec</span> }
+                </div>
+                @Compare(aYear, a.Photo)
+                <div class="dev-actions">
+                    @if (a.Photo is null) { <span class="muted small">Ikke fra billede – tag et billede af mærkepladen for model og sammenligning.</span> }
+                    <button class="btn btn-small" @onclick="() => RemoveMachine(a.Id)">Fjern</button>
+                </div>
+            </div>
+        }
+        @foreach (var d in Store.Get().Devices.OrderBy(x => x.SortOrder))
+        {
+            var dYear = d.Photo?.KwhPerYear is > 0 ? d.Photo.KwhPerYear : d.KwhPerYear;
+            <div class="dev-card">
+                <div class="dev-head">
+                    <span class="de-icon">@d.Icon</span>
+                    <div class="de-main"><b>@d.Name</b> <span class="muted small">@d.Model</span>
+                        <div class="muted small">ca. @d.Watts.ToString("0", Da) W · @(d.HoursPerDay >= 24 ? "altid tændt" : $"{d.HoursPerDay.ToString("0.#", Da)} t om dagen")</div></div>
+                    @if (d.Photo?.EnergyClass is { Length: > 0 } ec) { <span class="dev-class">@ec</span> }
+                </div>
+                @Compare(dYear, d.Photo)
+                <div class="dev-actions">
+                    @if (d.Photo is null) { <span class="muted small">Ikke fra billede – tag et billede af typeskiltet for model og sammenligning.</span> }
+                    <button class="btn btn-small" @onclick="() => RemoveDevice(d.Id)">Fjern</button>
+                </div>
+            </div>
+        }
+    </div>
 
     <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" @onclick="() => _guideOpen = !_guideOpen">
@@ -57,7 +103,7 @@ else
                     }
                 </li>
                 <li>
-                    <b>Skriv alt ned og sammenlign med måleren.</b> Tilføj hver enhed under <a href="/indstillinger">Indstillinger</a> (vælg fra listen). Kig i skabe, bryggers, garage og udhus – den gamle fryser og cirkulationspumpen glemmes altid.
+                    <b>Tag billeder af alt og sammenlign med måleren.</b> Tag et billede af hver enheds mærkeplade med 📷 ovenfor. Kig i skabe, bryggers, garage og udhus – den gamle fryser og cirkulationspumpen glemmes altid.
                     @if (_meterKwhPerDay is { } mk3 && mk3 > 0)
                     {
                         var pct = listKwhDay / mk3 * 100;
@@ -65,7 +111,7 @@ else
                     }
                 </li>
                 <li>
-                    <b>Mål de mistænkte.</b> En elmåler til stikkontakten (ca. 100 kr) i et døgn på fryseren, tumbleren, affugteren, spabadet. Skriv de målte watt ind i stedet for gættet. Store faste ting (varmepumpe, vandvarmer): sluk et døgn og se hvor meget måleren falder på <a href="/forbrug">Forbrug</a>.
+                    <b>Mål de mistænkte.</b> En elmåler til stikkontakten (ca. 100 kr) i et døgn på fryseren, tumbleren, affugteren, spabadet – så ved du om billedets tal passer. Store faste ting (varmepumpe, vandvarmer): sluk et døgn og se hvor meget måleren falder på <a href="/forbrug">Forbrug</a>.
                 </li>
                 <li>
                     <b>Kig på dagsprofilen.</b> På <a href="/forbrug">Forbrug</a> ses hver time. Høje timer midt på dagen når ingen er hjemme = noget kører på timer eller termostat. Toppe om aftenen = madlavning, tv, opvask – flyt det der kan flyttes.
@@ -85,7 +131,7 @@ else
     {
     <details class="card fold" open>
         <summary class="card-title">Ingen enheder endnu</summary>
-        <p class="small">Tilføj køleskab, fryser, tv, varmepumpe osv. under <a href="/indstillinger">Indstillinger → Enheder</a> – vælg fra listen eller skriv dine egne.</p>
+        <p class="small">Tag et billede af mærkepladen på køleskab, fryser, tv, varmepumpe, vaskemaskine osv. med 📷 ovenfor.</p>
     </details>
     }
     else
@@ -203,8 +249,59 @@ else
     private HourProfile? _profile;
     private bool _guideOpen = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private bool _reading;
+    private string? _photoError, _photoAdded;
+
+    private async Task AddFromPhotoAsync((byte[] Bytes, string Mime) photo)
     {
+        _reading = true; _photoError = null; _photoAdded = null;
+        StateHasChanged();
+        try
+        {
+            var found = await Photos.IdentifyAsync(photo.Bytes, photo.Mime);
+            Store.Update(d =>
+            {
+                if (found.Machine is { } m) { m.SortOrder = d.Appliances.Count; d.Appliances.Add(m); }
+                if (found.Device is { } dv) { dv.SortOrder = d.Devices.Count; d.Devices.Add(dv); }
+            });
+            var name = found.Machine?.Name ?? found.Device?.Name;
+            var model = found.Machine?.Model ?? found.Device?.Model;
+            _photoAdded = $"{name} {model} er tilføjet.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or System.Text.Json.JsonException)
+        {
+            _photoError = ex.Message;
+        }
+        finally { _reading = false; }
+    }
+
+    private async Task RemoveMachine(Guid id) { Store.Update(d => d.Appliances.RemoveAll(a => a.Id == id)); await LoadAsync(); }
+    private async Task RemoveDevice(Guid id) { Store.Update(d => d.Devices.RemoveAll(x => x.Id == id)); await LoadAsync(); }
+
+    // Yours vs a new energy-saving model of the same kind, a year at a time at your own average price.
+    private RenderFragment Compare(double yearKwh, PhotoFacts? p) => __builder =>
+    {
+        var price = _profile?.Average ?? 0;
+        var newKwh = p?.NewModelKwhPerYear ?? 0;
+        <table class="dev-table">
+            <tr><th></th><th>Bruger / år</th><th>Koster / år</th></tr>
+            <tr><td>Din</td><td>@yearKwh.ToString("0", Da) kWh</td><td>@((yearKwh * price).ToString("0", Da)) kr</td></tr>
+            @if (newKwh > 0)
+            {
+                <tr><td>Ny sparemodel (AI-skøn): @p!.NewModelName</td><td>@newKwh.ToString("0", Da) kWh</td><td>@((newKwh * price).ToString("0", Da)) kr</td></tr>
+                <tr><td colspan="2" class="dev-save">Du kan spare</td><td class="dev-save">@(Math.Max(0, (yearKwh - newKwh) * price).ToString("0", Da)) kr/år</td></tr>
+            }
+        </table>
+        @if (newKwh > 0 && p!.NewModelSource.Length > 0) { <div class="muted small">Kilde ifølge AI: @p.NewModelSource · @p.Note</div> }
+        else if (p?.Note is { Length: > 0 } note) { <div class="muted small">@note</div> }
+    };
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
         var data = Store.Get();
         var (profile, profileDays) = await Profiles.GetTypicalAsync();
         _profileDays = profileDays;
