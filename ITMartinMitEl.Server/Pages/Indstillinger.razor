@@ -8,7 +8,9 @@
 <PageTitle>Indstillinger – MinElpris</PageTitle>
 
 <h1>Indstillinger</h1>
-<p class="muted small" style="margin:4px 0 14px">Fælles for alle der bruger appen.</p>
+<PageHelp Key="help-indstillinger">
+    <p>Fælles for alle der bruger appen.</p>
+</PageHelp>
 
 <div class="card">
     <div class="card-title">Maskiner</div>
@@ -75,8 +77,8 @@
     @if (_catalogRuns) { @Catalog(true) }
 </div>
 
-<div class="card">
-    <div class="card-title">Enheder</div>
+<details class="card fold" open>
+    <summary class="card-title">Enheder</summary>
     <div class="muted small" style="margin-bottom:8px">
         Alt der bare bruger strøm: køleskab, fryser, tv, router, varmepumpe… Watt = gennemsnitligt forbrug mens den er tændt.
         Står der kWh/år på energimærket, så ret watt til tallet i parentesen passer. Sæt <b>Fra kl.</b> hvis den bruges på et fast tidspunkt, og kryds <b>Flytbar</b> af hvis tidspunktet kan ændres (vandvarmer, varmepumpe-boost).
@@ -122,10 +124,10 @@
         <button class="btn" @onclick="() => { _catalogDevices = !_catalogDevices; _catalogRuns = false; }">@(_catalogDevices ? "Luk liste" : "Vælg fra liste")</button>
     </div>
     @if (_catalogDevices) { @Catalog(false) }
-</div>
+</details>
 
-<div class="card">
-    <div class="card-title">Pris</div>
+<details class="card fold" open>
+    <summary class="card-title">Pris</summary>
     <div class="field">
         <label>Prisområde</label>
         <select @bind="_s.PriceArea">
@@ -160,19 +162,19 @@
             <div class="field"><label>Leverandørtillæg, øre/kWh ekskl. moms</label><input type="number" step="0.1" @bind="_s.CustomTillaegOre" /></div>
         }
     }
-</div>
+</details>
 
-<div class="card">
-    <div class="card-title">Nattero</div>
+<details class="card fold" open>
+    <summary class="card-title">Nattero</summary>
     <div class="muted small" style="margin-bottom:8px">Der foreslås ikke starttidspunkter i dette tidsrum – og der sendes ingen beskeder om dem.</div>
     <div class="row2">
         <div class="field"><label>Fra kl.</label><input type="number" min="0" max="23" @bind="_s.QuietFromHour" /></div>
         <div class="field"><label>Til kl.</label><input type="number" min="0" max="23" @bind="_s.QuietToHour" /></div>
     </div>
-</div>
+</details>
 
-<div class="card">
-    <div class="card-title">Din elmåler (eloverblik.dk)</div>
+<details class="card fold" open>
+    <summary class="card-title">Din elmåler (eloverblik.dk)</summary>
     <div class="muted small" style="margin-bottom:8px">
         Log ind på <a href="https://eloverblik.dk" target="_blank">eloverblik.dk</a> med MitID → profilikonet øverst → <b>Datadeling</b> → <b>Opret token</b>. Kopiér den lange tekst herind. Tokenet gælder i et år og kan kun læse dit forbrug.
     </div>
@@ -185,7 +187,7 @@
         <button class="btn" @onclick="ConnectAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_s.EloverblikToken))">@(_busy ? "Forbinder…" : "Forbind og hent måler")</button>
     </div>
     @if (_meterMsg is not null) { <div class="note @(_meterOk ? "ok" : "err")">@_meterMsg</div> }
-</div>
+</details>
 
 <button class="btn btn-primary btn-block" @onclick="Save">Gem</button>
 <p class="muted small" style="text-align:center;margin-top:12px"><a href="/logout">Log ud af MinElpris</a></p>

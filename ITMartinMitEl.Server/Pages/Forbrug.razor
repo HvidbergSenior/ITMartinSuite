@@ -8,7 +8,9 @@
 <PageTitle>Forbrug – MinElpris</PageTitle>
 
 <h1>Dit forbrug</h1>
-<p class="muted small" style="margin:4px 0 14px">Fra din egen elmåler via eloverblik.dk – typisk 1–2 dage bagud.</p>
+<PageHelp Key="help-forbrug">
+    <p>Fra din egen elmåler via eloverblik.dk – typisk 1–2 dage bagud.</p>
+</PageHelp>
 
 @if (string.IsNullOrWhiteSpace(Store.Get().Settings.MeteringPointId))
 {
@@ -23,11 +25,11 @@ else if (_days is null)
 }
 else if (_days.Count == 0)
 {
-    <div class="card">
-        <div class="card-title">Ingen målinger endnu</div>
+    <details class="card fold" open>
+        <summary class="card-title">Ingen målinger endnu</summary>
         <p class="small">@(Consumption.LastSyncError is { } e ? $"Sidste hentning fejlede: {e}" : "Datahub leverer normalt målinger 1–2 dage efter. Prøv igen i morgen.")</p>
         <button class="btn btn-block" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent nu")</button>
-    </div>
+    </details>
 }
 else
 {
@@ -49,8 +51,8 @@ else
         }
     </div>
 
-    <div class="card">
-        <div class="card-title">Time for time – @d.Date.ToString("dddd d. MMMM", Da)</div>
+    <details class="card fold" open>
+        <summary class="card-title">Time for time – @d.Date.ToString("dddd d. MMMM", Da)</summary>
         @{ var maxKwh = d.Hours.Max(h => h.Kwh); }
         <div class="bars">
             @foreach (var h in d.Hours)
@@ -72,10 +74,10 @@ else
             }
         </div>
         <div class="legend"><span><i style="background:var(--cheap)"></i>billig time</span><span><i style="background:var(--mid)"></i>middel</span><span><i style="background:var(--expensive)"></i>dyr time</span></div>
-    </div>
+    </details>
 
-    <div class="card">
-        <div class="card-title">Sidste @_days.Count dage</div>
+    <details class="card fold" open>
+        <summary class="card-title">Sidste @_days.Count dage</summary>
         @foreach (var x in _days)
         {
             <div class="appl-row" style="padding:6px 0;border-top:1px solid var(--border)">
@@ -91,7 +93,7 @@ else
             <button class="link" style="background:none;border:none;color:var(--accent);cursor:pointer;font:inherit" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent igen")</button>
             @if (Consumption.LastSyncError is { } err) { <span class="err"> – @err</span> }
         </div>
-    </div>
+    </details>
 }
 
 @code {

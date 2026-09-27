@@ -8,7 +8,9 @@
 <PageTitle>Enheder – MinElpris</PageTitle>
 
 <h1>Hvad koster hver enhed?</h1>
-<p class="muted small" style="margin:4px 0 14px">Hver maskine og hvert apparat i huset, prissat med jeres egen elpris.</p>
+<PageHelp Key="help-enheder">
+    <p>Hver maskine og hvert apparat i huset, prissat med jeres egen elpris.</p>
+</PageHelp>
 
 @if (_loading)
 {
@@ -81,10 +83,10 @@ else
 
     if (_devices.Count == 0 && _appliances.Count == 0)
     {
-    <div class="card">
-        <div class="card-title">Ingen enheder endnu</div>
+    <details class="card fold" open>
+        <summary class="card-title">Ingen enheder endnu</summary>
         <p class="small">Tilføj køleskab, fryser, tv, varmepumpe osv. under <a href="/indstillinger">Indstillinger → Enheder</a> – vælg fra listen eller skriv dine egne.</p>
-    </div>
+    </details>
     }
     else
     {
@@ -120,8 +122,8 @@ else
 
     @if (_appliances.Count > 0)
     {
-        <div class="card">
-            <div class="card-title">Pr. tur – maskiner</div>
+        <details class="card fold" open>
+            <summary class="card-title">Pr. tur – maskiner</summary>
             @foreach (var a in _appliances)
             {
                 var v = _snap?.Appliances.FirstOrDefault(x => x.Appliance.Id == a.Appliance.Id);
@@ -143,13 +145,13 @@ else
                     @if (totalDay > 0) { <div class="dev-share" style="width:@((a.MonthKr / totalMonth * 100).ToString("0", CultureInfo.InvariantCulture))%"></div> }
                 </div>
             }
-        </div>
+        </details>
     }
 
     @if (_devices.Count > 0)
     {
-        <div class="card">
-            <div class="card-title">Enheder</div>
+        <details class="card fold" open>
+            <summary class="card-title">Enheder</summary>
             @foreach (var d in _devices.OrderByDescending(x => x.DayKr))
             {
                 var dev = d.Device;
@@ -175,7 +177,7 @@ else
                     @if (totalDay > 0) { <div class="dev-share" style="width:@((d.DayKr / totalDay * 100).ToString("0", CultureInfo.InvariantCulture))%"></div> }
                 </div>
             }
-        </div>
+        </details>
     }
 
     <div class="muted small" style="margin-top:8px">

@@ -262,3 +262,9 @@ a { color: var(--accent); text-decoration: none; }
 .de-sure.s-registered { border-color: var(--cheap); color: var(--cheap); }
 .de-sure.s-likely { border-color: var(--accent); color: var(--accent); }
 .member-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+/* Show/hide cards: the title is the tap target, the phone remembers open/closed (js/ui.js). */
+details.card.fold > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
+details.card.fold > summary::-webkit-details-marker { display: none; }
+details.card.fold > summary::after { content: "＋"; margin-left: auto; color: var(--muted); font-weight: 400; }
+details.card.fold[open] > summary::after { content: "－"; }
+details.card.fold[open] > summary { margin-bottom: 8px; }

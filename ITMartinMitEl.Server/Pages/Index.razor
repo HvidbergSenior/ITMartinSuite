@@ -86,8 +86,8 @@ else
         }
     </div>
 
-    <div class="card">
-        <div class="card-title">Dit hjem</div>
+    <details class="card fold" open>
+        <summary class="card-title">Dit hjem</summary>
         @if (string.IsNullOrWhiteSpace(_address))
         {
             <div class="small">Forbind din elmåler under <a href="/indstillinger">Indstillinger</a>, så står her hvad I faktisk bruger – dag for dag, og hvad måneden lander på.</div>
@@ -128,10 +128,10 @@ else
             </div>
             <div class="muted small" style="margin-top:6px">Måleren er 1–2 dage bagud – det er Datahub, ikke appen.</div>
         }
-    </div>
+    </details>
 
-    <div class="card">
-        <div class="card-title">Dine maskiner</div>
+    <details class="card fold" open>
+        <summary class="card-title">Dine maskiner</summary>
         @foreach (var a in _snap.Appliances)
         {
             <div class="appl">
@@ -187,7 +187,7 @@ else
             </div>
         }
         <div class="muted small" style="margin-top:8px">Prisen er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris. Ret maskinerne under Indstillinger.</div>
-    </div>
+    </details>
 
     <div class="card">
         <div class="day-tabs">

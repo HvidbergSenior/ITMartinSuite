@@ -9,7 +9,9 @@
 <PageTitle>Konto – MinElpris</PageTitle>
 
 <h1>Konto</h1>
-<p class="muted small" style="margin:4px 0 14px">@Tenant.DisplayName · @Tenant.Email</p>
+<PageHelp Key="help-konto">
+    <p>@Tenant.DisplayName · @Tenant.Email</p>
+</PageHelp>
 
 <div class="card">
     <div class="card-title">Skift adgangskode</div>
@@ -24,8 +26,8 @@
 
 @if (!Tenant.IsAdvisor)
 {
-    <div class="card">
-        <div class="card-title">Giv Martin adgang</div>
+    <details class="card fold" open>
+        <summary class="card-title">Giv Martin adgang</summary>
         <div class="muted small" style="margin-bottom:8px">
             Skal Martin kigge med i dine tal og hjælpe dig med at spare? Lav en kode og giv ham den.
             Han kan først se noget, når koden er brugt – og du kan altid trække adgangen tilbage igen.
@@ -69,14 +71,14 @@
                 }
             </div>
         }
-    </div>
+    </details>
 }
 
 @if (!Tenant.IsAdvisor)
 {
     @* More logins for the same home - same meter, same machines, each with their own password. *@
-    <div class="card">
-        <div class="card-title">👥 Husstanden</div>
+    <details class="card fold" open>
+        <summary class="card-title">👥 Husstanden</summary>
         <div class="muted small" style="margin-bottom:8px">Alle her ser det samme: måler, maskiner og historik. Hver har sit eget login.</div>
         @foreach (var m in _members)
         {
@@ -100,11 +102,11 @@
         </div>
         @if (_memberError is { } me) { <div class="small err">@me</div> }
         <button class="btn btn-primary" @onclick="AddMember">+ Giv adgang til husstanden</button>
-    </div>
+    </details>
 }
 
-<div class="card">
-    <div class="card-title">Dine data</div>
+<details class="card fold" open>
+    <summary class="card-title">Dine data</summary>
     <div class="muted small">
         Appen gemmer det, du selv taster – apparater, enheder og indstillinger – og de timetal, den henter
         fra din elmåler, når du har givet den en token fra Eloverblik. Tallene ligger på Martins server i
@@ -125,12 +127,12 @@
         <button class="btn btn-danger" @onclick="DeleteAccount">Ja, slet det hele</button>
         <button class="btn" @onclick="() => _confirmDelete = false">Fortryd</button>
     }
-</div>
+</details>
 
-<div class="card">
-    <div class="card-title">Log ud</div>
+<details class="card fold" open>
+    <summary class="card-title">Log ud</summary>
     <a class="btn" href="/logout">Log ud af MinElpris</a>
-</div>
+</details>
 
 @code {
     private string _current = "";

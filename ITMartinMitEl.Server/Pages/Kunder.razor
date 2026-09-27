@@ -40,8 +40,8 @@ else
     {
         @foreach (var c in _customers)
         {
-            <div class="card">
-                <div class="card-title">@c.HouseholdName</div>
+            <details class="card fold" open>
+                <summary class="card-title">@c.HouseholdName</summary>
                 <div class="muted small">@c.OwnerEmail</div>
                 <div class="muted small">
                     Adgang siden @c.GrantedUtc.ToLocalTime().ToString("d. MMM yyyy") ·
@@ -51,7 +51,7 @@ else
                     @Summary(c.HouseholdId)
                 </div>
                 <a class="btn btn-primary" style="margin-top:10px" href="@($"/vaelg/{c.HouseholdId}")">Åbn @c.HouseholdName</a>
-            </div>
+            </details>
         }
     }
 }

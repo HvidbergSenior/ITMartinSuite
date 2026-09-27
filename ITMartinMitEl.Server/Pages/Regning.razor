@@ -7,7 +7,9 @@
 <PageTitle>Regning – MinElpris</PageTitle>
 
 <h1>Din elregning</h1>
-<p class="muted small" style="margin:4px 0 14px">Regnet fra måleren time for time – og hvad hver linje på regningen egentlig er. Time for time: <a href="/forbrug">Forbrug</a>.</p>
+<PageHelp Key="help-regning">
+    <p>Regnet fra måleren time for time – og hvad hver linje på regningen egentlig er. Time for time: <a href="/forbrug">Forbrug</a>.</p>
+</PageHelp>
 
 @if (string.IsNullOrWhiteSpace(Store.Get().Settings.MeteringPointId))
 {
@@ -56,8 +58,8 @@ else
         }
     </div>
 
-    <div class="card">
-        <div class="card-title">Linje for linje – tryk for forklaring</div>
+    <details class="card fold" open>
+        <summary class="card-title">Linje for linje – tryk for forklaring</summary>
         @foreach (var l in b.Lines)
         {
             var open = _open == l.Id;
@@ -78,10 +80,10 @@ else
             </div>
         }
         <div class="appl-row" style="padding-top:10px;font-weight:700"><span>I alt@(b.IsComplete ? "" : " indtil nu")</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
-    </div>
+    </details>
 
-    <div class="card">
-        <div class="card-title">Sådan læser du regningen</div>
+    <details class="card fold" open>
+        <summary class="card-title">Sådan læser du regningen</summary>
         <div class="small">
             <p><b>Én regning, tre modtagere.</b> Elleverandøren (@_supplierName) sender regningen, men beholder kun strømmen, tillægget og sit abonnement. Nettarif og net-abonnement sendes videre til netselskabet (@_gridName), og afgift, Energinet-tariffer og moms går til staten. Leverandøren er altså bare kassereren for det meste af beløbet.</p>
             <p><b>Det du kan vælge:</b> kun leverandøren. Netselskab, tariffer og afgifter er de samme uanset hvem du handler hos. Når du sammenligner tilbud, så se udelukkende på tillæg pr. kWh + abonnement.</p>
@@ -90,7 +92,7 @@ else
             <p><b>Aconto og årsopgørelse:</b> mange betaler et fast aconto-beløb hver måned og får en efterregning eller penge tilbage én gang om året. Beløbet her er hvad måneden <i>faktisk</i> kostede – ikke det der blev trukket. Sammenlign med "forbrug i perioden" på årsopgørelsen.</p>
             <p class="muted">Tallene for abonnementer er fra appens forudsætninger (@_supplierName / @_gridName) – ret dem under Indstillinger hvis regningen siger noget andet. Vinterens høj- og spidslasttariffer er skøn indtil en vinterregning er tjekket.</p>
         </div>
-    </div>
+    </details>
 }
 
 @code {

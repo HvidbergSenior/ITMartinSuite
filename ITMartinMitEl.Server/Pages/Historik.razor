@@ -6,7 +6,9 @@
 <PageTitle>Historik – MinElpris</PageTitle>
 
 <h1>Historik</h1>
-<p class="muted small" style="margin:4px 0 14px">Hver tur du har registreret, prissat kvarter for kvarter for den tid den kørte.</p>
+<PageHelp Key="help-historik">
+    <p>Hver tur du har registreret, prissat kvarter for kvarter for den tid den kørte.</p>
+</PageHelp>
 
 @if (_runs.Count == 0)
 {
@@ -22,18 +24,18 @@ else
     var savedVsDearest = month.Sum(r => (r.DearestThatDayKr ?? r.CostKr) - r.CostKr);
     var lostVsCheapest = month.Sum(r => r.CostKr - (r.CheapestThatDayKr ?? r.CostKr));
 
-    <div class="card">
-        <div class="card-title">@_monthStart.ToString("MMMM yyyy", Da)</div>
+    <details class="card fold" open>
+        <summary class="card-title">@_monthStart.ToString("MMMM yyyy", Da)</summary>
         <div class="stat-grid">
             <div class="stat"><b>@month.Sum(r => r.CostKr).ToString("0.00", Da) kr</b><span>@month.Count ture@(prev.Count > 0 ? $" · sidste md {prev.Sum(r => r.CostKr).ToString("0.00", Da)} kr" : "")</span></div>
             <div class="stat"><b class="lvl-cheap">@savedVsDearest.ToString("0.00", Da) kr</b><span>sparet ift. dagens dyreste tid</span></div>
             <div class="stat"><b class="@(lostVsCheapest > 1 ? "lvl-expensive" : "")">@lostVsCheapest.ToString("0.00", Da) kr</b><span>kunne være sparet ved bedste tid</span></div>
             <div class="stat"><b>@((month.Count > 0 ? month.Average(r => r.AvgKrPerKwh) : 0).ToString("0.00", Da))</b><span>kr/kWh i snit</span></div>
         </div>
-    </div>
+    </details>
 
-    <div class="card">
-        <div class="card-title">Pr. maskine (@_monthStart.ToString("MMM", Da))</div>
+    <details class="card fold" open>
+        <summary class="card-title">Pr. maskine (@_monthStart.ToString("MMM", Da))</summary>
         @foreach (var g in month.GroupBy(r => r.ApplianceName).OrderByDescending(g => g.Sum(r => r.CostKr)))
         {
             <div class="appl-row" style="padding:6px 0;border-top:1px solid var(--border)">
@@ -42,10 +44,10 @@ else
             </div>
         }
         @if (month.Count == 0) { <div class="muted small">Ingen ture denne måned.</div> }
-    </div>
+    </details>
 
-    <div class="card">
-        <div class="card-title">Alle ture</div>
+    <details class="card fold" open>
+        <summary class="card-title">Alle ture</summary>
         @foreach (var day in _runs.GroupBy(r => DateOnly.FromDateTime(r.StartedAt)).OrderByDescending(g => g.Key))
         {
             <div class="hist-day">@day.Key.ToString("dddd d. MMM", Da) · @day.Sum(r => r.CostKr).ToString("0.00", Da) kr</div>
@@ -59,7 +61,7 @@ else
                 </div>
             }
         }
-    </div>
+    </details>
 }
 
 @code {

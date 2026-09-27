@@ -5,7 +5,9 @@
 <PageTitle>Besked – MinElpris</PageTitle>
 
 <h1>Besked på telefonen</h1>
-<p class="muted small" style="margin:4px 0 14px">Få en besked en time før dagens billigste strøm – så du kan nå at fylde vaskemaskinen.</p>
+<PageHelp Key="help-besked">
+    <p>Få en besked en time før dagens billigste strøm – så du kan nå at fylde vaskemaskinen.</p>
+</PageHelp>
 
 <div class="card">
     @switch (_state)
@@ -63,22 +65,22 @@
 
 @if (_others.Count > 0)
 {
-    <div class="card">
-        <div class="card-title">Tilmeldte telefoner</div>
+    <details class="card fold" open>
+        <summary class="card-title">Tilmeldte telefoner</summary>
         @foreach (var s in _others)
         {
             <div class="switch"><span>@(string.IsNullOrWhiteSpace(s.Name) ? "Uden navn" : s.Name) <span class="muted small">· @(s.NotifyCheapest ? "billigst" : "")@(s.NotifyCheapest && s.NotifyExpensive ? " + " : "")@(s.NotifyExpensive ? "dyrest" : "")</span></span>
                 <span class="muted small">@(s.LastSentAt is { } l ? "sidst " + DkTime.FromUtc(l).ToString("d/M HH:mm") : "ingen sendt endnu")</span></div>
         }
-    </div>
+    </details>
 }
 
-<div class="card">
-    <div class="card-title">Sådan virker det</div>
+<details class="card fold" open>
+    <summary class="card-title">Sådan virker det</summary>
     <div class="small muted">
         Hver dag ca. kl. 13 kommer morgendagens priser. Appen finder det billigste tidspunkt at køre den første maskine (@Store.Get().Appliances.FirstOrDefault()?.Name) og sender en besked én time før. Beskeden viser hvad turen koster, så du kan se om det er værd at vente.
     </div>
-</div>
+</details>
 
 @code {
     private string? _state;
