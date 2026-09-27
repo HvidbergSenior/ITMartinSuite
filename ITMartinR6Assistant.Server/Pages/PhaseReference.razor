@@ -5,8 +5,7 @@
    not playing and live on /operatorer and /vaaben. Hidden until a map is chosen. *@
 @if (CurrentMap is not null)
 {
-    <details class="ref-panel" data-fold="kort-site" open="@StartOpen">
-        <summary>🗺 Kort & site: @CurrentMap.Name@(CurrentSite is not null ? $" · {CurrentSite.Name}" : "")@(Phase == MatchPhase.InGame ? " – død? læs op her" : "")</summary>
+    <Fold Key="kort-site" Class="ref-panel" Open="StartOpen" Title="@($"🗺 Kort & site: {CurrentMap.Name}{(CurrentSite is not null ? " · " + CurrentSite.Name : "")}{(Phase == MatchPhase.InGame ? " – død? læs op her" : "")}")">
 
         @if (CurrentSite is null)
         {
@@ -30,7 +29,7 @@
             </div>
             <ProTips Data="Data" Mode="ingame" MapName="@CurrentMap.Name" WeAttack="WeAttack" />
         }
-    </details>
+    </Fold>
 }
 
 @code {

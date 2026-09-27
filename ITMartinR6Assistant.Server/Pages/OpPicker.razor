@@ -4,7 +4,7 @@
     @foreach (var n in SitePicks.Where(Names.Contains).Concat(Names.Where(n => !SitePicks.Contains(n))))
     {
         <button class="opa-chip @(Selected.Contains(n) ? "opa-chip-on" : "") @(!Selected.Contains(n) && Selected.Count >= 5 ? "op-chip-full" : "")"
-                @onclick="() => OnToggle(n)">@(SitePicks.Contains(n) ? "★ " : "")@n</button>
+                disabled="@ReadOnly" @onclick="() => OnToggle(n)">@(SitePicks.Contains(n) ? "★ " : "")@n</button>
     }
 </div>
 
@@ -13,4 +13,6 @@
     [Parameter, EditorRequired] public HashSet<string> Selected { get; set; } = new();
     [Parameter] public List<string> SitePicks { get; set; } = new();
     [Parameter, EditorRequired] public Action<string> OnToggle { get; set; } = default!;
+    // Coach mode: only the coach picks, the others see the picks.
+    [Parameter] public bool ReadOnly { get; set; }
 }

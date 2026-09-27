@@ -259,6 +259,42 @@ public class SessionStateService
         NotifyStateChanged();
     }
 
+    // Coach mode: one device (PIN-claimed, see CoachService) runs the phase screen - phase, map, site, side, bans,
+    // ops, and which cards are open. Everyone else follows read-only. No coach = everyone can steer, as before.
+    public string? CoachId { get; private set; }
+    public string? CoachName { get; private set; }
+    public string CoachCall { get; private set; } = "";
+    private readonly Dictionary<string, bool> _shown = new(StringComparer.OrdinalIgnoreCase);
+    // Op-ban site cards the coach has opened ("map|site").
+    public HashSet<string> OpenSites { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public void SetCoach(string? id, string? name)
+    {
+        lock (_lock) { CoachId = id; CoachName = id is null ? null : name; }
+        NotifyStateChanged();
+    }
+
+    public void SetCoachCall(string text)
+    {
+        lock (_lock) { CoachCall = text.Trim(); }
+        NotifyStateChanged();
+    }
+
+    // Card open/closed as the coach left it, per phase (so each phase keeps its own defaults).
+    public bool? GetShown(string key) { lock (_lock) { return _shown.TryGetValue(Phase + ":" + key, out var v) ? v : null; } }
+
+    public void SetShown(string key, bool open)
+    {
+        lock (_lock) { _shown[Phase + ":" + key] = open; }
+        NotifyStateChanged();
+    }
+
+    public void ToggleOpenSite(string key)
+    {
+        lock (_lock) { if (!OpenSites.Remove(key)) OpenSites.Add(key); }
+        NotifyStateChanged();
+    }
+
     public event Action? OnStateChanged;
 
     public void AdvancePhase()
@@ -401,6 +437,8 @@ public class SessionStateService
             Round = 1;
             OurOps.Clear();
             TheirOps.Clear();
+            OpenSites.Clear();
+            CoachCall = "";
             Phase = MatchPhase.Lobby;
             PhaseStartedAtUtc = DateTimeOffset.UtcNow;
         }

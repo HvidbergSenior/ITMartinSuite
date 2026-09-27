@@ -23,6 +23,7 @@ builder.Services.AddSingleton<PreGameCheckService>();
 builder.Services.AddSingleton<SettingsGuideService>();
 builder.Services.AddSingleton<R6RefreshService>();
 builder.Services.AddScoped<PlayerIdentityService>();
+builder.Services.AddScoped<CoachService>();
 builder.Services.AddHttpClient();
 // Liquipedia's API terms: identify the app and accept gzip.
 builder.Services.AddHttpClient("liquipedia", c =>

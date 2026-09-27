@@ -1,6 +1,7 @@
 @using ITMartinR6Assistant.Domain
 @using ITMartinR6Assistant.Infrastructure
 @inject SessionStateService Session
+@inject CoachService Coach
 
 @* The round, and only the round (user: "when match starts focus on the map that has been selected and the ops
    that has been selected ... also opponents operators ... and site selections"). Op-pick: site + "Hvem spiller vi?".
@@ -13,7 +14,7 @@
             <div class="opa-chips">
                 @foreach (var s in Map.Sites)
                 {
-                    <button class="opa-chip @(Session.Site == s.Name ? "opa-chip-on" : "")" @onclick="() => Session.SetSite(s.Name)">@s.Name <span class="muted small">@s.Floor</span></button>
+                    <button class="opa-chip @(Session.Site == s.Name ? "opa-chip-on" : "")" disabled="@(!Coach.CanControl)" @onclick="() => Session.SetSite(s.Name)">@s.Name <span class="muted small">@s.Floor</span></button>
                 }
             </div>
         </Fold>
@@ -22,7 +23,7 @@
     <Fold Key="round-ours" Title="@($"🟢 Hvem spiller vi? ({Session.OurOps.Count}/5)")" Class="round-card">
         @if (Phase == MatchPhase.OperatorPick || Session.OurOps.Count == 0)
         {
-            <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" />
+            <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" ReadOnly="!Coach.CanControl" />
         }
         @if (Phase == MatchPhase.InGame)
         {
@@ -37,13 +38,13 @@
                     @if (danger.Count > 0) { <div class="focus-warn">⚠ Kontres af deres @string.Join(", ", danger) &ndash; pas på.</div> }
                 </div>
             }
-            @if (Session.OurOps.Count > 0) { <button class="ref-tab" @onclick="() => _editOurs = !_editOurs">@(_editOurs ? "Færdig" : "Ret vores")</button> }
-            @if (_editOurs) { <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" /> }
+            @if (Session.OurOps.Count > 0 && Coach.CanControl) { <button class="ref-tab" @onclick="() => _editOurs = !_editOurs">@(_editOurs ? "Færdig" : "Ret vores")</button> }
+            @if (_editOurs) { <OpPicker Names="Roster(OurSide)" Selected="Session.OurOps" SitePicks="SitePicks(OurSide)" OnToggle="Session.ToggleOurOp" ReadOnly="!Coach.CanControl" /> }
         }
     </Fold>
 
     <Fold Key="round-theirs" Title="@($"🔴 Hvem spiller de? ({Session.TheirOps.Count}/5)")" Class="round-card" Open="Phase == MatchPhase.InGame">
-        <OpPicker Names="Roster(TheirSide)" Selected="Session.TheirOps" SitePicks="SitePicks(TheirSide)" OnToggle="Session.ToggleTheirOp" />
+        <OpPicker Names="Roster(TheirSide)" Selected="Session.TheirOps" SitePicks="SitePicks(TheirSide)" OnToggle="Session.ToggleTheirOp" ReadOnly="!Coach.CanControl" />
         @foreach (var op in Ops(Session.TheirOps))
         {
             var answers = op.CounteredBy.Where(n => Roster(OurSide).Contains(n)).ToList();

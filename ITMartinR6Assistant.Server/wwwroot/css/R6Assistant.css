@@ -1854,3 +1854,17 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .focus-warn { color: #fbbf24; font-weight: 700; font-size: .9rem; margin-top: 4px; }
 .focus-answer { display: inline-block; margin: 2px 4px 0 0; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: .85rem; }
 .focus-answer-have { border-color: var(--def); color: #4ade80; font-weight: 700; }
+
+/* COACH MODE - coach steers the phase screen, the others follow read-only. */
+.coach-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin: 0 auto 10px; max-width: 900px; }
+.coach-tag { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card2); font-weight: 600; }
+.coach-tag-me { border-color: var(--accent); color: var(--accent); }
+.coach-pin { max-width: 140px; }
+.coach-call-edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 auto 10px; max-width: 900px; }
+.coach-call-edit > .specs-input { flex: 1 1 240px; }
+.coach-quick { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.coach-call { margin: 0 auto 14px; max-width: 900px; padding: 14px 18px; border-radius: 12px; border: 2px solid var(--accent);
+  background: var(--bg-card2); font-size: 1.35rem; font-weight: 800; text-align: center; }
+/* Followers: buttons show state but can't be tapped - keep them fully readable, not greyed. */
+.follow-mode button:disabled { opacity: 1; cursor: default; }
+.follow-mode .opban-site-head, summary.fold-locked { cursor: default; }

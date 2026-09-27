@@ -5,18 +5,59 @@
 @inject SettingsGuideService Guide
 @inject PlayerIdentityService Identity
 @inject PreGameCheckService PreGameCheck
+@inject CoachService Coach
 @implements IDisposable
 @using System.Text.Json
 @using ITMartinR6Assistant.Domain
 @using ITMartinR6Assistant.Server.Services
 
-<div class="phase-page">
+<CascadingValue Name="PhaseScreen" Value="true">
+<div class="phase-page @(Coach.CanControl ? "" : "follow-mode")">
+
+    @* Coach mode: the coach steers the phase screen, everyone else follows what the coach picks and opens. *@
+    <div class="coach-bar">
+        @if (Coach.IsCoach)
+        {
+            <span class="coach-tag coach-tag-me">🎧 Du er coach &ndash; holdet ser det, du vælger og åbner</span>
+            <button class="phase-back-btn" @onclick="Coach.Release">Slip coach</button>
+        }
+        else if (Coach.Synced)
+        {
+            <span class="coach-tag">🎧 @Session.CoachName styrer &ndash; du følger med</span>
+            <button class="phase-back-btn" @onclick="() => _pinOpen = !_pinOpen">Overtag</button>
+        }
+        else
+        {
+            <button class="phase-back-btn" @onclick="() => _pinOpen = !_pinOpen">🎧 Bliv coach</button>
+        }
+        @if (_pinOpen && !Coach.IsCoach)
+        {
+            <input class="specs-input coach-pin" type="password" placeholder="Coach-PIN" @bind="_pin" @onkeydown="PinKey" />
+            <button class="phase-advance-btn" @onclick="ClaimCoach">OK</button>
+            @if (_pinWrong) { <span class="bad small">Forkert PIN</span> }
+        }
+    </div>
+    @if (Coach.IsCoach)
+    {
+        <div class="coach-call-edit">
+            <input class="specs-input" placeholder="Besked til holdet – fx 'Drone først, hold B'" @bind="_callText" @onkeydown="CallKey" />
+            <button class="phase-advance-btn" @onclick="SendCall">Send</button>
+            @if (Session.CoachCall.Length > 0) { <button class="phase-back-btn" @onclick='() => Session.SetCoachCall("")'>Ryd</button> }
+            <div class="coach-quick">
+                @foreach (var q in QuickCalls) { <button class="opa-chip" @onclick="() => Session.SetCoachCall(q)">@q</button> }
+            </div>
+        </div>
+    }
+    @if (Session.CoachCall.Length > 0)
+    {
+        <div class="coach-call">📣 @Session.CoachCall</div>
+    }
 
     @* General info is for before the match; from map-ban on only what the phase needs is shown. *@
     @if (Session.Phase == MatchPhase.Lobby)
     {
     <div style="max-width:520px;margin:0 auto 18px">
-        <button class="banner-toggle-btn" @onclick="ToggleBanners">@(Session.ShowBanners ? "ℹ️ Skjul info (for alle)" : "ℹ️ Vis info (for alle)")</button>
+        <button class="banner-toggle-btn" disabled="@(!Coach.CanControl)" @onclick="ToggleBanners">@(Session.ShowBanners ? "ℹ️ Skjul info (for alle)" : "ℹ️ Vis info (for alle)")</button>
 
         <ProblemPurposeBanner Show="Session.ShowBanners"
             Problem="At holde styr på faser - map-bans, operator-bans, operator-valg, kampen selv, og efter-kampen - og hvor lang tid der er tilbage til hver, er svært at gøre manuelt midt i en session."
@@ -57,6 +98,8 @@
         <div class="phase-timer-total">forløbet</div>
     }
 
+    @if (Coach.CanControl)
+    {
     <div class="phase-nav">
         @if (Session.Phase != MatchPhase.Lobby)
         {
@@ -95,6 +138,7 @@
             <button class="phase-advance-btn" @onclick="NewGame">Ja, ny kamp</button>
             <button class="phase-back-btn" @onclick="() => _confirmNew = false">Nej</button>
         </div>
+    }
     }
     @if (Session.Phase == MatchPhase.PostMatch)
     {
@@ -139,7 +183,7 @@
                     var banned = Session.MapBans.Contains(name);
                     var chosen = Session.Map == name;
                     <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
-                        <button class="mapban-main" @onclick="() => Session.SetMap(name)">
+                        <button class="mapban-main" disabled="@(!Coach.CanControl)" @onclick="() => Session.SetMap(name)">
                             @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
                             <div class="mapban-name">@name</div>
                             @{ var st = Session.MapStats(name); }
@@ -164,7 +208,7 @@
                                 <div class="mapban-stats mapban-pro" title="Pro league (Liquipedia, sidste to år)">🏆 pick @pm.PickPct.ToString("0") % · ban @pm.BanPct.ToString("0") % · ATK @pm.AtkRoundPct.ToString("0") %</div>
                             }
                         </button>
-                        <button class="mapban-play @(banned ? "mapban-play-banned" : "")" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "↩ Fortryd ban" : "✕ Bannet")</button>
+                        <button class="mapban-play @(banned ? "mapban-play-banned" : "")" disabled="@(!Coach.CanControl)" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "↩ Fortryd ban" : "✕ Bannet")</button>
                     </div>
                 }
             </div>
@@ -200,7 +244,7 @@
             </div>
             <div class="matchlog-row">
                 <input class="specs-input" placeholder="Note (valgfri) – fx 'tabte alle rush på site B'" @bind="_logNote" />
-                <button class="specs-help-submit-btn" @onclick="SaveMatch" disabled="@(string.IsNullOrEmpty(_logMap) || _logWon is null)">Gem</button>
+                <button class="specs-help-submit-btn" @onclick="SaveMatch" disabled="@(string.IsNullOrEmpty(_logMap) || _logWon is null || !Coach.CanControl)">Gem</button>
             </div>
             @if (_logSaved) { <div class="specs-status specs-status-ok">Gemt – tallene ligger nu på <a href="/maps">Maps</a>.</div> }
             @if (Session.Matches.Count > 0)
@@ -226,13 +270,14 @@
             <div class="opban-head">
                 <div>
                     <div class="opban-sub">
-                        @if (opMap is null) { <span>Intet map valgt &ndash; g&aring; <a href="#" @onclick="Session.PreviousPhase" @onclick:preventDefault="true">tilbage</a> og tryk Spil p&aring; mappet.</span> }
+                        @if (opMap is null && !Coach.CanControl) { <span>Intet map valgt endnu &ndash; coachen vælger.</span> }
+                        else if (opMap is null) { <span>Intet map valgt &ndash; g&aring; <a href="#" @onclick="Session.PreviousPhase" @onclick:preventDefault="true">tilbage</a> og tryk Spil p&aring; mappet.</span> }
                         else { <span>Map: <b>@opMap.Name</b></span> }
                     </div>
                 </div>
                 <div class="opban-side">
-                    <button class="admin-side-btn @(weAttack ? "side-btn-atk-active" : "")" @onclick='() => Session.SetSide("Attack")'>Vi er ATK</button>
-                    <button class="admin-side-btn @(!weAttack ? "side-btn-def-active" : "")" @onclick='() => Session.SetSide("Defense")'>Vi er DEF</button>
+                    <button class="admin-side-btn @(weAttack ? "side-btn-atk-active" : "")" disabled="@(!Coach.CanControl)" @onclick='() => Session.SetSide("Attack")'>Vi er ATK</button>
+                    <button class="admin-side-btn @(!weAttack ? "side-btn-def-active" : "")" disabled="@(!Coach.CanControl)" @onclick='() => Session.SetSide("Defense")'>Vi er DEF</button>
                 </div>
             </div>
             <div class="mapban-hint">Hver runde: ATK banner &eacute;n <b>defender</b>, DEF banner &eacute;n <b>attacker</b>. Vi er @(weAttack ? "ATK, så vi banner en defender" : "DEF, så vi banner en attacker"). Ban efter bombsite &ndash; tryk p&aring; det site, der er i spil.</div>
@@ -252,7 +297,7 @@
                         var bans = site.SuggestedBans.Where(b => opsOfSide.Count == 0 || opsOfSide.Contains(b)).ToList();
                         var theirPicks = weAttack ? site.DefensePicks : site.AttackPicks;
                         var ourPicks = weAttack ? site.AttackPicks : site.DefensePicks;
-                        var isOpen = _openSites.Contains(opMap.Name + "|" + site.Name);
+                        var isOpen = (Coach.Synced ? Session.OpenSites : _openSites).Contains(opMap.Name + "|" + site.Name);
                         <div class="opban-site @(active ? "opban-site-active" : "") @(isOpen ? "opban-site-open" : "")">
                             <div class="opban-site-head" @onclick="() => ToggleSite(opMap.Name, site.Name)">
                                 <span class="opban-caret">@(isOpen ? "▾" : "▸")</span>
@@ -413,8 +458,26 @@
 
 
 </div>
+</CascadingValue>
 
 @code {
+    private bool _pinOpen, _pinWrong;
+    private string _pin = "", _callText = "";
+    private static readonly string[] QuickCalls =
+    {
+        "Drone først – spil langsomt", "Rush sammen – nu", "Hold site – ingen roam", "Rotér til andet site",
+        "Spar utility til sidst", "Spil trades – to og to", "Øko: ingen dumme dødsfald",
+    };
+
+    private void ClaimCoach()
+    {
+        _pinWrong = !Coach.TryClaim(_pin);
+        if (!_pinWrong) { _pinOpen = false; _pin = ""; }
+    }
+    private void PinKey(KeyboardEventArgs e) { if (e.Key == "Enter") ClaimCoach(); }
+    private void SendCall() { Session.SetCoachCall(_callText); _callText = ""; }
+    private void CallKey(KeyboardEventArgs e) { if (e.Key == "Enter") SendCall(); }
+
     private bool _confirmNew;
     // Op-ban -> op-pick -> in-game repeat once per round.
     private bool InRounds => Session.Phase is MatchPhase.OperatorBans or MatchPhase.OperatorPick or MatchPhase.InGame;
@@ -601,6 +664,7 @@
     {
         if (!firstRender) return;
         await Identity.EnsureLoadedAsync();
+        await Coach.EnsureLoadedAsync();
         StateHasChanged();
     }
 
@@ -611,6 +675,15 @@
     private void ToggleSite(string map, string site)
     {
         var key = map + "|" + site;
+        if (Coach.Synced)
+        {
+            // Coach opens/closes for everyone; the others can't change it.
+            if (!Coach.IsCoach) return;
+            var opening = !Session.OpenSites.Contains(key);
+            Session.ToggleOpenSite(key);
+            if (opening) Session.SetSite(site);
+            return;
+        }
         if (!_openSites.Remove(key))
         {
             _openSites.Add(key);

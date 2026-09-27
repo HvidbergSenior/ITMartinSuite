@@ -1,11 +1,26 @@
+@inject SessionStateService Session
+@inject CoachService Coach
+
 @* A card that can be shown/hidden by tapping its header (user: "everything, cards, boxes etc should be possible to
    show/hide"). Native <details>, so it works without a server round-trip; wwwroot/js/fold.js remembers each card's
    open/closed state per device under its Key. Blazor only renders "open" as the default, so a re-render never undoes
-   what the user chose. *@
-<details class="fold @Class" data-fold="@Key" open="@Open">
-    <summary class="fold-head">@Title</summary>
-    <div class="fold-body">@ChildContent</div>
-</details>
+   what the user chose.
+   Coach mode: the coach's open/closed state is shared (per phase) and everyone else follows it - the native toggle
+   is blocked and "open" comes from the session. @key recreates the element when the mode flips. *@
+@if (PhaseScreen && Coach.Synced)
+{
+    <details @key="true" class="fold @Class" data-fold-sync="1" open="@(Session.GetShown(Key) ?? Open)">
+        <summary class="fold-head @(Coach.IsCoach ? "" : "fold-locked")" @onclick="CoachToggle" @onclick:preventDefault="true">@Title</summary>
+        <div class="fold-body">@ChildContent</div>
+    </details>
+}
+else
+{
+    <details @key="false" class="fold @Class" data-fold="@Key" open="@Open">
+        <summary class="fold-head">@Title</summary>
+        <div class="fold-body">@ChildContent</div>
+    </details>
+}
 
 @code {
     [Parameter, EditorRequired] public string Key { get; set; } = "";
@@ -13,4 +28,11 @@
     [Parameter] public string Class { get; set; } = "";
     [Parameter] public bool Open { get; set; } = true;
     [Parameter] public RenderFragment? ChildContent { get; set; }
+    // Set by the Kamp page only - stats pages (/maps, /operatorer ...) stay free for everyone.
+    [CascadingParameter(Name = "PhaseScreen")] public bool PhaseScreen { get; set; }
+
+    private void CoachToggle()
+    {
+        if (Coach.IsCoach) Session.SetShown(Key, !(Session.GetShown(Key) ?? Open));
+    }
 }
