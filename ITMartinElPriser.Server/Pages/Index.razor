@@ -61,8 +61,13 @@ else
     var other = isTomorrow ? Dishes(start.AddDays(-1)) : Dishes(start.AddDays(1));
     if (isTomorrow && start.AddDays(-1) < QuarterNow()) other = null;
     <div class="card now-tile @lvl">
-        <div class="now-device">🍽️ Opvaskemaskinen · 2 timer · start @(picked is null ? "nu" : When(start))</div>
+        <div class="now-device">🍽️ Opvaskemaskinen · 2 timer · ca. 1 kWh · start @(picked is null ? "nu" : When(start))</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
+        @if (run is not null)
+        {
+            @* The sum behind the big number, in its own colour: 1 kWh × the average price over the 2 hours. *@
+            <div class="now-calc">1 kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over 2 timer = @Kr(run.CostKr) kr</div>
+        }
         <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele opvasken endnu" : Verdict(rank))</div>
         <div class="now-tomorrow">
             @if (other is not null && run is not null)
