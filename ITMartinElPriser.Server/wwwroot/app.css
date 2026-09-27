@@ -293,3 +293,4 @@ details.fold[open] summary::after { content: "－"; }
 .now-device { color: var(--muted); font-size: .95rem; font-weight: 600; margin-bottom: 8px; }
 .now-tomorrow { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 1.1rem; display: flex; justify-content: center; gap: 10px; align-items: baseline; }
 .now-tomorrow b { font-size: 1.4rem; }
+.linkish { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; margin-top: 10px; }

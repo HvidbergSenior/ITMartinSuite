@@ -25,6 +25,7 @@
     <ul>
         <li><b>Det store tal</b> er hvad det koster at køre din opvaskemaskine, hvis du starter den nu – regnet med 1 kWh over 2 timer, kvarter for kvarter. Alt inkl. moms, elafgift og nettarif.</li>
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
+        <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle, så viser det store tal hvad opvasken koster hvis den starter der. Tryk igen for at gå tilbage til nu.</li>
         <li><b>I morgen</b> er den samme opvask, startet på samme klokkeslæt i morgen. Morgendagens priser kommer ca. kl. 13.</li>
         <li>Flere maskiner (vaskemaskine, tørretumbler, ovn) finder du i <a href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">MinElpris</a>.</li>
     </ul>
@@ -43,31 +44,72 @@ else if (!_snap.HasData || Dishes(QuarterNow()) is not { } now)
 }
 else
 {
-    // One machine, one price: the dishwasher started now, and the same start tomorrow.
-    var lvl = Level(_snap.NowRank01);
-    var tomorrow = Dishes(QuarterNow().AddDays(1));
+    // One machine, one price: the dishwasher started now - or at the hour tapped in the bars -
+    // and the same start on the other day.
+    var strip = Strip();
+    var min = strip.Count > 0 ? strip.Min(h => h.KrPerKwh) : 0;
+    var span = strip.Count > 0 ? strip.Max(h => h.KrPerKwh) - min : 0;
+    var picked = _selected is { } sel ? strip.FirstOrDefault(h => h.Start == sel) : null;
+    var start = picked?.Start ?? QuarterNow();
+    var run = picked is null ? now : Dishes(start);
+    double? rank = picked is null ? _snap.NowRank01 : span > 0 ? (picked.KrPerKwh - min) / span : 0.5;
+    var lvl = Level(rank);
+    var isTomorrow = DateOnly.FromDateTime(start) > DateOnly.FromDateTime(_snap.At);
+    var other = isTomorrow ? Dishes(start.AddDays(-1)) : Dishes(start.AddDays(1));
+    if (isTomorrow && start.AddDays(-1) < QuarterNow()) other = null;
     <div class="card now-tile @lvl">
-        <div class="now-device">🍽️ Opvaskemaskinen · 2 timer · start nu</div>
-        <div class="now-price @lvl">@Kr(now.CostKr) KR</div>
-        <div class="now-verdict @lvl">@Verdict(_snap.NowRank01)</div>
+        <div class="now-device">🍽️ Opvaskemaskinen · 2 timer · start @(picked is null ? "nu" : When(start))</div>
+        <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
+        <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele opvasken endnu" : Verdict(rank))</div>
         <div class="now-tomorrow">
-            @if (tomorrow is not null)
+            @if (other is not null && run is not null)
             {
-                <span>I morgen kl. @QuarterNow().ToString("HH:mm")</span>
-                <b class="@(tomorrow.CostKr < now.CostKr ? "lvl-cheap" : tomorrow.CostKr > now.CostKr ? "lvl-expensive" : "")">@Kr(tomorrow.CostKr) KR</b>
+                <span>@(isTomorrow ? "I dag" : "I morgen") kl. @start.ToString("HH:mm")</span>
+                <b class="@(other.CostKr < run.CostKr ? "lvl-cheap" : other.CostKr > run.CostKr ? "lvl-expensive" : "")">@Kr(other.CostKr) KR</b>
             }
-            else
+            else if (!isTomorrow)
             {
                 <span class="muted">I morgen: prisen kommer ca. kl. 13</span>
             }
         </div>
+        @if (picked is not null)
+        {
+            <button class="linkish small" @onclick="() => _selected = null">↺ Tilbage til nu</button>
+        }
     </div>
+
+    @if (strip.Count > 0)
+    {
+        <div class="card">
+            <div class="bars">
+                @foreach (var h in strip)
+                {
+                    var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
+                    var r = span > 0 ? (h.KrPerKwh - min) / span : 0.5;
+                    @* The whole column is the tap target: it moves the dishwasher's start to that hour. *@
+                    <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
+                         @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
+                        <div class="bar @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
+                             style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(r)"></div>
+                    </div>
+                }
+            </div>
+            <div class="bar-axis">
+                @foreach (var h in strip)
+                {
+                    <span>@(h.IsNow ? "nu" : h.Start.Hour == 0 ? "0" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "")</span>
+                }
+            </div>
+            <div class="muted small" style="margin-top:6px;text-align:center">Tryk på en søjle – så viser det store tal prisen hvis opvasken starter der.</div>
+        </div>
+    }
 }
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
     private PriceSnapshot? _snap;
     private string _area = "DK1";
+    private DateTime? _selected;
     private Timer? _timer;
 
     protected override async Task OnInitializedAsync()
@@ -144,6 +186,20 @@ else
         _snap = null;
         await LoadAsync();
     }
+
+    // The current hour onwards, today and tomorrow in one strip.
+    private List<HourBar> Strip() =>
+        [.. (_snap?.Today?.Hours ?? []).Concat(_snap?.Tomorrow?.Hours ?? []).Where(h => !h.IsPast)];
+
+    // "kl. 13" today, "i nat kl. 03", "i morgen kl. 14".
+    private string When(DateTime t)
+    {
+        var today = DateOnly.FromDateTime(_snap?.At ?? DkTime.Now);
+        if (DateOnly.FromDateTime(t) == today) return $"kl. {t:HH}";
+        return t.Hour < 7 ? $"i nat kl. {t:HH}" : $"i morgen kl. {t:HH}";
+    }
+
+    private static string Color(double rank) => rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)";
 
     public void Dispose() => _timer?.Dispose();
 
