@@ -72,6 +72,37 @@
     </div>
 }
 
+@if (!Tenant.IsAdvisor)
+{
+    @* More logins for the same home - same meter, same machines, each with their own password. *@
+    <div class="card">
+        <div class="card-title">👥 Husstanden</div>
+        <div class="muted small" style="margin-bottom:8px">Alle her ser det samme: måler, maskiner og historik. Hver har sit eget login.</div>
+        @foreach (var m in _members)
+        {
+            <div class="member-row">
+                <span>@m.DisplayName <span class="muted small">@m.Email</span></span>
+                @if (m.Id == Tenant.UserId) { <span class="muted small">dig</span> }
+                else { <button class="btn btn-small" @onclick="() => RemoveMember(m.Id)">Fjern</button> }
+            </div>
+        }
+        @if (_newMemberPassword is { } pw)
+        {
+            <div class="note" style="margin-top:10px">
+                <b>@_newMemberEmail</b> kan nu logge ind på <b>minelpris.itmartin.dk</b> med adgangskoden
+                <b class="code">@pw</b><br />
+                Den vises kun nu – giv den videre, og bed om at den skiftes under Konto.
+            </div>
+        }
+        <div class="row2" style="margin-top:10px">
+            <div class="field"><label for="mname">Navn</label><input id="mname" type="text" @bind="_memberName" placeholder="Fx Vibeke" /></div>
+            <div class="field"><label for="mmail">Mail</label><input id="mmail" type="text" inputmode="email" @bind="_memberEmail" placeholder="navn@mail.dk" /></div>
+        </div>
+        @if (_memberError is { } me) { <div class="small err">@me</div> }
+        <button class="btn btn-primary" @onclick="AddMember">+ Giv adgang til husstanden</button>
+    </div>
+}
+
 <div class="card">
     <div class="card-title">Dine data</div>
     <div class="muted small">
@@ -87,7 +118,9 @@
     else
     {
         <p class="small err" style="margin-top:10px">
-            Sletter du kontoen, forsvinder hjemmet, målertoken, forbrugshistorik og alle adgange. Det kan ikke fortrydes.
+            @(_members.Count > 1
+                ? "Sletter du kontoen, forsvinder kun dit login – hjemmet og dataene bliver hos de andre i husstanden."
+                : "Sletter du kontoen, forsvinder hjemmet, målertoken, forbrugshistorik og alle adgange. Det kan ikke fortrydes.")
         </p>
         <button class="btn btn-danger" @onclick="DeleteAccount">Ja, slet det hele</button>
         <button class="btn" @onclick="() => _confirmDelete = false">Fortryd</button>
@@ -108,7 +141,40 @@
     private bool _confirmDelete;
     private List<GrantView> _grants = [];
 
-    protected override async Task OnInitializedAsync() => await LoadGrantsAsync();
+    private List<UserAccount> _members = [];
+    private string _memberName = "", _memberEmail = "";
+    private string? _memberError, _newMemberPassword, _newMemberEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGrantsAsync();
+        await LoadMembersAsync();
+    }
+
+    private async Task LoadMembersAsync()
+    {
+        if (Tenant.IsAdvisor || Tenant.OwnHouseholdId is not { } householdId) return;
+        _members = await Accounts.MembersAsync(householdId);
+    }
+
+    private async Task AddMember()
+    {
+        _memberError = null; _newMemberPassword = null;
+        if (Tenant.OwnHouseholdId is not { } householdId) return;
+        var (result, password) = await Accounts.AddMemberAsync(householdId, _memberEmail, _memberName);
+        if (!result.Ok) { _memberError = result.Error; return; }
+        _newMemberEmail = result.User!.Email;
+        _newMemberPassword = password;
+        _memberName = _memberEmail = "";
+        await LoadMembersAsync();
+    }
+
+    private async Task RemoveMember(Guid id)
+    {
+        if (Tenant.OwnHouseholdId is not { } householdId || Tenant.UserId is not { } me) return;
+        await Accounts.RemoveMemberAsync(householdId, id, me);
+        await LoadMembersAsync();
+    }
 
     private async Task LoadGrantsAsync()
     {
@@ -144,6 +210,7 @@
     {
         if (Tenant.UserId is not { } userId) return;
         var householdId = await Tenant.CurrentHouseholdIdAsync();
+        // True only when the last person left and the household itself went.
         if (await Accounts.DeleteAccountAsync(userId) && householdId is { } id) Registry.Forget(id);
         Nav.NavigateTo("/logout", forceLoad: true);
     }

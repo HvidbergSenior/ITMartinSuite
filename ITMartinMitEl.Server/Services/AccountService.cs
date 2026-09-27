@@ -125,14 +125,22 @@ public sealed class AccountService(IDbContextFactory<MitElDbContext> factory)
     }
 
     /// <summary>
-    /// Deletes the account and, for an owner, the household with it: settings, meter token,
-    /// run log, consumption and every advisor grant. Nothing is kept back.
+    /// Deletes the account and, for the last person in a household, the household with it:
+    /// settings, meter token, run log, consumption and every advisor grant. While others still
+    /// share the household only this login goes. Returns true when the household itself was deleted.
     /// </summary>
     public async Task<bool> DeleteAccountAsync(Guid userId)
     {
         await using var db = await factory.CreateDbContextAsync();
         var user = await db.Users.FindAsync(userId);
         if (user is null) return false;
+
+        if (user.HouseholdId is { } shared && await db.Users.AnyAsync(u => u.Id != userId && u.HouseholdId == shared))
+        {
+            db.Users.Remove(user);
+            await db.SaveChangesAsync();
+            return false;
+        }
 
         if (user.HouseholdId is { } householdId)
         {
@@ -151,6 +159,55 @@ public sealed class AccountService(IDbContextFactory<MitElDbContext> factory)
         }
 
         db.Users.Remove(user);
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Adds another login to an existing household (a partner, a grown-up child) - same meter,
+    /// same machines. No mail server exists, so a temporary password is made here and shown once.
+    /// </summary>
+    public async Task<(AccountResult Result, string? Password)> AddMemberAsync(Guid householdId, string email, string displayName)
+    {
+        var password = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(9))
+            .Replace('+', 'x').Replace('/', 'y');
+        var check = Validate(email, password);
+        if (check is not null) return (check, null);
+
+        email = Normalise(email);
+        await using var db = await factory.CreateDbContextAsync();
+        if (await db.Users.AnyAsync(u => u.Email == email))
+            return (AccountResult.Fail("Der findes allerede en bruger med den mail."), null);
+        if (await db.Households.FindAsync(householdId) is null)
+            return (AccountResult.Fail("Hjemmet findes ikke."), null);
+
+        var user = new UserAccount
+        {
+            Email = email,
+            PasswordHash = PasswordHasher.Hash(password),
+            Role = UserRoles.Owner,
+            HouseholdId = householdId,
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? email : displayName.Trim(),
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        return (AccountResult.Success(user), password);
+    }
+
+    public async Task<List<UserAccount>> MembersAsync(Guid householdId)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        return await db.Users.Where(u => u.HouseholdId == householdId).OrderBy(u => u.CreatedAtUtc).ToListAsync();
+    }
+
+    /// <summary>Takes another login out of the household. Never the one asking, never the household's data.</summary>
+    public async Task<bool> RemoveMemberAsync(Guid householdId, Guid memberId, Guid askingUserId)
+    {
+        if (memberId == askingUserId) return false;
+        await using var db = await factory.CreateDbContextAsync();
+        var member = await db.Users.FirstOrDefaultAsync(u => u.Id == memberId && u.HouseholdId == householdId);
+        if (member is null) return false;
+        db.Users.Remove(member);
         await db.SaveChangesAsync();
         return true;
     }

@@ -316,4 +316,33 @@ public class AccountsTests
         Assert.That(code, Does.Not.Contain("O").And.Not.Contain("0").And.Not.Contain("I").And.Not.Contain("1"));
         Assert.That(AdvisorService.Pretty(code), Is.EqualTo($"{code[..4]}-{code[4..]}"));
     }
+
+    [Test]
+    public async Task A_household_member_logs_in_to_the_same_home_and_leaving_keeps_the_home()
+    {
+        var owner = (await _accounts.RegisterAsync("ejer@test.dk", "hemmeligt123", "Ejer")).User!;
+        var (added, password) = await _accounts.AddMemberAsync(owner.HouseholdId!.Value, "Partner@Test.dk", "Partner");
+
+        Assert.That(added.Ok, Is.True, added.Error);
+        var login = await _accounts.AuthenticateAsync("partner@test.dk", password!);
+        Assert.That(login.User!.HouseholdId, Is.EqualTo(owner.HouseholdId));
+        Assert.That(await _accounts.MembersAsync(owner.HouseholdId.Value), Has.Count.EqualTo(2));
+
+        // The partner leaving must not take the home with them.
+        Assert.That(await _accounts.DeleteAccountAsync(login.User.Id), Is.False);
+        await using var db = await _factory.CreateDbContextAsync();
+        Assert.That(await db.Households.FindAsync(owner.HouseholdId.Value), Is.Not.Null);
+        Assert.That(await _accounts.MembersAsync(owner.HouseholdId.Value), Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task A_member_cannot_remove_themselves_and_the_email_must_be_free()
+    {
+        var owner = (await _accounts.RegisterAsync("ejer2@test.dk", "hemmeligt123", "Ejer")).User!;
+        var household = owner.HouseholdId!.Value;
+
+        Assert.That(await _accounts.RemoveMemberAsync(household, owner.Id, owner.Id), Is.False);
+        var (dupe, _) = await _accounts.AddMemberAsync(household, "ejer2@test.dk", "Igen");
+        Assert.That(dupe.Ok, Is.False);
+    }
 }

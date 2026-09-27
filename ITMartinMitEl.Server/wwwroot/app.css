@@ -261,3 +261,4 @@ a { color: var(--accent); text-decoration: none; }
 .de-sure { font-size: .72rem; padding: 1px 7px; border-radius: 100px; border: 1px solid var(--border); color: var(--muted); }
 .de-sure.s-registered { border-color: var(--cheap); color: var(--cheap); }
 .de-sure.s-likely { border-color: var(--accent); color: var(--accent); }
+.member-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
