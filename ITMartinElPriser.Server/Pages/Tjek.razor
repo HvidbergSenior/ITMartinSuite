@@ -56,11 +56,26 @@ else
         {
             var sum = b.PartKr(party);
             if (sum == 0) continue;
-            <div class="bill-line" style="margin-top:8px">
-                <div class="appl-row"><span><b>@PartyTitle(party, b)</b></span><b>@sum.ToString("0", Da) kr · @Pct(sum, b.TotalKr)</b></div>
+            var open = _openParty == party;
+            <div class="bill-line tap" style="margin-top:8px" role="button" tabindex="0" aria-expanded="@(open ? "true" : "false")"
+                 @onclick="() => _openParty = open ? null : party">
+                <div class="appl-row"><span><b>@PartyTitle(party, b)</b></span><b>@sum.ToString("0", Da) kr · @Pct(sum, b.TotalKr) @(open ? "▾" : "▸")</b></div>
                 <div class="bill-bar"><i style="width:@((b.TotalKr > 0 ? sum / b.TotalKr * 100 : 0).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div>
-                <p class="muted small" style="margin:4px 0 0">@ElBillParser.ExplainParty(party)</p>
+                <p class="muted small" style="margin:4px 0 0">@ElBillParser.ExplainParty(party)@(open ? "" : " Tryk for linjerne.")</p>
             </div>
+            @if (open)
+            {
+                @foreach (var l in b.Lines.Where(x => x.Party == party))
+                {
+                    <div class="bill-sub">
+                        <div class="appl-row small">
+                            <span><b>@l.Name</b>@(l.RateKr is { } r ? $" · {l.Kwh?.ToString("0", Da)} kWh × {r.ToString("0.000", Da)} kr" : "")</span>
+                            <b>@l.Kr.ToString("0.00", Da) kr</b>
+                        </div>
+                        <p class="muted small" style="margin:2px 0 0">@ElBillParser.Explain(l)</p>
+                    </div>
+                }
+            }
         }
     </div>
 
@@ -70,8 +85,9 @@ else
         {
             <div class="card now-tile lvl-expensive">
                 <div class="card-title">⚠️ Din regning passer ikke med elpris.dk</div>
-                <p class="small">Dit tillæg på regningen: <b>@((bm * 100).ToString("0.00", Da)) øre</b> pr. kWh. @b.Supplier har oplyst <b>@((pm * 100).ToString("0.00", Da)) øre</b> til Forsyningstilsynet (elpris.dk).</p>
-                <p class="small">Med dit forbrug er det ca. <b>@(Math.Abs(c.MarkupGapYearlyKr ?? 0).ToString("0", Da)) kr om året</b> @((bm > pm ? "mere" : "mindre")) end oplyst. Spørg dit elselskab, hvilken pris der gælder.</p>
+                <p class="small">Tillægget er elselskabets egen fortjeneste oven i selve strømmen. På din regning: <b>@((bm * 100).ToString("0.00", Da)) øre</b> pr. kWh. @b.Supplier har oplyst <b>@((pm * 100).ToString("0.00", Da)) øre</b> til Forsyningstilsynet (elpris.dk)@(c.Current?.Updated is { } u ? $", senest opdateret {u.ToString("d. MMMM yyyy", Da)}" : "").</p>
+                <p class="small">Med dit forbrug er forskellen ca. <b>@(Math.Abs(c.MarkupGapYearlyKr ?? 0).ToString("0", Da)) kr om året</b>. Oftest betyder det, at prisen er ændret, uden at elpris.dk er opdateret – det skal elselskabet ellers gøre.</p>
+                <p class="small"><b>Spørg @b.Supplier:</b> “Min regning siger @((bm * 100).ToString("0.00", Da)) øre i tillæg, men I oplyser @((pm * 100).ToString("0.00", Da)) øre på elpris.dk. Hvilken pris gælder, og hvornår blev den ændret?”</p>
             </div>
         }
         else if (c.BillMarkupKr is not null && c.PortalMarkupKr is not null)
@@ -105,6 +121,7 @@ else
     private static readonly CultureInfo Da = new("da-DK");
     private ElBill? _bill;
     private BillComparison? _cmp;
+    private BillParty? _openParty;
     private bool _busy;
     private string _error = "";
 

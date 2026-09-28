@@ -305,3 +305,11 @@ details.fold[open] summary::after { content: "－"; }
 .now-compare-machines b { font-size: 1.15rem; }
 .now-saving { color: var(--cheap); font-weight: 600; font-size: .9rem; margin-top: 8px; }
 .bottom-nav a.nav-locked { opacity: .55; }
+.bill-line.tap { cursor: pointer; }
+.bill-sub { padding: 6px 0 6px 14px; border-left: 3px solid var(--border); margin-left: 4px; }
+/* "Det får du i MinElpris" teasers (front page) */
+.teasers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.teaser { display: block; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; color: inherit; text-decoration: none; background: var(--bg3); }
+.teaser:hover { border-color: var(--accent); }
+.teaser b { display: block; font-size: .95rem; }
+.teaser span { display: block; font-size: .82rem; opacity: .75; margin-top: 2px; }
