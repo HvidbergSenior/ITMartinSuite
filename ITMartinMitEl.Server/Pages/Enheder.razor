@@ -257,6 +257,8 @@ else
     private async Task AddFromPhotoAsync((byte[] Bytes, string Mime) photo)
     {
         _reading = true; _photoError = null; _photoAdded = null;
+        // The demo never calls the paid AI - it would cost money for every visitor who tries.
+        if (DemoHousehold.IsDemo(Store.HouseholdId)) { _reading = false; _photoError = "I demoen læser vi ikke billeder – opret din egen MinElpris for at tage billede af dine egne apparater."; return; }
         StateHasChanged();
         try
         {

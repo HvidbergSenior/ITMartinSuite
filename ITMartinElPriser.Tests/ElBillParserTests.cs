@@ -98,4 +98,23 @@ public class ElBillParserTests
     {
         ElBillParser.Parse("Kære Martin\nTak for sidst.").Should().BeNull();
     }
+    [Test]
+    public void Compares_the_bill_with_elpris_dk_and_finds_the_saving()
+    {
+        var bill = ElBillParser.Parse(Nrgi)!;
+        var products = new List<SupplierProduct>
+        {
+            new("ep-1-0", "NRGi Elhandel A/S", "NRGi Time", false, 0.0423, 0, 23.2, 0, 0, "0 mdr.", "", null, false, null, null),
+            new("ep-2-0", "Billig El A/S", "Spot", false, 0.01, 0, 0, 0, 0, "", "https://example.dk", null, false, null, null),
+            new("ep-3-0", "Fast El A/S", "Fast", true, 0, 1.5, 0, 0, 0, "", "", null, false, null, null),
+        };
+        var c = BillComparison.For(bill, products);
+        c.Current!.Name.Should().Be("NRGi Time");
+        c.BillMarkupKr.Should().Be(0.08998);
+        c.PortalMarkupKr.Should().BeApproximately(0.0423 * 1.25, 1e-9);
+        c.MarkupGapYearlyKr.Should().BeGreaterThan(0);          // the bill charges more than reported
+        c.Cheapest!.Company.Should().Be("Billig El A/S");        // variable like today - the fixed one is not compared
+        var kwh = 268.791 * 365 / 31;
+        c.SavingYearlyKr.Should().BeApproximately(0.08998 * kwh + 29.0 * 12 - 0.01 * kwh * 1.25, 0.01);
+    }
 }

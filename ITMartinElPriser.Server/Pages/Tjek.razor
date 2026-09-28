@@ -1,0 +1,150 @@
+@page "/tjek"
+@using System.Globalization
+@using UglyToad.PdfPig
+@using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor
+@inject SupplierCatalog Catalog
+
+@* The free hook for MinElpris (user 2026-09-28: "something with a wow effect, so users want to see
+   the paid version"): the user's OWN bill, read in memory only (nothing stored - the free app has no
+   accounts), shows who gets the money, whether the supplier's price matches what it reports to
+   Forsyningstilsynet, and how much could be saved. Which supplier, and the switch, are in MinElpris. *@
+
+<PageTitle>Tjek din elregning – ElPriser</PageTitle>
+<h1>🔎 Tjek din elregning</h1>
+
+<PageHelp Key="help-tjek">
+    <p><b>Det er her:</b> Læg din elregning ind som PDF – så ser du på få sekunder, hvor pengene går hen, om dit elselskab tager den pris, det har oplyst til Forsyningstilsynet, og hvad du kan spare.</p>
+    <p><b>Sådan gør du:</b> Find regningen som PDF (se “Sådan finder du din regning” under knappen), tryk “📎 Vælg regning” og vælg filen. Regningen bliver kun læst – den gemmes ikke.</p>
+</PageHelp>
+
+@if (_bill is null)
+{
+    <div class="card">
+        <div class="card-title">Hvad betaler du egentlig for?</div>
+        <p class="small">De fleste ved ikke, at kun en del af elregningen går til elselskabet. Og at elselskaberne selv oplyser deres priser til Forsyningstilsynet – så vi kan tjekke, om din regning passer.</p>
+        <label class="btn btn-primary btn-block" style="text-align:center">
+            📎 Vælg regning (PDF)
+            <InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" style="display:none" />
+        </label>
+        @if (_busy) { <p class="muted small">Læser regningen…</p> }
+        @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
+        <details class="card fold" style="margin-top:10px" data-remember="tjek-howto">
+            <summary>❓ Sådan finder du din regning som PDF</summary>
+            <ol class="small">
+                <li><b>Tjek din mail og e-Boks / Digital Post.</b> De fleste elselskaber sender regningen dér. Søg på elselskabets navn eller “elregning”.</li>
+                <li><b>Eller hent den i elselskabets app eller på “Mit …”-siden:</b> find <b>Regninger</b> eller <b>Dokumenter</b> → den seneste → <b>Download</b>.</li>
+                <li><b>Gem PDF’en</b> (iPhone: “Arkiver i Filer”) og tryk “📎 Vælg regning” ovenfor.</li>
+            </ol>
+            <p class="muted small">Brug en <b>månedsregning</b> – ikke årsopgørelsen. Vi kan læse NRGi’s regninger nu; flere elselskaber kommer.</p>
+        </details>
+    </div>
+}
+else
+{
+    var b = _bill;
+    var supplierKr = b.PartKr(BillParty.Supplier);
+    <div class="card now-tile">
+        <div class="small muted">Din regning · @Period(b)</div>
+        <div class="now-price">@b.TotalKr.ToString("0", Da) kr</div>
+        <div class="now-unit">@b.Kwh.ToString("0", Da) kWh · @b.KrPerKwh.ToString("0.00", Da) kr pr. kWh alt inkl.</div>
+        <div class="now-compare">Kun <b>@supplierKr.ToString("0", Da) kr</b> (@Pct(supplierKr, b.TotalKr)) går til <b>@b.Supplier</b>. Resten er transport og afgifter, som er ens uanset elselskab.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Hvem får dine penge?</div>
+        @foreach (var party in new[] { BillParty.Supplier, BillParty.Grid, BillParty.State })
+        {
+            var sum = b.PartKr(party);
+            if (sum == 0) continue;
+            <div class="bill-line" style="margin-top:8px">
+                <div class="appl-row"><span><b>@PartyTitle(party, b)</b></span><b>@sum.ToString("0", Da) kr · @Pct(sum, b.TotalKr)</b></div>
+                <div class="bill-bar"><i style="width:@((b.TotalKr > 0 ? sum / b.TotalKr * 100 : 0).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div>
+                <p class="muted small" style="margin:4px 0 0">@ElBillParser.ExplainParty(party)</p>
+            </div>
+        }
+    </div>
+
+    @if (_cmp is { } c)
+    {
+        @if (c.BillMarkupKr is { } bm && c.PortalMarkupKr is { } pm && Math.Abs(bm - pm) * 100 >= 0.3)
+        {
+            <div class="card now-tile lvl-expensive">
+                <div class="card-title">⚠️ Din regning passer ikke med elpris.dk</div>
+                <p class="small">Dit tillæg på regningen: <b>@((bm * 100).ToString("0.00", Da)) øre</b> pr. kWh. @b.Supplier har oplyst <b>@((pm * 100).ToString("0.00", Da)) øre</b> til Forsyningstilsynet (elpris.dk).</p>
+                <p class="small">Med dit forbrug er det ca. <b>@(Math.Abs(c.MarkupGapYearlyKr ?? 0).ToString("0", Da)) kr om året</b> @((bm > pm ? "mere" : "mindre")) end oplyst. Spørg dit elselskab, hvilken pris der gælder.</p>
+            </div>
+        }
+        else if (c.BillMarkupKr is not null && c.PortalMarkupKr is not null)
+        {
+            <div class="card"><p class="small">✅ Tillægget på din regning passer med det, @b.Supplier har oplyst til Forsyningstilsynet.</p></div>
+        }
+
+        @if (c.SavingYearlyKr is > 50 and var save)
+        {
+            <div class="card now-tile lvl-cheap">
+                <div class="small muted">Samme slags pris, samme strøm, ca. @c.YearlyKwh.ToString("#,##0", Da) kWh om året</div>
+                <div class="now-price lvl-cheap">Spar ca. @save.ToString("#,##0", Da) kr</div>
+                <div class="now-unit">om året ved at skifte elselskab</div>
+                <div class="now-compare">🔒 <b>Hvilket selskab</b> og <b>hvordan du skifter</b> med ét tryk – det viser MinElpris, sammen med hele regningen linje for linje og dit forbrug time for time.</div>
+                <a class="btn btn-primary btn-block" style="margin-top:10px" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se hvem – i MinElpris →</a>
+            </div>
+        }
+        else if (c.SavingYearlyKr is not null)
+        {
+            <div class="card"><p class="small">👍 Du har allerede et af de billigste produkter til dit forbrug.</p></div>
+        }
+    }
+
+    <div class="card">
+        <p class="small muted" style="margin:0 0 8px">Regningen er kun læst – den er ikke gemt. Priser fra <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</p>
+        <label class="btn">📎 Tjek en anden regning<InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" style="display:none" /></label>
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private ElBill? _bill;
+    private BillComparison? _cmp;
+    private bool _busy;
+    private string _error = "";
+
+    private async Task ReadAsync(InputFileChangeEventArgs e)
+    {
+        _error = ""; _busy = true;
+        try
+        {
+            await using var upload = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await upload.CopyToAsync(ms);
+            string text;
+            using (var pdf = PdfDocument.Open(ms.ToArray()))
+                text = string.Join("\n", pdf.GetPages().Select(p => ContentOrderTextExtractor.GetText(p)));
+            var bill = ElBillParser.Parse(text);
+            if (bill is null || bill.Lines.Count == 0)
+            {
+                _error = "Vi kunne ikke læse regningen. Er det en elregning som PDF? Lige nu kan vi læse NRGi’s – send gerne en fra et andet selskab til ITMartin@Mensa.dk.";
+                return;
+            }
+            _bill = bill;
+            var area = bill.Grid.Contains("Konstant", StringComparison.OrdinalIgnoreCase) ? "151"
+                : bill.Grid.Contains("Radius", StringComparison.OrdinalIgnoreCase) ? "791"
+                : bill.Grid.Contains("N1", StringComparison.OrdinalIgnoreCase) ? "131" : null;
+            _cmp = BillComparison.For(bill, await Catalog.GetAsync(area));
+        }
+        catch (Exception)
+        {
+            _error = "Filen kunne ikke åbnes som PDF. Prøv at hente regningen igen fra elselskabet.";
+        }
+        finally { _busy = false; }
+    }
+
+    private static string Period(ElBill b) =>
+        b.From is { } f && b.To is { } t ? $"{f.ToString("d. MMM", Da)} – {t.ToString("d. MMM yyyy", Da)}" : "";
+    private static string Pct(double part, double total) => total > 0 ? (part / total * 100).ToString("0", Da) + " %" : "";
+    private static string PartyTitle(BillParty p, ElBill b) => p switch
+    {
+        BillParty.Supplier => $"🏢 Elselskabet – {b.Supplier}",
+        BillParty.Grid => $"🔌 Netselskabet – {b.Grid}",
+        _ => "🏛️ Staten og Energinet",
+    };
+}

@@ -4,6 +4,7 @@
 @inject PrefsService Prefs
 @inject GridTariffs Grids
 @inject IJSRuntime JS
+@inject Co2Service Co2
 @implements IDisposable
 
 <PageTitle>ElPriser</PageTitle>
@@ -164,6 +165,31 @@ else
 
 }
 
+
+@if (_hindsight is { } hs && hs.Saved > 1)
+{
+    <div class="card now-tile lvl-cheap">
+        <div class="small muted">💡 Hvad havde du sparet?</div>
+        <div class="now-price lvl-cheap">@hs.Saved.ToString("0", Da) kr</div>
+        <div class="now-unit">på @hs.Days dage, hvis opvasken var startet på dagens billigste tid i stedet for kl. 18</div>
+        <div class="now-compare">Det er med én opvask om dagen. 🔓 MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-title">✨ Det får du i MinElpris</div>
+    <div class="teasers">
+        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🌱 Grøn strøm</b><span>@(_co2 is { } g ? $"Lige nu {g:0} g CO₂ pr. kWh – se hvornår den er grønnest" : "Se hvornår strømmen er grønnest i dag")</span></a>
+        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🏢 Billigere elselskab</b><span>Alle selskaber sammenlignet på dit forbrug – og skift med ét tryk</span></a>
+        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🔎 Dit forbrug time for time</b><span>Direkte fra din elmåler – se hvad huset bruger om natten</span></a>
+        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>📸 Billede af maskinen</b><span>Tag et billede – så ved appen, hvad netop din vaskemaskine bruger</span></a>
+        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🧾 Regningen forklaret</b><span>Hver linje, hvem der får pengene, og om prisen passer</span></a>
+        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🚗 Elbil og nat</b><span>Hvornår bilen skal lade, så det bliver billigst</span></a>
+    </div>
+    <a class="btn btn-primary btn-block" style="margin-top:12px" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener">👀 Se demoen med rigtige tal</a>
+    <div class="muted small" style="margin-top:6px;text-align:center">Ingen tilmelding – klik rundt i en rigtig families MinElpris. <a href="/tjek">Eller tjek din egen elregning gratis →</a></div>
+</div>
+
 @code {
     private static readonly CultureInfo Da = new("da-DK");
     private PriceSnapshot? _snap;
@@ -212,6 +238,7 @@ else
         // First visit: nothing is guessed from where the phone happens to be - the "Hvor bor du?"
         // card asks (use my location if I am home, or type the address).
         if (await JS.InvokeAsync<string?>("epUi.get", "machine") == "1") { _machine = 1; StateHasChanged(); }
+        _ = InvokeAsync(LoadTeasersAsync);
     }
 
     private static string Kwh(double v) => v.ToString("0.##", Da);
@@ -235,6 +262,40 @@ else
     private string _postal = "", _gridName = "";
     private bool _searching;
     private string _locateMsg = "";
+
+    // "Hvad havde du sparet?" - the last 30 days: the chosen dishwasher started at 18:00 every day
+    // vs at that day's cheapest start. Real prices, all-in with this household's grid tariff.
+    private sealed record Hindsight(double Saved, int Days);
+    private Hindsight? _hindsight;
+    private double? _co2;
+
+    private async Task LoadTeasersAsync()
+    {
+        try
+        {
+            var co2 = await Co2.GetAsync(_s.PriceArea);
+            _co2 = co2.Now?.Grams;
+        }
+        catch { /* the teaser still works without the live figure */ }
+        try
+        {
+            var today = DateOnly.FromDateTime(DkTime.Now);
+            var raw = await Prices.GetRangeAsync(today.AddDays(-30), today, _s.PriceArea);
+            var dish = new Appliance { Name = Machines[_machine].Name, KwhPerRun = Machines[_machine].Kwh, DurationHours = 2 };
+            double saved = 0; var days = 0;
+            for (var d = today.AddDays(-30); d < today; d = d.AddDays(1))
+            {
+                var usual = PriceModel.CostOfRun(raw, _s, dish, d.ToDateTime(new TimeOnly(18, 0)));
+                var (cheapest, _) = PriceModel.DayRange(raw, _s, dish, d);
+                if (usual is null || cheapest is null) continue;
+                saved += Math.Max(0, usual.CostKr - cheapest.CostKr);
+                days++;
+            }
+            _hindsight = days >= 7 ? new Hindsight(saved, days) : null;
+        }
+        catch { _hindsight = null; }
+        StateHasChanged();
+    }
     private bool _askHome;
     private string _addr = "";
 

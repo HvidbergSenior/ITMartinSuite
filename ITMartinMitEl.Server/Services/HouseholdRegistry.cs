@@ -53,6 +53,8 @@ public sealed class HouseholdRegistry(IDbContextFactory<MitElDbContext> factory)
 
     private void SaveHouseholdJson(Guid householdId, string json)
     {
+        if (DemoHousehold.IsDemo(householdId)) return;   // the demo is read-only
+
         using var db = factory.CreateDbContext();
         var row = db.Households.Find(householdId);
         if (row is null) return;          // deleted while a page still had it open
@@ -62,6 +64,7 @@ public sealed class HouseholdRegistry(IDbContextFactory<MitElDbContext> factory)
 
     private void SaveConsumptionJson(Guid householdId, string json)
     {
+        if (DemoHousehold.IsDemo(householdId)) return;
         using var db = factory.CreateDbContext();
         var row = db.Households.Find(householdId);
         if (row is null) return;

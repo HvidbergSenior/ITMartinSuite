@@ -12,6 +12,14 @@
                 <a href="/kunder">Skift kunde</a>
             </div>
         }
+        @if (Tenant.Email == DemoHousehold.Email)
+        {
+            @* The demo from ElPriser: clear that it is a demo, and the way to your own. *@
+            <div class="advisor-bar">
+                👀 <b>Du ser en demo</b> med rigtige tal fra en familie i Aarhus. Klik rundt – intet bliver gemt.
+                <a href="/logout?next=/opret">Opret din egen →</a>
+            </div>
+        }
         @Body
         <KolibriFooter />
     </div>

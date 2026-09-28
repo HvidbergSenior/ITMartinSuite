@@ -31,6 +31,35 @@ public sealed record ElBill(
     public double YearlyKwhEstimate => Days > 0 ? Kwh * 365.0 / Days : 0;
 }
 
+// The bill compared with what suppliers report to elpris.dk: is the markup what they say, and
+// what would the cheapest similar product cost for this household's use? Used by the free
+// ElPriser teaser and by MinElpris.
+public sealed record BillComparison(
+    SupplierProduct? Current, double? BillMarkupKr, double? PortalMarkupKr,
+    double YearlyKwh, double? MarkupGapYearlyKr, SupplierProduct? Cheapest, double? SavingYearlyKr)
+{
+    public static BillComparison For(ElBill bill, IReadOnlyList<SupplierProduct> products)
+    {
+        var company = bill.Supplier.Split(' ')[0];
+        var current = products.FirstOrDefault(p => p.Company.StartsWith(company, StringComparison.OrdinalIgnoreCase) &&
+                                                   string.Equals(p.Name.Trim(), bill.Product.Trim(), StringComparison.OrdinalIgnoreCase));
+        var kwh = bill.YearlyKwhEstimate > 0 ? bill.YearlyKwhEstimate : 3000;
+        var portal = current is null ? (double?)null : current.SurchargeKrPerKwh * SupplierProduct.Vat;
+        var gap = bill.MarkupKrPerKwh is { } m && portal is { } pm ? (m - pm) * kwh : (double?)null;
+
+        // Same kind of price as today (variable vs fixed), fits this use, cheapest per year.
+        var isFixed = current?.Fixed ?? false;
+        var cheapest = products.Where(p => p.Fixed == isFixed && p.FitsFor(kwh)).OrderBy(p => p.YearlyKr(kwh)).FirstOrDefault();
+        // What the household really pays the supplier today: the bill's own markup and subscription
+        // when present (they can differ from the portal), otherwise the portal's figures.
+        double? today = bill.MarkupKrPerKwh is { } bm && bill.SubscriptionKr is { } bs && bill.Days > 0
+            ? bm * kwh + bs * 12
+            : current?.YearlyKr(kwh);
+        var saving = today is { } t && cheapest is not null ? t - cheapest.YearlyKr(kwh) : (double?)null;
+        return new BillComparison(current, bill.MarkupKrPerKwh, portal, kwh, gap, cheapest, saving);
+    }
+}
+
 // Reads the text of a Danish electricity bill (tested on NRGi's layout, written to be tolerant
 // of others): the three parties, the product, period, kWh, total and every priced line.
 // Pure text in, so it runs without any AI and costs nothing.

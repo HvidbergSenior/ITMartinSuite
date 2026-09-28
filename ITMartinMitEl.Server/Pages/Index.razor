@@ -297,6 +297,7 @@ else
     private async Task StartFromPhotoAsync((byte[] Bytes, string Mime) photo)
     {
         _readingStart = true; _startMessage = null;
+        if (DemoHousehold.IsDemo(Store.HouseholdId)) { _readingStart = false; _startOk = false; _startMessage = "I demoen læser vi ikke billeder – opret din egen MinElpris for at bruge kameraet."; return; }
         StateHasChanged();
         try
         {

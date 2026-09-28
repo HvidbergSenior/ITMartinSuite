@@ -118,6 +118,7 @@ app.MapKolibri();
 
 // First start after the accounts change: household.json becomes household #1.
 StartupMigration.Run(app.Services, app.Configuration, app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("MitEl"));
+DemoHousehold.Ensure(app.Services, app.Configuration, app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("MitEl"));
 
 if (!app.Environment.IsDevelopment())
 {
@@ -163,11 +164,22 @@ app.MapPost("/opret", async (HttpContext ctx, AccountService accounts) =>
     return Results.Redirect("/indstillinger");
 }).AllowAnonymous();
 
+// "👀 Se demo" from ElPriser: straight into the read-only demo household, no sign-up.
+app.MapGet("/demo", async (HttpContext ctx, IDbContextFactory<MitElDbContext> factory) =>
+{
+    using var db = factory.CreateDbContext();
+    var demo = db.Users.FirstOrDefault(u => u.Email == DemoHousehold.Email);
+    if (demo is null || DemoHousehold.Id is null) return Results.Redirect("/login");
+    await SignInAsync(ctx, demo);
+    return Results.Redirect("/");
+}).AllowAnonymous();
+
 app.MapGet("/logout", async (HttpContext ctx) =>
 {
     ctx.Response.Cookies.Delete(TenantContext.HouseholdCookie);
     await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    return Results.Redirect("/login");
+    // Only the sign-up page as a follow-up ("Opret din egen" in the demo) - never an open redirect.
+    return Results.Redirect(ctx.Request.Query["next"] == "/opret" ? "/opret" : "/login");
 }).AllowAnonymous();
 
 // An advisor picking which customer to look at; the grant is checked again on
@@ -187,6 +199,8 @@ app.MapGet("/api/push/public-key", (PushService push) => Results.Text(push.Publi
 
 app.MapPost("/api/push/subscribe", (SubscribeRequest req, HouseholdStore store) =>
 {
+    // Demo visitors share one household - never collect their phones for pushes.
+    if (DemoHousehold.IsDemo(store.HouseholdId)) return Results.Problem("Beskeder virker ikke i demoen.", statusCode: 403);
     if (string.IsNullOrWhiteSpace(req.Endpoint)) return Results.BadRequest();
     PushSubscriber? sub = null;
     store.Update(d =>
