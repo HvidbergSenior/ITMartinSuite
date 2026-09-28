@@ -13,14 +13,30 @@
 <div class="ep-header">
     <div class="ep-logo">⚡</div>
     <div class="ep-title">ElPriser</div>
-    @* Location only: found automatically on the first visit, tap to look again. Nothing to choose. *@
-    <button class="area-chip" title="Find mit netselskab ud fra min placering" @onclick="LocateAsync" disabled="@_searching">
+    @* Home, not "where the phone is": asked once (location if you are home, or your address). Tap to change. *@
+    <button class="area-chip" title="Skift dit hjem" @onclick="() => _askHome = !_askHome" disabled="@_searching">
         @if (_searching) { <text>📍 Finder dig…</text> }
-        else if (_gridName.Length > 0) { <text>📍 @_postal <small>@_gridName</small></text> }
-        else { <text>📍 Find mig</text> }
+        else if (_gridName.Length > 0) { <text>🏠 @_postal <small>@_gridName</small></text> }
+        else { <text>🏠 Hvor bor du?</text> }
     </button>
 </div>
 
+@if (_askHome || _gridName.Length == 0)
+{
+    <div class="card">
+        <div class="card-title">🏠 Hvor bor du?</div>
+        <p class="small">Prisen afhænger af netselskabet, der leverer strømmen til dit hjem. Vi gemmer kun postnummer og netselskab – på din egen telefon.</p>
+        <button class="btn btn-primary btn-block" @onclick="LocateAsync" disabled="@_searching">📍 Jeg er hjemme nu – brug min placering</button>
+        <form class="row2" style="margin-top:8px" @onsubmit="FindAddressAsync" @onsubmit:preventDefault>
+            <input class="field" style="flex:1" @bind="_addr" placeholder="…eller skriv din adresse eller dit postnummer" aria-label="Adresse eller postnummer" />
+            <button class="btn" type="submit" disabled="@_searching">Find</button>
+        </form>
+        @if (_gridName.Length > 0)
+        {
+            <button class="btn" style="margin-top:8px" @onclick="() => _askHome = false">Behold @_gridName</button>
+        }
+    </div>
+}
 @if (_locateMsg.Length > 0)
 {
     <div class="card small" role="status">📍 @_locateMsg</div>
@@ -193,8 +209,8 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        // First visit: find the grid company from the location at once.
-        if (_s.GridSupplierId.Length == 0) _ = InvokeAsync(LocateAsync);
+        // First visit: nothing is guessed from where the phone happens to be - the "Hvor bor du?"
+        // card asks (use my location if I am home, or type the address).
         if (await JS.InvokeAsync<string?>("epUi.get", "machine") == "1") { _machine = 1; StateHasChanged(); }
     }
 
@@ -219,6 +235,28 @@ else
     private string _postal = "", _gridName = "";
     private bool _searching;
     private string _locateMsg = "";
+    private bool _askHome;
+    private string _addr = "";
+
+    // A typed address or postcode -> the grid company there. Being typed, it IS the home.
+    private async Task FindAddressAsync()
+    {
+        if (_addr.Trim().Length < 4) { _locateMsg = "Skriv en adresse eller et postnummer (4 cifre)."; return; }
+        _searching = true;
+        _locateMsg = "";
+        StateHasChanged();
+        var place = await Grids.ResolveAsync(_addr.Trim());
+        if (place is null)
+        {
+            _searching = false;
+            _locateMsg = "Vi kunne ikke finde den adresse. Prøv med vej, husnummer og postnummer – eller kun postnummeret.";
+            return;
+        }
+        var g = await Grids.FindAtAsync(place.Lat, place.Lon);
+        _searching = false;
+        if (g is null) { _locateMsg = "Vi kunne ikke finde netselskabet lige nu. Prøv igen om lidt."; return; }
+        await SaveHomeAsync(place, g);
+    }
 
     private sealed record GeoPoint(double Lat, double Lon);
 
@@ -263,7 +301,7 @@ else
         var s = Prefs.Get();
         // What matters is the grid company at HOME, not where the phone is right now. Already set
         // and this place has another company (visiting another city)? Ask before switching.
-        if (s.GridSupplierId.Length > 0 && s.GridSupplierId != g.Id)
+        if (s.GridSupplierId.Length > 0 && s.GridSupplierId != g.Id && !_askHome)
         {
             _pending = (place, g);
             StateHasChanged();
@@ -277,6 +315,8 @@ else
     private async Task SaveHomeAsync(Place place, GridCompany g)
     {
         _pending = null;
+        _askHome = false;
+        _locateMsg = "";
         var s = Prefs.Get();
         s.PostalCode = place.PostalCode;
         s.GridSupplierId = g.Id;
