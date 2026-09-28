@@ -131,6 +131,37 @@ app.MapPost("/api/hosts/{host}/apps/{name}/{action}", async (string host, string
     return Results.Ok();
 });
 
+// "🏠 På hjemmesiden": which apps itmartin.dk/mine-apps shows. Kept in the Hjem app; reached over
+// martinnet with the shared key Hjem__KontrolKey (magic.env). Changing needs the admin PIN.
+var hjemUrl = (cfg["Kontrol:HjemUrl"] ?? "http://hjem-web:8080").TrimEnd('/');
+HttpRequestMessage HjemReq(HttpMethod m, string path)
+{
+    var r = new HttpRequestMessage(m, hjemUrl + path);
+    r.Headers.Add("X-Hjem-Key", cfg["Hjem:KontrolKey"] ?? "");
+    return r;
+}
+app.MapGet("/api/homepage", async (IHttpClientFactory f, CancellationToken ct) =>
+{
+    try
+    {
+        using var res = await f.CreateClient("peer").SendAsync(HjemReq(HttpMethod.Get, "/api/kontrol/apps"), ct);
+        return res.IsSuccessStatusCode
+            ? Results.Content(await res.Content.ReadAsStringAsync(ct), "application/json")
+            : Results.StatusCode((int)res.StatusCode);
+    }
+    catch (Exception) { return Results.StatusCode(502); }
+});
+app.MapPost("/api/homepage/{id:int}/{show:bool}", async (int id, bool show, HttpRequest req, IHttpClientFactory f, CancellationToken ct) =>
+{
+    if (!PinOk(req)) return Results.StatusCode(401);
+    try
+    {
+        using var res = await f.CreateClient("peer").SendAsync(HjemReq(HttpMethod.Post, $"/api/kontrol/apps/{id}/show/{show.ToString().ToLowerInvariant()}"), ct);
+        return Results.StatusCode((int)res.StatusCode);
+    }
+    catch (Exception) { return Results.StatusCode(502); }
+});
+
 // Weekly cross-backup (weekly-backup.sh on the NAS writes Backups/status.json).
 // /volume1 is mounted read-only at /host/disk, so the file is read straight from there.
 app.MapGet("/api/backup", () => Results.Ok(BackupStatus.Read(cfg)));

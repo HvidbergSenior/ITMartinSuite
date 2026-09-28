@@ -200,6 +200,27 @@ app.MapGet("/api/menu", async (IDbContextFactory<HjemDb> dbf) =>
     return Results.Json(items);
 });
 
+// ── Kontrol ("🏠 På hjemmesiden") switches apps on/off on /mine-apps. Shared key Hjem__KontrolKey
+// in magic.env - both containers read the same file.
+bool KontrolKeyOk(HttpRequest req, IConfiguration cfg) =>
+    cfg["Hjem:KontrolKey"] is { Length: > 10 } k && req.Headers["X-Hjem-Key"] == k;
+
+app.MapGet("/api/kontrol/apps", async (HttpRequest req, IConfiguration cfg, IDbContextFactory<HjemDb> dbf, AppStatus status) =>
+{
+    if (!KontrolKeyOk(req, cfg)) return Results.Unauthorized();
+    await using var db = await dbf.CreateDbContextAsync();
+    var apps = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
+    return Results.Json(apps.Select(a => new { a.Id, a.Icon, a.Name, a.Url, a.Description, a.Show, up = status.IsUp(a.Url) }));
+});
+
+app.MapPost("/api/kontrol/apps/{id:int}/show/{show:bool}", async (int id, bool show, HttpRequest req, IConfiguration cfg, IDbContextFactory<HjemDb> dbf) =>
+{
+    if (!KontrolKeyOk(req, cfg)) return Results.Unauthorized();
+    await using var db = await dbf.CreateDbContextAsync();
+    var n = await db.AppLinks.Where(a => a.Id == id).ExecuteUpdateAsync(x => x.SetProperty(a => a.Show, show));
+    return n == 1 ? Results.Ok() : Results.NotFound();
+}).DisableAntiforgery();
+
 // ── The pilot form (wwwroot/pilot/index.html posts to send.php, as it did on one.com).
 // Instead of a mail it becomes a conversation in Svar, with a push to Martin's phone.
 app.MapPost("/pilot/send.php", async (HttpContext ctx, ChatService chat) =>

@@ -81,6 +81,7 @@ button.restart{color:var(--muted)}
   <div class="sub">Alle containere på NAS og photoserver. Hver app står med navn og hvad den gør. Tænd, sluk, genstart – PIN første gang. ✏️ retter beskrivelsen. Forbrug samples hvert minut, 48 timer tilbage.</div>
   <div class="filters"><button id="fAll" class="on">Alle</button><button id="fRun">Kun kørende</button><button id="bell" title="Push-alarmer til denne telefon">🔔 Alarmer</button><span class="lock" id="stamp"></span></div>
   <div class="host" id="kolibri"><h2>🐦 Kolibri-apps <small id="kstamp"></small></h2><div id="kolibriList" class="klist"></div><div id="backup" class="kapp" style="margin-top:8px"><span class="dot"></span><div><span class="kn">💾 Ugentlig backup</span><small id="backupSub">henter…</small></div></div></div>
+<div class="host" id="homepage"><h2>🏠 På hjemmesiden <small>flueben = vises på <a href="https://itmartin.dk/mine-apps" target="_blank" style="color:inherit">itmartin.dk/mine-apps</a> · PIN første gang</small></h2><div id="homepageList" class="klist"><small>henter…</small></div></div>
 <div id="hosts"></div>
   <div class="msg" id="msg"></div>
   <div class="foot">ITMartin Suite · <a href="#" id="forget">Glem PIN</a></div>
@@ -248,12 +249,39 @@ function renderBackup(b) {
   if (b.nasToPhotoserver) sub += " · NAS→photo " + b.nasToPhotoserver + " · photo→NAS " + b.photoserverToNas;
   document.getElementById("backupSub").textContent = sub;
 }
+function renderHomepage(apps) {
+  var root = document.getElementById("homepageList"); root.innerHTML = "";
+  apps.forEach(function (a) {
+    var cls = a.up === false ? "bad" : (a.up ? "ok" : "");
+    var row = document.createElement("label");
+    row.className = "kapp " + cls; row.style.cursor = "pointer";
+    row.innerHTML = '<input type="checkbox"' + (a.show ? " checked" : "") + ' style="width:20px;height:20px;flex:none"><span class="dot"></span><div><span class="kn"></span><small></small></div>';
+    row.querySelector(".kn").textContent = (a.icon || "") + " " + a.name;
+    row.querySelector("small").textContent = a.show ? (a.up === false ? "vises som 'sover'" : "vises") : "skjult";
+    var box = row.querySelector("input");
+    box.addEventListener("change", function () {
+      var pin = getPin(); if (!pin) { box.checked = !box.checked; return; }
+      fetch("/api/homepage/" + a.id + "/" + box.checked, { method: "POST", headers: { "X-Kontrol-Pin": pin } }).then(function (res) {
+        if (res.status === 401) { forgetPin(); box.checked = !box.checked; msg.textContent = "Forkert PIN – prøv igen."; return; }
+        if (!res.ok) { box.checked = !box.checked; msg.textContent = "Kunne ikke gemme (" + res.status + ")."; return; }
+        a.show = box.checked; row.querySelector("small").textContent = a.show ? "vises" : "skjult";
+        msg.textContent = a.name + (a.show ? " vises nu på hjemmesiden." : " er skjult på hjemmesiden.");
+      });
+    });
+    root.appendChild(row);
+  });
+}
+function refreshHomepage() {
+  fetch("/api/homepage").then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(renderHomepage)
+    .catch(function () { document.getElementById("homepageList").innerHTML = "<small>Kunne ikke hente listen fra hjemmesiden.</small>"; });
+}
 function refreshKolibri() {
   fetch("/api/backup").then(function (r) { return r.json(); }).then(renderBackup).catch(function () {});
   return fetch("/api/kolibri").then(function (r) { return r.json(); }).then(renderKolibri).catch(function () {});
 }
 function refresh() {
   refreshKolibri();
+  if (!window._hpLoaded) { window._hpLoaded = true; refreshHomepage(); }
   return fetch("/api/hosts").then(function (r) { return r.json(); }).then(render)
     .catch(function () { msg.textContent = "Kunne ikke hente status."; });
 }
