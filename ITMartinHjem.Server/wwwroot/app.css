@@ -7,6 +7,9 @@
 .hj-now { border-left: 4px solid var(--k-accent); }
 .hj-now-text { font-size: 1.1rem; margin: 6px 0 4px; }
 .hj-now-text p { margin: 0 0 8px; }
+.hj-now-img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 10px; margin: 8px 0; display: block; background: var(--k-surface-2, #eef1f0); }
+.hj-embed { position: relative; aspect-ratio: 16 / 9; margin: 8px 0; }
+.hj-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 10px; }
 .hj-now-text ul, .hj-post ul { margin: 0 0 10px; padding-left: 0; list-style: none; display: grid; gap: 6px; }
 
 .hj-chat-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }

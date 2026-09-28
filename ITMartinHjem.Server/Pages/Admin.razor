@@ -75,6 +75,17 @@
     <div class="k-card-title">📌 Lige nu</div>
     <p class="k-help">Det første folk ser. Skriv kort, hvad du arbejder med – opdatér det, når det skifter. Start en linje med <b>*</b> for en punktliste, og skriv <b>**sådan**</b> for fed skrift.</p>
     <textarea class="k-input k-textarea" @bind="_s.NowText" maxlength="3000" rows="12" aria-label="Lige nu"></textarea>
+    <label class="k-label">Billede eller film (vises over teksten)</label>
+    @if (_s.NowMediaName.Length > 0)
+    {
+        <p class="k-help">@(_s.NowMediaType.StartsWith("video/") ? "🎬 Film" : "🖼️ Billede") lagt ind. <button class="k-btn k-btn-sm k-btn-ghost" @onclick="RemoveNowMedia">Fjern</button></p>
+    }
+    <InputFile OnChange="OnNowFileAsync" accept="image/*,video/*" />
+    @if (_nowNote.Length > 0) { <p class="k-help">@_nowNote</p> }
+    <label class="k-label">…eller et link til en video eller livestream</label>
+    <input class="k-input" @bind="_s.NowLink" maxlength="500" placeholder="https://youtube.com/live/… eller https://twitch.tv/…" />
+    <p class="k-help">YouTube-, Twitch- og Vimeo-links (også direkte udsendelser) afspilles på siden. Andre links bliver en "▶ Se med"-knap. Et link vises i stedet for billedet/filmen.
+        <b>Sådan streamer du fra telefonen:</b> åbn YouTube-appen → <b>+</b> → <b>Gå live</b> (Go live), og kopiér linket til udsendelsen herind.</p>
     <details class="k-mt" data-remember="adm-intro">
         <summary>Navn og introtekst</summary>
         <label class="k-label">Navn</label><input class="k-input" @bind="_s.Name" maxlength="80" />
@@ -185,6 +196,40 @@
         _s.Available = e.Value is true;
         await SaveSettingsCoreAsync();
         Chat.RaiseAvailability();
+    }
+
+    private string _nowNote = "";
+
+    private async Task OnNowFileAsync(InputFileChangeEventArgs e)
+    {
+        _nowNote = $"Lægger {e.File.Name} op…";
+        StateHasChanged();
+        try
+        {
+            await using var stream = e.File.OpenReadStream(MediaStore.MaxBytes);
+            var saved = await Store.SaveAsync(stream, e.File.Name, e.File.ContentType);
+            DeleteNowFiles();
+            _s.NowMediaName = saved.Media.StoredName;
+            _s.NowMediaThumb = saved.Media.ThumbName ?? "";
+            _s.NowMediaType = saved.Media.ContentType;
+            await SaveSettingsAsync();
+            _nowNote = "Lagt på forsiden ✓";
+        }
+        catch (Exception ex) { _nowNote = $"Det lykkedes ikke: {ex.Message}"; }
+    }
+
+    private async Task RemoveNowMedia()
+    {
+        DeleteNowFiles();
+        _s.NowMediaName = _s.NowMediaThumb = _s.NowMediaType = "";
+        await SaveSettingsAsync();
+        _nowNote = "Fjernet ✓";
+    }
+
+    private void DeleteNowFiles()
+    {
+        if (_s.NowMediaName.Length > 0)
+            Store.Delete(new Media { StoredName = _s.NowMediaName, ThumbName = _s.NowMediaThumb });
     }
 
     private async Task SaveSettingsAsync()

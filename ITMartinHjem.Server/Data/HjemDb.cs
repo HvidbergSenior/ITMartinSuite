@@ -21,6 +21,13 @@ public sealed class Settings
     public string NowText { get; set; } = "";
     public DateTime NowUpdated { get; set; } = DateTime.UtcNow;
     public bool Available { get; set; }
+
+    // "Lige nu" can carry one uploaded picture/film, or a link to a video or live stream.
+    // Added after launch: Schema.EnsureColumns adds these to an existing hjem.db.
+    public string NowMediaName { get; set; } = "";
+    public string NowMediaThumb { get; set; } = "";
+    public string NowMediaType { get; set; } = "";
+    public string NowLink { get; set; } = "";
 }
 
 public enum Visibility { Offentlig = 0, Familie = 1 }

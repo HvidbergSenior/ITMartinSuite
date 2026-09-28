@@ -67,6 +67,7 @@ app.MapKolibri();
 await using (var db = await app.Services.GetRequiredService<IDbContextFactory<HjemDb>>().CreateDbContextAsync())
 {
     await db.Database.EnsureCreatedAsync();
+    await Schema.EnsureColumnsAsync(db);
     if (!await db.Settings.AnyAsync())
     {
         db.Settings.Add(new Settings
@@ -113,6 +114,18 @@ app.MapGet("/logout", async (HttpContext ctx) =>
 {
     await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/");
+});
+
+// ── "Lige nu" picture/film (always public). The file name changes on every upload, so it caches well.
+app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>
+{
+    using var db = dbf.CreateDbContext();
+    var s = db.Settings.AsNoTracking().First();
+    if (name != s.NowMediaName && name != s.NowMediaThumb) return Results.NotFound();
+    var path = store.PathFor(name);
+    if (!File.Exists(path)) return Results.NotFound();
+    ctx.Response.Headers.CacheControl = "public, max-age=604800";
+    return Results.File(path, name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType, enableRangeProcessing: true);
 });
 
 // ── Media: family files only with the family cookie ─────────────────────────────────
