@@ -97,7 +97,7 @@ else
     <div class="card now-tile @lvl">
         @* One answer (user 2026-09-28): what a dishwasher run costs right now. The new-vs-old model
            comparison was removed - your own machine comes later via its energy label. *@
-        <div class="now-device">🍽️ En opvask · 2 timer · start @(picked is null ? "nu" : When(start))</div>
+        <div class="now-device">🍽️ En opvask i en ny opvasker (0,54 kWh på Eco) · 2 timer · start @(picked is null ? "nu" : When(start))</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
