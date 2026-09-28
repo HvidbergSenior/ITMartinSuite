@@ -185,6 +185,8 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
     return Results.File(path, name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType, enableRangeProcessing: true);
 });
 
+// Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
+app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
 app.MapGet("/pilot", () => Results.Redirect("/pilot/", permanent: true));
 app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
 
