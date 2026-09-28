@@ -21,6 +21,11 @@
     </button>
 </div>
 
+@if (_locateMsg.Length > 0)
+{
+    <div class="card small" role="status">📍 @_locateMsg</div>
+}
+
 @* First thing on the page (user wish): how to put ElPriser on the phone. Gone once installed. *@
 <InstallGuide />
 
@@ -202,6 +207,7 @@ else
 
     private string _postal = "", _gridName = "";
     private bool _searching;
+    private string _locateMsg = "";
 
     private sealed record GeoPoint(double Lat, double Lon);
 
@@ -217,7 +223,17 @@ else
             StateHasChanged();
             return;
         }
-        var place = await Grids.ReverseAsync(pos.Lat, pos.Lon) ?? new Place("din placering", "", pos.Lat, pos.Lon);
+        var place = await Grids.ReverseAsync(pos.Lat, pos.Lon);
+        if (place is null)
+        {
+            // Abroad (or no address nearby): say so, and keep whatever was set before.
+            _searching = false;
+            _locateMsg = "Du ser ud til at være uden for Danmark. ElPriser viser danske elpriser – dit netselskab findes, når du er hjemme igen."
+                + (_gridName.Length > 0 ? $" Vi bruger stadig {_gridName}." : " Indtil da vises priserne uden din nettarif.");
+            StateHasChanged();
+            return;
+        }
+        _locateMsg = "";
         await UsePlaceAsync(place);
     }
 
@@ -229,6 +245,8 @@ else
         _searching = false;
         if (g is null)
         {
+            _locateMsg = "Vi kunne ikke finde netselskabet for din placering lige nu. Prøv igen om lidt.";
+            StateHasChanged();
             return;
         }
         var s = Prefs.Get();

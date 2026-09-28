@@ -54,7 +54,10 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
         {
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             var a = await http.GetFromJsonAsync<AddressDto>($"{Dawa}adgangsadresser/reverse?x={lon.ToString(inv)}&y={lat.ToString(inv)}&struktur=mini");
-            return a is null ? null : new Place(a.Betegnelse, a.Postnr, lat, lon);
+            // DAWA always answers with the NEAREST Danish address - from Hamburg that is Bagenkop,
+            // 130 km away. Further than 2 km from any Danish address = not in Denmark.
+            if (a is null || (a.X != 0 && KmBetween(lat, lon, a.Y, a.X) > 2)) return null;
+            return new Place(a.Betegnelse, a.Postnr, lat, lon);
         }
         catch (Exception ex)
         {
@@ -84,6 +87,16 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
         [JsonPropertyName("nr")] public string Nr { get; set; } = "";
         [JsonPropertyName("navn")] public string Navn { get; set; } = "";
         [JsonPropertyName("visueltcenter")] public double[] Visueltcenter { get; set; } = [];
+    }
+
+    private static double KmBetween(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double r = 6371;
+        double Rad(double d) => d * Math.PI / 180;
+        var dLat = Rad(lat2 - lat1);
+        var dLon = Rad(lon2 - lon1);
+        var h = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) + Math.Cos(Rad(lat1)) * Math.Cos(Rad(lat2)) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return 2 * r * Math.Asin(Math.Sqrt(h));
     }
 
     private sealed class AddressDto
