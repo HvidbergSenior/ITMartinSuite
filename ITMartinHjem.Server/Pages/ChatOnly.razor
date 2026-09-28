@@ -1,0 +1,32 @@
+@page "/chat"
+@layout BareLayout
+@implements IDisposable
+@inject IDbContextFactory<HjemDb> Dbf
+@inject ChatService Chat
+
+@* The chat alone - opened by the 💬 bubble on itmartin.dk (wwwroot/widget.js). *@
+<ChatBox Available="_available" OwnerName="@_first" StartOpen="true" />
+<p class="k-help k-center"><a href="https://martin.itmartin.dk" target="_blank" rel="noopener">Se hele min side →</a></p>
+
+@code {
+    private bool _available;
+    private string _first = "Martin";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        Chat.AvailabilityChanged += OnAvailability;
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        var s = await db.Settings.AsNoTracking().FirstAsync();
+        _available = s.Available;
+        _first = s.Name.Split(' ')[0];
+    }
+
+    private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    public void Dispose() => Chat.AvailabilityChanged -= OnAvailability;
+}

@@ -36,6 +36,10 @@ builder.Services.AddKolibri(k =>
 });
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+// itmartin.dk shows the chat in an iframe: framing is governed by the CSP below instead.
+builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
+builder.Services.AddCors(o => o.AddPolicy("itmartin", p => p
+    .WithOrigins("https://itmartin.dk", "https://www.itmartin.dk", "http://localhost:5199").WithMethods("GET")));
 builder.Services.AddCascadingAuthenticationState();
 
 var dataDir = builder.Configuration["Hjem:DataDir"] ?? "/app/data";
@@ -83,7 +87,46 @@ await using (var db = await app.Services.GetRequiredService<IDbContextFactory<Hj
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 
-app.UseStaticFiles();
+// Only this site and itmartin.dk may put these pages in a frame (the /chat bubble there).
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://itmartin.dk https://www.itmartin.dk";
+    await next();
+});
+app.UseCors();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // widget.js is loaded by itmartin.dk: allow it, and keep the cache short so changes show up.
+    OnPrepareResponse = c =>
+    {
+        if (c.File.Name == "widget.js") c.Context.Response.Headers.CacheControl = "public, max-age=300";
+    }
+});
+
+// ── Live "Lige nu" for itmartin.dk (wwwroot/widget.js reads this) ───────────────────
+app.MapGet("/api/nu", (IDbContextFactory<HjemDb> dbf) =>
+{
+    using var db = dbf.CreateDbContext();
+    var s = db.Settings.AsNoTracking().First();
+    var player = Embed.PlayerUrl(s.NowLink);
+    var media = s.NowMediaName.Length == 0 ? null : new
+    {
+        type = s.NowMediaType.StartsWith("video/") ? "video" : "image",
+        url = $"https://martin.itmartin.dk/nu/{s.NowMediaName}",
+        thumb = s.NowMediaThumb.Length > 0 ? $"https://martin.itmartin.dk/nu/{s.NowMediaThumb}" : null,
+    };
+    return Results.Json(new
+    {
+        name = s.Name,
+        intro = s.Intro,
+        html = TinyMarkdown.Render(s.NowText).Value,
+        updated = s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK")),
+        available = s.Available,
+        player,
+        link = player is null && s.NowLink.Length > 0 ? s.NowLink : null,
+        media,
+    });
+}).RequireCors("itmartin");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
