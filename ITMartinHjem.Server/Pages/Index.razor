@@ -1,0 +1,91 @@
+@page "/"
+@implements IDisposable
+@inject IDbContextFactory<HjemDb> Dbf
+@inject ChatService Chat
+
+@* First screen = one answer: who I am and what I am doing now. The timeline and the
+   chat come after it; old years are folded and the phone remembers what was open. *@
+
+<header class="hj-head">
+    <h1>@_s.Name</h1>
+    <p class="hj-intro">@_s.Intro</p>
+    @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
+</header>
+
+<section class="k-card hj-now" data-nofold>
+    <div class="k-tag">Lige nu</div>
+    <p class="hj-now-text">@_s.NowText</p>
+    <p class="k-help">Opdateret @_s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", Da)</p>
+</section>
+
+<ChatBox Available="_s.Available" OwnerName="@FirstName" />
+
+@if (_posts.Count == 0)
+{
+    <p class="k-empty">Her kommer billeder, videoer og tekster snart.</p>
+}
+else
+{
+    <h2 class="hj-h2">Seneste</h2>
+    @foreach (var p in _posts.Take(3)) { <PostCard Post="p" /> }
+
+    @if (_posts.Count > 3)
+    {
+        <h2 class="hj-h2">Tidslinje</h2>
+        <p class="k-help">Tryk på et år for at se, hvad der skete.</p>
+        @foreach (var year in _posts.Skip(3).GroupBy(p => p.At.Year))
+        {
+            <details class="hj-year" data-remember="year-@year.Key">
+                <summary><b>@year.Key</b> <span class="k-muted">· @year.Count() @(year.Count() == 1 ? "opslag" : "opslag")</span></summary>
+                @foreach (var p in year) { <PostCard Post="p" /> }
+            </details>
+        }
+    }
+}
+
+@if (!_family && _hiddenFamily > 0)
+{
+    <div class="k-card hj-lock" data-nofold>
+        <p>🔒 <b>@_hiddenFamily familieopslag</b> er kun for familien.</p>
+        <a class="k-btn k-btn-sm" href="/login">Skriv familiens kodeord</a>
+    </div>
+}
+else if (_family && !_owner)
+{
+    <p class="k-help k-center">Du ser familiens billeder. <a href="/logout">Log ud</a></p>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
+
+    private static readonly CultureInfo Da = new("da-DK");
+    private Settings _s = new();
+    private List<Post> _posts = [];
+    private int _hiddenFamily;
+    private bool _family, _owner;
+
+    private string FirstName => _s.Name.Split(' ')[0];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = AuthTask is null ? null : (await AuthTask).User;
+        _family = user.IsFamily();
+        _owner = user.IsOwner();
+        await LoadAsync();
+        Chat.AvailabilityChanged += OnAvailability;
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        _s = await db.Settings.AsNoTracking().FirstAsync();
+        var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
+        if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
+        _posts = await q.OrderByDescending(p => p.At).ToListAsync();
+        _hiddenFamily = _family ? 0 : await db.Posts.CountAsync(p => p.Visibility == Visibility.Familie);
+    }
+
+    private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    public void Dispose() => Chat.AvailabilityChanged -= OnAvailability;
+}

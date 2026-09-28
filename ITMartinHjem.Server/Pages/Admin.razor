@@ -1,0 +1,351 @@
+@page "/admin"
+@implements IDisposable
+@inject IDbContextFactory<HjemDb> Dbf
+@inject ChatService Chat
+@inject MediaStore Store
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+@if (!_owner)
+{
+    <div class="k-card k-pin" data-nofold>
+        <div class="k-card-title">Kun for Martin</div>
+        <p class="k-card-sub">Her skriver du opslag og svarer på beskeder.</p>
+        <a class="k-btn k-btn-primary k-btn-block" href="/login?who=ejer">Log ind med PIN</a>
+        <p class="k-help"><a href="/">← Forsiden</a></p>
+    </div>
+    return;
+}
+
+<header class="hj-head">
+    <h1>Din side</h1>
+    <p class="k-help">Her svarer du på beskeder, skriver hvad du laver lige nu, og lægger billeder, videoer, lyd og dokumenter på tidslinjen. <a href="/">Se forsiden</a> · <a href="/logout">Log ud</a></p>
+</header>
+
+@* One answer first: am I available, and is anybody waiting? *@
+<section class="k-card hj-avail" data-nofold>
+    <label class="hj-switch">
+        <input type="checkbox" checked="@_s.Available" @onchange="ToggleAvailableAsync" />
+        <span><b>@(_s.Available ? "🟢 Jeg er her nu" : "⚪ Jeg er ikke ved skærmen")</b><br />
+        <span class="k-help">@(_s.Available ? "Besøgende ser, at du svarer med det samme." : "Besøgende kan stadig skrive – du får en besked på telefonen.")</span></span>
+    </label>
+    @if (_unread > 0) { <p class="hj-unread">💬 @_unread @(_unread == 1 ? "samtale venter" : "samtaler venter") på svar</p> }
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">💬 Beskeder</div>
+    @if (_threads.Count == 0)
+    {
+        <p class="k-help">Ingen beskeder endnu. Når nogen skriver på forsiden, dukker det op her – og på telefonen, hvis du har slået beskeder til nederst.</p>
+    }
+    else
+    {
+        <div class="hj-threads">
+            @foreach (var t in _threads)
+            {
+                <button class="hj-thread @(t.Id == _openId ? "sel" : "") @(t.UnreadForOwner ? "new" : "")" @onclick="() => OpenAsync(t.Id)">
+                    <b>@(t.Name.Length > 0 ? t.Name : "Besøgende #" + t.Id)</b>
+                    <span class="k-help">@t.LastAt.ToLocalTime().ToString("d/M HH:mm") · @(t.Messages.OrderBy(m => m.At).LastOrDefault()?.Text is { } last ? (last.Length > 50 ? last[..50] + "…" : last) : "")</span>
+                </button>
+            }
+        </div>
+        @if (_open is not null)
+        {
+            <div class="hj-msgs" id="hj-msgs">
+                @foreach (var m in _open.Messages)
+                {
+                    <div class="hj-msg @(m.FromOwner ? "me" : "owner")">
+                        <div>@m.Text</div>
+                        <div class="hj-msg-at">@(m.FromOwner ? "Dig" : (_open.Name.Length > 0 ? _open.Name : "Besøgende")) · @m.At.ToLocalTime().ToString("d/M HH:mm")</div>
+                    </div>
+                }
+            </div>
+            <textarea class="k-input k-textarea k-mt" @bind="_reply" @bind:event="oninput" placeholder="Dit svar…" aria-label="Dit svar"></textarea>
+            <div class="k-row k-mt">
+                <button class="k-btn k-btn-primary" disabled="@string.IsNullOrWhiteSpace(_reply)" @onclick="ReplyAsync">Send svar</button>
+                @if (_confirmDeleteThread) { <button class="k-btn k-btn-danger" @onclick="DeleteThreadAsync">Ja, slet samtalen</button> }
+                else { <button class="k-btn k-btn-ghost" @onclick="() => _confirmDeleteThread = true">Slet samtale</button> }
+            </div>
+            <p class="k-help">Svaret vises straks hos den besøgende, hvis siden er åben – ellers næste gang de kommer tilbage på samme telefon/PC.</p>
+        }
+    }
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">📌 Lige nu</div>
+    <p class="k-help">Det første folk ser. Skriv kort, hvad du arbejder med – opdatér det, når det skifter.</p>
+    <textarea class="k-input k-textarea" @bind="_s.NowText" maxlength="600" aria-label="Lige nu"></textarea>
+    <details class="k-mt" data-remember="adm-intro">
+        <summary>Navn og introtekst</summary>
+        <label class="k-label">Navn</label><input class="k-input" @bind="_s.Name" maxlength="80" />
+        <label class="k-label">Intro (under navnet)</label><textarea class="k-input k-textarea" @bind="_s.Intro" maxlength="400"></textarea>
+    </details>
+    <button class="k-btn k-btn-primary k-mt" @onclick="SaveSettingsAsync">Gem</button>
+    @if (_savedNote.Length > 0) { <span class="k-help"> @_savedNote</span> }
+</section>
+
+<section class="k-card" id="opslag">
+    <div class="k-card-title">@(_edit.Id == 0 ? "➕ Nyt opslag" : "✏️ Ret opslag")</div>
+    <p class="k-help">Vælg billeder, videoer, lyd eller dokumenter fra telefonen eller PC'en. Datoen bliver sat fra det første billede, hvis det har en – ellers i dag. Du kan rette den.</p>
+    <label class="k-label">Overskrift (valgfri)</label>
+    <input class="k-input" @bind="_edit.Title" maxlength="140" />
+    <label class="k-label">Tekst</label>
+    <textarea class="k-input k-textarea" @bind="_edit.Body" maxlength="8000"></textarea>
+    <label class="k-label">Dato</label>
+    <input class="k-input" type="date" value="@_edit.At.ToString("yyyy-MM-dd")" @onchange="OnDate" />
+    <label class="k-label">Hvem må se det?</label>
+    <div class="k-row">
+        <label><input type="radio" name="vis" checked="@(_edit.Visibility == Visibility.Offentlig)" @onchange="() => _edit.Visibility = Visibility.Offentlig" /> 🌍 Alle</label>
+        <label><input type="radio" name="vis" checked="@(_edit.Visibility == Visibility.Familie)" @onchange="() => _edit.Visibility = Visibility.Familie" /> 🔒 Kun familien</label>
+    </div>
+    @if (_edit.Media.Count > 0)
+    {
+        <div class="hj-edit-media">
+            @foreach (var m in _edit.Media)
+            {
+                <span class="hj-chip">@(m.Kind switch { MediaKind.Billede => "🖼️", MediaKind.Video => "🎬", MediaKind.Lyd => "🎵", _ => "📄" }) @m.FileName
+                    <button class="k-btn-ghost" title="Fjern" @onclick="() => RemoveMedia(m)">✕</button></span>
+            }
+        </div>
+    }
+    <label class="k-label">Tilføj filer</label>
+    <InputFile OnChange="OnFilesAsync" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" />
+    @if (_uploadNote.Length > 0) { <p class="k-help">@_uploadNote</p> }
+    <div class="k-row k-mt">
+        <button class="k-btn k-btn-primary" disabled="@(_uploading || (_edit.Title.Trim().Length == 0 && _edit.Body.Trim().Length == 0 && _edit.Media.Count == 0))" @onclick="SavePostAsync">@(_edit.Id == 0 ? "Læg på siden" : "Gem ændringer")</button>
+        @if (_edit.Id != 0 || _edit.Media.Count > 0) { <button class="k-btn k-btn-ghost" @onclick="NewPost">Annullér</button> }
+    </div>
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">📚 Opslag (@_posts.Count)</div>
+    @if (_posts.Count == 0) { <p class="k-help">Ingen opslag endnu – lav det første ovenfor.</p> }
+    @foreach (var p in _posts)
+    {
+        <div class="appl-row hj-admin-post">
+            <span>@p.At.ToString("d/M yyyy") @(p.Visibility == Visibility.Familie ? "🔒" : "🌍") <b>@(p.Title.Length > 0 ? p.Title : Short(p.Body))</b> <span class="k-help">@p.Media.Count filer</span></span>
+            <span class="k-row">
+                <button class="k-btn k-btn-sm" @onclick="() => EditAsync(p.Id)">Ret</button>
+                @if (_confirmDeletePost == p.Id) { <button class="k-btn k-btn-sm k-btn-danger" @onclick="() => DeletePostAsync(p.Id)">Ja, slet</button> }
+                else { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _confirmDeletePost = p.Id">Slet</button> }
+            </span>
+        </div>
+    }
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">📱 Besked på telefonen</div>
+    <p class="k-help">Slå det til på den telefon, du vil have besked på, når nogen skriver. <b>iPhone:</b> læg først siden på hjemskærmen (Del → Føj til hjemmeskærm), og åbn den derfra. <b>Android/PC:</b> tryk bare på knappen.</p>
+    <p>Status: <b>@PushLabel</b></p>
+    <div class="k-row">
+        @if (_push is "off" or "error") { <button class="k-btn k-btn-primary" @onclick="SubscribeAsync">Slå beskeder til</button> }
+        @if (_push == "on") { <button class="k-btn" @onclick="TestAsync">Send en prøve</button> }
+    </div>
+</section>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
+    [SupplyParameterFromQuery(Name = "chat")] public int? ChatId { get; set; }
+
+    private bool _owner, _uploading, _confirmDeleteThread;
+    private Settings _s = new();
+    private List<ChatThread> _threads = [];
+    private ChatThread? _open;
+    private int _openId, _unread, _confirmDeletePost;
+    private string _reply = "", _savedNote = "", _uploadNote = "", _push = "…";
+    private List<Post> _posts = [];
+    private Post _edit = NewDraft();
+    private bool _dateTouched;
+    private readonly List<Media> _removed = [];
+
+    private static Post NewDraft() => new() { At = DateTime.Today };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _owner = (AuthTask is null ? null : (await AuthTask).User).IsOwner();
+        if (!_owner) return;
+        await using (var db = await Dbf.CreateDbContextAsync())
+            _s = await db.Settings.FirstAsync();
+        await LoadThreadsAsync();
+        await LoadPostsAsync();
+        if (ChatId is { } id) await OpenAsync(id);
+        Chat.Changed += OnChatChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!_owner) return;
+        if (first) { _push = await JS.InvokeAsync<string>("hjem.pushState"); StateHasChanged(); }
+        if (_open is not null) await JS.InvokeVoidAsync("hjem.scrollEnd", "hj-msgs");
+    }
+
+    // ── availability + texts ──
+    private async Task ToggleAvailableAsync(ChangeEventArgs e)
+    {
+        _s.Available = e.Value is true;
+        await SaveSettingsCoreAsync();
+        Chat.RaiseAvailability();
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        _s.NowUpdated = DateTime.UtcNow;
+        await SaveSettingsCoreAsync();
+        Chat.RaiseAvailability();
+        _savedNote = "Gemt ✓";
+    }
+
+    private async Task SaveSettingsCoreAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        db.Settings.Update(_s);
+        await db.SaveChangesAsync();
+    }
+
+    // ── chat ──
+    private async Task LoadThreadsAsync()
+    {
+        _threads = await Chat.ThreadsAsync();
+        _unread = _threads.Count(t => t.UnreadForOwner);
+    }
+
+    private async Task OpenAsync(int id)
+    {
+        _openId = id;
+        _confirmDeleteThread = false;
+        _open = await Chat.GetAsync(id);
+        if (_open?.UnreadForOwner == true) { await Chat.MarkReadAsync(id); await LoadThreadsAsync(); }
+    }
+
+    private async Task ReplyAsync()
+    {
+        await Chat.OwnerWritesAsync(_openId, _reply);
+        _reply = "";
+    }
+
+    private async Task DeleteThreadAsync()
+    {
+        await Chat.DeleteAsync(_openId);
+        _open = null; _openId = 0; _confirmDeleteThread = false;
+    }
+
+    private void OnChatChanged(int id) => InvokeAsync(async () =>
+    {
+        await LoadThreadsAsync();
+        if (id == _openId)
+        {
+            _open = await Chat.GetAsync(id);
+            if (_open?.UnreadForOwner == true) { await Chat.MarkReadAsync(id); await LoadThreadsAsync(); }
+        }
+        StateHasChanged();
+    });
+
+    // ── posts ──
+    private async Task LoadPostsAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        _posts = await db.Posts.Include(p => p.Media).AsNoTracking().OrderByDescending(p => p.At).ToListAsync();
+    }
+
+    private void OnDate(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var d)) { _edit.At = d; _dateTouched = true; }
+    }
+
+    private async Task OnFilesAsync(InputFileChangeEventArgs e)
+    {
+        _uploading = true;
+        var files = e.GetMultipleFiles(50);
+        var i = 0;
+        foreach (var f in files)
+        {
+            i++;
+            _uploadNote = $"Lægger op {i}/{files.Count}: {f.Name}…";
+            StateHasChanged();
+            try
+            {
+                await using var s = f.OpenReadStream(MediaStore.MaxBytes);
+                var saved = await Store.SaveAsync(s, f.Name, f.ContentType);
+                saved.Media.Sort = _edit.Media.Count;
+                _edit.Media.Add(saved.Media);
+                if (!_dateTouched && _edit.Id == 0 && saved.TakenAt is { } t) { _edit.At = t.Date; _dateTouched = true; }
+            }
+            catch (Exception ex) { _uploadNote = $"{f.Name} kunne ikke lægges op: {ex.Message}"; _uploading = false; return; }
+        }
+        _uploadNote = $"{files.Count} {(files.Count == 1 ? "fil" : "filer")} klar – tryk \"{(_edit.Id == 0 ? "Læg på siden" : "Gem ændringer")}\".";
+        _uploading = false;
+    }
+
+    private void RemoveMedia(Media m)
+    {
+        _edit.Media.Remove(m);
+        _removed.Add(m);
+    }
+
+    private async Task SavePostAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        if (_edit.Id == 0)
+        {
+            db.Posts.Add(_edit);
+        }
+        else
+        {
+            var p = await db.Posts.Include(x => x.Media).FirstAsync(x => x.Id == _edit.Id);
+            p.Title = _edit.Title; p.Body = _edit.Body; p.At = _edit.At; p.Visibility = _edit.Visibility;
+            foreach (var gone in p.Media.Where(m => _removed.Any(r => r.Id == m.Id)).ToList()) { p.Media.Remove(gone); db.Media.Remove(gone); }
+            foreach (var added in _edit.Media.Where(m => m.Id == 0)) p.Media.Add(added);
+        }
+        await db.SaveChangesAsync();
+        foreach (var r in _removed) Store.Delete(r);
+        NewPost();
+        await LoadPostsAsync();
+        _uploadNote = "Lagt på siden ✓";
+    }
+
+    private void NewPost()
+    {
+        // Files uploaded to a draft that was never saved: throw them away again.
+        foreach (var m in _edit.Media.Where(m => m.Id == 0)) Store.Delete(m);
+        _edit = NewDraft(); _removed.Clear(); _dateTouched = false; _uploadNote = "";
+    }
+
+    private async Task EditAsync(int id)
+    {
+        NewPost();
+        await using var db = await Dbf.CreateDbContextAsync();
+        _edit = await db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking().FirstAsync(p => p.Id == id);
+        _dateTouched = true;
+        Nav.NavigateTo("/admin#opslag");
+    }
+
+    private async Task DeletePostAsync(int id)
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        var p = await db.Posts.Include(x => x.Media).FirstAsync(x => x.Id == id);
+        foreach (var m in p.Media) Store.Delete(m);
+        db.Posts.Remove(p);
+        await db.SaveChangesAsync();
+        _confirmDeletePost = 0;
+        await LoadPostsAsync();
+    }
+
+    private static string Short(string s) => s.Length > 50 ? s[..50] + "…" : s.Length > 0 ? s : "(kun filer)";
+
+    // ── push ──
+    private string PushLabel => _push switch
+    {
+        "on" => "✅ Til på denne enhed",
+        "off" => "Fra på denne enhed",
+        "denied" => "Blokeret – tillad notifikationer for siden i browserens indstillinger",
+        "ios-needs-homescreen" => "Læg siden på hjemskærmen først (iPhone)",
+        "unsupported" => "Denne browser kan ikke få beskeder",
+        "error" => "Det lykkedes ikke – prøv igen",
+        _ => "…",
+    };
+
+    private async Task SubscribeAsync() => _push = await JS.InvokeAsync<string>("hjem.pushSubscribe");
+    private async Task TestAsync() => await JS.InvokeVoidAsync("hjem.pushTest");
+
+    public void Dispose() => Chat.Changed -= OnChatChanged;
+}

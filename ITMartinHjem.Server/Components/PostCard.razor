@@ -1,0 +1,42 @@
+@* One moment on the timeline: date, text and its pictures, videos, sound and documents. *@
+<article class="k-card hj-post" data-nofold>
+    <div class="hj-post-meta">
+        @Post.At.ToString("d. MMMM yyyy", Da)
+        @if (Post.Visibility == Visibility.Familie) { <span class="k-tag">🔒 Familie</span> }
+    </div>
+    @if (Post.Title.Length > 0) { <h3 class="hj-post-title">@Post.Title</h3> }
+    @if (Post.Body.Length > 0)
+    {
+        @foreach (var para in Post.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries)) { <p>@para</p> }
+    }
+    @{ var pics = Post.Media.Where(m => m.Kind == MediaKind.Billede).ToList(); }
+    @if (pics.Count > 0)
+    {
+        <div class="hj-pics @(pics.Count == 1 ? "one" : "")">
+            @foreach (var m in pics)
+            {
+                <a href="/m/@m.Id/f" target="_blank" rel="noopener"><img src="/m/@m.Id/t" alt="@(Post.Title.Length > 0 ? Post.Title : "Billede")" loading="lazy" /></a>
+            }
+        </div>
+    }
+    @foreach (var m in Post.Media.Where(m => m.Kind != MediaKind.Billede))
+    {
+        @switch (m.Kind)
+        {
+            case MediaKind.Video:
+                <video class="hj-video" src="/m/@m.Id/f" controls preload="metadata" playsinline></video>
+                break;
+            case MediaKind.Lyd:
+                <div class="hj-audio"><span class="k-help">🎵 @m.FileName</span><audio src="/m/@m.Id/f" controls preload="none"></audio></div>
+                break;
+            default:
+                <a class="hj-doc" href="/m/@m.Id/d">📄 @m.FileName</a>
+                break;
+        }
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    private static readonly CultureInfo Da = new("da-DK");
+}

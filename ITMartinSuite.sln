@@ -244,6 +244,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinUpload.Tests", "ITM
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinStrategi.Server", "ITMartinStrategi.Server\ITMartinStrategi.Server.csproj", "{0D9607B7-3A9E-4507-8E06-2A1A3A0AFA1B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinHjem.Server", "ITMartinHjem.Server\ITMartinHjem.Server.csproj", "{5BAC339F-D53B-4C16-8B41-86C6E02F7735}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -717,5 +719,9 @@ Global
 		{0D9607B7-3A9E-4507-8E06-2A1A3A0AFA1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0D9607B7-3A9E-4507-8E06-2A1A3A0AFA1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0D9607B7-3A9E-4507-8E06-2A1A3A0AFA1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5BAC339F-D53B-4C16-8B41-86C6E02F7735}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5BAC339F-D53B-4C16-8B41-86C6E02F7735}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5BAC339F-D53B-4C16-8B41-86C6E02F7735}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5BAC339F-D53B-4C16-8B41-86C6E02F7735}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

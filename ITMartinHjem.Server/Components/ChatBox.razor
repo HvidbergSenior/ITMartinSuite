@@ -1,0 +1,84 @@
+@implements IDisposable
+@inject ChatService Chat
+@inject IJSRuntime JS
+
+@* The visitor's side of the live chat. The visitor is remembered on this phone/PC only
+   (a random key in the browser), so a reply shows up here when they come back. *@
+
+<section class="k-card hj-chat" data-nofold>
+    <div class="hj-chat-status">
+        <span class="k-dot @(Available ? "on" : "")"></span>
+        @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– skriv, så svarer han med det samme.</span> }
+        else { <b>@OwnerName er ikke ved skærmen</b> <span class="k-muted">– skriv alligevel. Svaret kommer her på siden, når du kommer tilbage.</span> }
+    </div>
+
+    @if (!_open)
+    {
+        <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">💬 Skriv til @OwnerName</button>
+    }
+    else
+    {
+        @if (_thread is { Messages.Count: > 0 })
+        {
+            <div class="hj-msgs" id="hj-msgs">
+                @foreach (var m in _thread.Messages)
+                {
+                    <div class="hj-msg @(m.FromOwner ? "owner" : "me")">
+                        <div>@m.Text</div>
+                        <div class="hj-msg-at">@(m.FromOwner ? OwnerName : "Dig") · @m.At.ToLocalTime().ToString("d/M HH:mm")</div>
+                    </div>
+                }
+            </div>
+        }
+        @if (_thread is null)
+        {
+            <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" />
+        }
+        <textarea class="k-input k-textarea k-mt" @bind="_text" @bind:event="oninput" maxlength="2000" placeholder="Skriv dit spørgsmål…" aria-label="Din besked"></textarea>
+        <button class="k-btn k-btn-primary k-btn-block k-mt" disabled="@(_busy || string.IsNullOrWhiteSpace(_text))" @onclick="SendAsync">Send</button>
+        @if (_note.Length > 0) { <p class="k-help">@_note</p> }
+    }
+</section>
+
+@code {
+    [Parameter] public bool Available { get; set; }
+    [Parameter] public string OwnerName { get; set; } = "Martin";
+
+    private string _key = "", _name = "", _text = "", _note = "";
+    private bool _open, _busy;
+    private ChatThread? _thread;
+    private DateTime _lastSend = DateTime.MinValue;
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (first)
+        {
+            _key = await JS.InvokeAsync<string>("hjem.visitorKey");
+            _thread = await Chat.GetAsync(_key);
+            if (_thread is not null) _open = true;
+            Chat.Changed += OnChanged;
+            StateHasChanged();
+        }
+        if (_open && _thread is not null) await JS.InvokeVoidAsync("hjem.scrollEnd", "hj-msgs");
+    }
+
+    private async Task SendAsync()
+    {
+        if ((DateTime.UtcNow - _lastSend).TotalSeconds < 3) { _note = "Vent et øjeblik…"; return; }
+        _busy = true;
+        _lastSend = DateTime.UtcNow;
+        await Chat.VisitorWritesAsync(_key, _name, _text);
+        _text = "";
+        _thread = await Chat.GetAsync(_key);
+        _note = Available ? "Sendt – svaret kommer her." : "Sendt. Kom tilbage senere – svaret venter her på siden.";
+        _busy = false;
+    }
+
+    private void OnChanged(int threadId)
+    {
+        if (_thread is null || threadId != _thread.Id) return;
+        InvokeAsync(async () => { _thread = await Chat.GetAsync(_key); StateHasChanged(); });
+    }
+
+    public void Dispose() => Chat.Changed -= OnChanged;
+}

@@ -1,0 +1,173 @@
+using System.Net;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using ITMartin.Shared.UI.Kolibri;
+using ITMartinHjem.Server;
+using ITMartinHjem.Server.Data;
+using ITMartinHjem.Server.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Martin Hvidberg";
+    k.KolibriName = "Kolibri Rede";
+    k.Family = "rede";
+    k.Tagline = "Hvad jeg laver, hvad jeg tænker – og min familie.";
+    k.About =
+    [
+        "Det her er min egen side. Her kan du følge, hvad jeg laver lige nu, og se tilbage i tiden: billeder, videoer, lyd og tekster.",
+        "Arbejdet og projekterne er åbne for alle. Familiens billeder kræver familiens kodeord.",
+        "Har du et spørgsmål, så skriv til mig nederst på siden. Er jeg ved skærmen, svarer jeg med det samme.",
+    ];
+    k.HowTo =
+    [
+        "Læs \"Lige nu\" øverst – det er det, jeg arbejder med.",
+        "Rul ned gennem tidslinjen, eller fold et år ud.",
+        "Tryk \"Skriv til Martin\" for at stille et spørgsmål.",
+    ];
+    k.Version = "2026.09";
+    k.ThemeColor = "#f4f6f5";
+});
+
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddCascadingAuthenticationState();
+
+var dataDir = builder.Configuration["Hjem:DataDir"] ?? "/app/data";
+Directory.CreateDirectory(dataDir);
+builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "hjem.db")}"));
+builder.Services.AddSingleton<MediaStore>();
+builder.Services.AddSingleton<PushService>();
+builder.Services.AddSingleton<ChatService>();
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
+    .SetApplicationName("hjem");
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(o =>
+    {
+        o.Cookie.Name = "hjem_auth";
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SameSite = SameSiteMode.Lax;
+        o.ExpireTimeSpan = TimeSpan.FromDays(180);
+        o.SlidingExpiration = true;
+        o.LoginPath = "/login";
+    });
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+app.MapKolibri();
+
+await using (var db = await app.Services.GetRequiredService<IDbContextFactory<HjemDb>>().CreateDbContextAsync())
+{
+    await db.Database.EnsureCreatedAsync();
+    if (!await db.Settings.AnyAsync())
+    {
+        db.Settings.Add(new Settings
+        {
+            Id = 1,
+            Intro = "Er du interesseret, viser og deler jeg gerne, hvad jeg laver, og mine tanker om produkterne.",
+            NowText = "Jeg bygger små apps, der hjælper folk med at gøre det rigtige over for store selskaber. Lige nu: MinElpris – så du kan se, om du betaler for meget for strømmen.",
+        });
+        await db.SaveChangesAsync();
+    }
+}
+
+if (!app.Environment.IsDevelopment())
+    app.UseExceptionHandler("/Error");
+
+app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAntiforgery();
+
+// ── Login: one small form, two kinds (familie = password, ejer = PIN) ───────────────
+app.MapGet("/login", (string? who, string? err) => Results.Content(LoginPage(who == "ejer", err is not null), "text/html"));
+
+app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var owner = form["who"] == "ejer";
+    var expected = owner ? cfg["Hjem:AdminPin"] : cfg["Hjem:FamilyPassword"];
+    var given = form["code"].ToString().Trim();
+    if (string.IsNullOrEmpty(expected) || !SameText(given, expected))
+    {
+        await Task.Delay(800); // slow down guessing
+        return Results.Redirect(owner ? "/login?who=ejer&err=1" : "/login?err=1");
+    }
+    var claims = new List<Claim> { new(ClaimTypes.Name, owner ? "Martin" : "Familie"), new(ClaimTypes.Role, Access.Family) };
+    if (owner) claims.Add(new(ClaimTypes.Role, Access.Owner));
+    await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+        new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+        new AuthenticationProperties { IsPersistent = true });
+    return Results.Redirect(owner ? "/admin" : "/");
+}).DisableAntiforgery();
+
+app.MapGet("/logout", async (HttpContext ctx) =>
+{
+    await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/");
+});
+
+// ── Media: family files only with the family cookie ─────────────────────────────────
+app.MapGet("/m/{id:int}/{size}", async (int id, string size, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>
+{
+    await using var db = await dbf.CreateDbContextAsync();
+    var m = await db.Media.Include(x => x.Post).AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+    if (m is null || (m.Post.Visibility == Visibility.Familie && !ctx.User.IsFamily())) return Results.NotFound();
+    var name = size == "t" && m.ThumbName is not null ? m.ThumbName : m.StoredName;
+    var path = store.PathFor(name);
+    if (!File.Exists(path)) return Results.NotFound();
+    ctx.Response.Headers.CacheControl = m.Post.Visibility == Visibility.Familie ? "private, max-age=86400" : "public, max-age=604800";
+    return Results.File(path, m.ContentType, size == "d" ? m.FileName : null, enableRangeProcessing: true);
+});
+
+// ── Push: only the owner subscribes (called from wwwroot/hjem.js) ───────────────────
+app.MapGet("/api/push/public-key", (PushService push) => Results.Text(push.PublicKey));
+
+app.MapPost("/api/push/subscribe", async (SubRequest req, HttpContext ctx, IDbContextFactory<HjemDb> dbf) =>
+{
+    if (!ctx.User.IsOwner()) return Results.Unauthorized();
+    await using var db = await dbf.CreateDbContextAsync();
+    if (!await db.PushSubs.AnyAsync(s => s.Endpoint == req.Endpoint))
+        db.PushSubs.Add(new PushSub { Endpoint = req.Endpoint, P256dh = req.P256dh, Auth = req.Auth });
+    await db.SaveChangesAsync();
+    return Results.Ok();
+}).DisableAntiforgery();
+
+app.MapPost("/api/push/test", async (HttpContext ctx, PushService push) =>
+    ctx.User.IsOwner() ? Results.Ok(await push.SendToOwnerAsync("Martin Hvidberg", "Beskeder virker ✅ – her kommer spørgsmål fra din side.", "/admin")) : Results.Unauthorized())
+    .DisableAntiforgery();
+
+app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
+    .AddInteractiveServerRenderMode();
+
+app.Run();
+
+static bool SameText(string a, string b) =>
+    CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(a), Encoding.UTF8.GetBytes(b));
+
+static string LoginPage(bool owner, bool err) => $$"""
+<!DOCTYPE html>
+<html lang="da" data-family="rede"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{(owner ? "Log ind" : "Familie")}} · Martin Hvidberg</title>
+<link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css"><link rel="stylesheet" href="/app.css"></head>
+<body><main class="k-main"><form class="k-card k-pin" method="post" action="/login">
+<input type="hidden" name="who" value="{{(owner ? "ejer" : "familie")}}">
+<div class="k-card-title">{{(owner ? "🔑 Martins egen adgang" : "🔒 Familiens billeder")}}</div>
+<p class="k-card-sub">{{(owner ? "Skriv din PIN for at skrive opslag og svare på beskeder." : "Skriv familiens kodeord for at se familiens billeder og videoer. Kender du det ikke, så spørg Martin – skriv til ham på forsiden.")}}</p>
+{{(err ? "<p class=\"k-error\">Forkert – prøv igen.</p>" : "")}}
+<input class="k-input" type="password" name="code" autocomplete="current-password" autofocus required aria-label="Kode">
+<button class="k-btn k-btn-primary k-btn-block k-mt" type="submit">Åbn</button>
+<p class="k-help"><a href="/">← Tilbage til forsiden</a></p>
+</form></main></body></html>
+""";
+
+public sealed record SubRequest(string Endpoint, string P256dh, string Auth);
