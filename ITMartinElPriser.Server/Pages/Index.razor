@@ -4,7 +4,6 @@
 @inject PrefsService Prefs
 @inject GridTariffs Grids
 @inject IJSRuntime JS
-@inject Co2Service Co2
 @implements IDisposable
 
 <PageTitle>ElPriser</PageTitle>
@@ -161,20 +160,7 @@ else
     </div>
 }
 
-<div class="card">
-    <div class="card-title">✨ Det får du i MinElpris</div>
-    <div class="teasers">
-        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🌱 Grøn strøm</b><span>@(_co2 is { } g ? $"Lige nu {g:0} g CO₂ pr. kWh – se hvornår den er grønnest" : "Se hvornår strømmen er grønnest i dag")</span></a>
-        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🏢 Billigere elselskab</b><span>Alle selskaber sammenlignet på dit forbrug – og skift med ét tryk</span></a>
-        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🔎 Dit forbrug time for time</b><span>Direkte fra din elmåler – se hvad huset bruger om natten</span></a>
-        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🍽️ Ny eller gammel maskine?</b><span>Se hvad din egen koster – og hvad en ny sparemodel sparer dig om året</span></a>
-        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>📸 Billede af maskinen</b><span>Tag et billede – så ved appen, hvad netop din vaskemaskine bruger</span></a>
-        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🧾 Regningen forklaret</b><span>Hver linje, hvem der får pengene, og om prisen passer</span></a>
-        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🚗 Elbil og nat</b><span>Hvornår bilen skal lade, så det bliver billigst</span></a>
-    </div>
-    <a class="btn btn-primary btn-block" style="margin-top:12px" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener">👀 Se demoen med rigtige tal</a>
-    <div class="muted small" style="margin-top:6px;text-align:center">Ingen tilmelding – klik rundt i en rigtig families MinElpris. <a href="/tjek">Eller tjek din egen elregning gratis →</a></div>
-</div>
+@* The "Det får du i MinElpris" teaser block was removed 2026-09-28 (user): ElPriser stands on its own. *@
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
@@ -252,16 +238,8 @@ else
     // vs at that day's cheapest start. Real prices, all-in with this household's grid tariff.
     private sealed record Hindsight(double Saved, int Days);
     private Hindsight? _hindsight;
-    private double? _co2;
-
     private async Task LoadTeasersAsync()
     {
-        try
-        {
-            var co2 = await Co2.GetAsync(_s.PriceArea);
-            _co2 = co2.Now?.Grams;
-        }
-        catch { /* the teaser still works without the live figure */ }
         try
         {
             var today = DateOnly.FromDateTime(DkTime.Now);
