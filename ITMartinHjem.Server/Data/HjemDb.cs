@@ -11,6 +11,19 @@ public sealed class HjemDb(DbContextOptions<HjemDb> options) : DbContext(options
     public DbSet<ChatMessage> Messages => Set<ChatMessage>();
     public DbSet<PushSub> PushSubs => Set<PushSub>();
     public DbSet<Page> Pages => Set<Page>();
+    public DbSet<AppLink> AppLinks => Set<AppLink>();
+}
+
+// One of Martin's apps on the "Mine apps" page; Show = visible to visitors.
+public sealed class AppLink
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Icon { get; set; } = "";
+    public string Url { get; set; } = "";
+    public string Description { get; set; } = "";
+    public bool Show { get; set; }
+    public int Sort { get; set; }
 }
 
 // A normal web page (Om mig, Kontakt, Ydelser …) - moved in from the one.com builder

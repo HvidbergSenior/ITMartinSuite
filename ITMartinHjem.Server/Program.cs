@@ -48,6 +48,10 @@ builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Pat
 builder.Services.AddSingleton<MediaStore>();
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<ChatService>();
+builder.Services.AddHttpClient("status", c => c.Timeout = TimeSpan.FromSeconds(10))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddSingleton<AppStatus>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AppStatus>());
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
@@ -78,6 +82,7 @@ await using (var db = await app.Services.GetRequiredService<IDbContextFactory<Hj
 {
     await db.Database.EnsureCreatedAsync();
     await Schema.EnsureColumnsAsync(db);
+    await AppStatus.SeedAsync(db);
     if (!await db.Settings.AnyAsync())
     {
         db.Settings.Add(new Settings
@@ -190,6 +195,7 @@ app.MapGet("/api/menu", async (IDbContextFactory<HjemDb> dbf) =>
     var items = await db.Pages.AsNoTracking().Where(p => p.InMenu).OrderBy(p => p.Sort).ThenBy(p => p.Title)
         .Select(p => new { title = p.Title, href = "/" + p.Slug }).ToListAsync();
     items.Insert(0, new { title = "Forside", href = "/" });
+    items.Add(new { title = "📱 Mine apps", href = "/mine-apps" });
     items.Add(new { title = "🐦 Bliv pilot", href = "/pilot/" });
     return Results.Json(items);
 });

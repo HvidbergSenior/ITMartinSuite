@@ -186,6 +186,27 @@
     }
 </section>
 
+<section class="k-card" id="apps">
+    <div class="k-card-title">🧩 Mine apps på siden</div>
+    <p class="k-help">Siden <a href="/mine-apps" target="_blank">/mine-apps</a> viser de apps, der har flueben i "Vis". En app, der er slukket, vises som "sover lige nu" i stedet for en fejl. Ret tekst eller rækkefølge, og tryk Gem.</p>
+    @foreach (var a in _appLinks)
+    {
+        <div class="hj-admin-app">
+            <label><input type="checkbox" @bind="a.Show" /> Vis</label>
+            <input class="k-input hj-in-icon" @bind="a.Icon" maxlength="4" aria-label="Ikon" />
+            <input class="k-input" @bind="a.Name" maxlength="60" aria-label="Navn" />
+            <input class="k-input hj-in-sort" type="number" @bind="a.Sort" aria-label="Rækkefølge" />
+            <input class="k-input hj-in-wide" @bind="a.Url" maxlength="200" aria-label="Adresse" />
+            <input class="k-input hj-in-wide" @bind="a.Description" maxlength="200" aria-label="Beskrivelse" />
+        </div>
+    }
+    <div class="k-row k-mt">
+        <button class="k-btn k-btn-primary" @onclick="SaveAppsAsync">Gem</button>
+        <button class="k-btn" @onclick="AddApp">➕ Ny app</button>
+        @if (_appsNote.Length > 0) { <span class="k-help">@_appsNote</span> }
+    </div>
+</section>
+
 <section class="k-card">
     <div class="k-card-title">📱 Besked på telefonen</div>
     <p class="k-help">Slå det til på den telefon, du vil have besked på, når nogen skriver. <b>iPhone:</b> læg først siden på hjemskærmen (Del → Føj til hjemmeskærm), og åbn den derfra. <b>Android/PC:</b> tryk bare på knappen.</p>
@@ -222,6 +243,7 @@
         await LoadThreadsAsync();
         await LoadPostsAsync();
         await LoadPagesAsync();
+        await LoadAppsAsync();
         if (ChatId is { } id) await OpenAsync(id);
         Chat.Changed += OnChatChanged;
     }
@@ -478,6 +500,30 @@
         await db.Pages.Where(p => p.Id == _pageEdit.Id).ExecuteDeleteAsync();
         _pageEdit = null;
         await LoadPagesAsync();
+    }
+
+    // ── apps ──
+    private List<AppLink> _appLinks = [];
+    private string _appsNote = "";
+
+    private async Task LoadAppsAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        _appLinks = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
+    }
+
+    private void AddApp() => _appLinks.Add(new AppLink { Icon = "📱", Url = "https://", Sort = (_appLinks.Count + 1) * 10, Show = true });
+
+    private async Task SaveAppsAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        foreach (var a in _appLinks.Where(a => a.Name.Trim().Length > 0 && a.Url.StartsWith("http")))
+        {
+            if (a.Id == 0) db.AppLinks.Add(a); else db.AppLinks.Update(a);
+        }
+        await db.SaveChangesAsync();
+        await LoadAppsAsync();
+        _appsNote = "Gemt ✓ (en ny app får sin status inden for 2 minutter)";
     }
 
     // ── push ──

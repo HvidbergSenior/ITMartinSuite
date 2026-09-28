@@ -1,0 +1,44 @@
+@page "/mine-apps"
+@inject IDbContextFactory<HjemDb> Dbf
+@inject AppStatus Status
+
+<PageTitle>Mine apps · Martin Hvidberg</PageTitle>
+
+<article class="k-card hj-page" data-nofold>
+    <h1>Mine apps</h1>
+    <p>Det er de apps, jeg har bygget. De fleste er gratis at prøve – tryk på en app for at åbne den.</p>
+    <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu – <a href="/#chat">skriv til mig</a>, så tænder jeg den.</p>
+</article>
+
+<div class="hj-apps">
+    @foreach (var a in _apps)
+    {
+        var up = Status.IsUp(a.Url) != false;
+        @if (up)
+        {
+            <a class="k-card hj-app" href="@a.Url" target="_blank" rel="noopener" data-nofold>
+                <span class="hj-app-icon">@a.Icon</span>
+                <span><b>@a.Name</b> <span class="k-dot on hj-dot" title="Kører nu"></span><br /><span class="k-help">@a.Description</span></span>
+            </a>
+        }
+        else
+        {
+            <div class="k-card hj-app off" data-nofold>
+                <span class="hj-app-icon">@a.Icon</span>
+                <span><b>@a.Name</b> <span class="k-dot hj-dot" title="Sover"></span><br /><span class="k-help">@a.Description</span><br /><span class="k-help"><i>Sover lige nu – <a href="/#chat">skriv til mig</a>, hvis du vil prøve den.</i></span></span>
+            </div>
+        }
+    }
+</div>
+
+<p class="k-center k-mt"><a class="k-btn k-btn-primary" href="/pilot/">🐦 Vil du være pilot og prøve en app sammen med mig?</a></p>
+
+@code {
+    private List<AppLink> _apps = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        _apps = await db.AppLinks.AsNoTracking().Where(a => a.Show).OrderBy(a => a.Sort).ToListAsync();
+    }
+}

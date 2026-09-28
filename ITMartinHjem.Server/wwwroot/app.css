@@ -74,3 +74,15 @@
 .hj-subpage span { color: var(--k-muted); font-size: var(--k-fs-small); }
 .hj-page-edit { border-top: 1px solid var(--k-border); padding-top: 8px; }
 .hj-nav a.hj-nav-pilot { color: var(--k-accent); }
+
+/* Mine apps */
+.hj-apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.hj-app { display: flex; gap: 12px; align-items: flex-start; text-decoration: none; color: inherit; margin: 0; }
+a.hj-app:hover { border-color: var(--k-accent); }
+.hj-app.off { opacity: .65; }
+.hj-app-icon { font-size: 2rem; line-height: 1; }
+.hj-dot { display: inline-block; vertical-align: middle; background: #b8bec3; }
+.hj-dot.on { background: var(--k-success, #1f9d55); }
+.hj-admin-app { display: grid; grid-template-columns: auto 56px 1fr 72px; gap: 6px; align-items: center; padding: 8px 0; border-top: 1px solid var(--k-border); }
+.hj-admin-app .hj-in-wide { grid-column: 1 / -1; }
+.hj-in-icon { text-align: center; }
