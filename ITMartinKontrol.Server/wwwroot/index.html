@@ -35,8 +35,22 @@ h1{font-size:22px;margin:0 0 4px}
 .filters button.on{background:rgba(96,165,250,.15);border-color:var(--blue);color:var(--blue)}
 .app{display:grid;grid-template-columns:minmax(0,1fr) 110px auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .app.off{opacity:.55}
-.name{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.name small{display:block;color:var(--muted);font-weight:400;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.name{min-width:0;display:flex;gap:10px;align-items:flex-start}
+.name .ic{font-size:22px;line-height:1.2;flex:none;width:28px;text-align:center}
+.name .t{font-weight:700;font-size:15px}
+.name .t a{font-weight:400;font-size:12px;color:var(--blue);text-decoration:none;margin-left:6px;white-space:nowrap}
+.name .desc{display:block;color:var(--fg);opacity:.85;font-size:13px;margin-top:1px}
+.name .desc.none{color:var(--amber);opacity:1}
+.name .tech{display:block;color:var(--muted);font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subhead{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 0 2px;padding-top:6px}
+.confirm,.edit{grid-column:1/-1;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.edit{background:rgba(96,165,250,.06);border-color:rgba(96,165,250,.35);display:grid;grid-template-columns:1fr;gap:6px}
+.edit label{font-size:11px;color:var(--muted)}
+.edit input{font:inherit;font-size:13px;width:100%;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.confirm p{margin:0;flex:1 1 220px}
+button.yes{border-color:#ef4444;background:#ef4444;color:#fff}
+button.save{border-color:var(--blue);background:var(--blue);color:#fff}
+button.pen{color:var(--muted);padding:6px 8px}
 .use{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.3}
 .use .mini{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-top:2px}
 .use .mini i{display:block;height:100%;background:var(--blue)}
@@ -51,7 +65,7 @@ button.restart{color:var(--muted)}
 .msg{color:var(--muted);font-size:13px;min-height:18px;margin-top:8px}
 .foot{color:var(--muted);font-size:12px;margin-top:28px;text-align:center}
 .foot a{color:var(--muted)}
-@media (max-width:520px){.app{grid-template-columns:minmax(0,1fr) auto}.use{display:none}}
+@media (max-width:520px){.app{grid-template-columns:minmax(0,1fr) auto}.use{display:none}.btns{flex-direction:column;align-items:stretch}}
 
 .klist { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; }
 .kapp { display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--border,#2a2d3d); border-radius:10px; background:rgba(255,255,255,.03); }
@@ -64,7 +78,7 @@ button.restart{color:var(--muted)}
 <body>
 <div class="wrap">
   <h1>⏻ Kontrol</h1>
-  <div class="sub">Alle containere på NAS og photoserver. Tænd, sluk, genstart – PIN første gang. Forbrug samples hvert minut, 48 timer tilbage.</div>
+  <div class="sub">Alle containere på NAS og photoserver. Hver app står med navn og hvad den gør. Tænd, sluk, genstart – PIN første gang. ✏️ retter beskrivelsen. Forbrug samples hvert minut, 48 timer tilbage.</div>
   <div class="filters"><button id="fAll" class="on">Alle</button><button id="fRun">Kun kørende</button><button id="bell" title="Push-alarmer til denne telefon">🔔 Alarmer</button><span class="lock" id="stamp"></span></div>
   <div class="host" id="kolibri"><h2>🐦 Kolibri-apps <small id="kstamp"></small></h2><div id="kolibriList" class="klist"></div><div id="backup" class="kapp" style="margin-top:8px"><span class="dot"></span><div><span class="kn">💾 Ugentlig backup</span><small id="backupSub">henter…</small></div></div></div>
 <div id="hosts"></div>
@@ -86,6 +100,23 @@ document.getElementById("forget").addEventListener("click", function (e) { e.pre
 document.getElementById("fAll").addEventListener("click", function () { setFilter(false); });
 document.getElementById("fRun").addEventListener("click", function () { setFilter(true); });
 function setFilter(v) { onlyRunning = v; try { localStorage.setItem("kontrolOnlyRunning", v ? "1" : "0"); } catch (e) {} if (lastData) render(lastData); }
+
+var CAT = {}, OVR = {};
+function loadCatalog() {
+  return Promise.all([
+    fetch("apps.json").then(function (r) { return r.json(); }).catch(function () { return {}; }),
+    fetch("/api/catalog").then(function (r) { return r.json(); }).catch(function () { return { overrides: {} }; })
+  ]).then(function (res) { CAT = res[0]; OVR = res[1].overrides || {}; });
+}
+function info(name) {
+  var b = CAT[name] || {}, o = OVR[name] || {}, r = {};
+  ["icon", "title", "desc", "url", "off"].forEach(function (k) { r[k] = (o[k] != null && o[k] !== "") ? o[k] : (b[k] || ""); });
+  r.helper = !!b.helper;
+  if (!r.title) r.title = name.replace(/-web$/, "");
+  if (!r.icon) r.icon = "📦";
+  return r;
+}
+function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
 function pct(a, b) { return b > 0 ? Math.min(100, Math.round(a / b * 100)) : 0; }
 function heat(p) { return p >= 85 ? "hot" : p >= 60 ? "warm" : ""; }
@@ -134,24 +165,68 @@ function render(hosts) {
         '</div>' + chart(h.history, u.memTotalMb);
     }
     var list = h.containers.filter(function (c) { return !onlyRunning || c.running; });
-    list.forEach(function (c) {
-      var row = document.createElement("div"); row.className = "app" + (c.running ? "" : " off");
-      row.innerHTML =
-        '<div class="name">' + c.name + '<small>' + c.status + (c.ports ? ' · :' + c.ports : '') + '</small></div>' +
-        '<div class="use">' + (c.running ? fmt(c.cpuPct, 1) + ' % · ' + fmt(c.memMb, 0) + ' MB<div class="mini"><i style="width:' + Math.min(100, c.cpuPct || 0) + '%"></i></div>' + spark(c.cpuHistory) : '') + '</div>' +
-        '<div class="btns">' +
-        (c.running
-          ? (c.protected ? '<span class="lock">🔒 beskyttet</span>' : '<button class="restart">↻</button><button class="stop">⏻ Sluk</button>')
-          : '<button class="start">⏻ Tænd</button>') + '</div>';
-      row.querySelectorAll("button").forEach(function (b) {
-        var action = b.classList.contains("stop") ? "stop" : b.classList.contains("start") ? "start" : "restart";
-        b.addEventListener("click", function () { power(h.name, c.name, action, b); });
-      });
-      el.appendChild(row);
-    });
+    var apps = list.filter(function (c) { return !info(c.name).helper; }), helpers = list.filter(function (c) { return info(c.name).helper; });
+    var byName = function (a, b) { return (b.running - a.running) || info(a.name).title.localeCompare(info(b.name).title, "da"); };
+    apps.sort(byName); helpers.sort(byName);
+    var addRows = function (arr) { arr.forEach(function (c) { el.appendChild(row(h, c)); }); };
+    addRows(apps);
+    if (helpers.length) { var sh = document.createElement("div"); sh.className = "subhead"; sh.textContent = "Hjælpere – databaser, køer og tunnel, som apps bruger"; el.appendChild(sh); addRows(helpers); }
     root.appendChild(el);
   });
   document.getElementById("stamp").textContent = "opdateret " + new Date().toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" });
+}
+
+function row(h, c) {
+  var i = info(c.name);
+  var r = document.createElement("div"); r.className = "app" + (c.running ? "" : " off");
+  var addr = i.url ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener">' + esc(i.url.replace(/^https?:\/\//, "")) + ' ↗</a>' : "";
+  var desc = i.desc ? '<span class="desc">' + esc(i.desc) + '</span>' : '<span class="desc none">Hvad gør den? Tryk ✏️ og skriv det.</span>';
+  r.innerHTML =
+    '<div class="name"><span class="ic">' + esc(i.icon) + '</span><div><span class="t">' + esc(i.title) + addr + '</span>' + desc +
+    '<span class="tech">' + (c.running ? "🟢 kører" : "⚪ slukket") + ' · ' + esc(c.name) + ' · ' + esc(c.status) + (c.ports ? ' · :' + esc(c.ports) : '') + '</span></div></div>' +
+    '<div class="use">' + (c.running ? fmt(c.cpuPct, 1) + ' % · ' + fmt(c.memMb, 0) + ' MB<div class="mini"><i style="width:' + Math.min(100, c.cpuPct || 0) + '%"></i></div>' + spark(c.cpuHistory) : '') + '</div>' +
+    '<div class="btns"><button class="pen" title="Ret beskrivelse">✏️</button>' +
+    (c.running
+      ? (c.protected ? '<span class="lock">🔒 beskyttet</span>' : '<button class="restart" title="Genstart">↻ Genstart</button><button class="stop">⏹ Sluk</button>')
+      : '<button class="start">▶ Tænd</button>') + '</div>';
+  var close = function () { var x = r.querySelector(".confirm, .edit"); if (x) x.remove(); };
+  r.querySelector(".pen").addEventListener("click", function () {
+    if (r.querySelector(".edit")) { close(); return; } close();
+    var f = document.createElement("div"); f.className = "edit";
+    f.innerHTML =
+      '<label>Navn<input data-k="title" value="' + esc(i.title) + '"></label>' +
+      '<label>Ikon (emoji)<input data-k="icon" value="' + esc(i.icon) + '"></label>' +
+      '<label>Hvad gør den?<input data-k="desc" value="' + esc(i.desc) + '"></label>' +
+      '<label>Adresse<input data-k="url" value="' + esc(i.url) + '" placeholder="https://…"></label>' +
+      '<label>Hvad stopper, når den er slukket?<input data-k="off" value="' + esc(i.off) + '"></label>' +
+      '<div class="btns"><button class="save">Gem</button><button class="cancel">Fortryd</button></div>';
+    r.appendChild(f);
+    f.querySelector(".cancel").onclick = close;
+    f.querySelector(".save").onclick = function () {
+      var pin = getPin(); if (!pin) return;
+      var body = {}; f.querySelectorAll("input").forEach(function (inp) { body[inp.dataset.k] = inp.value; });
+      fetch("/api/catalog/" + encodeURIComponent(c.name), { method: "PUT", headers: { "Content-Type": "application/json", "X-Kontrol-Pin": pin }, body: JSON.stringify(body) })
+        .then(function (res) {
+          if (res.status === 401) { forgetPin(); msg.textContent = "Forkert PIN – prøv igen."; return; }
+          if (!res.ok) { msg.textContent = "Kunne ikke gemme (" + res.status + ")."; return; }
+          msg.textContent = i.title + ": beskrivelse gemt.";
+          return loadCatalog().then(function () { render(lastData); });
+        });
+    };
+  });
+  r.querySelectorAll("button.start, button.restart").forEach(function (b) {
+    b.addEventListener("click", function () { power(h.name, c.name, b.classList.contains("start") ? "start" : "restart", b, i.title); });
+  });
+  var stop = r.querySelector("button.stop");
+  if (stop) stop.addEventListener("click", function () {
+    if (r.querySelector(".confirm")) { close(); return; } close();
+    var f = document.createElement("div"); f.className = "confirm";
+    f.innerHTML = '<p><b>Sluk ' + esc(i.title) + '?</b> ' + esc(i.off || "Appen svarer ikke, før den tændes igen.") + '</p><button class="yes">Ja, sluk</button><button class="cancel">Fortryd</button>';
+    r.appendChild(f);
+    f.querySelector(".cancel").onclick = close;
+    f.querySelector(".yes").onclick = function () { power(h.name, c.name, "stop", this, i.title); };
+  });
+  return r;
 }
 
 function fmtUp(s) { if (s == null) return ""; if (s < 3600) return Math.round(s / 60) + " min"; if (s < 86400) return Math.round(s / 3600) + " t"; return Math.round(s / 86400) + " d"; }
@@ -183,7 +258,7 @@ function refresh() {
     .catch(function () { msg.textContent = "Kunne ikke hente status."; });
 }
 
-function power(host, name, action, btn) {
+function power(host, name, action, btn, title) {
   var pin = getPin(); if (!pin) return;
   btn.disabled = true; btn.textContent = action === "start" ? "Starter…" : action === "stop" ? "Slukker…" : "Genstarter…";
   msg.textContent = "";
@@ -191,15 +266,15 @@ function power(host, name, action, btn) {
     .then(function (r) {
       if (r.status === 401) { forgetPin(); msg.textContent = "Forkert PIN – prøv igen."; return; }
       if (!r.ok) return r.text().then(function (t) { msg.textContent = "Det lykkedes ikke (" + r.status + "). " + t.slice(0, 160); });
-      msg.textContent = name + ": " + (action === "start" ? "startet." : action === "stop" ? "slukket." : "genstartet.");
+      msg.textContent = (title || name) + " er " + (action === "start" ? "tændt." : action === "stop" ? "slukket." : "genstartet.");
     })
     .catch(function () { msg.textContent = "Kunne ikke nå serveren."; })
     .then(function () { return new Promise(function (res) { setTimeout(res, 1500); }); })
     .then(refresh);
 }
 
-refresh();
-setInterval(refresh, 20000);
+loadCatalog().then(refresh);
+setInterval(function () { if (!document.querySelector(".confirm, .edit")) refresh(); }, 20000);
 </script>
 <script src="/push.js"></script>
 <script>

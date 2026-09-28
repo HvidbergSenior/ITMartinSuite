@@ -135,6 +135,41 @@ app.MapPost("/api/hosts/{host}/apps/{name}/{action}", async (string host, string
 // /volume1 is mounted read-only at /host/disk, so the file is read straight from there.
 app.MapGet("/api/backup", () => Results.Ok(BackupStatus.Read(cfg)));
 
+// What each container is, in words (wwwroot/apps.json), plus the user's own edits from the
+// ✏️ button, kept in DataDir so a redeploy never loses them. Edits win per field.
+var catalogFile = Path.Combine(cfg["Kontrol:DataDir"] ?? "/data", "apps-overrides.json");
+var catalogLock = new object();
+Dictionary<string, Dictionary<string, string>> ReadOverrides()
+{
+    try
+    {
+        return File.Exists(catalogFile)
+            ? JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(File.ReadAllText(catalogFile)) ?? new()
+            : new();
+    }
+    catch (JsonException) { return new(); }
+}
+app.MapGet("/api/catalog", () =>
+{
+    var overrides = ReadOverrides();
+    return Results.Ok(new { overrides });
+});
+app.MapPut("/api/catalog/{name}", (string name, Dictionary<string, string> fields, HttpRequest req) =>
+{
+    if (!PinOk(req)) return Results.StatusCode(401);
+    string[] allowed = ["title", "desc", "url", "off", "icon"];
+    var clean = fields.Where(kv => allowed.Contains(kv.Key))
+        .ToDictionary(kv => kv.Key, kv => (kv.Value ?? "").Trim()[..Math.Min((kv.Value ?? "").Trim().Length, 300)]);
+    lock (catalogLock)
+    {
+        var all = ReadOverrides();
+        all[name] = clean;
+        Directory.CreateDirectory(Path.GetDirectoryName(catalogFile)!);
+        File.WriteAllText(catalogFile, JsonSerializer.Serialize(all, new JsonSerializerOptions { WriteIndented = true }));
+    }
+    return Results.Ok();
+});
+
 // Kolibri product overview: every app that speaks the Kolibri /health contract
 // (see ITMartin.Shared.UI MapKolibri) is polled through its public URL, so the
 // whole chain - tunnel, container, db - is what gets the green dot.
