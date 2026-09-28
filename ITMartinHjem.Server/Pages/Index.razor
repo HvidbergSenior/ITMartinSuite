@@ -7,11 +7,14 @@
    chat come after it; old years are folded and the phone remembers what was open. *@
 
 <header class="hj-head">
-    <h1>@_s.Name</h1>
-    <p class="hj-intro">@_s.Intro</p>
-    <p class="hj-links"><a href="https://itmartin.dk/pilot/">🐦 Mit arbejde: ITKolibri – bliv pilot</a> · <a href="https://itmartin.dk">itmartin.dk</a></p>
+    @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
+    <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
+    @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
+
+@* "Martin er her nu" right under the name, so every visitor sees it (user 2026-09-28). *@
+<ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true" />
 
 @if (_hero is not null)
 {
@@ -40,7 +43,6 @@
     <p class="k-help">Opdateret @_s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", Da)</p>
 </section>
 
-<ChatBox Available="_s.Available" OwnerName="@FirstName" />
 
 @if (_posts.Count == 0)
 {

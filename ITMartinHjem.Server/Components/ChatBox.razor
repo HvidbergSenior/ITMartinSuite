@@ -5,7 +5,7 @@
 @* The visitor's side of the live chat. The visitor is remembered on this phone/PC only
    (a random key in the browser), so a reply shows up here when they come back. *@
 
-<section class="k-card hj-chat" id="chat" data-nofold>
+<section class="k-card hj-chat @(Prominent ? "hj-chat-top" : "") @(Available ? "is-on" : "")" id="chat" data-nofold>
     <div class="hj-chat-status">
         <span class="k-dot @(Available ? "on" : "")"></span>
         @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– skriv, så svarer han med det samme.</span> }
@@ -44,6 +44,7 @@
     [Parameter] public bool Available { get; set; }
     [Parameter] public string OwnerName { get; set; } = "Martin";
     [Parameter] public bool StartOpen { get; set; }
+    [Parameter] public bool Prominent { get; set; }
 
     private string _key = "", _name = "", _text = "", _note = "";
     private bool _open, _busy;

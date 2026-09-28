@@ -100,3 +100,12 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-app-tier { font-size: var(--k-fs-small); margin-top: 6px; }
 .hj-tag-plus { background: var(--k-accent); color: #fff; }
 .hj-hero h2 { margin-top: 8px; }
+
+/* "Martin er her nu" at the top of the front page - big and impossible to miss */
+.hj-chat-top { text-align: center; border: 2px solid var(--k-border); }
+.hj-chat-top.is-on { border-color: var(--k-success, #1f9d55); background: #eefaf2; }
+.hj-chat-top .hj-chat-status { justify-content: center; font-size: 1.15rem; }
+.hj-chat-top .k-dot { width: 16px; height: 16px; }
+.hj-chat-top.is-on .k-dot { animation: hj-pulse 1.6s ease-in-out infinite; }
+@keyframes hj-pulse { 0%,100% { box-shadow: 0 0 0 3px rgba(31,157,85,.25); } 50% { box-shadow: 0 0 0 9px rgba(31,157,85,.08); } }
+@media (prefers-reduced-motion: reduce) { .hj-chat-top.is-on .k-dot { animation: none; } }
