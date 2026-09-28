@@ -94,7 +94,23 @@ else
                     {
                         <div class="appl-row"><span>Oprettelse (én gang)</span><b>@Kr2(p.CreationFee * SupplierProduct.Vat) kr</b></div>
                     }
-                    <div class="appl-row"><span>Binding</span><b>@(p.Binding.Length > 0 ? p.Binding : "Ingen")</b></div>
+                    <div class="appl-row"><span>Binding</span><b>@(p.Binding.Length > 0 && !p.Binding.StartsWith("0") ? p.Binding : "Ingen")</b></div>
+                    @if (p.Termination.Length > 0)
+                    {
+                        <div class="appl-row"><span>Opsigelsesvarsel</span><b>@(p.Termination == "Nej" ? "Ingen" : p.Termination)</b></div>
+                    }
+                    @if (p.PaymentMethods.Length > 0)
+                    {
+                        <div class="appl-row"><span>Betaling</span><b>@p.PaymentMethods</b></div>
+                    }
+                    @if (p.RenewableShare is > 0)
+                    {
+                        <div class="appl-row"><span>Vedvarende energi</span><b>@((p.RenewableShare.Value * 100).ToString("0", Da)) %</b></div>
+                    }
+                    @if (p.DeliveryStart.Length > 0)
+                    {
+                        <div class="appl-row"><span>Du kan skifte til den</span><b>efter @p.DeliveryStart</b></div>
+                    }
                     <div class="muted">Alle beløb inkl. moms.@(p.Updated is { } u ? $" Opdateret {u.ToLocalTime().ToString("d. MMM yyyy", Da)}." : "")</div>
                     <div class="btn-row">
                         @if (p.Id == _currentId)
@@ -177,7 +193,7 @@ else
 
 <a class="card cta-link" href="/regning">🧾 Forstå din elregning – linje for linje →</a>
 
-<p class="muted small" style="margin-top:8px">Data: <a href="https://stromligning.dk" target="_blank" rel="noopener">Strømligning</a> (CC BY-NC 4.0), opdateres dagligt. Den officielle sammenligning er <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> fra Forsyningstilsynet.</p>
+<p class="muted small" style="margin-top:8px">Data: <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> – Forsyningstilsynets officielle prisportal, som alle elselskaber skal indberette til. Opdateres dagligt. Kun produkter til private.</p>
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
@@ -192,10 +208,23 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _all = await Catalog.GetAsync();
         var s = Store.Get().Settings;
         _gridName = s.GridName;
+        _all = await Catalog.GetAsync(GridAreaFor(_gridName));
         if (s.GridSupplierId.Length > 0) _tariff = await Grids.TodayAsync(s.GridSupplierId);
+    }
+
+    // elpris.dk publishes one product file per grid area (the netselskab's area number).
+    // Unknown company -> the default area; the supplier products barely differ between areas.
+    private static string? GridAreaFor(string gridName)
+    {
+        var n = gridName.ToLowerInvariant();
+        return n.Contains("konstant") ? "151"
+            : n.Contains("n1") ? "131"
+            : n.Contains("radius") ? "791"
+            : n.Contains("nord energi") ? "031"
+            : n.Contains("trefor") || n.Contains("tre-for") ? "244"
+            : null;
     }
 
     private sealed record Band(int From, int To, double Ore);
