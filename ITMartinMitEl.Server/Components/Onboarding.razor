@@ -1,0 +1,161 @@
+@using System.Globalization
+@inject HouseholdStore Store
+@inject EloverblikService Eloverblik
+@inject ConsumptionSync Sync
+@inject ConsumptionStore Consumption
+@inject GridTariffs Grids
+@inject SupplierCatalog Catalog
+
+@* First login (user 2026-09-28): the user does ONE thing - connect the meter with MitID - and the app
+   fetches everything it can find by itself, then shows "Det har vi fundet om jer": all the
+   information needed to save money. Shown until the user says "Vis min forside". *@
+
+@if (!_connected)
+{
+    <div class="card">
+        <div class="card-title">👋 Kom i gang – det tager 2 minutter</div>
+        <p class="small">Forbind din elmåler én gang med MitID. Så henter vi selv resten: din adresse, dit netselskab, dit elselskab, dit forbrug time for time flere år tilbage – alt det, der skal til for at finde ud af, hvor du kan spare.</p>
+        <details class="install-dev" data-remember="onb-howto" open>
+            <summary>❓ Sådan henter du din nøgle (token) på eloverblik.dk</summary>
+            <ol class="small">
+                <li>Gå til <a href="https://eloverblik.dk" target="_blank" rel="noopener"><b>eloverblik.dk</b></a> og tryk <b>Log ind</b> (privat) med <b>MitID</b>.</li>
+                <li>Tryk på <b>profil-ikonet</b> øverst til højre → <b>Datadeling</b>.</li>
+                <li>Tryk <b>Opret token</b>, giv den navnet <b>MinElpris</b>, og tryk <b>Opret</b>.</li>
+                <li>Tryk <b>Kopiér</b> – og sæt den lange tekst ind herunder.</li>
+            </ol>
+            <p class="muted small">Nøglen kan kun <b>læse</b> dit forbrug – ikke ændre noget. Den gælder et år, og du kan slette den på eloverblik.dk når som helst.</p>
+        </details>
+        <textarea class="field" style="width:100%;min-height:70px;margin-top:8px" @bind="_token" placeholder="Sæt din token ind her (starter med eyJ…)" aria-label="Token fra eloverblik.dk"></textarea>
+        <button class="btn btn-primary btn-block" style="margin-top:8px" @onclick="FetchAllAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_token))">@(_busy ? "Henter dine data…" : "Hent mine data")</button>
+        @if (_steps.Count > 0)
+        {
+            <ul class="onb-steps small">
+                @foreach (var s in _steps) { <li>@s</li> }
+            </ul>
+        }
+        @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
+    </div>
+}
+else if (!_seen)
+{
+    @* One answer first (user: "too much at once"); everything else folded away. *@
+    <div class="card now-tile lvl-cheap">
+        <div class="card-title">✅ Jeres elmåler er forbundet</div>
+        <div class="onb-headline">@(_yearlyKwh > 0 ? $"I bruger ca. {_yearlyKwh.ToString("#,##0", Da)} kWh om året" : "Vi har fundet jeres måler")</div>
+        <p class="small muted">@(_yearlyKwh > 0 ? "Næste skridt: se om et andet elselskab er billigere til netop jeres forbrug." : "Forbruget kommer om 1–2 dage (Datahub er bagud). Imens kan du sammenligne elselskaber.")</p>
+        <a class="btn btn-primary btn-block" href="/elselskab" @onclick="DoneAsync">🏢 Find et billigere elselskab</a>
+        <details class="install-dev" data-remember="onb-found" style="margin-top:10px">
+            <summary>🔎 Det har vi fundet om jer</summary>
+            <div class="onb-found">
+                @foreach (var f in Found())
+                {
+                    <div class="appl-row small"><span>@f.Icon @f.Label</span><b class="@(f.Ok ? "" : "lvl-mid")">@f.Value</b></div>
+                }
+            </div>
+        </details>
+        <details class="install-dev" data-remember="onb-more">
+            <summary>💡 Flere steder at spare</summary>
+            <div class="teasers">
+                <a class="teaser" href="/dag"><b>🔎 Hvad bruger huset?</b><span>Time for time – også om natten</span></a>
+                <a class="teaser" href="/planlaeg"><b>📅 Billigste tider</b><span>Vask, opvask og elbil</span></a>
+                <a class="teaser" href="/regning"><b>📄 Læg regningen ind</b><span>Vi tjekker jeres pris</span></a>
+                <a class="teaser" href="/enheder"><b>📸 Tag billede af maskinerne</b><span>Hvad netop jeres bruger</span></a>
+            </div>
+        </details>
+        <button class="btn btn-block" style="margin-top:10px" @onclick="DoneAsync">Vis min forside</button>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private static readonly CultureInfo Da = new("da-DK");
+    private bool _connected, _seen, _busy;
+    private string _token = "", _error = "";
+    private readonly List<string> _steps = [];
+    private double _yearlyKwh;
+    private int _daysMeasured;
+    private string _supplierProductNote = "";
+
+    private sealed record Item(string Icon, string Label, string Value, bool Ok);
+
+    protected override void OnInitialized()
+    {
+        var d = Store.Get();
+        _connected = !string.IsNullOrWhiteSpace(d.Settings.MeteringPointId);
+        _seen = d.OnboardingSeen || !_connected;
+        if (_connected) { ComputeUse(); _seen = d.OnboardingSeen; }
+    }
+
+    private async Task FetchAllAsync()
+    {
+        _busy = true; _error = ""; _steps.Clear();
+        var token = _token.Trim();
+        try
+        {
+            Step("🔌 Forbinder til din elmåler…");
+            var points = await Eloverblik.GetMeteringPointsAsync(token);
+            var mp = points.FirstOrDefault(p => p.TypeOfMp == "E17") ?? points.FirstOrDefault();
+            if (mp is null) { _error = "Nøglen virker, men der er ingen elmåler på den. Er det den rigtige MitID?"; return; }
+            Store.Update(d => { d.Settings.EloverblikToken = token; d.Settings.MeteringPointId = mp.Id; d.Settings.MeteringPointAddress = mp.Address; });
+            Step($"✅ Måler fundet: {mp.Address}");
+
+            Step("🗺️ Finder netselskab og prisområde ud fra adressen…");
+            if (await Grids.ResolveAsync(mp.Address) is { } place && await Grids.FindAtAsync(place.Lat, place.Lon) is { } g)
+            {
+                Store.Update(d => { d.Settings.GridSupplierId = g.Id; d.Settings.GridName = g.Name; d.Settings.PriceArea = g.PriceArea; d.Settings.PostalCode = place.PostalCode; });
+                Step($"✅ Netselskab: {g.Name} · {g.PriceArea}");
+            }
+
+            Step("📊 Henter jeres forbrug et år tilbage (det kan tage et halvt minut)…");
+            var ok = await Sync.SyncAsync(Store.HouseholdId, days: 365);
+            ComputeUse();
+            Step(ok && _yearlyKwh > 0 ? $"✅ Forbrug: ca. {_yearlyKwh:#,##0} kWh om året" : "⏳ Forbruget kommer – Datahub er 1–2 dage bagud");
+
+            if (Store.Get().Settings.Meter is { } m && m.SupplierName.Length > 0) Step($"✅ Elselskab: {m.SupplierName}");
+
+            Store.Update(d => d.OnboardingSeen = false);
+            _connected = true; _seen = false;
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = "Vi kunne ikke forbinde: " + (ex.Message.Contains("401") ? "nøglen blev ikke godkendt – kopiér den igen fra eloverblik.dk." : ex.Message);
+        }
+        finally { _busy = false; }
+    }
+
+    private void Step(string s) { _steps.Add(s); StateHasChanged(); }
+
+    // A year's use from the meter: the last 365 days, scaled up if the meter has less.
+    private void ComputeUse()
+    {
+        var today = DateOnly.FromDateTime(DkTime.Now);
+        var hours = Consumption.Range(today.AddDays(-365), today);
+        _daysMeasured = hours.Keys.Select(DateOnly.FromDateTime).Distinct().Count();
+        var sum = hours.Values.Sum();
+        _yearlyKwh = _daysMeasured >= 14 ? Math.Round(sum * 365.0 / _daysMeasured / 10) * 10 : 0;
+    }
+
+    private IEnumerable<Item> Found()
+    {
+        var s = Store.Get().Settings;
+        var bill = Store.Get().Bills.FirstOrDefault();
+        yield return new("🏠", "Adresse", s.MeteringPointAddress.Length > 0 ? s.MeteringPointAddress : "–", s.MeteringPointAddress.Length > 0);
+        yield return new("🔌", "Netselskab", s.GridName.Length > 0 ? s.GridName : s.Meter?.GridOperatorName ?? "–", s.GridName.Length > 0);
+        yield return new("🗺️", "Prisområde", s.PriceArea == "DK2" ? "Øst (DK2)" : "Vest (DK1)", true);
+        yield return new("🏢", "Elselskab", s.Meter?.SupplierName is { Length: > 0 } sn ? sn : bill?.Supplier ?? "kommer med måleren", s.Meter?.SupplierName is { Length: > 0 });
+        yield return new("📦", "Produkt", bill?.Product is { Length: > 0 } p ? p : "læg regningen ind", bill is not null);
+        yield return new("📊", "Forbrug", _yearlyKwh > 0 ? $"ca. {_yearlyKwh.ToString("#,##0", Da)} kWh/år ({_daysMeasured} dage målt)" : "kommer om 1–2 dage", _yearlyKwh > 0);
+        yield return new("⏱️", "Målt hvert", s.Meter?.MeterReadingOccurrence == "PT15M" ? "kvarter" : s.Meter is not null ? "time" : "–", s.Meter is not null);
+        if (s.Meter is { SubscriptionsKrPerMonth: > 0 } mc)
+            yield return new("🧾", "Faste abonnementer (net + Energinet)", $"{mc.SubscriptionsKrPerMonth.ToString("0", Da)} kr/md", true);
+    }
+
+    private async Task DoneAsync()
+    {
+        Store.Update(d => d.OnboardingSeen = true);
+        _seen = true;
+        await OnChanged.InvokeAsync();
+    }
+}

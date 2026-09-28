@@ -31,6 +31,9 @@ public sealed class HouseholdData
     public List<string> SentPushes { get; set; } = [];
     // Real bills the household uploaded (newest first) - the foundation for supplier, grid and prices.
     public List<ElBill> Bills { get; set; } = [];
+    // "Det har vi fundet om jer" after connecting the meter - true once the user has seen it.
+    // Default true so households that were set up before the onboarding existed never see it.
+    public bool OnboardingSeen { get; set; } = true;
 }
 
 /// <summary>

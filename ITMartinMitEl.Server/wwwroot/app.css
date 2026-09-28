@@ -282,3 +282,8 @@ details.card.fold[open] > summary { margin-bottom: 8px; }
 .dev-save { color: var(--cheap); font-weight: 700; }
 .dev-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .dev-actions .btn { margin-left: auto; }
+
+/* First-login onboarding (Components/Onboarding.razor) */
+.onb-steps { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+.onb-headline { font-size: 1.35rem; font-weight: 700; margin: 4px 0 6px; }
+.onb-found { display: grid; gap: 2px; margin-top: 6px; }

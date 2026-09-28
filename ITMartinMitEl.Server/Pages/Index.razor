@@ -61,6 +61,8 @@
     </div>
 </div>
 
+<Onboarding OnChanged="OnboardingChangedAsync" />
+
 @if (_snap is null)
 {
     <div class="card now-tile"><div class="muted">Henter priser…</div></div>
@@ -406,4 +408,11 @@ else
     }
 
     private static string Color(double rank) => rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)";
+
+    // The meter was just connected: address, grid and use are new - re-read the page's own figures.
+    private async Task OnboardingChangedAsync()
+    {
+        _address = Store.Get().Settings.MeteringPointAddress;
+        await InvokeAsync(StateHasChanged);
+    }
 }
