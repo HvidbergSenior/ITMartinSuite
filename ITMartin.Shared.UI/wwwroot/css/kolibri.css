@@ -251,3 +251,7 @@ html[data-mode="tv"] .k-grid { grid-template-columns: repeat(auto-fit, minmax(38
 .k-install-hide { margin-top: 12px; border: 0; background: none; color: var(--k-muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: var(--k-fs-small); padding: 0; }
 @media print { .k-install-pill, .k-install-sheet { display: none !important; } }
 .k-footer-install[hidden] { display: none !important; }
+
+/* Blazor's FocusOnNavigate focuses the page's <h1> for screen readers - that focus is not a
+   keyboard focus, so no visible frame around the heading (user saw a black box on "ElPriser"). */
+h1:focus, h1:focus-visible, [tabindex="-1"]:focus { outline: none; }
