@@ -55,7 +55,8 @@ else if (_page is not null)
         _children = _page is null ? [] : await db.Pages.AsNoTracking()
             .Where(p => p.Slug.StartsWith(slug + "/")).OrderBy(p => p.Sort).ThenBy(p => p.Title).ToListAsync();
         var parentSlug = slug.Contains('/') ? slug[..slug.LastIndexOf('/')] : null;
-        _parent = parentSlug is null ? null : await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == parentSlug);
+        // Only a back link to a parent that is itself in the menu (hidden Ydelser -> no "← Ydelser").
+        _parent = parentSlug is null ? null : await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == parentSlug && p.InMenu);
         _loaded = true;
     }
 
