@@ -66,6 +66,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+// Behind the Cloudflare tunnel every request arrives as http; trust its X-Forwarded-Proto so
+// redirects (/pilot -> /pilot/) and absolute links stay on https.
+var fwd = new ForwardedHeadersOptions { ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto };
+fwd.KnownNetworks.Clear();
+fwd.KnownProxies.Clear();
+app.UseForwardedHeaders(fwd);
 app.MapKolibri();
 
 await using (var db = await app.Services.GetRequiredService<IDbContextFactory<HjemDb>>().CreateDbContextAsync())
