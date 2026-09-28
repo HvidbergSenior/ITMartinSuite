@@ -109,3 +109,5 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-chat-top.is-on .k-dot { animation: hj-pulse 1.6s ease-in-out infinite; }
 @keyframes hj-pulse { 0%,100% { box-shadow: 0 0 0 3px rgba(31,157,85,.25); } 50% { box-shadow: 0 0 0 9px rgba(31,157,85,.08); } }
 @media (prefers-reduced-motion: reduce) { .hj-chat-top.is-on .k-dot { animation: none; } }
+/* Square gallery crops keep the top of the picture - heads, not tables (user: "cannot see the top of my head"). */
+.tm-gallery img.tm-img { object-position: 50% 12%; }
