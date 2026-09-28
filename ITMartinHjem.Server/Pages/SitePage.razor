@@ -1,5 +1,7 @@
 @page "/{*Slug}"
 @inject IDbContextFactory<HjemDb> Dbf
+@inject IWebHostEnvironment Env
+@inject NavigationManager Nav
 
 @* Any address that is not an app page: one of Martin's own pages (Om mig, Ydelser …).
    A page with sub-pages (ydelser -> ydelser/cloud …) lists them under its own text. *@
@@ -41,6 +43,12 @@ else if (_page is not null)
     protected override async Task OnParametersSetAsync()
     {
         var slug = (Slug ?? "").Trim('/').ToLowerInvariant();
+        // A hand-made page in wwwroot (pilot, rejsedemo): the in-app link lands here - load the real file.
+        if (slug.Length > 0 && Env.WebRootFileProvider.GetFileInfo($"{slug}/index.html").Exists)
+        {
+            Nav.NavigateTo($"/{slug}/", forceLoad: true);
+            return;
+        }
         await using var db = await Dbf.CreateDbContextAsync();
         _page = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == slug);
         _children = _page is null ? [] : await db.Pages.AsNoTracking()
