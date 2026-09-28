@@ -73,3 +73,4 @@
 .hj-subpage:hover { border-color: var(--k-accent); }
 .hj-subpage span { color: var(--k-muted); font-size: var(--k-fs-small); }
 .hj-page-edit { border-top: 1px solid var(--k-border); padding-top: 8px; }
+.hj-nav a.hj-nav-pilot { color: var(--k-accent); }

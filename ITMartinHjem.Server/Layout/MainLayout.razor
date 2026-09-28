@@ -5,6 +5,8 @@
 <nav class="hj-nav">
     <a href="/">Forside</a>
     @foreach (var p in _menu) { <a href="/@p.Slug">@p.Title</a> }
+    @* The pilot page is a hand-made page in wwwroot/pilot - always last in the menu. *@
+    <a class="hj-nav-pilot" href="/pilot/">🐦 Bliv pilot</a>
 </nav>
 <div class="k-main"><div class="k-content">
     @Body

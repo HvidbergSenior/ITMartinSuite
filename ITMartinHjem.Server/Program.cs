@@ -174,6 +174,20 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
     return Results.File(path, name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType, enableRangeProcessing: true);
 });
 
+app.MapGet("/pilot", () => Results.Redirect("/pilot/", permanent: true));
+app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
+
+// ── The site menu for hand-made pages in wwwroot (pilot): wwwroot/nav.js draws it from this.
+app.MapGet("/api/menu", async (IDbContextFactory<HjemDb> dbf) =>
+{
+    await using var db = await dbf.CreateDbContextAsync();
+    var items = await db.Pages.AsNoTracking().Where(p => p.InMenu).OrderBy(p => p.Sort).ThenBy(p => p.Title)
+        .Select(p => new { title = p.Title, href = "/" + p.Slug }).ToListAsync();
+    items.Insert(0, new { title = "Forside", href = "/" });
+    items.Add(new { title = "🐦 Bliv pilot", href = "/pilot/" });
+    return Results.Json(items);
+});
+
 // ── The pilot form (wwwroot/pilot/index.html posts to send.php, as it did on one.com).
 // Instead of a mail it becomes a conversation in Svar, with a push to Martin's phone.
 app.MapPost("/pilot/send.php", async (HttpContext ctx, ChatService chat) =>
