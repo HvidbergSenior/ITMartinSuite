@@ -25,6 +25,17 @@
 {
     <div class="card small" role="status">📍 @_locateMsg</div>
 }
+@if (_pending is { } pend)
+{
+    <div class="card small" role="status">
+        <p style="margin:0 0 8px">📍 Du er ved <b>@pend.Place.Label</b>, hvor netselskabet er <b>@pend.Grid.Name</b>. Er det dit nye hjem?</p>
+        <p class="muted" style="margin:0 0 8px">Priserne skal regnes med netselskabet, hvor du bor – ikke hvor du er lige nu.</p>
+        <div class="btn-row">
+            <button class="btn btn-primary" @onclick="() => SaveHomeAsync(pend.Place, pend.Grid)">Ja, skift til @pend.Grid.Name</button>
+            <button class="btn" @onclick="() => _pending = null">Nej, behold @_gridName</button>
+        </div>
+    </div>
+}
 
 @* First thing on the page (user wish): how to put ElPriser on the phone. Gone once installed. *@
 <InstallGuide />
@@ -250,13 +261,30 @@ else
             return;
         }
         var s = Prefs.Get();
+        // What matters is the grid company at HOME, not where the phone is right now. Already set
+        // and this place has another company (visiting another city)? Ask before switching.
+        if (s.GridSupplierId.Length > 0 && s.GridSupplierId != g.Id)
+        {
+            _pending = (place, g);
+            StateHasChanged();
+            return;
+        }
+        await SaveHomeAsync(place, g);
+    }
+
+    private (Place Place, GridCompany Grid)? _pending;
+
+    private async Task SaveHomeAsync(Place place, GridCompany g)
+    {
+        _pending = null;
+        var s = Prefs.Get();
         s.PostalCode = place.PostalCode;
         s.GridSupplierId = g.Id;
         s.GridName = g.Name;
         s.PriceArea = g.PriceArea;
         s.NettarifLookup = null;
         await Prefs.SaveAsync(s);
-       
+
         _snap = null;
         await LoadAsync();
     }
