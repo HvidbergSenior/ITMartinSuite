@@ -33,6 +33,7 @@
             '.k-install-dev ol{margin:8px 0 4px;padding-left:1.3em}.k-install-dev li{margin:4px 0}' +
             '.k-install-now{width:100%;margin-top:8px;padding:10px;border-radius:10px;border:0;background:' + c('accent', '#1f7a5c') + ';color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer}' +
             '.k-install-hide{margin-top:12px;border:0;background:none;color:' + c('muted', '#666') + ';text-decoration:underline;cursor:pointer;font:inherit;font-size:14px;padding:0}' +
+            '.k-footer-install[hidden]{display:none!important}' +
             '@media print{.k-install-pill,.k-install-sheet{display:none!important}}';
         var s = document.createElement('style');
         s.id = 'k-js-style';
@@ -187,8 +188,10 @@
         var box = document.getElementById('k-install');
         if (ownInstallGuide()) { if (box) box.remove(); }
         else if (!box || !document.body.contains(box)) renderInstall();
-        // The footer link (KolibriFooter) is hidden once installed.
-        document.querySelectorAll('.k-footer-install').forEach(function (a) { a.hidden = installed(); });
+        // The footer link (KolibriFooter) only where it can open the sheet: hidden once installed, and in
+        // apps with their own install card (ElPriser/MinElpris), where it did nothing (user 2026-09-28).
+        var sheet = document.getElementById('k-install');
+        document.querySelectorAll('.k-footer-install').forEach(function (a) { a.hidden = installed() || !sheet; });
     }
     new MutationObserver(function () { if (!queued) { queued = true; requestAnimationFrame(run); } })
         .observe(document.documentElement, { childList: true, subtree: true });
