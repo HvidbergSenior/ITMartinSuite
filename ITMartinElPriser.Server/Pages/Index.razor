@@ -59,7 +59,7 @@
 
 <PageHelp Key="help-nu">
     <ul>
-        <li><b>Det store tal</b> er hvad én opvask koster, hvis du starter den nu – regnet over 2 timer, kvarter for kvarter. Vælg <b>🌱 Ny sparemodel</b> (Bosch SMD6TCX00E, energiklasse A: 0,54 kWh pr. opvask på Eco ifølge EU-energimærket) eller <b>🕰️ Gammel</b> (typisk opvasker fra ca. 2005: ca. 1,5 kWh). Under tallet ser du de to side om side og hvad den nye sparer. Alt inkl. moms, elafgift og nettarif.</li>
+        <li><b>Det store tal</b> er hvad én opvask koster, hvis du starter den nu – regnet over 2 timer, kvarter for kvarter. Regnet med en moderne opvasker på Eco-programmet (0,54 kWh ifølge EU-energimærket). Alt inkl. moms, elafgift og nettarif. Vil du se, hvad netop <i>din</i> maskine koster – og hvad en ny sparemodel ville spare dig – så er det i MinElpris.</li>
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle, så viser det store tal hvad opvasken koster hvis den starter der. Tryk igen for at gå tilbage til nu.</li>
         <li><b>I morgen</b> er den samme opvask, startet på samme klokkeslæt i morgen. Morgendagens priser kommer ca. kl. 13.</li>
@@ -95,15 +95,9 @@ else
     if (isTomorrow && start.AddDays(-1) < QuarterNow()) other = null;
     var m = Machines[_machine];
     <div class="card now-tile @lvl">
-        @* Two predefined machines - a new energy-saving one and an old one - to compare. *@
-        <div class="chips chips-small machine-pick">
-            @for (var i = 0; i < Machines.Length; i++)
-            {
-                var k = i;
-                <button class="chip @(_machine == k ? "on" : "")" @onclick="() => PickMachineAsync(k)">@Machines[k].Short</button>
-            }
-        </div>
-        <div class="now-device">🍽️ @m.Name · 2 timer · @Kwh(m.Kwh) kWh · start @(picked is null ? "nu" : When(start))</div>
+        @* One answer (user 2026-09-28): what a dishwasher run costs right now. The new-vs-old model
+           comparison was removed - your own machine comes later via its energy label. *@
+        <div class="now-device">🍽️ En opvask · 2 timer · start @(picked is null ? "nu" : When(start))</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
@@ -122,15 +116,6 @@ else
                 <span class="muted">I morgen: prisen kommer ca. kl. 13</span>
             }
         </div>
-        @if (run is not null && Dishes(start, 0) is { } newRun && Dishes(start, 1) is { } oldRun)
-        {
-            var diff = oldRun.CostKr - newRun.CostKr;
-            <div class="now-compare-machines">
-                <div class="@(_machine == 0 ? "on" : "")"><span>@Machines[0].Short</span><b>@Kr(newRun.CostKr) KR</b></div>
-                <div class="@(_machine == 1 ? "on" : "")"><span>@Machines[1].Short</span><b>@Kr(oldRun.CostKr) KR</b></div>
-            </div>
-            <div class="now-saving">Den nye sparer @Kr(diff) kr pr. opvask · ca. @((diff * CyclesPerYear).ToString("0", Da)) kr om året ved @CyclesPerYear opvask og samme pris</div>
-        }
         @if (picked is not null)
         {
             <button class="linkish small" @onclick="() => _selected = null">↺ Tilbage til nu</button>
@@ -182,6 +167,7 @@ else
         <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🌱 Grøn strøm</b><span>@(_co2 is { } g ? $"Lige nu {g:0} g CO₂ pr. kWh – se hvornår den er grønnest" : "Se hvornår strømmen er grønnest i dag")</span></a>
         <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🏢 Billigere elselskab</b><span>Alle selskaber sammenlignet på dit forbrug – og skift med ét tryk</span></a>
         <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🔎 Dit forbrug time for time</b><span>Direkte fra din elmåler – se hvad huset bruger om natten</span></a>
+        <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🍽️ Ny eller gammel maskine?</b><span>Se hvad din egen koster – og hvad en ny sparemodel sparer dig om året</span></a>
         <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>📸 Billede af maskinen</b><span>Tag et billede – så ved appen, hvad netop din vaskemaskine bruger</span></a>
         <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🧾 Regningen forklaret</b><span>Hver linje, hvem der får pengene, og om prisen passer</span></a>
         <a class="teaser" href="https://minelpris.itmartin.dk/demo" target="_blank" rel="noopener"><b>🚗 Elbil og nat</b><span>Hvornår bilen skal lade, så det bliver billigst</span></a>
@@ -237,7 +223,6 @@ else
         if (!firstRender) return;
         // First visit: nothing is guessed from where the phone happens to be - the "Hvor bor du?"
         // card asks (use my location if I am home, or type the address).
-        if (await JS.InvokeAsync<string?>("epUi.get", "machine") == "1") { _machine = 1; StateHasChanged(); }
         _ = InvokeAsync(LoadTeasersAsync);
     }
 
