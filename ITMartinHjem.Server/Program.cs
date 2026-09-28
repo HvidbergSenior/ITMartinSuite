@@ -251,7 +251,11 @@ app.MapGet("/f/{name}", async (string name, HttpContext ctx, IDbContextFactory<H
     var path = store.PathFor(name);
     if (!File.Exists(path)) return Results.NotFound();
     ctx.Response.Headers.CacheControl = "public, max-age=604800";
-    return Results.File(path, name.EndsWith(".png") ? "image/png" : "image/jpeg");
+    var type = Path.GetExtension(name).ToLowerInvariant() switch
+    {
+        ".png" => "image/png", ".mp4" => "video/mp4", ".webm" => "video/webm", ".mov" => "video/quicktime", _ => "image/jpeg",
+    };
+    return Results.File(path, type, enableRangeProcessing: true);
 });
 
 // ── Media: family files only with the family cookie ─────────────────────────────────

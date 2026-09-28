@@ -86,3 +86,9 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-admin-app { display: grid; grid-template-columns: auto 56px 1fr 72px; gap: 6px; align-items: center; padding: 8px 0; border-top: 1px solid var(--k-border); }
 .hj-admin-app .hj-in-wide { grid-column: 1 / -1; }
 .hj-in-icon { text-align: center; }
+.tm-fig { margin: 8px 0; }
+.tm-fig figcaption { font-size: var(--k-fs-small); color: var(--k-muted); margin-top: 4px; }
+.tm-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin: 10px 0; }
+.tm-gallery .tm-fig { margin: 0; }
+.tm-gallery .tm-img { aspect-ratio: 1; object-fit: cover; margin: 0; max-height: none; }
+.tm-gallery video.tm-img { background: #000; object-fit: contain; }
