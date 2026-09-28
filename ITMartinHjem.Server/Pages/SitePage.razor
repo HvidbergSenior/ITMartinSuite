@@ -19,6 +19,7 @@ else if (_page is not null)
     <article class="k-card hj-page" data-nofold>
         @if (_parent is not null) { <p class="k-help"><a href="/@_parent.Slug">← @_parent.Title</a></p> }
         <h1>@_page.Title</h1>
+        @if (_page.Slug == NowCard.PageSlug) { <NowCard /> }
         @TinyMarkdown.Render(_page.Body)
     </article>
     @if (_children.Count > 0)

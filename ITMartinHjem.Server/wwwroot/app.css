@@ -111,3 +111,4 @@ a.hj-app:hover { border-color: var(--k-accent); }
 @media (prefers-reduced-motion: reduce) { .hj-chat-top.is-on .k-dot { animation: none; } }
 /* Square gallery crops keep the top of the picture - heads, not tables (user: "cannot see the top of my head"). */
 .tm-gallery img.tm-img { object-position: 50% 12%; }
+.hj-page .hj-now { margin: 4px 0 16px; box-shadow: none; }

@@ -21,27 +21,7 @@
     <section class="k-card hj-page hj-hero" data-nofold>@TinyMarkdown.Render(_hero.Body)</section>
 }
 
-<section class="k-card hj-now" data-nofold>
-    <div class="k-tag">Lige nu</div>
-    @if (Embed.PlayerUrl(_s.NowLink) is { } player)
-    {
-        <div class="hj-embed"><iframe src="@player" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>
-    }
-    else if (_s.NowMediaName.Length > 0 && _s.NowMediaType.StartsWith("video/"))
-    {
-        <video class="hj-video" src="/nu/@_s.NowMediaName" controls preload="metadata" playsinline></video>
-    }
-    else if (_s.NowMediaName.Length > 0)
-    {
-        <a href="/nu/@_s.NowMediaName" target="_blank" rel="noopener"><img class="hj-now-img" src="/nu/@(_s.NowMediaThumb.Length > 0 ? _s.NowMediaThumb : _s.NowMediaName)" alt="Lige nu" /></a>
-    }
-    @if (_s.NowLink.Length > 0 && Embed.PlayerUrl(_s.NowLink) is null)
-    {
-        <a class="k-btn k-btn-primary k-mt" href="@_s.NowLink" target="_blank" rel="noopener">▶ Se med</a>
-    }
-    <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div>
-    <p class="k-help">Opdateret @_s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", Da)</p>
-</section>
+@* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
 
 
 @if (_posts.Count == 0)
