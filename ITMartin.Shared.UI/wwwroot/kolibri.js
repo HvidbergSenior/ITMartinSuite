@@ -1,0 +1,168 @@
+// Kolibri.UI shared behaviour for every app (user rules 2026-09-27/28):
+//  1. Every box can be hidden/shown, and the phone remembers it.
+//     - <details> boxes remember open/closed.
+//     - Cards with a heading (.k-card / .card whose first child is a title) get a ▾ toggle.
+//       Opt out with data-nofold. Cards stay open until the user closes them.
+//  2. "Læg på telefonen": a small button + sheet with iPhone / Android / PC steps, the box for
+//     the current device already open. Hidden when the app runs from the home screen.
+// Blazor re-renders pages, so both run again from a MutationObserver.
+(function () {
+    'use strict';
+    if (window.kolibri) return;
+
+    var store = {
+        get: function (k) { try { return localStorage.getItem('kolibri_' + k); } catch (e) { return null; } },
+        set: function (k, v) { try { localStorage.setItem('kolibri_' + k, v); } catch (e) { } }
+    };
+    var text = function (el) { return (el ? el.textContent : '').trim().replace(/\s+/g, ' ').slice(0, 60); };
+    var da = (document.documentElement.lang || 'da').slice(0, 2) !== 'en';
+    var T = function (dk, en) { return da ? dk : en; };
+
+    /* ---------- 1a. <details> remember ---------- */
+    // Apps with their own copy of this logic (ElPriser/MinElpris ui.js) keep theirs.
+    var ownDetails = !!window.epUi;
+    function detailsKey(d) {
+        if (d.dataset.remember) return d.dataset.remember;
+        var s = d.querySelector(':scope > summary');
+        return s ? location.pathname + '|' + text(s) : null;
+    }
+    function restoreDetails() {
+        if (ownDetails) return;
+        document.querySelectorAll('details:not([data-k-restored])').forEach(function (d) {
+            if (d.closest('#k-install')) return;
+            var key = detailsKey(d);
+            if (!key) return;
+            d.dataset.kRestored = '1';
+            var v = store.get('open_' + key);
+            if (v === '1') d.open = true; else if (v === '0') d.open = false;
+        });
+    }
+    document.addEventListener('toggle', function (e) {
+        var d = e.target;
+        if (ownDetails || d.tagName !== 'DETAILS' || !d.dataset.kRestored) return;
+        var key = detailsKey(d);
+        if (key) store.set('open_' + key, d.open ? '1' : '0');
+    }, true);
+
+    /* ---------- 1b. foldable cards ---------- */
+    var HEAD = '.k-card-title, h1, h2, h3, h4';
+    function cardHead(card) {
+        var first = card.firstElementChild;
+        return first && first.matches(HEAD) ? first : null;
+    }
+    function foldCards() {
+        document.querySelectorAll('.k-card:not([data-k-fold]), .card:not([data-k-fold])').forEach(function (card) {
+            card.dataset.kFold = '1';
+            if (card.hasAttribute('data-nofold') || card.tagName === 'DETAILS' || card.classList.contains('fold') ||
+                card.closest('details, #k-install, [data-nofold]')) return;
+            var head = cardHead(card);
+            if (!head || !card.children[1]) return;
+            var key = 'card_' + location.pathname + '|' + text(head);
+            head.classList.add('k-fold-head');
+            head.setAttribute('role', 'button');
+            head.setAttribute('tabindex', '0');
+            var set = function (closed) {
+                card.classList.toggle('k-folded', closed);
+                head.setAttribute('aria-expanded', closed ? 'false' : 'true');
+            };
+            set(store.get(key) === '0');
+            var flip = function (e) {
+                if (e.target.closest('a, button, input, select, textarea, label') && e.target !== head) return;
+                var closed = !card.classList.contains('k-folded');
+                set(closed); store.set(key, closed ? '0' : '1');
+            };
+            head.addEventListener('click', flip);
+            head.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(e); } });
+        });
+    }
+
+    /* ---------- 2. install on the phone ---------- */
+    var promptEvent = null;
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); promptEvent = e; renderInstall(); });
+    var ua = navigator.userAgent;
+    var dev = {
+        ios: /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1),
+        pc: !/android|iphone|ipad|ipod|mobile/i.test(ua) && !(navigator.maxTouchPoints > 1 && /macintosh/i.test(ua))
+    };
+    var installed = function () { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; };
+    var appName = (document.querySelector('meta[name="application-name"]') || {}).content || document.title.split(/[–|-]/)[0].trim() || 'appen';
+    fetch('/manifest.webmanifest').then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (m) { if (m && (m.short_name || m.name)) { appName = m.short_name || m.name; renderInstall(); } })
+        .catch(function () { });
+
+    function steps() {
+        var btn = promptEvent ? '<button type="button" class="k-btn k-install-now">' + T('Installer ', 'Install ') + appName + '</button>' : '';
+        return '' +
+            '<details class="k-install-dev"' + (dev.ios ? ' open' : '') + '><summary>📱 iPhone</summary><ol>' +
+            T('<li>Åbn siden i <b>Safari</b>.</li><li>Tryk på <b>(⋯)</b> nederst til højre og vælg <b>Del</b> ⬆︎. <span class="k-muted">(Ældre iPhone: tryk direkte på Del ⬆︎ nederst.)</span></li><li>Rul ned, vælg <b>Føj til hjemmeskærm</b> og tryk <b>Tilføj</b>.</li>',
+              '<li>Open the page in <b>Safari</b>.</li><li>Tap <b>(⋯)</b> bottom right and choose <b>Share</b> ⬆︎. <span class="k-muted">(Older iPhone: tap Share ⬆︎ at the bottom.)</span></li><li>Scroll down, choose <b>Add to Home Screen</b> and tap <b>Add</b>.</li>') +
+            '</ol></details>' +
+            '<details class="k-install-dev"' + (!dev.ios && !dev.pc ? ' open' : '') + '><summary>🤖 Android</summary>' + (!dev.pc ? btn : '') + '<ol>' +
+            T('<li>Åbn siden i <b>Chrome</b>.</li><li>Tryk på <b>⋮</b> øverst til højre.</li><li>Vælg <b>Føj til startskærm</b> og tryk <b>Tilføj</b>.</li>',
+              '<li>Open the page in <b>Chrome</b>.</li><li>Tap <b>⋮</b> top right.</li><li>Choose <b>Add to Home screen</b> and tap <b>Add</b>.</li>') +
+            '</ol></details>' +
+            '<details class="k-install-dev"' + (dev.pc ? ' open' : '') + '><summary>💻 PC</summary>' + (dev.pc ? btn : '') + '<ol>' +
+            T('<li><b>Chrome:</b> ⋮ øverst til højre → <b>Cast, gem og del</b> → <b>Installer side som app</b>.</li><li><b>Edge:</b> ··· øverst til højre → <b>Apps</b> → <b>Installer dette websted som en app</b>.</li>',
+              '<li><b>Chrome:</b> ⋮ top right → <b>Cast, save and share</b> → <b>Install page as app</b>.</li><li><b>Edge:</b> ··· top right → <b>Apps</b> → <b>Install this site as an app</b>.</li>') +
+            '</ol></details>';
+    }
+
+    function renderInstall() {
+        var box = document.getElementById('k-install');
+        if (installed()) { if (box) box.remove(); return; }
+        if (!document.body) return;
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'k-install';
+            document.body.appendChild(box);
+        }
+        var where = dev.pc ? T('skrivebordet', 'your desktop') : T('telefonen', 'your phone');
+        var hidden = store.get('install_hidden') === '1';
+        var open = box.classList.contains('open');
+        box.innerHTML =
+            (hidden ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">📲 ' + T('Læg på ', 'Add to ') + where + '</button>') +
+            '<div class="k-install-sheet" role="dialog" aria-modal="true" aria-label="' + T('Læg på ', 'Add to ') + where + '"' + (open ? '' : ' hidden') + '>' +
+            '<div class="k-install-card"><button type="button" class="k-install-x" aria-label="' + T('Luk', 'Close') + '">✕</button>' +
+            '<h2>📲 ' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</h2>' +
+            '<p class="k-muted">' + T('Så åbner den med ét tryk – som en app, uden at gå via browseren.', 'Then it opens with one tap – like an app, without the browser.') + '</p>' +
+            steps() +
+            (hidden ? '' : '<button type="button" class="k-install-hide">' + T('Skjul knappen (findes stadig nederst på siden)', 'Hide the button (still in the page footer)') + '</button>') +
+            '</div></div>';
+    }
+    function openSheet() { var b = document.getElementById('k-install'); if (!b) return; b.classList.add('open'); b.querySelector('.k-install-sheet').hidden = false; }
+    function closeSheet() { var b = document.getElementById('k-install'); if (!b) return; b.classList.remove('open'); b.querySelector('.k-install-sheet').hidden = true; }
+    document.addEventListener('click', async function (e) {
+        var t = e.target;
+        if (t.closest('.k-install-pill, a[href="#k-install"]')) { e.preventDefault(); if (!installed()) openSheet(); return; }
+        if (t.closest('.k-install-x') || t.classList.contains('k-install-sheet')) { closeSheet(); return; }
+        if (t.closest('.k-install-hide')) { store.set('install_hidden', '1'); closeSheet(); renderInstall(); return; }
+        if (t.closest('.k-install-now') && promptEvent) {
+            promptEvent.prompt();
+            var r = await promptEvent.userChoice; promptEvent = null;
+            if (r && r.outcome === 'accepted') { closeSheet(); }
+            renderInstall();
+        }
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+
+    // ElPriser/MinElpris already show their own install card on the page - no pill there.
+    function ownInstallGuide() { return !!document.querySelector('.install-guide'); }
+
+    /* ---------- run ---------- */
+    var queued = false;
+    function run() {
+        queued = false;
+        restoreDetails();
+        foldCards();
+        var box = document.getElementById('k-install');
+        if (ownInstallGuide()) { if (box) box.remove(); }
+        else if (!box || !document.body.contains(box)) renderInstall();
+        // The footer link (KolibriFooter) is hidden once installed.
+        document.querySelectorAll('.k-footer-install').forEach(function (a) { a.hidden = installed(); });
+    }
+    new MutationObserver(function () { if (!queued) { queued = true; requestAnimationFrame(run); } })
+        .observe(document.documentElement, { childList: true, subtree: true });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+
+    window.kolibri = { store: store, openInstall: openSheet };
+})();
