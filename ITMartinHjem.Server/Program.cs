@@ -139,7 +139,7 @@ app.MapGet("/admin.webmanifest", () => Results.Json(new
     background_color = "#f4f6f5",
     theme_color = "#f4f6f5",
     lang = "da",
-    icons = new[] { new { src = "/_content/ITMartin.Shared.UI/kolibri-icon.svg", sizes = "any", type = "image/svg+xml", purpose = "any" } },
+    icons = new[] { new { src = "/icon-192.png", sizes = "192x192", type = "image/png" }, new { src = "/icon-512.png", sizes = "512x512", type = "image/png" } },
 }, contentType: "application/manifest+json"));
 
 // ── Push: only the owner subscribes (called from wwwroot/hjem.js) ───────────────────

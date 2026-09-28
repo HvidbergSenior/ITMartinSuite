@@ -9,7 +9,8 @@ self.addEventListener('push', function (e) {
     try { data = Object.assign(data, e.data.json()); } catch (err) { }
     e.waitUntil(self.registration.showNotification(data.title, {
         body: data.body,
-        icon: '/_content/ITMartin.Shared.UI/kolibri-icon.svg',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
         data: { url: data.url },
         tag: 'hjem-chat',
         renotify: true
