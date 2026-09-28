@@ -31,7 +31,6 @@ $NasHost = "$NasUser@$NasIp"
 net use * /persistent:yes 2>$null | Out-Null
 
 $ServiceMap = @{
-    "curator-web"            = @{ Dockerfile = "ITMartin.Curator.Server/Dockerfile";                  Context = "." }
     "magic-web"              = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";                    Context = "." }
     "magic-collection-web"  = @{ Dockerfile = "ITMartin.MagicCollection.Server/Dockerfile";           Context = "." }
     "filesorter-web"         = @{ Dockerfile = "ITMartinFileSorter.Server/Dockerfile";                Context = "." }
@@ -44,7 +43,6 @@ $ServiceMap = @{
     "library-web"            = @{ Dockerfile = "ITMartinLibrary.Server/Dockerfile";                   Context = "." }
     "library-search-web"     = @{ Dockerfile = "ITMartinLibrary.Search.Server/Dockerfile";            Context = "." }
     "adhd-web"               = @{ Dockerfile = "ITMartinAdhd.Server/Dockerfile";                      Context = "." }
-    "family-web"             = @{ Dockerfile = "ITMartinFamily.Server/Dockerfile";                    Context = "." }
     "market-web"             = @{ Dockerfile = "ITMartinMarket.Server/Dockerfile";                    Context = "." }
     "bartab-web"             = @{ Dockerfile = "ITMartinBarTab.Server/Dockerfile";                    Context = "." }
     "auction-web"            = @{ Dockerfile = "ITMartinAuction.Server/Dockerfile";                   Context = "."; Profile = "manual" }
