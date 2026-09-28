@@ -13,14 +13,14 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "ElPriser viser timeprisen på strøm i dag og i morgen, så du kan lægge vask, opvask og opladning på de billige timer.",
-        "Regning forklarer din elregning linje for linje, og Besked sender et prik til telefonen, når prisen falder.",
-        "Vil du have din egen elmåler og dine apparater med, er MinElpris den store søster.",
+        "Tjek regning forklarer din elregning linje for linje, og Besked sender et prik til telefonen, når prisen falder.",
+        "Alt i ElPriser er gratis og kræver ingen konto.",
     ];
     k.HowTo =
     [
         "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
         "Slå Besked til for at få et prik, når strømmen er billig.",
-        "Tryk Regning, hvis du vil forstå din elregning.",
+        "Tryk Tjek regning, hvis du vil forstå din elregning.",
     ];
     k.Version = "2026.09";
     k.IconPath = "icon.svg";
