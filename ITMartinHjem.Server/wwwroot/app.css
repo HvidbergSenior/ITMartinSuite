@@ -5,7 +5,9 @@
 .hj-h2 { font-size: 1.15rem; margin: 24px 0 8px; }
 
 .hj-now { border-left: 4px solid var(--k-accent); }
-.hj-now-text { font-size: 1.15rem; margin: 6px 0 4px; white-space: pre-line; }
+.hj-now-text { font-size: 1.1rem; margin: 6px 0 4px; }
+.hj-now-text p { margin: 0 0 8px; }
+.hj-now-text ul, .hj-post ul { margin: 0 0 10px; padding-left: 0; list-style: none; display: grid; gap: 6px; }
 
 .hj-chat-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .hj-chat-status .k-dot { background: #b8bec3; }

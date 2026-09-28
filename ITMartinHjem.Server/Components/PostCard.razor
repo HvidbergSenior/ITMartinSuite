@@ -7,7 +7,7 @@
     @if (Post.Title.Length > 0) { <h3 class="hj-post-title">@Post.Title</h3> }
     @if (Post.Body.Length > 0)
     {
-        @foreach (var para in Post.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries)) { <p>@para</p> }
+        @TinyMarkdown.Render(Post.Body)
     }
     @{ var pics = Post.Media.Where(m => m.Kind == MediaKind.Billede).ToList(); }
     @if (pics.Count > 0)

@@ -14,7 +14,7 @@
 
 <section class="k-card hj-now" data-nofold>
     <div class="k-tag">Lige nu</div>
-    <p class="hj-now-text">@_s.NowText</p>
+    <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div>
     <p class="k-help">Opdateret @_s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", Da)</p>
 </section>
 

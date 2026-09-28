@@ -73,8 +73,8 @@
 
 <section class="k-card">
     <div class="k-card-title">📌 Lige nu</div>
-    <p class="k-help">Det første folk ser. Skriv kort, hvad du arbejder med – opdatér det, når det skifter.</p>
-    <textarea class="k-input k-textarea" @bind="_s.NowText" maxlength="600" aria-label="Lige nu"></textarea>
+    <p class="k-help">Det første folk ser. Skriv kort, hvad du arbejder med – opdatér det, når det skifter. Start en linje med <b>*</b> for en punktliste, og skriv <b>**sådan**</b> for fed skrift.</p>
+    <textarea class="k-input k-textarea" @bind="_s.NowText" maxlength="3000" rows="12" aria-label="Lige nu"></textarea>
     <details class="k-mt" data-remember="adm-intro">
         <summary>Navn og introtekst</summary>
         <label class="k-label">Navn</label><input class="k-input" @bind="_s.Name" maxlength="80" />
