@@ -128,6 +128,20 @@ app.MapGet("/m/{id:int}/{size}", async (int id, string size, HttpContext ctx, ID
     return Results.File(path, m.ContentType, size == "d" ? m.FileName : null, enableRangeProcessing: true);
 });
 
+// The owner's home-screen icon: opens straight on /admin (the front page keeps Kolibri's manifest).
+app.MapGet("/admin.webmanifest", () => Results.Json(new
+{
+    name = "Martin – svar og opslag",
+    short_name = "Svar",
+    start_url = "/admin",
+    scope = "/",
+    display = "standalone",
+    background_color = "#f4f6f5",
+    theme_color = "#f4f6f5",
+    lang = "da",
+    icons = new[] { new { src = "/_content/ITMartin.Shared.UI/kolibri-icon.svg", sizes = "any", type = "image/svg+xml", purpose = "any" } },
+}, contentType: "application/manifest+json"));
+
 // ── Push: only the owner subscribes (called from wwwroot/hjem.js) ───────────────────
 app.MapGet("/api/push/public-key", (PushService push) => Results.Text(push.PublicKey));
 

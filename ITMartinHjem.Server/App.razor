@@ -9,7 +9,10 @@
     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
     <script src="_content/ITMartin.Shared.UI/kolibri.js?v=@CacheBuster" defer></script>
     <link rel="stylesheet" href="app.css?v=@CacheBuster" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    @* /admin gets its own manifest so "Føj til hjemmeskærm" there opens /admin, not the front page. *@
+    <link rel="manifest" href="@(IsAdmin ? "/admin.webmanifest" : "/manifest.webmanifest")" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="@(IsAdmin ? "Svar" : "Martin")" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="hjem.js?v=@CacheBuster"></script>
 </head>
@@ -26,5 +29,7 @@
 </html>
 
 @code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+    private bool IsAdmin => HttpContext?.Request.Path.StartsWithSegments("/admin") == true;
     private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
 }
