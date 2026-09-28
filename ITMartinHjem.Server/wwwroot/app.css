@@ -51,3 +51,10 @@
 .hj-chip { border: 1px solid var(--k-border); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 14px; }
 .hj-chip button { border: 0; cursor: pointer; background: none; }
 .hj-admin-post { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--k-border); }
+
+/* Blazor reconnect banner: hidden until the connection really drops (copied from Forløbet). */
+#components-reconnect-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); color: #fff; align-items: center; justify-content: center; z-index: 1000; }
+#components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed { display: flex; }
+.reconnect-failed-msg { display: none; }
+.components-reconnect-failed .reconnect-msg { display: none; }
+.components-reconnect-failed .reconnect-failed-msg { display: inline; }
