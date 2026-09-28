@@ -5,10 +5,10 @@ namespace ITMartinHjem.Server.Services;
 
 // The top menu, the same everywhere (Blazor layout + /api/menu for the hand-made pilot page):
 // Forside first, then the pages marked "Vis i menuen" by their Rækkefølge, with "Mine apps" slotted in
-// at 30 - and "Bliv pilot" always last (user's wish 2026-09-28: Forside, Om mig, …, Kontakt, Bliv pilot).
+// at MineAppsSort - and "Bliv pilot" always last (user 2026-09-28: Forside, Mine apps, Priser, Om mig og kontakt, Bliv pilot).
 public static class SiteMenu
 {
-    public const int MineAppsSort = 30;
+    public const int MineAppsSort = 1;   // user 2026-09-28: Mine apps right after Forside
 
     public sealed record Item(string Title, string Href, bool Pilot = false);
 
