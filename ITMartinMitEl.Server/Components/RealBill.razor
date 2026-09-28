@@ -1,0 +1,177 @@
+@using System.Globalization
+@using UglyToad.PdfPig
+@using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor
+@inject HouseholdStore Store
+@inject SupplierCatalog Catalog
+
+@* "Din rigtige regning": upload the PDF bill once, and it becomes the foundation - the parties,
+   product and prices are read from it (plain text rules, no AI), every line gets explained, and
+   the supplier's price is checked against elpris.dk. *@
+
+@if (_bill is null)
+{
+    <div class="card">
+        <div class="card-title">📄 Læg din rigtige elregning ind</div>
+        <p class="small">Upload regningen som PDF – den du får på mail eller finder i elselskabets app. Så læser vi den for dig: hvem du betaler til, hvad hver linje er, og om dit elselskab er dyrere end andre.</p>
+        <label class="btn btn-primary btn-block" style="text-align:center">
+            📎 Vælg regning (PDF)
+            <InputFile OnChange="UploadAsync" accept=".pdf,application/pdf" style="display:none" />
+        </label>
+        @if (_busy) { <p class="muted small">Læser regningen…</p> }
+        @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
+    </div>
+}
+else
+{
+    var b = _bill;
+    <div class="card now-tile">
+        <div class="small muted">📄 Din rigtige regning · @Period(b)</div>
+        <div class="now-price">@b.TotalKr.ToString("0.00", Da) kr</div>
+        <div class="now-unit">@b.Kwh.ToString("0", Da) kWh · @b.KrPerKwh.ToString("0.00", Da) kr/kWh alt inkl.</div>
+        <div class="now-compare">
+            <b>@b.Supplier</b> sælger strømmen (@(b.Product.Length > 0 ? b.Product : "dit produkt")) · <b>@b.Grid</b> leverer den
+        </div>
+    </div>
+
+    <details class="card fold" open data-remember="realbill-lines">
+        <summary class="card-title">Hvem får pengene? – tryk på en linje</summary>
+        @foreach (var party in new[] { BillParty.Supplier, BillParty.Grid, BillParty.State, BillParty.Other })
+        {
+            var lines = b.Lines.Where(l => l.Party == party).ToList();
+            if (lines.Count == 0) continue;
+            var sum = b.PartKr(party);
+            <div class="bill-line" style="margin-top:10px">
+                <div class="appl-row">
+                    <span><b>@PartyTitle(party, b)</b></span>
+                    <b>@sum.ToString("0.00", Da) kr · @Pct(sum, b.TotalKr)</b>
+                </div>
+                <div class="bill-bar"><i style="width:@((b.TotalKr > 0 ? sum / b.TotalKr * 100 : 0).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div>
+                <p class="muted small" style="margin:4px 0 2px">@ElBillParser.ExplainParty(party)</p>
+            </div>
+            @foreach (var l in lines)
+            {
+                var key = party + l.Name;
+                var open = _open == key;
+                <div class="bill-line" style="padding-left:10px" @onclick="() => _open = open ? null : key">
+                    <div class="appl-row small">
+                        <span>@l.Name@(l.RateKr is { } r ? $" · {l.Kwh?.ToString("0", Da)} kWh × {r.ToString("0.000", Da)} kr" : "")</span>
+                        <b>@l.Kr.ToString("0.00", Da) kr</b>
+                    </div>
+                    @if (open) { <div class="bill-explain"><p>@ElBillParser.Explain(l)</p></div> }
+                </div>
+            }
+        }
+        <div class="appl-row" style="padding-top:10px;font-weight:700"><span>I alt inkl. moms</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
+    </details>
+
+    @if (_check is not null)
+    {
+        <div class="card">
+            <div class="card-title">🔎 Tjek af dit elselskabs pris</div>
+            <p class="small">@((MarkupString)_check)</p>
+        </div>
+    }
+
+    <a class="card cta-link" href="/elselskab">⚖️ Er @b.Supplier for dyr? Sammenlign med de andre elselskaber →</a>
+
+    <div class="card">
+        <div class="small muted">Målernr. @(b.MeterNumber.Length > 0 ? b.MeterNumber : "–") · Aftagenr. @(b.MeteringPointId.Length > 0 ? b.MeteringPointId : "–")@(b.InvoiceDate is { } d ? $" · faktura {d.ToString("d. MMM yyyy", Da)}" : "")</div>
+        <label class="btn" style="margin-top:8px">
+            📎 Læg en nyere regning ind
+            <InputFile OnChange="UploadAsync" accept=".pdf,application/pdf" style="display:none" />
+        </label>
+        @if (_busy) { <p class="muted small">Læser regningen…</p> }
+        @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private ElBill? _bill;
+    private string? _open;
+    private bool _busy;
+    private string _error = "";
+    private string? _check;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _bill = Store.Get().Bills.FirstOrDefault();
+        await CheckAsync();
+    }
+
+    private async Task UploadAsync(InputFileChangeEventArgs e)
+    {
+        _error = ""; _busy = true;
+        try
+        {
+            if (!e.File.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) { _error = "Det skal være en PDF. En papirregning kan du tage billede af – det kommer senere."; return; }
+            await using var upload = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await upload.CopyToAsync(ms);
+            string text;
+            using (var pdf = PdfDocument.Open(ms.ToArray()))
+                text = string.Join("\n", pdf.GetPages().Select(p => ContentOrderTextExtractor.GetText(p)));
+
+            var bill = ElBillParser.Parse(text);
+            if (bill is null || bill.Lines.Count == 0)
+            {
+                _error = "Vi kunne ikke læse regningen. Er det en elregning? Hvis den er fra et andet elselskab end NRGi, så send den til ITMartin@Mensa.dk – så lærer appen også at læse den.";
+                return;
+            }
+            bill = bill with { UploadedUtc = DateTime.UtcNow };
+            Store.Update(d =>
+            {
+                // One bill per period and supplier; newest first.
+                d.Bills.RemoveAll(x => x.From == bill.From && x.To == bill.To && x.Supplier == bill.Supplier);
+                d.Bills.Insert(0, bill);
+                d.Bills = d.Bills.OrderByDescending(x => x.To ?? DateOnly.MinValue).Take(24).ToList();
+                // The bill is the foundation: fill in what the app did not know yet.
+                if (d.Settings.GridName.Length == 0 && bill.Grid.Length > 0) d.Settings.GridName = bill.Grid;
+            });
+            _bill = Store.Get().Bills.First();
+            _open = null;
+            await CheckAsync();
+        }
+        catch (Exception)
+        {
+            _error = "Filen kunne ikke åbnes som PDF. Prøv at hente regningen igen fra elselskabet.";
+        }
+        finally { _busy = false; }
+    }
+
+    // The supplier's markup on the bill vs what the supplier reports to elpris.dk.
+    private async Task CheckAsync()
+    {
+        _check = null;
+        if (_bill?.MarkupKrPerKwh is not { } billMarkup) return;
+        var products = await Catalog.GetAsync(_bill.Grid.Contains("Konstant", StringComparison.OrdinalIgnoreCase) ? "151" : null);
+        var company = _bill.Supplier.Split(' ')[0];
+        var p = products.FirstOrDefault(x => x.Company.StartsWith(company, StringComparison.OrdinalIgnoreCase) &&
+                                             string.Equals(x.Name.Trim(), _bill.Product.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (p is null)
+        {
+            _check = $"Vi kunne ikke finde <b>{_bill.Product}</b> fra {_bill.Supplier} på elpris.dk, så prisen kan ikke tjekkes.";
+            return;
+        }
+        var portal = p.SurchargeKrPerKwh * SupplierProduct.Vat;
+        var diffOre = (billMarkup - portal) * 100;
+        _check = Math.Abs(diffOre) < 0.3
+            ? $"✅ Tillægget på din regning (<b>{billMarkup * 100:0.00} øre</b> pr. kWh inkl. moms) passer med det, {_bill.Supplier} har oplyst på elpris.dk."
+            : $"⚠️ Din regning siger et tillæg på <b>{billMarkup * 100:0.00} øre</b> pr. kWh inkl. moms, men {_bill.Supplier} oplyser <b>{portal * 100:0.00} øre</b> på elpris.dk (Forsyningstilsynet). " +
+              $"Det er {Math.Abs(diffOre):0.00} øre {(diffOre > 0 ? "mere" : "mindre")} pr. kWh – ca. <b>{Math.Abs(diffOre / 100 * _bill.YearlyKwhEstimate):0} kr om året</b> med dit forbrug. " +
+              "Spørg elselskabet, hvilken pris der gælder – eller sammenlign med de andre selskaber.";
+    }
+
+    private static string Period(ElBill b) =>
+        b.From is { } f && b.To is { } t ? $"{f.ToString("d. MMM", Da)} – {t.ToString("d. MMM yyyy", Da)}" : "";
+
+    private static string Pct(double part, double total) => total > 0 ? (part / total * 100).ToString("0", Da) + " %" : "";
+
+    private static string PartyTitle(BillParty p, ElBill b) => p switch
+    {
+        BillParty.Supplier => $"🏢 Elselskabet – {b.Supplier}",
+        BillParty.Grid => $"🔌 Netselskabet – {b.Grid}",
+        BillParty.State => "🏛️ Staten og Energinet",
+        _ => "Andet",
+    };
+}

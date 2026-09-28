@@ -50,7 +50,7 @@ else
     {
         var diff = current.YearlyKr(_kwh) - cheapest.YearlyKr(_kwh);
         <div class="card now-tile @(diff > 100 ? "lvl-expensive" : "lvl-cheap")">
-            <div class="small muted">Dit nuværende: <b>@current.Company – @current.Name</b></div>
+            <div class="small muted">Dit nuværende: <b>@current.Company – @current.Name</b>@(_fromBill is not null ? " · fra din regning" : "")</div>
             <div class="now-price @(diff > 100 ? "lvl-expensive" : "lvl-cheap")">@Kr0(current.YearlyKr(_kwh)) kr/år</div>
             @if (current.Fixed != _fixed)
             {
@@ -59,12 +59,23 @@ else
             else if (diff > 100)
             {
                 <div class="now-advice">➜ Du kan spare ca. @Kr0(diff) kr om året</div>
+                <div class="now-compare">Billigst med @(_fixed ? "fast" : "variabel") pris: <b>@cheapest.Company – @cheapest.Name</b>, ca. @Kr0(cheapest.YearlyKr(_kwh)) kr/år@(cheapest.Binding.Length > 0 && !cheapest.Binding.StartsWith("0") ? $" · binding {cheapest.Binding}" : " · ingen binding")</div>
+                @if (cheapest.Link.Length > 0)
+                {
+                    <a class="btn btn-primary" style="margin-top:8px" href="@cheapest.Link" target="_blank" rel="noopener">Se og skift til @cheapest.Company ↗</a>
+                }
+                <div class="muted small" style="margin-top:6px">Strømmen og leveringen er præcis den samme – kun prisen er forskellig. Det nye selskab klarer skiftet.</div>
             }
             else
             {
                 <div class="now-advice lvl-cheap">➜ Du har et af de billigste produkter</div>
             }
+            <div class="muted small">Beregnet med @Kr0(_kwh) kWh om året@(_fromBill is not null ? " – skønnet ud fra din regning" : "").</div>
         </div>
+    }
+    else if (current is null && _fromBill is null)
+    {
+        <a class="card cta-link" href="/regning">📄 Læg din elregning ind, så finder vi dit nuværende produkt og dit forbrug automatisk →</a>
     }
 
     <div class="card sup-list">
@@ -202,6 +213,7 @@ else
     private bool _fixed;
     private bool _showAll;
     private string? _currentId;
+    private ElBill? _fromBill;
 
     private string _gridName = "";
     private List<(int Hour, double OreInclVat)> _tariff = [];
@@ -247,6 +259,18 @@ else
         // Consumption and "my current product" live on the phone only.
         if (double.TryParse(await JS.InvokeAsync<string?>("epUi.get", "kwh"), CultureInfo.InvariantCulture, out var k)) _kwh = k;
         _currentId = await JS.InvokeAsync<string?>("epUi.get", "current-product");
+
+        // The uploaded bill is the foundation: what you have now and roughly how much you use,
+        // unless you chose something else on this phone.
+        if (Store.Get().Bills.FirstOrDefault() is { } bill)
+        {
+            _fromBill = bill;
+            var company = bill.Supplier.Split(' ')[0];
+            var match = _all?.FirstOrDefault(p => p.Company.StartsWith(company, StringComparison.OrdinalIgnoreCase) &&
+                                                  string.Equals(p.Name.Trim(), bill.Product.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrEmpty(_currentId) || _all?.Any(p => p.Id == _currentId) != true) _currentId = match?.Id;
+            if (k <= 0 && bill.YearlyKwhEstimate > 0) _kwh = Math.Round(bill.YearlyKwhEstimate / 100) * 100;
+        }
         if (_all?.FirstOrDefault(p => p.Id == _currentId) is { } cur) _fixed = cur.Fixed;
         StateHasChanged();
     }

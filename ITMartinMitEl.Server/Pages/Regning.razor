@@ -11,6 +11,10 @@
     <p>Regnet fra måleren time for time – og hvad hver linje på regningen egentlig er. Time for time: <a href="/forbrug">Forbrug</a>.</p>
 </PageHelp>
 
+<RealBill />
+
+<h2 style="margin-top:18px">Regnet fra din måler</h2>
+
 @if (string.IsNullOrWhiteSpace(Store.Get().Settings.MeteringPointId))
 {
     <div class="card">

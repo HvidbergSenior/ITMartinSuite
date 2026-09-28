@@ -29,6 +29,8 @@ public sealed class HouseholdData
     // "<subscriberId>|<kind>|<yyyy-MM-dd HH:mm>" of pushes already sent, so a
     // restart never double-sends and a day is only announced once.
     public List<string> SentPushes { get; set; } = [];
+    // Real bills the household uploaded (newest first) - the foundation for supplier, grid and prices.
+    public List<ElBill> Bills { get; set; } = [];
 }
 
 /// <summary>
