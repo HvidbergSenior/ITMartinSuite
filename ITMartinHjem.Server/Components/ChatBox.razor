@@ -8,13 +8,13 @@
 <section class="k-card hj-chat @(Prominent ? "hj-chat-top" : "") @(Available ? "is-on" : "")" id="chat" data-nofold>
     <div class="hj-chat-status">
         <span class="k-dot @(Available ? "on" : "")"></span>
-        @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– skriv, så svarer han med det samme.</span> }
-        else { <b>@OwnerName er ikke ved skærmen</b> <span class="k-muted">– skriv alligevel. Svaret kommer her på siden, når du kommer tilbage.</span> }
+        @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– chat med ham direkte, han svarer med det samme.</span> }
+        else { <b>@OwnerName er ikke ved skærmen</b> <span class="k-muted">– start en chat alligevel. Han får besked på telefonen, og svaret kommer her i chatten.</span> }
     </div>
 
     @if (!_open)
     {
-        <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">💬 Skriv til @OwnerName</button>
+        <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">💬 Chat med @OwnerName</button>
     }
     else
     {
@@ -34,7 +34,7 @@
         {
             <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" />
         }
-        <textarea class="k-input k-textarea k-mt" @bind="_text" @bind:event="oninput" maxlength="2000" placeholder="Skriv dit spørgsmål…" aria-label="Din besked"></textarea>
+        <textarea class="k-input k-textarea k-mt" @bind="_text" @bind:event="oninput" maxlength="2000" placeholder="Skriv i chatten…" aria-label="Din besked"></textarea>
         <button class="k-btn k-btn-primary k-btn-block k-mt" disabled="@(_busy || string.IsNullOrWhiteSpace(_text))" @onclick="SendAsync">Send</button>
         @if (_note.Length > 0) { <p class="k-help">@_note</p> }
     }
@@ -72,7 +72,7 @@
         await Chat.VisitorWritesAsync(_key, _name, _text);
         _text = "";
         _thread = await Chat.GetAsync(_key);
-        _note = Available ? "Sendt – svaret kommer her." : "Sendt. Kom tilbage senere – svaret venter her på siden.";
+        _note = Available ? "Sendt – svaret kommer lige her i chatten." : "Sendt. Lad siden stå åben, eller kom tilbage senere – svaret venter her i chatten.";
         _busy = false;
     }
 
