@@ -92,3 +92,11 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .tm-gallery .tm-fig { margin: 0; }
 .tm-gallery .tm-img { aspect-ratio: 1; object-fit: cover; margin: 0; max-height: none; }
 .tm-gallery video.tm-img { background: #000; object-fit: contain; }
+.hj-app-body { flex: 1; min-width: 0; }
+.hj-app-tier { font-size: var(--k-fs-small); margin-top: 6px; }
+.hj-tag-plus { background: var(--k-accent); color: #fff; }
+.hj-hero h2 { margin-top: 8px; }
+.hj-app-body { flex: 1; min-width: 0; }
+.hj-app-tier { font-size: var(--k-fs-small); margin-top: 6px; }
+.hj-tag-plus { background: var(--k-accent); color: #fff; }
+.hj-hero h2 { margin-top: 8px; }

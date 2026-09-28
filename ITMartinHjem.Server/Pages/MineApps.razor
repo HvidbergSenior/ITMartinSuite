@@ -4,9 +4,10 @@
 
 <PageTitle>Mine apps · Martin Hvidberg</PageTitle>
 
+@* Principle (user 2026-09-28): every app is useful for free; a paid version is something you ask for. *@
 <article class="k-card hj-page" data-nofold>
     <h1>Mine apps</h1>
-    <p>Det er de apps, jeg har bygget. De fleste er gratis at prøve – tryk på en app for at åbne den.</p>
+    <p>Alle mine apps er <b>gratis at bruge</b> – og den gratis udgave kan noget i sig selv. Vil du have mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu – <a href="/#chat">skriv til mig</a>, så tænder jeg den.</p>
 </article>
 
@@ -14,20 +15,20 @@
     @foreach (var a in _apps)
     {
         var up = Status.IsUp(a.Url) != false;
-        @if (up)
-        {
-            <a class="k-card hj-app" href="@a.Url" target="_blank" rel="noopener" data-nofold>
-                <span class="hj-app-icon">@a.Icon</span>
-                <span><b>@a.Name</b> <span class="k-dot on hj-dot" title="Kører nu"></span><br /><span class="k-help">@a.Description</span></span>
-            </a>
-        }
-        else
-        {
-            <div class="k-card hj-app off" data-nofold>
-                <span class="hj-app-icon">@a.Icon</span>
-                <span><b>@a.Name</b> <span class="k-dot hj-dot" title="Sover"></span><br /><span class="k-help">@a.Description</span><br /><span class="k-help"><i>Sover lige nu – <a href="/#chat">skriv til mig</a>, hvis du vil prøve den.</i></span></span>
+        <div class="k-card hj-app @(up ? "" : "off")" data-nofold>
+            <span class="hj-app-icon">@a.Icon</span>
+            <div class="hj-app-body">
+                <b>@a.Name</b> <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span>
+                <div class="k-help">@a.Description</div>
+                <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? a.FreeText : "Kom i gang med det samme – ingen betaling.")</div>
+                <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? a.PaidText : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
+                <div class="k-row k-mt">
+                    @if (up) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Brug gratis</a> }
+                    else { <span class="k-help"><i>Sover lige nu</i></span> }
+                    <a class="k-btn k-btn-sm" href="/#chat">Spørg om udvidet</a>
+                </div>
             </div>
-        }
+        </div>
     }
 </div>
 

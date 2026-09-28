@@ -13,6 +13,11 @@
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
 
+@if (_hero is not null)
+{
+    <section class="k-card hj-page hj-hero" data-nofold>@TinyMarkdown.Render(_hero.Body)</section>
+}
+
 <section class="k-card hj-now" data-nofold>
     <div class="k-tag">Lige nu</div>
     @if (Embed.PlayerUrl(_s.NowLink) is { } player)
@@ -79,6 +84,7 @@ else if (_family && !_owner)
     private Settings _s = new();
     private List<Post> _posts = [];
     private int _hiddenFamily;
+    private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
     private bool _family, _owner;
 
     private string FirstName => _s.Name.Split(' ')[0];
@@ -96,6 +102,7 @@ else if (_family && !_owner)
     {
         await using var db = await Dbf.CreateDbContextAsync();
         _s = await db.Settings.AsNoTracking().FirstAsync();
+        _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
         var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();

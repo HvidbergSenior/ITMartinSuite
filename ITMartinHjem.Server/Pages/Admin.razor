@@ -198,6 +198,8 @@
             <input class="k-input hj-in-sort" type="number" @bind="a.Sort" aria-label="Rækkefølge" />
             <input class="k-input hj-in-wide" @bind="a.Url" maxlength="200" aria-label="Adresse" />
             <input class="k-input hj-in-wide" @bind="a.Description" maxlength="200" aria-label="Beskrivelse" />
+            <input class="k-input hj-in-wide" @bind="a.FreeText" maxlength="200" placeholder="Gratis: hvad kan man bruge den til uden at betale?" aria-label="Gratis" />
+            <input class="k-input hj-in-wide" @bind="a.PaidText" maxlength="200" placeholder="Udvidet: hvad får man ekstra, hvis man spørger?" aria-label="Udvidet" />
         </div>
     }
     <div class="k-row k-mt">
@@ -469,7 +471,9 @@
         {
             await using var s = e.File.OpenReadStream(MediaStore.MaxBytes);
             var saved = await Store.SaveAsync(s, e.File.Name, e.File.ContentType);
-            _pageEdit.Body = _pageEdit.Body.TrimEnd() + $"\n\n![{Path.GetFileNameWithoutExtension(e.File.Name)}](/f/{saved.Media.StoredName})\n";
+            // Always a date under the picture (user's wish): from the photo itself, else today.
+            var caption = "📅 " + (saved.TakenAt ?? DateTime.Today).ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK"));
+            _pageEdit.Body = _pageEdit.Body.TrimEnd() + $"\n\n![{caption}](/f/{saved.Media.StoredName})\n";
             _pageNote = "Billedet er sat ind nederst i teksten – flyt linjen, hvis det skal stå et andet sted. Husk Gem.";
         }
         catch (Exception ex) { _pageNote = $"Det lykkedes ikke: {ex.Message}"; }

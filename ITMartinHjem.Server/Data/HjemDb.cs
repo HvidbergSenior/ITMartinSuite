@@ -22,6 +22,8 @@ public sealed class AppLink
     public string Icon { get; set; } = "";
     public string Url { get; set; } = "";
     public string Description { get; set; } = "";
+    public string FreeText { get; set; } = "";   // what the free version gives you
+    public string PaidText { get; set; } = "";   // what the extended (paid, on request) version adds
     public bool Show { get; set; }
     public int Sort { get; set; }
 }

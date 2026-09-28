@@ -12,6 +12,8 @@ public static class Schema
         ("Settings", "NowMediaThumb", "TEXT NOT NULL DEFAULT ''"),
         ("Settings", "NowMediaType", "TEXT NOT NULL DEFAULT ''"),
         ("Settings", "NowLink", "TEXT NOT NULL DEFAULT ''"),
+        ("AppLinks", "FreeText", "TEXT NOT NULL DEFAULT ''"),
+        ("AppLinks", "PaidText", "TEXT NOT NULL DEFAULT ''"),
     ];
 
     public static async Task EnsureColumnsAsync(HjemDb db)

@@ -192,11 +192,7 @@ app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true))
 app.MapGet("/api/menu", async (IDbContextFactory<HjemDb> dbf) =>
 {
     await using var db = await dbf.CreateDbContextAsync();
-    var items = await db.Pages.AsNoTracking().Where(p => p.InMenu).OrderBy(p => p.Sort).ThenBy(p => p.Title)
-        .Select(p => new { title = p.Title, href = "/" + p.Slug }).ToListAsync();
-    items.Insert(0, new { title = "Forside", href = "/" });
-    items.Add(new { title = "📱 Mine apps", href = "/mine-apps" });
-    items.Add(new { title = "🐦 Bliv pilot", href = "/pilot/" });
+    var items = (await SiteMenu.BuildAsync(db)).Select(x => new { title = x.Title, href = x.Href });
     return Results.Json(items);
 });
 

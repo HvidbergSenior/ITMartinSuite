@@ -1,13 +1,9 @@
 @inherits LayoutComponentBase
 @inject IDbContextFactory<HjemDb> Dbf
 
-@* The site menu = the pages marked "Vis i menuen" in Svar. *@
+@* The site menu - order and contents come from SiteMenu (pages marked "Vis i menuen" in Svar). *@
 <nav class="hj-nav">
-    <a href="/">Forside</a>
-    @foreach (var p in _menu) { <a href="/@p.Slug">@p.Title</a> }
-    @* The pilot page is a hand-made page in wwwroot/pilot - always last in the menu. *@
-    <a href="/mine-apps">📱 Mine apps</a>
-    <a class="hj-nav-pilot" href="/pilot/">🐦 Bliv pilot</a>
+    @foreach (var i in _menu) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href">@i.Title</a> }
 </nav>
 <div class="k-main"><div class="k-content">
     @Body
@@ -15,11 +11,11 @@
 <KolibriFooter />
 
 @code {
-    private List<Page> _menu = [];
+    private List<SiteMenu.Item> _menu = [];
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await Dbf.CreateDbContextAsync();
-        _menu = await db.Pages.AsNoTracking().Where(p => p.InMenu).OrderBy(p => p.Sort).ThenBy(p => p.Title).ToListAsync();
+        _menu = await SiteMenu.BuildAsync(db);
     }
 }
