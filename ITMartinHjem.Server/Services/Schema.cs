@@ -18,6 +18,17 @@ public static class Schema
     {
         var conn = db.Database.GetDbConnection();
         await conn.OpenAsync();
+        await using (var create = conn.CreateCommand())
+        {
+            create.CommandText = """
+                CREATE TABLE IF NOT EXISTS "Pages" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_Pages" PRIMARY KEY AUTOINCREMENT,
+                    "Slug" TEXT NOT NULL, "Title" TEXT NOT NULL, "Body" TEXT NOT NULL,
+                    "InMenu" INTEGER NOT NULL, "Sort" INTEGER NOT NULL, "UpdatedAt" TEXT NOT NULL);
+                CREATE UNIQUE INDEX IF NOT EXISTS "IX_Pages_Slug" ON "Pages" ("Slug");
+                """;
+            await create.ExecuteNonQueryAsync();
+        }
         foreach (var (table, column, sql) in Added)
         {
             await using var cmd = conn.CreateCommand();

@@ -144,6 +144,48 @@
     }
 </section>
 
+<section class="k-card" id="sider">
+    <div class="k-card-title">📄 Sider (@_pages.Count)</div>
+    <p class="k-help">Dine faste sider – Om mig, Kontakt, Ydelser, Priser … Adressen er fx <b>om-mig</b> eller <b>ydelser/cloud</b>; en side med "/" bliver vist under sin forælder. Skriv <b>## </b> for en overskrift, <b>*</b> for en punktliste, <b>**fed**</b> og <b>[tekst](/kontakt)</b> for et link.</p>
+    @foreach (var p in _pages)
+    {
+        <div class="appl-row hj-admin-post">
+            <span>@(p.InMenu ? "📌" : "")<b>@p.Title</b> <span class="k-help">/@p.Slug</span></span>
+            <span class="k-row">
+                <a class="k-btn k-btn-sm k-btn-ghost" href="/@p.Slug" target="_blank">Se</a>
+                <button class="k-btn k-btn-sm" @onclick="() => EditPage(p)">Ret</button>
+            </span>
+        </div>
+    }
+    <button class="k-btn k-mt" @onclick="NewPage">➕ Ny side</button>
+
+    @if (_pageEdit is not null)
+    {
+        <div class="hj-page-edit k-mt">
+            <label class="k-label">Titel</label><input class="k-input" @bind="_pageEdit.Title" maxlength="120" />
+            <label class="k-label">Adresse (efter itmartin.dk/)</label><input class="k-input" @bind="_pageEdit.Slug" maxlength="120" placeholder="fx ydelser/cloud" />
+            <label class="k-label">Tekst</label>
+            <textarea class="k-input k-textarea" @bind="_pageEdit.Body" rows="16"></textarea>
+            <label class="k-label">Billede (sættes ind nederst i teksten)</label>
+            <InputFile OnChange="OnPageImageAsync" accept="image/*" />
+            <div class="k-row k-mt">
+                <label><input type="checkbox" @bind="_pageEdit.InMenu" /> Vis i menuen</label>
+                <label>Rækkefølge <input class="k-input" style="width:80px" type="number" @bind="_pageEdit.Sort" /></label>
+            </div>
+            @if (_pageNote.Length > 0) { <p class="k-help">@_pageNote</p> }
+            <div class="k-row k-mt">
+                <button class="k-btn k-btn-primary" @onclick="SavePageAsync">Gem siden</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => _pageEdit = null">Luk</button>
+                @if (_pageEdit.Id != 0)
+                {
+                    @if (_confirmDeletePage) { <button class="k-btn k-btn-danger" @onclick="DeletePageAsync">Ja, slet siden</button> }
+                    else { <button class="k-btn k-btn-ghost" @onclick="() => _confirmDeletePage = true">Slet</button> }
+                }
+            </div>
+        </div>
+    }
+</section>
+
 <section class="k-card">
     <div class="k-card-title">📱 Besked på telefonen</div>
     <p class="k-help">Slå det til på den telefon, du vil have besked på, når nogen skriver. <b>iPhone:</b> læg først siden på hjemskærmen (Del → Føj til hjemmeskærm), og åbn den derfra. <b>Android/PC:</b> tryk bare på knappen.</p>
@@ -179,6 +221,7 @@
             _s = await db.Settings.FirstAsync();
         await LoadThreadsAsync();
         await LoadPostsAsync();
+        await LoadPagesAsync();
         if (ChatId is { } id) await OpenAsync(id);
         Chat.Changed += OnChatChanged;
     }
@@ -376,6 +419,66 @@
     }
 
     private static string Short(string s) => s.Length > 50 ? s[..50] + "…" : s.Length > 0 ? s : "(kun filer)";
+
+    // ── pages ──
+    private List<Page> _pages = [];
+    private Page? _pageEdit;
+    private string _pageNote = "";
+    private bool _confirmDeletePage;
+
+    private async Task LoadPagesAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        _pages = await db.Pages.AsNoTracking().OrderBy(p => p.Slug).ToListAsync();
+    }
+
+    private void NewPage() { _pageEdit = new Page { Sort = 50 }; _pageNote = ""; _confirmDeletePage = false; }
+
+    private void EditPage(Page p)
+    {
+        _pageEdit = new Page { Id = p.Id, Slug = p.Slug, Title = p.Title, Body = p.Body, InMenu = p.InMenu, Sort = p.Sort };
+        _pageNote = ""; _confirmDeletePage = false;
+    }
+
+    private async Task OnPageImageAsync(InputFileChangeEventArgs e)
+    {
+        if (_pageEdit is null) return;
+        try
+        {
+            await using var s = e.File.OpenReadStream(MediaStore.MaxBytes);
+            var saved = await Store.SaveAsync(s, e.File.Name, e.File.ContentType);
+            _pageEdit.Body = _pageEdit.Body.TrimEnd() + $"\n\n![{Path.GetFileNameWithoutExtension(e.File.Name)}](/f/{saved.Media.StoredName})\n";
+            _pageNote = "Billedet er sat ind nederst i teksten – flyt linjen, hvis det skal stå et andet sted. Husk Gem.";
+        }
+        catch (Exception ex) { _pageNote = $"Det lykkedes ikke: {ex.Message}"; }
+    }
+
+    private async Task SavePageAsync()
+    {
+        if (_pageEdit is null) return;
+        var slug = System.Text.RegularExpressions.Regex.Replace(_pageEdit.Slug.Trim().Trim('/').ToLowerInvariant(), @"[^a-z0-9æøå/\-]", "-");
+        if (slug.Length == 0 || _pageEdit.Title.Trim().Length == 0) { _pageNote = "Siden skal have en titel og en adresse."; return; }
+        if (slug is "admin" or "chat" or "login" or "logout" or "api" or "m" or "f" or "nu" || slug.StartsWith("api/") || slug.StartsWith("kolibri"))
+        { _pageNote = $"Adressen \"{slug}\" bruges af appen selv – vælg en anden."; return; }
+        await using var db = await Dbf.CreateDbContextAsync();
+        if (await db.Pages.AnyAsync(p => p.Slug == slug && p.Id != _pageEdit.Id)) { _pageNote = "Der findes allerede en side med den adresse."; return; }
+        var page = _pageEdit.Id == 0 ? db.Pages.Add(new Page()).Entity : await db.Pages.FirstAsync(p => p.Id == _pageEdit.Id);
+        page.Slug = slug; page.Title = _pageEdit.Title.Trim(); page.Body = _pageEdit.Body; page.InMenu = _pageEdit.InMenu; page.Sort = _pageEdit.Sort;
+        page.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        _pageEdit.Id = page.Id; _pageEdit.Slug = slug;
+        _pageNote = "Gemt ✓";
+        await LoadPagesAsync();
+    }
+
+    private async Task DeletePageAsync()
+    {
+        if (_pageEdit is null) return;
+        await using var db = await Dbf.CreateDbContextAsync();
+        await db.Pages.Where(p => p.Id == _pageEdit.Id).ExecuteDeleteAsync();
+        _pageEdit = null;
+        await LoadPagesAsync();
+    }
 
     // ── push ──
     private string PushLabel => _push switch

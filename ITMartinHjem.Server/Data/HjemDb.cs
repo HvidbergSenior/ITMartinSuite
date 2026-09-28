@@ -10,6 +10,20 @@ public sealed class HjemDb(DbContextOptions<HjemDb> options) : DbContext(options
     public DbSet<ChatThread> Threads => Set<ChatThread>();
     public DbSet<ChatMessage> Messages => Set<ChatMessage>();
     public DbSet<PushSub> PushSubs => Set<PushSub>();
+    public DbSet<Page> Pages => Set<Page>();
+}
+
+// A normal web page (Om mig, Kontakt, Ydelser …) - moved in from the one.com builder
+// 2026-09-28 and edited in Svar. Slug is the address without the leading slash.
+public sealed class Page
+{
+    public int Id { get; set; }
+    public string Slug { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    public bool InMenu { get; set; }
+    public int Sort { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 // One row (Id = 1): the page's own texts and the chat switch.

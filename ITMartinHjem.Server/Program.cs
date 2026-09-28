@@ -93,7 +93,6 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://itmartin.dk https://www.itmartin.dk";
     await next();
 });
-app.UseCors();
 app.UseStaticFiles(new StaticFileOptions
 {
     // widget.js is loaded by itmartin.dk: allow it, and keep the cache short so changes show up.
@@ -102,6 +101,9 @@ app.UseStaticFiles(new StaticFileOptions
         if (c.File.Name == "widget.js") c.Context.Response.Headers.CacheControl = "public, max-age=300";
     }
 });
+// Routing AFTER static files: the /{*Slug} page route would otherwise answer app.css, hjem.js …
+app.UseRouting();
+app.UseCors();
 
 // ── Live "Lige nu" for itmartin.dk (wwwroot/widget.js reads this) ───────────────────
 app.MapGet("/api/nu", (IDbContextFactory<HjemDb> dbf) =>
@@ -169,6 +171,18 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
     if (!File.Exists(path)) return Results.NotFound();
     ctx.Response.Headers.CacheControl = "public, max-age=604800";
     return Results.File(path, name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType, enableRangeProcessing: true);
+});
+
+// ── Pictures on the pages (Om mig …): only files that a page actually uses.
+app.MapGet("/f/{name}", async (string name, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>
+{
+    name = Path.GetFileName(name);
+    await using var db = await dbf.CreateDbContextAsync();
+    if (!await db.Pages.AnyAsync(p => p.Body.Contains("/f/" + name))) return Results.NotFound();
+    var path = store.PathFor(name);
+    if (!File.Exists(path)) return Results.NotFound();
+    ctx.Response.Headers.CacheControl = "public, max-age=604800";
+    return Results.File(path, name.EndsWith(".png") ? "image/png" : "image/jpeg");
 });
 
 // ── Media: family files only with the family cookie ─────────────────────────────────
