@@ -208,8 +208,16 @@ app.MapGet("/api/kontrol/apps", async (HttpRequest req, IConfiguration cfg, IDbC
     if (!KontrolKeyOk(req, cfg)) return Results.Unauthorized();
     await using var db = await dbf.CreateDbContextAsync();
     var apps = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
-    return Results.Json(apps.Select(a => new { a.Id, a.Icon, a.Name, a.Url, a.Description, a.Show, up = status.IsUp(a.Url) }));
+    return Results.Json(apps.Select(a => new { a.Id, a.Icon, a.Name, a.Url, a.Description, a.Show, a.Awake, up = status.IsUp(a.Url) }));
 });
+
+app.MapPost("/api/kontrol/apps/{id:int}/awake/{awake:bool}", async (int id, bool awake, HttpRequest req, IConfiguration cfg, IDbContextFactory<HjemDb> dbf) =>
+{
+    if (!KontrolKeyOk(req, cfg)) return Results.Unauthorized();
+    await using var db = await dbf.CreateDbContextAsync();
+    var n = await db.AppLinks.Where(a => a.Id == id).ExecuteUpdateAsync(x => x.SetProperty(a => a.Awake, awake));
+    return n == 1 ? Results.Ok() : Results.NotFound();
+}).DisableAntiforgery();
 
 app.MapPost("/api/kontrol/apps/{id:int}/show/{show:bool}", async (int id, bool show, HttpRequest req, IConfiguration cfg, IDbContextFactory<HjemDb> dbf) =>
 {

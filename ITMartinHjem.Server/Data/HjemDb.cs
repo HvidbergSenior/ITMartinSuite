@@ -25,6 +25,7 @@ public sealed class AppLink
     public string FreeText { get; set; } = "";   // what the free version gives you
     public string PaidText { get; set; } = "";   // what the extended (paid, on request) version adds
     public bool Show { get; set; }
+    public bool Awake { get; set; }    // false = "sover" on the site even when the container runs (user: not ready yet)
     public int Sort { get; set; }
 }
 

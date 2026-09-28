@@ -14,6 +14,7 @@ public static class Schema
         ("Settings", "NowLink", "TEXT NOT NULL DEFAULT ''"),
         ("AppLinks", "FreeText", "TEXT NOT NULL DEFAULT ''"),
         ("AppLinks", "PaidText", "TEXT NOT NULL DEFAULT ''"),
+        ("AppLinks", "Awake", "INTEGER NOT NULL DEFAULT 0"),
     ];
 
     public static async Task EnsureColumnsAsync(HjemDb db)

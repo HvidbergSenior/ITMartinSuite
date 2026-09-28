@@ -255,16 +255,27 @@ function renderHomepage(apps) {
     var cls = a.up === false ? "bad" : (a.up ? "ok" : "");
     var row = document.createElement("label");
     row.className = "kapp " + cls; row.style.cursor = "pointer";
-    row.innerHTML = '<input type="checkbox"' + (a.show ? " checked" : "") + ' style="width:20px;height:20px;flex:none"><span class="dot"></span><div><span class="kn"></span><small></small></div>';
+    row.innerHTML = '<input type="checkbox" data-k="show"' + (a.show ? " checked" : "") + ' title="Vis på siden" style="width:20px;height:20px;flex:none"><span class="dot"></span><div><span class="kn"></span><small></small><label style="display:block;font-size:.75rem;cursor:pointer"><input type="checkbox" data-k="awake"' + (a.awake ? " checked" : "") + '> vågen (kan bruges fra siden)</label></div>';
     row.querySelector(".kn").textContent = (a.icon || "") + " " + a.name;
-    row.querySelector("small").textContent = a.show ? (a.up === false ? "vises som 'sover'" : "vises") : "skjult";
-    var box = row.querySelector("input");
+    function label() { return !a.show ? "skjult" : (!a.awake ? "vises som 'sover'" : (a.up === false ? "vågen, men containeren kører ikke" : "vises og kan bruges")); }
+    row.querySelector("small").textContent = label();
+    var wake = row.querySelector('[data-k="awake"]');
+    wake.addEventListener("change", function () {
+      var pin = getPin(); if (!pin) { wake.checked = !wake.checked; return; }
+      fetch("/api/homepage/" + a.id + "/awake/" + wake.checked, { method: "POST", headers: { "X-Kontrol-Pin": pin } }).then(function (res) {
+        if (res.status === 401) { forgetPin(); wake.checked = !wake.checked; msg.textContent = "Forkert PIN – prøv igen."; return; }
+        if (!res.ok) { wake.checked = !wake.checked; msg.textContent = "Kunne ikke gemme (" + res.status + ")."; return; }
+        a.awake = wake.checked; row.querySelector("small").textContent = label();
+        msg.textContent = a.name + (a.awake ? " er vågen på hjemmesiden." : " sover på hjemmesiden.");
+      });
+    });
+    var box = row.querySelector('[data-k="show"]');
     box.addEventListener("change", function () {
       var pin = getPin(); if (!pin) { box.checked = !box.checked; return; }
       fetch("/api/homepage/" + a.id + "/" + box.checked, { method: "POST", headers: { "X-Kontrol-Pin": pin } }).then(function (res) {
         if (res.status === 401) { forgetPin(); box.checked = !box.checked; msg.textContent = "Forkert PIN – prøv igen."; return; }
         if (!res.ok) { box.checked = !box.checked; msg.textContent = "Kunne ikke gemme (" + res.status + ")."; return; }
-        a.show = box.checked; row.querySelector("small").textContent = a.show ? "vises" : "skjult";
+        a.show = box.checked; row.querySelector("small").textContent = label();
         msg.textContent = a.name + (a.show ? " vises nu på hjemmesiden." : " er skjult på hjemmesiden.");
       });
     });

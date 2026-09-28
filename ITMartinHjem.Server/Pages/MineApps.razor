@@ -8,13 +8,14 @@
 <article class="k-card hj-page" data-nofold>
     <h1>Mine apps</h1>
     <p>Alle mine apps er <b>gratis at bruge</b> – og den gratis udgave kan noget i sig selv. Vil du have mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
-    <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu – <a href="/#chat">chat med mig</a>, så tænder jeg den.</p>
+    <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu – jeg gør dem klar, så de er nemme at bruge. Nysgerrig? <a href="/#chat">Chat med mig</a>.</p>
 </article>
 
 <div class="hj-apps">
     @foreach (var a in _apps)
     {
-        var up = Status.IsUp(a.Url) != false;
+        // Asleep unless Martin has woken it (Kontrol / Svar) AND the container answers.
+        var up = a.Awake && Status.IsUp(a.Url) != false;
         <div class="k-card hj-app @(up ? "" : "off")" data-nofold>
             <span class="hj-app-icon">@a.Icon</span>
             <div class="hj-app-body">
@@ -24,7 +25,7 @@
                 <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? a.PaidText : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
                 <div class="k-row k-mt">
                     @if (up) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Brug gratis</a> }
-                    else { <span class="k-help"><i>Sover lige nu</i></span> }
+                    else { <span class="k-help"><i>😴 Sover lige nu – kommer snart</i></span> }
                     <a class="k-btn k-btn-sm" href="/#chat">Spørg om udvidet</a>
                 </div>
             </div>

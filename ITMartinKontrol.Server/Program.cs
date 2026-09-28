@@ -151,6 +151,16 @@ app.MapGet("/api/homepage", async (IHttpClientFactory f, CancellationToken ct) =
     }
     catch (Exception) { return Results.StatusCode(502); }
 });
+app.MapPost("/api/homepage/{id:int}/awake/{awake:bool}", async (int id, bool awake, HttpRequest req, IHttpClientFactory f, CancellationToken ct) =>
+{
+    if (!PinOk(req)) return Results.StatusCode(401);
+    try
+    {
+        using var res = await f.CreateClient("peer").SendAsync(HjemReq(HttpMethod.Post, $"/api/kontrol/apps/{id}/awake/{awake.ToString().ToLowerInvariant()}"), ct);
+        return Results.StatusCode((int)res.StatusCode);
+    }
+    catch (Exception) { return Results.StatusCode(502); }
+});
 app.MapPost("/api/homepage/{id:int}/{show:bool}", async (int id, bool show, HttpRequest req, IHttpClientFactory f, CancellationToken ct) =>
 {
     if (!PinOk(req)) return Results.StatusCode(401);
