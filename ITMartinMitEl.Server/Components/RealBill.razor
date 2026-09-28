@@ -19,6 +19,17 @@
         </label>
         @if (_busy) { <p class="muted small">Læser regningen…</p> }
         @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
+        <details class="install-dev" style="margin-top:10px" data-remember="realbill-howto">
+            <summary>❓ Sådan finder du din regning som PDF</summary>
+            <ol class="small">
+                <li><b>Tjek din mail og e-Boks / Digital Post.</b> De fleste elselskaber sender regningen dér som PDF. Søg på elselskabets navn eller “elregning”.</li>
+                <li><b>Eller hent den i elselskabets app eller på “Mit …”-siden.</b> Log ind, find <b>Regninger</b> eller <b>Dokumenter</b>, og tryk på den seneste regning → <b>Download</b> / <b>Hent PDF</b>.
+                    <br /><span class="muted">NRGi: app’en eller siden “Mit NRGi” → “Se alle dine regninger” (står nederst på regningen).</span></li>
+                <li><b>Gem PDF’en</b> på telefonen (iPhone: “Arkiver i Filer”; Android: “Download”) eller på computeren.</li>
+                <li><b>Tryk “📎 Vælg regning (PDF)”</b> ovenfor og vælg filen. Regningen bliver kun gemt i din egen husstand her i appen.</li>
+            </ol>
+            <p class="muted small">Tip: brug den seneste <b>månedsregning</b> – ikke en årsopgørelse. Har du kun papir, så gem den til vi kan læse fotos.</p>
+        </details>
     </div>
 }
 else
