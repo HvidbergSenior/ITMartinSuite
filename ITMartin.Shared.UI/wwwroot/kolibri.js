@@ -10,6 +10,36 @@
     'use strict';
     if (window.kolibri) return;
 
+    // Own styles, so apps without kolibri.css (R6, Club, Ladestander, Galleri, Upload ...) get the
+    // same pill, sheet and ▾. Kolibri colours when the page has them, neutral fallbacks otherwise.
+    (function injectStyle() {
+        if (document.getElementById('k-js-style')) return;
+        var c = function (name, fb) { return 'var(--k-' + name + ',' + fb + ')'; };
+        var css =
+            '.k-fold-head{cursor:pointer;display:flex;align-items:center;gap:.5em;user-select:none}' +
+            '.k-fold-head::after{content:"▾";margin-left:auto;opacity:.6;font-size:.9em;transition:transform .15s}' +
+            '.k-folded>.k-fold-head::after{transform:rotate(-90deg)}' +
+            '.k-folded>:not(.k-fold-head){display:none!important}' +
+            '.k-install-pill{position:fixed;z-index:900;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));border:1px solid ' + c('border', 'rgba(128,128,128,.35)') + ';background:' + c('card', '#fff') + ';color:' + c('text', '#1a1a1a') + ';border-radius:999px;padding:8px 14px;font:600 14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}' +
+            '.k-install-sheet{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:12px}' +
+            '.k-install-sheet[hidden]{display:none}' +
+            '@media (min-width:640px){.k-install-sheet{align-items:center}}' +
+            '.k-install-card{position:relative;width:100%;max-width:520px;max-height:88vh;overflow:auto;background:' + c('card', '#fff') + ';color:' + c('text', '#1a1a1a') + ';border-radius:18px;padding:20px 18px calc(18px + env(safe-area-inset-bottom,0px));font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:left}' +
+            '.k-install-card h2{margin:0 32px 6px 0;font-size:1.2rem}' +
+            '.k-install-card .k-muted{color:' + c('muted', '#666') + '}' +
+            '.k-install-x{position:absolute;top:10px;right:10px;border:0;background:rgba(128,128,128,.18);color:inherit;width:34px;height:34px;border-radius:50%;cursor:pointer}' +
+            '.k-install-dev{border:1px solid ' + c('border', 'rgba(128,128,128,.35)') + ';border-radius:12px;padding:8px 12px;margin-top:8px}' +
+            '.k-install-dev summary{font-weight:600;cursor:pointer}' +
+            '.k-install-dev ol{margin:8px 0 4px;padding-left:1.3em}.k-install-dev li{margin:4px 0}' +
+            '.k-install-now{width:100%;margin-top:8px;padding:10px;border-radius:10px;border:0;background:' + c('accent', '#1f7a5c') + ';color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer}' +
+            '.k-install-hide{margin-top:12px;border:0;background:none;color:' + c('muted', '#666') + ';text-decoration:underline;cursor:pointer;font:inherit;font-size:14px;padding:0}' +
+            '@media print{.k-install-pill,.k-install-sheet{display:none!important}}';
+        var s = document.createElement('style');
+        s.id = 'k-js-style';
+        s.textContent = css;
+        (document.head || document.documentElement).appendChild(s);
+    })();
+
     var store = {
         get: function (k) { try { return localStorage.getItem('kolibri_' + k); } catch (e) { return null; } },
         set: function (k, v) { try { localStorage.setItem('kolibri_' + k, v); } catch (e) { } }
