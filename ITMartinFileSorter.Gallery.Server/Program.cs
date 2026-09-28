@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using ITMartin.Media.Application.Pipelines.AnalogDigitize.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
@@ -293,7 +293,8 @@ var galleries = app.Configuration
         HideAddons: s.GetValue<bool>("HideAddons"),
         CoreCategoriesOnly: s.GetValue<bool>("CoreCategoriesOnly"),
         ViewOnly: s.GetValue<bool>("ViewOnly"),
-        Theme: s["Theme"], Headline: s["Headline"], Tagline: s["Tagline"]))
+        Theme: s["Theme"], Headline: s["Headline"], Tagline: s["Tagline"],
+        CelebrationFolder: s["CelebrationFolder"], CelebrationName: s["CelebrationName"], BirthDate: s["BirthDate"]))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -321,12 +322,15 @@ app.Use(async (ctx, next) =>
     if (HttpMethods.IsGet(ctx.Request.Method) && path.Length > 1 && path.IndexOf('/', 1) < 0 && !path.Contains('.'))
     {
         var slug = path[1..];
-        if (galleries.Any(g => string.Equals(g.Slug, slug, StringComparison.OrdinalIgnoreCase)))
+        var hit = galleries.FirstOrDefault(g => string.Equals(g.Slug, slug, StringComparison.OrdinalIgnoreCase));
+        if (hit is not null)
         {
             // StaticFiles already ran higher up the pipeline, so serve the page directly.
+            // A celebration gallery gets its own timeline page instead of the browser.
             ctx.Response.ContentType = "text/html; charset=utf-8";
             ctx.Response.Headers.CacheControl = "no-cache";
-            await ctx.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
+            var page = string.IsNullOrEmpty(hit.CelebrationFolder) ? "index.html" : "fejring.html";
+            await ctx.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, page));
             return;
         }
     }
@@ -456,6 +460,35 @@ app.MapPost("/api/login", (LoginRequest req, HttpContext ctx) =>
         return Results.Ok();
     }
     return Results.Unauthorized();
+});
+
+app.MapGet("/api/celebration", (string gallery, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => string.Equals(x.Slug, gallery, StringComparison.OrdinalIgnoreCase));
+    if (g is null || string.IsNullOrEmpty(g.CelebrationFolder)) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{g.Slug}"] != g.Password)
+        return Results.Unauthorized();
+
+    var folder = Path.GetFullPath(Path.Combine(g.Path, g.CelebrationFolder));
+    if (!IsSafe(folder, g.Path)) return Results.NotFound();
+
+    var timeline = Celebration.Build(g.Slug, g.Path, g.CelebrationFolder,
+        f => Web(f, g.Path, g.Slug),
+        f => GalleriThumb(f, g.Path, g.Slug) ?? Thumb(f, g.Path, g.Slug));
+
+    return Results.Ok(new
+    {
+        slug = g.Slug,
+        name = g.CelebrationName ?? g.Name,
+        birthDate = g.BirthDate,
+        texts = Celebration.Texts(g.Path, g.CelebrationFolder),
+        items = timeline.Items.Select(i => new
+        {
+            name = i.Name, kind = i.Kind, url = i.Url, thumb = i.Thumb,
+            date = i.Date?.ToString("yyyy-MM-ddTHH:mm:ss"),
+        }),
+    });
 });
 
 app.MapPost("/api/logout", (string gallery, HttpContext ctx) =>
@@ -1117,6 +1150,15 @@ static string? Thumb(string f, string r, string slug)
     return File.Exists(t) ? Web(t, r, slug) : null;
 }
 
+// The static export's thumbnails: _Galleri/thumbs/<same relative folder>/<name>.jpg.
+// Person folders get theirs there rather than in a thumbnails/ subfolder.
+static string? GalleriThumb(string f, string r, string slug)
+{
+    var rel = Rel(f, r);
+    var t = Path.Combine(r, "_Galleri", "thumbs", Path.GetDirectoryName(rel) ?? "", Path.GetFileNameWithoutExtension(f) + ".jpg");
+    return File.Exists(t) ? Web(t, r, slug) : null;
+}
+
 // The still and its Live Photo motion clip are exported into separate
 // top-level folders (Images/ vs LivePhotos/) by QuickSort, connected only by
 // matching Year/Month/filename - there's no explicit link stored anywhere.
@@ -1246,6 +1288,6 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
 // Theme/Headline/Tagline: a per-gallery look. "koncert" = the stage-style
 // front for the audience versions of the songs (2026-09-17).
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null);
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null, string? CelebrationFolder = null, string? CelebrationName = null, string? BirthDate = null);
 record LoginRequest(string Gallery, string Password);
 record FolderEntry(string name, string relPath, string? cover, int row = 99, string? icon = null);

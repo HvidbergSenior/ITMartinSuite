@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tillykke!</title>
+<link rel="icon" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;700;900&family=Caveat:wght@600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+:root{
+  --red:#c8102e; --red-deep:#8e0b20; --white:#fff; --cream:#fff8ef; --ink:#2a1a1f; --muted:#7a6168;
+  --sun:#ffc93c; --sky:#3fb8f0; --mint:#3ecf8e; --pink:#ff6fae; --violet:#8b5cf6;
+  --card:#ffffff; --line:#f1dfe3;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--cream);color:var(--ink);font:17px/1.55 Nunito,system-ui,sans-serif;overflow-x:hidden}
+img{max-width:100%;display:block}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+
+/* ---------- flag garland ---------- */
+.garland{position:relative;height:74px;overflow:hidden;pointer-events:none}
+.garland > svg{position:absolute;left:0;top:0;width:100%;height:74px}
+.garland .flags{position:absolute;inset:0;display:flex;justify-content:space-around;padding:0 6px}
+.flag{width:34px;height:26px;margin-top:calc(8px + var(--dip,0px));transform-origin:top center;animation:wave 2.4s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes wave{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;background:var(--red);color:var(--white);text-align:center;padding:10px 16px 56px;overflow:hidden}
+.hero::after{content:"";position:absolute;left:-5%;right:-5%;bottom:-40px;height:80px;background:var(--cream);border-radius:50%}
+.hero h1{font-family:Bungee,Impact,sans-serif;font-weight:400;font-size:clamp(2.6rem,11vw,6.2rem);line-height:.95;margin:18px 0 6px;letter-spacing:.02em;text-shadow:4px 4px 0 var(--red-deep)}
+.hero h1 .name{display:block;color:var(--sun)}
+.hero h1 span.l{display:inline-block;animation:hop 1.6s ease-in-out infinite;animation-delay:calc(var(--i)*.08s)}
+@keyframes hop{0%,70%,100%{transform:translateY(0)}35%{transform:translateY(-10px)}}
+.age-badge{display:inline-grid;place-items:center;width:132px;height:132px;border-radius:50%;background:var(--sun);color:var(--red-deep);font-family:Bungee,sans-serif;font-size:3.4rem;line-height:1;box-shadow:0 0 0 8px rgba(255,255,255,.25);margin:10px auto 4px;transform:rotate(-8deg);position:relative;z-index:1}
+.age-badge small{display:block;font:900 .8rem Nunito,sans-serif;letter-spacing:.12em}
+.hero p.sub{font-size:1.15rem;margin:8px auto 0;max-width:36ch;position:relative;z-index:1}
+.hero .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px;position:relative;z-index:1}
+.btn{border:0;border-radius:999px;padding:12px 20px;font-weight:900;background:var(--white);color:var(--red);box-shadow:0 4px 0 var(--red-deep)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--red-deep)}
+.btn.alt{background:var(--sun);color:var(--ink)}
+
+/* ---------- balloons ---------- */
+.balloons{position:fixed;inset:0;pointer-events:none;z-index:40;overflow:hidden}
+.balloon{position:absolute;bottom:-160px;width:64px;height:80px;border-radius:50% 50% 48% 48%;pointer-events:auto;cursor:pointer;animation:rise linear forwards}
+.balloon::after{content:"";position:absolute;left:50%;top:100%;width:1px;height:70px;background:rgba(0,0,0,.25)}
+.balloon::before{content:"";position:absolute;left:calc(50% - 6px);top:calc(100% - 3px);border:6px solid transparent;border-bottom-color:inherit;border-bottom-color:var(--c)}
+@keyframes rise{to{transform:translate(var(--x,0),-130vh) rotate(var(--r,0deg))}}
+.pop{position:absolute;font:900 1.2rem Nunito;color:var(--red);pointer-events:none;animation:popfade .7s ease-out forwards}
+@keyframes popfade{to{opacity:0;transform:translateY(-30px) scale(1.4)}}
+
+/* ---------- layout ---------- */
+main{max-width:1080px;margin:0 auto;padding:0 16px 80px}
+section.block{margin-top:40px}
+h2{font-family:Bungee,sans-serif;font-weight:400;font-size:clamp(1.5rem,5vw,2.2rem);margin:0 0 12px;color:var(--red);line-height:1.1;text-wrap:balance}
+
+/* cake */
+.cake-wrap{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;background:var(--card);border-radius:24px;padding:22px;border:2px dashed var(--line)}
+@media(max-width:620px){.cake-wrap{grid-template-columns:1fr;text-align:center}}
+.cake{position:relative;width:190px;height:170px;margin:0 auto;cursor:pointer}
+.cake .tier{position:absolute;left:10px;right:10px;bottom:0;height:70px;background:var(--pink);border-radius:14px 14px 10px 10px}
+.cake .tier::before{content:"";position:absolute;left:0;right:0;top:0;height:20px;background:var(--white);border-radius:14px 14px 0 0;
+  -webkit-mask:radial-gradient(circle at 10px 20px,transparent 9px,#000 10px) 0 0/20px 20px repeat-x;mask:radial-gradient(circle at 10px 20px,transparent 9px,#000 10px) 0 0/20px 20px repeat-x}
+.cake .top{position:absolute;left:35px;right:35px;bottom:66px;height:46px;background:var(--sky);border-radius:12px 12px 6px 6px}
+.cake .num{position:absolute;left:50%;bottom:108px;transform:translateX(-50%);font:400 2.8rem Bungee,sans-serif;color:var(--sun);-webkit-text-stroke:2px var(--red-deep)}
+.cake .flame{position:absolute;bottom:152px;width:14px;height:22px;background:radial-gradient(circle at 50% 70%,#fff6a8,#ffb300 60%,#ff5a00);border-radius:50% 50% 45% 45%;animation:flick .3s infinite alternate;transform-origin:bottom center}
+.cake .flame.a{left:72px}.cake .flame.b{left:104px}
+.cake.out .flame{animation:none;opacity:0;transition:opacity .4s}
+.cake .smoke{position:absolute;bottom:160px;left:80px;width:40px;height:40px;opacity:0}
+.cake.out .smoke{animation:smoke 1.6s ease-out forwards}
+@keyframes flick{to{transform:scale(1.1,.9) rotate(4deg)}}
+@keyframes smoke{0%{opacity:.6}100%{opacity:0;transform:translateY(-40px) scale(1.8)}}
+.cake-text p{margin:.3em 0}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stat{background:var(--card);border-radius:18px;padding:16px;border:2px solid var(--line);transform:rotate(var(--t,0deg))}
+.stat b{display:block;font:400 1.6rem Bungee,sans-serif;color:var(--c,var(--red));font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{color:var(--muted);font-size:.92rem}
+
+/* year nav */
+.yearnav{position:sticky;top:0;z-index:30;background:rgba(255,248,239,.94);backdrop-filter:blur(6px);margin:36px -16px 0;padding:10px 16px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin}
+.yearnav a{flex:0 0 auto;text-decoration:none;font-weight:900;font-size:.85rem;color:var(--ink);background:var(--white);border:2px solid var(--line);border-radius:999px;padding:5px 11px}
+.yearnav a:hover,.yearnav a.on{background:var(--red);color:var(--white);border-color:var(--red)}
+
+/* timeline */
+.year{margin-top:34px;scroll-margin-top:64px}
+.year-head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.year-head .y{font:400 clamp(2.4rem,9vw,4rem) Bungee,sans-serif;line-height:.9;color:var(--red)}
+.year-head .age{background:var(--sun);border-radius:999px;padding:4px 12px;font-weight:900;transform:rotate(-3deg)}
+.year-head .lvl{font-weight:900;color:var(--violet);font-size:.9rem}
+.year .title{font:600 1.7rem Caveat,cursive;color:var(--ink);margin:0 0 2px}
+.year .text{margin:0 0 12px;max-width:65ch;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+@media(max-width:480px){.grid{grid-template-columns:repeat(3,1fr);gap:5px}}
+.tile{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--line);border:0;padding:0}
+.tile img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.tile:hover img{transform:scale(1.06)}
+.tile .play{position:absolute;inset:auto 6px 6px auto;background:rgba(0,0,0,.6);color:#fff;border-radius:999px;padding:2px 8px;font-size:.75rem;font-weight:900}
+.tile.doc,.tile.aud{display:grid;place-items:center;background:var(--white);border:2px solid var(--line);font-size:2rem}
+.tile .cap{position:absolute;left:0;right:0;bottom:0;padding:18px 8px 6px;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;font:600 1.05rem/1.1 Caveat,cursive;text-align:left}
+.more{margin-top:10px}
+
+/* memes */
+.meme{margin:34px auto 0;max-width:560px;background:var(--white);border:3px solid var(--ink);border-radius:6px;box-shadow:6px 6px 0 var(--ink);transform:rotate(var(--t,-1deg))}
+.meme .row{display:grid;grid-template-columns:96px 1fr;border-bottom:3px solid var(--ink)}
+.meme .row:last-child{border-bottom:0}
+.meme .row .e{display:grid;place-items:center;font-size:2.6rem;background:var(--sun);border-right:3px solid var(--ink)}
+.meme .row:nth-child(2) .e{background:var(--mint)}
+.meme .row p{margin:0;padding:14px;font-weight:900;font-size:1.05rem;display:flex;align-items:center}
+.meme.classic{text-align:center;padding:16px;font-family:Impact,"Anton",sans-serif;text-transform:uppercase}
+.meme.classic .top,.meme.classic .bot{font-size:1.4rem;letter-spacing:.02em}
+.meme.classic .mid{font-size:3.4rem;margin:6px 0}
+
+/* lightbox */
+.lb{position:fixed;inset:0;background:rgba(20,8,12,.94);z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.lb img,.lb video{max-width:100%;max-height:78vh;border-radius:8px}
+.lb .cap{color:#fff;font:600 1.5rem Caveat,cursive;margin-top:10px;text-align:center;max-width:60ch}
+.lb .when{color:#d8c3c8;font-size:.9rem}
+.lb .x,.lb .nav{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:999px;width:46px;height:46px;font-size:1.4rem}
+.lb .x{top:calc(12px + env(safe-area-inset-top,0px));right:12px}
+.lb .prev{left:10px;top:50%}.lb .next{right:10px;top:50%}
+
+/* login */
+.login{max-width:380px;margin:40px auto;background:var(--white);border-radius:22px;padding:24px;text-align:center;border:2px solid var(--line)}
+.login input{width:100%;font:inherit;padding:12px 14px;border-radius:12px;border:2px solid var(--line);margin:12px 0}
+.login .err{color:var(--red);font-weight:700;min-height:1.4em}
+
+.outro{text-align:center;margin-top:56px}
+.outro .big{font:400 clamp(2rem,8vw,3.6rem) Bungee,sans-serif;color:var(--red);line-height:1}
+footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hero" id="hero">
+  <div class="garland" aria-hidden="true" id="garland"></div>
+  <h1 id="title"><span>TILLYKKE</span><span class="name" id="heroName">…</span></h1>
+  <div class="age-badge" id="ageBadge">?<small>ÅR</small></div>
+  <p class="sub" id="heroSub">Hele dit liv indtil nu – i den rigtige rækkefølge.</p>
+  <div class="actions">
+    <button class="btn" id="partyBtn" type="button">🎉 Mere fest!</button>
+    <button class="btn alt" id="songBtn" type="button">🎵 Spil fødselsdagssangen</button>
+  </div>
+</header>
+
+<div class="balloons" id="balloons" aria-hidden="true"></div>
+
+<main>
+  <div class="login hidden" id="login">
+    <h2>Hemmeligt! 🤫</h2>
+    <p>Skriv adgangskoden, du har fået sammen med linket.</p>
+    <form id="loginForm">
+      <input id="pw" type="password" autocomplete="current-password" aria-label="Adgangskode" placeholder="Adgangskode">
+      <button class="btn" type="submit" style="background:var(--red);color:#fff">Luk mig ind 🎈</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+
+  <div id="content" class="hidden">
+    <section class="block">
+      <div class="cake-wrap">
+        <div class="cake" id="cake" role="button" tabindex="0" aria-label="Pust lysene ud">
+          <div class="flame a"></div><div class="flame b"></div>
+          <div class="smoke">💨</div>
+          <div class="num" id="cakeNum">23</div>
+          <div class="top"></div><div class="tier"></div>
+        </div>
+        <div class="cake-text">
+          <h2>Pust lysene ud! 🎂</h2>
+          <p id="intro">Tryk på lagkagen og ønsk dig noget. Men sig det ikke højt.</p>
+          <p id="wish" class="hidden" style="font:600 1.6rem Caveat,cursive;color:var(--red)">Ønsket er sendt afsted ✨</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>Lukas i tal</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <nav class="yearnav" id="yearnav" aria-label="Spring til år"></nav>
+    <div id="timeline"></div>
+
+    <div class="outro">
+      <div class="big" id="outroBig">TILLYKKE!</div>
+      <p id="outroText">Her slutter tidslinjen – indtil videre. Resten skriver du selv. 🇩🇰</p>
+      <button class="btn" style="background:var(--red);color:#fff" type="button" id="againBtn">🎉 Én gang til!</button>
+    </div>
+  </div>
+</main>
+
+<div class="lb hidden" id="lb" role="dialog" aria-modal="true" aria-label="Billede">
+  <button class="x" id="lbX" type="button" aria-label="Luk">✕</button>
+  <button class="nav prev" id="lbPrev" type="button" aria-label="Forrige">‹</button>
+  <div id="lbBody"></div>
+  <div class="cap" id="lbCap"></div>
+  <div class="when" id="lbWhen"></div>
+  <button class="nav next" id="lbNext" type="button" aria-label="Næste">›</button>
+</div>
+
+<footer>Lavet med ❤️ og alt for meget konfetti · ITMartin</footer>
+
+<script>
+(() => {
+  const slug = (decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0]) || new URLSearchParams(location.search).get('g') || '').toLowerCase();
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const months = ['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december'];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- garland ---------- */
+  function garland() {
+    const g = $('garland'); const n = Math.max(7, Math.round(innerWidth / 58));
+    let flags = '';
+    for (let i = 0; i < n; i++) {
+      const dip = Math.round(Math.sin(Math.PI * (i + .5) / n) * 26);
+      flags += `<svg class="flag" style="--d:${(i%5)*.18}s;--dip:${dip}px" viewBox="0 0 37 28"><rect width="37" height="28" fill="#c8102e"/><rect x="12" width="4" height="28" fill="#fff"/><rect y="12" width="37" height="4" fill="#fff"/></svg>`;
+    }
+    g.innerHTML = `<svg viewBox="0 0 100 74" preserveAspectRatio="none"><path d="M0,8 Q50,44 100,8" fill="none" stroke="#fff" stroke-width=".5" vector-effect="non-scaling-stroke"/></svg><div class="flags">${flags}</div>`;
+  }
+  garland(); addEventListener('resize', garland);
+
+  /* ---------- confetti ---------- */
+  const dk = ['#c8102e', '#ffffff', '#ffc93c', '#3fb8f0', '#ff6fae', '#3ecf8e'];
+  function boom(big) {
+    if (reduce || typeof confetti !== 'function') return;
+    confetti({ particleCount: big ? 220 : 90, spread: big ? 120 : 70, origin: { y: .35 }, colors: dk });
+    if (big) {
+      setTimeout(() => confetti({ particleCount: 90, angle: 60, spread: 60, origin: { x: 0, y: .7 }, colors: dk }), 250);
+      setTimeout(() => confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1, y: .7 }, colors: dk }), 400);
+    }
+  }
+  function flagRain() {
+    if (reduce || typeof confetti !== 'function' || !confetti.shapeFromText) return boom(true);
+    const shapes = ['🇩🇰', '🎈', '🎉', '🎂', '🥳'].map(t => confetti.shapeFromText({ text: t, scalar: 2 }));
+    confetti({ shapes, scalar: 2, particleCount: 60, spread: 160, origin: { y: -.1 }, gravity: .8, ticks: 300 });
+  }
+
+  /* ---------- balloons ---------- */
+  function balloons(count) {
+    if (reduce) return;
+    const box = $('balloons');
+    for (let i = 0; i < count; i++) {
+      const b = document.createElement('div');
+      const c = dk[i % dk.length] === '#ffffff' ? '#ffc93c' : dk[i % dk.length];
+      b.className = 'balloon';
+      b.style.cssText = `left:${Math.random()*92}%;background:${c};--c:${c};--x:${(Math.random()*120-60)|0}px;--r:${(Math.random()*30-15)|0}deg;animation-duration:${9+Math.random()*7}s;animation-delay:${Math.random()*3}s`;
+      b.addEventListener('click', e => {
+        const p = document.createElement('div'); p.className = 'pop'; p.textContent = 'POP!';
+        p.style.left = e.clientX - 20 + 'px'; p.style.top = e.clientY - 10 + 'px';
+        box.appendChild(p); setTimeout(() => p.remove(), 700);
+        if (typeof confetti === 'function' && !reduce) confetti({ particleCount: 30, spread: 50, origin: { x: e.clientX / innerWidth, y: e.clientY / innerHeight }, colors: [c, '#fff'] });
+        b.remove();
+      });
+      b.addEventListener('animationend', () => b.remove());
+      box.appendChild(b);
+    }
+  }
+
+  /* ---------- birthday song (Web Audio, public-domain melody) ---------- */
+  let playing = false;
+  function song() {
+    if (playing) return; playing = true;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const N = { G4:392, A4:440, B4:493.9, C5:523.3, D5:587.3, E5:659.3, F5:698.5, G5:784 };
+    const tune = [['G4',.75],['G4',.25],['A4',1],['G4',1],['C5',1],['B4',2],
+                  ['G4',.75],['G4',.25],['A4',1],['G4',1],['D5',1],['C5',2],
+                  ['G4',.75],['G4',.25],['G5',1],['E5',1],['C5',1],['B4',1],['A4',2],
+                  ['F5',.75],['F5',.25],['E5',1],['C5',1],['D5',1],['C5',2.5]];
+    let t = ctx.currentTime + .1; const beat = .42;
+    tune.forEach(([n, d]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = N[n];
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.25, t + .02); g.gain.exponentialRampToValueAtTime(.001, t + d * beat);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + d * beat + .05);
+      t += d * beat;
+    });
+    setTimeout(() => { playing = false; boom(true); }, (t - ctx.currentTime) * 1000);
+  }
+
+  /* ---------- helpers ---------- */
+  function ageOn(birth, d) {
+    let a = d.getFullYear() - birth.getFullYear();
+    if (d.getMonth() < birth.getMonth() || (d.getMonth() === birth.getMonth() && d.getDate() < birth.getDate())) a--;
+    return a;
+  }
+  const fmt = n => Math.round(n).toLocaleString('da-DK');
+
+  const levelLines = {
+    0: 'Level 0: Tutorial startet 👶', 1: 'Level 1: Gå-evne låst op 🚶', 3: 'Level 3: "Hvorfor?" ×1000 ❓',
+    6: 'Level 6: Skoletaske udstyret 🎒', 10: 'Level 10: Tocifret! 🔟', 13: 'Level 13: Teenager-mode aktiveret 😎',
+    15: 'Level 15: Knallert-drømme 🛵', 18: 'Level 18: Myndig. Officielt voksen. (Mor er uenig) 🪪',
+    20: 'Level 20: Ikke længere teenager 🎓', 21: 'Level 21: Voksen i hele verden 🌍', 23: 'Level 23: Legendarisk 🏆',
+  };
+
+  const memes = [
+    { at: 1,  kind: 'drake', no: 'Sove om natten', yes: 'Holde hele familien vågen kl. 03.00' },
+    { at: 4,  kind: 'classic', top: 'Én gang har jeg ryddet op', mid: '🧸', bot: 'Det var i 2007. Ingen husker det.' },
+    { at: 8,  kind: 'drake', no: 'Grøntsager', yes: 'Pommes frites. Hver dag. Resten af livet.' },
+    { at: 12, kind: 'classic', top: 'Mor: Hvor lang tid har du spillet?', mid: '🎮', bot: 'Mig: 5 minutter (det var 5 timer)' },
+    { at: 15, kind: 'drake', no: 'Stå op før kl. 12', yes: 'Stå op kl. 12.01' },
+    { at: 18, kind: 'classic', top: 'Nu er jeg voksen', mid: '🧺', bot: '*tager stadig vasketøj med hjem*' },
+    { at: 21, kind: 'drake', no: 'Lave aftensmad', yes: '"Hvad får I at spise i aften, mor?"' },
+    { at: 23, kind: 'classic', top: '23 år gammel', mid: '👴', bot: 'For ung til rygsmerter. For gammel til børnemenuen.' },
+  ];
+  function memeHtml(m, i) {
+    const tilt = (i % 2 ? 1.2 : -1.2);
+    if (m.kind === 'drake')
+      return `<div class="meme" style="--t:${tilt}deg"><div class="row"><div class="e">🙅</div><p>${esc(m.no)}</p></div><div class="row"><div class="e">👉</div><p>${esc(m.yes)}</p></div></div>`;
+    return `<div class="meme classic" style="--t:${tilt}deg"><div class="top">${esc(m.top)}</div><div class="mid">${m.mid}</div><div class="bot">${esc(m.bot)}</div></div>`;
+  }
+
+  /* ---------- page ---------- */
+  let flat = [], texts = {};
+  function render(data) {
+    texts = data.texts || {};
+    const name = data.name || 'dig';
+    const birth = data.birthDate ? new Date(data.birthDate + 'T12:00:00') : null;
+    const today = new Date();
+    const age = birth ? ageOn(birth, today) : null;
+
+    document.title = `Tillykke ${name}!`;
+    $('heroName').innerHTML = [...name.toUpperCase() + '!'].map((ch, i) => `<span class="l" style="--i:${i}">${esc(ch)}</span>`).join('');
+    if (age !== null) { $('ageBadge').innerHTML = `${age}<small>ÅR</small>`; $('cakeNum').textContent = age; }
+    if (texts.intro) $('intro').textContent = texts.intro;
+    if (texts.heroSub) $('heroSub').textContent = texts.heroSub;
+    if (texts.outro) $('outroText').textContent = texts.outro;
+    $('outroBig').textContent = `TILLYKKE ${name.toUpperCase()}!`;
+
+    // stats
+    if (birth) {
+      const days = (today - birth) / 864e5;
+      const stats = [
+        [fmt(days), 'dage på jorden', 'var(--red)'],
+        [fmt(days * 24), 'timer (og ingen af dem var kedelige)', 'var(--sky)'],
+        [fmt(days * 24 * 60 * 80), 'hjerteslag, cirka', 'var(--pink)'],
+        [fmt(days * 0.36), 'nætter med nok søvn (skønnet)', 'var(--violet)'],
+        [age, 'lagkager med lys', 'var(--mint)'],
+        [fmt(data.items.length), 'billeder og film her på siden', 'var(--red)'],
+      ];
+      $('stats').innerHTML = stats.map(([n, t, c], i) =>
+        `<div class="stat" style="--c:${c};--t:${(i % 3 - 1) * .8}deg"><b>${n}</b><span>${esc(t)}</span></div>`).join('');
+    }
+
+    // group by year
+    const groups = new Map();
+    const undated = [];
+    data.items.forEach(it => {
+      if (!it.date) { undated.push(it); return; }
+      const y = +it.date.slice(0, 4);
+      if (!groups.has(y)) groups.set(y, []);
+      groups.get(y).push(it);
+    });
+    const years = [...groups.keys()].sort((a, b) => a - b);
+
+    const sections = [];
+    if (undated.length) sections.push({ key: 'album', label: '📚', items: undated, undated: true });
+    years.forEach(y => sections.push({ key: 'y' + y, label: String(y), year: y, items: groups.get(y) }));
+
+    flat = sections.flatMap(s => s.items);
+
+    $('yearnav').innerHTML = sections.map(s => `<a href="#${s.key}">${s.undated ? '📚 Gamle album' : s.label}</a>`).join('');
+
+    let memeIdx = 0;
+    const tl = $('timeline');
+    tl.innerHTML = sections.map(s => {
+      const yt = s.undated ? (texts.undated || {}) : ((texts.years || {})[s.year] || {});
+      let head;
+      if (s.undated) {
+        head = `<div class="year-head"><div class="y">📚</div><span class="age">Fra de gamle album</span></div>`;
+      } else {
+        const a = birth ? s.year - birth.getFullYear() : null;
+        const ageTxt = a === null ? '' : a <= 0 ? 'Velkommen til verden!' : `${name} fylder ${a}`;
+        const lvl = a !== null && levelLines[a] ? `<span class="lvl">${esc(levelLines[a])}</span>` : '';
+        head = `<div class="year-head"><div class="y">${s.year}</div>${ageTxt ? `<span class="age">${esc(ageTxt)}</span>` : ''}${lvl}</div>`;
+      }
+      const first = 24;
+      const tiles = s.items.map((it, i) => tile(it, i >= first)).join('');
+      const more = s.items.length > first ? `<button class="btn more" type="button" data-more="${s.key}" style="background:var(--red);color:#fff">Vis alle ${s.items.length} 👀</button>` : '';
+
+      let memeBlock = '';
+      if (!s.undated && birth) {
+        const a = s.year - birth.getFullYear();
+        const m = memes.find(mm => mm.at === a);
+        if (m) memeBlock = memeHtml(m, memeIdx++);
+      }
+
+      return `<section class="year" id="${s.key}">${head}
+        ${yt.title ? `<p class="title">${esc(yt.title)}</p>` : ''}
+        ${yt.text ? `<p class="text">${esc(yt.text)}</p>` : ''}
+        <div class="grid" data-grid="${s.key}">${tiles}</div>${more}${memeBlock}</section>`;
+    }).join('');
+
+    tl.addEventListener('click', e => {
+      const m = e.target.closest('[data-more]');
+      if (m) { tl.querySelectorAll(`[data-grid="${m.dataset.more}"] .tile.hidden`).forEach(t => t.classList.remove('hidden')); m.remove(); return; }
+      const t = e.target.closest('.tile');
+      if (t) openLb(+t.dataset.i);
+    });
+
+    // highlight current year chip
+    const chips = [...$('yearnav').querySelectorAll('a')];
+    const io = new IntersectionObserver(es => es.forEach(en => {
+      if (!en.isIntersecting) return;
+      chips.forEach(c => c.classList.toggle('on', c.getAttribute('href') === '#' + en.target.id));
+      const on = chips.find(c => c.classList.contains('on')); on && on.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }), { rootMargin: '-40% 0px -55% 0px' });
+    tl.querySelectorAll('.year').forEach(s => io.observe(s));
+
+    $('content').classList.remove('hidden');
+    boom(true); balloons(14);
+  }
+
+  function tile(it, hide) {
+    const i = flat.indexOf(it);
+    const cap = (texts.captions || {})[it.name];
+    const capHtml = cap ? `<div class="cap">${esc(cap)}</div>` : '';
+    const cls = hide ? ' hidden' : '';
+    if (it.kind === 'img' || (it.kind === 'vid' && it.thumb))
+      return `<button class="tile${cls}" data-i="${i}" type="button" aria-label="${esc(cap || it.name)}"><img loading="lazy" src="${esc(it.thumb || it.url)}" alt="">${it.kind === 'vid' ? '<span class="play">▶ film</span>' : ''}${capHtml}</button>`;
+    const icon = it.kind === 'vid' ? '🎬' : it.kind === 'aud' ? '🎵' : '📄';
+    return `<button class="tile ${it.kind}${cls}" data-i="${i}" type="button" aria-label="${esc(cap || it.name)}">${icon}${capHtml}</button>`;
+  }
+
+  /* ---------- lightbox ---------- */
+  let cur = -1;
+  function when(it) {
+    if (!it.date) return 'Fra de gamle album';
+    const d = new Date(it.date);
+    return `${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  function openLb(i) {
+    cur = (i + flat.length) % flat.length;
+    const it = flat[cur];
+    const body = $('lbBody');
+    if (it.kind === 'img') body.innerHTML = `<img src="${esc(it.url)}" alt="">`;
+    else if (it.kind === 'vid') body.innerHTML = `<video src="${esc(it.url)}" controls autoplay playsinline></video>`;
+    else if (it.kind === 'aud') body.innerHTML = `<audio src="${esc(it.url)}" controls autoplay></audio>`;
+    else body.innerHTML = `<a class="btn" href="${esc(it.url)}" target="_blank" rel="noopener">📄 Åbn ${esc(it.name)}</a>`;
+    $('lbCap').textContent = (texts.captions || {})[it.name] || '';
+    $('lbWhen').textContent = when(it);
+    $('lb').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLb() { $('lb').classList.add('hidden'); $('lbBody').innerHTML = ''; document.body.style.overflow = ''; }
+  $('lbX').onclick = closeLb;
+  $('lbPrev').onclick = () => openLb(cur - 1);
+  $('lbNext').onclick = () => openLb(cur + 1);
+  $('lb').addEventListener('click', e => { if (e.target.id === 'lb') closeLb(); });
+  addEventListener('keydown', e => {
+    if ($('lb').classList.contains('hidden')) return;
+    if (e.key === 'Escape') closeLb();
+    if (e.key === 'ArrowLeft') openLb(cur - 1);
+    if (e.key === 'ArrowRight') openLb(cur + 1);
+  });
+  let sx = null;
+  $('lb').addEventListener('touchstart', e => sx = e.touches[0].clientX, { passive: true });
+  $('lb').addEventListener('touchend', e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 50) openLb(cur + (dx < 0 ? 1 : -1)); sx = null; });
+
+  /* ---------- buttons ---------- */
+  $('partyBtn').onclick = () => { flagRain(); balloons(10); };
+  $('againBtn').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); boom(true); balloons(12); };
+  $('songBtn').onclick = song;
+  const cake = $('cake');
+  const blow = () => {
+    if (cake.classList.contains('out')) { cake.classList.remove('out'); $('wish').classList.add('hidden'); return; }
+    cake.classList.add('out'); $('wish').classList.remove('hidden'); boom(true); flagRain();
+  };
+  cake.onclick = blow;
+  cake.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); blow(); } };
+
+  /* ---------- load / login ---------- */
+  async function load() {
+    const r = await fetch(`/api/celebration?gallery=${encodeURIComponent(slug)}`, { credentials: 'same-origin' });
+    if (r.status === 401) { $('login').classList.remove('hidden'); $('pw').focus(); boom(false); return; }
+    if (!r.ok) { $('heroSub').textContent = 'Siden findes ikke.'; return; }
+    $('login').classList.add('hidden');
+    render(await r.json());
+  }
+  $('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gallery: slug, password: $('pw').value }) });
+    if (r.ok) load(); else $('loginErr').textContent = 'Forkert kode – prøv igen 🙈';
+  });
+  $('heroName').textContent = '…';
+  load();
+})();
+</script>
+</body>
+</html>
