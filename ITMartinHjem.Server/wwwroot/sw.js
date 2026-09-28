@@ -21,8 +21,12 @@ self.addEventListener('notificationclick', function (e) {
     e.notification.close();
     var url = (e.notification.data && e.notification.data.url) || '/admin';
     e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+        // iPhone: navigate() on an already-open app can fail - then open the page fresh.
         for (var i = 0; i < list.length; i++) {
-            if ('focus' in list[i]) { list[i].navigate(url); return list[i].focus(); }
+            var c = list[i];
+            if ('focus' in c && 'navigate' in c) {
+                return c.focus().then(function (w) { return w.navigate(url); }).catch(function () { return self.clients.openWindow(url); });
+            }
         }
         return self.clients.openWindow(url);
     }));
