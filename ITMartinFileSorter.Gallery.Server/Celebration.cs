@@ -62,9 +62,32 @@ public static partial class Celebration
             .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        items = DropDuplicates(items, folder);
+
         var timeline = new Timeline(DateTime.UtcNow, items);
         lock (Cache) Cache[slug] = timeline;
         return timeline;
+    }
+
+    // Person folders can hold byte-identical copies ("P1240031.jpg" + "P1240031_2.jpg")
+    // left behind by the rotation fix. Show each picture once; only files of equal
+    // size are hashed, so this stays cheap.
+    private static List<Item> DropDuplicates(List<Item> items, string folder)
+    {
+        var bySize = items.GroupBy(i => new FileInfo(Path.Combine(folder, i.Name)).Length)
+            .Where(g => g.Count() > 1);
+        var drop = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in bySize)
+        {
+            var seen = new HashSet<string>();
+            foreach (var item in group.OrderBy(i => i.Name.Length).ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                using var stream = File.OpenRead(Path.Combine(folder, item.Name));
+                var hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(stream));
+                if (!seen.Add(hash)) drop.Add(item.Name);
+            }
+        }
+        return drop.Count == 0 ? items : items.Where(i => !drop.Contains(i.Name)).ToList();
     }
 
     public static JsonElement? Texts(string libraryRoot, string folderRel)

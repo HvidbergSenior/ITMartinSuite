@@ -1156,7 +1156,9 @@ static string? GalleriThumb(string f, string r, string slug)
 {
     var rel = Rel(f, r);
     var t = Path.Combine(r, "_Galleri", "thumbs", Path.GetDirectoryName(rel) ?? "", Path.GetFileNameWithoutExtension(f) + ".jpg");
-    return File.Exists(t) ? Web(t, r, slug) : null;
+    // Versioned by mtime: Cloudflare caches thumbnails for hours, so a regenerated
+    // (e.g. un-rotated) thumbnail would otherwise keep showing the old one.
+    return File.Exists(t) ? Web(t, r, slug) + "?v=" + File.GetLastWriteTimeUtc(t).Ticks : null;
 }
 
 // The still and its Live Photo motion clip are exported into separate

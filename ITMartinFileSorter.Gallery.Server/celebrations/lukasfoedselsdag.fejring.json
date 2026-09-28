@@ -29,5 +29,11 @@
     "2025": { "title": "22 og i fuld gang", "text": "Livet kører – og billederne bliver færre, men bedre." },
     "2026": { "title": "23 – og det er i dag! 🎉", "text": "Det seneste kapitel. Og det bedste er, at det slet ikke er slut endnu." }
   },
-  "captions": {}
+  "captions": {},
+  "rotate": {
+    "P1240049.jpg": 90,
+    "P7040010.jpg": 90,
+    "P7160102.jpg": 90,
+    "Silkeborg Højskole Lukas Bedstemor 044.jpg": 90
+  }
 }
