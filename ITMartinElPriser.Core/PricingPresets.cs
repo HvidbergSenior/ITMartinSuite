@@ -33,7 +33,9 @@ public sealed class GridCompanyPreset
             // Lav = 13.43 øre inkl. moms on a Sept 2026 NRGi/N1 bill (10.74 ex). Winter
             // høj/spids use the standard 1:3:9 band ratios until a winter bill confirms
             // the real figures. Forbrugsabonnement 46.15 kr/md inkl. moms.
-            Id = "n1", Name = "N1", Region = "Nordjylland og Midtjylland (Aarhus)",
+            // Named "N1" until 2026-09-28, but the bill it came from says Konstant Net A/S (Aarhus).
+            // Id stays "n1" so settings already saved in phones' cookies keep working.
+            Id = "n1", Name = "Konstant", Region = "Aarhus og Østjylland",
             WinterLavOre = 10.74, WinterHojOre = 32.2, WinterSpidslastOre = 96.7, MonthlySubscriptionKr = 36.92,
         },
         new()

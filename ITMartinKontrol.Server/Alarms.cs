@@ -125,27 +125,42 @@ public sealed class AlarmService(DockerClient docker, Sampler sampler, PushStore
         if (h.DiskTotalGb > 0)
             Immediate($"disk:{_host}", h.DiskUsedGb / h.DiskTotalGb * 100 >= _diskPct, seen, $"Disk {h.DiskUsedGb / h.DiskTotalGb * 100:0} % fuld på {_host}");
 
-        // 2. Containers that were running and are not any more.
+        // 2. Containers that were running and are not any more. Sustained, not immediate: a
+        // deploy recreates the container and it is gone for seconds - that sent a red and a
+        // green push per app on every deploy (2026-09-28). A real stop still alarms after 3 min.
         var containers = await docker.ListAllAsync(ct);
+        var stopped = new HashSet<string>(containers.Where(c => !c.Running).Select(c => c.Name), StringComparer.Ordinal);
         foreach (var c in containers)
         {
             var key = $"down:{_host}:{c.Name}";
-            if (c.Running) { _wasRunning.Add(c.Name); Immediate(key, false, seen, ""); }
-            else if (_wasRunning.Contains(c.Name)) Immediate(key, true, seen, $"{c.Name} er stoppet på {_host}");
+            if (c.Running) { _wasRunning.Add(c.Name); Sustained(key, false, now, seen, ""); }
+            else if (_wasRunning.Contains(c.Name)) Sustained(key, true, now, seen, $"{Title(c.Name)} er stoppet på {_host}", sustainMinutes: 3);
         }
 
-        // 3. Peers.
+        // 3. Peers. "Up" = its container list answers. Its /health also counts the backup
+        // check, which only the NAS can see, so the photoserver always looked down.
         foreach (var p in _peers)
         {
             bool up;
-            try { using var r = await f.CreateClient("peer").GetAsync(p.Url.TrimEnd('/') + "/health", ct); up = r.IsSuccessStatusCode; }
+            try
+            {
+                using var r = await f.CreateClient("peer").GetAsync(p.Url.TrimEnd('/') + "/api/hosts", ct);
+                up = r.IsSuccessStatusCode;
+                if (up)
+                {
+                    var remote = JsonSerializer.Deserialize<List<HostView>>(await r.Content.ReadAsStringAsync(ct), new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [];
+                    foreach (var c in remote.SelectMany(x => x.Containers).Where(c => !c.Running)) stopped.Add(c.Name);
+                }
+            }
             catch { up = false; }
             Sustained($"peer:{p.Name}", !up, now, seen, $"{p.Name} svarer ikke", sustainMinutes: 10);
         }
 
-        // 4. Kolibri apps (public URL, whole chain).
+        // 4. Kolibri apps (public URL, whole chain). An app whose container was switched off
+        // on purpose (Stem, Forløbet ...) is not "down" - no alarm for that.
         foreach (var a in _apps)
         {
+            if (ContainerFor(a.Url) is { } cn && stopped.Contains(cn)) continue;
             bool ok;
             try
             {
@@ -170,12 +185,36 @@ public sealed class AlarmService(DockerClient docker, Sampler sampler, PushStore
         }
     }
 
+    // Friendly names and addresses from wwwroot/apps.json, so a push says "Galleri er stoppet"
+    // instead of "gallery-web er stoppet".
+    private static readonly Dictionary<string, (string Title, string Url)> Catalog = LoadCatalog();
+    private static Dictionary<string, (string Title, string Url)> LoadCatalog()
+    {
+        try
+        {
+            var file = Path.Combine(AppContext.BaseDirectory, "wwwroot", "apps.json");
+            using var doc = JsonDocument.Parse(File.ReadAllText(file));
+            return doc.RootElement.EnumerateObject()
+                .Where(p => p.Value.ValueKind == JsonValueKind.Object)
+                .ToDictionary(p => p.Name, p => (
+                    p.Value.TryGetProperty("title", out var t) ? t.GetString() ?? p.Name : p.Name,
+                    p.Value.TryGetProperty("url", out var u) ? u.GetString() ?? "" : ""));
+        }
+        catch { return new(); }
+    }
+    private static string Title(string container) => Catalog.TryGetValue(container, out var c) ? c.Title : container;
+    private static string? ContainerFor(string url)
+    {
+        var host = Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : url;
+        return Catalog.FirstOrDefault(kv => kv.Value.Url.Length > 0 && Uri.TryCreate(kv.Value.Url, UriKind.Absolute, out var cu) && cu.Host == host).Key;
+    }
+
     private static string Pretty(string key) => key.Split(':', 2) switch
     {
         ["cpu", var h] => $"CPU normal på {h}",
         ["mem", var h] => $"RAM normal på {h}",
         ["disk", var h] => $"Disk under grænsen på {h}",
-        ["down", var rest] => $"{rest.Split(':').Last()} kører igen",
+        ["down", var rest] => $"{Title(rest.Split(':').Last())} kører igen",
         ["peer", var p] => $"{p} svarer igen",
         ["backup", _] => "Backup kørte igen",
         ["app", var a] => $"{a} svarer igen",
