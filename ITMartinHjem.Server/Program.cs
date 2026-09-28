@@ -93,6 +93,7 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://itmartin.dk https://www.itmartin.dk";
     await next();
 });
+app.UseDefaultFiles();   // /pilot/ and /rejsedemo/ -> their index.html
 app.UseStaticFiles(new StaticFileOptions
 {
     // widget.js is loaded by itmartin.dk: allow it, and keep the cache short so changes show up.
@@ -172,6 +173,27 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
     ctx.Response.Headers.CacheControl = "public, max-age=604800";
     return Results.File(path, name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType, enableRangeProcessing: true);
 });
+
+// ── The pilot form (wwwroot/pilot/index.html posts to send.php, as it did on one.com).
+// Instead of a mail it becomes a conversation in Svar, with a push to Martin's phone.
+app.MapPost("/pilot/send.php", async (HttpContext ctx, ChatService chat) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    string F(string k) => form[k].ToString().Trim();
+    if (F("website").Length > 0) return Results.Redirect("/pilot/");            // spam trap
+    var (ydelse, navn, tlf, by, besked) = (F("ydelse"), F("navn"), F("telefon"), F("by"), F("besked"));
+    if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/pilot/#form");
+    await chat.VisitorWritesAsync("pilot-" + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
+        $"🐦 Pilot-henvendelse: {ydelse}\nTelefon: {tlf}\nBy: {by}\n\n{besked}");
+    Func<string?, string?> e = System.Net.WebUtility.HtmlEncode;
+    return Results.Content($$"""
+        <!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tak</title>
+        <style>body{font:18px/1.5 system-ui,sans-serif;max-width:560px;margin:60px auto;padding:0 16px;color:#1d2a25}a{color:#1f7a5c}</style></head>
+        <body><h1>Tak, {{e(navn)}}!</h1>
+        <p>Jeg har fået din besked om <b>{{e(ydelse)}}</b> og ringer til dig på {{e(tlf)}} inden for to dage.</p>
+        <p><a href="/pilot/">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
+        """, "text/html");
+}).DisableAntiforgery();
 
 // ── Pictures on the pages (Om mig …): only files that a page actually uses.
 app.MapGet("/f/{name}", async (string name, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>

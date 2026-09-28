@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ITMartin søger de første til ITKolibri</title>
+<meta name="description" content="Gratis pilot: fotos i orden, pc-tjek, el-forbrug, cd-samling på telefonen, beslutninger og værkstedsjournal. ITMartin hjælper – appen er værktøjet, du beholder den.">
+<style>
+:root{--bg:#f7faf8;--ink:#1d2a25;--mut:#5c6b65;--card:#fff;--line:#dfe7e3;--brand:#1f7a5c;--brand2:#e9f5ef;--warm:#c96a2b}
+@media(prefers-color-scheme:dark){:root{--bg:#121917;--ink:#ecf2ee;--mut:#9fb0a8;--card:#1b2420;--line:#2b3733;--brand:#4fc394;--brand2:#1f3a30}}
+*{box-sizing:border-box}body{margin:0;font:17px/1.5 system-ui,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+.wrap{max-width:960px;margin:0 auto;padding:24px 16px 64px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.logo{width:40px;height:40px}
+header b{font-size:18px}header span{color:var(--mut);font-size:14px;display:block}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.15;margin:0 0 12px}
+.lead{font-size:18px;color:var(--mut);max-width:680px;margin:0 0 32px}.lead p{margin:0 0 12px}.lead b{color:var(--ink)}
+.pakke{margin-bottom:40px;--acc:var(--brand)}.pakke:nth-of-type(1){--acc:#1f7a5c}.pakke:nth-of-type(2){--acc:#2b6cb0}.pakke:nth-of-type(3){--acc:#b7791f}.pakke:nth-of-type(4){--acc:#8b4a2b}.pakke:nth-of-type(5){--acc:#6b46c1}.pakke:nth-of-type(6){--acc:#c53030}.pakke:nth-of-type(7){--acc:#2c7a7b}.pakke-head h2{color:var(--acc)}.pakke .card{border-top:4px solid var(--acc)}.pakke .card .tag,.pakke .detail .tag,.pakke .detail h3{color:var(--acc)}.pakke .card .more{border-color:var(--acc);color:var(--acc)}.pakke .card.open{border-color:var(--acc);box-shadow:none}.pakke .card.open .more{background:var(--acc);color:#fff}.pakke .detail{border-color:var(--acc);border-left-width:6px}.pakke .detail a{background:var(--acc)}.pakke-head{margin:0 0 14px}.pakke-head .tag{font-size:13px;color:var(--brand);font-weight:600;letter-spacing:.3px}.pakke-head h2{margin:2px 0 6px;font-size:26px}.pakke-head p{margin:0;color:var(--mut);font-size:16px;max-width:820px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;cursor:pointer}.card.open{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand2)}.card .fn,.card p{display:none}.card .more{margin-top:auto;padding:8px 12px;border:1px solid var(--brand);border-radius:8px;background:transparent;color:var(--brand);font:inherit;font-size:14px;font-weight:600;cursor:pointer}.card.open .more{background:var(--brand);color:#fff}.detail{display:none;margin-top:12px;padding:20px;border:1px solid var(--brand);border-radius:14px;background:var(--card)}.detail.show{display:block}.detail .tag{font-size:13px;color:var(--brand);font-weight:600}.detail .sub{font-size:18px;color:var(--ink);font-weight:600;margin:0 0 10px}.detail .title{margin:0 0 10px;font-size:16px}.detail h3{margin:2px 0 4px;font-size:24px;color:var(--brand)}.detail .intro{margin:0 0 12px;color:var(--mut);font-size:15px}.detail .fn,.detail .fn2{margin:0 0 10px;color:var(--mut);font-size:15px}.detail .fn{font-style:italic}.detail .fn2 b{color:var(--ink)}.detail p{margin:0 0 10px;color:var(--mut);font-size:15px}.detail p b{color:var(--ink)}.detail .list{padding-left:18px;line-height:1.7}.detail .free{display:block;margin:6px 0 10px;font-size:14px;color:var(--warm);font-weight:600}.detail a{display:inline-block;padding:10px 14px;border-radius:10px;background:var(--brand);color:#fff;text-decoration:none;font-weight:600}.detail .close{float:right;border:0;background:none;color:var(--mut);font-size:22px;cursor:pointer;padding:0;margin:0;width:auto}
+.card .fn{font-style:italic;color:var(--brand)!important}
+.card .tag{font-size:13px;color:var(--brand);font-weight:600;letter-spacing:.3px}
+.card h2{margin:0;font-size:17px;line-height:1.3}.card p{margin:0;color:var(--mut);font-size:15px}.card p b{color:var(--ink)}.card p:last-of-type{flex:1}
+.card .free{font-size:13px;color:var(--warm);font-weight:600}
+.card a{display:none}
+form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;max-width:640px}
+form h2{margin:0 0 6px}form p{margin:0 0 16px;color:var(--mut)}
+label{display:block;font-weight:600;margin:12px 0 4px;font-size:15px}
+input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--bg);color:var(--ink)}
+textarea{min-height:90px}
+button{margin-top:18px;width:100%;padding:14px;border:0;border-radius:10px;background:var(--brand);color:#fff;font:inherit;font-weight:700;font-size:18px}
+.terms{margin-top:40px;padding:18px;border-left:4px solid var(--brand);background:var(--brand2);border-radius:0 12px 12px 0}
+.terms h3{margin:0 0 6px}.terms p{margin:0 0 6px}
+footer{margin-top:40px;color:var(--mut);font-size:14px}
+.hp{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><b>ITMartin</b><span>ITKolibri – hjælp til hverdagens processer</span></div>
+</header>
+
+<h1>Jeg søger de første til ITKolibri</h1>
+<div class="lead">
+<p>Jeg hjælper <b>familier, foreninger og små forretninger</b> med at få styr på noget konkret.</p>
+<p>Hver Kolibri løser ét problem, I kender fra hverdagen.</p>
+<p>Jeg gør arbejdet sammen med jer. En lille app er værktøjet. Og bagefter <b>beholder I den</b>, så I selv kan bruge den og følge med.</p>
+<p>Det kan være at få styr på familiens økonomi, sortere mange års fotos, samle gamle CD'er og DVD'er, holde styr på dagens opgaver, scanne en samling eller få overblik over strømforbruget.</p>
+<p><b>Små problemer. Små værktøjer. Konkrete løsninger.</b></p>
+<p>De første får løsningen <b>gratis mod ærlig feedback</b>, så jeg kan se, hvad der faktisk virker – og hvad der skal gøres bedre.</p>
+</div>
+
+
+<section class="pakke">
+  <div class="pakke-head"><h2>Familiens minder</h2></div>
+  <div class="grid">
+  <div class="card v2" data-sub="Filsortering" data-notitle="1"><span class="tag">ITKolibri · Nektar</span><h2>Mange års fotos – spredt overalt</h2>
+    <p class="fn">En kolibris tunge er ikke et sugerør. Den folder sig ud, fanger nektaren og presser hver dråbe ud – 15–20 gange i sekundet.</p>
+    <p class="fn2"><b>ITKolibri · Nektar gør det samme med dine filer:</b> Den finder det værdifulde, sorterer det og presser dubletter og støj fra.</p>
+    <p><b>Problem:</b> Fotos ligger på telefoner, gamle computere, USB-stik og måske endda i flere clouds, I betaler for. Der er dubletter overalt. Ingen ved helt, hvad der ligger hvor – og ingen tør slette noget, fordi tænk nu, hvis det er det eneste sted, billedet findes. <b>Jeg samler det hele, skaber overblik, finder dubletterne og hjælper jer med at få styr på jeres billeder.</b></p>
+    <p><b>Løsning:</b> Jeg henter det hele, fjerner dubletter, sorterer billederne efter år og begivenheder og finder personer og steder. Til sidst får I ét privat galleri til hele familien – lige på telefonen. <b>Bagefter rydder vi jeres clouds sammen, så I ikke længere betaler for unødvendig plads.</b></p>
+    <p><b>Eksempel:</b> En familie med 87.000 filer kan efter oprydning stå tilbage med omkring 34.000 unikke billeder – og i nogle tilfælde spare 300–1.200 kr. om året på cloud-abonnementer, der ikke længere er nødvendige.</p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Nektar – fotos">Jeg vil gerne være pilot</a></div>
+  <div class="card v2" data-sub="Dine CD'er og DVD'er – samlet ét sted" data-notitle="1"><span class="tag">ITKolibri · Rede</span><h2>Dine CD'er og DVD'er – samlet ét sted</h2>
+    <p class="fn">En kolibris rede er det sted, hvor alt samles.</p>
+    <p class="fn2"><b>ITKolibri · Rede samler jeres CD'er og DVD'er i ét digitalt mediebibliotek, som I kan bruge fra telefonen, tabletten og TV'et.</b></p>
+    <p>I stedet for kasser med CD'er på loftet og DVD'er i skabe bliver jeres egen samling tilgængelig fra ét program – med musik og film klar til afspilning.</p>
+    <p><b>Problem:</b> I har måske hundredvis af CD'er og DVD'er, som I stadig gerne vil høre og se. Men de står i kasser eller på hylder, og CD- eller DVD-afspilleren bliver brugt mindre og mindre.</p>
+    <p>Streaming løser heller ikke helt problemet. Tjenesterne har hver deres udvalg – én har filmen, en anden har serien, og næste år kan den være væk igen.</p>
+    <p><b>Løsning:</b> Jeg har udviklet ITKolibri · Rede til at samle jeres egen musik og film digitalt.</p>
+    <p>CD'er rippes til musik, DVD'er rippes til film, og det hele bliver organiseret i ét bibliotek, som I kan tilgå fra jeres telefon, tablet eller TV.</p>
+    <p><b>Det er jeres samling.</b></p>
+    <p>I er ikke afhængige af, om en streamingtjeneste har netop den film eller det album, I vil høre. Og I kan fortsætte med at lægge nye CD'er og DVD'er ind i samlingen.</p>
+    <p><b>Eksempel:</b> 200 CD'er og 80 DVD'er kan være en samling, der oprindeligt har kostet omkring <b>30.000 kr.</b></p>
+    <p>Nu kan den samme samling igen være tilgængelig – uden at I behøver finde CD'en eller DVD'en frem.</p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Rede – cd/dvd">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Gør billeder til det, du vil have dem til at være" data-notitle="1"><span class="tag">ITKolibri · Glans</span><h2>Billeder, der skal se ordentlige ud</h2>
+    <p class="fn">Kolibriens fjer skifter farve med lyset og kan få den til at se ud, som om den glimter.</p>
+    <p class="fn2"><b>ITKolibri · Glans manipulerer billeder.</b></p>
+    <p>Skift baggrunden. Fjern noget, der ikke skal være der. Genskab et område. Gør et gammelt billede skarpere. Eller giv billedet et helt nyt udtryk.</p>
+    <p><b>Problem:</b> Du har et billede, der næsten er rigtigt – men ikke helt.</p>
+    <p>Baggrunden er forkert. Der står noget i vejen. Et produkt skal fritlægges. Et gammelt foto trænger til at blive forbedret. Eller du vil se, hvordan billedet ser ud med en helt anden stil.</p>
+    <p><b>Løsning:</b> Læg billedet op og fortæl ITKolibri · Glans, hvad du vil ændre.</p>
+    <p class="list"><b>Skift baggrunden</b><br><b>Fjern eller tilføj elementer</b><br><b>Ret et bestemt område</b><br><b>Forstør og forbedr billedet</b><br><b>Genskab eller ændr detaljer</b><br><b>Lån udtrykket fra et andet billede</b></p>
+    <p>Du behøver ikke kunne Photoshop.</p>
+    <p><b>Du fortæller, hvad der skal ændres. ITKolibri · Glans gør det.</b></p>
+    <p><b>Eksempel:</b> Et produktfoto med en rodet baggrund bliver til et rent webshopfoto. Et gammelt familiebillede bliver skarpere. Eller et almindeligt foto får en helt ny baggrund.</p>
+    <p><b>Ét billede ind. Din idé ud.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Glans – billedbehandling">Jeg vil gerne være pilot</a></div>
+
+  </div>
+  <div class="detail"></div>
+</section>
+<section class="pakke">
+  <div class="pakke-head"><h2>Når I er flere om det</h2></div>
+  <div class="grid">
+  <div class="card v2" data-sub="Beslutninger uden gruppechat" data-notitle="1"><span class="tag">ITKolibri · Bestøver</span><h2>Beslutninger uden gruppechat</h2>
+    <p class="fn">Kolibrien flyver fra blomst til blomst og får hele haven til at bære frugt.</p>
+    <p class="fn2"><b>ITKolibri · Bestøver samler alle om én beslutning.</b></p>
+    <p><b>Problem:</b> Datoen for festen. Farven på hegnet. Hvilket foto skal på væggen. Hvem tager hvad?</p>
+    <p>Det foregår ofte i flere forskellige gruppechats. Halvdelen svarer ikke, nogle svarer flere gange, og bagefter er ingen helt sikre på, hvad der faktisk blev besluttet.</p>
+    <p><b>Løsning:</b> Send ét link.</p>
+    <p>Alle stemmer fra telefonen, og alle svar samles ét sted.</p>
+    <p>Almindelig afstemning. Datoer med <b>ja / nej / måske</b>. Billeder, der skal gives point. Eller en hel pakke af spørgsmål på én gang.</p>
+    <p>Når alle har svaret, ligger <b>resultatet der</b>.</p>
+    <p>Ingen lange beskedtråde. Ingen regneark. Ingen tvivl om, hvad flertallet svarede.</p>
+    <p><b>Eksempler:</b></p>
+    <p><b>Ladestandere i foreningen</b><br>Fire spørgsmål i én afstemning. 11 husstande svarede, og bestyrelsen fik tal i stedet for mavefornemmelser.</p>
+    <p><b>Ferie på Mallorca 2027</b><br>To familier skulle finde den uge, der passede flest. Ja / nej / måske pr. dato gav 136 svar – uden én eneste lang SMS-tråd.</p>
+    <p><b>Mit eget logo</b><br>Fem forslag. 117 bedømmelser. Beslutningen var taget på én aften.</p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Bestøver – beslutninger">Jeg vil gerne prøve</a></div>
+
+  <div class="card v2" data-sub="Tal på bordet, før du beslutter" data-notitle="1"><span class="tag">ITKolibri · Puls</span><h2>Tal på bordet, før du beslutter</h2>
+    <p class="fn">Når energien ikke rækker, skruer kolibrien ned og sparer på kræfterne.</p>
+    <p class="fn2"><b>ITKolibri · Puls finder de steder, hvor du bruger energi, penge eller ressourcer – og viser, hvor der kan skrues ned.</b></p>
+    <p><b>Problem:</b> Du ved måske, at noget er dyrt. Men hvor meget? Og hvor ligger den største besparelse?</p>
+    <p>Det kan være strømforbruget i hjemmet. En bil. Et abonnement. En fælles løsning. Eller en investering, hvor flere muligheder skal sammenlignes.</p>
+    <p><b>Løsning:</b> ITKolibri · Puls samler tallene og gør dem sammenlignelige.</p>
+    <p>Du kan se dit forbrug, sammenligne løsninger og regne på, hvad forskellige valg betyder over tid.</p>
+    <p><b>Eksempel:</b> En forening skal vælge ladestandere. ITKolibri · Puls kan sammenligne anlæg, abonnement, forbrug og pris over fem år, så bestyrelsen kan se, hvad de forskellige løsninger faktisk koster.</p>
+    <p><b>Tal på bordet. Før beslutningen.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Puls Forening – ladestander">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Forbrug og udgifter – samlet ét sted" data-notitle="1"><span class="tag">ITKolibri · Puls</span><h2>Forbrug og udgifter – samlet ét sted</h2>
+    <p class="fn">Når energien ikke rækker, skruer kolibrien ned. Den sparer på kræfterne og starter igen, når energien vender tilbage.</p>
+    <p class="fn2"><b>ITKolibri · Puls finder de steder, hvor der bliver brugt mere, end der er brug for.</b></p>
+    <p><b>Problem:</b> Fælles el, abonnementer, ladestandere, fælleshus og andre løbende udgifter kan hurtigt blive spredt over forskellige leverandører og regninger.</p>
+    <p>Ingen har det samlede overblik.</p>
+    <p>Hvad bruger vi? Hvad betaler vi for? Hvilke aftaler har vi? Og er der noget, vi ikke længere har brug for?</p>
+    <p><b>Løsning:</b> ITKolibri · Puls samler tallene ét sted.</p>
+    <p>Forbrug pr. installation. Abonnementer og aftaler med pris og opsigelsesdato. Leverandører og priser. Ladestandere og deres forbrug. Og en enkel opgørelse af, hvor pengene og energien bliver brugt.</p>
+    <p>Så bliver det lettere at se, <b>hvor der kan skrues ned.</b></p>
+    <p><b>Eksempel:</b> En forening får samlet fælles el, ladestandere og abonnementer i ét overblik.</p>
+    <p>Bestyrelsen kan se forbruget, aftalerne og de løbende udgifter – og har <b>én side med tallene</b>, når der skal træffes beslutninger på generalforsamlingen.</p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Puls Forening – fælles el">Jeg vil gerne være pilot</a></div>
+
+  </div>
+  <div class="detail"></div>
+</section>
+<section class="pakke">
+  <div class="pakke-head"><h2>Den lille forretning</h2></div>
+  <div class="grid">
+  <div class="card v2" data-sub="Økonomi – den lille forretning" data-notitle="1"><span class="tag">ITKolibri · Tunge</span><h2>Økonomi – den lille forretning</h2>
+    <p class="fn">En kolibris tunge smager nektaren 15–20 gange i sekundet og lader ikke en dråbe gå til spilde.</p>
+    <p class="fn2"><b>ITKolibri · Tunge smager på hver krone i den lille forretning.</b></p>
+    <p><b>Problem:</b> Forretningen kører på mavefornemmelse. Kontoudtoget ryger måske til revisoren én gang om året, men måned for måned kan det være svært at se de faste omkostninger, sæsonudsvingene – og hvad der egentlig er tilbage til løn.</p>
+    <p><b>Løsning:</b> ITKolibri · Tunge samler virksomhedens økonomi i et enkelt overblik.</p>
+    <p>Kontoudtog ind. En kontoplan, der giver mening for netop jeres forretning. Faste udgifter. Kommende betalinger som husleje, moms og forsikring. Sæsonudsving og udviklingen måned for måned.</p>
+    <p>Så kan I se:</p>
+    <p><b>Hvad der er sket.<br>Hvad der kommer.<br>Hvad der er tilbage.</b></p>
+    <p>Og når kvartalet er slut, kan revisoren få en samlet og overskuelig pakke.</p>
+    <p><b>Eksempel:</b> Hos en lille butik lå forretning og privatøkonomi på samme konto. Da økonomien blev skilt ad, blev omkring <b>34.000 kr. om året i små faste aftaler</b> synlige – alarm, forsikring, abonnementer og el.</p>
+    <p>Samtidig blev det tydeligt, hvorfor kassekreditten gik i minus: <b>B-skat, moms og husleje ramte på samme tid.</b></p>
+    <p><b>ITKolibri · Tunge gør økonomien synlig, før den bliver et problem.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Tunge Pro – økonomi forretning">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Kvitteringer – fotograferet, færdig" data-notitle="1"><span class="tag">ITKolibri · Tunge Bilag</span><h2>Kvitteringer – fotograferet, færdig</h2>
+    <p class="fn">En kolibris tunge smager nektaren 15–20 gange i sekundet og lader ikke en dråbe gå til spilde.</p>
+    <p class="fn2"><b>ITKolibri · Tunge Bilag gør det samme med dine kvitteringer: fanger dem, læser dem og får dem på plads.</b></p>
+    <p><b>Problem:</b> Bilag ligger i handskerummet, i jakkelommen og i mailen.</p>
+    <p>Sidst på måneden mangler der altid tre, og bogholderen rykker igen.</p>
+    <p><b>Løsning:</b> Tag et foto af kvitteringen, når du får den.</p>
+    <p>ITKolibri · Tunge Bilag læser <b>beløb, dato, butik og moms</b> og placerer bilaget under den rigtige måned.</p>
+    <p>Bogholderen får en samlet oversigt med billederne bagved.</p>
+    <p>Ingen kuverter med krøllede boner. Ingen jagt på manglende bilag.</p>
+    <p><b>Eksempel:</b> En håndværker med 60 bilag om måneden går fra to timers sortering til næsten ingen manuel sortering.</p>
+    <p><b>Ét foto. Bilaget er fanget.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Tunge Bilag – kvitteringer">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Udfyld, underskriv og saml PDF'er – uden abonnement" data-notitle="1"><span class="tag">ITKolibri · Flyve</span><h2>Udfyld, underskriv og saml PDF'er – uden abonnement</h2>
+    <p class="fn">Kolibrien kan flyve lodret op uden tilløb.</p>
+    <p class="fn2"><b>ITKolibri · Flyve gør det samme med dine papirer: udfyld, underskriv og send – uden omveje.</b></p>
+    <p><b>Problem:</b> Kommunens blanket skal udfyldes og underskrives. Lejekontrakten ligger som fem billeder. Eller du har flere sider, der skal samles til én PDF.</p>
+    <p>De gratis onlineværktøjer vil ofte have din mailadresse eller dine betalingsoplysninger.</p>
+    <p><b>Løsning:</b> Vælg PDF'en og klik dér, hvor du vil skrive eller sætte din underskrift.</p>
+    <p>Når du er færdig, henter du den færdige fil.</p>
+    <p>Har du billeder af flere sider, samler ITKolibri · Flyve dem til <b>én PDF i den rigtige rækkefølge</b>. Appen kigger på indholdet – ikke kun på filnavnene.</p>
+    <p>Dine dokumenter behandles på en server i Danmark og slettes bagefter.</p>
+    <p><b>Eksempel:</b> En boligansøgning på syv sider: udfyldt, underskrevet og sendt fra telefonen på <b>10 minutter</b>.</p>
+    <p><b>Papir ind. Underskrevet PDF ud.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Flyve – PDF">Jeg vil gerne prøve</a></div>
+
+  </div>
+  <div class="detail"></div>
+</section>
+<section class="pakke">
+  <div class="pakke-head"><h2>Værkstedet</h2></div>
+  <div class="grid">
+  <div class="card v2" data-sub="Værkstedets hukommelse" data-notitle="1"><span class="tag">ITKolibri · Hukommelse</span><h2>Værkstedets hukommelse</h2>
+    <p class="fn">Kolibrien husker, hvor hver blomst står, og hvornår den sidst gav nektar.</p>
+    <p class="fn2"><b>ITKolibri · Hukommelse husker værkstedets erfaring, så næste gang går hurtigere.</b></p>
+    <p><b>Problem:</b> 20 års viden sidder i hovedet på mester.</p>
+    <p><i>Hvordan gjorde jeg det stel sidste gang?</i></p>
+    <p>Fotos ligger spredt på telefoner, noter ligger forskellige steder, og når telefonen bliver skiftet, forsvinder overblikket.</p>
+    <p>Ved en reklamation kan dokumentationen for, hvad der blev gjort, også være svær at finde.</p>
+    <p><b>Løsning:</b> Ét tryk, og billedet bliver gemt direkte på dagens job.</p>
+    <p>Senere kan du søge:</p>
+    <p><b>“Hvordan gjorde jeg det sidste gang?”</b></p>
+    <p>Du finder billeder, noter og tidligere løsninger fra dine egne jobs.</p>
+    <p>På den måde bliver værkstedets erfaring ikke kun i hovedet på én person. Den bliver en del af værkstedets hukommelse.</p>
+    <p><b>Tavlen:</b> Færdige møbler kan også vises på <b>Tavlen</b> – sammen med andre polstrere.</p>
+    <p>Kunder og kolleger kan se, hvad I laver, og kunden kan få et direkte link:</p>
+    <p><b>“Se dit møbel.”</b></p>
+    <p><b>Eksempel:</b> En møbelpolstrer får et nyt møbel ind og skriver med det samme, hvad der skal gøres.</p>
+    <p>Undervejs tager hun billeder af processen. Ét tryk, og billederne ligger på jobbet.</p>
+    <p>Før hun går i gang med stellet, søger hun efter en tidligere løsning, der passer.</p>
+    <p>Og når kunden spørger <b>“Hvordan går det?”</b>, sender hun et link i stedet for at forklare det hele.</p>
+    <p><b>Alt samlet i én app.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Hukommelse – værksted">Jeg vil gerne være pilot</a></div>
+
+  </div>
+  <div class="detail"></div>
+</section>
+<section class="pakke">
+  <div class="pakke-head"><h2>Hverdagen</h2></div>
+  <div class="grid">
+  <div class="card v2" data-sub="Hvem gør hvad i dag?" data-notitle="1"><span class="tag">ITKolibri · Bestøver Dag</span><h2>Hvem gør hvad i dag?</h2>
+    <p class="fn">Kolibrien tager dagen i små, præcise træk.</p>
+    <p class="fn2"><b>ITKolibri · Bestøver Dag giver hver person sin egen liste over dagens opgaver.</b></p>
+    <p><b>Problem:</b> Familien, klubben, butikken eller de frivillige har ting, der skal gøres hver dag – men ingen ved helt, hvem der gør hvad.</p>
+    <p>Opgaverne ligger i hovedet på én person. Aftalerne ligger i gruppechats. Og nogle ting bliver bare glemt.</p>
+    <p><b>Løsning:</b> ITKolibri · Bestøver Dag starter med det enkleste:</p>
+    <p><b>Hvem gør hvad – og hvilken dag?</b></p>
+    <p>Fordel opgaverne mellem jer, og hver person ser sin egen liste for i dag.</p>
+    <p>Det er det hele til at begynde med.</p>
+    <p>Ingen kalender, chat eller avancerede funktioner, hvis I ikke har brug for dem. Bare et fælles overblik over, hvad der skal gøres – og hvem der gør det.</p>
+    <p><b>Eksempel:</b> I en familie kan børnene hver morgen se, hvad der er deres opgave.</p>
+    <p>I en butik kan de frivillige se, hvad de skal tage sig af.</p>
+    <p>Og i en lille gruppe kan alle starte dagen med at vide:</p>
+    <p><b>Det her er mit. Det her gør jeg i dag.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Bestøver Dag – hvem gør hvad">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Hvor lagde jeg …?" data-notitle="1"><span class="tag">ITKolibri · Hukommelse Hjem</span><h2>Hvor lagde jeg …?</h2>
+    <p class="fn"><b>En kolibri har ADHD.</b> Den flyver hurtigt fra det ene til det andet, skifter retning på et øjeblik og har hele tiden noget nyt at holde øje med.</p>
+    <p class="fn2"><b>ITKolibri · Hukommelse Hjem husker det, du ikke selv når at huske.</b></p>
+    <p><b>Problem:</b> Nøgler, briller, pas, oplader.</p>
+    <p>De vigtige ting er altid væk, lige når du skal bruge dem. Og så begynder jagten: lommer, skuffer, tasker, køkkenbordet …</p>
+    <p><b>Løsning:</b> Tag ét foto, når du lægger noget fra dig.</p>
+    <p>ITKolibri · Hukommelse Hjem genkender selv, <b>hvad det er, og hvor det ligger</b>, og gemmer det.</p>
+    <p>Når du leder, søger du bare:</p>
+    <p><b>“Hvor er mit pas?”</b></p>
+    <p>Eller kigger på de seneste ting, du har lagt væk.</p>
+    <p>Ingen mærkater. Ingen kategorier. Ingen system, du først skal huske at bruge.</p>
+    <p><b>Eksempel:</b> <b>“Passet ligger i den grå skuffe under printeren.”</b></p>
+    <p>Fundet på telefonen 20 sekunder før taxaen kom.</p>
+    <p><b>Du behøver ikke huske, hvor du lagde det. Det gør ITKolibri · Hukommelse Hjem.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Hukommelse Hjem – find det">Jeg vil gerne være pilot</a></div>
+
+
+  <div class="card v2" data-sub="Dit eget morgenoverblik" data-notitle="1"><span class="tag">ITKolibri · Kommunikere</span><h2>Dit eget morgenoverblik</h2>
+    <p class="fn">Kolibrien kommunikerer med lyd og farvespil.</p>
+    <p class="fn2"><b>ITKolibri · Kommunikere samler morgenens vigtigste information ét sted – kogt ned til det, du faktisk vil vide.</b></p>
+    <p><b>Problem:</b> Nyheder fra fem steder, tre nyhedsbreve og en podcast.</p>
+    <p>Du vil gerne følge med, men ender med at bruge morgenen på at skimme overskrifter – og når alligevel ikke det hele.</p>
+    <p><b>Løsning:</b> Du vælger selv dine kilder.</p>
+    <p>Hver morgen samler ITKolibri · Kommunikere det nyeste ét sted og koger det ned til det vigtigste.</p>
+    <p>Du bestemmer selv, hvad der skal med, og hvordan det skal præsenteres.</p>
+    <p>Læs det på skærmen – eller få det læst højt, mens du cykler, går eller laver morgenmad.</p>
+    <p><b>Eksempel:</b> <b>10 minutter om morgenen i stedet for 40 minutters skimming.</b></p>
+    <p>Du starter dagen med at vide, hvad der er sket – uden at skulle besøge ti forskellige steder.</p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Kommunikere – morgenoverblik">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="El og forbrug" data-notitle="1"><span class="tag">ITKolibri · Puls</span><h2>El og forbrug</h2>
+    <p class="fn">Kolibriens hjerte slår omkring 225 gange i minuttet i hvile og over 1.200 under flyvning.</p>
+    <p class="fn2"><b>ITKolibri · Puls mærker husets strømforbrug time for time.</b></p>
+    <p><b>Problem:</b> De fleste el-apps viser, hvad strømmen koster <b>lige nu</b>.</p>
+    <p>Men det fortæller ikke nødvendigvis, hvad et apparat, der kører i tre timer, kommer til at koste.</p>
+    <p>En opvaskemaskine startet i en billig time kan stadig køre ind i dyre timer. Og en elbil, der sættes til at lade hele natten, kan ramme både aftenens høje priser og dyrere timer senere på natten.</p>
+    <p><b>Løsning:</b> ITKolibri · Puls regner på <b>hele kørslen</b> – ikke bare den time, du starter.</p>
+    <p>Indtast apparatet og dets effekt. ITKolibri · Puls tager højde for elpris og afgifter og beregner:</p>
+    <p><b>Hvornår skal det starte?<br>Hvor længe kører det?<br>Hvad kommer det til at koste?</b></p>
+    <p>Som pilot kommer jeg hjem til jer i <b>2 timer</b>.</p>
+    <p>Vi gennemgår jeres apparater, ser på elmåleren og finder de største strømforbrugere. Derefter følger vi jeres forbrug den første måned.</p>
+    <p><b>Eksempel:</b> En opvaskemaskine kan koste forskelligt alt efter, hvornår den kører.</p>
+    <p>Det samme gælder elbilen.</p>
+    <p>ITKolibri · Puls viser forskellen, før I trykker på <b>Start</b>.</p>
+    <p>Og når vi samtidig finder unødvendigt grundforbrug og apparater, der står og bruger strøm døgnet rundt, bliver det tydeligt, <b>hvor der faktisk er noget at hente.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Puls – el">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Økonomi – privat" data-notitle="1"><span class="tag">ITKolibri · Tunge</span><h2>Økonomi – privat</h2>
+    <p class="fn">Tungen lader ikke en dråbe gå til spilde.</p>
+    <p class="fn2"><b>ITKolibri · Tunge smager på hver krone i husholdningen.</b></p>
+    <p><b>Problem:</b> Ingen ved helt, hvor pengene forsvinder hen.</p>
+    <p>Abonnementer, der aldrig blev opsagt. Følelsen af, at <i>“vi bruger for meget på mad”</i>. Og spørgsmålet om, hvorvidt der egentlig er råd til ferien, bliver ofte en mavefornemmelse.</p>
+    <p><b>Løsning:</b> 12 måneders kontoudtog ind – og resten sker automatisk.</p>
+    <p>ITKolibri · Tunge kategoriserer jeres forbrug og giver jer overblik over:</p>
+    <p class="list">hvad I bruger hver måned<br>hvor pengene går hen<br>abonnementer og faste udgifter<br>kommende betalinger<br>hvordan økonomien ser ud fremadrettet</p>
+    <p>Og vigtigst:</p>
+    <p><b>“Sådan ser december ud, hvis I fortsætter som nu.”</b></p>
+    <p>Til sidst får I <b>tre konkrete råd</b>, der tager udgangspunkt i jeres faktiske økonomi.</p>
+    <p><b>Eksempel:</b> I en familie blev fire abonnementer opsagt – plus et par stykker, familien ikke engang vidste, de havde.</p>
+    <p>For første gang fik de også et præcist billede af, hvad de brugte på parkering, benzin, dagligvarer og offentlig transport.</p>
+    <p>Det gav ikke bare en besparelse.</p>
+    <p><b>Det gav familien en fælles forståelse af, hvor pengene faktisk blev brugt – og hvor udfordringerne lå.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Tunge – økonomi privat">Jeg vil gerne være pilot</a></div>
+
+  </div>
+  <div class="detail"></div>
+</section>
+<section class="pakke">
+  <div class="pakke-head"><h2>Når det brænder</h2></div>
+  <div class="grid">
+  <div class="card v2" data-sub="Pc-tjek" data-notitle="1"><span class="tag">ITKolibri · Syn</span><h2>Pc-tjek</h2>
+    <p class="fn">Kolibrien kan se ultraviolet lys – den ser ting, vi ikke kan se.</p>
+    <p class="fn2"><b>ITKolibri · Syn ser det i din computer, du ikke selv kan se.</b></p>
+    <p><b>Problem:</b> Computeren er blevet langsom. Der dukker mærkelige fejlbeskeder op. Lyden virker kun nogle gange. Og hver måned bliver der trukket penge for programmer og abonnementer, som ingen længere ved, hvad er.</p>
+    <p>Når noget går galt, ender børnene ofte som familiens IT-support.</p>
+    <p><b>Løsning:</b> Jeg kommer forbi og gennemgår jeres computere og andre enheder.</p>
+    <p>Vi ser på:</p>
+    <p class="list">hvad der gør computeren langsom<br>programmer og abonnementer<br>sikkerhed og opdateringer<br>lagerplads og unødvendige filer<br>fejl og ting, der kræver opmærksomhed</p>
+    <p><b>Jeg ændrer eller sletter aldrig noget uden jeres accept.</b></p>
+    <p>Bagefter kan jeg sætte et automatisk månedligt tjek op, så I får besked, hvis noget kræver opmærksomhed.</p>
+    <p>Rapporten kan også sendes til børnene, hvis I ønsker det.</p>
+    <p><b>Eksempel:</b> En familie kan eksempelvis opdage <b>500–1.500 kr. om året</b> i antivirus-, cloud- og andre abonnementer, de ikke længere har brug for.</p>
+    <p>Samtidig bliver computeren ryddet op, og de irriterende fejl bliver undersøgt.</p>
+    <p><b>I behøver ikke vide, hvad der er galt. ITKolibri · Syn finder det.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Syn – pc-tjek">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Sagsmappen – når du står i en sag" data-notitle="1"><span class="tag">ITKolibri · Baglæns</span><h2>Sagsmappen – når du står i en sag</h2>
+    <p class="fn">Kolibrien er den eneste fugl, der kan flyve baglæns som kontrolleret flyvning.</p>
+    <p class="fn2"><b>ITKolibri · Baglæns hjælper dig med at komme baglæns gennem sagen – og finde ud af, hvad der skal ske nu.</b></p>
+    <p><b>Problem:</b> Kontrolafgift. Forsikringsafslag. Kommunens afgørelse. Udlejer.</p>
+    <p>Brevene er lange, fristerne korte, og en stor del af teksten kan være svær at gennemskue.</p>
+    <p>Man risikerer at svare på det forkerte – eller helt at overse en frist.</p>
+    <p><b>Løsning:</b> Hvert brev bliver kogt ned til tre enkle bokse:</p>
+    <p><b>Hvad gælder?</b><br>Det vigtigste i brevet, forklaret almindeligt.</p>
+    <p><b>Hvad behøver du ikke?</b><br>Det, der ikke kræver handling fra dig lige nu.</p>
+    <p><b>Gør nu</b><br>Det næste, du skal gøre – og hvornår det senest skal være gjort.</p>
+    <p>Frister samles ét sted med påmindelser. Du kan få hjælp til at formulere svar og holde styr på hele forløbet.</p>
+    <p><b>Eksempel:</b> En kontrolafgift fra Movia for en bustur, jeg ikke havde taget, fordi en anden havde brugt mit navn.</p>
+    <p>Tre måneder med breve fra Movia, ankenævnet og politiet. Forskellige frister, forskellige krav og forskellige måder at skrive på.</p>
+    <p>Sagsmappen samlede det hele og viste, hvad hvert brev krævede:</p>
+    <p><b>Politianmeldelse → indsigelse inden fristen → klage til ankenævnet → anmodning om indsigt i registrerede oplysninger.</b></p>
+    <p>Resultat: <b>Afgiften blev frafaldet, og sagen blev lukket.</b></p>
+    <p>Og vigtigst: Forløbet blev omsat til en skabelon, så den næste person i samme situation kan komme i gang fra dag ét.</p>
+    <p><b>Fra bunken af breve til ét overblik.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Baglæns – sagsmappen">Jeg vil gerne være pilot</a></div>
+
+  </div>
+  <div class="detail"></div>
+</section>
+<section class="pakke">
+  <div class="pakke-head"><h2>Samlingen</h2></div>
+  <div class="grid">
+  <div class="card v2" data-sub="Live auktion – uden auktionshus" data-notitle="1"><span class="tag">ITKolibri · Reagere</span><h2>Live auktion – uden auktionshus</h2>
+    <p class="fn">Kolibrien kan reagere ekstremt hurtigt – den kan ændre retning på et øjeblik.</p>
+    <p class="fn2"><b>ITKolibri · Reagere gør det samme med bud: Alle kan byde fra telefonen, og alle ser det højeste bud med det samme.</b></p>
+    <p><b>Problem:</b> Foreningens loppemarked. Et dødsbo. Klubbens støtteauktion.</p>
+    <p>Buddene bliver råbt. Ingen kan huske, hvem der bød hvad, og halvdelen af dem, der gerne ville byde, sidder derhjemme.</p>
+    <p><b>Løsning:</b> Auktionarius lægger tingene ind med foto og mindstepris.</p>
+    <p>Deltagerne byder fra telefonen – i lokalet eller hjemmefra.</p>
+    <p>Alle kan se det højeste bud med det samme.</p>
+    <p>Når hammerslaget falder, er vinderen registreret automatisk.</p>
+    <p>Bagefter ligger der en samlet liste over:</p>
+    <p><b>Hvem vandt hvad.<br>Hvad blev prisen.<br>Hvad skal betales.</b></p>
+    <p><b>Eksempel:</b> En støtteauktion med 30 ting:</p>
+    <p><b>25 minutter fra første til sidste hammerslag.</b></p>
+    <p>Og kassereren har den samlede liste med det samme.</p>
+    <p><b>Bud ind. Vinder ud.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Reagere – live auktion">Jeg vil gerne være pilot</a></div>
+
+  <div class="card v2" data-sub="Hvad er din samling værd?" data-notitle="1"><span class="tag">ITKolibri · Syn Samling</span><h2>Hvad er din samling værd?</h2>
+    <p class="fn">Kolibrien kan se detaljer, vi ikke kan se.</p>
+    <p class="fn2"><b>ITKolibri · Syn Samling bruger det samme skarpe blik på dine samlinger.</b></p>
+    <p><b>Problem:</b> En kasse med Magic: The Gathering-kort fra 90'erne og frem.</p>
+    <p>Nogle er få kroner værd. Andre kan være flere hundrede værd. Men hvem gider slå 800 kort op ét ad gangen?</p>
+    <p>Og hvis samlingen skal sælges eller forsikres, har du brug for at vide, hvad du faktisk har.</p>
+    <p><b>Løsning:</b> Vælg sættet, start kameraet og scan kortene ét efter ét.</p>
+    <p>ITKolibri · Syn Samling genkender kortet fra billedet og henter den aktuelle pris.</p>
+    <p>Efterhånden bliver bunken til en liste:</p>
+    <p><b>Hvad har du?<br>Hvor mange har du?<br>Hvad er det værd?</b></p>
+    <p>Samlingen kan derefter bruges som grundlag for salg, forsikring eller bare et overblik over det, du ejer.</p>
+    <p><b>Eksempel:</b> 600 kort scannet på én aften.</p>
+    <p><b>14 kort udgjorde 80 % af samlingens værdi.</b></p>
+    <p>Pludselig ved du, hvilke kort der er værd at kigge nærmere på.</p>
+    <p><b>Scan ind. Værdi ud.</b></p>
+    <button type="button" class="more">Læs mere</button><a href="#form" data-y="Syn Samling – kortpriser">Jeg vil gerne være pilot</a></div>
+
+
+  </div>
+  <div class="detail"></div>
+</section>
+
+<form id="form" action="send.php" method="post">
+  <h2>Jeg vil gerne være pilot</h2>
+  <p>Jeg ringer tilbage inden for to dage. Ingen forpligtelser.</p>
+  <label for="ydelse">Hvad drejer det sig om?</label>
+  <select id="ydelse" name="ydelse" required>
+    <option value="">Vælg…</option>
+    <option>Nektar – fotos</option><option>Syn – pc-tjek</option><option>Puls – el</option><option>Puls Forening – fælles el</option><option>Rede – cd/dvd</option><option>Tunge – økonomi privat</option><option>Tunge Pro – økonomi forretning</option><option>Hukommelse – værksted</option><option>Bestøver – beslutninger</option><option>Bestøver Dag – hvem gør hvad</option><option>Baglæns – sagsmappen</option><option>Glans – billedbehandling</option><option>Reagere – live auktion</option><option>Hukommelse Hjem – find det</option><option>Kommunikere – morgenoverblik</option><option>Syn Samling – kortpriser</option><option>Tunge Bilag – kvitteringer</option><option>Flyve – PDF</option><option>Puls Forening – ladestander</option><option>Andet / ved ikke</option>
+  </select>
+  <label for="navn">Navn</label><input id="navn" name="navn" required autocomplete="name">
+  <label for="telefon">Telefon</label><input id="telefon" name="telefon" type="tel" required autocomplete="tel">
+  <label for="by">By</label><input id="by" name="by" autocomplete="address-level2">
+  <label for="besked">Én linje om jeres situation (valgfrit)</label><textarea id="besked" name="besked"></textarea>
+  <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off">
+  <button type="submit">Send – så ringer jeg</button>
+</form>
+
+<div class="terms">
+  <h3>Sådan fungerer en pilot</h3>
+  <p><b>I får:</b> ydelsen gratis i pilotperioden (typisk 3 måneder) og jeres egen version af appen bagefter til pilotpris, hvis I vil fortsætte. Ingen automatisk fortsættelse.</p>
+  <p><b>Jeg beder om:</b> tre korte samtaler om hvad der virker og ikke virker, og lov til at nævne jer som reference – med navn eller anonymt, som I vil.</p>
+  <p><b>Jeres data:</b> jeg rører kun det, opgaven kræver, gemmer aldrig koder, og I har altid jeres egen kopi. Vi skriver en aftale på én side, før vi starter.</p>
+</div>
+
+<footer>ITMartin · Martin Hvidberg · <a href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a> · <a href="tel:+4531194730">31 19 47 30</a></footer>
+</div>
+<script>
+function pickY(y){document.getElementById('ydelse').value=y;}
+document.querySelectorAll('.card').forEach(function(card){
+  card.addEventListener('click',function(e){
+    var sec=card.closest('.pakke'),panel=sec.querySelector('.detail');
+    if(card.classList.contains('open')){card.classList.remove('open');panel.classList.remove('show');panel.innerHTML='';return;}
+    sec.querySelectorAll('.card.open').forEach(function(c){c.classList.remove('open');});
+    card.classList.add('open');
+    var a=card.querySelector('a[data-y]');
+    panel.innerHTML='<button type="button" class="close" aria-label="Luk">&times;</button><h3>'+card.querySelector('.tag').textContent+'</h3>'+(card.dataset.sub?'<div class="sub">'+card.dataset.sub+'</div>':'')+(card.dataset.notitle?'':'<p class="title"><b>'+card.querySelector('h2').innerHTML+'</b></p>')
+      +Array.prototype.map.call(card.querySelectorAll('p'),function(p){return p.outerHTML;}).join('')
+      +'<a href="#form" data-y="'+a.dataset.y+'">'+a.textContent+'</a>';
+    panel.classList.add('show');
+    panel.querySelector('.close').addEventListener('click',function(){card.classList.remove('open');panel.classList.remove('show');panel.innerHTML='';});
+    panel.querySelector('a[data-y]').addEventListener('click',function(){pickY(a.dataset.y);});
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+});
+</script>
+</body>
+</html>
