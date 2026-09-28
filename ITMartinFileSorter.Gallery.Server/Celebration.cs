@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
@@ -90,20 +91,57 @@ public static partial class Celebration
         return drop.Count == 0 ? items : items.Where(i => !drop.Contains(i.Name)).ToList();
     }
 
-    public static JsonElement? Texts(string libraryRoot, string folderRel)
+    // Texts = fejring.json in the photo folder (written once, the library is mounted read-only)
+    // with the edits made on the page on top (DataDir/celebrations/<slug>.json, writable).
+    public static JsonObject Texts(string libraryRoot, string folderRel, string editsFile)
     {
-        var file = Path.Combine(libraryRoot, folderRel, "fejring.json");
+        var baseTexts = ReadObject(Path.Combine(libraryRoot, folderRel, "fejring.json")) ?? new JsonObject();
+        var edits = ReadObject(editsFile);
+        if (edits is null) return baseTexts;
+        foreach (var (key, value) in edits)
+        {
+            // "years", "captions", "rotate" merge per entry; plain fields replace.
+            if (value is JsonObject eo && baseTexts[key] is JsonObject bo)
+                foreach (var (k, v) in eo) bo[k] = v?.DeepClone();
+            else
+                baseTexts[key] = value?.DeepClone();
+        }
+        return baseTexts;
+    }
+
+    private static readonly object EditLock = new();
+
+    // One edit from the page. kind: caption (key = file name), year (key = "2014" or "undated"),
+    // rotate (key = file name, value degrees), field (heroSub / intro / outro).
+    public static void SaveEdit(string editsFile, string kind, string key, string? title, string? text, int? degrees)
+    {
+        lock (EditLock)
+        {
+            var o = ReadObject(editsFile) ?? new JsonObject();
+            JsonObject Section(string name) => o[name] as JsonObject ?? (JsonObject)(o[name] = new JsonObject());
+            string Clean(string? s) => (s ?? "").Trim() is var t && t.Length > 600 ? t[..600] : (s ?? "").Trim();
+            switch (kind)
+            {
+                case "caption": Section("captions")[key] = Clean(text); break;
+                case "rotate": Section("rotate")[key] = ((degrees ?? 0) % 360 + 360) % 360; break;
+                case "year":
+                    var target = key == "undated" ? (JsonObject)(o["undated"] ??= new JsonObject()) : (JsonObject)(Section("years")[key] ??= new JsonObject());
+                    target["title"] = Clean(title);
+                    target["text"] = Clean(text);
+                    break;
+                case "field" when key is "heroSub" or "intro" or "outro": o[key] = Clean(text); break;
+                default: throw new ArgumentException("unknown edit");
+            }
+            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(editsFile)!);
+            File.WriteAllText(editsFile, o.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+        }
+    }
+
+    private static JsonObject? ReadObject(string file)
+    {
         if (!File.Exists(file)) return null;
-        try
-        {
-            using var doc = JsonDocument.Parse(File.ReadAllText(file));
-            return doc.RootElement.Clone();
-        }
-        catch (JsonException)
-        {
-            // A typo while editing the texts must not take the page down.
-            return null;
-        }
+        try { return JsonNode.Parse(File.ReadAllText(file)) as JsonObject; }
+        catch (JsonException) { return null; } // a typo must not take the page down
     }
 
     private static string? KindOf(string ext) => ext switch

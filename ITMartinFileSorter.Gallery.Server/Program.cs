@@ -294,7 +294,7 @@ var galleries = app.Configuration
         CoreCategoriesOnly: s.GetValue<bool>("CoreCategoriesOnly"),
         ViewOnly: s.GetValue<bool>("ViewOnly"),
         Theme: s["Theme"], Headline: s["Headline"], Tagline: s["Tagline"],
-        CelebrationFolder: s["CelebrationFolder"], CelebrationName: s["CelebrationName"], BirthDate: s["BirthDate"]))
+        CelebrationFolder: s["CelebrationFolder"], CelebrationName: s["CelebrationName"], BirthDate: s["BirthDate"], EditPin: s["EditPin"]))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -482,13 +482,31 @@ app.MapGet("/api/celebration", (string gallery, HttpContext ctx) =>
         slug = g.Slug,
         name = g.CelebrationName ?? g.Name,
         birthDate = g.BirthDate,
-        texts = Celebration.Texts(g.Path, g.CelebrationFolder),
+        texts = Celebration.Texts(g.Path, g.CelebrationFolder, CelebrationEdits(g.Slug)),
+        canEdit = !string.IsNullOrEmpty(g.EditPin),
         items = timeline.Items.Select(i => new
         {
             name = i.Name, kind = i.Kind, url = i.Url, thumb = i.Thumb,
             date = i.Date?.ToString("yyyy-MM-ddTHH:mm:ss"),
         }),
     });
+});
+
+// The birthday page's edit mode: captions, year texts and rotations, behind a separate edit
+// PIN (Galleries__N__EditPin) so guests with the view password cannot change anything.
+string CelebrationEdits(string slug) =>
+    Path.Combine(app.Configuration["Gallery:DataDir"] ?? "/data", "celebrations", slug.ToLowerInvariant() + ".json");
+
+app.MapPost("/api/celebration/edit", (string gallery, CelebrationEdit edit, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => string.Equals(x.Slug, gallery, StringComparison.OrdinalIgnoreCase));
+    if (g is null || string.IsNullOrEmpty(g.CelebrationFolder)) return Results.NotFound();
+    if (string.IsNullOrEmpty(g.EditPin) || ctx.Request.Headers["X-Edit-Pin"].ToString() != g.EditPin)
+        return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(edit.Key) || edit.Key.Length > 200) return Results.BadRequest();
+    try { Celebration.SaveEdit(CelebrationEdits(g.Slug), edit.Kind, edit.Key, edit.Title, edit.Text, edit.Degrees); }
+    catch (ArgumentException) { return Results.BadRequest(); }
+    return Results.Ok();
 });
 
 app.MapPost("/api/logout", (string gallery, HttpContext ctx) =>
@@ -1290,6 +1308,7 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
 // Theme/Headline/Tagline: a per-gallery look. "koncert" = the stage-style
 // front for the audience versions of the songs (2026-09-17).
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null, string? CelebrationFolder = null, string? CelebrationName = null, string? BirthDate = null);
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null, string? CelebrationFolder = null, string? CelebrationName = null, string? BirthDate = null, string? EditPin = null);
 record LoginRequest(string Gallery, string Password);
 record FolderEntry(string name, string relPath, string? cover, int row = 99, string? icon = null);
+record CelebrationEdit(string Kind, string Key, string? Title, string? Text, int? Degrees);

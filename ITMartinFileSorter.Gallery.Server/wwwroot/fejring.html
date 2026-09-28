@@ -123,6 +123,19 @@ h2{font-family:Bungee,sans-serif;font-weight:400;font-size:clamp(1.5rem,5vw,2.2r
 .lb .x,.lb .nav{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:999px;width:46px;height:46px;font-size:1.4rem}
 .lb .x{top:calc(12px + env(safe-area-inset-top,0px));right:12px}
 .lb .prev{left:10px;top:50%}.lb .next{right:10px;top:50%}
+/* edit mode */
+.ed{margin:6px 0 12px;padding:10px;border:2px dashed var(--violet);border-radius:14px;background:#fff;display:grid;gap:6px}
+.ed input,.ed textarea,#lbEdit textarea,#pinForm input{font:inherit;font-size:15px;padding:8px 10px;border:2px solid var(--line);border-radius:10px;width:100%}
+.ed textarea{min-height:60px}
+.ed .row,#lbEdit .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ed button,#lbEdit button,#pinForm button{border:0;border-radius:999px;padding:8px 14px;font-weight:900;background:var(--violet);color:#fff;cursor:pointer}
+.ed .ok,#lbEdit .ok{color:var(--mint);font-weight:900}
+#lbEdit{width:min(560px,100%);margin-top:10px;display:grid;gap:6px}
+#lbEdit button.ghost{background:rgba(255,255,255,.18)}
+.editbar{position:sticky;top:0;z-index:31;background:var(--violet);color:#fff;text-align:center;padding:8px 12px;font-weight:900}
+.editbar button{margin-left:10px;border:0;border-radius:999px;padding:4px 12px;font-weight:900;cursor:pointer}
+footer a{color:inherit}
+#pinForm{display:flex;gap:6px;max-width:320px;margin:10px auto 0}
 
 /* login */
 .login{max-width:380px;margin:40px auto;background:var(--white);border-radius:22px;padding:24px;text-align:center;border:2px solid var(--line)}
@@ -135,6 +148,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
 .hidden{display:none!important}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
+    <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=20260928" defer></script>
 </head>
 <body>
 
@@ -201,10 +215,17 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   <div id="lbBody"></div>
   <div class="cap" id="lbCap"></div>
   <div class="when" id="lbWhen"></div>
+  <div id="lbEdit" class="hidden">
+    <textarea id="lbCapInput" rows="2" placeholder="Skriv en tekst til billedet …" aria-label="Billedtekst"></textarea>
+    <div class="row"><button type="button" id="lbSave">Gem tekst</button><button type="button" class="ghost" id="lbRotL" title="Drej mod venstre">↺</button><button type="button" class="ghost" id="lbRotR" title="Drej mod højre">↻</button><span class="ok" id="lbOk"></span></div>
+  </div>
   <button class="nav next" id="lbNext" type="button" aria-label="Næste">›</button>
 </div>
 
-<footer>Lavet med ❤️ og alt for meget konfetti · ITMartin</footer>
+<footer>Lavet med ❤️ og alt for meget konfetti · ITMartin<span id="editWrap" hidden> · <a href="#" id="editBtn">✏️ Rediger</a></span>
+  <form id="pinForm" hidden><input id="editPin" type="password" autocomplete="off" placeholder="Rediger-PIN" aria-label="Rediger-PIN"><button type="submit">OK</button></form>
+  <div id="pinErr" style="color:var(--red);font-weight:700"></div>
+</footer>
 
 <script>
 (() => {
@@ -317,8 +338,9 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   }
 
   /* ---------- page ---------- */
-  let flat = [], texts = {};
-  function render(data) {
+  let flat = [], texts = {}, lastData = null, editing = false;
+  function render(data, quiet) {
+    lastData = data;
     texts = data.texts || {};
     const name = data.name || 'dig';
     const birth = data.birthDate ? new Date(data.birthDate + 'T12:00:00') : null;
@@ -391,13 +413,22 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
         if (m) memeBlock = memeHtml(m, memeIdx++);
       }
 
+      const edKey = s.undated ? 'undated' : String(s.year);
+      const editor = editing ? `<div class="ed" data-year="${edKey}"><input class="ed-title" value="${esc(yt.title || '')}" placeholder="Overskrift for ${s.undated ? 'de gamle album' : s.year}" aria-label="Overskrift"><textarea class="ed-text" placeholder="Tekst til året …" aria-label="Tekst">${esc(yt.text || '')}</textarea><div class="row"><button type="button" class="ed-save">Gem</button><span class="ok"></span></div></div>` : '';
       return `<section class="year" id="${s.key}">${head}
-        ${yt.title ? `<p class="title">${esc(yt.title)}</p>` : ''}
-        ${yt.text ? `<p class="text">${esc(yt.text)}</p>` : ''}
+        ${editing ? editor : (yt.title ? `<p class="title">${esc(yt.title)}</p>` : '')}
+        ${!editing && yt.text ? `<p class="text">${esc(yt.text)}</p>` : ''}
         <div class="grid" data-grid="${s.key}">${tiles}</div>${more}${memeBlock}</section>`;
     }).join('');
 
-    tl.addEventListener('click', e => {
+    if (!tl.dataset.bound) tl.dataset.bound = '1', tl.addEventListener('click', e => {
+      const sv = e.target.closest('.ed-save');
+      if (sv) {
+        const ed = sv.closest('.ed');
+        save({ kind: 'year', key: ed.dataset.year, title: ed.querySelector('.ed-title').value, text: ed.querySelector('.ed-text').value }, ed.querySelector('.ok'));
+        return;
+      }
+      if (e.target.closest('.ed')) return;
       const m = e.target.closest('[data-more]');
       if (m) { tl.querySelectorAll(`[data-grid="${m.dataset.more}"] .tile.hidden`).forEach(t => t.classList.remove('hidden')); m.remove(); return; }
       const t = e.target.closest('.tile');
@@ -414,7 +445,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     tl.querySelectorAll('.year').forEach(s => io.observe(s));
 
     $('content').classList.remove('hidden');
-    boom(true); balloons(14);
+    $('editWrap').hidden = !data.canEdit || editing;
+    if (!quiet) { boom(true); balloons(14); }
   }
 
   const rot = (it, big) => { const d = +(texts.rotate || {})[it.name] || 0; if (!d) return ''; const side = d % 180 !== 0 && big ? ';max-width:78vh;max-height:92vw' : ''; return ` style="transform:rotate(${d}deg)${side}"`; };
@@ -446,6 +478,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     else body.innerHTML = `<a class="btn" href="${esc(it.url)}" target="_blank" rel="noopener">📄 Åbn ${esc(it.name)}</a>`;
     $('lbCap').textContent = (texts.captions || {})[it.name] || '';
     $('lbWhen').textContent = when(it);
+    $('lbEdit').classList.toggle('hidden', !editing);
+    if (editing) { $('lbCapInput').value = (texts.captions || {})[it.name] || ''; $('lbOk').textContent = ''; }
     $('lb').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
   }
@@ -455,7 +489,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   $('lbNext').onclick = () => openLb(cur + 1);
   $('lb').addEventListener('click', e => { if (e.target.id === 'lb') closeLb(); });
   addEventListener('keydown', e => {
-    if ($('lb').classList.contains('hidden')) return;
+    if ($('lb').classList.contains('hidden') || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 'Escape') closeLb();
     if (e.key === 'ArrowLeft') openLb(cur - 1);
     if (e.key === 'ArrowRight') openLb(cur + 1);
@@ -463,6 +497,58 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   let sx = null;
   $('lb').addEventListener('touchstart', e => sx = e.touches[0].clientX, { passive: true });
   $('lb').addEventListener('touchend', e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 50) openLb(cur + (dx < 0 ? 1 : -1)); sx = null; });
+
+  /* ---------- edit mode (separate edit PIN) ---------- */
+  const PIN_KEY = 'fejring-edit-' + slug;
+  const getPin = () => { try { return sessionStorage.getItem(PIN_KEY) || ''; } catch (e) { return ''; } };
+  const setPin = v => { try { v ? sessionStorage.setItem(PIN_KEY, v) : sessionStorage.removeItem(PIN_KEY); } catch (e) {} };
+  async function save(edit, okEl) {
+    const r = await fetch(`/api/celebration/edit?gallery=${encodeURIComponent(slug)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Edit-Pin': getPin() }, body: JSON.stringify(edit) });
+    if (r.status === 401) { setPin(''); stopEdit(); $('pinErr').textContent = 'Forkert rediger-PIN – prøv igen nederst på siden.'; return false; }
+    if (!r.ok) { if (okEl) okEl.textContent = 'Kunne ikke gemme'; return false; }
+    // keep the page's own copy in step, no full reload
+    if (edit.kind === 'caption') (texts.captions = texts.captions || {})[edit.key] = edit.text;
+    if (edit.kind === 'rotate') (texts.rotate = texts.rotate || {})[edit.key] = edit.degrees;
+    if (edit.kind === 'year') {
+      const t = { title: edit.title, text: edit.text };
+      if (edit.key === 'undated') texts.undated = t; else (texts.years = texts.years || {})[edit.key] = t;
+    }
+    if (okEl) { okEl.textContent = '✓ Gemt'; setTimeout(() => okEl.textContent = '', 2000); }
+    return true;
+  }
+  function startEdit() {
+    editing = true;
+    let bar = document.getElementById('editbar');
+    if (!bar) {
+      bar = document.createElement('div'); bar.id = 'editbar'; bar.className = 'editbar';
+      bar.innerHTML = '✏️ Du redigerer – tryk på et billede for at skrive en tekst. <button type="button" id="editDone">Færdig</button>';
+      document.body.prepend(bar);
+      $('editDone').onclick = stopEdit;
+    }
+    render(lastData, true);
+  }
+  function stopEdit() {
+    editing = false;
+    const bar = document.getElementById('editbar'); if (bar) bar.remove();
+    $('lbEdit').classList.add('hidden');
+    render(lastData, true);
+  }
+  $('editBtn').onclick = e => { e.preventDefault(); $('pinErr').textContent = ''; if (getPin()) startEdit(); else { $('pinForm').hidden = false; $('editPin').focus(); } };
+  $('pinForm').addEventListener('submit', e => { e.preventDefault(); setPin($('editPin').value.trim()); $('pinForm').hidden = true; startEdit(); });
+  $('lbSave').onclick = async () => {
+    const it = flat[cur]; const text = $('lbCapInput').value.trim();
+    if (await save({ kind: 'caption', key: it.name, text }, $('lbOk'))) {
+      $('lbCap').textContent = text;
+      render(lastData, true);
+    }
+  };
+  const turn = async step => {
+    const it = flat[cur]; const deg = (((+(texts.rotate || {})[it.name] || 0) + step) % 360 + 360) % 360;
+    if (await save({ kind: 'rotate', key: it.name, degrees: deg }, $('lbOk'))) { openLb(cur); render(lastData, true); }
+  };
+  $('lbRotL').onclick = () => turn(-90);
+  $('lbRotR').onclick = () => turn(90);
 
   /* ---------- buttons ---------- */
   $('partyBtn').onclick = () => { flagRain(); balloons(10); };
