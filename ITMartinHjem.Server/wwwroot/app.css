@@ -124,6 +124,11 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-day-earlier summary { cursor: pointer; font-weight: 600; margin: 8px 0; }
 .hj-day-plan, .hj-day-done { background: var(--k-surface-2, #eef1f0); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; }
 .hj-day-tasks { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 2px; }
+/* Svar: the AI proofreading panel, fixed at the bottom so it is seen wherever the save was pressed */
+.hj-review { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 50; max-width: 640px; margin: 0 auto; max-height: 70vh; overflow: auto;
+  background: var(--k-surface, #fff); border: 2px solid var(--k-accent); border-radius: 14px; padding: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+.hj-review-text { white-space: pre-line; margin: 8px 0; padding: 10px; border-radius: 10px; background: var(--k-surface-2, #eef1f0); }
+.hj-review-notes { margin: 8px 0 0; padding-left: 4px; list-style: none; display: grid; gap: 4px; }
 /* Svar: today's entries, small, removable */
 .hj-day-admin { display: grid; gap: 6px; }
 .hj-day-row { display: flex; align-items: center; gap: 8px; }

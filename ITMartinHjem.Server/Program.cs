@@ -46,6 +46,7 @@ var dataDir = builder.Configuration["Hjem:DataDir"] ?? "/app/data";
 Directory.CreateDirectory(dataDir);
 builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "hjem.db")}"));
 builder.Services.AddSingleton<MediaStore>();
+builder.Services.AddSingleton<TextCheck>();   // AI proofreading of the owner's own text in Svar
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<ChatService>();
 builder.Services.AddHttpClient("status", c => c.Timeout = TimeSpan.FromSeconds(10))

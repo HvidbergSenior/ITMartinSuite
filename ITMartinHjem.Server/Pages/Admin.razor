@@ -3,6 +3,7 @@
 @inject IDbContextFactory<HjemDb> Dbf
 @inject ChatService Chat
 @inject MediaStore Store
+@inject TextCheck Checker
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -71,8 +72,36 @@
     }
 </section>
 
+@if (_checking)
+{
+    <div class="hj-review"><b>✨ AI læser din tekst igennem…</b></div>
+}
+else if (_review is { } rv)
+{
+    <div class="hj-review">
+        <b>✨ AI's forslag</b>
+        @if (rv.Changed)
+        {
+            <div class="hj-review-text">@rv.Suggested</div>
+        }
+        else
+        {
+            <p class="k-help">Ingen stavefejl – men læg mærke til:</p>
+        }
+        @if (rv.Notes.Count > 0)
+        {
+            <ul class="hj-review-notes">@foreach (var n in rv.Notes) { <li>⚠️ @n</li> }</ul>
+        }
+        <div class="k-row k-mt">
+            @if (rv.Changed) { <button class="k-btn k-btn-primary" @onclick="() => _reviewTcs?.TrySetResult(rv.Suggested)">✅ Brug forslaget</button> }
+            <button class="k-btn" @onclick="() => _reviewTcs?.TrySetResult(_reviewOriginal)">@(rv.Changed ? "Behold min tekst" : "OK, læg det op")</button>
+        </div>
+    </div>
+}
+
 <section class="k-card" id="lige-nu">
     <div class="k-card-title">📌 Min dag</div>
+    <p class="k-help">✨ Når du gemmer, læser AI teksten igennem: stavefejl, punktform og ting der kan misforstås. Du vælger selv, om du vil bruge forslaget.</p>
     <p class="k-help"><b>Saml din dag:</b> skriv om morgenen, hvad du regner med at lave. I løbet af dagen tager du billeder eller skriver en linje, hver gang der sker noget.
         Om aftenen skriver du, hvad det egentlig blev til. Hvert billede eller hver linje bliver et punkt med klokkeslæt på siden "Hvad laver ITKolibrien lige nu?". I morgen starter en ny dag af sig selv – de tidligere dage kan stadig ses længere nede.</p>
     <label class="k-label">🌅 I morges: hvad regner du med at lave i dag? <span class="k-help">(én opgave pr. linje)</span></label>
@@ -336,6 +365,8 @@
 
     private async Task SaveTodayAsync()
     {
+        _today.Plan = await ReviewAsync(_today.Plan, TextCheck.Kind.Liste);
+        _today.Done = await ReviewAsync(_today.Done, TextCheck.Kind.Liste);
         var day = DkNow().ToString("yyyy-MM-dd");
         if (_today.Day != day) _today = new DayNote { Day = day, Plan = _today.Plan, Done = _today.Done };   // Svar left open past midnight
         await using var db = await Dbf.CreateDbContextAsync();
@@ -348,6 +379,31 @@
         _todayNote = "Gemt ✓";
     }
 
+    // ── AI proofreading: one check per save; the owner picks the suggestion or keeps his own text.
+    private bool _checking;
+    private TextCheck.Result? _review;
+    private string _reviewOriginal = "";
+    private TaskCompletionSource<string>? _reviewTcs;
+
+    private async Task<string> ReviewAsync(string text, TextCheck.Kind kind)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        _checking = true;
+        StateHasChanged();
+        var r = await Checker.CheckAsync(text, kind);
+        _checking = false;
+        if (r is null || (!r.Changed && r.Notes.Count == 0)) { StateHasChanged(); return text.Trim(); }
+        _review = r;
+        _reviewOriginal = text.Trim();
+        _reviewTcs = new TaskCompletionSource<string>();
+        StateHasChanged();
+        var chosen = await _reviewTcs.Task;
+        _review = null;
+        _reviewTcs = null;
+        StateHasChanged();
+        return chosen;
+    }
+
     private static DateTime DkNow() => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen");
 
     // Pictures for "Min dag": saved at once (no "Gem"), the typed line goes with the first picture.
@@ -355,7 +411,7 @@
     {
         var files = e.GetMultipleFiles(30);
         var entries = _s.Entries();
-        var text = _dayText.Trim();
+        var text = await ReviewAsync(_dayText, TextCheck.Kind.Linje);
         var added = 0;
         foreach (var f in files)
         {
@@ -382,7 +438,8 @@
     private async Task AddDayTextAsync()
     {
         var entries = _s.Entries();
-        entries.Add(new Settings.DayEntry("", "", DkNow(), _dayText.Trim()));
+        var text = await ReviewAsync(_dayText, TextCheck.Kind.Linje);
+        entries.Add(new Settings.DayEntry("", "", DkNow(), text));
         await SaveEntriesAsync(entries);
         _dayText = "";
         _dayNote = "Lagt på din dag ✓";
@@ -515,6 +572,7 @@
 
     private async Task SavePostAsync()
     {
+        _edit.Body = await ReviewAsync(_edit.Body, TextCheck.Kind.Opslag);
         await using var db = await Dbf.CreateDbContextAsync();
         if (_edit.Id == 0)
         {
