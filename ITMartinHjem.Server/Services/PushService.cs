@@ -45,10 +45,17 @@ public sealed class PushService
             {
                 await _client.SendNotificationAsync(new PushSubscription(s.Endpoint, s.P256dh, s.Auth), payload, _vapid);
                 sent++;
+                _log.LogInformation("Push accepted by {Host}: {Title}", new Uri(s.Endpoint).Host, title);
             }
             catch (WebPushException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Gone or System.Net.HttpStatusCode.NotFound)
             {
+                _log.LogWarning("Push subscription gone ({Status}) - removed; the phone must turn notifications on again", ex.StatusCode);
                 db.PushSubs.Remove(s);
+            }
+            catch (WebPushException ex)
+            {
+                _log.LogWarning("Push refused by {Host}: {Status} {Body}", new Uri(s.Endpoint).Host, ex.StatusCode,
+                    ex.HttpResponseMessage is { } r ? await r.Content.ReadAsStringAsync() : "");
             }
             catch (Exception ex) { _log.LogWarning(ex, "Push failed"); }
         }

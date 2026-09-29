@@ -30,7 +30,11 @@
         <span><b>@(_s.Available ? "🟢 Jeg er her nu" : "⚪ Jeg er ikke ved skærmen")</b><br />
         <span class="k-help">@(_s.Available ? "Besøgende ser, at du svarer med det samme." : "Besøgende kan stadig skrive – du får en besked på telefonen.")</span></span>
     </label>
-    @if (_unread > 0) { <p class="hj-unread">💬 @_unread @(_unread == 1 ? "samtale venter" : "samtaler venter") på svar</p> }
+    @if (_unread > 0)
+    {
+        @* Tapping it opens the newest waiting conversation (user 2026-09-29: "kan ikke åbne de ventende beskeder"). *@
+        <button class="hj-unread k-btn k-btn-primary" @onclick="OpenNewestUnreadAsync">💬 @_unread @(_unread == 1 ? "samtale venter" : "samtaler venter") på svar – tryk for at læse</button>
+    }
 </section>
 
 <section class="k-card">
@@ -511,6 +515,17 @@ else if (_review is { } rv)
     {
         _threads = await Chat.ThreadsAsync();
         _unread = _threads.Count(t => t.UnreadForOwner);
+    }
+
+    private async Task OpenNewestUnreadAsync()
+    {
+        if (_threads.FirstOrDefault(t => t.UnreadForOwner) is { } t)
+        {
+            await OpenAsync(t.Id);
+            StateHasChanged();
+            await Task.Delay(80);   // let the messages render before scrolling to them
+            await JS.InvokeVoidAsync("eval", "document.getElementById('hj-msgs')?.scrollIntoView({behavior:'smooth',block:'center'})");
+        }
     }
 
     private async Task OpenAsync(int id)
