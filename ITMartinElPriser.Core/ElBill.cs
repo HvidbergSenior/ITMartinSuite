@@ -38,6 +38,13 @@ public sealed record BillComparison(
     SupplierProduct? Current, double? BillMarkupKr, double? PortalMarkupKr,
     double YearlyKwh, double? MarkupGapYearlyKr, SupplierProduct? Cheapest, double? SavingYearlyKr)
 {
+    // A spot product's markup on elpris.dk is a few øre (174 products on 2026-09-29: 0-55 øre, median 5).
+    // NRGi entered ~117 øre on 2026-09-28 - the whole kWh price, not a markup. Above this the portal
+    // figure is treated as a reporting error at elpris.dk, not as a problem with the customer's bill.
+    public const double MaxPlausibleMarkupKr = 0.75;   // excl. VAT
+
+    public bool PortalLooksWrong => Current is { Fixed: false } p && p.SurchargeKrPerKwh > MaxPlausibleMarkupKr;
+
     public static BillComparison For(ElBill bill, IReadOnlyList<SupplierProduct> products)
     {
         var company = bill.Supplier.Split(' ')[0];

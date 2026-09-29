@@ -99,6 +99,22 @@ public class ElBillParserTests
         ElBillParser.Parse("Kære Martin\nTak for sidst.").Should().BeNull();
     }
     [Test]
+    public void A_whole_kwh_price_reported_as_markup_is_an_elpris_dk_error_not_a_bill_error()
+    {
+        // NRGi entered 117.04 øre as the spot markup on elpris.dk on 2026-09-28 (the bill says 9 øre).
+        var bill = ElBillParser.Parse(Nrgi)!;
+        var products = new List<SupplierProduct>
+        {
+            new("ep-1-0", "NRGi Elhandel A/S", "NRGi Time", false, 1.1704, 0, 23.2, 0, 0, "0 mdr.", "", null, false, null, null),
+            new("ep-2-0", "Billig El A/S", "Spot", false, 0.01, 0, 0, 0, 0, "", "https://example.dk", null, false, null, null),
+        };
+        var c = BillComparison.For(bill, products);
+        c.PortalLooksWrong.Should().BeTrue();
+        products[0].FitsFor(3000).Should().BeFalse();   // never offered as "cheapest" on an impossible figure
+        c.Cheapest!.Company.Should().Be("Billig El A/S");
+    }
+
+    [Test]
     public void Compares_the_bill_with_elpris_dk_and_finds_the_saving()
     {
         var bill = ElBillParser.Parse(Nrgi)!;

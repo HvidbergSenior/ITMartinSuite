@@ -81,7 +81,17 @@ else
 
     @if (_cmp is { } c)
     {
-        @if (c.BillMarkupKr is { } bm && c.PortalMarkupKr is { } pm && Math.Abs(bm - pm) * 100 >= 0.3)
+        @if (c.PortalLooksWrong && c.BillMarkupKr is { } bmw && c.PortalMarkupKr is { } pmw)
+        {
+            <div class="card">
+                <div class="card-title">🔎 elpris.dk viser et forkert tal for @b.Supplier</div>
+                <p class="small">Tillægget er elselskabets egen fortjeneste oven i selve strømmen. På din regning: <b>@((bmw * 100).ToString("0.00", Da)) øre</b> pr. kWh – det ser normalt ud.</p>
+                <p class="small">@b.Supplier har oplyst <b>@((pmw * 100).ToString("0.00", Da)) øre</b> som tillæg til Forsyningstilsynet (elpris.dk)@(c.Current?.Updated is { } uw ? $" den {uw.ToString("d. MMMM yyyy", Da)}" : "").
+                    Det ligner hele prisen pr. kWh, ikke et tillæg – de andre elselskabers tillæg ligger på 0–55 øre. Det er sandsynligvis en indtastningsfejl hos @b.Supplier på elpris.dk, ikke en fejl på din regning.</p>
+                <p class="small"><b>Vil du hjælpe andre?</b> Skriv til @b.Supplier: “På elpris.dk står der @((pmw * 100).ToString("0.00", Da)) øre i tillæg på @(c.Current?.Name ?? "jeres produkt"), men min regning siger @((bmw * 100).ToString("0.00", Da)) øre. Vil I rette tallet på elpris.dk?”</p>
+            </div>
+        }
+        else if (c.BillMarkupKr is { } bm && c.PortalMarkupKr is { } pm && Math.Abs(bm - pm) * 100 >= 0.3)
         {
             <div class="card now-tile lvl-expensive">
                 <div class="card-title">⚠️ Din regning passer ikke med elpris.dk</div>

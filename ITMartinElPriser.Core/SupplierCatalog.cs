@@ -16,7 +16,8 @@ public sealed record SupplierProduct(
     // Comparable for this household: no short intro offers, no odd "negative markup" deals
     // (those pair with a big subscription), and inside the product's consumption limits.
     public bool FitsFor(double kwh) =>
-        !Intro && SurchargeKrPerKwh >= 0 && (MinKwh is null || kwh >= MinKwh) && (MaxKwh is null || kwh <= MaxKwh);
+        !Intro && SurchargeKrPerKwh >= 0 && (Fixed || SurchargeKrPerKwh <= BillComparison.MaxPlausibleMarkupKr) &&
+        (MinKwh is null || kwh >= MinKwh) && (MaxKwh is null || kwh <= MaxKwh);
 
     public const double Vat = 1.25;
 
