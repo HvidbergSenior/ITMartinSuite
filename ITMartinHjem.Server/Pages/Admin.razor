@@ -71,8 +71,25 @@
     }
 </section>
 
-<section class="k-card">
+<section class="k-card" id="lige-nu">
     <div class="k-card-title">📌 Lige nu</div>
+    <p class="k-help"><b>Vis hvad du laver i dag:</b> tryk 📷 og tag et billede – det kommer straks på siden "Hvad laver ITKolibrien lige nu?" med dato og klokkeslæt. Du kan også vælge flere billeder på én gang fra telefonen eller PC'en.</p>
+    <div class="k-row">
+        <label class="k-btn k-btn-primary">📷 Tag billede<InputFile OnChange="OnNowPhotosAsync" accept="image/*" capture="environment" style="display:none" /></label>
+        <label class="k-btn">🖼️ Vælg billeder<InputFile OnChange="OnNowPhotosAsync" multiple accept="image/*" style="display:none" /></label>
+    </div>
+    @if (_photoNote.Length > 0) { <p class="k-help">@_photoNote</p> }
+    @if (_s.Photos() is { Count: > 0 } photos)
+    {
+        <div class="hj-now-thumbs k-mt">
+            @foreach (var p in photos)
+            {
+                <span class="hj-now-thumb"><img src="/nu/@p.Thumb" alt="" /><button class="k-btn-ghost" title="Fjern billedet" @onclick="() => RemoveNowPhotoAsync(p)">✕</button></span>
+            }
+        </div>
+        @if (_confirmNewDay) { <button class="k-btn k-btn-danger k-mt" @onclick="NewDayAsync">Ja, fjern alle billeder og teksten</button> }
+        else { <button class="k-btn k-btn-ghost k-mt" @onclick="() => _confirmNewDay = true">🧹 Ny dag – start forfra</button> }
+    }
     <p class="k-help">Det første folk ser. Skriv kort, hvad du arbejder med – opdatér det, når det skifter. Start en linje med <b>*</b> for en punktliste, og skriv <b>**sådan**</b> for fed skrift.</p>
     <textarea class="k-input k-textarea" @bind="_s.NowText" maxlength="3000" rows="12" aria-label="Lige nu"></textarea>
     <label class="k-label">Billede eller film (vises over teksten)</label>
@@ -284,6 +301,54 @@
             _nowNote = "Lagt på forsiden ✓";
         }
         catch (Exception ex) { _nowNote = $"Det lykkedes ikke: {ex.Message}"; }
+    }
+
+    private string _photoNote = "";
+    private bool _confirmNewDay;
+    private const int MaxNowPhotos = 30;
+
+    // Pictures of today: saved at once (no "Gem" needed), newest first.
+    private async Task OnNowPhotosAsync(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(MaxNowPhotos);
+        var photos = _s.Photos();
+        var added = 0;
+        foreach (var f in files)
+        {
+            _photoNote = $"Lægger billede {added + 1} af {files.Count} op…";
+            StateHasChanged();
+            try
+            {
+                await using var stream = f.OpenReadStream(MediaStore.MaxBytes);
+                var saved = await Store.SaveAsync(stream, f.Name, f.ContentType);
+                if (saved.Media.ThumbName is null) { Store.Delete(saved.Media); continue; }   // not a picture
+                photos.Insert(0, new Settings.NowPhoto(saved.Media.StoredName, saved.Media.ThumbName, saved.TakenAt ?? TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen")   /* EXIF time is already local */));
+                added++;
+            }
+            catch (Exception ex) { _photoNote = $"Det lykkedes ikke: {ex.Message}"; StateHasChanged(); }
+        }
+        foreach (var old in photos.Skip(MaxNowPhotos)) Store.Delete(new Media { StoredName = old.Stored, ThumbName = old.Thumb });
+        _s.SetPhotos(photos.Take(MaxNowPhotos));
+        await SaveSettingsAsync();
+        _photoNote = added == 1 ? "Billedet er på siden ✓" : $"{added} billeder er på siden ✓";
+    }
+
+    private async Task RemoveNowPhotoAsync(Settings.NowPhoto p)
+    {
+        Store.Delete(new Media { StoredName = p.Stored, ThumbName = p.Thumb });
+        _s.SetPhotos(_s.Photos().Where(x => x.Stored != p.Stored));
+        await SaveSettingsAsync();
+        _photoNote = "Fjernet ✓";
+    }
+
+    private async Task NewDayAsync()
+    {
+        foreach (var p in _s.Photos()) Store.Delete(new Media { StoredName = p.Stored, ThumbName = p.Thumb });
+        _s.SetPhotos([]);
+        _s.NowText = "";
+        _confirmNewDay = false;
+        await SaveSettingsAsync();
+        _photoNote = "Klar til en ny dag ✓";
     }
 
     private async Task RemoveNowMedia()

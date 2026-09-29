@@ -176,16 +176,19 @@ app.MapGet("/logout", async (HttpContext ctx) =>
     return Results.Redirect("/");
 });
 
-// ── "Lige nu" picture/film (always public). The file name changes on every upload, so it caches well.
+// ── "Lige nu" pictures/film (always public). The file name changes on every upload, so browsers may cache it.
 app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>
 {
     using var db = dbf.CreateDbContext();
     var s = db.Settings.AsNoTracking().First();
-    if (name != s.NowMediaName && name != s.NowMediaThumb) return Results.NotFound();
+    var photo = s.Photos().FirstOrDefault(p => p.Stored == name || p.Thumb == name);
+    if (name != s.NowMediaName && name != s.NowMediaThumb && photo is null) return Results.NotFound();
     var path = store.PathFor(name);
     if (!File.Exists(path)) return Results.NotFound();
-    ctx.Response.Headers.CacheControl = "public, max-age=604800";
-    return Results.File(path, name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType, enableRangeProcessing: true);
+    // private: browsers may keep it, Cloudflare may not - a picture removed in Svar must disappear at once.
+    ctx.Response.Headers.CacheControl = "private, max-age=86400";
+    var type = photo is not null || name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType;
+    return Results.File(path, type, enableRangeProcessing: true);
 });
 
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.

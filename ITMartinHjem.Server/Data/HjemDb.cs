@@ -58,6 +58,20 @@ public sealed class Settings
     public string NowMediaThumb { get; set; } = "";
     public string NowMediaType { get; set; } = "";
     public string NowLink { get; set; } = "";
+
+    // Today's pictures on "Lige nu" (Svar -> 📷), newest first: one line per picture "stored|thumb|yyyy-MM-dd HH:mm".
+    public string NowPhotos { get; set; } = "";
+
+    public sealed record NowPhoto(string Stored, string Thumb, DateTime At);
+
+    public List<NowPhoto> Photos() => NowPhotos.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Select(l => l.Split('|'))
+        .Where(p => p.Length == 3)
+        .Select(p => new NowPhoto(p[0], p[1], DateTime.TryParse(p[2], out var at) ? at : DateTime.Now))
+        .ToList();
+
+    public void SetPhotos(IEnumerable<NowPhoto> photos) =>
+        NowPhotos = string.Join('\n', photos.Select(p => $"{p.Stored}|{p.Thumb}|{p.At:yyyy-MM-dd HH:mm}"));
 }
 
 public enum Visibility { Offentlig = 0, Familie = 1 }

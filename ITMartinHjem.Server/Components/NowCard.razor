@@ -22,13 +22,25 @@
     {
         <a class="k-btn k-btn-primary k-mt" href="@_s.NowLink" target="_blank" rel="noopener">▶ Se med</a>
     }
-    @if (_s.NowText.Length == 0 && _s.NowMediaName.Length == 0 && _s.NowLink.Length == 0)
+    @if (_s.Photos() is { Count: > 0 } photos)
+    {
+        <div class="@(photos.Count > 1 ? "tm-gallery" : "")">
+            @foreach (var p in photos)
+            {
+                <figure class="tm-fig">
+                    <a href="/nu/@p.Stored" target="_blank" rel="noopener"><img class="tm-img" loading="lazy" src="/nu/@(photos.Count > 1 ? p.Thumb : p.Stored)" alt="Lige nu" /></a>
+                    <figcaption>📅 @p.At.ToString("d. MMMM yyyy 'kl.' HH:mm", Da)</figcaption>
+                </figure>
+            }
+        </div>
+    }
+    @if (_s.NowText.Length == 0 && _s.NowMediaName.Length == 0 && _s.NowLink.Length == 0 && _s.NowPhotos.Length == 0)
     {
         <p class="k-help">Martin har ikke skrevet noget i dag endnu – kig forbi senere, eller skriv til ham i chatten.</p>
     }
     else
     {
-        <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div>
+        @if (_s.NowText.Length > 0) { <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div> }
         <p class="k-help">📅 Opdateret @_s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", Da)</p>
     }
 </section>
