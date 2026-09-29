@@ -111,7 +111,7 @@ else if (_review is { } rv)
     <button class="k-btn k-btn-primary k-mt" @onclick="SaveTodayAsync">Gem planen</button>
     @if (_todayNote.Length > 0) { <span class="k-help"> @_todayNote</span> }
     <label class="k-label k-mt">📍 I løbet af dagen: skriv en linje og/eller tag et billede</label>
-    <input class="k-input" @bind="_dayText" @bind:event="oninput" maxlength="300" placeholder="Hvad laver du nu? (kan springes over)" aria-label="Hvad laver du nu?" />
+    <textarea class="k-input k-textarea" @bind="_dayText" @bind:event="oninput" maxlength="600" rows="2" placeholder="Hvad laver du nu? (kan springes over)" aria-label="Hvad laver du nu?"></textarea>
     <div class="k-row k-mt">
         <label class="k-btn k-btn-primary">📷 Tag billede<InputFile OnChange="OnDayPhotosAsync" accept="image/*" capture="environment" style="display:none" /></label>
         <label class="k-btn">🖼️ Vælg billeder<InputFile OnChange="OnDayPhotosAsync" multiple accept="image/*" style="display:none" /></label>

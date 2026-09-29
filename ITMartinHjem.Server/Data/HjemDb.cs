@@ -73,17 +73,19 @@ public sealed class Settings
     // One line per entry "stored|thumb|yyyy-MM-dd HH:mm|text" (stored/thumb empty for a text-only entry).
     public string NowPhotos { get; set; } = "";
 
+    private const char LineSep = '\u2028';   // a line break inside an entry's text
+
     public sealed record DayEntry(string Stored, string Thumb, DateTime At, string Text);
 
     public List<DayEntry> Entries() => NowPhotos.Split('\n', StringSplitOptions.RemoveEmptyEntries)
         .Select(l => l.Split('|', 4))
         .Where(p => p.Length >= 3)
-        .Select(p => new DayEntry(p[0], p[1], DateTime.TryParse(p[2], out var at) ? at : DateTime.Now, p.Length > 3 ? p[3] : ""))
+        .Select(p => new DayEntry(p[0], p[1], DateTime.TryParse(p[2], out var at) ? at : DateTime.Now, p.Length > 3 ? p[3].Replace(LineSep, '\n') : ""))
         .OrderByDescending(e => e.At)
         .ToList();
 
     public void SetEntries(IEnumerable<DayEntry> entries) =>
-        NowPhotos = string.Join('\n', entries.Select(e => $"{e.Stored}|{e.Thumb}|{e.At:yyyy-MM-dd HH:mm}|{e.Text.Replace('\n', ' ').Replace('\r', ' ')}"));
+        NowPhotos = string.Join('\n', entries.Select(e => $"{e.Stored}|{e.Thumb}|{e.At:yyyy-MM-dd HH:mm}|{e.Text.Replace("\r", "").Replace('\n', LineSep)}"));
 }
 
 public enum Visibility { Offentlig = 0, Familie = 1 }

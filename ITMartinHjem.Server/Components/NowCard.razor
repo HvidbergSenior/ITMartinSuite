@@ -82,11 +82,11 @@
             {
                 <div class="hj-day-entry">
                     <div class="hj-day-time">kl. @e.At.ToString("HH.mm")</div>
-                    @if (e.Text.Length > 0) { <div class="hj-day-text">@e.Text</div> }
+                    @if (e.Text.Length > 0) { <div class="hj-day-text">@TinyMarkdown.Render(e.Text)</div> }
                     @if (e.Stored.Length > 0)
                     {
                         <figure class="tm-fig">
-                            <a href="/nu/@e.Stored" target="_blank" rel="noopener"><img class="hj-day-img" loading="lazy" src="/nu/@e.Stored" alt="@e.Text" /></a>
+                            <a href="/nu/@e.Stored" target="_blank" rel="noopener"><img class="hj-day-img" loading="lazy" src="/nu/@e.Stored" alt="@e.Text.Replace("* ", "")" /></a>
                             <figcaption>📅 @e.At.ToString("d. MMMM yyyy 'kl.' HH.mm", Da)</figcaption>
                         </figure>
                     }

@@ -25,9 +25,9 @@ public sealed class TextCheck(IConfiguration config, ILogger<TextCheck> logger)
         if (_client is null || text.Length == 0 || !Take()) return null;
         var form = kind switch
         {
-            Kind.Liste => "Teksten er en liste over opgaver. Skriv den som punktform: én kort opgave pr. linje, uden tegn foran (ingen *, - eller •), uden punktum til sidst. Del sætninger med flere opgaver op, så hver opgave er sit eget punkt (fx \"skrive på X og ringe til Y\" bliver to linjer: \"Skrive på X\" og \"Ringe til Y\"). Start hvert punkt med stort bogstav. Tilføj ingen nye opgaver.",
-            Kind.Linje => "Teksten er én kort linje til et billede eller en statusopdatering. Hold den kort, på én linje.",
-            _ => "Teksten er et opslag. Bevar afsnit og opbygning; brug punktform, hvor der er en opremsning.",
+            Kind.Liste => "Hele teksten er en opgaveliste, så ALT skal i punktform.",
+            Kind.Linje => "Teksten er en kort tekst til et billede eller en statusopdatering. Er der ingen opgaver, så hold den kort som almindelig tekst.",
+            _ => "Teksten er et opslag. Bevar afsnit og opbygning; brug også punktform, hvor der er en opremsning.",
         };
         try
         {
@@ -36,7 +36,11 @@ public sealed class TextCheck(IConfiguration config, ILogger<TextCheck> logger)
                 Model = Model.ClaudeSonnet4_6,   // Haiku missed Danish names and did not split tasks into bullets (tested 2026-09-29)
                 MaxTokens = 1500,
                 System = "Du er korrekturlæser for Martin, der lægger tekst på sin egen hjemmeside (itmartin.dk). " +
-                         "Ret stavefejl, slåfejl og grammatik på dansk. Martins egne navne staves sådan: ITMartin, ITKolibri, MinElpris, ElPriser, Svar, Bogshoppen, Forløbet, Polstrer, R6, Mensa. " + form + " " +
+                         "Ret stavefejl, slåfejl og grammatik på dansk. Martins egne navne staves sådan: ITMartin, ITKolibri, MinElpris, ElPriser, Svar, Bogshoppen, Forløbet, Polstrer, R6, Mensa. " +
+                         "OPGAVER SKAL ALTID STÅ I PUNKTFORM: når teksten nævner opgaver eller gøremål (noget Martin skal, vil, regner med eller har lavet), " +
+                         "skriv dem som punkter – én opgave pr. linje, hver linje starter med \"* \", stort begyndelsesbogstav, intet punktum til sidst. " +
+                         "Del sætninger med flere opgaver op (fx \"skrive på X og ringe til Y\" bliver \"* Skrive på X\" og \"* Ringe til Y\"). " +
+                         "Almindelig tekst omkring opgaverne står som almindelig tekst over eller under punkterne. Tilføj ingen nye opgaver. " + form + " " +
                          "Bevar Martins egne ord, tone og humor (også emojis) – omskriv ikke mere end nødvendigt, og opfind intet. " +
                          "Se efter ting, der kan misforstås af en fremmed læser: tvetydige formuleringer, ironi der kan læses bogstaveligt, " +
                          "noget der kan virke stødende, løfter om priser eller tider, og personlige oplysninger om andre (navne på børn, adresser, helbred). " +
