@@ -22,8 +22,15 @@
     {
         <a class="k-btn k-btn-primary k-mt" href="@_s.NowLink" target="_blank" rel="noopener">▶ Se med</a>
     }
-    <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div>
-    <p class="k-help">📅 Opdateret @_s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", Da)</p>
+    @if (_s.NowText.Length == 0 && _s.NowMediaName.Length == 0 && _s.NowLink.Length == 0)
+    {
+        <p class="k-help">Martin har ikke skrevet noget i dag endnu – kig forbi senere, eller skriv til ham i chatten.</p>
+    }
+    else
+    {
+        <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div>
+        <p class="k-help">📅 Opdateret @_s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", Da)</p>
+    }
 </section>
 }
 
