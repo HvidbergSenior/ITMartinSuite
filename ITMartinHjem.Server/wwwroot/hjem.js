@@ -64,6 +64,29 @@ window.hjem = (function () {
             } catch (e) { return 'error'; }
         },
 
+        // Visitor: "Giv mig besked, når Martin svarer". Called straight from the button's onclick, so iPhone/Android
+        // count it as the visitor's own tap - permission is asked before anything else.
+        visitorPush: async function (btn) {
+            var done = function (t) { if (btn) { btn.textContent = t; btn.disabled = true; } };
+            try {
+                if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+                    return done('Din browser kan ikke give besked – skriv din e-mail i stedet');
+                }
+                var perm = await Notification.requestPermission();
+                if (perm !== 'granted') return done('Ikke slået til – skriv din e-mail i stedet');
+                var r = await reg();
+                var key = await (await fetch('/api/push/public-key')).text();
+                var sub = await r.pushManager.getSubscription()
+                       || await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key) });
+                var j = sub.toJSON();
+                var res = await fetch('/api/push/visitor', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visitorKey: localStorage.getItem('hjem-chat') || '', endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth })
+                });
+                done(res.ok ? '✅ Du får besked her, når Martin svarer' : 'Det lykkedes ikke – skriv din e-mail i stedet');
+            } catch (e) { done('Det lykkedes ikke – skriv din e-mail i stedet'); }
+        },
+
         pushTest: async function () {
             await fetch('/api/push/test', { method: 'POST' });
         }

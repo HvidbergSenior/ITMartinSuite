@@ -34,6 +34,20 @@ public sealed class PushService
 
     private sealed record Keys(string PublicKey, string PrivateKey);
 
+    // One visitor's browser. Returns false when the subscription is gone (the visitor turned it off).
+    public async Task<bool> SendToAsync(string endpoint, string p256dh, string auth, string title, string body, string url)
+    {
+        try
+        {
+            await _client.SendNotificationAsync(new PushSubscription(endpoint, p256dh, auth),
+                JsonSerializer.Serialize(new { title, body, url }), _vapid);
+            _log.LogInformation("Visitor push accepted by {Host}", new Uri(endpoint).Host);
+            return true;
+        }
+        catch (WebPushException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Gone or System.Net.HttpStatusCode.NotFound) { return false; }
+        catch (Exception ex) { _log.LogWarning(ex, "Visitor push failed"); return true; }
+    }
+
     public async Task<int> SendToOwnerAsync(string title, string body, string url)
     {
         await using var db = await _db.CreateDbContextAsync();

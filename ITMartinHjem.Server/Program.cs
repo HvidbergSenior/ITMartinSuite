@@ -48,6 +48,7 @@ builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Pat
 builder.Services.AddSingleton<MediaStore>();
 builder.Services.AddSingleton<TextCheck>();   // AI proofreading of the owner's own text in Svar
 builder.Services.AddSingleton<PushService>();
+builder.Services.AddSingleton<MailService>();   // "Martin har svaret dig" mails to chat visitors
 builder.Services.AddSingleton<ChatService>();
 builder.Services.AddHttpClient("status", c => c.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
@@ -314,6 +315,11 @@ app.MapPost("/api/push/subscribe", async (SubRequest req, HttpContext ctx, IDbCo
     return Results.Ok();
 }).DisableAntiforgery();
 
+// A chat visitor asks for a browser notification when Martin answers (wwwroot/hjem.js visitorPush).
+app.MapPost("/api/push/visitor", async (VisitorSubRequest req, ChatService chat) =>
+    await chat.SetVisitorPushAsync(req.VisitorKey, req.Endpoint, req.P256dh, req.Auth) ? Results.Ok() : Results.BadRequest())
+    .DisableAntiforgery();
+
 app.MapPost("/api/push/test", async (HttpContext ctx, PushService push) =>
     ctx.User.IsOwner() ? Results.Ok(await push.SendToOwnerAsync("Martin Hvidberg", "Beskeder virker ✅ – her kommer spørgsmål fra din side.", "/admin")) : Results.Unauthorized())
     .DisableAntiforgery();
@@ -344,3 +350,4 @@ static string LoginPage(bool owner, bool err) => $$"""
 """;
 
 public sealed record SubRequest(string Endpoint, string P256dh, string Auth);
+public sealed record VisitorSubRequest(string VisitorKey, string Endpoint, string P256dh, string Auth);

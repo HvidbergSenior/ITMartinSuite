@@ -34,9 +34,26 @@
         {
             <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" />
         }
+        @if (_thread is null || _thread.VisitorEmail.Length == 0)
+        {
+            <input class="k-input k-mt" type="email" @bind="_email" maxlength="200" placeholder="Din e-mail – hvis du vil have besked, når Martin svarer (valgfri)" aria-label="Din e-mail" autocomplete="email" />
+        }
         <textarea class="k-input k-textarea k-mt" @bind="_text" @bind:event="oninput" maxlength="2000" placeholder="Skriv i chatten…" aria-label="Din besked"></textarea>
         <button class="k-btn k-btn-primary k-btn-block k-mt" disabled="@(_busy || string.IsNullOrWhiteSpace(_text))" @onclick="SendAsync">Send</button>
         @if (_note.Length > 0) { <p class="k-help">@_note</p> }
+        @if (_thread is not null)
+        {
+            @if (_thread.VisitorEmail.Length > 0)
+            {
+                <p class="k-help">📧 Du får en mail på @_thread.VisitorEmail, når Martin svarer.</p>
+            }
+            @if (_thread.VisitorPush.Length == 0)
+            {
+                @* plain onclick: the browser must see the visitor's own tap when it asks for permission *@
+                <button type="button" class="k-btn k-btn-block k-mt" onclick="hjem.visitorPush(this)">🔔 Giv mig besked i browseren, når Martin svarer</button>
+            }
+            <p class="k-help">Din e-mail bruges kun til at give dig besked om svaret.</p>
+        }
     }
 </section>
 
@@ -46,7 +63,7 @@
     [Parameter] public bool StartOpen { get; set; }
     [Parameter] public bool Prominent { get; set; }
 
-    private string _key = "", _name = "", _text = "", _note = "";
+    private string _key = "", _name = "", _text = "", _note = "", _email = "";
     private bool _open, _busy;
     private ChatThread? _thread;
     private DateTime _lastSend = DateTime.MinValue;
@@ -59,6 +76,7 @@
             _thread = await Chat.GetAsync(_key);
             if (_thread is not null || StartOpen) _open = true;
             Chat.Changed += OnChanged;
+            Chat.VisitorOnline(_key);
             StateHasChanged();
         }
         if (_open && _thread is not null) await JS.InvokeVoidAsync("hjem.scrollEnd", "hj-msgs");
@@ -69,10 +87,15 @@
         if ((DateTime.UtcNow - _lastSend).TotalSeconds < 3) { _note = "Vent et øjeblik…"; return; }
         _busy = true;
         _lastSend = DateTime.UtcNow;
-        await Chat.VisitorWritesAsync(_key, _name, _text);
+        var hadEmail = _email.Trim().Length > 0 && !MailService.LooksLikeEmail(_email.Trim());
+        if (_thread is not null && MailService.LooksLikeEmail(_email.Trim())) await Chat.SetVisitorEmailAsync(_key, _email);
+        await Chat.VisitorWritesAsync(_key, _name, _text, _email);
         _text = "";
         _thread = await Chat.GetAsync(_key);
-        _note = Available ? "Sendt – svaret kommer lige her i chatten." : "Sendt. Lad siden stå åben, eller kom tilbage senere – svaret venter her i chatten.";
+        _note = hadEmail ? "Sendt. Din e-mail så forkert ud – ret den, så du kan få besked." :
+            _thread?.VisitorEmail.Length > 0 ? "Sendt – du får en mail, når Martin har svaret." :
+            Available ? "Sendt – svaret kommer lige her i chatten." :
+            "Sendt. Svaret kommer her i chatten. Vil du have besked, så skriv din e-mail herover eller tryk på 🔔.";
         _busy = false;
     }
 
@@ -82,5 +105,9 @@
         InvokeAsync(async () => { _thread = await Chat.GetAsync(_key); StateHasChanged(); });
     }
 
-    public void Dispose() => Chat.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Chat.Changed -= OnChanged;
+        if (_key.Length > 0) Chat.VisitorOffline(_key);
+    }
 }

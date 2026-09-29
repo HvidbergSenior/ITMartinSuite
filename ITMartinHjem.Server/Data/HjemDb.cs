@@ -123,6 +123,10 @@ public sealed class ChatThread
     public string Name { get; set; } = "";
     public DateTime LastAt { get; set; } = DateTime.UtcNow;
     public bool UnreadForOwner { get; set; }
+    // How the visitor hears that Martin answered (both optional, given in the chat):
+    public string VisitorEmail { get; set; } = "";
+    public string VisitorPush { get; set; } = "";          // "endpoint|p256dh|auth"
+    public DateTime? NotifiedAt { get; set; }               // last reply the visitor was told about
     public List<ChatMessage> Messages { get; set; } = [];
 }
 
