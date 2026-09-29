@@ -57,6 +57,22 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
+// One web-app manifest per gallery, so an installed gallery opens itself with its own name.
+app.MapGet("/m/{file}", (string file) =>
+{
+    var slug = file.EndsWith(".webmanifest") ? file[..^".webmanifest".Length] : file;
+    var s = app.Configuration.GetSection("Galleries").GetChildren()
+        .FirstOrDefault(x => string.Equals(x["Slug"], slug, StringComparison.OrdinalIgnoreCase));
+    if (s is null) return Results.NotFound();
+    var name = s["Name"] ?? slug;
+    return Results.Json(new
+    {
+        name, short_name = name.Length > 12 ? name[..12] : name, start_url = "/" + s["Slug"], scope = "/",
+        display = "standalone", background_color = "#0a0a0f", theme_color = "#0a0a0f",
+        icons = new[] { new { src = "/icon-192.png", sizes = "192x192", type = "image/png" }, new { src = "/icon-512.png", sizes = "512x512", type = "image/png" } },
+    }, contentType: "application/manifest+json");
+});
+
 // The warning before a gallery closes (wwwroot/closing.js shows it as a banner).
 app.MapGet("/api/closing", (string gallery) =>
     Closing.Times(app.Configuration).TryGetValue(gallery.ToLowerInvariant(), out var at) && Closing.NowDk() < at
@@ -366,7 +382,20 @@ app.Use(async (ctx, next) =>
             ctx.Response.ContentType = "text/html; charset=utf-8";
             ctx.Response.Headers.CacheControl = "no-cache";
             var page = string.IsNullOrEmpty(hit.CelebrationFolder) ? "index.html" : "fejring.html";
-            await ctx.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, page));
+            var html = await File.ReadAllTextAsync(Path.Combine(app.Environment.WebRootPath, page));
+            Func<string?, string> enc = System.Net.WebUtility.HtmlEncode;
+            // "Læg på telefonen" (kolibri.js): this gallery's own name and start page when installed.
+            html = html.Replace("</head>",
+                $"<meta name=\"application-name\" content=\"{enc(hit.Name)}\"><meta name=\"apple-mobile-web-app-title\" content=\"{enc(hit.Name)}\">" +
+                $"<link rel=\"manifest\" href=\"/m/{Uri.EscapeDataString(hit.Slug)}.webmanifest\"><link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\">\n</head>");
+            if (page == "fejring.html" &&
+                Celebration.Texts(hit.Path, hit.CelebrationFolder!, CelebrationEdits(hit.Slug))["theme"]?.ToString() is { Length: > 0 } theme)
+            {
+                // The theme is set before the password screen, so a themed page never shows the default look first.
+                html = html.Replace("<html lang=\"da\">",
+                    $"<html lang=\"da\" class=\"{enc(theme)}\" data-name=\"{enc(hit.CelebrationName ?? "")}\" data-birth=\"{enc(hit.BirthDate ?? "")}\">");
+            }
+            await ctx.Response.WriteAsync(html);
             return;
         }
     }
@@ -514,14 +543,19 @@ app.MapGet("/api/celebration", (string gallery, HttpContext ctx) =>
         f => GalleriThumb(f, g.Path, g.Slug) ?? Thumb(f, g.Path, g.Slug),
         DateTime.TryParse(g.BirthDate, out var born) ? born : null);
 
+    // fejring.json "fromYear": dated pictures before that year are left out (the old albums stay).
+    var texts = Celebration.Texts(g.Path, g.CelebrationFolder, CelebrationEdits(g.Slug));
+    var fromYear = texts["fromYear"]?.GetValue<int>() ?? 0;
+    var shown = timeline.Items.Where(i => i.Date is null || i.Date.Value.Year >= fromYear).ToList();
+
     return Results.Ok(new
     {
         slug = g.Slug,
         name = g.CelebrationName ?? g.Name,
         birthDate = g.BirthDate,
-        texts = Celebration.Texts(g.Path, g.CelebrationFolder, CelebrationEdits(g.Slug)),
+        texts,
         canEdit = !string.IsNullOrEmpty(g.EditPin),
-        items = timeline.Items.Select(i => new
+        items = shown.Select(i => new
         {
             name = i.Name, kind = i.Kind, url = i.Url, thumb = i.Thumb,
             date = i.Date?.ToString("yyyy-MM-ddTHH:mm:ss"),
@@ -1179,6 +1213,23 @@ app.MapGet("/api/search", async (string gallery, string q, HttpContext ctx) =>
 
     return Results.Ok(new { files });
 });
+
+// Birthday pages read the capture date of every picture (plus pictures from other person folders) -
+// a couple of minutes on the NAS. Do it right after start, so no visitor waits for it.
+app.Lifetime.ApplicationStarted.Register(() => Task.Run(() =>
+{
+    foreach (var g in galleries.Where(x => !string.IsNullOrEmpty(x.CelebrationFolder)))
+    {
+        try
+        {
+            Celebration.Build(g.Slug, g.Path, g.CelebrationFolder!,
+                f => Web(f, g.Path, g.Slug),
+                f => GalleriThumb(f, g.Path, g.Slug) ?? Thumb(f, g.Path, g.Slug),
+                DateTime.TryParse(g.BirthDate, out var born) ? born : null);
+        }
+        catch (Exception ex) { app.Logger.LogWarning(ex, "Warm-up of celebration {Slug} failed", g.Slug); }
+    }
+}));
 
 app.Run();
 

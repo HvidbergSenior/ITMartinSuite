@@ -8,10 +8,6 @@
     "text": "Billeder uden dato – scannet fra papirbilleder og gamle kameraer. Nogle af dem er ældre end Maya selv."
   },
   "years": {
-    "2008": {
-      "title": "Velkommen, lillesøster!",
-      "text": "Den 29. september kom den yngste til. Silje og Lukas fik en lillesøster – og hele flokken fik en ny at passe på."
-    },
     "2009": {
       "title": "Et år og alles øjesten",
       "text": "Når man er den mindste, er der altid nogen, der vil bære en. Det udnyttede hun fuldt ud."
@@ -134,8 +130,13 @@
   ],
   "extraFrom": {
     "SmartFolders/People/Malene": {
-      "count": 3,
-      "caption": "Mor – Malene ❤️"
+      "count": 0,
+      "caption": "Mor – Malene ❤️",
+      "files": [
+        "P3080062.jpg",
+        "P7160033.jpg",
+        "20180715 120308.jpg"
+      ]
     },
     "SmartFolders/People/Silje": {
       "count": 3,
@@ -178,6 +179,14 @@
     }
   },
   "captions": {
-    "../Martin/20230513 174222.jpg": "Onkel Martin i topform. Han bad selv om, at dette billede kom med 🙈"
+    "../Martin/20230513 174222.jpg": "Onkel Martin i topform. Han bad selv om, at dette billede kom med 🙈",
+    "../Malene/P3080062.jpg": "Mathias og Mona – med mor Malene i baggrunden",
+    "P2100028.jpg": "Maya og mor Malene ❤️"
+  },
+  "fromYear": 2009,
+  "rotate": {
+    "PA140124.jpg": 90,
+    "20161208 163753.jpg": 270,
+    "../Malene/P3080062.jpg": 90
   }
 }

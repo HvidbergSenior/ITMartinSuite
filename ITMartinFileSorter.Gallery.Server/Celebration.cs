@@ -24,7 +24,8 @@ public static partial class Celebration
     // Reading EXIF of ~1,000 files is a few seconds on the NAS; the folder only
     // changes when someone re-runs the person step, so keep the result a while.
     private static readonly Dictionary<string, Timeline> Cache = new();
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(6);
+    // Warmed at start (Program.cs); a deploy/restart refreshes it, so it can live long.
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromDays(2);
 
     public static Timeline Build(string slug, string libraryRoot, string folderRel,
         Func<string, string> web, Func<string, string?> thumb, DateTime? birth = null)
@@ -88,7 +89,7 @@ public static partial class Celebration
         {
             var dir = Path.GetFullPath(Path.Combine(root, rel));
             if (!dir.StartsWith(root) || !System.IO.Directory.Exists(dir)) continue;
-            var count = Math.Clamp(cfg?["count"]?.GetValue<int>() ?? 3, 1, 12);
+            var count = Math.Clamp(cfg?["count"]?.GetValue<int>() ?? 3, 0, 12);   // 0 = only the "files" listed
             var who = cfg?["caption"]?.GetValue<string>();
             var candidates = new List<(string File, DateTime Date)>();
             foreach (var f in System.IO.Directory.EnumerateFiles(dir))
@@ -108,6 +109,10 @@ public static partial class Celebration
                 yield return new Item(Path.GetRelativePath(folder, f).Replace('\\', '/'), "img", web(f), thumb(f),
                     CaptureDate(f) ?? DateFromName(Path.GetFileName(f)), who);
             candidates.RemoveAll(c => must.Contains(c.File));
+            // "skip": pictures the person folder has by mistake (e.g. Mathias and Mona in Malene's folder)
+            var skip = (cfg?["skip"] as JsonArray)?.Select(x => x?.GetValue<string>() ?? "").ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+            candidates.RemoveAll(c => skip.Contains(Path.GetFileName(c.File)));
+            if (count == 0) continue;
             var picks = candidates.Count <= count
                 ? candidates
                 : Enumerable.Range(0, count).Select(i => candidates[(int)((i + 0.5) * candidates.Count / count)]).ToList();

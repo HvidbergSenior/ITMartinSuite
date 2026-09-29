@@ -294,7 +294,21 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const months = ['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december'];
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let glam = false, glamWord = 'TILLYKKE';   // theme "glam" (set from fejring.json in render)
+  // theme "glam": the server puts class="glam" on <html> already (see Program.cs), render() confirms it from fejring.json
+  const glamPal = ['#f5c76a', '#f4a6c4', '#c08cff', '#ffe7a8', '#ff4fa3', '#9d8cff'];
+  let glam = document.documentElement.classList.contains('glam');
+  let glamWord = ('TILLYKKE ' + (document.documentElement.dataset.name || '')).toUpperCase().trim();
+  // a themed page knows the name and birthday before the password (not secret: they are in the link and the title)
+  addEventListener('DOMContentLoaded', () => {
+    const ds = document.documentElement.dataset;
+    if (ds.name && $('heroName').textContent === '…')
+      $('heroName').innerHTML = [...ds.name.toUpperCase() + '!'].map((ch, i) => `<span class="l" style="--i:${i}">${esc(ch)}</span>`).join('');
+    if (ds.birth && $('ageBadge').textContent.startsWith('?')) {
+      const b = new Date(ds.birth + 'T12:00:00'), d = new Date();
+      let a = d.getFullYear() - b.getFullYear(); if (d < new Date(d.getFullYear(), b.getMonth(), b.getDate())) a--;
+      $('ageBadge').innerHTML = `${a}<small>ÅR</small>`;
+    }
+  });
 
   /* ---------- garland ---------- */
   function garland() {
@@ -311,7 +325,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
 
   /* ---------- confetti ---------- */
   const dk = ['#c8102e', '#ffffff', '#ffc93c', '#3fb8f0', '#ff6fae', '#3ecf8e'];
-  let pal = dk;
+  let pal = glam ? glamPal : dk;
   function boom(big) {
     if (reduce || typeof confetti !== 'function') return;
     confetti({ particleCount: big ? 220 : 90, spread: big ? 120 : 70, origin: { y: .35 }, colors: pal, ...(glam ? { shapes: ['star', 'circle'], scalar: 1.1 } : {}) });
@@ -373,7 +387,6 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
 
 
   /* ---------- theme "glam": gold pennants that spell the greeting, metallic balloons, a full song ---------- */
-  const glamPal = ['#f5c76a', '#f4a6c4', '#c08cff', '#ffe7a8', '#ff4fa3', '#9d8cff'];
   function applyTheme(t, name) {
     glam = t === 'glam';
     document.documentElement.classList.toggle('glam', glam);
