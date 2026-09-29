@@ -123,7 +123,7 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-day-img { width: 100%; max-width: 520px; max-height: 60vh; object-fit: cover; border-radius: 10px; display: block; }
 .hj-day-earlier summary { cursor: pointer; font-weight: 600; margin: 8px 0; }
 .hj-day-plan, .hj-day-done { background: var(--k-surface-2, #eef1f0); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; }
-.hj-day-plan p, .hj-day-done p { margin: 4px 0 0; }
+.hj-day-tasks { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 2px; }
 /* Svar: today's entries, small, removable */
 .hj-day-admin { display: grid; gap: 6px; }
 .hj-day-row { display: flex; align-items: center; gap: 8px; }

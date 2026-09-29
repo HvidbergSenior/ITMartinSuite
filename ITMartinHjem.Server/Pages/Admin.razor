@@ -75,10 +75,10 @@
     <div class="k-card-title">📌 Min dag</div>
     <p class="k-help"><b>Saml din dag:</b> skriv om morgenen, hvad du regner med at lave. I løbet af dagen tager du billeder eller skriver en linje, hver gang der sker noget.
         Om aftenen skriver du, hvad det egentlig blev til. Hvert billede eller hver linje bliver et punkt med klokkeslæt på siden "Hvad laver ITKolibrien lige nu?". I morgen starter en ny dag af sig selv – de tidligere dage kan stadig ses længere nede.</p>
-    <label class="k-label">🌅 I morges: hvad regner du med at lave i dag?</label>
-    <textarea class="k-input k-textarea" @bind="_today.Plan" maxlength="2000" rows="3" placeholder="Fx: skrive på MinElpris, ringe til Bogshoppen, øve guitar"></textarea>
-    <label class="k-label">🌙 I aften: hvad blev det egentlig til?</label>
-    <textarea class="k-input k-textarea" @bind="_today.Done" maxlength="2000" rows="3" placeholder="Skriv det i aften – det må gerne være noget helt andet 🙂"></textarea>
+    <label class="k-label">🌅 I morges: hvad regner du med at lave i dag? <span class="k-help">(én opgave pr. linje)</span></label>
+    <textarea class="k-input k-textarea" @bind="_today.Plan" maxlength="2000" rows="4" placeholder="Skrive på MinElpris&#10;Ringe til Bogshoppen&#10;Øve guitar"></textarea>
+    <label class="k-label">🌙 I aften: hvad fik du lavet? <span class="k-help">(én ting pr. linje)</span></label>
+    <textarea class="k-input k-textarea" @bind="_today.Done" maxlength="2000" rows="4" placeholder="Skriv det i aften – det må gerne være noget helt andet 🙂"></textarea>
     <button class="k-btn k-btn-primary k-mt" @onclick="SaveTodayAsync">Gem planen</button>
     @if (_todayNote.Length > 0) { <span class="k-help"> @_todayNote</span> }
     <label class="k-label k-mt">📍 I løbet af dagen: skriv en linje og/eller tag et billede</label>

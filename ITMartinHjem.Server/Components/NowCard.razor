@@ -52,6 +52,17 @@
     private Settings? _s;
     private Dictionary<DateTime, DayNote> _notes = [];
 
+    // Plan / "what it became": one task per line, shown as bullet points (a typed "*", "-" or "•" is dropped).
+    private static RenderFragment Bullets(string text) => __builder =>
+    {
+        <ul class="hj-day-tasks">
+            @foreach (var line in text.Split('\n').Select(l => l.Trim().TrimStart('*', '-', '•').Trim()).Where(l => l.Length > 0))
+            {
+                <li>@line</li>
+            }
+        </ul>
+    };
+
     // One day of "Min dag": heading with the date, then the entries newest first, date + time under every picture.
     private RenderFragment DayBlock(DateTime day) => __builder =>
     {
@@ -61,11 +72,11 @@
             @{ _notes.TryGetValue(day, out var note); }
             @if (note is { Plan.Length: > 0 })
             {
-                <div class="hj-day-plan"><b>🌅 Det regnede jeg med at lave</b><div>@TinyMarkdown.Render(note.Plan)</div></div>
+                <div class="hj-day-plan"><b>🌅 @(day == today ? "Det regner jeg med at lave" : "Det regnede jeg med at lave")</b>@Bullets(note.Plan)</div>
             }
             @if (note is { Done.Length: > 0 })
             {
-                <div class="hj-day-done"><b>🌙 Det blev det til</b><div>@TinyMarkdown.Render(note.Done)</div></div>
+                <div class="hj-day-done"><b>🌙 Det fik jeg lavet</b>@Bullets(note.Done)</div>
             }
             @foreach (var e in _s!.Entries().Where(x => x.At.Date == day))
             {
