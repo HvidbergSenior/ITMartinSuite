@@ -7,27 +7,90 @@
     "text": "Billeder uden dato – scannet fra papirbilleder og gamle kameraer. Nogle af dem er ældre end internettet i lommen."
   },
   "years": {
-    "2006": { "title": "Fire år og fuld fart", "text": "Hvorfor gå, når man kan løbe? Hvorfor løbe, når man kan klatre?" },
-    "2007": { "title": "Fem år – næsten stor", "text": "Snart skolestart, men først skulle der lige leges. Rigtig meget." },
-    "2008": { "title": "Skolestart!", "text": "Skoletasken var næsten større end drengen. Et nyt kapitel begynder." },
-    "2009": { "title": "Syv år og fuld af gå-på-mod", "text": "Venner, fritid og eventyr – livet var én lang weekend." },
-    "2010": { "title": "Otte år og vild med det hele", "text": "Årets travleste fotograf var tydeligvis en i familien." },
-    "2011": { "title": "Ni år – stadig ikke træt", "text": "Energi nok til hele vejen rundt. Og tilbage igen." },
-    "2012": { "title": "Tocifret!", "text": "Ti år. Det betyder officielt, at man er stor. Siger man selv." },
-    "2013": { "title": "Elleve og cool", "text": "Kameraet blev mindre populært. Man er jo næsten teenager." },
-    "2014": { "title": "Tolv år og på vej", "text": "Snart teenager – men lige nu stadig med på det meste." },
-    "2015": { "title": "Teenager-mode aktiveret", "text": "Tretten år, og pludselig var man for gammel til næsten alt. Undtagen mad." },
-    "2016": { "title": "Fjorten og fuld af planer", "text": "Venner, skærme og sene aftener. Kameraet fik lov at være med en gang imellem." },
-    "2017": { "title": "Femten – bevis på liv", "text": "Kun tre billeder. De er til gengæld sjældne samlerobjekter." },
-    "2018": { "title": "Seksten og på vej", "text": "Ungdomsliv, venner og store planer for fremtiden." },
-    "2019": { "title": "Sytten – ét eneste billede", "text": "Hele året i ét billede. Det må være et godt et." },
-    "2020": { "title": "Myndig – i det mærkelige år", "text": "Atten år, mens hele verden holdt pause. Kørekort, frihed og et CPR-nummer, der pludselig betød noget." },
-    "2021": { "title": "Nitten – voksen i det små", "text": "Det sidste teenageår. Ingen sagde, at voksenlivet kom med så mange regninger." },
-    "2022": { "title": "Tyve år!", "text": "Ikke længere teenager. Officielt en ung mand – i hvert fald på papiret." },
-    "2023": { "title": "21 – voksen i hele verden", "text": "Nu er man voksen, også i USA. Vi siger det bare." },
-    "2024": { "title": "22 og i fuld gang", "text": "Livet kører – og billederne bliver færre, men bedre." },
-    "2025": { "title": "23 og stadig på eventyr", "text": "Endnu et år med gode folk omkring sig. Og en enkelt god selfie." },
-    "2026": { "title": "24 – og det er i dag! 🎉", "text": "Det seneste kapitel. Og det bedste er, at det slet ikke er slut endnu." }
+    "2006": {
+      "title": "Fire år og fuld fart",
+      "text": "Hvorfor gå, når man kan løbe? Hvorfor løbe, når man kan klatre?"
+    },
+    "2007": {
+      "title": "Fem år – næsten stor",
+      "text": "Snart skolestart, men først skulle der lige leges. Rigtig meget."
+    },
+    "2008": {
+      "title": "Skolestart!",
+      "text": "Skoletasken var næsten større end drengen. Et nyt kapitel begynder."
+    },
+    "2009": {
+      "title": "Syv år og fuld af gå-på-mod",
+      "text": "Venner, fritid og eventyr – livet var én lang weekend."
+    },
+    "2010": {
+      "title": "Otte år og vild med det hele",
+      "text": "Årets travleste fotograf var tydeligvis en i familien."
+    },
+    "2011": {
+      "title": "Ni år – stadig ikke træt",
+      "text": "Energi nok til hele vejen rundt. Og tilbage igen."
+    },
+    "2012": {
+      "title": "Tocifret!",
+      "text": "Ti år. Det betyder officielt, at man er stor. Siger man selv."
+    },
+    "2013": {
+      "title": "Elleve og cool",
+      "text": "Kameraet blev mindre populært. Man er jo næsten teenager."
+    },
+    "2014": {
+      "title": "Tolv år og på vej",
+      "text": "Snart teenager – men lige nu stadig med på det meste."
+    },
+    "2015": {
+      "title": "Teenager-mode aktiveret",
+      "text": "Tretten år, og pludselig var man for gammel til næsten alt. Undtagen mad."
+    },
+    "2016": {
+      "title": "Fjorten og fuld af planer",
+      "text": "Venner, skærme og sene aftener. Kameraet fik lov at være med en gang imellem."
+    },
+    "2017": {
+      "title": "Femten – bevis på liv",
+      "text": "Kun tre billeder. De er til gengæld sjældne samlerobjekter."
+    },
+    "2018": {
+      "title": "Seksten og på vej",
+      "text": "Ungdomsliv, venner og store planer for fremtiden."
+    },
+    "2019": {
+      "title": "Sytten – ét eneste billede",
+      "text": "Hele året i ét billede. Det må være et godt et."
+    },
+    "2020": {
+      "title": "Myndig – i det mærkelige år",
+      "text": "Atten år, mens hele verden holdt pause. Kørekort, frihed og et CPR-nummer, der pludselig betød noget."
+    },
+    "2021": {
+      "title": "Nitten – voksen i det små",
+      "text": "Det sidste teenageår. Ingen sagde, at voksenlivet kom med så mange regninger."
+    },
+    "2022": {
+      "title": "Tyve år!",
+      "text": "Ikke længere teenager. Officielt en ung mand – i hvert fald på papiret."
+    },
+    "2023": {
+      "title": "21 – voksen i hele verden",
+      "text": "Nu er man voksen, også i USA. Vi siger det bare."
+    },
+    "2024": {
+      "title": "22 og i fuld gang",
+      "text": "Livet kører – og billederne bliver færre, men bedre."
+    },
+    "2025": {
+      "title": "23 og stadig på eventyr",
+      "text": "Endnu et år med gode folk omkring sig. Og en enkelt god selfie."
+    },
+    "2026": {
+      "title": "24 – og det er i dag! 🎉",
+      "text": "Det seneste kapitel. Og det bedste er, at det slet ikke er slut endnu."
+    }
   },
   "captions": {},
   "rotate": {

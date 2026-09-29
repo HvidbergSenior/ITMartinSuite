@@ -27,6 +27,42 @@ builder.Services.AddKolibri(k =>
 var app = builder.Build();
 app.MapKolibri();
 
+// Closed galleries (Galleries__N__ClosesAt passed): every way in answers "closed" - before the static files,
+// so the old ?g= address is covered too. Nothing is deleted. See Closing.cs.
+app.Use(async (ctx, next) =>
+{
+    var times = Closing.Times(app.Configuration);
+    if (times.Count > 0)
+    {
+        var now = Closing.NowDk();
+        var slug = Closing.SlugsOf(ctx.Request).FirstOrDefault(sl => times.TryGetValue(sl, out var at) && now >= at);
+        if (slug is not null)
+        {
+            var name = app.Configuration.GetSection("Galleries").GetChildren()
+                .FirstOrDefault(x => string.Equals(x["Slug"], slug, StringComparison.OrdinalIgnoreCase))?["Name"] ?? "Galleriet";
+            ctx.Response.StatusCode = StatusCodes.Status410Gone;
+            ctx.Response.Headers.CacheControl = "no-store";
+            var path = ctx.Request.Path.Value ?? "";
+            if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/libraryfiles/", StringComparison.OrdinalIgnoreCase)
+                || path.Contains('.') && !path.EndsWith(".html"))
+                await ctx.Response.WriteAsJsonAsync(new { closed = true, message = "Galleriet er lukket. Kontakt ITMartin: " + Closing.Contact });
+            else
+            {
+                ctx.Response.ContentType = "text/html; charset=utf-8";
+                await ctx.Response.WriteAsync(Closing.ClosedPage(name));
+            }
+            return;
+        }
+    }
+    await next();
+});
+
+// The warning before a gallery closes (wwwroot/closing.js shows it as a banner).
+app.MapGet("/api/closing", (string gallery) =>
+    Closing.Times(app.Configuration).TryGetValue(gallery.ToLowerInvariant(), out var at) && Closing.NowDk() < at
+        ? Results.Ok(new { closesAt = at.ToString("yyyy-MM-ddTHH:mm"), warning = Closing.Warning(at) })
+        : Results.Ok(new { }));
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -475,7 +511,8 @@ app.MapGet("/api/celebration", (string gallery, HttpContext ctx) =>
 
     var timeline = Celebration.Build(g.Slug, g.Path, g.CelebrationFolder,
         f => Web(f, g.Path, g.Slug),
-        f => GalleriThumb(f, g.Path, g.Slug) ?? Thumb(f, g.Path, g.Slug));
+        f => GalleriThumb(f, g.Path, g.Slug) ?? Thumb(f, g.Path, g.Slug),
+        DateTime.TryParse(g.BirthDate, out var born) ? born : null);
 
     return Results.Ok(new
     {
@@ -488,6 +525,7 @@ app.MapGet("/api/celebration", (string gallery, HttpContext ctx) =>
         {
             name = i.Name, kind = i.Kind, url = i.Url, thumb = i.Thumb,
             date = i.Date?.ToString("yyyy-MM-ddTHH:mm:ss"),
+            who = i.Who,
         }),
     });
 });

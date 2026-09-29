@@ -6,7 +6,7 @@
 <title>Tillykke!</title>
 <link rel="icon" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;700;900&family=Caveat:wght@600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Great+Vibes&family=Playfair+Display:ital,wght@0,900;1,900&family=Nunito:wght@400;700;900&family=Caveat:wght@600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <style>
 :root{
@@ -142,6 +142,65 @@ footer a{color:inherit}
 .login input{width:100%;font:inherit;padding:12px 14px;border-radius:12px;border:2px solid var(--line);margin:12px 0}
 .login .err{color:var(--red);font-weight:700;min-height:1.4em}
 
+
+/* ================= theme "glam" (fejring.json "theme": "glam") - Maya 18: night sky, gold, rose, lilac ================= */
+html.glam{
+  --red:#ff4fa3; --red-deep:#6d1b5f; --cream:#120a22; --ink:#f7ecff; --muted:#c9b6de;
+  --sun:#f5c76a; --sky:#9d8cff; --mint:#7ee0c3; --pink:#f4a6c4; --violet:#c08cff;
+  --card:#1f1336; --line:#3b2760; --gold:#f5c76a; --rose:#f4a6c4;
+}
+html.glam body{background:radial-gradient(1200px 600px at 50% -10%,#3a1a5e 0%,transparent 60%),var(--cream)}
+html.glam body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.8;
+  background-image:radial-gradient(1.5px 1.5px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 72% 32%,#fff,transparent),
+  radial-gradient(1.5px 1.5px at 38% 72%,#ffe7a8,transparent),radial-gradient(1px 1px at 88% 82%,#fff,transparent),
+  radial-gradient(1px 1px at 55% 12%,#ffd1e6,transparent),radial-gradient(1.5px 1.5px at 25% 48%,#fff,transparent),
+  radial-gradient(1px 1px at 92% 8%,#fff,transparent),radial-gradient(1px 1px at 6% 90%,#ffe7a8,transparent);
+  background-size:420px 420px;animation:twinkle 5s ease-in-out infinite alternate}
+@keyframes twinkle{from{opacity:.35}to{opacity:.95}}
+html.glam main,html.glam footer{position:relative;z-index:1}
+html.glam .hero{background:linear-gradient(120deg,#2a0f4a,#6d1b5f 35%,#b0306f 55%,#2a0f4a);background-size:300% 300%;animation:aurora 14s ease infinite}
+@keyframes aurora{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+html.glam .hero::after{background:var(--cream)}
+html.glam .hero h1{font-family:"Playfair Display",Georgia,serif;font-weight:900;font-style:italic;letter-spacing:.04em;text-shadow:0 0 24px rgba(245,199,106,.35)}
+html.glam .hero h1 .name{font-family:"Great Vibes",cursive;font-style:normal;font-weight:400;font-size:1.35em;letter-spacing:0;text-transform:none;text-shadow:none}
+html.glam .hero h1 .name .l{background:linear-gradient(100deg,#b8862b,#ffe7a8 30%,#f5c76a 45%,#fff6d8 52%,#c9962f 70%,#ffe7a8);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:hop 1.6s ease-in-out infinite,shine 3.5s linear infinite;animation-delay:calc(var(--i)*.08s),0s;filter:drop-shadow(0 2px 8px rgba(245,199,106,.45))}
+@keyframes shine{to{background-position:-250% 0}}
+html.glam .age-badge{background:conic-gradient(from 200deg,#b8862b,#ffe7a8,#f5c76a,#fff6d8,#c9962f,#ffe7a8,#b8862b);color:#3b1640;font-family:"Playfair Display",serif;font-weight:900;
+  box-shadow:0 0 0 6px rgba(255,255,255,.18),0 0 40px rgba(245,199,106,.55);animation:glow 2.4s ease-in-out infinite alternate}
+@keyframes glow{to{box-shadow:0 0 0 10px rgba(255,255,255,.12),0 0 70px rgba(244,166,196,.7)}}
+html.glam .btn{background:linear-gradient(135deg,#ffe7a8,#f5c76a);color:#3b1640;box-shadow:0 4px 0 #8a5a14,0 0 18px rgba(245,199,106,.4)}
+html.glam .btn.alt{background:linear-gradient(135deg,#ffd1e6,#f4a6c4);color:#3b1640;box-shadow:0 4px 0 #8f3e63}
+html.glam h2,html.glam .year-head .y,html.glam .outro .big,html.glam .stat b{font-family:"Playfair Display",serif;font-weight:900;font-style:italic}
+html.glam h2,html.glam .year-head .y{background:linear-gradient(90deg,#ffe7a8,#f5c76a,#f4a6c4);-webkit-background-clip:text;background-clip:text;color:transparent}
+html.glam .outro .big{background:linear-gradient(90deg,#ffe7a8,#f4a6c4,#c08cff,#ffe7a8);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 4s linear infinite}
+html.glam .year-head .age{background:linear-gradient(135deg,#f4a6c4,#c08cff);color:#1d0b30}
+html.glam .year-head .lvl{color:var(--gold)}
+html.glam .year .title{color:#ffe7a8}
+html.glam .cake-wrap,html.glam .stat,html.glam .login{background:rgba(31,19,54,.85);border-color:#4a3274}
+html.glam .stat{box-shadow:0 0 0 1px rgba(245,199,106,.12),0 10px 30px rgba(0,0,0,.35)}
+html.glam .yearnav{background:rgba(18,10,34,.9)}
+html.glam .yearnav a{background:#241640;color:#f7ecff;border-color:#4a3274}
+html.glam .yearnav a:hover,html.glam .yearnav a.on{background:linear-gradient(135deg,#f5c76a,#f4a6c4);color:#2a0f4a;border-color:transparent}
+html.glam .tile{box-shadow:0 0 0 1px rgba(245,199,106,.18)}
+html.glam .tile:hover{box-shadow:0 0 0 2px #f5c76a,0 0 24px rgba(245,199,106,.5)}
+html.glam .meme{background:#fff8fb;color:#2a0f4a;border-color:#2a0f4a;box-shadow:6px 6px 0 #f5c76a}
+html.glam .meme .row .e{background:#ffe7a8}
+html.glam .meme .row:nth-child(2) .e{background:#f4a6c4}
+html.glam .cake .tier{background:linear-gradient(#f4a6c4,#e57fa8)}
+html.glam .cake .top{background:linear-gradient(#c08cff,#9d6ae8)}
+html.glam .cake .num{color:#ffe7a8;-webkit-text-stroke:2px #6d1b5f;font-family:"Playfair Display",serif;font-weight:900}
+html.glam .login input{background:#120a22;color:#f7ecff}
+html.glam .balloon{background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.9) 0 7%,rgba(255,255,255,.25) 14%,transparent 34%),
+  linear-gradient(145deg,var(--c),color-mix(in srgb,var(--c) 55%,#2a0f4a)) !important;box-shadow:inset -8px -10px 18px rgba(0,0,0,.25),0 0 22px color-mix(in srgb,var(--c) 60%,transparent)}
+html.glam .balloon.num{width:78px;height:96px;border-radius:18px;display:grid;place-items:center;font:900 3.6rem "Playfair Display",serif;color:#fff6d8;text-shadow:0 2px 0 rgba(0,0,0,.25)}
+html.glam .pop{color:#ffe7a8}
+html.glam .pennant{width:30px;height:38px;margin-top:calc(8px + var(--dip,0px));transform-origin:top center;animation:wave 2.4s ease-in-out infinite;animation-delay:var(--d,0s);
+  clip-path:polygon(0 0,100% 0,50% 100%);display:grid;justify-items:center;padding-top:4px;font:900 .95rem "Playfair Display",serif;color:#2a0f4a}
+.hurra{position:fixed;left:50%;top:40%;z-index:70;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;
+  font:900 clamp(3rem,16vw,9rem) "Playfair Display",Georgia,serif;font-style:italic;color:#ffe7a8;text-shadow:0 0 30px #f4a6c4,0 6px 0 #6d1b5f;animation:hurra .9s ease-out forwards}
+@keyframes hurra{30%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-60%) scale(1.3)}}
+.notice{margin:18px auto 0;max-width:760px;padding:14px 18px;border-radius:14px;background:#fff3cd;color:#5c4400;border:2px solid #f0b400;font-weight:700;text-align:center;font-size:1.1rem}
 .outro{text-align:center;margin-top:56px}
 .outro .big{font:400 clamp(2rem,8vw,3.6rem) Bungee,sans-serif;color:var(--red);line-height:1}
 footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
@@ -166,6 +225,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
 <div class="balloons" id="balloons" aria-hidden="true"></div>
 
 <main>
+  <div class="notice hidden" id="notice" role="status"></div>
   <div class="login hidden" id="login">
     <h2>Hemmeligt! 🤫</h2>
     <p>Skriv adgangskoden, du har fået sammen med linket.</p>
@@ -194,7 +254,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     </section>
 
     <section class="block">
-      <h2>Lukas i tal</h2>
+      <h2 id="statsTitle">I tal</h2>
       <div class="stats" id="stats"></div>
     </section>
 
@@ -234,9 +294,11 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const months = ['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december'];
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let glam = false, glamWord = 'TILLYKKE';   // theme "glam" (set from fejring.json in render)
 
   /* ---------- garland ---------- */
   function garland() {
+    if (glam) return glamGarland();
     const g = $('garland'); const n = Math.max(7, Math.round(innerWidth / 58));
     let flags = '';
     for (let i = 0; i < n; i++) {
@@ -249,17 +311,18 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
 
   /* ---------- confetti ---------- */
   const dk = ['#c8102e', '#ffffff', '#ffc93c', '#3fb8f0', '#ff6fae', '#3ecf8e'];
+  let pal = dk;
   function boom(big) {
     if (reduce || typeof confetti !== 'function') return;
-    confetti({ particleCount: big ? 220 : 90, spread: big ? 120 : 70, origin: { y: .35 }, colors: dk });
+    confetti({ particleCount: big ? 220 : 90, spread: big ? 120 : 70, origin: { y: .35 }, colors: pal, ...(glam ? { shapes: ['star', 'circle'], scalar: 1.1 } : {}) });
     if (big) {
-      setTimeout(() => confetti({ particleCount: 90, angle: 60, spread: 60, origin: { x: 0, y: .7 }, colors: dk }), 250);
-      setTimeout(() => confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1, y: .7 }, colors: dk }), 400);
+      setTimeout(() => confetti({ particleCount: 90, angle: 60, spread: 60, origin: { x: 0, y: .7 }, colors: pal }), 250);
+      setTimeout(() => confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1, y: .7 }, colors: pal }), 400);
     }
   }
   function flagRain() {
     if (reduce || typeof confetti !== 'function' || !confetti.shapeFromText) return boom(true);
-    const shapes = ['🇩🇰', '🎈', '🎉', '🎂', '🥳'].map(t => confetti.shapeFromText({ text: t, scalar: 2 }));
+    const shapes = (glam ? ['✨', '💖', '👑', '🥂', '🎀'] : ['🇩🇰', '🎈', '🎉', '🎂', '🥳']).map(t => confetti.shapeFromText({ text: t, scalar: 2 }));
     confetti({ shapes, scalar: 2, particleCount: 60, spread: 160, origin: { y: -.1 }, gravity: .8, ticks: 300 });
   }
 
@@ -269,8 +332,10 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     const box = $('balloons');
     for (let i = 0; i < count; i++) {
       const b = document.createElement('div');
-      const c = dk[i % dk.length] === '#ffffff' ? '#ffc93c' : dk[i % dk.length];
+      const c = pal[i % pal.length] === '#ffffff' ? '#ffc93c' : pal[i % pal.length];
       b.className = 'balloon';
+      // glam: every fourth balloon is a number balloon with the age
+      if (glam && ageNow !== null && i % 4 === 0) { b.classList.add('num'); b.textContent = ageNow; }
       b.style.cssText = `left:${Math.random()*92}%;background:${c};--c:${c};--x:${(Math.random()*120-60)|0}px;--r:${(Math.random()*30-15)|0}deg;animation-duration:${9+Math.random()*7}s;animation-delay:${Math.random()*3}s`;
       b.addEventListener('click', e => {
         const p = document.createElement('div'); p.className = 'pop'; p.textContent = 'POP!';
@@ -287,6 +352,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   /* ---------- birthday song (Web Audio, public-domain melody) ---------- */
   let playing = false;
   function song() {
+    if (glam) return glamSong();
     if (playing) return; playing = true;
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const N = { G4:392, A4:440, B4:493.9, C5:523.3, D5:587.3, E5:659.3, F5:698.5, G5:784 };
@@ -303,6 +369,93 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
       t += d * beat;
     });
     setTimeout(() => { playing = false; boom(true); }, (t - ctx.currentTime) * 1000);
+  }
+
+
+  /* ---------- theme "glam": gold pennants that spell the greeting, metallic balloons, a full song ---------- */
+  const glamPal = ['#f5c76a', '#f4a6c4', '#c08cff', '#ffe7a8', '#ff4fa3', '#9d8cff'];
+  function applyTheme(t, name) {
+    glam = t === 'glam';
+    document.documentElement.classList.toggle('glam', glam);
+    if (!glam) return;
+    pal = glamPal;
+    glamWord = ('TILLYKKE ' + (name || '')).toUpperCase().trim();
+    garland();
+  }
+  function glamGarland() {
+    const g = $('garland'); const letters = [...glamWord];
+    const n = Math.max(letters.length, Math.round(innerWidth / 44));
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      const ch = letters[i - Math.floor((n - letters.length) / 2)] ?? '✦';
+      const dip = Math.round(Math.sin(Math.PI * (i + .5) / n) * 26);
+      out += `<div class="pennant" style="background:${glamPal[i % 4]};--d:${(i%5)*.18}s;--dip:${dip}px">${ch === ' ' ? '✦' : esc(ch)}</div>`;
+    }
+    g.innerHTML = `<svg viewBox="0 0 100 74" preserveAspectRatio="none"><path d="M0,8 Q50,44 100,8" fill="none" stroke="#ffe7a8" stroke-width=".6" vector-effect="non-scaling-stroke"/></svg><div class="flags">${out}</div>`;
+  }
+  function hurra() {
+    [0, 1, 2].forEach(i => setTimeout(() => {
+      const h = document.createElement('div'); h.className = 'hurra'; h.textContent = 'HURRA!';
+      document.body.appendChild(h); setTimeout(() => h.remove(), 1000);
+      boom(i === 2);
+      if (!reduce && typeof confetti === 'function') confetti({ particleCount: 60, spread: 90, startVelocity: 45, origin: { x: [.2, .8, .5][i], y: .6 }, colors: glamPal, shapes: ['star'] });
+    }, i * 900));
+  }
+  // Happy Birthday with chords, bass, drums and a sparkle run - then HURRA x3.
+  function glamSong() {
+    if (playing) return; playing = true;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const master = ctx.createGain(); master.gain.value = .9; master.connect(ctx.destination);
+    const f = m => 440 * Math.pow(2, (m - 69) / 12);
+    const M = { G4:67, A4:69, B4:71, C5:72, D5:74, E5:76, F5:77, G5:79 };
+    const tune = [['G4',.75],['G4',.25],['A4',1],['G4',1],['C5',1],['B4',2],
+                  ['G4',.75],['G4',.25],['A4',1],['G4',1],['D5',1],['C5',2],
+                  ['G4',.75],['G4',.25],['G5',1],['E5',1],['C5',1],['B4',1],['A4',2],
+                  ['F5',.75],['F5',.25],['E5',1],['C5',1],['D5',1],['C5',3]];
+    // chord per note (root-position triads, MIDI)
+    const C = [48,52,55,60], G7 = [43,50,53,55,59], F = [41,48,53,57], C7 = [48,52,55,58];
+    const chords = [C,C,C,C,C,G7, G7,G7,G7,G7,G7,C, C,C,C7,C7,F,F,F, F,F,C,C,G7,C];
+    const beat = .4; let t = ctx.currentTime + .15; const start = t;
+    function tone(freq, at, dur, type, vol, dest) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + .015); g.gain.exponentialRampToValueAtTime(.0008, at + dur);
+      o.connect(g).connect(dest || master); o.start(at); o.stop(at + dur + .05);
+    }
+    function kick(at) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(140, at); o.frequency.exponentialRampToValueAtTime(40, at + .18);
+      g.gain.setValueAtTime(.55, at); g.gain.exponentialRampToValueAtTime(.001, at + .22);
+      o.connect(g).connect(master); o.start(at); o.stop(at + .25);
+    }
+    const noise = ctx.createBuffer(1, ctx.sampleRate * .08, ctx.sampleRate);
+    noise.getChannelData(0).forEach((_, i, a) => a[i] = Math.random() * 2 - 1);
+    function hat(at) {
+      const s = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = noise; hp.type = 'highpass'; hp.frequency.value = 7000;
+      g.gain.setValueAtTime(.12, at); g.gain.exponentialRampToValueAtTime(.001, at + .06);
+      s.connect(hp).connect(g).connect(master); s.start(at);
+    }
+    tune.forEach(([n, d], i) => {
+      const dur = d * beat;
+      // melody: bell = sine + an octave shimmer
+      tone(f(M[n]), t, dur * .95 + .1, 'sine', .22);
+      tone(f(M[n] + 12), t, dur * .6, 'triangle', .05);
+      // pad + bass when the chord changes (or on long notes)
+      const ch = chords[i];
+      if (i === 0 || ch !== chords[i - 1] || d >= 2) {
+        let len = 0; for (let j = i; j < tune.length && (j === i || chords[j] === ch); j++) len += tune[j][1];
+        ch.slice(1).forEach(m => tone(f(m + 12), t, len * beat, 'triangle', .035));
+        tone(f(ch[0] - 12 < 28 ? ch[0] : ch[0] - 12), t, len * beat * .9, 'sawtooth', .05);
+      }
+      t += dur;
+    });
+    // drums on every beat, hi-hat on the off-beats
+    for (let b = start + .25 * beat; b < t; b += beat) { kick(b); hat(b + beat / 2); }
+    // sparkle run up at the end
+    [72,76,79,84,88,91,96].forEach((m, i) => tone(f(m), t + i * .06, .5, 'sine', .08));
+    setTimeout(() => { playing = false; hurra(); }, (t - ctx.currentTime + .3) * 1000);
+    boom(false);
   }
 
   /* ---------- helpers ---------- */
@@ -338,7 +491,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   }
 
   /* ---------- page ---------- */
-  let flat = [], texts = {}, lastData = null, editing = false;
+  let flat = [], texts = {}, lastData = null, editing = false, ageNow = null;
   function render(data, quiet) {
     lastData = data;
     texts = data.texts || {};
@@ -346,6 +499,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     const birth = data.birthDate ? new Date(data.birthDate + 'T12:00:00') : null;
     const today = new Date();
     const age = birth ? ageOn(birth, today) : null;
+    ageNow = age;
+    applyTheme(texts.theme, name);
 
     document.title = `Tillykke ${name}!`;
     $('heroName').innerHTML = [...name.toUpperCase() + '!'].map((ch, i) => `<span class="l" style="--i:${i}">${esc(ch)}</span>`).join('');
@@ -353,6 +508,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     if (texts.intro) $('intro').textContent = texts.intro;
     if (texts.heroSub) $('heroSub').textContent = texts.heroSub;
     if (texts.outro) $('outroText').textContent = texts.outro;
+    $('statsTitle').textContent = `${name} i tal`;
+    if (texts.notice) { $('notice').textContent = texts.notice; $('notice').classList.remove('hidden'); }
     $('outroBig').textContent = `TILLYKKE ${name.toUpperCase()}!`;
 
     // stats
@@ -409,7 +566,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
       let memeBlock = '';
       if (!s.undated && birth) {
         const a = s.year - birth.getFullYear();
-        const m = memes.find(mm => mm.at === a);
+        const m = (Array.isArray(texts.memes) ? texts.memes : memes).find(mm => mm.at === a);
         if (m) memeBlock = memeHtml(m, memeIdx++);
       }
 
@@ -452,7 +609,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   const rot = (it, big) => { const d = +(texts.rotate || {})[it.name] || 0; if (!d) return ''; const side = d % 180 !== 0 && big ? ';max-width:78vh;max-height:92vw' : ''; return ` style="transform:rotate(${d}deg)${side}"`; };
   function tile(it, hide) {
     const i = flat.indexOf(it);
-    const cap = (texts.captions || {})[it.name];
+    const cap = (texts.captions || {})[it.name] || it.who;
     const capHtml = cap ? `<div class="cap">${esc(cap)}</div>` : '';
     const cls = hide ? ' hidden' : '';
     if (it.kind === 'img' || (it.kind === 'vid' && it.thumb))
@@ -476,7 +633,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     else if (it.kind === 'vid') body.innerHTML = `<video src="${esc(it.url)}" controls autoplay playsinline></video>`;
     else if (it.kind === 'aud') body.innerHTML = `<audio src="${esc(it.url)}" controls autoplay></audio>`;
     else body.innerHTML = `<a class="btn" href="${esc(it.url)}" target="_blank" rel="noopener">📄 Åbn ${esc(it.name)}</a>`;
-    $('lbCap').textContent = (texts.captions || {})[it.name] || '';
+    $('lbCap').textContent = (texts.captions || {})[it.name] || it.who || '';
     $('lbWhen').textContent = when(it);
     $('lbEdit').classList.toggle('hidden', !editing);
     if (editing) { $('lbCapInput').value = (texts.captions || {})[it.name] || ''; $('lbOk').textContent = ''; }
@@ -579,5 +736,6 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   load();
 })();
 </script>
+<script src="/closing.js" defer></script>
 </body>
 </html>

@@ -16,7 +16,8 @@ using MetadataExtractor.Formats.QuickTime;
 // as their own section instead of guessing a year.
 public static partial class Celebration
 {
-    public sealed record Item(string Name, string Kind, string Url, string? Thumb, DateTime? Date);
+    // Who = default caption for a picture borrowed from another person's folder ("extraFrom" in fejring.json).
+    public sealed record Item(string Name, string Kind, string Url, string? Thumb, DateTime? Date, string? Who = null);
 
     public sealed record Timeline(DateTime Built, List<Item> Items);
 
@@ -26,7 +27,7 @@ public static partial class Celebration
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(6);
 
     public static Timeline Build(string slug, string libraryRoot, string folderRel,
-        Func<string, string> web, Func<string, string?> thumb)
+        Func<string, string> web, Func<string, string?> thumb, DateTime? birth = null)
     {
         lock (Cache)
         {
@@ -55,6 +56,8 @@ public static partial class Celebration
             }
         }
 
+        items.AddRange(Extras(libraryRoot, folder, items, web, thumb, birth));
+
         // Undated first (old albums are the earliest years), then by date, then name
         // so burst shots keep their order.
         items = items
@@ -68,6 +71,49 @@ public static partial class Celebration
         var timeline = new Timeline(DateTime.UtcNow, items);
         lock (Cache) Cache[slug] = timeline;
         return timeline;
+    }
+
+    // A few pictures of the people around the birthday person (siblings, the dog …), from their own
+    // person folders: fejring.json "extraFrom": { "SmartFolders/People/Fie": { "count": 3, "caption": "Fie 🐶" } }.
+    // Only dated pictures from the person's lifetime, none that are already on the page, spread evenly over the years.
+    // Name = path relative to the page's folder ("../Fie/x.jpg"), so captions/rotation work as for the rest.
+    private static IEnumerable<Item> Extras(string libraryRoot, string folder, List<Item> own,
+        Func<string, string> web, Func<string, string?> thumb, DateTime? birth)
+    {
+        if (ReadObject(Path.Combine(folder, "fejring.json"))?["extraFrom"] is not JsonObject from) yield break;
+        var root = Path.GetFullPath(libraryRoot);
+        var ownKeys = own.Select(i => (i.Name, new FileInfo(Path.Combine(folder, i.Name)).Length)).ToHashSet();
+        var start = birth ?? DateTime.MinValue;
+        foreach (var (rel, cfg) in from)
+        {
+            var dir = Path.GetFullPath(Path.Combine(root, rel));
+            if (!dir.StartsWith(root) || !System.IO.Directory.Exists(dir)) continue;
+            var count = Math.Clamp(cfg?["count"]?.GetValue<int>() ?? 3, 1, 12);
+            var who = cfg?["caption"]?.GetValue<string>();
+            var candidates = new List<(string File, DateTime Date)>();
+            foreach (var f in System.IO.Directory.EnumerateFiles(dir))
+            {
+                var name = Path.GetFileName(f);
+                if (name.StartsWith('.') || KindOf(Path.GetExtension(f).ToLowerInvariant()) != "img") continue;
+                if (ownKeys.Contains((name, new FileInfo(f).Length))) continue;   // same picture as one already on the page
+                var date = CaptureDate(f) ?? DateFromName(name);
+                if (date is { } d && d >= start && d <= DateTime.Now) candidates.Add((f, d));
+            }
+            candidates.Sort((a, b) => a.Date.CompareTo(b.Date));
+            // "files": pictures that must be on the page (e.g. Onkel Martin's least flattering one) - even undated.
+            var must = (cfg?["files"] as JsonArray)?.Select(x => x?.GetValue<string>() ?? "")
+                .Select(n => Path.GetFullPath(Path.Combine(dir, n)))
+                .Where(f => f.StartsWith(dir) && File.Exists(f)).ToList() ?? [];
+            foreach (var f in must)
+                yield return new Item(Path.GetRelativePath(folder, f).Replace('\\', '/'), "img", web(f), thumb(f),
+                    CaptureDate(f) ?? DateFromName(Path.GetFileName(f)), who);
+            candidates.RemoveAll(c => must.Contains(c.File));
+            var picks = candidates.Count <= count
+                ? candidates
+                : Enumerable.Range(0, count).Select(i => candidates[(int)((i + 0.5) * candidates.Count / count)]).ToList();
+            foreach (var (f, d) in picks)
+                yield return new Item(Path.GetRelativePath(folder, f).Replace('\\', '/'), "img", web(f), thumb(f), d, who);
+        }
     }
 
     // Person folders can hold byte-identical copies ("P1240031.jpg" + "P1240031_2.jpg")

@@ -1,0 +1,183 @@
+{
+  "theme": "glam",
+  "heroSub": "18 år. Den yngste i flokken – og nu officielt voksen. Her er det hele, i den rigtige rækkefølge.",
+  "intro": "Tryk på lagkagen, luk øjnene og ønsk dig noget. Silje og Lukas må ikke få det at vide.",
+  "outro": "Her slutter tidslinjen – indtil videre. Du har altid været den lille i flokken – med mor Malene, Silje, Lukas, Bertil, Eigil, Julius, Fie og (selvfølgelig) din yndlingsonkel. Nu er du 18, og resten af historien skriver du selv. Stort tillykke, Maya! 🇩🇰",
+  "undated": {
+    "title": "Fra de gamle album",
+    "text": "Billeder uden dato – scannet fra papirbilleder og gamle kameraer. Nogle af dem er ældre end Maya selv."
+  },
+  "years": {
+    "2008": {
+      "title": "Velkommen, lillesøster!",
+      "text": "Den 29. september kom den yngste til. Silje og Lukas fik en lillesøster – og hele flokken fik en ny at passe på."
+    },
+    "2009": {
+      "title": "Et år og alles øjesten",
+      "text": "Når man er den mindste, er der altid nogen, der vil bære en. Det udnyttede hun fuldt ud."
+    },
+    "2010": {
+      "title": "To år og på vej ud i verden",
+      "text": "Storesøster og storebror løb forrest. Maya løb bagefter – og kom altid med."
+    },
+    "2011": {
+      "title": "Tre år og fuld af spørgsmål",
+      "text": "Hvorfor? Hvorfor? Hvorfor? Den lille havde mange spørgsmål og tålmodige søskende. Nogle gange."
+    },
+    "2012": {
+      "title": "Fire år – næsten lige så stor som de andre",
+      "text": "Mindst i flokken, men aldrig den, der gav op først."
+    },
+    "2013": {
+      "title": "Fem år og med på det hele",
+      "text": "Når Bertil, Eigil, Julius, Silje og Lukas legede, var Maya selvfølgelig med. Hun var jo med i banden."
+    },
+    "2014": {
+      "title": "Seks år – skolestart!",
+      "text": "Skoletasken var næsten større end pigen. Et nyt kapitel begynder."
+    },
+    "2015": {
+      "title": "Syv år og fuld af gå-på-mod",
+      "text": "Den yngste har altid haft en fordel: Man lærer alle tricks ved at kigge på de store."
+    },
+    "2016": {
+      "title": "Otte år og med på alt",
+      "text": "Især når de store var i gang med noget. Så skulle lillesøster også prøve."
+    },
+    "2017": {
+      "title": "Ni år – stadig den lille. Officielt.",
+      "text": "Man kan vokse nok så meget – i en familie er den yngste altid den yngste."
+    },
+    "2018": {
+      "title": "Tocifret!",
+      "text": "Ti år. Det betyder, at man er stor. Siger man selv. Storesøster og storebror var ikke helt enige."
+    },
+    "2019": {
+      "title": "Elleve år",
+      "text": "Mere og mere sin egen – og lidt mindre glad for kameraet."
+    },
+    "2020": {
+      "title": "Tolv år og et helt særligt år",
+      "text": "Et år, hvor hele verden var derhjemme. Så måtte familien finde på noget sammen."
+    },
+    "2021": {
+      "title": "Teenager!",
+      "text": "Tretten år. Nu var det slut med at være den lille – mente hun i hvert fald selv."
+    },
+    "2022": {
+      "title": "Fjorten år",
+      "text": "Færre billeder, flere planer. Sådan er det, når man er fjorten."
+    },
+    "2023": {
+      "title": "Femten år",
+      "text": "Mere og mere sig selv. Kameraet fik lov at være med en gang imellem."
+    },
+    "2024": {
+      "title": "Seksten år",
+      "text": "Den yngste i flokken er ikke så lille mere."
+    },
+    "2025": {
+      "title": "Sytten år",
+      "text": "Sidste år før det store. Nedtællingen er i gang."
+    },
+    "2026": {
+      "title": "18 år – myndig!",
+      "text": "Nu er lillesøster voksen. Officielt. Silje, Lukas, Bertil, Eigil og Julius må se sig slået: nu er hun med i de voksnes klub."
+    }
+  },
+  "memes": [
+    {
+      "at": 1,
+      "kind": "drake",
+      "no": "Sove om natten",
+      "yes": "Holde hele familien vågen kl. 03.00"
+    },
+    {
+      "at": 5,
+      "kind": "classic",
+      "top": "Når de store siger: \"Du er for lille til at være med\"",
+      "mid": "😤",
+      "bot": "Er med alligevel"
+    },
+    {
+      "at": 8,
+      "kind": "drake",
+      "no": "Rydde op efter sig selv",
+      "yes": "\"Det var Lukas!\""
+    },
+    {
+      "at": 10,
+      "kind": "drake",
+      "no": "Være bedstemor Mariannes favorit for evigt",
+      "yes": "Være bedstemor Mariannes favorit… indtil Evia blev født 👶"
+    },
+    {
+      "at": 12,
+      "kind": "classic",
+      "top": "Yngste søskende-regel nr. 1",
+      "mid": "🍰",
+      "bot": "Man får altid det sidste stykke kage"
+    },
+    {
+      "at": 15,
+      "kind": "drake",
+      "no": "Stå op før kl. 12",
+      "yes": "Stå op kl. 12.01"
+    },
+    {
+      "at": 18,
+      "kind": "classic",
+      "top": "Nu er jeg voksen",
+      "mid": "🪪",
+      "bot": "…men stadig lillesøster. For altid."
+    }
+  ],
+  "extraFrom": {
+    "SmartFolders/People/Malene": {
+      "count": 3,
+      "caption": "Mor – Malene ❤️"
+    },
+    "SmartFolders/People/Silje": {
+      "count": 3,
+      "caption": "Storesøster Silje"
+    },
+    "SmartFolders/People/Lukas": {
+      "count": 3,
+      "caption": "Storebror Lukas"
+    },
+    "SmartFolders/People/Bertil": {
+      "count": 2,
+      "caption": "Fætter Bertil"
+    },
+    "SmartFolders/People/Eigil": {
+      "count": 2,
+      "caption": "Fætter Eigil"
+    },
+    "SmartFolders/People/Julius": {
+      "count": 2,
+      "caption": "Fætter Julius"
+    },
+    "SmartFolders/People/Marianne": {
+      "count": 2,
+      "caption": "Bedstemor Marianne"
+    },
+    "SmartFolders/People/Evia": {
+      "count": 2,
+      "caption": "Evia – den nye favorit 👶"
+    },
+    "SmartFolders/People/Fie": {
+      "count": 3,
+      "caption": "Fie 🐶"
+    },
+    "SmartFolders/People/Martin": {
+      "count": 3,
+      "caption": "Onkel Martin – Mayas yndlingsonkel 😎",
+      "files": [
+        "20230513 174222.jpg"
+      ]
+    }
+  },
+  "captions": {
+    "../Martin/20230513 174222.jpg": "Onkel Martin i topform. Han bad selv om, at dette billede kom med 🙈"
+  }
+}
