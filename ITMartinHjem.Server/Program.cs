@@ -71,7 +71,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 // Behind the Cloudflare tunnel every request arrives as http; trust its X-Forwarded-Proto so
-// redirects (/pilot -> /pilot/) and absolute links stay on https.
+// redirects (/bliv-pilot -> /bliv-pilot/) and absolute links stay on https.
 var fwd = new ForwardedHeadersOptions { ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto };
 fwd.KnownNetworks.Clear();
 fwd.KnownProxies.Clear();
@@ -104,13 +104,16 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://itmartin.dk https://www.itmartin.dk";
     await next();
 });
-app.UseDefaultFiles();   // /pilot/ and /rejsedemo/ -> their index.html
+app.UseDefaultFiles();   // /bliv-pilot/ and /rejsedemo/ -> their index.html
 app.UseStaticFiles(new StaticFileOptions
 {
     // widget.js is loaded by itmartin.dk: allow it, and keep the cache short so changes show up.
     OnPrepareResponse = c =>
     {
         if (c.File.Name == "widget.js") c.Context.Response.Headers.CacheControl = "public, max-age=300";
+        // Hand-made pages (/bliv-pilot/ …) must always be checked: a stale copy (e.g. the old one.com page
+        // without the menu) was reused on link clicks, so visitors could not navigate away.
+        else if (c.File.Name.EndsWith(".html") || c.File.Name == "nav.js") c.Context.Response.Headers.CacheControl = "no-cache";
     }
 });
 // Routing AFTER static files: the /{*Slug} page route would otherwise answer app.css, hjem.js …
@@ -187,7 +190,10 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
 
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
 app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
-app.MapGet("/pilot", () => Results.Redirect("/pilot/", permanent: true));
+// The pilot page moved to /bliv-pilot/ (2026-09-29): browsers kept a stale one.com copy of /pilot/ without the menu.
+app.MapGet("/pilot", () => Results.Redirect("/bliv-pilot/", permanent: true));   // also answers /pilot/
+app.MapPost("/pilot/send.php", () => Results.Redirect("/bliv-pilot/send.php", permanent: true, preserveMethod: true));
+app.MapGet("/bliv-pilot", () => Results.Redirect("/bliv-pilot/", permanent: true));
 app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
 
 // ── The site menu for hand-made pages in wwwroot (pilot): wwwroot/nav.js draws it from this.
@@ -227,15 +233,15 @@ app.MapPost("/api/kontrol/apps/{id:int}/show/{show:bool}", async (int id, bool s
     return n == 1 ? Results.Ok() : Results.NotFound();
 }).DisableAntiforgery();
 
-// ── The pilot form (wwwroot/pilot/index.html posts to send.php, as it did on one.com).
+// ── The pilot form (wwwroot/bliv-pilot/index.html posts to send.php, as it did on one.com).
 // Instead of a mail it becomes a conversation in Svar, with a push to Martin's phone.
-app.MapPost("/pilot/send.php", async (HttpContext ctx, ChatService chat) =>
+app.MapPost("/bliv-pilot/send.php", async (HttpContext ctx, ChatService chat) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     string F(string k) => form[k].ToString().Trim();
-    if (F("website").Length > 0) return Results.Redirect("/pilot/");            // spam trap
+    if (F("website").Length > 0) return Results.Redirect("/bliv-pilot/");            // spam trap
     var (ydelse, navn, tlf, by, besked) = (F("ydelse"), F("navn"), F("telefon"), F("by"), F("besked"));
-    if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/pilot/#form");
+    if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/bliv-pilot/#form");
     await chat.VisitorWritesAsync("pilot-" + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
         $"🐦 Pilot-henvendelse: {ydelse}\nTelefon: {tlf}\nBy: {by}\n\n{besked}");
     Func<string?, string?> e = System.Net.WebUtility.HtmlEncode;
@@ -244,7 +250,7 @@ app.MapPost("/pilot/send.php", async (HttpContext ctx, ChatService chat) =>
         <style>body{font:18px/1.5 system-ui,sans-serif;max-width:560px;margin:60px auto;padding:0 16px;color:#1d2a25}a{color:#1f7a5c}</style></head>
         <body><h1>Tak, {{e(navn)}}!</h1>
         <p>Jeg har fået din besked om <b>{{e(ydelse)}}</b> og ringer til dig på {{e(tlf)}} inden for to dage.</p>
-        <p><a href="/pilot/">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
+        <p><a href="/bliv-pilot/">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
         """, "text/html");
 }).DisableAntiforgery();
 

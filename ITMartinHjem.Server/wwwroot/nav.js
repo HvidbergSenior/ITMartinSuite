@@ -1,4 +1,4 @@
-// Draws the site menu at the top of hand-made pages (wwwroot/pilot) so they feel like
+// Draws the site menu at the top of hand-made pages (wwwroot/bliv-pilot) so they feel like
 // the rest of the site. The menu itself comes from /api/menu (pages marked "Vis i menuen").
 (function () {
     var nav = document.createElement('nav');
