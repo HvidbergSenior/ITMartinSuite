@@ -101,7 +101,7 @@ else if (_review is { } rv)
 
 <section class="k-card" id="lige-nu">
     <div class="k-card-title">📌 Min dag</div>
-    <p class="k-help">✨ Når du gemmer, læser AI teksten igennem: stavefejl, punktform og ting der kan misforstås. Du vælger selv, om du vil bruge forslaget.</p>
+    <p class="k-help">✨ Al tekst, du gemmer eller sender i Svar, bliver læst igennem af AI: stavefejl, opgaver i punktform og ting der kan misforstås. Du vælger selv, om du vil bruge forslaget. Tekst du ikke har ændret, bliver ikke tjekket igen.</p>
     <p class="k-help"><b>Saml din dag:</b> skriv om morgenen, hvad du regner med at lave. I løbet af dagen tager du billeder eller skriver en linje, hver gang der sker noget.
         Om aftenen skriver du, hvad det egentlig blev til. Hvert billede eller hver linje bliver et punkt med klokkeslæt på siden "Hvad laver ITKolibrien lige nu?". I morgen starter en ny dag af sig selv – de tidligere dage kan stadig ses længere nede.</p>
     <label class="k-label">🌅 I morges: hvad regner du med at lave i dag? <span class="k-help">(én opgave pr. linje)</span></label>
@@ -154,7 +154,7 @@ else if (_review is { } rv)
         <label class="k-label">Navn</label><input class="k-input" @bind="_s.Name" maxlength="80" />
         <label class="k-label">Intro (under navnet)</label><textarea class="k-input k-textarea" @bind="_s.Intro" maxlength="400"></textarea>
     </details>
-    <button class="k-btn k-btn-primary k-mt" @onclick="SaveSettingsAsync">Gem</button>
+    <button class="k-btn k-btn-primary k-mt" @onclick="SaveNowTextAsync">Gem</button>
     @if (_savedNote.Length > 0) { <span class="k-help"> @_savedNote</span> }
 </section>
 
@@ -361,6 +361,7 @@ else if (_review is { } rv)
         var day = DkNow().ToString("yyyy-MM-dd");
         await using var db = await Dbf.CreateDbContextAsync();
         _today = await db.DayNotes.AsNoTracking().FirstOrDefaultAsync(d => d.Day == day) ?? new DayNote { Day = day };
+        Approve(_today.Plan, _today.Done, _s.NowText, _s.Intro);
     }
 
     private async Task SaveTodayAsync()
@@ -384,20 +385,35 @@ else if (_review is { } rv)
     private TextCheck.Result? _review;
     private string _reviewOriginal = "";
     private TaskCompletionSource<string>? _reviewTcs;
+    private readonly HashSet<string> _approved = [];   // text already checked or already on the site - not sent to AI again
+
+    private void Approve(params string?[] texts)
+    {
+        foreach (var t in texts) if (!string.IsNullOrWhiteSpace(t)) _approved.Add(t.Trim());
+    }
+
+    // "Gem" under the fixed Lige nu text and intro (SaveSettingsAsync itself is also used by picture saves - no check there).
+    private async Task SaveNowTextAsync()
+    {
+        _s.NowText = await ReviewAsync(_s.NowText, TextCheck.Kind.Opslag);
+        _s.Intro = await ReviewAsync(_s.Intro, TextCheck.Kind.Linje);
+        await SaveSettingsAsync();
+    }
 
     private async Task<string> ReviewAsync(string text, TextCheck.Kind kind)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text) || _approved.Contains(text.Trim())) return text;
         _checking = true;
         StateHasChanged();
         var r = await Checker.CheckAsync(text, kind);
         _checking = false;
-        if (r is null || (!r.Changed && r.Notes.Count == 0)) { StateHasChanged(); return text.Trim(); }
+        if (r is null || (!r.Changed && r.Notes.Count == 0)) { StateHasChanged(); Approve(text); return text.Trim(); }
         _review = r;
         _reviewOriginal = text.Trim();
         _reviewTcs = new TaskCompletionSource<string>();
         StateHasChanged();
         var chosen = await _reviewTcs.Task;
+        Approve(chosen);
         _review = null;
         _reviewTcs = null;
         StateHasChanged();
@@ -507,6 +523,8 @@ else if (_review is { } rv)
 
     private async Task ReplyAsync()
     {
+        _reply = await ReviewAsync(_reply, TextCheck.Kind.Chat);
+        if (_reply.Trim().Length == 0) return;
         await Chat.OwnerWritesAsync(_openId, _reply);
         _reply = "";
     }
@@ -572,6 +590,7 @@ else if (_review is { } rv)
 
     private async Task SavePostAsync()
     {
+        _edit.Title = await ReviewAsync(_edit.Title, TextCheck.Kind.Linje);
         _edit.Body = await ReviewAsync(_edit.Body, TextCheck.Kind.Opslag);
         await using var db = await Dbf.CreateDbContextAsync();
         if (_edit.Id == 0)
@@ -604,6 +623,7 @@ else if (_review is { } rv)
         NewPost();
         await using var db = await Dbf.CreateDbContextAsync();
         _edit = await db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking().FirstAsync(p => p.Id == id);
+        Approve(_edit.Title, _edit.Body);
         _dateTouched = true;
         Nav.NavigateTo("/admin#opslag");
     }
@@ -638,6 +658,7 @@ else if (_review is { } rv)
     private void EditPage(Page p)
     {
         _pageEdit = new Page { Id = p.Id, Slug = p.Slug, Title = p.Title, Body = p.Body, InMenu = p.InMenu, Sort = p.Sort };
+        Approve(p.Title, p.Body);
         _pageNote = ""; _confirmDeletePage = false;
     }
 
@@ -659,6 +680,8 @@ else if (_review is { } rv)
     private async Task SavePageAsync()
     {
         if (_pageEdit is null) return;
+        _pageEdit.Title = await ReviewAsync(_pageEdit.Title, TextCheck.Kind.Linje);
+        _pageEdit.Body = await ReviewAsync(_pageEdit.Body, TextCheck.Kind.Opslag);
         var slug = System.Text.RegularExpressions.Regex.Replace(_pageEdit.Slug.Trim().Trim('/').ToLowerInvariant(), @"[^a-z0-9æøå/\-]", "-");
         if (slug.Length == 0 || _pageEdit.Title.Trim().Length == 0) { _pageNote = "Siden skal have en titel og en adresse."; return; }
         if (slug is "admin" or "chat" or "login" or "logout" or "api" or "m" or "f" or "nu" || slug.StartsWith("api/") || slug.StartsWith("kolibri"))
@@ -691,12 +714,19 @@ else if (_review is { } rv)
     {
         await using var db = await Dbf.CreateDbContextAsync();
         _appLinks = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
+        Approve(_appLinks.SelectMany(a => new[] { a.Description, a.FreeText, a.PaidText }).ToArray());
     }
 
     private void AddApp() => _appLinks.Add(new AppLink { Icon = "📱", Url = "https://", Sort = (_appLinks.Count + 1) * 10, Show = true });
 
     private async Task SaveAppsAsync()
     {
+        foreach (var a in _appLinks)
+        {
+            a.Description = await ReviewAsync(a.Description, TextCheck.Kind.Linje);
+            a.FreeText = await ReviewAsync(a.FreeText, TextCheck.Kind.Linje);
+            a.PaidText = await ReviewAsync(a.PaidText, TextCheck.Kind.Linje);
+        }
         await using var db = await Dbf.CreateDbContextAsync();
         foreach (var a in _appLinks.Where(a => a.Name.Trim().Length > 0 && a.Url.StartsWith("http")))
         {

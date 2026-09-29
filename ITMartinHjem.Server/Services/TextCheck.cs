@@ -11,7 +11,7 @@ public sealed class TextCheck(IConfiguration config, ILogger<TextCheck> logger)
 {
     public sealed record Result(string Suggested, List<string> Notes, bool Changed);
 
-    public enum Kind { Liste, Linje, Opslag }
+    public enum Kind { Liste, Linje, Opslag, Chat }
 
     private const int MaxPerDay = 200;
     private readonly AnthropicClient? _client = string.IsNullOrWhiteSpace(config["Claude:ApiKey"]) ? null : new AnthropicClient { ApiKey = config["Claude:ApiKey"] };
@@ -26,15 +26,16 @@ public sealed class TextCheck(IConfiguration config, ILogger<TextCheck> logger)
         var form = kind switch
         {
             Kind.Liste => "Hele teksten er en opgaveliste, så ALT skal i punktform.",
-            Kind.Linje => "Teksten er en kort tekst til et billede eller en statusopdatering. Er der ingen opgaver, så hold den kort som almindelig tekst.",
-            _ => "Teksten er et opslag. Bevar afsnit og opbygning; brug også punktform, hvor der er en opremsning.",
+            Kind.Linje => "Teksten er en kort tekst (en linje til et billede, en status, en overskrift eller en kort beskrivelse). Er der ingen opgaver, så hold den kort som almindelig tekst.",
+            Kind.Chat => "Teksten er Martins svar til en besøgende i chatten på hjemmesiden. Hold tonen venlig og personlig, som Martin skrev den.",
+            _ => "Teksten er et opslag eller en side på hjemmesiden. Bevar afsnit og opbygning, og lad markdown, billedlinjer, links og emojis stå uændret; brug også punktform, hvor der er en opremsning.",
         };
         try
         {
             var response = await _client.Messages.Create(new MessageCreateParams
             {
                 Model = Model.ClaudeSonnet4_6,   // Haiku missed Danish names and did not split tasks into bullets (tested 2026-09-29)
-                MaxTokens = 1500,
+                MaxTokens = kind == Kind.Opslag ? 6000 : 1500,   // whole pages come back in full
                 System = "Du er korrekturlæser for Martin, der lægger tekst på sin egen hjemmeside (itmartin.dk). " +
                          "Ret stavefejl, slåfejl og grammatik på dansk. Martins egne navne staves sådan: ITMartin, ITKolibri, MinElpris, ElPriser, Svar, Bogshoppen, Forløbet, Polstrer, R6, Mensa. " +
                          "OPGAVER SKAL ALTID STÅ I PUNKTFORM: når teksten nævner opgaver eller gøremål (noget Martin skal, vil, regner med eller har lavet), " +
