@@ -64,12 +64,16 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
         var t = await db.Threads.FirstOrDefaultAsync(x => x.VisitorKey == visitorKey);
         if (t is null) { t = new ChatThread { VisitorKey = visitorKey }; db.Threads.Add(t); }
         if (name.Length > 0) t.Name = name;
-        if (MailService.LooksLikeEmail(email.Trim())) t.VisitorEmail = email.Trim();
+        var newEmail = t.VisitorEmail.Length == 0 && MailService.LooksLikeEmail(email.Trim());
+        if (newEmail) t.VisitorEmail = email.Trim();
         t.LastAt = DateTime.UtcNow;
         t.UnreadForOwner = true;
         t.Messages.Add(new ChatMessage { Text = text });
         await db.SaveChangesAsync();
         Changed?.Invoke(t.Id);
+
+        if (newEmail) _ = Task.Run(() => ReceiptAsync(t.VisitorEmail, t.Name, pilot: visitorKey.StartsWith("pilot-")));
+        if (_ownerPending.TryAdd(t.Id, 0)) _ = Task.Run(() => OwnerCopyAsync(t.Id));
 
         var who = t.Name.Length > 0 ? t.Name : "En besøgende";
         try { await push.SendToOwnerAsync($"💬 {who} skriver", text.Length > 120 ? text[..120] + "…" : text, $"/admin?chat={t.Id}"); }
@@ -94,6 +98,44 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
     // ── Tell the visitor that Martin answered: 90 s after his reply (so several quick replies become one mail),
     // by mail and/or browser notification - unless the visitor has the chat open and already sees it.
     private readonly System.Collections.Concurrent.ConcurrentDictionary<int, byte> _pending = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, byte> _ownerPending = new();
+
+    // "Tak – jeg har fået din besked": once, when a visitor (chat or pilot form) gives an email.
+    private async Task ReceiptAsync(string to, string name, bool pilot)
+    {
+        var hello = name.Length > 0 ? $"Hej {name.Replace(" (pilot)", "")}" : "Hej";
+        var body = pilot
+            ? $"{hello}\n\nTak for din henvendelse om at blive pilot hos ITMartin. Jeg har fået den og ringer eller skriver til dig inden for to dage.\n\n"
+            : $"{hello}\n\nTak for din besked på itmartin.dk. Jeg har fået den, og du får en mail her, så snart jeg har svaret.\n\n";
+        body += "Venlig hilsen\nMartin Hvidberg · ITMartin\nITMartin@Mensa.dk · 31 19 47 30\n\n" +
+                "Du får denne mail, fordi din e-mail blev skrevet på itmartin.dk. Var det ikke dig, så se bort fra den.";
+        await mail.SendAsync(to, pilot ? "Tak for din pilot-henvendelse" : "Tak for din besked", body);
+    }
+
+    // Backup for Martin: a visitor message still unread in Svar after 2 minutes also comes by mail
+    // (phone notifications can be off - they were on 2026-09-29).
+    private async Task OwnerCopyAsync(int threadId)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMinutes(2));
+            _ownerPending.TryRemove(threadId, out _);
+            await using var db = await dbf.CreateDbContextAsync();
+            var t = await db.Threads.Include(x => x.Messages).AsNoTracking().FirstOrDefaultAsync(x => x.Id == threadId);
+            if (t is null || !t.UnreadForOwner) return;   // already read in Svar
+            var lastOwner = t.Messages.Where(m => m.FromOwner).Select(m => m.At).DefaultIfEmpty(DateTime.MinValue).Max();
+            var news = t.Messages.Where(m => !m.FromOwner && m.At > lastOwner).OrderBy(m => m.At).Select(m => m.Text).ToList();
+            if (news.Count == 0) return;
+            var who = t.Name.Length > 0 ? t.Name : "En besøgende";
+            var site = cfg["Hjem:PublicUrl"] ?? "https://itmartin.dk";
+            var body = $"{who} har skrevet på itmartin.dk og venter på svar:\n\n" +
+                       string.Join("\n\n", news.Select(n => "  " + n.Replace("\n", "\n  "))) +
+                       (t.VisitorEmail.Length > 0 ? $"\n\nVil have svar på mail: {t.VisitorEmail}" : "") +
+                       $"\n\nSvar i Svar: {site}/admin?chat={t.Id}";
+            await mail.SendAsync(cfg["Hjem:OwnerEmail"] ?? "ITMartin@Mensa.dk", $"💬 {who} venter på svar", body);
+        }
+        catch (Exception ex) { log.LogWarning(ex, "Owner copy mail failed"); }
+    }
 
     private async Task NotifyVisitorAsync(int threadId)
     {
@@ -121,7 +163,9 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
                 var body =
                     $"{hello}\n\nMartin har svaret på din besked på itmartin.dk:\n\n" +
                     string.Join("\n\n", replies.Select(r => "  " + r.Replace("\n", "\n  "))) +
-                    $"\n\nDu kan svare direkte på denne mail – eller fortsætte i chatten på {site} (på den telefon eller PC, du skrev fra).\n\n" +
+                    (t.VisitorKey.StartsWith("pilot-")
+                        ? "\n\nDu kan svare direkte på denne mail.\n\n"
+                        : $"\n\nDu kan svare direkte på denne mail – eller fortsætte i chatten på {site} (på den telefon eller PC, du skrev fra).\n\n") +
                     "Venlig hilsen\nMartin Hvidberg · ITMartin\nITMartin@Mensa.dk · 31 19 47 30\n\n" +
                     "Du får denne mail, fordi du skrev din e-mail i chatten. Vil du ikke have flere, så svar \"stop\".";
                 await mail.SendAsync(t.VisitorEmail, "Martin har svaret dig", body);

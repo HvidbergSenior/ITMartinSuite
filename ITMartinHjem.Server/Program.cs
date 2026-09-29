@@ -245,16 +245,17 @@ app.MapPost("/bliv-pilot/send.php", async (HttpContext ctx, ChatService chat) =>
     var form = await ctx.Request.ReadFormAsync();
     string F(string k) => form[k].ToString().Trim();
     if (F("website").Length > 0) return Results.Redirect("/bliv-pilot/");            // spam trap
-    var (ydelse, navn, tlf, by, besked) = (F("ydelse"), F("navn"), F("telefon"), F("by"), F("besked"));
+    var (ydelse, navn, tlf, by, besked, email) = (F("ydelse"), F("navn"), F("telefon"), F("by"), F("besked"), F("email"));
     if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/bliv-pilot/#form");
     await chat.VisitorWritesAsync("pilot-" + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
-        $"🐦 Pilot-henvendelse: {ydelse}\nTelefon: {tlf}\nBy: {by}\n\n{besked}");
+        $"🐦 Pilot-henvendelse: {ydelse}\nTelefon: {tlf}\nBy: {by}" + (email.Length > 0 ? $"\nE-mail: {email}" : "") + $"\n\n{besked}", email);
     Func<string?, string?> e = System.Net.WebUtility.HtmlEncode;
     return Results.Content($$"""
         <!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tak</title>
         <style>body{font:18px/1.5 system-ui,sans-serif;max-width:560px;margin:60px auto;padding:0 16px;color:#1d2a25}a{color:#1f7a5c}</style></head>
         <body><h1>Tak, {{e(navn)}}!</h1>
         <p>Jeg har fået din besked om <b>{{e(ydelse)}}</b> og ringer til dig på {{e(tlf)}} inden for to dage.</p>
+        {{(MailService.LooksLikeEmail(email) ? $"<p>Du får en kvittering på <b>{e(email)}</b> – og mit svar kommer også dertil.</p>" : "")}}
         <p><a href="/bliv-pilot/">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
         """, "text/html");
 }).DisableAntiforgery();
