@@ -181,7 +181,7 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
 {
     using var db = dbf.CreateDbContext();
     var s = db.Settings.AsNoTracking().First();
-    var photo = s.Photos().FirstOrDefault(p => p.Stored == name || p.Thumb == name);
+    var photo = s.Entries().FirstOrDefault(p => p.Stored.Length > 0 && (p.Stored == name || p.Thumb == name));
     if (name != s.NowMediaName && name != s.NowMediaThumb && photo is null) return Results.NotFound();
     var path = store.PathFor(name);
     if (!File.Exists(path)) return Results.NotFound();

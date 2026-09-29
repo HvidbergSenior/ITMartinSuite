@@ -72,25 +72,41 @@
 </section>
 
 <section class="k-card" id="lige-nu">
-    <div class="k-card-title">📌 Lige nu</div>
-    <p class="k-help"><b>Vis hvad du laver i dag:</b> tryk 📷 og tag et billede – det kommer straks på siden "Hvad laver ITKolibrien lige nu?" med dato og klokkeslæt. Du kan også vælge flere billeder på én gang fra telefonen eller PC'en.</p>
-    <div class="k-row">
-        <label class="k-btn k-btn-primary">📷 Tag billede<InputFile OnChange="OnNowPhotosAsync" accept="image/*" capture="environment" style="display:none" /></label>
-        <label class="k-btn">🖼️ Vælg billeder<InputFile OnChange="OnNowPhotosAsync" multiple accept="image/*" style="display:none" /></label>
+    <div class="k-card-title">📌 Min dag</div>
+    <p class="k-help"><b>Saml din dag:</b> skriv om morgenen, hvad du regner med at lave. I løbet af dagen tager du billeder eller skriver en linje, hver gang der sker noget.
+        Om aftenen skriver du, hvad det egentlig blev til. Hvert billede eller hver linje bliver et punkt med klokkeslæt på siden "Hvad laver ITKolibrien lige nu?". I morgen starter en ny dag af sig selv – de tidligere dage kan stadig ses længere nede.</p>
+    <label class="k-label">🌅 I morges: hvad regner du med at lave i dag?</label>
+    <textarea class="k-input k-textarea" @bind="_today.Plan" maxlength="2000" rows="3" placeholder="Fx: skrive på MinElpris, ringe til Bogshoppen, øve guitar"></textarea>
+    <label class="k-label">🌙 I aften: hvad blev det egentlig til?</label>
+    <textarea class="k-input k-textarea" @bind="_today.Done" maxlength="2000" rows="3" placeholder="Skriv det i aften – det må gerne være noget helt andet 🙂"></textarea>
+    <button class="k-btn k-btn-primary k-mt" @onclick="SaveTodayAsync">Gem planen</button>
+    @if (_todayNote.Length > 0) { <span class="k-help"> @_todayNote</span> }
+    <label class="k-label k-mt">📍 I løbet af dagen: skriv en linje og/eller tag et billede</label>
+    <input class="k-input" @bind="_dayText" @bind:event="oninput" maxlength="300" placeholder="Hvad laver du nu? (kan springes over)" aria-label="Hvad laver du nu?" />
+    <div class="k-row k-mt">
+        <label class="k-btn k-btn-primary">📷 Tag billede<InputFile OnChange="OnDayPhotosAsync" accept="image/*" capture="environment" style="display:none" /></label>
+        <label class="k-btn">🖼️ Vælg billeder<InputFile OnChange="OnDayPhotosAsync" multiple accept="image/*" style="display:none" /></label>
+        <button class="k-btn" disabled="@string.IsNullOrWhiteSpace(_dayText)" @onclick="AddDayTextAsync">✍️ Kun tekst</button>
     </div>
-    @if (_photoNote.Length > 0) { <p class="k-help">@_photoNote</p> }
-    @if (_s.Photos() is { Count: > 0 } photos)
+    @if (_dayNote.Length > 0) { <p class="k-help">@_dayNote</p> }
+    @{ var today = DkNow().Date; var todays = _s.Entries().Where(e => e.At.Date == today).ToList(); }
+    @if (todays.Count > 0)
     {
-        <div class="hj-now-thumbs k-mt">
-            @foreach (var p in photos)
+        <div class="k-label">I dag (@todays.Count)</div>
+        <div class="hj-day-admin">
+            @foreach (var e in todays)
             {
-                <span class="hj-now-thumb"><img src="/nu/@p.Thumb" alt="" /><button class="k-btn-ghost" title="Fjern billedet" @onclick="() => RemoveNowPhotoAsync(p)">✕</button></span>
+                <div class="hj-day-row">
+                    @if (e.Thumb.Length > 0) { <img src="/nu/@e.Thumb" alt="" /> }
+                    <span><b>@e.At.ToString("HH.mm")</b> @e.Text</span>
+                    <button class="k-btn-ghost" title="Fjern" @onclick="() => RemoveDayEntryAsync(e)">✕</button>
+                </div>
             }
         </div>
-        @if (_confirmNewDay) { <button class="k-btn k-btn-danger k-mt" @onclick="NewDayAsync">Ja, fjern alle billeder og teksten</button> }
-        else { <button class="k-btn k-btn-ghost k-mt" @onclick="() => _confirmNewDay = true">🧹 Ny dag – start forfra</button> }
     }
-    <p class="k-help">Det første folk ser. Skriv kort, hvad du arbejder med – opdatér det, når det skifter. Start en linje med <b>*</b> for en punktliste, og skriv <b>**sådan**</b> for fed skrift.</p>
+    <details class="k-mt" data-remember="adm-now-fixed">
+        <summary>Fast tekst, film eller livestream (valgfrit)</summary>
+    <p class="k-help">Vises under din dag. Skriv kort, hvad du arbejder med – opdatér det, når det skifter. Start en linje med <b>*</b> for en punktliste, og skriv <b>**sådan**</b> for fed skrift.</p>
     <textarea class="k-input k-textarea" @bind="_s.NowText" maxlength="3000" rows="12" aria-label="Lige nu"></textarea>
     <label class="k-label">Billede eller film (vises over teksten)</label>
     @if (_s.NowMediaName.Length > 0)
@@ -103,6 +119,7 @@
     <input class="k-input" @bind="_s.NowLink" maxlength="500" placeholder="https://youtube.com/live/… eller https://twitch.tv/…" />
     <p class="k-help">YouTube-, Twitch- og Vimeo-links (også direkte udsendelser) afspilles på siden. Andre links bliver en "▶ Se med"-knap. Et link vises i stedet for billedet/filmen.
         <b>Sådan streamer du fra telefonen:</b> åbn YouTube-appen → <b>+</b> → <b>Gå live</b> (Go live), og kopiér linket til udsendelsen herind.</p>
+    </details>
     <details class="k-mt" data-remember="adm-intro">
         <summary>Navn og introtekst</summary>
         <label class="k-label">Navn</label><input class="k-input" @bind="_s.Name" maxlength="80" />
@@ -263,6 +280,7 @@
         await LoadThreadsAsync();
         await LoadPostsAsync();
         await LoadPagesAsync();
+        await LoadTodayAsync();
         await LoadAppsAsync();
         if (ChatId is { } id) await OpenAsync(id);
         Chat.Changed += OnChatChanged;
@@ -303,52 +321,87 @@
         catch (Exception ex) { _nowNote = $"Det lykkedes ikke: {ex.Message}"; }
     }
 
-    private string _photoNote = "";
-    private bool _confirmNewDay;
-    private const int MaxNowPhotos = 30;
+    private string _dayText = "", _dayNote = "";
+    private const int MaxDayEntries = 300;   // about a month of days; the oldest go (files too)
 
-    // Pictures of today: saved at once (no "Gem" needed), newest first.
-    private async Task OnNowPhotosAsync(InputFileChangeEventArgs e)
+    private DayNote _today = new();
+    private string _todayNote = "";
+
+    private async Task LoadTodayAsync()
     {
-        var files = e.GetMultipleFiles(MaxNowPhotos);
-        var photos = _s.Photos();
+        var day = DkNow().ToString("yyyy-MM-dd");
+        await using var db = await Dbf.CreateDbContextAsync();
+        _today = await db.DayNotes.AsNoTracking().FirstOrDefaultAsync(d => d.Day == day) ?? new DayNote { Day = day };
+    }
+
+    private async Task SaveTodayAsync()
+    {
+        var day = DkNow().ToString("yyyy-MM-dd");
+        if (_today.Day != day) _today = new DayNote { Day = day, Plan = _today.Plan, Done = _today.Done };   // Svar left open past midnight
+        await using var db = await Dbf.CreateDbContextAsync();
+        var row = await db.DayNotes.FirstOrDefaultAsync(d => d.Day == day);
+        if (row is null) db.DayNotes.Add(row = new DayNote { Day = day });
+        row.Plan = _today.Plan.Trim();
+        row.Done = _today.Done.Trim();
+        await db.SaveChangesAsync();
+        _today = row;
+        _todayNote = "Gemt ✓";
+    }
+
+    private static DateTime DkNow() => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen");
+
+    // Pictures for "Min dag": saved at once (no "Gem"), the typed line goes with the first picture.
+    private async Task OnDayPhotosAsync(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(30);
+        var entries = _s.Entries();
+        var text = _dayText.Trim();
         var added = 0;
         foreach (var f in files)
         {
-            _photoNote = $"Lægger billede {added + 1} af {files.Count} op…";
+            _dayNote = $"Lægger billede {added + 1} af {files.Count} op…";
             StateHasChanged();
             try
             {
                 await using var stream = f.OpenReadStream(MediaStore.MaxBytes);
                 var saved = await Store.SaveAsync(stream, f.Name, f.ContentType);
                 if (saved.Media.ThumbName is null) { Store.Delete(saved.Media); continue; }   // not a picture
-                photos.Insert(0, new Settings.NowPhoto(saved.Media.StoredName, saved.Media.ThumbName, saved.TakenAt ?? TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen")   /* EXIF time is already local */));
+                // A picture taken earlier today keeps its own time (EXIF is already local time); otherwise now.
+                var at = saved.TakenAt is { } t && t.Date == DkNow().Date ? t : DkNow();
+                entries.Add(new Settings.DayEntry(saved.Media.StoredName, saved.Media.ThumbName, at, added == 0 ? text : ""));
                 added++;
             }
-            catch (Exception ex) { _photoNote = $"Det lykkedes ikke: {ex.Message}"; StateHasChanged(); }
+            catch (Exception ex) { _dayNote = $"Det lykkedes ikke: {ex.Message}"; StateHasChanged(); }
         }
-        foreach (var old in photos.Skip(MaxNowPhotos)) Store.Delete(new Media { StoredName = old.Stored, ThumbName = old.Thumb });
-        _s.SetPhotos(photos.Take(MaxNowPhotos));
-        await SaveSettingsAsync();
-        _photoNote = added == 1 ? "Billedet er på siden ✓" : $"{added} billeder er på siden ✓";
+        if (added == 0) return;
+        await SaveEntriesAsync(entries);
+        _dayText = "";
+        _dayNote = added == 1 ? "Lagt på din dag ✓" : $"{added} billeder lagt på din dag ✓";
     }
 
-    private async Task RemoveNowPhotoAsync(Settings.NowPhoto p)
+    private async Task AddDayTextAsync()
     {
-        Store.Delete(new Media { StoredName = p.Stored, ThumbName = p.Thumb });
-        _s.SetPhotos(_s.Photos().Where(x => x.Stored != p.Stored));
-        await SaveSettingsAsync();
-        _photoNote = "Fjernet ✓";
+        var entries = _s.Entries();
+        entries.Add(new Settings.DayEntry("", "", DkNow(), _dayText.Trim()));
+        await SaveEntriesAsync(entries);
+        _dayText = "";
+        _dayNote = "Lagt på din dag ✓";
     }
 
-    private async Task NewDayAsync()
+    private async Task RemoveDayEntryAsync(Settings.DayEntry e)
     {
-        foreach (var p in _s.Photos()) Store.Delete(new Media { StoredName = p.Stored, ThumbName = p.Thumb });
-        _s.SetPhotos([]);
-        _s.NowText = "";
-        _confirmNewDay = false;
+        if (e.Stored.Length > 0) Store.Delete(new Media { StoredName = e.Stored, ThumbName = e.Thumb });
+        await SaveEntriesAsync(_s.Entries().Where(x => x != e).ToList());
+        _dayNote = "Fjernet ✓";
+    }
+
+    private async Task SaveEntriesAsync(List<Settings.DayEntry> entries)
+    {
+        entries = entries.OrderByDescending(x => x.At).ToList();
+        foreach (var old in entries.Skip(MaxDayEntries).Where(x => x.Stored.Length > 0))
+            Store.Delete(new Media { StoredName = old.Stored, ThumbName = old.Thumb });
+        _s.SetEntries(entries.Take(MaxDayEntries));
         await SaveSettingsAsync();
-        _photoNote = "Klar til en ny dag ✓";
     }
 
     private async Task RemoveNowMedia()

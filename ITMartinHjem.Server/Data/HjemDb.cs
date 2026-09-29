@@ -12,6 +12,7 @@ public sealed class HjemDb(DbContextOptions<HjemDb> options) : DbContext(options
     public DbSet<PushSub> PushSubs => Set<PushSub>();
     public DbSet<Page> Pages => Set<Page>();
     public DbSet<AppLink> AppLinks => Set<AppLink>();
+    public DbSet<DayNote> DayNotes => Set<DayNote>();
 }
 
 // One of Martin's apps on the "Mine apps" page; Show = visible to visitors.
@@ -43,6 +44,15 @@ public sealed class Page
 }
 
 // One row (Id = 1): the page's own texts and the chat switch.
+// "Min dag": what Martin expects to do (morning) and what it actually became (evening). Day = "yyyy-MM-dd", Danish time.
+public sealed class DayNote
+{
+    public int Id { get; set; }
+    public string Day { get; set; } = "";
+    public string Plan { get; set; } = "";
+    public string Done { get; set; } = "";
+}
+
 public sealed class Settings
 {
     public int Id { get; set; }
@@ -59,19 +69,21 @@ public sealed class Settings
     public string NowMediaType { get; set; } = "";
     public string NowLink { get; set; } = "";
 
-    // Today's pictures on "Lige nu" (Svar -> 📷), newest first: one line per picture "stored|thumb|yyyy-MM-dd HH:mm".
+    // "Min dag" on the Lige nu tab (Svar -> 📌): entries added through the day, each a picture and/or a short line.
+    // One line per entry "stored|thumb|yyyy-MM-dd HH:mm|text" (stored/thumb empty for a text-only entry).
     public string NowPhotos { get; set; } = "";
 
-    public sealed record NowPhoto(string Stored, string Thumb, DateTime At);
+    public sealed record DayEntry(string Stored, string Thumb, DateTime At, string Text);
 
-    public List<NowPhoto> Photos() => NowPhotos.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-        .Select(l => l.Split('|'))
-        .Where(p => p.Length == 3)
-        .Select(p => new NowPhoto(p[0], p[1], DateTime.TryParse(p[2], out var at) ? at : DateTime.Now))
+    public List<DayEntry> Entries() => NowPhotos.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Select(l => l.Split('|', 4))
+        .Where(p => p.Length >= 3)
+        .Select(p => new DayEntry(p[0], p[1], DateTime.TryParse(p[2], out var at) ? at : DateTime.Now, p.Length > 3 ? p[3] : ""))
+        .OrderByDescending(e => e.At)
         .ToList();
 
-    public void SetPhotos(IEnumerable<NowPhoto> photos) =>
-        NowPhotos = string.Join('\n', photos.Select(p => $"{p.Stored}|{p.Thumb}|{p.At:yyyy-MM-dd HH:mm}"));
+    public void SetEntries(IEnumerable<DayEntry> entries) =>
+        NowPhotos = string.Join('\n', entries.Select(e => $"{e.Stored}|{e.Thumb}|{e.At:yyyy-MM-dd HH:mm}|{e.Text.Replace('\n', ' ').Replace('\r', ' ')}"));
 }
 
 public enum Visibility { Offentlig = 0, Familie = 1 }

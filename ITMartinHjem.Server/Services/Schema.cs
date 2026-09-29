@@ -30,6 +30,10 @@ public static class Schema
                     "Slug" TEXT NOT NULL, "Title" TEXT NOT NULL, "Body" TEXT NOT NULL,
                     "InMenu" INTEGER NOT NULL, "Sort" INTEGER NOT NULL, "UpdatedAt" TEXT NOT NULL);
                 CREATE UNIQUE INDEX IF NOT EXISTS "IX_Pages_Slug" ON "Pages" ("Slug");
+                CREATE TABLE IF NOT EXISTS "DayNotes" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_DayNotes" PRIMARY KEY AUTOINCREMENT,
+                    "Day" TEXT NOT NULL, "Plan" TEXT NOT NULL, "Done" TEXT NOT NULL);
+                CREATE UNIQUE INDEX IF NOT EXISTS "IX_DayNotes_Day" ON "DayNotes" ("Day");
                 CREATE TABLE IF NOT EXISTS "AppLinks" (
                     "Id" INTEGER NOT NULL CONSTRAINT "PK_AppLinks" PRIMARY KEY AUTOINCREMENT,
                     "Name" TEXT NOT NULL, "Icon" TEXT NOT NULL, "Url" TEXT NOT NULL, "Description" TEXT NOT NULL,

@@ -22,19 +22,19 @@
     {
         <a class="k-btn k-btn-primary k-mt" href="@_s.NowLink" target="_blank" rel="noopener">▶ Se med</a>
     }
-    @if (_s.Photos() is { Count: > 0 } photos)
+    @{ var days = _s.Entries().Select(e => e.At.Date).Concat(_notes.Keys).Distinct().OrderByDescending(d => d).ToList(); }
+    @if (days.Count > 0)
     {
-        <div class="@(photos.Count > 1 ? "tm-gallery" : "")">
-            @foreach (var p in photos)
-            {
-                <figure class="tm-fig">
-                    <a href="/nu/@p.Stored" target="_blank" rel="noopener"><img class="tm-img" loading="lazy" src="/nu/@(photos.Count > 1 ? p.Thumb : p.Stored)" alt="Lige nu" /></a>
-                    <figcaption>📅 @p.At.ToString("d. MMMM yyyy 'kl.' HH:mm", Da)</figcaption>
-                </figure>
-            }
-        </div>
+        @DayBlock(days[0])
+        @if (days.Count > 1)
+        {
+            <details class="hj-day-earlier">
+                <summary>Tidligere dage (@(days.Count - 1))</summary>
+                @foreach (var d in days.Skip(1)) { @DayBlock(d) }
+            </details>
+        }
     }
-    @if (_s.NowText.Length == 0 && _s.NowMediaName.Length == 0 && _s.NowLink.Length == 0 && _s.NowPhotos.Length == 0)
+    @if (_s.NowText.Length == 0 && _s.NowMediaName.Length == 0 && _s.NowLink.Length == 0 && days.Count == 0)
     {
         <p class="k-help">Martin har ikke skrevet noget i dag endnu – kig forbi senere, eller skriv til ham i chatten.</p>
     }
@@ -50,10 +50,46 @@
     public const string PageSlug = "hvad-laver-itkolibrien";
     private static readonly CultureInfo Da = new("da-DK");
     private Settings? _s;
+    private Dictionary<DateTime, DayNote> _notes = [];
+
+    // One day of "Min dag": heading with the date, then the entries newest first, date + time under every picture.
+    private RenderFragment DayBlock(DateTime day) => __builder =>
+    {
+        var today = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
+        <div class="hj-day">
+            <div class="hj-day-head">@(day == today ? "I dag · " : day == today.AddDays(-1) ? "I går · " : "")@day.ToString("dddd d. MMMM", Da)</div>
+            @{ _notes.TryGetValue(day, out var note); }
+            @if (note is { Plan.Length: > 0 })
+            {
+                <div class="hj-day-plan"><b>🌅 Det regnede jeg med at lave</b><div>@TinyMarkdown.Render(note.Plan)</div></div>
+            }
+            @if (note is { Done.Length: > 0 })
+            {
+                <div class="hj-day-done"><b>🌙 Det blev det til</b><div>@TinyMarkdown.Render(note.Done)</div></div>
+            }
+            @foreach (var e in _s!.Entries().Where(x => x.At.Date == day))
+            {
+                <div class="hj-day-entry">
+                    <div class="hj-day-time">kl. @e.At.ToString("HH.mm")</div>
+                    @if (e.Text.Length > 0) { <div class="hj-day-text">@e.Text</div> }
+                    @if (e.Stored.Length > 0)
+                    {
+                        <figure class="tm-fig">
+                            <a href="/nu/@e.Stored" target="_blank" rel="noopener"><img class="hj-day-img" loading="lazy" src="/nu/@e.Stored" alt="@e.Text" /></a>
+                            <figcaption>📅 @e.At.ToString("d. MMMM yyyy 'kl.' HH.mm", Da)</figcaption>
+                        </figure>
+                    }
+                </div>
+            }
+        </div>
+    };
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await Dbf.CreateDbContextAsync();
         _s = await db.Settings.AsNoTracking().FirstAsync();
+        _notes = (await db.DayNotes.AsNoTracking().ToListAsync())
+            .Where(n => (n.Plan.Length > 0 || n.Done.Length > 0) && DateTime.TryParse(n.Day, out _))
+            .ToDictionary(n => DateTime.Parse(n.Day), n => n);
     }
 }

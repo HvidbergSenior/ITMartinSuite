@@ -113,8 +113,19 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .tm-gallery img.tm-img { object-position: 50% 12%; }
 .hj-page .hj-now { margin: 4px 0 16px; box-shadow: none; }
 
-/* Svar: today's "Lige nu" pictures as small removable thumbnails */
-.hj-now-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
-.hj-now-thumb { position: relative; }
-.hj-now-thumb img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; display: block; }
-.hj-now-thumb button { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,.6); color: #fff; border: 0; border-radius: 50%; width: 24px; height: 24px; line-height: 24px; padding: 0; cursor: pointer; }
+/* "Min dag" on the Lige nu tab: a day heading, then entries (time, line, picture) newest first */
+.hj-day { margin: 6px 0 14px; }
+.hj-day-head { font-weight: 700; font-size: 1.05rem; margin: 4px 0 8px; }
+.hj-day-head::first-letter { text-transform: uppercase; }
+.hj-day-entry { border-left: 3px solid var(--k-accent); padding: 2px 0 10px 12px; margin-left: 4px; }
+.hj-day-time { font-size: .85rem; color: var(--k-muted, #667); font-weight: 600; }
+.hj-day-text { font-size: 1.05rem; margin: 2px 0 6px; }
+.hj-day-img { width: 100%; max-width: 520px; max-height: 60vh; object-fit: cover; border-radius: 10px; display: block; }
+.hj-day-earlier summary { cursor: pointer; font-weight: 600; margin: 8px 0; }
+.hj-day-plan, .hj-day-done { background: var(--k-surface-2, #eef1f0); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; }
+.hj-day-plan p, .hj-day-done p { margin: 4px 0 0; }
+/* Svar: today's entries, small, removable */
+.hj-day-admin { display: grid; gap: 6px; }
+.hj-day-row { display: flex; align-items: center; gap: 8px; }
+.hj-day-row img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; }
+.hj-day-row span { flex: 1; }
