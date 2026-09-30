@@ -6,6 +6,9 @@
 @* First screen = one answer: who I am and what I am doing now. The timeline and the
    chat come after it; old years are folded and the phone remembers what was open. *@
 
+@* Temporary birthday front - switches itself off after Hjem:FestUntil (default 2026-09-30 23:59). *@
+<Fest />
+
 <header class="hj-head">
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>

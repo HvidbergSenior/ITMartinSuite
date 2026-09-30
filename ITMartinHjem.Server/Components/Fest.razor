@@ -1,0 +1,38 @@
+@inject IConfiguration Config
+
+@* Temporary birthday front (Martin 49, 2026-09-30): disco colours, garland, balloons, mirror ball, confetti + song
+   (wwwroot/fest.js), rotating messages and a link to the birthday timeline. Switches itself off after Hjem:FestUntil. *@
+@if (Active)
+{
+<section class="fest" id="fest" data-nofold>
+    <div class="fest-ball" aria-hidden="true"></div>
+    <div class="fest-garland" aria-hidden="true">
+        @foreach (var (ch, i) in "TILLYKKE ITMARTIN".Select((c, i) => (c, i)))
+        {
+            <span style="--i:@i">@(ch == ' ' ? "✦" : ch.ToString())</span>
+        }
+    </div>
+    <h1 class="fest-title">ITMartin har fødselsdag! 🎂</h1>
+    <p class="fest-sub">49 år i dag – onsdag d. 30. september</p>
+    <p class="fest-msg" id="fest-msg" aria-live="polite">Født i 1977 – samme år som Star Wars og discoens storhedstid 🪩</p>
+    <div class="fest-btns">
+        <button class="fest-btn" onclick="fest.song()">🎵 Syng fødselsdagssang</button>
+        <button class="fest-btn alt" onclick="fest.boom()">🎉 Mere konfetti</button>
+    </div>
+    <div class="fest-how">
+        <p>💬 <b>Sig tillykke:</b> skriv din hilsen i chatten lige herunder – Martin får den med det samme på telefonen. <a href="#chat">Gå til chatten ↓</a></p>
+        <p>📸 <b>Martin gennem årene:</b> alle billederne fra 2013 til i dag, med tekster, balloner og sang.
+            <a href="https://gallery.itmartin.dk/martinfoedselsdag" target="_blank" rel="noopener">Åbn tidslinjen</a>.
+            Den er for familie og venner – kender du ikke kodeordet, så spørg Martin i chatten.</p>
+        <p class="fest-when">🕛 Festen på forsiden slutter i nat kl. 23.59 – så er alt som før.</p>
+    </div>
+    <div class="fest-balloons" aria-hidden="true">
+        @for (var i = 0; i < 9; i++) { <i style="--i:@i">@(i % 3 == 1 ? "49" : "")</i> }
+    </div>
+</section>
+}
+
+@code {
+    public bool Active => DateTime.TryParse(Config["Hjem:FestUntil"] ?? "2026-09-30T23:59", out var until)
+        && TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen") <= until;
+}
