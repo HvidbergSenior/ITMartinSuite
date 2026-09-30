@@ -48,3 +48,4 @@
 .kig-qr svg{width:100%;height:auto;display:block}
 .kig-watchers{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px}
 .kig-watchers li{padding:4px 10px;border-radius:999px;background:var(--k-accent-soft)}
+.kig-warn{border:2px solid var(--k-warning,#e0a800);background:rgba(224,168,0,.1);margin-bottom:12px}

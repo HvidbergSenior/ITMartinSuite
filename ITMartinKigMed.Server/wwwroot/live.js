@@ -24,7 +24,7 @@ window.kig = (() => {
             pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); ok(); } });
         });
         const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/sdp' }, body: pc.localDescription.sdp });
-        if (!r.ok) throw new Error('media ' + r.status);
+        if (!r.ok) { const e = new Error('media ' + r.status); e.status = r.status; throw e; }
         await pc.setRemoteDescription({ type: 'answer', sdp: await r.text() });
         return r.headers.get('Location');
     }
@@ -34,7 +34,9 @@ window.kig = (() => {
     async function play(id, onState) {
         stop(id);
         const video = document.getElementById(id); if (!video) return;
-        const p = players[id] = { pc: null, hls: null };
+        const p = players[id] = { pc: null, hls: null, retry: null };
+        // no video yet (Martin not sending, or he just reloaded the studio): wait and try again - never a silent black box
+        const again = (ms) => { if (players[id] === p) p.retry = setTimeout(() => { if (players[id] === p) play(id, onState); }, ms); };
         const say = s => { try { onState && onState.invokeMethodAsync('OnPlayer', s); } catch { } };
         say('forbinder');
         try {
@@ -51,8 +53,18 @@ window.kig = (() => {
                     if (pc.connectionState === 'failed') { clearTimeout(t); res(false); }
                 });
             });
-            if (ok) { say('direkte'); return; }
-        } catch (e) { console.log('[kig] WebRTC', e); }
+            if (ok) {
+                say('direkte');
+                // the video stops later (Martin stopped or reloaded): back to waiting
+                pc.addEventListener('connectionstatechange', () => {
+                    if (['failed', 'closed', 'disconnected'].includes(pc.connectionState) && players[id] === p) { say('venter'); again(3000); }
+                });
+                return;
+            }
+        } catch (e) {
+            console.log('[kig] WebRTC', e);
+            if (e.status === 404) { say('venter'); again(5000); return; }
+        }
         // Fallback: HLS through the site (a few seconds behind, works on every network)
         if (p.pc) { p.pc.close(); p.pc = null; }
         video.srcObject = null;
@@ -65,10 +77,11 @@ window.kig = (() => {
     }
     function stop(id) {
         const p = players[id]; if (!p) return;
+        delete players[id];
+        clearTimeout(p.retry);
         if (p.pc) p.pc.close();
         if (p.hls) p.hls.destroy();
         const v = document.getElementById(id); if (v) { v.srcObject = null; v.removeAttribute('src'); v.load(); }
-        delete players[id];
     }
     function unmute(id) { const v = document.getElementById(id); if (v) { v.muted = false; v.play().catch(() => { }); } }
 
@@ -173,7 +186,8 @@ window.kig = (() => {
         return mode;
     }
 
-    async function publish(bitrateKbps) {
+    async function publish(bitrateKbps, dotnet) {
+        onModeLost = dotnet || onModeLost;   // the studio hears when the outgoing video drops
         const video = outVideo();
         if (!video) throw new Error('Tænd kameraet først');
         unpublish();
@@ -197,6 +211,7 @@ window.kig = (() => {
             pc.addEventListener('connectionstatechange', () => {
                 if (pc.connectionState === 'connected') { clearTimeout(t); ok('live'); }
                 if (pc.connectionState === 'failed') { clearTimeout(t); fail(new Error('Forbindelsen fejlede')); }
+                if (pc.connectionState === 'failed' && pub === pc) { try { onModeLost && onModeLost.invokeMethodAsync('OnVideoLost'); } catch { } }
             });
         });
     }

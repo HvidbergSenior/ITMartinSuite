@@ -23,6 +23,10 @@
                     <span class="k-help">Lad siden stå åben – videoen starter af sig selv, når han går live.</span>
                 </div>
             }
+            else if (_player == "venter")
+            {
+                <div class="kig-offline"><div class="kig-offline-icon">⏳</div><b>Martin er på vej</b><span class="k-help">Videoen er ikke startet endnu – den kommer af sig selv. Du kan allerede skrive spørgsmål.</span></div>
+            }
             else if (_muted)
             {
                 <button class="kig-unmute" @onclick="UnmuteAsync">🔊 Tryk for lyd</button>
@@ -134,6 +138,7 @@
         "direkte" => "🟢 Direkte forbindelse (ca. 1 sekunds forsinkelse)",
         "hls" => "🟡 Via reserveforbindelsen (et par sekunders forsinkelse)",
         "fejl" => "🔴 Din browser kan ikke vise videoen – prøv Chrome, Safari eller Edge",
+        "venter" => "⏳ Martins video er ikke startet endnu – den kommer af sig selv",
         _ => "⏳ Forbinder til videoen…",
     };
 

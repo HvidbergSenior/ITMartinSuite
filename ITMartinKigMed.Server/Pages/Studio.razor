@@ -12,12 +12,25 @@
         <a href="/api/auth/logout">Log ud</a></p>
 </header>
 
+@if (_live && !_sending)
+{
+    <div class="k-card kig-warn" data-nofold>
+        <b>⚠️ Du står som live, men sender ikke video</b>
+        <p>Seerne ser "Martin er på vej". Det sker efter en genindlæsning af studiet, eller hvis nettet faldt ud.</p>
+        <div class="k-row">
+            @if (_camOn) { <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="GoLiveAsync">🔴 Gå live igen</button> }
+            else { <button class="k-btn k-btn-primary" @onclick="CameraAsync">📷 Tænd kamera først</button> }
+            <button class="k-btn" @onclick="EndAsync">⏹ Stop live</button>
+        </div>
+    </div>
+}
+
 <div class="kig-grid">
     <section class="kig-left">
         <div class="kig-stage" id="stage">
             <video id="preview" autoplay playsinline muted></video>
             @if (!_camOn) { <div class="kig-offline"><div class="kig-offline-icon">📷</div><b>Kameraet er slukket</b><span class="k-help">Vælg kamera herunder og tryk Tænd kamera.</span></div> }
-            @if (_live) { <div class="kig-livebadge">🔴 LIVE · 👀 @_viewers</div> }
+            @if (_live && _sending) { <div class="kig-livebadge">🔴 LIVE · 👀 @_viewers</div> }
         </div>
 
         <div class="k-card" data-nofold>
@@ -267,6 +280,9 @@
         else _note = "";
     }
 
+    private bool _sending;   // this studio page is sending video right now (Hub.Live alone can be left over from a reload)
+    [JSInvokable] public void OnVideoLost() { _sending = false; _note = "⚠️ Videoen faldt ud – tryk Gå live igen."; InvokeAsync(StateHasChanged); }
+
     [JSInvokable] public void OnModeLost() { _mode = "kamera"; _note = "Skærmdelingen stoppede – seerne ser kameraet igen."; InvokeAsync(StateHasChanged); }
 
     private async Task GoLiveAsync()
@@ -274,7 +290,9 @@
         _busy = true; _note = "Forbinder til videoserveren…";
         try
         {
-            await JS.InvokeAsync<string>("kig.publish", _height == "1080" ? 4500 : 2500);
+            _self ??= DotNetObjectReference.Create(this);
+            await JS.InvokeAsync<string>("kig.publish", _height == "1080" ? 4500 : 2500, _self);
+            _sending = true;
             Hub.GoLive(_title);
             Hub.SetTexts(_title, _next);
             _note = "Du er live 🔴";
@@ -286,6 +304,7 @@
     private async Task EndAsync()
     {
         await JS.InvokeVoidAsync("kig.unpublish");
+        _sending = false;
         Hub.EndLive();
         _note = "Live er stoppet. Spørgsmål og idéer er gemt.";
     }
