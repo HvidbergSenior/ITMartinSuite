@@ -17,6 +17,11 @@ public class PollDb(DbContextOptions<PollDb> opts) : DbContext(opts)
     public DbSet<DatePollChatMessage> DatePollChat      => Set<DatePollChatMessage>();
     public DbSet<DatePollImage>       DatePollImages    => Set<DatePollImage>();
     public DbSet<DatePollHost>        DatePollHosts     => Set<DatePollHost>();
+    public DbSet<HelpEvent>           HelpEvents        => Set<HelpEvent>();
+    public DbSet<HelpSlot>            HelpSlots         => Set<HelpSlot>();
+    public DbSet<HelpTask>            HelpTasks         => Set<HelpTask>();
+    public DbSet<HelpSignup>          HelpSignups       => Set<HelpSignup>();
+    public DbSet<HelpChatMessage>     HelpChat          => Set<HelpChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

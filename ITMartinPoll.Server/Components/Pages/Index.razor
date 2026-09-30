@@ -13,7 +13,7 @@
        bruges nu til konkrete forespørgsler til folk der allerede har fået et
        link - så pitchen stod bare i vejen for det de kom efter. *@
 
-    @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any() && !_packages.Any())
+    @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any() && !_packages.Any() && !_helpEvents.Any())
     {
         <div class="poll-empty">
             <p>Ingen aktive meningsmålinger lige nu</p>
@@ -91,6 +91,26 @@
         </div>
         }
 
+        @if (_helpEvents.Any())
+        {
+        <div class="vote-section-label">🤝 Giv en hånd — skriv dig på</div>
+        <div class="poll-list">
+            @foreach (var h in _helpEvents)
+            {
+                <a class="poll-card" href="/tilmeld/@h.Id">
+                    @if (!string.IsNullOrEmpty(h.ImageName))
+                    {
+                        <img class="poll-card-img" src="/poll-images/@h.ImageName" alt="" />
+                    }
+                    <div class="poll-card-body">
+                        <div class="poll-card-title">@h.Title</div>
+                        <div class="poll-card-desc">@h.Body.Split("\n\n")[0]</div>
+                    </div>
+                </a>
+            }
+        </div>
+        }
+
         @if (_datePolls.Any())
         {
         <div class="vote-section-label">📅 Datoafstemninger — hvilke dage passer?</div>
@@ -161,6 +181,7 @@
     private List<Poll>         _polls    = [];
     private List<ImageSession> _sessions = [];
     private List<DatePoll>     _datePolls = [];
+    private List<HelpEvent>    _helpEvents = [];
     private List<Package>      _packages = [];
 
     protected override void OnInitialized()
@@ -210,6 +231,8 @@
                 Images         = s.Images.ToList(),
             })
             .ToList();
+
+        _helpEvents = Db.HelpEvents.Where(h => h.IsActive).OrderByDescending(h => h.CreatedAt).ToList();
 
         _datePolls = Db.DatePolls
             .Where(dp => dp.IsActive)

@@ -121,6 +121,35 @@ using (var scope = app.Services.CreateScope())
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"DatePolls\" ADD COLUMN \"Password\" TEXT;"); }
     catch { /* column already exists */ }
+    // Help sign-up ("Giv en hånd", /tilmeld/{id}).
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "HelpEvents" (
+            "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Title" TEXT NOT NULL DEFAULT '', "Body" TEXT NOT NULL DEFAULT '',
+            "ImageName" TEXT NULL, "CreatedAt" TEXT NOT NULL, "Deadline" TEXT NULL, "IsActive" INTEGER NOT NULL DEFAULT 1);
+    """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "HelpSlots" (
+            "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "HelpEventId" INTEGER NOT NULL, "Label" TEXT NOT NULL DEFAULT '',
+            "SortOrder" INTEGER NOT NULL DEFAULT 0);
+    """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "HelpTasks" (
+            "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "HelpEventId" INTEGER NOT NULL, "Label" TEXT NOT NULL DEFAULT '',
+            "SortOrder" INTEGER NOT NULL DEFAULT 0, "AddedBy" TEXT NOT NULL DEFAULT '');
+    """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "HelpSignups" (
+            "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "HelpEventId" INTEGER NOT NULL, "Name" TEXT NOT NULL DEFAULT '',
+            "Phone" TEXT NOT NULL DEFAULT '', "Comment" TEXT NOT NULL DEFAULT '', "SlotIds" TEXT NOT NULL DEFAULT '',
+            "TaskIds" TEXT NOT NULL DEFAULT '', "SignedUpAt" TEXT NOT NULL);
+    """);
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"HelpEvents\" ADD COLUMN \"Photos\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "HelpChat" (
+            "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "HelpEventId" INTEGER NOT NULL, "Name" TEXT NOT NULL DEFAULT '',
+            "Text" TEXT NOT NULL DEFAULT '', "IsOrganiser" INTEGER NOT NULL DEFAULT 0, "SentAt" TEXT NOT NULL);
+    """);
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "DatePolls" (

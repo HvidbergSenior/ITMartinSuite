@@ -243,3 +243,75 @@ public class DatePollImage
 
     public DatePoll Poll { get; set; } = null!;
 }
+
+// Help sign-up ("Giv en hånd"): friends pick the time slots they can come and what they can
+// help with, and may add a task of their own that others can then tick too. Built for
+// Bogshoppen closing down (2026-09-30).
+public class HelpEvent
+{
+    public int       Id        { get; set; }
+    public string    Title     { get; set; } = "";
+    public string    Body      { get; set; } = "";
+    public string?   ImageName { get; set; }
+    public DateTime  CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? Deadline  { get; set; }
+    public bool      IsActive  { get; set; } = true;
+
+    // Extra photos placed down the page: "file.jpg|Caption;file2.jpg|Caption" (files in /poll-images).
+    public string    Photos    { get; set; } = "";
+
+    public List<(string File, string Caption)> PhotoList() =>
+        Photos.Split(';', StringSplitOptions.RemoveEmptyEntries)
+              .Select(p => p.Split('|', 2))
+              .Select(p => (p[0].Trim(), p.Length > 1 ? p[1].Trim() : ""))
+              .ToList();
+
+    public List<HelpSlot>   Slots   { get; set; } = [];
+    public List<HelpTask>   Tasks   { get; set; } = [];
+    public List<HelpSignup> Signups { get; set; } = [];
+}
+
+public class HelpSlot
+{
+    public int    Id          { get; set; }
+    public int    HelpEventId { get; set; }
+    public string Label       { get; set; } = "";
+    public int    SortOrder   { get; set; }
+}
+
+public class HelpTask
+{
+    public int    Id          { get; set; }
+    public int    HelpEventId { get; set; }
+    public string Label       { get; set; } = "";
+    public int    SortOrder   { get; set; }
+    public string AddedBy     { get; set; } = "";   // empty = set up by the organiser
+}
+
+public class HelpSignup
+{
+    public int      Id          { get; set; }
+    public int      HelpEventId { get; set; }
+    public string   Name        { get; set; } = "";
+    public string   Phone       { get; set; } = "";   // shown to the admin only
+    public string   Comment     { get; set; } = "";
+    public string   SlotIds     { get; set; } = "";   // "1,3"
+    public string   TaskIds     { get; set; } = "";   // "2,5"
+    public DateTime SignedUpAt  { get; set; } = DateTime.UtcNow;
+
+    public IEnumerable<int> Slots() => Ids(SlotIds);
+    public IEnumerable<int> TaskList() => Ids(TaskIds);
+    private static IEnumerable<int> Ids(string s) =>
+        s.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var i) ? i : 0).Where(i => i > 0);
+}
+
+// Questions and chat on a help page; IsOrganiser = written while logged in as admin.
+public class HelpChatMessage
+{
+    public int      Id          { get; set; }
+    public int      HelpEventId { get; set; }
+    public string   Name        { get; set; } = "";
+    public string   Text        { get; set; } = "";
+    public bool     IsOrganiser { get; set; }
+    public DateTime SentAt      { get; set; } = DateTime.UtcNow;
+}

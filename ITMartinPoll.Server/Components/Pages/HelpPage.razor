@@ -1,0 +1,303 @@
+@page "/tilmeld/{EventId:int}"
+@rendermode InteractiveServer
+@inject PollDb      Db
+@inject IJSRuntime  JS
+@inject AdminSession Session
+@inject IConfiguration Config
+@inject ITMartinPoll.Server.Services.DatePollBroadcastService Broadcast
+@implements IAsyncDisposable
+
+<PageTitle>@(_event?.Title ?? "Giv en hånd")</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/" class="poll-back">← Tilbage</a>
+    </header>
+
+    @if (_event is null)
+    {
+        <div class="poll-empty"><p>Siden findes ikke.</p></div>
+    }
+    else
+    {
+        <div class="poll-view">
+            @if (!string.IsNullOrEmpty(_event.ImageName))
+            {
+                <img class="poll-hero-img" src="/poll-images/@_event.ImageName" alt="" />
+            }
+
+            <div class="poll-content">
+                <h1 class="poll-title">@_event.Title</h1>
+                @foreach (var para in _event.Body.Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <p class="poll-body">@para</p>
+                }
+            </div>
+
+            @* What is on the page, and how to use it - first, before the form. *@
+            <div class="help-howto">
+                <b>Sådan gør du:</b> sæt kryds ved de tider du kan, og ved det du kan hjælpe med. Kan du noget andet,
+                så skriv det under "Andet jeg kan". Skriv dit navn og tryk <b>Jeg kommer</b>. Du kan se herunder hvem der kommer hvornår.
+            </div>
+
+            @Photo(0)
+
+            @if (_done)
+            {
+                <div class="help-thanks">Tak, @_doneName! Du står på listen herunder. 🙏</div>
+            }
+            else
+            {
+                <div class="poll-vote">
+                    <div class="poll-vote-label">Hvornår kan du? <span class="help-hint">(sæt gerne flere kryds)</span></div>
+                    <div class="help-checks">
+                        @foreach (var s in _event.Slots.OrderBy(s => s.SortOrder))
+                        {
+                            var id = s.Id;
+                            <label class="help-check @(_slots.Contains(id) ? "on" : "")">
+                                <input type="checkbox" checked="@_slots.Contains(id)" @onchange="() => Toggle(_slots, id)" />
+                                <span>@s.Label</span>
+                                <span class="help-count">@CountSlot(id) kommer</span>
+                            </label>
+                        }
+                    </div>
+
+                    @foreach (var group in new[] { (Label: "Hvad kan du hjælpe med?", Bring: false), (Label: "Hvad har du med?", Bring: true) })
+                    {
+                    <div class="poll-vote-label">@group.Label</div>
+                    <div class="help-checks">
+                        @foreach (var t in _event.Tasks.Where(t => IsBring(t) == group.Bring).OrderBy(t => t.SortOrder).ThenBy(t => t.Id))
+                        {
+                            var id = t.Id;
+                            <label class="help-check @(_tasks.Contains(id) ? "on" : "")">
+                                <input type="checkbox" checked="@_tasks.Contains(id)" @onchange="() => Toggle(_tasks, id)" />
+                                <span>@t.Label @if (t.AddedBy != "") { <em class="help-by">– foreslået af @t.AddedBy</em> }</span>
+                                <span class="help-count">@CountTask(id)</span>
+                            </label>
+                        }
+                    </div>
+                    }
+
+                    <div class="help-add">
+                        <input class="poll-input" placeholder="Andet jeg kan … (fx 'har en trailer', 'kan lave kaffe')"
+                               maxlength="80" @bind="_newTask" @bind:event="oninput" @onkeydown="AddTaskOnEnter" />
+                        <button class="help-add-btn" @onclick="AddTask" disabled="@(_newTask.Trim().Length < 2)">+ Tilføj</button>
+                    </div>
+
+                    <input class="poll-input" placeholder="Dit navn" maxlength="60" @bind="_name" @bind:event="oninput" />
+                    <input class="poll-input" placeholder="Telefon (valgfrit – så vi kan ringe til dig)" maxlength="20" inputmode="tel" @bind="_phone" />
+                    <div class="poll-comment-wrap">
+                        <textarea class="poll-comment-input" placeholder="Kommentar (valgfrit) – fx 'kan først fra kl. 12'" maxlength="280"
+                                  @bind="_comment" @bind:event="oninput"></textarea>
+                    </div>
+                    @if (_error != "") { <p class="help-error">@_error</p> }
+                    <button class="poll-submit-btn" @onclick="Submit">Jeg kommer</button>
+                </div>
+            }
+
+            @Photo(1)
+
+            <div class="poll-results">
+                <div class="poll-results-label">Hvem kommer hvornår · @_event.Signups.Count tilmeldt</div>
+                @foreach (var s in _event.Slots.OrderBy(s => s.SortOrder))
+                {
+                    var people = _event.Signups.Where(x => x.Slots().Contains(s.Id)).ToList();
+                    <div class="help-slot">
+                        <div class="help-slot-head"><b>@s.Label</b> <span class="help-count">@people.Count</span></div>
+                        <div class="help-names">
+                            @if (people.Count == 0) { <span class="muted">Ingen endnu</span> }
+                            @foreach (var p in people)
+                            {
+                                <span class="help-name" title="@TaskText(p)">@p.Name</span>
+                            }
+                        </div>
+                    </div>
+                }
+                @foreach (var t in _event.Tasks.OrderBy(t => t.SortOrder).ThenBy(t => t.Id))
+                {
+                    var people = _event.Signups.Where(x => x.TaskList().Contains(t.Id)).ToList();
+                    if (people.Count == 0) continue;
+                    <div class="help-task-row"><span>@t.Label:</span> @string.Join(", ", people.Select(p => p.Name))</div>
+                }
+                @if (_event.Signups.Any(s => s.Comment != ""))
+                {
+                    <div class="poll-comments">
+                        <div class="poll-comments-label">Kommentarer</div>
+                        @foreach (var s in _event.Signups.Where(s => s.Comment != "").OrderByDescending(s => s.SignedUpAt))
+                        {
+                            <div class="poll-comment"><span class="session-comment-name">@s.Name</span> <span class="poll-comment-text">@s.Comment</span></div>
+                        }
+                    </div>
+                }
+                @if (IsAdmin && _event.Signups.Any(s => s.Phone != ""))
+                {
+                    <div class="poll-comments">
+                        <div class="poll-comments-label">🔒 Telefonnumre (kun admin)</div>
+                        @foreach (var s in _event.Signups.Where(s => s.Phone != "").OrderBy(s => s.Name))
+                        {
+                            <div class="poll-comment"><span class="session-comment-name">@s.Name</span> <a href="tel:@s.Phone">@s.Phone</a></div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @Photo(2)
+
+            @* Questions and chat - everyone on the page sees new messages at once. *@
+            <div class="poll-results help-chat">
+                <div class="poll-results-label">💬 Spørgsmål og snak</div>
+                <p class="help-hint">Har du et spørgsmål, eller vil du aftale noget? Skriv her – svaret kommer også her.</p>
+                <div class="help-chat-list">
+                    @if (_chat.Count == 0) { <span class="muted">Ingen beskeder endnu.</span> }
+                    @foreach (var m in _chat)
+                    {
+                        <div class="help-msg @(m.IsOrganiser ? "org" : "")">
+                            <div class="help-msg-head"><b>@m.Name</b>@if (m.IsOrganiser) { <span class="help-org-badge">arrangør</span> }
+                                <span class="help-msg-time">@m.SentAt.ToLocalTime().ToString("ddd HH:mm")</span></div>
+                            <div class="help-msg-text">@m.Text</div>
+                        </div>
+                    }
+                </div>
+                <input class="poll-input" placeholder="Dit navn" maxlength="60" @bind="_name" @bind:event="oninput" />
+                <div class="help-add">
+                    <input class="poll-input" placeholder="Skriv en besked …" maxlength="500" @bind="_msg" @bind:event="oninput" @onkeydown="SendOnEnter" />
+                    <button class="help-add-btn" @onclick="Send" disabled="@(_msg.Trim().Length == 0 || _name.Trim().Length < 2)">Send</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    // Keys in the shared broadcast service are date-poll ids; help pages use their own range.
+    private int ChannelId => 1_000_000 + EventId;
+    private List<HelpChatMessage> _chat = [];
+    private string _msg = "";
+    private bool _isAdminCookie, _subscribed;
+    private bool IsAdmin => Session.IsAdmin || _isAdminCookie;
+
+    private async Task SendOnEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Send(); }
+
+    private async Task Send()
+    {
+        var text = _msg.Trim();
+        if (text.Length == 0 || _name.Trim().Length < 2) return;
+        Db.HelpChat.Add(new HelpChatMessage { HelpEventId = EventId, Name = _name.Trim(), Text = text, IsOrganiser = IsAdmin });
+        await Db.SaveChangesAsync();
+        await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _name.Trim());
+        _msg = "";
+        Load();
+        Broadcast.Broadcast(ChannelId);
+    }
+
+    private void OnBroadcast() => InvokeAsync(() => { Load(); StateHasChanged(); });
+
+    public ValueTask DisposeAsync()
+    {
+        if (_subscribed) Broadcast.Unsubscribe(ChannelId, OnBroadcast);
+        return ValueTask.CompletedTask;
+    }
+
+    [Parameter] public int EventId { get; set; }
+
+    private HelpEvent? _event;
+    private readonly HashSet<int> _slots = [];
+    private readonly HashSet<int> _tasks = [];
+    private string _name = "", _phone = "", _comment = "", _newTask = "", _error = "", _doneName = "";
+    private bool _done;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        _event = Db.HelpEvents.Where(e => e.Id == EventId && (e.IsActive || Session.IsAdmin)).FirstOrDefault();
+        if (_event is null) return;
+        _event.Slots   = Db.HelpSlots.Where(s => s.HelpEventId == EventId).ToList();
+        _event.Tasks   = Db.HelpTasks.Where(t => t.HelpEventId == EventId).ToList();
+        _event.Signups = Db.HelpSignups.Where(s => s.HelpEventId == EventId).OrderBy(s => s.SignedUpAt).ToList();
+        _chat = Db.HelpChat.Where(m => m.HelpEventId == EventId).OrderByDescending(m => m.Id).Take(200).ToList();
+        _chat.Reverse();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _name = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+        // Logged in at /admin in this browser -> the organiser (phone numbers, "arrangør" in the chat).
+        var cookies = await JS.InvokeAsync<string>("eval", "document.cookie");
+        _isAdminCookie = cookies.Contains("poll_admin=" + AdminToken.For(Config["Poll:AdminPin"] ?? "1234"));
+        Broadcast.Subscribe(ChannelId, OnBroadcast);
+        _subscribed = true;
+        StateHasChanged();
+    }
+
+    // SortOrder 50-99 = things people bring (car, boxes, tools); below 50 and guest-added (100+) = jobs.
+    private static bool IsBring(HelpTask t) => t.SortOrder is >= 50 and < 100;
+
+    private RenderFragment Photo(int i) => __builder =>
+    {
+        var list = _event?.PhotoList() ?? [];
+        if (i >= list.Count) return;
+        <figure class="help-photo">
+            <img src="/poll-images/@list[i].File" alt="@list[i].Caption" loading="lazy" />
+            @if (list[i].Caption != "") { <figcaption>@list[i].Caption</figcaption> }
+        </figure>
+    };
+
+    private static void Toggle(HashSet<int> set, int id) { if (!set.Remove(id)) set.Add(id); }
+
+    private int CountSlot(int id) => _event!.Signups.Count(s => s.Slots().Contains(id));
+
+    private string CountTask(int id)
+    {
+        var n = _event!.Signups.Count(s => s.TaskList().Contains(id));
+        return n == 0 ? "" : $"{n}";
+    }
+
+    private string TaskText(HelpSignup p) =>
+        string.Join(", ", _event!.Tasks.Where(t => p.TaskList().Contains(t.Id)).Select(t => t.Label));
+
+    private async Task AddTaskOnEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await AddTask(); }
+
+    // A task added by a guest is saved at once, so everyone else can tick it too.
+    private async Task AddTask()
+    {
+        var label = _newTask.Trim();
+        if (label.Length < 2 || _event is null) return;
+        var existing = _event.Tasks.FirstOrDefault(t => t.Label.Equals(label, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            existing = new HelpTask { HelpEventId = EventId, Label = label, SortOrder = 100, AddedBy = _name.Trim() };
+            Db.HelpTasks.Add(existing);
+            await Db.SaveChangesAsync();
+        }
+        _tasks.Add(existing.Id);
+        _newTask = "";
+        Load();
+        Broadcast.Broadcast(ChannelId);
+    }
+
+    private async Task Submit()
+    {
+        _error = "";
+        if (_name.Trim().Length < 2) { _error = "Skriv dit navn, så vi ved hvem der kommer."; return; }
+        if (_slots.Count == 0) { _error = "Sæt kryds ved mindst én tid."; return; }
+        if (_newTask.Trim().Length >= 2) await AddTask();
+
+        Db.HelpSignups.Add(new HelpSignup
+        {
+            HelpEventId = EventId,
+            Name    = _name.Trim(),
+            Phone   = _phone.Trim(),
+            Comment = _comment.Trim(),
+            SlotIds = string.Join(',', _slots),
+            TaskIds = string.Join(',', _tasks),
+        });
+        await Db.SaveChangesAsync();
+        await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _name.Trim());
+        _doneName = _name.Trim();
+        _done = true;
+        Load();
+        Broadcast.Broadcast(ChannelId);
+    }
+}
