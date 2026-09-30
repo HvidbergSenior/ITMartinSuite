@@ -19,6 +19,12 @@
     // Birthday day (Components/Fest): the same strip as on the Blazor pages, under the menu.
     fetch('/api/fest').then(function (r) { return r.json(); }).then(function (f) {
         if (!f.on) return;
+        // the hand-made pages have their own colour tokens (--bg, --brand …): disco colours for the day
+        var st = document.createElement('style');
+        st.textContent = ':root{--bg:#fff6ea!important;--brand:#d9480f!important;--brand2:#ffe6c7!important;--line:#f1cfa3!important;--warm:#19c3b1!important}' +
+            '@media(prefers-color-scheme:dark){:root{--bg:#1c0f08!important;--card:#2b170b!important;--line:#5a331a!important;--brand:#ff8a1a!important;--brand2:#3b1f0c!important}}' +
+            'body{background:var(--bg)!important}';
+        document.head.appendChild(st);
         var a = document.createElement('a');
         a.href = '/#chat';
         a.style.cssText = 'display:block;text-align:center;padding:10px 16px;text-decoration:none;color:#fff1dc;' +
