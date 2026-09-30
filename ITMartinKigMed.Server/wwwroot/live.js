@@ -221,6 +221,8 @@ window.kig = (() => {
         pub = null; pubUrl = null;
     }
     function publishing() { return !!pub && pub.connectionState === 'connected'; }
+    // Refreshing or closing the studio while live cuts the video - let Chrome ask first.
+    window.addEventListener('beforeunload', e => { if (publishing()) { e.preventDefault(); e.returnValue = ''; } });
     function cameraOff(id) {
         if (cam) cam.getTracks().forEach(t => t.stop());
         if (screen) screen.getTracks().forEach(t => t.stop());

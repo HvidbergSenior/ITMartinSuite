@@ -228,6 +228,17 @@
         catch { _note = "Browseren gav ikke lov til kamera/mikrofon – tryk på kamera-ikonet i adresselinjen og tillad det."; }
         try { _canShare = await JS.InvokeAsync<bool>("kigShare.canShare"); } catch { }
         StateHasChanged();
+        // Refreshed (or reopened) the studio while live: the video died with the old page - bring it back by itself.
+        // Camera permission is remembered by Chrome, so no click is needed; screen sharing is (it needs a click), so it resumes on the camera.
+        if (_live && _devices.Count > 0)
+        {
+            _note = "Genopretter live…";
+            StateHasChanged();
+            await CameraAsync();
+            if (_camOn) await GoLiveAsync();
+            if (_sending) _note = "Du er live igen 🔴 (efter genindlæsning – skærmdeling skal startes igen)";
+            StateHasChanged();
+        }
     }
 
     private void Load()
