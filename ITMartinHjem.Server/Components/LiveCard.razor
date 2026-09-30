@@ -1,0 +1,48 @@
+@implements IDisposable
+@inject IHttpClientFactory Http
+@inject IConfiguration Config
+
+@* Kig med on the front page: a big red box while Martin streams (topic = the studio's "Hvad laver du?"),
+   a small line otherwise. Status from kigmed-web over the LAN (Hjem:KigMedStatus), checked every 30 s. *@
+@if (_s is { Live: true } s)
+{
+    <a class="k-card hj-live on" href="@Url" target="_blank" rel="noopener" data-nofold>
+        <span class="hj-live-dot" aria-hidden="true"></span>
+        <span class="hj-live-text">
+            <b>🔴 Jeg streamer nu</b>
+            <span>@(s.Title.Trim().Length > 0 ? s.Title : "Jeg mangler input til en ny app – har du idéer?")</span>
+            <span class="k-help">Kig med på video, stil spørgsmål og send dine idéer – direkte fra telefonen, ingen app eller login.@(s.Viewers > 0 ? $" 👀 {s.Viewers} ser med." : "")</span>
+        </span>
+        <span class="k-btn k-btn-primary">📺 Kig med og giv dit bud</span>
+    </a>
+}
+else if (_s is not null)
+{
+    <p class="hj-live off">📺 <a href="@Url" target="_blank" rel="noopener">Kig med, når jeg streamer</a>@(_s.Next.Trim().Length > 0 ? $" – næste gang: {_s.Next}" : " – så kan du se mig arbejde og give dine idéer.")</p>
+}
+
+@code {
+    private const string Url = "https://kigmed.itmartin.dk";
+    private sealed record Status(bool Live, string Title, string Next, int Viewers);
+    private Status? _s;
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _timer = new Timer(_ => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            using var c = Http.CreateClient();
+            c.Timeout = TimeSpan.FromSeconds(2);
+            _s = await c.GetFromJsonAsync<Status>(Config["Hjem:KigMedStatus"] ?? "http://10.0.0.200:9144/api/status");
+        }
+        catch { _s = null; }   // photoserver asleep or Kig med down: show nothing
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

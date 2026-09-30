@@ -72,6 +72,14 @@ app.MapGet("/api/auth/logout", (HttpContext ctx) =>
     return Results.Redirect("/");
 });
 
+// Live or not, for itmartin.dk's front page (hjem-web asks this over the LAN every 30 s).
+app.MapGet("/api/status", (LiveHub hub, HttpContext ctx) =>
+{
+    ctx.Response.Headers.CacheControl = "no-store";
+    var (live, title, next) = hub.Read(s => (s.Live, s.Title, s.Next));
+    return Results.Ok(new { live, title, next, viewers = hub.Viewers });
+});
+
 // Pictures viewers sent in. Names are random guids; a picture Martin has not shown is only for the studio.
 app.MapGet("/pic/{name}", (string name, HttpContext ctx, LiveHub hub) =>
 {
