@@ -202,6 +202,9 @@ app.MapGet("/bliv-pilot", () => Results.Redirect("/bliv-pilot/", permanent: true
 app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
 
 // ── The site menu for hand-made pages in wwwroot (pilot): wwwroot/nav.js draws it from this.
+// Birthday day on the hand-made pages (wwwroot/nav.js draws the strip when this says on).
+app.MapGet("/api/fest", (IConfiguration config) => Results.Ok(new { on = ITMartinHjem.Server.Components.Fest.IsOn(config) }));
+
 app.MapGet("/api/menu", async (IDbContextFactory<HjemDb> dbf) =>
 {
     await using var db = await dbf.CreateDbContextAsync();

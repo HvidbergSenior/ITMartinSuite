@@ -32,6 +32,9 @@
 }
 
 @code {
-    public bool Active => DateTime.TryParse(Config["Hjem:FestUntil"] ?? "2026-09-30T23:59", out var until)
+    public bool Active => IsOn(Config);
+
+    // Also used by MainLayout (birthday colours + strip on every page) and /api/fest (hand-made pages via nav.js).
+    public static bool IsOn(IConfiguration config) => DateTime.TryParse(config["Hjem:FestUntil"] ?? "2026-09-30T23:59", out var until)
         && TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen") <= until;
 }

@@ -171,3 +171,20 @@ a.hj-app:hover { border-color: var(--k-accent); }
 @keyframes fest-shine{to{background-position:-250% 0}}
 @keyframes fest-rise{to{transform:translateY(-760px) rotate(8deg)}}
 @media (prefers-reduced-motion:reduce){.fest *{animation:none!important}}
+
+/* ── Birthday day on every page (MainLayout .fest-site, temporary) ── 1977 disco colours over the Kolibri tokens */
+.fest-site{--k-accent:#d9480f;--k-accent-dark:#8c2d08;--k-accent-soft:#ffe6c7;--k-accent-text:#fff;--k-bg:#fff6ea;--k-bg-deep:#ffe9cc;--k-border:#f1cfa3}
+html[data-theme="dark"] .fest-site{--k-accent:#ff8a1a;--k-accent-dark:#ffc21a;--k-accent-soft:#3b1f0c;--k-accent-text:#1c0f08;--k-bg:#1c0f08;--k-bg-deep:#140a05;--k-card:#2b170b;--k-border:#5a331a}
+body:has(.fest-site){background:var(--fest-bg,#fff6ea)}
+html[data-theme="dark"] body:has(.fest-site){--fest-bg:#1c0f08}
+.fest-site .k-main{background:transparent}
+.fest-site .hj-nav{border-bottom:4px solid transparent;border-image:linear-gradient(90deg,#ffc21a,#ff6a1a,#19c3b1,#ff4f8b,#ffc21a) 1}
+.fest-site h1,.fest-site h2{color:var(--k-accent)}
+.fest-strip{position:relative;display:block;overflow:hidden;padding:26px 16px 10px;text-align:center;text-decoration:none;color:#fff1dc;
+  background:linear-gradient(90deg,#8c2d08,#d9480f,#f28c13,#d9480f,#8c2d08);background-size:200% 100%;animation:fest-slide 8s linear infinite;font-size:1rem}
+.fest-strip span:not(.fest-strip-flags){display:inline-block;margin-left:6px;text-decoration:underline}
+.fest-strip-flags{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-around}
+.fest-strip-flags i{width:18px;height:20px;clip-path:polygon(0 0,100% 0,50% 100%);background:#ffc21a;animation:fest-wave 2.4s ease-in-out infinite;animation-delay:calc(var(--i) * .15s);transform-origin:top}
+.fest-strip-flags i:nth-child(4n+2){background:#19c3b1}.fest-strip-flags i:nth-child(4n+3){background:#ff4f8b}.fest-strip-flags i:nth-child(4n){background:#fff1dc}
+.fest-site:has(.fest) .fest-strip{display:none}
+@keyframes fest-slide{to{background-position:-200% 0}}
