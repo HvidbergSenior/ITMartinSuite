@@ -147,6 +147,29 @@
                     }
                 </div>
 
+                <div class="admin-form" style="padding-top:0" id="vaert">
+                    <h3 style="margin:8px 0 4px">🏠 Hvem vil gerne være vært?</h3>
+                    @if (_hosts.Count == 0) { <p class="muted" style="margin:0 0 8px">Ingen har tilbudt endnu.</p> }
+                    else
+                    {
+                        <ul style="margin:0 0 10px;padding-left:18px">
+                            @foreach (var h in _hosts) { <li><b>@h.VoterName</b>@(h.Place.Length > 0 ? $" – {h.Place}" : "")</li> }
+                        </ul>
+                    }
+                    @if (_hasName && _poll.ChatOpen)
+                    {
+                        <label style="display:flex;gap:8px;align-items:center;font-weight:700">
+                            <input type="checkbox" checked="@_iHost" @onchange="e => _iHost = e.Value is true" /> Jeg vil gerne være vært
+                        </label>
+                        @if (_iHost)
+                        {
+                            <input class="poll-input" style="margin-top:6px" maxlength="120" @bind="_hostPlace" placeholder="Hvor? Fx: hos mig i Aarhus – plads til alle" />
+                        }
+                        <button class="admin-btn" style="margin-top:6px" @onclick="SaveHostAsync">Gem</button>
+                        @if (_hostNote.Length > 0) { <span class="muted"> @_hostNote</span> }
+                    }
+                </div>
+
                 <div class="admin-form" style="padding-top:0" id="chat">
                     <DatePollChatWidget DatePollId="DatePollId" ChatOpen="_poll.ChatOpen" VoterName="_voterNames.FirstOrDefault() ?? string.Empty" />
                 </div>
@@ -188,7 +211,36 @@
     private string _suggestError = "";
     private bool _subscribed;
 
-    protected override void OnInitialized() => LoadPoll();
+    protected override void OnInitialized() { LoadPoll(); LoadHosts(); }
+
+    // ── "Jeg vil gerne være vært" ──
+    private List<DatePollHost> _hosts = [];
+    private bool _iHost;
+    private string _hostPlace = "", _hostNote = "";
+
+    private void LoadHosts()
+    {
+        _hosts = Db.DatePollHosts.AsNoTracking().Where(h => h.DatePollId == DatePollId).OrderBy(h => h.OfferedAt).ToList();
+        var me = _voterNames.FirstOrDefault();
+        if (me is not null && _hosts.FirstOrDefault(h => h.VoterName == me) is { } mine) { _iHost = true; _hostPlace = mine.Place; }
+    }
+
+    private async Task SaveHostAsync()
+    {
+        var me = _voterNames.FirstOrDefault();
+        if (me is null) return;
+        var row = await Db.DatePollHosts.FirstOrDefaultAsync(h => h.DatePollId == DatePollId && h.VoterName == me);
+        if (_iHost)
+        {
+            if (row is null) Db.DatePollHosts.Add(row = new DatePollHost { DatePollId = DatePollId, VoterName = me });
+            row.Place = _hostPlace.Trim().Length > 120 ? _hostPlace.Trim()[..120] : _hostPlace.Trim();
+        }
+        else if (row is not null) Db.DatePollHosts.Remove(row);
+        await Db.SaveChangesAsync();
+        _hostNote = _iHost ? "Tak – du står som mulig vært ✓" : "Fjernet";
+        LoadHosts();
+        Broadcast.Broadcast(DatePollId);
+    }
 
     private void LoadPoll()
     {
@@ -224,6 +276,7 @@
             ParseVoterNames();
             _hasName = _voterNames.Count > 0;
             if (_hasName) LoadMyResponses();
+            LoadHosts();
         }
 
         Broadcast.Subscribe(DatePollId, OnBroadcast);
@@ -259,6 +312,7 @@
     private void OnBroadcast() => InvokeAsync(() =>
     {
         LoadPoll();
+        LoadHosts();
         if (_hasName) LoadMyResponses();
         StateHasChanged();
     });

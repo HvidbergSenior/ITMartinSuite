@@ -209,6 +209,17 @@ public class DatePollResponse
     public DatePollDate DateOption { get; set; } = null!;
 }
 
+// "I'd like to host" on a date poll: one row per voter who offers, with where (e.g. "hos mig i Aarhus").
+// Everyone sees the list, so the group can pick a host alongside the date.
+public class DatePollHost
+{
+    public int      Id         { get; set; }
+    public int      DatePollId { get; set; }
+    public string   VoterName  { get; set; } = "";
+    public string   Place      { get; set; } = "";
+    public DateTime OfferedAt  { get; set; } = DateTime.UtcNow;
+}
+
 public class DatePollChatMessage
 {
     public int      Id         { get; set; }

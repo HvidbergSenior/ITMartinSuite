@@ -158,6 +158,15 @@ using (var scope = app.Services.CreateScope())
             "SentAt"     TEXT    NOT NULL,
             FOREIGN KEY ("DatePollId") REFERENCES "DatePolls" ("Id") ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS "DatePollHosts" (
+            "Id"         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            "DatePollId" INTEGER NOT NULL,
+            "VoterName"  TEXT    NOT NULL DEFAULT '',
+            "Place"      TEXT    NOT NULL DEFAULT '',
+            "OfferedAt"  TEXT    NOT NULL,
+            FOREIGN KEY ("DatePollId") REFERENCES "DatePolls" ("Id") ON DELETE CASCADE
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_DatePollHosts_Poll_Voter" ON "DatePollHosts" ("DatePollId", "VoterName");
         CREATE TABLE IF NOT EXISTS "DatePollImages" (
             "Id"         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             "DatePollId" INTEGER NOT NULL,

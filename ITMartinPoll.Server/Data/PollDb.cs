@@ -16,6 +16,7 @@ public class PollDb(DbContextOptions<PollDb> opts) : DbContext(opts)
     public DbSet<DatePollResponse>    DatePollResponses => Set<DatePollResponse>();
     public DbSet<DatePollChatMessage> DatePollChat      => Set<DatePollChatMessage>();
     public DbSet<DatePollImage>       DatePollImages    => Set<DatePollImage>();
+    public DbSet<DatePollHost>        DatePollHosts     => Set<DatePollHost>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
