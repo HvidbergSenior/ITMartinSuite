@@ -40,6 +40,49 @@ public sealed class LiveHub
         public Dictionary<string, int> Reactions { get; init; } = [];
     }
 
+    // ── "Ræk hånden op": viewers ask to speak, Martin gives one of them the floor ("scenen").
+    // The guest publishes to MediaMTX path "gaest" with a one-time token; everyone else plays that path next to "live".
+    public sealed record Hand(string Viewer, string Name, DateTime At);
+    public sealed record Stage(string Viewer, string Name, string Token, DateTime Since);
+    private readonly List<Hand> _hands = [];
+    private Stage? _stage;
+
+    public List<Hand> Hands() { lock (_lock) return [.. _hands]; }
+    public Stage? OnStage { get { lock (_lock) return _stage; } }
+
+    public void RaiseHand(string viewer, string name)
+    {
+        lock (_lock)
+        {
+            if (_stage?.Viewer == viewer || _hands.Any(h => h.Viewer == viewer)) return;
+            _hands.Add(new Hand(viewer, NameOf(name), DateTime.UtcNow));
+        }
+        Changed?.Invoke();
+    }
+
+    public void LowerHand(string viewer) { lock (_lock) _hands.RemoveAll(h => h.Viewer == viewer); Changed?.Invoke(); }
+
+    public void GiveFloor(string viewer)
+    {
+        lock (_lock)
+        {
+            var hand = _hands.FirstOrDefault(h => h.Viewer == viewer);
+            if (hand is null) return;
+            _hands.Remove(hand);
+            _stage = new Stage(viewer, hand.Name, Guid.NewGuid().ToString("N"), DateTime.UtcNow);
+        }
+        Changed?.Invoke();
+    }
+
+    // Martin takes the floor back - or the guest leaves by themselves.
+    public void EndFloor(string? viewer = null)
+    {
+        lock (_lock) { if (viewer is null || _stage?.Viewer == viewer) _stage = null; }
+        Changed?.Invoke();
+    }
+
+    public bool GuestTokenOk(string? token) { lock (_lock) return _stage is { } st && token == st.Token; }
+
     public const int MaxQuestions = 500, MaxIdeas = 200, MaxText = 400;
     public static readonly string[] Emojis = ["👍", "❤️", "😂", "🔥", "👏", "🎸", "🤯", "🐦"];
 
@@ -105,6 +148,7 @@ public sealed class LiveHub
         {
             if (!S.Live) return;
             S.Live = false;
+            _hands.Clear(); _stage = null;
             try
             {
                 var name = (S.StartedAt ?? DateTime.UtcNow).ToString("yyyy-MM-dd_HHmm") + ".json";

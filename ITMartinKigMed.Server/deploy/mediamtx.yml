@@ -42,3 +42,6 @@ authInternalUsers:
 
 paths:
   live:
+  # the viewer Martin gives the floor ("Ræk hånden op") - a new guest replaces the old one
+  gaest:
+    overridePublisher: yes

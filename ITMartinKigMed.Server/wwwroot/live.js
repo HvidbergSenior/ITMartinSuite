@@ -31,13 +31,14 @@ window.kig = (() => {
 
     // ── viewer player ──
     const players = {};
-    async function play(id, onState) {
+    // path = MediaMTX path: 'live' (Martin) or 'gaest' (the viewer who has the floor); cb = the .NET method told the state
+    async function play(id, onState, path = 'live', cb = 'OnPlayer') {
         stop(id);
         const video = document.getElementById(id); if (!video) return;
         const p = players[id] = { pc: null, hls: null, retry: null };
         // no video yet (Martin not sending, or he just reloaded the studio): wait and try again - never a silent black box
-        const again = (ms) => { if (players[id] === p) p.retry = setTimeout(() => { if (players[id] === p) play(id, onState); }, ms); };
-        const say = s => { try { onState && onState.invokeMethodAsync('OnPlayer', s); } catch { } };
+        const again = (ms) => { if (players[id] === p) p.retry = setTimeout(() => { if (players[id] === p) play(id, onState, path, cb); }, ms); };
+        const say = s => { try { onState && onState.invokeMethodAsync(cb, s); } catch { } };
         say('forbinder');
         try {
             const pc = p.pc = new RTCPeerConnection({ iceServers: ice });
@@ -45,7 +46,7 @@ window.kig = (() => {
             pc.addTransceiver('audio', { direction: 'recvonly' });
             const stream = new MediaStream();
             pc.ontrack = e => { stream.addTrack(e.track); video.srcObject = stream; video.play().catch(() => { }); };
-            await negotiate(pc, '/media/live/whep');
+            await negotiate(pc, `/media/${path}/whep`);
             const ok = await new Promise(res => {
                 const t = setTimeout(() => res(false), 7000);
                 pc.addEventListener('connectionstatechange', () => {
@@ -68,7 +69,7 @@ window.kig = (() => {
         // Fallback: HLS through the site (a few seconds behind, works on every network)
         if (p.pc) { p.pc.close(); p.pc = null; }
         video.srcObject = null;
-        const src = '/hls/live/index.m3u8';
+        const src = `/hls/${path}/index.m3u8`;
         if (video.canPlayType('application/vnd.apple.mpegurl')) video.src = src;
         else if (window.Hls && Hls.isSupported()) { p.hls = new Hls({ lowLatencyMode: true }); p.hls.loadSource(src); p.hls.attachMedia(video); }
         else { say('fejl'); return; }
@@ -84,6 +85,30 @@ window.kig = (() => {
         const v = document.getElementById(id); if (v) { v.srcObject = null; v.removeAttribute('src'); v.load(); }
     }
     function unmute(id) { const v = document.getElementById(id); if (v) { v.muted = false; v.play().catch(() => { }); } }
+
+    // ── the viewer who has the floor: microphone (and camera if they want) to path "gaest" ──
+    let guest = null, guestUrl = null;
+    async function guestStart(token, withCam) {
+        guestStop();
+        const media = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: withCam ? { height: { ideal: 480 }, frameRate: { ideal: 24 }, facingMode: 'user' } : false,
+        });
+        const pc = new RTCPeerConnection({ iceServers: ice });
+        media.getTracks().forEach(t => pc.addTransceiver(t, { direction: 'sendonly', streams: [media] }));
+        const h264 = (RTCRtpSender.getCapabilities('video')?.codecs || []).filter(c => /h264/i.test(c.mimeType));
+        const rest = (RTCRtpSender.getCapabilities('video')?.codecs || []).filter(c => !/h264/i.test(c.mimeType));
+        pc.getTransceivers().filter(t => t.sender.track?.kind === 'video').forEach(t => { try { t.setCodecPreferences([...h264, ...rest]); } catch { } });
+        guest = { pc, media };
+        guestUrl = await negotiate(pc, '/media/gaest/whip?t=' + encodeURIComponent(token));
+        return 'ok';
+    }
+    function guestStop() {
+        if (guestUrl) fetch(guestUrl, { method: 'DELETE' }).catch(() => { });
+        if (guest) { guest.pc.close(); guest.media.getTracks().forEach(t => t.stop()); }
+        guest = null; guestUrl = null;
+    }
+    function guestMute(on) { guest?.media.getAudioTracks().forEach(t => t.enabled = !on); }
 
     // ── studio: camera, microphone, publish ──
     let cam = null, pub = null, pubUrl = null;   // cam = camera + microphone (the mic is always the sound)
@@ -240,7 +265,7 @@ window.kig = (() => {
         stage.appendChild(e); setTimeout(() => e.remove(), 2600);
     }
 
-    return { viewer, setName, play, stop, unmute, devices, preview, setMode, publish, unpublish, publishing, cameraOff, float };
+    return { viewer, setName, play, stop, unmute, guestStart, guestStop, guestMute, devices, preview, setMode, publish, unpublish, publishing, cameraOff, float };
 })();
 
 // Studio "Inviter seere": copy the link / the system share menu (Windows, phones).

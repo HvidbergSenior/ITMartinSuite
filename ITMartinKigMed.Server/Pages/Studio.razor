@@ -131,6 +131,35 @@
     </section>
 
     <section class="kig-right">
+        <div class="k-card kig-hand" data-nofold>
+            <div class="k-card-title">🎤 Hvem taler? @(_hands.Count > 0 ? $"(✋ {_hands.Count} venter)" : "")</div>
+            @if (_stageNow is { } g)
+            {
+                <div class="kig-studio-guest">
+                    <video id="studio-guest" autoplay playsinline></video>
+                    <div>
+                        <b>🎤 På nu: @g.Name</b> <span class="k-help">siden @Dk(g.Since)</span>
+                        <p class="k-help">@(_guestState switch { "direkte" or "hls" => "Du hører gæsten i dine høretelefoner – alle seere hører jer begge.", "venter" => "Venter på at gæsten starter sin mikrofon…", _ => "Forbinder…" })</p>
+                        <button class="k-btn k-btn-danger" @onclick="() => Hub.EndFloor()">Tag ordet tilbage</button>
+                    </div>
+                </div>
+            }
+            else { <p class="k-help">Ingen taler lige nu. Seerne kan række hånden op – så dukker de op her, og du vælger, hvem der får ordet. Brug høretelefoner, når nogen taler, så de ikke hører sig selv som ekko.</p> }
+            @if (_hands.Count > 0)
+            {
+                <ul class="kig-hands">
+                    @foreach (var h in _hands)
+                    {
+                        <li><span>✋ <b>@h.Name</b> <span class="k-help">@Dk(h.At)</span></span>
+                            <span class="k-row">
+                                <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Hub.GiveFloor(h.Viewer)">@(_stageNow is null ? "Giv ordet" : "Giv ordet i stedet")</button>
+                                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Hub.LowerHand(h.Viewer)">Afvis</button>
+                            </span></li>
+                    }
+                </ul>
+            }
+        </div>
+
         <div class="k-card" data-nofold>
             <div class="k-card-title">👀 Ser med (@_watchers.Count)</div>
             @if (_watchers.Count == 0) { <p class="k-help">Ingen har siden åben lige nu. Send linket under 📤 Inviter seere.</p> }
@@ -217,6 +246,7 @@
 
     protected override async Task OnAfterRenderAsync(bool first)
     {
+        await SyncGuestAsync();
         if (!first) return;
         try
         {
@@ -247,6 +277,27 @@
             new Dictionary<string, int>(s.Reactions)));
         _viewers = Hub.Viewers;
         _watchers = Hub.Watchers();
+        _hands = Hub.Hands();
+        _stageNow = Hub.OnStage;
+    }
+
+    private List<LiveHub.Hand> _hands = [];
+    private LiveHub.Stage? _stageNow;
+    private bool _guestPlaying;
+    private string _guestState = "";
+    [JSInvokable] public void OnGuestPlayer(string state) { _guestState = state; InvokeAsync(StateHasChanged); }
+
+    // Martin hears (and sees) whoever has the floor
+    private async Task SyncGuestAsync()
+    {
+        if (_stageNow is not null && !_guestPlaying)
+        {
+            _guestPlaying = true;
+            _self ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("kig.play", "studio-guest", _self, "gaest", "OnGuestPlayer");
+            await JS.InvokeVoidAsync("kig.unmute", "studio-guest");
+        }
+        else if (_stageNow is null && _guestPlaying) { _guestPlaying = false; _guestState = ""; await JS.InvokeVoidAsync("kig.stop", "studio-guest"); }
     }
 
     private List<LiveHub.Watcher> _watchers = [];

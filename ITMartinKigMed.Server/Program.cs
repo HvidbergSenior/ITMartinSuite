@@ -98,10 +98,11 @@ var mediaHls = app.Configuration["KigMed:MediaHls"] ?? "http://kigmed-media:8888
 var publishUser = app.Configuration["KigMed:PublishUser"] ?? "martin";
 var publishPass = app.Configuration["KigMed:PublishPass"] ?? "";
 
-async Task Proxy(HttpContext ctx, IHttpClientFactory http, string target, string prefix, bool publish)
+async Task Proxy(HttpContext ctx, IHttpClientFactory http, string target, string prefix, bool publish, bool ownerOnly = true, bool keepQuery = false)
 {
-    if (publish && !IsOwner(ctx)) { ctx.Response.StatusCode = 401; return; }
-    var req = new HttpRequestMessage(new HttpMethod(ctx.Request.Method), target + ctx.Request.QueryString);
+    if (publish && ownerOnly && !IsOwner(ctx)) { ctx.Response.StatusCode = 401; return; }
+    // WHIP/WHEP need no query (and "t" is our guest token, not MediaMTX's business); LL-HLS does (_HLS_msn …)
+    var req = new HttpRequestMessage(new HttpMethod(ctx.Request.Method), target + (keepQuery ? ctx.Request.QueryString.ToString() : ""));
     if (ctx.Request.ContentLength > 0 || ctx.Request.Headers.ContainsKey("Transfer-Encoding"))
     {
         req.Content = new StreamContent(ctx.Request.Body);
@@ -135,12 +136,26 @@ async Task Proxy(HttpContext ctx, IHttpClientFactory http, string target, string
     }
 }
 
-app.Map("/media/{**path}", (HttpContext ctx, IHttpClientFactory http, string path) =>
-    // WHIP's follow-up calls (PATCH candidates, DELETE on stop) go to live/whip/<session> too
-    Proxy(ctx, http, $"{mediaWebRtc}/{path}", "/media", path.StartsWith("live/whip", StringComparison.OrdinalIgnoreCase)))
-    .DisableAntiforgery();
+app.Map("/media/{**path}", async (HttpContext ctx, IHttpClientFactory http, LiveHub hub, string path) =>
+{
+    // Martin publishes to live/whip (studio cookie); WHIP's follow-up calls (PATCH, DELETE) go to live/whip/<session> too.
+    if (path.StartsWith("live/whip", StringComparison.OrdinalIgnoreCase))
+    {
+        await Proxy(ctx, http, $"{mediaWebRtc}/{path}", "/media", publish: true);
+        return;
+    }
+    // The viewer who has the floor publishes to gaest/whip with the one-time token Martin gave them.
+    if (path.StartsWith("gaest/whip", StringComparison.OrdinalIgnoreCase))
+    {
+        var first = path.Equals("gaest/whip", StringComparison.OrdinalIgnoreCase);
+        if (first && !hub.GuestTokenOk(ctx.Request.Query["t"])) { ctx.Response.StatusCode = 401; return; }
+        await Proxy(ctx, http, $"{mediaWebRtc}/{path}", "/media", publish: true, ownerOnly: false);
+        return;
+    }
+    await Proxy(ctx, http, $"{mediaWebRtc}/{path}", "/media", publish: false);   // WHEP play: open
+}).DisableAntiforgery();
 app.MapGet("/hls/{**path}", (HttpContext ctx, IHttpClientFactory http, string path) =>
-    Proxy(ctx, http, $"{mediaHls}/{path}", "/hls", false));
+    Proxy(ctx, http, $"{mediaHls}/{path}", "/hls", false, keepQuery: true));
 
 app.UseAntiforgery();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();

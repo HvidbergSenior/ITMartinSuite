@@ -31,6 +31,13 @@
             {
                 <button class="kig-unmute" @onclick="UnmuteAsync">🔊 Tryk for lyd</button>
             }
+            @if (_live && _stage is { } g && g.Viewer != _key)
+            {
+                <div class="kig-guest">
+                    <video id="guestv" autoplay playsinline muted></video>
+                    <span>🎤 <b>@g.Name</b> taler</span>
+                </div>
+            }
             @if (_answering is { } a)
             {
                 <div class="kig-answering">💬 Svarer nu: <b>@a.Name</b> – @a.Text</div>
@@ -50,6 +57,48 @@
                 @foreach (var e in LiveHub.Emojis)
                 {
                     <button @onclick="() => Hub.React(_key, e)" aria-label="Reager med @e">@e</button>
+                }
+            </div>
+        }
+
+        @if (_live)
+        {
+            <div class="k-card kig-hand" data-nofold>
+                @if (_stage is { } st && st.Viewer == _key)
+                {
+                    @if (!_onAir)
+                    {
+                        <div class="k-card-title">🎤 Du har ordet!</div>
+                        <p class="k-help">Martin har givet dig ordet. Tryk <b>Start mikrofon</b> og tillad mikrofonen – så kan alle høre dig. Brug gerne høretelefoner, så undgår du ekko.</p>
+                        <label class="k-row"><input type="checkbox" @bind="_withCam" /> Vis også mit kamera</label>
+                        <div class="k-row k-mt">
+                            <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="GoOnAirAsync">🎤 Start mikrofon</button>
+                            <button class="k-btn" @onclick="LeaveFloorAsync">Nej tak</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="k-card-title">🔴 Du er på – tal løs</div>
+                        <p class="k-help">Alle kan høre dig@(_withCam ? " og se dig" : ""). Du hører Martin i videoen som normalt.</p>
+                        <div class="k-row">
+                            <button class="k-btn" @onclick="ToggleMuteAsync">@(_selfMuted ? "🔊 Slå lyd til igen" : "🔇 Slå min lyd fra")</button>
+                            <button class="k-btn k-btn-danger" @onclick="LeaveFloorAsync">Afslut</button>
+                        </div>
+                    }
+                    @if (_handNote.Length > 0) { <p class="k-help"><b>@_handNote</b></p> }
+                }
+                else if (_raised)
+                {
+                    <div class="k-card-title">✋ Du har rakt hånden op</div>
+                    <p class="k-help">Martin giver dig ordet, når han kan – så dukker en knap op her.</p>
+                    <button class="k-btn" @onclick="() => Hub.LowerHand(_key)">Tag hånden ned</button>
+                }
+                else
+                {
+                    <div class="k-card-title">🎤 Vil du sige noget?</div>
+                    <p class="k-help">Ræk hånden op – når Martin giver dig ordet, kan du tale med ham, og alle der kigger med hører jer.@(_stage is { } other ? $" Lige nu taler {other.Name}." : "")</p>
+                    <button class="k-btn k-btn-primary" disabled="@(_name.Length == 0)" @onclick="() => Hub.RaiseHand(_key, _name)">✋ Jeg vil gerne sige noget</button>
+                    @if (_name.Length == 0) { <p class="k-help">Skriv dit navn under spørgsmål først.</p> }
                 }
             </div>
         }
@@ -133,6 +182,40 @@
     private LiveHub.Poll? _poll;
     private DotNetObjectReference<Index>? _self;
 
+    // ── "Ræk hånden op" ──
+    private LiveHub.Stage? _stage;
+    private bool _raised, _onAir, _withCam, _selfMuted, _busy, _guestPlaying;
+    private string _handNote = "", _guestState = "";
+
+    [JSInvokable] public void OnGuestPlayer(string state) => _guestState = state;
+
+    private async Task GoOnAirAsync()
+    {
+        if (_stage is not { } st || st.Viewer != _key) return;
+        _busy = true; _handNote = "";
+        try { await JS.InvokeAsync<string>("kig.guestStart", st.Token, _withCam); _onAir = true; }
+        catch (JSException) { _handNote = "Mikrofonen kunne ikke starte – tjek at browseren må bruge den (hængelåsen i adresselinjen)."; }
+        _busy = false;
+    }
+
+    private async Task LeaveFloorAsync()
+    {
+        await JS.InvokeVoidAsync("kig.guestStop");
+        _onAir = false; _selfMuted = false;
+        Hub.EndFloor(_key);
+    }
+
+    private async Task ToggleMuteAsync() { _selfMuted = !_selfMuted; await JS.InvokeVoidAsync("kig.guestMute", _selfMuted); }
+
+    // play the guest for everyone else; stop my own microphone if Martin took the floor back
+    private async Task SyncGuestAsync()
+    {
+        var showGuest = _live && _stage is { } g && g.Viewer != _key;
+        if (showGuest && !_guestPlaying) { _guestPlaying = true; await JS.InvokeVoidAsync("kig.play", "guestv", _self, "gaest", "OnGuestPlayer"); if (!_muted) await JS.InvokeVoidAsync("kig.unmute", "guestv"); }
+        else if (!showGuest && _guestPlaying) { _guestPlaying = false; await JS.InvokeVoidAsync("kig.stop", "guestv"); }
+        if (_onAir && _stage?.Viewer != _key) { _onAir = false; _selfMuted = false; await JS.InvokeVoidAsync("kig.guestStop"); _handNote = ""; }
+    }
+
     private string PlayerText => _player switch
     {
         "direkte" => "🟢 Direkte forbindelse (ca. 1 sekunds forsinkelse)",
@@ -159,6 +242,7 @@
             Hub.Watch(_circuit, true, _name);
             StateHasChanged();
         }
+        if (_self is not null && _key.Length > 0) await SyncGuestAsync();
         if (_live && !_playing) { _playing = true; await JS.InvokeVoidAsync("kig.play", "player", _self); }
         else if (!_live && _playing) { _playing = false; _player = ""; await JS.InvokeVoidAsync("kig.stop", "player"); }
     }
@@ -172,13 +256,20 @@
         (_live, _title, _next, _questions, _poll, _shownIdea) = Hub.Read(s => (s.Live, s.Title, s.Next,
             s.Questions.TakeLast(80).ToArray(), s.Polls.LastOrDefault(), s.Ideas.LastOrDefault(i => i.Shown)));
         _answering = _questions.LastOrDefault(q => q.Status == "svarer");
+        _stage = Hub.OnStage;
+        _raised = Hub.Hands().Any(h => h.Viewer == _key);
         _viewers = Hub.Viewers;
     }
 
     private void OnChanged() => InvokeAsync(() => { Load(); StateHasChanged(); });
     private void OnReacted(string emoji) => InvokeAsync(async () => { try { await JS.InvokeVoidAsync("kig.float", "stage", emoji); } catch { } });
 
-    private async Task UnmuteAsync() { _muted = false; await JS.InvokeVoidAsync("kig.unmute", "player"); }
+    private async Task UnmuteAsync()
+    {
+        _muted = false;
+        await JS.InvokeVoidAsync("kig.unmute", "player");
+        if (_guestPlaying) await JS.InvokeVoidAsync("kig.unmute", "guestv");
+    }
 
     private async Task SaveNameAsync()
     {
@@ -225,7 +316,9 @@
         Hub.Changed -= OnChanged;
         Hub.Reacted -= OnReacted;
         Hub.Watch(_circuit, false);
-        try { await JS.InvokeVoidAsync("kig.stop", "player"); } catch { }
+        try { await JS.InvokeVoidAsync("kig.stop", "player"); await JS.InvokeVoidAsync("kig.stop", "guestv"); await JS.InvokeVoidAsync("kig.guestStop"); } catch { }
+        if (_onAir) Hub.EndFloor(_key);
+        Hub.LowerHand(_key);
         _self?.Dispose();
     }
 }
