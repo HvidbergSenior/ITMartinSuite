@@ -15,12 +15,15 @@ window.fest = (() => {
         if (window.confetti) return Promise.resolve();
         return loaded ??= new Promise(ok => {
             const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js';
-            s.onload = ok; document.head.appendChild(s);
+            s.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
+            s.onload = ok;
+            s.onerror = () => { loaded = null; const b = document.createElement('script');   // backup CDN
+                b.src = 'https://unpkg.com/canvas-confetti@1.9.3/dist/confetti.browser.js'; b.onload = ok; document.head.appendChild(b); };
+            document.head.appendChild(s);
         });
     }
-    async function boom() {
-        if (reduce) return;
+    async function boom(auto) {
+        if (reduce && auto === true) return;   // "reduce motion" (e.g. iPhone setting): no automatic burst, the button still works
         await lib();
         confetti({ particleCount: 160, spread: 110, origin: { y: .3 }, colors: pal });
         setTimeout(() => confetti({ particleCount: 70, angle: 60, spread: 60, origin: { x: 0, y: .7 }, colors: pal }), 250);
@@ -47,7 +50,7 @@ window.fest = (() => {
         const el = document.getElementById('fest-msg');
         if (!el) { clearInterval(timer); timer = null; return; }
         if (timer) return;
-        boom();
+        boom(true);
         timer = setInterval(() => {
             const m = document.getElementById('fest-msg'); if (!m) return;
             m.classList.add('out');
