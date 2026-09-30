@@ -80,7 +80,7 @@ public sealed class Settings
     public List<DayEntry> Entries() => NowPhotos.Split('\n', StringSplitOptions.RemoveEmptyEntries)
         .Select(l => l.Split('|', 4))
         .Where(p => p.Length >= 3)
-        .Select(p => new DayEntry(p[0], p[1], DateTime.TryParse(p[2], out var at) ? at : DateTime.Now, p.Length > 3 ? p[3].Replace(LineSep, '\n') : ""))
+        .Select(p => new DayEntry(p[0], p[1], DateTime.TryParse(p[2], out var at) ? at : ITMartinHjem.Server.Services.Dk.Now, p.Length > 3 ? p[3].Replace(LineSep, '\n') : ""))
         .OrderByDescending(e => e.At)
         .ToList();
 

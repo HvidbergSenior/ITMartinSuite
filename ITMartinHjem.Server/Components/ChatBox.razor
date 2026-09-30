@@ -25,7 +25,7 @@
                 {
                     <div class="hj-msg @(m.FromOwner ? "owner" : "me")">
                         <div>@m.Text</div>
-                        <div class="hj-msg-at">@(m.FromOwner ? OwnerName : "Dig") · @m.At.ToLocalTime().ToString("d/M HH:mm")</div>
+                        <div class="hj-msg-at">@(m.FromOwner ? OwnerName : "Dig") · @Dk.Local(m.At).ToString("d/M HH:mm")</div>
                     </div>
                 }
             </div>

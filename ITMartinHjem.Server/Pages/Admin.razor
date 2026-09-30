@@ -50,7 +50,7 @@
             {
                 <button class="hj-thread @(t.Id == _openId ? "sel" : "") @(t.UnreadForOwner ? "new" : "")" @onclick="() => OpenAsync(t.Id)">
                     <b>@(t.Name.Length > 0 ? t.Name : "Besøgende #" + t.Id)</b>
-                    <span class="k-help">@t.LastAt.ToLocalTime().ToString("d/M HH:mm") · @(t.Messages.OrderBy(m => m.At).LastOrDefault()?.Text is { } last ? (last.Length > 50 ? last[..50] + "…" : last) : "")</span>
+                    <span class="k-help">@Dk.Local(t.LastAt).ToString("d/M HH:mm") · @(t.Messages.OrderBy(m => m.At).LastOrDefault()?.Text is { } last ? (last.Length > 50 ? last[..50] + "…" : last) : "")</span>
                 </button>
             }
         </div>
@@ -61,7 +61,7 @@
                 {
                     <div class="hj-msg @(m.FromOwner ? "me" : "owner")">
                         <div>@m.Text</div>
-                        <div class="hj-msg-at">@(m.FromOwner ? "Dig" : (_open.Name.Length > 0 ? _open.Name : "Besøgende")) · @m.At.ToLocalTime().ToString("d/M HH:mm")</div>
+                        <div class="hj-msg-at">@(m.FromOwner ? "Dig" : (_open.Name.Length > 0 ? _open.Name : "Besøgende")) · @Dk.Local(m.At).ToString("d/M HH:mm")</div>
                     </div>
                 }
             </div>
@@ -302,7 +302,7 @@ else if (_review is { } rv)
     private bool _dateTouched;
     private readonly List<Media> _removed = [];
 
-    private static Post NewDraft() => new() { At = DateTime.Today };
+    private static Post NewDraft() => new() { At = Dk.Today };
 
     protected override async Task OnInitializedAsync()
     {
@@ -701,7 +701,7 @@ else if (_review is { } rv)
             await using var s = e.File.OpenReadStream(MediaStore.MaxBytes);
             var saved = await Store.SaveAsync(s, e.File.Name, e.File.ContentType);
             // Always a date under the picture (user's wish): from the photo itself, else today.
-            var caption = "📅 " + (saved.TakenAt ?? DateTime.Today).ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK"));
+            var caption = "📅 " + (saved.TakenAt ?? Dk.Today).ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK"));
             _pageEdit.Body = _pageEdit.Body.TrimEnd() + $"\n\n![{caption}](/f/{saved.Media.StoredName})\n";
             _pageNote = "Billedet er sat ind nederst i teksten – flyt linjen, hvis det skal stå et andet sted. Husk Gem.";
         }

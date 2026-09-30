@@ -139,7 +139,7 @@ app.MapGet("/api/nu", (IDbContextFactory<HjemDb> dbf) =>
         name = s.Name,
         intro = s.Intro,
         html = TinyMarkdown.Render(s.NowText).Value,
-        updated = s.NowUpdated.ToLocalTime().ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK")),
+        updated = ITMartinHjem.Server.Services.Dk.Local(s.NowUpdated).ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK")),
         available = s.Available,
         player,
         link = player is null && s.NowLink.Length > 0 ? s.NowLink : null,
