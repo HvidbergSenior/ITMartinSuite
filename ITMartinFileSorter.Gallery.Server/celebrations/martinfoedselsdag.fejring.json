@@ -15,31 +15,125 @@
     "49": "Level 49: Sidste år i 40'erne 🪩"
   },
   "years": {
-    "2013": { "title": "36 år og i fuld gang", "text": "Familie, fodbold og en computer, der sjældent blev slukket." },
-    "2014": { "title": "37 år", "text": "Et år med mange billeder og endnu flere idéer." },
-    "2016": { "title": "39 år – næsten 40", "text": "Stadig med musik i ørerne. Altid med musik i ørerne." },
-    "2017": { "title": "De runde 40!", "text": "Fyrre år, og ingen tegn på at sætte farten ned." },
-    "2018": { "title": "41 år", "text": "Brætspil på bordet, guitar i hånden og familien omkring sig." },
-    "2019": { "title": "42 år – svaret på alt", "text": "Enhver fan af Hitchhiker's Guide ved det: 42 er svaret på livet, universet og alt det der." },
-    "2020": { "title": "43 år og hjemme – som alle andre", "text": "Et år, hvor alle var hjemme. For en, der elsker computere og brætspil, var det ikke det værste." },
-    "2021": { "title": "44 år", "text": "Mange billeder og mange gode stunder med de nærmeste." },
-    "2022": { "title": "45 år", "text": "Halvvejs til 90. Stadig lige nysgerrig." },
-    "2023": { "title": "46 år", "text": "Musik, spil og familie – i den rækkefølge, der nu passede den dag." },
-    "2024": { "title": "47 år", "text": "Nye idéer, nye apps og de samme gode mennesker omkring sig." },
-    "2025": { "title": "48 år – ITMartin tager form", "text": "Den digitale kolibri begynder at flyve: apps, der hjælper helt almindelige mennesker med at gøre det rigtige." },
-    "2026": { "title": "49 år – ITKolibrien flyver", "text": "Hjemmeside, pilotkunder, Bogshoppen, MinElpris, rippede cd'er – og stadig tid til en gang Duel med Eigil (som vinder)." }
+    "2013": {
+      "title": "36 år og i fuld gang",
+      "text": "Familie, fodbold og en computer, der sjældent blev slukket."
+    },
+    "2014": {
+      "title": "37 år",
+      "text": "Et år med mange billeder og endnu flere idéer."
+    },
+    "2016": {
+      "title": "39 år – næsten 40",
+      "text": "Stadig med musik i ørerne. Altid med musik i ørerne."
+    },
+    "2017": {
+      "title": "De runde 40!",
+      "text": "Fyrre år, og ingen tegn på at sætte farten ned."
+    },
+    "2018": {
+      "title": "41 år",
+      "text": "Brætspil på bordet, guitar i hånden og familien omkring sig."
+    },
+    "2019": {
+      "title": "42 år – svaret på alt",
+      "text": "Enhver fan af Hitchhiker's Guide ved det: 42 er svaret på livet, universet og alt det der."
+    },
+    "2020": {
+      "title": "43 år og hjemme – som alle andre",
+      "text": "Et år, hvor alle var hjemme. For en, der elsker computere og brætspil, var det ikke det værste."
+    },
+    "2021": {
+      "title": "44 år",
+      "text": "Mange billeder og mange gode stunder med de nærmeste."
+    },
+    "2022": {
+      "title": "45 år",
+      "text": "Halvvejs til 90. Stadig lige nysgerrig."
+    },
+    "2023": {
+      "title": "46 år",
+      "text": "Musik, spil og familie – i den rækkefølge, der nu passede den dag."
+    },
+    "2024": {
+      "title": "47 år",
+      "text": "Nye idéer, nye apps og de samme gode mennesker omkring sig."
+    },
+    "2025": {
+      "title": "48 år – ITMartin tager form",
+      "text": "Den digitale kolibri begynder at flyve: apps, der hjælper helt almindelige mennesker med at gøre det rigtige."
+    },
+    "2026": {
+      "title": "49 år – ITKolibrien flyver",
+      "text": "Hjemmeside, pilotkunder, Bogshoppen, MinElpris, rippede cd'er – og stadig tid til en gang Duel med Eigil (som vinder)."
+    }
   },
   "memes": [
-    { "at": 36, "kind": "drake", "no": "Gå tidligt i seng", "yes": "\"Bare én tur mere\" i et strategispil (kl. 02.30)" },
-    { "at": 39, "kind": "classic", "top": "Jeg gør kun én ting ad gangen", "mid": "🎧🎸💻", "bot": "– sagde Martin aldrig" },
-    { "at": 42, "kind": "classic", "top": "Hvad er meningen med livet?", "mid": "🌌", "bot": "42. Og en god gang brætspil." },
-    { "at": 45, "kind": "drake", "no": "Købe en færdig app", "yes": "Bygge sin egen. Og så 20 til." },
-    { "at": 47, "kind": "classic", "top": "Et hurtigt kig på elprisen", "mid": "⚡", "bot": "*bygger en hel app om det*" },
-    { "at": 49, "kind": "drake", "no": "Slappe af på sin fødselsdag", "yes": "Lave en fødselsdagsside til sig selv 🪩" }
+    {
+      "at": 36,
+      "kind": "drake",
+      "no": "Gå tidligt i seng",
+      "yes": "\"Bare én tur mere\" i et strategispil (kl. 02.30)"
+    },
+    {
+      "at": 39,
+      "kind": "classic",
+      "top": "Jeg gør kun én ting ad gangen",
+      "mid": "🎧🎸💻",
+      "bot": "– sagde Martin aldrig"
+    },
+    {
+      "at": 42,
+      "kind": "classic",
+      "top": "Hvad er meningen med livet?",
+      "mid": "🌌",
+      "bot": "42. Og en god gang brætspil."
+    },
+    {
+      "at": 45,
+      "kind": "drake",
+      "no": "Købe en færdig app",
+      "yes": "Bygge sin egen. Og så 20 til."
+    },
+    {
+      "at": 47,
+      "kind": "classic",
+      "top": "Et hurtigt kig på elprisen",
+      "mid": "⚡",
+      "bot": "*bygger en hel app om det*"
+    },
+    {
+      "at": 49,
+      "kind": "drake",
+      "no": "Slappe af på sin fødselsdag",
+      "yes": "Lave en fødselsdagsside til sig selv 🪩"
+    }
   ],
-  "skip": ["P7160036.jpg", "bryllup 026.jpg",
-    "20221224 174059.mp4", "20230322 122048.mp4", "20230322 122151.mp4", "IMG 0715 - Kopi.mp4", "IMG 3891.mp4",
-    "Snapchat-1017597596.mp4", "Snapchat-1105633170.mp4", "Snapchat-2121010715.mp4", "Snapchat-273968763.mp4",
-    "Snapchat-560715624.mp4", "Snapchat-564124899.mp4", "Snapchat-641415697.mp4", "Snapchat-765531254.mp4",
-    "Snapchat-89236041.mp4", "Snapchat-906205896.mp4"]
+  "skip": [
+    "P7160036.jpg",
+    "bryllup 026.jpg",
+    "20221224 174059.mp4",
+    "20230322 122048.mp4",
+    "20230322 122151.mp4",
+    "IMG 0715 - Kopi.mp4",
+    "IMG 3891.mp4",
+    "Snapchat-1017597596.mp4",
+    "Snapchat-1105633170.mp4",
+    "Snapchat-2121010715.mp4",
+    "Snapchat-273968763.mp4",
+    "Snapchat-560715624.mp4",
+    "Snapchat-564124899.mp4",
+    "Snapchat-641415697.mp4",
+    "Snapchat-765531254.mp4",
+    "Snapchat-89236041.mp4",
+    "Snapchat-906205896.mp4"
+  ],
+  "rotate": {
+    "P3080001.jpg": 90,
+    "P9290142.jpg": 90,
+    "P9290144.jpg": 90,
+    "P9290169.jpg": 90,
+    "PC090032.jpg": 90,
+    "PC200007.jpg": 270
+  }
 }
