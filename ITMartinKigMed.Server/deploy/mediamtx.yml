@@ -1,0 +1,44 @@
+# MediaMTX for Kig med (photoserver ~/martinsuite/kigmed/mediamtx.yml). Template: the deploy puts the real
+# publish password in (__PUBLISH_PASS__ -> KigMed__PublishPass from magic.env). Only the Kig med app talks to
+# the HTTP ports (docker network); the internet only reaches UDP/TCP 8189 (WebRTC media, router forward).
+logLevel: info
+api: no
+metrics: no
+pprof: no
+playback: no
+rtsp: no
+rtmp: no
+srt: no
+
+hls: yes
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+# the container's own IP is useless outside docker: offer the LAN address and the public address instead
+webrtcIPsFromInterfaces: no
+webrtcAdditionalHosts: [10.0.0.200, __PUBLIC_HOST__]
+webrtcICEServers2:
+  - url: stun:stun.l.google.com:19302
+
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+  - user: martin
+    pass: __PUBLISH_PASS__
+    ips: []
+    permissions:
+      - action: publish
+
+paths:
+  live:

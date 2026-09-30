@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="da" data-family="reagere">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Kig med – Martin live</title>
+    <base href="/" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=@CacheBuster" defer></script>
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    @* hls.js = the fallback player when the direct (WebRTC) connection cannot be made; Safari plays HLS itself. *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.20/hls.min.js" defer></script>
+    <script src="live.js?v=@CacheBuster"></script>
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.server.js"></script>
+    <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/kolibri-sw.js").catch(function(){});}</script>
+    <div id="components-reconnect-modal">
+        <span class="reconnect-msg">Forbinder igen…</span>
+        <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+    </div>
+</body>
+</html>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

@@ -1,0 +1,225 @@
+@page "/"
+@implements IAsyncDisposable
+@inject LiveHub Hub
+@inject IJSRuntime JS
+
+<PageTitle>@(_live ? "🔴 Martin er live" : "Kig med – Martin live")</PageTitle>
+
+<header class="kig-head">
+    <h1>@(_live ? "🔴 Live nu" : "📺 Kig med")@(_title.Length > 0 && _live ? $": {_title}" : "")</h1>
+    <p class="k-help">Her kan du se Martin live, når han koder, spiller eller viser en app – og være med: stil spørgsmål, stem og send idéer.</p>
+</header>
+
+<div class="kig-grid">
+    <section class="kig-left">
+        <div class="kig-stage" id="stage">
+            <video id="player" autoplay playsinline muted class="@(_live ? "" : "hidden")"></video>
+            @if (!_live)
+            {
+                <div class="kig-offline">
+                    <div class="kig-offline-icon">😴</div>
+                    <b>Martin er ikke live lige nu</b>
+                    @if (_next.Length > 0) { <span>📅 @_next</span> }
+                    <span class="k-help">Lad siden stå åben – videoen starter af sig selv, når han går live.</span>
+                </div>
+            }
+            else if (_muted)
+            {
+                <button class="kig-unmute" @onclick="UnmuteAsync">🔊 Tryk for lyd</button>
+            }
+            @if (_answering is { } a)
+            {
+                <div class="kig-answering">💬 Svarer nu: <b>@a.Name</b> – @a.Text</div>
+            }
+            @if (_shownIdea is { } si)
+            {
+                <div class="kig-shown">
+                    @if (si.Picture is { } pic) { <img src="/pic/@pic" alt="" /> }
+                    <span>💡 <b>@si.Name:</b> @si.Text</span>
+                </div>
+            }
+        </div>
+        @if (_live)
+        {
+            <p class="k-help kig-conn">@PlayerText · 👀 @_viewers ser med</p>
+            <div class="kig-reactions" role="group" aria-label="Reager">
+                @foreach (var e in LiveHub.Emojis)
+                {
+                    <button @onclick="() => Hub.React(_key, e)" aria-label="Reager med @e">@e</button>
+                }
+            </div>
+        }
+
+        @if (_poll is { } p)
+        {
+            var counts = p.Counts(); var total = Math.Max(1, counts.Sum());
+            <div class="k-card kig-poll" data-nofold>
+                <div class="k-card-title">🗳️ @p.Text</div>
+                <p class="k-help">@(p.Open ? "Tryk på dit svar – du kan skifte mening, så længe afstemningen er åben." : "Afstemningen er lukket. Sådan blev det:")</p>
+                @for (var i = 0; i < p.Options.Count; i++)
+                {
+                    var idx = i; var mine = p.Votes.TryGetValue(_key, out var v) && v == idx;
+                    <button class="kig-opt @(mine ? "mine" : "")" disabled="@(!p.Open)" @onclick="() => Hub.Vote(_key, p.Id, idx)">
+                        <span class="kig-bar" style="width:@(counts[idx] * 100 / total)%"></span>
+                        <span class="kig-opt-t">@(mine ? "✓ " : "")@p.Options[idx]</span><span class="kig-opt-n">@counts[idx]</span>
+                    </button>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="kig-right">
+        <div class="k-card" data-nofold>
+            <div class="k-card-title">💬 Spørgsmål og kommentarer</div>
+            @if (_name.Length == 0)
+            {
+                <label class="k-label" for="kig-name">Hvad hedder du? <span class="k-help">(så Martin ved, hvem han svarer)</span></label>
+                <div class="k-row">
+                    <input id="kig-name" class="k-input" @bind="_nameDraft" maxlength="40" placeholder="Dit navn" />
+                    <button class="k-btn k-btn-primary" @onclick="SaveNameAsync">OK</button>
+                </div>
+            }
+            else
+            {
+                <div class="kig-questions" id="kig-q">
+                    @if (_questions.Length == 0) { <p class="k-help">Ingen spørgsmål endnu – skriv det første herunder.</p> }
+                    @foreach (var q in _questions)
+                    {
+                        <div class="kig-q @(q.FromMartin ? "martin" : "") @(q.Status == "svarer" ? "now" : "") @(q.Status == "færdig" ? "done" : "")">
+                            <b>@q.Name</b> @q.Text
+                            @if (q.Status == "svarer") { <span class="kig-tag">svarer nu</span> }
+                            @if (q.Status == "færdig") { <span class="kig-tag done">besvaret</span> }
+                        </div>
+                    }
+                </div>
+                <div class="k-row k-mt">
+                    <input class="k-input" @bind="_ask" @bind:event="oninput" @onkeydown="AskKeyAsync" maxlength="@LiveHub.MaxText" placeholder="Skriv et spørgsmål…" aria-label="Skriv et spørgsmål" />
+                    <button class="k-btn k-btn-primary" disabled="@string.IsNullOrWhiteSpace(_ask)" @onclick="AskAsync">Send</button>
+                </div>
+                @if (_askNote.Length > 0) { <p class="k-help">@_askNote</p> }
+                <p class="k-help">Du skriver som <b>@_name</b>. <button class="k-link" @onclick="() => _name = string.Empty">Skift navn</button></p>
+            }
+        </div>
+
+        <details class="k-card kig-idea" data-nofold>
+            <summary class="k-card-title">💡 Send en idé eller et billede</summary>
+            <p class="k-help">Har du en idé til det, Martin laver – eller et skærmbillede/foto, han skal se? Kun Martin ser det, indtil han vælger at vise det for alle.</p>
+            <textarea class="k-input k-textarea" rows="3" @bind="_idea" maxlength="@LiveHub.MaxText" placeholder="Din idé…"></textarea>
+            <div class="k-row k-mt">
+                <label class="k-btn">📷 Vælg billede<InputFile OnChange="OnPictureAsync" accept="image/*" style="display:none" /></label>
+                @if (_picture is not null) { <span class="k-help">✓ Billede valgt</span> }
+                <button class="k-btn k-btn-primary" disabled="@(_name.Length == 0 || (string.IsNullOrWhiteSpace(_idea) && _picture is null))" @onclick="SendIdeaAsync">Send til Martin</button>
+            </div>
+            @if (_ideaNote.Length > 0) { <p class="k-help"><b>@_ideaNote</b></p> }
+            @if (_name.Length == 0) { <p class="k-help">Skriv dit navn under spørgsmål først.</p> }
+        </details>
+    </section>
+</div>
+
+@code {
+    private readonly string _circuit = Guid.NewGuid().ToString("N");
+    private string _key = "", _name = "", _nameDraft = "", _ask = "", _askNote = "", _idea = "", _ideaNote = "";
+    private string? _picture;
+    private bool _live, _playing, _muted = true;
+    private string _title = "", _next = "", _player = "";
+    private int _viewers;
+    private LiveHub.Question[] _questions = [];
+    private LiveHub.Question? _answering;
+    private LiveHub.Idea? _shownIdea;
+    private LiveHub.Poll? _poll;
+    private DotNetObjectReference<Index>? _self;
+
+    private string PlayerText => _player switch
+    {
+        "direkte" => "🟢 Direkte forbindelse (ca. 1 sekunds forsinkelse)",
+        "hls" => "🟡 Via reserveforbindelsen (et par sekunders forsinkelse)",
+        "fejl" => "🔴 Din browser kan ikke vise videoen – prøv Chrome, Safari eller Edge",
+        _ => "⏳ Forbinder til videoen…",
+    };
+
+    protected override void OnInitialized()
+    {
+        Load();
+        Hub.Changed += OnChanged;
+        Hub.Reacted += OnReacted;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (first)
+        {
+            _self = DotNetObjectReference.Create(this);
+            var v = await JS.InvokeAsync<ViewerInfo>("kig.viewer");
+            (_key, _name, _nameDraft) = (v.Key, v.Name, v.Name);
+            Hub.Watch(_circuit, true);
+            StateHasChanged();
+        }
+        if (_live && !_playing) { _playing = true; await JS.InvokeVoidAsync("kig.play", "player", _self); }
+        else if (!_live && _playing) { _playing = false; _player = ""; await JS.InvokeVoidAsync("kig.stop", "player"); }
+    }
+
+    private sealed record ViewerInfo(string Key, string Name);
+
+    [JSInvokable] public void OnPlayer(string state) { _player = state; InvokeAsync(StateHasChanged); }
+
+    private void Load()
+    {
+        (_live, _title, _next, _questions, _poll, _shownIdea) = Hub.Read(s => (s.Live, s.Title, s.Next,
+            s.Questions.TakeLast(80).ToArray(), s.Polls.LastOrDefault(), s.Ideas.LastOrDefault(i => i.Shown)));
+        _answering = _questions.LastOrDefault(q => q.Status == "svarer");
+        _viewers = Hub.Viewers;
+    }
+
+    private void OnChanged() => InvokeAsync(() => { Load(); StateHasChanged(); });
+    private void OnReacted(string emoji) => InvokeAsync(async () => { try { await JS.InvokeVoidAsync("kig.float", "stage", emoji); } catch { } });
+
+    private async Task UnmuteAsync() { _muted = false; await JS.InvokeVoidAsync("kig.unmute", "player"); }
+
+    private async Task SaveNameAsync()
+    {
+        _name = _nameDraft.Trim();
+        if (_name.Length > 40) _name = _name[..40];
+        await JS.InvokeVoidAsync("kig.setName", _name);
+    }
+
+    private async Task AskKeyAsync(KeyboardEventArgs e) { if (e.Key == "Enter") await AskAsync(); }
+
+    private Task AskAsync()
+    {
+        if (Hub.Ask(_key, _name, _ask)) { _ask = ""; _askNote = ""; }
+        else _askNote = "Vent et par sekunder mellem hver besked.";
+        return Task.CompletedTask;
+    }
+
+    private async Task OnPictureAsync(InputFileChangeEventArgs e)
+    {
+        _ideaNote = "";
+        try
+        {
+            // the browser shrinks it first (max 1600 px, JPEG), so even big phone photos are quick to send
+            var small = await e.File.RequestImageFileAsync("image/jpeg", 1600, 1600);
+            if (small.Size > 3_000_000) { _ideaNote = "Billedet er for stort."; return; }
+            var name = Guid.NewGuid().ToString("N") + ".jpg";
+            await using (var fs = File.Create(Path.Combine(Hub.PicturesDir, name)))
+                await small.OpenReadStream(3_000_000).CopyToAsync(fs);
+            _picture = name;
+        }
+        catch { _ideaNote = "Billedet kunne ikke læses – prøv et andet."; }
+    }
+
+    private Task SendIdeaAsync()
+    {
+        if (Hub.SendIdea(_key, _name, _idea, _picture)) { _idea = ""; _picture = null; _ideaNote = "Sendt til Martin ✓"; }
+        else _ideaNote = "Det kunne ikke sendes (højst 10 idéer pr. person).";
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Hub.Changed -= OnChanged;
+        Hub.Reacted -= OnReacted;
+        Hub.Watch(_circuit, false);
+        try { await JS.InvokeVoidAsync("kig.stop", "player"); } catch { }
+        _self?.Dispose();
+    }
+}

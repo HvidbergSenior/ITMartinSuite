@@ -1,0 +1,230 @@
+@page "/studio"
+@implements IAsyncDisposable
+@inject LiveHub Hub
+@inject IJSRuntime JS
+
+<PageTitle>Studie – Kig med</PageTitle>
+
+<header class="kig-head">
+    <h1>🎬 Studie</h1>
+    <p class="k-help">Her går du live. <b>Sådan:</b> 1) vælg kamera og mikrofon og tryk <b>Tænd kamera</b>, 2) skriv hvad du laver, 3) tryk <b>🔴 Gå live</b>.
+        Seerne åbner <a href="/" target="_blank">kigmed.itmartin.dk</a> – spørgsmål, stemmer, reaktioner og idéer dukker op herunder.
+        <a href="/api/auth/logout">Log ud</a></p>
+</header>
+
+<div class="kig-grid">
+    <section class="kig-left">
+        <div class="kig-stage" id="stage">
+            <video id="preview" autoplay playsinline muted></video>
+            @if (!_camOn) { <div class="kig-offline"><div class="kig-offline-icon">📷</div><b>Kameraet er slukket</b><span class="k-help">Vælg kamera herunder og tryk Tænd kamera.</span></div> }
+            @if (_live) { <div class="kig-livebadge">🔴 LIVE · 👀 @_viewers</div> }
+        </div>
+
+        <div class="k-card" data-nofold>
+            <div class="k-row">
+                <select class="k-input" @bind="_camId" aria-label="Kamera">
+                    @foreach (var d in _devices.Where(d => d.Kind == "videoinput")) { <option value="@d.Id">📷 @d.Label</option> }
+                </select>
+                <select class="k-input" @bind="_micId" aria-label="Mikrofon">
+                    @foreach (var d in _devices.Where(d => d.Kind == "audioinput")) { <option value="@d.Id">🎤 @d.Label</option> }
+                </select>
+                <select class="k-input" @bind="_height" aria-label="Kvalitet">
+                    <option value="1080">1080p (bedst)</option>
+                    <option value="720">720p (hvis nettet driller)</option>
+                </select>
+            </div>
+            <div class="k-row k-mt">
+                <button class="k-btn" @onclick="CameraAsync">@(_camOn ? "🔄 Skift kamera" : "📷 Tænd kamera")</button>
+                @if (_camOn && !_live) { <button class="k-btn" @onclick="CameraOffAsync">Sluk kamera</button> }
+                @if (_camInfo.Length > 0) { <span class="k-help">@_camInfo</span> }
+            </div>
+            <label class="k-label" for="k-title">Hvad laver du? <span class="k-help">(står over videoen)</span></label>
+            <input id="k-title" class="k-input" @bind="_title" maxlength="120" placeholder="Fx: Jeg bygger Kig med-appen" />
+            <label class="k-label" for="k-next">Næste gang <span class="k-help">(vises når du ikke er live)</span></label>
+            <input id="k-next" class="k-input" @bind="_next" maxlength="200" placeholder="Fx: Torsdag kl. 20 – guitar og kode" />
+            <div class="k-row k-mt">
+                @if (!_live)
+                {
+                    <button class="k-btn k-btn-primary" disabled="@(!_camOn || _busy)" @onclick="GoLiveAsync">🔴 Gå live</button>
+                    <button class="k-btn" @onclick="() => Hub.SetTexts(_title, _next)">Gem teksterne</button>
+                }
+                else
+                {
+                    <button class="k-btn k-btn-danger" @onclick="EndAsync">⏹ Stop live</button>
+                    <button class="k-btn" @onclick="() => Hub.SetTexts(_title, _next)">Opdater teksten</button>
+                }
+            </div>
+            @if (_note.Length > 0) { <p class="k-help"><b>@_note</b></p> }
+        </div>
+
+        <div class="k-card" data-nofold>
+            <div class="k-card-title">🗳️ Spørg seerne</div>
+            @if (_poll is { Open: true } p)
+            {
+                var counts = p.Counts();
+                <p><b>@p.Text</b> <span class="k-help">(@counts.Sum() svar)</span></p>
+                <ul>@for (var i = 0; i < p.Options.Count; i++) { <li>@p.Options[i]: <b>@counts[i]</b></li> }</ul>
+                <button class="k-btn" @onclick="Hub.ClosePoll">Luk afstemningen</button>
+            }
+            else
+            {
+                <input class="k-input" @bind="_pollText" maxlength="160" placeholder="Spørgsmål, fx: Hvilken farve skal knappen have?" aria-label="Spørgsmål" />
+                <textarea class="k-input k-textarea k-mt" rows="3" @bind="_pollOptions" placeholder="Ét svar pr. linje (2-6)&#10;Grøn&#10;Blå" aria-label="Svarmuligheder"></textarea>
+                <div class="k-row k-mt">
+                    <button class="k-btn k-btn-primary" @onclick="StartPoll">Start afstemning</button>
+                    <button class="k-btn" @onclick='() => { _pollOptions = "Ja\nNej"; StartPoll(); }'>Hurtig: Ja / Nej</button>
+                    <button class="k-btn" @onclick='() => { _pollOptions = "A\nB"; StartPoll(); }'>Hurtig: A / B</button>
+                </div>
+                @if (_poll is { } last)
+                {
+                    var c = last.Counts();
+                    <p class="k-help">Sidst: @last.Text – @string.Join(" · ", last.Options.Select((o, i) => $"{o} {c[i]}"))</p>
+                }
+            }
+        </div>
+
+        <div class="k-card" data-nofold>
+            <div class="k-card-title">❤️ Reaktioner</div>
+            <p>@(_reactions.Count == 0 ? "Ingen endnu." : string.Join("   ", _reactions.OrderByDescending(r => r.Value).Select(r => $"{r.Key} {r.Value}")))</p>
+        </div>
+    </section>
+
+    <section class="kig-right">
+        <div class="k-card" data-nofold>
+            <div class="k-card-title">💬 Spørgsmål (@_questions.Count(q => q.Status == "ny") nye)</div>
+            <p class="k-help">Tryk <b>Svarer nu</b> – så ser alle seere spørgsmålet over videoen, mens du svarer.</p>
+            <div class="kig-questions studio">
+                @foreach (var q in _questions.AsEnumerable().Reverse())
+                {
+                    <div class="kig-q @(q.FromMartin ? "martin" : "") @(q.Status == "svarer" ? "now" : "") @(q.Status == "færdig" ? "done" : "")">
+                        <div><b>@q.Name</b> <span class="k-help">@Dk(q.At)</span></div>
+                        <div>@q.Text</div>
+                        @if (!q.FromMartin)
+                        {
+                            <div class="k-row">
+                                @if (q.Status != "svarer") { <button class="k-btn k-btn-sm k-btn-primary" @onclick='() => Hub.SetStatus(q.Id, "svarer")'>Svarer nu</button> }
+                                @if (q.Status != "færdig") { <button class="k-btn k-btn-sm" @onclick='() => Hub.SetStatus(q.Id, "færdig")'>✓ Færdig</button> }
+                                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Hub.DeleteQuestion(q.Id)">Slet</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="k-row k-mt">
+                <input class="k-input" @bind="_say" @bind:event="oninput" maxlength="@LiveHub.MaxText" placeholder="Skriv til seerne…" aria-label="Skriv til seerne" />
+                <button class="k-btn" disabled="@string.IsNullOrWhiteSpace(_say)" @onclick='() => { if (Hub.Ask("martin", "Martin", _say, fromMartin: true)) _say = ""; }'>Send</button>
+            </div>
+        </div>
+
+        <div class="k-card" data-nofold>
+            <div class="k-card-title">💡 Idéer og billeder (@_ideas.Length)</div>
+            <p class="k-help">Kun du ser dem. <b>Vis for alle</b> lægger idéen/billedet over videoen hos seerne.</p>
+            @foreach (var i in _ideas.AsEnumerable().Reverse())
+            {
+                <div class="kig-ideacard @(i.Shown ? "shown" : "")">
+                    @if (i.Picture is { } pic) { <a href="/pic/@pic" target="_blank"><img src="/pic/@pic" alt="" /></a> }
+                    <div><b>@i.Name</b> <span class="k-help">@Dk(i.At)</span></div>
+                    @if (i.Text.Length > 0) { <div>@i.Text</div> }
+                    <div class="k-row">
+                        <button class="k-btn k-btn-sm @(i.Shown ? "" : "k-btn-primary")" @onclick="() => Hub.ShowIdea(i.Id, !i.Shown)">@(i.Shown ? "Skjul igen" : "Vis for alle")</button>
+                        <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Hub.DeleteIdea(i.Id)">Slet</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private sealed record Device(string Kind, string Id, string Label);
+
+    private List<Device> _devices = [];
+    private string _camId = "", _micId = "", _height = "1080", _camInfo = "", _note = "";
+    private string _title = "", _next = "", _say = "", _pollText = "", _pollOptions = "";
+    private bool _camOn, _live, _busy;
+    private int _viewers;
+    private LiveHub.Question[] _questions = [];
+    private LiveHub.Idea[] _ideas = [];
+    private LiveHub.Poll? _poll;
+    private Dictionary<string, int> _reactions = [];
+
+    private static readonly TimeZoneInfo Zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    private static string Dk(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zone).ToString("HH.mm");
+
+    protected override void OnInitialized()
+    {
+        Load();
+        (_title, _next) = Hub.Read(s => (s.Title, s.Next));
+        Hub.Changed += OnChanged;
+        Hub.Reacted += OnReacted;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try
+        {
+            _devices = await JS.InvokeAsync<List<Device>>("kig.devices");
+            // the Logitech StreamCam first, if it is plugged in
+            _camId = _devices.Where(d => d.Kind == "videoinput").OrderByDescending(d => d.Label.Contains("StreamCam", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Id ?? "";
+            _micId = _devices.Where(d => d.Kind == "audioinput").OrderByDescending(d => d.Label.Contains("StreamCam", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Id ?? "";
+        }
+        catch { _note = "Browseren gav ikke lov til kamera/mikrofon – tryk på kamera-ikonet i adresselinjen og tillad det."; }
+        StateHasChanged();
+    }
+
+    private void Load()
+    {
+        (_live, _questions, _ideas, _poll, _reactions) = Hub.Read(s => (s.Live, s.Questions.ToArray(), s.Ideas.ToArray(), s.Polls.LastOrDefault(),
+            new Dictionary<string, int>(s.Reactions)));
+        _viewers = Hub.Viewers;
+    }
+
+    private void OnChanged() => InvokeAsync(() => { Load(); StateHasChanged(); });
+    private void OnReacted(string emoji) => InvokeAsync(async () => { try { await JS.InvokeVoidAsync("kig.float", "stage", emoji); } catch { } });
+
+    private async Task CameraAsync()
+    {
+        _note = "";
+        try { _camInfo = await JS.InvokeAsync<string>("kig.preview", "preview", _camId, _micId, int.Parse(_height)); _camOn = true; }
+        catch (JSException ex) { _note = "Kameraet kunne ikke starte: " + ex.Message; }
+    }
+
+    private async Task CameraOffAsync() { await JS.InvokeVoidAsync("kig.cameraOff", "preview"); _camOn = false; _camInfo = ""; }
+
+    private async Task GoLiveAsync()
+    {
+        _busy = true; _note = "Forbinder til videoserveren…";
+        try
+        {
+            await JS.InvokeAsync<string>("kig.publish", _height == "1080" ? 4500 : 2500);
+            Hub.GoLive(_title);
+            Hub.SetTexts(_title, _next);
+            _note = "Du er live 🔴";
+        }
+        catch (JSException ex) { _note = "Kunne ikke gå live: " + ex.Message; await JS.InvokeVoidAsync("kig.unpublish"); }
+        _busy = false;
+    }
+
+    private async Task EndAsync()
+    {
+        await JS.InvokeVoidAsync("kig.unpublish");
+        Hub.EndLive();
+        _note = "Live er stoppet. Spørgsmål og idéer er gemt.";
+    }
+
+    private void StartPoll()
+    {
+        var text = _pollText.Trim().Length > 0 ? _pollText : "Hvad synes I?";
+        Hub.StartPoll(text, _pollOptions.Split('\n'));
+        _pollText = ""; _pollOptions = "";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Hub.Changed -= OnChanged;
+        Hub.Reacted -= OnReacted;
+        // closing the studio tab ends the video; the session itself stays until "Stop live"
+        try { await JS.InvokeVoidAsync("kig.unpublish"); await JS.InvokeVoidAsync("kig.cameraOff", "preview"); } catch { }
+    }
+}
