@@ -73,7 +73,7 @@ window.kig = (() => {
     function unmute(id) { const v = document.getElementById(id); if (v) { v.muted = false; v.play().catch(() => { }); } }
 
     // ── studio: camera, microphone, publish ──
-    let cam = null, pub = null, pubUrl = null;
+    let cam = null, pub = null, pubUrl = null;   // cam = camera + microphone (the mic is always the sound)
     async function devices() {
         try { (await navigator.mediaDevices.getUserMedia({ video: true, audio: true })).getTracks().forEach(t => t.stop()); } catch { }
         const all = await navigator.mediaDevices.enumerateDevices();
@@ -86,22 +86,112 @@ window.kig = (() => {
             video: { deviceId: camId ? { exact: camId } : undefined, height: { ideal: height || 1080 }, frameRate: { ideal: 30 } },
             audio: { deviceId: micId ? { exact: micId } : undefined, echoCancellation: true, noiseSuppression: true },
         });
-        const v = document.getElementById(id); v.srcObject = cam; v.muted = true; v.play().catch(() => { });
+        previewId = id;
+        camVideo.srcObject = cam; camVideo.play().catch(() => { });   // the corner follows a camera switch
+        await showMode();
         const s = cam.getVideoTracks()[0]?.getSettings() || {};
         return `${s.width || '?'}×${s.height || '?'} · ${Math.round(s.frameRate || 0)} fps`;
     }
+
+    // ── what viewers see: "kamera", "skaerm" (the PC screen) or "begge" (screen with the camera in a corner) ──
+    let mode = 'kamera', screen = null, previewId = 'preview', onModeLost = null;
+    let canvas = null, canvasTrack = null, ticker = null;
+    const screenVideo = document.createElement('video'), camVideo = document.createElement('video');
+    [screenVideo, camVideo].forEach(v => { v.muted = true; v.playsInline = true; });
+
+    // A worker ticks the drawing: Chrome throttles timers in a hidden tab, and while sharing the screen
+    // Martin is in another window - a worker's timer keeps running at full speed.
+    function startTicker(draw) {
+        stopTicker();
+        const src = 'let t=setInterval(()=>postMessage(0),33);onmessage=()=>clearInterval(t);';
+        ticker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        ticker.onmessage = draw;
+    }
+    function stopTicker() { if (ticker) { ticker.postMessage(0); ticker.terminate(); ticker = null; } }
+
+    function composite() {
+        const st = screen.getVideoTracks()[0].getSettings();
+        canvas = canvas || document.createElement('canvas');
+        canvas.width = Math.min(st.width || 1920, 1920);
+        canvas.height = Math.round(canvas.width * (st.height || 1080) / (st.width || 1920));
+        const g = canvas.getContext('2d');
+        screenVideo.srcObject = screen; screenVideo.play().catch(() => { });
+        camVideo.srcObject = cam; camVideo.play().catch(() => { });
+        startTicker(() => {
+            const W = canvas.width, H = canvas.height;
+            g.drawImage(screenVideo, 0, 0, W, H);
+            if (cam && camVideo.videoWidth) {
+                // camera bottom-right, a quarter of the width, rounded, white edge
+                const w = Math.round(W * 0.24), h = Math.round(w * camVideo.videoHeight / camVideo.videoWidth);
+                const x = W - w - Math.round(W * 0.02), y = H - h - Math.round(W * 0.02), r = Math.round(w * 0.06);
+                g.save(); g.beginPath(); g.roundRect(x, y, w, h, r); g.clip();
+                g.drawImage(camVideo, x, y, w, h); g.restore();
+                g.lineWidth = Math.max(3, W / 400); g.strokeStyle = 'rgba(255,255,255,.9)';
+                g.beginPath(); g.roundRect(x, y, w, h, r); g.stroke();
+            }
+        });
+        canvasTrack = canvas.captureStream(30).getVideoTracks()[0];
+        return canvasTrack;
+    }
+
+    function outVideo() {
+        if (mode === 'kamera') return cam?.getVideoTracks()[0] || null;
+        if (!screen) return null;
+        if (mode === 'skaerm') return screen.getVideoTracks()[0];
+        return canvasTrack || composite();
+    }
+
+    async function showMode() {
+        const track = outVideo();
+        const v = document.getElementById(previewId);
+        if (v) { v.srcObject = track ? new MediaStream([track]) : null; v.muted = true; v.play().catch(() => { }); }
+        const tr = pub?.getTransceivers().find(t => t.receiver.track?.kind === 'video');
+        if (tr && track) await tr.sender.replaceTrack(track);   // switch while live - no new connection
+        const au = pub?.getTransceivers().find(t => t.receiver.track?.kind === 'audio');
+        const mic = cam?.getAudioTracks()[0];
+        if (au && mic && au.sender.track !== mic) await au.sender.replaceTrack(mic);   // a new microphone too
+    }
+
+    // Returns the mode that is now on (screen sharing can be cancelled in Chrome's picker).
+    async function setMode(m, dotnet) {
+        onModeLost = dotnet || onModeLost;
+        if (m !== 'kamera' && !screen) {
+            try {
+                screen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 }, width: { max: 1920 } }, audio: false });
+            } catch { return mode; }
+            screen.getVideoTracks()[0].addEventListener('ended', async () => {
+                // "Stop sharing" in Chrome's bar: back to the camera
+                screen = null; stopTicker(); canvasTrack = null;
+                mode = 'kamera'; await showMode();
+                try { onModeLost && onModeLost.invokeMethodAsync('OnModeLost'); } catch { }
+            });
+        }
+        if (m !== 'begge') { stopTicker(); if (canvasTrack) canvasTrack.stop(); canvasTrack = null; }
+        if (m === 'kamera' && screen) { screen.getTracks().forEach(t => t.stop()); screen = null; }
+        mode = m;
+        await showMode();
+        return mode;
+    }
+
     async function publish(bitrateKbps) {
-        if (!cam) throw new Error('Tænd kameraet først');
+        const video = outVideo();
+        if (!video) throw new Error('Tænd kameraet først');
         unpublish();
         const pc = pub = new RTCPeerConnection({ iceServers: ice });
-        cam.getTracks().forEach(t => pc.addTransceiver(t, { direction: 'sendonly', streams: [cam] }));
+        const out = new MediaStream([video, ...(cam ? cam.getAudioTracks() : [])]);
+        out.getTracks().forEach(t => pc.addTransceiver(t, { direction: 'sendonly', streams: [out] }));
         // H.264 first: HLS (the fallback for viewers) cannot carry VP8/VP9
         const h264 = (RTCRtpSender.getCapabilities('video')?.codecs || []).filter(c => /h264/i.test(c.mimeType));
         const rest = (RTCRtpSender.getCapabilities('video')?.codecs || []).filter(c => !/h264/i.test(c.mimeType));
         pc.getTransceivers().filter(t => t.sender.track?.kind === 'video').forEach(t => { try { t.setCodecPreferences([...h264, ...rest]); } catch { } });
         pubUrl = await negotiate(pc, '/media/live/whip');
         const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-        if (sender) { const p = sender.getParameters(); p.encodings = p.encodings?.length ? p.encodings : [{}]; p.encodings[0].maxBitrate = (bitrateKbps || 4000) * 1000; sender.setParameters(p).catch(() => { }); }
+        if (sender) {
+            const p = sender.getParameters(); p.encodings = p.encodings?.length ? p.encodings : [{}];
+            p.encodings[0].maxBitrate = (bitrateKbps || 4000) * 1000;
+            p.degradationPreference = 'maintain-resolution';   // code on screen must stay sharp - drop frames instead
+            sender.setParameters(p).catch(() => { });
+        }
         return new Promise((ok, fail) => {
             const t = setTimeout(() => fail(new Error('Ingen forbindelse til videoserveren')), 10000);
             pc.addEventListener('connectionstatechange', () => {
@@ -116,7 +206,12 @@ window.kig = (() => {
         pub = null; pubUrl = null;
     }
     function publishing() { return !!pub && pub.connectionState === 'connected'; }
-    function cameraOff(id) { if (cam) cam.getTracks().forEach(t => t.stop()); cam = null; const v = document.getElementById(id); if (v) v.srcObject = null; }
+    function cameraOff(id) {
+        if (cam) cam.getTracks().forEach(t => t.stop());
+        if (screen) screen.getTracks().forEach(t => t.stop());
+        cam = null; screen = null; stopTicker(); canvasTrack = null; mode = 'kamera';
+        const v = document.getElementById(id); if (v) v.srcObject = null;
+    }
 
     // ── reactions float up over the video ──
     function float(stageId, emoji) {
@@ -128,5 +223,5 @@ window.kig = (() => {
         stage.appendChild(e); setTimeout(() => e.remove(), 2600);
     }
 
-    return { viewer, setName, play, stop, unmute, devices, preview, publish, unpublish, publishing, cameraOff, float };
+    return { viewer, setName, play, stop, unmute, devices, preview, setMode, publish, unpublish, publishing, cameraOff, float };
 })();

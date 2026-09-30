@@ -38,6 +38,16 @@
                 @if (_camOn && !_live) { <button class="k-btn" @onclick="CameraOffAsync">Sluk kamera</button> }
                 @if (_camInfo.Length > 0) { <span class="k-help">@_camInfo</span> }
             </div>
+            @if (_camOn)
+            {
+                <div class="k-label k-mt">Hvad skal seerne se? <span class="k-help">(kan skiftes mens du er live)</span></div>
+                <div class="kig-modes" role="group" aria-label="Hvad seerne ser">
+                    <button class="k-btn @(_mode == "kamera" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("kamera")'>📷 Kamera</button>
+                    <button class="k-btn @(_mode == "skaerm" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("skaerm")'>🖥️ Skærm</button>
+                    <button class="k-btn @(_mode == "begge" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("begge")'>🖥️+📷 Skærm med mig i hjørnet</button>
+                </div>
+                <p class="k-help">Ved skærm vælger du i Chromes vindue, hvad der deles: hele skærmen, ét vindue (fx din editor) eller en fane. Lyden er altid din mikrofon. Stop deling i Chromes bjælke → tilbage til kameraet.</p>
+            }
             <label class="k-label" for="k-title">Hvad laver du? <span class="k-help">(står over videoen)</span></label>
             <input id="k-title" class="k-input" @bind="_title" maxlength="120" placeholder="Fx: Jeg bygger Kig med-appen" />
             <label class="k-label" for="k-next">Næste gang <span class="k-help">(vises når du ikke er live)</span></label>
@@ -190,7 +200,20 @@
         catch (JSException ex) { _note = "Kameraet kunne ikke starte: " + ex.Message; }
     }
 
-    private async Task CameraOffAsync() { await JS.InvokeVoidAsync("kig.cameraOff", "preview"); _camOn = false; _camInfo = ""; }
+    private async Task CameraOffAsync() { await JS.InvokeVoidAsync("kig.cameraOff", "preview"); _camOn = false; _camInfo = ""; _mode = "kamera"; }
+
+    // Kamera / Skærm / Skærm med mig i hjørnet - switched in the browser, also while live (same connection).
+    private string _mode = "kamera";
+    private DotNetObjectReference<Studio>? _self;
+    private async Task ModeAsync(string mode)
+    {
+        _self ??= DotNetObjectReference.Create(this);
+        _mode = await JS.InvokeAsync<string>("kig.setMode", mode, _self);
+        if (_mode != mode) _note = "Skærmdeling blev ikke startet.";
+        else _note = "";
+    }
+
+    [JSInvokable] public void OnModeLost() { _mode = "kamera"; _note = "Skærmdelingen stoppede – seerne ser kameraet igen."; InvokeAsync(StateHasChanged); }
 
     private async Task GoLiveAsync()
     {
@@ -226,5 +249,6 @@
         Hub.Reacted -= OnReacted;
         // closing the studio tab ends the video; the session itself stays until "Stop live"
         try { await JS.InvokeVoidAsync("kig.unpublish"); await JS.InvokeVoidAsync("kig.cameraOff", "preview"); } catch { }
+        _self?.Dispose();
     }
 }
