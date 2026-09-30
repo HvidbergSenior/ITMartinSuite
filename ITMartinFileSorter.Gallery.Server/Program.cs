@@ -546,7 +546,9 @@ app.MapGet("/api/celebration", (string gallery, HttpContext ctx) =>
     // fejring.json "fromYear": dated pictures before that year are left out (the old albums stay).
     var texts = Celebration.Texts(g.Path, g.CelebrationFolder, CelebrationEdits(g.Slug));
     var fromYear = texts["fromYear"]?.GetValue<int>() ?? 0;
-    var shown = timeline.Items.Where(i => i.Date is null || i.Date.Value.Year >= fromYear).ToList();
+    // fejring.json "skip": pictures in the page's own folder that should not be shown (wrong person, disliked photo).
+    var skip = (texts["skip"] as System.Text.Json.Nodes.JsonArray)?.Select(x => x?.ToString() ?? "").ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+    var shown = timeline.Items.Where(i => (i.Date is null || i.Date.Value.Year >= fromYear) && !skip.Contains(i.Name)).ToList();
 
     return Results.Ok(new
     {

@@ -6,7 +6,7 @@
 <title>Tillykke!</title>
 <link rel="icon" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Great+Vibes&family=Playfair+Display:ital,wght@0,900;1,900&family=Nunito:wght@400;700;900&family=Caveat:wght@600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Monoton&family=Great+Vibes&family=Playfair+Display:ital,wght@0,900;1,900&family=Nunito:wght@400;700;900&family=Caveat:wght@600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <style>
 :root{
@@ -200,6 +200,46 @@ html.glam .pennant{width:30px;height:38px;margin-top:calc(8px + var(--dip,0px));
 .hurra{position:fixed;left:50%;top:40%;z-index:70;transform:translate(-50%,-50%) scale(.4);opacity:0;pointer-events:none;
   font:900 clamp(3rem,16vw,9rem) "Playfair Display",Georgia,serif;font-style:italic;color:#ffe7a8;text-shadow:0 0 30px #f4a6c4,0 6px 0 #6d1b5f;animation:hurra .9s ease-out forwards}
 @keyframes hurra{30%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-60%) scale(1.3)}}
+/* ================= theme "disco" (fejring.json "theme": "glam disco") - 1977: sunset stripes, mirror ball, orange/mustard/teal ================= */
+html.disco{
+  --red:#ff6a1a; --red-deep:#5a2a0c; --cream:#1c0f08; --ink:#fff1dc; --muted:#e0c29a;
+  --sun:#ffc21a; --sky:#19c3b1; --mint:#19c3b1; --pink:#ff4f8b; --violet:#ff9a1a;
+  --card:#2b170b; --line:#5a331a; --gold:#ffc21a; --rose:#ff4f8b;
+}
+html.disco body{background:radial-gradient(900px 500px at 50% -8%,#6b2f0c 0%,transparent 60%),repeating-radial-gradient(circle at 50% 0,rgba(255,194,26,.05) 0 2px,transparent 2px 38px),var(--cream)}
+html.disco body::before{background-image:radial-gradient(2px 2px at 20% 30%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 70% 20%,#ffc21a 50%,transparent 51%),radial-gradient(3px 3px at 85% 60%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 35% 75%,#19c3b1 50%,transparent 51%)}
+html.disco .hero{background:linear-gradient(180deg,#3b1406 0 18%,#8c2d08 18% 34%,#d9480f 34% 50%,#f28c13 50% 66%,#ffc21a 66% 82%,#3b1406 82%);background-size:100% 100%;animation:none}
+html.disco .hero h1{font-family:Bungee,sans-serif;font-style:normal;letter-spacing:.06em;text-shadow:3px 3px 0 #3b1406,6px 6px 0 #19c3b1}
+html.disco .hero h1 .name{font-family:Monoton,Bungee,sans-serif;font-size:1.25em;letter-spacing:.04em;text-shadow:none}
+html.disco .hero h1 .name .l{background:linear-gradient(100deg,#fff1dc,#ffc21a 30%,#ff6a1a 50%,#ffc21a 70%,#fff1dc);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+html.disco .age-badge{background:conic-gradient(#ff6a1a,#ffc21a,#19c3b1,#ff4f8b,#ff6a1a);color:#1c0f08;font-family:Bungee,sans-serif}
+html.disco .btn{background:linear-gradient(135deg,#ffc21a,#ff6a1a);color:#1c0f08;box-shadow:0 4px 0 #5a2a0c,0 0 18px rgba(255,194,26,.45)}
+html.disco .btn.alt{background:linear-gradient(135deg,#5fe3d3,#19c3b1);color:#1c0f08;box-shadow:0 4px 0 #0c5c54}
+html.disco h2,html.disco .year-head .y,html.disco .outro .big,html.disco .stat b{font-family:Bungee,sans-serif;font-style:normal;font-weight:400}
+html.disco h2,html.disco .year-head .y{background:linear-gradient(90deg,#ffc21a,#ff6a1a,#ff4f8b);-webkit-background-clip:text;background-clip:text;color:transparent}
+html.disco .outro .big{background:linear-gradient(90deg,#ffc21a,#ff6a1a,#19c3b1,#ff4f8b,#ffc21a);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+html.disco .year-head .age{background:linear-gradient(135deg,#19c3b1,#5fe3d3);color:#1c0f08}
+html.disco .year-head .lvl,html.disco .year .title{color:#ffc21a}
+html.disco .cake-wrap,html.disco .stat,html.disco .login{background:rgba(43,23,11,.9);border-color:#5a331a}
+html.disco .yearnav{background:rgba(28,15,8,.92)}
+html.disco .yearnav a{background:#2b170b;color:#fff1dc;border-color:#5a331a}
+html.disco .yearnav a:hover,html.disco .yearnav a.on{background:linear-gradient(135deg,#ffc21a,#ff6a1a);color:#1c0f08;border-color:transparent}
+html.disco .tile:hover{box-shadow:0 0 0 2px #ffc21a,0 0 24px rgba(255,106,26,.5)}
+html.disco .meme{background:#fff1dc;color:#3b1406;border-color:#3b1406;box-shadow:6px 6px 0 #19c3b1}
+html.disco .meme .row .e{background:#ffc21a}
+html.disco .meme .row:nth-child(2) .e{background:#5fe3d3}
+html.disco .cake .tier{background:linear-gradient(#ff9a1a,#d9480f)}
+html.disco .cake .top{background:linear-gradient(#5fe3d3,#19c3b1)}
+html.disco .cake .num{color:#ffc21a;-webkit-text-stroke:2px #3b1406;font-family:Bungee,sans-serif}
+html.disco .login input{background:#1c0f08;color:#fff1dc}
+html.disco .balloon.num{font-family:Bungee,sans-serif;color:#fff1dc}
+html.disco .pennant{font-family:Bungee,sans-serif;color:#1c0f08}
+html.disco .hurra{font-family:Bungee,sans-serif;font-style:normal;color:#ffc21a;text-shadow:0 0 30px #ff6a1a,0 6px 0 #3b1406}
+html.disco .mirrorball{position:absolute;top:-6px;right:6%;width:74px;height:74px;border-radius:50%;z-index:3;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,#fff 0 6deg,#c9c9c9 6deg 12deg,#8a8a8a 12deg 18deg),radial-gradient(circle at 35% 30%,#fff,#999);
+  background-blend-mode:multiply;box-shadow:0 0 30px 8px rgba(255,194,26,.55);animation:spinball 6s linear infinite}
+html.disco .mirrorball::before{content:"";position:absolute;left:50%;top:-40px;height:40px;border-left:2px solid #ccc}
+@keyframes spinball{to{transform:rotate(360deg)}}
 .notice{margin:18px auto 0;max-width:760px;padding:14px 18px;border-radius:14px;background:#fff3cd;color:#5c4400;border:2px solid #f0b400;font-weight:700;text-align:center;font-size:1.1rem}
 .outro{text-align:center;margin-top:56px}
 .outro .big{font:400 clamp(2rem,8vw,3.6rem) Bungee,sans-serif;color:var(--red);line-height:1}
@@ -295,7 +335,11 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   const months = ['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december'];
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // theme "glam": the server puts class="glam" on <html> already (see Program.cs), render() confirms it from fejring.json
-  const glamPal = ['#f5c76a', '#f4a6c4', '#c08cff', '#ffe7a8', '#ff4fa3', '#9d8cff'];
+  const goldPal = ['#f5c76a', '#f4a6c4', '#c08cff', '#ffe7a8', '#ff4fa3', '#9d8cff'];
+  // theme "disco" rides on glam (pennants, song, number balloons) with 1977 colours
+  const discoPal = ['#ffc21a', '#ff6a1a', '#19c3b1', '#ff4f8b', '#fff1dc', '#d9480f'];
+  let disco = document.documentElement.classList.contains('disco');
+  let glamPal = disco ? discoPal : goldPal;
   let glam = document.documentElement.classList.contains('glam');
   let glamWord = ('TILLYKKE ' + (document.documentElement.dataset.name || '')).toUpperCase().trim();
   // a themed page knows the name and birthday before the password (not secret: they are in the link and the title)
@@ -336,7 +380,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
   }
   function flagRain() {
     if (reduce || typeof confetti !== 'function' || !confetti.shapeFromText) return boom(true);
-    const shapes = (glam ? ['✨', '💖', '👑', '🥂', '🎀'] : ['🇩🇰', '🎈', '🎉', '🎂', '🥳']).map(t => confetti.shapeFromText({ text: t, scalar: 2 }));
+    const shapes = (disco ? ['🪩', '🕺', '🎸', '🎲', '🎂'] : glam ? ['✨', '💖', '👑', '🥂', '🎀'] : ['🇩🇰', '🎈', '🎉', '🎂', '🥳']).map(t => confetti.shapeFromText({ text: t, scalar: 2 }));
     confetti({ shapes, scalar: 2, particleCount: 60, spread: 160, origin: { y: -.1 }, gravity: .8, ticks: 300 });
   }
 
@@ -388,10 +432,14 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
 
   /* ---------- theme "glam": gold pennants that spell the greeting, metallic balloons, a full song ---------- */
   function applyTheme(t, name) {
-    glam = t === 'glam';
+    glam = /(glam|disco)/.test(t || '');
+    disco = /disco/.test(t || '');
     document.documentElement.classList.toggle('glam', glam);
+    document.documentElement.classList.toggle('disco', disco);
     if (!glam) return;
+    glamPal = disco ? discoPal : goldPal;
     pal = glamPal;
+    if (disco && !document.querySelector('.mirrorball')) $('hero').insertAdjacentHTML('afterbegin', '<div class="mirrorball" aria-hidden="true"></div>');
     glamWord = ('TILLYKKE ' + (name || '')).toUpperCase().trim();
     garland();
   }
@@ -569,7 +617,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
       } else {
         const a = birth ? s.year - birth.getFullYear() : null;
         const ageTxt = a === null ? '' : a <= 0 ? 'Velkommen til verden!' : `${name} fylder ${a}`;
-        const lvl = a !== null && levelLines[a] ? `<span class="lvl">${esc(levelLines[a])}</span>` : '';
+        const L = { ...levelLines, ...(texts.levels || {}) };
+        const lvl = a !== null && L[a] ? `<span class="lvl">${esc(L[a])}</span>` : '';
         head = `<div class="year-head"><div class="y">${s.year}</div>${ageTxt ? `<span class="age">${esc(ageTxt)}</span>` : ''}${lvl}</div>`;
       }
       const first = 24;
