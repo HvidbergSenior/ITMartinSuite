@@ -119,6 +119,21 @@
 
     <section class="kig-right">
         <div class="k-card" data-nofold>
+            <div class="k-card-title">👀 Ser med (@_watchers.Count)</div>
+            @if (_watchers.Count == 0) { <p class="k-help">Ingen har siden åben lige nu. Send linket under 📤 Inviter seere.</p> }
+            else
+            {
+                <p class="k-help">Alle med kigmed.itmartin.dk åben lige nu. "Gæst" = har ikke skrevet sit navn endnu.</p>
+                <ul class="kig-watchers">
+                    @foreach (var w in _watchers)
+                    {
+                        <li><b>@(w.Name.Length > 0 ? w.Name : "Gæst")</b> <span class="k-help">siden @Dk(w.Since)</span></li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <div class="k-card" data-nofold>
             <div class="k-card-title">💬 Spørgsmål (@_questions.Count(q => q.Status == "ny") nye)</div>
             <p class="k-help">Tryk <b>Svarer nu</b> – så ser alle seere spørgsmålet over videoen, mens du svarer.</p>
             <div class="kig-questions studio">
@@ -207,7 +222,10 @@
         (_live, _questions, _ideas, _poll, _reactions) = Hub.Read(s => (s.Live, s.Questions.ToArray(), s.Ideas.ToArray(), s.Polls.LastOrDefault(),
             new Dictionary<string, int>(s.Reactions)));
         _viewers = Hub.Viewers;
+        _watchers = Hub.Watchers();
     }
+
+    private List<LiveHub.Watcher> _watchers = [];
 
     private void OnChanged() => InvokeAsync(() => { Load(); StateHasChanged(); });
     private void OnReacted(string emoji) => InvokeAsync(async () => { try { await JS.InvokeVoidAsync("kig.float", "stage", emoji); } catch { } });

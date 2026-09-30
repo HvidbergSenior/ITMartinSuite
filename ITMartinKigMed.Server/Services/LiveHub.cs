@@ -48,7 +48,9 @@ public sealed class LiveHub
     private readonly ILogger<LiveHub> _log;
     private readonly Dictionary<string, DateTime> _lastSend = [];
     private readonly Dictionary<string, (DateTime Window, int Count)> _reactRate = [];
-    private readonly HashSet<string> _watching = [];   // circuits that have the viewer page open
+    // circuits that have the viewer page open -> who it is (name typed on the page, "" until then) and since when
+    private readonly Dictionary<string, (string Name, DateTime Since)> _watching = [];
+    public sealed record Watcher(string Name, DateTime Since);
 
     public State S { get; }
 
@@ -72,11 +74,18 @@ public sealed class LiveHub
     public string PicturesDir => Path.Combine(_dir, "pictures");
     public int Viewers { get { lock (_lock) return _watching.Count; } }
 
-    public void Watch(string circuit, bool on)
+    public void Watch(string circuit, bool on, string name = "")
     {
-        lock (_lock) { if (on) _watching.Add(circuit); else _watching.Remove(circuit); }
+        lock (_lock)
+        {
+            if (!on) _watching.Remove(circuit);
+            else _watching[circuit] = (Clip(name, 40), _watching.TryGetValue(circuit, out var w) ? w.Since : DateTime.UtcNow);
+        }
         Changed?.Invoke();
     }
+
+    // For the studio: who has the page open right now, newest first.
+    public List<Watcher> Watchers() { lock (_lock) return _watching.Values.OrderByDescending(w => w.Since).Select(w => new Watcher(w.Name, w.Since)).ToList(); }
 
     // ── Martin (studio) ──
     public void GoLive(string title)

@@ -151,7 +151,7 @@
             _self = DotNetObjectReference.Create(this);
             var v = await JS.InvokeAsync<ViewerInfo>("kig.viewer");
             (_key, _name, _nameDraft) = (v.Key, v.Name, v.Name);
-            Hub.Watch(_circuit, true);
+            Hub.Watch(_circuit, true, _name);
             StateHasChanged();
         }
         if (_live && !_playing) { _playing = true; await JS.InvokeVoidAsync("kig.play", "player", _self); }
@@ -180,6 +180,7 @@
         _name = _nameDraft.Trim();
         if (_name.Length > 40) _name = _name[..40];
         await JS.InvokeVoidAsync("kig.setName", _name);
+        Hub.Watch(_circuit, true, _name);   // the studio sees the name now
     }
 
     private async Task AskKeyAsync(KeyboardEventArgs e) { if (e.Key == "Enter") await AskAsync(); }
