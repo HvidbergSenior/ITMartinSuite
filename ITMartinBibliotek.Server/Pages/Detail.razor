@@ -38,7 +38,12 @@ else
             <button class="status-btn @(_item.Status == MediaStatus.Rippet ? "on-rippet" : "")" @onclick="() => SetStatus(MediaStatus.Rippet)">
                 ✅ Rippet og klar
             </button>
-            @if (!string.IsNullOrEmpty(_playUrl))
+            @if (_item.Kind == MediaKind.Musik && _item.JellyfinId != "")
+            {
+                <button type="button" class="btn btn-primary btn-block" data-play-album="@_item.JellyfinId">▶ Afspil albummet</button>
+                <a class="hint" href="@_playUrl" target="_blank" rel="noopener">Åbn i Jellyfin</a>
+            }
+            else if (!string.IsNullOrEmpty(_playUrl))
             {
                 <a class="btn btn-primary btn-block" href="@_playUrl" target="_blank" rel="noopener">▶ Afspil i Jellyfin</a>
             }

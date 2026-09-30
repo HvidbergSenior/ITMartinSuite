@@ -17,13 +17,14 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Bibliotek er kataloget over din egen samling. Scan stregkoden, og skiven står på listen med cover, år og spor.",
-        "Det der er rippet, kan afspilles direkte i Jellyfin – resten ved du hvor står. Så køber du ikke den samme film to gange.",
+        "Det der er rippet, kan afspilles direkte: musik spiller her i appen – også med skærmen slukket – og film åbner i Jellyfin. Resten ved du hvor står, så du køber ikke den samme film to gange.",
     ];
     k.HowTo =
     [
         "Tryk Scan og hold stregkoden foran kameraet.",
         "Ret titlen hvis opslaget tog fejl – eller skriv den ind selv.",
-        "Tryk Jellyfin for at se eller høre det der er rippet.",
+        "Musik: tryk ▶ Afspil på et album. Afspilleren nederst – og telefonens låseskærm – styrer pause og næste nummer, og hele albummet spiller færdigt.",
+        "Film og serier: tryk ▶ Afspil, så åbner de i Jellyfin.",
     ];
     k.Version = "2026.09";
     k.ThemeColor = "#121917";
@@ -41,6 +42,9 @@ builder.Services.AddSingleton<JellyfinClient>();
 builder.Services.AddSingleton<MetadataLookup>();
 builder.Services.AddSingleton<JellyfinSync>();
 builder.Services.AddSingleton<RipStatusStore>();
+
+// Audio streams run as long as a track plays, so they get no overall timeout.
+builder.Services.AddHttpClient("jellyfin-stream", c => c.Timeout = Timeout.InfiniteTimeSpan);
 
 // MusicBrainz and Discogs reject requests without a descriptive User-Agent.
 const string userAgent = "ITMartinBibliotek/1.0 (hvidbergsenior@gmail.com)";
@@ -169,6 +173,47 @@ app.MapPost("/api/rip/heartbeat", (HttpContext ctx, RipStatusStore store) =>
 {
     if (!RipKeyOk(ctx)) return Results.Unauthorized();
     store.Heartbeat();
+    return Results.Ok();
+}).DisableAntiforgery();
+
+// Bibliotek's own music player (player.js). Track lists and audio come from Jellyfin
+// through the app, so the phone needs only the PIN cookie, never a Jellyfin login.
+app.MapGet("/api/afspil/album/{albumId}", async (string albumId, JellyfinClient jellyfin) =>
+{
+    if (!JellyfinClient.IsId(albumId)) return Results.NotFound();
+    var album = await jellyfin.AlbumAsync(albumId);
+    return album is null ? Results.NotFound() : Results.Ok(album);
+});
+
+// Album + position instead of a track id: the first tap can start the audio at once, inside
+// the tap itself, which is what lets an iPhone go on to the next tracks with the screen off.
+app.MapGet("/api/afspil/album/{albumId}/spor/{index:int}", async (string albumId, int index, HttpContext ctx, JellyfinClient jellyfin) =>
+{
+    var album = JellyfinClient.IsId(albumId) ? await jellyfin.AlbumAsync(albumId) : null;
+    if (album is null || index < 0 || index >= album.Tracks.Count)
+    {
+        ctx.Response.StatusCode = 404;
+        return;
+    }
+    try
+    {
+        using var res = await jellyfin.OpenAudioAsync(album.Tracks[index].Id, ctx.Request.Headers.Range.ToString(), ctx.RequestAborted);
+        ctx.Response.StatusCode = (int)res.StatusCode;
+        var h = res.Content.Headers;
+        if (h.ContentType is { } type) ctx.Response.ContentType = type.ToString();
+        if (h.ContentLength is { } length) ctx.Response.ContentLength = length;
+        if (h.ContentRange is { } contentRange) ctx.Response.Headers.ContentRange = contentRange.ToString();
+        ctx.Response.Headers.AcceptRanges = "bytes";
+        await res.Content.CopyToAsync(ctx.Response.Body, ctx.RequestAborted);
+    }
+    catch (OperationCanceledException) { }   // the phone moved on to another range or track
+});
+
+app.MapPost("/api/afspil/spillet/{trackId}", async (string trackId, JellyfinClient jellyfin, ILogger<JellyfinClient> log) =>
+{
+    if (!JellyfinClient.IsId(trackId)) return Results.NotFound();
+    try { await jellyfin.MarkPlayedAsync(trackId); }
+    catch (Exception ex) { log.LogWarning(ex, "Marking {Track} played in Jellyfin failed", trackId); }
     return Results.Ok();
 }).DisableAntiforgery();
 

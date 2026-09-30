@@ -109,7 +109,12 @@ else
                 </div>
               </a>
               @* One tap from the shelf to playback - the detail page is for editing, not for watching. *@
-              @if (i.JellyfinId != "" && _playBase != "")
+              @* Music plays in the app's own player (player.js), which keeps going on a locked phone. *@
+              @if (i.JellyfinId != "" && i.Kind == MediaKind.Musik)
+              {
+                  <button type="button" class="tile-play" data-play-album="@i.JellyfinId">▶ Afspil</button>
+              }
+              else if (i.JellyfinId != "" && _playBase != "")
               {
                   <a class="tile-play" href="@(_playBase + i.JellyfinId)" target="_blank" rel="noopener">▶ Afspil</a>
               }

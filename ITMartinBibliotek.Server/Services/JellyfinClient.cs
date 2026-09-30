@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ITMartinBibliotek.Server.Data.Entities;
 
 namespace ITMartinBibliotek.Server.Services;
@@ -15,11 +17,27 @@ public sealed record JellyfinItem(string Id, string Name, string Type, int? Year
     };
 }
 
+public sealed record PlayerTrack(string Id, string Name, string Artist, int Seconds, int Disc, int Number);
+
+public sealed record PlayerAlbum(string Id, string Name, string Artist, int? Year, string Cover, List<PlayerTrack> Tracks);
+
 // Thin client over the parts of Jellyfin's REST API the catalog needs:
-// list what is in the library, and build image/play links for it.
-public sealed class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore settings)
+// list what is in the library, build image/play links for it, and feed the
+// app's own music player (album track lists, audio streams, played marks).
+public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore settings)
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+
+    // The phone fetches each track in many byte ranges, and every range resolves
+    // album + position to a track, so track lists are kept for a while.
+    private readonly ConcurrentDictionary<string, (DateTime at, PlayerAlbum album)> _albums = new();
+    private string _playedUserId = "";
+
+    [GeneratedRegex("^[0-9a-f]{32}$")]
+    private static partial Regex IdPattern();
+
+    // Jellyfin ids are 32 hex chars; anything else never reaches an API URL.
+    public static bool IsId(string id) => IdPattern().IsMatch(id);
 
     public async Task<(bool ok, string message)> TestAsync()
     {
@@ -97,6 +115,50 @@ public sealed class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore
         res.EnsureSuccessStatusCode();
     }
 
+    public async Task<PlayerAlbum?> AlbumAsync(string albumId)
+    {
+        if (_albums.TryGetValue(albumId, out var hit) && DateTime.UtcNow - hit.at < TimeSpan.FromMinutes(10))
+            return hit.album;
+        var http = await ClientAsync();
+        var head = (await http.GetFromJsonAsync<ItemsPage>($"Items?Ids={albumId}&Fields=ProductionYear", Json))?.Items.FirstOrDefault();
+        if (head is null) return null;
+        var page = await http.GetFromJsonAsync<ItemsPage>(
+            $"Items?ParentId={albumId}&IncludeItemTypes=Audio&Recursive=true&SortBy=ParentIndexNumber,IndexNumber,SortName", Json) ?? new ItemsPage();
+        var b = await PublicBaseAsync();
+        var album = new PlayerAlbum(head.Id, head.Name, head.AlbumArtist ?? "", head.ProductionYear,
+            b == "" ? "" : $"{b}/Items/{head.Id}/Images/Primary?maxWidth=512",
+            page.Items.Select(t => new PlayerTrack(t.Id, t.Name,
+                t.Artists.Count > 0 ? string.Join(", ", t.Artists) : head.AlbumArtist ?? "",
+                (int)(t.RunTimeTicks / 10_000_000), t.ParentIndexNumber ?? 1, t.IndexNumber ?? 0)).ToList());
+        _albums[albumId] = (DateTime.UtcNow, album);
+        return album;
+    }
+
+    // The original file (FLAC/MP3/M4A) straight from Jellyfin with byte ranges passed
+    // through, so the phone can seek and Jellyfin never has to transcode.
+    public async Task<HttpResponseMessage> OpenAudioAsync(string trackId, string range, CancellationToken ct)
+    {
+        var http = await ClientAsync("jellyfin-stream");
+        var req = new HttpRequestMessage(HttpMethod.Get, $"Audio/{trackId}/stream?static=true");
+        if (!string.IsNullOrEmpty(range)) req.Headers.TryAddWithoutValidation("Range", range);
+        return await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+    }
+
+    // Played marks go to the Jellyfin administrator (the household's own account), so
+    // play counts and "recently played" in Jellyfin also cover what was heard here.
+    public async Task MarkPlayedAsync(string trackId)
+    {
+        var http = await ClientAsync();
+        if (_playedUserId == "")
+        {
+            var users = await http.GetFromJsonAsync<List<UserDto>>("Users", Json) ?? [];
+            _playedUserId = users.FirstOrDefault(u => u.Policy?.IsAdministrator == true)?.Id ?? "";
+            if (_playedUserId == "") return;
+        }
+        using var res = await http.PostAsync($"Users/{_playedUserId}/PlayedItems/{trackId}", null);
+        res.EnsureSuccessStatusCode();
+    }
+
     private async Task<string> PublicBaseAsync()
     {
         var pub = await settings.GetAsync(SettingsStore.JellyfinPublicUrl);
@@ -104,13 +166,13 @@ public sealed class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore
         return pub.TrimEnd('/');
     }
 
-    private async Task<HttpClient> ClientAsync()
+    private async Task<HttpClient> ClientAsync(string name = "jellyfin")
     {
         var baseUrl = (await settings.GetAsync(SettingsStore.JellyfinUrl)).TrimEnd('/');
         var key = await settings.GetAsync(SettingsStore.JellyfinApiKey);
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("Jellyfin-adresse og API-nøgle mangler under Indstillinger.");
-        var http = httpFactory.CreateClient("jellyfin");
+        var http = httpFactory.CreateClient(name);
         http.BaseAddress = new Uri(baseUrl + "/");
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("MediaBrowser", $"Token=\"{key}\"");
         return http;
@@ -141,5 +203,20 @@ public sealed class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore
         public string? AlbumArtist { get; set; }
         public string? Path { get; set; }
         public Dictionary<string, string> ProviderIds { get; set; } = [];
+        public List<string> Artists { get; set; } = [];
+        public long RunTimeTicks { get; set; }
+        public int? IndexNumber { get; set; }
+        public int? ParentIndexNumber { get; set; }
+    }
+
+    private sealed class UserDto
+    {
+        public string Id { get; set; } = "";
+        public UserPolicy? Policy { get; set; }
+    }
+
+    private sealed class UserPolicy
+    {
+        public bool IsAdministrator { get; set; }
     }
 }
