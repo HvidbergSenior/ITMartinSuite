@@ -1,6 +1,7 @@
 @page "/"
 @rendermode InteractiveServer
 @inject PollDb Db
+@inject AdminSession Session
 
 <PageTitle>Stem</PageTitle>
 
@@ -24,6 +25,7 @@
            ikke gemt bag et klik. Den der lander her skal kunne se hvad det
            handler om og hvad der forventes, før han beslutter sig for at gå
            i gang. Derfor et helt afsnit frem for et listepunkt. *@
+        @if (_packages.Count > 0) { <p class="muted" style="text-align:center">🔒 Kun admin ser forespørgslerne herunder.</p> }
         @foreach (var pkg in _packages)
         {
             var steps = (pkg.Instructions ?? "")
@@ -163,7 +165,8 @@
 
     protected override void OnInitialized()
     {
-        _packages = Db.Packages
+        // Packages (the ladestander forespørgsel) only for admin - user 2026-09-30: "Kun admin skal se ladestandere".
+        _packages = !Session.IsAdmin ? [] : Db.Packages
             .Where(p => p.IsActive)
             .OrderByDescending(p => p.CreatedAt)
             .Select(p => new Package

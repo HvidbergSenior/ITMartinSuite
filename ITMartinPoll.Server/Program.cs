@@ -197,8 +197,10 @@ app.UseAntiforgery();
 // Paper version of a package - for the neighbours who will not use a link.
 // Generated from the live package on every request, so it always matches
 // the page. See PackagePdf.
-app.MapGet("/pakke/{id:int}/pdf", async (int id, PollDb db) =>
+app.MapGet("/pakke/{id:int}/pdf", async (int id, PollDb db, HttpContext ctx, IConfiguration cfg) =>
 {
+    // admin only (the ladestander forespørgsel) - the cookie is set when the admin PIN is typed on /admin
+    if (ctx.Request.Cookies["poll_admin"] != ITMartinPoll.Server.AdminToken.For(cfg["Poll:AdminPin"] ?? "1234")) return Results.NotFound();
     var package = await db.Packages
         .Include(p => p.Polls).ThenInclude(p => p.Options)
         .Include(p => p.Sessions).ThenInclude(s => s.Images)

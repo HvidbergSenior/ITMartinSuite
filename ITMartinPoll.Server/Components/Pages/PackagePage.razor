@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject PollDb     Db
 @inject IJSRuntime JS
+@inject AdminSession Session
 
 @* One forespørgsel, one link, one pass. The questions here only mean anything
    together - how many chargers, how fast, which operator, do you even have an
@@ -39,6 +40,11 @@
     else if (_package is null)
     {
         <div class="poll-empty"><p>Forespørgslen findes ikke.</p></div>
+    }
+    else if (!Session.IsAdmin)
+    {
+        @* Packages (the ladestander forespørgsel) are admin-only since 2026-09-30 (user). *@
+        <div class="poll-empty"><p>Denne forespørgsel er ikke åben.</p></div>
     }
     else
     {

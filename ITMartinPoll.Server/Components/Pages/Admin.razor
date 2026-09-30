@@ -4,6 +4,7 @@
 @inject IConfiguration Config
 @inject AdminSession   Session
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>Admin — Stem</PageTitle>
 
@@ -149,14 +150,18 @@
             .ToList();
     }
 
-    private void CheckPin()
+    private async Task CheckPin()
     {
         var correct = Config["Poll:AdminPin"] ?? "1234";
-        if (_pin == correct) { Session.IsAdmin = true; _pinWrong = false; }
+        if (_pin == correct)
+        {
+            Session.IsAdmin = true; _pinWrong = false;
+            await JS.InvokeVoidAsync("eval", $"document.cookie='poll_admin={AdminToken.For(correct)}; path=/; max-age=31536000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : '')");
+        }
         else _pinWrong = true;
     }
 
-    private void OnPinKey(KeyboardEventArgs e) { if (e.Key == "Enter") CheckPin(); }
+    private async Task OnPinKey(KeyboardEventArgs e) { if (e.Key == "Enter") await CheckPin(); }
 
     private async Task ToggleActive(Poll p)
     {
