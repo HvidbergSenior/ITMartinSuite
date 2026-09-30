@@ -2,7 +2,9 @@
 # publish password in (__PUBLISH_PASS__ -> KigMed__PublishPass from magic.env). Only the Kig med app talks to
 # the HTTP ports (docker network); the internet only reaches UDP/TCP 8189 (WebRTC media, router forward).
 logLevel: info
-api: no
+# API only for the Kig med app (docker network, port not published): "is Martin's video actually arriving?"
+api: yes
+apiAddress: :9997
 metrics: no
 pprof: no
 playback: no
@@ -34,6 +36,7 @@ authInternalUsers:
     ips: []
     permissions:
       - action: read
+      - action: api
   - user: martin
     pass: __PUBLISH_PASS__
     ips: []

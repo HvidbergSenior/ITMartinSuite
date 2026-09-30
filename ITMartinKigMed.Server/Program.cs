@@ -30,6 +30,8 @@ builder.Services.AddKolibri(k =>
 builder.Services.AddRazorComponents().AddInteractiveServerComponents()
     .AddHubOptions(o => o.MaximumReceiveMessageSize = 64 * 1024);
 builder.Services.AddSingleton<LiveHub>();
+builder.Services.AddSingleton<MediaWatch>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<MediaWatch>());
 builder.Services.AddHttpClient("media", c => c.Timeout = TimeSpan.FromSeconds(30))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
@@ -73,11 +75,12 @@ app.MapGet("/api/auth/logout", (HttpContext ctx) =>
 });
 
 // Live or not, for itmartin.dk's front page (hjem-web asks this over the LAN every 30 s).
-app.MapGet("/api/status", (LiveHub hub, HttpContext ctx) =>
+app.MapGet("/api/status", (LiveHub hub, MediaWatch media, HttpContext ctx) =>
 {
     ctx.Response.Headers.CacheControl = "no-store";
     var (live, title, next) = hub.Read(s => (s.Live, s.Title, s.Next));
-    return Results.Ok(new { live, title, next, viewers = hub.Viewers });
+    // "live" only while video is actually arriving - not just because "Gå live" was pressed once
+    return Results.Ok(new { live = live && media.VideoOn, title, next, viewers = hub.Viewers });
 });
 
 // Pictures viewers sent in. Names are random guids; a picture Martin has not shown is only for the studio.

@@ -18,7 +18,7 @@
 }
 else if (_s is not null)
 {
-    <p class="hj-live off">📺 <a href="@Url" target="_blank" rel="noopener">Kig med, når jeg streamer</a>@(_s.Next.Trim().Length > 0 ? $" – næste gang: {_s.Next}" : " – så kan du se mig arbejde og give dine idéer.")</p>
+    <p class="hj-live off">📺 Jeg streamer ikke lige nu.@(_s.Next.Trim().Length > 0 ? $" Næste gang: {_s.Next}." : "") <a href="@Url" target="_blank" rel="noopener">Kig med</a>, når jeg er på – så kan du se mig arbejde og give dine idéer.</p>
 }
 
 @code {

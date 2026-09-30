@@ -176,6 +176,9 @@ public sealed class LiveHub
         Save();
     }
 
+    // Something outside the session changed (e.g. the video started/stopped arriving): redraw the pages.
+    public void Touch() => Changed?.Invoke();
+
     public void DeleteQuestion(Guid id) { lock (_lock) S.Questions.RemoveAll(q => q.Id == id); Save(); }
     public void ShowIdea(Guid id, bool shown) { lock (_lock) if (S.Ideas.FirstOrDefault(i => i.Id == id) is { } hit) hit.Shown = shown; Save(); }
     public void DeleteIdea(Guid id) { lock (_lock) S.Ideas.RemoveAll(i => i.Id == id); Save(); }
