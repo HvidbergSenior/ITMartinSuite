@@ -22,6 +22,7 @@ else if (_page is not null)
         @if (_page.Slug == NowCard.PageSlug) { <NowCard /> }
         @TinyMarkdown.Render(_page.Body)
     </article>
+    @if (_page.Slug == PilotForm.PageSlug) { <PilotForm /> }
     @if (_children.Count > 0)
     {
         <div class="hj-subpages">

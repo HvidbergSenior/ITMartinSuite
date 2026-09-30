@@ -196,9 +196,9 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
 app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
 // The pilot page moved to /bliv-pilot/ (2026-09-29): browsers kept a stale one.com copy of /pilot/ without the menu.
-app.MapGet("/pilot", () => Results.Redirect("/bliv-pilot/", permanent: true));   // also answers /pilot/
+app.MapGet("/pilot", () => Results.Redirect("/bliv-pilot", permanent: true));   // also answers /pilot/
 app.MapPost("/pilot/send.php", () => Results.Redirect("/bliv-pilot/send.php", permanent: true, preserveMethod: true));
-app.MapGet("/bliv-pilot", () => Results.Redirect("/bliv-pilot/", permanent: true));
+// Since 2026-09-30 /bliv-pilot is a normal page (text in Svar -> Sider + Components/PilotForm); /bliv-pilot/ lands there too.
 app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
 
 // ── The site menu for hand-made pages in wwwroot (pilot): wwwroot/nav.js draws it from this.
@@ -247,9 +247,9 @@ app.MapPost("/bliv-pilot/send.php", async (HttpContext ctx, ChatService chat) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     string F(string k) => form[k].ToString().Trim();
-    if (F("website").Length > 0) return Results.Redirect("/bliv-pilot/");            // spam trap
+    if (F("website").Length > 0) return Results.Redirect("/bliv-pilot");            // spam trap
     var (ydelse, navn, tlf, by, besked, email) = (F("ydelse"), F("navn"), F("telefon"), F("by"), F("besked"), F("email"));
-    if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/bliv-pilot/#form");
+    if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/bliv-pilot#pilot");
     await chat.VisitorWritesAsync("pilot-" + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
         $"🐦 Pilot-henvendelse: {ydelse}\nTelefon: {tlf}\nBy: {by}" + (email.Length > 0 ? $"\nE-mail: {email}" : "") + $"\n\n{besked}", email);
     Func<string?, string?> e = System.Net.WebUtility.HtmlEncode;
@@ -259,7 +259,7 @@ app.MapPost("/bliv-pilot/send.php", async (HttpContext ctx, ChatService chat) =>
         <body><h1>Tak, {{e(navn)}}!</h1>
         <p>Jeg har fået din besked om <b>{{e(ydelse)}}</b> og ringer til dig på {{e(tlf)}} inden for to dage.</p>
         {{(MailService.LooksLikeEmail(email) ? $"<p>Du får en kvittering på <b>{e(email)}</b> – og mit svar kommer også dertil.</p>" : "")}}
-        <p><a href="/bliv-pilot/">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
+        <p><a href="/bliv-pilot">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
         """, "text/html");
 }).DisableAntiforgery();
 

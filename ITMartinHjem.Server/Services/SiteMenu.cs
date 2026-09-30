@@ -20,6 +20,6 @@ public static class SiteMenu
             .Append((Sort: MineAppsSort, Item: new Item("📱 Mine apps", "/mine-apps")))
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
-        return [new Item("🏠 Forside", "/"), .. middle, new Item("🐦 Bliv pilot", "/bliv-pilot/", Pilot: true)];
+        return [new Item("🏠 Forside", "/"), .. middle, new Item("🐦 Bliv pilot", "/bliv-pilot", Pilot: true)];
     }
 }

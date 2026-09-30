@@ -9,6 +9,7 @@ namespace ITMartinHjem.Server.Services;
 //   "* " or "- "   -> list          "## "        -> heading
 //   **bold**       -> bold          [text](url)  -> link
 //   ![alt](url) on its own line -> picture;  other lines -> paragraphs.
+//   "### Title | short text" -> a card that folds out (closed by the next ###, ## or a "---" line).
 // Everything is HTML-encoded first; links only to http(s), /, mailto: and tel:.
 public static partial class TinyMarkdown
 {
@@ -16,6 +17,7 @@ public static partial class TinyMarkdown
     {
         var sb = new StringBuilder();
         var inList = false;
+        var inCard = false;
         var media = new List<(string Alt, string Url)>();   // pictures/videos on lines next to each other = one gallery
         foreach (var raw in (text ?? "").Replace("\r", "").Split('\n'))
         {
@@ -30,6 +32,20 @@ public static partial class TinyMarkdown
                 continue;
             }
             FlushMedia(sb, media);
+            if (line.StartsWith("### ") || line.StartsWith("## ") || line == "---")
+            {
+                if (inCard) { sb.Append("</div></details>"); inCard = false; }
+            }
+            if (line == "---") continue;
+            if (line.StartsWith("### "))
+            {
+                var parts = line[4..].Split('|', 2, StringSplitOptions.TrimEntries);
+                sb.Append("<details class=\"tm-card\"><summary><span class=\"tm-card-title\">").Append(Inline(parts[0])).Append("</span>");
+                if (parts.Length > 1 && parts[1].Length > 0) sb.Append("<span class=\"tm-card-sub\">").Append(Inline(parts[1])).Append("</span>");
+                sb.Append("<span class=\"tm-card-more\">Læs mere</span></summary><div class=\"tm-card-body\">");
+                inCard = true;
+                continue;
+            }
             if (line.StartsWith("## "))
             {
                 sb.Append("<h2>").Append(Inline(line[3..])).Append("</h2>");
@@ -45,6 +61,7 @@ public static partial class TinyMarkdown
         }
         FlushMedia(sb, media);
         if (inList) sb.Append("</ul>");
+        if (inCard) sb.Append("</div></details>");
         return new MarkupString(sb.ToString());
     }
 

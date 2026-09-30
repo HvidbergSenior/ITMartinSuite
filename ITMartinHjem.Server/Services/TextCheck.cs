@@ -35,7 +35,7 @@ public sealed class TextCheck(IConfiguration config, ILogger<TextCheck> logger)
             var response = await _client.Messages.Create(new MessageCreateParams
             {
                 Model = Model.ClaudeSonnet4_6,   // Haiku missed Danish names and did not split tasks into bullets (tested 2026-09-29)
-                MaxTokens = kind == Kind.Opslag ? 6000 : 1500,   // whole pages come back in full
+                MaxTokens = kind == Kind.Opslag ? 16000 : 1500,   // whole pages come back in full (Bliv pilot is ~24,000 characters)
                 System = "Du er korrekturlæser for Martin, der lægger tekst på sin egen hjemmeside (itmartin.dk). " +
                          "Ret stavefejl, slåfejl og grammatik på dansk. Martins egne navne staves sådan: ITMartin, ITKolibri, MinElpris, ElPriser, Svar, Bogshoppen, Forløbet, Polstrer, R6, Mensa. " +
                          "OPGAVER SKAL ALTID STÅ I PUNKTFORM: når teksten nævner opgaver eller gøremål (noget Martin skal, vil, regner med eller har lavet), " +
@@ -62,6 +62,8 @@ public sealed class TextCheck(IConfiguration config, ILogger<TextCheck> logger)
                 ? n.EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0).ToList()
                 : [];
             if (suggested.Length == 0) suggested = text;
+            // A cut-off or shortened answer must never replace the owner's text.
+            if (suggested.Length < text.Length * 0.8) return notes.Count > 0 ? new Result(text, notes, false) : null;
             return new Result(suggested, notes, !Same(suggested, text));
         }
         catch (Exception ex)

@@ -188,3 +188,15 @@ html[data-theme="dark"] body:has(.fest-site){--fest-bg:#1c0f08}
 .fest-strip-flags i:nth-child(4n+2){background:#19c3b1}.fest-strip-flags i:nth-child(4n+3){background:#ff4f8b}.fest-strip-flags i:nth-child(4n){background:#fff1dc}
 .fest-site:has(.fest) .fest-strip{display:none}
 @keyframes fest-slide{to{background-position:-200% 0}}
+
+/* ── Fold-out cards in page texts (TinyMarkdown "### Title | short text") ── */
+.tm-card{margin:10px 0;border:1px solid var(--k-border);border-left:5px solid var(--k-accent);border-radius:var(--k-radius);background:var(--k-card)}
+.tm-card>summary{list-style:none;cursor:pointer;padding:12px 16px;display:grid;gap:2px}
+.tm-card>summary::-webkit-details-marker{display:none}
+.tm-card-title{font-weight:800;color:var(--k-accent)}
+.tm-card-sub{font-weight:700;font-size:1.05rem}
+.tm-card-more{justify-self:start;margin-top:6px;font-size:.9rem;font-weight:700;color:var(--k-accent);border:1px solid var(--k-accent);border-radius:999px;padding:2px 12px}
+.tm-card[open] .tm-card-more{background:var(--k-accent);color:var(--k-accent-text)}
+.tm-card[open] .tm-card-more::after{content:" – luk"}
+.tm-card-body{padding:0 16px 12px}
+.tm-card-body a[href*="#pilot"]{display:inline-block;margin-top:4px;padding:10px 16px;border-radius:999px;background:var(--k-accent);color:var(--k-accent-text);font-weight:800;text-decoration:none}

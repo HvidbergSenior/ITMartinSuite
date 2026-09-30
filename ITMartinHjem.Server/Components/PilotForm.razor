@@ -1,0 +1,95 @@
+@implements IDisposable
+@inject ChatService Chat
+@inject NavigationManager Nav
+
+@* The pilot form under the "Bliv pilot" page (SitePage, slug PageSlug). It becomes a conversation in Svar with a
+   push to Martin, as the old one.com form (send.php) did. A card's "Jeg vil gerne være pilot" link
+   (/bliv-pilot?k=<key>#pilot) picks the matching choice here. *@
+<section class="k-card hj-pilot-form" id="pilot" data-nofold>
+    @if (_sentTo is not null)
+    {
+        <div class="k-card-title">Tak, @_sentTo! 🐦</div>
+        <p>Jeg har fået din besked om <b>@_ydelse</b> og ringer til dig på @_tlf inden for to dage.</p>
+        @if (MailService.LooksLikeEmail(_email)) { <p>Du får en kvittering på <b>@_email</b> – og mit svar kommer også dertil.</p> }
+        <button class="k-btn" @onclick="() => _sentTo = null">Send en til</button>
+    }
+    else
+    {
+        <div class="k-card-title">🐦 Jeg vil gerne være pilot</div>
+        <p class="k-help">Udfyld de fire felter med * og tryk Send. Jeg ringer tilbage inden for to dage. Ingen forpligtelser.</p>
+        <label class="k-label" for="p-ydelse">Hvad drejer det sig om? *</label>
+        <select id="p-ydelse" class="k-input" @bind="_ydelse">
+            <option value="">Vælg…</option>
+            @foreach (var o in Options) { <option value="@o">@o</option> }
+        </select>
+        <label class="k-label" for="p-navn">Navn *</label>
+        <input id="p-navn" class="k-input" @bind="_navn" autocomplete="name" />
+        <label class="k-label" for="p-tlf">Telefon *</label>
+        <input id="p-tlf" class="k-input" type="tel" @bind="_tlf" autocomplete="tel" />
+        <label class="k-label" for="p-email">E-mail <span class="k-help">(valgfrit – så får du en kvittering og mit svar på mail)</span></label>
+        <input id="p-email" class="k-input" type="email" @bind="_email" autocomplete="email" />
+        <label class="k-label" for="p-by">By</label>
+        <input id="p-by" class="k-input" @bind="_by" autocomplete="address-level2" />
+        <label class="k-label" for="p-besked">Én linje om jeres situation <span class="k-help">(valgfrit)</span></label>
+        <textarea id="p-besked" class="k-input k-textarea" rows="3" @bind="_besked"></textarea>
+        @if (_note.Length > 0) { <p class="k-help"><b>@_note</b></p> }
+        <button class="k-btn k-btn-primary k-mt" disabled="@_sending" @onclick="SendAsync">Send – så ringer jeg</button>
+    }
+</section>
+
+@code {
+    public const string PageSlug = "bliv-pilot";
+
+    public static readonly string[] Options =
+    [
+        "Nektar – fotos", "Rede – cd/dvd", "Glans – billedbehandling", "Bestøver – beslutninger", "Puls – el",
+        "Puls Forening – fælles el", "Puls Forening – ladestander", "Tunge – økonomi privat", "Tunge Pro – økonomi forretning",
+        "Tunge Bilag – kvitteringer", "Flyve – PDF", "Hukommelse – værksted", "Bestøver Dag – hvem gør hvad",
+        "Hukommelse Hjem – find det", "Kommunikere – morgenoverblik", "Syn – pc-tjek", "Baglæns – sagsmappen",
+        "Reagere – live auktion", "Syn Samling – kortpriser", "Andet / ved ikke",
+    ];
+
+    // "Tunge Pro – økonomi forretning" -> "tunge-pro-okonomi-forretning": the ?k= key in the card links.
+    public static string Key(string option) => string.Join('-', System.Text.RegularExpressions.Regex.Matches(
+        option.ToLowerInvariant().Replace("ø", "o").Replace("æ", "ae").Replace("å", "a"), "[a-z0-9]+").Select(m => m.Value));
+
+    private string _ydelse = "", _navn = "", _tlf = "", _email = "", _by = "", _besked = "", _note = "";
+    private string? _sentTo;
+    private bool _sending;
+
+    protected override void OnInitialized()
+    {
+        PickFromUrl();
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? s, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        PickFromUrl();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void PickFromUrl()
+    {
+        var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+        if (q.TryGetValue("k", out var k) && Options.FirstOrDefault(o => Key(o) == k.ToString()) is { } hit) _ydelse = hit;
+    }
+
+    private async Task SendAsync()
+    {
+        if (_ydelse.Length == 0 || _navn.Trim().Length == 0 || _tlf.Trim().Length == 0)
+        {
+            _note = "Vælg hvad det drejer sig om, og skriv dit navn og telefonnummer.";
+            return;
+        }
+        _sending = true;
+        var (navn, tlf, by, email, besked) = (_navn.Trim(), _tlf.Trim(), _by.Trim(), _email.Trim(), _besked.Trim());
+        await Chat.VisitorWritesAsync("pilot-" + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
+            $"🐦 Pilot-henvendelse: {_ydelse}\nTelefon: {tlf}\nBy: {by}" + (email.Length > 0 ? $"\nE-mail: {email}" : "") + $"\n\n{besked}", email);
+        _sentTo = navn;
+        _note = "";
+        _sending = false;
+    }
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+}
