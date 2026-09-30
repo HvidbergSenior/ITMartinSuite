@@ -317,6 +317,17 @@ else if (_review is { } rv)
         await LoadAppsAsync();
         if (ChatId is { } id) await OpenAsync(id);
         Chat.Changed += OnChatChanged;
+        _dayTimer = new Timer(_ => InvokeAsync(NewDayCheckAsync), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    // Svar left open overnight (iPhone home-screen app): after midnight the boxes switch to the new, empty day by themselves.
+    private Timer? _dayTimer;
+    private async Task NewDayCheckAsync()
+    {
+        if (_today.Day == DkNow().ToString("yyyy-MM-dd") || _checking || _review is not null) return;
+        await LoadTodayAsync();
+        _todayNote = "🌅 Ny dag – skriv dagens plan";
+        StateHasChanged();
     }
 
     protected override async Task OnAfterRenderAsync(bool first)
@@ -373,7 +384,12 @@ else if (_review is { } rv)
         _today.Plan = await ReviewAsync(_today.Plan, TextCheck.Kind.Liste);
         _today.Done = await ReviewAsync(_today.Done, TextCheck.Kind.Liste);
         var day = DkNow().ToString("yyyy-MM-dd");
-        if (_today.Day != day) _today = new DayNote { Day = day, Plan = _today.Plan, Done = _today.Done };   // Svar left open past midnight
+        if (_today.Day != day)   // Svar left open past midnight: yesterday's text stays on yesterday, today starts empty
+        {
+            await LoadTodayAsync();
+            _todayNote = "🌅 Det var gårsdagens tekst – nu er det en ny dag. Skriv dagens plan.";
+            return;
+        }
         await using var db = await Dbf.CreateDbContextAsync();
         var row = await db.DayNotes.FirstOrDefaultAsync(d => d.Day == day);
         if (row is null) db.DayNotes.Add(row = new DayNote { Day = day });
@@ -767,5 +783,9 @@ else if (_review is { } rv)
     private async Task SubscribeAsync() => _push = await JS.InvokeAsync<string>("hjem.pushSubscribe");
     private async Task TestAsync() => await JS.InvokeVoidAsync("hjem.pushTest");
 
-    public void Dispose() => Chat.Changed -= OnChatChanged;
+    public void Dispose()
+    {
+        Chat.Changed -= OnChatChanged;
+        _dayTimer?.Dispose();
+    }
 }
