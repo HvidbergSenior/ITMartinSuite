@@ -68,6 +68,24 @@
         </div>
 
         <div class="k-card" data-nofold>
+            <div class="k-card-title">📤 Inviter seere</div>
+            <p class="k-help">Send linket til dem, der skal kigge med – de skal bare åbne det, ingen app eller login. Åbner de det før du går live, starter videoen af sig selv.</p>
+            <div class="kig-invite">
+                <div class="kig-qr" title="Scan med telefonens kamera">@((MarkupString)QrSvg)</div>
+                <div>
+                    <p><b>@ViewerUrl</b></p>
+                    <div class="k-row">
+                        <button class="k-btn k-btn-primary" @onclick="CopyAsync">📋 Kopiér invitation</button>
+                        @if (_canShare) { <button class="k-btn" @onclick="ShareAsync">📤 Del…</button> }
+                    </div>
+                    @if (_shareNote.Length > 0) { <p class="k-help"><b>@_shareNote</b></p> }
+                    <p class="k-help">Invitationen: <i>@InviteText</i></p>
+                    <p class="k-help">QR-koden: hold den op foran kameraet, eller vis den på skærmen – folk scanner den med telefonens kamera.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="k-card" data-nofold>
             <div class="k-card-title">🗳️ Spørg seerne</div>
             @if (_poll is { Open: true } p)
             {
@@ -180,6 +198,7 @@
             _micId = _devices.Where(d => d.Kind == "audioinput").OrderByDescending(d => d.Label.Contains("StreamCam", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Id ?? "";
         }
         catch { _note = "Browseren gav ikke lov til kamera/mikrofon – tryk på kamera-ikonet i adresselinjen og tillad det."; }
+        try { _canShare = await JS.InvokeAsync<bool>("kigShare.canShare"); } catch { }
         StateHasChanged();
     }
 
@@ -201,6 +220,23 @@
     }
 
     private async Task CameraOffAsync() { await JS.InvokeVoidAsync("kig.cameraOff", "preview"); _camOn = false; _camInfo = ""; _mode = "kamera"; }
+
+    // ── invite: link, QR (made here with QRCoder - the link never goes to an outside service), copy, system share
+    private const string ViewerUrl = "https://kigmed.itmartin.dk";
+    private static readonly string QrSvg = new QRCoder.SvgQRCode(new QRCoder.QRCodeGenerator().CreateQrCode(ViewerUrl, QRCoder.QRCodeGenerator.ECCLevel.M))
+        .GetGraphic(6, "#000000", "#ffffff", drawQuietZones: true);
+    private bool _canShare;
+    private string _shareNote = "";
+    private string InviteText => (_live ? "🔴 Jeg er live nu" : "📺 Kig med, når jeg går live") + (_title.Trim().Length > 0 ? $": {_title.Trim()}" : "") + $" – {ViewerUrl}";
+
+    private async Task CopyAsync() =>
+        _shareNote = await JS.InvokeAsync<bool>("kigShare.copy", InviteText) ? "Kopieret ✓ – indsæt den i en SMS, Messenger eller mail (Ctrl+V)." : "Kunne ikke kopiere – markér linket og kopiér selv.";
+
+    private async Task ShareAsync()
+    {
+        var ok = await JS.InvokeAsync<bool>("kigShare.share", "Kig med – Martin live", InviteText, ViewerUrl);
+        _shareNote = ok ? "Delt ✓" : "";
+    }
 
     // Kamera / Skærm / Skærm med mig i hjørnet - switched in the browser, also while live (same connection).
     private string _mode = "kamera";

@@ -225,3 +225,10 @@ window.kig = (() => {
 
     return { viewer, setName, play, stop, unmute, devices, preview, setMode, publish, unpublish, publishing, cameraOff, float };
 })();
+
+// Studio "Inviter seere": copy the link / the system share menu (Windows, phones).
+window.kigShare = {
+    copy: async (text) => { try { await navigator.clipboard.writeText(text); return true; } catch { return false; } },
+    canShare: () => !!navigator.share,
+    share: async (title, text, url) => { try { await navigator.share({ title, text, url }); return true; } catch { return false; } },
+};
