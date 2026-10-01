@@ -6,6 +6,7 @@
 <PageTitle>@(_live ? "🔴 Martin er live" : "Kig med – Martin live")</PageTitle>
 
 <header class="kig-head">
+    <span class="kig-tagline">😊 Arbejder med glæde</span>
     <h1>@(_live ? "🔴 Live nu" : "📺 Kig med")@(_title.Length > 0 && _live ? $": {_title}" : "")</h1>
     <p class="k-help">Her kan du se Martin live, når han koder, spiller eller viser en app – og være med: stil spørgsmål, stem og send idéer.</p>
 </header>
@@ -17,7 +18,7 @@
             @if (!_live)
             {
                 <div class="kig-offline">
-                    <div class="kig-offline-icon">😴</div>
+                    <div class="kig-offline-icon">🌻</div>
                     <b>Martin er ikke live lige nu</b>
                     @if (_next.Length > 0) { <span>📅 @_next</span> }
                     <span class="k-help">Lad siden stå åben – videoen starter af sig selv, når han går live.</span>

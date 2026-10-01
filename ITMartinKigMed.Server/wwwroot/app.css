@@ -1,4 +1,4 @@
-/* Kig med – live video + input. Colours come from the Kolibri tokens (family "reagere"). */
+/* Kig med – live video + input. Theme "glaede" (happy: sun yellow + coral + mint), defined at the bottom. */
 .k-content-wide{max-width:var(--k-content-wide)}
 .kig-head h1{margin:.2em 0}
 .kig-grid{display:grid;gap:16px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start}
@@ -57,3 +57,31 @@
 .kig-hands li{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-radius:10px;background:var(--k-accent-soft)}
 .kig-studio-guest{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .kig-studio-guest video{width:180px;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:#222}
+
+/* ── Theme "glaede": working with happiness ── */
+html[data-family="glaede"]{--k-accent:#d9432a;--k-accent-dark:#b8321c;--k-accent-soft:#ffe7d6;--k-accent-text:#fff;
+  --k-bg:#fff8ec;--k-bg-deep:#ffefd2;--k-card:#ffffff;--k-border:#f6dcb8;--k-text:#2b1d12;--k-muted:#6e5a48;
+  --k-sun:#ffc531;--k-mint:#2bb39a;--k-radius-lg:22px;--k-shadow:0 2px 4px rgba(217,67,42,.06),0 8px 24px rgba(255,170,60,.16)}
+html[data-family="glaede"] body{background:
+  radial-gradient(900px 500px at 100% -10%,rgba(255,197,49,.35),transparent 60%),
+  radial-gradient(700px 420px at -10% 110%,rgba(43,179,154,.18),transparent 60%),var(--k-bg);background-attachment:fixed}
+html[data-family="glaede"][data-theme="dark"]{--k-bg:#1e1712;--k-bg-deep:#17110d;--k-card:#2a201a;--k-border:#4a3627;--k-text:#fbefe3;--k-muted:#cdb7a2;--k-accent:#ff7a5c;--k-accent-dark:#ff9a80;--k-accent-soft:#4a2a20;--k-accent-text:#1e1712}
+html[data-family="glaede"][data-theme="dark"] body{background:radial-gradient(900px 500px at 100% -10%,rgba(255,197,49,.14),transparent 60%),var(--k-bg)}
+.kig-head{position:relative;padding:18px 20px 14px 84px;margin-bottom:16px;border-radius:var(--k-radius-lg);
+  background:linear-gradient(120deg,#ffd75e 0%,#ffb56b 55%,#ff8f73 100%);color:#2b1d12;box-shadow:var(--k-shadow);overflow:hidden}
+.kig-head::before{content:"☀️";position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:3.2rem;animation:kig-sun 14s linear infinite}
+.kig-head::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.22)}
+.kig-head h1{color:#2b1d12}
+.kig-head .k-help{color:#4a3222;margin:0}
+.kig-tagline{display:inline-block;margin:0 0 4px;padding:2px 12px;border-radius:999px;background:rgba(255,255,255,.6);font-weight:800;font-size:.85rem;letter-spacing:.02em}
+@keyframes kig-sun{to{transform:translateY(-50%) rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.kig-head::before{animation:none}}
+@media (max-width:520px){.kig-head{padding-left:20px;padding-top:58px}.kig-head::before{top:30px;font-size:2.4rem}}
+.kig-stage{background:linear-gradient(135deg,#3b2a1f,#24302c);box-shadow:0 0 0 4px var(--k-sun),var(--k-shadow)}
+.kig-offline-icon{animation:kig-bob 3s ease-in-out infinite}
+@keyframes kig-bob{50%{transform:translateY(-6px)}}
+.kig-livebadge{background:linear-gradient(90deg,#ff4d4d,#ff8a3d)}
+.kig-reactions button{border-radius:999px;transition:transform .15s,background .15s}
+.kig-reactions button:hover{background:var(--k-accent-soft);transform:translateY(-2px)}
+.kig-bar{background:linear-gradient(90deg,rgba(255,197,49,.55),rgba(43,179,154,.35))}
+.kig-tag{background:var(--k-mint)}
