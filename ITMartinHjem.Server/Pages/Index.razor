@@ -10,6 +10,7 @@
 <Fest />
 
 <header class="hj-head">
+    <span class="hj-tagline">😊 Arbejder med glæde</span>
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }

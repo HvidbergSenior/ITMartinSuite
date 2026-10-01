@@ -1,4 +1,4 @@
-/* Martin Hvidberg's page - on top of kolibri.css (family "rede"). */
+/* Martin Hvidberg's page - on top of kolibri.css. Theme "glaede" (happy: sun yellow + coral + mint, same as Kig med) at the bottom. */
 .hj-head { margin: 8px 0 16px; }
 .hj-head h1 { margin: 0 0 4px; font-size: 1.9rem; }
 .hj-intro { margin: 0 0 10px; color: var(--k-muted); }
@@ -210,3 +210,27 @@ html[data-theme="dark"] body:has(.fest-site){--fest-bg:#1c0f08}
 .hj-live.off{text-align:center;margin:6px 0 12px}
 @keyframes hj-live-pulse{50%{box-shadow:0 0 0 8px rgba(214,40,40,.0),0 0 0 0 rgba(214,40,40,.5);transform:scale(1.25)}}
 @media (prefers-reduced-motion:reduce){.hj-live-dot{animation:none}}
+
+/* ── Theme "glaede": working with happiness (same palette as Kig med) ── */
+html[data-family="glaede"]{--k-accent:#d9432a;--k-accent-dark:#b8321c;--k-accent-soft:#ffe7d6;--k-accent-text:#fff;
+  --k-bg:#fff8ec;--k-bg-deep:#ffefd2;--k-card:#ffffff;--k-border:#f6dcb8;--k-text:#2b1d12;--k-muted:#6e5a48;
+  --k-sun:#ffc531;--k-mint:#2bb39a;--k-radius-lg:22px;--k-shadow:0 2px 4px rgba(217,67,42,.06),0 8px 24px rgba(255,170,60,.16)}
+html[data-family="glaede"] body{background:
+  radial-gradient(900px 500px at 100% -10%,rgba(255,197,49,.35),transparent 60%),
+  radial-gradient(700px 420px at -10% 110%,rgba(43,179,154,.18),transparent 60%),var(--k-bg);background-attachment:fixed}
+html[data-family="glaede"][data-theme="dark"]{--k-bg:#1e1712;--k-bg-deep:#17110d;--k-card:#2a201a;--k-border:#4a3627;--k-text:#fbefe3;--k-muted:#cdb7a2;--k-accent:#ff7a5c;--k-accent-dark:#ff9a80;--k-accent-soft:#4a2a20;--k-accent-text:#1e1712}
+html[data-family="glaede"][data-theme="dark"] body{background:radial-gradient(900px 500px at 100% -10%,rgba(255,197,49,.14),transparent 60%),var(--k-bg)}
+html[data-family="glaede"] .hj-nav{background:linear-gradient(90deg,#ffd75e,#ffb56b 55%,#ff8f73);border-bottom:0;box-shadow:var(--k-shadow)}
+html[data-family="glaede"] .hj-nav a{color:#2b1d12}
+html[data-family="glaede"] .hj-nav a:hover,html[data-family="glaede"] .hj-nav a.hj-nav-pilot{color:#fff;text-shadow:0 1px 2px rgba(150,50,20,.45)}
+.hj-head{position:relative;padding:18px 20px 16px 84px;border-radius:var(--k-radius-lg);
+  background:linear-gradient(120deg,#ffe58a 0%,#ffc98f 55%,#ffad97 100%);color:#2b1d12;box-shadow:var(--k-shadow);overflow:hidden}
+.hj-head::before{content:"☀️";position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:3.2rem;animation:hj-sun 14s linear infinite}
+.hj-head::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.22);pointer-events:none}
+.hj-head h1{color:#2b1d12}
+.hj-head .hj-intro{color:#4a3222}
+.hj-tagline{display:inline-block;margin:0 0 4px;padding:2px 12px;border-radius:999px;background:rgba(255,255,255,.6);font-weight:800;font-size:.85rem;letter-spacing:.02em}
+@keyframes hj-sun{to{transform:translateY(-50%) rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.hj-head::before{animation:none}}
+@media (max-width:520px){.hj-head{padding-left:20px;padding-top:58px}.hj-head::before{top:30px;font-size:2.4rem}}
+html[data-family="glaede"] .hj-now{border-left-color:var(--k-sun)}
