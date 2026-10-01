@@ -2,6 +2,7 @@
 @implements IAsyncDisposable
 @inject NoteAi Ai
 @inject IJSRuntime JS
+@inject IConfiguration Config
 
 <PageTitle>Notatskriver</PageTitle>
 
@@ -10,6 +11,18 @@
     <p>Fra stikord, diktat og billeder af håndskrift til færdigt dokument.</p>
 </header>
 
+@if (_locked)
+{
+    <section class="k-card ns-card ns-gate">
+        <h2>🔑 Testversion</h2>
+        <p>Notatskriver er i test. Skriv den adgangskode, du har fået.</p>
+        <input class="k-input" type="password" @bind="_code" @bind:event="oninput" @onkeydown="@(e => e.Key == "Enter" ? Unlock() : Task.CompletedTask)" placeholder="Adgangskode" />
+        <button class="k-btn ns-go" @onclick="Unlock">Lås op</button>
+        @if (_codeWrong) { <p class="ns-err">Forkert kode.</p> }
+    </section>
+}
+else
+{
 <div class="ns-grid">
     @* ── 1. Notes ── *@
     <section class="k-card ns-card">
@@ -30,6 +43,7 @@
         {
             <p class="k-help">🎤 Vil du tale? Tryk i tekstfeltet og brug mikrofonen på telefonens tastatur.</p>
         }
+        else { <p class="k-help ns-small">🎤 bruger din browsers talegenkendelse – i Chrome/Edge sendes lyden til Google/Microsoft. <a href="/privatliv">Læs mere</a></p> }
         @if (_dictating) { <p class="ns-live">● Lytter … tal tydeligt. Teksten kommer ind i feltet herunder.</p> }
 
         @if (_bilag.Count > 0)
@@ -112,7 +126,9 @@
     }
 </div>
 
-<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.</p>
+}
+
+<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
 
 @code {
     private sealed record Block(bool Hard, string Text, List<Sensitive.Fund> Fund);
@@ -127,12 +143,26 @@
     private bool _busy, _photosOk, _copied, _dictating, _canDictate, _canShare;
     private DotNetObjectReference<Index>? _self;
 
+    // Test period: an access code from config (Notatskriver__AdgangsKode). Empty = open to everyone.
+    private string AccessCode => Config["Notatskriver:AdgangsKode"] ?? "";
+    private bool _locked = true, _codeWrong;
+    private string _code = "";
+
+    private async Task Unlock()
+    {
+        _codeWrong = _code.Trim() != AccessCode;
+        if (_codeWrong) return;
+        _locked = false;
+        await JS.InvokeVoidAsync("notat.remember", _code.Trim());
+    }
+
     private bool HasPhotos => _bilag.Any(b => b.Kind is "billede" or "pdf");
     private bool CanWrite => !_busy && (_noter.Trim().Length > 0 || _bilag.Count > 0) && (!HasPhotos || _photosOk);
 
     protected override async Task OnAfterRenderAsync(bool first)
     {
         if (!first) return;
+        _locked = AccessCode.Length > 0 && await JS.InvokeAsync<string?>("notat.remembered") != AccessCode;
         _self = DotNetObjectReference.Create(this);
         _canDictate = await JS.InvokeAsync<bool>("notat.canDictate");
         _canShare = await JS.InvokeAsync<bool>("notat.canShare");

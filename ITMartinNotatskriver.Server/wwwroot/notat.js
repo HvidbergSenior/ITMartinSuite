@@ -37,6 +37,10 @@ window.notat = {
     canShare: () => !!navigator.share,
     share: async (title, text) => { try { await navigator.share({ title, text }); return true; } catch { return false; } },
 
+    // The test-period access code, remembered on this device only.
+    remember: (code) => { try { localStorage.setItem("notat-kode", code); } catch { } },
+    remembered: () => { try { return localStorage.getItem("notat-kode"); } catch { return null; } },
+
     // Opens the camera / file picker behind a styled label.
     pick: (id) => document.getElementById(id)?.click(),
 };

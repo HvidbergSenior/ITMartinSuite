@@ -47,3 +47,8 @@
 .reconnect-failed-msg { display: none; }
 .components-reconnect-failed .reconnect-msg { display: none; }
 .components-reconnect-failed .reconnect-failed-msg { display: inline; }
+.ns-gate { max-width: 420px; margin: 20px auto; }
+.ns-small { font-size: 13px; margin: 0 0 4px; }
+.ns-legal { max-width: var(--k-content-max); margin: 0 auto; }
+.ns-legal h2 { font-size: 1.15rem; margin: 20px 0 6px; }
+.ns-legal li { margin-bottom: 6px; }
