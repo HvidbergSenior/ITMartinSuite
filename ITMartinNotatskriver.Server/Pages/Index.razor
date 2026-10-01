@@ -8,7 +8,7 @@
 
 <header class="ns-head">
     <h1>✍️ Notatskriver</h1>
-    <p>Fra stikord, diktat og billeder af håndskrift til færdigt dokument.</p>
+    <p>@(OnlyText ? "Fra stikord til færdigt dokument." : "Fra stikord, diktat og billeder af håndskrift til færdigt dokument.")</p>
 </header>
 
 @if (_locked)
@@ -27,6 +27,13 @@ else
     @* ── 1. Notes ── *@
     <section class="k-card ns-card">
         <h2>1. Dine noter</h2>
+        @if (OnlyText)
+        {
+            <p class="k-help">Skriv eller indsæt dine stikord herunder – korte linjer er fint. AI'en skriver dem om til et færdigt dokument.</p>
+            <p class="k-help ns-small">🆓 Gratis version: kun tekst. Vil du også kunne tale noterne ind, tage billeder af håndskrift eller sende filer? Skriv til ITMartin@Mensa.dk.</p>
+        }
+        else
+        {
         <p class="k-help">Skriv stikord, tal dem ind, eller tag billeder af dine håndskrevne noter (flere sider er fint).</p>
 
         <div class="ns-inputs">
@@ -45,6 +52,7 @@ else
         }
         else { <p class="k-help ns-small">🎤 bruger din browsers talegenkendelse – i Chrome/Edge sendes lyden til Google/Microsoft. <a href="/privatliv">Læs mere</a></p> }
         @if (_dictating) { <p class="ns-live">● Lytter … tal tydeligt. Teksten kommer ind i feltet herunder.</p> }
+        }
 
         @if (_bilag.Count > 0)
         {
@@ -128,7 +136,7 @@ else
 
 }
 
-<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
+<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter@(OnlyText ? "" : ", billeder") og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
 
 @code {
     private sealed record Block(bool Hard, string Text, List<Sensitive.Fund> Fund);
@@ -145,7 +153,12 @@ else
 
     // Test period: an access code from config (Notatskriver__AdgangsKode). Empty = open to everyone.
     private string AccessCode => Config["Notatskriver:AdgangsKode"] ?? "";
-    private bool _locked = true, _codeWrong;
+    private bool _locked, _codeWrong;
+
+    // Free version (default): text only - no dictation, camera or files. Notatskriver__KunTekst=false turns them on.
+    private bool OnlyText => !bool.TryParse(Config["Notatskriver:KunTekst"], out var v) || v;
+
+    protected override void OnInitialized() => _locked = AccessCode.Length > 0;
     private string _code = "";
 
     private async Task Unlock()
@@ -173,6 +186,7 @@ else
     private async Task OnFiles(InputFileChangeEventArgs e)
     {
         _error = null;
+        if (OnlyText) return;
         foreach (var f in e.GetMultipleFiles(NoteAi.MaxBilag))
         {
             if (_bilag.Count >= NoteAi.MaxBilag) { _error = $"Højst {NoteAi.MaxBilag} filer/billeder pr. dokument."; break; }
@@ -192,6 +206,7 @@ else
 
     private async Task ToggleDictate()
     {
+        if (OnlyText) return;
         if (_dictating) { await JS.InvokeVoidAsync("notat.stopDictate"); _dictating = false; return; }
         _dictating = await JS.InvokeAsync<bool>("notat.startDictate", _self);
     }
