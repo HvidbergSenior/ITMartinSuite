@@ -244,6 +244,19 @@ body.view-only #addonsSection,body.view-only #collectionsSection,body.view-only 
 .v-counter{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);color:rgba(255,255,255,.6);font-size:12px;padding:4px 10px;border-radius:999px}
 
 /* ── Theme "koncert": a stage for the audience songs ─────────────────────── */
+
+/* ── Theme "bedstemor" (HvidbergFamily): "Hej allesammen – det her er Bedstemors billeder".
+   Only a hello at the top, the family's names and names on the pictures - the gallery itself is unchanged. ── */
+.b-hero{margin:14px 0 6px;padding:22px 20px 18px;border-radius:18px;background:linear-gradient(135deg,rgba(242,181,68,.16),rgba(217,167,160,.12));border:1px solid rgba(242,181,68,.35)}
+.b-hello{font:900 clamp(1.9rem,6vw,2.8rem)/1.05 Georgia,"Times New Roman",serif;font-style:italic;margin:0}
+.b-sub{margin:8px 0 0;font-size:1.05rem;opacity:.9;max-width:60ch}
+.b-who{margin:16px 0 4px;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+.b-chips{display:flex;flex-wrap:wrap;gap:8px}
+.b-chip{border:1px solid rgba(242,181,68,.55);background:rgba(242,181,68,.10);color:inherit;border-radius:999px;padding:6px 12px;font:700 .95rem system-ui,sans-serif;cursor:pointer}
+.b-chip:hover,.b-chip:focus-visible{background:rgba(242,181,68,.28)}
+.b-phone{margin-top:16px;border:0;border-radius:12px;padding:12px 16px;font:800 1rem system-ui,sans-serif;background:#f2b544;color:#1b1406;cursor:pointer}
+.file-people{position:absolute;left:0;right:0;bottom:0;padding:16px 6px 5px;background:linear-gradient(transparent,rgba(0,0,0,.72));color:#fff;font:700 .78rem/1.15 system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+
 body[data-theme="koncert"] {
     --accent: #f59e0b;
     --accent-hover: #d97706;
@@ -592,6 +605,11 @@ async function loadBrowse(relPath, titleOverride, fromHistory) {
   renderBrowse(data, titleOverride || data.title);
 }
 
+function alertPhoneSteps() {
+  const h = document.querySelector('.b-hero'); if (!h || h.querySelector('.b-steps')) return;
+  h.insertAdjacentHTML('beforeend', '<div class="b-steps b-sub"><b>iPhone:</b> tryk Del (firkant med pil) → “Føj til hjemmeskærm”.<br><b>Android:</b> tryk ⋮ → “Installer app” eller “Føj til startskærm”.<br><b>PC:</b> klik på installér-ikonet i adresselinjen.</div>');
+}
+
 function folderCardHtml(f) {
   // Root category folders (Videoer/Dokumenter/Musik) carry their own themed
   // icon from the server as a fallback - more meaningful than the generic
@@ -652,6 +670,18 @@ function renderBrowse(data, titleOverride) {
     hero.style.display = atRoot ? '' : 'none';
     hero.innerHTML = `<div class="k-hero"><div class="k-stage">🎸 🎤 🥁</div><h1 class="k-title">${esc(headline || galleryDisplayName || 'Koncert')}</h1>${tagline ? `<p class="k-tag">${esc(tagline)}</p>` : ''}<div class="k-count">${files.length} ${files.length === 1 ? 'sang' : 'sange'} · tryk og lyt</div></div>`;
   } else { const h = document.getElementById('koncertHero'); if (h) h.style.display = 'none'; }
+  // Theme "bedstemor": a hello at the top of the front page, the family's names, and the phone guide.
+  let bh = document.getElementById('bedstemorHero');
+  if (theme === 'bedstemor') {
+    if (!bh) { bh = document.createElement('div'); bh.id = 'bedstemorHero'; document.getElementById('folderSection').parentNode.insertBefore(bh, document.getElementById('folderSection')); }
+    bh.style.display = atRoot ? '' : 'none';
+    const people = data.people || [];
+    bh.innerHTML = `<div class="b-hero"><h1 class="b-hello">${esc(headline || 'Hej allesammen 👋')}</h1>${tagline ? `<p class="b-sub">${esc(tagline)}</p>` : ''}`
+      + (people.length ? `<div class="b-who">Hvem er med?</div><div class="b-chips">${people.map(p => `<button type="button" class="b-chip" data-rel="${esc(p.relPath)}" data-name="${esc(p.name)}">${esc(p.name)}</button>`).join('')}</div>` : '')
+      + `<button type="button" class="b-phone" id="bPhone">📲 Sådan lægger du den på din telefon</button></div>`;
+    bh.querySelectorAll('.b-chip').forEach(b => b.onclick = () => loadBrowse(b.dataset.rel, b.dataset.name));
+    document.getElementById('bPhone').onclick = () => window.kolibri ? window.kolibri.openInstall() : alertPhoneSteps();
+  } else if (bh) bh.style.display = 'none';
   currentHideAddons = !!hideAddons;
   // View-only gallery: no add-ons, no collection rows, no summary hero -
   // just folders and files. Also a body class so CSS can give the root
@@ -723,9 +753,10 @@ function fileCardHtml(f, i) {
     <div class="file-card" onclick="openViewer(${i})">
       <div class="file-overlay">📄</div>
     </div>`;
+  const who = f.people && f.people.length ? `<div class="file-people">${esc(f.people.slice(0, 3).join(' · '))}${f.people.length > 3 ? ' …' : ''}</div>` : '';
   return `
     <div class="file-card" onclick="openViewer(${i})">
-      ${f.liveVideo ? '<div class="file-live-badge"><span class="dot"></span>LIVE</div>' : ''}
+      ${f.liveVideo ? '<div class="file-live-badge"><span class="dot"></span>LIVE</div>' : ''}${who}
       <img class="file-thumb" src="${esc(f.thumb ?? f.webPath)}" loading="lazy"
            onerror="this.style.display='none';this.parentElement.querySelector('.file-overlay')||this.insertAdjacentHTML('afterend','<div class=file-overlay>🖼️</div>')" alt="">
     </div>`;

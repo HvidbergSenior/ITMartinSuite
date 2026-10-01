@@ -432,8 +432,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
 
   /* ---------- theme "glam": gold pennants that spell the greeting, metallic balloons, a full song ---------- */
   function applyTheme(t, name) {
-    glam = /(glam|disco)/.test(t || '');
-    disco = /disco/.test(t || '');
+    glam = /\b(glam|disco)\b/.test(t || '');
+    disco = /\bdisco\b/.test(t || '');
     document.documentElement.classList.toggle('glam', glam);
     document.documentElement.classList.toggle('disco', disco);
     if (!glam) return;

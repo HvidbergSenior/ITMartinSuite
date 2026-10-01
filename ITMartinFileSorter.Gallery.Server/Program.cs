@@ -802,6 +802,9 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     // repeat instead of showing once per month. Grouping by the month's own
     // chronological key first keeps every month's files contiguous; within
     // a month, LastWriteTimeUtc is still a reasonable enough tiebreaker.
+    // Theme "bedstemor": names of the family members in each picture (from the person folders).
+    var withPeople = string.Equals(g.Theme, "bedstemor", StringComparison.OrdinalIgnoreCase);
+    var peopleMap = withPeople ? PeopleIndex.Get(r).Map : null;
     var files = filePaths
         .Where(f => !inMusikFolder || IsAud(Ext(f)))
         // Calendar order within the year (Januar..December), matching the
@@ -827,6 +830,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
                 isDoc     = IsDoc(ext),
                 liveVideo = FindLivePhotoVideo(f, r, g.Slug),
                 monthLabel = monthLabelByPath?.GetValueOrDefault(f),
+                people    = withPeople && IsImg(ext) ? PeopleIndex.For(peopleMap, f) : null,
             };
         })
         .ToList();
@@ -849,7 +853,8 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
             ?? (parentRel == "" ? Path.GetFileName(current) : null);
     }
 
-    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline };
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline,
+        people = withPeople && atRoot ? PeopleIndex.Get(r).Names.Select(n => new { name = PeopleIndex.DisplayName(n), relPath = "SmartFolders/People/" + n }).ToArray() : null };
     browseCache[cacheKey] = (DateTime.UtcNow.AddMinutes(10), browsePayload);
     return Results.Ok(browsePayload);
 });
