@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject IDbContextFactory<HjemDb> Dbf
 @inject ChatService Chat
+@inject AppStatus Status
 
 @* First screen = one answer: who I am and what I am doing now. The timeline and the
    chat come after it; old years are folded and the phone remembers what was open. *@
@@ -22,6 +23,30 @@
 
 @* "Martin er her nu" right under the name, so every visitor sees it (user 2026-09-28). *@
 <ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true" />
+
+@* The apps shown on Mine apps (Show) right on the front page - user 2026-10-01: only ElPriser + Ladestander,
+   "so they can see how easy it will be". *@
+@if (_apps.Count > 0)
+{
+    <h2 class="hj-h2">Prøv mine apps</h2>
+    <div class="hj-apps">
+        @foreach (var a in _apps)
+        {
+            var up = a.Awake && Status.IsUp(a.Url) != false;
+            <div class="k-card hj-app @(up ? "" : "off")" data-nofold>
+                <span class="hj-app-icon">@a.Icon</span>
+                <div class="hj-app-body">
+                    <b>@a.Name</b>
+                    <div class="k-help">@a.Description</div>
+                    <div class="k-row k-mt">
+                        @if (up) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name</a> }
+                        else { <span class="k-help"><i>😴 Sover lige nu – kommer snart</i></span> }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
 
 @if (_hero is not null)
 {
@@ -73,6 +98,7 @@ else if (_family && !_owner)
     private Settings _s = new();
     private List<Post> _posts = [];
     private int _hiddenFamily;
+    private List<AppLink> _apps = [];
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
     private bool _family, _owner;
 
@@ -92,6 +118,7 @@ else if (_family && !_owner)
         await using var db = await Dbf.CreateDbContextAsync();
         _s = await db.Settings.AsNoTracking().FirstAsync();
         _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
+        _apps = await db.AppLinks.AsNoTracking().Where(a => a.Show).OrderBy(a => a.Sort).ToListAsync();
         var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();
