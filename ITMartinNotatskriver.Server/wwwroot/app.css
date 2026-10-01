@@ -1,0 +1,49 @@
+/* Notatskriver – on top of kolibri.css (family "kommunikere"). Phone first: one column, big buttons. */
+.k-content-wide { max-width: var(--k-content-wide); }
+.ns-head { margin: 8px 0 14px; }
+.ns-head h1 { margin: 0 0 4px; font-size: 1.9rem; }
+.ns-head p { margin: 0; color: var(--k-muted); }
+
+.ns-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .ns-grid { grid-template-columns: 1.2fr 1fr; } .ns-result { grid-column: 1 / -1; } }
+.ns-card h2 { margin: 0 0 6px; font-size: 1.2rem; }
+
+.ns-inputs { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.ns-big { min-height: var(--k-tap); font-size: 1.05rem; }
+.ns-hidden { display: none; }
+.ns-rec { background: var(--k-danger); color: #fff; animation: ns-pulse 1.4s ease-in-out infinite; }
+@keyframes ns-pulse { 50% { opacity: .7; } }
+.ns-live { color: var(--k-danger); font-weight: 700; margin: 4px 0; }
+
+.ns-notes, .ns-out { width: 100%; box-sizing: border-box; font: inherit; font-size: 1.05rem; line-height: 1.5; padding: 12px; border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-card); color: var(--k-text); resize: vertical; }
+.ns-notes:focus, .ns-out:focus { outline: 2px solid var(--k-accent); outline-offset: 1px; }
+
+.ns-bilag { list-style: none; padding: 0; margin: 8px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.ns-bilag li { position: relative; display: grid; gap: 4px; justify-items: center; padding: 6px; border: 1px solid var(--k-border); border-radius: 10px; background: var(--k-bg); }
+.ns-bilag img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 6px; }
+.ns-fileicon { font-size: 2.4rem; line-height: 1.4; }
+.ns-bname { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ns-x { position: absolute; top: 2px; right: 2px; border: 0; border-radius: 999px; width: 26px; height: 26px; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; }
+
+.ns-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 6px 0 12px; }
+.ns-type { display: flex; gap: 8px; align-items: center; min-height: var(--k-tap); padding: 8px 10px; border: 1px solid var(--k-border); border-radius: 12px; background: var(--k-card); color: var(--k-text); font: 600 15px var(--k-font); text-align: left; cursor: pointer; }
+.ns-type span { font-size: 1.3rem; }
+.ns-type.on { border-color: var(--k-accent); background: var(--k-accent-soft); box-shadow: 0 0 0 2px var(--k-accent); }
+.ns-label { display: block; font-weight: 600; margin: 4px 0; }
+.ns-confirm { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; font-size: 15px; cursor: pointer; }
+.ns-confirm input { width: 22px; height: 22px; flex: none; accent-color: var(--k-accent); }
+.ns-go { width: 100%; margin-top: 14px; min-height: 52px; font-size: 1.15rem; }
+.ns-err { color: var(--k-danger); font-weight: 700; }
+
+.ns-block { margin-top: 14px; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--k-warning); background: rgba(180, 83, 9, .08); }
+.ns-block.hard { border-color: var(--k-danger); background: rgba(220, 38, 38, .08); }
+.ns-block p { margin: 6px 0; }
+.ns-block ul { margin: 6px 0 10px; padding-left: 1.2em; }
+.ns-block code { background: var(--k-card); padding: 1px 6px; border-radius: 6px; }
+.ns-privacy { margin-top: 18px; text-align: center; }
+
+#components-reconnect-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); color: #fff; align-items: center; justify-content: center; z-index: 1000; }
+#components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed { display: flex; }
+.reconnect-failed-msg { display: none; }
+.components-reconnect-failed .reconnect-msg { display: none; }
+.components-reconnect-failed .reconnect-failed-msg { display: inline; }

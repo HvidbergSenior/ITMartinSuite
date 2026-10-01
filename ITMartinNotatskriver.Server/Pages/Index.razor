@@ -1,0 +1,247 @@
+@page "/"
+@implements IAsyncDisposable
+@inject NoteAi Ai
+@inject IJSRuntime JS
+
+<PageTitle>Notatskriver</PageTitle>
+
+<header class="ns-head">
+    <h1>✍️ Notatskriver</h1>
+    <p>Fra stikord, diktat og billeder af håndskrift til færdigt dokument.</p>
+</header>
+
+<div class="ns-grid">
+    @* ── 1. Notes ── *@
+    <section class="k-card ns-card">
+        <h2>1. Dine noter</h2>
+        <p class="k-help">Skriv stikord, tal dem ind, eller tag billeder af dine håndskrevne noter (flere sider er fint).</p>
+
+        <div class="ns-inputs">
+            <button class="k-btn ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "cam")' disabled="@(_busy || _bilag.Count >= NoteAi.MaxBilag)">📷 Tag billede</button>
+            <InputFile id="cam" class="ns-hidden" OnChange="OnFiles" accept="image/*" capture="environment" multiple />
+            <button class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "files")' disabled="@(_busy || _bilag.Count >= NoteAi.MaxBilag)">📎 Vælg filer</button>
+            <InputFile id="files" class="ns-hidden" OnChange="OnFiles" accept="image/*,.pdf,.docx,.txt,text/plain" multiple />
+            @if (_canDictate)
+            {
+                <button class="k-btn @(_dictating ? "ns-rec" : "k-btn-secondary") ns-big" @onclick="ToggleDictate" disabled="@_busy">@(_dictating ? "⏹ Stop" : "🎤 Tal")</button>
+            }
+        </div>
+        @if (!_canDictate)
+        {
+            <p class="k-help">🎤 Vil du tale? Tryk i tekstfeltet og brug mikrofonen på telefonens tastatur.</p>
+        }
+        @if (_dictating) { <p class="ns-live">● Lytter … tal tydeligt. Teksten kommer ind i feltet herunder.</p> }
+
+        @if (_bilag.Count > 0)
+        {
+            <ul class="ns-bilag">
+                @foreach (var b in _bilag)
+                {
+                    <li>
+                        @if (b.Kind == "billede") { <img src="@b.Thumb" alt="" /> } else { <span class="ns-fileicon">@(b.Kind == "pdf" ? "📕" : "📄")</span> }
+                        <span class="ns-bname">@b.Name</span>
+                        <button class="ns-x" title="Fjern" @onclick="() => Fjern(b)" disabled="@_busy">✕</button>
+                    </li>
+                }
+            </ul>
+        }
+
+        <textarea class="ns-notes" @bind="_noter" @bind:event="oninput" rows="9" placeholder="fx: møde m. Bo og Lis – budget 2027 – ny printer ok, max 3000 – Lis tjekker tilbud til fredag"></textarea>
+    </section>
+
+    @* ── 2. What to make ── *@
+    <section class="k-card ns-card">
+        <h2>2. Hvad skal det blive?</h2>
+        <div class="ns-types">
+            @foreach (var t in NoteAi.Typer)
+            {
+                <button class="ns-type @(t == _type ? "on" : "")" @onclick="() => _type = t" disabled="@_busy"><span>@t.Icon</span>@t.Title</button>
+            }
+        </div>
+        <label class="ns-label" for="ekstra">Ekstra ønske (valgfrit)</label>
+        <input id="ekstra" class="k-input" @bind="_ekstra" placeholder="fx: kort, uformel tone, til min chef" disabled="@_busy" />
+
+        @if (HasPhotos)
+        {
+            <label class="ns-confirm">
+                <input type="checkbox" @bind="_photosOk" disabled="@_busy" />
+                <span>Mine billeder/PDF'er indeholder ikke CPR-numre eller oplysninger om andres helbred (fx patienter).</span>
+            </label>
+        }
+
+        @if (_block is { } bl)
+        {
+            <div class="ns-block @(bl.Hard ? "hard" : "")" role="alert">
+                <b>@(bl.Hard ? "⛔ Det her må du ikke sende" : "✋ Det her må du ikke sende – fjern personoplysningerne først")</b>
+                <p>@bl.Text</p>
+                @if (bl.Fund.Count > 0)
+                {
+                    <ul>@foreach (var f in bl.Fund) { <li>@f.Hvad: <code>@f.Eksempel</code></li> }</ul>
+                }
+                @if (!bl.Hard)
+                {
+                    <button class="k-btn" @onclick="SkrivSkjult">🙈 Skjul dem og fortsæt</button>
+                    <p class="k-help">CPR, telefon, e-mail og adresser byttes ud med fx [CPR1], før noget sendes til AI'en – og sættes ind igen i dit færdige dokument.</p>
+                }
+                else
+                {
+                    <p class="k-help">Til notater om patienter/borgere: brug <b>Notatskriver til Windows</b>, hvor AI'en kører på din egen PC, eller et AI-værktøj din arbejdsplads har godkendt.</p>
+                }
+            </div>
+        }
+
+        <button class="k-btn ns-go" @onclick="Skriv" disabled="@(!CanWrite)">@(_busy ? "⏳ Skriver …" : "✨ Skriv dokumentet")</button>
+        @if (_busy) { <p class="k-help">Det tager typisk 10-30 sekunder@(HasPhotos ? " – lidt længere med billeder" : "").</p> }
+        @if (_error is not null) { <p class="ns-err">@_error</p> }
+    </section>
+
+    @* ── 3. Result ── *@
+    @if (_result is not null)
+    {
+        <section class="k-card ns-card ns-result" id="result">
+            <h2>3. @_type.Icon @_type.Title</h2>
+            <p class="k-help">Læs det igennem og ret direkte i teksten. [?] = AI'en kunne ikke læse det sikkert. [dato] o.l. = mangler i dine noter.</p>
+            <textarea class="ns-out" @bind="_result" @bind:event="oninput" rows="16"></textarea>
+            <div class="ns-inputs">
+                <button class="k-btn ns-big" @onclick="Kopier">📋 @(_copied ? "Kopieret!" : "Kopiér")</button>
+                <button class="k-btn k-btn-secondary ns-big" @onclick="HentWord">💾 Hent som Word</button>
+                @if (_canShare) { <button class="k-btn k-btn-secondary ns-big" @onclick="Del">📤 Del</button> }
+                <button class="k-btn k-btn-secondary ns-big" @onclick="Ny">🧹 Nyt dokument</button>
+            </div>
+        </section>
+    }
+</div>
+
+<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.</p>
+
+@code {
+    private sealed record Block(bool Hard, string Text, List<Sensitive.Fund> Fund);
+
+    private string _noter = "";
+    private string _ekstra = "";
+    private DokType _type = NoteAi.Typer[0];
+    private readonly List<Bilag> _bilag = [];
+    private string? _result;
+    private string? _error;
+    private Block? _block;
+    private bool _busy, _photosOk, _copied, _dictating, _canDictate, _canShare;
+    private DotNetObjectReference<Index>? _self;
+
+    private bool HasPhotos => _bilag.Any(b => b.Kind is "billede" or "pdf");
+    private bool CanWrite => !_busy && (_noter.Trim().Length > 0 || _bilag.Count > 0) && (!HasPhotos || _photosOk);
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        _self = DotNetObjectReference.Create(this);
+        _canDictate = await JS.InvokeAsync<bool>("notat.canDictate");
+        _canShare = await JS.InvokeAsync<bool>("notat.canShare");
+        StateHasChanged();
+    }
+
+    // ── input ──
+    private async Task OnFiles(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        foreach (var f in e.GetMultipleFiles(NoteAi.MaxBilag))
+        {
+            if (_bilag.Count >= NoteAi.MaxBilag) { _error = $"Højst {NoteAi.MaxBilag} filer/billeder pr. dokument."; break; }
+            try
+            {
+                await using var s = f.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
+                _bilag.Add(await NoteAi.LaesAsync(f.Name, f.ContentType, s, CancellationToken.None));
+            }
+            catch (NoteException ex) { _error = ex.Message; }
+            catch (IOException) { _error = $"{f.Name} er for stor (højst 25 MB)."; }
+        }
+        _photosOk = false;
+        _block = null;
+    }
+
+    private void Fjern(Bilag b) { _bilag.Remove(b); _block = null; }
+
+    private async Task ToggleDictate()
+    {
+        if (_dictating) { await JS.InvokeVoidAsync("notat.stopDictate"); _dictating = false; return; }
+        _dictating = await JS.InvokeAsync<bool>("notat.startDictate", _self);
+    }
+
+    [JSInvokable] public Task OnDictated(string text) => InvokeAsync(() =>
+    {
+        _noter = _noter.Length == 0 ? text : _noter.TrimEnd() + (_noter.EndsWith('\n') ? "" : "\n") + text;
+        _block = null;
+        StateHasChanged();
+    });
+
+    [JSInvokable] public Task OnDictateEnded() => InvokeAsync(() => { _dictating = false; StateHasChanged(); });
+
+    [JSInvokable] public Task OnDictateError(string err) => InvokeAsync(() =>
+    {
+        _dictating = false;
+        _error = err == "not-allowed" ? "Siden fik ikke lov at bruge mikrofonen. Tillad mikrofon i browseren og prøv igen." : null;
+        StateHasChanged();
+    });
+
+    // ── write ──
+    private string AllText => string.Join("\n", _bilag.Where(b => b.Kind == "tekst").Select(b => b.Text).Append(_noter));
+
+    private async Task Skriv()
+    {
+        // The hindrance: checked on the server before anything goes to Claude.
+        var fund = Sensitive.Find(AllText);
+        if (Sensitive.LooksLikePatientNotes(fund))
+        {
+            _block = new(true, "Dine noter ligner oplysninger om en patients eller borgers helbred. Den slags må ikke sendes til en AI-tjeneste uden en aftale fra din arbejdsplads – derfor kan det ikke sendes herfra.", fund);
+            return;
+        }
+        if (fund.Count > 0)
+        {
+            _block = new(false, "Dine noter indeholder personoplysninger. De bliver ikke sendt, før de er fjernet.", fund);
+            return;
+        }
+        await RunAsync(null);
+    }
+
+    private Task SkrivSkjult() => RunAsync(new Pseudonymizer());
+
+    private async Task RunAsync(Pseudonymizer? hider)
+    {
+        _busy = true; _error = null; _block = null; _copied = false;
+        try
+        {
+            var noter = hider?.Hide(_noter, []) ?? _noter;
+            var bilag = hider is null ? _bilag : _bilag.Select(b => b.Kind == "tekst" ? b with { Text = hider.Hide(b.Text, []) } : b).ToList();
+            var text = await Ai.SkrivAsync(_type, noter, bilag, _ekstra, CancellationToken.None);
+            if (text.Trim().Trim('.') == NoteAi.Blocked)
+            {
+                _block = new(true, "AI'en fandt CPR-numre eller helbredsoplysninger om en person i dit materiale (måske på et billede) og har ikke skrevet noget dokument.", []);
+                return;
+            }
+            _result = hider is null ? text : hider.Restore(text, out _);
+            await Task.Yield();
+        }
+        catch (NoteException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Noget gik galt. Prøv igen."; }
+        finally { _busy = false; }
+    }
+
+    // ── result ──
+    private async Task Kopier() => _copied = await JS.InvokeAsync<bool>("notat.copy", _result ?? "");
+
+    private async Task HentWord() =>
+        await JS.InvokeVoidAsync("notat.download", $"{_type.Title} {DateTime.Now:yyyy-MM-dd}.docx",
+            Convert.ToBase64String(NoteAi.Word(_result ?? "")), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+
+    private async Task Del() => await JS.InvokeAsync<bool>("notat.share", _type.Title, _result ?? "");
+
+    private void Ny()
+    {
+        _noter = ""; _ekstra = ""; _bilag.Clear(); _result = null; _block = null; _error = null; _photosOk = false; _copied = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { if (_dictating) await JS.InvokeVoidAsync("notat.stopDictate"); } catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}

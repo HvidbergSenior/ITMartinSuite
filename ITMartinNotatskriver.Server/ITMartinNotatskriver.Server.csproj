@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinNotatskriver.Server</RootNamespace>
+        <AssemblyName>ITMartinNotatskriver.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Anthropic" Version="12.29.0" />
+        <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Same personal-data hider as the Windows edition. -->
+        <Compile Include="..\ITMartinNotat.Desktop\Pseudonymizer.cs" Link="Services\Pseudonymizer.cs" />
+    </ItemGroup>
+
+</Project>
