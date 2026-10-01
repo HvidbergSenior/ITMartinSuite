@@ -1,0 +1,192 @@
+@page "/admin/tal"
+@inject IDbContextFactory<HjemDb> Dbf
+@inject Tracker Tracker
+
+<PageTitle>Tal · Martin Hvidberg</PageTitle>
+
+@* Replaced stats-web 2026-10-01 (user: "more specific"): the website's pages, where visitors come from, and use per app. *@
+@if (!_owner)
+{
+    <div class="k-card k-pin" data-nofold>
+        <div class="k-card-title">Kun for Martin</div>
+        <a class="k-btn k-btn-primary k-btn-block" href="/login?who=ejer">Log ind med PIN</a>
+    </div>
+    return;
+}
+
+<header class="hj-head">
+    <h1>Tal</h1>
+    <p class="k-help">Her ser du, hvem der kommer forbi: hvilke sider på itmartin.dk de læser, hvor de kommer fra, og hvilke apps der bliver brugt.
+        Dine egne besøg tælles ikke med (fra de net, hvor du har været logget ind her). <a href="/admin">← Svar</a></p>
+</header>
+
+<section class="k-card" data-nofold>
+    <div class="k-row">
+        @foreach (var d in new[] { 1, 7, 30, 90 })
+        {
+            <button class="k-btn k-btn-sm @(d == _days ? "k-btn-primary" : "k-btn-ghost")" @onclick="() => SetDays(d)">@(d == 1 ? "I dag" : $"{d} dage")</button>
+        }
+    </div>
+    <p class="hj-tal-big k-mt">
+        <b>@_siteVisitors</b> besøgende på itmartin.dk ·
+        <b>@_appVisitors</b> i apps
+    </p>
+    <p class="k-help">@PeriodText. En besøgende er én telefon eller PC – kommer den igen en anden dag, tæller den igen den dag.</p>
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">📄 Hjemmesiden – sider</div>
+    <p class="k-card-sub">Hvilke sider der bliver læst, og hvor længe folk typisk bliver på dem.</p>
+    @if (_pages.Count == 0) { <p class="k-help">Ingen besøg på itmartin.dk i perioden endnu.</p> }
+    else
+    {
+        <table class="hj-tal">
+            <thead><tr><th>Side</th><th>Visninger</th><th>Besøgende</th><th>Typisk tid</th></tr></thead>
+            <tbody>
+                @foreach (var p in _pages)
+                {
+                    <tr><td><a href="@p.Path" target="_blank">@p.Label</a></td><td>@p.Views</td><td>@p.Visitors</td><td>@Dur(p.Median)</td></tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">🧭 Hvor kommer de fra?</div>
+    <p class="k-card-sub">Hvor de besøgende på itmartin.dk kom fra, første gang de kom ind i perioden.</p>
+    @if (_sources.Count == 0) { <p class="k-help">Ingen besøg i perioden endnu.</p> }
+    else
+    {
+        <table class="hj-tal">
+            <thead><tr><th>Kilde</th><th>Besøgende</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var s in _sources)
+                {
+                    <tr><td>@s.Name</td><td>@s.Count</td><td class="hj-tal-bar"><span style="width:@(100 * s.Count / Math.Max(1, _sources.Max(x => x.Count)))%"></span></td></tr>
+                }
+            </tbody>
+        </table>
+    }
+    <p class="k-help k-mt"><b>Sådan ser du, om et opslag virker:</b> sæt <code>?ref=</code> og et navn bag på linket, når du deler det –
+        fx <code>itmartin.dk/bliv-pilot?ref=facebook</code> eller <code>?ref=bogshoppen</code>. Så står navnet her som kilde.
+        "Direkte" = skrevet ind, gemt bogmærke eller et link fra en app, der ikke fortæller, hvor det kom fra.</p>
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">📱 Apps</div>
+    <p class="k-card-sub">Besøgende pr. app. Står der "ingen" i 30 dage, kan du roligt stoppe den i Kontrol.</p>
+    <table class="hj-tal">
+        <thead><tr><th>App</th><th>I dag</th><th>7 dage</th><th>30 dage</th><th>Sidst</th><th>Mest fra</th></tr></thead>
+        <tbody>
+            @foreach (var a in _apps)
+            {
+                <tr class="@(a.D30 == 0 ? "hj-tal-off" : "")">
+                    <td>@a.Name</td><td>@a.D1</td><td>@a.D7</td><td>@(a.D30 == 0 ? "ingen" : a.D30)</td>
+                    <td>@(a.Last is { } l ? Dk.Local(l).ToString("d/M HH:mm") : "–")</td><td>@a.From</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</section>
+
+<section class="k-card">
+    <div class="k-card-title">🧹 Start forfra</div>
+    <p class="k-card-sub">Sletter alle tal (fx efter test). Tællingen fortsætter bagefter med det samme.</p>
+    @if (_confirm) { <button class="k-btn k-btn-danger" @onclick="DeleteAllAsync">Ja, slet alle tal</button> <button class="k-btn k-btn-ghost" @onclick="() => _confirm = false">Fortryd</button> }
+    else { <button class="k-btn k-btn-ghost" @onclick="() => _confirm = true">Slet alle tal</button> }
+    @if (_deleted is { } n) { <p class="k-help k-mt">@n besøg slettet.</p> }
+</section>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
+
+    private bool _owner, _confirm;
+    private int? _deleted;
+    private int _days = 7, _siteVisitors, _appVisitors;
+    private List<Hit> _all = [];
+    private List<PageRow> _pages = [];
+    private List<(string Name, int Count)> _sources = [];
+    private List<AppRow> _apps = [];
+
+    private sealed record PageRow(string Path, string Label, int Views, int Visitors, int Median);
+    private sealed record AppRow(string Name, int D1, int D7, int D30, DateTime? Last, string From);
+
+    private string PeriodText => _days == 1 ? "I dag (siden midnat)" : $"De sidste {_days} dage";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _owner = (AuthTask is null ? null : (await AuthTask).User).IsOwner();
+        if (_owner) await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        var since = DateTime.UtcNow.AddDays(-90);
+        _all = await db.Hits.AsNoTracking().Where(h => h.At >= since).ToListAsync();
+        var links = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
+
+        // Apps: fixed windows, so the table answers "can I stop it?" whatever period is chosen above.
+        var names = links.Where(l => Uri.TryCreate(l.Url, UriKind.Absolute, out _))
+            .GroupBy(l => new Uri(l.Url).Host.ToLowerInvariant()).ToDictionary(g => g.Key, g => $"{g.First().Icon} {g.First().Name}".Trim());
+        var hosts = _all.Select(h => h.Host).Where(h => h != Tracker.Site).Concat(names.Keys.Where(h => h != Tracker.Site)).Distinct();
+        _apps = hosts.Select(host =>
+        {
+            var hits = _all.Where(h => h.Host == host).ToList();
+            var from = hits.GroupBy(VisitorKey).Select(g => g.OrderBy(h => h.At).First().Source).GroupBy(s => s)
+                .OrderByDescending(g => g.Count()).FirstOrDefault()?.Key ?? "";
+            return new AppRow(names.GetValueOrDefault(host, host), Visitors(hits, 1), Visitors(hits, 7), Visitors(hits, 30),
+                hits.Count == 0 ? null : hits.Max(h => h.At), from);
+        }).OrderByDescending(a => a.D30).ThenBy(a => a.Name).ToList();
+        Compute();
+    }
+
+    private void SetDays(int d) { _days = d; Compute(); }
+
+    private void Compute()
+    {
+        var from = Since(_days);
+        var period = _all.Where(h => h.At >= from).ToList();
+        var site = period.Where(h => h.Host == Tracker.Site && !h.Path.StartsWith("/admin")).ToList();
+        _siteVisitors = DayVisitors(site);
+        _appVisitors = DayVisitors(period.Where(h => h.Host != Tracker.Site));
+
+        _pages = site.GroupBy(h => h.Path).Select(g =>
+        {
+            var secs = g.Where(h => h.Seconds > 0).Select(h => h.Seconds).Order().ToList();
+            var title = g.OrderByDescending(h => h.At).First().Title.Replace(" · Martin Hvidberg", "");
+            return new PageRow(g.Key, title.Length > 0 && g.Key != "/" ? $"{title} ({g.Key})" : g.Key == "/" ? "Forsiden (/)" : g.Key,
+                g.Count(), g.Select(VisitorKey).Distinct().Count(), secs.Count == 0 ? 0 : secs[secs.Count / 2]);
+        }).OrderByDescending(p => p.Views).ToList();
+
+        // Where the visit started: each visitor's first page in the period that came from outside the site.
+        _sources = site.GroupBy(VisitorKey).Select(g => g.OrderBy(h => h.At).First().Source)
+            .Select(s => s == "Samme side" ? "Direkte" : s)
+            .GroupBy(s => s).Select(g => (g.Key, g.Count())).OrderByDescending(x => x.Item2).ToList();
+    }
+
+    private async Task DeleteAllAsync()
+    {
+        _deleted = await Tracker.DeleteAllAsync();
+        _confirm = false;
+        await LoadAsync();
+    }
+
+    // Days count from Danish midnight: "I dag" = since 00:00 here.
+    private static DateTime Since(int days)
+    {
+        var local = Dk.Today.AddDays(1 - days);
+        return TimeZoneInfo.ConvertTimeToUtc(local, TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"));
+    }
+
+    private static int Visitors(List<Hit> hits, int days) => DayVisitors(hits.Where(h => h.At >= Since(days)));
+
+    // One phone/PC per Danish day; hits without an id count one each.
+    private static int DayVisitors(IEnumerable<Hit> hits) =>
+        hits.Select(h => (Dk.Local(h.At).Date, VisitorKey(h))).Distinct().Count();
+
+    private static string VisitorKey(Hit h) => h.Visitor.Length > 0 ? h.Visitor : "#" + h.Id;
+
+    private static string Dur(int s) => s <= 0 ? "–" : s < 60 ? $"{s} s" : $"{s / 60} min {s % 60} s";
+}

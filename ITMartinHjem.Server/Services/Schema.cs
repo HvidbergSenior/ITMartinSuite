@@ -41,6 +41,16 @@ public static class Schema
                     "Id" INTEGER NOT NULL CONSTRAINT "PK_AppLinks" PRIMARY KEY AUTOINCREMENT,
                     "Name" TEXT NOT NULL, "Icon" TEXT NOT NULL, "Url" TEXT NOT NULL, "Description" TEXT NOT NULL,
                     "Show" INTEGER NOT NULL, "Sort" INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS "Hits" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_Hits" PRIMARY KEY AUTOINCREMENT,
+                    "At" TEXT NOT NULL, "Host" TEXT NOT NULL, "Path" TEXT NOT NULL, "Title" TEXT NOT NULL,
+                    "Source" TEXT NOT NULL, "RefHost" TEXT NOT NULL, "Device" TEXT NOT NULL, "Visitor" TEXT NOT NULL,
+                    "Seconds" INTEGER NOT NULL);
+                CREATE INDEX IF NOT EXISTS "IX_Hits_At" ON "Hits" ("At");
+                CREATE TABLE IF NOT EXISTS "OwnerIps" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_OwnerIps" PRIMARY KEY AUTOINCREMENT,
+                    "Hash" TEXT NOT NULL, "LastSeen" TEXT NOT NULL);
+                CREATE UNIQUE INDEX IF NOT EXISTS "IX_OwnerIps_Hash" ON "OwnerIps" ("Hash");
                 """;
             await create.ExecuteNonQueryAsync();
         }

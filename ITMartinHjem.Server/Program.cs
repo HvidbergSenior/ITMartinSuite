@@ -40,6 +40,11 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 builder.Services.AddCors(o => o.AddPolicy("itmartin", p => p
     .WithOrigins("https://itmartin.dk", "https://www.itmartin.dk", "http://localhost:5199").WithMethods("GET")));
+// Visit counting: every app on *.itmartin.dk posts its page views here (Services/Tracker).
+builder.Services.AddCors(o => o.AddPolicy("track", p => p
+    .SetIsOriginAllowed(origin => Uri.TryCreate(origin, UriKind.Absolute, out var u)
+        && (u.Host == Tracker.Site || u.Host.EndsWith("." + Tracker.Site, StringComparison.OrdinalIgnoreCase)))
+    .WithMethods("POST").AllowAnyHeader()));
 builder.Services.AddCascadingAuthenticationState();
 
 var dataDir = builder.Configuration["Hjem:DataDir"] ?? "/app/data";
@@ -53,6 +58,7 @@ builder.Services.AddSingleton<ChatService>();
 builder.Services.AddHttpClient("status", c => c.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddSingleton<AppStatus>();
+builder.Services.AddSingleton<Tracker>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AppStatus>());
 
 builder.Services.AddDataProtection()
@@ -85,6 +91,7 @@ await using (var db = await app.Services.GetRequiredService<IDbContextFactory<Hj
     await db.Database.EnsureCreatedAsync();
     await Schema.EnsureColumnsAsync(db);
     await AppStatus.SeedAsync(db);
+    await app.Services.GetRequiredService<Tracker>().StartAsync();
     if (!await db.Settings.AnyAsync())
     {
         db.Settings.Add(new Settings
@@ -104,6 +111,16 @@ if (!app.Environment.IsDevelopment())
 app.Use(async (ctx, next) =>
 {
     ctx.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://itmartin.dk https://www.itmartin.dk";
+    await next();
+});
+// stats.itmartin.dk now only receives the apps' visit counts - the numbers themselves are in Svar.
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Host.Host.StartsWith("stats.", StringComparison.OrdinalIgnoreCase) && !ctx.Request.Path.StartsWithSegments("/api"))
+    {
+        ctx.Response.Redirect("https://itmartin.dk/admin/tal");
+        return;
+    }
     await next();
 });
 app.UseDefaultFiles();   // /bliv-pilot/ and /rejsedemo/ -> their index.html
@@ -150,10 +167,25 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+// ── Visit counting (Services/Tracker; numbers on /admin/tal). Apps: the old snippet to stats.itmartin.dk/api/hit.
+// The website itself: wwwroot/t.js, which also sends the time on the page.
+app.MapPost("/api/hit", async (HttpContext ctx, HitRequest req, Tracker tracker) =>
+    await tracker.RecordAsync(ctx, req) is { } id ? Results.Json(new { id }) : Results.NoContent())
+    .DisableAntiforgery().RequireCors("track");
+
+app.MapPost("/api/hit/{id:long}/tid", async (long id, HttpContext ctx, Tracker tracker) =>
+{
+    using var reader = new StreamReader(ctx.Request.Body);
+    if (int.TryParse((await reader.ReadToEndAsync()).Trim(), out var seconds)) await tracker.SetSecondsAsync(id, seconds);
+    return Results.NoContent();
+}).DisableAntiforgery().RequireCors("track");
+
+app.MapGet("/api/last-seen", async (Tracker tracker) => Results.Ok(await tracker.LastSeenAsync()));
+
 // ── Login: one small form, two kinds (familie = password, ejer = PIN) ───────────────
 app.MapGet("/login", (string? who, string? err) => Results.Content(LoginPage(who == "ejer", err is not null), "text/html"));
 
-app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg) =>
+app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg, Tracker tracker) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     var owner = form["who"] == "ejer";
@@ -169,6 +201,7 @@ app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg) =>
     await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
         new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
         new AuthenticationProperties { IsPersistent = true });
+    if (owner) await tracker.MarkOwnerAsync(ctx);   // Martin's own visits are not counted from this IP
     return Results.Redirect(owner ? "/admin" : "/");
 }).DisableAntiforgery();
 

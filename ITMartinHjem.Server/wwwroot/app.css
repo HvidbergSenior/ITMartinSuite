@@ -234,3 +234,14 @@ html[data-family="glaede"] .hj-nav a:hover,html[data-family="glaede"] .hj-nav a.
 @media (prefers-reduced-motion:reduce){.hj-head::before{animation:none}}
 @media (max-width:520px){.hj-head{padding-left:20px;padding-top:58px}.hj-head::before{top:30px;font-size:2.4rem}}
 html[data-family="glaede"] .hj-now{border-left-color:var(--k-sun)}
+
+/* /admin/tal - visit numbers */
+.hj-tal-big { font-size: 1.25rem; margin: 0; }
+.hj-tal-big b { font-size: 1.8rem; }
+.hj-tal { width: 100%; border-collapse: collapse; font-size: .95rem; display: block; overflow-x: auto; }
+.hj-tal th, .hj-tal td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--k-line, rgba(0,0,0,.1)); white-space: nowrap; }
+.hj-tal td:first-child { white-space: normal; min-width: 10em; }
+.hj-tal th { font-weight: 600; opacity: .75; }
+.hj-tal-bar { width: 40%; }
+.hj-tal-bar span { display: block; height: .7em; border-radius: 4px; background: var(--k-brand, #1f7a5c); }
+.hj-tal-off { opacity: .55; }

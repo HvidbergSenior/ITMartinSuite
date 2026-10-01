@@ -13,6 +13,33 @@ public sealed class HjemDb(DbContextOptions<HjemDb> options) : DbContext(options
     public DbSet<Page> Pages => Set<Page>();
     public DbSet<AppLink> AppLinks => Set<AppLink>();
     public DbSet<DayNote> DayNotes => Set<DayNote>();
+    public DbSet<Hit> Hits => Set<Hit>();
+    public DbSet<OwnerIp> OwnerIps => Set<OwnerIp>();
+}
+
+// One page view on itmartin.dk or in one of the apps (Services/Tracker, /admin/tal). Replaced stats-web 2026-10-01.
+// Host = "itmartin.dk" for the website, else the app's host. Source = where the visitor came from (Facebook, Google …).
+// Visitor = random id from the browser (no cookie, no IP stored). Seconds = time on the page (website only).
+public sealed class Hit
+{
+    public long Id { get; set; }
+    public DateTime At { get; set; } = DateTime.UtcNow;
+    public string Host { get; set; } = "";
+    public string Path { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Source { get; set; } = "";
+    public string RefHost { get; set; } = "";
+    public string Device { get; set; } = "";
+    public string Visitor { get; set; } = "";
+    public int Seconds { get; set; }
+}
+
+// Hashed IPs Martin has used while logged in - hits from them are not counted (his own visits).
+public sealed class OwnerIp
+{
+    public int Id { get; set; }
+    public string Hash { get; set; } = "";
+    public DateTime LastSeen { get; set; } = DateTime.UtcNow;
 }
 
 // One of Martin's apps on the "Mine apps" page; Show = visible to visitors.

@@ -33,3 +33,5 @@
         nav.parentNode.insertBefore(a, nav.nextSibling);
     }).catch(function () { });
 })();
+// Visit counting on the hand-made pages too (wwwroot/t.js).
+(function () { var s = document.createElement('script'); s.src = '/t.js'; s.defer = true; document.head.appendChild(s); })();
