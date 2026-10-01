@@ -313,3 +313,16 @@ details.fold[open] summary::after { content: "－"; }
 .teaser:hover { border-color: var(--accent); }
 .teaser b { display: block; font-size: .95rem; }
 .teaser span { display: block; font-size: .82rem; opacity: .75; margin-top: 2px; }
+
+/* /elbil – cheapest charging */
+.answer .answer-name { font-size: 1.3rem; font-weight: 800; }
+.answer .answer-kr { font-size: 2rem; font-weight: 800; color: var(--cheap, #16a34a); margin: 2px 0 4px; }
+.spot { border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); margin-bottom: 10px; padding-bottom: 4px; }
+.chip.on { outline: 2px solid currentColor; font-weight: 700; }
+.chip-warn { font-size: .7rem; padding: 1px 6px; margin-left: 6px; opacity: .85; }
+details.opt { border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); padding: 8px 0; }
+details.opt > summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; }
+details.opt > summary::-webkit-details-marker { display: none; }
+.opt-name { font-weight: 600; min-width: 0; }
+.opt-kr { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.opt-off { opacity: .55; }

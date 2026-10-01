@@ -1,0 +1,224 @@
+@page "/elbil"
+@using System.Globalization
+@inject ElectricityPriceService Prices
+@inject PrefsService Prefs
+
+@* Free EV-charging comparison (user 2026-10-01): "where you can put in your usage and get the cheapest suited for you".
+   Everything is computed in memory from the user's answers; the paid MinElpris version uses real meter/charger data. *@
+
+<PageTitle>Billigste opladning – ElPriser</PageTitle>
+<h1>🚗 Hvad er billigst for din elbil?</h1>
+
+<PageHelp Key="help-elbil">
+    <p><b>Det er her:</b> Sammenlign alle måder at betale for opladning på – foreningens lader, Clever, Norlys, OK, Tesla, Ionity og opladning betalt af arbejdsgiveren – ud fra, hvor meget og hvor du selv lader.</p>
+    <p><b>Sådan gør du:</b> Vælg din bil og hvor langt du kører (eller skriv kWh pr. måned fra bilens app), og fortæl hvor du lader. Svaret står øverst; tryk på en løsning for at se regnestykket og hvor prisen kommer fra.</p>
+</PageHelp>
+
+@if (_best is { } best)
+{
+    <div class="card answer">
+        <div class="card-title">Billigst for dig</div>
+        <div class="answer-name">@best.Title</div>
+        <div class="answer-kr">≈ @Kr(best.MonthlyKr) kr./md.</div>
+        <p class="small">@Kwh(_p.KwhPerMonth) kWh om måneden · ≈ @best.KrPerKwh.ToString("0.00", Da) kr./kWh i snit@(best.OneOff > 0 ? $" · engangsbeløb {Kr(best.OneOff)} kr." : "")</p>
+        @if (_baseline is { } b && b.Id != best.Id && b.Problem is null && b.MonthlyKr - best.MonthlyKr >= 1)
+        {
+            <p class="small lvl-cheap">Sparer ≈ @Kr(b.MonthlyKr - best.MonthlyKr) kr./md. (≈ @Kr((b.MonthlyKr - best.MonthlyKr) * 12) kr./år) i forhold til uden abonnement.</p>
+        }
+        else if (best.Id == "ingen")
+        {
+            <p class="small lvl-cheap">Et abonnement kan ikke betale sig for dig – betal bare for det, du lader.</p>
+        }
+        @if (_options.Skip(1).FirstOrDefault(o => o.Problem is null) is { } next)
+        {
+            <p class="muted small">Næstbilligst: @next.Title – ≈ @Kr(next.MonthlyKr) kr./md.</p>
+        }
+    </div>
+}
+
+<div class="card">
+    <div class="card-title">1. Hvor meget kører du?</div>
+    <div class="chips">
+        <button class="chip @(_byKm ? "on" : "")" @onclick="() => { _byKm = true; Recalc(); }">Km og bil</button>
+        <button class="chip @(!_byKm ? "on" : "")" @onclick="() => { _byKm = false; Recalc(); }">kWh pr. måned</button>
+    </div>
+    @if (_byKm)
+    {
+        <div class="row2">
+            <div class="field">
+                <label for="km">Km om året</label>
+                <input id="km" type="number" min="0" step="1000" @bind="_kmYear" @bind:after="Recalc" />
+            </div>
+            <div class="field">
+                <label for="car">Bil</label>
+                <select id="car" @bind="_carName" @bind:after="CarChanged">
+                    @foreach (var c in ChargeCatalog.Cars) { <option value="@c.Name">@c.Name</option> }
+                    <option value="">Anden – skriv selv</option>
+                </select>
+            </div>
+        </div>
+        <div class="field">
+            <label for="cons">Forbrug fra stikkontakten, kWh pr. 100 km (typisk værdi – ret til din egen)</label>
+            <input id="cons" type="number" min="5" max="40" step="0.5" @bind="_kwh100" @bind:after="Recalc" />
+        </div>
+    }
+    else
+    {
+        <div class="field">
+            <label for="kwhmd">kWh pr. måned (se bilens app eller laderens app)</label>
+            <input id="kwhmd" type="number" min="0" step="10" @bind="_kwhMonth" @bind:after="Recalc" />
+        </div>
+    }
+    <label class="switch"><input type="checkbox" @bind="_p.PlugInHybrid" @bind:after="Recalc" /> Plug-in hybrid (ikke ren elbil)</label>
+</div>
+
+<div class="card">
+    <div class="card-title">2. Hvor lader du?</div>
+    <p class="small muted">Skriv hvor stor en del af opladningen, der sker hvert sted (i procent). Det behøver ikke give præcis 100.</p>
+
+    <div class="spot">
+        <div class="row2">
+            <div class="field"><label for="pHjem">🏠 Hjemme, %</label><input id="pHjem" type="number" min="0" max="100" step="5" @bind="Share[ChargeSpot.Hjem]" @bind:after="Recalc" /></div>
+            <div class="field"><label>&nbsp;</label><label class="switch"><input type="checkbox" @bind="_p.HasHomeBox" @bind:after="Recalc" /> Jeg har ladeboks</label></div>
+        </div>
+        @if (_p.SharePct[ChargeSpot.Hjem] > 0)
+        {
+            <p class="small muted">Din strømpris hjemme om natten: <b>≈ @_p.HomeKrPerKwh.ToString("0.00", Da) kr./kWh</b> (snit kl. 0-6 de seneste 30 dage, @PrefsService.Describe(_s)) · aften ≈ @_homeEvening.ToString("0.00", Da). Ret område og elselskab under ⚡ Nu.</p>
+        }
+    </div>
+
+    <div class="spot">
+        <div class="row2">
+            <div class="field"><label for="pFor">🅿️ Foreningens / boligens lader, %</label><input id="pFor" type="number" min="0" max="100" step="5" @bind="Share[ChargeSpot.Forening]" @bind:after="Recalc" /></div>
+            <div class="field">
+                <label for="op">Laderen drives af</label>
+                <select id="op" @bind="_p.ForeningOperator" @bind:after="OperatorChanged">
+                    @foreach (var o in ChargeCatalog.AssociationOperators) { <option value="@o.Id">@o.Name</option> }
+                </select>
+            </div>
+        </div>
+        @if (_p.SharePct[ChargeSpot.Forening] > 0)
+        {
+            <div class="field">
+                <label for="forpris">Pris pr. kWh på foreningens lader (ret, hvis I har en anden)</label>
+                <input id="forpris" type="number" min="0" step="0.01" @bind="_p.ForeningKrPerKwh" @bind:after="Recalc" />
+            </div>
+        }
+    </div>
+
+    <div class="spot">
+        <div class="row2">
+            <div class="field"><label for="pArb">💼 På arbejdet, %</label><input id="pArb" type="number" min="0" max="100" step="5" @bind="Share[ChargeSpot.Arbejde]" @bind:after="Recalc" /></div>
+            <div class="field"><label for="arbpris">Din pris pr. kWh dér (0 = arbejdsgiveren betaler)</label><input id="arbpris" type="number" min="0" step="0.01" @bind="_p.ArbejdeKrPerKwh" @bind:after="Recalc" /></div>
+        </div>
+    </div>
+
+    <div class="row2">
+        <div class="field"><label for="pOff">🔌 Offentlig lader, %</label><input id="pOff" type="number" min="0" max="100" step="5" @bind="Share[ChargeSpot.Offentlig]" @bind:after="Recalc" /></div>
+        <div class="field"><label for="pLyn">⚡ Lynlader på turen, %</label><input id="pLyn" type="number" min="0" max="100" step="5" @bind="Share[ChargeSpot.Lyn]" @bind:after="Recalc" /></div>
+    </div>
+</div>
+
+<details class="card fold" data-remember="elbil-all">
+    <summary>📋 Alle muligheder (@_options.Count) – billigst først</summary>
+    <div class="fold-body">
+        @foreach (var o in _options)
+        {
+            <details class="opt @(o.Problem is null ? "" : "opt-off")">
+                <summary>
+                    <span class="opt-name">@o.Title @if (o.Product?.Unverified == true) { <span class="chip chip-warn">skal tjekkes</span> }</span>
+                    <span class="opt-kr">@(o.Problem is null ? $"≈ {Kr(o.MonthlyKr)} kr./md." : o.Problem)</span>
+                </summary>
+                <div class="small">
+                    @if (o.FeeKr > 0) { <div class="cost-row"><span>Abonnement</span><span>@Kr(o.FeeKr) kr.</span></div> }
+                    @foreach (var l in o.Lines)
+                    {
+                        <div class="cost-row"><span>@ChargeComparer.SpotName(l.Spot): @Kwh(l.Kwh) kWh × @l.KrPerKwh.ToString("0.00", Da) <span class="muted">(@l.PaidVia)</span></span><span>@Kr(l.Kr) kr.</span></div>
+                    }
+                    @if (o.OneOff > 0) { <p class="muted">Engangsbeløb: @Kr(o.OneOff) kr. (installation) – ikke med i månedsprisen.</p> }
+                    @if (o.Product is { } p)
+                    {
+                        <p>@p.Note</p>
+                        <p class="muted">Kilde: <a href="@p.Source" target="_blank" rel="noopener">@Host(p.Source)</a> · tjekket @p.Checked.ToString("d. MMMM yyyy", Da)</p>
+                    }
+                    else
+                    {
+                        <p class="muted">Betal pr. kWh uden abonnement. Billigste offentlige priser: @string.Join(" · ", new[] { ChargeSpot.Offentlig, ChargeSpot.Lyn }.Select(s => ChargeComparer.CheapestPublic(s)).Select(c => $"{c.Network} {c.KrPerKwh.ToString("0.00", Da)} kr."))</p>
+                    }
+                </div>
+            </details>
+        }
+    </div>
+</details>
+
+<details class="card fold" data-remember="elbil-notes">
+    <summary>ℹ️ Godt at vide</summary>
+    <div class="fold-body small">
+        <p><b>Priserne ændrer sig ofte.</b> Hver pris viser, hvor den kommer fra, og hvornår den sidst er tjekket. “Skal tjekkes” betyder, at prisen er ældre eller kun fundet i én kilde.</p>
+        <p><b>Energitillæg:</b> Clever One og Norlys kan lægge et tillæg på, når strømmen er dyr. Vi regner med Clevers seneste tillæg (0,29 kr./kWh i august 2026).</p>
+        <p><b>Arbejdsgiver betaler:</b> Når arbejdsgiveren betaler din opladning, kan det have skattemæssige konsekvenser. Spørg din arbejdsgiver.</p>
+        <p><b>Kun ét abonnement ad gangen:</b> Vi sammenligner ét abonnement plus betaling pr. kWh alle andre steder. Kombinationer af flere abonnementer kommer senere.</p>
+    </div>
+</details>
+
+<div class="card cta">
+    <div class="card-title">Brug dine egne tal – MinElpris</div>
+    <p class="small">I MinElpris henter vi dit rigtige forbrug fra elmåleren og foreningens lader, regner med hvornår på døgnet du lader, og giver besked, når et andet abonnement bliver billigere for dig. Samme sted ser du, om din elaftale derhjemme er for dyr.</p>
+    <a class="cta-link" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se MinElpris →</a>
+</div>
+
+@code {
+    private static readonly CultureInfo Da = CultureInfo.GetCultureInfo("da-DK");
+    private HouseholdSettings _s = new();
+    private readonly ChargeProfile _p = new();
+    private List<ChargeOption> _options = [];
+    private ChargeOption? _best, _baseline;
+    private bool _byKm = true;
+    private double _kmYear = 15000, _kwh100 = 18.5, _kwhMonth = 230, _homeEvening;
+    private string _carName = "Tesla Model Y";
+
+    // Two-way binding needs a writable indexer target; the profile keeps the real numbers.
+    private Dictionary<ChargeSpot, double> Share => _p.SharePct;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _s = await Prefs.GetAsync();
+        _s.ShowAllIn = true;
+        try
+        {
+            var to = DateOnly.FromDateTime(DkTime.Now);
+            var raw = await Prices.GetRangeAsync(to.AddDays(-30), to, _s.PriceArea);
+            var priced = raw.Select(pt => PriceBreakdownCalculator.Compute(pt, _s)).ToList();
+            double Avg(Func<int, bool> hour) => priced.Where(x => hour(x.TimeDk.Hour)).Select(x => x.TotalKrPerKwh).DefaultIfEmpty(1.5).Average();
+            _p.HomeKrPerKwh = Math.Round(Avg(h => h < 6), 2);
+            _homeEvening = Math.Round(Avg(h => h is >= 17 and < 21), 2);
+        }
+        catch { _p.HomeKrPerKwh = 1.50; _homeEvening = 2.00; }
+        Recalc();
+    }
+
+    private void CarChanged()
+    {
+        if (ChargeCatalog.Cars.FirstOrDefault(c => c.Name == _carName) is { } car) _kwh100 = car.KwhPer100Km;
+        Recalc();
+    }
+
+    private void OperatorChanged()
+    {
+        var op = ChargeCatalog.AssociationOperators.FirstOrDefault(o => o.Id == _p.ForeningOperator);
+        if (op.Id is not null) _p.ForeningKrPerKwh = op.KrPerKwh;
+        Recalc();
+    }
+
+    private void Recalc()
+    {
+        _p.KwhPerMonth = _byKm ? Math.Max(0, _kmYear) / 12 * Math.Max(0, _kwh100) / 100 : Math.Max(0, _kwhMonth);
+        _options = ChargeComparer.Compare(_p);
+        _best = _options.FirstOrDefault(o => o.Problem is null);
+        _baseline = _options.FirstOrDefault(o => o.Id == "ingen");
+    }
+
+    private static string Kr(double v) => Math.Round(v).ToString("N0", Da);
+    private static string Kwh(double v) => Math.Round(v).ToString("N0", Da);
+    private static string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host.Replace("www.", "") : url;
+}
