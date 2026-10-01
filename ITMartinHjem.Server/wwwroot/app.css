@@ -76,7 +76,7 @@
 .hj-nav a.hj-nav-pilot { color: var(--k-accent); }
 
 /* Mine apps */
-.hj-apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.hj-apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 12px 0 24px; }
 .hj-app { display: flex; gap: 12px; align-items: flex-start; text-decoration: none; color: inherit; margin: 0; }
 a.hj-app:hover { border-color: var(--k-accent); }
 .hj-app.off { opacity: .65; }
@@ -245,3 +245,8 @@ html[data-family="glaede"] .hj-now{border-left-color:var(--k-sun)}
 .hj-tal-bar { width: 40%; }
 .hj-tal-bar span { display: block; height: .7em; border-radius: 4px; background: var(--k-brand, #1f7a5c); }
 .hj-tal-off { opacity: .55; }
+
+/* App cards: equal height, buttons on one line at the bottom (user 2026-10-01). */
+.hj-app { align-self: stretch; }
+.hj-app-body { display: flex; flex-direction: column; align-self: stretch; }
+.hj-app-body > .k-row:last-child { margin-top: auto; padding-top: 12px; }
