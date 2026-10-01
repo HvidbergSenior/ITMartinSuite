@@ -32,8 +32,50 @@ public partial class MainWindow : Window
         InitializeComponent();
         foreach (var s in NoteWriter.Styles) NoteStyle.Items.Add(s);
         NoteStyle.SelectedIndex = 0;
-        if (KeyStore.Load() is null)
-            Status.Text = "Første gang: tryk ⚙ Indstillinger og indsæt API-nøglen. Du kan stadig prøve trin 1 og 2 uden.";
+        ApplyMode();
+    }
+
+    /// <summary>Local AI (default): nothing leaves the PC, so no hiding/check step. Cloud: hide + check before sending.</summary>
+    private void ApplyMode()
+    {
+        var cloud = AppMode.Cloud;
+        Subtitle.Text = cloud
+            ? "Lav dine stikord om til læsbar journaltekst. Sky-AI: navne, CPR, datoer og adresser fjernes på din PC, før noget sendes – og sættes ind igen bagefter."
+            : "Lav dine stikord om til læsbar journaltekst. 🔒 Lokal AI: alt bliver på din PC.";
+        Step2Title.Text = cloud ? "2. Tjek hvad der sendes" : "2. Vælg form";
+        Step2Help.Visibility = Outgoing.Visibility = Checked.Visibility = NamesPanel.Visibility = cloud ? Visibility.Visible : Visibility.Collapsed;
+        LocalBox.Visibility = cloud ? Visibility.Collapsed : Visibility.Visible;
+        DownloadPanel.Visibility = !cloud && LocalWriter.FindModel() is null ? Visibility.Visible : Visibility.Collapsed;
+        RefreshOutgoing();
+        Status.Text = cloud
+            ? KeyStore.Load() is null ? "Sky-AI: tryk ⚙ Indstillinger og indsæt API-nøglen." : "Sky-AI er valgt. Træk en fil ind, eller skriv dine stikord i felt 1."
+            : LocalWriter.FindModel() is null ? "Første gang: tryk ⬇ Hent AI-model i felt 2." : "Klar. Træk en fil ind i vinduet, eller skriv/indsæt dine stikord i felt 1.";
+    }
+
+    private async void Download_Click(object sender, RoutedEventArgs e)
+    {
+        DownloadBtn.IsEnabled = false;
+        DownloadBar.Visibility = Visibility.Visible;
+        var progress = new Progress<double>(p =>
+        {
+            DownloadBar.Value = p;
+            Status.Text = $"Henter AI-model … {p:P0} ({p * LocalWriter.ModelBytes / 1e9:F1} af {LocalWriter.ModelBytes / 1e9:F1} GB). Du kan godt bruge PC'en imens.";
+        });
+        try
+        {
+            await LocalWriter.DownloadAsync(progress, CancellationToken.None);
+            ApplyMode();
+            Status.Text = "✅ AI-modellen er hentet. Fra nu af virker programmet uden internet.";
+        }
+        catch (Exception ex)
+        {
+            Status.Text = $"Kunne ikke hente AI-modellen: {ex.Message} – arbejdspladsen kan blokere store downloads; IT kan lægge filen {LocalWriter.ModelFile} ved siden af programmet.";
+        }
+        finally
+        {
+            DownloadBtn.IsEnabled = true;
+            DownloadBar.Visibility = Visibility.Collapsed;
+        }
     }
 
     // ── Step 1: input ──
@@ -96,7 +138,8 @@ public partial class MainWindow : Window
         Checked.IsChecked = false;
 
         MaybeNames.Children.Clear();
-        foreach (var word in Pseudonymizer.PossibleNames(Outgoing.Text).Take(30))
+        // Local AI: nothing is sent, so there is nothing to hide.
+        foreach (var word in AppMode.Cloud ? Pseudonymizer.PossibleNames(Outgoing.Text).Take(30) : [])
         {
             var b = new WpfButton { Content = "🙈 " + word, Tag = word, Style = (System.Windows.Style)FindResource("Plain"), Margin = new Thickness(0, 0, 6, 6), FontSize = 14, Padding = new Thickness(10, 4, 10, 4) };
             b.Click += (_, _) => { Names.Text = string.IsNullOrWhiteSpace(Names.Text) ? (string)b.Tag : Names.Text.TrimEnd(' ', ',') + ", " + b.Tag; };
@@ -109,21 +152,43 @@ public partial class MainWindow : Window
     private void Checked_Changed(object sender, RoutedEventArgs e) => UpdateWriteButton();
 
     private void UpdateWriteButton() =>
-        WriteBtn.IsEnabled = Checked.IsChecked == true && Outgoing.Text.Trim().Length > 0 && _cts is null;
+        WriteBtn.IsEnabled = _cts is null && Keywords.Text.Trim().Length > 0 &&
+                             (AppMode.Cloud ? Checked.IsChecked == true : LocalWriter.FindModel() is not null);
 
     private async void Write_Click(object sender, RoutedEventArgs e)
     {
-        var key = KeyStore.Load();
-        if (key is null) { Settings_Click(sender, e); key = KeyStore.Load(); if (key is null) return; }
+        var cloud = AppMode.Cloud;
+        string? key = null;
+        if (cloud)
+        {
+            key = KeyStore.Load();
+            if (key is null) { Settings_Click(sender, e); key = KeyStore.Load(); if (key is null) return; }
+        }
 
-        _cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        _cts = new CancellationTokenSource(TimeSpan.FromMinutes(cloud ? 3 : 10));
         UpdateWriteButton();
         WriteBtn.Content = "⏳ Skriver …";
-        Status.Text = "AI'en skriver notatet (typisk 10-30 sekunder) …";
+        Status.Text = cloud
+            ? "AI'en skriver notatet (typisk 10-30 sekunder) …"
+            : "Den lokale AI skriver på din PC (typisk 20-90 sekunder, første gang lidt længere). Teksten dukker op i felt 3 undervejs …";
+        CopyBtn.IsEnabled = SaveBtn.IsEnabled = false;
         try
         {
-            var draft = await NoteWriter.WriteAsync(key, Outgoing.Text, (string)NoteStyle.SelectedItem, Extra.Text, _cts.Token);
-            Result.Text = _pseudo.Restore(draft, out var missing);
+            List<string> missing = [];
+            if (cloud)
+            {
+                var draft = await NoteWriter.WriteAsync(key!, Outgoing.Text, (string)NoteStyle.SelectedItem, Extra.Text, _cts.Token);
+                Result.Text = _pseudo.Restore(draft, out missing);
+            }
+            else
+            {
+                Result.Clear();
+                var note = await LocalWriter.WriteAsync(Keywords.Text, (string)NoteStyle.SelectedItem, Extra.Text,
+                    piece => Dispatcher.BeginInvoke(() => { Result.AppendText(piece); Result.ScrollToEnd(); }), _cts.Token);
+                // Let the streamed pieces land first, then show the cleaned-up final text.
+                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Background);
+                Result.Text = note;
+            }
             CopyBtn.IsEnabled = SaveBtn.IsEnabled = true;
             Status.Text = missing.Count == 0
                 ? "✅ Færdigt. Læs notatet igennem, ret hvis nødvendigt, og tryk 📋 Kopiér → indsæt i journalen (Ctrl+V)."
@@ -179,48 +244,73 @@ public partial class MainWindow : Window
     // ── Settings + help ──
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
+        var local = new RadioButton
+        {
+            FontSize = 15, Margin = new Thickness(0, 8, 0, 4), IsChecked = !AppMode.Cloud,
+            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "🔒 Lokal AI på denne PC (anbefalet) – intet forlader PC'en. Langsommere og enklere sprog." },
+        };
+        var cloudRb = new RadioButton
+        {
+            FontSize = 15, Margin = new Thickness(0, 4, 0, 4), IsChecked = AppMode.Cloud,
+            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "☁ Sky-AI (Anthropic) – bedre og hurtigere, men KUN hvis din arbejdsplads har godkendt det (databehandleraftale)." },
+        };
         var box = new PasswordBox { FontSize = 16, Padding = new Thickness(8), Margin = new Thickness(0, 8, 0, 12) };
         var ok = new WpfButton { Content = "Gem", Style = (System.Windows.Style)FindResource("Big"), HorizontalAlignment = HorizontalAlignment.Left, IsDefault = true };
         var panel = new StackPanel { Margin = new Thickness(20) };
-        panel.Children.Add(new TextBlock { Text = "API-nøgle til AI-tjenesten (Anthropic)", FontSize = 18, FontWeight = FontWeights.Bold });
+        panel.Children.Add(new TextBlock { Text = "Hvilken AI skal skrive notatet?", FontSize = 18, FontWeight = FontWeights.Bold });
+        panel.Children.Add(local);
+        panel.Children.Add(cloudRb);
+        panel.Children.Add(new TextBlock { Text = "API-nøgle (kun til sky-AI)", FontSize = 16, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 14, 0, 0) });
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap, FontSize = 14, Margin = new Thickness(0, 6, 0, 0),
-            Text = "Nøglen får du af den, der har sat programmet op (din arbejdsplads' aftale med Anthropic). " +
+            Text = "Lad feltet stå tomt ved lokal AI. Nøglen får du af den, der har sat programmet op (din arbejdsplads' aftale med Anthropic). " +
                    "Den gemmes krypteret, så kun din Windows-bruger kan læse den.",
         });
         panel.Children.Add(box);
         panel.Children.Add(ok);
         var win = new Window
         {
-            Title = "Indstillinger", Owner = this, Content = panel, Width = 480, SizeToContent = SizeToContent.Height,
+            Title = "Indstillinger", Owner = this, Content = panel, Width = 520, SizeToContent = SizeToContent.Height,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
             Background = (System.Windows.Media.Brush)FindResource("Bg"),
         };
         ok.Click += (_, _) =>
         {
-            if (box.Password.Trim().Length < 20) { MessageBox.Show(win, "Det ligner ikke en API-nøgle.", "Indstillinger"); return; }
-            KeyStore.Save(box.Password);
+            if (box.Password.Length > 0)
+            {
+                if (box.Password.Trim().Length < 20) { MessageBox.Show(win, "Det ligner ikke en API-nøgle.", "Indstillinger"); return; }
+                KeyStore.Save(box.Password);
+            }
+            if (cloudRb.IsChecked == true && KeyStore.Load() is null) { MessageBox.Show(win, "Sky-AI kræver en API-nøgle.", "Indstillinger"); return; }
+            AppMode.Cloud = cloudRb.IsChecked == true;
             win.DialogResult = true;
         };
-        if (win.ShowDialog() == true) Status.Text = "🔑 Nøglen er gemt.";
+        if (win.ShowDialog() == true) ApplyMode();
     }
 
     private void Help_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, """
-        Sådan laver du et notat:
+        Sådan laver du et notat (lokal AI):
 
-        1. Træk din fil med stikord ind i vinduet (Word, tekstfil eller billede af dine noter) – eller skriv/indsæt dem i felt 1.
-        2. Skriv navnene på patient, pårørende og kolleger i feltet "Navne der skal skjules", adskilt med komma.
-        3. Kig felt 2 igennem: det er PRÆCIS den tekst, der sendes. CPR, telefon, datoer, adresser og navne er byttet ud med fx [NAVN1].
-           Klik på 🙈-knapperne, hvis programmet har fundet ord, der kan være navne.
-        4. Sæt flueben i "Jeg har tjekket teksten" og tryk ✨ Lav notat.
-        5. Læs notatet i felt 3, ret det hvis nødvendigt, tryk 📋 Kopiér og indsæt i journalen med Ctrl+V.
-        6. Tryk 🧹 Ryd alt, når du er færdig.
+        1. Første gang: tryk ⬇ Hent AI-model i felt 2 (2,5 GB, kun én gang). Derefter virker det uden internet.
+        2. Træk din fil med stikord ind i vinduet (Word, tekstfil eller billede af dine noter) – eller skriv/indsæt dem i felt 1.
+        3. Vælg form i felt 2 (fx Kort resumé) og tryk ✨ Lav notat.
+        4. Vent 20-90 sekunder. Teksten dukker op i felt 3, mens den skrives.
+        5. Læs notatet ord for ord, og ret det. Den lokale AI kan bytte rundt på, hvem der gjorde hvad, eller tilføje ting, der ikke stod i stikordene.
+        6. Tryk 📋 Kopiér og indsæt i journalen med Ctrl+V. Tryk 🧹 Ryd alt, når du er færdig.
+
+        Ulemper ved lokal AI
+        • Langsom: 20-90 sekunder pr. notat, og PC'en arbejder hårdt imens (blæseren kan gå i gang).
+        • Kræver ca. 4 GB fri hukommelse (RAM) og 3 GB diskplads.
+        • Enklere sprog og flere fejl end sky-AI – du skal altid læse efter.
+        • Billeder af håndskrift læses ofte forkert – ret teksten i felt 1 først.
 
         Hvad gemmer programmet?
-        Intet om patienter. Kun API-nøglen gemmes (krypteret). Billeder læses af Windows på din egen PC.
+        Intet om patienter. Stikord og notater forsvinder, når du lukker programmet eller trykker 🧹 Ryd alt.
 
-        Må jeg bruge det på rigtige patienter?
-        Kun når din arbejdsplads har godkendt det (databehandleraftale og risikovurdering). Indtil da: brug 🧪 eksemplet.
+        Må jeg bruge det på min arbejds-PC?
+        Spørg din leder eller IT, om du må installere programmer. Selve teksten bliver på PC'en.
+
+        AI-modellen er Google Gemma 3 (vilkår: ai.google.dev/gemma/terms).
         """, "Sådan gør du");
 }

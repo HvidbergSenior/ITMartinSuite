@@ -17,7 +17,7 @@
                 <Button DockPanel.Dock="Right" Style="{StaticResource Plain}" Content="❓ Sådan gør du" Click="Help_Click" VerticalAlignment="Center"/>
                 <StackPanel>
                     <TextBlock Text="📝 Notatskriver" FontSize="26" FontWeight="Bold"/>
-                    <TextBlock FontSize="15" TextWrapping="Wrap" Text="Lav dine stikord om til læsbar journaltekst. Navne, CPR, datoer og adresser fjernes på din PC, før noget sendes – og sættes ind igen bagefter."/>
+                    <TextBlock x:Name="Subtitle" FontSize="15" TextWrapping="Wrap"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -43,7 +43,7 @@
                             <Button Style="{StaticResource Plain}" Content="🧪 Prøv med eksempel" Click="Example_Click"/>
                         </WrapPanel>
                     </StackPanel>
-                    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                    <StackPanel x:Name="NamesPanel" DockPanel.Dock="Bottom" Margin="0,8,0,0">
                         <TextBlock FontWeight="SemiBold" FontSize="15" Text="Navne der skal skjules (patient, pårørende, kolleger)"/>
                         <TextBlock Style="{StaticResource Help}" Text="Skriv hele navne adskilt med komma, fx: Anna Jensen, Peter Jensen"/>
                         <TextBox x:Name="Names" TextWrapping="NoWrap" TextChanged="Input_Changed"/>
@@ -56,8 +56,8 @@
             <Border Grid.Column="1" Style="{StaticResource Card}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Style="{StaticResource Step}" Text="2. Tjek hvad der sendes"/>
-                        <TextBlock Style="{StaticResource Help}" Text="Kun teksten herunder sendes til AI'en. Kig efter navne eller andet, der kan pege på patienten."/>
+                        <TextBlock x:Name="Step2Title" Style="{StaticResource Step}" Text="2. Tjek hvad der sendes"/>
+                        <TextBlock x:Name="Step2Help" Style="{StaticResource Help}" Text="Kun teksten herunder sendes til AI'en. Kig efter navne eller andet, der kan pege på patienten."/>
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
                         <TextBlock x:Name="MaybeHeader" FontWeight="SemiBold" FontSize="15" Text="Kan det her være navne? Klik for at skjule:" Visibility="Collapsed"/>
@@ -66,11 +66,23 @@
                         <ComboBox x:Name="NoteStyle" FontSize="15" Margin="0,4,0,8" Padding="8,6"/>
                         <TextBlock FontWeight="SemiBold" FontSize="15" Text="Ekstra ønske (valgfrit)"/>
                         <TextBox x:Name="Extra" TextWrapping="NoWrap" Margin="0,4,0,8"/>
-                        <CheckBox x:Name="Checked" FontSize="15" Margin="0,0,0,10" Checked="Checked_Changed" Unchecked="Checked_Changed">
+                        <CheckBox x:Name="Checked" Visibility="Visible" FontSize="15" Margin="0,0,0,10" Checked="Checked_Changed" Unchecked="Checked_Changed">
                             <TextBlock TextWrapping="Wrap" Text="Jeg har tjekket teksten ovenfor – der står ingen navne, CPR-numre eller andet, der kan pege på patienten."/>
                         </CheckBox>
                         <Button x:Name="WriteBtn" Style="{StaticResource Big}" Content="✨ Lav notat" IsEnabled="False" Click="Write_Click" HorizontalAlignment="Left"/>
                     </StackPanel>
+                    <Border x:Name="LocalBox" DockPanel.Dock="Top" Visibility="Collapsed" Background="#E6F6F1" CornerRadius="12" Padding="14" VerticalAlignment="Top">
+                        <StackPanel>
+                            <TextBlock FontSize="17" FontWeight="Bold" Text="🔒 Lokal AI – intet forlader din PC"/>
+                            <TextBlock FontSize="14" TextWrapping="Wrap" Margin="0,6,0,0" Text="AI'en kører på denne computer. Stikord og notat sendes ingen steder hen, så navne behøver ikke skjules."/>
+                            <TextBlock FontSize="14" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{StaticResource Muted}" Text="Ulemper: det tager typisk 20-90 sekunder pr. notat, PC'en arbejder hårdt imens, og sproget er enklere – læs ekstra grundigt efter fejl."/>
+                            <StackPanel x:Name="DownloadPanel" Visibility="Collapsed" Margin="0,12,0,0">
+                                <TextBlock FontSize="14" TextWrapping="Wrap" Text="Første gang skal AI-modellen hentes (2,5 GB, kun én gang – kræver internet)."/>
+                                <Button x:Name="DownloadBtn" Style="{StaticResource Big}" Content="⬇ Hent AI-model" Click="Download_Click" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                                <ProgressBar x:Name="DownloadBar" Height="14" Margin="0,8,0,0" Maximum="1" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                     <TextBox x:Name="Outgoing" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Background="#FFFDF7"/>
                 </DockPanel>
             </Border>

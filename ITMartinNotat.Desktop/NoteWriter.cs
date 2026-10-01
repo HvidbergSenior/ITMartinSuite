@@ -86,6 +86,18 @@ public static class NoteWriter
     }
 }
 
+/// <summary>Which AI to use. Local is the default: the cloud only after the workplace has approved it.</summary>
+public static class AppMode
+{
+    private static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Notatskriver", "tilstand.txt");
+
+    public static bool Cloud
+    {
+        get { try { return File.Exists(FilePath) && File.ReadAllText(FilePath).Trim() == "sky"; } catch { return false; } }
+        set { Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!); File.WriteAllText(FilePath, value ? "sky" : "lokal"); }
+    }
+}
+
 /// <summary>The API key, encrypted with Windows (DPAPI) so only this Windows user can read it. Nothing else is stored.</summary>
 public static class KeyStore
 {
