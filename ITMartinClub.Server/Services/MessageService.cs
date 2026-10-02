@@ -42,7 +42,10 @@ public sealed class MessageService(ClubDbContext db, ClubPushService push, ClubM
                 (reminder ? $"Du har ikke set denne besked fra {msg.FromName} endnu:\n\n" : $"{msg.FromName} har sendt en besked til jer:\n\n") +
                 $"{msg.Title}\n{new string('-', Math.Min(msg.Title.Length, 60))}\n{msg.Body}\n\n" +
                 (msg.RequireConfirm ? $"Åbn beskeden og tryk \"Jeg har læst det\":\n{link}\n" : $"Åbn beskeden:\n{link}\n") +
-                "\nLinket er dit personlige – det logger dig ind i Club. Del det ikke med andre.\n";
+                "\nLinket er dit personlige – det logger dig ind i Club. Del det ikke med andre.\n" +
+                // User rule: always say how to put the app on the phone/PC (kolibri.js shows the 📲 button on every page).
+                "\nFå Club på telefonen eller PC'en: åbn linket og tryk på knappen \"📲 Læg på telefonen\" nederst på siden.\n" +
+                "Så får du også beskederne som besked på telefonen.\n";
             if (await mail.SendAsync(m.Email!, msg.FromName, title, text))
             {
                 if (reminder) r.RemindedAt = DateTime.UtcNow; else r.MailedAt = DateTime.UtcNow;
