@@ -19,6 +19,11 @@
     else
     {
         <p class="ms-answer">Du har <b>@_discs.Count</b> @(_discs.Count == 1 ? "skive" : "skiver")@CountLine</p>
+        @if (Films.Count(d => d.Digital != "") is > 0 and var checkedN)
+        {
+            var dig = Films.Count(d => d.Digital is "stream" or "free" or "buy");
+            <p>💾 <b>@dig af @checkedN</b> tjekkede film findes digitalt – <b>@Films.Count(d => d.Digital is "stream" or "free")</b> kan streames.</p>
+        }
     }
     <div class="ms-actions">
         <button class="k-btn k-btn-primary ms-big" @onclick="() => _adding = !_adding">➕ Tilføj skive</button>
@@ -81,6 +86,26 @@
                     <button class="k-btn k-btn-sm @(_show == k ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _show = k">@label</button>
                 }
             </div>
+            @if (Films.Any())
+            {
+                <div class="ms-digital">
+                    <button class="k-btn k-btn-secondary" @onclick="CheckAll" disabled="@(_checking is not null)">
+                        @(_checking is { } c ? $"Tjekker {c} af {Films.Count()} …" : "💾 Tjek hvilke film der findes digitalt")
+                    </button>
+                    @if (Films.Any(d => d.Digital != ""))
+                    {
+                        <div class="ms-kinds">
+                            @foreach (var (k, label) in DigitalKinds)
+                            {
+                                var n = Films.Count(d => d.Digital == k);
+                                if (n == 0) continue;
+                                <button class="k-btn k-btn-sm @(_dig == k ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => _dig = _dig == k ? "" : k'>@label (@n)</button>
+                            }
+                        </div>
+                    }
+                    <p class="k-small k-muted">Viser om filmen kan ses på streaming, købes eller lejes digitalt i Danmark lige nu. Koder i DVD-æsken (Digital Copy/UltraViolet) kan ikke slås op – UltraViolet lukkede i 2019.</p>
+                </div>
+            }
         </div>
         <ul class="ms-list">
             @foreach (var d in Visible)
@@ -91,6 +116,10 @@
                         <b>@d.Title</b>
                         <span class="k-muted">@KindName(d.Kind)@(string.IsNullOrEmpty(d.Sub) ? "" : " · " + d.Sub)</span>
                         @if (!string.IsNullOrEmpty(d.Place)) { <span class="ms-where">📍 @d.Place</span> }
+                        @if (d.Digital != "" && d.Kind != "cd")
+                        {
+                            <span class="ms-badge ms-badge-@d.Digital">@DigitalLabel(d.Digital)@(string.IsNullOrEmpty(d.DigitalWho) ? "" : ": " + d.DigitalWho)</span>
+                        }
                         <div class="ms-row">
                             @if (d.Kind == "cd")
                             {
@@ -158,6 +187,11 @@
     private List<Disc> _discs = [];
     private List<Hit> _hits = [];
     private bool _loaded, _adding, _busy, _searched, _confirmAll, _watchBusy;
+    private int? _checking;
+    private string _dig = "";
+    private static readonly (string, string)[] DigitalKinds = [("stream", "✅ Streaming"), ("free", "🆓 Gratis"), ("buy", "💾 Kan købes/lejes"), ("none", "📀 Kun på skive")];
+    private static string DigitalLabel(string k) => DigitalKinds.FirstOrDefault(x => x.Item1 == k).Item2 ?? "";
+    private IEnumerable<Disc> Films => _discs.Where(d => d.Kind != "cd" && !string.IsNullOrEmpty(d.TmdbId));
     private string _kind = "dvd", _query = "", _place = "", _filter = "", _show = "", _confirm = "", _open = "";
     private string? _justAdded, _importMsg;
     private WatchInfo? _watch;
@@ -184,6 +218,7 @@
 
     private IEnumerable<Disc> Visible => _discs
         .Where(d => _show == "" || d.Kind == _show)
+        .Where(d => _dig == "" || d.Digital == _dig)
         .Where(d => _filter.Length == 0 || $"{d.Title} {d.Sub} {d.Place}".Contains(_filter, StringComparison.OrdinalIgnoreCase))
         .OrderBy(d => d.Title, StringComparer.Create(new System.Globalization.CultureInfo("da-DK"), true));
 
@@ -234,12 +269,32 @@
         await Save();
     }
 
+    // One TMDB call per film (free API, cached 12 h server-side) - no AI involved. Saved in the browser with the date.
+    private async Task CheckAll()
+    {
+        var list = Films.ToList();
+        for (var i = 0; i < list.Count; i++)
+        {
+            _checking = i + 1; StateHasChanged();
+            if (await Lookup.WatchAsync(list[i].TmdbType, list[i].TmdbId) is { } w) Remember(list[i], w);
+        }
+        _checking = null;
+        await Save();
+    }
+
+    private static void Remember(Disc d, WatchInfo w)
+    {
+        (d.Digital, d.DigitalWho) = w.Best();
+        d.Checked = DateTime.UtcNow;
+    }
+
     private async Task ToggleWatch(Disc d)
     {
         if (_open == d.Id) { _open = ""; return; }
         _open = d.Id; _watch = null; _watchBusy = true; StateHasChanged();
         _watch = await Lookup.WatchAsync(d.TmdbType, d.TmdbId);
         _watchBusy = false;
+        if (_watch is not null) { Remember(d, _watch); await Save(); }
     }
 
     private async Task Save() => await JS.InvokeAsync<bool>("skiver.save", JsonSerializer.Serialize(_discs, Json));

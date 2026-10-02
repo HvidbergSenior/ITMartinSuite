@@ -16,6 +16,10 @@ public sealed class Disc
     public string TmdbType { get; set; } = "";       // movie | tv
     public string TmdbId { get; set; } = "";
     public string Place { get; set; } = "";          // "Kasse 3", "Stuen, øverste hylde"
+    // "Findes den digitalt?" (user 2026-10-02): stream | free | buy | none, "" = not checked yet. Who = the services, Checked = when.
+    public string Digital { get; set; } = "";
+    public string DigitalWho { get; set; } = "";
+    public DateTime? Checked { get; set; }
     public DateTime Added { get; set; } = DateTime.UtcNow;
 }
 
@@ -27,6 +31,15 @@ public sealed record Provider(string Name, string Logo);
 public sealed record WatchInfo(string Link, List<Provider> Flatrate, List<Provider> Free, List<Provider> Rent, List<Provider> Buy)
 {
     public bool Any => Flatrate.Count + Free.Count + Rent.Count + Buy.Count > 0;
+
+    // The best way to get it digitally, for the badge + filter: something you may already pay for beats free beats buying.
+    public (string Status, string Who) Best() =>
+        Flatrate.Count > 0 ? ("stream", Names(Flatrate)) :
+        Free.Count > 0 ? ("free", Names(Free)) :
+        Buy.Count + Rent.Count > 0 ? ("buy", Names(Buy.Concat(Rent).DistinctBy(p => p.Name).ToList())) :
+        ("none", "");
+
+    private static string Names(List<Provider> l) => string.Join(", ", l.Take(4).Select(p => p.Name)) + (l.Count > 4 ? " …" : "");
 }
 
 // Free lookups only: TMDB (films/series + DK watch providers, key MineSkiver__TmdbKey) and MusicBrainz (CDs, no key).

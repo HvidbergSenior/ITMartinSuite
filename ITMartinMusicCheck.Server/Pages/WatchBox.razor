@@ -11,6 +11,7 @@
             <p class="k-help">Har du en af dem, kan du se den med det samme – uden at finde skiven frem.</p>
         }
         @if (Info.Free.Count > 0) { <p><b>🆓 Gratis:</b></p><Logos List="Info.Free" /> }
+        @if (Info.Buy.Count > 0) { <p><b>💾 Kan købes digitalt:</b></p><Logos List="Info.Buy" /> }
         @if (Info.Rent.Count > 0) { <p><b>Kan lejes:</b></p><Logos List="Info.Rent" /> }
         @if (Info.Flatrate.Count == 0 && Info.Free.Count == 0)
         {
