@@ -21,6 +21,7 @@ builder.Services.AddScoped<AssignmentTaskService>();
 builder.Services.AddSingleton<AdminPinRateLimiterService>();
 builder.Services.AddSingleton<ClubMailService>();
 builder.Services.AddScoped<MessageService>();
+builder.Services.AddScoped<InviteService>();
 builder.Services.AddHostedService<MessageReminderService>();
 
 var app = builder.Build();
@@ -110,6 +111,8 @@ using (var scope = app.Services.CreateScope())
     // Beskeder med kvittering (2026-10-02)
     if (db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Email'").AsEnumerable().First() == 0)
         db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Email TEXT NULL");
+    if (db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'LoginToken'").AsEnumerable().First() == 0)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN LoginToken TEXT NULL");
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "Messages" (
             "Id"             TEXT NOT NULL PRIMARY KEY,
@@ -383,6 +386,26 @@ app.MapGet("/m/{token}", async (string token, ClubDbContext db, MessageService m
     });
     return Results.Redirect($"/g/{group.Slug}/beskeder/{r.MessageId}");
 });
+
+// Invitation link: logs the member in and opens the team's home page.
+app.MapGet("/l/{token}", async (string token, ClubDbContext db, HttpContext ctx) =>
+{
+    if (token.Length < 20) return Results.Redirect("/");
+    var member = await db.Members.Include(m => m.Group).FirstOrDefaultAsync(m => m.LoginToken == token);
+    if (member is null) return Results.Redirect("/");
+    var session = new ITMartinClub.Server.Data.Entities.MemberSession { MemberId = member.Id };
+    db.Sessions.Add(session);
+    await db.SaveChangesAsync();
+    ctx.Response.Cookies.Append("club_session_srv", session.Id.ToString(), new CookieOptions
+    {
+        HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365), Path = "/",
+    });
+    return Results.Redirect(ClubGroups.HomePath(member.Group.Slug));
+});
+
+// Short team address: club.itmartin.dk/skelagerhoejen -> the team's home page (literal routes like /create still win).
+app.MapGet("/{slug:regex(^[a-z0-9-]{{3,40}}$)}", async (string slug, ClubDbContext db) =>
+    await db.Groups.AnyAsync(g => g.Slug == slug) ? Results.Redirect(ClubGroups.HomePath(slug)) : Results.NotFound());
 
 app.MapGet("/api/push/key", (ClubPushService push) => Results.Ok(push.GetPublicKey()));
 

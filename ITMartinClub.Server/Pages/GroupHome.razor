@@ -466,6 +466,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+        if (ClubGroups.IsBoard(Slug)) { Nav.NavigateTo(ClubGroups.HomePath(Slug), forceLoad: true); return; }
         await LoadAsync();
     }
 

@@ -8,6 +8,7 @@ public sealed class Member
     public string Pin { get; set; } = string.Empty;
     public string? ContactInfo { get; set; }
     public string? Email { get; set; }   // messages are also mailed here (with a personal log-in link)
+    public string? LoginToken { get; set; }   // invitation link /l/{token} - logs in without PIN; new token = old link stops working
 
     // Free-text, not an enum - vocabulary differs per group (Leder/Medlem for a
     // club, Ejer/Medarbejder for a shop, Selv/Støtte for the ADHD use case).

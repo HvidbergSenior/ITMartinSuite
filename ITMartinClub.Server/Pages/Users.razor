@@ -4,6 +4,8 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
+@inject InviteService Invites
+@inject ClubMailService Mail
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -29,6 +31,17 @@ else
                         @if (!string.IsNullOrWhiteSpace(m.ContactInfo))
                         {
                             <div class="task-item-desc">📞 @m.ContactInfo</div>
+                        }
+                        @if (IsAdmin && Mail.Configured && m.Id != _member.Id)
+                        {
+                            <div class="task-meta">
+                                @if (ClubMailService.LooksLikeEmail(m.Email))
+                                {
+                                    <button class="msg-btn" @onclick="() => Invite(m)" disabled="@(_inviting == m.Id)">📧 @(m.LoginToken is null ? "Inviter" : "Send invitation igen")</button>
+                                }
+                                else { <span>Ingen mail – kan ikke inviteres</span> }
+                                @if (_invited.TryGetValue(m.Id, out var res)) { <span>@res</span> }
+                            </div>
                         }
                         <div class="task-meta">
                             <span>Tilmeldt @m.JoinedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
@@ -62,6 +75,19 @@ else
     private bool _loaded;
     private List<Member> _members = [];
     private Dictionary<string, int> _openCountByName = [];
+    private Guid? _inviting;
+    private readonly Dictionary<Guid, string> _invited = [];
+
+    // Admin = role containing "Admin" (set in the database / Admin page). Only they see "📧 Inviter".
+    private bool IsAdmin => _member?.Role?.Contains("Admin", StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task Invite(Member m)
+    {
+        _inviting = m.Id; StateHasChanged();
+        var ok = await Invites.SendAsync(_group!, m, _member!, Nav.BaseUri);
+        _invited[m.Id] = ok ? "✓ Invitation sendt" : "Kunne ikke sende – tjek mailen";
+        _inviting = null;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -6,6 +6,7 @@
 @inject ClubAuthService ClubAuth
 @inject MessageService Messages
 @inject ClubMailService Mail
+@inject ClubPushService Push
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -17,6 +18,12 @@ else
         <div class="msg-body">
             <h2 class="msg-h">📣 Beskeder</h2>
             <p class="msg-help">Noget vigtigt til hele holdet? Skriv det her – så kan du se, hvem der har set det, og hvem der har bekræftet.</p>
+
+            @if (_pushMsg is null)
+            {
+                <button class="msg-btn" @onclick="EnablePush">🔔 Slå notifikationer til på denne enhed</button>
+            }
+            else { <p class="msg-help">@_pushMsg</p> }
 
             @if (_unread.Count > 0)
             {
@@ -91,7 +98,7 @@ else
     private Group? _group;
     private bool _loaded, _writing, _sending, _confirm = true;
     private string _title = "", _text = "", _email = "";
-    private string? _emailMsg;
+    private string? _emailMsg, _pushMsg;
     private int _others;
     private List<ClubMessage> _list = [];
     private List<ClubMessage> _unread = [];
@@ -126,6 +133,18 @@ else
         var msg = await Messages.SendAsync(_group!, _member!, _title, _text, _confirm, Nav.BaseUri);
         _sending = false; _writing = false; _title = ""; _text = "";
         Nav.NavigateTo($"/g/{Slug}/beskeder/{msg.Id}", forceLoad: true);   // enhanced nav kept showing the list page
+    }
+
+    private async Task EnablePush()
+    {
+        var status = await JS.InvokeAsync<string>("clubJs.subscribePush", Push.GetPublicKey(), _group!.Id, _member!.Name);
+        _pushMsg = status switch
+        {
+            "granted" => "✓ Notifikationer er slået til på denne enhed.",
+            "denied" => "Notifikationer er blokeret i browseren. Slå dem til under browserens indstillinger for siden.",
+            "unsupported" => "Denne browser kan ikke give notifikationer. På iPhone: læg Club på hjemmeskærmen først (📲 nederst), og åbn den derfra.",
+            _ => "Det gik ikke – prøv igen.",
+        };
     }
 
     private async Task SaveEmail()
