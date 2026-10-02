@@ -1,0 +1,149 @@
+@page "/g/{slug}/opgaver"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@* Board tasks (Skelagerhøjen 2026-10-02): who does what, so nobody does the same thing twice. Every box show/hide (user rule). *@
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="opgaver" />
+
+        <div class="msg-body">
+            <div class="msg-card card">
+                <h2 class="msg-h">✅ Mine opgaver</h2>
+                @if (Mine.Count == 0) { <p class="msg-help">Du har ingen åbne opgaver. 👍</p> }
+                @foreach (var a in Mine) { <TaskLine A="a" Me="@_member.Name" OnDone="Done" OnTake="Take" ShowWho="false" /> }
+            </div>
+
+            @if (!_adding) { <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _adding = true">➕ Ny opgave</button> }
+            else
+            {
+                <div class="msg-card card">
+                    <h3 class="msg-h3">➕ Ny opgave</h3>
+                    <label class="msg-label">Hvad skal gøres?
+                        <input class="msg-input" @bind="_title" @bind:event="oninput" maxlength="200" placeholder="Fx: Kontakt Tom om den tidligere konto" />
+                    </label>
+                    <label class="msg-label">Hvem?
+                        <select class="msg-input" @bind="_who">
+                            <option value="">Ikke fordelt endnu</option>
+                            @foreach (var m in _members) { <option value="@m.Name">@m.Name</option> }
+                        </select>
+                    </label>
+                    <label class="msg-label">Emne
+                        <input class="msg-input" @bind="_topic" list="topics" placeholder="Fx: Ladestandere" />
+                        <datalist id="topics">@foreach (var t in Topics) { <option value="@t" /> }</datalist>
+                    </label>
+                    <label class="msg-label">Senest <span class="msg-muted">(valgfrit)</span>
+                        <input class="msg-input" type="date" @bind="_due" />
+                    </label>
+                    <div class="msg-row">
+                        <button class="msg-btn msg-btn-primary" @onclick="Add" disabled="@string.IsNullOrWhiteSpace(_title)">Gem opgaven</button>
+                        <button class="msg-btn" @onclick="() => _adding = false">Annullér</button>
+                    </div>
+                </div>
+            }
+
+            @foreach (var g in Open.GroupBy(a => TopicOf(a)).OrderBy(g => g.Key == "Andet").ThenBy(g => g.Key))
+            {
+                <div class="msg-card card">
+                    <h3 class="msg-h3">📌 @g.Key (@g.Count())</h3>
+                    @foreach (var a in g.OrderBy(a => a.Assignees.Count == 0).ThenBy(a => a.AssigneeLabel).ThenBy(a => a.DueDate ?? DateTime.MaxValue))
+                    {
+                        <TaskLine A="a" Me="@_member.Name" OnDone="Done" OnTake="Take" ShowWho="true" />
+                    }
+                </div>
+            }
+
+            @if (_done.Count > 0)
+            {
+                <div class="msg-card card">
+                    <h3 class="msg-h3">✔️ Udført (@_done.Count)</h3>
+                    @foreach (var a in _done)
+                    {
+                        <div class="msg-who"><span class="msg-who-name">@a.Title</span><span class="msg-who-state">@a.CompletedByName · @Beskeder.Dk(a.CompletedAt ?? a.CreatedAt).ToString("d/M")</span></div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _adding;
+    private string _title = "", _who = "", _topic = "";
+    private DateTime? _due;
+    private List<Member> _members = [];
+    private List<Assignment> _open = [];
+    private List<Assignment> _done = [];
+    private Dictionary<Guid, string> _topicNames = [];
+
+    private IEnumerable<Assignment> Open => _open;
+    private List<Assignment> Mine => _open.Where(a => a.IsAssignedTo(_member!.Name)).OrderBy(a => a.DueDate ?? DateTime.MaxValue).ToList();
+    private IEnumerable<string> Topics => _topicNames.Values.OrderBy(t => t);
+    private string TopicOf(Assignment a) => a.MainTaskId is { } id && _topicNames.TryGetValue(id, out var t) ? t : "Andet";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        await Load();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task Load()
+    {
+        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+        _topicNames = await Db.MainTasks.Where(t => t.GroupId == _group!.Id).ToDictionaryAsync(t => t.Id, t => t.Title);
+        var all = await Db.Assignments.Where(a => a.GroupId == _group!.Id).ToListAsync();
+        _open = all.Where(a => !a.IsCompleted).ToList();
+        _done = all.Where(a => a.IsCompleted).OrderByDescending(a => a.CompletedAt).Take(30).ToList();
+    }
+
+    private async Task Add()
+    {
+        Guid? topicId = null;
+        var topic = _topic.Trim();
+        if (topic.Length > 0)
+        {
+            var existing = await Db.MainTasks.FirstOrDefaultAsync(t => t.GroupId == _group!.Id && t.Title == topic);
+            if (existing is null)
+            {
+                existing = new MainTask { GroupId = _group!.Id, Title = topic, SortOrder = _topicNames.Count };
+                Db.MainTasks.Add(existing);
+            }
+            topicId = existing.Id;
+        }
+        var a = new Assignment { GroupId = _group!.Id, Title = _title.Trim(), MainTaskId = topicId, DueDate = _due, CreatedByName = _member!.Name };
+        if (_who.Length > 0) a.AddAssignee(_who);
+        Db.Assignments.Add(a);
+        await Db.SaveChangesAsync();
+        _title = ""; _who = ""; _due = null; _adding = false;
+        await Load();
+    }
+
+    private async Task Done(Assignment a)
+    {
+        a.IsCompleted = true; a.CompletedAt = DateTime.UtcNow; a.CompletedByName = _member!.Name;
+        await Db.SaveChangesAsync();
+        await Load();
+    }
+
+    private async Task Take(Assignment a)
+    {
+        a.AddAssignee(_member!.Name);
+        await Db.SaveChangesAsync();
+        await Load();
+    }
+}

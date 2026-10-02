@@ -141,6 +141,10 @@ using (var scope = app.Services.CreateScope())
         """);
     db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_Receipts_Token ON Receipts (Token)");
     db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Receipts_MessageId ON Receipts (MessageId)");
+    db.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS ""Meetings"" (
+            ""Id"" TEXT NOT NULL PRIMARY KEY, ""GroupId"" TEXT NOT NULL, ""Date"" TEXT NOT NULL, ""Place"" TEXT NOT NULL,
+            ""ReferentName"" TEXT NOT NULL, ""Agenda"" TEXT NOT NULL, ""Referat"" TEXT NOT NULL, ""ReferatTaskId"" TEXT NULL,
+            ""SentMessageId"" TEXT NULL, ""CreatedAt"" TEXT NOT NULL)");
 
     var hasRoleColumn = db.Database.SqlQueryRaw<int>(
         "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Role'").AsEnumerable().First() > 0;

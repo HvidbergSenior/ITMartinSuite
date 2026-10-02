@@ -25,6 +25,7 @@ public sealed class ClubDbContext(DbContextOptions<ClubDbContext> options) : DbC
     public DbSet<Idea> Ideas => Set<Idea>();
     public DbSet<ClubMessage> Messages => Set<ClubMessage>();
     public DbSet<MessageReceipt> Receipts => Set<MessageReceipt>();
+    public DbSet<Meeting> Meetings => Set<Meeting>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

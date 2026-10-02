@@ -1,0 +1,144 @@
+@page "/g/{slug}/moeder"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+@inject MessageService Messages
+
+@* Board meetings: date, place, agenda, referent -> "Skriv referat" task -> minutes sent as a message with receipts. *@
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="moeder" />
+
+        <div class="msg-body">
+            <h2 class="msg-h">📝 Møder og referater</h2>
+            <p class="msg-help">Hvert møde har en referent. Referenten får opgaven "Skriv referat", og når referatet sendes, får alle det som en besked, de skal bekræfte.</p>
+
+            @if (!_adding) { <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _adding = true">➕ Nyt møde</button> }
+            else
+            {
+                <div class="msg-card card">
+                    <h3 class="msg-h3">➕ Nyt møde</h3>
+                    <label class="msg-label">Dato og tid <input class="msg-input" type="datetime-local" @bind="_date" /></label>
+                    <label class="msg-label">Hvor? <input class="msg-input" @bind="_place" placeholder="Fx: hos Nikolas" /></label>
+                    <label class="msg-label">Referent
+                        <select class="msg-input" @bind="_referent">
+                            <option value="">Vælg …</option>
+                            @foreach (var m in _members) { <option value="@m.Name">@m.Name</option> }
+                        </select>
+                    </label>
+                    <label class="msg-label">Dagsorden <span class="msg-muted">(valgfrit – ét punkt pr. linje)</span>
+                        <textarea class="msg-input" rows="4" @bind="_agenda"></textarea>
+                    </label>
+                    <div class="msg-row">
+                        <button class="msg-btn msg-btn-primary" @onclick="Add" disabled="@(_date is null || _referent == "")">Gem mødet</button>
+                        <button class="msg-btn" @onclick="() => _adding = false">Annullér</button>
+                    </div>
+                </div>
+            }
+
+            @foreach (var m in _meetings)
+            {
+                var isReferent = m.ReferentName.Equals(_member.Name, StringComparison.OrdinalIgnoreCase);
+                <div class="msg-card card">
+                    <h3 class="msg-h3">📅 @m.Date.ToString("dddd d. MMMM yyyy 'kl.' HH.mm", Da)@(string.IsNullOrWhiteSpace(m.Place) ? "" : " · " + m.Place)</h3>
+                    <p class="msg-help">Referent: <b>@m.ReferentName</b> · @(m.SentMessageId is not null ? "✅ referatet er sendt" : string.IsNullOrWhiteSpace(m.Referat) ? "⏳ referat mangler" : "✏️ referat i gang")</p>
+                    @if (!string.IsNullOrWhiteSpace(m.Agenda)) { <div class="msg-label">Dagsorden</div><div class="msg-text">@m.Agenda</div> }
+
+                    @if (m.SentMessageId is { } sent)
+                    {
+                        <div class="msg-label">Referat</div><div class="msg-text">@m.Referat</div>
+                        <a class="msg-back" href="/g/@Slug/beskeder/@sent" data-enhance-nav="false">Se hvem der har læst det →</a>
+                    }
+                    else if (isReferent || IsAdmin)
+                    {
+                        <label class="msg-label">Referat
+                            <textarea class="msg-input" rows="8" @bind="m.Referat" @bind:after="() => Save(m)" placeholder="Hvad blev besluttet? Hvem gør hvad? (gemmes automatisk)"></textarea>
+                        </label>
+                        <div class="msg-row">
+                            <button class="msg-btn msg-btn-primary" @onclick="() => SendReferat(m)" disabled="@(string.IsNullOrWhiteSpace(m.Referat) || _sending)">📣 Send referatet til alle</button>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(m.Referat))
+                    {
+                        <div class="msg-label">Referat (kladde)</div><div class="msg-text">@m.Referat</div>
+                    }
+                </div>
+            }
+            @if (_meetings.Count == 0) { <p class="msg-help">Ingen møder endnu.</p> }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _adding, _sending;
+    private DateTime? _date;
+    private string _place = "", _referent = "", _agenda = "";
+    private List<Member> _members = [];
+    private List<Meeting> _meetings = [];
+    private bool IsAdmin => _member?.Role?.Contains("Admin", StringComparison.OrdinalIgnoreCase) == true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        _members = await Db.Members.Where(m => m.GroupId == _group.Id).OrderBy(m => m.Name).ToListAsync();
+        await Load();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task Load() =>
+        _meetings = await Db.Meetings.Where(m => m.GroupId == _group!.Id).OrderByDescending(m => m.Date).ToListAsync();
+
+    private async Task Add()
+    {
+        var meeting = new Meeting { GroupId = _group!.Id, Date = _date!.Value, Place = _place.Trim(), ReferentName = _referent, Agenda = _agenda.Trim() };
+        var task = new Assignment
+        {
+            GroupId = _group.Id, Title = $"Skriv referat fra mødet {meeting.Date.ToString("d. MMMM", Da)}", CreatedByName = _member!.Name,
+            DueDate = meeting.Date.Date.AddDays(7), MainTaskId = await TopicId("Møder"),
+        };
+        task.AddAssignee(_referent);
+        meeting.ReferatTaskId = task.Id;
+        Db.Assignments.Add(task);
+        Db.Meetings.Add(meeting);
+        await Db.SaveChangesAsync();
+        _adding = false; _date = null; _place = ""; _referent = ""; _agenda = "";
+        await Load();
+    }
+
+    private async Task<Guid> TopicId(string title)
+    {
+        var t = await Db.MainTasks.FirstOrDefaultAsync(x => x.GroupId == _group!.Id && x.Title == title);
+        if (t is null) { t = new MainTask { GroupId = _group!.Id, Title = title }; Db.MainTasks.Add(t); await Db.SaveChangesAsync(); }
+        return t.Id;
+    }
+
+    private async Task Save(Meeting m) => await Db.SaveChangesAsync();
+
+    private async Task SendReferat(Meeting m)
+    {
+        _sending = true; StateHasChanged();
+        var msg = await Messages.SendAsync(_group!, _member!, $"Referat fra mødet {m.Date.ToString("d. MMMM", Da)}", m.Referat, requireConfirm: true, Nav.BaseUri);
+        m.SentMessageId = msg.Id;
+        if (m.ReferatTaskId is { } tid && await Db.Assignments.FindAsync(tid) is { IsCompleted: false } task)
+        {
+            task.IsCompleted = true; task.CompletedAt = DateTime.UtcNow; task.CompletedByName = _member!.Name;
+        }
+        await Db.SaveChangesAsync();
+        _sending = false;
+        Nav.NavigateTo($"/g/{Slug}/beskeder/{msg.Id}", forceLoad: true);
+    }
+}

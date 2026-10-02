@@ -134,3 +134,6 @@ html, body {
 .msg-who-state { color: var(--muted); white-space: nowrap; }
 .msg-back { color: var(--accent); text-decoration: none; font-weight: 700; }
 .msg-mail { margin-top: 24px; }
+.task-line { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+.task-line-main { flex: 1; min-width: 200px; }
+.task-late .msg-item-title { color: var(--red); }

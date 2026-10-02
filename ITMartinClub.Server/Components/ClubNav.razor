@@ -34,6 +34,8 @@ else if (ClubGroups.IsBoard(Slug))
     <!-- Board/association version (Skelagerhøjen, 2026-10-02): messages first, nothing else until it is asked for. -->
     <div class="club-mode-row">
         <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">📣 Beskeder</a>
+        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">✅ Opgaver</a>
+        <a class="club-mode-item @(Active == "moeder" ? "active" : "")" href="/g/@Slug/moeder">📝 Møder</a>
         <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
         <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
     </div>
