@@ -1,15 +1,49 @@
-using ITMartin.Ai;
-using ITMartin.Ai.Interfaces;
+using ITMartin.Shared.UI.Kolibri;
+using ITMartinMusicCheck.Server;
 using ITMartinMusicCheck.Server.Services;
 
+// Mine skiver (Kolibri Rede) - replaced Musik-tjek 2026-10-02 (user: "make it usable for this purpose"):
+// people with boxes of CDs/DVDs/Blu-rays get them in use again - legally. Catalogue in the browser,
+// "where can I watch it" for films (TMDB watch providers = JustWatch data), CDs -> the free Rip CD
+// download, and plain rules (ophavsretsloven §12 + §75c). No DVD ripping anywhere, by design.
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorComponents();
-builder.Services.AddHttpClient();
-builder.Services.AddSingleton<MusicClearanceService>();
-builder.Services.AddAi();
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Mine skiver";
+    k.KolibriName = "Kolibri Rede";
+    k.Family = "rede";
+    k.Tagline = "Få dine CD'er, DVD'er og Blu-rays i brug igen – lovligt.";
+    k.About =
+    [
+        "Mine skiver hjælper dig med at bruge den samling, du allerede ejer: CD'er, DVD'er og Blu-rays, der står i kasser og på hylder.",
+        "Du skriver dine skiver ind og ser med det samme, hvor du har dem. For hver film kan du se, om den ligger på en streamingtjeneste i Danmark – så kan du se den med ét tryk uden at finde skiven frem.",
+        "Dine CD'er kan du selv lægge over på telefonen og computeren med det gratis program Rip CD. DVD og Blu-ray må man ikke kopiere i Danmark (de har kopispærre) – det forklarer siden 'Hvad må jeg?'.",
+        "Din samling gemmes kun i din egen browser. Intet sendes til ITMartin. Film-data kommer fra TMDB, og hvor filmen kan ses, kommer fra JustWatch.",
+    ];
+    k.HowTo =
+    [
+        "Tryk ➕ Tilføj, vælg CD, DVD eller Blu-ray, og skriv titlen. Tryk på den rigtige i listen.",
+        "Skriv evt. hvor skiven står (fx 'Kasse 3'), så du kan finde den igen.",
+        "Tryk 📺 Hvor kan jeg se den? ved en film – eller 💿 Rip den selv ved en CD.",
+        "Vil du fjerne noget igen, trykker du 🗑️.",
+    ];
+    k.Version = "2026.10";
+    k.ThemeColor = "#f4f6f5";
+});
+
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddHttpClient("tmdb", c => c.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient("mb", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(15);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("ITMartinMineSkiver/1.0 (ITMartin@Mensa.dk)");   // MusicBrainz wants a contact
+});
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<DiscLookup>();
 
 var app = builder.Build();
+app.MapKolibri();
 
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
@@ -17,56 +51,8 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-app.MapGet("/api/check", async (string title, string? artist, MusicClearanceService svc) =>
-{
-    if (string.IsNullOrWhiteSpace(title)) return Results.BadRequest();
-    var matches = await svc.CheckAsync(title, artist ?? "");
-    return Results.Ok(new { found = matches.Count > 0, matches });
-});
-
-// One or more photos of CD covers/tracklists in - every recognised CD's
-// tracks out, each already run through the same clearance check as the
-// manual search box. A missing/guessed tracklist just means fewer tracks
-// get checked, never a false "cleared" result.
-app.MapPost("/api/scan-cds", async (HttpRequest req, ICdRecognitionService recognizer, MusicClearanceService clearance) =>
-{
-    if (!req.HasFormContentType) return Results.BadRequest();
-    var form = await req.ReadFormAsync();
-    if (form.Files.Count == 0) return Results.BadRequest();
-
-    var cdResults = new List<object>();
-
-    foreach (var file in form.Files)
-    {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"cdscan-{Guid.NewGuid()}{Path.GetExtension(file.FileName)}");
-        try
-        {
-            await using (var stream = File.Create(tempPath))
-                await file.CopyToAsync(stream);
-
-            var recognized = await recognizer.AnalyzeAsync(tempPath);
-            if (recognized is null) continue;
-
-            foreach (var cd in recognized.Cds)
-            {
-                var trackResults = new List<object>();
-                foreach (var track in cd.Tracks)
-                {
-                    var matches = await clearance.CheckAsync(track, cd.Artist);
-                    trackResults.Add(new { title = track, found = matches.Count > 0, matches });
-                }
-                cdResults.Add(new { cd.Artist, cd.Album, Tracks = trackResults });
-            }
-        }
-        finally
-        {
-            if (File.Exists(tempPath)) File.Delete(tempPath);
-        }
-    }
-
-    return Results.Ok(new { cds = cdResults });
-});
-
-app.MapRazorComponents<ITMartinMusicCheck.Server.App>();
+app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
+    .AddInteractiveServerRenderMode();
 
 app.Run();

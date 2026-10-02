@@ -1,95 +1,36 @@
-:root,
-html[data-theme="dark"] {
-    --bg-main: #0a0d14;
-    --bg-card: #171a26;
-    --bg-soft: #21253a;
-    --text-main: #f0f0f0;
-    --text-muted: #8890a6;
-    --accent: #10b981;
-    --accent-hover: #059669;
-    --border: #2a2d3d;
-}
-
-html[data-theme="light"] {
-    --bg-main: #f6faf8;
-    --bg-card: #ffffff;
-    --bg-soft: #e7f5ef;
-    --text-main: #16241d;
-    --text-muted: #5f6f68;
-    --accent: #10b981;
-    --accent-hover: #059669;
-    --border: #d7ebe2;
-}
-
-html, body {
-    margin: 0; padding: 0;
-    background: var(--bg-main);
-    color: var(--text-main);
-    font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
-}
-
-.mc-root { min-height: 100vh; display: flex; flex-direction: column; }
-
-.mc-page { max-width: 640px; margin: 0 auto; padding: 24px 18px 80px; }
-
-.mc-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    padding: 24px;
-    margin-bottom: 18px;
-}
-
-.mc-title { font-size: 1.6rem; font-weight: 800; margin: 0 0 4px; text-align: center; }
-.mc-sub { color: var(--text-muted); text-align: center; margin: 0 0 18px; }
-
-.mc-search-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.mc-input {
-    flex: 1; min-width: 140px;
-    box-sizing: border-box;
-    padding: 14px;
-    font-size: 1rem;
-    border-radius: 14px;
-    border: 2px solid var(--border);
-    background: var(--bg-soft);
-    color: var(--text-main);
-}
-
-.mc-btn-big {
-    display: block;
-    width: 100%;
-    padding: 16px;
-    font-size: 1.05rem;
-    font-weight: 700;
-    border-radius: 16px;
-    border: none;
-    color: white;
-    background: linear-gradient(135deg, #34d399, #10b981);
-    cursor: pointer;
-}
-.mc-btn-big:disabled { opacity: 0.6; cursor: default; }
-
-.mc-notfound {
-    margin-top: 16px;
-    padding: 16px;
-    border-radius: 14px;
-    background: rgba(239,68,68,.12);
-    border: 1px solid rgba(239,68,68,.4);
-    line-height: 1.5;
-}
-
-.mc-found { margin-top: 16px; font-weight: 700; color: #10b981; }
-
-.mc-match {
-    margin-top: 10px;
-    padding: 12px 16px;
-    border-radius: 14px;
-    background: var(--bg-soft);
-}
-.mc-match-title { font-weight: 700; }
-.mc-match-source { font-size: 0.85rem; color: var(--text-muted); margin: 4px 0; }
-
-.mc-card h3 { margin: 20px 0 6px; font-size: 1.05rem; }
-.mc-card h3:first-of-type { margin-top: 4px; }
-.mc-card p, .mc-card li { line-height: 1.55; color: var(--text-main); }
-.mc-card ul { padding-left: 20px; margin: 6px 0; }
+/* Mine skiver - only what kolibri.css does not already give. */
+.ms-hero h1 { margin: 0 0 var(--k-space-2); }
+.ms-answer { font-size: 1.25rem; margin: 0 0 var(--k-space-2); }
+.ms-actions, .ms-kinds, .ms-wants, .ms-row { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin: var(--k-space-3) 0; }
+.ms-big { min-height: 52px; font-size: 1.05rem; }
+.ms-search { display: flex; gap: var(--k-space-2); margin: var(--k-space-3) 0; }
+.ms-search .k-input { flex: 1; min-width: 0; }
+.ms-place { display: block; margin-bottom: var(--k-space-3); }
+.ms-hits, .ms-list { list-style: none; padding: 0; margin: 0; }
+.ms-hit { display: flex; align-items: center; gap: var(--k-space-3); width: 100%; text-align: left; background: none; border: 1px solid var(--k-border); border-radius: var(--k-radius); padding: var(--k-space-2); margin-bottom: var(--k-space-2); cursor: pointer; color: inherit; font: inherit; min-height: var(--k-tap); }
+.ms-hit:hover { border-color: var(--k-accent); }
+.ms-hit img, .ms-disc > img { width: 56px; height: 80px; object-fit: cover; border-radius: var(--k-radius-sm); flex-shrink: 0; background: var(--k-bg-deep); }
+.ms-hit > span:nth-child(2) { flex: 1; min-width: 0; }
+.ms-plus { font-size: 1.3rem; }
+.ms-filter { display: flex; flex-direction: column; gap: var(--k-space-2); }
+.ms-disc { display: flex; gap: var(--k-space-3); padding: var(--k-space-3) 0; border-top: 1px solid var(--k-border); }
+.ms-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ms-info .ms-row { margin: var(--k-space-2) 0 0; }
+.ms-where { font-size: var(--k-fs-small); }
+.ms-watch { margin-top: var(--k-space-2); padding: var(--k-space-3); border-radius: var(--k-radius); background: var(--k-accent-soft); }
+.ms-watch p { margin: 0 0 var(--k-space-2); }
+.ms-logos { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-bottom: var(--k-space-2); }
+.ms-logo { display: inline-flex; align-items: center; gap: 6px; background: var(--k-card); border: 1px solid var(--k-border); border-radius: 999px; padding: 3px 10px 3px 3px; font-size: var(--k-fs-small); }
+.ms-logo img { width: 26px; height: 26px; border-radius: 6px; }
+.ms-verdict { margin-top: var(--k-space-3); }
+.ms-verdict p { margin: var(--k-space-2) 0 0; }
+.ms-table { width: 100%; border-collapse: collapse; font-size: var(--k-fs-small); }
+.ms-table th, .ms-table td { padding: 8px 6px; border-bottom: 1px solid var(--k-border); text-align: left; vertical-align: top; }
+.ms-table td:not(:first-child), .ms-table th:not(:first-child) { text-align: center; white-space: nowrap; }
+.ms-steps li { margin-bottom: var(--k-space-2); }
+.ms-credit { text-align: center; margin: var(--k-space-4) 0; }
+#components-reconnect-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); color: #fff; align-items: center; justify-content: center; z-index: 1000; }
+#components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed { display: flex; }
+.reconnect-failed-msg { display: none; }
+.components-reconnect-failed .reconnect-msg { display: none; }
+.components-reconnect-failed .reconnect-failed-msg { display: inline; }

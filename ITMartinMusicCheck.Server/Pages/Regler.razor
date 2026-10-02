@@ -1,42 +1,97 @@
 @page "/regler"
 
-<div class="mc-page">
-    <div class="mc-card">
-        <div style="font-size:3rem;text-align:center">📖</div>
-        <h1 class="mc-title">Reglerne, kort fortalt</h1>
-        <p class="mc-sub">Musik, CD'er, video og film - hvad må man, og hvad kræver en rigtig licens?</p>
+<PageTitle>Hvad må jeg? – Mine skiver</PageTitle>
 
-        <p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-top:-8px">
-            Generel vejledning, ikke juridisk rådgivning - men principperne herunder er de samme, uanset situationen.
-        </p>
+<section class="k-card ms-hero" data-nofold>
+    <h1>✅ Hvad må jeg med mine skiver?</h1>
+    <p class="k-muted">Vælg hvad du har, og hvad du vil – så får du svaret med det samme.</p>
 
-        <h3>🎧 Streaming (Spotify m.fl.)</h3>
-        <p>Fuldstændig fint at bruge som betalende abonnent, via tjenestens egen officielle afspilning (fx Spotifys Web Playback SDK). Spotify har allerede licenseret musikken til streaming for abonnenter - lyden forlader aldrig deres system, du bygger bare en pænere forside til noget de allerede har givet dig lov til.</p>
-
-        <h3>💿 At rippe egne CD'er</h3>
-        <p>Lovligt i Danmark under reglen om <em>privatkopiering</em> (Ophavsretslovens §12). En del af prisen på blanke medier/lagerplads går allerede til at kompensere rettighedshavere for netop denne brug. Det gælder kun CD'er du selv ejer, og kun til eget/husstandens brug - ikke lånte CD'er du beholder ripninger af, og ikke deling af filerne med andre uden for husstanden.</p>
-
-        <h3>🎤 At afspille/synge til musik privat (fx karaoke)</h3>
-        <p>En privat sammenkomst med familie/venner i eget hjem er ikke en "offentlig fremførelse" juridisk set - der skal ikke en separat licens (fx KODA) til. Det kræver kun en licens, hvis det bliver kommercielt, offentligt tilgængeligt, eller foregår på et forretningssted (en bar med karaokeaften skal have en KODA-aftale; din stue skal ikke).</p>
-
-        <h3>🎬 At bruge musik i egen video/film</h3>
-        <p>Det er en anden ret end at kopiere musikken - at sætte musik sammen med billede ("synkronisering") er sin egen rettighed, som privatkopiering ikke automatisk dækker, selv hvis filmen aldrig forlader hjemmet.</p>
-        <ul>
-            <li><strong>Forbliver filmen 100% privat</strong> (kun set af dig/husstanden, aldrig uploadet eller delt) - reel risiko er praktisk talt nul, uanset hvor musikken kommer fra.</li>
-            <li><strong>Deles filmen på nogen måde</strong> (upload, sociale medier, sendes til andre, vises for udenforstående) - så kræver det en rigtig synkroniseringslicens for det specifikke nummer, eller musik der eksplicit er licenseret til formålet (royalty-fri/production music, eller Creative Commons med de rigtige vilkår).</li>
-        </ul>
-
-        <h3>🔍 Hvordan finder jeg ud af om et nummer er cleared?</h3>
-        <p>Der findes ingen liste der siger "ja" til almindelig kommerciel musik - det er ikke noget der kan slås op, fordi svaret som udgangspunkt altid er nej, medmindre du selv indhenter en licens. Det eneste der faktisk kan bekræftes er, om et nummer findes i et kendt gratis-katalog (Jamendo, ccMixter) - det er hvad <a href="/" style="color:var(--accent)">Musik-tjek</a> på forsiden gør.</p>
-
-        <h3>📀 Film og DVD/Blu-ray</h3>
-        <p>At se en film du ejer, privat, er fint og kræver aldrig en licens. At kopiere (rippe) en DVD eller Blu-ray er derimod <strong>ikke tilladt</strong> - heller ikke til eget brug: næsten alle skiver har kopispærre, og Ophavsretslovens §75c forbyder at bryde den, også når formålet er en privatkopi. Man må kun bryde den i det omfang, det er nødvendigt for at afspille skiven. At vise en film offentligt (forening, arrangement, forretning) kræver altid en public-visningslicens, uanset om du selv ejer skiven.</p>
-
-        <h3>🤝 Må andre rippe for mig?</h3>
-        <p>Nej. Ved musik og film giver privatkopieringen ikke ret til at få hjælp af andre til selve kopieringen (§12, stk. 4) - og man må ikke bruge kopiudstyr, der er stillet frem for alle i en butik eller på et bibliotek (§12, stk. 5). Du må gerne få hjælp til at sætte programmer og afspiller op - men selve rippet gør du selv.</p>
-
-        <div class="mc-notfound" style="margin-top:20px">
-            <strong>Tommelfingerregel:</strong> forbliver det privat (dit hjem, din husstand, ingen deling) - er du praktisk talt altid på den sikre side. Så snart noget deles, uploades eller vises for udenforstående, skifter reglerne, og du skal bruge en rigtig licens eller musik/film der eksplicit må bruges sådan.
-        </div>
+    <p class="k-label">1. Hvad har du?</p>
+    <div class="ms-kinds">
+        <button class="k-btn @(_disc == "cd" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => _disc = "cd"'>💿 Musik-CD</button>
+        <button class="k-btn @(_disc == "film" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => _disc = "film"'>📀 DVD / 🔵 Blu-ray</button>
     </div>
-</div>
+
+    @if (_disc != "")
+    {
+        <p class="k-label">2. Hvad vil du?</p>
+        <div class="ms-wants">
+            @foreach (var w in Wants)
+            {
+                <button class="k-btn k-btn-sm @(_want == w.Key ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _want = w.Key">@w.Label</button>
+            }
+        </div>
+    }
+
+    @if (Answer is { } a)
+    {
+        <div class="k-alert @(a.Ok ? "k-alert-ok" : "k-alert-danger") ms-verdict">
+            <b>@(a.Ok ? "✅ Ja, det må du." : "❌ Nej, det må du ikke.")</b>
+            <p>@a.Why</p>
+            <p class="k-small k-muted">@a.Law</p>
+            @if (a.Next is { } n) { <p>👉 @((MarkupString)n)</p> }
+        </div>
+    }
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Det hele på én gang</h2>
+    <table class="ms-table">
+        <thead><tr><th></th><th>💿 CD</th><th>📀 DVD / Blu-ray</th></tr></thead>
+        <tbody>
+            <tr><td>Afspille din egen skive</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Kopiere (rippe) din egen skive til dig og din husstand</td><td>✅</td><td>❌ kopispærre</td></tr>
+            <tr><td>Lade en anden rippe den for dig</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Rippe en lånt eller lejet skive</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Dele filerne med nogen uden for husstanden</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Få hjælp til at sætte programmer og afspiller op</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Se filmen på en streamingtjeneste, du betaler for</td><td>–</td><td>✅</td></tr>
+            <tr><td>Sælge eller give skiven væk</td><td>✅ *</td><td>✅</td></tr>
+        </tbody>
+    </table>
+    <p class="k-small k-muted">* Sælger du en CD, du har rippet, så slet dine kopier – privatkopien hører til den skive, du ejer.</p>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">🤔 Hvorfor må jeg ikke kopiere mine egne film?</h2>
+    <div>
+        <p>Du må gerne lave en privat kopi af noget, du ejer (Ophavsretslovens §12). Men næsten alle DVD'er og Blu-rays har en <b>kopispærre</b>, og §75c forbyder at bryde den – også når du kun vil lave en kopi til dig selv. Du må kun bryde den så meget, som det kræver at <i>afspille</i> filmen.</p>
+        <p>Musik-CD'er har normalt ingen kopispærre. Derfor må du gerne rippe dine egne CD'er.</p>
+        <p>Loven siger også, at andre ikke må lave kopien for dig (§12, stk. 4), og at du ikke må bruge kopiudstyr, der står fremme for alle i en butik eller på et bibliotek (§12, stk. 5). Du må gerne få hjælp til alt andet – opsætning, afspiller, overblik.</p>
+        <p><b>Synes du, det er urimeligt,</b> at du ikke må kopiere en film, du selv har købt? Det mener mange. Så sig det til dem, der laver loven: skriv til Kulturministeriet eller dit lokale folketingsmedlem, eller til Forbrugerrådet Tænk. Det er sådan, loven bliver ændret – ikke ved at bryde den.</p>
+    </div>
+</section>
+
+<p class="k-small k-muted">Generel vejledning efter Ophavsretsloven (LBK nr. 1093 af 20/08/2023), ikke juridisk rådgivning. Læs selv: <a href="https://danskelove.dk/ophavsretsloven/12" target="_blank" rel="noopener">§12</a> og <a href="https://danskelove.dk/ophavsretsloven/75c" target="_blank" rel="noopener">§75c</a>.</p>
+
+@code {
+    private sealed record Want(string Key, string Label);
+    private sealed record Verdict(bool Ok, string Why, string Law, string? Next = null);
+
+    private string _disc = "", _want = "";
+
+    private static readonly Want[] Wants =
+    [
+        new("rip", "Kopiere den til computer/telefon"),
+        new("others", "Lade en anden kopiere den for mig"),
+        new("borrowed", "Kopiere en lånt eller lejet skive"),
+        new("share", "Dele filerne med venner/familie uden for huset"),
+        new("play", "Bare se/høre den nemmere"),
+        new("sell", "Sælge eller give den væk"),
+    ];
+
+    private Verdict? Answer => (_disc, _want) switch
+    {
+        ("", _) or (_, "") => null,
+        ("cd", "rip") => new(true, "Du må gerne kopiere musik-CD'er, du selv ejer, til dig selv og dem, du bor sammen med.", "Ophavsretsloven §12, stk. 1-2 (privatkopiering).", "Brug det gratis program <a href=\"/rip-cd\">Rip CD</a> – du lægger CD'en i, og den kommer ud med navne og cover."),
+        ("film", "rip") => new(false, "DVD'er og Blu-rays har næsten altid en kopispærre, og den må du ikke bryde – heller ikke for at lave en kopi til dig selv.", "Ophavsretsloven §75c.", "Tryk <b>📺 Hvor kan jeg se den?</b> i <a href=\"/\">din samling</a> – måske ligger filmen allerede på en tjeneste, du har."),
+        (_, "others") => new(false, "Ved musik og film må du ikke få en anden til at lave kopien for dig – heller ikke gratis. Du må gerne få hjælp til at sætte programmet op, men selve kopieringen gør du selv.", "Ophavsretsloven §12, stk. 4.", _disc == "cd" ? "Med <a href=\"/rip-cd\">Rip CD</a> tager det kun et par minutter pr. CD at gøre det selv." : null),
+        (_, "borrowed") => new(false, "Du må ikke lave en digital kopi af en skive, du har lånt eller lejet – fx fra biblioteket.", "Ophavsretsloven §12, stk. 3."),
+        (_, "share") => new(false, "En digital privatkopi må kun bruges af dig og dem, du bor sammen med. Voksne børn, der er flyttet hjemmefra, og venner er uden for husstanden.", "Ophavsretsloven §12, stk. 2.", "De må gerne låne selve skiven af dig."),
+        ("cd", "play") => new(true, "Selvfølgelig. Og vil du have den på telefonen, kan du rippe den selv.", "Ophavsretsloven §12.", "Se <a href=\"/rip-cd\">Rip CD</a>, eller find albummet på din streamingtjeneste fra <a href=\"/\">din samling</a>."),
+        ("film", "play") => new(true, "Du må altid afspille dine egne film – også på en PC eller en Blu-ray-afspiller, der bryder spærren for at kunne vise filmen.", "Ophavsretsloven §75c (afspilning er tilladt).", "Skriv dine film ind i <a href=\"/\">din samling</a>: så ved du, hvor de står, og kan se, om de også ligger på en tjeneste, du har."),
+        ("cd", "sell") => new(true, "Du må gerne sælge eller give dine CD'er væk. Har du rippet dem, så slet dine kopier – privatkopien hører til den skive, du ejer.", "Ophavsretsloven §12 og §19 (videresalg af eksemplarer)."),
+        ("film", "sell") => new(true, "Du må gerne sælge eller give dine DVD'er og Blu-rays væk.", "Ophavsretsloven §19 (videresalg af eksemplarer)."),
+        _ => null,
+    };
+}

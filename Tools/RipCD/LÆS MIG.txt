@@ -1,0 +1,28 @@
+ITMartin Rip CD - gratis
+=========================
+
+Sådan gør du
+1. Pak mappen ud (højreklik på zip-filen -> Udpak alle).
+2. Dobbeltklik på "Start Rip CD".
+   Windows spørger, om programmet må ændre på PC'en - svar Ja (cd-drevet kræver det).
+   Første gang installeres fre:ac og ffmpeg (gratis værktøjer) - det tager et minut.
+3. Vælg MP3 eller FLAC, og hvor musikken skal ligge (tryk bare Enter = mappen Musik).
+4. Læg en CD i. Når den er færdig, kommer skuffen ud - læg den næste i.
+   Navne, år og cover hentes fra MusicBrainz af sig selv.
+5. Luk vinduet, når du er færdig.
+
+Det må du
+- Rippe musik-CD'er, du selv ejer, til dig selv og dem, du bor sammen med.
+
+Det må du ikke
+- Rippe lånte eller lejede CD'er.
+- Dele filerne med nogen uden for husstanden.
+- Lade en anden rippe dine CD'er for dig.
+- Kopiere DVD/Blu-ray (de har kopispærre) - derfor kan programmet kun CD'er.
+Læs mere: https://mineskiver.itmartin.dk/regler
+
+Vil du fjerne noget igen
+- Slet albummets mappe i din Musik-mappe. Programmet gemmer ingen andre kopier.
+- Vil du fjerne selve programmet: slet denne mappe og %APPDATA%\ITMartin\RipCD.
+
+Spørgsmål: ITMartin@Mensa.dk / 31 19 47 30 - eller chat på itmartin.dk

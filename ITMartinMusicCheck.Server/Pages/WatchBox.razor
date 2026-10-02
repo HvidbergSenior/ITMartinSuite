@@ -1,0 +1,27 @@
+@* "Hvor kan jeg se den?" for one film: DK streaming first (already paid for), then free, rent, buy - and always "or play the disc". *@
+<div class="ms-watch">
+    @if (Loading) { <p class="k-muted">Slår op …</p> }
+    else if (Info is null) { <p class="k-muted">Kunne ikke slå op lige nu. Prøv igen om lidt.</p> }
+    else
+    {
+        @if (Info.Flatrate.Count > 0)
+        {
+            <p><b>✅ Med abonnement:</b></p>
+            <Logos List="Info.Flatrate" />
+            <p class="k-help">Har du en af dem, kan du se den med det samme – uden at finde skiven frem.</p>
+        }
+        @if (Info.Free.Count > 0) { <p><b>🆓 Gratis:</b></p><Logos List="Info.Free" /> }
+        @if (Info.Rent.Count > 0) { <p><b>Kan lejes:</b></p><Logos List="Info.Rent" /> }
+        @if (Info.Flatrate.Count == 0 && Info.Free.Count == 0)
+        {
+            <p>Den ligger ikke på en streamingtjeneste i Danmark lige nu. <b>Du har den på skive</b> – sæt den i afspilleren@(string.IsNullOrEmpty(Disc.Place) ? "" : $" (den står: {Disc.Place})").</p>
+        }
+        <p class="k-small"><a href="@Info.Link" target="_blank" rel="noopener">Se alle muligheder ↗</a> <span class="k-muted">(data fra JustWatch)</span></p>
+    }
+</div>
+
+@code {
+    [Parameter] public WatchInfo? Info { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter, EditorRequired] public Disc Disc { get; set; } = default!;
+}

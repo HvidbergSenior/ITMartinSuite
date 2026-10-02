@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+    <!-- "Mine skiver" (Kolibri Rede) since 2026-10-02 - the old Musik-tjek (music clearance check) lives in git history. -->
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -9,7 +10,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
     </ItemGroup>
 

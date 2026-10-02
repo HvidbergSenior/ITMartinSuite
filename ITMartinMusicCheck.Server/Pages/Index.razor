@@ -1,147 +1,261 @@
 @page "/"
+@using System.Text.Json
+@inject DiscLookup Lookup
+@inject IJSRuntime JS
 
-<div class="mc-page">
-    <div class="mc-card">
-        <div style="font-size:3rem;text-align:center">🎵</div>
-        <h1 class="mc-title">Musik-tjek</h1>
-        <p class="mc-sub">Er denne sang fri til at bruge?</p>
+<PageTitle>Mine skiver</PageTitle>
 
-        <ProblemPurposeBanner
-            Problem="Det er umuligt at vide, om en sang må bruges i en video eller deles - og der findes ingen liste, der siger 'ja' til almindelig kommerciel musik."
-            Formaal="Tjek en sang op mod kendte gratis-kataloger (Jamendo, ccMixter). Findes den der, får du licensen at se. Findes den ikke, må du gå ud fra at den IKKE må deles." />
+<section class="k-card ms-hero" data-nofold>
+    <h1>📀 Mine skiver</h1>
+    @if (!_loaded)
+    {
+        <p class="k-muted">Henter din samling …</p>
+    }
+    else if (_discs.Count == 0)
+    {
+        <p class="ms-answer">Få dine CD'er, DVD'er og Blu-rays i brug igen.</p>
+        <p class="k-muted">Skriv dine skiver ind – så kan du se, hvor de står, om filmen kan ses på en streamingtjeneste, og hvordan du får dine CD'er over på telefonen.</p>
+    }
+    else
+    {
+        <p class="ms-answer">Du har <b>@_discs.Count</b> @(_discs.Count == 1 ? "skive" : "skiver")@CountLine</p>
+    }
+    <div class="ms-actions">
+        <button class="k-btn k-btn-primary ms-big" @onclick="() => _adding = !_adding">➕ Tilføj skive</button>
+        <a class="k-btn k-btn-secondary ms-big" href="/regler">✅ Hvad må jeg?</a>
+        <a class="k-btn k-btn-secondary ms-big" href="/rip-cd">💿 Rip dine CD'er (gratis)</a>
+    </div>
+</section>
 
-        <HowToUseBanner Steps='@(new[]
-        {
-            "Skriv sangens titel (og evt. kunstner) og tryk 'Tjek'.",
-            "Hvis sangen findes i et af de gratis-kataloger, ser du licensen direkte - den må bruges efter de vilkår.",
-            "Hvis intet findes, betyder det IKKE at sangen er fri - det betyder bare at den ikke er fundet i et gratis-katalog. Gå ud fra at almindelig kommerciel musik (fra CD, Spotify, streaming) kræver en rigtig licens for at må deles."
-        })' />
-
-        <div class="mc-search-row">
-            <input id="mc-title" class="mc-input" placeholder="Sangtitel" />
-            <input id="mc-artist" class="mc-input" placeholder="Kunstner (valgfrit)" />
+@if (_adding)
+{
+    <section class="k-card" data-nofold>
+        <h2 class="k-card-title">➕ Tilføj skive</h2>
+        <p class="k-help">1. Vælg hvad det er. 2. Skriv titlen. 3. Tryk på den rigtige.</p>
+        <div class="ms-kinds">
+            @foreach (var (k, label) in Kinds)
+            {
+                <button class="k-btn @(_kind == k ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => PickKind(k)">@label</button>
+            }
         </div>
-        <button id="mc-btn" class="mc-btn-big">🔍 Tjek</button>
+        @* No <form>: Enter before the Blazor circuit is up would do a native submit and reload the page (seen in the first test). *@
+        <div class="ms-search">
+            <input class="k-input" @bind="_query" @bind:event="oninput" @onkeydown="SearchOnEnter" enterkeyhint="search" placeholder="@(_kind == "cd" ? "Kunstner og album, fx Kim Larsen Midt om natten" : "Filmens titel, fx Olsen-banden")" autocomplete="off" />
+            <button class="k-btn k-btn-primary" @onclick="Search" disabled="@_busy">🔍 Søg</button>
+        </div>
+        <label class="k-label ms-place">Hvor står den? <span class="k-muted">(valgfrit – fx "Kasse 3" eller "Stuen")</span>
+            <input class="k-input" @bind="_place" @bind:after="SavePlace" placeholder="Kasse 3" />
+        </label>
 
-        <div id="mc-result"></div>
-    </div>
+        @if (_busy) { <p class="k-muted">Søger …</p> }
+        else if (_searched && _hits.Count == 0)
+        {
+            <p class="k-muted">Fandt ingen. Prøv med færre ord – eller tilføj den med det navn, du skrev:</p>
+            <button class="k-btn k-btn-secondary" @onclick="AddTyped">➕ Tilføj "@_query" alligevel</button>
+        }
+        <ul class="ms-hits">
+            @foreach (var h in _hits)
+            {
+                <li>
+                    <button class="ms-hit" @onclick="() => Add(h)">
+                        <img src="@(string.IsNullOrEmpty(h.Img) ? Placeholder : h.Img)" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+                        <span><b>@h.Title</b><br /><span class="k-muted">@h.Sub</span></span>
+                        <span class="ms-plus">➕</span>
+                    </button>
+                </li>
+            }
+        </ul>
+        @if (_justAdded is not null) { <div class="k-alert k-alert-ok">✓ @_justAdded er lagt i din samling.</div> }
+    </section>
+}
 
-    <div class="mc-card">
-        <h2 style="margin-top:0">📷 Tag billede af CD'er</h2>
-        <p class="mc-sub" style="text-align:left">Ét eller flere billeder ad gangen - af forsiden, bagsiden med sportliste, eller en hel stak/hylde. AI genkender hver CD og tjekker automatisk alle numre.</p>
-
-        <input id="mc-cd-photos" type="file" accept="image/*" capture="environment" multiple class="mc-input" style="padding:10px" />
-        <button id="mc-scan-btn" class="mc-btn-big" style="margin-top:10px">📷 Scan</button>
-
-        <div id="mc-scan-result"></div>
-    </div>
-
-    <div class="mc-card" style="text-align:center">
-        <a href="/regler" style="color:var(--accent);font-weight:700;text-decoration:none">📖 Se de generelle regler for musik, film og CD'er →</a>
-    </div>
-</div>
-
-<script>
-(function () {
-    var btn = document.getElementById('mc-btn');
-    var result = document.getElementById('mc-result');
-
-    btn.addEventListener('click', function () {
-        var title = document.getElementById('mc-title').value.trim();
-        var artist = document.getElementById('mc-artist').value.trim();
-        if (!title) return;
-
-        btn.disabled = true;
-        btn.textContent = 'Tjekker...';
-        result.innerHTML = '';
-
-        fetch('/api/check?title=' + encodeURIComponent(title) + '&artist=' + encodeURIComponent(artist))
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (!data.found) {
-                    result.innerHTML =
-                        '<div class="mc-notfound">' +
-                        '❌ Ikke fundet i kendte gratis-kataloger.<br>' +
-                        'Gå ud fra at denne sang <strong>ikke</strong> er fri til at dele - kun rigtig licens (eller royalty-fri erstatning) gør den det.' +
-                        '</div>';
-                    return;
+@if (_discs.Count > 0)
+{
+    <section class="k-card" data-nofold>
+        <div class="ms-filter">
+            <input class="k-input" @bind="_filter" @bind:event="oninput" placeholder="🔎 Find i din samling …" />
+            <div class="ms-kinds">
+                <button class="k-btn k-btn-sm @(_show == "" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => _show = ""'>Alle</button>
+                @foreach (var (k, label) in Kinds)
+                {
+                    <button class="k-btn k-btn-sm @(_show == k ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _show = k">@label</button>
                 }
+            </div>
+        </div>
+        <ul class="ms-list">
+            @foreach (var d in Visible)
+            {
+                <li class="ms-disc">
+                    <img src="@(string.IsNullOrEmpty(d.Img) ? Placeholder : d.Img)" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+                    <div class="ms-info">
+                        <b>@d.Title</b>
+                        <span class="k-muted">@KindName(d.Kind)@(string.IsNullOrEmpty(d.Sub) ? "" : " · " + d.Sub)</span>
+                        @if (!string.IsNullOrEmpty(d.Place)) { <span class="ms-where">📍 @d.Place</span> }
+                        <div class="ms-row">
+                            @if (d.Kind == "cd")
+                            {
+                                <a class="k-btn k-btn-sm k-btn-secondary" href="/rip-cd">💿 Rip den selv</a>
+                                <a class="k-btn k-btn-sm k-btn-ghost" href="@SpotifyLink(d)" target="_blank" rel="noopener">🎧 Find på Spotify</a>
+                            }
+                            else if (!string.IsNullOrEmpty(d.TmdbId))
+                            {
+                                <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => ToggleWatch(d)">📺 Hvor kan jeg se den?</button>
+                            }
+                            <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => AskRemove(d)" title="Fjern fra samlingen">🗑️</button>
+                        </div>
+                        @if (_confirm == d.Id)
+                        {
+                            <div class="k-alert k-alert-warn">Fjern "@d.Title" fra samlingen?
+                                <button class="k-btn k-btn-sm k-btn-danger" @onclick="() => Remove(d)">Ja, fjern</button>
+                                <button class="k-btn k-btn-sm k-btn-ghost" @onclick='() => _confirm = ""'>Nej</button>
+                            </div>
+                        }
+                        @if (_open == d.Id)
+                        {
+                            <WatchBox Info="_watch" Loading="_watchBusy" Disc="d" />
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+        @if (!Visible.Any()) { <p class="k-muted">Ingen skiver passer på din søgning.</p> }
+    </section>
+}
 
-                var html = '<div class="mc-found">✅ Fundet ' + data.matches.length + ' sted(er) - tjek licensvilkårene:</div>';
-                data.matches.forEach(function (m) {
-                    html += '<div class="mc-match">' +
-                        '<div class="mc-match-title">' + escapeHtml(m.trackName) + ' - ' + escapeHtml(m.artistName) + '</div>' +
-                        '<div class="mc-match-source">Kilde: ' + escapeHtml(m.source) + ' · Licens: ' + escapeHtml(m.licenseName) + '</div>' +
-                        (m.licenseUrl ? '<a href="' + m.licenseUrl + '" target="_blank">Se licensvilkår</a>' : '') +
-                        (m.pageUrl ? ' · <a href="' + m.pageUrl + '" target="_blank">Se sang</a>' : '') +
-                        '</div>';
-                });
-                result.innerHTML = html;
-            })
-            .catch(function () {
-                result.innerHTML = '<div class="mc-notfound">Der skete en fejl - prøv igen.</div>';
-            })
-            .finally(function () {
-                btn.disabled = false;
-                btn.textContent = '🔍 Tjek';
-            });
-    });
+<section class="k-card">
+    <h2 class="k-card-title">⚙️ Gem, flyt eller fjern din samling</h2>
+    <div>
+        <p class="k-help">Din samling gemmes kun i denne browser på denne telefon eller PC. Vil du have den på en anden, eller have en sikkerhedskopi: tryk <b>Gem som fil</b> og åbn filen på den anden med <b>Hent fra fil</b>.</p>
+        <div class="ms-row">
+            <button class="k-btn k-btn-secondary" @onclick="Export" disabled="@(_discs.Count == 0)">💾 Gem som fil</button>
+            <label class="k-btn k-btn-secondary">📂 Hent fra fil
+                <input type="file" accept=".json,application/json" @ref="_fileInput" @onchange="Import" hidden />
+            </label>
+        </div>
+        @if (_importMsg is not null) { <p class="k-muted">@_importMsg</p> }
+        @if (_discs.Count > 0)
+        {
+            <p class="k-help">Vil du starte forfra, fjerner du alt med ét tryk. Det kan ikke fortrydes – gem først som fil, hvis du er i tvivl.</p>
+            @if (!_confirmAll) { <button class="k-btn k-btn-danger" @onclick="() => _confirmAll = true">🗑️ Fjern alt</button> }
+            else
+            {
+                <div class="k-alert k-alert-warn">Fjern alle @_discs.Count skiver fra samlingen?
+                    <button class="k-btn k-btn-sm k-btn-danger" @onclick="RemoveAll">Ja, fjern alt</button>
+                    <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _confirmAll = false">Nej</button>
+                </div>
+            }
+        }
+    </div>
+</section>
 
-    function escapeHtml(s) {
-        var d = document.createElement('div');
-        d.textContent = s || '';
-        return d.innerHTML;
+<p class="k-small k-muted ms-credit">Film-data fra <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a> · Hvor filmen kan ses: <a href="https://www.justwatch.com/dk" target="_blank" rel="noopener">JustWatch</a> · CD-data fra <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>. Denne app bruger TMDB's API, men er ikke godkendt af TMDB.</p>
+
+@code {
+    private static readonly (string, string)[] Kinds = [("cd", "💿 CD"), ("dvd", "📀 DVD"), ("bd", "🔵 Blu-ray")];
+    private const string Placeholder = "_content/ITMartin.Shared.UI/kolibri-icon.svg";
+    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
+
+    private List<Disc> _discs = [];
+    private List<Hit> _hits = [];
+    private bool _loaded, _adding, _busy, _searched, _confirmAll, _watchBusy;
+    private string _kind = "dvd", _query = "", _place = "", _filter = "", _show = "", _confirm = "", _open = "";
+    private string? _justAdded, _importMsg;
+    private WatchInfo? _watch;
+    private ElementReference _fileInput;
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try { _discs = JsonSerializer.Deserialize<List<Disc>>(await JS.InvokeAsync<string>("skiver.load"), Json) ?? []; } catch { _discs = []; }
+        _place = await JS.InvokeAsync<string>("skiver.getPlace");
+        _adding = _discs.Count == 0;
+        _loaded = true;
+        StateHasChanged();
     }
 
-    // ── CD photo scan ────────────────────────────────────────────────────
-    var scanBtn = document.getElementById('mc-scan-btn');
-    var scanInput = document.getElementById('mc-cd-photos');
-    var scanResult = document.getElementById('mc-scan-result');
+    private string CountLine
+    {
+        get
+        {
+            var parts = Kinds.Select(k => (n: _discs.Count(d => d.Kind == k.Item1), name: KindName(k.Item1))).Where(p => p.n > 0).Select(p => $"{p.n} {p.name}");
+            return _discs.Count == 0 ? "" : ": " + string.Join(", ", parts) + ".";
+        }
+    }
 
-    scanBtn.addEventListener('click', function () {
-        if (!scanInput.files || scanInput.files.length === 0) return;
+    private IEnumerable<Disc> Visible => _discs
+        .Where(d => _show == "" || d.Kind == _show)
+        .Where(d => _filter.Length == 0 || $"{d.Title} {d.Sub} {d.Place}".Contains(_filter, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(d => d.Title, StringComparer.Create(new System.Globalization.CultureInfo("da-DK"), true));
 
-        var formData = new FormData();
-        for (var i = 0; i < scanInput.files.length; i++) formData.append('files', scanInput.files[i]);
+    private static string KindName(string k) => k switch { "cd" => "CD", "bd" => "Blu-ray", _ => "DVD" };
 
-        scanBtn.disabled = true;
-        scanBtn.textContent = 'Genkender og tjekker...';
-        scanResult.innerHTML = '';
+    private static string SpotifyLink(Disc d) => "https://open.spotify.com/search/" + Uri.EscapeDataString($"{d.Title} {d.Sub.Split(" · ")[0]}");
 
-        fetch('/api/scan-cds', { method: 'POST', body: formData })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (!data.cds || data.cds.length === 0) {
-                    scanResult.innerHTML = '<div class="mc-notfound">Ingen CD\'er genkendt i billedet/billederne.</div>';
-                    return;
-                }
+    private void PickKind(string k) { _kind = k; _hits = []; _searched = false; }
 
-                var html = '';
-                data.cds.forEach(function (cd) {
-                    html += '<div class="mc-match" style="margin-top:14px">';
-                    html += '<div class="mc-match-title">' + escapeHtml(cd.album) + ' - ' + escapeHtml(cd.artist) + '</div>';
+    private async Task SearchOnEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !_busy) await Search();
+    }
 
-                    if (!cd.tracks || cd.tracks.length === 0) {
-                        html += '<div class="mc-match-source">Ingen sportliste fundet på billedet.</div>';
-                    } else {
-                        cd.tracks.forEach(function (t) {
-                            var badge = t.found
-                                ? '<span style="color:#10b981">✅ fundet (' + t.matches[0].source + ')</span>'
-                                : '<span style="color:#ef4444">❌ ikke fundet - antag ikke cleared</span>';
-                            html += '<div style="padding:4px 0;font-size:0.9rem">' + escapeHtml(t.title) + ' - ' + badge + '</div>';
-                        });
-                    }
-                    html += '</div>';
-                });
-                scanResult.innerHTML = html;
-            })
-            .catch(function () {
-                scanResult.innerHTML = '<div class="mc-notfound">Der skete en fejl - prøv igen.</div>';
-            })
-            .finally(function () {
-                scanBtn.disabled = false;
-                scanBtn.textContent = '📷 Scan';
-            });
-    });
-})();
-</script>
+    private async Task Search()
+    {
+        _busy = true; _justAdded = null; StateHasChanged();
+        _hits = await Lookup.SearchAsync(_kind, _query);
+        _busy = false; _searched = true;
+    }
+
+    private async Task Add(Hit h) => await AddDisc(new Disc { Kind = _kind, Title = h.Title, Sub = h.Sub, Img = h.Img, TmdbType = h.TmdbType, TmdbId = h.TmdbId, Place = _place.Trim() });
+
+    private async Task AddTyped() => await AddDisc(new Disc { Kind = _kind, Title = _query.Trim(), Place = _place.Trim() });
+
+    private async Task AddDisc(Disc d)
+    {
+        if (string.IsNullOrWhiteSpace(d.Title)) return;
+        _discs.Add(d);
+        await Save();
+        _justAdded = d.Title; _hits = []; _query = ""; _searched = false;
+    }
+
+    private async Task SavePlace() => await JS.InvokeVoidAsync("skiver.setPlace", _place.Trim());
+
+    private void AskRemove(Disc d) => _confirm = _confirm == d.Id ? "" : d.Id;
+
+    private async Task Remove(Disc d)
+    {
+        _discs.Remove(d); _confirm = "";
+        if (_open == d.Id) _open = "";
+        await Save();
+    }
+
+    private async Task RemoveAll()
+    {
+        _discs.Clear(); _confirmAll = false; _open = "";
+        await Save();
+    }
+
+    private async Task ToggleWatch(Disc d)
+    {
+        if (_open == d.Id) { _open = ""; return; }
+        _open = d.Id; _watch = null; _watchBusy = true; StateHasChanged();
+        _watch = await Lookup.WatchAsync(d.TmdbType, d.TmdbId);
+        _watchBusy = false;
+    }
+
+    private async Task Save() => await JS.InvokeAsync<bool>("skiver.save", JsonSerializer.Serialize(_discs, Json));
+
+    private async Task Export() => await JS.InvokeVoidAsync("skiver.download", $"mine-skiver-{DateTime.Now:yyyy-MM-dd}.json", JsonSerializer.Serialize(_discs, Json));
+
+    private async Task Import()
+    {
+        var text = await JS.InvokeAsync<string>("skiver.readFile", _fileInput);
+        List<Disc>? list = null;
+        try { list = JsonSerializer.Deserialize<List<Disc>>(text, Json); } catch { }
+        if (list is null) { _importMsg = "Filen kunne ikke læses – er det en fil fra Mine skiver?"; return; }
+        var known = _discs.Select(d => d.Id).ToHashSet();
+        var added = list.Where(d => !string.IsNullOrWhiteSpace(d.Title) && known.Add(d.Id)).ToList();
+        _discs.AddRange(added);
+        await Save();
+        _importMsg = $"✓ {added.Count} skiver hentet ({list.Count - added.Count} havde du i forvejen).";
+    }
+}

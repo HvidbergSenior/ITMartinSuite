@@ -73,7 +73,7 @@ $ServiceMap = @{
     "mitel-web"              = @{ Dockerfile = "ITMartinMitEl.Server/Dockerfile";                         Context = "."; Profile = "manual" }
     "karaoke-web"            = @{ Dockerfile = "ITMartinKaraoke.Server/Dockerfile";                       Context = "."; Profile = "manual" }
     "player-web"             = @{ Dockerfile = "ITMartinPlayer.Server/Dockerfile";                        Context = "."; Profile = "manual" }
-    "musiccheck-web"         = @{ Dockerfile = "ITMartinMusicCheck.Server/Dockerfile";                    Context = "."; Profile = "manual" }
+    # musiccheck-web: now "Mine skiver" (ITMartinMusicCheck.Server), runs on the PHOTOSERVER as mineskiver-web :9146 - build + docker save/ssh load, not this script
     "dreamreader-web"        = @{ Dockerfile = "ITMartinDreamReader.Server/Dockerfile";                    Context = "." }
     "rewlhul-web"            = @{ Dockerfile = "ITMartinRewlhul.Server/Dockerfile";                         Context = "." }
     "redigerdokument-web"    = @{ Dockerfile = "ITMartinRedigerDokument.Server/Dockerfile";                  Context = "."; Profile = "manual" }

@@ -1,0 +1,13 @@
+<div class="ms-logos">
+    @foreach (var p in List)
+    {
+        <span class="ms-logo">
+            @if (!string.IsNullOrEmpty(p.Logo)) { <img src="@p.Logo" alt="" loading="lazy" /> }
+            @p.Name
+        </span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<Provider> List { get; set; } = [];
+}
