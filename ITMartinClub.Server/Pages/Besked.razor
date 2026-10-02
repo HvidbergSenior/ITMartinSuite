@@ -21,7 +21,7 @@ else
             }
             else
             {
-                <div class="msg-card">
+                <div class="msg-card card">
                     <h2 class="msg-h">@_msg.Title</h2>
                     <div class="msg-item-meta">Fra @_msg.FromName · @Beskeder.Dk(_msg.CreatedAt).ToString("dddd d. MMMM 'kl.' HH:mm", Da)</div>
                     <div class="msg-text">@_msg.Body</div>
@@ -42,7 +42,7 @@ else
                 @if (_msg.FromMemberId == _member.Id)
                 {
                     var missing = _msg.Receipts.Count(r => _msg.RequireConfirm ? r.ConfirmedAt == null : r.SeenAt == null);
-                    <div class="msg-card">
+                    <div class="msg-card card">
                         <h3 class="msg-h3">Hvem har fået den?</h3>
                         <p class="msg-sum">
                             @if (_msg.RequireConfirm) { <span>✅ @_msg.Receipts.Count(r => r.ConfirmedAt != null) bekræftet</span> }

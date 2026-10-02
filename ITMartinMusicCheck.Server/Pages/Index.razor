@@ -5,7 +5,7 @@
 
 <PageTitle>Mine skiver</PageTitle>
 
-<section class="k-card ms-hero" data-nofold>
+<section class="k-card ms-hero">
     <h1>📀 Mine skiver</h1>
     @if (!_loaded)
     {
@@ -34,7 +34,7 @@
 
 @if (_adding)
 {
-    <section class="k-card" data-nofold>
+    <section class="k-card">
         <h2 class="k-card-title">➕ Tilføj skive</h2>
         <p class="k-help">1. Vælg hvad det er. 2. Skriv titlen. 3. Tryk på den rigtige.</p>
         <div class="ms-kinds">
@@ -76,7 +76,8 @@
 
 @if (_discs.Count > 0)
 {
-    <section class="k-card" data-nofold>
+    <section class="k-card">
+        <h2 class="k-card-title">📚 Din samling</h2>
         <div class="ms-filter">
             <input class="k-input" @bind="_filter" @bind:event="oninput" placeholder="🔎 Find i din samling …" />
             <div class="ms-kinds">

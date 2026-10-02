@@ -29,7 +29,8 @@ else
             }
             else
             {
-                <div class="msg-card">
+                <div class="msg-card card">
+                    <h3 class="msg-h3">✏️ Ny besked</h3>
                     <label class="msg-label">Overskrift
                         <input class="msg-input" @bind="_title" @bind:event="oninput" maxlength="120" placeholder="Fx: Arbejdsdag lørdag – husk handsker" />
                     </label>
@@ -70,8 +71,9 @@ else
             @* Hidden until a mail sender is chosen (user 2026-10-02: no one.com) - push + app only meanwhile. *@
             @if (Mail.Configured)
             {
-            <div class="msg-card msg-mail">
-                <div class="msg-label">📧 Din mail <span class="msg-muted">(valgfrit – så får du beskederne på mail med et link, der logger dig ind)</span></div>
+            <div class="msg-card msg-mail card">
+                <h3 class="msg-h3">📧 Din mail</h3>
+                <p class="msg-help">Valgfrit – så får du beskederne på mail med et link, der logger dig ind.</p>
                 <div class="msg-row">
                     <input class="msg-input" type="email" @bind="_email" placeholder="dig@eksempel.dk" />
                     <button class="msg-btn" @onclick="SaveEmail">Gem</button>
