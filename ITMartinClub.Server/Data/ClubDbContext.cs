@@ -23,9 +23,12 @@ public sealed class ClubDbContext(DbContextOptions<ClubDbContext> options) : DbC
     public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Idea> Ideas => Set<Idea>();
+    public DbSet<ClubMessage> Messages => Set<ClubMessage>();
+    public DbSet<MessageReceipt> Receipts => Set<MessageReceipt>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<Group>().HasIndex(g => g.Slug).IsUnique();
+        b.Entity<MessageReceipt>().HasIndex(r => r.Token).IsUnique();
     }
 }

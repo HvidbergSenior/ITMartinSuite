@@ -1,0 +1,114 @@
+@page "/g/{slug}/beskeder/{id:guid}"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+@inject MessageService Messages
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="beskeder" />
+
+        <div class="msg-body">
+            <p><a class="msg-back" href="/g/@Slug/beskeder" data-enhance-nav="false">← Alle beskeder</a></p>
+            @if (_msg is null)
+            {
+                <p class="msg-help">Beskeden findes ikke (længere).</p>
+            }
+            else
+            {
+                <div class="msg-card">
+                    <h2 class="msg-h">@_msg.Title</h2>
+                    <div class="msg-item-meta">Fra @_msg.FromName · @Beskeder.Dk(_msg.CreatedAt).ToString("dddd d. MMMM 'kl.' HH:mm", Da)</div>
+                    <div class="msg-text">@_msg.Body</div>
+
+                    @if (_my is not null && _msg.RequireConfirm)
+                    {
+                        @if (_my.ConfirmedAt is null)
+                        {
+                            <button class="msg-btn msg-btn-primary msg-big" @onclick="Confirm">✅ Jeg har læst det</button>
+                        }
+                        else
+                        {
+                            <div class="msg-ok">✅ Du bekræftede @Beskeder.Dk(_my.ConfirmedAt.Value).ToString("d. MMM 'kl.' HH:mm", Da). @_msg.FromName kan se det.</div>
+                        }
+                    }
+                </div>
+
+                @if (_msg.FromMemberId == _member.Id)
+                {
+                    var missing = _msg.Receipts.Count(r => _msg.RequireConfirm ? r.ConfirmedAt == null : r.SeenAt == null);
+                    <div class="msg-card">
+                        <h3 class="msg-h3">Hvem har fået den?</h3>
+                        <p class="msg-sum">
+                            @if (_msg.RequireConfirm) { <span>✅ @_msg.Receipts.Count(r => r.ConfirmedAt != null) bekræftet</span> }
+                            <span>👀 @_msg.Receipts.Count(r => r.SeenAt != null && (r.ConfirmedAt == null || !_msg.RequireConfirm)) set</span>
+                            <span>⏳ @_msg.Receipts.Count(r => r.SeenAt == null) ikke set</span>
+                        </p>
+                        @foreach (var r in _msg.Receipts.OrderBy(r => r.ConfirmedAt == null).ThenBy(r => r.SeenAt == null).ThenBy(r => r.MemberName))
+                        {
+                            <div class="msg-who">
+                                <span class="msg-who-name">@r.MemberName</span>
+                                <span class="msg-who-state">@State(r)</span>
+                            </div>
+                        }
+                        @if (missing > 0)
+                        {
+                            <button class="msg-btn" @onclick="Remind" disabled="@_reminding">🔔 Påmind dem, der mangler (@missing)</button>
+                            @if (_msg.RequireConfirm) { <p class="msg-help">Dem, der ikke har bekræftet efter 24 timer, får automatisk én påmindelse.</p> }
+                        }
+                        @if (_remindMsg is not null) { <p class="msg-help">@_remindMsg</p> }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [Parameter] public Guid Id { get; set; }
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private Member? _member;
+    private Group? _group;
+    private ClubMessage? _msg;
+    private MessageReceipt? _my;
+    private bool _loaded, _reminding;
+    private string? _remindMsg;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        _msg = await Db.Messages.Include(m => m.Receipts).FirstOrDefaultAsync(m => m.Id == Id && m.GroupId == _group.Id);
+        _my = _msg?.Receipts.FirstOrDefault(r => r.MemberId == _member.Id);
+        if (_my is not null) await Messages.MarkSeenAsync(_my);   // opening it in the app counts as seen, same as the mail link
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private string State(MessageReceipt r) =>
+        r.ConfirmedAt is { } c ? $"✅ bekræftet {Beskeder.Dk(c).ToString("d/M HH:mm")}" :
+        r.SeenAt is { } s ? $"👀 set {Beskeder.Dk(s).ToString("d/M HH:mm")}" :
+        r.RemindedAt is not null ? "⏳ ikke set · påmindet" : "⏳ ikke set";
+
+    private async Task Confirm()
+    {
+        await Messages.ConfirmAsync(_my!);
+    }
+
+    private async Task Remind()
+    {
+        _reminding = true; StateHasChanged();
+        var n = await Messages.RemindMissingAsync(_msg!);
+        _reminding = false;
+        _remindMsg = $"🔔 Påmindelse sendt til {n}.";
+    }
+}

@@ -19,6 +19,9 @@ builder.Services.AddScoped<ClubAuthService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AssignmentTaskService>();
 builder.Services.AddSingleton<AdminPinRateLimiterService>();
+builder.Services.AddSingleton<ClubMailService>();
+builder.Services.AddScoped<MessageService>();
+builder.Services.AddHostedService<MessageReminderService>();
 
 var app = builder.Build();
 
@@ -103,6 +106,38 @@ using (var scope = app.Services.CreateScope())
         "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'ContactInfo'").AsEnumerable().First() > 0;
     if (!hasContactInfoColumn)
         db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN ContactInfo TEXT NULL");
+
+    // Beskeder med kvittering (2026-10-02)
+    if (db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Email'").AsEnumerable().First() == 0)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Email TEXT NULL");
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Messages" (
+            "Id"             TEXT NOT NULL PRIMARY KEY,
+            "GroupId"        TEXT NOT NULL,
+            "FromMemberId"   TEXT NOT NULL,
+            "FromName"       TEXT NOT NULL,
+            "Title"          TEXT NOT NULL,
+            "Body"           TEXT NOT NULL,
+            "RequireConfirm" INTEGER NOT NULL,
+            "BaseUrl"        TEXT NOT NULL,
+            "CreatedAt"      TEXT NOT NULL
+        )
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Receipts" (
+            "Id"          TEXT NOT NULL PRIMARY KEY,
+            "MessageId"   TEXT NOT NULL REFERENCES "Messages" ("Id") ON DELETE CASCADE,
+            "MemberId"    TEXT NOT NULL,
+            "MemberName"  TEXT NOT NULL,
+            "Token"       TEXT NOT NULL,
+            "SeenAt"      TEXT NULL,
+            "ConfirmedAt" TEXT NULL,
+            "MailedAt"    TEXT NULL,
+            "RemindedAt"  TEXT NULL
+        )
+        """);
+    db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_Receipts_Token ON Receipts (Token)");
+    db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Receipts_MessageId ON Receipts (MessageId)");
 
     var hasRoleColumn = db.Database.SqlQueryRaw<int>(
         "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Role'").AsEnumerable().First() > 0;
@@ -330,6 +365,24 @@ app.MapPost("/api/session", (string id, HttpContext ctx) =>
     return Results.Ok();
 }).DisableAntiforgery();
 app.MapPost("/api/session/clear", (HttpContext ctx) => { ctx.Response.Cookies.Delete("club_session_srv"); return Results.Ok(); }).DisableAntiforgery();
+
+// Personal mail/push link: marks the message as seen, logs the member in (server cookie, picked up by ClubAuthService)
+// and opens the message. Unknown token -> front page, no hint whether it ever existed.
+app.MapGet("/m/{token}", async (string token, ClubDbContext db, MessageService messages, HttpContext ctx) =>
+{
+    var r = await db.Receipts.Include(x => x.Message).FirstOrDefaultAsync(x => x.Token == token);
+    if (r is null) return Results.Redirect("/");
+    var group = await db.Groups.FirstAsync(g => g.Id == r.Message.GroupId);
+    await messages.MarkSeenAsync(r);
+    var session = new ITMartinClub.Server.Data.Entities.MemberSession { MemberId = r.MemberId };
+    db.Sessions.Add(session);
+    await db.SaveChangesAsync();
+    ctx.Response.Cookies.Append("club_session_srv", session.Id.ToString(), new CookieOptions
+    {
+        HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365), Path = "/",   // Path: default would be /m only
+    });
+    return Results.Redirect($"/g/{group.Slug}/beskeder/{r.MessageId}");
+});
 
 app.MapGet("/api/push/key", (ClubPushService push) => Results.Ok(push.GetPublicKey()));
 

@@ -27,11 +27,28 @@ public sealed class ClubAuthService
 
         // Browser storage gone (iOS wipes it after 7 quiet days)? The
         // server-set cookie from /api/session still knows who this is.
+        // Also: a mail link (/m/{token}) logs in by setting that cookie - a NEWER valid cookie session for this
+        // group wins over what is in browser storage (shared family PC, or storage from another group).
         var fromServerCookie = false;
-        if (!Guid.TryParse(sessionId, out _) && _http.HttpContext?.Request.Cookies.TryGetValue("club_session_srv", out var srv) == true)
+        string? srv = null;
+        _http.HttpContext?.Request.Cookies.TryGetValue("club_session_srv", out srv);
+        if (!Guid.TryParse(sessionId, out _) && srv is not null)
         {
             sessionId = srv;
             fromServerCookie = true;
+        }
+        else if (Guid.TryParse(srv, out var srvId) && srv != sessionId && Guid.TryParse(sessionId, out var lsId))
+        {
+            var both = await db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group)
+                .Where(s => s.Id == srvId || s.Id == lsId).ToListAsync();
+            var cookieSession = both.FirstOrDefault(s => s.Id == srvId);
+            var storedSession = both.FirstOrDefault(s => s.Id == lsId);
+            if (cookieSession is not null && cookieSession.Member.Group.Slug == slug && cookieSession.ExpiresAt >= DateTime.UtcNow
+                && (storedSession is null || storedSession.Member.Group.Slug != slug || cookieSession.CreatedAt > storedSession.CreatedAt))
+            {
+                sessionId = srv;
+                fromServerCookie = true;
+            }
         }
 
         if (Guid.TryParse(sessionId, out var sid))

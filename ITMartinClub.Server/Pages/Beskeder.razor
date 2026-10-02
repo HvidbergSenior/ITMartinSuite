@@ -1,0 +1,139 @@
+@page "/g/{slug}/beskeder"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+@inject MessageService Messages
+@inject ClubMailService Mail
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="beskeder" />
+
+        <div class="msg-body">
+            <h2 class="msg-h">📣 Beskeder</h2>
+            <p class="msg-help">Noget vigtigt til hele holdet? Skriv det her – så kan du se, hvem der har set det, og hvem der har bekræftet.</p>
+
+            @if (_unread.Count > 0)
+            {
+                <div class="msg-alert">Du har <b>@_unread.Count</b> @(_unread.Count == 1 ? "besked" : "beskeder"), du ikke har bekræftet endnu.</div>
+            }
+
+            @if (!_writing)
+            {
+                <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _writing = true">✏️ Skriv en besked til holdet</button>
+            }
+            else
+            {
+                <div class="msg-card">
+                    <label class="msg-label">Overskrift
+                        <input class="msg-input" @bind="_title" @bind:event="oninput" maxlength="120" placeholder="Fx: Arbejdsdag lørdag – husk handsker" />
+                    </label>
+                    <label class="msg-label">Beskeden
+                        <textarea class="msg-input" rows="6" @bind="_text" @bind:event="oninput" maxlength="4000" placeholder="Skriv det, de skal vide …"></textarea>
+                    </label>
+                    <label class="msg-check"><input type="checkbox" @bind="_confirm" /> De skal trykke <b>"✅ Jeg har læst det"</b> (og få en påmindelse efter 24 timer, hvis de ikke har)</label>
+                    <p class="msg-help">Går til alle @_others andre på holdet – med push på telefonen@(Mail.Configured ? " og mail til dem, der har skrevet deres mail" : "").</p>
+                    <div class="msg-row">
+                        <button class="msg-btn msg-btn-primary" @onclick="Send" disabled="@(_sending || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_text))">📣 Send</button>
+                        <button class="msg-btn" @onclick="() => _writing = false">Annullér</button>
+                    </div>
+                </div>
+            }
+
+            @foreach (var m in _list)
+            {
+                var mine = m.FromMemberId == _member.Id;
+                var my = m.Receipts.FirstOrDefault(r => r.MemberId == _member.Id);
+                <a class="msg-item @(my is { ConfirmedAt: null } && m.RequireConfirm ? "msg-item-new" : "")" href="/g/@Slug/beskeder/@m.Id" data-enhance-nav="false">
+                    <div class="msg-item-title">@m.Title</div>
+                    <div class="msg-item-meta">
+                        @(mine ? "Fra dig" : $"Fra {m.FromName}") · @Dk(m.CreatedAt).ToString("d. MMM HH:mm")
+                        @if (mine)
+                        {
+                            var total = m.Receipts.Count;
+                            <span class="msg-pill">@(m.RequireConfirm ? $"✅ {m.Receipts.Count(r => r.ConfirmedAt != null)} af {total} bekræftet" : $"👀 {m.Receipts.Count(r => r.SeenAt != null)} af {total} har set den")</span>
+                        }
+                        else if (my is not null)
+                        {
+                            <span class="msg-pill">@(my.ConfirmedAt != null ? "✅ Bekræftet" : m.RequireConfirm ? "⏳ Tryk for at bekræfte" : "")</span>
+                        }
+                    </div>
+                </a>
+            }
+            @if (_list.Count == 0) { <p class="msg-help">Ingen beskeder endnu.</p> }
+
+            @* Hidden until a mail sender is chosen (user 2026-10-02: no one.com) - push + app only meanwhile. *@
+            @if (Mail.Configured)
+            {
+            <div class="msg-card msg-mail">
+                <div class="msg-label">📧 Din mail <span class="msg-muted">(valgfrit – så får du beskederne på mail med et link, der logger dig ind)</span></div>
+                <div class="msg-row">
+                    <input class="msg-input" type="email" @bind="_email" placeholder="dig@eksempel.dk" />
+                    <button class="msg-btn" @onclick="SaveEmail">Gem</button>
+                </div>
+                @if (_emailMsg is not null) { <p class="msg-help">@_emailMsg</p> }
+            </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _writing, _sending, _confirm = true;
+    private string _title = "", _text = "", _email = "";
+    private string? _emailMsg;
+    private int _others;
+    private List<ClubMessage> _list = [];
+    private List<ClubMessage> _unread = [];
+
+    internal static DateTime Dk(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        _email = _member.Email ?? "";
+        await Load();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task Load()
+    {
+        _others = await Db.Members.CountAsync(m => m.GroupId == _group!.Id && m.Id != _member!.Id);
+        _list = await Db.Messages.Include(m => m.Receipts)
+            .Where(m => m.GroupId == _group!.Id && (m.FromMemberId == _member!.Id || m.Receipts.Any(r => r.MemberId == _member.Id)))
+            .OrderByDescending(m => m.CreatedAt).Take(50).ToListAsync();
+        _unread = _list.Where(m => m.RequireConfirm && m.Receipts.Any(r => r.MemberId == _member!.Id && r.ConfirmedAt == null)).ToList();
+    }
+
+    private async Task Send()
+    {
+        _sending = true; StateHasChanged();
+        var msg = await Messages.SendAsync(_group!, _member!, _title, _text, _confirm, Nav.BaseUri);
+        _sending = false; _writing = false; _title = ""; _text = "";
+        Nav.NavigateTo($"/g/{Slug}/beskeder/{msg.Id}", forceLoad: true);   // enhanced nav kept showing the list page
+    }
+
+    private async Task SaveEmail()
+    {
+        var e = _email.Trim();
+        if (e.Length > 0 && !ClubMailService.LooksLikeEmail(e)) { _emailMsg = "Det ligner ikke en mailadresse."; return; }
+        var m = await Db.Members.FindAsync(_member!.Id);
+        m!.Email = e.Length == 0 ? null : e;
+        await Db.SaveChangesAsync();
+        _member.Email = m.Email;
+        _emailMsg = e.Length == 0 ? "Mailen er fjernet – du får beskederne i appen og som push." : "✓ Gemt. Du får nye beskeder på mail.";
+    }
+}

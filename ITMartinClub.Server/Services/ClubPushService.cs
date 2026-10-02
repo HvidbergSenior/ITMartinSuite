@@ -61,7 +61,7 @@ public sealed class ClubPushService
     // Allow-list send, the mirror image of SendToGroupAsync's exclude-list -
     // used for live match highlights, which should only reach members who
     // marked themselves as spectating ("Watching"), not the whole group.
-    public async Task SendToMembersAsync(ClubDbContext db, Guid groupId, IEnumerable<string> memberNames, string title, string body)
+    public async Task SendToMembersAsync(ClubDbContext db, Guid groupId, IEnumerable<string> memberNames, string title, string body, string? url = null)
     {
         var include = memberNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (include.Count == 0) return;
@@ -69,16 +69,16 @@ public sealed class ClubPushService
             .Where(s => s.GroupId == groupId)
             .ToListAsync();
         subs = subs.Where(s => include.Contains(s.MemberName)).ToList();
-        await SendCoreAsync(db, subs, title, body);
+        await SendCoreAsync(db, subs, title, body, url);
     }
 
-    private async Task SendCoreAsync(ClubDbContext db, List<ClubPushSubscription> subs, string title, string body)
+    private async Task SendCoreAsync(ClubDbContext db, List<ClubPushSubscription> subs, string title, string body, string? url = null)
     {
         if (subs.Count == 0) return;
 
         var (pub, prv) = Keys();
         var vapid = new VapidDetails("https://all-apps.itmartin.dk", pub, prv);
-        var payload = JsonSerializer.Serialize(new { title, body });
+        var payload = JsonSerializer.Serialize(new { title, body, url });   // url: tapping the notification opens it (sw.js)
         var client = new WebPushClient();
 
         foreach (var sub in subs)
