@@ -135,57 +135,58 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-day-row img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; }
 .hj-day-row span { flex: 1; }
 
-/* ── Birthday front (Components/Fest.razor, temporary) ── 1977 disco: sunset stripes, mirror ball, orange/mustard/teal */
-.fest{position:relative;overflow:hidden;margin:0 0 16px;padding:64px 18px 26px;border-radius:22px;text-align:center;color:#fff1dc;
-  background:linear-gradient(180deg,#3b1406 0 14%,#8c2d08 14% 26%,#d9480f 26% 38%,#f28c13 38% 50%,#3b1406 50%),#1c0f08;
+/* ── Birthday front (Components/Fest.razor, temporary) ── Vibeke 2026-10-03: rose + gold, heart balloons, photo slideshow */
+.fest{position:relative;overflow:hidden;margin:0 0 16px;padding:64px 18px 26px;border-radius:22px;text-align:center;color:#fff5f7;
+  background:radial-gradient(circle at 20% 10%,rgba(255,215,120,.25),transparent 40%),linear-gradient(160deg,#7a1037,#c2185b 45%,#e8648f 75%,#d4a017),#7a1037;
   box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .fest ~ .hj-head h1{display:none}
-.fest-ball{position:absolute;top:8px;right:7%;width:62px;height:62px;border-radius:50%;
-  background:repeating-conic-gradient(#fff 0 8deg,#bbb 8deg 16deg,#777 16deg 24deg);box-shadow:0 0 28px 8px rgba(255,194,26,.6);animation:fest-spin 6s linear infinite}
 .fest-garland{position:absolute;top:0;left:0;right:0;display:flex;justify-content:center;gap:3px;flex-wrap:nowrap}
-.fest-garland span{width:clamp(16px,4.6vw,30px);height:clamp(22px,6vw,38px);clip-path:polygon(0 0,100% 0,50% 100%);display:grid;justify-items:center;
-  padding-top:3px;font:900 clamp(.6rem,2.4vw,.95rem) system-ui,sans-serif;color:#1c0f08;transform-origin:top;animation:fest-wave 2.4s ease-in-out infinite;
-  animation-delay:calc(var(--i) * .12s);background:#ffc21a}
-.fest-garland span:nth-child(4n+2){background:#ff6a1a}.fest-garland span:nth-child(4n+3){background:#19c3b1}.fest-garland span:nth-child(4n){background:#ff4f8b}
-.fest-title{margin:.2em 0 .1em;font:900 clamp(1.9rem,7.5vw,3.4rem)/1.05 system-ui,sans-serif;letter-spacing:.02em;
-  background:linear-gradient(100deg,#fff1dc,#ffc21a 35%,#ff6a1a 55%,#ffc21a 75%,#fff1dc);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:fest-shine 5s linear infinite;filter:drop-shadow(3px 3px 0 #3b1406)}
-.fest-sub{margin:0;font-weight:800;font-size:1.15rem;color:#ffc21a}
-.fest-msg{min-height:3em;margin:14px auto 6px;max-width:34em;font-size:1.1rem;font-weight:700;transition:opacity .35s}
+.fest-garland span{width:clamp(18px,5vw,32px);height:clamp(22px,6vw,38px);clip-path:polygon(0 0,100% 0,50% 100%);display:grid;justify-items:center;
+  padding-top:3px;font:900 clamp(.6rem,2.4vw,.95rem) system-ui,sans-serif;color:#4a0a22;transform-origin:top;animation:fest-wave 2.4s ease-in-out infinite;
+  animation-delay:calc(var(--i) * .12s);background:#ffd76e}
+.fest-garland span:nth-child(3n+2){background:#fff5f7}.fest-garland span:nth-child(3n){background:#ff9dbb}
+.fest-title{margin:.2em 0 .1em;font:900 clamp(1.9rem,7.5vw,3.4rem)/1.05 Georgia,"Times New Roman",serif;font-style:italic;
+  background:linear-gradient(100deg,#fff5f7,#ffd76e 35%,#fff 55%,#ffd76e 75%,#fff5f7);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:fest-shine 5s linear infinite;filter:drop-shadow(2px 2px 0 #4a0a22)}
+.fest-sub{margin:0;font-weight:800;font-size:1.15rem;color:#ffd76e}
+.fest-show{position:relative;z-index:1;width:min(340px,82%);aspect-ratio:4/5;margin:18px auto 4px;border-radius:18px;overflow:hidden;
+  border:5px solid #fff5f7;box-shadow:0 8px 26px rgba(74,10,34,.45);transform:rotate(-2deg);background:#4a0a22}
+.fest-show img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%;opacity:0;transition:opacity 1.2s}
+.fest-show img.on{opacity:1}
+.fest-msg{position:relative;z-index:1;min-height:3em;margin:14px auto 6px;max-width:34em;font-size:1.1rem;font-weight:700;transition:opacity .35s}
 .fest-msg.out{opacity:0}
-.fest-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 14px}
-.fest-btn{border:0;border-radius:999px;padding:12px 18px;font:800 1rem system-ui,sans-serif;cursor:pointer;color:#1c0f08;
-  background:linear-gradient(135deg,#ffc21a,#ff6a1a);box-shadow:0 4px 0 #5a2a0c}
-.fest-btn.alt{background:linear-gradient(135deg,#5fe3d3,#19c3b1);box-shadow:0 4px 0 #0c5c54}
-.fest-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #5a2a0c}
-.fest-how{position:relative;z-index:1;max-width:36em;margin:0 auto;text-align:left;background:rgba(28,15,8,.75);border:1px solid #5a331a;border-radius:14px;padding:10px 16px}
-.fest-how p{margin:.5em 0}.fest-how a{color:#5fe3d3;font-weight:800}
-.fest-when{font-size:.9rem;color:#e0c29a}
+.fest-btns{position:relative;z-index:1;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 14px}
+.fest-btn{border:0;border-radius:999px;padding:12px 18px;font:800 1rem system-ui,sans-serif;cursor:pointer;color:#4a0a22;
+  background:linear-gradient(135deg,#ffe49a,#d4a017);box-shadow:0 4px 0 #6b4f06}
+.fest-btn.alt{background:linear-gradient(135deg,#fff5f7,#ff9dbb);box-shadow:0 4px 0 #7a1037}
+.fest-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #4a0a22}
+.fest-how{position:relative;z-index:1;max-width:36em;margin:0 auto;text-align:left;background:rgba(74,10,34,.72);border:1px solid #a33a63;border-radius:14px;padding:10px 16px}
+.fest-how p{margin:.5em 0}.fest-how a{color:#ffd76e;font-weight:800}
+.fest-when{font-size:.9rem;color:#f7c6d6}
 .fest-balloons{position:absolute;inset:0;pointer-events:none}
-.fest-balloons i{position:absolute;bottom:-90px;left:calc(4% + var(--i) * 11%);width:44px;height:56px;border-radius:50% 50% 48% 48%;
-  display:grid;place-items:center;font:900 1rem system-ui,sans-serif;font-style:normal;color:#fff1dc;opacity:.85;
-  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.8) 0 8%,transparent 30%),#ff6a1a;animation:fest-rise 11s linear infinite;animation-delay:calc(var(--i) * -1.3s)}
-.fest-balloons i:nth-child(3n+1){background-color:#19c3b1}.fest-balloons i:nth-child(3n+2){background-color:#ffc21a;color:#1c0f08}.fest-balloons i:nth-child(4n){background-color:#ff4f8b}
-@keyframes fest-spin{to{transform:rotate(360deg)}}
+.fest-balloons i{position:absolute;bottom:-90px;left:calc(4% + var(--i) * 11%);width:46px;height:46px;opacity:.8;background:#ff9dbb;
+  clip-path:path('M23 44 C10 34 0 26 0 14 C0 6 6 0 13 0 C18 0 21 3 23 6 C25 3 28 0 33 0 C40 0 46 6 46 14 C46 26 36 34 23 44Z');
+  animation:fest-rise 11s linear infinite;animation-delay:calc(var(--i) * -1.3s)}
+.fest-balloons i:nth-child(3n+1){background:#ffd76e}.fest-balloons i:nth-child(3n+2){background:#fff5f7}
 @keyframes fest-wave{50%{transform:rotate(6deg)}}
 @keyframes fest-shine{to{background-position:-250% 0}}
-@keyframes fest-rise{to{transform:translateY(-760px) rotate(8deg)}}
+@keyframes fest-rise{to{transform:translateY(-860px) rotate(8deg)}}
 @media (prefers-reduced-motion:reduce){.fest *{animation:none!important}}
 
-/* ── Birthday day on every page (MainLayout .fest-site, temporary) ── 1977 disco colours over the Kolibri tokens */
-.fest-site{--k-accent:#d9480f;--k-accent-dark:#8c2d08;--k-accent-soft:#ffe6c7;--k-accent-text:#fff;--k-bg:#fff6ea;--k-bg-deep:#ffe9cc;--k-border:#f1cfa3}
-html[data-theme="dark"] .fest-site{--k-accent:#ff8a1a;--k-accent-dark:#ffc21a;--k-accent-soft:#3b1f0c;--k-accent-text:#1c0f08;--k-bg:#1c0f08;--k-bg-deep:#140a05;--k-card:#2b170b;--k-border:#5a331a}
-body:has(.fest-site){background:var(--fest-bg,#fff6ea)}
-html[data-theme="dark"] body:has(.fest-site){--fest-bg:#1c0f08}
+/* ── Birthday day on every page (MainLayout .fest-site, temporary) ── rose/gold over the Kolibri tokens */
+.fest-site{--k-accent:#c2185b;--k-accent-dark:#7a1037;--k-accent-soft:#fde4ec;--k-accent-text:#fff;--k-bg:#fff5f7;--k-bg-deep:#fde4ec;--k-border:#f4c6d4}
+html[data-theme="dark"] .fest-site{--k-accent:#ff7aa8;--k-accent-dark:#ffd76e;--k-accent-soft:#3d1426;--k-accent-text:#1d0b12;--k-bg:#1d0b12;--k-bg-deep:#14070c;--k-card:#2c111c;--k-border:#5a2438}
+body:has(.fest-site){background:var(--fest-bg,#fff5f7)}
+html[data-theme="dark"] body:has(.fest-site){--fest-bg:#1d0b12}
 .fest-site .k-main{background:transparent}
-.fest-site .hj-nav{border-bottom:4px solid transparent;border-image:linear-gradient(90deg,#ffc21a,#ff6a1a,#19c3b1,#ff4f8b,#ffc21a) 1}
+.fest-site .hj-nav{border-bottom:4px solid transparent;border-image:linear-gradient(90deg,#ffd76e,#ff9dbb,#c2185b,#ff9dbb,#ffd76e) 1}
 .fest-site h1,.fest-site h2{color:var(--k-accent)}
-.fest-strip{position:relative;display:block;overflow:hidden;padding:26px 16px 10px;text-align:center;text-decoration:none;color:#fff1dc;
-  background:linear-gradient(90deg,#8c2d08,#d9480f,#f28c13,#d9480f,#8c2d08);background-size:200% 100%;animation:fest-slide 8s linear infinite;font-size:1rem}
+.fest-strip{position:relative;display:block;overflow:hidden;padding:26px 16px 10px;text-align:center;text-decoration:none;color:#fff5f7;
+  background:linear-gradient(90deg,#7a1037,#c2185b,#d4a017,#c2185b,#7a1037);background-size:200% 100%;animation:fest-slide 8s linear infinite;font-size:1rem}
 .fest-strip span:not(.fest-strip-flags){display:inline-block;margin-left:6px;text-decoration:underline}
 .fest-strip-flags{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-around}
-.fest-strip-flags i{width:18px;height:20px;clip-path:polygon(0 0,100% 0,50% 100%);background:#ffc21a;animation:fest-wave 2.4s ease-in-out infinite;animation-delay:calc(var(--i) * .15s);transform-origin:top}
-.fest-strip-flags i:nth-child(4n+2){background:#19c3b1}.fest-strip-flags i:nth-child(4n+3){background:#ff4f8b}.fest-strip-flags i:nth-child(4n){background:#fff1dc}
+.fest-strip-flags i{width:18px;height:20px;clip-path:polygon(0 0,100% 0,50% 100%);background:#ffd76e;animation:fest-wave 2.4s ease-in-out infinite;animation-delay:calc(var(--i) * .15s);transform-origin:top}
+.fest-strip-flags i:nth-child(3n+2){background:#fff5f7}.fest-strip-flags i:nth-child(3n){background:#ff9dbb}
 .fest-site:has(.fest) .fest-strip{display:none}
 @keyframes fest-slide{to{background-position:-200% 0}}
 

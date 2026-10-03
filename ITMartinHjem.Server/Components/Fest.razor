@@ -1,32 +1,38 @@
 @inject IConfiguration Config
 
-@* Temporary birthday front (Martin 49, 2026-09-30): disco colours, garland, balloons, mirror ball, confetti + song
-   (wwwroot/fest.js), rotating messages and a link to the birthday timeline. Switches itself off after Hjem:FestUntil. *@
+@* Temporary birthday front (Vibeke / Vibz, 2026-10-03): rose + gold, garland, heart balloons, slideshow of her pictures
+   (page "vibeke", pictures in /f/), confetti hearts + song (wwwroot/fest.js), rotating reasons and a link to her page.
+   Switches itself off after Hjem:FestUntil. Martin's 1977 disco version (2026-09-30) is in git history. *@
 @if (Active)
 {
 <section class="fest" id="fest" data-nofold>
-    <div class="fest-ball" aria-hidden="true"></div>
     <div class="fest-garland" aria-hidden="true">
-        @foreach (var (ch, i) in "TILLYKKE ITMARTIN".Select((c, i) => (c, i)))
+        @foreach (var (ch, i) in "TILLYKKE VIBZ".Select((c, i) => (c, i)))
         {
-            <span style="--i:@i">@(ch == ' ' ? "✦" : ch.ToString())</span>
+            <span style="--i:@i">@(ch == ' ' ? "♥" : ch.ToString())</span>
         }
     </div>
-    <h1 class="fest-title">ITMartin har fødselsdag! 🎂</h1>
-    <p class="fest-sub">49 år i dag – onsdag d. 30. september</p>
-    <p class="fest-msg" id="fest-msg" aria-live="polite">Født i 1977 – samme år som Star Wars og discoens storhedstid 🪩</p>
+    <h1 class="fest-title">Vibeke har fødselsdag! 💛</h1>
+    <p class="fest-sub">Lørdag d. 3. oktober – i dag fejrer vi verdens bedste kone</p>
+    <div class="fest-show" aria-hidden="true">
+        @foreach (var (pic, i) in Pics.Select((p, i) => (p, i)))
+        {
+            <img src="/f/@pic" alt="" loading="@(i < 2 ? "eager" : "lazy")" class="@(i == 0 ? "on" : "")" />
+        }
+    </div>
+    <p class="fest-msg" id="fest-msg" aria-live="polite">Vibeke holder sammen på det hele – derfor kan Martin koncentrere sig om ITMartin 💛</p>
     <div class="fest-btns">
         <button class="fest-btn" onclick="fest.song()">🎵 Syng fødselsdagssang</button>
-        <button class="fest-btn alt" onclick="fest.boom()">🎉 Mere konfetti</button>
+        <button class="fest-btn alt" onclick="fest.boom()">💖 Flere hjerter</button>
     </div>
     <div class="fest-how">
-        <p>💬 <b>Sig tillykke:</b> skriv din hilsen i chatten lige herunder – Martin får den med det samme på telefonen. <a href="#chat">Gå til chatten ↓</a></p>
-        <p>📸 <b>Martin gennem årene:</b> alle billederne fra 2013 til i dag, med tekster, balloner og sang.
-            <a href="https://gallery.itmartin.dk/martinfoedselsdag" target="_blank" rel="noopener">Åbn tidslinjen</a> – alle kan se den, ingen kode.</p>
+        <p>💛 <b>Derfor er hun den bedste:</b> grundene og billederne af Vibeke gennem årene – og af os to.
+            <a href="/vibeke">Se Vibekes side</a></p>
+        <p>💬 <b>Sig tillykke:</b> skriv din hilsen i chatten lige herunder – Martin sørger for, at Vibeke får den. <a href="#chat">Gå til chatten ↓</a></p>
         <p class="fest-when">🕛 Festen på forsiden slutter i nat kl. 23.59 – så er alt som før.</p>
     </div>
     <div class="fest-balloons" aria-hidden="true">
-        @for (var i = 0; i < 9; i++) { <i style="--i:@i">@(i % 3 == 1 ? "49" : "")</i> }
+        @for (var i = 0; i < 9; i++) { <i style="--i:@i"></i> }
     </div>
 </section>
 }
@@ -34,7 +40,14 @@
 @code {
     public bool Active => IsOn(Config);
 
+    // The pictures on page "vibeke" (Pages.Body) - /f/ only serves files a page uses.
+    private static readonly string[] Pics =
+    [
+        "0fb0c194d69ee8cd.jpg", "b33442a20adeff3f.jpg", "5e4b876f2a156a13.jpg", "5ce72638de1a10ff.jpg", "85e18708ce4805aa.jpg",
+        "5654fb9a99d16085.jpg", "58250a4b8ab50539.jpg", "4d375cb98c4af29a.jpg", "030444d9064749b3.jpg", "2106036d7f413512.jpg",
+    ];
+
     // Also used by MainLayout (birthday colours + strip on every page) and /api/fest (hand-made pages via nav.js).
-    public static bool IsOn(IConfiguration config) => DateTime.TryParse(config["Hjem:FestUntil"] ?? "2026-09-30T23:59", out var until)
+    public static bool IsOn(IConfiguration config) => DateTime.TryParse(config["Hjem:FestUntil"] ?? "2026-10-03T23:59", out var until)
         && TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen") <= until;
 }

@@ -1,14 +1,14 @@
-// Birthday front page (Components/Fest.razor): confetti on arrival, rotating messages, Happy Birthday via WebAudio.
+// Birthday front page (Components/Fest.razor): heart confetti on arrival, rotating messages, photo slideshow, Happy Birthday via WebAudio.
 window.fest = (() => {
-    const pal = ['#ffc21a', '#ff6a1a', '#19c3b1', '#ff4f8b', '#fff1dc'];
+    const pal = ['#ffd76e', '#ff9dbb', '#c2185b', '#fff5f7', '#e8648f'];
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const msgs = [
-        'Født i 1977 – samme år som Star Wars og discoens storhedstid 🪩',
-        'Level 49 låst op – sidste år i 40\'erne 🎮',
-        'Ønsker sig: tre ting på én gang. Musik, guitar og et strategispil 🎸',
-        'Har bygget over 20 apps – og et par stykker til i dag 🐦',
-        'Taber stadig til Eigil i Duel. Også i dag 🃏',
-        'Næste år er det de store 50 🎉',
+        'Vibeke holder sammen på det hele – derfor kan Martin koncentrere sig om ITMartin 💛',
+        'Hun tror på idéerne – også de skøre – og siger ærligt til, når noget skal laves om',
+        'Mor til tre drenge – og har stadig humøret i behold 😄',
+        'Ude i al slags vejr: løb, cykel og gåture – og altid hjem med et smil 🏃‍♀️',
+        'Det var hendes elmåler-nøgle, der fik MinElpris til at virke første gang ⚡',
+        'Verdens bedste kone. Tillykke, Vibz! 🎂',
     ];
     let loaded = null, playing = false;
     function lib() {
@@ -25,9 +25,11 @@ window.fest = (() => {
     async function boom(auto) {
         if (reduce && auto === true) return;   // "reduce motion" (e.g. iPhone setting): no automatic burst, the button still works
         await lib();
-        confetti({ particleCount: 160, spread: 110, origin: { y: .3 }, colors: pal });
-        setTimeout(() => confetti({ particleCount: 70, angle: 60, spread: 60, origin: { x: 0, y: .7 }, colors: pal }), 250);
-        setTimeout(() => confetti({ particleCount: 70, angle: 120, spread: 60, origin: { x: 1, y: .7 }, colors: pal }), 400);
+        const heart = confetti.shapeFromPath ? [confetti.shapeFromPath({ path: 'M12 21C5 15 0 11 0 6 0 2.7 2.7 0 6 0c2.6 0 4.6 1.6 6 3.5C13.4 1.6 15.4 0 18 0c3.3 0 6 2.7 6 6 0 5-5 9-12 15z' })] : undefined;
+        const o = { colors: pal, shapes: heart, scalar: 1.6 };
+        confetti({ ...o, particleCount: 120, spread: 110, origin: { y: .3 } });
+        setTimeout(() => confetti({ ...o, particleCount: 50, angle: 60, spread: 60, origin: { x: 0, y: .7 } }), 250);
+        setTimeout(() => confetti({ ...o, particleCount: 50, angle: 120, spread: 60, origin: { x: 1, y: .7 } }), 400);
     }
     function song() {
         if (playing) return; playing = true;
@@ -55,6 +57,9 @@ window.fest = (() => {
             const m = document.getElementById('fest-msg'); if (!m) return;
             m.classList.add('out');
             setTimeout(() => { n = (n + 1) % msgs.length; m.textContent = msgs[n]; m.classList.remove('out'); }, 350);
+            const pics = document.querySelectorAll('.fest-show img'); if (!pics.length) return;   // slideshow, same beat as the messages
+            const k = [...pics].findIndex(p => p.classList.contains('on'));
+            pics[k < 0 ? 0 : k].classList.remove('on'); pics[(k + 1) % pics.length].classList.add('on');
         }, 4500);
     }
     // Blazor renders the page after this script loads - look for the block a few times.

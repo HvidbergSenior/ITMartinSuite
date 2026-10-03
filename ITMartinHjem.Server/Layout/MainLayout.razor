@@ -3,7 +3,7 @@
 @inject IConfiguration Config
 @inject NavigationManager Nav
 
-@* Birthday day (Components/Fest): disco colours + a strip under the menu on every page, not in Svar. *@
+@* Birthday day (Components/Fest): rose/gold colours + a strip under the menu on every page, not in Svar. *@
 <div class="@(_fest ? "fest-site" : "")">
 @* The site menu - order and contents come from SiteMenu (pages marked "Vis i menuen" in Svar). *@
 <nav class="hj-nav">
@@ -11,9 +11,9 @@
 </nav>
 @if (_fest)
 {
-    <a class="fest-strip" href="/#chat">
+    <a class="fest-strip" href="/vibeke">
         <span class="fest-strip-flags" aria-hidden="true">@foreach (var i in Enumerable.Range(0, 14)) { <i style="--i:@i"></i> }</span>
-        🎂 <b>ITMartin har fødselsdag i dag – 49 år!</b> <span>Sig tillykke i chatten på forsiden →</span>
+        💛 <b>Vibeke har fødselsdag i dag!</b> <span>Se hvorfor hun er den bedste →</span>
     </a>
 }
 <div class="k-main"><div class="k-content">
