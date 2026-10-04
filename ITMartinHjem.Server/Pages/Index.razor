@@ -2,7 +2,6 @@
 @implements IDisposable
 @inject IDbContextFactory<HjemDb> Dbf
 @inject ChatService Chat
-@inject AppStatus Status
 
 @* First screen = one answer: who I am and what I am doing now. The timeline and the
    chat come after it; old years are folded and the phone remembers what was open. *@
@@ -11,12 +10,18 @@
 <Fest />
 
 <header class="hj-head">
-    <span class="hj-tagline">😊 Arbejder med glæde</span>
+    <span class="hj-tagline">📣 Spændende nyt</span>
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
+
+@* Bogshoppen news first of all (user 2026-10-04: "mere centralt"). Text = Svar -> Sider -> "bogshoppen". *@
+@if (_news is { Body.Length: > 0 })
+{
+    <section class="k-card hj-page hj-news" data-nofold>@TinyMarkdown.Render(_news.Body)</section>
+}
 
 @* Kig med: big red box while Martin streams, a small line otherwise (user 2026-09-30). *@
 <LiveCard />
@@ -24,29 +29,7 @@
 @* "Martin er her nu" right under the name, so every visitor sees it (user 2026-09-28). *@
 <ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true" />
 
-@* The apps shown on Mine apps (Show) right on the front page - user 2026-10-01: only ElPriser + Ladestander,
-   "so they can see how easy it will be". *@
-@if (_apps.Count > 0)
-{
-    <h2 class="hj-h2">Prøv mine apps</h2>
-    <div class="hj-apps">
-        @foreach (var a in _apps)
-        {
-            var up = a.Awake && Status.IsUp(a.Url) != false;
-            <div class="k-card hj-app @(up ? "" : "off")" data-nofold>
-                <span class="hj-app-icon">@a.Icon</span>
-                <div class="hj-app-body">
-                    <b>@a.Name</b>
-                    <div class="k-help">@a.Description</div>
-                    <div class="k-row k-mt">
-                        @if (up) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name</a> }
-                        else { <span class="k-help"><i>😴 Sover lige nu – kommer snart</i></span> }
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-}
+@* Apps are only on the Mine apps tab (user 2026-10-04: "Forsiden skal heller ikke have mine apps"). *@
 
 @if (_hero is not null)
 {
@@ -98,8 +81,8 @@ else if (_family && !_owner)
     private Settings _s = new();
     private List<Post> _posts = [];
     private int _hiddenFamily;
-    private List<AppLink> _apps = [];
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
+    private Page? _news;   // Svar -> Sider -> "bogshoppen": highlighted box under the heading
     private bool _family, _owner;
 
     private string FirstName => _s.Name.Split(' ')[0];
@@ -118,7 +101,7 @@ else if (_family && !_owner)
         await using var db = await Dbf.CreateDbContextAsync();
         _s = await db.Settings.AsNoTracking().FirstAsync();
         _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
-        _apps = await db.AppLinks.AsNoTracking().Where(a => a.Show).OrderBy(a => a.Sort).ToListAsync();
+        _news = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "bogshoppen");
         var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();

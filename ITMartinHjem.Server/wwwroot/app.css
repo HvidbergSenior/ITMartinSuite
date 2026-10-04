@@ -101,6 +101,10 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-tag-plus { background: var(--k-accent); color: #fff; }
 .hj-hero h2 { margin-top: 8px; }
 
+/* Bogshoppen news box at the very top of the front page */
+.hj-news { border: 3px solid var(--k-accent); margin: 12px 0 20px; }
+.hj-news h2:first-child { margin-top: 0; }
+
 /* "Martin er her nu" at the top of the front page - big and impossible to miss */
 .hj-chat-top { text-align: center; border: 2px solid var(--k-border); }
 .hj-chat-top.is-on { border-color: var(--k-success, #1f9d55); background: #eefaf2; }
@@ -251,3 +255,28 @@ html[data-family="glaede"] .hj-now{border-left-color:var(--k-sun)}
 .hj-app { align-self: stretch; }
 .hj-app-body { display: flex; flex-direction: column; align-self: stretch; }
 .hj-app-body > .k-row:last-child { margin-top: auto; padding-top: 12px; }
+
+/* ── Theme "nyhed" (user 2026-10-04: "exciting news" - ITMartin og Bogshoppen). Switch back = App.razor data-family="glaede". ── */
+html[data-family="nyhed"]{--k-accent:#7c3aed;--k-accent-dark:#5b21b6;--k-accent-soft:#efe7ff;--k-accent-text:#fff;
+  --k-bg:#faf7ff;--k-bg-deep:#f1eaff;--k-card:#ffffff;--k-border:#e2d6fb;--k-text:#1e1533;--k-muted:#5f5577;
+  --k-sun:#ff7a2f;--k-hot:#ff2d87;--k-radius-lg:22px;--k-shadow:0 2px 4px rgba(124,58,237,.08),0 8px 24px rgba(255,45,135,.14)}
+html[data-family="nyhed"] body{background:
+  radial-gradient(900px 500px at 100% -10%,rgba(255,45,135,.20),transparent 60%),
+  radial-gradient(700px 420px at -10% 110%,rgba(255,122,47,.18),transparent 60%),var(--k-bg);background-attachment:fixed}
+html[data-family="nyhed"][data-theme="dark"]{--k-bg:#140f22;--k-bg-deep:#0e0a19;--k-card:#1f1833;--k-border:#3b2d5c;--k-text:#f3eeff;--k-muted:#b9acd6;--k-accent:#b48cff;--k-accent-dark:#d2b8ff;--k-accent-soft:#2e2150;--k-accent-text:#140f22}
+html[data-family="nyhed"][data-theme="dark"] body{background:radial-gradient(900px 500px at 100% -10%,rgba(255,45,135,.16),transparent 60%),var(--k-bg)}
+html[data-family="nyhed"] .hj-nav{background:linear-gradient(90deg,#5b21b6,#7c3aed 45%,#db2777);border-bottom:0;box-shadow:var(--k-shadow)}
+html[data-family="nyhed"] .hj-nav a{color:#fff}
+html[data-family="nyhed"] .hj-nav a:hover,html[data-family="nyhed"] .hj-nav a.hj-nav-pilot{color:#ffd23f}
+html[data-family="nyhed"] .hj-head{background:linear-gradient(120deg,#5b21b6 0%,#7c3aed 40%,#ff2d87 75%,#ff7a2f 100%);color:#fff}
+html[data-family="nyhed"] .hj-head h1,html[data-family="nyhed"] .hj-head .hj-intro{color:#fff}
+html[data-family="nyhed"] .hj-head::before{content:"📣";animation:hj-shout 2.4s ease-in-out infinite}
+html[data-family="nyhed"] .hj-tagline{background:#ffd23f;color:#1e1533}
+@keyframes hj-shout{0%,70%,100%{transform:translateY(-50%) rotate(0)}80%{transform:translateY(-50%) rotate(-12deg) scale(1.1)}90%{transform:translateY(-50%) rotate(8deg) scale(1.1)}}
+html[data-family="nyhed"] .hj-now{border-left-color:var(--k-hot)}
+/* The Bogshoppen box: gradient frame + "NYHED" ribbon */
+html[data-family="nyhed"] .hj-news{position:relative;border:3px solid transparent;
+  background:linear-gradient(var(--k-card),var(--k-card)) padding-box,linear-gradient(120deg,#7c3aed,#ff2d87,#ff7a2f) border-box}
+html[data-family="nyhed"] .hj-news::before{content:"✨ NYHED";position:absolute;top:-12px;right:16px;padding:2px 12px;border-radius:999px;
+  background:linear-gradient(90deg,#ff2d87,#ff7a2f);color:#fff;font-weight:800;font-size:.8rem;letter-spacing:.06em;box-shadow:var(--k-shadow)}
+html[data-family="nyhed"] .hj-news h2,html[data-family="nyhed"] .hj-news h3{color:var(--k-accent)}
