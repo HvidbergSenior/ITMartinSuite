@@ -3,8 +3,18 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Martin Hvidberg – hvad jeg laver, hvad jeg tænker, og min familie. Skriv til mig direkte på siden." />
-    <title>Martin Hvidberg</title>
+    @* bogshoppen.dk is served by this app too: its own tab title and description, so a shared link
+       and the browser tab say Bogshoppen, not Martin Hvidberg (browsers show the FIRST <title>). *@
+    @if (IsBogshoppen)
+    {
+        <meta name="description" content="Bogshoppen – følg hvordan Bogshoppen og ITMartin arbejder sammen." />
+        <title>Bogshoppen</title>
+    }
+    else
+    {
+        <meta name="description" content="Martin Hvidberg – hvad jeg laver, hvad jeg tænker, og min familie. Skriv til mig direkte på siden." />
+        <title>Martin Hvidberg</title>
+    }
     <base href="/" />
     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
     <script src="_content/ITMartin.Shared.UI/kolibri.js?v=@CacheBuster" defer></script>
@@ -34,5 +44,6 @@
 @code {
     [CascadingParameter] private HttpContext? HttpContext { get; set; }
     private bool IsAdmin => HttpContext?.Request.Path.StartsWithSegments("/admin") == true;
+    private bool IsBogshoppen => HttpContext is not null && Components.BogshoppenHome.IsHost(HttpContext.Request.Host.Host);
     private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
 }
