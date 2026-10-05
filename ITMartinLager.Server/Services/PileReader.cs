@@ -10,7 +10,7 @@ using SixLabors.ImageSharp.Processing;
 namespace ITMartinLager.Server.Services;
 
 public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
-    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "");
+    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "");
 
 // One photo of a PILE (10-20 covers side by side) -> one Claude call that reads every item. Never one call per item:
 // 100,000 items is ~7,000 photos this way (CLAUDE.md cost rules). Cheap model by default (Lager:AiModel), and a hard
@@ -103,21 +103,7 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
     {
         if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
 
-        // Reserve the call BEFORE making it - the cap holds even if the call then fails.
-        await CapGate.WaitAsync(ct);
-        try
-        {
-            await using var db = await dbf.CreateDbContextAsync(ct);
-            var today = DateOnly.FromDateTime(DateTime.Now);
-            var day = await db.AiDays.FindAsync([today], ct);
-            if (day is null) db.AiDays.Add(day = new AiDay { Day = today });
-            if (day.Calls >= MaxCallsPerDay)
-                throw new InvalidOperationException($"Dagens grænse på {MaxCallsPerDay} AI-billeder er nået. Fortsæt i morgen, eller hæv Lager__MaxAiCallsPerDay.");
-            day.Calls++;
-            await db.SaveChangesAsync(ct);
-        }
-        finally { CapGate.Release(); }
-
+        await ReserveCallAsync(ct);
         var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
         var text = "Registrér alle varer på billedet." + (string.IsNullOrWhiteSpace(hint) ? "" : $" Det er mest: {hint}.");
         var response = await client.Messages.Create(new MessageCreateParams
@@ -140,23 +126,84 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
                 },
             ],
         }, ct);
-
-        await using (var db = await dbf.CreateDbContextAsync(ct))
-        {
-            var day = await db.AiDays.FindAsync([DateOnly.FromDateTime(DateTime.Now)], ct);
-            if (day is not null)
-            {
-                day.InputTokens += response.Usage.InputTokens;
-                day.OutputTokens += response.Usage.OutputTokens;
-                await db.SaveChangesAsync(ct);
-            }
-        }
+        await CountTokensAsync(response, ct);
 
         var tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault()
             ?? throw new InvalidOperationException("AI'en svarede ikke med en liste. Prøv et nyt billede.");
         var parsed = JsonSerializer.Deserialize<Report>(JsonSerializer.Serialize(tool.Input), Json) ?? new Report();
         log.LogInformation("Pile read: {Count} items, {In}/{Out} tokens", parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens);
         return parsed.Items.Select(Clean).Where(f => f.Title.Length > 0).ToList();
+    }
+
+    private static readonly Tool InterestTool = new()
+    {
+        Name = "report_interest",
+        Description = "Report the collector text for each numbered item",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["items"] = JsonDocument.Parse("""
+                    { "type": "array", "items": { "type": "object",
+                      "properties": { "index": { "type": "integer" }, "interest": { "type": "string" } },
+                      "required": ["index", "interest"] } }
+                    """).RootElement,
+            },
+            Required = ["items"],
+        },
+    };
+
+    // "Det interessante" for items that came in by barcode (no cover photo): ONE text-only call for up to 40 items.
+    public async Task<Dictionary<int, string>> WriteInterestAsync(IReadOnlyList<string> lines, CancellationToken ct)
+    {
+        if (lines.Count == 0) return [];
+        if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
+        await ReserveCallAsync(ct);
+        var list = string.Join("\n", lines.Take(40).Select((l, i) => $"{i}: {l}"));
+        var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
+        var response = await client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model,
+            MaxTokens = 8000,
+            System = System,
+            Tools = [InterestTool],
+            ToolChoice = new ToolChoiceTool { Name = "report_interest" },
+            Messages = [new() { Role = Role.User, Content = "Skriv 'interest' (1-2 sætninger på dansk til en samler) for hver af disse varer:\n" + list }],
+        }, ct);
+        await CountTokensAsync(response, ct);
+        var tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
+        if (tool is null) return [];
+        var parsed = JsonSerializer.Deserialize<InterestReport>(JsonSerializer.Serialize(tool.Input), Json) ?? new InterestReport();
+        return parsed.Items.Where(x => x.Index >= 0 && x.Index < lines.Count && !string.IsNullOrWhiteSpace(x.Interest))
+            .GroupBy(x => x.Index).ToDictionary(g => g.Key, g => g.First().Interest!.Trim());
+    }
+
+    private async Task CountTokensAsync(Message response, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var day = await db.AiDays.FindAsync([DateOnly.FromDateTime(DateTime.Now)], ct);
+        if (day is null) return;
+        day.InputTokens += response.Usage.InputTokens;
+        day.OutputTokens += response.Usage.OutputTokens;
+        await db.SaveChangesAsync(ct);
+    }
+
+    // Reserve the call BEFORE making it - the cap holds even if the call then fails.
+    private async Task ReserveCallAsync(CancellationToken ct)
+    {
+        await CapGate.WaitAsync(ct);
+        try
+        {
+            await using var db = await dbf.CreateDbContextAsync(ct);
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            var day = await db.AiDays.FindAsync([today], ct);
+            if (day is null) db.AiDays.Add(day = new AiDay { Day = today });
+            if (day.Calls >= MaxCallsPerDay)
+                throw new InvalidOperationException($"Dagens grænse på {MaxCallsPerDay} AI-billeder er nået. Fortsæt i morgen, eller hæv Lager__MaxAiCallsPerDay.");
+            day.Calls++;
+            await db.SaveChangesAsync(ct);
+        }
+        finally { CapGate.Release(); }
     }
 
     internal static Found Clean(RawItem r) => new(
@@ -166,6 +213,8 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         (r.Note ?? "").Trim(), (r.Interest ?? "").Trim());
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
+    internal sealed class InterestReport { public List<InterestRow> Items { get; set; } = []; }
+    internal sealed class InterestRow { public int Index { get; set; } public string? Interest { get; set; } }
 
     internal sealed class RawItem
     {

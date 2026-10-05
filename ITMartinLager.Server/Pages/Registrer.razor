@@ -3,6 +3,9 @@
 @inject PileReader Reader
 @inject IConfiguration Config
 @inject NavigationManager Nav
+@inject BarcodeLookup Barcodes
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <PageTitle>Registrér – Bogshoppen Lager</PageTitle>
 
@@ -36,6 +39,20 @@
             <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
         </label>
         <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-billeder i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
+
+        <p><b>Eller scan stregkoden</b> – bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden; det bipper for hver.</p>
+        @if (!_scanning)
+        {
+            <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">▮▯▮ Scan stregkoder</button>
+        }
+        else
+        {
+            <div class="lg-scan">
+                <video id="scan-video" muted playsinline></video>
+                <p class="lg-answer" role="status">@(_scanStatus)</p>
+                <button class="k-btn k-btn-primary" @onclick="StopScan">✓ Færdig med at scanne</button>
+            </div>
+        }
     }
     @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
     @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
@@ -45,6 +62,10 @@
 {
     <section class="k-card">
         <h2 class="k-card-title">3. Tjek og gem (@_review.Count(r => r.Keep) af @_review.Count)</h2>
+        @if (_review.Any(r => r.Keep && r.Interest.Trim() == ""))
+        {
+            <button class="k-btn k-btn-secondary" @onclick="WriteInterest" disabled="@_busy">✨ Skriv det interessante for de @_review.Count(r => r.Keep && r.Interest.Trim() == "") uden</button>
+        }
         <p class="k-small">Ret det, der er læst forkert. <b>⚠ Tjek</b> = AI'en var usikker. Fjern fluebenet for ting, der ikke skal med.</p>
         <div class="lg-review">
             @foreach (var r in _review)
@@ -92,6 +113,7 @@
         public int Quantity = 1;
         public double Confidence = 1;
         public int PhotoId;
+        public string Barcode = "";
     }
 
     private Box? _box;
@@ -101,6 +123,11 @@
     private bool _busy;
     private int _callsToday;
     private readonly List<Row> _review = [];
+    private bool _scanning;
+    private string _scanStatus = "";
+    private string _lastCode = "";
+    private DateTime _lastAt;
+    private DotNetObjectReference<Registrer>? _ref;
 
     protected override async Task OnInitializedAsync()
     {
@@ -170,13 +197,91 @@
         int added = 0, merged = 0;
         foreach (var g in _review.Where(r => r.Keep && r.Title.Trim() != "").GroupBy(r => r.PhotoId))
         {
-            var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key, g.Select(r => new Found(
+            var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key == 0 ? null : g.Key, g.Select(r => new Found(
                 Kinds.Normalise(r.Kind), r.Title.Trim(), r.Artist.Trim(), r.Series.Trim(), r.Number.Trim(), r.Year,
-                r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim())));
+                r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim(), r.Barcode)));
             added += a; merged += m;
         }
         _review.Clear();
         _busy = false;
         _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "") + ". Tag næste billede.";
+    }
+
+    private async Task StartScan()
+    {
+        _error = null; _saved = null;
+        _scanning = true;
+        _scanStatus = "Hold stregkoden foran kameraet …";
+        StateHasChanged();
+        _ref ??= DotNetObjectReference.Create(this);
+        try { await JS.InvokeVoidAsync("scanner.start", _ref); }
+        catch (Exception ex) { _scanning = false; _error = "Kameraet kunne ikke startes: " + ex.Message; }
+    }
+
+    private async Task StopScan()
+    {
+        _scanning = false;
+        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
+    }
+
+    // Called by scanner.js for each code. The same code twice within 4 s = the camera saw it again, not a second copy;
+    // scanning it again later = one more copy (quantity + 1).
+    [JSInvokable]
+    public async Task OnBarcode(string raw)
+    {
+        var code = BarcodeLookup.Clean(raw);
+        var again = code == _lastCode && (DateTime.Now - _lastAt).TotalSeconds < 4;
+        _lastCode = code; _lastAt = DateTime.Now;
+        if (!again && code.Length >= 8)
+        {
+            _ = JS.InvokeVoidAsync("scanner.beep");
+            var same = _review.FirstOrDefault(r => r.Barcode == code);
+            if (same is not null)
+            {
+                same.Quantity++;
+                _scanStatus = $"✓ {same.Title}: nu {same.Quantity} stk.";
+            }
+            else
+            {
+                _scanStatus = $"Slår {code} op …";
+                StateHasChanged();
+                var f = await Barcodes.LookupAsync(code);
+                _review.Insert(0, f is null
+                    ? new Row { Barcode = code, Kind = BarcodeLookup.IsIsbn(code) ? Kinds.Bog : Kinds.Andet, Title = "", Confidence = 0, Note = $"Stregkode {code} – ikke fundet, skriv titlen" }
+                    : new Row { Barcode = code, Kind = f.Kind, Title = f.Title, Artist = f.Artist, Year = f.Year, Platform = f.Platform, Confidence = f.Confidence, Note = f.Note });
+                _scanStatus = f is null ? $"⚠ {code} ikke fundet – skriv titlen i listen" : $"✓ {f.Title}";
+            }
+        }
+        StateHasChanged();
+        if (_scanning)
+        {
+            await Task.Delay(1200);
+            try { if (_scanning) await JS.InvokeVoidAsync("scanner.start", _ref); } catch { }
+        }
+    }
+
+    private async Task WriteInterest()
+    {
+        var rows = _review.Where(r => r.Keep && r.Interest.Trim() == "" && r.Title.Trim() != "").Take(40).ToList();
+        if (rows.Count == 0) return;
+        _busy = true; _error = null;
+        StateHasChanged();
+        try
+        {
+            var lines = rows.Select(r => string.Join(" · ", new[] { r.Kind, r.Artist, r.Title, r.Series, r.Number, r.Year?.ToString() ?? "", r.Platform }
+                .Where(x => !string.IsNullOrWhiteSpace(x)))).ToList();
+            var texts = await Reader.WriteInterestAsync(lines, CancellationToken.None);
+            foreach (var (idx, text) in texts) rows[idx].Interest = text;
+            _callsToday = await Reader.CallsTodayAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _scanning = false;
+        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
+        _ref?.Dispose();
     }
 }
