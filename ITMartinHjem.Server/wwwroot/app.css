@@ -280,3 +280,35 @@ html[data-family="nyhed"] .hj-news{position:relative;border:3px solid transparen
 html[data-family="nyhed"] .hj-news::before{content:"✨ NYHED";position:absolute;top:-12px;right:16px;padding:2px 12px;border-radius:999px;
   background:linear-gradient(90deg,#ff2d87,#ff7a2f);color:#fff;font-weight:800;font-size:.8rem;letter-spacing:.06em;box-shadow:var(--k-shadow)}
 html[data-family="nyhed"] .hj-news h2,html[data-family="nyhed"] .hj-news h3{color:var(--k-accent)}
+
+/* "Følg samarbejdet" tab: the Bogshoppen story above the page's own news */
+.hj-news-inline { border-left: 4px solid var(--k-accent); padding-left: 14px; margin: 8px 0 20px; }
+.hj-week h2:first-child { margin-top: 0; }
+
+/* ── Theme "idag" (user 2026-10-05: "Det er mandag, hvad skal jeg mon lave i dag og i denne uge? Spændende").
+      Morning sky -> sunrise. Switch back = App.razor data-family="nyhed" or "glaede". ── */
+html[data-family="idag"]{--k-accent:#0b6fb8;--k-accent-dark:#0a5590;--k-accent-soft:#e3f1fc;--k-accent-text:#fff;
+  --k-bg:#f5faff;--k-bg-deep:#e8f3fd;--k-card:#ffffff;--k-border:#cfe3f5;--k-text:#13263a;--k-muted:#4d6378;
+  --k-sun:#ff9f43;--k-hot:#ff6b6b;--k-radius-lg:22px;--k-shadow:0 2px 4px rgba(11,111,184,.08),0 8px 24px rgba(255,159,67,.16)}
+html[data-family="idag"] body{background:
+  radial-gradient(900px 500px at 100% -10%,rgba(255,159,67,.22),transparent 60%),
+  radial-gradient(700px 420px at -10% 110%,rgba(110,190,255,.20),transparent 60%),var(--k-bg);background-attachment:fixed}
+html[data-family="idag"][data-theme="dark"]{--k-bg:#0d1824;--k-bg-deep:#09121b;--k-card:#152536;--k-border:#28425c;--k-text:#eaf4ff;--k-muted:#a6bcd2;--k-accent:#6cb8ff;--k-accent-dark:#a3d2ff;--k-accent-soft:#1d3a57;--k-accent-text:#0d1824}
+html[data-family="idag"][data-theme="dark"] body{background:radial-gradient(900px 500px at 100% -10%,rgba(255,159,67,.14),transparent 60%),var(--k-bg)}
+html[data-family="idag"] .hj-nav{background:linear-gradient(90deg,#0a5590,#0b6fb8 50%,#f08a3c);border-bottom:0;box-shadow:var(--k-shadow)}
+html[data-family="idag"] .hj-nav a{color:#fff}
+html[data-family="idag"] .hj-nav a:hover,html[data-family="idag"] .hj-nav a.hj-nav-pilot{color:#ffe08a}
+html[data-family="idag"] .hj-head{background:linear-gradient(160deg,#5fb2f2 0%,#9fd3ff 38%,#ffd29a 72%,#ff9f6b 100%);color:#13263a}
+html[data-family="idag"] .hj-head h1{color:#0d2a44}
+html[data-family="idag"] .hj-head .hj-intro{color:#21405c;font-weight:600}
+html[data-family="idag"] .hj-head::before{content:"🤔";animation:hj-think 3.2s ease-in-out infinite}
+html[data-family="idag"] .hj-tagline{background:#fff;color:#0a5590}
+@keyframes hj-think{0%,60%,100%{transform:translateY(-50%) rotate(0)}75%{transform:translateY(-58%) rotate(-10deg)}90%{transform:translateY(-50%) rotate(6deg)}}
+html[data-family="idag"] .hj-now{border-left-color:var(--k-sun)}
+html[data-family="idag"] .hj-week{border-left:5px solid var(--k-accent)}
+html[data-family="idag"] .hj-week h2,html[data-family="idag"] .hj-news h2,html[data-family="idag"] .hj-news h3{color:var(--k-accent)}
+/* Bogshoppen box: stays until the collaboration is done - gradient frame + "SAMARBEJDET" ribbon */
+html[data-family="idag"] .hj-news{position:relative;border:3px solid transparent;
+  background:linear-gradient(var(--k-card),var(--k-card)) padding-box,linear-gradient(120deg,#0b6fb8,#ff9f43,#ff6b6b) border-box}
+html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";position:absolute;top:-12px;right:16px;padding:2px 12px;border-radius:999px;
+  background:linear-gradient(90deg,#0b6fb8,#ff9f43);color:#fff;font-weight:800;font-size:.75rem;letter-spacing:.06em;box-shadow:var(--k-shadow)}

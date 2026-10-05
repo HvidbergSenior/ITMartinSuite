@@ -20,6 +20,8 @@ else if (_page is not null)
         @if (_parent is not null) { <p class="k-help"><a href="/@_parent.Slug">← @_parent.Title</a></p> }
         <h1>@_page.Title</h1>
         @if (_page.Slug == NowCard.PageSlug) { <NowCard /> }
+        @* "Følg samarbejdet": the Bogshoppen story (same text as the front box) above the page's own news. *@
+        @if (_news is { Body.Length: > 0 }) { <section class="hj-news-inline">@TinyMarkdown.Render(_news.Body)</section> }
         @TinyMarkdown.Render(_page.Body)
     </article>
     @if (_page.Slug == PilotForm.PageSlug) { <PilotForm /> }
@@ -38,7 +40,7 @@ else if (_page is not null)
 @code {
     [Parameter] public string? Slug { get; set; }
 
-    private Page? _page, _parent;
+    private Page? _page, _parent, _news;
     private List<Page> _children = [];
     private bool _loaded;
 
@@ -53,6 +55,7 @@ else if (_page is not null)
         }
         await using var db = await Dbf.CreateDbContextAsync();
         _page = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == slug);
+        _news = slug == Index.CollabSlug ? await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "bogshoppen") : null;
         _children = _page is null ? [] : await db.Pages.AsNoTracking()
             .Where(p => p.Slug.StartsWith(slug + "/")).OrderBy(p => p.Sort).ThenBy(p => p.Title).ToListAsync();
         var parentSlug = slug.Contains('/') ? slug[..slug.LastIndexOf('/')] : null;

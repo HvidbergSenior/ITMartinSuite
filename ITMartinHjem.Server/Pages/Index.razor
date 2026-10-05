@@ -10,17 +10,31 @@
 <Fest />
 
 <header class="hj-head">
-    <span class="hj-tagline">📣 Spændende nyt</span>
+    @* Theme "idag" (user 2026-10-05): "Det er mandag, hvad skal jeg mon lave i dag og hvad skal jeg lave i denne uge? Spændende" *@
+    <span class="hj-tagline">🌅 Det er @Today.ToString("dddd", Da)</span>
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
 
-@* Bogshoppen news first of all (user 2026-10-04: "mere centralt"). Text = Svar -> Sider -> "bogshoppen". *@
+@* Today: Martin's day log (plan in the morning, pictures through the day) - Svar -> 📌 Lige nu. *@
+<NowCard />
+
+@* This week: Svar -> Sider -> "denne-uge" (one task per line). *@
+@if (_week is { Body.Length: > 0 })
+{
+    <section class="k-card hj-page hj-week" data-nofold>@TinyMarkdown.Render(_week.Body)</section>
+}
+
+@* ITMartin + Bogshoppen stays on the front page until the collaboration is done (user 2026-10-05).
+   Text = Svar -> Sider -> "bogshoppen"; the full story + news is on the "Følg samarbejdet" tab. *@
 @if (_news is { Body.Length: > 0 })
 {
-    <section class="k-card hj-page hj-news" data-nofold>@TinyMarkdown.Render(_news.Body)</section>
+    <section class="k-card hj-page hj-news" data-nofold>
+        @TinyMarkdown.Render(_news.Body)
+        <a class="k-btn k-btn-primary k-mt" href="/@CollabSlug">🤝 Følg samarbejdet</a>
+    </section>
 }
 
 @* Kig med: big red box while Martin streams, a small line otherwise (user 2026-09-30). *@
@@ -82,7 +96,10 @@ else if (_family && !_owner)
     private List<Post> _posts = [];
     private int _hiddenFamily;
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
-    private Page? _news;   // Svar -> Sider -> "bogshoppen": highlighted box under the heading
+    private Page? _news;   // Svar -> Sider -> "bogshoppen": highlighted box, stays until the collaboration is done
+    private Page? _week;   // Svar -> Sider -> "denne-uge": this week's plan
+    public const string CollabSlug = "foelg-samarbejdet";
+    private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
 
     private string FirstName => _s.Name.Split(' ')[0];
@@ -102,6 +119,7 @@ else if (_family && !_owner)
         _s = await db.Settings.AsNoTracking().FirstAsync();
         _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
         _news = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "bogshoppen");
+        _week = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "denne-uge");
         var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();

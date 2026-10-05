@@ -8,7 +8,7 @@ namespace ITMartinHjem.Server.Services;
 // at MineAppsSort - and "Bliv pilot" always last (user 2026-09-28: Forside, Mine apps, Priser, Om mig og kontakt, Bliv pilot).
 public static class SiteMenu
 {
-    public const int MineAppsSort = 1;   // user 2026-09-28: Mine apps right after Forside
+    public const int MineAppsSort = 50;  // user 2026-10-05: Forside, Hvad laver ITKolibrien, Om mig, Særlige behov, Priser, Mine apps (50), Følg samarbejdet, Bliv pilot
 
     public sealed record Item(string Title, string Href, bool Pilot = false);
 
