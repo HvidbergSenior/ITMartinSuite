@@ -42,7 +42,16 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
                 ? $"postalcode={text}"
                 : $"q={Uri.EscapeDataString(text)}";
             var hits = await OsmAsync<List<OsmPlace>>($"search?{query}&countrycodes=dk&format=jsonv2&addressdetails=1&limit=1");
-            return hits?.FirstOrDefault() is { } h ? ToPlace(h, h.LatD, h.LonD) : null;
+            if (hits?.FirstOrDefault() is not { Address: { } addr } h) return null;
+            // A postcode search names only the municipality ("8000, Aarhus Kommune"). The town the
+            // postcode belongs to ("8000 Aarhus", "9990 Skagen") comes from the address at its centre.
+            if (addr.Town() == "")
+            {
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                var at = await OsmAsync<OsmPlace>($"reverse?lat={h.LatD.ToString(inv)}&lon={h.LonD.ToString(inv)}&format=jsonv2&addressdetails=1&zoom=18");
+                addr.City = at?.Address is { } r && r.Postcode == addr.Postcode && r.Town() != "" ? r.Town() : addr.MunicipalityTown();
+            }
+            return ToPlace(h, h.LatD, h.LonD);
         }
         catch (Exception ex)
         {
@@ -116,8 +125,20 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
         [JsonPropertyName("town")] public string? TownName { get; set; }
         [JsonPropertyName("village")] public string? Village { get; set; }
         [JsonPropertyName("suburb")] public string? Suburb { get; set; }
+        [JsonPropertyName("municipality")] public string? Municipality { get; set; }
         [JsonPropertyName("country_code")] public string? CountryCode { get; set; }
         public string Town() => City ?? TownName ?? Village ?? Suburb ?? "";
+
+        // "Aarhus Kommune" -> "Aarhus", "Bornholms Regionskommune" -> "Bornholm": the fallback town name.
+        public string? MunicipalityTown()
+        {
+            var m = Municipality?.Trim();
+            if (string.IsNullOrEmpty(m)) return null;
+            foreach (var end in new[] { "s Regionskommune", " Regionskommune", " Kommune" })
+                if (m.EndsWith(end, StringComparison.Ordinal)) { m = m[..^end.Length]; break; }
+            // The one municipality whose name is a genitive of its town.
+            return m == "Københavns" ? "København" : m;
+        }
     }
 
     // The one grid company serving this exact point.

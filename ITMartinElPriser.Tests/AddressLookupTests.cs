@@ -33,4 +33,11 @@ public class AddressLookupTests
         var h = Parse("""{"lat":"55","lon":"12","address":{"road":"Somewhere","country_code":"dk"}}""");
         GridTariffs.ToPlace(h, 55, 12).Should().BeNull();
     }
+
+    [TestCase("Aarhus Kommune", "Aarhus")]
+    [TestCase("Bornholms Regionskommune", "Bornholm")]
+    [TestCase("Frederiksberg", "Frederiksberg")]
+    [TestCase("Københavns Kommune", "København")]
+    public void Municipality_gives_a_fallback_town(string municipality, string town) =>
+        new GridTariffs.OsmAddress { Municipality = municipality }.MunicipalityTown().Should().Be(town);
 }
