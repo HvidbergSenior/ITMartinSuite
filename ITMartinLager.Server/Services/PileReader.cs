@@ -23,7 +23,10 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
     private static readonly SemaphoreSlim CapGate = new(1, 1);
 
     private string Model => cfg["Lager:AiModel"] ?? "claude-haiku-4-5";
-    public int MaxCallsPerDay => int.TryParse(cfg["Lager:MaxAiCallsPerDay"], out var n) ? n : 400;
+    public int MaxCallsPerDay => int.TryParse(cfg["Lager:MaxAiCallsPerDay"], out var n) ? n : 800;
+    // The collector text is the shop's focus, so it gets the most accurate model (user 2026-10-05: Haiku invented
+    // a track list). Reading covers stays on the cheap model. Lager__InterestModel switches it (e.g. claude-sonnet-5-5).
+    private string InterestModel => cfg["Lager:InterestModel"] ?? "claude-opus-5-5";
     public bool Enabled => !string.IsNullOrWhiteSpace(cfg["Claude:ApiKey"]);
 
     private static readonly Tool ReportTool = new()
@@ -51,8 +54,7 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
                           "condition":  { "type": "string", "enum": {{JsonSerializer.Serialize(Conditions.All)}} },
                           "quantity":   { "type": "integer", "minimum": 1 },
                           "confidence": { "type": "number", "description": "0-1: how sure the title/number reading is" },
-                          "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" },
-                          "interest":   { "type": "string", "description": "1-2 Danish sentences for a collector: what is interesting about exactly this item" }
+                          "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" }
                         },
                         "required": ["kind", "title", "condition", "quantity", "confidence"]
                       }
@@ -74,10 +76,6 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
         - Ens eksemplarer = én post med quantity.
-        - interest: 1-2 sætninger på dansk til en samler om det interessante ved netop denne vare - fx tegner/forfatter,
-          kendte historier eller indhold, hvad der var særligt det år, en kendt optræden, første/sidste nummer. Det er
-          butikkens fokus, også når varen er billig. Skriv kun hvad du med rimelighed ved eller kan se på forsiden;
-          ved du ikke noget særligt, så beskriv kort hvad det er og hvorfor folk samler på den slags. Opfind aldrig fakta.
         """;
 
     // Phone photos are 3-12 MB; Claude only needs ~1568 px, so resize + JPEG before saving and sending.
@@ -135,6 +133,16 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         return parsed.Items.Select(Clean).Where(f => f.Title.Length > 0).ToList();
     }
 
+    private const string InterestSystem = """
+        Du skriver korte tekster til en dansk butik, der sælger brugte bøger, Anders And-blade, Jumbobøger, tegneserier,
+        magasiner, CD'er, DVD'er, Blu-rays, konsolspil og Magic-kort. Butikkens fokus er det interessante for en samler.
+        For hver vare: 1-2 sætninger på korrekt dansk om hvad der er interessant ved netop den - tegner, forfatter,
+        kunstner, hvad udgivelsen er kendt for, hvad der var særligt det år.
+        Skriv KUN fakta, du er helt sikker på. Nævn ikke konkrete numre, historier, medvirkende eller årstal, medmindre du
+        er sikker - hellere generelt og rigtigt end specifikt og forkert. Gentag ikke titlen ordret som det eneste.
+        Svar ved at kalde værktøjet report_interest med én tekst pr. nummer.
+        """;
+
     private static readonly Tool InterestTool = new()
     {
         Name = "report_interest",
@@ -146,34 +154,65 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
                 ["items"] = JsonDocument.Parse("""
                     { "type": "array", "items": { "type": "object",
                       "properties": { "index": { "type": "integer" }, "interest": { "type": "string" } },
-                      "required": ["index", "interest"] } }
+                      "required": ["index", "interest"], "additionalProperties": false } }
                     """).RootElement,
             },
             Required = ["items"],
         },
     };
 
-    // "Det interessante" for items that came in by barcode (no cover photo): ONE text-only call for up to 40 items.
+    // "Det interessante" for up to 40 items in ONE text-only call (never one call per item).
     public async Task<Dictionary<int, string>> WriteInterestAsync(IReadOnlyList<string> lines, CancellationToken ct)
     {
+        lines = lines.Take(40).ToList();
         if (lines.Count == 0) return [];
         if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
         await ReserveCallAsync(ct);
-        var list = string.Join("\n", lines.Take(40).Select((l, i) => $"{i}: {l}"));
+        var ask = "Skriv den interessante tekst for hver af disse varer:\n" + string.Join("\n", lines.Select((l, i) => $"{i}: {l}"));
         var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
-        var response = await client.Messages.Create(new MessageCreateParams
+
+        // The accurate model first. Opus 5.5 / Sonnet 5.5 do not allow a forced tool call, so the prompt asks for it.
+        // A refusal, an error or no tool call -> the cheap model with a forced call, so a pile is never left without text.
+        Message? response = null;
+        try
         {
-            Model = Model,
-            MaxTokens = 8000,
-            System = System,
-            Tools = [InterestTool],
-            ToolChoice = new ToolChoiceTool { Name = "report_interest" },
-            Messages = [new() { Role = Role.User, Content = "Skriv 'interest' (1-2 sætninger på dansk til en samler) for hver af disse varer:\n" + list }],
-        }, ct);
-        await CountTokensAsync(response, ct);
-        var tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
-        if (tool is null) return [];
+            response = await client.Messages.Create(new MessageCreateParams
+            {
+                Model = InterestModel,
+                MaxTokens = 16000,
+                System = InterestSystem,
+                Tools = [InterestTool],
+                ToolChoice = new ToolChoiceAuto(),
+                OutputConfig = new OutputConfig { Effort = Effort.Low },
+                Messages = [new() { Role = Role.User, Content = ask }],
+            }, ct);
+            await CountTokensAsync(response, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            log.LogWarning(ex, "Interest model {Model} failed - falling back to {Cheap}", InterestModel, Model);
+        }
+
+        var tool = response?.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
+        if (tool is null)
+        {
+            if (response is not null) log.LogWarning("Interest model gave no tool call (stop: {Stop}) - falling back", response.StopReason);
+            response = await client.Messages.Create(new MessageCreateParams
+            {
+                Model = Model,
+                MaxTokens = 8000,
+                System = InterestSystem,
+                Tools = [InterestTool],
+                ToolChoice = new ToolChoiceTool { Name = "report_interest" },
+                Messages = [new() { Role = Role.User, Content = ask }],
+            }, ct);
+            await CountTokensAsync(response, ct);
+            tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
+            if (tool is null) return [];
+        }
         var parsed = JsonSerializer.Deserialize<InterestReport>(JsonSerializer.Serialize(tool.Input), Json) ?? new InterestReport();
+        log.LogInformation("Interest written for {Count}/{Asked} items, {In}/{Out} tokens", parsed.Items.Count, lines.Count,
+            response!.Usage.InputTokens, response.Usage.OutputTokens);
         return parsed.Items.Where(x => x.Index >= 0 && x.Index < lines.Count && !string.IsNullOrWhiteSpace(x.Interest))
             .GroupBy(x => x.Index).ToDictionary(g => g.Key, g => g.First().Interest!.Trim());
     }
@@ -199,7 +238,7 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
             var day = await db.AiDays.FindAsync([today], ct);
             if (day is null) db.AiDays.Add(day = new AiDay { Day = today });
             if (day.Calls >= MaxCallsPerDay)
-                throw new InvalidOperationException($"Dagens grænse på {MaxCallsPerDay} AI-billeder er nået. Fortsæt i morgen, eller hæv Lager__MaxAiCallsPerDay.");
+                throw new InvalidOperationException($"Dagens grænse på {MaxCallsPerDay} AI-kald er nået. Fortsæt i morgen, eller hæv Lager__MaxAiCallsPerDay.");
             day.Calls++;
             await db.SaveChangesAsync(ct);
         }

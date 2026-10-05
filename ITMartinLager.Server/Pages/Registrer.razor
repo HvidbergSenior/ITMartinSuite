@@ -38,7 +38,7 @@
             @(_busy ? "⏳ Læser billedet …" : "📷 Tag billede")
             <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
         </label>
-        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-billeder i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
+        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reader.MaxCallsPerDay (2 pr. billede: læsning + teksten).</p>
 
         <p><b>Eller scan stregkoden</b> – bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden; det bipper for hver.</p>
         @if (!_scanning)
@@ -178,6 +178,11 @@
                     Note = f.Note, Interest = f.Interest, PhotoId = photo.Id,
                 }));
                 if (found.Count == 0) _error = "AI'en fandt ingen ting på billedet. Tag det lidt tættere på, i godt lys.";
+                else
+                {
+                    StateHasChanged();
+                    await FillInterestAsync(_review.Where(x => x.PhotoId == photo.Id).ToList());
+                }
                 StateHasChanged();
             }
         }
@@ -266,16 +271,20 @@
         if (rows.Count == 0) return;
         _busy = true; _error = null;
         StateHasChanged();
-        try
-        {
-            var lines = rows.Select(r => string.Join(" · ", new[] { r.Kind, r.Artist, r.Title, r.Series, r.Number, r.Year?.ToString() ?? "", r.Platform }
-                .Where(x => !string.IsNullOrWhiteSpace(x)))).ToList();
-            var texts = await Reader.WriteInterestAsync(lines, CancellationToken.None);
-            foreach (var (idx, text) in texts) rows[idx].Interest = text;
-            _callsToday = await Reader.CallsTodayAsync();
-        }
+        try { await FillInterestAsync(rows); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
+    }
+
+    private async Task FillInterestAsync(List<Row> rows)
+    {
+        rows = rows.Where(r => r.Title.Trim() != "").Take(40).ToList();
+        if (rows.Count == 0) return;
+        var lines = rows.Select(r => string.Join(" · ", new[] { r.Kind, r.Artist, r.Title, r.Series, r.Number, r.Year?.ToString() ?? "", r.Platform }
+            .Where(x => !string.IsNullOrWhiteSpace(x)))).ToList();
+        var texts = await Reader.WriteInterestAsync(lines, CancellationToken.None);
+        foreach (var (idx, text) in texts) rows[idx].Interest = text;
+        _callsToday = await Reader.CallsTodayAsync();
     }
 
     public async ValueTask DisposeAsync()
