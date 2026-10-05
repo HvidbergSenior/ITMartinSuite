@@ -1,0 +1,57 @@
+@page "/kasse/{Code}"
+@inject IDbContextFactory<LagerDb> DbFactory
+
+<PageTitle>@Code – Bogshoppen Lager</PageTitle>
+
+@if (_box is null)
+{
+    <section class="k-card"><h1 class="k-card-title">Kassen findes ikke</h1><p><a href="/kasser">← Alle kasser</a></p></section>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="k-card-title">📦 Kasse @_box.Code</h1>
+        <div class="lg-row">
+            <input class="k-input" @bind="_box.Place" placeholder="Hvor står den?" />
+            <button class="k-btn k-btn-secondary" @onclick="SavePlace">Gem placering</button>
+        </div>
+        <div class="lg-row">
+            <a class="k-btn k-btn-primary" href="/registrer?kasse=@_box.Code">📷 Læg flere ting i</a>
+            <a class="k-btn k-btn-secondary" href="/kasse/@_box.Code/label" target="_blank">🏷️ Print label</a>
+        </div>
+        @if (_msg is not null) { <p class="lg-ok">✓ @_msg</p> }
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Indhold: @_items.Sum(i => i.Quantity) ting</h2>
+        <ul class="lg-list">
+            @foreach (var i in _items)
+            {
+                <li><a href="/vare/@i.Id"><span class="lg-icon">@Kinds.Icon(i.Kind)</span><span class="lg-main"><b>@Index.Line(i)</b><span class="k-small k-muted">@i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")</span></span></a></li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+    private Box? _box;
+    private List<Item> _items = [];
+    private string? _msg;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _box = await db.Boxes.FirstOrDefaultAsync(b => b.Code == Code);
+        if (_box is not null)
+            _items = await db.Items.Where(i => i.BoxId == _box.Id).OrderBy(i => i.Kind).ThenBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ToListAsync();
+    }
+
+    private async Task SavePlace()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Boxes.Update(_box!);
+        await db.SaveChangesAsync();
+        _msg = "Placeringen er gemt.";
+    }
+}

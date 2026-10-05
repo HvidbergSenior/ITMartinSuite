@@ -1,0 +1,29 @@
+@page "/kasse/{Code}/label"
+@layout EmptyLayout
+@inject IDbContextFactory<LagerDb> DbFactory
+@inject NavigationManager Nav
+
+<PageTitle>Label @Code</PageTitle>
+
+@* A printable box label: big number + QR that opens the box page. QR made here (QRCoder), never by an outside service. *@
+<div class="lg-label">
+    <div class="lg-label-code">@Code</div>
+    <div class="lg-label-qr">@((MarkupString)_qr)</div>
+    <div class="lg-label-place">@_place</div>
+    <div class="lg-label-brand">Bogshoppen</div>
+</div>
+<p class="lg-noprint"><button class="k-btn k-btn-primary" onclick="window.print()">🖨️ Print</button> <a href="/kasse/@Code">← Tilbage</a></p>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+    private string _qr = "", _place = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _place = (await db.Boxes.FirstOrDefaultAsync(b => b.Code == Code))?.Place ?? "";
+        var url = Nav.ToAbsoluteUri($"/kasse/{Code}").ToString();
+        _qr = new QRCoder.SvgQRCode(new QRCoder.QRCodeGenerator().CreateQrCode(url, QRCoder.QRCodeGenerator.ECCLevel.M))
+            .GetGraphic(8, "#000000", "#ffffff", drawQuietZones: true);
+    }
+}

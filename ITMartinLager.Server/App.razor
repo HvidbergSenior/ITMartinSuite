@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="da" data-family="rede">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Bogshoppen Lager – registret over alt det, Bogshoppen sælger." />
+    <title>Bogshoppen Lager</title>
+    <base href="/" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=@CacheBuster" defer></script>
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.server.js"></script>
+    <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/kolibri-sw.js").catch(function(){});}</script>
+</body>
+</html>
+
+@code {
+    public static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

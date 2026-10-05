@@ -1,0 +1,19 @@
+@page "/login"
+@layout EmptyLayout
+
+<PageTitle>Log ind – Bogshoppen Lager</PageTitle>
+
+<div class="lg-login">
+    <section class="k-card">
+        <h1 class="k-card-title">📦 Bogshoppen Lager</h1>
+        @if (Fejl == "1") { <p class="lg-warn">Forkert PIN – prøv igen.</p> }
+        <form method="post" action="/api/login">
+            <input type="password" name="pin" class="k-input lg-pin" placeholder="PIN-kode" autofocus />
+            <button class="k-btn k-btn-primary lg-big" type="submit">Log ind</button>
+        </form>
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Fejl { get; set; }
+}

@@ -1,0 +1,80 @@
+@page "/vare/{Id:int}"
+@inject IDbContextFactory<LagerDb> DbFactory
+@inject NavigationManager Nav
+
+<PageTitle>Vare – Bogshoppen Lager</PageTitle>
+
+@if (_item is null)
+{
+    <section class="k-card"><h1 class="k-card-title">Varen findes ikke</h1><p><a href="/">← Søg</a></p></section>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @Index.Line(_item)</h1>
+        <p>Ligger i <a href="/kasse/@_box"><b>@(_box ?? "ingen kasse")</b></a> · @_item.Quantity stk. · @_item.Status</p>
+        @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
+
+        <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
+        <div class="lg-form">
+            <label>Type <select class="k-input" @bind="_item.Kind">@foreach (var k in Kinds.All) { <option value="@k">@k</option> }</select></label>
+            <label>Titel <input class="k-input" @bind="_item.Title" /></label>
+            <label>Kunstner / forfatter <input class="k-input" @bind="_item.Artist" /></label>
+            <label>Serie / blad <input class="k-input" @bind="_item.Series" /></label>
+            <label>Nummer <input class="k-input" @bind="_item.Number" /></label>
+            <label>År <input class="k-input" type="number" @bind="_item.Year" /></label>
+            <label>Konsol <input class="k-input" @bind="_item.Platform" /></label>
+            <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
+            <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
+            <label>Pris (kr) <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
+            <label>Status <select class="k-input" @bind="_item.Status"><option>@Statuses.Lager</option><option>@Statuses.TilSalg</option><option>@Statuses.Solgt</option></select></label>
+            <label>Note <input class="k-input" @bind="_item.Note" /></label>
+        </div>
+        <div class="lg-row">
+            <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
+            <button class="k-btn k-btn-ghost" @onclick="Delete">🗑️ Slet</button>
+        </div>
+        @if (_msg is not null) { <p class="lg-ok">✓ @_msg</p> }
+    </section>
+
+    @if (_item.PhotoId is { } pid)
+    {
+        <section class="k-card" data-fold-closed>
+            <h2 class="k-card-title">📷 Billedet den blev registreret fra</h2>
+            <img class="lg-photo" src="/foto/@pid" alt="Registreringsbillede" loading="lazy" />
+        </section>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Item? _item;
+    private string? _box, _msg;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _item = await db.Items.Include(i => i.Box).FirstOrDefaultAsync(i => i.Id == Id);
+        _box = _item?.Box?.Code;
+    }
+
+    private async Task Save()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _item!.Kind = Kinds.Normalise(_item.Kind);
+        _item.Condition = Conditions.Normalise(_item.Condition);
+        _item.Touch();
+        _item.Box = null;
+        db.Items.Update(_item);
+        await db.SaveChangesAsync();
+        _msg = "Gemt.";
+    }
+
+    private async Task Delete()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Items.Remove(new Item { Id = _item!.Id });
+        await db.SaveChangesAsync();
+        Nav.NavigateTo(_box is null ? "/" : $"/kasse/{_box}");
+    }
+}

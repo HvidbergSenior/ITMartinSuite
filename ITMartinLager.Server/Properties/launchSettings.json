@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "ITMartinLager": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5252",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Lager__Pin": "test1234",
+        "Lager__DataDir": "data"
+      }
+    }
+  }
+}

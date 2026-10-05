@@ -256,6 +256,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinSeMed.Server", "ITM
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinSeMed.Tests", "ITMartinSeMed.Tests\ITMartinSeMed.Tests.csproj", "{26AF9E94-B197-4E21-98AC-1DFA2524CD5D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLager.Server", "ITMartinLager.Server\ITMartinLager.Server.csproj", "{BC77D4A8-6BF2-4CBA-97D4-D6857F6472F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLager.Tests", "ITMartinLager.Tests\ITMartinLager.Tests.csproj", "{4338663B-76EF-4EE5-BD4F-0DC89824693D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -753,5 +757,13 @@ Global
 		{26AF9E94-B197-4E21-98AC-1DFA2524CD5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26AF9E94-B197-4E21-98AC-1DFA2524CD5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26AF9E94-B197-4E21-98AC-1DFA2524CD5D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC77D4A8-6BF2-4CBA-97D4-D6857F6472F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC77D4A8-6BF2-4CBA-97D4-D6857F6472F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC77D4A8-6BF2-4CBA-97D4-D6857F6472F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC77D4A8-6BF2-4CBA-97D4-D6857F6472F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4338663B-76EF-4EE5-BD4F-0DC89824693D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4338663B-76EF-4EE5-BD4F-0DC89824693D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4338663B-76EF-4EE5-BD4F-0DC89824693D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4338663B-76EF-4EE5-BD4F-0DC89824693D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -1,0 +1,47 @@
+@page "/kasser"
+@inject IDbContextFactory<LagerDb> DbFactory
+@inject NavigationManager Nav
+
+<PageTitle>Kasser – Bogshoppen Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">📦 Kasser</h1>
+    <p>Hver kasse, reol eller sæk har et nummer og en label med QR-kode. Scan labelen med telefonen, så ser du hvad der er i.</p>
+    <div class="lg-row">
+        <input class="k-input" @bind="_place" placeholder="Hvor står den? (fx Garagen, reol 2)" />
+        <button class="k-btn k-btn-primary" @onclick="New">➕ Ny kasse</button>
+    </div>
+    <p class="k-small"><a href="/api/eksport.csv">⬇️ Hent hele lageret som regneark (CSV)</a></p>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Alle kasser (@_rows.Count)</h2>
+    <ul class="lg-list">
+        @foreach (var r in _rows)
+        {
+            <li><a href="/kasse/@r.Code"><span class="lg-box">@r.Code</span><span class="lg-main"><b>@(r.Place == "" ? "(ingen placering)" : r.Place)</b><span class="k-small k-muted">@r.Units ting · @r.Lines linjer</span></span></a></li>
+        }
+    </ul>
+</section>
+
+@code {
+    private sealed record BoxRow(string Code, string Place, int Lines, int Units);
+    private List<BoxRow> _rows = [];
+    private string _place = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var counts = await db.Items.Where(i => i.BoxId != null).GroupBy(i => i.BoxId)
+            .Select(g => new { Id = g.Key!.Value, Lines = g.Count(), Units = g.Sum(i => i.Quantity) }).ToDictionaryAsync(x => x.Id);
+        _rows = (await db.Boxes.OrderByDescending(b => b.Id).ToListAsync())
+            .Select(b => new BoxRow(b.Code, b.Place, counts.GetValueOrDefault(b.Id)?.Lines ?? 0, counts.GetValueOrDefault(b.Id)?.Units ?? 0)).ToList();
+    }
+
+    private async Task New()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var box = await Store.NewBoxAsync(db, _place);
+        Nav.NavigateTo($"/kasse/{box.Code}");
+    }
+}

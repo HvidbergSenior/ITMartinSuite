@@ -1,0 +1,41 @@
+/* Bogshoppen Lager - big targets for a phone in a garage, high contrast, warnings always in words (user is a bit colour-blind). */
+.lg-answer { font-size: 1.15rem; font-weight: 600; margin: .2rem 0 .7rem; }
+.lg-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .6rem 0; }
+.lg-row .k-input { flex: 1 1 14rem; }
+.lg-chips { display: flex; gap: .4rem; flex-wrap: wrap; margin: .6rem 0; }
+.lg-big { font-size: 1.15rem; padding: .8rem 1.3rem; }
+.lg-camera { display: inline-flex; position: relative; margin: .8rem 0 .3rem; cursor: pointer; }
+.lg-camera.is-busy { opacity: .7; cursor: progress; }
+.lg-hidden-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.lg-search { font-size: 1.2rem; padding: .7rem .8rem; width: 100%; }
+.lg-warn, .lg-ok, .lg-check { border-left: 4px solid var(--k-text); padding: .4rem .7rem; border-radius: 6px; background: var(--k-bg-deep, rgba(128,128,128,.12)); }
+.lg-check { display: inline-block; font-weight: 700; padding: .1rem .5rem; }
+.lg-list { list-style: none; margin: 0; padding: 0; }
+.lg-list li a { display: flex; gap: .7rem; align-items: center; padding: .55rem .2rem; border-bottom: 1px solid var(--k-border, rgba(128,128,128,.25)); color: inherit; text-decoration: none; }
+.lg-icon { font-size: 1.4rem; flex: none; }
+.lg-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lg-main b { overflow-wrap: anywhere; }
+.lg-box { flex: none; font-family: ui-monospace, Consolas, monospace; font-weight: 700; border: 2px solid var(--k-text); border-radius: 6px; padding: .1rem .4rem; }
+.lg-review { display: grid; gap: .7rem; }
+.lg-ritem { border: 1px solid var(--k-border, rgba(128,128,128,.35)); border-radius: 10px; padding: .6rem; display: grid; gap: .4rem; }
+.lg-ritem.is-off { opacity: .45; }
+.lg-rhead { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.lg-kind { width: auto; }
+.lg-rgrid { display: flex; gap: .4rem; flex-wrap: wrap; }
+.lg-rgrid .k-input { flex: 1 1 8rem; }
+.lg-rgrid .lg-short { flex: 0 1 5.5rem; }
+.lg-form { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+.lg-form label { display: grid; gap: .2rem; font-weight: 600; }
+.lg-photo { width: 100%; border-radius: 8px; }
+.lg-login { max-width: 26rem; margin: 12vh auto; padding: 0 16px; }
+.lg-pin { font-size: 1.4rem; margin: .4rem 0 .8rem; width: 100%; }
+.lg-label { width: 90mm; border: 2px solid #000; border-radius: 4mm; padding: 5mm; margin: 10mm auto; text-align: center; color: #000; background: #fff; font-family: system-ui, sans-serif; }
+.lg-label-code { font-size: 22mm; font-weight: 800; letter-spacing: 1mm; line-height: 1; }
+.lg-label-qr svg { width: 45mm; height: 45mm; }
+.lg-label-place { font-size: 6mm; }
+.lg-label-brand { font-size: 4mm; margin-top: 2mm; }
+.lg-noprint { text-align: center; }
+@media print { .lg-noprint { display: none; } .lg-label { margin: 0 auto; } }
+.lg-interest { width: 100%; font-style: italic; }
+.lg-interest-label { display: grid; gap: .2rem; font-weight: 600; margin: .4rem 0 .8rem; }
+.lg-int { font-style: italic; margin: .1rem 0; }

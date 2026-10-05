@@ -1,0 +1,182 @@
+@page "/registrer"
+@inject IDbContextFactory<LagerDb> DbFactory
+@inject PileReader Reader
+@inject IConfiguration Config
+@inject NavigationManager Nav
+
+<PageTitle>Registrér – Bogshoppen Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">📷 Registrér en bunke</h1>
+
+    @if (_box is null)
+    {
+        <p class="lg-answer">1. Hvilken kasse lægger du tingene i?</p>
+        @if (_recent.Count > 0)
+        {
+            <div class="lg-chips">
+                @foreach (var b in _recent)
+                {
+                    <button class="k-btn k-btn-secondary" @onclick="() => UseBox(b)">📦 @b.Code @(b.Place != "" ? "· " + b.Place : "")</button>
+                }
+            </div>
+        }
+        <div class="lg-row">
+            <input class="k-input" @bind="_newPlace" placeholder="Hvor står den nye kasse? (fx Garagen, reol 2)" />
+            <button class="k-btn k-btn-primary" @onclick="NewBox">➕ Ny kasse</button>
+        </div>
+    }
+    else
+    {
+        <p class="lg-answer">Kasse <b>@_box.Code</b>@(_box.Place != "" ? " · " + _box.Place : "") <button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => _box = null">Skift</button></p>
+        <p>2. Læg 10-20 ting ud side om side med forsiden op – så alle titler kan ses. Tag billedet lige ovenfra.</p>
+        <input class="k-input" @bind="_hint" placeholder="Valgfrit: hvad er det mest? (fx Anders And 1970'erne)" />
+        <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
+            @(_busy ? "⏳ Læser billedet …" : "📷 Tag billede")
+            <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
+        </label>
+        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-billeder i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
+    }
+    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+    @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
+</section>
+
+@if (_review.Count > 0)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">3. Tjek og gem (@_review.Count(r => r.Keep) af @_review.Count)</h2>
+        <p class="k-small">Ret det, der er læst forkert. <b>⚠ Tjek</b> = AI'en var usikker. Fjern fluebenet for ting, der ikke skal med.</p>
+        <div class="lg-review">
+            @foreach (var r in _review)
+            {
+                <div class="lg-ritem @(r.Keep ? "" : "is-off")">
+                    <div class="lg-rhead">
+                        <label><input type="checkbox" @bind="r.Keep" /> @Kinds.Icon(r.Kind)</label>
+                        <select class="k-input lg-kind" @bind="r.Kind">
+                            @foreach (var k in Kinds.All) { <option value="@k">@k</option> }
+                        </select>
+                        @if (r.Confidence < 0.6) { <span class="lg-check">⚠ Tjek</span> }
+                    </div>
+                    <input class="k-input" @bind="r.Title" placeholder="Titel" />
+                    <div class="lg-rgrid">
+                        @if (r.Kind is Kinds.Cd or Kinds.Bog) { <input class="k-input" @bind="r.Artist" placeholder="@(r.Kind == Kinds.Cd ? "Kunstner" : "Forfatter")" /> }
+                        @if (r.Kind == Kinds.Konsolspil) { <input class="k-input" @bind="r.Platform" placeholder="Konsol" /> }
+                        <input class="k-input" @bind="r.Series" placeholder="Serie / blad" />
+                        <input class="k-input lg-short" @bind="r.Number" placeholder="Nr." />
+                        <input class="k-input lg-short" @bind="r.Year" placeholder="År" type="number" />
+                        <select class="k-input" @bind="r.Condition">
+                            @foreach (var c in Conditions.All) { <option value="@c">@c</option> }
+                        </select>
+                        <input class="k-input lg-short" @bind="r.Quantity" type="number" min="1" title="Antal" />
+                    </div>
+                    <textarea class="k-input lg-interest" @bind="r.Interest" rows="2" placeholder="Det interessante ved den …"></textarea>
+                    @if (r.Note != "") { <p class="k-small k-muted">@r.Note</p> }
+                </div>
+            }
+        </div>
+        <div class="lg-row">
+            <button class="k-btn k-btn-primary lg-big" @onclick="Save" disabled="@_busy">✓ Gem i kasse @_box?.Code</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _review.Clear()">Kassér</button>
+        </div>
+    </section>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "kasse")] public string? BoxCode { get; set; }
+
+    private sealed class Row
+    {
+        public bool Keep = true;
+        public string Kind = Kinds.Andet, Title = "", Artist = "", Series = "", Number = "", Platform = "", Condition = "God", Note = "", Interest = "";
+        public int? Year;
+        public int Quantity = 1;
+        public double Confidence = 1;
+        public int PhotoId;
+    }
+
+    private Box? _box;
+    private List<Box> _recent = [];
+    private string _newPlace = "", _hint = "";
+    private string? _error, _saved;
+    private bool _busy;
+    private int _callsToday;
+    private readonly List<Row> _review = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _recent = await db.Boxes.OrderByDescending(b => b.Id).Take(8).ToListAsync();
+        if (!string.IsNullOrEmpty(BoxCode)) _box = await db.Boxes.FirstOrDefaultAsync(b => b.Code == BoxCode);
+        _callsToday = await Reader.CallsTodayAsync();
+    }
+
+    private void UseBox(Box b) { _box = b; _saved = null; }
+
+    private async Task NewBox()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _box = await Store.NewBoxAsync(db, _newPlace);
+        _newPlace = "";
+        _saved = $"Kasse {_box.Code} er oprettet. Print dens label under Kasser.";
+    }
+
+    private async Task Upload(InputFileChangeEventArgs e)
+    {
+        if (_box is null) return;
+        _busy = true; _error = null; _saved = null;
+        StateHasChanged();
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(20))
+            {
+                byte[] jpeg;
+                await using (var s = file.OpenReadStream(30 * 1024 * 1024))
+                    jpeg = await PileReader.ShrinkAsync(s, CancellationToken.None);
+
+                var rel = Path.Combine("photos", DateTime.Now.ToString("yyyy-MM"), $"{DateTime.Now:ddHHmmssfff}-{_box.Code}.jpg");
+                var full = Path.Combine(Program.DataDir(Config), rel);
+                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+                await File.WriteAllBytesAsync(full, jpeg);
+
+                var found = await Reader.ReadAsync(jpeg, _hint, CancellationToken.None);
+                await using var db = await DbFactory.CreateDbContextAsync();
+                var photo = new Photo { Path = rel, BoxId = _box.Id, Found = found.Count };
+                db.Photos.Add(photo);
+                await db.SaveChangesAsync();
+
+                _review.AddRange(found.Select(f => new Row
+                {
+                    Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
+                    Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
+                    Note = f.Note, Interest = f.Interest, PhotoId = photo.Id,
+                }));
+                if (found.Count == 0) _error = "AI'en fandt ingen ting på billedet. Tag det lidt tættere på, i godt lys.";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally
+        {
+            _busy = false;
+            _callsToday = await Reader.CallsTodayAsync();
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_box is null) return;
+        _busy = true;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        int added = 0, merged = 0;
+        foreach (var g in _review.Where(r => r.Keep && r.Title.Trim() != "").GroupBy(r => r.PhotoId))
+        {
+            var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key, g.Select(r => new Found(
+                Kinds.Normalise(r.Kind), r.Title.Trim(), r.Artist.Trim(), r.Series.Trim(), r.Number.Trim(), r.Year,
+                r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim())));
+            added += a; merged += m;
+        }
+        _review.Clear();
+        _busy = false;
+        _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "") + ". Tag næste billede.";
+    }
+}
