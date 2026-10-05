@@ -35,12 +35,18 @@ new MutationObserver(function () { epUi.restoreDetails(); }).observe(document.do
 epUi.restoreDetails();
 
 // The phone's position for finding the grid company. Resolves to null when refused or slow.
+// Facebook, Messenger and Instagram open links in their own browser, which usually refuses
+// to share the location (user 2026-10-05: "when navigating from fb link") - error 8 says so.
+function epInApp() { return /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram/i.test(navigator.userAgent || ''); }
+
 epUi.locate = function () {
     return new Promise(function (resolve) {
-        if (!navigator.geolocation) { resolve(null); return; }
+        // error: 0 = ok, 1 = the visitor (or the site setting) said no, 2 = the phone has no fix
+        // (Location switched off), 3 = too slow, 9 = no location in this browser at all.
+        if (!navigator.geolocation) { resolve({ lat: 0, lon: 0, error: 9 }); return; }
         navigator.geolocation.getCurrentPosition(
-            function (p) { resolve({ lat: p.coords.latitude, lon: p.coords.longitude }); },
-            function () { resolve(null); },
+            function (p) { resolve({ lat: p.coords.latitude, lon: p.coords.longitude, error: 0 }); },
+            function (e) { resolve({ lat: 0, lon: 0, error: epInApp() ? 8 : (e && e.code) || 2 }); },
             { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
     });
 };

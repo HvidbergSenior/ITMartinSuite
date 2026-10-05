@@ -282,7 +282,7 @@ else
         await SaveHomeAsync(place, g);
     }
 
-    private sealed record GeoPoint(double Lat, double Lon);
+    private sealed record GeoPoint(double Lat, double Lon, int Error = 0);
 
     // The phone's location -> exact grid company. No lists: one point gives one company.
     private async Task LocateAsync()
@@ -290,9 +290,19 @@ else
         _searching = true;
         StateHasChanged();
         var pos = await JS.InvokeAsync<GeoPoint?>("epUi.locate");
-        if (pos is null)
+        if (pos is null || pos.Error != 0)
         {
+            // Never a silent nothing (user 2026-10-05: "Jeg er hjemme nu virker ikke på telefon"):
+            // say why the phone gave no location and what to do, with the address field as the way out.
             _searching = false;
+            _locateMsg = (pos?.Error ?? 2) switch
+            {
+                1 => "Telefonen må ikke give ElPriser din placering. Tryk på ikonet til venstre for adressen øverst → Tilladelser → Placering → Tillad, og prøv igen. Eller skriv din adresse herunder.",
+                8 => "Du har åbnet ElPriser inde i Facebook, og Facebook giver ikke din placering videre. Tryk på ⋮ øverst til højre → Åbn i Chrome (Open in browser), og tryk så her igen. Eller skriv din adresse herunder.",
+                3 => "Telefonen var for længe om at finde din placering. Prøv igen – eller skriv din adresse herunder.",
+                9 => "Din browser kan ikke give en placering. Skriv din adresse eller dit postnummer herunder.",
+                _ => "Telefonen kunne ikke finde din placering. Slå Placering til (træk ned fra toppen af skærmen → Placering), og prøv igen. Eller skriv din adresse herunder.",
+            };
             StateHasChanged();
             return;
         }
