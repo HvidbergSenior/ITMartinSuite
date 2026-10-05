@@ -1,0 +1,74 @@
+@implements IDisposable
+@inject IHttpClientFactory Http
+@inject IConfiguration Config
+
+@* "Vidste du…" highlight on the front page (user 2026-10-05): what the dishwasher costs if started now vs. at the
+   cheapest time. Numbers from ElPriser's /api/snapshot over the LAN (Hjem:ElPriserSnapshot), refreshed every 5 min.
+   Shows nothing if ElPriser does not answer. *@
+@if (_tip is { } t)
+{
+    <section class="k-card hj-eltip">
+        <h2 class="k-card-title">💡 Vidste du …</h2>
+        @if (t.Save < 0.10m)
+        {
+            <p class="hj-eltip-text">… at <b>lige nu</b> er et af de billigste tidspunkter i dag at starte din @t.Name.ToLowerInvariant()?
+                Kører den @Hours(t.Hours), koster det kun <b>@Kr(t.NowKr)</b>. Start den bare! 🙌</p>
+        }
+        else
+        {
+            <p class="hj-eltip-text">… at hvis du starter din @t.Name.ToLowerInvariant() <b>lige nu</b>, og den kører @Hours(t.Hours), så koster det <b>@Kr(t.NowKr)</b>.</p>
+            <p class="hj-eltip-text">Venter du til <b>@When(t.BestStart)</b>, koster det kun <b class="hj-eltip-cheap">@Kr(t.BestKr)</b> – du sparer <b>@Kr(t.Save)</b> (@Pct(t)).</p>
+        }
+        <p class="k-help">Strømpris med alle afgifter i Vestdanmark lige nu – regnet ud af min gratis app ElPriser. En @t.Name.ToLowerInvariant() bruger cirka @t.Kwh.ToString("0.#", Da) kWh.</p>
+        <a class="k-btn k-btn-primary" href="https://elpriser.itmartin.dk" target="_blank" rel="noopener">⚡ Se hvornår strømmen er billigst</a>
+    </section>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private sealed record Tip(string Name, decimal Kwh, decimal Hours, decimal NowKr, DateTime BestStart, decimal BestKr)
+    {
+        public decimal Save => NowKr - BestKr;
+    }
+    private Tip? _tip;
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _timer = new Timer(_ => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            using var c = Http.CreateClient();
+            c.Timeout = TimeSpan.FromSeconds(3);
+            var s = await c.GetFromJsonAsync<Snap>(Config["Hjem:ElPriserSnapshot"] ?? "http://10.0.0.126:8120/api/snapshot?area=DK1&allIn=true");
+            var a = s?.Appliances?.FirstOrDefault(x => x.Appliance?.Name == "Opvaskemaskine") ?? s?.Appliances?.FirstOrDefault();
+            if (a?.Appliance is null || a.Now is null) { _tip = null; return; }
+            // The cheapest of today's rest and tomorrow (tomorrow's prices come in the afternoon).
+            var best = new[] { a.CheapestToday, a.CheapestTomorrow }.Where(w => w is not null).MinBy(w => w!.CostKr) ?? a.Now;
+            _tip = new Tip(a.Appliance.Name, a.Appliance.KwhPerRun, a.Appliance.DurationHours, a.Now.CostKr, best.Start, best.CostKr);
+        }
+        catch { _tip = null; }   // ElPriser down: show nothing
+    }
+
+    private static string Kr(decimal kr) => kr.ToString("0.00", Da) + " kr";
+    private static string Hours(decimal h) => h == 1 ? "en time" : h.ToString("0.#", Da) + " timer";
+    private static string Pct(Tip t) => t.NowKr > 0 ? Math.Round(t.Save / t.NowKr * 100) + " %" : "";
+    private static string When(DateTime start)
+    {
+        var today = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
+        var day = start.Date == today ? "" : start.Date == today.AddDays(1) ? "i morgen " : start.ToString("dddd ", Da);
+        return $"{day}kl. {start:HH.mm}";
+    }
+
+    public void Dispose() => _timer?.Dispose();
+
+    private sealed record Snap(List<ApplianceCost>? Appliances);
+    private sealed record ApplianceCost(ApplianceInfo? Appliance, Window? Now, Window? CheapestToday, Window? CheapestTomorrow);
+    private sealed record ApplianceInfo(string Name, decimal KwhPerRun, decimal DurationHours);
+    private sealed record Window(DateTime Start, DateTime End, decimal CostKr);
+}

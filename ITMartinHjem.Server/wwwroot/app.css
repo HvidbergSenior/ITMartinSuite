@@ -339,3 +339,12 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .hj-sec h2 { margin: 0; font-size: 1.2rem; }
 .hj-sec > div { margin-top: 8px; }
 .hj-chat > .k-card-title, .hj-now > .k-card-title { margin: 0 0 8px; font-size: 1.15rem; }
+
+/* "Vidste du …" ElPriser tip on the front page - pale yellow, dark text (colour-blind safe), saving in bold dark green + underline */
+.hj-eltip{background:#fff8dc;border:2px solid #e9c44a}
+.hj-eltip .k-card-title{color:#3d2c00}
+.hj-eltip-text{font-size:1.1rem;color:#2a2000;margin:6px 0}
+.hj-eltip-cheap{color:#0b5d1e;text-decoration:underline}
+html[data-theme="dark"] .hj-eltip{background:#2c2614;border-color:#7a6420}
+html[data-theme="dark"] .hj-eltip .k-card-title,html[data-theme="dark"] .hj-eltip-text{color:#fff3c4}
+html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
