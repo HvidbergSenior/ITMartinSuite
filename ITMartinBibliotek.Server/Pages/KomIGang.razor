@@ -1,12 +1,16 @@
 @page "/kom-i-gang"
 @inject Customers Customers
 @inject IJSRuntime JS
+@inject IConfiguration Config
+@inject SettingsStore Store
 
 <PageTitle>Sådan gør du – Bibliotek</PageTitle>
 
-@* A customer's own guide: what the app is for and every step they do themselves, each step a
-   show/hide box (kolibri.js folds .card + heading; first open, the rest closed, state remembered).
-   The customer's own upload link and Jellyfin login come from config (Customers). *@
+@* A customer's own guide as steps in order (user 2026-10-05: "the boxes open chronologically"):
+   only the step they are on is open; "Færdig – videre" closes it with a tick and opens the next.
+   Progress is kept on the server per customer (Settings "guide:<key>"), because some steps are done
+   on the computer and some on the phone - both must show the same place. Any heading still opens
+   or closes its box by hand. Cards carry class "fold" so kolibri.js leaves the folding to this page. *@
 
 <div class="top-row">
     <h1>Sådan gør du</h1>
@@ -15,116 +19,242 @@
 
 <section class="card guide">
     <h2>Det kan Bibliotek</h2>
-    <p>Her ligger <b>dine egne cd'er</b> som musik, du kan høre på telefonen, computeren og fjernsynet – og en liste over dine dvd'er, så du altid ved, hvad du har.</p>
-    <ol class="guide-steps">
-        <li>Læg <b>Bibliotek på telefonen</b>, så den har sit eget ikon.</li>
-        <li>Læg en <b>cd over på computeren</b> med programmet Rip CD.</li>
-        <li><b>Send musikken hertil</b> med dit upload-link.</li>
-        <li><b>Hør den</b> – på telefonen her, eller på fjernsynet via Chromecast.</li>
-    </ol>
-    <p class="hint">Tryk på en overskrift herunder for at se, hvordan du gør.</p>
-</section>
-
-<section class="card guide" data-fold-closed>
-    <h2>📱 Læg Bibliotek på telefonen</h2>
-    <p>Så åbner du Bibliotek med ét tryk, ligesom en almindelig app.</p>
-    <button class="btn btn-primary" @onclick="OpenInstall">📲 Vis mig hvordan</button>
-    <p class="guide-dev"><b>Android (Chrome):</b> tryk på <b>⋮</b> øverst til højre → <b>Føj til startskærm</b> (Add to home screen) → <b>Tilføj</b>.</p>
-    <p class="guide-dev"><b>iPhone (Safari):</b> tryk på <b>Del</b> (firkanten med pilen) → <b>Føj til hjemmeskærm</b> → <b>Tilføj</b>.</p>
-    <p class="guide-dev"><b>Computer (Chrome/Edge):</b> ikonet med skærm og pil i adresselinjen → <b>Installer</b>.</p>
-    <p class="hint">Din PIN-kode bliver husket, så du skal ikke skrive den igen.</p>
-</section>
-
-<section class="card guide" data-fold-closed>
-    <h2>💿 Læg en cd over på computeren</h2>
-    <p>Programmet <b>Rip CD</b> er gratis. Det laver cd'en om til musikfiler med navne og cover.</p>
-    <a class="btn" href="https://mineskiver.itmartin.dk/rip-cd" target="_blank" rel="noopener">⬇️ Hent Rip CD</a>
-    <ol class="guide-steps">
-        <li>Sæt cd-drevet i computeren og læg en cd i.</li>
-        <li>Start <b>Rip CD</b> og vælg <b>FLAC</b> (samme lyd som cd'en).</li>
-        <li>Efter 3–8 minutter kommer skuffen ud. Læg den næste i.</li>
-        <li>Musikken ligger nu i mappen <b>Musik → Kunstner → Album</b>.</li>
-    </ol>
-    <p class="guide-note">⚖️ <b>Du skal selv trykke.</b> Loven siger, at du må kopiere dine egne cd'er til dig selv – men ikke lade andre gøre det for dig. Martin kan godt kigge med og forklare.</p>
-</section>
-
-<section class="card guide" data-fold-closed>
-    <h2>⬆️ Send musikken hertil</h2>
-    @if (_customer is { Upload: not "" } c)
-    {
-        <a class="btn btn-primary" href="@c.Upload" target="_blank" rel="noopener">⬆️ Åbn dit upload-link</a>
-    }
-    else
-    {
-        <p class="hint">Dit upload-link får du af Martin.</p>
-    }
-    <ol class="guide-steps">
-        <li>Åbn dit upload-link på <b>computeren</b>.</li>
-        <li>Åbn mappen <b>Musik</b> og et album. Marker alle filerne (<b>Ctrl + A</b>).</li>
-        <li>Træk dem ind på siden – eller tryk på knappen og vælg dem.</li>
-        <li>Vent, til alle er sendt. Efter cirka en halv time står albummet i <a href="/?kind=musik">din samling</a>.</li>
-    </ol>
-    <p class="hint">Musikken er kun din. Ingen andre kan se eller høre den.</p>
-</section>
-
-<section class="card guide" data-fold-closed>
-    <h2>🎵 Hør musik på telefonen</h2>
-    <ol class="guide-steps">
-        <li>Tryk på <b>Samling</b> nederst og vælg <b>Musik</b>.</li>
-        <li>Tryk på et album og så <b>▶ Afspil</b>.</li>
-        <li>Musikken spiller videre, når skærmen slukker. Pause og næste nummer styrer du fra låseskærmen.</li>
-    </ol>
-</section>
-
-<section class="card guide" data-fold-closed>
-    <h2>📺 Hør og se på fjernsynet (Chromecast)</h2>
-    <p>Til fjernsynet bruger du appen <b>Jellyfin</b> på telefonen. Den sender musikken over til Chromecasten.</p>
-    <ol class="guide-steps">
-        <li>Hent <b>Jellyfin</b> i <b>Play Butik</b> på telefonen (gratis).</li>
-        <li>Skriv serveren: <b class="guide-code">jellyfin.itmartin.dk</b></li>
-        @if (_customer is { JellyfinBruger: not "" } j)
+    <p>Her ligger <b>dine egne cd'er</b> som musik, du kan høre på telefonen, computeren og fjernsynet – og en liste over dine dvd'er.</p>
+    <p class="guide-progress" role="status">
+        @if (_done >= Steps.Length)
         {
-            <li>Log ind med brugernavn <b class="guide-code">@j.JellyfinBruger</b>@if (j.JellyfinKode != "") {<text> og kodeord </text><b class="guide-code">@j.JellyfinKode</b>}.</li>
+            <b>✓ Alle @Steps.Length trin er klaret.</b><text> Nu skal du bare lægge flere cd'er ind (trin 3 og 4).</text>
         }
         else
         {
-            <li>Log ind med det brugernavn og kodeord, du har fået af Martin.</li>
+            <b>Du er på trin @(_done + 1) af @Steps.Length:</b><text> @Steps[_done].Title</text>
         }
-        <li>Tænd fjernsynet. Tryk på <b>cast-ikonet</b> (skærm med bølger) i Jellyfin og vælg din Chromecast.</li>
-        <li>Vælg et album og tryk <b>▶</b> – lyden kommer fra fjernsynet.</li>
+    </p>
+    <ol class="guide-overview">
+        @for (var i = 0; i < Steps.Length; i++)
+        {
+            var n = i;
+            <li class="@(n < _done ? "is-done" : n == _done ? "is-now" : "")">
+                <button type="button" class="guide-link" @onclick="() => Open(n)">@(n < _done ? "✓ " : n == _done ? "➜ " : "")@Steps[n].Title</button>
+            </li>
+        }
     </ol>
-    <p class="hint">Har din Chromecast en fjernbetjening (Google TV), kan du også hente Jellyfin direkte på den.</p>
+    @if (_hasPdf)
+    {
+        <a class="btn" href="/api/vejledning" target="_blank" rel="noopener">📄 Hele vejledningen (PDF) – med dine koder</a>
+    }
 </section>
 
-<section class="card guide" data-fold-closed>
-    <h2>📀 Dine dvd'er</h2>
-    <p>Dvd'er må man ikke kopiere i Danmark (de har kopispærre). Men de kan stå på din liste, og du kan stadig se dem:</p>
-    <ol class="guide-steps">
-        <li><b>Skriv dem på listen:</b> tryk <a href="/scan">📷 Scan</a> og hold stregkoden bag på æsken foran kameraet.</li>
-        <li><b>Se en dvd på computeren:</b> sæt dvd'en i drevet. Den starter i <b>VLC</b> (et gratis program, Martin har sat op).</li>
-        <li><b>På det store fjernsyn:</b> sæt computeren til fjernsynet med et <b>HDMI-kabel</b> og vælg HDMI på fjernsynets fjernbetjening.</li>
-        <li><b>Findes den på streaming?</b> <a href="https://mineskiver.itmartin.dk" target="_blank" rel="noopener">Mine skiver</a> viser, om filmen ligger hos en tjeneste, du allerede har.</li>
-    </ol>
-    <p class="hint">Dvd'er, du selv har optaget (familiefilm), må gerne lægges ind. Spørg Martin.</p>
+@for (var i = 0; i < Steps.Length; i++)
+{
+    var n = i;
+    var step = Steps[n];
+    var open = _open.Contains(n);
+    <section class="card guide fold @(n < _done ? "is-done" : n == _done ? "is-now" : "")" id="trin-@(n + 1)">
+        <h2>
+            <button type="button" class="guide-head" aria-expanded="@(open ? "true" : "false")" @onclick="() => Toggle(n)">
+                <span class="guide-num">@(n < _done ? "✓" : (n + 1).ToString())</span>
+                <span class="guide-title">@step.Title</span>
+                <span class="guide-where">@step.Where</span>
+                <span class="guide-chev" aria-hidden="true">@(open ? "▾" : "▸")</span>
+            </button>
+        </h2>
+        @if (open)
+        {
+            @step.Body
+            <div class="guide-next">
+                @if (n == _done)
+                {
+                    <button type="button" class="btn btn-primary" @onclick="() => Done(n)">
+                        @(n + 1 < Steps.Length ? $"✓ Færdig – videre til trin {n + 2}" : "✓ Færdig")
+                    </button>
+                }
+                else if (n < _done)
+                {
+                    <span class="hint">✓ Det her trin er klaret.</span>
+                }
+                else
+                {
+                    <span class="hint">Tag trin @(_done + 1) først.</span>
+                }
+            </div>
+        }
+    </section>
+}
+
+<section class="card guide fold">
+    <h2>
+        <button type="button" class="guide-head" aria-expanded="@(_dvdOpen ? "true" : "false")" @onclick="() => _dvdOpen = !_dvdOpen">
+            <span class="guide-num">📀</span><span class="guide-title">Dine dvd'er</span><span class="guide-chev" aria-hidden="true">@(_dvdOpen ? "▾" : "▸")</span>
+        </button>
+    </h2>
+    @if (_dvdOpen)
+    {
+        <p>Dvd'er må man ikke kopiere i Danmark (de har kopispærre). Men de kan stå på din liste, og du kan stadig se dem:</p>
+        <ol class="guide-steps">
+            <li><b>Skriv dem på listen:</b> tryk <a href="/scan">📷 Scan</a> og hold stregkoden bag på æsken foran kameraet.</li>
+            <li><b>Se en dvd på computeren:</b> sæt dvd'en i drevet. Den starter i <b>VLC</b>.</li>
+            <li><b>På det store fjernsyn:</b> sæt computeren til fjernsynet med et <b>HDMI-kabel</b> og vælg HDMI på fjernbetjeningen.</li>
+            <li><b>Findes den på streaming?</b> <a href="https://mineskiver.itmartin.dk" target="_blank" rel="noopener">Mine skiver</a> viser, om filmen ligger hos en tjeneste, du allerede har.</li>
+        </ol>
+        <p class="hint">Dvd'er, du selv har optaget (familiefilm), må gerne lægges ind. Spørg Martin.</p>
+    }
 </section>
 
-<section class="card guide" data-fold-closed>
-    <h2>🆘 Få hjælp</h2>
-    <p>Ring eller skriv til Martin: <a href="tel:+4531194730"><b>31 19 47 30</b></a> · <a href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a></p>
-    <p><b>Martin kan se med på din computer</b> med Windows' eget program <b>Hurtig hjælp</b> (Quick Assist):</p>
-    <ol class="guide-steps">
-        <li>Tryk på <b>Start</b> og skriv <b>Hurtig hjælp</b> (Quick Assist). Åbn den.</li>
-        <li>Skriv den kode på 6 tegn, Martin læser op for dig, og tryk <b>Send</b>.</li>
-        <li>Tryk <b>Tillad</b>, når den spørger. Du kan altid lukke den igen.</li>
-    </ol>
+<section class="card guide fold">
+    <h2>
+        <button type="button" class="guide-head" aria-expanded="@(_helpOpen ? "true" : "false")" @onclick="() => _helpOpen = !_helpOpen">
+            <span class="guide-num">🆘</span><span class="guide-title">Få hjælp</span><span class="guide-chev" aria-hidden="true">@(_helpOpen ? "▾" : "▸")</span>
+        </button>
+    </h2>
+    @if (_helpOpen)
+    {
+        <p>Ring eller skriv til Martin: <a href="tel:+4531194730"><b>31 19 47 30</b></a> · <a href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a></p>
+        <p>Så ser han med på din computer via <a href="https://semed.itmartin.dk" target="_blank" rel="noopener"><b>Se med</b></a> (se trin 1).</p>
+        <p class="hint">Virker Se med ikke, kan Martin bruge Windows' eget program <b>Hurtig hjælp</b> (Quick Assist): tryk <b>Start</b>, skriv <b>Hurtig hjælp</b>, og skriv den kode, Martin giver dig.</p>
+        @if (_done > 0)
+        {
+            <p><button type="button" class="guide-link" @onclick="Restart">↺ Start vejledningen forfra</button></p>
+        }
+    }
 </section>
 
 @code {
     [CascadingParameter] public Viewer? Viewer { get; set; }
 
-    private Customer? _customer;
+    private sealed record Step(string Title, string Where, RenderFragment Body);
 
-    protected override void OnParametersSet() => _customer = Viewer is null ? null : Customers.Get(Viewer.Owner);
+    private Customer? _customer;
+    private bool _hasPdf, _dvdOpen, _helpOpen;
+    private int _done;
+    private readonly HashSet<int> _open = [];
+    private Step[] Steps = [];
+
+    private string Key => "guide:" + (Viewer?.Owner ?? "");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _customer = Viewer is null ? null : Customers.Get(Viewer.Owner);
+        _hasPdf = _customer is not null
+            && File.Exists(Path.Combine(Config["Bibliotek:KundeDir"] ?? "/app/data/kunder", _customer.Key, "guide.pdf"));
+        Steps = BuildSteps();
+        // The household (admin) only previews the guide, so its progress is never stored.
+        _done = Viewer is { IsAdmin: false } && int.TryParse(await Store.GetAsync(Key), out var d)
+            ? Math.Clamp(d, 0, Steps.Length) : 0;
+        _open.Clear();
+        if (_done < Steps.Length) _open.Add(_done);
+    }
+
+    private void Toggle(int n)
+    {
+        if (!_open.Remove(n)) _open.Add(n);
+    }
+
+    private async Task Open(int n)
+    {
+        _open.Add(n);
+        try { await JS.InvokeVoidAsync("bibliotekScrollTo", $"trin-{n + 1}"); } catch (JSException) { }
+    }
+
+    private async Task Done(int n)
+    {
+        _done = Math.Max(_done, n + 1);
+        if (Viewer is { IsAdmin: false }) await Store.SetAsync(Key, _done.ToString());
+        _open.Remove(n);
+        if (_done < Steps.Length) await Open(_done);
+    }
+
+    private async Task Restart()
+    {
+        _done = 0;
+        if (Viewer is { IsAdmin: false }) await Store.SetAsync(Key, "0");
+        _open.Clear();
+        _helpOpen = false;
+        await Open(0);
+    }
+
+    private Step[] BuildSteps() =>
+    [
+        new("Martin ser med", "på computeren", @<text>
+            <p>Martin ringer til dig. Så viser du ham din skærm, og I kan tale sammen gennem computeren.</p>
+            <a class="btn btn-primary" href="https://semed.itmartin.dk" target="_blank" rel="noopener">🖥️ Åbn Se med</a>
+            <ol class="guide-steps">
+                <li>Åbn <b>Se med</b> på computeren (knappen ovenfor, eller skriv <b>semed.itmartin.dk</b> i Chrome eller Edge).</li>
+                <li>Skriv den kode på 6 tal, Martin læser op, og tryk <b>Forbind</b>.</li>
+                <li>Tryk <b>Del skærm med Martin</b>. Vælg <b>Hele skærmen</b>, tryk på billedet af skærmen og så <b>Del</b>.</li>
+                <li>Spørger den om mikrofonen, trykker du <b>Tillad</b>.</li>
+            </ol>
+            <p class="hint">Martin kan kun se med. Han kan ikke styre din mus, og du kan trykke <b>Stop</b>, når du vil.</p>
+        </text>),
+
+        new("Bibliotek på telefonen", "på telefonen", @<text>
+            <p>Så får Bibliotek sit eget ikon, og du åbner det med ét tryk.</p>
+            <button class="btn btn-primary" @onclick="OpenInstall">📲 Vis mig hvordan</button>
+            <ol class="guide-steps">
+                <li>Åbn <b>Chrome</b> på telefonen og skriv <b>bibliotek.itmartin.dk</b>. Log ind med din PIN-kode.</li>
+                <li>Tryk på de tre prikker <b>⋮</b> øverst til højre.</li>
+                <li>Tryk <b>Føj til startskærm</b> (Add to home screen) og så <b>Tilføj</b>.</li>
+            </ol>
+            <p class="hint">iPhone: <b>Del</b> (firkanten med pilen) → <b>Føj til hjemmeskærm</b>. Telefonen husker din PIN-kode.</p>
+        </text>),
+
+        new("Din første cd", "på computeren", @<text>
+            <p>Du lægger selv cd'en over på computeren med det gratis program <b>Rip CD</b>. Martin ser med og fortæller, hvad du skal trykke på.</p>
+            <a class="btn" href="https://mineskiver.itmartin.dk/rip-cd" target="_blank" rel="noopener">⬇️ Hent Rip CD</a>
+            <ol class="guide-steps">
+                <li>Tryk <b>Hent Rip CD</b>. Find <b>RipCD.zip</b> i mappen <b>Overførsler</b>, højreklik og vælg <b>Udpak alle</b> → <b>Udpak</b>.</li>
+                <li>Dobbeltklik på <b>Start Rip CD</b>. Svar <b>Ja</b>, når Windows spørger. Kommer der en blå boks: <b>Flere oplysninger</b> → <b>Kør alligevel</b>.</li>
+                <li>Vælg <b>FLAC</b> – samme lyd som cd'en.</li>
+                <li>Læg cd'en i. Efter 3–8 minutter kommer skuffen ud af sig selv.</li>
+            </ol>
+            <p class="guide-note">⚖️ <b>Du skal selv trykke.</b> Loven siger, at du må kopiere dine egne cd'er til dig selv – men ikke lade andre gøre det for dig.</p>
+            <p class="hint">Næste gang starter du bare Rip CD og lægger en cd i. Musikken ligger i mappen <b>Musik</b>.</p>
+        </text>),
+
+        new("Send musikken hertil", "på computeren", @<text>
+            @if (_customer is { Upload: not "" } c)
+            {
+                <a class="btn btn-primary" href="@c.Upload" target="_blank" rel="noopener">⬆️ Åbn dit upload-link</a>
+            }
+            else
+            {
+                <p class="hint">Dit upload-link får du af Martin.</p>
+            }
+            <ol class="guide-steps">
+                <li>Åbn dit upload-link på <b>computeren</b>.</li>
+                <li>Åbn mappen <b>Musik</b>, så kunstneren og så albummet. Markér alle filerne med <b>Ctrl + A</b>.</li>
+                <li>Træk dem ind på siden, og vent til alle er sendt.</li>
+            </ol>
+            <p class="hint">Efter cirka en halv time står albummet i <a href="/?kind=musik">din samling</a>. Musikken er kun din.</p>
+        </text>),
+
+        new("Hør musik på telefonen", "på telefonen", @<text>
+            <ol class="guide-steps">
+                <li>Åbn Bibliotek og tryk <b>Samling</b> nederst. Vælg <b>Musik</b>.</li>
+                <li>Tryk på et album og så <b>▶ Afspil</b>.</li>
+                <li>Musikken spiller videre, når skærmen slukker. Pause og næste nummer styrer du fra låseskærmen.</li>
+            </ol>
+            <a class="btn" href="/?kind=musik">🎵 Gå til din musik</a>
+        </text>),
+
+        new("Hør på fjernsynet (Chromecast)", "telefon + fjernsyn", @<text>
+            <p>Til fjernsynet bruger du appen <b>Jellyfin</b> på telefonen. Den sender musikken over til Chromecasten.</p>
+            <ol class="guide-steps">
+                <li>Hent <b>Jellyfin</b> i <b>Play Butik</b> (gratis).</li>
+                <li>Skriv serveren: <b class="guide-code">jellyfin.itmartin.dk</b></li>
+                @if (_customer is { JellyfinBruger: not "" } j)
+                {
+                    <li>Log ind med brugernavn <b class="guide-code">@j.JellyfinBruger</b>@if (j.JellyfinKode != "") {<text> og kodeord </text><b class="guide-code">@j.JellyfinKode</b>}.</li>
+                }
+                else
+                {
+                    <li>Log ind med det brugernavn og kodeord, du har fået af Martin.</li>
+                }
+                <li>Tænd fjernsynet. Tryk på <b>cast-ikonet</b> (skærm med bølger) og vælg din Chromecast.</li>
+                <li>Vælg et album og tryk <b>▶</b> – lyden kommer fra fjernsynet.</li>
+            </ol>
+        </text>),
+    ];
 
     private async Task OpenInstall()
     {

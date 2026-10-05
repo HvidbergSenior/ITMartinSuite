@@ -16,6 +16,7 @@
     <Routes @rendermode="InteractiveServer" Owner="@_owner" />
     <script src="scanner.js?v=@CacheBuster"></script>
     <script src="player.js?v=@CacheBuster"></script>
+    <script>window.bibliotekScrollTo=function(id){var e=document.getElementById(id);if(e)e.scrollIntoView({behavior:"smooth",block:"start"});};</script>
     <script src="_framework/blazor.server.js"></script>
     <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/kolibri-sw.js").catch(function(){});}</script>
     <div id="components-reconnect-modal">

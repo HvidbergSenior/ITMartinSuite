@@ -284,3 +284,21 @@ body.has-player .page { padding-bottom: 210px; }
 .guide-note { border-left: 3px solid var(--ink-soft); padding: 6px 10px; background: var(--surface-2); border-radius: 6px; }
 .guide-code { font-family: ui-monospace, Consolas, monospace; background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
 .empty-guide { text-align: center; }
+
+/* Step-by-step guide: the step you are on is open, done steps carry a tick - in the words, not only in colour. */
+.guide-head { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer; font-size: 18px; font-weight: 600; }
+.guide-head:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 6px; }
+.guide-num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; border: 2px solid var(--ink); font-size: 15px; }
+.guide.is-now .guide-num { background: var(--ink); color: var(--surface); }
+.guide-title { flex: 1; min-width: 0; }
+.guide-where { flex: none; font-size: 13px; font-weight: 400; color: var(--ink-soft); }
+.guide-chev { flex: none; font-size: 14px; }
+.guide.is-now { border: 2px solid var(--ink); }
+.guide.is-done .guide-title { color: var(--ink-soft); }
+.guide-next { margin-top: 12px; }
+.guide-progress { margin: 8px 0; }
+.guide-overview { margin: 4px 0 10px; padding-left: 1.2em; list-style: none; }
+.guide-overview li { margin: 2px 0; }
+.guide-overview li.is-now { font-weight: 600; }
+.guide-link { all: unset; cursor: pointer; text-decoration: underline; }
+@media (max-width: 420px) { .guide-where { display: none; } }

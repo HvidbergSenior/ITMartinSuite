@@ -242,6 +242,19 @@ app.MapPost("/api/afspil/spillet/{trackId}", async (string trackId, HttpContext 
     return Results.Ok();
 }).DisableAntiforgery();
 
+// A customer's own printed guide (it holds their PIN and passwords, so it is served only to them,
+// never from an open folder): <KundeDir>/<customer key>/guide.pdf, dropped there by Martin.
+var kundeDir = app.Configuration["Bibliotek:KundeDir"] ?? "/app/data/kunder";
+app.MapGet("/api/vejledning", (HttpContext ctx) =>
+{
+    var viewer = ViewerOf(ctx);
+    if (viewer.IsAdmin) return Results.NotFound();
+    var file = Path.Combine(kundeDir, viewer.Owner, "guide.pdf");
+    return File.Exists(file)
+        ? Results.File(file, "application/pdf", enableRangeProcessing: true)
+        : Results.NotFound();
+});
+
 app.UseAntiforgery();
 
 app.MapKolibri();
