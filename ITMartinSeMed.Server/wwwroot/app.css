@@ -1,0 +1,12 @@
+/* Se med - high contrast, big targets; meaning is always in the words, never only in colour. */
+.semed-answer { font-size: 1.15rem; font-weight: 600; margin: .2rem 0 .8rem; }
+.semed-form { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+.semed-kode { font-size: 1.8rem; letter-spacing: .15em; width: 9.5em; max-width: 100%; padding: .4rem .6rem; border: 2px solid var(--k-text); border-radius: 10px; background: var(--k-card); color: var(--k-text); }
+.semed-big { font-size: 1.15rem; padding: .75rem 1.3rem; }
+.semed-fejl { border-left: 4px solid var(--k-text); padding: .4rem .7rem; margin: .8rem 0; background: var(--k-bg-deep, rgba(128,128,128,.12)); border-radius: 6px; }
+.semed-knapper { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
+.semed-steps li { margin: .35rem 0; }
+.semed-kodevis { font-size: 1.3rem; margin: 0 0 .4rem; }
+.semed-kodevis b { font-size: 2.6rem; letter-spacing: .12em; font-family: ui-monospace, Consolas, monospace; }
+.semed-video { width: 100%; background: #000; border-radius: 10px; min-height: 200px; display: block; }
+.k-content:has(.semed-video) { max-width: 1400px; }

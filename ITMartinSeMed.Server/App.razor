@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="da" data-family="kommunikere">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Se med – Martin ser med på din skærm og fortæller dig, hvad du skal gøre." />
+    <title>Se med</title>
+    <base href="/" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=@CacheBuster" defer></script>
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <HeadOutlet />
+</head>
+<body>
+    @* Static pages: the screen sharing itself is plain browser JavaScript (WebRTC), so no Blazor circuit. *@
+    <Routes />
+    <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/kolibri-sw.js").catch(function(){});}</script>
+</body>
+</html>
+
+@code {
+    public static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

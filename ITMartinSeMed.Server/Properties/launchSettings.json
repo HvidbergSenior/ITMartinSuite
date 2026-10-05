@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "ITMartinSeMed": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5248",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SeMed__Pin": "test1234"
+      }
+    }
+  }
+}

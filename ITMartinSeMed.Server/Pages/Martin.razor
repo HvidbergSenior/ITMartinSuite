@@ -1,0 +1,66 @@
+@page "/martin"
+@inject IConfiguration Config
+
+<PageTitle>Se med – Martin</PageTitle>
+
+@* Martin's side: get a code, read it out, watch the customer's screen and talk. PIN-protected. *@
+
+@if (!_in)
+{
+    <section class="k-card semed-main">
+        <h1 class="k-card-title">Se med – log ind</h1>
+        @if (Fejl == "1") { <p class="semed-fejl">Forkert PIN – prøv igen.</p> }
+        <form method="post" action="/api/login" class="semed-form">
+            <input type="password" name="pin" class="semed-kode" placeholder="PIN" autofocus />
+            <button class="k-btn k-btn-primary semed-big" type="submit">Log ind</button>
+        </form>
+    </section>
+}
+else
+{
+    <section class="k-card semed-main">
+        <h1 class="k-card-title">Hjælp en kunde</h1>
+        <div id="m-start">
+            <p class="semed-answer">Tryk Start, og læs koden op for kunden.</p>
+            <button id="start" class="k-btn k-btn-primary semed-big" type="button">▶ Start – giv mig en kode</button>
+        </div>
+        <div id="m-aktiv" hidden>
+            <p class="semed-kodevis">Kode: <b id="kodevis">––– –––</b></p>
+            <p id="status" class="semed-answer" role="status">Læs koden op. Kunden åbner <b>semed.itmartin.dk</b>.</p>
+            <video id="skaerm" class="semed-video" autoplay playsinline muted></video>
+            <div class="semed-knapper">
+                <button id="mik" class="k-btn k-btn-secondary" type="button">🎤 Slå min mikrofon fra</button>
+                <button id="fuld" class="k-btn k-btn-secondary" type="button">⛶ Fuld skærm</button>
+                <button id="slut" class="k-btn k-btn-secondary" type="button">⏹ Afslut</button>
+            </div>
+        </div>
+        <audio id="lyd" autoplay></audio>
+    </section>
+
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">📋 Sådan bruger du det</h2>
+        <ol class="semed-steps">
+            <li>Ring til kunden. Tryk <b>Start</b> og læs koden op.</li>
+            <li>Kunden åbner <b>semed.itmartin.dk</b> på computeren, skriver koden og trykker <b>Del skærm</b>.</li>
+            <li>Når billedet kommer, kan I lægge telefonen – I taler gennem siden.</li>
+            <li>Ripper kunden cd'er: <b>hun trykker selv</b>. Du ser og forklarer (§12 stk. 4).</li>
+            <li>Virker billedet ikke (sjældent: strengt netværk hos kunden), så brug Windows' <b>Hurtig hjælp</b>.</li>
+        </ol>
+        <p><a href="/api/logout">Log ud</a></p>
+    </section>
+
+    <script src="martin.js?v=@App.CacheBuster"></script>
+}
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+    [SupplyParameterFromQuery] public string? Fejl { get; set; }
+
+    private bool _in;
+
+    protected override void OnInitialized()
+    {
+        var pin = Config["SeMed:Pin"] ?? "";
+        _in = pin.Length >= 6 && HttpContext?.Request.Cookies["semed_auth"] == pin;
+    }
+}
