@@ -180,6 +180,11 @@ app.MapPost("/api/hit/{id:long}/tid", async (long id, HttpContext ctx, Tracker t
     return Results.NoContent();
 }).DisableAntiforgery().RequireCors("track");
 
+// itmartin.dk/tael-ikke-mig: this browser is Martin's - never count it, and remove its earlier visits (t.js sends the id).
+// Only the browser id is marked, never the IP: a mobile IP is shared with strangers.
+app.MapPost("/api/hit/mig", async (HitRequest req, Tracker tracker) => Results.Json(new { removed = await tracker.MarkOwnerVisitorAsync(req.VisitorId) }))
+    .DisableAntiforgery();
+
 app.MapGet("/api/last-seen", async (Tracker tracker) => Results.Ok(await tracker.LastSeenAsync()));
 
 // ── Login: one small form, two kinds (familie = password, ejer = PIN) ───────────────

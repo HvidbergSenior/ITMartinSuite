@@ -28,7 +28,7 @@ public sealed class Tracker
     public async Task StartAsync()
     {
         await using var db = await _dbf.CreateDbContextAsync();
-        _ownerIps = (await db.OwnerIps.Select(o => o.Hash).ToListAsync()).ToHashSet();
+        _ownerIps = (await db.OwnerIps.Select(o => o.Hash).ToListAsync()).ToHashSet();   // IP hashes + "v:" browser-id hashes
         var old = DateTime.UtcNow.AddDays(-KeepDays);
         await db.Hits.Where(h => h.At < old).ExecuteDeleteAsync();
     }
@@ -52,6 +52,26 @@ public sealed class Tracker
 
     public bool IsOwnerIp(HttpContext ctx) => _ownerIps.Contains(HashIp(ClientIp(ctx)));
 
+    // Martin's own browsers (user 2026-10-05: "filter my own watchings out"). Svar on the iPhone is a home-screen app with
+    // its own storage, so Safari there never looked logged in, and mobile IPs change. A browser that opened
+    // itmartin.dk/tael-ikke-mig (or sent a hit while logged in) is never counted again, and its earlier hits are removed.
+    private bool IsOwnerVisitor(string? vid) => !string.IsNullOrEmpty(vid) && _ownerIps.Contains("v:" + HashIp(vid));
+
+    public async Task<int> MarkOwnerVisitorAsync(string? vid)
+    {
+        vid = Cut(vid ?? "", 40);
+        if (vid.Length == 0) return 0;
+        var hash = "v:" + HashIp(vid);
+        await using var db = await _dbf.CreateDbContextAsync();
+        if (!_ownerIps.Contains(hash))
+        {
+            if (!await db.OwnerIps.AnyAsync(o => o.Hash == hash)) db.OwnerIps.Add(new OwnerIp { Hash = hash });
+            await db.SaveChangesAsync();
+            _ownerIps = [.. _ownerIps, hash];
+        }
+        return await db.Hits.Where(h => h.Visitor == vid).ExecuteDeleteAsync();
+    }
+
     // Returns the new hit's id (the website sends the time on the page for it later), or null when not counted.
     public async Task<long?> RecordAsync(HttpContext ctx, HitRequest req)
     {
@@ -59,8 +79,8 @@ public sealed class Tracker
         if (ua.Length == 0 || Bot(ua)) return null;
         var host = Norm(req.Host ?? "");
         if (host.Length == 0 || host is "localhost" or "127.0.0.1" || !(host == Site || host.EndsWith("." + Site))) return null;
-        if (ctx.User.IsOwner()) { await MarkOwnerAsync(ctx); return null; }
-        if (IsOwnerIp(ctx)) return null;
+        if (ctx.User.IsOwner()) { await MarkOwnerAsync(ctx); await MarkOwnerVisitorAsync(req.VisitorId); return null; }
+        if (IsOwnerIp(ctx) || IsOwnerVisitor(req.VisitorId)) return null;
 
         var refHost = "";
         if (Uri.TryCreate(req.Referrer, UriKind.Absolute, out var r)) refHost = Norm(r.Host);
