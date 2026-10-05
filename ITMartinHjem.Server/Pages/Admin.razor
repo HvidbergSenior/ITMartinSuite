@@ -109,7 +109,7 @@ else if (_review is { } rv)
     <p class="k-help"><b>Saml din dag:</b> skriv om morgenen, hvad du regner med at lave. I løbet af dagen tager du billeder eller skriver en linje, hver gang der sker noget.
         Om aftenen skriver du, hvad det egentlig blev til. Hvert billede eller hver linje bliver et punkt med klokkeslæt på siden "Hvad laver ITKolibrien lige nu?". I morgen starter en ny dag af sig selv – de tidligere dage kan stadig ses længere nede.</p>
     <label class="k-label">🌅 I morges: hvad regner du med at lave i dag? <span class="k-help">(én opgave pr. linje)</span></label>
-    <textarea class="k-input k-textarea" @bind="_today.Plan" maxlength="2000" rows="4" placeholder="Skrive på MinElpris&#10;Ringe til Bogshoppen&#10;Øve guitar"></textarea>
+    <textarea class="k-input k-textarea" @bind="_today.Plan" maxlength="2000" rows="4" placeholder="@PlanHint"></textarea>
     <label class="k-label">🌙 I aften: hvad fik du lavet? <span class="k-help">(én ting pr. linje)</span></label>
     <textarea class="k-input k-textarea" @bind="_today.Done" maxlength="2000" rows="4" placeholder="Skriv det i aften – det må gerne være noget helt andet 🙂"></textarea>
     <button class="k-btn k-btn-primary k-mt" @onclick="SaveTodayAsync">Gem planen</button>
@@ -288,6 +288,9 @@ else if (_review is { } rv)
 </section>
 
 @code {
+    // Razor encodes "&#10;" in an attribute literally - real line breaks come from a C# string.
+    private const string PlanHint = "Skrive på MinElpris\nRinge til Bogshoppen\nØve guitar";
+
     [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
     [SupplyParameterFromQuery(Name = "chat")] public int? ChatId { get; set; }
 

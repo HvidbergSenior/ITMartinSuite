@@ -36,11 +36,7 @@
 @* Today: Martin's day log (plan in the morning, pictures through the day) - Svar -> 📌 Lige nu. *@
 <NowCard Compact="true" />
 
-@* This week: Svar -> Sider -> "denne-uge" (one task per line). *@
-@if (_week is { Body.Length: > 0 })
-{
-    <section class="k-card hj-page hj-week" data-nofold>@TinyMarkdown.Render(_week.Body)</section>
-}
+@* "Denne uge" is on the ITKolibrien tab, not here (user 2026-10-05). *@
 
 
 @* Kig med: big red box while Martin streams, a small line otherwise (user 2026-09-30). *@
@@ -103,7 +99,6 @@ else if (_family && !_owner)
     private int _hiddenFamily;
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
     private Page? _news;   // Svar -> Sider -> "bogshoppen": highlighted box, stays until the collaboration is done
-    private Page? _week;   // Svar -> Sider -> "denne-uge": this week's plan
     public const string CollabSlug = "foelg-samarbejdet";
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
@@ -125,7 +120,6 @@ else if (_family && !_owner)
         _s = await db.Settings.AsNoTracking().FirstAsync();
         _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
         _news = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "bogshoppen");
-        _week = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "denne-uge");
         var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();
