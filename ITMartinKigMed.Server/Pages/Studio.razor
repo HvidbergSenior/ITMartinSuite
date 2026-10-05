@@ -254,7 +254,12 @@
             _devices = await JS.InvokeAsync<List<Device>>("kig.devices");
             // the Logitech StreamCam first, if it is plugged in
             _camId = _devices.Where(d => d.Kind == "videoinput").OrderByDescending(d => d.Label.Contains("StreamCam", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Id ?? "";
-            _micId = _devices.Where(d => d.Kind == "audioinput").OrderByDescending(d => d.Label.Contains("StreamCam", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Id ?? "";
+            // the HyperX QuadCast first (user 2026-10-05: "default on hyper") - it sounds far better
+            // than the camera's own microphone; then the StreamCam's, then whatever Windows has
+            _micId = _devices.Where(d => d.Kind == "audioinput")
+                .OrderByDescending(d => d.Label.Contains("QuadCast", StringComparison.OrdinalIgnoreCase) || d.Label.Contains("HyperX", StringComparison.OrdinalIgnoreCase))
+                .ThenByDescending(d => d.Label.Contains("StreamCam", StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault()?.Id ?? "";
         }
         catch { _note = "Browseren gav ikke lov til kamera/mikrofon – tryk på kamera-ikonet i adresselinjen og tillad det."; }
         try { _canShare = await JS.InvokeAsync<bool>("kigShare.canShare"); } catch { }
