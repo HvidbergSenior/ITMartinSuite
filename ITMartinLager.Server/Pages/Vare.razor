@@ -1,6 +1,8 @@
 @page "/vare/{Id:int}"
 @inject IDbContextFactory<LagerDb> DbFactory
 @inject NavigationManager Nav
+@inject AuctionLink Auction
+@inject IConfiguration Config
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
 
@@ -12,7 +14,7 @@ else
 {
     <section class="k-card">
         <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @Index.Line(_item)</h1>
-        <p>Ligger i <a href="/kasse/@_box"><b>@(_box ?? "ingen kasse")</b></a> · @_item.Quantity stk. · @_item.Status</p>
+        <p>Ligger i <a href="/kasse/@_box"><b>@(_box ?? "ingen kasse")</b></a> · @_item.Quantity stk. · <b>@_item.Status</b>@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
         @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
 
         <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
@@ -27,20 +29,74 @@ else
             <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
             <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
             <label>Pris (kr) <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
-            <label>Status <select class="k-input" @bind="_item.Status"><option>@Statuses.Lager</option><option>@Statuses.TilSalg</option><option>@Statuses.Solgt</option></select></label>
+            <label>Status <select class="k-input" @bind="_item.Status">@foreach (var s in Statuses.All) { <option value="@s">@s</option> }</select></label>
             <label>Note <input class="k-input" @bind="_item.Note" /></label>
         </div>
         <div class="lg-row">
             <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
             <button class="k-btn k-btn-ghost" @onclick="Delete">🗑️ Slet</button>
         </div>
-        @if (_msg is not null) { <p class="lg-ok">✓ @_msg</p> }
+        @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+        @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">📷 Billede af varen</h2>
+        <p>Et billede af lige præcis den her – til auktion og butik. (Billedet af bunken bruges ikke, det viser for mange ting.)</p>
+        @if (_item.ItemPhoto != "") { <img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /> }
+        <label class="k-btn k-btn-secondary lg-camera">
+            @(_busy ? "⏳ Gemmer …" : _item.ItemPhoto == "" ? "📷 Tag billede af varen" : "📷 Tag nyt billede")
+            <InputFile OnChange="SavePhoto" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
+        </label>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">🔨 Sæt på auktion</h2>
+        @if (_item.Status == Statuses.PaaAuktion && _item.AuctionCode != "")
+        {
+            <p class="lg-answer">På auktion <b>@_item.AuctionCode</b>.</p>
+            <p>Når hammeren falder, opdateres varen her af sig selv (inden for 2 minutter): solgt med pris og køber – eller tilbage på lager.</p>
+            <a class="k-btn k-btn-secondary" href="@Auction.PublicBase/auction/@_item.AuctionCode" target="_blank" rel="noopener">Åbn auktionen</a>
+        }
+        else if (_item.Status == Statuses.Solgt)
+        {
+            <p>Varen er solgt.</p>
+        }
+        else if (!Auction.Enabled)
+        {
+            <p>Forbindelsen til Live Auktion er ikke sat op endnu (Lager__AuctionKey).</p>
+        }
+        else
+        {
+            @if (_sessions is null) { <p class="k-muted">Henter auktioner …</p> }
+            else if (_sessions.Count == 0)
+            {
+                <p>Der er ingen åben auktion. Opret en i <a href="@Auction.PublicBase" target="_blank" rel="noopener">Live Auktion</a>, og kom tilbage hertil.</p>
+            }
+            else
+            {
+                <div class="lg-form">
+                    <label>Auktion
+                        <select class="k-input" @bind="_code">
+                            @foreach (var s in _sessions)
+                            {
+                                <option value="@s.Code">@s.Name (@s.Code)@(s.AuctionDate is { } d ? $" – {d:d/M}" : "") · @s.Items varer</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Startpris (kr) <input class="k-input" type="number" min="0" step="5" @bind="_start" /></label>
+                    <label>Antal i loddet <input class="k-input" type="number" min="1" max="@_item.Quantity" @bind="_lot" /></label>
+                </div>
+                @if (_item.ItemPhoto == "") { <p class="k-small">Tip: tag et billede af varen ovenfor først – auktioner uden billede sælger dårligere.</p> }
+                <button class="k-btn k-btn-primary lg-big" @onclick="SendToAuction" disabled="@_busy">🔨 Sæt på auktion</button>
+            }
+        }
     </section>
 
     @if (_item.PhotoId is { } pid)
     {
         <section class="k-card" data-fold-closed>
-            <h2 class="k-card-title">📷 Billedet den blev registreret fra</h2>
+            <h2 class="k-card-title">🗂️ Billedet af bunken den blev registreret fra</h2>
             <img class="lg-photo" src="/foto/@pid" alt="Registreringsbillede" loading="lazy" />
         </section>
     }
@@ -49,13 +105,31 @@ else
 @code {
     [Parameter] public int Id { get; set; }
     private Item? _item;
-    private string? _box, _msg;
+    private string? _box, _msg, _err;
+    private List<AuctionSessionInfo>? _sessions;
+    private string _code = "";
+    private decimal _start;
+    private int _lot = 1;
+    private bool _busy;
+    private long _photoVer = DateTime.UtcNow.Ticks;
 
     protected override async Task OnParametersSetAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         _item = await db.Items.Include(i => i.Box).FirstOrDefaultAsync(i => i.Id == Id);
         _box = _item?.Box?.Code;
+        if (_item is null) return;
+        _start = _item.Price ?? 0;
+        _lot = Math.Max(1, _item.Quantity);
+        if (Auction.Enabled && _item.Status != Statuses.Solgt && _item.Status != Statuses.PaaAuktion)
+        {
+            try
+            {
+                _sessions = await Auction.SessionsAsync();
+                _code = _sessions.FirstOrDefault()?.Code ?? "";
+            }
+            catch (Exception ex) { _sessions = []; _err = "Kunne ikke hente auktioner: " + ex.Message; }
+        }
     }
 
     private async Task Save()
@@ -67,7 +141,47 @@ else
         _item.Box = null;
         db.Items.Update(_item);
         await db.SaveChangesAsync();
-        _msg = "Gemt.";
+        _msg = "Gemt."; _err = null;
+    }
+
+    private async Task SavePhoto(InputFileChangeEventArgs e)
+    {
+        _busy = true; _err = null;
+        try
+        {
+            byte[] jpeg;
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) jpeg = await PileReader.ShrinkAsync(s, CancellationToken.None);
+            var rel = Path.Combine("photos", "items", $"{_item!.Id}.jpg");
+            var full = Path.Combine(Program.DataDir(Config), rel);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            await File.WriteAllBytesAsync(full, jpeg);
+            _item.ItemPhoto = rel;
+            await Save();
+            _photoVer = DateTime.UtcNow.Ticks;
+            _msg = "Billedet er gemt.";
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task SendToAuction()
+    {
+        if (_item is null || _code == "") return;
+        _busy = true; _err = null; _msg = null;
+        try
+        {
+            byte[]? jpeg = _item.ItemPhoto != "" ? await File.ReadAllBytesAsync(Path.Combine(Program.DataDir(Config), _item.ItemPhoto)) : null;
+            var description = string.Join("\n", new[] { _item.Interest, $"{_item.Kind} · stand: {_item.Condition}" }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            var lot = Math.Clamp(_lot, 1, Math.Max(1, _item.Quantity));
+            var id = await Auction.SendAsync(_code, Index.Line(_item), description, Math.Max(0, _start), lot, jpeg);
+            _item.AuctionItemId = id.ToString();
+            _item.AuctionCode = _code;
+            _item.Status = Statuses.PaaAuktion;
+            await Save();
+            _msg = $"Sat på auktion {_code}.";
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = false; }
     }
 
     private async Task Delete()

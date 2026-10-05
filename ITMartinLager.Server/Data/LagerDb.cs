@@ -30,7 +30,8 @@ public static class Conditions
 
 public static class Statuses
 {
-    public const string Lager = "På lager", TilSalg = "Til salg", Solgt = "Solgt";
+    public const string Lager = "På lager", TilSalg = "Til salg", PaaAuktion = "På auktion", Solgt = "Solgt";
+    public static readonly string[] All = [Lager, TilSalg, PaaAuktion, Solgt];
 }
 
 // A box, shelf or crate with a printed QR label - the only "where is it" the register needs.
@@ -64,7 +65,16 @@ public sealed class Item
     // What makes it interesting - the shop's focus (user 2026-10-05: "it is the interest we focus on"), shown even
     // when the item is cheap: who drew it, which story is in it, what was special that year. AI draft, edited by hand.
     public string Interest { get; set; } = "";
-    public double Confidence { get; set; } = 1;  // how sure the AI was; < 0.6 = check it
+    public double Confidence { get; set; } = 1;
+    public string ItemPhoto { get; set; } = "";  // own photo of just this item (for auctions/shop), relative to the data dir
+
+    // Sales. AuctionItemId = the item's id in Live Auktion while it is up for auction; the result is copied here,
+    // because Live Auktion deletes an auction 7 days after it was created.
+    public string AuctionItemId { get; set; } = "";
+    public string AuctionCode { get; set; } = "";
+    public decimal? SoldPrice { get; set; }
+    public string SoldTo { get; set; } = "";
+    public DateTime? SoldAt { get; set; }  // how sure the AI was; < 0.6 = check it
     public string Search { get; set; } = "";     // lower-case title + series + number + year, for LIKE search
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -109,6 +119,8 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
         b.Entity<Item>().HasIndex(x => x.Kind);
         b.Entity<Item>().HasIndex(x => x.BoxId);
         b.Entity<Item>().Property(x => x.Price).HasConversion<double?>();
+        b.Entity<Item>().Property(x => x.SoldPrice).HasConversion<double?>();
+        b.Entity<Item>().HasIndex(x => x.AuctionItemId);
         b.Entity<AiDay>().HasKey(x => x.Day);
     }
 }

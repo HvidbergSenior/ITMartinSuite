@@ -1,5 +1,6 @@
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinAuction.Server.Data;
+using ITMartinAuction.Server.Data.Entities;
 using ITMartinAuction.Server.Hubs;
 using ITMartinAuction.Server.Services;
 using Microsoft.Data.Sqlite;
@@ -107,6 +108,55 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath  = "/photos"
 });
 
+// ── Bogshoppen Lager (2026-10-05) ───────────────────────────────────────
+// The register sends items to an auction and fetches the results back (sold / not sold, winning bid, buyer).
+// Lager must keep the result itself: CleanupService deletes a session 7 days after it was created.
+// Server to server only, with a shared key (Auction__LagerKey = Lager__AuctionKey in magic.env).
+var lagerKey = app.Configuration["Auction:LagerKey"] ?? "";
+bool LagerKeyOk(HttpContext ctx) =>
+    lagerKey.Length >= 16 && ctx.Request.Headers.TryGetValue("X-Lager-Key", out var k) && k == lagerKey;
+
+app.MapGet("/api/lager/sessions", async (HttpContext ctx, AuctionDbContext db) =>
+{
+    if (!LagerKeyOk(ctx)) return Results.Unauthorized();
+    var sessions = await db.Sessions.Where(s => s.Status != AuctionStatus.Ended)
+        .Select(s => new { s.Code, s.Name, Status = s.Status.ToString(), s.AuctionDate, s.CreatedAt, s.ExpiresAt, Items = s.Items.Count })
+        .ToListAsync();
+    return Results.Ok(sessions.OrderBy(s => s.AuctionDate ?? s.CreatedAt));
+});
+
+app.MapPost("/api/lager/items", async (HttpContext ctx, LagerItemIn x, AuctionDbContext db, AuctionService svc) =>
+{
+    if (!LagerKeyOk(ctx)) return Results.Unauthorized();
+    var session = await db.Sessions.AsNoTracking().FirstOrDefaultAsync(s => s.Code == x.Code.ToUpper());
+    if (session is null) return Results.NotFound("Auktionen findes ikke");
+    if (session.Status == AuctionStatus.Ended) return Results.BadRequest("Auktionen er slut");
+    string? photo = null;
+    if (!string.IsNullOrEmpty(x.PhotoJpegBase64))
+    {
+        photo = Path.Combine(photosPath, $"lager-{Guid.NewGuid():N}.jpg");
+        await File.WriteAllBytesAsync(photo, Convert.FromBase64String(x.PhotoJpegBase64));
+    }
+    var item = await svc.AddItemAsync(session.Code, session.AdminToken, x.Name, x.Description, x.StartingPrice, Math.Max(1, x.LotQuantity), photo);
+    return Results.Ok(new { item.Id, session.Code });
+}).DisableAntiforgery();
+
+app.MapPost("/api/lager/status", async (HttpContext ctx, List<Guid> ids, AuctionDbContext db) =>
+{
+    if (!LagerKeyOk(ctx)) return Results.Unauthorized();
+    var items = await db.Items.Where(i => ids.Contains(i.Id)).ToListAsync();
+    var bidderIds = items.Where(i => i.WinnerBidderId != null).Select(i => i.WinnerBidderId!.Value).ToList();
+    var bidders = await db.Bidders.Where(b => bidderIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id);
+    return Results.Ok(ids.Select(id =>
+    {
+        var i = items.FirstOrDefault(x => x.Id == id);
+        if (i is null) return new LagerStatusOut(id, "Gone", null, null, null);
+        var w = i.WinnerBidderId is { } wid ? bidders.GetValueOrDefault(wid) : null;
+        return new LagerStatusOut(id, i.Status.ToString(), i.WinningBid,
+            w?.Name ?? i.BuyNowBuyerName, w?.Phone ?? i.BuyNowBuyerPhone);
+    }));
+}).DisableAntiforgery();
+
 app.UseAntiforgery();
 
 app.MapHub<AuctionHub>("/hubs/auction");
@@ -118,3 +168,6 @@ app.MapRazorComponents<ITMartinAuction.Server.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+record LagerItemIn(string Code, string Name, string? Description, decimal StartingPrice, int LotQuantity, string? PhotoJpegBase64);
+record LagerStatusOut(Guid Id, string Status, decimal? WinningBid, string? BuyerName, string? BuyerPhone);

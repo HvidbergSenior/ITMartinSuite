@@ -37,6 +37,8 @@ var dataDir = builder.Configuration["Lager:DataDir"] ?? "/app/data";
 Directory.CreateDirectory(Path.Combine(dataDir, "photos"));
 builder.Services.AddDbContextFactory<LagerDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "lager.db")}"));
 builder.Services.AddSingleton<PileReader>();
+builder.Services.AddHttpClient<AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddHostedService<AuctionSync>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -55,11 +57,17 @@ using (var scope = app.Services.CreateScope())
     // EnsureCreated never changes an existing database, so columns added later are added here.
     var conn = db.Database.GetDbConnection();
     conn.Open();
-    using (var cmd = conn.CreateCommand())
+    foreach (var (col, type) in new[]
     {
-        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = 'Interest'";
+        ("Interest", "TEXT NOT NULL DEFAULT ''"), ("ItemPhoto", "TEXT NOT NULL DEFAULT ''"),
+        ("AuctionItemId", "TEXT NOT NULL DEFAULT ''"), ("AuctionCode", "TEXT NOT NULL DEFAULT ''"),
+        ("SoldPrice", "REAL NULL"), ("SoldTo", "TEXT NOT NULL DEFAULT ''"), ("SoldAt", "TEXT NULL"),
+    })
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = '{col}'";
         if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
-            db.Database.ExecuteSqlRaw("ALTER TABLE Items ADD COLUMN Interest TEXT NOT NULL DEFAULT ''");
+            db.Database.ExecuteSqlRaw($"ALTER TABLE Items ADD COLUMN {col} {type}");
     }
 }
 
@@ -101,6 +109,15 @@ app.MapGet("/foto/{id:int}", async (int id, IDbContextFactory<LagerDb> dbf) =>
     await using var db = await dbf.CreateDbContextAsync();
     var ph = await db.Photos.FindAsync(id);
     var file = ph is null ? null : Path.GetFullPath(Path.Combine(dataDir, ph.Path));
+    return file is not null && file.StartsWith(Path.GetFullPath(dataDir)) && File.Exists(file)
+        ? Results.File(file, "image/jpeg") : Results.NotFound();
+});
+
+app.MapGet("/varefoto/{id:int}", async (int id, IDbContextFactory<LagerDb> dbf) =>
+{
+    await using var db = await dbf.CreateDbContextAsync();
+    var it = await db.Items.FindAsync(id);
+    var file = it is null || it.ItemPhoto == "" ? null : Path.GetFullPath(Path.Combine(dataDir, it.ItemPhoto));
     return file is not null && file.StartsWith(Path.GetFullPath(dataDir)) && File.Exists(file)
         ? Results.File(file, "image/jpeg") : Results.NotFound();
 });
