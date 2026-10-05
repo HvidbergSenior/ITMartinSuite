@@ -39,6 +39,7 @@ builder.Services.AddDbContextFactory<LagerDb>(o => o.UseSqlite($"Data Source={Pa
 builder.Services.AddSingleton<PileReader>();
 builder.Services.AddHttpClient<AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddHostedService<AuctionSync>();
+builder.Services.AddHttpClient<MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -62,6 +63,7 @@ using (var scope = app.Services.CreateScope())
         ("Interest", "TEXT NOT NULL DEFAULT ''"), ("ItemPhoto", "TEXT NOT NULL DEFAULT ''"),
         ("AuctionItemId", "TEXT NOT NULL DEFAULT ''"), ("AuctionCode", "TEXT NOT NULL DEFAULT ''"),
         ("SoldPrice", "REAL NULL"), ("SoldTo", "TEXT NOT NULL DEFAULT ''"), ("SoldAt", "TEXT NULL"),
+        ("PriceHint", "REAL NULL"), ("MagicRef", "TEXT NOT NULL DEFAULT ''"),
     })
     {
         using var cmd = conn.CreateCommand();

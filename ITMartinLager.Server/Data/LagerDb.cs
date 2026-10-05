@@ -60,6 +60,8 @@ public sealed class Item
     public Box? Box { get; set; }
     public int? PhotoId { get; set; }
     public decimal? Price { get; set; }          // kr, set by a person
+    public decimal? PriceHint { get; set; }      // kr, suggested by a source (Scryfall for Magic) - never the selling price by itself
+    public string MagicRef { get; set; } = "";   // card id in the MTG Scanner, so a new fetch updates instead of duplicating
     public string Status { get; set; } = Statuses.Lager;
     public string Note { get; set; } = "";
     // What makes it interesting - the shop's focus (user 2026-10-05: "it is the interest we focus on"), shown even
@@ -120,6 +122,8 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
         b.Entity<Item>().HasIndex(x => x.BoxId);
         b.Entity<Item>().Property(x => x.Price).HasConversion<double?>();
         b.Entity<Item>().Property(x => x.SoldPrice).HasConversion<double?>();
+        b.Entity<Item>().Property(x => x.PriceHint).HasConversion<double?>();
+        b.Entity<Item>().HasIndex(x => x.MagicRef);
         b.Entity<Item>().HasIndex(x => x.AuctionItemId);
         b.Entity<AiDay>().HasKey(x => x.Day);
     }

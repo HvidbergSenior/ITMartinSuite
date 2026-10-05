@@ -28,7 +28,7 @@ else
             <label>Konsol <input class="k-input" @bind="_item.Platform" /></label>
             <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
             <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
-            <label>Pris (kr) <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
+            <label>Pris (kr)@(_item.PriceHint is { } ph ? $" – forslag {ph:0} kr" : "") <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
             <label>Status <select class="k-input" @bind="_item.Status">@foreach (var s in Statuses.All) { <option value="@s">@s</option> }</select></label>
             <label>Note <input class="k-input" @bind="_item.Note" /></label>
         </div>
@@ -119,7 +119,7 @@ else
         _item = await db.Items.Include(i => i.Box).FirstOrDefaultAsync(i => i.Id == Id);
         _box = _item?.Box?.Code;
         if (_item is null) return;
-        _start = _item.Price ?? 0;
+        _start = _item.Price ?? _item.PriceHint ?? 0;
         _lot = Math.Max(1, _item.Quantity);
         if (Auction.Enabled && _item.Status != Statuses.Solgt && _item.Status != Statuses.PaaAuktion)
         {

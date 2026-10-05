@@ -30,7 +30,7 @@
                 <li>
                     <a href="/vare/@i.Id">
                         <span class="lg-icon">@Kinds.Icon(i.Kind)</span>
-                        <span class="lg-main"><b>@Line(i)</b>@if (i.Interest != "") { <span class="lg-int">✨ @i.Interest</span> }<span class="k-small k-muted">@i.Kind · @i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")@(i.Price is { } p ? $" · {p:0} kr" : "")</span></span>
+                        <span class="lg-main"><b>@Line(i)</b>@if (i.Interest != "") { <span class="lg-int">✨ @i.Interest</span> }<span class="k-small k-muted">@i.Kind · @i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")@(i.Price is { } p ? $" · {p:0} kr" : i.PriceHint is { } h ? $" · ca. {h:0} kr" : "")</span></span>
                         <span class="lg-box">@(i.Box?.Code ?? "–")</span>
                     </a>
                 </li>

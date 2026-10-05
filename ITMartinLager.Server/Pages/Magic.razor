@@ -1,0 +1,89 @@
+@page "/magic"
+@inject IDbContextFactory<LagerDb> DbFactory
+@inject MagicLink Mtg
+
+<PageTitle>Magic-kort – Bogshoppen Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">🃏 Magic-kort fra MTG Scanner</h1>
+    <p>Magic-kort scannes i <b>MTG Scanner</b> (magicpriser) – den finder den præcise udgave og prisen. Her henter du kortene ind på lageret med pris-forslag i kroner.</p>
+    <ol class="lg-steps">
+        <li>Scan kortene i MTG Scanner, og skriv <b>Bogshoppen</b> som ejer.</li>
+        <li>Vælg ejeren og kassen/mappen herunder, og tryk <b>Hent til lageret</b>.</li>
+        <li>Henter du igen, opdateres antal og pris – der kommer ingen dobbelte.</li>
+    </ol>
+    @if (!Mtg.Enabled) { <p class="lg-warn">Forbindelsen til MTG Scanner er ikke sat op (Lager__MagicKey).</p> }
+    @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+    @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+</section>
+
+@if (_owners is not null)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">Hent kort</h2>
+        <div class="lg-form">
+            <label>Ejer i MTG Scanner
+                <select class="k-input" @bind="_owner">
+                    @foreach (var o in _owners)
+                    {
+                        <option value="@o.Owner">@(o.Owner == "" ? "(ingen ejer)" : o.Owner) – @o.Copies kort, ca. @(MagicLink.Kr(o.Eur) ?? 0) kr</option>
+                    }
+                </select>
+            </label>
+            <label>Kasse / mappe
+                <select class="k-input" @bind="_boxId">
+                    <option value="0">➕ Ny kasse til Magic-kort</option>
+                    @foreach (var b in _boxes) { <option value="@b.Id">@b.Code @(b.Place != "" ? "· " + b.Place : "")</option> }
+                </select>
+            </label>
+        </div>
+        <button class="k-btn k-btn-primary lg-big" @onclick="Import" disabled="@_busy">@(_busy ? "⏳ Henter …" : "⬇️ Hent til lageret")</button>
+    </section>
+}
+
+@code {
+    private List<MagicOwner>? _owners;
+    private List<Box> _boxes = [];
+    private string _owner = "";
+    private int _boxId;
+    private bool _busy;
+    private string? _err, _msg;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using (var db = await DbFactory.CreateDbContextAsync())
+            _boxes = await db.Boxes.OrderByDescending(b => b.Id).Take(30).ToListAsync();
+        if (!Mtg.Enabled) return;
+        try
+        {
+            _owners = await Mtg.OwnersAsync();
+            _owner = _owners.FirstOrDefault(o => o.Owner.Equals("Bogshoppen", StringComparison.OrdinalIgnoreCase))?.Owner ?? _owners.FirstOrDefault()?.Owner ?? "";
+        }
+        catch (Exception ex) { _err = ex.Message; }
+    }
+
+    private async Task Import()
+    {
+        _busy = true; _err = null; _msg = null;
+        try
+        {
+            var cards = await Mtg.CardsAsync(_owner);
+            await using var db = await DbFactory.CreateDbContextAsync();
+            // "New box" only when there is something new: cards fetched before stay where they are, and a
+            // re-fetch with the default choice must not leave empty boxes behind.
+            var refs = cards.Select(c => c.Id.ToString()).ToList();
+            var knownBox = _boxId == 0
+                ? await db.Items.Where(i => refs.Contains(i.MagicRef) && i.BoxId != null).Select(i => i.BoxId).FirstOrDefaultAsync()
+                : null;
+            var box = _boxId != 0 ? await db.Boxes.FindAsync(_boxId)
+                : knownBox is { } kb ? await db.Boxes.FindAsync(kb)
+                : await Store.NewBoxAsync(db, "Magic-kort");
+            var (added, updated) = await MagicLink.ImportAsync(db, box!.Id, cards);
+            _boxId = box.Id;
+            _boxes = await db.Boxes.OrderByDescending(b => b.Id).Take(30).ToListAsync();
+            _msg = $"{added} nye og {updated} opdaterede kort i {box.Code}.";
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = false; }
+    }
+}

@@ -190,6 +190,41 @@ app.MapGet("/api/set-icon/{code}", async (
 });
 
 // =========================
+// BOGSHOPPEN LAGER (2026-10-05)
+// =========================
+
+// Bogshoppen Lager pulls the scanned cards of one owner (e.g. "Bogshoppen") into its register with set, number
+// and the Scryfall price. Server to server only, shared key Magic__LagerKey = Lager__MagicKey (magic.env).
+var lagerKey = app.Configuration["Magic:LagerKey"] ?? "";
+bool LagerKeyOk(HttpContext ctx) =>
+    lagerKey.Length >= 16 && ctx.Request.Headers.TryGetValue("X-Lager-Key", out var k) && k == lagerKey;
+
+app.MapGet("/api/lager/owners", async (HttpContext ctx, MagicDbContext db) =>
+{
+    if (!LagerKeyOk(ctx)) return Results.Unauthorized();
+    var owners = await db.Cards.GroupBy(c => c.Owner)
+        .Select(g => new { Owner = g.Key, Cards = g.Count(), Copies = g.Sum(c => c.Quantity), Eur = g.Sum(c => (c.EurPrice ?? 0) * c.Quantity) })
+        .ToListAsync();
+    return Results.Ok(owners.OrderByDescending(o => o.Copies));
+});
+
+app.MapGet("/api/lager/cards", async (HttpContext ctx, string owner, MagicDbContext db) =>
+{
+    if (!LagerKeyOk(ctx)) return Results.Unauthorized();
+    var cards = await db.Cards.Where(c => c.Owner == owner).ToListAsync();
+    var sets = await db.Sets.ToDictionaryAsync(s => s.SetCode.ToLower());
+    return Results.Ok(cards.Select(c =>
+    {
+        var set = sets.GetValueOrDefault(c.SetCode.ToLower());
+        return new
+        {
+            c.Id, c.Name, c.SetCode, SetName = set?.SetName ?? c.SetCode.ToUpper(), ReleaseYear = set?.ReleaseYear,
+            c.CollectorNumber, c.Quantity, c.EurPrice, c.UsdPrice, c.ScryfallId,
+        };
+    }));
+});
+
+// =========================
 // BLAZOR
 // =========================
 
