@@ -22,23 +22,27 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
     private readonly Dictionary<string, (List<(DateTime Hour, double Price)> List, DateTime At)> _forecast = new();
     private readonly object _lock = new();
 
-    private const string Dawa = "https://api.dataforsyningen.dk/";
+    // DAWA (api.dataforsyningen.dk) was switched off for good - it answers 410 Gone since 2026.
+    // Addresses now come from OpenStreetMap's Nominatim: free, no key, Danish addresses are
+    // complete in OSM. Its rules: a real User-Agent, at most 1 request a second (one lookup per
+    // visitor action is far below that), and the "© OpenStreetMap" credit shown in the app.
+    private const string Osm = "https://nominatim.openstreetmap.org/";
+    private const string UserAgent = "ITMartinElPriser/1.0 (ITMartin@Mensa.dk)";
+    private static readonly SemaphoreSlim OsmGate = new(1, 1);
+    private static DateTime _lastOsm = DateTime.MinValue;
 
-    // Address or postcode typed by the user -> one point. Dataforsyningen (the state's free
-    // address register). A bare postcode uses its visual centre.
+    // Address or postcode typed by the user -> one point. A bare postcode uses the area's centre.
     public async Task<Place?> ResolveAsync(string text)
     {
         text = text.Trim();
         if (text.Length == 0) return null;
         try
         {
-            if (text.Length == 4 && text.All(char.IsDigit))
-            {
-                var pn = await http.GetFromJsonAsync<PostcodeDto>($"{Dawa}postnumre/{text}");
-                return pn is { Visueltcenter.Length: 2 } ? new Place($"{pn.Nr} {pn.Navn}", pn.Nr, pn.Visueltcenter[1], pn.Visueltcenter[0]) : null;
-            }
-            var hits = await http.GetFromJsonAsync<List<AddressDto>>($"{Dawa}adresser?q={Uri.EscapeDataString(text)}&per_side=1&struktur=mini");
-            return hits?.FirstOrDefault() is { } a ? new Place(a.Betegnelse, a.Postnr, a.Y, a.X) : null;
+            var query = text.Length == 4 && text.All(char.IsDigit)
+                ? $"postalcode={text}"
+                : $"q={Uri.EscapeDataString(text)}";
+            var hits = await OsmAsync<List<OsmPlace>>($"search?{query}&countrycodes=dk&format=jsonv2&addressdetails=1&limit=1");
+            return hits?.FirstOrDefault() is { } h ? ToPlace(h, h.LatD, h.LonD) : null;
         }
         catch (Exception ex)
         {
@@ -48,22 +52,72 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
     }
 
     // The phone's location -> the nearest address, so the confirmation line is readable.
+    // Outside Denmark (country code not dk) there is no Danish grid company to find.
     public async Task<Place?> ReverseAsync(double lat, double lon)
     {
         try
         {
             var inv = System.Globalization.CultureInfo.InvariantCulture;
-            var a = await http.GetFromJsonAsync<AddressDto>($"{Dawa}adgangsadresser/reverse?x={lon.ToString(inv)}&y={lat.ToString(inv)}&struktur=mini");
-            // DAWA always answers with the NEAREST Danish address - from Hamburg that is Bagenkop,
-            // 130 km away. Further than 2 km from any Danish address = not in Denmark.
-            if (a is null || (a.X != 0 && KmBetween(lat, lon, a.Y, a.X) > 2)) return null;
-            return new Place(a.Betegnelse, a.Postnr, lat, lon);
+            var h = await OsmAsync<OsmPlace>($"reverse?lat={lat.ToString(inv)}&lon={lon.ToString(inv)}&format=jsonv2&addressdetails=1&zoom=18");
+            if (h?.Address is not { CountryCode: "dk" }) return null;
+            return ToPlace(h, lat, lon);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Reverse lookup failed");
             return null;
         }
+    }
+
+    internal static Place? ToPlace(OsmPlace h, double lat, double lon)
+    {
+        var a = h.Address;
+        if (a is null || string.IsNullOrEmpty(a.Postcode)) return null;
+        var town = a.Town();
+        var street = string.Join(' ', new[] { a.Road, a.HouseNumber }.Where(x => !string.IsNullOrEmpty(x)));
+        var area = string.Join(' ', new[] { a.Postcode, town }.Where(x => !string.IsNullOrEmpty(x)));
+        var label = street == "" ? area : $"{street}, {area}";
+        return new Place(label, a.Postcode, lat, lon);
+    }
+
+    private async Task<T?> OsmAsync<T>(string path)
+    {
+        await OsmGate.WaitAsync();
+        try
+        {
+            var wait = TimeSpan.FromSeconds(1) - (DateTime.UtcNow - _lastOsm);
+            if (wait > TimeSpan.Zero) await Task.Delay(wait);
+            using var req = new HttpRequestMessage(HttpMethod.Get, Osm + path);
+            req.Headers.UserAgent.ParseAdd(UserAgent);
+            req.Headers.AcceptLanguage.ParseAdd("da");
+            using var res = await http.SendAsync(req);
+            _lastOsm = DateTime.UtcNow;
+            res.EnsureSuccessStatusCode();
+            return await res.Content.ReadFromJsonAsync<T>();
+        }
+        finally { OsmGate.Release(); }
+    }
+
+    internal sealed class OsmPlace
+    {
+        [JsonPropertyName("lat")] public string Lat { get; set; } = "";
+        [JsonPropertyName("lon")] public string Lon { get; set; } = "";
+        [JsonPropertyName("address")] public OsmAddress? Address { get; set; }
+        public double LatD => double.Parse(Lat, System.Globalization.CultureInfo.InvariantCulture);
+        public double LonD => double.Parse(Lon, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    internal sealed class OsmAddress
+    {
+        [JsonPropertyName("road")] public string? Road { get; set; }
+        [JsonPropertyName("house_number")] public string? HouseNumber { get; set; }
+        [JsonPropertyName("postcode")] public string? Postcode { get; set; }
+        [JsonPropertyName("city")] public string? City { get; set; }
+        [JsonPropertyName("town")] public string? TownName { get; set; }
+        [JsonPropertyName("village")] public string? Village { get; set; }
+        [JsonPropertyName("suburb")] public string? Suburb { get; set; }
+        [JsonPropertyName("country_code")] public string? CountryCode { get; set; }
+        public string Town() => City ?? TownName ?? Village ?? Suburb ?? "";
     }
 
     // The one grid company serving this exact point.
@@ -82,30 +136,8 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
         }
     }
 
-    private sealed class PostcodeDto
-    {
-        [JsonPropertyName("nr")] public string Nr { get; set; } = "";
-        [JsonPropertyName("navn")] public string Navn { get; set; } = "";
-        [JsonPropertyName("visueltcenter")] public double[] Visueltcenter { get; set; } = [];
-    }
 
-    private static double KmBetween(double lat1, double lon1, double lat2, double lon2)
-    {
-        const double r = 6371;
-        double Rad(double d) => d * Math.PI / 180;
-        var dLat = Rad(lat2 - lat1);
-        var dLon = Rad(lon2 - lon1);
-        var h = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) + Math.Cos(Rad(lat1)) * Math.Cos(Rad(lat2)) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-        return 2 * r * Math.Asin(Math.Sqrt(h));
-    }
 
-    private sealed class AddressDto
-    {
-        [JsonPropertyName("betegnelse")] public string Betegnelse { get; set; } = "";
-        [JsonPropertyName("postnr")] public string Postnr { get; set; } = "";
-        [JsonPropertyName("x")] public double X { get; set; }
-        [JsonPropertyName("y")] public double Y { get; set; }
-    }
 
     public async Task<List<GridCompany>> FindAsync(string postalCode)
     {

@@ -15,6 +15,7 @@ builder.Services.AddKolibri(k =>
         "ElPriser viser timeprisen på strøm i dag og i morgen, så du kan lægge vask, opvask og opladning på de billige timer.",
         "Tjek regning forklarer din elregning linje for linje, og Besked sender et prik til telefonen, når prisen falder.",
         "Alt i ElPriser er gratis og kræver ingen konto.",
+        "Adresser og kort: © OpenStreetMap-bidragydere (openstreetmap.org/copyright). Nettariffer: Strømligning.",
     ];
     k.HowTo =
     [
