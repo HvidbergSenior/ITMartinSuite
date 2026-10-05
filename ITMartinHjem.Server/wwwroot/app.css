@@ -331,3 +331,11 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .bs-card a{color:#5c210c;text-decoration:underline}
 .bs-btn{display:block;text-align:center;margin:16px 0;font-size:1.1rem}
 .hj-page .hj-week{margin:16px 0;padding:12px 16px;border-radius:12px;background:var(--k-accent-soft);border-left:5px solid var(--k-accent)}
+
+/* Show/hide everywhere (user 2026-10-05): app cards = heading row (icon + name) + body; page parts = own boxes */
+.hj-app { flex-direction: column; gap: 6px; align-items: stretch; }
+.hj-app-head { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.05rem; }
+.hj-app-head .hj-app-icon { font-size: 1.6rem; }
+.hj-sec h2 { margin: 0; font-size: 1.2rem; }
+.hj-sec > div { margin-top: 8px; }
+.hj-chat > .k-card-title, .hj-now > .k-card-title { margin: 0 0 8px; font-size: 1.15rem; }

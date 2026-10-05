@@ -26,7 +26,7 @@
    Text = Svar -> Sider -> "bogshoppen"; the full story + news is on the "Følg samarbejdet" tab. *@
 @if (_news is { Body.Length: > 0 })
 {
-    <section class="k-card hj-page hj-news" data-nofold>
+    <section class="k-card hj-page hj-news">
         @* Front = only the first section (user 2026-10-05: "a bit too much info"); the whole story is on the tab. *@
         @TinyMarkdown.Render(FirstSection(_news.Body))
         <a class="k-btn k-btn-primary k-mt" href="/@CollabSlug">📚 Følg samarbejdet med Bogshoppen</a>

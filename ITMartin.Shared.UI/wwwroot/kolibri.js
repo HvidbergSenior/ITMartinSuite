@@ -96,7 +96,9 @@
                 card.classList.toggle('k-folded', closed);
                 head.setAttribute('aria-expanded', closed ? 'false' : 'true');
             };
-            set(store.get(key) === '0');
+            // data-fold-closed: starts closed (only the heading shows) until the visitor opens it once.
+            var st = store.get(key);
+            set(card.hasAttribute('data-fold-closed') ? st !== '1' : st === '0');
             var flip = function (e) {
                 if (e.target.closest('a, button, input, select, textarea, label') && e.target !== head) return;
                 var closed = !card.classList.contains('k-folded');

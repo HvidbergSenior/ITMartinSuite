@@ -5,7 +5,8 @@
 @* The visitor's side of the live chat. The visitor is remembered on this phone/PC only
    (a random key in the browser), so a reply shows up here when they come back. *@
 
-<section class="k-card hj-chat @(Prominent ? "hj-chat-top" : "") @(Available ? "is-on" : "")" id="chat" data-nofold>
+<section class="k-card hj-chat @(Prominent ? "hj-chat-top" : "") @(Available ? "is-on" : "")" id="chat">
+    <h2 class="k-card-title">💬 Chat med @OwnerName</h2>
     <div class="hj-chat-status">
         <span class="k-dot @(Available ? "on" : "")"></span>
         @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– chat med ham direkte, han svarer med det samme.</span> }

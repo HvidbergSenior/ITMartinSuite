@@ -4,8 +4,8 @@
    "Hvad laver ITKolibrien lige nu?" tab - SitePage puts it there for slug NowCard.PageSlug. *@
 @if (_s is not null)
 {
-<section class="k-card hj-now" data-nofold>
-    @if (!Compact) { <div class="k-tag">Lige nu</div> }
+<section class="k-card hj-now">
+    <h2 class="k-card-title">@(Compact ? "📅 I dag" : "📌 Lige nu")</h2>
     @if (Compact) { }
     else if (Embed.PlayerUrl(_s.NowLink) is { } player)
     {

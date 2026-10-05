@@ -1,0 +1,14 @@
+@* Each "## " part of a page as its own box (kolibri.js folds it; the phone remembers what was open).
+   The first box is open, the rest show only their heading (data-fold-closed) unless the visitor opened them. *@
+@foreach (var (p, i) in Parts.Select((p, i) => (p, i)))
+{
+    <section class="k-card hj-page hj-sec" data-fold-closed="@(i == 0 && FirstOpen ? null : "1")">
+        <h2>@p.Title</h2>
+        <div>@TinyMarkdown.Render(p.Body.Length > 0 ? p.Body : " ")</div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<Sections.Part> Parts { get; set; } = [];
+    [Parameter] public bool FirstOpen { get; set; } = true;
+}

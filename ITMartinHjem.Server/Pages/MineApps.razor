@@ -5,7 +5,7 @@
 <PageTitle>Mine apps · Martin Hvidberg</PageTitle>
 
 @* Principle (user 2026-09-28): every app is useful for free; a paid version is something you ask for. *@
-<article class="k-card hj-page" data-nofold>
+<article class="k-card hj-page">
     <h1>Mine apps</h1>
     <p>Alle mine apps er <b>gratis at bruge</b> – og den gratis udgave kan noget i sig selv. Vil du have mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu – jeg gør dem klar, så de er nemme at bruge. Nysgerrig? <a href="/#chat">Chat med mig</a>.</p>
@@ -16,10 +16,10 @@
     {
         // Asleep unless Martin has woken it (Kontrol / Svar) AND the container answers.
         var up = a.Awake && Status.IsUp(a.Url) != false;
-        <div class="k-card hj-app @(up ? "" : "off")" data-nofold>
-            <span class="hj-app-icon">@a.Icon</span>
+        @* Every app is a show/hide box: closed shows only icon + name (user 2026-10-05: "way too much text in one go"). *@
+        <div class="k-card hj-app @(up ? "" : "off")" data-fold-closed="1">
+            <h3 class="hj-app-head"><span class="hj-app-icon">@a.Icon</span> @a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
             <div class="hj-app-body">
-                <b>@a.Name</b> <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span>
                 <div class="k-help">@a.Description</div>
                 <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? a.FreeText : "Kom i gang med det samme – ingen betaling.")</div>
                 <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? a.PaidText : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>

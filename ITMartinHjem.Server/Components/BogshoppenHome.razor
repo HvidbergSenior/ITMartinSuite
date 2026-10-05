@@ -10,10 +10,9 @@
     <p>Rico og Martin – venner i over 30 år</p>
 </header>
 
-@if (_page is { Body.Length: > 0 })
-{
-    <section class="k-card hj-page bs-card" data-nofold>@TinyMarkdown.Render(_page.Body)</section>
-}
+@{ var (intro, parts) = Sections.Split(_page?.Body); }
+@if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
+<div class="bs-card"><SectionBoxes Parts="parts" /></div>
 
 <a class="k-btn k-btn-primary bs-btn" href="https://itmartin.dk/@ITMartinHjem.Server.Pages.Index.CollabSlug">📚 Følg samarbejdet på ITMartin.dk</a>
 
