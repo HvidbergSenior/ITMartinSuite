@@ -7,7 +7,8 @@ using ITMartinBibliotek.Server.Data.Entities;
 
 namespace ITMartinBibliotek.Server.Services;
 
-public sealed record JellyfinItem(string Id, string Name, string Type, int? Year, string Artist, string TmdbId, string MusicBrainzId, string Collection)
+// Library = the Jellyfin library (virtual folder) the item sits in; it decides which customer owns it.
+public sealed record JellyfinItem(string Id, string Name, string Type, int? Year, string Artist, string TmdbId, string MusicBrainzId, string Collection, string Library = "")
 {
     public MediaKind Kind => Type switch
     {
@@ -58,12 +59,15 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
         var http = await ClientAsync();
         const string url = "Items?IncludeItemTypes=Movie,Series,MusicAlbum&Recursive=true&Fields=ProductionYear,ProviderIds,AlbumArtist,Path&Limit=5000";
         var page = await http.GetFromJsonAsync<ItemsPage>(url, Json) ?? new ItemsPage();
-        var roots = await LibraryRootsAsync(http);
+        var folders = await http.GetFromJsonAsync<List<VirtualFolder>>("Library/VirtualFolders", Json) ?? [];
+        var roots = folders.SelectMany(f => f.Locations).Select(Norm).ToHashSet();
+        var libraries = folders.Select(f => (f.Name, f.Locations)).ToList();
         return page.Items.Select(i => new JellyfinItem(
             i.Id, i.Name, i.Type, i.ProductionYear, i.AlbumArtist ?? "",
             i.ProviderIds.GetValueOrDefault("Tmdb", ""),
             i.ProviderIds.GetValueOrDefault("MusicBrainzAlbum", i.ProviderIds.GetValueOrDefault("MusicBrainzReleaseGroup", "")),
-            i.Type == "MusicAlbum" ? "" : CollectionFromPath(i.Path, i.Type, roots)))
+            i.Type == "MusicAlbum" ? "" : CollectionFromPath(i.Path, i.Type, roots),
+            LibraryForPath(i.Path, libraries)))
             .ToList();
     }
 
@@ -80,10 +84,32 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
         return roots.Contains(parent) ? "" : parts[^(up + 1)];
     }
 
-    private static async Task<HashSet<string>> LibraryRootsAsync(HttpClient http)
+    private static string Norm(string path) => path.Replace('\\', '/').TrimEnd('/');
+
+    // The library whose folder holds the path. The longest location wins, so a customer
+    // folder nested inside a household library (Musik/Kunder/Jytte) still counts as the customer's.
+    public static string LibraryForPath(string? path, IEnumerable<(string Name, List<string> Locations)> libraries)
     {
+        if (string.IsNullOrEmpty(path)) return "";
+        var p = Norm(path) + "/";
+        return libraries
+            .SelectMany(l => l.Locations.Select(loc => (l.Name, Loc: Norm(loc) + "/")))
+            .Where(x => p.StartsWith(x.Loc, StringComparison.Ordinal))
+            .OrderByDescending(x => x.Loc.Length)
+            .Select(x => x.Name)
+            .FirstOrDefault() ?? "";
+    }
+
+    // Rescans one library only - a customer's few albums, not the household's whole collection.
+    // Their files arrive over NFS from the upload box, which Jellyfin's file watcher never sees.
+    public async Task RefreshLibraryAsync(string libraryName)
+    {
+        var http = await ClientAsync();
         var folders = await http.GetFromJsonAsync<List<VirtualFolder>>("Library/VirtualFolders", Json) ?? [];
-        return folders.SelectMany(f => f.Locations).Select(l => l.Replace('\\', '/').TrimEnd('/')).ToHashSet();
+        var id = folders.FirstOrDefault(f => string.Equals(f.Name, libraryName, StringComparison.OrdinalIgnoreCase))?.ItemId;
+        if (string.IsNullOrEmpty(id)) return;
+        using var res = await http.PostAsync($"Items/{id}/Refresh?Recursive=true", null);
+        res.EnsureSuccessStatusCode();
     }
 
     // Images are unauthenticated in Jellyfin, so the browser can load them straight
@@ -186,6 +212,8 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
 
     private sealed class VirtualFolder
     {
+        public string Name { get; set; } = "";
+        public string? ItemId { get; set; }
         public List<string> Locations { get; set; } = [];
     }
 

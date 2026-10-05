@@ -1,0 +1,18 @@
+@inherits LayoutComponentBase
+@layout MainLayout
+
+@* Rip station and Jellyfin settings are the household's. For anyone else the page itself
+   is never created, so its buttons (sync, saving API keys) cannot be reached at all. *@
+@if (Viewer is { IsAdmin: true })
+{
+    @Body
+}
+else
+{
+    <h1>Ikke her</h1>
+    <p>Den side hører til administratoren. <a href="/">Gå til din samling</a>.</p>
+}
+
+@code {
+    [CascadingParameter] public Viewer? Viewer { get; set; }
+}

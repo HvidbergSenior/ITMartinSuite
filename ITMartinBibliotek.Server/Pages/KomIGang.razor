@@ -1,0 +1,133 @@
+@page "/kom-i-gang"
+@inject Customers Customers
+@inject IJSRuntime JS
+
+<PageTitle>Sådan gør du – Bibliotek</PageTitle>
+
+@* A customer's own guide: what the app is for and every step they do themselves, each step a
+   show/hide box (kolibri.js folds .card + heading; first open, the rest closed, state remembered).
+   The customer's own upload link and Jellyfin login come from config (Customers). *@
+
+<div class="top-row">
+    <h1>Sådan gør du</h1>
+    <a class="top-link" href="/">← Samlingen</a>
+</div>
+
+<section class="card guide">
+    <h2>Det kan Bibliotek</h2>
+    <p>Her ligger <b>dine egne cd'er</b> som musik, du kan høre på telefonen, computeren og fjernsynet – og en liste over dine dvd'er, så du altid ved, hvad du har.</p>
+    <ol class="guide-steps">
+        <li>Læg <b>Bibliotek på telefonen</b>, så den har sit eget ikon.</li>
+        <li>Læg en <b>cd over på computeren</b> med programmet Rip CD.</li>
+        <li><b>Send musikken hertil</b> med dit upload-link.</li>
+        <li><b>Hør den</b> – på telefonen her, eller på fjernsynet via Chromecast.</li>
+    </ol>
+    <p class="hint">Tryk på en overskrift herunder for at se, hvordan du gør.</p>
+</section>
+
+<section class="card guide" data-fold-closed>
+    <h2>📱 Læg Bibliotek på telefonen</h2>
+    <p>Så åbner du Bibliotek med ét tryk, ligesom en almindelig app.</p>
+    <button class="btn btn-primary" @onclick="OpenInstall">📲 Vis mig hvordan</button>
+    <p class="guide-dev"><b>Android (Chrome):</b> tryk på <b>⋮</b> øverst til højre → <b>Føj til startskærm</b> (Add to home screen) → <b>Tilføj</b>.</p>
+    <p class="guide-dev"><b>iPhone (Safari):</b> tryk på <b>Del</b> (firkanten med pilen) → <b>Føj til hjemmeskærm</b> → <b>Tilføj</b>.</p>
+    <p class="guide-dev"><b>Computer (Chrome/Edge):</b> ikonet med skærm og pil i adresselinjen → <b>Installer</b>.</p>
+    <p class="hint">Din PIN-kode bliver husket, så du skal ikke skrive den igen.</p>
+</section>
+
+<section class="card guide" data-fold-closed>
+    <h2>💿 Læg en cd over på computeren</h2>
+    <p>Programmet <b>Rip CD</b> er gratis. Det laver cd'en om til musikfiler med navne og cover.</p>
+    <a class="btn" href="https://mineskiver.itmartin.dk/rip-cd" target="_blank" rel="noopener">⬇️ Hent Rip CD</a>
+    <ol class="guide-steps">
+        <li>Sæt cd-drevet i computeren og læg en cd i.</li>
+        <li>Start <b>Rip CD</b> og vælg <b>FLAC</b> (samme lyd som cd'en).</li>
+        <li>Efter 3–8 minutter kommer skuffen ud. Læg den næste i.</li>
+        <li>Musikken ligger nu i mappen <b>Musik → Kunstner → Album</b>.</li>
+    </ol>
+    <p class="guide-note">⚖️ <b>Du skal selv trykke.</b> Loven siger, at du må kopiere dine egne cd'er til dig selv – men ikke lade andre gøre det for dig. Martin kan godt kigge med og forklare.</p>
+</section>
+
+<section class="card guide" data-fold-closed>
+    <h2>⬆️ Send musikken hertil</h2>
+    @if (_customer is { Upload: not "" } c)
+    {
+        <a class="btn btn-primary" href="@c.Upload" target="_blank" rel="noopener">⬆️ Åbn dit upload-link</a>
+    }
+    else
+    {
+        <p class="hint">Dit upload-link får du af Martin.</p>
+    }
+    <ol class="guide-steps">
+        <li>Åbn dit upload-link på <b>computeren</b>.</li>
+        <li>Åbn mappen <b>Musik</b> og et album. Marker alle filerne (<b>Ctrl + A</b>).</li>
+        <li>Træk dem ind på siden – eller tryk på knappen og vælg dem.</li>
+        <li>Vent, til alle er sendt. Efter cirka en halv time står albummet i <a href="/?kind=musik">din samling</a>.</li>
+    </ol>
+    <p class="hint">Musikken er kun din. Ingen andre kan se eller høre den.</p>
+</section>
+
+<section class="card guide" data-fold-closed>
+    <h2>🎵 Hør musik på telefonen</h2>
+    <ol class="guide-steps">
+        <li>Tryk på <b>Samling</b> nederst og vælg <b>Musik</b>.</li>
+        <li>Tryk på et album og så <b>▶ Afspil</b>.</li>
+        <li>Musikken spiller videre, når skærmen slukker. Pause og næste nummer styrer du fra låseskærmen.</li>
+    </ol>
+</section>
+
+<section class="card guide" data-fold-closed>
+    <h2>📺 Hør og se på fjernsynet (Chromecast)</h2>
+    <p>Til fjernsynet bruger du appen <b>Jellyfin</b> på telefonen. Den sender musikken over til Chromecasten.</p>
+    <ol class="guide-steps">
+        <li>Hent <b>Jellyfin</b> i <b>Play Butik</b> på telefonen (gratis).</li>
+        <li>Skriv serveren: <b class="guide-code">jellyfin.itmartin.dk</b></li>
+        @if (_customer is { JellyfinBruger: not "" } j)
+        {
+            <li>Log ind med brugernavn <b class="guide-code">@j.JellyfinBruger</b>@if (j.JellyfinKode != "") {<text> og kodeord </text><b class="guide-code">@j.JellyfinKode</b>}.</li>
+        }
+        else
+        {
+            <li>Log ind med det brugernavn og kodeord, du har fået af Martin.</li>
+        }
+        <li>Tænd fjernsynet. Tryk på <b>cast-ikonet</b> (skærm med bølger) i Jellyfin og vælg din Chromecast.</li>
+        <li>Vælg et album og tryk <b>▶</b> – lyden kommer fra fjernsynet.</li>
+    </ol>
+    <p class="hint">Har din Chromecast en fjernbetjening (Google TV), kan du også hente Jellyfin direkte på den.</p>
+</section>
+
+<section class="card guide" data-fold-closed>
+    <h2>📀 Dine dvd'er</h2>
+    <p>Dvd'er må man ikke kopiere i Danmark (de har kopispærre). Men de kan stå på din liste, og du kan stadig se dem:</p>
+    <ol class="guide-steps">
+        <li><b>Skriv dem på listen:</b> tryk <a href="/scan">📷 Scan</a> og hold stregkoden bag på æsken foran kameraet.</li>
+        <li><b>Se en dvd på computeren:</b> sæt dvd'en i drevet. Den starter i <b>VLC</b> (et gratis program, Martin har sat op).</li>
+        <li><b>På det store fjernsyn:</b> sæt computeren til fjernsynet med et <b>HDMI-kabel</b> og vælg HDMI på fjernsynets fjernbetjening.</li>
+        <li><b>Findes den på streaming?</b> <a href="https://mineskiver.itmartin.dk" target="_blank" rel="noopener">Mine skiver</a> viser, om filmen ligger hos en tjeneste, du allerede har.</li>
+    </ol>
+    <p class="hint">Dvd'er, du selv har optaget (familiefilm), må gerne lægges ind. Spørg Martin.</p>
+</section>
+
+<section class="card guide" data-fold-closed>
+    <h2>🆘 Få hjælp</h2>
+    <p>Ring eller skriv til Martin: <a href="tel:+4531194730"><b>31 19 47 30</b></a> · <a href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a></p>
+    <p><b>Martin kan se med på din computer</b> med Windows' eget program <b>Hurtig hjælp</b> (Quick Assist):</p>
+    <ol class="guide-steps">
+        <li>Tryk på <b>Start</b> og skriv <b>Hurtig hjælp</b> (Quick Assist). Åbn den.</li>
+        <li>Skriv den kode på 6 tegn, Martin læser op for dig, og tryk <b>Send</b>.</li>
+        <li>Tryk <b>Tillad</b>, når den spørger. Du kan altid lukke den igen.</li>
+    </ol>
+</section>
+
+@code {
+    [CascadingParameter] public Viewer? Viewer { get; set; }
+
+    private Customer? _customer;
+
+    protected override void OnParametersSet() => _customer = Viewer is null ? null : Customers.Get(Viewer.Owner);
+
+    private async Task OpenInstall()
+    {
+        try { await JS.InvokeVoidAsync("kolibri.openInstall"); } catch (JSException) { }
+    }
+}

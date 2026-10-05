@@ -12,6 +12,7 @@ public sealed class BibliotekDbContext(DbContextOptions<BibliotekDbContext> opti
     {
         b.Entity<MediaItem>().HasIndex(i => i.Barcode);
         b.Entity<MediaItem>().HasIndex(i => i.JellyfinId);
+        b.Entity<MediaItem>().HasIndex(i => i.Owner);
         b.Entity<Setting>().HasKey(s => s.Key);
     }
 }

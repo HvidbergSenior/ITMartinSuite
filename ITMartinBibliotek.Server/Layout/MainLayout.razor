@@ -15,11 +15,20 @@
     {
         <a href="@_jellyfinUrl" target="_blank" rel="noopener"><span>▶️</span>Jellyfin</a>
     }
-    <NavLink href="/rip"><span>💽</span>Rip</NavLink>
-    <NavLink href="/indstillinger"><span>⚙️</span>Indstillinger</NavLink>
+    @if (Viewer is { IsAdmin: false })
+    {
+        <NavLink href="/kom-i-gang"><span>❓</span>Sådan</NavLink>
+    }
+    @if (Viewer is { IsAdmin: true })
+    {
+        <NavLink href="/rip"><span>💽</span>Rip</NavLink>
+        <NavLink href="/indstillinger"><span>⚙️</span>Indstillinger</NavLink>
+    }
 </nav>
 
 @code {
+    [CascadingParameter] public Viewer? Viewer { get; set; }
+
     private string _jellyfinUrl = "";
 
     protected override async Task OnInitializedAsync() => _jellyfinUrl = await Jellyfin.HomeUrlAsync();

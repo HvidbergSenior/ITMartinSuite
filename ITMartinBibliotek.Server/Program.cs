@@ -40,7 +40,9 @@ builder.Services.AddDbContextFactory<BibliotekDbContext>(o => o.UseSqlite(dbPath
 builder.Services.AddSingleton<SettingsStore>();
 builder.Services.AddSingleton<JellyfinClient>();
 builder.Services.AddSingleton<MetadataLookup>();
+builder.Services.AddSingleton<Customers>();
 builder.Services.AddSingleton<JellyfinSync>();
+builder.Services.AddHostedService<CustomerSyncService>();
 builder.Services.AddSingleton<RipStatusStore>();
 
 // Audio streams run as long as a track plays, so they get no overall timeout.
@@ -78,6 +80,13 @@ using (var scope = app.Services.CreateScope())
         if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
             db.Database.ExecuteSqlRaw("ALTER TABLE Items ADD COLUMN Collection TEXT NOT NULL DEFAULT ''");
     }
+    using (var cmd = conn.CreateCommand())
+    {
+        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = 'Owner'";
+        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+            db.Database.ExecuteSqlRaw("ALTER TABLE Items ADD COLUMN Owner TEXT NOT NULL DEFAULT ''");
+    }
+    db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Items_Owner ON Items (Owner)");
 }
 
 if (!app.Environment.IsDevelopment())
@@ -87,9 +96,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
-// Single-PIN login: the catalog is for the household, sharing of the media
-// itself happens inside Jellyfin's own user accounts.
-var adminPin = app.Configuration["Bibliotek:AdminPin"] ?? "bibliotek2026";
+// PIN login: the admin PIN is the household, each customer PIN (Customers) sees only
+// that customer's own catalog and music. The resolved Viewer rides along in ctx.Items.
+var customers = app.Services.GetRequiredService<Customers>();
+static Viewer ViewerOf(HttpContext ctx) => ctx.Items["viewer"] as Viewer ?? throw new InvalidOperationException("no viewer");
 
 app.Use(async (ctx, next) =>
 {
@@ -111,7 +121,9 @@ app.Use(async (ctx, next) =>
             || path.EndsWith(".js", StringComparison.OrdinalIgnoreCase)
             || path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
             || path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
-    if (open || (ctx.Request.Cookies.TryGetValue("bibliotek_auth", out var v) && v == adminPin))
+    var viewer = customers.Resolve(ctx.Request.Cookies["bibliotek_auth"]);
+    if (viewer is not null) ctx.Items["viewer"] = viewer;
+    if (open || viewer is not null)
     {
         await next();
         return;
@@ -121,9 +133,9 @@ app.Use(async (ctx, next) =>
 
 app.MapPost("/api/auth/login", (HttpContext ctx, [FromForm] string pin) =>
 {
-    if (pin == adminPin)
+    if (customers.Resolve(pin) is not null)
     {
-        ctx.Response.Cookies.Append("bibliotek_auth", adminPin, new CookieOptions
+        ctx.Response.Cookies.Append("bibliotek_auth", pin, new CookieOptions
         {
             HttpOnly = true,
             Secure = ctx.Request.IsHttps,
@@ -178,18 +190,29 @@ app.MapPost("/api/rip/heartbeat", (HttpContext ctx, RipStatusStore store) =>
 
 // Bibliotek's own music player (player.js). Track lists and audio come from Jellyfin
 // through the app, so the phone needs only the PIN cookie, never a Jellyfin login.
-app.MapGet("/api/afspil/album/{albumId}", async (string albumId, JellyfinClient jellyfin) =>
+// A customer may only play albums from their own library - checked on every request,
+// including each byte range, because the album id alone is guessable from Jellyfin.
+async Task<bool> MayPlay(HttpContext ctx, string albumId, IDbContextFactory<BibliotekDbContext> dbf)
 {
-    if (!JellyfinClient.IsId(albumId)) return Results.NotFound();
+    if (!JellyfinClient.IsId(albumId)) return false;
+    var viewer = ViewerOf(ctx);
+    if (viewer.IsAdmin) return true;
+    await using var db = await dbf.CreateDbContextAsync();
+    return await db.Items.AnyAsync(i => i.JellyfinId == albumId && i.Owner == viewer.Owner);
+}
+
+app.MapGet("/api/afspil/album/{albumId}", async (string albumId, HttpContext ctx, JellyfinClient jellyfin, IDbContextFactory<BibliotekDbContext> dbf) =>
+{
+    if (!await MayPlay(ctx, albumId, dbf)) return Results.NotFound();
     var album = await jellyfin.AlbumAsync(albumId);
     return album is null ? Results.NotFound() : Results.Ok(album);
 });
 
 // Album + position instead of a track id: the first tap can start the audio at once, inside
 // the tap itself, which is what lets an iPhone go on to the next tracks with the screen off.
-app.MapGet("/api/afspil/album/{albumId}/spor/{index:int}", async (string albumId, int index, HttpContext ctx, JellyfinClient jellyfin) =>
+app.MapGet("/api/afspil/album/{albumId}/spor/{index:int}", async (string albumId, int index, HttpContext ctx, JellyfinClient jellyfin, IDbContextFactory<BibliotekDbContext> dbf) =>
 {
-    var album = JellyfinClient.IsId(albumId) ? await jellyfin.AlbumAsync(albumId) : null;
+    var album = await MayPlay(ctx, albumId, dbf) ? await jellyfin.AlbumAsync(albumId) : null;
     if (album is null || index < 0 || index >= album.Tracks.Count)
     {
         ctx.Response.StatusCode = 404;
@@ -209,9 +232,11 @@ app.MapGet("/api/afspil/album/{albumId}/spor/{index:int}", async (string albumId
     catch (OperationCanceledException) { }   // the phone moved on to another range or track
 });
 
-app.MapPost("/api/afspil/spillet/{trackId}", async (string trackId, JellyfinClient jellyfin, ILogger<JellyfinClient> log) =>
+app.MapPost("/api/afspil/spillet/{trackId}", async (string trackId, HttpContext ctx, JellyfinClient jellyfin, ILogger<JellyfinClient> log) =>
 {
     if (!JellyfinClient.IsId(trackId)) return Results.NotFound();
+    // Played marks go to the household's Jellyfin account, so a customer's listening stays out of it.
+    if (!ViewerOf(ctx).IsAdmin) return Results.Ok();
     try { await jellyfin.MarkPlayedAsync(trackId); }
     catch (Exception ex) { log.LogWarning(ex, "Marking {Track} played in Jellyfin failed", trackId); }
     return Results.Ok();

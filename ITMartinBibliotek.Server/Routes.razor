@@ -1,6 +1,19 @@
-<Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
-    </Found>
-</Router>
+@inject Customers Customers
+
+<CascadingValue Value="_viewer" IsFixed="true">
+    <Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
+        <Found Context="routeData">
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        </Found>
+    </Router>
+</CascadingValue>
+
+@code {
+    // "" = household (admin), a customer key, or null when not logged in.
+    [Parameter] public string? Owner { get; set; }
+
+    private Viewer? _viewer;
+
+    protected override void OnParametersSet() => _viewer = Owner is null ? null : Customers.ByOwner(Owner);
+}

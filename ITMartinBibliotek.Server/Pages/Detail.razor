@@ -158,6 +158,8 @@ else
     [SupplyParameterFromQuery] public string? Barcode { get; set; }
     [SupplyParameterFromQuery] public string? Ny { get; set; }
 
+    [CascadingParameter] public Viewer? Viewer { get; set; }
+
     private MediaItem? _item;
     private bool _isNew;
     private bool _saving;
@@ -168,16 +170,17 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        if (Viewer is null) { Nav.NavigateTo("/login", true); return; }
         if (IdText == "ny")
         {
             _isNew = true;
-            _item = new MediaItem { Barcode = Barcode ?? "", Format = MediaFormat.Dvd };
+            _item = new MediaItem { Barcode = Barcode ?? "", Format = MediaFormat.Dvd, Owner = Viewer.Owner };
             return;
         }
         if (!Guid.TryParse(IdText, out var id)) { Nav.NavigateTo("/"); return; }
         await using var db = await DbFactory.CreateDbContextAsync();
         _item = await db.Items.FindAsync(id);
-        if (_item is null) { Nav.NavigateTo("/"); return; }
+        if (_item is null || _item.Owner != Viewer.Owner) { _item = null; Nav.NavigateTo("/"); return; }
         _playUrl = _item.JellyfinId == "" ? "" : await Jellyfin.PlayUrlAsync(_item.JellyfinId);
     }
 

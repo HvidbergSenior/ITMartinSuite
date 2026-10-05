@@ -6,9 +6,18 @@
 <PageTitle>Samling – Bibliotek</PageTitle>
 
 <div class="top-row">
-    <h1>Samling</h1>
+    <h1>@(Viewer is { IsAdmin: false } v ? v.Name + "s samling" : "Samling")</h1>
     <a class="top-link" href="/api/auth/logout">Log ud</a>
 </div>
+
+@if (_all is { Count: 0 } && Viewer is { IsAdmin: false })
+{
+    <section class="card empty-guide">
+        <h2>Din samling er tom</h2>
+        <p>Læg dine cd'er ind, så kan du høre dem her – på telefonen, computeren og fjernsynet.</p>
+        <a class="btn btn-primary" href="/kom-i-gang">❓ Sådan gør du</a>
+    </section>
+}
 
 @if (_all is not null)
 {
@@ -137,11 +146,15 @@ else
     // same shelf, and the default is Film - that is what you open the app to watch.
     [SupplyParameterFromQuery(Name = "kind")] public string? KindText { get; set; }
 
+    [CascadingParameter] public Viewer? Viewer { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
+        if (Viewer is null) { _all = []; return; }
+        var owner = Viewer.Owner;
         await using var db = await DbFactory.CreateDbContextAsync();
         // Film and series first, music last: two films must not drown in 2,000 albums.
-        _all = await db.Items.OrderBy(i => i.Kind == MediaKind.Musik ? 1 : 0).ThenBy(i => i.Title).ToListAsync();
+        _all = await db.Items.Where(i => i.Owner == owner).OrderBy(i => i.Kind == MediaKind.Musik ? 1 : 0).ThenBy(i => i.Title).ToListAsync();
         _playBase = await Jellyfin.PlayUrlAsync("");
     }
 
@@ -152,6 +165,8 @@ else
             "alle" => null,
             "serier" => MediaKind.Serie,
             "musik" => MediaKind.Musik,
+            // A customer's shelf is mostly CDs, so they start on everything, not on Film.
+            null when Viewer is { IsAdmin: false } => null,
             _ => MediaKind.Film
         };
         _group = string.IsNullOrWhiteSpace(GroupText) ? null : GroupText;

@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#121917" />
 </head>
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveServer" Owner="@_owner" />
     <script src="scanner.js?v=@CacheBuster"></script>
     <script src="player.js?v=@CacheBuster"></script>
     <script src="_framework/blazor.server.js"></script>
@@ -27,4 +27,10 @@
 
 @code {
     private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    // Set by the PIN middleware; null on /login. The circuit's parameters are data-protected,
+    // so the owner cannot be swapped in the browser.
+    private string? _owner => (HttpContext?.Items["viewer"] as Viewer)?.Owner;
 }

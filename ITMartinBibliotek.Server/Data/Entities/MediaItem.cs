@@ -17,6 +17,10 @@ public sealed class MediaItem
     // Main category for films/series (Anders Matthesen, X-Men...), taken from the
     // folder the title sits in on disk: Film\<Collection>\<Title>\. Music groups by Artist.
     public string Collection { get; set; } = string.Empty;
+
+    // "" = the household; otherwise the customer key (Customers). A customer's own CD copies
+    // are theirs alone, so every query and every stream filters on this.
+    public string Owner { get; set; } = string.Empty;
     public MediaKind Kind { get; set; }
     public MediaFormat Format { get; set; }
     public MediaStatus Status { get; set; }
