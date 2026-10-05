@@ -5,8 +5,9 @@
 @if (_s is not null)
 {
 <section class="k-card hj-now" data-nofold>
-    <div class="k-tag">Lige nu</div>
-    @if (Embed.PlayerUrl(_s.NowLink) is { } player)
+    @if (!Compact) { <div class="k-tag">Lige nu</div> }
+    @if (Compact) { }
+    else if (Embed.PlayerUrl(_s.NowLink) is { } player)
     {
         <div class="hj-embed"><iframe src="@player" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>
     }
@@ -18,7 +19,7 @@
     {
         <a href="/nu/@_s.NowMediaName" target="_blank" rel="noopener"><img class="hj-now-img" src="/nu/@(_s.NowMediaThumb.Length > 0 ? _s.NowMediaThumb : _s.NowMediaName)" alt="Lige nu" /></a>
     }
-    @if (_s.NowLink.Length > 0 && Embed.PlayerUrl(_s.NowLink) is null)
+    @if (!Compact && _s.NowLink.Length > 0 && Embed.PlayerUrl(_s.NowLink) is null)
     {
         <a class="k-btn k-btn-primary k-mt" href="@_s.NowLink" target="_blank" rel="noopener">▶ Se med</a>
     }
@@ -39,14 +40,14 @@
             <p class="k-help">Martin har ikke skrevet noget i dag endnu – kig forbi senere, eller skriv til ham i chatten.</p>
         </div>
     }
-    @if (earlier.Count > 0)
+    @if (earlier.Count > 0 && !Compact)
     {
         <details class="hj-day-earlier">
             <summary>Tidligere dage (@earlier.Count)</summary>
             @foreach (var d in earlier) { @DayBlock(d) }
         </details>
     }
-    @if (_s.NowText.Length > 0 || _s.NowMediaName.Length > 0 || _s.NowLink.Length > 0)
+    @if (!Compact && (_s.NowText.Length > 0 || _s.NowMediaName.Length > 0 || _s.NowLink.Length > 0))
     {
         @if (_s.NowText.Length > 0) { <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div> }
         <p class="k-help">📅 Opdateret @Dk.Local(_s.NowUpdated).ToString("d. MMMM yyyy", Da)</p>
@@ -56,6 +57,8 @@
 
 @code {
     public const string PageSlug = "hvad-laver-itkolibrien";
+    // Front page (user 2026-10-05 "a bit too much info"): only today - no fixed Lige nu text/media, no earlier days.
+    [Parameter] public bool Compact { get; set; }
     private static readonly CultureInfo Da = new("da-DK");
     private Settings? _s;
     private Dictionary<DateTime, DayNote> _notes = [];

@@ -18,8 +18,20 @@
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
 
+@* ITMartin + Bogshoppen stays on the front page until the collaboration is done, right under the heading:
+   the most important thing for the user (2026-10-05). All info lives on the tab, here only a teaser.
+   Text = Svar -> Sider -> "bogshoppen"; the full story + news is on the "Følg samarbejdet" tab. *@
+@if (_news is { Body.Length: > 0 })
+{
+    <section class="k-card hj-page hj-news" data-nofold>
+        @* Front = only the first section (user 2026-10-05: "a bit too much info"); the whole story is on the tab. *@
+        @TinyMarkdown.Render(FirstSection(_news.Body))
+        <a class="k-btn k-btn-primary k-mt" href="/@CollabSlug">🤝 Følg samarbejdet – læs hele historien</a>
+    </section>
+}
+
 @* Today: Martin's day log (plan in the morning, pictures through the day) - Svar -> 📌 Lige nu. *@
-<NowCard />
+<NowCard Compact="true" />
 
 @* This week: Svar -> Sider -> "denne-uge" (one task per line). *@
 @if (_week is { Body.Length: > 0 })
@@ -27,15 +39,6 @@
     <section class="k-card hj-page hj-week" data-nofold>@TinyMarkdown.Render(_week.Body)</section>
 }
 
-@* ITMartin + Bogshoppen stays on the front page until the collaboration is done (user 2026-10-05).
-   Text = Svar -> Sider -> "bogshoppen"; the full story + news is on the "Følg samarbejdet" tab. *@
-@if (_news is { Body.Length: > 0 })
-{
-    <section class="k-card hj-page hj-news" data-nofold>
-        @TinyMarkdown.Render(_news.Body)
-        <a class="k-btn k-btn-primary k-mt" href="/@CollabSlug">🤝 Følg samarbejdet</a>
-    </section>
-}
 
 @* Kig med: big red box while Martin streams, a small line otherwise (user 2026-09-30). *@
 <LiveCard />
@@ -45,19 +48,19 @@
 
 @* Apps are only on the Mine apps tab (user 2026-10-04: "Forsiden skal heller ikke have mine apps"). *@
 
+@* Who Martin is: folded, so the first screen is just today + this week (user 2026-10-05). *@
 @if (_hero is not null)
 {
-    <section class="k-card hj-page hj-hero" data-nofold>@TinyMarkdown.Render(_hero.Body)</section>
+    <details class="k-card hj-page hj-hero" data-remember="hero">
+        <summary><b>👋 Hvem er ITMartin?</b></summary>
+        @TinyMarkdown.Render(_hero.Body)
+    </details>
 }
 
 @* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
 
 
-@if (_posts.Count == 0)
-{
-    <p class="k-empty">Her kommer billeder, videoer og tekster snart.</p>
-}
-else
+@if (_posts.Count > 0)
 {
     <h2 class="hj-h2">Seneste</h2>
     @foreach (var p in _posts.Take(3)) { <PostCard Post="p" /> }
@@ -124,6 +127,13 @@ else if (_family && !_owner)
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();
         _hiddenFamily = _family ? 0 : await db.Posts.CountAsync(p => p.Visibility == Visibility.Familie);
+    }
+
+    // Text up to the second "## " heading.
+    private static string FirstSection(string body)
+    {
+        var i = body.IndexOf("\n## ", body.StartsWith("## ") ? 3 : 0, StringComparison.Ordinal);
+        return i > 0 ? body[..i] : body;
     }
 
     private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
