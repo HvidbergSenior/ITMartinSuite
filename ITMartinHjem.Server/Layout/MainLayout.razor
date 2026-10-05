@@ -4,12 +4,15 @@
 @inject NavigationManager Nav
 
 @* Birthday day (Components/Fest): rose/gold colours + a strip under the menu on every page, not in Svar. *@
-<div class="@(_fest ? "fest-site" : "")">
+<div class="@(_fest ? "fest-site" : "") @(_bs ? "bs-site" : "")">
+@if (!_bs)
+{
 @* The site menu - order and contents come from SiteMenu (pages marked "Vis i menuen" in Svar). *@
 <nav class="hj-nav">
     @foreach (var i in _menu) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href">@i.Title</a> }
 </nav>
-@if (_fest)
+}
+@if (_fest && !_bs)
 {
     <a class="fest-strip" href="/vibeke">
         <span class="fest-strip-flags" aria-hidden="true">@foreach (var i in Enumerable.Range(0, 14)) { <i style="--i:@i"></i> }</span>
@@ -24,12 +27,13 @@
 
 @code {
     private List<SiteMenu.Item> _menu = [];
-    private bool _fest;
+    private bool _fest, _bs;   // _bs = visitor came via bogshoppen.dk: no ITMartin menu
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await Dbf.CreateDbContextAsync();
         _menu = await SiteMenu.BuildAsync(db);
+        _bs = BogshoppenHome.IsHost(new Uri(Nav.Uri).Host);
         _fest = Fest.IsOn(Config) && !Nav.ToBaseRelativePath(Nav.Uri).StartsWith("admin", StringComparison.OrdinalIgnoreCase);
     }
 }

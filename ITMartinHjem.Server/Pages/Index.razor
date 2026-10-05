@@ -2,9 +2,12 @@
 @implements IDisposable
 @inject IDbContextFactory<HjemDb> Dbf
 @inject ChatService Chat
+@inject NavigationManager Nav
 
 @* First screen = one answer: who I am and what I am doing now. The timeline and the
    chat come after it; old years are folded and the phone remembers what was open. *@
+
+@if (BogshoppenHome.IsHost(new Uri(Nav.Uri).Host)) { <BogshoppenHome /> return; }
 
 @* Temporary birthday front - switches itself off after Hjem:FestUntil (default 2026-09-30 23:59). *@
 <Fest />

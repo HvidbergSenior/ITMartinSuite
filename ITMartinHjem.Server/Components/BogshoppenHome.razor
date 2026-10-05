@@ -1,0 +1,37 @@
+@inject IDbContextFactory<HjemDb> Dbf
+
+@* bogshoppen.dk (user 2026-10-05): a small home page like ITMartin's - just the setup and a short text about the
+   collaboration. Text = Svar -> Sider -> "bogshoppen-dk"; all news about the collaboration lives on the itmartin.dk tab. *@
+<PageTitle>Bogshoppen</PageTitle>
+
+<header class="bs-head">
+    <span class="bs-tag">🤝 Bogshoppen + ITMartin</span>
+    <h1>📚 Bogshoppen</h1>
+    <p>Rico og Martin – venner i over 30 år</p>
+</header>
+
+@if (_page is { Body.Length: > 0 })
+{
+    <section class="k-card hj-page bs-card" data-nofold>@TinyMarkdown.Render(_page.Body)</section>
+}
+
+<a class="k-btn k-btn-primary bs-btn" href="https://itmartin.dk/@ITMartinHjem.Server.Pages.Index.CollabSlug">📚 Følg samarbejdet på ITMartin.dk</a>
+
+<ChatBox Available="_available" OwnerName="Martin" />
+
+@code {
+    public const string PageSlug = "bogshoppen-dk";
+    private Page? _page;
+    private bool _available;
+
+    // bogshoppen.dk and www.bogshoppen.dk are served by this app too (Cloudflare tunnel -> hjem-web).
+    public static bool IsHost(string host) =>
+        host.Equals("bogshoppen.dk", StringComparison.OrdinalIgnoreCase) || host.Equals("www.bogshoppen.dk", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Dbf.CreateDbContextAsync();
+        _page = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == PageSlug);
+        _available = (await db.Settings.AsNoTracking().FirstAsync()).Available;
+    }
+}

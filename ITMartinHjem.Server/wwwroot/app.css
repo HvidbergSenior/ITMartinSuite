@@ -319,3 +319,14 @@ html[data-family="idag"] .hj-news{position:relative;border:3px solid transparent
   background:linear-gradient(var(--k-card),var(--k-card)) padding-box,linear-gradient(120deg,#0b6fb8,#ff9f43,#ff6b6b) border-box}
 html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";position:absolute;top:-12px;right:16px;padding:2px 12px;border-radius:999px;
   background:#0a3f6b;color:#fff;font-weight:800;font-size:.75rem;letter-spacing:.06em;box-shadow:var(--k-shadow)}
+
+/* bogshoppen.dk (Components/BogshoppenHome): cream paper + dark ink - colour-blind safe, dark text on pale only */
+.bs-site{--k-accent:#7a2e12;--k-accent-dark:#5c210c;--k-accent-soft:#f6e9dc;--k-accent-text:#fff;--k-bg:#fbf6ee;--k-card:#fffdf9;--k-border:#e6d6c2;--k-text:#2a1d12;--k-muted:#5e4a38;
+  background:#fbf6ee;color:#2a1d12;min-height:100vh}
+.bs-head{text-align:center;padding:28px 16px 18px;margin:8px 0 16px;border-radius:var(--k-radius-lg,18px);background:#f3e6d4;border:2px solid #e6d6c2}
+.bs-head h1{margin:6px 0 4px;font-size:2.2rem;color:#2a1d12}
+.bs-head p{margin:0;color:#5e4a38;font-weight:600}
+.bs-tag{display:inline-block;padding:2px 12px;border-radius:999px;background:#5c210c;color:#fff;font-weight:800;font-size:.8rem;letter-spacing:.04em}
+.bs-card h2{color:#7a2e12}
+.bs-card a{color:#5c210c;text-decoration:underline}
+.bs-btn{display:block;text-align:center;margin:16px 0;font-size:1.1rem}
