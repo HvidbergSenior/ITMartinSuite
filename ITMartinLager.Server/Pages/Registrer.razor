@@ -38,7 +38,7 @@
             @(_busy ? "⏳ Læser billedet …" : "📷 Tag billede")
             <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
         </label>
-        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reader.MaxCallsPerDay (2 pr. billede: læsning + teksten).</p>
+        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
 
         <p><b>Eller scan stregkoden</b> – bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden; det bipper for hver.</p>
         @if (!_scanning)
@@ -64,7 +64,7 @@
         <h2 class="k-card-title">3. Tjek og gem (@_review.Count(r => r.Keep) af @_review.Count)</h2>
         @if (_review.Any(r => r.Keep && r.Interest.Trim() == ""))
         {
-            <button class="k-btn k-btn-secondary" @onclick="WriteInterest" disabled="@_busy">✨ Skriv det interessante for de @_review.Count(r => r.Keep && r.Interest.Trim() == "") uden</button>
+            <button class="k-btn k-btn-secondary" @onclick="WriteInterest" disabled="@_busy">✨ Skriv det interessante for de @_review.Count(r => r.Keep && r.Interest.Trim() == "") uden (valgfrit – koster ca. 2 øre pr. vare)</button>
         }
         <p class="k-small">Ret det, der er læst forkert. <b>⚠ Tjek</b> = AI'en var usikker. Fjern fluebenet for ting, der ikke skal med.</p>
         <div class="lg-review">
@@ -178,8 +178,9 @@
                     Note = f.Note, Interest = f.Interest, PhotoId = photo.Id,
                 }));
                 if (found.Count == 0) _error = "AI'en fandt ingen ting på billedet. Tag det lidt tættere på, i godt lys.";
-                else
+                else if (Config.GetValue<bool>("Lager:AutoInterest"))
                 {
+                    // Off by default (user 2026-10-05: "disable texts, add it later maybe") - the text is the costly part.
                     StateHasChanged();
                     await FillInterestAsync(_review.Where(x => x.PhotoId == photo.Id).ToList());
                 }
