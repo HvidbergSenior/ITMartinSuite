@@ -89,12 +89,16 @@ public sealed class SallingFoodWaste(HttpClient http, IMemoryCache cache, IConfi
                 if (end is { } t && t < now) continue;
                 if (Num(o, "newPrice") is not { } price || price <= 0) continue;
                 if (Num(o, "stock") is { } st && st <= 0) continue;
-                list.Add(new Clearance(name, Pretty(brand), address, Str(p, "description") ?? "", price, Num(o, "originalPrice"),
+                list.Add(new Clearance(name, Pretty(brand), address, Readable(Str(p, "description") ?? ""), price, Num(o, "originalPrice"),
                     Num(o, "percentDiscount"), Num(o, "stock"), Str(o, "stockUnit") is "each" ? "stk" : Str(o, "stockUnit"), end, Str(p, "image")));
             }
         }
         return list.OrderByDescending(x => x.PercentDiscount ?? 0).ToList();
     }
+
+    // Salling sends "40+ ØKO.RYGEOST LØGISMOSE" - all capitals is hard to read; first letter big, the rest small.
+    internal static string Readable(string t) =>
+        t.Length > 1 && t.Any(char.IsLetter) && !t.Any(char.IsLower) ? char.ToUpper(t[0]) + t[1..].ToLowerInvariant() : t;
 
     private static string Pretty(string brand) => brand.ToLowerInvariant() switch
     {

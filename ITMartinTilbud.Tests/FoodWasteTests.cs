@@ -27,6 +27,7 @@ public class FoodWasteTests
         var list = SallingFoodWaste.Parse(JsonDocument.Parse(Json).RootElement, new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));
         list.Select(c => c.Title).Should().Equal("Hakket oksekød 500 g", "Rugbrød");
         list[0].Brand.Should().Be("Netto");
+        SallingFoodWaste.Readable("40+ ØKO.RYGEOST LØGISMOSE").Should().Be("40+ øko.rygeost løgismose");
         list[0].StockUnit.Should().Be("stk");
         list[0].Address.Should().Be("Vestergade 1, 8000 Aarhus C");
     }
