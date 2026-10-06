@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using FluentAssertions;
 using ITMartinTilbud.Server.Services;
 
@@ -76,6 +76,24 @@ public class OffersTests
         r.Where(o => !o.Variant).Select(o => o.Title).Should().Equal("Arla Lactofree mælk", "Gram Slot Mini- eller skummetmælk", "Arla frisk dansk mælk");
         r.Where(o => o.Variant).Select(o => o.Title).Should().Equal("MILBONA Kakaomælk", "Matilde kakao-skummetmælk");
         TjekOffers.Relevant(list, "kakaomælk").Should().OnlyContain(o => !o.Variant);   // searched for the flavour itself
+    }
+
+    [Test]
+    public void App_only_offers_are_recognised_as_the_leaflets_word_them()
+    {
+        TjekOffers.AppNeeded("Black Coffee | + PRIS 59:- Gælder kun med Netto+ appen 400 g.", "Netto").Should().Be("Netto+ appen");
+        TjekOffers.AppNeeded("Cheasy hytteost | plus pris Pr. kg 40,- Gælder kun med føtex plus appen", "føtex").Should().Be("Føtex plus appen");
+        TjekOffers.AppNeeded("MATILDE Kakaoskummetmælk | Fredagsdeal Kuponpris ved køb på min. 200 kr. Lidl Plus", "Lidl").Should().Be("Lidl Plus-appen");
+        TjekOffers.AppNeeded("Arla letmælk 1 l. Pr. l 9,95", "Netto").Should().BeNull();
+        TjekOffers.ConditionOf("Kuponpris ved køb på min. 200 kr.").Should().Be("kræver køb for min. 200 kr");
+    }
+
+    [Test]
+    public void A_friday_deal_counts_only_on_its_day()
+    {
+        var d = TjekOffers.OnlyDay("Fredagsdeal Gælder kun 9. okt.", new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));
+        d!.Value.Date.Should().Be(new DateTime(2026, 10, 9));
+        TjekOffers.OnlyDay("Gælder hele ugen", DateTimeOffset.UtcNow).Should().BeNull();
     }
 
     [Test]

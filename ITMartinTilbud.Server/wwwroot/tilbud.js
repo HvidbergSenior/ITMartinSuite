@@ -88,19 +88,44 @@
         return fetch('/api/tilbud?q=' + encodeURIComponent(q) + '&lat=' + p.lat + '&lng=' + p.lng + '&km=' + state.km)
             .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.fejl || 'Fejl'); return j; }); });
     }
-    function offerHtml(o, q) {
+    // Which days: "kun fre. 9.10", "fra tirs. 7.10 til søn. 12.10" or "til søn. 12.10".
+    function when(o) {
+        if (!o.validTo) return '';
+        var from = o.validFrom ? new Date(o.validFrom) : null, to = new Date(o.validTo), now = new Date();
+        if (from && from.toDateString() === to.toDateString()) return 'kun ' + day.format(to);
+        if (from && from > now) return 'fra ' + day.format(from) + ' til ' + day.format(to);
+        return 'til ' + day.format(to);
+    }
+    function where(o) {
+        return o.nearestStore ? esc(o.nearestStore) + (o.nearestKm != null ? ' (' + String(o.nearestKm).replace('.', ',') + ' km)' : '') : '';
+    }
+    // Compare like with like: per kg/litre when both have it in the same unit, else the shelf price.
+    function measure(o, ref) { return ref && ref.unitLabel && o.unitLabel === ref.unitLabel && o.unitPrice != null ? o.unitPrice : o.price; }
+    function diffText(o, ref) {
+        var d = measure(o, ref) - measure(ref, ref);
+        var unit = ref.unitLabel && o.unitLabel === ref.unitLabel ? ' ' + ref.unitLabel : ' kr';
+        return (d >= 0 ? '+' : '−') + kr.format(Math.abs(d)) + unit.replace(' kr/', ' kr/');
+    }
+
+    // alt = the cheapest offer that needs no app: shown on every app-only offer (user: "you don't have to buy there").
+    function offerHtml(o, q, alt) {
         var unit = o.unitPrice != null ? '<span class="tb-unit">' + money(o.unitPrice).replace(' kr', '') + ' ' + esc(o.unitLabel) + '</span>' : '';
         var before = o.normalPrice && o.normalPrice > o.price ? '<span class="tb-before">før ' + money(o.normalPrice) + '</span>' : '';
-        var till = o.validTo ? '<span class="k-muted">til ' + day.format(new Date(o.validTo)) + '</span>' : '';
+        var till = o.validTo ? '<span class="k-muted">' + when(o) + '</span>' : '';
         var img = o.image ? '<img class="tb-img" src="' + esc(o.image) + '" alt="" loading="lazy" onerror="this.hidden=true">' : '<div class="tb-img"></div>';
         return '<div class="tb-offer">' + img + '<div class="tb-offer-body">' +
             '<div class="tb-chain">' + esc(o.chain) + '</div>' +
             '<div class="tb-title">' + esc(o.title) + (o.size ? ' <span class="k-muted">· ' + esc(o.size) + '</span>' : '') + '</div>' +
             '<div class="tb-prices"><span class="tb-price">' + money(o.price) + '</span>' + unit + before + till + '</div>' +
+            (o.needsApp ? '<div class="tb-needs">📱 Dette er et tilbud i ' + esc(o.needsApp) + (o.condition ? ' (' + esc(o.condition) + ')' : '') + '.</div>' +
+                (alt && alt !== o ? '<div class="tb-alt">👉 Du behøver ikke appen: <b>' + esc(alt.chain) + '</b> har ' + esc(alt.title) + ' til <b>' + money(alt.price) + '</b>' +
+                    ' (' + diffText(alt, o) + ', ' + when(alt) + ')' + (alt.nearestStore ? ' – ' + where(alt) : '') + '.</div>' : '')
+                : o.condition ? '<div class="tb-needs">⚠️ ' + esc(o.condition) + '</div>' : '') +
+            (o.nearestStore ? '<div class="tb-where">📍 Nærmeste: ' + where(o) + '</div>' : '') +
             (o.description ? '<div class="tb-desc k-muted">' + esc(o.description) + '</div>' : '') +
             (APP[o.chain] && state.apps.indexOf(APP[o.chain]) >= 0 ? '<div class="tb-app">📱 Åbn ' + APP_NAME[APP[o.chain]] + ' – der kan være en kupon oveni.</div>' : '') +
             shareBtn(o.title + ' – ' + money(o.price) + (o.unitPrice != null ? ' (' + money(o.unitPrice).replace(' kr', '') + ' ' + o.unitLabel + ')' : '') +
-                ' i ' + o.chain + (o.validTo ? ', til ' + day.format(new Date(o.validTo)) : '') + '.', q || lastQuery) +
+                ' i ' + o.chain + (o.validTo ? ', ' + when(o) : '') + (o.needsApp ? ' (kræver ' + o.needsApp + ')' : '') + '.', q || lastQuery) +
             '</div></div>';
     }
 
@@ -158,9 +183,14 @@
             // Flavoured kinds (kakaomælk when you searched mælk) are folded away at the end.
             var main = list.filter(function (o) { return !o.variant; }), variants = list.filter(function (o) { return o.variant; });
             if (!main.length) { main = list; variants = []; }
+            // User 2026-10-06: the shops' apps are too complicated for many - offers that need one are shown last, folded.
+            var appOnly = main.filter(function (o) { return o.needsApp; });
+            if (appOnly.length < main.length) main = main.filter(function (o) { return !o.needsApp; }); else appOnly = [];
             function draw() {
                 $('resultater').innerHTML = main.slice(0, shown).map(function (o) { return offerHtml(o, q); }).join('') +
                     (main.length > shown ? '<button class="k-btn k-btn-secondary tb-more" type="button">Vis ' + Math.min(25, main.length - shown) + ' mere</button>' : '') +
+                    (appOnly.length ? '<details class="tb-more-offers"><summary>📱 Kun med butikkens app (' + appOnly.length + ')</summary>' +
+                        appOnly.map(function (o) { return offerHtml(o, q, main[0]); }).join('') + '</details>' : '') +
                     (variants.length ? '<details class="tb-more-offers"><summary>Andre varianter (' + variants.length + '), fx ' + esc(variants[0].title) + '</summary>' +
                         variants.map(function (o) { return offerHtml(o, q); }).join('') + '</details>' : '');
                 var more = $('resultater').querySelector('.tb-more');
@@ -175,7 +205,37 @@
         $('gem').textContent = '✓ Gemt';
     });
 
-    // ---- Mine varer: the best offer per item, the 2 next on request
+    // ---- Mine varer, the simple answer (user 2026-10-06): where is it cheapest, which days, which store - without an
+    // app first; an app-only offer is mentioned only when it is cheaper; and the other shops, so you see what you save.
+    function summary(list, q) {
+        var main = list.filter(function (o) { return !o.variant; }); if (!main.length) main = list;
+        var free = main.filter(function (o) { return !o.needsApp; });
+        var best = free[0] || main[0];
+        var app = main.filter(function (o) { return o.needsApp && measure(o, best) < measure(best, best); })[0];
+        var seen = {}; seen[best.chain] = 1;
+        var others = free.filter(function (o) { if (seen[o.chain]) return false; seen[o.chain] = 1; return true; }).slice(0, 4);
+        var img = best.image ? '<img class="tb-img" src="' + esc(best.image) + '" alt="" loading="lazy" onerror="this.hidden=true">' : '';
+        return '<div class="tb-best">' + img + '<div class="tb-offer-body">' +
+            '<div class="tb-prices"><span class="tb-price">' + money(best.price) + '</span>' +
+            (best.unitPrice != null ? '<span class="tb-unit">' + kr.format(best.unitPrice) + ' ' + esc(best.unitLabel) + '</span>' : '') +
+            (best.normalPrice && best.normalPrice > best.price ? '<span class="tb-before">før ' + money(best.normalPrice) + '</span>' : '') + '</div>' +
+            '<div class="tb-best-where"><b>' + esc(best.chain) + '</b> – ' + esc(best.title) + (best.size ? ' · ' + esc(best.size) : '') + '</div>' +
+            (best.nearestStore ? '<div class="tb-where">📍 ' + where(best) + '</div>' : '') +
+            (best.validTo ? '<div class="tb-where">📅 ' + when(best).replace(/^./, function (c) { return c.toUpperCase(); }) + '</div>' : '') +
+            (best.needsApp ? '<div class="tb-needs">📱 Kræver ' + esc(best.needsApp) + ' – der er intet tilbud uden app lige nu</div>' : '') +
+            (best.condition && !best.needsApp ? '<div class="tb-needs">⚠️ ' + esc(best.condition) + '</div>' : '') +
+            '</div></div>' +
+            (app ? '<div class="tb-appline">📱 Med ' + esc(app.needsApp) + ': ' + money(app.price) + ' i ' + esc(app.chain) +
+                ' (' + diffText(app, best) + ', ' + when(app) + (app.condition ? ', ' + esc(app.condition) : '') + ')</div>' : '') +
+            (others.length ? '<div class="tb-others"><b>Andre steder:</b> ' + others.map(function (o) {
+                return esc(o.chain) + ' ' + money(o.price) + ' <span class="k-muted">(' + diffText(o, best) + ')</span>';
+            }).join(' · ') + '</div>' : '<div class="tb-others k-muted">Ingen andre butikker har den på tilbud lige nu.</div>') +
+            '<div class="tb-row">' + shareBtn('Billigst ' + q + ': ' + best.title + ' – ' + money(best.price) + ' i ' + best.chain +
+                (best.nearestStore ? ', ' + best.nearestStore : '') + (best.validTo ? ', ' + when(best) : '') + '.', q) +
+            '<button class="tb-share tb-all" type="button" data-q="' + esc(q) + '">Se alle ' + list.length + ' tilbud</button></div>';
+    }
+
+    // ---- Mine varer: the best offer per item
     function refresh() {
         var box = $('mine-liste');
         $('mine-tom').hidden = state.mine.length > 0;
@@ -198,13 +258,7 @@
                 if (!body) return;
                 if (!list.length) { body.textContent = 'Ikke på tilbud i denne uge.'; return; }
                 body.classList.remove('k-muted');
-                var rest = list.length - 1;
-                var oh = function (o) { return offerHtml(o, job[0]); };
-                body.innerHTML = oh(list[0]) + (rest > 0
-                    ? '<details class="tb-more-offers"><summary>' + (rest > 5 ? 'De 5 næste (af ' + rest + ' andre)' : rest + ' andre tilbud') + '</summary>' +
-                      list.slice(1, 6).map(oh).join('') +
-                      (rest > 5 ? '<button class="k-btn k-btn-secondary tb-all" type="button" data-q="' + esc(job[0]) + '">Se alle ' + list.length + ' tilbud</button>' : '') +
-                      '</details>' : '');
+                body.innerHTML = summary(list, job[0]);
                 var all = body.querySelector('.tb-all');
                 if (all) all.addEventListener('click', function () { $('q').value = all.dataset.q; search(all.dataset.q); $('soeg-kort').scrollIntoView({ behavior: 'smooth' }); });
             }).catch(function (err) { if (body) body.textContent = err.message; }).then(next);

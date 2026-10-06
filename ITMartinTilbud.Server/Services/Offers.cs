@@ -8,7 +8,8 @@ namespace ITMartinTilbud.Server.Services;
 public sealed record Offer(
     string Chain, string Title, string? Description, decimal Price, decimal? NormalPrice,
     decimal? UnitPrice, string? UnitLabel, string? Size, DateTimeOffset? ValidFrom, DateTimeOffset? ValidTo,
-    string? Image, string? Logo, bool Variant = false);
+    string? Image, string? Logo, bool Variant = false,
+    string? NeedsApp = null, string? Condition = null, string? DealerId = null, string? NearestStore = null, double? NearestKm = null);
 
 // Weekly offers from Tjek (the company behind eTilbudsavis): one search covers Lidl, Netto, REMA 1000, føtex, Bilka,
 // Kvickly, SuperBrugsen, MENY, Løvbjerg, SPAR, 365discount and more. No key. Unofficial API - ask Tjek before a wide launch.
@@ -32,6 +33,7 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
         {
             using var doc = JsonDocument.Parse(await http.GetStringAsync(url, ct));
             list = Relevant(Parse(doc.RootElement, DateTimeOffset.UtcNow), query);
+            list = await WithNearestStoreAsync(list, lat, lng, ct);
         }
         catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException)
         {
@@ -63,15 +65,94 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
             var price = Num(o, "pricing", "price");
             if (price is not > 0) continue;
             var (unitPrice, unitLabel, size) = Unit(o, price.Value);
+            var text = (Str(o, "heading") ?? "") + " " + (Str(o, "description") ?? "");
+            var from = Date(o, "run_from");
+            if (OnlyDay(text, from ?? now) is { } day) { from = day; till = day.AddDays(1).AddSeconds(-1); }
+            if (till is { } t2 && t2 < now) continue;
             list.Add(new Offer(chain, Str(o, "heading") ?? "", Str(o, "description"), price.Value, Num(o, "pricing", "pre_price"),
-                unitPrice, unitLabel, size, Date(o, "run_from"), till, Str(o, "images", "view") ?? Str(o, "images", "thumb"),
-                Str(o, "dealer", "logo")));
+                unitPrice, unitLabel, size, from, till, Str(o, "images", "view") ?? Str(o, "images", "thumb"),
+                Str(o, "dealer", "logo"), NeedsApp: AppNeeded(text, chain), Condition: ConditionOf(text), DealerId: Str(o, "dealer_id")));
         }
         // Only like with like: the most common unit first (kr/kg for coffee, kr/l for milk), cheapest first within it;
         // then the other units, and offers without a size last. Capsules at 3 kr/stk must not beat coffee at 60 kr/kg.
         var rank = list.Where(x => x.UnitLabel is not null).GroupBy(x => x.UnitLabel!)
             .OrderByDescending(g => g.Count()).Select((g, i) => (g.Key, i)).ToDictionary(t => t.Key, t => t.i);
         return list.OrderBy(x => x.UnitLabel is { } u ? rank[u] : int.MaxValue).ThenBy(x => x.UnitPrice ?? x.Price).ToList();
+    }
+
+    // Offers that need the shop's own app (user 2026-10-06: "too complicated for a lot of people") - as the leaflet words it:
+    // "Gælder kun med Netto+ appen", "plus pris … føtex plus appen", "Kuponpris … Lidl Plus", "medlemspris" (Coop).
+    internal static string? AppNeeded(string text, string chain)
+    {
+        var t = text.ToLowerInvariant();
+        var m = System.Text.RegularExpressions.Regex.Match(t, @"kun med ([a-zæøå0-9+ ]{2,25}?app(?:en)?)\b");
+        if (m.Success) return Cap(m.Groups[1].Value.Trim());
+        if (t.Contains("lidl plus") || t.Contains("kuponpris")) return "Lidl Plus-appen";
+        if (t.Contains("medlemspris") || t.Contains("coop app") || t.Contains("coop-app") || t.Contains("kun for medlemmer")) return "Coop-appen (medlem)";
+        if (t.Contains("plus pris") || t.Contains("+ pris") || t.Contains("+pris")) return chain + "s app";
+        return null;
+    }
+
+    private static string Cap(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
+
+    // "Kuponpris ved køb på min. 200 kr." -> "ved køb for min. 200 kr"
+    internal static string? ConditionOf(string text)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"(?i)ved køb (?:på|for|af) (?:min\.?|minimum) ?(\d+) ?kr");
+        return m.Success ? $"kræver køb for min. {m.Groups[1].Value} kr" : null;
+    }
+
+    // "Fredagsdeal – Gælder kun 9. okt." -> only that day, though the leaflet runs all week.
+    internal static DateTimeOffset? OnlyDay(string text, DateTimeOffset reference)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"(?i)gælder kun (\d{1,2})\. ?(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)");
+        if (!m.Success) return null;
+        var month = Array.IndexOf(new[] { "jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec" }, m.Groups[2].Value.ToLowerInvariant()) + 1;
+        var dk = TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Copenhagen");
+        var year = reference.Year + (month < reference.Month - 6 ? 1 : 0);
+        if (!DateTime.TryParse($"{year}-{month:00}-{int.Parse(m.Groups[1].Value):00}", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) return null;
+        return new DateTimeOffset(d, dk.GetUtcOffset(d));
+    }
+
+    // Where: the nearest store of each chain in the answer (Tjek /v2/stores), cached a day per chain and ~1 km square.
+    private async Task<List<Offer>> WithNearestStoreAsync(List<Offer> list, double lat, double lng, CancellationToken ct)
+    {
+        var near = new Dictionary<string, (string Name, double Km)?>();
+        foreach (var id in list.Select(o => o.DealerId).Where(d => d is not null).Distinct())
+            near[id!] = await NearestAsync(id!, lat, lng, ct);
+        return list.Select(o => o.DealerId is { } d && near.TryGetValue(d, out var n) && n is { } v ? o with { NearestStore = v.Name, NearestKm = v.Km } : o).ToList();
+    }
+
+    private async Task<(string Name, double Km)?> NearestAsync(string dealerId, double lat, double lng, CancellationToken ct)
+    {
+        var key = $"s|{dealerId}|{lat:F2}|{lng:F2}";
+        if (cache.TryGetValue(key, out (string, double)? hit)) return hit;
+        (string, double)? result = null;
+        try
+        {
+            var url = $"https://squid-api.tjek.com/v2/stores?dealer_ids={Uri.EscapeDataString(dealerId)}&r_lat={lat.ToString(CultureInfo.InvariantCulture)}" +
+                      $"&r_lng={lng.ToString(CultureInfo.InvariantCulture)}&r_radius=50000&order_by=distance&limit=1";
+            using var doc = JsonDocument.Parse(await http.GetStringAsync(url, ct));
+            if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+            {
+                var s = doc.RootElement[0];
+                var slat = s.GetProperty("latitude").GetDouble(); var slng = s.GetProperty("longitude").GetDouble();
+                result = ($"{Str(s, "street")}, {Str(s, "zip_code")} {Str(s, "city")}".Trim(' ', ','), Math.Round(Km(lat, lng, slat, slng), 1));
+            }
+        }
+        catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException or KeyNotFoundException or InvalidOperationException)
+        {
+            log.LogInformation(e, "Nearest store lookup failed for {Dealer}", dealerId);
+        }
+        cache.Set(key, result, TimeSpan.FromDays(1));
+        return result;
+    }
+
+    private static double Km(double lat1, double lng1, double lat2, double lng2)
+    {
+        double R(double d) => d * Math.PI / 180;
+        var a = Math.Pow(Math.Sin(R(lat2 - lat1) / 2), 2) + Math.Cos(R(lat1)) * Math.Cos(R(lat2)) * Math.Pow(Math.Sin(R(lng2 - lng1) / 2), 2);
+        return 6371 * 2 * Math.Asin(Math.Sqrt(a));
     }
 
     // Tjek's search is loose ("smør" also brought potatoes): keep offers whose title or text has every searched word;

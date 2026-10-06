@@ -39,3 +39,10 @@
 /* Chosen = dark with white text AND a tick - never colour alone. */
 .tb-chip--on { background: #1f2b28; color: #fff; border-color: #1f2b28; }
 .tb-chip--on::before { content: "✓ "; }
+.tb-needs { margin-top: 4px; font-weight: 700; color: #3b2a00; background: #fff6d6; border: 1px solid #e8d48a; border-radius: 8px; padding: 4px 8px; }
+.tb-alt { margin-top: 4px; font-weight: 600; color: #11331f; background: #e9f6ee; border: 1px solid #a9d6b9; border-radius: 8px; padding: 4px 8px; }
+.tb-where { margin-top: 2px; color: #1f2b28; }
+.tb-best { display: flex; gap: 12px; padding: 4px 0 6px; }
+.tb-best-where { margin: 4px 0 2px; font-size: 1.05rem; }
+.tb-appline { margin: 6px 0 0; padding: 6px 8px; background: #fff6d6; border: 1px solid #e8d48a; border-radius: 8px; color: #3b2a00; }
+.tb-others { margin: 6px 0; line-height: 1.5; }
