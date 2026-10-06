@@ -66,6 +66,8 @@
         }).catch(function () { placeError('Kunne ikke slå postnummeret op. Prøv igen om lidt.'); });
     });
     $('gps').addEventListener('click', function () {
+        // Browsers give the location only on a secure (https) address - on http://10.0.0.200:9150 it is always "no".
+        if (!window.isSecureContext) { placeError('Placering virker kun på den sikre adresse (https://tilbud.itmartin.dk). Skriv dit postnummer i stedet.'); return; }
         if (!navigator.geolocation) { placeError('Din browser kan ikke finde din placering. Skriv dit postnummer i stedet.'); return; }
         placeError('');
         navigator.geolocation.getCurrentPosition(function (pos) {
@@ -75,7 +77,7 @@
             // Facebook/Messenger/Instagram's own browser blocks location - say so instead of failing silently.
             var inApp = /FBAN|FBAV|Instagram|Messenger/i.test(navigator.userAgent);
             placeError(inApp ? 'Facebooks egen browser giver ikke lov til placering. Tryk ⋯ og vælg "Åbn i Chrome" – eller skriv dit postnummer.'
-                : 'Du sagde nej til placering (eller den kunne ikke findes). Skriv dit postnummer i stedet.');
+                : 'Telefonen gav ikke din placering. Tjek at Placering er slået til for browseren (Indstillinger → Apps → Chrome → Tilladelser → Placering) – eller skriv dit postnummer i stedet.');
         }, { timeout: 15000, maximumAge: 600000 });
     });
     $('km').addEventListener('change', function () { state.km = +$('km').value; save(); showPlace(); refresh(); });
