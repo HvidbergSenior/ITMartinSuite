@@ -464,6 +464,7 @@ app.Use(async (ctx, next) =>
     }
 
     mime.TryGetContentType(realFile.FullName, out var contentType);
+    ctx.Response.Headers.CacheControl = "private, max-age=3600";   // never in Cloudflare's shared cache (see below)
     var result = Results.File(realFile.FullName, contentType ?? "application/octet-stream", enableRangeProcessing: true);
     await result.ExecuteAsync(ctx);
 });
@@ -477,6 +478,9 @@ foreach (var g in galleries)
             FileProvider        = new PhysicalFileProvider(g.Path),
             RequestPath         = $"/libraryfiles/{g.Slug}",
             ContentTypeProvider = mime,
+            // "private": Cloudflare cached these for 4 h and then served them to ANYONE, password or not, and kept
+            // serving an old song after it was replaced (2026-10-06). Browsers may still cache; links carry ?v=.
+            OnPrepareResponse   = sf => sf.Context.Response.Headers.CacheControl = "private, max-age=3600",
         });
 }
 
@@ -1252,7 +1256,9 @@ static bool    IsSafe(string p, string r)    => Path.GetFullPath(p).StartsWith(P
 static bool    IsSameDir(string a, string b) => string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 static string  Rel(string abs, string r)     => Path.GetRelativePath(r, abs).Replace("\\", "/");
 static string  NormalizeRel(string rel)      => rel == "." ? "" : rel;
-static string  Web(string abs, string r, string slug) => $"/libraryfiles/{slug}/" + Rel(abs, r);
+// ?v=<last write>: a replaced file (a new take of a song) gets a new address, so no cache serves the old one.
+static string  Web(string abs, string r, string slug) =>
+    $"/libraryfiles/{slug}/" + Rel(abs, r) + (File.Exists(abs) ? "?v=" + File.GetLastWriteTimeUtc(abs).Ticks : "");
 static string  AudioCover(string f, string r, string slug) => $"/api/embedded-cover?gallery={slug}&path={Uri.EscapeDataString(Rel(f, r))}";
 
 // Samlinger entries (Person/Trip/Yearbook) are SmartFolders' own real copies
@@ -1272,7 +1278,7 @@ static string? GalleriThumb(string f, string r, string slug)
     var t = Path.Combine(r, "_Galleri", "thumbs", Path.GetDirectoryName(rel) ?? "", Path.GetFileNameWithoutExtension(f) + ".jpg");
     // Versioned by mtime: Cloudflare caches thumbnails for hours, so a regenerated
     // (e.g. un-rotated) thumbnail would otherwise keep showing the old one.
-    return File.Exists(t) ? Web(t, r, slug) + "?v=" + File.GetLastWriteTimeUtc(t).Ticks : null;
+    return File.Exists(t) ? Web(t, r, slug) : null;   // Web() adds ?v= itself now
 }
 
 // The still and its Live Photo motion clip are exported into separate
