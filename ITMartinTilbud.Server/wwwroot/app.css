@@ -52,3 +52,7 @@
 .tb-day-name { font-weight: 800; margin-bottom: 2px; }
 .tb-label { display: block; margin: 8px 0; font-weight: 600; }
 .tb-wide { width: 100%; box-sizing: border-box; }
+.tb-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: .95rem; }
+.tb-table th, .tb-table td { text-align: left; padding: 6px 6px; border-bottom: 1px solid #e3e6e5; vertical-align: top; }
+.tb-table th { font-weight: 800; color: #111; }
+#gap-tabel { overflow-x: auto; }

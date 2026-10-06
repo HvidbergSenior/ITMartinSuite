@@ -9,7 +9,11 @@ public sealed record Offer(
     string Chain, string Title, string? Description, decimal Price, decimal? NormalPrice,
     decimal? UnitPrice, string? UnitLabel, string? Size, DateTimeOffset? ValidFrom, DateTimeOffset? ValidTo,
     string? Image, string? Logo, bool Variant = false,
-    string? NeedsApp = null, string? Condition = null, string? DealerId = null, string? NearestStore = null, double? NearestKm = null);
+    string? NeedsApp = null, string? Condition = null, string? DealerId = null, string? NearestStore = null, double? NearestKm = null,
+    string? AppName = null, decimal? AppPrice = null, decimal? NoAppPrice = null);
+// NeedsApp: the price shown is only for app users (Lidl Plus coupons, often). AppName + AppPrice: the price shown is for
+// EVERYONE and the app gives this lower price on top (Netto "+ PRIS", føtex/Bilka "plus pris", Coop/MENY "medlemspris").
+// NoAppPrice: what you pay without the app, when the shown price is an app price and the leaflet says the normal one.
 
 // Weekly offers from Tjek (the company behind eTilbudsavis): one search covers Lidl, Netto, REMA 1000, føtex, Bilka,
 // Kvickly, SuperBrugsen, MENY, Løvbjerg, SPAR, 365discount and more. No key. Unofficial API - ask Tjek before a wide launch.
@@ -71,7 +75,10 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
             if (till is { } t2 && t2 < now) continue;
             list.Add(new Offer(chain, Str(o, "heading") ?? "", Str(o, "description"), price.Value, Num(o, "pricing", "pre_price"),
                 unitPrice, unitLabel, size, from, till, Str(o, "images", "view") ?? Str(o, "images", "thumb"),
-                Str(o, "dealer", "logo"), NeedsApp: AppNeeded(text, chain), Condition: ConditionOf(text), DealerId: Str(o, "dealer_id")));
+                Str(o, "dealer", "logo"), Condition: ConditionOf(text), DealerId: Str(o, "dealer_id")) is var off
+                && AppInfo(text, chain, price.Value, unitPrice) is var (app, only, appPrice, noApp) && app is not null
+                ? off with { AppName = app, NeedsApp = only ? app : null, AppPrice = appPrice, NoAppPrice = noApp }
+                : off);
         }
         // Only like with like: the most common unit first (kr/kg for coffee, kr/l for milk), cheapest first within it;
         // then the other units, and offers without a size last. Capsules at 3 kr/stk must not beat coffee at 60 kr/kg.
@@ -82,6 +89,45 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
 
     // Offers that need the shop's own app (user 2026-10-06: "too complicated for a lot of people") - as the leaflet words it:
     // "Gælder kun med Netto+ appen", "plus pris … føtex plus appen", "Kuponpris … Lidl Plus", "medlemspris" (Coop).
+    // What the app does to this offer. Read from how the leaflets print it (checked on all week-41 leaflets, 2026-10-06):
+    //   Coop  "Pris ikke-medlem 79,95. Medlemspris 55,97."      Netto "+ PRIS 20:"     Bilka "PLUS PRIS FRIT VALG 89.-"
+    //   two unit prices "Pr. kg max. 57,69 plus pris Pr. kg max 38,46" - the normal one first, then the app one.
+    // Lidl's "Lidl Plus"/"Kuponpris": the price shown IS the app price, the normal one is usually not printed.
+    internal static (string? App, bool Only, decimal? AppPrice, decimal? NoAppPrice) AppInfo(string text, string chain, decimal price, decimal? unitPrice)
+    {
+        var app = AppNeeded(text, chain);
+        if (app is null) return (null, false, null, null);
+        static System.Text.RegularExpressions.Match rx(string t, string p) => System.Text.RegularExpressions.Regex.Match(t, p);
+        static decimal? Num(string s) => decimal.TryParse(s.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out var d) && d > 0 ? d : null;
+        bool Same(decimal a, decimal b) => Math.Abs(a - b) <= Math.Max(0.5m, b * 0.02m);
+
+        var notMember = rx(text, @"(?i)pris ikke-medlem\.?\s*(\d+(?:[.,]\d+)?)");
+        var member = rx(text, @"(?i)medlemspris\.?\s*(\d+(?:[.,]\d+)?)");
+        var nm = notMember.Success ? Num(notMember.Groups[1].Value) : null;
+        var mp = member.Success ? Num(member.Groups[1].Value) : null;
+        if (nm is { } n && mp is { } m && m < n)
+            return Same(price, m) ? (app, true, null, n) : (app, false, m, null);
+
+        var explicitApp = rx(text, @"(?i)(?:\+ ?pris|plus ?pris)(?: frit valg)?\s*(\d+(?:,\d+)?)\s*(?:\.-|,-|[:\-]|kr)");
+        if (explicitApp.Success && Num(explicitApp.Groups[1].Value) is { } ap && ap < price) return (app, false, ap, null);
+
+        var units = System.Text.RegularExpressions.Regex.Matches(text,
+                @"(?i)(?:pr\.?\s*(?:kg|l|liter|ltr)\.?|literpris|kg ?pris)\s*(?:max\.?|maks\.?)?\s*(\d+[.,]\d{2})")
+            .Select(m => Num(m.Groups[1].Value)).Where(v => v is not null).Select(v => v!.Value).Distinct().Take(2).ToList();
+        if (units.Count == 2)
+        {
+            var (hi, lo) = (Math.Max(units[0], units[1]), Math.Min(units[0], units[1]));
+            // Which of the two is the price shown? The leaflets print the normal one first. Our own per-kg price only decides
+            // when it matches one of them closely - for "900-2500 g" packs it is computed on another size and misleads.
+            bool Near(decimal a, decimal b) => Math.Abs(a - b) <= b * 0.03m;
+            var shownIsNormal = unitPrice is { } u && Near(u, hi) ? true : unitPrice is { } u2 && Near(u2, lo) ? false : units[0] == hi;
+            return shownIsNormal ? (app, false, Math.Round(price * lo / hi, 2), null) : (app, true, null, Math.Round(price * hi / lo, 2));
+        }
+        // Nothing to read the difference from: Lidl's coupon prices are app prices; the others' plus prices come on top.
+        var lidlish = chain.Equals("Lidl", StringComparison.OrdinalIgnoreCase) || text.Contains("Kuponpris", StringComparison.OrdinalIgnoreCase);
+        return (app, lidlish, null, null);
+    }
+
     internal static string? AppNeeded(string text, string chain)
     {
         var t = text.ToLowerInvariant();

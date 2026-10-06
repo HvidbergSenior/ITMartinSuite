@@ -121,6 +121,8 @@
                 (alt && alt !== o ? '<div class="tb-alt">👉 Du behøver ikke appen: <b>' + esc(alt.chain) + '</b> har ' + esc(alt.title) + ' til <b>' + money(alt.price) + '</b>' +
                     ' (' + diffText(alt, o) + ', ' + when(alt) + ')' + (alt.nearestStore ? ' – ' + where(alt) : '') + '.</div>' : '')
                 : o.condition ? '<div class="tb-needs">⚠️ ' + esc(o.condition) + '</div>' : '') +
+            (!o.needsApp && o.appName && o.appPrice ? '<div class="tb-where">Prisen gælder for alle. <span class="k-muted">Med ' + esc(o.appName) + ': ' + money(o.appPrice) + ' (−' + money(o.price - o.appPrice) + ')</span></div>' : '') +
+            (o.needsApp && o.noAppPrice ? '<div class="tb-where">Uden appen: ' + money(o.noAppPrice) + '</div>' : '') +
             (o.nearestStore ? '<div class="tb-where">📍 Nærmeste: ' + where(o) + '</div>' : '') +
             (o.description ? '<div class="tb-desc k-muted">' + esc(o.description) + '</div>' : '') +
             (APP[o.chain] && state.apps.indexOf(APP[o.chain]) >= 0 ? '<div class="tb-app">📱 Åbn ' + APP_NAME[APP[o.chain]] + ' – der kan være en kupon oveni.</div>' : '') +
@@ -360,6 +362,33 @@
     $('mf').addEventListener('input', drawWaste);
     $('mf-sort').addEventListener('change', drawWaste);
     fetch('/api/madspild').then(function (r) { $('madspild-kort').hidden = r.status === 404; }).catch(function () { });
+
+    // ---- App-kløften: per chain this week - counted in the chains' own leaflets
+    function loadGap() {
+        var p = state.place || { lat: 56.16, lng: 10.2 };
+        fetch('/api/appgap?lat=' + p.lat + '&lng=' + p.lng).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.fejl || 'Fejl'); return j; }); })
+            .then(function (list) {
+                var rows = list.filter(function (g) { return g.offers >= 20; });
+                var withApp = rows.filter(function (g) { return g.appOffers > 0; });
+                var only = rows.filter(function (g) { return g.appOnly > 0; });
+                $('gap-lead').textContent = !withApp.length ? 'Ingen af kæderne har app-tilbud i denne uge.'
+                    : withApp.length + ' af ' + rows.length + ' kæder giver ekstra rabat med deres app i denne uge – priserne i avisen gælder ellers for alle. ' +
+                      (only.length ? 'Priser der KUN gælder med appen: ' + only.map(function (g) { return g.chain + ' (' + g.appOnly + ')'; }).join(', ') + '.' : 'Ingen priser gælder kun med appen.');
+                $('gap-tabel').innerHTML = '<table class="tb-table"><thead><tr><th>Kæde</th><th>Tilbud</th><th>Med app</th><th>Kun med app</th><th>Mere uden app</th></tr></thead><tbody>' +
+                    rows.map(function (g) {
+                        var extra = g.priced ? 'i snit ' + money(g.extraAverage) + ' <span class="k-muted">(' + g.priced + ' varer, i alt ' + money(g.extraTotal) + ')</span>'
+                            : g.appOffers ? '<span class="k-muted">står ikke i avisen</span>' : '–';
+                        return '<tr><td><b>' + esc(g.chain) + '</b></td><td>' + g.offers + '</td><td>' + g.appOffers +
+                            (g.appOffers ? ' <span class="k-muted">(' + Math.round(100 * g.appOffers / g.offers) + ' %)</span>' : '') + '</td><td>' + g.appOnly + '</td><td>' + extra + '</td></tr>';
+                    }).join('') + '</tbody></table>' +
+                    (rows.some(function (g) { return g.examples.length; }) ? '<details class="tb-more-offers"><summary>Eksempler – største forskel</summary><ul class="tb-list">' +
+                        rows.reduce(function (a, g) { return a.concat(g.examples.map(function (e) { return { c: g.chain, e: e }; })); }, [])
+                            .sort(function (a, b) { return (b.e.withoutApp - b.e.withApp) - (a.e.withoutApp - a.e.withApp); }).slice(0, 8)
+                            .map(function (x) { return '<li><b>' + esc(x.c) + '</b>: ' + esc(x.e.title) + ' – ' + money(x.e.withoutApp) + ' uden app, ' + money(x.e.withApp) + ' med</li>'; }).join('') +
+                        '</ul></details>' : '');
+            }).catch(function (err) { $('gap-lead').textContent = err.message; });
+    }
+    loadGap();
 
     fetch('/api/faste').then(function (r) { return r.json(); }).then(function (d) { fixed = d || []; refresh(); }).catch(function () { });
     // Order (user 2026-10-06): Mine varer, search, week, madspild, place, info. The first time - no place yet -

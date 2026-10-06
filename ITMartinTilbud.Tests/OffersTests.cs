@@ -89,6 +89,40 @@ public class OffersTests
     }
 
     [Test]
+    public void App_prices_as_the_week_41_leaflets_print_them()
+    {
+        // Netto: the price shown (24) is for everyone, the app gives 20.
+        TjekOffers.AppInfo("Riberhus skiveost 200-240 g. Pr. kg max. 120,00 + PRIS 20: Pr. kg max. 100,00 Gælder kun med Netto+ appen", "Netto", 24, 120)
+            .Should().Be(("Netto+ appen", false, 20m, (decimal?)null));
+        // føtex: two kg prices, normal first - 15 kr for everyone, about 10 kr with the app.
+        TjekOffers.AppInfo("Pågen Gifflar 280-800 g. Pr. kg max. 57,69 plus pris Pr. kg max 38,46 Gælder kun med føtex plus appen", "føtex", 15, 57.69m)
+            .Should().Be(("Føtex plus appen", false, 10m, (decimal?)null));
+        // Bilka: explicit plus price.
+        TjekOffers.AppInfo("Hakket oksekød 900-2500 g. Pr. kg max. 116.67 FRIT VALG PLUS PRIS FRIT VALG 89.- Pr. kg max. 98.89 GÆLDER KUN MED BILKA PLUS APPEN", "Bilka", 105, null)
+            .Should().Be(("Bilka plus appen", false, 89m, (decimal?)null));
+        // Netto, a range of sizes: our per-litre price (on the big bottle) must not decide - the printed order does.
+        TjekOffers.AppInfo("Sierra Tequila 50-70 cl. Pr. liter max. 218,00 + PRIS Pr. liter max 198,00 Gælder kun med Netto+ appen", "Netto", 109, 155.71m)
+            .Should().Be(("Netto+ appen", false, 99m, (decimal?)null));
+        TjekOffers.AppInfo("Hakket oksekød 900-2500 g. Pr. kg max. 116.67 PLUS PRIS FRIT VALG 89.- Pr. kg max. 98.89", "Bilka", 105, 42m)
+            .Should().Be(("Bilkas app", false, 89m, (decimal?)null));
+        // Kvickly: member and non-member price both printed.
+        TjekOffers.AppInfo("Hat. Pris ikke-medlem 79,95. Medlemspris 55,97.", "Kvickly", 79.95m, null)
+            .Should().Be(("Coop-appen (medlem)", false, 55.97m, (decimal?)null));
+        // Lidl coupon: the price shown is the app price, the normal one is not printed.
+        TjekOffers.AppInfo("MATILDE Kakaoskummetmælk 1 l. Pr. l 7,00 Kuponpris ved køb på min. 200 kr. Lidl Plus", "Lidl", 7, 7)
+            .Should().Be(("Lidl Plus-appen", true, (decimal?)null, (decimal?)null));
+    }
+
+    [Test]
+    public void App_gap_adds_up_what_you_pay_extra_without_the_app()
+    {
+        Offer Of(decimal price, decimal? appPrice, string? app) => new("Netto", "x", null, price, null, null, null, null, null, null, null, null, AppName: app, AppPrice: appPrice);
+        var g = AppGap.Summarise("Netto", [Of(24, 20, "Netto+ appen"), Of(109, 99, "Netto+ appen"), Of(10, null, null), Of(50, null, "Netto+ appen")], "uge 41");
+        g.Offers.Should().Be(4); g.AppOffers.Should().Be(3); g.Priced.Should().Be(2);
+        g.ExtraTotal.Should().Be(14m); g.ExtraAverage.Should().Be(7m);
+    }
+
+    [Test]
     public void A_friday_deal_counts_only_on_its_day()
     {
         var d = TjekOffers.OnlyDay("Fredagsdeal Gælder kun 9. okt.", new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));

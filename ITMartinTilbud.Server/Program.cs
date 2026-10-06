@@ -36,6 +36,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<FixedDeals>();
 const string UserAgent = "ITMartinTilbud/1.0 (ITMartin@Mensa.dk)";
 builder.Services.AddHttpClient<TjekOffers>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
+builder.Services.AddHttpClient<AppGap>(c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
 builder.Services.AddHttpClient<SallingFoodWaste>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
 builder.Services.AddHttpClient<Places>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
 
@@ -80,6 +81,14 @@ app.MapPost("/api/faste", (FixedDealRequest r, HttpContext ctx, FixedDeals deals
 });
 app.MapDelete("/api/faste/{id}", (string id, HttpContext ctx, FixedDeals deals) =>
     !IsAdmin(ctx) ? Results.StatusCode(401) : deals.Remove(id) ? Results.Ok() : Results.NotFound());
+
+// App-kløften: per chain this week, how many offers involve the app and what you pay extra without it.
+app.MapGet("/api/appgap", async (double? lat, double? lng, AppGap gap, CancellationToken ct) =>
+{
+    try { return Results.Ok(await gap.ThisWeekAsync(lat ?? 56.16, lng ?? 10.20, ct)); }
+    catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+    { return Results.Json(new { fejl = "Tilbudsaviserne svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
+});
 
 app.MapGet("/api/sted", async (string? postnr, Places places, CancellationToken ct) =>
     await places.FromPostcodeAsync(postnr ?? "", ct) is { } p ? Results.Ok(p) : Results.NotFound(new { fejl = "Det postnummer kender vi ikke." }));
