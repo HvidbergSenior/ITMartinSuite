@@ -1,4 +1,4 @@
-using ITMartin.Shared.UI.Kolibri;
+﻿using ITMartin.Shared.UI.Kolibri;
 using ITMartinTilbud.Server;
 using ITMartinTilbud.Server.Services;
 
@@ -62,6 +62,7 @@ app.MapGet("/api/madspild", async (double? lat, double? lng, int? km, SallingFoo
     if (lat is null || lng is null) return Results.BadRequest(new { fejl = "Vælg først hvor du bor." });
     try { return Results.Ok(await fw.NearAsync(lat.Value, lng.Value, km ?? 5, ct)); }
     catch (OffersUnavailableException) { return Results.Json(new { fejl = "Salling svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
+    catch (FoodWasteQuotaException) { return Results.Json(new { fejl = "Madspild er brugt op for i dag (Salling giver 100 opslag om dagen). Prøv igen i morgen." }, statusCode: 429); }
 });
 
 app.MapGet("/api/sted", async (string? postnr, Places places, CancellationToken ct) =>
