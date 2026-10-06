@@ -92,7 +92,7 @@
         var unit = o.unitPrice != null ? '<span class="tb-unit">' + money(o.unitPrice).replace(' kr', '') + ' ' + esc(o.unitLabel) + '</span>' : '';
         var before = o.normalPrice && o.normalPrice > o.price ? '<span class="tb-before">før ' + money(o.normalPrice) + '</span>' : '';
         var till = o.validTo ? '<span class="k-muted">til ' + day.format(new Date(o.validTo)) + '</span>' : '';
-        var img = o.image ? '<img class="tb-img" src="' + esc(o.image) + '" alt="" loading="lazy">' : '<div class="tb-img"></div>';
+        var img = o.image ? '<img class="tb-img" src="' + esc(o.image) + '" alt="" loading="lazy" onerror="this.hidden=true">' : '<div class="tb-img"></div>';
         return '<div class="tb-offer">' + img + '<div class="tb-offer-body">' +
             '<div class="tb-chain">' + esc(o.chain) + '</div>' +
             '<div class="tb-title">' + esc(o.title) + (o.size ? ' <span class="k-muted">· ' + esc(o.size) + '</span>' : '') + '</div>' +
@@ -214,8 +214,10 @@
 
     // ---- madspild (Salling): the box shows only when the server has a key (404 = not switched on)
     var waste = null;
+    // The server searches 5, 10 or 20 km for madspild (Salling's 100 requests a day) - say what it really searched.
+    function wasteKm() { return state.km <= 5 ? 5 : state.km <= 10 ? 10 : 20; }
     function wasteHtml(c) {
-        var img = c.image ? '<img class="tb-img" src="' + esc(c.image) + '" alt="" loading="lazy">' : '<div class="tb-img"></div>';
+        var img = c.image ? '<img class="tb-img" src="' + esc(c.image) + '" alt="" loading="lazy" onerror="this.hidden=true">' : '<div class="tb-img"></div>';
         var pct = c.percentDiscount ? '<span class="tb-unit">−' + Math.round(c.percentDiscount) + ' %</span>' : '';
         var before = c.originalPrice ? '<span class="tb-before">før ' + money(c.originalPrice) + '</span>' : '';
         var stock = c.stock ? '<span class="k-muted">' + c.stock + ' ' + esc(c.stockUnit || '') + ' tilbage</span>' : '';
@@ -230,14 +232,14 @@
         if (!waste) return;
         var f = $('mf').value.trim().toLowerCase();
         var list = f ? waste.filter(function (c) { return (c.title + ' ' + c.store).toLowerCase().indexOf(f) >= 0; }) : waste;
-        $('mf-info').textContent = list.length + ' varer sat ned' + (f ? ' med "' + f + '"' : '') + ' inden for ' + Math.min(state.km, 20) + ' km.';
+        $('mf-info').textContent = list.length + ' varer sat ned' + (f ? ' med "' + f + '"' : '') + ' inden for ' + wasteKm() + ' km.';
         $('mf-liste').innerHTML = list.slice(0, 40).map(wasteHtml).join('');
     }
     function loadWaste() {
         if (!state.place) { $('mf-info').textContent = 'Vælg først hvor du handler.'; return; }
         $('mf-info').textContent = 'Henter madspild …';
         var p = state.place;
-        fetch('/api/madspild?lat=' + p.lat + '&lng=' + p.lng + '&km=' + Math.min(state.km, 20)).then(function (r) {
+        fetch('/api/madspild?lat=' + p.lat + '&lng=' + p.lng + '&km=' + wasteKm()).then(function (r) {
             if (r.status === 404) { $('madspild-kort').hidden = true; return null; }
             return r.json().then(function (j) { if (!r.ok) throw new Error(j.fejl || 'Fejl'); return j; });
         }).then(function (list) { if (list) { waste = list; drawWaste(); } })
