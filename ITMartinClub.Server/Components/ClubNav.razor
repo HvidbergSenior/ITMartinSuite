@@ -40,6 +40,14 @@ else if (ClubGroups.IsBoard(Slug))
         <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
     </div>
 }
+else if (ClubGroups.IsTasksOnly(Slug))
+{
+    <!-- Bogshoppen (2026-10-06): only tasks and addresses - overview and who does what. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">✅ Opgaver</a>
+        <a class="club-mode-item @(Active == "adresser" ? "active" : "")" href="/g/@Slug/adresser">📍 Adresser</a>
+    </div>
+}
 else if (Slug == "hvidberg")
 {
     <!-- Familien Hvidberg wants a stripped-down nav - just the everyday
@@ -71,7 +79,7 @@ else
     </div>
 }
 
-@if (Active != "chat" && Slug != "demo")
+@if (Active != "chat" && Slug != "demo" && !ClubGroups.IsTasksOnly(Slug))
 {
     <ClubChatWidget Slug="@Slug" />
 }

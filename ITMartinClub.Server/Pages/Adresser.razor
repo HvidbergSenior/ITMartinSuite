@@ -1,0 +1,259 @@
+@page "/g/{slug}/adresser"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@* Addresses and easy contact (Bogshoppen 2026-10-06): where things are, and one tap to call or text a person.
+   Admins also make each person's invitation link here and send it by SMS - most members have no mail. *@
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="adresser" />
+
+        <div class="msg-body">
+            <div class="msg-card card">
+                <h2 class="msg-h">📍 Steder</h2>
+                <p class="msg-help">Hvor tingene står. Tryk på adressen for at få vejen vist.</p>
+                @if (_places.Count == 0) { <p class="msg-help">Ingen steder endnu.</p> }
+                @foreach (var p in _places)
+                {
+                    @if (_editPlace == p.Id)
+                    {
+                        <PlaceForm Name="@_pName" Address="@_pAddress" Contents="@_pContents" OnSave="() => SavePlace(p)" OnCancel="() => _editPlace = null"
+                                   NameChanged="v => _pName = v" AddressChanged="v => _pAddress = v" ContentsChanged="v => _pContents = v" />
+                    }
+                    else
+                    {
+                        <div class="adr-item">
+                            <div class="adr-name">@p.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(p.Address))
+                            {
+                                <a class="adr-link" href="@MapUrl(p.Address)" target="_blank" rel="noopener">🗺️ @p.Address</a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(p.Contents)) { <div class="msg-muted">@p.Contents</div> }
+                            <button class="msg-btn msg-btn-sm" @onclick="() => EditPlace(p)">✏️ Ret</button>
+                        </div>
+                    }
+                }
+                @if (_editPlace == Guid.Empty)
+                {
+                    <PlaceForm Name="@_pName" Address="@_pAddress" Contents="@_pContents" OnSave="() => SavePlace(null)" OnCancel="() => _editPlace = null"
+                               NameChanged="v => _pName = v" AddressChanged="v => _pAddress = v" ContentsChanged="v => _pContents = v" />
+                }
+                else if (_editPlace is null)
+                {
+                    <button class="msg-btn" @onclick="NewPlace">➕ Nyt sted</button>
+                }
+            </div>
+
+            <div class="msg-card card">
+                <h2 class="msg-h">👥 Folk</h2>
+                <p class="msg-help">Tryk Ring eller SMS – så åbner telefonen det af sig selv.</p>
+                @foreach (var m in _members)
+                {
+                    var phone = PhoneOf(m);
+                    <div class="adr-item">
+                        <div class="adr-name">@m.Name @if (!string.IsNullOrWhiteSpace(m.Role)) { <span class="msg-muted">· @m.Role</span> }</div>
+                        <div class="msg-row">
+                            @if (phone is not null)
+                            {
+                                <a class="msg-btn msg-btn-sm" href="tel:@phone">📞 Ring @phone</a>
+                                <a class="msg-btn msg-btn-sm" href="sms:@phone">💬 SMS</a>
+                            }
+                            @if (LooksLikeMail(m.Email)) { <a class="msg-btn msg-btn-sm" href="mailto:@m.Email">✉️ Mail</a> }
+                            @if (phone is null && !LooksLikeMail(m.Email)) { <span class="msg-muted">Intet nummer endnu</span> }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="msg-card card">
+                <h2 class="msg-h">✏️ Mit nummer</h2>
+                <p class="msg-help">Skriv dit telefonnummer, så de andre kan ringe til dig.</p>
+                <label class="msg-label">Telefon
+                    <input class="msg-input" type="tel" @bind="_myPhone" placeholder="Fx 12 34 56 78" maxlength="30" />
+                </label>
+                <label class="msg-label">Mail <span class="msg-muted">(valgfrit)</span>
+                    <input class="msg-input" type="email" @bind="_myMail" maxlength="120" />
+                </label>
+                <button class="msg-btn msg-btn-primary" @onclick="SaveMine">Gem</button>
+                @if (_savedMine) { <span class="msg-muted"> ✓ Gemt</span> }
+            </div>
+
+            @if (IsAdmin)
+            {
+                <div class="msg-card card">
+                    <h2 class="msg-h">📲 Invitationer</h2>
+                    <p class="msg-help">Hver person får sit eget link. Det logger dem ind uden kode og viser, hvordan de lægger Club på telefonen. Et nyt link gør det gamle ugyldigt.</p>
+                    @foreach (var m in _members.Where(m => m.Id != _member.Id))
+                    {
+                        var phone = PhoneOf(m);
+                        <div class="adr-item">
+                            <div class="adr-name">@m.Name @if (m.LoginToken is not null) { <span class="msg-muted">· har link</span> }</div>
+                            @if (m.LoginToken is null)
+                            {
+                                <button class="msg-btn msg-btn-sm" @onclick="() => MakeLink(m)">🔗 Lav link</button>
+                            }
+                            else
+                            {
+                                <div class="msg-row">
+                                    @if (phone is not null) { <a class="msg-btn msg-btn-sm msg-btn-primary" href="@SmsUrl(m, phone)">💬 Send på SMS</a> }
+                                    <button class="msg-btn msg-btn-sm" @onclick="() => Copy(m)">📋 Kopiér besked</button>
+                                    <button class="msg-btn msg-btn-sm" @onclick="() => MakeLink(m)">↻ Nyt link</button>
+                                </div>
+                                @if (_copied == m.Id) { <div class="msg-muted">✓ Kopieret – sæt den ind i Messenger, SMS eller mail.</div> }
+                            }
+                            @if (_confirmRemove == m.Id)
+                            {
+                                <div class="msg-row"><span>Fjern @m.Name fra holdet?</span>
+                                    <button class="msg-btn msg-btn-sm" @onclick="() => Remove(m)">Ja, fjern</button>
+                                    <button class="msg-btn msg-btn-sm" @onclick="() => _confirmRemove = null">Nej</button></div>
+                            }
+                            else { <button class="msg-btn msg-btn-sm" @onclick="() => _confirmRemove = m.Id">🗑️ Fjern</button> }
+                        </div>
+                    }
+                    <h3 class="msg-h3">➕ Tilføj person</h3>
+                    <label class="msg-label">Navn <input class="msg-input" @bind="_newName" @bind:event="oninput" maxlength="60" placeholder="Fx: Malene" /></label>
+                    <label class="msg-label">Telefon <span class="msg-muted">(så kan du sende linket på SMS)</span>
+                        <input class="msg-input" type="tel" @bind="_newPhone" maxlength="30" placeholder="Fx 12 34 56 78" /></label>
+                    <button class="msg-btn msg-btn-primary" @onclick="AddPerson" disabled="@string.IsNullOrWhiteSpace(_newName)">Tilføj og lav link</button>
+                    @if (_addError is not null) { <div class="msg-muted">@_addError</div> }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .adr-item { padding: 10px 0; border-bottom: 1px solid var(--k-border, #ddd); }
+    .adr-item:last-child { border-bottom: none; }
+    .adr-name { font-weight: 600; margin-bottom: 4px; }
+    .adr-link { display: inline-block; margin: 2px 0 4px; font-weight: 500; }
+    .msg-btn-sm { padding: 6px 10px; font-size: .95rem; text-decoration: none; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _savedMine;
+    private List<Member> _members = [];
+    private List<StorageLocation> _places = [];
+    private Guid? _editPlace;   // null = nothing open, Guid.Empty = new place, else the place being edited
+    private Guid? _copied;
+    private string _pName = "", _pAddress = "", _pContents = "", _myPhone = "", _myMail = "";
+
+    private bool IsAdmin => _member?.Role?.Contains("Admin", StringComparison.OrdinalIgnoreCase) == true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        _myPhone = PhoneOf(_member) ?? "";
+        _myMail = _member.Email ?? "";
+        await Load();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task Load()
+    {
+        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+        _places = await Db.StorageLocations.Where(p => p.GroupId == _group!.Id).OrderBy(p => p.Name).ToListAsync();
+    }
+
+    // ContactInfo is free text ("ITMartin@Mensa.dk, 31194730"): take the first Danish-looking number out of it.
+    private static string? PhoneOf(Member m)
+    {
+        var x = System.Text.RegularExpressions.Regex.Match(m.ContactInfo ?? "", @"(\+?\d[\d ]{6,14}\d)");
+        return x.Success ? x.Value.Replace(" ", "") : null;
+    }
+
+    private static bool LooksLikeMail(string? s) => s is not null && s.Contains('@') && s.Contains('.');
+
+    private static string MapUrl(string address) => "https://www.google.com/maps/search/?api=1&query=" + Uri.EscapeDataString(address);
+
+    private string Link(Member m) => $"{Nav.BaseUri.TrimEnd('/')}/l/{m.LoginToken}";
+
+    private string InviteText(Member m) =>
+        $"Hej {m.Name}! Her er dit link til {_group!.Name} – opgaver og adresser: {Link(m)}\n" +
+        "Åbn det i Chrome (Android) eller Safari (iPhone) og tryk \"📲 Læg på telefonen\". Linket er kun til dig. Hilsen " + _member!.Name;
+
+    private string SmsUrl(Member m, string phone) => $"sms:{phone}?&body={Uri.EscapeDataString(InviteText(m))}";
+
+    private void NewPlace() { _pName = _pAddress = _pContents = ""; _editPlace = Guid.Empty; }
+
+    private void EditPlace(StorageLocation p) { _pName = p.Name; _pAddress = p.Address ?? ""; _pContents = p.Contents ?? ""; _editPlace = p.Id; }
+
+    private async Task SavePlace(StorageLocation? p)
+    {
+        if (string.IsNullOrWhiteSpace(_pName)) return;
+        if (p is null) { p = new StorageLocation { GroupId = _group!.Id, CreatedByName = _member!.Name }; Db.StorageLocations.Add(p); }
+        p.Name = _pName.Trim();
+        p.Address = string.IsNullOrWhiteSpace(_pAddress) ? null : _pAddress.Trim();
+        p.Contents = string.IsNullOrWhiteSpace(_pContents) ? null : _pContents.Trim();
+        await Db.SaveChangesAsync();
+        _editPlace = null;
+        await Load();
+    }
+
+    private async Task SaveMine()
+    {
+        var phone = _myPhone.Trim();
+        var mail = _myMail.Trim();
+        _member!.ContactInfo = string.Join(", ", new[] { mail, phone }.Where(s => s.Length > 0));
+        _member.Email = mail.Length > 0 ? mail : _member.Email;
+        await Db.SaveChangesAsync();
+        _savedMine = true;
+        await Load();
+    }
+
+    private async Task MakeLink(Member m)
+    {
+        m.LoginToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        await Db.SaveChangesAsync();
+        _copied = null;
+        await Load();
+    }
+
+    private Guid? _confirmRemove;
+    private string _newName = "", _newPhone = "";
+    private string? _addError;
+
+    // A person added here logs in only through their link (no PIN), like the board version.
+    private async Task AddPerson()
+    {
+        var name = _newName.Trim();
+        if (_members.Any(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) { _addError = $"{name} er her allerede."; return; }
+        var m = new Member
+        {
+            GroupId = _group!.Id, Name = name, Pin = "", ContactInfo = string.IsNullOrWhiteSpace(_newPhone) ? null : _newPhone.Trim(),
+            LoginToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant(),
+        };
+        Db.Members.Add(m);
+        await Db.SaveChangesAsync();
+        _newName = _newPhone = ""; _addError = null;
+        await Load();
+    }
+
+    private async Task Remove(Member m)
+    {
+        Db.Members.Remove(m);   // sessions go with it (cascade); tasks keep the name as text
+        await Db.SaveChangesAsync();
+        _confirmRemove = null;
+        await Load();
+    }
+
+    private async Task Copy(Member m)
+    {
+        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", InviteText(m)); _copied = m.Id; }
+        catch (JSException) { _copied = null; }
+    }
+}
