@@ -10,7 +10,8 @@ public sealed record Offer(
     decimal? UnitPrice, string? UnitLabel, string? Size, DateTimeOffset? ValidFrom, DateTimeOffset? ValidTo,
     string? Image, string? Logo, bool Variant = false,
     string? NeedsApp = null, string? Condition = null, string? DealerId = null, string? NearestStore = null, double? NearestKm = null,
-    string? AppName = null, decimal? AppPrice = null, decimal? NoAppPrice = null);
+    string? AppName = null, decimal? AppPrice = null, decimal? NoAppPrice = null, bool Matches = true);
+// Matches: has every describing word of the search ("økologisk" in "økologisk mælk"); false = the thing itself, not that kind.
 // NeedsApp: the price shown is only for app users (Lidl Plus coupons, often). AppName + AppPrice: the price shown is for
 // EVERYONE and the app gives this lower price on top (Netto "+ PRIS", føtex/Bilka "plus pris", Coop/MENY "medlemspris").
 // NoAppPrice: what you pay without the app, when the shown price is an app price and the leaflet says the normal one.
@@ -29,14 +30,23 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
         var key = $"q|{query.ToLowerInvariant()}|{lat:F2}|{lng:F2}|{km}";
         if (cache.TryGetValue(key, out List<Offer>? hit) && hit is not null) return hit;
 
-        var url = "https://squid-api.tjek.com/v2/offers/search?query=" + Uri.EscapeDataString(query) +
+        string Url(string q) => "https://squid-api.tjek.com/v2/offers/search?query=" + Uri.EscapeDataString(q) +
                   $"&r_lat={lat.ToString(CultureInfo.InvariantCulture)}&r_lng={lng.ToString(CultureInfo.InvariantCulture)}" +
                   $"&r_radius={km * 1000}&limit=100";
         List<Offer> list;
         try
         {
-            using var doc = JsonDocument.Parse(await http.GetStringAsync(url, ct));
-            list = Relevant(Parse(doc.RootElement, DateTimeOffset.UtcNow), query);
+            // Tjek's search handles several words badly ("økologisk mælk" gave mostly kefir), so a search with describing
+            // words also asks for the thing itself (the last word, "mælk"); Relevant() then puts the right kind first.
+            var head = query.Split(' ', StringSplitOptions.RemoveEmptyEntries).Last();
+            var found = new List<Offer>();
+            foreach (var q in head.Equals(query, StringComparison.OrdinalIgnoreCase) ? new[] { query } : new[] { query, head })
+            {
+                using var doc = JsonDocument.Parse(await http.GetStringAsync(Url(q), ct));
+                found.AddRange(Parse(doc.RootElement, DateTimeOffset.UtcNow));
+            }
+            var merged = found.DistinctBy(o => (o.Chain, o.Title, o.Price, o.ValidTo)).ToList();
+            list = Relevant(Sorted(merged), query);
             list = await WithNearestStoreAsync(list, lat, lng, ct);
         }
         catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException)
@@ -80,8 +90,13 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
                 ? off with { AppName = app, NeedsApp = only ? app : null, AppPrice = appPrice, NoAppPrice = noApp }
                 : off);
         }
-        // Only like with like: the most common unit first (kr/kg for coffee, kr/l for milk), cheapest first within it;
-        // then the other units, and offers without a size last. Capsules at 3 kr/stk must not beat coffee at 60 kr/kg.
+        return Sorted(list);
+    }
+
+    // Only like with like: the most common unit first (kr/kg for coffee, kr/l for milk), cheapest first within it;
+    // then the other units, and offers without a size last. Capsules at 3 kr/stk must not beat coffee at 60 kr/kg.
+    internal static List<Offer> Sorted(List<Offer> list)
+    {
         var rank = list.Where(x => x.UnitLabel is not null).GroupBy(x => x.UnitLabel!)
             .OrderByDescending(g => g.Count()).Select((g, i) => (g.Key, i)).ToDictionary(t => t.Key, t => t.i);
         return list.OrderBy(x => x.UnitLabel is { } u ? rank[u] : int.MaxValue).ThenBy(x => x.UnitPrice ?? x.Price).ToList();
@@ -206,18 +221,35 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
     // If nothing has the words, show what Tjek found rather than nothing.
     // Then (user 2026-10-06: "mælk" gave kakaomælk and shower gel): non-food goes, unless that is what was searched for,
     // and flavoured kinds (kakaomælk, jordbæryoghurt) are marked Variant and go last - the page folds them away.
+    // Several words (user 2026-10-06, "økologisk mælk"): the LAST word is the thing ("mælk") and decides what is found;
+    // the words before it describe the kind ("økologisk") and only sort: the offers that have them come first (Matches).
     internal static List<Offer> Relevant(List<Offer> list, string query)
     {
         var q = query.ToLowerInvariant();
-        var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var all = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var words = new[] { all[^1] };
+        var kinds = all[..^1];
         bool Has(string? s) => s is not null && words.All(w => s.Contains(w, StringComparison.OrdinalIgnoreCase));
         var food = NonFood.Any(n => q.Contains(n)) ? list : list.Where(o => !NonFood.Any(n => o.Title.Contains(n, StringComparison.OrdinalIgnoreCase))).ToList();
         var inTitle = food.Where(o => Has(o.Title)).ToList();
         var hits = inTitle.Count >= 3 ? inTitle : food.Where(o => Has(o.Title + " " + o.Description)).ToList();
         if (hits.Count == 0) return food.Count > 0 ? food : list;
-        var marked = hits.Select(o => IsVariant(o.Title, words) ? o with { Variant = true } : o).ToList();
-        return marked.Where(o => !o.Variant).Concat(marked.Where(o => o.Variant)).ToList();
+        var marked = hits.Select(o => o with
+        {
+            Variant = IsVariant(o.Title, words),
+            Matches = kinds.All(k => Synonyms(k).Any(v => (o.Title + " " + o.Description).Contains(v, StringComparison.OrdinalIgnoreCase))),
+        }).ToList();
+        return marked.OrderBy(o => o.Matches ? 0 : 1).ThenBy(o => o.Variant ? 1 : 0).ToList();   // stable: per-kg order kept within
     }
+
+    // How the leaflets write a describing word: "øko", "Ø-mærket", "Lactofree".
+    internal static string[] Synonyms(string word) => word switch
+    {
+        "økologisk" or "økologiske" or "øko" => ["økologisk", "øko", "ø-mærke"],
+        "laktosefri" => ["laktosefri", "lactofree", "laktosefrie"],
+        "dansk" or "danske" => ["dansk", "danmark"],
+        _ => [word.Length > 5 ? word[..^1] : word],   // "hakket"/"hakkede", "grov"/"grove": ignore the last letter
+    };
 
     internal static readonly string[] NonFood =
     [

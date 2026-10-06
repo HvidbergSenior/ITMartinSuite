@@ -131,6 +131,16 @@ public class OffersTests
     }
 
     [Test]
+    public void The_last_word_is_the_thing_and_the_words_before_put_that_kind_first()
+    {
+        Offer Of(string title, string? text = null) => new("Netto", title, text, 10, null, null, null, null, null, null, null, null);
+        var list = new List<Offer> { Of("Arla Lactofree mælk"), Of("Thise økologisk kefir", "1 l"), Of("Øko letmælk", "1 l"), Of("Arla frisk dansk mælk", "Økologisk") };
+        var r = TjekOffers.Relevant(list, "økologisk mælk");
+        r.Select(o => o.Title).Should().Equal("Øko letmælk", "Arla frisk dansk mælk", "Arla Lactofree mælk");   // kefir is not milk
+        r.Where(o => o.Matches).Should().HaveCount(2);
+    }
+
+    [Test]
     public void Capsules_per_piece_do_not_beat_coffee_per_kg()
     {
         var list = Parse(O("Bilka", 25, "pcs", 8), O("Lidl", 60, "kg", 0.5m), O("MENY", 40, "kg", 0.5m));

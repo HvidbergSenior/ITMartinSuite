@@ -8,8 +8,8 @@
     var lastQuery = '';
 
     function load() {
-        try { var s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { place: s.place || null, km: s.km || 10, mine: s.mine || [], apps: s.apps || [] }; }
-        catch (e) { return { place: null, km: 10, mine: [], apps: [] }; }
+        try { var s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { place: s.place || null, km: s.km || 10, mine: s.mine || [], apps: s.apps || [], mfKm: s.mfKm || 3 }; }
+        catch (e) { return { place: null, km: 10, mine: [], apps: [], mfKm: 3 }; }
     }
     function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { } }
 
@@ -145,7 +145,7 @@
             if (!all.length) { $('soeg-info').textContent = 'Ingen tilbud på "' + q + '" i denne uge inden for ' + state.km + ' km. Prøv et andet ord eller længere afstand.'; return; }
             // Categories from the words that hold the search (user 2026-10-06: "push you toward the correct category"):
             // "mælk" -> mælk · skummetmælk · kakaomælk · tykmælk. Tapping one shows only that kind, and ⭐ saves that kind.
-            var w = q.toLowerCase().split(/\s+/)[0];
+            var words = q.toLowerCase().split(/\s+/), w = words[words.length - 1];
             function kindOf(o) {
                 var tok = o.title.toLowerCase().split(/[\s,.;:()&/+*]+/).filter(function (t) { return t.indexOf(w) >= 0; })[0];
                 return tok ? tok.replace(/-/g, '').replace(/[^a-zæøå0-9]+$/, '') : '';
@@ -160,7 +160,9 @@
                 $('gem').hidden = false;
                 $('gem').textContent = state.mine.indexOf(chosen) >= 0 ? '✓ Gemt' : '⭐ Gem "' + chosen + '"';
                 var chains = {}; list.forEach(function (o) { chains[o.chain] = 1; });
-                $('soeg-info').textContent = list.length + ' tilbud fra ' + Object.keys(chains).length + (Object.keys(chains).length === 1 ? ' kæde' : ' kæder') + ' – billigste pr. kg/liter øverst.' +
+                var none = words.length > 1 && !all.some(function (o) { return o.matches; });
+                $('soeg-info').textContent = (none ? 'Ingen "' + q + '" på tilbud lige nu – her er ' + w + '. ' : '') +
+                    list.length + ' tilbud fra ' + Object.keys(chains).length + (Object.keys(chains).length === 1 ? ' kæde' : ' kæder') + ' – billigste pr. kg/liter øverst.' +
                     (kindList.length > 1 && !picked ? ' Vælg hvilken slags herunder.' : '');
                 render(list);
             }
@@ -312,7 +314,14 @@
     // ---- madspild (Salling): the box shows only when the server has a key (404 = not switched on)
     var waste = null;
     // The server searches 5, 10 or 20 km for madspild (Salling's 100 requests a day) - say what it really searched.
-    function wasteKm() { return state.km <= 5 ? 5 : state.km <= 10 ? 10 : 20; }
+    function wasteKm() { var need = state.mfKm + 3.5; return need <= 5 ? 5 : need <= 10 ? 10 : 20; }
+    // Distance from the user's own place to the store (the server's distance is from the middle of a ~5 km square).
+    function kmTo(c) {
+        if (c.lat == null || !state.place) return c.km;
+        var R = function (d) { return d * Math.PI / 180; }, p = state.place;
+        var a = Math.pow(Math.sin(R(c.lat - p.lat) / 2), 2) + Math.cos(R(p.lat)) * Math.cos(R(c.lat)) * Math.pow(Math.sin(R(c.lng - p.lng) / 2), 2);
+        return Math.round(6371 * 2 * Math.asin(Math.sqrt(a)) * 10) / 10;
+    }
     function wasteHtml(c) {
         var img = c.image ? '<img class="tb-img" src="' + esc(c.image) + '" alt="" loading="lazy" onerror="this.hidden=true">' : '<div class="tb-img"></div>';
         var pct = c.percentDiscount ? '<span class="tb-unit">−' + Math.round(c.percentDiscount) + ' %</span>' : '';
@@ -340,12 +349,14 @@
     function drawWaste() {
         if (!waste) return;
         var f = $('mf').value.trim().toLowerCase();
-        var list = f ? waste.filter(function (c) { return (c.title + ' ' + c.store + ' ' + (c.category || '')).toLowerCase().indexOf(f) >= 0; }) : waste.slice();
+        waste.forEach(function (c) { c.km = kmTo(c); });
+        var near = waste.filter(function (c) { return c.km == null || c.km <= state.mfKm; });
+        var list = f ? near.filter(function (c) { return (c.title + ' ' + c.store + ' ' + (c.category || '')).toLowerCase().indexOf(f) >= 0; }) : near.slice();
         var how = $('mf-sort').value;
         list.sort(how === 'slut' ? function (a, b) { return new Date(a.endTime || 8e15) - new Date(b.endTime || 8e15); }
             : how === 'naer' ? function (a, b) { return (a.km == null ? 999 : a.km) - (b.km == null ? 999 : b.km); }
             : function (a, b) { return (b.percentDiscount || 0) - (a.percentDiscount || 0); });
-        $('mf-info').textContent = list.length + ' varer sat ned' + (f ? ' med "' + f + '"' : '') + ' inden for ' + wasteKm() + ' km.';
+        $('mf-info').textContent = list.length + ' varer sat ned' + (f ? ' med "' + f + '"' : '') + ' inden for ' + state.mfKm + ' km af dig.';
         $('mf-liste').innerHTML = list.slice(0, 40).map(wasteHtml).join('');
     }
     function loadWaste() {
@@ -361,6 +372,11 @@
     $('mf-hent').addEventListener('click', loadWaste);
     $('mf').addEventListener('input', drawWaste);
     $('mf-sort').addEventListener('change', drawWaste);
+    $('mf-km').value = String(state.mfKm);
+    $('mf-km').addEventListener('change', function () {
+        var before = wasteKm(); state.mfKm = +$('mf-km').value; save();
+        if (waste && wasteKm() <= before) drawWaste(); else if (waste) loadWaste();   // a wider radius may need a new fetch
+    });
     fetch('/api/madspild').then(function (r) { $('madspild-kort').hidden = r.status === 404; }).catch(function () { });
 
     // ---- App-kløften: per chain this week - counted in the chains' own leaflets

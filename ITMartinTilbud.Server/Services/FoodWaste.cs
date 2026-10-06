@@ -9,7 +9,8 @@ namespace ITMartinTilbud.Server.Services;
 public sealed record Clearance(
     string Store, string Brand, string? Address, string Title, decimal NewPrice, decimal? OriginalPrice,
     decimal? PercentDiscount, decimal? Stock, string? StockUnit, DateTimeOffset? EndTime, string? Image,
-    DateTimeOffset? StartTime = null, DateTimeOffset? LastUpdate = null, string? Category = null, string? Ean = null, double? Km = null);
+    DateTimeOffset? StartTime = null, DateTimeOffset? LastUpdate = null, string? Category = null, string? Ean = null, double? Km = null,
+    double? Lat = null, double? Lng = null);   // the store's position - the page measures the distance from the user itself
 
 // Salling Group's OFFICIAL Anti Food Waste API (free key from developer.sallinggroup.dev): Netto, føtex and Bilka mark
 // items down near their date. Key in Tilbud__SallingKey; without it the feature is simply not shown.
@@ -84,6 +85,10 @@ public sealed class SallingFoodWaste(HttpClient http, IMemoryCache cache, IConfi
             var brand = Str(store, "brand") ?? "";
             var address = store.TryGetProperty("address", out var a) ? $"{Str(a, "street")}, {Str(a, "zip")} {Str(a, "city")}".Trim(' ', ',') : null;
             double? km = store.TryGetProperty("distance_km", out var dk) && dk.ValueKind == JsonValueKind.Number ? Math.Round(dk.GetDouble(), 1) : null;
+            // "coordinates": [longitude, latitude]
+            double? slat = null, slng = null;
+            if (store.TryGetProperty("coordinates", out var co) && co.ValueKind == JsonValueKind.Array && co.GetArrayLength() == 2)
+            { slng = co[0].GetDouble(); slat = co[1].GetDouble(); }
             foreach (var c in cl.EnumerateArray())
             {
                 if (!c.TryGetProperty("offer", out var o) || !c.TryGetProperty("product", out var p)) continue;
@@ -95,7 +100,7 @@ public sealed class SallingFoodWaste(HttpClient http, IMemoryCache cache, IConfi
                 var cat = p.TryGetProperty("categories", out var cs) ? Str(cs, "da")?.Split('>')[0].Trim() : null;
                 list.Add(new Clearance(name, Pretty(brand), address, Readable(Str(p, "description") ?? ""), price, Num(o, "originalPrice"),
                     Num(o, "percentDiscount"), Num(o, "stock"), Str(o, "stockUnit") is "each" ? "stk" : Str(o, "stockUnit"), end, Str(p, "image"),
-                    When(o, "startTime"), When(o, "lastUpdate"), cat, Str(p, "ean") ?? Str(o, "ean"), km));
+                    When(o, "startTime"), When(o, "lastUpdate"), cat, Str(p, "ean") ?? Str(o, "ean"), km, slat, slng));
             }
         }
         return list.OrderByDescending(x => x.PercentDiscount ?? 0).ToList();
