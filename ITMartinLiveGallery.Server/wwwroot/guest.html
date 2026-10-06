@@ -35,5 +35,19 @@
   <script src="/gallery.js"></script>
   <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; <span id="itm-footer-year"></span> ITMartin - Den digitale kolibri</footer>
   <script>document.getElementById('itm-footer-year').textContent = new Date().getFullYear();</script>
+    <script>
+    // Visit counting (itmartin.dk/admin/tal). itmartin.dk/tael-ikke-mig leaves the ikke_mig cookie: then this browser is Martin's and is not counted.
+    (function () {
+        if (location.search.indexOf('claude_test=1') !== -1) return;
+        var api = 'https://stats.itmartin.dk/api/hit', vid = '';
+        try { vid = localStorage.getItem('_mid'); if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); } } catch (e) { }
+        var json = function (o) { return { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify(o) }; };
+        if (/(^|;\s*)ikke_mig=1/.test(document.cookie)) {
+            try { if (vid && localStorage.getItem('_me') !== vid) fetch(api + '/mig', json({ visitorId: vid })).then(function (r) { if (r.ok) localStorage.setItem('_me', vid); }).catch(function () { }); } catch (e) { }
+            return;
+        }
+        fetch(api, json({ path: location.pathname + location.search, title: document.title, referrer: document.referrer, visitorId: vid, host: location.hostname })).catch(function () { });
+    })();
+    </script>
 </body>
 </html>
