@@ -133,7 +133,7 @@
     function search(q) {
         q = q.trim();
         if (q.length < 2) return;
-        if (!state.place) { placeError('Vælg først hvor du handler – postnummer eller 📍.'); $('postnr').focus(); return; }
+        if (!state.place) { placeError('Vælg først hvor du handler – postnummer eller 📍.'); $('sted-kort').scrollIntoView({ behavior: 'smooth' }); $('postnr').focus(); return; }
         lastQuery = q;
         $('soeg-info').textContent = 'Henter tilbud på "' + q + '" …';
         $('resultater').innerHTML = '';
@@ -345,6 +345,13 @@
     fetch('/api/madspild').then(function (r) { $('madspild-kort').hidden = r.status === 404; }).catch(function () { });
 
     fetch('/api/faste').then(function (r) { return r.json(); }).then(function (d) { fixed = d || []; refresh(); }).catch(function () { });
+    // Order (user 2026-10-06): Mine varer, search, week, madspild, place, info. The first time - no place yet -
+    // the place box comes first, because nothing works without it.
+    function placeFirst() {
+        var sted = $('sted-kort'), first = document.querySelector('section.k-card');
+        if (!state.place && first && first !== sted) first.parentNode.insertBefore(sted, first);
+    }
+    placeFirst();
     showPlace();
     refresh();
     // A shared link (/?q=kaffe) opens straight on that search.

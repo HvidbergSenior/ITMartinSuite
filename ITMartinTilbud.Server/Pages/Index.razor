@@ -6,6 +6,40 @@
    First screen = one answer: this week's best offer for each of "Mine varer"; with none saved yet, the search.
    Every box is a show/hide box (kolibri.js). Colours never carry meaning alone - prices and words do. *@
 
+<section class="k-card" id="mine-kort">
+    <h2 class="k-card-title">⭐ Mine varer – billigst i denne uge</h2>
+    <p id="mine-tom" class="k-muted">Du har ingen varer endnu. Søg efter en vare herunder og tryk <b>⭐ Gem</b>.</p>
+    <div id="mine-liste"></div>
+</section>
+
+<section class="k-card" id="soeg-kort">
+    <h2 class="k-card-title">🔍 Find tilbud</h2>
+    <form id="soeg-form" class="tb-row" autocomplete="off">
+        <input id="q" class="tb-input tb-q" placeholder="Fx kaffe, smør, havregryn" aria-label="Vare" enterkeyhint="search" />
+        <button class="k-btn k-btn-primary" type="submit">Søg</button>
+        <button id="gem" class="k-btn k-btn-secondary" type="button" hidden>⭐ Gem</button>
+    </form>
+    <p id="soeg-info" class="k-muted" aria-live="polite"></p>
+    <div id="kinder" class="tb-chips" role="group" aria-label="Vælg slags"></div>
+    <div id="resultater"></div>
+</section>
+
+<section class="k-card" id="uge-kort">
+    <h2 class="k-card-title">📅 Ugen – hvor er dine varer billigst hver dag?</h2>
+    <div id="uge-liste"><p class="k-muted">Henter …</p></div>
+</section>
+
+<section class="k-card" id="madspild-kort" hidden>
+    <h2 class="k-card-title">♻️ Madspild nær dig – Netto, føtex og Bilka</h2>
+    <p class="k-muted">Varer med kort holdbarhed, sat ned i dag. Få styk – kom i god tid. Største rabat øverst.</p>
+    <div class="tb-row">
+        <input id="mf" class="tb-input tb-q" placeholder="Filtrér, fx kød, brød, ost" aria-label="Filtrér madspild" />
+        <button id="mf-hent" class="k-btn k-btn-primary" type="button">Vis madspild</button>
+    </div>
+    <p id="mf-info" class="k-muted" aria-live="polite"></p>
+    <div id="mf-liste"></div>
+</section>
+
 <section class="k-card tb-sted" id="sted-kort">
     <h2 class="k-card-title">📍 Hvor handler du?</h2>
     <p id="sted-nu" class="tb-answer" hidden></p>
@@ -33,41 +67,7 @@
     </fieldset>
 </section>
 
-<section class="k-card" id="mine-kort">
-    <h2 class="k-card-title">⭐ Mine varer – billigst i denne uge</h2>
-    <p id="mine-tom" class="k-muted">Du har ingen varer endnu. Søg efter en vare herunder og tryk <b>⭐ Gem</b>.</p>
-    <div id="mine-liste"></div>
-</section>
-
-<section class="k-card" id="uge-kort">
-    <h2 class="k-card-title">📅 Ugen – hvor er dine varer billigst hver dag?</h2>
-    <div id="uge-liste"><p class="k-muted">Henter …</p></div>
-</section>
-
-<section class="k-card" id="madspild-kort" hidden>
-    <h2 class="k-card-title">♻️ Madspild nær dig – Netto, føtex og Bilka</h2>
-    <p class="k-muted">Varer med kort holdbarhed, sat ned i dag. Få styk – kom i god tid. Største rabat øverst.</p>
-    <div class="tb-row">
-        <input id="mf" class="tb-input tb-q" placeholder="Filtrér, fx kød, brød, ost" aria-label="Filtrér madspild" />
-        <button id="mf-hent" class="k-btn k-btn-primary" type="button">Vis madspild</button>
-    </div>
-    <p id="mf-info" class="k-muted" aria-live="polite"></p>
-    <div id="mf-liste"></div>
-</section>
-
-<section class="k-card" id="soeg-kort">
-    <h2 class="k-card-title">🔍 Find tilbud</h2>
-    <form id="soeg-form" class="tb-row" autocomplete="off">
-        <input id="q" class="tb-input tb-q" placeholder="Fx kaffe, smør, havregryn" aria-label="Vare" enterkeyhint="search" />
-        <button class="k-btn k-btn-primary" type="submit">Søg</button>
-        <button id="gem" class="k-btn k-btn-secondary" type="button" hidden>⭐ Gem</button>
-    </form>
-    <p id="soeg-info" class="k-muted" aria-live="polite"></p>
-    <div id="kinder" class="tb-chips" role="group" aria-label="Vælg slags"></div>
-    <div id="resultater"></div>
-</section>
-
-<section class="k-card">
+<section class="k-card" id="info-kort">
     <h2 class="k-card-title">ℹ️ Godt at vide</h2>
     <ul class="tb-list">
         <li>Tilbuddene kommer fra <b>eTilbudsavis</b> (Tjek) og gælder i den uge, der står ved hvert tilbud.</li>
