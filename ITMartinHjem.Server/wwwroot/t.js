@@ -18,6 +18,13 @@
         return;
     }
     try { if (localStorage.getItem('_me') === '1') return; } catch (e) { }
+    // The ikke_mig cookie (set by /tael-ikke-mig for the whole domain) also covers www.bogshoppen.dk vs bogshoppen.dk,
+    // www./martin.itmartin.dk - each its own localStorage (user 2026-10-06: own test visits on bogshoppen.dk still counted).
+    if (/(^|;\s*)ikke_mig=1/.test(document.cookie)) {
+        try { localStorage.setItem('_me', '1'); } catch (e) { }
+        if (vid) fetch('/api/hit/mig', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visitorId: vid }) }).catch(function () { });
+        return;
+    }
     var cur = null, start = 0, shown = 0, lastUrl = document.referrer;
 
     function leave() {
