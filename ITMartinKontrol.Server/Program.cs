@@ -281,7 +281,15 @@ app.MapPost("/api/push/test", async (HttpRequest http, PushStore push, Cancellat
     var n = await push.SendAllAsync("Kontrol: test", "Alarmer virker på denne telefon.", "/", ct);
     return Results.Ok(new { sent = n });
 });
-app.MapGet("/api/alarms", (AlarmService alarms, PushStore push) => Results.Ok(new { subscribers = push.Count, active = alarms.Active.Select(a => new { key = a.Key, since = a.Value }) }));
+// Other tools on the LAN (the rip station) push a message to Martin's phone. Key = Kontrol__NotifyKey.
+app.MapPost("/api/push/notify", async (NotifyRequest req, HttpRequest http, PushStore push, CancellationToken ct) =>
+{
+    var key = cfg["Kontrol:NotifyKey"];
+    if (string.IsNullOrEmpty(key) || http.Headers["X-Notify-Key"] != key) return Results.StatusCode(401);
+    var n = await push.SendAllAsync(req.Title, req.Body, req.Url ?? "/", ct);
+    return Results.Ok(new { sent = n });
+});
+app.MapGet("/api/alarms",(AlarmService alarms, PushStore push) => Results.Ok(new { subscribers = push.Count, active = alarms.Active.Select(a => new { key = a.Key, since = a.Value }) }));
 
 app.Run();
 
@@ -290,6 +298,7 @@ public sealed record KolibriView(string Name, string Url, bool Ok, int Http, str
 public sealed class KolibriCache { public List<KolibriView> Items { get; set; } = []; public DateTime At { get; set; } }
 public sealed record PushSubscribeRequest(string Endpoint, string P256dh, string Auth, string? Name);
 public sealed record PushEndpointRequest(string Endpoint);
+public sealed record NotifyRequest(string Title, string Body, string? Url);
 public sealed record LimitedPin(string Pin, string[] Apps);
 public sealed record Peer(string Name, string Url, string? RemoteHostName = "*");
 public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory);
