@@ -2,12 +2,12 @@
 (function () {
     'use strict';
     var $ = function (id) { return document.getElementById(id); };
-    var DAYS = ['', 'man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn'];
+    var DAYS = ['', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag', 'søndag'];
     var pin = '';
     try { pin = localStorage.getItem('tilbud:pin') || ''; } catch (e) { }
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
-    function days(d) { return !d || !d.length ? 'hver dag' : d.length === 1 ? 'hver ' + DAYS[d[0]] + 'dag' : d.map(function (x) { return DAYS[x]; }).join(', '); }
+    function days(d) { return !d || !d.length ? 'hver dag' : 'hver ' + d.map(function (x) { return DAYS[x]; }).join(' og '); }
 
     function load() {
         fetch('/api/faste').then(function (r) { return r.json(); }).then(function (list) {
