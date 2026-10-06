@@ -101,7 +101,7 @@ public sealed class StemService
         if (parts.Count == 0) return null;
 
         var dest = Path.Combine(stemsDir, "instrumental.wav");
-        var psi = new ProcessStartInfo("ffmpeg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        var psi = new ProcessStartInfo("ffmpeg") { RedirectStandardOutput = false, RedirectStandardError = false, UseShellExecute = false };
         psi.ArgumentList.Add("-y");
         foreach (var p in parts) { psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(p); }
         psi.ArgumentList.Add("-filter_complex");

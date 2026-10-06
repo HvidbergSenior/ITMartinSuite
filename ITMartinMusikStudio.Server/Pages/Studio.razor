@@ -1121,7 +1121,13 @@ Chorus
                             }
                             <button class="btn-publish" @onclick="() => Publish(r)">🚀 Publicér</button>
                             <button class="btn-publish" style="background:#15803d;border-color:#15803d" @onclick="() => PublishForAudience(r)" title="Gør dette take til sangens publikumsversion - én pr. sang, i galleriet Koncert">🎉 Publikum</button>
-                            <button class="btn-delete-sm" @onclick="() => DeleteRecording(r)">🗑</button>
+                            @if (_confirmDelete == r.RelativePath)
+                            {
+                                <span>Slet for altid?</span>
+                                <button class="btn-delete-sm" @onclick="() => DeleteRecording(r)">Ja, slet</button>
+                                <button class="btn-ghost-sm" @onclick="() => _confirmDelete = null">Nej</button>
+                            }
+                            else { <button class="btn-delete-sm" @onclick="() => _confirmDelete = r.RelativePath" title="Slet denne optagelse">🗑</button> }
                         </div>
                     </div>
                 }
@@ -2800,7 +2806,7 @@ Chorus
 
         _recording = true;
         StartRecTimer();
-        StartBeatTimer();
+        // No beat while recording unless the user turned 🥁 Beat on himself (user 2026-10-06: "don't want that beat").
         try
         {
             await JS.InvokeVoidAsync("studio.startRecording", SongKey, _videoMode, _selectedSection);
@@ -2860,7 +2866,7 @@ Chorus
 
         _recording = true;
         StartRecTimer();
-        StartBeatTimer();
+        // No beat while recording unless the user turned 🥁 Beat on himself (user 2026-10-06: "don't want that beat").
         try
         {
             await JS.InvokeVoidAsync("studio.startOverdub", SongKey, playUrl, _videoMode, startSeconds);
@@ -2891,7 +2897,7 @@ Chorus
 
         _recording = true;
         StartRecTimer();
-        StartBeatTimer();
+        // No beat while recording unless the user turned 🥁 Beat on himself (user 2026-10-06: "don't want that beat").
         try
         {
             await JS.InvokeVoidAsync("spotifyPlayer.playTrack", _song.SpotifyTrackId);
@@ -3018,13 +3024,15 @@ Chorus
         }
     }
 
+    private string? _confirmDelete;
     private async Task DeleteRecording(RecordingFile r)
     {
         // Permanent - DeleteRecording does a plain File.Delete with no
         // recycle-bin safety net, so a real confirm here matters (see
         // DeleteSong in Songs.razor for the same pattern).
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Slet '{r.Name}'? Dette kan ikke fortrydes.");
-        if (!confirmed) return;
+        // The question is asked on the page ("Slet for altid? Ja/Nej"), not with the browser's confirm():
+        // after a few deletes Chrome offers "block more dialogs", and then confirm() silently says no (2026-10-06).
+        _confirmDelete = null;
 
         if (Library.DeleteRecording(r.RelativePath))
         {

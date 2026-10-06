@@ -169,12 +169,16 @@ public sealed class StudioLibraryService
         var n = NextVersionNumber(songDir, Path.GetFileName(songDir));
         var dest = Path.Combine(songDir, $"{Path.GetFileName(songDir)} {n}.{(isVideo ? "mp4" : "mp3")}");
 
+        // Output NOT redirected: nobody read it, so ffmpeg filled the pipe and hung after the file was written -
+        // the page kept saying "Publicerer..." (2026-10-06). -nostdin: never wait for a keypress.
         var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg")
         {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
             UseShellExecute = false,
+            CreateNoWindow = true,
         };
+        psi.ArgumentList.Add("-nostdin");
+        psi.ArgumentList.Add("-loglevel");
+        psi.ArgumentList.Add("error");
         psi.ArgumentList.Add("-y");
         psi.ArgumentList.Add("-i");
         psi.ArgumentList.Add(src);
@@ -257,8 +261,8 @@ public sealed class StudioLibraryService
 
         var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg")
         {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
+            RedirectStandardOutput = false,
+            RedirectStandardError = false,   // unread pipe = ffmpeg hangs (2026-10-06)
             UseShellExecute = false,
         };
         psi.ArgumentList.Add("-y");
@@ -468,7 +472,9 @@ public sealed class StudioLibraryService
 
     private static async Task<bool> TranscodeAsync(string src, string dest, bool isVideo)
     {
-        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        // Same as PublishRecordingAsync: no redirected output (an unread pipe hangs ffmpeg), no stdin.
+        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg") { UseShellExecute = false, CreateNoWindow = true };
+        psi.ArgumentList.Add("-nostdin"); psi.ArgumentList.Add("-loglevel"); psi.ArgumentList.Add("error");
         psi.ArgumentList.Add("-y"); psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(src);
         var extra = isVideo
             ? new[] { "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "aac", "-movflags", "+faststart" }
