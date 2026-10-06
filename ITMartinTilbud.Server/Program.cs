@@ -35,6 +35,7 @@ builder.Services.AddRazorComponents();
 builder.Services.AddMemoryCache();
 const string UserAgent = "ITMartinTilbud/1.0 (ITMartin@Mensa.dk)";
 builder.Services.AddHttpClient<TjekOffers>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
+builder.Services.AddHttpClient<SallingFoodWaste>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
 builder.Services.AddHttpClient<Places>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
 
 var app = builder.Build();
@@ -52,6 +53,15 @@ app.MapGet("/api/tilbud", async (string? q, double? lat, double? lng, int? km, T
     if (lat is null || lng is null) return Results.BadRequest(new { fejl = "Vælg først hvor du bor." });
     try { return Results.Ok(await offers.SearchAsync(q, lat.Value, lng.Value, km ?? 10, ct)); }
     catch (OffersUnavailableException) { return Results.Json(new { fejl = "Tilbudsavisen svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
+});
+
+// Madspild: Netto/føtex/Bilka markdowns near you (Salling's official API). 404 = no key yet -> the page hides the box.
+app.MapGet("/api/madspild", async (double? lat, double? lng, int? km, SallingFoodWaste fw, CancellationToken ct) =>
+{
+    if (!fw.Enabled) return Results.NotFound(new { fejl = "Madspild er ikke slået til endnu." });
+    if (lat is null || lng is null) return Results.BadRequest(new { fejl = "Vælg først hvor du bor." });
+    try { return Results.Ok(await fw.NearAsync(lat.Value, lng.Value, km ?? 5, ct)); }
+    catch (OffersUnavailableException) { return Results.Json(new { fejl = "Salling svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
 });
 
 app.MapGet("/api/sted", async (string? postnr, Places places, CancellationToken ct) =>

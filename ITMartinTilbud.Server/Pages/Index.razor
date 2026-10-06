@@ -24,12 +24,30 @@
         </select>
     </label>
     <p id="sted-fejl" class="tb-fejl" role="alert" hidden></p>
+    <fieldset class="tb-apps">
+        <legend>📱 Har du butikkens egen app? <span class="k-muted">(så minder vi dig om kuponerne)</span></legend>
+        <label><input type="checkbox" value="Lidl" /> Lidl Plus</label>
+        <label><input type="checkbox" value="Coop" /> Coop (Kvickly, Brugsen, 365)</label>
+        <label><input type="checkbox" value="Salling" /> Netto, føtex, Bilka</label>
+        <label><input type="checkbox" value="REMA 1000" /> REMA 1000</label>
+    </fieldset>
 </section>
 
 <section class="k-card" id="mine-kort">
     <h2 class="k-card-title">⭐ Mine varer – billigst i denne uge</h2>
     <p id="mine-tom" class="k-muted">Du har ingen varer endnu. Søg efter en vare herunder og tryk <b>⭐ Gem</b>.</p>
     <div id="mine-liste"></div>
+</section>
+
+<section class="k-card" id="madspild-kort" hidden>
+    <h2 class="k-card-title">♻️ Madspild nær dig – Netto, føtex og Bilka</h2>
+    <p class="k-muted">Varer med kort holdbarhed, sat ned i dag. Få styk – kom i god tid. Største rabat øverst.</p>
+    <div class="tb-row">
+        <input id="mf" class="tb-input tb-q" placeholder="Filtrér, fx kød, brød, ost" aria-label="Filtrér madspild" />
+        <button id="mf-hent" class="k-btn k-btn-primary" type="button">Vis madspild</button>
+    </div>
+    <p id="mf-info" class="k-muted" aria-live="polite"></p>
+    <div id="mf-liste"></div>
 </section>
 
 <section class="k-card" id="soeg-kort">
@@ -49,6 +67,9 @@
         <li>Tilbuddene kommer fra <b>eTilbudsavis</b> (Tjek) og gælder i den uge, der står ved hvert tilbud.</li>
         <li><b>Pris pr. kg / liter</b> regnes ud fra pakkens størrelse. Står der fx 400–500 g, regner vi med 500 g.</li>
         <li>Tjek altid prisen i butikken – nogle tilbud gælder kun med medlemskort eller i begrænset antal.</li>
+        <li><b>Madspild</b> kommer direkte fra Salling Group (Netto, føtex, Bilka) og opdateres i løbet af dagen.</li>
+        <li><b>Kuponer i butikkernes apps</b> (Lidl Plus, Coop, Salling) er personlige og kan ikke ses her – åbn appen og aktivér dem, før du handler.</li>
+        <li>Tryk <b>📤 Del</b> ved et tilbud for at sende det til familien på SMS, Messenger eller mail.</li>
         <li>Ingen reklamer, intet login. <b>Mine varer</b> gemmes kun i din egen browser.</li>
     </ul>
 </section>

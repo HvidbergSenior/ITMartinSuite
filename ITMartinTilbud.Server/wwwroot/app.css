@@ -29,3 +29,8 @@
 
 /* .k-btn sets display, which beats the hidden attribute - keep hidden things hidden. */
 [hidden] { display: none !important; }
+.tb-apps { border: 1px solid #d3d9d7; border-radius: 10px; margin: 12px 0 0; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.tb-apps legend { font-weight: 600; padding: 0 4px; }
+.tb-apps label { display: flex; gap: 6px; align-items: center; }
+.tb-app { margin-top: 4px; font-weight: 600; color: #1f2b28; }
+.tb-share { font: inherit; font-size: .9rem; margin-top: 6px; background: #fff; border: 1px solid #9aa3a0; border-radius: 8px; padding: 4px 10px; color: #111; cursor: pointer; }

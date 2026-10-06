@@ -8,8 +8,8 @@
     var lastQuery = '';
 
     function load() {
-        try { var s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { place: s.place || null, km: s.km || 10, mine: s.mine || [] }; }
-        catch (e) { return { place: null, km: 10, mine: [] }; }
+        try { var s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { place: s.place || null, km: s.km || 10, mine: s.mine || [], apps: s.apps || [] }; }
+        catch (e) { return { place: null, km: 10, mine: [], apps: [] }; }
     }
     function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { } }
 
@@ -17,6 +17,34 @@
     var day = new Intl.DateTimeFormat('da-DK', { weekday: 'short', day: 'numeric', month: 'numeric' });
     function money(n) { return kr.format(n) + ' kr'; }
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+    // ---- the shops' own apps: their coupons are personal, so we can only remind
+    var APP = { 'Lidl': 'Lidl', 'Kvickly': 'Coop', 'SuperBrugsen': 'Coop', 'Brugsen': 'Coop', "Dagli'Brugsen": 'Coop', '365discount': 'Coop',
+        'Coop 365': 'Coop', 'Netto': 'Salling', 'føtex': 'Salling', 'Bilka': 'Salling', 'REMA 1000': 'REMA 1000' };
+    var APP_NAME = { 'Lidl': 'Lidl Plus', 'Coop': 'Coop-appen', 'Salling': 'Salling Group-appen', 'REMA 1000': 'REMA 1000-appen' };
+    document.querySelectorAll('.tb-apps input').forEach(function (cb) {
+        cb.checked = state.apps.indexOf(cb.value) >= 0;
+        cb.addEventListener('change', function () {
+            state.apps = Array.prototype.filter.call(document.querySelectorAll('.tb-apps input'), function (c) { return c.checked; }).map(function (c) { return c.value; });
+            save(); refresh();
+        });
+    });
+
+    // ---- sharing: the phone's own share sheet (SMS, Messenger, mail), or copy when there is none
+    var shareCount = 0, shared = {};
+    function shareBtn(text, q) {
+        var id = 's' + (++shareCount);
+        shared[id] = { text: text, url: location.origin + '/' + (q ? '?q=' + encodeURIComponent(q) : '') };
+        return '<button class="tb-share" type="button" data-s="' + id + '">📤 Del</button>';
+    }
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('.tb-share'); if (!b) return;
+        var s = shared[b.dataset.s]; if (!s) return;
+        if (navigator.share) { navigator.share({ title: 'Tilbud', text: s.text, url: s.url }).catch(function () { }); return; }
+        var all = s.text + ' ' + s.url;
+        (navigator.clipboard ? navigator.clipboard.writeText(all) : Promise.reject()).then(function () { b.textContent = '✓ Kopieret'; },
+            function () { window.prompt('Kopiér teksten:', all); });
+    });
 
     // ---- place
     function showPlace() {
@@ -58,7 +86,7 @@
         return fetch('/api/tilbud?q=' + encodeURIComponent(q) + '&lat=' + p.lat + '&lng=' + p.lng + '&km=' + state.km)
             .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.fejl || 'Fejl'); return j; }); });
     }
-    function offerHtml(o) {
+    function offerHtml(o, q) {
         var unit = o.unitPrice != null ? '<span class="tb-unit">' + money(o.unitPrice).replace(' kr', '') + ' ' + esc(o.unitLabel) + '</span>' : '';
         var before = o.normalPrice && o.normalPrice > o.price ? '<span class="tb-before">før ' + money(o.normalPrice) + '</span>' : '';
         var till = o.validTo ? '<span class="k-muted">til ' + day.format(new Date(o.validTo)) + '</span>' : '';
@@ -68,6 +96,9 @@
             '<div class="tb-title">' + esc(o.title) + (o.size ? ' <span class="k-muted">· ' + esc(o.size) + '</span>' : '') + '</div>' +
             '<div class="tb-prices"><span class="tb-price">' + money(o.price) + '</span>' + unit + before + till + '</div>' +
             (o.description ? '<div class="tb-desc k-muted">' + esc(o.description) + '</div>' : '') +
+            (APP[o.chain] && state.apps.indexOf(APP[o.chain]) >= 0 ? '<div class="tb-app">📱 Åbn ' + APP_NAME[APP[o.chain]] + ' – der kan være en kupon oveni.</div>' : '') +
+            shareBtn(o.title + ' – ' + money(o.price) + (o.unitPrice != null ? ' (' + money(o.unitPrice).replace(' kr', '') + ' ' + o.unitLabel + ')' : '') +
+                ' i ' + o.chain + (o.validTo ? ', til ' + day.format(new Date(o.validTo)) : '') + '.', q || lastQuery) +
             '</div></div>';
     }
 
@@ -88,7 +119,7 @@
             $('soeg-info').textContent = list.length + ' tilbud fra ' + Object.keys(chains).length + ' kæder – billigste pr. kg/liter øverst.';
             var shown = 25;
             function draw() {
-                $('resultater').innerHTML = list.slice(0, shown).map(offerHtml).join('') +
+                $('resultater').innerHTML = list.slice(0, shown).map(function (o) { return offerHtml(o, q); }).join('') +
                     (list.length > shown ? '<button class="k-btn k-btn-secondary tb-more" type="button">Vis ' + Math.min(25, list.length - shown) + ' mere</button>' : '');
                 var more = $('resultater').querySelector('.tb-more');
                 if (more) more.addEventListener('click', function () { shown += 25; draw(); });
@@ -126,9 +157,10 @@
                 if (!list.length) { body.textContent = 'Ikke på tilbud i denne uge.'; return; }
                 body.classList.remove('k-muted');
                 var rest = list.length - 1;
-                body.innerHTML = offerHtml(list[0]) + (rest > 0
+                var oh = function (o) { return offerHtml(o, job[0]); };
+                body.innerHTML = oh(list[0]) + (rest > 0
                     ? '<details class="tb-more-offers"><summary>' + (rest > 5 ? 'De 5 næste (af ' + rest + ' andre)' : rest + ' andre tilbud') + '</summary>' +
-                      list.slice(1, 6).map(offerHtml).join('') +
+                      list.slice(1, 6).map(oh).join('') +
                       (rest > 5 ? '<button class="k-btn k-btn-secondary tb-all" type="button" data-q="' + esc(job[0]) + '">Se alle ' + list.length + ' tilbud</button>' : '') +
                       '</details>' : '');
                 var all = body.querySelector('.tb-all');
@@ -138,6 +170,44 @@
         next(); next();
     }
 
+    // ---- madspild (Salling): the box shows only when the server has a key (404 = not switched on)
+    var waste = null;
+    function wasteHtml(c) {
+        var img = c.image ? '<img class="tb-img" src="' + esc(c.image) + '" alt="" loading="lazy">' : '<div class="tb-img"></div>';
+        var pct = c.percentDiscount ? '<span class="tb-unit">−' + Math.round(c.percentDiscount) + ' %</span>' : '';
+        var before = c.originalPrice ? '<span class="tb-before">før ' + money(c.originalPrice) + '</span>' : '';
+        var stock = c.stock ? '<span class="k-muted">' + c.stock + ' ' + esc(c.stockUnit || '') + ' tilbage</span>' : '';
+        return '<div class="tb-offer">' + img + '<div class="tb-offer-body"><div class="tb-chain">' + esc(c.store) + '</div>' +
+            '<div class="tb-title">' + esc(c.title) + '</div>' +
+            '<div class="tb-prices"><span class="tb-price">' + money(c.newPrice) + '</span>' + pct + before + stock + '</div>' +
+            (c.address ? '<div class="tb-desc k-muted">' + esc(c.address) + '</div>' : '') +
+            shareBtn('Madspild: ' + c.title + ' – ' + money(c.newPrice) + (c.originalPrice ? ' (før ' + money(c.originalPrice) + ')' : '') + ' i ' + c.store + '.', '') +
+            '</div></div>';
+    }
+    function drawWaste() {
+        if (!waste) return;
+        var f = $('mf').value.trim().toLowerCase();
+        var list = f ? waste.filter(function (c) { return (c.title + ' ' + c.store).toLowerCase().indexOf(f) >= 0; }) : waste;
+        $('mf-info').textContent = list.length + ' varer sat ned' + (f ? ' med "' + f + '"' : '') + ' inden for ' + Math.min(state.km, 20) + ' km.';
+        $('mf-liste').innerHTML = list.slice(0, 40).map(wasteHtml).join('');
+    }
+    function loadWaste() {
+        if (!state.place) { $('mf-info').textContent = 'Vælg først hvor du handler.'; return; }
+        $('mf-info').textContent = 'Henter madspild …';
+        var p = state.place;
+        fetch('/api/madspild?lat=' + p.lat + '&lng=' + p.lng + '&km=' + Math.min(state.km, 20)).then(function (r) {
+            if (r.status === 404) { $('madspild-kort').hidden = true; return null; }
+            return r.json().then(function (j) { if (!r.ok) throw new Error(j.fejl || 'Fejl'); return j; });
+        }).then(function (list) { if (list) { waste = list; drawWaste(); } })
+          .catch(function (err) { $('mf-info').textContent = err.message; });
+    }
+    $('mf-hent').addEventListener('click', loadWaste);
+    $('mf').addEventListener('input', drawWaste);
+    fetch('/api/madspild').then(function (r) { $('madspild-kort').hidden = r.status === 404; }).catch(function () { });
+
     showPlace();
     refresh();
+    // A shared link (/?q=kaffe) opens straight on that search.
+    var shareQ = new URLSearchParams(location.search).get('q');
+    if (shareQ) { $('q').value = shareQ; if (state.place) search(shareQ); }
 })();
