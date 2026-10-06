@@ -33,6 +33,13 @@
     </section>
 }
 
+@* Headline (user 2026-10-06): a short message that makes people think. Text = Svar -> Sider -> "overskrift",
+   hidden when empty. Under the Bogshoppen teaser, which must stay right under the heading. *@
+@if (_headline is { Body.Length: > 0 })
+{
+    <section class="k-card hj-page hj-headline">@TinyMarkdown.Render(_headline.Body)</section>
+}
+
 @* "Vidste du …" - live money-saving tip from ElPriser (user 2026-10-05). *@
 <ElTip />
 
@@ -102,6 +109,7 @@ else if (_family && !_owner)
     private int _hiddenFamily;
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
     private Page? _news;   // Svar -> Sider -> "bogshoppen": highlighted box, stays until the collaboration is done
+    private Page? _headline; // Svar -> Sider -> "overskrift": dark headline box under the Bogshoppen teaser
     public const string CollabSlug = "foelg-samarbejdet";
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
@@ -123,6 +131,7 @@ else if (_family && !_owner)
         _s = await db.Settings.AsNoTracking().FirstAsync();
         _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
         _news = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "bogshoppen");
+        _headline = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "overskrift");
         var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();

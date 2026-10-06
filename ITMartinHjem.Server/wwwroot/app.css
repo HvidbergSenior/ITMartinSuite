@@ -105,6 +105,11 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-news { border: 3px solid var(--k-accent); margin: 12px 0 20px; }
 .hj-news h2:first-child { margin-top: 0; }
 
+/* Headline box on the front page: white on dark ink (user is colour-blind - never colour on colour) */
+.hj-headline { background: #1d1d1f; color: #fff; border: 0; margin: 12px 0 20px; }
+.hj-headline h2 { color: #fff; margin-top: 0; font-size: 1.5rem; line-height: 1.25; }
+.hj-headline p { color: #fff; font-size: 1.1rem; }
+
 /* "Martin er her nu" at the top of the front page - big and impossible to miss */
 .hj-chat-top { text-align: center; border: 2px solid var(--k-border); }
 .hj-chat-top.is-on { border-color: var(--k-success, #1f9d55); background: #eefaf2; }
