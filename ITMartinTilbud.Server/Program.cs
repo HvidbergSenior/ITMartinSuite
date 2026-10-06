@@ -57,6 +57,7 @@ app.MapGet("/api/tilbud", async (string? q, double? lat, double? lng, int? km, T
 app.MapGet("/api/sted", async (string? postnr, Places places, CancellationToken ct) =>
     await places.FromPostcodeAsync(postnr ?? "", ct) is { } p ? Results.Ok(p) : Results.NotFound(new { fejl = "Det postnummer kender vi ikke." }));
 
-app.MapRazorComponents<App>();
+app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly);   // /kolibri/om + /kolibri/hjaelp
 
 app.Run();
