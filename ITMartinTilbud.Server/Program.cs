@@ -33,6 +33,7 @@ builder.Services.AddKolibri(k =>
 
 builder.Services.AddRazorComponents();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<FixedDeals>();
 const string UserAgent = "ITMartinTilbud/1.0 (ITMartin@Mensa.dk)";
 builder.Services.AddHttpClient<TjekOffers>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
 builder.Services.AddHttpClient<SallingFoodWaste>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
@@ -65,6 +66,21 @@ app.MapGet("/api/madspild", async (double? lat, double? lng, int? km, SallingFoo
     catch (FoodWasteQuotaException) { return Results.Json(new { fejl = "Madspild er brugt op for i dag (Salling giver 100 opslag om dagen). Prøv igen i morgen." }, statusCode: 429); }
 });
 
+// Faste tilbud (weekly deals that are in no leaflet): everyone reads them; only Martin (Tilbud__AdminPin) adds or removes.
+var adminPin = app.Configuration["Tilbud:AdminPin"] ?? "";
+bool IsAdmin(HttpContext ctx) => adminPin.Length >= 6 && ctx.Request.Headers["X-Pin"] == adminPin;
+
+app.MapGet("/api/faste", (FixedDeals deals) => Results.Ok(deals.All()));
+app.MapPost("/api/faste/tjek", (HttpContext ctx) => IsAdmin(ctx) ? Results.Ok() : Results.StatusCode(401));
+app.MapPost("/api/faste", (FixedDealRequest r, HttpContext ctx, FixedDeals deals) =>
+{
+    if (!IsAdmin(ctx)) return Results.StatusCode(401);
+    if (string.IsNullOrWhiteSpace(r.Chain) || string.IsNullOrWhiteSpace(r.Item)) return Results.BadRequest(new { fejl = "Skriv både butik og vare." });
+    return Results.Ok(deals.Add(r.Chain, r.Item, r.Days ?? [], r.Price, r.Unit, r.NeedsApp, r.Note));
+});
+app.MapDelete("/api/faste/{id}", (string id, HttpContext ctx, FixedDeals deals) =>
+    !IsAdmin(ctx) ? Results.StatusCode(401) : deals.Remove(id) ? Results.Ok() : Results.NotFound());
+
 app.MapGet("/api/sted", async (string? postnr, Places places, CancellationToken ct) =>
     await places.FromPostcodeAsync(postnr ?? "", ct) is { } p ? Results.Ok(p) : Results.NotFound(new { fejl = "Det postnummer kender vi ikke." }));
 
@@ -72,3 +88,5 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly);   // /kolibri/om + /kolibri/hjaelp
 
 app.Run();
+
+public sealed record FixedDealRequest(string Chain, string Item, int[]? Days, decimal? Price, string? Unit, string? NeedsApp, string? Note);

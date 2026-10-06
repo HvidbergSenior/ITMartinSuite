@@ -1,0 +1,61 @@
+@page "/faste"
+
+<PageTitle>Faste tilbud – Tilbud</PageTitle>
+
+@* Martin's page for weekly deals that are in no public leaflet (e.g. a weekday deal inside a shop's app).
+   faste.js: PIN (kept on this device), the form and the list. Everyone sees the deals on the front page. *@
+
+<section class="k-card">
+    <h1 class="k-card-title">🔁 Faste tilbud</h1>
+    <p>Tilbud der kommer igen hver uge, men ikke står i tilbudsavisen – fx et fast tilbud på mælk om tirsdagen i en butiks app.
+       Det du skriver her, ser alle på forsiden under deres varer.</p>
+    <form id="pin-form" class="tb-row" autocomplete="off">
+        <input id="pin" class="tb-input" type="password" placeholder="PIN-kode" aria-label="PIN-kode" />
+        <button class="k-btn k-btn-primary" type="submit">Log ind</button>
+    </form>
+    <p id="pin-fejl" class="tb-fejl" role="alert" hidden></p>
+</section>
+
+<section class="k-card" id="ny-kort" hidden>
+    <h2 class="k-card-title">➕ Tilføj fast tilbud</h2>
+    <form id="ny-form" autocomplete="off">
+        <label class="tb-label">Vare <input id="f-vare" class="tb-input tb-wide" placeholder="Fx mælk" required /></label>
+        <label class="tb-label">Butik
+            <input id="f-butik" class="tb-input tb-wide" list="butikker" placeholder="Fx Lidl" required />
+            <datalist id="butikker">
+                <option value="Lidl" /><option value="Netto" /><option value="REMA 1000" /><option value="føtex" /><option value="Bilka" />
+                <option value="Kvickly" /><option value="SuperBrugsen" /><option value="Brugsen" /><option value="365discount" />
+                <option value="MENY" /><option value="Løvbjerg" /><option value="SPAR" />
+            </datalist>
+        </label>
+        <fieldset class="tb-apps">
+            <legend>Hvilke dage? <span class="k-muted">(ingen = hver dag)</span></legend>
+            <label><input type="checkbox" name="dag" value="1" /> Man</label>
+            <label><input type="checkbox" name="dag" value="2" /> Tir</label>
+            <label><input type="checkbox" name="dag" value="3" /> Ons</label>
+            <label><input type="checkbox" name="dag" value="4" /> Tor</label>
+            <label><input type="checkbox" name="dag" value="5" /> Fre</label>
+            <label><input type="checkbox" name="dag" value="6" /> Lør</label>
+            <label><input type="checkbox" name="dag" value="7" /> Søn</label>
+        </fieldset>
+        <div class="tb-row">
+            <label class="tb-label">Pris i kr <span class="k-muted">(valgfri)</span> <input id="f-pris" class="tb-input" inputmode="decimal" placeholder="Fx 5,00" /></label>
+            <label class="tb-label">Pr. <input id="f-enhed" class="tb-input" placeholder="Fx liter" /></label>
+        </div>
+        <label class="tb-label">Kræver app? <span class="k-muted">(tom = nej)</span>
+            <input id="f-app" class="tb-input tb-wide" list="apps" placeholder="Fx Lidl Plus-appen" />
+            <datalist id="apps"><option value="Lidl Plus-appen" /><option value="Netto+ appen" /><option value="føtex plus appen" /><option value="Coop-appen (medlem)" /><option value="REMA 1000-appen" /></datalist>
+        </label>
+        <label class="tb-label">Note <span class="k-muted">(valgfri)</span> <input id="f-note" class="tb-input tb-wide" placeholder="Fx maks. 6 stk." /></label>
+        <button class="k-btn k-btn-primary" type="submit">Gem fast tilbud</button>
+        <p id="ny-info" class="k-muted" aria-live="polite"></p>
+    </form>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">📋 Faste tilbud nu</h2>
+    <div id="faste-liste"><p class="k-muted">Henter …</p></div>
+    <p><a href="/">← Tilbage til Tilbud</a></p>
+</section>
+
+<script src="faste.js?v=@App.CacheBuster" defer></script>

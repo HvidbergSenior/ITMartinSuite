@@ -46,3 +46,9 @@
 .tb-best-where { margin: 4px 0 2px; font-size: 1.05rem; }
 .tb-appline { margin: 6px 0 0; padding: 6px 8px; background: #fff6d6; border: 1px solid #e8d48a; border-radius: 8px; color: #3b2a00; }
 .tb-others { margin: 6px 0; line-height: 1.5; }
+.tb-fixed { margin: 6px 0 0; padding: 6px 8px; background: #eef1f0; border: 1px solid #c5ccca; border-radius: 8px; }
+.tb-day { padding: 6px 0; border-bottom: 1px solid #e3e6e5; }
+.tb-day:last-of-type { border-bottom: none; }
+.tb-day-name { font-weight: 800; margin-bottom: 2px; }
+.tb-label { display: block; margin: 8px 0; font-weight: 600; }
+.tb-wide { width: 100%; box-sizing: border-box; }

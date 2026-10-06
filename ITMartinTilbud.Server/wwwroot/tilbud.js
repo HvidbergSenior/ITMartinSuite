@@ -207,7 +207,21 @@
 
     // ---- Mine varer, the simple answer (user 2026-10-06): where is it cheapest, which days, which store - without an
     // app first; an app-only offer is mentioned only when it is cheaper; and the other shops, so you see what you save.
+    var fixed = [];
+    var DAYNAME = ['', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag', 'søndag'];
+    function fixedFor(q) {
+        q = q.toLowerCase();
+        return fixed.filter(function (d) { var i = d.item.toLowerCase(); return i.indexOf(q) >= 0 || q.indexOf(i) >= 0; });
+    }
+    function fixedDays(d) { return !d.days || !d.days.length ? 'hver dag' : 'hver ' + d.days.map(function (x) { return DAYNAME[x]; }).join(' og '); }
+    function fixedLine(d) {
+        return '<div class="tb-fixed">🔁 Fast tilbud ' + fixedDays(d) + ' i <b>' + esc(d.chain) + '</b>: ' + esc(d.item) +
+            (d.price ? ' – <b>' + money(d.price) + '</b>' + (d.unit ? ' pr. ' + esc(d.unit) : '') : '') +
+            (d.needsApp ? ' <span class="k-muted">(kræver ' + esc(d.needsApp) + ')</span>' : '') + (d.note ? ' <span class="k-muted">' + esc(d.note) + '</span>' : '') + '</div>';
+    }
+
     function summary(list, q) {
+        if (!list.length) return fixedFor(q).map(fixedLine).join('') || '<span class="k-muted">Ikke på tilbud i denne uge.</span>';
         var main = list.filter(function (o) { return !o.variant; }); if (!main.length) main = list;
         var free = main.filter(function (o) { return !o.needsApp; });
         var best = free[0] || main[0];
@@ -230,16 +244,43 @@
             (others.length ? '<div class="tb-others"><b>Andre steder:</b> ' + others.map(function (o) {
                 return esc(o.chain) + ' ' + money(o.price) + ' <span class="k-muted">(' + diffText(o, best) + ')</span>';
             }).join(' · ') + '</div>' : '<div class="tb-others k-muted">Ingen andre butikker har den på tilbud lige nu.</div>') +
+            fixedFor(q).map(fixedLine).join('') +
             '<div class="tb-row">' + shareBtn('Billigst ' + q + ': ' + best.title + ' – ' + money(best.price) + ' i ' + best.chain +
                 (best.nearestStore ? ', ' + best.nearestStore : '') + (best.validTo ? ', ' + when(best) : '') + '.', q) +
             '<button class="tb-share tb-all" type="button" data-q="' + esc(q) + '">Se alle ' + list.length + ' tilbud</button></div>';
+    }
+
+    var lists = {};
+    var weekday = new Intl.DateTimeFormat('da-DK', { weekday: 'long', day: 'numeric', month: 'numeric' });
+    function drawWeek() {
+        var box = $('uge-liste'); if (!box) return;
+        if (!state.mine.length) { box.innerHTML = '<p class="k-muted">Gem nogle varer under ⭐ Mine varer, så ser du her, hvor de er billigst hver dag.</p>'; return; }
+        var html = '';
+        for (var i = 0; i < 7; i++) {
+            var d0 = new Date(); d0.setHours(0, 0, 0, 0); d0.setDate(d0.getDate() + i);
+            var d1 = new Date(d0); d1.setDate(d1.getDate() + 1);
+            var wd = d0.getDay() === 0 ? 7 : d0.getDay();
+            var rows = state.mine.map(function (q) {
+                var list = (lists[q] || []).filter(function (o) {
+                    return !o.variant && !o.needsApp && (!o.validFrom || new Date(o.validFrom) < d1) && (!o.validTo || new Date(o.validTo) >= d0);
+                });
+                var best = list[0];
+                var fx = fixedFor(q).filter(function (d) { return !d.days || !d.days.length || d.days.indexOf(wd) >= 0; });
+                if (!best && !fx.length) return '';
+                return '<li><b>' + esc(q) + ':</b> ' + (best ? esc(best.chain) + ' ' + money(best.price) + (best.unitPrice != null ? ' <span class="k-muted">(' + kr.format(best.unitPrice) + ' ' + esc(best.unitLabel) + ')</span>' : '') : '') +
+                    fx.map(function (d) { return (best ? ' · ' : '') + '🔁 ' + esc(d.chain) + (d.price ? ' ' + money(d.price) : '') + (d.needsApp ? ' <span class="k-muted">(' + esc(d.needsApp) + ')</span>' : ''); }).join('') + '</li>';
+            }).join('');
+            html += '<div class="tb-day"><div class="tb-day-name">' + (i === 0 ? 'I dag, ' + weekday.format(d0) : i === 1 ? 'I morgen, ' + weekday.format(d0) : weekday.format(d0).replace(/^./, function (c) { return c.toUpperCase(); })) + '</div>' +
+                (rows ? '<ul class="tb-list">' + rows + '</ul>' : '<p class="k-muted">Ingen af dine varer er på tilbud.</p>') + '</div>';
+        }
+        box.innerHTML = html + '<p class="k-muted">Næste uges tilbudsaviser kommer i løbet af weekenden – så fylder ugen sig ud.</p>';
     }
 
     // ---- Mine varer: the best offer per item
     function refresh() {
         var box = $('mine-liste');
         $('mine-tom').hidden = state.mine.length > 0;
-        if (!state.mine.length) { box.innerHTML = ''; return; }
+        if (!state.mine.length) { box.innerHTML = ''; drawWeek(); return; }
         if (!state.place) { box.innerHTML = '<p class="k-muted">Vælg først hvor du handler.</p>'; return; }
         box.innerHTML = state.mine.map(function (q, i) {
             return '<div class="tb-mine" id="mine-' + i + '"><div class="tb-mine-head"><b>' + esc(q) + '</b>' +
@@ -256,7 +297,7 @@
             var body = document.querySelector('#mine-' + job[1] + ' .tb-mine-body');
             getOffers(job[0]).then(function (list) {
                 if (!body) return;
-                if (!list.length) { body.textContent = 'Ikke på tilbud i denne uge.'; return; }
+                lists[job[0]] = list; drawWeek();
                 body.classList.remove('k-muted');
                 body.innerHTML = summary(list, job[0]);
                 var all = body.querySelector('.tb-all');
@@ -303,6 +344,7 @@
     $('mf').addEventListener('input', drawWaste);
     fetch('/api/madspild').then(function (r) { $('madspild-kort').hidden = r.status === 404; }).catch(function () { });
 
+    fetch('/api/faste').then(function (r) { return r.json(); }).then(function (d) { fixed = d || []; refresh(); }).catch(function () { });
     showPlace();
     refresh();
     // A shared link (/?q=kaffe) opens straight on that search.
