@@ -91,10 +91,10 @@
     // Which days: "kun fre. 9.10", "fra tirs. 7.10 til søn. 12.10" or "til søn. 12.10".
     function when(o) {
         if (!o.validTo) return '';
-        var from = o.validFrom ? new Date(o.validFrom) : null, to = new Date(o.validTo), now = new Date();
+        var from = o.validFrom ? new Date(o.validFrom) : null, to = new Date(o.validTo);
         if (from && from.toDateString() === to.toDateString()) return 'kun ' + day.format(to);
-        if (from && from > now) return 'fra ' + day.format(from) + ' til ' + day.format(to);
-        return 'til ' + day.format(to);
+        if (from && (to - from) > 40 * 864e5) return 'fast pris til ' + day.format(to);
+        return from ? 'gælder ' + day.format(from) + ' – ' + day.format(to) : 'til ' + day.format(to);
     }
     function where(o) {
         return o.nearestStore ? esc(o.nearestStore) + (o.nearestKm != null ? ' (' + String(o.nearestKm).replace('.', ',') + ' km)' : '') : '';
@@ -316,17 +316,33 @@
         var pct = c.percentDiscount ? '<span class="tb-unit">−' + Math.round(c.percentDiscount) + ' %</span>' : '';
         var before = c.originalPrice ? '<span class="tb-before">før ' + money(c.originalPrice) + '</span>' : '';
         var stock = c.stock ? '<span class="k-muted">' + c.stock + ' ' + esc(c.stockUnit || '') + ' tilbage</span>' : '';
+        var facts = [c.category, c.km != null ? String(c.km).replace('.', ',') + ' km' : null, c.ean ? 'EAN ' + c.ean : null].filter(Boolean).join(' · ');
         return '<div class="tb-offer">' + img + '<div class="tb-offer-body"><div class="tb-chain">' + esc(c.store) + '</div>' +
             '<div class="tb-title">' + esc(c.title) + '</div>' +
             '<div class="tb-prices"><span class="tb-price">' + money(c.newPrice) + '</span>' + pct + before + stock + '</div>' +
+            (c.endTime ? '<div class="tb-needs">⏳ Nedsat til og med ' + relDay(c.endTime) + '</div>' : '') +
+            (c.startTime ? '<div class="tb-where">Sat ned ' + relDay(c.startTime, true) + (c.lastUpdate ? ' · opdateret ' + relDay(c.lastUpdate, true) : '') + '</div>' : '') +
+            (facts ? '<div class="tb-desc k-muted">' + esc(facts) + '</div>' : '') +
             (c.address ? '<div class="tb-desc k-muted">' + esc(c.address) + '</div>' : '') +
             shareBtn('Madspild: ' + c.title + ' – ' + money(c.newPrice) + (c.originalPrice ? ' (før ' + money(c.originalPrice) + ')' : '') + ' i ' + c.store + '.', '') +
             '</div></div>';
     }
+    // "i dag", "i morgen", or the date; with the time when asked (for when it was marked down).
+    var clock = new Intl.DateTimeFormat('da-DK', { hour: '2-digit', minute: '2-digit' });
+    function relDay(iso, withTime) {
+        var d = new Date(iso), t0 = new Date(); t0.setHours(0, 0, 0, 0);
+        var diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - t0) / 864e5);
+        var name = diff === 0 ? 'i dag' : diff === 1 ? 'i morgen' : diff === -1 ? 'i går' : day.format(d);
+        return name + (withTime ? ' kl. ' + clock.format(d) : '');
+    }
     function drawWaste() {
         if (!waste) return;
         var f = $('mf').value.trim().toLowerCase();
-        var list = f ? waste.filter(function (c) { return (c.title + ' ' + c.store).toLowerCase().indexOf(f) >= 0; }) : waste;
+        var list = f ? waste.filter(function (c) { return (c.title + ' ' + c.store + ' ' + (c.category || '')).toLowerCase().indexOf(f) >= 0; }) : waste.slice();
+        var how = $('mf-sort').value;
+        list.sort(how === 'slut' ? function (a, b) { return new Date(a.endTime || 8e15) - new Date(b.endTime || 8e15); }
+            : how === 'naer' ? function (a, b) { return (a.km == null ? 999 : a.km) - (b.km == null ? 999 : b.km); }
+            : function (a, b) { return (b.percentDiscount || 0) - (a.percentDiscount || 0); });
         $('mf-info').textContent = list.length + ' varer sat ned' + (f ? ' med "' + f + '"' : '') + ' inden for ' + wasteKm() + ' km.';
         $('mf-liste').innerHTML = list.slice(0, 40).map(wasteHtml).join('');
     }
@@ -342,6 +358,7 @@
     }
     $('mf-hent').addEventListener('click', loadWaste);
     $('mf').addEventListener('input', drawWaste);
+    $('mf-sort').addEventListener('change', drawWaste);
     fetch('/api/madspild').then(function (r) { $('madspild-kort').hidden = r.status === 404; }).catch(function () { });
 
     fetch('/api/faste').then(function (r) { return r.json(); }).then(function (d) { fixed = d || []; refresh(); }).catch(function () { });

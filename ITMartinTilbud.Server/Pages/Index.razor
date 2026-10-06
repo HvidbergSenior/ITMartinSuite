@@ -36,6 +36,13 @@
         <input id="mf" class="tb-input tb-q" placeholder="Filtrér, fx kød, brød, ost" aria-label="Filtrér madspild" />
         <button id="mf-hent" class="k-btn k-btn-primary" type="button">Vis madspild</button>
     </div>
+    <label class="tb-km">Sortér
+        <select id="mf-sort" class="tb-input">
+            <option value="rabat">Største rabat først</option>
+            <option value="slut">Udløber først</option>
+            <option value="naer">Nærmest først</option>
+        </select>
+    </label>
     <p id="mf-info" class="k-muted" aria-live="polite"></p>
     <div id="mf-liste"></div>
 </section>
@@ -73,7 +80,7 @@
         <li>Tilbuddene kommer fra <b>eTilbudsavis</b> (Tjek) og gælder i den uge, der står ved hvert tilbud.</li>
         <li><b>Pris pr. kg / liter</b> regnes ud fra pakkens størrelse. Står der fx 400–500 g, regner vi med 500 g.</li>
         <li>Tjek altid prisen i butikken – nogle tilbud gælder kun med medlemskort eller i begrænset antal.</li>
-        <li><b>Madspild</b> kommer direkte fra Salling Group (Netto, føtex, Bilka) og opdateres i løbet af dagen.</li>
+        <li><b>Madspild</b> kommer direkte fra Salling Group (Netto, føtex, Bilka) og opdateres i løbet af dagen. <b>"Nedsat til og med"</b> er den dag, nedsættelsen slutter – Salling oplyser ikke holdbarhedsdatoen for sig.</li>
         <li><b>Kuponer i butikkernes apps</b> (Lidl Plus, Coop, Salling) er personlige og kan ikke ses her – åbn appen og aktivér dem, før du handler.</li>
         <li>Tryk <b>📤 Del</b> ved et tilbud for at sende det til familien på SMS, Messenger eller mail.</li>
         <li><b>🔁 Faste tilbud</b> er tilbud der kommer igen hver uge, men ikke står i tilbudsavisen – fx en fast dag i en butiks app.</li>

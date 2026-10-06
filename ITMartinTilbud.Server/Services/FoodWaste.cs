@@ -8,7 +8,8 @@ namespace ITMartinTilbud.Server.Services;
 // One item marked down because its date is near ("madspild"), in one store.
 public sealed record Clearance(
     string Store, string Brand, string? Address, string Title, decimal NewPrice, decimal? OriginalPrice,
-    decimal? PercentDiscount, decimal? Stock, string? StockUnit, DateTimeOffset? EndTime, string? Image);
+    decimal? PercentDiscount, decimal? Stock, string? StockUnit, DateTimeOffset? EndTime, string? Image,
+    DateTimeOffset? StartTime = null, DateTimeOffset? LastUpdate = null, string? Category = null, string? Ean = null, double? Km = null);
 
 // Salling Group's OFFICIAL Anti Food Waste API (free key from developer.sallinggroup.dev): Netto, føtex and Bilka mark
 // items down near their date. Key in Tilbud__SallingKey; without it the feature is simply not shown.
@@ -82,15 +83,19 @@ public sealed class SallingFoodWaste(HttpClient http, IMemoryCache cache, IConfi
             var name = Str(store, "name") ?? "";
             var brand = Str(store, "brand") ?? "";
             var address = store.TryGetProperty("address", out var a) ? $"{Str(a, "street")}, {Str(a, "zip")} {Str(a, "city")}".Trim(' ', ',') : null;
+            double? km = store.TryGetProperty("distance_km", out var dk) && dk.ValueKind == JsonValueKind.Number ? Math.Round(dk.GetDouble(), 1) : null;
             foreach (var c in cl.EnumerateArray())
             {
                 if (!c.TryGetProperty("offer", out var o) || !c.TryGetProperty("product", out var p)) continue;
-                var end = Str(o, "endTime") is { } e && DateTimeOffset.TryParse(e, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : (DateTimeOffset?)null;
+                var end = When(o, "endTime");
                 if (end is { } t && t < now) continue;
                 if (Num(o, "newPrice") is not { } price || price <= 0) continue;
                 if (Num(o, "stock") is { } st && st <= 0) continue;
+                // "Pizza>Færdigretter>Mejeri & køl>..." - the first step is the most precise kind.
+                var cat = p.TryGetProperty("categories", out var cs) ? Str(cs, "da")?.Split('>')[0].Trim() : null;
                 list.Add(new Clearance(name, Pretty(brand), address, Readable(Str(p, "description") ?? ""), price, Num(o, "originalPrice"),
-                    Num(o, "percentDiscount"), Num(o, "stock"), Str(o, "stockUnit") is "each" ? "stk" : Str(o, "stockUnit"), end, Str(p, "image")));
+                    Num(o, "percentDiscount"), Num(o, "stock"), Str(o, "stockUnit") is "each" ? "stk" : Str(o, "stockUnit"), end, Str(p, "image"),
+                    When(o, "startTime"), When(o, "lastUpdate"), cat, Str(p, "ean") ?? Str(o, "ean"), km));
             }
         }
         return list.OrderByDescending(x => x.PercentDiscount ?? 0).ToList();
@@ -99,6 +104,9 @@ public sealed class SallingFoodWaste(HttpClient http, IMemoryCache cache, IConfi
     // Salling sends "40+ ØKO.RYGEOST LØGISMOSE" - all capitals is hard to read; first letter big, the rest small.
     internal static string Readable(string t) =>
         t.Length > 1 && t.Any(char.IsLetter) && !t.Any(char.IsLower) ? char.ToUpper(t[0]) + t[1..].ToLowerInvariant() : t;
+
+    private static DateTimeOffset? When(JsonElement o, string name) =>
+        Str(o, name) is { } e && DateTimeOffset.TryParse(e, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
 
     private static string Pretty(string brand) => brand.ToLowerInvariant() switch
     {
