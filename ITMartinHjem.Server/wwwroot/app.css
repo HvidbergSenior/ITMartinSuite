@@ -109,6 +109,7 @@ a.hj-app:hover { border-color: var(--k-accent); }
 .hj-headline { background: #1d1d1f; color: #fff; border: 0; margin: 12px 0 20px; }
 .hj-headline h2 { color: #fff; margin-top: 0; font-size: 1.5rem; line-height: 1.25; }
 .hj-headline p { color: #fff; font-size: 1.1rem; }
+.hj-headline .k-btn { background: #fff; color: #1d1d1f; border-color: #fff; font-weight: 700; }
 
 /* "Martin er her nu" at the top of the front page - big and impossible to miss */
 .hj-chat-top { text-align: center; border: 2px solid var(--k-border); }
