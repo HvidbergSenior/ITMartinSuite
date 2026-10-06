@@ -11,6 +11,12 @@ namespace ITMartinHjem.Server.Services;
 public sealed class Tracker
 {
     public const string Site = "itmartin.dk";
+    // bogshoppen.dk is served by this app too and Lager runs on lager.bogshoppen.dk (user 2026-10-06: "also bogshoppen").
+    public static readonly string[] Domains = [Site, "bogshoppen.dk"];
+
+    // The counted domain a host belongs to (itmartin.dk, x.itmartin.dk -> itmartin.dk), or null when it is not ours.
+    public static string? DomainOf(string host) =>
+        Domains.FirstOrDefault(d => host.Equals(d, StringComparison.OrdinalIgnoreCase) || host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase));
     private const int KeepDays = 400;
 
     private readonly IDbContextFactory<HjemDb> _dbf;
@@ -78,7 +84,7 @@ public sealed class Tracker
         var ua = ctx.Request.Headers.UserAgent.ToString();
         if (ua.Length == 0 || Bot(ua)) return null;
         var host = Norm(req.Host ?? "");
-        if (host.Length == 0 || host is "localhost" or "127.0.0.1" || !(host == Site || host.EndsWith("." + Site))) return null;
+        if (DomainOf(host) is null) return null;
         if (ctx.User.IsOwner()) { await MarkOwnerAsync(ctx); await MarkOwnerVisitorAsync(req.VisitorId); return null; }
         if (IsOwnerIp(ctx) || IsOwnerVisitor(req.VisitorId)) return null;
 

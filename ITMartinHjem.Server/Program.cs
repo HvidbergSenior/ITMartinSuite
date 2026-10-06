@@ -40,10 +40,10 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 builder.Services.AddCors(o => o.AddPolicy("itmartin", p => p
     .WithOrigins("https://itmartin.dk", "https://www.itmartin.dk", "http://localhost:5199").WithMethods("GET")));
-// Visit counting: every app on *.itmartin.dk posts its page views here (Services/Tracker).
+// Visit counting: every app on *.itmartin.dk and *.bogshoppen.dk posts its page views here (Services/Tracker).
 builder.Services.AddCors(o => o.AddPolicy("track", p => p
     .SetIsOriginAllowed(origin => Uri.TryCreate(origin, UriKind.Absolute, out var u)
-        && (u.Host == Tracker.Site || u.Host.EndsWith("." + Tracker.Site, StringComparison.OrdinalIgnoreCase)))
+        && Tracker.DomainOf(u.Host) is not null)
     .WithMethods("POST").AllowAnyHeader()));
 builder.Services.AddCascadingAuthenticationState();
 
@@ -139,6 +139,21 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseRouting();
 app.UseCors();
 
+// itmartin.dk/tael-ikke-mig also leaves a cookie for the whole *.itmartin.dk domain (user 2026-10-06: "filter my phone
+// and machine out" - also in the apps). kolibri.js in every app reads it and marks that app's own browser id.
+// Not HttpOnly on purpose: the apps' scripts must see it. It holds nothing but "1".
+app.Use(async (ctx, next) =>
+{
+    // On bogshoppen.dk/tael-ikke-mig the cookie is for *.bogshoppen.dk (Lager) - a browser only takes its own domain.
+    if (ctx.Request.Path.Equals("/tael-ikke-mig", StringComparison.OrdinalIgnoreCase) && Tracker.DomainOf(ctx.Request.Host.Host) is { } domain)
+        ctx.Response.Cookies.Append("ikke_mig", "1", new CookieOptions
+        {
+            Domain = domain, Path = "/", MaxAge = TimeSpan.FromDays(400),
+            Secure = true, SameSite = SameSiteMode.Lax, HttpOnly = false, IsEssential = true,
+        });
+    await next();
+});
+
 // ── Live "Lige nu" for itmartin.dk (wwwroot/widget.js reads this) ───────────────────
 app.MapGet("/api/nu", (IDbContextFactory<HjemDb> dbf) =>
 {
@@ -182,8 +197,9 @@ app.MapPost("/api/hit/{id:long}/tid", async (long id, HttpContext ctx, Tracker t
 
 // itmartin.dk/tael-ikke-mig: this browser is Martin's - never count it, and remove its earlier visits (t.js sends the id).
 // Only the browser id is marked, never the IP: a mobile IP is shared with strangers.
+// The apps (kolibri.js) call it too, with their own browser id, when they see the ikke_mig cookie below.
 app.MapPost("/api/hit/mig", async (HitRequest req, Tracker tracker) => Results.Json(new { removed = await tracker.MarkOwnerVisitorAsync(req.VisitorId) }))
-    .DisableAntiforgery();
+    .DisableAntiforgery().RequireCors("track");
 
 app.MapGet("/api/last-seen", async (Tracker tracker) => Results.Ok(await tracker.LastSeenAsync()));
 

@@ -200,4 +200,35 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 
     window.kolibri = { store: store, openInstall: openSheet };
+
+    /* ---------- visit counting (numbers on itmartin.dk/admin/tal) ---------- */
+    // User 2026-10-06: stats for the photoserver apps too, and never count Martin's own phone/PC.
+    // - itmartin.dk itself counts with its own t.js; Kontrol is Martin's alone.
+    // - Apps that still carry the old inline snippet (same '_mid' id) keep counting with it - no double count.
+    // - itmartin.dk/tael-ikke-mig leaves the cookie ikke_mig=1 on the whole domain: here this app's browser id is
+    //   (bogshoppen.dk/tael-ikke-mig for *.bogshoppen.dk) then marked as Martin's once, so the server ignores it from both this script and an old inline snippet.
+    (function countVisit() {
+        var h = location.hostname;
+        // bogshoppen.dk itself is the hjem app (t.js); its subdomains (Lager) count here.
+        if (!/\.(itmartin|bogshoppen)\.dk$/.test(h) || /^(www|martin|kontrol)\.itmartin\.dk$|^www\.bogshoppen\.dk$/.test(h)) return;
+        if (location.search.indexOf('claude_test=1') !== -1) return;
+        var api = 'https://stats.itmartin.dk/api/hit', vid = '';
+        try { vid = localStorage.getItem('_mid'); if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); } }
+        catch (e) { }
+        if (/(^|;\s*)ikke_mig=1/.test(document.cookie)) {
+            try {
+                if (vid && localStorage.getItem('_me') !== vid) {
+                    fetch(api + '/mig', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visitorId: vid }) })
+                        .then(function (r) { if (r.ok) localStorage.setItem('_me', vid); }).catch(function () { });
+                }
+            } catch (e) { }
+            return;
+        }
+        var inline = Array.prototype.some.call(document.scripts, function (s) { return !s.src && s.textContent.indexOf('stats.itmartin.dk/api/hit') !== -1; });
+        if (inline) return;
+        fetch(api, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+            body: JSON.stringify({ path: location.pathname + location.search, title: document.title, referrer: document.referrer, visitorId: vid, host: h })
+        }).catch(function () { });
+    })();
 })();
