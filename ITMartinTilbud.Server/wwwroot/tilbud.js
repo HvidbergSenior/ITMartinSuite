@@ -110,22 +110,62 @@
         lastQuery = q;
         $('soeg-info').textContent = 'Henter tilbud på "' + q + '" …';
         $('resultater').innerHTML = '';
+        $('kinder').innerHTML = '';
         $('gem').hidden = true;
-        getOffers(q).then(function (list) {
-            $('gem').hidden = false;
-            $('gem').textContent = state.mine.indexOf(q.toLowerCase()) >= 0 ? '✓ Gemt' : '⭐ Gem "' + q + '"';
-            if (!list.length) { $('soeg-info').textContent = 'Ingen tilbud på "' + q + '" i denne uge inden for ' + state.km + ' km. Prøv et andet ord eller længere afstand.'; return; }
-            var chains = {}; list.forEach(function (o) { chains[o.chain] = 1; });
-            $('soeg-info').textContent = list.length + ' tilbud fra ' + Object.keys(chains).length + ' kæder – billigste pr. kg/liter øverst.';
+        getOffers(q).then(function (all) {
+            if (!all.length) { $('soeg-info').textContent = 'Ingen tilbud på "' + q + '" i denne uge inden for ' + state.km + ' km. Prøv et andet ord eller længere afstand.'; return; }
+            // Categories from the words that hold the search (user 2026-10-06: "push you toward the correct category"):
+            // "mælk" -> mælk · skummetmælk · kakaomælk · tykmælk. Tapping one shows only that kind, and ⭐ saves that kind.
+            var w = q.toLowerCase().split(/\s+/)[0];
+            function kindOf(o) {
+                var tok = o.title.toLowerCase().split(/[\s,.;:()&/+*]+/).filter(function (t) { return t.indexOf(w) >= 0; })[0];
+                return tok ? tok.replace(/-/g, '').replace(/[^a-zæøå0-9]+$/, '') : '';
+            }
+            var kinds = {}; all.forEach(function (o) { var k = kindOf(o); if (k) kinds[k] = (kinds[k] || 0) + 1; });
+            var kindList = Object.keys(kinds).sort(function (a, b) { return (a === w ? -1 : b === w ? 1 : kinds[b] - kinds[a]); });
+            var picked = '';
+            function show() {
+                var list = picked ? all.filter(function (o) { return kindOf(o) === picked; }) : all;
+                var chosen = picked || q.toLowerCase();
+                lastQuery = chosen;
+                $('gem').hidden = false;
+                $('gem').textContent = state.mine.indexOf(chosen) >= 0 ? '✓ Gemt' : '⭐ Gem "' + chosen + '"';
+                var chains = {}; list.forEach(function (o) { chains[o.chain] = 1; });
+                $('soeg-info').textContent = list.length + ' tilbud fra ' + Object.keys(chains).length + (Object.keys(chains).length === 1 ? ' kæde' : ' kæder') + ' – billigste pr. kg/liter øverst.' +
+                    (kindList.length > 1 && !picked ? ' Vælg hvilken slags herunder.' : '');
+                render(list);
+            }
+            $('kinder').innerHTML = kindList.length > 1
+                ? '<button class="tb-chip tb-chip--on" type="button" data-k="">Alle (' + all.length + ')</button>' +
+                  kindList.slice(0, 12).map(function (k) { return '<button class="tb-chip" type="button" data-k="' + esc(k) + '">' + esc(k) + ' (' + kinds[k] + ')</button>'; }).join('')
+                : '';
+            $('kinder').querySelectorAll('.tb-chip').forEach(function (c) {
+                c.addEventListener('click', function () {
+                    picked = c.dataset.k;
+                    $('kinder').querySelectorAll('.tb-chip').forEach(function (x) { x.classList.toggle('tb-chip--on', x === c); x.setAttribute('aria-pressed', x === c); });
+                    show();
+                });
+            });
+            show();
+        }).catch(function (err) { $('soeg-info').textContent = err.message; });
+    }
+    function render(list) {
+        var q = lastQuery;
+        {
             var shown = 25;
+            // Flavoured kinds (kakaomælk when you searched mælk) are folded away at the end.
+            var main = list.filter(function (o) { return !o.variant; }), variants = list.filter(function (o) { return o.variant; });
+            if (!main.length) { main = list; variants = []; }
             function draw() {
-                $('resultater').innerHTML = list.slice(0, shown).map(function (o) { return offerHtml(o, q); }).join('') +
-                    (list.length > shown ? '<button class="k-btn k-btn-secondary tb-more" type="button">Vis ' + Math.min(25, list.length - shown) + ' mere</button>' : '');
+                $('resultater').innerHTML = main.slice(0, shown).map(function (o) { return offerHtml(o, q); }).join('') +
+                    (main.length > shown ? '<button class="k-btn k-btn-secondary tb-more" type="button">Vis ' + Math.min(25, main.length - shown) + ' mere</button>' : '') +
+                    (variants.length ? '<details class="tb-more-offers"><summary>Andre varianter (' + variants.length + '), fx ' + esc(variants[0].title) + '</summary>' +
+                        variants.map(function (o) { return offerHtml(o, q); }).join('') + '</details>' : '');
                 var more = $('resultater').querySelector('.tb-more');
                 if (more) more.addEventListener('click', function () { shown += 25; draw(); });
             }
             draw();
-        }).catch(function (err) { $('soeg-info').textContent = err.message; });
+        }
     }
     $('gem').addEventListener('click', function () {
         var q = lastQuery.toLowerCase();

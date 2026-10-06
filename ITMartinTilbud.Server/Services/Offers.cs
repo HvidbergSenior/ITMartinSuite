@@ -8,7 +8,7 @@ namespace ITMartinTilbud.Server.Services;
 public sealed record Offer(
     string Chain, string Title, string? Description, decimal Price, decimal? NormalPrice,
     decimal? UnitPrice, string? UnitLabel, string? Size, DateTimeOffset? ValidFrom, DateTimeOffset? ValidTo,
-    string? Image, string? Logo);
+    string? Image, string? Logo, bool Variant = false);
 
 // Weekly offers from Tjek (the company behind eTilbudsavis): one search covers Lidl, Netto, REMA 1000, føtex, Bilka,
 // Kvickly, SuperBrugsen, MENY, Løvbjerg, SPAR, 365discount and more. No key. Unofficial API - ask Tjek before a wide launch.
@@ -77,14 +77,50 @@ public sealed class TjekOffers(HttpClient http, IMemoryCache cache, ILogger<Tjek
     // Tjek's search is loose ("smør" also brought potatoes): keep offers whose title or text has every searched word;
     // with 3+ title matches only those (margarine that says "smør" in its text is not butter). Order (per kg) is kept.
     // If nothing has the words, show what Tjek found rather than nothing.
+    // Then (user 2026-10-06: "mælk" gave kakaomælk and shower gel): non-food goes, unless that is what was searched for,
+    // and flavoured kinds (kakaomælk, jordbæryoghurt) are marked Variant and go last - the page folds them away.
     internal static List<Offer> Relevant(List<Offer> list, string query)
     {
-        var words = query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var q = query.ToLowerInvariant();
+        var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         bool Has(string? s) => s is not null && words.All(w => s.Contains(w, StringComparison.OrdinalIgnoreCase));
-        var inTitle = list.Where(o => Has(o.Title)).ToList();
-        if (inTitle.Count >= 3) return inTitle;
-        var hits = list.Where(o => Has(o.Title + " " + o.Description)).ToList();
-        return hits.Count > 0 ? hits : list;
+        var food = NonFood.Any(n => q.Contains(n)) ? list : list.Where(o => !NonFood.Any(n => o.Title.Contains(n, StringComparison.OrdinalIgnoreCase))).ToList();
+        var inTitle = food.Where(o => Has(o.Title)).ToList();
+        var hits = inTitle.Count >= 3 ? inTitle : food.Where(o => Has(o.Title + " " + o.Description)).ToList();
+        if (hits.Count == 0) return food.Count > 0 ? food : list;
+        var marked = hits.Select(o => IsVariant(o.Title, words) ? o with { Variant = true } : o).ToList();
+        return marked.Where(o => !o.Variant).Concat(marked.Where(o => o.Variant)).ToList();
+    }
+
+    internal static readonly string[] NonFood =
+    [
+        "shower", "showergel", "shampoo", "balsam", "sæbe", "bodylotion", "lotion", "creme", "deodorant", "deo ", "tandpasta",
+        "vaskemiddel", "opvask", "skyllemiddel", "rengøring", "bleer", "vatrondel", "barbér", "hårfarve", "solcreme", "kattemad", "hundemad",
+    ];
+
+    // A flavour glued onto the searched word ("kakaomælk", "kakao-skummetmælk", "jordbæryoghurt") is another product than
+    // the word itself. Kinds of the thing itself (skummetmælk, minimælk, letmælk) are not flavours and stay main.
+    internal static readonly string[] Flavours =
+        ["kakao", "choko", "chokolade", "jordbær", "vanilje", "banan", "hindbær", "kaffe", "karamel", "mokka", "milkshake", "is "];
+
+    internal static bool IsVariant(string title, string[] words)
+    {
+        var t = title.ToLowerInvariant();
+        if (words.Any(w => Flavours.Any(f => w.Contains(f.Trim())))) return false;   // searched for the flavour itself
+        // Every place a searched word occurs: is it glued to a flavour just before it?
+        foreach (var w in words)
+        {
+            var hitPlain = false;
+            for (var i = t.IndexOf(w, StringComparison.Ordinal); i >= 0; i = t.IndexOf(w, i + 1, StringComparison.Ordinal))
+            {
+                var start = i;
+                while (start > 0 && (char.IsLetter(t[start - 1]) || t[start - 1] == '-')) start--;
+                var prefix = t[start..i];
+                if (!Flavours.Any(f => prefix.Contains(f.Trim()))) hitPlain = true;
+            }
+            if (hitPlain) return false;
+        }
+        return true;
     }
 
     // "quantity": { unit: { si: { symbol: kg|l, factor } }, size: { from, to }, pieces: { from, to } }

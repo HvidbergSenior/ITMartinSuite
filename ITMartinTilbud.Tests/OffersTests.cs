@@ -64,6 +64,21 @@ public class OffersTests
     }
 
     [Test]
+    public void Milk_drops_shower_gel_and_puts_cocoa_milk_last()
+    {
+        Offer Of(string title) => new("Netto", title, null, 10, null, null, null, null, null, null, null, null);
+        var list = new List<Offer>
+        {
+            Of("MILBONA Kakaomælk"), Of("Shower Gel m. orkidé & mælk"), Of("Arla Lactofree mælk"),
+            Of("Matilde kakao-skummetmælk"), Of("Gram Slot Mini- eller skummetmælk"), Of("Arla frisk dansk mælk"),
+        };
+        var r = TjekOffers.Relevant(list, "mælk");
+        r.Where(o => !o.Variant).Select(o => o.Title).Should().Equal("Arla Lactofree mælk", "Gram Slot Mini- eller skummetmælk", "Arla frisk dansk mælk");
+        r.Where(o => o.Variant).Select(o => o.Title).Should().Equal("MILBONA Kakaomælk", "Matilde kakao-skummetmælk");
+        TjekOffers.Relevant(list, "kakaomælk").Should().OnlyContain(o => !o.Variant);   // searched for the flavour itself
+    }
+
+    [Test]
     public void Capsules_per_piece_do_not_beat_coffee_per_kg()
     {
         var list = Parse(O("Bilka", 25, "pcs", 8), O("Lidl", 60, "kg", 0.5m), O("MENY", 40, "kg", 0.5m));
