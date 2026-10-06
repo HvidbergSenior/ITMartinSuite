@@ -1,0 +1,56 @@
+@page "/"
+
+<PageTitle>Tilbud – ugens tilbud nær dig</PageTitle>
+
+@* One page. tilbud.js does everything: the place, the search, and "Mine varer" (kept in this browser only).
+   First screen = one answer: this week's best offer for each of "Mine varer"; with none saved yet, the search.
+   Every box is a show/hide box (kolibri.js). Colours never carry meaning alone - prices and words do. *@
+
+<section class="k-card tb-sted" id="sted-kort">
+    <h2 class="k-card-title">📍 Hvor handler du?</h2>
+    <p id="sted-nu" class="tb-answer" hidden></p>
+    <form id="sted-form" class="tb-row" autocomplete="off">
+        <input id="postnr" class="tb-input tb-postnr" inputmode="numeric" maxlength="4" placeholder="Postnummer, fx 8200" aria-label="Postnummer" />
+        <button class="k-btn k-btn-primary" type="submit">Brug postnummer</button>
+        <button id="gps" class="k-btn k-btn-secondary" type="button">📍 Brug min placering</button>
+    </form>
+    <label class="tb-km">Butikker inden for
+        <select id="km" class="tb-input">
+            <option value="3">3 km</option>
+            <option value="5">5 km</option>
+            <option value="10" selected>10 km</option>
+            <option value="20">20 km</option>
+            <option value="50">50 km</option>
+        </select>
+    </label>
+    <p id="sted-fejl" class="tb-fejl" role="alert" hidden></p>
+</section>
+
+<section class="k-card" id="mine-kort">
+    <h2 class="k-card-title">⭐ Mine varer – billigst i denne uge</h2>
+    <p id="mine-tom" class="k-muted">Du har ingen varer endnu. Søg efter en vare herunder og tryk <b>⭐ Gem</b>.</p>
+    <div id="mine-liste"></div>
+</section>
+
+<section class="k-card" id="soeg-kort">
+    <h2 class="k-card-title">🔍 Find tilbud</h2>
+    <form id="soeg-form" class="tb-row" autocomplete="off">
+        <input id="q" class="tb-input tb-q" placeholder="Fx kaffe, smør, havregryn" aria-label="Vare" enterkeyhint="search" />
+        <button class="k-btn k-btn-primary" type="submit">Søg</button>
+        <button id="gem" class="k-btn k-btn-secondary" type="button" hidden>⭐ Gem</button>
+    </form>
+    <p id="soeg-info" class="k-muted" aria-live="polite"></p>
+    <div id="resultater"></div>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">ℹ️ Godt at vide</h2>
+    <ul class="tb-list">
+        <li>Tilbuddene kommer fra <b>eTilbudsavis</b> (Tjek) og gælder i den uge, der står ved hvert tilbud.</li>
+        <li><b>Pris pr. kg / liter</b> regnes ud fra pakkens størrelse. Står der fx 400–500 g, regner vi med 500 g.</li>
+        <li>Tjek altid prisen i butikken – nogle tilbud gælder kun med medlemskort eller i begrænset antal.</li>
+        <li>Ingen reklamer, intet login. <b>Mine varer</b> gemmes kun i din egen browser.</li>
+    </ul>
+</section>
+
+<script src="tilbud.js?v=@App.CacheBuster" defer></script>

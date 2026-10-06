@@ -1,0 +1,62 @@
+using ITMartin.Shared.UI.Kolibri;
+using ITMartinTilbud.Server;
+using ITMartinTilbud.Server.Services;
+
+// Tilbud (Kolibri Nektar) - 2026-10-06, user: "app for users who want to know what is on sale in as many groceries as
+// possible". Search one item and see every chain's offer near you, cheapest per kg/litre first; "Mine varer" on the phone
+// shows this week's offers for the things you always buy. Free, no ads, no login - "Mine varer" lives in the browser.
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Tilbud";
+    k.KolibriName = "Kolibri Nektar";
+    k.Family = "nektar";
+    k.Tagline = "Ugens tilbud i alle supermarkeder nær dig – billigste pr. kilo først.";
+    k.About =
+    [
+        "Tilbud viser ugens tilbud fra Lidl, Netto, REMA 1000, føtex, Bilka, Kvickly, SuperBrugsen, MENY, Løvbjerg, SPAR, 365discount og flere – på én side.",
+        "Tilbuddene sorteres efter pris pr. kilo eller liter, så en 3-pak og en enkelt pose kan sammenlignes.",
+        "Tilbuddene kommer fra eTilbudsavis (Tjek). Tjek altid prisen i butikken – tilbudsaviser kan have trykfejl og gælde i begrænset antal.",
+        "Gratis, uden reklamer og uden login. Dine varer gemmes kun i din egen browser.",
+    ];
+    k.HowTo =
+    [
+        "Skriv dit postnummer eller tryk 📍 Brug min placering.",
+        "Søg efter en vare, fx kaffe, smør eller havregryn. Den billigste pr. kilo står øverst.",
+        "Tryk ⭐ ved en søgning for at gemme den under Mine varer. Så ser du dem alle sammen, hver gang du åbner Tilbud.",
+        "Læg Tilbud på telefonen med knappen 📲 – så er den ét tryk væk, når du står i butikken.",
+    ];
+    k.Version = "2026.10";
+    k.ThemeColor = "#f4f6f5";
+});
+
+builder.Services.AddRazorComponents();
+builder.Services.AddMemoryCache();
+const string UserAgent = "ITMartinTilbud/1.0 (ITMartin@Mensa.dk)";
+builder.Services.AddHttpClient<TjekOffers>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
+builder.Services.AddHttpClient<Places>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
+
+var app = builder.Build();
+app.MapKolibri();
+
+if (!app.Environment.IsDevelopment())
+    app.UseExceptionHandler("/Error");
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapGet("/api/tilbud", async (string? q, double? lat, double? lng, int? km, TjekOffers offers, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2) return Results.BadRequest(new { fejl = "Skriv mindst 2 bogstaver." });
+    if (lat is null || lng is null) return Results.BadRequest(new { fejl = "Vælg først hvor du bor." });
+    try { return Results.Ok(await offers.SearchAsync(q, lat.Value, lng.Value, km ?? 10, ct)); }
+    catch (OffersUnavailableException) { return Results.Json(new { fejl = "Tilbudsavisen svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
+});
+
+app.MapGet("/api/sted", async (string? postnr, Places places, CancellationToken ct) =>
+    await places.FromPostcodeAsync(postnr ?? "", ct) is { } p ? Results.Ok(p) : Results.NotFound(new { fejl = "Det postnummer kender vi ikke." }));
+
+app.MapRazorComponents<App>();
+
+app.Run();

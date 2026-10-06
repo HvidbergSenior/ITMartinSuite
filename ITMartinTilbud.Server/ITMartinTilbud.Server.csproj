@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- "Tilbud" (Kolibri Nektar), 2026-10-06: what is on offer this week in as many grocery chains as possible,
+         near you, cheapest per kg/litre first. Free, no ads, no login. Offers from Tjek (eTilbudsavis). -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinTilbud.Server</RootNamespace>
+        <AssemblyName>ITMartinTilbud.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ITMartinTilbud.Tests" />
+    </ItemGroup>
+
+</Project>

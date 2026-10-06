@@ -1,0 +1,31 @@
+/* Tilbud: dark text on pale backgrounds only (the user reads text on blue badly), prices bold, never colour alone. */
+.tb-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.tb-input { font: inherit; font-size: 1.05rem; padding: 10px 12px; border: 1px solid #9aa3a0; border-radius: 10px; background: #fff; color: #111; }
+.tb-q { flex: 1 1 220px; min-width: 0; }
+.tb-postnr { width: 11em; }
+.tb-km { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.tb-answer { font-size: 1.05rem; margin: 4px 0 8px; }
+.tb-fejl { color: #7a1d1d; background: #fdecec; border: 1px solid #e3b4b4; border-radius: 8px; padding: 8px 10px; font-weight: 600; }
+.tb-list { margin: 0; padding-left: 1.2em; line-height: 1.5; }
+
+.tb-offer { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #e3e6e5; }
+.tb-offer:last-child { border-bottom: none; }
+.tb-img { width: 64px; height: 64px; flex: none; object-fit: contain; border-radius: 8px; background: #f4f6f5; }
+.tb-offer-body { min-width: 0; flex: 1; }
+.tb-chain { font-weight: 800; font-size: .95rem; color: #111; }
+.tb-title { margin: 2px 0 4px; overflow-wrap: anywhere; }
+.tb-prices { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.tb-price { font-size: 1.25rem; font-weight: 800; color: #111; }
+.tb-unit { font-weight: 700; color: #1f2b28; background: #eef1f0; border-radius: 6px; padding: 1px 6px; }
+.tb-before { text-decoration: line-through; color: #555; }
+.tb-desc { font-size: .9rem; margin-top: 4px; }
+.tb-more { margin-top: 10px; width: 100%; }
+
+.tb-mine { padding: 8px 0 10px; border-bottom: 2px solid #e3e6e5; }
+.tb-mine:last-child { border-bottom: none; }
+.tb-mine-head { display: flex; justify-content: space-between; align-items: center; text-transform: capitalize; font-size: 1.05rem; }
+.tb-x { font: inherit; font-size: .9rem; background: none; border: 1px solid #c5ccca; border-radius: 8px; padding: 4px 8px; color: #333; cursor: pointer; }
+.tb-more-offers summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+
+/* .k-btn sets display, which beats the hidden attribute - keep hidden things hidden. */
+[hidden] { display: none !important; }
