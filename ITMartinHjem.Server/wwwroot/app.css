@@ -354,6 +354,10 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 html[data-theme="dark"] .hj-eltip{background:#2c2614;border-color:#7a6420}
 html[data-theme="dark"] .hj-eltip .k-card-title,html[data-theme="dark"] .hj-eltip-text{color:#fff3c4}
 html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
-/* Om mig + Bliv pilot as choices on the front page instead of menu tabs (user 2026-10-07). */
-.hj-choices { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0; }
-.hj-choices .k-btn { flex: 1 1 160px; text-align: center; }
+/* Small boxes on the front page instead of menu tabs (user 2026-10-07). High contrast: text colour, no meaning in colour alone. */
+.hj-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
+.hj-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-card); color: var(--k-text); text-decoration: none; box-shadow: var(--k-shadow); min-height: var(--k-tap, 44px); }
+.hj-tile:hover, .hj-tile:focus-visible { border-color: var(--k-text); }
+.hj-tile-icon { font-size: 1.5em; line-height: 1; }
+.hj-tile b { font-size: 1em; }
+.hj-tile span:last-child { color: var(--k-muted); font-size: var(--k-fs-small, .9em); }

@@ -49,10 +49,13 @@
     </details>
 }
 
-@* Om mig + Bliv pilot are choices here, not menu tabs (user 2026-10-07). *@
-<nav class="hj-choices" aria-label="Vælg">
-    <a class="k-btn" href="/om-mig">👋 Om mig og kontakt</a>
-    <a class="k-btn" href="/bliv-pilot">🐦 Bliv pilot</a>
+@* Small boxes instead of menu tabs (user 2026-10-07: "i want small boxes"): Om mig, Bliv pilot and the pages
+   that lost their tab. Titles/lines are fixed here; the pages themselves are edited in Svar -> Sider. *@
+<nav class="hj-tiles" aria-label="Mere på siden">
+    @foreach (var tile in Tiles)
+    {
+        <a class="hj-tile" href="@tile.Href"><span class="hj-tile-icon" aria-hidden="true">@tile.Icon</span><b>@tile.Title</b><span>@tile.Line</span></a>
+    }
 </nav>
 
 @* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
@@ -100,6 +103,17 @@ else if (_family && !_owner)
     public const string CollabSlug = "foelg-samarbejdet";
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
+
+    private static readonly (string Icon, string Title, string Line, string Href)[] Tiles =
+    [
+        ("👋", "Om mig og kontakt", "Hvem jeg er, og hvordan du fanger mig", "/om-mig"),
+        ("🐦", "Bliv pilot", "Prøv mine apps gratis og sig din mening", "/bliv-pilot"),
+        ("📵", "Ingen reklamer", "Hvorfor mine apps aldrig har reklamer", "/ingen-reklamer"),
+        ("🚀", "Hvad laver jeg nu?", "I dag og denne uge", "/hvad-laver-itkolibrien"),
+        ("📚", "Bogshoppen", "Følg samarbejdet", "/foelg-samarbejdet"),
+        ("💛", "Særlige behov", "ADHD, autisme og IT", "/ydelser/adhd-og-autisme"),
+        ("💬", "Priser", "Hvad koster det?", "/apps"),
+    ];
 
     private string FirstName => _s.Name.Split(' ')[0];
 
