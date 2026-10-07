@@ -171,7 +171,7 @@
                 </div>
 
                 <div class="admin-form" style="padding-top:0" id="chat">
-                    <DatePollChatWidget DatePollId="DatePollId" ChatOpen="_poll.ChatOpen" VoterName="_voterNames.FirstOrDefault() ?? string.Empty" />
+                    <DatePollChatWidget DatePollId="DatePollId" ChatOpen="_poll.ChatOpen" VoterName="@(_voterNames.FirstOrDefault() ?? string.Empty)" />
                 </div>
             }
 
