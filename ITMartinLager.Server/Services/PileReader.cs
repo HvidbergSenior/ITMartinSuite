@@ -17,8 +17,8 @@ public sealed record BookValue(int? Low, int? High, string Demand, string Verdic
     public const string Unsure = "Tjek selv";
     public static readonly string[] Verdicts = ["Sælg", "Kasse", "Genbrug", Unsure];
     public static readonly string[] Demands = ["Høj", "Middel", "Lav"];
-    public static readonly string[] Places = ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek"];
-    public static readonly string[] Sources = ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek"];
+    public static readonly string[] Places = ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek", "Faraos"];
+    public static readonly string[] Sources = ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek", "Faraos"];
 
     internal static BookValue From(PileReader.ValueRow r)
     {
@@ -261,7 +261,8 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         - "Tjek selv": du er IKKE sikker på værdien. Så giv INGEN pris (low/high = null). Brug den hellere end at gætte -
           et forkert lavt bud får butikken til at sælge en værdifuld bog for billigt.
         Hvert nummer kan have markedstal (udbudspriser, ikke solgte) fra DBA (Danmark), AbeBooks (internationalt),
-        Amazon.de (Tyskland) og Nemos Bibliotek (dansk antikvariat for tegneserier og samlerbøger), omregnet til kr.
+        Amazon.de (Tyskland), Nemos Bibliotek og Faraos (danske antikvariater for tegneserier og samlerbøger; Faraos
+        har én pris pr. stand), omregnet til kr. "Ny i butikken" er nyprisen - et loft for et brugt eksemplar, ikke bevis.
         BEVIS: en pris må KUN gives, når den bygger på markedstal for netop denne bog. Skriv i "basis" hvilke kilder
         prisen bygger på. Ingen kilde med priser = "Tjek selv" uden pris - aldrig en standardpris som 20-40 kr.
         Markedstal, der står som "ikke bevis", må ikke bruges. "Urimelige internetpriser" er drømmepriser
@@ -294,8 +295,8 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
                         "demand":  { "type": "string", "enum": ["Høj", "Middel", "Lav"] },
                         "verdict": { "type": "string", "enum": ["Sælg", "Kasse", "Genbrug", "Tjek selv"] },
                         "reason":  { "type": "string" },
-                        "where":   { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek"] },
-                        "basis":   { "type": "array", "items": { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek"] },
+                        "where":   { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek", "Faraos"] },
+                        "basis":   { "type": "array", "items": { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek", "Faraos"] },
                                      "description": "The market sources whose prices for THIS book the price is based on. Empty = no proof." } },
                       "required": ["index", "demand", "verdict", "reason"], "additionalProperties": false } }
                     """).RootElement,

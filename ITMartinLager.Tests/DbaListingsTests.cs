@@ -119,4 +119,30 @@ public class DbaListingsTests
         (l.Count, l.Low, l.High).Should().Be((2, 100m, 125m));
         l.Proof[0].Url.Should().Be("https://n/2");
     }
+
+    [Test]
+    public void Faraos_used_comics_give_one_price_per_condition_and_new_copies_only_a_new_price()
+    {
+        const string json = """
+            {"items":[
+              {"menuPath":"/antikvarisk/disney/andersandco","itemPath":"aa-1975-1","displayName":"Anders And & Co. 1975 Nr. 1","displayName2":null,
+               "status":{"isUsed":true,"normalPrice":{"price":3.0}},
+               "usedComicEditions":[{"editionName":"1. udgave, 1. oplag","conditions":[
+                 {"name":"Fine -","price":{"price":22.0}},{"name":"Fine","price":{"price":25.0}},{"name":"Fine +","price":{"price":30.0}}]}]},
+              {"menuPath":"/comics/dkcomics/andersand","itemPath":"ny","displayName":"Anders And & Co. 1975 Nr. 1","displayName2":"Genoptryk",
+               "status":{"isUsed":false,"normalPrice":{"price":49.95}},"usedComicEditions":null},
+              {"menuPath":"/merchandise/disney","itemPath":"krus","displayName":"Anders And & Co. 1975 Nr. 1","displayName2":"Krus",
+               "status":{"isUsed":false,"normalPrice":{"price":99.0}},"usedComicEditions":null}]}
+            """;
+        var l = FaraosListings.Parse(json, "Anders And & Co. 1975 Nr. 1", "", "u");
+        (l.Count, l.Low, l.High, l.NewPrice).Should().Be((3, 22m, 30m, 50m));
+        l.Proof[0].Name.Should().Contain("Fine -");
+        l.Text.Should().EndWith("ny i butikken 50 kr");
+    }
+
+    [TestCase("Anders And & Co. nr. 39 1975 inkl bagklap", false)]
+    [TestCase("Anders And & Co. 1975 Nr. 10", false)]
+    [TestCase("Anders And og Co 1975 nr 1 - fin stand", true)]
+    public void An_issue_number_must_be_the_same_number(string listing, bool matches) =>
+        ListingParse.Matcher("Anders And & Co. 1975 Nr. 1", "").Matches(listing).Should().Be(matches);
 }

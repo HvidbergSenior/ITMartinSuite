@@ -48,6 +48,7 @@ builder.Services.AddHttpClient<DbaListings>(c => c.Timeout = TimeSpan.FromSecond
 builder.Services.AddHttpClient<AbeBooksListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<AmazonDeListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<NemosListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<FaraosListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -79,7 +80,7 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS "IX_BookChecks_Search" ON "BookChecks" ("Search");
         CREATE INDEX IF NOT EXISTS "IX_BookChecks_CheckedAt" ON "BookChecks" ("CheckedAt");
         """);
-    foreach (var col in new[] { "Nemos", "Proof" })
+    foreach (var col in new[] { "Nemos", "Proof", "Faraos" })
     {
         using var cmd = conn.CreateCommand();
         cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('BookChecks') WHERE name = '{col}'";
@@ -171,10 +172,10 @@ app.MapGet("/api/boeger.csv", async (IDbContextFactory<LagerDb> dbf) =>
     await using var db = await dbf.CreateDbContextAsync();
     var rows = await db.BookChecks.OrderByDescending(b => b.CheckedAt).ToListAsync();
     static string C(object? v) => "\"" + (v?.ToString() ?? "").Replace("\"", "\"\"") + "\"";
-    var sb = new System.Text.StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Amazon.de;Nemos;Bevis;Kasse\n");
+    var sb = new System.Text.StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Amazon.de;Nemos;Faraos;Bevis;Kasse\n");
     foreach (var b in rows)
         sb.AppendLine(string.Join(';', b.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), C(b.Title), C(b.Author), b.Year, C(b.Isbn), C(b.Condition),
-            b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.AmazonDe), C(b.Nemos), C(b.Proof), C(b.BoxCode)));
+            b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.AmazonDe), C(b.Nemos), C(b.Faraos), C(b.Proof), C(b.BoxCode)));
     return Results.File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"boeger-tjekket-{DateTime.Now:yyyy-MM-dd}.csv");
 });
 

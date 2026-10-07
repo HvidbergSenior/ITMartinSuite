@@ -62,8 +62,12 @@ public static partial class ListingParse
         return new Listings(offers.Count, sane[0].Price, median, sane[^1].Price, url, proof, wild);
     }
 
+    // Significant words: 3+ letters, and every number however short - "Nr. 1" is not "Nr. 39".
     internal static List<string> Words(string s) =>
-        WordRx().Matches(s.ToLowerInvariant()).Select(m => m.Value).Where(w => w.Length >= 3 && !Stop.Contains(w)).Distinct().ToList();
+        WordRx().Matches(s.ToLowerInvariant()).Select(m => m.Value)
+            .Where(w => (w.Length >= 3 || IsNumber(w)) && !Stop.Contains(w)).Distinct().ToList();
+
+    internal static bool IsNumber(string w) => w.All(char.IsAsciiDigit);
 
     public sealed record TitleMatch(List<string> Words, string Surname, bool Ambiguous)
     {
@@ -75,8 +79,12 @@ public static partial class ListingParse
             if (Words.Count == 0) return false;
             var listing = ListingParse.Words(name);
             if (listing.Any(NotABook.Contains)) return false;
-            var squashed = string.Concat(listing);
-            var found = Words.Count(w => squashed.Contains(w));
+            // A collection holding the title (luksusbind, "Den Komplette Samling") is another item - unless the book is one.
+            if (listing.Any(w => Collection.Contains(w) && !Words.Contains(w))) return false;
+            var squashed = string.Concat(listing.Where(w => !IsNumber(w)));
+            // Numbers must be the same whole number; words may be written together ("Amager digte" = "Amagerdigte").
+            var found = Words.Count(w => IsNumber(w) ? listing.Contains(w) : squashed.Contains(w));
+            if (Words.Where(IsNumber).Any(n => !listing.Contains(n))) return false;
             var ok = found >= (Words.Count >= 5 ? Words.Count - 1 : Words.Count);
             return ok && (Words.Count > 1 || Surname == "" || squashed.Contains(Surname));
         }
@@ -85,13 +93,18 @@ public static partial class ListingParse
     private static readonly HashSet<string> NotABook =
         ["vhs", "dvd", "bluray", "blu", "plakat", "poster", "puslespil", "figur", "figurer", "shirt", "krus", "kop", "film", "videobånd"];
 
+    private static readonly HashSet<string> Collection =
+        ["samling", "samlingen", "komplette", "luksusbind", "samlebind", "kassette", "boks", "box", "pakke", "bundle"];
+
     // "Zombie" or "Flint" alone finds everything called that - without an author it cannot prove a price.
     // A long one-word title ("Papegøjemysteriet") is specific enough on its own.
     public static TitleMatch Matcher(string title, string author)
     {
         var words = Words(title);
         var surname = Words(author).LastOrDefault() ?? "";
-        return new TitleMatch(words, surname, words.Count <= 1 && surname == "" && (words.FirstOrDefault()?.Length ?? 0) < 10);
+        var named = words.Where(w => !IsNumber(w)).ToList();
+        return new TitleMatch(words, surname, named.Count <= 1 && surname == "" && (named.FirstOrDefault()?.Length ?? 0) < 10
+            && words.Count(IsNumber) == 0);
     }
 
     [GeneratedRegex("""<script type="application/ld\+json"[^>]*>(.*?)</script>""", RegexOptions.Singleline)]
