@@ -12,12 +12,13 @@ namespace ITMartinLager.Server.Services;
 public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
     string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "", decimal? PriceHint = null);
 
-public sealed record BookValue(int? Low, int? High, string Demand, string Verdict, string Reason, string Where = "")
+public sealed record BookValue(int? Low, int? High, string Demand, string Verdict, string Reason, string Where = "", string[]? Basis = null)
 {
     public const string Unsure = "Tjek selv";
     public static readonly string[] Verdicts = ["Sælg", "Kasse", "Genbrug", Unsure];
     public static readonly string[] Demands = ["Høj", "Middel", "Lav"];
-    public static readonly string[] Places = ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen"];
+    public static readonly string[] Places = ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek"];
+    public static readonly string[] Sources = ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek"];
 
     internal static BookValue From(PileReader.ValueRow r)
     {
@@ -28,7 +29,18 @@ public sealed record BookValue(int? Low, int? High, string Demand, string Verdic
         return new(low, high,
             Demands.FirstOrDefault(d => string.Equals(d, r.Demand?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "Lav",
             verdict, (r.Reason ?? "").Trim(),
-            Places.FirstOrDefault(p => string.Equals(p, r.Where?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "");
+            Places.FirstOrDefault(p => string.Equals(p, r.Where?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "",
+            (r.Basis ?? []).Select(b => Sources.FirstOrDefault(s => string.Equals(s, b?.Trim(), StringComparison.OrdinalIgnoreCase)))
+                .OfType<string>().Distinct().ToArray());
+    }
+
+    // No price without proof (user 2026-10-07: "lots of books get 20-40 kr as default value ... it needs proof"):
+    // a price stands only when a source the AI names as its basis really has prices for the book. Otherwise it is
+    // "Tjek selv" with no price, and the AI's opinion stays in the reason.
+    public BookValue Proven(Func<string, bool> hasPrices)
+    {
+        if (Verdict == Unsure || (Basis ?? []).Any(hasPrices)) return this;
+        return this with { Low = null, High = null, Verdict = Unsure, Reason = "Ingen markedspris at vise som bevis. " + Reason };
     }
 }
 
@@ -248,8 +260,11 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         - "Genbrug": næsten ingen værdi - masseudgivelse, bogklub-udgave, forældet fagbog.
         - "Tjek selv": du er IKKE sikker på værdien. Så giv INGEN pris (low/high = null). Brug den hellere end at gætte -
           et forkert lavt bud får butikken til at sælge en værdifuld bog for billigt.
-        Hvert nummer kan have markedstal (udbudspriser, ikke solgte) fra DBA (Danmark), AbeBooks (internationalt) og
-        Amazon.de (Tyskland), omregnet til kr. De vejer tungere end din hukommelse. "Urimelige internetpriser" er drømmepriser
+        Hvert nummer kan have markedstal (udbudspriser, ikke solgte) fra DBA (Danmark), AbeBooks (internationalt),
+        Amazon.de (Tyskland) og Nemos Bibliotek (dansk antikvariat for tegneserier og samlerbøger), omregnet til kr.
+        BEVIS: en pris må KUN gives, når den bygger på markedstal for netop denne bog. Skriv i "basis" hvilke kilder
+        prisen bygger på. Ingen kilde med priser = "Tjek selv" uden pris - aldrig en standardpris som 20-40 kr.
+        Markedstal, der står som "ikke bevis", må ikke bruges. "Urimelige internetpriser" er drømmepriser
         - brug dem ikke som pris.
         Hvor skal den sælges (where): DBA = danske bøger og alt til danske købere; AbeBooks = antikvariske, samler- og
         engelske/udenlandske bøger med en international køberskare; Amazon.de = nyere udenlandske bøger med ISBN, hvor
@@ -279,7 +294,9 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
                         "demand":  { "type": "string", "enum": ["Høj", "Middel", "Lav"] },
                         "verdict": { "type": "string", "enum": ["Sælg", "Kasse", "Genbrug", "Tjek selv"] },
                         "reason":  { "type": "string" },
-                        "where":   { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen"] } },
+                        "where":   { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek"] },
+                        "basis":   { "type": "array", "items": { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek"] },
+                                     "description": "The market sources whose prices for THIS book the price is based on. Empty = no proof." } },
                       "required": ["index", "demand", "verdict", "reason"], "additionalProperties": false } }
                     """).RootElement,
             },
@@ -350,6 +367,7 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         public string? Verdict { get; set; }
         public string? Reason { get; set; }
         public string? Where { get; set; }
+        public string[]? Basis { get; set; }
     }
     internal sealed class InterestRow { public int Index { get; set; } public string? Interest { get; set; } }
 

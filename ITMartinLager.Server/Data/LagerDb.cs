@@ -120,6 +120,8 @@ public sealed class BookCheck
     public string Dba { get; set; } = "";        // the listing texts as shown, at the time of the check
     public string AbeBooks { get; set; } = "";
     public string AmazonDe { get; set; } = "";
+    public string Nemos { get; set; } = "";
+    public string Proof { get; set; } = "";      // the listings behind the price: "DBA: name – 45 kr – url", one per line
     public string BoxCode { get; set; } = "";    // set when it was saved into a box
     public string Search { get; set; } = "";
     public DateTime CheckedAt { get; set; } = DateTime.UtcNow;

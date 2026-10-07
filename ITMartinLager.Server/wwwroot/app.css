@@ -54,3 +54,6 @@
 .lg-price { font-size: 1.15rem; }
 .lg-where { font-weight: 800; }
 .lg-history li { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem .2rem; border-bottom: 1px solid var(--k-border, rgba(128,128,128,.25)); }
+.lg-proof { font-size: .9rem; border-left: 3px solid #2e9d57; padding: .2rem .6rem; }
+.lg-proof ul { margin: .2rem 0 0; padding-left: 1.1rem; }
+.lg-proof a { overflow-wrap: anywhere; }

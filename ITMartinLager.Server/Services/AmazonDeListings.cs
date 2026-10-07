@@ -37,7 +37,7 @@ public sealed partial class AmazonDeListings(HttpClient http, ILogger<AmazonDeLi
                 return null;
             }
             var eur = await FxRates.ToDkkAsync(http, "EUR", log, ct);
-            var result = Parse(html, isbn != "" ? "" : title, SearchUrl(query), eur);
+            var result = Parse(html, isbn != "" ? "" : title, author, SearchUrl(query), eur);
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }
@@ -50,31 +50,37 @@ public sealed partial class AmazonDeListings(HttpClient http, ILogger<AmazonDeLi
     }
 
     // title "" = searched by ISBN, every hit is the book.
-    internal static Listings Parse(string html, string title, string url, decimal? eurToDkk)
+    internal static Listings Parse(string html, string title, string author, string url, decimal? eurToDkk)
     {
-        var words = ListingParse.Words(title);
-        var prices = new List<decimal>();
-        var examples = new List<string>();
-        var count = 0;
+        var byIsbn = title == "";
+        var match = ListingParse.Matcher(title, author);
+        var offers = new List<Offer>();
         foreach (var block in html.Split("data-component-type=\"s-search-result\"").Skip(1))
         {
             var t = TitleRx().Match(block);
             var name = t.Success ? WebUtility.HtmlDecode(t.Groups[1].Value).Trim() : "";
-            if (name == "" || (words.Count > 0 && !ListingParse.Matches(name, words))) continue;
-            count++;
-            if (examples.Count < 3) examples.Add(name);
+            if (name == "" || (!byIsbn && !match.Matches(name))) continue;
+            var link = LinkRx().Match(block);
+            var href = link.Success ? "https://www.amazon.de" + WebUtility.HtmlDecode(link.Groups[1].Value).Split("/ref=")[0] : url;
+            decimal? kr = null;
             var w = WholeRx().Match(block);
-            if (!w.Success || eurToDkk is null) continue;
-            var f = FractionRx().Match(block);
-            var whole = w.Groups[1].Value.Replace(".", "").Replace(",", "");
-            if (decimal.TryParse(whole + "." + (f.Success ? f.Groups[1].Value : "0"), NumberStyles.Number, CultureInfo.InvariantCulture, out var eur) && eur > 0)
-                prices.Add(Math.Round(eur * eurToDkk.Value));
+            if (w.Success && eurToDkk is not null)
+            {
+                var f = FractionRx().Match(block);
+                var whole = w.Groups[1].Value.Replace(".", "").Replace(",", "");
+                if (decimal.TryParse(whole + "." + (f.Success ? f.Groups[1].Value : "0"), NumberStyles.Number, CultureInfo.InvariantCulture, out var eur) && eur > 0)
+                    kr = Math.Round(eur * eurToDkk.Value);
+            }
+            offers.Add(new Offer(name, kr, href));
         }
-        return ListingParse.Summarise(count, prices, url, examples);
+        return ListingParse.Summarise(offers, url, ambiguous: !byIsbn && match.Ambiguous);
     }
 
     [GeneratedRegex("<h2[^>]*>.*?<span[^>]*>([^<]+)</span>", RegexOptions.Singleline)]
     private static partial Regex TitleRx();
+
+    [GeneratedRegex("<a[^>]+href=\"(/[^\"]*/dp/[^\"]+)\"")]
+    private static partial Regex LinkRx();
 
     [GeneratedRegex("a-price-whole\">([0-9.,]+)")]
     private static partial Regex WholeRx();

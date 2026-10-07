@@ -31,7 +31,7 @@ public sealed class AbeBooksListings(HttpClient http, ILogger<AbeBooksListings> 
             if (!res.IsSuccessStatusCode) { log.LogInformation("AbeBooks {Status} for {Query}", res.StatusCode, query); return null; }
             var html = await res.Content.ReadAsStringAsync(ct);
             var usd = await FxRates.ToDkkAsync(http, "USD", log, ct);
-            var result = ListingParse.Parse(html, title, SearchUrl(query), cur => cur == "USD" ? usd : null);
+            var result = ListingParse.Parse(html, title, author, SearchUrl(query), cur => cur == "USD" ? usd : null);
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }

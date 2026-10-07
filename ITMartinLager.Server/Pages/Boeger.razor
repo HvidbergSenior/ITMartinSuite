@@ -6,6 +6,7 @@
 @inject DbaListings Dba
 @inject AbeBooksListings Abe
 @inject AmazonDeListings Amazon
+@inject NemosListings Nemos
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -49,7 +50,7 @@
 {
     <section class="k-card">
         <h2 class="k-card-title">@(_photoBatch ? "Billedet" : "Listen"): @_books.Count bøger · 💰 @_books.Count(b => b.Value?.Verdict == "Sælg") værd at sælge</h2>
-        <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering ud fra <b>DBA</b> (Danmark), <b>AbeBooks</b> (internationalt) og <b>Amazon.de</b> – hvad bogen udbydes til lige nu, ikke hvad den er solgt for. Urimelige internetpriser (over 3 gange midten) vises for sig. <b>eBay solgte</b> viser hvad den faktisk er solgt for.</p>
+        <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering ud fra <b>DBA</b> (Danmark), <b>AbeBooks</b> (internationalt), <b>Amazon.de</b> og <b>Nemos Bibliotek</b> (brugte tegneserier og samlerbøger). Ingen pris uden bevis: under prisen står de annoncer, den bygger på – hvad bogen udbydes til lige nu, ikke hvad den er solgt for. Urimelige internetpriser (over 3 gange midten) vises for sig. <b>eBay solgte</b> viser hvad den faktisk er solgt for.</p>
         @if (_books.Any(b => b.Value is null && b.Title.Trim() != "") && !_busy)
         {
             <button class="k-btn k-btn-secondary" @onclick="ValuePending">💰 Vurdér de @_books.Count(b => b.Value is null && b.Title.Trim() != "") uden pris</button>
@@ -78,16 +79,30 @@
                         </select>
                     </div>
                     @if (b.Value is { Reason: not "" } r) { <p class="lg-int">@r.Reason</p> }
+                    @if (b.Value is { Low: not null } && b.Proof().Any())
+                    {
+                        <div class="lg-proof">
+                            <b>Bevis:</b>
+                            <ul>
+                                @foreach (var (src, o) in b.Proof())
+                                {
+                                    <li><a href="@o.Url" target="_blank" rel="noopener">@src: @o.Name – @(o.Price is { } kr ? $"{kr:0} kr" : "ingen pris")</a></li>
+                                }
+                            </ul>
+                        </div>
+                    }
                     <p class="k-small">
                         DBA: @(b.Listings?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
                         <br />AbeBooks: @(b.Abe?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
                         <br />Amazon.de: @(b.Amz?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
+                        <br />Nemos Bibliotek: @(b.Nemos?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
                         @if (b.Note != "") { <br /><span class="k-muted">@b.Note</span> }
                     </p>
                     <p class="k-small lg-links">
                         Tjek:
                         <a href="@DbaListings.SearchUrl(Query(b))" target="_blank" rel="noopener">DBA</a>
                         · <a href="@AbeBooksListings.SearchUrl(Query(b))" target="_blank" rel="noopener">AbeBooks</a>
+                        · <a href="@NemosListings.SearchUrl(b.Title)" target="_blank" rel="noopener">Nemos</a>
                         · <a href="@($"https://www.ebay.com/sch/i.html?_nkw={Uri.EscapeDataString(Query(b))}&LH_Sold=1&LH_Complete=1")" target="_blank" rel="noopener">eBay solgte</a>
                         · <a href="@AmazonDeListings.SearchUrl(b.Barcode != "" ? b.Barcode : Query(b))" target="_blank" rel="noopener">Amazon.de</a>
                         · <a href="@($"https://www.antikvariat.net/da/actions/biblio-search/default/search?author={Uri.EscapeDataString(b.Author)}&title={Uri.EscapeDataString(b.Title)}&currency=DKK")" target="_blank" rel="noopener">antikvariat.net</a>
@@ -146,7 +161,16 @@
         public int? Year;
         public int Quantity = 1, PhotoId;
         public double Confidence = 1;
-        public Listings? Listings, Abe, Amz;
+        public Listings? Listings, Abe, Amz, Nemos;
+
+        public Listings? Source(string name) => name switch
+        {
+            "DBA" => Listings, "AbeBooks" => Abe, "Amazon.de" => Amz, "Nemos Bibliotek" => Nemos, _ => null,
+        };
+
+        // The listings behind the price, from the sources the AI based it on.
+        public IEnumerable<(string Source, Offer Offer)> Proof() =>
+            (Value?.Basis ?? []).SelectMany(s => (Source(s)?.Proof ?? []).Select(o => (s, o)));
         public BookValue? Value;
         public int CheckId;
     }
@@ -208,7 +232,8 @@
         c.Quantity = b.Quantity; c.PhotoId = b.PhotoId == 0 ? null : b.PhotoId;
         c.Verdict = b.Value!.Verdict; c.Low = b.Value.Low; c.High = b.Value.High; c.Demand = b.Value.Demand;
         c.SellAt = b.Value.Where; c.Reason = b.Value.Reason;
-        c.Dba = b.Listings?.Text ?? ""; c.AbeBooks = b.Abe?.Text ?? ""; c.AmazonDe = b.Amz?.Text ?? "";
+        c.Dba = b.Listings?.Text ?? ""; c.AbeBooks = b.Abe?.Text ?? ""; c.AmazonDe = b.Amz?.Text ?? ""; c.Nemos = b.Nemos?.Text ?? "";
+        c.Proof = string.Join("\n", b.Proof().Select(p => $"{p.Source}: {p.Offer.Name} – {p.Offer.Price:0} kr – {p.Offer.Url}"));
         c.CheckedAt = DateTime.UtcNow;
         c.Touch();
     }
@@ -273,7 +298,7 @@
     private async Task AssessAsync(List<Book> books)
     {
         books = books.Where(b => b.Title.Trim() != "").ToList();
-        _status = $"Slår {books.Count} bøger op på DBA, AbeBooks og Amazon.de …";
+        _status = $"Slår {books.Count} bøger op på DBA, AbeBooks, Amazon.de og Nemos …";
         StateHasChanged();
         await Task.WhenAll(books.Where(b => b.Listings is null).Select(LookUpAsync));
 
@@ -283,8 +308,10 @@
             StateHasChanged();
             var values = await Reader.ValueBooksAsync(chunk.Select(Line).ToList(), CancellationToken.None);
             for (var i = 0; i < chunk.Length; i++)
-                if (values.TryGetValue(i, out var v))
+                if (values.TryGetValue(i, out var raw))
                 {
+                    var b = chunk[i];
+                    var v = raw.Proven(s => b.Source(s)?.HasPrices == true);
                     chunk[i].Value = v;
                     if (v.Verdict == "Genbrug") chunk[i].Keep = false;
                 }
@@ -300,9 +327,11 @@
         var dba = Dba.LookupAsync(b.Title, b.Author);
         var abe = Abe.LookupAsync(b.Title, b.Author);
         var amz = Amazon.LookupAsync(b.Title, b.Author, b.Barcode);
+        var nemos = Nemos.LookupAsync(b.Title, b.Author);
         b.Listings = await dba;
         b.Abe = await abe;
         b.Amz = await amz;
+        b.Nemos = await nemos;
         b.Looking = false;
         await InvokeAsync(StateHasChanged);
     }
@@ -314,6 +343,7 @@
         parts.Add("DBA: " + (b.Listings?.Text ?? "ukendt"));
         parts.Add("AbeBooks: " + (b.Abe?.Text ?? "ukendt"));
         parts.Add("Amazon.de: " + (b.Amz?.Text ?? "ukendt"));
+        parts.Add("Nemos Bibliotek: " + (b.Nemos?.Text ?? "ukendt"));
         return string.Join(" · ", parts);
     }
 

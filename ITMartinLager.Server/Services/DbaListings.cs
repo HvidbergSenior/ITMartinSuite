@@ -2,10 +2,19 @@ using System.Collections.Concurrent;
 
 namespace ITMartinLager.Server.Services;
 
+// One listing as found - the proof behind a price (user 2026-10-07: "it needs proof").
+public sealed record Offer(string Name, decimal? Price, string Url);
+
 // Low-High = the realistic asking prices; Wild = the highest "urimelig internetpris" (over 3x the middle), if any.
-public sealed record Listings(int Count, decimal? Low, decimal? Median, decimal? High, string Url, List<string> Examples, decimal? Wild = null)
+// Proof = up to 3 listings nearest the middle price. Ambiguous = the title is too broad to know they are this book
+// ("Zombie", "Flint" without an author) - then there are no prices, so nothing can be priced from it.
+public sealed record Listings(int Count, decimal? Low, decimal? Median, decimal? High, string Url, List<Offer> Proof,
+    decimal? Wild = null, bool Ambiguous = false)
 {
+    public bool HasPrices => Low is not null;
+
     public string Text => Count == 0 ? "ingen til salg"
+        : Ambiguous ? $"{Count} fund, men titlen er for bred til at vide om det er denne bog – ikke bevis"
         : Low is null ? $"{Count} til salg"
         : $"{Count} til salg, {Low:0}-{High:0} kr (midt {Median:0} kr)" + (Wild is { } w ? $", urimelige internetpriser op til {w:0} kr" : "");
 }
@@ -45,7 +54,7 @@ public sealed class DbaListings(HttpClient http, ILogger<DbaListings> log)
             req.Headers.AcceptLanguage.ParseAdd("da-DK,da;q=0.9");
             using var res = await http.SendAsync(req, ct);
             if (!res.IsSuccessStatusCode) { log.LogInformation("DBA {Status} for {Query}", res.StatusCode, query); return null; }
-            var result = ListingParse.Parse(await res.Content.ReadAsStringAsync(ct), title, SearchUrl(query), _ => 1m);
+            var result = ListingParse.Parse(await res.Content.ReadAsStringAsync(ct), title, author, SearchUrl(query), _ => 1m);
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }

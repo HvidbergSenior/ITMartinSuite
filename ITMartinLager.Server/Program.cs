@@ -47,6 +47,7 @@ static HttpMessageHandler Gunzip() => new HttpClientHandler { AutomaticDecompres
 builder.Services.AddHttpClient<DbaListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<AbeBooksListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<AmazonDeListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<NemosListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -78,6 +79,13 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS "IX_BookChecks_Search" ON "BookChecks" ("Search");
         CREATE INDEX IF NOT EXISTS "IX_BookChecks_CheckedAt" ON "BookChecks" ("CheckedAt");
         """);
+    foreach (var col in new[] { "Nemos", "Proof" })
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('BookChecks') WHERE name = '{col}'";
+        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+            db.Database.ExecuteSqlRaw($"ALTER TABLE BookChecks ADD COLUMN {col} TEXT NOT NULL DEFAULT ''");
+    }
     foreach (var (col, type) in new[]
     {
         ("Interest", "TEXT NOT NULL DEFAULT ''"), ("ItemPhoto", "TEXT NOT NULL DEFAULT ''"),
@@ -163,10 +171,10 @@ app.MapGet("/api/boeger.csv", async (IDbContextFactory<LagerDb> dbf) =>
     await using var db = await dbf.CreateDbContextAsync();
     var rows = await db.BookChecks.OrderByDescending(b => b.CheckedAt).ToListAsync();
     static string C(object? v) => "\"" + (v?.ToString() ?? "").Replace("\"", "\"\"") + "\"";
-    var sb = new System.Text.StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Amazon.de;Kasse\n");
+    var sb = new System.Text.StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Amazon.de;Nemos;Bevis;Kasse\n");
     foreach (var b in rows)
         sb.AppendLine(string.Join(';', b.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), C(b.Title), C(b.Author), b.Year, C(b.Isbn), C(b.Condition),
-            b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.AmazonDe), C(b.BoxCode)));
+            b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.AmazonDe), C(b.Nemos), C(b.Proof), C(b.BoxCode)));
     return Results.File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"boeger-tjekket-{DateTime.Now:yyyy-MM-dd}.csv");
 });
 
