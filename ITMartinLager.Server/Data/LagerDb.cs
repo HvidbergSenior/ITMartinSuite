@@ -99,6 +99,34 @@ public sealed class Photo
     public DateTime TakenAt { get; set; } = DateTime.UtcNow;
 }
 
+// Every book that has been valued on the Bøger page, kept or not (user 2026-10-07: "save all automatically") -
+// a searchable record of what was checked and what it was worth, apart from the box register (Items).
+public sealed class BookCheck
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = "";
+    public string Author { get; set; } = "";
+    public int? Year { get; set; }
+    public string Condition { get; set; } = "God";
+    public string Isbn { get; set; } = "";
+    public int Quantity { get; set; } = 1;
+    public int? PhotoId { get; set; }
+    public string Verdict { get; set; } = "";    // Sælg / Kasse / Genbrug / Tjek selv
+    public int? Low { get; set; }                // kr, null = Tjek selv
+    public int? High { get; set; }
+    public string Demand { get; set; } = "";
+    public string SellAt { get; set; } = "";     // DBA / AbeBooks / Amazon.de / eBay / Bogshoppen
+    public string Reason { get; set; } = "";
+    public string Dba { get; set; } = "";        // the listing texts as shown, at the time of the check
+    public string AbeBooks { get; set; } = "";
+    public string AmazonDe { get; set; } = "";
+    public string BoxCode { get; set; } = "";    // set when it was saved into a box
+    public string Search { get; set; } = "";
+    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
+
+    public void Touch() => Search = string.Join(' ', Title, Author, Year?.ToString() ?? "", Isbn, Verdict, SellAt).ToLowerInvariant();
+}
+
 // AI calls per day - the hard cap on spend lives in the database, so a restart does not reset it.
 public sealed class AiDay
 {
@@ -114,6 +142,7 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
     public DbSet<Item> Items => Set<Item>();
     public DbSet<Photo> Photos => Set<Photo>();
     public DbSet<AiDay> AiDays => Set<AiDay>();
+    public DbSet<BookCheck> BookChecks => Set<BookCheck>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -127,5 +156,7 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
         b.Entity<Item>().HasIndex(x => x.MagicRef);
         b.Entity<Item>().HasIndex(x => x.AuctionItemId);
         b.Entity<AiDay>().HasKey(x => x.Day);
+        b.Entity<BookCheck>().HasIndex(x => x.Search);
+        b.Entity<BookCheck>().HasIndex(x => x.CheckedAt);
     }
 }

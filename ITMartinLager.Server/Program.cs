@@ -65,6 +65,19 @@ using (var scope = app.Services.CreateScope())
     // EnsureCreated never changes an existing database, so columns added later are added here.
     var conn = db.Database.GetDbConnection();
     conn.Open();
+    // Tables added later (EnsureCreated only builds a brand-new database).
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "BookChecks" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_BookChecks" PRIMARY KEY AUTOINCREMENT,
+            "Title" TEXT NOT NULL DEFAULT '', "Author" TEXT NOT NULL DEFAULT '', "Year" INTEGER NULL,
+            "Condition" TEXT NOT NULL DEFAULT '', "Isbn" TEXT NOT NULL DEFAULT '', "Quantity" INTEGER NOT NULL DEFAULT 1,
+            "PhotoId" INTEGER NULL, "Verdict" TEXT NOT NULL DEFAULT '', "Low" INTEGER NULL, "High" INTEGER NULL,
+            "Demand" TEXT NOT NULL DEFAULT '', "SellAt" TEXT NOT NULL DEFAULT '', "Reason" TEXT NOT NULL DEFAULT '',
+            "Dba" TEXT NOT NULL DEFAULT '', "AbeBooks" TEXT NOT NULL DEFAULT '', "AmazonDe" TEXT NOT NULL DEFAULT '',
+            "BoxCode" TEXT NOT NULL DEFAULT '', "Search" TEXT NOT NULL DEFAULT '', "CheckedAt" TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS "IX_BookChecks_Search" ON "BookChecks" ("Search");
+        CREATE INDEX IF NOT EXISTS "IX_BookChecks_CheckedAt" ON "BookChecks" ("CheckedAt");
+        """);
     foreach (var (col, type) in new[]
     {
         ("Interest", "TEXT NOT NULL DEFAULT ''"), ("ItemPhoto", "TEXT NOT NULL DEFAULT ''"),
@@ -142,6 +155,19 @@ app.MapGet("/api/eksport.csv", async (IDbContextFactory<LagerDb> dbf) =>
         sb.AppendLine(string.Join(';', i.Id, C(i.Kind), C(i.Title), C(i.Artist), C(i.Series), C(i.Number), i.Year, C(i.Platform),
             C(i.Condition), i.Quantity, C(i.Box?.Code), i.Price, C(i.Status), C(i.Note), C(i.Interest)));
     return Results.File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv");
+});
+
+// Every checked book as CSV - the list to work through when putting books up on DBA, AbeBooks, Amazon.de.
+app.MapGet("/api/boeger.csv", async (IDbContextFactory<LagerDb> dbf) =>
+{
+    await using var db = await dbf.CreateDbContextAsync();
+    var rows = await db.BookChecks.OrderByDescending(b => b.CheckedAt).ToListAsync();
+    static string C(object? v) => "\"" + (v?.ToString() ?? "").Replace("\"", "\"\"") + "\"";
+    var sb = new System.Text.StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Amazon.de;Kasse\n");
+    foreach (var b in rows)
+        sb.AppendLine(string.Join(';', b.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), C(b.Title), C(b.Author), b.Year, C(b.Isbn), C(b.Condition),
+            b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.AmazonDe), C(b.BoxCode)));
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"boeger-tjekket-{DateTime.Now:yyyy-MM-dd}.csv");
 });
 
 app.UseAntiforgery();

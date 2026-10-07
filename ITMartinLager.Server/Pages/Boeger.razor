@@ -111,10 +111,32 @@
         </div>
         <div class="lg-row">
             <button class="k-btn k-btn-primary lg-big" @onclick="Save" disabled="@(_busy || _box is null || !_books.Any(b => b.Keep))">✓ Gem i @(_box?.Code ?? "kasse")</button>
-            <button class="k-btn k-btn-ghost" @onclick="Clear">Ryd listen</button>
+            <button class="k-btn k-btn-ghost" @onclick="Clear">Ryd listen (de er gemt nedenfor)</button>
         </div>
     </section>
 }
+
+<section class="k-card">
+    <h2 class="k-card-title">📒 Alle tjekkede bøger (@_historyTotal)</h2>
+    <p class="k-small k-muted">Hver bog, der får en vurdering, gemmes her automatisk – også dem, du ikke lægger i en kasse.
+       <a href="/api/boeger.csv">⬇ Hent som regneark (CSV)</a></p>
+    <input class="k-input" @bind="_hq" @bind:event="oninput" @bind:after="LoadHistory" placeholder="Søg: titel, forfatter, ISBN, Sælg, AbeBooks …" />
+    <ul class="lg-list lg-history">
+        @foreach (var h in _history)
+        {
+            <li>
+                <span class="lg-verdict">@(h.Verdict switch { "Sælg" => "💰", "Kasse" => "📦", "Genbrug" => "♻", _ => "❓" })</span>
+                <span class="lg-main">
+                    <b>@h.Title</b>
+                    <span class="k-small">@(h.Author != "" ? h.Author + " · " : "")@h.Verdict@(h.Low is { } lo ? $" · {lo}-{h.High} kr" : "")@(h.SellAt != "" ? " · sælg på " + h.SellAt : "")@(h.BoxCode != "" ? " · kasse " + h.BoxCode : "")</span>
+                    @if (h.Reason != "") { <span class="k-small k-muted">@h.Reason</span> }
+                </span>
+                <span class="k-small k-muted">@h.CheckedAt.ToLocalTime().ToString("d/M HH:mm")</span>
+            </li>
+        }
+    </ul>
+    @if (_history.Count == 0) { <p class="k-muted">Ingen endnu.</p> }
+</section>
 
 @code {
     private sealed class Book
@@ -126,6 +148,7 @@
         public double Confidence = 1;
         public Listings? Listings, Abe, Amz;
         public BookValue? Value;
+        public int CheckId;
     }
 
     private readonly List<Book> _books = [];
@@ -137,12 +160,57 @@
     private int _callsToday;
     private DateTime _lastAt;
     private DotNetObjectReference<Boeger>? _ref;
+    private List<BookCheck> _history = [];
+    private int _historyTotal;
+    private string _hq = "";
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         _recent = await db.Boxes.OrderByDescending(b => b.Id).Take(8).ToListAsync();
         _callsToday = await Reader.CallsTodayAsync();
+        await LoadHistory();
+    }
+
+    private async Task LoadHistory()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _historyTotal = await db.BookChecks.CountAsync();
+        var q = db.BookChecks.AsQueryable();
+        foreach (var w in _hq.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
+        {
+            var word = w;
+            q = q.Where(b => b.Search.Contains(word));
+        }
+        _history = await q.OrderByDescending(b => b.CheckedAt).Take(50).ToListAsync();
+    }
+
+    // Saved the moment a book has its value - a reload or a closed phone never loses a checked book.
+    private async Task RememberAsync(IEnumerable<Book> books)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var saved = new List<(Book, BookCheck)>();
+        foreach (var b in books.Where(b => b.Value is not null))
+        {
+            var c = b.CheckId != 0 ? await db.BookChecks.FindAsync(b.CheckId) : null;
+            if (c is null) db.BookChecks.Add(c = new BookCheck());
+            Fill(c, b);
+            saved.Add((b, c));
+        }
+        await db.SaveChangesAsync();
+        foreach (var (b, c) in saved) b.CheckId = c.Id;
+        await LoadHistory();
+    }
+
+    private static void Fill(BookCheck c, Book b)
+    {
+        c.Title = b.Title.Trim(); c.Author = b.Author.Trim(); c.Year = b.Year; c.Condition = b.Condition; c.Isbn = b.Barcode;
+        c.Quantity = b.Quantity; c.PhotoId = b.PhotoId == 0 ? null : b.PhotoId;
+        c.Verdict = b.Value!.Verdict; c.Low = b.Value.Low; c.High = b.Value.High; c.Demand = b.Value.Demand;
+        c.SellAt = b.Value.Where; c.Reason = b.Value.Reason;
+        c.Dba = b.Listings?.Text ?? ""; c.AbeBooks = b.Abe?.Text ?? ""; c.AmazonDe = b.Amz?.Text ?? "";
+        c.CheckedAt = DateTime.UtcNow;
+        c.Touch();
     }
 
     private static int Rank(Book b) => b.Value?.Verdict switch { "Sælg" => 0, BookValue.Unsure => 1, "Kasse" => 2, "Genbrug" => 3, _ => 4 };
@@ -217,6 +285,7 @@
                     chunk[i].Value = v;
                     if (v.Verdict == "Genbrug") chunk[i].Keep = false;
                 }
+            await RememberAsync(chunk);
         }
         _callsToday = await Reader.CallsTodayAsync();
         StateHasChanged();
@@ -334,9 +403,14 @@
                 b.Value is { Low: { } lo, High: { } hi } ? (lo + hi) / 2m : null)));
             added += a; merged += m;
         }
+        await RememberAsync(_books);   // corrections made after the valuation go into the record too
+        var kept = _books.Where(b => b.Keep && b.CheckId != 0).Select(b => b.CheckId).ToList();
+        if (kept.Count > 0)
+            await db.BookChecks.Where(c => kept.Contains(c.Id)).ExecuteUpdateAsync(u => u.SetProperty(c => c.BoxCode, _box.Code));
         var left = _books.Count(b => !b.Keep);
         _books.Clear();
         _busy = false;
+        await LoadHistory();
         _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "")
             + (left > 0 ? $". {left} ikke gemt." : ".") + " Tag næste billede.";
     }
@@ -365,6 +439,7 @@
         await ValuePending();   // typed one at a time = answer now, not after ten
     }
 
+    // Clearing the list never deletes the record - it is already in "Alle tjekkede bøger".
     private void Clear() { _books.Clear(); _saved = null; _error = null; }
 
     public async ValueTask DisposeAsync()
