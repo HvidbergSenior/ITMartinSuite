@@ -4,7 +4,7 @@
     'use strict';
     var $ = function (id) { return document.getElementById(id); };
     var ICE = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
-    var ws = null, pc = null, screen = null, mic = null, videoSender = null, step = 'trin-kode';
+    var ws = null, pc = null, screen = null, mic = null, videoSender = null, step = 'trin-kode', kode = null, ping = null, forsoeg = 0;
 
     function show(s) {
         step = s;
@@ -39,18 +39,41 @@
     };
 
     function connect(code) {
+        kode = code;
         ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?rolle=kunde&kode=' + code);
         ws.onmessage = async function (ev) {
             var m = JSON.parse(ev.data);
-            if (m.t === 'ok') show('trin-del');
+            if (m.t === 'ok') {
+                forsoeg = 0;
+                // Back after a dropped line while sharing: keep sharing, only redo the picture if it broke.
+                if (step === 'trin-deler' && screen && screen.active) {
+                    $('forbinder').textContent = '';
+                    if (!pc || pc.connectionState !== 'connected') await ring(screen.getVideoTracks()[0]);
+                }
+                else show('trin-del');
+            }
+            // The server may not have noticed her old line is dead yet ("optaget"), so keep trying a little.
+            else if (m.t === 'nej' && step !== 'trin-kode' && m.hvorfor === 'optaget' && ++forsoeg < 10) { }
+            else if (m.t === 'nej' && step !== 'trin-kode') afslut('Forbindelsen kunne ikke komme tilbage. Bed Martin om en ny kode.');
             else if (m.t === 'nej') fejl(nejTekst[m.hvorfor] || 'Det virkede ikke. Prøv igen.');
             else if (m.t === 'answer' && pc) await pc.setRemoteDescription(m.sdp);
             else if (m.t === 'ice' && pc && m.c) { try { await pc.addIceCandidate(m.c); } catch (e) { } }
             else if (m.t === 'slut') afslut('Martin har afsluttet. Tak for i dag!');
+            else if (m.t === 'martin-ud') $('forbinder').textContent = 'Martin er lige røget af – bliv på siden, han kommer tilbage.';
+            else if (m.t === 'martin-ind') {
+                $('forbinder').textContent = '';
+                if (step === 'trin-deler' && screen && screen.active && (!pc || pc.connectionState !== 'connected'))
+                    await ring(screen.getVideoTracks()[0]);
+            }
         };
+        clearInterval(ping);
+        ping = setInterval(function () { send({ t: 'ping' }); }, 25000);   // Cloudflare drops a quiet line after ~100 s
         ws.onclose = function () {
-            if (step === 'trin-del' || step === 'trin-deler')
-                afslut('Forbindelsen blev afbrudt. Tryk Start forfra og skriv koden igen.');
+            clearInterval(ping);
+            if (step !== 'trin-del' && step !== 'trin-deler') return;
+            // Her own line dropped: try again with the same code instead of sending her back to the start.
+            $('forbinder').textContent = 'Forbindelsen røg – forbinder igen …';
+            setTimeout(function () { if (step === 'trin-del' || step === 'trin-deler') connect(kode); }, 3000);
         };
     }
 
@@ -80,6 +103,13 @@
             return;
         }
 
+        await ring(track);
+        show('trin-deler');
+    });
+
+    // Starts (or restarts) the picture + voice to Martin with the shared screen track.
+    async function ring(track) {
+        if (pc) pc.close();
         pc = new RTCPeerConnection({ iceServers: ICE });
         pc.onicecandidate = function (e) { if (e.candidate) send({ t: 'ice', c: e.candidate }); };
         pc.ontrack = function (e) {
@@ -98,8 +128,7 @@
         else pc.addTransceiver('audio', { direction: 'recvonly' });   // she can still hear Martin
         await pc.setLocalDescription(await pc.createOffer());
         send({ t: 'offer', sdp: pc.localDescription });
-        show('trin-deler');
-    });
+    }
 
     $('mik').addEventListener('click', function () {
         if (!mic) return;

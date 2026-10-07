@@ -66,4 +66,48 @@ public class SessionsTests
         sessions.LeaveCustomer(s);
         sessions.Join(s.Code, "bad", Socket()).result.Should().Be(JoinResult.Ok);
     }
+
+    [Test]
+    public void Customer_reconnect_replaces_her_own_dead_line()
+    {
+        var sessions = new Sessions(new Clock());
+        var s = sessions.Create(Socket());
+        var first = Socket();
+        sessions.Join(s.Code, "ip", first);
+        first.Abort();   // her line dropped before the server noticed
+        sessions.Join(s.Code, "ip", Socket()).result.Should().Be(JoinResult.Ok);
+    }
+
+    [Test]
+    public void Session_waits_for_Martin_to_reconnect_within_the_grace_time()
+    {
+        var clock = new Clock();
+        var sessions = new Sessions(clock);
+        var helper = Socket();
+        var s = sessions.Create(helper);
+        sessions.Join(s.Code, "ip", Socket());
+
+        sessions.LeaveHelper(s, helper);
+        clock.Now += TimeSpan.FromMinutes(5);
+        sessions.HelperTimedOut(s).Should().BeFalse();
+        var back = Socket();
+        sessions.Resume(s.Code, back).Should().BeSameAs(s);
+        s.Helper.Should().BeSameAs(back);
+
+        sessions.LeaveHelper(s, helper);   // the old line closing late must not unseat the new one
+        s.Helper.Should().BeSameAs(back);
+    }
+
+    [Test]
+    public void Session_ends_when_Martin_does_not_come_back()
+    {
+        var clock = new Clock();
+        var sessions = new Sessions(clock);
+        var helper = Socket();
+        var s = sessions.Create(helper);
+        sessions.LeaveHelper(s, helper);
+        clock.Now += Sessions.HelperGrace + TimeSpan.FromSeconds(1);
+        sessions.HelperTimedOut(s).Should().BeTrue();
+        sessions.Resume(s.Code, Socket()).Should().BeNull();
+    }
 }

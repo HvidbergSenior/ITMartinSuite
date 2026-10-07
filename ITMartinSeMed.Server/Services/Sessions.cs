@@ -13,8 +13,10 @@ public enum JoinResult { Ok, Unknown, Taken, Expired, TooManyTries }
 public sealed class Session(string code, WebSocket helper, DateTime created)
 {
     public string Code { get; } = code;
-    public WebSocket Helper { get; } = helper;
+    // Null while Martin's line is down; his page reconnects with the same code within HelperGrace.
+    public WebSocket? Helper { get; set; } = helper;
     public WebSocket? Customer { get; set; }
+    public DateTime? HelperGone { get; set; }
     // Moved forward when the customer drops out, so a reload mid-session can rejoin with the same code.
     public DateTime Created { get; set; } = created;
     public readonly SemaphoreSlim SendLock = new(1, 1);
@@ -26,6 +28,8 @@ public sealed class Sessions(TimeProvider clock)
     public static readonly TimeSpan JoinWindow = TimeSpan.FromMinutes(30);
     // Wrong codes per address before it has to wait: 1,000,000 codes, so guessing gets nowhere.
     public const int MaxBadTries = 10;
+    // How long a session waits for Martin's page to come back after its connection dropped.
+    public static readonly TimeSpan HelperGrace = TimeSpan.FromMinutes(10);
     public static readonly TimeSpan BadTryWindow = TimeSpan.FromMinutes(10);
 
     private readonly ConcurrentDictionary<string, Session> _sessions = new();
@@ -59,7 +63,8 @@ public sealed class Sessions(TimeProvider clock)
         }
         lock (s)
         {
-            if (s.Customer is not null) return (JoinResult.Taken, null);
+            // A socket that is no longer open is her own dropped line, so her reconnect takes its place.
+            if (s.Customer is { State: WebSocketState.Open }) return (JoinResult.Taken, null);
             if (now - s.Created > JoinWindow) { _sessions.TryRemove(code, out _); return (JoinResult.Expired, null); }
             s.Customer = customer;
         }
@@ -67,6 +72,46 @@ public sealed class Sessions(TimeProvider clock)
     }
 
     public void End(Session s) => _sessions.TryRemove(s.Code, out _);
+
+    // Martin's page lost its connection: keep the session, so the customer's screen and code stay valid.
+    public void LeaveHelper(Session s, WebSocket helper)
+    {
+        lock (s)
+        {
+            if (!ReferenceEquals(s.Helper, helper)) return;   // he already came back on a new line
+            s.Helper = null;
+            s.HelperGone = clock.GetUtcNow().UtcDateTime;
+        }
+    }
+
+    // Martin's page reconnecting with its own code. Null when the session is gone or too old.
+    public Session? Resume(string? code, WebSocket helper)
+    {
+        code = new string((code ?? "").Where(char.IsDigit).ToArray());
+        if (!_sessions.TryGetValue(code, out var s)) return null;
+        lock (s)
+        {
+            if (s.HelperGone is { } gone && clock.GetUtcNow().UtcDateTime - gone > HelperGrace)
+            {
+                _sessions.TryRemove(code, out _);
+                return null;
+            }
+            s.Helper = helper;
+            s.HelperGone = null;
+        }
+        return s;
+    }
+
+    // True when Martin did not come back within HelperGrace; the session is then removed.
+    public bool HelperTimedOut(Session s)
+    {
+        lock (s)
+        {
+            if (s.HelperGone is not { } gone || clock.GetUtcNow().UtcDateTime - gone < HelperGrace) return false;
+        }
+        End(s);
+        return true;
+    }
 
     public void LeaveCustomer(Session s)
     {

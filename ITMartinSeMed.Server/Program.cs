@@ -80,13 +80,33 @@ app.Map("/ws", async (HttpContext ctx, Sessions sessions, ILogger<Sessions> log)
     using var ws = await ctx.WebSockets.AcceptWebSocketAsync();
     if (role == "martin")
     {
-        var s = sessions.Create(ws);
-        log.LogInformation("Se med: session started ({Count} open)", sessions.Count);
+        // A reconnect after a dropped line brings its code; anything else (or a dead code) gets a new session.
+        var s = sessions.Resume(ctx.Request.Query["kode"], ws) ?? sessions.Create(ws);
+        log.LogInformation("Se med: helper on session ({Count} open)", sessions.Count);
         await Sessions.SendAsync(s, ws, Msg(new { t = "kode", kode = s.Code }));
-        await RelayAsync(ws, s, () => s.Customer);
-        sessions.End(s);
-        await Sessions.SendAsync(s, s.Customer, Msg(new { t = "slut" }));
-        log.LogInformation("Se med: session ended");
+        if (s.Customer is { State: WebSocketState.Open })
+        {
+            await Sessions.SendAsync(s, ws, Msg(new { t = "kunde-ind" }));
+            await Sessions.SendAsync(s, s.Customer, Msg(new { t = "martin-ind" }));
+        }
+        if (await RelayAsync(ws, s, () => s.Customer))
+        {
+            sessions.End(s);
+            await Sessions.SendAsync(s, s.Customer, Msg(new { t = "slut" }));
+            log.LogInformation("Se med: session ended");
+        }
+        else
+        {
+            // Dropped line, not Afslut: wait for his page to reconnect instead of ending her session.
+            sessions.LeaveHelper(s, ws);
+            await Sessions.SendAsync(s, s.Customer, Msg(new { t = "martin-ud" }));
+            _ = Task.Delay(Sessions.HelperGrace + TimeSpan.FromSeconds(5)).ContinueWith(async _ =>
+            {
+                if (!sessions.HelperTimedOut(s)) return;
+                await Sessions.SendAsync(s, s.Customer, Msg(new { t = "slut" }));
+                log.LogInformation("Se med: session ended (helper did not come back)");
+            });
+        }
     }
     else
     {
@@ -107,8 +127,11 @@ app.Map("/ws", async (HttpContext ctx, Sessions sessions, ILogger<Sessions> log)
         await Sessions.SendAsync(s, ws, Msg(new { t = "ok" }));
         await Sessions.SendAsync(s, s.Helper, Msg(new { t = "kunde-ind" }));
         await RelayAsync(ws, s, () => s.Helper);
-        sessions.LeaveCustomer(s);
-        await Sessions.SendAsync(s, s.Helper, Msg(new { t = "kunde-ud" }));
+        if (ReferenceEquals(s.Customer, ws))   // not already replaced by her own reconnect
+        {
+            sessions.LeaveCustomer(s);
+            await Sessions.SendAsync(s, s.Helper, Msg(new { t = "kunde-ud" }));
+        }
     }
     return Results.Empty;
 });
@@ -122,7 +145,9 @@ static string Msg(object o) => JsonSerializer.Serialize(o);
 
 // Forwards every text message from one side to the other until the socket closes. Messages are
 // the WebRTC handshake (a few KB); anything bigger than 64 KB is not that and ends the session.
-static async Task RelayAsync(WebSocket from, Session s, Func<WebSocket?> to)
+// "ping" only keeps the line busy (Cloudflare closes a websocket after ~100 s of silence).
+// Returns true when the sender said "slut" (Martin pressed Afslut), false when the line just closed.
+static async Task<bool> RelayAsync(WebSocket from, Session s, Func<WebSocket?> to)
 {
     var buf = new byte[64 * 1024];
     try
@@ -133,15 +158,19 @@ static async Task RelayAsync(WebSocket from, Session s, Func<WebSocket?> to)
             WebSocketReceiveResult r;
             do
             {
-                if (count == buf.Length) return;
+                if (count == buf.Length) return false;
                 r = await from.ReceiveAsync(new ArraySegment<byte>(buf, count, buf.Length - count), CancellationToken.None);
                 count += r.Count;
             } while (!r.EndOfMessage);
-            if (r.MessageType == WebSocketMessageType.Close) return;
-            await Sessions.SendAsync(s, to(), Encoding.UTF8.GetString(buf, 0, count));
+            if (r.MessageType == WebSocketMessageType.Close) return false;
+            var text = Encoding.UTF8.GetString(buf, 0, count);
+            if (text == "{\"t\":\"ping\"}") continue;
+            if (text == "{\"t\":\"slut\"}") return true;
+            await Sessions.SendAsync(s, to(), text);
         }
     }
     catch (WebSocketException) { }
+    return false;
 }
 
 public partial class Program;
