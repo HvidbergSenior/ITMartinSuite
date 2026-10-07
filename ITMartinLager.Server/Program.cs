@@ -42,7 +42,11 @@ builder.Services.AddHttpClient<AuctionLink>(c => c.Timeout = TimeSpan.FromSecond
 builder.Services.AddHostedService<AuctionSync>();
 builder.Services.AddHttpClient<MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddHttpClient<BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
-builder.Services.AddHttpClient<DbaListings>(c => c.Timeout = TimeSpan.FromSeconds(15));
+// Amazon answers gzip even when not asked for it - decompress for every price source.
+static HttpMessageHandler Gunzip() => new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All };
+builder.Services.AddHttpClient<DbaListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<AbeBooksListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<AmazonDeListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");

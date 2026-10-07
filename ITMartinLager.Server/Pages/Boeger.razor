@@ -4,6 +4,8 @@
 @inject IConfiguration Config
 @inject BarcodeLookup Barcodes
 @inject DbaListings Dba
+@inject AbeBooksListings Abe
+@inject AmazonDeListings Amazon
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -15,7 +17,7 @@
 <section class="k-card">
     <h1 class="k-card-title">📚 Hvilke bøger er værd at sælge?</h1>
     <p>Læg 10-20 bøger ud med forsiden (eller ryggen) op, så titlerne kan læses, og tag ét billede lige ovenfra.
-       Hver bog får en pris, efterspørgsel og en dom: <b>💰 Sælg</b> enkeltvis, <b>📦 Kasse</b> (sælges i bunke) eller <b>♻ Genbrug</b>.</p>
+       Hver bog får en pris, efterspørgsel og en dom: <b>💰 Sælg</b> enkeltvis, <b>📦 Kasse</b> (sælges i bunke), <b>♻ Genbrug</b> – eller <b>❓ Tjek selv</b>, når AI'en ikke er sikker (så får den ingen pris).</p>
     <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
         @(_busy ? "⏳ " + _status : "📷 Tag billede af bøgerne")
         <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
@@ -23,9 +25,13 @@
     <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
 
     <p><b>Eller scan ISBN-stregkoden</b> bag på bogen – mest præcist for bøger efter ca. 1975. Bøgerne vurderes 10 ad gangen og når du trykker Færdig.</p>
+    <div class="lg-row">
+        <input class="k-input" @bind="_isbn" @bind:event="oninput" @onkeydown="IsbnKey" inputmode="numeric" placeholder="Eller skriv ISBN (13 cifre bag på bogen)" />
+        <button class="k-btn k-btn-secondary" @onclick="AddIsbn" disabled="@(BarcodeLookup.ToIsbn13(_isbn).Length < 10)">➕ Tilføj</button>
+    </div>
     @if (!_scanning)
     {
-        <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">▮▯▮ Scan ISBN</button>
+        <button class="k-btn k-btn-secondary" @onclick="StartScan">▮▯▮ Scan ISBN med kameraet (kun på https)</button>
     }
     else
     {
@@ -43,7 +49,7 @@
 {
     <section class="k-card">
         <h2 class="k-card-title">@_books.Count bøger · 💰 @_books.Count(b => b.Value?.Verdict == "Sælg") værd at sælge</h2>
-        <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering; <b>DBA</b> er hvad den samme bog udbydes til lige nu (udbud, ikke solgt). Tryk på linkene for at tjekke selv.</p>
+        <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering ud fra <b>DBA</b> (Danmark), <b>AbeBooks</b> (internationalt) og <b>Amazon.de</b> – hvad bogen udbydes til lige nu, ikke hvad den er solgt for. Urimelige internetpriser (over 3 gange midten) vises for sig. <b>eBay solgte</b> viser hvad den faktisk er solgt for.</p>
         @if (_books.Any(b => b.Value is null && b.Title.Trim() != "") && !_busy)
         {
             <button class="k-btn k-btn-secondary" @onclick="ValuePending">💰 Vurdér de @_books.Count(b => b.Value is null && b.Title.Trim() != "") uden pris</button>
@@ -55,11 +61,12 @@
                     <div class="lg-rhead">
                         <label><input type="checkbox" @bind="b.Keep" /></label>
                         <span class="lg-verdict">@Badge(b)</span>
-                        @if (b.Value is { } v)
+                        @if (b.Value is { Low: { } lo, High: { } hi } v)
                         {
-                            <b class="lg-price">@(v.Low == v.High ? $"{v.Low} kr" : $"{v.Low}-{v.High} kr")</b>
-                            <span class="k-tag">Efterspørgsel: @v.Demand</span>
+                            <b class="lg-price">@(lo == hi ? $"{lo} kr" : $"{lo}-{hi} kr")</b>
                         }
+                        @if (b.Value is { } d) { <span class="k-tag">Efterspørgsel: @d.Demand</span> }
+                        @if (b.Value is { Where: not "" } w) { <span class="k-tag lg-where">Sælg på: @w.Where</span> }
                         @if (b.Confidence < 0.6) { <span class="lg-check">⚠ Tjek titlen</span> }
                     </div>
                     <div class="lg-rgrid">
@@ -72,15 +79,19 @@
                     </div>
                     @if (b.Value is { Reason: not "" } r) { <p class="lg-int">@r.Reason</p> }
                     <p class="k-small">
-                        @if (b.Listings is { } l)
-                        {
-                            <span>DBA: @(l.Count == 0 ? "ingen til salg" : $"{l.Count} til salg, {l.Low:0}-{l.High:0} kr (midt {l.Median:0} kr)")</span>
-                        }
-                        else if (b.Looking) { <span>DBA: slår op …</span> }
-                        · <a href="@DbaListings.SearchUrl(DbaListings.QueryFor(b.Title, b.Author))" target="_blank" rel="noopener">DBA</a>
+                        DBA: @(b.Listings?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
+                        <br />AbeBooks: @(b.Abe?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
+                        <br />Amazon.de: @(b.Amz?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
+                        @if (b.Note != "") { <br /><span class="k-muted">@b.Note</span> }
+                    </p>
+                    <p class="k-small lg-links">
+                        Tjek:
+                        <a href="@DbaListings.SearchUrl(Query(b))" target="_blank" rel="noopener">DBA</a>
+                        · <a href="@AbeBooksListings.SearchUrl(Query(b))" target="_blank" rel="noopener">AbeBooks</a>
+                        · <a href="@($"https://www.ebay.com/sch/i.html?_nkw={Uri.EscapeDataString(Query(b))}&LH_Sold=1&LH_Complete=1")" target="_blank" rel="noopener">eBay solgte</a>
+                        · <a href="@AmazonDeListings.SearchUrl(b.Barcode != "" ? b.Barcode : Query(b))" target="_blank" rel="noopener">Amazon.de</a>
                         · <a href="@($"https://www.antikvariat.net/da/actions/biblio-search/default/search?author={Uri.EscapeDataString(b.Author)}&title={Uri.EscapeDataString(b.Title)}&currency=DKK")" target="_blank" rel="noopener">antikvariat.net</a>
                         · <a href="@($"https://bogbasen.dk/search?forfatter={Uri.EscapeDataString(b.Author)}&titel={Uri.EscapeDataString(b.Title)}")" target="_blank" rel="noopener">Bogbasen</a>
-                        @if (b.Note != "") { <span class="k-muted"> · @b.Note</span> }
                     </p>
                 </div>
             }
@@ -113,14 +124,14 @@
         public int? Year;
         public int Quantity = 1, PhotoId;
         public double Confidence = 1;
-        public Listings? Listings;
+        public Listings? Listings, Abe, Amz;
         public BookValue? Value;
     }
 
     private readonly List<Book> _books = [];
     private List<Box> _recent = [];
     private Box? _box;
-    private string _newPlace = "", _status = "", _scanStatus = "", _lastCode = "";
+    private string _newPlace = "", _status = "", _scanStatus = "", _lastCode = "", _isbn = "";
     private string? _error, _saved;
     private bool _busy, _scanning;
     private int _callsToday;
@@ -134,12 +145,13 @@
         _callsToday = await Reader.CallsTodayAsync();
     }
 
-    private static int Rank(Book b) => b.Value?.Verdict switch { "Sælg" => 0, "Kasse" => 1, "Genbrug" => 2, _ => 3 };
+    private static int Rank(Book b) => b.Value?.Verdict switch { "Sælg" => 0, BookValue.Unsure => 1, "Kasse" => 2, "Genbrug" => 3, _ => 4 };
+    private static string Query(Book b) => DbaListings.QueryFor(b.Title, b.Author);
     private IEnumerable<Book> Sorted() => _books.OrderBy(Rank).ThenByDescending(b => b.Value?.High ?? 0);
-    private static string Css(Book b) => b.Value?.Verdict switch { "Sælg" => "sell", "Kasse" => "box", "Genbrug" => "recycle", _ => "new" };
+    private static string Css(Book b) => b.Value?.Verdict switch { "Sælg" => "sell", "Kasse" => "box", "Genbrug" => "recycle", BookValue.Unsure => "unsure", _ => "new" };
     private static string Badge(Book b) => b.Value?.Verdict switch
     {
-        "Sælg" => "💰 Sælg", "Kasse" => "📦 Kasse", "Genbrug" => "♻ Genbrug",
+        "Sælg" => "💰 Sælg", "Kasse" => "📦 Kasse", "Genbrug" => "♻ Genbrug", BookValue.Unsure => "❓ Tjek selv",
         _ => b.Title.Trim() == "" ? "✏ Skriv titlen" : "⏳ Vurderes …",
     };
 
@@ -190,7 +202,7 @@
     private async Task AssessAsync(List<Book> books)
     {
         books = books.Where(b => b.Title.Trim() != "").ToList();
-        _status = $"Slår {books.Count} bøger op på DBA …";
+        _status = $"Slår {books.Count} bøger op på DBA, AbeBooks og Amazon.de …";
         StateHasChanged();
         await Task.WhenAll(books.Where(b => b.Listings is null).Select(LookUpAsync));
 
@@ -213,7 +225,12 @@
     private async Task LookUpAsync(Book b)
     {
         b.Looking = true;
-        b.Listings = await Dba.LookupAsync(b.Title, b.Author);
+        var dba = Dba.LookupAsync(b.Title, b.Author);
+        var abe = Abe.LookupAsync(b.Title, b.Author);
+        var amz = Amazon.LookupAsync(b.Title, b.Author, b.Barcode);
+        b.Listings = await dba;
+        b.Abe = await abe;
+        b.Amz = await amz;
         b.Looking = false;
         await InvokeAsync(StateHasChanged);
     }
@@ -222,12 +239,9 @@
     {
         var parts = new List<string> { b.Author, b.Title, b.Year?.ToString() ?? "", "stand: " + b.Condition }.Where(x => x.Trim() != "").ToList();
         if (b.Barcode != "") parts.Add("ISBN " + b.Barcode);
-        parts.Add(b.Listings switch
-        {
-            null => "DBA: ukendt",
-            { Count: 0 } => "DBA: ingen til salg",
-            var l => $"DBA: {l.Count} til salg, {l.Low:0}-{l.High:0} kr (midt {l.Median:0} kr)",
-        });
+        parts.Add("DBA: " + (b.Listings?.Text ?? "ukendt"));
+        parts.Add("AbeBooks: " + (b.Abe?.Text ?? "ukendt"));
+        parts.Add("Amazon.de: " + (b.Amz?.Text ?? "ukendt"));
         return string.Join(" · ", parts);
     }
 
@@ -317,7 +331,7 @@
             var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key == 0 ? null : g.Key, g.Select(b => new Found(
                 Kinds.Bog, b.Title.Trim(), b.Author.Trim(), "", "", b.Year, "", Conditions.Normalise(b.Condition),
                 Math.Max(1, b.Quantity), b.Confidence, SaveNote(b), "", b.Barcode,
-                b.Value is { } v ? (v.Low + v.High) / 2m : null)));
+                b.Value is { Low: { } lo, High: { } hi } ? (lo + hi) / 2m : null)));
             added += a; merged += m;
         }
         var left = _books.Count(b => !b.Keep);
@@ -330,10 +344,25 @@
     private static string SaveNote(Book b)
     {
         var parts = new List<string>();
-        if (b.Value is { } v) parts.Add($"{v.Verdict} · {v.Low}-{v.High} kr · efterspørgsel {v.Demand} · {v.Reason}");
-        if (b.Listings is { Count: > 0 } l) parts.Add($"DBA {DateTime.Now:d/M}: {l.Count} til salg, {l.Low:0}-{l.High:0} kr");
+        if (b.Value is { Where: not "" } wh) parts.Add($"Sælg på {wh.Where}");
+        if (b.Value is { } v) parts.Add($"{v.Verdict}" + (v.Low is { } lo ? $" · {lo}-{v.High} kr" : "") + $" · efterspørgsel {v.Demand} · {v.Reason}");
+        if (b.Listings is { Count: > 0 } l) parts.Add($"DBA {DateTime.Now:d/M}: {l.Text}");
+        if (b.Abe is { Count: > 0 } a) parts.Add($"AbeBooks {DateTime.Now:d/M}: {a.Text}");
+        if (b.Amz is { Count: > 0 } z) parts.Add($"Amazon.de {DateTime.Now:d/M}: {z.Text}");
         if (b.Note != "") parts.Add(b.Note);
         return string.Join(" | ", parts);
+    }
+
+    private async Task IsbnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await AddIsbn(); }
+
+    private async Task AddIsbn()
+    {
+        var code = BarcodeLookup.ToIsbn13(_isbn);
+        if (code.Length < 10) return;
+        _isbn = "";
+        _lastCode = "";
+        await OnBarcode(code);
+        await ValuePending();   // typed one at a time = answer now, not after ten
     }
 
     private void Clear() { _books.Clear(); _saved = null; _error = null; }

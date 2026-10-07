@@ -12,18 +12,23 @@ namespace ITMartinLager.Server.Services;
 public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
     string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "", decimal? PriceHint = null);
 
-public sealed record BookValue(int Low, int High, string Demand, string Verdict, string Reason)
+public sealed record BookValue(int? Low, int? High, string Demand, string Verdict, string Reason, string Where = "")
 {
-    public static readonly string[] Verdicts = ["Sælg", "Kasse", "Genbrug"];
+    public const string Unsure = "Tjek selv";
+    public static readonly string[] Verdicts = ["Sælg", "Kasse", "Genbrug", Unsure];
     public static readonly string[] Demands = ["Høj", "Middel", "Lav"];
+    public static readonly string[] Places = ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen"];
 
     internal static BookValue From(PileReader.ValueRow r)
     {
-        int low = Math.Max(0, r.Low ?? 0), high = Math.Max(low, r.High ?? low);
+        var verdict = Verdicts.FirstOrDefault(v => string.Equals(v, r.Verdict?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? Unsure;
+        // Not sure = no price at all (user 2026-10-07: "dont give an estimate if you are not sure at all").
+        int? low = verdict == Unsure || r.Low is null ? null : Math.Max(0, r.Low.Value);
+        int? high = low is null ? null : Math.Max(low.Value, r.High ?? low.Value);
         return new(low, high,
             Demands.FirstOrDefault(d => string.Equals(d, r.Demand?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "Lav",
-            Verdicts.FirstOrDefault(v => string.Equals(v, r.Verdict?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "Kasse",
-            (r.Reason ?? "").Trim());
+            verdict, (r.Reason ?? "").Trim(),
+            Places.FirstOrDefault(p => string.Equals(p, r.Where?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "");
     }
 }
 
@@ -237,13 +242,22 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
     private const string ValueSystem = """
         Du vurderer brugte bøger for en dansk butik, der skal sælge mange bøger hurtigt og vil vide, hvilke der er
         værd at sælge enkeltvis. For hver bog: en realistisk salgspris i kr. for et brugt eksemplar i den angivne stand
-        (lav-høj), efterspørgslen blandt danske købere (Høj, Middel, Lav) og en dom:
+        (lav-høj), efterspørgslen (Høj, Middel, Lav) og en dom:
         - "Sælg": værd at sætte til salg enkeltvis (typisk 75 kr. eller mere, eller eftertragtet).
         - "Kasse": sælges bedst i en kasse/bunke med andre (typisk 20-75 kr.).
         - "Genbrug": næsten ingen værdi - masseudgivelse, bogklub-udgave, forældet fagbog.
-        Hvert nummer kan have DBA-tal: hvor mange der er til salg nu og for hvad (udbudspriser, ikke solgte). Mange til
-        salg billigt = lav efterspørgsel. Få eller ingen til salg kan betyde sjælden ELLER uinteressant - brug din viden.
-        Førsteudgaver, signerede, sjældne, samlerforfattere, gamle tegneseriealbum og eftertragtet fagbøger er værd mere.
+        - "Tjek selv": du er IKKE sikker på værdien. Så giv INGEN pris (low/high = null). Brug den hellere end at gætte -
+          et forkert lavt bud får butikken til at sælge en værdifuld bog for billigt.
+        Hvert nummer kan have markedstal (udbudspriser, ikke solgte) fra DBA (Danmark), AbeBooks (internationalt) og
+        Amazon.de (Tyskland), omregnet til kr. De vejer tungere end din hukommelse. "Urimelige internetpriser" er drømmepriser
+        - brug dem ikke som pris.
+        Hvor skal den sælges (where): DBA = danske bøger og alt til danske købere; AbeBooks = antikvariske, samler- og
+        engelske/udenlandske bøger med en international køberskare; Amazon.de = nyere udenlandske bøger med ISBN, hvor
+        Amazon.de har højere priser; eBay = samlerobjekter med budkrig (sjældne førsteudgaver, signerede); Bogshoppen =
+        kassevarer og billige bøger, der sælges i butikken. Engelsksprogede og samlerbøger (fx Warhammer/Black Library,
+        udgåede omnibusser, fantasy/sci-fi-førsteudgaver) sælges på det internationale marked - brug AbeBooks for dem.
+        Mange til salg billigt = lav efterspørgsel. Få eller ingen til salg kan betyde sjælden ELLER uinteressant: uden
+        markedstal og uden sikker viden = "Tjek selv".
         Grunden: én kort sætning på dansk med det, der afgør det. Skriv kun fakta, du er sikker på.
         Svar ved at kalde værktøjet report_values med én post pr. nummer.
         """;
@@ -260,12 +274,13 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
                     { "type": "array", "items": { "type": "object",
                       "properties": {
                         "index":   { "type": "integer" },
-                        "low":     { "type": "integer", "description": "kr" },
-                        "high":    { "type": "integer", "description": "kr" },
+                        "low":     { "type": ["integer", "null"], "description": "kr, null when verdict is Tjek selv" },
+                        "high":    { "type": ["integer", "null"], "description": "kr, null when verdict is Tjek selv" },
                         "demand":  { "type": "string", "enum": ["Høj", "Middel", "Lav"] },
-                        "verdict": { "type": "string", "enum": ["Sælg", "Kasse", "Genbrug"] },
-                        "reason":  { "type": "string" } },
-                      "required": ["index", "low", "high", "demand", "verdict", "reason"], "additionalProperties": false } }
+                        "verdict": { "type": "string", "enum": ["Sælg", "Kasse", "Genbrug", "Tjek selv"] },
+                        "reason":  { "type": "string" },
+                        "where":   { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen"] } },
+                      "required": ["index", "demand", "verdict", "reason"], "additionalProperties": false } }
                     """).RootElement,
             },
             Required = ["items"],
@@ -334,6 +349,7 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         public string? Demand { get; set; }
         public string? Verdict { get; set; }
         public string? Reason { get; set; }
+        public string? Where { get; set; }
     }
     internal sealed class InterestRow { public int Index { get; set; } public string? Interest { get; set; } }
 

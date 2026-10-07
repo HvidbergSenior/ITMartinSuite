@@ -48,5 +48,8 @@
 .lg-book.is-sell { border-left-color: #2e9d57; }
 .lg-book.is-box { border-left-color: #c99a1d; }
 .lg-book.is-recycle { border-left-color: #8a8f8c; }
+.lg-book.is-unsure { border-left-color: #3b7dd8; border-left-style: dashed; }
+.lg-links a { white-space: nowrap; }
 .lg-verdict { font-weight: 800; }
 .lg-price { font-size: 1.15rem; }
+.lg-where { font-weight: 800; }
