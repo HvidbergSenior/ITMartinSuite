@@ -1910,3 +1910,6 @@ details.fold[open] > .fold-body { margin-top: 4px; }
 .mv-inline .mv-img img { max-width: 100%; max-height: calc(min(78vh, 900px) - 110px); }
 .mv-inline .mv-room { font-size: 11px; }
 .mv-inline .mv-bar { flex-wrap: wrap; }
+
+/* Followers see who steers instead of the menu (user 2026-10-07). */
+.r6-follow-note { font-weight: 600; opacity: .9; }

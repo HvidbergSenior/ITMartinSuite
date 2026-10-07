@@ -1,5 +1,8 @@
 @inherits LayoutComponentBase
 @inject PlayerIdentityService Identity
+@inject CoachService Coach
+@inject SessionStateService Session
+@inject NavigationManager Nav
 @implements IDisposable
 
 <div class="r6-shell">
@@ -25,13 +28,22 @@
                 </button>
             }
 
-            <nav class="r6-nav" aria-label="Hovedmenu">
-                <NavLink href="/" Match="NavLinkMatch.All">🎮 <span>Kamp</span></NavLink>
-                <NavLink href="/maps">🗺 <span>Maps</span></NavLink>
-                <NavLink href="/operatorer">👤 <span>Operatører</span></NavLink>
-                <NavLink href="/vaaben">🔫 <span>Våben</span></NavLink>
-                <NavLink href="/admin">🛠 <span>Admin</span></NavLink>
-            </nav>
+            @* While a coach runs the match, the others only see the Kamp screen the coach steers (user 2026-10-07:
+               "they should only see what I want them to see"). The coach keeps the full menu. *@
+            @if (Follower)
+            {
+                <span class="r6-nav r6-follow-note">🎧 @(Session.CoachName ?? "Coachen") styrer</span>
+            }
+            else
+            {
+                <nav class="r6-nav" aria-label="Hovedmenu">
+                    <NavLink href="/" Match="NavLinkMatch.All">🎮 <span>Kamp</span></NavLink>
+                    <NavLink href="/maps">🗺 <span>Maps</span></NavLink>
+                    <NavLink href="/operatorer">👤 <span>Operatører</span></NavLink>
+                    <NavLink href="/vaaben">🔫 <span>Våben</span></NavLink>
+                    <NavLink href="/admin">🛠 <span>Admin</span></NavLink>
+                </nav>
+            }
         </div>
     </header>
 
@@ -46,16 +58,36 @@
     private bool _editingName;
     private string _nameInput = "";
 
-    protected override void OnInitialized() => Identity.OnChanged += OnIdentityChanged;
+    private bool _loaded;
+    // Only known after the device id is read from localStorage (first render).
+    private bool Follower => _loaded && Coach.Synced && !Coach.IsCoach;
+
+    protected override void OnInitialized()
+    {
+        Identity.OnChanged += OnIdentityChanged;
+        Session.OnStateChanged += OnSessionChanged;
+        Nav.LocationChanged += OnLocationChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
         await Identity.EnsureLoadedAsync();
+        await Coach.EnsureLoadedAsync();
+        _loaded = true;
+        KeepFollowerOnKamp();
         StateHasChanged();
     }
 
+    // Followers stay on the Kamp screen; other pages (Maps, Operatører, Våben, Admin) send them back.
+    private void KeepFollowerOnKamp()
+    {
+        if (Follower && Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Length > 0) Nav.NavigateTo("/");
+    }
+
     private void OnIdentityChanged() => InvokeAsync(StateHasChanged);
+    private void OnSessionChanged() => InvokeAsync(() => { KeepFollowerOnKamp(); StateHasChanged(); });
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) => InvokeAsync(KeepFollowerOnKamp);
 
     private void StartEditingName()
     {
@@ -69,5 +101,10 @@
         _editingName = false;
     }
 
-    public void Dispose() => Identity.OnChanged -= OnIdentityChanged;
+    public void Dispose()
+    {
+        Identity.OnChanged -= OnIdentityChanged;
+        Session.OnStateChanged -= OnSessionChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 }
