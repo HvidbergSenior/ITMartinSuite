@@ -42,3 +42,11 @@
 .lg-steps li { margin: .3rem 0; }
 .lg-scan { display: grid; gap: .5rem; margin: .6rem 0; }
 .lg-scan video { width: 100%; max-height: 50vh; background: #000; border-radius: 10px; object-fit: cover; }
+
+/* Bøger: verdict colour on the left edge, so the good ones stand out while scrolling */
+.lg-book { border-left-width: 6px; }
+.lg-book.is-sell { border-left-color: #2e9d57; }
+.lg-book.is-box { border-left-color: #c99a1d; }
+.lg-book.is-recycle { border-left-color: #8a8f8c; }
+.lg-verdict { font-weight: 800; }
+.lg-price { font-size: 1.15rem; }

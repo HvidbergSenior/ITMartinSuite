@@ -10,7 +10,22 @@ using SixLabors.ImageSharp.Processing;
 namespace ITMartinLager.Server.Services;
 
 public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
-    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "");
+    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "", decimal? PriceHint = null);
+
+public sealed record BookValue(int Low, int High, string Demand, string Verdict, string Reason)
+{
+    public static readonly string[] Verdicts = ["Sælg", "Kasse", "Genbrug"];
+    public static readonly string[] Demands = ["Høj", "Middel", "Lav"];
+
+    internal static BookValue From(PileReader.ValueRow r)
+    {
+        int low = Math.Max(0, r.Low ?? 0), high = Math.Max(low, r.High ?? low);
+        return new(low, high,
+            Demands.FirstOrDefault(d => string.Equals(d, r.Demand?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "Lav",
+            Verdicts.FirstOrDefault(v => string.Equals(v, r.Verdict?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "Kasse",
+            (r.Reason ?? "").Trim());
+    }
+}
 
 // One photo of a PILE (10-20 covers side by side) -> one Claude call that reads every item. Never one call per item:
 // 100,000 items is ~7,000 photos this way (CLAUDE.md cost rules). Cheap model by default (Lager:AiModel), and a hard
@@ -169,10 +184,20 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
         await ReserveCallAsync(ct);
         var ask = "Skriv den interessante tekst for hver af disse varer:\n" + string.Join("\n", lines.Select((l, i) => $"{i}: {l}"));
-        var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
+        var (tool, response) = await AccurateToolCallAsync(InterestSystem, InterestTool, ask, ct);
+        if (tool is null) return [];
+        var parsed = JsonSerializer.Deserialize<InterestReport>(JsonSerializer.Serialize(tool.Input), Json) ?? new InterestReport();
+        log.LogInformation("Interest written for {Count}/{Asked} items, {In}/{Out} tokens", parsed.Items.Count, lines.Count,
+            response!.Usage.InputTokens, response.Usage.OutputTokens);
+        return parsed.Items.Where(x => x.Index >= 0 && x.Index < lines.Count && !string.IsNullOrWhiteSpace(x.Interest))
+            .GroupBy(x => x.Index).ToDictionary(g => g.Key, g => g.First().Interest!.Trim());
+    }
 
-        // The accurate model first. Opus 5.5 / Sonnet 5.5 do not allow a forced tool call, so the prompt asks for it.
-        // A refusal, an error or no tool call -> the cheap model with a forced call, so a pile is never left without text.
+    // The accurate model first. Opus 5.5 / Sonnet 5.5 do not allow a forced tool call, so the prompt asks for it.
+    // A refusal, an error or no tool call -> the cheap model with a forced call, so a pile is never left without an answer.
+    private async Task<(ToolUseBlock? Tool, Message? Response)> AccurateToolCallAsync(string system, Tool tool, string ask, CancellationToken ct)
+    {
+        var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
         Message? response = null;
         try
         {
@@ -180,8 +205,8 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
             {
                 Model = InterestModel,
                 MaxTokens = 16000,
-                System = InterestSystem,
-                Tools = [InterestTool],
+                System = system,
+                Tools = [tool],
                 ToolChoice = new ToolChoiceAuto(),
                 OutputConfig = new OutputConfig { Effort = Effort.Low },
                 Messages = [new() { Role = Role.User, Content = ask }],
@@ -190,31 +215,78 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Interest model {Model} failed - falling back to {Cheap}", InterestModel, Model);
+            log.LogWarning(ex, "Accurate model {Model} failed - falling back to {Cheap}", InterestModel, Model);
         }
 
-        var tool = response?.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
-        if (tool is null)
+        var used = response?.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
+        if (used is not null) return (used, response);
+        if (response is not null) log.LogWarning("Accurate model gave no tool call (stop: {Stop}) - falling back", response.StopReason);
+        response = await client.Messages.Create(new MessageCreateParams
         {
-            if (response is not null) log.LogWarning("Interest model gave no tool call (stop: {Stop}) - falling back", response.StopReason);
-            response = await client.Messages.Create(new MessageCreateParams
+            Model = Model,
+            MaxTokens = 8000,
+            System = system,
+            Tools = [tool],
+            ToolChoice = new ToolChoiceTool { Name = tool.Name },
+            Messages = [new() { Role = Role.User, Content = ask }],
+        }, ct);
+        await CountTokensAsync(response, ct);
+        return (response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault(), response);
+    }
+
+    private const string ValueSystem = """
+        Du vurderer brugte bøger for en dansk butik, der skal sælge mange bøger hurtigt og vil vide, hvilke der er
+        værd at sælge enkeltvis. For hver bog: en realistisk salgspris i kr. for et brugt eksemplar i den angivne stand
+        (lav-høj), efterspørgslen blandt danske købere (Høj, Middel, Lav) og en dom:
+        - "Sælg": værd at sætte til salg enkeltvis (typisk 75 kr. eller mere, eller eftertragtet).
+        - "Kasse": sælges bedst i en kasse/bunke med andre (typisk 20-75 kr.).
+        - "Genbrug": næsten ingen værdi - masseudgivelse, bogklub-udgave, forældet fagbog.
+        Hvert nummer kan have DBA-tal: hvor mange der er til salg nu og for hvad (udbudspriser, ikke solgte). Mange til
+        salg billigt = lav efterspørgsel. Få eller ingen til salg kan betyde sjælden ELLER uinteressant - brug din viden.
+        Førsteudgaver, signerede, sjældne, samlerforfattere, gamle tegneseriealbum og eftertragtet fagbøger er værd mere.
+        Grunden: én kort sætning på dansk med det, der afgør det. Skriv kun fakta, du er sikker på.
+        Svar ved at kalde værktøjet report_values med én post pr. nummer.
+        """;
+
+    private static readonly Tool ValueTool = new()
+    {
+        Name = "report_values",
+        Description = "Report price, demand and verdict for each numbered book",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
             {
-                Model = Model,
-                MaxTokens = 8000,
-                System = InterestSystem,
-                Tools = [InterestTool],
-                ToolChoice = new ToolChoiceTool { Name = "report_interest" },
-                Messages = [new() { Role = Role.User, Content = ask }],
-            }, ct);
-            await CountTokensAsync(response, ct);
-            tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
-            if (tool is null) return [];
-        }
-        var parsed = JsonSerializer.Deserialize<InterestReport>(JsonSerializer.Serialize(tool.Input), Json) ?? new InterestReport();
-        log.LogInformation("Interest written for {Count}/{Asked} items, {In}/{Out} tokens", parsed.Items.Count, lines.Count,
+                ["items"] = JsonDocument.Parse("""
+                    { "type": "array", "items": { "type": "object",
+                      "properties": {
+                        "index":   { "type": "integer" },
+                        "low":     { "type": "integer", "description": "kr" },
+                        "high":    { "type": "integer", "description": "kr" },
+                        "demand":  { "type": "string", "enum": ["Høj", "Middel", "Lav"] },
+                        "verdict": { "type": "string", "enum": ["Sælg", "Kasse", "Genbrug"] },
+                        "reason":  { "type": "string" } },
+                      "required": ["index", "low", "high", "demand", "verdict", "reason"], "additionalProperties": false } }
+                    """).RootElement,
+            },
+            Required = ["items"],
+        },
+    };
+
+    // Price + demand + verdict for up to 40 books in ONE text-only call (never one call per book).
+    public async Task<Dictionary<int, BookValue>> ValueBooksAsync(IReadOnlyList<string> lines, CancellationToken ct)
+    {
+        lines = lines.Take(40).ToList();
+        if (lines.Count == 0) return [];
+        if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
+        await ReserveCallAsync(ct);
+        var ask = "Vurdér disse bøger:\n" + string.Join("\n", lines.Select((l, i) => $"{i}: {l}"));
+        var (tool, response) = await AccurateToolCallAsync(ValueSystem, ValueTool, ask, ct);
+        if (tool is null) return [];
+        var parsed = JsonSerializer.Deserialize<ValueReport>(JsonSerializer.Serialize(tool.Input), Json) ?? new ValueReport();
+        log.LogInformation("Values for {Count}/{Asked} books, {In}/{Out} tokens", parsed.Items.Count, lines.Count,
             response!.Usage.InputTokens, response.Usage.OutputTokens);
-        return parsed.Items.Where(x => x.Index >= 0 && x.Index < lines.Count && !string.IsNullOrWhiteSpace(x.Interest))
-            .GroupBy(x => x.Index).ToDictionary(g => g.Key, g => g.First().Interest!.Trim());
+        return parsed.Items.Where(x => x.Index >= 0 && x.Index < lines.Count)
+            .GroupBy(x => x.Index).ToDictionary(g => g.Key, g => BookValue.From(g.First()));
     }
 
     private async Task CountTokensAsync(Message response, CancellationToken ct)
@@ -253,6 +325,16 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
     internal sealed class InterestReport { public List<InterestRow> Items { get; set; } = []; }
+    internal sealed class ValueReport { public List<ValueRow> Items { get; set; } = []; }
+    internal sealed class ValueRow
+    {
+        public int Index { get; set; }
+        public int? Low { get; set; }
+        public int? High { get; set; }
+        public string? Demand { get; set; }
+        public string? Verdict { get; set; }
+        public string? Reason { get; set; }
+    }
     internal sealed class InterestRow { public int Index { get; set; } public string? Interest { get; set; } }
 
     internal sealed class RawItem

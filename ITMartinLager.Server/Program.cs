@@ -28,6 +28,7 @@ builder.Services.AddKolibri(k =>
         "Læg en bunke ud med forsiden op, og tryk 📷 Tag billede.",
         "Ret det, AI'en har læst forkert (gul = usikker), og tryk Gem.",
         "Find alt igen under Søg – med kassenummer.",
+        "Bøger: tryk 📚 Bøger og tag et billede af en bunke – så ser du pris, efterspørgsel og om bogen er værd at sælge.",
     ];
     k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";
@@ -41,6 +42,7 @@ builder.Services.AddHttpClient<AuctionLink>(c => c.Timeout = TimeSpan.FromSecond
 builder.Services.AddHostedService<AuctionSync>();
 builder.Services.AddHttpClient<MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddHttpClient<BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
+builder.Services.AddHttpClient<DbaListings>(c => c.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");

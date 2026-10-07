@@ -38,7 +38,7 @@ public static class Store
             {
                 Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
                 Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
-                Note = f.Note, Interest = f.Interest, Barcode = f.Barcode, BoxId = boxId, PhotoId = photoId,
+                Note = f.Note, Interest = f.Interest, Barcode = f.Barcode, PriceHint = f.PriceHint, BoxId = boxId, PhotoId = photoId,
             };
             item.Touch();
             db.Items.Add(item);

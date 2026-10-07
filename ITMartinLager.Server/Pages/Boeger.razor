@@ -1,0 +1,347 @@
+@page "/boeger"
+@inject IDbContextFactory<LagerDb> DbFactory
+@inject PileReader Reader
+@inject IConfiguration Config
+@inject BarcodeLookup Barcodes
+@inject DbaListings Dba
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Bøger – Bogshoppen Lager</PageTitle>
+
+@* Sorting books fast (user 2026-10-07): "take a picture of books ... and see which books are interesting - price and
+   efterspørgsel". One photo of a pile -> every book gets DBA listings (supply + asking prices) and ONE AI call for the
+   whole pile (price, demand, verdict). Only the good ones need to go in a box. *@
+<section class="k-card">
+    <h1 class="k-card-title">📚 Hvilke bøger er værd at sælge?</h1>
+    <p>Læg 10-20 bøger ud med forsiden (eller ryggen) op, så titlerne kan læses, og tag ét billede lige ovenfra.
+       Hver bog får en pris, efterspørgsel og en dom: <b>💰 Sælg</b> enkeltvis, <b>📦 Kasse</b> (sælges i bunke) eller <b>♻ Genbrug</b>.</p>
+    <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
+        @(_busy ? "⏳ " + _status : "📷 Tag billede af bøgerne")
+        <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
+    </label>
+    <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
+
+    <p><b>Eller scan ISBN-stregkoden</b> bag på bogen – mest præcist for bøger efter ca. 1975. Bøgerne vurderes 10 ad gangen og når du trykker Færdig.</p>
+    @if (!_scanning)
+    {
+        <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">▮▯▮ Scan ISBN</button>
+    }
+    else
+    {
+        <div class="lg-scan">
+            <video id="scan-video" muted playsinline></video>
+            <p class="lg-answer" role="status">@_scanStatus</p>
+            <button class="k-btn k-btn-primary" @onclick="StopScan">✓ Færdig med at scanne</button>
+        </div>
+    }
+    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+    @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
+</section>
+
+@if (_books.Count > 0)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">@_books.Count bøger · 💰 @_books.Count(b => b.Value?.Verdict == "Sælg") værd at sælge</h2>
+        <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering; <b>DBA</b> er hvad den samme bog udbydes til lige nu (udbud, ikke solgt). Tryk på linkene for at tjekke selv.</p>
+        @if (_books.Any(b => b.Value is null && b.Title.Trim() != "") && !_busy)
+        {
+            <button class="k-btn k-btn-secondary" @onclick="ValuePending">💰 Vurdér de @_books.Count(b => b.Value is null && b.Title.Trim() != "") uden pris</button>
+        }
+        <div class="lg-review">
+            @foreach (var b in Sorted())
+            {
+                <div class="lg-ritem lg-book is-@Css(b) @(b.Keep ? "" : "is-off")">
+                    <div class="lg-rhead">
+                        <label><input type="checkbox" @bind="b.Keep" /></label>
+                        <span class="lg-verdict">@Badge(b)</span>
+                        @if (b.Value is { } v)
+                        {
+                            <b class="lg-price">@(v.Low == v.High ? $"{v.Low} kr" : $"{v.Low}-{v.High} kr")</b>
+                            <span class="k-tag">Efterspørgsel: @v.Demand</span>
+                        }
+                        @if (b.Confidence < 0.6) { <span class="lg-check">⚠ Tjek titlen</span> }
+                    </div>
+                    <div class="lg-rgrid">
+                        <input class="k-input" @bind="b.Title" placeholder="Titel" />
+                        <input class="k-input" @bind="b.Author" placeholder="Forfatter" />
+                        <input class="k-input lg-short" @bind="b.Year" placeholder="År" type="number" />
+                        <select class="k-input lg-short" @bind="b.Condition">
+                            @foreach (var c in Conditions.All) { <option value="@c">@c</option> }
+                        </select>
+                    </div>
+                    @if (b.Value is { Reason: not "" } r) { <p class="lg-int">@r.Reason</p> }
+                    <p class="k-small">
+                        @if (b.Listings is { } l)
+                        {
+                            <span>DBA: @(l.Count == 0 ? "ingen til salg" : $"{l.Count} til salg, {l.Low:0}-{l.High:0} kr (midt {l.Median:0} kr)")</span>
+                        }
+                        else if (b.Looking) { <span>DBA: slår op …</span> }
+                        · <a href="@DbaListings.SearchUrl(DbaListings.QueryFor(b.Title, b.Author))" target="_blank" rel="noopener">DBA</a>
+                        · <a href="@($"https://www.antikvariat.net/da/actions/biblio-search/default/search?author={Uri.EscapeDataString(b.Author)}&title={Uri.EscapeDataString(b.Title)}&currency=DKK")" target="_blank" rel="noopener">antikvariat.net</a>
+                        · <a href="@($"https://bogbasen.dk/search?forfatter={Uri.EscapeDataString(b.Author)}&titel={Uri.EscapeDataString(b.Title)}")" target="_blank" rel="noopener">Bogbasen</a>
+                        @if (b.Note != "") { <span class="k-muted"> · @b.Note</span> }
+                    </p>
+                </div>
+            }
+        </div>
+
+        <h3>Gem de afkrydsede (@_books.Count(b => b.Keep)) i en kasse</h3>
+        <p class="k-small k-muted">Genbrug er ikke afkrydset fra start. Pris og grund gemmes på varen.</p>
+        <div class="lg-chips">
+            @foreach (var x in _recent)
+            {
+                <button class="k-btn @(_box?.Id == x.Id ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _box = x">📦 @x.Code @(x.Place != "" ? "· " + x.Place : "")</button>
+            }
+        </div>
+        <div class="lg-row">
+            <input class="k-input" @bind="_newPlace" placeholder="Ny kasse – hvor står den? (fx Butikken, reol 2)" />
+            <button class="k-btn k-btn-secondary" @onclick="NewBox">➕ Ny kasse</button>
+        </div>
+        <div class="lg-row">
+            <button class="k-btn k-btn-primary lg-big" @onclick="Save" disabled="@(_busy || _box is null || !_books.Any(b => b.Keep))">✓ Gem i @(_box?.Code ?? "kasse")</button>
+            <button class="k-btn k-btn-ghost" @onclick="Clear">Ryd listen</button>
+        </div>
+    </section>
+}
+
+@code {
+    private sealed class Book
+    {
+        public bool Keep = true, Looking;
+        public string Title = "", Author = "", Condition = "God", Note = "", Barcode = "";
+        public int? Year;
+        public int Quantity = 1, PhotoId;
+        public double Confidence = 1;
+        public Listings? Listings;
+        public BookValue? Value;
+    }
+
+    private readonly List<Book> _books = [];
+    private List<Box> _recent = [];
+    private Box? _box;
+    private string _newPlace = "", _status = "", _scanStatus = "", _lastCode = "";
+    private string? _error, _saved;
+    private bool _busy, _scanning;
+    private int _callsToday;
+    private DateTime _lastAt;
+    private DotNetObjectReference<Boeger>? _ref;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _recent = await db.Boxes.OrderByDescending(b => b.Id).Take(8).ToListAsync();
+        _callsToday = await Reader.CallsTodayAsync();
+    }
+
+    private static int Rank(Book b) => b.Value?.Verdict switch { "Sælg" => 0, "Kasse" => 1, "Genbrug" => 2, _ => 3 };
+    private IEnumerable<Book> Sorted() => _books.OrderBy(Rank).ThenByDescending(b => b.Value?.High ?? 0);
+    private static string Css(Book b) => b.Value?.Verdict switch { "Sælg" => "sell", "Kasse" => "box", "Genbrug" => "recycle", _ => "new" };
+    private static string Badge(Book b) => b.Value?.Verdict switch
+    {
+        "Sælg" => "💰 Sælg", "Kasse" => "📦 Kasse", "Genbrug" => "♻ Genbrug",
+        _ => b.Title.Trim() == "" ? "✏ Skriv titlen" : "⏳ Vurderes …",
+    };
+
+    private async Task Upload(InputFileChangeEventArgs e)
+    {
+        _busy = true; _error = null; _saved = null;
+        try
+        {
+            var files = e.GetMultipleFiles(20);
+            for (var n = 0; n < files.Count; n++)
+            {
+                _status = files.Count > 1 ? $"Læser billede {n + 1} af {files.Count} …" : "Læser titlerne …";
+                StateHasChanged();
+                byte[] jpeg;
+                await using (var s = files[n].OpenReadStream(30 * 1024 * 1024))
+                    jpeg = await PileReader.ShrinkAsync(s, CancellationToken.None);
+
+                var rel = Path.Combine("photos", DateTime.Now.ToString("yyyy-MM"), $"{DateTime.Now:ddHHmmssfff}-boeger.jpg");
+                var full = Path.Combine(Program.DataDir(Config), rel);
+                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+                await File.WriteAllBytesAsync(full, jpeg);
+
+                var found = await Reader.ReadAsync(jpeg, "bøger", CancellationToken.None);
+                await using var db = await DbFactory.CreateDbContextAsync();
+                var photo = new Photo { Path = rel, Found = found.Count };
+                db.Photos.Add(photo);
+                await db.SaveChangesAsync();
+                if (found.Count == 0) { _error = "AI'en fandt ingen bøger på billedet. Tag det lidt tættere på, i godt lys."; continue; }
+
+                var fresh = found.Select(f => new Book
+                {
+                    Title = f.Title, Author = f.Artist, Year = f.Year, Condition = f.Condition, Quantity = f.Quantity,
+                    Confidence = f.Confidence, Note = f.Note, PhotoId = photo.Id,
+                }).ToList();
+                _books.AddRange(fresh);
+                await AssessAsync(fresh);
+            }
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally
+        {
+            _busy = false;
+            _callsToday = await Reader.CallsTodayAsync();
+        }
+    }
+
+    // DBA for every book (two at a time, cached), then ONE AI call for the lot with the DBA numbers in it.
+    private async Task AssessAsync(List<Book> books)
+    {
+        books = books.Where(b => b.Title.Trim() != "").ToList();
+        _status = $"Slår {books.Count} bøger op på DBA …";
+        StateHasChanged();
+        await Task.WhenAll(books.Where(b => b.Listings is null).Select(LookUpAsync));
+
+        foreach (var chunk in books.Where(b => b.Value is null).Chunk(40))
+        {
+            _status = $"Vurderer {chunk.Length} bøger …";
+            StateHasChanged();
+            var values = await Reader.ValueBooksAsync(chunk.Select(Line).ToList(), CancellationToken.None);
+            for (var i = 0; i < chunk.Length; i++)
+                if (values.TryGetValue(i, out var v))
+                {
+                    chunk[i].Value = v;
+                    if (v.Verdict == "Genbrug") chunk[i].Keep = false;
+                }
+        }
+        _callsToday = await Reader.CallsTodayAsync();
+        StateHasChanged();
+    }
+
+    private async Task LookUpAsync(Book b)
+    {
+        b.Looking = true;
+        b.Listings = await Dba.LookupAsync(b.Title, b.Author);
+        b.Looking = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string Line(Book b)
+    {
+        var parts = new List<string> { b.Author, b.Title, b.Year?.ToString() ?? "", "stand: " + b.Condition }.Where(x => x.Trim() != "").ToList();
+        if (b.Barcode != "") parts.Add("ISBN " + b.Barcode);
+        parts.Add(b.Listings switch
+        {
+            null => "DBA: ukendt",
+            { Count: 0 } => "DBA: ingen til salg",
+            var l => $"DBA: {l.Count} til salg, {l.Low:0}-{l.High:0} kr (midt {l.Median:0} kr)",
+        });
+        return string.Join(" · ", parts);
+    }
+
+    private async Task ValuePending()
+    {
+        if (_busy) return;
+        _busy = true; _error = null;
+        try { await AssessAsync(_books.Where(b => b.Value is null).ToList()); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task StartScan()
+    {
+        _error = null; _saved = null;
+        _scanning = true;
+        _scanStatus = "Hold ISBN-stregkoden foran kameraet …";
+        StateHasChanged();
+        _ref ??= DotNetObjectReference.Create(this);
+        try { await JS.InvokeVoidAsync("scanner.start", _ref); }
+        catch (Exception ex) { _scanning = false; _error = "Kameraet kunne ikke startes: " + ex.Message; }
+    }
+
+    private async Task StopScan()
+    {
+        _scanning = false;
+        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
+        await ValuePending();
+    }
+
+    // Called by scanner.js for each code. The same code twice within 4 s = the camera saw it again, not a second copy.
+    [JSInvokable]
+    public async Task OnBarcode(string raw)
+    {
+        var code = BarcodeLookup.Clean(raw);
+        var again = code == _lastCode && (DateTime.Now - _lastAt).TotalSeconds < 4;
+        _lastCode = code; _lastAt = DateTime.Now;
+        if (!again && code.Length >= 8)
+        {
+            _ = JS.InvokeVoidAsync("scanner.beep");
+            var same = _books.FirstOrDefault(b => b.Barcode == code);
+            if (same is not null)
+            {
+                same.Quantity++;
+                _scanStatus = $"✓ {same.Title}: nu {same.Quantity} stk.";
+            }
+            else
+            {
+                _scanStatus = $"Slår {code} op …";
+                StateHasChanged();
+                var f = await Barcodes.LookupAsync(code);
+                var b = f is null
+                    ? new Book { Barcode = code, Confidence = 0, Note = $"ISBN {code} ikke fundet – skriv titlen" }
+                    : new Book { Barcode = code, Title = f.Title, Author = f.Artist, Year = f.Year, Confidence = f.Confidence, Note = f.Note };
+                _books.Insert(0, b);
+                _scanStatus = f is null ? $"⚠ {code} ikke fundet – skriv titlen i listen" : $"✓ {f.Title}";
+                if (f is not null) _ = LookUpAsync(b);
+                // Value scanned books ten at a time - one AI call per ten, never one per book.
+                if (_books.Count(x => x.Value is null && x.Title.Trim() != "") >= 10)
+                    _ = InvokeAsync(ValuePending);
+            }
+        }
+        StateHasChanged();
+        if (_scanning)
+        {
+            await Task.Delay(1200);
+            try { if (_scanning) await JS.InvokeVoidAsync("scanner.start", _ref); } catch { }
+        }
+    }
+
+    private async Task NewBox()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _box = await Store.NewBoxAsync(db, _newPlace);
+        _recent.Insert(0, _box);
+        _newPlace = "";
+    }
+
+    private async Task Save()
+    {
+        if (_box is null) return;
+        _busy = true;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        int added = 0, merged = 0;
+        foreach (var g in _books.Where(b => b.Keep && b.Title.Trim() != "").GroupBy(b => b.PhotoId))
+        {
+            var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key == 0 ? null : g.Key, g.Select(b => new Found(
+                Kinds.Bog, b.Title.Trim(), b.Author.Trim(), "", "", b.Year, "", Conditions.Normalise(b.Condition),
+                Math.Max(1, b.Quantity), b.Confidence, SaveNote(b), "", b.Barcode,
+                b.Value is { } v ? (v.Low + v.High) / 2m : null)));
+            added += a; merged += m;
+        }
+        var left = _books.Count(b => !b.Keep);
+        _books.Clear();
+        _busy = false;
+        _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "")
+            + (left > 0 ? $". {left} ikke gemt." : ".") + " Tag næste billede.";
+    }
+
+    private static string SaveNote(Book b)
+    {
+        var parts = new List<string>();
+        if (b.Value is { } v) parts.Add($"{v.Verdict} · {v.Low}-{v.High} kr · efterspørgsel {v.Demand} · {v.Reason}");
+        if (b.Listings is { Count: > 0 } l) parts.Add($"DBA {DateTime.Now:d/M}: {l.Count} til salg, {l.Low:0}-{l.High:0} kr");
+        if (b.Note != "") parts.Add(b.Note);
+        return string.Join(" | ", parts);
+    }
+
+    private void Clear() { _books.Clear(); _saved = null; _error = null; }
+
+    public async ValueTask DisposeAsync()
+    {
+        _scanning = false;
+        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
+        _ref?.Dispose();
+    }
+}
