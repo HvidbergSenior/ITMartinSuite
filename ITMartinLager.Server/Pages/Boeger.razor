@@ -48,7 +48,7 @@
 @if (_books.Count > 0)
 {
     <section class="k-card">
-        <h2 class="k-card-title">@_books.Count bøger · 💰 @_books.Count(b => b.Value?.Verdict == "Sælg") værd at sælge</h2>
+        <h2 class="k-card-title">@(_photoBatch ? "Billedet" : "Listen"): @_books.Count bøger · 💰 @_books.Count(b => b.Value?.Verdict == "Sælg") værd at sælge</h2>
         <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering ud fra <b>DBA</b> (Danmark), <b>AbeBooks</b> (internationalt) og <b>Amazon.de</b> – hvad bogen udbydes til lige nu, ikke hvad den er solgt for. Urimelige internetpriser (over 3 gange midten) vises for sig. <b>eBay solgte</b> viser hvad den faktisk er solgt for.</p>
         @if (_books.Any(b => b.Value is null && b.Title.Trim() != "") && !_busy)
         {
@@ -156,7 +156,7 @@
     private Box? _box;
     private string _newPlace = "", _status = "", _scanStatus = "", _lastCode = "", _isbn = "";
     private string? _error, _saved;
-    private bool _busy, _scanning;
+    private bool _busy, _scanning, _photoBatch;
     private int _callsToday;
     private DateTime _lastAt;
     private DotNetObjectReference<Boeger>? _ref;
@@ -226,6 +226,9 @@
     private async Task Upload(InputFileChangeEventArgs e)
     {
         _busy = true; _error = null; _saved = null;
+        // A new photo = a new pile: only the books just pictured are shown (user 2026-10-07). The earlier ones are
+        // already in "Alle tjekkede bøger".
+        NewBatch(fromPhoto: true);
         try
         {
             var files = e.GetMultipleFiles(20);
@@ -351,6 +354,7 @@
         if (!again && code.Length >= 8)
         {
             _ = JS.InvokeVoidAsync("scanner.beep");
+            if (_photoBatch) NewBatch(fromPhoto: false);
             var same = _books.FirstOrDefault(b => b.Barcode == code);
             if (same is not null)
             {
@@ -437,6 +441,14 @@
         _lastCode = "";
         await OnBarcode(code);
         await ValuePending();   // typed one at a time = answer now, not after ten
+    }
+
+    // Valued books are saved already; books still without a value (no title yet) are kept, so nothing typed is lost.
+    // ISBNs typed or scanned one after another build up one list - the first one after a photo starts a new one.
+    private void NewBatch(bool fromPhoto)
+    {
+        if (fromPhoto || _photoBatch) _books.RemoveAll(b => b.Value is not null);
+        _photoBatch = fromPhoto;
     }
 
     // Clearing the list never deletes the record - it is already in "Alle tjekkede bøger".
