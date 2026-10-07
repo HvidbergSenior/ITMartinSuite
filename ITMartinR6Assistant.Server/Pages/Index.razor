@@ -37,21 +37,7 @@
             @if (_pinWrong) { <span class="bad small">Forkert PIN</span> }
         }
     </div>
-    @if (Coach.IsCoach)
-    {
-        <div class="coach-call-edit">
-            <input class="specs-input" placeholder="Besked til holdet – fx 'Drone først, hold B'" @bind="_callText" @onkeydown="CallKey" />
-            <button class="phase-advance-btn" @onclick="SendCall">Send</button>
-            @if (Session.CoachCall.Length > 0) { <button class="phase-back-btn" @onclick='() => Session.SetCoachCall("")'>Ryd</button> }
-            <div class="coach-quick">
-                @foreach (var q in QuickCalls) { <button class="opa-chip" @onclick="() => Session.SetCoachCall(q)">@q</button> }
-            </div>
-        </div>
-    }
-    @if (Session.CoachCall.Length > 0)
-    {
-        <div class="coach-call">📣 @Session.CoachCall</div>
-    }
+    @* Coach text messages removed 2026-10-07 (user: "we are on discord... messages with text are not needed"). *@
 
     @* General info is for before the match; from map-ban on only what the phase needs is shown. *@
     @if (Session.Phase == MatchPhase.Lobby)
@@ -481,6 +467,14 @@
         </Fold>
     }
 
+    @* Pre-match = Lobby with the loadout (user 2026-10-07): the /loadouts page as a box the coach opens for everyone. *@
+    @if (Session.Phase == MatchPhase.Lobby)
+    {
+        <Fold Key="loadout" Title="🎒 Loadout" Class="loadout-card">
+            <Loadouts />
+        </Fold>
+    }
+
     @if (Session.Phase == MatchPhase.Lobby)
     {
         <Fold Key="specs" Title="🖥️ Specifikationer" Class="specs-card">
@@ -540,17 +534,17 @@
     {
     <Fold Key="settings" Title="⚙ Sieges indstillinger forklaret" Class="quick-check">
         <div class="quick-check-tabs">
-            <button class="quick-tab-btn @(_quickTab == "settings" ? "quick-tab-active" : "")" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
+            <button class="quick-tab-btn @(QuickTab == "settings" ? "quick-tab-active" : "")" disabled="@(!Coach.CanControl)" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
         </div>
 
-        @if (_quickTab is null)
+        @if (QuickTab is null)
         {
             <div class="quick-intro">
                 <b>⚙ Settings</b> – Sieges egne indstillinger (sigte-følsomhed, FOV, lyd, grafik). Vælg én og få en
                 kort forklaring på, hvad den gør, og hvad der er en fornuftig værdi.
             </div>
         }
-        else if (_quickTab == "settings")
+        else if (QuickTab == "settings")
         {
             <div class="quick-panel">
                 <div class="quick-intro">Forklaring af Sieges indstillinger (Options / Indstillinger inde i spillet) –
@@ -587,12 +581,7 @@
 
 @code {
     private bool _pinOpen, _pinWrong;
-    private string _pin = "", _callText = "";
-    private static readonly string[] QuickCalls =
-    {
-        "Drone først – spil langsomt", "Rush sammen – nu", "Hold site – ingen roam", "Rotér til andet site",
-        "Spar utility til sidst", "Spil trades – to og to", "Øko: ingen dumme dødsfald",
-    };
+    private string _pin = "";
 
     private void ClaimCoach()
     {
@@ -600,8 +589,6 @@
         if (!_pinWrong) { _pinOpen = false; _pin = ""; }
     }
     private void PinKey(KeyboardEventArgs e) { if (e.Key == "Enter") ClaimCoach(); }
-    private void SendCall() { Session.SetCoachCall(_callText); _callText = ""; }
-    private void CallKey(KeyboardEventArgs e) { if (e.Key == "Enter") SendCall(); }
 
     private bool _confirmNew;
     // Op-ban -> op-pick -> in-game repeat once per round.
@@ -820,7 +807,14 @@
 
     private void ToggleBanners() => Session.SetShowBanners(!Session.ShowBanners);
 
-    private void SelectTab(string tab) => _quickTab = _quickTab == tab ? null : tab;
+    // Coach mode: the coach picks the tab for everyone (user 2026-10-07: "I will also choose the tabs").
+    private string? QuickTab => Coach.Synced ? (Session.GetShown("tab:settings") == true ? "settings" : null) : _quickTab;
+
+    private void SelectTab(string tab)
+    {
+        if (Coach.Synced) { if (Coach.IsCoach) Session.SetShown("tab:" + tab, QuickTab != tab); return; }
+        _quickTab = _quickTab == tab ? null : tab;
+    }
 
 
     private async Task OnSettingSelected(ChangeEventArgs e)
