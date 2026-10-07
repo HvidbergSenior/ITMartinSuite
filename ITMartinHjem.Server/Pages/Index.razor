@@ -21,28 +21,8 @@
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
 
-@* ITMartin + Bogshoppen stays on the front page until the collaboration is done, right under the heading:
-   the most important thing for the user (2026-10-05). All info lives on the tab, here only a teaser.
-   Text = Svar -> Sider -> "bogshoppen"; the full story + news is on the "Følg samarbejdet" tab. *@
-@if (_news is { Body.Length: > 0 })
-{
-    <section class="k-card hj-page hj-news">
-        @* Front = only the first section (user 2026-10-05: "a bit too much info"); the whole story is on the tab. *@
-        @TinyMarkdown.Render(FirstSection(_news.Body))
-        <a class="k-btn k-btn-primary k-mt" href="/@CollabSlug">📚 Følg samarbejdet med Bogshoppen</a>
-    </section>
-}
-
-@* Headline (user 2026-10-06): a short message that makes people think. Text = Svar -> Sider -> "overskrift",
-   hidden when empty. Under the Bogshoppen teaser, which must stay right under the heading. *@
-@if (_headline is { Body.Length: > 0 })
-{
-    <section class="k-card hj-page hj-headline">
-        @TinyMarkdown.Render(_headline.Body)
-        @* "No ads" is a central principle (user 2026-10-06): the child-level explanation is the "ingen-reklamer" tab. *@
-        <a class="k-btn k-mt" href="/ingen-reklamer">📵 Hvorfor? Forklaret, så alle kan forstå det</a>
-    </section>
-}
+@* Bogshoppen teaser + "Ingen reklamer" headline box removed 2026-10-07 (user: "way too many tabs and info");
+   both pages still exist (/foelg-samarbejdet, /ingen-reklamer). *@
 
 @* "Vidste du …" - live money-saving tip from ElPriser (user 2026-10-05). *@
 <ElTip />
@@ -69,6 +49,12 @@
         @TinyMarkdown.Render(_hero.Body)
     </details>
 }
+
+@* Om mig + Bliv pilot are choices here, not menu tabs (user 2026-10-07). *@
+<nav class="hj-choices" aria-label="Vælg">
+    <a class="k-btn" href="/om-mig">👋 Om mig og kontakt</a>
+    <a class="k-btn" href="/bliv-pilot">🐦 Bliv pilot</a>
+</nav>
 
 @* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
 
@@ -112,8 +98,6 @@ else if (_family && !_owner)
     private List<Post> _posts = [];
     private int _hiddenFamily;
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
-    private Page? _news;   // Svar -> Sider -> "bogshoppen": highlighted box, stays until the collaboration is done
-    private Page? _headline; // Svar -> Sider -> "overskrift": dark headline box under the Bogshoppen teaser
     public const string CollabSlug = "foelg-samarbejdet";
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
@@ -134,19 +118,10 @@ else if (_family && !_owner)
         await using var db = await Dbf.CreateDbContextAsync();
         _s = await db.Settings.AsNoTracking().FirstAsync();
         _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
-        _news = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "bogshoppen");
-        _headline = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "overskrift");
         var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
         if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
         _posts = await q.OrderByDescending(p => p.At).ToListAsync();
         _hiddenFamily = _family ? 0 : await db.Posts.CountAsync(p => p.Visibility == Visibility.Familie);
-    }
-
-    // Text up to the second "## " heading.
-    private static string FirstSection(string body)
-    {
-        var i = body.IndexOf("\n## ", body.StartsWith("## ") ? 3 : 0, StringComparison.Ordinal);
-        return i > 0 ? body[..i] : body;
     }
 
     private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });

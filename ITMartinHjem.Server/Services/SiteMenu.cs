@@ -5,7 +5,8 @@ namespace ITMartinHjem.Server.Services;
 
 // The top menu, the same everywhere (Blazor layout + /api/menu for the hand-made pilot page):
 // Forside first, then the pages marked "Vis i menuen" by their Rækkefølge, with "Mine apps" slotted in
-// at MineAppsSort - and "Bliv pilot" always last (user 2026-09-28: Forside, Mine apps, Priser, Om mig og kontakt, Bliv pilot).
+// at MineAppsSort. Since 2026-10-07 (user) the menu is just Forside + Mine apps; Om mig and Bliv pilot are
+// choices on the front page, not tabs.
 public static class SiteMenu
 {
     public const int MineAppsSort = 50;  // user 2026-10-05: Forside, Hvad laver ITKolibrien, Om mig, Særlige behov, Priser, Mine apps (50), Følg samarbejdet, Bliv pilot
@@ -20,6 +21,6 @@ public static class SiteMenu
             .Append((Sort: MineAppsSort, Item: new Item("📱 Mine apps", "/mine-apps")))
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
-        return [new Item("🏠 Forside", "/"), .. middle, new Item("🐦 Bliv pilot", "/bliv-pilot", Pilot: true)];
+        return [new Item("🏠 Forside", "/"), .. middle];
     }
 }

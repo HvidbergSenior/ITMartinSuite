@@ -354,3 +354,6 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 html[data-theme="dark"] .hj-eltip{background:#2c2614;border-color:#7a6420}
 html[data-theme="dark"] .hj-eltip .k-card-title,html[data-theme="dark"] .hj-eltip-text{color:#fff3c4}
 html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
+/* Om mig + Bliv pilot as choices on the front page instead of menu tabs (user 2026-10-07). */
+.hj-choices { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0; }
+.hj-choices .k-btn { flex: 1 1 160px; text-align: center; }
