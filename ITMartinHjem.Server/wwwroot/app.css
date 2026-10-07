@@ -361,3 +361,6 @@ html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
 .hj-tile-icon { font-size: 1.5em; line-height: 1; }
 .hj-tile b { font-size: 1em; }
 .hj-tile span:last-child { color: var(--k-muted); font-size: var(--k-fs-small, .9em); }
+/* Mine apps: opening one box must not stretch its neighbour in the same row (user 2026-10-07: "opens both on parallel"). */
+.hj-apps { align-items: start; }
+.hj-app { align-self: start; }
