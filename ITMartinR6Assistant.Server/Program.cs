@@ -40,6 +40,7 @@ var app = builder.Build();
 // file types for the whole wwwroot.
 var staticFileTypes = new FileExtensionContentTypeProvider();
 staticFileTypes.Mappings[".ps1"] = "text/plain";
+staticFileTypes.Mappings[".cmd"] = "application/octet-stream";   // double-click launcher for PreGameCheck.ps1
 app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticFileTypes });
 
 // Map floor plans live in the mounted data folder (not wwwroot), so they can be refreshed without a rebuild.

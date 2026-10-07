@@ -503,9 +503,12 @@
                 </div>
 
                 <div class="specs-actions">
-                    <a class="specs-test-btn" href="/scripts/PreGameCheck.ps1" download>⬇ Download PreGameCheck.ps1</a>
+                    @* .cmd = double-click and it runs (user 2026-10-07); the .ps1 stays for those who want to read it first. *@
+                    <a class="specs-test-btn" href="/scripts/PreGameCheck.cmd" download>⬇ Tjek min PC (dobbeltklik)</a>
+                    <a class="specs-help-btn" href="/scripts/PreGameCheck.ps1" download>Selve scriptet (.ps1)</a>
                     <button class="specs-help-btn" @onclick="() => _showHelpForm = !_showHelpForm">🔧 Noget virker ikke?</button>
                 </div>
+                <div class="specs-hint">Sådan gør du: hent filen, åbn Overførsler (Downloads) og dobbeltklik på <b>PreGameCheck.cmd</b>. Siger Windows "Windows beskyttede din pc", så tryk <b>Flere oplysninger / More info</b> → <b>Kør alligevel / Run anyway</b>. Tjeklisten står i vinduet bagefter.</div>
 
                 @if (_showHelpForm)
                 {
@@ -872,7 +875,7 @@
     {
         MatchPhase.Lobby => new()
         {
-            "Kør <a href=\"/scripts/PreGameCheck.ps1\" download>PreGameCheck.ps1</a> og ret det den flager.",
+            "Hent <a href=\"/scripts/PreGameCheck.cmd\" download>PreGameCheck.cmd</a>, dobbeltklik på den, og ret det den flager.",
             "Tjek at lyd og Discord virker for alle - kan I høre hinanden?",
         },
         _ => new(),
