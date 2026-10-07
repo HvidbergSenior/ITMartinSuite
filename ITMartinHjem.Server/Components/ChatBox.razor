@@ -13,6 +13,9 @@
         else { <b>@OwnerName er ikke ved skærmen</b> <span class="k-muted">– start en chat alligevel. Han får besked på telefonen, og svaret kommer her i chatten.</span> }
     </div>
 
+    @* Extra ways to reach Martin inside the chat box, e.g. the Kig med stream (user 2026-10-07). *@
+    @ChildContent
+
     @if (!_open)
     {
         <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">💬 Chat med @OwnerName</button>
@@ -63,6 +66,7 @@
     [Parameter] public string OwnerName { get; set; } = "Martin";
     [Parameter] public bool StartOpen { get; set; }
     [Parameter] public bool Prominent { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private string _key = "", _name = "", _text = "", _note = "", _email = "";
     private bool _open, _busy;

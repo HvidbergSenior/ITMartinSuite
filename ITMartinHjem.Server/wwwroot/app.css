@@ -364,3 +364,6 @@ html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
 /* Mine apps: opening one box must not stretch its neighbour in the same row (user 2026-10-07: "opens both on parallel"). */
 .hj-apps { align-items: start; }
 .hj-app { align-self: start; }
+/* Kig med inside the chat box (user 2026-10-07). */
+.hj-chat .hj-live.off { text-align: left; margin: 10px 0 0; }
+.hj-chat .hj-live.on { margin: 12px 0 0; }
