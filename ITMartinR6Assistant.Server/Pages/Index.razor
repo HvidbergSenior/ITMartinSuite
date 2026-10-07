@@ -467,14 +467,6 @@
         </Fold>
     }
 
-    @* Pre-match = Lobby with the loadout (user 2026-10-07): the /loadouts page as a box the coach opens for everyone. *@
-    @if (Session.Phase == MatchPhase.Lobby)
-    {
-        <Fold Key="loadout" Title="🎒 Loadout" Class="loadout-card">
-            <Loadouts />
-        </Fold>
-    }
-
     @if (Session.Phase == MatchPhase.Lobby)
     {
         <Fold Key="specs" Title="🖥️ Specifikationer" Class="specs-card">
