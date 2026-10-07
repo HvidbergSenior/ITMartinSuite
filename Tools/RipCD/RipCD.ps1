@@ -5,7 +5,7 @@
 # Kun musik-cd'er: dvd/blu-ray har kopibeskyttelse, og den må man ikke bryde (ophavsretsloven §75c).
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.0'
+$Version = '1.1'
 $Ua = "ITMartinRipCD/$Version (ITMartin@Mensa.dk)"   # MusicBrainz vil have en kontakt i User-Agent
 $AppDir = Join-Path $env:APPDATA 'ITMartin\RipCD'
 $WorkRoot = Join-Path $env:LOCALAPPDATA 'ITMartin\RipCD\arbejde'
@@ -22,7 +22,17 @@ function Say([string]$m, [string]$c = 'Gray') { Write-Host $m -ForegroundColor $
 # fre:ac ser kun cd-drevet, når den kører som administrator - start forfra som administrator.
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
-    Start-Process powershell.exe -Verb RunAs -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+    # Uden besked her blinker vinduet bare og forsvinder - og spørgsmålet gemmer sig tit i proceslinjen.
+    Write-Host 'Windows spørger nu, om Rip CD må køre som administrator - tryk Ja.' -ForegroundColor Cyan
+    Write-Host 'Kan du ikke se spørgsmålet, så klik på det, der blinker orange nede i proceslinjen.'
+    try {
+        Start-Process powershell.exe -Verb RunAs -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"") -ErrorAction Stop
+        Write-Host 'Rip CD åbner i et nyt vindue. Dette vindue lukker om lidt.'
+        Start-Sleep -Seconds 6
+    } catch {
+        Write-Host 'Rip CD fik ikke lov (der blev trykket Nej). Start den igen, og tryk Ja.' -ForegroundColor Red
+        Read-Host 'Tryk Enter for at lukke'
+    }
     exit
 }
 
@@ -116,51 +126,89 @@ function Eject([string]$d) {
     try { (New-Object -ComObject Shell.Application).NameSpace(17).ParseName($d).InvokeVerb('Eject') } catch { }
 }
 
+# Navne fra fre:ac's CDDB-opslag ligger som tags i filen. Tomme felter = cd'en blev ikke fundet.
+function Read-Tags([string]$file) {
+    $probe = Join-Path (Split-Path $script:Ffmpeg) 'ffprobe.exe'
+    if (-not (Test-Path $probe)) { return @{} }
+    try {
+        $j = & $probe -v error -show_entries format_tags -of json $file | Out-String | ConvertFrom-Json
+        $t = @{}
+        foreach ($p in $j.format.tags.PSObject.Properties) { $t[$p.Name.ToLower()] = "$($p.Value)".Trim() }
+        $t
+    } catch { @{} }
+}
+function Known([string]$v) { $v -and $v -notmatch '^(unknown|ukendt)' }
+
 # --- Én cd: rip -> navne + cover -> færdige filer -> skuffen ud ---
+# Ét spor ad gangen: på nogle pc'er laver fre:ac kun spor 1, når den skal tage hele cd'en i ét kald
+# ("Could not process file" på resten). Hvert spor får to forsøg.
 function Rip-One([string]$drive, $s) {
     $work = Join-Path $WorkRoot (Get-Date -Format 'yyyyMMdd-HHmmss')
     New-Item -ItemType Directory -Force $work | Out-Null
-    Say "Ripper cd'en ... (ca. 3-8 minutter)" Cyan
-    & $script:Freac --cddb -cd 0 -t all -e flac -d $work -p '<albumartist>\<album>\<track> <title>' *>> $LogFile
-    $albums = @(Get-ChildItem $work -Directory | Get-ChildItem -Directory | Where-Object { Get-ChildItem -LiteralPath $_.FullName -Filter *.flac })
-    if ($albums.Count -eq 0) { throw 'fre:ac lavede ingen filer - er cd''en ridset eller beskidt?' }
+    $n = @(Get-ChildItem "$drive\" -Filter *.cda -ErrorAction SilentlyContinue).Count
+    Say "Ripper cd'en: $n numre (ca. 3-8 minutter i alt)" Cyan
+    $missing = @()
+    for ($t = 1; $t -le $n; $t++) {
+        $f = Join-Path $work ('{0:D2}.flac' -f $t)
+        Write-Host "  Nummer $t af $n ..." -NoNewline
+        for ($try = 1; $try -le 2 -and -not (Test-Path -LiteralPath $f); $try++) {
+            Log "fre:ac nummer $t forsøg $try"
+            & $script:Freac --cddb -cd 0 -t $t -e flac -o $f *>> $LogFile
+        }
+        if (Test-Path -LiteralPath $f) { Write-Host ' ok' -ForegroundColor Green }
+        else { Write-Host ' kunne ikke læses' -ForegroundColor Red; $missing += $t }
+    }
+    $files = @(Get-ChildItem -LiteralPath $work -Filter *.flac | Sort-Object Name)
+    if ($files.Count -eq 0) { throw 'fre:ac lavede ingen filer - er cd''en ridset eller beskidt?' }
     Eject $drive   # næste cd kan komme i, mens vi gør den her færdig
 
-    foreach ($albumDir in $albums) {
-        $artist = $albumDir.Parent.Name; $album = $albumDir.Name
-        $files = @(Get-ChildItem -LiteralPath $albumDir.FullName -Filter *.flac | Sort-Object Name)
-        $year = $null; $titles = $null; $cover = $null
+    $tags = Read-Tags $files[0].FullName
+    $artist = if (Known $tags['album_artist']) { $tags['album_artist'] } elseif (Known $tags['artist']) { $tags['artist'] } else { $null }
+    $album = if (Known $tags['album']) { $tags['album'] } else { $null }
+    $year = $null; $titles = $null; $cover = $null
+    $rel = $null
+    if ($artist -and $album) {
         Say "Slår op på MusicBrainz: $artist - $album"
-        $rel = Find-Release $artist $album $files.Count
-        if ($rel) {
-            $artist = $rel.Artist; $album = $rel.Album; $year = $rel.Year
-            if ($rel.Titles.Count -eq $files.Count) { $titles = $rel.Titles }
-            $cover = Join-Path $albumDir.FullName 'folder.jpg'
-            if (-not (Get-Cover $rel.Id $cover)) { $cover = $null }
-        } else { Say '  Ikke fundet - beholder navnene fra cd''en.' Yellow }
-
-        $dst = Join-Path $s.Folder (Join-Path (Safe-Name $artist) (Safe-Name $album))
-        New-Item -ItemType Directory -Force $dst | Out-Null
-        $i = 0
-        foreach ($f in $files) {
-            $num = $f.BaseName.Split(' ')[0]; $title = $f.BaseName.Substring($num.Length).Trim()
-            if ($titles) { $title = $titles[$i] }
-            $i++
-            $meta = @('-metadata', "title=$title", '-metadata', "artist=$artist", '-metadata', "album_artist=$artist", '-metadata', "album=$album", '-metadata', "track=$([int]$num)/$($files.Count)")
-            if ($year) { $meta += @('-metadata', "date=$year") }
-            $out = Join-Path $dst "$num $(Safe-Name $title).$($s.Format)"
-            $in = @('-i', $f.FullName); $map = @('-map', '0:a')
-            if ($cover) { $in += @('-i', $cover); $map += @('-map', '1:v', '-disposition:v', 'attached_pic') }
-            $codec = if ($s.Format -eq 'mp3') { @('-c:a', 'libmp3lame', '-q:a', '0', '-id3v2_version', '3', '-c:v', 'mjpeg') } else { @('-c', 'copy') }
-            & $script:Ffmpeg -loglevel error -y @in @map @codec @meta $out
-            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $out)) { throw "ffmpeg kunne ikke lave $out" }
-        }
-        if ($cover) { Copy-Item $cover (Join-Path $dst 'folder.jpg') -Force }
-        $made = @(Get-ChildItem -LiteralPath $dst -Filter "*.$($s.Format)").Count
-        if ($made -lt $files.Count) { throw "Kun $made af $($files.Count) numre blev lavet" }
-        Say "FÆRDIG: $artist - $album ($made numre$(if ($cover) { ', med cover' }))" Green
-        Say "        $dst" Green
+        $rel = Find-Release $artist $album $n
     }
+    if ($rel) {
+        $artist = $rel.Artist; $album = $rel.Album; $year = $rel.Year
+        if ($rel.Titles.Count -eq $n) { $titles = $rel.Titles }
+        $cover = Join-Path $work 'folder.jpg'
+        if (-not (Get-Cover $rel.Id $cover)) { $cover = $null }
+    } elseif ($artist -and $album) { Say '  Ikke fundet på MusicBrainz - beholder navnene fra cd''en.' Yellow }
+    else {
+        $artist = 'Ukendt kunstner'; $album = "Ukendt cd $(Get-Date -Format 'yyyy-MM-dd HH.mm')"
+        Say "  Cd'en blev ikke fundet - gemt som '$album'. Du kan selv omdøbe mappen bagefter." Yellow
+    }
+
+    $dst = Join-Path $s.Folder (Join-Path (Safe-Name $artist) (Safe-Name $album))
+    New-Item -ItemType Directory -Force $dst | Out-Null
+    foreach ($f in $files) {
+        $num = $f.BaseName
+        $tn = [int]$num
+        $title = (Read-Tags $f.FullName)['title']
+        if (-not (Known $title)) { $title = "Nummer $tn" }
+        if ($titles) { $title = $titles[$tn - 1] }
+        $meta = @('-metadata', "title=$title", '-metadata', "artist=$artist", '-metadata', "album_artist=$artist", '-metadata', "album=$album", '-metadata', "track=$tn/$n")
+        if ($year) { $meta += @('-metadata', "date=$year") }
+        $out = Join-Path $dst "$num $(Safe-Name $title).$($s.Format)"
+        $in = @('-i', $f.FullName); $map = @('-map', '0:a')
+        if ($cover) { $in += @('-i', $cover); $map += @('-map', '1:v', '-disposition:v', 'attached_pic') }
+        $codec = if ($s.Format -eq 'mp3') { @('-c:a', 'libmp3lame', '-q:a', '0', '-id3v2_version', '3', '-c:v', 'mjpeg') } else { @('-c', 'copy') }
+        & $script:Ffmpeg -loglevel error -y @in @map @codec @meta $out
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $out)) { throw "ffmpeg kunne ikke lave $out" }
+    }
+    if ($cover) { Copy-Item $cover (Join-Path $dst 'folder.jpg') -Force }
+    $made = @(Get-ChildItem -LiteralPath $dst -Filter "*.$($s.Format)").Count
+    if ($made -lt $files.Count) { throw "Kun $made af $($files.Count) numre blev lavet" }
+    if ($missing) {
+        Say "Nummer $($missing -join ', ') kunne ikke læses. Tør cd'en af (fra midten og ud) og læg den i igen." Red
+        Say "Rippet ligger stadig i $work" Red
+        return
+    }
+    Say "FÆRDIG: $artist - $album ($made numre$(if ($cover) { ', med cover' }))" Green
+    Say "        $dst" Green
     Remove-Item $work -Recurse -Force   # først når alle numre er lavet - ellers bliver rippet liggende til næste forsøg
 }
 
