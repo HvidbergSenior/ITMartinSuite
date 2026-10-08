@@ -6,6 +6,7 @@
 @inject UsageLimiterService UsageLimiter
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IJSRuntime Js
+@inject IConfiguration Config
 @using System.Text.Json
 
 <PageTitle>Billedgenerator</PageTitle>
@@ -23,7 +24,12 @@
     <ProblemPurposeBanner
         Problem="AI-billeder kræver dyre, komplicerede værktøjer"
         Formaal="Ét simpelt sted at generere billeder"
-        Beskrivelse="Hvert billede koster rigtige penge at generere, og jeg betaler selv regningen — brug værktøjet med omtanke. Se den cirka-pris, der står under hver fane." />
+        Beskrivelse="@($"Gratis: skriv hvad du vil se, og få billedet – {UsageLimiter.FreePerVisitorDaily} billeder om dagen. Hvert billede koster mig rigtige penge, så de andre værktøjer hører til den udvidede udgave.")" />
+
+    @if (!_paid)
+    {
+        <div class="free-line">🎁 <b>Gratis:</b> @_freeLeft af @UsageLimiter.FreePerVisitorDaily billeder tilbage i dag · Du kan hente hvert billede, du laver.</div>
+    }
 
     @if (!_ready)
     {
@@ -36,7 +42,7 @@
         {
             <button class="mode-tab @(_mode == m.Id ? "active" : "")" disabled="@(!_ready)"
                     @onclick="() => SwitchMode(m.Id)">
-                <span class="mode-tab-icon">@m.Icon</span>
+                <span class="mode-tab-icon">@(IsLocked(m.Id) ? "🔒" : m.Icon)</span>
                 <span class="mode-tab-label">@m.Name</span>
             </button>
         }
@@ -50,7 +56,18 @@
         <!-- LEFT: Controls -->
         <div class="studio-controls">
 
-            @if (_mode == Mode.Generate)
+            @if (IsLocked(_mode))
+            {
+                <div class="ctrl-section locked">
+                    <div class="ctrl-label">🔒 Udvidet udgave</div>
+                    <p class="ctrl-hint">Dette værktøj koster mere pr. billede, så det er med i den udvidede udgave. Spørg mig via chatten på itmartin.dk – så får du en kode.</p>
+                    <input class="ctrl-textarea" type="password" placeholder="Kode" @bind="_codeInput" @bind:event="oninput" />
+                    <button class="btn btn-secondary" @onclick="UnlockAsync" disabled="@string.IsNullOrWhiteSpace(_codeInput)">Lås op</button>
+                    @if (_codeWrong) { <p class="ctrl-hint">Koden passer ikke.</p> }
+                    <a class="btn btn-primary" href="https://itmartin.dk/#chat" target="_blank" rel="noopener" style="margin-top:10px">💬 Spørg om den udvidede udgave</a>
+                </div>
+            }
+            else if (_mode == Mode.Generate)
             {
                 <div class="ctrl-section">
                     <div class="ctrl-label">Beskriv billedet</div>
@@ -90,7 +107,7 @@
                 }
             }
 
-            @if (_mode == Mode.Rediger)
+            else if (_mode == Mode.Rediger)
             {
                 <div class="ctrl-section">
                     @InputImageSection()
@@ -106,7 +123,7 @@
                 </div>
             }
 
-            @if (_mode == Mode.Transform)
+            else if (_mode == Mode.Transform)
             {
                 <div class="ctrl-section">
                     @InputImageSection()
@@ -127,7 +144,7 @@
                 </div>
             }
 
-            @if (_mode == Mode.Stil)
+            else if (_mode == Mode.Stil)
             {
                 <div class="ctrl-section">
                     <div class="ctrl-label">Indholdsbillede (der omstyls)</div>
@@ -152,7 +169,7 @@
                 </div>
             }
 
-            @if (_mode == Mode.FaceSwap)
+            else if (_mode == Mode.FaceSwap)
             {
                 <div class="ctrl-section">
                     @InputImageSection()
@@ -176,7 +193,7 @@
                 </div>
             }
 
-            @if (_mode == Mode.Background)
+            else if (_mode == Mode.Background)
             {
                 <div class="ctrl-section">
                     @InputImageSection()
@@ -188,7 +205,7 @@
                 </div>
             }
 
-            @if (_mode == Mode.TryOn)
+            else if (_mode == Mode.TryOn)
             {
                 <div class="ctrl-section">
                     <div class="ctrl-label">Foto af personen (hel krop)</div>
@@ -221,7 +238,7 @@
                 </div>
             }
 
-            @if (_mode == Mode.Upscale)
+            else if (_mode == Mode.Upscale)
             {
                 <div class="ctrl-section">
                     @InputImageSection()
@@ -284,7 +301,7 @@
                 </div>
 
                 <div class="preview-actions">
-                    <a class="btn btn-dl" href="@_currentImageUrl" target="_blank" download>
+                    <a class="btn btn-dl" href="@DownloadUrl(_currentImageUrl, _history.FindIndex(h => h.Url == _currentImageUrl) + 1)" target="_blank" rel="noopener" download>
                         ⬇ Download til din enhed
                     </a>
                 </div>
@@ -292,24 +309,24 @@
 
             @if (_history.Count > 0)
             {
-                <div class="history-strip">
-                    @foreach (var item in _history.AsEnumerable().Reverse())
+                <div class="history-head">Dine versioner (@_history.Count) – tryk på et billede for at se det</div>
+                <div class="history-list">
+                    @foreach (var (item, i) in _history.Select((h, i) => (h, i)).Reverse())
                     {
-                        @if (item.IsVideo)
-                        {
-                            <div class="history-thumb history-thumb-video @(item.Url == _currentImageUrl ? "active" : "")"
-                                 @onclick="() => SelectHistory(item)"
-                                 title="@item.Label">
-                                🎬
+                        <div class="history-item @(item.Url == _currentImageUrl ? "active" : "")">
+                            @if (item.IsVideo)
+                            {
+                                <div class="history-thumb history-thumb-video" @onclick="() => SelectHistory(item)" title="@item.Label">🎬</div>
+                            }
+                            else
+                            {
+                                <img src="@item.Url" class="history-thumb" @onclick="() => SelectHistory(item)" title="@item.Label" alt="Version @(i + 1)" />
+                            }
+                            <div class="history-meta">
+                                <span class="history-label">@(i + 1). @item.Label</span>
+                                <a class="btn btn-dl btn-sm" href="@DownloadUrl(item.Url, i + 1)" target="_blank" rel="noopener">⬇ Hent</a>
                             </div>
-                        }
-                        else
-                        {
-                            <img src="@item.Url"
-                                 class="history-thumb @(item.Url == _currentImageUrl ? "active" : "")"
-                                 @onclick="() => SelectHistory(item)"
-                                 title="@item.Label" alt="Historik" />
-                        }
+                        </div>
                     }
                 </div>
             }
@@ -337,6 +354,28 @@
     ];
 
     private ModeInfo CurrentMode => Modes.First(m => m.Id == _mode);
+
+    // Free = text -> image (+ adjust it with words). Every other tool calls a dearer model, so it needs the code
+    // for the extended version (ImageGen__PaidCode in magic.env; no code configured = all locked).
+    private bool _paid;
+    private int _freeLeft;
+    private string? _codeInput;
+    private bool _codeWrong;
+    private const string CodeKey = "imagegen_code";
+    private string PaidCode => Config["ImageGen:PaidCode"] ?? "";
+    private bool IsLocked(Mode m) => m != Mode.Generate && !_paid;
+
+    private async Task UnlockAsync()
+    {
+        _codeWrong = !(PaidCode.Length > 0 && _codeInput?.Trim() == PaidCode);
+        if (_codeWrong) return;
+        _paid = true;
+        try { await Js.InvokeVoidAsync("localStorage.setItem", CodeKey, PaidCode); } catch { }
+    }
+
+    // fal.ai links download through /hent (the browser ignores <a download> on another host); own uploads stay as they are.
+    private static string DownloadUrl(string? url, int n) =>
+        url is null ? "#" : url.StartsWith("https://") ? $"/hent?u={Uri.EscapeDataString(url)}&n=billede{n}" : url;
 
     private record StyleTemplate(string Icon, string Name, string Suffix);
 
@@ -375,6 +414,13 @@
     {
         if (!firstRender) return;
         await RestoreStateAsync();
+        try
+        {
+            var code = await Js.InvokeAsync<string?>("localStorage.getItem", CodeKey);
+            _paid = PaidCode.Length > 0 && code == PaidCode;
+        }
+        catch { }
+        _freeLeft = UsageLimiter.FreeLeft(_visitorKey);
         _ready = true;
         StateHasChanged();
     }
@@ -389,12 +435,14 @@
 
     private record PersistedState(
         Mode Mode, string? GenDescription, string? RedigerPrompt, string? TransformPrompt,
-        string? CurrentImageUrl, bool CurrentIsVideo);
+        string? CurrentImageUrl, bool CurrentIsVideo, List<HistoryItem>? History = null);
 
     private async Task PersistStateAsync()
     {
         var state = new PersistedState(_mode, _genDescription, _redigerPrompt, _transformPrompt,
-            _currentImageUrl, _currentIsVideo);
+            _currentImageUrl, _currentIsVideo,
+            // the versions survive a reload so each one can still be fetched (own uploads are data: URLs - too big to keep)
+            _history.Where(h => !h.Url.StartsWith("data:")).TakeLast(30).ToList());
         try { await Js.InvokeVoidAsync("localStorage.setItem", StateKey, JsonSerializer.Serialize(state)); }
         catch { /* JS interop can fail during teardown/reconnect — losing the save isn't fatal */ }
     }
@@ -414,6 +462,7 @@
             _transformPrompt  = state.TransformPrompt;
             _currentImageUrl  = state.CurrentImageUrl;
             _currentIsVideo   = state.CurrentIsVideo;
+            if (state.History is { Count: > 0 }) { _history.Clear(); _history.AddRange(state.History); }
         }
         catch { /* corrupt/unavailable storage — just start fresh */ }
     }
@@ -587,7 +636,9 @@
 
     private async Task RunAsync(Phase phase, Func<Task> action, string? hint = null)
     {
-        var (allowed, denyReason) = UsageLimiter.TryConsume(_visitorKey);
+        if (!_paid && phase is not (Phase.Generate or Phase.Refine)) return;   // locked tools never reach a paid API
+        var (allowed, denyReason) = _paid ? UsageLimiter.TryConsume(_visitorKey) : UsageLimiter.TryConsumeFree(_visitorKey);
+        _freeLeft = UsageLimiter.FreeLeft(_visitorKey);
         if (!allowed)
         {
             _error = denyReason;

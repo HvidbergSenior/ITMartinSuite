@@ -26,7 +26,8 @@ public sealed class FalAiService
             prompt,
             image_size            = "square_hd",
             num_images            = 1,
-            enable_safety_checker = false
+            // ON since the free public version (2026-10-08): anyone can type anything, on Martin's bill.
+            enable_safety_checker = true
         });
         return ExtractFirstImageUrl(await PostAsync("https://fal.run/fal-ai/flux-pro/v1.1", body, ct));
     }
