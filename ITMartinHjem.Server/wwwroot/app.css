@@ -367,3 +367,34 @@ html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
 /* Kig med inside the chat box (user 2026-10-07). */
 .hj-chat .hj-live.off { text-align: left; margin: 10px 0 0; }
 .hj-chat .hj-live.on { margin: 12px 0 0; }
+
+/* Gratis Budget (/budget, user 2026-10-08) - dark text on pale colours (user is a bit colour-blind) */
+.bu-safe{background:#eaf6ec;border:2px solid #7cc48a;border-radius:10px;padding:10px 12px;color:#0f2e16}
+.bu-drop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 16px;margin-top:12px;border:3px dashed #8a99a8;border-radius:14px;cursor:pointer;text-align:center;font-size:1.15rem}
+.bu-drop:hover{border-color:#1f2933;background:rgba(0,0,0,.03)}
+.bu-drop input{position:absolute;width:1px;height:1px;opacity:0}
+.bu-drop-icon{font-size:2.2rem}
+.bu-big{background:#fff8dc;border:2px solid #e9c44a;border-radius:12px;padding:14px;text-align:center;margin:10px 0;color:#2a2000}
+.bu-big-label{font-weight:700}
+.bu-big-num{font-size:2.4rem;font-weight:800;line-height:1.2}
+.bu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.bu-tile{border:1px solid rgba(0,0,0,.15);border-radius:10px;padding:10px}
+.bu-tile-label{font-size:.9rem;font-weight:600}
+.bu-tile-num{font-size:1.4rem;font-weight:800}
+.bu-tile-sub,.bu-big-sub{font-size:.9rem}
+.bu-sum{margin-top:12px;font-size:1.05rem}
+.bu-list{list-style:none;padding:0;margin:8px 0}
+.bu-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.08)}
+.bu-list li span{overflow-wrap:anywhere}
+.bu-list li b{white-space:nowrap}
+.bu-steps li,.bu-banks li{margin:6px 0}
+.bu-paid{border:2px solid #1f2933}
+html[data-theme="dark"] .bu-safe{background:#13301a;border-color:#3f8a4e;color:#d8f5de}
+html[data-theme="dark"] .bu-big{background:#2c2614;border-color:#7a6420;color:#fff3c4}
+html[data-theme="dark"] .bu-tile,html[data-theme="dark"] .bu-list li{border-color:rgba(255,255,255,.18)}
+html[data-theme="dark"] .bu-paid{border-color:#e6e6e6}
+/* "Har du en idé?" front box (user 2026-10-08) - pale green, dark text */
+.hj-starttip{background:#eaf6ec;border:2px solid #7cc48a}
+.hj-starttip .k-card-title,.hj-starttip .hj-eltip-text{color:#0f2e16}
+html[data-theme="dark"] .hj-starttip{background:#13301a;border-color:#3f8a4e}
+html[data-theme="dark"] .hj-starttip .k-card-title,html[data-theme="dark"] .hj-starttip .hj-eltip-text{color:#d8f5de}

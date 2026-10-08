@@ -1,0 +1,46 @@
+@page "/budget"
+
+@* Gratis Budget (user 2026-10-08): drop the bank's CSV file and see where the money goes. wwwroot/budget.js reads the
+   file in the browser - nothing is sent or saved. Paid (Udvidet) = the full Budget app, asked for in the chat. *@
+<PageTitle>Budget · Martin Hvidberg</PageTitle>
+
+<article class="k-card hj-page" data-nofold>
+    <h1>💰 Hvor går pengene hen?</h1>
+    <p>Læg en fil med dine posteringer fra netbanken ind her, så ser du med det samme, hvad du bruger på <b>MobilePay</b>,
+        <b>faste betalinger</b>, <b>dagligvarer</b> og hvem der får flest af dine penge.</p>
+    <p class="bu-safe">🔒 <b>Filen forlader aldrig din computer.</b> Den bliver læst her i din egen browser – intet bliver sendt til mig eller gemt.</p>
+
+    <label id="bu-drop" class="bu-drop">
+        <input id="bu-file" type="file" accept=".csv,.txt,text/csv" />
+        <span class="bu-drop-icon" aria-hidden="true">📄</span>
+        <b>Vælg din CSV-fil</b>
+        <span class="k-help">eller træk den herover</span>
+    </label>
+</article>
+
+<div id="bu-out"></div>
+
+<details class="k-card" data-remember="bu-hent">
+    <summary><b>📥 Sådan henter du CSV-filen fra din bank</b></summary>
+    <ol class="bu-steps">
+        <li>Log på <b>netbanken på en computer</b> (ikke i bankens app – den kan sjældent lave filen).</li>
+        <li>Åbn den konto, du bruger til det daglige, og find listen med <b>posteringer</b> (bevægelser).</li>
+        <li>Vælg en periode – gerne de <b>sidste 3 måneder</b> eller mere, så kan faste betalinger findes.</li>
+        <li>Tryk på <b>Eksportér</b> / <b>Download</b> / <b>Udskriv</b> og vælg <b>CSV</b> (hedder nogle steder "Excel (CSV)" eller "Kommasepareret").</li>
+        <li>Filen ligger nu i mappen <b>Overførsler</b> (Downloads). Vælg den herover.</li>
+    </ol>
+    <p class="k-help">Hvad knappen hedder, er forskelligt fra bank til bank:</p>
+    <ul class="bu-banks">
+        <li><b>Danske Bank:</b> Konti → vælg kontoen → ikonet til at hente/eksportere posteringer → CSV.</li>
+        <li><b>Nordea:</b> Konti → vælg kontoen → vælg periode → <i>Eksportér</i> → CSV.</li>
+        <li><b>Jyske Bank, Sydbank, Spar Nord, Arbejdernes Landsbank, Nykredit og sparekasserne:</b> under kontoens posteringer, se efter <i>Eksport</i>, <i>Download</i> eller et lille pil-ned-ikon.</li>
+        <li><b>Lunar og andre app-banker:</b> se under kontoen efter <i>Eksportér transaktioner</i> eller <i>Kontoudtog</i> og vælg CSV.</li>
+    </ul>
+    <p class="k-help">Kan du ikke finde den? <a href="/#chat">Skriv til mig i chatten</a> – så kan jeg vise dig det på din egen skærm med <b>Se med</b>.</p>
+</details>
+
+<details class="k-card" data-remember="bu-udvidet">
+    <summary><b>➕ Gratis eller udvidet?</b></summary>
+    <p><span class="k-tag">Gratis</span> Det, du ser her: MobilePay, faste betalinger, dagligvarer, mad ude, transport, gebyrer og de største modtagere – for den periode, din fil dækker.</p>
+    <p><span class="k-tag hj-tag-plus">Udvidet</span> Hver linje sorteret i kategorier, måned for måned, et budget der passer til jer, og hjælp til at opsige det, I ikke bruger. Pris via chat.</p>
+</details>
