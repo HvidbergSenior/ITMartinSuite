@@ -55,7 +55,9 @@ public class BudgetBillederFlowTests : FlowTestBase
 
         await Expect(Page.Locator(".bu-big-num")).ToContainTextAsync("399", new() { Timeout = 10_000 });
         await Expect(Page.Locator(".bu-blind")).ToContainTextAsync("hvem");
-        await Expect(Page.Locator(".bu-list").First).ToContainTextAsync("Netflix");
+        // The difficult payments come first (2026-10-08): who got the money, then the fixed payments further down.
+        await Expect(Page.Locator(".bu-list").First).ToContainTextAsync("Peter");
+        Assert.That(await Page.Locator(".bu-list", new() { HasText = "Netflix" }).CountAsync(), Is.GreaterThanOrEqualTo(1), "Netflix among the fixed payments");
         await Page.WaitForTimeoutAsync(1500);   // give any (wrong) upload time to happen
         Assert.That(sent.Where(s => s.Contains("HEMMELIG") || s.Contains("Netflix") || s.Contains("Peter")), Is.Empty,
             "nothing from the bank file may leave the browser");

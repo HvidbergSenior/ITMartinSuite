@@ -83,3 +83,40 @@ test('A shop name is cleaned of card words and dates', () => {
 test('A file without dates and amounts gives nothing to show', () => {
     assert.deepEqual(B.readTransactions('hej;med;dig\nikke;en;bank'), null);
 });
+
+test('A quarterly bill counts a third per month in the fixed-payments total (2026-10-08: it used to count in full)', () => {
+    const csv = ['"Dato";"Tekst";"Beløb";"Saldo"',
+        '"02.01.2026";"BS Aarhus Vand";"-900,00";"0"', '"02.04.2026";"BS Aarhus Vand";"-900,00";"0"', '"02.07.2026";"BS Aarhus Vand";"-900,00";"0"',
+        '"05.01.2026";"Netflix.com";"-139,00";"0"', '"05.02.2026";"Netflix.com";"-139,00";"0"', '"05.03.2026";"Netflix.com";"-139,00";"0"'].join('\n');
+    const a = B.analyse(B.readTransactions(csv));
+    const vand = a.subs.find((s) => s.name.includes('Vand'));
+    assert.equal(vand.every, 3);
+    assert.equal(Math.round(a.subsMonthly), 300 + 139);
+});
+
+test('The difficult payments: MobilePay to people, transfers to accounts and cash - grouped by who got them', () => {
+    const csv = ['"Dato";"Tekst";"Beløb";"Saldo"',
+        '"02.04.2026";"MobilePay Eigil Hvidberg Johns";"-100,00";"0"',
+        '"03.04.2026";"VDK MOB.PAY*EIGIL HVID";"-50,00";"0"',
+        '"04.04.2026";"Til 7633 0008318157";"-3.300,00";"0"',
+        '"05.04.2026";"Til 97272 Skive Tek.sk";"-3.155,00";"0"',
+        '"06.04.2026";"Hævning pengeautomat";"-500,00";"0"',
+        '"07.04.2026";"Netto 1234";"-400,00";"0"',
+        '"08.04.2026";"Til Opsparingskonto";"-5.000,00";"0"'].join('\n');
+    const u = B.analyse(B.readTransactions(csv)).unclear;
+    assert.equal(u.sum, 100 + 50 + 3300 + 3155 + 500, 'groceries and own savings are not difficult');
+    assert.deepEqual([u.parts.mp.n, u.parts.transfer.n, u.parts.cash.n], [2, 2, 1]);
+    const eigil = u.who.find((p) => p.name.startsWith('Eigil'));
+    assert.equal(eigil.n, 2, 'both spellings of Eigil are one person');
+    assert.ok(u.who.some((p) => p.name === 'Skive Tek.sk (97272)'));
+});
+
+test('When the bank already knows what a payment was, it is not difficult', () => {
+    const csv = ['Dato;Tekst;Beløb;Saldo;Hovedkategori;Kategori',
+        '02.04.2026;Vdk Mob.Pay*Telenor;-200,00;0;Medier;Telefon, internet, streaming og TV',
+        '03.04.2026;MobilePay Bertil Hvidberg;-150,00;0;Andet;Andet (Overførsel)',
+        '04.04.2026;Netto;-50,00;0;Mad og indkøb;Dagligvarer'].join('\n');
+    const u = B.analyse(B.readTransactions(csv)).unclear;
+    assert.equal(u.sum, 150);
+    assert.equal(u.bankVague, 1);
+});

@@ -80,7 +80,8 @@
         var DATE = /bogf|^dato$|^date$|posteringsdato|transaktionsdato|^dato\b/i,
             AMOUNT = /^beløb|^belob|^amount|^beløb i kr|^bel.b$/i,
             TEXT = /tekst|beskrivelse|text|description|navn|modtager|meddelelse|^titel/i,
-            SKIP_TEXT = /valuta|currency|status|afstemt|konto|saldo|balance|kategori/i;
+            SKIP_TEXT = /valuta|currency|status|afstemt|konto|saldo|balance|kategori/i,
+            CATEGORY = /^kategori$|^category$|^hovedkategori$/i;
         for (var h = 0; h < Math.min(5, rows.length); h++) {
             var head = rows[h].map(function (c) { return c.toLowerCase(); });
             var date = head.findIndex(function (c) { return DATE.test(c); });
@@ -88,7 +89,10 @@
             if (date > -1 && amount > -1) {
                 var texts = [];
                 head.forEach(function (c, i) { if (TEXT.test(c) && !SKIP_TEXT.test(c) && i !== date && i !== amount) texts.push(i); });
-                return { start: h + 1, date: date, amount: amount, texts: texts };
+                // The bank's own category, the finer one if both exist ("Kategori" before "Hovedkategori").
+                var cat = head.findIndex(function (c) { return /^kategori$|^category$/i.test(c); });
+                if (cat < 0) cat = head.findIndex(function (c) { return CATEGORY.test(c); });
+                return { start: h + 1, date: date, amount: amount, texts: texts, category: cat };
             }
         }
         // No header (e.g. a raw export that starts with the account number): judge by contents.
@@ -122,7 +126,7 @@
             if (!date || amount === null) return;
             var txt = c.texts.map(function (i) { return r[i] || ''; }).filter(Boolean)
                 .filter(function (t, i, a) { return a.indexOf(t) === i; }).join(' · ');
-            list.push({ date: date, amount: amount, text: txt || '(uden tekst)' });
+            list.push({ date: date, amount: amount, text: txt || '(uden tekst)', category: c.category >= 0 ? (r[c.category] || '') : '' });
         });
         return list;
     }
@@ -134,6 +138,37 @@
     var FUEL = /circle ?k|q8|shell|\bok\b|ok plus|uno-?x|ingo|f24|go'on|clever|tesla|e\.on|spirii|rejsekort|dsb|midttrafik|movia|parkering|easypark|parkman|apcoa|brobizz/i;
     var FEES = /gebyr|rente|renter|overtræk|rykker|kortgebyr|årsgebyr/i;
     var OWN = /overf|overført|opsparing|egen konto|til konto|fra konto/i;
+    // The point of the free Budget (user 2026-10-08): show the payments nobody can sort - MobilePay to people,
+    // transfers to an account number, cash. The bank knows only who got the money, never what it was for.
+    var TRANSFER_OTHER = /^(til|overf\S*(\s+til)?)\s+\d[\d ]{5,}/i;
+    var CASH = /hævning|hævet|kontant|pengeautomat|\batm\b|udbetaling/i;
+    var VAGUE_BANK = /andet|anden|overf|diverse|ukendt|øvrig/i;   // the bank's own "we don't know" categories
+
+    function unclearKind(t) {
+        // When the file carries the bank's own category and it is a real one ("Telefon, internet ..."), the bank DOES know
+        // what it was - e.g. Telenor paid with MobilePay - so it is not a difficult payment.
+        if (t.category && !VAGUE_BANK.test(t.category)) return null;
+        if (MOBILEPAY.test(t.text)) return 'mp';
+        if (TRANSFER_OTHER.test(t.text)) return 'transfer';
+        if (CASH.test(t.text)) return 'cash';
+        return null;
+    }
+
+    // Who got it: "MobilePay Eigil Hvidberg Johns" and "VDK MOB.PAY*EIGIL HVID" are the same person; "Til 7633 0008318157" an account.
+    function recipient(t, kind) {
+        if (kind === 'cash') return { key: 'kontanter', name: 'Kontanter (hævet)' };
+        if (kind === 'transfer') {
+            var acc = (t.text.match(/\d[\d ]{5,}/) || [''])[0].trim();
+            var rest = t.text.slice(t.text.indexOf(acc) + acc.length).trim();   // "Til 97272 Skive Tek.sk" -> "Skive Tek.sk"
+            return { key: 'konto ' + acc, name: rest ? rest + ' (' + acc + ')' : 'Konto ' + acc };
+        }
+        var name = t.text.replace(/^(vdk|debetkort|visa|dankort|dk)\s+/i, '').replace(/^(debetkort\s+)?(mobile\s?pay|mob\.?\s?pay)\s*\*?\s*/i, '').trim();
+        if (!name) return { key: 'mobilepay', name: 'MobilePay (uden navn)' };
+        var w = name.toLowerCase().split(/\s+/);
+        var pretty = name.toLowerCase().replace(/(^|\s)\S/g, function (x) { return x.toUpperCase(); });
+        return { key: w[0] + ' ' + (w[1] || '').slice(0, 4), name: pretty };
+    }
+
 
     // "Vdk Netflix.com 12.05" and "Netflix.com Dankort-nota 13.06" -> "netflix.com"
     function clean(t) {
@@ -146,6 +181,15 @@
             .replace(/\s+/g, ' ').trim();
     }
 
+    // How often a fixed payment comes, in months: the average gap between its payments, rounded to what bills use
+    // (1, 2, 3, 4, 6 or 12). Quarterly water counts a third per month - not in full (fixed 2026-10-08).
+    function interval(hits) {
+        if (hits.length < 2) return 1;
+        var ds = hits.map(function (t) { return t.date; }).sort(function (x, y) { return x - y; });
+        var months = (ds[ds.length - 1] - ds[0]) / (1000 * 60 * 60 * 24 * 30.44) / (ds.length - 1);
+        return [1, 2, 3, 4, 6, 12].reduce(function (best, m) { return Math.abs(m - months) < Math.abs(best - months) ? m : best; }, 1);
+    }
+
     function monthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 
     function analyse(list) {
@@ -156,6 +200,21 @@
         var out = list.filter(function (t) { return t.amount < 0 && !OWN.test(t.text); });
         function sum(a) { return a.reduce(function (s, t) { return s - t.amount; }, 0); }
         function where(re) { return out.filter(function (t) { return re.test(t.text); }); }
+
+        var unclear = { sum: 0, n: 0, parts: { mp: { sum: 0, n: 0 }, transfer: { sum: 0, n: 0 }, cash: { sum: 0, n: 0 } }, who: [], bankVague: 0, bankCategorised: 0 };
+        var people = {};
+        out.forEach(function (t) {
+            var kind = unclearKind(t);
+            if (!kind) return;
+            unclear.sum -= t.amount; unclear.n++;
+            unclear.parts[kind].sum -= t.amount; unclear.parts[kind].n++;
+            var r = recipient(t, kind);
+            var p = people[r.key] = people[r.key] || { name: r.name, kind: kind, sum: 0, n: 0 };
+            if (r.name.length > p.name.length) p.name = r.name;   // the longest spelling reads best
+            p.sum -= t.amount; p.n++;
+            if (t.category) { unclear.bankCategorised++; if (VAGUE_BANK.test(t.category)) unclear.bankVague++; }
+        });
+        unclear.who = Object.values(people).sort(function (a, b) { return b.sum - a.sum; }).slice(0, 8);
 
         var mp = where(MOBILEPAY), mpByMonth = {};
         mp.forEach(function (t) { var k = monthKey(t.date); mpByMonth[k] = (mpByMonth[k] || 0) - t.amount; });
@@ -189,8 +248,10 @@
                 var hits = byAmount[a], ms = {};
                 hits.forEach(function (t) { ms[monthKey(t.date)] = true; });
                 var nMonths = Object.keys(ms).length;
-                if (nMonths >= 2 && hits.length <= nMonths + 1 && +a >= 10)
-                    subs.push({ name: hits[hits.length - 1].text, amount: -hits[hits.length - 1].amount, n: hits.length });
+                if (nMonths >= 2 && hits.length <= nMonths + 1 && +a >= 10) {
+                    var amount = -hits[hits.length - 1].amount, every = interval(hits);
+                    subs.push({ name: hits[hits.length - 1].text, amount: amount, n: hits.length, every: every, monthly: amount / every });
+                }
             });
         });
         subs.sort(function (a, b) { return b.amount - a.amount; });
@@ -199,15 +260,16 @@
             first: list[0].date, last: list[list.length - 1].date, monthCount: monthCount, lines: list.length,
             income: list.filter(function (t) { return t.amount > 0 && !OWN.test(t.text); }).reduce(function (s, t) { return s + t.amount; }, 0),
             spent: sum(out),
+            unclear: unclear,
             mp: { sum: sum(mp), n: mp.length, topMonth: mpTop, topSum: mpTop ? mpByMonth[mpTop] : 0 },
             grocery: sum(where(GROCERY)), eatout: sum(where(EATOUT)), fuel: sum(where(FUEL)), fees: sum(where(FEES)),
-            top: top, subs: subs.slice(0, 12), subsMonthly: subs.reduce(function (s, x) { return s + x.amount; }, 0)
+            top: top, subs: subs.slice(0, 12), subsMonthly: subs.reduce(function (s, x) { return s + x.monthly; }, 0)
         };
     }
 
     return {
         decode: decode, pickDelimiter: pickDelimiter, splitLine: splitLine, parseDate: parseDate, parseAmount: parseAmount,
-        findColumns: findColumns, readTransactions: readTransactions, clean: clean, monthKey: monthKey, analyse: analyse,
+        findColumns: findColumns, readTransactions: readTransactions, unclearKind: unclearKind, recipient: recipient, clean: clean, monthKey: monthKey, interval: interval, analyse: analyse,
         patterns: { MOBILEPAY: MOBILEPAY, GROCERY: GROCERY, EATOUT: EATOUT, FUEL: FUEL, FEES: FEES, OWN: OWN }
     };
 });
