@@ -13,6 +13,9 @@ public sealed class Snapshot
 {
     public int Id { get; set; }
     public string Device { get; set; } = "";
+    // The browser's secret code (2026-10-08): runs are only ever shown to, and deleted by, the browser that has it.
+    // Old runs from before have "" and are shown to nobody.
+    public string OwnerKey { get; set; } = "";
     public DateTime At { get; set; } = DateTime.UtcNow;
     // "browser" or "deep"
     public string Kind { get; set; } = "browser";

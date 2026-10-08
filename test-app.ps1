@@ -8,7 +8,7 @@
     .\test-app.ps1 -App Notatskriver -Live      # flow tests against the live site instead of a local copy
 #>
 param(
-    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud", "ElPriser", "Budget")][string]$App,
+    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud", "ElPriser", "Budget", "Tjek")][string]$App,
     [switch]$Live
 )
 $ErrorActionPreference = "Stop"
@@ -40,10 +40,19 @@ $apps = @{
         LiveUrl = "https://itmartin.dk"; Flow = "BudgetBillederFlowTests"; BaseVar = "HJEM_BASE"
         Env = @{ "Hjem__DataDir" = (Join-Path $env:TEMP "hjem-test-data") }
     }
+    # PC-tjek: no unit tests yet - the flow tests prove each browser only sees its own history.
+    "Tjek" = @{
+        NoUnit = $true; Server = "ITMartinTjek.Server"; Port = 5136
+        LiveUrl = "https://pctjek.itmartin.dk"; Flow = "TjekFlowTests"; BaseVar = "TJEK_BASE"
+        Env = @{ "ConnectionStrings__TjekDb" = "Data Source=" + (Join-Path $env:TEMP "tjek-test.db") }
+    }
 }
 $a = $apps[$App]
 
-if ($a.Node) {
+if ($a.NoUnit) {
+    Write-Host "`n[1/3] Unit tests: none for this app" -ForegroundColor Cyan
+    $global:LASTEXITCODE = 0
+} elseif ($a.Node) {
     Write-Host "`n[1/3] Unit tests (node --test $($a.Node))" -ForegroundColor Cyan
     node --test $a.Node
 } else {

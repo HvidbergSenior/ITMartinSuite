@@ -63,7 +63,8 @@
 
 <h2>Dybt tjek (Windows)</h2>
 <div class="card">
-    <p>Browseren kan ikke se drivere og USB-enheder. Det kan et lille script. Hent det, højreklik → <b>Kør med PowerShell</b> (Run with PowerShell), skriv enhedens navn – så lander resultatet her.</p>
+    <p>Browseren kan ikke se drivere og USB-enheder. Det kan et lille script. Hent det, højreklik → <b>Kør med PowerShell</b> (Run with PowerShell), skriv enhedens navn og <b>din kode</b> – så lander resultatet her, og kun her.</p>
+    @if (_key.Length > 0) { <p class="tjek-key">🔑 Din kode: <b>@_key</b> <span class="muted">– skriv den i scriptet. Kun denne browser kan se dine resultater.</span></p> }
     <div class="btn-row">
         <a class="btn" href="/scripts/Tjek.ps1" download>⬇ Hent Tjek.ps1</a>
         <button class="btn" @onclick="LoadDeepAsync" disabled="@(string.IsNullOrWhiteSpace(_device))">Hent seneste dybe tjek for '@_device'</button>
@@ -119,6 +120,7 @@
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
     private string _device = "";
+    private string _key = "";   // this browser's secret code (tjek.js)
     private List<Check> _checks = [];
     private bool _running, _saved;
     private bool _micRunning; private int _micLevel;
@@ -135,6 +137,7 @@
         if (!firstRender || !_first) return;
         _first = false;
         _device = await JS.InvokeAsync<string>("tjek.deviceName");
+        _key = await JS.InvokeAsync<string>("tjek.ownerKey");
         StateHasChanged();
     }
 
@@ -195,11 +198,11 @@
 
     private async Task SaveSnapshotAsync()
     {
-        if (_checks.Count == 0 || string.IsNullOrWhiteSpace(_device)) return;
+        if (_checks.Count == 0 || string.IsNullOrWhiteSpace(_device) || _key.Length == 0) return;
         await using var db = await DbFactory.CreateDbContextAsync();
         db.Snapshots.Add(new Snapshot
         {
-            Device = _device.Trim(), Kind = "browser", Json = JsonSerializer.Serialize(_checks),
+            Device = _device.Trim(), OwnerKey = _key, Kind = "browser", Json = JsonSerializer.Serialize(_checks),
             Ok = Count("ok"), Warn = Count("warn"), Bad = Count("bad"), Summary = $"{Count("ok")} ok, {Count("warn")} gule, {Count("bad")} røde",
         });
         await db.SaveChangesAsync();
@@ -210,7 +213,7 @@
     {
         _deepMissing = false; _deepChecks = null;
         await using var db = await DbFactory.CreateDbContextAsync();
-        var s = await db.Snapshots.AsNoTracking().Where(x => x.Kind == "deep" && x.Device == _device.Trim()).OrderByDescending(x => x.At).FirstOrDefaultAsync();
+        var s = await db.Snapshots.AsNoTracking().Where(x => x.Kind == "deep" && x.OwnerKey == _key && x.Device == _device.Trim()).OrderByDescending(x => x.At).FirstOrDefaultAsync();
         if (s is null) { _deepMissing = true; return; }
         using var doc = JsonDocument.Parse(s.Json);
         _deepJson = s.Json; _deepAt = s.At;

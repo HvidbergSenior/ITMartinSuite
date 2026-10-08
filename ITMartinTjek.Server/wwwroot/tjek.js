@@ -167,5 +167,15 @@ window.tjek = (function () {
     function deviceName() { try { return localStorage.getItem("tjek-device") || ""; } catch { return ""; } }
     function setDeviceName(n) { try { localStorage.setItem("tjek-device", n); } catch { } }
 
-    return { run, micTest, tone, outputs, camTest, deviceName, setDeviceName };
+    // A secret code per browser (no 0/O/1/I so it can be typed from the screen). Results are saved under it.
+    function ownerKey() {
+        const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        try {
+            let k = localStorage.getItem("tjek-key");
+            if (!k) { const b = crypto.getRandomValues(new Uint8Array(10)); k = Array.from(b, x => abc[x % abc.length]).join(""); localStorage.setItem("tjek-key", k); }
+            return k;
+        } catch { return ""; }
+    }
+
+    return { run, micTest, tone, outputs, camTest, deviceName, setDeviceName, ownerKey };
 })();

@@ -66,3 +66,4 @@ textarea { width: 100%; box-sizing: border-box; background: var(--surface); bord
 .reconnect-failed-msg { display: none; }
 .components-reconnect-failed .reconnect-msg { display: none; }
 .components-reconnect-failed .reconnect-failed-msg { display: inline; }
+.tjek-key { margin-top: 8px; font-size: 1.05rem; }

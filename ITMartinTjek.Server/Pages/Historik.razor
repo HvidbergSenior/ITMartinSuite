@@ -52,20 +52,23 @@ else
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
     private List<string> _devices = [];
     private string _device = "";
+    private string _key = "";
     private List<Snapshot> _runs = [];
     private int _open;
     private bool _first = true;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _devices = await db.Snapshots.Select(s => s.Device).Distinct().OrderBy(d => d).ToListAsync();
-    }
+    // Nothing is read before the browser's code is known (after the first render): no code = no history.
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || !_first) return;
         _first = false;
+        _key = await JS.InvokeAsync<string>("tjek.ownerKey");
+        if (_key.Length > 0)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            _devices = await db.Snapshots.Where(s => s.OwnerKey == _key).Select(s => s.Device).Distinct().OrderBy(d => d).ToListAsync();
+        }
         var mine = await JS.InvokeAsync<string>("tjek.deviceName");
         await SelectAsync(_devices.Contains(mine) ? mine : _devices.FirstOrDefault() ?? "");
         StateHasChanged();
@@ -78,7 +81,7 @@ else
         _device = d; _open = 0;
         if (d == "") { _runs = []; return; }
         await using var db = await DbFactory.CreateDbContextAsync();
-        _runs = await db.Snapshots.AsNoTracking().Where(s => s.Device == d).OrderByDescending(s => s.At).Take(30).ToListAsync();
+        _runs = await db.Snapshots.AsNoTracking().Where(s => s.Device == d && s.OwnerKey == _key).OrderByDescending(s => s.At).Take(30).ToListAsync();
     }
 
     private static List<Index.Check> Parse(Snapshot s)
@@ -97,7 +100,7 @@ else
     {
         if (!await JS.InvokeAsync<bool>("confirm", "Slet dette tjek?")) return;
         await using var db = await DbFactory.CreateDbContextAsync();
-        await db.Snapshots.Where(x => x.Id == s.Id).ExecuteDeleteAsync();
+        await db.Snapshots.Where(x => x.Id == s.Id && x.OwnerKey == _key).ExecuteDeleteAsync();
         await SelectAsync(_device);
     }
 }

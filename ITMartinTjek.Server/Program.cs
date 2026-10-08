@@ -53,6 +53,8 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<TjekDbContext>>();
     await using var db = await factory.CreateDbContextAsync();
     await db.Database.EnsureCreatedAsync();
+    // EnsureCreated does not add new columns to an existing file.
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Snapshots\" ADD COLUMN \"OwnerKey\" TEXT NOT NULL DEFAULT '';"); } catch { /* already there */ }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -80,6 +82,10 @@ app.MapPost("/api/deep", async (HttpContext ctx, IDbContextFactory<TjekDbContext
     var root = doc.RootElement;
     var device = root.TryGetProperty("device", out var d) ? d.GetString() ?? "" : "";
     if (string.IsNullOrWhiteSpace(device)) return Results.BadRequest("device mangler");
+    // The code shown on the tjek page in the visitor's own browser - without it nobody could find the result again,
+    // and with it nobody else can see it.
+    var key = root.TryGetProperty("key", out var k) ? (k.GetString() ?? "").Trim().ToUpperInvariant() : "";
+    if (!System.Text.RegularExpressions.Regex.IsMatch(key, "^[A-Z0-9]{8,40}$")) return Results.BadRequest("Koden fra tjek-siden mangler. Hent scriptet igen.");
     var checks = root.TryGetProperty("checks", out var c) ? c : default;
     int ok = 0, warn = 0, bad = 0;
     if (checks.ValueKind == JsonValueKind.Array)
@@ -91,7 +97,7 @@ app.MapPost("/api/deep", async (HttpContext ctx, IDbContextFactory<TjekDbContext
     await using var db = await factory.CreateDbContextAsync();
     db.Snapshots.Add(new Snapshot
     {
-        Device = device.Trim(), Kind = "deep", Json = root.GetRawText(), Ok = ok, Warn = warn, Bad = bad,
+        Device = device.Trim(), OwnerKey = key, Kind = "deep", Json = root.GetRawText(), Ok = ok, Warn = warn, Bad = bad,
         Summary = $"{ok} ok, {warn} gule, {bad} røde",
     });
     await db.SaveChangesAsync();

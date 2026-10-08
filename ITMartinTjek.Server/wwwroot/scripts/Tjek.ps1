@@ -15,10 +15,17 @@ $checks = New-Object System.Collections.Generic.List[object]
 function Add-Check { param($Id, $Name, $Status, $Value, $Hint = "") $checks.Add([pscustomobject]@{ id = $Id; name = $Name; status = $Status; value = "$Value"; hint = $Hint }) }
 
 $NameFile = "$env:LOCALAPPDATA\ITMartinTjek\device.txt"
+$KeyFile = "$env:LOCALAPPDATA\ITMartinTjek\kode.txt"
 $Device = Try-Get { (Get-Content -Path $NameFile -ErrorAction Stop).Trim() }
 if ([string]::IsNullOrWhiteSpace($Device)) {
     $Device = Read-Host "Navn på denne enhed (samme som på tjek-siden)"
     Try-Get { New-Item -ItemType Directory -Path (Split-Path $NameFile) -Force | Out-Null; Set-Content -Path $NameFile -Value $Device }
+# The code shown on the tjek page ("Din kode") - only the browser with that code can see this result.
+$Key = Try-Get { (Get-Content -Path $KeyFile -ErrorAction Stop).Trim() }
+if ([string]::IsNullOrWhiteSpace($Key)) {
+    $Key = (Read-Host "Din kode fra tjek-siden (fx K7M2QX9TPA)").Trim().ToUpper()
+    Try-Get { Set-Content -Path $KeyFile -Value $Key }
+}
 }
 
 Write-Host "Kigger på $env:COMPUTERNAME ..." -ForegroundColor Cyan
@@ -99,7 +106,7 @@ $lastUpdate = Try-Get { (Get-HotFix | Sort-Object InstalledOn -Descending | Sele
 if ($lastUpdate) { $ud = (Get-Date) - $lastUpdate; Add-Check "update" "Seneste Windows-opdatering" ($(if ($ud.TotalDays -gt 60) { "warn" } else { "ok" })) ("{0:d}" -f $lastUpdate) $(if ($ud.TotalDays -gt 60) { "Over to måneder siden - kør Windows Update." }) }
 
 # ── Send ─────────────────────────────────────────────────────────────────
-$payload = [pscustomobject]@{ device = $Device; computer = $env:COMPUTERNAME; at = (Get-Date).ToString("o"); checks = $checks }
+$payload = [pscustomobject]@{ device = $Device; key = $Key; computer = $env:COMPUTERNAME; at = (Get-Date).ToString("o"); checks = $checks }
 $json = $payload | ConvertTo-Json -Depth 5
 Write-Host ""
 foreach ($c in $checks) { $color = switch ($c.status) { "ok" { "Green" } "warn" { "Yellow" } "bad" { "Red" } default { "Gray" } }; Write-Host ("[{0,-4}] {1}: {2}" -f $c.status, $c.name, $c.value) -ForegroundColor $color }
