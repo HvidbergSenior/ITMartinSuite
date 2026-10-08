@@ -1,3 +1,4 @@
+using ITMartinAdhd.Server;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinAdhd.Domain.Entities;
 using ITMartinAdhd.Infrastructure;
@@ -40,6 +41,8 @@ builder.Services.AddKolibri(k =>
 });
 
 var app = builder.Build();
+// Owner only until a free version keeps things in the visitor's own browser (PinGate.cs).
+app.UseFindItPinGate();
 app.MapKolibri();
 
 using (var scope = app.Services.CreateScope())
