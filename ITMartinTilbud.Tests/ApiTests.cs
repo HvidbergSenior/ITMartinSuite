@@ -49,11 +49,54 @@ public class ApiTests
     }
 
     [Test]
-    public async Task The_page_loads_without_any_login()
+    public async Task The_free_page_has_the_search_and_place_but_not_the_extended_sections()
     {
         var (c, _, _) = Start();
         var html = await c.GetStringAsync("/");
-        html.Should().Contain("Find tilbud").And.NotContain("type=\"password\"");
+        html.Should().Contain("Find tilbud").And.Contain("Hvor handler du").And.Contain("Godt at vide").And.Contain("udvidet-kort");
+        foreach (var paid in new[] { "id=\"mine-kort\"", "id=\"uge-kort\"", "id=\"madspild-kort\"", "id=\"gap-kort\"", "id=\"gem\"", "tb-apps" })
+            html.Should().NotContain(paid);
+    }
+
+    private static HttpClient NoRedirects(WebApplicationFactory<Program> f) => f.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+    private static WebApplicationFactory<Program> WithCode(string? code) => new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+    {
+        b.UseSetting("Tilbud:PaidCode", code ?? "");
+        b.ConfigureTestServices(s => { s.AddSingleton<IOfferSource>(new FakeOffers()); s.AddSingleton<IFixedDealStore>(new MemoryDeals()); });
+    });
+
+    private static FormUrlEncodedContent Code(string c) => new(new Dictionary<string, string> { ["kode"] = c });
+
+    [Test]
+    public async Task A_wrong_code_does_not_unlock()
+    {
+        using var f = WithCode("rigtig-kode");
+        var r = await NoRedirects(f).PostAsync("/udvidet", Code("forkert"));
+        r.Headers.Location!.ToString().Should().Contain("kode=forkert");
+        r.Headers.Contains("Set-Cookie").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task The_right_code_unlocks_the_extended_sections()
+    {
+        using var f = WithCode("rigtig-kode");
+        var c = NoRedirects(f);
+        var r = await c.PostAsync("/udvidet", Code("rigtig-kode"));
+        var cookie = r.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
+        cookie.Should().NotContain("rigtig-kode", "the cookie holds a hash, never the code");
+        var req = new HttpRequestMessage(HttpMethod.Get, "/");
+        req.Headers.Add("Cookie", cookie);
+        var html = await (await c.SendAsync(req)).Content.ReadAsStringAsync();
+        html.Should().Contain("id=\"mine-kort\"").And.Contain("id=\"gap-kort\"").And.NotContain("udvidet-kort");
+    }
+
+    [Test]
+    public async Task Without_a_configured_code_nothing_unlocks()
+    {
+        using var f = WithCode(null);
+        var r = await NoRedirects(f).PostAsync("/udvidet", Code(""));
+        r.Headers.Contains("Set-Cookie").Should().BeFalse();
     }
 
     [Test]

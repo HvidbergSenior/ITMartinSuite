@@ -31,8 +31,12 @@ public class TilbudFlowTests : FlowTestBase
     {
         await GoOrSkip(Base);
         await Expect(Page.Locator("#q")).ToBeVisibleAsync();
-        Assert.That(await Page.Locator("input[type=password]").CountAsync(), Is.EqualTo(0), "no login of any kind on the front page");
         await Expect(Page.Locator("#info-kort")).ToContainTextAsync("Ingen reklamer");
+        // Free version (2026-10-08): search, place with radius and "Godt at vide" - the rest is the extended version.
+        await Expect(Page.Locator("#udvidet-kort")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#km")).ToBeVisibleAsync();
+        foreach (var paid in new[] { "#mine-kort", "#uge-kort", "#madspild-kort", "#gap-kort", "#gem" })
+            Assert.That(await Page.Locator(paid).CountAsync(), Is.EqualTo(0), paid + " is extended-only");
     }
 
     [Test]
@@ -57,7 +61,13 @@ public class TilbudFlowTests : FlowTestBase
     [Test]
     public async Task Mine_varer_stay_in_this_browser_only()
     {
+        // Mine varer is the extended version: unlock with TILBUD_CODE (test-app.ps1 sets a local one; live needs the real code).
+        var code = Environment.GetEnvironmentVariable("TILBUD_CODE");
+        if (string.IsNullOrEmpty(code)) Assert.Ignore("TILBUD_CODE not set - Mine varer is in the extended version");
         await GoOrSkip(Base);
+        await Page.Locator("#udvidet-kort input[name=kode]").FillAsync(code);
+        await Page.Locator("#udvidet-kort button[type=submit]").ClickAsync();
+        await Expect(Page.Locator("#mine-kort")).ToBeVisibleAsync(new() { Timeout = 10_000 });
         await SetPlace();
         await Page.Locator("#q").FillAsync("smør");
         await Page.Locator("#soeg-form button[type=submit]").ClickAsync();
@@ -69,8 +79,9 @@ public class TilbudFlowTests : FlowTestBase
         await using var other = await Browser.NewContextAsync(ContextOptions());
         var page = await other.NewPageAsync();
         await page.GotoAsync(Base);
-        await Expect(page.Locator("#mine-tom")).ToBeVisibleAsync();
-        Assert.That(await page.Locator("#mine-liste").InnerTextAsync(), Does.Not.Contain("smør"));
+        // ...and is not even unlocked: no Mine varer box at all, and nothing of the first visitor's list.
+        await Expect(page.Locator("#udvidet-kort")).ToBeVisibleAsync();
+        Assert.That(await page.Locator("#mine-liste").CountAsync(), Is.EqualTo(0));
     }
 
     [Test]

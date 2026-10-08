@@ -91,6 +91,9 @@ app.MapGet("/api/appgap", async (double? lat, double? lng, ThisWeeksAppGap gap, 
     catch (TilbudException e) { return Problem(e); }
 });
 
+// Free vs extended: the code form posts here (ExtendedAccess.cs).
+app.MapExtendedAccess();
+
 app.MapGet("/api/sted", async (string? postnr, IPlaceLookup places, CancellationToken ct) =>
     await places.FromPostcodeAsync(postnr ?? "", ct) is { } p ? Results.Ok(p) : Results.NotFound(new { fejl = "Det postnummer kender vi ikke." }));
 

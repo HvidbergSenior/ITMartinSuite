@@ -6,6 +6,9 @@
     var KEY = 'tilbud:v1';
     var state = load();
     var lastQuery = '';
+    // The extended sections (Mine varer, Ugen, Madspild, App-kløften) are only on the page when unlocked (2026-10-08).
+    var EXTENDED = !!$('mine-kort');
+    function hideGem() { var g = $('gem'); if (g) g.hidden = true; }
 
     function load() {
         try { var s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { place: s.place || null, km: s.km || 10, mine: s.mine || [], apps: s.apps || [], mfKm: s.mfKm || 3 }; }
@@ -140,7 +143,7 @@
         $('soeg-info').textContent = 'Henter tilbud på "' + q + '" …';
         $('resultater').innerHTML = '';
         $('kinder').innerHTML = '';
-        $('gem').hidden = true;
+        hideGem();
         getOffers(q).then(function (all) {
             if (!all.length) { $('soeg-info').textContent = 'Ingen tilbud på "' + q + '" i denne uge inden for ' + state.km + ' km. Prøv et andet ord eller længere afstand.'; return; }
             // Categories from the words that hold the search (user 2026-10-06: "push you toward the correct category"):
@@ -157,8 +160,8 @@
                 var list = picked ? all.filter(function (o) { return kindOf(o) === picked; }) : all;
                 var chosen = picked || q.toLowerCase();
                 lastQuery = chosen;
-                $('gem').hidden = false;
-                $('gem').textContent = state.mine.indexOf(chosen) >= 0 ? '✓ Gemt' : '⭐ Gem "' + chosen + '"';
+                if ($('gem')) $('gem').hidden = false;
+                if ($('gem')) $('gem').textContent = state.mine.indexOf(chosen) >= 0 ? '✓ Gemt' : '⭐ Gem "' + chosen + '"';
                 var chains = {}; list.forEach(function (o) { chains[o.chain] = 1; });
                 var none = words.length > 1 && !all.some(function (o) { return o.matches; });
                 $('soeg-info').textContent = (none ? 'Ingen "' + q + '" på tilbud lige nu – her er ' + w + '. ' : '') +
@@ -203,7 +206,7 @@
             draw();
         }
     }
-    $('gem').addEventListener('click', function () {
+    if ($('gem')) $('gem').addEventListener('click', function () {
         var q = lastQuery.toLowerCase();
         if (q && state.mine.indexOf(q) < 0) { state.mine.push(q); save(); refresh(); }
         $('gem').textContent = '✓ Gemt';
@@ -283,6 +286,7 @@
     // ---- Mine varer: the best offer per item
     function refresh() {
         var box = $('mine-liste');
+        if (!box) return;   // free version: no Mine varer
         $('mine-tom').hidden = state.mine.length > 0;
         if (!state.mine.length) { box.innerHTML = ''; drawWeek(); return; }
         if (!state.place) { box.innerHTML = '<p class="k-muted">Vælg først hvor du handler.</p>'; return; }
@@ -369,6 +373,7 @@
         }).then(function (list) { if (list) { waste = list; drawWaste(); } })
           .catch(function (err) { $('mf-info').textContent = err.message; });
     }
+    if ($('madspild-kort')) {
     $('mf-hent').addEventListener('click', loadWaste);
     $('mf').addEventListener('input', drawWaste);
     $('mf-sort').addEventListener('change', drawWaste);
@@ -378,6 +383,7 @@
         if (waste && wasteKm() <= before) drawWaste(); else if (waste) loadWaste();   // a wider radius may need a new fetch
     });
     fetch('/api/madspild').then(function (r) { $('madspild-kort').hidden = r.status === 404; }).catch(function () { });
+    }
 
     // ---- App-kløften: per chain this week - counted in the chains' own leaflets
     function loadGap() {
@@ -404,7 +410,7 @@
                         '</ul></details>' : '');
             }).catch(function (err) { $('gap-lead').textContent = err.message; });
     }
-    loadGap();
+    if (EXTENDED) loadGap();
 
     fetch('/api/faste').then(function (r) { return r.json(); }).then(function (d) { fixed = d || []; refresh(); }).catch(function () { });
     // Order (user 2026-10-06): Mine varer, search, week, madspild, place, info. The first time - no place yet -

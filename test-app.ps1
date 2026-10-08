@@ -26,7 +26,9 @@ $apps = @{
         Tests = "ITMartinTilbud.Tests"; Server = "ITMartinTilbud.Server"; Port = 5150
         LiveUrl = "https://tilbud.itmartin.dk"; Flow = "TilbudFlowTests"; BaseVar = "TILBUD_BASE"
         # A PIN so the faste-tilbud guard is active; the flow test only tries a wrong one.
-        Env = @{ "Tilbud__AdminPin" = "local-test-pin"; "Tilbud__DataDir" = (Join-Path $env:TEMP "tilbud-test-data") }
+        # A test code for the extended version; the flow tests read TILBUD_CODE to unlock it.
+        Env = @{ "Tilbud__AdminPin" = "local-test-pin"; "Tilbud__DataDir" = (Join-Path $env:TEMP "tilbud-test-data");
+                 "Tilbud__PaidCode" = "lokal-testkode"; "TILBUD_CODE" = "lokal-testkode" }
     }
     "ElPriser" = @{
         Tests = "ITMartinElPriser.Tests"; Server = "ITMartinElPriser.Server"; Port = 5120

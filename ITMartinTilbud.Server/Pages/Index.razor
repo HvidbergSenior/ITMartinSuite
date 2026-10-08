@@ -1,4 +1,5 @@
 @page "/"
+@inject IConfiguration Config
 
 <PageTitle>Tilbud – ugens tilbud nær dig</PageTitle>
 
@@ -6,29 +7,37 @@
    First screen = one answer: this week's best offer for each of "Mine varer"; with none saved yet, the search.
    Every box is a show/hide box (kolibri.js). Colours never carry meaning alone - prices and words do. *@
 
+@if (_extended)
+{
 <section class="k-card" id="mine-kort">
     <h2 class="k-card-title">⭐ Mine varer – billigst i denne uge</h2>
     <p id="mine-tom" class="k-muted">Du har ingen varer endnu. Søg efter en vare herunder og tryk <b>⭐ Gem</b>.</p>
     <div id="mine-liste"></div>
 </section>
+}
 
 <section class="k-card" id="soeg-kort">
     <h2 class="k-card-title">🔍 Find tilbud</h2>
     <form id="soeg-form" class="tb-row" autocomplete="off">
         <input id="q" class="tb-input tb-q" placeholder="Fx kaffe, smør, havregryn" aria-label="Vare" enterkeyhint="search" />
         <button class="k-btn k-btn-primary" type="submit">Søg</button>
-        <button id="gem" class="k-btn k-btn-secondary" type="button" hidden>⭐ Gem</button>
+        @if (_extended) { <button id="gem" class="k-btn k-btn-secondary" type="button" hidden>⭐ Gem</button> }
     </form>
     <p id="soeg-info" class="k-muted" aria-live="polite"></p>
     <div id="kinder" class="tb-chips" role="group" aria-label="Vælg slags"></div>
     <div id="resultater"></div>
 </section>
 
+@if (_extended)
+{
 <section class="k-card" id="uge-kort">
     <h2 class="k-card-title">📅 Ugen – hvor er dine varer billigst hver dag?</h2>
     <div id="uge-liste"><p class="k-muted">Henter …</p></div>
 </section>
+}
 
+@if (_extended)
+{
 <section class="k-card" id="madspild-kort" hidden>
     <h2 class="k-card-title">♻️ Madspild nær dig – Netto, føtex og Bilka</h2>
     <p class="k-muted">Varer med kort holdbarhed, sat ned i dag. Få styk – kom i god tid. Største rabat øverst.</p>
@@ -52,7 +61,10 @@
     <p id="mf-info" class="k-muted" aria-live="polite"></p>
     <div id="mf-liste"></div>
 </section>
+}
 
+@if (_extended)
+{
 <section class="k-card" id="gap-kort">
     <h2 class="k-card-title">📱 App-kløften – hvad koster det at handle uden app?</h2>
     <p id="gap-lead" class="tb-answer">Tæller kædernes tilbudsaviser …</p>
@@ -61,6 +73,7 @@
        <b>Kun med app</b>: prisen i avisen gælder kun med appen (fx Lidl Plus-kuponer). <b>Mere uden app</b>: forskellen, hvor avisen
        skriver begge priser. Talt i kædernes egne aviser for denne uge via eTilbudsavis.</p>
 </section>
+}
 
 <section class="k-card tb-sted" id="sted-kort">
     <h2 class="k-card-title">📍 Hvor handler du?</h2>
@@ -80,6 +93,8 @@
         </select>
     </label>
     <p id="sted-fejl" class="tb-fejl" role="alert" hidden></p>
+    @if (_extended)
+    {
     <fieldset class="tb-apps">
         <legend>📱 Har du butikkens egen app? <span class="k-muted">(så minder vi dig om kuponerne)</span></legend>
         <label><input type="checkbox" value="Lidl" /> Lidl Plus</label>
@@ -87,7 +102,28 @@
         <label><input type="checkbox" value="Salling" /> Netto, føtex, Bilka</label>
         <label><input type="checkbox" value="REMA 1000" /> REMA 1000</label>
     </fieldset>
+    }
 </section>
+
+@if (!_extended)
+{
+    <section class="k-card tb-udvidet" id="udvidet-kort" data-test="extended-offer">
+        <h2 class="k-card-title">➕ Udvidet udgave</h2>
+        <p>Den gratis udgave finder tilbuddene på det, du søger efter. I den <b>udvidede udgave</b> får du også:</p>
+        <ul class="tb-list">
+            <li>⭐ <b>Mine varer</b> – gem dine faste varer og se, hvor de er billigst i denne uge</li>
+            <li>📅 <b>Ugen</b> – hvilken dag og hvilken butik dine varer er billigst</li>
+            <li>♻️ <b>Madspild</b> – varer med kort holdbarhed, sat ned i Netto, føtex og Bilka nær dig</li>
+            <li>📱 <b>App-kløften</b> – hvad det koster at handle uden butikkernes apps</li>
+        </ul>
+        <p class="k-muted">Spørg om en kode i chatten på <a href="https://itmartin.dk/#chat">itmartin.dk</a>.</p>
+        <form method="post" action="/udvidet" class="tb-row" autocomplete="off">
+            <input name="kode" class="tb-input" type="password" placeholder="Kode" aria-label="Kode til den udvidede udgave" />
+            <button class="k-btn k-btn-primary" type="submit">Lås op</button>
+        </form>
+        @if (_wrongCode) { <p class="tb-fejl" role="alert">Koden passer ikke.</p> }
+    </section>
+}
 
 <section class="k-card" id="info-kort">
     <h2 class="k-card-title">ℹ️ Godt at vide</h2>
@@ -110,3 +146,14 @@
 </section>
 
 <script src="tilbud.js?v=@App.CacheBuster" defer></script>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+    private bool _extended, _wrongCode;
+
+    protected override void OnInitialized()
+    {
+        _extended = ExtendedAccess.IsUnlocked(HttpContext, Config);
+        _wrongCode = HttpContext?.Request.Query["kode"].ToString() == "forkert";
+    }
+}

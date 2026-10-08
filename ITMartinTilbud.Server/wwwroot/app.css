@@ -64,3 +64,6 @@
 .tb-table th, .tb-table td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--k-border); vertical-align: top; }
 .tb-table th { font-weight: 800; color: var(--k-text); }
 #gap-tabel { overflow-x: auto; }
+
+/* The free page's "Udvidet udgave" box (2026-10-08). */
+.tb-udvidet { border: 2px dashed var(--k-muted-2); }
