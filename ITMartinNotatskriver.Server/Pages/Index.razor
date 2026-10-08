@@ -29,8 +29,12 @@ else
         <h2>1. Dine noter</h2>
         @if (OnlyText)
         {
-            <p class="k-help">Skriv eller indsæt dine stikord herunder – korte linjer er fint. AI'en skriver dem om til et færdigt dokument.</p>
-            <p class="k-help ns-small">🆓 Gratis version: kun tekst. Vil du også kunne tale noterne ind, tage billeder af håndskrift eller sende filer? Skriv til ITMartin@Mensa.dk.</p>
+            <p class="k-help">Skriv eller indsæt dine stikord herunder – korte linjer er fint. Har du teksten et andet sted, så tag et <b>skærmbillede</b> eller et <b>billede</b> af den. AI'en skriver det hele om til et færdigt dokument.</p>
+            <div class="ns-inputs">
+                <button class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "pics")' disabled="@(_busy || _bilag.Count >= FreeImages)">🖼️ Skærmbillede eller billede af tekst</button>
+                <InputFile id="pics" class="ns-hidden" OnChange="OnFiles" accept="image/*" multiple />
+            </div>
+            <p class="k-help ns-small">🆓 Gratis: tekst og op til @FreeImages billeder. Vil du også kunne tale noterne ind eller sende filer (PDF, Word)? Skriv til ITMartin@Mensa.dk.</p>
         }
         else
         {
@@ -136,7 +140,7 @@ else
 
 }
 
-<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter@(OnlyText ? "" : ", billeder") og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
+<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
 
 @code {
     private sealed record Block(bool Hard, string Text, List<Sensitive.Fund> Fund);
@@ -157,6 +161,8 @@ else
 
     // Free version (default): text only - no dictation, camera or files. Notatskriver__KunTekst=false turns them on.
     private bool OnlyText => !bool.TryParse(Config["Notatskriver:KunTekst"], out var v) || v;
+    // Since 2026-10-08 the free version also takes pictures of text (screenshots, photos) - a few, as each is an AI image read.
+    private const int FreeImages = 3;
 
     protected override void OnInitialized() => _locked = AccessCode.Length > 0;
     private string _code = "";
@@ -186,10 +192,11 @@ else
     private async Task OnFiles(InputFileChangeEventArgs e)
     {
         _error = null;
-        if (OnlyText) return;
+        var max = OnlyText ? FreeImages : NoteAi.MaxBilag;
         foreach (var f in e.GetMultipleFiles(NoteAi.MaxBilag))
         {
-            if (_bilag.Count >= NoteAi.MaxBilag) { _error = $"Højst {NoteAi.MaxBilag} filer/billeder pr. dokument."; break; }
+            if (OnlyText && !f.ContentType.StartsWith("image/")) { _error = "Den gratis version tager kun billeder og skærmbilleder – ikke PDF- eller Word-filer."; continue; }
+            if (_bilag.Count >= max) { _error = OnlyText ? $"Den gratis version tager højst {FreeImages} billeder pr. dokument." : $"Højst {NoteAi.MaxBilag} filer/billeder pr. dokument."; break; }
             try
             {
                 await using var s = f.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
