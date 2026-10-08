@@ -347,13 +347,7 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .hj-chat > .k-card-title, .hj-now > .k-card-title { margin: 0 0 8px; font-size: 1.15rem; }
 
 /* "Vidste du …" ElPriser tip on the front page - pale yellow, dark text (colour-blind safe), saving in bold dark green + underline */
-.hj-eltip{background:#fff8dc;border:2px solid #e9c44a}
-.hj-eltip .k-card-title{color:#3d2c00}
-.hj-eltip-text{font-size:1.1rem;color:#2a2000;margin:6px 0}
-.hj-eltip-cheap{color:#0b5d1e;text-decoration:underline}
-html[data-theme="dark"] .hj-eltip{background:#2c2614;border-color:#7a6420}
-html[data-theme="dark"] .hj-eltip .k-card-title,html[data-theme="dark"] .hj-eltip-text{color:#fff3c4}
-html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
+/* "Vidste du" boxes: see the token block for Budget/Billeder below. */
 /* Small boxes on the front page instead of menu tabs (user 2026-10-07). High contrast: text colour, no meaning in colour alone. */
 .hj-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
 .hj-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-card); color: var(--k-text); text-decoration: none; box-shadow: var(--k-shadow); min-height: var(--k-tap, 44px); }
@@ -369,42 +363,46 @@ html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
 .hj-chat .hj-live.off { text-align: left; margin: 10px 0 0; }
 .hj-chat .hj-live.on { margin: 12px 0 0; }
 
-/* Gratis Budget (/budget, user 2026-10-08) - dark text on pale colours (user is a bit colour-blind) */
-.bu-safe{background:#eaf6ec;border:2px solid #7cc48a;border-radius:10px;padding:10px 12px;color:#0f2e16}
-.bu-drop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 16px;margin-top:12px;border:3px dashed #8a99a8;border-radius:14px;cursor:pointer;text-align:center;font-size:1.15rem}
-.bu-drop:hover{border-color:#1f2933;background:rgba(0,0,0,.03)}
-.bu-drop input{position:absolute;width:1px;height:1px;opacity:0}
-.bu-drop-icon{font-size:2.2rem}
-.bu-big{background:#fff8dc;border:2px solid #e9c44a;border-radius:12px;padding:14px;text-align:center;margin:10px 0;color:#2a2000}
-.bu-big-label{font-weight:700}
-.bu-big-num{font-size:2.4rem;font-weight:800;line-height:1.2}
-.bu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.bu-tile{border:1px solid rgba(0,0,0,.15);border-radius:10px;padding:10px}
-.bu-tile-label{font-size:.9rem;font-weight:600}
-.bu-tile-num{font-size:1.4rem;font-weight:800}
-.bu-tile-sub,.bu-big-sub{font-size:.9rem}
-.bu-sum{margin-top:12px;font-size:1.05rem}
-.bu-list{list-style:none;padding:0;margin:8px 0}
-.bu-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.08)}
-.bu-list li span{overflow-wrap:anywhere}
-.bu-list li b{white-space:nowrap}
-.bu-steps li,.bu-banks li{margin:6px 0}
-.bu-paid{border:2px solid #1f2933}
-html[data-theme="dark"] .bu-safe{background:#13301a;border-color:#3f8a4e;color:#d8f5de}
-html[data-theme="dark"] .bu-big{background:#2c2614;border-color:#7a6420;color:#fff3c4}
-html[data-theme="dark"] .bu-tile,html[data-theme="dark"] .bu-list li{border-color:rgba(255,255,255,.18)}
-html[data-theme="dark"] .bu-paid{border-color:#e6e6e6}
-/* "Har du en idé?" front box (user 2026-10-08) - pale green, dark text */
-.hj-starttip{background:#eaf6ec;border:2px solid #7cc48a}
-.hj-starttip .k-card-title,.hj-starttip .hj-eltip-text{color:#0f2e16}
-html[data-theme="dark"] .hj-starttip{background:#13301a;border-color:#3f8a4e}
-html[data-theme="dark"] .hj-starttip .k-card-title,html[data-theme="dark"] .hj-starttip .hj-eltip-text{color:#d8f5de}
-.bu-blind{background:#f1f3f6;border:2px dashed #4a5866;border-radius:10px;padding:10px 12px;color:#14202b;margin:4px 0 10px}
-html[data-theme="dark"] .bu-blind{background:#1d2731;border-color:#a9b6c2;color:#e8eef3}
-/* Tjek dine billeder (/billeder, 2026-10-08): years as bars, empty years marked with text, not colour only */
-.bi-years{display:flex;flex-direction:column;gap:4px;margin-top:8px}
-.bi-year{display:grid;grid-template-columns:3.2rem 1fr 4.5rem;gap:8px;align-items:center;font-variant-numeric:tabular-nums}
-.bi-bar{height:14px;background:#4a5866;border-radius:3px;min-width:0}
-.bi-bar.none{background:transparent}
-.bi-c{font-size:.9rem;text-align:right}
-html[data-theme="dark"] .bi-bar{background:#a9b6c2}
+/* "Vidste du" boxes, Gratis Budget (/budget) and Tjek dine billeder (/billeder) - 2026-10-08.
+   Colours ONLY from Kolibri tokens: tints are mixed from --k-warning/--k-success, text is always --k-text (dark on pale in
+   light mode, light on dark in dark mode - the user is a bit colour-blind), so no separate dark rules are needed. */
+:root {
+    --hj-yellow-bg: color-mix(in srgb, var(--k-warning) 12%, var(--k-card));
+    --hj-yellow-line: color-mix(in srgb, var(--k-warning) 55%, var(--k-card));
+    --hj-green-bg: color-mix(in srgb, var(--k-success) 12%, var(--k-card));
+    --hj-green-line: color-mix(in srgb, var(--k-success) 55%, var(--k-card));
+}
+.hj-eltip { background: var(--hj-yellow-bg); border: 2px solid var(--hj-yellow-line); }
+.hj-eltip .k-card-title, .hj-eltip-text { color: var(--k-text); }
+.hj-eltip-text { font-size: 1.1rem; margin: 6px 0; }
+.hj-eltip-cheap { color: var(--k-text); text-decoration: underline; font-weight: 700; }
+.hj-starttip { background: var(--hj-green-bg); border: 2px solid var(--hj-green-line); }
+.hj-starttip .k-card-title, .hj-starttip .hj-eltip-text { color: var(--k-text); }
+
+.bu-safe { background: var(--hj-green-bg); border: 2px solid var(--hj-green-line); border-radius: 10px; padding: 10px 12px; color: var(--k-text); }
+.bu-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 16px; margin-top: 12px; border: 3px dashed var(--k-muted-2); border-radius: 14px; cursor: pointer; text-align: center; font-size: 1.15rem; }
+.bu-drop:hover { border-color: var(--k-text); background: var(--k-bg-deep); }
+.bu-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.bu-drop-icon { font-size: 2.2rem; }
+.bu-big { background: var(--hj-yellow-bg); border: 2px solid var(--hj-yellow-line); border-radius: 12px; padding: 14px; text-align: center; margin: 10px 0; color: var(--k-text); }
+.bu-big-label { font-weight: 700; }
+.bu-big-num { font-size: 2.4rem; font-weight: 800; line-height: 1.2; }
+.bu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.bu-tile { border: 1px solid var(--k-border-3); border-radius: 10px; padding: 10px; }
+.bu-tile-label { font-size: .9rem; font-weight: 600; }
+.bu-tile-num { font-size: 1.4rem; font-weight: 800; }
+.bu-tile-sub, .bu-big-sub { font-size: .9rem; }
+.bu-sum { margin-top: 12px; font-size: 1.05rem; }
+.bu-list { list-style: none; padding: 0; margin: 8px 0; }
+.bu-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--k-border); }
+.bu-list li span { overflow-wrap: anywhere; }
+.bu-list li b { white-space: nowrap; }
+.bu-steps li, .bu-banks li { margin: 6px 0; }
+.bu-paid { border: 2px solid var(--k-text); }
+.bu-blind { background: var(--k-bg-deep); border: 2px dashed var(--k-muted); border-radius: 10px; padding: 10px 12px; color: var(--k-text); margin: 4px 0 10px; }
+
+.bi-years { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.bi-year { display: grid; grid-template-columns: 3.2rem 1fr 4.5rem; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.bi-bar { height: 14px; width: var(--w, 0%); background: var(--k-muted); border-radius: 3px; min-width: 0; }
+.bi-bar.none { background: transparent; }
+.bi-c { font-size: .9rem; text-align: right; }

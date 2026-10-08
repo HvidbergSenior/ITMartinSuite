@@ -8,7 +8,7 @@
     .\test-app.ps1 -App Notatskriver -Live      # flow tests against the live site instead of a local copy
 #>
 param(
-    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud", "ElPriser")][string]$App,
+    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud", "ElPriser", "Budget")][string]$App,
     [switch]$Live
 )
 $ErrorActionPreference = "Stop"
@@ -34,11 +34,22 @@ $apps = @{
         # Push keys and subscribers go to a temp folder locally (real prices from Energinet).
         Env = @{ "DataDir" = (Join-Path $env:TEMP "elpriser-test-data") }
     }
+    # Gratis Budget + Tjek dine billeder live in the homepage app (itmartin.dk/budget and /billeder); their rules are JS.
+    "Budget" = @{
+        Node = "ITMartinHjem.Server/js-tests/*.test.js"; Server = "ITMartinHjem.Server"; Port = 5137
+        LiveUrl = "https://itmartin.dk"; Flow = "BudgetBillederFlowTests"; BaseVar = "HJEM_BASE"
+        Env = @{ "Hjem__DataDir" = (Join-Path $env:TEMP "hjem-test-data") }
+    }
 }
 $a = $apps[$App]
 
-Write-Host "`n[1/3] Unit tests ($($a.Tests))" -ForegroundColor Cyan
-dotnet test $a.Tests --nologo -v q
+if ($a.Node) {
+    Write-Host "`n[1/3] Unit tests (node --test $($a.Node))" -ForegroundColor Cyan
+    node --test $a.Node
+} else {
+    Write-Host "`n[1/3] Unit tests ($($a.Tests))" -ForegroundColor Cyan
+    dotnet test $a.Tests --nologo -v q
+}
 if ($LASTEXITCODE -ne 0) { throw "Unit tests failed" }
 
 $server = $null

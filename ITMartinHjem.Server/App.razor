@@ -27,8 +27,11 @@
     <script src="hjem.js?v=@CacheBuster"></script>
     <script src="fest.js?v=@CacheBuster" defer></script>
     <script src="t.js?v=@CacheBuster" defer></script>
-    <script src="budget.js?v=@CacheBuster" defer></script>
-    <script src="billeder.js?v=@CacheBuster" defer></script>
+    @* Budget + Tjek dine billeder: rules (domain) first, then the page part - all in the browser, nothing is sent. *@
+    <script src="budget/budget-domain.js?v=@CacheBuster" defer></script>
+    <script src="budget/budget-ui.js?v=@CacheBuster" defer></script>
+    <script src="billeder/billeder-domain.js?v=@CacheBuster" defer></script>
+    <script src="billeder/billeder-ui.js?v=@CacheBuster" defer></script>
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
