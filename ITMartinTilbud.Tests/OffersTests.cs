@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using FluentAssertions;
-using ITMartinTilbud.Server.Services;
+using ITMartinTilbud.Domain;
+using ITMartinTilbud.Infrastructure;
 
 namespace ITMartinTilbud.Tests;
 
@@ -22,7 +23,7 @@ public class OffersTests
     }
 
     private static List<Offer> Parse(params string[] offers) =>
-        TjekOffers.Parse(JsonDocument.Parse("[" + string.Join(",", offers) + "]").RootElement, Now);
+        TjekClient.Parse(JsonDocument.Parse("[" + string.Join(",", offers) + "]").RootElement, Now);
 
     [Test]
     public void Coffee_3_pack_of_400_g_is_priced_per_kg()
@@ -59,8 +60,8 @@ public class OffersTests
     {
         Offer Of(string title, string? text = null) => new("Lidl", title, text, 10, null, null, null, null, null, null, null, null);
         var list = new List<Offer> { Of("Kartofler", "Gode med smør"), Of("Lurpak smør"), Of("Kærgården smørbar"), Of("Smør fra Arla") };
-        TjekOffers.Relevant(list, "smør").Select(o => o.Title).Should().Equal("Lurpak smør", "Kærgården smørbar", "Smør fra Arla");
-        TjekOffers.Relevant(list, "æbler").Should().HaveCount(4);   // no word match at all: show what was found
+        OfferRanking.Relevant(list, "smør").Select(o => o.Title).Should().Equal("Lurpak smør", "Kærgården smørbar", "Smør fra Arla");
+        OfferRanking.Relevant(list, "æbler").Should().HaveCount(4);   // no word match at all: show what was found
     }
 
     [Test]
@@ -72,44 +73,44 @@ public class OffersTests
             Of("MILBONA Kakaomælk"), Of("Shower Gel m. orkidé & mælk"), Of("Arla Lactofree mælk"),
             Of("Matilde kakao-skummetmælk"), Of("Gram Slot Mini- eller skummetmælk"), Of("Arla frisk dansk mælk"),
         };
-        var r = TjekOffers.Relevant(list, "mælk");
+        var r = OfferRanking.Relevant(list, "mælk");
         r.Where(o => !o.Variant).Select(o => o.Title).Should().Equal("Arla Lactofree mælk", "Gram Slot Mini- eller skummetmælk", "Arla frisk dansk mælk");
         r.Where(o => o.Variant).Select(o => o.Title).Should().Equal("MILBONA Kakaomælk", "Matilde kakao-skummetmælk");
-        TjekOffers.Relevant(list, "kakaomælk").Should().OnlyContain(o => !o.Variant);   // searched for the flavour itself
+        OfferRanking.Relevant(list, "kakaomælk").Should().OnlyContain(o => !o.Variant);   // searched for the flavour itself
     }
 
     [Test]
     public void App_only_offers_are_recognised_as_the_leaflets_word_them()
     {
-        TjekOffers.AppNeeded("Black Coffee | + PRIS 59:- Gælder kun med Netto+ appen 400 g.", "Netto").Should().Be("Netto+ appen");
-        TjekOffers.AppNeeded("Cheasy hytteost | plus pris Pr. kg 40,- Gælder kun med føtex plus appen", "føtex").Should().Be("Føtex plus appen");
-        TjekOffers.AppNeeded("MATILDE Kakaoskummetmælk | Fredagsdeal Kuponpris ved køb på min. 200 kr. Lidl Plus", "Lidl").Should().Be("Lidl Plus-appen");
-        TjekOffers.AppNeeded("Arla letmælk 1 l. Pr. l 9,95", "Netto").Should().BeNull();
-        TjekOffers.ConditionOf("Kuponpris ved køb på min. 200 kr.").Should().Be("kræver køb for min. 200 kr");
+        LeafletText.AppNeeded("Black Coffee | + PRIS 59:- Gælder kun med Netto+ appen 400 g.", "Netto").Should().Be("Netto+ appen");
+        LeafletText.AppNeeded("Cheasy hytteost | plus pris Pr. kg 40,- Gælder kun med føtex plus appen", "føtex").Should().Be("Føtex plus appen");
+        LeafletText.AppNeeded("MATILDE Kakaoskummetmælk | Fredagsdeal Kuponpris ved køb på min. 200 kr. Lidl Plus", "Lidl").Should().Be("Lidl Plus-appen");
+        LeafletText.AppNeeded("Arla letmælk 1 l. Pr. l 9,95", "Netto").Should().BeNull();
+        LeafletText.ConditionOf("Kuponpris ved køb på min. 200 kr.").Should().Be("kræver køb for min. 200 kr");
     }
 
     [Test]
     public void App_prices_as_the_week_41_leaflets_print_them()
     {
         // Netto: the price shown (24) is for everyone, the app gives 20.
-        TjekOffers.AppInfo("Riberhus skiveost 200-240 g. Pr. kg max. 120,00 + PRIS 20: Pr. kg max. 100,00 Gælder kun med Netto+ appen", "Netto", 24, 120)
+        LeafletText.AppInfo("Riberhus skiveost 200-240 g. Pr. kg max. 120,00 + PRIS 20: Pr. kg max. 100,00 Gælder kun med Netto+ appen", "Netto", 24, 120)
             .Should().Be(("Netto+ appen", false, 20m, (decimal?)null));
         // føtex: two kg prices, normal first - 15 kr for everyone, about 10 kr with the app.
-        TjekOffers.AppInfo("Pågen Gifflar 280-800 g. Pr. kg max. 57,69 plus pris Pr. kg max 38,46 Gælder kun med føtex plus appen", "føtex", 15, 57.69m)
+        LeafletText.AppInfo("Pågen Gifflar 280-800 g. Pr. kg max. 57,69 plus pris Pr. kg max 38,46 Gælder kun med føtex plus appen", "føtex", 15, 57.69m)
             .Should().Be(("Føtex plus appen", false, 10m, (decimal?)null));
         // Bilka: explicit plus price.
-        TjekOffers.AppInfo("Hakket oksekød 900-2500 g. Pr. kg max. 116.67 FRIT VALG PLUS PRIS FRIT VALG 89.- Pr. kg max. 98.89 GÆLDER KUN MED BILKA PLUS APPEN", "Bilka", 105, null)
+        LeafletText.AppInfo("Hakket oksekød 900-2500 g. Pr. kg max. 116.67 FRIT VALG PLUS PRIS FRIT VALG 89.- Pr. kg max. 98.89 GÆLDER KUN MED BILKA PLUS APPEN", "Bilka", 105, null)
             .Should().Be(("Bilka plus appen", false, 89m, (decimal?)null));
         // Netto, a range of sizes: our per-litre price (on the big bottle) must not decide - the printed order does.
-        TjekOffers.AppInfo("Sierra Tequila 50-70 cl. Pr. liter max. 218,00 + PRIS Pr. liter max 198,00 Gælder kun med Netto+ appen", "Netto", 109, 155.71m)
+        LeafletText.AppInfo("Sierra Tequila 50-70 cl. Pr. liter max. 218,00 + PRIS Pr. liter max 198,00 Gælder kun med Netto+ appen", "Netto", 109, 155.71m)
             .Should().Be(("Netto+ appen", false, 99m, (decimal?)null));
-        TjekOffers.AppInfo("Hakket oksekød 900-2500 g. Pr. kg max. 116.67 PLUS PRIS FRIT VALG 89.- Pr. kg max. 98.89", "Bilka", 105, 42m)
+        LeafletText.AppInfo("Hakket oksekød 900-2500 g. Pr. kg max. 116.67 PLUS PRIS FRIT VALG 89.- Pr. kg max. 98.89", "Bilka", 105, 42m)
             .Should().Be(("Bilkas app", false, 89m, (decimal?)null));
         // Kvickly: member and non-member price both printed.
-        TjekOffers.AppInfo("Hat. Pris ikke-medlem 79,95. Medlemspris 55,97.", "Kvickly", 79.95m, null)
+        LeafletText.AppInfo("Hat. Pris ikke-medlem 79,95. Medlemspris 55,97.", "Kvickly", 79.95m, null)
             .Should().Be(("Coop-appen (medlem)", false, 55.97m, (decimal?)null));
         // Lidl coupon: the price shown is the app price, the normal one is not printed.
-        TjekOffers.AppInfo("MATILDE Kakaoskummetmælk 1 l. Pr. l 7,00 Kuponpris ved køb på min. 200 kr. Lidl Plus", "Lidl", 7, 7)
+        LeafletText.AppInfo("MATILDE Kakaoskummetmælk 1 l. Pr. l 7,00 Kuponpris ved køb på min. 200 kr. Lidl Plus", "Lidl", 7, 7)
             .Should().Be(("Lidl Plus-appen", true, (decimal?)null, (decimal?)null));
     }
 
@@ -125,9 +126,9 @@ public class OffersTests
     [Test]
     public void A_friday_deal_counts_only_on_its_day()
     {
-        var d = TjekOffers.OnlyDay("Fredagsdeal Gælder kun 9. okt.", new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));
+        var d = LeafletText.OnlyDay("Fredagsdeal Gælder kun 9. okt.", new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero));
         d!.Value.Date.Should().Be(new DateTime(2026, 10, 9));
-        TjekOffers.OnlyDay("Gælder hele ugen", DateTimeOffset.UtcNow).Should().BeNull();
+        LeafletText.OnlyDay("Gælder hele ugen", DateTimeOffset.UtcNow).Should().BeNull();
     }
 
     [Test]
@@ -135,7 +136,7 @@ public class OffersTests
     {
         Offer Of(string title, string? text = null) => new("Netto", title, text, 10, null, null, null, null, null, null, null, null);
         var list = new List<Offer> { Of("Arla Lactofree mælk"), Of("Thise økologisk kefir", "1 l"), Of("Øko letmælk", "1 l"), Of("Arla frisk dansk mælk", "Økologisk") };
-        var r = TjekOffers.Relevant(list, "økologisk mælk");
+        var r = OfferRanking.Relevant(list, "økologisk mælk");
         r.Select(o => o.Title).Should().Equal("Øko letmælk", "Arla frisk dansk mælk", "Arla Lactofree mælk");   // kefir is not milk
         r.Where(o => o.Matches).Should().HaveCount(2);
     }

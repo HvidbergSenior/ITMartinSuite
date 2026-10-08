@@ -12,6 +12,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinTilbud.Infrastructure\ITMartinTilbud.Infrastructure.csproj" />
+        <ProjectReference Include="..\ITMartinTilbud.Application\ITMartinTilbud.Application.csproj" />
+        <ProjectReference Include="..\ITMartinTilbud.Domain\ITMartinTilbud.Domain.csproj" />
     </ItemGroup>
 
     <ItemGroup>

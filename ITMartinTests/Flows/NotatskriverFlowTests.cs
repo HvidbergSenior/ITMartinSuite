@@ -105,13 +105,27 @@ public class NotatskriverFlowTests : FlowTestBase
     }
 
     [Test]
-    public async Task Dark_mode_follows_the_shared_design()
+    public async Task The_phones_dark_mode_does_not_half_darken_the_page()
     {
+        // Kolibri is light by default (user decision 2026-09-10); dark only when an app opts in with data-theme="dark".
         await Page.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Dark });
         await Open();
         var bg = await Page.EvaluateAsync<string>("() => getComputedStyle(document.body).backgroundColor");
         var text = await Page.EvaluateAsync<string>("() => getComputedStyle(document.body).color");
-        Assert.That(bg, Is.Not.EqualTo("rgb(255, 255, 255)"), "dark background in dark mode");
         Assert.That(bg, Is.Not.EqualTo(text), "text must differ from the background");
+    }
+
+    [Test]
+    public async Task Every_colour_follows_the_theme_tokens()
+    {
+        // Switch the shared dark theme on: anything still white was hard-coded instead of using a Kolibri token.
+        await Open();
+        await Page.EvaluateAsync("() => document.documentElement.setAttribute('data-theme', 'dark')");
+        var bg = await Page.EvaluateAsync<string>("() => getComputedStyle(document.body).backgroundColor");
+        var input = await Page.EvaluateAsync<string>("() => getComputedStyle(document.querySelector('[data-test=notes]')).backgroundColor");
+        var text = await Page.EvaluateAsync<string>("() => getComputedStyle(document.querySelector('[data-test=notes]')).color");
+        Assert.That(bg, Is.EqualTo("rgb(18, 25, 23)"), "the page uses --k-bg");
+        Assert.That(input, Is.Not.EqualTo("rgb(255, 255, 255)"), "the input uses a token, not a hard-coded white");
+        Assert.That(text, Is.Not.EqualTo(input), "readable text in the input");
     }
 }

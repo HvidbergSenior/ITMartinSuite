@@ -272,6 +272,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinNotatskriver.Infras
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinNotatskriver.Tests", "ITMartinNotatskriver.Tests\ITMartinNotatskriver.Tests.csproj", "{ACA3379C-0C50-4A75-AED0-5CF3F5E1A091}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinTilbud.Domain", "ITMartinTilbud.Domain\ITMartinTilbud.Domain.csproj", "{153E3F8E-2270-42DF-88F7-CC39D8CA5C6B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinTilbud.Application", "ITMartinTilbud.Application\ITMartinTilbud.Application.csproj", "{6DF8AF71-016B-4348-A691-5946C520C5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinTilbud.Infrastructure", "ITMartinTilbud.Infrastructure\ITMartinTilbud.Infrastructure.csproj", "{BF106877-392F-49C1-B8F9-47C735D1C777}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -801,5 +807,17 @@ Global
 		{ACA3379C-0C50-4A75-AED0-5CF3F5E1A091}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ACA3379C-0C50-4A75-AED0-5CF3F5E1A091}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ACA3379C-0C50-4A75-AED0-5CF3F5E1A091}.Release|Any CPU.Build.0 = Release|Any CPU
+		{153E3F8E-2270-42DF-88F7-CC39D8CA5C6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{153E3F8E-2270-42DF-88F7-CC39D8CA5C6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{153E3F8E-2270-42DF-88F7-CC39D8CA5C6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{153E3F8E-2270-42DF-88F7-CC39D8CA5C6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DF8AF71-016B-4348-A691-5946C520C5FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DF8AF71-016B-4348-A691-5946C520C5FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DF8AF71-016B-4348-A691-5946C520C5FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DF8AF71-016B-4348-A691-5946C520C5FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF106877-392F-49C1-B8F9-47C735D1C777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF106877-392F-49C1-B8F9-47C735D1C777}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF106877-392F-49C1-B8F9-47C735D1C777}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF106877-392F-49C1-B8F9-47C735D1C777}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

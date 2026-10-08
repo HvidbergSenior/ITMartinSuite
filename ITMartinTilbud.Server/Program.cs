@@ -1,6 +1,8 @@
 ﻿using ITMartin.Shared.UI.Kolibri;
 using ITMartinTilbud.Server;
-using ITMartinTilbud.Server.Services;
+using ITMartinTilbud.Application;
+using ITMartinTilbud.Domain;
+using ITMartinTilbud.Infrastructure;
 
 // Tilbud (Kolibri Nektar) - 2026-10-06, user: "app for users who want to know what is on sale in as many groceries as
 // possible". Search one item and see every chain's offer near you, cheapest per kg/litre first; "Mine varer" on the phone
@@ -32,13 +34,8 @@ builder.Services.AddKolibri(k =>
 });
 
 builder.Services.AddRazorComponents();
-builder.Services.AddMemoryCache();
-builder.Services.AddSingleton<FixedDeals>();
-const string UserAgent = "ITMartinTilbud/1.0 (ITMartin@Mensa.dk)";
-builder.Services.AddHttpClient<TjekOffers>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
-builder.Services.AddHttpClient<AppGap>(c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
-builder.Services.AddHttpClient<SallingFoodWaste>(c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
-builder.Services.AddHttpClient<Places>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent); });
+// Domain rules + use cases + Tjek/Salling/Nominatim/file adapters (ITMartinTilbud.Infrastructure).
+builder.Services.AddTilbud(builder.Configuration);
 
 var app = builder.Build();
 app.MapKolibri();
@@ -49,48 +46,52 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-app.MapGet("/api/tilbud", async (string? q, double? lat, double? lng, int? km, TjekOffers offers, CancellationToken ct) =>
+// Danish messages: a wrong request is 400, an outside service down is 503, Salling's day quota spent is 429.
+static IResult Problem(TilbudException e) => e switch
 {
-    if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2) return Results.BadRequest(new { fejl = "Skriv mindst 2 bogstaver." });
-    if (lat is null || lng is null) return Results.BadRequest(new { fejl = "Vælg først hvor du bor." });
-    try { return Results.Ok(await offers.SearchAsync(q, lat.Value, lng.Value, km ?? 10, ct)); }
-    catch (OffersUnavailableException) { return Results.Json(new { fejl = "Tilbudsavisen svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
+    FoodWasteQuotaException => Results.Json(new { fejl = e.Message }, statusCode: 429),
+    SourceUnavailableException => Results.Json(new { fejl = e.Message }, statusCode: 503),
+    _ => Results.BadRequest(new { fejl = e.Message }),
+};
+
+app.MapGet("/api/tilbud", async (string? q, double? lat, double? lng, int? km, SearchOffers search, CancellationToken ct) =>
+{
+    try { return Results.Ok(await search.ExecuteAsync(q ?? "", lat, lng, km, ct)); }
+    catch (TilbudException e) { return Problem(e); }
 });
 
 // Madspild: Netto/føtex/Bilka markdowns near you (Salling's official API). 404 = no key yet -> the page hides the box.
-app.MapGet("/api/madspild", async (double? lat, double? lng, int? km, SallingFoodWaste fw, CancellationToken ct) =>
+app.MapGet("/api/madspild", async (double? lat, double? lng, int? km, NearbyFoodWaste foodWaste, CancellationToken ct) =>
 {
-    if (!fw.Enabled) return Results.NotFound(new { fejl = "Madspild er ikke slået til endnu." });
-    if (lat is null || lng is null) return Results.BadRequest(new { fejl = "Vælg først hvor du bor." });
-    try { return Results.Ok(await fw.NearAsync(lat.Value, lng.Value, km ?? 5, ct)); }
-    catch (OffersUnavailableException) { return Results.Json(new { fejl = "Salling svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
-    catch (FoodWasteQuotaException) { return Results.Json(new { fejl = "Madspild er brugt op for i dag (Salling giver 100 opslag om dagen). Prøv igen i morgen." }, statusCode: 429); }
+    if (!foodWaste.Enabled) return Results.NotFound(new { fejl = "Madspild er ikke slået til endnu." });
+    try { return Results.Ok(await foodWaste.ExecuteAsync(lat, lng, km, ct)); }
+    catch (TilbudException e) { return Problem(e); }
 });
 
-// Faste tilbud (weekly deals that are in no leaflet): everyone reads them; only Martin (Tilbud__AdminPin) adds or removes.
+// Faste tilbud (weekly deals that are in no leaflet): everyone reads them; only Martin (Tilbud__AdminPin, 6+ chars)
+// adds or removes. No PIN configured = nobody can change them.
 var adminPin = app.Configuration["Tilbud:AdminPin"] ?? "";
 bool IsAdmin(HttpContext ctx) => adminPin.Length >= 6 && ctx.Request.Headers["X-Pin"] == adminPin;
 
-app.MapGet("/api/faste", (FixedDeals deals) => Results.Ok(deals.All()));
+app.MapGet("/api/faste", (FixedDealsBoard board) => Results.Ok(board.All()));
 app.MapPost("/api/faste/tjek", (HttpContext ctx) => IsAdmin(ctx) ? Results.Ok() : Results.StatusCode(401));
-app.MapPost("/api/faste", (FixedDealRequest r, HttpContext ctx, FixedDeals deals) =>
+app.MapPost("/api/faste", (FixedDealRequest r, HttpContext ctx, FixedDealsBoard board) =>
 {
     if (!IsAdmin(ctx)) return Results.StatusCode(401);
-    if (string.IsNullOrWhiteSpace(r.Chain) || string.IsNullOrWhiteSpace(r.Item)) return Results.BadRequest(new { fejl = "Skriv både butik og vare." });
-    return Results.Ok(deals.Add(r.Chain, r.Item, r.Days ?? [], r.Price, r.Unit, r.NeedsApp, r.Note));
+    try { return Results.Ok(board.Add(r.Chain, r.Item, r.Days, r.Price, r.Unit, r.NeedsApp, r.Note)); }
+    catch (TilbudException e) { return Problem(e); }
 });
-app.MapDelete("/api/faste/{id}", (string id, HttpContext ctx, FixedDeals deals) =>
-    !IsAdmin(ctx) ? Results.StatusCode(401) : deals.Remove(id) ? Results.Ok() : Results.NotFound());
+app.MapDelete("/api/faste/{id}", (string id, HttpContext ctx, FixedDealsBoard board) =>
+    !IsAdmin(ctx) ? Results.StatusCode(401) : board.Remove(id) ? Results.Ok() : Results.NotFound());
 
 // App-kløften: per chain this week, how many offers involve the app and what you pay extra without it.
-app.MapGet("/api/appgap", async (double? lat, double? lng, AppGap gap, CancellationToken ct) =>
+app.MapGet("/api/appgap", async (double? lat, double? lng, ThisWeeksAppGap gap, CancellationToken ct) =>
 {
-    try { return Results.Ok(await gap.ThisWeekAsync(lat ?? 56.16, lng ?? 10.20, ct)); }
-    catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
-    { return Results.Json(new { fejl = "Tilbudsaviserne svarer ikke lige nu. Prøv igen om lidt." }, statusCode: 503); }
+    try { return Results.Ok(await gap.ExecuteAsync(lat ?? 56.16, lng ?? 10.20, ct)); }
+    catch (TilbudException e) { return Problem(e); }
 });
 
-app.MapGet("/api/sted", async (string? postnr, Places places, CancellationToken ct) =>
+app.MapGet("/api/sted", async (string? postnr, IPlaceLookup places, CancellationToken ct) =>
     await places.FromPostcodeAsync(postnr ?? "", ct) is { } p ? Results.Ok(p) : Results.NotFound(new { fejl = "Det postnummer kender vi ikke." }));
 
 app.MapRazorComponents<App>()
@@ -99,3 +100,6 @@ app.MapRazorComponents<App>()
 app.Run();
 
 public sealed record FixedDealRequest(string Chain, string Item, int[]? Days, decimal? Price, string? Unit, string? NeedsApp, string? Note);
+
+// For the API tests (WebApplicationFactory<Program>).
+public partial class Program;
