@@ -102,6 +102,19 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
     // Only recent messages count, so old conversations never wake up and mail after a deploy.
     private static readonly TimeSpan Recent = TimeSpan.FromHours(24);
 
+    // A mail that keeps failing is tried on 5 sweeps (about a minute), then given up and logged - never every 15 s forever.
+    private const int MaxMailTries = 5;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, int> _visitorFailures = new(), _ownerFailures = new();
+
+    private bool GiveUp(System.Collections.Concurrent.ConcurrentDictionary<int, int> failures, int threadId, string what)
+    {
+        var n = failures.AddOrUpdate(threadId, 1, (_, x) => x + 1);
+        if (n < MaxMailTries) return false;
+        failures.TryRemove(threadId, out _);
+        log.LogError("Gave up on the {What} for chat {Thread} after {Tries} failed tries", what, threadId, n);
+        return true;
+    }
+
     public async Task SweepAsync(DateTime nowUtc)
     {
         await using var db = await dbf.CreateDbContextAsync();
@@ -150,7 +163,9 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
                        string.Join("\n\n", news.Select(n => "  " + n.Replace("\n", "\n  "))) +
                        (t.VisitorEmail.Length > 0 ? $"\n\nVil have svar på mail: {t.VisitorEmail}" : "") +
                        $"\n\nSvar i Svar: {site}/admin?chat={t.Id}";
-            await mail.SendAsync(cfg["Hjem:OwnerEmail"] ?? "ITMartin@Mensa.dk", $"💬 {who} venter på svar", body);
+            if (!await mail.SendAsync(cfg["Hjem:OwnerEmail"] ?? "ITMartin@Mensa.dk", $"💬 {who} venter på svar", body)
+                && !GiveUp(_ownerFailures, threadId, "owner copy mail")) return;
+            _ownerFailures.TryRemove(threadId, out _);
             t.OwnerMailedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
         }
@@ -186,8 +201,11 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
                         : $"\n\nDu kan svare direkte på denne mail – eller fortsætte i chatten på {site} (på den telefon eller PC, du skrev fra).\n\n") +
                     "Venlig hilsen\nMartin Hvidberg · ITMartin\nITMartin@Mensa.dk · 31 19 47 30\n\n" +
                     "Du får denne mail, fordi du skrev din e-mail i chatten. Vil du ikke have flere, så svar \"stop\".";
-                await mail.SendAsync(t.VisitorEmail, "Martin har svaret dig", body);
+                // Only count it as told when the mail really left (2026-10-08: a refused mail used to be marked as sent).
+                if (!await mail.SendAsync(t.VisitorEmail, "Martin har svaret dig", body) && !GiveUp(_visitorFailures, threadId, "reply mail to the visitor"))
+                    return;   // the next sweep tries again
             }
+            _visitorFailures.TryRemove(threadId, out _);
             t.NotifiedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
         }
