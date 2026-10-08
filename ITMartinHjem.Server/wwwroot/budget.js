@@ -244,7 +244,7 @@
             '</ul></details>';
 
         html += '<section class="k-card bu-paid" data-nofold><h2 class="k-card-title">➕ Vil du vide mere?</h2>' +
-            '<p>Det her er kun det første kig. I den <b>udvidede udgave</b> sorterer jeg <b>hver eneste linje</b> i kategorier, sammenligner måned for måned, ' +
+            '<p>Det her er kun det første kig. I den <b>udvidede udgave</b> sorterer jeg <b>hver eneste linje</b> i <b>dine egne kategorier</b> – også MobilePay, fordelt på det, det faktisk var: benzin, dagligvarer, lommepenge, brugtkøb … Jeg sammenligner måned for måned, ' +
             'finder de abonnementer, du har glemt, og laver et budget, der passer til jeres liv – og jeg hjælper dig med at opsige det, du ikke bruger.</p>' +
             '<a class="k-btn k-btn-primary" href="/#chat">💬 Spørg om den udvidede udgave</a></section>';
 
