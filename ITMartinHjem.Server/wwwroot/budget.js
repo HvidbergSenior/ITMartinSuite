@@ -221,6 +221,11 @@
         html += '<div class="bu-big"><div class="bu-big-label">📱 MobilePay ud</div><div class="bu-big-num">' + kr(a.mp.sum) + '</div>' +
             '<div class="bu-big-sub">' + a.mp.n + ' betalinger · ' + perMonth(a.mp.sum, a) + '</div>' +
             (a.mp.topMonth && m > 1 ? '<div class="bu-big-sub">Mest i ' + maaned(a.mp.topMonth) + ': <b>' + kr(a.mp.topSum) + '</b></div>' : '') + '</div>';
+        // MobilePay lines carry only the receiver's name ("MobilePay Peter", "Vdk Mob.Pay*Anne"), never what it was for.
+        if (a.mp.n > 0)
+            html += '<p class="bu-blind">🙈 <b>Hvad var de ' + kr(a.mp.sum) + ' til?</b> Det står ingen steder. Banken viser kun, <i>hvem</i> der fik pengene – ' +
+                'ikke <i>hvad</i> de var til. Derfor kan hverken bankens oversigt, budget-apps eller denne side sortere dem. ' +
+                '<a href="#bu-mobilepay">Læs hvorfor</a></p>';
 
         html += '<div class="bu-grid">' +
             tile('🛒 Dagligvarer', a.grocery, a) + tile('🍔 Mad ude og takeaway', a.eatout, a) +
@@ -272,6 +277,14 @@
     }
 
     // Event delegation: the page is drawn by Blazor, so the elements may come and go.
+    document.addEventListener('click', function (e) {
+        var link = e.target && e.target.closest && e.target.closest('a[href="#bu-mobilepay"]');
+        var box = link && document.getElementById('bu-mobilepay');
+        if (!box) return;
+        e.preventDefault();
+        box.open = true;
+        box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     document.addEventListener('change', function (e) {
         if (e.target && e.target.id === 'bu-file') handle(e.target.files[0]);
     });

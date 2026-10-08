@@ -398,3 +398,5 @@ html[data-theme="dark"] .bu-paid{border-color:#e6e6e6}
 .hj-starttip .k-card-title,.hj-starttip .hj-eltip-text{color:#0f2e16}
 html[data-theme="dark"] .hj-starttip{background:#13301a;border-color:#3f8a4e}
 html[data-theme="dark"] .hj-starttip .k-card-title,html[data-theme="dark"] .hj-starttip .hj-eltip-text{color:#d8f5de}
+.bu-blind{background:#f1f3f6;border:2px dashed #4a5866;border-radius:10px;padding:10px 12px;color:#14202b;margin:4px 0 10px}
+html[data-theme="dark"] .bu-blind{background:#1d2731;border-color:#a9b6c2;color:#e8eef3}
