@@ -19,6 +19,7 @@ builder.Services.AddScoped<ClubAuthService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AssignmentTaskService>();
 builder.Services.AddSingleton<AdminPinRateLimiterService>();
+builder.Services.AddSingleton<MemberPinRateLimiterService>();
 builder.Services.AddSingleton<ClubMailService>();
 builder.Services.AddScoped<MessageService>();
 builder.Services.AddScoped<InviteService>();

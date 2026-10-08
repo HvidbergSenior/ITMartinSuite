@@ -1,6 +1,7 @@
 @page "/g/{slug}/join"
 @rendermode InteractiveServer
 @inject ClubDbContext Db
+@inject MemberPinRateLimiterService MemberPins
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -113,6 +114,13 @@
         {
             var member = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == _group.Id && m.Name == _name.Trim());
 
+            if (member is not null && MemberPins.IsLockedOut(member.Id))
+            {
+                _error = "For mange forkerte forsøg for dette navn. Vent 15 minutter, eller bed en admin om at nulstille PIN.";
+                _joining = false;
+                return;
+            }
+
             // A correct PIN for a known name already proves who they are - the
             // invite code only exists to gate strangers who don't know a name/PIN
             // yet, so returning members shouldn't have to keep re-typing it.
@@ -122,6 +130,7 @@
 
             if (!isReturningMember && _code.Trim() != _group.InviteCode)
             {
+                if (member is not null && !string.IsNullOrEmpty(member.Pin)) MemberPins.RegisterFailure(member.Id);
                 _error = "Forkert invitationskode.";
                 _joining = false;
                 return;
@@ -141,10 +150,13 @@
             }
             else if (!isReturningMember)
             {
+                MemberPins.RegisterFailure(member.Id);
                 _error = "Forkert PIN for dette navn. Bed en admin om at nulstille den, hvis du har glemt den.";
                 _joining = false;
                 return;
             }
+
+            MemberPins.RegisterSuccess(member.Id);   // a correct PIN clears earlier wrong guesses
 
             // Contact info is re-entered (not required) on every login rather than
             // set-once - leaving it blank keeps whatever was there before, typing

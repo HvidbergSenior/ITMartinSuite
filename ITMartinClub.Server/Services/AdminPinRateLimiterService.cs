@@ -7,7 +7,7 @@ namespace ITMartinClub.Server.Services;
 // retries). In-memory only, keyed by GroupId: a container restart clears it,
 // which is fine since the threat model here is "many guesses in a short
 // burst," not a determined attacker who can wait out a restart.
-public sealed class AdminPinRateLimiterService
+public class PinRateLimiter
 {
     private const int MaxAttempts = 5;
     private static readonly TimeSpan LockoutWindow = TimeSpan.FromMinutes(15);
@@ -43,3 +43,10 @@ public sealed class AdminPinRateLimiterService
             failures.Dequeue();
     }
 }
+
+// The group's admin PIN (Admin.razor), keyed by GroupId.
+public sealed class AdminPinRateLimiterService : PinRateLimiter;
+
+// A member's own PIN on the join page, keyed by MemberId (2026-10-08): someone who knows a member's name could
+// otherwise guess the PIN without limit - a correct PIN skips the invite code.
+public sealed class MemberPinRateLimiterService : PinRateLimiter;
