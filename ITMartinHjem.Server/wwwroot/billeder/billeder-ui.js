@@ -81,7 +81,7 @@
         html += '<section class="k-card bu-paid" data-nofold><h2 class="k-card-title">➕ Skal jeg rydde op for dig?</h2>' +
             '<p>I den <b>udvidede udgave</b> sorterer jeg <b>alle</b> dine billeder og videoer efter år og måned, fjerner dubletter og skrammel, ' +
             'finder personerne på billederne og laver et <b>galleri</b>, hele familien kan se på telefonen – plus en backup, så intet går tabt.</p>' +
-            '<p>Se hvordan det ser ud: <a href="https://gallery.itmartin.dk/demo" target="_blank" rel="noopener">eksempel-galleriet</a> (spørg mig om koden i chatten).</p>' +
+            '<p>Se hvordan det ser ud: <a href="https://gallery.itmartin.dk/demo" target="_blank" rel="noopener">eksempel-galleriet</a> – koden er <b>Demo2026</b>.</p>' +
             '<a class="k-btn k-btn-primary" href="/#chat">💬 Spørg om oprydning</a></section>';
         show(box, html);
         box.scrollIntoView({ behavior: 'smooth', block: 'start' });
