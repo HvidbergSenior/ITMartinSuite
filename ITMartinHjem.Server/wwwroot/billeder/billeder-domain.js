@@ -13,6 +13,8 @@
     var SCREENSHOT = /screenshot|sk[æa]rmbillede|screen ?shot|^scr_|skærmbilleder/i;
     var CHAT = /^IMG-\d{8}-WA\d+|^VID-\d{8}-WA\d+|^received_\d+|^FB_IMG_|^Snapchat-|whatsapp|messenger|telegram/i;
     var NAME_DATE = /(19[89]\d|20[0-3]\d)[-_. ]?(0[1-9]|1[0-2])[-_. ]?(0[1-9]|[12]\d|3[01])/;
+    // A folder named just a year ("Billeder/2015/...", the way FileSorter and most people sort) - the last fallback.
+    var FOLDER_YEAR = /(?:^|\/)(19[89]\d|20[0-3]\d)(?=\/)/g;
 
     function path(f) { return f.webkitRelativePath || f._path || f.name; }
 
@@ -110,6 +112,7 @@
             var y = null;
             if (/\.jpe?g$/i.test(m.f.name)) y = exifYear(await readSlice(m.f, 0, 131072));
             if (!y) { var n = path(m.f).match(NAME_DATE); if (n) y = +n[1]; }
+            if (!y) { var years = path(m.f).match(FOLDER_YEAR); if (years) y = +years[years.length - 1].replace('/', ''); }
             if (y) r.years[y] = (r.years[y] || 0) + 1; else r.undated++;
         }, function (d, t) { status('Læser datoer …', d, t); });
 
@@ -136,6 +139,6 @@
 
     return {
         path: path, exifYear: exifYear, analyse: analyse, pool: pool,
-        patterns: { PHOTO: PHOTO, VIDEO: VIDEO, SCREENSHOT: SCREENSHOT, CHAT: CHAT, NAME_DATE: NAME_DATE }
+        patterns: { PHOTO: PHOTO, VIDEO: VIDEO, SCREENSHOT: SCREENSHOT, CHAT: CHAT, NAME_DATE: NAME_DATE, FOLDER_YEAR: FOLDER_YEAR }
     };
 });

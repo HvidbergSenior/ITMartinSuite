@@ -62,3 +62,13 @@ test('A folder with no pictures has none', async () => {
     const r = await D.analyse([new FakeFile('a.txt', Buffer.alloc(5))], () => {});
     assert.equal(r.photos + r.videos, 0);
 });
+
+test('A year folder dates photos that carry no date themselves (2026-10-08: 171 of 1,009 were "undated" in Billeder/2015)', async () => {
+    const r = await D.analyse([
+        new FakeFile('emil 116.jpg', Buffer.alloc(40000, 9), '2015/7 Juli'),                // no EXIF, no date in the name
+        new FakeFile('IMG_20170101_1200.jpg', Buffer.alloc(40000, 8), '2015/1 Januar'),      // the name's date wins over the folder
+        new FakeFile('ferie.jpg', Buffer.alloc(40000, 7), 'Diverse'),                         // nothing to go by
+    ], () => {});
+    assert.deepEqual(r.years, { 2015: 1, 2017: 1 });
+    assert.equal(r.undated, 1);
+});
