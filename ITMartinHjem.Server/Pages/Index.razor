@@ -48,10 +48,11 @@
 @* Who Martin is: folded, so the first screen is just today + this week (user 2026-10-05). *@
 @if (_hero is not null)
 {
-    <details class="k-card hj-page hj-hero" data-remember="hero">
-        <summary><b>👋 Hvem er ITMartin?</b></summary>
-        @TinyMarkdown.Render(_hero.Body)
-    </details>
+    @* Same kind of box as the rest (user 2026-10-08): a card with a heading that kolibri.js folds, starting closed. *@
+    <section class="k-card hj-page hj-sec hj-hero" data-fold-closed="1">
+        <h2>👋 Hvem er ITMartin?</h2>
+        <div>@TinyMarkdown.Render(_hero.Body)</div>
+    </section>
 }
 
 @* Small boxes instead of menu tabs (user 2026-10-07: "i want small boxes"): Om mig, Bliv pilot and the pages
