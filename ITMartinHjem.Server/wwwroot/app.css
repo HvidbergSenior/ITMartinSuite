@@ -360,7 +360,8 @@ html[data-theme="dark"] .hj-eltip-cheap{color:#9ff0b0}
 .hj-tile:hover, .hj-tile:focus-visible { border-color: var(--k-text); }
 .hj-tile-icon { font-size: 1.5em; line-height: 1; }
 .hj-tile b { font-size: 1em; }
-.hj-tile span:last-child { color: var(--k-muted); font-size: var(--k-fs-small, .9em); }
+.hj-tile-line { color: var(--k-muted); font-size: var(--k-fs-small, .9em); }
+.hj-tile-fact { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--k-border); font-size: var(--k-fs-small, .9em); color: var(--k-text); }
 /* Mine apps: opening one box must not stretch its neighbour in the same row (user 2026-10-07: "opens both on parallel"). */
 .hj-apps { align-items: start; }
 .hj-app { align-self: start; }
@@ -400,3 +401,10 @@ html[data-theme="dark"] .hj-starttip{background:#13301a;border-color:#3f8a4e}
 html[data-theme="dark"] .hj-starttip .k-card-title,html[data-theme="dark"] .hj-starttip .hj-eltip-text{color:#d8f5de}
 .bu-blind{background:#f1f3f6;border:2px dashed #4a5866;border-radius:10px;padding:10px 12px;color:#14202b;margin:4px 0 10px}
 html[data-theme="dark"] .bu-blind{background:#1d2731;border-color:#a9b6c2;color:#e8eef3}
+/* Tjek dine billeder (/billeder, 2026-10-08): years as bars, empty years marked with text, not colour only */
+.bi-years{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.bi-year{display:grid;grid-template-columns:3.2rem 1fr 4.5rem;gap:8px;align-items:center;font-variant-numeric:tabular-nums}
+.bi-bar{height:14px;background:#4a5866;border-radius:3px;min-width:0}
+.bi-bar.none{background:transparent}
+.bi-c{font-size:.9rem;text-align:right}
+html[data-theme="dark"] .bi-bar{background:#a9b6c2}

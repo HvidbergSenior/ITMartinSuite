@@ -21,7 +21,7 @@ public sealed class AppStatus(IDbContextFactory<HjemDb> dbf, IHttpClientFactory 
             try
             {
                 await using var db = await dbf.CreateDbContextAsync(ct);
-                var urls = await db.AppLinks.AsNoTracking().Select(a => a.Url).Distinct().ToListAsync(ct);
+                var urls = await db.AppLinks.AsNoTracking().Where(a => a.Url != "").Select(a => a.Url).Distinct().ToListAsync(ct);
                 var client = http.CreateClient("status");
                 await Parallel.ForEachAsync(urls, new ParallelOptions { MaxDegreeOfParallelism = 6, CancellationToken = ct }, async (url, c) =>
                 {
