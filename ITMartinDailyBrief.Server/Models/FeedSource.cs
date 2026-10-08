@@ -11,6 +11,8 @@ public class FeedSource
 
     public static FeedSource[] Presets =>
     [
+        // TV 2's own news feed (user 2026-10-08: "free can be tv2 news without ads")
+        new() { Id = "tv2",        Name = "TV 2 Nyheder", RssUrl = "https://feeds.services.tv2.dk/api/feeds/nyheder/rss",                   Color = "#E8002D", IsPreset = true },
         new() { Id = "tv2ost",     Name = "TV 2 Øst (regional)", RssUrl = "https://www.tv2east.dk/rss",                                    Color = "#E8002D", IsPreset = true },
         new() { Id = "dr",         Name = "DR",         RssUrl = "https://www.dr.dk/nyheder/service/feeds/senestenyt",                    Color = "#FF6B00", IsPreset = true },
         new() { Id = "politiken",  Name = "Politiken",  RssUrl = "https://politiken.dk/rss/senestenyt.rss",                              Color = "#C41E3A", IsPreset = true },
