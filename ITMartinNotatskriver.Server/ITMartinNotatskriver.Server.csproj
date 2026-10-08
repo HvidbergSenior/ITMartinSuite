@@ -9,18 +9,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Anthropic" Version="12.29.0" />
-        <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
-        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <!-- Same personal-data hider as the Windows edition. -->
-        <Compile Include="..\ITMartinNotat.Desktop\Pseudonymizer.cs" Link="Services\Pseudonymizer.cs" />
+      <ProjectReference Include="..\ITMartinNotatskriver.Infrastructure\ITMartinNotatskriver.Infrastructure.csproj" />
+      <ProjectReference Include="..\ITMartinNotatskriver.Application\ITMartinNotatskriver.Application.csproj" />
+      <ProjectReference Include="..\ITMartinNotatskriver.Domain\ITMartinNotatskriver.Domain.csproj" />
     </ItemGroup>
 
 </Project>

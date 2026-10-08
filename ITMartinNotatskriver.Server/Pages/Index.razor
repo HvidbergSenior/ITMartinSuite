@@ -1,14 +1,19 @@
 @page "/"
 @implements IAsyncDisposable
-@inject NoteAi Ai
+@inject UsagePlan Plan
+@inject WriteDocument Writer
+@inject AddAttachment Adder
+@inject IWordExporter Word
 @inject IJSRuntime JS
 @inject IConfiguration Config
 
+@* The page only shows and collects; the rules live in the Domain (NoteDraft, UsagePlan, PersonalData) and the
+   steps in the Application (WriteDocument, AddAttachment). data-test names are used by ITMartinTests/Flows. *@
 <PageTitle>Notatskriver</PageTitle>
 
 <header class="ns-head">
     <h1>✍️ Notatskriver</h1>
-    <p>@(OnlyText ? "Fra stikord til færdigt dokument." : "Fra stikord, diktat og billeder af håndskrift til færdigt dokument.")</p>
+    <p>@(Plan.Dictation ? "Fra stikord, diktat og billeder af håndskrift til færdigt dokument." : "Fra stikord og billeder af tekst til færdigt dokument.")</p>
 </header>
 
 @if (_locked)
@@ -27,86 +32,85 @@ else
     @* ── 1. Notes ── *@
     <section class="k-card ns-card">
         <h2>1. Dine noter</h2>
-        @if (OnlyText)
+        @if (Plan == UsagePlan.Free)
         {
             <p class="k-help">Skriv eller indsæt dine stikord herunder – korte linjer er fint. Har du teksten et andet sted, så tag et <b>skærmbillede</b> eller et <b>billede</b> af den. AI'en skriver det hele om til et færdigt dokument.</p>
             <div class="ns-inputs">
-                <button class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "pics")' disabled="@(_busy || _bilag.Count >= FreeImages)">🖼️ Skærmbillede eller billede af tekst</button>
+                <button data-test="pick-images" class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "pics")' disabled="@(_busy || _draft.IsFull)">🖼️ Skærmbillede eller billede af tekst</button>
                 <InputFile id="pics" class="ns-hidden" OnChange="OnFiles" accept="image/*" multiple />
             </div>
-            <p class="k-help ns-small">🆓 Gratis: tekst og op til @FreeImages billeder. Vil du også kunne tale noterne ind eller sende filer (PDF, Word)? Skriv til ITMartin@Mensa.dk.</p>
+            <p class="k-help ns-small" data-test="free-note">🆓 Gratis: tekst og op til @Plan.MaxAttachments billeder. Vil du også kunne tale noterne ind eller sende filer (PDF, Word)? Skriv til ITMartin@Mensa.dk.</p>
         }
         else
         {
-        <p class="k-help">Skriv stikord, tal dem ind, eller tag billeder af dine håndskrevne noter (flere sider er fint).</p>
-
-        <div class="ns-inputs">
-            <button class="k-btn ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "cam")' disabled="@(_busy || _bilag.Count >= NoteAi.MaxBilag)">📷 Tag billede</button>
-            <InputFile id="cam" class="ns-hidden" OnChange="OnFiles" accept="image/*" capture="environment" multiple />
-            <button class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "files")' disabled="@(_busy || _bilag.Count >= NoteAi.MaxBilag)">📎 Vælg filer</button>
-            <InputFile id="files" class="ns-hidden" OnChange="OnFiles" accept="image/*,.pdf,.docx,.txt,text/plain" multiple />
-            @if (_canDictate)
+            <p class="k-help">Skriv stikord, tal dem ind, eller tag billeder af dine håndskrevne noter (flere sider er fint).</p>
+            <div class="ns-inputs">
+                <button data-test="take-photo" class="k-btn ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "cam")' disabled="@(_busy || _draft.IsFull)">📷 Tag billede</button>
+                <InputFile id="cam" class="ns-hidden" OnChange="OnFiles" accept="image/*" capture="environment" multiple />
+                <button data-test="pick-files" class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "files")' disabled="@(_busy || _draft.IsFull)">📎 Vælg filer</button>
+                <InputFile id="files" class="ns-hidden" OnChange="OnFiles" accept="image/*,.pdf,.docx,.txt,text/plain" multiple />
+                @if (_canDictate && Plan.Dictation)
+                {
+                    <button data-test="dictate" class="k-btn @(_dictating ? "ns-rec" : "k-btn-secondary") ns-big" @onclick="ToggleDictate" disabled="@_busy">@(_dictating ? "⏹ Stop" : "🎤 Tal")</button>
+                }
+            </div>
+            @if (!_canDictate)
             {
-                <button class="k-btn @(_dictating ? "ns-rec" : "k-btn-secondary") ns-big" @onclick="ToggleDictate" disabled="@_busy">@(_dictating ? "⏹ Stop" : "🎤 Tal")</button>
+                <p class="k-help">🎤 Vil du tale? Tryk i tekstfeltet og brug mikrofonen på telefonens tastatur.</p>
             }
-        </div>
-        @if (!_canDictate)
-        {
-            <p class="k-help">🎤 Vil du tale? Tryk i tekstfeltet og brug mikrofonen på telefonens tastatur.</p>
-        }
-        else { <p class="k-help ns-small">🎤 bruger din browsers talegenkendelse – i Chrome/Edge sendes lyden til Google/Microsoft. <a href="/privatliv">Læs mere</a></p> }
-        @if (_dictating) { <p class="ns-live">● Lytter … tal tydeligt. Teksten kommer ind i feltet herunder.</p> }
+            else { <p class="k-help ns-small">🎤 bruger din browsers talegenkendelse – i Chrome/Edge sendes lyden til Google/Microsoft. <a href="/privatliv">Læs mere</a></p> }
+            @if (_dictating) { <p class="ns-live">● Lytter … tal tydeligt. Teksten kommer ind i feltet herunder.</p> }
         }
 
-        @if (_bilag.Count > 0)
+        @if (_draft.Attachments.Count > 0)
         {
-            <ul class="ns-bilag">
-                @foreach (var b in _bilag)
+            <ul class="ns-bilag" data-test="attachments">
+                @foreach (var a in _draft.Attachments)
                 {
                     <li>
-                        @if (b.Kind == "billede") { <img src="@b.Thumb" alt="" /> } else { <span class="ns-fileicon">@(b.Kind == "pdf" ? "📕" : "📄")</span> }
-                        <span class="ns-bname">@b.Name</span>
-                        <button class="ns-x" title="Fjern" @onclick="() => Fjern(b)" disabled="@_busy">✕</button>
+                        @if (a.Kind == AttachmentKind.Image) { <img src="@Thumb(a)" alt="" /> } else { <span class="ns-fileicon">@(a.Kind == AttachmentKind.Pdf ? "📕" : "📄")</span> }
+                        <span class="ns-bname">@a.Name</span>
+                        <button class="ns-x" title="Fjern" @onclick="() => Remove(a)" disabled="@_busy">✕</button>
                     </li>
                 }
             </ul>
         }
 
-        <textarea class="ns-notes" @bind="_noter" @bind:event="oninput" rows="9" placeholder="fx: møde m. Bo og Lis – budget 2027 – ny printer ok, max 3000 – Lis tjekker tilbud til fredag"></textarea>
+        <textarea data-test="notes" class="ns-notes" @bind="_draft.Notes" @bind:event="oninput" rows="9" placeholder="fx: møde m. Bo og Lis – budget 2027 – ny printer ok, max 3000 – Lis tjekker tilbud til fredag"></textarea>
     </section>
 
     @* ── 2. What to make ── *@
     <section class="k-card ns-card">
         <h2>2. Hvad skal det blive?</h2>
         <div class="ns-types">
-            @foreach (var t in NoteAi.Typer)
+            @foreach (var t in DocumentType.All)
             {
-                <button class="ns-type @(t == _type ? "on" : "")" @onclick="() => _type = t" disabled="@_busy"><span>@t.Icon</span>@t.Title</button>
+                <button class="ns-type @(t == _draft.Type ? "on" : "")" @onclick="() => _draft.Type = t" disabled="@_busy"><span>@t.Icon</span>@t.Title</button>
             }
         </div>
         <label class="ns-label" for="ekstra">Ekstra ønske (valgfrit)</label>
-        <input id="ekstra" class="k-input" @bind="_ekstra" placeholder="fx: kort, uformel tone, til min chef" disabled="@_busy" />
+        <input id="ekstra" class="k-input" @bind="_draft.Extra" placeholder="fx: kort, uformel tone, til min chef" disabled="@_busy" />
 
-        @if (HasPhotos)
+        @if (_draft.HasVisuals)
         {
             <label class="ns-confirm">
-                <input type="checkbox" @bind="_photosOk" disabled="@_busy" />
+                <input data-test="confirm-visuals" type="checkbox" checked="@_draft.VisualsConfirmed" @onchange="e => _draft.ConfirmVisuals(e.Value is true)" disabled="@_busy" />
                 <span>Mine billeder/PDF'er indeholder ikke CPR-numre eller oplysninger om andres helbred (fx patienter).</span>
             </label>
         }
 
-        @if (_block is { } bl)
+        @if (_stopped is { } st)
         {
-            <div class="ns-block @(bl.Hard ? "hard" : "")" role="alert">
-                <b>@(bl.Hard ? "⛔ Det her må du ikke sende" : "✋ Det her må du ikke sende – fjern personoplysningerne først")</b>
-                <p>@bl.Text</p>
-                @if (bl.Fund.Count > 0)
+            <div data-test="stopped" class="ns-block @(st.Hard ? "hard" : "")" role="alert">
+                <b>@(st.Hard ? "⛔ Det her må du ikke sende" : "✋ Det her må du ikke sende – fjern personoplysningerne først")</b>
+                <p>@st.Message</p>
+                @if (st.Findings.Count > 0)
                 {
-                    <ul>@foreach (var f in bl.Fund) { <li>@f.Hvad: <code>@f.Eksempel</code></li> }</ul>
+                    <ul>@foreach (var f in st.Findings) { <li>@f.What: <code>@f.Example</code></li> }</ul>
                 }
-                @if (!bl.Hard)
+                @if (!st.Hard)
                 {
-                    <button class="k-btn" @onclick="SkrivSkjult">🙈 Skjul dem og fortsæt</button>
+                    <button data-test="hide-and-continue" class="k-btn" @onclick="() => WriteAsync(hideNames: true)">🙈 Skjul dem og fortsæt</button>
                     <p class="k-help">CPR, telefon, e-mail og adresser byttes ud med fx [CPR1], før noget sendes til AI'en – og sættes ind igen i dit færdige dokument.</p>
                 }
                 else
@@ -116,67 +120,48 @@ else
             </div>
         }
 
-        <button class="k-btn ns-go" @onclick="Skriv" disabled="@(!CanWrite)">@(_busy ? "⏳ Skriver …" : "✨ Skriv dokumentet")</button>
-        @if (_busy) { <p class="k-help">Det tager typisk 10-30 sekunder@(HasPhotos ? " – lidt længere med billeder" : "").</p> }
-        @if (_error is not null) { <p class="ns-err">@_error</p> }
+        <button data-test="write" class="k-btn ns-go" @onclick="() => WriteAsync(hideNames: false)" disabled="@(_busy || !_draft.CanWrite)">@(_busy ? "⏳ Skriver …" : "✨ Skriv dokumentet")</button>
+        @if (_busy) { <p class="k-help">Det tager typisk 10-30 sekunder@(_draft.HasVisuals ? " – lidt længere med billeder" : "").</p> }
+        @if (_error is not null) { <p data-test="error" class="ns-err">@_error</p> }
     </section>
 
     @* ── 3. Result ── *@
     @if (_result is not null)
     {
-        <section class="k-card ns-card ns-result" id="result">
-            <h2>3. @_type.Icon @_type.Title</h2>
+        <section class="k-card ns-card ns-result" id="result" data-test="result">
+            <h2>3. @_draft.Type.Icon @_draft.Type.Title</h2>
             <p class="k-help">Læs det igennem og ret direkte i teksten. [?] = AI'en kunne ikke læse det sikkert. [dato] o.l. = mangler i dine noter.</p>
             <textarea class="ns-out" @bind="_result" @bind:event="oninput" rows="16"></textarea>
             <div class="ns-inputs">
-                <button class="k-btn ns-big" @onclick="Kopier">📋 @(_copied ? "Kopieret!" : "Kopiér")</button>
-                <button class="k-btn k-btn-secondary ns-big" @onclick="HentWord">💾 Hent som Word</button>
-                @if (_canShare) { <button class="k-btn k-btn-secondary ns-big" @onclick="Del">📤 Del</button> }
-                <button class="k-btn k-btn-secondary ns-big" @onclick="Ny">🧹 Nyt dokument</button>
+                <button class="k-btn ns-big" @onclick="Copy">📋 @(_copied ? "Kopieret!" : "Kopiér")</button>
+                <button class="k-btn k-btn-secondary ns-big" @onclick="DownloadWord">💾 Hent som Word</button>
+                @if (_canShare) { <button class="k-btn k-btn-secondary ns-big" @onclick="Share">📤 Del</button> }
+                <button class="k-btn k-btn-secondary ns-big" @onclick="New">🧹 Nyt dokument</button>
             </div>
         </section>
     }
 </div>
-
 }
 
-<p class="k-help ns-privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
+<p class="k-help ns-privacy" data-test="privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
 
 @code {
-    private sealed record Block(bool Hard, string Text, List<Sensitive.Fund> Fund);
-
-    private string _noter = "";
-    private string _ekstra = "";
-    private DokType _type = NoteAi.Typer[0];
-    private readonly List<Bilag> _bilag = [];
-    private string? _result;
-    private string? _error;
-    private Block? _block;
-    private bool _busy, _photosOk, _copied, _dictating, _canDictate, _canShare;
+    private NoteDraft _draft = null!;
+    private string? _result, _error;
+    private WriteOutcome.Stopped? _stopped;
+    private bool _busy, _copied, _dictating, _canDictate, _canShare;
     private DotNetObjectReference<Index>? _self;
 
     // Test period: an access code from config (Notatskriver__AdgangsKode). Empty = open to everyone.
     private string AccessCode => Config["Notatskriver:AdgangsKode"] ?? "";
     private bool _locked, _codeWrong;
-
-    // Free version (default): text only - no dictation, camera or files. Notatskriver__KunTekst=false turns them on.
-    private bool OnlyText => !bool.TryParse(Config["Notatskriver:KunTekst"], out var v) || v;
-    // Since 2026-10-08 the free version also takes pictures of text (screenshots, photos) - a few, as each is an AI image read.
-    private const int FreeImages = 3;
-
-    protected override void OnInitialized() => _locked = AccessCode.Length > 0;
     private string _code = "";
 
-    private async Task Unlock()
+    protected override void OnInitialized()
     {
-        _codeWrong = _code.Trim() != AccessCode;
-        if (_codeWrong) return;
-        _locked = false;
-        await JS.InvokeVoidAsync("notat.remember", _code.Trim());
+        _draft = new NoteDraft(Plan);
+        _locked = AccessCode.Length > 0;
     }
-
-    private bool HasPhotos => _bilag.Any(b => b.Kind is "billede" or "pdf");
-    private bool CanWrite => !_busy && (_noter.Trim().Length > 0 || _bilag.Count > 0) && (!HasPhotos || _photosOk);
 
     protected override async Task OnAfterRenderAsync(bool first)
     {
@@ -188,40 +173,42 @@ else
         StateHasChanged();
     }
 
+    private async Task Unlock()
+    {
+        _codeWrong = _code.Trim() != AccessCode;
+        if (_codeWrong) return;
+        _locked = false;
+        await JS.InvokeVoidAsync("notat.remember", _code.Trim());
+    }
+
+    private static string Thumb(Attachment a) => "data:image/jpeg;base64," + Convert.ToBase64String(a.Data);
+
     // ── input ──
     private async Task OnFiles(InputFileChangeEventArgs e)
     {
         _error = null;
-        var max = OnlyText ? FreeImages : NoteAi.MaxBilag;
-        foreach (var f in e.GetMultipleFiles(NoteAi.MaxBilag))
+        foreach (var f in e.GetMultipleFiles(UsagePlan.Extended.MaxAttachments))
         {
-            if (OnlyText && !f.ContentType.StartsWith("image/")) { _error = "Den gratis version tager kun billeder og skærmbilleder – ikke PDF- eller Word-filer."; continue; }
-            if (_bilag.Count >= max) { _error = OnlyText ? $"Den gratis version tager højst {FreeImages} billeder pr. dokument." : $"Højst {NoteAi.MaxBilag} filer/billeder pr. dokument."; break; }
-            try
-            {
-                await using var s = f.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
-                _bilag.Add(await NoteAi.LaesAsync(f.Name, f.ContentType, s, CancellationToken.None));
-            }
-            catch (NoteException ex) { _error = ex.Message; }
-            catch (IOException) { _error = $"{f.Name} er for stor (højst 25 MB)."; }
+            var why = await Adder.ExecuteAsync(_draft, f.Name, f.ContentType, f.Size,
+                () => f.OpenReadStream(maxAllowedSize: AddAttachment.MaxBytes), CancellationToken.None);
+            if (why is not null) { _error = why; if (_draft.IsFull) break; }
         }
-        _photosOk = false;
-        _block = null;
+        _stopped = null;
     }
 
-    private void Fjern(Bilag b) { _bilag.Remove(b); _block = null; }
+    private void Remove(Attachment a) { _draft.Remove(a); _stopped = null; }
 
     private async Task ToggleDictate()
     {
-        if (OnlyText) return;
+        if (!Plan.Dictation) return;
         if (_dictating) { await JS.InvokeVoidAsync("notat.stopDictate"); _dictating = false; return; }
         _dictating = await JS.InvokeAsync<bool>("notat.startDictate", _self);
     }
 
     [JSInvokable] public Task OnDictated(string text) => InvokeAsync(() =>
     {
-        _noter = _noter.Length == 0 ? text : _noter.TrimEnd() + (_noter.EndsWith('\n') ? "" : "\n") + text;
-        _block = null;
+        _draft.Notes = _draft.Notes.Length == 0 ? text : _draft.Notes.TrimEnd() + (_draft.Notes.EndsWith('\n') ? "" : "\n") + text;
+        _stopped = null;
         StateHasChanged();
     });
 
@@ -235,60 +222,34 @@ else
     });
 
     // ── write ──
-    private string AllText => string.Join("\n", _bilag.Where(b => b.Kind == "tekst").Select(b => b.Text).Append(_noter));
-
-    private async Task Skriv()
+    private async Task WriteAsync(bool hideNames)
     {
-        // The hindrance: checked on the server before anything goes to Claude.
-        var fund = Sensitive.Find(AllText);
-        if (Sensitive.LooksLikePatientNotes(fund))
-        {
-            _block = new(true, "Dine noter ligner oplysninger om en patients eller borgers helbred. Den slags må ikke sendes til en AI-tjeneste uden en aftale fra din arbejdsplads – derfor kan det ikke sendes herfra.", fund);
-            return;
-        }
-        if (fund.Count > 0)
-        {
-            _block = new(false, "Dine noter indeholder personoplysninger. De bliver ikke sendt, før de er fjernet.", fund);
-            return;
-        }
-        await RunAsync(null);
-    }
-
-    private Task SkrivSkjult() => RunAsync(new Pseudonymizer());
-
-    private async Task RunAsync(Pseudonymizer? hider)
-    {
-        _busy = true; _error = null; _block = null; _copied = false;
+        _busy = true; _error = null; _stopped = null; _copied = false;
         try
         {
-            var noter = hider?.Hide(_noter, []) ?? _noter;
-            var bilag = hider is null ? _bilag : _bilag.Select(b => b.Kind == "tekst" ? b with { Text = hider.Hide(b.Text, []) } : b).ToList();
-            var text = await Ai.SkrivAsync(_type, noter, bilag, _ekstra, CancellationToken.None);
-            if (text.Trim().Trim('.') == NoteAi.Blocked)
+            switch (await Writer.ExecuteAsync(_draft, hideNames, CancellationToken.None))
             {
-                _block = new(true, "AI'en fandt CPR-numre eller helbredsoplysninger om en person i dit materiale (måske på et billede) og har ikke skrevet noget dokument.", []);
-                return;
+                case WriteOutcome.Written w: _result = w.Text; break;
+                case WriteOutcome.Stopped s: _stopped = s; break;
+                case WriteOutcome.Failed f: _error = f.Message; break;
             }
-            _result = hider is null ? text : hider.Restore(text, out _);
-            await Task.Yield();
         }
-        catch (NoteException ex) { _error = ex.Message; }
         catch (Exception) { _error = "Noget gik galt. Prøv igen."; }
         finally { _busy = false; }
     }
 
     // ── result ──
-    private async Task Kopier() => _copied = await JS.InvokeAsync<bool>("notat.copy", _result ?? "");
+    private async Task Copy() => _copied = await JS.InvokeAsync<bool>("notat.copy", _result ?? "");
 
-    private async Task HentWord() =>
-        await JS.InvokeVoidAsync("notat.download", $"{_type.Title} {DateTime.Now:yyyy-MM-dd}.docx",
-            Convert.ToBase64String(NoteAi.Word(_result ?? "")), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    private async Task DownloadWord() =>
+        await JS.InvokeVoidAsync("notat.download", $"{_draft.Type.Title} {DateTime.Now:yyyy-MM-dd}.docx",
+            Convert.ToBase64String(Word.Export(_result ?? "")), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
-    private async Task Del() => await JS.InvokeAsync<bool>("notat.share", _type.Title, _result ?? "");
+    private async Task Share() => await JS.InvokeAsync<bool>("notat.share", _draft.Type.Title, _result ?? "");
 
-    private void Ny()
+    private void New()
     {
-        _noter = ""; _ekstra = ""; _bilag.Clear(); _result = null; _block = null; _error = null; _photosOk = false; _copied = false;
+        _draft.Clear(); _result = null; _stopped = null; _error = null; _copied = false;
     }
 
     public async ValueTask DisposeAsync()
