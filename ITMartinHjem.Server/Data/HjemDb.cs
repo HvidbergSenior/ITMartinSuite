@@ -53,6 +53,8 @@ public sealed class AppLink
     public string FreeText { get; set; } = "";   // what the free version gives you
     public string PaidText { get; set; } = "";   // what the extended (paid, on request) version adds
     public bool Show { get; set; }
+    // A picture of the app in use, e.g. "/apps/polstrer.jpg" (user 2026-10-08: a showcase shows the app, not a link).
+    public string Picture { get; set; } = "";
     public bool Awake { get; set; }    // false = "sover" on the site even when the container runs (user: not ready yet)
     public int Sort { get; set; }
 }

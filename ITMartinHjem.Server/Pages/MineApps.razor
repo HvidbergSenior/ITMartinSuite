@@ -23,6 +23,7 @@
             <h3 class="hj-app-head"><span class="hj-app-icon">@a.Icon</span> @a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
             <div class="hj-app-body">
                 <div class="k-help">@a.Description</div>
+                @if (a.Picture.Length > 0) { <a href="@a.Picture" target="_blank" rel="noopener" title="Tryk for at se billedet stort"><img class="hj-app-pic" src="@a.Picture" alt="Sådan ser @a.Name ud, når den bliver brugt" loading="lazy" /></a><div class="k-help k-center">🔍 Tryk på billedet for at se det stort</div> }
                 <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? a.FreeText : "Kom i gang med det samme – ingen betaling.")</div>
                 <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? a.PaidText : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
                 <div class="k-row k-mt">
