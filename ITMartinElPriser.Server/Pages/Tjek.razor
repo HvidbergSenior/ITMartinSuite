@@ -1,8 +1,9 @@
 @page "/tjek"
+@using ITMartinElPriser.Infrastructure
 @using System.Globalization
 @using UglyToad.PdfPig
 @using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor
-@inject SupplierCatalog Catalog
+@inject ISupplierSource Catalog
 
 @* The free hook for MinElpris (user 2026-09-28: "something with a wow effect, so users want to see
    the paid version"): the user's OWN bill, read in memory only (nothing stored - the free app has no
@@ -22,13 +23,13 @@
     <div class="card">
         <div class="card-title">Hvad betaler du egentlig for?</div>
         <p class="small">De fleste ved ikke, at kun en del af elregningen går til elselskabet. Og at elselskaberne selv oplyser deres priser til Forsyningstilsynet – så vi kan tjekke, om din regning passer.</p>
-        <label class="btn btn-primary btn-block" style="text-align:center">
+        <label class="btn btn-primary btn-block u-center">
             📎 Vælg regning (PDF)
-            <InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" style="display:none" />
+            <InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" class="u-hide"/>
         </label>
         @if (_busy) { <p class="muted small">Læser regningen…</p> }
         @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
-        <details class="card fold" style="margin-top:10px" data-remember="tjek-howto">
+        <details class="card fold u-mt10" data-remember="tjek-howto">
             <summary>❓ Sådan finder du din regning som PDF</summary>
             <ol class="small">
                 <li><b>Tjek din mail og e-Boks / Digital Post.</b> De fleste elselskaber sender regningen dér. Søg på elselskabets navn eller “elregning”.</li>
@@ -57,11 +58,11 @@ else
             var sum = b.PartKr(party);
             if (sum == 0) continue;
             var open = _openParty == party;
-            <div class="bill-line tap" style="margin-top:8px" role="button" tabindex="0" aria-expanded="@(open ? "true" : "false")"
+            <div class="bill-line tap u-mt8" role="button" tabindex="0" aria-expanded="@(open ? "true" : "false")"
                  @onclick="() => _openParty = open ? null : party">
                 <div class="appl-row"><span><b>@PartyTitle(party, b)</b></span><b>@sum.ToString("0", Da) kr · @Pct(sum, b.TotalKr) @(open ? "▾" : "▸")</b></div>
-                <div class="bill-bar"><i style="width:@((b.TotalKr > 0 ? sum / b.TotalKr * 100 : 0).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div>
-                <p class="muted small" style="margin:4px 0 0">@ElBillParser.ExplainParty(party)@(open ? "" : " Tryk for linjerne.")</p>
+                <div class="bill-bar"><i style="--w:@((b.TotalKr > 0 ? sum / b.TotalKr * 100 : 0).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div>
+                <p class="muted small u-mt4">@ElBillParser.ExplainParty(party)@(open ? "" : " Tryk for linjerne.")</p>
             </div>
             @if (open)
             {
@@ -72,7 +73,7 @@ else
                             <span><b>@l.Name</b>@(l.RateKr is { } r ? $" · {l.Kwh?.ToString("0", Da)} kWh × {r.ToString("0.000", Da)} kr" : "")</span>
                             <b>@l.Kr.ToString("0.00", Da) kr</b>
                         </div>
-                        <p class="muted small" style="margin:2px 0 0">@ElBillParser.Explain(l)</p>
+                        <p class="muted small u-mt2">@ElBillParser.Explain(l)</p>
                     </div>
                 }
             }
@@ -112,7 +113,7 @@ else
                 <div class="now-price lvl-cheap">Spar ca. @save.ToString("#,##0", Da) kr</div>
                 <div class="now-unit">om året ved at skifte elselskab</div>
                 <div class="now-compare">🔒 <b>Hvilket selskab</b> og <b>hvordan du skifter</b> med ét tryk – det viser MinElpris, sammen med hele regningen linje for linje og dit forbrug time for time.</div>
-                <a class="btn btn-primary btn-block" style="margin-top:10px" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se hvem – i MinElpris →</a>
+                <a class="btn btn-primary btn-block u-mt10" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se hvem – i MinElpris →</a>
             </div>
         }
         else if (c.SavingYearlyKr is not null)
@@ -122,8 +123,8 @@ else
     }
 
     <div class="card">
-        <p class="small muted" style="margin:0 0 8px">Regningen er kun læst – den er ikke gemt. Priser fra <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</p>
-        <label class="btn">📎 Tjek en anden regning<InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" style="display:none" /></label>
+        <p class="small muted u-mb8">Regningen er kun læst – den er ikke gemt. Priser fra <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</p>
+        <label class="btn">📎 Tjek en anden regning<InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" class="u-hide"/></label>
     </div>
 }
 

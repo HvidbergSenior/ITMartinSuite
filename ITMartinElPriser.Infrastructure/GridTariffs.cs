@@ -2,19 +2,16 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace ITMartinElPriser.Core;
+using ITMartinElPriser.Application;
+using ITMartinElPriser.Core;
 
-public sealed record GridCompany(string Id, string Name, string Company, string PriceArea);
-
-// Where the household is: a readable label, its postcode and the point used to find the
-// ONE grid company that serves it (postcodes can be shared by two).
-public sealed record Place(string Label, string PostalCode, double Lat, double Lon);
+namespace ITMartinElPriser.Infrastructure;
 
 // Exact grid tariffs and the postcode -> grid company lookup, from Strømligning's open API
 // (CC BY-NC 4.0: free, non-commercial ElPriser only, with attribution). Energinet's own
 // DatahubPricelist has the same numbers but several codes, discounts and local tariffs per
 // company; Strømligning has already resolved which one a household pays.
-public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger)
+public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger) : IGridTariffSource
 {
     private const string Api = "https://stromligning.dk/api/";
     private readonly Dictionary<string, (Dictionary<DateTime, double> Slots, DateTime At)> _tariffs = new();

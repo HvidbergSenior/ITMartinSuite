@@ -17,6 +17,8 @@
     <ItemGroup>
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
         <ProjectReference Include="..\ITMartinElPriser.Core\ITMartinElPriser.Core.csproj" />
+        <ProjectReference Include="..\ITMartinElPriser.Infrastructure\ITMartinElPriser.Infrastructure.csproj" />
+        <ProjectReference Include="..\ITMartinElPriser.Application\ITMartinElPriser.Application.csproj" />
     </ItemGroup>
 
 </Project>

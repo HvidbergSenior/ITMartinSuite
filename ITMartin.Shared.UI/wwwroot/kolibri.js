@@ -20,7 +20,7 @@
             '.k-fold-head::after{content:"▾";margin-left:auto;opacity:.6;font-size:.9em;transition:transform .15s}' +
             '.k-folded>.k-fold-head::after{transform:rotate(-90deg)}' +
             '.k-folded>:not(.k-fold-head){display:none!important}' +
-            '.k-install-pill{position:fixed;z-index:900;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));border:1px solid ' + c('border', 'rgba(128,128,128,.35)') + ';background:' + c('card', '#fff') + ';color:' + c('text', '#1a1a1a') + ';border-radius:999px;padding:8px 14px;font:600 14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}' +
+            '.k-install-pill{position:fixed;z-index:900;left:12px;bottom:calc(12px + var(--k-bottom-offset,0px) + env(safe-area-inset-bottom,0px));border:1px solid ' + c('border', 'rgba(128,128,128,.35)') + ';background:' + c('card', '#fff') + ';color:' + c('text', '#1a1a1a') + ';border-radius:999px;padding:8px 14px;font:600 14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}' +
             '.k-install-sheet{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:12px}' +
             '.k-install-sheet[hidden]{display:none}' +
             '@media (min-width:640px){.k-install-sheet{align-items:center}}' +

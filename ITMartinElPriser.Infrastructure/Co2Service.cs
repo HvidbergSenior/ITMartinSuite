@@ -2,24 +2,14 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace ITMartinElPriser.Core;
+using ITMartinElPriser.Application;
+using ITMartinElPriser.Core;
 
-// How much CO2 one kWh from the Danish grid carries, in grams, per 5 minutes.
-public sealed record Co2Point(DateTime TimeDk, double Grams);
-
-public sealed record Co2Snapshot(Co2Point? Now, List<Co2Point> Forecast, double? DayAvg);
-
-// Denmark's production right now (whole country, MW): wind, sun, power stations, and the
-// net import (negative = we export).
-public sealed record PowerMix(DateTime TimeDk, double Wind, double Solar, double Plants, double NetImport)
-{
-    public double Consumption => Math.Max(1, Wind + Solar + Plants + NetImport);
-    public double Share(double mw) => Math.Clamp(mw / Consumption, 0, 1);
-}
+namespace ITMartinElPriser.Infrastructure;
 
 // Energinet's free CO2 data: CO2Emis = measured (5-min, a few minutes behind),
 // CO2EmisProg = forecast for the rest of today. No key needed.
-public sealed class Co2Service(HttpClient http, ILogger<Co2Service> logger)
+public sealed class Co2Service(HttpClient http, ILogger<Co2Service> logger) : ICo2Source
 {
     private const string Api = "https://api.energidataservice.dk/dataset/";
     private readonly Dictionary<string, (Co2Snapshot Snap, DateTime At)> _cache = new();

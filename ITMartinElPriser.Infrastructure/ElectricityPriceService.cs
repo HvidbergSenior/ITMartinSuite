@@ -2,19 +2,12 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace ITMartinElPriser.Core;
+using ITMartinElPriser.Application;
+using ITMartinElPriser.Core;
 
-// One 15-minute slot of the day-ahead market. The Danish market went from
-// hourly to quarter-hourly in 2025; Energinet's old "Elspotprices" dataset
-// now returns nothing, "DayAheadPrices" is the live one.
-public sealed class PricePoint
-{
-    public DateTime TimeUtc { get; set; }
-    public DateTime TimeDk { get; set; }
-    public double PriceKrPerKwh { get; set; }
-}
+namespace ITMartinElPriser.Infrastructure;
 
-public sealed partial class ElectricityPriceService(HttpClient http, ILogger<ElectricityPriceService> logger)
+public sealed partial class ElectricityPriceService(HttpClient http, ILogger<ElectricityPriceService> logger) : IPriceSource
 {
     private const string BaseUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices";
 

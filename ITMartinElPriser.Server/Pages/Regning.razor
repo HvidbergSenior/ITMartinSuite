@@ -1,4 +1,5 @@
 
+@using ITMartinElPriser.Infrastructure
 
 
 
@@ -38,13 +39,13 @@
 
 @page "/regning"
 @using System.Globalization
-@inject ElectricityPriceService Prices
+@inject IPriceSource Prices
 @inject PrefsService Prefs
 
 <PageTitle>Regning – ElPriser</PageTitle>
 
 <h1>Hvad betyder regningen?</h1>
-<p class="muted small" style="margin:4px 0 14px">Vælg dit elselskab og skriv dit forbrug, så viser vi hvordan en måned fordeler sig – linje for linje, med de seneste 30 dages priser – og hvad hver linje egentlig er.</p>
+<p class="muted small u-m4-14">Vælg dit elselskab og skriv dit forbrug, så viser vi hvordan en måned fordeler sig – linje for linje, med de seneste 30 dages priser – og hvad hver linje egentlig er.</p>
 
 <PageHelp Key="help-regning">
     <ul>
@@ -56,7 +57,7 @@
 
 <div class="card">
     <div class="card-title">Hvad har du?</div>
-    <div class="muted small" style="margin-bottom:8px">Begge dele står på din regning. Netselskabet bestemmer transport-prisen og kan ikke vælges; leverandøren kan.</div>
+    <div class="muted small u-mb8">Begge dele står på din regning. Netselskabet bestemmer transport-prisen og kan ikke vælges; leverandøren kan.</div>
     <div class="field">
         <label>Elleverandør</label>
         <select @bind="_s.SupplierId" @bind:after="() => SettingsChangedAsync()">
@@ -92,11 +93,11 @@
         </select>
     </div>
     <div class="row2">
-        <div class="field" style="flex:2">
+        <div class="field u-f2">
             <label>Dit forbrug, kWh pr. måned</label>
             <input type="number" min="10" max="5000" step="10" @bind="_kwh" @bind:after="RecalcAsync" />
         </div>
-        <div class="field" style="flex:1"><label>&nbsp;</label><span class="muted small">≈ @((_kwh * 12).ToString("N0", Da)) kWh/år</span></div>
+        <div class="field u-f1"><label>&nbsp;</label><span class="muted small">≈ @((_kwh * 12).ToString("N0", Da)) kWh/år</span></div>
     </div>
     <div class="muted small">Typisk: lejlighed 150–200, hus 250–350, hus med varmepumpe eller elbil 500+. Tallet står på din seneste regning eller på eloverblik.dk.</div>
 </div>
@@ -124,7 +125,7 @@ else
 
     <div class="card">
         <div class="card-title">Sådan ser regningen ud</div>
-        <div class="muted small" style="margin-bottom:8px">Et eksempel med dine tal, stillet op som elselskaberne gør det. Tryk på en linje for at få ordet forklaret. Tallene i cirklerne viser hvem pengene ender hos.</div>
+        <div class="muted small u-mb8">Et eksempel med dine tal, stillet op som elselskaberne gør det. Tryk på en linje for at få ordet forklaret. Tallene i cirklerne viser hvem pengene ender hos.</div>
         @{
             var perKwh = b.Kwh > 0 ? 1 / b.Kwh : 0;
             var exMoms = b.TotalKr - Kr("moms");
@@ -134,7 +135,7 @@ else
         <div class="bill-paper">
             <div class="bill-head">
                 <div><b>@_supplierName</b><br /><span class="muted">Elregning</span></div>
-                <div style="text-align:right" class="muted">Kundenr. 1234567<br />Periode: @b.From.ToString("d/M", Da)–@b.To.AddDays(-1).ToString("d/M yyyy", Da)<br />Målt forbrug: <b>@b.Kwh.ToString("0", Da) kWh</b></div>
+                <div class="muted u-right">Kundenr. 1234567<br />Periode: @b.From.ToString("d/M", Da)–@b.To.AddDays(-1).ToString("d/M yyyy", Da)<br />Målt forbrug: <b>@b.Kwh.ToString("0", Da) kWh</b></div>
             </div>
 
             <div class="bill-sec">① Elhandel <span class="muted">– @_supplierName</span></div>
@@ -154,10 +155,10 @@ else
             @Paper("moms", "③ Moms 25 %", "")
             <div class="bill-r bill-total"><span>I alt inkl. moms</span><span></span><b>@b.TotalKr.ToString("N2", Da) kr</b></div>
 
-            <div class="bill-r muted" style="margin-top:8px"><span>Betalt aconto</span><span></span><b>-@aconto.ToString("N2", Da)</b></div>
+            <div class="bill-r muted u-mt8"><span>Betalt aconto</span><span></span><b>-@aconto.ToString("N2", Da)</b></div>
             <div class="bill-r"><span>@((b.TotalKr - aconto) >= 0 ? "Til betaling" : "Til udbetaling")</span><span></span><b>@Math.Abs(b.TotalKr - aconto).ToString("N2", Da) kr</b></div>
         </div>
-        <div class="muted small" style="margin-top:8px">Rækkefølgen og navnene varierer fra selskab til selskab – nogle skriver "Nettarif C" eller "Transport af el", andre lægger transporten sammen i én linje. Beløbene og hvem de går til er de samme. Aconto-linjen er kun et eksempel.</div>
+        <div class="muted small u-mt8">Rækkefølgen og navnene varierer fra selskab til selskab – nogle skriver "Nettarif C" eller "Transport af el", andre lægger transporten sammen i én linje. Beløbene og hvem de går til er de samme. Aconto-linjen er kun et eksempel.</div>
     </div>
 
     <div class="card">
@@ -170,7 +171,7 @@ else
                     <span><b>@l.Title</b> <span class="muted small">· @l.Recipient@(l.IsFixed ? " · fast" : "")</span></span>
                     <b>@l.Kr.ToString("0.00", Da) kr</b>
                 </div>
-                @if (b.TotalKr > 0) { <div class="bill-bar"><i style="width:@((l.Kr / b.TotalKr * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div> }
+                @if (b.TotalKr > 0) { <div class="bill-bar"><i style="--w:@((l.Kr / b.TotalKr * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div> }
                 @if (open)
                 {
                     <div class="bill-explain">
@@ -181,7 +182,7 @@ else
                 }
             </div>
         }
-        <div class="appl-row" style="padding-top:10px;font-weight:700"><span>I alt</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
+        <div class="appl-row u-pt10 u-bold"><span>I alt</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
     </div>
 
     <div class="card">
@@ -199,7 +200,7 @@ else
     <div class="card cta">
         <div class="card-title">Vil du se din rigtige regning?</div>
         <div class="small">MinElpris læser din elmåler time for time og regner regningen ud fra det du faktisk brugte – og finder de apparater der koster mest.</div>
-        <a class="btn btn-primary btn-block" href="https://minelpris.itmartin.dk" style="margin-top:10px">Åbn MinElpris →</a>
+        <a class="btn btn-primary btn-block u-mt10" href="https://minelpris.itmartin.dk">Åbn MinElpris →</a>
     </div>
 }
 

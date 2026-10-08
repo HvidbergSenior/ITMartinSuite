@@ -1,3 +1,5 @@
+using ITMartinElPriser.Application;
+using ITMartinElPriser.Infrastructure;
 using System.Text.Json;
 using Microsoft.JSInterop;
 using ITMartinElPriser.Core;
@@ -7,7 +9,7 @@ namespace ITMartinElPriser.Server.Services;
 // The free app keeps nothing about you on the server. Region and tariff
 // presets live in a cookie on your own phone: read from the request that
 // opened the Blazor circuit, written back through a tiny JS helper.
-public sealed class PrefsService(IHttpContextAccessor http, IJSRuntime js, GridTariffs tariffs)
+public sealed class PrefsService(IHttpContextAccessor http, IJSRuntime js, IGridTariffSource tariffs)
 {
     public const string CookieName = "ep_prefs";
     private HouseholdSettings? _settings;

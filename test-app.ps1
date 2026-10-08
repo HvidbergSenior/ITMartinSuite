@@ -8,7 +8,7 @@
     .\test-app.ps1 -App Notatskriver -Live      # flow tests against the live site instead of a local copy
 #>
 param(
-    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud")][string]$App,
+    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud", "ElPriser")][string]$App,
     [switch]$Live
 )
 $ErrorActionPreference = "Stop"
@@ -27,6 +27,12 @@ $apps = @{
         LiveUrl = "https://tilbud.itmartin.dk"; Flow = "TilbudFlowTests"; BaseVar = "TILBUD_BASE"
         # A PIN so the faste-tilbud guard is active; the flow test only tries a wrong one.
         Env = @{ "Tilbud__AdminPin" = "local-test-pin"; "Tilbud__DataDir" = (Join-Path $env:TEMP "tilbud-test-data") }
+    }
+    "ElPriser" = @{
+        Tests = "ITMartinElPriser.Tests"; Server = "ITMartinElPriser.Server"; Port = 5120
+        LiveUrl = "https://elpriser.itmartin.dk"; Flow = "ElPriserFlowTests"; BaseVar = "ELPRISER_BASE"
+        # Push keys and subscribers go to a temp folder locally (real prices from Energinet).
+        Env = @{ "DataDir" = (Join-Path $env:TEMP "elpriser-test-data") }
     }
 }
 $a = $apps[$App]
@@ -56,8 +62,11 @@ try {
 
     Write-Host "`n[3/3] Browser tests ($($a.Flow))" -ForegroundColor Cyan
     Set-Item "env:$($a.BaseVar)" $base
-    dotnet test ITMartinTests --nologo -v q --filter "FullyQualifiedName~$($a.Flow)"
-    if ($LASTEXITCODE -ne 0) { throw "Browser tests failed" }
+    # Normal console logging so a red test shows its name and message, not just a count.
+    $out = dotnet test ITMartinTests --nologo --filter "FullyQualifiedName~$($a.Flow)" --logger "console;verbosity=normal" 2>&1
+    $code = $LASTEXITCODE
+    $out | Select-String -Pattern "^\s+(Passed|Failed|Skipped) |Error Message|Expected|But was|Passed!|Failed!" -Context 0,2 | ForEach-Object { $_.ToString() }
+    if ($code -ne 0) { throw "Browser tests failed" }
     Write-Host "`nAll green - $App is ready to deploy." -ForegroundColor Green
 }
 finally {

@@ -2,37 +2,16 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace ITMartinElPriser.Core;
+using ITMartinElPriser.Application;
+using ITMartinElPriser.Core;
 
-// One electricity product from one supplier. Money is ex VAT, as the source gives it.
-public sealed record SupplierProduct(
-    string Id, string Company, string Name, bool Fixed,
-    double SurchargeKrPerKwh, double FixedKrPerKwh, double SubscriptionMonthly, double FeesMonthly,
-    double CreationFee, string Binding, string Link, DateTime? Updated,
-    bool Intro, double? MinKwh, double? MaxKwh,
-    // What you get besides the price (elpris.dk): notice, payment, renewable share, start.
-    string Termination = "", string PaymentMethods = "", double? RenewableShare = null, string DeliveryStart = "")
-{
-    // Comparable for this household: no short intro offers, no odd "negative markup" deals
-    // (those pair with a big subscription), and inside the product's consumption limits.
-    public bool FitsFor(double kwh) =>
-        !Intro && SurchargeKrPerKwh >= 0 && (Fixed || SurchargeKrPerKwh <= BillComparison.MaxPlausibleMarkupKr) &&
-        (MinKwh is null || kwh >= MinKwh) && (MaxKwh is null || kwh <= MaxKwh);
-
-    public const double Vat = 1.25;
-
-    // What differs between suppliers for a year's use: the markup (or the fixed price,
-    // which includes the power itself), subscription and payment fees - incl. VAT.
-    // Spot price, elafgift and the grid tariff are the same whoever you buy from.
-    public double YearlyKr(double kwh) =>
-        ((Fixed ? FixedKrPerKwh : SurchargeKrPerKwh) * kwh + (SubscriptionMonthly + FeesMonthly) * 12) * Vat;
-}
+namespace ITMartinElPriser.Infrastructure;
 
 // Supplier products from elpris.dk - Forsyningstilsynet's official price portal, which every
 // supplier must report to. One static file per grid area (products_<gridArea>.json), fetched
 // once a day per area for everyone, never per visitor. Replaced Strømligning 2026-09-28: their
 // data is CC BY-NC (non-commercial), and MinElpris is meant to be a paid product.
-public sealed class SupplierCatalog(HttpClient http, ILogger<SupplierCatalog> logger)
+public sealed class SupplierCatalog(HttpClient http, ILogger<SupplierCatalog> logger) : ISupplierSource
 {
     public const string Source = "elpris.dk (Forsyningstilsynet)";
     public const string DefaultGridArea = "151"; // Konstant Net A/S (Aarhus)

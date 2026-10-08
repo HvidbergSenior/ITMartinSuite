@@ -227,7 +227,8 @@ html[data-mode="tv"] .k-grid { grid-template-columns: repeat(auto-fit, minmax(38
 
 /* ── Læg på telefonen (kolibri.js) ─────────────────────────────────────────── */
 .k-install-pill {
-    position: fixed; z-index: 900; left: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    /* --k-bottom-offset: apps with a bottom menu (ElPriser) set it to the menu's height, so the pill never covers a tab. */
+    position: fixed; z-index: 900; left: 12px; bottom: calc(12px + var(--k-bottom-offset, 0px) + env(safe-area-inset-bottom, 0px));
     border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text);
     border-radius: 999px; padding: 8px 14px; font: 600 var(--k-fs-small) var(--k-font);
     box-shadow: var(--k-shadow); cursor: pointer;

@@ -48,7 +48,7 @@
 
             @if (_state == "on")
             {
-                <div class="ok" style="margin-top:10px">✓ Denne telefon får beskeder@(string.IsNullOrWhiteSpace(_name) ? "" : $" ({_name})")</div>
+                <div class="ok u-mt10">✓ Denne telefon får beskeder@(string.IsNullOrWhiteSpace(_name) ? "" : $" ({_name})")</div>
                 <div class="btn-row">
                     <button class="btn" @onclick="SaveAsync" disabled="@_busy">Gem valg</button>
                     <button class="btn" @onclick="TestAsync" disabled="@_busy">Send test</button>

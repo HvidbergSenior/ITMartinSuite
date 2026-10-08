@@ -1,8 +1,9 @@
 @page "/"
+@using ITMartinElPriser.Infrastructure
 @using System.Globalization
-@inject ElectricityPriceService Prices
+@inject IPriceSource Prices
 @inject PrefsService Prefs
-@inject GridTariffs Grids
+@inject IGridTariffSource Grids
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -27,13 +28,13 @@
         <div class="card-title">🏠 Hvor bor du?</div>
         <p class="small">Prisen afhænger af netselskabet, der leverer strømmen til dit hjem. Vi gemmer kun postnummer og netselskab – på din egen telefon.</p>
         <button class="btn btn-primary btn-block" @onclick="LocateAsync" disabled="@_searching">📍 Jeg er hjemme nu – brug min placering</button>
-        <form class="row2" style="margin-top:8px" @onsubmit="FindAddressAsync" @onsubmit:preventDefault>
-            <input class="field" style="flex:1" @bind="_addr" placeholder="…eller skriv din adresse eller dit postnummer" aria-label="Adresse eller postnummer" />
+        <form class="row2 u-mt8" @onsubmit="FindAddressAsync" @onsubmit:preventDefault>
+            <input class="field u-f1" @bind="_addr" placeholder="…eller skriv din adresse eller dit postnummer" aria-label="Adresse eller postnummer" />
             <button class="btn" type="submit" disabled="@_searching">Find</button>
         </form>
         @if (_gridName.Length > 0)
         {
-            <button class="btn" style="margin-top:8px" @onclick="() => _askHome = false">Behold @_gridName</button>
+            <button class="btn u-mt8" @onclick="() => _askHome = false">Behold @_gridName</button>
         }
     </div>
 }
@@ -44,8 +45,8 @@
 @if (_pending is { } pend)
 {
     <div class="card small" role="status">
-        <p style="margin:0 0 8px">📍 Du er ved <b>@pend.Place.Label</b>, hvor netselskabet er <b>@pend.Grid.Name</b>. Er det dit nye hjem?</p>
-        <p class="muted" style="margin:0 0 8px">Priserne skal regnes med netselskabet, hvor du bor – ikke hvor du er lige nu.</p>
+        <p class="u-mb8">📍 Du er ved <b>@pend.Place.Label</b>, hvor netselskabet er <b>@pend.Grid.Name</b>. Er det dit nye hjem?</p>
+        <p class="muted u-mb8">Priserne skal regnes med netselskabet, hvor du bor – ikke hvor du er lige nu.</p>
         <div class="btn-row">
             <button class="btn btn-primary" @onclick="() => SaveHomeAsync(pend.Place, pend.Grid)">Ja, skift til @pend.Grid.Name</button>
             <button class="btn" @onclick="() => _pending = null">Nej, behold @_gridName</button>
@@ -132,8 +133,8 @@ else
                     @* The whole column is the tap target: it moves the dishwasher's start to that hour. *@
                     <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
                          @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
-                        <div class="bar @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
-                             style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(r)"></div>
+                        <div class="bar @Band(r) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
+                             style="--h:@pct.ToString("0", CultureInfo.InvariantCulture)%"></div>
                     </div>
                 }
             </div>
@@ -143,7 +144,7 @@ else
                     <span>@(h.IsNow ? "nu" : h.Start.Hour == 0 ? "0" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "")</span>
                 }
             </div>
-            <div class="muted small" style="margin-top:6px;text-align:center">Tryk på en søjle – så viser det store tal prisen hvis opvasken starter der.</div>
+            <div class="muted small u-mt6 u-center">Tryk på en søjle – så viser det store tal prisen hvis opvasken starter der.</div>
         </div>
     }
 
@@ -375,7 +376,8 @@ else
         return t.Hour < 7 ? $"i nat kl. {t:HH}" : $"i morgen kl. {t:HH}";
     }
 
-    private static string Color(double rank) => rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)";
+    // The bar's band as a class (colour from the theme); the height still tells the price without colour.
+    private static string Band(double rank) => rank <= 0.33 ? "band-cheap" : rank >= 0.67 ? "band-expensive" : "band-mid";
 
     public void Dispose() => _timer?.Dispose();
 

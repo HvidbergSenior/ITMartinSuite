@@ -1,3 +1,5 @@
+using ITMartinElPriser.Application;
+using ITMartinElPriser.Infrastructure;
 using ITMartinElPriser.Core;
 
 namespace ITMartinElPriser.Server.Services;
@@ -11,10 +13,10 @@ namespace ITMartinElPriser.Server.Services;
 // Sends are logged per subscriber+kind+day so a restart or a second tick in
 // the same window never sends twice.
 public sealed class NotificationScheduler(
-    ElectricityPriceService prices,
+    IPriceSource prices,
     SubscriberStore store,
     PushService push,
-    GridTariffs tariffs,
+    IGridTariffSource tariffs,
     ILogger<NotificationScheduler> logger) : BackgroundService
 {
     private static readonly TimeSpan Tick = TimeSpan.FromMinutes(5);

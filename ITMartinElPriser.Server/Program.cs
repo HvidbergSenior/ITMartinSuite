@@ -1,5 +1,8 @@
+using ITMartinElPriser.Infrastructure;
 using ITMartin.Shared.UI.Kolibri;
+using ITMartinElPriser.Application;
 using ITMartinElPriser.Core;
+using ITMartinElPriser.Infrastructure;
 using ITMartinElPriser.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,12 +33,11 @@ builder.Services.AddKolibri(k =>
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddHttpContextAccessor();
-// Singleton with its own HttpClient: it caches prices for 30 min - a
-// transient-per-request registration would throw the cache away every call.
-builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
-builder.Services.AddSingleton(sp => new Co2Service(new HttpClient(), sp.GetRequiredService<ILogger<Co2Service>>()));
-builder.Services.AddSingleton(sp => new SupplierCatalog(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<SupplierCatalog>>()));
-builder.Services.AddSingleton(sp => new GridTariffs(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<GridTariffs>>()));
+// Energinet / Strømligning / elpris.dk behind the Application ports (ITMartinElPriser.Infrastructure). Singletons with
+// their own HttpClient: they cache (prices 30 min, suppliers a day) - per-request instances would throw the cache away.
+builder.Services.AddElPriserSources();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<GetPriceSnapshot>();
 builder.Services.AddSingleton<SubscriberStore>();
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddHostedService<NotificationScheduler>();
@@ -91,24 +93,19 @@ app.MapGet("/api/push/status", (string endpoint, SubscriberStore store) =>
 });
 
 // "Send mig en test" - proves the whole chain on this phone right now.
-app.MapPost("/api/push/test", async (UnsubscribeRequest req, SubscriberStore store, PushService push, ElectricityPriceService prices) =>
+app.MapPost("/api/push/test", async (UnsubscribeRequest req, SubscriberStore store, PushService push, GetPriceSnapshot snapshot) =>
 {
     var sub = store.Get().Subscribers.FirstOrDefault(s => s.Endpoint == req.Endpoint);
     if (sub is null) return Results.NotFound();
-    var snap = PriceModel.Build(await prices.GetPricesAsync(sub.Settings.PriceArea), sub.Settings, [], DkTime.Now);
+    var snap = await snapshot.ExecuteAsync(sub.Settings, null, null, [], CancellationToken.None);
     var body = snap.NowKrPerKwh is { } p ? $"Lige nu koster strømmen {p:0.00} kr/kWh. Beskeder virker ✓" : "Beskeder virker ✓";
     var ok = await push.SendAsync(sub, new PushService.Message("ElPriser", body));
     return ok ? Results.Ok() : Results.StatusCode(410);
 }).DisableAntiforgery();
 
-// Plain JSON for anyone who wants the numbers: ?area=DK2&allIn=false
-app.MapGet("/api/snapshot", async (ElectricityPriceService prices, HttpContext http, string? area, bool? allIn) =>
-{
-    var s = PrefsService.ReadCookie(http);
-    if (area is "DK1" or "DK2") s.PriceArea = area;
-    if (allIn is { } a) s.ShowAllIn = a;
-    return Results.Ok(PriceModel.Build(await prices.GetPricesAsync(s.PriceArea), s, Appliance.Defaults(), DkTime.Now));
-});
+// Plain JSON for anyone who wants the numbers: ?area=DK2&allIn=false (itmartin.dk's "Vidste du" box reads it).
+app.MapGet("/api/snapshot", async (GetPriceSnapshot snapshot, HttpContext http, string? area, bool? allIn, CancellationToken ct) =>
+    Results.Ok(await snapshot.ExecuteAsync(PrefsService.ReadCookie(http), area, allIn, null, ct)));
 
 app.MapKolibri();
 
@@ -120,3 +117,6 @@ app.Run();
 
 public sealed record SubscribeRequest(string Endpoint, string P256dh, string Auth, string? Name, bool NotifyCheapest, bool NotifyExpensive);
 public sealed record UnsubscribeRequest(string Endpoint);
+
+// For the API tests (WebApplicationFactory<Program>).
+public partial class Program;
