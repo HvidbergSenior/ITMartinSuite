@@ -154,6 +154,8 @@ public sealed class ChatThread
     public string VisitorEmail { get; set; } = "";
     public string VisitorPush { get; set; } = "";          // "endpoint|p256dh|auth"
     public DateTime? NotifiedAt { get; set; }               // last reply the visitor was told about
+    // When Martin last got the "venter på svar" copy by mail (2026-10-08: kept in the DB, so a restart never mails twice).
+    public DateTime? OwnerMailedAt { get; set; }
     public List<ChatMessage> Messages { get; set; } = [];
 }
 

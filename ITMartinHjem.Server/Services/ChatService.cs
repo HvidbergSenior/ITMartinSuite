@@ -73,7 +73,6 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
         Changed?.Invoke(t.Id);
 
         if (newEmail) _ = Task.Run(() => ReceiptAsync(t.VisitorEmail, t.Name, pilot: visitorKey.StartsWith("pilot-")));
-        if (_ownerPending.TryAdd(t.Id, 0)) _ = Task.Run(() => OwnerCopyAsync(t.Id));
 
         var who = t.Name.Length > 0 ? t.Name : "En besøgende";
         try { await push.SendToOwnerAsync($"💬 {who} skriver", text.Length > 120 ? text[..120] + "…" : text, $"/admin?chat={t.Id}"); }
@@ -92,13 +91,34 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
         db.Messages.Add(new ChatMessage { ThreadId = t.Id, FromOwner = true, Text = text });
         await db.SaveChangesAsync();
         Changed?.Invoke(t.Id);
-        if (_pending.TryAdd(t.Id, 0)) _ = Task.Run(() => NotifyVisitorAsync(t.Id));
     }
 
-    // ── Tell the visitor that Martin answered: 90 s after his reply (so several quick replies become one mail),
-    // by mail and/or browser notification - unless the visitor has the chat open and already sees it.
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, byte> _pending = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, byte> _ownerPending = new();
+    // ── Tell the visitor that Martin answered: 90 s after his LAST reply (so several quick replies become one mail),
+    // by mail and/or browser notification - unless the visitor has the chat open and already sees it. And mail Martin a
+    // copy when a visitor's message is still unread in Svar after 2 minutes. Both are found in the DATABASE by
+    // ChatSweeper every 15 s (2026-10-08): before, they were in-memory timers, and a deploy within 90 s lost the mail.
+    public static readonly TimeSpan VisitorDelay = TimeSpan.FromSeconds(90);
+    public static readonly TimeSpan OwnerDelay = TimeSpan.FromMinutes(2);
+    // Only recent messages count, so old conversations never wake up and mail after a deploy.
+    private static readonly TimeSpan Recent = TimeSpan.FromHours(24);
+
+    public async Task SweepAsync(DateTime nowUtc)
+    {
+        await using var db = await dbf.CreateDbContextAsync();
+        var since = nowUtc - Recent;
+        var ids = await db.Threads.Where(t => t.LastAt > since).Select(t => t.Id).ToListAsync();
+        foreach (var id in ids)
+        {
+            var t = await db.Threads.Include(x => x.Messages).AsNoTracking().FirstAsync(x => x.Id == id);
+            var lastOwner = t.Messages.Where(m => m.FromOwner).Select(m => (DateTime?)m.At).Max();
+            if (lastOwner is { } o && o > since && o > (t.NotifiedAt ?? DateTime.MinValue) && nowUtc - o >= VisitorDelay
+                && (t.VisitorEmail.Length > 0 || t.VisitorPush.Length > 0))
+                await NotifyVisitorAsync(id);
+            var lastVisitor = t.Messages.Where(m => !m.FromOwner).Select(m => (DateTime?)m.At).Max();
+            if (t.UnreadForOwner && lastVisitor is { } v && v > since && v > (t.OwnerMailedAt ?? DateTime.MinValue) && nowUtc - v >= OwnerDelay)
+                await OwnerCopyAsync(id);
+        }
+    }
 
     // "Tak – jeg har fået din besked": once, when a visitor (chat or pilot form) gives an email.
     private async Task ReceiptAsync(string to, string name, bool pilot)
@@ -118,10 +138,8 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMinutes(2));
-            _ownerPending.TryRemove(threadId, out _);
             await using var db = await dbf.CreateDbContextAsync();
-            var t = await db.Threads.Include(x => x.Messages).AsNoTracking().FirstOrDefaultAsync(x => x.Id == threadId);
+            var t = await db.Threads.Include(x => x.Messages).FirstOrDefaultAsync(x => x.Id == threadId);
             if (t is null || !t.UnreadForOwner) return;   // already read in Svar
             var lastOwner = t.Messages.Where(m => m.FromOwner).Select(m => m.At).DefaultIfEmpty(DateTime.MinValue).Max();
             var news = t.Messages.Where(m => !m.FromOwner && m.At > lastOwner).OrderBy(m => m.At).Select(m => m.Text).ToList();
@@ -133,6 +151,8 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
                        (t.VisitorEmail.Length > 0 ? $"\n\nVil have svar på mail: {t.VisitorEmail}" : "") +
                        $"\n\nSvar i Svar: {site}/admin?chat={t.Id}";
             await mail.SendAsync(cfg["Hjem:OwnerEmail"] ?? "ITMartin@Mensa.dk", $"💬 {who} venter på svar", body);
+            t.OwnerMailedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
         }
         catch (Exception ex) { log.LogWarning(ex, "Owner copy mail failed"); }
     }
@@ -141,8 +161,6 @@ public sealed class ChatService(IDbContextFactory<HjemDb> dbf, PushService push,
     {
         try
         {
-            await Task.Delay(TimeSpan.FromSeconds(90));
-            _pending.TryRemove(threadId, out _);
             await using var db = await dbf.CreateDbContextAsync();
             var t = await db.Threads.Include(x => x.Messages).FirstOrDefaultAsync(x => x.Id == threadId);
             if (t is null || (t.VisitorEmail.Length == 0 && t.VisitorPush.Length == 0)) return;

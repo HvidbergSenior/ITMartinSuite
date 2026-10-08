@@ -55,6 +55,7 @@ builder.Services.AddSingleton<TextCheck>();   // AI proofreading of the owner's 
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<MailService>();   // "Martin har svaret dig" mails to chat visitors
 builder.Services.AddSingleton<ChatService>();
+builder.Services.AddHostedService<ChatSweeper>();   // reply mails/notifications, kept in the DB
 builder.Services.AddHttpClient("status", c => c.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddSingleton<AppStatus>();

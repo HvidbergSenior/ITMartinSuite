@@ -16,6 +16,7 @@ public static class Schema
         ("Threads", "VisitorEmail", "TEXT NOT NULL DEFAULT ''"),
         ("Threads", "VisitorPush", "TEXT NOT NULL DEFAULT ''"),
         ("Threads", "NotifiedAt", "TEXT NULL"),
+        ("Threads", "OwnerMailedAt", "TEXT NULL"),
         ("AppLinks", "FreeText", "TEXT NOT NULL DEFAULT ''"),
         ("AppLinks", "PaidText", "TEXT NOT NULL DEFAULT ''"),
         ("AppLinks", "Awake", "INTEGER NOT NULL DEFAULT 0"),
