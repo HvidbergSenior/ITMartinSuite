@@ -1,0 +1,294 @@
+@page "/game/wingspan/start"
+@using System.Text.Json
+@inject IWebHostEnvironment Env
+
+@* Wingspan start helper, user 2026-10-09: "a way to give start birds all 5 and then get strategy based on them".
+   Setup rule: 5 birds, 2 bonus cards, 1 of each of the 5 foods; keep 5 things in total (each bird kept = 1 food discarded).
+   Data: wwwroot/games/wingspan-start.json, made by tools/strategi/wingspan_lookup.js from the Wingsearch card data. *@
+
+<PageTitle>Start helper – Wingspan – Strategy</PageTitle>
+
+<a class="muted small" href="/game/wingspan">← Wingspan</a>
+<h1>🐦 Start helper</h1>
+<p class="muted small">Type the 5 birds you were dealt (and your 2 bonus cards if you like). You get: which birds and food to keep, which bonus card to take, your first turns and the engine to build.</p>
+
+<datalist id="ws-birds">@foreach (var b in _birds) { <option value="@b.Name" /> }</datalist>
+<datalist id="ws-bonus">@foreach (var b in _bonus) { <option value="@b.Name" /> }</datalist>
+
+<div class="k-card">
+    <h2 class="k-card-title">Your starting hand</h2>
+    <div class="ws-grid">
+        @for (var i = 0; i < 5; i++)
+        {
+            var n = i;
+            <input class="k-input" list="ws-birds" placeholder="Bird @(n + 1)" @bind="_hand[n]" aria-label="Bird @(n + 1)" />
+        }
+        @for (var i = 0; i < 2; i++)
+        {
+            var n = i;
+            <input class="k-input" list="ws-bonus" placeholder="Bonus card @(n + 1) (optional)" @bind="_bonusIn[n]" aria-label="Bonus card @(n + 1)" />
+        }
+    </div>
+    <div class="k-row" style="margin-top:10px">
+        <button class="k-btn k-btn-primary" @onclick="Plan">Make my plan</button>
+        <button class="k-btn k-btn-ghost" @onclick="Clear">Clear</button>
+    </div>
+    @if (_error.Length > 0) { <p class="small" style="color:var(--k-danger)">@_error</p> }
+</div>
+
+@if (_plan is { } p)
+{
+    <div class="k-card">
+        <h2 class="k-card-title">Keep</h2>
+        <ul class="ws-list">
+            @foreach (var b in p.Keep) { <li><b>@b.Name</b> (tier @b.Tier, @string.Join("/", b.Habitats), @FoodText(b)) – @b.Why</li> }
+        </ul>
+        <p><b>Food to keep (@p.Food.Count):</b> @(p.Food.Count == 0 ? "none" : string.Join(", ", p.Food))</p>
+        @if (p.Drop.Count > 0)
+        {
+            <p class="small"><b>Discard:</b></p>
+            <ul class="ws-list small">
+                @foreach (var (b, why) in p.Drop) { <li><b>@b.Name</b> – @why</li> }
+            </ul>
+        }
+    </div>
+
+    @if (p.BonusPick is { } bp)
+    {
+        <div class="k-card">
+            <h2 class="k-card-title">Bonus card</h2>
+            <p><b>Take @bp.Name</b> (tier @bp.Tier) – @p.BonusWhy</p>
+            <p class="small muted">@bp.Scores</p>
+        </div>
+    }
+
+    <div class="k-card">
+        <h2 class="k-card-title">First turns</h2>
+        <ol class="ws-list">
+            @foreach (var t in p.Turns) { <li>@t</li> }
+        </ol>
+    </div>
+
+    <div class="k-card">
+        <h2 class="k-card-title">Engine to build</h2>
+        <p>@p.Engine</p>
+        <p class="small"><b>Look for in the tray:</b> @p.LookFor</p>
+        <p class="small muted">Search any bird in the <a href="/game/wingspan/micro">card lookup</a> for its partners and bonus cards.</p>
+    </div>
+}
+
+<style>
+    .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+    .ws-grid .k-input { margin: 0; }
+    .ws-list { margin: 6px 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+</style>
+
+@code {
+    private sealed record Bird(string Name, string Tier, double Score, string Set, string[] Habitats, Dictionary<string, int> Food,
+        bool FoodOr, int Cost, int Points, int Eggs, string Nest, string Color, string Kind, string Power, string Why, bool Raven, string[] Bonus);
+    private sealed record Bonus(string Name, string Tier, string Scores, string Fits);
+    private sealed record Data(List<Bird> Birds, List<Bonus> Bonus);
+    private sealed record PlanResult(List<Bird> Keep, List<string> Food, List<(Bird, string)> Drop, Bonus? BonusPick, string BonusWhy,
+        List<string> Turns, string Engine, string LookFor);
+
+    private static Data? _data;
+    private List<Bird> _birds = [];
+    private List<Bonus> _bonus = [];
+    private readonly string[] _hand = new string[5];
+    private readonly string[] _bonusIn = new string[2];
+    private PlanResult? _plan;
+    private string _error = "";
+
+    private static readonly string[] Foods = ["invertebrate", "seed", "fish", "fruit", "rodent"];
+    private static readonly Dictionary<string, string> Action = new()
+    {
+        ["forest"] = "gain food (forest)", ["grassland"] = "lay eggs (grassland)", ["wetland"] = "draw cards (wetland)",
+    };
+
+    protected override void OnInitialized()
+    {
+        _data ??= JsonSerializer.Deserialize<Data>(File.ReadAllText(Path.Combine(Env.WebRootPath, "games", "wingspan-start.json")),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        _birds = _data.Birds;
+        _bonus = _data.Bonus;
+    }
+
+    private void Clear() { Array.Clear(_hand); Array.Clear(_bonusIn); _plan = null; _error = ""; }
+
+    private Bird? Find(string? typed)
+    {
+        var t = (typed ?? "").Trim();
+        if (t.Length == 0) return null;
+        return _birds.FirstOrDefault(b => b.Name.Equals(t, StringComparison.OrdinalIgnoreCase))
+            ?? _birds.FirstOrDefault(b => b.Name.Contains(t, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string FoodText(Bird b) =>
+        b.Food.Count == 0 ? "free" : string.Join(b.FoodOr ? " or " : " + ", b.Food.Select(f => $"{f.Value} {f.Key}"));
+
+    // How good the bird is as an OPENING bird (not at game end).
+    private static double Opening(Bird b)
+    {
+        if (b.Raven) return -99;   // the user does not play ravens
+        var v = b.Score;
+        if (b.Cost <= 1) v += 0.5;
+        if (b.Cost >= 3) v -= 1;
+        if (b.Kind is "eggconvert" or "extra" or "pink") v += 0.5;
+        if (b.Color == "") v -= 1.5;   // no power: a late-game points bird
+        if (b.Color == "yellow") v -= 1;  // game end: keep for round 4 only if cheap
+        return v;
+    }
+
+    // Can the bird be paid from a set of single foods (start supply = 1 of each type)?
+    private static bool Payable(Bird b, IReadOnlyCollection<string> kept)
+    {
+        if (b.Food.Count == 0) return true;
+        if (b.FoodOr) return b.Food.Keys.Any(k => k == "wild" ? kept.Count > 0 : kept.Contains(k));
+        var left = kept.ToList();
+        foreach (var (k, n) in b.Food.Where(f => f.Key is not ("wild" or "nectar")))
+            for (var i = 0; i < n; i++) { if (!left.Remove(k)) return false; }
+        var wild = b.Food.Where(f => f.Key is "wild" or "nectar").Sum(f => f.Value);
+        return left.Count >= wild;
+    }
+
+    // Spend the food for a bird from the kept supply ("or" costs take one matching food; wild/nectar take any).
+    private static void Pay(Bird b, List<string> food)
+    {
+        if (b.FoodOr)
+        {
+            var hit = b.Food.Keys.FirstOrDefault(food.Contains);
+            if (hit is not null) food.Remove(hit); else if (food.Count > 0) food.RemoveAt(0);
+            return;
+        }
+        foreach (var (k, n) in b.Food.Where(f => f.Key is not ("wild" or "nectar")))
+            for (var i = 0; i < n; i++) food.Remove(k);
+        for (var i = 0; i < b.Food.Where(f => f.Key is "wild" or "nectar").Sum(f => f.Value) && food.Count > 0; i++) food.RemoveAt(0);
+    }
+
+    // The food to keep for these birds: what the best bird needs first, then the next.
+    private static List<string> ChooseFood(List<Bird> keep, int slots)
+    {
+        var chosen = new List<string>();
+        foreach (var b in keep.OrderByDescending(Opening))
+        {
+            var need = b.FoodOr ? b.Food.Keys.Where(Foods.Contains).Take(1) : b.Food.Where(f => Foods.Contains(f.Key)).Select(f => f.Key);
+            foreach (var f in need) if (chosen.Count < slots && !chosen.Contains(f)) chosen.Add(f);
+        }
+        // Fill up with the food types the kept birds eat most, then the commonest feeder foods.
+        var wanted = keep.SelectMany(b => b.Food.Keys).Where(Foods.Contains).GroupBy(f => f).OrderByDescending(g => g.Count()).Select(g => g.Key)
+            .Concat(["invertebrate", "seed", "fish", "fruit", "rodent"]);
+        foreach (var f in wanted) if (chosen.Count < slots && !chosen.Contains(f)) chosen.Add(f);
+        return chosen;
+    }
+
+    private void Plan()
+    {
+        _error = ""; _plan = null;
+        var hand = _hand.Select(Find).ToList();
+        var missing = _hand.Select((t, i) => (t, i)).Where(x => !string.IsNullOrWhiteSpace(x.t) && hand[x.i] is null).Select(x => x.t).ToList();
+        if (missing.Count > 0) { _error = "Not found: " + string.Join(", ", missing) + ". Pick the name from the list."; return; }
+        var birds = hand.Where(b => b is not null).Cast<Bird>().DistinctBy(b => b.Name).ToList();
+        if (birds.Count == 0) { _error = "Type at least one bird."; return; }
+        var offered = _bonusIn.Select(t => _bonus.FirstOrDefault(b => b.Name.Equals((t ?? "").Trim(), StringComparison.OrdinalIgnoreCase)))
+            .Where(b => b is not null).Cast<Bonus>().ToList();
+
+        // Try every set of birds to keep (1-4; keeping all 5 leaves no food).
+        (double v, List<Bird> keep, List<string> food) best = (double.MinValue, [], []);
+        for (var mask = 1; mask < 1 << birds.Count; mask++)
+        {
+            var keep = birds.Where((_, i) => (mask & (1 << i)) != 0).ToList();
+            if (keep.Count > 4 || keep.Any(b => b.Raven)) continue;
+            var kept = ChooseFood(keep, 5 - keep.Count);
+            // Each kept bird costs one food: keep it only if it is worth more than that (about a tier-B bird).
+            var v = keep.Sum(b => Opening(b) - 7);
+            var payableNow = keep.Count(b => Payable(b, kept));
+            v += payableNow > 0 ? 2.5 : -3;          // something to play on turn 1
+            v += payableNow > 1 ? 1 : 0;
+            v -= keep.Count(b => !Payable(b, Foods)) * 1.8;   // needs 2 of a kind: cannot be played before a gain-food action
+            v += keep.Count switch { 2 or 3 => 0.8, 1 => -0.5, _ => 0 };
+            foreach (var bo in offered) v += 0.4 * keep.Count(b => b.Bonus.Contains(bo.Name));
+            if (v > best.v) best = (v, keep, kept);
+        }
+
+        var keepSet = best.keep.OrderByDescending(Opening).ToList();
+        var drop = birds.Except(keepSet).Select(b => (b, b.Raven ? "a raven – you don’t play them"
+            : b.Color == "" ? "no power – only worth its points late; you can draw birds like it later"
+            : b.Cost >= 3 ? $"too expensive to start with ({b.Cost} food)"
+            : Opening(b) < 6 ? $"weak opening bird (tier {b.Tier})"
+            : "the food you keep fits the other birds better")).ToList();
+
+        // Bonus card: the one more of your birds fit, weighted by its tier.
+        Bonus? pick = null; var bonusWhy = "";
+        if (offered.Count > 0)
+        {
+            double Tv(string t) => t switch { "S" => 3, "A" => 2, "B" => 1, _ => 0 };
+            pick = offered.OrderByDescending(bo => Tv(bo.Tier) + 0.8 * keepSet.Count(b => b.Bonus.Contains(bo.Name)) + 0.3 * birds.Count(b => b.Bonus.Contains(bo.Name))).First();
+            var fits = keepSet.Where(b => b.Bonus.Contains(pick.Name)).Select(b => b.Name).ToList();
+            bonusWhy = fits.Count > 0 ? $"{fits.Count} of the birds you keep already count for it ({string.Join(", ", fits)})."
+                : pick.Fits.Contains("Fits:") ? pick.Fits.Split('\n')[0].Replace("- **Fits:** ", "It scores ").TrimEnd('.') + "."
+                : "the better card of the two – no kept bird fits either yet, so steer your picks toward it.";
+        }
+
+        // First turns.
+        var turns = new List<string>();
+        var first = keepSet.FirstOrDefault(b => Payable(b, best.food));
+        var food = best.food.ToList();
+        if (first is not null)
+        {
+            var hab = BestHabitat(first);
+            turns.Add($"Play {first.Name} in your {hab} (first column, no egg cost). {PowerTip(first)}");
+            Pay(first, food);
+            var second = keepSet.FirstOrDefault(b => b != first && Payable(b, food));
+            if (second is not null)
+                turns.Add($"Play {second.Name} in your {BestHabitat(second)} – you still have the food for it. {PowerTip(second)}");
+            else
+            {
+                var next = keepSet.FirstOrDefault(b => b != first);
+                turns.Add(next is not null
+                    ? $"Gain food in the forest for {next.Name} (needs {FoodText(next)}), then play it."
+                    : "Draw cards in the wetland to find your next bird.");
+            }
+        }
+        else
+        {
+            turns.Add($"Gain food in the forest – you need {string.Join(" / ", keepSet.Select(FoodText))} for your birds.");
+            turns.Add($"Play {keepSet[0].Name} as soon as you can pay it.");
+        }
+        turns.Add("Rounds 1-2: play cheap birds and fill your engine row; take the habitat action whose row has the most brown powers.");
+        turns.Add("Round 4: stop building – play your highest-point birds and activate your best row every turn.");
+
+        var kinds = keepSet.Select(b => b.Kind).ToList();
+        var (engine, look) = kinds.Contains("eggconvert") ? ("Card + tuck engine: your egg-to-cards bird feeds flocking/tuck birds in the same row. Keep an egg layer in the grassland.", "tuck birds (\"Tuck 1 card from your hand … if you do, draw/lay/gain\") and egg layers.")
+            : kinds.Contains("tuck") ? ("Tuck engine: every activation is a point. Feed it cards.", "a bird that turns eggs into cards (Killdeer, Franklin’s Gull) and card-draw birds.")
+            : kinds.Contains("predator") ? ("Predator row in the forest: free points every activation. Add food birds so it also feeds you.", "predators with a 75 cm+ limit and \"gain food from the supply\" birds.")
+            : kinds.Contains("egg") || kinds.Contains("pink") ? ("Egg engine: lay many eggs, use them for bird costs, egg goals and egg bonus cards.", "egg layers, birds that hold 4+ eggs, and an egg-to-cards bird to spend surplus eggs.")
+            : kinds.Contains("cache") || kinds.Contains("food") ? ("Food engine in the forest: food every turn, then play 2 birds per action with a \"play a second bird\" power.", "\"play an additional bird\" white powers and cache birds.")
+            : kinds.Contains("extra") ? ("Fast board: your \"play a second bird\" power fills rows early – follow up with any engine you draw.", "cheap 1-food engine birds to play as the second bird.")
+            : ("No clear engine yet – draw cards in the wetland early and look for one.", "Killdeer / Franklin’s Gull, flocking birds, or a cheap \"play a second bird\" bird.");
+
+        _plan = new PlanResult(keepSet, best.food, drop, pick, bonusWhy, turns, engine, look);
+    }
+
+    // The habitat to play a bird in: its engine's row if it lives there, else its first habitat.
+    private static string BestHabitat(Bird b)
+    {
+        string[] pref = b.Kind switch
+        {
+            "eggconvert" or "tuck" or "cards" => ["wetland", "grassland", "forest"],
+            "egg" => ["grassland", "wetland", "forest"],
+            "food" or "cache" or "predator" => ["forest", "grassland", "wetland"],
+            _ => ["forest", "grassland", "wetland"],
+        };
+        return pref.First(h => b.Habitats.Contains(h) || b.Habitats.Length == 0);
+    }
+
+    private static string PowerTip(Bird b) => b.Kind switch
+    {
+        "eggconvert" => "Lay eggs early so it has eggs to turn into cards.",
+        "extra" => "Its power plays a second bird at once – keep food for that bird too.",
+        "pink" => "It works on other players' turns from now on.",
+        "tuck" => "Keep cards in hand so it can tuck.",
+        "predator" => "It hunts every time you use its row.",
+        _ => "",
+    };
+}

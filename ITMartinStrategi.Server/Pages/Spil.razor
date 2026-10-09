@@ -56,6 +56,10 @@ else if (_adviceCount > 0)
     <form class="lib-jump" action="/game/@_game.Slug/micro" method="get">
         <input class="k-input" name="q" placeholder="🔎 Search a card by name …" />
         <a class="k-btn k-btn-ghost" href="/game/@_game.Slug/micro">All cards (@_adviceCount)</a>
+        @if (_game.Slug == "wingspan")
+        {
+            <a class="k-btn k-btn-primary" href="/game/wingspan/start">🐦 Start helper</a>
+        }
     </form>
 }
 
