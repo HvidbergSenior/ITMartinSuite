@@ -5,7 +5,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 body { background: var(--k-bg); color: var(--k-text); }
 /* The app is pinned to the VISIBLE part of the screen (above the phone keyboard), set from app.js;
    only the message list scrolls, so the top bar and the text field never jump. */
-.snak { position: fixed; left: 0; right: 0; top: var(--app-top, 0px); height: var(--app-h, 100dvh); }
+.snak { position: fixed; inset: 0; }
 
 .login { max-width: 440px; width: 100%; margin: 0 auto; padding: 32px 16px; box-sizing: border-box; overflow-y: auto; flex: 1; min-height: 0; }
 .login h1 { font-size: 2.2rem; margin: 0 0 4px; }

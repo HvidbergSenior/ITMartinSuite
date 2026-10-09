@@ -38,23 +38,6 @@
         return data;
     }
 
-    // ---------- fit the screen ----------
-    // When the phone keyboard opens, the browser shrinks only the VISIBLE area and scrolls the page under it.
-    // Pin the app to exactly that area, so the top bar and the text field stay put
-    // (user: "the chat field area behaves funny with scrolling").
-    function fit() {
-        const vv = window.visualViewport;
-        const root = document.documentElement.style;
-        root.setProperty('--app-h', (vv ? vv.height : window.innerHeight) + 'px');
-        root.setProperty('--app-top', (vv ? vv.offsetTop : 0) + 'px');
-    }
-    if (window.visualViewport) {
-        visualViewport.addEventListener('resize', fit);
-        visualViewport.addEventListener('scroll', fit);
-    }
-    window.addEventListener('resize', fit);
-    fit();
-
     // ---------- start ----------
 
     async function boot() {
