@@ -8,12 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
-    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=6" />
-    <link rel="stylesheet" href="app.css?v=6" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=7" />
+    <link rel="stylesheet" href="app.css?v=7" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=6" defer></script>
-    <script src="app.js?v=6" defer></script>
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=7" defer></script>
+    <script src="app.js?v=7" defer></script>
 </head>
 <body>
 <div class="snak">
@@ -67,16 +67,16 @@
         <div id="pushBar" class="bar" hidden></div>
 
         <main id="viewChat" class="view chat">
-            <div id="beskeder" class="beskeder" aria-live="polite">
-                <div class="tom" id="tomChat">
-                    <strong>Ingen beskeder endnu</strong>
-                    Skriv den første besked nederst og tryk Send. De andre får den med det samme.
-                </div>
-            </div>
+            <!-- Like a Facebook group: write at the top, newest message right under it, older ones further down. -->
             <form id="skriv" class="skriv">
                 <textarea id="tekst" class="k-textarea" rows="1" placeholder="Skriv en besked…" aria-label="Besked"></textarea>
                 <button class="k-btn k-btn-primary" type="submit" id="sendBtn">Send</button>
             </form>
+            <div id="beskeder" class="beskeder" aria-live="polite"></div>
+            <div class="tom" id="tomChat">
+                <strong>Ingen beskeder endnu</strong>
+                Skriv den første besked øverst og tryk Send. De andre får den med det samme.
+            </div>
         </main>
 
         <main id="viewOpg" class="view opg" hidden>

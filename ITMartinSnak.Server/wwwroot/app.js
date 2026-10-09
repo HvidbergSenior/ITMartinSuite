@@ -40,19 +40,13 @@
 
     // ---------- fit the screen ----------
     // When the phone keyboard opens, the browser shrinks only the VISIBLE area and scrolls the page under it.
-    // Pin the app to exactly that area, so the top bar stays, the text field sits right on the keyboard,
-    // and only the message list scrolls (user: "the chat field area behaves funny with scrolling").
+    // Pin the app to exactly that area, so the top bar and the text field stay put
+    // (user: "the chat field area behaves funny with scrolling").
     function fit() {
         const vv = window.visualViewport;
-        const h = vv ? vv.height : window.innerHeight;
-        const top = vv ? vv.offsetTop : 0;
-        // Stay at the newest message if you were there; leave it alone if you were reading older ones.
-        const box = $('beskeder');
-        const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
         const root = document.documentElement.style;
-        root.setProperty('--app-h', h + 'px');
-        root.setProperty('--app-top', top + 'px');
-        if (atEnd && !$('viewChat').hidden) scrollDown();
+        root.setProperty('--app-h', (vv ? vv.height : window.innerHeight) + 'px');
+        root.setProperty('--app-top', (vv ? vv.offsetTop : 0) + 'px');
     }
     if (window.visualViewport) {
         visualViewport.addEventListener('resize', fit);
@@ -131,7 +125,6 @@
             $(t).setAttribute('aria-selected', String(v === which));
         }
         if (which !== 'mig') store.set('snak_tab', which);
-        if (which === 'chat') scrollDown(true);
         if (which === 'mig') { pushStatus(); openHomeGuide(); }
     }
     $('tabChat').onclick = () => show('chat');
@@ -157,41 +150,45 @@
 
     const dayFmt = new Intl.DateTimeFormat('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
     const timeFmt = new Intl.DateTimeFormat('da-DK', { hour: '2-digit', minute: '2-digit' });
-    let lastDay = '';
+    let msgs = [];
 
     async function loadMessages() {
         try { addMessages(await api('GET', '/api/beskeder?efter=' + lastId)); } catch { }
     }
 
+    // Newest message first, right under the text field (user: "always the latest one first, I only
+    // need to scroll if I want to see earlier messages"). Nothing ever scrolls by itself.
     function addMessages(list) {
+        const fresh = list.filter(m => m.id > lastId);
+        if (!fresh.length) return;
+        for (const m of fresh) { msgs.push(m); lastId = Math.max(lastId, m.id); }
         const box = $('beskeder');
-        const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
-        let mine = false;
-        for (const m of list) {
-            if (m.id <= lastId) continue;
-            lastId = m.id;
-            $('tomChat').hidden = true;
+        // Reading older messages further down: keep them exactly where they are on the screen.
+        const before = box.scrollHeight, top = box.scrollTop;
+        renderMessages();
+        if (top > 0) box.scrollTop = top + (box.scrollHeight - before);
+    }
+
+    function renderMessages() {
+        const box = $('beskeder');
+        $('tomChat').hidden = msgs.length > 0;
+        box.textContent = '';
+        let day = '';
+        for (let i = msgs.length - 1; i >= 0; i--) {
+            const m = msgs[i];
             const when = new Date(m.at);
-            const day = dayFmt.format(when);
-            if (day !== lastDay) {
-                const d = document.createElement('div'); d.className = 'dag'; d.textContent = day;
-                box.appendChild(d); lastDay = day;
+            const d = dayFmt.format(when);
+            if (d !== day) {
+                const el = document.createElement('div'); el.className = 'dag'; el.textContent = d;
+                box.appendChild(el); day = d;
             }
             const me = m.name.toLowerCase() === navn.toLowerCase();
-            mine = mine || me;
             const el = document.createElement('div'); el.className = 'besked' + (me ? ' mig' : '');
             const meta = document.createElement('div'); meta.className = 'meta';
             meta.textContent = (me ? 'Dig' : m.name) + ' · ' + timeFmt.format(when);
             const b = document.createElement('div'); b.className = 'boble'; b.textContent = m.text;
             el.append(meta, b); box.appendChild(el);
         }
-        if (near || mine) scrollDown();
-    }
-
-    function scrollDown(now) {
-        const box = $('beskeder');
-        requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
-        if (now) box.scrollTop = box.scrollHeight;
     }
 
     async function send() {
@@ -202,6 +199,7 @@
             const m = await api('POST', '/api/beskeder', { navn, tekst: t, endpoint });
             $('tekst').value = ''; grow();
             addMessages([m]);
+            $('beskeder').scrollTop = 0;   // your own message: show it at the top
         } catch (err) {
             if (err.message !== 'login') flash(err.message);
         }
@@ -215,8 +213,6 @@
     });
     function grow() { const t = $('tekst'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
     $('tekst').addEventListener('input', grow);
-    // The keyboard takes a moment to open; show the newest message once it has.
-    $('tekst').addEventListener('focus', () => setTimeout(() => scrollDown(true), 300));
 
     function flash(text) {
         const bar = $('pushBar');
@@ -419,7 +415,7 @@
         if (!n) return;
         navn = n; store.set('snak_navn', n);
         $('hvem').textContent = navn + (admin ? ' · tovholder' : '');
-        renderTasks();
+        renderTasks(); renderMessages();
         if (endpoint) setupPush(false);
         $('gemNavn').textContent = 'Gemt';
         setTimeout(() => { $('gemNavn').textContent = 'Gem'; }, 1500);
