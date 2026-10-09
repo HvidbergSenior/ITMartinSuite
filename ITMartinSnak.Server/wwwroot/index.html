@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="da" data-family="kommunikere">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Snak – jeres egen lille gruppe-chat uden Facebook og uden reklamer." />
+    <meta name="theme-color" content="#f4f6f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Snak" />
+    <title>Snak</title>
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=3" />
+    <link rel="stylesheet" href="app.css?v=3" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=3" defer></script>
+    <script src="app.js?v=3" defer></script>
+</head>
+<body>
+<div class="snak">
+
+    <!-- Login: the group code once, and the name the others will see. -->
+    <section id="login" class="login" hidden>
+        <h1>Snak</h1>
+        <p class="lead">Jeres egen lille gruppe-chat. Ingen Facebook, ingen reklamer – kun jer.</p>
+        <form id="loginForm" class="k-stack">
+            <div>
+                <label class="k-label" for="loginKode">Gruppens kode</label>
+                <input class="k-input" id="loginKode" autocomplete="current-password" inputmode="text" required />
+                <p class="k-help">Du har fået koden af den, der inviterede dig.</p>
+            </div>
+            <div>
+                <label class="k-label" for="loginNavn">Dit navn</label>
+                <input class="k-input" id="loginNavn" maxlength="30" autocomplete="given-name" required />
+                <p class="k-help">Det er det navn, de andre ser ved dine beskeder.</p>
+            </div>
+            <button class="k-btn k-btn-primary k-btn-block" type="submit">Gå ind</button>
+            <p class="fejl" id="loginFejl" hidden></p>
+            <p class="k-help">Når du trykker <b>Gå ind</b>, spørger telefonen, om Snak må give dig besked. Sig <b>Tillad</b>, så får du besked, når der kommer noget nyt.</p>
+        </form>
+    </section>
+
+    <!-- The app: two tabs, chat and tasks. -->
+    <section id="app" class="app" hidden>
+        <header class="top">
+            <div class="brand"><b>Snak</b><span id="hvem"></span></div>
+            <nav class="tabs" role="tablist">
+                <button role="tab" id="tabChat" aria-selected="true">Chat</button>
+                <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
+                <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
+            </nav>
+        </header>
+
+        <!-- Shown until push works on this phone. -->
+        <div id="pushBar" class="bar" hidden></div>
+
+        <main id="viewChat" class="view chat">
+            <div id="beskeder" class="beskeder" aria-live="polite">
+                <div class="tom" id="tomChat">
+                    <strong>Ingen beskeder endnu</strong>
+                    Skriv den første besked nederst og tryk Send. De andre får den med det samme.
+                </div>
+            </div>
+            <form id="skriv" class="skriv">
+                <textarea id="tekst" class="k-textarea" rows="1" placeholder="Skriv en besked…" aria-label="Besked"></textarea>
+                <button class="k-btn k-btn-primary" type="submit" id="sendBtn">Send</button>
+            </form>
+        </main>
+
+        <main id="viewOpg" class="view opg" hidden>
+            <p class="opg-intro" id="opgIntro"></p>
+            <div id="opgOversigt" class="oversigt" hidden></div>
+            <form id="nyOpg" class="k-card ny" hidden>
+                <h2 class="k-card-title" id="nyTitel">Ny opgave</h2>
+                <label class="k-label" for="opgTitel">Hvad skal gøres?</label>
+                <input class="k-input" id="opgTitel" maxlength="120" required />
+                <label class="k-label" for="opgHvornaar">Hvornår? <span class="valgfri">(kan undværes)</span></label>
+                <input class="k-input" id="opgHvornaar" maxlength="60" placeholder="fx lørdag kl. 10" />
+                <label class="k-label" for="opgNote">Mere om det <span class="valgfri">(kan undværes)</span></label>
+                <textarea class="k-textarea" id="opgNote" maxlength="1000"></textarea>
+                <div class="k-row">
+                    <button class="k-btn k-btn-primary" type="submit" id="opgGem">Læg opgaven ud</button>
+                    <button class="k-btn k-btn-ghost" type="button" id="opgFortryd" hidden>Fortryd</button>
+                </div>
+            </form>
+            <div id="opgaver" class="opgaver"></div>
+        </main>
+
+        <main id="viewMig" class="view mig" hidden>
+            <section class="k-card">
+                <h2 class="k-card-title">Dit navn</h2>
+                <div class="k-row">
+                    <input class="k-input navn-input" id="nytNavn" maxlength="30" aria-label="Dit navn" />
+                    <button class="k-btn" id="gemNavn" type="button">Gem</button>
+                </div>
+                <p class="k-help">Gamle beskeder beholder det navn, de blev skrevet med.</p>
+            </section>
+            <section class="k-card">
+                <h2 class="k-card-title">Beskeder på telefonen</h2>
+                <p id="pushStatus"></p>
+                <div class="k-row">
+                    <button class="k-btn k-btn-primary" id="pushTil" type="button">Slå beskeder til</button>
+                    <button class="k-btn" id="pushFra" type="button" hidden>Slå beskeder fra</button>
+                </div>
+            </section>
+            <section class="k-card" id="hjemBoks">
+                <h2 class="k-card-title">Sæt Snak på hjemmeskærmen</h2>
+                <p>Så åbner Snak som en app med ét tryk. <b>På iPhone skal Snak ligge på hjemmeskærmen</b>, før den kan give dig besked.</p>
+                <details id="hjemIphone">
+                    <summary>iPhone og iPad (Safari)</summary>
+                    <ol>
+                        <li>Åbn <b>snak.itmartin.dk</b> i <b>Safari</b>, ikke i Facebook eller Messenger.</li>
+                        <li>Tryk på <b>Del</b>-knappen (firkanten med pilen op) nederst.</li>
+                        <li>Rul ned og tryk <b>Føj til hjemmeskærm</b> (Add to Home Screen).</li>
+                        <li>Tryk <b>Tilføj</b>. Åbn Snak fra det nye ikon, og tryk <b>Slå beskeder til</b>.</li>
+                    </ol>
+                </details>
+                <details id="hjemAndroid">
+                    <summary>Android (Chrome)</summary>
+                    <ol>
+                        <li>Åbn <b>snak.itmartin.dk</b> i <b>Chrome</b>.</li>
+                        <li>Tryk på de <b>tre prikker</b> øverst til højre.</li>
+                        <li>Tryk <b>Føj til startskærm</b> eller <b>Installer app</b> (Add to Home screen / Install app).</li>
+                        <li>Tryk <b>Installer</b>.</li>
+                    </ol>
+                </details>
+                <details id="hjemPc">
+                    <summary>Computer (Chrome eller Edge)</summary>
+                    <ol>
+                        <li>Åbn <b>snak.itmartin.dk</b>.</li>
+                        <li>Klik på installer-ikonet i adresselinjen (en skærm med en pil), eller menuen <b>⋯</b> → <b>Apps</b> → <b>Installer Snak</b> (Install Snak).</li>
+                    </ol>
+                </details>
+            </section>
+            <section class="k-card">
+                <h2 class="k-card-title">Om Snak</h2>
+                <p>Snak er en lille, privat chat for jeres gruppe. Kun dem med gruppens kode kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
+                <p>Under <b>Opgaver</b> lægger gruppens tovholder opgaver ud. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
+                <p class="k-help">Spørgsmål eller noget der ikke virker: ITMartin@Mensa.dk · 31 19 47 30</p>
+                <button class="k-btn k-btn-ghost" id="logUd" type="button">Log ud på denne telefon</button>
+            </section>
+        </main>
+    </section>
+</div>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/snak-sw.js").catch(function () {});</script>
+</body>
+</html>

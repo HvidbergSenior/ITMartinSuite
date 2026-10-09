@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "ITMartinSnak": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5251",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Snak__Code": "snak1234",
+        "Snak__AdminCode": "admin1234",
+        "Snak__DataDir": "snak-data"
+      }
+    }
+  }
+}
