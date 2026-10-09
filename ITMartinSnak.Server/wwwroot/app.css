@@ -1,6 +1,7 @@
 /* Snak: one-screen app - top bar with tabs, a scrolling middle, the message box pinned at the bottom.
    Colours come from kolibri.css (family "kommunikere"); high contrast, never colour alone (user is a bit colour-blind). */
 html, body { height: 100%; }
+[hidden] { display: none !important; }
 body { background: var(--k-bg); color: var(--k-text); }
 .snak { height: 100%; }
 
@@ -84,3 +85,7 @@ body { background: var(--k-bg); color: var(--k-text); }
 .inapp { background: var(--k-card); border-bottom: 2px solid var(--k-text); }
 .snak { display: flex; flex-direction: column; }
 .snak > .app { flex: 1; min-height: 0; height: auto; width: 100%; }
+.inapp > summary { padding: 8px 16px; font-weight: 700; cursor: pointer; min-height: 40px; display: flex; align-items: center; }
+.inapp-body { padding: 0 16px 10px; display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; }
+.opgave.k-card { margin: 0; }
+.opgave .status { font-size: 13px; font-weight: 700; }

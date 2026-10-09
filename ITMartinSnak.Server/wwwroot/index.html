@@ -8,22 +8,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
-    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=4" />
-    <link rel="stylesheet" href="app.css?v=4" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=5" />
+    <link rel="stylesheet" href="app.css?v=5" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=4" defer></script>
-    <script src="app.js?v=4" defer></script>
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=5" defer></script>
+    <script src="app.js?v=5" defer></script>
 </head>
 <body>
 <div class="snak">
 
     <!-- Opened from a Messenger/Facebook link: that browser cannot install or give notifications. -->
-    <div id="inApp" class="bar inapp" hidden>
-        <span><b>Chatten virker fint her i Messenger.</b> Vil du have besked, når der skrives, og Snak på telefonen? Så åbn den i <span id="browserNavn">Safari</span>:</span>
-        <a class="k-btn k-btn-sm k-btn-primary" id="aabnBrowser" href="https://snak.itmartin.dk/">Åbn i <span id="browserNavn2">Safari</span></a>
-        <span class="k-help">Virker knappen ikke: tryk på <b>⋯</b> øverst til højre → <b>Åbn i browser</b> (Open in browser). Du skriver koden én gang til derinde.</span>
-    </div>
+    <details id="inApp" class="inapp" open hidden>
+        <summary>Få besked, når der skrives</summary>
+        <div class="inapp-body">
+            <span><b>Chatten virker fint her i Messenger.</b> Vil du have besked, når der skrives, og Snak på telefonen? Så åbn den i <span id="browserNavn">Safari</span>:</span>
+            <a class="k-btn k-btn-sm k-btn-primary" id="aabnBrowser" href="https://snak.itmartin.dk/">Åbn i <span id="browserNavn2">Safari</span></a>
+            <span class="k-help">Virker knappen ikke: tryk på <b>⋯</b> øverst til højre → <b>Åbn i browser</b> (Open in browser). Du skriver koden én gang til derinde.</span>
+        </div>
+    </details>
 
     <!-- Login: the group code once, and the name the others will see. -->
     <section id="login" class="login" hidden>
@@ -78,7 +81,10 @@
 
         <main id="viewOpg" class="view opg" hidden>
             <p class="opg-intro" id="opgIntro"></p>
-            <div id="opgOversigt" class="oversigt" hidden></div>
+            <section id="opgOversigtBoks" class="k-card" hidden>
+                <h2 class="k-card-title">Overblik</h2>
+                <div id="opgOversigt" class="oversigt"></div>
+            </section>
             <form id="nyOpg" class="k-card ny" hidden>
                 <h2 class="k-card-title" id="nyTitel">Ny opgave</h2>
                 <label class="k-label" for="opgTitel">Hvad skal gøres?</label>

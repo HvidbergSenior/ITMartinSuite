@@ -216,8 +216,8 @@
         badge.title = free.length + ' opgaver uden nogen på';
 
         const ov = $('opgOversigt');
+        $('opgOversigtBoks').hidden = !(admin && tasks.length);
         if (admin && tasks.length) {
-            ov.hidden = false;
             ov.textContent = '';
             for (const [n, label, cls] of [[open.length, 'åbne', ''], [free.length, 'mangler nogen', free.length ? 'advar' : ''], [tasks.length - open.length, 'færdige', '']]) {
                 const d = document.createElement('div'); d.className = 'tal ' + cls;
@@ -225,7 +225,7 @@
                 const s = document.createElement('span'); s.textContent = label;
                 d.append(b, s); ov.appendChild(d);
             }
-        } else ov.hidden = true;
+        }
 
         const box = $('opgaver');
         box.textContent = '';
@@ -244,12 +244,13 @@
 
     function taskCard(t) {
         const c = document.createElement('article');
-        c.className = 'opgave' + (t.done ? ' done' : t.takers.length ? ' taget' : ' fri');
-        const head = document.createElement('div'); head.className = 'opg-top';
+        // k-card + heading first = kolibri.js makes it foldable (tap the title), and remembers it per task.
+        c.className = 'k-card opgave' + (t.done ? ' done' : t.takers.length ? ' taget' : ' fri');
         const h = document.createElement('h3'); h.textContent = t.title;
-        const st = document.createElement('span'); st.className = 'status';
+        c.appendChild(h);
+        const st = document.createElement('p'); st.className = 'status';
         st.textContent = t.done ? '✓ Færdig' : t.takers.length ? '● Taget' : '○ Mangler nogen';
-        head.append(h, st); c.appendChild(head);
+        c.appendChild(st);
         if (t.when) { const w = document.createElement('p'); w.className = 'hvornaar'; w.textContent = '🕑 ' + t.when; c.appendChild(w); }
         if (t.note) { const n = document.createElement('p'); n.className = 'note'; n.textContent = t.note; c.appendChild(n); }
         const who = document.createElement('p'); who.className = 'hvem';
