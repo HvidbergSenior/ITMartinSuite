@@ -50,6 +50,14 @@
         <a class="k-btn k-btn-ghost" href="/game/@_game.Slug/micro">🔧 Micromanagement</a>
     </form>
 }
+else if (_adviceCount > 0)
+{
+    @* Games without a wiki (Wingspan, Dune): the advice cards are the lookup - search a card by name. *@
+    <form class="lib-jump" action="/game/@_game.Slug/micro" method="get">
+        <input class="k-input" name="q" placeholder="🔎 Search a card by name …" />
+        <a class="k-btn k-btn-ghost" href="/game/@_game.Slug/micro">All cards (@_adviceCount)</a>
+    </form>
+}
 
 <nav class="tabs" aria-label="Sections">
     @foreach (var s in Sections.All)
@@ -214,6 +222,7 @@
 
     private Game? _game;
     private List<Guide> _guides = [];
+    private int _adviceCount;
     private string _section = Sections.Mekanik;
     private string _topic = "";
     private string? _busy;
@@ -256,6 +265,7 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         _game = await db.Games.FirstOrDefaultAsync(g => g.Slug == Slug);
         _guides = _game is null ? [] : await db.Guides.Where(g => g.GameId == _game.Id).ToListAsync();
+        _adviceCount = _game is null ? 0 : await db.Advice.CountAsync(a => a.GameId == _game.Id);
         if (_game?.SteamAppId is int appId)
         {
             var owned = Steam.OwnedGamesAsync();

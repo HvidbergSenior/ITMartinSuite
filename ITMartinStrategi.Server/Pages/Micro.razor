@@ -1,7 +1,7 @@
 @page "/game/{Slug}/micro"
 @inject IDbContextFactory<StrategiDbContext> DbFactory
 
-<PageTitle>Micromanagement – @(_game?.Name ?? "Game") – Strategy</PageTitle>
+<PageTitle>@(Cards ? "Card lookup" : "Micromanagement") – @(_game?.Name ?? "Game") – Strategy</PageTitle>
 
 @if (_game is null)
 {
@@ -10,10 +10,17 @@
 }
 
 <a class="muted small" href="/game/@_game.Slug">← @_game.Name</a>
-<h1>🔧 Micromanagement</h1>
-<p class="muted small">What each thing does to a planet, which planet to put it on, and which to skip. Effect numbers come from the wiki.</p>
+<h1>@(Cards ? "🔎 Card lookup" : "🔧 Micromanagement")</h1>
+@if (Cards)
+{
+    <p class="muted small">Type a name: its tier, what it does, what it works well with and when it is weak. Or pick a group below.</p>
+}
+else
+{
+    <p class="muted small">What each thing does to a planet, which planet to put it on, and which to skip. Effect numbers come from the wiki.</p>
+}
 
-<input class="k-input lib-search" @bind="_query" @bind:event="oninput" placeholder="Find an artifact or improvement …" />
+<input class="k-input lib-search" @bind="_query" @bind:event="oninput" placeholder="@(Cards ? "Search a card by name …" : "Find an artifact or improvement …")" />
 
 @if (_groups.Count > 1)
 {
@@ -32,6 +39,14 @@
 }
 
 <div class="lib-results">
+    @if (Cards && _query.Trim().Length == 0 && _group is null)
+    {
+        <div class="k-card"><div class="muted small">@_items.Count cards. Type a name above, or pick a group.</div></div>
+    }
+    @if (Shown().Any() is false && _query.Trim().Length >= 3)
+    {
+        <div class="k-card"><div class="small">No card called “@_query”. Did you mean: @foreach (var t in Closest()) { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _query = t">@t</button> }</div></div>
+    }
     @foreach (var (a, wiki) in Shown())
     {
         <div class="guide-card micro-card">
@@ -45,8 +60,8 @@
                 <div class="micro-effect">⚙️ @eff</div>
             }
             <div class="micro-row"><span>🎯</span><div><b>Purpose</b><GuideText Text="@a.Purpose" /></div></div>
-            <div class="micro-row"><span>✅</span><div><b>Use it on</b><GuideText Text="@a.UseOn" /></div></div>
-            <div class="micro-row"><span>❌</span><div><b>Skip it on</b><GuideText Text="@a.AvoidOn" /></div></div>
+            <div class="micro-row"><span>✅</span><div><b>@(Cards ? "Good with" : "Use it on")</b><GuideText Text="@a.UseOn" /></div></div>
+            <div class="micro-row"><span>❌</span><div><b>@(Cards ? "Weak when" : "Skip it on")</b><GuideText Text="@a.AvoidOn" /></div></div>
             @if (a.Example.Length > 0)
             {
                 <div class="micro-row"><span>💡</span><div><b>Example</b><GuideText Text="@a.Example" /></div></div>
@@ -63,7 +78,10 @@
     [Parameter] public string Slug { get; set; } = "";
 
     private Game? _game;
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     private string _query = "";
+    // No wiki behind the game (Wingspan, Dune): the advice cards ARE the lookup - card wording, no list until you search.
+    private bool Cards => string.IsNullOrEmpty(_game?.Wiki);
     private string? _group;
     private List<string> _groups = [];
     private List<(ItemAdvice Advice, WikiEntry? Wiki)> _items = [];
@@ -82,14 +100,42 @@
         _items = advice.OrderBy(a => a.Group).ThenBy(a => a.Title)
             .Select(a => (a, wiki.GetValueOrDefault(a.Title))).ToList();
         _groups = _items.Select(i => i.Advice.Group).Distinct().ToList();
+        if (!string.IsNullOrWhiteSpace(Q)) _query = Q.Trim();
     }
 
     private IEnumerable<(ItemAdvice, WikiEntry?)> Shown()
     {
         var q = _query.Trim();
+        if (Cards && q.Length == 0 && _group is null) return [];
         return _items.Where(i => (_group is null || i.Advice.Group == _group)
             && (q.Length == 0 || i.Advice.Title.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || i.Advice.Purpose.Contains(q, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    // Typo help: the 5 names closest to what was typed.
+    private IEnumerable<string> Closest()
+    {
+        var q = _query.Trim().ToLowerInvariant();
+        return _items.Select(i => i.Advice.Title).Distinct()
+            .OrderBy(t => Distance(q, t.ToLowerInvariant().Length > q.Length + 3 ? t.ToLowerInvariant()[..(q.Length + 3)] : t.ToLowerInvariant()))
+            .Take(5);
+    }
+
+    private static int Distance(string a, string b)
+    {
+        var d = new int[b.Length + 1];
+        for (var j = 0; j <= b.Length; j++) d[j] = j;
+        for (var i = 1; i <= a.Length; i++)
+        {
+            var prev = d[0]; d[0] = i;
+            for (var j = 1; j <= b.Length; j++)
+            {
+                var tmp = d[j];
+                d[j] = Math.Min(Math.Min(d[j] + 1, d[j - 1] + 1), prev + (a[i - 1] == b[j - 1] ? 0 : 1));
+                prev = tmp;
+            }
+        }
+        return d[b.Length];
     }
 
     // "**Effects:** +3 Planet Influence" plus any "- " continuation lines -> "+3 Planet Influence".
