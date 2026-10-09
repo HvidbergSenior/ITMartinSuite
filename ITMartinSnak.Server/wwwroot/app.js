@@ -38,6 +38,29 @@
         return data;
     }
 
+    // ---------- fit the screen ----------
+    // When the phone keyboard opens, the browser shrinks only the VISIBLE area and scrolls the page under it.
+    // Pin the app to exactly that area, so the top bar stays, the text field sits right on the keyboard,
+    // and only the message list scrolls (user: "the chat field area behaves funny with scrolling").
+    function fit() {
+        const vv = window.visualViewport;
+        const h = vv ? vv.height : window.innerHeight;
+        const top = vv ? vv.offsetTop : 0;
+        // Stay at the newest message if you were there; leave it alone if you were reading older ones.
+        const box = $('beskeder');
+        const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+        const root = document.documentElement.style;
+        root.setProperty('--app-h', h + 'px');
+        root.setProperty('--app-top', top + 'px');
+        if (atEnd && !$('viewChat').hidden) scrollDown();
+    }
+    if (window.visualViewport) {
+        visualViewport.addEventListener('resize', fit);
+        visualViewport.addEventListener('scroll', fit);
+    }
+    window.addEventListener('resize', fit);
+    fit();
+
     // ---------- start ----------
 
     async function boot() {
@@ -192,6 +215,8 @@
     });
     function grow() { const t = $('tekst'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
     $('tekst').addEventListener('input', grow);
+    // The keyboard takes a moment to open; show the newest message once it has.
+    $('tekst').addEventListener('focus', () => setTimeout(() => scrollDown(true), 300));
 
     function flash(text) {
         const bar = $('pushBar');

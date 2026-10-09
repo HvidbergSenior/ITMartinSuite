@@ -1,11 +1,13 @@
 /* Snak: one-screen app - top bar with tabs, a scrolling middle, the message box pinned at the bottom.
    Colours come from kolibri.css (family "kommunikere"); high contrast, never colour alone (user is a bit colour-blind). */
-html, body { height: 100%; }
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 [hidden] { display: none !important; }
 body { background: var(--k-bg); color: var(--k-text); }
-.snak { height: 100%; }
+/* The app is pinned to the VISIBLE part of the screen (above the phone keyboard), set from app.js;
+   only the message list scrolls, so the top bar and the text field never jump. */
+.snak { position: fixed; left: 0; right: 0; top: var(--app-top, 0px); height: var(--app-h, 100dvh); }
 
-.login { max-width: 440px; margin: 0 auto; padding: 32px 16px; }
+.login { max-width: 440px; width: 100%; margin: 0 auto; padding: 32px 16px; box-sizing: border-box; overflow-y: auto; flex: 1; min-height: 0; }
 .login h1 { font-size: 2.2rem; margin: 0 0 4px; }
 .login .lead { color: var(--k-muted); margin: 0 0 20px; }
 .fejl { color: var(--k-danger); font-weight: 600; }
@@ -29,11 +31,11 @@ body { background: var(--k-bg); color: var(--k-text); }
 .bar.fejl { background: var(--k-card); color: var(--k-danger); }
 .link { font: inherit; background: none; border: 0; padding: 0; color: var(--k-text); text-decoration: underline; font-weight: 600; cursor: pointer; }
 
-.view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.view { flex: 1; min-height: 0; overscroll-behavior: contain; display: flex; flex-direction: column; }
 .view[hidden] { display: none; }
 
 /* chat */
-.beskeder { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.beskeder { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .dag { align-self: center; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--k-muted); padding-top: 8px; }
 .besked { max-width: 84%; display: flex; flex-direction: column; gap: 2px; align-self: flex-start; }
 .besked .meta { font-size: 13px; color: var(--k-muted); }
@@ -45,7 +47,7 @@ body { background: var(--k-bg); color: var(--k-text); }
 .tom strong { display: block; color: var(--k-text); font-size: 18px; margin-bottom: 4px; }
 .skriv { display: flex; gap: 8px; align-items: flex-end; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--k-border); background: var(--k-card); }
-.skriv .k-textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 160px; resize: none; margin: 0; }
+.skriv .k-textarea { font-size: 16px; flex: 1; min-width: 0; min-height: 44px; max-height: 160px; resize: none; margin: 0; }
 
 /* tasks */
 .opg, .mig { overflow-y: auto; padding: 12px 16px 24px; gap: 12px; }
