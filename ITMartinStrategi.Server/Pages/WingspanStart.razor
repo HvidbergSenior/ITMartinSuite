@@ -1,6 +1,7 @@
 @page "/game/wingspan/start"
 @using System.Text.Json
 @inject IWebHostEnvironment Env
+@inject NavigationManager Nav
 
 @* Wingspan start helper, user 2026-10-09: "a way to give start birds all 5 and then get strategy based on them".
    Setup rule: 5 birds, 2 bonus cards, 1 of each of the 5 foods; keep 5 things in total (each bird kept = 1 food discarded).
@@ -41,14 +42,14 @@
     <div class="k-card">
         <h2 class="k-card-title">Keep</h2>
         <ul class="ws-list">
-            @foreach (var b in p.Keep) { <li><b>@b.Name</b> (tier @b.Tier, @string.Join("/", b.Habitats), @FoodText(b)) – @b.Why</li> }
+            @foreach (var b in p.Keep) { <li>@BirdInfo(b, $"(tier {b.Tier}, {string.Join("/", b.Habitats)}, {FoodText(b)}) – {b.Why}")</li> }
         </ul>
         <p><b>Food to keep (@p.Food.Count):</b> @(p.Food.Count == 0 ? "none" : string.Join(", ", p.Food))</p>
         @if (p.Drop.Count > 0)
         {
             <p class="small"><b>Discard:</b></p>
             <ul class="ws-list small">
-                @foreach (var (b, why) in p.Drop) { <li><b>@b.Name</b> – @why</li> }
+                @foreach (var (b, why) in p.Drop) { <li>@BirdInfo(b, "– " + why)</li> }
             </ul>
         }
     </div>
@@ -73,13 +74,15 @@
         <h2 class="k-card-title">Engine to build</h2>
         <p>@p.Engine</p>
         <p class="small"><b>Look for in the tray:</b> @p.LookFor</p>
-        <p class="small muted">Search any bird in the <a href="/game/wingspan/micro">card lookup</a> for its partners and bonus cards.</p>
+        <p class="small muted">Search any bird in the <a href="/game/wingspan/micro" target="_blank" rel="noopener">card lookup ↗</a> (opens in a new tab, so this plan stays open) for its partners and bonus cards.</p>
     </div>
 }
 
 <style>
     .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
     .ws-grid .k-input { margin: 0; }
+    .ws-bird summary { cursor: pointer; }
+    .ws-bird > div { padding: 4px 0 6px 1em; display: flex; flex-direction: column; gap: 2px; }
     .ws-list { margin: 6px 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
 </style>
 
@@ -105,12 +108,19 @@
         ["forest"] = "gain food (forest)", ["grassland"] = "lay eggs (grassland)", ["wetland"] = "draw cards (wetland)",
     };
 
+    // The hand lives in the address (?b=..&o=..), so going back or reloading keeps the plan.
+    [SupplyParameterFromQuery(Name = "b")] public string[]? QBirds { get; set; }
+    [SupplyParameterFromQuery(Name = "o")] public string[]? QBonus { get; set; }
+
     protected override void OnInitialized()
     {
         _data ??= JsonSerializer.Deserialize<Data>(File.ReadAllText(Path.Combine(Env.WebRootPath, "games", "wingspan-start.json")),
             new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         _birds = _data.Birds;
         _bonus = _data.Bonus;
+        for (var i = 0; i < 5 && QBirds is not null && i < QBirds.Length; i++) _hand[i] = QBirds[i];
+        for (var i = 0; i < 2 && QBonus is not null && i < QBonus.Length; i++) _bonusIn[i] = QBonus[i];
+        if (_hand.Any(h => !string.IsNullOrWhiteSpace(h))) Plan(remember: false);
     }
 
     private void Clear() { Array.Clear(_hand); Array.Clear(_bonusIn); _plan = null; _error = ""; }
@@ -181,7 +191,9 @@
         return chosen;
     }
 
-    private void Plan()
+    private void Plan() => Plan(remember: true);
+
+    private void Plan(bool remember)
     {
         _error = ""; _plan = null;
         var hand = _hand.Select(Find).ToList();
@@ -267,6 +279,12 @@
             : ("No clear engine yet – draw cards in the wetland early and look for one.", "Killdeer / Franklin’s Gull, flocking birds, or a cheap \"play a second bird\" bird.");
 
         _plan = new PlanResult(keepSet, best.food, drop, pick, bonusWhy, turns, engine, look);
+        if (remember)
+            Nav.NavigateTo(Nav.GetUriWithQueryParameters(new Dictionary<string, object?>
+            {
+                ["b"] = _hand.Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h.Trim()).ToArray(),
+                ["o"] = _bonusIn.Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h.Trim()).ToArray(),
+            }), replace: true);
     }
 
     // The habitat to play a bird in: its engine's row if it lives there, else its first habitat.
@@ -281,6 +299,20 @@
         };
         return pref.First(h => b.Habitats.Contains(h) || b.Habitats.Length == 0);
     }
+
+    // A bird you can open in place: power, why, bonus cards - no need to leave the plan.
+    private RenderFragment BirdInfo(Bird b, string line) => __builder =>
+    {
+        <details class="ws-bird">
+            <summary><b>@b.Name</b> @line</summary>
+            <div class="small">
+                <div><b>Power:</b> @(b.Power.Length > 0 ? b.Power : "none")</div>
+                <div>@b.Set · @string.Join("/", b.Habitats) · @FoodText(b) · @b.Points pts · @b.Eggs eggs · @b.Nest nest</div>
+                @if (b.Bonus.Length > 0) { <div><b>Bonus cards:</b> @string.Join(", ", b.Bonus)</div> }
+                <a href="/game/wingspan/micro?q=@Uri.EscapeDataString(b.Name)" target="_blank" rel="noopener">Partners and full card ↗</a>
+            </div>
+        </details>
+    };
 
     private static string PowerTip(Bird b) => b.Kind switch
     {
