@@ -25,7 +25,8 @@ public static class LoginPages
         </form>
         """);
 
-    public static string Register(string? error, string email) => Page(
+    // needsCode: sign-up is by invitation (MitEl:SignupCode set) - user 2026-10-09, MinElpris is the paid app.
+    public static string Register(string? error, string email, bool needsCode = false) => Page(
         title: "Opret konto",
         body: $"""
         <form method="post" action="/opret">
@@ -33,6 +34,11 @@ public static class LoginPages
             <h1>Opret konto</h1>
             <p class="sub">Din egen side med dit forbrug. Dine tal er kun dine.</p>
             {Message(error, null)}
+            {(needsCode ? """
+            <label for="code">Kode fra Martin</label>
+            <input id="code" name="code" autocomplete="off" required>
+            <p class="alt small">MinElpris er kun for inviterede. Har du ingen kode, så ring 31 19 47 30 eller skriv til ITMartin@Mensa.dk. Den gratis ElPriser kan alle bruge: <a href="https://elpriser.itmartin.dk">elpriser.itmartin.dk</a></p>
+            """ : "")}
             <label for="name">Dit navn</label>
             <input id="name" name="name" autocomplete="name">
             <label for="email">Mail</label>

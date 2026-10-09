@@ -154,14 +154,24 @@ app.MapPost("/login", async (HttpContext ctx, AccountService accounts) =>
     return Results.Redirect(result.User.Role == UserRoles.Advisor ? "/kunder" : "/");
 }).AllowAnonymous();
 
+// Sign-up by invitation: with MitEl:SignupCode set, a new account needs that code (user 2026-10-09).
+// Empty = open sign-up as before. Existing accounts and the read-only /demo are not affected.
+var signupCode = (app.Configuration["MitEl:SignupCode"] ?? "").Trim();
+
 app.MapGet("/opret", (HttpContext ctx) => Results.Content(LoginPages.Register(
     error: ctx.Request.Query["fejl"].ToString() is { Length: > 0 } e ? e : null,
-    email: ctx.Request.Query["mail"].ToString()), "text/html")).AllowAnonymous();
+    email: ctx.Request.Query["mail"].ToString(),
+    needsCode: signupCode.Length > 0), "text/html")).AllowAnonymous();
 
 app.MapPost("/opret", async (HttpContext ctx, AccountService accounts) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     var email = form["email"].ToString();
+    if (signupCode.Length > 0 && !string.Equals(form["code"].ToString().Trim(), signupCode, StringComparison.OrdinalIgnoreCase))
+    {
+        await Task.Delay(1000);   // slows down guessing
+        return Results.Redirect($"/opret?fejl={Uri.EscapeDataString("Koden passer ikke. Du får en kode af Martin – ring 31 19 47 30 eller skriv til ITMartin@Mensa.dk.")}&mail={Uri.EscapeDataString(email)}");
+    }
     var result = await accounts.RegisterAsync(email, form["password"].ToString(), form["name"].ToString(), form["home"].ToString());
 
     if (!result.Ok)
