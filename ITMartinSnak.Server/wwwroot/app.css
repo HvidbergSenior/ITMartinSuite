@@ -1,19 +1,19 @@
 /* Snak: one-screen app - top bar with tabs, a scrolling middle, the message box pinned at the bottom.
    Colours come from kolibri.css (family "kommunikere"); high contrast, never colour alone (user is a bit colour-blind). */
-html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+html, body { min-height: 100%; }
 [hidden] { display: none !important; }
 body { background: var(--k-bg); color: var(--k-text); }
 /* The app is pinned to the VISIBLE part of the screen (above the phone keyboard), set from app.js;
    only the message list scrolls, so the top bar and the text field never jump. */
-.snak { position: fixed; inset: 0; }
+.snak { min-height: 100%; }
 
-.login { max-width: 440px; width: 100%; margin: 0 auto; padding: 32px 16px; box-sizing: border-box; overflow-y: auto; flex: 1; min-height: 0; }
+.login { max-width: 440px; width: 100%; margin: 0 auto; padding: 32px 16px; box-sizing: border-box; }
 .login h1 { font-size: 2.2rem; margin: 0 0 4px; }
 .login .lead { color: var(--k-muted); margin: 0 0 20px; }
 .fejl { color: var(--k-danger); font-weight: 600; }
 
-.app { height: 100%; display: flex; flex-direction: column; max-width: 760px; margin: 0 auto; }
-.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+.app { display: flex; flex-direction: column; max-width: 760px; margin: 0 auto; min-height: 100%; }
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
     padding: 10px 16px; border-bottom: 1px solid var(--k-border); background: var(--k-card); }
 .brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .brand b { font-size: 20px; }
@@ -31,18 +31,18 @@ body { background: var(--k-bg); color: var(--k-text); }
 .bar.fejl { background: var(--k-card); color: var(--k-danger); }
 .link { font: inherit; background: none; border: 0; padding: 0; color: var(--k-text); text-decoration: underline; font-weight: 600; cursor: pointer; }
 
-.view { flex: 1; min-height: 0; overscroll-behavior: contain; display: flex; flex-direction: column; }
+.view { display: flex; flex-direction: column; }
 .view[hidden] { display: none; }
 
 /* chat */
-.beskeder { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.beskeder { padding: 12px 16px 32px; display: flex; flex-direction: column; gap: 10px; }
 .dag { align-self: center; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--k-muted); padding-top: 8px; }
-.besked { max-width: 84%; display: flex; flex-direction: column; gap: 2px; align-self: flex-start; }
+.besked { max-width: 84%; min-width: 0; display: flex; flex-direction: column; gap: 2px; align-self: flex-start; }
 .besked .meta { font-size: 13px; color: var(--k-muted); }
 .besked .boble { background: var(--k-card); border: 1px solid var(--k-border); border-radius: 16px 16px 16px 4px;
-    padding: 8px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    padding: 8px 12px; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; min-width: 3em; display: block; color: var(--k-text, #1a1a1a); }
 .besked.mig { align-self: flex-end; align-items: flex-end; }
-.besked.mig .boble { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; border-radius: 16px 16px 4px 16px; }
+.besked.mig .boble { background: var(--k-accent-dark, #6d28d9); border-color: var(--k-accent-dark, #6d28d9); color: #fff; border-radius: 16px 16px 4px 16px; }
 .tom { margin: auto; text-align: center; color: var(--k-muted); max-width: 34ch; padding: 24px 0; }
 .tom strong { display: block; color: var(--k-text); font-size: 18px; margin-bottom: 4px; }
 .skriv { display: flex; gap: 8px; align-items: flex-end; padding: 10px 16px;
@@ -50,7 +50,7 @@ body { background: var(--k-bg); color: var(--k-text); }
 .skriv .k-textarea { font-size: 16px; flex: 1; min-width: 0; min-height: 44px; max-height: 160px; resize: none; margin: 0; }
 
 /* tasks */
-.opg, .mig { overflow-y: auto; padding: 12px 16px 24px; gap: 12px; }
+.opg, .mig { padding: 12px 16px 24px; gap: 12px; }
 .opg-intro { margin: 0; color: var(--k-muted); }
 .valgfri { font-weight: 400; color: var(--k-muted); }
 .oversigt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -85,8 +85,6 @@ body { background: var(--k-bg); color: var(--k-text); }
 .k-install-pill { display: none !important; }
 .hjem-knap { font-size: 13px; text-align: left; margin-top: 2px; }
 .inapp { background: var(--k-card); border-bottom: 2px solid var(--k-text); }
-.snak { display: flex; flex-direction: column; }
-.snak > .app { flex: 1; min-height: 0; height: auto; width: 100%; }
 .inapp > summary { padding: 8px 16px; font-weight: 700; cursor: pointer; min-height: 40px; display: flex; align-items: center; }
 .inapp-body { padding: 0 16px 10px; display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; }
 .opgave.k-card { margin: 0; }

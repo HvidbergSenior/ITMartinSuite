@@ -147,9 +147,9 @@
         for (const m of fresh) { msgs.push(m); lastId = Math.max(lastId, m.id); }
         const box = $('beskeder');
         // Reading older messages further down: keep them exactly where they are on the screen.
-        const before = box.scrollHeight, top = box.scrollTop;
+        const before = box.scrollHeight, top = window.scrollY;
         renderMessages();
-        if (top > 0) box.scrollTop = top + (box.scrollHeight - before);
+        if (top > 0) window.scrollTo(0, top + (box.scrollHeight - before));
     }
 
     function renderMessages() {
@@ -182,7 +182,7 @@
             const m = await api('POST', '/api/beskeder', { navn, tekst: t, endpoint });
             $('tekst').value = ''; grow();
             addMessages([m]);
-            $('beskeder').scrollTop = 0;   // your own message: show it at the top
+            window.scrollTo(0, 0);   // your own message: show it at the top
         } catch (err) {
             if (err.message !== 'login') flash(err.message);
         }

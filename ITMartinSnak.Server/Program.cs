@@ -34,7 +34,17 @@ builder.Services.AddSingleton<Live>();
 var app = builder.Build();
 app.MapKolibri();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+// The page and the service worker must always be fetched fresh, or phones keep showing an old version
+// (css/js carry ?v= in index.html, so they can be cached).
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var name = ctx.File.Name;
+        if (name.EndsWith(".html") || name == "snak-sw.js")
+            ctx.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
 
 var code = app.Configuration["Snak:Code"] ?? "";
 var adminCode = app.Configuration["Snak:AdminCode"] ?? "";
