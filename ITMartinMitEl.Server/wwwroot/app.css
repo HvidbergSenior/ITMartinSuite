@@ -34,10 +34,11 @@ a { color: var(--accent); text-decoration: none; }
 .ep-sub { color: var(--muted); font-size: .85rem; }
 
 .card {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--k-radius-lg, 18px); box-shadow: var(--k-shadow);
     padding: 16px; margin-bottom: 12px;
 }
-.card-title { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+/* Same card look as the homepage and the other Kolibri apps (user 2026-10-09): rounded, soft shadow, a real heading. */
+.card-title { font-size: 1.15rem; color: var(--text); font-weight: 700; line-height: 1.3; margin-bottom: 8px; }
 
 /* ── now tile ── */
 .now-tile { text-align: center; padding: 22px 16px 18px; border-width: 2px; }
@@ -201,7 +202,7 @@ a { color: var(--accent); text-decoration: none; }
 .now-advice { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 1.1rem; font-weight: 700; }
 /* ── page description (fold) ── */
 /* The page description is ONE clickable box: the frame is the button, the text opens inside it. */
-.page-help { margin: 0 0 12px; font-size: .9rem; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); }
+.page-help { margin: 0 0 12px; font-size: .9rem; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--k-radius-lg, 18px); box-shadow: var(--k-shadow); }
 .page-help summary { cursor: pointer; font-weight: 700; list-style: none; padding: 12px 14px; display: flex; align-items: center; gap: 8px; }
 .page-help summary::-webkit-details-marker { display: none; }
 .page-help summary::after { content: "＋"; margin-left: auto; color: var(--muted); font-weight: 400; }
