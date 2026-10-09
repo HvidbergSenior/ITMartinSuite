@@ -64,6 +64,20 @@
 
 <Onboarding OnChanged="OnboardingChangedAsync" />
 
+@* User 2026-10-09: "it needs to be obvious what you can use this app for". Folds like every card (kolibri.js). *@
+<div class="card can-do">
+    <div class="card-title">Det kan MinElpris for dig</div>
+    <div class="can-do-grid">
+        <a class="teaser" href="/dag"><b>🔎 Hvad bruger huset?</b><span>Time for time fra jeres elmåler – også det, der kører om natten</span></a>
+        <a class="teaser" href="/regning"><b>📄 Betaler I for meget?</b><span>Læg regningen ind – hver linje forklaret</span></a>
+        <a class="teaser" href="/elselskab"><b>🏢 Billigere elselskab?</b><span>Sammenlignet med netop jeres forbrug</span></a>
+        <a class="teaser" href="/planlaeg"><b>📅 Billigste tider</b><span>Vask, opvask og elbil – hvornår og hvad det sparer</span></a>
+        <a class="teaser" href="/enheder"><b>📸 Hvad koster maskinerne?</b><span>Tag billede af mærkepladen</span></a>
+        <a class="teaser" href="/besked"><b>🔔 Besked når strømmen er billig</b><span>Direkte på telefonen</span></a>
+        <a class="teaser" href="/konto"><b>🤝 Få hjælp af Martin</b><span>Lav en kode under Konto og giv ham den</span></a>
+    </div>
+</div>
+
 @if (_snap is null)
 {
     <div class="card now-tile"><div class="muted">Henter priser…</div></div>

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using ITMartinElPriser.Infrastructure;
 using ITMartin.Shared.UI.Kolibri;
 using System.Security.Claims;
@@ -50,6 +51,11 @@ var dbPath = builder.Configuration["MitEl:DbPath"]
     ?? Path.Combine(builder.Configuration["DataDir"] ?? "/data", "mitel.db");
 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 builder.Services.AddDbContextFactory<MitElDbContext>(o => o.UseSqlite($"Data Source={dbPath}"));
+// Login cookies are signed with these keys. Kept next to the database, so a deploy or restart does not
+// log every customer out (before 2026-10-09 the keys lived inside the container and died with it).
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Path.GetDirectoryName(dbPath)!, "keys")))
+    .SetApplicationName("MinElpris");
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<HouseholdRegistry>();

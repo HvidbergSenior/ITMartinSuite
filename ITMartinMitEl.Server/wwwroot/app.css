@@ -287,3 +287,10 @@ details.card.fold[open] > summary { margin-bottom: 8px; }
 .onb-steps { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
 .onb-headline { font-size: 1.35rem; font-weight: 700; margin: 4px 0 6px; }
 .onb-found { display: grid; gap: 2px; margin-top: 6px; }
+
+/* Shortcut links: the welcome steps and the front page box "Det kan MinElpris for dig". */
+.can-do-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.teaser { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg3); color: var(--text); }
+.teaser b { color: var(--text); }
+.teaser span { font-size: .85rem; color: var(--muted); }
+.teaser:hover, .teaser:focus-visible { border-color: var(--accent); }

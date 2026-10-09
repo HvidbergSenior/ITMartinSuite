@@ -116,7 +116,7 @@ else
         _error = ""; _busy = true;
         try
         {
-            if (!e.File.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) { _error = "Det skal være en PDF. En papirregning kan du tage billede af – det kommer senere."; return; }
+            if (!e.File.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) { _error = "Det skal være en PDF. Har du kun regningen på papir, så hent den som PDF på elselskabets hjemmeside eller i deres app under Regninger/Fakturaer."; return; }
             await using var upload = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
             using var ms = new MemoryStream();
             await upload.CopyToAsync(ms);

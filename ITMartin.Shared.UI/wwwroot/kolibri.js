@@ -76,7 +76,8 @@
     }, true);
 
     /* ---------- 1b. foldable cards ---------- */
-    var HEAD = '.k-card-title, h1, h2, h3, h4';
+    // .card-title: MinElpris/ElPriser cards start with <div class="card-title"> - they fold too (user 2026-10-09).
+    var HEAD = '.k-card-title, .card-title, h1, h2, h3, h4';
     function cardHead(card) {
         var first = card.firstElementChild;
         return first && first.matches(HEAD) ? first : null;
@@ -123,21 +124,21 @@
         .then(function (m) { if (m && (m.short_name || m.name)) { appName = m.short_name || m.name; renderInstall(); } })
         .catch(function () { });
 
+    // User 2026-10-09: "way too much info" - only the steps for THIS device; the other devices fold away.
     function steps() {
         var btn = promptEvent ? '<button type="button" class="k-btn k-install-now">' + T('Installer ', 'Install ') + appName + '</button>' : '';
-        return '' +
-            '<details class="k-install-dev"' + (dev.ios ? ' open' : '') + '><summary>📱 iPhone</summary><ol>' +
-            T('<li>Åbn siden i <b>Safari</b>.</li><li>Tryk på <b>(⋯)</b> nederst til højre og vælg <b>Del</b> ⬆︎. <span class="k-muted">(Ældre iPhone: tryk direkte på Del ⬆︎ nederst.)</span></li><li>Rul ned, vælg <b>Føj til hjemmeskærm</b> og tryk <b>Tilføj</b>.</li>',
-              '<li>Open the page in <b>Safari</b>.</li><li>Tap <b>(⋯)</b> bottom right and choose <b>Share</b> ⬆︎. <span class="k-muted">(Older iPhone: tap Share ⬆︎ at the bottom.)</span></li><li>Scroll down, choose <b>Add to Home Screen</b> and tap <b>Add</b>.</li>') +
-            '</ol></details>' +
-            '<details class="k-install-dev"' + (!dev.ios && !dev.pc ? ' open' : '') + '><summary>🤖 Android</summary>' + (!dev.pc ? btn : '') + '<ol>' +
-            T('<li>Åbn siden i <b>Chrome</b>.</li><li>Tryk på <b>⋮</b> øverst til højre.</li><li>Vælg <b>Føj til startskærm</b> og tryk <b>Tilføj</b>.</li>',
-              '<li>Open the page in <b>Chrome</b>.</li><li>Tap <b>⋮</b> top right.</li><li>Choose <b>Add to Home screen</b> and tap <b>Add</b>.</li>') +
-            '</ol></details>' +
-            '<details class="k-install-dev"' + (dev.pc ? ' open' : '') + '><summary>💻 PC</summary>' + (dev.pc ? btn : '') + '<ol>' +
-            T('<li><b>Chrome:</b> ⋮ øverst til højre → <b>Cast, gem og del</b> → <b>Installer side som app</b>.</li><li><b>Edge:</b> ··· øverst til højre → <b>Apps</b> → <b>Installer dette websted som en app</b>.</li>',
-              '<li><b>Chrome:</b> ⋮ top right → <b>Cast, save and share</b> → <b>Install page as app</b>.</li><li><b>Edge:</b> ··· top right → <b>Apps</b> → <b>Install this site as an app</b>.</li>') +
-            '</ol></details>';
+        var ios = T('<li>Åbn siden i <b>Safari</b>.</li><li>Tryk <b>Del</b> ⬆︎ (eller <b>⋯</b> → Del).</li><li>Vælg <b>Føj til hjemmeskærm</b> → <b>Tilføj</b>.</li>',
+                    '<li>Open the page in <b>Safari</b>.</li><li>Tap <b>Share</b> ⬆︎ (or <b>⋯</b> → Share).</li><li>Choose <b>Add to Home Screen</b> → <b>Add</b>.</li>');
+        var android = T('<li>Åbn siden i <b>Chrome</b>.</li><li>Tryk <b>⋮</b> øverst til højre.</li><li>Vælg <b>Føj til startskærm</b> → <b>Tilføj</b>.</li>',
+                        '<li>Open the page in <b>Chrome</b>.</li><li>Tap <b>⋮</b> top right.</li><li>Choose <b>Add to Home screen</b> → <b>Add</b>.</li>');
+        var pc = T('<li>Klik på installer-ikonet i adresselinjen – eller <b>⋮</b> / <b>···</b> → <b>Installer</b>.</li>',
+                   '<li>Click the install icon in the address bar – or <b>⋮</b> / <b>···</b> → <b>Install</b>.</li>');
+        var mine = dev.ios ? ios : dev.pc ? pc : android;
+        var others = (dev.ios ? '' : '<p><b>📱 iPhone</b></p><ol>' + ios + '</ol>') +
+                     (!dev.ios && !dev.pc ? '' : '<p><b>🤖 Android</b></p><ol>' + android + '</ol>') +
+                     (dev.pc ? '' : '<p><b>💻 PC</b></p><ol>' + pc + '</ol>');
+        return btn + '<ol>' + mine + '</ol>' +
+            '<details class="k-install-dev"><summary>' + T('Andre enheder', 'Other devices') + '</summary>' + others + '</details>';
     }
 
     function renderInstall() {
@@ -153,14 +154,30 @@
         var hidden = store.get('install_hidden') === '1';
         var open = box.classList.contains('open');
         box.innerHTML =
-            (hidden ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">📲 ' + T('Læg på ', 'Add to ') + where + '</button>') +
+            // PC: no floating button - it sat on top of bottom menus; the footer link opens the same sheet.
+            (hidden || dev.pc ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">📲 ' + T('Læg på ', 'Add to ') + where + '</button>') +
             '<div class="k-install-sheet" role="dialog" aria-modal="true" aria-label="' + T('Læg på ', 'Add to ') + where + '"' + (open ? '' : ' hidden') + '>' +
             '<div class="k-install-card"><button type="button" class="k-install-x" aria-label="' + T('Luk', 'Close') + '">✕</button>' +
             '<h2>📲 ' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</h2>' +
-            '<p class="k-muted">' + T('Så åbner den med ét tryk – som en app, uden at gå via browseren.', 'Then it opens with one tap – like an app, without the browser.') + '</p>' +
             steps() +
-            (hidden ? '' : '<button type="button" class="k-install-hide">' + T('Skjul knappen (findes stadig nederst på siden)', 'Hide the button (still in the page footer)') + '</button>') +
+            (hidden || dev.pc ? '' : '<button type="button" class="k-install-hide">' + T('Skjul knappen', 'Hide the button') + '</button>') +
             '</div></div>';
+        liftPill(box);
+    }
+
+    // Phones: keep the button clear of a menu bar fixed to the bottom of the screen (MinElpris, ElPriser …).
+    function liftPill(box) {
+        var pill = box.querySelector('.k-install-pill');
+        if (!pill) return;
+        var lift = 0;
+        document.querySelectorAll('nav, footer, [class*="nav"], [class*="bar"]').forEach(function (el) {
+            if (box.contains(el)) return;
+            var cs = getComputedStyle(el);
+            if (cs.position !== 'fixed' && cs.position !== 'sticky') return;
+            var r = el.getBoundingClientRect();
+            if (r.height > 0 && r.height < 200 && Math.abs(window.innerHeight - r.bottom) < 4) lift = Math.max(lift, r.height);
+        });
+        pill.style.bottom = lift ? 'calc(' + (lift + 8) + 'px + env(safe-area-inset-bottom, 0px))' : '';
     }
     function openSheet() { var b = document.getElementById('k-install'); if (!b) return; b.classList.add('open'); b.querySelector('.k-install-sheet').hidden = false; }
     function closeSheet() { var b = document.getElementById('k-install'); if (!b) return; b.classList.remove('open'); b.querySelector('.k-install-sheet').hidden = true; }
