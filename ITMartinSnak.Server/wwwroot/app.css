@@ -77,3 +77,10 @@ body { background: var(--k-bg); color: var(--k-text); }
 .mig ol { margin: 6px 0 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 4px; }
 
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* kolibri.js' floating "Læg på telefonen" pill sat on top of the message box; Snak has its own button in the top bar. */
+.k-install-pill { display: none !important; }
+.hjem-knap { font-size: 13px; text-align: left; margin-top: 2px; }
+.inapp { background: var(--k-card); border-bottom: 2px solid var(--k-text); }
+.snak { display: flex; flex-direction: column; }
+.snak > .app { flex: 1; min-height: 0; height: auto; width: 100%; }

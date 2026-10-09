@@ -13,6 +13,18 @@
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     const pushPossible = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    // Most people arrive from a Messenger link. That built-in browser can chat, but cannot install or
+    // get notifications, so offer one button that opens Snak in the phone's real browser.
+    const inApp = /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram/i.test(navigator.userAgent || '');
+    if (inApp) {
+        const android = /android/i.test(navigator.userAgent);
+        const name = android ? 'Chrome' : 'Safari';
+        $('browserNavn').textContent = name; $('browserNavn2').textContent = name;
+        $('aabnBrowser').href = android
+            ? 'intent://snak.itmartin.dk/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fsnak.itmartin.dk%2F;end'
+            : 'x-safari-https://snak.itmartin.dk/';
+        $('inApp').hidden = false;
+    }
 
     async function api(method, url, body) {
         const r = await fetch(url, {
@@ -76,6 +88,8 @@
         $('app').hidden = false;
         $('hvem').textContent = navn + (admin ? ' · tovholder' : '');
         $('nytNavn').value = navn;
+        $('hjemKnap').hidden = standalone || inApp;
+        $('hjemKnap').onclick = () => show('mig');
         $('nyOpg').hidden = !admin;
         $('opgIntro').textContent = admin
             ? 'Læg opgaver ud her. De andre ser dem og trykker "Jeg tager den". Du kan se, hvem der har taget hvad.'
@@ -317,7 +331,7 @@
     async function setupPush(ask) {
         const bar = $('pushBar');
         bar.className = 'bar';
-        if (store.get('snak_push_fra') && !ask) { bar.hidden = true; return; }
+        if ((store.get('snak_push_fra') && !ask) || inApp) { bar.hidden = true; return; }
         if (!pushPossible) {
             if (isIos && !standalone) {
                 bar.innerHTML = '<b>Få besked på din iPhone:</b> sæt Snak på hjemmeskærmen først. <button type="button" class="link" id="visHjem">Sådan gør du</button>';

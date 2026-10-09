@@ -8,15 +8,22 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
-    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=3" />
-    <link rel="stylesheet" href="app.css?v=3" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=4" />
+    <link rel="stylesheet" href="app.css?v=4" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=3" defer></script>
-    <script src="app.js?v=3" defer></script>
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=4" defer></script>
+    <script src="app.js?v=4" defer></script>
 </head>
 <body>
 <div class="snak">
+
+    <!-- Opened from a Messenger/Facebook link: that browser cannot install or give notifications. -->
+    <div id="inApp" class="bar inapp" hidden>
+        <span><b>Chatten virker fint her i Messenger.</b> Vil du have besked, når der skrives, og Snak på telefonen? Så åbn den i <span id="browserNavn">Safari</span>:</span>
+        <a class="k-btn k-btn-sm k-btn-primary" id="aabnBrowser" href="https://snak.itmartin.dk/">Åbn i <span id="browserNavn2">Safari</span></a>
+        <span class="k-help">Virker knappen ikke: tryk på <b>⋯</b> øverst til højre → <b>Åbn i browser</b> (Open in browser). Du skriver koden én gang til derinde.</span>
+    </div>
 
     <!-- Login: the group code once, and the name the others will see. -->
     <section id="login" class="login" hidden>
@@ -42,7 +49,10 @@
     <!-- The app: two tabs, chat and tasks. -->
     <section id="app" class="app" hidden>
         <header class="top">
-            <div class="brand"><b>Snak</b><span id="hvem"></span></div>
+            <div class="brand">
+                <b>Snak</b><span id="hvem"></span>
+                <button type="button" class="link hjem-knap" id="hjemKnap" hidden>📲 Læg på telefonen</button>
+            </div>
             <nav class="tabs" role="tablist">
                 <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
