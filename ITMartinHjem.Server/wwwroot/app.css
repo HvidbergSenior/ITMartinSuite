@@ -336,6 +336,14 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .bs-card h2{color:#7a2e12}
 .bs-card a{color:#5c210c;text-decoration:underline}
 .bs-btn{display:block;text-align:center;margin:16px 0;font-size:1.1rem}
+/* "Snart" teaser: ways to buy. State is text + icon, never colour alone (colour-blind user). */
+.bs-ways{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.bs-way{display:flex;flex-direction:column;gap:3px;padding:12px;border:1px solid #e6d6c2;border-radius:12px;background:#fbf6ee;color:#2a1d12}
+.bs-way-icon{font-size:1.6em;line-height:1}
+.bs-way-line{color:#5e4a38;font-size:.92em}
+.bs-way-state{margin-top:auto;padding-top:6px;font-size:.85em;font-weight:700;color:#5e4a38}
+.bs-way-state.bs-now{color:#1d4d1d}
+.bs-soon-how{font-weight:600}
 .hj-page .hj-week{margin:16px 0;padding:12px 16px;border-radius:12px;background:var(--k-accent-soft);border-left:5px solid var(--k-accent)}
 
 /* Show/hide everywhere (user 2026-10-05): app cards = heading row (icon + name) + body; page parts = own boxes */

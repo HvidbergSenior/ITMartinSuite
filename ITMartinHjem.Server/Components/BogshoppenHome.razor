@@ -10,6 +10,26 @@
     <p>Rico og Martin – venner i over 30 år</p>
 </header>
 
+@* Teaser (user 2026-10-10): every way Bogshoppen will sell, shown as "coming". Only "Efterlys" works today (the chat below). *@
+<section class="k-card hj-sec bs-card bs-soon">
+    <h2>⏳ Snart kan du købe på mange måder</h2>
+    <div>
+        <p>Over 100.000 bøger, blade, tegneserier, film og spil er ved at blive registreret. Her er alle de måder, du snart kan købe dem på:</p>
+        <ul class="bs-ways">
+            @foreach (var w in Ways)
+            {
+                <li class="bs-way">
+                    <span class="bs-way-icon" aria-hidden="true">@w.Icon</span>
+                    <b>@w.Name</b>
+                    <span class="bs-way-line">@w.Line</span>
+                    <span class="bs-way-state @(w.Now ? "bs-now" : "")">@(w.Now ? "✅ Virker nu" : "⏳ Kommer snart")</span>
+                </li>
+            }
+        </ul>
+        <p class="bs-soon-how">Leder du efter noget bestemt? Skriv det i chatten nederst – så kigger vi efter det, mens vi registrerer.</p>
+    </div>
+</section>
+
 @{ var (intro, parts) = Sections.Split(_page?.Body); }
 @if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
 <div class="bs-card"><SectionBoxes Parts="parts" /></div>
@@ -22,6 +42,18 @@
     public const string PageSlug = "bogshoppen-dk";
     private Page? _page;
     private bool _available;
+
+    private static readonly (string Icon, string Name, string Line, bool Now)[] Ways =
+    [
+        ("💬", "Efterlys", "Skriv hvad du leder efter i chatten herunder.", true),
+        ("🛒", "Webshop", "Find varen, læg den i kurven og betal med det samme.", false),
+        ("🔨", "Liveauktioner", "Se varerne i kameraet og byd live fra mobilen.", false),
+        ("🏪", "Markedsplads", "Bud og byttehandel – giv et bud på det, du gerne vil have.", false),
+        ("🔎", "Søg i hele lageret", "Søg på titel, nummer eller år i alle 100.000+ varer.", false),
+        ("📦", "Samlinger og årgange", "Køb en hel årgang Anders And eller en hel serie på én gang.", false),
+        ("🌍", "eBay og Tradera", "Samlere i udlandet kan også købe – samme vare, sælges kun én gang.", false),
+        ("🤝", "Afhent eller få det sendt", "Hent selv efter aftale, eller få det sendt med posten.", false),
+    ];
 
     // bogshoppen.dk and www.bogshoppen.dk are served by this app too (Cloudflare tunnel -> hjem-web).
     public static bool IsHost(string host) =>
