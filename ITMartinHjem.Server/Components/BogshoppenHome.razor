@@ -33,6 +33,21 @@
     </div>
 </section>
 
+@* User 2026-10-10: ~300 boxes, opened one at a time like the TV shows about containers. *@
+<section class="k-card hj-sec bs-card bs-think">
+    <h2>🐦 Den digitale kolibri tænker …</h2>
+    <div>
+        <p class="bs-think-quote">"Vi åbner en kasse – lad os se, hvad der er i den."</p>
+        <ul>
+            <li><b>Omkring 300 kasser</b> står og venter. Ingen ved helt, hvad der er i dem alle sammen.</li>
+            <li>Vi <b>åbner én kasse ad gangen – live</b>, ligesom i tv-programmerne om containere. Du kigger med fra mobilen.</li>
+            <li>Ser du noget, du vil have, <b>byder du med det samme</b> – eller skriver, at du gerne vil høre mere om det.</li>
+            <li>Alt i kassen bliver fotograferet og registreret, så du kan finde det igen bagefter.</li>
+            <li>Fortæl os, hvad du samler – så siger vi til, når vi åbner en kasse med det i.</li>
+        </ul>
+    </div>
+</section>
+
 @{ var (intro, parts) = Sections.Split(_page?.Body); }
 @if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
 <div class="bs-card"><SectionBoxes Parts="parts" /></div>

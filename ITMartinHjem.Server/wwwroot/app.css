@@ -423,3 +423,5 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 /* Mine apps: a picture of the app in use (2026-10-08) */
 .hj-app-pic { display: block; max-width: 100%; max-height: 420px; margin: 10px auto 0; border-radius: 12px; border: 1px solid var(--k-border-3); }
 .bs-manifest{padding:10px 14px;border-left:5px solid #7a2e12;background:#f3e6d4;border-radius:8px;color:#2a1d12}
+.bs-think-quote{font-size:1.25rem;font-style:italic;font-weight:700;color:#5c210c;margin:4px 0 10px}
+.bs-think li{margin:4px 0}
