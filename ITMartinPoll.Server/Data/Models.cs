@@ -81,7 +81,8 @@ public class PollOption
     public List<Vote> Votes { get; set; } = [];
 }
 
-// Kundekartotek (user 2026-10-10): people who said YES to mails about Bogshoppen's auctions.
+// Kundekartotek (user 2026-10-10): people who said YES to a login for Bogshoppen's live auctions + keeping their interests.
+// NO newsletters, ever (user: "ITMartin hader dem") - the e-mail is only for sending the login.
 // Only explicit opt-ins land here; ConsentText + ConsentAt are the proof (markedsføringsloven §10, GDPR art. 7).
 public class Customer
 {
@@ -96,6 +97,7 @@ public class Customer
     public string    UnsubscribeToken { get; set; } = Guid.NewGuid().ToString("N");
     public DateTime? UnsubscribedAt   { get; set; }
     public string    Note             { get; set; } = "";
+    public string    Interests        { get; set; } = "";   // what they chose/wrote, e.g. "Anders And-blade, Magic-kort | leder efter ..."
     public DateTime  CreatedAt        { get; set; } = DateTime.UtcNow;
 }
 

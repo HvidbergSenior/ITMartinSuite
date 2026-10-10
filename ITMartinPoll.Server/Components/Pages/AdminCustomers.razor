@@ -3,7 +3,7 @@
 @inject PollDb       Db
 @inject AdminSession Session
 
-@* Kundekartotek (user 2026-10-10): everyone who ticked "send mig en mail om auktioner". Only opt-ins land here.
+@* Kundekartotek (user 2026-10-10): everyone who ticked "send mig et login til liveauktionerne". NO newsletters. Only opt-ins land here.
    Delete = GDPR right to erasure; Afmeldt = keeps the row so we can prove they said stop and never mail them again. *@
 <PageTitle>Kundekartotek — Stem</PageTitle>
 
@@ -21,11 +21,11 @@
     {
         <div class="admin-form">
             <p class="admin-hint">
-                Her er alle, der selv har sat flueben ved "send mig en mail om auktioner". Hent listen som CSV og sæt
-                adresserne i <b>Bcc</b> (aldrig Til/Cc – så kan modtagerne se hinanden). Husk at hver mail skal have
-                afmeld-linket, som står i CSV-filen ud for hver person.
+                Her er alle, der selv har sat flueben for et login til liveauktionerne, og det de interesserer sig for.
+                <b>Ingen nyhedsbreve</b> – e-mailen er kun til at sende login. Skriv til én ad gangen (eller Bcc, aldrig Til/Cc),
+                og sæt personens afmeld-link (står i CSV-filen) i mailen.
             </p>
-            <a class="admin-create-btn" href="/admin/kunder.csv" download>⬇ Hent som CSV (@Active.Count kan få mail)</a>
+            <a class="admin-create-btn" href="/admin/kunder.csv" download>⬇ Hent som CSV (@Active.Count aktive)</a>
 
             <input class="poll-input" placeholder="Søg navn eller e-mail" @bind="_q" @bind:event="oninput" />
 
@@ -37,6 +37,7 @@
             {
                 <div class="cust-row @(c.UnsubscribedAt is null ? "" : "cust-off")">
                     <div><b>@c.Name</b> · @c.Email</div>
+                    @if (c.Interests != "") { <div>Interesser: @c.Interests</div> }
                     <div class="admin-hint">
                         @c.Source · samtykke @c.ConsentAt.ToLocalTime().ToString("d. MMM yyyy HH:mm")
                         @if (c.UnsubscribedAt is not null) { <b> · AFMELDT @c.UnsubscribedAt.Value.ToLocalTime().ToString("d. MMM yyyy")</b> }

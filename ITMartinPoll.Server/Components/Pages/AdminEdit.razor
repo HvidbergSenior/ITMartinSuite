@@ -45,7 +45,7 @@
                    @onchange="e => _deadlineStr = e.Value?.ToString() ?? string.Empty" />
 
             <label class="form-check"><input type="checkbox" @bind="_allowMultiple" /> Man må vælge flere svar</label>
-            <label class="form-check"><input type="checkbox" @bind="_requireContact" /> Navn + e-mail krævet – én stemme pr. e-mail (og tilmelding til auktioner)</label>
+            <label class="form-check"><input type="checkbox" @bind="_requireContact" /> Navn + e-mail krævet – én stemme pr. e-mail (og flueben for login til liveauktioner)</label>
 
             <label class="form-label">Svarmuligheder</label>
             @for (int i = 0; i < _options.Count; i++)
@@ -115,7 +115,7 @@
 
             @if (_auctionSignups.Count > 0)
             {
-                <label class="form-label">🔨 Vil have besked om auktioner: @_auctionSignups.Count</label>
+                <label class="form-label">🔨 Vil have login til liveauktioner: @_auctionSignups.Count</label>
                 <p class="admin-hint">De ligger i <a href="/admin/kunder">📇 Kundekartoteket</a> (kun dem, der selv har sat flueben).</p>
             }
 

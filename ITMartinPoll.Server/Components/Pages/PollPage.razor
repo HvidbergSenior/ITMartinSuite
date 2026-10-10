@@ -152,14 +152,14 @@
     private string _error         = "";
 
     // Stored with each customer as proof of what they agreed to - change the text, and new sign-ups get the new text.
-    private const string OptInText = "Ja tak – send mig en mail, når Bogshoppen holder auktioner, så jeg kan være med.";
+    private const string OptInText = "Ja tak – send mig et login til Bogshoppens liveauktioner, og gem det, jeg har valgt, som mine interesser.";
 
     // Shown under the e-mail field (GDPR art. 13: who, why, how long, your rights).
     private const string Privacy =
-        "Dataansvarlig: ITMartin (Martin Hvidberg Nielsen), ITMartin@Mensa.dk. Din e-mail vises ikke for andre. " +
-        "Vi bruger den kun til at sikre én stemme pr. person – og til auktions-mails, hvis du har sat flueben. " +
-        "Afstemningen slettes senest 6 måneder efter, den er lukket. Auktions-mails kan du altid sige stop til (link i hver mail), " +
-        "og du kan til enhver tid bede om at se eller få slettet dine oplysninger.";
+        "INGEN nyhedsbreve – aldrig. Din e-mail vises ikke for andre og bruges kun til at sikre én stemme pr. person. " +
+        "Sætter du flueben, bruger vi den også til at sende dig et login til liveauktionerne og til at huske dine interesser – intet andet. " +
+        "Dataansvarlig: ITMartin (Martin Hvidberg Nielsen), ITMartin@Mensa.dk. Afstemningen slettes senest 6 måneder efter, den er lukket. " +
+        "Du kan altid bede om at se eller få slettet dine oplysninger.";
 
     // People, not rows: a multi-choice voter has one Vote row per chosen option.
     private int People => _poll is null ? 0 : _poll.Votes.Select(v => v.Email != "" ? v.Email : (v.VoterName + "|" + v.VotedAt.Ticks)).Distinct().Count();
@@ -258,6 +258,8 @@
             if (c is null) Db.Customers.Add(c = new Customer { Email = email, CreatedAt = now });
             c.Name = _voterName.Trim(); c.Source = "Stem: " + _poll.Title;
             c.ConsentText = OptInText; c.ConsentAt = now; c.WantsAuctionNews = true; c.UnsubscribedAt = null;
+            var picked = string.Join(", ", _poll.Options.Where(o => _selected.Contains(o.Id)).Select(o => o.Label));
+            c.Interests = _comment.Trim() == "" ? picked : picked + " | " + _comment.Trim();
         }
         await Db.SaveChangesAsync();
 

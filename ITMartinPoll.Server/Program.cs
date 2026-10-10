@@ -159,6 +159,8 @@ using (var scope = app.Services.CreateScope())
             "UnsubscribedAt" TEXT NULL, "Note" TEXT NOT NULL DEFAULT '', "CreatedAt" TEXT NOT NULL);
         CREATE UNIQUE INDEX IF NOT EXISTS "IX_Customers_Email" ON "Customers" ("Email");
     """);
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Customers\" ADD COLUMN \"Interests\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "HelpChat" (
             "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "HelpEventId" INTEGER NOT NULL, "Name" TEXT NOT NULL DEFAULT '',
@@ -261,8 +263,8 @@ app.MapGet("/admin/kunder.csv", async (PollDb db, HttpContext ctx, IConfiguratio
     if (ctx.Request.Cookies["poll_admin"] != ITMartinPoll.Server.AdminToken.For(cfg["Poll:AdminPin"] ?? "1234")) return Results.NotFound();
     static string Q(string v) => "\"" + v.Replace("\"", "\"\"") + "\"";
     var rows = await db.Customers.AsNoTracking().Where(c => c.WantsAuctionNews && c.UnsubscribedAt == null).OrderBy(c => c.Name).ToListAsync();
-    var csv = "Navn;Email;Telefon;Kilde;Samtykke givet;Afmeld-link\n" + string.Concat(rows.Select(c =>
-        $"{Q(c.Name)};{Q(c.Email)};{Q(c.Phone)};{Q(c.Source)};{c.ConsentAt:yyyy-MM-dd HH:mm};https://stem.itmartin.dk/afmeld/{c.UnsubscribeToken}\n"));
+    var csv = "Navn;Email;Telefon;Interesser;Kilde;Samtykke givet;Afmeld-link\n" + string.Concat(rows.Select(c =>
+        $"{Q(c.Name)};{Q(c.Email)};{Q(c.Phone)};{Q(c.Interests)};{Q(c.Source)};{c.ConsentAt:yyyy-MM-dd HH:mm};https://stem.itmartin.dk/afmeld/{c.UnsubscribeToken}\n"));
     return Results.File(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray(), "text/csv", "kundekartotek.csv");
 });
 

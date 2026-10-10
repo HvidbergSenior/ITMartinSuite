@@ -16,7 +16,12 @@
     @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any() && !_packages.Any() && !_helpEvents.Any())
     {
         <div class="poll-empty">
-            <p>Ingen aktive meningsmålinger lige nu</p>
+            @if (Session.IsAdmin) { <p>Ingen aktive meningsmålinger lige nu</p> }
+            else
+            {
+                <p><b>Afstemningerne her er private.</b></p>
+                <p>Har du fået et link til en afstemning, så åbn det direkte – så kommer du lige derhen.</p>
+            }
         </div>
     }
     else
@@ -201,6 +206,10 @@
                 Sessions = p.Sessions.Where(x => x.IsActive).ToList(),
             })
             .ToList();
+
+        // Nothing is listed for guests (user 2026-10-10: "man skal ikke have adgang til alle stem afstemninger") -
+        // every poll is reached only through its own link. Admin (logged in on /admin) still sees the list.
+        if (!Session.IsAdmin) return;
 
         // Items belonging to a package are reached through the package, not
         // on their own - listing them both places invites someone to answer
