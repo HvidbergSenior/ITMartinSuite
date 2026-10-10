@@ -119,4 +119,27 @@ public class PriceHuntTests
         PriceHunt.ListingNumber("https://www.abebooks.com/Mort-Terry-Pratchett-Corgi-Books/31992988332/bd").Should().Be("31992988332");
         PriceHunt.ListingNumber("https://www.dba.dk/recommerce/forsale/item/1945166").Should().Be("");
     }
+
+    // Trimmed Kleinanzeigen search result (2026-10-10): the title sits in an image JSON block, the price as "5 € VB".
+    private const string Kleinanzeigen = """
+        <article class="flex justify-between p-medium" data-adid="1" data-href="/s-anzeige/die-farben-der-magie/1-76-1">
+          <script type="application/ld+json">{"title":"Terry Pratchett – Die Farben der Magie, gebunden","@type":"ImageObject"}</script>
+          <p class="price">  5 € VB </p></article>
+        <article class="flex" data-adid="2" data-href="/s-anzeige/die-hexen/2">
+          <script type="application/ld+json">{"title":"Terry Pratchett Die Hexen Brettspiel - Neu & OVP","@type":"ImageObject"}</script>
+          <p>120 €</p></article>
+        """;
+
+    [Test]
+    public void Kleinanzeigen_ad_gives_title_price_and_link_and_skips_games()
+    {
+        var l = KleinanzeigenListings.ParseAds(Kleinanzeigen, "Die Farben der Magie", "Terry Pratchett", "u", 7.46m);
+        l.Count.Should().Be(1);
+        var o = l.All.Single();
+        o.Name.Should().Be("Terry Pratchett – Die Farben der Magie, gebunden");
+        o.Price.Should().Be(37m);
+        o.Original.Should().Be("5,00 EUR VB");
+        o.Url.Should().Be("https://www.kleinanzeigen.de/s-anzeige/die-farben-der-magie/1-76-1");
+        KleinanzeigenListings.ParseAds(Kleinanzeigen, "Die Hexen", "Terry Pratchett", "u", 7.46m).Count.Should().Be(0);
+    }
 }

@@ -7,17 +7,27 @@ namespace ITMartinLager.Server.Services;
 // facts are needed like 'found on X til 45 kr. Link'"). No AI - only the sites' own listings, each with its link.
 public sealed class PriceHunt(
     IDbContextFactory<LagerDb> dbf, DbaListings dba, AbeBooksListings abe, ZvabListings zvab, AmazonDeListings amazon,
-    NemosListings nemos, FaraosListings faraos, BokborsenListings bokborsen, BogIdeListings bogIde)
+    NemosListings nemos, FaraosListings faraos, BokborsenListings bokborsen, BogIdeListings bogIde,
+    GulogGratisListings gulogGratis, FinnListings finn, BlocketListings blocket, ToriListings tori, KleinanzeigenListings kleinanzeigen)
 {
     // Books and paper - Magic cards get their price from the MTG Scanner, CDs/DVDs/games have no source here yet.
     public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin];
 
     private const int KeepPerSource = 12;
 
+    public const string SourceList = "Brugt: DBA, GulogGratis, Blocket (Sverige), Finn.no (Norge), Tori.fi (Finland), Kleinanzeigen (Tyskland), "
+        + "AbeBooks, ZVAB (Tyskland), Bokbörsen (Sverige), Nemos Bibliotek og Faraos. Ny: Amazon.de og Bog & idé.";
+    public const int SourceCount = 13;
+
     // Name, new price (true) or used market, and the lookup. Amazon.de shows the shop's (new) price first.
     private IEnumerable<(string Name, bool IsNew, Task<Listings?> Lookup)> Ask(string title, string author, string isbn, CancellationToken ct) =>
     [
         ("DBA", false, dba.LookupAsync(title, author, ct)),
+        ("GulogGratis", false, gulogGratis.LookupAsync(title, author, ct)),
+        ("Blocket", false, blocket.LookupAsync(title, author, ct)),
+        ("Finn.no", false, finn.LookupAsync(title, author, ct)),
+        ("Tori.fi", false, tori.LookupAsync(title, author, ct)),
+        ("Kleinanzeigen", false, kleinanzeigen.LookupAsync(title, author, ct)),
         ("AbeBooks", false, abe.LookupAsync(title, author, isbn, ct)),
         ("ZVAB", false, zvab.LookupAsync(title, author, isbn, ct)),
         ("Bokbörsen", false, bokborsen.LookupAsync(title, author, isbn, ct)),

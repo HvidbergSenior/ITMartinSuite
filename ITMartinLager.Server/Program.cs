@@ -52,6 +52,11 @@ builder.Services.AddHttpClient<FaraosListings>(c => c.Timeout = TimeSpan.FromSec
 builder.Services.AddHttpClient<ZvabListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<BokborsenListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<BogIdeListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<FinnListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<ToriListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<BlocketListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<GulogGratisListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<KleinanzeigenListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddTransient<PriceHunt>();
 builder.Services.AddHostedService<PriceHunter>();
 builder.Services.AddDataProtection()

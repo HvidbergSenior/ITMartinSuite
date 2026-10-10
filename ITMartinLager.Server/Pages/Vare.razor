@@ -93,8 +93,8 @@ else
                     }
                 </ul>
             }
-            <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? "⏳ Spørger 8 sider …" : "🔄 Find priser nu")</button>
-            <p class="k-small k-muted">Siderne: DBA, AbeBooks, ZVAB (Tyskland), Bokbörsen (Sverige), Nemos Bibliotek, Faraos, Amazon.de og Bog &amp; idé (nypris). Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
+            <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? $"⏳ Spørger {PriceHunt.SourceCount} sider …" : "🔄 Find priser nu")</button>
+            <p class="k-small k-muted">Siderne – @PriceHunt.SourceList Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
         </section>
     }
 
@@ -227,7 +227,7 @@ else
             await using var db = await DbFactory.CreateDbContextAsync();
             await LoadPrices(db);
             _item!.PriceHint = (await db.Items.FindAsync(Id))?.PriceHint;
-            _msg = $"{ok} af 8 sider svarede.";
+            _msg = $"{ok} af {PriceHunt.SourceCount} sider svarede.";
         }
         catch (Exception ex) { _err = ex.Message; }
         finally { _hunting = false; }

@@ -112,7 +112,7 @@ public static partial class ListingParse
 
     private static readonly HashSet<string> NotABook =
         ["vhs", "dvd", "bluray", "blu", "plakat", "poster", "puslespil", "figur", "figurer", "shirt", "krus", "kop", "film", "videobånd",
-         "filmplakat", "filmprogram", "postkort", "foto", "lydbog", "lydbøger", "hörbuch", "audiobook", "audio", "abridged"];
+         "filmplakat", "filmprogram", "postkort", "foto", "brætspil", "brettspiel", "brädspel", "brettspill", "puzzle", "pussel", "lydbog", "lydbøger", "hörbuch", "audiobook", "audio", "abridged"];
 
     // "graphic": the graphic novel of a novel is another book (2026-10-10, The Colour of Magic).
     private static readonly HashSet<string> Collection =
