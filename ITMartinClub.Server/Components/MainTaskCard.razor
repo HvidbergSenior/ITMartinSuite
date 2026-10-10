@@ -19,21 +19,27 @@
         <div class="maintask-daily-badge @(DoneCount > 0 && Tasks.Count == 0 ? "daily-done" : "")">@BadgeText</div>
     }
 
-    <div @onclick:stopPropagation="true">
     @if (!Tasks.Any())
     {
+        <!-- Not wrapped in stopPropagation - the empty-state placeholder is
+             most of an empty category's clickable surface, so it must still
+             bubble up to OnAddTask like the rest of the card (2026-09-10:
+             found by reproducing "cannot make task on the new hovedopgave" -
+             the add actually succeeded server-side every time, but clicking
+             this text specifically never reached the handler at all). -->
         <div class="club-empty">Ingen åbne opgaver.</div>
     }
     else
     {
+        <div @onclick:stopPropagation="true">
         @foreach (var t in Tasks)
         {
             <AssignmentRow @key="t.Id" Task="t" IsMine="t.IsAssignedTo(CurrentMemberName)"
                            OnComplete="() => OnComplete.InvokeAsync(t.Id)" OnDecline="() => OnDecline.InvokeAsync(t.Id)" OnJoin="() => OnJoin.InvokeAsync(t.Id)"
                            OnEdit="() => OnEditTask.InvokeAsync(t)" OnDelete="() => OnDeleteTask.InvokeAsync(t.Id)" />
         }
+        </div>
     }
-    </div>
 </div>
 
 @code {
