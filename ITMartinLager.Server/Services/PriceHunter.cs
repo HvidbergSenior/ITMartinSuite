@@ -8,22 +8,24 @@ namespace ITMartinLager.Server.Services;
 public sealed class PriceHunt(
     IDbContextFactory<LagerDb> dbf, DbaListings dba, AbeBooksListings abe, ZvabListings zvab, AmazonDeListings amazon,
     NemosListings nemos, FaraosListings faraos, BokborsenListings bokborsen, BogIdeListings bogIde,
-    GulogGratisListings gulogGratis, FinnListings finn, BlocketListings blocket, ToriListings tori, KleinanzeigenListings kleinanzeigen)
+    GulogGratisListings gulogGratis, FinnListings finn, BlocketListings blocket, ToriListings tori, KleinanzeigenListings kleinanzeigen,
+    TraderaListings tradera)
 {
     // Books and paper - Magic cards get their price from the MTG Scanner, CDs/DVDs/games have no source here yet.
     public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin];
 
     private const int KeepPerSource = 12;
 
-    public const string SourceList = "Brugt: DBA, GulogGratis, Blocket (Sverige), Finn.no (Norge), Tori.fi (Finland), Kleinanzeigen (Tyskland), "
+    public const string SourceList = "Brugt: DBA, GulogGratis, Tradera (Sverige), Blocket (Sverige), Finn.no (Norge), Tori.fi (Finland), Kleinanzeigen (Tyskland), "
         + "AbeBooks, ZVAB (Tyskland), Bokbörsen (Sverige), Nemos Bibliotek og Faraos. Ny: Amazon.de og Bog & idé.";
-    public const int SourceCount = 13;
+    public const int SourceCount = 14;
 
     // Name, new price (true) or used market, and the lookup. Amazon.de shows the shop's (new) price first.
     private IEnumerable<(string Name, bool IsNew, Task<Listings?> Lookup)> Ask(string title, string author, string isbn, CancellationToken ct) =>
     [
         ("DBA", false, dba.LookupAsync(title, author, ct)),
         ("GulogGratis", false, gulogGratis.LookupAsync(title, author, ct)),
+        ("Tradera", false, tradera.LookupAsync(title, author, isbn, ct)),
         ("Blocket", false, blocket.LookupAsync(title, author, ct)),
         ("Finn.no", false, finn.LookupAsync(title, author, ct)),
         ("Tori.fi", false, tori.LookupAsync(title, author, ct)),

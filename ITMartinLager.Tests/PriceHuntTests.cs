@@ -41,6 +41,26 @@ public class PriceHuntTests
         BokborsenListings.Parse(Bokborsen, "", "", "u", 0.65m).Count.Should().Be(2);
     }
 
+    // Trimmed Tradera REST v4 /search answer for "Anders And 1975" (2026-10-11): a shop item, an ended one, an auction, another magazine.
+    private const string Tradera = """
+        {"totalNumberOfItems":4,"items":[
+          {"id":742593499,"shortDescription":"Anders And & Co 1975 Nr 27","buyItNowPrice":29,"maxBid":29,"nextBid":29,"isEnded":false,
+           "itemUrl":"http://www.tradera.com/item/1124/742593499/anders-and-co-1975-nr-27"},
+          {"id":1,"shortDescription":"Anders And & Co 1975 Nr 3","buyItNowPrice":10,"isEnded":true,"itemUrl":"http://www.tradera.com/item/1/1/x"},
+          {"id":2,"shortDescription":"Anders And & Co 1975 Nr 12","buyItNowPrice":0,"maxBid":40,"nextBid":45,"isEnded":false,"itemUrl":"http://www.tradera.com/item/1/2/y"},
+          {"id":3,"shortDescription":"Teknikens Värld 1975-26","buyItNowPrice":159,"isEnded":false,"itemUrl":"http://www.tradera.com/item/1/3/z"}
+        ]}
+        """;
+
+    [Test]
+    public void Tradera_takes_buy_now_or_current_bid_skips_ended_and_other_titles()
+    {
+        var l = TraderaListings.Parse(Tradera, "Anders And & Co 1975", "", "u", 0.65m);   // comics are hunted with their number
+        l.All.Select(o => o.Price).Should().BeEquivalentTo(new decimal?[] { 19m, 26m });   // 29 SEK buy-now, 40 SEK bid
+        l.All.First().Url.Should().Be("https://www.tradera.com/item/1124/742593499/anders-and-co-1975-nr-27");
+        l.All.First().Original.Should().Be("29,00 SEK");
+    }
+
     // Trimmed Bog & idé (Shopify) search/suggest.json answer (2026-10-10). The name has no author, the address does.
     private const string BogIde = """
         {"resources":{"results":{"products":[

@@ -57,6 +57,7 @@ builder.Services.AddHttpClient<ToriListings>(c => c.Timeout = TimeSpan.FromSecon
 builder.Services.AddHttpClient<BlocketListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<GulogGratisListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddHttpClient<KleinanzeigenListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
+builder.Services.AddHttpClient<TraderaListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddTransient<PriceHunt>();
 builder.Services.AddHostedService<PriceHunter>();
 builder.Services.AddDataProtection()
