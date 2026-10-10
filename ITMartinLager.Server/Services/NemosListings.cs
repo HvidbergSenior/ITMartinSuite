@@ -46,7 +46,9 @@ public sealed class NemosListings(HttpClient http, ILogger<NemosListings> log)
 
     internal static Listings Parse(string json, string title, string author, string url)
     {
-        var match = ListingParse.Matcher(title, author) with { Surname = "" };   // comics carry no author in the name
+        // Comics carry no author in the name, so the author is not asked for - unless the title is one word: "Mort" by
+        // Pratchett is not "Mort Walker" (2026-10-10).
+        var match = ListingParse.Matcher(title, author) is var m && m.Words.Count > 1 ? m with { Surname = "" } : ListingParse.Matcher(title, author);
         var offers = new List<Offer>();
         JsonElement root;
         try { root = JsonDocument.Parse(json).RootElement; } catch (JsonException) { return ListingParse.Summarise(offers, url); }

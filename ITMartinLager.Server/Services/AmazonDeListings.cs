@@ -37,7 +37,8 @@ public sealed partial class AmazonDeListings(HttpClient http, ILogger<AmazonDeLi
                 return null;
             }
             var eur = await FxRates.ToDkkAsync(http, "EUR", log, ct);
-            var result = Parse(html, isbn != "" ? "" : title, author, SearchUrl(query), eur);
+            // Even by ISBN the title is checked when there is one - Amazon fills the page with sponsored other books.
+            var result = Parse(html, title, author, SearchUrl(query), eur, byIsbn: isbn != "");
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }
@@ -49,29 +50,34 @@ public sealed partial class AmazonDeListings(HttpClient http, ILogger<AmazonDeLi
         finally { Gate.Release(); }
     }
 
-    // title "" = searched by ISBN, every hit is the book.
-    internal static Listings Parse(string html, string title, string author, string url, decimal? eurToDkk)
+    // By ISBN the title words are still checked (Amazon fills the page with sponsored other books), but not the author -
+    // Amazon's names seldom hold it. title "" = no check at all.
+    internal static Listings Parse(string html, string title, string author, string url, decimal? eurToDkk, bool byIsbn = false)
     {
-        var byIsbn = title == "";
-        var match = ListingParse.Matcher(title, author);
+        if (title == "") byIsbn = true;
+        var match = byIsbn ? ListingParse.Matcher(title, "") : ListingParse.Matcher(title, author);
         var offers = new List<Offer>();
         foreach (var block in html.Split("data-component-type=\"s-search-result\"").Skip(1))
         {
             var t = TitleRx().Match(block);
             var name = t.Success ? WebUtility.HtmlDecode(t.Groups[1].Value).Trim() : "";
-            if (name == "" || (!byIsbn && !match.Matches(name))) continue;
+            if (name == "" || (title != "" && !match.Matches(name))) continue;
             var link = LinkRx().Match(block);
             var href = link.Success ? "https://www.amazon.de" + WebUtility.HtmlDecode(link.Groups[1].Value).Split("/ref=")[0] : url;
             decimal? kr = null;
+            var original = "";
             var w = WholeRx().Match(block);
             if (w.Success && eurToDkk is not null)
             {
                 var f = FractionRx().Match(block);
                 var whole = w.Groups[1].Value.Replace(".", "").Replace(",", "");
                 if (decimal.TryParse(whole + "." + (f.Success ? f.Groups[1].Value : "0"), NumberStyles.Number, CultureInfo.InvariantCulture, out var eur) && eur > 0)
+                {
                     kr = Math.Round(eur * eurToDkk.Value);
+                    original = ListingParse.Original(eur, "EUR");
+                }
             }
-            offers.Add(new Offer(name, kr, href));
+            offers.Add(new Offer(name, kr, href, original));
         }
         return ListingParse.Summarise(offers, url, ambiguous: !byIsbn && match.Ambiguous);
     }

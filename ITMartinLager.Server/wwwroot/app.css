@@ -57,3 +57,13 @@
 .lg-proof { font-size: .9rem; border-left: 3px solid #2e9d57; padding: .2rem .6rem; }
 .lg-proof ul { margin: .2rem 0 0; padding-left: 1.1rem; }
 .lg-proof a { overflow-wrap: anywhere; }
+
+/* Prices found on the net - one line per find; far-off prices get a thick border and a ⚠ text (never colour alone). */
+.lg-prices { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .35rem; }
+.lg-prices li { padding: .4rem .6rem; border-radius: 6px; background: var(--k-bg-deep, rgba(128,128,128,.10)); }
+.lg-prices li .k-small { display: block; }
+.lg-prices li.lg-flag { border-left: 5px solid var(--k-text); }
+.lg-flag-text { font-weight: 700; margin-left: .3rem; }
+.lg-sources { margin: .2rem 0 .8rem; padding-left: 1.2rem; }
+.lg-more { margin: .3rem 0 .8rem; }
+.lg-more summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }

@@ -79,6 +79,7 @@ public sealed class Item
     public string SoldTo { get; set; } = "";
     public DateTime? SoldAt { get; set; }  // how sure the AI was; < 0.6 = check it
     public string Search { get; set; } = "";     // lower-case title + series + number + year, for LIKE search
+    public DateTime? PricesAt { get; set; }      // when the price hunter last searched every source for it
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -130,6 +131,39 @@ public sealed class BookCheck
     public void Touch() => Search = string.Join(' ', Title, Author, Year?.ToString() ?? "", Isbn, Verdict, SellAt).ToLowerInvariant();
 }
 
+// What one source said about one item the last time the price hunter asked (2026-10-10, user: "as many places as
+// possible"). Ok = false: the site could not be asked (blocked, down) - not the same as "ingen til salg".
+public sealed class PriceCheck
+{
+    public int Id { get; set; }
+    public int ItemId { get; set; }
+    public string Source { get; set; } = "";
+    public bool IsNew { get; set; }              // a shop's new price, not a used copy
+    public bool Ok { get; set; }
+    public int Count { get; set; }               // listings that matched the title
+    public int? Low { get; set; }                // kr, the realistic asking prices (over 3x the middle left out)
+    public int? Median { get; set; }
+    public int? High { get; set; }
+    public int? Wild { get; set; }               // highest "urimelig internetpris"
+    public bool Ambiguous { get; set; }          // title too broad to know the listings are this book
+    public string SearchUrl { get; set; } = "";
+    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
+}
+
+// One listing found for an item - the proof: "Fundet på ZVAB til 70 kr (9,37 EUR) · link".
+public sealed class PriceFind
+{
+    public int Id { get; set; }
+    public int ItemId { get; set; }
+    public string Source { get; set; } = "";
+    public bool IsNew { get; set; }
+    public string Name { get; set; } = "";       // the listing's own title, so a wrong match can be seen
+    public int Kr { get; set; }
+    public string Original { get; set; } = "";   // "9,37 EUR" when the site is not in kr
+    public string Url { get; set; } = "";
+    public DateTime FoundAt { get; set; } = DateTime.UtcNow;
+}
+
 // AI calls per day - the hard cap on spend lives in the database, so a restart does not reset it.
 public sealed class AiDay
 {
@@ -146,6 +180,8 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
     public DbSet<Photo> Photos => Set<Photo>();
     public DbSet<AiDay> AiDays => Set<AiDay>();
     public DbSet<BookCheck> BookChecks => Set<BookCheck>();
+    public DbSet<PriceCheck> PriceChecks => Set<PriceCheck>();
+    public DbSet<PriceFind> PriceFinds => Set<PriceFind>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -161,5 +197,8 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
         b.Entity<AiDay>().HasKey(x => x.Day);
         b.Entity<BookCheck>().HasIndex(x => x.Search);
         b.Entity<BookCheck>().HasIndex(x => x.CheckedAt);
+        b.Entity<Item>().HasIndex(x => x.PricesAt);
+        b.Entity<PriceCheck>().HasIndex(x => x.ItemId);
+        b.Entity<PriceFind>().HasIndex(x => x.ItemId);
     }
 }

@@ -2,8 +2,9 @@ using System.Collections.Concurrent;
 
 namespace ITMartinLager.Server.Services;
 
-// One listing as found - the proof behind a price (user 2026-10-07: "it needs proof").
-public sealed record Offer(string Name, decimal? Price, string Url);
+// One listing as found - the proof behind a price (user 2026-10-07: "it needs proof"). Original = the price as the
+// site shows it when it is not in kr ("9,37 EUR"), so the proof can be checked against the page.
+public sealed record Offer(string Name, decimal? Price, string Url, string Original = "");
 
 // Low-High = the realistic asking prices; Wild = the highest "urimelig internetpris" (over 3x the middle), if any.
 // Proof = up to 3 listings nearest the middle price. Ambiguous = the title is too broad to know they are this book
@@ -12,6 +13,9 @@ public sealed record Listings(int Count, decimal? Low, decimal? Median, decimal?
     decimal? Wild = null, bool Ambiguous = false, decimal? NewPrice = null)
 {
     public bool HasPrices => Low is not null;
+
+    // Every listing that matched the title (priced or not) - the price hunter keeps a selection of them per item.
+    public List<Offer> All { get; init; } = [];
 
     public string Text => Count == 0 ? "ingen til salg"
         : Ambiguous ? $"{Count} fund, men titlen er for bred til at vide om det er denne bog – ikke bevis"

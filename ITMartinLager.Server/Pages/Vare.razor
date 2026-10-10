@@ -2,6 +2,7 @@
 @inject IDbContextFactory<LagerDb> DbFactory
 @inject NavigationManager Nav
 @inject AuctionLink Auction
+@inject PriceHunt Hunt
 @inject IConfiguration Config
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
@@ -25,6 +26,7 @@ else
             <label>Serie / blad <input class="k-input" @bind="_item.Series" /></label>
             <label>Nummer <input class="k-input" @bind="_item.Number" /></label>
             <label>År <input class="k-input" type="number" @bind="_item.Year" /></label>
+            <label>ISBN / stregkode <input class="k-input" inputmode="numeric" @bind="_item.Barcode" placeholder="978…" /></label>
             <label>Konsol <input class="k-input" @bind="_item.Platform" /></label>
             <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
             <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
@@ -39,6 +41,62 @@ else
         @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
         @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
     </section>
+
+    @if (PriceHunt.HuntedKinds.Contains(_item.Kind))
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">💰 Priser fundet på nettet</h2>
+            @if (_finds.Count == 0 && _checks.Count == 0)
+            {
+                <p>Ikke slået op endnu. Prisjægeren gør det af sig selv i baggrunden (et par varer i minuttet) – eller tryk herunder.</p>
+            }
+            else
+            {
+                var used = _finds.Where(f => !f.IsNew).ToList();
+                var normal = PriceHunt.Summary.NormalOf(used.Select(f => f.Kr).ToList());
+                @if (normal is { } n)
+                {
+                    <p class="lg-answer">Normalpris brugt: ca. @n kr</p>
+                    <p class="k-small k-muted">Midten af @used.Count udbudspriser fra brugtmarkedet. Det er det, sælgere beder om – ikke hvad der faktisk er solgt for.</p>
+                }
+                else
+                {
+                    <p class="lg-answer">Ingen brugte til salg fundet</p>
+                }
+                @if (_finds.Count > 0)
+                {
+                    // First screen: the 3 cheapest and every far-off price. The rest folds away.
+                    var all = _finds.OrderBy(f => f.IsNew).ThenBy(f => f.Kr).ToList();
+                    var flagged = all.Where(f => PriceHunt.Summary.Flag(f.Kr, normal) != "").ToList();
+                    var first = all.Where(f => !f.IsNew).Take(3).Concat(all.Where(f => f.IsNew).Take(1)).Concat(flagged).Distinct().ToList();
+                    <ul class="lg-prices">
+                        @foreach (var f in first) { @Find(f, normal) }
+                    </ul>
+                    @if (all.Count > first.Count)
+                    {
+                        <details class="lg-more">
+                            <summary>Vis alle @all.Count fund</summary>
+                            <ul class="lg-prices">@foreach (var f in all) { @Find(f, normal) }</ul>
+                        </details>
+                    }
+                }
+                <p class="k-small k-muted">Slået op @_checks.Max(c => c.CheckedAt).ToLocalTime().ToString("d/M HH:mm"). Hver side:</p>
+                <ul class="k-small lg-sources">
+                    @foreach (var c in _checks.OrderBy(c => c.Source))
+                    {
+                        <li><a href="@(c.SearchUrl != "" ? c.SearchUrl : "#")" target="_blank" rel="noopener">@c.Source</a>:
+                            @(!c.Ok ? "kunne ikke spørges (blokeret eller nede)"
+                              : c.Ambiguous ? $"{c.Count} fund, men titlen er for bred til at vide om det er denne"
+                              : c.Count == 0 ? "ingen til salg"
+                              : c.Low is null ? $"{c.Count} fund uden pris"
+                              : $"{c.Count} fund, {c.Low}-{c.High} kr" + (c.Wild is { } w ? $", op til {w} kr" : ""))</li>
+                    }
+                </ul>
+            }
+            <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? "⏳ Spørger 8 sider …" : "🔄 Find priser nu")</button>
+            <p class="k-small k-muted">Siderne: DBA, AbeBooks, ZVAB (Tyskland), Bokbörsen (Sverige), Nemos Bibliotek, Faraos, Amazon.de og Bog &amp; idé (nypris). Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
+        </section>
+    }
 
     <section class="k-card">
         <h2 class="k-card-title">📷 Billede af varen</h2>
@@ -112,6 +170,13 @@ else
     private int _lot = 1;
     private bool _busy;
     private long _photoVer = DateTime.UtcNow.Ticks;
+    private List<PriceFind> _finds = [];
+    private List<PriceCheck> _checks = [];
+    private bool _hunting;
+    private string _searched = "";
+
+    // What the price search is made of - when it changes, the old prices are about another book.
+    private static string PriceKey(Item i) => $"{i.Kind}|{i.Title}|{i.Artist}|{i.Series}|{i.Number}|{i.Barcode}";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -119,6 +184,8 @@ else
         _item = await db.Items.Include(i => i.Box).FirstOrDefaultAsync(i => i.Id == Id);
         _box = _item?.Box?.Code;
         if (_item is null) return;
+        _searched = PriceKey(_item);
+        await LoadPrices(db);
         _start = _item.Price ?? _item.PriceHint ?? 0;
         _lot = Math.Max(1, _item.Quantity);
         if (Auction.Enabled && _item.Status != Statuses.Solgt && _item.Status != Statuses.PaaAuktion)
@@ -132,11 +199,47 @@ else
         }
     }
 
+    private static RenderFragment Find(PriceFind f, int? normal) => __builder =>
+    {
+        var flag = PriceHunt.Summary.Flag(f.Kr, normal);
+        <li class="@(flag != "" ? "lg-flag" : "")">
+            Fundet på <b>@f.Source</b> til <b>@f.Kr kr</b>@(f.Original != "" ? $" ({f.Original})" : "")@(f.IsNew ? " – ny" : "")
+            · <a href="@f.Url" target="_blank" rel="noopener">Link</a>
+            @if (flag != "") { <span class="lg-flag-text">⚠ @flag</span> }
+            <span class="k-small k-muted">@f.Name</span>
+        </li>
+    };
+
+    private async Task LoadPrices(LagerDb db)
+    {
+        _finds = await db.PriceFinds.Where(f => f.ItemId == Id).ToListAsync();
+        _checks = await db.PriceChecks.Where(c => c.ItemId == Id).ToListAsync();
+    }
+
+    private async Task HuntNow()
+    {
+        _hunting = true; _err = null;
+        StateHasChanged();
+        try
+        {
+            await Save();   // a corrected title or ISBN is what gets searched
+            var ok = await Hunt.HuntAsync(Id);
+            await using var db = await DbFactory.CreateDbContextAsync();
+            await LoadPrices(db);
+            _item!.PriceHint = (await db.Items.FindAsync(Id))?.PriceHint;
+            _msg = $"{ok} af 8 sider svarede.";
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _hunting = false; }
+    }
+
     private async Task Save()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         _item!.Kind = Kinds.Normalise(_item.Kind);
         _item.Condition = Conditions.Normalise(_item.Condition);
+        _item.Barcode = BarcodeLookup.ToIsbn13(_item.Barcode ?? "");   // ISBN-10 (also ending in X) becomes ISBN-13
+        if (PriceKey(_item) != _searched) { _item.PricesAt = null; _searched = PriceKey(_item); }   // the hunter takes it next
         _item.Touch();
         _item.Box = null;
         db.Items.Update(_item);
@@ -189,6 +292,8 @@ else
         await using var db = await DbFactory.CreateDbContextAsync();
         db.Items.Remove(new Item { Id = _item!.Id });
         await db.SaveChangesAsync();
+        await db.PriceFinds.Where(f => f.ItemId == Id).ExecuteDeleteAsync();
+        await db.PriceChecks.Where(c => c.ItemId == Id).ExecuteDeleteAsync();
         Nav.NavigateTo(_box is null ? "/" : $"/kasse/{_box}");
     }
 }

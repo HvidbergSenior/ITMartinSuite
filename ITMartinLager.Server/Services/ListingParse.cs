@@ -12,7 +12,8 @@ public static partial class ListingParse
 
     // Only listings whose name holds the title's words count - sites also return the author's other books.
     // toDkk: currency -> rate to kr, null = unknown currency (the price is skipped, the listing still counts).
-    public static Listings Parse(string html, string title, string author, string url, Func<string, decimal?> toDkk)
+    // anyName: searched by ISBN, so every listing is the book whatever it is called.
+    public static Listings Parse(string html, string title, string author, string url, Func<string, decimal?> toDkk, bool anyName = false)
     {
         var match = Matcher(title, author);
         var offers = new List<Offer>();
@@ -29,9 +30,10 @@ public static partial class ListingParse
                 // Breadcrumb lists use the same shape with a URL string as item - only real objects are listings.
                 if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty("item", out var item) || item.ValueKind != JsonValueKind.Object) continue;
                 var name = item.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                if (!match.Matches(name)) continue;
+                if (!anyName && !match.Matches(name)) continue;
                 var link = item.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString() ?? url : url;
                 decimal? kr = null;
+                var original = "";
                 if (item.TryGetProperty("offers", out var o) && o.ValueKind == JsonValueKind.Object)
                 {
                     if (o.TryGetProperty("url", out var ou) && ou.ValueKind == JsonValueKind.String) link = ou.GetString() ?? link;
@@ -40,12 +42,13 @@ public static partial class ListingParse
                     {
                         var cur = o.TryGetProperty("priceCurrency", out var c) ? c.GetString() ?? "DKK" : "DKK";
                         if ((cur == "DKK" ? 1m : toDkk(cur)) is { } rate) kr = Math.Round(price * rate);
+                        if (cur != "DKK") original = Original(price, cur);
                     }
                 }
-                offers.Add(new Offer(name, kr, link));
+                offers.Add(new Offer(name, kr, link, original));
             }
         }
-        return Summarise(offers, url, match.Ambiguous);
+        return Summarise(offers, url, !anyName && match.Ambiguous);
     }
 
     // Asking prices over 3x the middle one are kept apart as "urimelige internetpriser" (user 2026-10-07: show them,
@@ -53,14 +56,19 @@ public static partial class ListingParse
     // Ambiguous: the listings are counted, but no price comes out of them - they may be other books.
     internal static Listings Summarise(List<Offer> offers, string url, bool ambiguous = false)
     {
+        offers = offers.Select(o => o.Price is { } p && Placeholder(p) ? o with { Price = null } : o).ToList();
         var priced = offers.Where(o => o.Price is not null).OrderBy(o => o.Price).ToList();
-        if (ambiguous || priced.Count == 0) return new Listings(offers.Count, null, null, null, url, [], null, ambiguous && offers.Count > 0);
+        if (ambiguous || priced.Count == 0) return new Listings(offers.Count, null, null, null, url, [], null, ambiguous && offers.Count > 0) { All = ambiguous ? [] : offers };
         var median = priced[priced.Count / 2].Price!.Value;
         var sane = priced.Where(o => o.Price <= median * 3).ToList();
         decimal? wild = priced[^1].Price > median * 3 ? priced[^1].Price : null;
         var proof = sane.OrderBy(o => Math.Abs(o.Price!.Value - median)).Take(3).OrderBy(o => o.Price).ToList();
-        return new Listings(offers.Count, sane[0].Price, median, sane[^1].Price, url, proof, wild);
+        return new Listings(offers.Count, sane[0].Price, median, sane[^1].Price, url, proof, wild) { All = offers };
     }
+
+    // The price as the site shows it, for the proof line: "9,37 EUR".
+    public static string Original(decimal price, string currency) =>
+        price.ToString("0.00", CultureInfo.GetCultureInfo("da-DK")) + " " + currency;
 
     // Significant words: 3+ letters, and every number however short - "Nr. 1" is not "Nr. 39".
     internal static List<string> Words(string s) =>
@@ -83,18 +91,36 @@ public static partial class ListingParse
             if (listing.Any(w => Collection.Contains(w) && !Words.Contains(w))) return false;
             var squashed = string.Concat(listing.Where(w => !IsNumber(w)));
             // Numbers must be the same whole number; words may be written together ("Amager digte" = "Amagerdigte").
-            var found = Words.Count(w => IsNumber(w) ? listing.Contains(w) : squashed.Contains(w));
+            // A one-word title must be whole words: "Mort" is not "Mortimer", but "Amager Digte" is "Amagerdigte".
+            var found = Words.Count == 1 ? (Joined(listing).Contains(Words[0]) ? 1 : 0)
+                : Words.Count(w => IsNumber(w) ? listing.Contains(w) : squashed.Contains(w));
             if (Words.Where(IsNumber).Any(n => !listing.Contains(n))) return false;
             var ok = found >= (Words.Count >= 5 ? Words.Count - 1 : Words.Count);
             return ok && (Words.Count > 1 || Surname == "" || squashed.Contains(Surname));
         }
     }
 
-    private static readonly HashSet<string> NotABook =
-        ["vhs", "dvd", "bluray", "blu", "plakat", "poster", "puslespil", "figur", "figurer", "shirt", "krus", "kop", "film", "videobånd"];
+    // Every word, and every run of neighbouring words written together ("amager digte" -> "amagerdigte").
+    private static HashSet<string> Joined(List<string> words)
+    {
+        var all = new HashSet<string>();
+        for (var i = 0; i < words.Count; i++)
+            for (int j = i, n = 0; j < words.Count && n < 4; j++, n++)
+                all.Add(string.Concat(words.Skip(i).Take(j - i + 1)));
+        return all;
+    }
 
+    private static readonly HashSet<string> NotABook =
+        ["vhs", "dvd", "bluray", "blu", "plakat", "poster", "puslespil", "figur", "figurer", "shirt", "krus", "kop", "film", "videobånd",
+         "filmplakat", "filmprogram", "postkort", "foto", "lydbog", "lydbøger", "hörbuch", "audiobook", "audio", "abridged"];
+
+    // "graphic": the graphic novel of a novel is another book (2026-10-10, The Colour of Magic).
     private static readonly HashSet<string> Collection =
-        ["samling", "samlingen", "komplette", "luksusbind", "samlebind", "kassette", "boks", "box", "pakke", "bundle"];
+        ["samling", "samlingen", "komplette", "luksusbind", "samlebind", "kassette", "boks", "box", "pakke", "bundle", "graphic", "series"];
+
+    // "11111111 kr", "99999 kr" - DBA sellers' "not for sale" placeholders, never a price.
+    public static bool Placeholder(decimal price) =>
+        price >= 100_000 || (price >= 1000 && price.ToString("0").Distinct().Count() == 1);
 
     // "Zombie" or "Flint" alone finds everything called that - without an author it cannot prove a price.
     // A long one-word title ("Papegøjemysteriet") is specific enough on its own.
