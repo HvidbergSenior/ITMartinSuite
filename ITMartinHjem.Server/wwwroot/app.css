@@ -426,3 +426,11 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .bs-think-quote{font-size:1.25rem;font-style:italic;font-weight:700;color:#5c210c;margin:4px 0 10px}
 .bs-think li{margin:4px 0}
 .bs-manifest p{margin:6px 0}
+/* bogshoppen.dk colour-blind fix (user 2026-10-11 could not read the white-on-red-brown poll button):
+   buttons = black text on pale yellow + black border, headings dark ink - same as Stem. */
+.bs-site .k-btn-primary, .bs-site .bs-btn{background:#fef3c7;color:#111827;border:2px solid #111827;font-weight:800}
+.bs-site .k-btn-primary:hover, .bs-site .bs-btn:hover{background:#fde68a;color:#111827}
+.bs-card h2{color:#2a1d12}
+.bs-think-quote{color:#2a1d12}
+.bs-tag{background:#2a1d12}
+.bs-manifest{border-left-color:#2a1d12}
