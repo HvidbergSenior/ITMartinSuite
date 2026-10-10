@@ -44,6 +44,9 @@
                    value="@_deadlineStr"
                    @onchange="e => _deadlineStr = e.Value?.ToString() ?? string.Empty" />
 
+            <label class="form-check"><input type="checkbox" @bind="_allowMultiple" /> Man må vælge flere svar</label>
+            <label class="form-check"><input type="checkbox" @bind="_requireContact" /> Navn + e-mail krævet – én stemme pr. e-mail (og tilmelding til auktioner)</label>
+
             <label class="form-label">Svarmuligheder</label>
             @for (int i = 0; i < _options.Count; i++)
             {
@@ -59,7 +62,7 @@
                     }
                 </div>
             }
-            @if (_options.Count < 6)
+            @if (_options.Count < 12)
             {
                 <button class="admin-btn" @onclick="() => _options.Add(string.Empty)">+ Tilføj mulighed</button>
             }
@@ -110,6 +113,12 @@
                 }
             }
 
+            @if (_auctionSignups.Count > 0)
+            {
+                <label class="form-label">🔨 Vil have besked om auktioner: @_auctionSignups.Count</label>
+                <p class="admin-hint">De ligger i <a href="/admin/kunder">📇 Kundekartoteket</a> (kun dem, der selv har sat flueben).</p>
+            }
+
             @if (!string.IsNullOrEmpty(_error))
             {
                 <div class="form-error">@_error</div>
@@ -134,6 +143,9 @@
     private string?      _imageName;
     private List<string> _options    = ["Ja", "Nej"];
     private string       _error      = "";
+    private bool         _allowMultiple;
+    private bool         _requireContact;
+    private List<(string Name, string Email)> _auctionSignups = [];
 
     private int _totalVotes;
     private List<(string Label, int Count)> _optionResults = [];
@@ -155,7 +167,7 @@
         if (!_isNew)
         {
             var p = Db.Polls.Where(x => x.Id == PollId)
-                .Select(x => new { x.Title, x.Body, x.ImageName, x.Deadline,
+                .Select(x => new { x.Title, x.Body, x.ImageName, x.Deadline, x.AllowMultiple, x.RequireContact,
                                    Options = x.Options.OrderBy(o => o.SortOrder)
                                        .Select(o => new { o.Id, o.Label, VoteCount = o.Votes.Count }).ToList(),
                                    Votes = x.Votes.ToList() })
@@ -167,12 +179,16 @@
                 _imageName   = p.ImageName;
                 _deadlineStr = p.Deadline?.ToString("yyyy-MM-dd") ?? "";
                 _options     = p.Options.Select(o => o.Label).ToList();
+                _allowMultiple  = p.AllowMultiple;
+                _requireContact = p.RequireContact;
+                _auctionSignups = p.Votes.Where(v => v.WantsAuctionNews && v.Email != "")
+                                    .GroupBy(v => v.Email).Select(g => (g.First().VoterName, g.Key)).ToList();
                 if (_options.Count == 0) _options = ["Ja", "Nej"];
 
                 _optionResults = p.Options.Select(o => (o.Label, o.VoteCount)).ToList();
                 _optionLookup  = p.Options.ToDictionary(o => o.Id, o => o.Label);
                 _optionOrder   = p.Options.Select(o => o.Id).ToList();
-                _totalVotes    = p.Votes.Count;
+                _totalVotes    = p.Votes.Select(v => v.Email != "" ? v.Email : v.Id.ToString()).Distinct().Count();
                 _comments      = p.Votes.Where(v => !string.IsNullOrWhiteSpace(v.Comment))
                                     .OrderByDescending(v => v.VotedAt).ToList();
             }
@@ -218,6 +234,8 @@
                 ImageName = _imageName,
                 Deadline  = deadline,
                 IsActive  = true,
+                AllowMultiple  = _allowMultiple,
+                RequireContact = _requireContact,
                 CreatedAt = DateTime.UtcNow,
                 Options   = cleanOpts.Select((l, i) => new PollOption { Label = l, SortOrder = i }).ToList(),
             };
@@ -231,11 +249,16 @@
             poll.Body      = _body.Trim();
             poll.ImageName = _imageName;
             poll.Deadline  = deadline;
+            poll.AllowMultiple  = _allowMultiple;
+            poll.RequireContact = _requireContact;
 
-            var existing = Db.Options.Where(o => o.PollId == PollId).ToList();
+            var existing = Db.Options.Where(o => o.PollId == PollId).OrderBy(o => o.SortOrder).ToList();
+            if (!existing.Select(o => o.Label).SequenceEqual(cleanOpts))
+            {
             Db.Options.RemoveRange(existing);
             foreach (var (label, idx) in cleanOpts.Select((l, i) => (l, i)))
                 Db.Options.Add(new PollOption { PollId = PollId, Label = label, SortOrder = idx });
+            }
         }
 
         await Db.SaveChangesAsync();

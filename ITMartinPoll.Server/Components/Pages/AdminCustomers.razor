@@ -1,0 +1,89 @@
+@page "/admin/kunder"
+@rendermode InteractiveServer
+@inject PollDb       Db
+@inject AdminSession Session
+
+@* Kundekartotek (user 2026-10-10): everyone who ticked "send mig en mail om auktioner". Only opt-ins land here.
+   Delete = GDPR right to erasure; Afmeldt = keeps the row so we can prove they said stop and never mail them again. *@
+<PageTitle>Kundekartotek — Stem</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/admin" class="poll-back">← Admin</a>
+        <span class="poll-logo">📇 Kundekartotek</span>
+    </header>
+
+    @if (!Session.IsAdmin)
+    {
+        <div class="poll-empty"><p>Ingen adgang. <a href="/admin">Log ind</a></p></div>
+    }
+    else
+    {
+        <div class="admin-form">
+            <p class="admin-hint">
+                Her er alle, der selv har sat flueben ved "send mig en mail om auktioner". Hent listen som CSV og sæt
+                adresserne i <b>Bcc</b> (aldrig Til/Cc – så kan modtagerne se hinanden). Husk at hver mail skal have
+                afmeld-linket, som står i CSV-filen ud for hver person.
+            </p>
+            <a class="admin-create-btn" href="/admin/kunder.csv" download>⬇ Hent som CSV (@Active.Count kan få mail)</a>
+
+            <input class="poll-input" placeholder="Søg navn eller e-mail" @bind="_q" @bind:event="oninput" />
+
+            @if (_rows.Count == 0)
+            {
+                <div class="poll-empty" style="min-height:auto;padding:12px 0">Ingen i kartoteket endnu.</div>
+            }
+            @foreach (var c in Shown)
+            {
+                <div class="cust-row @(c.UnsubscribedAt is null ? "" : "cust-off")">
+                    <div><b>@c.Name</b> · @c.Email</div>
+                    <div class="admin-hint">
+                        @c.Source · samtykke @c.ConsentAt.ToLocalTime().ToString("d. MMM yyyy HH:mm")
+                        @if (c.UnsubscribedAt is not null) { <b> · AFMELDT @c.UnsubscribedAt.Value.ToLocalTime().ToString("d. MMM yyyy")</b> }
+                    </div>
+                    <div class="cust-actions">
+                        @if (c.UnsubscribedAt is null)
+                        {
+                            <button class="admin-btn small" @onclick="() => Unsubscribe(c)">Afmeld</button>
+                        }
+                        @if (_confirm == c.Id)
+                        {
+                            <button class="admin-btn danger small" @onclick="() => Delete(c)">Ja, slet helt</button>
+                            <button class="admin-btn small" @onclick="() => _confirm = 0">Fortryd</button>
+                        }
+                        else
+                        {
+                            <button class="admin-btn danger small" @onclick="() => _confirm = c.Id">Slet</button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Customer> _rows = [];
+    private string _q = "";
+    private int _confirm;
+
+    private List<Customer> Active => _rows.Where(c => c.WantsAuctionNews && c.UnsubscribedAt is null).ToList();
+    private IEnumerable<Customer> Shown => string.IsNullOrWhiteSpace(_q) ? _rows
+        : _rows.Where(c => c.Name.Contains(_q, StringComparison.OrdinalIgnoreCase) || c.Email.Contains(_q, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized() => Load();
+    private void Load() => _rows = Db.Customers.OrderByDescending(c => c.ConsentAt).ToList();
+
+    private async Task Unsubscribe(Customer c)
+    {
+        c.UnsubscribedAt = DateTime.UtcNow; c.WantsAuctionNews = false;
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task Delete(Customer c)
+    {
+        Db.Customers.Remove(c);
+        await Db.SaveChangesAsync();
+        _confirm = 0; Load();
+    }
+}

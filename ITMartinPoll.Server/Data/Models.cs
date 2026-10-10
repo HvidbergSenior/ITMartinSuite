@@ -61,6 +61,9 @@ public class Poll
     // same voter). Results then count people per option, not share of votes.
     public bool      AllowMultiple { get; set; }
 
+    // Name + e-mail required and one vote per e-mail (Bogshoppen poll 2026-10-10). E-mail is never shown publicly.
+    public bool      RequireContact { get; set; }
+
     public List<PollOption> Options { get; set; } = [];
     public List<Vote>       Votes   { get; set; } = [];
 
@@ -78,6 +81,24 @@ public class PollOption
     public List<Vote> Votes { get; set; } = [];
 }
 
+// Kundekartotek (user 2026-10-10): people who said YES to mails about Bogshoppen's auctions.
+// Only explicit opt-ins land here; ConsentText + ConsentAt are the proof (markedsføringsloven §10, GDPR art. 7).
+public class Customer
+{
+    public int       Id               { get; set; }
+    public string    Name             { get; set; } = "";
+    public string    Email            { get; set; } = "";   // lower-case, unique
+    public string    Phone            { get; set; } = "";
+    public string    Source           { get; set; } = "";   // where they signed up, e.g. "Stem: <poll title>"
+    public string    ConsentText      { get; set; } = "";   // the exact checkbox text they ticked
+    public DateTime  ConsentAt        { get; set; } = DateTime.UtcNow;
+    public bool      WantsAuctionNews { get; set; } = true;
+    public string    UnsubscribeToken { get; set; } = Guid.NewGuid().ToString("N");
+    public DateTime? UnsubscribedAt   { get; set; }
+    public string    Note             { get; set; } = "";
+    public DateTime  CreatedAt        { get; set; } = DateTime.UtcNow;
+}
+
 public class Vote
 {
     public int        Id        { get; set; }
@@ -85,6 +106,8 @@ public class Vote
     public int        OptionId  { get; set; }
     public string     Comment   { get; set; } = "";
     public string     VoterName { get; set; } = "";
+    public string     Email     { get; set; } = "";   // lower-case; only set when the poll has RequireContact
+    public bool       WantsAuctionNews { get; set; }   // explicit opt-in (markedsføringsloven §10), never pre-ticked
     public DateTime   VotedAt   { get; set; } = DateTime.UtcNow;
     public Poll       Poll      { get; set; } = null!;
     public PollOption Option    { get; set; } = null!;

@@ -52,9 +52,9 @@
                     @foreach (var opt in _poll.Options.OrderBy(o => o.SortOrder))
                     {
                         var count   = opt.Votes.Count;
-                        var total   = _poll.Votes.Count;
+                        var total   = People;
                         var pct     = total > 0 ? (int)Math.Round(count * 100.0 / total) : 0;
-                        var isChosen = opt.Id == _chosenOptionId;
+                        var isChosen = _chosen.Contains(opt.Id);
                         <div class="poll-result-row @(isChosen ? "chosen" : "")">
                             <div class="poll-result-label">@opt.Label</div>
                             <div class="poll-result-bar-wrap">
@@ -64,7 +64,7 @@
                             <div class="poll-result-count">(@count)</div>
                         </div>
                     }
-                    <div class="poll-total">@_poll.Votes.Count stemmer i alt</div>
+                    <div class="poll-total">@People har stemt</div>
                 </div>
 
                 @if (_poll.Votes.Any(c => !string.IsNullOrWhiteSpace(c.Comment)))
@@ -78,7 +78,7 @@
                                     @_poll.Options.FirstOrDefault(o => o.Id == v.OptionId)?.Label
                                 </span>
                                 <span class="session-comment-name @(string.IsNullOrWhiteSpace(v.VoterName) ? "anon" : "")">
-                                    @(string.IsNullOrWhiteSpace(v.VoterName) ? "Anonym" : v.VoterName)
+                                    @(string.IsNullOrWhiteSpace(v.VoterName) ? "Anonym" : _poll.RequireContact ? v.VoterName.Split(' ')[0] : v.VoterName)
                                 </span>
                                 <span class="poll-comment-text">@v.Comment</span>
                             </div>
@@ -90,26 +90,38 @@
             {
                 <!-- Voting -->
                 <div class="poll-vote">
-                    <div class="poll-vote-label">Hvad mener du?</div>
+                    <div class="poll-vote-label">@(_poll.AllowMultiple ? "Vælg alt det, du synes lyder godt" : "Hvad mener du?")</div>
                     <div class="poll-options">
                         @foreach (var opt in _poll.Options.OrderBy(o => o.SortOrder))
                         {
                             var optId = opt.Id;
-                            <button class="poll-option-btn @(_selected == optId ? "selected" : "")"
-                                    @onclick="() => _selected = optId">
-                                @opt.Label
+                            <button class="poll-option-btn @(_selected.Contains(optId) ? "selected" : "")"
+                                    aria-pressed="@(_selected.Contains(optId) ? "true" : "false")"
+                                    @onclick="() => Toggle(optId)">
+                                @(_poll.AllowMultiple ? (_selected.Contains(optId) ? "☑ " : "☐ ") : "")@opt.Label
                             </button>
                         }
                     </div>
 
-                    @if (_selected > 0)
+                    @if (_selected.Count > 0)
                     {
                         <input class="poll-input session-name-input"
-                               placeholder="Dit navn (valgfrit)"
+                               placeholder="@(_poll.RequireContact ? "Dit navn" : "Dit navn (valgfrit)")"
                                maxlength="60"
                                @bind="_voterName"
                                @bind:event="oninput"
                                @onchange="SaveName" />
+                        @if (_poll.RequireContact)
+                        {
+                            <input class="poll-input session-name-input" type="email" inputmode="email" autocomplete="email"
+                                   placeholder="Din e-mail" maxlength="120"
+                                   @bind="_email" @bind:event="oninput" />
+                            <label class="poll-optin">
+                                <input type="checkbox" @bind="_auctionNews" />
+                                <span>@OptInText</span>
+                            </label>
+                            <p class="poll-privacy">@Privacy</p>
+                        }
                         <div class="poll-comment-wrap">
                             <textarea class="poll-comment-input"
                                       placeholder="Vil du uddybe? (valgfrit)"
@@ -118,6 +130,7 @@
                                       @bind:event="oninput"></textarea>
                             <div class="poll-comment-chars">@_comment.Length/280</div>
                         </div>
+                        @if (_error != "") { <div class="form-error">@_error</div> }
                         <button class="poll-submit-btn" @onclick="SubmitVote">Stem</button>
                     }
                 </div>
@@ -132,8 +145,30 @@
 
     private Poll?  _poll;
     private bool   _hasVoted      = false;
-    private int    _chosenOptionId = 0;
-    private int    _selected      = 0;
+    private HashSet<int> _chosen   = [];
+    private HashSet<int> _selected = [];
+    private string _email         = "";
+    private bool   _auctionNews   = false;
+    private string _error         = "";
+
+    // Stored with each customer as proof of what they agreed to - change the text, and new sign-ups get the new text.
+    private const string OptInText = "Ja tak – send mig en mail, når Bogshoppen holder auktioner, så jeg kan være med.";
+
+    // Shown under the e-mail field (GDPR art. 13: who, why, how long, your rights).
+    private const string Privacy =
+        "Dataansvarlig: ITMartin (Martin Hvidberg Nielsen), ITMartin@Mensa.dk. Din e-mail vises ikke for andre. " +
+        "Vi bruger den kun til at sikre én stemme pr. person – og til auktions-mails, hvis du har sat flueben. " +
+        "Afstemningen slettes senest 6 måneder efter, den er lukket. Auktions-mails kan du altid sige stop til (link i hver mail), " +
+        "og du kan til enhver tid bede om at se eller få slettet dine oplysninger.";
+
+    // People, not rows: a multi-choice voter has one Vote row per chosen option.
+    private int People => _poll is null ? 0 : _poll.Votes.Select(v => v.Email != "" ? v.Email : (v.VoterName + "|" + v.VotedAt.Ticks)).Distinct().Count();
+
+    private void Toggle(int optId)
+    {
+        if (_poll?.AllowMultiple == true) { if (!_selected.Remove(optId)) _selected.Add(optId); }
+        else _selected = [optId];
+    }
     private string _comment       = "";
     private string _voterName     = "";
 
@@ -158,6 +193,8 @@
                 ImageName = p.ImageName,
                 Deadline  = p.Deadline,
                 IsActive  = p.IsActive,
+                AllowMultiple  = p.AllowMultiple,
+                RequireContact = p.RequireContact,
                 Options   = p.Options.OrderBy(o => o.SortOrder).ToList(),
                 Votes     = p.Votes.ToList(),
             })
@@ -168,13 +205,15 @@
     {
         if (!firstRender || _poll is null) return;
         var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"poll_voted_{PollId}");
-        if (raw != null && int.TryParse(raw, out var optId))
+        if (raw != null)
         {
-            _hasVoted       = true;
-            _chosenOptionId = optId;
+            // "12" (old single vote) or "12,15,19" (multi-choice)
+            _chosen   = raw.Split(',').Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToHashSet();
+            _hasVoted = _chosen.Count > 0;
         }
 
         _voterName = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+        _email     = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_email") ?? "";
         StateHasChanged();
     }
 
@@ -185,22 +224,48 @@
 
     private async Task SubmitVote()
     {
-        if (_selected == 0 || _poll is null) return;
-
-        Db.Votes.Add(new Vote
+        _error = "";
+        if (_selected.Count == 0 || _poll is null) return;
+        var email = _email.Trim().ToLowerInvariant();
+        if (_poll.RequireContact)
         {
-            PollId    = PollId,
-            OptionId  = _selected,
-            Comment   = _comment.Trim(),
-            VoterName = _voterName.Trim(),
-            VotedAt   = DateTime.UtcNow,
-        });
+            if (string.IsNullOrWhiteSpace(_voterName)) { _error = "Skriv dit navn."; return; }
+            if (!System.Net.Mail.MailAddress.TryCreate(email, out var ma) || ma.Address != email || !email.Split('@')[1].Contains('.'))
+                { _error = "Skriv en rigtig e-mail, fx navn@gmail.com."; return; }
+            if (Db.Votes.Any(v => v.PollId == PollId && v.Email == email))
+                { _error = "Der er allerede stemt med den e-mail. Man kan kun stemme én gang."; return; }
+        }
+
+        var now = DateTime.UtcNow;
+        var first = true;
+        foreach (var optId in _selected)
+        {
+            Db.Votes.Add(new Vote
+            {
+                PollId    = PollId,
+                OptionId  = optId,
+                Comment   = first ? _comment.Trim() : "",   // the comment belongs to the person, keep it once
+                VoterName = _voterName.Trim(),
+                Email     = _poll.RequireContact ? email : "",
+                WantsAuctionNews = _poll.RequireContact && _auctionNews,
+                VotedAt   = now,
+            });
+            first = false;
+        }
+        if (_poll.RequireContact && _auctionNews)
+        {
+            var c = Db.Customers.FirstOrDefault(x => x.Email == email);
+            if (c is null) Db.Customers.Add(c = new Customer { Email = email, CreatedAt = now });
+            c.Name = _voterName.Trim(); c.Source = "Stem: " + _poll.Title;
+            c.ConsentText = OptInText; c.ConsentAt = now; c.WantsAuctionNews = true; c.UnsubscribedAt = null;
+        }
         await Db.SaveChangesAsync();
 
-        await JS.InvokeVoidAsync("localStorage.setItem", $"poll_voted_{PollId}", _selected.ToString());
+        await JS.InvokeVoidAsync("localStorage.setItem", $"poll_voted_{PollId}", string.Join(",", _selected));
+        if (_poll.RequireContact) await JS.InvokeVoidAsync("localStorage.setItem", "voter_email", email);
 
-        _chosenOptionId = _selected;
-        _hasVoted       = true;
+        _chosen   = [.. _selected];
+        _hasVoted = true;
 
         // Reload so vote counts are fresh
         _poll = Db.Polls
@@ -208,6 +273,7 @@
             .Select(p => new Poll
             {
                 Id      = p.Id, Title   = p.Title, Body    = p.Body,
+                AllowMultiple = p.AllowMultiple, RequireContact = p.RequireContact, ImageName = p.ImageName,
                 Options = p.Options.OrderBy(o => o.SortOrder).ToList(),
                 Votes   = p.Votes.ToList(),
                 Deadline = p.Deadline,

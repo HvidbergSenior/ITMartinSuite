@@ -22,6 +22,7 @@ public class PollDb(DbContextOptions<PollDb> opts) : DbContext(opts)
     public DbSet<HelpTask>            HelpTasks         => Set<HelpTask>();
     public DbSet<HelpSignup>          HelpSignups       => Set<HelpSignup>();
     public DbSet<HelpChatMessage>     HelpChat          => Set<HelpChatMessage>();
+    public DbSet<Customer>            Customers         => Set<Customer>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

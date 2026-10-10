@@ -1,0 +1,37 @@
+@page "/afmeld/{Token}"
+@inject PollDb Db
+
+@* One-click unsubscribe from the Kundekartotek (link in every auction mail). Static page: works without JavaScript. *@
+<PageTitle>Afmeld mails</PageTitle>
+
+<div class="poll-root">
+    <div class="poll-view">
+        <div class="poll-content">
+            @if (_found)
+            {
+                <h1 class="poll-title">Du er afmeldt ✓</h1>
+                <p class="poll-body">Vi sender ikke flere mails om Bogshoppens auktioner til @_email.
+                    Vil du have dine oplysninger slettet helt, så skriv til ITMartin@Mensa.dk.</p>
+            }
+            else
+            {
+                <h1 class="poll-title">Linket virker ikke</h1>
+                <p class="poll-body">Skriv til ITMartin@Mensa.dk, så afmelder vi dig med det samme.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Token { get; set; } = "";
+    private bool _found;
+    private string _email = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var c = Db.Customers.FirstOrDefault(x => x.UnsubscribeToken == Token);
+        if (c is null || Token.Length < 16) return;
+        _found = true; _email = c.Email;
+        if (c.UnsubscribedAt is null) { c.UnsubscribedAt = DateTime.UtcNow; c.WantsAuctionNews = false; await Db.SaveChangesAsync(); }
+    }
+}

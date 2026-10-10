@@ -109,6 +109,12 @@ using (var scope = app.Services.CreateScope())
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"AllowMultiple\" INTEGER NOT NULL DEFAULT 0;"); }
     catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"RequireContact\" INTEGER NOT NULL DEFAULT 0;"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Votes\" ADD COLUMN \"Email\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Votes\" ADD COLUMN \"WantsAuctionNews\" INTEGER NOT NULL DEFAULT 0;"); }
+    catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"PackageId\" INTEGER NULL;"); }
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Sessions\" ADD COLUMN \"PackageId\" INTEGER NULL;"); }
@@ -145,6 +151,14 @@ using (var scope = app.Services.CreateScope())
     """);
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"HelpEvents\" ADD COLUMN \"Photos\" TEXT NOT NULL DEFAULT '';"); }
     catch { /* column already exists */ }
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Customers" (
+            "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL DEFAULT '', "Email" TEXT NOT NULL DEFAULT '',
+            "Phone" TEXT NOT NULL DEFAULT '', "Source" TEXT NOT NULL DEFAULT '', "ConsentText" TEXT NOT NULL DEFAULT '',
+            "ConsentAt" TEXT NOT NULL, "WantsAuctionNews" INTEGER NOT NULL DEFAULT 1, "UnsubscribeToken" TEXT NOT NULL DEFAULT '',
+            "UnsubscribedAt" TEXT NULL, "Note" TEXT NOT NULL DEFAULT '', "CreatedAt" TEXT NOT NULL);
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_Customers_Email" ON "Customers" ("Email");
+    """);
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "HelpChat" (
             "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "HelpEventId" INTEGER NOT NULL, "Name" TEXT NOT NULL DEFAULT '',
@@ -239,6 +253,17 @@ app.MapGet("/pakke/{id:int}/pdf", async (int id, PollDb db, HttpContext ctx, ICo
     var bytes = ITMartinPoll.Server.Services.PackagePdf.Render(package);
     var fileName = string.Concat(package.Title.Select(c => char.IsLetterOrDigit(c) ? c : '-')).Trim('-') + ".pdf";
     return Results.File(bytes, "application/pdf", fileName);
+});
+
+// Kundekartotek as CSV (admin cookie) - only people who still want mails, for the Bcc line or a mail tool.
+app.MapGet("/admin/kunder.csv", async (PollDb db, HttpContext ctx, IConfiguration cfg) =>
+{
+    if (ctx.Request.Cookies["poll_admin"] != ITMartinPoll.Server.AdminToken.For(cfg["Poll:AdminPin"] ?? "1234")) return Results.NotFound();
+    static string Q(string v) => "\"" + v.Replace("\"", "\"\"") + "\"";
+    var rows = await db.Customers.AsNoTracking().Where(c => c.WantsAuctionNews && c.UnsubscribedAt == null).OrderBy(c => c.Name).ToListAsync();
+    var csv = "Navn;Email;Telefon;Kilde;Samtykke givet;Afmeld-link\n" + string.Concat(rows.Select(c =>
+        $"{Q(c.Name)};{Q(c.Email)};{Q(c.Phone)};{Q(c.Source)};{c.ConsentAt:yyyy-MM-dd HH:mm};https://stem.itmartin.dk/afmeld/{c.UnsubscribeToken}\n"));
+    return Results.File(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray(), "text/csv", "kundekartotek.csv");
 });
 
 app.MapRazorComponents<App>()
