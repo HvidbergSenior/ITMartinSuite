@@ -24,6 +24,15 @@ because "it's already sorted" therefore destroys ~53,000 files that exist nowher
 - Before any destructive command on the photoserver, state the full path out loud and confirm it
   is an output/generated path, not a source path.
 
+## Architecture: DDD + Clean Architecture, always (the suite's founding design)
+
+ITMartinSuite is built as Domain-Driven Design + Clean Architecture. The user has said this many times.
+Every app is `X.Domain` (entities + rules, no EF/HTTP) / `X.Application` (use cases + ports) /
+`X.Infrastructure` (EF, Claude, external APIs) / thin `X.Server` (pages that call Application only) + `X.Tests`.
+- Never create a flat `.Server`-only app, and never inject a DbContext into a Razor page.
+- Adding to an app that is still flat: put the new code in the layered shape (or refactor the app first) - do not add more flat code.
+- Do not ask whether to use DDD/Clean - it is the default.
+
 ## AI/Claude API cost discipline (critical, stated repeatedly by the user)
 
 **NEVER write code that makes one Claude API call per file in a loop.** This applies to every AI-driven feature in this suite (image tagging, captions, face/object detection, OCR cleanup, anything that calls Claude per photo/document). A real customer library can be tens of thousands of files — a 1:1 call-per-file pattern is the single most expensive mistake to make here, and it has happened more than once.
