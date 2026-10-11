@@ -61,6 +61,25 @@ public class PriceHuntTests
         l.All.First().Original.Should().Be("29,00 SEK");
     }
 
+    // Trimmed eBay Browse API item_summary/search answer (shape from the API docs): buy-now in EUR, an auction with only a bid, another book.
+    private const string Ebay = """
+        {"total":3,"itemSummaries":[
+          {"itemId":"v1|1|0","title":"Terry Pratchett - Mort (Corgi paperback)","price":{"value":"4.50","currency":"EUR"},
+           "itemWebUrl":"https://www.ebay.de/itm/1"},
+          {"itemId":"v1|2|0","title":"Mort by Terry Pratchett 1987 first edition","currentBidPrice":{"value":"20.00","currency":"EUR"},
+           "itemWebUrl":"https://www.ebay.de/itm/2"},
+          {"itemId":"v1|3|0","title":"Guards! Guards! Terry Pratchett","price":{"value":"6.00","currency":"EUR"},"itemWebUrl":"https://www.ebay.de/itm/3"}
+        ]}
+        """;
+
+    [Test]
+    public void Ebay_takes_price_or_current_bid_and_skips_other_titles()
+    {
+        var l = EbayListings.Parse(Ebay, "Mort", "Terry Pratchett", "u", new Dictionary<string, decimal?> { ["EUR"] = 7.46m });
+        l.All.Select(o => o.Price).Should().BeEquivalentTo(new decimal?[] { 34m, 149m });   // 4.50 EUR, 20 EUR bid
+        l.All.First().Url.Should().Be("https://www.ebay.de/itm/1");
+    }
+
     // Trimmed Bog & idé (Shopify) search/suggest.json answer (2026-10-10). The name has no author, the address does.
     private const string BogIde = """
         {"resources":{"results":{"products":[
