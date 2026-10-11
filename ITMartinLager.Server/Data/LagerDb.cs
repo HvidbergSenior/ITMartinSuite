@@ -80,13 +80,19 @@ public sealed class Item
     public DateTime? SoldAt { get; set; }  // how sure the AI was; < 0.6 = check it
     public string Search { get; set; } = "";     // lower-case title + series + number + year, for LIKE search
     public DateTime? PricesAt { get; set; }      // when the price hunter last searched every source for it
+    // Kolofon (2026-10-11, user: "to save in db and get price just cover. A job can run through kolofon if needed"):
+    // a photo of the title page's back, only for books whose prices say the edition matters; KolofonReader reads it.
+    public string KolofonPhoto { get; set; } = "";   // relative to the data dir
+    public DateTime? KolofonAt { get; set; }         // when the AI read it - null = waiting
+    public string Edition { get; set; } = "";        // "1. udgave, 1. oplag"
+    public string Publisher { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public void Touch()
     {
         UpdatedAt = DateTime.UtcNow;
-        Search = string.Join(' ', Title, Artist, Series, Number, Year?.ToString() ?? "", Platform, Kind, Note, Interest, Barcode).ToLowerInvariant();
+        Search = string.Join(' ', Title, Artist, Series, Number, Year?.ToString() ?? "", Platform, Kind, Note, Interest, Barcode, Edition, Publisher).ToLowerInvariant();
     }
 }
 

@@ -61,6 +61,7 @@ builder.Services.AddHttpClient<TraderaListings>(c => c.Timeout = TimeSpan.FromSe
 builder.Services.AddHttpClient<EbayListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
 builder.Services.AddTransient<PriceHunt>();
 builder.Services.AddHostedService<PriceHunter>();
+builder.Services.AddHostedService<KolofonReader>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -118,7 +119,8 @@ using (var scope = app.Services.CreateScope())
         ("AuctionItemId", "TEXT NOT NULL DEFAULT ''"), ("AuctionCode", "TEXT NOT NULL DEFAULT ''"),
         ("SoldPrice", "REAL NULL"), ("SoldTo", "TEXT NOT NULL DEFAULT ''"), ("SoldAt", "TEXT NULL"),
         ("PriceHint", "REAL NULL"), ("MagicRef", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"),
-        ("PricesAt", "TEXT NULL"),
+        ("PricesAt", "TEXT NULL"), ("KolofonPhoto", "TEXT NOT NULL DEFAULT ''"), ("KolofonAt", "TEXT NULL"),
+        ("Edition", "TEXT NOT NULL DEFAULT ''"), ("Publisher", "TEXT NOT NULL DEFAULT ''"),
     })
     {
         using var cmd = conn.CreateCommand();
@@ -175,6 +177,15 @@ app.MapGet("/varefoto/{id:int}", async (int id, IDbContextFactory<LagerDb> dbf) 
     await using var db = await dbf.CreateDbContextAsync();
     var it = await db.Items.FindAsync(id);
     var file = it is null || it.ItemPhoto == "" ? null : Path.GetFullPath(Path.Combine(dataDir, it.ItemPhoto));
+    return file is not null && file.StartsWith(Path.GetFullPath(dataDir)) && File.Exists(file)
+        ? Results.File(file, "image/jpeg") : Results.NotFound();
+});
+
+app.MapGet("/kolofonfoto/{id:int}", async (int id, IDbContextFactory<LagerDb> dbf) =>
+{
+    await using var db = await dbf.CreateDbContextAsync();
+    var it = await db.Items.FindAsync(id);
+    var file = it is null || it.KolofonPhoto == "" ? null : Path.GetFullPath(Path.Combine(dataDir, it.KolofonPhoto));
     return file is not null && file.StartsWith(Path.GetFullPath(dataDir)) && File.Exists(file)
         ? Results.File(file, "image/jpeg") : Results.NotFound();
 });

@@ -322,6 +322,78 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
             .GroupBy(x => x.Index).ToDictionary(g => g.Key, g => BookValue.From(g.First()));
     }
 
+    private const string KolofonSystem = """
+        Du læser kolofonsider (bagsiden af titelbladet) i brugte bøger til en dansk antikvarbutik.
+        Hvert billede har et nummer. For HVERT billede: kald report_kolofon med det der står - præcis som trykt.
+        - isbn: kun cifre (og evt. X), tomt hvis der ikke står et.
+        - edition: udgave og oplag som det står, fx "1. udgave, 1. oplag" eller "2. udgave, 5. oplag"; "First edition"
+          ved engelske bøger. Tomt hvis det ikke står.
+        - year: årstallet for DETTE oplag (ikke copyright-året for originalen), null hvis det ikke kan ses.
+        - publisher: forlaget.
+        Gæt aldrig. Hvis billedet ikke er en kolofon eller ikke kan læses, så skriv det i note og lad resten være tomt.
+        """;
+
+    private static readonly Tool KolofonTool = new()
+    {
+        Name = "report_kolofon",
+        Description = "Report what each numbered kolofon photo says",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["items"] = JsonDocument.Parse("""
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index":     { "type": "integer" },
+                          "isbn":      { "type": "string" },
+                          "edition":   { "type": "string" },
+                          "year":      { "type": ["integer", "null"] },
+                          "publisher": { "type": "string" },
+                          "note":      { "type": "string" }
+                        },
+                        "required": ["index"]
+                      }
+                    }
+                    """).RootElement,
+            },
+            Required = ["items"],
+        },
+    };
+
+    // Up to 10 kolofon photos in ONE call (CLAUDE.md: never one call per photo), cheap model, same daily cap.
+    public async Task<Dictionary<int, KolofonRow>> ReadKolofonsAsync(IReadOnlyList<byte[]> jpegs, CancellationToken ct)
+    {
+        if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
+        if (jpegs.Count == 0) return [];
+        await ReserveCallAsync(ct);
+        var content = new List<ContentBlockParam>();
+        for (var i = 0; i < jpegs.Count; i++)
+        {
+            content.Add(new TextBlockParam { Text = $"Billede {i}:" });
+            content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(jpegs[i]), MediaType = "image/jpeg" } });
+        }
+        content.Add(new TextBlockParam { Text = $"Læs alle {jpegs.Count} kolofoner (billede 0 til {jpegs.Count - 1})." });
+        var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
+        var response = await client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model,
+            MaxTokens = 4000,
+            System = KolofonSystem,
+            Tools = [KolofonTool],
+            ToolChoice = new ToolChoiceTool { Name = "report_kolofon" },
+            Messages = [new() { Role = Role.User, Content = content }],
+        }, ct);
+        await CountTokensAsync(response, ct);
+        var tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
+        var parsed = tool is null ? new KolofonReport() : JsonSerializer.Deserialize<KolofonReport>(JsonSerializer.Serialize(tool.Input), Json) ?? new KolofonReport();
+        log.LogInformation("Kolofons read: {Count}/{Asked}, {In}/{Out} tokens", parsed.Items.Count, jpegs.Count,
+            response.Usage.InputTokens, response.Usage.OutputTokens);
+        return parsed.Items.Where(x => x.Index >= 0 && x.Index < jpegs.Count).GroupBy(x => x.Index).ToDictionary(g => g.Key, g => g.First());
+    }
+
     private async Task CountTokensAsync(Message response, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
@@ -357,6 +429,16 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         (r.Note ?? "").Trim(), (r.Interest ?? "").Trim());
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
+    internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
+    public sealed class KolofonRow
+    {
+        public int Index { get; set; }
+        public string? Isbn { get; set; }
+        public string? Edition { get; set; }
+        public int? Year { get; set; }
+        public string? Publisher { get; set; }
+        public string? Note { get; set; }
+    }
     internal sealed class InterestReport { public List<InterestRow> Items { get; set; } = []; }
     internal sealed class ValueReport { public List<ValueRow> Items { get; set; } = []; }
     internal sealed class ValueRow

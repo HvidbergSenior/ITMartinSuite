@@ -1,0 +1,92 @@
+@page "/kolofon"
+@inject IDbContextFactory<LagerDb> DbFactory
+@inject IConfiguration Config
+
+<PageTitle>Kolofon – Bogshoppen Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">📖 Bøger der skal have taget billede af kolofonen</h1>
+    @if (_rows is null) { <p class="k-muted">Henter …</p> }
+    else if (_rows.Count == 0)
+    {
+        <p class="lg-answer">Ingen lige nu</p>
+        <p>Når prisjægeren finder en bog til salg for @_fromKr kr eller mere et sted, kommer den på listen her.</p>
+    }
+    else
+    {
+        <p class="lg-answer">@_rows.Count bøger</p>
+        <p>De her bøger er til salg for @_fromKr kr eller mere et sted. Det kan betyde, at udgaven betyder noget, fx om det er et 1. oplag.</p>
+    }
+    <details class="lg-more">
+        <summary>Sådan gør du</summary>
+        <ol>
+            <li>Find bogen i kassen (kassens nummer står ved bogen).</li>
+            <li>Slå op på bagsiden af titelbladet, hvor udgave, oplag, forlag og ISBN står med lille skrift. Det er kolofonen.</li>
+            <li>Tryk <b>📷 Kolofon</b> og tag billedet tæt på, så teksten er skarp.</li>
+            <li>Inden for et par minutter læser AI'en op til 10 kolofoner ad gangen. Udgave, forlag, år og ISBN kommer ind på bogen, og priserne bliver slået op igen for netop den udgave.</li>
+        </ol>
+        <p class="k-small k-muted">Alle andre bøger klarer sig med forsiden. Grænsen på @_fromKr kr kan ændres med Lager__KolofonFromKr.</p>
+    </details>
+    @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+    @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+</section>
+
+@if (_waiting > 0)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">⏳ Venter på at blive læst: @_waiting</h2>
+        <p>Læses af sig selv, op til 10 ad gangen hvert 2. minut.</p>
+    </section>
+}
+
+@if (_rows is { Count: > 0 })
+{
+    <section class="k-card">
+        <h2 class="k-card-title">Listen</h2>
+        <ul class="lg-list">
+            @foreach (var (item, top) in _rows)
+            {
+                <li>
+                    <a href="/vare/@item.Id"><span class="lg-box">@(item.Box?.Code ?? "–")</span>
+                        <span class="lg-main"><b>@Index.Line(item)</b><span class="k-small k-muted">fundet til op til @top kr</span></span></a>
+                    <label class="k-btn k-btn-secondary k-btn-sm lg-camera">
+                        @(_busy == item.Id ? "⏳" : "📷 Kolofon")
+                        <InputFile OnChange="e => Save(item.Id, e)" accept="image/*" capture="environment" class="lg-hidden-file" />
+                    </label>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    private List<(Item Item, int Top)>? _rows;
+    private int _fromKr, _waiting, _busy;
+    private string? _msg, _err;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _fromKr = Kolofon.FromKr(Config);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _rows = await Kolofon.NeededAsync(db, _fromKr);
+        _waiting = await db.Items.CountAsync(i => i.KolofonPhoto != "" && i.KolofonAt == null);
+    }
+
+    private async Task Save(int id, InputFileChangeEventArgs e)
+    {
+        _busy = id; _err = null; _msg = null;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var item = await db.Items.FindAsync(id);
+            if (item is null) return;
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await Kolofon.SavePhotoAsync(db, Program.DataDir(Config), item, s);
+            _msg = $"Kolofonen til \"{item.Title}\" er gemt og bliver læst om lidt.";
+            await Load();
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = 0; }
+    }
+}

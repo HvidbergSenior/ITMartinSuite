@@ -27,6 +27,8 @@ else
             <label>Nummer <input class="k-input" @bind="_item.Number" /></label>
             <label>År <input class="k-input" type="number" @bind="_item.Year" /></label>
             <label>ISBN / stregkode <input class="k-input" inputmode="numeric" @bind="_item.Barcode" placeholder="978…" /></label>
+            <label>Udgave / oplag <input class="k-input" @bind="_item.Edition" placeholder="1. udgave, 1. oplag" /></label>
+            <label>Forlag <input class="k-input" @bind="_item.Publisher" /></label>
             <label>Konsol <input class="k-input" @bind="_item.Platform" /></label>
             <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
             <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
@@ -95,6 +97,23 @@ else
             }
             <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? $"⏳ Spørger {PriceHunt.SourceCount} sider …" : "🔄 Find priser nu")</button>
             <p class="k-small k-muted">Siderne – @PriceHunt.SourceList Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
+        </section>
+    }
+
+    @if (_item.Kind == Kinds.Bog)
+    {
+        <section class="k-card" data-fold-closed>
+            <h2 class="k-card-title">📖 Kolofon (udgave og oplag)</h2>
+            <p>Kun for bøger, hvor udgaven kan betyde noget for prisen. Tag billede af bagsiden af titelbladet. AI'en læser udgave, oplag, år, forlag og ISBN inden for et par minutter.</p>
+            @if (_item.KolofonPhoto != "")
+            {
+                <p>@(_item.KolofonAt is { } k ? $"Læst {k.ToLocalTime():d/M HH:mm}." : "⏳ Venter på at blive læst.")</p>
+                <img class="lg-photo" src="/kolofonfoto/@_item.Id?v=@_photoVer" alt="Kolofonen" loading="lazy" />
+            }
+            <label class="k-btn k-btn-secondary lg-camera">
+                @(_busy ? "⏳ Gemmer …" : _item.KolofonPhoto == "" ? "📷 Tag billede af kolofonen" : "📷 Tag nyt billede af kolofonen")
+                <InputFile OnChange="SaveKolofon" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
+            </label>
         </section>
     }
 
@@ -262,6 +281,25 @@ else
             await Save();
             _photoVer = DateTime.UtcNow.Ticks;
             _msg = "Billedet er gemt.";
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveKolofon(InputFileChangeEventArgs e)
+    {
+        _busy = true; _err = null;
+        try
+        {
+            await Save();
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var item = await db.Items.FindAsync(Id);
+            if (item is null) return;
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await Kolofon.SavePhotoAsync(db, Program.DataDir(Config), item, s);
+            _item!.KolofonPhoto = item.KolofonPhoto;
+            _item.KolofonAt = null;
+            _photoVer = DateTime.UtcNow.Ticks;
+            _msg = "Kolofonen er gemt og bliver læst om lidt.";
         }
         catch (Exception ex) { _err = ex.Message; }
         finally { _busy = false; }
