@@ -1,6 +1,6 @@
 @page "/kasse/{Code}/label"
 @layout EmptyLayout
-@inject IDbContextFactory<LagerDb> DbFactory
+@inject BoxUseCases Boxes
 @inject NavigationManager Nav
 
 <PageTitle>Label @Code</PageTitle>
@@ -20,8 +20,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _place = (await db.Boxes.FirstOrDefaultAsync(b => b.Code == Code))?.Place ?? "";
+        _place = (await Boxes.ByCodeAsync(Code))?.Place ?? "";
         var url = Nav.ToAbsoluteUri($"/kasse/{Code}").ToString();
         _qr = new QRCoder.SvgQRCode(new QRCoder.QRCodeGenerator().CreateQrCode(url, QRCoder.QRCodeGenerator.ECCLevel.M))
             .GetGraphic(8, "#000000", "#ffffff", drawQuietZones: true);

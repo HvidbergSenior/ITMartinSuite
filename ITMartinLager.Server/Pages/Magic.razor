@@ -1,6 +1,6 @@
 @page "/magic"
-@inject IDbContextFactory<LagerDb> DbFactory
-@inject MagicLink Mtg
+@inject MagicImportUseCases Mtg
+@inject BoxUseCases Boxes
 
 <PageTitle>Magic-kort – Bogshoppen Lager</PageTitle>
 
@@ -26,7 +26,7 @@
                 <select class="k-input" @bind="_owner">
                     @foreach (var o in _owners)
                     {
-                        <option value="@o.Owner">@(o.Owner == "" ? "(ingen ejer)" : o.Owner) – @o.Copies kort, ca. @(MagicLink.Kr(o.Eur) ?? 0) kr</option>
+                        <option value="@o.Owner">@(o.Owner == "" ? "(ingen ejer)" : o.Owner) – @o.Copies kort, ca. @(MagicCards.Kr(o.Eur) ?? 0) kr</option>
                     }
                 </select>
             </label>
@@ -51,8 +51,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await using (var db = await DbFactory.CreateDbContextAsync())
-            _boxes = await db.Boxes.OrderByDescending(b => b.Id).Take(30).ToListAsync();
+        _boxes = await Boxes.RecentAsync(30);
         if (!Mtg.Enabled) return;
         try
         {
@@ -67,20 +66,9 @@
         _busy = true; _err = null; _msg = null;
         try
         {
-            var cards = await Mtg.CardsAsync(_owner);
-            await using var db = await DbFactory.CreateDbContextAsync();
-            // "New box" only when there is something new: cards fetched before stay where they are, and a
-            // re-fetch with the default choice must not leave empty boxes behind.
-            var refs = cards.Select(c => c.Id.ToString()).ToList();
-            var knownBox = _boxId == 0
-                ? await db.Items.Where(i => refs.Contains(i.MagicRef) && i.BoxId != null).Select(i => i.BoxId).FirstOrDefaultAsync()
-                : null;
-            var box = _boxId != 0 ? await db.Boxes.FindAsync(_boxId)
-                : knownBox is { } kb ? await db.Boxes.FindAsync(kb)
-                : await Store.NewBoxAsync(db, "Magic-kort");
-            var (added, updated) = await MagicLink.ImportAsync(db, box!.Id, cards);
+            var (added, updated, box) = await Mtg.ImportAsync(_owner, _boxId);
             _boxId = box.Id;
-            _boxes = await db.Boxes.OrderByDescending(b => b.Id).Take(30).ToListAsync();
+            _boxes = await Boxes.RecentAsync(30);
             _msg = $"{added} nye og {updated} opdaterede kort i {box.Code}.";
         }
         catch (Exception ex) { _err = ex.Message; }

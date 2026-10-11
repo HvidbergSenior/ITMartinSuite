@@ -1,6 +1,9 @@
 using FluentAssertions;
-using ITMartinLager.Server.Data;
-using ITMartinLager.Server.Services;
+using ITMartinLager.Application;
+using ITMartinLager.Domain;
+using ITMartinLager.Infrastructure.External;
+using ITMartinLager.Infrastructure.Persistence;
+using ITMartinLager.Infrastructure.PriceSites;
 
 namespace ITMartinLager.Tests;
 
@@ -101,24 +104,24 @@ public class PriceHuntTests
     [Test]
     public void Normal_price_leaves_out_the_dreamers()
     {
-        PriceHunt.Summary.NormalOf([5, 5, 10, 10, 15, 400]).Should().Be(10);
-        PriceHunt.Summary.NormalOf([]).Should().BeNull();
+        Pricing.NormalOf([5, 5, 10, 10, 15, 400]).Should().Be(10);
+        Pricing.NormalOf([]).Should().BeNull();
     }
 
     [Test]
     public void Far_off_prices_are_flagged_with_how_far()
     {
-        PriceHunt.Summary.Flag(50, 5).Should().Be("10× normalprisen");
-        PriceHunt.Summary.Flag(12, 10).Should().Be("");
-        PriceHunt.Summary.Flag(3, 10).Should().Be("under en tredjedel af normalprisen");
-        PriceHunt.Summary.Flag(50, null).Should().Be("");
+        Pricing.Flag(50, 5).Should().Be("10× normalprisen");
+        Pricing.Flag(12, 10).Should().Be("");
+        Pricing.Flag(3, 10).Should().Be("under en tredjedel af normalprisen");
+        Pricing.Flag(50, null).Should().Be("");
     }
 
     [Test]
     public void Keeps_the_cheapest_the_middle_and_the_dearest()
     {
         var offers = Enumerable.Range(1, 30).Select(i => new Offer($"b{i}", i * 10m, $"u{i}")).ToList();
-        var kept = PriceHunt.Keep(ListingParse.Summarise(offers, "u")).Select(o => (int)o.Price!.Value).ToList();
+        var kept = Pricing.Keep(ListingParse.Summarise(offers, "u")).Select(o => (int)o.Price!.Value).ToList();
         kept.Should().HaveCount(12);
         kept.Should().Contain([10, 20, 290, 300]);
         kept.Should().Contain(160);
@@ -127,9 +130,9 @@ public class PriceHuntTests
     [Test]
     public void Comics_are_searched_with_their_number()
     {
-        PriceHunt.TitleFor(new Item { Title = "", Series = "Anders And & Co.", Number = "12" }).Should().Be("Anders And & Co. 12");
-        PriceHunt.TitleFor(new Item { Title = "Tintin 5", Number = "5" }).Should().Be("Tintin 5");
-        PriceHunt.TitleFor(new Item { Title = "Mort" }).Should().Be("Mort");
+        Pricing.TitleFor(new Item { Title = "", Series = "Anders And & Co.", Number = "12" }).Should().Be("Anders And & Co. 12");
+        Pricing.TitleFor(new Item { Title = "Tintin 5", Number = "5" }).Should().Be("Tintin 5");
+        Pricing.TitleFor(new Item { Title = "Mort" }).Should().Be("Mort");
     }
 
     [Test]
@@ -154,9 +157,9 @@ public class PriceHuntTests
     [Test]
     public void Zvab_and_AbeBooks_share_listing_numbers()
     {
-        PriceHunt.ListingNumber("https://www.zvab.com/Mort-Terry-Pratchett-Corgi-Books/31992988332/bd").Should().Be("31992988332");
-        PriceHunt.ListingNumber("https://www.abebooks.com/Mort-Terry-Pratchett-Corgi-Books/31992988332/bd").Should().Be("31992988332");
-        PriceHunt.ListingNumber("https://www.dba.dk/recommerce/forsale/item/1945166").Should().Be("");
+        Pricing.ListingNumber("https://www.zvab.com/Mort-Terry-Pratchett-Corgi-Books/31992988332/bd").Should().Be("31992988332");
+        Pricing.ListingNumber("https://www.abebooks.com/Mort-Terry-Pratchett-Corgi-Books/31992988332/bd").Should().Be("31992988332");
+        Pricing.ListingNumber("https://www.dba.dk/recommerce/forsale/item/1945166").Should().Be("");
     }
 
     // Trimmed Kleinanzeigen search result (2026-10-10): the title sits in an image JSON block, the price as "5 € VB".

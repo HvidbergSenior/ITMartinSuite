@@ -8,7 +8,7 @@
     .\test-app.ps1 -App Notatskriver -Live      # flow tests against the live site instead of a local copy
 #>
 param(
-    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud", "ElPriser", "Budget", "Tjek")][string]$App,
+    [Parameter(Mandatory)][ValidateSet("Notatskriver", "Tilbud", "ElPriser", "Budget", "Tjek", "Lager")][string]$App,
     [switch]$Live
 )
 $ErrorActionPreference = "Stop"
@@ -41,6 +41,13 @@ $apps = @{
         Node = "ITMartinHjem.Server/js-tests/*.test.js"; Server = "ITMartinHjem.Server"; Port = 5137
         LiveUrl = "https://itmartin.dk"; Flow = "BudgetBillederFlowTests"; BaseVar = "HJEM_BASE"
         Env = @{ "Hjem__DataDir" = (Join-Path $env:TEMP "hjem-test-data") }
+    }
+    # Bogshoppen Lager: local copy only (the flow tests create boxes), empty temp data folder, no price hunting.
+    "Lager" = @{
+        Tests = "ITMartinLager.Tests"; Server = "ITMartinLager.Server"; Port = 5149
+        LiveUrl = "https://lager.bogshoppen.dk"; Flow = "LagerFlowTests"; BaseVar = "LAGER_BASE"
+        Env = @{ "Lager__DataDir" = (Join-Path $env:TEMP ("lager-test-data-" + [guid]::NewGuid().ToString("N").Substring(0, 8)));
+                 "Lager__Pin" = "lokal-test-pin"; "LAGER_PIN" = "lokal-test-pin"; "Lager__PriceHunter" = "false" }
     }
     # PC-tjek: no unit tests yet - the flow tests prove each browser only sees its own history.
     "Tjek" = @{

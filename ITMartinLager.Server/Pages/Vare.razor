@@ -1,9 +1,9 @@
 @page "/vare/{Id:int}"
-@inject IDbContextFactory<LagerDb> DbFactory
+@inject ItemUseCases Items
 @inject NavigationManager Nav
-@inject AuctionLink Auction
-@inject PriceHunt Hunt
-@inject IConfiguration Config
+@inject AuctionUseCases Auction
+@inject PriceHuntUseCases Hunt
+@inject KolofonUseCases Kolofons
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
 
@@ -14,7 +14,7 @@
 else
 {
     <section class="k-card">
-        <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @Index.Line(_item)</h1>
+        <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @_item.Line()</h1>
         <p>Ligger i <a href="/kasse/@_box"><b>@(_box ?? "ingen kasse")</b></a> · @_item.Quantity stk. · <b>@_item.Status</b>@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
         @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
 
@@ -45,7 +45,7 @@ else
         @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
     </section>
 
-    @if (PriceHunt.HuntedKinds.Contains(_item.Kind))
+    @if (Pricing.HuntedKinds.Contains(_item.Kind))
     {
         <section class="k-card">
             <h2 class="k-card-title">💰 Priser fundet på nettet</h2>
@@ -56,7 +56,7 @@ else
             else
             {
                 var used = _finds.Where(f => !f.IsNew).ToList();
-                var normal = PriceHunt.Summary.NormalOf(used.Select(f => f.Kr).ToList());
+                var normal = Pricing.NormalOf(used.Select(f => f.Kr).ToList());
                 @if (normal is { } n)
                 {
                     <p class="lg-answer">Normalpris brugt: ca. @n kr</p>
@@ -70,7 +70,7 @@ else
                 {
                     // First screen: the 3 cheapest and every far-off price. The rest folds away.
                     var all = _finds.OrderBy(f => f.IsNew).ThenBy(f => f.Kr).ToList();
-                    var flagged = all.Where(f => PriceHunt.Summary.Flag(f.Kr, normal) != "").ToList();
+                    var flagged = all.Where(f => Pricing.Flag(f.Kr, normal) != "").ToList();
                     var first = all.Where(f => !f.IsNew).Take(3).Concat(all.Where(f => f.IsNew).Take(1)).Concat(flagged).Distinct().ToList();
                     <ul class="lg-prices">
                         @foreach (var f in first) { @Find(f, normal) }
@@ -96,8 +96,8 @@ else
                     }
                 </ul>
             }
-            <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? $"⏳ Spørger {PriceHunt.SourceCount} sider …" : "🔄 Find priser nu")</button>
-            <p class="k-small k-muted">Siderne – @PriceHunt.SourceList Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
+            <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? $"⏳ Spørger {Hunt.SourceCount} sider …" : "🔄 Find priser nu")</button>
+            <p class="k-small k-muted">Siderne – @Hunt.SourceList Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
         </section>
     }
 
@@ -193,19 +193,11 @@ else
     private List<PriceFind> _finds = [];
     private List<PriceCheck> _checks = [];
     private bool _hunting;
-    private string _searched = "";
-
-    // What the price search is made of - when it changes, the old prices are about another book.
-    private static string PriceKey(Item i) => $"{i.Kind}|{i.Title}|{i.Artist}|{i.Series}|{i.Number}|{i.Barcode}";
 
     protected override async Task OnParametersSetAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _item = await db.Items.Include(i => i.Box).FirstOrDefaultAsync(i => i.Id == Id);
-        _box = _item?.Box?.Code;
+        await Load();
         if (_item is null) return;
-        _searched = PriceKey(_item);
-        await LoadPrices(db);
         _start = _item.Price ?? _item.PriceHint ?? 0;
         _lot = Math.Max(1, _item.Quantity);
         if (Auction.Enabled && _item.Status != Statuses.Solgt && _item.Status != Statuses.PaaAuktion)
@@ -219,9 +211,18 @@ else
         }
     }
 
+    private async Task Load()
+    {
+        var view = await Items.GetAsync(Id);
+        _item = view?.Item;
+        _box = _item?.Box?.Code;
+        _finds = view?.Finds ?? [];
+        _checks = view?.Checks ?? [];
+    }
+
     private static RenderFragment Find(PriceFind f, int? normal) => __builder =>
     {
-        var flag = PriceHunt.Summary.Flag(f.Kr, normal);
+        var flag = Pricing.Flag(f.Kr, normal);
         <li class="@(flag != "" ? "lg-flag" : "")">
             Fundet på <b>@f.Source</b> til <b>@f.Kr kr</b>@(f.Original != "" ? $" ({f.Original})" : "")@(f.IsNew ? " – ny" : "")
             · <a href="@f.Url" target="_blank" rel="noopener">Link</a>
@@ -229,12 +230,6 @@ else
             <span class="k-small k-muted">@f.Name</span>
         </li>
     };
-
-    private async Task LoadPrices(LagerDb db)
-    {
-        _finds = await db.PriceFinds.Where(f => f.ItemId == Id).ToListAsync();
-        _checks = await db.PriceChecks.Where(c => c.ItemId == Id).ToListAsync();
-    }
 
     private async Task HuntNow()
     {
@@ -244,10 +239,8 @@ else
         {
             await Save();   // a corrected title or ISBN is what gets searched
             var ok = await Hunt.HuntAsync(Id);
-            await using var db = await DbFactory.CreateDbContextAsync();
-            await LoadPrices(db);
-            _item!.PriceHint = (await db.Items.FindAsync(Id))?.PriceHint;
-            _msg = $"{ok} af {PriceHunt.SourceCount} sider svarede.";
+            await Load();
+            _msg = $"{ok} af {Hunt.SourceCount} sider svarede.";
         }
         catch (Exception ex) { _err = ex.Message; }
         finally { _hunting = false; }
@@ -255,16 +248,12 @@ else
 
     private async Task Save()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _item!.Kind = Kinds.Normalise(_item.Kind);
-        _item.Condition = Conditions.Normalise(_item.Condition);
-        _item.Barcode = BarcodeLookup.ToIsbn13(_item.Barcode ?? "");   // ISBN-10 (also ending in X) becomes ISBN-13
-        if (PriceKey(_item) != _searched) { _item.PricesAt = null; _searched = PriceKey(_item); }   // the hunter takes it next
-        _item.Touch();
-        _item.Box = null;
-        db.Items.Update(_item);
-        await db.SaveChangesAsync();
-        _msg = "Gemt."; _err = null;
+        try
+        {
+            await Items.SaveAsync(_item!);
+            _msg = "Gemt."; _err = null;
+        }
+        catch (Exception ex) { _err = ex.Message; }
     }
 
     private async Task SavePhoto(InputFileChangeEventArgs e)
@@ -272,14 +261,8 @@ else
         _busy = true; _err = null;
         try
         {
-            byte[] jpeg;
-            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) jpeg = await PileReader.ShrinkAsync(s, CancellationToken.None);
-            var rel = Path.Combine("photos", "items", $"{_item!.Id}.jpg");
-            var full = Path.Combine(Program.DataDir(Config), rel);
-            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-            await File.WriteAllBytesAsync(full, jpeg);
-            _item.ItemPhoto = rel;
             await Save();
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) _item!.ItemPhoto = await Items.SavePhotoAsync(Id, s);
             _photoVer = DateTime.UtcNow.Ticks;
             _msg = "Billedet er gemt.";
         }
@@ -293,11 +276,9 @@ else
         try
         {
             await Save();
-            await using var db = await DbFactory.CreateDbContextAsync();
-            var item = await db.Items.FindAsync(Id);
-            if (item is null) return;
-            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await Kolofon.SavePhotoAsync(db, Program.DataDir(Config), item, s);
-            _item!.KolofonPhoto = item.KolofonPhoto;
+            Item saved;
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) saved = await Kolofons.SavePhotoAsync(Id, s);
+            _item!.KolofonPhoto = saved.KolofonPhoto;
             _item.KolofonAt = null;
             _photoVer = DateTime.UtcNow.Ticks;
             _msg = "Kolofonen er gemt og bliver læst om lidt.";
@@ -312,14 +293,11 @@ else
         _busy = true; _err = null; _msg = null;
         try
         {
-            byte[]? jpeg = _item.ItemPhoto != "" ? await File.ReadAllBytesAsync(Path.Combine(Program.DataDir(Config), _item.ItemPhoto)) : null;
-            var description = string.Join("\n", new[] { _item.Interest, $"{_item.Kind} · stand: {_item.Condition}" }.Where(s => !string.IsNullOrWhiteSpace(s)));
-            var lot = Math.Clamp(_lot, 1, Math.Max(1, _item.Quantity));
-            var id = await Auction.SendAsync(_code, Index.Line(_item), description, Math.Max(0, _start), lot, jpeg);
-            _item.AuctionItemId = id.ToString();
-            _item.AuctionCode = _code;
-            _item.Status = Statuses.PaaAuktion;
             await Save();
+            var sent = await Auction.SendAsync(Id, _code, _start, _lot);
+            _item.AuctionItemId = sent.AuctionItemId;
+            _item.AuctionCode = sent.AuctionCode;
+            _item.Status = sent.Status;
             _msg = $"Sat på auktion {_code}.";
         }
         catch (Exception ex) { _err = ex.Message; }
@@ -328,11 +306,7 @@ else
 
     private async Task Delete()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        db.Items.Remove(new Item { Id = _item!.Id });
-        await db.SaveChangesAsync();
-        await db.PriceFinds.Where(f => f.ItemId == Id).ExecuteDeleteAsync();
-        await db.PriceChecks.Where(c => c.ItemId == Id).ExecuteDeleteAsync();
+        await Items.DeleteAsync(Id);
         Nav.NavigateTo(_box is null ? "/" : $"/kasse/{_box}");
     }
 }

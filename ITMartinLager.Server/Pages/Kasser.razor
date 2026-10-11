@@ -1,5 +1,5 @@
 @page "/kasser"
-@inject IDbContextFactory<LagerDb> DbFactory
+@inject BoxUseCases Boxes
 @inject NavigationManager Nav
 
 <PageTitle>Kasser – Bogshoppen Lager</PageTitle>
@@ -25,23 +25,14 @@
 </section>
 
 @code {
-    private sealed record BoxRow(string Code, string Place, int Lines, int Units);
-    private List<BoxRow> _rows = [];
+    private List<BoxSummary> _rows = [];
     private string _place = "";
 
-    protected override async Task OnInitializedAsync()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var counts = await db.Items.Where(i => i.BoxId != null).GroupBy(i => i.BoxId)
-            .Select(g => new { Id = g.Key!.Value, Lines = g.Count(), Units = g.Sum(i => i.Quantity) }).ToDictionaryAsync(x => x.Id);
-        _rows = (await db.Boxes.OrderByDescending(b => b.Id).ToListAsync())
-            .Select(b => new BoxRow(b.Code, b.Place, counts.GetValueOrDefault(b.Id)?.Lines ?? 0, counts.GetValueOrDefault(b.Id)?.Units ?? 0)).ToList();
-    }
+    protected override async Task OnInitializedAsync() => _rows = await Boxes.AllAsync();
 
     private async Task New()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var box = await Store.NewBoxAsync(db, _place);
+        var box = await Boxes.NewAsync(_place);
         Nav.NavigateTo($"/kasse/{box.Code}");
     }
 }

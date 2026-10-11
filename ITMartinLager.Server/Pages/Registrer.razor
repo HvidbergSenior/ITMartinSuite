@@ -1,9 +1,7 @@
 @page "/registrer"
-@inject IDbContextFactory<LagerDb> DbFactory
-@inject PileReader Reader
-@inject IConfiguration Config
+@inject RegistrationUseCases Reg
+@inject BoxUseCases Boxes
 @inject NavigationManager Nav
-@inject BarcodeLookup Barcodes
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -38,7 +36,7 @@
             @(_busy ? "⏳ Læser billedet …" : "📷 Tag billede")
             <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
         </label>
-        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
+        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reg.MaxCallsPerDay.</p>
 
         <p><b>Eller scan stregkoden</b> – bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden; det bipper for hver.</p>
         @if (!_scanning)
@@ -132,18 +130,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _recent = await db.Boxes.OrderByDescending(b => b.Id).Take(8).ToListAsync();
-        if (!string.IsNullOrEmpty(BoxCode)) _box = await db.Boxes.FirstOrDefaultAsync(b => b.Code == BoxCode);
-        _callsToday = await Reader.CallsTodayAsync();
+        _recent = await Boxes.RecentAsync(8);
+        if (!string.IsNullOrEmpty(BoxCode)) _box = await Boxes.ByCodeAsync(BoxCode);
+        _callsToday = await Reg.CallsTodayAsync();
     }
 
     private void UseBox(Box b) { _box = b; _saved = null; }
 
     private async Task NewBox()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _box = await Store.NewBoxAsync(db, _newPlace);
+        _box = await Boxes.NewAsync(_newPlace);
         _newPlace = "";
         _saved = $"Kasse {_box.Code} er oprettet. Print dens label under Kasser.";
     }
@@ -157,33 +153,23 @@
         {
             foreach (var file in e.GetMultipleFiles(20))
             {
-                byte[] jpeg;
+                int photoId;
+                List<Found> found;
                 await using (var s = file.OpenReadStream(30 * 1024 * 1024))
-                    jpeg = await PileReader.ShrinkAsync(s, CancellationToken.None);
-
-                var rel = Path.Combine("photos", DateTime.Now.ToString("yyyy-MM"), $"{DateTime.Now:ddHHmmssfff}-{_box.Code}.jpg");
-                var full = Path.Combine(Program.DataDir(Config), rel);
-                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-                await File.WriteAllBytesAsync(full, jpeg);
-
-                var found = await Reader.ReadAsync(jpeg, _hint, CancellationToken.None);
-                await using var db = await DbFactory.CreateDbContextAsync();
-                var photo = new Photo { Path = rel, BoxId = _box.Id, Found = found.Count };
-                db.Photos.Add(photo);
-                await db.SaveChangesAsync();
+                    (photoId, found) = await Reg.ReadPileAsync(s, _hint, _box.Id, _box.Code);
 
                 _review.AddRange(found.Select(f => new Row
                 {
                     Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
                     Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
-                    Note = f.Note, Interest = f.Interest, EditionHint = f.EditionHint, PhotoId = photo.Id,
+                    Note = f.Note, Interest = f.Interest, EditionHint = f.EditionHint, PhotoId = photoId,
                 }));
                 if (found.Count == 0) _error = "AI'en fandt ingen ting på billedet. Tag det lidt tættere på, i godt lys.";
-                else if (Config.GetValue<bool>("Lager:AutoInterest"))
+                else if (Reg.AutoInterest)
                 {
                     // Off by default (user 2026-10-05: "disable texts, add it later maybe") - the text is the costly part.
                     StateHasChanged();
-                    await FillInterestAsync(_review.Where(x => x.PhotoId == photo.Id).ToList());
+                    await FillInterestAsync(_review.Where(x => x.PhotoId == photoId).ToList());
                 }
                 StateHasChanged();
             }
@@ -192,7 +178,7 @@
         finally
         {
             _busy = false;
-            _callsToday = await Reader.CallsTodayAsync();
+            _callsToday = await Reg.CallsTodayAsync();
         }
     }
 
@@ -200,11 +186,10 @@
     {
         if (_box is null) return;
         _busy = true;
-        await using var db = await DbFactory.CreateDbContextAsync();
         int added = 0, merged = 0;
         foreach (var g in _review.Where(r => r.Keep && r.Title.Trim() != "").GroupBy(r => r.PhotoId))
         {
-            var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key == 0 ? null : g.Key, g.Select(r => new Found(
+            var (a, m) = await Reg.SaveAsync(_box.Id, g.Key == 0 ? null : g.Key, g.Select(r => new Found(
                 Kinds.Normalise(r.Kind), r.Title.Trim(), r.Artist.Trim(), r.Series.Trim(), r.Number.Trim(), r.Year,
                 r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim(), r.Barcode, EditionHint: r.EditionHint)));
             added += a; merged += m;
@@ -236,7 +221,7 @@
     [JSInvokable]
     public async Task OnBarcode(string raw)
     {
-        var code = BarcodeLookup.Clean(raw);
+        var code = Barcodes.Clean(raw);
         var again = code == _lastCode && (DateTime.Now - _lastAt).TotalSeconds < 4;
         _lastCode = code; _lastAt = DateTime.Now;
         if (!again && code.Length >= 8)
@@ -252,9 +237,9 @@
             {
                 _scanStatus = $"Slår {code} op …";
                 StateHasChanged();
-                var f = await Barcodes.LookupAsync(code);
+                var f = await Reg.LookupBarcodeAsync(code);
                 _review.Insert(0, f is null
-                    ? new Row { Barcode = code, Kind = BarcodeLookup.IsIsbn(code) ? Kinds.Bog : Kinds.Andet, Title = "", Confidence = 0, Note = $"Stregkode {code} – ikke fundet, skriv titlen" }
+                    ? new Row { Barcode = code, Kind = Barcodes.IsIsbn(code) ? Kinds.Bog : Kinds.Andet, Title = "", Confidence = 0, Note = $"Stregkode {code} – ikke fundet, skriv titlen" }
                     : new Row { Barcode = code, Kind = f.Kind, Title = f.Title, Artist = f.Artist, Year = f.Year, Platform = f.Platform, Confidence = f.Confidence, Note = f.Note });
                 _scanStatus = f is null ? $"⚠ {code} ikke fundet – skriv titlen i listen" : $"✓ {f.Title}";
             }
@@ -284,9 +269,9 @@
         if (rows.Count == 0) return;
         var lines = rows.Select(r => string.Join(" · ", new[] { r.Kind, r.Artist, r.Title, r.Series, r.Number, r.Year?.ToString() ?? "", r.Platform }
             .Where(x => !string.IsNullOrWhiteSpace(x)))).ToList();
-        var texts = await Reader.WriteInterestAsync(lines, CancellationToken.None);
+        var texts = await Reg.WriteInterestAsync(lines);
         foreach (var (idx, text) in texts) rows[idx].Interest = text;
-        _callsToday = await Reader.CallsTodayAsync();
+        _callsToday = await Reg.CallsTodayAsync();
     }
 
     public async ValueTask DisposeAsync()

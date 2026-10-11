@@ -1,13 +1,7 @@
 @page "/boeger"
-@inject IDbContextFactory<LagerDb> DbFactory
-@inject PileReader Reader
-@inject IConfiguration Config
-@inject BarcodeLookup Barcodes
-@inject DbaListings Dba
-@inject AbeBooksListings Abe
-@inject AmazonDeListings Amazon
-@inject NemosListings Nemos
-@inject FaraosListings Faraos
+@inject BookCheckUseCases Checks
+@inject RegistrationUseCases Reg
+@inject BoxUseCases Boxes
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -24,12 +18,12 @@
         @(_busy ? "⏳ " + _status : "📷 Tag billede af bøgerne")
         <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
     </label>
-    <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reader.MaxCallsPerDay.</p>
+    <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reg.MaxCallsPerDay.</p>
 
     <p><b>Eller scan ISBN-stregkoden</b> bag på bogen – mest præcist for bøger efter ca. 1975. Bøgerne vurderes 10 ad gangen og når du trykker Færdig.</p>
     <div class="lg-row">
         <input class="k-input" @bind="_isbn" @bind:event="oninput" @onkeydown="IsbnKey" inputmode="numeric" placeholder="Eller skriv ISBN (13 cifre bag på bogen)" />
-        <button class="k-btn k-btn-secondary" @onclick="AddIsbn" disabled="@(BarcodeLookup.ToIsbn13(_isbn).Length < 10)">➕ Tilføj</button>
+        <button class="k-btn k-btn-secondary" @onclick="AddIsbn" disabled="@(Barcodes.ToIsbn13(_isbn).Length < 10)">➕ Tilføj</button>
     </div>
     @if (!_scanning)
     {
@@ -93,23 +87,18 @@
                         </div>
                     }
                     <p class="k-small">
-                        DBA: @(b.Listings?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
-                        <br />AbeBooks: @(b.Abe?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
-                        <br />Amazon.de: @(b.Amz?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
-                        <br />Nemos Bibliotek: @(b.Nemos?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
-                        <br />Faraos: @(b.Faraos?.Text ?? (b.Looking ? "slår op …" : "ukendt"))
+                        @foreach (var site in BookCheckUseCases.Sites)
+                        {
+                            @site@(": ")@(b.Site(site)?.Text ?? (b.Looking ? "slår op …" : "ukendt"))<br />
+                        }
                         @if (b.Note != "") { <br /><span class="k-muted">@b.Note</span> }
                     </p>
                     <p class="k-small lg-links">
                         Tjek:
-                        <a href="@DbaListings.SearchUrl(Query(b))" target="_blank" rel="noopener">DBA</a>
-                        · <a href="@AbeBooksListings.SearchUrl(Query(b))" target="_blank" rel="noopener">AbeBooks</a>
-                        · <a href="@NemosListings.SearchUrl(b.Title)" target="_blank" rel="noopener">Nemos</a>
-                        · <a href="@FaraosListings.SearchUrl(b.Title)" target="_blank" rel="noopener">Faraos</a>
-                        · <a href="@($"https://www.ebay.com/sch/i.html?_nkw={Uri.EscapeDataString(Query(b))}&LH_Sold=1&LH_Complete=1")" target="_blank" rel="noopener">eBay solgte</a>
-                        · <a href="@AmazonDeListings.SearchUrl(b.Barcode != "" ? b.Barcode : Query(b))" target="_blank" rel="noopener">Amazon.de</a>
-                        · <a href="@($"https://www.antikvariat.net/da/actions/biblio-search/default/search?author={Uri.EscapeDataString(b.Author)}&title={Uri.EscapeDataString(b.Title)}&currency=DKK")" target="_blank" rel="noopener">antikvariat.net</a>
-                        · <a href="@($"https://bogbasen.dk/search?forfatter={Uri.EscapeDataString(b.Author)}&titel={Uri.EscapeDataString(b.Title)}")" target="_blank" rel="noopener">Bogbasen</a>
+                        @foreach (var (name, url) in Checks.Links(b))
+                        {
+                            <a href="@url" target="_blank" rel="noopener">@name</a>@(" ")
+                        }
                     </p>
                 </div>
             }
@@ -157,28 +146,7 @@
 </section>
 
 @code {
-    private sealed class Book
-    {
-        public bool Keep = true, Looking;
-        public string Title = "", Author = "", Condition = "God", Note = "", Barcode = "";
-        public int? Year;
-        public int Quantity = 1, PhotoId;
-        public double Confidence = 1;
-        public Listings? Listings, Abe, Amz, Nemos, Faraos;
-
-        public Listings? Source(string name) => name switch
-        {
-            "DBA" => Listings, "AbeBooks" => Abe, "Amazon.de" => Amz, "Nemos Bibliotek" => Nemos, "Faraos" => Faraos, _ => null,
-        };
-
-        // The listings behind the price, from the sources the AI based it on.
-        public IEnumerable<(string Source, Offer Offer)> Proof() =>
-            (Value?.Basis ?? []).SelectMany(s => (Source(s)?.Proof ?? []).Select(o => (s, o)));
-        public BookValue? Value;
-        public int CheckId;
-    }
-
-    private readonly List<Book> _books = [];
+    private readonly List<CheckedBook> _books = [];
     private List<Box> _recent = [];
     private Box? _box;
     private string _newPlace = "", _status = "", _scanStatus = "", _lastCode = "", _isbn = "";
@@ -193,59 +161,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _recent = await db.Boxes.OrderByDescending(b => b.Id).Take(8).ToListAsync();
-        _callsToday = await Reader.CallsTodayAsync();
+        _recent = await Boxes.RecentAsync(8);
+        _callsToday = await Reg.CallsTodayAsync();
         await LoadHistory();
     }
 
-    private async Task LoadHistory()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _historyTotal = await db.BookChecks.CountAsync();
-        var q = db.BookChecks.AsQueryable();
-        foreach (var w in _hq.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
-        {
-            var word = w;
-            q = q.Where(b => b.Search.Contains(word));
-        }
-        _history = await q.OrderByDescending(b => b.CheckedAt).Take(50).ToListAsync();
-    }
+    private async Task LoadHistory() => (_history, _historyTotal) = await Checks.HistoryAsync(_hq);
 
-    // Saved the moment a book has its value - a reload or a closed phone never loses a checked book.
-    private async Task RememberAsync(IEnumerable<Book> books)
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var saved = new List<(Book, BookCheck)>();
-        foreach (var b in books.Where(b => b.Value is not null))
-        {
-            var c = b.CheckId != 0 ? await db.BookChecks.FindAsync(b.CheckId) : null;
-            if (c is null) db.BookChecks.Add(c = new BookCheck());
-            Fill(c, b);
-            saved.Add((b, c));
-        }
-        await db.SaveChangesAsync();
-        foreach (var (b, c) in saved) b.CheckId = c.Id;
-        await LoadHistory();
-    }
-
-    private static void Fill(BookCheck c, Book b)
-    {
-        c.Title = b.Title.Trim(); c.Author = b.Author.Trim(); c.Year = b.Year; c.Condition = b.Condition; c.Isbn = b.Barcode;
-        c.Quantity = b.Quantity; c.PhotoId = b.PhotoId == 0 ? null : b.PhotoId;
-        c.Verdict = b.Value!.Verdict; c.Low = b.Value.Low; c.High = b.Value.High; c.Demand = b.Value.Demand;
-        c.SellAt = b.Value.Where; c.Reason = b.Value.Reason;
-        c.Dba = b.Listings?.Text ?? ""; c.AbeBooks = b.Abe?.Text ?? ""; c.AmazonDe = b.Amz?.Text ?? ""; c.Nemos = b.Nemos?.Text ?? ""; c.Faraos = b.Faraos?.Text ?? "";
-        c.Proof = string.Join("\n", b.Proof().Select(p => $"{p.Source}: {p.Offer.Name} – {p.Offer.Price:0} kr – {p.Offer.Url}"));
-        c.CheckedAt = DateTime.UtcNow;
-        c.Touch();
-    }
-
-    private static int Rank(Book b) => b.Value?.Verdict switch { "Sælg" => 0, BookValue.Unsure => 1, "Kasse" => 2, "Genbrug" => 3, _ => 4 };
-    private static string Query(Book b) => DbaListings.QueryFor(b.Title, b.Author);
-    private IEnumerable<Book> Sorted() => _books.OrderBy(Rank).ThenByDescending(b => b.Value?.High ?? 0);
-    private static string Css(Book b) => b.Value?.Verdict switch { "Sælg" => "sell", "Kasse" => "box", "Genbrug" => "recycle", BookValue.Unsure => "unsure", _ => "new" };
-    private static string Badge(Book b) => b.Value?.Verdict switch
+    private IEnumerable<CheckedBook> Sorted() => _books.OrderBy(b => b.Rank).ThenByDescending(b => b.Value?.High ?? 0);
+    private static string Css(CheckedBook b) => b.Value?.Verdict switch { "Sælg" => "sell", "Kasse" => "box", "Genbrug" => "recycle", BookValue.Unsure => "unsure", _ => "new" };
+    private static string Badge(CheckedBook b) => b.Value?.Verdict switch
     {
         "Sælg" => "💰 Sælg", "Kasse" => "📦 Kasse", "Genbrug" => "♻ Genbrug", BookValue.Unsure => "❓ Tjek selv",
         _ => b.Title.Trim() == "" ? "✏ Skriv titlen" : "⏳ Vurderes …",
@@ -264,27 +189,13 @@
             {
                 _status = files.Count > 1 ? $"Læser billede {n + 1} af {files.Count} …" : "Læser titlerne …";
                 StateHasChanged();
-                byte[] jpeg;
+                int photoId;
+                List<Found> found;
                 await using (var s = files[n].OpenReadStream(30 * 1024 * 1024))
-                    jpeg = await PileReader.ShrinkAsync(s, CancellationToken.None);
-
-                var rel = Path.Combine("photos", DateTime.Now.ToString("yyyy-MM"), $"{DateTime.Now:ddHHmmssfff}-boeger.jpg");
-                var full = Path.Combine(Program.DataDir(Config), rel);
-                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-                await File.WriteAllBytesAsync(full, jpeg);
-
-                var found = await Reader.ReadAsync(jpeg, "bøger", CancellationToken.None);
-                await using var db = await DbFactory.CreateDbContextAsync();
-                var photo = new Photo { Path = rel, Found = found.Count };
-                db.Photos.Add(photo);
-                await db.SaveChangesAsync();
+                    (photoId, found) = await Reg.ReadPileAsync(s, "bøger", null, "boeger");
                 if (found.Count == 0) { _error = "AI'en fandt ingen bøger på billedet. Tag det lidt tættere på, i godt lys."; continue; }
 
-                var fresh = found.Select(f => new Book
-                {
-                    Title = f.Title, Author = f.Artist, Year = f.Year, Condition = f.Condition, Quantity = f.Quantity,
-                    Confidence = f.Confidence, Note = f.Note, PhotoId = photo.Id,
-                }).ToList();
+                var fresh = found.Select(f => CheckedBook.From(f, photoId)).ToList();
                 _books.AddRange(fresh);
                 await AssessAsync(fresh);
             }
@@ -293,64 +204,29 @@
         finally
         {
             _busy = false;
-            _callsToday = await Reader.CallsTodayAsync();
+            _callsToday = await Reg.CallsTodayAsync();
         }
     }
 
-    // DBA for every book (two at a time, cached), then ONE AI call for the lot with the DBA numbers in it.
-    private async Task AssessAsync(List<Book> books)
+    // The sites for every book, then ONE AI call per 40 books with the sites' numbers in it.
+    private async Task AssessAsync(List<CheckedBook> books)
     {
         books = books.Where(b => b.Title.Trim() != "").ToList();
-        _status = $"Slår {books.Count} bøger op på DBA, AbeBooks, Amazon.de, Nemos og Faraos …";
+        _status = $"Slår {books.Count} bøger op på {string.Join(", ", BookCheckUseCases.Sites)} …";
         StateHasChanged();
-        await Task.WhenAll(books.Where(b => b.Listings is null).Select(LookUpAsync));
-
-        foreach (var chunk in books.Where(b => b.Value is null).Chunk(40))
-        {
-            _status = $"Vurderer {chunk.Length} bøger …";
-            StateHasChanged();
-            var values = await Reader.ValueBooksAsync(chunk.Select(Line).ToList(), CancellationToken.None);
-            for (var i = 0; i < chunk.Length; i++)
-                if (values.TryGetValue(i, out var raw))
-                {
-                    var b = chunk[i];
-                    var v = raw.Proven(s => b.Source(s)?.HasPrices == true);
-                    chunk[i].Value = v;
-                    if (v.Verdict == "Genbrug") chunk[i].Keep = false;
-                }
-            await RememberAsync(chunk);
-        }
-        _callsToday = await Reader.CallsTodayAsync();
+        await Task.WhenAll(books.Where(b => !b.Asked).Select(LookUpAsync));
+        _status = $"Vurderer {books.Count(b => b.Value is null)} bøger …";
+        StateHasChanged();
+        await Checks.ValueAsync(books);
+        await LoadHistory();
+        _callsToday = await Reg.CallsTodayAsync();
         StateHasChanged();
     }
 
-    private async Task LookUpAsync(Book b)
+    private async Task LookUpAsync(CheckedBook b)
     {
-        b.Looking = true;
-        var dba = Dba.LookupAsync(b.Title, b.Author);
-        var abe = Abe.LookupAsync(b.Title, b.Author);
-        var amz = Amazon.LookupAsync(b.Title, b.Author, b.Barcode);
-        var nemos = Nemos.LookupAsync(b.Title, b.Author);
-        var faraos = Faraos.LookupAsync(b.Title, b.Author);
-        b.Listings = await dba;
-        b.Abe = await abe;
-        b.Amz = await amz;
-        b.Nemos = await nemos;
-        b.Faraos = await faraos;
-        b.Looking = false;
+        await Checks.LookUpAsync(b);
         await InvokeAsync(StateHasChanged);
-    }
-
-    private static string Line(Book b)
-    {
-        var parts = new List<string> { b.Author, b.Title, b.Year?.ToString() ?? "", "stand: " + b.Condition }.Where(x => x.Trim() != "").ToList();
-        if (b.Barcode != "") parts.Add("ISBN " + b.Barcode);
-        parts.Add("DBA: " + (b.Listings?.Text ?? "ukendt"));
-        parts.Add("AbeBooks: " + (b.Abe?.Text ?? "ukendt"));
-        parts.Add("Amazon.de: " + (b.Amz?.Text ?? "ukendt"));
-        parts.Add("Nemos Bibliotek: " + (b.Nemos?.Text ?? "ukendt"));
-        parts.Add("Faraos: " + (b.Faraos?.Text ?? "ukendt"));
-        return string.Join(" · ", parts);
     }
 
     private async Task ValuePending()
@@ -384,7 +260,7 @@
     [JSInvokable]
     public async Task OnBarcode(string raw)
     {
-        var code = BarcodeLookup.Clean(raw);
+        var code = Barcodes.Clean(raw);
         var again = code == _lastCode && (DateTime.Now - _lastAt).TotalSeconds < 4;
         _lastCode = code; _lastAt = DateTime.Now;
         if (!again && code.Length >= 8)
@@ -401,10 +277,10 @@
             {
                 _scanStatus = $"Slår {code} op …";
                 StateHasChanged();
-                var f = await Barcodes.LookupAsync(code);
+                var f = await Reg.LookupBarcodeAsync(code);
                 var b = f is null
-                    ? new Book { Barcode = code, Confidence = 0, Note = $"ISBN {code} ikke fundet – skriv titlen" }
-                    : new Book { Barcode = code, Title = f.Title, Author = f.Artist, Year = f.Year, Confidence = f.Confidence, Note = f.Note };
+                    ? new CheckedBook { Barcode = code, Confidence = 0, Note = $"ISBN {code} ikke fundet – skriv titlen" }
+                    : new CheckedBook { Barcode = code, Title = f.Title, Author = f.Artist, Year = f.Year, Confidence = f.Confidence, Note = f.Note };
                 _books.Insert(0, b);
                 _scanStatus = f is null ? $"⚠ {code} ikke fundet – skriv titlen i listen" : $"✓ {f.Title}";
                 if (f is not null) _ = LookUpAsync(b);
@@ -423,8 +299,7 @@
 
     private async Task NewBox()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _box = await Store.NewBoxAsync(db, _newPlace);
+        _box = await Boxes.NewAsync(_newPlace);
         _recent.Insert(0, _box);
         _newPlace = "";
     }
@@ -433,45 +308,24 @@
     {
         if (_box is null) return;
         _busy = true;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        int added = 0, merged = 0;
-        foreach (var g in _books.Where(b => b.Keep && b.Title.Trim() != "").GroupBy(b => b.PhotoId))
+        try
         {
-            var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key == 0 ? null : g.Key, g.Select(b => new Found(
-                Kinds.Bog, b.Title.Trim(), b.Author.Trim(), "", "", b.Year, "", Conditions.Normalise(b.Condition),
-                Math.Max(1, b.Quantity), b.Confidence, SaveNote(b), "", b.Barcode,
-                b.Value is { Low: { } lo, High: { } hi } ? (lo + hi) / 2m : null)));
-            added += a; merged += m;
+            var (added, merged) = await Checks.SaveInBoxAsync(_box, _books);
+            var left = _books.Count(b => !b.Keep);
+            _books.Clear();
+            await LoadHistory();
+            _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "")
+                + (left > 0 ? $". {left} ikke gemt." : ".") + " Tag næste billede.";
         }
-        await RememberAsync(_books);   // corrections made after the valuation go into the record too
-        var kept = _books.Where(b => b.Keep && b.CheckId != 0).Select(b => b.CheckId).ToList();
-        if (kept.Count > 0)
-            await db.BookChecks.Where(c => kept.Contains(c.Id)).ExecuteUpdateAsync(u => u.SetProperty(c => c.BoxCode, _box.Code));
-        var left = _books.Count(b => !b.Keep);
-        _books.Clear();
-        _busy = false;
-        await LoadHistory();
-        _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "")
-            + (left > 0 ? $". {left} ikke gemt." : ".") + " Tag næste billede.";
-    }
-
-    private static string SaveNote(Book b)
-    {
-        var parts = new List<string>();
-        if (b.Value is { Where: not "" } wh) parts.Add($"Sælg på {wh.Where}");
-        if (b.Value is { } v) parts.Add($"{v.Verdict}" + (v.Low is { } lo ? $" · {lo}-{v.High} kr" : "") + $" · efterspørgsel {v.Demand} · {v.Reason}");
-        if (b.Listings is { Count: > 0 } l) parts.Add($"DBA {DateTime.Now:d/M}: {l.Text}");
-        if (b.Abe is { Count: > 0 } a) parts.Add($"AbeBooks {DateTime.Now:d/M}: {a.Text}");
-        if (b.Amz is { Count: > 0 } z) parts.Add($"Amazon.de {DateTime.Now:d/M}: {z.Text}");
-        if (b.Note != "") parts.Add(b.Note);
-        return string.Join(" | ", parts);
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
     }
 
     private async Task IsbnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await AddIsbn(); }
 
     private async Task AddIsbn()
     {
-        var code = BarcodeLookup.ToIsbn13(_isbn);
+        var code = Barcodes.ToIsbn13(_isbn);
         if (code.Length < 10) return;
         _isbn = "";
         _lastCode = "";

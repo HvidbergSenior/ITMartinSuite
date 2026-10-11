@@ -1,6 +1,5 @@
 @page "/kolofon"
-@inject IDbContextFactory<LagerDb> DbFactory
-@inject IConfiguration Config
+@inject KolofonUseCases Kolofons
 
 <PageTitle>Kolofon – Bogshoppen Lager</PageTitle>
 
@@ -48,7 +47,7 @@
             {
                 <li>
                     <a href="/vare/@item.Id"><span class="lg-box">@(item.Box?.Code ?? "–")</span>
-                        <span class="lg-main"><b>@Index.Line(item)</b><span class="k-small k-muted">@(item.EditionHint == EditionHints.First ? "📖 omslaget ligner 1. udgave" : "")@(item.EditionHint == EditionHints.First && top > 0 ? " · " : "")@(top > 0 ? $"fundet til op til {top} kr" : "")</span></span></a>
+                        <span class="lg-main"><b>@item.Line()</b><span class="k-small k-muted">@(item.EditionHint == EditionHints.First ? "📖 omslaget ligner 1. udgave" : "")@(item.EditionHint == EditionHints.First && top > 0 ? " · " : "")@(top > 0 ? $"fundet til op til {top} kr" : "")</span></span></a>
                     <label class="k-btn k-btn-secondary k-btn-sm lg-camera">
                         @(_busy == item.Id ? "⏳" : "📷 Kolofon")
                         <InputFile OnChange="e => Save(item.Id, e)" accept="image/*" capture="environment" class="lg-hidden-file" />
@@ -68,10 +67,9 @@
 
     private async Task Load()
     {
-        _fromKr = Kolofon.FromKr(Config);
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _rows = await Kolofon.NeededAsync(db, _fromKr);
-        _waiting = await db.Items.CountAsync(i => i.KolofonPhoto != "" && i.KolofonAt == null);
+        _fromKr = Kolofons.FromKr;
+        _rows = await Kolofons.WantedAsync();
+        _waiting = await Kolofons.WaitingAsync();
     }
 
     private async Task Save(int id, InputFileChangeEventArgs e)
@@ -79,10 +77,8 @@
         _busy = id; _err = null; _msg = null;
         try
         {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            var item = await db.Items.FindAsync(id);
-            if (item is null) return;
-            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await Kolofon.SavePhotoAsync(db, Program.DataDir(Config), item, s);
+            Item item;
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) item = await Kolofons.SavePhotoAsync(id, s);
             _msg = $"Kolofonen til \"{item.Title}\" er gemt og bliver læst om lidt.";
             await Load();
         }

@@ -2,7 +2,9 @@
 
     <!-- Bogshoppen Lager (2026-10-05): the register for 100,000+ books, magazines, Anders And, comics, DVD/Blu-ray,
          console games and Magic cards that ITMartin sells through bogshoppen.dk. Photo of a pile -> one AI call reads
-         every cover -> items in a box with a QR label -> search. Shop, auctions and marketplaces come later on top. -->
+         every cover -> items in a box with a QR label -> search. Shop, auctions and marketplaces come later on top.
+         This is the thin web layer: pages, login, background jobs. The rules are in .Domain, the use cases in
+         .Application, SQLite/Claude/price sites in .Infrastructure. -->
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -13,13 +15,12 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+      <ProjectReference Include="..\ITMartinLager.Application\ITMartinLager.Application.csproj" />
+      <ProjectReference Include="..\ITMartinLager.Infrastructure\ITMartinLager.Infrastructure.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Anthropic" Version="12.29.0" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
       <PackageReference Include="QRCoder" Version="1.8.0" />
-      <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
     <ItemGroup>

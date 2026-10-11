@@ -1,5 +1,9 @@
 using FluentAssertions;
-using ITMartinLager.Server.Services;
+using ITMartinLager.Application;
+using ITMartinLager.Domain;
+using ITMartinLager.Infrastructure.External;
+using ITMartinLager.Infrastructure.Persistence;
+using ITMartinLager.Infrastructure.PriceSites;
 
 namespace ITMartinLager.Tests;
 
@@ -41,7 +45,7 @@ public class DbaListingsTests
 
     [Test]
     public void Query_is_the_authors_surname_and_the_title() =>
-        DbaListings.QueryFor("Amagerdigte", "Klaus Rifbjerg").Should().Be("Rifbjerg Amagerdigte");
+        Pricing.QueryFor("Amagerdigte", "Klaus Rifbjerg").Should().Be("Rifbjerg Amagerdigte");
 
     [Test]
     public void Prices_over_three_times_the_middle_are_shown_apart_as_unreasonable()
@@ -68,7 +72,7 @@ public class DbaListingsTests
     [TestCase("87-00-12345-X", "9788700123458")]
     [TestCase("978-1-84416-733-3", "9781844167333")]
     public void Isbn10_is_turned_into_isbn13(string typed, string isbn13) =>
-        BarcodeLookup.ToIsbn13(typed).Should().Be(isbn13);
+        Barcodes.ToIsbn13(typed).Should().Be(isbn13);
 
     [Test]
     public void A_one_word_title_without_an_author_is_no_proof()

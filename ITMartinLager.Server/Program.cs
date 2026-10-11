@@ -1,13 +1,13 @@
 using ITMartin.Shared.UI.Kolibri;
+using ITMartinLager.Application;
+using ITMartinLager.Infrastructure;
 using ITMartinLager.Server;
-using ITMartinLager.Server.Data;
-using ITMartinLager.Server.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 // Bogshoppen Lager (2026-10-05, user: "100000+ products I need to sell ... all trade concentrated on Bogshoppen.dk").
-// Step 1 of the plan: the register. Seller of record is ITMartin (has the CVR); Bogshoppen is the shop name.
+// Step 1 of the plan: the register. ITMartin is the brand (the CVR is Den Digitale Rådgiver's); Bogshoppen is the shop name.
+// Layers: Domain (rules) / Application (use cases + ports) / Infrastructure (SQLite, Claude, price sites) / this Server.
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddKolibri(k =>
@@ -34,34 +34,12 @@ builder.Services.AddKolibri(k =>
     k.ThemeColor = "#f4f6f5";
 });
 
-var dataDir = builder.Configuration["Lager:DataDir"] ?? "/app/data";
-Directory.CreateDirectory(Path.Combine(dataDir, "photos"));
-builder.Services.AddDbContextFactory<LagerDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "lager.db")}"));
-builder.Services.AddSingleton<PileReader>();
-builder.Services.AddHttpClient<AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
-builder.Services.AddHostedService<AuctionSync>();
-builder.Services.AddHttpClient<MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
-builder.Services.AddHttpClient<BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
-// Amazon answers gzip even when not asked for it - decompress for every price source.
-static HttpMessageHandler Gunzip() => new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All };
-builder.Services.AddHttpClient<DbaListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<AbeBooksListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<AmazonDeListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<NemosListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<FaraosListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<ZvabListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<BokborsenListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<BogIdeListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<FinnListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<ToriListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<BlocketListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<GulogGratisListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<KleinanzeigenListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<TraderaListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddHttpClient<EbayListings>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
-builder.Services.AddTransient<PriceHunt>();
-builder.Services.AddHostedService<PriceHunter>();
-builder.Services.AddHostedService<KolofonReader>();
+var dataDir = ITMartinLager.Infrastructure.DependencyInjection.DataDir(builder.Configuration);
+builder.Services.AddLagerInfrastructure(builder.Configuration);
+builder.Services.AddLagerApplication();
+builder.Services.AddHostedService<PriceHunterJob>();
+builder.Services.AddHostedService<KolofonJob>();
+builder.Services.AddHostedService<AuctionSyncJob>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -70,65 +48,7 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents()
     .AddHubOptions(o => o.MaximumReceiveMessageSize = 64 * 1024);
 
 var app = builder.Build();
-
-using (var scope = app.Services.CreateScope())
-{
-    var f = scope.ServiceProvider.GetRequiredService<IDbContextFactory<LagerDb>>();
-    using var db = f.CreateDbContext();
-    db.Database.EnsureCreated();
-    db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
-    // EnsureCreated never changes an existing database, so columns added later are added here.
-    var conn = db.Database.GetDbConnection();
-    conn.Open();
-    // Tables added later (EnsureCreated only builds a brand-new database).
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "BookChecks" (
-            "Id" INTEGER NOT NULL CONSTRAINT "PK_BookChecks" PRIMARY KEY AUTOINCREMENT,
-            "Title" TEXT NOT NULL DEFAULT '', "Author" TEXT NOT NULL DEFAULT '', "Year" INTEGER NULL,
-            "Condition" TEXT NOT NULL DEFAULT '', "Isbn" TEXT NOT NULL DEFAULT '', "Quantity" INTEGER NOT NULL DEFAULT 1,
-            "PhotoId" INTEGER NULL, "Verdict" TEXT NOT NULL DEFAULT '', "Low" INTEGER NULL, "High" INTEGER NULL,
-            "Demand" TEXT NOT NULL DEFAULT '', "SellAt" TEXT NOT NULL DEFAULT '', "Reason" TEXT NOT NULL DEFAULT '',
-            "Dba" TEXT NOT NULL DEFAULT '', "AbeBooks" TEXT NOT NULL DEFAULT '', "AmazonDe" TEXT NOT NULL DEFAULT '',
-            "BoxCode" TEXT NOT NULL DEFAULT '', "Search" TEXT NOT NULL DEFAULT '', "CheckedAt" TEXT NOT NULL);
-        CREATE INDEX IF NOT EXISTS "IX_BookChecks_Search" ON "BookChecks" ("Search");
-        CREATE INDEX IF NOT EXISTS "IX_BookChecks_CheckedAt" ON "BookChecks" ("CheckedAt");
-        CREATE TABLE IF NOT EXISTS "PriceChecks" (
-            "Id" INTEGER NOT NULL CONSTRAINT "PK_PriceChecks" PRIMARY KEY AUTOINCREMENT,
-            "ItemId" INTEGER NOT NULL, "Source" TEXT NOT NULL DEFAULT '', "IsNew" INTEGER NOT NULL DEFAULT 0,
-            "Ok" INTEGER NOT NULL DEFAULT 0, "Count" INTEGER NOT NULL DEFAULT 0, "Low" INTEGER NULL, "Median" INTEGER NULL,
-            "High" INTEGER NULL, "Wild" INTEGER NULL, "Ambiguous" INTEGER NOT NULL DEFAULT 0,
-            "SearchUrl" TEXT NOT NULL DEFAULT '', "CheckedAt" TEXT NOT NULL);
-        CREATE INDEX IF NOT EXISTS "IX_PriceChecks_ItemId" ON "PriceChecks" ("ItemId");
-        CREATE TABLE IF NOT EXISTS "PriceFinds" (
-            "Id" INTEGER NOT NULL CONSTRAINT "PK_PriceFinds" PRIMARY KEY AUTOINCREMENT,
-            "ItemId" INTEGER NOT NULL, "Source" TEXT NOT NULL DEFAULT '', "IsNew" INTEGER NOT NULL DEFAULT 0,
-            "Name" TEXT NOT NULL DEFAULT '', "Kr" INTEGER NOT NULL DEFAULT 0, "Original" TEXT NOT NULL DEFAULT '',
-            "Url" TEXT NOT NULL DEFAULT '', "FoundAt" TEXT NOT NULL);
-        CREATE INDEX IF NOT EXISTS "IX_PriceFinds_ItemId" ON "PriceFinds" ("ItemId");
-        """);
-    foreach (var col in new[] { "Nemos", "Proof", "Faraos" })
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('BookChecks') WHERE name = '{col}'";
-        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
-            db.Database.ExecuteSqlRaw($"ALTER TABLE BookChecks ADD COLUMN {col} TEXT NOT NULL DEFAULT ''");
-    }
-    foreach (var (col, type) in new[]
-    {
-        ("Interest", "TEXT NOT NULL DEFAULT ''"), ("ItemPhoto", "TEXT NOT NULL DEFAULT ''"),
-        ("AuctionItemId", "TEXT NOT NULL DEFAULT ''"), ("AuctionCode", "TEXT NOT NULL DEFAULT ''"),
-        ("SoldPrice", "REAL NULL"), ("SoldTo", "TEXT NOT NULL DEFAULT ''"), ("SoldAt", "TEXT NULL"),
-        ("PriceHint", "REAL NULL"), ("MagicRef", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"),
-        ("PricesAt", "TEXT NULL"), ("KolofonPhoto", "TEXT NOT NULL DEFAULT ''"), ("KolofonAt", "TEXT NULL"),
-        ("Edition", "TEXT NOT NULL DEFAULT ''"), ("Publisher", "TEXT NOT NULL DEFAULT ''"), ("EditionHint", "TEXT NOT NULL DEFAULT ''"),
-    })
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = '{col}'";
-        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
-            db.Database.ExecuteSqlRaw($"ALTER TABLE Items ADD COLUMN {col} {type}");
-    }
-}
+app.Services.UpgradeLagerDatabase();
 
 app.MapKolibri();
 if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
@@ -162,59 +82,16 @@ app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "pin")] string type
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("lager_auth"); return Results.Redirect("/login"); });
 
-// The registration photos, so a wrong reading can be checked against the picture.
-app.MapGet("/foto/{id:int}", async (int id, IDbContextFactory<LagerDb> dbf) =>
-{
-    await using var db = await dbf.CreateDbContextAsync();
-    var ph = await db.Photos.FindAsync(id);
-    var file = ph is null ? null : Path.GetFullPath(Path.Combine(dataDir, ph.Path));
-    return file is not null && file.StartsWith(Path.GetFullPath(dataDir)) && File.Exists(file)
-        ? Results.File(file, "image/jpeg") : Results.NotFound();
-});
+// Photos: the registration photo (to check a wrong reading against), the item's own photo, its kolofon.
+static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
+app.MapGet("/foto/{id:int}", async (int id, RegistrationUseCases reg) => Jpeg(await reg.PhotoFileAsync(id)));
+app.MapGet("/varefoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id, kolofon: false)));
+app.MapGet("/kolofonfoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id, kolofon: true)));
 
-app.MapGet("/varefoto/{id:int}", async (int id, IDbContextFactory<LagerDb> dbf) =>
-{
-    await using var db = await dbf.CreateDbContextAsync();
-    var it = await db.Items.FindAsync(id);
-    var file = it is null || it.ItemPhoto == "" ? null : Path.GetFullPath(Path.Combine(dataDir, it.ItemPhoto));
-    return file is not null && file.StartsWith(Path.GetFullPath(dataDir)) && File.Exists(file)
-        ? Results.File(file, "image/jpeg") : Results.NotFound();
-});
-
-app.MapGet("/kolofonfoto/{id:int}", async (int id, IDbContextFactory<LagerDb> dbf) =>
-{
-    await using var db = await dbf.CreateDbContextAsync();
-    var it = await db.Items.FindAsync(id);
-    var file = it is null || it.KolofonPhoto == "" ? null : Path.GetFullPath(Path.Combine(dataDir, it.KolofonPhoto));
-    return file is not null && file.StartsWith(Path.GetFullPath(dataDir)) && File.Exists(file)
-        ? Results.File(file, "image/jpeg") : Results.NotFound();
-});
-
-// Everything as CSV (Excel-friendly: semicolons + BOM) - the way out for accountants, DBA lists and backups.
-app.MapGet("/api/eksport.csv", async (IDbContextFactory<LagerDb> dbf) =>
-{
-    await using var db = await dbf.CreateDbContextAsync();
-    var rows = await db.Items.Include(i => i.Box).OrderBy(i => i.Kind).ThenBy(i => i.Series).ThenBy(i => i.Title).ToListAsync();
-    static string C(object? v) => "\"" + (v?.ToString() ?? "").Replace("\"", "\"\"") + "\"";
-    var sb = new System.Text.StringBuilder("﻿Id;Type;Titel;Kunstner;Serie;Nummer;År;Platform;Stand;Antal;Kasse;Pris;Status;Note;Det interessante\n");
-    foreach (var i in rows)
-        sb.AppendLine(string.Join(';', i.Id, C(i.Kind), C(i.Title), C(i.Artist), C(i.Series), C(i.Number), i.Year, C(i.Platform),
-            C(i.Condition), i.Quantity, C(i.Box?.Code), i.Price, C(i.Status), C(i.Note), C(i.Interest)));
-    return Results.File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv");
-});
-
-// Every checked book as CSV - the list to work through when putting books up on DBA, AbeBooks, Amazon.de.
-app.MapGet("/api/boeger.csv", async (IDbContextFactory<LagerDb> dbf) =>
-{
-    await using var db = await dbf.CreateDbContextAsync();
-    var rows = await db.BookChecks.OrderByDescending(b => b.CheckedAt).ToListAsync();
-    static string C(object? v) => "\"" + (v?.ToString() ?? "").Replace("\"", "\"\"") + "\"";
-    var sb = new System.Text.StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Amazon.de;Nemos;Faraos;Bevis;Kasse\n");
-    foreach (var b in rows)
-        sb.AppendLine(string.Join(';', b.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), C(b.Title), C(b.Author), b.Year, C(b.Isbn), C(b.Condition),
-            b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.AmazonDe), C(b.Nemos), C(b.Faraos), C(b.Proof), C(b.BoxCode)));
-    return Results.File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"boeger-tjekket-{DateTime.Now:yyyy-MM-dd}.csv");
-});
+app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
+    Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));
+app.MapGet("/api/boeger.csv", async (ExportUseCases export) =>
+    Results.File(await export.BooksCsvAsync(), "text/csv", $"boeger-tjekket-{DateTime.Now:yyyy-MM-dd}.csv"));
 
 app.UseAntiforgery();
 app.MapRazorComponents<App>()
@@ -223,7 +100,4 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
-public partial class Program
-{
-    public static string DataDir(IConfiguration cfg) => cfg["Lager:DataDir"] ?? "/app/data";
-}
+public partial class Program;
