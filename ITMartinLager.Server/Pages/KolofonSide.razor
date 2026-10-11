@@ -10,12 +10,12 @@
     else if (_rows.Count == 0)
     {
         <p class="lg-answer">Ingen lige nu</p>
-        <p>Når prisjægeren finder en bog til salg for @_fromKr kr eller mere et sted, kommer den på listen her.</p>
+        <p>En bog kommer på listen, når omslaget ligner en 1. udgave, eller når prisjægeren finder den til salg for @_fromKr kr eller mere et sted.</p>
     }
     else
     {
         <p class="lg-answer">@_rows.Count bøger</p>
-        <p>De her bøger er til salg for @_fromKr kr eller mere et sted. Det kan betyde, at udgaven betyder noget, fx om det er et 1. oplag.</p>
+        <p>Omslaget ligner en 1. udgave, eller bogen er til salg for @_fromKr kr eller mere et sted. Så kan udgaven betyde noget for prisen.</p>
     }
     <details class="lg-more">
         <summary>Sådan gør du</summary>
@@ -48,7 +48,7 @@
             {
                 <li>
                     <a href="/vare/@item.Id"><span class="lg-box">@(item.Box?.Code ?? "–")</span>
-                        <span class="lg-main"><b>@Index.Line(item)</b><span class="k-small k-muted">fundet til op til @top kr</span></span></a>
+                        <span class="lg-main"><b>@Index.Line(item)</b><span class="k-small k-muted">@(item.EditionHint == EditionHints.First ? "📖 omslaget ligner 1. udgave" : "")@(item.EditionHint == EditionHints.First && top > 0 ? " · " : "")@(top > 0 ? $"fundet til op til {top} kr" : "")</span></span></a>
                     <label class="k-btn k-btn-secondary k-btn-sm lg-camera">
                         @(_busy == item.Id ? "⏳" : "📷 Kolofon")
                         <InputFile OnChange="e => Save(item.Id, e)" accept="image/*" capture="environment" class="lg-hidden-file" />

@@ -19,10 +19,13 @@ public static class Kolofon
             .Where(x => x.Top >= fromKr).ToListAsync();
         var byId = top.ToDictionary(x => x.ItemId, x => x.Top);
         var ids = byId.Keys.ToList();
+        // Also every book whose cover looks like a 1st edition - before or without any price found.
         var items = await db.Items.Include(i => i.Box)
-            .Where(i => ids.Contains(i.Id) && i.Kind == Kinds.Bog && i.KolofonPhoto == "" && i.Status != Statuses.Solgt)
+            .Where(i => (ids.Contains(i.Id) || i.EditionHint == EditionHints.First)
+                        && i.Kind == Kinds.Bog && i.KolofonPhoto == "" && i.Status != Statuses.Solgt)
             .ToListAsync();
-        return items.Select(i => (i, byId[i.Id])).OrderByDescending(x => x.Item2).Take(take).ToList();
+        return items.Select(i => (i, byId.GetValueOrDefault(i.Id)))
+            .OrderByDescending(x => x.Item1.EditionHint == EditionHints.First).ThenByDescending(x => x.Item2).Take(take).ToList();
     }
 
     public static async Task SavePhotoAsync(LagerDb db, string dataDir, Item item, Stream photo)

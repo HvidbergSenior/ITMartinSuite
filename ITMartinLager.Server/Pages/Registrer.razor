@@ -91,6 +91,7 @@
                         <input class="k-input lg-short" @bind="r.Quantity" type="number" min="1" title="Antal" />
                     </div>
                     <textarea class="k-input lg-interest" @bind="r.Interest" rows="2" placeholder="Det interessante ved den …"></textarea>
+                    @if (r.EditionHint != "") { <p class="k-small"><b>📖 @r.EditionHint</b> (set på omslaget)</p> }
                     @if (r.Note != "") { <p class="k-small k-muted">@r.Note</p> }
                 </div>
             }
@@ -113,7 +114,7 @@
         public int Quantity = 1;
         public double Confidence = 1;
         public int PhotoId;
-        public string Barcode = "";
+        public string Barcode = "", EditionHint = "";
     }
 
     private Box? _box;
@@ -175,7 +176,7 @@
                 {
                     Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
                     Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
-                    Note = f.Note, Interest = f.Interest, PhotoId = photo.Id,
+                    Note = f.Note, Interest = f.Interest, EditionHint = f.EditionHint, PhotoId = photo.Id,
                 }));
                 if (found.Count == 0) _error = "AI'en fandt ingen ting på billedet. Tag det lidt tættere på, i godt lys.";
                 else if (Config.GetValue<bool>("Lager:AutoInterest"))
@@ -205,7 +206,7 @@
         {
             var (a, m) = await Store.SaveAsync(db, _box.Id, g.Key == 0 ? null : g.Key, g.Select(r => new Found(
                 Kinds.Normalise(r.Kind), r.Title.Trim(), r.Artist.Trim(), r.Series.Trim(), r.Number.Trim(), r.Year,
-                r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim(), r.Barcode)));
+                r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim(), r.Barcode, EditionHint: r.EditionHint)));
             added += a; merged += m;
         }
         _review.Clear();

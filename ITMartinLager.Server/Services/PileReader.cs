@@ -10,7 +10,7 @@ using SixLabors.ImageSharp.Processing;
 namespace ITMartinLager.Server.Services;
 
 public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
-    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "", decimal? PriceHint = null);
+    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "", decimal? PriceHint = null, string EditionHint = "");
 
 public sealed record BookValue(int? Low, int? High, string Demand, string Verdict, string Reason, string Where = "", string[]? Basis = null)
 {
@@ -86,7 +86,9 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
                           "condition":  { "type": "string", "enum": {{JsonSerializer.Serialize(Conditions.All)}} },
                           "quantity":   { "type": "integer", "minimum": 1 },
                           "confidence": { "type": "number", "description": "0-1: how sure the title/number reading is" },
-                          "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" }
+                          "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" },
+                          "edition_hint": { "type": "string", "enum": {{JsonSerializer.Serialize(EditionHints.All)}},
+                                            "description": "Books only: what the cover/spine itself shows about the edition, else empty" }
                         },
                         "required": ["kind", "title", "condition", "quantity", "confidence"]
                       }
@@ -108,6 +110,10 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
         - Ens eksemplarer = én post med quantity.
+        - Bøger: edition_hint ud fra hvad omslaget/ryggen SELV viser: "Bogklub" (Bogklubben, Lademann-bogklub, Book Club
+          Edition o.l.), "Billigbog" (paperback-genudgivelse, "Gyldendals Bekkasinbøger", "Lommebog", pris på forsiden fra et
+          senere oplag), "Mulig 1. udgave" (originalt forlagsomslag med smudsomslag, gammelt forlagslogo, "1. udgave"
+          trykt på omslaget). Ellers tomt. Gæt ikke - tomt er bedre end forkert.
         """;
 
     // Phone photos are 3-12 MB; Claude only needs ~1568 px, so resize + JPEG before saving and sending.
@@ -426,7 +432,7 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         Kinds.Normalise(r.Kind), (r.Title ?? "").Trim(), (r.Artist ?? "").Trim(), (r.Series ?? "").Trim(),
         (r.Number ?? "").Trim(), r.Year is > 1800 and < 2100 ? r.Year : null, (r.Platform ?? "").Trim(),
         Conditions.Normalise(r.Condition), Math.Clamp(r.Quantity ?? 1, 1, 999), Math.Clamp(r.Confidence ?? 0.5, 0, 1),
-        (r.Note ?? "").Trim(), (r.Interest ?? "").Trim());
+        (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint));
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
     internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
@@ -468,5 +474,6 @@ public sealed class PileReader(IConfiguration cfg, IDbContextFactory<LagerDb> db
         public double? Confidence { get; set; }
         public string? Note { get; set; }
         public string? Interest { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("edition_hint")] public string? EditionHint { get; set; }
     }
 }

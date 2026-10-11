@@ -27,6 +27,7 @@ else
             <label>Nummer <input class="k-input" @bind="_item.Number" /></label>
             <label>År <input class="k-input" type="number" @bind="_item.Year" /></label>
             <label>ISBN / stregkode <input class="k-input" inputmode="numeric" @bind="_item.Barcode" placeholder="978…" /></label>
+            <label>Omslaget siger <select class="k-input" @bind="_item.EditionHint">@foreach (var h in EditionHints.All) { <option value="@h">@(h == "" ? "(intet)" : h)</option> }</select></label>
             <label>Udgave / oplag <input class="k-input" @bind="_item.Edition" placeholder="1. udgave, 1. oplag" /></label>
             <label>Forlag <input class="k-input" @bind="_item.Publisher" /></label>
             <label>Konsol <input class="k-input" @bind="_item.Platform" /></label>

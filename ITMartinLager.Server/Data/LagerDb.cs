@@ -28,6 +28,16 @@ public static class Conditions
         All.FirstOrDefault(x => string.Equals(x, c?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "God";
 }
 
+// What a book's cover itself says about the edition (read with the pile, no extra AI call). "Mulig 1. udgave" puts it
+// on the kolofon list even before the price hunter has found anything.
+public static class EditionHints
+{
+    public const string First = "Mulig 1. udgave", BookClub = "Bogklub", Cheap = "Billigbog";
+    public static readonly string[] All = ["", First, BookClub, Cheap];
+    public static string Normalise(string? h) =>
+        All.FirstOrDefault(x => x != "" && string.Equals(x, h?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "";
+}
+
 public static class Statuses
 {
     public const string Lager = "På lager", TilSalg = "Til salg", PaaAuktion = "På auktion", Solgt = "Solgt";
@@ -86,13 +96,14 @@ public sealed class Item
     public DateTime? KolofonAt { get; set; }         // when the AI read it - null = waiting
     public string Edition { get; set; } = "";        // "1. udgave, 1. oplag"
     public string Publisher { get; set; } = "";
+    public string EditionHint { get; set; } = "";    // EditionHints - from the cover
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public void Touch()
     {
         UpdatedAt = DateTime.UtcNow;
-        Search = string.Join(' ', Title, Artist, Series, Number, Year?.ToString() ?? "", Platform, Kind, Note, Interest, Barcode, Edition, Publisher).ToLowerInvariant();
+        Search = string.Join(' ', Title, Artist, Series, Number, Year?.ToString() ?? "", Platform, Kind, Note, Interest, Barcode, Edition, Publisher, EditionHint).ToLowerInvariant();
     }
 }
 
