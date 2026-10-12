@@ -465,3 +465,10 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .hj-qa-admin { list-style: none; padding: 0; display: grid; gap: 6px; }
 .hj-qa-admin li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .hj-qa-admin li > span { flex: 1 1 200px; }
+
+/* All pages 2026-10-12 (user: "look at css and navigation on all pages"):
+   - the shared Kolibri pages (/om, /hjaelp) brought their own app header under the site menu - one menu is enough;
+   - card headings were 17, 19 and 21 px on different pages - one size everywhere (the "Vidste du" tiles stay tile-sized). */
+.hj-nav ~ .k-main .k-header { display: none; }
+.k-content .k-card-title { font-size: 1.2rem; }
+.k-content .hj-tips .k-card-title { font-size: 1em; }
