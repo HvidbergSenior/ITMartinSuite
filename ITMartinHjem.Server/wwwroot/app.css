@@ -551,3 +551,13 @@ html[data-family="idag"] .hj-head.hj-head-page::before, .bs-head.bs-head-page::b
 html[data-family="idag"] .hj-head:not(.hj-head-page)::before { content: ""; display: block; width: min(240px, 70%); height: 72px; margin: 0 auto 8px;
   background: url("/brand/itmartin-logo.png") center / contain no-repeat; animation: none; transform: none; }
 .hj-tilegroup .hj-tiles { margin: 6px 0 0; }
+
+/* Type scale on both front pages (audit 2026-10-12, user: "look through css on fonts, boxes sizes space on the two homepages").
+   Boxes were already alike (16px padding, 12px between, 22px corners); only the text sizes drifted. */
+.k-content .k-card > h2, .k-content .k-card > .k-card-title { font-size: 1.2rem; }   /* every box heading 19.2px */
+.k-content .hj-stream p, .k-content .hj-semed p, .k-content .hj-semed .hj-eltip-text { font-size: 1em; }   /* body text 17px */
+.k-content .k-help { font-size: 15px; }
+.k-content .k-btn-sm { font-size: 16px; }
+.k-content .k-btn:not(.k-btn-sm), .bs-site .k-content .bs-btn:not(.k-btn-sm) { font-size: 17px; }
+.k-content .hj-stream .hj-live.off { font-size: 1em; }
+.k-content .hj-stream p.k-help, .k-content .hj-semed p.k-help { font-size: 15px; }
