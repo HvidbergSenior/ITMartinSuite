@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace ITMartinForloebet.Server.Services;
+namespace ITMartinForloebet.Domain;
 
 /// <summary>What Claude made of one informal message.</summary>
 public sealed class Omskrivning

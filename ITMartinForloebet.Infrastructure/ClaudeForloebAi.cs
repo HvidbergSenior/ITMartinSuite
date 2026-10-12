@@ -2,14 +2,17 @@ using System.Text;
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Models.Messages;
-using ITMartinForloebet.Server.Data.Entities;
+using ITMartinForloebet.Application;
+using ITMartinForloebet.Domain;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
-namespace ITMartinForloebet.Server.Services;
+namespace ITMartinForloebet.Infrastructure;
 
 /// <summary>The two AI roles from the spec, and nothing else: (1) rewrite the user's
 /// informal message into the text that gets published, (2) analyse what is written.
-/// Every call goes through <see cref="AiBudget"/>.</summary>
-public sealed class ForloebetAi
+/// The day budget is taken by the use case (Sager) before each call.</summary>
+public sealed class ClaudeForloebAi : IForloebAi
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
@@ -26,15 +29,13 @@ public sealed class ForloebetAi
         "(Movia, Keolis, Ankenævnet, politiet) må nævnes. Sagsnumre må beholdes.";
 
     private readonly AnthropicClient _client;
-    private readonly AiBudget _budget;
     private readonly Knowledge _knowledge;
-    private readonly ILogger<ForloebetAi> _logger;
+    private readonly ILogger<ClaudeForloebAi> _logger;
 
-    public ForloebetAi(IConfiguration config, AiBudget budget, Knowledge knowledge, ILogger<ForloebetAi> logger)
+    public ClaudeForloebAi(IConfiguration config, Knowledge knowledge, ILogger<ClaudeForloebAi> logger)
     {
         var apiKey = config["Claude:ApiKey"] ?? throw new InvalidOperationException("Missing Claude:ApiKey");
         _client = new AnthropicClient { ApiKey = apiKey };
-        _budget = budget;
         _knowledge = knowledge;
         _logger = logger;
     }
@@ -64,7 +65,6 @@ public sealed class ForloebetAi
 
     public async Task<Omskrivning> OmskrivAsync(string raw, Forloeb? existing, CancellationToken ct = default)
     {
-        _budget.Take("omskriv");
         var context = existing is null
             ? "Dette er den FØRSTE besked i et nyt forløb. Udfyld titel, modpart og område."
             : $"Forløbet findes allerede: '{existing.Titel}' mod {existing.Modpart} ({existing.Omraade}). " +
@@ -117,9 +117,9 @@ public sealed class ForloebetAi
         }
     };
 
-    public async Task<List<TrinForslag>> TrinFraDokumentAsync(Forloeb f, string? text, byte[]? image, string? imageMime, byte[]? pdf, CancellationToken ct = default)
+    public async Task<List<TrinForslag>> TrinFraDokumentAsync(Forloeb f, DokumentIndhold indhold, CancellationToken ct = default)
     {
-        _budget.Take("dokument");
+        var (text, image, imageMime, pdf) = (indhold.Text, indhold.Image, indhold.ImageMime, indhold.Pdf);
         var content = new List<ContentBlockParam>();
         if (image is not null && imageMime is not null)
             content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(image), MediaType = imageMime } });
@@ -183,7 +183,6 @@ public sealed class ForloebetAi
 
     public async Task<Analyse> AnalyserAsync(Forloeb f, IReadOnlyList<Forloeb> delteAfsluttede, CancellationToken ct = default)
     {
-        _budget.Take("analyse");
         var andre = delteAfsluttede.Where(x => x.Id != f.Id).Take(30)
             .Select(x => $"- slug={x.Slug}: {x.Modpart} · {x.Titel} · {x.Uger} uger · {UdfaldTekst(x.Udfald)}. Læring: {Trim(x.Laering, 300)}");
         var sb = new StringBuilder();
@@ -231,7 +230,6 @@ public sealed class ForloebetAi
 
     public async Task<List<string>> ForeslaaLaeringAsync(Forloeb f, Udfald udfald, string udfaldTekst, CancellationToken ct = default)
     {
-        _budget.Take("laering");
         var res = await _client.Messages.Create(new MessageCreateParams
         {
             Model = Model.ClaudeSonnet4_6,
@@ -255,7 +253,6 @@ public sealed class ForloebetAi
 
     public async Task<string> OverskriftAsync(IReadOnlyList<Forloeb> delte, CancellationToken ct = default)
     {
-        _budget.Take("overskrift");
         var lines = delte.Take(60).Select(x => $"- {x.Modpart} · {x.Omraade} · {x.Titel} · {x.Uger} uger · {(x.Lukket ? UdfaldTekst(x.Udfald) : "åbent")}");
         var res = await _client.Messages.Create(new MessageCreateParams
         {
@@ -270,15 +267,7 @@ public sealed class ForloebetAi
 
     // ---------------------------------------------------------------- helpers
 
-    public static string UdfaldTekst(Udfald u) => u switch
-    {
-        Udfald.Aabent => "åbent",
-        Udfald.Frafaldet => "frafaldet",
-        Udfald.Betalt => "betalt",
-        Udfald.Delvist => "delvist",
-        Udfald.Afvist => "afvist",
-        _ => "andet"
-    };
+    private static string UdfaldTekst(Udfald u) => ForloebRules.UdfaldTekst(u);
 
     private static string Tidslinje(Forloeb f, int max) =>
         string.Join("\n", f.Trin.OrderBy(t => t.At).TakeLast(max)

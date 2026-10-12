@@ -1,4 +1,6 @@
-namespace ITMartinForloebet.Server.Services;
+using Microsoft.Extensions.Logging;
+
+namespace ITMartinForloebet.Infrastructure;
 
 /// <summary>Markdown per område under Knowledge/. Loaded once; the whole set goes
 /// into the analysis prompt (it is small - a few pages per område).</summary>
@@ -6,9 +8,8 @@ public sealed class Knowledge
 {
     public IReadOnlyDictionary<string, string> Files { get; }
 
-    public Knowledge(IWebHostEnvironment env, ILogger<Knowledge> logger)
+    public Knowledge(string dir, ILogger<Knowledge> logger)
     {
-        var dir = Path.Combine(env.ContentRootPath, "Knowledge");
         var files = new Dictionary<string, string>();
         if (Directory.Exists(dir))
         {

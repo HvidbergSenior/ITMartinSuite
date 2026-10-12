@@ -1,5 +1,5 @@
 @page "/"
-@inject ForloebService Service
+@inject Sager Service
 @implements IDisposable
 
 @* The front page is a feed you read first. One AI line on top, one-line cards,
@@ -32,7 +32,7 @@
             @foreach (var f in _forloeb)
             {
                 var open = _open == f.Id;
-                var a = ForloebService.AnalyseAf(f);
+                var a = f.Analyse;
                 <div class="card @(open ? "open" : "")">
                     <button class="card-line" @onclick="() => Toggle(f.Id)">
                         <span class="c-modpart">@f.Modpart</span>
@@ -41,7 +41,7 @@
                         <span class="c-sep">·</span>
                         <span class="c-uger">@f.Uger uger</span>
                         <span class="c-sep">·</span>
-                        <span class="c-udfald u-@f.Udfald.ToString().ToLower()">@(f.Lukket ? ForloebetAi.UdfaldTekst(f.Udfald) : "åbent")</span>
+                        <span class="c-udfald u-@f.Udfald.ToString().ToLower()">@(f.Lukket ? ForloebRules.UdfaldTekst(f.Udfald) : "åbent")</span>
                     </button>
                     @if (open)
                     {

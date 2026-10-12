@@ -1,6 +1,5 @@
 @page "/sag/{Slug}"
-@inject ForloebService Service
-@inject ForloebetAi Ai
+@inject Sager Service
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IDisposable
@@ -20,7 +19,7 @@ else
         <h1>@_f.Titel</h1>
         <div class="sag-sub">
             <span>@_f.Modpart</span> · <span>@_f.Omraade</span> · <span>startet @_f.StartedAt.ToString("d. MMM yyyy")</span> ·
-            <span class="c-udfald u-@_f.Udfald.ToString().ToLower()">@(_f.Lukket ? ForloebetAi.UdfaldTekst(_f.Udfald) + $" efter {_f.Uger} uger" : $"åbent, {_f.Uger} uger")</span>
+            <span class="c-udfald u-@_f.Udfald.ToString().ToLower()">@(_f.Lukket ? ForloebRules.UdfaldTekst(_f.Udfald) + $" efter {_f.Uger} uger" : $"åbent, {_f.Uger} uger")</span>
         </div>
 
         @if (_owner && _ny)
@@ -177,7 +176,7 @@ else
 
         @if (_error is not null) { <div class="error-box">@_error</div> }
 
-        @{ var a = ForloebService.AnalyseAf(_f); }
+        @{ var a = _f.Analyse; }
         @if (a.Tom)
         {
             <p class="muted">AI-analysen er på vej…</p>
@@ -247,7 +246,7 @@ else
         _busy = true; _error = null;
         try
         {
-            _preview = await Ai.OmskrivAsync($"[{_part}] {_raw}", _f);
+            _preview = await Service.OmskrivAsync($"[{_part}] {_raw}", _f);
             if (_preview.Dato is not null && DateTime.TryParse(_preview.Dato, out var d)) _at = d;
         }
         catch (AiBudgetExceededException ex) { _error = ex.Message; }
@@ -259,7 +258,7 @@ else
     {
         if (_preview is null) return;
         _busy = true; _error = null;
-        var ok = await Service.TilfoejTrinAsync(Slug, _key, DateTime.SpecifyKind(_at, DateTimeKind.Utc), ForloebService.ParsePart(_part), _preview.Tekst, _preview.Citat);
+        var ok = await Service.TilfoejTrinAsync(Slug, _key, DateTime.SpecifyKind(_at, DateTimeKind.Utc), ForloebRules.ParsePart(_part), _preview.Tekst, _preview.Citat);
         if (!ok) _error = "Kunne ikke gemme trinnet (for mange trin, eller forløbet er lukket).";
         _preview = null; _raw = ""; _busy = false;
         await LoadAsync();
@@ -295,8 +294,7 @@ else
         _busy = true; _error = null; _forslag = null;
         try
         {
-            var doc = d ?? new Dokument();
-            _forslag = await Service.ForeslaaTrinAsync(_f, doc, d is null ? _pasted : null, CancellationToken.None);
+            _forslag = await Service.ForeslaaTrinAsync(_f, d, d is null ? _pasted : null, CancellationToken.None);
             _valgt = Enumerable.Repeat(true, _forslag.Count).ToArray();
         }
         catch (AiBudgetExceededException ex) { _error = ex.Message; }
@@ -308,13 +306,7 @@ else
     {
         if (_forslag is null) return;
         _busy = true;
-        for (var i = 0; i < _forslag.Count; i++)
-        {
-            if (!_valgt[i]) continue;
-            var p = _forslag[i];
-            var at = DateTime.TryParse(p.Dato, out var dt) ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : DateTime.UtcNow;
-            await Service.TilfoejTrinAsync(Slug, _key, at, ForloebService.ParsePart(p.Part), p.Tekst, p.Citat);
-        }
+        await Service.TilfoejForslagAsync(Slug, _key, _forslag.Where((_, i) => _valgt[i]));
         _forslag = null; _pasted = ""; _busy = false;
         await LoadAsync();
     }
@@ -327,7 +319,7 @@ else
         _busy = true; _error = null;
         try
         {
-            var pts = await Ai.ForeslaaLaeringAsync(_f, Enum.Parse<Udfald>(_udfald), _udfaldTekst);
+            var pts = await Service.ForeslaaLaeringAsync(_f, Enum.Parse<Udfald>(_udfald), _udfaldTekst);
             if (pts.Count > 0) _laering = string.Join("\n", pts);
         }
         catch (AiBudgetExceededException ex) { _error = ex.Message; }

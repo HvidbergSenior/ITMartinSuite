@@ -1,9 +1,9 @@
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinForloebet.Server;
-using ITMartinForloebet.Server.Data;
-using ITMartinForloebet.Server.Services;
+using ITMartinForloebet.Application;
+using ITMartinForloebet.Domain;
+using ITMartinForloebet.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,15 +34,19 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddHubOptions(o => o.MaximumReceiveMessageSize = 32 * 1024 * 1024);
 
-var dbPath = builder.Configuration.GetConnectionString("ForloebetDb")
-    ?? "Data Source=/app/data/forloebet.db";
-
-builder.Services.AddDbContextFactory<ForloebetDbContext>(o => o.UseSqlite(dbPath));
-builder.Services.AddSingleton<AiBudget>();
-builder.Services.AddSingleton<Knowledge>();
-builder.Services.AddSingleton<ForloebetAi>();
-builder.Services.AddSingleton<DocumentStore>();
-builder.Services.AddSingleton<ForloebService>();
+// DDD/Clean since 2026-10-12: rules on the Forloeb entity (Domain), use cases in Application.Sager,
+// SQLite + document files + Claude in Infrastructure.
+var cfg = builder.Configuration;
+builder.Services.AddForloebetApplication(
+    new ForloebLimits(
+        cfg.GetValue("Forloebet:MaxFileBytes", 8L * 1024 * 1024),
+        cfg.GetValue("Forloebet:MaxDocsPerForloeb", 20),
+        cfg.GetValue("Forloebet:MaxTrinPerForloeb", 40)),
+    cfg.GetValue("Forloebet:MaxAiCallsPerDay", 300));
+builder.Services.AddForloebetInfrastructure(
+    cfg.GetConnectionString("ForloebetDb") ?? "Data Source=/app/data/forloebet.db",
+    cfg["Forloebet:DocsDir"] ?? "/app/data/docs",
+    Path.Combine(builder.Environment.ContentRootPath, "Knowledge"));
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["Forloebet:KeysDir"] ?? "/app/data/keys"))
@@ -51,13 +55,7 @@ builder.Services.AddDataProtection()
 var app = builder.Build();
 app.MapKolibri();
 
-using (var scope = app.Services.CreateScope())
-{
-    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ForloebetDbContext>>();
-    await using var db = await factory.CreateDbContextAsync();
-    await db.Database.EnsureCreatedAsync();
-    await Seed.EnsureAsync(db);
-}
+await app.Services.UpgradeForloebetDatabaseAsync();
 
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
@@ -65,15 +63,10 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 // Owner-only evidence: streamed only when the request carries the forløb's edit key.
-app.MapGet("/dok/{slug}/{id:int}", async (string slug, int id, string? k, IDbContextFactory<ForloebetDbContext> factory, DocumentStore docs) =>
+app.MapGet("/dok/{slug}/{id:int}", async (string slug, int id, string? k, Sager sager) =>
 {
-    if (string.IsNullOrEmpty(k)) return Results.NotFound();
-    await using var db = await factory.CreateDbContextAsync();
-    var d = await db.Dokumenter.Include(x => x.Forloeb).AsNoTracking()
-        .FirstOrDefaultAsync(x => x.Id == id && x.Forloeb.Slug == slug);
-    if (d is null || d.Forloeb.EditKey != k) return Results.NotFound();
-    var path = docs.PathFor(d.StoredName);
-    return File.Exists(path) ? Results.File(path, d.ContentType, d.FileName) : Results.NotFound();
+    var file = await sager.DokumentFilAsync(slug, id, k);
+    return file is { } f && File.Exists(f.Path) ? Results.File(f.Path, f.Dokument.ContentType, f.Dokument.FileName) : Results.NotFound();
 });
 
 app.UseAntiforgery();

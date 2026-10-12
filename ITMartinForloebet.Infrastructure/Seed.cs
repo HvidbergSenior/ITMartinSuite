@@ -1,9 +1,8 @@
 using System.Text.Json;
-using ITMartinForloebet.Server.Data;
-using ITMartinForloebet.Server.Data.Entities;
+using ITMartinForloebet.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinForloebet.Server.Services;
+namespace ITMartinForloebet.Infrastructure;
 
 /// <summary>The first forløb on the site is the owner's own (Movia, 26-0399). Written
 /// by hand once - no AI call at startup - so an empty database still has something to read.</summary>

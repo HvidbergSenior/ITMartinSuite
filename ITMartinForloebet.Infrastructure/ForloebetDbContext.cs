@@ -1,7 +1,7 @@
-using ITMartinForloebet.Server.Data.Entities;
+using ITMartinForloebet.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinForloebet.Server.Data;
+namespace ITMartinForloebet.Infrastructure;
 
 public sealed class ForloebetDbContext(DbContextOptions<ForloebetDbContext> options) : DbContext(options)
 {

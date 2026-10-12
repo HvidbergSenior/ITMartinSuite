@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Forløbet - the domain: a case (forløb) with its timeline, documents and outcome, and the rules for changing it.
+       No EF, no HTTP. Restructured from the flat ITMartinForloebet.Server 2026-10-12. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinForloebet.Tests" />
+  </ItemGroup>
+
+</Project>

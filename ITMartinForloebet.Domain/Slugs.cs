@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace ITMartinForloebet.Server.Services;
+namespace ITMartinForloebet.Domain;
 
 public static class Slugs
 {

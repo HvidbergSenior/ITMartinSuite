@@ -1,18 +1,17 @@
 using System.Text;
+using ITMartinForloebet.Application;
+using ITMartinForloebet.Domain;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 
-namespace ITMartinForloebet.Server.Services;
+namespace ITMartinForloebet.Infrastructure;
 
 /// <summary>Owner-only evidence on the data volume. Nothing here is served by a
 /// static-file route; the page streams a file only to a request carrying the edit key.</summary>
-public sealed class DocumentStore(IConfiguration config)
+public sealed class FileDocumentStore(string root) : IDocumentFiles
 {
-    public string Root { get; } = config["Forloebet:DocsDir"] ?? "/app/data/docs";
-    public long MaxBytes { get; } = config.GetValue("Forloebet:MaxFileBytes", 8L * 1024 * 1024);
-    public int MaxPerForloeb { get; } = config.GetValue("Forloebet:MaxDocsPerForloeb", 20);
-    public int MaxTrinPerForloeb { get; } = config.GetValue("Forloebet:MaxTrinPerForloeb", 40);
+    public string Root { get; } = root;
 
     public string PathFor(string storedName) => Path.Combine(Root, storedName);
 
@@ -25,14 +24,15 @@ public sealed class DocumentStore(IConfiguration config)
         return stored;
     }
 
-    public static bool IsImage(string contentType) => contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
-    public static bool IsPdf(string contentType, string name) => contentType == "application/pdf" || name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
-    public static bool IsText(string contentType, string name) =>
-        contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
-        || contentType == "message/rfc822"
-        || name.EndsWith(".eml", StringComparison.OrdinalIgnoreCase)
-        || name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
-        || name.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+    public async Task<DokumentIndhold?> ReadForAiAsync(Dokument d, CancellationToken ct)
+    {
+        if (d.StoredName.Length == 0) return null;
+        var path = PathFor(d.StoredName);
+        if (DokumentArt.IsImage(d.ContentType)) return new DokumentIndhold(null, await ShrinkForAiAsync(path, ct), "image/jpeg", null);
+        if (DokumentArt.IsPdf(d.ContentType, d.FileName)) return new DokumentIndhold(null, null, null, await File.ReadAllBytesAsync(path, ct));
+        if (DokumentArt.IsText(d.ContentType, d.FileName)) return new DokumentIndhold(ReadTextForAi(path), null, null, null);
+        return null;
+    }
 
     /// <summary>Phone photos are 4-12 MB; Claude wants ≤ ~1600px. Returns JPEG bytes.</summary>
     public static async Task<byte[]> ShrinkForAiAsync(string path, CancellationToken ct)

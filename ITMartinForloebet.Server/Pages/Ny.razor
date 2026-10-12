@@ -1,6 +1,5 @@
 @page "/ny"
-@inject ForloebetAi Ai
-@inject ForloebService Service
+@inject Sager Service
 @inject NavigationManager Nav
 
 @* One field. Write as it comes to you; the AI's rewrite is what gets saved,
@@ -99,7 +98,7 @@
         _busy = true; _error = null;
         try
         {
-            _preview = await Ai.OmskrivAsync(_raw, null);
+            _preview = await Service.OmskrivAsync(_raw, null);
             if (_preview.Dato is not null && DateTime.TryParse(_preview.Dato, out var d)) _startedAt = d;
         }
         catch (AiBudgetExceededException ex) { _error = ex.Message; }
