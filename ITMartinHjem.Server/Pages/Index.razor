@@ -69,22 +69,29 @@
 @* Small boxes instead of menu tabs (user 2026-10-07: "i want small boxes"): Om mig, Bliv pilot and the pages
    that lost their tab. Titles/lines are fixed here; the pages themselves are edited in Svar -> Sider. *@
 @* Tiles in three groups, each saying where it leads (user 2026-10-12: "the links go to other pages and apps... needs to be structured"). *@
-<h2 class="hj-h2">📱 Mine apps – se eksemplerne</h2>
+@* Each group is a show/hide box (user 2026-10-12). *@
+<section class="k-card hj-tilegroup">
+<h2 class="k-card-title">📱 Mine apps – se eksemplerne</h2>
 <nav class="hj-tiles" aria-label="Mine apps">
     @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.App)) { @TileLink(tile) }
     <ElTip />
     <BudgetTip />
 </nav>
-<h2 class="hj-h2">📄 Om mig og mit arbejde</h2>
+</section>
+<section class="k-card hj-tilegroup">
+<h2 class="k-card-title">📄 Om mig og mit arbejde</h2>
 <nav class="hj-tiles" aria-label="Om mig og mit arbejde">
     @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.Page)) { @TileLink(tile) }
     <StartTip />
     <AdhdTip />
 </nav>
-<h2 class="hj-h2">🌐 Mine andre sider</h2>
+</section>
+<section class="k-card hj-tilegroup">
+<h2 class="k-card-title">🌐 Mine andre sider</h2>
 <nav class="hj-tiles" aria-label="Mine andre sider">
     @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.Site)) { @TileLink(tile) }
 </nav>
+</section>
 
 @* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
 
@@ -142,6 +149,8 @@ else if (_family && !_owner)
         (TileGroup.App, "🖥️", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
         (TileGroup.App, "🎥", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
         // Statista, Feb 2025: average daily social media use of internet users worldwide = 141 min (141*365/1440 = 35.7 days)
+        // Global E-waste Monitor 2024 / Dell + HP LCAs: 68-81 % of a laptop's CO2 is from making it (user 2026-10-12: green, both sites)
+        (TileGroup.Page, "🌱", "Grønt og bæredygtigt", "Giv gamle ting nyt liv – i stedet for at købe nyt", "/baeredygtighed", "… at 68–81 % af en bærbar computers CO₂ bliver udledt, før du tænder den – når den bliver lavet?"),
         (TileGroup.Page, "📵", "Ingen reklamer", "Hvorfor mine apps aldrig har reklamer", "/ingen-reklamer", "… at vi i snit bruger 141 minutter om dagen på sociale medier? Det er 36 døgn om året."),
         (TileGroup.Page, "🚀", "Hvad laver jeg nu?", "I dag og denne uge", "/hvad-laver-itkolibrien", "… at jeg skriver min plan for dagen her hver morgen – og om aftenen, hvad det blev til?"),
         (TileGroup.Site, "📚", "Bogshoppen", "Liveauktioner – snart", "https://bogshoppen.dk", "… at Bogshoppen har over 100.000 bøger, blade og tegneserier, der skal finde nye ejere?"),

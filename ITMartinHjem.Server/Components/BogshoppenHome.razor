@@ -8,9 +8,12 @@
    "Sådan følger du med", the "Følg samarbejdet på ITMartin.dk" button, "Snart kan du købe" and the old
    "Hvad vil du gerne kunne købe?" poll (7, still in Stem) were removed the same day; the live-auction vote (poll 8)
    became a teaser + sign-up. *@
+@* Same head box as itmartin.dk, day tag included (user 2026-10-12: the two home pages "identical" - but ITMartin is Martin's
+   company, the new Bogshoppen is Rico and Martin's company). *@
 <header class="bs-head">
-    <span class="bs-tag">🤝 Bogshoppen + ITMartin</span>
+    <span class="bs-tag">🌅 Det er @DkToday.ToString("dddd", Da)</span>
     <h1>Bogshoppen</h1>
+    <p>🤝 Rico og Martins virksomhed</p>
 </header>
 
 @{ var (intro, parts) = Sections.Split(_page?.Body); }
@@ -30,6 +33,8 @@
 
 @code {
     public const string PageSlug = "bogshoppen-dk";
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private static DateTime DkToday => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private Page? _page;
     private bool _available;
 
