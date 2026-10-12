@@ -1,0 +1,35 @@
+@using System.Globalization
+@inject NavigationManager Nav
+
+@* The head box on every tab (user 2026-10-12: "make the same head boxes on itmartin on tabs as in bogshoppen"):
+   emoji on top, pill tag, heading, optional line. A title that starts with an emoji ("🚀 Hvad laver …") gives the top emoji.
+   On bogshoppen.dk it takes Bogshoppen's colours. *@
+<header class="@(Bogshoppen ? "bs-head bs-head-page" : "hj-head hj-head-page")" data-emoji="@Emoji">
+    @if (Tag.Length > 0) { <span class="@(Bogshoppen ? "bs-tag" : "hj-tagline")">@Tag</span> }
+    <h1>@Text</h1>
+    @if (Line.Length > 0) { <p class="@(Bogshoppen ? "" : "hj-intro")">@Line</p> }
+    @ChildContent
+</header>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string Tag { get; set; } = "";
+    [Parameter] public string Line { get; set; } = "";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool Bogshoppen => BogshoppenHome.IsHost(new Uri(Nav.Uri).Host);
+
+    // "🚀 Hvad laver ITKolibrien lige nu?" -> emoji "🚀" on top, heading "Hvad laver ITKolibrien lige nu?"
+    private (string Emoji, string Text) Split()
+    {
+        var t = Title.Trim();
+        if (t.Length == 0) return (Icon ?? "", "");
+        var first = StringInfo.GetNextTextElement(t);
+        var isEmoji = first.Any(c => char.IsSurrogate(c) || CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.OtherSymbol);
+        return isEmoji ? (Icon ?? first, t[first.Length..].Trim()) : (Icon ?? "", t);
+    }
+
+    private string Emoji => Split().Emoji;
+    private string Text => Split().Text;
+}

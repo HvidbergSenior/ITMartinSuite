@@ -531,3 +531,7 @@ html[data-family="idag"] .hj-head .hj-intro, .bs-head p { margin: 0; font-weight
 .bs-bigstep h4 { margin: 0 0 6px; font-size: 1.15rem; }
 .bs-bigstep p { margin: 0 0 10px; }
 .hj-app-target { border: 2px solid var(--k-text); }
+
+/* Head box on every tab (PageHead, 2026-10-12): the emoji comes from the page title */
+html[data-family="idag"] .hj-head.hj-head-page::before, .bs-head.bs-head-page::before { content: attr(data-emoji); animation: none; }
+.hj-head-page[data-emoji=""]::before, .bs-head-page[data-emoji=""]::before { display: none; }
