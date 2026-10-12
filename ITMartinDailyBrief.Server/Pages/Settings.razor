@@ -1,129 +1,85 @@
 @page "/settings"
-@rendermode InteractiveServer
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<PageTitle>DailyBrief — Indstillinger</PageTitle>
+<PageTitle>Nyheder – kilder</PageTitle>
 
-<div class="brief-root">
+<a class="k-btn k-btn-sm nh-back" href="/">Tilbage til nyhederne</a>
 
-    <header class="brief-header">
-        <button class="brief-back-btn" @onclick='() => Nav.NavigateTo("/", forceLoad: true)'>← Tilbage</button>
-        <span class="brief-logo">Indstillinger</span>
-        <button class="brief-save-btn" @onclick="Save">Gem</button>
-    </header>
+<section class="nh-intro">
+    <h1>Dine kilder</h1>
+    <p class="k-help">Vælg hvor mange nyheder du vil se, og hvilke kilder de kommer fra. Tryk <b>Gem</b> nederst.
+        Valget gemmes kun på denne telefon eller computer – ikke hos os.</p>
+</section>
 
-    <div class="settings-body">
-
-        <!-- Item count -->
-        <section class="settings-section">
-            <h2 class="settings-heading">ANTAL ARTIKLER</h2>
-            <div class="count-picker">
-                @foreach (var n in new[] { 5, 10, 15 })
-                {
-                    <button class="count-btn @(_maxItems == n ? "active" : "")"
-                            @onclick="() => _maxItems = n">@n</button>
-                }
-            </div>
-            <p class="settings-hint">Nyeste artikler på tværs af alle aktive kilder</p>
-        </section>
-
-        <!-- Sources -->
-        <section class="settings-section">
-            <h2 class="settings-heading">AKTIVE KILDER</h2>
-            @foreach (var src in _sources)
+@if (_choice is null)
+{
+    <div class="k-card" data-nofold><p class="k-muted">Henter dine valg…</p></div>
+}
+else
+{
+    <div class="k-card">
+        <div class="k-card-title">Antal nyheder</div>
+        <p class="k-help">Listen slutter efter dette antal – så bliver du færdig.</p>
+        <div class="k-row">
+            @foreach (var n in ReaderChoice.Counts)
             {
-                <div class="source-row">
-                    <span class="source-dot" style="background:@src.Color"></span>
-                    <span class="source-name">@src.Name</span>
-                    <label class="toggle">
-                        <input type="checkbox" checked="@src.Enabled"
-                               @onchange="e => src.Enabled = (bool)(e.Value ?? false)" />
-                        <span class="toggle-track"></span>
-                    </label>
-                </div>
+                <button class="k-btn @(_choice.MaxItems == n ? "k-btn-primary" : "")" @onclick="() => _choice.SetCount(n)">@n</button>
             }
-        </section>
-
-        <!-- Add custom -->
-        <section class="settings-section">
-            <h2 class="settings-heading">TILFØJ KILDE</h2>
-            <input class="settings-input" placeholder="Navn (fx Zetland)"
-                   @bind="_newName" @bind:event="oninput" />
-            <input class="settings-input" placeholder="RSS URL (fx https://...)"
-                   @bind="_newUrl" @bind:event="oninput" type="url" />
-            <button class="add-btn" @onclick="AddSource"
-                    disabled="@(string.IsNullOrWhiteSpace(_newName) || string.IsNullOrWhiteSpace(_newUrl))">
-                + Tilføj
-            </button>
-        </section>
-
+        </div>
     </div>
 
-</div>
+    <div class="k-card">
+        <div class="k-card-title">Kilder</div>
+        <p class="k-help">Sæt flueben ved de kilder, du vil have nyheder fra.</p>
+        <ul class="nh-sources">
+            @foreach (var s in _choice.AllSources)
+            {
+                <li>
+                    <label>
+                        <input type="checkbox" checked="@_choice.IsOn(s)" @onchange="e => _choice.Switch(s, e.Value is true)" />
+                        <span class="nh-source" style="--src:@s.Color">@s.Name</span>
+                    </label>
+                    @if (!s.IsPreset) { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _choice.RemoveCustom(s.Id)">Fjern</button> }
+                </li>
+            }
+        </ul>
+    </div>
+
+    <div class="k-card">
+        <div class="k-card-title">Tilføj din egen kilde</div>
+        <p class="k-help">Mange nyhedssider har en RSS-adresse (søg på "sidens navn RSS"). Skriv et navn og indsæt adressen.</p>
+        <label class="k-label" for="nh-name">Navn</label>
+        <input id="nh-name" class="k-input" placeholder="fx Zetland" @bind="_newName" @bind:event="oninput" />
+        <label class="k-label" for="nh-url">RSS-adresse</label>
+        <input id="nh-url" class="k-input" placeholder="https://…" type="url" @bind="_newUrl" @bind:event="oninput" />
+        <button class="k-btn k-mt" disabled="@(_newName.Trim().Length == 0 || _newUrl.Trim().Length == 0)" @onclick="Add">Tilføj kilden</button>
+        @if (_addNote.Length > 0) { <p class="k-muted">@_addNote</p> }
+    </div>
+
+    <button class="k-btn k-btn-primary k-btn-block" @onclick="SaveAsync">Gem og se nyhederne</button>
+}
 
 @code {
-    private List<FeedSource> _sources  = [];
-    private int              _maxItems = 10;
-    private string           _newName  = "";
-    private string           _newUrl   = "";
+    private ReaderChoice? _choice;
+    private string _newName = "", _newUrl = "", _addNote = "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-
-        var rawMax = await JS.InvokeAsync<string?>("localStorage.getItem", "brief_max_items");
-        _maxItems  = int.TryParse(rawMax, out var n) ? n : 10;
-        _sources   = FeedSource.Presets.ToList();
-
-        foreach (var s in _sources)
-        {
-            var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"brief_source_{s.Id}");
-            s.Enabled = raw == null || raw == "true";
-        }
-
-        var customJson = await JS.InvokeAsync<string?>("localStorage.getItem", "brief_custom_sources");
-        if (!string.IsNullOrEmpty(customJson))
-        {
-            try
-            {
-                var customs = System.Text.Json.JsonSerializer.Deserialize<List<CustomDto>>(customJson);
-                if (customs is not null)
-                    foreach (var c in customs)
-                    {
-                        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"brief_source_{c.Id}");
-                        _sources.Add(new FeedSource { Id = c.Id, Name = c.Name, RssUrl = c.Url, Enabled = raw == null || raw == "true" });
-                    }
-            }
-            catch { }
-        }
-
+        _choice = await BrowserChoice.LoadAsync(JS);
         StateHasChanged();
     }
 
-    private void AddSource()
+    private void Add()
     {
-        if (string.IsNullOrWhiteSpace(_newName) || string.IsNullOrWhiteSpace(_newUrl)) return;
-        _sources.Add(new FeedSource { Name = _newName.Trim(), RssUrl = _newUrl.Trim(), Enabled = true });
-        _newName = "";
-        _newUrl  = "";
+        if (_choice!.AddCustom(_newName, _newUrl)) { _newName = _newUrl = ""; _addNote = "Kilden er tilføjet – husk at trykke Gem."; }
+        else _addNote = "Adressen skal starte med https:// (og du kan højst have " + ReaderChoice.MaxCustom + " egne kilder).";
     }
 
-    private async Task Save()
+    private async Task SaveAsync()
     {
-        await JS.InvokeVoidAsync("localStorage.setItem", "brief_max_items", _maxItems.ToString());
-
-        foreach (var s in _sources)
-            await JS.InvokeVoidAsync("localStorage.setItem", $"brief_source_{s.Id}", s.Enabled.ToString().ToLower());
-
-        var customs = _sources
-            .Where(s => !s.IsPreset)
-            .Select(s => new CustomDto(s.Id, s.Name, s.RssUrl));
-        await JS.InvokeVoidAsync("localStorage.setItem", "brief_custom_sources",
-            System.Text.Json.JsonSerializer.Serialize(customs));
-
-        Nav.NavigateTo("/", forceLoad: true);
+        await BrowserChoice.SaveAsync(JS, _choice!);
+        Nav.NavigateTo("/");
     }
-
-    private record CustomDto(string Id, string Name, string Url);
 }

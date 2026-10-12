@@ -1,226 +1,72 @@
 @page "/"
-@rendermode InteractiveServer
-@inject FeedService     FeedSvc
-@inject IJSRuntime      JS
-@inject NavigationManager Nav
+@inject NewsFeed News
+@inject IJSRuntime JS
 
-<PageTitle>DailyBrief</PageTitle>
+<PageTitle>Nyheder</PageTitle>
 
-<div class="brief-root">
-
-    <header class="brief-header">
-        <div class="brief-header-left">
-            <span class="brief-logo">DailyBrief</span>
-
-            @if (!_loading && _items.Count > 0)
-            {
-                <span class="brief-summary">
-                    @_items.Count nyheder · @_sourceCount kilder
-                </span>
-            }
-        </div>
-
-        <a href="/settings" class="brief-settings-btn">⚙</a>
-    </header>
-
-    <ProblemPurposeBanner
-        Problem="Doomscrolling - vi kan ikke styre det, og nu er TV2 også begyndt."
-        Formaal="Afgræns nyhedsstrømmen, så den ikke æder dagen." />
-
-    @if (_loading)
+<section class="nh-intro">
+    <h1>Nyheder</h1>
+    <p class="k-help">De nyeste nyheder fra dine kilder, nyeste først – og så er listen færdig. Tryk på en nyhed for at læse den.
+        Tryk <b>Kilder</b> øverst for at vælge kilder og antal.</p>
+    @if (!_loading && _items.Count > 0)
     {
-        <div class="brief-skeletons">
-            @for (int i = 0; i < 6; i++)
-            {
-                <div class="skeleton-card"></div>
-            }
-        </div>
+        <p class="k-muted">@_items.Count nyheder fra @_sourceCount @(_sourceCount == 1 ? "kilde" : "kilder")</p>
     }
-    else if (_items.Count == 0)
-    {
-        <div class="brief-empty">
-            <div class="brief-empty-icon">📰</div>
-            <p>Ingen nyheder</p>
-            <p class="brief-empty-sub">
-                Aktivér mindst én kilde i
-                <a href="/settings">indstillinger</a>
-            </p>
-        </div>
-    }
-    else
-    {
-        <div class="brief-feed">
+</section>
 
-            @foreach (var item in _items)
-            {
-                <a class="brief-card" href="/article/@item.Id">
+<ProblemPurposeBanner
+    Problem="Doomscrolling - vi kan ikke styre det, og nu er TV2 også begyndt."
+    Formaal="Afgræns nyhedsstrømmen, så den ikke æder dagen." />
 
-                    <div class="brief-card-text">
-
-                        <div class="brief-card-meta">
-
-                            <span class="brief-source-badge"
-                                  style="background:@item.SourceColor">
-                                @item.SourceName
-                            </span>
-
-                            <span class="brief-time">
-                                @item.TimeAgo
-                            </span>
-
-                            @if (item.HasAudio)
-                            {
-                                <span title="Denne episode har lyd">
-                                    🎧
-                                </span>
-                            }
-
-                        </div>
-
-                        <div class="brief-card-title">
-                            @item.Title
-                        </div>
-
-                        @if (!string.IsNullOrEmpty(item.Description))
-                        {
-                            <div class="brief-card-desc">
-                                @item.Description
-                            </div>
-                        }
-
+@if (_loading)
+{
+    <div class="k-card" data-nofold><p class="k-muted">Henter de nyeste nyheder…</p></div>
+}
+else if (_items.Count == 0)
+{
+    <div class="k-card" data-nofold>
+        <div class="k-card-title">Ingen nyheder lige nu</div>
+        <p class="k-help">Enten er alle kilder slået fra, eller de svarer ikke. Slå mindst én kilde til under Kilder.</p>
+        <a class="k-btn k-btn-primary" href="/settings">Vælg kilder</a>
+    </div>
+}
+else
+{
+    <div class="nh-list">
+        @foreach (var item in _items)
+        {
+            <a class="k-card nh-item" href="/article/@item.Id">
+                <div class="nh-text">
+                    <div class="nh-meta">
+                        <span class="nh-source" style="--src:@item.SourceColor">@item.SourceName</span>
+                        <span class="k-muted">@item.TimeAgo(News.Now)</span>
+                        @if (item.HasAudio) { <span class="k-tag">Lyd</span> }
                     </div>
-
-                    @if (item.HasImage)
-                    {
-                        <img class="brief-card-img"
-                             src="@item.ImageUrl"
-                             alt=""
-                             loading="lazy" />
-                    }
-
-                </a>
-            }
-
-            <div class="brief-done">
-                <span class="brief-done-check">✓</span>
-                Du er opdateret
-
-                <div class="brief-done-sub">
-                    Træk ned for at opdatere
+                    <div class="nh-title">@item.Title</div>
+                    @if (item.Description.Length > 0) { <div class="nh-desc">@item.Description</div> }
                 </div>
-            </div>
-
-        </div>
-    }
-
-</div>
+                @if (item.HasImage) { <img class="nh-img" src="@item.ImageUrl" alt="" loading="lazy" /> }
+            </a>
+        }
+    </div>
+    <div class="k-card nh-done" data-nofold>
+        <div class="k-card-title">Du er opdateret</div>
+        <p class="k-help">Det var de @_items.Count nyeste. Kom tilbage senere, eller opdatér siden for at se, om der er nyt.</p>
+    </div>
+}
 
 @code {
-
-    private List<FeedItem> _items = [];
+    private List<NewsItem> _items = [];
     private bool _loading = true;
-    private int _sourceCount = 0;
+    private int _sourceCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
-            return;
-
-        await Load();
-    }
-
-    private async Task Load()
-    {
-        _loading = true;
-        StateHasChanged();
-
-        var sources = await LoadSourcesAsync();
-
-        var rawMax =
-            await JS.InvokeAsync<string?>(
-                "localStorage.getItem",
-                "brief_max_items");
-
-        var maxItems =
-            int.TryParse(rawMax, out var n)
-                ? n
-                : 10;
-
-        _sourceCount =
-            sources.Count(s => s.Enabled);
-
-        _items =
-            await FeedSvc.GetItemsAsync(
-                sources,
-                maxItems);
-
+        if (!firstRender) return;
+        var choice = await BrowserChoice.LoadAsync(JS);
+        _sourceCount = choice.ActiveSources.Count();
+        _items = await News.FrontPageAsync(choice);
         _loading = false;
-
         StateHasChanged();
     }
-
-    private async Task<List<FeedSource>> LoadSourcesAsync()
-    {
-        var sources =
-            FeedSource.Presets.ToList();
-
-        foreach (var s in sources)
-        {
-            var raw =
-                await JS.InvokeAsync<string?>(
-                    "localStorage.getItem",
-                    $"brief_source_{s.Id}");
-
-            s.Enabled =
-                raw == null || raw == "true";
-        }
-
-        var customJson =
-            await JS.InvokeAsync<string?>(
-                "localStorage.getItem",
-                "brief_custom_sources");
-
-        if (!string.IsNullOrEmpty(customJson))
-        {
-            try
-            {
-                var customs =
-                    System.Text.Json.JsonSerializer
-                        .Deserialize<List<CustomSourceDto>>(
-                            customJson);
-
-                if (customs is not null)
-                {
-                    foreach (var c in customs)
-                    {
-                        var raw =
-                            await JS.InvokeAsync<string?>(
-                                "localStorage.getItem",
-                                $"brief_source_{c.Id}");
-
-                        sources.Add(
-                            new FeedSource
-                            {
-                                Id = c.Id,
-                                Name = c.Name,
-                                RssUrl = c.Url,
-                                Enabled =
-                                    raw == null ||
-                                    raw == "true"
-                            });
-                    }
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        return sources;
-    }
-
-    private record CustomSourceDto(
-        string Id,
-        string Name,
-        string Url);
 }

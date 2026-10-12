@@ -1,76 +1,80 @@
 @page "/article/{ItemId}"
-@rendermode InteractiveServer
-@inject FeedService     FeedSvc
-@inject BriefingService BriefingSvc
+@inject NewsFeed News
+@inject Summaries Ai
 
-<PageTitle>DailyBrief</PageTitle>
+<PageTitle>@(_item?.Title ?? "Nyheder")</PageTitle>
 
-<div class="brief-root">
+<a class="k-btn k-btn-sm nh-back" href="/">Tilbage til nyhederne</a>
 
-    <header class="brief-header">
-        <a href="/" class="brief-back-btn">← Tilbage</a>
-        @if (_item is not null)
+@if (_item is null)
+{
+    <div class="k-card" data-nofold>
+        <div class="k-card-title">Nyheden kan ikke findes</div>
+        <p class="k-help">Den er for gammel, eller siden er genstartet. Åbn den igen fra forsiden.</p>
+        <a class="k-btn k-btn-primary" href="/">Til forsiden</a>
+    </div>
+}
+else
+{
+    <article class="k-card nh-article" data-nofold>
+        <div class="nh-meta">
+            <span class="nh-source" style="--src:@_item.SourceColor">@_item.SourceName</span>
+            <span class="k-muted">@_item.TimeAgo(News.Now)</span>
+        </div>
+        <h1>@_item.Title</h1>
+        @if (_item.HasImage) { <img class="nh-article-img" src="@_item.ImageUrl" alt="" /> }
+
+        @if (_summary.Length > 0)
         {
-            <span class="brief-source-badge" style="background:@_item.SourceColor">@_item.SourceName</span>
+            <div class="nh-summary"><div class="k-label">Kort fortalt (lavet af AI)</div><p>@_summary</p></div>
         }
-    </header>
+        else if (_item.Description.Length > 0)
+        {
+            <p class="nh-summary-plain">@_item.Description</p>
+        }
 
-    @if (_item is null)
-    {
-        <div class="brief-empty">
-            <p>Åbn en nyhed fra forsiden.</p>
-            <a href="/" class="btn-secondary" style="display:inline-block;margin-top:8px">← Forsiden</a>
-        </div>
-    }
-    else
-    {
-        <div class="article-body">
+        @if (_summary.Length == 0)
+        {
+            <p class="k-help">Vil du have nyheden kort fortalt? Tryk på knappen – en AI skriver et roligt resumé på et par sekunder.</p>
+            <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="SummarizeAsync">@(_busy ? "Skriver resumé…" : "Lav resumé")</button>
+            @if (_note.Length > 0) { <p class="k-muted">@_note</p> }
+        }
 
-            <div class="brief-time" style="margin-bottom:4px">@_item.TimeAgo</div>
-            <h1 class="article-headline">@_item.Title</h1>
-
-            @if (!string.IsNullOrEmpty(_aiSummary))
-            {
-                <div class="article-summary">@_aiSummary</div>
-            }
-            else if (!string.IsNullOrEmpty(_item.Description))
-            {
-                <div class="article-summary">@_item.Description</div>
-            }
-
-            @if (_aiLoading)
-            {
-                <div class="ai-btn ai-btn-loading">Skriver resumé…</div>
-            }
-            else if (string.IsNullOrEmpty(_aiSummary))
-            {
-                <button class="ai-btn" @onclick="GenerateSummary">✦ Lav AI-resumé</button>
-            }
-
-        </div>
-    }
-
-</div>
+        @if (_item.HasAudio)
+        {
+            <audio class="nh-audio" controls preload="none" src="@_item.AudioUrl"></audio>
+        }
+        @if (_item.Url.Length > 0)
+        {
+            <p class="k-help nh-orig">Vil du læse hele artiklen hos @_item.SourceName? Den åbner på deres side, hvor der kan være reklamer.</p>
+            <a class="k-btn" href="@_item.Url" target="_blank" rel="noopener">Åbn hos @_item.SourceName</a>
+        }
+    </article>
+}
 
 @code {
     [Parameter] public string ItemId { get; set; } = "";
 
-    private FeedItem? _item;
-    private string    _aiSummary = "";
-    private bool      _aiLoading = false;
+    private NewsItem? _item;
+    private string _summary = "", _note = "";
+    private bool _busy;
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
-        _item = FeedSvc.CurrentItems.FirstOrDefault(x => x.Id == ItemId);
+        _item = News.Find(ItemId);
+        _summary = _item is null ? "" : Ai.Known(_item.Id) ?? "";
     }
 
-    private async Task GenerateSummary()
+    private async Task SummarizeAsync()
     {
-        if (_item is null) return;
-        _aiLoading = true;
-        StateHasChanged();
-        _aiSummary = await BriefingSvc.GetArticleSummaryAsync(_item);
-        _aiLoading = false;
-        StateHasChanged();
+        _busy = true; _note = "";
+        var r = await Ai.SummarizeAsync(_item);
+        _busy = false;
+        (_summary, _note) = r.Outcome switch
+        {
+            Summaries.Outcome.Ok => (r.Text, ""),
+            Summaries.Outcome.DayLimit => ("", "Der er lavet mange resuméer i dag – prøv igen i morgen."),
+            _ => ("", "Resuméet kunne ikke laves lige nu – prøv igen om lidt."),
+        };
     }
 }

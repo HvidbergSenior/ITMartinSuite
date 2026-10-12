@@ -1,50 +1,41 @@
 using ITMartin.Shared.UI.Kolibri;
-using ITMartinDailyBrief.Server.Services;
+using ITMartinDailyBrief.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddKolibri(k =>
 {
-    k.Name = "DailyBrief";
+    k.Name = "Nyheder";
     k.KolibriName = "Kolibri Kommunikere";
     k.Family = "kommunikere";
-    k.Tagline = "Dine kilder, hver morgen, kogt ned til det vigtigste – læst eller læst højt.";
+    k.Tagline = "De nyeste nyheder fra de kilder, du selv vælger – uden reklamer, og med en ende.";
     k.About =
     [
-        "DailyBrief samler det nyeste fra de kilder, du selv vælger, ét sted – i din rækkefølge.",
-        "Læs det på skærmen, eller lad det blive læst højt, mens du cykler.",
+        "Nyheder samler det nyeste fra de kilder, du selv vælger (TV 2, DR, Politiken …), ét sted – nyeste først.",
+        "Listen har en ende: du vælger 5, 10 eller 15 nyheder, og så er du opdateret. Ingen reklamer, ingen uendelig scroll.",
+        "Tryk på en nyhed for at læse den – og få et kort resumé lavet af AI, hvis du vil.",
     ];
     k.HowTo =
     [
-        "Under Indstillinger vælger du kilderne.",
-        "Åbn appen om morgenen – forsiden er dagens brief.",
-        "Tryk Lyd for at få det læst højt.",
+        "Åbn siden – forsiden er de nyeste nyheder fra dine kilder.",
+        "Tryk Kilder for at slå kilder til og fra, vælge antal eller tilføje din egen (en RSS-adresse). Valget gemmes kun på din egen telefon.",
+        "Tryk på en nyhed og derefter Lav resumé for at få den kort fortalt.",
     ];
-    k.Version = "2026.09";
-    k.ThemeColor = "#0F1117";
+    k.Version = "2026.10";
+    k.ThemeColor = "#f4f6f5";
 });
 
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-builder.Services.AddHttpClient("feed", c =>
-{
-    c.Timeout = TimeSpan.FromSeconds(15);
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("DailyBrief/1.0 (+https://itmartin.dk)");
-});
-
-builder.Services.AddSingleton<FeedService>();
-builder.Services.AddSingleton<BriefingService>();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddDailyBriefInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+app.MapKolibri();
 
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 
 app.UseStaticFiles();
 app.UseAntiforgery();
-
-app.MapKolibri();
 
 app.MapRazorComponents<ITMartinDailyBrief.Server.App>()
     .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)

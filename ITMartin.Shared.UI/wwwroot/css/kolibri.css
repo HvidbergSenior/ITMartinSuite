@@ -263,3 +263,12 @@ h1:focus, h1:focus-visible, [tabindex="-1"]:focus { outline: none; }
 #components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed { display: flex; }
 #components-reconnect-modal .reconnect-failed-msg, #components-reconnect-modal.components-reconnect-failed .reconnect-msg { display: none; }
 #components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg { display: inline; }
+
+/* ProblemPurposeBanner (Problem / Formål / Løsning) - one look in every app, on the app's own family colours.
+   Dark text on a pale box (readable for colour-blind users). */
+.itm-pp-banner { display: flex; flex-direction: column; gap: 6px; background: var(--k-accent-soft); border-left: 5px solid var(--k-accent); border-radius: var(--k-radius); padding: var(--k-space-3) var(--k-space-4); margin-bottom: var(--k-space-4); color: var(--k-text); font-size: var(--k-fs-small); }
+.itm-pp-row { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.itm-pp-label { font-weight: 700; white-space: nowrap; }
+.itm-pp-label::after { content: ":"; }
+.itm-pp-list { margin: 0; padding-left: 1.1rem; }
+.itm-pp-list li { margin: .1rem 0; }
