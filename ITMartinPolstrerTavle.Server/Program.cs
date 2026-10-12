@@ -1,10 +1,9 @@
 using ITMartinPolstrerTavle.Server;
-using ITMartinPolstrer.Core.Data;
-using ITMartinPolstrer.Core.Data.Entities;
-using ITMartinPolstrer.Core.Services;
+using ITMartin.Shared.UI.Kolibri;
+using ITMartinPolstrer.Application;
+using ITMartinPolstrer.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,11 +12,32 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddHubOptions(o => o.MaximumReceiveMessageSize = 200 * 1024 * 1024);
 
-var dbPath = builder.Configuration.GetConnectionString("PolstrerDb")
-    ?? "Data Source=/app/data/polstrer.db";
+// Polstrer-tavlen = the paid version of Polstrer for a company of polstrere. Same Domain/Application/Infrastructure as the
+// phone app (one database, one media folder); this Server is only the board pages (DDD/Clean since 2026-10-12).
+builder.Services.AddPolstrerApplication();
+builder.Services.AddPolstrerInfrastructure(builder.Configuration);
 
-builder.Services.AddDbContextFactory<PolstrerDbContext>(o => o.UseSqlite(dbPath));
-builder.Services.AddSingleton<MediaStore>();
+// Kolibri.UI identity: /om, /hjaelp, /health, PWA manifest, footer - the same templates as every app in the suite.
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Værkstedstavle";
+    k.KolibriName = "Kolibri Hukommelse";
+    k.Family = "hukommelse";
+    k.Tagline = "Hele værkstedet på én skærm.";
+    k.About =
+    [
+        "Tavlen viser alle møbler i værkstedet: hvad der venter, hvad der er i gang, og hvad der er færdigt eller afleveret.",
+        "Den hører til Polstrer-appen: billeder og noter fra telefonen dukker op her af sig selv.",
+        "Alle i værkstedet kan skrive en kommentar på et møbel – fx at fjedrene er bestilt, eller at kunden har ringet.",
+    ];
+    k.HowTo =
+    [
+        "Sæt tavlen på et tv eller en stor skærm i værkstedet – den opdaterer sig selv hvert 30. sekund.",
+        "Tryk på et møbel for at rette det, skifte status eller skrive en kommentar.",
+    ];
+    k.Version = "2026.10";
+    k.ThemeColor = "#121917";
+});
 
 // Keys on the data volume, otherwise every deploy invalidates every
 // antiforgery cookie already sitting in her browser.
@@ -26,13 +46,9 @@ builder.Services.AddDataProtection()
     .SetApplicationName("polstrer-tavle");
 
 var app = builder.Build();
+app.MapKolibri();
 
-using (var scope = app.Services.CreateScope())
-{
-    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PolstrerDbContext>>();
-    using var db = factory.CreateDbContext();
-    PolstrerSchema.Ensure(db);
-}
+await app.Services.UpgradePolstrerDatabaseAsync();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -42,11 +58,11 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 // Photos/videos served straight from the data volume.
-var media = app.Services.GetRequiredService<MediaStore>();
-Directory.CreateDirectory(media.Root);
+var mediaRoot = app.Services.MediaRoot();
+Directory.CreateDirectory(mediaRoot);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(media.Root),
+    FileProvider = new PhysicalFileProvider(mediaRoot),
     RequestPath = "/media"
 });
 
@@ -60,6 +76,14 @@ app.Use(async (ctx, next) =>
     var open = path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/om", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/hjaelp", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/hjaelp", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/manifest.webmanifest", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/kolibri-sw.js", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/kolibri/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/vis/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/media/", StringComparison.OrdinalIgnoreCase)
@@ -97,6 +121,7 @@ app.MapGet("/api/auth/logout", (HttpContext ctx) =>
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

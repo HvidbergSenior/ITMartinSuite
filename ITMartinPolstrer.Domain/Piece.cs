@@ -1,4 +1,4 @@
-namespace ITMartinPolstrer.Core.Data.Entities;
+namespace ITMartinPolstrer.Domain;
 
 public enum PieceStatus { Modtaget = 0, IGang = 1, Faerdig = 2, Afleveret = 3 }
 

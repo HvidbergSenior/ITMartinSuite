@@ -1,6 +1,6 @@
 @page "/erfaring"
 @rendermode InteractiveServer
-@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@inject Experience Experience
 
 <PageTitle>Erfaring</PageTitle>
 
@@ -95,7 +95,7 @@ else
                 {
                     var cover = PieceText.Cover(p);
                     <a class="piece-tile @PieceText.UrgencyClass(p)" href="/moebel/@p.Slug">
-                        @if (cover is not null) { <img src="@MediaStore.Url(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> } else { <div class="piece-tile-empty">🪑</div> }
+                        @if (cover is not null) { <img src="@MediaUrl.For(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> } else { <div class="piece-tile-empty">🪑</div> }
                         <div class="piece-tile-body">
                             <div class="piece-tile-title">@PieceText.TitleOrDefault(p)</div>
                             <div class="piece-tile-meta">@Meta(p)</div>
@@ -119,9 +119,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _q = InitialQ ?? "";
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _pieces = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).AsNoTracking()
-            .OrderByDescending(p => p.ReceivedAt).ToListAsync();
+        _pieces = await Experience.AllAsync();
         _allTags = ExperienceSearch.Tags(_pieces);
         _categories = _pieces.Select(p => p.Category.Trim()).Where(c => c.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToList();
         _workers = _pieces.Select(p => p.Worker.Trim()).Where(w => w.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(w => w).ToList();

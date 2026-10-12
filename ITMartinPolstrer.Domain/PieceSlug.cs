@@ -1,4 +1,4 @@
-namespace ITMartinPolstrer.Core.Services;
+namespace ITMartinPolstrer.Domain;
 
 // Filesystem-safe, stable folder name for a piece's media. Two pieces with
 // the same title ("Lænestol") must not collide, hence the random suffix.

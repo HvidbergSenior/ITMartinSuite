@@ -1,11 +1,10 @@
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinPolstrer.Server;
-using ITMartinPolstrer.Core.Data;
-using ITMartinPolstrer.Core.Data.Entities;
-using ITMartinPolstrer.Core.Services;
+using ITMartinPolstrer.Application;
+using ITMartinPolstrer.Domain;
+using ITMartinPolstrer.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,12 +35,9 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddHubOptions(o => o.MaximumReceiveMessageSize = 200 * 1024 * 1024);
 
-var dbPath = builder.Configuration.GetConnectionString("PolstrerDb")
-    ?? "Data Source=/app/data/polstrer.db";
-
-builder.Services.AddDbContextFactory<PolstrerDbContext>(o => o.UseSqlite(dbPath));
-builder.Services.AddSingleton<MediaStore>();
-builder.Services.AddSingleton<ITMartinPolstrer.Server.Services.AiSuggestionService>();
+// DDD/Clean since 2026-10-12: pages and endpoints call Application only (Intake, Journal, Experience).
+builder.Services.AddPolstrerApplication();
+builder.Services.AddPolstrerInfrastructure(builder.Configuration);
 
 // Keys on the data volume, otherwise every deploy invalidates every
 // antiforgery cookie already sitting in her browser.
@@ -52,12 +48,7 @@ builder.Services.AddDataProtection()
 var app = builder.Build();
 app.MapKolibri();
 
-using (var scope = app.Services.CreateScope())
-{
-    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PolstrerDbContext>>();
-    using var db = factory.CreateDbContext();
-    PolstrerSchema.Ensure(db);
-}
+await app.Services.UpgradePolstrerDatabaseAsync();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -67,11 +58,11 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 // Photos/videos served straight from the data volume.
-var media = app.Services.GetRequiredService<MediaStore>();
-Directory.CreateDirectory(media.Root);
+var mediaRoot = app.Services.MediaRoot();
+Directory.CreateDirectory(mediaRoot);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(media.Root),
+    FileProvider = new PhysicalFileProvider(mediaRoot),
     RequestPath = "/media"
 });
 
@@ -134,72 +125,33 @@ app.MapGet("/api/auth/logout", (HttpContext ctx) =>
 // while the camera is open). The first photo creates a draft piece; the
 // details form then posts to /api/pieces and fills it in. Nothing can be
 // lost after the first photo lands.
-app.MapPost("/api/upload", async (HttpContext ctx, IDbContextFactory<PolstrerDbContext> dbFactory, MediaStore mediaStore) =>
+app.MapPost("/api/upload", async (HttpContext ctx, Intake intake) =>
 {
     var form = await ctx.Request.ReadFormAsync();
-    await using var db = await dbFactory.CreateDbContextAsync();
-
-    Piece? piece = null;
-    if (Guid.TryParse(form["pieceId"], out var pid))
-        piece = await db.Pieces.Include(p => p.Steps).FirstOrDefaultAsync(p => p.Id == pid);
-    if (piece is null)
+    var streams = form.Files.Where(f => f.Length > 0).Select(f => (f.FileName, f.OpenReadStream())).ToList();
+    try
     {
-        piece = new Piece { Title = "", Slug = PieceSlug.From("moebel"), Folder = mediaStore.NewFolderFor("") };
-        piece.Steps.Add(new Step { PieceId = piece.Id, Note = "Modtaget" });
-        db.Pieces.Add(piece);
+        var (piece, saved) = await intake.UploadAsync(Guid.TryParse(form["pieceId"], out var pid) ? pid : null,
+            streams.Select(x => (x.FileName, (Stream)x.Item2)).ToList());
+        return Results.Ok(new
+        {
+            pieceId = piece.Id, slug = piece.Slug,
+            files = saved.Select(m => new { url = MediaUrl.For(m.RelativePath), thumb = m.ThumbPath is null ? null : MediaUrl.For(m.ThumbPath), isVideo = m.IsVideo }),
+        });
     }
-    var step = piece.Steps.OrderBy(s => s.At).First();
-
-    var saved = new List<object>();
-    foreach (var file in form.Files)
-    {
-        if (file.Length == 0) continue;
-        await using var stream = file.OpenReadStream();
-        var m = await mediaStore.SaveAsync(piece.Folder, new MediaStore.Pending(file.FileName, stream));
-        m.StepId = step.Id;
-        db.Media.Add(m);
-        saved.Add(new { url = MediaStore.Url(m.RelativePath), thumb = m.ThumbPath is null ? null : MediaStore.Url(m.ThumbPath), isVideo = m.IsVideo });
-    }
-    await db.SaveChangesAsync();
-    return Results.Ok(new { pieceId = piece.Id, slug = piece.Slug, files = saved });
+    finally { foreach (var x in streams) await x.Item2.DisposeAsync(); }
 }).DisableAntiforgery();
 
 // The details form. Every field is optional; a missing title is shown as
 // "Uden navn" until someone fills it in on the board.
-app.MapPost("/api/pieces", async (HttpContext ctx, IDbContextFactory<PolstrerDbContext> dbFactory, MediaStore mediaStore) =>
+app.MapPost("/api/pieces", async (HttpContext ctx, Intake intake) =>
 {
     var f = await ctx.Request.ReadFormAsync();
     string S(string k) => (f[k].ToString() ?? "").Trim();
-    await using var db = await dbFactory.CreateDbContextAsync();
-
-    Piece? piece = null;
-    if (Guid.TryParse(f["pieceId"], out var pid))
-        piece = await db.Pieces.Include(p => p.Steps).FirstOrDefaultAsync(p => p.Id == pid);
-    if (piece is null)
-    {
-        var title = S("title");
-        piece = new Piece { Slug = PieceSlug.From(string.IsNullOrEmpty(title) ? "moebel" : title), Folder = mediaStore.NewFolderFor(string.IsNullOrEmpty(title) ? "moebel" : title) };
-        piece.Steps.Add(new Step { PieceId = piece.Id, Note = "Modtaget" });
-        db.Pieces.Add(piece);
-    }
-    var newTitle = S("title");
-    if (string.IsNullOrWhiteSpace(piece.Title) && !string.IsNullOrWhiteSpace(newTitle) && piece.Folder.StartsWith("Møbel"))
-    {
-        var media = await db.Media.Where(m => m.Step.PieceId == piece.Id).ToListAsync();
-        piece.Folder = mediaStore.RenameFolderForTitle(piece.Folder, newTitle, media);
-        piece.Slug = PieceSlug.From(newTitle);
-    }
-    piece.Title = newTitle;
-    piece.Category = S("category");
-    piece.Worker = S("worker");
-    piece.Customer = S("customer");
-    piece.Material = S("material");
-    piece.Techniques = S("techniques");
-    piece.InstructedBy = S("instructedBy");
-    piece.Instructions = S("instructions");
-    piece.Deadline = DateOnly.TryParse(S("deadline"), out var d) ? d : null;
-    await db.SaveChangesAsync();
-    return Results.Redirect($"/moebel/{piece.Slug}");
+    var slug = await intake.SaveDetailsAsync(Guid.TryParse(f["pieceId"], out var pid) ? pid : null, new PieceDetails(
+        S("title"), S("category"), S("worker"), S("customer"), S("material"), S("techniques"), S("instructedBy"), S("instructions"),
+        DateOnly.TryParse(S("deadline"), out var d) ? d : null));
+    return Results.Redirect($"/moebel/{slug}");
 }).DisableAntiforgery();
 
 app.UseAntiforgery();

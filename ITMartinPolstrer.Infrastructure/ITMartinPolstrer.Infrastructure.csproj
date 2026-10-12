@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Polstrer - SQLite (EF Core), photo files with ImageSharp thumbnails, and Claude suggestions (Anthropic SDK). -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinPolstrer.Application\ITMartinPolstrer.Application.csproj" />
+    <ProjectReference Include="..\ITMartinPolstrer.Domain\ITMartinPolstrer.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.29.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinPolstrer.Tests" />
+  </ItemGroup>
+
+</Project>

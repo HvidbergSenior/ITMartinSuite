@@ -1,6 +1,5 @@
-using ITMartinPolstrer.Core.Data.Entities;
 
-namespace ITMartinPolstrer.Core.Services;
+namespace ITMartinPolstrer.Domain;
 
 // "Have I done this before?" - the search behind the Erfaring page. Pure
 // in-memory: a single upholsterer's whole career is a few hundred pieces,

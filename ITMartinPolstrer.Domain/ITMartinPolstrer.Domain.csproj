@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Polstrer - the domain: pieces of furniture, their steps, photos and comments, and the rules (slug, labels, Erfaring search).
+       No EF, no files, no HTTP. Restructured from ITMartinPolstrer.Core 2026-10-12. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinPolstrer.Tests" />
+  </ItemGroup>
+
+</Project>

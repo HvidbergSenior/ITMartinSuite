@@ -1,6 +1,6 @@
 @page "/"
 @rendermode InteractiveServer
-@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@inject WorkshopBoard BoardUseCase
 @implements IDisposable
 
 <PageTitle>Værkstedstavle</PageTitle>
@@ -36,7 +36,7 @@
                         var cover = PieceText.Cover(p);
                         var last = p.Comments.OrderByDescending(c => c.At).FirstOrDefault();
                         <a class="tv-card @PieceText.UrgencyClass(p)" href="/moebel/@p.Slug">
-                            @if (cover is not null) { <img src="@MediaStore.Url(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> }
+                            @if (cover is not null) { <img src="@MediaUrl.For(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> }
                             <div class="tv-card-body">
                                 <div class="tv-card-title">@PieceText.TitleOrDefault(p)</div>
                                 <div class="tv-card-meta">
@@ -81,14 +81,7 @@
 
     private async Task LoadAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var all = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).Include(p => p.Comments).AsNoTracking().ToListAsync();
-        // Afleveret only shows the last two weeks - the column is a "just done", not an archive.
-        var cutoff = DateTime.UtcNow.AddDays(-14);
-        _pieces = all
-            .Where(p => p.Status != PieceStatus.Afleveret || p.Steps.Max(s => (DateTime?)s.At) >= cutoff || p.Comments.Any(c => c.At >= cutoff))
-            .OrderBy(p => p.Deadline ?? DateOnly.MaxValue).ThenByDescending(p => p.ReceivedAt)
-            .ToList();
+        _pieces = await BoardUseCase.PiecesAsync();   // Afleveret = last two weeks only (rule in Application.WorkshopBoard)
         _now = DateTime.Now; _loadedAt = DateTime.Now;
     }
 

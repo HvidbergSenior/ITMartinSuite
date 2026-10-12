@@ -1,7 +1,7 @@
-using ITMartinPolstrer.Core.Data.Entities;
+using ITMartinPolstrer.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinPolstrer.Core.Data;
+namespace ITMartinPolstrer.Infrastructure.Persistence;
 
 public sealed class PolstrerDbContext(DbContextOptions<PolstrerDbContext> options) : DbContext(options)
 {

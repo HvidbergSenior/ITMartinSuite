@@ -1,7 +1,7 @@
 @page "/vis/{Slug}"
 @rendermode InteractiveServer
 @layout EmptyLayout
-@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@inject Journal Journal
 
 @* Public, read-only story of one piece: before → steps → after. This is
    the link she sends to the customer or to the colleague who handed the
@@ -54,9 +54,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _piece = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Slug == Slug);
+        _piece = await Journal.GetAsync(Slug);
         _loaded = true;
     }
 }

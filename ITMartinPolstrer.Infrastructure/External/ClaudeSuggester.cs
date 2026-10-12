@@ -1,32 +1,20 @@
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Models.Messages;
-using ITMartinPolstrer.Core.Data.Entities;
-using ITMartinPolstrer.Core.Services;
+using ITMartinPolstrer.Application;
+using ITMartinPolstrer.Domain;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
-namespace ITMartinPolstrer.Server.Services;
+namespace ITMartinPolstrer.Infrastructure.External;
 
 // One batched Claude call over a piece's photos + the polstrer's own notes.
 // Returns SUGGESTIONS only - the page fills empty fields, her text always wins.
-public sealed class AiSuggestionService(IConfiguration config, MediaStore media, ILogger<AiSuggestionService> logger)
+public sealed class ClaudeSuggester(IConfiguration config, IMediaStore media, ILogger<ClaudeSuggester> logger) : IAiSuggester
 {
-    public enum Level { Hurtig, Grundig }
 
-    public sealed record Suggestion(
-        string NavnType, string Type, string PeriodeStil, string Materialer, string Konstruktion,
-        string Stand, string[] Teknikker, string[] SaadanGoerDu, string Usikkerhed)
-    {
-        public string Model { get; init; } = "";
-        public int InputTokens { get; init; }
-        public int OutputTokens { get; init; }
-
-        // Rough price in øre so the user sees what a call cost (Haiku 1/5 $, Opus 5/25 $ per MTok, ~7 kr/$).
-        public double Oere => Model.Contains("haiku")
-            ? (InputTokens * 1.0 + OutputTokens * 5.0) / 1_000_000 * 700
-            : (InputTokens * 5.0 + OutputTokens * 25.0) / 1_000_000 * 700;
-    }
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private const int MaxPhotos = 6;
@@ -60,7 +48,7 @@ public sealed class AiSuggestionService(IConfiguration config, MediaStore media,
         },
     };
 
-    public async Task<Suggestion> SuggestAsync(Piece piece, Level level, CancellationToken ct = default)
+    public async Task<Suggestion> SuggestAsync(Piece piece, SuggestionLevel level, CancellationToken ct = default)
     {
         if (!Enabled) throw new InvalidOperationException("Claude:ApiKey mangler");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -68,12 +56,12 @@ public sealed class AiSuggestionService(IConfiguration config, MediaStore media,
         if (_callsToday >= MaxCallsPerDay) throw new InvalidOperationException($"Dagens grænse på {MaxCallsPerDay} AI-opslag er nået");
         _callsToday++;
 
-        var model = level == Level.Grundig ? "claude-opus-5" : "claude-haiku-4-5";
+        var model = level == SuggestionLevel.Grundig ? "claude-opus-5" : "claude-haiku-4-5";
         var content = new List<ContentBlockParam>();
         var photos = piece.Steps.OrderBy(s => s.At).SelectMany(s => s.Media).Where(m => !m.IsVideo).Take(MaxPhotos).ToList();
         foreach (var m in photos)
         {
-            var path = Path.Combine(media.Root, m.RelativePath);
+            var path = media.FullPath(m.RelativePath);
             if (!File.Exists(path)) continue;
             content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = await ToJpegBase64Async(path, ct), MediaType = "image/jpeg" } });
         }

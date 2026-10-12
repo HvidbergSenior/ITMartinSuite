@@ -1,6 +1,5 @@
-using ITMartinPolstrer.Core.Data.Entities;
 
-namespace ITMartinPolstrer.Core.Services;
+namespace ITMartinPolstrer.Domain;
 
 // Danish labels shared by the phone app and the workshop board.
 public static class PieceText

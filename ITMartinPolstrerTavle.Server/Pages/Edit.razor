@@ -1,6 +1,7 @@
 @page "/moebel/{Slug}"
 @rendermode InteractiveServer
-@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@inject Journal Journal
+@inject WorkshopBoard BoardUseCase
 @inject NavigationManager Nav
 
 @if (_p is null)
@@ -73,8 +74,8 @@
                         <div class="thumb-row">
                             @foreach (var m in s.Media)
                             {
-                                <a href="@MediaStore.Url(m.RelativePath)" target="_blank">
-                                    @if (m.IsVideo) { <div class="thumb">🎬</div> } else { <img class="thumb" src="@MediaStore.Url(m.ThumbPath ?? m.RelativePath)" alt="" /> }
+                                <a href="@MediaUrl.For(m.RelativePath)" target="_blank">
+                                    @if (m.IsVideo) { <div class="thumb">🎬</div> } else { <img class="thumb" src="@MediaUrl.For(m.ThumbPath ?? m.RelativePath)" alt="" /> }
                                 </a>
                             }
                         </div>
@@ -101,27 +102,15 @@
 
     private async Task LoadAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _p = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).Include(p => p.Comments).AsNoTracking().FirstOrDefaultAsync(p => p.Slug == Slug);
+        _p = await Journal.GetAsync(Slug);
         if (_p is null) { Nav.NavigateTo("/"); return; }
-        _workers = await db.Pieces.Select(p => p.Worker).Where(w => w != "").Distinct().OrderBy(w => w).ToListAsync();
+        _workers = await Journal.WorkersAsync();
     }
 
     private async Task SaveAsync()
     {
         if (_p is null) return;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var p = _p;
-        await db.Pieces.Where(x => x.Id == p.Id).ExecuteUpdateAsync(u => u
-            .SetProperty(x => x.Title, p.Title.Trim())
-            .SetProperty(x => x.Category, p.Category.Trim())
-            .SetProperty(x => x.Worker, p.Worker.Trim())
-            .SetProperty(x => x.Customer, p.Customer.Trim())
-            .SetProperty(x => x.Material, p.Material.Trim())
-            .SetProperty(x => x.Deadline, p.Deadline)
-            .SetProperty(x => x.Techniques, p.Techniques.Trim())
-            .SetProperty(x => x.InstructedBy, p.InstructedBy.Trim())
-            .SetProperty(x => x.Instructions, p.Instructions.Trim()));
+        await Journal.SavePieceAsync(_p);
         _saved = true;
         await LoadAsync();
     }
@@ -129,8 +118,7 @@
     private async Task SetStatusAsync(PieceStatus s)
     {
         if (_p is null) return;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        await db.Pieces.Where(x => x.Id == _p.Id).ExecuteUpdateAsync(u => u.SetProperty(x => x.Status, s));
+        await Journal.SetStatusAsync(_p.Id, s);
         _p.Status = s;
     }
 
@@ -142,17 +130,14 @@
     private async Task AddCommentAsync()
     {
         if (_p is null || string.IsNullOrWhiteSpace(_text)) return;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        db.Comments.Add(new Comment { PieceId = _p.Id, Author = _author.Trim(), Text = _text.Trim() });
-        await db.SaveChangesAsync();
+        await BoardUseCase.AddCommentAsync(_p.Id, _author, _text);
         _text = "";
         await LoadAsync();
     }
 
     private async Task DeleteCommentAsync(Comment c)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        await db.Comments.Where(x => x.Id == c.Id).ExecuteDeleteAsync();
+        await BoardUseCase.DeleteCommentAsync(c.Id);
         await LoadAsync();
     }
 }

@@ -1,10 +1,11 @@
+using ITMartinPolstrer.Application;
+using ITMartinPolstrer.Domain;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using ITMartinPolstrer.Core.Data.Entities;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
-namespace ITMartinPolstrer.Core.Services;
+namespace ITMartinPolstrer.Infrastructure.External;
 
 // Media lives on disk under the data volume on the NAS, one folder per
 // piece, named after the piece so the same folder tree reads well when
@@ -16,7 +17,7 @@ namespace ITMartinPolstrer.Core.Services;
 // "thumbnails" is the one folder name the gallery already skips, so the
 // 480px thumbnails this app uses for its own timeline never show up there
 // as duplicate photos.
-public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger)
+public sealed class FileMediaStore(IConfiguration config, ILogger<FileMediaStore> logger) : IMediaStore
 {
     public string Root { get; } = config["Polstrer:MediaRoot"] ?? "/app/data/media";
 
@@ -24,8 +25,6 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
 
     private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
         { ".mp4", ".mov", ".m4v", ".webm", ".3gp" };
-
-    public sealed record Pending(string OriginalFileName, Stream Content);
 
     // Picks a folder name for a new piece: the title, cleaned of characters
     // a filesystem refuses, made unique with " (2)", " (3)"... if the same
@@ -46,12 +45,14 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
         return candidate;
     }
 
-    public async Task<MediaFile> SaveAsync(string folder, Pending file, CancellationToken ct = default)
+    public string FullPath(string relativePath) => Path.Combine(Root, relativePath);
+
+    public async Task<MediaFile> SaveAsync(string folder, string fileName, Stream content, CancellationToken ct = default)
     {
         var dir = Path.Combine(Root, folder);
         Directory.CreateDirectory(dir);
 
-        var ext = Path.GetExtension(file.OriginalFileName);
+        var ext = Path.GetExtension(fileName);
         if (string.IsNullOrEmpty(ext)) ext = ".jpg";
         var isVideo = VideoExtensions.Contains(ext);
         var name = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}{ext.ToLowerInvariant()}";
@@ -60,13 +61,13 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
         long written;
         await using (var fs = new FileStream(fullPath, FileMode.Create))
         {
-            await file.Content.CopyToAsync(fs, ct);
+            await content.CopyToAsync(fs, ct);
             written = fs.Length;
         }
         if (written == 0)
         {
             File.Delete(fullPath);
-            throw new IOException($"{file.OriginalFileName} blev gemt som en tom fil");
+            throw new IOException($"{fileName} blev gemt som en tom fil");
         }
 
         string? thumbRel = null;
@@ -104,7 +105,7 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
         try
         {
             await using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read);
-            return await SaveAsync(folder, new Pending(originalFileName, fs), ct);
+            return await SaveAsync(folder, originalFileName, fs, ct);
         }
         finally
         {
@@ -161,6 +162,4 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
         return newFolder;
     }
 
-    public static string Url(string relativePath) =>
-        "/media/" + string.Join('/', relativePath.Replace('\\', '/').Split('/').Select(Uri.EscapeDataString));
 }

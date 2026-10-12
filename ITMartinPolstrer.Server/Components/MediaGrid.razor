@@ -14,7 +14,7 @@
                 else
                 {
                     <button class="media-thumb" @onclick="() => Open(m)">
-                        <img src="@MediaStore.Url(m.ThumbPath ?? m.RelativePath)" loading="lazy" alt="" />
+                        <img src="@MediaUrl.For(m.ThumbPath ?? m.RelativePath)" loading="lazy" alt="" />
                     </button>
                 }
                 @if (OnDelete.HasDelegate)
@@ -31,11 +31,11 @@
     <div class="lightbox" @onclick="Close">
         @if (_open.IsVideo)
         {
-            <video src="@MediaStore.Url(_open.RelativePath)" controls autoplay playsinline @onclick:stopPropagation></video>
+            <video src="@MediaUrl.For(_open.RelativePath)" controls autoplay playsinline @onclick:stopPropagation></video>
         }
         else
         {
-            <img src="@MediaStore.Url(_open.RelativePath)" alt="" @onclick:stopPropagation />
+            <img src="@MediaUrl.For(_open.RelativePath)" alt="" @onclick:stopPropagation />
         }
         <button class="lightbox-close" @onclick="Close">✕</button>
     </div>

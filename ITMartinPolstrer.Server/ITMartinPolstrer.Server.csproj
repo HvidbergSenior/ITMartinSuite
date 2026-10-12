@@ -9,16 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.25">
-            <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
-        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-        <PackageReference Include="Anthropic" Version="12.29.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ITMartinPolstrer.Core\ITMartinPolstrer.Core.csproj" />
+        <ProjectReference Include="..\ITMartinPolstrer.Application\ITMartinPolstrer.Application.csproj" />
+        <ProjectReference Include="..\ITMartinPolstrer.Infrastructure\ITMartinPolstrer.Infrastructure.csproj" />
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
     </ItemGroup>
 
