@@ -9,6 +9,7 @@
 <article class="k-card hj-page">
     <h1>Mine apps</h1>
     <p>Alle mine apps er <b>gratis at bruge</b> – og den gratis udgave kan noget i sig selv. Vil du have mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
+    <p><b>Sådan prøver du en app:</b> tryk på den, og tryk <b>🆓 Prøv gratis</b>. Skriv din e-mail – så sender jeg dig adgang (en PIN-kode).</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu – jeg gør dem klar, så de er nemme at bruge. Nysgerrig? <a href="/#chat">Chat med mig</a>.</p>
 </article>
 
@@ -30,9 +31,9 @@
                 <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? a.FreeText : "Kom i gang med det samme – ingen betaling.")</div>
                 <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? a.PaidText : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
                 <div class="k-row k-mt">
+                    @* "Brug gratis" removed 2026-10-12 (user): people get in via "Prøv gratis" below (e-mail -> Kundekartotek -> PIN). *@
                     @if (showcase && up) { <span class="k-help"><i>🔒 Eksempel – appen bruges kun af den, den er lavet til.</i></span> }
-                    else if (up && !showcase) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Brug gratis</a> }
-                    else { <span class="k-help"><i>😴 Sover lige nu – kontakt mig, så tænder jeg den, og du kan prøve den gratis.</i></span> }
+                    else if (!up) { <span class="k-help"><i>😴 Sover lige nu – tryk "Prøv gratis", så tænder jeg den til dig.</i></span> }
                     <a class="k-btn k-btn-sm" href="/#chat">@(showcase ? "Spørg om din egen app" : "Spørg om udvidet")</a>
                 </div>
                 @* "Prøv gratis" on every app (user 2026-10-12): e-mail -> Kundekartotek -> Martin sends a PIN. No newsletters. *@

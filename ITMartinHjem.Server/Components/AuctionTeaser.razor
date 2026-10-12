@@ -10,8 +10,14 @@
         @* The product list and the price promise moved to the Varer tab (/varer) 2026-10-12. *@
         <p><a class="k-btn bs-btn" href="/varer">📦 Se hvilke varer der kommer – og vores prisløfte</a></p>
 
-        @* Big boxes like "Chat med Martin" (user 2026-10-12), one per step. *@
-        <h3 class="bs-sub">🛒 Sådan køber du</h3>
+    </div>
+</section>
+
+@* Each part is its own show/hide box (user 2026-10-12: "hide/show boxes on bogshoppen where appropriate"). *@
+@* Big boxes like "Chat med Martin" (user 2026-10-12), one per step. *@
+<section class="k-card bs-card">
+    <h2>🛒 Sådan køber du</h2>
+    <div>
         <div class="bs-bigsteps">
             <div class="bs-bigstep">
                 <h4>1️⃣ Skriv dig op</h4>
@@ -34,7 +40,12 @@
             </div>
         </div>
 
-        <h3 class="bs-sub" id="foelg">🔔 Sådan følger du med</h3>
+    </div>
+</section>
+
+<section class="k-card bs-card" id="foelg">
+    <h2>🔔 Sådan følger du med</h2>
+    <div>
         @if (_sent)
         {
             <p class="bs-done"><b>Tak – du er skrevet op ✓</b> Vi sender dit login til <b>@_email</b>, når den første liveauktion er klar.

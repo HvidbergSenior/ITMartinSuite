@@ -10,8 +10,9 @@
     <p>Varerne bliver vist her snart – med billede, pris og links til andre butikker.</p>
 </header>
 
-<section class="k-card bs-card" data-nofold>
+<section class="k-card bs-card">
     <h2>📦 Det kommer der på</h2>
+    <div>
     <ul class="bs-products">
         @foreach (var (title, example) in BogshoppenRules.Products)
         {
@@ -19,6 +20,7 @@
         }
     </ul>
     <p class="k-help">Leder du efter noget bestemt? Skriv det i <a href="/#chat">chatten</a> – så kigger vi efter det, mens vi registrerer.</p>
+    </div>
 </section>
 
 <section class="k-card bs-card">
