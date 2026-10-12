@@ -1,6 +1,5 @@
 @page "/boeger"
 @inject BookCheckUseCases Checks
-@inject BoxUseCases Boxes
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -103,20 +102,10 @@
             }
         </div>
 
-        <h3>Gem de afkrydsede (@_books.Count(b => b.Keep)) i en kasse</h3>
-        <p class="k-small k-muted">Genbrug er ikke afkrydset fra start. Pris og grund gemmes på varen.</p>
-        <div class="lg-chips">
-            @foreach (var x in _recent)
-            {
-                <button class="k-btn @(_box?.Id == x.Id ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _box = x">📦 @x.Code @(x.Place != "" ? "· " + x.Place : "")</button>
-            }
-        </div>
+        <h3>Gem de afkrydsede (@_books.Count(b => b.Keep)) på lager</h3>
+        <p class="k-small k-muted">Genbrug er ikke afkrydset fra start. Pris og grund gemmes på varen. Ingen kasse at vælge – den kan sættes på varen senere, hvis du vil.</p>
         <div class="lg-row">
-            <input class="k-input" @bind="_newPlace" placeholder="Ny kasse – hvor står den? (fx Butikken, reol 2)" />
-            <button class="k-btn k-btn-secondary" @onclick="NewBox">➕ Ny kasse</button>
-        </div>
-        <div class="lg-row">
-            <button class="k-btn k-btn-primary lg-big" @onclick="Save" disabled="@(_busy || _box is null || !_books.Any(b => b.Keep))">✓ Gem i @(_box?.Code ?? "kasse")</button>
+            <button class="k-btn k-btn-primary lg-big" @onclick="Save" disabled="@(_busy || !_books.Any(b => b.Keep))">✓ Gem på lager</button>
             <button class="k-btn k-btn-ghost" @onclick="Clear">Ryd listen (de er gemt nedenfor)</button>
         </div>
     </section>
@@ -134,7 +123,7 @@
                 <span class="lg-verdict">@(h.Verdict switch { "Sælg" => "💰", "Kasse" => "📦", "Genbrug" => "♻", _ => "❓" })</span>
                 <span class="lg-main">
                     <b>@h.Title</b>
-                    <span class="k-small">@(h.Author != "" ? h.Author + " · " : "")@h.Verdict@(h.Low is { } lo ? $" · {lo}-{h.High} kr" : "")@(h.SellAt != "" ? " · sælg på " + h.SellAt : "")@(h.BoxCode != "" ? " · kasse " + h.BoxCode : "")</span>
+                    <span class="k-small">@(h.Author != "" ? h.Author + " · " : "")@h.Verdict@(h.Low is { } lo ? $" · {lo}-{h.High} kr" : "")@(h.SellAt != "" ? " · sælg på " + h.SellAt : "")@(h.BoxCode == "på lager" ? " · gemt på lager" : h.BoxCode != "" ? " · kasse " + h.BoxCode : "")</span>
                     @if (h.Reason != "") { <span class="k-small k-muted">@h.Reason</span> }
                 </span>
                 <span class="k-small k-muted">@h.CheckedAt.ToLocalTime().ToString("d/M HH:mm")</span>
@@ -146,9 +135,7 @@
 
 @code {
     private readonly List<CheckedBook> _books = [];
-    private List<Box> _recent = [];
-    private Box? _box;
-    private string _newPlace = "", _status = "", _scanStatus = "", _lastCode = "", _isbn = "";
+    private string _status = "", _scanStatus = "", _lastCode = "", _isbn = "";
     private string? _error, _saved;
     private bool _busy, _scanning, _photoBatch;
     private int _callsToday;
@@ -160,7 +147,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _recent = await Boxes.RecentAsync(8);
         _callsToday = await Checks.CallsTodayAsync();
         await LoadHistory();
     }
@@ -297,24 +283,16 @@
         }
     }
 
-    private async Task NewBox()
-    {
-        _box = await Boxes.NewAsync(_newPlace);
-        _recent.Insert(0, _box);
-        _newPlace = "";
-    }
-
     private async Task Save()
     {
-        if (_box is null) return;
         _busy = true;
         try
         {
-            var (added, merged) = await Checks.SaveInBoxAsync(_box, _books);
+            var (added, merged) = await Checks.SaveInBoxAsync(null, _books);
             var left = _books.Count(b => !b.Keep);
             _books.Clear();
             await LoadHistory();
-            _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "")
+            _saved = $"Gemt på lager: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "")
                 + (left > 0 ? $". {left} ikke gemt." : ".") + " Tag næste billede.";
         }
         catch (Exception ex) { _error = ex.Message; }

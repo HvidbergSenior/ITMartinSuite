@@ -10,10 +10,15 @@ public static class InfoApi
     public sealed record BoxDto(int Id, string Code, string Place);
     public sealed record NewBox(string Place);
     public sealed record Intake(int? PhotoId, List<Found> Items);
+    public sealed record Check(List<Found> Items);
     public sealed record WantedDto(int ItemId, string BoxCode, string Line, string Title, bool FirstEditionLook, int TopKr);
     public sealed record KolofonRead(KolofonReading? Reading);
 
     private static BoxDto Dto(Box b) => new(b.Id, b.Code, b.Place);
+
+    private static List<Found> Clean(List<Found>? items) => (items ?? []).Where(f => !string.IsNullOrWhiteSpace(f.Title))
+        .Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition), Quantity = Math.Max(1, f.Quantity) })
+        .ToList();
 
     public static void MapInfoApi(this WebApplication app)
     {
@@ -30,12 +35,21 @@ public static class InfoApi
         api.MapPost("/kasser/{code}/varer", async (string code, Intake body, BoxUseCases boxes, RegistrationUseCases reg) =>
         {
             if (await boxes.ByCodeAsync(code) is not { } box) return Results.NotFound();
-            var found = (body.Items ?? []).Where(f => !string.IsNullOrWhiteSpace(f.Title))
-                .Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition), Quantity = Math.Max(1, f.Quantity) })
-                .ToList();
-            var (added, merged) = await reg.SaveAsync(box.Id, body.PhotoId, found);
+            var (added, merged) = await reg.SaveAsync(box.Id, body.PhotoId, Clean(body.Items));
             return Results.Ok(new { Added = added, Merged = merged });
         });
+
+        // Straight into stock - no box (user 2026-10-12). A box can be set later on the item page.
+        api.MapPost("/varer", async (Intake body, RegistrationUseCases reg) =>
+        {
+            var (added, merged) = await reg.SaveAsync(null, body.PhotoId, Clean(body.Items));
+            return Results.Ok(new { Added = added, Merged = merged });
+        });
+
+        // "Har vi allerede den?" for each row Vareinfo shows - so a re-photographed pile does not double the stock.
+        api.MapPost("/findes", async (Check body, RegistrationUseCases reg) =>
+            (await reg.InStockAsync((body.Items ?? []).Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition) }).ToList()))
+                .Select(x => new { x.Quantity, x.ItemId }));   // one answer per row, in order - nothing left out
 
         api.MapGet("/kolofon", async (KolofonUseCases k) => new
         {

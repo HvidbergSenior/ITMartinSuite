@@ -23,8 +23,10 @@ public interface IItemRepository
     /// <summary>With its box.</summary>
     Task<Item?> GetAsync(int id, CancellationToken ct);
     Task<List<Item>> InBoxAsync(int boxId, CancellationToken ct);
+    /// <summary>Unsold items with one of these titles (any case) - to find "the same thing" anywhere in stock.</summary>
+    Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct);
     /// <summary>Every word must be in the item's search text; with its box.</summary>
-    Task<List<Item>> SearchAsync(string text, string? kind, int max, CancellationToken ct);
+    Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct);
     Task<int> UnitsAsync(CancellationToken ct);
     Task AddAsync(IEnumerable<Item> items, CancellationToken ct);
     Task UpdateAsync(IEnumerable<Item> items, CancellationToken ct);

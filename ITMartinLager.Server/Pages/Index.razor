@@ -16,6 +16,13 @@
             <button class="k-btn k-btn-sm @(_kind == k ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetKind(k)">@Kinds.Icon(k) @k</button>
         }
     </div>
+    <div class="lg-chips">
+        <button class="k-btn k-btn-sm @(_valuation is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetValuation(null)">Alle priser</button>
+        @foreach (var v in Valuations.All)
+        {
+            <button class="k-btn k-btn-sm @(_valuation == v ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetValuation(v)">@ValIcon(v) @v</button>
+        }
+    </div>
 </section>
 
 @if (_hits is not null)
@@ -32,7 +39,7 @@
                 <li>
                     <a href="/vare/@i.Id">
                         <span class="lg-icon">@Kinds.Icon(i.Kind)</span>
-                        <span class="lg-main"><b>@i.Line()</b>@if (i.Interest != "") { <span class="lg-int">✨ @i.Interest</span> }<span class="k-small k-muted">@i.Kind · @i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")@(i.Price is { } p ? $" · {p:0} kr" : i.PriceHint is { } h ? $" · ca. {h:0} kr" : "")</span>@if (_high.TryGetValue(i.Id, out var top)) { <span class="k-small"><b>⚠ @top.Source: @top.Kr kr</b> – @Pricing.Flag(top.Kr, (int?)i.PriceHint)</span> }</span>
+                        <span class="lg-main"><b>@i.Line()</b>@if (i.Interest != "") { <span class="lg-int">✨ @i.Interest</span> }<span class="k-small k-muted">@i.Kind · @i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")</span><span class="k-small"><b>@ValIcon(i.Valuation) @(i.Price is { } p ? $"{p:0} kr (sat af dig)" : i.PriceHint is { } h ? $"Vores pris {h:0} kr" : i.Valuation)</b></span>@if (_high.TryGetValue(i.Id, out var top)) { <span class="k-small"><b>⚠ @top.Source: @top.Kr kr</b> – @Pricing.Flag(top.Kr, (int?)i.PriceHint)</span> }</span>
                         <span class="lg-box">@(i.Box?.Code ?? "–")</span>
                     </a>
                 </li>
@@ -51,11 +58,17 @@
 
     protected override async Task OnInitializedAsync() => (_units, _boxes) = await Boxes.StockAsync();
 
+    private string? _valuation;
+
     private async Task SetKind(string? k) { _kind = k; await Find(); }
+    private async Task SetValuation(string? v) { _valuation = v; await Find(); }
+
+    // Said in words and with a sign, not only in colour.
+    private static string ValIcon(string v) => v switch { Valuations.Valued => "✓", Valuations.Waiting => "⏳", _ => "?" };
 
     private async Task Find()
     {
-        var found = await Items.SearchAsync(_q, _kind);
+        var found = await Items.SearchAsync(_q, _kind, _valuation);
         _hits = found?.Hits;
         _high = found?.FarAbove ?? [];
     }

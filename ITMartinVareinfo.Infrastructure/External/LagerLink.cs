@@ -36,29 +36,16 @@ public sealed class LagerLink(HttpClient http, IConfiguration cfg) : ILagerGatew
             if (!res.IsSuccessStatusCode) throw new VareinfoException($"Lager svarede ikke ({(int)res.StatusCode}). Prøv igen om lidt.");
     }
 
-    public Task<List<LagerBox>> RecentBoxesAsync(int count, CancellationToken ct) =>
-        SendAsync<List<LagerBox>>(Req(HttpMethod.Get, $"/api/info/kasser?antal={count}"), ct);
-
-    public async Task<LagerBox?> BoxAsync(string code, CancellationToken ct)
-    {
-        using var req = Req(HttpMethod.Get, "/api/info/kasser/" + Uri.EscapeDataString(code));
-        using var res = await http.SendAsync(req, ct);
-        if (res.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-        if (!res.IsSuccessStatusCode) throw new VareinfoException($"Lager svarede ikke ({(int)res.StatusCode}). Prøv igen om lidt.");
-        return await res.Content.ReadFromJsonAsync<LagerBox>(ct);
-    }
-
-    public Task<LagerBox> NewBoxAsync(string place, CancellationToken ct) =>
-        SendAsync<LagerBox>(Req(HttpMethod.Post, "/api/info/kasser", new { Place = place }), ct);
-
     private sealed record Saved(int Added, int Merged);
 
-    public async Task<(int Added, int Merged)> SaveAsync(string boxCode, int? photoId, IReadOnlyList<Found> found, CancellationToken ct)
+    public async Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, CancellationToken ct)
     {
-        var r = await SendAsync<Saved>(Req(HttpMethod.Post, $"/api/info/kasser/{Uri.EscapeDataString(boxCode)}/varer",
-            new { PhotoId = photoId, Items = found }), ct);
+        var r = await SendAsync<Saved>(Req(HttpMethod.Post, "/api/info/varer", new { PhotoId = photoId, Items = found }), ct);
         return (r.Added, r.Merged);
     }
+
+    public Task<List<InStock>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct) =>
+        SendAsync<List<InStock>>(Req(HttpMethod.Post, "/api/info/findes", new { Items = found }), ct);
 
     private sealed record Wanted(int FromKr, List<KolofonWanted> Books);
 

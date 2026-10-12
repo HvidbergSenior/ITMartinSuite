@@ -1,7 +1,7 @@
 @page "/"
 @page "/registrer"
 @inject ReadingUseCases Reg
-@inject BoxChoiceUseCases Boxes
+@inject LagerLinks Lager
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -11,48 +11,27 @@
 <section class="k-card">
     <h1 class="k-card-title">📷 Registrér en bunke</h1>
 
-    @if (_box is null)
+    <p>Tag et billede af en bunke, eller scan stregkoderne – så finder Vareinfo ud af hvad tingene er og lægger dem på <a href="@Lager.LagerBase">Lager</a>, hvor prisjægeren finder priserne. Ingen kasse at vælge.</p>
+    <p>Læg 10-20 ting ud side om side med forsiden op – så alle titler kan ses. Tag billedet lige ovenfra.</p>
+    <input class="k-input" @bind="_hint" placeholder="Valgfrit: hvad er det mest? (fx Anders And 1970'erne)" />
+    <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
+        @(_busy ? "⏳ Læser billedet …" : "📷 Tag billede")
+        <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
+    </label>
+    <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reg.MaxCallsPerDay.</p>
+
+    <p><b>Eller scan stregkoden</b> – bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden; det bipper for hver.</p>
+    @if (!_scanning)
     {
-        <p>Tag et billede af en bunke, eller scan stregkoderne – så finder Vareinfo ud af hvad tingene er og lægger dem i en kasse på <a href="@Boxes.LagerBase">Lager</a>, hvor de får pris og kan findes igen.</p>
-        <p class="lg-answer">1. Hvilken kasse lægger du tingene i?</p>
-        @if (_recent.Count > 0)
-        {
-            <div class="lg-chips">
-                @foreach (var b in _recent)
-                {
-                    <button class="k-btn k-btn-secondary" @onclick="() => UseBox(b)">📦 @b.Code @(b.Place != "" ? "· " + b.Place : "")</button>
-                }
-            </div>
-        }
-        <div class="lg-row">
-            <input class="k-input" @bind="_newPlace" placeholder="Hvor står den nye kasse? (fx Garagen, reol 2)" />
-            <button class="k-btn k-btn-primary" @onclick="NewBox">➕ Ny kasse</button>
-        </div>
+        <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">▮▯▮ Scan stregkoder</button>
     }
     else
     {
-        <p class="lg-answer">Kasse <b>@_box.Code</b>@(_box.Place != "" ? " · " + _box.Place : "") <button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => _box = null">Skift</button></p>
-        <p>2. Læg 10-20 ting ud side om side med forsiden op – så alle titler kan ses. Tag billedet lige ovenfra.</p>
-        <input class="k-input" @bind="_hint" placeholder="Valgfrit: hvad er det mest? (fx Anders And 1970'erne)" />
-        <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
-            @(_busy ? "⏳ Læser billedet …" : "📷 Tag billede")
-            <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
-        </label>
-        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reg.MaxCallsPerDay.</p>
-
-        <p><b>Eller scan stregkoden</b> – bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden; det bipper for hver.</p>
-        @if (!_scanning)
-        {
-            <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">▮▯▮ Scan stregkoder</button>
-        }
-        else
-        {
-            <div class="lg-scan">
-                <video id="scan-video" muted playsinline></video>
-                <p class="lg-answer" role="status">@(_scanStatus)</p>
-                <button class="k-btn k-btn-primary" @onclick="StopScan">✓ Færdig med at scanne</button>
-            </div>
-        }
+        <div class="lg-scan">
+            <video id="scan-video" muted playsinline></video>
+            <p class="lg-answer" role="status">@(_scanStatus)</p>
+            <button class="k-btn k-btn-primary" @onclick="StopScan">✓ Færdig med at scanne</button>
+        </div>
     }
     @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
     @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
@@ -61,7 +40,7 @@
 @if (_review.Count > 0)
 {
     <section class="k-card">
-        <h2 class="k-card-title">3. Tjek og gem (@_review.Count(r => r.Keep) af @_review.Count)</h2>
+        <h2 class="k-card-title">Tjek og gem (@_review.Count(SavesIt) af @_review.Count)</h2>
         @if (_review.Any(r => r.Keep && r.Interest.Trim() == ""))
         {
             <button class="k-btn k-btn-secondary" @onclick="WriteInterest" disabled="@_busy">✨ Skriv det interessante for de @_review.Count(r => r.Keep && r.Interest.Trim() == "") uden (valgfrit – koster ca. 2 øre pr. vare)</button>
@@ -78,6 +57,17 @@
                         </select>
                         @if (r.Confidence < 0.6) { <span class="lg-check">⚠ Tjek</span> }
                     </div>
+                    @if (r.InStock > 0 || r.DupInList)
+                    {
+                        <div class="lg-warn" role="status">
+                            ⚠ @(r.InStock > 0 ? $"Har vi allerede {r.InStock} stk." : "Står også længere oppe på listen.")
+                            @if (r.ItemId is { } iid) { <a href="@Lager.LagerBase/vare/@iid" target="_blank" rel="noopener">Se den på Lager</a> }
+                            <div class="lg-chips">
+                                <button class="k-btn k-btn-sm @(r.AddCopy ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => r.AddCopy = true">+1 eksemplar</button>
+                                <button class="k-btn k-btn-sm @(!r.AddCopy ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => r.AddCopy = false">Samme – gem ikke</button>
+                            </div>
+                        </div>
+                    }
                     <input class="k-input" @bind="r.Title" placeholder="Titel" />
                     <div class="lg-rgrid">
                         @if (r.Kind is Kinds.Cd or Kinds.Bog) { <input class="k-input" @bind="r.Artist" placeholder="@(r.Kind == Kinds.Cd ? "Kunstner" : "Forfatter")" /> }
@@ -97,15 +87,13 @@
             }
         </div>
         <div class="lg-row">
-            <button class="k-btn k-btn-primary lg-big" @onclick="Save" disabled="@_busy">✓ Gem i kasse @_box?.Code</button>
+            <button class="k-btn k-btn-primary lg-big" @onclick="Save" disabled="@_busy">✓ Gem @_review.Count(SavesIt) på lager</button>
             <button class="k-btn k-btn-ghost" @onclick="() => _review.Clear()">Kassér</button>
         </div>
     </section>
 }
 
 @code {
-    [SupplyParameterFromQuery(Name = "kasse")] public string? BoxCode { get; set; }
-
     private sealed class Row
     {
         public bool Keep = true;
@@ -115,11 +103,35 @@
         public double Confidence = 1;
         public int PhotoId;
         public string Barcode = "", EditionHint = "";
+        // Already in Lager, or twice on this list: saved only when the person says "+1 eksemplar".
+        public int InStock;
+        public int? ItemId;
+        public bool DupInList, AddCopy;
+        public bool IsDuplicate => InStock > 0 || DupInList;
+
+        public string Key => string.Join("|", Kinds.Normalise(Kind), Title.Trim(), Artist.Trim(), Series.Trim(), Number.Trim(), Year, Platform.Trim(),
+            Conditions.Normalise(Condition)).ToLowerInvariant();
+
+        public Found ToFound() => new(Kinds.Normalise(Kind), Title.Trim(), Artist.Trim(), Series.Trim(), Number.Trim(), Year,
+            Platform.Trim(), Conditions.Normalise(Condition), Math.Max(1, Quantity), Confidence, Note, Interest.Trim(), Barcode, EditionHint: EditionHint);
     }
 
-    private LagerBox? _box;
-    private List<LagerBox> _recent = [];
-    private string _newPlace = "", _hint = "";
+    private static bool SavesIt(Row r) => r.Keep && r.Title.Trim() != "" && (!r.IsDuplicate || r.AddCopy);
+
+    // Marks rows Lager already has, and rows that are on the list twice (two photos of the same pile).
+    private async Task MarkDuplicatesAsync(List<Row> fresh)
+    {
+        fresh = fresh.Where(r => r.Title.Trim() != "").ToList();
+        foreach (var r in fresh) r.DupInList = _review.TakeWhile(x => x != r).Any(x => x.Key == r.Key && x.Title.Trim() != "");
+        try
+        {
+            var stock = await Reg.InStockAsync(fresh.Select(r => r.ToFound()).ToList());
+            for (var n = 0; n < fresh.Count && n < stock.Count; n++) (fresh[n].InStock, fresh[n].ItemId) = (stock[n].Quantity, stock[n].ItemId);
+        }
+        catch (Exception ex) { _error = "Kunne ikke tjekke om vi har dem i forvejen: " + ex.Message; }
+    }
+
+    private string _hint = "";
     private string? _error, _saved;
     private bool _busy;
     private int _callsToday;
@@ -132,31 +144,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            _recent = await Boxes.RecentAsync(8);
-            if (!string.IsNullOrEmpty(BoxCode)) _box = await Boxes.ByCodeAsync(BoxCode);
-        }
-        catch (Exception ex) { _error = ex.Message; }
         _callsToday = await Reg.CallsTodayAsync();
-    }
-
-    private void UseBox(LagerBox b) { _box = b; _saved = null; }
-
-    private async Task NewBox()
-    {
-        try
-        {
-            _box = await Boxes.NewAsync(_newPlace);
-            _newPlace = "";
-            _saved = $"Kasse {_box.Code} er oprettet. Print dens label i Lager under Kasser.";
-        }
-        catch (Exception ex) { _error = ex.Message; }
     }
 
     private async Task Upload(InputFileChangeEventArgs e)
     {
-        if (_box is null) return;
         _busy = true; _error = null; _saved = null;
         StateHasChanged();
         try
@@ -166,14 +158,16 @@
                 int photoId;
                 List<Found> found;
                 await using (var s = file.OpenReadStream(30 * 1024 * 1024))
-                    (photoId, found) = await Reg.ReadPileAsync(s, _hint, _box.Id, _box.Code);
+                    (photoId, found) = await Reg.ReadPileAsync(s, _hint, null, "pile");
 
-                _review.AddRange(found.Select(f => new Row
+                var fresh = found.Select(f => new Row
                 {
                     Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
                     Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
                     Note = f.Note, Interest = f.Interest, EditionHint = f.EditionHint, PhotoId = photoId,
-                }));
+                }).ToList();
+                _review.AddRange(fresh);
+                await MarkDuplicatesAsync(fresh);
                 if (found.Count == 0) _error = "AI'en fandt ingen ting på billedet. Tag det lidt tættere på, i godt lys.";
                 else if (Reg.AutoInterest)
                 {
@@ -194,21 +188,20 @@
 
     private async Task Save()
     {
-        if (_box is null) return;
         _busy = true; _error = null;
         int added = 0, merged = 0;
         try
         {
-            foreach (var g in _review.Where(r => r.Keep && r.Title.Trim() != "").GroupBy(r => r.PhotoId).ToList())
+            foreach (var g in _review.Where(SavesIt).GroupBy(r => r.PhotoId).ToList())
             {
-                var (a, m) = await Reg.SaveAsync(_box.Code, g.Key == 0 ? null : g.Key, g.Select(r => new Found(
-                    Kinds.Normalise(r.Kind), r.Title.Trim(), r.Artist.Trim(), r.Series.Trim(), r.Number.Trim(), r.Year,
-                    r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim(), r.Barcode, EditionHint: r.EditionHint)).ToList());
+                var (a, m) = await Reg.SaveAsync(g.Key == 0 ? null : g.Key, g.Select(r => r.ToFound()).ToList());
                 added += a; merged += m;
-                _review.RemoveAll(r => r.PhotoId == g.Key && r.Keep && r.Title.Trim() != "");   // saved = off the list, so a retry never saves twice
+                _review.RemoveAll(r => r.PhotoId == g.Key && SavesIt(r));   // saved = off the list, so a retry never saves twice
             }
+            var skipped = _review.Count(r => r.Keep && r.IsDuplicate && !r.AddCopy);
             _review.Clear();
-            _saved = $"Gemt i {_box.Code} på Lager: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "") + ". Prisjægeren finder priserne af sig selv. Tag næste billede.";
+            _saved = $"Gemt på Lager: {added} nye" + (merged > 0 ? $", {merged} ekstra eksemplarer lagt til nogen, vi havde" : "")
+                + (skipped > 0 ? $", {skipped} sprunget over (havde vi allerede)" : "") + ". Prisjægeren finder priserne af sig selv. Tag næste billede.";
         }
         catch (Exception ex) { _error = ex.Message + (added > 0 ? $" ({added} blev gemt, de står ikke længere på listen.)" : ""); }
         finally { _busy = false; }
@@ -257,6 +250,7 @@
                     ? new Row { Barcode = code, Kind = Barcodes.IsIsbn(code) ? Kinds.Bog : Kinds.Andet, Title = "", Confidence = 0, Note = $"Stregkode {code} – ikke fundet, skriv titlen" }
                     : new Row { Barcode = code, Kind = f.Kind, Title = f.Title, Artist = f.Artist, Year = f.Year, Platform = f.Platform, Confidence = f.Confidence, Note = f.Note });
                 _scanStatus = f is null ? $"⚠ {code} ikke fundet – skriv titlen i listen" : $"✓ {f.Title}";
+                if (f is not null) await MarkDuplicatesAsync([_review[0]]);
             }
         }
         StateHasChanged();

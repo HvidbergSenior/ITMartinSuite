@@ -73,17 +73,36 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     }
 
     // Every word must match somewhere (title, artist, series, number, year ...): "anders 1968" finds Anders And 1968.
-    public async Task<List<Item>> SearchAsync(string text, string? kind, int max, CancellationToken ct)
+    public async Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         var q = db.Items.Include(i => i.Box).AsQueryable();
         if (!string.IsNullOrEmpty(kind)) q = q.Where(i => i.Kind == kind);
+        // Item.Valuation, as SQL.
+        q = valuation switch
+        {
+            Valuations.Valued => q.Where(i => i.PriceHint > 0),
+            Valuations.Waiting => q.Where(i => (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt == null),
+            Valuations.NoPrice => q.Where(i => (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt != null),
+            _ => q,
+        };
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
         {
             var w = word;
             q = q.Where(i => i.Search.Contains(w));
         }
         return await q.OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
+    }
+
+    public async Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct)
+    {
+        var lower = titles.Select(t => t.Trim().ToLowerInvariant()).Where(t => t != "").Distinct().ToList();
+        if (lower.Count == 0) return [];
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        // SQLite's lower() only folds A-Z, so æøå titles are compared again in memory by Item.SameAs.
+        var candidates = await db.Items.Where(i => i.Status != Statuses.Solgt).Select(i => new { i.Id, i.Title }).ToListAsync(ct);
+        var ids = candidates.Where(c => lower.Contains(c.Title.Trim().ToLowerInvariant())).Select(c => c.Id).ToList();
+        return await db.Items.Where(i => ids.Contains(i.Id)).ToListAsync(ct);
     }
 
     public async Task<int> UnitsAsync(CancellationToken ct)

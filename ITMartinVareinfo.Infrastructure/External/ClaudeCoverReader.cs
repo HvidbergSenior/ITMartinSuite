@@ -15,6 +15,9 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
     private static readonly SemaphoreSlim CapGate = new(1, 1);
 
     private string Model => cfg["Vareinfo:AiModel"] ?? "claude-haiku-4-5";
+    // Which model reads a pile photo. The cheap one by default; a stronger one (Vareinfo__PileModel, e.g.
+    // claude-sonnet-5-5) reads small issue numbers better (2026-10-12 test: Haiku dropped "Nr. 22", "#3", "No. 2").
+    private string PileModel => cfg["Vareinfo:PileModel"] is { Length: > 0 } m ? m : Model;
     public int MaxCallsPerDay => int.TryParse(cfg["Vareinfo:MaxAiCallsPerDay"], out var n) ? n : 800;
     // The collector text is the shop's focus, so it gets the most accurate model (user 2026-10-05: Haiku invented
     // a track list). Reading covers stays on the cheap model. Vareinfo__InterestModel switches it (e.g. claude-sonnet-5-5).
@@ -39,8 +42,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
                           "kind":       { "type": "string", "enum": {{JsonSerializer.Serialize(Kinds.All)}} },
                           "title":      { "type": "string", "description": "Title as printed (album title for a CD)" },
                           "artist":     { "type": "string", "description": "CD artist or book author, empty if none" },
-                          "series":     { "type": "string", "description": "Series/magazine name, e.g. 'Anders And & Co.', 'Fantomet', 'Wendy'" },
-                          "number":     { "type": "string", "description": "Issue/volume number as printed, e.g. '12', '23/1975'" },
+                          "series":     { "type": "string", "description": "Series/publication printed on the cover, e.g. 'Anders And & Co.', 'Superserien', 'Fantomet'" },
+                          "number":     { "type": "string", "description": "Issue/volume number as printed, e.g. '12', '22', '3'. Never a year." },
                           "year":       { "type": ["integer", "null"] },
                           "platform":   { "type": "string", "description": "Console games only: 'PlayStation 2', 'Nintendo 64' ..." },
                           "condition":  { "type": "string", "enum": {{JsonSerializer.Serialize(Conditions.All)}} },
@@ -65,7 +68,20 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
         Billedet viser en bunke varer lagt ud side om side. Find HVER vare og kald report_items.
         - Læs titel, nummer og år præcist som de står på forsiden/ryggen. Gæt aldrig et nummer - lad det være tomt,
           og sæt confidence lavt, hvis det ikke kan læses.
-        - Anders And & Co.: serie "Anders And & Co.", nummer og år fra forsiden. Jumbobog: kind "Jumbobog", nummer fra ryggen/forsiden.
+        - Skriv BOGSTAV FOR BOGSTAV som trykt: æ, ø og å beholdes ("Søuhyret", ikke "Souhyret"), og særlige stavemåder
+          rettes aldrig ("Zap Comix", ikke "Comics"; "Storm Petersen", ikke et ord du kender bedre). Brug nærbillederne.
+        - number = hæftets/albummets nummer ("Nr. 22", "No. 2", "#3"). Et årstal er ALDRIG et nummer - det skal i year.
+          "29. Aargang 1941" = number "29", year 1941.
+        - series = serien eller udgivelsen, der står på forsiden: "Superserien", "Anders And & Co.", "Gyldenspjæt",
+          "Marvel"-titlen. title = hæftets egen titel ("Søuhyret fra Volapyk"); står der også en undertitel
+          ("Tony Thumbes Transaktioner"), skriv den i note.
+        - kind - vælg ud fra hvad det ER:
+          * "Anders And-blad": ugebladet Anders And & Co.: serie "Anders And & Co.", nummer og år fra forsiden.
+          * "Jumbobog": KUN når der står "Jumbobog" på den. Nummer fra ryggen/forsiden.
+          * "Tegneserie": alle andre tegneserier og tegneseriealbum - Superserien, Storm P.-album, Gyldenspjæt,
+            Tintin, Asterix, julehæfter med tegneserier, amerikanske comics (Marvel, DC, undergrund som Zap Comix).
+          * "Bog": bøger med tekst, også fagbøger og instruktionsbøger (musik, hobby, sprog), selv om der følger en CD med.
+          * "Magasin": blade med artikler (ikke tegneserier).
         - CD: titel = albummets navn, artist = kunstneren. Konsolspil: platform (fx "PlayStation 2").
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
@@ -105,28 +121,31 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
         foreach (var c in closeUps)
             content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(c), MediaType = "image/jpeg" } });
         content.Add(new TextBlockParam { Text = text });
-        var response = await client.Messages.Create(new MessageCreateParams
+        ToolUseBlock? tool;
+        Message response;
+        if (PileModel == Model)
         {
-            Model = Model,
-            MaxTokens = 12000,
-            System = System,
-            Tools = [ReportTool],
-            ToolChoice = new ToolChoiceTool { Name = "report_items" },
-            Messages =
-            [
-                new()
-                {
-                    Role = Role.User,
-                    Content = content,
-                },
-            ],
-        }, ct);
-        await CountTokensAsync(response, ct);
-
-        var tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault()
-            ?? throw new InvalidOperationException("AI'en svarede ikke med en liste. Prøv et nyt billede.");
+            response = await client.Messages.Create(new MessageCreateParams
+            {
+                Model = Model,
+                MaxTokens = 12000,
+                System = System,
+                Tools = [ReportTool],
+                ToolChoice = new ToolChoiceTool { Name = "report_items" },
+                Messages = [new() { Role = Role.User, Content = content }],
+            }, ct);
+            await CountTokensAsync(response, ct);
+            tool = response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();
+        }
+        else
+        {
+            content.Add(new TextBlockParam { Text = "Svar ved at kalde report_items." });
+            (tool, var r) = await AccurateToolCallAsync(System, ReportTool, content, PileModel, ct);
+            response = r!;
+        }
+        if (tool is null) throw new InvalidOperationException("AI'en svarede ikke med en liste. Prøv et nyt billede.");
         var parsed = JsonSerializer.Deserialize<Report>(JsonSerializer.Serialize(tool.Input), Json) ?? new Report();
-        log.LogInformation("Pile read: {Count} items, {In}/{Out} tokens", parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens);
+        log.LogInformation("Pile read by {Model}: {Count} items, {In}/{Out} tokens", response.Model, parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens);
         return parsed.Items.Select(Clean).Where(f => f.Title.Length > 0).ToList();
     }
 
@@ -177,7 +196,12 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
 
     // The accurate model first. Opus 5.5 / Sonnet 5.5 do not allow a forced tool call, so the prompt asks for it.
     // A refusal, an error or no tool call -> the cheap model with a forced call, so a pile is never left without an answer.
-    private async Task<(ToolUseBlock? Tool, Message? Response)> AccurateToolCallAsync(string system, Tool tool, string ask, CancellationToken ct)
+    private Task<(ToolUseBlock? Tool, Message? Response)> AccurateToolCallAsync(string system, Tool tool, string ask, CancellationToken ct) =>
+        AccurateToolCallAsync(system, tool, ask, InterestModel, ct);
+
+    // The accurate model first (it does not allow a forced tool call, so the prompt asks for it); no tool call, a refusal
+    // or an error -> the cheap model with a forced call, so nothing is ever left without an answer.
+    private async Task<(ToolUseBlock? Tool, Message? Response)> AccurateToolCallAsync(string system, Tool tool, MessageParamContent ask, string accurateModel, CancellationToken ct)
     {
         var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
         Message? response = null;
@@ -185,7 +209,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
         {
             response = await client.Messages.Create(new MessageCreateParams
             {
-                Model = InterestModel,
+                Model = accurateModel,
                 MaxTokens = 16000,
                 System = system,
                 Tools = [tool],
@@ -197,7 +221,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Accurate model {Model} failed - falling back to {Cheap}", InterestModel, Model);
+            log.LogWarning(ex, "Accurate model {Model} failed - falling back to {Cheap}", accurateModel, Model);
         }
 
         var used = response?.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault();

@@ -9,7 +9,7 @@ public static class DependencyInjection
     {
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ReadingUseCases>();
-        services.AddScoped<BoxChoiceUseCases>();
+        services.AddScoped<LagerLinks>();
         services.AddScoped<KolofonUseCases>();
         return services;
     }

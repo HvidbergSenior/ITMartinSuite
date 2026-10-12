@@ -56,6 +56,27 @@ public class StoreTests
     }
 
     [Test]
+    public async Task Without_a_box_a_known_thing_is_found_anywhere_in_stock_and_counted_up()
+    {
+        (await Registration.SaveAsync(null, null, [Aa("12", 1968)])).Should().Be((1, 0));
+        var known = await Registration.InStockAsync([Aa("12", 1968), Aa("13", 1968), Aa("12", 1968, "Slidt")]);
+        known.Select(k => k.Quantity).Should().Equal(1, 0, 0);     // same issue in another condition is another thing
+
+        // The person said "+1 eksemplar" in Vareinfo: the same row goes up, no new row.
+        (await Registration.SaveAsync(null, null, [Aa("12", 1968)])).Should().Be((0, 1));
+        (await Items.GetAsync(known[0].ItemId!.Value, default))!.Quantity.Should().Be(2);
+        (await Items.GetAsync(known[0].ItemId!.Value, default))!.BoxId.Should().BeNull();
+    }
+
+    [Test]
+    public void Valued_waiting_or_no_price_is_said_from_the_item()
+    {
+        new Item().Valuation.Should().Be(Valuations.Waiting);
+        new Item { PricesAt = DateTime.UtcNow }.Valuation.Should().Be(Valuations.NoPrice);
+        new Item { PricesAt = DateTime.UtcNow, PriceHint = 45 }.Valuation.Should().Be(Valuations.Valued);
+    }
+
+    [Test]
     public async Task Search_needs_every_word_and_ignores_case()
     {
         var box = await Boxes.AddNextAsync("", default);
@@ -64,10 +85,10 @@ public class StoreTests
             Aa("12", 1968),
             new(Kinds.Cd, "Goodbye Yellow Brick Road", "Elton John", "", "", 1973, "", "Meget god", 1, 1, ""),
         ]);
-        (await Items.SearchAsync("anders 1968", null, 100, default)).Count.Should().Be(1);
-        (await Items.SearchAsync("ELTON yellow", null, 100, default)).Count.Should().Be(1);
-        (await Items.SearchAsync("elton 1968", null, 100, default)).Count.Should().Be(0);
-        (await Items.SearchAsync("", Kinds.Cd, 100, default)).Count.Should().Be(1);
+        (await Items.SearchAsync("anders 1968", null, null, 100, default)).Count.Should().Be(1);
+        (await Items.SearchAsync("ELTON yellow", null, null, 100, default)).Count.Should().Be(1);
+        (await Items.SearchAsync("elton 1968", null, null, 100, default)).Count.Should().Be(0);
+        (await Items.SearchAsync("", Kinds.Cd, null, 100, default)).Count.Should().Be(1);
     }
 }
 

@@ -52,8 +52,8 @@ public interface IKolofonShotRepository
     Task UpdateAsync(IEnumerable<KolofonShot> shots, CancellationToken ct);
 }
 
-/// <summary>A box in Lager, as Lager's API shows it.</summary>
-public sealed record LagerBox(int Id, string Code, string Place);
+/// <summary>What Lager already has of a thing: 0 = new. ItemId = the item to open in Lager.</summary>
+public sealed record InStock(int Quantity, int? ItemId);
 
 /// <summary>A book on Lager's kolofon list: the cover may be a first edition, or a copy sells for FromKr or more.</summary>
 public sealed record KolofonWanted(int ItemId, string BoxCode, string Line, string Title, bool FirstEditionLook, int TopKr);
@@ -62,11 +62,10 @@ public sealed record KolofonWanted(int ItemId, string BoxCode, string Line, stri
 public interface ILagerGateway
 {
     string PublicBase { get; }
-    Task<List<LagerBox>> RecentBoxesAsync(int count, CancellationToken ct);
-    Task<LagerBox?> BoxAsync(string code, CancellationToken ct);
-    Task<LagerBox> NewBoxAsync(string place, CancellationToken ct);
-    /// <summary>Saves the products into the box - same thing, same condition = one row with a higher quantity.</summary>
-    Task<(int Added, int Merged)> SaveAsync(string boxCode, int? photoId, IReadOnlyList<Found> found, CancellationToken ct);
+    /// <summary>Saves the products in stock (no box - user 2026-10-12). Same thing, same condition = a higher quantity.</summary>
+    Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, CancellationToken ct);
+    /// <summary>For each thing, in order: how many Lager already has of exactly that.</summary>
+    Task<List<InStock>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct);
     Task<(int FromKr, List<KolofonWanted> Books)> KolofonWantedAsync(CancellationToken ct);
     /// <summary>A kolofon photo was taken - Lager takes the book off the list and shows "venter på at blive læst".</summary>
     Task KolofonTakenAsync(int itemId, CancellationToken ct);

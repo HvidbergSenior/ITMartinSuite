@@ -33,8 +33,12 @@ public sealed class ReadingUseCases(
         return (row.Id, found);
     }
 
-    public Task<(int Added, int Merged)> SaveAsync(string boxCode, int? photoId, IReadOnlyList<Found> found, CancellationToken ct = default) =>
-        lager.SaveAsync(boxCode, photoId, found, ct);
+    public Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, CancellationToken ct = default) =>
+        lager.SaveAsync(photoId, found, ct);
+
+    /// <summary>"Har vi allerede den?" - so a re-photographed pile does not double the stock (user 2026-10-12: ask per item).</summary>
+    public Task<List<InStock>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct = default) =>
+        found.Count == 0 ? Task.FromResult(new List<InStock>()) : lager.InStockAsync(found, ct);
 
     /// <summary>"Det interessante" for up to 40 items in ONE call. Index -> text.</summary>
     public Task<Dictionary<int, string>> WriteInterestAsync(IReadOnlyList<string> lines, CancellationToken ct = default) =>
@@ -48,13 +52,10 @@ public sealed class ReadingUseCases(
     private static string Safe(string label) => new(label.Where(char.IsLetterOrDigit).Take(20).ToArray());
 }
 
-/// <summary>Boxes live in Lager - Vareinfo only picks one to put things in.</summary>
-public sealed class BoxChoiceUseCases(ILagerGateway lager)
+/// <summary>Where Lager is, for links a person clicks.</summary>
+public sealed class LagerLinks(ILagerGateway lager)
 {
     public string LagerBase => lager.PublicBase;
-    public Task<List<LagerBox>> RecentAsync(int count, CancellationToken ct = default) => lager.RecentBoxesAsync(count, ct);
-    public Task<LagerBox?> ByCodeAsync(string code, CancellationToken ct = default) => lager.BoxAsync(code, ct);
-    public Task<LagerBox> NewAsync(string place, CancellationToken ct = default) => lager.NewBoxAsync(place.Trim(), ct);
 }
 
 /// <summary>Kolofons (2026-10-11, user: "to save in db and get price just cover. A job can run through kolofon if

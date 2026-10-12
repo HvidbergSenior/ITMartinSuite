@@ -150,18 +150,18 @@ public sealed class BookCheckUseCases(
     }
 
     /// <summary>The ticked books into a box (merged like any registration), and the record says which box.</summary>
-    public async Task<(int Added, int Merged)> SaveInBoxAsync(Box box, IReadOnlyList<CheckedBook> books, CancellationToken ct = default)
+    public async Task<(int Added, int Merged)> SaveInBoxAsync(Box? box, IReadOnlyList<CheckedBook> books, CancellationToken ct = default)
     {
         int added = 0, merged = 0;
         var today = clock.GetLocalNow().DateTime;
         foreach (var g in books.Where(b => b.Keep && b.Title.Trim() != "").GroupBy(b => b.PhotoId))
         {
-            var (a, m) = await registration.SaveAsync(box.Id, g.Key == 0 ? null : g.Key, g.Select(b => b.ToFound(today)), ct);
+            var (a, m) = await registration.SaveAsync(box?.Id, g.Key == 0 ? null : g.Key, g.Select(b => b.ToFound(today)), ct);
             added += a; merged += m;
         }
         await RememberAsync(books, ct);   // corrections made after the valuation go into the record too
         var kept = books.Where(b => b.Keep && b.CheckId != 0).Select(b => b.CheckId).ToList();
-        if (kept.Count > 0) await checks.SetBoxAsync(kept, box.Code, ct);
+        if (kept.Count > 0) await checks.SetBoxAsync(kept, box?.Code ?? "på lager", ct);
         return (added, merged);
     }
 

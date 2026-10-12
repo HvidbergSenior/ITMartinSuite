@@ -36,6 +36,14 @@ public static class EditionHints
         All.FirstOrDefault(x => x != "" && string.Equals(x, h?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "";
 }
 
+// Has the price hunter valued it? (user 2026-10-12: "it should be the type of product and a IsValued flag ... and the
+// valued price on the sites" - instead of choosing a box). Worked out from the item, never stored.
+public static class Valuations
+{
+    public const string Valued = "Vurderet", Waiting = "Venter på pris", NoPrice = "Ingen pris fundet";
+    public static readonly string[] All = [Valued, Waiting, NoPrice];
+}
+
 public static class Statuses
 {
     public const string Lager = "På lager", TilSalg = "Til salg", PaaAuktion = "På auktion", Solgt = "Solgt";
@@ -112,15 +120,17 @@ public sealed class Item
         Number != "" ? "nr. " + Number : "", Year?.ToString() ?? "", Platform,
     }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
-    // Same thing in the same box and the same condition = one row with a higher quantity, so 7 copies of
-    // Anders And 12/1968 stay one line however many photos they turned up in.
+    public string Valuation => PriceHint is > 0 ? Valuations.Valued : PricesAt is null ? Valuations.Waiting : Valuations.NoPrice;
+
+    // Same thing in the same condition = one row with a higher quantity, so 7 copies of Anders And 12/1968 stay one
+    // line however many photos they turned up in. Whether a second photo IS a second copy, the person decides in Vareinfo.
     public bool SameAs(Found f) =>
         Kind == f.Kind && Condition == f.Condition && Year == f.Year
         && Eq(Title, f.Title) && Eq(Artist, f.Artist) && Eq(Series, f.Series) && Eq(Number, f.Number) && Eq(Platform, f.Platform);
 
     private static bool Eq(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 
-    public static Item From(Found f, int boxId, int? photoId)
+    public static Item From(Found f, int? boxId, int? photoId)
     {
         var item = new Item
         {
