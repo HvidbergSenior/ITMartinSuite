@@ -128,6 +128,17 @@ public sealed class Item
         Kind == f.Kind && Condition == f.Condition && Year == f.Year
         && Eq(Title, f.Title) && Eq(Artist, f.Artist) && Eq(Series, f.Series) && Eq(Number, f.Number) && Eq(Platform, f.Platform);
 
+    // "Is this the thing we already have?" for a photo taken again: only what identifies it - the title (case, spaces and
+    // punctuation ignored: "Start-Up: 5-String Banjo" = "Start-Up 5-String Banjo"), and number and year when both have
+    // one. Condition, series, author and kind are read a little differently from photo to photo (2026-10-12: the same
+    // pile photographed twice matched only 4 of 8 on the strict SameAs).
+    public bool LooksLike(Found f) =>
+        TitleKey(Title) == TitleKey(f.Title) && TitleKey(Title) != ""
+        && (Number.Trim() == "" || f.Number.Trim() == "" || Eq(Number, f.Number))
+        && (Year is null || f.Year is null || Year == f.Year);
+
+    public static string TitleKey(string title) => new(title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+
     private static bool Eq(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 
     public static Item From(Found f, int? boxId, int? photoId)

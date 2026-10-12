@@ -23,7 +23,7 @@ public interface IItemRepository
     /// <summary>With its box.</summary>
     Task<Item?> GetAsync(int id, CancellationToken ct);
     Task<List<Item>> InBoxAsync(int boxId, CancellationToken ct);
-    /// <summary>Unsold items with one of these titles (any case) - to find "the same thing" anywhere in stock.</summary>
+    /// <summary>Unsold items with one of these titles (Item.TitleKey: case, spaces and punctuation ignored).</summary>
     Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct);
     /// <summary>Every word must be in the item's search text; with its box.</summary>
     Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct);

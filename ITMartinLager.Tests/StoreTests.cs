@@ -60,7 +60,7 @@ public class StoreTests
     {
         (await Registration.SaveAsync(null, null, [Aa("12", 1968)])).Should().Be((1, 0));
         var known = await Registration.InStockAsync([Aa("12", 1968), Aa("13", 1968), Aa("12", 1968, "Slidt")]);
-        known.Select(k => k.Quantity).Should().Equal(1, 0, 0);     // same issue in another condition is another thing
+        known.Select(k => k.Quantity).Should().Equal(1, 0, 1);     // another condition is flagged too - the person decides
 
         // The person said "+1 eksemplar" in Vareinfo: the same row goes up, no new row.
         (await Registration.SaveAsync(null, null, [Aa("12", 1968)])).Should().Be((0, 1));
@@ -69,6 +69,26 @@ public class StoreTests
     }
 
     [Test]
+    public async Task A_second_photo_read_a_little_differently_is_still_recognised()
+    {
+        await Registration.SaveAsync(null, null,
+        [
+            new(Kinds.Bog, "Start-Up 5-String Banjo", "", "", "", null, "", "Meget god", 1, 1, ""),
+            new(Kinds.Tegneserie, "Storm Petersen Album", "", "Storm P.", "29", 1941, "", "God", 1, 1, ""),
+        ]);
+        var again = await Registration.InStockAsync(
+        [
+            new(Kinds.Bog, "Start-Up: 5-String Banjo", "", "", "", null, "", "God", 1, 1, ""),              // colon, other condition
+            new(Kinds.Tegneserie, "Storm Petersen album", "", "Storm Petersen", "29", null, "", "Slidt", 1, 1, ""),
+            new(Kinds.Tegneserie, "Storm Petersen Album", "", "", "30", 1942, "", "God", 1, 1, ""),          // another årgang
+        ]);
+        again.Select(a => a.Quantity).Should().Equal(1, 1, 0);
+
+        (await Registration.AddCopiesAsync([(again[0].ItemId!.Value, 1)])).Should().Be(1);
+        (await Items.GetAsync(again[0].ItemId!.Value, default))!.Quantity.Should().Be(2);
+    }
+
+        [Test]
     public void Valued_waiting_or_no_price_is_said_from_the_item()
     {
         new Item().Valuation.Should().Be(Valuations.Waiting);

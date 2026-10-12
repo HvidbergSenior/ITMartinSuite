@@ -96,12 +96,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
 
     public async Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct)
     {
-        var lower = titles.Select(t => t.Trim().ToLowerInvariant()).Where(t => t != "").Distinct().ToList();
-        if (lower.Count == 0) return [];
+        var keys = titles.Select(Item.TitleKey).Where(t => t != "").ToHashSet();
+        if (keys.Count == 0) return [];
         await using var db = await dbf.CreateDbContextAsync(ct);
-        // SQLite's lower() only folds A-Z, so æøå titles are compared again in memory by Item.SameAs.
+        // Compared in memory: the key drops punctuation, and SQLite's lower() only folds A-Z, not æøå.
         var candidates = await db.Items.Where(i => i.Status != Statuses.Solgt).Select(i => new { i.Id, i.Title }).ToListAsync(ct);
-        var ids = candidates.Where(c => lower.Contains(c.Title.Trim().ToLowerInvariant())).Select(c => c.Id).ToList();
+        var ids = candidates.Where(c => keys.Contains(Item.TitleKey(c.Title))).Select(c => c.Id).ToList();
         return await db.Items.Where(i => ids.Contains(i.Id)).ToListAsync(ct);
     }
 

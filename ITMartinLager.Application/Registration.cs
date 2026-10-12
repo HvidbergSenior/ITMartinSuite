@@ -34,10 +34,26 @@ public sealed class RegistrationUseCases(IItemRepository items)
         return (added.Count, list.Count - added.Count);
     }
 
-    /// <summary>For each thing: how many we already have of exactly that (0 = new), and which item it is.</summary>
+    /// <summary>For each thing: how many we already have of what looks like the same thing (0 = new), and which item.</summary>
     public async Task<List<(int Quantity, int? ItemId)>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct = default)
     {
         var stock = await items.WithTitlesAsync(found.Select(f => f.Title).ToList(), ct);
-        return found.Select(f => stock.FirstOrDefault(i => i.SameAs(f)) is { } i ? (i.Quantity, (int?)i.Id) : (0, null)).ToList();
+        return found.Select(f => (stock.FirstOrDefault(i => i.SameAs(f)) ?? stock.FirstOrDefault(i => i.LooksLike(f))) is { } i
+            ? (i.Quantity, (int?)i.Id) : (0, null)).ToList();
+    }
+
+    /// <summary>"+1 eksemplar" in Vareinfo: more copies of exactly the item it pointed at. Returns how many items changed.</summary>
+    public async Task<int> AddCopiesAsync(IReadOnlyList<(int ItemId, int Quantity)> copies, CancellationToken ct = default)
+    {
+        var changed = new List<Item>();
+        foreach (var (id, qty) in copies)
+        {
+            if (await items.GetAsync(id, ct) is not { } item || item.Status == Statuses.Solgt) continue;
+            item.Quantity += Math.Max(1, qty);
+            item.Touch();
+            changed.Add(item);
+        }
+        await items.UpdateAsync(changed, ct);
+        return changed.Count;
     }
 }

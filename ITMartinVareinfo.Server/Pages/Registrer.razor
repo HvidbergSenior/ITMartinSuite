@@ -109,8 +109,8 @@
         public bool DupInList, AddCopy;
         public bool IsDuplicate => InStock > 0 || DupInList;
 
-        public string Key => string.Join("|", Kinds.Normalise(Kind), Title.Trim(), Artist.Trim(), Series.Trim(), Number.Trim(), Year, Platform.Trim(),
-            Conditions.Normalise(Condition)).ToLowerInvariant();
+        // Same as Lager's "looks like": title without case/punctuation, number and year.
+        public string Key => string.Join("|", new string(Title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray()), Number.Trim().ToLowerInvariant(), Year);
 
         public Found ToFound() => new(Kinds.Normalise(Kind), Title.Trim(), Artist.Trim(), Series.Trim(), Number.Trim(), Year,
             Platform.Trim(), Conditions.Normalise(Condition), Math.Max(1, Quantity), Confidence, Note, Interest.Trim(), Barcode, EditionHint: EditionHint);
@@ -194,7 +194,10 @@
         {
             foreach (var g in _review.Where(SavesIt).GroupBy(r => r.PhotoId).ToList())
             {
-                var (a, m) = await Reg.SaveAsync(g.Key == 0 ? null : g.Key, g.Select(r => r.ToFound()).ToList());
+                // "+1 eksemplar" on something Lager has goes onto that very item; everything else is new (or merged by Lager).
+                var addTo = g.Where(r => r.InStock > 0 && r.ItemId is not null).Select(r => (r.ItemId!.Value, Math.Max(1, r.Quantity))).ToList();
+                var fresh = g.Where(r => !(r.InStock > 0 && r.ItemId is not null)).Select(r => r.ToFound()).ToList();
+                var (a, m) = await Reg.SaveAsync(g.Key == 0 ? null : g.Key, fresh, addTo);
                 added += a; merged += m;
                 _review.RemoveAll(r => r.PhotoId == g.Key && SavesIt(r));   // saved = off the list, so a retry never saves twice
             }
