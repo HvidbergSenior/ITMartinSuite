@@ -58,6 +58,10 @@ public sealed class KolibriAppInfo
     /// <summary>True when the app has its own /hjaelp page; the shared one then only lives at /kolibri/hjaelp.</summary>
     public bool OwnHjaelpPage { get; set; }
 
+    /// <summary>True when the app's page is a static wwwroot/index.html (no Blazor router): /om and /hjaelp are then
+    /// served as plain HTML with the same header, footer and texts (KolibriStaticPages).</summary>
+    public bool StaticPages { get; set; }
+
     public string DisplayTitle => string.IsNullOrWhiteSpace(KolibriName) ? Name : $"{Name} · {KolibriName}";
 }
 

@@ -374,6 +374,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinDailyBrief.Infrastr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinDailyBrief.Tests", "ITMartinDailyBrief.Tests\ITMartinDailyBrief.Tests.csproj", "{866C88A9-96A8-4F58-AC98-AC8C3F7443DB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinAdhd.Tests", "ITMartinAdhd.Tests\ITMartinAdhd.Tests.csproj", "{D94B1B73-C55F-48CB-BACC-9582A69CAEE1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -1107,5 +1109,9 @@ Global
 		{866C88A9-96A8-4F58-AC98-AC8C3F7443DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{866C88A9-96A8-4F58-AC98-AC8C3F7443DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{866C88A9-96A8-4F58-AC98-AC8C3F7443DB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D94B1B73-C55F-48CB-BACC-9582A69CAEE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D94B1B73-C55F-48CB-BACC-9582A69CAEE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D94B1B73-C55F-48CB-BACC-9582A69CAEE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D94B1B73-C55F-48CB-BACC-9582A69CAEE1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

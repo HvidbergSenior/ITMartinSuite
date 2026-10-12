@@ -92,8 +92,9 @@ public static class KolibriExtensions
         // Shared pages live at /kolibri/om and /kolibri/hjaelp so an app's own /om never collides;
         // /om and /hjaelp redirect there unless the app declares its own page.
         var info0 = app.ServiceProvider.GetRequiredService<KolibriAppInfo>();
-        if (!info0.OwnOmPage) app.MapGet("/om", () => Results.Redirect("/kolibri/om")).AllowAnonymous();
-        if (!info0.OwnHjaelpPage) app.MapGet("/hjaelp", () => Results.Redirect("/kolibri/hjaelp")).AllowAnonymous();
+        if (info0.StaticPages) KolibriStaticPages.Map(app);
+        else if (!info0.OwnOmPage) app.MapGet("/om", () => Results.Redirect("/kolibri/om")).AllowAnonymous();
+        if (!info0.StaticPages && !info0.OwnHjaelpPage) app.MapGet("/hjaelp", () => Results.Redirect("/kolibri/hjaelp")).AllowAnonymous();
 
         app.MapGet("/kolibri-sw.js", () => Results.Text(
             "self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',()=>{});",

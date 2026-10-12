@@ -1,425 +1,235 @@
 <!DOCTYPE html>
 <html lang="da" data-family="hukommelse">
 <head>
-<script>
-(function () {
-    var theme = localStorage.getItem('adhd_theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
-})();
-</script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0a0d14">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<title>FindIt</title>
-<link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=20260928">
-<script src="_content/ITMartin.Shared.UI/kolibri.js?v=20260928" defer></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Find det igen</title>
+<link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=20261012">
+<script src="/_content/ITMartin.Shared.UI/kolibri.js?v=20261012" defer></script>
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg">
 <style>
-  /* Colours from Kolibri.UI (kolibri.css, family hukommelse); light/dark follow html[data-theme].
-     Only FindIt's own names are mapped here (2026-09-21). */
-  :root{
-    --surface:var(--k-card); --muted2:var(--k-muted-2); --muted3:var(--k-muted-2); --muted4:var(--k-border-3);
-    --hdr-bg:var(--k-bg); --overlay:rgba(0,0,0,.6);
-  }
-  html[data-theme="light"]{ --overlay:rgba(0,0,0,.35); }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
-
-  /* Header */
-  .header{position:sticky;top:0;z-index:50;background:var(--hdr-bg);border-bottom:1px solid var(--border);padding:12px 16px}
-  .header-title{font-size:20px;font-weight:900;margin-bottom:10px;color:var(--text)}
-  .search-wrap{position:relative}
-  .search-input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:12px;padding:11px 40px 11px 14px;font-size:16px;outline:none}
-  .search-input::placeholder{color:var(--muted3)}
-  .search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted3);font-size:18px;cursor:pointer;display:none;line-height:1}
-
-  /* Banner */
-  .itm-pp-banner{display:flex;flex-direction:column;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:.7rem 1rem;margin-bottom:16px}
-  .itm-pp-row{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}
-  .itm-pp-icon{font-size:.85rem}
-  .itm-pp-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#818cf8;white-space:nowrap}
-  .itm-pp-text{font-size:.85rem;color:#c7d2fe}
-  [data-theme="light"] .itm-pp-text{color:#3730a3}
-  [data-theme="light"] .itm-pp-label{color:#4338ca}
-  [data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.3)}
-
-  .itm-hw-banner{display:flex;flex-direction:column;gap:6px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:10px;padding:.7rem 1rem;margin-bottom:16px}
-  .itm-hw-header{display:flex;align-items:baseline;gap:.5rem}
-  .itm-hw-icon{font-size:.85rem}
-  .itm-hw-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4ade80}
-  .itm-hw-steps{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:3px}
-  .itm-hw-steps li{font-size:.85rem;color:#bbf7d0;line-height:1.4}
-  [data-theme="light"] .itm-hw-label{color:#15803d}
-  [data-theme="light"] .itm-hw-steps li{color:#166534}
-  [data-theme="light"] .itm-hw-banner{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.3)}
-
-  /* Content */
-  .content{padding:16px 16px 100px}
-  .section-label{font-size:11px;font-weight:700;color:var(--muted3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
-
-  /* Item cards */
-  .items{display:flex;flex-direction:column;gap:10px}
-  .item-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;align-items:stretch;cursor:pointer;transition:border-color .15s}
-  .item-card:active{border-color:var(--accent)}
-  .item-photo{width:80px;min-height:80px;flex-shrink:0;object-fit:cover;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--muted3);font-size:28px}
-  .item-photo img{width:80px;height:80px;object-fit:cover}
-  .item-body{padding:12px;flex:1;min-width:0}
-  .item-name{font-size:15px;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .item-location{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .item-notes{font-size:12px;color:var(--muted2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .item-date{font-size:11px;color:var(--muted4);margin-top:6px}
-
-  /* Empty state */
-  .empty{text-align:center;padding:60px 20px;color:var(--muted3)}
-  .empty-icon{font-size:48px;margin-bottom:12px}
-  .empty-text{font-size:15px}
-
-  /* FAB */
-  .fab{position:fixed;bottom:24px;right:20px;width:56px;height:56px;background:var(--accent);border:none;border-radius:50%;color:white;font-size:28px;cursor:pointer;box-shadow:0 4px 20px rgba(59,130,246,.4);z-index:40;display:flex;align-items:center;justify-content:center;transition:transform .15s}
-  .fab:active{transform:scale(.92)}
-
-  /* Sheet */
-  .sheet-overlay{position:fixed;inset:0;background:var(--overlay);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s}
-  .sheet-overlay.open{opacity:1;pointer-events:all}
-  .sheet{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;padding:20px 20px 40px;z-index:70;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);max-height:90vh;overflow-y:auto}
-  .sheet.open{transform:translateY(0)}
-  .sheet-handle{width:36px;height:4px;background:var(--muted4);border-radius:2px;margin:0 auto 20px}
-  .sheet-title{font-size:18px;font-weight:800;margin-bottom:20px}
-
-  .form-field{margin-bottom:14px}
-  .form-label{font-size:12px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:block}
-  .form-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-size:16px;outline:none;font-family:inherit}
-  .form-input:focus{border-color:var(--accent)}
-  .form-input::placeholder{color:var(--muted3)}
-
-  .photo-btn{width:100%;background:var(--bg);border:2px dashed var(--border);color:var(--muted2);border-radius:10px;padding:20px;font-size:14px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
-  .photo-btn:active{border-color:var(--accent)}
-  .photo-preview{width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-top:8px;display:none}
-
-  .btn-submit, .btn-primary{width:100%;background:var(--accent);color:white;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px}
-  .btn-submit:disabled{opacity:.4}
-  .btn-submit:active, .btn-primary:hover{opacity:.8}
-
-  /* Detail sheet */
-  .detail-photo{width:100%;max-height:280px;object-fit:cover;border-radius:12px;margin-bottom:16px}
-  .detail-name{font-size:22px;font-weight:900;margin-bottom:8px}
-  .detail-location{font-size:15px;color:var(--muted);margin-bottom:8px}
-  .detail-notes{font-size:14px;color:var(--muted2);margin-bottom:16px;line-height:1.6}
-  .detail-date{font-size:12px;color:var(--muted4);margin-bottom:20px}
-  .btn-delete{width:100%;background:var(--surface);color:#ef4444;border:1px solid var(--muted4);border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
-
-  /* Theme toggle */
-  #themeToggleBtn{position:fixed;bottom:96px;right:20px;z-index:9999;width:44px;height:44px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+  /* Find det igen - colours from the shared Kolibri family "hukommelse"; only the item list and the detail box are styled here. */
+  .fi-intro h1{margin:.2em 0}
+  .fi-search{position:relative;margin:12px 0}
+  .fi-search .k-input{padding-right:44px}
+  .fi-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%)}
+  .fi-list{display:grid;gap:10px}
+  .fi-item{display:flex;gap:12px;align-items:center;width:100%;text-align:left;cursor:pointer;font:inherit;color:var(--k-text);border-left:5px solid var(--k-accent)}
+  .fi-item:hover{box-shadow:0 0 0 2px var(--k-accent-soft),var(--k-shadow)}
+  .fi-thumb{width:72px;height:72px;flex:none;border-radius:var(--k-radius-sm);object-fit:cover;background:var(--k-bg-deep)}
+  .fi-body{min-width:0;flex:1}
+  .fi-name{font-weight:700;font-size:1.05rem}
+  .fi-where{color:var(--k-text)}
+  .fi-notes,.fi-when{color:var(--k-muted);font-size:var(--k-fs-small)}
+  .fi-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:none;align-items:flex-end;justify-content:center;padding:12px}
+  .fi-overlay.open{display:flex}
+  .fi-sheet{width:min(560px,100%);max-height:92vh;overflow-y:auto;margin:0}
+  .fi-photo{width:100%;max-height:300px;object-fit:cover;border-radius:var(--k-radius);margin-bottom:12px}
+  .fi-preview{width:100%;max-height:200px;object-fit:cover;border-radius:var(--k-radius);margin-top:8px}
+  .fi-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .fi-file{display:none}
 </style>
 </head>
 <body>
+<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo" src="/_content/ITMartin.Shared.UI/kolibri-icon.svg" alt=""><div class="k-brand"><b>Find det igen</b><span>Kolibri Hukommelse</span></div></a></div></header>
 
-<div class="header">
-  <div class="header-title">FindIt 🔍</div>
-  <div class="search-wrap">
-    <input class="search-input" id="searchInput" type="search" placeholder="Søg på navn, sted eller noter..." autocomplete="off">
-    <button class="search-clear" id="searchClear">✕</button>
-  </div>
-</div>
+<div class="k-main"><div class="k-content">
+  <section class="fi-intro">
+    <h1>Find det igen</h1>
+    <p class="k-help">Når du lægger noget fra dig, så skriv det her: <b>hvad</b> det er og <b>hvor</b> det ligger – gerne med et billede.
+      Når du leder, skriver du bare et ord i søgefeltet.</p>
+  </section>
 
-<div class="content">
   <div class="itm-pp-banner">
-    <div class="itm-pp-row">
-      <span class="itm-pp-icon">😩</span>
-      <span class="itm-pp-label">Problem</span>
-      <span class="itm-pp-text">Man glemmer hvor man har lagt sine ting</span>
-    </div>
-    <div class="itm-pp-row">
-      <span class="itm-pp-icon">🎯</span>
-      <span class="itm-pp-label">Formål</span>
-      <span class="itm-pp-text">Husk hvor tingene er, uden at lede</span>
-    </div>
+    <div class="itm-pp-row"><span class="itm-pp-label">Problem</span><span class="itm-pp-text">Man glemmer, hvor man har lagt sine ting.</span></div>
+    <div class="itm-pp-row"><span class="itm-pp-label">Formål</span><span class="itm-pp-text">Husk hvor tingene er, uden at lede.</span></div>
   </div>
-  <div class="itm-hw-banner">
-    <div class="itm-hw-header">
-      <span class="itm-hw-icon">👉</span>
-      <span class="itm-hw-label">Sådan bruger du appen</span>
-    </div>
-    <ol class="itm-hw-steps">
-      <li>Tag et billede af, hvor du lægger en ting fra dig.</li>
-      <li>Skriv et par søgeord på billedet, så du kan finde det igen.</li>
-      <li>Søg på ordet senere, og få billedet frem med det samme.</li>
-    </ol>
+
+  <button class="k-btn k-btn-primary k-btn-block" id="addBtn">Læg noget fra dig</button>
+
+  <div class="fi-search">
+    <label class="k-label" for="searchInput">Leder du efter noget?</label>
+    <input class="k-input" id="searchInput" type="search" placeholder="Skriv fx nøgler, pas eller skuffe" autocomplete="off">
   </div>
-  <div class="section-label" id="sectionLabel">Seneste</div>
-  <div class="items" id="itemList"></div>
+
+  <div class="k-label" id="sectionLabel">Senest lagt fra dig</div>
+  <div class="fi-list" id="itemList"><div class="k-card" data-nofold><p class="k-muted">Henter…</p></div></div>
+</div></div>
+
+<footer class="k-footer"><span>&copy; 2026 ITMartin · Den digitale kolibri</span> <a href="/om">Om Find det igen</a> <a href="#k-install" class="k-footer-install">Læg på telefonen</a> <a href="/hjaelp">Noget virker ikke?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Vilkår &amp; privatliv</a></footer>
+
+<!-- Put something down -->
+<div class="fi-overlay" id="addOverlay">
+  <section class="k-card fi-sheet" data-nofold role="dialog" aria-labelledby="addTitle">
+    <h2 class="k-card-title" id="addTitle">Læg noget fra dig</h2>
+    <p class="k-help">Skriv hvad det er, og hvor du lægger det. Et billede gør det nemmere at finde igen.</p>
+    <label class="k-label" for="addName">Hvad er det?</label>
+    <input class="k-input" id="addName" placeholder="fx Nøgler, Medicin, Pung" autocomplete="off">
+    <label class="k-label" for="addLocation">Hvor ligger det?</label>
+    <input class="k-input" id="addLocation" placeholder="fx Skålen ved hoveddøren" autocomplete="off">
+    <label class="k-label" for="addNotes">Noter (kan springes over)</label>
+    <input class="k-input" id="addNotes" placeholder="Ekstra detaljer" autocomplete="off">
+    <label class="k-btn k-mt" for="photoInput" id="photoLabel">Tag billede eller vælg et</label>
+    <input class="fi-file" type="file" id="photoInput" accept="image/*" capture="environment">
+    <img class="fi-preview" id="photoPreview" alt="" hidden>
+    <p class="k-muted" id="addNote" hidden></p>
+    <div class="fi-actions">
+      <button class="k-btn k-btn-primary" id="addSubmit" disabled>Gem</button>
+      <button class="k-btn" id="addCancel">Fortryd</button>
+    </div>
+  </section>
 </div>
 
-<button class="fab" id="fab">+</button>
-
-<button id="themeToggleBtn" title="Skift lys/mørk visning">🌓</button>
-
-<!-- Add sheet -->
-<div class="sheet-overlay" id="addOverlay"></div>
-<div class="sheet" id="addSheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title">Tilføj ting</div>
-  <div class="form-field">
-    <label class="form-label">Hvad er det? *</label>
-    <input class="form-input" id="addName" placeholder="fx Nøgler, Medicin, Pung..." autocomplete="off">
-  </div>
-  <div class="form-field">
-    <label class="form-label">Hvor ligger det? *</label>
-    <input class="form-input" id="addLocation" placeholder="fx Hænger ved hoveddøren..." autocomplete="off">
-  </div>
-  <div class="form-field">
-    <label class="form-label">Noter (valgfrit)</label>
-    <input class="form-input" id="addNotes" placeholder="Ekstra detaljer..." autocomplete="off">
-  </div>
-  <div class="form-field">
-    <label class="form-label">Foto (valgfrit)</label>
-    <label class="photo-btn" for="photoInput">
-      <span style="font-size:28px">📷</span>
-      <span id="photoLabel">Tag billede eller vælg fra galleri</span>
-    </label>
-    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
-    <img class="photo-preview" id="photoPreview" alt="">
-  </div>
-  <button class="btn-submit" id="addSubmit" disabled>Gem</button>
-</div>
-
-<!-- Detail sheet -->
-<div class="sheet-overlay" id="detailOverlay"></div>
-<div class="sheet" id="detailSheet">
-  <div class="sheet-handle"></div>
-  <img class="detail-photo" id="detailPhoto" alt="" style="display:none">
-  <div class="detail-name" id="detailName"></div>
-  <div class="detail-location" id="detailLocation"></div>
-  <div class="detail-notes" id="detailNotes"></div>
-  <div class="detail-date" id="detailDate"></div>
-  <button class="btn-delete" id="detailDelete">🗑 Slet</button>
+<!-- One thing -->
+<div class="fi-overlay" id="detailOverlay">
+  <section class="k-card fi-sheet" data-nofold role="dialog" aria-labelledby="detailName">
+    <img class="fi-photo" id="detailPhoto" alt="" hidden>
+    <h2 class="k-card-title" id="detailName"></h2>
+    <p class="fi-where" id="detailLocation"></p>
+    <p class="fi-notes" id="detailNotes"></p>
+    <p class="fi-when" id="detailDate"></p>
+    <label class="k-label" for="moveInput">Har du flyttet den? Skriv det nye sted</label>
+    <input class="k-input" id="moveInput" autocomplete="off">
+    <div class="fi-actions">
+      <button class="k-btn k-btn-primary" id="moveBtn">Gem nyt sted</button>
+      <button class="k-btn k-btn-danger" id="deleteBtn">Slet</button>
+      <button class="k-btn" id="detailClose">Luk</button>
+    </div>
+  </section>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
+let items = [], searchTimer, currentId;
 
-let items = [];
-let searchTimer;
-let currentDetailId;
-
-// ── Init ──────────────────────────────────────────────────────────────────────
 loadRecent();
 
-// ── Theme toggle ──────────────────────────────────────────────────────────────
-(function () {
-    var btn = $('themeToggleBtn');
-    function sync() {
-        var current = document.documentElement.getAttribute('data-theme') || 'dark';
-        btn.textContent = current === 'light' ? '🌙' : '☀️';
-    }
-    btn.addEventListener('click', function () {
-        var current = document.documentElement.getAttribute('data-theme') || 'dark';
-        var next = current === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('adhd_theme', next);
-        sync();
-    });
-    sync();
-})();
-
-// ── Search ────────────────────────────────────────────────────────────────────
 $('searchInput').addEventListener('input', e => {
   const q = e.target.value.trim();
-  $('searchClear').style.display = q ? 'block' : 'none';
   clearTimeout(searchTimer);
   if (!q) { loadRecent(); return; }
   searchTimer = setTimeout(() => search(q), 250);
 });
 
-$('searchClear').addEventListener('click', () => {
-  $('searchInput').value = '';
-  $('searchClear').style.display = 'none';
-  loadRecent();
-});
-
-// ── FAB / Add sheet ───────────────────────────────────────────────────────────
-$('fab').addEventListener('click', openAdd);
-$('addOverlay').addEventListener('click', closeAdd);
-
+$('addBtn').addEventListener('click', openAdd);
+$('addCancel').addEventListener('click', () => close('addOverlay'));
 $('addName').addEventListener('input', validateAdd);
 $('addLocation').addEventListener('input', validateAdd);
-
 $('photoInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  $('photoLabel').textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const img = $('photoPreview');
-    img.src = ev.target.result;
-    img.style.display = 'block';
-  };
-  reader.readAsDataURL(file);
+  $('photoLabel').textContent = 'Billede valgt – tryk for at skifte';
+  const r = new FileReader();
+  r.onload = ev => { $('photoPreview').src = ev.target.result; $('photoPreview').hidden = false; };
+  r.readAsDataURL(file);
 });
-
 $('addSubmit').addEventListener('click', submitAdd);
+$('detailClose').addEventListener('click', () => close('detailOverlay'));
+$('deleteBtn').addEventListener('click', deleteItem);
+$('moveBtn').addEventListener('click', moveItem);
+for (const id of ['addOverlay', 'detailOverlay'])
+  $(id).addEventListener('click', e => { if (e.target.id === id) close(id); });
 
-// ── Detail sheet ──────────────────────────────────────────────────────────────
-$('detailOverlay').addEventListener('click', closeDetail);
-$('detailDelete').addEventListener('click', deleteItem);
-
-// ── Functions ─────────────────────────────────────────────────────────────────
 async function loadRecent() {
-  $('sectionLabel').textContent = 'Seneste';
-  const res = await fetch('/api/items/recent');
-  items = await res.json();
-  render(items);
+  $('sectionLabel').textContent = 'Senest lagt fra dig';
+  items = await (await fetch('/api/items/recent')).json();
+  render(items, 'Du har ikke lagt noget ind endnu. Tryk "Læg noget fra dig" øverst.');
 }
 
 async function search(q) {
-  $('sectionLabel').textContent = `Resultater for "${q}"`;
-  const res = await fetch('/api/items/search?q=' + encodeURIComponent(q));
-  items = await res.json();
-  render(items);
+  $('sectionLabel').textContent = 'Fundet for "' + q + '"';
+  items = await (await fetch('/api/items/search?q=' + encodeURIComponent(q))).json();
+  render(items, 'Ingen ting passer på "' + q + '". Prøv et andet ord – fx stedet i stedet for tingen.');
 }
 
-function render(list) {
+function render(list, emptyText) {
   const el = $('itemList');
-  if (!list.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Ingen ting fundet</div></div>';
-    return;
-  }
-  el.innerHTML = list.map(item => `
-    <div class="item-card" onclick="openDetail(${item.id})">
-      <div class="item-photo">
-        ${item.hasPhoto
-          ? `<img src="/photos/${item.id}" onerror="this.parentElement.innerHTML='📦'" alt="">`
-          : '📦'}
-      </div>
-      <div class="item-body">
-        <div class="item-name">${esc(item.name)}</div>
-        <div class="item-location">📍 ${esc(item.location)}</div>
-        ${item.notes ? `<div class="item-notes">${esc(item.notes)}</div>` : ''}
-        <div class="item-date">${fmtDate(item.updatedAt)}</div>
-      </div>
-    </div>`).join('');
+  if (!list.length) { el.innerHTML = '<div class="k-card" data-nofold><p class="k-help">' + esc(emptyText) + '</p></div>'; return; }
+  el.innerHTML = list.map(i => `
+    <button class="k-card fi-item" data-nofold onclick="openDetail(${i.id})">
+      ${i.hasPhoto ? `<img class="fi-thumb" src="/photos/${i.id}" alt="" loading="lazy">` : ''}
+      <span class="fi-body">
+        <span class="fi-name">${esc(i.name)}</span><br>
+        <span class="fi-where">${esc(i.location)}</span><br>
+        ${i.notes ? `<span class="fi-notes">${esc(i.notes)}</span><br>` : ''}
+        <span class="fi-when">${fmtDate(i.updatedAt)}</span>
+      </span>
+    </button>`).join('');
 }
 
 function openDetail(id) {
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-  currentDetailId = id;
-
-  const photo = $('detailPhoto');
-  if (item.hasPhoto) {
-    photo.src = `/photos/${id}`;
-    photo.style.display = 'block';
-  } else {
-    photo.style.display = 'none';
-  }
-  $('detailName').textContent = item.name;
-  $('detailLocation').textContent = '📍 ' + item.location;
-  $('detailNotes').textContent = item.notes || '';
-  $('detailNotes').style.display = item.notes ? 'block' : 'none';
-  $('detailDate').textContent = 'Gemt ' + fmtDate(item.updatedAt);
-
+  const i = items.find(x => x.id === id);
+  if (!i) return;
+  currentId = id;
+  $('detailPhoto').hidden = !i.hasPhoto;
+  if (i.hasPhoto) $('detailPhoto').src = '/photos/' + id;
+  $('detailName').textContent = i.name;
+  $('detailLocation').textContent = 'Ligger: ' + i.location;
+  $('detailNotes').textContent = i.notes || '';
+  $('detailNotes').hidden = !i.notes;
+  $('detailDate').textContent = 'Gemt ' + fmtDate(i.updatedAt);
+  $('moveInput').value = '';
   $('detailOverlay').classList.add('open');
-  $('detailSheet').classList.add('open');
 }
 
-function closeDetail() {
-  $('detailOverlay').classList.remove('open');
-  $('detailSheet').classList.remove('open');
+function close(id) { $(id).classList.remove('open'); }
+function refresh() { const q = $('searchInput').value.trim(); q ? search(q) : loadRecent(); }
+
+async function moveItem() {
+  const location = $('moveInput').value.trim();
+  if (!location || !currentId) return;
+  const fd = new FormData(); fd.append('location', location);
+  await fetch('/api/items/' + currentId + '/location', { method: 'PUT', body: fd });
+  close('detailOverlay'); refresh();
 }
 
 async function deleteItem() {
-  if (!currentDetailId) return;
-  if (!confirm('Slet denne ting?')) return;
-  await fetch('/api/items/' + currentDetailId, { method: 'DELETE' });
-  closeDetail();
-  const q = $('searchInput').value.trim();
-  q ? search(q) : loadRecent();
+  if (!currentId || !confirm('Slet denne ting?')) return;
+  await fetch('/api/items/' + currentId, { method: 'DELETE' });
+  close('detailOverlay'); refresh();
 }
 
 function openAdd() {
-  $('addName').value = '';
-  $('addLocation').value = '';
-  $('addNotes').value = '';
-  $('photoInput').value = '';
-  $('photoLabel').textContent = 'Tag billede eller vælg fra galleri';
-  $('photoPreview').style.display = 'none';
+  for (const f of ['addName', 'addLocation', 'addNotes', 'photoInput']) $(f).value = '';
+  $('photoLabel').textContent = 'Tag billede eller vælg et';
+  $('photoPreview').hidden = true;
+  $('addNote').hidden = true;
   $('addSubmit').disabled = true;
   $('addOverlay').classList.add('open');
-  $('addSheet').classList.add('open');
-  setTimeout(() => $('addName').focus(), 300);
+  setTimeout(() => $('addName').focus(), 100);
 }
 
-function closeAdd() {
-  $('addOverlay').classList.remove('open');
-  $('addSheet').classList.remove('open');
-}
-
-function validateAdd() {
-  const ok = $('addName').value.trim() && $('addLocation').value.trim();
-  $('addSubmit').disabled = !ok;
-}
+function validateAdd() { $('addSubmit').disabled = !($('addName').value.trim() && $('addLocation').value.trim()); }
 
 async function submitAdd() {
-  const name     = $('addName').value.trim();
-  const location = $('addLocation').value.trim();
-  const notes    = $('addNotes').value.trim();
-  const photo    = $('photoInput').files[0];
-  if (!name || !location) return;
-
-  $('addSubmit').disabled = true;
-  $('addSubmit').textContent = 'Gemmer...';
-
   const fd = new FormData();
-  fd.append('name', name);
-  fd.append('location', location);
-  if (notes)  fd.append('notes', notes);
-  if (photo)  fd.append('photo', photo);
-
-  await fetch('/api/items', { method: 'POST', body: fd });
-
+  fd.append('name', $('addName').value.trim());
+  fd.append('location', $('addLocation').value.trim());
+  fd.append('notes', $('addNotes').value.trim());
+  const photo = $('photoInput').files[0];
+  if (photo) fd.append('photo', photo);
+  $('addSubmit').disabled = true;
+  $('addSubmit').textContent = 'Gemmer…';
+  const res = await fetch('/api/items', { method: 'POST', body: fd });
   $('addSubmit').textContent = 'Gem';
-  closeAdd();
+  if (!res.ok) { $('addNote').textContent = 'Det kunne ikke gemmes. Skriv både hvad det er, og hvor det ligger.'; $('addNote').hidden = false; validateAdd(); return; }
+  close('addOverlay');
+  $('searchInput').value = '';
   loadRecent();
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function fmtDate(iso) {
   const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
-  const now = new Date();
-  const diff = (now - d) / 1000;
-  if (diff < 60)   return 'Lige nu';
-  if (diff < 3600) return Math.floor(diff/60) + ' min siden';
-  if (diff < 86400) return Math.floor(diff/3600) + ' timer siden';
-  if (diff < 604800) return Math.floor(diff/86400) + ' dage siden';
+  const diff = (Date.now() - d) / 1000;
+  if (diff < 60) return 'Lige nu';
+  if (diff < 3600) return Math.floor(diff / 60) + ' min siden';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' timer siden';
+  if (diff < 604800) return Math.floor(diff / 86400) + ' dage siden';
   return d.toLocaleDateString('da-DK');
 }
-</script>
-<script>
-(function(){
-    var vid = localStorage.getItem('_mid');
-    if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); }
-    function track(path, title, referrer) {
-        fetch('https://stats.itmartin.dk/api/hit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: path, title: title, referrer: referrer, visitorId: vid, host: location.hostname }),
-            keepalive: true
-        }).catch(function(){});
-    }
-    track(location.pathname + location.search, document.title, document.referrer);
-    document.addEventListener('click', function(e) {
-        var a = e.target.closest('a');
-        if (!a || !a.href || a.href.startsWith('javascript')) return;
-        var href = a.getAttribute('href') || a.href;
-        track('click:' + href, a.textContent.trim().slice(0, 80), location.pathname);
-    }, true);
-})();
 </script>
 </body>
 </html>

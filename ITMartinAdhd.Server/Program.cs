@@ -1,6 +1,6 @@
 using ITMartinAdhd.Server;
 using ITMartin.Shared.UI.Kolibri;
-using ITMartinAdhd.Domain.Entities;
+using ITMartinAdhd.Application;
 using ITMartinAdhd.Infrastructure;
 using ITMartinAdhd.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -11,33 +11,31 @@ var connectionString = builder.Environment.IsDevelopment()
     ? builder.Configuration.GetConnectionString("AdhdDb")
     : "Data Source=/app/data/adhd.db";
 
-builder.Services.AddAdhdInfrastructure(
-    builder.Configuration,
-    connectionString ?? "Data Source=adhd.db");
-
+builder.Services.AddAdhdApplication();
+builder.Services.AddAdhdInfrastructure(builder.Configuration, connectionString ?? "Data Source=adhd.db");
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 
-// Kolibri contract (/health, manifest, /api/hjaelp); the page is the static wwwroot/index.html.
+// Kolibri contract (/health, manifest, /om, /hjaelp); the page is the static wwwroot/index.html.
 builder.Services.AddKolibri(k =>
 {
-    k.Name = "FindIt";
-    k.KolibriName = "Kolibri Hukommelse Hjem";
+    k.Name = "Find det igen";
+    k.KolibriName = "Kolibri Hukommelse";
     k.Family = "hukommelse";
-    k.Tagline = "Tag ét foto, når du lægger noget fra dig – så husker appen, hvor det er.";
+    k.Tagline = "Skriv ned, hvor du lægger tingene – så finder du dem igen med ét søgeord.";
     k.About =
     [
-        "FindIt er til nøgler, briller, pas og opladere – alt det, der forsvinder lige når man skal bruge det.",
-        "Tag et foto, når du lægger noget fra dig. Appen genkender selv tingen og stedet. Når du leder, søger du bare.",
+        "Find det igen er til nøgler, briller, pas og opladere – alt det, der forsvinder lige når man skal bruge det.",
+        "Når du lægger noget fra dig, skriver du hvad det er og hvor det ligger – gerne med et billede. Når du leder, søger du bare.",
     ];
     k.HowTo =
     [
-        "Tryk Kamera og tag et foto af tingen der, hvor du lægger den.",
-        "Leder du? Skriv et ord i søgefeltet eller kig på de seneste.",
+        "Tryk Læg noget fra dig, skriv tingen og stedet, og tag evt. et billede. Tryk Gem.",
+        "Leder du? Skriv et ord i søgefeltet – fx nøgler eller skuffe.",
+        "Tryk på en ting for at se billedet, flytte den eller slette den.",
     ];
-    k.Version = "2026.09";
-    k.ThemeColor = "#0d0d14";
-    k.OwnOmPage = true;
-    k.OwnHjaelpPage = true;
+    k.Version = "2026.10";
+    k.ThemeColor = "#f4f6f5";
+    k.StaticPages = true;
 });
 
 var app = builder.Build();
@@ -49,112 +47,45 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AdhdDbContext>();
     db.Database.Migrate();
-
     if (app.Configuration.GetValue<bool>("Adhd:SeedDemoData"))
-        await ITMartinAdhd.Infrastructure.DemoSeeder.SeedAsync(db);
+        await DemoSeeder.SeedAsync(db);
 }
-
-var photoDir = app.Configuration["AdhdSettings:PhotoDir"] ?? "/app/data/photos";
-Directory.CreateDirectory(photoDir);
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// ── Recent items ──────────────────────────────────────────────────────────────
-app.MapGet("/api/items/recent", async (AdhdDbContext db) =>
-    await db.StoredItems
-        .OrderByDescending(i => i.UpdatedAt)
-        .Take(30)
-        .Select(i => new ItemDto(i.Id, i.Name, i.Location, i.Notes, i.PhotoPath != null, i.StoredAt, i.UpdatedAt))
-        .ToListAsync());
+app.MapGet("/api/items/recent", (Things things, CancellationToken ct) => things.RecentAsync(ct));
+app.MapGet("/api/items/search", (string? q, Things things, CancellationToken ct) => things.SearchAsync(q, ct));
 
-// ── Search ────────────────────────────────────────────────────────────────────
-app.MapGet("/api/items/search", async (string? q, AdhdDbContext db) =>
+app.MapPost("/api/items", async (HttpRequest req, Things things, CancellationToken ct) =>
 {
-    if (string.IsNullOrWhiteSpace(q)) return Results.Ok(Array.Empty<ItemDto>());
-    var lower = q.ToLower();
-    var results = await db.StoredItems
-        .Where(i => i.Name.ToLower().Contains(lower) ||
-                    i.Location.ToLower().Contains(lower) ||
-                    (i.Notes != null && i.Notes.ToLower().Contains(lower)))
-        .OrderByDescending(i => i.UpdatedAt)
-        .Take(20)
-        .Select(i => new ItemDto(i.Id, i.Name, i.Location, i.Notes, i.PhotoPath != null, i.StoredAt, i.UpdatedAt))
-        .ToListAsync();
-    return Results.Ok(results);
-});
-
-// ── Add item ──────────────────────────────────────────────────────────────────
-app.MapPost("/api/items", async (HttpRequest req, AdhdDbContext db, IConfiguration cfg) =>
-{
-    var form    = await req.ReadFormAsync();
-    var name    = form["name"].ToString().Trim();
-    var location = form["location"].ToString().Trim();
-    var notes   = form["notes"].ToString().Trim();
-
-    if (string.IsNullOrWhiteSpace(name)) return Results.BadRequest("Name required");
-
-    string? photoFileName = null;
+    var form = await req.ReadFormAsync(ct);
     var photo = form.Files.GetFile("photo");
-    if (photo is { Length: > 0 })
-    {
-        var dir = cfg["AdhdSettings:PhotoDir"] ?? "/app/data/photos";
-        var ext = Path.GetExtension(photo.FileName).ToLowerInvariant();
-        photoFileName = Guid.NewGuid() + ext;
-        await using var fs = File.Create(Path.Combine(dir, photoFileName));
-        await photo.CopyToAsync(fs);
-    }
+    await using var stream = photo is { Length: > 0 } ? photo.OpenReadStream() : null;
+    var item = await things.PutDownAsync(form["name"], form["location"], form["notes"], stream, photo?.FileName, ct);
+    return item is null ? Results.BadRequest("Skriv både hvad det er, og hvor det ligger.") : Results.Ok(item);
+}).DisableAntiforgery();
 
-    var item = new StoredItem
-    {
-        Name      = name,
-        Location  = location,
-        Notes     = string.IsNullOrEmpty(notes) ? null : notes,
-        PhotoPath = photoFileName,
-        StoredAt  = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow,
-    };
-    db.StoredItems.Add(item);
-    await db.SaveChangesAsync();
-    return Results.Ok(new { item.Id });
-});
-
-// ── Delete item ───────────────────────────────────────────────────────────────
-app.MapDelete("/api/items/{id:int}", async (int id, AdhdDbContext db, IConfiguration cfg) =>
+app.MapPut("/api/items/{id:int}/location", async (int id, HttpRequest req, Things things, CancellationToken ct) =>
 {
-    var item = await db.StoredItems.FindAsync(id);
-    if (item is null) return Results.NotFound();
+    var form = await req.ReadFormAsync(ct);
+    return await things.MoveAsync(id, form["location"], ct) ? Results.Ok() : Results.BadRequest();
+}).DisableAntiforgery();
 
-    if (item.PhotoPath is not null)
-    {
-        var dir  = cfg["AdhdSettings:PhotoDir"] ?? "/app/data/photos";
-        var path = Path.Combine(dir, item.PhotoPath);
-        if (File.Exists(path)) File.Delete(path);
-    }
-    db.StoredItems.Remove(item);
-    await db.SaveChangesAsync();
-    return Results.Ok();
-});
+app.MapDelete("/api/items/{id:int}", async (int id, Things things, CancellationToken ct) =>
+    await things.DeleteAsync(id, ct) ? Results.Ok() : Results.NotFound());
 
-// ── Serve photos ──────────────────────────────────────────────────────────────
-app.MapGet("/photos/{id:int}", async (int id, AdhdDbContext db, IConfiguration cfg) =>
+app.MapGet("/photos/{id:int}", async (int id, Things things, CancellationToken ct) =>
 {
-    var item = await db.StoredItems.FindAsync(id);
-    if (item?.PhotoPath is null) return Results.NotFound();
-    var dir  = cfg["AdhdSettings:PhotoDir"] ?? "/app/data/photos";
-    var full = Path.Combine(dir, Path.GetFileName(item.PhotoPath));
-    if (!File.Exists(full)) return Results.NotFound();
+    if (await things.PhotoFileAsync(id, ct) is not { } full) return Results.NotFound();
     var mime = Path.GetExtension(full).ToLowerInvariant() switch
     {
-        ".jpg" or ".jpeg" => "image/jpeg",
-        ".png"  => "image/png",
+        ".png" => "image/png",
         ".webp" => "image/webp",
         ".heic" => "image/heic",
-        _       => "image/jpeg"
+        _ => "image/jpeg",
     };
     return Results.File(full, mime);
 });
 
 app.Run();
-
-record ItemDto(int Id, string Name, string Location, string? Notes, bool HasPhoto, DateTime StoredAt, DateTime UpdatedAt);

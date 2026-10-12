@@ -17,10 +17,10 @@ public static class DemoSeeder
         var now = DateTime.UtcNow;
 
         db.StoredItems.AddRange(
-            new StoredItem { Name = "Nøgler", Location = "Skål på entrébordet", StoredAt = now.AddDays(-1), UpdatedAt = now.AddDays(-1) },
-            new StoredItem { Name = "Pas", Location = "Skuffe i soveværelset, øverst til venstre", StoredAt = now.AddDays(-20), UpdatedAt = now.AddDays(-20) },
-            new StoredItem { Name = "Cykel­lygte", Location = "Cykelkurv", Notes = "Husk at oplade den", StoredAt = now.AddDays(-3), UpdatedAt = now.AddDays(-3) },
-            new StoredItem { Name = "Ekstra opladere", Location = "Skuffe i køkkenet", StoredAt = now.AddDays(-40), UpdatedAt = now.AddDays(-40) });
+            StoredItem.Create("Nøgler", "Skål på entrébordet", null, null, now.AddDays(-1))!,
+            StoredItem.Create("Pas", "Skuffe i soveværelset, øverst til venstre", null, null, now.AddDays(-20))!,
+            StoredItem.Create("Cykel­lygte", "Cykelkurv", "Husk at oplade den", null, now.AddDays(-3))!,
+            StoredItem.Create("Ekstra opladere", "Skuffe i køkkenet", null, null, now.AddDays(-12))!);
 
         await db.SaveChangesAsync();
     }

@@ -4,9 +4,9 @@ namespace ITMartinAdhd.Application;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddAdhdApplication(
-        this IServiceCollection services)
+    public static IServiceCollection AddAdhdApplication(this IServiceCollection services)
     {
+        services.AddScoped<Things>();
         return services;
     }
 }
