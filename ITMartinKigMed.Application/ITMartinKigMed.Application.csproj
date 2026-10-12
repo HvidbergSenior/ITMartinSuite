@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Kig med - use cases (Martin's studio, viewers asking/voting/reacting, the floor, the video watch) and the ports they need. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinKigMed.Domain\ITMartinKigMed.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinKigMed.Tests" />
+  </ItemGroup>
+
+</Project>

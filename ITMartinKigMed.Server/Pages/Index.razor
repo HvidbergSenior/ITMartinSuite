@@ -55,7 +55,7 @@
         {
             <p class="k-help kig-conn">@PlayerText · 👀 @_viewers ser med</p>
             <div class="kig-reactions" role="group" aria-label="Reager">
-                @foreach (var e in LiveHub.Emojis)
+                @foreach (var e in LiveSession.Emojis)
                 {
                     <button @onclick="() => Hub.React(_key, e)" aria-label="Reager med @e">@e</button>
                 }
@@ -147,7 +147,7 @@
                     }
                 </div>
                 <div class="k-row k-mt">
-                    <input class="k-input" @bind="_ask" @bind:event="oninput" @onkeydown="AskKeyAsync" maxlength="@LiveHub.MaxText" placeholder="Skriv et spørgsmål…" aria-label="Skriv et spørgsmål" />
+                    <input class="k-input" @bind="_ask" @bind:event="oninput" @onkeydown="AskKeyAsync" maxlength="@LiveSession.MaxText" placeholder="Skriv et spørgsmål…" aria-label="Skriv et spørgsmål" />
                     <button class="k-btn k-btn-primary" disabled="@string.IsNullOrWhiteSpace(_ask)" @onclick="AskAsync">Send</button>
                 </div>
                 @if (_askNote.Length > 0) { <p class="k-help">@_askNote</p> }
@@ -158,7 +158,7 @@
         <details class="k-card kig-idea" data-nofold>
             <summary class="k-card-title">💡 Send en idé eller et billede</summary>
             <p class="k-help">Har du en idé til det, Martin laver – eller et skærmbillede/foto, han skal se? Kun Martin ser det, indtil han vælger at vise det for alle.</p>
-            <textarea class="k-input k-textarea" rows="3" @bind="_idea" maxlength="@LiveHub.MaxText" placeholder="Din idé…"></textarea>
+            <textarea class="k-input k-textarea" rows="3" @bind="_idea" maxlength="@LiveSession.MaxText" placeholder="Din idé…"></textarea>
             <div class="k-row k-mt">
                 <label class="k-btn">📷 Vælg billede<InputFile OnChange="OnPictureAsync" accept="image/*" style="display:none" /></label>
                 @if (_picture is not null) { <span class="k-help">✓ Billede valgt</span> }
@@ -177,14 +177,14 @@
     private bool _live, _playing, _muted = true;
     private string _title = "", _next = "", _player = "";
     private int _viewers;
-    private LiveHub.Question[] _questions = [];
-    private LiveHub.Question? _answering;
-    private LiveHub.Idea? _shownIdea;
-    private LiveHub.Poll? _poll;
+    private Question[] _questions = [];
+    private Question? _answering;
+    private Idea? _shownIdea;
+    private Poll? _poll;
     private DotNetObjectReference<Index>? _self;
 
     // ── "Ræk hånden op" ──
-    private LiveHub.Stage? _stage;
+    private Stage? _stage;
     private bool _raised, _onAir, _withCam, _selfMuted, _busy, _guestPlaying;
     private string _handNote = "", _guestState = "";
 
@@ -297,10 +297,8 @@
             // the browser shrinks it first (max 1600 px, JPEG), so even big phone photos are quick to send
             var small = await e.File.RequestImageFileAsync("image/jpeg", 1600, 1600);
             if (small.Size > 3_000_000) { _ideaNote = "Billedet er for stort."; return; }
-            var name = Guid.NewGuid().ToString("N") + ".jpg";
-            await using (var fs = File.Create(Path.Combine(Hub.PicturesDir, name)))
-                await small.OpenReadStream(3_000_000).CopyToAsync(fs);
-            _picture = name;
+            await using var stream = small.OpenReadStream(3_000_000);
+            _picture = await Hub.SavePictureAsync(stream);
         }
         catch { _ideaNote = "Billedet kunne ikke læses – prøv et andet."; }
     }

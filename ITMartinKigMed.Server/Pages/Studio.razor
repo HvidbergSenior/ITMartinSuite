@@ -197,7 +197,7 @@
                 }
             </div>
             <div class="k-row k-mt">
-                <input class="k-input" @bind="_say" @bind:event="oninput" maxlength="@LiveHub.MaxText" placeholder="Skriv til seerne…" aria-label="Skriv til seerne" />
+                <input class="k-input" @bind="_say" @bind:event="oninput" maxlength="@LiveSession.MaxText" placeholder="Skriv til seerne…" aria-label="Skriv til seerne" />
                 <button class="k-btn" disabled="@string.IsNullOrWhiteSpace(_say)" @onclick='() => { if (Hub.Ask("martin", "Martin", _say, fromMartin: true)) _say = ""; }'>Send</button>
             </div>
         </div>
@@ -229,9 +229,9 @@
     private string _title = "", _next = "", _say = "", _pollText = "", _pollOptions = "";
     private bool _camOn, _live, _busy;
     private int _viewers;
-    private LiveHub.Question[] _questions = [];
-    private LiveHub.Idea[] _ideas = [];
-    private LiveHub.Poll? _poll;
+    private Question[] _questions = [];
+    private Idea[] _ideas = [];
+    private Poll? _poll;
     private Dictionary<string, int> _reactions = [];
 
     private static readonly TimeZoneInfo Zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
@@ -287,8 +287,8 @@
         _stageNow = Hub.OnStage;
     }
 
-    private List<LiveHub.Hand> _hands = [];
-    private LiveHub.Stage? _stageNow;
+    private List<Hand> _hands = [];
+    private Stage? _stageNow;
     private bool _guestPlaying;
     private string _guestState = "";
     [JSInvokable] public void OnGuestPlayer(string state) { _guestState = state; InvokeAsync(StateHasChanged); }
