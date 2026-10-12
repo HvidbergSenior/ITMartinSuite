@@ -2,7 +2,16 @@
 
 @* Martin's "Lige nu" (text + picture/film/stream, edited in Svar -> 📌 Lige nu). Shown at the top of the
    "Hvad laver ITKolibrien lige nu?" tab - SitePage puts it there for slug NowCard.PageSlug. *@
-@if (_s is not null)
+@if (_s is not null && Compact)
+{
+    @* Front page: only today, inside the "Hvad skal jeg mon lave i dag?" header box (user 2026-10-12) - no card of its own. *@
+    var today = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
+    <div class="hj-head-today">
+        @if (_notes.ContainsKey(today) || _s.Entries().Any(e => e.At.Date == today)) { @DayBlock(today) }
+        else { <p class="k-help">Jeg har ikke skrevet dagens plan endnu – kig forbi senere, eller skriv til mig i chatten.</p> }
+    </div>
+}
+else if (_s is not null)
 {
 <section class="k-card hj-now">
     <h2 class="k-card-title">@(Compact ? "📅 I dag" : "📌 Lige nu")</h2>

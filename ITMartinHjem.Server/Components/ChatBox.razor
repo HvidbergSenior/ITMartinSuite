@@ -6,7 +6,7 @@
    (a random key in the browser), so a reply shows up here when they come back. *@
 
 <section class="k-card hj-chat @(Prominent ? "hj-chat-top" : "") @(Available ? "is-on" : "")" id="chat">
-    <h2 class="k-card-title">💬 Chat med @OwnerName</h2>
+    <h2 class="k-card-title">@(Title ?? $"💬 Chat med {OwnerName}")</h2>
     <div class="hj-chat-status">
         <span class="k-dot @(Available ? "on" : "")"></span>
         @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– chat med ham direkte, han svarer med det samme.</span> }
@@ -66,6 +66,7 @@
     [Parameter] public string OwnerName { get; set; } = "Martin";
     [Parameter] public bool StartOpen { get; set; }
     [Parameter] public bool Prominent { get; set; }
+    [Parameter] public string? Title { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private string _key = "", _name = "", _text = "", _note = "", _email = "";

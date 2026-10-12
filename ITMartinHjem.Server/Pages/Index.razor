@@ -18,36 +18,31 @@
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
+    @* Today's plan inside this box (user 2026-10-12: "opdaterer stadig ikke på homepage" + "same box as Hvad skal jeg mon lave i dag"). *@
+    <NowCard Compact="true" />
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
 
 @* Bogshoppen teaser + "Ingen reklamer" headline box removed 2026-10-07 (user: "way too many tabs and info");
    both pages still exist (/foelg-samarbejdet, /ingen-reklamer). *@
 
-@* "Vidste du …" - live money-saving tip from ElPriser (user 2026-10-05). *@
-<ElTip />
-
-@* "Vidste du …" for the free Budget page (user 2026-10-08). *@
-<BudgetTip />
-
-@* "Har du en idé?" - free homepage for new businesses (user 2026-10-08). *@
-<StartTip />
-
-@* "Vidste du …" ADHD + høj IQ, the user's own text (user 2026-10-10). *@
-<AdhdTip />
-
-@* "Vidste du …" remote help with Se med, the user's own text (user 2026-10-10). *@
-<SeMedTip />
-
-@* "I dag" (NowCard) removed from the front page 2026-10-07 (user); it is still on the ITKolibrien page. *@
 
 @* "Denne uge" is on the ITKolibrien tab, not here (user 2026-10-05). *@
 
 
 
 @* "Martin er her nu" right under the name, so every visitor sees it (user 2026-09-28). *@
-@* Kig med (stream) lives inside the chat box since 2026-10-07 (user): red box while live, a line otherwise. *@
-<ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true"><LiveCard /></ChatBox>
+@* The front page = three questions (user 2026-10-12): "Vil du chatte? Skal jeg streame? Skal jeg hjælpe dig remote?" *@
+<ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true" Title="💬 Vil du chatte?" />
+
+<section class="k-card hj-stream">
+    <h2 class="k-card-title">📺 Skal jeg streame?</h2>
+    <LiveCard />
+    <p class="k-help">Vil du se mig arbejde på en app – eller have mig til at vise noget bestemt? <a href="#chat">Skriv det i chatten</a>, så går jeg live.</p>
+</section>
+
+<SeMedTip />
+
 
 @* Apps are only on the Mine apps tab (user 2026-10-04: "Forsiden skal heller ikke have mine apps"). *@
 
@@ -69,6 +64,23 @@
         <a class="hj-tile" href="@tile.Href"><span class="hj-tile-icon" aria-hidden="true">@tile.Icon</span><b>@tile.Title</b><span class="hj-tile-line">@tile.Line</span><span class="hj-tile-fact">💡 Vidste du @tile.Fact</span></a>
     }
 </nav>
+
+@* The "Vidste du …" boxes sit down here with the tiles and look like them (user 2026-10-12). *@
+<div class="hj-tips">
+@* "Vidste du …" - live money-saving tip from ElPriser (user 2026-10-05). *@
+<ElTip />
+
+@* "Vidste du …" for the free Budget page (user 2026-10-08). *@
+<BudgetTip />
+
+@* "Har du en idé?" - free homepage for new businesses (user 2026-10-08). *@
+<StartTip />
+
+@* "Vidste du …" ADHD + høj IQ, the user's own text (user 2026-10-10). *@
+<AdhdTip />
+</div>
+
+
 
 @* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
 
