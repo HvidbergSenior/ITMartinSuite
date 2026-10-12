@@ -2,6 +2,7 @@ using FluentAssertions;
 using ITMartinPoll.Application;
 using ITMartinPoll.Domain;
 using ITMartinPoll.Infrastructure;
+using ITMartinPoll.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,9 +61,9 @@ public class VotingStoreTests
     private SqliteConnection _conn = null!;
     private Voting _voting = null!;
 
-    private sealed class Factory(DbContextOptions<VotingDb> o) : IDbContextFactory<VotingDb>
+    private sealed class Factory(DbContextOptions<PollDb> o) : IDbContextFactory<PollDb>
     {
-        public VotingDb CreateDbContext() => new(o);
+        public PollDb CreateDbContext() => new(o);
     }
 
     [SetUp]
@@ -70,22 +71,14 @@ public class VotingStoreTests
     {
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();
-        // The real tables as the flat Server makes them (only what voting touches).
-        using var cmd = _conn.CreateCommand();
-        cmd.CommandText = """
-            CREATE TABLE Polls (Id INTEGER PRIMARY KEY AUTOINCREMENT, Title TEXT NOT NULL, Body TEXT NOT NULL, ImageName TEXT NULL, CreatedAt TEXT NOT NULL,
-              Deadline TEXT NULL, IsActive INTEGER NOT NULL, PackageId INTEGER NULL, AllowMultiple INTEGER NOT NULL DEFAULT 0, RequireContact INTEGER NOT NULL DEFAULT 0);
-            CREATE TABLE Options (Id INTEGER PRIMARY KEY AUTOINCREMENT, PollId INTEGER NOT NULL, Label TEXT NOT NULL, SortOrder INTEGER NOT NULL);
-            CREATE TABLE Votes (Id INTEGER PRIMARY KEY AUTOINCREMENT, PollId INTEGER NOT NULL, OptionId INTEGER NOT NULL, Comment TEXT NOT NULL, VotedAt TEXT NOT NULL,
-              VoterName TEXT NOT NULL DEFAULT '', Email TEXT NOT NULL DEFAULT '', WantsAuctionNews INTEGER NOT NULL DEFAULT 0);
-            CREATE TABLE Customers (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Email TEXT NOT NULL, Phone TEXT NOT NULL, Source TEXT NOT NULL,
-              ConsentText TEXT NOT NULL, ConsentAt TEXT NOT NULL, WantsAuctionNews INTEGER NOT NULL, UnsubscribeToken TEXT NOT NULL, UnsubscribedAt TEXT NULL,
-              Note TEXT NOT NULL, Interests TEXT NOT NULL, CreatedAt TEXT NOT NULL);
-            INSERT INTO Polls (Title, Body, CreatedAt, IsActive, AllowMultiple, RequireContact) VALUES ('Første liveauktion', 'Hvad skal på?', '2026-10-12', 1, 1, 1);
-            INSERT INTO Options (PollId, Label, SortOrder) VALUES (1, 'Anders And-blade', 0), (1, 'Tintin', 1);
-            """;
-        cmd.ExecuteNonQuery();
-        var options = new DbContextOptionsBuilder<VotingDb>().UseSqlite(_conn).Options;
+        var options = new DbContextOptionsBuilder<PollDb>().UseSqlite(_conn).Options;
+        using (var db = new PollDb(options))
+        {
+            db.Database.EnsureCreated();   // the real tables, as poll.db has them
+            db.Polls.Add(new Poll { Title = "Første liveauktion", Body = "Hvad skal på?", CreatedAt = DateTime.UtcNow, IsActive = true, AllowMultiple = true, RequireContact = true,
+                Options = [new PollOption { Label = "Anders And-blade", SortOrder = 0 }, new PollOption { Label = "Tintin", SortOrder = 1 }] });
+            db.SaveChanges();
+        }
         _voting = new Voting(new VotingStore(new Factory(options)), TimeProvider.System);
     }
 
@@ -118,16 +111,8 @@ public class CustomerListTests
     public async Task Sign_up_then_unsubscribe_by_email_and_sign_up_again_lifts_it()
     {
         using var conn = new SqliteConnection("Data Source=:memory:"); conn.Open();
-        using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = """
-                CREATE TABLE Customers (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Email TEXT NOT NULL, Phone TEXT NOT NULL, Source TEXT NOT NULL,
-                  ConsentText TEXT NOT NULL, ConsentAt TEXT NOT NULL, WantsAuctionNews INTEGER NOT NULL, UnsubscribeToken TEXT NOT NULL, UnsubscribedAt TEXT NULL,
-                  Note TEXT NOT NULL, Interests TEXT NOT NULL, CreatedAt TEXT NOT NULL);
-                """;
-            cmd.ExecuteNonQuery();
-        }
-        var options = new DbContextOptionsBuilder<VotingDb>().UseSqlite(conn).Options;
+        var options = new DbContextOptionsBuilder<PollDb>().UseSqlite(conn).Options;
+        using (var db = new PollDb(options)) db.Database.EnsureCreated();
         var list = new CustomerList(new VotingStore(new TestFactory(options)), TimeProvider.System);
 
         (await list.SignUpAsync("ikke-en-mail", "Ole", "x", "y", "z")).Should().NotBeNull();
@@ -141,8 +126,8 @@ public class CustomerListTests
 
     private static object? Scalar(SqliteConnection c, string sql) { using var cmd = c.CreateCommand(); cmd.CommandText = sql; return cmd.ExecuteScalar(); }
 
-    private sealed class TestFactory(DbContextOptions<VotingDb> o) : IDbContextFactory<VotingDb>
+    private sealed class TestFactory(DbContextOptions<PollDb> o) : IDbContextFactory<PollDb>
     {
-        public VotingDb CreateDbContext() => new(o);
+        public PollDb CreateDbContext() => new(o);
     }
 }

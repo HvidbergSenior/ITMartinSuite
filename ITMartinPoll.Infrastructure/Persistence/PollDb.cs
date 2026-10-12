@@ -1,8 +1,9 @@
+using ITMartinPoll.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinPoll.Server.Data;
+namespace ITMartinPoll.Infrastructure.Persistence;
 
-public class PollDb(DbContextOptions<PollDb> opts) : DbContext(opts)
+public sealed class PollDb(DbContextOptions<PollDb> opts) : DbContext(opts)
 {
     public DbSet<Package>      Packages      => Set<Package>();
     public DbSet<Poll>         Polls         => Set<Poll>();

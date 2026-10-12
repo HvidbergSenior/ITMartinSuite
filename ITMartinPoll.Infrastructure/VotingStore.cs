@@ -1,104 +1,14 @@
 using ITMartinPoll.Application;
 using ITMartinPoll.Domain;
+using ITMartinPoll.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartinPoll.Infrastructure;
 
-// Row shapes of the existing tables (created by the flat Server's EnsureCreated + raw SQL) - only the columns voting needs.
-internal sealed class PollRow
+// Voting and the Kundekartotek on PollDb. A short-lived DbContext per call (Blazor Server keeps scoped services for the whole visit).
+public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore, ICustomerStore
 {
-    public int Id { get; set; }
-    public string Title { get; set; } = "";
-    public string Body { get; set; } = "";
-    public DateTime? Deadline { get; set; }
-    public bool IsActive { get; set; }
-    public bool AllowMultiple { get; set; }
-    public bool RequireContact { get; set; }
-}
-
-internal sealed class OptionRow
-{
-    public int Id { get; set; }
-    public int PollId { get; set; }
-    public string Label { get; set; } = "";
-    public int SortOrder { get; set; }
-}
-
-internal sealed class VoteRow
-{
-    public int Id { get; set; }
-    public int PollId { get; set; }
-    public int OptionId { get; set; }
-    public string Comment { get; set; } = "";
-    public string VoterName { get; set; } = "";
-    public string Email { get; set; } = "";
-    public bool WantsAuctionNews { get; set; }
-    public DateTime VotedAt { get; set; }
-}
-
-internal sealed class CustomerRow
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = "";
-    public string Email { get; set; } = "";
-    public string Phone { get; set; } = "";
-    public string Source { get; set; } = "";
-    public string ConsentText { get; set; } = "";
-    public DateTime ConsentAt { get; set; }
-    public bool WantsAuctionNews { get; set; }
-    public string UnsubscribeToken { get; set; } = Guid.NewGuid().ToString("N");
-    public DateTime? UnsubscribedAt { get; set; }
-    public string Note { get; set; } = "";
-    public string Interests { get; set; } = "";
-    public DateTime CreatedAt { get; set; }
-}
-
-public sealed class VotingDb(DbContextOptions<VotingDb> options) : DbContext(options)
-{
-    internal DbSet<PollRow> Polls => Set<PollRow>();
-    internal DbSet<OptionRow> Options => Set<OptionRow>();
-    internal DbSet<VoteRow> Votes => Set<VoteRow>();
-    internal DbSet<CustomerRow> Customers => Set<CustomerRow>();
-
-    protected override void OnModelCreating(ModelBuilder b)
-    {
-        b.Entity<PollRow>().ToTable("Polls");
-        b.Entity<OptionRow>().ToTable("Options");
-        b.Entity<VoteRow>().ToTable("Votes");
-        b.Entity<CustomerRow>().ToTable("Customers");
-    }
-}
-
-// A short-lived DbContext per call (Blazor Server keeps scoped services for the whole visit).
-public sealed class VotingStore(IDbContextFactory<VotingDb> dbf) : IVotingStore, ICustomerStore
-{
-    public async Task<bool> UnsubscribeAsync(string email, DateTime nowUtc, CancellationToken ct = default)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        var c = await db.Customers.FirstOrDefaultAsync(x => x.Email == email, ct);
-        if (c is null) return false;
-        if (c.UnsubscribedAt is null) { c.UnsubscribedAt = nowUtc; c.WantsAuctionNews = false; await db.SaveChangesAsync(ct); }
-        return true;
-    }
-
-    public async Task UpsertAsync(CustomerOptIn o, CancellationToken ct = default)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        Apply(db, await db.Customers.FirstOrDefaultAsync(x => x.Email == o.Email, ct), o);
-        await db.SaveChangesAsync(ct);
-    }
-
-    // New or returning customer: the newest consent and interests win, and an earlier unsubscribe is lifted (they said yes again).
-    private static void Apply(VotingDb db, CustomerRow? c, CustomerOptIn o)
-    {
-        if (c is null) db.Customers.Add(c = new CustomerRow { Email = o.Email, CreatedAt = o.AtUtc });
-        if (o.Name.Length > 0) c.Name = o.Name;
-        c.Source = o.Source; c.ConsentText = o.ConsentText; c.ConsentAt = o.AtUtc;
-        c.WantsAuctionNews = true; c.UnsubscribedAt = null;
-        c.Interests = c.Interests.Length == 0 || c.Interests == o.Interests ? o.Interests : c.Interests + " ; " + o.Interests;
-    }
-
     public async Task<Ballot?> GetAsync(int pollId, CancellationToken ct = default)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
@@ -118,7 +28,7 @@ public sealed class VotingStore(IDbContextFactory<VotingDb> dbf) : IVotingStore,
         var first = true;
         foreach (var r in vote.Rows)
         {
-            db.Votes.Add(new VoteRow
+            db.Votes.Add(new Vote
             {
                 PollId = pollId, OptionId = r.OptionId, VoterName = r.VoterName, Email = r.Email, VotedAt = r.VotedAtUtc,
                 Comment = first ? vote.Comment : "",   // the comment belongs to the person, keep it once
@@ -129,16 +39,51 @@ public sealed class VotingStore(IDbContextFactory<VotingDb> dbf) : IVotingStore,
         if (vote.OptIn is { } o) Apply(db, await db.Customers.FirstOrDefaultAsync(x => x.Email == o.Email, ct), o);
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task<bool> UnsubscribeAsync(string email, DateTime nowUtc, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var c = await db.Customers.FirstOrDefaultAsync(x => x.Email == email, ct);
+        if (c is null) return false;
+        if (c.UnsubscribedAt is null) { c.UnsubscribedAt = nowUtc; c.WantsAuctionNews = false; await db.SaveChangesAsync(ct); }
+        return true;
+    }
+
+    public async Task UpsertAsync(CustomerOptIn o, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        Apply(db, await db.Customers.FirstOrDefaultAsync(x => x.Email == o.Email, ct), o);
+        await db.SaveChangesAsync(ct);
+    }
+
+    // New or returning customer: the newest consent wins, interests are added, and an earlier unsubscribe is lifted (they said yes again).
+    private static void Apply(PollDb db, Customer? c, CustomerOptIn o)
+    {
+        if (c is null) db.Customers.Add(c = new Customer { Email = o.Email, CreatedAt = o.AtUtc });
+        if (o.Name.Length > 0) c.Name = o.Name;
+        c.Source = o.Source; c.ConsentText = o.ConsentText; c.ConsentAt = o.AtUtc;
+        c.WantsAuctionNews = true; c.UnsubscribedAt = null;
+        c.Interests = c.Interests.Length == 0 || c.Interests == o.Interests ? o.Interests : c.Interests + " ; " + o.Interests;
+    }
 }
 
 public static class DependencyInjection
 {
     public static IServiceCollection AddPollInfrastructure(this IServiceCollection services, string connectionString)
     {
-        services.AddDbContextFactory<VotingDb>(o => o.UseSqlite(connectionString));
+        services.AddDbContextFactory<PollDb>(o => o.UseSqlite(connectionString));
+        services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<PollDb>>().CreateDbContext());   // pages that still read PollDb directly
         services.AddSingleton<VotingStore>();
         services.AddSingleton<IVotingStore>(sp => sp.GetRequiredService<VotingStore>());
         services.AddSingleton<ICustomerStore>(sp => sp.GetRequiredService<VotingStore>());
         return services;
+    }
+
+    /// <summary>Creates or upgrades poll.db (and seeds the demo when asked) - once at start.</summary>
+    public static async Task UpgradePollDatabaseAsync(this IServiceProvider services, bool seedDemo)
+    {
+        await using var db = await services.GetRequiredService<IDbContextFactory<PollDb>>().CreateDbContextAsync();
+        PollSchema.Upgrade(db);
+        if (seedDemo) await DemoSeeder.SeedAsync(db);
     }
 }

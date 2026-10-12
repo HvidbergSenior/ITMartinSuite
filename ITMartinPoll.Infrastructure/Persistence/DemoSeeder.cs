@@ -1,6 +1,7 @@
+using ITMartinPoll.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinPoll.Server.Data;
+namespace ITMartinPoll.Infrastructure.Persistence;
 
 // Minimal demo-tier seed - one example of each poll type (simple choice,
 // image-rating session, date-availability poll) so a visitor sees the full

@@ -1,4 +1,5 @@
-namespace ITMartinPoll.Server.Data;
+// Stem's entities (moved from the flat Server 2026-10-12, unchanged - same tables).
+namespace ITMartinPoll.Domain;
 
 public static class RatingScale
 {
