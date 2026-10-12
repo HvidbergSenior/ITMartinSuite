@@ -11,8 +11,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="WebPush" Version="1.0.12" />
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinSnak.Application\ITMartinSnak.Application.csproj" />
+        <ProjectReference Include="..\ITMartinSnak.Infrastructure\ITMartinSnak.Infrastructure.csproj" />
     </ItemGroup>
 
     <ItemGroup>

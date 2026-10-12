@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Snak - the domain: the group's messages and tasks, and the rules (lengths, limits, taking a task, code tokens).
+       No files, no HTTP, no push. Restructured from the flat ITMartinSnak.Server 2026-10-12. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinSnak.Tests" />
+  </ItemGroup>
+
+</Project>

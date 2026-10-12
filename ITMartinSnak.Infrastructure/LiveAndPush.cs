@@ -1,21 +1,20 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Threading.Channels;
+using ITMartinSnak.Application;
+using Microsoft.Extensions.Logging;
 using WebPush;
 
-namespace ITMartinSnak.Server;
-
-public static class Json
-{
-    public static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
-}
+namespace ITMartinSnak.Infrastructure;
 
 /// <summary>Everyone with the page open gets each change at once (server-sent events).</summary>
-public sealed class Live
+public sealed class SseLiveFeed : ILiveFeed
 {
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
+
     private readonly ConcurrentDictionary<Guid, Channel<string>> _listeners = new();
 
-    public (Guid id, ChannelReader<string> reader) Join()
+    public (Guid Id, ChannelReader<string> Reader) Join()
     {
         var ch = Channel.CreateBounded<string>(new BoundedChannelOptions(200) { FullMode = BoundedChannelFullMode.DropOldest });
         var id = Guid.NewGuid();
@@ -29,7 +28,7 @@ public sealed class Live
 
     public void Send(string kind, object data)
     {
-        var line = $"event: {kind}\ndata: {JsonSerializer.Serialize(data, Json.Web)}\n\n";
+        var line = $"event: {kind}\ndata: {JsonSerializer.Serialize(data, WebJson)}\n\n";
         foreach (var ch in _listeners.Values) ch.Writer.TryWrite(line);
     }
 }
@@ -38,19 +37,19 @@ public sealed class Live
 /// Push to the phones. Keys are made on first start and kept in the data folder, so phones stay
 /// subscribed across deploys. A phone that is gone (410/404) is dropped.
 /// </summary>
-public sealed class PushStore
+public sealed class WebPushSender : IPushSender
 {
     private readonly string _keysFile, _subsFile;
     private readonly object _gate = new();
     private readonly VapidDetails _vapid;
     private readonly WebPushClient _client = new();
-    private readonly ILogger<PushStore> _log;
+    private readonly ILogger<WebPushSender> _log;
     private List<Subscriber> _subs = [];
 
     public sealed record Subscriber(string Endpoint, string P256dh, string Auth, string Name, DateTime AddedAt);
     private sealed record VapidKeys(string PublicKey, string PrivateKey);
 
-    public PushStore(string dataDir, ILogger<PushStore> log)
+    public WebPushSender(string dataDir, ILogger<WebPushSender> log)
     {
         _log = log;
         Directory.CreateDirectory(dataDir);
@@ -71,6 +70,11 @@ public sealed class PushStore
 
     public string PublicKey => _vapid.PublicKey;
     public int Count { get { lock (_gate) return _subs.Count; } }
+
+    public void Subscribe(string endpoint, string p256dh, string auth, string name) =>
+        Add(new Subscriber(endpoint, p256dh, auth, name, DateTime.UtcNow));
+
+    public void Unsubscribe(string endpoint) => Remove(endpoint);
 
     public void Add(Subscriber s)
     {

@@ -1,8 +1,8 @@
-using System.Collections.Concurrent;
-using System.Security.Cryptography;
-using System.Text;
+using System.Text.Json;
 using ITMartin.Shared.UI.Kolibri;
-using ITMartinSnak.Server;
+using ITMartinSnak.Application;
+using ITMartinSnak.Domain;
+using ITMartinSnak.Infrastructure;
 
 // Snak (Kolibri Kommunikere) - 2026-10-09, user: "a quick app for 4 people where we can chat ... instead of
 // using fb groups", push on by default, home-screen guide, and an admin overview: Martin makes the tasks,
@@ -25,11 +25,10 @@ builder.Services.AddKolibri(k =>
     ]);
 });
 
+// DDD/Clean since 2026-10-12: the endpoints below only call Application (Group, Access).
 var dataDir = builder.Configuration["Snak:DataDir"] ?? "/data";
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton(sp => new Store(dataDir, sp.GetRequiredService<TimeProvider>()));
-builder.Services.AddSingleton(sp => new PushStore(dataDir, sp.GetRequiredService<ILogger<PushStore>>()));
-builder.Services.AddSingleton<Live>();
+builder.Services.AddSnakApplication(builder.Configuration["Snak:Code"] ?? "", builder.Configuration["Snak:AdminCode"] ?? "");
+builder.Services.AddSnakInfrastructure(dataDir);
 
 var app = builder.Build();
 app.MapKolibri();
@@ -46,38 +45,25 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-var code = app.Configuration["Snak:Code"] ?? "";
-var adminCode = app.Configuration["Snak:AdminCode"] ?? "";
-static string Token(string secret, string kind) =>
-    Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(kind + ":" + secret)));
-var memberToken = Token(code, "medlem");
-var adminToken = Token(adminCode, "admin");
-bool IsAdmin(HttpContext c) => adminCode.Length >= 6 && c.Request.Cookies["snak_admin"] == adminToken;
-bool IsMember(HttpContext c) => IsAdmin(c) || (code.Length >= 4 && c.Request.Cookies["snak"] == memberToken);
+var web = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+bool IsAdmin(HttpContext c, Access a) => a.IsAdmin(c.Request.Cookies["snak_admin"]);
+bool IsMember(HttpContext c, Access a) => a.IsMember(c.Request.Cookies["snak"], c.Request.Cookies["snak_admin"]);
 
 // Behind the Cloudflare tunnel every request comes from cloudflared, so the visitor is in this header.
 static string ClientIp(HttpContext c) =>
     c.Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? c.Connection.RemoteIpAddress?.ToString() ?? "?";
-var wrongTries = new ConcurrentDictionary<string, (int count, DateTime first)>();
 
-app.MapPost("/api/login", (HttpContext c, LoginBody b) =>
+app.MapPost("/api/login", (HttpContext c, LoginBody b, Access access) =>
 {
-    var ip = ClientIp(c);
-    if (wrongTries.TryGetValue(ip, out var w) && w.count >= 10 && DateTime.UtcNow - w.first < TimeSpan.FromMinutes(15))
+    var result = access.Login(b.Kode, ClientIp(c));
+    if (result == LoginResult.Locked)
         return Results.Json(new { fejl = "For mange forkerte forsøg. Vent et kvarter og prøv igen." }, statusCode: 429);
-
-    var typed = (b.Kode ?? "").Trim();
-    var admin = adminCode.Length >= 6 && typed == adminCode;
-    if (!admin && (code.Length < 4 || typed != code))
-    {
-        wrongTries.AddOrUpdate(ip, _ => (1, DateTime.UtcNow),
-            (_, old) => DateTime.UtcNow - old.first > TimeSpan.FromMinutes(15) ? (1, DateTime.UtcNow) : (old.count + 1, old.first));
+    if (result == LoginResult.Wrong)
         return Results.Json(new { fejl = "Koden passer ikke. Spørg den, der inviterede dig." }, statusCode: 401);
-    }
-    wrongTries.TryRemove(ip, out _);
     var opts = new CookieOptions { HttpOnly = true, Secure = c.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(400) };
-    c.Response.Cookies.Append("snak", memberToken, opts);
-    if (admin) c.Response.Cookies.Append("snak_admin", adminToken, opts);
+    c.Response.Cookies.Append("snak", access.MemberToken, opts);
+    var admin = result == LoginResult.Admin;
+    if (admin) c.Response.Cookies.Append("snak_admin", access.AdminToken, opts);
     return Results.Ok(new { admin });
 });
 
@@ -88,81 +74,64 @@ app.MapPost("/api/logout", (HttpContext c) =>
     return Results.Ok();
 });
 
-app.MapGet("/api/me", (HttpContext c, PushStore push) =>
-    IsMember(c) ? Results.Ok(new { admin = IsAdmin(c), pushKey = push.PublicKey }) : Results.Unauthorized());
+app.MapGet("/api/me", (HttpContext c, Access access, IPushSender push) =>
+    IsMember(c, access) ? Results.Ok(new { admin = IsAdmin(c, access), pushKey = push.PublicKey }) : Results.Unauthorized());
 
 // ---- chat ----
 
-app.MapGet("/api/beskeder", (HttpContext c, Store store, long? efter) =>
-    IsMember(c) ? Results.Json(store.MessagesAfter(efter ?? 0), Json.Web) : Results.Unauthorized());
+app.MapGet("/api/beskeder", (HttpContext c, Access access, Group group, long? efter) =>
+    IsMember(c, access) ? Results.Json(group.MessagesAfter(efter ?? 0), web) : Results.Unauthorized());
 
-app.MapPost("/api/beskeder", (HttpContext c, MessageBody b, Store store, Live live, PushStore push) =>
+app.MapPost("/api/beskeder", (HttpContext c, MessageBody b, Access access, Group group) =>
 {
-    if (!IsMember(c)) return Results.Unauthorized();
-    var m = store.AddMessage(b.Navn, b.Tekst);
-    if (m is null) return Results.BadRequest(new { fejl = "Skriv dit navn og en besked." });
-    live.Send("besked", m);
-    push.SendToOthers(b.Endpoint, m.Name, m.Text, "snak-besked");
-    return Results.Json(m, Json.Web);
+    if (!IsMember(c, access)) return Results.Unauthorized();
+    var m = group.Write(b.Navn, b.Tekst, b.Endpoint);
+    return m is null ? Results.BadRequest(new { fejl = "Skriv dit navn og en besked." }) : Results.Json(m, web);
 });
 
 // ---- tasks: everyone sees them and can put themselves on one; only the admin makes, edits and removes ----
 
-app.MapGet("/api/opgaver", (HttpContext c, Store store) =>
-    IsMember(c) ? Results.Json(store.Tasks(), Json.Web) : Results.Unauthorized());
+app.MapGet("/api/opgaver", (HttpContext c, Access access, Group group) =>
+    IsMember(c, access) ? Results.Json(group.Tasks(), web) : Results.Unauthorized());
 
-app.MapPost("/api/opgaver", (HttpContext c, TaskBody b, Store store, Live live, PushStore push) =>
+app.MapPost("/api/opgaver", (HttpContext c, TaskBody b, Access access, Group group) =>
 {
-    if (!IsAdmin(c)) return Results.StatusCode(403);
-    var t = store.AddTask(b.Titel, b.Note, b.Hvornaar);
-    if (t is null) return Results.BadRequest(new { fejl = "Opgaven skal have en titel." });
-    live.Send("opgaver", store.Tasks());
-    push.SendToOthers(b.Endpoint, "Ny opgave", t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opgave");
-    return Results.Json(t, Json.Web);
+    if (!IsAdmin(c, access)) return Results.StatusCode(403);
+    var t = group.AddTask(b.Titel, b.Note, b.Hvornaar, b.Endpoint);
+    return t is null ? Results.BadRequest(new { fejl = "Opgaven skal have en titel." }) : Results.Json(t, web);
 });
 
-app.MapPut("/api/opgaver/{id:long}", (HttpContext c, long id, TaskBody b, Store store, Live live) =>
+app.MapPut("/api/opgaver/{id:long}", (HttpContext c, long id, TaskBody b, Access access, Group group) =>
 {
-    if (!IsAdmin(c)) return Results.StatusCode(403);
-    var t = store.EditTask(id, b.Titel, b.Note, b.Hvornaar);
-    if (t is null) return Results.BadRequest(new { fejl = "Opgaven findes ikke, eller titlen mangler." });
-    live.Send("opgaver", store.Tasks());
-    return Results.Json(t, Json.Web);
+    if (!IsAdmin(c, access)) return Results.StatusCode(403);
+    var t = group.EditTask(id, b.Titel, b.Note, b.Hvornaar);
+    return t is null ? Results.BadRequest(new { fejl = "Opgaven findes ikke, eller titlen mangler." }) : Results.Json(t, web);
 });
 
-app.MapPost("/api/opgaver/{id:long}/faerdig", (HttpContext c, long id, DoneBody b, Store store, Live live) =>
+app.MapPost("/api/opgaver/{id:long}/faerdig", (HttpContext c, long id, DoneBody b, Access access, Group group) =>
 {
-    if (!IsAdmin(c)) return Results.StatusCode(403);
-    if (store.SetDone(id, b.Faerdig) is null) return Results.NotFound();
-    live.Send("opgaver", store.Tasks());
-    return Results.Ok();
+    if (!IsAdmin(c, access)) return Results.StatusCode(403);
+    return group.SetDone(id, b.Faerdig) is null ? Results.NotFound() : Results.Ok();
 });
 
-app.MapDelete("/api/opgaver/{id:long}", (HttpContext c, long id, Store store, Live live) =>
+app.MapDelete("/api/opgaver/{id:long}", (HttpContext c, long id, Access access, Group group) =>
 {
-    if (!IsAdmin(c)) return Results.StatusCode(403);
-    if (!store.DeleteTask(id)) return Results.NotFound();
-    live.Send("opgaver", store.Tasks());
-    return Results.Ok();
+    if (!IsAdmin(c, access)) return Results.StatusCode(403);
+    return group.DeleteTask(id) ? Results.Ok() : Results.NotFound();
 });
 
-app.MapPost("/api/opgaver/{id:long}/tag", (HttpContext c, long id, TakeBody b, Store store, Live live, PushStore push) =>
+app.MapPost("/api/opgaver/{id:long}/tag", (HttpContext c, long id, TakeBody b, Access access, Group group) =>
 {
-    if (!IsMember(c)) return Results.Unauthorized();
-    var t = store.ToggleTaker(id, b.Navn);
-    if (t is null) return Results.BadRequest(new { fejl = "Skriv dit navn først." });
-    live.Send("opgaver", store.Tasks());
-    var name = Store.CleanName(b.Navn);
-    if (t.Takers.Contains(name, StringComparer.OrdinalIgnoreCase))
-        push.SendToOthers(b.Endpoint, "Opgave taget", $"{name} tager: {t.Title}", "snak-opgave");
-    return Results.Json(t, Json.Web);
+    if (!IsMember(c, access)) return Results.Unauthorized();
+    var t = group.ToggleTaker(id, b.Navn, b.Endpoint);
+    return t is null ? Results.BadRequest(new { fejl = "Skriv dit navn først." }) : Results.Json(t, web);
 });
 
 // ---- live updates + push ----
 
-app.MapGet("/api/live", async (HttpContext c, Live live) =>
+app.MapGet("/api/live", async (HttpContext c, Access access, ILiveFeed live) =>
 {
-    if (!IsMember(c)) { c.Response.StatusCode = 401; return; }
+    if (!IsMember(c, access)) { c.Response.StatusCode = 401; return; }
     c.Response.Headers.ContentType = "text/event-stream";
     c.Response.Headers.CacheControl = "no-cache";
     c.Response.Headers["X-Accel-Buffering"] = "no";
@@ -187,20 +156,20 @@ app.MapGet("/api/live", async (HttpContext c, Live live) =>
     finally { live.Leave(id); }
 });
 
-app.MapPost("/api/push", (HttpContext c, PushBody b, PushStore push) =>
+app.MapPost("/api/push", (HttpContext c, PushBody b, Access access, IPushSender push) =>
 {
-    if (!IsMember(c)) return Results.Unauthorized();
+    if (!IsMember(c, access)) return Results.Unauthorized();
     if (string.IsNullOrWhiteSpace(b.Endpoint) || !b.Endpoint.StartsWith("https://") ||
         string.IsNullOrWhiteSpace(b.P256dh) || string.IsNullOrWhiteSpace(b.Auth))
         return Results.BadRequest();
-    push.Add(new PushStore.Subscriber(b.Endpoint, b.P256dh, b.Auth, Store.CleanName(b.Navn), DateTime.UtcNow));
+    push.Subscribe(b.Endpoint, b.P256dh, b.Auth, GroupRules.CleanName(b.Navn));
     return Results.Ok();
 });
 
-app.MapPost("/api/push/fra", (HttpContext c, PushBody b, PushStore push) =>
+app.MapPost("/api/push/fra", (HttpContext c, PushBody b, Access access, IPushSender push) =>
 {
-    if (!IsMember(c)) return Results.Unauthorized();
-    if (!string.IsNullOrWhiteSpace(b.Endpoint)) push.Remove(b.Endpoint);
+    if (!IsMember(c, access)) return Results.Unauthorized();
+    if (!string.IsNullOrWhiteSpace(b.Endpoint)) push.Unsubscribe(b.Endpoint);
     return Results.Ok();
 });
 

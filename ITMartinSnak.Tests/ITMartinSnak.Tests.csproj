@@ -24,7 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ITMartinSnak.Server\ITMartinSnak.Server.csproj" />
+    <ProjectReference Include="..\ITMartinSnak.Application\ITMartinSnak.Application.csproj" />
+    <ProjectReference Include="..\ITMartinSnak.Infrastructure\ITMartinSnak.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
