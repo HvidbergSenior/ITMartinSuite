@@ -67,3 +67,11 @@
 .lg-sources { margin: .2rem 0 .8rem; padding-left: 1.2rem; }
 .lg-more { margin: .3rem 0 .8rem; }
 .lg-more summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
+
+/* Header on a phone (2026-10-12: the menu sat on top of "Bogshoppen Lager / Kolibri Rede"): the menu gets its own row
+   under the logo and scrolls sideways when it is longer than the screen - never on top of the name. */
+@media (max-width: 760px) {
+    .k-header-in { flex-wrap: wrap; row-gap: 6px; }
+    .k-header-actions { margin-left: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+    .k-header-actions .k-btn { white-space: nowrap; flex: none; }
+}
