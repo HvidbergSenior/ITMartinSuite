@@ -64,7 +64,18 @@ else
                 }
                 else
                 {
-                    <p class="lg-answer">Ingen brugte til salg fundet</p>
+                    <p class="lg-answer">Lige præcis denne er ikke til salg nogen steder lige nu</p>
+                    @if (_similar.Count > 0)
+                    {
+                        var like = Pricing.NormalOf(_similar.Select(f => f.Kr).ToList());
+                        <div class="lg-proof">
+                            <p><b>Men magen til koster ca. @like kr</b> – @Pricing.SimilarTitleFor(_item) i en anden årgang, et andet nummer eller en anden udgave (midten af @_similar.Count annoncer).
+                               Det er et pejlemærke, ikke bevis for netop denne – derfor sætter Lager ingen pris af sig selv. Skriv selv prisen ovenfor.</p>
+                            <ul class="lg-prices">
+                                @foreach (var f in _similar.OrderBy(f => f.Kr).Take(8)) { @Find(f, like) }
+                            </ul>
+                        </div>
+                    }
                 }
                 @if (_finds.Count > 0)
                 {
@@ -191,6 +202,7 @@ else
     private int _lot = 1;
     private bool _busy;
     private long _photoVer = DateTime.UtcNow.Ticks;
+    private List<PriceFind> _similar = [];
     private List<PriceFind> _finds = [];
     private List<PriceCheck> _checks = [];
     private bool _hunting;
@@ -218,7 +230,8 @@ else
         var view = await Items.GetAsync(Id);
         _item = view?.Item;
         _box = _item?.Box?.Code;
-        _finds = view?.Finds ?? [];
+        _finds = view?.Finds.Where(f => !f.Similar).ToList() ?? [];
+        _similar = view?.Finds.Where(f => f.Similar).ToList() ?? [];
         _checks = view?.Checks ?? [];
     }
 

@@ -172,7 +172,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     public async Task<List<(Item Item, int TopKr)>> KolofonWantedAsync(int fromKr, int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var top = await db.PriceFinds.Where(f => !f.IsNew)
+        var top = await db.PriceFinds.Where(f => !f.IsNew && !f.Similar)
             .GroupBy(f => f.ItemId).Select(g => new { ItemId = g.Key, Top = g.Max(f => f.Kr) })
             .Where(x => x.Top >= fromKr).ToDictionaryAsync(x => x.ItemId, x => x.Top, ct);
         var ids = top.Keys.ToList();
@@ -217,7 +217,7 @@ public sealed class PriceRepository(IDbContextFactory<LagerDb> dbf) : IPriceRepo
     {
         if (itemIds.Count == 0) return [];
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var finds = await db.PriceFinds.Where(f => itemIds.Contains(f.ItemId)).ToListAsync(ct);
+        var finds = await db.PriceFinds.Where(f => itemIds.Contains(f.ItemId) && !f.Similar).ToListAsync(ct);
         return finds.GroupBy(f => f.ItemId).ToDictionary(g => g.Key, g => g.MaxBy(f => f.Kr)!);
     }
 }

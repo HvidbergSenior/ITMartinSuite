@@ -31,9 +31,13 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         var answers = await AskAllAsync(item, Pricing.TitleFor(item), isbn, ct);
         if (isbn == "" && answers.All(a => a.Result is not { Count: > 0 }) && Pricing.AlternativeTitleFor(item) is { } alt)
             answers = await AskAllAsync(item, alt, isbn, ct);
+        // Still nothing for exactly this one: what does the same thing cost in another årgang/issue ("magen til")?
+        List<SourceAnswer>? similar = null;
+        if (answers.All(a => a.Result is not { HasPrices: true } || a.IsNew) && Pricing.SimilarTitleFor(item) is { } like)
+            similar = await AskAllAsync(item, like, "", ct);
 
         var now = clock.GetUtcNow().UtcDateTime;
-        var result = HuntResult.From(itemId, answers, now);
+        var result = HuntResult.From(itemId, answers, now, similar);
         await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
         result.ApplyTo(item, now);
         await items.UpdateAsync([item], ct);

@@ -52,6 +52,21 @@ public static class Pricing
         return ListingParse.Words(t).Contains(y.ToString()) ? t : $"{t} {y}";
     }
 
+    // "Magen til" (user 2026-10-12: "Lige præcis denne findes ingen priser, men denne koster ..."): the same title
+    // without the issue number and year - other årgange of the album, other issues of the blad. An Anders And blad keeps
+    // its year (other issues from 1968). Null when that is no broader than the exact search.
+    public static string? SimilarTitleFor(Item i)
+    {
+        var t = i.Title.Trim() != "" ? i.Title.Trim() : i.Series.Trim();
+        var year = i.Year?.ToString();
+        var words = t.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => new string(w.Where(char.IsLetterOrDigit).ToArray()) is var k && (k == "" || !ListingParse.IsNumber(k.ToLowerInvariant()))).ToList();
+        if (!words.Any(w => w.Any(char.IsLetter))) return null;
+        var broad = string.Join(' ', words);
+        if (i.Kind == Kinds.AndersAnd && year is not null) broad = $"{broad} {year}";
+        return broad == TitleFor(i) || broad == AlternativeTitleFor(i) ? null : broad;
+    }
+
     // "surname title" - what most sites find best.
     public static string QueryFor(string title, string author)
     {
@@ -96,9 +111,9 @@ public static class Pricing
 public sealed record SourceAnswer(string Source, bool IsNew, Listings? Result);
 
 // One hunt's outcome for one item: the per-site checks, the finds kept as proof and the normal used price.
-public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, int Answered, int? Normal)
+public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, int Answered, int? Normal, int? SimilarNormal = null)
 {
-    public static HuntResult From(int itemId, IReadOnlyList<SourceAnswer> answers, DateTime now)
+    public static HuntResult From(int itemId, IReadOnlyList<SourceAnswer> answers, DateTime now, IReadOnlyList<SourceAnswer>? similar = null)
     {
         // ZVAB is AbeBooks' German front - the same listing (same number) is shown once, under AbeBooks.
         var abeIds = answers.Where(a => a.Source == "AbeBooks" && a.Result is not null)
@@ -125,7 +140,17 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             }));
         }
         var used = answers.Where(a => !a.IsNew && a.Result is { Ambiguous: false }).SelectMany(Kept).Select(o => (int)o.Price!.Value).ToList();
-        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalOf(used));
+
+        // "Magen til": kept apart, flagged, and never part of the normal price.
+        var like = (similar ?? []).Where(a => !a.IsNew && a.Result is { Ambiguous: false }).ToList();
+        foreach (var a in like)
+            finds.AddRange(Pricing.Keep(a.Result!).Select(o => new PriceFind
+            {
+                ItemId = itemId, Source = a.Source, Name = Cut(o.Name, 300), Kr = (int)o.Price!.Value, Original = o.Original,
+                Url = o.Url, FoundAt = now, Similar = true,
+            }));
+        var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!)).Select(o => (int)o.Price!.Value).ToList();
+        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalOf(used), Pricing.NormalOf(likeKr));
     }
 
     // Onto the item: when it was hunted (nothing answered = try again tomorrow, not in 30 days) and the price hint.
@@ -133,6 +158,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
     {
         item.PricesAt = Answered == 0 ? now - Pricing.StaleAfter + TimeSpan.FromDays(1) : now;
         if (ShopPrice(Normal) is { } p) item.PriceHint = p;
+        item.SimilarHint = Normal is null ? SimilarNormal : null;
     }
 
     private static int? ShopPrice(int? normal) => Pricing.ShopPrice(normal);

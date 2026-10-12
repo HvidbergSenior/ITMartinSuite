@@ -52,3 +52,35 @@ public class AlternativeSearchTests
         ITMartinLager.Domain.Pricing.AlternativeTitleFor(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Bog, Title = "Mort", Year = 1987 })
             .Should().BeNull();
 }
+
+public class SimilarSearchTests
+{
+    private static ITMartinLager.Domain.Item I(string kind, string title, string number = "", int? year = null) =>
+        new() { Kind = kind, Title = title, Number = number, Year = year };
+
+    [Test]
+    public void An_album_is_compared_with_the_same_album_in_other_years() =>
+        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(ITMartinLager.Domain.Kinds.Tegneserie, "Storm Petersen Album", "29", 1941))
+            .Should().Be("Storm Petersen Album");
+
+    [Test]
+    public void An_Anders_And_blad_is_compared_with_other_issues_of_the_same_year() =>
+        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(ITMartinLager.Domain.Kinds.AndersAnd, "Anders And & Co.", "12", 1968))
+            .Should().Be("Anders And & Co. 1968");
+
+    [Test]
+    public void A_plain_title_has_nothing_broader() =>
+        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(ITMartinLager.Domain.Kinds.Bog, "Mort")).Should().BeNull();
+
+    [Test]
+    public void Magen_til_never_sets_our_price()
+    {
+        var item = new ITMartinLager.Domain.Item();
+        var like = new ITMartinLager.Domain.Listings(2, 50, 75, 100, "u", []) { All = [new("Storm Petersen Album 1993", 50, "a"), new("Storm Petersen Album 1950", 100, "b")] };
+        var r = ITMartinLager.Domain.HuntResult.From(1, [new("DBA", false, new ITMartinLager.Domain.Listings(0, null, null, null, "u", []))], DateTime.UtcNow, [new("DBA", false, like)]);
+        r.ApplyTo(item, DateTime.UtcNow);
+        item.PriceHint.Should().BeNull();
+        item.SimilarHint.Should().Be(100);
+        r.Finds.Should().OnlyContain(f => f.Similar);
+    }
+}

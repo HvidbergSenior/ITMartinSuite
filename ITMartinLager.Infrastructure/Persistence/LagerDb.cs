@@ -22,6 +22,7 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
         b.Entity<Item>().Property(x => x.Price).HasConversion<double?>();
         b.Entity<Item>().Property(x => x.SoldPrice).HasConversion<double?>();
         b.Entity<Item>().Property(x => x.PriceHint).HasConversion<double?>();
+        b.Entity<Item>().Property(x => x.SimilarHint).HasConversion<double?>();
         b.Entity<Item>().HasIndex(x => x.MagicRef);
         b.Entity<Item>().HasIndex(x => x.AuctionItemId);
         b.Entity<AiDay>().HasKey(x => x.Day);

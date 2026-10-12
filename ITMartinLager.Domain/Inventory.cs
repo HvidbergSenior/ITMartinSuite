@@ -83,6 +83,7 @@ public sealed class Item
     public int? PhotoId { get; set; }
     public decimal? Price { get; set; }          // kr, set by a person
     public decimal? PriceHint { get; set; }      // kr, the suggested SHOP price: 10 % under the other sites (Pricing.ShopPrice)
+    public decimal? SimilarHint { get; set; }    // kr, the middle price of "magen til" when nothing exact is for sale - a pointer, not a price
     public string MagicRef { get; set; } = "";
     public string Barcode { get; set; } = "";    // EAN/ISBN when scanned   // card id in the MTG Scanner, so a new fetch updates instead of duplicating
     public string Status { get; set; } = Statuses.Lager;
@@ -252,6 +253,9 @@ public sealed class PriceFind
     public string Original { get; set; } = "";   // "9,37 EUR" when the site is not in kr
     public string Url { get; set; } = "";
     public DateTime FoundAt { get; set; } = DateTime.UtcNow;
+    // "Magen til" (user 2026-10-12): not this exact one - the same title in another årgang/issue/edition. Shown as a
+    // pointer when nothing exact is for sale, never used as proof for our price.
+    public bool Similar { get; set; }
 }
 
 // AI calls per day - the hard cap on spend lives in the database, so a restart does not reset it.
