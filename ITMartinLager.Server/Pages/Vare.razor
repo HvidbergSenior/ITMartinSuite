@@ -145,7 +145,8 @@ else
         }
         else
         {
-            @if (_sessions is null) { <p class="k-muted">Henter auktioner …</p> }
+            @if (_auctionOff is not null) { <p class="k-muted">⏸ @_auctionOff</p> }
+            else if (_sessions is null) { <p class="k-muted">Henter auktioner …</p> }
             else if (_sessions.Count == 0)
             {
                 <p>Der er ingen åben auktion. Opret en i <a href="@Auction.PublicBase" target="_blank" rel="noopener">Live Auktion</a>, og kom tilbage hertil.</p>
@@ -184,6 +185,7 @@ else
     private Item? _item;
     private string? _box, _msg, _err;
     private List<AuctionSessionInfo>? _sessions;
+    private string? _auctionOff;
     private string _code = "";
     private decimal _start;
     private int _lot = 1;
@@ -206,6 +208,7 @@ else
                 _sessions = await Auction.SessionsAsync();
                 _code = _sessions.FirstOrDefault()?.Code ?? "";
             }
+            catch (LagerException ex) { _auctionOff = ex.Message; }
             catch (Exception ex) { _sessions = []; _err = "Kunne ikke hente auktioner: " + ex.Message; }
         }
     }

@@ -19,9 +19,14 @@ public sealed class AuctionLink(HttpClient http, IConfiguration cfg) : IAuctionG
         return r;
     }
 
+    public const string Off = "Live Auktion er slukket lige nu. Start den i Kontrol (auction-web), hvis varen skal på auktion.";
+
     public async Task<List<AuctionSessionInfo>> SessionsAsync(CancellationToken ct)
     {
-        using var res = await http.SendAsync(Req(HttpMethod.Get, "/api/lager/sessions"), ct);
+        HttpResponseMessage res;
+        try { res = await http.SendAsync(Req(HttpMethod.Get, "/api/lager/sessions"), ct); }
+        catch (HttpRequestException) { throw new LagerException(Off); }   // stopped to save resources (2026-10-05) - not an error
+        using var _ = res;
         res.EnsureSuccessStatusCode();
         return await res.Content.ReadFromJsonAsync<List<AuctionSessionInfo>>(ct) ?? [];
     }

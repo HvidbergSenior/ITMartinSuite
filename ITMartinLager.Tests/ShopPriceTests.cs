@@ -39,3 +39,16 @@ public class IssueSearchTests
         m.Matches("Anders And & Co nr. 12 1968").Should().BeTrue();
     }
 }
+
+public class AlternativeSearchTests
+{
+    [Test]
+    public void An_album_with_aargang_and_year_is_searched_again_with_the_year() =>
+        ITMartinLager.Domain.Pricing.AlternativeTitleFor(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Tegneserie, Title = "Storm Petersen Album", Number = "29", Year = 1941 })
+            .Should().Be("Storm Petersen Album 1941");
+
+    [Test]
+    public void Without_a_number_there_is_no_second_search() =>
+        ITMartinLager.Domain.Pricing.AlternativeTitleFor(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Bog, Title = "Mort", Year = 1987 })
+            .Should().BeNull();
+}

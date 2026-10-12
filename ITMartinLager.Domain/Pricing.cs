@@ -43,6 +43,15 @@ public static class Pricing
         return t;
     }
 
+    // Albums and annuals with both a number and a year ("Storm Petersen Album", 29. årgang, 1941): sellers write the year,
+    // seldom the number - so when nothing matched, the hunter asks once more with the year instead (2026-10-12).
+    public static string? AlternativeTitleFor(Item i)
+    {
+        if (i.Number.Trim() == "" || i.Year is not { } y || i.Kind == Kinds.AndersAnd) return null;
+        var t = i.Title.Trim() != "" ? i.Title.Trim() : i.Series.Trim();
+        return ListingParse.Words(t).Contains(y.ToString()) ? t : $"{t} {y}";
+    }
+
     // "surname title" - what most sites find best.
     public static string QueryFor(string title, string author)
     {

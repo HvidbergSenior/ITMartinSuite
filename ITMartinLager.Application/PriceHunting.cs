@@ -27,8 +27,21 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
     {
         var item = await items.GetAsync(itemId, ct);
         if (item is null) return 0;
-        var title = Pricing.TitleFor(item);
         var isbn = Pricing.Isbn(item.Barcode);
+        var answers = await AskAllAsync(item, Pricing.TitleFor(item), isbn, ct);
+        if (isbn == "" && answers.All(a => a.Result is not { Count: > 0 }) && Pricing.AlternativeTitleFor(item) is { } alt)
+            answers = await AskAllAsync(item, alt, isbn, ct);
+
+        var now = clock.GetUtcNow().UtcDateTime;
+        var result = HuntResult.From(itemId, answers, now);
+        await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
+        result.ApplyTo(item, now);
+        await items.UpdateAsync([item], ct);
+        return result.Answered;
+    }
+
+    private async Task<List<SourceAnswer>> AskAllAsync(Item item, string title, string isbn, CancellationToken ct)
+    {
         var asked = _sources.Where(s => s.Fits(item.Kind)).Select(s => (s, s.LookupAsync(title, item.Artist, isbn, ct))).ToList();
         var answers = new List<SourceAnswer>();
         foreach (var (source, lookup) in asked)
@@ -39,13 +52,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
             try { r = await lookup; } catch (Exception) when (!ct.IsCancellationRequested) { }
             answers.Add(new SourceAnswer(source.Name, source.IsNew, r));
         }
-
-        var now = clock.GetUtcNow().UtcDateTime;
-        var result = HuntResult.From(itemId, answers, now);
-        await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
-        result.ApplyTo(item, now);
-        await items.UpdateAsync([item], ct);
-        return result.Answered;
+        return answers;
     }
 
     /// <summary>The next few: never priced first, then the ones priced more than 30 days ago.</summary>
