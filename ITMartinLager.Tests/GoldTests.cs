@@ -50,8 +50,10 @@ public class GoldTests
     public void Every_thing_gets_a_one_line_answer_worth_looking_into_or_not()
     {
         var list = Gold.Pick(AndersAnd, [O("Anders And & Co Originalt blad fra marts 1949", 3600), O("Anders And & Co. nr. 17 1973", 400)], "DBA", DateTime.UtcNow);
-        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1949)!.Should().StartWith("🏆 GULD");
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1949)!.Should().StartWith("🔎 Tjek nærmere").And.Contain("fra 1949");   // only the year: 52 issues
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "17", 1973)!.Should().StartWith("🥈 SØLV");
         Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1980)!.Should().StartWith("🔎 Tjek nærmere").And.Contain("1949-1973");
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1973)!.Should().StartWith("🔎 Tjek nærmere");   // 1973 but nr. 17 is the dear one
         Gold.Interesting(list, Kinds.Bog, "Mort", "", "", 1987).Should().BeNull();
         Gold.Interesting(list, Kinds.Bog, "Mort", "", "", 1987, ownPrice: 250)!.Should().StartWith("🥈 SØLV");
     }

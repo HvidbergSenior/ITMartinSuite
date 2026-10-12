@@ -107,6 +107,8 @@ public static partial class Gold
         var words = ListingParse.Words($"{title} {series}");
         var cat = Categories.FirstOrDefault(c => c.Kind == kind && c.MustHave.All(m => words.Any(w => w.StartsWith(m))));
         if (cat is null) return null;
+        if (year is not null && list.Where(e => e.Category == cat.Name && e.Number == "" && e.Year == year).MaxBy(e => e.Kr) is { } sameYear)
+            return $"🔎 Tjek nærmere – et {cat.Name} fra {year} sælges for ca. {sameYear.Kr} kr. Se om det er dette nummer.";
         var valuable = list.Where(e => e.Category == cat.Name && e.Kr >= SilverFrom).ToList();
         if (valuable.Count == 0) return null;
         var years = valuable.Where(e => e.Year is not null).Select(e => e.Year!.Value).OrderBy(y => y).ToList();
@@ -124,7 +126,9 @@ public static partial class Gold
                 && Categories.FirstOrDefault(c => c.Name == e.Category) is { } c && c.MustHave.All(m => words.Any(w => w.StartsWith(m)))
                 && (e.Number == "" || e.Number == num)
                 && (e.Year is null || e.Year == year)
-                && (e.Number != "" || e.Year is not null))
+                && (e.Number != "" || e.Year is not null)
+                // A weekly blad has 52 issues a year: a listing with only the year is not this issue (2026-10-12).
+                && (e.Number != "" || kind != Kinds.AndersAnd))
             .MaxBy(e => e.Kr);
     }
 
