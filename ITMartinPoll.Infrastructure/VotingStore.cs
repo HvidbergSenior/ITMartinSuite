@@ -69,10 +69,18 @@ public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore, I
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPollInfrastructure(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddPollInfrastructure(this IServiceCollection services, string connectionString, string imagesDir = "/app/data/images")
     {
         services.AddDbContextFactory<PollDb>(o => o.UseSqlite(connectionString));
-        services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<PollDb>>().CreateDbContext());   // pages that still read PollDb directly
+        static void Store<T>(IServiceCollection s, Func<PollDb, IQueryable<T>> whole) where T : class =>
+            s.AddSingleton<IAggregateStore<T>>(sp => new EfAggregateStore<T>(sp.GetRequiredService<IDbContextFactory<PollDb>>(), whole));
+        Store<Poll>(services, Aggregates.Poll);
+        Store<ImageSession>(services, Aggregates.Session);
+        Store<DatePoll>(services, Aggregates.DatePoll);
+        Store<Package>(services, Aggregates.Package);
+        Store<HelpEvent>(services, Aggregates.Help);
+        Store<Customer>(services, Aggregates.Customer);
+        services.AddSingleton<IImageFiles>(new FileImageStore(imagesDir));
         services.AddSingleton<VotingStore>();
         services.AddSingleton<IVotingStore>(sp => sp.GetRequiredService<VotingStore>());
         services.AddSingleton<ICustomerStore>(sp => sp.GetRequiredService<VotingStore>());

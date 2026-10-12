@@ -1,6 +1,6 @@
 @page "/admin/kunder"
 @rendermode InteractiveServer
-@inject PollDb       Db
+@inject CustomerAdmin Customers
 @inject AdminSession Session
 
 @* Kundekartotek (user 2026-10-10): everyone who ticked "send mig et login til liveauktionerne". NO newsletters. Only opt-ins land here.
@@ -72,19 +72,18 @@
     private IEnumerable<Customer> Shown => string.IsNullOrWhiteSpace(_q) ? _rows
         : _rows.Where(c => c.Name.Contains(_q, StringComparison.OrdinalIgnoreCase) || c.Email.Contains(_q, StringComparison.OrdinalIgnoreCase));
 
-    protected override void OnInitialized() => Load();
-    private void Load() => _rows = Db.Customers.OrderByDescending(c => c.ConsentAt).ToList();
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync() => _rows = await Customers.ListAsync();
 
     private async Task Unsubscribe(Customer c)
     {
-        c.UnsubscribedAt = DateTime.UtcNow; c.WantsAuctionNews = false;
-        await Db.SaveChangesAsync();
+        await Customers.UnsubscribeAsync(c.Id);
+        c.UnsubscribedAt ??= DateTime.UtcNow; c.WantsAuctionNews = false;
     }
 
     private async Task Delete(Customer c)
     {
-        Db.Customers.Remove(c);
-        await Db.SaveChangesAsync();
-        _confirm = 0; Load();
+        await Customers.DeleteAsync(c.Id);
+        _confirm = 0; await LoadAsync();
     }
 }

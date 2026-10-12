@@ -1,6 +1,6 @@
 @page "/poll/{PollId:int}"
 @rendermode InteractiveServer
-@inject PollDb      Db
+@inject PollEditor Polls
 @inject IJSRuntime  JS
 @inject ITMartinPoll.Application.Voting Voting
 @inject NavigationManager Nav
@@ -178,24 +178,9 @@
         return idx >= 0 ? _colors[idx % _colors.Length] : "#6B7280";
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _poll = Db.Polls
-            .Where(p => p.Id == PollId)
-            .Select(p => new Poll
-            {
-                Id        = p.Id,
-                Title     = p.Title,
-                Body      = p.Body,
-                ImageName = p.ImageName,
-                Deadline  = p.Deadline,
-                IsActive  = p.IsActive,
-                AllowMultiple  = p.AllowMultiple,
-                RequireContact = p.RequireContact,
-                Options   = p.Options.OrderBy(o => o.SortOrder).ToList(),
-                Votes     = p.Votes.ToList(),
-            })
-            .FirstOrDefault();
+        await LoadPollAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -235,18 +220,14 @@
         _hasVoted = true;
 
         // Reload so vote counts are fresh
-        _poll = Db.Polls
-            .Where(p => p.Id == PollId)
-            .Select(p => new Poll
-            {
-                Id      = p.Id, Title   = p.Title, Body    = p.Body,
-                AllowMultiple = p.AllowMultiple, RequireContact = p.RequireContact, ImageName = p.ImageName,
-                Options = p.Options.OrderBy(o => o.SortOrder).ToList(),
-                Votes   = p.Votes.ToList(),
-                Deadline = p.Deadline,
-            })
-            .FirstOrDefault();
+        await LoadPollAsync();
 
         StateHasChanged();
+    }
+
+    private async Task LoadPollAsync()
+    {
+        _poll = await Polls.GetAsync(PollId);
+        if (_poll is not null) _poll.Options = _poll.Options.OrderBy(o => o.SortOrder).ToList();
     }
 }

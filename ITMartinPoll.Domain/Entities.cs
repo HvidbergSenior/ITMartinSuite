@@ -190,6 +190,7 @@ public class DatePoll
     public List<DatePollDate>        Dates        { get; set; } = [];
     public List<DatePollChatMessage> ChatMessages { get; set; } = [];
     public List<DatePollImage>       Images       { get; set; } = [];
+    public List<DatePollHost>        Hosts        { get; set; } = [];   // navigation added 2026-10-12 (column DatePollId was already there)
 
     public bool HasDeadlinePassed =>
         Deadline.HasValue && Deadline.Value.ToUniversalTime() < DateTime.UtcNow;
@@ -295,6 +296,7 @@ public class HelpEvent
     public List<HelpSlot>   Slots   { get; set; } = [];
     public List<HelpTask>   Tasks   { get; set; } = [];
     public List<HelpSignup> Signups { get; set; } = [];
+    public List<HelpChatMessage> Chat { get; set; } = [];   // navigation added 2026-10-12 (column HelpEventId was already there)
 }
 
 public class HelpSlot

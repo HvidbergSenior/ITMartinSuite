@@ -1,5 +1,5 @@
 @page "/afmeld/{Token}"
-@inject PollDb Db
+@inject CustomerAdmin Customers
 
 @* One-click unsubscribe from the Kundekartotek (link in every auction mail). Static page: works without JavaScript. *@
 <PageTitle>Afmeld mails</PageTitle>
@@ -29,9 +29,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var c = Db.Customers.FirstOrDefault(x => x.UnsubscribeToken == Token);
-        if (c is null || Token.Length < 16) return;
-        _found = true; _email = c.Email;
-        if (c.UnsubscribedAt is null) { c.UnsubscribedAt = DateTime.UtcNow; c.WantsAuctionNews = false; await Db.SaveChangesAsync(); }
+        var email = await Customers.UnsubscribeByTokenAsync(Token);
+        if (email is null) return;
+        _found = true; _email = email;
     }
 }

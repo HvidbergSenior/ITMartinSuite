@@ -1,7 +1,7 @@
 @page "/admin/session/create"
 @page "/admin/session/edit/{SessionId:int}"
 @rendermode InteractiveServer
-@inject PollDb          Db
+@inject ImageRatings Ratings
 @inject AdminSession    Session
 @inject NavigationManager Nav
 
@@ -200,63 +200,25 @@
     private Dictionary<string, string> _pendingCaptions     = [];
     private Dictionary<string, string> _pendingDescriptions = [];
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _isNew = SessionId == 0;
-        if (!_isNew)
-        {
-            var s = Db.Sessions
-                .Where(x => x.Id == SessionId)
-                .Select(x => new ImageSession
-                {
-                    Id             = x.Id,
-                    Title          = x.Title,
-                    Description    = x.Description,
-                    Question       = x.Question,
-                    CoverImageName = x.CoverImageName,
-                    Deadline       = x.Deadline,
-                    Images         = x.Images.OrderBy(i => i.SortOrder)
-                        .Select(i => new SessionImage
-                        {
-                            Id          = i.Id,
-                            FileName    = i.FileName,
-                            Caption     = i.Caption,
-                            Description = i.Description,
-                            Ratings     = i.Ratings.ToList(),
-                        }).ToList(),
-                })
-                .FirstOrDefault();
-
-            if (s is not null)
-            {
-                _title       = s.Title;
-                _description = s.Description;
-                _question    = s.Question;
-                _coverName   = s.CoverImageName ?? "";
-                _deadline    = s.Deadline;
-                _deadlineStr = s.Deadline?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm") ?? "";
-                _existing    = s.Images;
-            }
-        }
+        if (_isNew || await Ratings.GetAsync(SessionId) is not { } s) return;
+        _title = s.Title; _description = s.Description; _question = s.Question;
+        _coverName = s.CoverImageName ?? "";
+        _deadline = s.Deadline;
+        _deadlineStr = s.Deadline?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm") ?? "";
+        _existing = s.Images.OrderBy(i => i.SortOrder).ToList();
     }
 
     private async Task OnImagesSelected(InputFileChangeEventArgs e)
     {
-        _uploading = true;
-        _total     = e.FileCount;
-        _uploaded  = 0;
+        _uploading = true; _total = e.FileCount; _uploaded = 0;
         StateHasChanged();
-
-        Directory.CreateDirectory("/app/data/images");
         foreach (var file in e.GetMultipleFiles(30))
         {
-            var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
-            var name = $"{Guid.NewGuid():N}{ext}";
-            var path = Path.Combine("/app/data/images", name);
-            await using var fs = File.Create(path);
             await using var ms = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-            await ms.CopyToAsync(fs);
-            _pendingNames.Add(name);
+            _pendingNames.Add(await Ratings.SaveImageAsync(ms, file.Name));
             _uploaded++;
             StateHasChanged();
         }
@@ -265,81 +227,17 @@
 
     private async Task OnCoverSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
-        var name = $"cover_{Guid.NewGuid():N}{ext}";
-        var path = Path.Combine("/app/data/images", name);
-        Directory.CreateDirectory("/app/data/images");
-        await using var fs = File.Create(path);
-        await using var ms = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-        await ms.CopyToAsync(fs);
-        _coverName = name;
+        await using var ms = e.File.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+        _coverName = await Ratings.SaveImageAsync(ms, e.File.Name, "cover_");
     }
 
     private async Task Save()
     {
-        _error = "";
-        if (string.IsNullOrWhiteSpace(_title)) { _error = "Titel mangler"; return; }
-        if (_isNew && _pendingNames.Count == 0) { _error = "Upload mindst ét billede"; return; }
-
         DateTime? deadline = null;
-        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var d))
-            deadline = d.ToUniversalTime();
-
-        if (_isNew)
-        {
-            var session = new ImageSession
-            {
-                Title          = _title.Trim(),
-                Description    = _description.Trim(),
-                Question       = _question.Trim(),
-                CoverImageName = string.IsNullOrEmpty(_coverName) ? null : _coverName,
-                IsActive       = true,
-                CreatedAt      = DateTime.UtcNow,
-                Deadline       = deadline,
-                Images    = _pendingNames.Select((n, i) => new SessionImage
-                {
-                    FileName    = n,
-                    SortOrder   = i,
-                    Caption     = _pendingCaptions.GetValueOrDefault(n, "").Trim(),
-                    Description = _pendingDescriptions.GetValueOrDefault(n, "").Trim(),
-                }).ToList(),
-            };
-            Db.Sessions.Add(session);
-        }
-        else
-        {
-            var session = await Db.Sessions.FindAsync(SessionId);
-            if (session is null) return;
-            session.Title          = _title.Trim();
-            session.Description    = _description.Trim();
-            session.Question       = _question.Trim();
-            session.CoverImageName = string.IsNullOrEmpty(_coverName) ? null : _coverName;
-            session.Deadline       = deadline;
-
-            // _existing holds detached projections (see OnInitialized), so the
-            // edits the form made to them have to be written back explicitly.
-            foreach (var edited in _existing)
-            {
-                var tracked = await Db.SessionImages.FindAsync(edited.Id);
-                if (tracked is null) continue;
-                tracked.Caption     = (edited.Caption     ?? "").Trim();
-                tracked.Description = (edited.Description ?? "").Trim();
-            }
-
-            var nextOrder = _existing.Count;
-            foreach (var (name, i) in _pendingNames.Select((n, i) => (n, i)))
-                Db.SessionImages.Add(new SessionImage
-                {
-                    SessionId   = SessionId,
-                    FileName    = name,
-                    SortOrder   = nextOrder + i,
-                    Caption     = _pendingCaptions.GetValueOrDefault(name, "").Trim(),
-                    Description = _pendingDescriptions.GetValueOrDefault(name, "").Trim(),
-                });
-        }
-
-        await Db.SaveChangesAsync();
-        Nav.NavigateTo("/admin");
+        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var d)) deadline = d.ToUniversalTime();
+        _error = await Ratings.SaveAsync(_isNew ? 0 : SessionId, new ImageRatings.Form(_title, _description, _question, _coverName, deadline,
+            _existing.Select(i => new ImageRatings.ImageForm(i.Id, i.FileName, i.Caption ?? "", i.Description ?? "")).ToList(),
+            _pendingNames.Select(n => new ImageRatings.ImageForm(0, n, _pendingCaptions.GetValueOrDefault(n, ""), _pendingDescriptions.GetValueOrDefault(n, ""))).ToList())) ?? "";
+        if (_error == "") Nav.NavigateTo("/admin");
     }
 }

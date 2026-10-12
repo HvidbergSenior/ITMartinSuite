@@ -1,6 +1,6 @@
 @page "/"
 @rendermode InteractiveServer
-@inject PollDb Db
+@inject Catalog Catalog
 @inject AdminSession Session
 
 <PageTitle>Stem</PageTitle>
@@ -189,72 +189,10 @@
     private List<HelpEvent>    _helpEvents = [];
     private List<Package>      _packages = [];
 
-    protected override void OnInitialized()
+    // Nothing is listed for guests (user 2026-10-10) - rules in Application.Catalog.
+    protected override async Task OnInitializedAsync()
     {
-        // Packages (the ladestander forespørgsel) only for admin - user 2026-09-30: "Kun admin skal se ladestandere".
-        _packages = !Session.IsAdmin ? [] : Db.Packages
-            .Where(p => p.IsActive)
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => new Package
-            {
-                Id           = p.Id,
-                Title        = p.Title,
-                Intro        = p.Intro,
-                Audience     = p.Audience,
-                Instructions = p.Instructions,
-                Polls    = p.Polls.Where(x => x.IsActive).ToList(),
-                Sessions = p.Sessions.Where(x => x.IsActive).ToList(),
-            })
-            .ToList();
-
-        // Nothing is listed for guests (user 2026-10-10: "man skal ikke have adgang til alle stem afstemninger") -
-        // every poll is reached only through its own link. Admin (logged in on /admin) still sees the list.
-        if (!Session.IsAdmin) return;
-
-        // Items belonging to a package are reached through the package, not
-        // on their own - listing them both places invites someone to answer
-        // one question in isolation and never see the rest.
-        _polls = Db.Polls
-            .Where(p => p.IsActive && p.PackageId == null)
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => new Poll
-            {
-                Id        = p.Id,
-                Title     = p.Title,
-                Body      = p.Body,
-                ImageName = p.ImageName,
-                Deadline  = p.Deadline,
-                Votes     = p.Votes.ToList(),
-            })
-            .ToList();
-
-        _sessions = Db.Sessions
-            .Where(s => s.IsActive && s.PackageId == null)
-            .OrderByDescending(s => s.CreatedAt)
-            .Select(s => new ImageSession
-            {
-                Id             = s.Id,
-                Title          = s.Title,
-                Description    = s.Description,
-                CoverImageName = s.CoverImageName,
-                Images         = s.Images.ToList(),
-            })
-            .ToList();
-
-        _helpEvents = Db.HelpEvents.Where(h => h.IsActive).OrderByDescending(h => h.CreatedAt).ToList();
-
-        _datePolls = Db.DatePolls
-            .Where(dp => dp.IsActive)
-            .OrderByDescending(dp => dp.CreatedAt)
-            .Select(dp => new DatePoll
-            {
-                Id          = dp.Id,
-                Title       = dp.Title,
-                Description = dp.Description,
-                ImageName   = dp.ImageName,
-                Deadline    = dp.Deadline,
-                Dates       = dp.Dates.ToList(),
-            })
-            .ToList();
+        var f = await Catalog.FrontPageAsync(Session.IsAdmin);
+        (_packages, _polls, _sessions, _helpEvents, _datePolls) = (f.Packages, f.Polls, f.Sessions, f.Help, f.DatePolls);
     }
 }

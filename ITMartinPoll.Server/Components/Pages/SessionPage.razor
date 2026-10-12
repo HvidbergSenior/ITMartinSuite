@@ -1,6 +1,6 @@
 @page "/session/{SessionId:int}"
 @rendermode InteractiveServer
-@inject PollDb        Db
+@inject ImageRatings Ratings
 @inject IJSRuntime    JS
 
 <PageTitle>@(_session?.Title ?? "Billedserie")</PageTitle>
@@ -175,21 +175,10 @@
     private bool                 _done        = false;
     private bool                 _loading     = true;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _session = Db.Sessions
-            .Where(s => s.Id == SessionId)
-            .Select(s => new ImageSession
-            {
-                Id          = s.Id,
-                Title       = s.Title,
-                Description = s.Description,
-                Question    = s.Question,
-                IsActive    = s.IsActive,
-                Deadline    = s.Deadline,
-                Images      = s.Images.OrderBy(i => i.SortOrder).ToList(),
-            })
-            .FirstOrDefault();
+        _session = await Ratings.GetAsync(SessionId);
+        if (_session is not null) _session.Images = _session.Images.OrderBy(i => i.SortOrder).ToList();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -251,27 +240,7 @@
         if (_score == 0 || _session is null || _selectedIdx < 0) return;
         var img = _session.Images[_selectedIdx];
 
-        var existing = Db.ImageRatings.FirstOrDefault(r => r.ImageId == img.Id && r.VoterToken == _voterToken);
-        if (existing is not null)
-        {
-            existing.Score     = _score;
-            existing.VoterName = _voterName.Trim();
-            existing.Comment   = _comment.Trim();
-            existing.RatedAt   = DateTime.UtcNow;
-        }
-        else
-        {
-            Db.ImageRatings.Add(new ImageRating
-            {
-                ImageId    = img.Id,
-                Score      = _score,
-                VoterToken = _voterToken,
-                VoterName  = _voterName.Trim(),
-                Comment    = _comment.Trim(),
-                RatedAt    = DateTime.UtcNow,
-            });
-        }
-        await Db.SaveChangesAsync();
+        await Ratings.RateAsync(SessionId, img.Id, _voterToken, _voterName, _score, _comment);
 
         _rated[img.Id] = _score;
         await JS.InvokeVoidAsync("localStorage.setItem", $"session_{SessionId}",

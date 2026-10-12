@@ -1,6 +1,6 @@
 @page "/admin"
 @rendermode InteractiveServer
-@inject PollDb         Db
+@inject Catalog Catalog
 @inject IConfiguration Config
 @inject AdminSession   Session
 @inject NavigationManager Nav
@@ -129,27 +129,12 @@
     private List<ImageSession> _sessions = [];
     private List<DatePoll>     _datePolls = [];
 
-    protected override void OnInitialized() => Load();
+    protected override Task OnInitializedAsync() => LoadAsync();
 
-    private void Load()
+    private async Task LoadAsync()
     {
-        _polls = Db.Polls
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => new Poll { Id = p.Id, Title = p.Title, IsActive = p.IsActive,
-                                    Votes = p.Votes.ToList() })
-            .ToList();
-
-        _sessions = Db.Sessions
-            .OrderByDescending(s => s.CreatedAt)
-            .Select(s => new ImageSession { Id = s.Id, Title = s.Title, Question = s.Question, IsActive = s.IsActive,
-                                            Images = s.Images.ToList() })
-            .ToList();
-
-        _datePolls = Db.DatePolls
-            .OrderByDescending(dp => dp.CreatedAt)
-            .Select(dp => new DatePoll { Id = dp.Id, Title = dp.Title, IsActive = dp.IsActive,
-                                         Dates = dp.Dates.ToList() })
-            .ToList();
+        var o = await Catalog.OverviewAsync();
+        (_polls, _sessions, _datePolls) = (o.Polls, o.Sessions, o.DatePolls);
     }
 
     private async Task CheckPin()
@@ -165,57 +150,10 @@
 
     private async Task OnPinKey(KeyboardEventArgs e) { if (e.Key == "Enter") await CheckPin(); }
 
-    private async Task ToggleActive(Poll p)
-    {
-        var poll = await Db.Polls.FindAsync(p.Id);
-        if (poll is null) return;
-        poll.IsActive = !poll.IsActive;
-        await Db.SaveChangesAsync();
-        Load();
-    }
-
-    private async Task DeletePoll(Poll p)
-    {
-        var poll = await Db.Polls.FindAsync(p.Id);
-        if (poll is null) return;
-        Db.Polls.Remove(poll);
-        await Db.SaveChangesAsync();
-        Load();
-    }
-
-    private async Task ToggleDatePoll(DatePoll dp)
-    {
-        var poll = await Db.DatePolls.FindAsync(dp.Id);
-        if (poll is null) return;
-        poll.IsActive = !poll.IsActive;
-        await Db.SaveChangesAsync();
-        Load();
-    }
-
-    private async Task DeleteDatePoll(DatePoll dp)
-    {
-        var poll = await Db.DatePolls.FindAsync(dp.Id);
-        if (poll is null) return;
-        Db.DatePolls.Remove(poll);
-        await Db.SaveChangesAsync();
-        Load();
-    }
-
-    private async Task ToggleSession(ImageSession s)
-    {
-        var session = await Db.Sessions.FindAsync(s.Id);
-        if (session is null) return;
-        session.IsActive = !session.IsActive;
-        await Db.SaveChangesAsync();
-        Load();
-    }
-
-    private async Task DeleteSession(ImageSession s)
-    {
-        var session = await Db.Sessions.FindAsync(s.Id);
-        if (session is null) return;
-        Db.Sessions.Remove(session);
-        await Db.SaveChangesAsync();
-        Load();
-    }
+    private async Task ToggleActive(Poll p) { await Catalog.ToggleAsync(p); await LoadAsync(); }
+    private async Task DeletePoll(Poll p) { await Catalog.DeleteAsync(p); await LoadAsync(); }
+    private async Task ToggleDatePoll(DatePoll dp) { await Catalog.ToggleAsync(dp); await LoadAsync(); }
+    private async Task DeleteDatePoll(DatePoll dp) { await Catalog.DeleteAsync(dp); await LoadAsync(); }
+    private async Task ToggleSession(ImageSession s) { await Catalog.ToggleAsync(s); await LoadAsync(); }
+    private async Task DeleteSession(ImageSession s) { await Catalog.DeleteAsync(s); await LoadAsync(); }
 }

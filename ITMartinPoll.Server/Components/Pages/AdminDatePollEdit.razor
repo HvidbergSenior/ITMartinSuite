@@ -1,7 +1,7 @@
 @page "/admin/datepoll/create"
 @page "/admin/datepoll/edit/{DatePollId:int}"
 @rendermode InteractiveServer
-@inject PollDb         Db
+@inject DatePolls DatePolls
 @inject AdminSession   Session
 @inject NavigationManager Nav
 
@@ -220,30 +220,27 @@
     // off the table.
     private const int NoVoteFlagThreshold = 5;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _isNew = DatePollId == 0;
         if (_isNew) return;
 
-        LoadPollData();
+        await LoadPollDataAsync();
     }
 
-    private void LoadPollData()
+    private async Task LoadPollDataAsync()
     {
-        var p = Db.DatePolls
-            .Where(x => x.Id == DatePollId)
-            .Select(x => new
+        var full = await DatePolls.GetAsync(DatePollId);
+        var p = full is null ? null : new
+        {
+            full.Title, full.Description, full.ImageName, full.Deadline, full.Password,
+            Images = full.Images.OrderBy(i => i.SortOrder).Select(i => i.FileName).ToList(),
+            Dates = full.Dates.OrderBy(d => d.SortOrder).Select(d => new
             {
-                x.Title, x.Description, x.ImageName, x.Deadline, x.Password,
-                Images = x.Images.OrderBy(i => i.SortOrder).Select(i => i.FileName).ToList(),
-                Dates = x.Dates.OrderBy(d => d.SortOrder)
-                    .Select(d => new
-                    {
-                        d.Date,
-                        Responses = d.Responses.Select(r => new { r.Status, r.VoterName, r.Comment, r.IsPreferred }).ToList(),
-                    }).ToList(),
-            })
-            .FirstOrDefault();
+                d.Date,
+                Responses = d.Responses.Select(r => new { r.Status, r.VoterName, r.Comment, r.IsPreferred }).ToList(),
+            }).ToList(),
+        };
 
         if (p is null) return;
 
@@ -296,116 +293,34 @@
     // the whole-date-list re-key case).
     private async Task RemoveDate(DateTime date)
     {
-        var toRemove = await Db.DatePollDates
-            .Where(d => d.DatePollId == DatePollId && d.Date == date)
-            .ToListAsync();
-        if (toRemove.Count == 0) return;
-
-        Db.DatePollDates.RemoveRange(toRemove);
-        await Db.SaveChangesAsync();
-
-        LoadPollData();
+        await DatePolls.RemoveDateAsync(DatePollId, date);
+        await LoadPollDataAsync();
     }
 
     private async Task OnImageSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file is null) return;
-
-        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
-        var name = $"{Guid.NewGuid():N}{ext}";
-        var path = Path.Combine("/app/data/images", name);
-
-        Directory.CreateDirectory("/app/data/images");
-        await using var fs = File.Create(path);
-        await using var ms = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-        await ms.CopyToAsync(fs);
-
-        _imageName = name;
+        if (e.File is null) return;
+        await using var ms = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        _imageName = await DatePolls.SaveImageAsync(ms, e.File.Name);
     }
 
-    // Multiple files at once - each gets the same GUID-rename treatment as
-    // the hero image, appended to whatever's already staged so repeated
-    // selections accumulate instead of replacing.
+    // Multiple files at once, appended to what is already staged.
     private async Task OnSpreadImagesSelected(InputFileChangeEventArgs e)
     {
-        Directory.CreateDirectory("/app/data/images");
-
         foreach (var file in e.GetMultipleFiles(maximumFileCount: 20))
         {
-            var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
-            var name = $"{Guid.NewGuid():N}{ext}";
-            var path = Path.Combine("/app/data/images", name);
-
-            await using var fs = File.Create(path);
             await using var ms = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            await ms.CopyToAsync(fs);
-
-            _spreadImageNames.Add(name);
+            _spreadImageNames.Add(await DatePolls.SaveImageAsync(ms, file.Name));
         }
     }
 
     private async Task Save()
     {
-        _error = "";
-        if (string.IsNullOrWhiteSpace(_title)) { _error = "Titel mangler"; return; }
-
-        var cleanDates = _dates
-            .Where(d => DateTime.TryParse(d, out _))
-            .Select(d => DateTime.Parse(d))
-            .Distinct()
-            .OrderBy(d => d)
-            .ToList();
-        if (cleanDates.Count == 0) { _error = "Tilføj mindst én dato"; return; }
-
         DateTime? deadline = null;
-        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var dl))
-            deadline = dl.ToUniversalTime();
-
-        var cleanPassword = string.IsNullOrWhiteSpace(_password) ? null : _password.Trim();
-
-        if (_isNew)
-        {
-            var poll = new DatePoll
-            {
-                Title       = _title.Trim(),
-                Description = _description.Trim(),
-                ImageName   = _imageName,
-                Deadline    = deadline,
-                Password    = cleanPassword,
-                IsActive    = true,
-                CreatedAt   = DateTime.UtcNow,
-                Dates       = cleanDates.Select((d, i) => new DatePollDate { Date = d, SortOrder = i }).ToList(),
-                Images      = _spreadImageNames.Select((n, i) => new DatePollImage { FileName = n, SortOrder = i }).ToList(),
-            };
-            Db.DatePolls.Add(poll);
-        }
-        else
-        {
-            var poll = await Db.DatePolls.FindAsync(DatePollId);
-            if (poll is null) return;
-            poll.Title       = _title.Trim();
-            poll.Description = _description.Trim();
-            poll.ImageName   = _imageName;
-            poll.Deadline    = deadline;
-            poll.Password    = cleanPassword;
-
-            // Same re-key-rather-than-diff convention as the dates list below.
-            var existingImages = Db.DatePollImages.Where(i => i.DatePollId == DatePollId).ToList();
-            Db.DatePollImages.RemoveRange(existingImages);
-            foreach (var (name, idx) in _spreadImageNames.Select((n, i) => (n, i)))
-                Db.DatePollImages.Add(new DatePollImage { DatePollId = DatePollId, FileName = name, SortOrder = idx });
-
-            // Dates are re-keyed rather than diffed - simplest correct option
-            // given how rare editing an already-answered date poll's date list
-            // should be; existing responses cascade-delete with their date.
-            var existing = Db.DatePollDates.Where(d => d.DatePollId == DatePollId).ToList();
-            Db.DatePollDates.RemoveRange(existing);
-            foreach (var (date, idx) in cleanDates.Select((d, i) => (d, i)))
-                Db.DatePollDates.Add(new DatePollDate { DatePollId = DatePollId, Date = date, SortOrder = idx });
-        }
-
-        await Db.SaveChangesAsync();
-        Nav.NavigateTo("/admin");
+        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var dl)) deadline = dl.ToUniversalTime();
+        var dates = _dates.Where(d => DateTime.TryParse(d, out _)).Select(DateTime.Parse).ToList();
+        _error = await DatePolls.SaveAsync(_isNew ? 0 : DatePollId,
+            new DatePolls.Form(_title, _description, _imageName, deadline, _password, dates, _spreadImageNames)) ?? "";
+        if (_error == "") Nav.NavigateTo("/admin");
     }
 }

@@ -1,13 +1,11 @@
 using System.Globalization;
 using ITMartinPoll.Server;
 using ITMartinPoll.Server.Components;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinPoll.Application;
 using ITMartinPoll.Domain;
 using ITMartinPoll.Infrastructure;
-using ITMartinPoll.Infrastructure.Persistence;
 
 // The container's base image defaults to invariant/en-US, so ToString("dddd d.
 // MMMM")-style date formatting (used throughout - deadlines, date polls) came
@@ -52,7 +50,9 @@ builder.Services.AddKolibri(k =>
     k.ThemeColor = "#f4f6f5";
 });
 
+// Live refresh of the open date-poll and help pages; the use cases raise it through IChangeSignal.
 builder.Services.AddSingleton<ITMartinPoll.Server.Services.DatePollBroadcastService>();
+builder.Services.AddSingleton<IChangeSignal>(sp => sp.GetRequiredService<ITMartinPoll.Server.Services.DatePollBroadcastService>());
 
 var app = builder.Build();
 app.MapKolibri();
@@ -97,14 +97,11 @@ app.UseAntiforgery();
 // Paper version of a package - for the neighbours who will not use a link.
 // Generated from the live package on every request, so it always matches
 // the page. See PackagePdf.
-app.MapGet("/pakke/{id:int}/pdf", async (int id, PollDb db, HttpContext ctx, IConfiguration cfg) =>
+app.MapGet("/pakke/{id:int}/pdf", async (int id, Packages packages, HttpContext ctx, IConfiguration cfg) =>
 {
     // admin only (the ladestander forespørgsel) - the cookie is set when the admin PIN is typed on /admin
     if (ctx.Request.Cookies["poll_admin"] != ITMartinPoll.Server.AdminToken.For(cfg["Poll:AdminPin"] ?? "1234")) return Results.NotFound();
-    var package = await db.Packages
-        .Include(p => p.Polls).ThenInclude(p => p.Options)
-        .Include(p => p.Sessions).ThenInclude(s => s.Images)
-        .FirstOrDefaultAsync(p => p.Id == id);
+    var package = await packages.GetAsync(id);
     if (package is null) return Results.NotFound();
 
     var bytes = ITMartinPoll.Server.Services.PackagePdf.Render(package);
@@ -113,11 +110,11 @@ app.MapGet("/pakke/{id:int}/pdf", async (int id, PollDb db, HttpContext ctx, ICo
 });
 
 // Kundekartotek as CSV (admin cookie) - only people who still want mails, for the Bcc line or a mail tool.
-app.MapGet("/admin/kunder.csv", async (PollDb db, HttpContext ctx, IConfiguration cfg) =>
+app.MapGet("/admin/kunder.csv", async (CustomerAdmin customers, HttpContext ctx, IConfiguration cfg) =>
 {
     if (ctx.Request.Cookies["poll_admin"] != ITMartinPoll.Server.AdminToken.For(cfg["Poll:AdminPin"] ?? "1234")) return Results.NotFound();
     static string Q(string v) => "\"" + v.Replace("\"", "\"\"") + "\"";
-    var rows = await db.Customers.AsNoTracking().Where(c => c.WantsAuctionNews && c.UnsubscribedAt == null).OrderBy(c => c.Name).ToListAsync();
+    var rows = await customers.ActiveAsync();
     var csv = "Navn;Email;Telefon;Interesser;Kilde;Samtykke givet;Afmeld-link\n" + string.Concat(rows.Select(c =>
         $"{Q(c.Name)};{Q(c.Email)};{Q(c.Phone)};{Q(c.Interests)};{Q(c.Source)};{c.ConsentAt:yyyy-MM-dd HH:mm};https://stem.itmartin.dk/afmeld/{c.UnsubscribeToken}\n"));
     return Results.File(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray(), "text/csv", "kundekartotek.csv");

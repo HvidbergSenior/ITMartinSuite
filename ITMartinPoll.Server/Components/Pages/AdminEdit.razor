@@ -1,7 +1,7 @@
 @page "/admin/create"
 @page "/admin/edit/{PollId:int}"
 @rendermode InteractiveServer
-@inject PollDb         Db
+@inject PollEditor Editor
 @inject IConfiguration Config
 @inject AdminSession   Session
 @inject NavigationManager Nav
@@ -161,107 +161,37 @@
         return idx >= 0 ? _colors[idx % _colors.Length] : "#6B7280";
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _isNew = PollId == 0;
-        if (!_isNew)
-        {
-            var p = Db.Polls.Where(x => x.Id == PollId)
-                .Select(x => new { x.Title, x.Body, x.ImageName, x.Deadline, x.AllowMultiple, x.RequireContact,
-                                   Options = x.Options.OrderBy(o => o.SortOrder)
-                                       .Select(o => new { o.Id, o.Label, VoteCount = o.Votes.Count }).ToList(),
-                                   Votes = x.Votes.ToList() })
-                .FirstOrDefault();
-            if (p is not null)
-            {
-                _title       = p.Title;
-                _body        = p.Body;
-                _imageName   = p.ImageName;
-                _deadlineStr = p.Deadline?.ToString("yyyy-MM-dd") ?? "";
-                _options     = p.Options.Select(o => o.Label).ToList();
-                _allowMultiple  = p.AllowMultiple;
-                _requireContact = p.RequireContact;
-                _auctionSignups = p.Votes.Where(v => v.WantsAuctionNews && v.Email != "")
-                                    .GroupBy(v => v.Email).Select(g => (g.First().VoterName, g.Key)).ToList();
-                if (_options.Count == 0) _options = ["Ja", "Nej"];
-
-                _optionResults = p.Options.Select(o => (o.Label, o.VoteCount)).ToList();
-                _optionLookup  = p.Options.ToDictionary(o => o.Id, o => o.Label);
-                _optionOrder   = p.Options.Select(o => o.Id).ToList();
-                _totalVotes    = p.Votes.Select(v => v.Email != "" ? v.Email : v.Id.ToString()).Distinct().Count();
-                _comments      = p.Votes.Where(v => !string.IsNullOrWhiteSpace(v.Comment))
-                                    .OrderByDescending(v => v.VotedAt).ToList();
-            }
-        }
+        if (_isNew || await Editor.GetAsync(PollId) is not { } p) return;
+        var options = p.Options.OrderBy(o => o.SortOrder).ToList();
+        _title = p.Title; _body = p.Body; _imageName = p.ImageName;
+        _deadlineStr = p.Deadline?.ToString("yyyy-MM-dd") ?? "";
+        _options = options.Select(o => o.Label).ToList();
+        _allowMultiple = p.AllowMultiple; _requireContact = p.RequireContact;
+        _auctionSignups = p.Votes.Where(v => v.WantsAuctionNews && v.Email != "").GroupBy(v => v.Email).Select(g => (g.First().VoterName, g.Key)).ToList();
+        if (_options.Count == 0) _options = ["Ja", "Nej"];
+        _optionResults = options.Select(o => (o.Label, p.Votes.Count(v => v.OptionId == o.Id))).ToList();
+        _optionLookup = options.ToDictionary(o => o.Id, o => o.Label);
+        _optionOrder = options.Select(o => o.Id).ToList();
+        _totalVotes = p.Votes.Select(v => v.Email != "" ? v.Email : v.Id.ToString()).Distinct().Count();
+        _comments = p.Votes.Where(v => !string.IsNullOrWhiteSpace(v.Comment)).OrderByDescending(v => v.VotedAt).ToList();
     }
 
     private async Task OnImageSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file is null) return;
-
-        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
-        var name = $"{Guid.NewGuid():N}{ext}";
-        var path = Path.Combine("/app/data/images", name);
-
-        Directory.CreateDirectory("/app/data/images");
-        await using var fs = File.Create(path);
-        await using var ms = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-        await ms.CopyToAsync(fs);
-
-        _imageName = name;
+        if (e.File is null) return;
+        await using var ms = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        _imageName = await Editor.SaveImageAsync(ms, e.File.Name);
     }
 
     private async Task Save()
     {
-        _error = "";
-        if (string.IsNullOrWhiteSpace(_title))       { _error = "Titel mangler";           return; }
-        if (_options.Count(o => !string.IsNullOrWhiteSpace(o)) < 2)
-                                                      { _error = "Minimum 2 svarmuligheder"; return; }
-
         DateTime? deadline = null;
-        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var d))
-            deadline = d.ToUniversalTime();
-
-        var cleanOpts = _options.Where(o => !string.IsNullOrWhiteSpace(o)).ToList();
-
-        if (_isNew)
-        {
-            var poll = new Poll
-            {
-                Title     = _title.Trim(),
-                Body      = _body.Trim(),
-                ImageName = _imageName,
-                Deadline  = deadline,
-                IsActive  = true,
-                AllowMultiple  = _allowMultiple,
-                RequireContact = _requireContact,
-                CreatedAt = DateTime.UtcNow,
-                Options   = cleanOpts.Select((l, i) => new PollOption { Label = l, SortOrder = i }).ToList(),
-            };
-            Db.Polls.Add(poll);
-        }
-        else
-        {
-            var poll = await Db.Polls.FindAsync(PollId);
-            if (poll is null) return;
-            poll.Title     = _title.Trim();
-            poll.Body      = _body.Trim();
-            poll.ImageName = _imageName;
-            poll.Deadline  = deadline;
-            poll.AllowMultiple  = _allowMultiple;
-            poll.RequireContact = _requireContact;
-
-            var existing = Db.Options.Where(o => o.PollId == PollId).OrderBy(o => o.SortOrder).ToList();
-            if (!existing.Select(o => o.Label).SequenceEqual(cleanOpts))
-            {
-            Db.Options.RemoveRange(existing);
-            foreach (var (label, idx) in cleanOpts.Select((l, i) => (l, i)))
-                Db.Options.Add(new PollOption { PollId = PollId, Label = label, SortOrder = idx });
-            }
-        }
-
-        await Db.SaveChangesAsync();
-        Nav.NavigateTo("/admin");
+        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var d)) deadline = d.ToUniversalTime();
+        _error = await Editor.SaveAsync(_isNew ? 0 : PollId,
+            new PollEditor.Form(_title, _body, _imageName, deadline, _allowMultiple, _requireContact, _options)) ?? "";
+        if (_error == "") Nav.NavigateTo("/admin");
     }
 }

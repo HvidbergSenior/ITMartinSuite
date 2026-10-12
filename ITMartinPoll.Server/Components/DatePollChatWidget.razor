@@ -1,4 +1,4 @@
-@inject PollDb Db
+@inject DatePolls DatePolls
 @inject DatePollBroadcastService Broadcast
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -63,14 +63,7 @@ else
         StateHasChanged();
     }
 
-    private async Task RefreshAsync()
-    {
-        _messages = await Db.DatePollChat
-            .Where(m => m.DatePollId == DatePollId)
-            .OrderBy(m => m.SentAt)
-            .Take(100)
-            .ToListAsync();
-    }
+    private async Task RefreshAsync() => _messages = await DatePolls.ChatAsync(DatePollId);
 
     private async Task OnKey(KeyboardEventArgs e)
     {
@@ -82,16 +75,9 @@ else
         var text = _text.Trim();
         if (string.IsNullOrEmpty(text) || !ChatOpen) return;
 
-        Db.DatePollChat.Add(new DatePollChatMessage
-        {
-            DatePollId = DatePollId,
-            SenderName = string.IsNullOrWhiteSpace(VoterName) ? "Anonym" : VoterName,
-            Text       = text,
-        });
-        await Db.SaveChangesAsync();
+        await DatePolls.SendChatAsync(DatePollId, VoterName, text);   // tells the open pages to refresh
         _text = "";
         await RefreshAsync();
-        Broadcast.Broadcast(DatePollId);
         try { await JS.InvokeVoidAsync("eval", $"document.getElementById('datepoll-chat-{DatePollId}').scrollTop = 999999"); } catch { }
     }
 

@@ -1,6 +1,6 @@
 @page "/datepoll/{DatePollId:int}"
 @rendermode InteractiveServer
-@inject PollDb      Db
+@inject DatePolls DatePolls
 @inject IJSRuntime  JS
 @inject NavigationManager Nav
 @inject DatePollBroadcastService Broadcast
@@ -211,7 +211,7 @@
     private string _suggestError = "";
     private bool _subscribed;
 
-    protected override void OnInitialized() { LoadPoll(); LoadHosts(); }
+    protected override async Task OnInitializedAsync() { await LoadPollAsync(); LoadHosts(); }
 
     // ── "Jeg vil gerne være vært" ──
     private List<DatePollHost> _hosts = [];
@@ -220,7 +220,7 @@
 
     private void LoadHosts()
     {
-        _hosts = Db.DatePollHosts.AsNoTracking().Where(h => h.DatePollId == DatePollId).OrderBy(h => h.OfferedAt).ToList();
+        _hosts = _poll?.Hosts.OrderBy(h => h.OfferedAt).ToList() ?? [];
         var me = _voterNames.FirstOrDefault();
         if (me is not null && _hosts.FirstOrDefault(h => h.VoterName == me) is { } mine) { _iHost = true; _hostPlace = mine.Place; }
     }
@@ -229,36 +229,13 @@
     {
         var me = _voterNames.FirstOrDefault();
         if (me is null) return;
-        var row = await Db.DatePollHosts.FirstOrDefaultAsync(h => h.DatePollId == DatePollId && h.VoterName == me);
-        if (_iHost)
-        {
-            if (row is null) Db.DatePollHosts.Add(row = new DatePollHost { DatePollId = DatePollId, VoterName = me });
-            row.Place = _hostPlace.Trim().Length > 120 ? _hostPlace.Trim()[..120] : _hostPlace.Trim();
-        }
-        else if (row is not null) Db.DatePollHosts.Remove(row);
-        await Db.SaveChangesAsync();
+        await DatePolls.SetHostAsync(DatePollId, me, _iHost, _hostPlace);   // the change signal refreshes the open pages
         _hostNote = _iHost ? "Tak – du står som mulig vært ✓" : "Fjernet";
+        await LoadPollAsync();
         LoadHosts();
-        Broadcast.Broadcast(DatePollId);
     }
 
-    private void LoadPoll()
-    {
-        _poll = Db.DatePolls
-            .Where(p => p.Id == DatePollId)
-            .Select(p => new DatePoll
-            {
-                Id = p.Id, Title = p.Title, Description = p.Description, ImageName = p.ImageName,
-                Deadline = p.Deadline, IsActive = p.IsActive, Password = p.Password,
-                Dates = p.Dates.Select(d => new DatePollDate
-                {
-                    Id = d.Id, Date = d.Date, SortOrder = d.SortOrder,
-                    Responses = d.Responses.ToList(),
-                }).ToList(),
-                Images = p.Images.OrderBy(i => i.SortOrder).ToList(),
-            })
-            .FirstOrDefault();
-    }
+    private async Task LoadPollAsync() => _poll = await DatePolls.GetAsync(DatePollId);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -309,9 +286,9 @@
         }
     }
 
-    private void OnBroadcast() => InvokeAsync(() =>
+    private void OnBroadcast() => InvokeAsync(async () =>
     {
-        LoadPoll();
+        await LoadPollAsync();
         LoadHosts();
         if (_hasName) LoadMyResponses();
         StateHasChanged();
@@ -325,10 +302,7 @@
 
     private void ParseVoterNames()
     {
-        _voterNames = _voterNamesInput
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        _voterNames = DatePollRules.ParseNames(_voterNamesInput);
     }
 
     private void LoadMyResponses()
@@ -354,95 +328,27 @@
         LoadMyResponses();
     }
 
+    // The rules (several names at once, one preferred date, comments only on existing answers, no duplicate dates)
+    // live in ITMartinPoll.Domain.DatePollRules; DatePolls tells the open pages to refresh.
     private async Task RespondAsync(int dateId, string status)
     {
         if (_poll is null || _poll.HasDeadlinePassed || _voterNames.Count == 0) return;
-
-        var existingByName = await Db.DatePollResponses
-            .Where(r => r.DateId == dateId && _voterNames.Contains(r.VoterName))
-            .ToDictionaryAsync(r => r.VoterName);
-
-        foreach (var name in _voterNames)
-        {
-            if (existingByName.TryGetValue(name, out var existing))
-            {
-                existing.Status = status;
-                existing.RespondedAt = DateTime.UtcNow;
-            }
-            else
-            {
-                Db.DatePollResponses.Add(new DatePollResponse
-                {
-                    DateId = dateId, VoterName = name, Status = status,
-                });
-            }
-        }
-        await Db.SaveChangesAsync();
-        LoadPoll();
-        LoadMyResponses();
-        StateHasChanged();
-        Broadcast.Broadcast(DatePollId);
+        await DatePolls.RespondAsync(DatePollId, dateId, _voterNames, status);
+        await AfterChangeAsync();
     }
 
-    // Exclusive across the whole poll, independent of Status - a voter (or
-    // group of names voting together) can prefer a week they've marked
-    // Maybe/No on, since preference is "which would I actually want" not
-    // "which can I attend". Toggling an already-preferred date just clears
-    // it back to no preference, rather than forcing a pick at all times.
     private async Task TogglePreferredAsync(int dateId)
     {
         if (_poll is null || _poll.HasDeadlinePassed || _voterNames.Count == 0) return;
-
-        var alreadyPreferred = _myResponses.TryGetValue(dateId, out var mine) && mine.IsPreferred;
-
-        var allMine = await Db.DatePollResponses
-            .Where(r => r.DateOption.DatePollId == DatePollId && _voterNames.Contains(r.VoterName))
-            .ToListAsync();
-        foreach (var r in allMine) r.IsPreferred = false;
-
-        if (!alreadyPreferred)
-        {
-            var atThisDate = allMine.Where(r => r.DateId == dateId).ToDictionary(r => r.VoterName);
-            foreach (var name in _voterNames)
-            {
-                if (atThisDate.TryGetValue(name, out var existing))
-                {
-                    existing.IsPreferred = true;
-                }
-                else
-                {
-                    Db.DatePollResponses.Add(new DatePollResponse
-                    {
-                        DateId = dateId, VoterName = name, Status = "Maybe", IsPreferred = true,
-                    });
-                }
-            }
-        }
-
-        await Db.SaveChangesAsync();
-        LoadPoll();
-        LoadMyResponses();
-        StateHasChanged();
-        Broadcast.Broadcast(DatePollId);
+        await DatePolls.TogglePreferredAsync(DatePollId, dateId, _voterNames);
+        await AfterChangeAsync();
     }
 
     private async Task SaveCommentAsync(int dateId, string comment)
     {
         if (_poll is null || _poll.HasDeadlinePassed || _voterNames.Count == 0) return;
-
-        var trimmed = comment.Trim();
-        var existingByName = await Db.DatePollResponses
-            .Where(r => r.DateId == dateId && _voterNames.Contains(r.VoterName))
-            .ToListAsync();
-        if (existingByName.Count == 0) return;
-
-        foreach (var existing in existingByName)
-            existing.Comment = trimmed;
-
-        await Db.SaveChangesAsync();
-        LoadPoll();
-        LoadMyResponses();
-        Broadcast.Broadcast(DatePollId);
+        await DatePolls.SaveCommentAsync(DatePollId, dateId, _voterNames, comment);
+        await AfterChangeAsync();
     }
 
     private async Task SuggestDateAsync()
@@ -450,21 +356,16 @@
         _suggestError = "";
         if (_poll is null || _poll.HasDeadlinePassed) return;
         if (!DateTime.TryParse(_suggestedDate, out var date)) { _suggestError = "Ugyldig dato"; return; }
-
-        if (_poll.Dates.Any(d => d.Date.Date == date.Date))
-        {
-            _suggestError = "Den dato er allerede på listen";
-            return;
-        }
-
-        var nextSort = _poll.Dates.Count == 0 ? 0 : _poll.Dates.Max(d => d.SortOrder) + 1;
-        Db.DatePollDates.Add(new DatePollDate { DatePollId = DatePollId, Date = date.Date, SortOrder = nextSort });
-        await Db.SaveChangesAsync();
-
+        _suggestError = await DatePolls.SuggestDateAsync(DatePollId, date) ?? "";
+        if (_suggestError != "") return;
         _suggestedDate = "";
-        LoadPoll();
+        await AfterChangeAsync();
+    }
+
+    private async Task AfterChangeAsync()
+    {
+        await LoadPollAsync();
         LoadMyResponses();
         StateHasChanged();
-        Broadcast.Broadcast(DatePollId);
     }
 }

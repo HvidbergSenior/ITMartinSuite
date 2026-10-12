@@ -64,15 +64,3 @@ public sealed class Voting(IVotingStore store, TimeProvider clock)
         p.Options.OrderBy(o => o.SortOrder).Select(o => new OptionResult(o.Id, o.Label, VoteRules.PeopleFor(p.Votes, o.Id))).ToList(),
         VoteRules.OptInText, VoteRules.Privacy, CustomerRules.SignUpMeans);
 }
-
-public static class DependencyInjection
-{
-    /// <summary>The use cases. The store comes from AddPollInfrastructure.</summary>
-    public static IServiceCollection AddPollApplication(this IServiceCollection services)
-    {
-        services.AddSingleton(TimeProvider.System);
-        services.AddScoped<Voting>();
-        services.AddScoped<CustomerList>();
-        return services;
-    }
-}

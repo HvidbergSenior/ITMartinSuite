@@ -1,6 +1,6 @@
 @page "/pakke/{PackageId:int}"
 @rendermode InteractiveServer
-@inject PollDb     Db
+@inject Packages Packages
 @inject IJSRuntime JS
 @inject AdminSession Session
 
@@ -262,7 +262,7 @@
     private Dictionary<int, int>    _ratings        = [];   // ImageId -> score
     private Dictionary<int, string> _ratingComments = [];   // ImageId -> comment
 
-    private string VoterLabel => $"{_name.Trim()} {_house.Trim()}".Trim();
+    private string VoterLabel => PackageRules.VoterLabel(_name, _house);
 
     private string[] Steps => (_package?.Instructions ?? "")
         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -277,38 +277,12 @@
 
     private int AnsweredCount => _votes.Count;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _package = Db.Packages
-            .Where(p => p.Id == PackageId && p.IsActive)
-            .Select(p => new Package
-            {
-                Id           = p.Id,
-                Title        = p.Title,
-                Intro        = p.Intro,
-                Audience     = p.Audience,
-                Instructions = p.Instructions,
-                Polls = p.Polls
-                    .Where(x => x.IsActive)
-                    .Select(x => new Poll
-                    {
-                        Id      = x.Id,
-                        Title   = x.Title,
-                        Body    = x.Body,
-                        Options = x.Options.ToList(),
-                    }).ToList(),
-                Sessions = p.Sessions
-                    .Where(x => x.IsActive)
-                    .Select(x => new ImageSession
-                    {
-                        Id          = x.Id,
-                        Title       = x.Title,
-                        Description = x.Description,
-                        Question    = x.Question,
-                        Images      = x.Images.ToList(),
-                    }).ToList(),
-            })
-            .FirstOrDefault();
+        _package = await Packages.GetActiveAsync(PackageId);
+        if (_package is null) return;
+        foreach (var x in _package.Polls) x.Options = x.Options.OrderBy(o => o.SortOrder).ToList();
+        foreach (var x in _package.Sessions) x.Images = x.Images.OrderBy(i => i.SortOrder).ToList();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -336,7 +310,7 @@
         _house = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_house") ?? "";
         _identified = !string.IsNullOrWhiteSpace(_name) && !string.IsNullOrWhiteSpace(_house);
 
-        if (_identified) LoadExistingAnswers();
+        if (_identified) await LoadExistingAnswersAsync();
 
         _loading = false;
         StateHasChanged();
@@ -344,26 +318,14 @@
 
     // What this household already said, so a return visit shows their answers
     // instead of a blank form they would fill in twice.
-    private void LoadExistingAnswers()
+    private async Task LoadExistingAnswersAsync()
     {
         if (_package is null) return;
-
-        var pollIds = _package.Polls.Select(p => p.Id).ToList();
-        foreach (var v in Db.Votes.Where(v => pollIds.Contains(v.PollId) && v.VoterName == VoterLabel))
-        {
-            _votes[v.PollId] = v.OptionId;
-            _voteComments[v.PollId] = v.Comment;
-        }
-
-        var imageIds = _package.Sessions.SelectMany(s => s.Images).Select(i => i.Id).ToList();
-        foreach (var r in Db.ImageRatings.Where(r => imageIds.Contains(r.ImageId) && r.VoterToken == _token))
-        {
-            _ratings[r.ImageId] = r.Score;
-            _ratingComments[r.ImageId] = r.Comment;
-        }
+        var a = await Packages.AnswersAsync(_package, VoterLabel, _token);
+        (_votes, _voteComments, _ratings, _ratingComments) = (a.Votes, a.VoteComments, a.Ratings, a.RatingComments);
     }
 
-    private void ConfirmIdentity()
+    private async Task ConfirmIdentity()
     {
         if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_house))
         {
@@ -373,7 +335,7 @@
 
         _identityError = false;
         _identified = true;
-        LoadExistingAnswers();
+        await LoadExistingAnswersAsync();
 
         _ = JS.InvokeVoidAsync("localStorage.setItem", "voter_first_name", _name.Trim());
         _ = JS.InvokeVoidAsync("localStorage.setItem", "voter_house", _house.Trim());
@@ -385,27 +347,10 @@
     // Vote has no VoterToken column, so a household is identified by the
     // name+number label. That is exactly why the number is mandatory: two
     // people called Martin would otherwise overwrite each other's answer.
+    // A household is "name + house number" (PackageRules) - one answer per question, choosing again changes it.
     private async Task SaveVoteAsync(int pollId, int optionId)
     {
-        var existing = Db.Votes.FirstOrDefault(v => v.PollId == pollId && v.VoterName == VoterLabel);
-        if (existing is null)
-        {
-            Db.Votes.Add(new Vote
-            {
-                PollId    = pollId,
-                OptionId  = optionId,
-                VoterName = VoterLabel,
-                Comment   = _voteComments.GetValueOrDefault(pollId, ""),
-                VotedAt   = DateTime.UtcNow,
-            });
-        }
-        else
-        {
-            existing.OptionId = optionId;
-            existing.VotedAt  = DateTime.UtcNow;
-        }
-
-        await Db.SaveChangesAsync();
+        await Packages.ChooseAsync(pollId, VoterLabel, optionId, _voteComments.GetValueOrDefault(pollId, ""));
         _votes[pollId] = optionId;
         _saved = true;
     }
@@ -413,38 +358,13 @@
     private async Task SaveVoteCommentAsync(int pollId, string comment)
     {
         _voteComments[pollId] = comment;
-
-        var existing = Db.Votes.FirstOrDefault(v => v.PollId == pollId && v.VoterName == VoterLabel);
-        if (existing is null) return;   // no choice yet - kept and saved with the vote
-
-        existing.Comment = comment.Trim();
-        await Db.SaveChangesAsync();
-        _saved = true;
+        if (await Packages.CommentAsync(pollId, VoterLabel, comment)) _saved = true;   // no choice yet: kept and saved with the vote
     }
 
     private async Task SaveRatingAsync(int imageId, int score)
     {
-        var existing = Db.ImageRatings.FirstOrDefault(r => r.ImageId == imageId && r.VoterToken == _token);
-        if (existing is null)
-        {
-            Db.ImageRatings.Add(new ImageRating
-            {
-                ImageId    = imageId,
-                Score      = score,
-                VoterToken = _token,
-                VoterName  = VoterLabel,
-                Comment    = _ratingComments.GetValueOrDefault(imageId, ""),
-                RatedAt    = DateTime.UtcNow,
-            });
-        }
-        else
-        {
-            existing.Score     = score;
-            existing.VoterName = VoterLabel;
-            existing.RatedAt   = DateTime.UtcNow;
-        }
-
-        await Db.SaveChangesAsync();
+        var sessionId = _package!.Sessions.First(s => s.Images.Any(i => i.Id == imageId)).Id;
+        await Packages.RateAsync(sessionId, imageId, _token, VoterLabel, score, _ratingComments.GetValueOrDefault(imageId, ""));
         _ratings[imageId] = score;
         _saved = true;
     }
@@ -452,12 +372,7 @@
     private async Task SaveRatingCommentAsync(int imageId, string comment)
     {
         _ratingComments[imageId] = comment;
-
-        var existing = Db.ImageRatings.FirstOrDefault(r => r.ImageId == imageId && r.VoterToken == _token);
-        if (existing is null) return;
-
-        existing.Comment = comment.Trim();
-        await Db.SaveChangesAsync();
-        _saved = true;
+        var sessionId = _package!.Sessions.First(s => s.Images.Any(i => i.Id == imageId)).Id;
+        if (await Packages.RatingCommentAsync(sessionId, imageId, _token, comment)) _saved = true;
     }
 }

@@ -1,7 +1,9 @@
 namespace ITMartinPoll.Server.Services;
 
-public sealed class DatePollBroadcastService
+public sealed class DatePollBroadcastService : ITMartinPoll.Application.IChangeSignal
 {
+    public void Changed(int channel) => Broadcast(channel);
+
     private readonly Dictionary<int, List<Action>> _subscribers = new();
     private readonly object _lock = new();
 

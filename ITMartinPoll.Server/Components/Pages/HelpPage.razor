@@ -1,6 +1,6 @@
 @page "/tilmeld/{EventId:int}"
 @rendermode InteractiveServer
-@inject PollDb      Db
+@inject HelpEvents Help
 @inject IJSRuntime  JS
 @inject AdminSession Session
 @inject IConfiguration Config
@@ -170,7 +170,7 @@
 
 @code {
     // Keys in the shared broadcast service are date-poll ids; help pages use their own range.
-    private int ChannelId => 1_000_000 + EventId;
+    private int ChannelId => ChangeChannels.Help(EventId);
     private List<HelpChatMessage> _chat = [];
     private string _msg = "";
     private bool _isAdminCookie, _subscribed;
@@ -182,15 +182,13 @@
     {
         var text = _msg.Trim();
         if (text.Length == 0 || _name.Trim().Length < 2) return;
-        Db.HelpChat.Add(new HelpChatMessage { HelpEventId = EventId, Name = _name.Trim(), Text = text, IsOrganiser = IsAdmin });
-        await Db.SaveChangesAsync();
+        await Help.SendChatAsync(EventId, _name, text, IsAdmin);   // tells the open pages to refresh
         await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _name.Trim());
         _msg = "";
-        Load();
-        Broadcast.Broadcast(ChannelId);
+        await LoadAsync();
     }
 
-    private void OnBroadcast() => InvokeAsync(() => { Load(); StateHasChanged(); });
+    private void OnBroadcast() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
 
     public ValueTask DisposeAsync()
     {
@@ -206,17 +204,12 @@
     private string _name = "", _phone = "", _comment = "", _newTask = "", _error = "", _doneName = "";
     private bool _done;
 
-    protected override void OnInitialized() => Load();
+    protected override Task OnInitializedAsync() => LoadAsync();
 
-    private void Load()
+    private async Task LoadAsync()
     {
-        _event = Db.HelpEvents.Where(e => e.Id == EventId && (e.IsActive || Session.IsAdmin)).FirstOrDefault();
-        if (_event is null) return;
-        _event.Slots   = Db.HelpSlots.Where(s => s.HelpEventId == EventId).ToList();
-        _event.Tasks   = Db.HelpTasks.Where(t => t.HelpEventId == EventId).ToList();
-        _event.Signups = Db.HelpSignups.Where(s => s.HelpEventId == EventId).OrderBy(s => s.SignedUpAt).ToList();
-        _chat = Db.HelpChat.Where(m => m.HelpEventId == EventId).OrderByDescending(m => m.Id).Take(200).ToList();
-        _chat.Reverse();
+        _event = await Help.GetAsync(EventId, Session.IsAdmin);
+        _chat = _event?.Chat ?? [];
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -232,7 +225,7 @@
     }
 
     // SortOrder 50-99 = things people bring (car, boxes, tools); below 50 and guest-added (100+) = jobs.
-    private static bool IsBring(HelpTask t) => t.SortOrder is >= 50 and < 100;
+    private static bool IsBring(HelpTask t) => HelpRules.IsBring(t);
 
     private RenderFragment Photo(int i) => __builder =>
     {
@@ -259,45 +252,24 @@
 
     private async Task AddTaskOnEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await AddTask(); }
 
-    // A task added by a guest is saved at once, so everyone else can tick it too.
+    // A task added by a guest is saved at once, so everyone else can tick it too (HelpRules.AddTask).
     private async Task AddTask()
     {
-        var label = _newTask.Trim();
-        if (label.Length < 2 || _event is null) return;
-        var existing = _event.Tasks.FirstOrDefault(t => t.Label.Equals(label, StringComparison.OrdinalIgnoreCase));
-        if (existing is null)
-        {
-            existing = new HelpTask { HelpEventId = EventId, Label = label, SortOrder = 100, AddedBy = _name.Trim() };
-            Db.HelpTasks.Add(existing);
-            await Db.SaveChangesAsync();
-        }
-        _tasks.Add(existing.Id);
+        if (_event is null || await Help.AddTaskAsync(EventId, _newTask, _name) is not { } id) return;
+        _tasks.Add(id);
         _newTask = "";
-        Load();
-        Broadcast.Broadcast(ChannelId);
+        await LoadAsync();
     }
 
     private async Task Submit()
     {
         _error = "";
-        if (_name.Trim().Length < 2) { _error = "Skriv dit navn, så vi ved hvem der kommer."; return; }
-        if (_slots.Count == 0) { _error = "Sæt kryds ved mindst én tid."; return; }
         if (_newTask.Trim().Length >= 2) await AddTask();
-
-        Db.HelpSignups.Add(new HelpSignup
-        {
-            HelpEventId = EventId,
-            Name    = _name.Trim(),
-            Phone   = _phone.Trim(),
-            Comment = _comment.Trim(),
-            SlotIds = string.Join(',', _slots),
-            TaskIds = string.Join(',', _tasks),
-        });
-        await Db.SaveChangesAsync();
+        _error = await Help.SignUpAsync(EventId, _name, _phone, _comment, _slots, _tasks) ?? "";
+        if (_error != "") return;
         await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _name.Trim());
         _doneName = _name.Trim();
         _done = true;
-        Load();
-        Broadcast.Broadcast(ChannelId);
+        await LoadAsync();
     }
 }
