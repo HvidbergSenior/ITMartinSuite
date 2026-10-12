@@ -22,6 +22,7 @@ public static class SiteMenu
         var middle = pages.Select(p => (Sort: p.Sort, Item: new Item(p.Title, "/" + p.Slug)))
             .Append((Sort: TodaySort, Item: new Item("📅 I dag", "/" + Components.NowCard.PageSlug)))
             .Append((Sort: MineAppsSort, Item: new Item("📱 Mine apps", "/mine-apps")))
+            .Append((Sort: MineAppsSort + 1, Item: new Item("💬 Spørgsmål", "/spoergsmaal")))   // Q&A tab (user 2026-10-12: "where is the Q/A?")
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
         return [new Item("🏠 Forside", "/"), .. middle];
