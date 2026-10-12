@@ -34,7 +34,9 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         foreach (var (source, lookup) in asked)
         {
             Listings? r = null;
-            try { r = await lookup; } catch (Exception ex) when (ex is not OperationCanceledException) { }
+            // A site that times out throws a "cancelled" too - that is "did not answer", not the app shutting down
+            // (2026-10-12: one slow Faraos search stopped the whole price hunter until the next restart).
+            try { r = await lookup; } catch (Exception) when (!ct.IsCancellationRequested) { }
             answers.Add(new SourceAnswer(source.Name, source.IsNew, r));
         }
 

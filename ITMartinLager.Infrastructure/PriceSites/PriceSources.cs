@@ -33,7 +33,7 @@ internal static class PriceSourceRegistration
         Client<DbaListings>(); Client<GulogGratisListings>(); Client<EbayListings>(); Client<TraderaListings>(); Client<BlocketListings>();
         Client<FinnListings>(); Client<ToriListings>(); Client<KleinanzeigenListings>(); Client<AbeBooksListings>(); Client<ZvabListings>();
         Client<BokborsenListings>(); Client<NemosListings>(); Client<FaraosListings>(); Client<BogIdeListings>();
-        Client<HipComicListings>(); Client<DiscogsListings>();
+        Client<DiscogsListings>();
         string[] paper = Pricing.PaperKinds;
 
         void Add(Func<IServiceProvider, IPriceSource> make) => services.AddTransient(make);
@@ -42,11 +42,10 @@ internal static class PriceSourceRegistration
         Add(sp => Used(sp.GetRequiredService<GulogGratisListings>(), ""));
         Add(sp => new PriceSource("eBay", false, "", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i))));
-        // American comics and merchandise sell in dollars - eBay's US site, and HipComic (US comic marketplace).
+        // American comics and merchandise sell in dollars - eBay's US site.
         Add(sp => new PriceSource("eBay USA", false, "USA", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct, "EBAY_US"),
             (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i), "EBAY_US"), [Kinds.Tegneserie, Kinds.Merch]));
-        Add(sp => new PriceSource("HipComic", false, "USA", (t, a, i, ct) => sp.GetRequiredService<HipComicListings>().LookupAsync(t, a, ct),
-            (t, a, i) => HipComicListings.SearchUrl(t), [Kinds.Tegneserie]));
+        // HipComic tried 2026-10-12: its Cloudflare check answers 403 to every .NET client (curl gets in) - left out.
         // CDs: Discogs, the record collectors' market - copies for sale and the lowest price, in kroner.
         Add(sp => new PriceSource("Discogs", false, "", (t, a, i, ct) => sp.GetRequiredService<DiscogsListings>().LookupAsync(t, a, ct),
             (t, a, i) => DiscogsListings.SearchUrl(t, a), [Kinds.Cd]));
@@ -57,11 +56,11 @@ internal static class PriceSourceRegistration
         Add(sp => Used(sp.GetRequiredService<ToriListings>(), "Finland"));
         Add(sp => Used(sp.GetRequiredService<KleinanzeigenListings>(), "Tyskland"));
         Add(sp => new PriceSource("AbeBooks", false, "", (t, a, i, ct) => sp.GetRequiredService<AbeBooksListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => AbeBooksListings.SearchUrl(QOrIsbn(t, a, i)), paper));
+            (t, a, i) => AbeBooksListings.SearchUrl(QOrIsbn(t, a, i)), Pricing.AntiquarianKinds));
         Add(sp => new PriceSource("ZVAB", false, "Tyskland", (t, a, i, ct) => sp.GetRequiredService<ZvabListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => ZvabListings.SearchUrl(QOrIsbn(t, a, i)), paper));
+            (t, a, i) => ZvabListings.SearchUrl(QOrIsbn(t, a, i)), Pricing.AntiquarianKinds));
         Add(sp => new PriceSource("Bokbörsen", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<BokborsenListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => BokborsenListings.SearchUrl(QOrIsbn(t, a, i)), paper));
+            (t, a, i) => BokborsenListings.SearchUrl(QOrIsbn(t, a, i)), Pricing.AntiquarianKinds));
         Add(sp => new PriceSource("Nemos Bibliotek", false, "", (t, a, i, ct) => sp.GetRequiredService<NemosListings>().LookupAsync(t, a, ct),
             (t, a, i) => NemosListings.SearchUrl(t), paper));
         Add(sp => new PriceSource("Faraos", false, "", (t, a, i, ct) => sp.GetRequiredService<FaraosListings>().LookupAsync(t, a, ct),

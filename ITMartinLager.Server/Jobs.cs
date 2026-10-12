@@ -27,8 +27,8 @@ public sealed class PriceHunterJob(IServiceScopeFactory scopes, IConfiguration c
                     log.LogInformation("Priced item {Id}: {Ok} sources answered", id, await hunt.HuntAsync(id, stop));
                 if (ids.Count == 0) { await Task.Delay(TimeSpan.FromMinutes(10), stop); continue; }
             }
-            catch (OperationCanceledException) { return; }
-            catch (Exception ex) { log.LogWarning(ex, "Price hunter round failed"); }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
+            catch (Exception ex) { log.LogWarning("Price hunter round failed: {Message}", ex.Message); }   // never stops the hunter
 
             var wait = TimeSpan.FromMinutes(1) - (DateTime.UtcNow - started);
             if (wait > TimeSpan.Zero)

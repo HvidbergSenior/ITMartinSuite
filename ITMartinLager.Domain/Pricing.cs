@@ -8,6 +8,9 @@ public static class Pricing
     public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin,
         Kinds.Cd, Kinds.Dvd, Kinds.BluRay, Kinds.Konsolspil, Kinds.Merch, Kinds.Andet];
     public static readonly string[] PaperKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin];
+    // The international antiquarian markets (AbeBooks, ZVAB, Bokbörsen) have books and albums, not Danish weekly blade
+    // or Jumbobøger - asked anyway, they only answer with foreign books that share a word ("anders").
+    public static readonly string[] AntiquarianKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Magasin];
 
     // The shop sells 10 % under the other sites (user 2026-10-12: "We sell 10 pct below other sites"), and shows the
     // customer the links that prove it.
@@ -28,11 +31,16 @@ public static class Pricing
 
     public static string Isbn(string barcode) => Barcodes.IsIsbn(barcode) ? barcode : "";
 
-    // Comics are sold by issue: "Anders And & Co." alone is a thousand different blade.
+    // Comics are sold by issue: "Anders And & Co." alone is a thousand different blade. A weekly blad is only one issue
+    // with its YEAR too - nr. 12 is in every year (2026-10-12 test: "Anders And & Co. 12" from 1968 matched 2021's nr. 12),
+    // so the year joins the search and, being a number, must be in every listing that counts.
     public static string TitleFor(Item i)
     {
         var t = i.Title.Trim() != "" ? i.Title.Trim() : i.Series.Trim();
-        return i.Number != "" && !ListingParse.Words(t).Contains(i.Number.Trim().ToLowerInvariant()) ? $"{t} {i.Number.Trim()}" : t;
+        var words = ListingParse.Words(t);
+        if (i.Number != "" && !words.Contains(i.Number.Trim().ToLowerInvariant())) t = $"{t} {i.Number.Trim()}";
+        if (i.Kind is Kinds.AndersAnd or Kinds.Magasin && i.Year is { } y && !words.Contains(y.ToString())) t = $"{t} {y}";
+        return t;
     }
 
     // "surname title" - what most sites find best.
