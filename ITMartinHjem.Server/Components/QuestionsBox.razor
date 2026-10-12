@@ -2,7 +2,16 @@
 @inject NavigationManager Nav
 
 @* Front page: the newest public Q&As from the chat (no names) + a search that opens /spoergsmaal (user 2026-10-12). *@
-@if (_total > 0)
+@if (_total == 0 && ShowEmpty)
+{
+    @* bogshoppen.dk shows the box before the first question is up (user 2026-10-12: "what about the Q/A on bogshoppen?"). *@
+    <section class="k-card hj-qa-box">
+        <h2 class="k-card-title">💬 Det spørger folk om</h2>
+        <p>Her kommer spørgsmål fra chatten og vores svar – <b>uden navne</b>. Så kan du se, om dit spørgsmål allerede er besvaret.</p>
+        <p class="k-help">Der er ingen spørgsmål her endnu. <a href="#chat">Stil det første i chatten</a> herunder.</p>
+    </section>
+}
+else if (_total > 0)
 {
     <section class="k-card hj-qa-box">
         <h2 class="k-card-title">💬 Det spørger folk om</h2>
@@ -34,6 +43,8 @@
     private int _total;
 
     [Parameter] public string Site { get; set; } = QuestionRules.ITMartin;
+    // Show the box with an "ingen spørgsmål endnu" line instead of hiding it.
+    [Parameter] public bool ShowEmpty { get; set; }
 
     protected override async Task OnInitializedAsync() => (_latest, _topics, _total) = await Questions.LatestAsync(3, Site);
 
