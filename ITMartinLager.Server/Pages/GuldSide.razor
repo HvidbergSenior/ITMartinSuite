@@ -13,6 +13,7 @@
     @if (_all is null) { <p class="k-muted">Henter …</p> }
     else if (_all.Count == 0) { <p class="lg-answer">Listen bygges</p><p>Første gang tager det et par minutter efter start. Kom tilbage lidt senere.</p> }
     else { <p class="k-small k-muted">Opdateret @_all.Max(e => e.SeenAt).ToLocalTime().ToString("d/M HH:mm").</p> }
+    <button class="k-btn k-btn-secondary" @onclick="Rebuild" disabled="@_busy">@(_busy ? "⏳ Spørger DBA … (et par minutter)" : "🔄 Byg listen igen nu")</button>
 </section>
 
 @if (_all is { Count: > 0 })
@@ -34,5 +35,13 @@
 
 @code {
     private List<GoldEntry>? _all;
+    private bool _busy;
     protected override async Task OnInitializedAsync() => _all = await Gold.AllAsync();
+
+    private async Task Rebuild()
+    {
+        _busy = true;
+        try { await Gold.RefreshAsync(); _all = await Gold.AllAsync(); }
+        finally { _busy = false; }
+    }
 }

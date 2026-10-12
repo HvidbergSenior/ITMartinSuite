@@ -26,6 +26,19 @@ public class GoldTests
     }
 
     [Test]
+    public void Watches_coins_posters_and_figures_are_not_gold()
+    {
+        var tintin = Gold.Categories.First(c => c.Name == "Tintin");
+        Gold.Pick(tintin,
+        [
+            O("Omega - Geneve Chronostop TinTin - 146.012 - Mænd - 1966", 9711),
+            O("Tintin - vintage dansk plakat fra 1983", 5995),
+            O("Opslagstavle egetræsramme - Tintin - 1993", 2350),
+            O("Tintin og Picaroerne – 1. udgave, 1. oplag (1976, dansk)", 5000),
+        ], "DBA", DateTime.UtcNow).Should().ContainSingle().Which.Year.Should().Be(1976);
+    }
+
+    [Test]
     public void A_Jumbobog_needs_its_number()
     {
         var picked = Gold.Pick(Jumbo, [O("ANDERS AND JUMBOBOG", 2150), O("Jumbobog nr. 1 - Anders And i topform", 900)], "DBA", DateTime.UtcNow);

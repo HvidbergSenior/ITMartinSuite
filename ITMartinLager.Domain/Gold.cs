@@ -45,6 +45,14 @@ public static partial class Gold
     private static readonly string[] Lots = ["samling", "samlinger", "komplet", "komplette", "stk", "pakke", "kasse", "lot", "bundle",
         "blandet", "blandede", "bind", "dele", "diverse", "flere", "mange", "partier", "parti", "samlemapper", "samlemappe", "årgange"];
 
+    // Not a blad, album or book: the first gold list (2026-10-12) had an Omega "TinTin" watch, a 50 euro Asterix coin,
+    // posters, Storm P porcelain figures and framed notice boards at the top.
+    private static readonly string[] NotPaper = ["ur", "armbåndsur", "omega", "rolex", "mønt", "mønter", "euro", "proof", "plakat", "plakater",
+        "poster", "figur", "figurer", "porcelæn", "porcelænsfigur", "statue", "kunsttryk", "litografi", "tryk", "serigrafi", "ramme",
+        "indrammet", "opslagstavle", "lampe", "krus", "kop", "tallerken", "platte", "skilt", "emaljeskilt", "frimærke", "frimærker",
+        "legetøj", "bamse", "puslespil", "spil", "tshirt", "t-shirt", "trøje", "kasket", "dvd", "vhs", "film", "lp", "vinyl", "cd",
+        "bing", "grøndahl", "royal", "copenhagen", "maleri", "tegning", "original-tegning", "akvarel", "nøglering", "pin", "badge"];
+
     /// <summary>The dearest single issues among the listings, grouped by issue, top 50.</summary>
     public static List<GoldEntry> Pick(GoldCategory c, IEnumerable<Offer> offers, string source, DateTime now)
     {
@@ -54,7 +62,7 @@ public static partial class Gold
             if (o.Price is not { } kr || kr <= 0 || ListingParse.Placeholder(kr)) continue;
             var words = ListingParse.Words(o.Name);
             if (!c.MustHave.All(m => words.Any(w => w.StartsWith(m)))) continue;
-            if (words.Any(w => Lots.Contains(w)) || RangeRx().IsMatch(o.Name)) continue;
+            if (words.Any(w => Lots.Contains(w) || NotPaper.Contains(w)) || RangeRx().IsMatch(o.Name)) continue;
             var number = NumberRx().Match(o.Name) is { Success: true } n ? n.Groups[1].Value.TrimStart('0') : "";
             int? year = YearRx().Matches(o.Name).Select(m => int.Parse(m.Value)).Distinct().ToList() is { Count: 1 } ys ? ys[0] : null;
             if (number == "" && (c.NeedsNumber || year is null)) continue;   // one issue must be named
