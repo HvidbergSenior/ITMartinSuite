@@ -1,9 +1,7 @@
-using System.Net.WebSockets;
-using System.Text;
-using System.Text.Json;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinSeMed.Server;
-using ITMartinSeMed.Server.Services;
+using ITMartinSeMed.Application;
+using ITMartinSeMed.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 // Se med (Kolibri Kommunikere) - 2026-10-05, user: "i want to make my own Hurtig hjælp" + "i want to tell
@@ -35,8 +33,9 @@ builder.Services.AddKolibri(k =>
 });
 
 builder.Services.AddRazorComponents();
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<Sessions>();
+// DDD/Clean since 2026-10-12: the session rules are in Domain, the session flow in Application.Rooms;
+// this Server only does the login and hands each WebSocket to Rooms.
+builder.Services.AddSeMedApplication();
 
 var app = builder.Build();
 app.MapKolibri();
@@ -71,67 +70,26 @@ app.MapGet("/api/logout", (HttpContext ctx) =>
 static string ClientIp(HttpContext ctx) =>
     ctx.Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "?";
 
-app.Map("/ws", async (HttpContext ctx, Sessions sessions, ILogger<Sessions> log) =>
+app.Map("/ws", async (HttpContext ctx, Rooms rooms) =>
 {
     if (!ctx.WebSockets.IsWebSocketRequest) return Results.BadRequest();
     var role = ctx.Request.Query["rolle"].ToString();
     if (role == "martin" && !IsMartin(ctx)) return Results.Unauthorized();
 
     using var ws = await ctx.WebSockets.AcceptWebSocketAsync();
+    var peer = new WebSocketPeer(ws);
     if (role == "martin")
     {
-        // A reconnect after a dropped line brings its code; anything else (or a dead code) gets a new session.
-        var s = sessions.Resume(ctx.Request.Query["kode"], ws) ?? sessions.Create(ws);
-        log.LogInformation("Se med: helper on session ({Count} open)", sessions.Count);
-        await Sessions.SendAsync(s, ws, Msg(new { t = "kode", kode = s.Code }));
-        if (s.Customer is { State: WebSocketState.Open })
-        {
-            await Sessions.SendAsync(s, ws, Msg(new { t = "kunde-ind" }));
-            await Sessions.SendAsync(s, s.Customer, Msg(new { t = "martin-ind" }));
-        }
-        if (await RelayAsync(ws, s, () => s.Customer))
-        {
-            sessions.End(s);
-            await Sessions.SendAsync(s, s.Customer, Msg(new { t = "slut" }));
-            log.LogInformation("Se med: session ended");
-        }
-        else
-        {
-            // Dropped line, not Afslut: wait for his page to reconnect instead of ending her session.
-            sessions.LeaveHelper(s, ws);
-            await Sessions.SendAsync(s, s.Customer, Msg(new { t = "martin-ud" }));
-            _ = Task.Delay(Sessions.HelperGrace + TimeSpan.FromSeconds(5)).ContinueWith(async _ =>
-            {
-                if (!sessions.HelperTimedOut(s)) return;
-                await Sessions.SendAsync(s, s.Customer, Msg(new { t = "slut" }));
-                log.LogInformation("Se med: session ended (helper did not come back)");
-            });
-        }
+        var s = await rooms.HelperArrivedAsync(peer, ctx.Request.Query["kode"]);
+        var ended = await peer.ReadAsync(text => rooms.ForwardAsync(s, peer, text));
+        await rooms.HelperLeftAsync(s, peer, ended);
     }
     else
     {
-        var (result, s) = sessions.Join(ctx.Request.Query["kode"], ClientIp(ctx), ws);
-        if (s is null)
-        {
-            var why = result switch
-            {
-                JoinResult.Taken => "optaget",
-                JoinResult.Expired => "udloebet",
-                JoinResult.TooManyTries => "ventlidt",
-                _ => "ukendt"
-            };
-            await ws.SendAsync(Encoding.UTF8.GetBytes(Msg(new { t = "nej", hvorfor = why })), WebSocketMessageType.Text, true, CancellationToken.None);
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
-            return Results.Empty;
-        }
-        await Sessions.SendAsync(s, ws, Msg(new { t = "ok" }));
-        await Sessions.SendAsync(s, s.Helper, Msg(new { t = "kunde-ind" }));
-        await RelayAsync(ws, s, () => s.Helper);
-        if (ReferenceEquals(s.Customer, ws))   // not already replaced by her own reconnect
-        {
-            sessions.LeaveCustomer(s);
-            await Sessions.SendAsync(s, s.Helper, Msg(new { t = "kunde-ud" }));
-        }
+        var s = await rooms.CustomerArrivedAsync(peer, ctx.Request.Query["kode"], ClientIp(ctx));
+        if (s is null) { await peer.CloseAsync(); return Results.Empty; }
+        await peer.ReadAsync(text => rooms.ForwardAsync(s, peer, text));
+        await rooms.CustomerLeftAsync(s, peer);
     }
     return Results.Empty;
 });
@@ -140,37 +98,5 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly);
 
 app.Run();
-
-static string Msg(object o) => JsonSerializer.Serialize(o);
-
-// Forwards every text message from one side to the other until the socket closes. Messages are
-// the WebRTC handshake (a few KB); anything bigger than 64 KB is not that and ends the session.
-// "ping" only keeps the line busy (Cloudflare closes a websocket after ~100 s of silence).
-// Returns true when the sender said "slut" (Martin pressed Afslut), false when the line just closed.
-static async Task<bool> RelayAsync(WebSocket from, Session s, Func<WebSocket?> to)
-{
-    var buf = new byte[64 * 1024];
-    try
-    {
-        while (from.State == WebSocketState.Open)
-        {
-            var count = 0;
-            WebSocketReceiveResult r;
-            do
-            {
-                if (count == buf.Length) return false;
-                r = await from.ReceiveAsync(new ArraySegment<byte>(buf, count, buf.Length - count), CancellationToken.None);
-                count += r.Count;
-            } while (!r.EndOfMessage);
-            if (r.MessageType == WebSocketMessageType.Close) return false;
-            var text = Encoding.UTF8.GetString(buf, 0, count);
-            if (text == "{\"t\":\"ping\"}") continue;
-            if (text == "{\"t\":\"slut\"}") return true;
-            await Sessions.SendAsync(s, to(), text);
-        }
-    }
-    catch (WebSocketException) { }
-    return false;
-}
 
 public partial class Program;

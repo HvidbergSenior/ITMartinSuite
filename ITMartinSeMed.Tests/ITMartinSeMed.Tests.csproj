@@ -24,7 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ITMartinSeMed.Server\ITMartinSeMed.Server.csproj" />
+    <ProjectReference Include="..\ITMartinSeMed.Application\ITMartinSeMed.Application.csproj" />
+    <ProjectReference Include="..\ITMartinSeMed.Infrastructure\ITMartinSeMed.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
