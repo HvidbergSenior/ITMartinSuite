@@ -58,7 +58,7 @@ public class MagicImportTests
         var item = await db.Items.SingleAsync();
         item.Kind.Should().Be(Kinds.Magic);
         item.Series.Should().Be("Magic 2010");
-        item.PriceHint.Should().Be(11);
+        item.PriceHint.Should().Be(10);   // Cardmarket 11 kr, the shop 10 % under
         item.Interest.Should().Contain("Lightning Bolt").And.Contain("11 kr");
         item.Price = 25;
         await db.SaveChangesAsync();
@@ -69,7 +69,7 @@ public class MagicImportTests
         using var db2 = Db();
         item = await db2.Items.SingleAsync();
         item.Quantity.Should().Be(4);
-        item.PriceHint.Should().Be(15);
+        item.PriceHint.Should().Be(14);   // Cardmarket 15 kr, the shop 10 % under
         item.Price.Should().Be(25);
     }
 }

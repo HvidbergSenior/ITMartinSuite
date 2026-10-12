@@ -38,18 +38,25 @@ public sealed class CheckedBook
         return string.Join(" · ", parts);
     }
 
+    /// <summary>The market: the middle of the used asking prices on all the sites (prices over 3x the middle left out).</summary>
+    public int? Market() => Pricing.NormalOf(Sites.Values.Where(l => l is { Ambiguous: false })
+        .SelectMany(l => l!.All).Where(o => o.Price is > 0).Select(o => (int)o.Price!.Value).ToList());
+
+    /// <summary>Our price in the shop: 10 % under the market. Null = no site has it - then nobody can prove a price.</summary>
+    public int? ShopPrice() => Pricing.ShopPrice(Market());
+
     public int Rank => Value?.Verdict switch { "Sælg" => 0, BookValue.Unsure => 1, "Kasse" => 2, "Genbrug" => 3, _ => 4 };
 
     // What is saved on the item when the book goes into a box.
     public Found ToFound(DateTime today) => new(
         Kinds.Bog, Title.Trim(), Author.Trim(), "", "", Year, "", Conditions.Normalise(Condition),
         Math.Max(1, Quantity), Confidence, SaveNote(today), "", Barcode,
-        Value is { Low: { } lo, High: { } hi } ? (lo + hi) / 2m : null);
+        ShopPrice() is { } p ? p : Value is { Low: { } lo, High: { } hi } ? (lo + hi) / 2m : null);
 
     private string SaveNote(DateTime today)
     {
         var parts = new List<string>();
-        if (Value is { Where: not "" } wh) parts.Add($"Sælg på {wh.Where}");
+        if (ShopPrice() is { } p) parts.Add($"Vores pris {p} kr (10 % under markedet ca. {Market()} kr)");
         if (Value is { } v) parts.Add($"{v.Verdict}" + (v.Low is { } lo ? $" · {lo}-{v.High} kr" : "") + $" · efterspørgsel {v.Demand} · {v.Reason}");
         foreach (var s in new[] { "DBA", "AbeBooks", "Bokbörsen" })
             if (Site(s) is { Count: > 0 } l) parts.Add($"{s} {today:d/M}: {l.Text}");

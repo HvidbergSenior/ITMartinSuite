@@ -7,13 +7,15 @@ namespace ITMartinLager.Infrastructure.PriceSites;
 internal sealed class PriceSource(
     string name, bool isNew, string country,
     Func<string, string, string, CancellationToken, Task<Listings?>> lookup,
-    Func<string, string, string, string> searchUrl) : IPriceSource
+    Func<string, string, string, string> searchUrl,
+    string[]? kinds = null) : IPriceSource
 {
     public string Name => name;
     public bool IsNew => isNew;
     public string Country => country;
     public Task<Listings?> LookupAsync(string title, string author, string isbn, CancellationToken ct) => lookup(title, author, isbn, ct);
     public string SearchUrl(string title, string author, string isbn) => searchUrl(title, author, isbn);
+    public bool Fits(string kind) => kinds is null || kinds.Contains(kind);
 }
 
 internal static class PriceSourceRegistration
@@ -31,6 +33,8 @@ internal static class PriceSourceRegistration
         Client<DbaListings>(); Client<GulogGratisListings>(); Client<EbayListings>(); Client<TraderaListings>(); Client<BlocketListings>();
         Client<FinnListings>(); Client<ToriListings>(); Client<KleinanzeigenListings>(); Client<AbeBooksListings>(); Client<ZvabListings>();
         Client<BokborsenListings>(); Client<NemosListings>(); Client<FaraosListings>(); Client<BogIdeListings>();
+        Client<HipComicListings>(); Client<DiscogsListings>();
+        string[] paper = Pricing.PaperKinds;
 
         void Add(Func<IServiceProvider, IPriceSource> make) => services.AddTransient(make);
         Add(sp => new PriceSource("DBA", false, "", (t, a, i, ct) => sp.GetRequiredService<DbaListings>().LookupAsync(t, a, ct),
@@ -38,6 +42,14 @@ internal static class PriceSourceRegistration
         Add(sp => Used(sp.GetRequiredService<GulogGratisListings>(), ""));
         Add(sp => new PriceSource("eBay", false, "", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i))));
+        // American comics and merchandise sell in dollars - eBay's US site, and HipComic (US comic marketplace).
+        Add(sp => new PriceSource("eBay USA", false, "USA", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct, "EBAY_US"),
+            (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i), "EBAY_US"), [Kinds.Tegneserie, Kinds.Merch]));
+        Add(sp => new PriceSource("HipComic", false, "USA", (t, a, i, ct) => sp.GetRequiredService<HipComicListings>().LookupAsync(t, a, ct),
+            (t, a, i) => HipComicListings.SearchUrl(t), [Kinds.Tegneserie]));
+        // CDs: Discogs, the record collectors' market - copies for sale and the lowest price, in kroner.
+        Add(sp => new PriceSource("Discogs", false, "", (t, a, i, ct) => sp.GetRequiredService<DiscogsListings>().LookupAsync(t, a, ct),
+            (t, a, i) => DiscogsListings.SearchUrl(t, a), [Kinds.Cd]));
         Add(sp => new PriceSource("Tradera", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<TraderaListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => TraderaListings.SearchUrl(QOrIsbn(t, a, i))));
         Add(sp => Used(sp.GetRequiredService<BlocketListings>(), "Sverige"));
@@ -45,19 +57,19 @@ internal static class PriceSourceRegistration
         Add(sp => Used(sp.GetRequiredService<ToriListings>(), "Finland"));
         Add(sp => Used(sp.GetRequiredService<KleinanzeigenListings>(), "Tyskland"));
         Add(sp => new PriceSource("AbeBooks", false, "", (t, a, i, ct) => sp.GetRequiredService<AbeBooksListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => AbeBooksListings.SearchUrl(QOrIsbn(t, a, i))));
+            (t, a, i) => AbeBooksListings.SearchUrl(QOrIsbn(t, a, i)), paper));
         Add(sp => new PriceSource("ZVAB", false, "Tyskland", (t, a, i, ct) => sp.GetRequiredService<ZvabListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => ZvabListings.SearchUrl(QOrIsbn(t, a, i))));
+            (t, a, i) => ZvabListings.SearchUrl(QOrIsbn(t, a, i)), paper));
         Add(sp => new PriceSource("Bokbörsen", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<BokborsenListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => BokborsenListings.SearchUrl(QOrIsbn(t, a, i))));
+            (t, a, i) => BokborsenListings.SearchUrl(QOrIsbn(t, a, i)), paper));
         Add(sp => new PriceSource("Nemos Bibliotek", false, "", (t, a, i, ct) => sp.GetRequiredService<NemosListings>().LookupAsync(t, a, ct),
-            (t, a, i) => NemosListings.SearchUrl(t)));
+            (t, a, i) => NemosListings.SearchUrl(t), paper));
         Add(sp => new PriceSource("Faraos", false, "", (t, a, i, ct) => sp.GetRequiredService<FaraosListings>().LookupAsync(t, a, ct),
-            (t, a, i) => FaraosListings.SearchUrl(t)));
+            (t, a, i) => FaraosListings.SearchUrl(t), paper));
         // Amazon.de removed 2026-10-12 (user: "useless, too bad price") - it showed new prices far above what a used copy
         // sells for, and its one-at-a-time limit held every book check up.
         Add(sp => new PriceSource("Bog & idé", true, "", (t, a, i, ct) => sp.GetRequiredService<BogIdeListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => BogIdeListings.SearchUrl(QOrIsbn(t, a, i))));
+            (t, a, i) => BogIdeListings.SearchUrl(QOrIsbn(t, a, i)), paper));
         return services;
     }
 

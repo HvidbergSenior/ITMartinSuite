@@ -59,8 +59,8 @@ else
                 var normal = Pricing.NormalOf(used.Select(f => f.Kr).ToList());
                 @if (normal is { } n)
                 {
-                    <p class="lg-answer">Normalpris brugt: ca. @n kr</p>
-                    <p class="k-small k-muted">Midten af @used.Count udbudspriser fra brugtmarkedet. Det er det, sælgere beder om – ikke hvad der faktisk er solgt for.</p>
+                    <p class="lg-answer">Normalpris brugt: ca. @n kr · vores pris: @Pricing.ShopPrice(n) kr</p>
+                    <p class="k-small k-muted">Midten af @used.Count udbudspriser fra brugtmarkedet. Det er det, sælgere beder om – ikke hvad der faktisk er solgt for. Vores pris er 10 % under, og linkene herunder viser det.</p>
                 }
                 else
                 {

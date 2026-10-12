@@ -5,14 +5,14 @@ public static class Kinds
 {
     public const string Cd = "CD", Dvd = "DVD", BluRay = "Blu-ray", Magasin = "Magasin", AndersAnd = "Anders And-blad",
         Jumbobog = "Jumbobog", Tegneserie = "Tegneserie", Konsolspil = "Konsolspil", Bog = "Bog",
-        Magic = "Magic-kort", Andet = "Andet";
+        Magic = "Magic-kort", Merch = "Merchandise", Andet = "Andet";
 
-    public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Magasin, Bog, Cd, Dvd, BluRay, Konsolspil, Magic, Andet];
+    public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Magasin, Bog, Cd, Dvd, BluRay, Konsolspil, Magic, Merch, Andet];
 
     public static string Icon(string kind) => kind switch
     {
         Cd => "🎵", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆", Tegneserie => "💥",
-        Konsolspil => "🎮", Bog => "📚", Magic => "🃏", _ => "📦",
+        Konsolspil => "🎮", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
     };
 
     public static string Normalise(string? kind) =>
@@ -74,7 +74,7 @@ public sealed class Item
     public Box? Box { get; set; }
     public int? PhotoId { get; set; }
     public decimal? Price { get; set; }          // kr, set by a person
-    public decimal? PriceHint { get; set; }      // kr, suggested by a source (Scryfall for Magic) - never the selling price by itself
+    public decimal? PriceHint { get; set; }      // kr, the suggested SHOP price: 10 % under the other sites (Pricing.ShopPrice)
     public string MagicRef { get; set; } = "";
     public string Barcode { get; set; } = "";    // EAN/ISBN when scanned   // card id in the MTG Scanner, so a new fetch updates instead of duplicating
     public string Status { get; set; } = Statuses.Lager;

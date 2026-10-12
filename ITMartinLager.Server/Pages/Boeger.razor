@@ -62,7 +62,7 @@
                             <b class="lg-price">@(lo == hi ? $"{lo} kr" : $"{lo}-{hi} kr")</b>
                         }
                         @if (b.Value is { } d) { <span class="k-tag">Efterspørgsel: @d.Demand</span> }
-                        @if (b.Value is { Where: not "" } w) { <span class="k-tag lg-where">Sælg på: @w.Where</span> }
+                        @if (b.ShopPrice() is { } sp) { <span class="k-tag lg-where">Vores pris: @sp kr</span> }
                         @if (b.Confidence < 0.6) { <span class="lg-check">⚠ Tjek titlen</span> }
                     </div>
                     <div class="lg-rgrid">

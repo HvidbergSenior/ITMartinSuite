@@ -4,8 +4,22 @@ namespace ITMartinLager.Domain;
 // (2026-10-10, user: "as many places as possible ... facts are needed like 'found on X til 45 kr. Link'").
 public static class Pricing
 {
-    // Books and paper - Magic cards get their price from the MTG Scanner, CDs/DVDs/games have no source here yet.
-    public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin];
+    // Everything but Magic cards, which get Cardmarket's price from the MTG Scanner (user 2026-10-12: "also cds, dvds etc").
+    public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin,
+        Kinds.Cd, Kinds.Dvd, Kinds.BluRay, Kinds.Konsolspil, Kinds.Merch, Kinds.Andet];
+    public static readonly string[] PaperKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin];
+
+    // The shop sells 10 % under the other sites (user 2026-10-12: "We sell 10 pct below other sites"), and shows the
+    // customer the links that prove it.
+    public const decimal ShopFactor = 0.9m;
+
+    // Under 20 kr: whole kroner (a Magic card for 3 kr stays 3 kr). From 20 kr: down to the nearest 5, so it stays under.
+    public static int? ShopPrice(decimal? market)
+    {
+        if (market is not { } m || m <= 0) return null;
+        var p = m * ShopFactor;
+        return p < 20 ? (int)Math.Max(1, Math.Round(p)) : (int)(Math.Floor(p / 5) * 5);
+    }
 
     // Not searched again for this long; nothing answered = try again tomorrow.
     public static readonly TimeSpan StaleAfter = TimeSpan.FromDays(30);
@@ -101,9 +115,10 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
     public void ApplyTo(Item item, DateTime now)
     {
         item.PricesAt = Answered == 0 ? now - Pricing.StaleAfter + TimeSpan.FromDays(1) : now;
-        if (Normal is { } n) item.PriceHint = n;
+        if (ShopPrice(Normal) is { } p) item.PriceHint = p;
     }
 
+    private static int? ShopPrice(int? normal) => Pricing.ShopPrice(normal);
     private static int? Kr(decimal? v) => v is null ? null : (int)Math.Round(v.Value);
     private static string Cut(string s, int n) => s.Length <= n ? s : s[..n];
 }

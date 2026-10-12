@@ -17,9 +17,10 @@ public sealed class EbayListings(HttpClient http, IConfiguration cfg, ILogger<Eb
     private static (string Token, DateTime Until) _token = ("", DateTime.MinValue);
     private static (DateOnly Day, int Count) _used = (DateOnly.MinValue, 0);
 
-    private string Marketplace => cfg["Lager:EbayMarketplace"] is { Length: > 0 } m ? m : "EBAY_DE";
+    private string Market(string? marketplace) =>
+        marketplace is { Length: > 0 } given ? given : cfg["Lager:EbayMarketplace"] is { Length: > 0 } m ? m : "EBAY_DE";
 
-    private string Site => Marketplace switch
+    private static string SiteOf(string marketplace) => marketplace switch
     {
         "EBAY_GB" => "www.ebay.co.uk",
         "EBAY_US" => "www.ebay.com",
@@ -30,16 +31,18 @@ public sealed class EbayListings(HttpClient http, IConfiguration cfg, ILogger<Eb
         _ => "www.ebay.de",
     };
 
-    public string SearchUrl(string query) => $"https://{Site}/sch/i.html?_nkw=" + Uri.EscapeDataString(query);
+    public string SearchUrl(string query, string? marketplace = null) => $"https://{SiteOf(Market(marketplace))}/sch/i.html?_nkw=" + Uri.EscapeDataString(query);
 
-    public async Task<Listings?> LookupAsync(string title, string author, string isbn = "", CancellationToken ct = default)
+    // marketplace: "EBAY_US" for American comics and merchandise; null = the configured site (EBAY_DE).
+    public async Task<Listings?> LookupAsync(string title, string author, string isbn = "", CancellationToken ct = default, string? marketplace = null)
     {
+        var market = Market(marketplace);
         var id = cfg["Lager:EbayClientId"] ?? "";
         var secret = cfg["Lager:EbayClientSecret"] ?? "";
         if (id == "" || secret == "") return null;                  // not set up - shows as "svarede ikke"
         if (string.IsNullOrWhiteSpace(title) && isbn == "") return null;
         var query = isbn != "" ? isbn : Pricing.QueryFor(title, author);
-        var key = Marketplace + "|" + query.ToLowerInvariant();
+        var key = market + "|" + query.ToLowerInvariant();
         if (Cache.TryGetValue(key, out var hit) && hit.At > DateTime.UtcNow.AddDays(-1)) return hit.Result;
 
         await Gate.WaitAsync(ct);
@@ -55,14 +58,14 @@ public sealed class EbayListings(HttpClient http, IConfiguration cfg, ILogger<Eb
                 + (isbn != "" ? "gtin=" : "q=") + Uri.EscapeDataString(query);
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            req.Headers.Add("X-EBAY-C-MARKETPLACE-ID", Marketplace);
+            req.Headers.Add("X-EBAY-C-MARKETPLACE-ID", market);
             req.Headers.Add("X-EBAY-C-ENDUSERCTX", "contextualLocation=country=DK");
             _used = (today, _used.Count + 1);
             using var res = await http.SendAsync(req, ct);
             if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized) _token = ("", DateTime.MinValue);
             if (!res.IsSuccessStatusCode) { log.LogInformation("eBay {Status} for {Query}", res.StatusCode, query); return null; }
             var json = await res.Content.ReadAsStringAsync(ct);
-            var result = await ParseAsync(json, isbn != "" ? "" : title, author, SearchUrl(query), ct);
+            var result = await ParseAsync(json, isbn != "" ? "" : title, author, SearchUrl(query, market), ct);
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }

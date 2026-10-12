@@ -23,7 +23,7 @@ public static class MagicCards
         var kr = Kr(c.EurPrice);
         item.Quantity = Math.Max(1, c.Quantity);
         if (item.Interest == "" || item.Interest.StartsWith("Magic: The Gathering")) item.Interest = Interest(c, kr);
-        item.PriceHint = kr;
+        item.PriceHint = Pricing.ShopPrice(kr);
         item.Touch();
         return true;
     }
@@ -35,7 +35,7 @@ public static class MagicCards
         {
             Kind = Kinds.Magic, Title = c.Name, Series = c.SetName, Number = c.CollectorNumber, Year = c.ReleaseYear,
             Quantity = Math.Max(1, c.Quantity), Condition = "God", BoxId = boxId, MagicRef = c.Id.ToString(),
-            PriceHint = kr, Interest = Interest(c, kr), Confidence = 1,
+            PriceHint = Pricing.ShopPrice(kr), Interest = Interest(c, kr), Confidence = 1,
         };
         item.Touch();
         return item;

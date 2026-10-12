@@ -29,7 +29,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         if (item is null) return 0;
         var title = Pricing.TitleFor(item);
         var isbn = Pricing.Isbn(item.Barcode);
-        var asked = _sources.Select(s => (s, s.LookupAsync(title, item.Artist, isbn, ct))).ToList();
+        var asked = _sources.Where(s => s.Fits(item.Kind)).Select(s => (s, s.LookupAsync(title, item.Artist, isbn, ct))).ToList();
         var answers = new List<SourceAnswer>();
         foreach (var (source, lookup) in asked)
         {

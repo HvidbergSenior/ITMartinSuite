@@ -15,6 +15,8 @@ public interface IPriceSource
     Task<Listings?> LookupAsync(string title, string author, string isbn, CancellationToken ct);
     /// <summary>The site's own search page for the book, for a person to check.</summary>
     string SearchUrl(string title, string author, string isbn);
+    /// <summary>Whether this site has this kind of thing at all (HipComic only comics, Discogs only CDs ...).</summary>
+    bool Fits(string kind) => true;
 }
 
 /// <summary>Claude: reads covers and kolofons, writes collector texts and book values - batched, under a daily cap.</summary>

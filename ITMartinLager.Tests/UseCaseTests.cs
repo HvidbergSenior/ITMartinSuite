@@ -32,6 +32,7 @@ public class UseCaseTests
         s.SetupGet(x => x.Name).Returns(name);
         s.SetupGet(x => x.IsNew).Returns(isNew);
         s.SetupGet(x => x.Country).Returns("");
+        s.Setup(x => x.Fits(It.IsAny<string>())).Returns(true);
         s.Setup(x => x.LookupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(answer);
         return s.Object;
     }
@@ -58,7 +59,7 @@ public class UseCaseTests
         checks.Select(c => (c.Source, c.Ok)).Should().BeEquivalentTo(new[] { ("DBA", true), ("eBay", false), ("Amazon.de", true) });
         finds.Should().HaveCount(4);
         var saved = await Items.GetAsync(item.Id, default);
-        saved!.PriceHint.Should().Be(50);          // the new Amazon price is not a used price
+        saved!.PriceHint.Should().Be(45);          // 10 % under the used normal price 50; the new price is not a used price
         saved.PricesAt.Should().NotBeNull();
         hunt.SourceList.Should().Be("Brugt: DBA og eBay. Ny: Amazon.de.");
     }
