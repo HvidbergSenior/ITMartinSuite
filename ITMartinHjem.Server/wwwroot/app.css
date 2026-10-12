@@ -572,3 +572,11 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .sp-option { padding-left: 38px; position: relative; }
 .sp-option::before { content: ""; position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border: 2px solid currentColor; border-radius: 4px; }
 .sp-option.on::before { background: currentColor; box-shadow: inset 0 0 0 3px var(--k-text); }
+
+/* /spoergsmaal: air between search, topics and "spørg i chatten" (2026-10-12) */
+.hj-qa-search { margin-top: 12px; }
+.hj-qa-topics { margin: 12px 0 0; gap: 8px; }
+.hj-qa-ask { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--k-border); }
+.hj-qa-ask .k-help { margin: 0 0 8px; }
+.hj-qa .k-help { margin-top: 8px; }
+.hj-qa-related { margin-top: 14px; }

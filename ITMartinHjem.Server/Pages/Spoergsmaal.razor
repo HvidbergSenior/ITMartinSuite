@@ -9,10 +9,10 @@
 <PageHead Title="Det spørger folk om" Tag="Spørgsmål og svar" Line="Uden navne." />
 <article class="k-card hj-page" data-nofold>
     <p>Her er spørgsmål, folk har stillet mig i chatten – og mine svar. <b>Uden navne.</b> Måske er dit spørgsmål allerede besvaret.</p>
+    @* Order and air (user 2026-10-12: "space on /spoergsmaal"): search first, then topics, then "not found? ask in the chat". *@
     <p class="k-help"><b>Sådan gør du:</b> skriv et ord i søgefeltet (fx <i>budget</i> eller <i>billeder</i>), eller tryk på et emne.
-        Under hvert svar står de andre spørgsmål om det samme. Fandt du ikke svaret? Spørg mig i chatten.</p>
-    <a class="k-btn k-btn-sm" href="/#chat">Spørg mig i chatten</a>
-    <input class="k-input" type="search" @bind="_q" @bind:event="oninput" @bind:after="SearchAsync" placeholder="Søg, fx budget, billeder, strøm…" aria-label="Søg i spørgsmål" />
+        Under hvert svar står de andre spørgsmål om det samme.</p>
+    <input class="k-input hj-qa-search" type="search" @bind="_q" @bind:event="oninput" @bind:after="SearchAsync" placeholder="Søg, fx budget, billeder, strøm…" aria-label="Søg i spørgsmål" />
     @if (_found is { Topics.Count: > 0 } f)
     {
         <div class="hj-qa-topics">
@@ -23,6 +23,10 @@
             }
         </div>
     }
+    <div class="hj-qa-ask">
+        <p class="k-help">Fandt du ikke svaret? Spørg mig i chatten.</p>
+        <a class="k-btn k-btn-sm" href="/#chat">Spørg mig i chatten</a>
+    </div>
 </article>
 
 @if (_found is null) { <p class="k-help k-center">Henter…</p> }
