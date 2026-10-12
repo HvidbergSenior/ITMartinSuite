@@ -55,7 +55,8 @@ public interface IAuctionGateway
     bool Enabled { get; }
     string PublicBase { get; }
     Task<List<AuctionSessionInfo>> SessionsAsync(CancellationToken ct);
-    Task<Guid> SendAsync(string code, string name, string description, decimal startPrice, int lot, byte[]? jpeg, CancellationToken ct);
+    /// <summary>highlight = the guld/sølv/bronze/måske mark shown to bidders, or null.</summary>
+    Task<Guid> SendAsync(string code, string name, string description, decimal startPrice, int lot, byte[]? jpeg, string? highlight, CancellationToken ct);
     Task<List<AuctionStatusInfo>> StatusAsync(IEnumerable<Guid> ids, CancellationToken ct);
 }
 

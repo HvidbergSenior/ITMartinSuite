@@ -1,7 +1,7 @@
 @page "/auction/{Code}/admin"
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
-@inject AuctionService Svc
+@inject AuctionUseCases Svc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ToastService Toast
@@ -83,6 +83,7 @@ else
                                 .OrderByDescending(b => b.Amount)
                                 .FirstOrDefault();
                             <div class="live-item-name">@_activeItem.Name</div>
+                            @if (_activeItem.IsHighlighted) { <div class="hl hl-@Highlights.Rank(_activeItem.Highlight)">@_activeItem.Highlight</div> }
                             @if (adminTopBid is not null)
                             {
                                 var bidder = _session.Bidders.FirstOrDefault(b => b.Id == adminTopBid.BidderId);
@@ -163,6 +164,7 @@ else
                                                @(item.Status == AuctionItemStatus.Sold   ? "admin-item-done"   : "")
                                                @(item.Status == AuctionItemStatus.Passed ? "admin-item-done"   : "")">
                             <div class="admin-item-name">@item.Name
+                                @if (item.IsHighlighted) { <span class="hl-badge hl-@Highlights.Rank(item.Highlight)">@Highlights.Badge(item.Highlight!)</span> }
                                 @if (item.LotQuantity > 1) { <span class="catalog-qty">@item.LotQuantity stk.</span> }
                             </div>
                             <div class="admin-item-meta">
@@ -383,16 +385,9 @@ else
     {
         var file = e.File;
         if (file is null) return;
-        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
-        var fname = $"{Guid.NewGuid()}{ext}";
-        var dir  = "/app/data/photos";
-        Directory.CreateDirectory(dir);
-        var fullPath = Path.Combine(dir, fname);
-        await using var fs     = new FileStream(fullPath, FileMode.Create);
         await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-        await stream.CopyToAsync(fs);
-        _photoPath    = fullPath;
-        _photoPreview = $"/photos/{fname}";
+        _photoPath    = await Svc.SavePhotoAsync(stream, Path.GetExtension(file.Name));
+        _photoPreview = Svc.PhotoUrl(_photoPath);
     }
 
     private async Task AddItem()

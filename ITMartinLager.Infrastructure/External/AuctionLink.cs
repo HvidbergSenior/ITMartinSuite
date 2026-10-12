@@ -31,12 +31,12 @@ public sealed class AuctionLink(HttpClient http, IConfiguration cfg) : IAuctionG
         return await res.Content.ReadFromJsonAsync<List<AuctionSessionInfo>>(ct) ?? [];
     }
 
-    public async Task<Guid> SendAsync(string code, string name, string description, decimal startPrice, int lot, byte[]? jpeg, CancellationToken ct)
+    public async Task<Guid> SendAsync(string code, string name, string description, decimal startPrice, int lot, byte[]? jpeg, string? highlight, CancellationToken ct)
     {
         using var res = await http.SendAsync(Req(HttpMethod.Post, "/api/lager/items", new
         {
             Code = code, Name = name, Description = description, StartingPrice = startPrice, LotQuantity = lot,
-            PhotoJpegBase64 = jpeg is null ? null : Convert.ToBase64String(jpeg),
+            PhotoJpegBase64 = jpeg is null ? null : Convert.ToBase64String(jpeg), Highlight = highlight,
         }), ct);
         if (!res.IsSuccessStatusCode) throw new InvalidOperationException($"Live Auktion svarede {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync(ct)}");
         var body = await res.Content.ReadFromJsonAsync<SentOut>(ct);

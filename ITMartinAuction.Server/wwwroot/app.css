@@ -339,3 +339,16 @@ body {
 .toast-error   { background:#ef4444; color:white; }
 .toast-info    { background:#3b82f6; color:white; }
 @keyframes toast-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+/* Marks from Bogshoppen Lager (2026-10-12): guld, sølv, bronze, måske. Always a sign and words - never colour alone
+   (the user is a bit colour-blind); dark text on a pale fill for contrast. */
+.hl { display: inline-block; margin: 6px 0 2px; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: .9rem; line-height: 1.3; color: #1a1a1a; }
+.hl-big { font-size: 1.6rem; padding: 8px 18px; margin-top: 12px; }
+.hl-badge { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 6px; font-weight: 700; font-size: .78rem; color: #1a1a1a; white-space: nowrap; }
+.hl-0 { background: #ffd95a; }   /* guld */
+.hl-1 { background: #dfe3e8; }   /* sølv */
+.hl-2 { background: #f0c49a; }   /* bronze */
+.hl-3 { background: #cfe8ff; }   /* måske */
+.hl-filter { margin: 8px 0 12px; }
+.hl-toggle { padding: 8px 14px; border-radius: 10px; border: 2px solid #ffd95a; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
+.hl-toggle.on { background: #ffd95a; color: #1a1a1a; }

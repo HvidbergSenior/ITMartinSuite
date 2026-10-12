@@ -1,7 +1,7 @@
 @page "/auction/{Code}/skaerm"
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
-@inject AuctionService Svc
+@inject AuctionUseCases Svc
 @inject NavigationManager Nav
 @implements IAsyncDisposable
 
@@ -32,7 +32,7 @@
                 @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
                 {
                     <div class="skaerm-preview-item">
-                        <span>@item.Name</span>
+                        <span>@item.Name @if (item.IsHighlighted) { <span class="hl-badge hl-@Highlights.Rank(item.Highlight)">@Highlights.Badge(item.Highlight!)</span> }</span>
                         <span class="skaerm-preview-price">fra @item.StartingPrice.ToString("0") kr</span>
                     </div>
                 }
@@ -54,6 +54,7 @@
             else
             {
                 <div class="skaerm-item-name">@_activeItem.Name</div>
+                @if (_activeItem.IsHighlighted) { <div class="hl hl-big hl-@Highlights.Rank(_activeItem.Highlight)">@_activeItem.Highlight</div> }
                 @if (_activeItem.LotQuantity > 1)
                 {
                     <div class="skaerm-item-qty">@_activeItem.LotQuantity stk.</div>

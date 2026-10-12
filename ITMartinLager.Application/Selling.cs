@@ -4,7 +4,7 @@ namespace ITMartinLager.Application;
 
 /// <summary>Live Auktion: open auctions, sending an item, and copying results back (Live Auktion deletes an auction
 /// 7 days after it was created - Lager keeps the result).</summary>
-public sealed class AuctionUseCases(IAuctionGateway auctions, IItemRepository items, IPhotoStore photos, TimeProvider clock)
+public sealed class AuctionUseCases(IAuctionGateway auctions, IItemRepository items, IPhotoStore photos, IGoldRepository gold, TimeProvider clock)
 {
     public bool Enabled => auctions.Enabled;
     public string PublicBase => auctions.PublicBase;
@@ -17,7 +17,8 @@ public sealed class AuctionUseCases(IAuctionGateway auctions, IItemRepository it
         if (code == "") throw new LagerException("Vælg en auktion.");
         var jpeg = item.ItemPhoto != "" ? await photos.ReadAsync(item.ItemPhoto, ct) : null;
         lot = Math.Clamp(lot, 1, Math.Max(1, item.Quantity));
-        var id = await auctions.SendAsync(code, item.Line(), AuctionResult.Description(item), Math.Max(0, startPrice), lot, jpeg, ct);
+        var highlight = Gold.ForAuction(await gold.AllAsync(ct), item.Kind, item.Title, item.Series, item.Number, item.Year, item.Price ?? item.PriceHint);
+        var id = await auctions.SendAsync(code, item.Line(), AuctionResult.Description(item), Math.Max(0, startPrice), lot, jpeg, highlight, ct);
         AuctionResult.Sent(item, id, code);
         await items.UpdateAsync([item], ct);
         return item;

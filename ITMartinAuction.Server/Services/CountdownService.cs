@@ -1,15 +1,16 @@
+using ITMartinAuction.Application;
 using ITMartinAuction.Server.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
 namespace ITMartinAuction.Server.Services;
 
-public sealed class CountdownService(IHubContext<AuctionHub> hub) : IDisposable
+public sealed class CountdownService(IHubContext<AuctionHub> hub) : ICountdown, IDisposable
 {
     private readonly Dictionary<Guid, CancellationTokenSource> _timers = new();
     private readonly object _lock = new();
 
-    public void Start(string code, Guid itemId, int seconds = 30) => Restart(code, itemId, seconds);
-    public void Extend(string code, Guid itemId, int seconds = 15) => Restart(code, itemId, seconds);
+    public void Start(string code, Guid itemId, int seconds) => Restart(code, itemId, seconds);
+    public void Extend(string code, Guid itemId, int seconds) => Restart(code, itemId, seconds);
 
     public void Cancel(Guid itemId)
     {

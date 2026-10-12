@@ -116,6 +116,16 @@ public static partial class Gold
         return $"🔎 MÅSKE – tjek nærmere: {cat.Name} har {valuable.Count} numre{span} til 200 kr eller mere. Se om det er et af dem på Guld-listen.";
     }
 
+    /// <summary>The mark as bidders on Live Auktion see it (2026-10-12: "put interesting and bronze, silver, gold on
+    /// liveauctions"): the badge and what it goes for elsewhere - no internal words like "Guld-listen".</summary>
+    public static string? ForAuction(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null)
+    {
+        if (ownPrice is { } p && p >= BronzeFrom) return $"{BadgeOf(TierOf((int)p))} – sælges for ca. {p:0} kr andre steder";
+        if (Match(list, kind, title, series, number, year) is { } e) return $"{e.Badge} – sælges for ca. {e.Kr} kr andre steder";
+        return Interesting(list, kind, title, series, number, year) is { } note && note.StartsWith("🔎")
+            ? "🔎 MÅSKE – fra en serie med eftertragtede samlernumre" : null;
+    }
+
     /// <summary>Order for "go through all interesting in one go": gold, silver, bronze, then "tjek nærmere".</summary>
     public static int Rank(string note) => note.StartsWith("🏆") ? 0 : note.StartsWith("🥈") ? 1 : note.StartsWith("🥉") ? 2 : 3;
     /// <summary>The four kinds of "interesting", in order, for buttons: Guld, Sølv, Bronze, Måske (user 2026-10-12).</summary>

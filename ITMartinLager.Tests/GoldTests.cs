@@ -59,6 +59,16 @@ public class GoldTests
     }
 
     [Test]
+    public void Bidders_see_the_badge_and_the_price_elsewhere()
+    {
+        var list = Gold.Pick(AndersAnd, [O("Anders And & Co. nr. 17 1973", 1500)], "DBA", DateTime.UtcNow);
+        Gold.ForAuction(list, Kinds.AndersAnd, "Anders And & Co.", "", "17", 1973).Should().Be("🏆 GULD – sælges for ca. 1500 kr andre steder");
+        Gold.ForAuction(list, Kinds.Bog, "Mort", "", "", 1987, 260).Should().Be("🥈 SØLV – sælges for ca. 260 kr andre steder");
+        Gold.ForAuction(list, Kinds.AndersAnd, "Anders And & Co.", "", "3", 1990)!.Should().StartWith("🔎 MÅSKE");
+        Gold.ForAuction(list, Kinds.Bog, "Mort", "", "", 1987, 40).Should().BeNull();
+    }
+
+    [Test]
     public void A_Jumbobog_needs_its_number()
     {
         var picked = Gold.Pick(Jumbo, [O("ANDERS AND JUMBOBOG", 2150), O("Jumbobog nr. 1 - Anders And i topform", 900)], "DBA", DateTime.UtcNow);
