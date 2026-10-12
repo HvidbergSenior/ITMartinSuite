@@ -47,6 +47,16 @@ public class GoldTests
     }
 
     [Test]
+    public void Every_thing_gets_a_one_line_answer_worth_looking_into_or_not()
+    {
+        var list = Gold.Pick(AndersAnd, [O("Anders And & Co Originalt blad fra marts 1949", 3600), O("Anders And & Co. nr. 17 1973", 400)], "DBA", DateTime.UtcNow);
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1949)!.Should().StartWith("🏆 GULD");
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1980)!.Should().StartWith("🔎 Tjek nærmere").And.Contain("1949-1973");
+        Gold.Interesting(list, Kinds.Bog, "Mort", "", "", 1987).Should().BeNull();
+        Gold.Interesting(list, Kinds.Bog, "Mort", "", "", 1987, ownPrice: 250)!.Should().StartWith("🥈 SØLV");
+    }
+
+    [Test]
     public void A_Jumbobog_needs_its_number()
     {
         var picked = Gold.Pick(Jumbo, [O("ANDERS AND JUMBOBOG", 2150), O("Jumbobog nr. 1 - Anders And i topform", 900)], "DBA", DateTime.UtcNow);

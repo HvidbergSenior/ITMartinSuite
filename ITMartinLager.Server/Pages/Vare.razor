@@ -48,12 +48,14 @@ else
 
     @if (Pricing.HuntedKinds.Contains(_item.Kind))
     {
-        @if (_gold is { } g)
+        @if (_note is { } note)
         {
             <section class="k-card lg-gold">
-                <h2 class="k-card-title">@g.Badge</h2>
-                <p class="lg-answer">@g.Category @g.Issue sælges for ca. @g.Kr kr lige nu</p>
-                <p class="k-small">@(g.Tier switch { "Guld" => "Guld = 500 kr eller mere.", "Sølv" => "Sølv = 200-499 kr – værd at sælge for sig.", _ => "Bronze = 100-199 kr – interessant." }) Fra @g.Source (@g.Listings annonce@(g.Listings == 1 ? "" : "r")). Tjek at det er netop dette nummer og år – og standen. <a href="@g.Url" target="_blank" rel="noopener">Se annoncen</a> · <a href="/guld">Hele guldlisten</a></p>
+                <p class="lg-answer">@note</p>
+                @if (_gold is { } g)
+                {
+                    <p class="k-small">@(g.Tier switch { "Guld" => "Guld = 500 kr eller mere.", "Sølv" => "Sølv = 200-499 kr – værd at sælge for sig.", _ => "Bronze = 100-199 kr – interessant." }) Fra @g.Source (@g.Listings annonce@(g.Listings == 1 ? "" : "r")). Tjek at det er netop dette nummer og år – og standen. <a href="@g.Url" target="_blank" rel="noopener">Se annoncen</a> · <a href="/guld">Hele listen</a></p>
+                }
             </section>
         }
         <section class="k-card">
@@ -213,6 +215,7 @@ else
     private bool _busy;
     private long _photoVer = DateTime.UtcNow.Ticks;
     private GoldEntry? _gold;
+    private string? _note;
     private List<PriceFind> _similar = [];
     private List<PriceFind> _finds = [];
     private List<PriceCheck> _checks = [];
@@ -243,6 +246,7 @@ else
         _box = _item?.Box?.Code;
         _finds = view?.Finds.Where(f => !f.Similar).ToList() ?? [];
         _gold = _item is null ? null : await Gold.MatchAsync(_item);
+        _note = _item is null ? null : ITMartinLager.Domain.Gold.Interesting(await Gold.AllAsync(), _item.Kind, _item.Title, _item.Series, _item.Number, _item.Year, _item.Price ?? _item.PriceHint);
         _similar = view?.Finds.Where(f => f.Similar).ToList() ?? [];
         _checks = view?.Checks ?? [];
     }

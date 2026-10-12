@@ -59,7 +59,7 @@
                     </div>
                     @if (r.Gold is not null)
                     {
-                        <p class="lg-ok" role="status"><b>@r.Gold</b>. Tjek nummer, år og stand. @if (r.GoldUrl is { } gu) { <a href="@gu" target="_blank" rel="noopener">Se annoncen</a> }</p>
+                        <p class="lg-ok" role="status"><b>@r.Gold</b> @if (r.GoldUrl is { } gu) { <a href="@gu" target="_blank" rel="noopener">Se annoncen</a> }</p>
                     }
                     @if (r.InStock > 0 || r.DupInList)
                     {

@@ -96,6 +96,24 @@ public static partial class Gold
             .OrderByDescending(e => e.Kr).ToList();
     }
 
+    /// <summary>The one-line answer to "is this worth looking into?" (user 2026-10-12: "when I scan or look at one
+    /// product i need to see if it is interesting to make further investigation or not"). Its own valued price first
+    /// (when the hunter has one), then the exact issue on the list, then "the series has valuable issues - check".
+    /// Null = ordinary, nothing to dig into.</summary>
+    public static string? Interesting(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null)
+    {
+        if (ownPrice is { } p && p >= BronzeFrom) return $"{BadgeOf(TierOf((int)p))} – vurderet til ca. {p:0} kr";
+        if (Match(list, kind, title, series, number, year) is { } e) return $"{e.Badge} – {e.Category} {e.Issue} sælges for ca. {e.Kr} kr";
+        var words = ListingParse.Words($"{title} {series}");
+        var cat = Categories.FirstOrDefault(c => c.Kind == kind && c.MustHave.All(m => words.Any(w => w.StartsWith(m))));
+        if (cat is null) return null;
+        var valuable = list.Where(e => e.Category == cat.Name && e.Kr >= SilverFrom).ToList();
+        if (valuable.Count == 0) return null;
+        var years = valuable.Where(e => e.Year is not null).Select(e => e.Year!.Value).OrderBy(y => y).ToList();
+        var span = years.Count == 0 ? "" : years[0] == years[^1] ? $" fra {years[0]}" : $" fra {years[0]}-{years[^1]}";
+        return $"🔎 Tjek nærmere – {cat.Name} har {valuable.Count} numre{span} til 200 kr eller mere. Se om det er et af dem på Guld-listen.";
+    }
+
     /// <summary>Is this thing on the gold list? Same kind, the category's words in its title or series, and the same
     /// issue: number when the entry has one, year when the entry has one.</summary>
     public static GoldEntry? Match(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year)
