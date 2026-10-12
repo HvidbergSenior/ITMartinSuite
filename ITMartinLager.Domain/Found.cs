@@ -9,8 +9,8 @@ public sealed record BookValue(int? Low, int? High, string Demand, string Verdic
     public const string Unsure = "Tjek selv";
     public static readonly string[] Verdicts = ["Sælg", "Kasse", "Genbrug", Unsure];
     public static readonly string[] Demands = ["Høj", "Middel", "Lav"];
-    public static readonly string[] Places = ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek", "Faraos"];
-    public static readonly string[] Sources = ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek", "Faraos"];
+    public static readonly string[] Places = ["DBA", "AbeBooks", "Bokbörsen", "eBay", "Bogshoppen", "Nemos Bibliotek", "Faraos"];
+    public static readonly string[] Sources = ["DBA", "AbeBooks", "Bokbörsen", "Nemos Bibliotek", "Faraos"];
 
     // What the AI answered, tidied: unknown words become the safe choice.
     public static BookValue Create(int? rawLow, int? rawHigh, string? demand, string? verdictText, string? reason, string? where, string[]? basis)

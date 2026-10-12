@@ -30,7 +30,7 @@ internal static class PriceSourceRegistration
             services.AddHttpClient<T>(c => c.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(Gunzip);
         Client<DbaListings>(); Client<GulogGratisListings>(); Client<EbayListings>(); Client<TraderaListings>(); Client<BlocketListings>();
         Client<FinnListings>(); Client<ToriListings>(); Client<KleinanzeigenListings>(); Client<AbeBooksListings>(); Client<ZvabListings>();
-        Client<BokborsenListings>(); Client<NemosListings>(); Client<FaraosListings>(); Client<AmazonDeListings>(); Client<BogIdeListings>();
+        Client<BokborsenListings>(); Client<NemosListings>(); Client<FaraosListings>(); Client<BogIdeListings>();
 
         void Add(Func<IServiceProvider, IPriceSource> make) => services.AddTransient(make);
         Add(sp => new PriceSource("DBA", false, "", (t, a, i, ct) => sp.GetRequiredService<DbaListings>().LookupAsync(t, a, ct),
@@ -54,8 +54,8 @@ internal static class PriceSourceRegistration
             (t, a, i) => NemosListings.SearchUrl(t)));
         Add(sp => new PriceSource("Faraos", false, "", (t, a, i, ct) => sp.GetRequiredService<FaraosListings>().LookupAsync(t, a, ct),
             (t, a, i) => FaraosListings.SearchUrl(t)));
-        Add(sp => new PriceSource("Amazon.de", true, "", (t, a, i, ct) => sp.GetRequiredService<AmazonDeListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => AmazonDeListings.SearchUrl(QOrIsbn(t, a, i))));
+        // Amazon.de removed 2026-10-12 (user: "useless, too bad price") - it showed new prices far above what a used copy
+        // sells for, and its one-at-a-time limit held every book check up.
         Add(sp => new PriceSource("Bog & idé", true, "", (t, a, i, ct) => sp.GetRequiredService<BogIdeListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => BogIdeListings.SearchUrl(QOrIsbn(t, a, i))));
         return services;

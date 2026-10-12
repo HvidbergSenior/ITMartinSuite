@@ -17,11 +17,18 @@ public sealed class RegistrationUseCases(
     /// <summary>Shrinks and keeps the photo (so a wrong reading can be checked against it), then reads it.</summary>
     public async Task<(int PhotoId, List<Found> Found)> ReadPileAsync(Stream photo, string hint, int? boxId, string label, CancellationToken ct = default)
     {
-        var jpeg = await photos.ShrinkAsync(photo, ct);
+        // Read once into memory: the shrunk copy is kept, the close-ups come from the full-resolution original
+        // (user 2026-10-12: titles were poor with ~10 books in one photo - each title was only a few pixels high).
+        using var original = new MemoryStream();
+        await photo.CopyToAsync(original, ct);
+        original.Position = 0;
+        var jpeg = await photos.ShrinkAsync(original, ct);
+        original.Position = 0;
+        var closeUps = await photos.TilesAsync(original, ct);
         var now = clock.GetLocalNow();
         var path = Path.Combine("photos", now.ToString("yyyy-MM"), $"{now:ddHHmmssfff}-{label}.jpg");
         await photos.SaveAsync(path, jpeg, ct);
-        var found = await reader.ReadPileAsync(jpeg, hint, ct);
+        var found = await reader.ReadPileAsync(jpeg, closeUps, hint, ct);
         var row = await photoRows.AddAsync(new Photo { Path = path, BoxId = boxId, Found = found.Count }, ct);
         return (row.Id, found);
     }

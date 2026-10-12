@@ -39,7 +39,7 @@ public static class LagerDbInitializer
                 "Url" TEXT NOT NULL DEFAULT '', "FoundAt" TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS "IX_PriceFinds_ItemId" ON "PriceFinds" ("ItemId");
             """);
-        foreach (var col in new[] { "Nemos", "Proof", "Faraos" })
+        foreach (var col in new[] { "Nemos", "Proof", "Faraos", "Bokborsen" })
         {
             using var cmd = conn.CreateCommand();
             cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('BookChecks') WHERE name = '{col}'";

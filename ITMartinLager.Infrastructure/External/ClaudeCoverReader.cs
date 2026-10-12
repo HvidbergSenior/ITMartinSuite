@@ -70,6 +70,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
         - Ens eksemplarer = én post med quantity.
+        - Bøger: titel og forfatter præcist som trykt (med æ/ø/å). Kan kun en del læses, så skriv det, der kan læses, og
+          sæt confidence lavt - opfind aldrig en titel, der "lyder rigtig".
         - Bøger: edition_hint ud fra hvad omslaget/ryggen SELV viser: "Bogklub" (Bogklubben, Lademann-bogklub, Book Club
           Edition o.l.), "Billigbog" (paperback-genudgivelse, "Gyldendals Bekkasinbøger", "Lommebog", pris på forsiden fra et
           senere oplag), "Mulig 1. udgave" (originalt forlagsomslag med smudsomslag, gammelt forlagslogo, "1. udgave"
@@ -83,13 +85,26 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         return (await db.AiDays.FindAsync(today))?.Calls ?? 0;
     }
 
-    public async Task<List<Found>> ReadPileAsync(byte[] jpeg, string hint, CancellationToken ct)
+    // One call per photo: the whole pile plus up to four close-ups of it in the same message (never a call per close-up).
+    public async Task<List<Found>> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct)
     {
         if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
 
         await ReserveCallAsync(ct);
         var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
-        var text = "Registrér alle varer på billedet." + (string.IsNullOrWhiteSpace(hint) ? "" : $" Det er mest: {hint}.");
+        var text = "Registrér alle varer på billedet." + (string.IsNullOrWhiteSpace(hint) ? "" : $" Det er mest: {hint}.")
+            + (closeUps.Count == 0 ? "" :
+                $" Billede 1 er hele bunken. Billede 2-{closeUps.Count + 1} er nærbilleder af SAMME bunke i høj opløsning"
+                + " (øverst til venstre, øverst til højre, nederst til venstre, nederst til højre - de overlapper lidt)."
+                + " Brug hele billedet til at tælle varerne og nærbillederne til at læse titel, forfatter og nummer bogstav for bogstav."
+                + " En vare, der ses på flere billeder, er stadig ÉN vare.");
+        var content = new List<ContentBlockParam>
+        {
+            new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(jpeg), MediaType = "image/jpeg" } },
+        };
+        foreach (var c in closeUps)
+            content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(c), MediaType = "image/jpeg" } });
+        content.Add(new TextBlockParam { Text = text });
         var response = await client.Messages.Create(new MessageCreateParams
         {
             Model = Model,
@@ -102,11 +117,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                 new()
                 {
                     Role = Role.User,
-                    Content = new List<ContentBlockParam>
-                    {
-                        new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(jpeg), MediaType = "image/jpeg" } },
-                        new TextBlockParam { Text = text },
-                    },
+                    Content = content,
                 },
             ],
         }, ct);
@@ -215,15 +226,15 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         - "Tjek selv": du er IKKE sikker på værdien. Så giv INGEN pris (low/high = null). Brug den hellere end at gætte -
           et forkert lavt bud får butikken til at sælge en værdifuld bog for billigt.
         Hvert nummer kan have markedstal (udbudspriser, ikke solgte) fra DBA (Danmark), AbeBooks (internationalt),
-        Amazon.de (Tyskland), Nemos Bibliotek og Faraos (danske antikvariater for tegneserier og samlerbøger; Faraos
+        Bokbörsen (svenske og nordiske antikvariater, også danske bøger), Nemos Bibliotek og Faraos (danske antikvariater for tegneserier og samlerbøger; Faraos
         har én pris pr. stand), omregnet til kr. "Ny i butikken" er nyprisen - et loft for et brugt eksemplar, ikke bevis.
         BEVIS: en pris må KUN gives, når den bygger på markedstal for netop denne bog. Skriv i "basis" hvilke kilder
         prisen bygger på. Ingen kilde med priser = "Tjek selv" uden pris - aldrig en standardpris som 20-40 kr.
         Markedstal, der står som "ikke bevis", må ikke bruges. "Urimelige internetpriser" er drømmepriser
         - brug dem ikke som pris.
         Hvor skal den sælges (where): DBA = danske bøger og alt til danske købere; AbeBooks = antikvariske, samler- og
-        engelske/udenlandske bøger med en international køberskare; Amazon.de = nyere udenlandske bøger med ISBN, hvor
-        Amazon.de har højere priser; eBay = samlerobjekter med budkrig (sjældne førsteudgaver, signerede); Bogshoppen =
+        engelske/udenlandske bøger med en international køberskare; Bokbörsen = nordiske samler- og antikvariske bøger
+        med købere i Sverige/Norden; eBay = samlerobjekter med budkrig (sjældne førsteudgaver, signerede); Bogshoppen =
         kassevarer og billige bøger, der sælges i butikken. Engelsksprogede og samlerbøger (fx Warhammer/Black Library,
         udgåede omnibusser, fantasy/sci-fi-førsteudgaver) sælges på det internationale marked - brug AbeBooks for dem.
         Mange til salg billigt = lav efterspørgsel. Få eller ingen til salg kan betyde sjælden ELLER uinteressant: uden
@@ -249,8 +260,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                         "demand":  { "type": "string", "enum": ["Høj", "Middel", "Lav"] },
                         "verdict": { "type": "string", "enum": ["Sælg", "Kasse", "Genbrug", "Tjek selv"] },
                         "reason":  { "type": "string" },
-                        "where":   { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "eBay", "Bogshoppen", "Nemos Bibliotek", "Faraos"] },
-                        "basis":   { "type": "array", "items": { "type": "string", "enum": ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek", "Faraos"] },
+                        "where":   { "type": "string", "enum": ["DBA", "AbeBooks", "Bokbörsen", "eBay", "Bogshoppen", "Nemos Bibliotek", "Faraos"] },
+                        "basis":   { "type": "array", "items": { "type": "string", "enum": ["DBA", "AbeBooks", "Bokbörsen", "Nemos Bibliotek", "Faraos"] },
                                      "description": "The market sources whose prices for THIS book the price is based on. Empty = no proof." } },
                       "required": ["index", "demand", "verdict", "reason"], "additionalProperties": false } }
                     """).RootElement,

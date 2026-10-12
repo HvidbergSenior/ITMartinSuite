@@ -17,14 +17,14 @@ public sealed class ExportUseCases(IItemRepository items, IBookCheckRepository c
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    /// <summary>Every checked book - the list to work through when putting books up on DBA, AbeBooks, Amazon.de.</summary>
+    /// <summary>Every checked book - the list to work through when putting books up on DBA, AbeBooks, Bokbörsen.</summary>
     public async Task<byte[]> BooksCsvAsync(CancellationToken ct = default)
     {
         var rows = (await checks.AllAsync(ct)).OrderByDescending(b => b.CheckedAt);
-        var sb = new StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Amazon.de;Nemos;Faraos;Bevis;Kasse\n");
+        var sb = new StringBuilder("﻿Tjekket;Titel;Forfatter;År;ISBN;Stand;Antal;Dom;Fra kr;Til kr;Efterspørgsel;Sælg på;Grund;DBA;AbeBooks;Bokbörsen;Nemos;Faraos;Bevis;Kasse\n");
         foreach (var b in rows)
             sb.AppendLine(string.Join(';', b.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), C(b.Title), C(b.Author), b.Year, C(b.Isbn), C(b.Condition),
-                b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.AmazonDe), C(b.Nemos), C(b.Faraos), C(b.Proof), C(b.BoxCode)));
+                b.Quantity, C(b.Verdict), b.Low, b.High, C(b.Demand), C(b.SellAt), C(b.Reason), C(b.Dba), C(b.AbeBooks), C(b.Bokborsen != "" ? b.Bokborsen : b.AmazonDe), C(b.Nemos), C(b.Faraos), C(b.Proof), C(b.BoxCode)));
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 }

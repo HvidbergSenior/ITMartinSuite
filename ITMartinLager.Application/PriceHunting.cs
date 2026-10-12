@@ -10,7 +10,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
 
     public int SourceCount => _sources.Count;
 
-    /// <summary>"Brugt: DBA, eBay, Tradera (Sverige) ... Ny: Amazon.de og Bog &amp; idé."</summary>
+    /// <summary>"Brugt: DBA, eBay, Tradera (Sverige) ... Ny: Bog &amp; idé."</summary>
     public string SourceList
     {
         get

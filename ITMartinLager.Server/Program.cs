@@ -9,6 +9,9 @@ using Microsoft.AspNetCore.Mvc;
 // Step 1 of the plan: the register. ITMartin is the brand (the CVR is Den Digitale Rådgiver's); Bogshoppen is the shop name.
 // Layers: Domain (rules) / Application (use cases + ports) / Infrastructure (SQLite, Claude, price sites) / this Server.
 var builder = WebApplication.CreateBuilder(args);
+// Every SQL statement at Information drowned real errors in the log (the jobs query every few seconds).
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 
 builder.Services.AddKolibri(k =>
 {

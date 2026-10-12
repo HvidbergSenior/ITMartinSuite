@@ -45,7 +45,7 @@
 {
     <section class="k-card">
         <h2 class="k-card-title">@(_photoBatch ? "Billedet" : "Listen"): @_books.Count bøger · 💰 @_books.Count(b => b.Value?.Verdict == "Sælg") værd at sælge</h2>
-        <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering ud fra <b>DBA</b> (Danmark), <b>AbeBooks</b> (internationalt), <b>Amazon.de</b>, <b>Nemos Bibliotek</b> og <b>Faraos</b> (brugte tegneserier og samlerbøger). Ingen pris uden bevis: under prisen står de annoncer, den bygger på – hvad bogen udbydes til lige nu, ikke hvad den er solgt for. Urimelige internetpriser (over 3 gange midten) vises for sig. <b>eBay solgte</b> viser hvad den faktisk er solgt for.</p>
+        <p class="k-small k-muted">Bedste først. Prisen er AI'ens vurdering ud fra <b>DBA</b> (Danmark), <b>AbeBooks</b> (internationalt), <b>Bokbörsen</b> (Sverige/Norden), <b>Nemos Bibliotek</b> og <b>Faraos</b> (brugte tegneserier og samlerbøger). Ingen pris uden bevis: under prisen står de annoncer, den bygger på – hvad bogen udbydes til lige nu, ikke hvad den er solgt for. Urimelige internetpriser (over 3 gange midten) vises for sig. <b>eBay solgte</b> viser hvad den faktisk er solgt for.</p>
         @if (_books.Any(b => b.Value is null && b.Title.Trim() != "") && !_busy)
         {
             <button class="k-btn k-btn-secondary" @onclick="ValuePending">💰 Vurdér de @_books.Count(b => b.Value is null && b.Title.Trim() != "") uden pris</button>
@@ -212,9 +212,10 @@
     private async Task AssessAsync(List<CheckedBook> books)
     {
         books = books.Where(b => b.Title.Trim() != "").ToList();
-        _status = $"Slår {books.Count} bøger op på {string.Join(", ", BookCheckUseCases.Sites)} …";
+        _status = $"Slår {books.Count} bøger op på {string.Join(", ", BookCheckUseCases.Sites)} (højst {BookCheckUseCases.LookUpLimit.TotalSeconds:0} sek.) …";
         StateHasChanged();
-        await Task.WhenAll(books.Where(b => !b.Asked).Select(LookUpAsync));
+        using (var deadline = new CancellationTokenSource(BookCheckUseCases.LookUpLimit))
+            await Task.WhenAll(books.Where(b => !b.Asked).Select(b => LookUpAsync(b, deadline.Token)));
         _status = $"Vurderer {books.Count(b => b.Value is null)} bøger …";
         StateHasChanged();
         await Checks.ValueAsync(books);
@@ -223,9 +224,9 @@
         StateHasChanged();
     }
 
-    private async Task LookUpAsync(CheckedBook b)
+    private async Task LookUpAsync(CheckedBook b, CancellationToken ct)
     {
-        await Checks.LookUpAsync(b);
+        await Checks.LookUpAsync(b, ct);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -283,7 +284,7 @@
                     : new CheckedBook { Barcode = code, Title = f.Title, Author = f.Artist, Year = f.Year, Confidence = f.Confidence, Note = f.Note };
                 _books.Insert(0, b);
                 _scanStatus = f is null ? $"⚠ {code} ikke fundet – skriv titlen i listen" : $"✓ {f.Title}";
-                if (f is not null) _ = LookUpAsync(b);
+                if (f is not null) _ = LookUpAsync(b, new CancellationTokenSource(BookCheckUseCases.LookUpLimit).Token);
                 // Value scanned books ten at a time - one AI call per ten, never one per book.
                 if (_books.Count(x => x.Value is null && x.Title.Trim() != "") >= 10)
                     _ = InvokeAsync(ValuePending);

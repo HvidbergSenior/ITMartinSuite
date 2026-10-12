@@ -23,7 +23,7 @@ public interface ICoverReader
     bool Enabled { get; }
     int MaxCallsPerDay { get; }
     Task<int> CallsTodayAsync(CancellationToken ct);
-    Task<List<Found>> ReadPileAsync(byte[] jpeg, string hint, CancellationToken ct);
+    Task<List<Found>> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct);
     Task<Dictionary<int, string>> WriteInterestAsync(IReadOnlyList<string> lines, CancellationToken ct);
     Task<Dictionary<int, BookValue>> ValueBooksAsync(IReadOnlyList<string> lines, CancellationToken ct);
     Task<Dictionary<int, KolofonReading>> ReadKolofonsAsync(IReadOnlyList<byte[]> jpegs, CancellationToken ct);
@@ -34,6 +34,9 @@ public interface IPhotoStore
 {
     /// <summary>Phone photos (3-12 MB) -> a JPEG of at most ~1568 px, upright.</summary>
     Task<byte[]> ShrinkAsync(Stream photo, CancellationToken ct);
+    /// <summary>Close-ups for reading small text: the full-resolution photo cut in 2x2 overlapping parts, each at most
+    /// ~1568 px. Empty when the photo is too small for close-ups to show more than the whole picture.</summary>
+    Task<List<byte[]>> TilesAsync(Stream photo, CancellationToken ct);
     Task SaveAsync(string path, byte[] jpeg, CancellationToken ct);
     Task<byte[]?> ReadAsync(string path, CancellationToken ct);
     /// <summary>The full file name when the path is inside the data folder and exists, else null.</summary>

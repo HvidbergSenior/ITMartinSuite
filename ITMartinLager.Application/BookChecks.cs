@@ -51,7 +51,7 @@ public sealed class CheckedBook
         var parts = new List<string>();
         if (Value is { Where: not "" } wh) parts.Add($"Sælg på {wh.Where}");
         if (Value is { } v) parts.Add($"{v.Verdict}" + (v.Low is { } lo ? $" · {lo}-{v.High} kr" : "") + $" · efterspørgsel {v.Demand} · {v.Reason}");
-        foreach (var s in new[] { "DBA", "AbeBooks", "Amazon.de" })
+        foreach (var s in new[] { "DBA", "AbeBooks", "Bokbörsen" })
             if (Site(s) is { Count: > 0 } l) parts.Add($"{s} {today:d/M}: {l.Text}");
         if (Note != "") parts.Add(Note);
         return string.Join(" | ", parts);
@@ -63,7 +63,7 @@ public sealed class CheckedBook
         c.Quantity = Quantity; c.PhotoId = PhotoId == 0 ? null : PhotoId;
         c.Verdict = Value!.Verdict; c.Low = Value.Low; c.High = Value.High; c.Demand = Value.Demand;
         c.SellAt = Value.Where; c.Reason = Value.Reason;
-        c.Dba = Site("DBA")?.Text ?? ""; c.AbeBooks = Site("AbeBooks")?.Text ?? ""; c.AmazonDe = Site("Amazon.de")?.Text ?? "";
+        c.Dba = Site("DBA")?.Text ?? ""; c.AbeBooks = Site("AbeBooks")?.Text ?? ""; c.Bokborsen = Site("Bokbörsen")?.Text ?? "";
         c.Nemos = Site("Nemos Bibliotek")?.Text ?? ""; c.Faraos = Site("Faraos")?.Text ?? "";
         c.Proof = string.Join("\n", Proof().Select(p => $"{p.Source}: {p.Offer.Name} – {p.Offer.Price:0} kr – {p.Offer.Url}"));
         c.CheckedAt = now;
@@ -77,8 +77,11 @@ public sealed class BookCheckUseCases(
     IEnumerable<IPriceSource> sources, ICoverReader reader, IBookCheckRepository checks, RegistrationUseCases registration, TimeProvider clock)
 {
     /// <summary>The sites the Bøger page asks, in this order.</summary>
-    public static readonly string[] Sites = ["DBA", "AbeBooks", "Amazon.de", "Nemos Bibliotek", "Faraos"];
+    public static readonly string[] Sites = ["DBA", "AbeBooks", "Bokbörsen", "Nemos Bibliotek", "Faraos"];
     public const int PerValueCall = 40;
+    /// <summary>How long the Bøger page waits for the sites before valuing with what has answered (user 2026-10-12:
+    /// "it was saying vurderes a long time"). A site that has not answered by then counts as "ukendt".</summary>
+    public static readonly TimeSpan LookUpLimit = TimeSpan.FromSeconds(30);
 
     private readonly List<IPriceSource> _sites = sources.Where(s => Sites.Contains(s.Name)).OrderBy(s => Array.IndexOf(Sites, s.Name)).ToList();
 
@@ -89,8 +92,9 @@ public sealed class BookCheckUseCases(
         var sites = new Dictionary<string, Listings?>();
         foreach (var (name, lookup) in asked)
         {
+            // Past the deadline (ct cancelled) or failed = did not answer; the book is still valued with the rest.
             try { sites[name] = await lookup; }
-            catch (Exception ex) when (ex is not OperationCanceledException) { sites[name] = null; }
+            catch (Exception) { sites[name] = null; }
         }
         b.Sites = sites;
         b.Looking = false;
@@ -151,9 +155,8 @@ public sealed class BookCheckUseCases(
     public List<(string Name, string Url)> Links(CheckedBook b)
     {
         var query = Pricing.QueryFor(b.Title, b.Author);
-        var links = _sites.Where(s => s.Name != "Amazon.de").Select(s => (s.Name == "Nemos Bibliotek" ? "Nemos" : s.Name, s.SearchUrl(b.Title, b.Author, b.Barcode))).ToList();
+        var links = _sites.Select(s => (s.Name == "Nemos Bibliotek" ? "Nemos" : s.Name, s.SearchUrl(b.Title, b.Author, b.Barcode))).ToList();
         links.Add(("eBay solgte", $"https://www.ebay.com/sch/i.html?_nkw={Uri.EscapeDataString(query)}&LH_Sold=1&LH_Complete=1"));
-        if (_sites.FirstOrDefault(s => s.Name == "Amazon.de") is { } amazon) links.Add(("Amazon.de", amazon.SearchUrl(b.Title, b.Author, b.Barcode)));
         links.Add(("antikvariat.net", $"https://www.antikvariat.net/da/actions/biblio-search/default/search?author={Uri.EscapeDataString(b.Author)}&title={Uri.EscapeDataString(b.Title)}&currency=DKK"));
         links.Add(("Bogbasen", $"https://bogbasen.dk/search?forfatter={Uri.EscapeDataString(b.Author)}&titel={Uri.EscapeDataString(b.Title)}"));
         return links;

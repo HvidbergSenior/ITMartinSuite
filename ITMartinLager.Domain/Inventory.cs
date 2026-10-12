@@ -166,11 +166,12 @@ public sealed class BookCheck
     public int? Low { get; set; }                // kr, null = Tjek selv
     public int? High { get; set; }
     public string Demand { get; set; } = "";
-    public string SellAt { get; set; } = "";     // DBA / AbeBooks / Amazon.de / eBay / Bogshoppen
+    public string SellAt { get; set; } = "";     // DBA / AbeBooks / Bokbörsen / eBay / Bogshoppen
     public string Reason { get; set; } = "";
     public string Dba { get; set; } = "";        // the listing texts as shown, at the time of the check
     public string AbeBooks { get; set; } = "";
-    public string AmazonDe { get; set; } = "";
+    public string AmazonDe { get; set; } = "";   // only on checks before 2026-10-12 (Amazon.de dropped: new prices, no use)
+    public string Bokborsen { get; set; } = "";
     public string Nemos { get; set; } = "";
     public string Faraos { get; set; } = "";
     public string Proof { get; set; } = "";      // the listings behind the price: "DBA: name – 45 kr – url", one per line
