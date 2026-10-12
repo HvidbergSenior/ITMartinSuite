@@ -256,3 +256,10 @@ html[data-mode="tv"] .k-grid { grid-template-columns: repeat(auto-fit, minmax(38
 /* Blazor's FocusOnNavigate focuses the page's <h1> for screen readers - that focus is not a
    keyboard focus, so no visible frame around the heading (user saw a black box on "ElPriser"). */
 h1:focus, h1:focus-visible, [tabindex="-1"]:focus { outline: none; }
+
+/* Blazor's "Forbinder igen" box (#components-reconnect-modal in each App.razor) - hidden until the
+   connection actually drops, the same in every app. */
+#components-reconnect-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); color: #fff; align-items: center; justify-content: center; gap: 8px; z-index: 1000; padding: 16px; text-align: center; }
+#components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed { display: flex; }
+#components-reconnect-modal .reconnect-failed-msg, #components-reconnect-modal.components-reconnect-failed .reconnect-msg { display: none; }
+#components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg { display: inline; }

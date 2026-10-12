@@ -3,13 +3,12 @@
 @inject LiveHub Hub
 @inject IJSRuntime JS
 
-<PageTitle>@(_live ? "🔴 Martin er live" : "Kig med – Martin live")</PageTitle>
+<PageTitle>@(_live ? "Martin er live" : "Kig med – Martin live")</PageTitle>
 
-<header class="kig-head">
-    <span class="kig-tagline">😊 Arbejder med glæde</span>
-    <h1>@(_live ? "🔴 Live nu" : "📺 Kig med")@(_title.Length > 0 && _live ? $": {_title}" : "")</h1>
+<section class="kig-intro">
+    <h1>@(_live ? "Live nu" : "Kig med")@(_title.Length > 0 && _live ? $": {_title}" : "")</h1>
     <p class="k-help">Her kan du se Martin live, når han koder, spiller eller viser en app – og være med: stil spørgsmål, stem og send idéer.</p>
-</header>
+</section>
 
 <div class="kig-grid">
     <section class="kig-left">
@@ -18,42 +17,41 @@
             @if (!_live)
             {
                 <div class="kig-offline">
-                    <div class="kig-offline-icon">🌻</div>
                     <b>Martin er ikke live lige nu</b>
-                    @if (_next.Length > 0) { <span>📅 @_next</span> }
+                    @if (_next.Length > 0) { <span>@_next</span> }
                     <span class="k-help">Lad siden stå åben – videoen starter af sig selv, når han går live.</span>
                 </div>
             }
             else if (_player == "venter")
             {
-                <div class="kig-offline"><div class="kig-offline-icon">⏳</div><b>Martin er på vej</b><span class="k-help">Videoen er ikke startet endnu – den kommer af sig selv. Du kan allerede skrive spørgsmål.</span></div>
+                <div class="kig-offline"><b>Martin er på vej</b><span class="k-help">Videoen er ikke startet endnu – den kommer af sig selv. Du kan allerede skrive spørgsmål.</span></div>
             }
             else if (_muted)
             {
-                <button class="kig-unmute" @onclick="UnmuteAsync">🔊 Tryk for lyd</button>
+                <button class="kig-unmute" @onclick="UnmuteAsync">Tryk for lyd</button>
             }
             @if (_live && _stage is { } g && g.Viewer != _key)
             {
                 <div class="kig-guest">
                     <video id="guestv" autoplay playsinline muted></video>
-                    <span>🎤 <b>@g.Name</b> taler</span>
+                    <span><b>@g.Name</b> taler</span>
                 </div>
             }
             @if (_answering is { } a)
             {
-                <div class="kig-answering">💬 Svarer nu: <b>@a.Name</b> – @a.Text</div>
+                <div class="kig-answering">Svarer nu: <b>@a.Name</b> – @a.Text</div>
             }
             @if (_shownIdea is { } si)
             {
                 <div class="kig-shown">
                     @if (si.Picture is { } pic) { <img src="/pic/@pic" alt="" /> }
-                    <span>💡 <b>@si.Name:</b> @si.Text</span>
+                    <span><b>@si.Name:</b> @si.Text</span>
                 </div>
             }
         </div>
         @if (_live)
         {
-            <p class="k-help kig-conn">@PlayerText · 👀 @_viewers ser med</p>
+            <p class="k-help kig-conn">@PlayerText · @_viewers ser med</p>
             <div class="kig-reactions" role="group" aria-label="Reager">
                 @foreach (var e in LiveSession.Emojis)
                 {
@@ -69,20 +67,20 @@
                 {
                     @if (!_onAir)
                     {
-                        <div class="k-card-title">🎤 Du har ordet!</div>
+                        <div class="k-card-title">Du har ordet!</div>
                         <p class="k-help">Martin har givet dig ordet. Tryk <b>Start mikrofon</b> og tillad mikrofonen – så kan alle høre dig. Brug gerne høretelefoner, så undgår du ekko.</p>
                         <label class="k-row"><input type="checkbox" @bind="_withCam" /> Vis også mit kamera</label>
                         <div class="k-row k-mt">
-                            <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="GoOnAirAsync">🎤 Start mikrofon</button>
+                            <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="GoOnAirAsync">Start mikrofon</button>
                             <button class="k-btn" @onclick="LeaveFloorAsync">Nej tak</button>
                         </div>
                     }
                     else
                     {
-                        <div class="k-card-title">🔴 Du er på – tal løs</div>
+                        <div class="k-card-title">Du er på – tal løs</div>
                         <p class="k-help">Alle kan høre dig@(_withCam ? " og se dig" : ""). Du hører Martin i videoen som normalt.</p>
                         <div class="k-row">
-                            <button class="k-btn" @onclick="ToggleMuteAsync">@(_selfMuted ? "🔊 Slå lyd til igen" : "🔇 Slå min lyd fra")</button>
+                            <button class="k-btn" @onclick="ToggleMuteAsync">@(_selfMuted ? "Slå lyd til igen" : "Slå min lyd fra")</button>
                             <button class="k-btn k-btn-danger" @onclick="LeaveFloorAsync">Afslut</button>
                         </div>
                     }
@@ -90,15 +88,15 @@
                 }
                 else if (_raised)
                 {
-                    <div class="k-card-title">✋ Du har rakt hånden op</div>
+                    <div class="k-card-title">Du har rakt hånden op</div>
                     <p class="k-help">Martin giver dig ordet, når han kan – så dukker en knap op her.</p>
                     <button class="k-btn" @onclick="() => Hub.LowerHand(_key)">Tag hånden ned</button>
                 }
                 else
                 {
-                    <div class="k-card-title">🎤 Vil du sige noget?</div>
+                    <div class="k-card-title">Vil du sige noget?</div>
                     <p class="k-help">Ræk hånden op – når Martin giver dig ordet, kan du tale med ham, og alle der kigger med hører jer.@(_stage is { } other ? $" Lige nu taler {other.Name}." : "")</p>
-                    <button class="k-btn k-btn-primary" disabled="@(_name.Length == 0)" @onclick="() => Hub.RaiseHand(_key, _name)">✋ Jeg vil gerne sige noget</button>
+                    <button class="k-btn k-btn-primary" disabled="@(_name.Length == 0)" @onclick="() => Hub.RaiseHand(_key, _name)">Jeg vil gerne sige noget</button>
                     @if (_name.Length == 0) { <p class="k-help">Skriv dit navn under spørgsmål først.</p> }
                 }
             </div>
@@ -108,14 +106,14 @@
         {
             var counts = p.Counts(); var total = Math.Max(1, counts.Sum());
             <div class="k-card kig-poll" data-nofold>
-                <div class="k-card-title">🗳️ @p.Text</div>
+                <div class="k-card-title">@p.Text</div>
                 <p class="k-help">@(p.Open ? "Tryk på dit svar – du kan skifte mening, så længe afstemningen er åben." : "Afstemningen er lukket. Sådan blev det:")</p>
                 @for (var i = 0; i < p.Options.Count; i++)
                 {
                     var idx = i; var mine = p.Votes.TryGetValue(_key, out var v) && v == idx;
                     <button class="kig-opt @(mine ? "mine" : "")" disabled="@(!p.Open)" @onclick="() => Hub.Vote(_key, p.Id, idx)">
                         <span class="kig-bar" style="width:@(counts[idx] * 100 / total)%"></span>
-                        <span class="kig-opt-t">@(mine ? "✓ " : "")@p.Options[idx]</span><span class="kig-opt-n">@counts[idx]</span>
+                        <span class="kig-opt-t">@(mine ? "" : "")@p.Options[idx]</span><span class="kig-opt-n">@counts[idx]</span>
                     </button>
                 }
             </div>
@@ -124,7 +122,7 @@
 
     <section class="kig-right">
         <div class="k-card" data-nofold>
-            <div class="k-card-title">💬 Spørgsmål og kommentarer</div>
+            <div class="k-card-title">Spørgsmål og kommentarer</div>
             @if (_name.Length == 0)
             {
                 <label class="k-label" for="kig-name">Hvad hedder du? <span class="k-help">(så Martin ved, hvem han svarer)</span></label>
@@ -156,12 +154,12 @@
         </div>
 
         <details class="k-card kig-idea" data-nofold>
-            <summary class="k-card-title">💡 Send en idé eller et billede</summary>
+            <summary class="k-card-title">Send en idé eller et billede</summary>
             <p class="k-help">Har du en idé til det, Martin laver – eller et skærmbillede/foto, han skal se? Kun Martin ser det, indtil han vælger at vise det for alle.</p>
             <textarea class="k-input k-textarea" rows="3" @bind="_idea" maxlength="@LiveSession.MaxText" placeholder="Din idé…"></textarea>
             <div class="k-row k-mt">
-                <label class="k-btn">📷 Vælg billede<InputFile OnChange="OnPictureAsync" accept="image/*" style="display:none" /></label>
-                @if (_picture is not null) { <span class="k-help">✓ Billede valgt</span> }
+                <label class="k-btn">Vælg billede<InputFile OnChange="OnPictureAsync" accept="image/*" style="display:none" /></label>
+                @if (_picture is not null) { <span class="k-help">Billede valgt</span> }
                 <button class="k-btn k-btn-primary" disabled="@(_name.Length == 0 || (string.IsNullOrWhiteSpace(_idea) && _picture is null))" @onclick="SendIdeaAsync">Send til Martin</button>
             </div>
             @if (_ideaNote.Length > 0) { <p class="k-help"><b>@_ideaNote</b></p> }
@@ -219,11 +217,11 @@
 
     private string PlayerText => _player switch
     {
-        "direkte" => "🟢 Direkte forbindelse (ca. 1 sekunds forsinkelse)",
-        "hls" => "🟡 Via reserveforbindelsen (et par sekunders forsinkelse)",
-        "fejl" => "🔴 Din browser kan ikke vise videoen – prøv Chrome, Safari eller Edge",
-        "venter" => "⏳ Martins video er ikke startet endnu – den kommer af sig selv",
-        _ => "⏳ Forbinder til videoen…",
+        "direkte" => "Direkte forbindelse (ca. 1 sekunds forsinkelse)",
+        "hls" => "Via reserveforbindelsen (et par sekunders forsinkelse)",
+        "fejl" => "Din browser kan ikke vise videoen – prøv Chrome, Safari eller Edge",
+        "venter" => "Martins video er ikke startet endnu – den kommer af sig selv",
+        _ => "Forbinder til videoen…",
     };
 
     protected override void OnInitialized()
@@ -305,7 +303,7 @@
 
     private Task SendIdeaAsync()
     {
-        if (Hub.SendIdea(_key, _name, _idea, _picture)) { _idea = ""; _picture = null; _ideaNote = "Sendt til Martin ✓"; }
+        if (Hub.SendIdea(_key, _name, _idea, _picture)) { _idea = ""; _picture = null; _ideaNote = "Sendt til Martin."; }
         else _ideaNote = "Det kunne ikke sendes (højst 10 idéer pr. person).";
         return Task.CompletedTask;
     }

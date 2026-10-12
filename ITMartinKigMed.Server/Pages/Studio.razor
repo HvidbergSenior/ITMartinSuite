@@ -5,23 +5,22 @@
 
 <PageTitle>Studie – Kig med</PageTitle>
 
-<header class="kig-head">
-    <span class="kig-tagline">😊 Arbejder med glæde</span>
-    <h1>🎬 Studie</h1>
-    <p class="k-help">Her går du live. <b>Sådan:</b> 1) vælg kamera og mikrofon og tryk <b>Tænd kamera</b>, 2) skriv hvad du laver, 3) tryk <b>🔴 Gå live</b>.
+<section class="kig-intro">
+    <h1>Studie</h1>
+    <p class="k-help">Her går du live. <b>Sådan:</b> 1) vælg kamera og mikrofon og tryk <b>Tænd kamera</b>, 2) skriv hvad du laver, 3) tryk <b>Gå live</b>.
         Seerne åbner <a href="/" target="_blank">kigmed.itmartin.dk</a> – spørgsmål, stemmer, reaktioner og idéer dukker op herunder.
         <a href="/api/auth/logout">Log ud</a></p>
-</header>
+</section>
 
 @if (_live && !_sending)
 {
     <div class="k-card kig-warn" data-nofold>
-        <b>⚠️ Du står som live, men sender ikke video</b>
+        <b>Du står som live, men sender ikke video</b>
         <p>Seerne ser "Martin er på vej". Det sker efter en genindlæsning af studiet, eller hvis nettet faldt ud.</p>
         <div class="k-row">
-            @if (_camOn) { <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="GoLiveAsync">🔴 Gå live igen</button> }
-            else { <button class="k-btn k-btn-primary" @onclick="CameraAsync">📷 Tænd kamera først</button> }
-            <button class="k-btn" @onclick="EndAsync">⏹ Stop live</button>
+            @if (_camOn) { <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="GoLiveAsync">Gå live igen</button> }
+            else { <button class="k-btn k-btn-primary" @onclick="CameraAsync">Tænd kamera først</button> }
+            <button class="k-btn" @onclick="EndAsync">Stop live</button>
         </div>
     </div>
 }
@@ -30,17 +29,17 @@
     <section class="kig-left">
         <div class="kig-stage" id="stage">
             <video id="preview" autoplay playsinline muted></video>
-            @if (!_camOn) { <div class="kig-offline"><div class="kig-offline-icon">📷</div><b>Kameraet er slukket</b><span class="k-help">Vælg kamera herunder og tryk Tænd kamera.</span></div> }
-            @if (_live && _sending) { <div class="kig-livebadge">🔴 LIVE · 👀 @_viewers</div> }
+            @if (!_camOn) { <div class="kig-offline"><b>Kameraet er slukket</b><span class="k-help">Vælg kamera herunder og tryk Tænd kamera.</span></div> }
+            @if (_live && _sending) { <div class="kig-livebadge">LIVE · @_viewers ser med</div> }
         </div>
 
         <div class="k-card" data-nofold>
             <div class="k-row">
                 <select class="k-input" @bind="_camId" aria-label="Kamera">
-                    @foreach (var d in _devices.Where(d => d.Kind == "videoinput")) { <option value="@d.Id">📷 @d.Label</option> }
+                    @foreach (var d in _devices.Where(d => d.Kind == "videoinput")) { <option value="@d.Id">@d.Label</option> }
                 </select>
                 <select class="k-input" @bind="_micId" aria-label="Mikrofon">
-                    @foreach (var d in _devices.Where(d => d.Kind == "audioinput")) { <option value="@d.Id">🎤 @d.Label</option> }
+                    @foreach (var d in _devices.Where(d => d.Kind == "audioinput")) { <option value="@d.Id">@d.Label</option> }
                 </select>
                 <select class="k-input" @bind="_height" aria-label="Kvalitet">
                     <option value="1080">1080p (bedst)</option>
@@ -48,7 +47,7 @@
                 </select>
             </div>
             <div class="k-row k-mt">
-                <button class="k-btn" @onclick="CameraAsync">@(_camOn ? "🔄 Skift kamera" : "📷 Tænd kamera")</button>
+                <button class="k-btn" @onclick="CameraAsync">@(_camOn ? "Skift kamera" : "Tænd kamera")</button>
                 @if (_camOn && !_live) { <button class="k-btn" @onclick="CameraOffAsync">Sluk kamera</button> }
                 @if (_camInfo.Length > 0) { <span class="k-help">@_camInfo</span> }
             </div>
@@ -56,9 +55,9 @@
             {
                 <div class="k-label k-mt">Hvad skal seerne se? <span class="k-help">(kan skiftes mens du er live)</span></div>
                 <div class="kig-modes" role="group" aria-label="Hvad seerne ser">
-                    <button class="k-btn @(_mode == "kamera" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("kamera")'>📷 Kamera</button>
-                    <button class="k-btn @(_mode == "skaerm" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("skaerm")'>🖥️ Skærm</button>
-                    <button class="k-btn @(_mode == "begge" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("begge")'>🖥️+📷 Skærm med mig i hjørnet</button>
+                    <button class="k-btn @(_mode == "kamera" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("kamera")'>Kamera</button>
+                    <button class="k-btn @(_mode == "skaerm" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("skaerm")'>Skærm</button>
+                    <button class="k-btn @(_mode == "begge" ? "k-btn-primary" : "")" @onclick='() => ModeAsync("begge")'>Skærm med mig i hjørnet</button>
                 </div>
                 <p class="k-help">Ved skærm vælger du i Chromes vindue, hvad der deles: hele skærmen, ét vindue (fx din editor) eller en fane. Lyden er altid din mikrofon. Stop deling i Chromes bjælke → tilbage til kameraet.</p>
             }
@@ -69,12 +68,12 @@
             <div class="k-row k-mt">
                 @if (!_live)
                 {
-                    <button class="k-btn k-btn-primary" disabled="@(!_camOn || _busy)" @onclick="GoLiveAsync">🔴 Gå live</button>
+                    <button class="k-btn k-btn-primary" disabled="@(!_camOn || _busy)" @onclick="GoLiveAsync">Gå live</button>
                     <button class="k-btn" @onclick="() => Hub.SetTexts(_title, _next)">Gem teksterne</button>
                 }
                 else
                 {
-                    <button class="k-btn k-btn-danger" @onclick="EndAsync">⏹ Stop live</button>
+                    <button class="k-btn k-btn-danger" @onclick="EndAsync">Stop live</button>
                     <button class="k-btn" @onclick="() => Hub.SetTexts(_title, _next)">Opdater teksten</button>
                 }
             </div>
@@ -82,15 +81,15 @@
         </div>
 
         <div class="k-card" data-nofold>
-            <div class="k-card-title">📤 Inviter seere</div>
+            <div class="k-card-title">Inviter seere</div>
             <p class="k-help">Send linket til dem, der skal kigge med – de skal bare åbne det, ingen app eller login. Åbner de det før du går live, starter videoen af sig selv.</p>
             <div class="kig-invite">
                 <div class="kig-qr" title="Scan med telefonens kamera">@((MarkupString)QrSvg)</div>
                 <div>
                     <p><b>@ViewerUrl</b></p>
                     <div class="k-row">
-                        <button class="k-btn k-btn-primary" @onclick="CopyAsync">📋 Kopiér invitation</button>
-                        @if (_canShare) { <button class="k-btn" @onclick="ShareAsync">📤 Del…</button> }
+                        <button class="k-btn k-btn-primary" @onclick="CopyAsync">Kopiér invitation</button>
+                        @if (_canShare) { <button class="k-btn" @onclick="ShareAsync">Del…</button> }
                     </div>
                     @if (_shareNote.Length > 0) { <p class="k-help"><b>@_shareNote</b></p> }
                     <p class="k-help">Invitationen: <i>@InviteText</i></p>
@@ -100,7 +99,7 @@
         </div>
 
         <div class="k-card" data-nofold>
-            <div class="k-card-title">🗳️ Spørg seerne</div>
+            <div class="k-card-title">Spørg seerne</div>
             @if (_poll is { Open: true } p)
             {
                 var counts = p.Counts();
@@ -126,20 +125,20 @@
         </div>
 
         <div class="k-card" data-nofold>
-            <div class="k-card-title">❤️ Reaktioner</div>
+            <div class="k-card-title">Reaktioner</div>
             <p>@(_reactions.Count == 0 ? "Ingen endnu." : string.Join("   ", _reactions.OrderByDescending(r => r.Value).Select(r => $"{r.Key} {r.Value}")))</p>
         </div>
     </section>
 
     <section class="kig-right">
         <div class="k-card kig-hand" data-nofold>
-            <div class="k-card-title">🎤 Hvem taler? @(_hands.Count > 0 ? $"(✋ {_hands.Count} venter)" : "")</div>
+            <div class="k-card-title">Hvem taler? @(_hands.Count > 0 ? $"({_hands.Count} venter)" : "")</div>
             @if (_stageNow is { } g)
             {
                 <div class="kig-studio-guest">
                     <video id="studio-guest" autoplay playsinline></video>
                     <div>
-                        <b>🎤 På nu: @g.Name</b> <span class="k-help">siden @Dk(g.Since)</span>
+                        <b>På nu: @g.Name</b> <span class="k-help">siden @Dk(g.Since)</span>
                         <p class="k-help">@(_guestState switch { "direkte" or "hls" => "Du hører gæsten i dine høretelefoner – alle seere hører jer begge.", "venter" => "Venter på at gæsten starter sin mikrofon…", _ => "Forbinder…" })</p>
                         <button class="k-btn k-btn-danger" @onclick="() => Hub.EndFloor()">Tag ordet tilbage</button>
                     </div>
@@ -151,7 +150,7 @@
                 <ul class="kig-hands">
                     @foreach (var h in _hands)
                     {
-                        <li><span>✋ <b>@h.Name</b> <span class="k-help">@Dk(h.At)</span></span>
+                        <li><span><b>@h.Name</b> <span class="k-help">@Dk(h.At)</span></span>
                             <span class="k-row">
                                 <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Hub.GiveFloor(h.Viewer)">@(_stageNow is null ? "Giv ordet" : "Giv ordet i stedet")</button>
                                 <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Hub.LowerHand(h.Viewer)">Afvis</button>
@@ -162,8 +161,8 @@
         </div>
 
         <div class="k-card" data-nofold>
-            <div class="k-card-title">👀 Ser med (@_watchers.Count)</div>
-            @if (_watchers.Count == 0) { <p class="k-help">Ingen har siden åben lige nu. Send linket under 📤 Inviter seere.</p> }
+            <div class="k-card-title">Ser med (@_watchers.Count)</div>
+            @if (_watchers.Count == 0) { <p class="k-help">Ingen har siden åben lige nu. Send linket under Inviter seere.</p> }
             else
             {
                 <p class="k-help">Alle med kigmed.itmartin.dk åben lige nu. "Gæst" = har ikke skrevet sit navn endnu.</p>
@@ -177,7 +176,7 @@
         </div>
 
         <div class="k-card" data-nofold>
-            <div class="k-card-title">💬 Spørgsmål (@_questions.Count(q => q.Status == "ny") nye)</div>
+            <div class="k-card-title">Spørgsmål (@_questions.Count(q => q.Status == "ny") nye)</div>
             <p class="k-help">Tryk <b>Svarer nu</b> – så ser alle seere spørgsmålet over videoen, mens du svarer.</p>
             <div class="kig-questions studio">
                 @foreach (var q in _questions.AsEnumerable().Reverse())
@@ -189,7 +188,7 @@
                         {
                             <div class="k-row">
                                 @if (q.Status != "svarer") { <button class="k-btn k-btn-sm k-btn-primary" @onclick='() => Hub.SetStatus(q.Id, "svarer")'>Svarer nu</button> }
-                                @if (q.Status != "færdig") { <button class="k-btn k-btn-sm" @onclick='() => Hub.SetStatus(q.Id, "færdig")'>✓ Færdig</button> }
+                                @if (q.Status != "færdig") { <button class="k-btn k-btn-sm" @onclick='() => Hub.SetStatus(q.Id, "færdig")'>Færdig</button> }
                                 <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Hub.DeleteQuestion(q.Id)">Slet</button>
                             </div>
                         }
@@ -203,7 +202,7 @@
         </div>
 
         <div class="k-card" data-nofold>
-            <div class="k-card-title">💡 Idéer og billeder (@_ideas.Length)</div>
+            <div class="k-card-title">Idéer og billeder (@_ideas.Length)</div>
             <p class="k-help">Kun du ser dem. <b>Vis for alle</b> lægger idéen/billedet over videoen hos seerne.</p>
             @foreach (var i in _ideas.AsEnumerable().Reverse())
             {
@@ -272,7 +271,7 @@
             StateHasChanged();
             await CameraAsync();
             if (_camOn) await GoLiveAsync();
-            if (_sending) _note = "Du er live igen 🔴 (efter genindlæsning – skærmdeling skal startes igen)";
+            if (_sending) _note = "Du er live igen (efter genindlæsning – skærmdeling skal startes igen)";
             StateHasChanged();
         }
     }
@@ -326,15 +325,15 @@
         .GetGraphic(6, "#000000", "#ffffff", drawQuietZones: true);
     private bool _canShare;
     private string _shareNote = "";
-    private string InviteText => (_live ? "🔴 Jeg er live nu" : "📺 Kig med, når jeg går live") + (_title.Trim().Length > 0 ? $": {_title.Trim()}" : "") + $" – {ViewerUrl}";
+    private string InviteText => (_live ? "Jeg er live nu" : "Kig med, når jeg går live") + (_title.Trim().Length > 0 ? $": {_title.Trim()}" : "") + $" – {ViewerUrl}";
 
     private async Task CopyAsync() =>
-        _shareNote = await JS.InvokeAsync<bool>("kigShare.copy", InviteText) ? "Kopieret ✓ – indsæt den i en SMS, Messenger eller mail (Ctrl+V)." : "Kunne ikke kopiere – markér linket og kopiér selv.";
+        _shareNote = await JS.InvokeAsync<bool>("kigShare.copy", InviteText) ? "Kopieret. Indsæt den i en SMS, Messenger eller mail (Ctrl+V)." : "Kunne ikke kopiere – markér linket og kopiér selv.";
 
     private async Task ShareAsync()
     {
         var ok = await JS.InvokeAsync<bool>("kigShare.share", "Kig med – Martin live", InviteText, ViewerUrl);
-        _shareNote = ok ? "Delt ✓" : "";
+        _shareNote = ok ? "Delt." : "";
     }
 
     // Kamera / Skærm / Skærm med mig i hjørnet - switched in the browser, also while live (same connection).
@@ -349,7 +348,7 @@
     }
 
     private bool _sending;   // this studio page is sending video right now (Hub.Live alone can be left over from a reload)
-    [JSInvokable] public void OnVideoLost() { _sending = false; _note = "⚠️ Videoen faldt ud – tryk Gå live igen."; InvokeAsync(StateHasChanged); }
+    [JSInvokable] public void OnVideoLost() { _sending = false; _note = "Videoen faldt ud – tryk Gå live igen."; InvokeAsync(StateHasChanged); }
 
     [JSInvokable] public void OnModeLost() { _mode = "kamera"; _note = "Skærmdelingen stoppede – seerne ser kameraet igen."; InvokeAsync(StateHasChanged); }
 
@@ -363,7 +362,7 @@
             _sending = true;
             Hub.GoLive(_title);
             Hub.SetTexts(_title, _next);
-            _note = "Du er live 🔴";
+            _note = "Du er live.";
         }
         catch (JSException ex) { _note = "Kunne ikke gå live: " + ex.Message; await JS.InvokeVoidAsync("kig.unpublish"); }
         _busy = false;

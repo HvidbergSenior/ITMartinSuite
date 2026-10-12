@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddKolibri(k =>
 {
     k.Name = "Kig med";
-    k.KolibriName = "ITKolibri · Reagere Live";
+    k.KolibriName = "Kolibri Reagere";
     k.Family = "reagere";
     k.Tagline = "Se Martin arbejde live – og vær med: stil spørgsmål, stem og send idéer.";
     k.About =
