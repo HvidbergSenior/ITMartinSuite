@@ -25,7 +25,9 @@ public sealed class PriceHunterJob(IServiceScopeFactory scopes, IConfiguration c
                 var ids = await hunt.NextAsync(perMinute, stop);
                 foreach (var id in ids)
                     log.LogInformation("Priced item {Id}: {Ok} sources answered", id, await hunt.HuntAsync(id, stop));
-                if (ids.Count == 0) { await Task.Delay(TimeSpan.FromMinutes(10), stop); continue; }
+                // Nothing waiting: look again in a minute (it was 10 - new items then sat unpriced for up to 10 minutes,
+                // 2026-10-12). The check is one small query.
+                if (ids.Count == 0) { await Task.Delay(TimeSpan.FromMinutes(1), stop); continue; }
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
             catch (Exception ex) { log.LogWarning("Price hunter round failed: {Message}", ex.Message); }   // never stops the hunter
