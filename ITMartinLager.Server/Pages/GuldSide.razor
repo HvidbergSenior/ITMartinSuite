@@ -8,37 +8,71 @@
     <p>Enkelte numre, der er til salg for mange penge lige nu – op til @ITMartinLager.Domain.Gold.PerTier af hver slags i hver kategori:
        <b>🏆 Guld</b> fra @ITMartinLager.Domain.Gold.GoldFrom kr, <b>🥈 Sølv</b> fra @ITMartinLager.Domain.Gold.SilverFrom kr (værd at sælge for sig), <b>🥉 Bronze</b> fra @ITMartinLager.Domain.Gold.BronzeFrom kr (interessant).
        Når noget, du registrerer, står her, får det mærket i Vareinfo og på Lager.</p>
-    <details class="lg-more">
-        <summary>Sådan laves listen</summary>
-        <p>En gang om ugen spørger Lager DBA om de dyreste annoncer først i hver kategori (10 sider). Samlinger, bunker og drømmepriser (fx 99999 kr) tælles ikke med – kun annoncer for ét nummer, med nummer og/eller år. Prisen er midten af annoncerne for det nummer. Det er udbudspriser, ikke solgte priser.</p>
-    </details>
+
+    @* Quick search (user 2026-10-12: "quick search on all bronze, silver, gold"): every word must be in the listing,
+       the issue or the category - "1949", "nr. 17", "picaroerne", "asterix 1. oplag". *@
+    <input class="k-input lg-search" @bind="_q" @bind:event="oninput" placeholder="Søg: titel, nummer, år …" aria-label="Søg i guld, sølv og bronze" />
+    <div class="lg-chips">
+        @foreach (var t in new string?[] { null, "Guld", "Sølv", "Bronze" })
+        {
+            <button class="k-btn k-btn-sm @(_tier == t ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _tier = t">
+                @(t is null ? "Alle" : ITMartinLager.Domain.Gold.BadgeOf(t)) (@Count(t, _category))
+            </button>
+        }
+    </div>
+    <div class="lg-chips">
+        <button class="k-btn k-btn-sm @(_category is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _category = null">Alle kategorier</button>
+        @foreach (var c in ITMartinLager.Domain.Gold.Categories)
+        {
+            <button class="k-btn k-btn-sm @(_category == c.Name ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _category = c.Name">@c.Name (@Count(_tier, c.Name))</button>
+        }
+    </div>
+
     @if (_all is null) { <p class="k-muted">Henter …</p> }
     else if (_all.Count == 0) { <p class="lg-answer">Listen bygges</p><p>Første gang tager det et par minutter efter start. Kom tilbage lidt senere.</p> }
-    else { <p class="k-small k-muted">Opdateret @_all.Max(e => e.SeenAt).ToLocalTime().ToString("d/M HH:mm").</p> }
-    <button class="k-btn k-btn-secondary" @onclick="Rebuild" disabled="@_busy">@(_busy ? "⏳ Spørger DBA … (et par minutter)" : "🔄 Byg listen igen nu")</button>
+    else { <p class="k-small k-muted">Opdateret @_all.Max(e => e.SeenAt).ToLocalTime().ToString("d/M HH:mm") · @Hits().Count() vist.</p> }
+    <button class="k-btn k-btn-ghost k-btn-sm" @onclick="Rebuild" disabled="@_busy">@(_busy ? "⏳ Spørger DBA … (et par minutter)" : "🔄 Byg listen igen nu")</button>
+    <details class="lg-more">
+        <summary>Sådan laves listen</summary>
+        <p>En gang om ugen spørger Lager DBA om de dyreste annoncer først i hver kategori (10 sider). Samlinger, bunker, drømmepriser (fx 99999 kr) og merchandise (ure, mønter, plakater, figurer) tælles ikke med – kun annoncer for ét nummer, med nummer og/eller år. Prisen er midten af annoncerne for det nummer. Det er udbudspriser, ikke solgte priser.</p>
+    </details>
 </section>
 
 @if (_all is { Count: > 0 })
 {
-    @foreach (var g in _all.GroupBy(e => e.Category))
-    {
-        <section class="k-card" data-fold-closed>
-            <h2 class="k-card-title">@g.Key: @g.Count(e => e.Tier == "Guld") guld · @g.Count(e => e.Tier == "Sølv") sølv · @g.Count(e => e.Tier == "Bronze") bronze</h2>
-            <ul class="lg-list">
-                @foreach (var e in g.OrderByDescending(e => e.Kr))
-                {
-                    <li><a href="@e.Url" target="_blank" rel="noopener"><span class="lg-box">@e.Kr kr</span>
-                        <span class="lg-main"><b>@e.Badge · @e.Issue</b><span class="k-small k-muted">@e.Name · @e.Source@(e.Listings > 1 ? $" · {e.Listings} annoncer" : "")</span></span></a></li>
-                }
-            </ul>
-        </section>
-    }
+    <section class="k-card">
+        <ul class="lg-list">
+            @foreach (var e in Hits().Take(200))
+            {
+                <li><a href="@e.Url" target="_blank" rel="noopener"><span class="lg-box">@e.Kr kr</span>
+                    <span class="lg-main"><b>@e.Badge · @e.Category @e.Issue</b><span class="k-small k-muted">@e.Name · @e.Source@(e.Listings > 1 ? $" · {e.Listings} annoncer" : "")</span></span></a></li>
+            }
+        </ul>
+        @if (!Hits().Any()) { <p>Intet på listen passer. Prøv færre ord.</p> }
+    </section>
 }
 
 @code {
     private List<GoldEntry>? _all;
+    private string _q = "";
+    private string? _tier, _category;
     private bool _busy;
+
     protected override async Task OnInitializedAsync() => _all = await Gold.AllAsync();
+
+    private IEnumerable<GoldEntry> Filtered(string? tier, string? category) => (_all ?? [])
+        .Where(e => tier is null || e.Tier == tier)
+        .Where(e => category is null || e.Category == category);
+
+    private int Count(string? tier, string? category) => Filtered(tier, category).Count();
+
+    private IEnumerable<GoldEntry> Hits()
+    {
+        var words = _q.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return Filtered(_tier, _category)
+            .Where(e => words.All(w => $"{e.Category} {e.Issue} {e.Name} {e.Tier}".ToLowerInvariant().Contains(w)))
+            .OrderByDescending(e => e.Kr);
+    }
 
     private async Task Rebuild()
     {
