@@ -2,9 +2,8 @@
 @using System.Text.Json
 @implements IDisposable
 @inject IJSRuntime JS
-@inject IDbContextFactory<TjekDbContext> DbFactory
-@inject TjekAi Ai
-@inject AiBudget Budget
+@inject Runs Runs
+@inject Diagnosis Diagnosis
 
 <PageTitle>Tjek</PageTitle>
 
@@ -89,7 +88,7 @@
     else if (_deepMissing) { <p class="muted">Intet dybt tjek fundet for '@_device' endnu.</p> }
 </div>
 
-@if (Ai.Enabled)
+@if (Diagnosis.Enabled)
 {
     <h2>Hvad er galt?</h2>
     <div class="card">
@@ -106,18 +105,15 @@
                 @if (_answer.KanFjernes.Length > 0) { <h3>Kan fjernes (gør det selv, vi rører intet)</h3><ul>@foreach (var x in _answer.KanFjernes) { <li>@x</li> }</ul> }
             </div>
         }
-        <p class="muted small">AI-svar i dag: @Budget.Used / @Budget.Max</p>
+        <p class="muted small">AI-svar i dag: @Diagnosis.UsedToday / @Diagnosis.MaxPerDay</p>
     </div>
 }
 
 @code {
-    public sealed record Check(string Id, string Name, string Status, string Value, string Hint);
     public sealed record Output(string Id, string Label);
     private sealed record MicResult(bool Ok, string? Error, string? Label, int Peak, int Avg, int SampleRate, bool? EchoCancellation, bool? NoiseSuppression);
     private sealed record ToneResult(bool Ok, string? Error, bool SinkSupported);
     private sealed record CamResult(bool Ok, string? Error, string? Label, int? Width, int? Height, double? Fps);
-
-    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
     private string _device = "";
     private string _key = "";   // this browser's secret code (tjek.js)
@@ -128,7 +124,7 @@
     private List<Output> _outputs = [];
     private string _outputId = "";
     private List<Check>? _deepChecks; private DateTime? _deepAt; private string? _deepJson; private bool _deepMissing;
-    private string _problem = ""; private bool _asking; private string? _askError; private TjekAi.Answer? _answer;
+    private string _problem = ""; private bool _asking; private string? _askError; private Advice? _answer;
     private DotNetObjectReference<Index>? _self;
     private bool _first = true;
 
@@ -141,7 +137,7 @@
         StateHasChanged();
     }
 
-    private static int Rank(Check c) => c.Status switch { "bad" => 0, "warn" => 1, "ok" => 2, _ => 3 };
+    private static int Rank(Check c) => CheckRules.Rank(c);
     private int Count(string s) => _checks.Count(c => c.Status == s);
 
     private async Task SaveDeviceNameAsync() => await JS.InvokeVoidAsync("tjek.setDeviceName", _device.Trim());
@@ -168,10 +164,7 @@
         try
         {
             var r = await JS.InvokeAsync<MicResult>("tjek.micTest", 5, _self);
-            _micResult = !r.Ok ? new Check("mic", "Mikrofon", "bad", r.Error ?? "Fejl", "Tjek at browseren har lov til mikrofonen, og at den rigtige mikrofon er valgt.")
-                : r.Peak < 3 ? new Check("mic", "Mikrofon", "bad", $"{r.Label}: ingen lyd opfanget", "Mikrofonen er stum - forkert enhed valgt, slået fra (mute-knap), eller lydstyrken står på 0.")
-                : r.Peak < 15 ? new Check("mic", "Mikrofon", "warn", $"{r.Label}: svag (top {r.Peak} %)", "Meget lavt niveau - tal tættere på, eller skru op for mikrofonens indgangsniveau.")
-                : new Check("mic", "Mikrofon", "ok", $"{r.Label}: top {r.Peak} %, {r.SampleRate} Hz", "");
+            _micResult = DeviceTests.Mic(r.Ok, r.Error, r.Label, r.Peak, r.SampleRate);
             _checks.RemoveAll(c => c.Id == "mic"); _checks.Add(_micResult);
             _outputs = await JS.InvokeAsync<List<Output>>("tjek.outputs");
         }
@@ -182,48 +175,30 @@
     private async Task ToneAsync()
     {
         var r = await JS.InvokeAsync<ToneResult>("tjek.tone", _outputId);
-        _toneResult = r.Ok
-            ? new Check("tone", "Testtone", "info", "Afspillet 1 sekund" + (r.SinkSupported ? "" : " (browseren kan ikke vælge udgang - brugte standard)"), "Hørte du intet? Tjek lydstyrke, mute og at den rigtige udgang er valgt i styresystemet.")
-            : new Check("tone", "Testtone", "bad", r.Error ?? "Fejl", "");
+        _toneResult = DeviceTests.Tone(r.Ok, r.Error, r.SinkSupported);
     }
 
     private async Task CamTestAsync()
     {
         var r = await JS.InvokeAsync<CamResult>("tjek.camTest");
-        _camResult = r.Ok
-            ? new Check("cam", "Kamera", "ok", $"{r.Label}: {r.Width}×{r.Height}" + (r.Fps is { } f ? $" @ {f:0} fps" : ""), "")
-            : new Check("cam", "Kamera", "bad", r.Error ?? "Fejl", "Er kameraet i brug af et andet program, eller afvist i browseren?");
+        _camResult = DeviceTests.Camera(r.Ok, r.Error, r.Label, r.Width, r.Height, r.Fps);
         _checks.RemoveAll(c => c.Id == "cam"); _checks.Add(_camResult);
     }
 
-    private async Task SaveSnapshotAsync()
-    {
-        if (_checks.Count == 0 || string.IsNullOrWhiteSpace(_device) || _key.Length == 0) return;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        db.Snapshots.Add(new Snapshot
-        {
-            Device = _device.Trim(), OwnerKey = _key, Kind = "browser", Json = JsonSerializer.Serialize(_checks),
-            Ok = Count("ok"), Warn = Count("warn"), Bad = Count("bad"), Summary = $"{Count("ok")} ok, {Count("warn")} gule, {Count("bad")} røde",
-        });
-        await db.SaveChangesAsync();
-        _saved = true;
-    }
+    private async Task SaveSnapshotAsync() => _saved = await Runs.SaveBrowserRunAsync(_device, _key, _checks);
 
     private async Task LoadDeepAsync()
     {
         _deepMissing = false; _deepChecks = null;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var s = await db.Snapshots.AsNoTracking().Where(x => x.Kind == "deep" && x.OwnerKey == _key && x.Device == _device.Trim()).OrderByDescending(x => x.At).FirstOrDefaultAsync();
-        if (s is null) { _deepMissing = true; return; }
-        using var doc = JsonDocument.Parse(s.Json);
-        _deepJson = s.Json; _deepAt = s.At;
-        _deepChecks = doc.RootElement.TryGetProperty("checks", out var c) ? JsonSerializer.Deserialize<List<Check>>(c.GetRawText(), JsonOpts) ?? [] : [];
+        var deep = await Runs.LatestDeepAsync(_key, _device);
+        if (deep is null) { _deepMissing = true; return; }
+        _deepJson = deep.Json; _deepAt = deep.At; _deepChecks = deep.Checks;
     }
 
     private async Task AskAsync()
     {
         _asking = true; _askError = null; _answer = null;
-        try { _answer = await Ai.AskAsync(string.IsNullOrWhiteSpace(_device) ? "ukendt" : _device, JsonSerializer.Serialize(_checks), _deepJson, _problem); }
+        try { _answer = await Diagnosis.AskAsync(_device, _checks, _deepJson, _problem); }
         catch (Exception ex) { _askError = ex.Message; }
         finally { _asking = false; }
     }

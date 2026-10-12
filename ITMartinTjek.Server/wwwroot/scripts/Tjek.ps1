@@ -1,6 +1,6 @@
-# Tjek.ps1 - dybt tjek af en Windows-pc for tjek.itmartin.dk
+# Tjek.ps1 - dybt tjek af en Windows-pc for pctjek.itmartin.dk
 # Højreklik -> "Kør med PowerShell". Ingen administrator nødvendig (nogle punkter
-# viser mindre uden). Sender KUN de viste tekniske punkter til tjek.itmartin.dk under
+# viser mindre uden). Sender KUN de viste tekniske punkter til pctjek.itmartin.dk under
 # det enhedsnavn du skriver - ingen filer, ingen adgangskoder, ingen personlige data.
 
 & "$env:SystemRoot\System32\chcp.com" 65001 > $null
@@ -8,7 +8,7 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Endpoint = "https://tjek.itmartin.dk/api/deep"
+$Endpoint = "https://pctjek.itmartin.dk/api/deep"
 
 function Try-Get { param([scriptblock]$Block, $Default = $null) try { & $Block } catch { $Default } }
 $checks = New-Object System.Collections.Generic.List[object]

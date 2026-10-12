@@ -1,10 +1,9 @@
 using System.Text.Json;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinTjek.Server;
-using ITMartinTjek.Server.Data;
-using ITMartinTjek.Server.Services;
+using ITMartinTjek.Application;
+using ITMartinTjek.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,10 +35,9 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddHubOptions(o => o.MaximumReceiveMessageSize = 4 * 1024 * 1024);
 
-var dbPath = builder.Configuration.GetConnectionString("TjekDb") ?? "Data Source=/app/data/tjek.db";
-builder.Services.AddDbContextFactory<TjekDbContext>(o => o.UseSqlite(dbPath));
-builder.Services.AddSingleton<AiBudget>();
-builder.Services.AddSingleton<TjekAi>();
+// DDD/Clean since 2026-10-12: rules in Domain, use cases in Application, SQLite + Claude in Infrastructure.
+builder.Services.AddTjekApplication(builder.Configuration.GetValue("Tjek:MaxAiCallsPerDay", 100));
+builder.Services.AddTjekInfrastructure(builder.Configuration.GetConnectionString("TjekDb") ?? "Data Source=/app/data/tjek.db");
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["Tjek:KeysDir"] ?? "/app/data/keys"))
@@ -48,14 +46,7 @@ builder.Services.AddDataProtection()
 var app = builder.Build();
 app.MapKolibri();
 
-using (var scope = app.Services.CreateScope())
-{
-    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<TjekDbContext>>();
-    await using var db = await factory.CreateDbContextAsync();
-    await db.Database.EnsureCreatedAsync();
-    // EnsureCreated does not add new columns to an existing file.
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Snapshots\" ADD COLUMN \"OwnerKey\" TEXT NOT NULL DEFAULT '';"); } catch { /* already there */ }
-}
+await app.Services.UpgradeTjekDatabaseAsync();
 
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
@@ -76,32 +67,15 @@ app.MapGet("/api/blob", (HttpContext ctx) =>
 });
 
 // The deep script (Tjek.ps1) posts its JSON here under a device name; the page picks it up.
-app.MapPost("/api/deep", async (HttpContext ctx, IDbContextFactory<TjekDbContext> factory) =>
+app.MapPost("/api/deep", async (HttpContext ctx, Runs runs) =>
 {
     using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var root = doc.RootElement;
-    var device = root.TryGetProperty("device", out var d) ? d.GetString() ?? "" : "";
-    if (string.IsNullOrWhiteSpace(device)) return Results.BadRequest("device mangler");
-    // The code shown on the tjek page in the visitor's own browser - without it nobody could find the result again,
-    // and with it nobody else can see it.
-    var key = root.TryGetProperty("key", out var k) ? (k.GetString() ?? "").Trim().ToUpperInvariant() : "";
-    if (!System.Text.RegularExpressions.Regex.IsMatch(key, "^[A-Z0-9]{8,40}$")) return Results.BadRequest("Koden fra tjek-siden mangler. Hent scriptet igen.");
-    var checks = root.TryGetProperty("checks", out var c) ? c : default;
-    int ok = 0, warn = 0, bad = 0;
-    if (checks.ValueKind == JsonValueKind.Array)
-        foreach (var x in checks.EnumerateArray())
-        {
-            var s = x.TryGetProperty("status", out var st) ? st.GetString() : "";
-            if (s == "ok") ok++; else if (s == "warn") warn++; else if (s == "bad") bad++;
-        }
-    await using var db = await factory.CreateDbContextAsync();
-    db.Snapshots.Add(new Snapshot
+    try
     {
-        Device = device.Trim(), OwnerKey = key, Kind = "deep", Json = root.GetRawText(), Ok = ok, Warn = warn, Bad = bad,
-        Summary = $"{ok} ok, {warn} gule, {bad} røde",
-    });
-    await db.SaveChangesAsync();
-    return Results.Ok(new { ok, warn, bad, message = $"Modtaget: {ok} ok, {warn} gule, {bad} røde. Åbn https://tjek.itmartin.dk og vælg enheden '{device}'." });
+        var r = await runs.ReceiveDeepRunAsync(doc.RootElement);
+        return Results.Ok(new { ok = r.Ok, warn = r.Warn, bad = r.Bad, message = r.Message });
+    }
+    catch (ArgumentException ex) { return Results.BadRequest(ex.Message); }
 });
 
 app.UseAntiforgery();

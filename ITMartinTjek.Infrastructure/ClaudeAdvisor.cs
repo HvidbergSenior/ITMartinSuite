@@ -1,29 +1,29 @@
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Models.Messages;
+using ITMartinTjek.Application;
+using ITMartinTjek.Domain;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
-namespace ITMartinTjek.Server.Services;
+namespace ITMartinTjek.Infrastructure;
 
 /// <summary>"Hvad er galt?" - Claude gets the check results (browser + optional deep script)
 /// and the user's own description, and answers with what is fine, what is wrong and
-/// concrete steps in plain Danish. Every call goes through <see cref="AiBudget"/>.</summary>
-public sealed class TjekAi
+/// concrete steps in plain Danish. The day's budget is taken by the use case (Diagnosis) before this is called.</summary>
+public sealed class ClaudeAdvisor : IAdvisor
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
-    public sealed record Answer(string Diagnose, string[] Fint, string[] Problemer, string[] GoerNu, string[] KanFjernes);
-
     private readonly AnthropicClient? _client;
-    private readonly AiBudget _budget;
-    private readonly ILogger<TjekAi> _logger;
+    private readonly ILogger<ClaudeAdvisor> _logger;
 
     public bool Enabled => _client is not null;
 
-    public TjekAi(IConfiguration config, AiBudget budget, ILogger<TjekAi> logger)
+    public ClaudeAdvisor(IConfiguration config, ILogger<ClaudeAdvisor> logger)
     {
         var apiKey = config["Claude:ApiKey"];
         _client = string.IsNullOrWhiteSpace(apiKey) ? null : new AnthropicClient { ApiKey = apiKey };
-        _budget = budget;
         _logger = logger;
     }
 
@@ -50,10 +50,9 @@ public sealed class TjekAi
         },
     };
 
-    public async Task<Answer> AskAsync(string device, string browserJson, string? deepJson, string description, CancellationToken ct = default)
+    public async Task<Advice> AskAsync(string device, string browserJson, string? deepJson, string description, CancellationToken ct = default)
     {
         if (_client is null) throw new InvalidOperationException("Claude:ApiKey mangler");
-        _budget.Take("ask");
 
         var prompt = $"""
             Enhed: {device}
@@ -93,6 +92,6 @@ public sealed class TjekAi
 
         var json = JsonSerializer.Serialize(toolUse.Input);
         _logger.LogInformation("Tjek AI ({Device}, {In}/{Out} tokens): {Json}", device, response.Usage.InputTokens, response.Usage.OutputTokens, json);
-        return JsonSerializer.Deserialize<Answer>(json, Json) ?? throw new InvalidOperationException("Kunne ikke læse svaret");
+        return JsonSerializer.Deserialize<Advice>(json, Json) ?? throw new InvalidOperationException("Kunne ikke læse svaret");
     }
 }

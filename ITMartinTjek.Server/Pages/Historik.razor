@@ -1,6 +1,6 @@
 @page "/historik"
 @using System.Text.Json
-@inject IDbContextFactory<TjekDbContext> DbFactory
+@inject History History
 @inject IJSRuntime JS
 
 <PageTitle>Historik – Tjek</PageTitle>
@@ -49,7 +49,6 @@ else
 }
 
 @code {
-    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
     private List<string> _devices = [];
     private string _device = "";
     private string _key = "";
@@ -64,11 +63,7 @@ else
         if (!firstRender || !_first) return;
         _first = false;
         _key = await JS.InvokeAsync<string>("tjek.ownerKey");
-        if (_key.Length > 0)
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            _devices = await db.Snapshots.Where(s => s.OwnerKey == _key).Select(s => s.Device).Distinct().OrderBy(d => d).ToListAsync();
-        }
+        _devices = await History.DevicesAsync(_key);
         var mine = await JS.InvokeAsync<string>("tjek.deviceName");
         await SelectAsync(_devices.Contains(mine) ? mine : _devices.FirstOrDefault() ?? "");
         StateHasChanged();
@@ -79,28 +74,15 @@ else
     private async Task SelectAsync(string d)
     {
         _device = d; _open = 0;
-        if (d == "") { _runs = []; return; }
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _runs = await db.Snapshots.AsNoTracking().Where(s => s.Device == d && s.OwnerKey == _key).OrderByDescending(s => s.At).Take(30).ToListAsync();
+        _runs = await History.RunsAsync(_key, d);
     }
 
-    private static List<Index.Check> Parse(Snapshot s)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(s.Json);
-            var el = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement
-                : doc.RootElement.TryGetProperty("checks", out var c) ? c : default;
-            return el.ValueKind == JsonValueKind.Array ? JsonSerializer.Deserialize<List<Index.Check>>(el.GetRawText(), JsonOpts) ?? [] : [];
-        }
-        catch { return []; }
-    }
+    private static List<Check> Parse(Snapshot s) => CheckRules.Parse(s.Json);
 
     private async Task DeleteAsync(Snapshot s)
     {
         if (!await JS.InvokeAsync<bool>("confirm", "Slet dette tjek?")) return;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        await db.Snapshots.Where(x => x.Id == s.Id && x.OwnerKey == _key).ExecuteDeleteAsync();
+        await History.DeleteAsync(_key, s.Id);
         await SelectAsync(_device);
     }
 }

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tjek - SQLite (EF Core) for the saved runs, and Claude for "Hvad er galt?". -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinTjek.Application\ITMartinTjek.Application.csproj" />
+    <ProjectReference Include="..\ITMartinTjek.Domain\ITMartinTjek.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.29.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinTjek.Tests" />
+  </ItemGroup>
+
+</Project>

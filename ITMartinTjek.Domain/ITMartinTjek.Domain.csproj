@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tjek - the domain: a check result, a saved run (snapshot) and the rules for reading them.
+       No EF, no HTTP. Restructured from the flat ITMartinTjek.Server 2026-10-12. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinTjek.Tests" />
+  </ItemGroup>
+
+</Project>
