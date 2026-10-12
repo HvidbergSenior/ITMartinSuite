@@ -9,18 +9,18 @@
 @if (_tip is { } t)
 {
     <a class="hj-tile" href="/mine-apps?app=ElPriser">
-        <span class="hj-tile-icon" aria-hidden="true">⚡</span>
+        <img class="hj-tile-pic" src="/apps/elpriser.jpg" alt="" loading="lazy" />
         <b>ElPriser</b>
         <span class="hj-tile-line">Hvornår er strømmen billigst?</span>
         @if (t.Save < 0.10m)
         {
-            <span class="hj-tile-fact">💡 Vidste du … at <b>lige nu</b> er et af dagens billigste tidspunkter at starte din @t.Name.ToLowerInvariant()? Det koster kun <b>@Kr(t.NowKr)</b>.</span>
+            <span class="hj-tile-fact">Vidste du … at <b>lige nu</b> er et af dagens billigste tidspunkter at starte din @t.Name.ToLowerInvariant()? Det koster kun <b>@Kr(t.NowKr)</b>.</span>
         }
         else
         {
-            <span class="hj-tile-fact">💡 Vidste du … at din @t.Name.ToLowerInvariant() koster <b>@Kr(t.NowKr)</b> lige nu – men kun <b>@Kr(t.BestKr)</b> @When(t.BestStart)?</span>
+            <span class="hj-tile-fact">Vidste du … at din @t.Name.ToLowerInvariant() koster <b>@Kr(t.NowKr)</b> lige nu – men kun <b>@Kr(t.BestKr)</b> @When(t.BestStart)?</span>
         }
-        <span class="hj-tile-go">📱 Se eksemplet →</span>
+        <span class="hj-tile-go">Se eksemplet →</span>
 </a>
 }
 

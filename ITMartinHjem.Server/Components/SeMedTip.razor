@@ -1,15 +1,18 @@
 @* Front-page box for remote help with Se med, in the user's own words (user 2026-10-10); third of the three front-page questions since 2026-10-12.
    Se med = semed.itmartin.dk (photoserver semed-web, often stopped - the user starts it in Kontrol before a session). *@
 <section class="@(Embedded ? "hj-part" : "k-card") hj-semed">
-    @if (Embedded) { <h3 class="hj-part-title">🖥️ Skal jeg hjælpe dig remote?</h3> }
-    else { <h2 class="k-card-title">🖥️ Skal jeg hjælpe dig remote?</h2> }
+    @if (Embedded) { <h3 class="hj-part-title">@E("🖥️")Skal jeg hjælpe dig remote?</h3> }
+    else { <h2 class="k-card-title">@E("🖥️")Skal jeg hjælpe dig remote?</h2> }
     <p class="hj-eltip-text">Jeg kan hjælpe dig <b>på din skærm</b> på <b>2 minutter</b>.</p>
     <p class="hj-eltip-text">Har du et problem med din computer – stort eller lille – så sender jeg dig en <b>kode</b>. Så kan jeg se din skærm og
         guide dig igennem problemet. Du skal ikke installere noget.</p>
-    <a class="k-btn k-btn-primary" href="https://semed.itmartin.dk">🖥️ Jeg har fået en kode</a>
+    <a class="k-btn k-btn-primary" href="https://semed.itmartin.dk">@E("🖥️")Jeg har fået en kode</a>
 </section>
 
 @code {
     // Inside the front page's chat/stream/remote box (2026-10-12).
     [Parameter] public bool Embedded { get; set; }
+    // itmartin.dk front page: no emojis - they look AI-made; it should feel personal (user 2026-10-12). Set by Index.
+    [CascadingParameter(Name = "Plain")] public bool Plain { get; set; }
+    private string E(string emoji) => Plain ? "" : emoji + " ";
 }

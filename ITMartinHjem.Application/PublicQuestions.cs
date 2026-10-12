@@ -52,7 +52,7 @@ public sealed class PublicQuestions(IPublicQuestionStore store, TimeProvider clo
         return new Found(QuestionRules.Search(all, query, topic), QuestionRules.Topics(all), all.Count);
     }
 
-    public async Task<(List<PublicQuestion> Latest, List<(string Topic, int Count)> Topics, int Total)> LatestAsync(int take, string site, CancellationToken ct = default)
+    public async Task<(List<PublicQuestion> Latest, List<(string Topic, int Count)> Topics, int Total)> LatestAsync(int take, string? site, CancellationToken ct = default)
     {
         var all = QuestionRules.OnSite(await store.AllAsync(ct), site).ToList();
         return (all.OrderByDescending(q => q.PublishedAt).Take(take).ToList(), QuestionRules.Topics(all), all.Count);

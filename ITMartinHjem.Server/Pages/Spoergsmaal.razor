@@ -33,7 +33,7 @@ else
     @foreach (var q in _found.Questions)
     {
         <section class="k-card hj-qa" id="q@(q.Id)" data-nofold>
-            <button class="k-tag hj-qa-topic" @onclick="() => PickAsync(q.Topic)">@q.Topic</button>
+            <button class="k-tag hj-qa-topic" @onclick="() => PickAsync(q.Topic)">@(q.Site == QuestionRules.Bogshoppen && Site != QuestionRules.Bogshoppen ? "📚 Bogshoppen · " : "")@q.Topic</button>
             <h2 class="hj-qa-q">❓ @q.Question</h2>
             <div class="hj-qa-a"><b>Martin svarer:</b> @q.Answer</div>
             <div class="k-help">@Dk.Local(q.PublishedAt).ToString("d. MMMM yyyy", Da)</div>
@@ -83,7 +83,7 @@ else
 
     private async Task SearchAsync()
     {
-        _found = await Questions.SearchAsync(_q, _topic, Site);
+        _found = await Questions.SearchAsync(_q, _topic, Site == QuestionRules.Bogshoppen ? Site : null);   // itmartin.dk: both sites
         _related = await Questions.RelatedForAsync(_found.Questions.Take(30));
     }
 }

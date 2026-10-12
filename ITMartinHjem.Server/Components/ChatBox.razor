@@ -6,8 +6,9 @@
    (a random key in the browser), so a reply shows up here when they come back. *@
 
 <section class="@(Embedded ? "hj-part" : "k-card") hj-chat @(Prominent ? "hj-chat-top" : "") @(Available ? "is-on" : "")" id="chat">
-    @if (Embedded) { <h3 class="hj-part-title">@(Title ?? $"💬 Chat med {OwnerName}")</h3> }
-    else { <h2 class="k-card-title">@(Title ?? $"💬 Chat med {OwnerName}")</h2> }
+    @if (Embedded) { <h3 class="hj-part-title">@(Title ?? $"{E("💬")}Chat med {OwnerName}")</h3> }
+    else { <h2 class="k-card-title">@(Title ?? $"{E("💬")}Chat med {OwnerName}")</h2> }
+    @if (Photo.Length > 0) { <img class="hj-chat-photo" src="@Photo" alt="@OwnerName" /> }
     <div class="hj-chat-status">
         <span class="k-dot @(Available ? "on" : "")"></span>
         @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– chat med ham direkte, han svarer med det samme.</span> }
@@ -19,7 +20,7 @@
 
     @if (!_open)
     {
-        <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">💬 Chat med @OwnerName</button>
+        <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">@E("💬")Chat med @OwnerName</button>
     }
     else
     {
@@ -55,10 +56,10 @@
             @if (_thread.VisitorPush.Length == 0)
             {
                 @* plain onclick: the browser must see the visitor's own tap when it asks for permission *@
-                <button type="button" class="k-btn k-btn-block k-mt" onclick="hjem.visitorPush(this)">🔔 Giv mig besked i browseren, når Martin svarer</button>
+                <button type="button" class="k-btn k-btn-block k-mt" onclick="hjem.visitorPush(this)">@E("🔔")Giv mig besked i browseren, når Martin svarer</button>
             }
             <p class="k-help">Din e-mail bruges kun til at give dig besked om svaret.</p>
-            <p class="k-help">💬 Gode spørgsmål kan blive vist på "Det spørger folk om" – altid uden dit navn.</p>
+            <p class="k-help">@E("💬")Gode spørgsmål kan blive vist på "Det spørger folk om" – altid uden dit navn.</p>
         }
     }
 </section>
@@ -69,8 +70,13 @@
     [Parameter] public bool StartOpen { get; set; }
     [Parameter] public bool Prominent { get; set; }
     [Parameter] public string? Title { get; set; }
+    // A real photo of Martin by the chat (itmartin.dk front, 2026-10-12: "personal - rather pictures").
+    [Parameter] public string Photo { get; set; } = "";
     // Inside another box (front page 2026-10-12: chat/stream/remote in ONE box) - no card of its own.
     [Parameter] public bool Embedded { get; set; }
+    // itmartin.dk front page: no emojis - they look AI-made; it should feel personal (user 2026-10-12). Set by Index.
+    [CascadingParameter(Name = "Plain")] public bool Plain { get; set; }
+    private string E(string emoji) => Plain ? "" : emoji + " ";
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private string _key = "", _name = "", _text = "", _note = "", _email = "";

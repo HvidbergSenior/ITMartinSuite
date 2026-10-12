@@ -561,3 +561,7 @@ html[data-family="idag"] .hj-head:not(.hj-head-page)::before { content: ""; disp
 .k-content .k-btn:not(.k-btn-sm), .bs-site .k-content .bs-btn:not(.k-btn-sm) { font-size: 17px; }
 .k-content .hj-stream .hj-live.off { font-size: 1em; }
 .k-content .hj-stream p.k-help, .k-content .hj-semed p.k-help { font-size: 15px; }
+
+/* itmartin.dk front page: pictures instead of emojis (2026-10-12, user: "personal - rather pictures") */
+.hj-tile-pic { width: 100%; height: 96px; object-fit: cover; object-position: top; border-radius: 10px; margin-bottom: 6px; }
+.hj-chat-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 8px; border: 3px solid var(--k-card); box-shadow: var(--k-shadow); }

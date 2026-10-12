@@ -9,20 +9,23 @@
     <a class="k-card hj-live on" href="@Url" target="_blank" rel="noopener" data-nofold>
         <span class="hj-live-dot" aria-hidden="true"></span>
         <span class="hj-live-text">
-            <b>🔴 Jeg streamer nu</b>
+            <b>@E("🔴")Jeg streamer nu</b>
             <span>@(s.Title.Trim().Length > 0 ? s.Title : "Jeg mangler input til en ny app – har du idéer?")</span>
             <span class="k-help">Kig med på video, stil spørgsmål og send dine idéer – direkte fra telefonen, ingen app eller login.@(s.Viewers > 0 ? $" 👀 {s.Viewers} ser med." : "")</span>
         </span>
-        <span class="k-btn k-btn-primary">📺 Kig med og giv dit bud</span>
+        <span class="k-btn k-btn-primary">@E("📺")Kig med og giv dit bud</span>
     </a>
 }
 else if (_s is not null)
 {
-    <p class="hj-live off">📺 Jeg streamer ikke lige nu.@(_s.Next.Trim().Length > 0 ? $" Næste gang: {_s.Next}." : "") Kig med, når jeg er på – så kan du se mig arbejde og give dine idéer.</p>
-    <a class="k-btn k-btn-sm" href="@Url" target="_blank" rel="noopener">📺 Kig med</a>
+    <p class="hj-live off">@E("📺")Jeg streamer ikke lige nu.@(_s.Next.Trim().Length > 0 ? $" Næste gang: {_s.Next}." : "") Kig med, når jeg er på – så kan du se mig arbejde og give dine idéer.</p>
+    <a class="k-btn k-btn-sm" href="@Url" target="_blank" rel="noopener">@E("📺")Kig med</a>
 }
 
 @code {
+    // itmartin.dk front page: no emojis - they look AI-made; it should feel personal (user 2026-10-12). Set by Index.
+    [CascadingParameter(Name = "Plain")] public bool Plain { get; set; }
+    private string E(string emoji) => Plain ? "" : emoji + " ";
     private const string Url = "https://kigmed.itmartin.dk";
     private sealed record Status(bool Live, string Title, string Next, int Viewers);
     private Status? _s;
