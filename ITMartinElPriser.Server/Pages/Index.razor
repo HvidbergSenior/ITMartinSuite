@@ -60,7 +60,7 @@
 <PageHelp Key="help-nu">
     <ul>
         <li><b>Det store tal</b> er hvad én opvask koster, hvis du starter den nu – regnet over 2 timer, kvarter for kvarter. Regnet med en moderne opvasker på Eco-programmet (0,54 kWh ifølge EU-energimærket). Alt inkl. moms, elafgift og nettarif. Vil du se, hvad netop <i>din</i> maskine koster – og hvad en ny sparemodel ville spare dig – så er det i MinElpris.</li>
-        <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af dagen.</li>
+        <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af samme dag. Dyre timer er også stribede, og den billigste time er mærket „billigst“, så du kan se det uden at skelne farverne.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle, så viser det store tal hvad opvasken koster hvis den starter der. Tryk igen for at gå tilbage til nu.</li>
         <li><b>I morgen</b> er den samme opvask, startet på samme klokkeslæt i morgen. Morgendagens priser kommer ca. kl. 13.</li>
         <li>Flere maskiner (vaskemaskine, tørretumbler, ovn) finder du i <a href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">MinElpris</a>.</li>
@@ -83,12 +83,17 @@ else
     // One machine, one price: the dishwasher started now - or at the hour tapped in the bars -
     // and the same start on the other day.
     var strip = Strip();
-    var min = strip.Count > 0 ? strip.Min(h => h.KrPerKwh) : 0;
-    var span = strip.Count > 0 ? strip.Max(h => h.KrPerKwh) - min : 0;
+    // Heights on one scale over BOTH whole days (past hours included), colours from each hour's
+    // own day (Rank01) - so an hour keeps its height and colour all day instead of changing as
+    // the morning's hours drop off the strip (user 2026-10-12: "the night looked different").
+    var allHours = (_snap.Today?.Hours ?? []).Concat(_snap.Tomorrow?.Hours ?? []).ToList();
+    var min = allHours.Count > 0 ? allHours.Min(h => h.KrPerKwh) : 0;
+    var span = allHours.Count > 0 ? allHours.Max(h => h.KrPerKwh) - min : 0;
+    var cheapest = strip.MinBy(h => h.KrPerKwh);
     var picked = _selected is { } sel ? strip.FirstOrDefault(h => h.Start == sel) : null;
     var start = picked?.Start ?? QuarterNow();
     var run = picked is null ? now : Dishes(start);
-    double? rank = picked is null ? _snap.NowRank01 : span > 0 ? (picked.KrPerKwh - min) / span : 0.5;
+    double? rank = picked is null ? _snap.NowRank01 : picked.Rank01;
     var lvl = Level(rank);
     var isTomorrow = DateOnly.FromDateTime(start) > DateOnly.FromDateTime(_snap.At);
     var other = isTomorrow ? Dishes(start.AddDays(-1)) : Dishes(start.AddDays(1));
@@ -101,15 +106,17 @@ else
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
-            @* The sum behind the big number, in its own colour: 1 kWh × the average price over the 2 hours. *@
+            @* The sum behind the big number, in a neutral colour (never fighting the verdict's colour). *@
             <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over 2 timer = @Kr(run.CostKr) kr</div>
         }
         <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele opvasken endnu" : Verdict(rank))</div>
         <div class="now-tomorrow">
             @if (other is not null && run is not null)
             {
+                @* One colour, and the difference said in words - not red/green on one line. *@
                 <span>@(isTomorrow ? "I dag" : "I morgen") kl. @start.ToString("HH:mm")</span>
-                <b class="@(other.CostKr < run.CostKr ? "lvl-cheap" : other.CostKr > run.CostKr ? "lvl-expensive" : "")">@Kr(other.CostKr) KR</b>
+                <b>@Kr(other.CostKr) KR</b>
+                <span class="muted small">@(other.CostKr < run.CostKr ? "billigere" : other.CostKr > run.CostKr ? "dyrere" : "samme pris")</span>
             }
             else if (!isTomorrow)
             {
@@ -129,21 +136,27 @@ else
                 @foreach (var h in strip)
                 {
                     var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
-                    var r = span > 0 ? (h.KrPerKwh - min) / span : 0.5;
                     @* The whole column is the tap target: it moves the dishwasher's start to that hour. *@
                     <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
                          @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
-                        <div class="bar @Band(r) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
-                             style="--h:@pct.ToString("0", CultureInfo.InvariantCulture)%"></div>
+                        <div class="bar @Band(h.Rank01) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
+                             style="--h:@pct.ToString("0", CultureInfo.InvariantCulture)%">
+                            @* Said in words too, not only in green (user is a bit colour-blind). *@
+                            @if (h == cheapest) { <span class="bar-tip">billigst</span> }
+                        </div>
                     </div>
                 }
             </div>
             <div class="bar-axis">
-                @foreach (var h in strip)
+                @for (var i = 0; i < strip.Count; i++)
                 {
-                    <span>@(h.IsNow ? "nu" : h.Start.Hour == 0 ? "0" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "")</span>
+                    var h = strip[i];
+                    // The hour right after "nu" stays blank, so "nu" never runs into "9" or "15".
+                    var label = h.IsNow ? "nu" : i == 1 && strip[0].IsNow ? "" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "";
+                    <span>@label</span>
                 }
             </div>
+            <div class="muted small u-mt6 u-center">Høje, stribede søjler er dyre timer – lave er billige.</div>
             <div class="muted small u-mt6 u-center">Tryk på en søjle – så viser det store tal prisen hvis opvasken starter der.</div>
         </div>
     }
