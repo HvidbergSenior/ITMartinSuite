@@ -9,7 +9,7 @@
     }
     else if (!_open)
     {
-        <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => _open = true">🆓 Prøv @App gratis</button>
+        <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => _open = true">Prøv @App gratis</button>
     }
     else
     {
@@ -18,8 +18,8 @@
         <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
         <SignUpMeans />
         <label class="sp-optin"><input type="checkbox" @bind="_consent" /> <span>@ITMartinHjem.Domain.TrialRules.ConsentText(App)</span></label>
-        @if (_error.Length > 0) { <p class="form-error">⚠️ @_error</p> }
-        <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="SendAsync">🆓 Send mig adgang</button>
+        @if (_error.Length > 0) { <p class="form-error">@_error</p> }
+        <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="SendAsync">Send mig adgang</button>
     }
 </div>
 

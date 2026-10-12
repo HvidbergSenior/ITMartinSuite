@@ -6,15 +6,15 @@
 <PageTitle>Mine apps · Martin Hvidberg</PageTitle>
 
 @* Principle (user 2026-09-28): every app is useful for free; a paid version is something you ask for. *@
-<PageHead Title="📱 Mine apps" Tag="🆓 Gratis at prøve" Line="Apps, der hjælper dig – uden reklamer." />
+<PageHead Title="Mine apps" Tag="Gratis at prøve" Line="Apps, der hjælper dig – uden reklamer." />
 @* Show/hide box (user 2026-10-12). *@
 <article class="k-card hj-page">
     <h2 class="k-card-title">ℹ️ Sådan prøver du mine apps</h2>
     <div>
     <p>Alle mine apps er <b>gratis at bruge</b> – og den gratis udgave kan noget i sig selv. Vil du have mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
-    <p><b>Sådan prøver du en app:</b> tryk på den, og tryk <b>🆓 Prøv gratis</b>. Skriv din e-mail – så sender jeg dig adgang (en PIN-kode).</p>
+    <p><b>Sådan prøver du en app:</b> tryk på den, og tryk <b>Prøv gratis</b>. Skriv din e-mail – så sender jeg dig adgang (en PIN-kode).</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu – jeg gør dem klar, så de er nemme at bruge. Nysgerrig? Chat med mig.</p>
-    <a class="k-btn k-btn-sm" href="/#chat">💬 Chat med mig</a>
+    <a class="k-btn k-btn-sm" href="/#chat">Chat med mig</a>
     </div>
 </article>
 
@@ -29,29 +29,29 @@
         var target = string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase);
         @* ?app=Name (the front-page tiles): that card starts open, so the example picture shows. *@
         <div class="k-card hj-app @(up ? "" : "off") @(target ? "hj-app-target" : "")" id="app-@a.Id" data-fold-closed="@(target ? null : "1")">
-            <h3 class="hj-app-head"><span class="hj-app-icon">@a.Icon</span> @a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
+            <h3 class="hj-app-head">@a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
             <div class="hj-app-body">
-                <div class="k-help">@a.Description</div>
-                @if (a.Picture.Length > 0) { <a href="@a.Picture" target="_blank" rel="noopener" title="Tryk for at se billedet stort"><img class="hj-app-pic" src="@a.Picture" alt="Sådan ser @a.Name ud, når den bliver brugt" loading="lazy" /></a><div class="k-help k-center">🔍 Tryk på billedet for at se det stort</div> }
-                <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? a.FreeText : "Kom i gang med det samme – ingen betaling.")</div>
-                <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? a.PaidText : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
+                <div class="k-help">@NoEmoji.Strip(a.Description)</div>
+                @if (a.Picture.Length > 0) { <a href="@a.Picture" target="_blank" rel="noopener" title="Tryk for at se billedet stort"><img class="hj-app-pic" src="@a.Picture" alt="Sådan ser @a.Name ud, når den bliver brugt" loading="lazy" /></a><div class="k-help k-center">Tryk på billedet for at se det stort</div> }
+                <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? NoEmoji.Strip(a.FreeText) : "Kom i gang med det samme – ingen betaling.")</div>
+                <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? NoEmoji.Strip(a.PaidText) : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
                 <div class="k-row k-mt">
                     @* "Brug gratis" removed 2026-10-12 (user): people get in via "Prøv gratis" below (e-mail -> Kundekartotek -> PIN). *@
-                    @if (showcase && up) { <span class="k-help"><i>🔒 Eksempel – appen bruges kun af den, den er lavet til.</i></span> }
-                    else if (!up) { <span class="k-help"><i>😴 Sover lige nu – tryk "Prøv gratis", så tænder jeg den til dig.</i></span> }
+                    @if (showcase && up) { <span class="k-help"><i>Eksempel – appen bruges kun af den, den er lavet til.</i></span> }
+                    else if (!up) { <span class="k-help"><i>Sover lige nu – tryk "Prøv gratis", så tænder jeg den til dig.</i></span> }
                     @* "Spørg om din egen app / udvidet" button removed 2026-10-12 (user) - Prøv gratis + the contact line below do it. *@
                 </div>
                 @* "Prøv gratis" on every app (user 2026-10-12): e-mail -> Kundekartotek -> Martin sends a PIN. No newsletters. *@
                 <TrialForm App="@a.Name" />
                 @* Contact line on every app (user 2026-10-12: "a contact me if interested in this app"); a sleeping app is tried for free by contacting Martin, who wakes it (user 2026-10-12). *@
-                <div class="hj-app-contact">📩 <b>@(up || showcase ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig:
-                    <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/#chat">💬 Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">📧 Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">📞 31 19 47 30</a></div></div>
+                <div class="hj-app-contact"><b>@(up || showcase ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig:
+                    <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/#chat">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
             </div>
         </div>
     }
 </div>
 
-<p class="k-center k-mt"><a class="k-btn k-btn-primary" href="/bliv-pilot/">🐦 Vil du være pilot og prøve en app sammen med mig?</a></p>
+<p class="k-center k-mt"><a class="k-btn k-btn-primary" href="/bliv-pilot/">Vil du være pilot og prøve en app sammen med mig?</a></p>
 
 @code {
     private List<AppLink> _apps = [];

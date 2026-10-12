@@ -18,7 +18,7 @@
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
-    @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
+    @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">Skriv opslag / svar beskeder</a> }
 </header>
 
 @* Bogshoppen teaser + "Ingen reklamer" headline box removed 2026-10-07 (user: "way too many tabs and info");
@@ -121,7 +121,7 @@
 @if (!_family && _hiddenFamily > 0)
 {
     <div class="k-card hj-lock" data-nofold>
-        <p>🔒 <b>@_hiddenFamily familieopslag</b> er kun for familien.</p>
+        <p><b>@_hiddenFamily familieopslag</b> er kun for familien.</p>
         <a class="k-btn k-btn-sm" href="/login">Skriv familiens kodeord</a>
     </div>
 }
@@ -146,19 +146,19 @@ else if (_family && !_owner)
     private static readonly (TileGroup Group, string Icon, string Title, string Line, string Href, string Fact)[] Tiles =
     [
         // the user's own family library (ToshibaTest run, 2026-09): 87,009 files in, 34,079 out
-        (TileGroup.App, "🖼️", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/mine-apps?app=Tjek%20dine%20billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
-        (TileGroup.Page, "👋", "Om mig og kontakt", "Hvem jeg er, og hvordan du fanger mig", "/om-mig", "… at jeg har arbejdet som systemudvikler i 20 år – og som socialpædagog i 5 år med mennesker med udviklingshandicap?"),
-        (TileGroup.Page, "🐦", "Bliv pilot", "Prøv mine apps gratis og sig din mening", "/bliv-pilot", "… at piloterne er med til at bestemme, hvad appen skal kunne?"),
-        (TileGroup.App, "🖥️", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
-        (TileGroup.App, "🎥", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
+        (TileGroup.App, "", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/mine-apps?app=Tjek%20dine%20billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
+        (TileGroup.Page, "", "Om mig og kontakt", "Hvem jeg er, og hvordan du fanger mig", "/om-mig", "… at jeg har arbejdet som systemudvikler i 20 år – og som socialpædagog i 5 år med mennesker med udviklingshandicap?"),
+        (TileGroup.Page, "", "Bliv pilot", "Prøv mine apps gratis og sig din mening", "/bliv-pilot", "… at piloterne er med til at bestemme, hvad appen skal kunne?"),
+        (TileGroup.App, "", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
+        (TileGroup.App, "", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
         // Statista, Feb 2025: average daily social media use of internet users worldwide = 141 min (141*365/1440 = 35.7 days)
         // Global E-waste Monitor 2024 / Dell + HP LCAs: 68-81 % of a laptop's CO2 is from making it (user 2026-10-12: green, both sites)
-        (TileGroup.Page, "🌱", "Grønt og bæredygtigt", "Giv gamle ting nyt liv – i stedet for at købe nyt", "/baeredygtighed", "… at 68–81 % af en bærbar computers CO₂ bliver udledt, før du tænder den – når den bliver lavet?"),
-        (TileGroup.Page, "📵", "Ingen reklamer", "Hvorfor mine apps aldrig har reklamer", "/ingen-reklamer", "… at vi i snit bruger 141 minutter om dagen på sociale medier? Det er 36 døgn om året."),
-        (TileGroup.Page, "🚀", "Hvad laver jeg nu?", "I dag og denne uge", "/hvad-laver-itkolibrien", "… at jeg skriver min plan for dagen her hver morgen – og om aftenen, hvad det blev til?"),
-        (TileGroup.Site, "📚", "Bogshoppen", "Liveauktioner – snart", "https://bogshoppen.dk", "… at Bogshoppen har over 100.000 bøger, blade og tegneserier, der skal finde nye ejere?"),
-        (TileGroup.Page, "💛", "Særlige behov", "ADHD, autisme og IT", "/ydelser/adhd-og-autisme", "… at der findes meget få gode apps til folk med særlige udfordringer? De skal have en app, der passer til Søren – ikke til kassen »autisme«."),
-        (TileGroup.Page, "💬", "Priser", "Hvad koster det?", "/apps", "… at alle mine apps har en gratis udgave, der kan noget i sig selv?"),
+        (TileGroup.Page, "", "Grønt og bæredygtigt", "Giv gamle ting nyt liv – i stedet for at købe nyt", "/baeredygtighed", "… at 68–81 % af en bærbar computers CO₂ bliver udledt, før du tænder den – når den bliver lavet?"),
+        (TileGroup.Page, "", "Ingen reklamer", "Hvorfor mine apps aldrig har reklamer", "/ingen-reklamer", "… at vi i snit bruger 141 minutter om dagen på sociale medier? Det er 36 døgn om året."),
+        (TileGroup.Page, "", "Hvad laver jeg nu?", "I dag og denne uge", "/hvad-laver-itkolibrien", "… at jeg skriver min plan for dagen her hver morgen – og om aftenen, hvad det blev til?"),
+        (TileGroup.Site, "", "Bogshoppen", "Liveauktioner – snart", "https://bogshoppen.dk", "… at Bogshoppen har over 100.000 bøger, blade og tegneserier, der skal finde nye ejere?"),
+        (TileGroup.Page, "", "Særlige behov", "ADHD, autisme og IT", "/ydelser/adhd-og-autisme", "… at der findes meget få gode apps til folk med særlige udfordringer? De skal have en app, der passer til Søren – ikke til kassen »autisme«."),
+        (TileGroup.Page, "", "Priser", "Hvad koster det?", "/apps", "… at alle mine apps har en gratis udgave, der kan noget i sig selv?"),
     ];
 
     public enum TileGroup { App, Page, Site }

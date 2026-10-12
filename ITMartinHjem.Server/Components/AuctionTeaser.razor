@@ -3,12 +3,12 @@
 @* bogshoppen.dk teaser (user 2026-10-12): "I want to start with live-auctions and the product will be shown soon", "make teaser",
    product-oriented - easy to see what is coming, how to follow along and how to buy. No votes. *@
 <section class="k-card bs-card bs-auction">
-    <h2>🔨 Liveauktioner – snart</h2>
+    <h2>Liveauktioner – snart</h2>
     <div>
         <p><b>Vi starter med liveauktioner.</b> Vi viser varerne i kameraet, og du byder fra mobilen. Varerne bliver vist her snart.</p>
 
         @* The product list and the price promise moved to the Varer tab (/varer) 2026-10-12. *@
-        <p><a class="k-btn bs-btn" href="/varer">📦 Se hvilke varer der kommer – og vores prisløfte</a></p>
+        <p><a class="k-btn bs-btn" href="/varer">Se hvilke varer der kommer – og vores prisløfte</a></p>
 
     </div>
 </section>
@@ -16,27 +16,27 @@
 @* Each part is its own show/hide box (user 2026-10-12: "hide/show boxes on bogshoppen where appropriate"). *@
 @* Big boxes like "Chat med Martin" (user 2026-10-12), one per step. *@
 <section class="k-card bs-card">
-    <h2>🛒 Sådan køber du</h2>
+    <h2>Sådan køber du</h2>
     <div>
         <div class="bs-bigsteps">
             <div class="bs-bigstep">
-                <h4>1️⃣ Skriv dig op</h4>
+                <h4>1. Skriv dig op</h4>
                 <p>Det tager et minut – navn og e-mail. Ingen reklamer, ingen nyhedsbreve.</p>
-                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="#foelg">🔔 Skriv mig op</a>
+                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="#foelg">Skriv mig op</a>
             </div>
             <div class="bs-bigstep">
-                <h4>2️⃣ Få dit login</h4>
+                <h4>2. Få dit login</h4>
                 <p>Vi sender dig et login til liveauktionerne på mail, når den første auktion er klar.</p>
             </div>
             <div class="bs-bigstep">
-                <h4>3️⃣ Kig med og byd live</h4>
+                <h4>3. Kig med og byd live</h4>
                 <p>Vi viser varerne i kameraet. Du ser med på mobilen, stiller spørgsmål i chatten og byder med ét tryk.</p>
-                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="https://kigmed.itmartin.dk" target="_blank" rel="noopener">📺 Kig med live</a>
+                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="https://kigmed.itmartin.dk" target="_blank" rel="noopener">Kig med live</a>
             </div>
             <div class="bs-bigstep">
-                <h4>4️⃣ Hent eller få det sendt</h4>
+                <h4>4. Hent eller få det sendt</h4>
                 <p>Hent varen efter aftale, eller få den sendt med posten.</p>
-                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="#chat">💬 Chat med Martin</a>
+                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="#chat">Chat med Martin</a>
             </div>
         </div>
 
@@ -44,13 +44,13 @@
 </section>
 
 <section class="k-card bs-card" id="foelg">
-    <h2>🔔 Sådan følger du med</h2>
+    <h2>Sådan følger du med</h2>
     <div>
         @if (_sent)
         {
             <p class="bs-done"><b>Tak – du er skrevet op ✓</b> Vi sender dit login til <b>@_email</b>, når den første liveauktion er klar.
                 Du kan altid afmelde dig.</p>
-            <a class="k-btn k-btn-sm" href="/afmeld">🚪 Afmeld</a>
+            <a class="k-btn k-btn-sm" href="/afmeld">Afmeld</a>
         }
         else
         {
@@ -59,7 +59,7 @@
                 @foreach (var (title, _) in BogshoppenRules.Products)
                 {
                     <button type="button" class="sp-option @(_collects.Contains(title) ? "on" : "")" aria-pressed="@(_collects.Contains(title) ? "true" : "false")"
-                            @onclick="() => Toggle(title)">@(_collects.Contains(title) ? "☑" : "☐") @title</button>
+                            @onclick="() => Toggle(title)">@(_collects.Contains(title) ? "" : "") @title</button>
                 }
             </div>
             <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="Dit navn" aria-label="Dit navn" autocomplete="name" />
@@ -67,8 +67,8 @@
             <textarea class="k-input k-textarea k-mt" @bind="_note" maxlength="280" rows="2" placeholder="Leder du efter noget bestemt? (valgfrit)" aria-label="Leder du efter noget bestemt?"></textarea>
             <SignUpMeans />
             <label class="sp-optin"><input type="checkbox" @bind="_consent" /> <span>@BogshoppenRules.ConsentText</span></label>
-            @if (_error.Length > 0) { <p class="form-error">⚠️ @_error</p> }
-            <button class="k-btn k-btn-primary bs-btn k-mt" disabled="@_busy" @onclick="SendAsync">🔔 Skriv mig op</button>
+            @if (_error.Length > 0) { <p class="form-error">@_error</p> }
+            <button class="k-btn k-btn-primary bs-btn k-mt" disabled="@_busy" @onclick="SendAsync">Skriv mig op</button>
         }
     </div>
 </section>

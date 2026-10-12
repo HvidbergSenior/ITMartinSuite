@@ -15,9 +15,9 @@
 }
 else if (_page is not null)
 {
-    <PageTitle>@_page.Title · Martin Hvidberg</PageTitle>
+    <PageTitle>@NoEmoji.Strip(_page.Title) · Martin Hvidberg</PageTitle>
     @* Same head box on every tab as on the front page and bogshoppen.dk (user 2026-10-12). *@
-    <PageHead Title="@_page.Title" Tag="@(_parent?.Title ?? (_page.Slug == NowCard.PageSlug ? "📅 I dag" : "ITMartin"))" />
+    <PageHead Title="@_page.Title" Tag="@(_parent?.Title ?? (_page.Slug == NowCard.PageSlug ? "I dag" : "ITMartin"))" />
     @if (_parent is not null || _page.Slug == NowCard.PageSlug || !string.IsNullOrWhiteSpace(_intro))
     {
     <article class="k-card hj-page">
@@ -40,11 +40,11 @@ else if (_page is not null)
         <div class="hj-subpages">
             @foreach (var c in _children)
             {
-                <a class="k-card hj-subpage" href="/@c.Slug" data-nofold><b>@c.Title</b><span>@Teaser(c.Body)</span></a>
+                <a class="k-card hj-subpage" href="/@c.Slug" data-nofold><b>@NoEmoji.Strip(c.Title)</b><span>@NoEmoji.Strip(Teaser(c.Body))</span></a>
             }
         </div>
     }
-    <p class="k-center k-mt"><a class="k-btn k-btn-primary" href="/#chat">💬 Chat med mig om det</a></p>
+    <p class="k-center k-mt"><a class="k-btn k-btn-primary" href="/#chat">Chat med mig om det</a></p>
 }
 
 @code {

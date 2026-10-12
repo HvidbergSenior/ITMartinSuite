@@ -8,14 +8,14 @@
 <section class="k-card hj-pilot-form" id="pilot" data-nofold>
     @if (_sentTo is not null)
     {
-        <div class="k-card-title">Tak, @_sentTo! 🐦</div>
+        <div class="k-card-title">Tak, @_sentTo! </div>
         <p>Jeg har fået din besked om <b>@_ydelse</b> og ringer til dig på @_tlf inden for to dage.</p>
         @if (MailService.LooksLikeEmail(_email)) { <p>Du får en kvittering på <b>@_email</b> – og mit svar kommer også dertil.</p> }
         <button class="k-btn" @onclick="() => _sentTo = null">Send en til</button>
     }
     else
     {
-        <div class="k-card-title">🐦 Jeg vil gerne være pilot</div>
+        <div class="k-card-title">Jeg vil gerne være pilot</div>
         <p class="k-help">Udfyld de fire felter med * og tryk Send. Jeg ringer tilbage inden for to dage. Ingen forpligtelser.</p>
         <label class="k-label" for="p-ydelse">Hvad drejer det sig om? *</label>
         <select id="p-ydelse" class="k-input" @bind="_ydelse">
@@ -85,7 +85,7 @@
         _sending = true;
         var (navn, tlf, by, email, besked) = (_navn.Trim(), _tlf.Trim(), _by.Trim(), _email.Trim(), _besked.Trim());
         await Chat.VisitorWritesAsync("pilot-" + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
-            $"🐦 Pilot-henvendelse: {_ydelse}\nTelefon: {tlf}\nBy: {by}" + (email.Length > 0 ? $"\nE-mail: {email}" : "") + $"\n\n{besked}", email);
+            $"Pilot-henvendelse: {_ydelse}\nTelefon: {tlf}\nBy: {by}" + (email.Length > 0 ? $"\nE-mail: {email}" : "") + $"\n\n{besked}", email);
         _sentTo = navn;
         _note = "";
         _sending = false;

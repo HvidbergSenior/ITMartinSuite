@@ -565,3 +565,10 @@ html[data-family="idag"] .hj-head:not(.hj-head-page)::before { content: ""; disp
 /* itmartin.dk front page: pictures instead of emojis (2026-10-12, user: "personal - rather pictures") */
 .hj-tile-pic { width: 100%; height: 96px; object-fit: cover; object-position: top; border-radius: 10px; margin-bottom: 6px; }
 .hj-chat-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 8px; border: 3px solid var(--k-card); box-shadow: var(--k-shadow); }
+
+/* No emojis anywhere (2026-10-12): the decorative CSS emojis go too. The itmartin.dk front keeps the logo. */
+.bs-head::before, .bs-head.bs-head-page::before, html[data-family="idag"] .hj-head.hj-head-page::before { content: none; display: none; }
+html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::before { content: none; display: none; }
+.sp-option { padding-left: 38px; position: relative; }
+.sp-option::before { content: ""; position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border: 2px solid currentColor; border-radius: 4px; }
+.sp-option.on::before { background: currentColor; box-shadow: inset 0 0 0 3px var(--k-text); }

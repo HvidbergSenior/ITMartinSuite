@@ -16,21 +16,22 @@ else
 {
 @* bogshoppen.dk has its own two tabs (user 2026-10-12: "a tab on bogshoppen. Forside and one more" -> Varer). *@
 <nav class="hj-nav bs-nav">
-    <a href="/">🏠 Forside</a>
-    <a href="/varer">📦 Varer</a>
-    <a href="/om-bogshoppen">💛 Om Bogshoppen</a>
-    <a href="/spoergsmaal">💬 Spørgsmål</a>
+    <a href="/">Forside</a>
+    <a href="/varer">Varer</a>
+    <a href="/om-bogshoppen">Om Bogshoppen</a>
+    <a href="/spoergsmaal">Spørgsmål</a>
 </nav>
 }
 @if (_fest && !_bs)
 {
     <a class="fest-strip" href="/vibeke">
         <span class="fest-strip-flags" aria-hidden="true">@foreach (var i in Enumerable.Range(0, 14)) { <i style="--i:@i"></i> }</span>
-        💛 <b>Vibeke har fødselsdag i dag!</b> <span>Se hvorfor hun er den bedste →</span>
+        <b>Vibeke har fødselsdag i dag!</b> <span>Se hvorfor hun er den bedste →</span>
     </a>
 }
 <div class="k-main"><div class="k-content">
-    @Body
+    @* No emojis anywhere on the sites (user 2026-10-12) - shared components read this. *@
+    <CascadingValue Name="Plain" Value="true">@Body</CascadingValue>
 </div></div>
 <KolibriFooter />
 </div>

@@ -155,7 +155,7 @@
         var open = box.classList.contains('open');
         box.innerHTML =
             // PC: no floating button - it sat on top of bottom menus; the footer link opens the same sheet.
-            (hidden || dev.pc ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">📲 ' + T('Læg på ', 'Add to ') + where + '</button>') +
+            (hidden || dev.pc ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">' + T('Læg på ', 'Add to ') + where + '</button>') +
             '<div class="k-install-sheet" role="dialog" aria-modal="true" aria-label="' + T('Læg på ', 'Add to ') + where + '"' + (open ? '' : ' hidden') + '>' +
             '<div class="k-install-card"><button type="button" class="k-install-x" aria-label="' + T('Luk', 'Close') + '">✕</button>' +
             '<h2>📲 ' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</h2>' +

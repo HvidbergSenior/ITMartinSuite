@@ -3,7 +3,7 @@
 <div class="sp-means">
     <b>Det skriver du dig op til</b>
     <ul>@foreach (var line in Lines) { <li>@line</li> }</ul>
-    <a class="k-btn k-btn-sm" href="/afmeld">🚪 Afmeld dig her</a>
+    <a class="k-btn k-btn-sm" href="/afmeld">Afmeld dig her</a>
 </div>
 
 @code {
@@ -12,9 +12,9 @@
 
     private IReadOnlyList<string> Lines => Items is { Count: > 0 } ? Items :
     [
-        "✅ Du bliver skrevet op som kunde: dit navn og din e-mail i vores kundekartotek.",
-        "✅ Vi husker, hvad du interesserer dig for – så det er nemt for dig at få vores tilbud på netop det.",
-        "❌ Ingen reklamer og ingen nyhedsbreve. Vi deler aldrig din e-mail med nogen.",
-        "🚪 Du kan afmelde dig når som helst: skriv din e-mail på siden /afmeld – det tager 10 sekunder.",
+        "Du bliver skrevet op som kunde: dit navn og din e-mail i vores kundekartotek.",
+        "Vi husker, hvad du interesserer dig for – så det er nemt for dig at få vores tilbud på netop det.",
+        "Ingen reklamer og ingen nyhedsbreve. Vi deler aldrig din e-mail med nogen.",
+        "Du kan afmelde dig når som helst: skriv din e-mail på siden /afmeld – det tager 10 sekunder.",
     ];
 }

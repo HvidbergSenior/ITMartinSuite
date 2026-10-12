@@ -19,6 +19,7 @@ public static partial class TinyMarkdown
         var inList = false;
         var inCard = false;
         var media = new List<(string Alt, string Url)>();   // pictures/videos on lines next to each other = one gallery
+        text = NoEmoji.Strip(text);   // no emojis on the sites (2026-10-12), also in text typed in Svar
         foreach (var raw in (text ?? "").Replace("\r", "").Split('\n'))
         {
             var line = raw.Trim();

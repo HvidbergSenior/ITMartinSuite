@@ -6,12 +6,12 @@
 
 @* Public Q&A from the chat, without names (user 2026-10-12: "they ask the same questions and also i want transparency",
    "people should be able to find other questions regarding the same"). Martin chooses what goes up, in Svar. *@
-<PageHead Title="💬 Det spørger folk om" Tag="Spørgsmål og svar" Line="Uden navne." />
+<PageHead Title="Det spørger folk om" Tag="Spørgsmål og svar" Line="Uden navne." />
 <article class="k-card hj-page" data-nofold>
     <p>Her er spørgsmål, folk har stillet mig i chatten – og mine svar. <b>Uden navne.</b> Måske er dit spørgsmål allerede besvaret.</p>
     <p class="k-help"><b>Sådan gør du:</b> skriv et ord i søgefeltet (fx <i>budget</i> eller <i>billeder</i>), eller tryk på et emne.
         Under hvert svar står de andre spørgsmål om det samme. Fandt du ikke svaret? Spørg mig i chatten.</p>
-    <a class="k-btn k-btn-sm" href="/#chat">💬 Spørg mig i chatten</a>
+    <a class="k-btn k-btn-sm" href="/#chat">Spørg mig i chatten</a>
     <input class="k-input" type="search" @bind="_q" @bind:event="oninput" @bind:after="SearchAsync" placeholder="Søg, fx budget, billeder, strøm…" aria-label="Søg i spørgsmål" />
     @if (_found is { Topics.Count: > 0 } f)
     {
@@ -26,22 +26,22 @@
 </article>
 
 @if (_found is null) { <p class="k-help k-center">Henter…</p> }
-else if (_found.Total == 0) { <p class="k-help k-center">Der er ingen spørgsmål her endnu.</p><p class="k-center"><a class="k-btn k-btn-sm" href="/#chat">💬 Stil det første i chatten</a></p> }
-else if (_found.Questions.Count == 0) { <p class="k-help k-center">Ingen spørgsmål passer. Prøv et andet ord – eller spørg mig i chatten.</p><p class="k-center"><a class="k-btn k-btn-sm" href="/#chat">💬 Spørg mig i chatten</a></p> }
+else if (_found.Total == 0) { <p class="k-help k-center">Der er ingen spørgsmål her endnu.</p><p class="k-center"><a class="k-btn k-btn-sm" href="/#chat">Stil det første i chatten</a></p> }
+else if (_found.Questions.Count == 0) { <p class="k-help k-center">Ingen spørgsmål passer. Prøv et andet ord – eller spørg mig i chatten.</p><p class="k-center"><a class="k-btn k-btn-sm" href="/#chat">Spørg mig i chatten</a></p> }
 else
 {
     @foreach (var q in _found.Questions)
     {
         <section class="k-card hj-qa" id="q@(q.Id)" data-nofold>
-            <button class="k-tag hj-qa-topic" @onclick="() => PickAsync(q.Topic)">@(q.Site == QuestionRules.Bogshoppen && Site != QuestionRules.Bogshoppen ? "📚 Bogshoppen · " : "")@q.Topic</button>
-            <h2 class="hj-qa-q">❓ @q.Question</h2>
-            <div class="hj-qa-a"><b>Martin svarer:</b> @q.Answer</div>
+            <button class="k-tag hj-qa-topic" @onclick="() => PickAsync(q.Topic)">@(q.Site == QuestionRules.Bogshoppen && Site != QuestionRules.Bogshoppen ? "Bogshoppen · " : "")@q.Topic</button>
+            <h2 class="hj-qa-q">@NoEmoji.Strip(q.Question)</h2>
+            <div class="hj-qa-a"><b>Martin svarer:</b> @NoEmoji.Strip(q.Answer)</div>
             <div class="k-help">@Dk.Local(q.PublishedAt).ToString("d. MMMM yyyy", Da)</div>
             @if (_related.TryGetValue(q.Id, out var rel) && rel.Count > 0)
             {
                 <div class="hj-qa-related">
                     <b>Flere spørgsmål om det samme</b>
-                    <div class="hj-qa-boxes">@foreach (var r in rel) { <a class="hj-qa-boxlink" href="/spoergsmaal#q@(r.Id)" @onclick="() => ShowAsync(r)" @onclick:preventDefault>❓ @r.Question</a> }</div>
+                    <div class="hj-qa-boxes">@foreach (var r in rel) { <a class="hj-qa-boxlink" href="/spoergsmaal#q@(r.Id)" @onclick="() => ShowAsync(r)" @onclick:preventDefault>@NoEmoji.Strip(r.Question)</a> }</div>
                 </div>
             }
         </section>

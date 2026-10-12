@@ -6,8 +6,8 @@
    (a random key in the browser), so a reply shows up here when they come back. *@
 
 <section class="@(Embedded ? "hj-part" : "k-card") hj-chat @(Prominent ? "hj-chat-top" : "") @(Available ? "is-on" : "")" id="chat">
-    @if (Embedded) { <h3 class="hj-part-title">@(Title ?? $"{E("💬")}Chat med {OwnerName}")</h3> }
-    else { <h2 class="k-card-title">@(Title ?? $"{E("💬")}Chat med {OwnerName}")</h2> }
+    @if (Embedded) { <h3 class="hj-part-title">@(Title ?? $"{E("")}Chat med {OwnerName}")</h3> }
+    else { <h2 class="k-card-title">@(Title ?? $"{E("")}Chat med {OwnerName}")</h2> }
     @if (Photo.Length > 0) { <img class="hj-chat-photo" src="@Photo" alt="@OwnerName" /> }
     <div class="hj-chat-status">
         <span class="k-dot @(Available ? "on" : "")"></span>
@@ -20,7 +20,7 @@
 
     @if (!_open)
     {
-        <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">@E("💬")Chat med @OwnerName</button>
+        <button class="k-btn k-btn-primary k-btn-block k-mt" @onclick="() => _open = true">@E("")Chat med @OwnerName</button>
     }
     else
     {
@@ -51,15 +51,15 @@
         {
             @if (_thread.VisitorEmail.Length > 0)
             {
-                <p class="k-help">📧 Du får en mail på @_thread.VisitorEmail, når Martin svarer.</p>
+                <p class="k-help">Du får en mail på @_thread.VisitorEmail, når Martin svarer.</p>
             }
             @if (_thread.VisitorPush.Length == 0)
             {
                 @* plain onclick: the browser must see the visitor's own tap when it asks for permission *@
-                <button type="button" class="k-btn k-btn-block k-mt" onclick="hjem.visitorPush(this)">@E("🔔")Giv mig besked i browseren, når Martin svarer</button>
+                <button type="button" class="k-btn k-btn-block k-mt" onclick="hjem.visitorPush(this)">@E("")Giv mig besked i browseren, når Martin svarer</button>
             }
             <p class="k-help">Din e-mail bruges kun til at give dig besked om svaret.</p>
-            <p class="k-help">@E("💬")Gode spørgsmål kan blive vist på "Det spørger folk om" – altid uden dit navn.</p>
+            <p class="k-help">@E("")Gode spørgsmål kan blive vist på "Det spørger folk om" – altid uden dit navn.</p>
         }
     }
 </section>
@@ -111,7 +111,7 @@
         _note = hadEmail ? "Sendt. Din e-mail så forkert ud – ret den, så du kan få besked." :
             _thread?.VisitorEmail.Length > 0 ? "Sendt – du får en mail, når Martin har svaret." :
             Available ? "Sendt – svaret kommer lige her i chatten." :
-            "Sendt. Svaret kommer her i chatten. Vil du have besked, så skriv din e-mail herover eller tryk på 🔔.";
+            "Sendt. Svaret kommer her i chatten. Vil du have besked, så skriv din e-mail herover eller tryk på .";
         _busy = false;
     }
 

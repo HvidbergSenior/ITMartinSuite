@@ -14,7 +14,7 @@
 else if (_s is not null)
 {
 <section class="k-card hj-now">
-    <h2 class="k-card-title">@(Compact ? "📅 I dag" : "📌 Lige nu")</h2>
+    <h2 class="k-card-title">@(Compact ? "I dag" : "Lige nu")</h2>
     @if (Compact) { }
     else if (Embed.PlayerUrl(_s.NowLink) is { } player)
     {
@@ -59,7 +59,7 @@ else if (_s is not null)
     @if (!Compact && (_s.NowText.Length > 0 || _s.NowMediaName.Length > 0 || _s.NowLink.Length > 0))
     {
         @if (_s.NowText.Length > 0) { <div class="hj-now-text">@TinyMarkdown.Render(_s.NowText)</div> }
-        <p class="k-help">📅 Opdateret @Dk.Local(_s.NowUpdated).ToString("d. MMMM yyyy", Da)</p>
+        <p class="k-help">Opdateret @Dk.Local(_s.NowUpdated).ToString("d. MMMM yyyy", Da)</p>
     }
 </section>
 }
@@ -92,11 +92,11 @@ else if (_s is not null)
             @{ _notes.TryGetValue(day, out var note); }
             @if (note is { Plan.Length: > 0 })
             {
-                <div class="hj-day-plan"><b>🌅 @(day == today ? "Det regner jeg med at lave" : "Det regnede jeg med at lave")</b>@Bullets(note.Plan)</div>
+                <div class="hj-day-plan"><b>@(day == today ? "Det regner jeg med at lave" : "Det regnede jeg med at lave")</b>@Bullets(note.Plan)</div>
             }
             @if (note is { Done.Length: > 0 })
             {
-                <div class="hj-day-done"><b>🌙 Det fik jeg lavet</b>@Bullets(note.Done)</div>
+                <div class="hj-day-done"><b>Det fik jeg lavet</b>@Bullets(note.Done)</div>
             }
             @foreach (var e in _s!.Entries().Where(x => x.At.Date == day))
             {
@@ -107,7 +107,7 @@ else if (_s is not null)
                     {
                         <figure class="tm-fig">
                             <a href="/nu/@e.Stored" target="_blank" rel="noopener"><img class="hj-day-img" loading="lazy" src="/nu/@e.Stored" alt="@e.Text.Replace("* ", "")" /></a>
-                            <figcaption>📅 @e.At.ToString("d. MMMM yyyy 'kl.' HH.mm", Da)</figcaption>
+                            <figcaption>@e.At.ToString("d. MMMM yyyy 'kl.' HH.mm", Da)</figcaption>
                         </figure>
                     }
                 </div>

@@ -2,10 +2,10 @@
 @inject NavigationManager Nav
 
 @* The head box on every tab (user 2026-10-12: "make the same head boxes on itmartin on tabs as in bogshoppen"):
-   emoji on top, pill tag, heading, optional line. A title that starts with an emoji ("🚀 Hvad laver …") gives the top emoji.
+   emoji on top, pill tag, heading, optional line. A title that starts with an emoji ("Hvad laver …") gives the top emoji.
    On bogshoppen.dk it takes Bogshoppen's colours. *@
 <header class="@(Bogshoppen ? "bs-head bs-head-page" : "hj-head hj-head-page")" data-emoji="@Emoji">
-    @if (Tag.Length > 0) { <span class="@(Bogshoppen ? "bs-tag" : "hj-tagline")">@Tag</span> }
+    @if (Tag.Length > 0) { <span class="@(Bogshoppen ? "bs-tag" : "hj-tagline")">@NoEmoji.Strip(Tag)</span> }
     <h1>@Text</h1>
     @if (Line.Length > 0) { <p class="@(Bogshoppen ? "" : "hj-intro")">@Line</p> }
     @ChildContent
@@ -30,6 +30,7 @@
         return isEmoji ? (Icon ?? first, t[first.Length..].Trim()) : (Icon ?? "", t);
     }
 
-    private string Emoji => Split().Emoji;
-    private string Text => Split().Text;
+    // No emojis on the sites (2026-10-12): nothing on top, and none in the title or tag.
+    private string Emoji => "";
+    private string Text => NoEmoji.Strip(Split().Text);
 }

@@ -3,7 +3,7 @@
 @foreach (var (p, i) in Parts.Select((p, i) => (p, i)))
 {
     <section class="k-card hj-page hj-sec" data-fold-closed="@(i == 0 && FirstOpen ? null : "1")">
-        <h2>@p.Title</h2>
+        <h2>@NoEmoji.Strip(p.Title)</h2>
         <div>@TinyMarkdown.Render(p.Body.Length > 0 ? p.Body : " ")</div>
     </section>
 }

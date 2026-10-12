@@ -6,13 +6,13 @@
    Same answer whether or not the e-mail was on the list, so nobody can use the page to test who is a customer. *@
 <PageTitle>Afmeld · @(Bogshoppen ? "Bogshoppen" : "ITMartin")</PageTitle>
 
-<PageHead Title="🚪 Afmeld dig" Tag="Kundekartotek" Line="Ingen reklamer, ingen nyhedsbreve – og du er ude med det samme." />
+<PageHead Title="Afmeld dig" Tag="Kundekartotek" Line="Ingen reklamer, ingen nyhedsbreve – og du er ude med det samme." />
 <article class="k-card hj-page" data-nofold>
     @if (_done)
     {
         <p><b>Du er afmeldt ✓</b> Vi skriver ikke til @_email mere.</p>
         <p class="k-help">Vil du have dine oplysninger slettet helt, så skriv til ITMartin@Mensa.dk – så sletter vi dem.</p>
-        <a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=Slet%20mine%20oplysninger">📧 Skriv til ITMartin</a>
+        <a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=Slet%20mine%20oplysninger">Skriv til ITMartin</a>
     }
     else
     {
@@ -22,7 +22,7 @@
             <input class="k-input" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
             <button class="k-btn k-btn-primary" type="submit" disabled="@_busy">Afmeld</button>
         </form>
-        @if (_error.Length > 0) { <p class="form-error">⚠️ @_error</p> }
+        @if (_error.Length > 0) { <p class="form-error">@_error</p> }
     }
 </article>
 

@@ -9,10 +9,10 @@
     <div class="fest-garland" aria-hidden="true">
         @foreach (var (ch, i) in "TILLYKKE VIBZ".Select((c, i) => (c, i)))
         {
-            <span style="--i:@i">@(ch == ' ' ? "♥" : ch.ToString())</span>
+            <span style="--i:@i">@(ch == ' ' ? "" : ch.ToString())</span>
         }
     </div>
-    <h1 class="fest-title">Vibeke har fødselsdag! 💛</h1>
+    <h1 class="fest-title">Vibeke har fødselsdag! </h1>
     <p class="fest-sub">Lørdag d. 3. oktober – i dag fejrer vi verdens bedste kone</p>
     <div class="fest-show" aria-hidden="true">
         @foreach (var (pic, i) in Pics.Select((p, i) => (p, i)))
@@ -20,16 +20,16 @@
             <img src="/f/@pic" alt="" loading="@(i < 2 ? "eager" : "lazy")" class="@(i == 0 ? "on" : "")" />
         }
     </div>
-    <p class="fest-msg" id="fest-msg" aria-live="polite">Vibeke holder sammen på det hele – derfor kan Martin koncentrere sig om ITMartin 💛</p>
+    <p class="fest-msg" id="fest-msg" aria-live="polite">Vibeke holder sammen på det hele – derfor kan Martin koncentrere sig om ITMartin </p>
     <div class="fest-btns">
-        <button class="fest-btn" onclick="fest.song()">🎵 Syng fødselsdagssang</button>
-        <button class="fest-btn alt" onclick="fest.boom()">💖 Flere hjerter</button>
+        <button class="fest-btn" onclick="fest.song()">Syng fødselsdagssang</button>
+        <button class="fest-btn alt" onclick="fest.boom()">Flere hjerter</button>
     </div>
     <div class="fest-how">
-        <p>💛 <b>Derfor er hun den bedste:</b> grundene og billederne af Vibeke gennem årene – og af os to.
+        <p><b>Derfor er hun den bedste:</b> grundene og billederne af Vibeke gennem årene – og af os to.
             <a href="/vibeke">Se Vibekes side</a></p>
-        <p>💬 <b>Sig tillykke:</b> skriv din hilsen i chatten lige herunder – Martin sørger for, at Vibeke får den. <a href="#chat">Gå til chatten ↓</a></p>
-        <p class="fest-when">🕛 Festen på forsiden slutter i nat kl. 23.59 – så er alt som før.</p>
+        <p><b>Sig tillykke:</b> skriv din hilsen i chatten lige herunder – Martin sørger for, at Vibeke får den. <a href="#chat">Gå til chatten ↓</a></p>
+        <p class="fest-when">Festen på forsiden slutter i nat kl. 23.59 – så er alt som før.</p>
     </div>
     <div class="fest-balloons" aria-hidden="true">
         @for (var i = 0; i < 9; i++) { <i style="--i:@i"></i> }

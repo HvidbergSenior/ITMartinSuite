@@ -2,7 +2,7 @@
 <article class="k-card hj-post" data-nofold>
     <div class="hj-post-meta">
         @Post.At.ToString("d. MMMM yyyy", Da)
-        @if (Post.Visibility == Visibility.Familie) { <span class="k-tag">🔒 Familie</span> }
+        @if (Post.Visibility == Visibility.Familie) { <span class="k-tag">Familie</span> }
     </div>
     @if (Post.Title.Length > 0) { <h3 class="hj-post-title">@Post.Title</h3> }
     @if (Post.Body.Length > 0)
@@ -27,10 +27,10 @@
                 <video class="hj-video" src="/m/@m.Id/f" controls preload="metadata" playsinline></video>
                 break;
             case MediaKind.Lyd:
-                <div class="hj-audio"><span class="k-help">🎵 @m.FileName</span><audio src="/m/@m.Id/f" controls preload="none"></audio></div>
+                <div class="hj-audio"><span class="k-help">@m.FileName</span><audio src="/m/@m.Id/f" controls preload="none"></audio></div>
                 break;
             default:
-                <a class="hj-doc" href="/m/@m.Id/d">📄 @m.FileName</a>
+                <a class="hj-doc" href="/m/@m.Id/d">@m.FileName</a>
                 break;
         }
     }

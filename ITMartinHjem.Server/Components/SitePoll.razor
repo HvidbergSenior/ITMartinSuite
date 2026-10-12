@@ -29,7 +29,7 @@
                     @foreach (var o in p.Options)
                     {
                         <button type="button" class="sp-option @(_selected.Contains(o.Id) ? "on" : "")" aria-pressed="@(_selected.Contains(o.Id) ? "true" : "false")" @onclick="() => Toggle(o.Id)">
-                            @(_selected.Contains(o.Id) ? "☑" : "☐") @o.Label
+                            @(_selected.Contains(o.Id) ? "" : "") @o.Label
                         </button>
                     }
                 </div>
@@ -44,8 +44,8 @@
                         <p class="k-help">@p.Privacy</p>
                     }
                     <textarea class="k-input k-textarea k-mt" @bind="_comment" maxlength="280" rows="2" placeholder="Leder du efter noget bestemt? (valgfrit)" aria-label="Kommentar"></textarea>
-                    @if (_error.Length > 0) { <p class="form-error">⚠️ @_error</p> }
-                    <button class="k-btn k-btn-primary bs-btn k-mt" disabled="@_busy" @onclick="VoteAsync">🗳 Stem</button>
+                    @if (_error.Length > 0) { <p class="form-error">@_error</p> }
+                    <button class="k-btn k-btn-primary bs-btn k-mt" disabled="@_busy" @onclick="VoteAsync">Stem</button>
                 }
             }
         </div>
@@ -58,7 +58,7 @@ else if (_failed)
 
 @code {
     [Parameter, EditorRequired] public int PollId { get; set; }
-    [Parameter] public string Icon { get; set; } = "🗳";
+    [Parameter] public string Icon { get; set; } = "";
     [Parameter] public bool Folded { get; set; }
 
     private PollView? _poll;
