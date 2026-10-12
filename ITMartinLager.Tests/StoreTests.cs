@@ -1,7 +1,6 @@
 using FluentAssertions;
 using ITMartinLager.Application;
 using ITMartinLager.Domain;
-using ITMartinLager.Infrastructure.External;
 using ITMartinLager.Infrastructure.Persistence;
 using ITMartinLager.Infrastructure.PriceSites;
 using Microsoft.Data.Sqlite;
@@ -16,7 +15,7 @@ public class StoreTests
     private TestDbFactory Factory => new(_conn);
     private BoxRepository Boxes => new(Factory);
     private ItemRepository Items => new(Factory);
-    private RegistrationUseCases Registration => new(null!, null!, null!, Items, null!, new LagerOptions(), TimeProvider.System);
+    private RegistrationUseCases Registration => new(Items);
 
     [SetUp]
     public void Open()
@@ -69,19 +68,6 @@ public class StoreTests
         (await Items.SearchAsync("ELTON yellow", null, 100, default)).Count.Should().Be(1);
         (await Items.SearchAsync("elton 1968", null, 100, default)).Count.Should().Be(0);
         (await Items.SearchAsync("", Kinds.Cd, 100, default)).Count.Should().Be(1);
-    }
-
-    [Test]
-    public void Ai_answers_are_cleaned_unknown_kinds_conditions_and_silly_years()
-    {
-        var f = ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = "jumbobog", Title = " Jumbobog 50 ", Condition = "fin", Year = 19, Quantity = 0, Confidence = 3 });
-        f.Kind.Should().Be(Kinds.Jumbobog);
-        f.Title.Should().Be("Jumbobog 50");
-        f.Condition.Should().Be("God");
-        f.Year.Should().BeNull();
-        f.Quantity.Should().Be(1);
-        f.Confidence.Should().Be(1);
-        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = "vinyl", Title = "x" }).Kind.Should().Be(Kinds.Andet);
     }
 }
 

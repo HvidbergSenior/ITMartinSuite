@@ -1,0 +1,122 @@
+@page "/kolofon"
+@inject KolofonUseCases Kolofons
+@inject BoxChoiceUseCases Boxes
+
+<PageTitle>Kolofon – Bogshoppen Vareinfo</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">📖 Bøger der skal have taget billede af kolofonen</h1>
+    @if (_rows is null && _err is null) { <p class="k-muted">Henter listen fra Lager …</p> }
+    else if (_rows is { Count: 0 })
+    {
+        <p class="lg-answer">Ingen lige nu</p>
+        <p>En bog kommer på listen, når omslaget ligner en 1. udgave, eller når Lagers prisjæger finder den til salg for @_fromKr kr eller mere et sted.</p>
+    }
+    else if (_rows is not null)
+    {
+        <p class="lg-answer">@_rows.Count bøger</p>
+        <p>Omslaget ligner en 1. udgave, eller bogen er til salg for @_fromKr kr eller mere et sted. Så kan udgaven betyde noget for prisen.</p>
+    }
+    <details class="lg-more">
+        <summary>Sådan gør du</summary>
+        <ol>
+            <li>Find bogen i kassen (kassens nummer står ved bogen).</li>
+            <li>Slå op på bagsiden af titelbladet, hvor udgave, oplag, forlag og ISBN står med lille skrift. Det er kolofonen.</li>
+            <li>Tryk <b>📷 Kolofon</b> og tag billedet tæt på, så teksten er skarp.</li>
+            <li>Inden for et par minutter læser AI'en op til 10 kolofoner ad gangen. Udgave, forlag, år og ISBN sendes til bogen på Lager, og priserne bliver slået op igen for netop den udgave.</li>
+        </ol>
+        <p class="k-small k-muted">Alle andre bøger klarer sig med forsiden. Grænsen på @_fromKr kr sættes i Lager (Lager__KolofonFromKr).</p>
+    </details>
+    @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+    @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+</section>
+
+@if (Vare > 0)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">📷 Kolofon til @(Titel ?? $"vare {Vare}")</h2>
+        <p>Slå op på bagsiden af titelbladet og tag billedet tæt på, så teksten er skarp. Det læses inden for et par minutter og skrives på bogen i Lager.</p>
+        <label class="k-btn k-btn-primary lg-big lg-camera">
+            @(_busy == Vare ? "⏳ Gemmer …" : "📷 Tag billede af kolofonen")
+            <InputFile OnChange="SaveOne" accept="image/*" capture="environment" class="lg-hidden-file" />
+        </label>
+        <p><a href="@Boxes.LagerBase/vare/@Vare">← Tilbage til varen i Lager</a></p>
+    </section>
+}
+
+@if (_waiting > 0)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">⏳ Venter på at blive læst: @_waiting</h2>
+        <p>Læses af sig selv, op til 10 ad gangen hvert 2. minut.</p>
+    </section>
+}
+
+@if (_rows is { Count: > 0 })
+{
+    <section class="k-card">
+        <h2 class="k-card-title">Listen</h2>
+        <ul class="lg-list">
+            @foreach (var b in _rows)
+            {
+                <li>
+                    <a href="@Boxes.LagerBase/vare/@b.ItemId"><span class="lg-box">@(b.BoxCode != "" ? b.BoxCode : "–")</span>
+                        <span class="lg-main"><b>@b.Line</b><span class="k-small k-muted">@(b.FirstEditionLook ? "📖 omslaget ligner 1. udgave" : "")@(b.FirstEditionLook && b.TopKr > 0 ? " · " : "")@(b.TopKr > 0 ? $"fundet til op til {b.TopKr} kr" : "")</span></span></a>
+                    <label class="k-btn k-btn-secondary k-btn-sm lg-camera">
+                        @(_busy == b.ItemId ? "⏳" : "📷 Kolofon")
+                        <InputFile OnChange="e => Save(b, e)" accept="image/*" capture="environment" class="lg-hidden-file" />
+                    </label>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@if (_read.Count > 0)
+{
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">✓ Læst for nylig</h2>
+        <ul class="lg-list">
+            @foreach (var s in _read)
+            {
+                <li><a href="@Boxes.LagerBase/vare/@s.ItemId"><span class="lg-main"><b>@s.Title</b><span class="k-small">@s.Result</span></span></a></li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    // From the button on Lager's item page: one book, maybe not on the list.
+    [SupplyParameterFromQuery] public int Vare { get; set; }
+    [SupplyParameterFromQuery] public string? Titel { get; set; }
+
+    private List<KolofonWanted>? _rows;
+    private List<KolofonShot> _read = [];
+    private int _fromKr, _waiting, _busy;
+    private string? _msg, _err;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        try { (_fromKr, _rows) = await Kolofons.WantedAsync(); }
+        catch (Exception ex) { _err = ex.Message; }
+        _waiting = await Kolofons.WaitingAsync();
+        _read = await Kolofons.RecentlyReadAsync();
+    }
+
+    private Task SaveOne(InputFileChangeEventArgs e) => Save(new KolofonWanted(Vare, "", Titel ?? "", Titel ?? $"Vare {Vare}", false, 0), e);
+
+    private async Task Save(KolofonWanted b, InputFileChangeEventArgs e)
+    {
+        _busy = b.ItemId; _err = null; _msg = null;
+        try
+        {
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await Kolofons.SavePhotoAsync(b.ItemId, b.Title, s);
+            _msg = $"Kolofonen til \"{b.Title}\" er gemt og bliver læst om lidt.";
+            await Load();
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = 0; }
+    }
+}

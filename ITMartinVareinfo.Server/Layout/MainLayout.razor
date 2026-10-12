@@ -1,0 +1,12 @@
+@inherits LayoutComponentBase
+@inject BoxChoiceUseCases Boxes
+
+<KolibriHeader>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/">📷 Registrér</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/kolofon">📖 Kolofon</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="@Boxes.LagerBase">📦 Lager (søg, priser, kasser)</a>
+</KolibriHeader>
+<div class="k-main"><div class="k-content">
+    @Body
+</div></div>
+<KolibriFooter />

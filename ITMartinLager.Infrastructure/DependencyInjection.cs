@@ -18,20 +18,19 @@ public static class DependencyInjection
         services.AddDbContextFactory<LagerDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "lager.db")}"));
         services.AddScoped<IBoxRepository, BoxRepository>();
         services.AddScoped<IItemRepository, ItemRepository>();
-        services.AddScoped<IPhotoRepository, PhotoRepository>();
         services.AddScoped<IPriceRepository, PriceRepository>();
         services.AddScoped<IBookCheckRepository, BookCheckRepository>();
 
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
-        services.AddSingleton<ICoverReader, ClaudeCoverReader>();
+        services.AddSingleton<IBookValuer, ClaudeBookValuer>();
+        services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(120));   // a pile photo takes a while to read
         services.AddHttpClient<IAuctionGateway, AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IMagicGateway, MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
-        services.AddHttpClient<IBarcodeLookup, BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
         services.AddPriceSources();
 
         services.AddSingleton(new LagerOptions
         {
-            AutoInterest = cfg.GetValue<bool>("Lager:AutoInterest"),
+            InfoKey = cfg["Lager:InfoKey"] ?? "",
             KolofonFromKr = int.TryParse(cfg["Lager:KolofonFromKr"], out var kr) ? kr : Kolofon.DefaultFromKr,
         });
         return services;

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- Bogshoppen Vareinfo (2026-10-12, split out of Lager - user: "one is for pricing and storage ... another app is
+         for search and adding info on each product"): photo of a pile -> one AI call reads every cover, barcodes,
+         kolofons, collector texts. What is read is saved into Lager's boxes through Lager's API.
+         This is the thin web layer: pages, login, the kolofon job. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinVareinfo.Server</RootNamespace>
+        <AssemblyName>ITMartinVareinfo.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+      <ProjectReference Include="..\ITMartinVareinfo.Application\ITMartinVareinfo.Application.csproj" />
+      <ProjectReference Include="..\ITMartinVareinfo.Infrastructure\ITMartinVareinfo.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="ITMartinVareinfo.Tests" />
+    </ItemGroup>
+
+</Project>

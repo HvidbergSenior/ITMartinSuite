@@ -36,16 +36,8 @@ public interface IItemRepository
     Task<List<int>> NextToHuntAsync(string[] kinds, DateTime staleBefore, int count, CancellationToken ct);
     /// <summary>Books without a kolofon photo that have a used find at fromKr or more, or a 1st-edition cover; highest find first.</summary>
     Task<List<(Item Item, int TopKr)>> KolofonWantedAsync(int fromKr, int max, CancellationToken ct);
-    Task<List<Item>> KolofonWaitingAsync(int max, CancellationToken ct);
-    Task<int> KolofonWaitingCountAsync(CancellationToken ct);
     /// <summary>Everything, with boxes, for the CSV export.</summary>
     Task<List<Item>> AllAsync(CancellationToken ct);
-}
-
-public interface IPhotoRepository
-{
-    Task<Photo> AddAsync(Photo photo, CancellationToken ct);
-    Task<Photo?> GetAsync(int id, CancellationToken ct);
 }
 
 public interface IPriceRepository

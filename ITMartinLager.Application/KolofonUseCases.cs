@@ -2,48 +2,35 @@ using ITMartinLager.Domain;
 
 namespace ITMartinLager.Application;
 
-/// <summary>The kolofon job (2026-10-11, user: "to save in db and get price just cover. A job can run through kolofon
-/// if needed"): which books need a kolofon photo, taking it, and reading the waiting ones - 10 per AI call.</summary>
-public sealed class KolofonUseCases(IItemRepository items, IPhotoStore photos, ICoverReader reader, LagerOptions options, TimeProvider clock)
+/// <summary>Kolofons (2026-10-11, user: "to save in db and get price just cover. A job can run through kolofon if
+/// needed"). Lager knows which books are worth one (price or first-edition look); Vareinfo takes and reads the photo
+/// (2026-10-12 split) and sends what it read back here.</summary>
+public sealed class KolofonUseCases(IItemRepository items, LagerOptions options, TimeProvider clock)
 {
+    public const string TakenInVareinfo = "vareinfo";
+
     public int FromKr => options.KolofonFromKr;
 
     public Task<List<(Item Item, int TopKr)>> WantedAsync(CancellationToken ct = default) => items.KolofonWantedAsync(FromKr, 200, ct);
 
-    public Task<int> WaitingAsync(CancellationToken ct = default) => items.KolofonWaitingCountAsync(ct);
-
-    public async Task<Item> SavePhotoAsync(int itemId, Stream photo, CancellationToken ct = default)
+    /// <summary>A photo was taken in Vareinfo: off the list, "venter på at blive læst" on the item page.</summary>
+    public async Task<bool> TakenAsync(int itemId, CancellationToken ct = default)
     {
-        var item = await items.GetAsync(itemId, ct) ?? throw new LagerException("Varen findes ikke længere.");
-        var jpeg = await photos.ShrinkAsync(photo, ct);
-        var path = Path.Combine("photos", "kolofon", $"{itemId}.jpg");
-        await photos.SaveAsync(path, jpeg, ct);
-        Kolofon.PhotoTaken(item, path);
+        if (await items.GetAsync(itemId, ct) is not { } item) return false;
+        Kolofon.PhotoTaken(item, TakenInVareinfo);
         await items.UpdateAsync([item], ct);
-        return item;
+        return true;
     }
 
-    /// <summary>Reads up to 10 waiting kolofons in ONE call. Returns how many were handled.</summary>
-    public async Task<int> ReadWaitingAsync(CancellationToken ct = default)
+    /// <summary>What Vareinfo read (null = unreadable) onto the book. A new ISBN makes the price hunter search again.</summary>
+    public async Task<bool> ReadAsync(int itemId, KolofonReading? reading, CancellationToken ct = default)
     {
-        if (!reader.Enabled) return 0;
-        var waiting = await items.KolofonWaitingAsync(Kolofon.PerCall, ct);
-        if (waiting.Count == 0) return 0;
-        var withFile = new List<(Item Item, byte[] Jpeg)>();
-        foreach (var i in waiting)
-        {
-            if (await photos.ReadAsync(i.KolofonPhoto, ct) is { } jpeg) withFile.Add((i, jpeg));
-            else { i.KolofonPhoto = ""; i.Touch(); }   // the file is gone - it goes back on the list
-        }
+        if (await items.GetAsync(itemId, ct) is not { } item) return false;
         var now = clock.GetUtcNow().UtcDateTime;
-        if (withFile.Count > 0)
-        {
-            var read = await reader.ReadKolofonsAsync(withFile.Select(x => x.Jpeg).ToList(), ct);
-            for (var n = 0; n < withFile.Count; n++)
-                if (read.TryGetValue(n, out var r)) Kolofon.Apply(withFile[n].Item, r, now);
-                else Kolofon.Unreadable(withFile[n].Item, now);
-        }
-        await items.UpdateAsync(waiting, ct);
-        return waiting.Count;
+        if (item.KolofonPhoto == "") item.KolofonPhoto = TakenInVareinfo;
+        if (reading is null) Kolofon.Unreadable(item, now);
+        else Kolofon.Apply(item, reading, now);
+        await items.UpdateAsync([item], ct);
+        return true;
     }
 }

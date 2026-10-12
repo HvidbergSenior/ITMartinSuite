@@ -41,7 +41,6 @@ var dataDir = ITMartinLager.Infrastructure.DependencyInjection.DataDir(builder.C
 builder.Services.AddLagerInfrastructure(builder.Configuration);
 builder.Services.AddLagerApplication();
 builder.Services.AddHostedService<PriceHunterJob>();
-builder.Services.AddHostedService<KolofonJob>();
 builder.Services.AddHostedService<AuctionSyncJob>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
@@ -58,8 +57,11 @@ if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
 app.UseStaticFiles();
 
 // One shared PIN for Martin and Rico (Lager__Pin in magic.env). Everything but login and static files needs it.
+// Vareinfo calls /api/info/* with its key instead (Lager__InfoKey).
 var pin = app.Configuration["Lager:Pin"] ?? "";
+var infoKey = app.Configuration["Lager:InfoKey"] ?? "";
 bool LoggedIn(HttpContext ctx) => pin.Length >= 6 && ctx.Request.Cookies["lager_auth"] == pin;
+bool FromVareinfo(HttpContext ctx) => infoKey.Length >= 12 && ctx.Request.Headers["X-Info-Key"] == infoKey;
 
 app.Use(async (ctx, next) =>
 {
@@ -68,6 +70,7 @@ app.Use(async (ctx, next) =>
             || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
             || p.EndsWith(".svg") || p.EndsWith(".png");
+    if (p.StartsWith("/api/info/")) { if (FromVareinfo(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (open || LoggedIn(ctx)) { await next(); return; }
     if (p.StartsWith("/_blazor")) { ctx.Response.StatusCode = 401; return; }
     ctx.Response.Redirect("/login");
@@ -85,11 +88,13 @@ app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "pin")] string type
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("lager_auth"); return Results.Redirect("/login"); });
 
-// Photos: the registration photo (to check a wrong reading against), the item's own photo, its kolofon.
+// Photos: the item's own photo is here; pile and kolofon photos moved to Vareinfo (old links are sent on).
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
-app.MapGet("/foto/{id:int}", async (int id, RegistrationUseCases reg) => Jpeg(await reg.PhotoFileAsync(id)));
-app.MapGet("/varefoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id, kolofon: false)));
-app.MapGet("/kolofonfoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id, kolofon: true)));
+app.MapGet("/varefoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id)));
+app.MapGet("/foto/{id:int}", (int id, IVareinfoGateway v) => Results.Redirect($"{v.PublicBase}/foto/{id}"));
+app.MapGet("/kolofonfoto/{id:int}", (int id, IVareinfoGateway v) => Results.Redirect($"{v.PublicBase}/kolofonfoto/{id}"));
+
+app.MapInfoApi();
 
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
     Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));

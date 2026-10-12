@@ -66,9 +66,9 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
 
     public Task DeleteAsync(int id, CancellationToken ct = default) => items.DeleteAsync(id, ct);
 
-    /// <summary>The file of the item's own photo (kolofon: true = its kolofon photo), or null.</summary>
-    public async Task<string?> PhotoFileAsync(int id, bool kolofon, CancellationToken ct = default) =>
-        await items.GetAsync(id, ct) is { } i ? photos.FullPath(kolofon ? i.KolofonPhoto : i.ItemPhoto) : null;
+    /// <summary>The file of the item's own photo, or null. (Pile and kolofon photos are kept in Vareinfo.)</summary>
+    public async Task<string?> PhotoFileAsync(int id, CancellationToken ct = default) =>
+        await items.GetAsync(id, ct) is { } i ? photos.FullPath(i.ItemPhoto) : null;
 
     /// <summary>A photo of just this item, for auctions and the shop.</summary>
     public async Task<string> SavePhotoAsync(int id, Stream photo, CancellationToken ct = default)

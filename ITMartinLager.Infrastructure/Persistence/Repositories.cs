@@ -158,18 +158,6 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
             .OrderByDescending(x => x.i.EditionHint == EditionHints.First).ThenByDescending(x => x.Item2).Take(max).ToList();
     }
 
-    public async Task<List<Item>> KolofonWaitingAsync(int max, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Items.Where(i => i.KolofonPhoto != "" && i.KolofonAt == null).OrderBy(i => i.UpdatedAt).Take(max).ToListAsync(ct);
-    }
-
-    public async Task<int> KolofonWaitingCountAsync(CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Items.CountAsync(i => i.KolofonPhoto != "" && i.KolofonAt == null, ct);
-    }
-
     public async Task<List<Item>> AllAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
@@ -177,22 +165,6 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     }
 }
 
-public sealed class PhotoRepository(IDbContextFactory<LagerDb> dbf) : IPhotoRepository
-{
-    public async Task<Photo> AddAsync(Photo photo, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        db.Photos.Add(photo);
-        await db.SaveChangesAsync(ct);
-        return photo;
-    }
-
-    public async Task<Photo?> GetAsync(int id, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Photos.FindAsync([id], ct);
-    }
-}
 
 public sealed class PriceRepository(IDbContextFactory<LagerDb> dbf) : IPriceRepository
 {

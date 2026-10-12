@@ -1,17 +1,19 @@
+@page "/"
 @page "/registrer"
-@inject RegistrationUseCases Reg
-@inject BoxUseCases Boxes
+@inject ReadingUseCases Reg
+@inject BoxChoiceUseCases Boxes
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
-<PageTitle>Registrér – Bogshoppen Lager</PageTitle>
+<PageTitle>Registrér – Bogshoppen Vareinfo</PageTitle>
 
 <section class="k-card">
     <h1 class="k-card-title">📷 Registrér en bunke</h1>
 
     @if (_box is null)
     {
+        <p>Tag et billede af en bunke, eller scan stregkoderne – så finder Vareinfo ud af hvad tingene er og lægger dem i en kasse på <a href="@Boxes.LagerBase">Lager</a>, hvor de får pris og kan findes igen.</p>
         <p class="lg-answer">1. Hvilken kasse lægger du tingene i?</p>
         @if (_recent.Count > 0)
         {
@@ -115,8 +117,8 @@
         public string Barcode = "", EditionHint = "";
     }
 
-    private Box? _box;
-    private List<Box> _recent = [];
+    private LagerBox? _box;
+    private List<LagerBox> _recent = [];
     private string _newPlace = "", _hint = "";
     private string? _error, _saved;
     private bool _busy;
@@ -130,18 +132,26 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _recent = await Boxes.RecentAsync(8);
-        if (!string.IsNullOrEmpty(BoxCode)) _box = await Boxes.ByCodeAsync(BoxCode);
+        try
+        {
+            _recent = await Boxes.RecentAsync(8);
+            if (!string.IsNullOrEmpty(BoxCode)) _box = await Boxes.ByCodeAsync(BoxCode);
+        }
+        catch (Exception ex) { _error = ex.Message; }
         _callsToday = await Reg.CallsTodayAsync();
     }
 
-    private void UseBox(Box b) { _box = b; _saved = null; }
+    private void UseBox(LagerBox b) { _box = b; _saved = null; }
 
     private async Task NewBox()
     {
-        _box = await Boxes.NewAsync(_newPlace);
-        _newPlace = "";
-        _saved = $"Kasse {_box.Code} er oprettet. Print dens label under Kasser.";
+        try
+        {
+            _box = await Boxes.NewAsync(_newPlace);
+            _newPlace = "";
+            _saved = $"Kasse {_box.Code} er oprettet. Print dens label i Lager under Kasser.";
+        }
+        catch (Exception ex) { _error = ex.Message; }
     }
 
     private async Task Upload(InputFileChangeEventArgs e)
@@ -185,18 +195,23 @@
     private async Task Save()
     {
         if (_box is null) return;
-        _busy = true;
+        _busy = true; _error = null;
         int added = 0, merged = 0;
-        foreach (var g in _review.Where(r => r.Keep && r.Title.Trim() != "").GroupBy(r => r.PhotoId))
+        try
         {
-            var (a, m) = await Reg.SaveAsync(_box.Id, g.Key == 0 ? null : g.Key, g.Select(r => new Found(
-                Kinds.Normalise(r.Kind), r.Title.Trim(), r.Artist.Trim(), r.Series.Trim(), r.Number.Trim(), r.Year,
-                r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim(), r.Barcode, EditionHint: r.EditionHint)));
-            added += a; merged += m;
+            foreach (var g in _review.Where(r => r.Keep && r.Title.Trim() != "").GroupBy(r => r.PhotoId).ToList())
+            {
+                var (a, m) = await Reg.SaveAsync(_box.Code, g.Key == 0 ? null : g.Key, g.Select(r => new Found(
+                    Kinds.Normalise(r.Kind), r.Title.Trim(), r.Artist.Trim(), r.Series.Trim(), r.Number.Trim(), r.Year,
+                    r.Platform.Trim(), Conditions.Normalise(r.Condition), Math.Max(1, r.Quantity), r.Confidence, r.Note, r.Interest.Trim(), r.Barcode, EditionHint: r.EditionHint)).ToList());
+                added += a; merged += m;
+                _review.RemoveAll(r => r.PhotoId == g.Key && r.Keep && r.Title.Trim() != "");   // saved = off the list, so a retry never saves twice
+            }
+            _review.Clear();
+            _saved = $"Gemt i {_box.Code} på Lager: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "") + ". Prisjægeren finder priserne af sig selv. Tag næste billede.";
         }
-        _review.Clear();
-        _busy = false;
-        _saved = $"Gemt i {_box.Code}: {added} nye" + (merged > 0 ? $", {merged} lagt sammen med nogen, der allerede var der" : "") + ". Tag næste billede.";
+        catch (Exception ex) { _error = ex.Message + (added > 0 ? $" ({added} blev gemt, de står ikke længere på listen.)" : ""); }
+        finally { _busy = false; }
     }
 
     private async Task StartScan()

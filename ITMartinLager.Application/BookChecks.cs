@@ -81,7 +81,8 @@ public sealed class CheckedBook
 /// <summary>Valuing books: the sites first, then ONE AI call for up to 40 books with the sites' numbers in it.
 /// Every valued book is kept in "Alle tjekkede bøger" (user 2026-10-07: "save all automatically").</summary>
 public sealed class BookCheckUseCases(
-    IEnumerable<IPriceSource> sources, ICoverReader reader, IBookCheckRepository checks, RegistrationUseCases registration, TimeProvider clock)
+    IEnumerable<IPriceSource> sources, IBookValuer valuer, IBookCheckRepository checks, RegistrationUseCases registration,
+    IVareinfoGateway vareinfo, TimeProvider clock)
 {
     /// <summary>The sites the Bøger page asks, in this order.</summary>
     public static readonly string[] Sites = ["DBA", "AbeBooks", "Bokbörsen", "Nemos Bibliotek", "Faraos"];
@@ -89,6 +90,15 @@ public sealed class BookCheckUseCases(
     /// <summary>How long the Bøger page waits for the sites before valuing with what has answered (user 2026-10-12:
     /// "it was saying vurderes a long time"). A site that has not answered by then counts as "ukendt".</summary>
     public static readonly TimeSpan LookUpLimit = TimeSpan.FromSeconds(30);
+
+    public int MaxCallsPerDay => valuer.MaxCallsPerDay;
+    public Task<int> CallsTodayAsync(CancellationToken ct = default) => valuer.CallsTodayAsync(ct);
+
+    /// <summary>The titles on a photo of a pile - read by Vareinfo, which also keeps the photo.</summary>
+    public Task<(int PhotoId, List<Found> Found)> ReadPileAsync(Stream photo, CancellationToken ct = default) =>
+        vareinfo.ReadPileAsync(photo, "bøger", "boeger", ct);
+
+    public Task<Found?> LookupBarcodeAsync(string code, CancellationToken ct = default) => vareinfo.LookupBarcodeAsync(code, ct);
 
     private readonly List<IPriceSource> _sites = sources.Where(s => Sites.Contains(s.Name)).OrderBy(s => Array.IndexOf(Sites, s.Name)).ToList();
 
@@ -112,7 +122,7 @@ public sealed class BookCheckUseCases(
     {
         foreach (var chunk in books.Where(b => b.Value is null && b.Title.Trim() != "").Chunk(PerValueCall))
         {
-            var values = await reader.ValueBooksAsync(chunk.Select(b => b.Line()).ToList(), ct);
+            var values = await valuer.ValueBooksAsync(chunk.Select(b => b.Line()).ToList(), ct);
             for (var i = 0; i < chunk.Length; i++)
                 if (values.TryGetValue(i, out var raw))
                 {

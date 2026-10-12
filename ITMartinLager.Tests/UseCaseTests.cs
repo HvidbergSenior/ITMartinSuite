@@ -61,35 +61,28 @@ public class UseCaseTests
         var saved = await Items.GetAsync(item.Id, default);
         saved!.PriceHint.Should().Be(45);          // 10 % under the used normal price 50; the new price is not a used price
         saved.PricesAt.Should().NotBeNull();
-        hunt.SourceList.Should().Be("Brugt: DBA og eBay. Ny: Amazon.de.");
+        hunt.SourceList.Should().Be("Brugt: DBA og eBay. Ny: Amazon.de.");   // names from the test sources above
     }
 
     [Test]
-    public async Task Waiting_kolofons_are_read_ten_per_ai_call()
+    public async Task A_kolofon_photo_in_Vareinfo_takes_the_book_off_the_list_and_the_reading_lands_on_it()
     {
-        var books = new List<Item>();
-        for (var n = 0; n < 12; n++)
-        {
-            var b = new Item { Kind = Kinds.Bog, Title = $"Bog {n}", KolofonPhoto = $"photos/kolofon/{n}.jpg" };
-            b.Touch();
-            books.Add(b);
-        }
-        await Items.AddAsync(books, default);
-        var photos = new Mock<IPhotoStore>();
-        photos.Setup(p => p.ReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync([1, 2, 3]);
-        var reader = new Mock<ICoverReader>();
-        reader.SetupGet(r => r.Enabled).Returns(true);
-        reader.Setup(r => r.ReadKolofonsAsync(It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((IReadOnlyList<byte[]> j, CancellationToken _) =>
-                Enumerable.Range(0, j.Count).ToDictionary(i => i, _ => new KolofonReading("9780552131063", "1. udgave", 1987, "Gyldendal", null)));
-        var kolofon = new KolofonUseCases(Items, photos.Object, reader.Object, new LagerOptions(), TimeProvider.System);
+        var first = new Item { Kind = Kinds.Bog, Title = "Ternet Ninja", EditionHint = EditionHints.First };
+        first.Touch();
+        await Items.AddAsync([first], default);
+        var kolofon = new KolofonUseCases(Items, new LagerOptions(), TimeProvider.System);
+        (await kolofon.WantedAsync()).Should().ContainSingle();
 
-        (await kolofon.ReadWaitingAsync()).Should().Be(10);
-        (await kolofon.ReadWaitingAsync()).Should().Be(2);
-        (await kolofon.ReadWaitingAsync()).Should().Be(0);
-        reader.Verify(r => r.ReadKolofonsAsync(It.Is<IReadOnlyList<byte[]>>(j => j.Count <= Kolofon.PerCall), It.IsAny<CancellationToken>()), Times.Exactly(2));
-        (await kolofon.WaitingAsync()).Should().Be(0);
-        (await Items.GetAsync(books[0].Id, default))!.Edition.Should().Be("1. udgave");
+        (await kolofon.TakenAsync(first.Id)).Should().BeTrue();
+        (await kolofon.WantedAsync()).Should().BeEmpty();
+        (await Items.GetAsync(first.Id, default))!.KolofonAt.Should().BeNull();   // "venter på at blive læst"
+
+        (await kolofon.ReadAsync(first.Id, new KolofonReading("9780552131063", "1. udgave", 1987, "Gyldendal", null))).Should().BeTrue();
+        var read = await Items.GetAsync(first.Id, default);
+        read!.Edition.Should().Be("1. udgave");
+        read.Barcode.Should().Be("9780552131063");
+        read.KolofonAt.Should().NotBeNull();
+        (await kolofon.ReadAsync(999_999, null)).Should().BeFalse();
     }
 
     [Test]

@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace ITMartinLager.Infrastructure.External;
+namespace ITMartinVareinfo.Infrastructure.External;
 
 // Barcode -> what it is, from free sources without keys: books by ISBN (Google Books, then Open Library), CDs by
 // EAN (MusicBrainz), everything else (DVD, Blu-ray, games) by UPCitemdb's free trial (~100 a day), with kind and

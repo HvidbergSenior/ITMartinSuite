@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "ITMartinVareinfo": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5253",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Vareinfo__Pin": "test1234",
+        "Vareinfo__DataDir": "data",
+        "Vareinfo__LagerUrl": "http://localhost:5252",
+        "Vareinfo__LagerPublicUrl": "http://localhost:5252",
+        "Vareinfo__LagerKey": "devkey-123456"
+      }
+    }
+  }
+}
