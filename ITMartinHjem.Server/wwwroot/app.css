@@ -469,6 +469,9 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 /* All pages 2026-10-12 (user: "look at css and navigation on all pages"):
    - the shared Kolibri pages (/om, /hjaelp) brought their own app header under the site menu - one menu is enough;
    - card headings were 17, 19 and 21 px on different pages - one size everywhere (the "Vidste du" tiles stay tile-sized). */
-.hj-nav ~ .k-main .k-header { display: none; }
+.hj-nav ~ .k-main .k-header { position: static; background: none; border: 0; box-shadow: none; padding: 0; margin: 0 0 12px; }
+.hj-nav ~ .k-main .k-header .k-logo, .hj-nav ~ .k-main .k-header .k-brand span { display: none; }
+.hj-nav ~ .k-main .k-header .k-brand b { font-size: 1.7rem; color: var(--k-text); }
+.hj-nav ~ .k-main:has(h1) .k-header { display: none; }   /* /om has its own h1 */
 .k-content .k-card-title { font-size: 1.2rem; }
 .k-content .hj-tips .k-card-title { font-size: 1em; }
