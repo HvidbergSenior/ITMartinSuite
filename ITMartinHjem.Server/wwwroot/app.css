@@ -547,6 +547,7 @@ html[data-family="idag"] .hj-head.hj-head-page::before, .bs-head.bs-head-page::b
 .hj-owner { margin: 6px 0 0; font-weight: 700; }
 
 /* itmartin.dk front head box: the ITMartin hummingbird (brand icon) instead of the thinking emoji (user 2026-10-12) */
-html[data-family="idag"] .hj-head:not(.hj-head-page)::before { content: ""; display: block; width: 72px; height: 72px; margin: 0 auto 8px;
-  background: url("/_content/ITMartin.Shared.UI/kolibri-icon.svg") center / contain no-repeat; animation: none; transform: none; }
+/* The ITMartin logo that won the Stem logo vote (session 2, image 16 - most votes), user 2026-10-12. */
+html[data-family="idag"] .hj-head:not(.hj-head-page)::before { content: ""; display: block; width: min(240px, 70%); height: 72px; margin: 0 auto 8px;
+  background: url("/brand/itmartin-logo.png") center / contain no-repeat; animation: none; transform: none; }
 .hj-tilegroup .hj-tiles { margin: 6px 0 0; }
