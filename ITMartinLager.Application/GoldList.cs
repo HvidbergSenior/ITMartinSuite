@@ -18,7 +18,7 @@ public interface IGoldRepository
 /// <summary>The gold list: the dearest single issues per category, renewed weekly, and "is this one gold?".</summary>
 public sealed class GoldUseCases(IEnumerable<IDearestListings> sites, IGoldRepository gold, TimeProvider clock)
 {
-    public const int Pages = 5;
+    public const int Pages = 10;   // silver and bronze sit further down the "dearest first" list
     private List<GoldEntry>? _cache;
 
     public async Task<List<GoldEntry>> AllAsync(CancellationToken ct = default) => _cache ??= await gold.AllAsync(ct);
@@ -39,7 +39,8 @@ public sealed class GoldUseCases(IEnumerable<IDearestListings> sites, IGoldRepos
                 entries.AddRange(Gold.Pick(c, offers, site.Name, now));
             }
             if (entries.Count == 0) continue;                  // keep last week's list rather than an empty one
-            var top = entries.OrderByDescending(e => e.Kr).Take(Gold.PerCategory).ToList();
+            var top = entries.GroupBy(e => e.Tier).SelectMany(t => t.OrderByDescending(e => e.Kr).Take(Gold.PerTier))
+                .OrderByDescending(e => e.Kr).ToList();
             await gold.ReplaceAsync(c.Name, top, ct);
             total += top.Count;
         }

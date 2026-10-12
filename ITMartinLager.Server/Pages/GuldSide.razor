@@ -1,14 +1,16 @@
 @page "/guld"
 @inject GoldUseCases Gold
 
-<PageTitle>Guld – Bogshoppen Lager</PageTitle>
+<PageTitle>Guld, sølv og bronze – Bogshoppen Lager</PageTitle>
 
 <section class="k-card">
-    <h1 class="k-card-title">🏆 Guldlisten</h1>
-    <p>De dyreste enkelte numre, der er til salg lige nu – op til @ITMartinLager.Domain.Gold.PerCategory i hver kategori. Når noget, du registrerer, står her, får det <b>🏆 GULD</b> i Vareinfo og på Lager.</p>
+    <h1 class="k-card-title">🏆 Guld, 🥈 sølv og 🥉 bronze</h1>
+    <p>Enkelte numre, der er til salg for mange penge lige nu – op til @ITMartinLager.Domain.Gold.PerTier af hver slags i hver kategori:
+       <b>🏆 Guld</b> fra @ITMartinLager.Domain.Gold.GoldFrom kr, <b>🥈 Sølv</b> fra @ITMartinLager.Domain.Gold.SilverFrom kr (værd at sælge for sig), <b>🥉 Bronze</b> fra @ITMartinLager.Domain.Gold.BronzeFrom kr (interessant).
+       Når noget, du registrerer, står her, får det mærket i Vareinfo og på Lager.</p>
     <details class="lg-more">
         <summary>Sådan laves listen</summary>
-        <p>En gang om ugen spørger Lager DBA om de dyreste annoncer først i hver kategori (5 sider). Samlinger, bunker og drømmepriser (fx 99999 kr) tælles ikke med – kun annoncer for ét nummer, med nummer og/eller år. Prisen er midten af annoncerne for det nummer. Det er udbudspriser, ikke solgte priser.</p>
+        <p>En gang om ugen spørger Lager DBA om de dyreste annoncer først i hver kategori (10 sider). Samlinger, bunker og drømmepriser (fx 99999 kr) tælles ikke med – kun annoncer for ét nummer, med nummer og/eller år. Prisen er midten af annoncerne for det nummer. Det er udbudspriser, ikke solgte priser.</p>
     </details>
     @if (_all is null) { <p class="k-muted">Henter …</p> }
     else if (_all.Count == 0) { <p class="lg-answer">Listen bygges</p><p>Første gang tager det et par minutter efter start. Kom tilbage lidt senere.</p> }
@@ -21,12 +23,12 @@
     @foreach (var g in _all.GroupBy(e => e.Category))
     {
         <section class="k-card" data-fold-closed>
-            <h2 class="k-card-title">@g.Key (@g.Count())</h2>
+            <h2 class="k-card-title">@g.Key: @g.Count(e => e.Tier == "Guld") guld · @g.Count(e => e.Tier == "Sølv") sølv · @g.Count(e => e.Tier == "Bronze") bronze</h2>
             <ul class="lg-list">
                 @foreach (var e in g.OrderByDescending(e => e.Kr))
                 {
                     <li><a href="@e.Url" target="_blank" rel="noopener"><span class="lg-box">@e.Kr kr</span>
-                        <span class="lg-main"><b>@e.Issue</b><span class="k-small k-muted">@e.Name · @e.Source@(e.Listings > 1 ? $" · {e.Listings} annoncer" : "")</span></span></a></li>
+                        <span class="lg-main"><b>@e.Badge · @e.Issue</b><span class="k-small k-muted">@e.Name · @e.Source@(e.Listings > 1 ? $" · {e.Listings} annoncer" : "")</span></span></a></li>
                 }
             </ul>
         </section>

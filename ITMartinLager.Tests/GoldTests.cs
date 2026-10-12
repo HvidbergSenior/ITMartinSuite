@@ -39,6 +39,14 @@ public class GoldTests
     }
 
     [Test]
+    public void Gold_silver_and_bronze_are_by_price()
+    {
+        (Gold.TierOf(3600), Gold.TierOf(400), Gold.TierOf(150)).Should().Be(("Guld", "Sølv", "Bronze"));
+        Gold.Pick(AndersAnd, [O("Anders And & Co. nr. 3 1960", 90)], "DBA", DateTime.UtcNow).Should().BeEmpty();   // under bronze
+        Gold.Pick(AndersAnd, [O("Anders And & Co. nr. 3 1960", 250)], "DBA", DateTime.UtcNow).Single().Badge.Should().Be("🥈 SØLV");
+    }
+
+    [Test]
     public void A_Jumbobog_needs_its_number()
     {
         var picked = Gold.Pick(Jumbo, [O("ANDERS AND JUMBOBOG", 2150), O("Jumbobog nr. 1 - Anders And i topform", 900)], "DBA", DateTime.UtcNow);

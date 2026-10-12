@@ -59,7 +59,7 @@
                     </div>
                     @if (r.Gold is not null)
                     {
-                        <p class="lg-ok" role="status"><b>🏆 GULD</b> – @r.Gold. Tjek nummer, år og stand. @if (r.GoldUrl is { } gu) { <a href="@gu" target="_blank" rel="noopener">Se annoncen</a> }</p>
+                        <p class="lg-ok" role="status"><b>@r.Gold</b>. Tjek nummer, år og stand. @if (r.GoldUrl is { } gu) { <a href="@gu" target="_blank" rel="noopener">Se annoncen</a> }</p>
                     }
                     @if (r.InStock > 0 || r.DupInList)
                     {
@@ -110,7 +110,7 @@
         // Already in Lager, or twice on this list: saved only when the person says "+1 eksemplar".
         public int InStock;
         public int? ItemId;
-        public string? Gold, GoldUrl;   // on Lager's gold list (the dearest issues for sale right now)
+        public string? Gold, GoldUrl;   // on Lager's guld/sølv/bronze list - the text comes from Lager with its badge
         public bool DupInList, AddCopy;
         public bool IsDuplicate => InStock > 0 || DupInList;
 

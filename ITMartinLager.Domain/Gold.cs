@@ -23,11 +23,23 @@ public sealed class GoldEntry
     public DateTime SeenAt { get; set; } = DateTime.UtcNow;
 
     public string Issue => string.Join(" ", new[] { Number != "" ? "nr. " + Number : "", Year?.ToString() ?? "" }.Where(s => s != ""));
+    public string Tier => Gold.TierOf(Kr);
+    /// <summary>"🥈 SØLV" - with a sign and a word, never colour alone.</summary>
+    public string Badge => Gold.BadgeOf(Tier);
 }
 
 public static partial class Gold
 {
-    public const int PerCategory = 50;
+    // Three tiers by price (user 2026-10-12: "what about a silver as well? Like not the highest price but valuable...
+    // And the bronze. Interesting"). By kroner, not by rank in the category - the dearest Fantomet at 400 kr is silver,
+    // not gold. Up to 50 per tier per category.
+    public const int GoldFrom = 500, SilverFrom = 200, BronzeFrom = 100;
+    public const string GoldTier = "Guld", SilverTier = "Sølv", BronzeTier = "Bronze";
+    public const int PerCategory = 150;
+    public const int PerTier = 50;
+
+    public static string TierOf(int kr) => kr >= GoldFrom ? GoldTier : kr >= SilverFrom ? SilverTier : BronzeTier;
+    public static string BadgeOf(string tier) => tier switch { GoldTier => "🏆 GULD", SilverTier => "🥈 SØLV", _ => "🥉 BRONZE" };
 
     public static readonly GoldCategory[] Categories =
     [
@@ -79,7 +91,9 @@ public static partial class Gold
                     Kr = prices[prices.Count / 2], Listings = prices.Count, Source = source, Url = top.Url, SeenAt = now,
                 };
             })
-            .OrderByDescending(e => e.Kr).Take(PerCategory).ToList();
+            .Where(e => e.Kr >= BronzeFrom)
+            .GroupBy(e => TierOf(e.Kr)).SelectMany(t => t.OrderByDescending(e => e.Kr).Take(PerTier))
+            .OrderByDescending(e => e.Kr).ToList();
     }
 
     /// <summary>Is this thing on the gold list? Same kind, the category's words in its title or series, and the same

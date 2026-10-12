@@ -54,11 +54,11 @@ public static class InfoApi
             var items = (body.Items ?? []).Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition) }).ToList();
             var stock = await reg.InStockAsync(items);
             var golds = await gold.MatchAsync(items);
-            // One answer per row, in order - nothing left out. Gold = "🏆 GULD" on the row in Vareinfo.
+            // One answer per row, in order - nothing left out. Gold = "🏆 GULD / 🥈 SØLV / 🥉 BRONZE ..." on the row in Vareinfo.
             return stock.Select((x, n) => new
             {
                 x.Quantity, x.ItemId,
-                Gold = golds[n] is { } g ? $"{g.Category} {g.Issue} sælges for ca. {g.Kr} kr" : null,
+                Gold = golds[n] is { } g ? $"{g.Badge} – {g.Category} {g.Issue} sælges for ca. {g.Kr} kr" : null,
                 GoldUrl = golds[n]?.Url,
             });
         });
