@@ -535,3 +535,12 @@ html[data-family="idag"] .hj-head .hj-intro, .bs-head p { margin: 0; font-weight
 /* Head box on every tab (PageHead, 2026-10-12): the emoji comes from the page title */
 html[data-family="idag"] .hj-head.hj-head-page::before, .bs-head.bs-head-page::before { content: attr(data-emoji); animation: none; }
 .hj-head-page[data-emoji=""]::before, .bs-head-page[data-emoji=""]::before { display: none; }
+
+/* Tile groups (2026-10-12): every tile ends with where it leads */
+.hj-tile-go { margin-top: auto; padding-top: 8px; font-weight: 700; font-size: var(--k-fs-small, .9em); color: var(--k-text); }
+
+/* No text links for visitors (user 2026-10-12: "boxes are easier") - questions as boxes */
+.hj-qa-boxes { display: grid; gap: 6px; margin: 8px 0; }
+.hj-qa-boxlink { display: block; padding: 10px 12px; min-height: 44px; border: 2px solid var(--k-border); border-radius: 12px; background: var(--k-card); color: var(--k-text); text-decoration: none; font-weight: 600; }
+.hj-qa-boxlink:hover { border-color: var(--k-text); }
+.hj-app-contact .k-row { gap: 6px; flex-wrap: wrap; }

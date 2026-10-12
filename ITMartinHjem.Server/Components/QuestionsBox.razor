@@ -8,7 +8,8 @@
     <section class="k-card hj-qa-box">
         <h2 class="k-card-title">💬 Det spørger folk om</h2>
         <p>Her kommer spørgsmål fra chatten og vores svar – <b>uden navne</b>. Så kan du se, om dit spørgsmål allerede er besvaret.</p>
-        <p class="k-help">Der er ingen spørgsmål her endnu. <a href="#chat">Stil det første i chatten</a> herunder.</p>
+        <p class="k-help">Der er ingen spørgsmål her endnu.</p>
+        <a class="k-btn k-btn-sm" href="#chat">💬 Stil det første i chatten</a>
     </section>
 }
 else if (_total > 0)
@@ -26,12 +27,12 @@ else if (_total > 0)
                 <a class="hj-chip" href="/spoergsmaal?emne=@Uri.EscapeDataString(t)">@t (@n)</a>
             }
         </div>
-        <ul class="hj-qa-list">
+        <div class="hj-qa-boxes">
             @foreach (var q in _latest)
             {
-                <li><a href="/spoergsmaal#q@(q.Id)">❓ @Short(q.Question, 110)</a></li>
+                <a class="hj-qa-boxlink" href="/spoergsmaal#q@(q.Id)">❓ @Short(q.Question, 110)</a>
             }
-        </ul>
+        </div>
         <a class="k-btn k-btn-sm" href="/spoergsmaal">Se alle @_total spørgsmål</a>
     </section>
 }
