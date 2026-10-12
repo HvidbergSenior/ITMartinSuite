@@ -1,0 +1,33 @@
+@page "/varer"
+
+@* bogshoppen.dk "Varer" tab (user 2026-10-12: "a tab on bogshoppen. Forside and one more"). Product-oriented: what is coming,
+   with an example of each, and the price promise. The real items (from Lager/Vareinfo) go here once they are registered. *@
+<PageTitle>Varer · Bogshoppen</PageTitle>
+
+<header class="bs-head bs-head-varer">
+    <span class="bs-tag">🔨 Liveauktioner – snart</span>
+    <h1>Varer</h1>
+    <p>Varerne bliver vist her snart – med billede, pris og links til andre butikker.</p>
+</header>
+
+<section class="k-card bs-card" data-nofold>
+    <h2>📦 Det kommer der på</h2>
+    <ul class="bs-products">
+        @foreach (var (title, example) in BogshoppenRules.Products)
+        {
+            <li><b>@title</b> <span>– fx @example</span></li>
+        }
+    </ul>
+    <p class="k-help">Leder du efter noget bestemt? Skriv det i <a href="/#chat">chatten</a> – så kigger vi efter det, mens vi registrerer.</p>
+</section>
+
+<section class="k-card bs-card">
+    <h2>💰 Vores prisløfte – og du kan se det selv</h2>
+    <ul class="bs-promise">
+        <li>🔗 <b>Ved hver vare viser vi links</b> til andre sider, der sælger den samme vare – og <b>vores pris er 10 % lavere</b>.</li>
+        <li>🔎 <b>Har du fundet den billigere et andet sted?</b> Send os linket – så tager vi udgangspunkt i den pris og sælger <b>10 % under</b>.</li>
+        <li>📦 <b>Jo flere varer du køber, jo større rabat.</b></li>
+    </ul>
+</section>
+
+<p class="k-center"><a class="k-btn k-btn-primary bs-btn" href="/#foelg">🔔 Skriv dig op – og få et login til liveauktionerne</a></p>

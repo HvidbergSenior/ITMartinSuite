@@ -9,7 +9,9 @@ namespace ITMartinHjem.Server.Services;
 // choices on the front page, not tabs.
 public static class SiteMenu
 {
-    public const int MineAppsSort = 50;  // user 2026-10-05: Forside, Hvad laver ITKolibrien, Om mig, Særlige behov, Priser, Mine apps (50), Følg samarbejdet, Bliv pilot
+    public const int MineAppsSort = 50;
+    // "📅 I dag" tab (user 2026-10-12: the day plan box moves off the front page into its own tab) - the ITKolibrien page.
+    public const int TodaySort = 40;  // user 2026-10-05: Forside, Hvad laver ITKolibrien, Om mig, Særlige behov, Priser, Mine apps (50), Følg samarbejdet, Bliv pilot
 
     public sealed record Item(string Title, string Href, bool Pilot = false);
 
@@ -18,6 +20,7 @@ public static class SiteMenu
         var pages = await db.Pages.AsNoTracking().Where(p => p.InMenu)
             .Select(p => new { p.Sort, p.Title, p.Slug }).ToListAsync();
         var middle = pages.Select(p => (Sort: p.Sort, Item: new Item(p.Title, "/" + p.Slug)))
+            .Append((Sort: TodaySort, Item: new Item("📅 I dag", "/" + Components.NowCard.PageSlug)))
             .Append((Sort: MineAppsSort, Item: new Item("📱 Mine apps", "/mine-apps")))
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
