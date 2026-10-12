@@ -1,3 +1,5 @@
+using ITMartinHjem.Application;
+using ITMartinHjem.Infrastructure;
 using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -50,6 +52,9 @@ builder.Services.AddCascadingAuthenticationState();
 var dataDir = builder.Configuration["Hjem:DataDir"] ?? "/app/data";
 Directory.CreateDirectory(dataDir);
 builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "hjem.db")}"));
+// The layered part of Hjem (2026-10-12: public Q&A "Det spørger folk om"); same hjem.db.
+builder.Services.AddHjemApplication();
+builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}");
 builder.Services.AddSingleton<MediaStore>();
 builder.Services.AddSingleton<TextCheck>();   // AI proofreading of the owner's own text in Svar
 builder.Services.AddSingleton<PushService>();
@@ -91,6 +96,7 @@ await using (var db = await app.Services.GetRequiredService<IDbContextFactory<Hj
 {
     await db.Database.EnsureCreatedAsync();
     await Schema.EnsureColumnsAsync(db);
+    await app.Services.UpgradeHjemTablesAsync();
     await AppStatus.SeedAsync(db);
     await app.Services.GetRequiredService<Tracker>().StartAsync();
     if (!await db.Settings.AnyAsync())

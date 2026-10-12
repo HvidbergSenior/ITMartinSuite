@@ -1,0 +1,45 @@
+@inject PublicQuestions Questions
+@inject NavigationManager Nav
+
+@* Front page: the newest public Q&As from the chat (no names) + a search that opens /spoergsmaal (user 2026-10-12). *@
+@if (_total > 0)
+{
+    <section class="k-card hj-qa-box">
+        <h2 class="k-card-title">💬 Det spørger folk om</h2>
+        <p class="k-help">Spørgsmål fra chatten og mine svar – uden navne. Søg, eller tryk på et emne.</p>
+        <form class="k-row" @onsubmit="Search">
+            <input class="k-input" type="search" @bind="_q" placeholder="Søg, fx budget, billeder…" aria-label="Søg i spørgsmål" />
+            <button class="k-btn k-btn-primary" type="submit">🔍 Søg</button>
+        </form>
+        <div class="hj-qa-topics">
+            @foreach (var (t, n) in _topics.Take(8))
+            {
+                <a class="hj-chip" href="/spoergsmaal?emne=@Uri.EscapeDataString(t)">@t (@n)</a>
+            }
+        </div>
+        <ul class="hj-qa-list">
+            @foreach (var q in _latest)
+            {
+                <li><a href="/spoergsmaal#q@(q.Id)">❓ @Short(q.Question, 110)</a></li>
+            }
+        </ul>
+        <a class="k-btn k-btn-sm" href="/spoergsmaal">Se alle @_total spørgsmål</a>
+    </section>
+}
+
+@code {
+    private string _q = "";
+    private List<PublicQuestion> _latest = [];
+    private List<(string Topic, int Count)> _topics = [];
+    private int _total;
+
+    protected override async Task OnInitializedAsync() => (_latest, _topics, _total) = await Questions.LatestAsync(3);
+
+    private void Search() => Nav.NavigateTo("/spoergsmaal?q=" + Uri.EscapeDataString(_q.Trim()));
+
+    private static string Short(string s, int max)
+    {
+        var line = s.Replace('\n', ' ');
+        return line.Length <= max ? line : line[..max].TrimEnd() + "…";
+    }
+}

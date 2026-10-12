@@ -1,0 +1,86 @@
+@page "/spoergsmaal"
+@inject PublicQuestions Questions
+@inject NavigationManager Nav
+
+<PageTitle>Det spørger folk om · ITMartin</PageTitle>
+
+@* Public Q&A from the chat, without names (user 2026-10-12: "they ask the same questions and also i want transparency",
+   "people should be able to find other questions regarding the same"). Martin chooses what goes up, in Svar. *@
+<article class="k-card hj-page" data-nofold>
+    <h1>💬 Det spørger folk om</h1>
+    <p>Her er spørgsmål, folk har stillet mig i chatten – og mine svar. <b>Uden navne.</b> Måske er dit spørgsmål allerede besvaret.</p>
+    <p class="k-help"><b>Sådan gør du:</b> skriv et ord i søgefeltet (fx <i>budget</i> eller <i>billeder</i>), eller tryk på et emne.
+        Under hvert svar står de andre spørgsmål om det samme. Fandt du ikke svaret? <a href="/#chat">Spørg mig i chatten</a>.</p>
+    <input class="k-input" type="search" @bind="_q" @bind:event="oninput" @bind:after="SearchAsync" placeholder="Søg, fx budget, billeder, strøm…" aria-label="Søg i spørgsmål" />
+    @if (_found is { Topics.Count: > 0 } f)
+    {
+        <div class="hj-qa-topics">
+            <button class="hj-chip @(_topic is null ? "on" : "")" @onclick="() => PickAsync(null)">Alle (@f.Total)</button>
+            @foreach (var (t, n) in f.Topics)
+            {
+                <button class="hj-chip @(string.Equals(_topic, t, StringComparison.OrdinalIgnoreCase) ? "on" : "")" @onclick="() => PickAsync(t)">@t (@n)</button>
+            }
+        </div>
+    }
+</article>
+
+@if (_found is null) { <p class="k-help k-center">Henter…</p> }
+else if (_found.Total == 0) { <p class="k-help k-center">Der er ingen spørgsmål her endnu. <a href="/#chat">Stil det første i chatten</a>.</p> }
+else if (_found.Questions.Count == 0) { <p class="k-help k-center">Ingen spørgsmål passer. Prøv et andet ord – eller <a href="/#chat">spørg mig i chatten</a>.</p> }
+else
+{
+    @foreach (var q in _found.Questions)
+    {
+        <section class="k-card hj-qa" id="q@(q.Id)" data-nofold>
+            <button class="k-tag hj-qa-topic" @onclick="() => PickAsync(q.Topic)">@q.Topic</button>
+            <h2 class="hj-qa-q">❓ @q.Question</h2>
+            <div class="hj-qa-a"><b>Martin svarer:</b> @q.Answer</div>
+            <div class="k-help">@Dk.Local(q.PublishedAt).ToString("d. MMMM yyyy", Da)</div>
+            @if (_related.TryGetValue(q.Id, out var rel) && rel.Count > 0)
+            {
+                <div class="hj-qa-related">
+                    <b>Flere spørgsmål om det samme</b>
+                    <ul>@foreach (var r in rel) { <li><a href="/spoergsmaal#q@(r.Id)" @onclick="() => ShowAsync(r)" @onclick:preventDefault>@r.Question</a></li> }</ul>
+                </div>
+            }
+        </section>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? InitialQ { get; set; }
+    [SupplyParameterFromQuery(Name = "emne")] public string? InitialTopic { get; set; }
+
+    private static readonly CultureInfo Da = new("da-DK");
+    private string _q = "";
+    private string? _topic;
+    private PublicQuestions.Found? _found;
+    private Dictionary<int, List<PublicQuestion>> _related = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _q = InitialQ ?? "";
+        _topic = string.IsNullOrWhiteSpace(InitialTopic) ? null : InitialTopic;
+        await SearchAsync();
+    }
+
+    private async Task PickAsync(string? topic)
+    {
+        _topic = topic;
+        await SearchAsync();
+    }
+
+    // A related question: show just that one (its own "flere om det samme" leads on from there).
+    private async Task ShowAsync(PublicQuestion r)
+    {
+        _q = ""; _topic = null;
+        _found = _found! with { Questions = [r] };
+        _related = await Questions.RelatedForAsync([r], 5);
+    }
+
+    private async Task SearchAsync()
+    {
+        _found = await Questions.SearchAsync(_q, _topic);
+        _related = await Questions.RelatedForAsync(_found.Questions.Take(30));
+    }
+}

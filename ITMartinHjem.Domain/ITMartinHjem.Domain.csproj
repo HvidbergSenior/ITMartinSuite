@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Hjem (itmartin.dk) - the domain. Started 2026-10-12 with "Det spørger folk om" (public Q&A from the chat);
+       the rest of Hjem is still flat in ITMartinHjem.Server and moves here bit by bit. No EF, no HTTP. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinHjem.Tests" />
+  </ItemGroup>
+
+</Project>

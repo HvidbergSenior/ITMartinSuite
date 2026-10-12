@@ -4,6 +4,7 @@
 @inject ChatService Chat
 @inject MediaStore Store
 @inject TextCheck Checker
+@inject PublicQuestions Questions
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -72,7 +73,47 @@
                 else { <button class="k-btn k-btn-ghost" @onclick="() => _confirmDeleteThread = true">Slet samtale</button> }
             </div>
             <p class="k-help">Svaret vises straks hos den besøgende, hvis siden er åben – ellers næste gang de kommer tilbage på samme telefon/PC.</p>
+            @if (_qaAll.Any(q => q.SourceThreadId == _openId)) { <p class="k-help">✓ Denne samtale ligger på siden <a href="/spoergsmaal" target="_blank">Det spørger folk om</a>.</p> }
+            else if (_open.Messages.Any(m => m.FromOwner)) { <button class="k-btn k-mt" @onclick="StartQaFromChatAsync">👁 Vis på "Det spørger folk om" (uden navn)</button> }
         }
+    }
+</section>
+
+@* Public Q&A from the chat, no names (user 2026-10-12). Nothing is public until Martin presses Læg op. *@
+<section class="k-card" id="spoergsmaal">
+    <div class="k-card-title">💬 Det spørger folk om (offentligt)</div>
+    <p class="k-help">Spørgsmål fra chatten, som alle kan se på <a href="/spoergsmaal" target="_blank">itmartin.dk/spoergsmaal</a> og på forsiden – <b>uden navne</b>.
+        Tryk "Vis på Det spørger folk om" under en samtale. Navn, e-mail og telefonnummer fjernes af sig selv – læs teksten igennem og ret resten, før du lægger den op.
+        Giv den et <b>emne</b> (fx Budget, Billeder), så folk kan finde de andre spørgsmål om det samme.</p>
+    @if (_qaOpen)
+    {
+        <label class="k-label">❓ Spørgsmålet (som de besøgende ser det)</label>
+        <textarea class="k-input k-textarea" @bind="_qaQ" rows="3" maxlength="1000"></textarea>
+        <label class="k-label">💬 Dit svar</label>
+        <textarea class="k-input k-textarea" @bind="_qaA" rows="5" maxlength="3000"></textarea>
+        <label class="k-label">🏷️ Emne</label>
+        <input class="k-input" @bind="_qaTopic" list="qa-topics" maxlength="40" placeholder="fx Budget, Billeder, ElPriser, Apps" />
+        <datalist id="qa-topics">@foreach (var t in _qaTopics) { <option value="@t" /> }</datalist>
+        <div class="k-row k-mt">
+            <button class="k-btn k-btn-primary" @onclick="SaveQaAsync">@(_qaEditId is null ? "👁 Læg op – uden navn" : "Gem ændringer")</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _qaOpen = false">Annuller</button>
+        </div>
+    }
+    @if (_qaNote.Length > 0) { <p class="k-help">@_qaNote</p> }
+    @if (_qaAll.Count == 0) { <p class="k-help">Ingen spørgsmål lagt op endnu.</p> }
+    else
+    {
+        <ul class="hj-qa-admin">
+            @foreach (var q in _qaAll.OrderByDescending(q => q.PublishedAt))
+            {
+                <li>
+                    <span><span class="k-tag">@q.Topic</span> @(q.Question.Length > 90 ? q.Question[..90] + "…" : q.Question)</span>
+                    <button class="k-btn k-btn-sm" @onclick="() => EditQa(q)">Ret</button>
+                    @if (_qaConfirmRemove == q.Id) { <button class="k-btn k-btn-sm k-btn-danger" @onclick="() => RemoveQaAsync(q.Id)">Ja, fjern</button> }
+                    else { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _qaConfirmRemove = q.Id">Fjern</button> }
+                </li>
+            }
+        </ul>
     }
 </section>
 
@@ -314,6 +355,7 @@ else if (_review is { } rv)
         await using (var db = await Dbf.CreateDbContextAsync())
             _s = await db.Settings.FirstAsync();
         await LoadThreadsAsync();
+        await LoadQaAsync();
         await LoadPostsAsync();
         await LoadPagesAsync();
         await LoadTodayAsync();
@@ -561,6 +603,58 @@ else if (_review is { } rv)
         if (_reply.Trim().Length == 0) return;
         await Chat.OwnerWritesAsync(_openId, _reply);
         _reply = "";
+    }
+
+    // ── "Det spørger folk om": public, nameless Q&A (Application: PublicQuestions) ──
+    private List<PublicQuestion> _qaAll = [];
+    private List<string> _qaTopics = [];
+    private bool _qaOpen;
+    private int? _qaEditId;
+    private int _qaConfirmRemove;
+    private string _qaQ = "", _qaA = "", _qaTopic = "", _qaNote = "";
+
+    private async Task LoadQaAsync()
+    {
+        var f = await Questions.SearchAsync(null, null);
+        _qaAll = f.Questions;
+        _qaTopics = f.Topics.Select(t => t.Topic).ToList();
+    }
+
+    private async Task StartQaFromChatAsync()
+    {
+        if (_open is null) return;
+        var d = Questions.DraftFromChat(_open.Messages.OrderBy(m => m.At).Select(m => (m.FromOwner, m.Text)), _open.Name);
+        (_qaQ, _qaA, _qaTopic, _qaEditId, _qaOpen) = (d.Question, d.Answer, "", null, true);
+        _qaNote = "Læs teksten igennem, giv den et emne og tryk Læg op.";
+        await JS.InvokeVoidAsync("eval", "document.getElementById('spoergsmaal')?.scrollIntoView({behavior:'smooth',block:'start'})");
+    }
+
+    private void EditQa(PublicQuestion q)
+    {
+        (_qaQ, _qaA, _qaTopic, _qaEditId, _qaOpen) = (q.Question, q.Answer, q.Topic, q.Id, true);
+        _qaNote = "";
+    }
+
+    private async Task SaveQaAsync()
+    {
+        try
+        {
+            var d = new PublicQuestions.Draft(_qaQ, _qaA, _qaTopic);
+            if (_qaEditId is { } id) await Questions.UpdateAsync(id, d);
+            else await Questions.PublishAsync(d, _openId == 0 ? null : _openId);
+            _qaNote = _qaEditId is null ? "👁 Lagt op – uden navn ✓" : "Gemt ✓";
+            _qaOpen = false;
+            await LoadQaAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { _qaNote = "⚠️ " + ex.Message; }
+    }
+
+    private async Task RemoveQaAsync(int id)
+    {
+        await Questions.RemoveAsync(id);
+        _qaConfirmRemove = 0;
+        _qaNote = "Fjernet fra siden.";
+        await LoadQaAsync();
     }
 
     private async Task DeleteThreadAsync()

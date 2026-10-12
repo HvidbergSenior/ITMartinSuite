@@ -451,3 +451,17 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .hj-tips .hj-eltip-text, .hj-tips p { font-size: var(--k-fs-small, .9em); margin: 4px 0; }
 .hj-tips .k-btn { font-size: var(--k-fs-small, .9em); margin-top: 6px; }
 .hj-app-contact { margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed var(--k-border); font-size: var(--k-fs-small, .9em); }
+
+/* "Det spørger folk om" - public Q&A from the chat (2026-10-12) */
+.hj-qa-topics { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.hj-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 4px 12px; border: 1px solid var(--k-border); border-radius: 999px; background: var(--k-card); color: var(--k-text); font: inherit; font-size: var(--k-fs-small, .9em); text-decoration: none; cursor: pointer; }
+.hj-chip.on, .hj-chip:hover { background: var(--k-text); color: var(--k-card); border-color: var(--k-text); }
+.hj-qa-q { font-size: 1.1rem; margin: 8px 0 6px; white-space: pre-line; }
+.hj-qa-a { white-space: pre-line; padding: 10px; border-radius: 10px; background: var(--k-surface-2, #eef1f0); }
+.hj-qa-topic { border: 0; cursor: pointer; font: inherit; font-size: var(--k-fs-small, .9em); }
+.hj-qa-related { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--k-border); font-size: var(--k-fs-small, .9em); }
+.hj-qa-related ul, .hj-qa-list { margin: 6px 0; padding-left: 18px; }
+.hj-qa-list li { margin: 4px 0; }
+.hj-qa-admin { list-style: none; padding: 0; display: grid; gap: 6px; }
+.hj-qa-admin li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hj-qa-admin li > span { flex: 1 1 200px; }
