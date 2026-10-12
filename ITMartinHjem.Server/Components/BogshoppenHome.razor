@@ -18,7 +18,8 @@
 
 @{ var (intro, parts) = Sections.Split(_page?.Body); }
 @if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
-<div class="bs-card"><SectionBoxes Parts="parts" /></div>
+@* "Hvem er Rico og Martin?" starts folded, like "Hvem er ITMartin?" on itmartin.dk (user 2026-10-12: "closed"). *@
+<div class="bs-card"><SectionBoxes Parts="parts" FirstOpen="false" /></div>
 
 @* Live-auction teaser right after Rico/Martin (user 2026-10-12: no votes - "start with live-auctions and the product will be
    shown soon", "make teaser"): what is coming, how to buy, how to follow along (sign up as customer, NO newsletters). *@
