@@ -63,8 +63,9 @@ public interface ILagerGateway
 {
     string PublicBase { get; }
     /// <summary>Saves the products in stock (no box - user 2026-10-12). Same thing, same condition = a higher quantity.</summary>
-    /// <summary>addTo = "+1 eksemplar": more copies of items Lager already has (by its item id).</summary>
-    Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity)> addTo, CancellationToken ct);
+    /// <summary>addTo = items Lager already has: Quantity more copies ("+1 eksemplar", 0 = "Samme") and a scanned
+    /// barcode the item did not have yet.</summary>
+    Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity, string Barcode)> addTo, CancellationToken ct);
     /// <summary>For each thing, in order: how many Lager already has of exactly that.</summary>
     Task<List<InStock>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct);
     Task<(int FromKr, List<KolofonWanted> Books)> KolofonWantedAsync(CancellationToken ct);

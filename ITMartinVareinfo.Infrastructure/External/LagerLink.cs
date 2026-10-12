@@ -38,10 +38,10 @@ public sealed class LagerLink(HttpClient http, IConfiguration cfg) : ILagerGatew
 
     private sealed record Saved(int Added, int Merged);
 
-    public async Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity)> addTo, CancellationToken ct)
+    public async Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity, string Barcode)> addTo, CancellationToken ct)
     {
         var r = await SendAsync<Saved>(Req(HttpMethod.Post, "/api/info/varer",
-            new { PhotoId = photoId, Items = found, AddTo = addTo.Select(a => new { a.ItemId, a.Quantity }) }), ct);
+            new { PhotoId = photoId, Items = found, AddTo = addTo.Select(a => new { a.ItemId, a.Quantity, a.Barcode }) }), ct);
         return (r.Added, r.Merged);
     }
 

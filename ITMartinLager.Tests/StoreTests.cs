@@ -84,11 +84,25 @@ public class StoreTests
         ]);
         again.Select(a => a.Quantity).Should().Equal(1, 1, 0);
 
-        (await Registration.AddCopiesAsync([(again[0].ItemId!.Value, 1)])).Should().Be(1);
+        (await Registration.AddCopiesAsync([(again[0].ItemId!.Value, 1, "")])).Should().Be(1);
         (await Items.GetAsync(again[0].ItemId!.Value, default))!.Quantity.Should().Be(2);
     }
 
         [Test]
+    public async Task A_scanned_book_is_recognised_by_its_longer_title_and_gets_the_isbn()
+    {
+        await Registration.SaveAsync(null, null, [new(Kinds.Bog, "Absolute Beginners Keyboard", "", "", "", null, "", "God", 1, 1, "")]);
+        var scan = new Found(Kinds.Bog, "Absolute Beginners: Keyboard - The Complete Picture Guide", "", "", "", 2003, "", "God", 1, 1, "", Barcode: "9780711991996");
+        var known = await Registration.InStockAsync([scan]);
+        known[0].Quantity.Should().Be(1);
+
+        (await Registration.AddCopiesAsync([(known[0].ItemId!.Value, 0, scan.Barcode)])).Should().Be(1);   // "Samme": only the ISBN
+        var item = await Items.GetAsync(known[0].ItemId!.Value, default);
+        (item!.Quantity, item.Barcode, item.PricesAt).Should().Be((1, "9780711991996", (DateTime?)null));
+        (await Registration.InStockAsync([scan with { Title = "Something else entirely" }]))[0].Quantity.Should().Be(1);  // the barcode alone
+    }
+
+    [Test]
     public void Valued_waiting_or_no_price_is_said_from_the_item()
     {
         new Item().Valuation.Should().Be(Valuations.Waiting);

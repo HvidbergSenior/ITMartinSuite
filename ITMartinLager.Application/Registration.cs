@@ -37,21 +37,22 @@ public sealed class RegistrationUseCases(IItemRepository items)
     /// <summary>For each thing: how many we already have of what looks like the same thing (0 = new), and which item.</summary>
     public async Task<List<(int Quantity, int? ItemId)>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct = default)
     {
-        var stock = await items.WithTitlesAsync(found.Select(f => f.Title).ToList(), ct);
+        var stock = await items.WithTitlesAsync(found.Select(f => f.Title).ToList(), ct, found.Select(f => f.Barcode).ToList());
         return found.Select(f => (stock.FirstOrDefault(i => i.SameAs(f)) ?? stock.FirstOrDefault(i => i.LooksLike(f))) is { } i
             ? (i.Quantity, (int?)i.Id) : (0, null)).ToList();
     }
 
     /// <summary>"+1 eksemplar" in Vareinfo: more copies of exactly the item it pointed at. Returns how many items changed.</summary>
-    public async Task<int> AddCopiesAsync(IReadOnlyList<(int ItemId, int Quantity)> copies, CancellationToken ct = default)
+    /// <summary>Quantity 0 = no copy added, only the barcode ("Samme – gem ikke" on a scanned row).</summary>
+    public async Task<int> AddCopiesAsync(IReadOnlyList<(int ItemId, int Quantity, string Barcode)> copies, CancellationToken ct = default)
     {
         var changed = new List<Item>();
-        foreach (var (id, qty) in copies)
+        foreach (var (id, qty, code) in copies)
         {
             if (await items.GetAsync(id, ct) is not { } item || item.Status == Statuses.Solgt) continue;
-            item.Quantity += Math.Max(1, qty);
-            item.Touch();
-            changed.Add(item);
+            var gotCode = item.GiveBarcode(code);
+            if (qty > 0) { item.Quantity += qty; item.Touch(); }
+            if (qty > 0 || gotCode) changed.Add(item);
         }
         await items.UpdateAsync(changed, ct);
         return changed.Count;

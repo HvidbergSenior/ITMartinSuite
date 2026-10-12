@@ -24,7 +24,7 @@ public interface IItemRepository
     Task<Item?> GetAsync(int id, CancellationToken ct);
     Task<List<Item>> InBoxAsync(int boxId, CancellationToken ct);
     /// <summary>Unsold items with one of these titles (Item.TitleKey: case, spaces and punctuation ignored).</summary>
-    Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct);
+    Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct, IReadOnlyCollection<string>? barcodes = null);
     /// <summary>Every word must be in the item's search text; with its box.</summary>
     Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct);
     Task<int> UnitsAsync(CancellationToken ct);

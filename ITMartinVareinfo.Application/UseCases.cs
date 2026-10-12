@@ -33,7 +33,7 @@ public sealed class ReadingUseCases(
         return (row.Id, found);
     }
 
-    public Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity)> addTo, CancellationToken ct = default) =>
+    public Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity, string Barcode)> addTo, CancellationToken ct = default) =>
         lager.SaveAsync(photoId, found, addTo, ct);
 
     /// <summary>"Har vi allerede den?" - so a re-photographed pile does not double the stock (user 2026-10-12: ask per item).</summary>

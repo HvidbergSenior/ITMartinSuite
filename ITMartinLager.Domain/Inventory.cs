@@ -132,10 +132,28 @@ public sealed class Item
     // punctuation ignored: "Start-Up: 5-String Banjo" = "Start-Up 5-String Banjo"), and number and year when both have
     // one. Condition, series, author and kind are read a little differently from photo to photo (2026-10-12: the same
     // pile photographed twice matched only 4 of 8 on the strict SameAs).
-    public bool LooksLike(Found f) =>
-        TitleKey(Title) == TitleKey(f.Title) && TitleKey(Title) != ""
-        && (Number.Trim() == "" || f.Number.Trim() == "" || Eq(Number, f.Number))
-        && (Year is null || f.Year is null || Year == f.Year);
+    // A scanned barcode gives the publisher's full title ("Absolute Beginners Keyboard: The Complete Picture Guide ...")
+    // where the photo gave the cover's - so one title starting with the other counts too, and the same barcode always.
+    public bool LooksLike(Found f)
+    {
+        if (Barcode != "" && f.Barcode != "" && Barcode == f.Barcode) return true;
+        string a = TitleKey(Title), b = TitleKey(f.Title);
+        var titles = a != "" && b != "" && (a == b || (Math.Min(a.Length, b.Length) >= 8 && (a.StartsWith(b) || b.StartsWith(a))));
+        return titles
+            && (Number.Trim() == "" || f.Number.Trim() == "" || Eq(Number, f.Number))
+            && (Year is null || f.Year is null || Year == f.Year);
+    }
+
+    /// <summary>A scan of something we registered from a photo: the item gets the barcode (an ISBN makes the price
+    /// hunter search again for exactly that edition). False when it already had one.</summary>
+    public bool GiveBarcode(string code)
+    {
+        if (Barcode != "" || string.IsNullOrWhiteSpace(code)) return false;
+        Barcode = code.Trim();
+        if (Barcodes.IsIsbn(Barcode)) PricesAt = null;
+        Touch();
+        return true;
+    }
 
     public static string TitleKey(string title) => new(title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 

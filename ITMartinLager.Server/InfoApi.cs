@@ -10,7 +10,7 @@ public static class InfoApi
     public sealed record BoxDto(int Id, string Code, string Place);
     public sealed record NewBox(string Place);
     public sealed record Intake(int? PhotoId, List<Found> Items, List<AddCopy>? AddTo = null);
-    public sealed record AddCopy(int ItemId, int Quantity);
+    public sealed record AddCopy(int ItemId, int Quantity, string? Barcode = null);
     public sealed record Check(List<Found> Items);
     public sealed record WantedDto(int ItemId, string BoxCode, string Line, string Title, bool FirstEditionLook, int TopKr);
     public sealed record KolofonRead(KolofonReading? Reading);
@@ -44,7 +44,7 @@ public static class InfoApi
         api.MapPost("/varer", async (Intake body, RegistrationUseCases reg) =>
         {
             var (added, merged) = await reg.SaveAsync(null, body.PhotoId, Clean(body.Items));
-            merged += await reg.AddCopiesAsync((body.AddTo ?? []).Select(a => (a.ItemId, a.Quantity)).ToList());
+            merged += await reg.AddCopiesAsync((body.AddTo ?? []).Select(a => (a.ItemId, Math.Max(0, a.Quantity), a.Barcode ?? "")).ToList());
             return Results.Ok(new { Added = added, Merged = merged });
         });
 

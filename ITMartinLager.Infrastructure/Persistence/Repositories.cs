@@ -94,14 +94,21 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return await q.OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
     }
 
-    public async Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct)
+    public async Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct, IReadOnlyCollection<string>? barcodes = null)
     {
-        var keys = titles.Select(Item.TitleKey).Where(t => t != "").ToHashSet();
-        if (keys.Count == 0) return [];
+        var keys = titles.Select(Item.TitleKey).Where(t => t != "").ToList();
+        var codes = (barcodes ?? []).Where(b => !string.IsNullOrWhiteSpace(b)).ToHashSet();
+        if (keys.Count == 0 && codes.Count == 0) return [];
         await using var db = await dbf.CreateDbContextAsync(ct);
-        // Compared in memory: the key drops punctuation, and SQLite's lower() only folds A-Z, not æøå.
-        var candidates = await db.Items.Where(i => i.Status != Statuses.Solgt).Select(i => new { i.Id, i.Title }).ToListAsync(ct);
-        var ids = candidates.Where(c => keys.Contains(Item.TitleKey(c.Title))).Select(c => c.Id).ToList();
+        // Compared in memory: the key drops punctuation, SQLite's lower() only folds A-Z, and a scanned title may be the
+        // cover title plus a subtitle (Item.LooksLike has the final say).
+        var candidates = await db.Items.Where(i => i.Status != Statuses.Solgt).Select(i => new { i.Id, i.Title, i.Barcode }).ToListAsync(ct);
+        bool Near(string t)
+        {
+            var k = Item.TitleKey(t);
+            return k != "" && keys.Any(x => x == k || (Math.Min(x.Length, k.Length) >= 8 && (x.StartsWith(k) || k.StartsWith(x))));
+        }
+        var ids = candidates.Where(c => Near(c.Title) || (c.Barcode != "" && codes.Contains(c.Barcode))).Select(c => c.Id).ToList();
         return await db.Items.Where(i => ids.Contains(i.Id)).ToListAsync(ct);
     }
 

@@ -109,8 +109,18 @@
         public bool DupInList, AddCopy;
         public bool IsDuplicate => InStock > 0 || DupInList;
 
-        // Same as Lager's "looks like": title without case/punctuation, number and year.
-        public string Key => string.Join("|", new string(Title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray()), Number.Trim().ToLowerInvariant(), Year);
+        public string TitleKey => new(Title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+
+        // Same rule as Lager's Item.LooksLike: same barcode, or the title (one may be the other plus a subtitle - a scan
+        // gives the publisher's full title) with number and year when both have one.
+        public bool LooksLike(Row o)
+        {
+            if (Barcode != "" && Barcode == o.Barcode) return true;
+            string a = TitleKey, b = o.TitleKey;
+            var titles = a != "" && b != "" && (a == b || (Math.Min(a.Length, b.Length) >= 8 && (a.StartsWith(b) || b.StartsWith(a))));
+            return titles && (Number.Trim() == "" || o.Number.Trim() == "" || string.Equals(Number.Trim(), o.Number.Trim(), StringComparison.OrdinalIgnoreCase))
+                && (Year is null || o.Year is null || Year == o.Year);
+        }
 
         public Found ToFound() => new(Kinds.Normalise(Kind), Title.Trim(), Artist.Trim(), Series.Trim(), Number.Trim(), Year,
             Platform.Trim(), Conditions.Normalise(Condition), Math.Max(1, Quantity), Confidence, Note, Interest.Trim(), Barcode, EditionHint: EditionHint);
@@ -122,7 +132,9 @@
     private async Task MarkDuplicatesAsync(List<Row> fresh)
     {
         fresh = fresh.Where(r => r.Title.Trim() != "").ToList();
-        foreach (var r in fresh) r.DupInList = _review.TakeWhile(x => x != r).Any(x => x.Key == r.Key && x.Title.Trim() != "");
+        // Against every row that was on the list before these (a scan is put at the top, a photo's rows at the bottom).
+        foreach (var r in fresh) r.DupInList = _review.Any(x => !fresh.Contains(x) && x.Title.Trim() != "" && x.LooksLike(r))
+                                               || fresh.TakeWhile(x => x != r).Any(x => x.LooksLike(r));
         try
         {
             var stock = await Reg.InStockAsync(fresh.Select(r => r.ToFound()).ToList());
@@ -192,10 +204,14 @@
         int added = 0, merged = 0;
         try
         {
+            // Something Lager has, skipped as "Samme" but scanned: the item still gets its barcode (no extra copy).
+            var codesOnly = _review.Where(r => r.Keep && r.InStock > 0 && r.ItemId is not null && !r.AddCopy && r.Barcode != "")
+                .Select(r => (r.ItemId!.Value, 0, r.Barcode)).ToList();
+            if (codesOnly.Count > 0) await Reg.SaveAsync(null, [], codesOnly);
             foreach (var g in _review.Where(SavesIt).GroupBy(r => r.PhotoId).ToList())
             {
                 // "+1 eksemplar" on something Lager has goes onto that very item; everything else is new (or merged by Lager).
-                var addTo = g.Where(r => r.InStock > 0 && r.ItemId is not null).Select(r => (r.ItemId!.Value, Math.Max(1, r.Quantity))).ToList();
+                var addTo = g.Where(r => r.InStock > 0 && r.ItemId is not null).Select(r => (r.ItemId!.Value, Math.Max(1, r.Quantity), r.Barcode)).ToList();
                 var fresh = g.Where(r => !(r.InStock > 0 && r.ItemId is not null)).Select(r => r.ToFound()).ToList();
                 var (a, m) = await Reg.SaveAsync(g.Key == 0 ? null : g.Key, fresh, addTo);
                 added += a; merged += m;
