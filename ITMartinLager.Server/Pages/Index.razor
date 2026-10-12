@@ -17,7 +17,7 @@
             <button class="k-btn k-btn-sm @(_kind == k ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetKind(k)">@Kinds.Icon(k) @k</button>
         }
     </div>
-    <button class="k-btn k-btn-primary" @onclick="ShowInteresting">⭐ Alle interessante – guld, sølv, bronze og "tjek nærmere"</button>
+    <button class="k-btn k-btn-primary" @onclick="ShowInteresting">⭐ Alle interessante – guld, sølv, bronze og måske</button>
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_valuation is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetValuation(null)">Alle priser</button>
         @foreach (var v in Valuations.All)
@@ -31,10 +31,20 @@
 {
     <section class="k-card">
         <h2 class="k-card-title">⭐ @_interesting.Count interessante på lager</h2>
-        <p class="k-small k-muted">Guld først, så sølv, bronze og "tjek nærmere". Tryk på en for at se priserne og annoncerne.</p>
+        <div class="lg-chips">
+            <button class="k-btn k-btn-sm @(_rank is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _rank = null">Alle (@_interesting.Count)</button>
+            @for (var r = 0; r < ITMartinLager.Domain.Gold.InterestingKinds.Length; r++)
+            {
+                var rank = r;
+                <button class="k-btn k-btn-sm @(_rank == rank ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _rank = rank">
+                    @ITMartinLager.Domain.Gold.InterestingKinds[rank] (@_interesting.Count(x => ITMartinLager.Domain.Gold.Rank(x.Item2) == rank))
+                </button>
+            }
+        </div>
+        <p class="k-small k-muted">Guld først, så sølv, bronze og måske. Tryk på en for at se priserne og annoncerne.</p>
         @if (_interesting.Count == 0) { <p>Ingen endnu. Mærkerne kommer, når prisjægeren har vurderet tingene, og fra guldlisten.</p> }
         <ul class="lg-list">
-            @foreach (var (i, note) in _interesting)
+            @foreach (var (i, note) in _interesting.Where(x => _rank is null || ITMartinLager.Domain.Gold.Rank(x.Item2) == _rank))
             {
                 <li>
                     <a href="/vare/@i.Id">
@@ -91,6 +101,7 @@
     private async Task SetValuation(string? v) { _valuation = v; await Find(); }
 
     private List<(Item, string)>? _interesting;
+    private int? _rank;
     private async Task ShowInteresting()
     {
         _hits = null;

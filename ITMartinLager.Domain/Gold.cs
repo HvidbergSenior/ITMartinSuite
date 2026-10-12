@@ -108,16 +108,18 @@ public static partial class Gold
         var cat = Categories.FirstOrDefault(c => c.Kind == kind && c.MustHave.All(m => words.Any(w => w.StartsWith(m))));
         if (cat is null) return null;
         if (year is not null && list.Where(e => e.Category == cat.Name && e.Number == "" && e.Year == year).MaxBy(e => e.Kr) is { } sameYear)
-            return $"🔎 Tjek nærmere – et {cat.Name} fra {year} sælges for ca. {sameYear.Kr} kr. Se om det er dette nummer.";
+            return $"🔎 MÅSKE – tjek nærmere: et {cat.Name} fra {year} sælges for ca. {sameYear.Kr} kr. Se om det er dette nummer.";
         var valuable = list.Where(e => e.Category == cat.Name && e.Kr >= SilverFrom).ToList();
         if (valuable.Count == 0) return null;
         var years = valuable.Where(e => e.Year is not null).Select(e => e.Year!.Value).OrderBy(y => y).ToList();
         var span = years.Count == 0 ? "" : years[0] == years[^1] ? $" fra {years[0]}" : $" fra {years[0]}-{years[^1]}";
-        return $"🔎 Tjek nærmere – {cat.Name} har {valuable.Count} numre{span} til 200 kr eller mere. Se om det er et af dem på Guld-listen.";
+        return $"🔎 MÅSKE – tjek nærmere: {cat.Name} har {valuable.Count} numre{span} til 200 kr eller mere. Se om det er et af dem på Guld-listen.";
     }
 
     /// <summary>Order for "go through all interesting in one go": gold, silver, bronze, then "tjek nærmere".</summary>
     public static int Rank(string note) => note.StartsWith("🏆") ? 0 : note.StartsWith("🥈") ? 1 : note.StartsWith("🥉") ? 2 : 3;
+    /// <summary>The four kinds of "interesting", in order, for buttons: Guld, Sølv, Bronze, Måske (user 2026-10-12).</summary>
+    public static readonly string[] InterestingKinds = ["🏆 Guld", "🥈 Sølv", "🥉 Bronze", "🔎 Måske"];
 
     /// <summary>Is this thing on the gold list? Same kind, the category's words in its title or series, and the same
     /// issue: number when the entry has one, year when the entry has one.</summary>
