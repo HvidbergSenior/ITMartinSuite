@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<MagicImportUseCases>();
         services.AddScoped<BookCheckUseCases>();
         services.AddScoped<ExportUseCases>();
+        services.AddScoped<GoldUseCases>();
         return services;
     }
 }

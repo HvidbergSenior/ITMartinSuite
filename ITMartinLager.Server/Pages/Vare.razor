@@ -4,6 +4,7 @@
 @inject AuctionUseCases Auction
 @inject PriceHuntUseCases Hunt
 @inject IVareinfoGateway Vareinfo
+@inject GoldUseCases Gold
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
 
@@ -47,6 +48,14 @@ else
 
     @if (Pricing.HuntedKinds.Contains(_item.Kind))
     {
+        @if (_gold is { } g)
+        {
+            <section class="k-card lg-gold">
+                <h2 class="k-card-title">🏆 GULD</h2>
+                <p class="lg-answer">@g.Category @g.Issue er blandt de dyreste lige nu: ca. @g.Kr kr</p>
+                <p class="k-small">På guldlisten fra @g.Source (@g.Listings annonce@(g.Listings == 1 ? "" : "r")). Tjek at det er netop dette nummer og år – og standen. <a href="@g.Url" target="_blank" rel="noopener">Se annoncen</a> · <a href="/guld">Hele guldlisten</a></p>
+            </section>
+        }
         <section class="k-card">
             <h2 class="k-card-title">💰 Priser fundet på nettet</h2>
             @if (_finds.Count == 0 && _checks.Count == 0)
@@ -56,11 +65,12 @@ else
             else
             {
                 var used = _finds.Where(f => !f.IsNew).ToList();
-                var normal = Pricing.NormalOf(used.Select(f => f.Kr).ToList());
+                var normal = Pricing.NormalDanishFirst(used.Select(f => (f.Source, f.Kr)).ToList());
+                var danishCount = used.Count(f => Pricing.DanishSources.Contains(f.Source));
                 @if (normal is { } n)
                 {
                     <p class="lg-answer">Normalpris brugt: ca. @n kr · vores pris: @Pricing.ShopPrice(n) kr</p>
-                    <p class="k-small k-muted">Midten af @used.Count udbudspriser fra brugtmarkedet. Det er det, sælgere beder om – ikke hvad der faktisk er solgt for. Vores pris er 10 % under, og linkene herunder viser det.</p>
+                    <p class="k-small k-muted">@(danishCount >= Pricing.DanishEnough ? $"Midten af {danishCount} danske udbudspriser (DBA, GulogGratis, Nemos, Faraos) – det danske marked først; de udenlandske står herunder som pejlemærke." : $"Midten af {used.Count} udbudspriser – for få danske, så de udenlandske tæller med.") Det er det, sælgere beder om – ikke hvad der faktisk er solgt for. Vores pris er 10 % under, og linkene herunder viser det.</p>
                 }
                 else
                 {
@@ -202,6 +212,7 @@ else
     private int _lot = 1;
     private bool _busy;
     private long _photoVer = DateTime.UtcNow.Ticks;
+    private GoldEntry? _gold;
     private List<PriceFind> _similar = [];
     private List<PriceFind> _finds = [];
     private List<PriceCheck> _checks = [];
@@ -231,6 +242,7 @@ else
         _item = view?.Item;
         _box = _item?.Box?.Code;
         _finds = view?.Finds.Where(f => !f.Similar).ToList() ?? [];
+        _gold = _item is null ? null : await Gold.MatchAsync(_item);
         _similar = view?.Finds.Where(f => f.Similar).ToList() ?? [];
         _checks = view?.Checks ?? [];
     }

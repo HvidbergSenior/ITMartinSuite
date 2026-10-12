@@ -49,9 +49,19 @@ public static class InfoApi
         });
 
         // "Har vi allerede den?" for each row Vareinfo shows - so a re-photographed pile does not double the stock.
-        api.MapPost("/findes", async (Check body, RegistrationUseCases reg) =>
-            (await reg.InStockAsync((body.Items ?? []).Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition) }).ToList()))
-                .Select(x => new { x.Quantity, x.ItemId }));   // one answer per row, in order - nothing left out
+        api.MapPost("/findes", async (Check body, RegistrationUseCases reg, GoldUseCases gold) =>
+        {
+            var items = (body.Items ?? []).Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition) }).ToList();
+            var stock = await reg.InStockAsync(items);
+            var golds = await gold.MatchAsync(items);
+            // One answer per row, in order - nothing left out. Gold = "🏆 GULD" on the row in Vareinfo.
+            return stock.Select((x, n) => new
+            {
+                x.Quantity, x.ItemId,
+                Gold = golds[n] is { } g ? $"{g.Category} {g.Issue} sælges for ca. {g.Kr} kr" : null,
+                GoldUrl = golds[n]?.Url,
+            });
+        });
 
         api.MapGet("/kolofon", async (KolofonUseCases k) => new
         {

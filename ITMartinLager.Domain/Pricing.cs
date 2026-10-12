@@ -90,6 +90,18 @@ public static class Pricing
     public static string ListingNumber(string url) =>
         System.Text.RegularExpressions.Regex.Match(url, @"/(\d{6,})/b[di]") is { Success: true } m ? m.Groups[1].Value : "";
 
+    // Danish market first (user 2026-10-12: "always prioritize Danish market ... I dont know if it can pay off to put
+    // things on foreign markets"): our price comes from these when they have at least DanishEnough prices.
+    public static readonly string[] DanishSources = ["DBA", "GulogGratis", "Nemos Bibliotek", "Faraos"];
+    public const int DanishEnough = 2;
+
+    /// <summary>The normal used price with Danish listings first: Danish only when there are enough, else everything.</summary>
+    public static int? NormalDanishFirst(IReadOnlyCollection<(string Source, int Kr)> used)
+    {
+        var danish = used.Where(u => DanishSources.Contains(u.Source)).Select(u => u.Kr).ToList();
+        return danish.Count >= DanishEnough ? NormalOf(danish) : NormalOf(used.Select(u => u.Kr).ToList());
+    }
+
     // The normal used price: the middle of the used asking prices, after leaving out the ones over 3x the middle.
     public static int? NormalOf(IReadOnlyCollection<int> used)
     {
@@ -139,7 +151,8 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
                 Original = o.Original, Url = o.Url, FoundAt = now,
             }));
         }
-        var used = answers.Where(a => !a.IsNew && a.Result is { Ambiguous: false }).SelectMany(Kept).Select(o => (int)o.Price!.Value).ToList();
+        var used = answers.Where(a => !a.IsNew && a.Result is { Ambiguous: false })
+            .SelectMany(a => Kept(a).Select(o => (a.Source, Kr: (int)o.Price!.Value))).ToList();
 
         // "Magen til": kept apart, flagged, and never part of the normal price.
         var like = (similar ?? []).Where(a => !a.IsNew && a.Result is { Ambiguous: false }).ToList();
@@ -150,7 +163,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
                 Url = o.Url, FoundAt = now, Similar = true,
             }));
         var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!)).Select(o => (int)o.Price!.Value).ToList();
-        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalOf(used), Pricing.NormalOf(likeKr));
+        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalOf(likeKr));
     }
 
     // Onto the item: when it was hunted (nothing answered = try again tomorrow, not in 30 days) and the price hint.

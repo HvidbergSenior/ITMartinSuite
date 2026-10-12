@@ -12,6 +12,7 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
     public DbSet<BookCheck> BookChecks => Set<BookCheck>();
     public DbSet<PriceCheck> PriceChecks => Set<PriceCheck>();
     public DbSet<PriceFind> PriceFinds => Set<PriceFind>();
+    public DbSet<GoldEntry> GoldEntries => Set<GoldEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -31,5 +32,6 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
         b.Entity<Item>().HasIndex(x => x.PricesAt);
         b.Entity<PriceCheck>().HasIndex(x => x.ItemId);
         b.Entity<PriceFind>().HasIndex(x => x.ItemId);
+        b.Entity<GoldEntry>().HasIndex(x => x.Category);
     }
 }

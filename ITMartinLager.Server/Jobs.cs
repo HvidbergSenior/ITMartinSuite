@@ -56,3 +56,30 @@ public sealed class AuctionSyncJob(IServiceScopeFactory scopes, ILogger<AuctionS
         }
     }
 }
+
+// The gold list, once a week (and at start when it is empty): the dearest single issues per category on DBA.
+// Lager__GoldList=false turns it off.
+public sealed class GoldListJob(IServiceScopeFactory scopes, IConfiguration cfg, ILogger<GoldListJob> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stop)
+    {
+        if (!cfg.GetValue("Lager:GoldList", true)) return;
+        try { await Task.Delay(TimeSpan.FromMinutes(2), stop); } catch (OperationCanceledException) { return; }
+        while (!stop.IsCancellationRequested)
+        {
+            var wait = TimeSpan.FromDays(7);
+            try
+            {
+                using var scope = scopes.CreateScope();
+                var gold = scope.ServiceProvider.GetRequiredService<GoldUseCases>();
+                var all = await gold.AllAsync(stop);
+                var age = all.Count == 0 ? TimeSpan.MaxValue : DateTime.UtcNow - all.Min(e => e.SeenAt);
+                if (age >= TimeSpan.FromDays(7)) log.LogInformation("Gold list renewed: {Count} entries", await gold.RefreshAsync(stop));
+                else wait = TimeSpan.FromDays(7) - age;
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
+            catch (Exception ex) { log.LogWarning("Gold list round failed: {Message}", ex.Message); wait = TimeSpan.FromHours(6); }
+            try { await Task.Delay(wait, stop); } catch (OperationCanceledException) { return; }
+        }
+    }
+}

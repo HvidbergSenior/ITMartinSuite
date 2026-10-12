@@ -1,0 +1,50 @@
+using FluentAssertions;
+using ITMartinLager.Domain;
+
+namespace ITMartinLager.Tests;
+
+// The gold list and the Danish market first (user 2026-10-12). Listing names are real DBA titles from that day.
+public class GoldTests
+{
+    private static readonly GoldCategory AndersAnd = Gold.Categories.First(c => c.Name == "Anders And & Co.");
+    private static readonly GoldCategory Jumbo = Gold.Categories.First(c => c.Name == "Jumbobøger");
+    private static Offer O(string name, decimal kr) => new(name, kr, "https://dba.dk/" + kr);
+
+    [Test]
+    public void Only_single_issues_become_gold_not_collections_or_dream_prices()
+    {
+        var picked = Gold.Pick(AndersAnd,
+        [
+            O("anders and og co, tegneserie", 123456789),
+            O("Stor samling Anders And & Co og Walt Disney tegneserier", 99999),
+            O("Anders And & Co. 1983.  komplet 1-52.", 175),
+            O("Anders And & Co Originalt blad fra marts 1949", 6000),
+            O("Walt Disney Anders And & Co. tegneserie nr. 35 30. august 1966", 1000),
+            O("Anders And & Co. ( 36 stk ). Ekstra", 100),
+        ], "DBA", DateTime.UtcNow);
+        picked.Select(p => (p.Number, p.Year, p.Kr)).Should().Equal(("", 1949, 6000), ("35", 1966, 1000));
+    }
+
+    [Test]
+    public void A_Jumbobog_needs_its_number()
+    {
+        var picked = Gold.Pick(Jumbo, [O("ANDERS AND JUMBOBOG", 2150), O("Jumbobog nr. 1 - Anders And i topform", 900)], "DBA", DateTime.UtcNow);
+        picked.Should().ContainSingle().Which.Number.Should().Be("1");
+    }
+
+    [Test]
+    public void A_registered_issue_on_the_list_is_gold()
+    {
+        var list = Gold.Pick(AndersAnd, [O("Walt Disney Anders And & Co. tegneserie nr. 35 30. august 1966", 1000)], "DBA", DateTime.UtcNow);
+        Gold.Match(list, Kinds.AndersAnd, "Anders And & Co.", "Anders And & Co.", "35", 1966).Should().NotBeNull();
+        Gold.Match(list, Kinds.AndersAnd, "Anders And & Co.", "", "35", 1967).Should().BeNull();
+        Gold.Match(list, Kinds.Tegneserie, "Tintin", "", "35", 1966).Should().BeNull();
+    }
+
+    [Test]
+    public void Our_price_comes_from_the_Danish_market_when_it_has_enough()
+    {
+        Pricing.NormalDanishFirst([("DBA", 40), ("DBA", 60), ("AbeBooks", 400), ("eBay", 500), ("ZVAB", 450)]).Should().Be(60);
+        Pricing.NormalDanishFirst([("DBA", 40), ("AbeBooks", 400), ("eBay", 500)]).Should().Be(400);   // too few Danish: all count
+    }
+}

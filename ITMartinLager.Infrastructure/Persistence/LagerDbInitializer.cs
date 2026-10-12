@@ -38,6 +38,12 @@ public static class LagerDbInitializer
                 "Name" TEXT NOT NULL DEFAULT '', "Kr" INTEGER NOT NULL DEFAULT 0, "Original" TEXT NOT NULL DEFAULT '',
                 "Url" TEXT NOT NULL DEFAULT '', "FoundAt" TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS "IX_PriceFinds_ItemId" ON "PriceFinds" ("ItemId");
+            CREATE TABLE IF NOT EXISTS "GoldEntries" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_GoldEntries" PRIMARY KEY AUTOINCREMENT,
+                "Category" TEXT NOT NULL DEFAULT '', "Kind" TEXT NOT NULL DEFAULT '', "Number" TEXT NOT NULL DEFAULT '',
+                "Year" INTEGER NULL, "Name" TEXT NOT NULL DEFAULT '', "Kr" INTEGER NOT NULL DEFAULT 0, "Listings" INTEGER NOT NULL DEFAULT 0,
+                "Source" TEXT NOT NULL DEFAULT '', "Url" TEXT NOT NULL DEFAULT '', "SeenAt" TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS "IX_GoldEntries_Category" ON "GoldEntries" ("Category");
             """);
         foreach (var col in new[] { "Nemos", "Proof", "Faraos", "Bokborsen" })
         {

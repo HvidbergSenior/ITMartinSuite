@@ -53,7 +53,7 @@ public interface IKolofonShotRepository
 }
 
 /// <summary>What Lager already has of a thing: 0 = new. ItemId = the item to open in Lager.</summary>
-public sealed record InStock(int Quantity, int? ItemId);
+public sealed record InStock(int Quantity, int? ItemId, string? Gold = null, string? GoldUrl = null);
 
 /// <summary>A book on Lager's kolofon list: the cover may be a first edition, or a copy sells for FromKr or more.</summary>
 public sealed record KolofonWanted(int ItemId, string BoxCode, string Line, string Title, bool FirstEditionLook, int TopKr);

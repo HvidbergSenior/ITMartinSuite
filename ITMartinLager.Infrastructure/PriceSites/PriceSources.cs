@@ -37,6 +37,7 @@ internal static class PriceSourceRegistration
         string[] paper = Pricing.PaperKinds;
 
         void Add(Func<IServiceProvider, IPriceSource> make) => services.AddTransient(make);
+        services.AddTransient<IDearestListings>(sp => sp.GetRequiredService<DbaListings>());
         Add(sp => new PriceSource("DBA", false, "", (t, a, i, ct) => sp.GetRequiredService<DbaListings>().LookupAsync(t, a, ct),
             (t, a, i) => DbaListings.SearchUrl(Q(t, a))));
         Add(sp => Used(sp.GetRequiredService<GulogGratisListings>(), ""));

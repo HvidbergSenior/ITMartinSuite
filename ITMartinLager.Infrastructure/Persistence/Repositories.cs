@@ -270,3 +270,20 @@ public sealed class BookCheckRepository(IDbContextFactory<LagerDb> dbf) : IBookC
         return await db.BookChecks.ToListAsync(ct);
     }
 }
+
+public sealed class GoldRepository(IDbContextFactory<LagerDb> dbf) : IGoldRepository
+{
+    public async Task ReplaceAsync(string category, IReadOnlyList<GoldEntry> entries, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.GoldEntries.RemoveRange(db.GoldEntries.Where(e => e.Category == category));
+        db.GoldEntries.AddRange(entries);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<GoldEntry>> AllAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.GoldEntries.OrderBy(e => e.Category).ThenByDescending(e => e.Kr).ToListAsync(ct);
+    }
+}

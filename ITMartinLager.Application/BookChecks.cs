@@ -39,8 +39,8 @@ public sealed class CheckedBook
     }
 
     /// <summary>The market: the middle of the used asking prices on all the sites (prices over 3x the middle left out).</summary>
-    public int? Market() => Pricing.NormalOf(Sites.Values.Where(l => l is { Ambiguous: false })
-        .SelectMany(l => l!.All).Where(o => o.Price is > 0).Select(o => (int)o.Price!.Value).ToList());
+    public int? Market() => Pricing.NormalDanishFirst(Sites.Where(s => s.Value is { Ambiguous: false })
+        .SelectMany(s => s.Value!.All.Where(o => o.Price is > 0).Select(o => (s.Key, (int)o.Price!.Value))).ToList());
 
     /// <summary>Our price in the shop: 10 % under the market. Null = no site has it - then nobody can prove a price.</summary>
     public int? ShopPrice() => Pricing.ShopPrice(Market());

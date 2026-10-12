@@ -6,8 +6,36 @@ namespace ITMartinLager.Infrastructure.PriceSites;
 // Danish used-book price API: antikvariat.net is behind Cloudflare and Bogbasen searches in the browser, but DBA's
 // search page carries the listings as schema.org JSON-LD (name + asking price). Asking prices, not sold prices - so it
 // is a supply count and a price range, never the selling price by itself. Cached a day, two requests at a time.
-public sealed class DbaListings(HttpClient http, ILogger<DbaListings> log)
+public sealed class DbaListings(HttpClient http, ILogger<DbaListings> log) : IDearestListings
 {
+    public string Name => "DBA";
+
+    // The gold list (2026-10-12): DBA's "dearest first" (sort=PRICE_DESC), a few pages. Every listing, unfiltered -
+    // Gold.Pick decides what is one issue.
+    public async Task<List<Offer>> DearestAsync(string query, int pages, CancellationToken ct)
+    {
+        var all = new List<Offer>();
+        for (var page = 1; page <= pages; page++)
+        {
+            await Gate.WaitAsync(ct);
+            try
+            {
+                var url = SearchUrl(query) + "&sort=PRICE_DESC" + (page > 1 ? $"&page={page}" : "");
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.UserAgent.ParseAdd(Ua);
+                req.Headers.AcceptLanguage.ParseAdd("da-DK,da;q=0.9");
+                using var res = await http.SendAsync(req, ct);
+                if (!res.IsSuccessStatusCode) { log.LogInformation("DBA dearest {Status} for {Query}", res.StatusCode, query); break; }
+                var found = ListingParse.Parse(await res.Content.ReadAsStringAsync(ct), query, "", url, _ => 1m, anyName: true).All;
+                if (found.Count == 0) break;
+                all.AddRange(found);
+            }
+            finally { Gate.Release(); }
+            await Task.Delay(TimeSpan.FromSeconds(2), ct);     // a polite pace - this runs once a week
+        }
+        return all;
+    }
+
     private const string Ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36";
     private static readonly SemaphoreSlim Gate = new(2, 2);
     private static readonly ConcurrentDictionary<string, (DateTime At, Listings Result)> Cache = new();

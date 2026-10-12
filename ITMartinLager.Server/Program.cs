@@ -42,6 +42,7 @@ builder.Services.AddLagerInfrastructure(builder.Configuration);
 builder.Services.AddLagerApplication();
 builder.Services.AddHostedService<PriceHunterJob>();
 builder.Services.AddHostedService<AuctionSyncJob>();
+builder.Services.AddHostedService<GoldListJob>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
