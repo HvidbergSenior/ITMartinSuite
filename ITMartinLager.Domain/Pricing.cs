@@ -2,7 +2,7 @@ namespace ITMartinLager.Domain;
 
 // The price rules: which items are hunted, what is searched for, which finds are kept and what they add up to
 // (2026-10-10, user: "as many places as possible ... facts are needed like 'found on X til 45 kr. Link'").
-public static class Pricing
+public static partial class Pricing
 {
     // Everything but Magic cards, which get Cardmarket's price from the MTG Scanner (user 2026-10-12: "also cds, dvds etc").
     public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin,
@@ -66,6 +66,47 @@ public static class Pricing
         if (i.Kind == Kinds.AndersAnd && year is not null) broad = $"{broad} {year}";
         return broad == TitleFor(i) || broad == AlternativeTitleFor(i) ? null : broad;
     }
+
+    // Is this listing really one ordinary copy of this item? (2026-10-12, Spider-Geddon #3: the sites' broad searches gave
+    // "Edge of Spider-Geddon #3", "Spider-Girls #1-3 set", "#1 2 3 4 5 Run Set Lot", CGC 9.8 graded copies, 1:25 variant
+    // covers and postcards - none of them the comic on the table.)
+    private static readonly HashSet<string> NotOneCopy = ["set", "sets", "lot", "lots", "run", "complete", "komplett", "komplettsatz",
+        "sammlung", "collection", "bundle", "samling", "komplet", "cgc", "cbcs", "pgx", "graded", "variant", "variante", "incentive",
+        "postcard", "postkarte", "ansichtskarte", "postkort", "poster", "books", "bücher", "issues", "hefte"];
+
+    // Brand, publisher and creator words a seller may put before a comic's title.
+    private static readonly HashSet<string> Brands = ["marvel", "comics", "comic", "walt", "disney", "disneys", "tegneserie", "tegneserier",
+        "album", "hergé", "herge", "image", "dark", "horse", "panini", "carlsen", "egmont", "serieforlaget", "interpresse", "semic", "the", "new"];
+
+    public static bool IsOneCopyOf(Item item, Offer o)
+    {
+        var words = ListingParse.Words(o.Name);
+        if (words.Any(NotOneCopy.Contains) || CopyRangeRx().IsMatch(o.Name) || RatioRx().IsMatch(o.Name)) return false;
+        // A comic with an issue number: the title must come first (after brand/creator words) - "Edge of X" is another series.
+        if (item.Kind == Kinds.Tegneserie && item.Number.Trim() != "")
+        {
+            var title = ListingParse.Words(item.Title.Trim() != "" ? item.Title : item.Series).Where(w => !ListingParse.IsNumber(w)).ToList();
+            var creator = ListingParse.Words(item.Artist).ToHashSet();
+            var lead = words.SkipWhile(w => Brands.Contains(w) || creator.Contains(w)).ToList();
+            if (title.Count > 0 && (lead.Count == 0 || lead[0] != title[0])) return false;
+        }
+        return true;
+    }
+
+    /// <summary>The site's answer with only the listings that are one ordinary copy of this item.</summary>
+    public static Listings OnlyThisItem(Item item, Listings r)
+    {
+        if (r.Ambiguous) return r;
+        var kept = r.All.Where(o => IsOneCopyOf(item, o)).ToList();
+        return kept.Count == r.All.Count ? r : ListingParse.Summarise(kept, r.Url);
+    }
+
+    // "1-5", "#1-3", "1 til 52", "#1,2,3," - several issues in one listing.
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?:#|\bnr\.?\s*|\bno\.?\s*)?\d{1,4}\s*(?:-|–|til|to)\s*#?\d{1,4}\b|#?\d{1,4}\s*,\s*#?\d{1,4}\s*,", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex CopyRangeRx();
+    // "1:25", "1:50" - a ratio variant cover.
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b1\s*:\s*\d{2,4}\b")]
+    private static partial System.Text.RegularExpressions.Regex RatioRx();
 
     // "surname title" - what most sites find best.
     public static string QueryFor(string title, string author)

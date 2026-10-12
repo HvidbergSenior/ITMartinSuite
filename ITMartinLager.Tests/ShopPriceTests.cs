@@ -84,3 +84,31 @@ public class SimilarSearchTests
         r.Finds.Should().OnlyContain(f => f.Similar);
     }
 }
+
+// 2026-10-12: Spider-Geddon #3 was priced from other series, sets, graded copies and postcards. Real listing names.
+public class OneCopyTests
+{
+    private static readonly ITMartinLager.Domain.Item Spider = new() { Kind = ITMartinLager.Domain.Kinds.Tegneserie, Title = "Spider-Geddon", Series = "Marvel", Number = "3" };
+    private static bool Keep(string name) => ITMartinLager.Domain.Pricing.IsOneCopyOf(Spider, new ITMartinLager.Domain.Offer(name, 30, "u"));
+
+    [TestCase("Spider-Geddon #3 - Regular Cover - Marvel Comics - 2019", true)]
+    [TestCase("Spider-Geddon #3 NM+ 2019 Marvel Comics High Grade", true)]
+    [TestCase("✪ SPIDER-GEDDON #3, MARVEL COMICS COMIC POSTCARD/POSTCARD NEW", false)]
+    [TestCase("Edge of Spider-Geddon #3 Nov.2018 CVR A", false)]
+    [TestCase("Spider-Girls #1,2,3 FULL SET Marvel Comics 2018 SPIDER-GEDDON SPIDER-WOMAN", false)]
+    [TestCase("Spider-Geddon #1 2 3 4 5 - 2018 Spider Geddon 1-5 Run Set Lot - Marvel NM", false)]
+    [TestCase("Spider-Geddon # 3 CGC 9.8 Torque 1:50 Incentive Variant Cover (2019)", false)]
+    [TestCase("Spider-Geddon # 3 Hawthorne 1:25 Variant Cover NM- Marvel 2018", false)]
+    [TestCase("Marvel Spider-Geddon 3", true)]
+    public void Only_one_ordinary_copy_of_this_comic_counts(string name, bool kept) => Keep(name).Should().Be(kept);
+
+    [Test]
+    public void A_book_by_author_first_still_counts() =>
+        ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Bog, Title = "Mort", Artist = "Terry Pratchett" },
+            new ITMartinLager.Domain.Offer("Terry Pratchett - Mort (Corgi 1988)", 40, "u")).Should().BeTrue();
+
+    [Test]
+    public void Danish_comics_with_publisher_first_still_count() =>
+        ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Tegneserie, Title = "Tintin", Number = "5" },
+            new ITMartinLager.Domain.Offer("Carlsen Tintin nr. 5 Faraos cigarer 1. oplag", 300, "u")).Should().BeTrue();
+}
