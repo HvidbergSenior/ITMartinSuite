@@ -54,12 +54,13 @@ Directory.CreateDirectory(dataDir);
 builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "hjem.db")}"));
 // The layered part of Hjem (2026-10-12: public Q&A "Det spørger folk om"); same hjem.db.
 builder.Services.AddHjemApplication();
-builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}");
+builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}", builder.Configuration["Hjem:StemApi"]);
 builder.Services.AddSingleton<MediaStore>();
 builder.Services.AddSingleton<TextCheck>();   // AI proofreading of the owner's own text in Svar
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<MailService>();   // "Martin har svaret dig" mails to chat visitors
 builder.Services.AddSingleton<ChatService>();
+builder.Services.AddSingleton<IOwnerInbox, OwnerInbox>();   // "prøv gratis" requests land in the chat in Svar
 builder.Services.AddHostedService<ChatSweeper>();   // reply mails/notifications, kept in the DB
 builder.Services.AddHttpClient("status", c => c.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });

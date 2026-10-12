@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+    <ProjectReference Include="..\ITMartinPoll.Application\ITMartinPoll.Application.csproj" />
+    <ProjectReference Include="..\ITMartinPoll.Infrastructure\ITMartinPoll.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

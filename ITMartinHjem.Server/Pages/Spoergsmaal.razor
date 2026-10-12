@@ -2,7 +2,7 @@
 @inject PublicQuestions Questions
 @inject NavigationManager Nav
 
-<PageTitle>Det spørger folk om · ITMartin</PageTitle>
+<PageTitle>Det spørger folk om · @(Site == QuestionRules.Bogshoppen ? "Bogshoppen" : "ITMartin")</PageTitle>
 
 @* Public Q&A from the chat, without names (user 2026-10-12: "they ask the same questions and also i want transparency",
    "people should be able to find other questions regarding the same"). Martin chooses what goes up, in Svar. *@
@@ -52,6 +52,8 @@ else
     [SupplyParameterFromQuery(Name = "emne")] public string? InitialTopic { get; set; }
 
     private static readonly CultureInfo Da = new("da-DK");
+    // bogshoppen.dk shows Bogshoppen's questions, itmartin.dk its own (user 2026-10-12).
+    private string Site => BogshoppenHome.IsHost(new Uri(Nav.Uri).Host) ? QuestionRules.Bogshoppen : QuestionRules.ITMartin;
     private string _q = "";
     private string? _topic;
     private PublicQuestions.Found? _found;
@@ -80,7 +82,7 @@ else
 
     private async Task SearchAsync()
     {
-        _found = await Questions.SearchAsync(_q, _topic);
+        _found = await Questions.SearchAsync(_q, _topic, Site);
         _related = await Questions.RelatedForAsync(_found.Questions.Take(30));
     }
 }

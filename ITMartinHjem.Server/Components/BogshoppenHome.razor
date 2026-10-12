@@ -4,26 +4,27 @@
    collaboration. Text = Svar -> Sider -> "bogshoppen-dk"; all news about the collaboration lives on the itmartin.dk tab. *@
 <PageTitle>Bogshoppen</PageTitle>
 
-@* Poll first (user 2026-10-11: "stem delen skal være først i bogshoppen"). *@
-<section class="k-card bs-card bs-vote">
-    <h2>🗳 Hvad vil du gerne kunne købe?</h2>
-    <p>Hjælp os med at vælge, hvad vi lægger frem først. Det tager et minut – og du kan få et login til liveauktionerne. <b>Ingen nyhedsbreve.</b></p>
-    <a class="k-btn k-btn-primary bs-btn" href="https://stem.itmartin.dk/poll/7">🗳 Stem her</a>
-</section>
-
+@* Order (user 2026-10-12): Bogshoppen at the top, then Rico/Martin (Svar -> Sider -> "bogshoppen-dk"), then the vote.
+   "Sådan følger du med", the "Følg samarbejdet på ITMartin.dk" button, "Snart kan du købe" and the old
+   "Hvad vil du gerne kunne købe?" poll (7, still in Stem) were removed the same day; the live-auction vote (poll 8)
+   became a teaser + sign-up. *@
 <header class="bs-head">
     <span class="bs-tag">🤝 Bogshoppen + ITMartin</span>
-    <h1>📚 Bogshoppen</h1>
-    <p>Rico og Martin – venner i over 30 år</p>
+    <h1>Bogshoppen</h1>
 </header>
 
+@{ var (intro, parts) = Sections.Split(_page?.Body); }
+@if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
+<div class="bs-card"><SectionBoxes Parts="parts" /></div>
 
-@* Teaser (user 2026-10-10): every way Bogshoppen will sell, shown as "coming". Only "Efterlys" works today (the chat below). *@
-<section class="k-card hj-sec bs-card bs-soon">
-    <h2>⏳ Snart kan du købe på mange måder</h2>
-    <div>
-        @* User's own text 2026-10-11 - keep it word for word. *@
-        <div class="bs-manifest">
+@* Live-auction teaser right after Rico/Martin (user 2026-10-12: no votes - "start with live-auctions and the product will be
+   shown soon", "make teaser"): what is coming, how to buy, how to follow along (sign up as customer, NO newsletters). *@
+<AuctionTeaser />
+
+@* User's own text 2026-10-11 - keep it word for word. The "Snart kan du købe på mange måder" heading and the list of
+   ways were removed 2026-10-12 (user). *@
+<section class="k-card bs-card">
+    <div class="bs-manifest">
             <p>Bogshoppen stod for <b>hygge, snak og fællesskab</b>. En webshop kan aldrig helt erstatte det personlige møde, og derfor skal Bogshoppen heller ikke være en traditionel webshop.</p>
             <p>Det er ingen hemmelighed, at huslejen blev for høj. Butikken skulle betale 30.000 kr. om måneden, og det var ganske enkelt ikke holdbart.</p>
             <p>Men idéen bag Bogshoppen lever videre.</p>
@@ -31,20 +32,7 @@
             <p><b>Én interesseret kunde er bedre end 1.000, der ikke er interesserede.</b></p>
             <p>Bogshoppen skal være for dem, der ved, hvad de leder efter – og for dem, der elsker at gå på opdagelse. ❤️</p>
         </div>
-        <p>Over 100.000 bøger, blade, tegneserier, film og spil er ved at blive registreret. Her er alle de måder, du snart kan købe dem på:</p>
-        <ul class="bs-ways">
-            @foreach (var w in Ways)
-            {
-                <li class="bs-way">
-                    <span class="bs-way-icon" aria-hidden="true">@w.Icon</span>
-                    <b>@w.Name</b>
-                    <span class="bs-way-line">@w.Line</span>
-                    <span class="bs-way-state @(w.Now ? "bs-now" : "")">@(w.Now ? "✅ Virker nu" : "⏳ Kommer snart")</span>
-                </li>
-            }
-        </ul>
-        <p class="bs-soon-how">Leder du efter noget bestemt? Skriv det i chatten nederst – så kigger vi efter det, mens vi registrerer.</p>
-    </div>
+    <p class="bs-soon-how">Leder du efter noget bestemt? Skriv det i chatten nederst – så kigger vi efter det, mens vi registrerer.</p>
 </section>
 
 @* User 2026-10-10: ~300 boxes, opened one at a time like the TV shows about containers. *@
@@ -65,11 +53,8 @@
     </div>
 </section>
 
-@{ var (intro, parts) = Sections.Split(_page?.Body); }
-@if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
-<div class="bs-card"><SectionBoxes Parts="parts" /></div>
-
-<a class="k-btn k-btn-primary bs-btn" href="https://itmartin.dk/@ITMartinHjem.Server.Pages.Index.CollabSlug">📚 Følg samarbejdet på ITMartin.dk</a>
+@* Bogshoppen's own "Det spørger folk om" - questions from the chat, no names (user 2026-10-12). *@
+<QuestionsBox Site="@QuestionRules.Bogshoppen" />
 
 <ChatBox Available="_available" OwnerName="Martin" />
 
@@ -77,20 +62,6 @@
     public const string PageSlug = "bogshoppen-dk";
     private Page? _page;
     private bool _available;
-
-    private static readonly (string Icon, string Name, string Line, bool Now)[] Ways =
-    [
-        ("💬", "Efterlys", "Skriv hvad du leder efter i chatten herunder.", true),
-        ("🛎️", "Butikken – som i gamle dage", "Kig på hylderne, spørg os om råd – vi finder det frem og lægger det til side til dig.", false),
-        ("📹", "Se lageret live", "Online streaming fra lageret: skriv, hvad du vil se – så finder vi det og viser det i kameraet.", false),
-        ("🔨", "Liveauktioner", "Se varerne i kameraet og byd live fra mobilen.", false),
-        ("🏪", "Markedsplads", "Bud og byttehandel – giv et bud på det, du gerne vil have.", false),
-        ("🔎", "Søg i hele lageret", "Søg på titel, nummer eller år i alle 100.000+ varer.", false),
-        ("📦", "Samlinger og årgange", "Køb en hel årgang Anders And eller en hel serie på én gang.", false),
-        ("🌍", "eBay og Tradera", "Samlere i udlandet kan også købe – samme vare, sælges kun én gang.", false),
-        ("🎪", "Marked med bod", "Mød os med en bod på loppe- og samlermarkeder – kig, snak og køb på stedet.", false),
-        ("🤝", "Afhent eller få det sendt", "Hent selv efter aftale, eller få det sendt med posten.", false),
-    ];
 
     // bogshoppen.dk and www.bogshoppen.dk are served by this app too (Cloudflare tunnel -> hjem-web).
     public static bool IsHost(string host) =>

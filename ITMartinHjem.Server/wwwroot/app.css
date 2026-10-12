@@ -475,3 +475,52 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .hj-nav ~ .k-main:has(h1) .k-header { display: none; }   /* /om has its own h1 */
 .k-content .k-card-title { font-size: 1.2rem; }
 .k-content .hj-tips .k-card-title { font-size: 1em; }
+
+/* Stem polls shown on bogshoppen.dk (Components/SitePoll, 2026-10-12) */
+.sp-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.sp-option { min-height: 44px; padding: 8px 14px; border: 2px solid var(--k-border); border-radius: 999px; background: var(--k-card); color: var(--k-text); font: inherit; cursor: pointer; text-align: left; }
+.sp-option.on { border-color: var(--k-text); background: var(--k-text); color: var(--k-card); font-weight: 700; }
+.sp-optin { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; }
+.sp-optin input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.sp-results { list-style: none; padding: 0; display: grid; gap: 6px; }
+.sp-results li { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--k-border); border-radius: 10px; overflow: hidden; }
+.sp-results li > * { position: relative; z-index: 1; }
+.sp-results li i { position: absolute; z-index: 0; left: 0; top: 0; bottom: 0; background: var(--k-surface-2, #eef1f0); }
+.sp-results li.mine { border-color: var(--k-text); font-weight: 700; }
+
+/* What you sign up to + "Prøv gratis" (2026-10-12) */
+.sp-means { margin: 10px 0; padding: 10px 12px; border: 2px solid var(--k-border); border-radius: 12px; background: var(--k-card); }
+.sp-means ul { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; }
+.sp-means a { font-weight: 700; }
+.tf { margin-top: 10px; }
+.bs-who { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; text-align: left; }
+
+/* Front page 2026-10-12: head box like bogshoppen.dk (centered, emoji on top), today in its own box,
+   chat/stream/remote in ONE box with the three questions as sub-headings. */
+html[data-family="idag"] .hj-head { text-align: center; padding: 22px 16px 18px; }
+html[data-family="idag"] .hj-head::before { position: static; display: block; transform: none; font-size: 2.6rem; margin-bottom: 6px; }
+@media (max-width:520px) { html[data-family="idag"] .hj-head { padding: 22px 16px 18px; } }
+.hj-today .hj-head-today { margin-top: 0; }
+.hj-trio-parts { display: grid; gap: 12px; }
+.hj-part { padding: 12px; border-radius: 12px; border: 2px solid var(--k-border); }
+.hj-part-title { margin: 0 0 8px; font-size: 1.15rem; }
+.hj-part.hj-chat-top { text-align: center; }
+.hj-part.hj-chat-top.is-on { border-color: var(--k-success, #1f9d55); background: #eefaf2; }
+
+/* The two head boxes - itmartin.dk and bogshoppen.dk - feel the same (user 2026-10-12): emoji on top, pill tag, heading, subtitle.
+   Only the colours differ. */
+html[data-family="idag"] .hj-head, .bs-head { text-align: center; padding: 22px 16px 18px; margin: 8px 0 16px; border-radius: var(--k-radius-lg, 18px); border-width: 2px; border-style: solid; }
+html[data-family="idag"] .hj-head h1, .bs-head h1 { margin: 6px 0 4px; font-size: 2rem; line-height: 1.15; }
+html[data-family="idag"] .hj-tagline, .bs-tag { display: inline-block; margin: 0; padding: 2px 12px; border-radius: 999px; font-weight: 800; font-size: .85rem; letter-spacing: .02em; }
+html[data-family="idag"] .hj-head .hj-intro, .bs-head p { margin: 0; font-weight: 600; }
+.bs-head::before { content: "📚"; display: block; font-size: 2.6rem; margin-bottom: 6px; }
+
+/* bogshoppen.dk live-auction teaser (2026-10-12) */
+.bs-sub { margin: 16px 0 6px; font-size: 1.1rem; }
+.bs-products { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.bs-products li { padding: 6px 10px; border: 1px solid var(--k-border); border-radius: 10px; }
+.bs-products span { color: var(--k-muted); }
+.bs-steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
+.bs-done { padding: 10px 12px; border: 2px solid var(--k-success, #1f9d55); border-radius: 12px; }
+.bs-promise { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.bs-promise li { padding: 8px 10px; border: 2px solid var(--k-border); border-radius: 10px; }

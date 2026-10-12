@@ -1,0 +1,78 @@
+@inject Customers Kartotek
+
+@* bogshoppen.dk teaser (user 2026-10-12): "I want to start with live-auctions and the product will be shown soon", "make teaser",
+   product-oriented - easy to see what is coming, how to follow along and how to buy. No votes. *@
+<section class="k-card bs-card bs-auction">
+    <h2>🔨 Liveauktioner – snart</h2>
+    <div>
+        <p><b>Vi starter med liveauktioner.</b> Vi viser varerne i kameraet, og du byder fra mobilen. Varerne bliver vist her snart.</p>
+
+        <h3 class="bs-sub">📦 Det kommer der på</h3>
+        <ul class="bs-products">
+            @foreach (var (title, example) in BogshoppenRules.Products)
+            {
+                <li><b>@title</b> <span>– fx @example</span></li>
+            }
+        </ul>
+
+        @* Price promise (user 2026-10-12): transparency - links to other sellers, 10 % under them, price match on a link, volume discount. *@
+        <h3 class="bs-sub">💰 Vores prisløfte – og du kan se det selv</h3>
+        <ul class="bs-promise">
+            <li>🔗 <b>Ved hver vare viser vi links</b> til andre sider, der sælger den samme vare – og <b>vores pris er 10 % lavere</b>.</li>
+            <li>🔎 <b>Har du fundet den billigere et andet sted?</b> Send os linket – så tager vi udgangspunkt i den pris og sælger <b>10 % under</b>.</li>
+            <li>📦 <b>Jo flere varer du køber, jo større rabat.</b></li>
+        </ul>
+
+        <h3 class="bs-sub">🛒 Sådan køber du</h3>
+        <ol class="bs-steps">
+            <li><b>Skriv dig op herunder</b> – det tager et minut.</li>
+            <li><b>Du får et login</b> til liveauktionerne på mail.</li>
+            <li><b>Se auktionen live</b> på mobilen, og byd med ét tryk.</li>
+            <li><b>Hent varen</b> efter aftale, eller få den sendt med posten.</li>
+        </ol>
+
+        <h3 class="bs-sub" id="foelg">🔔 Sådan følger du med</h3>
+        @if (_sent)
+        {
+            <p class="bs-done"><b>Tak – du er skrevet op ✓</b> Vi sender dit login til <b>@_email</b>, når den første liveauktion er klar.
+                Du kan altid <a href="/afmeld">afmelde dig</a>.</p>
+        }
+        else
+        {
+            <p>Skriv dig op som kunde, så får du et login, når den første liveauktion starter. Sæt gerne kryds ved det, du samler.</p>
+            <div class="sp-options">
+                @foreach (var (title, _) in BogshoppenRules.Products)
+                {
+                    <button type="button" class="sp-option @(_collects.Contains(title) ? "on" : "")" aria-pressed="@(_collects.Contains(title) ? "true" : "false")"
+                            @onclick="() => Toggle(title)">@(_collects.Contains(title) ? "☑" : "☐") @title</button>
+                }
+            </div>
+            <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="Dit navn" aria-label="Dit navn" autocomplete="name" />
+            <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
+            <textarea class="k-input k-textarea k-mt" @bind="_note" maxlength="280" rows="2" placeholder="Leder du efter noget bestemt? (valgfrit)" aria-label="Leder du efter noget bestemt?"></textarea>
+            <SignUpMeans />
+            <label class="sp-optin"><input type="checkbox" @bind="_consent" /> <span>@BogshoppenRules.ConsentText</span></label>
+            @if (_error.Length > 0) { <p class="form-error">⚠️ @_error</p> }
+            <button class="k-btn k-btn-primary bs-btn k-mt" disabled="@_busy" @onclick="SendAsync">🔔 Skriv mig op</button>
+        }
+    </div>
+</section>
+
+@code {
+    private readonly HashSet<string> _collects = [];
+    private string _name = "", _email = "", _note = "", _error = "";
+    private bool _consent, _busy, _sent;
+
+    private void Toggle(string title) { if (!_collects.Remove(title)) _collects.Add(title); }
+
+    private async Task SendAsync()
+    {
+        _busy = true; _error = "";
+        try
+        {
+            var error = await Kartotek.FollowBogshoppenAsync(_name, _email, _collects, _note, _consent);
+            if (error is null) { _email = _email.Trim().ToLowerInvariant(); _sent = true; } else _error = error;
+        }
+        finally { _busy = false; }
+    }
+}

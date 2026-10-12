@@ -83,7 +83,7 @@
 <section class="k-card" id="spoergsmaal">
     <div class="k-card-title">💬 Det spørger folk om (offentligt)</div>
     <p class="k-help">Spørgsmål fra chatten, som alle kan se på <a href="/spoergsmaal" target="_blank">itmartin.dk/spoergsmaal</a> og på forsiden – <b>uden navne</b>.
-        Tryk "Vis på Det spørger folk om" under en samtale. Navn, e-mail og telefonnummer fjernes af sig selv – læs teksten igennem og ret resten, før du lægger den op.
+        Tryk "Vis på Det spørger folk om" under en samtale, og vælg om det hører til ITMartin.dk eller Bogshoppen.dk. Navn, e-mail og telefonnummer fjernes af sig selv – læs teksten igennem og ret resten, før du lægger den op.
         Giv den et <b>emne</b> (fx Budget, Billeder), så folk kan finde de andre spørgsmål om det samme.</p>
     @if (_qaOpen)
     {
@@ -91,6 +91,11 @@
         <textarea class="k-input k-textarea" @bind="_qaQ" rows="3" maxlength="1000"></textarea>
         <label class="k-label">💬 Dit svar</label>
         <textarea class="k-input k-textarea" @bind="_qaA" rows="5" maxlength="3000"></textarea>
+        <label class="k-label">🌐 Hvor skal det vises?</label>
+        <div class="k-row">
+            <label><input type="radio" name="qa-site" checked="@(_qaSite == QuestionRules.ITMartin)" @onchange="() => _qaSite = QuestionRules.ITMartin" /> ITMartin.dk</label>
+            <label><input type="radio" name="qa-site" checked="@(_qaSite == QuestionRules.Bogshoppen)" @onchange="() => _qaSite = QuestionRules.Bogshoppen" /> Bogshoppen.dk</label>
+        </div>
         <label class="k-label">🏷️ Emne</label>
         <input class="k-input" @bind="_qaTopic" list="qa-topics" maxlength="40" placeholder="fx Budget, Billeder, ElPriser, Apps" />
         <datalist id="qa-topics">@foreach (var t in _qaTopics) { <option value="@t" /> }</datalist>
@@ -107,7 +112,7 @@
             @foreach (var q in _qaAll.OrderByDescending(q => q.PublishedAt))
             {
                 <li>
-                    <span><span class="k-tag">@q.Topic</span> @(q.Question.Length > 90 ? q.Question[..90] + "…" : q.Question)</span>
+                    <span><span class="k-tag">@(q.Site == QuestionRules.Bogshoppen ? "📚 " : "")@q.Topic</span> @(q.Question.Length > 90 ? q.Question[..90] + "…" : q.Question)</span>
                     <button class="k-btn k-btn-sm" @onclick="() => EditQa(q)">Ret</button>
                     @if (_qaConfirmRemove == q.Id) { <button class="k-btn k-btn-sm k-btn-danger" @onclick="() => RemoveQaAsync(q.Id)">Ja, fjern</button> }
                     else { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _qaConfirmRemove = q.Id">Fjern</button> }
@@ -611,7 +616,7 @@ else if (_review is { } rv)
     private bool _qaOpen;
     private int? _qaEditId;
     private int _qaConfirmRemove;
-    private string _qaQ = "", _qaA = "", _qaTopic = "", _qaNote = "";
+    private string _qaQ = "", _qaA = "", _qaTopic = "", _qaNote = "", _qaSite = QuestionRules.ITMartin;
 
     private async Task LoadQaAsync()
     {
@@ -624,14 +629,14 @@ else if (_review is { } rv)
     {
         if (_open is null) return;
         var d = Questions.DraftFromChat(_open.Messages.OrderBy(m => m.At).Select(m => (m.FromOwner, m.Text)), _open.Name);
-        (_qaQ, _qaA, _qaTopic, _qaEditId, _qaOpen) = (d.Question, d.Answer, "", null, true);
+        (_qaQ, _qaA, _qaTopic, _qaEditId, _qaOpen, _qaSite) = (d.Question, d.Answer, "", null, true, QuestionRules.ITMartin);
         _qaNote = "Læs teksten igennem, giv den et emne og tryk Læg op.";
         await JS.InvokeVoidAsync("eval", "document.getElementById('spoergsmaal')?.scrollIntoView({behavior:'smooth',block:'start'})");
     }
 
     private void EditQa(PublicQuestion q)
     {
-        (_qaQ, _qaA, _qaTopic, _qaEditId, _qaOpen) = (q.Question, q.Answer, q.Topic, q.Id, true);
+        (_qaQ, _qaA, _qaTopic, _qaEditId, _qaOpen, _qaSite) = (q.Question, q.Answer, q.Topic, q.Id, true, q.Site);
         _qaNote = "";
     }
 
@@ -639,7 +644,7 @@ else if (_review is { } rv)
     {
         try
         {
-            var d = new PublicQuestions.Draft(_qaQ, _qaA, _qaTopic);
+            var d = new PublicQuestions.Draft(_qaQ, _qaA, _qaTopic, _qaSite);
             if (_qaEditId is { } id) await Questions.UpdateAsync(id, d);
             else await Questions.PublishAsync(d, _openId == 0 ? null : _openId);
             _qaNote = _qaEditId is null ? "👁 Lagt op – uden navn ✓" : "Gemt ✓";

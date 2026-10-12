@@ -1,0 +1,42 @@
+@inject Customers Kartotek
+
+@* "Prøv gratis" on every app on Mine apps (user 2026-10-12): e-mail -> customer in the Kundekartotek -> Martin sends a PIN.
+   The tick box is never pre-ticked, and the list says exactly what it means. *@
+<div class="tf">
+    @if (_sent)
+    {
+        <p><b>Tak! ✓</b> Martin sender dig adgang til @App på <b>@_email</b> – som regel samme dag. Kig også i spam-mappen.</p>
+    }
+    else if (!_open)
+    {
+        <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => _open = true">🆓 Prøv @App gratis</button>
+    }
+    else
+    {
+        <p class="k-help">Skriv din e-mail, så sender Martin dig adgang (en PIN-kode) til @App.</p>
+        <input class="k-input" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" autocomplete="name" />
+        <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
+        <SignUpMeans />
+        <label class="sp-optin"><input type="checkbox" @bind="_consent" /> <span>@ITMartinHjem.Domain.TrialRules.ConsentText(App)</span></label>
+        @if (_error.Length > 0) { <p class="form-error">⚠️ @_error</p> }
+        <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="SendAsync">🆓 Send mig adgang</button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string App { get; set; } = "";
+
+    private bool _open, _sent, _consent, _busy;
+    private string _name = "", _email = "", _error = "";
+
+    private async Task SendAsync()
+    {
+        _busy = true; _error = "";
+        try
+        {
+            var error = await Kartotek.RequestTrialAsync(App, _name, _email, _consent);
+            if (error is null) { _email = _email.Trim().ToLowerInvariant(); _sent = true; } else _error = error;
+        }
+        finally { _busy = false; }
+    }
+}

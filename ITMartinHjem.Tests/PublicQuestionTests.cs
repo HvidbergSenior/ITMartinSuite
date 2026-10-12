@@ -73,6 +73,18 @@ public class QuestionRulesTests
         t.Should().Equal(("Budget", 2), ("ElPriser", 1));
     }
 
+    [Test]
+    public void Each_site_only_sees_its_own_questions()
+    {
+        var a = PublicQuestion.Publish("Hvornår er der liveauktion?", "Snart.", "Auktion", Now, null, "bogshoppen");
+        var b = PublicQuestion.Publish("Virker Budget med Nordea?", "Ja.", "Budget", Now, null, null);
+        a.Site.Should().Be(QuestionRules.Bogshoppen);
+        b.Site.Should().Be(QuestionRules.ITMartin);
+        QuestionRules.OnSite([a, b], "bogshoppen").Should().Equal(a);
+        QuestionRules.OnSite([a, b], "itmartin").Should().Equal(b);
+        QuestionRules.OnSite([a, b], null).Should().Equal(a, b);
+    }
+
     private static void SetId(PublicQuestion q, int id) =>
         typeof(PublicQuestion).GetProperty(nameof(PublicQuestion.Id))!.SetValue(q, id);
 }
@@ -107,11 +119,72 @@ public class PublicQuestionsUseCaseTests
         var found = await _uc.SearchAsync("nordea", null);
         found.Questions.Should().ContainSingle().Which.Question.Should().Be("Virker Budget med Nordea? Ring [skjult]");
         found.Topics.Should().Equal(("Budget", 1));
+        (await _uc.SearchAsync("nordea", null, QuestionRules.Bogshoppen)).Total.Should().Be(0);
 
         await _uc.UpdateAsync(q.Id, new("Virker Budget med Nordea?", "Ja, med CSV.", "Budget"));
         (await _uc.SearchAsync("csv", null)).Questions.Should().ContainSingle();
 
         await _uc.RemoveAsync(q.Id);
         (await _uc.SearchAsync(null, null)).Total.Should().Be(0);
+    }
+}
+
+public class TrialRequestTests
+{
+    private sealed class FakeKartotek : ICustomerGateway
+    {
+        public List<(string Email, string Source, string Consent)> SignedUp = [];
+        public List<string> Unsubscribed = [];
+        public Task<string?> SignUpAsync(string email, string name, string source, string consentText, string interests, CancellationToken ct = default)
+        { SignedUp.Add((email, source, consentText)); return Task.FromResult<string?>(null); }
+        public Task<bool> UnsubscribeAsync(string email, CancellationToken ct = default) { Unsubscribed.Add(email); return Task.FromResult(true); }
+    }
+    private sealed class FakeInbox : IOwnerInbox
+    {
+        public List<string> Texts = [];
+        public Task NewRequestAsync(string name, string email, string text, CancellationToken ct = default) { Texts.Add(text); return Task.CompletedTask; }
+    }
+
+    [Test]
+    public async Task Trial_needs_the_ticked_consent_and_then_lands_in_kartotek_and_inbox()
+    {
+        var k = new FakeKartotek(); var inbox = new FakeInbox(); var uc = new Customers(k, inbox);
+        (await uc.RequestTrialAsync("Tilbud", "Ole", "Ole@Gmail.com", consent: false)).Should().StartWith("Sæt flueben");
+        k.SignedUp.Should().BeEmpty();
+        (await uc.RequestTrialAsync("Tilbud", "Ole", " Ole@Gmail.com ", consent: true)).Should().BeNull();
+        k.SignedUp.Should().ContainSingle().Which.Should().Be(("ole@gmail.com", TrialRules.Source("Tilbud"), TrialRules.ConsentText("Tilbud")));
+        TrialRules.ConsentText("Tilbud").Should().Contain("Ingen reklamer, ingen nyhedsbreve").And.Contain("afmelde");
+        inbox.Texts.Should().ContainSingle().Which.Should().Contain("Tilbud").And.Contain("ole@gmail.com");
+    }
+
+    [Test]
+    public async Task Unsubscribe_takes_just_the_email()
+    {
+        var k = new FakeKartotek(); var uc = new Customers(k, new FakeInbox());
+        (await uc.UnsubscribeAsync("")).Should().NotBeNull();
+        (await uc.UnsubscribeAsync(" OLE@gmail.com")).Should().BeNull();
+        k.Unsubscribed.Should().Equal("ole@gmail.com");
+    }
+}
+
+public class BogshoppenFollowTests
+{
+    private sealed class Kartotek : ICustomerGateway
+    {
+        public List<(string Email, string Source, string Interests)> Rows = [];
+        public Task<string?> SignUpAsync(string email, string name, string source, string consentText, string interests, CancellationToken ct = default)
+        { Rows.Add((email, source, interests)); return Task.FromResult<string?>(null); }
+        public Task<bool> UnsubscribeAsync(string email, CancellationToken ct = default) => Task.FromResult(true);
+    }
+    private sealed class NoInbox : IOwnerInbox { public Task NewRequestAsync(string n, string e, string t, CancellationToken ct = default) => Task.CompletedTask; }
+
+    [Test]
+    public async Task Follow_keeps_only_known_titles_plus_the_note_and_needs_consent()
+    {
+        var k = new Kartotek(); var uc = new Customers(k, new NoInbox());
+        (await uc.FollowBogshoppenAsync("Ole", "ole@gmail.com", ["Tintin"], null, consent: false)).Should().NotBeNull();
+        (await uc.FollowBogshoppenAsync("Ole", "Ole@Gmail.com", ["Tintin", "Hacket felt", "Asterix"], "Tintin nr. 5", consent: true)).Should().BeNull();
+        k.Rows.Should().ContainSingle().Which.Should().Be(("ole@gmail.com", BogshoppenRules.Source, "Tintin, Asterix | Tintin nr. 5"));
+        BogshoppenRules.ConsentText.Should().Contain("Ingen reklamer, ingen nyhedsbreve").And.Contain("afmelde");
     }
 }

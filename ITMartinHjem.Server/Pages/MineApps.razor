@@ -32,6 +32,8 @@
                     else { <span class="k-help"><i>😴 Sover lige nu – kontakt mig, så tænder jeg den, og du kan prøve den gratis.</i></span> }
                     <a class="k-btn k-btn-sm" href="/#chat">@(showcase ? "Spørg om din egen app" : "Spørg om udvidet")</a>
                 </div>
+                @* "Prøv gratis" on every app (user 2026-10-12): e-mail -> Kundekartotek -> Martin sends a PIN. No newsletters. *@
+                <TrialForm App="@a.Name" />
                 @* Contact line on every app (user 2026-10-12: "a contact me if interested in this app"); a sleeping app is tried for free by contacting Martin, who wakes it (user 2026-10-12). *@
                 <p class="hj-app-contact">📩 <b>@(up || showcase ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig: <a href="/#chat">chat</a> · <a href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">ITMartin@Mensa.dk</a> · <a href="tel:+4531194730">31 19 47 30</a></p>
             </div>

@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject PollDb      Db
 @inject IJSRuntime  JS
+@inject ITMartinPoll.Application.Voting Voting
 @inject NavigationManager Nav
 
 <PageTitle>@(_poll?.Title ?? "Meningsmåling")</PageTitle>
@@ -151,15 +152,11 @@
     private bool   _auctionNews   = false;
     private string _error         = "";
 
-    // Stored with each customer as proof of what they agreed to - change the text, and new sign-ups get the new text.
-    private const string OptInText = "Ja tak – send mig et login til Bogshoppens liveauktioner, og gem det, jeg har valgt, som mine interesser.";
+    // Opt-in + privacy texts and the voting rules live in ITMartinPoll.Domain.VoteRules (shared with bogshoppen.dk via /api/polls).
+    private const string OptInText = ITMartinPoll.Domain.VoteRules.OptInText;
 
     // Shown under the e-mail field (GDPR art. 13: who, why, how long, your rights).
-    private const string Privacy =
-        "INGEN nyhedsbreve – aldrig. Din e-mail vises ikke for andre og bruges kun til at sikre én stemme pr. person. " +
-        "Sætter du flueben, bruger vi den også til at sende dig et login til liveauktionerne og til at huske dine interesser – intet andet. " +
-        "Dataansvarlig: ITMartin (Martin Hvidberg Nielsen), ITMartin@Mensa.dk. Afstemningen slettes senest 6 måneder efter, den er lukket. " +
-        "Du kan altid bede om at se eller få slettet dine oplysninger.";
+    private const string Privacy = ITMartinPoll.Domain.VoteRules.Privacy;
 
     // People, not rows: a multi-choice voter has one Vote row per chosen option.
     private int People => _poll is null ? 0 : _poll.Votes.Select(v => v.Email != "" ? v.Email : (v.VoterName + "|" + v.VotedAt.Ticks)).Distinct().Count();
@@ -227,41 +224,9 @@
         _error = "";
         if (_selected.Count == 0 || _poll is null) return;
         var email = _email.Trim().ToLowerInvariant();
-        if (_poll.RequireContact)
-        {
-            if (string.IsNullOrWhiteSpace(_voterName)) { _error = "Skriv dit navn."; return; }
-            if (!System.Net.Mail.MailAddress.TryCreate(email, out var ma) || ma.Address != email || !email.Split('@')[1].Contains('.'))
-                { _error = "Skriv en rigtig e-mail, fx navn@gmail.com."; return; }
-            if (Db.Votes.Any(v => v.PollId == PollId && v.Email == email))
-                { _error = "Der er allerede stemt med den e-mail. Man kan kun stemme én gang."; return; }
-        }
-
-        var now = DateTime.UtcNow;
-        var first = true;
-        foreach (var optId in _selected)
-        {
-            Db.Votes.Add(new Vote
-            {
-                PollId    = PollId,
-                OptionId  = optId,
-                Comment   = first ? _comment.Trim() : "",   // the comment belongs to the person, keep it once
-                VoterName = _voterName.Trim(),
-                Email     = _poll.RequireContact ? email : "",
-                WantsAuctionNews = _poll.RequireContact && _auctionNews,
-                VotedAt   = now,
-            });
-            first = false;
-        }
-        if (_poll.RequireContact && _auctionNews)
-        {
-            var c = Db.Customers.FirstOrDefault(x => x.Email == email);
-            if (c is null) Db.Customers.Add(c = new Customer { Email = email, CreatedAt = now });
-            c.Name = _voterName.Trim(); c.Source = "Stem: " + _poll.Title;
-            c.ConsentText = OptInText; c.ConsentAt = now; c.WantsAuctionNews = true; c.UnsubscribedAt = null;
-            var picked = string.Join(", ", _poll.Options.Where(o => _selected.Contains(o.Id)).Select(o => o.Label));
-            c.Interests = _comment.Trim() == "" ? picked : picked + " | " + _comment.Trim();
-        }
-        await Db.SaveChangesAsync();
+        var (error, _) = await Voting.VoteAsync(PollId,
+            new ITMartinPoll.Domain.VoteRequest(_selected.ToList(), _voterName, email, _comment, _auctionNews));
+        if (error is not null) { _error = error; return; }
 
         await JS.InvokeVoidAsync("localStorage.setItem", $"poll_voted_{PollId}", string.Join(",", _selected));
         if (_poll.RequireContact) await JS.InvokeVoidAsync("localStorage.setItem", "voter_email", email);

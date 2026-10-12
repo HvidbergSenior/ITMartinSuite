@@ -33,7 +33,9 @@
     private List<(string Topic, int Count)> _topics = [];
     private int _total;
 
-    protected override async Task OnInitializedAsync() => (_latest, _topics, _total) = await Questions.LatestAsync(3);
+    [Parameter] public string Site { get; set; } = QuestionRules.ITMartin;
+
+    protected override async Task OnInitializedAsync() => (_latest, _topics, _total) = await Questions.LatestAsync(3, Site);
 
     private void Search() => Nav.NavigateTo("/spoergsmaal?q=" + Uri.EscapeDataString(_q.Trim()));
 

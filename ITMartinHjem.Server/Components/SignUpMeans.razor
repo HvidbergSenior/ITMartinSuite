@@ -1,0 +1,20 @@
+@* What you sign up to - shown right next to every "skriv mig op som kunde" tick box (user 2026-10-12:
+   "make it obvious what they sign up to... not ads or nyhedsbreve... easy way to unsubscribe"). *@
+<div class="sp-means">
+    <b>Det skriver du dig op til</b>
+    <ul>@foreach (var line in Lines) { <li>@line</li> }</ul>
+    <a href="/afmeld">🚪 Afmeld dig her</a>
+</div>
+
+@code {
+    // Default = the same lines Stem sends with its polls (ITMartinPoll.Domain.CustomerRules.SignUpMeans).
+    [Parameter] public IReadOnlyList<string>? Items { get; set; }
+
+    private IReadOnlyList<string> Lines => Items is { Count: > 0 } ? Items :
+    [
+        "✅ Du bliver skrevet op som kunde: dit navn og din e-mail i vores kundekartotek.",
+        "✅ Vi husker, hvad du interesserer dig for – så det er nemt for dig at få vores tilbud på netop det.",
+        "❌ Ingen reklamer og ingen nyhedsbreve. Vi deler aldrig din e-mail med nogen.",
+        "🚪 Du kan afmelde dig når som helst: skriv din e-mail på siden /afmeld – det tager 10 sekunder.",
+    ];
+}

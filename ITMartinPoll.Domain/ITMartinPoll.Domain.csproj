@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Stem - the domain. Started 2026-10-12 with voting (so bogshoppen.dk can show a poll and send votes here);
+       date polls, image sessions and packages are still flat in ITMartinPoll.Server and move here bit by bit. No EF, no HTTP. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinPoll.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -18,8 +18,6 @@
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
-    @* Today's plan inside this box (user 2026-10-12: "opdaterer stadig ikke på homepage" + "same box as Hvad skal jeg mon lave i dag"). *@
-    <NowCard Compact="true" />
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">✏️ Skriv opslag / svar beskeder</a> }
 </header>
 
@@ -33,15 +31,25 @@
 
 @* "Martin er her nu" right under the name, so every visitor sees it (user 2026-09-28). *@
 @* The front page = three questions (user 2026-10-12): "Vil du chatte? Skal jeg streame? Skal jeg hjælpe dig remote?" *@
-<ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true" Title="💬 Vil du chatte?" />
-
-<section class="k-card hj-stream">
-    <h2 class="k-card-title">📺 Skal jeg streame?</h2>
-    <LiveCard />
-    <p class="k-help">Vil du se mig arbejde på en app – eller have mig til at vise noget bestemt? <a href="#chat">Skriv det i chatten</a>, så går jeg live.</p>
+@* Today's plan: its own box right under the head box (user 2026-10-12: "just make that a headbox like bogshoppen"). *@
+<section class="k-card hj-today">
+    <h2 class="k-card-title">📅 Det regner jeg med at lave i dag</h2>
+    <NowCard Compact="true" />
 </section>
 
-<SeMedTip />
+@* Chat, stream and remote help in ONE box (user 2026-10-12), the three questions as sub-headings. *@
+<section class="k-card hj-trio">
+    <h2 class="k-card-title">👋 Chat, stream eller hjælp på din skærm</h2>
+    <div class="hj-trio-parts">
+        <ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true" Embedded="true" Title="💬 Vil du chatte?" />
+        <div class="hj-part hj-stream">
+            <h3 class="hj-part-title">📺 Skal jeg streame?</h3>
+            <LiveCard />
+            <p class="k-help">Vil du se mig arbejde på en app – eller have mig til at vise noget bestemt? <a href="#chat">Skriv det i chatten</a>, så går jeg live.</p>
+        </div>
+        <SeMedTip Embedded="true" />
+    </div>
+</section>
 
 @* Public Q&A from the chat, no names (user 2026-10-12): shown once Martin has put the first one up. *@
 <QuestionsBox />
@@ -66,24 +74,12 @@
     {
         <a class="hj-tile" href="@tile.Href"><span class="hj-tile-icon" aria-hidden="true">@tile.Icon</span><b>@tile.Title</b><span class="hj-tile-line">@tile.Line</span><span class="hj-tile-fact">💡 Vidste du @tile.Fact</span></a>
     }
+    @* The four "Vidste du" boxes are tiles in the same grid since 2026-10-12 (user); the app ones link to Mine apps. *@
+    <ElTip />
+    <BudgetTip />
+    <StartTip />
+    <AdhdTip />
 </nav>
-
-@* The "Vidste du …" boxes sit down here with the tiles and look like them (user 2026-10-12). *@
-<div class="hj-tips">
-@* "Vidste du …" - live money-saving tip from ElPriser (user 2026-10-05). *@
-<ElTip />
-
-@* "Vidste du …" for the free Budget page (user 2026-10-08). *@
-<BudgetTip />
-
-@* "Har du en idé?" - free homepage for new businesses (user 2026-10-08). *@
-<StartTip />
-
-@* "Vidste du …" ADHD + høj IQ, the user's own text (user 2026-10-10). *@
-<AdhdTip />
-</div>
-
-
 
 @* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
 

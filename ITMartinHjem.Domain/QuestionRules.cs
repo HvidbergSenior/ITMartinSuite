@@ -7,6 +7,13 @@ namespace ITMartinHjem.Domain;
 public static partial class QuestionRules
 {
     public const string NoTopic = "Andet";
+    public const string ITMartin = "itmartin", Bogshoppen = "bogshoppen";
+
+    public static string NormalizeSite(string? site) =>
+        string.Equals(site?.Trim(), Bogshoppen, StringComparison.OrdinalIgnoreCase) ? Bogshoppen : ITMartin;
+
+    public static IEnumerable<PublicQuestion> OnSite(IEnumerable<PublicQuestion> all, string? site) =>
+        site is null ? all : all.Where(q => q.Site == NormalizeSite(site));
 
     [GeneratedRegex(@"[\w.+-]+@[\w-]+(\.[\w-]+)+")] private static partial Regex Email();
     [GeneratedRegex(@"(\+45[\s-]?)?\b\d{2}[\s-]?\d{2}[\s-]?\d{2}[\s-]?\d{2}\b")] private static partial Regex Phone();

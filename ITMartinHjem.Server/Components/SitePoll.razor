@@ -1,0 +1,120 @@
+@inject SitePolls Polls
+@inject IJSRuntime JS
+
+@* A Stem poll shown right on the page (bogshoppen.dk, user 2026-10-12: "the questions should be here"). Votes go to Stem,
+   which keeps the rules (one vote per e-mail, opt-in to the Kundekartotek). This phone remembers that it voted. *@
+@if (_poll is { } p)
+{
+    <section class="k-card bs-card bs-vote" data-fold-closed="@(Folded ? "1" : null)">
+        <h2>@(Icon) @p.Title</h2>
+        <div>
+            <p>@p.Body</p>
+            @if (_voted || !p.Open)
+            {
+                <p><b>@(_voted ? "Tak – din stemme er registreret ✓" : "Afstemningen er lukket.")</b> Sådan står det (@p.People @(p.People == 1 ? "person" : "personer")):</p>
+                <ul class="sp-results">
+                    @foreach (var o in p.Options.OrderByDescending(o => o.People))
+                    {
+                        <li class="@(_chosen.Contains(o.Id) ? "mine" : "")">
+                            <span>@o.Label</span><b>@o.People</b>
+                            <i style="width:@(p.People == 0 ? 0 : o.People * 100 / p.People)%"></i>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="k-help">@(p.AllowMultiple ? "Vælg alt det, der lyder godt – tryk igen for at fravælge." : "Vælg én.")</p>
+                <div class="sp-options">
+                    @foreach (var o in p.Options)
+                    {
+                        <button type="button" class="sp-option @(_selected.Contains(o.Id) ? "on" : "")" aria-pressed="@(_selected.Contains(o.Id) ? "true" : "false")" @onclick="() => Toggle(o.Id)">
+                            @(_selected.Contains(o.Id) ? "☑" : "☐") @o.Label
+                        </button>
+                    }
+                </div>
+                @if (_selected.Count > 0)
+                {
+                    <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="@(p.RequireContact ? "Dit navn" : "Dit navn (valgfrit)")" aria-label="Dit navn" autocomplete="name" />
+                    @if (p.RequireContact)
+                    {
+                        <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
+                        <SignUpMeans Items="p.SignUpMeans" />
+                        <label class="sp-optin"><input type="checkbox" @bind="_optIn" /> <span>@p.OptInText</span></label>
+                        <p class="k-help">@p.Privacy</p>
+                    }
+                    <textarea class="k-input k-textarea k-mt" @bind="_comment" maxlength="280" rows="2" placeholder="Leder du efter noget bestemt? (valgfrit)" aria-label="Kommentar"></textarea>
+                    @if (_error.Length > 0) { <p class="form-error">⚠️ @_error</p> }
+                    <button class="k-btn k-btn-primary bs-btn k-mt" disabled="@_busy" @onclick="VoteAsync">🗳 Stem</button>
+                }
+            }
+        </div>
+    </section>
+}
+else if (_failed)
+{
+    <section class="k-card bs-card bs-vote"><h2>@Icon Afstemning</h2><p class="k-help">@SitePolls.Unreachable</p></section>
+}
+
+@code {
+    [Parameter, EditorRequired] public int PollId { get; set; }
+    [Parameter] public string Icon { get; set; } = "🗳";
+    [Parameter] public bool Folded { get; set; }
+
+    private PollView? _poll;
+    private bool _failed, _voted, _optIn, _busy;
+    private HashSet<int> _selected = [], _chosen = [];
+    private string _name = "", _email = "", _comment = "", _error = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _poll = await Polls.GetAsync(PollId);
+        _failed = _poll is null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try
+        {
+            var raw = await JS.InvokeAsync<string?>("localStorage.getItem", Key);
+            if (!string.IsNullOrEmpty(raw))
+            {
+                _chosen = raw.Split(',').Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToHashSet();
+                _voted = _chosen.Count > 0;
+            }
+            _name = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+            _email = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_email") ?? "";
+            StateHasChanged();
+        }
+        catch (JSException) { }   // private mode: just no memory
+    }
+
+    private string Key => $"bs_poll_voted_{PollId}";
+
+    private void Toggle(int id)
+    {
+        if (_poll?.AllowMultiple == true) { if (!_selected.Remove(id)) _selected.Add(id); }
+        else _selected = [id];
+    }
+
+    private async Task VoteAsync()
+    {
+        _busy = true; _error = "";
+        try
+        {
+            var (error, poll) = await Polls.VoteAsync(PollId, new PollVote(_selected.ToList(), _name, _email, _comment, _optIn));
+            if (poll is not null) _poll = poll;
+            if (error is not null) { _error = error; return; }
+            _chosen = [.. _selected]; _voted = true;
+            try
+            {
+                await JS.InvokeVoidAsync("localStorage.setItem", Key, string.Join(",", _chosen));
+                await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _name.Trim());
+                if (_poll?.RequireContact == true) await JS.InvokeVoidAsync("localStorage.setItem", "voter_email", _email.Trim().ToLowerInvariant());
+            }
+            catch (JSException) { }
+        }
+        finally { _busy = false; }
+    }
+}

@@ -5,23 +5,22 @@
 @* "Vidste du…" highlight on the front page (user 2026-10-05): what the dishwasher costs if started now vs. at the
    cheapest time. Numbers from ElPriser's /api/snapshot over the LAN (Hjem:ElPriserSnapshot), refreshed every 5 min.
    Shows nothing if ElPriser does not answer. *@
+@* Since 2026-10-12 a small tile like the others on the front page (user: "the last vidste du boxes should be like the others ... link to Mine apps"). *@
 @if (_tip is { } t)
 {
-    <section class="k-card hj-eltip">
-        <h2 class="k-card-title">💡 Vidste du …</h2>
+    <a class="hj-tile" href="/mine-apps">
+        <span class="hj-tile-icon" aria-hidden="true">⚡</span>
+        <b>ElPriser</b>
+        <span class="hj-tile-line">Hvornår er strømmen billigst?</span>
         @if (t.Save < 0.10m)
         {
-            <p class="hj-eltip-text">… at <b>lige nu</b> er et af de billigste tidspunkter i dag at starte din @t.Name.ToLowerInvariant()?
-                Kører den @Hours(t.Hours), koster det kun <b>@Kr(t.NowKr)</b>. Start den bare! 🙌</p>
+            <span class="hj-tile-fact">💡 Vidste du … at <b>lige nu</b> er et af dagens billigste tidspunkter at starte din @t.Name.ToLowerInvariant()? Det koster kun <b>@Kr(t.NowKr)</b>.</span>
         }
         else
         {
-            <p class="hj-eltip-text">… at hvis du starter din @t.Name.ToLowerInvariant() <b>lige nu</b>, og den kører @Hours(t.Hours), så koster det <b>@Kr(t.NowKr)</b>.</p>
-            <p class="hj-eltip-text">Venter du til <b>@When(t.BestStart)</b>, koster det kun <b class="hj-eltip-cheap">@Kr(t.BestKr)</b> – du sparer <b>@Kr(t.Save)</b> (@Pct(t)).</p>
+            <span class="hj-tile-fact">💡 Vidste du … at din @t.Name.ToLowerInvariant() koster <b>@Kr(t.NowKr)</b> lige nu – men kun <b>@Kr(t.BestKr)</b> @When(t.BestStart)?</span>
         }
-        <p class="k-help">Strømpris med alle afgifter i Vestdanmark lige nu – regnet ud af min gratis app ElPriser. En @t.Name.ToLowerInvariant() bruger cirka @t.Kwh.ToString("0.#", Da) kWh.</p>
-        <a class="k-btn k-btn-primary" href="https://elpriser.itmartin.dk" target="_blank" rel="noopener">⚡ Se hvornår strømmen er billigst</a>
-    </section>
+    </a>
 }
 
 @code {

@@ -5,6 +5,9 @@ using ITMartinPoll.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using ITMartin.Shared.UI.Kolibri;
+using ITMartinPoll.Application;
+using ITMartinPoll.Domain;
+using ITMartinPoll.Infrastructure;
 
 // The container's base image defaults to invariant/en-US, so ToString("dddd d.
 // MMMM")-style date formatting (used throughout - deadlines, date polls) came
@@ -18,9 +21,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddDbContext<PollDb>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("PollDb")
-             ?? "Data Source=/app/data/poll.db"));
+var pollDb = builder.Configuration.GetConnectionString("PollDb") ?? "Data Source=/app/data/poll.db";
+builder.Services.AddDbContext<PollDb>(o => o.UseSqlite(pollDb));
+// The layered part of Stem (2026-10-12): voting, used by the poll page and by /api/polls (bogshoppen.dk). Same poll.db.
+builder.Services.AddPollApplication();
+builder.Services.AddPollInfrastructure(pollDb);
 
 builder.Services.AddScoped<AdminSession>();
 
@@ -237,6 +242,27 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider    = new PhysicalFileProvider(imagesPath),
     RequestPath     = "/poll-images"
 });
+// Voting from other sites (2026-10-12: bogshoppen.dk shows the live-auction poll itself, server to server over the LAN).
+// Same rules as the poll page - both go through Application.Voting. Anyone may vote on a public poll, so no key.
+app.MapGet("/api/polls/{id:int}", async (int id, Voting voting) =>
+    await voting.ViewAsync(id) is { } view ? Results.Ok(view) : Results.NotFound());
+
+app.MapPost("/api/polls/{id:int}/vote", async (int id, VoteBody body, Voting voting) =>
+{
+    var (error, view) = await voting.VoteAsync(id, new VoteRequest(body.OptionIds ?? [], body.Name, body.Email, body.Comment, body.AuctionNews));
+    return error is null ? Results.Ok(view) : view is null ? Results.NotFound(new { error }) : Results.BadRequest(new { error, poll = view });
+}).DisableAntiforgery();
+
+// Kundekartotek from other sites (2026-10-12): "prøv gratis" sign-ups and one-step unsubscribe by e-mail (bogshoppen.dk/afmeld, itmartin.dk/afmeld).
+app.MapPost("/api/customers", async (CustomerBody body, CustomerList customers) =>
+{
+    var error = await customers.SignUpAsync(body.Email, body.Name, body.Source ?? "", body.ConsentText ?? "", body.Interests ?? "");
+    return error is null ? Results.Ok() : Results.BadRequest(new { error });
+}).DisableAntiforgery();
+
+app.MapPost("/api/customers/unsubscribe", async (UnsubscribeBody body, CustomerList customers) =>
+    Results.Ok(new { found = await customers.UnsubscribeAsync(body.Email) })).DisableAntiforgery();
+
 app.UseAntiforgery();
 
 // Paper version of a package - for the neighbours who will not use a link.
@@ -273,3 +299,7 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+public sealed record VoteBody(int[]? OptionIds, string? Name, string? Email, string? Comment, bool AuctionNews);
+public sealed record CustomerBody(string? Email, string? Name, string? Source, string? ConsentText, string? Interests);
+public sealed record UnsubscribeBody(string? Email);

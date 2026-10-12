@@ -11,20 +11,22 @@ public sealed class PublicQuestion
     public string Question { get; private set; } = "";
     public string Answer { get; private set; } = "";
     public string Topic { get; private set; } = "";
+    // Which site shows it: QuestionRules.ITMartin or QuestionRules.Bogshoppen.
+    public string Site { get; private set; } = QuestionRules.ITMartin;
     public DateTime PublishedAt { get; private set; }
     // The chat it came from - only so Svar can show "already on the page"; never shown publicly.
     public int? SourceThreadId { get; private set; }
 
     private PublicQuestion() { }   // EF
 
-    public static PublicQuestion Publish(string question, string answer, string topic, DateTime now, int? sourceThreadId)
+    public static PublicQuestion Publish(string question, string answer, string topic, DateTime now, int? sourceThreadId, string? site = null)
     {
         var q = new PublicQuestion { PublishedAt = now, SourceThreadId = sourceThreadId };
-        q.Edit(question, answer, topic);
+        q.Edit(question, answer, topic, site);
         return q;
     }
 
-    public void Edit(string question, string answer, string topic)
+    public void Edit(string question, string answer, string topic, string? site = null)
     {
         var q = (question ?? "").Trim();
         var a = (answer ?? "").Trim();
@@ -33,5 +35,6 @@ public sealed class PublicQuestion
         Question = q.Length > MaxQuestion ? q[..MaxQuestion] : q;
         Answer = a.Length > MaxAnswer ? a[..MaxAnswer] : a;
         Topic = QuestionRules.NormalizeTopic(topic);
+        Site = QuestionRules.NormalizeSite(site);
     }
 }
