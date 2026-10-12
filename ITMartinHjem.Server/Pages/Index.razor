@@ -127,15 +127,15 @@ else if (_family && !_owner)
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
 
-    // Every box has a "Vidste du …" (user 2026-10-08). Facts are the user's own numbers or sourced (source in the comment).
+    // Every box has a "Vidste du …" (user 2026-10-08). App tiles open the example on Mine apps, not the app itself (user 2026-10-12). Facts are the user's own numbers or sourced (source in the comment).
     private static readonly (string Icon, string Title, string Line, string Href, string Fact)[] Tiles =
     [
         // the user's own family library (ToshibaTest run, 2026-09): 87,009 files in, 34,079 out
-        ("🖼️", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
+        ("🖼️", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/mine-apps?app=Tjek%20dine%20billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
         ("👋", "Om mig og kontakt", "Hvem jeg er, og hvordan du fanger mig", "/om-mig", "… at jeg har lavet omkring 30 apps – og ingen af dem har reklamer?"),
         ("🐦", "Bliv pilot", "Prøv mine apps gratis og sig din mening", "/bliv-pilot", "… at piloterne er med til at bestemme, hvad appen skal kunne?"),
-        ("🖥️", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "https://semed.itmartin.dk", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
-        ("🎥", "Kig med live", "Se med, når jeg sender live", "https://kigmed.itmartin.dk", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
+        ("🖥️", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
+        ("🎥", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
         // Statista, Feb 2025: average daily social media use of internet users worldwide = 141 min (141*365/1440 = 35.7 days)
         ("📵", "Ingen reklamer", "Hvorfor mine apps aldrig har reklamer", "/ingen-reklamer", "… at vi i snit bruger 141 minutter om dagen på sociale medier? Det er 36 døgn om året."),
         ("🚀", "Hvad laver jeg nu?", "I dag og denne uge", "/hvad-laver-itkolibrien", "… at du kan skrive til mig om det, jeg laver i dag – direkte her på siden?"),

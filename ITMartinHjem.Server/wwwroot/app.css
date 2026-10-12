@@ -524,3 +524,10 @@ html[data-family="idag"] .hj-head .hj-intro, .bs-head p { margin: 0; font-weight
 .bs-done { padding: 10px 12px; border: 2px solid var(--k-success, #1f9d55); border-radius: 12px; }
 .bs-promise { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 .bs-promise li { padding: 8px 10px; border: 2px solid var(--k-border); border-radius: 10px; }
+
+/* bogshoppen.dk "Sådan køber du" as big boxes like the chat box (2026-10-12) */
+.bs-bigsteps { display: grid; gap: 12px; }
+.bs-bigstep { padding: 14px; border: 2px solid var(--k-border); border-radius: 14px; background: var(--k-card); text-align: center; }
+.bs-bigstep h4 { margin: 0 0 6px; font-size: 1.15rem; }
+.bs-bigstep p { margin: 0 0 10px; }
+.hj-app-target { border: 2px solid var(--k-text); }

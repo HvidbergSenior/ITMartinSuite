@@ -1,6 +1,7 @@
 @page "/mine-apps"
 @inject IDbContextFactory<HjemDb> Dbf
 @inject AppStatus Status
+@inject IJSRuntime JS
 
 <PageTitle>Mine apps · Martin Hvidberg</PageTitle>
 
@@ -19,7 +20,9 @@
         var showcase = a.Url.Length == 0;
         var up = a.Awake && (showcase || Status.IsUp(a.Url) != false);   // a showcase sleeps too when Martin says so
         @* Every app is a show/hide box: closed shows only icon + name (user 2026-10-05: "way too much text in one go"). *@
-        <div class="k-card hj-app @(up ? "" : "off")" data-fold-closed="1">
+        var target = string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase);
+        @* ?app=Name (the front-page tiles): that card starts open, so the example picture shows. *@
+        <div class="k-card hj-app @(up ? "" : "off") @(target ? "hj-app-target" : "")" id="app-@a.Id" data-fold-closed="@(target ? null : "1")">
             <h3 class="hj-app-head"><span class="hj-app-icon">@a.Icon</span> @a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
             <div class="hj-app-body">
                 <div class="k-help">@a.Description</div>
@@ -45,6 +48,14 @@
 
 @code {
     private List<AppLink> _apps = [];
+    [SupplyParameterFromQuery(Name = "app")] public string? App { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first || string.IsNullOrWhiteSpace(App) || _apps.FirstOrDefault(a => string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase)) is not { } a) return;
+        try { await JS.InvokeVoidAsync("eval", $"setTimeout(function(){{var e=document.getElementById('app-{a.Id}');if(e)e.scrollIntoView({{behavior:'smooth',block:'start'}});}},300)"); }
+        catch (JSException) { }
+    }
 
     protected override async Task OnInitializedAsync()
     {

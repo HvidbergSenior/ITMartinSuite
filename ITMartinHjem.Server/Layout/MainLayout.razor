@@ -12,6 +12,14 @@
     @foreach (var i in _menu) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href">@i.Title</a> }
 </nav>
 }
+else
+{
+@* bogshoppen.dk has its own two tabs (user 2026-10-12: "a tab on bogshoppen. Forside and one more" -> Varer). *@
+<nav class="hj-nav bs-nav">
+    <a href="/">🏠 Forside</a>
+    <a href="/varer">📦 Varer</a>
+</nav>
+}
 @if (_fest && !_bs)
 {
     <a class="fest-strip" href="/vibeke">

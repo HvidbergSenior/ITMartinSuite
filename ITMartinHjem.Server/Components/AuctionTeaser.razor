@@ -7,29 +7,32 @@
     <div>
         <p><b>Vi starter med liveauktioner.</b> Vi viser varerne i kameraet, og du byder fra mobilen. Varerne bliver vist her snart.</p>
 
-        <h3 class="bs-sub">📦 Det kommer der på</h3>
-        <ul class="bs-products">
-            @foreach (var (title, example) in BogshoppenRules.Products)
-            {
-                <li><b>@title</b> <span>– fx @example</span></li>
-            }
-        </ul>
+        @* The product list and the price promise moved to the Varer tab (/varer) 2026-10-12. *@
+        <p><a class="k-btn bs-btn" href="/varer">📦 Se hvilke varer der kommer – og vores prisløfte</a></p>
 
-        @* Price promise (user 2026-10-12): transparency - links to other sellers, 10 % under them, price match on a link, volume discount. *@
-        <h3 class="bs-sub">💰 Vores prisløfte – og du kan se det selv</h3>
-        <ul class="bs-promise">
-            <li>🔗 <b>Ved hver vare viser vi links</b> til andre sider, der sælger den samme vare – og <b>vores pris er 10 % lavere</b>.</li>
-            <li>🔎 <b>Har du fundet den billigere et andet sted?</b> Send os linket – så tager vi udgangspunkt i den pris og sælger <b>10 % under</b>.</li>
-            <li>📦 <b>Jo flere varer du køber, jo større rabat.</b></li>
-        </ul>
-
+        @* Big boxes like "Chat med Martin" (user 2026-10-12), one per step. *@
         <h3 class="bs-sub">🛒 Sådan køber du</h3>
-        <ol class="bs-steps">
-            <li><b>Skriv dig op herunder</b> – det tager et minut.</li>
-            <li><b>Du får et login</b> til liveauktionerne på mail.</li>
-            <li><b>Se auktionen live</b> på mobilen, og byd med ét tryk.</li>
-            <li><b>Hent varen</b> efter aftale, eller få den sendt med posten.</li>
-        </ol>
+        <div class="bs-bigsteps">
+            <div class="bs-bigstep">
+                <h4>1️⃣ Skriv dig op</h4>
+                <p>Det tager et minut – navn og e-mail. Ingen reklamer, ingen nyhedsbreve.</p>
+                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="#foelg">🔔 Skriv mig op</a>
+            </div>
+            <div class="bs-bigstep">
+                <h4>2️⃣ Få dit login</h4>
+                <p>Vi sender dig et login til liveauktionerne på mail, når den første auktion er klar.</p>
+            </div>
+            <div class="bs-bigstep">
+                <h4>3️⃣ Kig med og byd live</h4>
+                <p>Vi viser varerne i kameraet. Du ser med på mobilen, stiller spørgsmål i chatten og byder med ét tryk.</p>
+                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="https://kigmed.itmartin.dk" target="_blank" rel="noopener">📺 Kig med live</a>
+            </div>
+            <div class="bs-bigstep">
+                <h4>4️⃣ Hent eller få det sendt</h4>
+                <p>Hent varen efter aftale, eller få den sendt med posten.</p>
+                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="#chat">💬 Chat med Martin</a>
+            </div>
+        </div>
 
         <h3 class="bs-sub" id="foelg">🔔 Sådan følger du med</h3>
         @if (_sent)
