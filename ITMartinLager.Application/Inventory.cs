@@ -42,6 +42,14 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         return (hits, tops.Where(t => t.Value.Kr >= priced[t.Key].PriceHint * 3).ToDictionary(t => t.Key, t => t.Value));
     }
 
+    /// <summary>Every unsold item with its "worth looking into?" line - gold first (user 2026-10-12: "so that I can go
+    /// through all interesting in one go").</summary>
+    public async Task<List<(Item Item, string Note)>> InterestingAsync(IReadOnlyList<GoldEntry> gold, CancellationToken ct = default) =>
+        (await items.AllAsync(ct)).Where(i => i.Status != Statuses.Solgt)
+            .Select(i => (Item: i, Note: Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint)))
+            .Where(x => x.Note is not null).Select(x => (x.Item, x.Note!))
+            .OrderBy(x => Gold.Rank(x.Item2)).ThenByDescending(x => x.Item.Price ?? x.Item.PriceHint ?? 0).ToList();
+
     public async Task<ItemView?> GetAsync(int id, CancellationToken ct = default)
     {
         var item = await items.GetAsync(id, ct);

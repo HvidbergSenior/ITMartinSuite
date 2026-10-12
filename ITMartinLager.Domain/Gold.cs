@@ -116,6 +116,9 @@ public static partial class Gold
         return $"🔎 Tjek nærmere – {cat.Name} har {valuable.Count} numre{span} til 200 kr eller mere. Se om det er et af dem på Guld-listen.";
     }
 
+    /// <summary>Order for "go through all interesting in one go": gold, silver, bronze, then "tjek nærmere".</summary>
+    public static int Rank(string note) => note.StartsWith("🏆") ? 0 : note.StartsWith("🥈") ? 1 : note.StartsWith("🥉") ? 2 : 3;
+
     /// <summary>Is this thing on the gold list? Same kind, the category's words in its title or series, and the same
     /// issue: number when the entry has one, year when the entry has one.</summary>
     public static GoldEntry? Match(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year)
