@@ -30,7 +30,7 @@
            ikke gemt bag et klik. Den der lander her skal kunne se hvad det
            handler om og hvad der forventes, før han beslutter sig for at gå
            i gang. Derfor et helt afsnit frem for et listepunkt. *@
-        @if (_packages.Count > 0) { <p class="muted" style="text-align:center">🔒 Kun admin ser forespørgslerne herunder.</p> }
+        @if (_packages.Count > 0) { <p class="muted" style="text-align:center">Kun admin ser forespørgslerne herunder.</p> }
         @foreach (var pkg in _packages)
         {
             var steps = (pkg.Instructions ?? "")
@@ -63,13 +63,13 @@
                 }
 
                 <a class="poll-submit-btn pkg-front-cta" href="/pakke/@pkg.Id">Svar på forespørgslen →</a>
-                <a class="pkg-pdf-link" href="/pakke/@pkg.Id/pdf" target="_blank">🖨 Hent skemaet som PDF til print</a>
+                <a class="pkg-pdf-link" href="/pakke/@pkg.Id/pdf" target="_blank">Hent skemaet som PDF til print</a>
             </div>
         }
 
         @if (_sessions.Any())
         {
-        <div class="vote-section-label">🖼️ Billedserier — bedøm billeder</div>
+        <div class="vote-section-label">Billedserier — bedøm billeder</div>
         <div class="poll-list">
 
             @foreach (var s in _sessions)
@@ -98,7 +98,7 @@
 
         @if (_helpEvents.Any())
         {
-        <div class="vote-section-label">🤝 Giv en hånd — skriv dig på</div>
+        <div class="vote-section-label">Giv en hånd — skriv dig på</div>
         <div class="poll-list">
             @foreach (var h in _helpEvents)
             {
@@ -118,7 +118,7 @@
 
         @if (_datePolls.Any())
         {
-        <div class="vote-section-label">📅 Datoafstemninger — hvilke dage passer?</div>
+        <div class="vote-section-label">Datoafstemninger — hvilke dage passer?</div>
         <div class="poll-list">
             @foreach (var dp in _datePolls)
             {
@@ -150,7 +150,7 @@
 
         @if (_polls.Any())
         {
-        <div class="vote-section-label">📊 Meningsmålinger — svar på et spørgsmål</div>
+        <div class="vote-section-label">Meningsmålinger — svar på et spørgsmål</div>
         <div class="poll-list">
             @foreach (var p in _polls)
             {

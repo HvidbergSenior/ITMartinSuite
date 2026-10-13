@@ -58,7 +58,7 @@ public sealed class NotificationScheduler(
             {
                 var body = $"Kl. {cheapest.Start:HH:mm}–{cheapest.End:HH:mm} er dagens billigste to timer: {cheapest.AvgKrPerKwh:0.00} {unit}. En vask (1 kWh) koster {cheapest.CostKr:0.00} kr.";
                 await Broadcast(group, "cheapest", cheapest.Start, s => s.NotifyCheapest,
-                    new PushService.Message("Billigste strøm om en time ⚡", body), ct);
+                    new PushService.Message("Billigste strøm om en time", body), ct);
             }
 
             var dearest = w.DearestUpcoming;
@@ -67,7 +67,7 @@ public sealed class NotificationScheduler(
                 var body = $"Kl. {dearest.Start:HH:mm}–{dearest.End:HH:mm} er dagens dyreste: {dearest.AvgKrPerKwh:0.00} {unit}"
                          + (cheapest is not null ? $" mod {cheapest.AvgKrPerKwh:0.00} kl. {cheapest.Start:HH:mm}." : ".");
                 await Broadcast(group, "dearest", dearest.Start, s => s.NotifyExpensive,
-                    new PushService.Message("Dyr strøm om en time 💸", body), ct);
+                    new PushService.Message("Dyr strøm om en time", body), ct);
             }
         }
     }

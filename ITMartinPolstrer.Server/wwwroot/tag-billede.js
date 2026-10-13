@@ -26,7 +26,7 @@
     function addThumb(f) {
         var el = document.createElement(f.isVideo ? 'div' : 'img');
         el.className = 'thumb';
-        if (f.isVideo) el.textContent = '🎬'; else el.src = f.thumb || f.url;
+        if (f.isVideo) el.textContent = 'Video'; else el.src = f.thumb || f.url;
         thumbs.appendChild(el);
     }
 

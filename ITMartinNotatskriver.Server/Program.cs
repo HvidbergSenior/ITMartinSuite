@@ -20,7 +20,7 @@ builder.Services.AddKolibri(k =>
     [
         "Skriv stikord, eller tag et skærmbillede eller billede af en tekst.",
         "Vælg hvad du vil have: referat, brev, mail …",
-        "Tryk ✨ Skriv dokumentet, læs det igennem, og kopiér, hent som Word eller del det.",
+        "Tryk Skriv dokumentet, læs det igennem, og kopiér, hent som Word eller del det.",
     ];
     k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";

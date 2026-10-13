@@ -44,7 +44,7 @@
 
             @if (_done)
             {
-                <div class="help-thanks">Tak, @_doneName! Du står på listen herunder. 🙏</div>
+                <div class="help-thanks">Tak, @_doneName! Du står på listen herunder.</div>
             }
             else
             {
@@ -132,7 +132,7 @@
                 @if (IsAdmin && _event.Signups.Any(s => s.Phone != ""))
                 {
                     <div class="poll-comments">
-                        <div class="poll-comments-label">🔒 Telefonnumre (kun admin)</div>
+                        <div class="poll-comments-label">Telefonnumre (kun admin)</div>
                         @foreach (var s in _event.Signups.Where(s => s.Phone != "").OrderBy(s => s.Name))
                         {
                             <div class="poll-comment"><span class="session-comment-name">@s.Name</span> <a href="tel:@s.Phone">@s.Phone</a></div>
@@ -145,7 +145,7 @@
 
             @* Questions and chat - everyone on the page sees new messages at once. *@
             <div class="poll-results help-chat">
-                <div class="poll-results-label">💬 Spørgsmål og snak</div>
+                <div class="poll-results-label">Spørgsmål og snak</div>
                 <p class="help-hint">Har du et spørgsmål, eller vil du aftale noget? Skriv her – svaret kommer også her.</p>
                 <div class="help-chat-list">
                     @if (_chat.Count == 0) { <span class="muted">Ingen beskeder endnu.</span> }

@@ -12,22 +12,22 @@
 @* The front page answers one question in five seconds: what does power cost now, and
    should I wait? Planning (start times, night, EV) lives in MinElpris (/planlaeg). *@
 <div class="ep-header">
-    <div class="ep-logo">⚡</div>
+    <img class="ep-logo" src="/_content/ITMartin.Shared.UI/kolibri-icon.svg" alt="" />
     <div class="ep-title">ElPriser</div>
     @* Home, not "where the phone is": asked once (location if you are home, or your address). Tap to change. *@
     <button class="area-chip" title="Skift dit hjem" @onclick="() => _askHome = !_askHome" disabled="@_searching">
-        @if (_searching) { <text>📍 Finder dig…</text> }
-        else if (_gridName.Length > 0) { <text>🏠 @_postal <small>@_gridName</small></text> }
-        else { <text>🏠 Hvor bor du?</text> }
+        @if (_searching) { <text>Finder dig…</text> }
+        else if (_gridName.Length > 0) { <text>@_postal <small>@_gridName</small></text> }
+        else { <text>Hvor bor du?</text> }
     </button>
 </div>
 
 @if (_askHome || _gridName.Length == 0)
 {
     <div class="card">
-        <div class="card-title">🏠 Hvor bor du?</div>
+        <div class="card-title">Hvor bor du?</div>
         <p class="small">Prisen afhænger af netselskabet, der leverer strømmen til dit hjem. Vi gemmer kun postnummer og netselskab – på din egen telefon.</p>
-        <button class="btn btn-primary btn-block" @onclick="LocateAsync" disabled="@_searching">📍 Jeg er hjemme nu – brug min placering</button>
+        <button class="btn btn-primary btn-block" @onclick="LocateAsync" disabled="@_searching">Jeg er hjemme nu – brug min placering</button>
         <form class="row2 u-mt8" @onsubmit="FindAddressAsync" @onsubmit:preventDefault>
             <input class="field u-f1" @bind="_addr" placeholder="…eller skriv din adresse eller dit postnummer" aria-label="Adresse eller postnummer" />
             <button class="btn" type="submit" disabled="@_searching">Find</button>
@@ -40,12 +40,12 @@
 }
 @if (_locateMsg.Length > 0)
 {
-    <div class="card small" role="status">📍 @_locateMsg</div>
+    <div class="card small" role="status">@_locateMsg</div>
 }
 @if (_pending is { } pend)
 {
     <div class="card small" role="status">
-        <p class="u-mb8">📍 Du er ved <b>@pend.Place.Label</b>, hvor netselskabet er <b>@pend.Grid.Name</b>. Er det dit nye hjem?</p>
+        <p class="u-mb8">Du er ved <b>@pend.Place.Label</b>, hvor netselskabet er <b>@pend.Grid.Name</b>. Er det dit nye hjem?</p>
         <p class="muted u-mb8">Priserne skal regnes med netselskabet, hvor du bor – ikke hvor du er lige nu.</p>
         <div class="btn-row">
             <button class="btn btn-primary" @onclick="() => SaveHomeAsync(pend.Place, pend.Grid)">Ja, skift til @pend.Grid.Name</button>
@@ -102,7 +102,7 @@ else
     <div class="card now-tile @lvl">
         @* One answer (user 2026-09-28): what a dishwasher run costs right now. The new-vs-old model
            comparison was removed - your own machine comes later via its energy label. *@
-        <div class="now-device">🍽️ En opvask i en ny opvasker (0,54 kWh på Eco) · 2 timer · start @(picked is null ? "nu" : When(start))</div>
+        <div class="now-device">En opvask i en ny opvasker (0,54 kWh på Eco) · 2 timer · start @(picked is null ? "nu" : When(start))</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
@@ -167,10 +167,10 @@ else
 @if (_hindsight is { } hs && hs.Saved > 1)
 {
     <div class="card now-tile lvl-cheap">
-        <div class="small muted">💡 Hvad havde du sparet?</div>
+        <div class="small muted">Hvad havde du sparet?</div>
         <div class="now-price lvl-cheap">@hs.Saved.ToString("0", Da) kr</div>
         <div class="now-unit">på @hs.Days dage, hvis opvasken var startet på dagens billigste tid i stedet for kl. 18</div>
-        <div class="now-compare">Det er med én opvask om dagen. 🔓 MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
+        <div class="now-compare">Det er med én opvask om dagen. MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
     </div>
 }
 
@@ -200,8 +200,8 @@ else
     private sealed record Machine(string Short, string Name, double Kwh);
     private static readonly Machine[] Machines =
     [
-        new("🌱 Ny sparemodel", "Bosch SMD6TCX00E (A, Eco)", 0.54),
-        new("🕰️ Gammel", "Gammel opvasker (ca. 2005)", 1.5),
+        new("Ny sparemodel", "Bosch SMD6TCX00E (A, Eco)", 0.54),
+        new("Gammel", "Gammel opvasker (ca. 2005)", 1.5),
     ];
     private const int CyclesPerYear = 280;   // the EU energy label's yearly basis
     private int _machine;

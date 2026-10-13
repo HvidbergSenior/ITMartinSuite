@@ -86,7 +86,7 @@
         track.contentHint = 'detail';   // sharp text beats smooth motion when Martin reads a menu out loud
         track.onended = function () {   // the browser's own "Stop sharing" bar
             if (step !== 'trin-deler') return;
-            $('del').textContent = '🖥️ Del skærm igen';
+            $('del').textContent = 'Del skærm igen';
             show('trin-del');
         };
 
@@ -134,7 +134,7 @@
         if (!mic) return;
         var t = mic.getAudioTracks()[0];
         t.enabled = !t.enabled;
-        this.textContent = t.enabled ? '🎤 Slå mikrofonen fra' : '🔇 Slå mikrofonen til igen';
+        this.textContent = t.enabled ? 'Slå mikrofonen fra' : 'Slå mikrofonen til igen';
     });
 
     $('stop').addEventListener('click', function () { afslut('Tak! Martin kan ikke længere se din skærm.'); });

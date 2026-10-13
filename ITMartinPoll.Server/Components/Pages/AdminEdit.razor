@@ -115,8 +115,8 @@
 
             @if (_auctionSignups.Count > 0)
             {
-                <label class="form-label">🔨 Vil have login til liveauktioner: @_auctionSignups.Count</label>
-                <p class="admin-hint">De ligger i <a href="/admin/kunder">📇 Kundekartoteket</a> (kun dem, der selv har sat flueben).</p>
+                <label class="form-label">Vil have login til liveauktioner: @_auctionSignups.Count</label>
+                <p class="admin-hint">De ligger i <a href="/admin/kunder">Kundekartoteket</a> (kun dem, der selv har sat flueben).</p>
             }
 
             @if (!string.IsNullOrEmpty(_error))

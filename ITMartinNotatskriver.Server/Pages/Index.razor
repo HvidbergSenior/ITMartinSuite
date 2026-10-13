@@ -12,14 +12,14 @@
 <PageTitle>Notatskriver</PageTitle>
 
 <header class="ns-head">
-    <h1>✍️ Notatskriver</h1>
+    <h1>Notatskriver</h1>
     <p>@(Plan.Dictation ? "Fra stikord, diktat og billeder af håndskrift til færdigt dokument." : "Fra stikord og billeder af tekst til færdigt dokument.")</p>
 </header>
 
 @if (_locked)
 {
     <section class="k-card ns-card ns-gate">
-        <h2>🔑 Testversion</h2>
+        <h2>Testversion</h2>
         <p>Notatskriver er i test. Skriv den adgangskode, du har fået.</p>
         <input class="k-input" type="password" @bind="_code" @bind:event="oninput" @onkeydown="@(e => e.Key == "Enter" ? Unlock() : Task.CompletedTask)" placeholder="Adgangskode" />
         <button class="k-btn ns-go" @onclick="Unlock">Lås op</button>
@@ -36,7 +36,7 @@ else
         {
             <p class="k-help">Skriv eller indsæt dine stikord herunder – korte linjer er fint. Har du teksten et andet sted, så tag et <b>skærmbillede</b> eller et <b>billede</b> af den. AI'en skriver det hele om til et færdigt dokument.</p>
             <div class="ns-inputs">
-                <button data-test="pick-images" class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "pics")' disabled="@(_busy || _draft.IsFull)">🖼️ Skærmbillede eller billede af tekst</button>
+                <button data-test="pick-images" class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "pics")' disabled="@(_busy || _draft.IsFull)">Skærmbillede eller billede af tekst</button>
                 <InputFile id="pics" class="ns-hidden" OnChange="OnFiles" accept="image/*" multiple />
             </div>
             <p class="k-help ns-small" data-test="free-note">🆓 Gratis: tekst og op til @Plan.MaxAttachments billeder. Vil du også kunne tale noterne ind eller sende filer (PDF, Word)? Skriv til ITMartin@Mensa.dk.</p>
@@ -45,20 +45,20 @@ else
         {
             <p class="k-help">Skriv stikord, tal dem ind, eller tag billeder af dine håndskrevne noter (flere sider er fint).</p>
             <div class="ns-inputs">
-                <button data-test="take-photo" class="k-btn ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "cam")' disabled="@(_busy || _draft.IsFull)">📷 Tag billede</button>
+                <button data-test="take-photo" class="k-btn ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "cam")' disabled="@(_busy || _draft.IsFull)">Tag billede</button>
                 <InputFile id="cam" class="ns-hidden" OnChange="OnFiles" accept="image/*" capture="environment" multiple />
-                <button data-test="pick-files" class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "files")' disabled="@(_busy || _draft.IsFull)">📎 Vælg filer</button>
+                <button data-test="pick-files" class="k-btn k-btn-secondary ns-big" @onclick='() => JS.InvokeVoidAsync("notat.pick", "files")' disabled="@(_busy || _draft.IsFull)">Vælg filer</button>
                 <InputFile id="files" class="ns-hidden" OnChange="OnFiles" accept="image/*,.pdf,.docx,.txt,text/plain" multiple />
                 @if (_canDictate && Plan.Dictation)
                 {
-                    <button data-test="dictate" class="k-btn @(_dictating ? "ns-rec" : "k-btn-secondary") ns-big" @onclick="ToggleDictate" disabled="@_busy">@(_dictating ? "⏹ Stop" : "🎤 Tal")</button>
+                    <button data-test="dictate" class="k-btn @(_dictating ? "ns-rec" : "k-btn-secondary") ns-big" @onclick="ToggleDictate" disabled="@_busy">@(_dictating ? "Stop" : "Tal")</button>
                 }
             </div>
             @if (!_canDictate)
             {
-                <p class="k-help">🎤 Vil du tale? Tryk i tekstfeltet og brug mikrofonen på telefonens tastatur.</p>
+                <p class="k-help">Vil du tale? Tryk i tekstfeltet og brug mikrofonen på telefonens tastatur.</p>
             }
-            else { <p class="k-help ns-small">🎤 bruger din browsers talegenkendelse – i Chrome/Edge sendes lyden til Google/Microsoft. <a href="/privatliv">Læs mere</a></p> }
+            else { <p class="k-help ns-small">bruger din browsers talegenkendelse – i Chrome/Edge sendes lyden til Google/Microsoft. <a href="/privatliv">Læs mere</a></p> }
             @if (_dictating) { <p class="ns-live">● Lytter … tal tydeligt. Teksten kommer ind i feltet herunder.</p> }
         }
 
@@ -68,7 +68,7 @@ else
                 @foreach (var a in _draft.Attachments)
                 {
                     <li>
-                        @if (a.Kind == AttachmentKind.Image) { <img src="@Thumb(a)" alt="" /> } else { <span class="ns-fileicon">@(a.Kind == AttachmentKind.Pdf ? "📕" : "📄")</span> }
+                        @if (a.Kind == AttachmentKind.Image) { <img src="@Thumb(a)" alt="" /> } else { <span class="ns-fileicon">@(a.Kind == AttachmentKind.Pdf ? "PDF" : "Fil")</span> }
                         <span class="ns-bname">@a.Name</span>
                         <button class="ns-x" title="Fjern" @onclick="() => Remove(a)" disabled="@_busy">✕</button>
                     </li>
@@ -85,7 +85,7 @@ else
         <div class="ns-types">
             @foreach (var t in DocumentType.All)
             {
-                <button class="ns-type @(t == _draft.Type ? "on" : "")" @onclick="() => _draft.Type = t" disabled="@_busy"><span>@t.Icon</span>@t.Title</button>
+                <button class="ns-type @(t == _draft.Type ? "on" : "")" @onclick="() => _draft.Type = t" disabled="@_busy">@t.Title</button>
             }
         </div>
         <label class="ns-label" for="ekstra">Ekstra ønske (valgfrit)</label>
@@ -102,7 +102,7 @@ else
         @if (_stopped is { } st)
         {
             <div data-test="stopped" class="ns-block @(st.Hard ? "hard" : "")" role="alert">
-                <b>@(st.Hard ? "⛔ Det her må du ikke sende" : "✋ Det her må du ikke sende – fjern personoplysningerne først")</b>
+                <b>@(st.Hard ? "Det her må du ikke sende" : "Det her må du ikke sende – fjern personoplysningerne først")</b>
                 <p>@st.Message</p>
                 @if (st.Findings.Count > 0)
                 {
@@ -110,7 +110,7 @@ else
                 }
                 @if (!st.Hard)
                 {
-                    <button data-test="hide-and-continue" class="k-btn" @onclick="() => WriteAsync(hideNames: true)">🙈 Skjul dem og fortsæt</button>
+                    <button data-test="hide-and-continue" class="k-btn" @onclick="() => WriteAsync(hideNames: true)">Skjul dem og fortsæt</button>
                     <p class="k-help">CPR, telefon, e-mail og adresser byttes ud med fx [CPR1], før noget sendes til AI'en – og sættes ind igen i dit færdige dokument.</p>
                 }
                 else
@@ -120,7 +120,7 @@ else
             </div>
         }
 
-        <button data-test="write" class="k-btn ns-go" @onclick="() => WriteAsync(hideNames: false)" disabled="@(_busy || !_draft.CanWrite)">@(_busy ? "⏳ Skriver …" : "✨ Skriv dokumentet")</button>
+        <button data-test="write" class="k-btn ns-go" @onclick="() => WriteAsync(hideNames: false)" disabled="@(_busy || !_draft.CanWrite)">@(_busy ? "Skriver …" : "Skriv dokumentet")</button>
         @if (_busy) { <p class="k-help">Det tager typisk 10-30 sekunder@(_draft.HasVisuals ? " – lidt længere med billeder" : "").</p> }
         @if (_error is not null) { <p data-test="error" class="ns-err">@_error</p> }
     </section>
@@ -129,21 +129,21 @@ else
     @if (_result is not null)
     {
         <section class="k-card ns-card ns-result" id="result" data-test="result">
-            <h2>3. @_draft.Type.Icon @_draft.Type.Title</h2>
+            <h2>3. @_draft.Type.Title</h2>
             <p class="k-help">Læs det igennem og ret direkte i teksten. [?] = AI'en kunne ikke læse det sikkert. [dato] o.l. = mangler i dine noter.</p>
             <textarea class="ns-out" @bind="_result" @bind:event="oninput" rows="16"></textarea>
             <div class="ns-inputs">
-                <button class="k-btn ns-big" @onclick="Copy">📋 @(_copied ? "Kopieret!" : "Kopiér")</button>
-                <button class="k-btn k-btn-secondary ns-big" @onclick="DownloadWord">💾 Hent som Word</button>
-                @if (_canShare) { <button class="k-btn k-btn-secondary ns-big" @onclick="Share">📤 Del</button> }
-                <button class="k-btn k-btn-secondary ns-big" @onclick="New">🧹 Nyt dokument</button>
+                <button class="k-btn ns-big" @onclick="Copy">@(_copied ? "Kopieret!" : "Kopiér")</button>
+                <button class="k-btn k-btn-secondary ns-big" @onclick="DownloadWord">Hent som Word</button>
+                @if (_canShare) { <button class="k-btn k-btn-secondary ns-big" @onclick="Share">Del</button> }
+                <button class="k-btn k-btn-secondary ns-big" @onclick="New">Nyt dokument</button>
             </div>
         </section>
     }
 </div>
 }
 
-<p class="k-help ns-privacy" data-test="privacy">🔒 Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
+<p class="k-help ns-privacy" data-test="privacy">Intet gemmes. Dine noter, billeder og dokumentet forsvinder, når du lukker siden. Teksten sendes til AI'en Claude (Anthropic) for at blive skrevet. Notatskriver må ikke bruges til oplysninger om patienter eller borgere.<br /><a href="/privatliv">Privatlivspolitik</a> · <a href="/vilkaar">Vilkår</a></p>
 
 @code {
     private NoteDraft _draft = null!;

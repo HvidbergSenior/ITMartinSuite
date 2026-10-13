@@ -40,7 +40,7 @@ else
         <div class="tag-row">
             @foreach (var w in _workers)
             {
-                <button class="tag @(_worker == w ? "tag-on" : "")" @onclick="() => _worker = _worker == w ? null : w">👤 @w</button>
+                <button class="tag @(_worker == w ? "tag-on" : "")" @onclick="() => _worker = _worker == w ? null : w">@w</button>
             }
         </div>
     }
@@ -95,7 +95,7 @@ else
                 {
                     var cover = PieceText.Cover(p);
                     <a class="piece-tile @PieceText.UrgencyClass(p)" href="/moebel/@p.Slug">
-                        @if (cover is not null) { <img src="@MediaUrl.For(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> } else { <div class="piece-tile-empty">🪑</div> }
+                        @if (cover is not null) { <img src="@MediaUrl.For(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> } else { <div class="piece-tile-empty">Intet billede</div> }
                         <div class="piece-tile-body">
                             <div class="piece-tile-title">@PieceText.TitleOrDefault(p)</div>
                             <div class="piece-tile-meta">@Meta(p)</div>

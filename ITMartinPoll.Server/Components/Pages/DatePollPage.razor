@@ -95,13 +95,13 @@
                             <div class="poll-results-label" style="margin-bottom:8px">@d.Date.ToString("dddd d. MMMM")</div>
 
                             <div class="option-row" style="margin-bottom:8px">
-                                <button class="admin-btn @(mine?.Status == "Yes" ? "datepoll-active-yes" : "")" @onclick='() => RespondAsync(dateId, "Yes")'>✅ Ja</button>
-                                <button class="admin-btn @(mine?.Status == "Maybe" ? "datepoll-active-maybe" : "")" @onclick='() => RespondAsync(dateId, "Maybe")'>🤔 Måske</button>
-                                <button class="admin-btn @(mine?.Status == "No" ? "datepoll-active-no" : "")" @onclick='() => RespondAsync(dateId, "No")'>❌ Nej</button>
+                                <button class="admin-btn @(mine?.Status == "Yes" ? "datepoll-active-yes" : "")" @onclick='() => RespondAsync(dateId, "Yes")'>Ja</button>
+                                <button class="admin-btn @(mine?.Status == "Maybe" ? "datepoll-active-maybe" : "")" @onclick='() => RespondAsync(dateId, "Maybe")'>Måske</button>
+                                <button class="admin-btn @(mine?.Status == "No" ? "datepoll-active-no" : "")" @onclick='() => RespondAsync(dateId, "No")'>Nej</button>
                                 <button class="admin-btn @(mine?.IsPreferred == true ? "datepoll-active-preferred" : "")"
                                         title="Din foretrukne uge, hvis du kun kunne vælge én - uafhængigt af om du faktisk kan"
                                         @onclick="() => TogglePreferredAsync(dateId)">
-                                    @(mine?.IsPreferred == true ? "⭐ Foretrukken" : "☆ Foretræk denne")
+                                    @(mine?.IsPreferred == true ? "★ Foretrukken" : "☆ Foretræk denne")
                                 </button>
                             </div>
 
@@ -115,12 +115,12 @@
                             @{ var counts = d.Responses.GroupBy(r => r.Status).ToDictionary(g => g.Key, g => g.Count()); }
                             @{ var preferredCount = d.Responses.Count(r => r.IsPreferred); }
                             <div class="poll-card-meta" style="margin-top:8px">
-                                <span>✅ @counts.GetValueOrDefault("Yes")</span>
-                                <span>🤔 @counts.GetValueOrDefault("Maybe")</span>
-                                <span>❌ @counts.GetValueOrDefault("No")</span>
+                                <span>Ja: @counts.GetValueOrDefault("Yes")</span>
+                                <span>Måske: @counts.GetValueOrDefault("Maybe")</span>
+                                <span>Nej: @counts.GetValueOrDefault("No")</span>
                                 @if (preferredCount > 0)
                                 {
-                                    <span>⭐ @preferredCount foretrækker</span>
+                                    <span>★ @preferredCount foretrækker</span>
                                 }
                             </div>
                         </div>
@@ -148,7 +148,7 @@
                 </div>
 
                 <div class="admin-form" style="padding-top:0" id="vaert">
-                    <h3 style="margin:8px 0 4px">🏠 Hvem vil gerne være vært?</h3>
+                    <h3 style="margin:8px 0 4px">Hvem vil gerne være vært?</h3>
                     @if (_hosts.Count == 0) { <p class="muted" style="margin:0 0 8px">Ingen har tilbudt endnu.</p> }
                     else
                     {

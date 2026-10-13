@@ -24,10 +24,10 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Skriv dit postnummer eller tryk 📍 Brug min placering.",
+        "Skriv dit postnummer eller tryk Brug min placering.",
         "Søg efter en vare, fx kaffe, smør eller havregryn. Den billigste pr. kilo står øverst.",
-        "Tryk ⭐ ved en søgning for at gemme den under Mine varer. Så ser du dem alle sammen, hver gang du åbner Tilbud.",
-        "Læg Tilbud på telefonen med knappen 📲 – så er den ét tryk væk, når du står i butikken.",
+        "Tryk Gem ved en søgning for at gemme den under Mine varer. Så ser du dem alle sammen, hver gang du åbner Tilbud.",
+        "Læg Tilbud på telefonen med knappen Læg på telefonen – så er den ét tryk væk, når du står i butikken.",
     ];
     k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";

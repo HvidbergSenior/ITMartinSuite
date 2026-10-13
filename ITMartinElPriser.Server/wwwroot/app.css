@@ -38,7 +38,7 @@ body {
 
 .ep-root { min-height: 100dvh; }
 .ep-page { max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom)); }
-/* The ☀️/🌙 button sits top right in the page (not floating over the cards) - keep headings clear of it. */
+/* The light/dark button sits top right in the page (not floating over the cards) - keep headings clear of it. */
 .ep-page > h1, .ep-header { padding-right: 52px; }
 
 h1 { font-size: 1.35rem; font-weight: 800; }
@@ -47,7 +47,7 @@ a { color: var(--accent); text-decoration: none; }
 .small { font-size: .82rem; }
 
 .ep-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.ep-logo { font-size: 1.6rem; }
+.ep-logo { width: 32px; height: 32px; }
 .ep-title { font-size: 1.35rem; font-weight: 800; color: var(--accent); }
 .ep-sub { color: var(--muted); font-size: .85rem; }
 
@@ -131,9 +131,9 @@ a { color: var(--accent); text-decoration: none; }
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; display: flex; justify-content: space-around;
     background: var(--bg2); border-top: 1px solid var(--border); padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
 }
-.bottom-nav a { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: .68rem; padding: 4px 8px; }
-.bottom-nav a span { font-size: 1.35rem; }
-.bottom-nav a.active { color: var(--accent); }
+/* Text buttons, no icons (2026-10-12: no emojis in any app). The active tab is filled, not only coloured. */
+.bottom-nav a { display: flex; align-items: center; justify-content: center; min-height: 44px; color: var(--muted); font-size: .95rem; font-weight: 700; padding: 8px 14px; border-radius: 12px; }
+.bottom-nav a.active { background: var(--accent); color: var(--k-accent-text, #fff); }
 
 #components-reconnect-modal { display: none; }
 #components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed {
@@ -276,7 +276,7 @@ details.fold[open] summary::after { content: "－"; }
 .sup-name .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sup-cost { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sup.mine summary { background: var(--bg3); border-radius: 10px; }
-.sup.mine .sup-rank::after { content: " ⭐"; }
+.sup.mine .sup-rank::after { content: " (dit)"; }
 .sup-detail { padding: 4px 6px 12px 42px; display: grid; gap: 4px; }
 .cta-link { display: block; font-weight: 700; }
 

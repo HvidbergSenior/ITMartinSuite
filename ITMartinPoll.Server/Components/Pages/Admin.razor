@@ -10,7 +10,7 @@
 
 <div class="poll-root">
     <header class="poll-header">
-        <span class="poll-logo">⚙ Admin</span>
+        <span class="poll-logo">Admin</span>
         @if (Session.IsAdmin) { <a href="/" class="poll-back">← Forsiden</a> }
     </header>
 
@@ -31,7 +31,7 @@
     {
         <div class="admin-body">
 
-            <a href="/admin/kunder" class="admin-create-btn" style="margin-bottom:20px">📇 Kundekartotek</a>
+            <a href="/admin/kunder" class="admin-create-btn" style="margin-bottom:20px">Kundekartotek</a>
 
             <div class="admin-section-label">BILLEDSERIER</div>
             <a href="/admin/session/create" class="admin-create-btn">+ Ny billedserie</a>
@@ -52,7 +52,7 @@
                     </div>
                     @if (!string.IsNullOrEmpty(s.Question))
                     {
-                        <div class="admin-poll-question">❓ @s.Question</div>
+                        <div class="admin-poll-question">@s.Question</div>
                     }
                     <div class="admin-poll-actions">
                         <a href="/admin/session/edit/@s.Id" class="admin-btn">Resultater / Rediger</a>

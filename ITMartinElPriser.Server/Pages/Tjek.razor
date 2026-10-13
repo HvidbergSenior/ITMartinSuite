@@ -11,11 +11,11 @@
    Forsyningstilsynet, and how much could be saved. Which supplier, and the switch, are in MinElpris. *@
 
 <PageTitle>Tjek din elregning – ElPriser</PageTitle>
-<h1>🔎 Tjek din elregning</h1>
+<h1>Tjek din elregning</h1>
 
 <PageHelp Key="help-tjek">
     <p><b>Det er her:</b> Læg din elregning ind som PDF – så ser du på få sekunder, hvor pengene går hen, om dit elselskab tager den pris, det har oplyst til Forsyningstilsynet, og hvad du kan spare.</p>
-    <p><b>Sådan gør du:</b> Find regningen som PDF (se “Sådan finder du din regning” under knappen), tryk “📎 Vælg regning” og vælg filen. Regningen bliver kun læst – den gemmes ikke.</p>
+    <p><b>Sådan gør du:</b> Find regningen som PDF (se “Sådan finder du din regning” under knappen), tryk “Vælg regning” og vælg filen. Regningen bliver kun læst – den gemmes ikke.</p>
 </PageHelp>
 
 @if (_bill is null)
@@ -24,17 +24,17 @@
         <div class="card-title">Hvad betaler du egentlig for?</div>
         <p class="small">De fleste ved ikke, at kun en del af elregningen går til elselskabet. Og at elselskaberne selv oplyser deres priser til Forsyningstilsynet – så vi kan tjekke, om din regning passer.</p>
         <label class="btn btn-primary btn-block u-center">
-            📎 Vælg regning (PDF)
+            Vælg regning (PDF)
             <InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" class="u-hide"/>
         </label>
         @if (_busy) { <p class="muted small">Læser regningen…</p> }
         @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
         <details class="card fold u-mt10" data-remember="tjek-howto">
-            <summary>❓ Sådan finder du din regning som PDF</summary>
+            <summary>Sådan finder du din regning som PDF</summary>
             <ol class="small">
                 <li><b>Tjek din mail og e-Boks / Digital Post.</b> De fleste elselskaber sender regningen dér. Søg på elselskabets navn eller “elregning”.</li>
                 <li><b>Eller hent den i elselskabets app eller på “Mit …”-siden:</b> find <b>Regninger</b> eller <b>Dokumenter</b> → den seneste → <b>Download</b>.</li>
-                <li><b>Gem PDF’en</b> (iPhone: “Arkiver i Filer”) og tryk “📎 Vælg regning” ovenfor.</li>
+                <li><b>Gem PDF’en</b> (iPhone: “Arkiver i Filer”) og tryk “Vælg regning” ovenfor.</li>
             </ol>
             <p class="muted small">Brug en <b>månedsregning</b> – ikke årsopgørelsen. Vi kan læse NRGi’s regninger nu; flere elselskaber kommer.</p>
         </details>
@@ -85,7 +85,7 @@ else
         @if (c.PortalLooksWrong && c.BillMarkupKr is { } bmw && c.PortalMarkupKr is { } pmw)
         {
             <div class="card">
-                <div class="card-title">🔎 elpris.dk viser et forkert tal for @b.Supplier</div>
+                <div class="card-title">elpris.dk viser et forkert tal for @b.Supplier</div>
                 <p class="small">Tillægget er elselskabets egen fortjeneste oven i selve strømmen. På din regning: <b>@((bmw * 100).ToString("0.00", Da)) øre</b> pr. kWh – det ser normalt ud.</p>
                 <p class="small">@b.Supplier har oplyst <b>@((pmw * 100).ToString("0.00", Da)) øre</b> som tillæg til Forsyningstilsynet (elpris.dk)@(c.Current?.Updated is { } uw ? $" den {uw.ToString("d. MMMM yyyy", Da)}" : "").
                     Det ligner hele prisen pr. kWh, ikke et tillæg – de andre elselskabers tillæg ligger på 0–55 øre. Det er sandsynligvis en indtastningsfejl hos @b.Supplier på elpris.dk, ikke en fejl på din regning.</p>
@@ -95,7 +95,7 @@ else
         else if (c.BillMarkupKr is { } bm && c.PortalMarkupKr is { } pm && Math.Abs(bm - pm) * 100 >= 0.3)
         {
             <div class="card now-tile lvl-expensive">
-                <div class="card-title">⚠️ Din regning passer ikke med elpris.dk</div>
+                <div class="card-title">Din regning passer ikke med elpris.dk</div>
                 <p class="small">Tillægget er elselskabets egen fortjeneste oven i selve strømmen. På din regning: <b>@((bm * 100).ToString("0.00", Da)) øre</b> pr. kWh. @b.Supplier har oplyst <b>@((pm * 100).ToString("0.00", Da)) øre</b> til Forsyningstilsynet (elpris.dk)@(c.Current?.Updated is { } u ? $", senest opdateret {u.ToString("d. MMMM yyyy", Da)}" : "").</p>
                 <p class="small">Med dit forbrug er forskellen ca. <b>@(Math.Abs(c.MarkupGapYearlyKr ?? 0).ToString("0", Da)) kr om året</b>. Oftest betyder det, at prisen er ændret, uden at elpris.dk er opdateret – det skal elselskabet ellers gøre.</p>
                 <p class="small"><b>Spørg @b.Supplier:</b> “Min regning siger @((bm * 100).ToString("0.00", Da)) øre i tillæg, men I oplyser @((pm * 100).ToString("0.00", Da)) øre på elpris.dk. Hvilken pris gælder, og hvornår blev den ændret?”</p>
@@ -103,7 +103,7 @@ else
         }
         else if (c.BillMarkupKr is not null && c.PortalMarkupKr is not null)
         {
-            <div class="card"><p class="small">✅ Tillægget på din regning passer med det, @b.Supplier har oplyst til Forsyningstilsynet.</p></div>
+            <div class="card"><p class="small">Tillægget på din regning passer med det, @b.Supplier har oplyst til Forsyningstilsynet.</p></div>
         }
 
         @if (c.SavingYearlyKr is > 50 and var save)
@@ -112,19 +112,19 @@ else
                 <div class="small muted">Samme slags pris, samme strøm, ca. @c.YearlyKwh.ToString("#,##0", Da) kWh om året</div>
                 <div class="now-price lvl-cheap">Spar ca. @save.ToString("#,##0", Da) kr</div>
                 <div class="now-unit">om året ved at skifte elselskab</div>
-                <div class="now-compare">🔒 <b>Hvilket selskab</b> og <b>hvordan du skifter</b> med ét tryk – det viser MinElpris, sammen med hele regningen linje for linje og dit forbrug time for time.</div>
+                <div class="now-compare"><b>Hvilket selskab</b> og <b>hvordan du skifter</b> med ét tryk – det viser MinElpris, sammen med hele regningen linje for linje og dit forbrug time for time.</div>
                 <a class="btn btn-primary btn-block u-mt10" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se hvem – i MinElpris →</a>
             </div>
         }
         else if (c.SavingYearlyKr is not null)
         {
-            <div class="card"><p class="small">👍 Du har allerede et af de billigste produkter til dit forbrug.</p></div>
+            <div class="card"><p class="small">Du har allerede et af de billigste produkter til dit forbrug.</p></div>
         }
     }
 
     <div class="card">
         <p class="small muted u-mb8">Regningen er kun læst – den er ikke gemt. Priser fra <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</p>
-        <label class="btn">📎 Tjek en anden regning<InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" class="u-hide"/></label>
+        <label class="btn">Tjek en anden regning<InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" class="u-hide"/></label>
     </div>
 }
 
@@ -171,8 +171,8 @@ else
     private static string Pct(double part, double total) => total > 0 ? (part / total * 100).ToString("0", Da) + " %" : "";
     private static string PartyTitle(BillParty p, ElBill b) => p switch
     {
-        BillParty.Supplier => $"🏢 Elselskabet – {b.Supplier}",
-        BillParty.Grid => $"🔌 Netselskabet – {b.Grid}",
-        _ => "🏛️ Staten og Energinet",
+        BillParty.Supplier => $"Elselskabet – {b.Supplier}",
+        BillParty.Grid => $"Netselskabet – {b.Grid}",
+        _ => "Staten og Energinet",
     };
 }

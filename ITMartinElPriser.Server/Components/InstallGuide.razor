@@ -5,11 +5,11 @@
 @if (_d is { Installed: false } d)
 {
     <details class="card fold install-guide" data-remember="install">
-        <summary>📲 Læg ElPriser på @(d.Pc ? "skrivebordet" : "telefonen")</summary>
+        <summary>Læg ElPriser på @(d.Pc ? "skrivebordet" : "telefonen")</summary>
         <div class="fold-body small">
             <p>Så åbner prisen med ét tryk – som en app, uden at gå via browseren.</p>
             <details class="install-dev" open="@d.Ios">
-                <summary>📱 iPhone</summary>
+                <summary>iPhone</summary>
                 <ol>
                     <li>Åbn siden i <b>Safari</b>.</li>
                     <li>Tryk på <b>(⋯)</b> – de tre prikker i en cirkel nederst til højre – og vælg <b>Del</b> ⬆︎. <span class="muted">(Ældre iPhone: tryk direkte på Del ⬆︎ nederst.)</span></li>
@@ -17,7 +17,7 @@
                 </ol>
             </details>
             <details class="install-dev" open="@(!d.Ios && !d.Pc)">
-                <summary>🤖 Android</summary>
+                <summary>Android</summary>
                 @if (d.CanPrompt && !d.Pc)
                 {
                     <button class="btn btn-primary btn-block" @onclick="InstallAsync">Installer ElPriser</button>
@@ -29,7 +29,7 @@
                 </ol>
             </details>
             <details class="install-dev" open="@d.Pc">
-                <summary>💻 PC</summary>
+                <summary>PC</summary>
                 @if (d.CanPrompt && d.Pc)
                 {
                     <button class="btn btn-primary btn-block" @onclick="InstallAsync">Installer ElPriser</button>

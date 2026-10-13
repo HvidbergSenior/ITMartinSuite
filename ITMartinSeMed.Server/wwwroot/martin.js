@@ -94,7 +94,7 @@
         if (!mic) return;
         var t = mic.getAudioTracks()[0];
         t.enabled = !t.enabled;
-        this.textContent = t.enabled ? '🎤 Slå min mikrofon fra' : '🔇 Slå min mikrofon til igen';
+        this.textContent = t.enabled ? 'Slå min mikrofon fra' : 'Slå min mikrofon til igen';
     });
     $('fuld').addEventListener('click', function () { if ($('skaerm').requestFullscreen) $('skaerm').requestFullscreen(); });
     $('slut').addEventListener('click', function () {

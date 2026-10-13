@@ -9,10 +9,10 @@ public static class CustomerRules
     // What a sign-up means, shown as a list right next to the tick box (bogshoppen.dk poll, app trial requests).
     public static readonly IReadOnlyList<string> SignUpMeans =
     [
-        "✅ Du bliver skrevet op som kunde: dit navn og din e-mail i vores kundekartotek.",
-        "✅ Vi husker, hvad du interesserer dig for – så det er nemt for dig at få vores tilbud på netop det.",
-        "❌ Ingen reklamer og ingen nyhedsbreve. Vi deler aldrig din e-mail med nogen.",
-        "🚪 Du kan afmelde dig når som helst: skriv din e-mail på siden /afmeld – det tager 10 sekunder.",
+        "Du bliver skrevet op som kunde: dit navn og din e-mail i vores kundekartotek.",
+        "Vi husker, hvad du interesserer dig for – så det er nemt for dig at få vores tilbud på netop det.",
+        "Ingen reklamer og ingen nyhedsbreve. Vi deler aldrig din e-mail med nogen.",
+        "Du kan afmelde dig når som helst: skriv din e-mail på siden /afmeld – det tager 10 sekunder.",
     ];
 
     public static string Normalize(string? email) => (email ?? "").Trim().ToLowerInvariant();

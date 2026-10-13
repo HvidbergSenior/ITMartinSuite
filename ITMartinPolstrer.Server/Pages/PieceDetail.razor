@@ -83,7 +83,7 @@ else
 }
 
 <div class="share-row">
-    <button class="btn btn-ghost" @onclick="CopyShareLinkAsync">🔗 @(_copied ? "Link kopieret" : "Del proces")</button>
+    <button class="btn btn-ghost" @onclick="CopyShareLinkAsync">@(_copied ? "Link kopieret" : "Del proces")</button>
 </div>
 
 @if (Journal.AiEnabled)
@@ -94,8 +94,8 @@ else
         {
             <p class="muted">Lad AI se billederne og noterne og foreslå type, materialer, konstruktion og arbejdsgang. Dine egne ord bliver aldrig overskrevet.</p>
             <div class="btn-row">
-                <button class="btn btn-small" @onclick="() => SuggestAsync(SuggestionLevel.Hurtig)" disabled="@_aiBusy">⚡ Hurtig (ca. 5 øre)</button>
-                <button class="btn btn-small btn-primary" @onclick="() => SuggestAsync(SuggestionLevel.Grundig)" disabled="@_aiBusy">🔎 Grundig (ca. 30 øre)</button>
+                <button class="btn btn-small" @onclick="() => SuggestAsync(SuggestionLevel.Hurtig)" disabled="@_aiBusy">Hurtig (ca. 5 øre)</button>
+                <button class="btn btn-small btn-primary" @onclick="() => SuggestAsync(SuggestionLevel.Grundig)" disabled="@_aiBusy">Grundig (ca. 30 øre)</button>
             </div>
             @if (_aiBusy) { <p class="muted">Kigger på billederne…</p> }
             @if (_aiError is not null) { <div class="error-box">@_aiError</div> }

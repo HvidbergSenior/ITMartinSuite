@@ -151,12 +151,12 @@ else
             @Paper("energinet", "Transmissions- og systemtarif", Unit("energinet"))
             @Paper("afgift", "Elafgift", Unit("afgift"))
 
-            <div class="bill-r bill-sum"><span>I alt ekskl. moms</span><span></span><b>@exMoms.ToString("N2", Da)</b></div>
+            <div class="bill-r bill-sum"><span>I alt ekskl. moms</span><b>@exMoms.ToString("N2", Da)</b></div>
             @Paper("moms", "③ Moms 25 %", "")
-            <div class="bill-r bill-total"><span>I alt inkl. moms</span><span></span><b>@b.TotalKr.ToString("N2", Da) kr</b></div>
+            <div class="bill-r bill-total"><span>I alt inkl. moms</span><b>@b.TotalKr.ToString("N2", Da) kr</b></div>
 
-            <div class="bill-r muted u-mt8"><span>Betalt aconto</span><span></span><b>-@aconto.ToString("N2", Da)</b></div>
-            <div class="bill-r"><span>@((b.TotalKr - aconto) >= 0 ? "Til betaling" : "Til udbetaling")</span><span></span><b>@Math.Abs(b.TotalKr - aconto).ToString("N2", Da) kr</b></div>
+            <div class="bill-r muted u-mt8"><span>Betalt aconto</span><b>-@aconto.ToString("N2", Da)</b></div>
+            <div class="bill-r"><span>@((b.TotalKr - aconto) >= 0 ? "Til betaling" : "Til udbetaling")</span><b>@Math.Abs(b.TotalKr - aconto).ToString("N2", Da) kr</b></div>
         </div>
         <div class="muted small u-mt8">Rækkefølgen og navnene varierer fra selskab til selskab – nogle skriver "Nettarif C" eller "Transport af el", andre lægger transporten sammen i én linje. Beløbene og hvem de går til er de samme. Aconto-linjen er kun et eksempel.</div>
     </div>
@@ -177,7 +177,7 @@ else
                     <div class="bill-explain">
                         <p>@l.What</p>
                         <p><b>Kan du gøre noget?</b> @l.Influence</p>
-                        @if (!string.IsNullOrEmpty(l.Tip)) { <p class="lvl-cheap">💡 @l.Tip</p> }
+                        @if (!string.IsNullOrEmpty(l.Tip)) { <p class="lvl-cheap">@l.Tip</p> }
                     </div>
                 }
             </div>
@@ -218,7 +218,7 @@ else
         <div class="bill-r tap @(open ? "on" : "")" @onclick="() => _open = open ? null : id"><span>@name</span><span class="muted">@detail</span><b>@l.Kr.ToString("N2", Da)</b></div>
         if (open)
         {
-            <div class="bill-explain paper-explain"><p><b>@l.Title</b> – @l.What</p><p><b>Kan du gøre noget?</b> @l.Influence</p>@if (!string.IsNullOrEmpty(l.Tip)) { <p class="lvl-cheap">💡 @l.Tip</p> }</div>
+            <div class="bill-explain paper-explain"><p><b>@l.Title</b> – @l.What</p><p><b>Kan du gøre noget?</b> @l.Influence</p>@if (!string.IsNullOrEmpty(l.Tip)) { <p class="lvl-cheap">@l.Tip</p> }</div>
         }
     };
 

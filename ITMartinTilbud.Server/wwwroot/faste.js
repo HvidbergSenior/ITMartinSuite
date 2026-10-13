@@ -15,7 +15,7 @@
                 return '<div class="tb-mine"><div class="tb-mine-head"><b>' + esc(d.item) + '</b>' +
                     (pin ? '<button class="tb-x" type="button" data-id="' + esc(d.id) + '">✕ Slet</button>' : '') + '</div>' +
                     '<div>' + esc(d.chain) + ' – ' + days(d.days) + (d.price ? ' – <b>' + String(d.price).replace('.', ',') + ' kr</b>' + (d.unit ? ' pr. ' + esc(d.unit) : '') : '') + '</div>' +
-                    (d.needsApp ? '<div class="tb-needs">📱 Kræver ' + esc(d.needsApp) + '</div>' : '') +
+                    (d.needsApp ? '<div class="tb-needs">Kræver ' + esc(d.needsApp) + '</div>' : '') +
                     (d.note ? '<div class="k-muted">' + esc(d.note) + '</div>' : '') + '</div>';
             }).join('') : '<p class="k-muted">Ingen faste tilbud endnu.</p>';
             $('faste-liste').querySelectorAll('.tb-x').forEach(function (b) {
