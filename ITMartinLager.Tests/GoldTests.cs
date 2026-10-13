@@ -26,6 +26,28 @@ public class GoldTests
     }
 
     [Test]
+    public void Bundles_decades_whole_years_reprints_and_books_are_not_gold()
+    {
+        // Real DBA titles that were on the list on 2026-10-13.
+        var picked = Gold.Pick(AndersAnd,
+        [
+            O("Anders And og Co. 1961, 48 numre", 550),
+            O("Anders And og Co. 1980'erne, 155 blade", 250),
+            O("Anders And & Co tegneserier 1988 – 52 hæfter i alt", 200),
+            O("3 dtk. Anders And & Co. tegneserier 1953", 500),
+            O("Anders And & Co 1960’erne tegneseriehæfter bundt", 300),
+            O("Anders And 1950’ rene", 160),
+            O("Anders And & Co tegneserier årgang 1986", 250),
+            O("Anders And årgang 1953 + nr. 1 fra 1954. Indbundet.", 310),
+            O("Anders And & Co. Genoptryk af nr. 1 marts 1949", 150),
+            O("Anders And bog – En daglig dosis (Disney, 1990)", 140),
+            O("Tegneserier, Anders And nr 7 marts 1956 8. Årgang", 1000),
+            O("Anders And & Co tegneseriehæfte nr 9 fra 1958 årgang 10", 250),
+        ], "DBA", DateTime.UtcNow);
+        picked.Select(p => (p.Number, p.Year)).Should().Equal(("7", 1956), ("9", 1958));
+    }
+
+    [Test]
     public void Watches_coins_posters_and_figures_are_not_gold()
     {
         var tintin = Gold.Categories.First(c => c.Name == "Tintin");

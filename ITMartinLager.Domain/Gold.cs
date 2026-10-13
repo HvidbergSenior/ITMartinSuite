@@ -55,7 +55,12 @@ public static partial class Gold
 
     // Words that make a listing many things, not one issue.
     private static readonly string[] Lots = ["samling", "samlinger", "komplet", "komplette", "stk", "pakke", "kasse", "lot", "bundle",
-        "blandet", "blandede", "bind", "dele", "diverse", "flere", "mange", "partier", "parti", "samlemapper", "samlemappe", "årgange"];
+        "blandet", "blandede", "bind", "dele", "diverse", "flere", "mange", "partier", "parti", "samlemapper", "samlemappe", "årgange",
+        // The 2026-10-13 list still had "1961, 48 numre", "155 blade", "52 hæfter i alt", "3 dtk." and bound years at the top.
+        "numre", "blade", "hæfter", "dtk", "indbundet", "indbundne"];
+
+    // A reprint is not the issue it copies: "Genoptryk af nr. 1 marts 1949" sold as gold for nr. 1 1949 (2026-10-13).
+    private static readonly string[] Reprints = ["genoptryk", "genoptrykt", "nyoptryk", "faksimile", "reprint"];
 
     // Not a blad, album or book: the first gold list (2026-10-12) had an Omega "TinTin" watch, a 50 euro Asterix coin,
     // posters, Storm P porcelain figures and framed notice boards at the top.
@@ -74,8 +79,11 @@ public static partial class Gold
             if (o.Price is not { } kr || kr <= 0 || ListingParse.Placeholder(kr)) continue;
             var words = ListingParse.Words(o.Name);
             if (!c.MustHave.All(m => words.Any(w => w.StartsWith(m)))) continue;
-            if (words.Any(w => Lots.Contains(w) || NotPaper.Contains(w)) || RangeRx().IsMatch(o.Name)) continue;
+            if (words.Any(w => Lots.Contains(w) || NotPaper.Contains(w) || Reprints.Contains(w))
+                || RangeRx().IsMatch(o.Name) || DecadeRx().IsMatch(o.Name)) continue;
+            if (c.Kind == Kinds.AndersAnd && words.Contains("bog")) continue;   // "Anders And bog – En daglig dosis" is a book, not the blad
             var number = NumberRx().Match(o.Name) is { Success: true } n ? n.Groups[1].Value.TrimStart('0') : "";
+            if (number == "" && words.Contains("årgang")) continue;   // "årgang 1986" with no number is the whole year
             int? year = YearRx().Matches(o.Name).Select(m => int.Parse(m.Value)).Distinct().ToList() is { Count: 1 } ys ? ys[0] : null;
             if (number == "" && (c.NeedsNumber || year is null)) continue;   // one issue must be named
             single.Add((number, year, o));
@@ -153,4 +161,7 @@ public static partial class Gold
     private static partial Regex YearRx();
     [GeneratedRegex(@"\b\d{1,4}\s*-\s*\d{1,4}\b")]
     private static partial Regex RangeRx();
+    // "1960'erne", "1980’erne", "1950’ rene": a decade is many issues.
+    [GeneratedRegex(@"\b(?:19|20)\d0\s*['’´]?\s*(?:erne|rne|rene)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex DecadeRx();
 }
