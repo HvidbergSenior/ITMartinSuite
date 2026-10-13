@@ -1,6 +1,7 @@
 using ITMartinClub.Application;
 using ITMartinClub.Domain;
 using ITMartinClub.Infrastructure;
+using ITMartinClub.Server;
 using ITMartinClub.Server.Services;
 
 // Club (Bestøver Klub): the thin web layer - pages, login cookies, links, the reminder job. The rules are in .Domain,
@@ -31,7 +32,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-var photosRoot = DependencyInjection.PhotosRoot(builder.Configuration);
+var photosRoot = ITMartinClub.Infrastructure.DependencyInjection.PhotosRoot(builder.Configuration);
 Directory.CreateDirectory(photosRoot);
 
 var liveMediaRoot = builder.Configuration["ClubSettings:LiveMediaRoot"] ?? "/app/data/livemedia";
