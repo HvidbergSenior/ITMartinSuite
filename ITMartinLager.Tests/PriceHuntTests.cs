@@ -136,6 +136,16 @@ public class PriceHuntTests
     }
 
     [Test]
+    public void Comics_get_the_Pegasus_link_other_things_do_not()
+    {
+        Pricing.PegasusFits(new Item { Kind = Kinds.Tegneserie }).Should().BeTrue();
+        Pricing.PegasusFits(new Item { Kind = Kinds.AndersAnd }).Should().BeTrue();
+        Pricing.PegasusFits(new Item { Kind = Kinds.Jumbobog }).Should().BeTrue();
+        Pricing.PegasusFits(new Item { Kind = Kinds.Bog }).Should().BeFalse();
+        Pricing.PegasusFits(new Item { Kind = Kinds.Cd }).Should().BeFalse();
+    }
+
+    [Test]
     public void A_one_word_title_is_never_part_of_another_word_or_another_author()
     {
         var m = ListingParse.Matcher("Mort", "Terry Pratchett");

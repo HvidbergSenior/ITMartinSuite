@@ -12,6 +12,11 @@ public static partial class Pricing
     // or Jumbobøger - asked anyway, they only answer with foreign books that share a word ("anders").
     public static readonly string[] AntiquarianKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Magasin];
 
+    // Pegasus (pegasus.dk, the comic shop in Copenhagen) blocks automatic searches with a browser check, and its search
+    // is a form, not a link. So comics get a link to the shop and the words to search for, and a person looks (user 2026-10-13).
+    public const string PegasusUrl = "https://www.pegasus.dk";
+    public static bool PegasusFits(Item i) => i.Kind is Kinds.Tegneserie or Kinds.Jumbobog or Kinds.AndersAnd;
+
     // The shop sells 10 % under the other sites (user 2026-10-12: "We sell 10 pct below other sites"), and shows the
     // customer the links that prove it.
     public const decimal ShopFactor = 0.9m;

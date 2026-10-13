@@ -121,6 +121,10 @@ else
             }
             <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? $"⏳ Spørger {Hunt.SourceCount} sider …" : "🔄 Find priser nu")</button>
             <p class="k-small k-muted">Siderne – @Hunt.SourceList Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
+            @if (Pricing.PegasusFits(_item))
+            {
+                <p class="k-small">Tjek også <a href="@Pricing.PegasusUrl" target="_blank" rel="noopener">Pegasus</a> – tegneseriebutikken i København. Den kan ikke spørges automatisk, så skriv <strong>@Pricing.TitleFor(_item)</strong> i feltet Søgning på deres side.</p>
+            }
         </section>
     }
 
