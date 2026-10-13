@@ -1,11 +1,11 @@
 @page "/g/{slug}/tasks"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TeamMembers People
+@inject Places PlaceBook
 @inject NavigationManager Nav
 @inject IJSRuntime JS
-@inject ClubPushService PushService
 @inject ClubAuthService ClubAuth
-@inject AssignmentTaskService TaskService
+@inject TaskBoard TaskService
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -167,7 +167,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
@@ -179,12 +179,12 @@ else
 
     private async Task RefreshAsync()
     {
-        var all = await Db.Assignments.Where(a => a.GroupId == _group!.Id).OrderBy(a => a.CreatedAt).ToListAsync();
+        var all = (await TaskService.AllAsync(_group!.Id)).OrderBy(a => a.CreatedAt).ToList();
         _open = all.Where(a => !a.IsCompleted).OrderBy(a => a.DueDate).ToList();
         _done = all.Where(a => a.IsCompleted).OrderByDescending(a => a.CompletedAt).Take(10).ToList();
-        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
-        _mainTasks = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.SortOrder).ToListAsync();
-        _locations = await Db.StorageLocations.Where(l => l.GroupId == _group!.Id).OrderBy(l => l.Name).ToListAsync();
+        _members = await People.ListAsync(_group!.Id);
+        _mainTasks = await TaskService.MainTasksAsync(_group!.Id);
+        _locations = await PlaceBook.ListAsync(_group!.Id);
     }
 
     private void ToggleAdding()
@@ -203,7 +203,7 @@ else
     {
         _editingTaskId = t.Id;
         var oldMainTaskTitle = t.MainTaskId is { } mtid ? _mainTasks.FirstOrDefault(m => m.Id == mtid)?.Title : null;
-        _newTitle = oldMainTaskTitle is not null ? AssignmentTaskService.StripMainTaskPrefix(t.Title, oldMainTaskTitle) : t.Title;
+        _newTitle = oldMainTaskTitle is not null ? TaskTitles.WithoutMainTask(t.Title, oldMainTaskTitle) : t.Title;
         _newMainTaskId = t.MainTaskId?.ToString() ?? "";
         _newStorageLocationId = t.StorageLocationId?.ToString() ?? "";
         _newAssignedTo = t.Assignees.ToHashSet();

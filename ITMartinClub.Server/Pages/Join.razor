@@ -1,7 +1,6 @@
 @page "/g/{slug}/join"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
-@inject MemberPinRateLimiterService MemberPins
+@inject TeamAccess Access
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -87,13 +86,13 @@
     {
         if (!firstRender) return;
 
-        if (await ClubAuth.ResolveSessionAsync(JS, Db, Slug) is not null)
+        if (await ClubAuth.ResolveSessionAsync(JS, Slug) is not null)
         {
             Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
             return;
         }
 
-        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _group = await Access.GroupAsync(Slug);
         _loaded = true;
         StateHasChanged();
     }
@@ -103,8 +102,6 @@
     private async Task JoinAsync()
     {
         _error = null;
-        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv dit navn."; return; }
-        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din PIN."; return; }
         if (_group == null) return;
 
         _joining = true;
@@ -112,62 +109,13 @@
 
         try
         {
-            var member = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == _group.Id && m.Name == _name.Trim());
-
-            if (member is not null && MemberPins.IsLockedOut(member.Id))
+            var result = await Access.JoinAsync(_group, _name, _pin, _code, _contactInfo);
+            if (result.Session is not { } session)
             {
-                _error = "For mange forkerte forsøg for dette navn. Vent 15 minutter, eller bed en admin om at nulstille PIN.";
+                _error = result.Error;
                 _joining = false;
                 return;
             }
-
-            // A correct PIN for a known name already proves who they are - the
-            // invite code only exists to gate strangers who don't know a name/PIN
-            // yet, so returning members shouldn't have to keep re-typing it.
-            var isReturningMember = member is not null
-                && !string.IsNullOrEmpty(member.Pin)
-                && SecretHasher.Verify(_pin.Trim(), member.Pin);
-
-            if (!isReturningMember && _code.Trim() != _group.InviteCode)
-            {
-                if (member is not null && !string.IsNullOrEmpty(member.Pin)) MemberPins.RegisterFailure(member.Id);
-                _error = "Forkert invitationskode.";
-                _joining = false;
-                return;
-            }
-
-            if (member == null)
-            {
-                // New name - this PIN becomes theirs going forward.
-                member = new Member { GroupId = _group.Id, Name = _name.Trim(), Pin = SecretHasher.Hash(_pin.Trim()) };
-                Db.Members.Add(member);
-            }
-            else if (string.IsNullOrEmpty(member.Pin))
-            {
-                // An admin reset this member's PIN (they forgot it) - claim a
-                // fresh one now, same as a brand new name.
-                member.Pin = SecretHasher.Hash(_pin.Trim());
-            }
-            else if (!isReturningMember)
-            {
-                MemberPins.RegisterFailure(member.Id);
-                _error = "Forkert PIN for dette navn. Bed en admin om at nulstille den, hvis du har glemt den.";
-                _joining = false;
-                return;
-            }
-
-            MemberPins.RegisterSuccess(member.Id);   // a correct PIN clears earlier wrong guesses
-
-            // Contact info is re-entered (not required) on every login rather than
-            // set-once - leaving it blank keeps whatever was there before, typing
-            // something new overwrites it, so a member can update their number/email
-            // just by logging in again with the new value filled in.
-            if (!string.IsNullOrWhiteSpace(_contactInfo))
-                member.ContactInfo = _contactInfo.Trim();
-
-            var session = new MemberSession { MemberId = member.Id };
-            Db.Sessions.Add(session);
-            await Db.SaveChangesAsync();
 
             await JS.InvokeVoidAsync("clubJs.setSession", session.Id.ToString());
             Nav.NavigateTo($"/g/{Slug}", forceLoad: true);

@@ -1,12 +1,10 @@
 @page "/g/{slug}/beskeder"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
-@inject MessageService Messages
-@inject ClubMailService Mail
-@inject ClubPushService Push
+@inject TeamMessages Messages
+@inject IPushNotifier Push
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -45,7 +43,7 @@ else
                         <textarea class="msg-input" rows="6" @bind="_text" @bind:event="oninput" maxlength="4000" placeholder="Skriv det, de skal vide …"></textarea>
                     </label>
                     <label class="msg-check"><input type="checkbox" @bind="_confirm" /> De skal trykke <b>"✅ Jeg har læst det"</b> (og få en påmindelse efter 24 timer, hvis de ikke har)</label>
-                    <p class="msg-help">Går til alle @_others andre på holdet – med push på telefonen@(Mail.Configured ? " og mail til dem, der har skrevet deres mail" : "").</p>
+                    <p class="msg-help">Går til alle @_others andre på holdet – med push på telefonen@(Messages.MailConfigured ? " og mail til dem, der har skrevet deres mail" : "").</p>
                     <div class="msg-row">
                         <button class="msg-btn msg-btn-primary" @onclick="Send" disabled="@(_sending || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_text))">📣 Send</button>
                         <button class="msg-btn" @onclick="() => _writing = false">Annullér</button>
@@ -76,7 +74,7 @@ else
             @if (_list.Count == 0) { <p class="msg-help">Ingen beskeder endnu.</p> }
 
             @* Hidden until a mail sender is chosen (user 2026-10-02: no one.com) - push + app only meanwhile. *@
-            @if (Mail.Configured)
+            @if (Messages.MailConfigured)
             {
             <div class="msg-card msg-mail card">
                 <h3 class="msg-h3">📧 Din mail</h3>
@@ -103,12 +101,12 @@ else
     private List<ClubMessage> _list = [];
     private List<ClubMessage> _unread = [];
 
-    internal static DateTime Dk(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"));
+    internal static DateTime Dk(DateTime utc) => DanishTime.Local(utc);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
@@ -120,11 +118,8 @@ else
 
     private async Task Load()
     {
-        _others = await Db.Members.CountAsync(m => m.GroupId == _group!.Id && m.Id != _member!.Id);
-        _list = await Db.Messages.Include(m => m.Receipts)
-            .Where(m => m.GroupId == _group!.Id && (m.FromMemberId == _member!.Id || m.Receipts.Any(r => r.MemberId == _member.Id)))
-            .OrderByDescending(m => m.CreatedAt).Take(50).ToListAsync();
-        _unread = _list.Where(m => m.RequireConfirm && m.Receipts.Any(r => r.MemberId == _member!.Id && r.ConfirmedAt == null)).ToList();
+        var list = await Messages.ListAsync(_group!.Id, _member!.Id);
+        (_list, _unread, _others) = (list.All, list.Unconfirmed, list.Others);
     }
 
     private async Task Send()
@@ -137,7 +132,7 @@ else
 
     private async Task EnablePush()
     {
-        var status = await JS.InvokeAsync<string>("clubJs.subscribePush", Push.GetPublicKey(), _group!.Id, _member!.Name);
+        var status = await JS.InvokeAsync<string>("clubJs.subscribePush", Push.PublicKey, _group!.Id, _member!.Name);
         _pushMsg = status switch
         {
             "granted" => "✓ Notifikationer er slået til på denne enhed.",
@@ -149,12 +144,6 @@ else
 
     private async Task SaveEmail()
     {
-        var e = _email.Trim();
-        if (e.Length > 0 && !ClubMailService.LooksLikeEmail(e)) { _emailMsg = "Det ligner ikke en mailadresse."; return; }
-        var m = await Db.Members.FindAsync(_member!.Id);
-        m!.Email = e.Length == 0 ? null : e;
-        await Db.SaveChangesAsync();
-        _member.Email = m.Email;
-        _emailMsg = e.Length == 0 ? "Mailen er fjernet – du får beskederne i appen og som push." : "✓ Gemt. Du får nye beskeder på mail.";
+        _emailMsg = await Messages.SaveEmailAsync(_member!, _email);
     }
 }

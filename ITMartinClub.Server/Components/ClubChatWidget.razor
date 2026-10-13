@@ -1,7 +1,6 @@
-@inject ClubDbContext Db
+@inject TeamTalk Talk
 @inject ClubBroadcastService Broadcast
 @inject ClubAuthService ClubAuth
-@inject ClubPushService PushService
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -74,7 +73,7 @@
 
     private bool _open;
     private string _text = "";
-    private string _memberName = "";
+    private Member? _me;
     private Guid _groupId;
     private Guid _memberId;
     private List<ClubChatMessage> _messages = [];
@@ -86,11 +85,11 @@
     {
         if (!firstRender || _subscribed) return;
 
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) return;
 
         _memberId = session.MemberId;
-        _memberName = session.Member.Name;
+        _me = session.Member;
         _groupId = session.Member.GroupId;
         await RefreshAsync();
         Broadcast.Subscribe(_groupId, OnBroadcast);
@@ -100,12 +99,7 @@
 
     private async Task RefreshAsync()
     {
-        _messages = await Db.Chat
-            .Where(m => m.GroupId == _groupId)
-            .OrderByDescending(m => m.SentAt)
-            .Take(30)
-            .ToListAsync();
-        _messages.Reverse();
+        _messages = await Talk.ChatAsync(_groupId, 30);
 
         if (!_open)
             _unseenCount = _messages.Count(m => m.MemberId != _memberId && m.SentAt > _lastSeenAt);
@@ -131,26 +125,12 @@
 
     private async Task SendAsync()
     {
-        var text = _text.Trim();
-        if (string.IsNullOrEmpty(text)) return;
-
-        Db.Chat.Add(new ClubChatMessage
-        {
-            GroupId = _groupId,
-            MemberId = _memberId,
-            SenderName = _memberName,
-            Text = text,
-        });
-        await Db.SaveChangesAsync();
+        // Pushes like the /chat page does - messages sent from this widget used to notify no one.
+        if (_me is null || !await Talk.SayAsync(_groupId, _me, _text)) return;
         _text = "";
         await RefreshAsync();
         Broadcast.Broadcast(_groupId);
         try { await JS.InvokeVoidAsync("clubJs.scrollToBottom", "chat-widget-messages"); } catch { }
-
-        // Chat.razor (the dedicated /chat page) already pushes on send - this
-        // floating widget is the other surface people type from, and was
-        // missing it, so messages sent from here never notified anyone.
-        _ = PushService.SendToGroupAsync(Db, _groupId, _memberName, $"💬 {_memberName}", text);
     }
 
     private void OnBroadcast() => InvokeAsync(async () =>

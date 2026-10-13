@@ -1,6 +1,8 @@
 @page "/g/{slug}/storage"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject Places PlaceBook
+@inject TaskBoard Tasks
+@inject TeamAccess Access
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
@@ -186,9 +188,9 @@ else
         // No login/membership required here - unlike every other Club page,
         // this one has to work for someone who was just handed the link
         // (e.g. a helper dropping off boxes) and never joined the group.
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         _member = session?.Member;
-        _group = _member?.Group ?? await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _group = _member?.Group ?? await Access.GroupAsync(Slug);
 
         if (_group is not null) await RefreshAsync();
         _loaded = true;
@@ -197,15 +199,9 @@ else
 
     private async Task RefreshAsync()
     {
-        _locations = await Db.StorageLocations.Where(l => l.GroupId == _group!.Id).OrderBy(l => l.Name).ToListAsync();
-        _vehicles = await Db.Vehicles.Where(v => v.GroupId == _group!.Id).OrderBy(v => v.Name).ToListAsync();
-
-        _tasksByLocation = (await Db.Assignments
-                .Where(a => a.GroupId == _group!.Id && a.StorageLocationId != null)
-                .OrderBy(a => a.IsCompleted).ThenBy(a => a.DueDate)
-                .ToListAsync())
-            .GroupBy(a => a.StorageLocationId!.Value)
-            .ToDictionary(g => g.Key, g => g.ToList());
+        _locations = await PlaceBook.ListAsync(_group!.Id);
+        _vehicles = await PlaceBook.VehiclesAsync(_group!.Id);
+        _tasksByLocation = await Tasks.ByPlaceAsync(_group!.Id);
     }
 
     private async Task StartEditLocation(StorageLocation loc)
@@ -230,37 +226,15 @@ else
     {
         if (!CanSave(_newLocationName)) return;
 
-        if (_editingLocationId is { } id)
-        {
-            var loc = await Db.StorageLocations.FirstOrDefaultAsync(l => l.Id == id && l.GroupId == _group!.Id);
-            if (loc is null) return;
-            loc.Name = _newLocationName.Trim();
-            loc.Address = string.IsNullOrWhiteSpace(_newLocationAddress) ? null : _newLocationAddress.Trim();
-            loc.ApproxSize = string.IsNullOrWhiteSpace(_newLocationSize) ? null : _newLocationSize.Trim();
-            loc.Contents = string.IsNullOrWhiteSpace(_newLocationContents) ? null : _newLocationContents.Trim();
-        }
-        else
-        {
-            Db.StorageLocations.Add(new StorageLocation
-            {
-                GroupId = _group!.Id,
-                Name = _newLocationName.Trim(),
-                Address = string.IsNullOrWhiteSpace(_newLocationAddress) ? null : _newLocationAddress.Trim(),
-                ApproxSize = string.IsNullOrWhiteSpace(_newLocationSize) ? null : _newLocationSize.Trim(),
-                Contents = string.IsNullOrWhiteSpace(_newLocationContents) ? null : _newLocationContents.Trim(),
-                CreatedByName = CreatorName,
-            });
-        }
-
-        await Db.SaveChangesAsync();
+        await PlaceBook.SaveAsync(_group!.Id, _editingLocationId, _newLocationName, _newLocationAddress, _newLocationSize, _newLocationContents, CreatorName);
         CancelEditLocation();
         await RefreshAsync();
     }
 
     private async Task DeleteLocationAsync(Guid id)
     {
-        var loc = await Db.StorageLocations.FindAsync(id);
-        if (loc != null) { Db.StorageLocations.Remove(loc); await Db.SaveChangesAsync(); await RefreshAsync(); }
+        await PlaceBook.DeleteAsync(_group!.Id, id);
+        await RefreshAsync();
     }
 
     private async Task StartEditVehicle(Vehicle v)
@@ -283,32 +257,14 @@ else
     {
         if (!CanSave(_newVehicleName)) return;
 
-        if (_editingVehicleId is { } id)
-        {
-            var v = await Db.Vehicles.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == _group!.Id);
-            if (v is null) return;
-            v.Name = _newVehicleName.Trim();
-            v.Availability = string.IsNullOrWhiteSpace(_newVehicleAvailability) ? null : _newVehicleAvailability.Trim();
-        }
-        else
-        {
-            Db.Vehicles.Add(new Vehicle
-            {
-                GroupId = _group!.Id,
-                Name = _newVehicleName.Trim(),
-                Availability = string.IsNullOrWhiteSpace(_newVehicleAvailability) ? null : _newVehicleAvailability.Trim(),
-                CreatedByName = CreatorName,
-            });
-        }
-
-        await Db.SaveChangesAsync();
+        await PlaceBook.SaveVehicleAsync(_group!.Id, _editingVehicleId, _newVehicleName, _newVehicleAvailability, CreatorName);
         CancelEditVehicle();
         await RefreshAsync();
     }
 
     private async Task DeleteVehicleAsync(Guid id)
     {
-        var v = await Db.Vehicles.FindAsync(id);
-        if (v != null) { Db.Vehicles.Remove(v); await Db.SaveChangesAsync(); await RefreshAsync(); }
+        await PlaceBook.DeleteVehicleAsync(_group!.Id, id);
+        await RefreshAsync();
     }
 }

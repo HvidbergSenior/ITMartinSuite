@@ -1,11 +1,10 @@
 @page "/g/{slug}/users"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TeamMembers People
+@inject TaskBoard Tasks
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
-@inject InviteService Invites
-@inject ClubMailService Mail
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -32,10 +31,10 @@ else
                         {
                             <div class="task-item-desc">📞 @m.ContactInfo</div>
                         }
-                        @if (IsAdmin && Mail.Configured && m.Id != _member.Id)
+                        @if (IsAdmin && People.MailConfigured && m.Id != _member.Id)
                         {
                             <div class="task-meta">
-                                @if (ClubMailService.LooksLikeEmail(m.Email))
+                                @if (EmailAddress.LooksLike(m.Email))
                                 {
                                     <button class="msg-btn" @onclick="() => Invite(m)" disabled="@(_inviting == m.Id)">📧 @(m.LoginToken is null ? "Inviter" : "Send invitation igen")</button>
                                 }
@@ -79,12 +78,12 @@ else
     private readonly Dictionary<Guid, string> _invited = [];
 
     // Admin = role containing "Admin" (set in the database / Admin page). Only they see "📧 Inviter".
-    private bool IsAdmin => _member?.Role?.Contains("Admin", StringComparison.OrdinalIgnoreCase) == true;
+    private bool IsAdmin => _member?.IsAdmin == true;
 
     private async Task Invite(Member m)
     {
         _inviting = m.Id; StateHasChanged();
-        var ok = await Invites.SendAsync(_group!, m, _member!, Nav.BaseUri);
+        var ok = await People.InviteAsync(_group!, m, _member!, Nav.BaseUri);
         _invited[m.Id] = ok ? "✓ Invitation sendt" : "Kunne ikke sende – tjek mailen";
         _inviting = null;
     }
@@ -92,19 +91,13 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
 
-        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
-
-        _openCountByName = (await Db.Assignments
-                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && a.AssignedToNames != "")
-                .ToListAsync())
-            .SelectMany(a => a.Assignees)
-            .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        _members = await People.ListAsync(_group!.Id);
+        _openCountByName = await Tasks.OpenCountByNameAsync(_group!.Id);
 
         _loaded = true;
         StateHasChanged();

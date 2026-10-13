@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Club (Bestøver Klub) - the domain: teams, members, tasks and their recurrence, messages with receipts, meetings,
+       calendar, places. No EF, no HTTP. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinClub.Tests" />
+  </ItemGroup>
+
+</Project>

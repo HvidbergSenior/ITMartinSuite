@@ -1,10 +1,10 @@
 @page "/g/{slug}/moeder"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject Meetings MeetingBook
+@inject TeamMembers People
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
-@inject MessageService Messages
 
 @* Board meetings: date, place, agenda, referent -> "Skriv referat" task -> minutes sent as a message with receipts. *@
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
@@ -84,61 +84,37 @@ else
     private string _place = "", _referent = "", _agenda = "";
     private List<Member> _members = [];
     private List<Meeting> _meetings = [];
-    private bool IsAdmin => _member?.Role?.Contains("Admin", StringComparison.OrdinalIgnoreCase) == true;
+    private bool IsAdmin => _member?.IsAdmin == true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
-        _members = await Db.Members.Where(m => m.GroupId == _group.Id).OrderBy(m => m.Name).ToListAsync();
+        _members = await People.ListAsync(_group.Id);
         await Load();
         _loaded = true;
         StateHasChanged();
     }
 
-    private async Task Load() =>
-        _meetings = await Db.Meetings.Where(m => m.GroupId == _group!.Id).OrderByDescending(m => m.Date).ToListAsync();
+    private async Task Load() => _meetings = await MeetingBook.ListAsync(_group!.Id);
 
     private async Task Add()
     {
-        var meeting = new Meeting { GroupId = _group!.Id, Date = _date!.Value, Place = _place.Trim(), ReferentName = _referent, Agenda = _agenda.Trim() };
-        var task = new Assignment
-        {
-            GroupId = _group.Id, Title = $"Skriv referat fra mødet {meeting.Date.ToString("d. MMMM", Da)}", CreatedByName = _member!.Name,
-            DueDate = meeting.Date.Date.AddDays(7), MainTaskId = await TopicId("Møder"),
-        };
-        task.AddAssignee(_referent);
-        meeting.ReferatTaskId = task.Id;
-        Db.Assignments.Add(task);
-        Db.Meetings.Add(meeting);
-        await Db.SaveChangesAsync();
+        await MeetingBook.AddAsync(_group!, _member!, _date!.Value, _place, _referent, _agenda);
         _adding = false; _date = null; _place = ""; _referent = ""; _agenda = "";
         await Load();
     }
 
-    private async Task<Guid> TopicId(string title)
-    {
-        var t = await Db.MainTasks.FirstOrDefaultAsync(x => x.GroupId == _group!.Id && x.Title == title);
-        if (t is null) { t = new MainTask { GroupId = _group!.Id, Title = title }; Db.MainTasks.Add(t); await Db.SaveChangesAsync(); }
-        return t.Id;
-    }
-
-    private async Task Save(Meeting m) => await Db.SaveChangesAsync();
+    private async Task Save(Meeting m) => await MeetingBook.SaveAsync(m);
 
     private async Task SendReferat(Meeting m)
     {
         _sending = true; StateHasChanged();
-        var msg = await Messages.SendAsync(_group!, _member!, $"Referat fra mødet {m.Date.ToString("d. MMMM", Da)}", m.Referat, requireConfirm: true, Nav.BaseUri);
-        m.SentMessageId = msg.Id;
-        if (m.ReferatTaskId is { } tid && await Db.Assignments.FindAsync(tid) is { IsCompleted: false } task)
-        {
-            task.IsCompleted = true; task.CompletedAt = DateTime.UtcNow; task.CompletedByName = _member!.Name;
-        }
-        await Db.SaveChangesAsync();
+        var msgId = await MeetingBook.SendReferatAsync(_group!, _member!, m, Nav.BaseUri);
         _sending = false;
-        Nav.NavigateTo($"/g/{Slug}/beskeder/{msg.Id}", forceLoad: true);
+        Nav.NavigateTo($"/g/{Slug}/beskeder/{msgId}", forceLoad: true);
     }
 }

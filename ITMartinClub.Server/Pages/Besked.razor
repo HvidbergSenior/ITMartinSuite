@@ -1,10 +1,9 @@
 @page "/g/{slug}/beskeder/{id:guid}"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
-@inject MessageService Messages
+@inject TeamMessages Messages
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -83,13 +82,11 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
-        _msg = await Db.Messages.Include(m => m.Receipts).FirstOrDefaultAsync(m => m.Id == Id && m.GroupId == _group.Id);
-        _my = _msg?.Receipts.FirstOrDefault(r => r.MemberId == _member.Id);
-        if (_my is not null) await Messages.MarkSeenAsync(_my);   // opening it in the app counts as seen, same as the mail link
+        (_msg, _my) = await Messages.OpenAsync(_group.Id, Id, _member.Id);   // opening it in the app counts as seen, same as the mail link
         _loaded = true;
         StateHasChanged();
     }

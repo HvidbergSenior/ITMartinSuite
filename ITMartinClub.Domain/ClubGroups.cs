@@ -1,4 +1,4 @@
-namespace ITMartinClub.Server.Services;
+namespace ITMartinClub.Domain;
 
 // Until step 3 (module switches per team): which groups are a "board/association" Club - Beskeder is the home page,
 // the menu is Beskeder / Kalender / Medlemmer, members log in by invitation link (no PIN).

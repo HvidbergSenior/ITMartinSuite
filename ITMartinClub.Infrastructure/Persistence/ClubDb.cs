@@ -1,9 +1,11 @@
-using ITMartinClub.Server.Data.Entities;
+using ITMartinClub.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinClub.Server.Data;
+namespace ITMartinClub.Infrastructure.Persistence;
 
-public sealed class ClubDbContext(DbContextOptions<ClubDbContext> options) : DbContext(options)
+// club.db. Table names = the DbSet names (Sessions, Events, Posts, Chat ...) - keep them, the live database has them.
+
+public sealed class ClubDb(DbContextOptions<ClubDb> options) : DbContext(options)
 {
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<Member> Members => Set<Member>();

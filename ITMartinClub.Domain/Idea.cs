@@ -1,6 +1,6 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
-public sealed class Idea
+public sealed class Idea : ITeamOwned
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GroupId { get; set; }

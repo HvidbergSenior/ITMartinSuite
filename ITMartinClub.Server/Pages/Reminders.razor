@@ -1,10 +1,9 @@
 @page "/g/{slug}/reminders"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TeamLists Lists
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
-@inject IConfiguration Config
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -123,7 +122,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
@@ -134,7 +133,7 @@ else
 
     private async Task RefreshAsync()
     {
-        var all = await Db.PersonalReminders.Where(r => r.GroupId == _group!.Id).ToListAsync();
+        var all = await Lists.RemindersAsync(_group!.Id);
         _open = all.Where(r => !r.Done).OrderBy(r => r.Date).ToList();
         _done = all.Where(r => r.Done).OrderByDescending(r => r.Date).Take(20).ToList();
     }
@@ -153,40 +152,20 @@ else
     {
         if (string.IsNullOrWhiteSpace(_newText) || _newDate is null) return;
 
-        string? photoFileName = null;
-        if (_pendingImageBytes is not null)
-        {
-            photoFileName = $"{Guid.NewGuid():N}.jpg";
-            var root = Config["ClubSettings:PhotosRoot"] ?? "/app/data/photos";
-            Directory.CreateDirectory(root);
-            await File.WriteAllBytesAsync(Path.Combine(root, photoFileName), _pendingImageBytes);
-        }
-
-        Db.PersonalReminders.Add(new PersonalReminder
-        {
-            GroupId = _group!.Id,
-            MemberName = _member!.Name,
-            Text = _newText.Trim(),
-            Date = _newDate.Value.ToUniversalTime(),
-            PhotoFileName = photoFileName,
-        });
-        await Db.SaveChangesAsync();
+        await Lists.AddReminderAsync(_group!.Id, _member!.Name, _newText, _newDate.Value.ToUniversalTime(), _pendingImageBytes);
         _newText = ""; _newDate = DateTime.Today; _pendingImageBytes = null; _adding = false;
         await RefreshAsync();
     }
 
     private async Task ToggleDoneAsync(Guid id)
     {
-        var r = await Db.PersonalReminders.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == _group!.Id);
-        if (r == null) return;
-        r.Done = true;
-        await Db.SaveChangesAsync();
+        await Lists.ReminderDoneAsync(_group!.Id, id);
         await RefreshAsync();
     }
 
     private async Task DeleteAsync(Guid id)
     {
-        var r = await Db.PersonalReminders.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == _group!.Id);
-        if (r != null) { Db.PersonalReminders.Remove(r); await Db.SaveChangesAsync(); await RefreshAsync(); }
+        await Lists.DeleteReminderAsync(_group!.Id, id);
+        await RefreshAsync();
     }
 }

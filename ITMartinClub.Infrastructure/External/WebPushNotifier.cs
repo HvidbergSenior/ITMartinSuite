@@ -1,25 +1,28 @@
 using System.Net;
 using System.Text.Json;
-using ITMartinClub.Server.Data;
-using ITMartinClub.Server.Data.Entities;
+using ITMartinClub.Application;
+using ITMartinClub.Domain;
+using ITMartinClub.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using WebPush;
 
-namespace ITMartinClub.Server.Services;
+namespace ITMartinClub.Infrastructure.External;
 
-public sealed class ClubPushService
+// Web push (VAPID keys made once and kept in data/club-vapid.json). Subscriptions that are gone (410/404) are removed.
+
+internal sealed class WebPushNotifier : IPushNotifier
 {
+    private readonly IDbContextFactory<ClubDb> _dbf;
     private readonly string _vapidFile;
     private (string Public, string Private)? _keys;
 
-    public ClubPushService()
+    public WebPushNotifier(IDbContextFactory<ClubDb> dbf, string dataDir)
     {
-        var dir = Directory.Exists("/app/data") ? "/app/data" : Path.Combine(Directory.GetCurrentDirectory(), "data");
-        Directory.CreateDirectory(dir);
-        _vapidFile = Path.Combine(dir, "club-vapid.json");
+        _dbf = dbf;
+        _vapidFile = Path.Combine(dataDir, "club-vapid.json");
     }
 
-    public string GetPublicKey() => Keys().Public;
+    public string PublicKey => Keys().Public;
 
     private (string Public, string Private) Keys()
     {
@@ -37,34 +40,20 @@ public sealed class ClubPushService
         return (_keys = (gen.PublicKey, gen.PrivateKey)).Value;
     }
 
-    public async Task SendToGroupAsync(ClubDbContext db, Guid groupId, string? excludeMember, string title, string body)
+    public async Task ToTeamAsync(Guid groupId, string? exceptMember, string title, string body)
     {
+        await using var db = await _dbf.CreateDbContextAsync();
         var subs = await db.PushSubscriptions
-            .Where(s => s.GroupId == groupId && (excludeMember == null || s.MemberName != excludeMember))
+            .Where(s => s.GroupId == groupId && (exceptMember == null || s.MemberName != exceptMember))
             .ToListAsync();
         await SendCoreAsync(db, subs, title, body);
     }
 
-    // Same as SendToGroupAsync but excludes several members at once - used for
-    // the recap-ready push so anyone who declined the ready-check ("NotNow")
-    // doesn't get pinged again for the rest of that session.
-    public async Task SendToGroupExceptAsync(ClubDbContext db, Guid groupId, IEnumerable<string> excludeMembers, string title, string body)
-    {
-        var exclude = excludeMembers.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var subs = await db.PushSubscriptions
-            .Where(s => s.GroupId == groupId)
-            .ToListAsync();
-        subs = subs.Where(s => !exclude.Contains(s.MemberName)).ToList();
-        await SendCoreAsync(db, subs, title, body);
-    }
-
-    // Allow-list send, the mirror image of SendToGroupAsync's exclude-list -
-    // used for live match highlights, which should only reach members who
-    // marked themselves as spectating ("Watching"), not the whole group.
-    public async Task SendToMembersAsync(ClubDbContext db, Guid groupId, IEnumerable<string> memberNames, string title, string body, string? url = null)
+    public async Task ToMembersAsync(Guid groupId, IEnumerable<string> memberNames, string title, string body, string? url = null)
     {
         var include = memberNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (include.Count == 0) return;
+        await using var db = await _dbf.CreateDbContextAsync();
         var subs = await db.PushSubscriptions
             .Where(s => s.GroupId == groupId)
             .ToListAsync();
@@ -72,7 +61,7 @@ public sealed class ClubPushService
         await SendCoreAsync(db, subs, title, body, url);
     }
 
-    private async Task SendCoreAsync(ClubDbContext db, List<ClubPushSubscription> subs, string title, string body, string? url = null)
+    private async Task SendCoreAsync(ClubDb db, List<ClubPushSubscription> subs, string title, string body, string? url = null)
     {
         if (subs.Count == 0) return;
 
@@ -98,10 +87,11 @@ public sealed class ClubPushService
         }
     }
 
-    public async Task UpsertSubscriptionAsync(ClubDbContext db, ClubPushSubscription incoming)
+    public async Task SubscribeAsync(ClubPushSubscription incoming, CancellationToken ct = default)
     {
+        await using var db = await _dbf.CreateDbContextAsync(ct);
         var existing = await db.PushSubscriptions
-            .FirstOrDefaultAsync(s => s.GroupId == incoming.GroupId && s.Endpoint == incoming.Endpoint);
+            .FirstOrDefaultAsync(s => s.GroupId == incoming.GroupId && s.Endpoint == incoming.Endpoint, ct);
         if (existing is null)
         {
             db.PushSubscriptions.Add(incoming);
@@ -112,7 +102,7 @@ public sealed class ClubPushService
             existing.P256DH = incoming.P256DH;
             existing.Auth = incoming.Auth;
         }
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
     }
 
     private sealed record StoredKeys(string Pub, string Prv);

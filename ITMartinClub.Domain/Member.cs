@@ -1,4 +1,4 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
 public sealed class Member
 {
@@ -20,4 +20,20 @@ public sealed class Member
     public Group Group { get; set; } = null!;
     public List<MemberSession> Sessions { get; set; } = [];
     public List<BulletinPost> Posts { get; set; } = [];
+
+    /// <summary>Admin = a role containing "Admin" (set on the Admin page). Only they invite and manage people.</summary>
+    public bool IsAdmin => Role?.Contains("Admin", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>A new invitation link (/l/{token}); the old one stops working.</summary>
+    public void NewLoginToken() => LoginToken = Tokens.New();
+
+    /// <summary>ContactInfo is free text ("ITMartin@Mensa.dk, 31194730"): the first Danish-looking number in it.</summary>
+    public string? Phone
+    {
+        get
+        {
+            var x = System.Text.RegularExpressions.Regex.Match(ContactInfo ?? "", @"(\+?\d[\d ]{6,14}\d)");
+            return x.Success ? x.Value.Replace(" ", "") : null;
+        }
+    }
 }

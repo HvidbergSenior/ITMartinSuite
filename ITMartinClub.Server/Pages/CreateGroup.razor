@@ -1,7 +1,7 @@
 @page "/"
 @page "/create"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TeamAccess Access
 @inject NavigationManager Nav
 @inject IConfiguration Configuration
 
@@ -68,7 +68,7 @@
         // the create-group screen to every visitor.
         if (Configuration.GetValue<bool>("Club:SeedDemoData"))
         {
-            Nav.NavigateTo($"/g/{ITMartinClub.Server.Services.DemoSeeder.DemoSlug}", forceLoad: true);
+            Nav.NavigateTo($"/g/{ClubOptions.DemoSlug}", forceLoad: true);
             return;
         }
 
@@ -81,7 +81,7 @@
             return;
         }
 
-        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == _slug);
+        var group = await Access.GroupAsync(_slug);
         if (group is not null)
             Nav.NavigateTo($"/g/{group.Slug}", forceLoad: true);
     }
@@ -90,28 +90,14 @@
     {
         _error = null;
         if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv et gruppenavn."; return; }
-        if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en adgangskode til gruppen."; return; }
-        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din personlige PIN."; return; }
 
         _creating = true;
         StateHasChanged();
 
         try
         {
-            Db.Groups.Add(new Group
-            {
-                Slug = _slug,
-                Name = _name.Trim(),
-                Description = _desc.Trim(),
-                // InviteCode stays in plaintext - by design it's meant to be shown to
-                // the admin and shared with people who should join (a room code, not
-                // a password); rate-limiting join attempts is the right defense for
-                // it, not hashing something that has to stay displayable. AdminPin
-                // gates real destructive actions, so it's hashed like a real secret.
-                InviteCode = _invite.Trim(),
-                AdminPin = SecretHasher.Hash(_pin.Trim()),
-            });
-            await Db.SaveChangesAsync();
+            _error = await Access.CreateGroupAsync(_slug, _name, _desc, _invite, _pin);
+            if (_error is not null) { _creating = false; return; }
             Nav.NavigateTo($"/g/{_slug}/join", forceLoad: true);
         }
         catch (Exception ex)

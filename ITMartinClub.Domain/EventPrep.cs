@@ -1,4 +1,4 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
 // Attached to a CalendarEvent - a short pre-session briefing ("Wednesday 19:30:
 // look at this before") with a one-line focus and a simple checklist of what

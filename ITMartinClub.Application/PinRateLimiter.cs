@@ -1,13 +1,13 @@
 using System.Collections.Concurrent;
 
-namespace ITMartinClub.Server.Services;
+namespace ITMartinClub.Application;
 
 // Guards Admin.razor's PIN unlock screen against brute-forcing - it used to
 // have no throttling at all (a wrong guess just flipped a bool, unlimited
 // retries). In-memory only, keyed by GroupId: a container restart clears it,
 // which is fine since the threat model here is "many guesses in a short
 // burst," not a determined attacker who can wait out a restart.
-public class PinRateLimiter
+public abstract class PinRateLimiter
 {
     private const int MaxAttempts = 5;
     private static readonly TimeSpan LockoutWindow = TimeSpan.FromMinutes(15);
@@ -45,8 +45,8 @@ public class PinRateLimiter
 }
 
 // The group's admin PIN (Admin.razor), keyed by GroupId.
-public sealed class AdminPinRateLimiterService : PinRateLimiter;
+public sealed class AdminPinLimiter : PinRateLimiter;
 
 // A member's own PIN on the join page, keyed by MemberId (2026-10-08): someone who knows a member's name could
 // otherwise guess the PIN without limit - a correct PIN skips the invite code.
-public sealed class MemberPinRateLimiterService : PinRateLimiter;
+public sealed class MemberPinLimiter : PinRateLimiter;

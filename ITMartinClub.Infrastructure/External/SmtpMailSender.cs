@@ -1,11 +1,14 @@
 using System.Net;
 using System.Net.Mail;
+using ITMartinClub.Application;
+using ITMartinClub.Domain;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
-namespace ITMartinClub.Server.Services;
+namespace ITMartinClub.Infrastructure.External;
 
-// Mail copy of team messages. Same one.com mailbox as itmartin.dk (info@itmartin.dk); password in magic.env as
-// Club__Smtp__Password. Without it nothing is mailed - the app + push still work and the page says so.
-public sealed class ClubMailService(IConfiguration cfg, ILogger<ClubMailService> log)
+// Mail copy of team messages and invitations. Gmail since 2026-10-02 (Club__Smtp__Host/User/Password in magic.env). Without it nothing is mailed - the app + push still work and the page says so.
+internal sealed class SmtpMailSender(IConfiguration cfg, ILogger<SmtpMailSender> log) : IMailSender
 {
     private string Host => cfg["Club:Smtp:Host"] ?? "send.one.com";
     private int Port => cfg.GetValue("Club:Smtp:Port", 587);
@@ -16,7 +19,7 @@ public sealed class ClubMailService(IConfiguration cfg, ILogger<ClubMailService>
 
     public async Task<bool> SendAsync(string to, string fromName, string subject, string body)
     {
-        if (!Configured || !LooksLikeEmail(to)) return false;
+        if (!Configured || !EmailAddress.LooksLike(to)) return false;
         try
         {
             using var msg = new MailMessage(new MailAddress(User, $"{fromName} via Club"), new MailAddress(to))
@@ -33,7 +36,4 @@ public sealed class ClubMailService(IConfiguration cfg, ILogger<ClubMailService>
             return false;
         }
     }
-
-    public static bool LooksLikeEmail(string? s) =>
-        s is { Length: > 5 and < 200 } && System.Text.RegularExpressions.Regex.IsMatch(s, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
 }

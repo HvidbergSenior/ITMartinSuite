@@ -1,6 +1,7 @@
 @page "/g/{slug}/opgaver"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TaskBoard Tasks
+@inject TeamMembers People
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubAuthService ClubAuth
@@ -93,7 +94,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
@@ -104,46 +105,29 @@ else
 
     private async Task Load()
     {
-        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
-        _topicNames = await Db.MainTasks.Where(t => t.GroupId == _group!.Id).ToDictionaryAsync(t => t.Id, t => t.Title);
-        var all = await Db.Assignments.Where(a => a.GroupId == _group!.Id).ToListAsync();
+        _members = await People.ListAsync(_group!.Id);
+        _topicNames = (await Tasks.MainTasksAsync(_group!.Id)).ToDictionary(t => t.Id, t => t.Title);
+        var all = await Tasks.AllAsync(_group!.Id);
         _open = all.Where(a => !a.IsCompleted).ToList();
         _done = all.Where(a => a.IsCompleted).OrderByDescending(a => a.CompletedAt).Take(30).ToList();
     }
 
     private async Task Add()
     {
-        Guid? topicId = null;
-        var topic = _topic.Trim();
-        if (topic.Length > 0)
-        {
-            var existing = await Db.MainTasks.FirstOrDefaultAsync(t => t.GroupId == _group!.Id && t.Title == topic);
-            if (existing is null)
-            {
-                existing = new MainTask { GroupId = _group!.Id, Title = topic, SortOrder = _topicNames.Count };
-                Db.MainTasks.Add(existing);
-            }
-            topicId = existing.Id;
-        }
-        var a = new Assignment { GroupId = _group!.Id, Title = _title.Trim(), MainTaskId = topicId, DueDate = _due, CreatedByName = _member!.Name };
-        if (_who.Length > 0) a.AddAssignee(_who);
-        Db.Assignments.Add(a);
-        await Db.SaveChangesAsync();
+        await Tasks.QuickAddAsync(_group!.Id, _title, _topic, _who, _due, _member!.Name);
         _title = ""; _who = ""; _due = null; _adding = false;
         await Load();
     }
 
     private async Task Done(Assignment a)
     {
-        a.IsCompleted = true; a.CompletedAt = DateTime.UtcNow; a.CompletedByName = _member!.Name;
-        await Db.SaveChangesAsync();
+        await Tasks.CompleteAsync(a.Id, _group!.Id, _member!.Name, notify: false);
         await Load();
     }
 
     private async Task Take(Assignment a)
     {
-        a.AddAssignee(_member!.Name);
-        await Db.SaveChangesAsync();
+        await Tasks.JoinAsync(a.Id, _group!.Id, _member!.Name, notify: false);
         await Load();
     }
 }

@@ -1,6 +1,6 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
-public sealed class MainTask
+public sealed class MainTask : ITeamOwned
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GroupId { get; set; }
@@ -41,15 +41,26 @@ public sealed class MainTask
 
     public Group Group { get; set; } = null!;
 
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public List<DayOfWeek> RecurrenceDays =>
         RecurrenceDaysRaw.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(Enum.Parse<DayOfWeek>)
             .ToList();
 
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public bool IsWeekly => RecurrenceDaysRaw.Length > 0 && !IsBiweekly && !IsMonthly;
 
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public bool IsRecurringCard => IsWeekly || IsMonthly || IsBiweekly;
+
+    /// <summary>A new hovedopgave from the form: recurrence "none" / "daily" / "weekly" / "biweekly" / "monthly" + the picked days.</summary>
+    public static MainTask Create(Guid groupId, string title, int sortOrder, string recurrence, IEnumerable<DayOfWeek> days) => new()
+    {
+        GroupId = groupId,
+        Title = title.Trim(),
+        SortOrder = sortOrder,
+        IsDaily = recurrence == "daily",
+        IsMonthly = recurrence == "monthly",
+        IsBiweekly = recurrence == "biweekly",
+        RecurrenceDaysRaw = recurrence is "weekly" or "biweekly" or "monthly"
+            ? string.Join(',', Weekdays.InOrder.Where(days.Contains))
+            : "",
+    };
 }

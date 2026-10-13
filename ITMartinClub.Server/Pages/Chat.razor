@@ -1,10 +1,9 @@
 @page "/g/{slug}/chat"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TeamTalk Talk
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubBroadcastService Broadcast
-@inject ClubPushService PushService
 @inject ClubAuthService ClubAuth
 @implements IAsyncDisposable
 
@@ -75,7 +74,7 @@ else
     {
         if (firstRender)
         {
-            var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+            var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
             if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
             _member = session.Member;
             _group = session.Member.Group;
@@ -95,34 +94,18 @@ else
 
     private async Task RefreshAsync()
     {
-        _messages = await Db.Chat
-            .Where(m => m.GroupId == _group!.Id)
-            .OrderByDescending(m => m.SentAt)
-            .Take(100)
-            .OrderBy(m => m.SentAt)
-            .ToListAsync();
+        _messages = await Talk.ChatAsync(_group!.Id, 100);
     }
 
     private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SendAsync(); }
 
     private async Task SendAsync()
     {
-        var text = _text.Trim();
-        if (string.IsNullOrEmpty(text) || _member == null || _group == null) return;
-
-        Db.Chat.Add(new ClubChatMessage
-        {
-            GroupId    = _group.Id,
-            MemberId   = _member.Id,
-            SenderName = _member.Name,
-            Text       = text
-        });
-        await Db.SaveChangesAsync();
+        if (_member == null || _group == null || !await Talk.SayAsync(_group.Id, _member, _text)) return;
         _text = "";
         await RefreshAsync();
         _scrollPending = true;
         Broadcast.Broadcast(_group.Id);
-        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, $"💬 {_member.Name}", text);
         StateHasChanged();
     }
 

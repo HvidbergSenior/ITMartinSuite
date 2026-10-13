@@ -1,9 +1,9 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
 // Ported from the standalone Family app - a per-person "don't forget" note
 // tied to a date, not a shared Assignment (no assignee/claim workflow, just
 // a personal list each member keeps for themselves).
-public sealed class PersonalReminder
+public sealed class PersonalReminder : ITeamOwned
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GroupId { get; set; }

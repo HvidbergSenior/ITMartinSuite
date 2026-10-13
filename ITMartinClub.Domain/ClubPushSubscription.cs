@@ -1,4 +1,4 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
 public sealed class ClubPushSubscription
 {

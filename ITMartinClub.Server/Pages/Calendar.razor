@@ -1,9 +1,8 @@
 @page "/g/{slug}/calendar"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TeamCalendar Cal
 @inject NavigationManager Nav
 @inject IJSRuntime JS
-@inject ClubPushService PushService
 @inject ClubAuthService ClubAuth
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
@@ -235,7 +234,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
         if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
@@ -247,26 +246,9 @@ else
 
     private async Task RefreshAsync()
     {
-        var now = DateTime.UtcNow;
-        var all = await Db.Events.Where(e => e.GroupId == _group!.Id).OrderBy(e => e.EventDate).ToListAsync();
-        _upcoming = all.Where(e => e.EventDate >= now).ToList();
-        _past = all.Where(e => e.EventDate < now).OrderByDescending(e => e.EventDate).Take(5).ToList();
-
-        var eventIds = _upcoming.Select(e => e.Id).ToList();
-        _rsvpsByEvent = (await Db.EventRsvps.Where(r => eventIds.Contains(r.EventId)).ToListAsync())
-            .GroupBy(r => r.EventId).ToDictionary(g => g.Key, g => g.ToList());
-        _prepByEvent = (await Db.EventPreps.Where(p => eventIds.Contains(p.EventId)).ToListAsync())
-            .ToDictionary(p => p.EventId);
-
-        _suggestionsByEvent = (await Db.EventTimeSuggestions
-                .Where(s => eventIds.Contains(s.EventId) && !s.Resolved && s.ExpiresAt > now)
-                .ToListAsync())
-            .GroupBy(s => s.EventId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First());
-
-        var suggestionIds = _suggestionsByEvent.Values.Select(s => s.Id).ToList();
-        _votesBySuggestion = (await Db.EventTimeVotes.Where(v => suggestionIds.Contains(v.SuggestionId)).ToListAsync())
-            .GroupBy(v => v.SuggestionId).ToDictionary(g => g.Key, g => g.ToList());
+        var view = await Cal.LoadAsync(_group!.Id);
+        (_upcoming, _past, _rsvpsByEvent, _prepByEvent, _suggestionsByEvent, _votesBySuggestion) =
+            (view.Upcoming, view.Past, view.Rsvps, view.Preps, view.Suggestions, view.Votes);
     }
 
     private void ToggleAdding()
@@ -296,38 +278,10 @@ else
     private async Task SaveNewEventAsync()
     {
         if (string.IsNullOrWhiteSpace(_newEventTitle)) return;
-        var title = _newEventTitle.Trim();
-        var dateStr = _newEventDate.ToString("d. MMM");
-
-        if (_editingEventId is { } id)
-        {
-            var ev = await Db.Events.FindAsync(id);
-            if (ev is null) return;
-            ev.Title = title;
-            ev.EventDate = _newEventDate.ToUniversalTime();
-            ev.Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim();
-            ev.Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim();
-            await Db.SaveChangesAsync();
-            CancelAdding();
-            await RefreshAsync();
-            _ = PushService.SendToGroupAsync(Db, _group!.Id, _member!.Name, "📅 Begivenhed opdateret", $"{title} – {dateStr}");
-        }
-        else
-        {
-            Db.Events.Add(new CalendarEvent
-            {
-                GroupId = _group!.Id,
-                Title = title,
-                EventDate = _newEventDate.ToUniversalTime(),
-                Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim(),
-                Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim(),
-                CreatedByName = _member!.Name,
-            });
-            await Db.SaveChangesAsync();
-            CancelAdding();
-            await RefreshAsync();
-            _ = PushService.SendToGroupAsync(Db, _group!.Id, _member!.Name, "📅 Ny begivenhed", $"{title} – {dateStr}");
-        }
+        await Cal.SaveEventAsync(_group!.Id, _editingEventId, _newEventTitle, _newEventDate.ToUniversalTime(), _newEventLocation, _newEventDesc,
+            _member!.Name, exceptMember: _member.Name);
+        CancelAdding();
+        await RefreshAsync();
     }
 
     private void StartTimeSuggestion(CalendarEvent ev)
@@ -338,32 +292,21 @@ else
 
     private async Task SuggestTimeAsync(Guid eventId)
     {
-        Db.EventTimeSuggestions.Add(new EventTimeSuggestion
-        {
-            EventId = eventId,
-            SuggestedDate = _suggestedDate.ToUniversalTime(),
-            SuggestedByName = _member!.Name,
-        });
-        await Db.SaveChangesAsync();
+        await Cal.SuggestTimeAsync(_group!.Id, eventId, _suggestedDate.ToUniversalTime(), _member!.Name);
         _suggestingEventId = null;
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "⏰ Ny tid foreslået",
-            $"{_member.Name} foreslår en anden tid - stem inden 2 timer");
     }
 
     private async Task VoteTimeAsync(Guid suggestionId, string status)
     {
-        var existing = await Db.EventTimeVotes.FirstOrDefaultAsync(v => v.SuggestionId == suggestionId && v.MemberName == _member!.Name);
-        if (existing is not null) existing.Status = status;
-        else Db.EventTimeVotes.Add(new EventTimeVote { SuggestionId = suggestionId, MemberName = _member!.Name, Status = status });
-        await Db.SaveChangesAsync();
+        await Cal.VoteAsync(suggestionId, _member!.Name, status);
         await RefreshAsync();
     }
 
     private async Task DeleteEventAsync(Guid id)
     {
-        var ev = await Db.Events.FindAsync(id);
-        if (ev != null) { Db.Events.Remove(ev); await Db.SaveChangesAsync(); await RefreshAsync(); }
+        await Cal.DeleteEventAsync(_group!.Id, id);
+        await RefreshAsync();
     }
 
     private void StartPrepEdit(Guid eventId)
@@ -376,34 +319,14 @@ else
     private async Task SavePrepAsync(Guid eventId)
     {
         if (string.IsNullOrWhiteSpace(_prepFocus)) return;
-        var ev = _upcoming.First(e => e.Id == eventId);
-        Db.EventPreps.Add(new EventPrep
-        {
-            EventId = eventId,
-            Focus = _prepFocus.Trim(),
-            Checklist = _prepChecklist.Trim(),
-            CreatedByName = _member!.Name,
-        });
-        await Db.SaveChangesAsync();
+        await Cal.SavePrepAsync(_group!.Id, _upcoming.First(e => e.Id == eventId), _prepFocus, _prepChecklist, _member!.Name);
         _prepEditingId = null;
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "📋 Forberedelse klar",
-            $"Til {ev.Title}: {_prepFocus.Trim()} – se hvad du skal gøre inden");
     }
 
     private async Task SetRsvpAsync(Guid eventId, string status)
     {
-        var existing = await Db.EventRsvps.FirstOrDefaultAsync(r => r.EventId == eventId && r.MemberName == _member!.Name);
-        if (existing is not null)
-        {
-            existing.Status = status;
-            existing.RespondedAt = DateTime.UtcNow;
-        }
-        else
-        {
-            Db.EventRsvps.Add(new EventRsvp { EventId = eventId, MemberName = _member!.Name, Status = status });
-        }
-        await Db.SaveChangesAsync();
+        await Cal.RsvpAsync(eventId, _member!.Name, status);
         await RefreshAsync();
     }
 }

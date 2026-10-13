@@ -1,8 +1,8 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
 // Board meeting (Skelagerhøjen, 2026-10-02): there is always a referent (the chairman or someone else). Picking one creates the
 // task "Skriv referat"; sending the minutes posts them as a Besked med kvittering and closes that task.
-public sealed class Meeting
+public sealed class Meeting : ITeamOwned
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GroupId { get; set; }

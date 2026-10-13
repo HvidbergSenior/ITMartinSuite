@@ -1,4 +1,4 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
 // A member proposing "actually, let's move it to 7" instead of just the admin
 // unilaterally editing - other members vote on it (EventTimeVote), then an

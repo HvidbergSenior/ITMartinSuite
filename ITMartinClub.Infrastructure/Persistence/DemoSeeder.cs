@@ -1,20 +1,20 @@
-using ITMartinClub.Server.Data;
-using ITMartinClub.Server.Data.Entities;
+using ITMartinClub.Application;
+using ITMartinClub.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinClub.Server.Services;
+namespace ITMartinClub.Infrastructure.Persistence;
 
 // Minimal demo-tier seed — just enough for a visitor to see a populated
 // group with members and tasks, not full coverage of every entity. Only
 // runs when Club:SeedDemoData=true (the demo compose service), never on
 // the real club-web pointed at production data. Idempotent.
-public static class DemoSeeder
+internal static class DemoSeeder
 {
-    public const string DemoSlug = "demo";
+    private const string DemoSlug = ClubOptions.DemoSlug;
 
-    public static async Task SeedAsync(ClubDbContext db)
+    public static void Seed(ClubDb db)
     {
-        if (await db.Groups.AnyAsync(g => g.Slug == DemoSlug))
+        if (db.Groups.Any(g => g.Slug == DemoSlug))
             return;
 
         var group = new Group
@@ -75,6 +75,6 @@ public static class DemoSeeder
             PostedAt = DateTime.UtcNow,
         });
 
-        await db.SaveChangesAsync();
+        db.SaveChanges();
     }
 }

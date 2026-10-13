@@ -1,9 +1,9 @@
-namespace ITMartinClub.Server.Data.Entities;
+namespace ITMartinClub.Domain;
 
 // "Where did I put X" log - ported from the standalone ADHD FindIt app so
 // every group gets it, not just one person. Deliberately simple: name +
 // location + optional note/photo, searchable list. No AI parsing in v1.
-public sealed class FoundItem
+public sealed class FoundItem : ITeamOwned
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GroupId { get; set; }

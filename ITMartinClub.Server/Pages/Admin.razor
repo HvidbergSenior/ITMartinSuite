@@ -1,10 +1,12 @@
 @page "/g/{slug}/admin"
 @rendermode InteractiveServer
-@inject ClubDbContext Db
+@inject TeamAccess Access
+@inject TeamMembers People
+@inject TaskBoard Tasks
+@inject TeamCalendar Cal
+@inject TeamTalk Talk
 @inject NavigationManager Nav
 @inject IJSRuntime JS
-@inject ClubPushService PushService
-@inject AdminPinRateLimiterService PinLimiter
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_group == null) { <div class="club-loading">Gruppen findes ikke.</div> }
@@ -232,19 +234,17 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _group = await Access.GroupAsync(Slug);
         _loaded = true;
-        if (_group is not null) _lockedOut = PinLimiter.IsLockedOut(_group.Id);
+        if (_group is not null) _lockedOut = Access.IsAdminLockedOut(_group);
         StateHasChanged();
     }
 
     private void Unlock()
     {
-        if (PinLimiter.IsLockedOut(_group!.Id)) { _lockedOut = true; return; }
-
-        if (SecretHasher.Verify(_pinInput, _group.AdminPin))
+        var result = Access.UnlockAdmin(_group!, _pinInput);
+        if (result == AdminUnlock.Ok)
         {
-            PinLimiter.RegisterSuccess(_group.Id);
             _authed = true;
             _ = LoadMembersAsync();
             _ = LoadEventsAsync();
@@ -252,15 +252,14 @@ else
         }
         else
         {
-            PinLimiter.RegisterFailure(_group.Id);
             _pinError = true;
-            _lockedOut = PinLimiter.IsLockedOut(_group.Id);
+            _lockedOut = result == AdminUnlock.LockedOut;
         }
     }
 
     private async Task LoadMembersAsync()
     {
-        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+        _members = await People.ListAsync(_group!.Id);
         StateHasChanged();
     }
 
@@ -272,18 +271,13 @@ else
 
     private async Task LoadMainTasksAsync()
     {
-        _mainTasks = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.SortOrder).ToListAsync();
+        _mainTasks = await Tasks.MainTasksAsync(_group!.Id);
         StateHasChanged();
     }
 
     private async Task RenameMainTaskAsync(Guid id, string newTitle)
     {
-        var title = newTitle.Trim();
-        if (string.IsNullOrWhiteSpace(title)) return;
-        var mt = await Db.MainTasks.FirstOrDefaultAsync(m => m.Id == id && m.GroupId == _group!.Id);
-        if (mt is null) return;
-        mt.Title = title;
-        await Db.SaveChangesAsync();
+        await Tasks.RenameMainTaskAsync(_group!.Id, id, newTitle);
         await LoadMainTasksAsync();
     }
 
@@ -304,22 +298,8 @@ else
 
     private async Task LoadEventsAsync()
     {
-        var now = DateTime.UtcNow;
-        _upcomingEvents = await Db.Events
-            .Where(e => e.GroupId == _group!.Id && e.EventDate >= now)
-            .OrderBy(e => e.EventDate)
-            .ToListAsync();
-
-        var eventIds = _upcomingEvents.Select(e => e.Id).ToList();
-        _pendingSuggestions = (await Db.EventTimeSuggestions
-                .Where(s => eventIds.Contains(s.EventId) && !s.Resolved && s.ExpiresAt > now)
-                .ToListAsync())
-            .GroupBy(s => s.EventId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First());
-
-        var suggestionIds = _pendingSuggestions.Values.Select(s => s.Id).ToList();
-        _votesBySuggestion = (await Db.EventTimeVotes.Where(v => suggestionIds.Contains(v.SuggestionId)).ToListAsync())
-            .GroupBy(v => v.SuggestionId).ToDictionary(g => g.Key, g => g.ToList());
+        var view = await Cal.LoadAsync(_group!.Id, pastCount: 0);
+        (_upcomingEvents, _pendingSuggestions, _votesBySuggestion) = (view.Upcoming, view.Suggestions, view.Votes);
 
         StateHasChanged();
     }
@@ -343,34 +323,8 @@ else
     private async Task SaveEventAsync()
     {
         if (string.IsNullOrWhiteSpace(_newEventTitle)) return;
-        var title = _newEventTitle.Trim();
-        var dateStr = _newEventDate.ToString("d. MMM");
-
-        if (_editingEventId is { } id)
-        {
-            var ev = await Db.Events.FirstOrDefaultAsync(e => e.Id == id && e.GroupId == _group!.Id);
-            if (ev is null) return;
-            ev.Title = title;
-            ev.EventDate = _newEventDate.ToUniversalTime();
-            ev.Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim();
-            ev.Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim();
-            await Db.SaveChangesAsync();
-            _ = PushService.SendToGroupAsync(Db, _group!.Id, null, "📅 Begivenhed opdateret", $"{title} – {dateStr}");
-        }
-        else
-        {
-            Db.Events.Add(new CalendarEvent
-            {
-                GroupId = _group!.Id,
-                Title = title,
-                EventDate = _newEventDate.ToUniversalTime(),
-                Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim(),
-                Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim(),
-                CreatedByName = "Admin",
-            });
-            await Db.SaveChangesAsync();
-            _ = PushService.SendToGroupAsync(Db, _group.Id, null, "📅 Ny begivenhed", $"{title} – {dateStr}");
-        }
+        await Cal.SaveEventAsync(_group!.Id, _editingEventId, _newEventTitle, _newEventDate.ToUniversalTime(), _newEventLocation, _newEventDesc,
+            "Admin", exceptMember: null);
 
         CancelEditEvent();
         await LoadEventsAsync();
@@ -378,48 +332,31 @@ else
 
     private async Task ApplySuggestionAsync(Guid eventId, EventTimeSuggestion suggestion)
     {
-        var ev = await Db.Events.FirstOrDefaultAsync(e => e.Id == eventId && e.GroupId == _group!.Id);
-        if (ev is null) return;
-        ev.EventDate = suggestion.SuggestedDate;
-        suggestion.Resolved = true;
-        await Db.SaveChangesAsync();
+        await Cal.ApplySuggestionAsync(_group!.Id, eventId, suggestion);
         await LoadEventsAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, null, "📅 Tid ændret", $"{ev.Title} er flyttet til {suggestion.SuggestedDate.ToLocalTime():d. MMM HH:mm}");
     }
 
     private async Task DismissSuggestionAsync(EventTimeSuggestion suggestion)
     {
-        suggestion.Resolved = true;
-        await Db.SaveChangesAsync();
+        await Cal.DismissSuggestionAsync(suggestion);
         await LoadEventsAsync();
     }
 
     private async Task RemoveMemberAsync(Guid memberId)
     {
-        var member = await Db.Members.Include(m => m.Sessions).Include(m => m.Posts)
-            .FirstOrDefaultAsync(m => m.Id == memberId && m.GroupId == _group!.Id);
-        if (member == null) return;
-        Db.Members.Remove(member);
-        await Db.SaveChangesAsync();
+        await People.RemoveAsync(_group!.Id, memberId);
         await LoadMembersAsync();
     }
 
     private async Task ResetPinAsync(Guid memberId)
     {
-        var member = await Db.Members.FirstOrDefaultAsync(m => m.Id == memberId && m.GroupId == _group!.Id);
-        if (member == null) return;
-        member.Pin = "";
-        await Db.SaveChangesAsync();
-        _pinResetName = member.Name;
+        _pinResetName = await People.ResetPinAsync(_group!.Id, memberId) ?? _pinResetName;
         StateHasChanged();
     }
 
     private async Task SaveRoleAsync(Guid memberId, string role)
     {
-        var member = await Db.Members.FirstOrDefaultAsync(m => m.Id == memberId && m.GroupId == _group!.Id);
-        if (member == null) return;
-        member.Role = string.IsNullOrWhiteSpace(role) ? null : role.Trim();
-        await Db.SaveChangesAsync();
+        await People.SetRoleAsync(_group!.Id, memberId, role);
     }
 
     private bool _confirmClearPosts;
@@ -429,18 +366,14 @@ else
 
     private async Task ClearPostsAsync()
     {
-        var posts = await Db.Posts.Where(p => p.GroupId == _group!.Id).ToListAsync();
-        Db.Posts.RemoveRange(posts);
-        await Db.SaveChangesAsync();
+        await Talk.ClearPostsAsync(_group!.Id);
         _confirmClearPosts = false;
         _postsCleared = true;
     }
 
     private async Task ClearCompletedTasksAsync()
     {
-        var done = await Db.Assignments.Where(a => a.GroupId == _group!.Id && a.IsCompleted).ToListAsync();
-        Db.Assignments.RemoveRange(done);
-        await Db.SaveChangesAsync();
+        await Tasks.ClearCompletedAsync(_group!.Id);
         _confirmClearTasks = false;
         _tasksCleared = true;
     }

@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 
-namespace ITMartinClub.Server.Services;
+namespace ITMartinClub.Domain;
 
 // PBKDF2 hashing for Group.AdminPin / Group.InviteCode - these used to be
 // stored and compared in plaintext, which meant anyone with DB access (or a

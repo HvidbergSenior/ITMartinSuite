@@ -1,8 +1,6 @@
-using System.ComponentModel.DataAnnotations.Schema;
+namespace ITMartinClub.Domain;
 
-namespace ITMartinClub.Server.Data.Entities;
-
-public sealed class Assignment
+public sealed class Assignment : ITeamOwned
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GroupId { get; set; }
@@ -32,11 +30,9 @@ public sealed class Assignment
     public Group Group { get; set; } = null!;
     public MainTask? MainTask { get; set; }
 
-    [NotMapped]
     public List<string> Assignees =>
         AssignedToNames.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
 
-    [NotMapped]
     public string AssigneeLabel => string.Join(", ", Assignees);
 
     public bool IsAssignedTo(string name) => Assignees.Contains(name, StringComparer.OrdinalIgnoreCase);
@@ -52,4 +48,20 @@ public sealed class Assignment
         if (!IsAssignedTo(name)) return;
         AssignedToNames = string.Join(';', Assignees.Where(a => !a.Equals(name, StringComparison.OrdinalIgnoreCase)));
     }
+
+    public void Complete(string byName, DateTime nowUtc)
+    {
+        IsCompleted = true; CompletedAt = nowUtc; CompletedByName = byName;
+    }
+
+    /// <summary>A recurring chore done in an earlier cycle comes back as open.</summary>
+    public void Reopen()
+    {
+        IsCompleted = false; CompletedAt = null; CompletedByName = "";
+    }
+
+    /// <summary>Who hears about a change to this task: the assignees and the creator, never the one who did it.</summary>
+    public List<string> PeopleToTell(string actingName, IEnumerable<string>? assignees = null) =>
+        (assignees ?? Assignees).Append(CreatedByName)
+            .Where(n => n != actingName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 }
