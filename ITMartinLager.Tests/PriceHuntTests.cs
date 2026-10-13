@@ -184,4 +184,26 @@ public class PriceHuntTests
         o.Url.Should().Be("https://www.kleinanzeigen.de/s-anzeige/die-farben-der-magie/1-76-1");
         KleinanzeigenListings.ParseAds(Kleinanzeigen, "Die Hexen", "Terry Pratchett", "u", 7.46m).Count.Should().Be(0);
     }
+
+    // 2026-10-13: these got 0 hits on every site with the title search.
+    [Test]
+    public void Nothing_found_tries_series_and_number_then_series_and_title_then_short_title()
+    {
+        Pricing.FallbackTitlesFor(new Item { Kind = Kinds.Tegneserie, Title = "Vampyrernes nat", Series = "Sammy", Number = "5" })
+            .Should().Equal("Sammy 5", "Sammy Vampyrernes nat");
+        Pricing.FallbackTitlesFor(new Item { Kind = Kinds.AndersAnd, Title = "Walt Disney's Anders And & Co.", Series = "Anders And & Co.", Number = "3", Year = 1955 })
+            .Should().Equal("Anders And & Co. 3 1955");
+        Pricing.FallbackTitlesFor(new Item { Kind = Kinds.Tegneserie, Title = "The Amazing Spider-Man: Spidey Saves the Day! The Big Book", Series = "The Amazing Spider-Man" })
+            .Should().Equal("Spidey Saves the Day");
+        Pricing.FallbackTitlesFor(new Item { Kind = Kinds.Bog, Title = "Mort: A Discworld Novel" }).Should().Equal("Mort");
+        Pricing.FallbackTitlesFor(new Item { Kind = Kinds.Bog, Title = "Otto Reliquias" }).Should().BeEmpty();
+    }
+
+    [Test]
+    public void A_comic_listing_may_start_with_the_series_name()
+    {
+        var sammy = new Item { Kind = Kinds.Tegneserie, Title = "Vampyrernes nat", Series = "Sammy", Number = "5" };
+        Pricing.IsOneCopyOf(sammy, new Offer("Sammy 5 Vampyrernes nat", 40, "u")).Should().BeTrue();
+        Pricing.IsOneCopyOf(sammy, new Offer("Spirou 5 Vampyrernes nat", 40, "u")).Should().BeFalse();
+    }
 }

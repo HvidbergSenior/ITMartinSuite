@@ -52,6 +52,36 @@ public static partial class Pricing
         return ListingParse.Words(t).Contains(y.ToString()) ? t : $"{t} {y}";
     }
 
+    // Nothing found for the title (2026-10-13: "Vampyrernes nat 5", "Walt Disney's Anders And & Co. 3 1955" and long
+    // "Spidey Saves the Day! The ..." titles got 0 hits on every site): sellers write the series and the number
+    // ("Sammy nr. 5", "Anders And 1955 nr 3") and short titles. Broader searches, tried in this order until one answers.
+    public static List<string> FallbackTitlesFor(Item i)
+    {
+        var title = i.Title.Trim();
+        var series = i.Series.Trim();
+        var number = i.Number.Trim();
+        var year = i.Kind is Kinds.AndersAnd or Kinds.Magasin && i.Year is { } y ? y.ToString() : "";
+        var tries = new List<string>();
+        if (series != "")
+        {
+            if (number != "") tries.Add(string.Join(' ', new[] { series, number, year }.Where(s => s != "")));
+            if (title != "" && !ListingParse.Words(title).Contains(ListingParse.Words(series).FirstOrDefault() ?? ""))
+                tries.Add($"{series} {title}");
+        }
+        // The short title - but "The Amazing Spider-Man: Spidey Saves the Day!" is the series before the colon, and the
+        // series alone finds every comic in it (111 Spider-Man listings): then the subtitle is the short title.
+        var rest = title;
+        var colon = title.IndexOf(':');
+        if (colon > 0 && series != "" && string.Equals(title[..colon].Trim(), series, StringComparison.OrdinalIgnoreCase))
+            rest = title[(colon + 1)..].Trim();
+        var cut = rest.IndexOfAny([':', '!', '(', '–']);
+        var shortTitle = (cut > 3 ? rest[..cut] : rest).Trim();
+        if (shortTitle != title && shortTitle.Any(char.IsLetter) && !string.Equals(shortTitle, series, StringComparison.OrdinalIgnoreCase))
+            tries.Add(number != "" ? $"{shortTitle} {number}" : shortTitle);
+        var done = new HashSet<string?>([TitleFor(i), AlternativeTitleFor(i)], StringComparer.OrdinalIgnoreCase);
+        return tries.Where(t => done.Add(t)).ToList();
+    }
+
     // "Magen til" (user 2026-10-12: "Lige præcis denne findes ingen priser, men denne koster ..."): the same title
     // without the issue number and year - other årgange of the album, other issues of the blad. An Anders And blad keeps
     // its year (other issues from 1968). Null when that is no broader than the exact search.
@@ -88,7 +118,9 @@ public static partial class Pricing
             var title = ListingParse.Words(item.Title.Trim() != "" ? item.Title : item.Series).Where(w => !ListingParse.IsNumber(w)).ToList();
             var creator = ListingParse.Words(item.Artist).ToHashSet();
             var lead = words.SkipWhile(w => Brands.Contains(w) || creator.Contains(w)).ToList();
-            if (title.Count > 0 && (lead.Count == 0 || lead[0] != title[0])) return false;
+            // ... or the series first: "Sammy 5 Vampyrernes nat" (2026-10-13).
+            var series = ListingParse.Words(item.Series).Where(w => !ListingParse.IsNumber(w)).FirstOrDefault();
+            if (title.Count > 0 && (lead.Count == 0 || (lead[0] != title[0] && lead[0] != series))) return false;
         }
         return true;
     }

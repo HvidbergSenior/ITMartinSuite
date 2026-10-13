@@ -31,6 +31,13 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         var answers = await AskAllAsync(item, Pricing.TitleFor(item), isbn, ct);
         if (isbn == "" && answers.All(a => a.Result is not { Count: > 0 }) && Pricing.AlternativeTitleFor(item) is { } alt)
             answers = await AskAllAsync(item, alt, isbn, ct);
+        // Still nothing: the series + number, the series + title, the short title - one at a time, stop at the first hit.
+        if (isbn == "")
+            foreach (var broader in Pricing.FallbackTitlesFor(item))
+            {
+                if (answers.Any(a => a.Result is { Count: > 0 })) break;
+                answers = await AskAllAsync(item, broader, isbn, ct);
+            }
         // Still nothing for exactly this one: what does the same thing cost in another årgang/issue ("magen til")?
         List<SourceAnswer>? similar = null;
         if (answers.All(a => a.Result is not { HasPrices: true } || a.IsNew) && Pricing.SimilarTitleFor(item) is { } like)
