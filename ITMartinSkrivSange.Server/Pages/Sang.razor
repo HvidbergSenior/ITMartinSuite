@@ -373,7 +373,7 @@ else
                         }
                         else
                         {
-                            <button class="k-btn k-btn-primary" @onclick="() => Record(kind)" disabled="@(_recordingPart is not null || _playing is not null)">Optag</button>
+                            <button class="k-btn k-btn-primary" @onclick="() => Record(kind)" disabled="@(_recordingPart is not null || _playing is not null || _startingRecording)">@(_startingRecording ? "Starter ..." : "Optag")</button>
                             <label class="ss-check"><input type="checkbox" @bind="_recordWithLoop" /> med loopet i baggrunden</label>
                         }
                     </div>
@@ -435,6 +435,7 @@ else
     private sealed record InputList(bool Ok, List<InputDevice> Inputs, string Chosen);
     private PartKind? _recordingPart;
     private bool _recordWithLoop = true;
+    private bool _startingRecording;                 // the device is opening - Optag can't be pressed twice
     private int _speed = 100;                        // practice tempo in % of the song's BPM
     private int _recSeconds;
     private System.Threading.Timer? _recTimer;
@@ -733,15 +734,20 @@ else
             _error = "Optagelse virker kun på en sikker adresse (https). Åbn SkrivSange på https://skrivsange.itmartin.dk - på http://10.0.0.126:8131 må browseren ikke bruge mikrofonen.";
             return;
         }
+        if (_startingRecording) return;
+        _startingRecording = true;
+        StateHasChanged();
         try
         {
             await JS.InvokeVoidAsync("studio.startRecording", _song.RecordingKey, false, Parts.Slug(kind));
         }
         catch (JSException)
         {
+            _startingRecording = false;
             _error = "Optagelsen kunne ikke starte. Tillad mikrofonen ved hængelåsen ved adressen, og tjek under Optag fra at den rigtige indgang er valgt og sat i.";
             return;
         }
+        _startingRecording = false;
         _recordingPart = kind;
         _recSeconds = 0;
         _recTimer = new System.Threading.Timer(_ => InvokeAsync(() => { _recSeconds++; StateHasChanged(); }), null, 1000, 1000);

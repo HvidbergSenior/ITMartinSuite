@@ -15,7 +15,14 @@ window.studio = (function() {
 
     // ── Recording ──────────────────────────────────────────────────────────────
 
+    var _starting = false;
+
     function startRecording(songKey, videoMode, section) {
+        // A second press while the device opens (can take seconds with an interface) used to start a second recorder
+        // on top of the first, both writing into the same chunk list - the take began with the wrong piece and could
+        // not be read (2026-10-14). Now a start while one is starting or running is ignored.
+        if (_starting || _mediaRecorder) return Promise.resolve();
+        _starting = true;
         _songKey = songKey;
         _videoMode = !!videoMode;
         _section = section || null;
@@ -89,14 +96,19 @@ window.studio = (function() {
                 var opts = mimeType ? { mimeType: mimeType, audioBitsPerSecond: 192000 } : {};
                 _mediaRecorder = new MediaRecorder(recordStream, opts);
 
+                // Each recorder keeps its own pieces, so two can never be mixed into one file.
+                var chunks = _chunks = [];
+                _mediaRecorder._chunks = chunks;
                 _mediaRecorder.ondataavailable = function(e) {
-                    if (e.data && e.data.size > 0) _chunks.push(e.data);
+                    if (e.data && e.data.size > 0) chunks.push(e.data);
                 };
 
                 _mediaRecorder.start(500);
+                _starting = false;
                 console.log("Recording started", _videoMode ? "video" : "audio", mimeType);
             })
             .catch(function(err) {
+                _starting = false;
                 console.error("Media access failed", err.name, err.message);
                 throw err;
             });
@@ -182,7 +194,7 @@ window.studio = (function() {
             if (preview) preview.srcObject = null;
 
             recorder.onstop = function() {
-                var blob = new Blob(_chunks, { type: capturedMime });
+                var blob = new Blob(recorder._chunks || _chunks, { type: capturedMime });
                 _chunks = [];
 
                 if (_micStream) {
