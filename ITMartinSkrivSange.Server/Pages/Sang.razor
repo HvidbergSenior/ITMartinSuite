@@ -90,6 +90,39 @@ else
         <p class="k-muted ss-small">@Strums.Find(_song.StrumId).Feel. N = slag ned, O = slag op, B = bas (tommel), V = vekselbas, 3 2 1 = G-, B- og lyse e-streng, · = lad den klinge.</p>
     </section>
 
+    <section class="k-card">
+        <h2 class="k-card-title">Optag fra: guitar eller mikrofon</h2>
+        <p class="k-help">Vælg hvor guitaren kommer ind (fx dit lydkort / HyperX), og tryk Test lyd. Spil - baren skal op over midten, men ikke helt ud. Valget huskes på denne computer. Med høretelefoner i PC'en hører du loopet, uden at det kommer med på optagelsen.</p>
+        @if (_inputs is null)
+        {
+            <button class="k-btn" @onclick="FindInputs">Find indgange</button>
+            <p class="k-muted ss-small">Browseren spørger om lov til mikrofonen - sig ja. Virker kun på https://skrivsange.itmartin.dk.</p>
+        }
+        else
+        {
+            <label class="k-label" for="ss-input">Indgang</label>
+            <select id="ss-input" class="k-input" value="@_input" @onchange="ChooseInput">
+                <option value="">Standard (som Windows er sat op)</option>
+                @foreach (var i in _inputs)
+                {
+                    <option value="@i.Id">@i.Label</option>
+                }
+            </select>
+            <div class="ss-row">
+                @if (_metering)
+                {
+                    <button class="k-btn k-btn-danger" @onclick="StopMeter">Stop test</button>
+                }
+                else
+                {
+                    <button class="k-btn" @onclick="StartMeter">Test lyd</button>
+                }
+            </div>
+            <div class="ss-meter" aria-hidden="true"><div class="ss-meter-bar" id="ss-meter-bar"></div><span class="ss-meter-mid"></span></div>
+            <p class="k-muted ss-small">Tom bar = der kommer intet ind: vælg en anden indgang, eller skru op for gain på lydkortet. Helt ude til højre = for højt, skru lidt ned.</p>
+        }
+    </section>
+
     @foreach (var part in _song.Parts)
     {
         var kind = part.Kind;
@@ -376,6 +409,12 @@ else
     private (PartKind Kind, int Index)? _focus;     // the chord tile pressed for ideas
     private PartKind? _loop;                         // the part looping for practice
     private PartKind? _adding;                       // the part whose + tile is open
+    private List<InputDevice>? _inputs;              // recording inputs, after "Find indgange"
+    private string _input = "";
+    private bool _metering;
+
+    private sealed record InputDevice(string Id, string Label);
+    private sealed record InputList(bool Ok, List<InputDevice> Inputs, string Chosen);
     private PartKind? _recordingPart;
     private bool _recordWithLoop = true;
     private int _speed = 100;                        // practice tempo in % of the song's BPM
@@ -607,6 +646,40 @@ else
         try { await JS.InvokeVoidAsync("skrivStrum.stop"); } catch (JSException) { }
     }
 
+    // ---- Which input to record from (js/input.js) - e.g. the guitar in the HyperX instead of the default mic.
+
+    private async Task FindInputs()
+    {
+        _error = null;
+        try
+        {
+            var list = await JS.InvokeAsync<InputList>("skrivInput.list");
+            if (!list.Ok) { _error = "Indgange kan kun findes på https://skrivsange.itmartin.dk."; return; }
+            _inputs = list.Inputs;
+            _input = list.Inputs.Any(i => i.Id == list.Chosen) ? list.Chosen : "";
+        }
+        catch (JSException) { _error = "Browseren gav ikke lov til mikrofonen. Tillad den ved hængelåsen ved adressen og prøv igen."; }
+    }
+
+    private async Task ChooseInput(ChangeEventArgs e)
+    {
+        _input = e.Value?.ToString() ?? "";
+        await JS.InvokeVoidAsync("skrivInput.choose", _input);
+        if (_metering) await StartMeter();
+    }
+
+    private async Task StartMeter()
+    {
+        try { await JS.InvokeVoidAsync("skrivInput.startMeter", "ss-meter-bar"); _metering = true; }
+        catch (JSException) { _error = "Indgangen kunne ikke åbnes. Er lydkortet sat i?"; }
+    }
+
+    private async Task StopMeter()
+    {
+        _metering = false;
+        try { await JS.InvokeVoidAsync("skrivInput.stopMeter"); } catch (JSException) { }
+    }
+
     // ---- Recording a part (js/studio.js records the mic and uploads it as take-{part}-{time}.webm).
 
     private static string FormatTime(int seconds) => $"{seconds / 60}:{seconds % 60:D2}";
@@ -627,12 +700,13 @@ else
         }
         catch (JSException)
         {
-            _error = "Mikrofonen kunne ikke startes. Tillad mikrofon i browseren (hængelåsen ved adressen) og prøv igen.";
+            _error = "Optagelsen kunne ikke starte. Tillad mikrofonen ved hængelåsen ved adressen, og tjek under Optag fra at den rigtige indgang er valgt og sat i.";
             return;
         }
         _recordingPart = kind;
         _recSeconds = 0;
         _recTimer = new System.Threading.Timer(_ => InvokeAsync(() => { _recSeconds++; StateHasChanged(); }), null, 1000, 1000);
+        if (_metering) await StopMeter();
         if (_recordWithLoop) await Loop(kind);
     }
 
@@ -664,6 +738,7 @@ else
         if (_song is not null && _pendingNotes.Count > 0)
             foreach (var (kind, text) in _pendingNotes) await Writing.WriteNotesAsync(_song, kind, text);
         try { if (_playing is not null) await JS.InvokeVoidAsync("skrivStrum.stop"); } catch (Exception) { }
+        try { if (_metering) await JS.InvokeVoidAsync("skrivInput.stopMeter"); } catch (Exception) { }
         _self?.Dispose();
     }
 }

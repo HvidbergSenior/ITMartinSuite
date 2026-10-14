@@ -28,7 +28,8 @@ window.studio = (function() {
         // correct way to avoid backing-track bleed during overdub is
         // headphones (see the hint next to the "optag med sangen" button),
         // not browser-side audio processing on the mic signal.
-        var micConstraints = {
+        // SkrivSange: the input chosen on the page (js/input.js) - e.g. the guitar interface instead of the default mic.
+        var micConstraints = window.skrivInput ? window.skrivInput.constraints() : {
             echoCancellation: false,
             noiseSuppression: false,
             autoGainControl: false

@@ -114,3 +114,8 @@ button.ss-grip { display: inline-flex; flex-direction: column; align-items: cent
 .ss-grip-add .ss-grip-name { font-size: .9rem; font-weight: 600; }
 .ss-all { margin-top: .5rem; }
 .ss-all summary { cursor: pointer; font-weight: 600; }
+
+/* Input level meter: a bar with a mark in the middle (aim past it, not to the end). Words, not colour, say what is good. */
+.ss-meter { position: relative; height: 1.4rem; border: 2px solid var(--k-text); border-radius: 6px; overflow: hidden; background: var(--k-card); margin: .5rem 0; }
+.ss-meter-bar { height: 100%; width: 0; background: var(--k-text); transition: width .05s linear; }
+.ss-meter-mid { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 2px dashed var(--k-muted); }
