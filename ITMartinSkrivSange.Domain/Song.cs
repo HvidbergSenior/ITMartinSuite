@@ -146,6 +146,10 @@ public sealed class Song
     public SongPart? LeadVerse(PartKind? except = null) =>
         _parts.FirstOrDefault(p => Domain.Parts.IsVerse(p.Kind) && p.Kind != except && p.HasChords);
 
+    /// <summary>The nearest part before <paramref name="kind"/> that has chords - what a new part should follow on from.</summary>
+    public SongPart? PartBefore(PartKind kind) =>
+        _parts.Take((int)kind).LastOrDefault(p => p.HasChords);
+
     /// <summary>The grip the song comes home to - the lead verse's key, else the first part with chords. Null before any chords.</summary>
     public string? HomeGrip
     {

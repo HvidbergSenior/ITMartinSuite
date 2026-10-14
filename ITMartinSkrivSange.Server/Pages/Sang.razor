@@ -165,11 +165,12 @@ else
                 </div>
                 @if (_adding == kind)
                 {
-                    var last = part.HasChords ? part.Chords[^1] : null;
+                    var before = part.HasChords ? null : _song.PartBefore(kind);
+                    var last = part.HasChords ? part.Chords[^1] : before?.Chords[^1];
                     <div class="ss-ideas">
                         @if (last is not null)
                         {
-                            <div class="k-label">Lyder godt efter @last</div>
+                            <div class="k-label">Lyder godt efter @last@(before is null ? "" : $" (sidst i {before.Label.ToLowerInvariant()})")</div>
                             <div class="ss-chips">
                                 @foreach (var idea in Writing.ChordIdeas(_song, last).Next)
                                 {
@@ -244,11 +245,12 @@ else
                 </div>
                 @if (_adding == kind)
                 {
-                    var last = part.HasChords ? part.Chords[^1] : null;
+                    var before = part.HasChords ? null : _song.PartBefore(kind);
+                    var last = part.HasChords ? part.Chords[^1] : before?.Chords[^1];
                     <div class="ss-ideas">
                         @if (last is not null)
                         {
-                            <div class="k-label">Lyder godt efter @last</div>
+                            <div class="k-label">Lyder godt efter @last@(before is null ? "" : $" (sidst i {before.Label.ToLowerInvariant()})")</div>
                             <div class="ss-chips">
                                 @foreach (var idea in Writing.ChordIdeas(_song, last).Next)
                                 {

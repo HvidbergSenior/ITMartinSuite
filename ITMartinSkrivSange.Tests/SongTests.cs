@@ -346,3 +346,62 @@ public class OnTheFlyTests
         FluentActions.Invoking(() => song.InsertChordAfter(PartKind.Intro, 7, "C", now)).Should().Throw<SongException>();
     }
 }
+
+public class FollowOnTests
+{
+    private static readonly DateTime Now = new(2026, 10, 14, 12, 0, 0, DateTimeKind.Utc);
+
+    // Martin's song 2026-10-14: intro Am G Am G E, then Foreslå on Vers 1.
+    private static Song WithIntro()
+    {
+        var song = Song.Create("Den allerførste sang", Now);
+        song.UseChords(PartKind.Intro, ["Am", "G", "Am", "G", "E"], null, Now);
+        return song;
+    }
+
+    [Test]
+    public void The_verse_first_offers_the_intro_chords()
+    {
+        var s = ProgressionAdvisor.Suggest(WithIntro(), PartKind.Vers1);
+        s.Chords.Should().Equal("Am", "G", "Am", "G", "E");
+        s.Why.Should().Contain("Intro");
+    }
+
+    [Test]
+    public void Then_progressions_in_the_same_key_sharing_the_most_chords()
+    {
+        var song = WithIntro();
+        var first = ProgressionAdvisor.Suggest(song, PartKind.Vers1);
+        song.UseChords(PartKind.Vers1, first.Chords, first.ProgressionId, Now);
+        var second = ProgressionAdvisor.Suggest(song, PartKind.Vers1);
+        second.ProgressionId.Should().Be("dram-trappe");          // Am G Fmaj7 E shares Am, G and E
+        second.Why.Should().Contain("Am, G, E");
+    }
+
+    [Test]
+    public void Every_follow_on_stays_in_the_key_of_the_part_before()
+    {
+        var song = WithIntro();
+        var seen = new HashSet<string>();
+        for (var i = 0; i < 12; i++)
+        {
+            var s = ProgressionAdvisor.Suggest(song, PartKind.Vers1);
+            if (s.ProgressionId is { } id) ProgressionLibrary.Find(id)!.Family.Should().Be("C");
+            seen.Add(string.Join(" ", s.Chords));
+            song.UseChords(PartKind.Vers1, s.Chords, s.ProgressionId, Now);
+        }
+        seen.Count.Should().BeGreaterThan(3);
+    }
+
+    [Test]
+    public void The_outro_without_verses_ends_the_intro_on_its_home_chord() =>
+        ProgressionAdvisor.Suggest(WithIntro(), PartKind.Outro).Chords.Should().Equal("Am", "G", "Am", "G", "E", "Am");
+
+    [Test]
+    public void Part_before_skips_empty_parts()
+    {
+        var song = WithIntro();
+        song.PartBefore(PartKind.Bridge)!.Kind.Should().Be(PartKind.Intro);
+        song.PartBefore(PartKind.Intro).Should().BeNull();
+    }
+}
