@@ -68,5 +68,33 @@ window.skrivInput = (function () {
         meter = null;
     }
 
-    return { list: list, choose: choose, constraints: constraints, startMeter: startMeter, stopMeter: stopMeter };
+    // "Hør dig selv" (user 2026-10-14: guitar in the HyperX, headphones in the PC, heard nothing): the input played straight
+    // to the browser's output. Its own stream and context, so it runs on while studio.js records - and is never in the take.
+    var monitor = null;
+
+    async function startMonitor(volume) {
+        stopMonitor();
+        var stream = await navigator.mediaDevices.getUserMedia({ audio: constraints() });
+        var ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+        if (ctx.state === "suspended") await ctx.resume();
+        var gain = ctx.createGain();
+        gain.gain.value = volume || 1;
+        ctx.createMediaStreamSource(stream).connect(gain).connect(ctx.destination);
+        monitor = { stream: stream, ctx: ctx, gain: gain };
+        return Math.round(((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000); // ms, shown on the page
+    }
+
+    function monitorVolume(volume) { if (monitor) monitor.gain.gain.value = volume; }
+
+    function stopMonitor() {
+        if (!monitor) return;
+        monitor.stream.getTracks().forEach(function (t) { t.stop(); });
+        try { monitor.ctx.close(); } catch (e) { }
+        monitor = null;
+    }
+
+    return {
+        list: list, choose: choose, constraints: constraints, startMeter: startMeter, stopMeter: stopMeter,
+        startMonitor: startMonitor, monitorVolume: monitorVolume, stopMonitor: stopMonitor
+    };
 })();
