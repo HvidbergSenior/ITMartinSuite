@@ -145,11 +145,12 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
     // The webm is only removed when the mp3 is there; without ffmpeg the webm stays.
     private const double TargetPeakDb = -1.5, MaxGainDb = 30;
 
-    // After the gain: rumble off below 70 Hz, steady room sound (hum, hiss, fan) reduced, and the pauses turned down 20 dB by
-    // a soft gate - not to silence, so soft notes and a chord's decay stay. Tried on a real QuadCast take 2026-10-14
-    // (user: knob at max, sitting close, still noise): pause -37 -> -48 dB, playing, soft spot and decay unchanged.
-    // Stronger noise reduction took the pause lower but risks a "watery" guitar.
-    private const string CleanUp = "highpass=f=70,afftdn=nr=20:nf=-40:tn=1,agate=threshold=0.035:ratio=4:attack=5:release=400:range=0.1";
+    // After the gain: rumble off below 70 Hz, steady room sound (hum, hiss, fan) reduced, and the pauses turned down by a
+    // gentle gate. 2026-10-14, QuadCast at max gain, sitting close: the first gate (threshold -29 dB, release 0.4 s, -20 dB)
+    // made the room quiet ("noise fine") but shut between strums and in soft playing - 4.5 s of holes in an 89 s take
+    // ("some stops though"). Now it only reacts below -36 dB, waits 1.2 s before closing and turns down ~10 dB with a soft
+    // knee, so it never drops to silence while playing. Stronger noise reduction risks a "watery" guitar.
+    private const string CleanUp = "highpass=f=70,afftdn=nr=20:nf=-40:tn=1,agate=threshold=0.015:ratio=2:attack=10:release=1200:range=0.3:knee=8";
 
     private static async Task<string?> LoudMp3Async(string webm)
     {
