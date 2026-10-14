@@ -244,17 +244,30 @@ body.view-only #addonsSection,body.view-only #collectionsSection,body.view-only 
 .v-counter{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);color:rgba(255,255,255,.6);font-size:12px;padding:4px 10px;border-radius:999px}
 
 /* ── Theme "skuespiller" (Julius, 2026-10-14): a cinema front - dark, warm gold, film strips. Only photos + videos. ── */
-body[data-theme="skuespiller"]{--accent:#e8b04a;--accent-hover:#d49a30;background:radial-gradient(ellipse at 50% -10%,rgba(232,176,74,.20),transparent 60%),#0d0b0a;color:#f4ede2}
+/* Colour-blind user (2026-10-14: "the text in gallery i cannot read"): ONLY white text on near-black, in light AND dark mode -
+   the variables are locked here so the light/dark switch cannot turn the text dark on the dark background. Gold only on lines/borders. */
+body[data-theme="skuespiller"]{--accent:#e8b04a;--accent-hover:#d49a30;--bg:#0d0b0a;--bg-card:#1a1512;--bg-btn:#2a221c;--border:#4a3b2c;
+  --text:#ffffff;--text-muted:#ffffff;--text-dim:#ffffff;--text-dimmer:#e8e8e8;--hdr-bg:rgba(13,11,10,.97);
+  background:radial-gradient(ellipse at 50% -10%,rgba(232,176,74,.20),transparent 60%),#0d0b0a;color:#fff}
+body[data-theme="skuespiller"] *:not(.s-chip.on){color:#fff}
+/* Centred (user: "center them.. not to left"): albums and pictures in a centred row. */
+body[data-theme="skuespiller"] .folder-grid,body[data-theme="skuespiller"] .file-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
+body[data-theme="skuespiller"] .folder-card{width:min(300px,44vw)}
+body[data-theme="skuespiller"] .file-card{width:min(220px,44vw);aspect-ratio:1}
+body[data-theme="skuespiller"] .section-title,body[data-theme="skuespiller"] .grid-title{text-align:center}
 .s-hero{margin:14px 0 10px;border-radius:18px;overflow:hidden;background:linear-gradient(160deg,#1c1612,#0f0c0a);border:1px solid rgba(232,176,74,.35);box-shadow:0 14px 40px rgba(0,0,0,.5)}
 .s-strip{height:18px;background:#000 repeating-linear-gradient(90deg,transparent 0 10px,rgba(244,237,226,.85) 10px 22px,transparent 22px 34px);background-size:34px 8px;background-repeat:repeat-x;background-position:0 5px}
 .s-in{padding:26px 20px 22px;text-align:center}
-.s-kicker{font:800 .8rem/1 system-ui,sans-serif;letter-spacing:.32em;text-transform:uppercase;color:#e8b04a}
-.s-name{margin:10px 0 6px;font:900 clamp(2.6rem,10vw,5rem)/1 Georgia,"Times New Roman",serif;letter-spacing:.04em;color:#fff7e8;text-shadow:0 0 36px rgba(232,176,74,.35)}
-.s-line{margin:0 auto;max-width:46ch;font:italic 1.15rem/1.4 Georgia,serif;color:#f1dcb4}
-.s-count{margin-top:12px;font:700 .85rem system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#cdbba0}
+.s-small .s-in{padding:16px 16px 14px}.s-small .s-name{font-size:clamp(1.8rem,6vw,2.8rem)}
+body[data-theme="skuespiller"] .folder-card{border:1px solid rgba(232,176,74,.45);border-radius:14px}
+.s-kicker{font:800 .85rem/1 system-ui,sans-serif;letter-spacing:.32em;text-transform:uppercase;color:#fff}
+.s-name{margin:10px 0 6px;font:900 clamp(2.6rem,10vw,5rem)/1 Georgia,"Times New Roman",serif;letter-spacing:.04em;color:#fff}
+.s-line{margin:0 auto;max-width:46ch;font:italic 1.2rem/1.4 Georgia,serif;color:#fff}
+.s-count{margin-top:12px;font:700 .95rem system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#fff}
 .s-chips{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}
-.s-chip{border:1px solid rgba(232,176,74,.6);background:transparent;color:#f4ede2;border-radius:999px;padding:8px 16px;font:800 1rem system-ui,sans-serif;cursor:pointer}
-.s-chip.on,.s-chip:hover,.s-chip:focus-visible{background:#e8b04a;color:#1a1208}
+.s-chip{border:2px solid #fff;background:#000;color:#fff;border-radius:999px;padding:8px 16px;font:800 1rem system-ui,sans-serif;cursor:pointer}
+.s-chip:hover,.s-chip:focus-visible{background:#333}
+body[data-theme="skuespiller"] .s-chip.on{background:#fff;color:#000}
 body[data-theme="skuespiller"] .file-card{border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
 body[data-theme="skuespiller"] video.file-thumb{width:100%;height:100%;object-fit:cover;display:block}
 body[data-theme="skuespiller"][data-show="pic"] .file-card:has(.vid-overlay){display:none}
@@ -706,13 +719,17 @@ function renderBrowse(data, titleOverride) {
   let sh = document.getElementById('skuespillerHero');
   if (theme === 'skuespiller') {
     if (!sh) { sh = document.createElement('div'); sh.id = 'skuespillerHero'; document.getElementById('folderSection').parentNode.insertBefore(sh, document.getElementById('folderSection')); }
-    sh.style.display = atRoot ? '' : 'none';
+    // Albums (user 2026-10-14: "Filmoptagelser" and "Mit liv på Rødkilde" as folders): the front shows the two albums,
+    // inside an album the same frame with the album name, the counts and the chips.
+    sh.style.display = '';
+    const album = atRoot ? '' : (titleOverride || currentRelPath.split('/').pop());
     const nVid = files.filter(f => f.isVideo).length, nPic = files.filter(f => !f.isVideo && !f.isAudio && !f.isDoc).length;
-    sh.innerHTML = `<div class="s-hero"><div class="s-strip"></div><div class="s-in">`
-      + `<div class="s-kicker">Skuespiller</div><h1 class="s-name">${esc(headline || galleryDisplayName || 'Skuespiller')}</h1>`
-      + (tagline ? `<p class="s-line">${esc(tagline)}</p>` : '')
-      + `<div class="s-count">${nPic} ${nPic === 1 ? 'billede' : 'billeder'} · ${nVid} ${nVid === 1 ? 'video' : 'videoer'}</div>`
-      + `<div class="s-chips"><button type="button" class="s-chip on" data-show="">Alle</button><button type="button" class="s-chip" data-show="pic">Billeder</button><button type="button" class="s-chip" data-show="vid">Videoer</button></div>`
+    sh.innerHTML = `<div class="s-hero${atRoot ? '' : ' s-small'}"><div class="s-strip"></div><div class="s-in">`
+      + `<div class="s-kicker">${atRoot ? 'Skuespiller' : esc(headline || 'Skuespiller')}</div><h1 class="s-name">${esc(album || headline || galleryDisplayName || 'Skuespiller')}</h1>`
+      + (atRoot && tagline ? `<p class="s-line">${esc(tagline)}</p>` : '')
+      + (atRoot && folders.length ? `<div class="s-count">Vælg et album</div>` : '')
+      + (files.length ? `<div class="s-count">${nPic} ${nPic === 1 ? 'billede' : 'billeder'} · ${nVid} ${nVid === 1 ? 'video' : 'videoer'}</div>` : '')
+      + (files.length ? `<div class="s-chips"><button type="button" class="s-chip on" data-show="">Alle</button><button type="button" class="s-chip" data-show="pic">Billeder</button><button type="button" class="s-chip" data-show="vid">Videoer</button></div>` : '')
       + `</div><div class="s-strip"></div></div>`;
     document.body.dataset.show = '';
     sh.querySelectorAll('.s-chip').forEach(b => b.onclick = () => {

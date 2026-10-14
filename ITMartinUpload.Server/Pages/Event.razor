@@ -212,7 +212,8 @@
         _token = qs["token"] ?? "";
         if (Options.Value.Renamed(Slug) is { } moved)
         {
-            Nav.NavigateTo($"/event/{moved.Slug}", replace: true);
+            // Keep the code (2026-10-14: julius -> julius-film; old links and installed icons carry ?token=).
+            Nav.NavigateTo($"/event/{moved.Slug}" + new Uri(Nav.Uri).Query, replace: true);
             return;
         }
         _customer = Options.Value.Find(Slug);
