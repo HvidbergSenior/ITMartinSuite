@@ -76,3 +76,31 @@
 .step-pill-main, .step-pill-skip { border: 0; background: none; color: var(--k-text); font: inherit; padding: .35rem .7rem; cursor: pointer; display: flex; gap: .35rem; }
 .step-pill-main:disabled { cursor: default; }
 .step-pill-skip { border-left: 1px solid var(--k-border-3); }
+
+/* Own progressions: the pick button and a small Fjern next to it. */
+.ss-own { display: flex; gap: .4rem; align-items: stretch; }
+.ss-own .ss-option { flex: 1; }
+
+/* Chord tiles are buttons: press one for alternatives and what sounds nice next. Picked = thick frame + "▾" (not colour alone). */
+button.ss-grip { font: inherit; font-size: 1.35rem; font-weight: 700; color: var(--k-text); cursor: pointer; }
+button.ss-grip:hover, button.ss-grip:focus-visible { border-color: var(--k-text); }
+.ss-grip.is-picked { border-color: var(--k-text); border-width: 3px; }
+.ss-grip.is-picked::after { content: " ▾"; font-size: .7em; }
+.ss-ideas { border: 2px solid var(--k-border-3); border-radius: 10px; padding: .6rem .7rem; margin: .2rem 0 .6rem; background: var(--k-bg-deep, transparent); }
+.ss-why { font-weight: 400; color: var(--k-muted); font-size: .85em; }
+
+/* Chord box inside each chord tile: the name on top, the grip under it. */
+button.ss-grip { display: inline-flex; flex-direction: column; align-items: center; gap: .15rem; padding: .4rem .5rem .5rem; }
+.ss-grip-name { line-height: 1.1; }
+.ss-diagram { width: 88px; height: 102px; display: block; }
+.ss-finger { fill: var(--k-card); }
+
+.ss-kind { font-size: .85rem; font-weight: 700; color: var(--k-muted); margin-top: .4rem; }
+
+/* Practice and record inside a part. */
+.ss-practice { border-top: 1px solid var(--k-border); margin-top: .6rem; padding-top: .5rem; }
+.ss-speed { width: auto; }
+.ss-inline { margin: 0; }
+.ss-check { display: inline-flex; gap: .35rem; align-items: center; }
+.ss-take { display: grid; grid-template-columns: auto 1fr auto; gap: .5rem; align-items: center; margin: .3rem 0; }
+@media (max-width: 560px) { .ss-take { grid-template-columns: 1fr auto; } .ss-take audio { grid-column: 1 / -1; } }

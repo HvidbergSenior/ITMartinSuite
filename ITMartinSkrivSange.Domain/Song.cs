@@ -16,6 +16,9 @@ public static class Parts
     };
 
     public static bool IsVerse(PartKind kind) => kind is PartKind.Vers1 or PartKind.Vers2 or PartKind.Vers3;
+
+    /// <summary>The part in a recording's file name (take-vers1-...), letters and digits only.</summary>
+    public static string Slug(PartKind kind) => kind.ToString().ToLowerInvariant();
 }
 
 /// <param name="ProgressionId">Which library progression the chords came from, or null when they were made from one (the outro).</param>
@@ -65,6 +68,9 @@ public sealed class Song
 
     public SongPart Part(PartKind kind) => _parts[(int)kind];
 
+    /// <summary>The folder the song's practice takes go in (recordings/sang-...).</summary>
+    public string RecordingKey => "sang-" + Id.ToString("N");
+
     public void Rename(string title, DateTime nowUtc) { Title = CleanTitle(title); Touch(nowUtc); }
 
     public void SetMood(string mood, DateTime nowUtc)
@@ -92,6 +98,32 @@ public sealed class Song
         if (chords.FirstOrDefault(c => !Chords.IsOpenGrip(c)) is { } bad) throw new SongException($"{bad} er ikke et åbent greb - brug capo i stedet.");
         _parts[(int)kind] = Part(kind) with { Chords = chords.ToList(), ProgressionId = progressionId };
         Touch(nowUtc);
+    }
+
+    /// <summary>Swaps one chord. The part is then its own (no longer a library progression).</summary>
+    public void ReplaceChord(PartKind kind, int index, string chord, DateTime nowUtc)
+    {
+        var chords = Part(kind).Chords.ToList();
+        if (index < 0 || index >= chords.Count) throw new SongException("Den akkord findes ikke i delen.");
+        chords[index] = chord;
+        UseChords(kind, chords, null, nowUtc);
+    }
+
+    /// <summary>Puts a chord in right after <paramref name="index"/>.</summary>
+    public void InsertChordAfter(PartKind kind, int index, string chord, DateTime nowUtc)
+    {
+        var chords = Part(kind).Chords.ToList();
+        if (index < -1 || index >= chords.Count) throw new SongException("Den akkord findes ikke i delen.");
+        chords.Insert(index + 1, chord);
+        UseChords(kind, chords, null, nowUtc);
+    }
+
+    public void RemoveChord(PartKind kind, int index, DateTime nowUtc)
+    {
+        var chords = Part(kind).Chords.ToList();
+        if (index < 0 || index >= chords.Count) throw new SongException("Den akkord findes ikke i delen.");
+        chords.RemoveAt(index);
+        if (chords.Count == 0) ClearChords(kind, nowUtc); else UseChords(kind, chords, null, nowUtc);
     }
 
     public void ClearChords(PartKind kind, DateTime nowUtc)

@@ -12,6 +12,14 @@ public interface ISongStore
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
+// Martin's own progressions ("MartinChord 1" ...), shared by all songs - in skrivsange.db too.
+public interface IOwnProgressionStore
+{
+    Task<IReadOnlyList<OwnProgression>> ListAsync(CancellationToken ct = default);
+    Task AddAsync(OwnProgression progression, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
+}
+
 // The old drafts in the studio's studio.db (shared with Musik Studio - a draft here shows up there under "Trin i gang").
 public interface IStudioDraftStore
 {

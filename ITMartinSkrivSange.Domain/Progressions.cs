@@ -51,18 +51,32 @@ public static class ProgressionLibrary
     public static IReadOnlyList<Progression> ForMood(string mood) => All.Where(p => p.Mood == mood).ToList();
 }
 
-/// <param name="Pattern">One bar of 4/4 in eighths: D = down, U = up, - = let it ring.</param>
-public sealed record StrumPattern(string Id, string Name, string Pattern, string Feel);
+/// <param name="Pattern">
+/// One bar of 4/4 in eighths. Strums: D = down, U = up. Picking: B = bass string (thumb), V = the string above it
+/// (alternating bass), 3 / 2 / 1 = the G, B and high e string (fingers). - = let it ring.
+/// </param>
+/// <param name="Kind">Slag, Pluk or Kombi - how the list is grouped.</param>
+public sealed record StrumPattern(string Id, string Name, string Pattern, string Kind, string Feel)
+{
+    public const string Steps = "DUBV321-";
+}
 
-// The strums the page can play (Web Audio in the browser, no sound files).
+// How the chords are played (user 2026-10-14: "I strum but also fingerpick ... Actually I combine").
+// The page plays them with Web Audio in the browser, no sound files.
 public static class Strums
 {
+    public static readonly IReadOnlyList<string> Kinds = ["Slag", "Pluk", "Kombi"];
+
     public static readonly IReadOnlyList<StrumPattern> All =
     [
-        new("rolig", "Rolig", "D---D---", "Et slag på 1 og 3 - til ballader og intro"),
-        new("pop",   "Pop",   "D-DU-UDU", "Den mest brugte - passer til næsten alt"),
-        new("folk",  "Folk",  "D-D-DUDU", "Fremad uden at larme"),
-        new("rock",  "Rock",  "DDDDDDDD", "Ottendedele ned - kraftigt"),
+        new("rolig",    "Rolig",         "D---D---", "Slag",  "Et slag på 1 og 3 - til ballader og intro"),
+        new("pop",      "Pop",           "D-DU-UDU", "Slag",  "Den mest brugte - passer til næsten alt"),
+        new("folk",     "Folk",          "D-D-DUDU", "Slag",  "Fremad uden at larme"),
+        new("rock",     "Rock",          "DDDDDDDD", "Slag",  "Ottendedele ned - kraftigt"),
+        new("pluk",     "Fingerpicking", "B321B321", "Pluk",  "Tommel på bassen, så tre strenge op - blødt"),
+        new("travis",   "Vekselbas",     "B2V1B2V1", "Pluk",  "Tommelen skifter mellem to basstrenge, fingrene imellem (Travis)"),
+        new("baslag",   "Bas + slag",    "B-DUV-DU", "Kombi", "Tommel på bassen, så slag - folk og country"),
+        new("plukslag", "Pluk + slag",   "B321D-DU", "Kombi", "Første halvdel plukket, anden halvdel slået"),
     ];
 
     public static StrumPattern Default => All[1];

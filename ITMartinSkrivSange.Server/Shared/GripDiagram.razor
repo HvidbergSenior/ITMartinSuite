@@ -1,0 +1,47 @@
+@* A chord box: 6 strings (low E left), 4 frets, the nut on top, x = not played, o = open, dots with the finger number.
+   Drawn in currentColor so it follows the text colour (light and dark). *@
+@if (Grips.For(Chord) is { } grip)
+{
+    <svg class="ss-diagram" viewBox="0 0 64 74" role="img" aria-label="@Chord greb @grip.Short">
+        @* Nut and frets *@
+        <rect x="8" y="12" width="50" height="3" fill="currentColor" />
+        @for (var f = 1; f <= 4; f++)
+        {
+            <line x1="8" x2="58" y1="@N(13.5 + f * 14)" y2="@N(13.5 + f * 14)" stroke="currentColor" stroke-width="1" opacity=".55" />
+        }
+        @for (var s = 0; s < 6; s++)
+        {
+            var x = 8 + s * 10;
+            <line x1="@x" x2="@x" y1="13.5" y2="69.5" stroke="currentColor" stroke-width="1" opacity=".75" />
+            var fret = grip.Frets[s];
+            if (fret < 0)
+            {
+                @Label(x, 9, "8", "x", "")
+            }
+            else if (fret == 0)
+            {
+                <circle cx="@x" cy="6.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.1" />
+            }
+            else
+            {
+                var y = 13.5 + fret * 14 - 7;
+                <circle cx="@x" cy="@N(y)" r="4.4" fill="currentColor" />
+                @if (grip.Fingers[s] > 0)
+                {
+                    @Label(x, y + 2.6, "7", grip.Fingers[s].ToString(), " font-weight=\"700\" class=\"ss-finger\"")
+                }
+            }
+        }
+    </svg>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Chord { get; set; } = "";
+
+    // SVG wants "6.5", also on a Danish machine.
+    private static string N(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    // SVG <text> written as markup - in Razor code "<text>" means something else.
+    private static MarkupString Label(double x, double y, string size, string value, string extra) =>
+        new(FormattableString.Invariant($"<text x=\"{x}\" y=\"{y}\" text-anchor=\"middle\" font-size=\"{size}\" fill=\"currentColor\"{extra}>{value}</text>"));
+}

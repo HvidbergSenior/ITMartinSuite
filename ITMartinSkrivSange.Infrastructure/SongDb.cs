@@ -9,14 +9,61 @@ namespace ITMartinSkrivSange.Infrastructure;
 public sealed class SongDbContext(DbContextOptions<SongDbContext> options) : DbContext(options)
 {
     public DbSet<SongRow> Songs => Set<SongRow>();
+    public DbSet<OwnProgressionRow> OwnProgressions => Set<OwnProgressionRow>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    /// <summary>For a db made before the table existed (EnsureCreated only creates a db that is missing).</summary>
+    internal const string CreateOwnProgressions =
+        "CREATE TABLE IF NOT EXISTS OwnProgressions (Id TEXT NOT NULL PRIMARY KEY, Name TEXT NOT NULL, Chords TEXT NOT NULL, CreatedAt TEXT NOT NULL)";
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<SongRow>(e =>
         {
             e.ToTable("Songs");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion<string>();
         });
+        modelBuilder.Entity<OwnProgressionRow>(e =>
+        {
+            e.ToTable("OwnProgressions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion<string>();
+        });
+    }
+}
+
+// Chords: space separated, as the grips are written - "Am G Am G".
+public sealed class OwnProgressionRow
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Chords { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+}
+
+internal sealed class EfOwnProgressionStore(IDbContextFactory<SongDbContext> factory) : IOwnProgressionStore
+{
+    public async Task<IReadOnlyList<OwnProgression>> ListAsync(CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return (await db.OwnProgressions.AsNoTracking().ToListAsync(ct))
+            .OrderBy(r => r.CreatedAt)
+            .Select(r => new OwnProgression(r.Id, r.Name, r.Chords.Split(' ', StringSplitOptions.RemoveEmptyEntries), DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc)))
+            .ToList();
+    }
+
+    public async Task AddAsync(OwnProgression p, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        db.OwnProgressions.Add(new OwnProgressionRow { Id = p.Id, Name = p.Name, Chords = string.Join(' ', p.Chords), CreatedAt = p.CreatedAt });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await db.OwnProgressions.Where(x => x.Id == id).ExecuteDeleteAsync(ct);
+    }
 }
 
 public sealed class SongRow

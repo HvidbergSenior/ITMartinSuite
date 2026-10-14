@@ -22,14 +22,18 @@ builder.Services.AddKolibri(k =>
     [
         "SkrivSange hjælper dig med at skrive en sang på guitar: Intro, Vers 1, Vers 2, Bridge, Vers 3 og Outro.",
         "Hver del får en akkordrække i åbne greb (C, G, D, Am, Em ...). Capoen flytter tonearten, så grebene er de samme.",
-        "Du kan høre akkorderne spillet med et enkelt anslag, og du skriver tekstnoter til hver del undervejs.",
+        "Akkorderne vises som greb (hvor fingrene skal sidde), og du kan høre dem slået, plukket eller begge dele.",
+        "Tryk på en akkord for at få andre der ligner, og akkorder der lyder godt bagefter. Dine egne rækker gemmes som MartinChord.",
+        "Du skriver tekstnoter til hver del undervejs.",
     ];
     k.HowTo =
     [
         "Tryk Ny sang og giv den en titel.",
         "Vælg stemning, og tryk Foreslå på Vers 1 - eller vælg selv en akkordrække.",
         "Tryk Foreslå på de andre dele: versene bliver ens, broen bliver anderledes, intro og outro vokser ud af verset.",
-        "Tryk Spil for at høre en del. Skriv tekstnoter i feltet under akkorderne - det gemmes af sig selv.",
+        "Skriv selv: skriv fx Am G Am G - de bruges i delen og gemmes som MartinChord, så du kan vælge dem i alle sange.",
+        "Tryk på en akkord for at skifte den ud eller sætte en ny ind efter den.",
+        "Vælg spillemåde (slag, pluk eller kombi), og tryk Spil for at høre en del. Skriv tekstnoter under akkorderne - det gemmes af sig selv.",
     ];
     k.Version = "2026.10";
 });

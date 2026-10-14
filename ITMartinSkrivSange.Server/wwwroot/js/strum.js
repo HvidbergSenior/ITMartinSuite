@@ -1,14 +1,6 @@
-// SkrivSange - plays chord progressions as a simple guitar strum in the browser (plan 2026-10-14: Web Audio, no sound files).
+// SkrivSange - plays chord progressions strummed, picked or both in the browser (plan 2026-10-14: Web Audio, no sound files).
 // Each string is a plucked-string sound (Karplus-Strong) made once per pitch and reused. One chord = one bar of 8 eighths.
 window.skrivStrum = (function () {
-    // Frets per string, low E to high e. -1 = not played. Same open grips as Chords.OpenGrips in the domain.
-    var GRIPS = {
-        "C": [-1, 3, 2, 0, 1, 0], "D": [-1, -1, 0, 2, 3, 2], "E": [0, 2, 2, 1, 0, 0], "G": [3, 2, 0, 0, 0, 3],
-        "A": [-1, 0, 2, 2, 2, 0], "Am": [-1, 0, 2, 2, 1, 0], "Dm": [-1, -1, 0, 2, 3, 1], "Em": [0, 2, 2, 0, 0, 0],
-        "Cadd9": [-1, 3, 2, 0, 3, 0], "Dsus4": [-1, -1, 0, 2, 3, 3], "Asus2": [-1, 0, 2, 2, 0, 0], "Em7": [0, 2, 2, 0, 3, 0],
-        "Am7": [-1, 0, 2, 0, 1, 0], "Fmaj7": [-1, -1, 3, 2, 1, 0], "A7": [-1, 0, 2, 0, 2, 0], "D7": [-1, -1, 0, 2, 1, 2],
-        "E7": [0, 2, 0, 1, 0, 0], "B7": [-1, 2, 1, 2, 0, 2], "G7": [3, 2, 0, 0, 0, 1]
-    };
     var OPEN = [40, 45, 50, 55, 59, 64]; // MIDI notes of the open strings E2 A2 D3 G3 B3 E4
 
     var ctx = null, master = null, timers = [], cache = {}, dotnet = null;
@@ -43,12 +35,33 @@ window.skrivStrum = (function () {
         return buf;
     }
 
-    function notes(chord, capo) {
-        var grip = GRIPS[chord];
+    // grip = frets per string, low E to high e, -1 = not played (sent from the domain's Grips, same as the chord box).
+    function notes(grip, capo) {
         if (!grip) return [];
         var list = [];
         for (var s = 0; s < 6; s++) if (grip[s] >= 0) list.push(OPEN[s] + grip[s] + capo);
         return list;
+    }
+
+    // One picked string (fingerpicking). It rings on under the next notes, like a real picked chord.
+    function pick(grip, capo, when, step, ringFor) {
+        if (!grip) return;
+        var played = [];
+        for (var s = 0; s < 6; s++) if (grip[s] >= 0) played.push(s);
+        if (!played.length) return;
+        var string;
+        if (step === "B") string = played[0];                                      // lowest string in the grip = the bass
+        else if (step === "V") string = played.length > 1 ? played[1] : played[0]; // the next one up = alternating bass
+        else string = 6 - parseInt(step, 10);                                        // 1 = high e, 2 = B, 3 = G
+        if (grip[string] < 0) return;
+        var src = ctx.createBufferSource();
+        src.buffer = pluckBuffer(OPEN[string] + grip[string] + capo);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(step === "B" || step === "V" ? 0.42 : 0.34, when);
+        g.gain.setTargetAtTime(0, when + ringFor, 0.08);
+        src.connect(g); g.connect(master);
+        src.start(when);
+        src.stop(when + ringFor + 0.5);
     }
 
     // One stroke: strings a few ms apart, down = low to high, up = the top strings only and softer.
@@ -80,14 +93,19 @@ window.skrivStrum = (function () {
         document.querySelectorAll(".ss-grip.is-playing").forEach(function (el) { el.classList.remove("is-playing"); });
     }
 
-    // parts: [{ index, chords: [...] }], pattern: 8 chars of D / U / -.
-    function play(parts, bpm, pattern, capo, callback) {
+    // parts: [{ index, chords: [[frets x 6], ...] }], pattern: 8 steps of D U (strum), B V 3 2 1 (pick) or - (ring).
+    // loop = true: start again at the end until stop() (practice). The callback then never gets PlayDone.
+    function play(parts, bpm, pattern, capo, callback, loop) {
         stop();
         audio();
         dotnet = callback;
         master = ctx.createGain();
         master.gain.value = 0.9;
         master.connect(ctx.destination);
+        pass(parts, bpm, pattern, capo, !!loop);
+    }
+
+    function pass(parts, bpm, pattern, capo, loop) {
 
         var eighth = 60 / bpm / 2, start = ctx.currentTime + 0.15, t = start;
         parts.forEach(function (part) {
@@ -97,14 +115,25 @@ window.skrivStrum = (function () {
                 later(function () { clearMarks(); mark(part.index, i, true); }, barStart - ctx.currentTime);
                 for (var e = 0; e < 8; e++) {
                     var c = pattern.charAt(e);
-                    if (c !== "D" && c !== "U") continue;
-                    var ring = 1; // let it ring until the next stroke
-                    while (e + ring < 8 && pattern.charAt(e + ring) === "-") ring++;
-                    stroke(chord, capo, barStart + e * eighth, c === "D", ring * eighth);
+                    if (c === "D" || c === "U") {
+                        var ring = 1; // a strum rings until the next step, then the hand stops it
+                        while (e + ring < 8 && pattern.charAt(e + ring) === "-") ring++;
+                        stroke(chord, capo, barStart + e * eighth, c === "D", ring * eighth);
+                    } else if ("BV321".indexOf(c) >= 0) {
+                        // a picked string rings to the end of the bar, or until the next strum
+                        var until = e + 1;
+                        while (until < 8 && "DU".indexOf(pattern.charAt(until)) < 0) until++;
+                        pick(chord, capo, barStart + e * eighth, c, (until - e) * eighth);
+                    }
                 }
                 t += 8 * eighth;
             });
         });
+        if (loop) {
+            // Schedule the next round just before this one ends, so there is no gap.
+            later(function () { if (master) pass(parts, bpm, pattern, capo, true); }, t - ctx.currentTime - 0.1);
+            return;
+        }
         later(function () {
             clearMarks();
             var cb = dotnet; dotnet = null;

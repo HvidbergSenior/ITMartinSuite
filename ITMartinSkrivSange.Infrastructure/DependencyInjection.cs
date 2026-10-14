@@ -19,6 +19,7 @@ public static class DependencyInjection
             o.UseSqlite(config.GetConnectionString("StudioDb") ?? "Data Source=/app/data/studio.db"));
 
         services.AddSingleton<ISongStore, EfSongStore>();
+        services.AddSingleton<IOwnProgressionStore, EfOwnProgressionStore>();
         services.AddScoped<IStudioDraftStore, EfStudioDraftStore>();
         services.AddSingleton<IStudioLibrary>(new StudioLibrary(config["MusicSettings:Root"] ?? "/musik"));
         services.AddSingleton<IStemSeparator, DemucsStemSeparator>();
@@ -36,6 +37,7 @@ public static class DependencyInjection
             if (songDb.Database.GetDbConnection().DataSource is { Length: > 0 } file && Path.GetDirectoryName(Path.GetFullPath(file)) is { } dir)
                 Directory.CreateDirectory(dir);
             songDb.Database.EnsureCreated();
+            songDb.Database.ExecuteSqlRaw(SongDbContext.CreateOwnProgressions);
         }
 
         // The studio's db sits on the NAS share. When it can't be reached, the new songs still work - only the old drafts are gone.

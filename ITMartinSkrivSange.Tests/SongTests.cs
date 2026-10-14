@@ -171,11 +171,41 @@ public class SongWritingTests
         public Task DeleteAsync(Guid id, CancellationToken ct = default) { Songs.Remove(id); return Task.CompletedTask; }
     }
 
+    private sealed class MemoryOwn : IOwnProgressionStore
+    {
+        public readonly List<OwnProgression> All = [];
+        public Task<IReadOnlyList<OwnProgression>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<OwnProgression>>(All.ToList());
+        public Task AddAsync(OwnProgression p, CancellationToken ct = default) { All.Add(p); return Task.CompletedTask; }
+        public Task DeleteAsync(Guid id, CancellationToken ct = default) { All.RemoveAll(p => p.Id == id); return Task.CompletedTask; }
+    }
+
+    [Test]
+    public async Task Typed_chords_are_used_and_saved_as_MartinChord_once()
+    {
+        var own = new MemoryOwn();
+        var writing = new SongWriting(new MemoryStore(), own, TimeProvider.System);
+        var song = await writing.CreateAsync("x");
+
+        var first = await writing.UseOwnChordsAsync(song, PartKind.Vers1, "am, G, Am - g", null);
+        var again = await writing.UseOwnChordsAsync(song, PartKind.Vers2, "Am G Am G", null);
+        var second = await writing.UseOwnChordsAsync(song, PartKind.Bridge, "C D Em", null);
+
+        first.Name.Should().Be("MartinChord 1");
+        again.Id.Should().Be(first.Id);
+        second.Name.Should().Be("MartinChord 2");
+        own.All.Should().HaveCount(2);
+        song.Part(PartKind.Vers1).Chords.Should().Equal("Am", "G", "Am", "G");
+
+        // Picked again in another part from the list.
+        await writing.UseProgressionAsync(song, PartKind.Outro, first.ProgressionId);
+        song.Part(PartKind.Outro).Chords.Should().Equal("Am", "G", "Am", "G");
+    }
+
     [Test]
     public async Task Every_change_is_saved()
     {
         var store = new MemoryStore();
-        var writing = new SongWriting(store, TimeProvider.System);
+        var writing = new SongWriting(store, new MemoryOwn(), TimeProvider.System);
         var song = await writing.CreateAsync("Stjerner");
         var why = await writing.SuggestAndUseAsync(song, PartKind.Vers1);
         await writing.WriteNotesAsync(song, PartKind.Vers1, "Jeg kigger på stjerner");
@@ -184,4 +214,110 @@ public class SongWritingTests
         why.Why.Should().NotBeNullOrWhiteSpace();
         store.Songs[song.Id].Part(PartKind.Vers1).HasChords.Should().BeTrue();
     }
+}
+
+public class OwnChordTests
+{
+    [Test]
+    public void Unknown_or_barre_chords_are_refused_with_a_hint() =>
+        FluentActions.Invoking(() => ChordInput.Parse("Am F#m")).Should().Throw<SongException>().WithMessage("F#m*capo*");
+
+    [Test]
+    public void A_given_name_is_kept_and_numbering_continues_after_the_highest()
+    {
+        var now = DateTime.UtcNow;
+        var list = new List<OwnProgression> { new(Guid.NewGuid(), "MartinChord 3", ["C"], now), new(Guid.NewGuid(), "Min regnsang", ["G"], now) };
+        OwnProgression.NextName(list).Should().Be("MartinChord 4");
+        OwnProgression.FindOrCreate(list, ["Am", "G"], "  Aftensang ", now).Progression.Name.Should().Be("Aftensang");
+    }
+}
+
+public class ChordIdeaTests
+{
+    [Test]
+    public void Em_in_G_can_be_swapped_for_Em7_or_a_chord_sharing_two_notes()
+    {
+        var alts = ChordAdvisor.Alternatives("Em", "G").Select(i => i.Chord).ToList();
+        alts.Should().Contain("Em7").And.Contain("G").And.Contain("C");
+        alts.Should().NotContain("Em");
+    }
+
+    [Test]
+    public void After_D_in_G_it_goes_home_to_G()
+    {
+        var next = ChordAdvisor.Next("D", "G");
+        next[0].Chord.Should().Be("G");
+    }
+
+    [Test]
+    public void In_C_the_IV_chord_is_Fmaj7_because_F_is_a_barre()
+    {
+        ChordAdvisor.Next("C", "C").Select(i => i.Chord).Should().Contain("Fmaj7").And.Contain("G").And.Contain("Am");
+    }
+
+    [Test]
+    public void Every_idea_is_an_open_grip()
+    {
+        foreach (var p in ProgressionLibrary.All)
+        foreach (var c in p.Chords)
+            ChordAdvisor.Alternatives(c, p.Home).Concat(ChordAdvisor.Next(c, p.Home))
+                .Should().OnlyContain(i => Chords.IsOpenGrip(i.Chord));
+    }
+
+    [Test]
+    public void Swapping_a_chord_makes_the_part_your_own()
+    {
+        var now = DateTime.UtcNow;
+        var song = Song.Create("x", now);
+        song.UseProgression(PartKind.Vers1, ProgressionLibrary.Find("glad-pop")!, now);
+        song.ReplaceChord(PartKind.Vers1, 2, "Em7", now);
+        song.InsertChordAfter(PartKind.Vers1, 3, "D", now);
+        song.Part(PartKind.Vers1).Chords.Should().Equal("G", "D", "Em7", "C", "D");
+        song.Part(PartKind.Vers1).ProgressionId.Should().BeNull();
+    }
+}
+
+public class GripTests
+{
+    [Test]
+    public void Every_open_grip_has_a_chord_box() => Chords.OpenGrips.Should().OnlyContain(c => Grips.For(c) != null);
+
+    [Test]
+    public void Fingers_only_where_a_fret_is_pressed() =>
+        Chords.OpenGrips.Select(c => Grips.For(c)!).Should().OnlyContain(g =>
+            g.Frets.Count == 6 && g.Frets.Zip(g.Fingers).All(x => (x.First > 0) == (x.Second > 0)));
+
+    [Test]
+    public void The_grip_plays_the_notes_of_the_chord()
+    {
+        int[] open = [4, 9, 2, 7, 11, 4];   // E A D G B E
+        foreach (var c in Chords.OpenGrips)
+        {
+            var g = Grips.For(c)!;
+            var played = g.Frets.Select((f, s) => f < 0 ? -1 : (open[s] + f) % 12).Where(n => n >= 0).ToHashSet();
+            played.Should().BeSubsetOf(ChordAdvisor.Notes(c), c);
+        }
+    }
+}
+
+public class StrumTests
+{
+    [Test]
+    public void Every_pattern_is_one_bar_of_known_steps() =>
+        Strums.All.Should().OnlyContain(s => s.Pattern.Length == 8 && s.Pattern.All(c => StrumPattern.Steps.Contains(c)) && Strums.Kinds.Contains(s.Kind));
+
+    [Test]
+    public void There_is_strumming_picking_and_both() =>
+        Strums.Kinds.Should().OnlyContain(k => Strums.All.Any(s => s.Kind == k));
+}
+
+public class ChordsInNotesTests
+{
+    [Test]
+    public void Notes_holding_only_chords_are_recognised() =>
+        ChordInput.TryParse("Am, G, Am, G, E").Should().Equal("Am", "G", "Am", "G", "E");
+
+    [Test]
+    public void Real_lyrics_are_not_taken_for_chords() =>
+        ChordInput.TryParse("Jeg kigger på stjerner").Should().BeNull();
 }

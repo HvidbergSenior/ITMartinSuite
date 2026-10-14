@@ -8,6 +8,7 @@ public static class DependencyInjection
     {
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<SongWriting>();
+        services.AddScoped<Practice>();
         services.AddScoped<Drafts>();
         services.AddScoped<Vault>();
         return services;
