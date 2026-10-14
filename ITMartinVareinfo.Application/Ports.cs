@@ -39,6 +39,19 @@ public interface IPhotoRepository
 {
     Task<Photo> AddAsync(Photo photo, CancellationToken ct);
     Task<Photo?> GetAsync(int id, CancellationToken ct);
+    Task UpdateAsync(Photo photo, CancellationToken ct);
+    /// <summary>Box photos the person asked to have read, oldest first.</summary>
+    Task<List<Photo>> WantedAsync(int max, CancellationToken ct);
+    /// <summary>Marks the waiting photos of one box (null = every box) to be read. Returns how many.</summary>
+    Task<int> WantReadAsync(string? boxCode, CancellationToken ct);
+    /// <summary>Per box with box photos, newest box first.</summary>
+    Task<List<BoxPhotos>> BoxesAsync(CancellationToken ct);
+}
+
+/// <summary>A box on Lager (Code K0007 = NR 7 on the box).</summary>
+public sealed record LagerBox(int Id, string Code)
+{
+    public int Number => BoxNumbers.Of(Code);
 }
 
 public interface IKolofonShotRepository
@@ -66,6 +79,12 @@ public interface ILagerGateway
     /// <summary>addTo = items Lager already has: Quantity more copies ("+1 eksemplar", 0 = "Samme") and a scanned
     /// barcode the item did not have yet.</summary>
     Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity, string Barcode)> addTo, CancellationToken ct);
+    /// <summary>What a box photo held, into that box (same thing, same condition in the box = a higher quantity).</summary>
+    Task<(int Added, int Merged)> SaveInBoxAsync(string boxCode, int photoId, IReadOnlyList<Found> found, CancellationToken ct);
+    /// <summary>The newest box, or null when Lager has none.</summary>
+    Task<LagerBox?> LatestBoxAsync(CancellationToken ct);
+    /// <summary>The next box (K0001, K0002 ...).</summary>
+    Task<LagerBox> NewBoxAsync(CancellationToken ct);
     /// <summary>For each thing, in order: how many Lager already has of exactly that.</summary>
     Task<List<InStock>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct);
     Task<(int FromKr, List<KolofonWanted> Books)> KolofonWantedAsync(CancellationToken ct);

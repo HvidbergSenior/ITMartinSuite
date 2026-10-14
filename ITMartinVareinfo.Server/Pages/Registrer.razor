@@ -1,6 +1,7 @@
 @page "/"
 @page "/registrer"
 @inject ReadingUseCases Reg
+@inject BoxPhotoUseCases Boxes
 @inject LagerLinks Lager
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -8,19 +9,69 @@
 
 <PageTitle>Registrér – Bogshoppen Vareinfo</PageTitle>
 
+@if (_box is null)
+{
+    <section class="k-card"><p>⏳ Henter kassen fra Lager …</p>@if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }</section>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="k-card-title">📦 Kasse @_box.Number</h1>
+        <p>Skriv <b>NR @_box.Number</b> på kassen. Læg 10-20 ting fra kassen ud med forsiden op, og tag billedet lige ovenfra. Gentag til kassen er tom.</p>
+        <p>Billederne <b>gemmes bare</b> – der læses ikke noget nu. Du trykker <b>Læs</b> nedenfor, når det passer dig.</p>
+        <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
+            @(_busy ? "⏳ Gemmer billedet …" : "📷 Tag billede")
+            <InputFile OnChange="Store" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
+        </label>
+        <p class="lg-answer" role="status"><b>@CurrentCount billeder</b> i kasse @_box.Number.</p>
+        @if (!_confirmNew)
+        {
+            <button class="k-btn k-btn-secondary" @onclick="() => _confirmNew = true" disabled="@_busy">Kassen er fuld – ny kasse</button>
+        }
+        else
+        {
+            <div class="lg-row">
+                <button class="k-btn k-btn-primary" @onclick="NewBox" disabled="@_busy">✓ Ja, start kasse @(_box.Number + 1)</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => _confirmNew = false">Nej, fortsæt med kasse @_box.Number</button>
+            </div>
+        }
+        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang.</p>
+        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+        @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
+    </section>
+
+    @if (_boxes.Count > 0)
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">Læs kasserne</h2>
+            <p>Tryk <b>Læs</b>, når det passer dig. AI'en læser billederne i baggrunden – ca. 5 billeder i minuttet – og lægger tingene i kassen på <a href="@Lager.LagerBase">Lager</a>. Der finder prisjægeren priserne, og der ser du dem efter. Du kan godt lukke siden imens.</p>
+            <ul class="lg-boxes">
+                @foreach (var b in _boxes)
+                {
+                    <li>
+                        <b>Kasse @b.Number</b> ·
+                        @if (b.Waiting > 0)
+                        {
+                            <span>@b.Waiting venter@(b.Wanted > 0 ? $" ({b.Wanted} bliver læst nu)" : "")</span>
+                        }
+                        @if (b.Read > 0) { <span> · @b.Read læst, @b.Found ting fundet – <a href="@Lager.LagerBase/kasse/@b.BoxCode" target="_blank" rel="noopener">se på Lager</a></span> }
+                        @if (b.Waiting > b.Wanted) { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => WantRead(b.BoxCode)">Læs kasse @b.Number</button> }
+                    </li>
+                }
+            </ul>
+            @if (_boxes.Count(b => b.Waiting > b.Wanted) > 1)
+            {
+                <button class="k-btn k-btn-primary" @onclick="() => WantRead(null)">Læs alle (@_boxes.Sum(b => b.Waiting - b.Wanted) billeder)</button>
+            }
+            <button class="k-btn k-btn-ghost k-btn-sm" @onclick="Refresh">↻ Opdatér</button>
+            <p class="k-small k-muted">AI-kald i dag: @_callsToday af @Reg.MaxCallsPerDay (ét pr. billede).</p>
+        </section>
+    }
+}
+
 <section class="k-card">
-    <h1 class="k-card-title">📷 Registrér en bunke</h1>
-
-    <p>Tag et billede af en bunke, eller scan stregkoderne – så finder Vareinfo ud af hvad tingene er og lægger dem på <a href="@Lager.LagerBase">Lager</a>, hvor prisjægeren finder priserne. Ingen kasse at vælge.</p>
-    <p>Læg 10-20 ting ud side om side med forsiden op – så alle titler kan ses. Tag billedet lige ovenfra.</p>
-    <input class="k-input" @bind="_hint" placeholder="Valgfrit: hvad er det mest? (fx Anders And 1970'erne)" />
-    <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
-        @(_busy ? "⏳ Læser billedet …" : "📷 Tag billede")
-        <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
-    </label>
-    <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald i dag: @_callsToday af @Reg.MaxCallsPerDay.</p>
-
-    <p><b>Eller scan stregkoden</b> – bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden; det bipper for hver.</p>
+    <h2 class="k-card-title">▮▯▮ Eller scan stregkoder</h2>
+    <p>Bedst til DVD, Blu-ray, CD, spil og bøger. Scan den ene efter den anden – det bipper for hver. Ret listen og tryk Gem; så står de på Lager.</p>
     @if (!_scanning)
     {
         <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">▮▯▮ Scan stregkoder</button>
@@ -33,8 +84,6 @@
             <button class="k-btn k-btn-primary" @onclick="StopScan">✓ Færdig med at scanne</button>
         </div>
     }
-    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
-    @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
 </section>
 
 @if (_review.Count > 0)
@@ -149,7 +198,10 @@
         catch (Exception ex) { _error = "Kunne ikke tjekke om vi har dem i forvejen: " + ex.Message; }
     }
 
-    private string _hint = "";
+    private LagerBox? _box;
+    private List<BoxPhotos> _boxes = [];
+    private bool _confirmNew;
+    private int CurrentCount => _boxes.Where(b => b.BoxCode == _box?.Code).Sum(b => b.Waiting + b.Read);
     private string? _error, _saved;
     private bool _busy;
     private int _callsToday;
@@ -162,46 +214,67 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _callsToday = await Reg.CallsTodayAsync();
+        try { _box = await Boxes.CurrentBoxAsync(); }
+        catch (Exception ex) { _error = "Kunne ikke hente kassen fra Lager: " + ex.Message; }
+        await Refresh();
     }
 
-    private async Task Upload(InputFileChangeEventArgs e)
+    private async Task Store(InputFileChangeEventArgs e)
     {
-        _busy = true; _error = null; _saved = null;
+        if (_box is null) return;
+        _busy = true; _error = null; _saved = null; _confirmNew = false;
         StateHasChanged();
+        var stored = 0;
         try
         {
             foreach (var file in e.GetMultipleFiles(20))
             {
-                int photoId;
-                List<Found> found;
-                await using (var s = file.OpenReadStream(30 * 1024 * 1024))
-                    (photoId, found) = await Reg.ReadPileAsync(s, _hint, null, "pile");
-
-                var fresh = found.Select(f => new Row
-                {
-                    Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
-                    Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
-                    Note = f.Note, Interest = f.Interest, EditionHint = f.EditionHint, PhotoId = photoId,
-                }).ToList();
-                _review.AddRange(fresh);
-                await MarkDuplicatesAsync(fresh);
-                if (found.Count == 0) _error = "AI'en fandt ingen ting på billedet. Tag det lidt tættere på, i godt lys.";
-                else if (Reg.AutoInterest)
-                {
-                    // Off by default (user 2026-10-05: "disable texts, add it later maybe") - the text is the costly part.
-                    StateHasChanged();
-                    await FillInterestAsync(_review.Where(x => x.PhotoId == photoId).ToList());
-                }
-                StateHasChanged();
+                await using var s = file.OpenReadStream(30 * 1024 * 1024);
+                await Boxes.StoreAsync(s, _box);
+                stored++;
             }
+            _saved = $"{stored} billede{(stored == 1 ? "" : "r")} gemt i kasse {_box.Number}. Tag det næste.";
         }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = (stored > 0 ? $"{stored} blev gemt, men: " : "") + ex.Message; }
         finally
         {
             _busy = false;
+            await Refresh();
+        }
+    }
+
+    private async Task NewBox()
+    {
+        _busy = true; _error = null; _saved = null;
+        try
+        {
+            _box = await Boxes.NewBoxAsync();
+            _saved = $"Ny kasse: skriv NR {_box.Number} på den.";
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; _confirmNew = false; await Refresh(); }
+    }
+
+    private async Task WantRead(string? code)
+    {
+        _error = null;
+        try
+        {
+            var n = await Boxes.WantReadAsync(code);
+            _saved = $"{n} billeder bliver læst i baggrunden. Tryk ↻ Opdatér for at se hvor langt den er.";
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        await Refresh();
+    }
+
+    private async Task Refresh()
+    {
+        try
+        {
+            _boxes = await Boxes.BoxesAsync();
             _callsToday = await Reg.CallsTodayAsync();
         }
+        catch (Exception ex) { _error = ex.Message; }
     }
 
     private async Task Save()

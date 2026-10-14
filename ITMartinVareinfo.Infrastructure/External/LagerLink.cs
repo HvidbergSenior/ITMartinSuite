@@ -45,6 +45,24 @@ public sealed class LagerLink(HttpClient http, IConfiguration cfg) : ILagerGatew
         return (r.Added, r.Merged);
     }
 
+    public async Task<(int Added, int Merged)> SaveInBoxAsync(string boxCode, int photoId, IReadOnlyList<Found> found, CancellationToken ct)
+    {
+        var r = await SendAsync<Saved>(Req(HttpMethod.Post, $"/api/info/kasser/{Uri.EscapeDataString(boxCode)}/varer",
+            new { PhotoId = photoId, Items = found }), ct);
+        return (r.Added, r.Merged);
+    }
+
+    private sealed record BoxDto(int Id, string Code);
+
+    public async Task<LagerBox?> LatestBoxAsync(CancellationToken ct) =>
+        (await SendAsync<List<BoxDto>>(Req(HttpMethod.Get, "/api/info/kasser?antal=1"), ct)).Select(b => new LagerBox(b.Id, b.Code)).FirstOrDefault();
+
+    public async Task<LagerBox> NewBoxAsync(CancellationToken ct)
+    {
+        var b = await SendAsync<BoxDto>(Req(HttpMethod.Post, "/api/info/kasser", new { Place = "" }), ct);
+        return new LagerBox(b.Id, b.Code);
+    }
+
     public Task<List<InStock>> InStockAsync(IReadOnlyList<Found> found, CancellationToken ct) =>
         SendAsync<List<InStock>>(Req(HttpMethod.Post, "/api/info/findes", new { Items = found }), ct);
 

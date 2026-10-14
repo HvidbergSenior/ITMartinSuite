@@ -19,7 +19,30 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
 
 public static class VareinfoDbInitializer
 {
-    public static void Upgrade(VareinfoDb db) => db.Database.EnsureCreated();
+    public static void Upgrade(VareinfoDb db)
+    {
+        db.Database.EnsureCreated();
+        // Box photos (2026-10-15) - columns added to an existing database. Old photos were all read at once: Waiting = 0.
+        var conn = db.Database.GetDbConnection();
+        var opened = conn.State != System.Data.ConnectionState.Open;
+        if (opened) conn.Open();
+        var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """PRAGMA table_info("Photos")""";
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) have.Add(r.GetString(1));
+        }
+        foreach (var (col, type) in new[] { ("BoxCode", "TEXT NOT NULL DEFAULT ''"), ("Tiles", "INTEGER NOT NULL DEFAULT 0"),
+                     ("Waiting", "INTEGER NOT NULL DEFAULT 0"), ("ReadWanted", "INTEGER NOT NULL DEFAULT 0") })
+            if (!have.Contains(col))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = $"""ALTER TABLE "Photos" ADD COLUMN "{col}" {type}""";
+                    cmd.ExecuteNonQuery();
+                }
+        if (opened) conn.Close();
+    }
 
     // One time, at the split (2026-10-12): the registration photos and kolofon photos Lager had are moved here WITH
     // their ids, so every item in Lager still points at its own photo. Lager's database is read, never written.

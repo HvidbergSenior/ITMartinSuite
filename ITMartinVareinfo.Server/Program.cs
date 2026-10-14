@@ -27,9 +27,11 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Vælg eller opret kassen, du lægger tingene i.",
-        "Læg en bunke ud med forsiden op, og tryk 📷 Tag billede – eller scan stregkoderne.",
-        "Ret det, AI'en har læst forkert (⚠ = usikker), og tryk Gem. Så står det på Lager.",
+        "Én kasse ad gangen: skriv NR på kassen – det nummer, siden viser (Kasse 1, 2, 3 …).",
+        "Læg 10-20 ting fra kassen ud med forsiden op, og tryk 📷 Tag billede. Billedet gemmes bare – der læses ikke noget endnu. Gentag til kassen er tom.",
+        "Kassen er fuld? Tryk Ny kasse – så får næste kasse næste nummer.",
+        "Når det passer dig: tryk Læs ved en kasse. Så læser AI'en billederne i baggrunden og lægger tingene i kassen på Lager, hvor priserne findes.",
+        "Stregkoder: scan dem, ret det, der er forkert, og tryk Gem. Så står det på Lager.",
         "Kolofon: bøger, hvor udgaven kan betyde noget for prisen, står under 📖 Kolofon. Tag et billede af kolofonen.",
     ];
     k.Version = "2026.10";
@@ -40,6 +42,7 @@ var dataDir = ITMartinVareinfo.Infrastructure.DependencyInjection.DataDir(builde
 builder.Services.AddVareinfoInfrastructure(builder.Configuration);
 builder.Services.AddVareinfoApplication();
 builder.Services.AddHostedService<KolofonJob>();
+builder.Services.AddHostedService<BoxPhotoJob>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-vareinfo");

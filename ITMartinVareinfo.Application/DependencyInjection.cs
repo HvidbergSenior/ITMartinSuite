@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddScoped<ReadingUseCases>();
         services.AddScoped<LagerLinks>();
         services.AddScoped<KolofonUseCases>();
+        services.AddScoped<BoxPhotoUseCases>();
         return services;
     }
 }
