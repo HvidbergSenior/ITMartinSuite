@@ -600,3 +600,6 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .hj-compare thead th { font-weight: 700; }
 .hj-compare tbody th { font-weight: 600; white-space: nowrap; }
 .hj-compare td:last-child { font-weight: 600; }
+
+/* App challenge inside the front-page chat (2026-10-14). */
+.hj-chat-challenge { margin: 10px 0 0; padding: 8px 10px; border-left: 5px solid var(--k-accent); background: var(--k-surface, transparent); color: var(--k-text); }
