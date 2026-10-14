@@ -7,7 +7,7 @@
 .hj-bare .hj-chat { margin: 0; box-shadow: none; border: 0; }
 .hj-h2 { font-size: 1.15rem; margin: 24px 0 8px; }
 
-.hj-now { border-left: 4px solid var(--k-accent); }
+/* .hj-now = a normal big box (2026-10-14, shared css). */
 .hj-now-text { font-size: 1.1rem; margin: 6px 0 4px; }
 .hj-now-text p { margin: 0 0 8px; }
 .hj-now-img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 10px; margin: 8px 0; display: block; background: var(--k-surface-2, #eef1f0); }
@@ -121,7 +121,7 @@ a.hj-app:hover { border-color: var(--k-accent); }
 @media (prefers-reduced-motion: reduce) { .hj-chat-top.is-on .k-dot { animation: none; } }
 /* Square gallery crops keep the top of the picture - heads, not tables (user: "cannot see the top of my head"). */
 .tm-gallery img.tm-img { object-position: 50% 12%; }
-.hj-page .hj-now { margin: 4px 0 16px; box-shadow: none; }
+.hj-page .hj-now { margin: 4px 0 16px; }
 
 /* "Min dag" on the Lige nu tab: a day heading, then entries (time, line, picture) newest first */
 .hj-day { margin: 6px 0 14px; }
@@ -244,7 +244,6 @@ html[data-family="glaede"] .hj-nav a:hover,html[data-family="glaede"] .hj-nav a.
 @keyframes hj-sun{to{transform:translateY(-50%) rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.hj-head::before{animation:none}}
 @media (max-width:520px){.hj-head{padding-left:20px;padding-top:58px}.hj-head::before{top:30px;font-size:2.4rem}}
-html[data-family="glaede"] .hj-now{border-left-color:var(--k-sun)}
 
 /* /admin/tal - visit numbers */
 .hj-tal-big { font-size: 1.25rem; margin: 0; }
@@ -279,7 +278,6 @@ html[data-family="nyhed"] .hj-head h1,html[data-family="nyhed"] .hj-head .hj-int
 html[data-family="nyhed"] .hj-head::before{content:"📣";animation:hj-shout 2.4s ease-in-out infinite}
 html[data-family="nyhed"] .hj-tagline{background:#ffd23f;color:#1e1533}
 @keyframes hj-shout{0%,70%,100%{transform:translateY(-50%) rotate(0)}80%{transform:translateY(-50%) rotate(-12deg) scale(1.1)}90%{transform:translateY(-50%) rotate(8deg) scale(1.1)}}
-html[data-family="nyhed"] .hj-now{border-left-color:var(--k-hot)}
 /* The Bogshoppen box: gradient frame + "NYHED" ribbon */
 html[data-family="nyhed"] .hj-news{position:relative;border:3px solid transparent;
   background:linear-gradient(var(--k-card),var(--k-card)) padding-box,linear-gradient(120deg,#7c3aed,#ff2d87,#ff7a2f) border-box}
@@ -317,7 +315,6 @@ html[data-family="idag"] .hj-head .hj-intro{color:#21405c;font-weight:600}
 html[data-family="idag"] .hj-head::before{content:"🤔";animation:hj-think 3.2s ease-in-out infinite}
 html[data-family="idag"] .hj-tagline{background:#0a3f6b;color:#fff}
 @keyframes hj-think{0%,60%,100%{transform:translateY(-50%) rotate(0)}75%{transform:translateY(-58%) rotate(-10deg)}90%{transform:translateY(-50%) rotate(6deg)}}
-html[data-family="idag"] .hj-now{border-left-color:var(--k-sun)}
 html[data-family="idag"] .hj-week{border-left:5px solid var(--k-accent)}
 html[data-family="idag"] .hj-week h2,html[data-family="idag"] .hj-news h2,html[data-family="idag"] .hj-news h3{color:var(--k-accent)}
 /* Bogshoppen box: stays until the collaboration is done - gradient frame + "SAMARBEJDET" ribbon */
@@ -581,15 +578,21 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .hj-qa .k-help { margin-top: 8px; }
 .hj-qa-related { margin-top: 14px; }
 
-/* The I dag page's frame on the inner boxes of both sites (user 2026-10-12: "the box rammer are pretty cool" -> inner boxes):
-   a 5px stripe in the site's accent colour on the left edge. The big boxes stay as they are. */
+/* ONE inner-box look on every page of both sites (user 2026-10-12: inner boxes get the I dag page's 5px stripe; 2026-10-14: "not all boxes
+   share the same css... There are frames on some" -> "All pages need to share the same css"). Every box inside a big box =
+   2px frame in the site's border colour + a 5px stripe in the site's accent on the left, 12px corners, the card background.
+   Checked by ITMartinHjem.UiTests (SharedCssTests) on all pages of itmartin.dk and bogshoppen.dk. Big boxes (.k-card) = Kolibri default. */
 .k-content .hj-part, .k-content .bs-bigstep, .k-content .sp-means, .k-content .hj-qa-boxlink,
-.k-content .bs-products li, .k-content .bs-promise li, .k-content .hj-qa-a { border-left: 5px solid var(--k-accent); }
+.k-content .bs-products li, .k-content .bs-promise li, .k-content .hj-qa-a, .k-content .tm-card, .k-content .bs-manifest,
+.k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry {
+    border: 2px solid var(--k-border); border-left: 5px solid var(--k-accent); border-radius: 12px; background: var(--k-card);
+}
+.k-content .bs-manifest, .k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry, .k-content .hj-qa-a { padding: 10px 12px; }
+.k-content .hj-day-entry { margin: 0 0 8px; }
 .k-content .bs-bigstep { text-align: left; }
-.k-content .hj-part.hj-chat-top.is-on { border-left-color: var(--k-success, #1f9d55); }
+.k-content .hj-part.hj-chat-top.is-on { border-left-color: var(--k-success, #1f9d55); }   /* green = Martin is here now */
 
 /* Storage request box on both front pages (2026-10-14) - stands out with the accent border, buttons in a row. */
-.hj-storage { border: 2px solid var(--k-accent, var(--k-border)); }
 .hj-storage .k-card-title, .hj-storage .hj-eltip-text { color: var(--k-text); }
 .hj-storage-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
