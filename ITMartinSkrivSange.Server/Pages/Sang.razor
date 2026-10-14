@@ -520,6 +520,12 @@ else
     {
         if (_song is null) return;
         _error = null;
+        // Browsers only give the microphone to https pages (and localhost) - on http://10.0.0.126:8131 it never even asks.
+        if (!await JS.InvokeAsync<bool>("eval", "window.isSecureContext === true"))
+        {
+            _error = "Optagelse virker kun på en sikker adresse (https). Åbn SkrivSange på https://skrivsange.itmartin.dk - på http://10.0.0.126:8131 må browseren ikke bruge mikrofonen.";
+            return;
+        }
         try
         {
             await JS.InvokeVoidAsync("studio.startRecording", _song.RecordingKey, false, Parts.Slug(kind));

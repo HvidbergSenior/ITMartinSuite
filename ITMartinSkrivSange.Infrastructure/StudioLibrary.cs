@@ -133,7 +133,34 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
         var sectionTag = string.IsNullOrWhiteSpace(section) ? "" : "-" + new string(section.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
         var dest = Path.Combine(dir, $"{prefix}{sectionTag}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.webm");
         await WriteAsync(dest, content);
+        if (prefix == "take" && await LoudMp3Async(dest) is { } mp3) dest = mp3;
         return Relative(dest);
+    }
+
+    // The browser's webm has no length (players can't show the time or seek) and a laptop mic a metre from a guitar comes in
+    // around -47 dB (2026-10-14: the first takes sounded like nothing). ffmpeg brings it to normal loudness as an mp3 with a
+    // length, which also plays on an iPhone. The webm is only removed when the mp3 is there; without ffmpeg the webm stays.
+    private static async Task<string?> LoudMp3Async(string webm)
+    {
+        var mp3 = Path.ChangeExtension(webm, ".mp3");
+        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        foreach (var a in new[] { "-y", "-i", webm, "-vn", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "44100", "-c:a", "libmp3lame", "-q:a", "2", mp3 })
+            psi.ArgumentList.Add(a);
+        try
+        {
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc is null) return null;
+            _ = proc.StandardOutput.ReadToEndAsync();
+            _ = proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync();
+            if (proc.ExitCode != 0 || !File.Exists(mp3) || new FileInfo(mp3).Length == 0) return null;
+            File.Delete(webm);
+            return mp3;
+        }
+        catch (Exception)
+        {
+            return null;   // ffmpeg missing (local Windows) - keep the webm
+        }
     }
 
     // Short "hum an idea" clips - deliberately apart from the takes, a sketch must never show up as a take.
