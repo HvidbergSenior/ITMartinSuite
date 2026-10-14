@@ -148,9 +148,10 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
     // After the gain: rumble off below 70 Hz, steady room sound (hum, hiss, fan) reduced, and the pauses turned down by a
     // gentle gate. 2026-10-14, QuadCast at max gain, sitting close: the first gate (threshold -29 dB, release 0.4 s, -20 dB)
     // made the room quiet ("noise fine") but shut between strums and in soft playing - 4.5 s of holes in an 89 s take
-    // ("some stops though"). Now it only reacts below -36 dB, waits 1.2 s before closing and turns down ~10 dB with a soft
-    // knee, so it never drops to silence while playing. Stronger noise reduction risks a "watery" guitar.
-    private const string CleanUp = "highpass=f=70,afftdn=nr=20:nf=-40:tn=1,agate=threshold=0.015:ratio=2:attack=10:release=1200:range=0.3:knee=8";
+    // ("some stops though"). A gentle one (-36 dB, 1.2 s) let the room back in ("noise came back") - the room sits at about
+    // -31 dB, the same as a soft chord ringing out, so no level gate can tell them apart. In between now: -30 dB, waits 1 s
+    // before closing (no chatter between strums), turns down ~16 dB. Stronger noise reduction risks a "watery" guitar.
+    private const string CleanUp = "highpass=f=70,afftdn=nr=20:nf=-40:tn=1,agate=threshold=0.03:ratio=3:attack=10:release=1000:range=0.15:knee=4";
 
     private static async Task<string?> LoudMp3Async(string webm)
     {
