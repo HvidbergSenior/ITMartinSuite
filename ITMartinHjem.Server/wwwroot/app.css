@@ -587,3 +587,8 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .k-content .bs-products li, .k-content .bs-promise li, .k-content .hj-qa-a { border-left: 5px solid var(--k-accent); }
 .k-content .bs-bigstep { text-align: left; }
 .k-content .hj-part.hj-chat-top.is-on { border-left-color: var(--k-success, #1f9d55); }
+
+/* Storage request box on both front pages (2026-10-14) - stands out with the accent border, buttons in a row. */
+.hj-storage { border: 2px solid var(--k-accent, var(--k-border)); }
+.hj-storage .k-card-title, .hj-storage .hj-eltip-text { color: var(--k-text); }
+.hj-storage-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }

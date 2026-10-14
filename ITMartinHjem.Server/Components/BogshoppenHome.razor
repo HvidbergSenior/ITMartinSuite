@@ -17,6 +17,9 @@
     <p>Rico og Martins virksomhed</p>
 </header>
 
+@* Storage request for the boxes (user 2026-10-14), same box as on itmartin.dk. *@
+<StorageHelp />
+
 @{ var (intro, parts) = Sections.Split(_page?.Body); }
 @if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
 @* "Hvem er Rico og Martin?" starts folded, like "Hvem er ITMartin?" on itmartin.dk (user 2026-10-12: "closed"). *@
