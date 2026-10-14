@@ -1,6 +1,8 @@
 @using ITMartinR6Assistant.Domain
 @inject IJSRuntime JS
 @inject IR6DataService DataService
+@inject SessionStateService Session
+@inject PlayerIdentityService Identity
 @implements IDisposable
 
 @* Thumbnail of a map floor that opens a full-screen viewer: floor tabs, zoom/pan (wheel, pinch, +/-),
@@ -33,6 +35,11 @@ else
                 @foreach (var f in Floors)
                 {
                     <button class="ref-tab @(f == _floor ? "ref-tab-on" : "")" @onclick="() => SetFloor(f)">@f@(Map.Sites.Any(s => s.Floor == f) ? " •" : "")</button>
+                }
+                @foreach (var p in _teamPings)
+                {
+                    var pf = p.Floor;
+                    <button class="mv-who" style="border-color:@p.Color" title="Gå til etagen" @onclick="() => SetFloor(pf)"><span class="mv-who-dot" style="background:@p.Color"></span>@p.Player @p.Floor</button>
                 }
                 <span style="flex:1"></span>
                 @if (Map.Rooms.Count > 0)
@@ -79,10 +86,14 @@ else
                         }
                     }
                     <span class="mv-ping" style="display:none"><span class="mv-label">Her er jeg</span></span>
+                    @foreach (var p in _teamPings.Where(p => p.Floor == _floor))
+                    {
+                        <span class="mv-ping mv-ping-team" style="@PingPos(p)"><span class="mv-label">@p.Player</span></span>
+                    }
                 </div></div>
             </div>
             <div class="mv-help muted small">
-                Scroll/knib for at zoome, træk for at flytte, tryk for at sætte "her er jeg", dobbeltklik for at nulstille.
+                Scroll/knib for at zoome, træk for at flytte, tryk for at sætte "her er jeg" &ndash; holdet ser din prik i din farve i 90 sekunder@(string.IsNullOrEmpty(Identity.Name) ? " (sæt dit navn øverst, så de kan se, det er dig)" : ""). Dobbeltklik for at nulstille.
                 @if (FoundElsewhere is { Count: > 0 } other) { <b>"@_find" ligger på: @string.Join(", ", other). </b> }
                 Røde ringe = bombsites på denne etage@(Site is not null ? $" (fyldt = {Site.Name})" : ""). Bogstaver på kortet = spawns, gul/sort tern = luger.
                 @if (!Map.Sites.Any(s => s.MarkerX.HasValue)) { <span>Ingen site-markører sat endnu - de sættes under Rediger.</span> }
@@ -206,7 +217,40 @@ else
         return Map.Rooms;
     }
 
-    public void Dispose() => _self?.Dispose();
+    // Team pings for this map, refreshed when anyone pings and every 5 s so old dots fade out.
+    private IReadOnlyList<PlayerPing> _teamPings = Array.Empty<PlayerPing>();
+    private System.Threading.Timer? _pingTimer;
+
+    protected override void OnInitialized()
+    {
+        Session.OnStateChanged += OnSessionChanged;
+        _teamPings = Session.Pings(Map.Name);
+        _pingTimer = new System.Threading.Timer(_ => OnSessionChanged(), null, 5000, 5000);
+    }
+
+    private void OnSessionChanged()
+    {
+        var fresh = Session.Pings(Map.Name);
+        if (fresh.Count == 0 && _teamPings.Count == 0) return;
+        _teamPings = fresh;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task PingTap(double x, double y)
+    {
+        Session.SetPing(string.IsNullOrWhiteSpace(Identity.Name) ? "Mig" : Identity.Name, Map.Name, _floor, Math.Round(x, 1), Math.Round(y, 1));
+        return Task.CompletedTask;
+    }
+
+    private static string PingPos(PlayerPing p) => FormattableString.Invariant($"left:{p.X}%;top:{p.Y}%;background:{p.Color};box-shadow:0 0 0 3px #fff,0 0 12px {p.Color}");
+
+    public void Dispose()
+    {
+        Session.OnStateChanged -= OnSessionChanged;
+        _pingTimer?.Dispose();
+        _self?.Dispose();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -215,6 +259,8 @@ else
         _needsInit = false;
         await JS.InvokeVoidAsync("mapViewer.init", _viewport);
         await JS.InvokeVoidAsync("mapViewer.reset", _viewport);
+        _self ??= DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("mapViewer.setPing", _viewport, _self);
         if (_naming) await JS.InvokeVoidAsync("mapViewer.setNaming", _viewport, _self);
     }
 

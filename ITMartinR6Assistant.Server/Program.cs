@@ -19,6 +19,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddSingleton<IR6DataService, R6DataService>();
 builder.Services.AddSingleton<SessionStateService>();
+builder.Services.AddSingleton<ITMartinR6Assistant.Application.IReplayParser, ITMartinR6Assistant.Infrastructure.R6DissectReplayParser>();
 builder.Services.AddSingleton<PreGameCheckService>();
 builder.Services.AddSingleton<SettingsGuideService>();
 builder.Services.AddSingleton<R6RefreshService>();
@@ -40,7 +41,8 @@ var app = builder.Build();
 // file types for the whole wwwroot.
 var staticFileTypes = new FileExtensionContentTypeProvider();
 staticFileTypes.Mappings[".ps1"] = "text/plain";
-staticFileTypes.Mappings[".cmd"] = "application/octet-stream";   // double-click launcher for PreGameCheck.ps1
+staticFileTypes.Mappings[".cmd"] = "application/octet-stream";
+staticFileTypes.Mappings[".bat"] = "application/octet-stream";   // double-click launcher for PreGameCheck.ps1
 app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticFileTypes });
 
 // Map floor plans live in the mounted data folder (not wwwroot), so they can be refreshed without a rebuild.
@@ -90,6 +92,22 @@ app.MapPost("/api/pregame/check", async (HttpContext ctx, PreGameCheckService sv
     // and silently misdecodes every Danish character (ae/oe/aa) into mojibake,
     // even though the bytes on the wire are correct the whole time.
     return Results.Text(report, "text/plain; charset=utf-8");
+});
+
+// Hit by wwwroot/scripts/R6Replays.ps1 after a match: one r6-dissect JSON per replay round. Same no-login pattern as
+// the pre-game check; the payload is only game stats. Capped at 8 MB (a 9-round match is about 0.3 MB).
+app.MapPost("/api/replay/import", async (HttpContext ctx, ITMartinR6Assistant.Application.IReplayParser parser, IR6DataService data, SessionStateService session) =>
+{
+    if (ctx.Request.ContentLength > 8_000_000) return Results.BadRequest("For stor.");
+    using var reader = new StreamReader(ctx.Request.Body);
+    var json = await reader.ReadToEndAsync();
+    ITMartinR6Assistant.Domain.ReplayMatch? match;
+    try { match = parser.Parse(json, await data.GetData()); }
+    catch (System.Text.Json.JsonException) { return Results.BadRequest("Ugyldig JSON."); }
+    if (match is null) return Results.BadRequest("Ingen runder kunne læses.");
+    var stored = session.ImportReplay(match);
+    var result = stored.Won is null ? "resultat ukendt - sidste runde kunne ikke læses" : stored.Won.Value ? "vundet" : "tabt";
+    return Results.Text($"{stored.Map} {stored.OurScore}-{stored.TheirScore} ({result}), {stored.RoundsRead} af {stored.RoundsTotal} runder læst", "text/plain; charset=utf-8");
 });
 
 app.MapGet("/api/settings-guide/{setting}", async (string setting, SettingsGuideService svc) =>

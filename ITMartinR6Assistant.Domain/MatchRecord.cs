@@ -18,6 +18,8 @@ public class MatchRecord
     public int RoundsWon => AtkWon + DefWon;
     public int RoundsLost => AtkLost + DefLost;
     public string Note { get; set; } = "";
+    // Set when the record was made from a replay import, so a re-import updates it instead of adding a copy.
+    public string ReplayId { get; set; } = "";
     // The rounds as tapped during the match (side + site + won) - feeds the per-site win %. Empty for older logs.
     public List<RoundResult> Rounds { get; set; } = new();
 }

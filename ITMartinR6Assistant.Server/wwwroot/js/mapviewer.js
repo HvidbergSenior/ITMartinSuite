@@ -41,7 +41,9 @@ window.mapViewer = {
             const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
             if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return;
             // In "Skriv rum" mode the tap picks a spot for a room name; Blazor shows the name box.
-            if (viewport._naming) viewport._naming.invokeMethodAsync('RoomTap', fx * 100, fy * 100);
+            if (viewport._naming) { viewport._naming.invokeMethodAsync('RoomTap', fx * 100, fy * 100); }
+            // Shared "her er jeg": the server stores it and every viewer of this map draws the dot in the player's colour.
+            else if (viewport._ping) { viewport._ping.invokeMethodAsync('PingTap', fx * 100, fy * 100); return; }
             ping.style.left = (fx * 100) + '%';
             ping.style.top = (fy * 100) + '%';
             ping.style.display = 'block';
@@ -67,5 +69,6 @@ window.mapViewer = {
     },
     zoom(viewport, factor) { viewport && viewport._zoom && viewport._zoom(factor); },
     setNaming(viewport, dotnet) { if (viewport) viewport._naming = dotnet; },
+    setPing(viewport, dotnet) { if (viewport) viewport._ping = dotnet; },
     reset(viewport) { viewport && viewport._reset && viewport._reset(); },
 };

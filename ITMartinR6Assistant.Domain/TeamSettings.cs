@@ -29,4 +29,7 @@ public class TeamSettings
 
     // Hand-logged match results (PostMatch phase) - see MatchRecord.
     public List<MatchRecord> Matches { get; set; } = new();
+
+    // Matches read from Siege's replay files (R6Replays script) - see ReplayMatch.
+    public List<ReplayMatch> Replays { get; set; } = new();
 }

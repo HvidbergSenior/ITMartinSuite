@@ -1,0 +1,102 @@
+@using ITMartinR6Assistant.Domain
+@inject SessionStateService Session
+
+@* Map-ban box (pro pick/ban, pro vs us per map, map tiles). On top before a map is chosen; below the map, bans and
+   sites once it is (user 2026-10-13: "the relevant stuff on top"). *@
+@{
+    var ranked = Data.Maps.Any(m => m.IsRanked) ? Data.Maps.Where(m => m.IsRanked).ToList() : Data.Maps.ToList();
+    var proMaps = Data.Pro.Maps.Where(m => m.Value.Vetoes >= 10 && ranked.Any(r => r.Name.Equals(m.Key, StringComparison.OrdinalIgnoreCase))).ToList();
+    var _gameData = Data;
+}
+<Fold Key="k-mapban" Title="Map-ban: pro league og os" Class="mapban-card">
+    <div class="mapban-hint">Spillet viser 5 maps, og alle har én stemme. <b>Tryk på det map, I ender med</b> &ndash; så viser siden bans og gode operatører for det. ✕ markerer et bannet map.</div>
+    @if (proMaps.Count > 0)
+    {
+        <div class="box-grid">
+            <div class="info-box">
+                <div class="info-box-title">Pro league vælger oftest</div>
+                <ol class="rank-list">
+                    @foreach (var m in proMaps.OrderByDescending(m => m.Value.PickPct))
+                    {
+                        <li><span class="rank-name">@m.Key</span><span class="rank-bar"><span style="width:@Bar(m.Value.PickPct, proMaps.Max(x => x.Value.PickPct))%"></span></span><b>@m.Value.PickPct.ToString("0") %</b></li>
+                    }
+                </ol>
+            </div>
+            <div class="info-box info-box-bad">
+                <div class="info-box-title">Pro league banner oftest</div>
+                <ol class="rank-list">
+                    @foreach (var m in proMaps.OrderByDescending(m => m.Value.BanPct))
+                    {
+                        <li><span class="rank-name">@m.Key</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(m.Value.BanPct, proMaps.Max(x => x.Value.BanPct))%"></span></span><b>@m.Value.BanPct.ToString("0") %</b></li>
+                    }
+                </ol>
+            </div>
+        </div>
+        <div class="muted small" style="margin:4px 0 10px">Kilde: Liquipedia, @_gameData.Pro.Matches pro-kampe @_gameData.Pro.From?.ToString("MMM yyyy") &ndash; @_gameData.Pro.To?.ToString("MMM yyyy").</div>
+    }
+
+    @* Pro vs us per map (user: "compare pro vs our teams"). Our numbers = logged matches incl. replay imports. *@
+    <div class="info-box">
+        <div class="info-box-title">Pro vs os pr. map</div>
+        <div class="table-scroll"><table class="maps-sites">
+            <thead><tr><th>Map</th><th>Pro pick</th><th>Pro ban</th><th>Pro ATK/DEF</th><th>Vi: kampe</th><th>Vi: vundet</th><th>Vi: ATK/DEF</th></tr></thead>
+            <tbody>
+                @foreach (var map in ranked.OrderByDescending(r => Session.MapStats(r.Name).Played).ThenBy(r => r.Name))
+                {
+                    var st = Session.MapStats(map.Name);
+                    _gameData.Pro.Maps.TryGetValue(map.Name, out var pm);
+                    var hasPro = pm is { Vetoes: >= 10 };
+                    <tr>
+                        <td><b>@map.Name</b></td>
+                        <td>@(hasPro ? pm!.PickPct.ToString("0") + " %" : "–")</td>
+                        <td>@(hasPro ? pm!.BanPct.ToString("0") + " %" : "–")</td>
+                        <td>@if (hasPro && pm!.AtkRoundPct > 0) { <span><span class="atk-txt">@pm.AtkRoundPct.ToString("0")</span>/<span class="def-txt">@((100 - pm.AtkRoundPct).ToString("0"))</span></span> } else { <span>–</span> }</td>
+                        <td>@(st.Played > 0 ? st.Played : "–")</td>
+                        <td>@if (st.Played > 0) { <b class="@Cls(st.WinPct)">@st.Won–@(st.Played - st.Won) · @st.WinPct %</b> } else { <span>–</span> }</td>
+                        <td>@if (st.AtkWon + st.AtkLost + st.DefWon + st.DefLost > 0) { <span><span class="atk-txt">@st.AtkPct</span>/<span class="def-txt">@st.DefPct</span></span> } else { <span>–</span> }</td>
+                    </tr>
+                }
+            </tbody>
+        </table></div>
+        <div class="muted small">ATK/DEF = % af runderne vundet på angreb / forsvar. Vores tal kommer fra replays og loggede kampe.</div>
+    </div>
+
+    <div class="mapban-grid">
+        @foreach (var map in ranked)
+        {
+            var name = map.Name;
+            var banned = Session.MapBans.Contains(name);
+            var chosen = Session.Map == name;
+            var st = Session.MapStats(name);
+            <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
+                <button class="mapban-main" @onclick="() => Session.SetMap(name)">
+                    @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
+                    <div class="mapban-name">@name</div>
+                    @if (st.Played == 0)
+                    {
+                        <div class="mapban-stats"><span class="muted">Ikke spillet endnu</span></div>
+                    }
+                    else
+                    {
+                        <div class="mapban-stats">
+                            <span class="@Cls(st.WinPct)">@st.Won–@(st.Played - st.Won) · @st.WinPct %</span>
+                            <span>ATK <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> DEF <b class="@Cls(st.DefPct)">@st.DefPct %</b></span>
+                        </div>
+                    }
+                    @if (_gameData.Pro.Maps.TryGetValue(name, out var pm) && pm.Vetoes >= 10)
+                    {
+                        <div class="mapban-stats mapban-pro">Pro: pick @pm.PickPct.ToString("0") % · ban @pm.BanPct.ToString("0") %</div>
+                    }
+                </button>
+                <button class="mapban-play @(banned ? "mapban-play-banned" : "")" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "Fortryd ban" : "✕ Bannet")</button>
+            </div>
+        }
+    </div>
+</Fold>
+
+@code {
+    [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
+
+    private static string Bar(double v, double max) => (max > 0 ? Math.Max(4, 100 * v / max) : 0).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Cls(int pct) => pct >= 55 ? "good" : pct <= 45 ? "bad" : "";
+}

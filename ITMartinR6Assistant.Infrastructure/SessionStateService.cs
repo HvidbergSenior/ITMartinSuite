@@ -136,6 +136,69 @@ public class SessionStateService
         NotifyStateChanged();
     }
 
+    // Shared "her er jeg" dots, one per player; colours handed out in the order players first ping.
+    private static readonly string[] PingColors = { "#22c55e", "#3b82f6", "#f59e0b", "#ec4899", "#a855f7", "#14b8a6", "#ef4444", "#eab308" };
+    private readonly Dictionary<string, PlayerPing> _pings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _pingColors = new(StringComparer.OrdinalIgnoreCase);
+
+    public void SetPing(string player, string map, string floor, double x, double y)
+    {
+        lock (_lock)
+        {
+            if (!_pingColors.TryGetValue(player, out var color))
+                _pingColors[player] = color = PingColors[_pingColors.Count % PingColors.Length];
+            _pings[player] = new PlayerPing(player, color, map, floor, x, y, DateTimeOffset.UtcNow);
+        }
+        NotifyStateChanged();
+    }
+
+    public IReadOnlyList<PlayerPing> Pings(string map)
+    {
+        var now = DateTimeOffset.UtcNow;
+        lock (_lock) { return _pings.Values.Where(p => p.Map == map && p.IsFresh(now)).OrderBy(p => p.Player).ToList(); }
+    }
+
+    public IReadOnlyList<ReplayMatch> Replays => _team.Replays;
+
+    // A match from the replay files: stored (merged with a teammate's copy of the same match), and turned into a
+    // MatchRecord with its rounds so map/site win % on the page include it. Returns the stored match.
+    public ReplayMatch ImportReplay(ReplayMatch incoming)
+    {
+        ReplayMatch stored;
+        lock (_lock)
+        {
+            stored = _team.Replays.FirstOrDefault(r => r.MatchId == incoming.MatchId) ?? incoming;
+            if (!ReferenceEquals(stored, incoming)) stored.Merge(incoming);
+            else _team.Replays.Add(stored);
+
+            // Only a match with a known result counts in the map/site numbers - a guessed loss would skew them.
+            var record = _team.Matches.FirstOrDefault(m => m.ReplayId == stored.MatchId);
+            if (stored.Won is null)
+            {
+                if (record is not null) _team.Matches.Remove(record);
+                SaveTeamSettings();
+                NotifyStateChanged();
+                return stored;
+            }
+            if (record is null) { record = new MatchRecord { ReplayId = stored.MatchId }; _team.Matches.Add(record); }
+            var rounds = stored.Rounds;
+            record.PlayedAtUtc = stored.PlayedAtUtc;
+            record.Map = stored.Map;
+            record.Site = rounds.GroupBy(r => r.Site).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? "";
+            record.Won = stored.Won.Value;
+            record.AtkWon = rounds.Count(r => r.Side == "Attack" && r.Won);
+            record.AtkLost = rounds.Count(r => r.Side == "Attack" && !r.Won);
+            record.DefWon = rounds.Count(r => r.Side != "Attack" && r.Won);
+            record.DefLost = rounds.Count(r => r.Side != "Attack" && !r.Won);
+            record.Note = $"Replay {stored.MatchType}, {stored.OurScore}-{stored.TheirScore}, {stored.RoundsRead} af {stored.RoundsTotal} runder læst";
+            record.Rounds = rounds.Select(r => new RoundResult(r.Number, r.Side, r.Site, r.Won,
+                r.Players.Where(p => p.OurTeam).Select(p => p.Operator).ToList(), r.Players.Where(p => !p.OurTeam).Select(p => p.Operator).ToList())).ToList();
+            SaveTeamSettings();
+        }
+        NotifyStateChanged();
+        return stored;
+    }
+
     public void ToggleMapBan(string map)
     {
         lock (_lock)

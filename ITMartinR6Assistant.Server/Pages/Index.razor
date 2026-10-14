@@ -5,434 +5,172 @@
 @inject SettingsGuideService Guide
 @inject PlayerIdentityService Identity
 @inject PreGameCheckService PreGameCheck
-@inject CoachService Coach
 @implements IDisposable
 @using System.Text.Json
 @using ITMartinR6Assistant.Domain
 @using ITMartinR6Assistant.Server.Services
 
-<CascadingValue Name="PhaseScreen" Value="true">
-<div class="phase-page @(Coach.CanControl ? "" : "follow-mode")">
+@* One page, no phases (user 2026-10-13: the phase flow was too complicated after testing). Every box can be shown/hidden
+   by everyone (Fold remembers it per device), and everything is clickable for all - no coach lock.
+   Order: map-ban (pro vs us) -> chosen map: bans + good ops, per site -> our stats from replays -> last match -> loadouts -> PC. *@
+<div class="phase-page kamp-page">
 
-    @* Coach mode: the coach steers the phase screen, everyone else follows what the coach picks and opens. *@
-    <div class="coach-bar">
-        @if (Coach.IsCoach)
+    <div class="kamp-intro">Vælg map, se bans og gode operatører for map og site, og få jeres egen statistik fra Siege's replay-filer. Tryk på en overskrift for at vise eller skjule boksen.</div>
+
+    @if (_gameData is not null)
+    {
+
+        @* While the match runs the map is what matters (user 2026-10-13): first box, open, big inline viewer. *@
+        var liveMap = _gameData.Maps.FirstOrDefault(m => m.Name == Session.Map);
+        if (liveMap is not null)
         {
-            <span class="coach-tag coach-tag-me">🎧 Du er coach &ndash; holdet ser det, du vælger og åbner</span>
-            <button class="phase-back-btn" @onclick="Coach.Release">Slip coach</button>
-        }
-        else if (Coach.Synced)
-        {
-            <span class="coach-tag">🎧 @Session.CoachName styrer &ndash; du følger med</span>
-            <button class="phase-back-btn" @onclick="() => _pinOpen = !_pinOpen">Overtag</button>
-        }
-        else
-        {
-            <button class="phase-back-btn" @onclick="() => _pinOpen = !_pinOpen">🎧 Bliv coach</button>
-        }
-        @if (_pinOpen && !Coach.IsCoach)
-        {
-            <input class="specs-input coach-pin" type="password" placeholder="Coach-PIN" @bind="_pin" @onkeydown="PinKey" />
-            <button class="phase-advance-btn" @onclick="ClaimCoach">OK</button>
-            @if (_pinWrong) { <span class="bad small">Forkert PIN</span> }
-        }
-    </div>
-    @* Coach text messages removed 2026-10-07 (user: "we are on discord... messages with text are not needed"). *@
-
-    @* General info is for before the match; from map-ban on only what the phase needs is shown. *@
-    @if (Session.Phase == MatchPhase.Lobby)
-    {
-    <div style="max-width:520px;margin:0 auto 18px">
-        <button class="banner-toggle-btn" disabled="@(!Coach.CanControl)" @onclick="ToggleBanners">@(Session.ShowBanners ? "ℹ️ Skjul info (for alle)" : "ℹ️ Vis info (for alle)")</button>
-
-        <ProblemPurposeBanner Show="Session.ShowBanners"
-            Problem="At holde styr på faser - map-bans, operator-bans, operator-valg, kampen selv, og efter-kampen - og hvor lang tid der er tilbage til hver, er svært at gøre manuelt midt i en session."
-            Formaal="Ét fælles overblik på en second screen, der viser jeres nuværende fase og nedtællingen for den." />
-
-        <HowToUseBanner Show="Session.ShowBanners" Steps='@(new[]
-        {
-            "Åbn siden på en second screen, mens I spiller - ikke på selve kameraskærmen.",
-            "Klik \"Næste fase →\", når I går videre til map-bans, operator-bans, operator-valg, kampen selv, eller efter-kampen.",
-            "Følg den nedtællende (eller forløbne) tid for den aktuelle fase."
-        })' />
-    </div>
-    }
-
-    <div class="phase-badge phase-@Session.Phase.ToString().ToLower()">@PhaseLabel(Session.Phase)</div>
-
-    @if (InRounds)
-    {
-        <div class="round-bar">
-            <span class="round-no">Runde @Session.Round</span>
-            <span class="round-score"><b class="good">@Session.RoundsWon</b> – <b class="bad">@Session.RoundsLost</b></span>
-            <span class="round-side @(Session.Side == "Attack" ? "side-attack" : "side-defense")">@(Session.Side == "Attack" ? "ATK" : "DEF")</span>
-            @if (Session.Map is not null) { <span class="muted">@Session.Map@(Session.Site is not null ? " · " + Session.Site : "")</span> }
-        </div>
-    }
-    <div class="phase-sub">@PhaseBlurb(Session.Phase)</div>
-
-    @if (Session.PhaseDuration is { } duration)
-    {
-        <div class="phase-timer @(Remaining <= TimeSpan.Zero ? "phase-timer-expired" : "")">
-            @FormatTime(Remaining)
-        </div>
-        <div class="phase-timer-total">af @FormatTime(duration)</div>
-    }
-    else if (Session.Phase == MatchPhase.InGame)
-    {
-        <div class="phase-timer phase-timer-elapsed">@FormatTime(Elapsed)</div>
-        <div class="phase-timer-total">forløbet</div>
-    }
-
-    @if (Coach.CanControl)
-    {
-    <div class="phase-nav">
-        @if (Session.Phase != MatchPhase.Lobby)
-        {
-            <button class="phase-back-btn" @onclick="Session.PreviousPhase">← Tilbage</button>
-        }
-        @if (Session.Phase == MatchPhase.InGame)
-        {
-            <button class="phase-advance-btn round-win-btn" @onclick="() => EndRound(true)">✅ Runde vundet</button>
-            <button class="phase-advance-btn round-loss-btn" @onclick="() => EndRound(false)">❌ Runde tabt</button>
-        }
-        else
-        {
-            <button class="phase-advance-btn" @onclick="Advance">@(Session.Phase == MatchPhase.PostMatch ? "✅ Afslut kamp" : "Næste fase →")</button>
-        }
-    </div>
-    @if (InRounds)
-    {
-        <div class="phase-nav round-nav">
-            @if (Session.Rounds.Count > 0 && Session.Phase == MatchPhase.OperatorBans)
-            {
-                <button class="phase-back-btn" @onclick="Session.UndoLastRound" title="Fortryd sidste runde-resultat">↩ Fortryd runde @(Session.Round - 1)</button>
-            }
-            <button class="phase-back-btn" @onclick="EndMatch">🏁 Kampen er slut</button>
-        </div>
-    }
-    <div class="phase-nav">
-        @if (HasGameState && !InRounds && !_confirmNew)
-        {
-            <button class="phase-back-btn" @onclick="() => _confirmNew = true" title="Ryd map, site, bans og side og start forfra">🔄 Ny kamp</button>
-        }
-    </div>
-    @if (_confirmNew)
-    {
-        <div class="newgame-confirm">
-            <span>Starte en ny kamp? Map@(Session.Map is not null ? $" ({Session.Map})" : ""), site, bans og side bliver ryddet for alle.</span>
-            <button class="phase-advance-btn" @onclick="NewGame">Ja, ny kamp</button>
-            <button class="phase-back-btn" @onclick="() => _confirmNew = false">Nej</button>
-        </div>
-    }
-    }
-    @if (Session.Phase == MatchPhase.PostMatch)
-    {
-        <div class="muted small" style="margin-top:6px">Log kampen herunder, og tryk så <b>✅ Afslut kamp</b> &ndash; så er alt klar til næste kamp.</div>
-    }
-
-    @* In the round the map comes first (read while dead), then their ops -> our answer. In op-pick the picks come first. *@
-    @if (_gameData is not null && Session.Phase == MatchPhase.InGame)
-    {
-        <PhaseReference Data="_gameData" Phase="Session.Phase" MapName="@Session.Map" SiteName="@Session.Site" WeAttack='Session.Side == "Attack"' />
-    }
-    @if (_gameData is not null && Session.Phase is MatchPhase.OperatorPick or MatchPhase.InGame)
-    {
-        <RoundFocus Data="_gameData" Phase="Session.Phase" />
-    }
-    @* Map + site panel only where it helps: picking operators and in the round (op-ban has its own site cards). *@
-    @if (_gameData is not null && Session.Phase == MatchPhase.OperatorPick)
-    {
-        <PhaseReference Data="_gameData" Phase="Session.Phase" MapName="@Session.Map" SiteName="@Session.Site" WeAttack='Session.Side == "Attack"' />
-    }
-
-
-    @{ var checklist = PhaseChecklist(Session.Phase); }
-    @if (checklist.Count > 0)
-    {
-        <Fold Key="checklist" Title="✅ Gør dette nu" Class="phase-checklist">
-            <ul>
-                @foreach (var item in checklist)
-                {
-                    <li>@((MarkupString)item)</li>
-                }
-            </ul>
-        </Fold>
-    }
-
-    @if (Session.Phase == MatchPhase.MapBans && _gameData is not null)
-    {
-        // Until maps are flagged ranked under Admin, show them all.
-        var ranked = _gameData.Maps.Any(m => m.IsRanked) ? _gameData.Maps.Where(m => m.IsRanked).ToList() : _gameData.Maps.ToList();
-        <Fold Key="mapbans" Title="🗺 Map-ban" Class="mapban-card">
-            <div class="mapban-hint">Spillet viser 5 maps, og alle har &eacute;n stemme &ndash; stem p&aring; det samme. Tallene er vores egne kampe. <b>Tryk p&aring; det map, vi ender med</b> &ndash; s&aring; handler Operator-bans om det map. Marker evt. de bannede med &#x2715;.</div>
-            @{ var proMaps = _gameData.Pro.Maps.Where(m => m.Value.Vetoes >= 10 && ranked.Any(r => r.Name.Equals(m.Key, StringComparison.OrdinalIgnoreCase))).ToList(); }
-            @if (proMaps.Count > 0)
-            {
-                <div class="box-grid">
-                    <div class="info-box">
-                        <div class="info-box-title">🏆 Pro league vælger oftest</div>
-                        <ol class="rank-list">
-                            @foreach (var m in proMaps.OrderByDescending(m => m.Value.PickPct))
-                            {
-                                <li><span class="rank-name">@m.Key</span><span class="rank-bar"><span style="width:@Bar(m.Value.PickPct, proMaps.Max(x => x.Value.PickPct))%"></span></span><b>@m.Value.PickPct.ToString("0") %</b></li>
-                            }
-                        </ol>
-                    </div>
-                    <div class="info-box info-box-bad">
-                        <div class="info-box-title">🚫 Pro league banner oftest</div>
-                        <ol class="rank-list">
-                            @foreach (var m in proMaps.OrderByDescending(m => m.Value.BanPct))
-                            {
-                                <li><span class="rank-name">@m.Key</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(m.Value.BanPct, proMaps.Max(x => x.Value.BanPct))%"></span></span><b>@m.Value.BanPct.ToString("0") %</b></li>
-                            }
-                        </ol>
-                    </div>
-                    <div class="info-box">
-                        <div class="info-box-title">⚔ Runder vundet: ATK vs DEF</div>
-                        <ol class="rank-list rank-list-split">
-                            @foreach (var m in proMaps.Where(m => m.Value.AtkRoundPct > 0).OrderByDescending(m => m.Value.AtkRoundPct))
-                            {
-                                var atk = m.Value.AtkRoundPct;
-                                <li><span class="rank-name">@m.Key</span>
-                                    <span class="split-bar"><span class="split-atk" style="width:@atk.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></span></span>
-                                    <b><span class="atk-txt">@atk.ToString("0")</span>/<span class="def-txt">@((100 - atk).ToString("0"))</span></b></li>
-                            }
-                        </ol>
-                        @{ var noPro = ranked.Where(r => !proMaps.Any(p => p.Key.Equals(r.Name, StringComparison.OrdinalIgnoreCase))).ToList(); }
-                        @if (noPro.Count > 0)
-                        {
-                            <ul class="site-pct">
-                                @foreach (var r in noPro)
-                                {
-                                    var os = Session.MapStats(r.Name);
-                                    <li><span>@r.Name <span class="muted small">(ikke i pro-poolen)</span></span>
-                                        @if (os.AtkWon + os.AtkLost + os.DefWon + os.DefLost > 0) { <b>vores: <span class="atk-txt">@os.AtkPct</span>/<span class="def-txt">@os.DefPct</span></b> } else { <span class="muted">–</span> }</li>
-                                }
-                            </ul>
-                        }
-                        <div class="muted small">ATK % / DEF % af pro-runderne. Øverst = bedst for angreb, nederst = forsvaret vinder.</div>
-                    </div>
-                </div>
-                <div class="muted small" style="margin:4px 0 10px">Kilde: Liquipedia, @_gameData.Pro.Matches pro-kampe @_gameData.Pro.From?.ToString("MMM yyyy") &ndash; @_gameData.Pro.To?.ToString("MMM yyyy").</div>
-            }
-            <ProTips Data="_gameData" Mode="mapbans" />
-            <div class="mapban-grid">
-                @foreach (var map in ranked)
-                {
-                    var name = map.Name;
-                    var banned = Session.MapBans.Contains(name);
-                    var chosen = Session.Map == name;
-                    <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
-                        <button class="mapban-main" disabled="@(!Coach.CanControl)" @onclick="() => Session.SetMap(name)">
-                            @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
-                            <div class="mapban-name">@name</div>
-                            @{ var st = Session.MapStats(name); }
-                            @if (st.Played == 0)
-                            {
-                                <div class="mapban-stats"><span class="muted">Ikke spillet endnu</span></div>
-                            }
-                            else
-                            {
-                                <div class="mapban-stats">
-                                    <span class="@Cls(st.WinPct)">@st.Won–@(st.Played - st.Won) · @st.WinPct %</span>
-                                    <span>@st.Played @(st.Played == 1 ? "kamp" : "kampe")</span>
-                                </div>
-                                <div class="mapban-stats">
-                                    <span title="Attack-runder vundet–tabt">ATK @st.AtkWon–@st.AtkLost <b class="@Cls(st.AtkPct)">@st.AtkPct %</b></span>
-                                    <span title="Defence-runder vundet–tabt">DEF @st.DefWon–@st.DefLost <b class="@Cls(st.DefPct)">@st.DefPct %</b></span>
-                                </div>
-                                <div class="mapban-stats"><span class="muted">sidst @st.LastPlayedUtc?.ToLocalTime().ToString("dd.MM")</span></div>
-                            }
-                            @if (_gameData.Pro.Maps.TryGetValue(name, out var pm) && pm.Vetoes >= 10)
-                            {
-                                <div class="mapban-stats mapban-pro" title="Pro league (Liquipedia, sidste to år)">🏆 pick @pm.PickPct.ToString("0") % · ban @pm.BanPct.ToString("0") % · ATK @pm.AtkRoundPct.ToString("0") %</div>
-                            }
-                            @* Our rounds per site, and where to start. *@
-                            @foreach (var s in map.Sites)
-                            {
-                                var sr = Session.SiteRounds(name, s.Name);
-                                if (sr.Played == 0) continue;
-                                <div class="mapban-site"><span>@s.Name</span> <b class="@Cls(sr.WinPct)">@sr.Won–@(sr.Played - sr.Won) · @sr.WinPct %</b></div>
-                            }
-                            @{ var best = Session.BestSite(name, map.Sites.Select(s => s.Name), "Defense"); }
-                            @if (best is { } b)
-                            {
-                                <div class="mapban-start">🎯 DEF: start på <b>@b.Site</b> (@b.Pct % af @b.Rounds runder)</div>
-                            }
-                        </button>
-                        <button class="mapban-play @(banned ? "mapban-play-banned" : "")" disabled="@(!Coach.CanControl)" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "↩ Fortryd ban" : "✕ Bannet")</button>
-                    </div>
-                }
-            </div>
-            @if (Session.Map is not null)
-            {
-                <div class="mapban-result">Vi spiller <b>@Session.Map</b> &ndash; Operator-bans viser nu dets sites.</div>
-            }
-        </Fold>
-    }
-
-    @if (Session.Phase == MatchPhase.PostMatch && _gameData is not null)
-    {
-        <Fold Key="matchlog" Title="📝 Log kampen" Class="matchlog-card">
-            <div class="matchlog-row">
-                <select class="quick-op-select" @bind="_logMap">
-                    <option value="">-- map --</option>
-                    @foreach (var m in _gameData.Maps.OrderByDescending(m => m.IsRanked).ThenBy(m => m.Name)) { <option value="@m.Name">@m.Name</option> }
-                </select>
-                <select class="quick-op-select" @bind="_logSite">
-                    <option value="">-- site --</option>
-                    @foreach (var st in _gameData.Maps.FirstOrDefault(m => m.Name == _logMap)?.Sites ?? new()) { <option value="@st.Name">@st.Name (@st.Floor)</option> }
-                </select>
-            </div>
-            <div class="matchlog-row">
-                <button class="matchlog-result @(_logWon == true ? "matchlog-win" : "")" @onclick="() => _logWon = true">✅ Vundet</button>
-                <button class="matchlog-result @(_logWon == false ? "matchlog-loss" : "")" @onclick="() => _logWon = false">❌ Tabt</button>
-            </div>
-            <div class="matchlog-row matchlog-sides">
-                <span class="matchlog-side">ATK</span>
-                <input class="matchlog-score" type="number" min="0" max="9" placeholder="vundet" @bind="_logAw" /><span>–</span><input class="matchlog-score" type="number" min="0" max="9" placeholder="tabt" @bind="_logAl" />
-                <span class="matchlog-side">DEF</span>
-                <input class="matchlog-score" type="number" min="0" max="9" placeholder="vundet" @bind="_logDw" /><span>–</span><input class="matchlog-score" type="number" min="0" max="9" placeholder="tabt" @bind="_logDl" />
-            </div>
-            <div class="matchlog-row">
-                <input class="specs-input" placeholder="Note (valgfri) – fx 'tabte alle rush på site B'" @bind="_logNote" />
-                <button class="specs-help-submit-btn" @onclick="SaveMatch" disabled="@(string.IsNullOrEmpty(_logMap) || _logWon is null || !Coach.CanControl)">Gem</button>
-            </div>
-            @if (_logSaved) { <div class="specs-status specs-status-ok">Gemt – tallene ligger nu på <a href="/maps">Maps</a>.</div> }
-            @if (Session.Matches.Count > 0)
-            {
-                <div class="matchlog-recent">
-                    Seneste: @foreach (var m in Session.Matches.OrderByDescending(x => x.PlayedAtUtc).Take(5))
+            var liveSite = liveMap.Sites.FirstOrDefault(s => s.Name == Session.Site);
+            <Fold Key="k-kort" Title="@($"Kort: {liveMap.Name}{(liveSite is null ? "" : " · " + liveSite.Name)}")" Class="opban-card">
+                <div class="site-chips">
+                    @foreach (var s in liveMap.Sites)
                     {
-                        <span class="matchlog-chip @(m.Won ? "matchlog-win" : "matchlog-loss")">@m.Map@(string.IsNullOrEmpty(m.Site) ? "" : " · " + m.Site) @(m.RoundsWon)–@(m.RoundsLost)</span>
+                        var siteName = s.Name;
+                        <button class="site-chip @(Session.Site == siteName ? "site-chip-on" : "")" @onclick="() => Session.SetSite(siteName)">@siteName <span class="muted small">@s.Floor</span></button>
                     }
                 </div>
-            }
-        </Fold>
-    }
-
-    @if (Session.Phase == MatchPhase.OperatorBans && _gameData is not null)
-    {
-        var opMap = _gameData.Maps.FirstOrDefault(m => m.Name == Session.Map);
-        var weAttack = Session.Side == "Attack";
-        // Attack bans a defender, defence bans an attacker.
-        var banSide = weAttack ? "Defense" : "Attack";
-        var opsOfSide = _gameData.Operators.Where(o => o.Side == banSide).Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        <Fold Key="opbans" Title="🚫 Operator-ban" Class="opban-card">
-            <div class="opban-head">
-                <div>
-                    <div class="opban-sub">
-                        @if (opMap is null && !Coach.CanControl) { <span>Intet map valgt endnu &ndash; coachen vælger.</span> }
-                        else if (opMap is null) { <span>Intet map valgt &ndash; g&aring; <a href="#" @onclick="Session.PreviousPhase" @onclick:preventDefault="true">tilbage</a> og tryk Spil p&aring; mappet.</span> }
-                        else { <span>Map: <b>@opMap.Name</b></span> }
-                    </div>
-                </div>
-                <div class="opban-side">
-                    <button class="admin-side-btn @(weAttack ? "side-btn-atk-active" : "")" disabled="@(!Coach.CanControl)" @onclick='() => Session.SetSide("Attack")'>Vi er ATK</button>
-                    <button class="admin-side-btn @(!weAttack ? "side-btn-def-active" : "")" disabled="@(!Coach.CanControl)" @onclick='() => Session.SetSide("Defense")'>Vi er DEF</button>
-                </div>
-            </div>
-            <div class="mapban-hint">Hver runde: ATK banner &eacute;n <b>defender</b>, DEF banner &eacute;n <b>attacker</b>. Vi er @(weAttack ? "ATK, så vi banner en defender" : "DEF, så vi banner en attacker"). Ban efter bombsite &ndash; tryk p&aring; det site, der er i spil.</div>
-            @if (opMap is not null)
-            {
-                var best = Session.BestSite(opMap.Name, opMap.Sites.Select(s => s.Name), Session.Side);
-                var proBans = _gameData.Pro.Maps.TryGetValue(opMap.Name, out var pms)
-                    ? pms.OperatorBanPct.Where(kv => opsOfSide.Contains(kv.Key)).OrderByDescending(kv => kv.Value).Take(8).ToList()
-                    : new();
-                <div class="box-grid">
-                    <div class="info-box info-box-good">
-                        <div class="info-box-title">🎯 @(weAttack ? "Vores bedste ATK-site" : "Start med dette site")</div>
-                        @if (best is { } b)
-                        {
-                            <div class="info-box-big">@b.Site</div>
-                            <div class="small">Vi vinder <b>@b.Pct %</b> af vores @(weAttack ? "ATK" : "DEF")-runder her (@b.Rounds runder).</div>
-                        }
-                        else
-                        {
-                            <div class="small muted">Ingen site-data endnu. Vælg site hver runde og tryk ✅/❌ &ndash; så lærer appen, hvor vi vinder.</div>
-                        }
-                        <ul class="site-pct">
-                            @foreach (var s in opMap.Sites)
-                            {
-                                var sr = Session.SiteRounds(opMap.Name, s.Name);
-                                var n = weAttack ? sr.AtkWon + sr.AtkLost : sr.DefWon + sr.DefLost;
-                                var pct = weAttack ? sr.AtkPct : sr.DefPct;
-                                <li><span>@s.Name</span>@if (n > 0) { <b class="@Cls(pct)">@pct % <span class="muted">(@n)</span></b> } else { <span class="muted">–</span> }</li>
-                            }
-                        </ul>
-                    </div>
-                    @if (proBans.Count > 0)
+                <div class="clear-map">
+                    @if (!_confirmClear)
                     {
+                        <button class="site-chip" @onclick="() => _confirmClear = true">Ryd map (ny kamp)</button>
+                    }
+                    else
+                    {
+                        <span class="small">Ryd map, site og bannede maps for hele holdet? Statistikken bliver liggende.</span>
+                        <button class="site-chip site-chip-on" @onclick="ClearMap">Ja, ryd</button>
+                        <button class="site-chip" @onclick="() => _confirmClear = false">Nej</button>
+                    }
+                </div>
+                @if (!string.IsNullOrEmpty(liveMap.BlueprintSlug)) { <MapViewer Map="liveMap" Site="liveSite" Inline="true" /> }
+                else { <div class="small muted">Der er ingen plantegning for @liveMap.Name.</div> }
+                @if (liveSite is { Note.Length: > 0 }) { <div class="info-box site-rule">@liveSite.Note</div> }
+            </Fold>
+        }
+
+        @if (Session.Map is null) { <MapBanBox Data="_gameData" /> }
+
+        var opMap = _gameData.Maps.FirstOrDefault(m => m.Name == Session.Map);
+        if (opMap is not null)
+        {
+            var weAttack = Session.Side == "Attack";
+            var attackers = _gameData.Operators.Where(o => o.Side == "Attack").Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var defenders = _gameData.Operators.Where(o => o.Side == "Defense").Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _gameData.Pro.Maps.TryGetValue(opMap.Name, out var pms);
+            var mapReplays = Session.Replays.Where(r => r.Map.Equals(opMap.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            <Fold Key="k-map" Title="@($"{opMap.Name}: bans og gode operatører")" Class="opban-card">
+                <div class="opban-head">
+                    <div class="opban-sub">Map: <b>@opMap.Name</b> · Vi starter som</div>
+                    <div class="opban-side">
+                        <button class="admin-side-btn @(weAttack ? "side-btn-atk-active" : "")" @onclick='() => Session.SetSide("Attack")'>ATK</button>
+                        <button class="admin-side-btn @(!weAttack ? "side-btn-def-active" : "")" @onclick='() => Session.SetSide("Defense")'>DEF</button>
+                    </div>
+                </div>
+                <div class="box-grid">
+                    @foreach (var (title, side, set) in new[] { ("Ban en defender (når vi angriber)", "Defense", defenders), ("Ban en attacker (når vi forsvarer)", "Attack", attackers) })
+                    {
+                        var proBans = pms?.OperatorBanPct.Where(kv => set.Contains(kv.Key)).OrderByDescending(kv => kv.Value).Take(6).ToList() ?? new();
+                        var theyKill = ReplayStats.Threats(mapReplays, opMap.Name).Where(t => set.Contains(t.Operator)).Take(4).ToList();
                         <div class="info-box info-box-bad">
-                            <div class="info-box-title">🚫 Pro ban-rækkefølge på @opMap.Name</div>
-                            <ol class="rank-list rank-list-why">
-                                @foreach (var kv in proBans)
-                                {
-                                    var op = _gameData.Operators.FirstOrDefault(o => o.Name.Equals(kv.Key, StringComparison.OrdinalIgnoreCase));
-                                    <li>
-                                        <span class="rank-name">@kv.Key</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(kv.Value, proBans[0].Value)%"></span></span><b>@kv.Value.ToString("0") %</b>
-                                        @if (op is { Threat.Length: > 0 }) { <div class="rank-why">@op.Threat</div> }
-                                    </li>
-                                }
+                            <div class="info-box-title">@title</div>
+                            @if (proBans.Count > 0)
+                            {
+                                <div class="small muted">Pro league banner på @opMap.Name:</div>
+                                <ol class="rank-list rank-list-why">
+                                    @foreach (var kv in proBans)
+                                    {
+                                        var op = _gameData.Operators.FirstOrDefault(o => o.Name.Equals(kv.Key, StringComparison.OrdinalIgnoreCase));
+                                        <li>
+                                            <span class="rank-name">@kv.Key</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(kv.Value, proBans[0].Value)%"></span></span><b>@kv.Value.ToString("0") %</b>
+                                            @if (op is { Threat.Length: > 0 }) { <div class="rank-why">@op.Threat</div> }
+                                        </li>
+                                    }
+                                </ol>
+                            }
+                            else { <div class="small muted">Ingen pro-data for @opMap.Name.</div> }
+                            <div class="small muted" style="margin-top:6px">Dræber os mest her (replays):</div>
+                            @if (theyKill.Count == 0) { <div class="small muted">Ingen replays fra @opMap.Name endnu.</div> }
+                            else
+                            {
+                                <ul class="site-pct">
+                                    @foreach (var t in theyKill) { <li><span>@t.Operator</span><b>@t.KilledUs drab på os · vi dræbte @t.WeKilled</b></li> }
+                                </ul>
+                            }
+                        </div>
+                    }
+                    @foreach (var (title, side) in new[] { ("Gode attackers her", "Attack"), ("Gode defenders her", "Defense") })
+                    {
+                        // Favourite ops on the map = how many of its sites list the op as a pick (r6coaching per-site data).
+                        var favs = opMap.Sites.SelectMany(s => s.PickSuggestions.Take(5))
+                            .Where(n => _gameData.Operators.Any(o => o.Side == side && o.Name.Equals(n, StringComparison.OrdinalIgnoreCase)))
+                            .GroupBy(n => n, StringComparer.OrdinalIgnoreCase).OrderByDescending(g => g.Count()).Take(6).ToList();
+                        var ours = ReplayStats.Operators(mapReplays, true, opMap.Name).Where(o => o.Side == side).Take(5).ToList();
+                        <div class="info-box info-box-good">
+                            <div class="info-box-title">@title</div>
+                            <ol class="opban-list">
+                                @foreach (var g in favs) { <li><b>@g.Key</b> <span class="muted small">top-pick på @g.Count() af @opMap.Sites.Count sites</span></li> }
                             </ol>
+                            <div class="small muted" style="margin-top:6px">Vi har spillet her (replays):</div>
+                            @if (ours.Count == 0) { <div class="small muted">Ingen endnu.</div> }
+                            else
+                            {
+                                <ul class="site-pct">
+                                    @foreach (var o in ours) { <li><span>@o.Operator <span class="muted">(@o.Rounds r.)</span></span><b>K/D @o.Kd · <span class="@Cls(o.WinPct)">@o.WinPct %</span> vundet</b></li> }
+                                </ul>
+                            }
                         </div>
                     }
                 </div>
                 <ProTips Data="_gameData" Mode="opbans" MapName="@opMap.Name" WeAttack="weAttack" />
-            }
+            </Fold>
 
-            @if (opMap is not null)
-            {
-                @if (opMap.Sites.Count == 0)
-                {
-                    <div class="maps-empty">Ingen sites lagt ind for @opMap.Name endnu &ndash; tilf&oslash;j dem under <a href="/admin">Admin</a>.</div>
+            <Fold Key="k-sites" Title="@($"Sites på {opMap.Name}")" Class="opban-card">
+                <div class="mapban-hint">Tryk på et site for bans, gode operatører og kortet. Viser for <b>@(weAttack ? "ATK (vi banner en defender)" : "DEF (vi banner en attacker)")</b> &ndash; skift øverst i boksen ovenfor.</div>
+                @{
+                    var banSide = weAttack ? "Defense" : "Attack";
+                    var ourSide = weAttack ? "Attack" : "Defense";
+                    var opsOfSide = weAttack ? defenders : attackers;
                 }
                 <div class="opban-sites">
                     @foreach (var site in opMap.Sites)
                     {
                         var st = Session.SiteRounds(opMap.Name, site.Name);
-                        var active = Session.Site == site.Name;
                         var bans = site.SuggestedBans.Where(b => opsOfSide.Count == 0 || opsOfSide.Contains(b)).ToList();
-                        var isOpen = (Coach.Synced ? Session.OpenSites : _openSites).Contains(opMap.Name + "|" + site.Name);
-                        <div class="opban-site @(active ? "opban-site-active" : "") @(isOpen ? "opban-site-open" : "")">
+                        var isOpen = _openSites.Contains(opMap.Name + "|" + site.Name);
+                        var pickList = site.PickSuggestions.Where(n => _gameData.Operators.Any(o => o.Side == ourSide && o.Name.Equals(n, StringComparison.OrdinalIgnoreCase))).ToList();
+                        <div class="opban-site @(isOpen ? "opban-site-open" : "")">
                             <div class="opban-site-head" @onclick="() => ToggleSite(opMap.Name, site.Name)">
                                 <span class="opban-caret">@(isOpen ? "▾" : "▸")</span>
                                 <b>@site.Name</b> <span class="muted small">@site.Floor</span>
-                                @{ var ssr = Session.SiteRounds(opMap.Name, site.Name); }
-                                <span class="opban-stat">@(ssr.Played > 0 ? $"Vi: {ssr.Won}–{ssr.Played - ssr.Won} ({ssr.WinPct} %)" : "")</span>
-                                @if (!isOpen && site.MustBans.Any(b => bans.Contains(b))) { <span class="opban-must-name small">SKAL: @string.Join(", ", site.MustBans.Where(b => bans.Contains(b)))</span> }
+                                <span class="opban-stat">@(st.Played > 0 ? $"Vi: {st.Won}–{st.Played - st.Won} ({st.WinPct} %)" : "")</span>
+                                @if (!isOpen)
+                                {
+                                    <span class="small">Ban: <b>@string.Join(", ", bans.Take(2))</b> · Pick: <b>@string.Join(", ", pickList.Take(3))</b></span>
+                                }
                             </div>
                             @if (isOpen)
                             {
-                                @if (!string.IsNullOrEmpty(opMap.BlueprintSlug) || site.QuickInfo.Count > 0)
+                                @if (!string.IsNullOrEmpty(opMap.BlueprintSlug))
                                 {
-                                    <div class="opban-intro">
-                                        <MapViewer Map="opMap" Site="site" />
-                                        @if (site.QuickInfo.Count > 0)
-                                        {
-                                            <ol class="opban-quick">
-                                                @foreach (var q in site.QuickInfo) { <li>@q</li> }
-                                            </ol>
-                                        }
-                                    </div>
+                                    <div class="opban-intro"><MapViewer Map="opMap" Site="site" /></div>
                                 }
-                                @if (site.Note.Length > 0) { <div class="info-box site-rule">📜 @site.Note</div> }
+                                @if (site.Note.Length > 0) { <div class="info-box site-rule">@site.Note</div> }
                                 <div class="opban-stat-row">
                                     @if (st.Played > 0)
                                     {
                                         <span>Vi: @st.Won&ndash;@(st.Played - st.Won) runder (<b class="@Cls(st.WinPct)">@st.WinPct %</b>)</span>
-                                        <span>ATK-runder <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> (@st.AtkWon&ndash;@st.AtkLost)</span>
-                                        <span>DEF-runder <b class="@Cls(st.DefPct)">@st.DefPct %</b> (@st.DefWon&ndash;@st.DefLost)</span>
+                                        <span>ATK <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> (@st.AtkWon&ndash;@st.AtkLost)</span>
+                                        <span>DEF <b class="@Cls(st.DefPct)">@st.DefPct %</b> (@st.DefWon&ndash;@st.DefLost)</span>
                                     }
                                     else { <span class="muted">Vi har ikke spillet dette site endnu</span> }
                                 </div>
-                                var ourSide = weAttack ? "Attack" : "Defense";
-                                var pickList = site.PickSuggestions.Where(n => _gameData.Operators.Any(o => o.Side == ourSide && o.Name.Equals(n, StringComparison.OrdinalIgnoreCase))).ToList();
                                 <div class="box-grid">
                                     <div class="info-box info-box-bad">
-                                        <div class="info-box-title">🚫 Ban @(weAttack ? "en defender" : "en attacker") &ndash; i denne rækkefølge</div>
-                                        @if (bans.Count == 0) { <div class="muted small">Ingen forslag endnu.</div> }
+                                        <div class="info-box-title">Ban @(weAttack ? "en defender" : "en attacker") &ndash; i denne rækkefølge</div>
                                         <ol class="opban-list">
                                             @foreach (var b in bans)
                                             {
@@ -445,16 +183,11 @@
                                         </ol>
                                     </div>
                                     <div class="info-box info-box-good">
-                                        <div class="info-box-title">✅ Vi vælger &ndash; @(weAttack ? "ATK" : "DEF") på @site.Name</div>
-                                        @if (pickList.Count == 0) { <div class="muted small">Ingen forslag endnu.</div> }
+                                        <div class="info-box-title">Gode @(weAttack ? "attackers" : "defenders") på @site.Name</div>
                                         <ol class="opban-list">
                                             @foreach (var n in pickList)
                                             {
-                                                var banned = Session.Bans.Contains(n);
-                                                <li class="@(banned ? "pick-banned" : "")">
-                                                    <b>@n</b>@if (banned) { <span class="opban-must-tag">bannet</span> }
-                                                    @if (site.PickReasons.TryGetValue(n, out var pwhy)) { <div class="opban-why">@pwhy</div> }
-                                                </li>
+                                                <li><b>@n</b>@if (site.PickReasons.TryGetValue(n, out var pwhy)) { <div class="opban-why">@pwhy</div> }</li>
                                             }
                                         </ol>
                                     </div>
@@ -463,17 +196,127 @@
                         </div>
                     }
                 </div>
+            </Fold>
+        }
+        else
+        {
+            <div class="info-box small muted">Vælg et map ovenfor for at se bans og gode operatører for mappet og hvert site.</div>
+        }
+        @if (Session.Map is not null) { <MapBanBox Data="_gameData" /> }
+
+        var replays = Session.Replays.OrderByDescending(r => r.PlayedAtUtc).ToList();
+        <Fold Key="k-stats" Title="Vores statistik (fra replays)" Class="stats-card">
+            @if (replays.Count == 0)
+            {
+                <div class="small muted">Ingen kampe endnu. Kør <b>R6Replays.cmd</b> (boksen "Send kampene fra din PC" længere nede).</div>
+            }
+            else
+            {
+                var rounds = replays.Sum(r => r.RoundsRead);
+                <div class="small muted">@replays.Count kampe · @rounds runder læst · @replays.Min(r => r.PlayedAtUtc).ToLocalTime().ToString("dd.MM") &ndash; @replays.Max(r => r.PlayedAtUtc).ToLocalTime().ToString("dd.MM")</div>
+                <div class="info-box">
+                    <div class="info-box-title">K/D pr. spiller</div>
+                    <div class="table-scroll"><table class="maps-sites">
+                        <thead><tr><th>Spiller</th><th>Runder</th><th>Kills</th><th>Døde</th><th>K/D</th><th>Assists</th><th>HS %</th><th>Dræber med</th></tr></thead>
+                        <tbody>
+                            @foreach (var p in ReplayStats.Players(replays).Where(p => MatchesWith(replays, p.Name) >= 2))
+                            {
+                                <tr>
+                                    <td><b>@p.Name</b></td><td>@p.Rounds</td><td>@p.Kills</td><td>@p.Deaths</td><td><b>@p.Kd</b></td><td>@p.Assists</td><td>@p.HeadshotPct %</td>
+                                    <td class="small">@string.Join(", ", ReplayStats.PlayerOperators(replays, p.Name).Where(o => o.Kills > 0).Take(4).Select(o => $"{o.Operator} {o.Kills}"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table></div>
+                    <div class="muted small">Kun spillere, der har været med i mindst 2 kampe &ndash; tilfældige holdkammerater er udeladt.</div>
+                </div>
+                <div class="box-grid">
+                    @foreach (var side in new[] { "Attack", "Defense" })
+                    {
+                        var ops = ReplayStats.Operators(replays).Where(o => o.Side == side).Take(10).ToList();
+                        <div class="info-box">
+                            <div class="info-box-title">Vores @(side == "Attack" ? "attackers" : "defenders")</div>
+                            <div class="table-scroll"><table class="maps-sites">
+                                <thead><tr><th>Operatør</th><th>Runder</th><th>Kills</th><th>K/D</th><th>Runder vundet</th></tr></thead>
+                                <tbody>
+                                    @foreach (var o in ops) { <tr><td><b>@o.Operator</b></td><td>@o.Rounds</td><td>@o.Kills</td><td>@o.Kd</td><td class="@Cls(o.WinPct)">@o.WinPct %</td></tr> }
+                                </tbody>
+                            </table></div>
+                        </div>
+                    }
+                    <div class="info-box info-box-bad">
+                        <div class="info-box-title">Fjendens operatører, der dræber os mest</div>
+                        <ul class="site-pct">
+                            @foreach (var t in ReplayStats.Threats(replays).Take(10)) { <li><span>@t.Operator</span><b>@t.KilledUs drab på os · vi dræbte @t.WeKilled</b></li> }
+                        </ul>
+                    </div>
+                </div>
             }
         </Fold>
-    }
 
-    @if (Session.Phase == MatchPhase.Lobby)
-    {
-        <Fold Key="specs" Title="🖥️ Specifikationer" Class="specs-card">
+        @if (replays.Count > 0)
+        {
+            var shown = replays.FirstOrDefault(r => r.MatchId == _matchId) ?? replays[0];
+            <Fold Key="k-match" Title="Kamp for kamp" Class="stats-card">
+                <select class="quick-op-select" @bind="_matchId">
+                    @foreach (var r in replays)
+                    {
+                        <option value="@r.MatchId">@r.PlayedAtUtc.ToLocalTime().ToString("dd.MM HH:mm") · @r.Map · @r.OurScore–@r.TheirScore @(r.Won == true ? "vundet" : r.Won == false ? "tabt" : "(resultat ukendt)")</option>
+                    }
+                </select>
+                <div class="match-score">
+                    <span class="@(shown.Won == true ? "good" : shown.Won == false ? "bad" : "")">@shown.OurScore – @shown.TheirScore</span>
+                    <span class="muted small">@shown.Map · @shown.MatchType · @shown.RoundsRead af @shown.RoundsTotal runder kunne læses@(shown.ScoreComplete ? "" : $" · stillingen efter runde {shown.ScoreRound}, slutresultatet kunne ikke læses")</span>
+                </div>
+                <div class="table-scroll"><table class="maps-sites">
+                    <thead><tr><th>Runde</th><th>Side</th><th>Site</th><th>Resultat</th><th>Første drab</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in shown.Rounds)
+                        {
+                            var first = r.Kills.OrderByDescending(k => k.TimeSeconds).FirstOrDefault();
+                            <tr>
+                                <td>@r.Number</td>
+                                <td class="@(r.Side == "Attack" ? "atk-txt" : "def-txt")">@(r.Side == "Attack" ? "ATK" : "DEF")</td>
+                                <td>@r.Site</td>
+                                <td class="@(r.Won ? "good" : "bad")">@(r.Won ? "Vundet" : "Tabt") <span class="muted small">@WinText(r.WinCondition)</span></td>
+                                <td class="small">@if (first is not null) { <span class="@(first.KillerOurs ? "good" : "bad")">@first.Killer (@first.KillerOperator) → @first.Target (@first.TargetOperator)</span> }</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div>
+                <div class="table-scroll"><table class="maps-sites">
+                    <thead><tr><th>Spiller</th><th>Hold</th><th>Kills</th><th>Døde</th><th>K/D</th><th>HS %</th><th>Operatører</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in shown.PlayerTotals())
+                        {
+                            <tr class="@(p.OurTeam ? "" : "muted")"><td><b>@p.Name</b></td><td>@(p.OurTeam ? "Os" : "Dem")</td><td>@p.Kills</td><td>@p.Deaths</td><td>@p.Kd</td><td>@p.HeadshotPct %</td><td class="small">@string.Join(", ", p.Operators)</td></tr>
+                        }
+                    </tbody>
+                </table></div>
+            </Fold>
+        }
 
+        <Fold Key="k-send" Title="Send kampene fra din PC" Class="specs-card" Open="@(replays.Count == 0)">
+            <ol class="small">
+                <li>Slå replays til i Siege: <b>Options / Indstillinger → General / Generelt → Match Replay → On</b>.</li>
+                <li>Hent <b>R6Replays.cmd</b> herunder, åbn Overførsler (Downloads) og dobbeltklik på den. Siger Windows "Windows beskyttede din pc", så tryk <b>Flere oplysninger / More info → Kør alligevel / Run anyway</b>.</li>
+                <li>Første gang sendes alle kampe på PC'en. Lad vinduet stå åbent, mens I spiller &ndash; så sendes hver kamp, når den er slut, og tallene står her.</li>
+            </ol>
+            <div class="specs-actions">
+                <a class="specs-test-btn" href="/scripts/R6Replays.cmd" download>Hent R6Replays.cmd</a>
+                <a class="specs-help-btn" href="/scripts/R6Replays.ps1" download>Selve scriptet (.ps1)</a>
+            </div>
+            <div class="muted small">Scriptet læser kun replay-filerne med det åbne værktøj r6-dissect og sender score, drab og operatører. Omkring en tredjedel af runderne i denne sæson kan ikke læses af værktøjet; resultatet passer alligevel.</div>
+        </Fold>
+
+        <Fold Key="k-loadouts" Title="Loadouts" Class="specs-card" Open="false">
+            <Loadouts />
+        </Fold>
+
+        <Fold Key="k-pc" Title="PC-tjek og Siege-indstillinger" Class="specs-card" Open="false">
             @if (string.IsNullOrEmpty(Identity.Name))
             {
-                <div class="specs-hint">Sæt dit navn (👤-knappen øverst) for at gemme dine specifikationer.</div>
+                <div class="specs-hint">Sæt dit navn (knappen øverst) for at gemme dine specifikationer.</div>
             }
             else
             {
@@ -486,157 +329,72 @@
                                   @onchange="e => SetManualSpec(field.Key, e.Value?.ToString())">@value</textarea>
                     </div>
                 }
-
-                // Headset software is optional - most headsets need none, so an
-                // empty value is normal and must not count as "missing".
-                var missing = SpecFields.Where(f => f.Key != "headset_software" && string.IsNullOrWhiteSpace(ResolveSpec(f.Key))).Select(f => f.Label).ToList();
-                <div class="specs-status @(missing.Count == 0 ? "specs-status-ok" : "specs-status-warn")">
-                    @(missing.Count == 0 ? "✅ Alle specifikationer kendt - klar til at gå videre." : $"⚠ Mangler: {string.Join(", ", missing)}")
-                </div>
-
                 <div class="specs-actions">
-                    @* .cmd = double-click and it runs (user 2026-10-07); the .ps1 stays for those who want to read it first. *@
-                    <a class="specs-test-btn" href="/scripts/PreGameCheck.cmd" download>⬇ Tjek min PC (dobbeltklik)</a>
-                    <a class="specs-help-btn" href="/scripts/PreGameCheck.ps1" download>Selve scriptet (.ps1)</a>
-                    <button class="specs-help-btn" @onclick="() => _showHelpForm = !_showHelpForm">🔧 Noget virker ikke?</button>
+                    <a class="specs-test-btn" href="/scripts/PreGameCheck.cmd" download>Tjek min PC (dobbeltklik)</a>
+                    <button class="specs-help-btn" @onclick="() => _showHelpForm = !_showHelpForm">Noget virker ikke?</button>
                 </div>
-                <div class="specs-hint">Sådan gør du: hent filen, åbn Overførsler (Downloads) og dobbeltklik på <b>PreGameCheck.cmd</b>. Siger Windows "Windows beskyttede din pc", så tryk <b>Flere oplysninger / More info</b> → <b>Kør alligevel / Run anyway</b>. Tjeklisten står i vinduet bagefter.</div>
-
                 @if (_showHelpForm)
                 {
                     <div class="specs-help-form">
                         <textarea class="specs-help-input" placeholder="Fx: min lyd virker ikke, eller: spillet stammer hvert par minutter" @bind="_helpProblem"></textarea>
                         <button class="specs-help-submit-btn" @onclick="AskForHelp" disabled="@_helpLoading">Spørg</button>
-
-                        @if (_helpLoading)
-                        {
-                            <div class="sg-loading"><span class="sg-spinner"></span> Tænker...</div>
-                        }
-                        else if (!string.IsNullOrWhiteSpace(_helpAnswer))
-                        {
-                            <div class="explain-card" style="white-space:pre-wrap">@_helpAnswer</div>
-                        }
+                        @if (_helpLoading) { <div class="sg-loading"><span class="sg-spinner"></span> Tænker...</div> }
+                        else if (!string.IsNullOrWhiteSpace(_helpAnswer)) { <div class="explain-card" style="white-space:pre-wrap">@_helpAnswer</div> }
                     </div>
                 }
             }
-        </Fold>
-    }
-
-    @* Quick settings explainer, available in every phase - not the full
-       /indstillinger page, just a
-       fast condensed check without leaving this screen. *@
-    @if (Session.Phase == MatchPhase.Lobby)
-    {
-    <Fold Key="settings" Title="⚙ Sieges indstillinger forklaret" Class="quick-check">
-        <div class="quick-check-tabs">
-            <button class="quick-tab-btn @(QuickTab == "settings" ? "quick-tab-active" : "")" disabled="@(!Coach.CanControl)" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
-        </div>
-
-        @if (QuickTab is null)
-        {
-            <div class="quick-intro">
-                <b>⚙ Settings</b> – Sieges egne indstillinger (sigte-følsomhed, FOV, lyd, grafik). Vælg én og få en
-                kort forklaring på, hvad den gør, og hvad der er en fornuftig værdi.
-            </div>
-        }
-        else if (QuickTab == "settings")
-        {
             <div class="quick-panel">
-                <div class="quick-intro">Forklaring af Sieges indstillinger (Options / Indstillinger inde i spillet) –
-                hvad de gør, og hvilken værdi der giver mening for os. Ændrer ikke noget på din PC.</div>
+                <div class="quick-intro">Sieges indstillinger forklaret &ndash; vælg én og få en kort forklaring. Ændrer ikke noget på din PC.</div>
                 <select class="quick-op-select" value="@_selectedSetting?.Key" @onchange="OnSettingSelected">
                     <option value="">-- vælg indstilling --</option>
                     @foreach (var group in SettingsGuideService.Settings.GroupBy(s => s.Category))
                     {
                         <optgroup label="@group.Key">
-                            @foreach (var entry in group)
-                            {
-                                <option value="@entry.Key">@entry.Name</option>
-                            }
+                            @foreach (var entry in group) { <option value="@entry.Key">@entry.Name</option> }
                         </optgroup>
                     }
                 </select>
-
-                @if (_settingLoading)
-                {
-                    <div class="sg-loading"><span class="sg-spinner"></span> Genererer forklaring...</div>
-                }
-                else if (!string.IsNullOrWhiteSpace(_settingExplanation))
-                {
-                    <div class="explain-card" style="white-space:pre-wrap">@_settingExplanation</div>
-                }
+                @if (_settingLoading) { <div class="sg-loading"><span class="sg-spinner"></span> Genererer forklaring...</div> }
+                else if (!string.IsNullOrWhiteSpace(_settingExplanation)) { <div class="explain-card" style="white-space:pre-wrap">@_settingExplanation</div> }
             </div>
-        }
-    </Fold>
+        </Fold>
     }
-
-
 </div>
-</CascadingValue>
 
 @code {
-    private bool _pinOpen, _pinWrong;
-    private string _pin = "";
-
-    private void ClaimCoach()
-    {
-        _pinWrong = !Coach.TryClaim(_pin);
-        if (!_pinWrong) { _pinOpen = false; _pin = ""; }
-    }
-    private void PinKey(KeyboardEventArgs e) { if (e.Key == "Enter") ClaimCoach(); }
-
-    private bool _confirmNew;
-    // Op-ban -> op-pick -> in-game repeat once per round.
-    private bool InRounds => Session.Phase is MatchPhase.OperatorBans or MatchPhase.OperatorPick or MatchPhase.InGame;
-    private void EndRound(bool won) { _confirmNew = false; Session.EndRound(won); }
-
-    // "Kampen er slut": fill the match log from the rounds we tapped, so logging is one tap on Gem.
-    private void EndMatch()
-    {
-        var rounds = Session.Rounds;
-        if (rounds.Count > 0)
-        {
-            _logMap = Session.Map ?? _logMap;
-            _logSite = rounds.Where(r => r.Site is not null).GroupBy(r => r.Site!).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? "";
-            _logAw = rounds.Count(r => r.Side == "Attack" && r.Won); _logAl = rounds.Count(r => r.Side == "Attack" && !r.Won);
-            _logDw = rounds.Count(r => r.Side == "Defense" && r.Won); _logDl = rounds.Count(r => r.Side == "Defense" && !r.Won);
-            _logWon = Session.RoundsWon > Session.RoundsLost ? true : Session.RoundsWon < Session.RoundsLost ? false : null;
-            _logSaved = false;
-        }
-        Session.EndMatch();
-    }
-    // Anything left over from a game: a phase past the lobby, or a map/site/bans still chosen.
-    private bool HasGameState => Session.Phase != MatchPhase.Lobby || Session.Map is not null || Session.Site is not null || Session.MapBans.Count > 0 || Session.Bans.Count > 0;
-    private void Advance() { _confirmNew = false; Session.AdvancePhase(); }
-    private void NewGame() { _confirmNew = false; Session.Reset(); }
-    private System.Threading.Timer? _tickTimer;
-
     private R6GameData? _gameData;
-    private string? _quickTab;
+    private string? _matchId;
+    private readonly HashSet<string> _openSites = new();
+    private bool _confirmClear;
 
-    private string _logMap = "";
-    private string _logSite = "";
-    private bool? _logWon;
-    private int _logAw, _logAl, _logDw, _logDl;
-    private string _logNote = "";
-    private bool _logSaved;
+    // "Ryd map" (user 2026-10-13): back to no map before the next match - live choices only, stats stay.
+    private void ClearMap() { _confirmClear = false; _openSites.Clear(); Session.Reset(); }
 
     private static string Bar(double v, double max) => (max > 0 ? Math.Max(4, 100 * v / max) : 0).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
     private static string Cls(int pct) => pct >= 55 ? "good" : pct <= 45 ? "bad" : "";
 
-    private void SaveMatch()
+    private static int MatchesWith(IEnumerable<ReplayMatch> ms, string name) =>
+        ms.Count(m => m.Rounds.Any(r => r.Players.Any(p => p.OurTeam && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))));
+
+    private static string WinText(string c) => c switch
     {
-        if (string.IsNullOrEmpty(_logMap) || _logWon is null) return;
-        Session.LogMatch(new MatchRecord { Map = _logMap, Site = _logSite, Won = _logWon.Value, AtkWon = _logAw, AtkLost = _logAl, DefWon = _logDw, DefLost = _logDl, Note = _logNote.Trim(),
-            Rounds = Session.Map == _logMap ? Session.Rounds.ToList() : new() });
-        _logSaved = true;
-        _logSite = ""; _logWon = null; _logAw = _logAl = _logDw = _logDl = 0; _logNote = "";
+        "KilledOpponents" => "alle dræbt",
+        "DefusedBomb" => "bombe desarmeret",
+        "DisabledDefuser" => "defuser stoppet",
+        "Time" => "tiden løb ud",
+        "SecuredArea" => "område sikret",
+        _ => "",
+    };
+
+    private void ToggleSite(string map, string site)
+    {
+        var key = map + "|" + site;
+        if (!_openSites.Remove(key)) { _openSites.Add(key); Session.SetSite(site); }
     }
 
     private SettingsGuideService.SettingEntry? _selectedSetting;
     private string? _settingExplanation;
     private bool _settingLoading;
-
     private bool _showHelpForm;
     private string _helpProblem = "";
     private bool _helpLoading;
@@ -644,25 +402,15 @@
 
     private static readonly (string Key, string Label)[] SpecFields =
     {
-        ("cpu_navn", "CPU"),
-        ("gpu_navn", "Grafikkort"),
-        ("ram_gb", "RAM"),
-        ("mus_navn", "Mus"),
-        ("tastatur_navn", "Tastatur"),
-        ("skaerm", "Skærm"),
-        ("headset", "Headset"),
-        ("headset_software", "Headset-software"),
-        ("os_version", "Windows"),
+        ("cpu_navn", "CPU"), ("gpu_navn", "Grafikkort"), ("ram_gb", "RAM"), ("mus_navn", "Mus"), ("tastatur_navn", "Tastatur"),
+        ("skaerm", "Skærm"), ("headset", "Headset"), ("headset_software", "Headset-software"), ("os_version", "Windows"),
     };
 
-    // Manual override (typed by the player) wins; otherwise pulled from their
-    // latest PreGameCheck.ps1 submission, if any; otherwise empty (shown as
-    // an editable field instead of plain text).
+    // Manual override (typed by the player) wins; otherwise the latest PreGameCheck.ps1 submission; otherwise empty.
     private string ResolveSpec(string key)
     {
         var manual = GetManualSpec(key);
-        if (!string.IsNullOrWhiteSpace(manual)) return manual;
-        return FromLatestSubmission(key) ?? "";
+        return !string.IsNullOrWhiteSpace(manual) ? manual : FromLatestSubmission(key) ?? "";
     }
 
     private string GetManualSpec(string key)
@@ -671,16 +419,9 @@
         var specs = Session.GetPlayerSpecs(player);
         return key switch
         {
-            "cpu_navn" => specs.Cpu,
-            "gpu_navn" => specs.GraphicsCard,
-            "ram_gb" => specs.Ram,
-            "mus_navn" => specs.Mouse,
-            "tastatur_navn" => specs.Keyboard,
-            "skaerm" => specs.Screen,
-            "headset" => specs.Headset,
-            "headset_software" => specs.HeadsetSoftware,
-            "os_version" => specs.OperatingSystem,
-            _ => "",
+            "cpu_navn" => specs.Cpu, "gpu_navn" => specs.GraphicsCard, "ram_gb" => specs.Ram, "mus_navn" => specs.Mouse,
+            "tastatur_navn" => specs.Keyboard, "skaerm" => specs.Screen, "headset" => specs.Headset,
+            "headset_software" => specs.HeadsetSoftware, "os_version" => specs.OperatingSystem, _ => "",
         };
     }
 
@@ -703,34 +444,20 @@
         Session.SetPlayerSpecs(player, specs);
     }
 
-    // Pulls a value out of the player's last raw PreGameCheck.ps1 JSON -
-    // "ram_gb" becomes "32 GB", "headset_software"/audio device list get
-    // joined into a readable string, everything else is a straight lookup.
     private string? FromLatestSubmission(string key)
     {
-        if (Identity.Name is not { } player) return null;
-        if (!Session.PlayerSetups.TryGetValue(player, out var setup)) return null;
-
+        if (Identity.Name is not { } player || !Session.PlayerSetups.TryGetValue(player, out var setup)) return null;
         try
         {
             using var doc = JsonDocument.Parse(setup.RawJson);
             var root = doc.RootElement;
-
-            if (key == "headset")
+            if (key is "headset" or "headset_software")
             {
-                if (root.TryGetProperty("lyd_discord", out var ld) && ld.TryGetProperty("lydenheder", out var devices) && devices.ValueKind == JsonValueKind.Array)
-                    return string.Join(", ", devices.EnumerateArray().Select(d => d.ToString()));
-                return null;
+                var prop = key == "headset" ? "lydenheder" : "headset_software";
+                return root.TryGetProperty("lyd_discord", out var ld) && ld.TryGetProperty(prop, out var arr) && arr.ValueKind == JsonValueKind.Array
+                    ? string.Join(", ", arr.EnumerateArray().Select(d => d.ToString())) : null;
             }
-            if (key == "headset_software")
-            {
-                if (root.TryGetProperty("lyd_discord", out var ld) && ld.TryGetProperty("headset_software", out var sw) && sw.ValueKind == JsonValueKind.Array)
-                    return string.Join(", ", sw.EnumerateArray().Select(s => s.ToString()));
-                return null;
-            }
-            if (!root.TryGetProperty("system", out var system) || !system.TryGetProperty(key, out var el))
-                return null;
-
+            if (!root.TryGetProperty("system", out var system) || !system.TryGetProperty(key, out var el)) return null;
             return el.ValueKind switch
             {
                 JsonValueKind.String => el.GetString(),
@@ -739,78 +466,17 @@
                 _ => null,
             };
         }
-        catch (JsonException)
-        {
-            return null;
-        }
+        catch (JsonException) { return null; }
     }
 
     private async Task AskForHelp()
     {
         if (string.IsNullOrWhiteSpace(_helpProblem)) return;
-
-        _helpLoading = true;
-        _helpAnswer = null;
-        StateHasChanged();
-
-        var context = Identity.Name is { } player && Session.PlayerSetups.TryGetValue(player, out var setup)
-            ? setup.RawJson
-            : "{}";
-
+        _helpLoading = true; _helpAnswer = null; StateHasChanged();
+        var context = Identity.Name is { } player && Session.PlayerSetups.TryGetValue(player, out var setup) ? setup.RawJson : "{}";
         _helpAnswer = await PreGameCheck.AskForHelpAsync(_helpProblem, context);
         _helpLoading = false;
     }
-
-    protected override async Task OnInitializedAsync()
-    {
-        Session.OnStateChanged += OnSessionChanged;
-        Identity.OnChanged += OnSessionChanged;
-        _tickTimer = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, 1000, 1000);
-        _gameData = await DataService.GetData();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-        await Identity.EnsureLoadedAsync();
-        await Coach.EnsureLoadedAsync();
-        StateHasChanged();
-    }
-
-    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
-
-    private readonly HashSet<string> _openSites = new();
-
-    private void ToggleSite(string map, string site)
-    {
-        var key = map + "|" + site;
-        if (Coach.Synced)
-        {
-            // Coach opens/closes for everyone; the others can't change it.
-            if (!Coach.IsCoach) return;
-            var opening = !Session.OpenSites.Contains(key);
-            Session.ToggleOpenSite(key);
-            if (opening) Session.SetSite(site);
-            return;
-        }
-        if (!_openSites.Remove(key))
-        {
-            _openSites.Add(key);
-            Session.SetSite(site);
-        }
-    }
-
-    private void ToggleBanners() => Session.SetShowBanners(!Session.ShowBanners);
-
-    // Coach mode: the coach picks the tab for everyone (user 2026-10-07: "I will also choose the tabs").
-    private string? QuickTab => Coach.Synced ? (Session.GetShown("tab:settings") == true ? "settings" : null) : _quickTab;
-
-    private void SelectTab(string tab)
-    {
-        if (Coach.Synced) { if (Coach.IsCoach) Session.SetShown("tab:" + tab, QuickTab != tab); return; }
-        _quickTab = _quickTab == tab ? null : tab;
-    }
-
 
     private async Task OnSettingSelected(ChangeEventArgs e)
     {
@@ -818,65 +484,30 @@
         _selectedSetting = SettingsGuideService.Settings.FirstOrDefault(s => s.Key == key);
         _settingExplanation = null;
         if (_selectedSetting is null) return;
-
-        _settingLoading = true;
-        StateHasChanged();
+        _settingLoading = true; StateHasChanged();
         _settingExplanation = await Guide.ExplainAsync(_selectedSetting.Key);
         _settingLoading = false;
     }
 
-    private TimeSpan Elapsed => DateTimeOffset.UtcNow - Session.PhaseStartedAtUtc;
-
-    private TimeSpan Remaining
+    protected override async Task OnInitializedAsync()
     {
-        get
-        {
-            var remaining = (Session.PhaseDuration ?? TimeSpan.Zero) - Elapsed;
-            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
-        }
+        Session.OnStateChanged += OnSessionChanged;
+        Identity.OnChanged += OnSessionChanged;
+        _gameData = await DataService.GetData();
     }
 
-    private static string FormatTime(TimeSpan t) => $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
-
-    private static string PhaseLabel(MatchPhase phase) => phase switch
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        MatchPhase.Lobby => "LOBBY",
-        MatchPhase.MapBans => "MAP-BANS",
-        MatchPhase.OperatorBans => "OPERATOR-BANS",
-        MatchPhase.OperatorPick => "OPERATOR-VALG",
-        MatchPhase.InGame => "KAMP I GANG",
-        MatchPhase.PostMatch => "EFTER KAMPEN",
-        _ => phase.ToString(),
-    };
+        if (!firstRender) return;
+        await Identity.EnsureLoadedAsync();
+        StateHasChanged();
+    }
 
-    private static string PhaseBlurb(MatchPhase phase) => phase switch
-    {
-        MatchPhase.Lobby => "Venter på at sessionen starter.",
-        MatchPhase.MapBans => "30 sekunder, 5 maps, én stemme hver - stem efter planen.",
-        MatchPhase.OperatorBans => "15 s pr. runde. ATK banner en defender, DEF banner en attacker - efter site.",
-        MatchPhase.OperatorPick => "Vælg jeres loadout.",
-        MatchPhase.InGame => "Følg med i planen på siden her, mens kampen kører.",
-        MatchPhase.PostMatch => "Log kampen (map, site, resultat) - så bliver map-planen klogere.",
-        _ => "",
-    };
-
-    // Static suggestions per phase - things everyone should individually check
-    // before moving on. No tracking/checkboxes, just guidance (kept simple by
-    // explicit user choice - not a shared checklist state).
-    private static List<string> PhaseChecklist(MatchPhase phase) => phase switch
-    {
-        MatchPhase.Lobby => new()
-        {
-            "Hent <a href=\"/scripts/PreGameCheck.cmd\" download>PreGameCheck.cmd</a>, dobbeltklik på den, og ret det den flager.",
-            "Tjek at lyd og Discord virker for alle - kan I høre hinanden?",
-        },
-        _ => new(),
-    };
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose()
     {
         Session.OnStateChanged -= OnSessionChanged;
         Identity.OnChanged -= OnSessionChanged;
-        _tickTimer?.Dispose();
     }
 }
