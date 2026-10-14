@@ -2,14 +2,48 @@
 @inject SessionStateService Session
 
 @* Map-ban box (pro pick/ban, pro vs us per map, map tiles). On top before a map is chosen; below the map, bans and
-   sites once it is (user 2026-10-13: "the relevant stuff on top"). *@
+   sites once it is (user 2026-10-13: "the relevant stuff on top").
+   Map tiles first, stats under them (user 2026-10-14: "first thing should be to pick map"). *@
 @{
     var ranked = Data.Maps.Any(m => m.IsRanked) ? Data.Maps.Where(m => m.IsRanked).ToList() : Data.Maps.ToList();
     var proMaps = Data.Pro.Maps.Where(m => m.Value.Vetoes >= 10 && ranked.Any(r => r.Name.Equals(m.Key, StringComparison.OrdinalIgnoreCase))).ToList();
     var _gameData = Data;
 }
-<Fold Key="k-mapban" Title="Map-ban: pro league og os" Class="mapban-card">
+<Fold Key="k-mapban" Title="Vælg map (map-ban: pro league og os)" Class="mapban-card">
     <div class="mapban-hint">Spillet viser 5 maps, og alle har én stemme. <b>Tryk på det map, I ender med</b> &ndash; så viser siden bans og gode operatører for det. ✕ markerer et bannet map.</div>
+
+    <div class="mapban-grid">
+        @foreach (var map in ranked)
+        {
+            var name = map.Name;
+            var banned = Session.MapBans.Contains(name);
+            var chosen = Session.Map == name;
+            var st = Session.MapStats(name);
+            <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
+                <button class="mapban-main" @onclick="() => Session.SetMap(name)">
+                    @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
+                    <div class="mapban-name">@name</div>
+                    @if (st.Played == 0)
+                    {
+                        <div class="mapban-stats"><span class="muted">Ikke spillet endnu</span></div>
+                    }
+                    else
+                    {
+                        <div class="mapban-stats">
+                            <span class="@Cls(st.WinPct)">@st.Won–@(st.Played - st.Won) · @st.WinPct %</span>
+                            <span>ATK <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> DEF <b class="@Cls(st.DefPct)">@st.DefPct %</b></span>
+                        </div>
+                    }
+                    @if (_gameData.Pro.Maps.TryGetValue(name, out var pm) && pm.Vetoes >= 10)
+                    {
+                        <div class="mapban-stats mapban-pro">Pro: pick @pm.PickPct.ToString("0") % · ban @pm.BanPct.ToString("0") %</div>
+                    }
+                </button>
+                <button class="mapban-play @(banned ? "mapban-play-banned" : "")" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "Fortryd ban" : "✕ Bannet")</button>
+            </div>
+        }
+    </div>
+
     @if (proMaps.Count > 0)
     {
         <div class="box-grid">
@@ -61,37 +95,6 @@
         <div class="muted small">ATK/DEF = % af runderne vundet på angreb / forsvar. Vores tal kommer fra replays og loggede kampe.</div>
     </div>
 
-    <div class="mapban-grid">
-        @foreach (var map in ranked)
-        {
-            var name = map.Name;
-            var banned = Session.MapBans.Contains(name);
-            var chosen = Session.Map == name;
-            var st = Session.MapStats(name);
-            <div class="mapban-tile @(banned ? "mapban-banned" : "") @(chosen ? "mapban-chosen" : "")">
-                <button class="mapban-main" @onclick="() => Session.SetMap(name)">
-                    @if (!string.IsNullOrEmpty(map.ImageUrl)) { <img src="@map.ImageUrl" alt="@name" /> }
-                    <div class="mapban-name">@name</div>
-                    @if (st.Played == 0)
-                    {
-                        <div class="mapban-stats"><span class="muted">Ikke spillet endnu</span></div>
-                    }
-                    else
-                    {
-                        <div class="mapban-stats">
-                            <span class="@Cls(st.WinPct)">@st.Won–@(st.Played - st.Won) · @st.WinPct %</span>
-                            <span>ATK <b class="@Cls(st.AtkPct)">@st.AtkPct %</b> DEF <b class="@Cls(st.DefPct)">@st.DefPct %</b></span>
-                        </div>
-                    }
-                    @if (_gameData.Pro.Maps.TryGetValue(name, out var pm) && pm.Vetoes >= 10)
-                    {
-                        <div class="mapban-stats mapban-pro">Pro: pick @pm.PickPct.ToString("0") % · ban @pm.BanPct.ToString("0") %</div>
-                    }
-                </button>
-                <button class="mapban-play @(banned ? "mapban-play-banned" : "")" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "Fortryd ban" : "✕ Bannet")</button>
-            </div>
-        }
-    </div>
 </Fold>
 
 @code {
