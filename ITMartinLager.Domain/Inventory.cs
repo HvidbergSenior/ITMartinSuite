@@ -110,6 +110,9 @@ public sealed class Item
     public string Edition { get; set; } = "";        // "1. udgave, 1. oplag"
     public string Publisher { get; set; } = "";
     public string EditionHint { get; set; } = "";    // EditionHints - from the cover
+    // "Vis på forsiden" (user 2026-10-15: "the app that handles the products need to put products onto Homepage" - not a
+    // webshop feel, interest oriented): chosen by a person, shown on bogshoppen.dk and itmartin.dk as "Fundet i kasserne".
+    public DateTime? FeaturedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

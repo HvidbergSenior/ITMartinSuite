@@ -79,6 +79,16 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         await items.UpdateAsync([item], ct);
     }
 
+    /// <summary>"Vis på forsiden" on or off.</summary>
+    public async Task<Item> FeatureAsync(int id, bool on, CancellationToken ct = default)
+    {
+        var item = await items.GetAsync(id, ct) ?? throw new LagerException("Varen findes ikke længere.");
+        item.FeaturedAt = on ? DateTime.UtcNow : null;
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        return item;
+    }
+
     public Task DeleteAsync(int id, CancellationToken ct = default) => items.DeleteAsync(id, ct);
 
     /// <summary>The file of the item's own photo, or null. (Pile and kolofon photos are kept in Vareinfo.)</summary>

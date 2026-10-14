@@ -106,6 +106,27 @@ public class ShopTests
     }
 
     [Test]
+    public async Task Only_items_chosen_for_the_front_page_are_shown_there_with_their_links()
+    {
+        var mort = await Add("Mort", 80);
+        await Add("Snuff", 90);
+        var sold = await Add("Eric", 70, status: Statuses.Solgt);
+        await new PriceRepository(Factory).ReplaceAsync(mort.Id, [], [new PriceFind { ItemId = mort.Id, Source = "DBA", Kr = 95, Url = "https://dba.dk/1" }], default);
+        var items = new ItemUseCases(Items, new PriceRepository(Factory), Mock.Of<IPhotoStore>());
+        await items.FeatureAsync(mort.Id, true);
+        await items.FeatureAsync(sold.Id, true);
+        var (shop, _) = Make();
+
+        var front = await shop.FeaturedAsync();
+        front.Should().ContainSingle();
+        front[0].Item.Title.Should().Be("Mort");
+        front[0].Proof.Single().Url.Should().Be("https://dba.dk/1");
+
+        await items.FeatureAsync(mort.Id, false);
+        (await shop.FeaturedAsync()).Should().BeEmpty();
+    }
+
+    [Test]
     public async Task One_of_several_copies_sold_leaves_the_rest_for_sale()
     {
         var item = await Add("Anders And 12", 30, qty: 3);

@@ -16,6 +16,9 @@ public static class ShopApi
         api.MapGet("/soeg", async (string? q, string? art, ShopUseCases shop) =>
             new { shop.CanPay, Items = await shop.SearchAsync(q, art) });
 
+        api.MapGet("/forside", async (ShopUseCases shop) =>
+            new { shop.CanPay, Items = (await shop.FeaturedAsync()).Select(x => new { x.Item, x.Proof }) });
+
         api.MapGet("/varer/{id:int}", async (int id, ShopUseCases shop) =>
             await shop.ItemAsync(id) is { } x ? Results.Ok(new { shop.CanPay, x.Item, x.Proof }) : Results.NotFound());
 

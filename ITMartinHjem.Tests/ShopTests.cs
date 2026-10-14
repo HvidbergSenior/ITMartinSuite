@@ -14,6 +14,8 @@ public class ShopTests
         public Task<(bool CanPay, ShopItem Item, List<ShopProof> Proof)?> ItemAsync(int id, CancellationToken ct = default) =>
             Task.FromResult<(bool, ShopItem, List<ShopProof>)?>((true, Mort, []));
         public Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default) => Task.FromResult<byte[]?>(null);
+        public Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(CancellationToken ct = default) =>
+            down ? throw new HttpRequestException() : Task.FromResult(new List<(ShopItem, List<ShopProof>)> { (Mort, []) });
         public Task<(string? Url, string? Error)> BuyAsync(int id, string siteBase, CancellationToken ct = default)
         {
             Buys++;

@@ -37,6 +37,20 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
             Shop.Proof(finds).Select(f => new ShopProof(f.Source, f.Kr, f.Original, f.Url, f.IsNew)).ToList());
     }
 
+    /// <summary>"Fundet i kasserne" on both front pages: the chosen items, each with its proof links ("kan også købes her").</summary>
+    public async Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(int max = 12, CancellationToken ct = default)
+    {
+        var chosen = (await items.FeaturedAsync(max, ct)).Where(Shop.Listed).ToList();
+        var reserved = await orders.ReservedAsync(chosen.Select(i => i.Id).ToList(), Now, ct);
+        var list = new List<(ShopItem, List<ShopProof>)>();
+        foreach (var i in chosen)
+        {
+            var (finds, _) = await prices.ForItemAsync(i.Id, ct);
+            list.Add((View(i, reserved.GetValueOrDefault(i.Id)), Shop.Proof(finds, 4).Select(f => new ShopProof(f.Source, f.Kr, f.Original, f.Url, f.IsNew)).ToList()));
+        }
+        return list;
+    }
+
     public async Task<string?> PhotoPathAsync(int id, CancellationToken ct = default) =>
         await items.GetAsync(id, ct) is { ItemPhoto.Length: > 0 } i && Shop.Listed(i) ? i.ItemPhoto : null;
 

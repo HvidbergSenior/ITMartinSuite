@@ -1,0 +1,56 @@
+@inject ShopUseCases Shop
+@inject IConfiguration Config
+
+@* "Fundet i kasserne" on bogshoppen.dk AND itmartin.dk (user 2026-10-15: "the webshop should be on both ... I dont want
+   to have a webshop feel ... more interest oriented and of course a way of selling to interested people", "remember the
+   links from other places. Can be bought here"). Only what Martin chose in Lager (Vis på forsiden); each thing with its
+   story, our price, the other places it can be bought - and a chat first. Hidden when nothing is chosen. *@
+@if (_items.Count > 0)
+{
+    <section class="k-card bs-card bs-found">
+        <h2>Fundet i kasserne</h2>
+        <div>
+            <p class="k-help">Ting vi er faldet over, mens vi pakker Bogshoppens kasser ud – og som vi synes er værd at fortælle om. Er du interesseret, så skriv til os. Ved hver ting kan du også se, hvor den ellers kan købes, og hvad den koster der.</p>
+            <ul class="bs-found-list">
+                @foreach (var (i, proof) in _items)
+                {
+                    <li class="bs-found-item">
+                        @if (i.HasPhoto) { <img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /> }
+                        <h3>@i.Line</h3>
+                        <p class="k-help">@i.Kind · @i.Condition stand@(i.Available > 1 ? " · vi har flere" : "")</p>
+                        @if (i.Interest != "") { <p>@i.Interest</p> }
+                        <p>
+                            @if (i.BuyNowKr is { } kr) { <span>Hos os: <b>@kr kr</b></span> }
+                            else if (i.ExpectKr is { } ex) { <span>Andre steder omkring @ex kr – hos os efter aftale</span> }
+                            else { <span>Pris efter aftale</span> }
+                        </p>
+                        @if (proof.Count > 0)
+                        {
+                            <p class="k-help">Kan også købes her:</p>
+                            <div class="bs-proof">
+                                @foreach (var p in proof)
+                                {
+                                    <a class="k-btn k-btn-sm" href="@p.Url" target="_blank" rel="noopener nofollow">@p.Source@(p.IsNew ? " (ny)" : ""): @p.Kr kr</a>
+                                }
+                            </div>
+                        }
+                        <div class="bs-found-actions">
+                            <a class="k-btn k-btn-primary k-btn-sm" href="/?interesse=@Uri.EscapeDataString(i.Line)#chat">Jeg er interesseret</a>
+                            <a class="k-btn k-btn-sm" href="https://bogshoppen.dk/varer/@i.Id">Se mere</a>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+}
+
+@code {
+    private List<(ShopItem Item, List<ShopProof> Proof)> _items = [];
+
+    // Off until Martin says so (user 2026-10-15: "dont show varer yet on homepage") - Hjem__ShowFound=true in magic.env.
+    protected override async Task OnInitializedAsync()
+    {
+        if (Config.GetValue<bool>("Hjem:ShowFound")) _items = await Shop.FeaturedAsync();
+    }
+}

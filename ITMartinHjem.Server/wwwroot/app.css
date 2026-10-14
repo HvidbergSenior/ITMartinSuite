@@ -619,3 +619,10 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .bs-photo{max-width:100%;max-height:420px;border-radius:12px}
 .bs-proof{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .bs-warn{color:#7a1d0c;font-weight:700}
+/* "Fundet i kasserne" - both front pages (2026-10-15) */
+.bs-found-list{list-style:none;padding:0;margin:0;display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.bs-found-item{border:2px solid #2a1d12;border-radius:14px;padding:12px;background:#fffdf7;color:#111827;display:flex;flex-direction:column;gap:4px}
+.bs-found-item h3{margin:4px 0 0;font-size:1.1rem}
+.bs-found-item p{margin:2px 0}
+.bs-found-item img{width:100%;max-height:220px;object-fit:cover;border-radius:10px}
+.bs-found-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:8px}

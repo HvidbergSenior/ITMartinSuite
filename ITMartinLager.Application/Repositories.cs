@@ -34,6 +34,8 @@ public interface IItemRepository
     Task DeleteAsync(int id, CancellationToken ct);
     Task<List<Item>> ByMagicRefsAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
     Task<List<Item>> OnAuctionAsync(CancellationToken ct);
+    /// <summary>Items chosen for the front pages, newest choice first.</summary>
+    Task<List<Item>> FeaturedAsync(int max, CancellationToken ct);
     /// <summary>Hunted kinds, never priced first, then priced before staleBefore.</summary>
     Task<List<int>> NextToHuntAsync(string[] kinds, DateTime staleBefore, int count, CancellationToken ct);
     /// <summary>Books without a kolofon photo that have a used find at fromKr or more, or a 1st-edition cover; highest find first.</summary>

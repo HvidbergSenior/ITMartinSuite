@@ -28,6 +28,15 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
         return (b.CanPay, b.Item, b.Proof);
     }
 
+    private sealed record Chosen(ShopItem Item, List<ShopProof> Proof);
+    private sealed record FrontBody(bool CanPay, List<Chosen> Items);
+
+    public async Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(CancellationToken ct = default)
+    {
+        var b = await http.GetFromJsonAsync<FrontBody>("/api/butik/forside", ct);
+        return (b?.Items ?? []).Select(x => (x.Item, x.Proof)).ToList();
+    }
+
     public async Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default)
     {
         using var res = await http.GetAsync($"/api/butik/varer/{id}/foto", ct);

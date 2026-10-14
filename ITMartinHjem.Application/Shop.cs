@@ -24,6 +24,8 @@ public interface IShopGateway
     /// <summary>Null = not for sale (sold, on auction, or never existed).</summary>
     Task<(bool CanPay, ShopItem Item, List<ShopProof> Proof)?> ItemAsync(int id, CancellationToken ct = default);
     Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default);
+    /// <summary>The items chosen in Lager for the front pages, each with its proof links.</summary>
+    Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(CancellationToken ct = default);
     /// <returns>Stripe's payment page, or the reason in Danish.</returns>
     Task<(string? Url, string? Error)> BuyAsync(int id, string siteBase, CancellationToken ct = default);
     Task<ShopOrder?> OrderAsync(string token, CancellationToken ct = default);
@@ -56,6 +58,13 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
     {
         try { return await lager.ItemAsync(id, ct) is { } x ? (x.CanPay && seller.Complete, x.Item, x.Proof) : null; }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+    }
+
+    /// <summary>"Fundet i kasserne" - empty when Lager does not answer (the front page must never break).</summary>
+    public async Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(CancellationToken ct = default)
+    {
+        try { return await lager.FeaturedAsync(ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return []; }
     }
 
     public async Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default)

@@ -26,6 +26,18 @@ else
                 }
             </p>
         }
+        <div class="lg-row">
+            @if (_item.FeaturedAt is null)
+            {
+                <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Feature(true)" disabled="@(_item.Status is Statuses.Solgt or Statuses.PaaAuktion)">⭐ Vis på forsiden</button>
+                <span class="k-small k-muted">Så kommer den med under "Fundet i kasserne" på bogshoppen.dk og itmartin.dk – med billede, det interessante og links til andre sider.</span>
+            }
+            else
+            {
+                <span class="lg-ok">⭐ Vises på forsiden</span>
+                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Feature(false)">Tag den af forsiden</button>
+            }
+        </div>
         @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
 
         <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
@@ -254,6 +266,12 @@ else
 
     private List<Item> _others = [];
     private static int BoxNo(string code) => int.TryParse(code.TrimStart('K'), out var n) ? n : 0;
+
+    private async Task Feature(bool on)
+    {
+        if (_item is null) return;
+        _item.FeaturedAt = (await Items.FeatureAsync(_item.Id, on)).FeaturedAt;
+    }
 
     private async Task Load()
     {

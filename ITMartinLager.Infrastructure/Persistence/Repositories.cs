@@ -112,6 +112,13 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return await db.Items.Include(i => i.Box).Where(i => ids.Contains(i.Id)).ToListAsync(ct);
     }
 
+    public async Task<List<Item>> FeaturedAsync(int max, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Items.Where(i => i.FeaturedAt != null && (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg))
+            .OrderByDescending(i => i.FeaturedAt).Take(max).ToListAsync(ct);
+    }
+
     public async Task<int> UnitsAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

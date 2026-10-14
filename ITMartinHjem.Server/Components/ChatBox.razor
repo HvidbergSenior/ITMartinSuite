@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject ChatService Chat
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 @* The visitor's side of the live chat. The visitor is remembered on this phone/PC only
    (a random key in the browser), so a reply shows up here when they come back. *@
@@ -91,6 +92,14 @@
             _key = await JS.InvokeAsync<string>("hjem.visitorKey");
             _thread = await Chat.GetAsync(_key);
             if (_thread is not null || StartOpen) _open = true;
+            // "Jeg er interesseret" on a found item (2026-10-15) comes here with ?interesse=<the item> - the message is
+            // written for them, they only press send.
+            var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+            if (q.TryGetValue("interesse", out var about) && about.ToString().Trim() is { Length: > 0 and < 300 } what && _text == "")
+            {
+                _text = $"Hej Martin. Jeg er interesseret i: {what}";
+                _open = true;
+            }
             Chat.Changed += OnChanged;
             Chat.VisitorOnline(_key);
             StateHasChanged();
