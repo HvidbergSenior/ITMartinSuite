@@ -592,3 +592,11 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .hj-storage { border: 2px solid var(--k-accent, var(--k-border)); }
 .hj-storage .k-card-title, .hj-storage .hj-eltip-text { color: var(--k-text); }
 .hj-storage-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* Mobilapp vs webapp table on Mine apps (2026-10-14): scrolls sideways on narrow phones, dark-on-pale for contrast. */
+.hj-compare-wrap { overflow-x: auto; margin: 8px 0 14px; }
+.hj-compare { width: 100%; border-collapse: collapse; font-size: .95rem; color: var(--k-text); }
+.hj-compare th, .hj-compare td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--k-border); }
+.hj-compare thead th { font-weight: 700; }
+.hj-compare tbody th { font-weight: 600; white-space: nowrap; }
+.hj-compare td:last-child { font-weight: 600; }
