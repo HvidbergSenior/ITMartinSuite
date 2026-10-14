@@ -48,6 +48,17 @@ public interface IPhotoRepository
     Task<List<BoxPhotos>> BoxesAsync(CancellationToken ct);
 }
 
+public interface IScanRepository
+{
+    /// <summary>Stores the scan, or one more copy on the waiting scan of the same code in the same box. Returns the copies.</summary>
+    Task<int> AddOrCountAsync(string code, int boxId, string boxCode, CancellationToken ct);
+    Task<List<Scan>> WantedAsync(int max, CancellationToken ct);
+    Task<int> WantReadAsync(string? boxCode, CancellationToken ct);
+    Task UpdateAsync(IEnumerable<Scan> scans, CancellationToken ct);
+    /// <summary>Per box: (waiting, wanted).</summary>
+    Task<Dictionary<string, (int Waiting, int Wanted)>> PerBoxAsync(CancellationToken ct);
+}
+
 /// <summary>A box on Lager (Code K0007 = NR 7 on the box).</summary>
 public sealed record LagerBox(int Id, string Code)
 {
@@ -80,7 +91,7 @@ public interface ILagerGateway
     /// barcode the item did not have yet.</summary>
     Task<(int Added, int Merged)> SaveAsync(int? photoId, IReadOnlyList<Found> found, IReadOnlyList<(int ItemId, int Quantity, string Barcode)> addTo, CancellationToken ct);
     /// <summary>What a box photo held, into that box (same thing, same condition in the box = a higher quantity).</summary>
-    Task<(int Added, int Merged)> SaveInBoxAsync(string boxCode, int photoId, IReadOnlyList<Found> found, CancellationToken ct);
+    Task<(int Added, int Merged)> SaveInBoxAsync(string boxCode, int? photoId, IReadOnlyList<Found> found, CancellationToken ct);
     /// <summary>The newest box, or null when Lager has none.</summary>
     Task<LagerBox?> LatestBoxAsync(CancellationToken ct);
     /// <summary>The next box (K0001, K0002 ...).</summary>

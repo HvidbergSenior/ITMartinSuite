@@ -8,6 +8,7 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
     public DbSet<Photo> Photos => Set<Photo>();
     public DbSet<KolofonShot> KolofonShots => Set<KolofonShot>();
     public DbSet<AiDay> AiDays => Set<AiDay>();
+    public DbSet<Scan> Scans => Set<Scan>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -41,6 +42,16 @@ public static class VareinfoDbInitializer
                     cmd.CommandText = $"""ALTER TABLE "Photos" ADD COLUMN "{col}" {type}""";
                     cmd.ExecuteNonQuery();
                 }
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                CREATE TABLE IF NOT EXISTS "Scans" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_Scans" PRIMARY KEY AUTOINCREMENT,
+                    "Code" TEXT NOT NULL, "BoxId" INTEGER NOT NULL, "BoxCode" TEXT NOT NULL, "Quantity" INTEGER NOT NULL,
+                    "Waiting" INTEGER NOT NULL, "ReadWanted" INTEGER NOT NULL, "Known" INTEGER NOT NULL, "TakenAt" TEXT NOT NULL);
+                """;
+            cmd.ExecuteNonQuery();
+        }
         if (opened) conn.Close();
     }
 

@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddDbContextFactory<VareinfoDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "vareinfo.db")}"));
         services.AddScoped<IPhotoRepository, PhotoRepository>();
         services.AddScoped<IKolofonShotRepository, KolofonShotRepository>();
+        services.AddScoped<IScanRepository, ScanRepository>();
 
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
         services.AddSingleton<ICoverReader, ClaudeCoverReader>();

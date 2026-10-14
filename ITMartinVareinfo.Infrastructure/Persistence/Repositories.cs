@@ -45,7 +45,7 @@ public sealed class PhotoRepository(IDbContextFactory<VareinfoDb> dbf) : IPhotoR
         var rows = await db.Photos.Where(p => p.BoxCode != "")
             .GroupBy(p => p.BoxCode)
             .Select(g => new BoxPhotos(g.Key, g.Count(p => p.Waiting), g.Count(p => p.Waiting && p.ReadWanted),
-                g.Count(p => !p.Waiting), g.Sum(p => p.Found)))
+                g.Count(p => !p.Waiting), g.Sum(p => p.Found), 0, 0))
             .ToListAsync(ct);
         return rows.OrderByDescending(b => b.BoxCode).ToList();
     }
@@ -89,5 +89,47 @@ public sealed class KolofonShotRepository(IDbContextFactory<VareinfoDb> dbf) : I
         await using var db = await dbf.CreateDbContextAsync(ct);
         db.KolofonShots.UpdateRange(shots);
         await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ScanRepository(IDbContextFactory<VareinfoDb> dbf) : IScanRepository
+{
+    public async Task<int> AddOrCountAsync(string code, int boxId, string boxCode, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var same = await db.Scans.FirstOrDefaultAsync(s => s.Code == code && s.BoxCode == boxCode && s.Waiting, ct);
+        if (same is null) db.Scans.Add(same = new Scan { Code = code, BoxId = boxId, BoxCode = boxCode });
+        else same.Quantity++;
+        await db.SaveChangesAsync(ct);
+        return same.Quantity;
+    }
+
+    public async Task<List<Scan>> WantedAsync(int max, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Scans.Where(s => s.Waiting && s.ReadWanted).OrderBy(s => s.Id).Take(max).ToListAsync(ct);
+    }
+
+    public async Task<int> WantReadAsync(string? boxCode, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Scans.Where(s => s.Waiting && !s.ReadWanted && (boxCode == null || s.BoxCode == boxCode))
+            .ExecuteUpdateAsync(x => x.SetProperty(s => s.ReadWanted, true), ct);
+    }
+
+    public async Task UpdateAsync(IEnumerable<Scan> scans, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.Scans.UpdateRange(scans);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<Dictionary<string, (int Waiting, int Wanted)>> PerBoxAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var rows = await db.Scans.Where(s => s.Waiting).GroupBy(s => s.BoxCode)
+            .Select(g => new { g.Key, Waiting = g.Sum(s => s.Quantity), Wanted = g.Where(s => s.ReadWanted).Sum(s => s.Quantity) })
+            .ToListAsync(ct);
+        return rows.ToDictionary(r => r.Key, r => (r.Waiting, r.Wanted));
     }
 }

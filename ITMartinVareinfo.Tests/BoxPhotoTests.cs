@@ -54,7 +54,7 @@ public class BoxPhotoTests
             .ReturnsAsync([F("Mort"), F("Sourcery")]);
         var lager = new Mock<ILagerGateway>();
         lager.Setup(l => l.SaveInBoxAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<IReadOnlyList<Found>>(), It.IsAny<CancellationToken>())).ReturnsAsync((2, 0));
-        var boxes = new BoxPhotoUseCases(rows, Store().Object, reader.Object, lager.Object, TimeProvider.System);
+        var boxes = new BoxPhotoUseCases(rows, new ScanRepository(Factory), Store().Object, reader.Object, Mock.Of<IBarcodeLookup>(), lager.Object, TimeProvider.System);
 
         await boxes.StoreAsync(new MemoryStream([1]), _k1);
         await boxes.StoreAsync(new MemoryStream([1]), _k1);
@@ -88,7 +88,7 @@ public class BoxPhotoTests
         var lager = new Mock<ILagerGateway>();
         lager.Setup(l => l.SaveInBoxAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<IReadOnlyList<Found>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new VareinfoException("Lager svarede ikke"));
-        var boxes = new BoxPhotoUseCases(rows, Store().Object, reader.Object, lager.Object, TimeProvider.System);
+        var boxes = new BoxPhotoUseCases(rows, new ScanRepository(Factory), Store().Object, reader.Object, Mock.Of<IBarcodeLookup>(), lager.Object, TimeProvider.System);
         await boxes.StoreAsync(new MemoryStream([1]), _k1);
         await boxes.WantReadAsync(null);
 
@@ -103,7 +103,7 @@ public class BoxPhotoTests
         var lager = new Mock<ILagerGateway>();
         lager.Setup(l => l.LatestBoxAsync(It.IsAny<CancellationToken>())).ReturnsAsync(_k1);
         lager.Setup(l => l.NewBoxAsync(It.IsAny<CancellationToken>())).ReturnsAsync(_k2);
-        var boxes = new BoxPhotoUseCases(new PhotoRepository(Factory), Store().Object, Mock.Of<ICoverReader>(), lager.Object, TimeProvider.System);
+        var boxes = new BoxPhotoUseCases(new PhotoRepository(Factory), new ScanRepository(Factory), Store().Object, Mock.Of<ICoverReader>(), Mock.Of<IBarcodeLookup>(), lager.Object, TimeProvider.System);
 
         await boxes.Invoking(b => b.NewBoxAsync()).Should().ThrowAsync<VareinfoException>().WithMessage("*Kasse 1*");
         await boxes.StoreAsync(new MemoryStream([1]), _k1);
@@ -115,8 +115,35 @@ public class BoxPhotoTests
     {
         var lager = new Mock<ILagerGateway>();
         lager.Setup(l => l.NewBoxAsync(It.IsAny<CancellationToken>())).ReturnsAsync(_k1);
-        var boxes = new BoxPhotoUseCases(new PhotoRepository(Factory), Store().Object, Mock.Of<ICoverReader>(), lager.Object, TimeProvider.System);
+        var boxes = new BoxPhotoUseCases(new PhotoRepository(Factory), new ScanRepository(Factory), Store().Object, Mock.Of<ICoverReader>(), Mock.Of<IBarcodeLookup>(), lager.Object, TimeProvider.System);
         (await boxes.CurrentBoxAsync()).Number.Should().Be(1);
+    }
+
+    [Test]
+    public async Task Scans_just_beep_into_the_box_and_are_looked_up_on_Laes()
+    {
+        var lookup = new Mock<IBarcodeLookup>();
+        lookup.Setup(l => l.LookupAsync("9780552131063", It.IsAny<CancellationToken>())).ReturnsAsync(F("Mort"));
+        var lager = new Mock<ILagerGateway>();
+        lager.Setup(l => l.SaveInBoxAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<IReadOnlyList<Found>>(), It.IsAny<CancellationToken>())).ReturnsAsync((2, 0));
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        var boxes = new BoxPhotoUseCases(new PhotoRepository(Factory), new ScanRepository(Factory), Store().Object, reader.Object, lookup.Object, lager.Object, TimeProvider.System);
+
+        (await boxes.ScanAsync("9780552131063", _k1)).Should().Be(1);
+        (await boxes.ScanAsync("9780552131063", _k1)).Should().Be(2);   // same code again = one more copy
+        (await boxes.ScanAsync("5051892000000", _k1)).Should().Be(1);
+        await boxes.Invoking(b => b.ScanAsync("12", _k1)).Should().ThrowAsync<VareinfoException>();
+        lookup.Verify(l => l.LookupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);   // nothing looked up yet
+        (await boxes.BoxesAsync()).Single().Should().Be(new BoxPhotos("K0001", 0, 0, 0, 0, 3, 0));
+
+        await boxes.WantReadAsync("K0001");
+        (await boxes.ReadWantedAsync()).Should().Be(2);
+        lager.Verify(l => l.SaveInBoxAsync("K0001", null, It.Is<IReadOnlyList<Found>>(f =>
+            f.Count == 2 && f[0].Title == "Mort" && f[0].Quantity == 2 && f[0].Barcode == "9780552131063"
+            && f[1].Title.Contains("5051892000000") && f[1].Barcode == "5051892000000"), It.IsAny<CancellationToken>()), Times.Once);
+        (await boxes.BoxesAsync()).Should().BeEmpty();
+        reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
