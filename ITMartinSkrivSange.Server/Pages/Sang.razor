@@ -104,10 +104,41 @@ else
                     {
                         var index = i;
                         var picked = _focus == (kind, index);
-                        <button class="ss-grip @(picked ? "is-picked" : "")" id="chord-@((int)kind)-@i" aria-expanded="@picked"
-                                title="Tryk for andre akkorder og hvad der lyder godt bagefter" @onclick="() => Focus(kind, index)"><span class="ss-grip-name">@part.Chords[i]</span><GripDiagram Chord="@part.Chords[i]" /></button>
+                        <div class="ss-tile-wrap">
+                            <button class="ss-grip @(picked ? "is-picked" : "")" id="chord-@((int)kind)-@i" aria-expanded="@picked"
+                                    title="Tryk for andre akkorder og hvad der lyder godt bagefter" @onclick="() => Focus(kind, index)"><span class="ss-grip-name">@part.Chords[i]</span><GripDiagram Chord="@part.Chords[i]" /></button>
+                            <button class="ss-grip-x" aria-label="Fjern @part.Chords[i]" title="Fjern @part.Chords[i]" @onclick="() => Remove(kind, index)">✕</button>
+                        </div>
+                    }
+                    @if (part.Chords.Count < Song.MaxChords)
+                    {
+                        <button class="ss-grip ss-grip-add @(_adding == kind ? "is-picked" : "")" aria-expanded="@(_adding == kind)" title="Sæt en akkord ind til sidst" @onclick="() => ToggleAdd(kind)">+<span class="ss-grip-name">Akkord</span></button>
                     }
                 </div>
+                @if (_adding == kind)
+                {
+                    var last = part.HasChords ? part.Chords[^1] : null;
+                    <div class="ss-ideas">
+                        @if (last is not null)
+                        {
+                            <div class="k-label">Lyder godt efter @last</div>
+                            <div class="ss-chips">
+                                @foreach (var idea in Writing.ChordIdeas(_song, last).Next)
+                                {
+                                    <button class="ss-chip" @onclick="() => Append(kind, idea.Chord)">+ <b>@idea.Chord</b> <span class="ss-why">@idea.Why</span></button>
+                                }
+                            </div>
+                        }
+                        <div class="k-label k-mt">Alle åbne greb</div>
+                        <div class="ss-chips">
+                            @foreach (var g in Chords.OpenGrips)
+                            {
+                                <button class="ss-chip" @onclick="() => Append(kind, g)">+ <b>@g</b></button>
+                            }
+                        </div>
+                        <div class="ss-row"><button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => _adding = null">Luk</button></div>
+                    </div>
+                }
                 @if (_focus is { } f && f.Kind == kind && f.Index < part.Chords.Count)
                 {
                     var chord = part.Chords[f.Index];
@@ -128,6 +159,15 @@ else
                                 <button class="ss-chip" title="Sæt @idea.Chord ind efter @chord" disabled="@(part.Chords.Count >= Song.MaxChords)" @onclick="() => InsertAfter(kind, f.Index, idea.Chord)">+ <b>@idea.Chord</b> <span class="ss-why">@idea.Why</span></button>
                             }
                         </div>
+                        <details class="ss-all">
+                            <summary>Andre greb at sætte ind efter @chord</summary>
+                            <div class="ss-chips">
+                                @foreach (var g in Chords.OpenGrips)
+                                {
+                                    <button class="ss-chip" disabled="@(part.Chords.Count >= Song.MaxChords)" @onclick="() => InsertAfter(kind, f.Index, g)">+ <b>@g</b></button>
+                                }
+                            </div>
+                        </details>
                         <p class="k-muted ss-small">Tryk en akkord for at skifte eller sætte den ind - tryk Spil for at høre det. @(part.Chords.Count >= Song.MaxChords ? $"Delen har allerede {Song.MaxChords} akkorder." : "")</p>
                         <div class="ss-row">
                             <button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => Remove(kind, f.Index)">Fjern @chord</button>
@@ -150,7 +190,34 @@ else
             }
             else
             {
-                <p class="k-help">Tryk Foreslå, Vælg selv mellem akkordrækkerne, eller Skriv selv dine egne.</p>
+                <p class="k-help">Tryk Foreslå, Vælg selv mellem akkordrækkerne, Skriv selv dine egne - eller byg den op akkord for akkord med +.</p>
+                <div class="ss-chords">
+                    <button class="ss-grip ss-grip-add @(_adding == kind ? "is-picked" : "")" aria-expanded="@(_adding == kind)" title="Sæt den første akkord ind" @onclick="() => ToggleAdd(kind)">+<span class="ss-grip-name">Akkord</span></button>
+                </div>
+                @if (_adding == kind)
+                {
+                    var last = part.HasChords ? part.Chords[^1] : null;
+                    <div class="ss-ideas">
+                        @if (last is not null)
+                        {
+                            <div class="k-label">Lyder godt efter @last</div>
+                            <div class="ss-chips">
+                                @foreach (var idea in Writing.ChordIdeas(_song, last).Next)
+                                {
+                                    <button class="ss-chip" @onclick="() => Append(kind, idea.Chord)">+ <b>@idea.Chord</b> <span class="ss-why">@idea.Why</span></button>
+                                }
+                            </div>
+                        }
+                        <div class="k-label k-mt">Alle åbne greb</div>
+                        <div class="ss-chips">
+                            @foreach (var g in Chords.OpenGrips)
+                            {
+                                <button class="ss-chip" @onclick="() => Append(kind, g)">+ <b>@g</b></button>
+                            }
+                        </div>
+                        <div class="ss-row"><button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => _adding = null">Luk</button></div>
+                    </div>
+                }
                 @if (ChordInput.TryParse(part.Notes) is { } fromNotes)
                 {
                     @* Chords written in the lyric notes before Skriv selv existed (user 2026-10-14). *@
@@ -308,6 +375,7 @@ else
     private PartKind? _typing;
     private (PartKind Kind, int Index)? _focus;     // the chord tile pressed for ideas
     private PartKind? _loop;                         // the part looping for practice
+    private PartKind? _adding;                       // the part whose + tile is open
     private PartKind? _recordingPart;
     private bool _recordWithLoop = true;
     private int _speed = 100;                        // practice tempo in % of the song's BPM
@@ -370,6 +438,7 @@ else
     {
         _why.Remove(kind);
         await Do(s => Writing.ReplaceChordAsync(s, kind, index, chord));
+        await Changed(kind);
     }
 
     private async Task InsertAfter(PartKind kind, int index, string chord)
@@ -377,6 +446,7 @@ else
         _why.Remove(kind);
         await Do(s => Writing.InsertChordAfterAsync(s, kind, index, chord));
         if (_error is null) _focus = (kind, index + 1);   // go on from the new chord
+        await Changed(kind);
     }
 
     private async Task Remove(PartKind kind, int index)
@@ -384,6 +454,31 @@ else
         _why.Remove(kind);
         await Do(s => Writing.RemoveChordAsync(s, kind, index));
         _focus = null;
+        await Changed(kind);
+    }
+
+    private void ToggleAdd(PartKind kind)
+    {
+        _adding = _adding == kind ? null : kind;
+        _focus = null;
+    }
+
+    // + tile: add at the end, keep the panel open for the next one.
+    private async Task Append(PartKind kind, string chord)
+    {
+        if (_song is null) return;
+        _why.Remove(kind);
+        await Do(s => Writing.InsertChordAfterAsync(s, kind, s.Part(kind).Chords.Count - 1, chord));
+        if (_song.Part(kind).Chords.Count >= Song.MaxChords) _adding = null;
+        await Changed(kind);
+    }
+
+    // On the fly (user 2026-10-14): a part that is looping starts again with the new chords - a running recording goes on.
+    private async Task Changed(PartKind kind)
+    {
+        if (_loop != kind || _song is null) return;
+        if (_song.Part(kind).HasChords) await Loop(kind);
+        else if (_recordingPart is null) await Stop();
     }
 
     // ---- Own chords ("MartinChord n"), user 2026-10-14.

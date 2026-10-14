@@ -321,3 +321,28 @@ public class ChordsInNotesTests
     public void Real_lyrics_are_not_taken_for_chords() =>
         ChordInput.TryParse("Jeg kigger på stjerner").Should().BeNull();
 }
+
+public class OnTheFlyTests
+{
+    [Test]
+    public void A_part_can_be_built_chord_by_chord_and_emptied_again()
+    {
+        var now = DateTime.UtcNow;
+        var song = Song.Create("x", now);
+        song.InsertChordAfter(PartKind.Intro, -1, "Am", now);
+        song.InsertChordAfter(PartKind.Intro, 0, "G", now);
+        song.Part(PartKind.Intro).Chords.Should().Equal("Am", "G");
+        song.RemoveChord(PartKind.Intro, 0, now);
+        song.RemoveChord(PartKind.Intro, 0, now);
+        song.Part(PartKind.Intro).HasChords.Should().BeFalse();
+    }
+
+    [Test]
+    public void No_more_than_eight_chords()
+    {
+        var now = DateTime.UtcNow;
+        var song = Song.Create("x", now);
+        for (var i = 0; i < Song.MaxChords; i++) song.InsertChordAfter(PartKind.Intro, i - 1, "G", now);
+        FluentActions.Invoking(() => song.InsertChordAfter(PartKind.Intro, 7, "C", now)).Should().Throw<SongException>();
+    }
+}
