@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<BookCheckUseCases>();
         services.AddScoped<ExportUseCases>();
         services.AddScoped<GoldUseCases>();
+        services.AddScoped<ShopUseCases>();
         return services;
     }
 }

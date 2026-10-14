@@ -44,6 +44,15 @@ public static class LagerDbInitializer
                 "Year" INTEGER NULL, "Name" TEXT NOT NULL DEFAULT '', "Kr" INTEGER NOT NULL DEFAULT 0, "Listings" INTEGER NOT NULL DEFAULT 0,
                 "Source" TEXT NOT NULL DEFAULT '', "Url" TEXT NOT NULL DEFAULT '', "SeenAt" TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS "IX_GoldEntries_Category" ON "GoldEntries" ("Category");
+            CREATE TABLE IF NOT EXISTS "Orders" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_Orders" PRIMARY KEY AUTOINCREMENT,
+                "Token" TEXT NOT NULL, "ItemId" INTEGER NOT NULL, "Line" TEXT NOT NULL DEFAULT '', "Kr" INTEGER NOT NULL DEFAULT 0,
+                "Status" TEXT NOT NULL DEFAULT '', "CheckoutId" TEXT NOT NULL DEFAULT '', "CreatedAt" TEXT NOT NULL,
+                "ExpiresAt" TEXT NOT NULL, "PaidAt" TEXT NULL, "PaidKr" INTEGER NOT NULL DEFAULT 0,
+                "Email" TEXT NOT NULL DEFAULT '', "Name" TEXT NOT NULL DEFAULT '', "Phone" TEXT NOT NULL DEFAULT '',
+                "Address" TEXT NOT NULL DEFAULT '', "Delivery" TEXT NOT NULL DEFAULT '', "Handled" INTEGER NOT NULL DEFAULT 0);
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Orders_Token" ON "Orders" ("Token");
+            CREATE INDEX IF NOT EXISTS "IX_Orders_Status" ON "Orders" ("Status");
             """);
         foreach (var col in new[] { "Nemos", "Proof", "Faraos", "Bokborsen" })
         {

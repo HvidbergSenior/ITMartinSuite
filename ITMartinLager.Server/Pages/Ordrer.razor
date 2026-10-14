@@ -1,0 +1,63 @@
+@page "/ordrer"
+@inject ShopUseCases Shop
+
+<PageTitle>Ordrer – Bogshoppen Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">🧾 Ordrer fra butikken</h1>
+    <p>Her står alt, der er købt med <b>Køb nu</b> på bogshoppen.dk. Når en ordre er betalt, er varen trukket fra lageret (den sidste = Solgt).</p>
+    <p>Pak varen og send den – eller aftal afhentning med køberen. Tryk så <b>Sendt / afhentet</b>, så den ryger ned i bunden.</p>
+    @if (!Shop.CanPay)
+    {
+        <p class="lg-warn" role="status">⚠ Køb nu er slået fra: Stripe-nøglen (Lager__StripeSecretKey) eller fragt/afhentning (Lager__ShopShippingKr / Lager__ShopPickup) mangler i magic.env.</p>
+    }
+</section>
+
+@foreach (var group in new[] { ("Skal sendes eller afhentes", _orders.Where(o => o.Status == OrderStatuses.Paid && !o.Handled).ToList()),
+                               ("Venter på betaling", _orders.Where(o => o.Status == OrderStatuses.Pending).ToList()),
+                               ("Klaret", _orders.Where(o => o.Status == OrderStatuses.Paid && o.Handled).ToList()),
+                               ("Ikke betalt (udløbet)", _orders.Where(o => o.Status == OrderStatuses.Expired).Take(20).ToList()) })
+{
+    @if (group.Item2.Count > 0)
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">@group.Item1 (@group.Item2.Count)</h2>
+            <ul class="lg-list">
+                @foreach (var o in group.Item2)
+                {
+                    <li class="lg-order">
+                        <span class="lg-main">
+                            <b><a href="/vare/@o.ItemId">@o.Line</a></b>
+                            <span class="k-small">@o.Kr kr@(o.PaidKr > o.Kr ? $" + fragt = {o.PaidKr} kr" : "") · @o.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm") · ordre @o.Id</span>
+                            @if (o.Status == OrderStatuses.Paid)
+                            {
+                                <span class="k-small"><b>@o.Delivery</b> · @o.Name · @o.Email · @o.Phone</span>
+                                @if (o.Address != "") { <span class="k-small">@o.Address</span> }
+                            }
+                        </span>
+                        @if (o.Status == OrderStatuses.Paid)
+                        {
+                            <button class="k-btn k-btn-sm @(o.Handled ? "k-btn-ghost" : "k-btn-primary")" @onclick="() => Toggle(o)">@(o.Handled ? "Fortryd" : "✓ Sendt / afhentet")</button>
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+}
+@if (_orders.Count == 0)
+{
+    <section class="k-card"><p>Ingen ordrer endnu.</p></section>
+}
+
+@code {
+    private List<Order> _orders = [];
+
+    protected override async Task OnInitializedAsync() => _orders = await Shop.RecentOrdersAsync();
+
+    private async Task Toggle(Order o)
+    {
+        await Shop.SetHandledAsync(o.Id, !o.Handled);
+        _orders = await Shop.RecentOrdersAsync();
+    }
+}

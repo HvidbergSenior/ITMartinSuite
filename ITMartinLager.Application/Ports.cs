@@ -74,6 +74,36 @@ public sealed record LagerOptions
     public int KolofonFromKr { get; init; } = Kolofon.DefaultFromKr;
     /// <summary>The key Vareinfo sends (Lager__InfoKey) - its calls to /api/info/* need it.</summary>
     public string InfoKey { get; init; } = "";
+    /// <summary>The key bogshoppen.dk sends (Lager__ShopKey) - its calls to /api/butik/* need it.</summary>
+    public string ShopKey { get; init; } = "";
+    /// <summary>Suggested prices from here up need a person's price before Køb nu (Lager__ShopAutoMaxKr).</summary>
+    public int ShopAutoMaxKr { get; init; } = Shop.DefaultAutoMaxKr;
+    /// <summary>Shipping with PostNord, kr (Lager__ShopShippingKr). 0 = pickup only.</summary>
+    public int ShopShippingKr { get; init; }
+    /// <summary>Where and how to pick up (Lager__ShopPickup), shown at checkout. Empty = no pickup.</summary>
+    public string ShopPickup { get; init; } = "";
+}
+
+/// <summary>Stripe Checkout (hosted page: card, MobilePay - whatever the Stripe account has switched on).</summary>
+public interface IPaymentGateway
+{
+    bool Enabled { get; }
+    /// <summary>Starts a checkout for one order. Returns Stripe's id and the page to send the buyer to.</summary>
+    Task<(string CheckoutId, string Url)> StartAsync(Order order, string description, string successUrl, string cancelUrl,
+        int shippingKr, string pickup, CancellationToken ct);
+    Task<PaymentState> StateAsync(string checkoutId, CancellationToken ct);
+}
+
+public interface IOrderRepository
+{
+    Task AddAsync(Order order, CancellationToken ct);
+    Task UpdateAsync(Order order, CancellationToken ct);
+    Task<Order?> ByTokenAsync(string token, CancellationToken ct);
+    Task<List<Order>> PendingAsync(CancellationToken ct);
+    /// <summary>Copies reserved per item right now (pending, not expired).</summary>
+    Task<Dictionary<int, int>> ReservedAsync(IReadOnlyCollection<int> itemIds, DateTime utcNow, CancellationToken ct);
+    Task<List<Order>> RecentAsync(int max, CancellationToken ct);
+    Task SetHandledAsync(int id, bool handled, CancellationToken ct);
 }
 
 /// <summary>A message for the person, in Danish - shown as it is.</summary>

@@ -606,3 +606,16 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 
 /* App challenge inside the front-page chat (2026-10-14). */
 .hj-chat-challenge { margin: 10px 0 0; padding: 8px 10px; border-left: 5px solid var(--k-accent); background: var(--k-surface, transparent); color: var(--k-text); }
+/* Shop on bogshoppen.dk/varer (2026-10-15) */
+.bs-search{display:flex;flex-wrap:wrap;gap:8px}
+.bs-search .k-input{flex:1 1 200px;min-width:0}
+.bs-items{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.bs-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:2px solid #2a1d12;border-radius:12px;background:#fffdf7;color:#111827!important;text-decoration:none!important}
+.bs-item:hover{background:#fef3c7}
+.bs-item img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none}
+.bs-item-main{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.bs-item-price{flex:none;text-align:right;white-space:nowrap}
+.bs-price{font-size:1.6rem;margin:4px 0}
+.bs-photo{max-width:100%;max-height:420px;border-radius:12px}
+.bs-proof{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.bs-warn{color:#7a1d0c;font-weight:700}

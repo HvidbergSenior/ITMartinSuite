@@ -1,0 +1,125 @@
+@page "/varer/{Id:int}"
+@inject ShopUseCases Shop
+@inject NavigationManager Nav
+
+@* One product on bogshoppen.dk: what it is, the price promise with the proof links, and Køb nu (Stripe). *@
+<PageTitle>@(_item?.Line ?? "Vare") · Bogshoppen</PageTitle>
+
+@if (_loading)
+{
+    <p class="k-center k-help">Henter varen …</p>
+}
+else if (_item is null)
+{
+    <section class="k-card bs-card">
+        <h2>Varen er ikke til salg</h2>
+        <div>
+            <p>Den er solgt, kommet på auktion – eller lageret svarer ikke lige nu. Prøv at søge efter noget lignende.</p>
+            <a class="k-btn k-btn-primary bs-btn" href="/varer">Tilbage til varerne</a>
+        </div>
+    </section>
+}
+else
+{
+    <header class="bs-head bs-head-varer">
+        <span class="bs-tag">@_item.Kind</span>
+        <h1>@_item.Line</h1>
+        <p>Stand: <b>@_item.Condition</b>@(_item.Available > 1 ? $" · {_item.Available} stk. på lager" : "")</p>
+    </header>
+
+    @if (_item.HasPhoto)
+    {
+        <p class="k-center"><img class="bs-photo" src="/varer/foto/@_item.Id" alt="Billede af @_item.Title" /></p>
+    }
+
+    <section class="k-card bs-card">
+        <h2>Pris</h2>
+        <div>
+            @if (_item.Available == 0)
+            {
+                <p><b>En anden er ved at betale for den lige nu.</b> Bliver købet ikke gennemført, er den til salg igen om en halv time.</p>
+            }
+            else if (_item.BuyNowKr is { } kr)
+            {
+                <p class="bs-price"><b>@kr kr</b> <span class="k-help">+ fragt, eller hent den</span></p>
+                @if (_canBuy)
+                {
+                    <p class="k-help">Tryk Køb nu. Så kommer du til betalingen (kort eller MobilePay) og vælger, om den skal sendes eller hentes. Varen er holdt til dig i 30 minutter.</p>
+                    <button class="k-btn k-btn-primary bs-btn" @onclick="Buy" disabled="@_busy">@(_busy ? "Et øjeblik …" : $"Køb nu – {kr} kr")</button>
+                    <p class="k-help">Du har 14 dages fortrydelsesret.</p>
+                    <a class="k-btn k-btn-sm" href="/handelsbetingelser">Læs handelsbetingelserne</a>
+                }
+                else
+                {
+                    <p>Betaling på siden åbner snart. Vil du have den nu? Skriv i chatten, så holder vi den til dig.</p>
+                    <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+                }
+            }
+            else
+            {
+                <p>Den har ikke en fast pris endnu@(_item.ExpectKr is { } ex ? $" – andre steder koster den omkring {ex} kr" : "").</p>
+                <p>Snart kan du <b>byde</b> på den, så kommer den med på lørdagens liveauktion. Indtil da: skriv i chatten, hvad du vil give.</p>
+                <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+            }
+            @if (_error is not null) { <p class="bs-warn" role="alert">@_error</p> }
+        </div>
+    </section>
+
+    <section class="k-card bs-card">
+        <h2>Det koster den andre steder</h2>
+        <div>
+            @if (_proof.Count == 0)
+            {
+                <p>Vi har ikke fundet den til salg andre steder endnu. Har du set den et sted? Send os linket i chatten.</p>
+            }
+            else
+            {
+                <p class="k-help">Det billigste eksemplar, vi har fundet på hver side. Tryk for at se annoncen selv.</p>
+                <div class="bs-proof">
+                    @foreach (var p in _proof)
+                    {
+                        <a class="k-btn k-btn-sm" href="@p.Url" target="_blank" rel="noopener nofollow">@p.Source@(p.IsNew ? " (ny)" : ""): @p.Kr kr@(p.Original != "" ? $" ({p.Original})" : "")</a>
+                    }
+                </div>
+                <p class="k-help">Fundet den billigere? Send linket i chatten – så sælger vi den 10 % under.</p>
+            }
+        </div>
+    </section>
+
+    @if (_item.Interest != "")
+    {
+        <section class="k-card bs-card">
+            <h2>Det interessante ved den</h2>
+            <div><p>@_item.Interest</p></div>
+        </section>
+    }
+
+    <p class="k-center"><a class="k-btn k-btn-sm" href="/varer">Tilbage til varerne</a></p>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ShopItem? _item;
+    private List<ShopProof> _proof = [];
+    private bool _canBuy, _loading = true, _busy;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        if (await Shop.ItemAsync(Id) is { } x) (_canBuy, _item, _proof) = (x.CanBuy, x.Item, x.Proof);
+        else _item = null;
+        _loading = false;
+    }
+
+    private async Task Buy()
+    {
+        _busy = true; _error = null;
+        var site = new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority);
+        var (url, error) = await Shop.BuyAsync(Id, site);
+        if (url is not null) { Nav.NavigateTo(url, forceLoad: true); return; }
+        _error = error;
+        _busy = false;
+    }
+}

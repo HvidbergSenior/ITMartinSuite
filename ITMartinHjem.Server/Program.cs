@@ -55,6 +55,11 @@ builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Pat
 // The layered part of Hjem (2026-10-12: public Q&A "Det spørger folk om"); same hjem.db.
 builder.Services.AddHjemApplication();
 builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}", builder.Configuration["Hjem:StemApi"]);
+// The shop on bogshoppen.dk/varer (2026-10-15): stock + Køb nu live in Bogshoppen Lager on the photoserver.
+builder.Services.AddLagerShopGateway(builder.Configuration["Hjem:LagerApi"], builder.Configuration["Hjem:LagerShopKey"]);
+builder.Services.AddHjemShop(new ShopSeller(builder.Configuration["Hjem:ShopCompany"] ?? "", builder.Configuration["Hjem:ShopCvr"] ?? "",
+    builder.Configuration["Hjem:ShopAddress"] ?? "", builder.Configuration["Hjem:ShopEmail"] ?? "ITMartin@Mensa.dk",
+    builder.Configuration["Hjem:ShopPhone"] ?? "31 19 47 30"));
 builder.Services.AddSingleton<MediaStore>();
 builder.Services.AddSingleton<TextCheck>();   // AI proofreading of the owner's own text in Svar
 builder.Services.AddSingleton<PushService>();
@@ -256,6 +261,10 @@ app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb
 });
 
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
+// Shop photos come from Lager through here, so the buyer never talks to the photoserver.
+app.MapGet("/varer/foto/{id:int}", async (int id, ShopUseCases shop) =>
+    await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+
 app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
 // The pilot page moved to /bliv-pilot/ (2026-09-29): browsers kept a stale one.com copy of /pilot/ without the menu.
 app.MapGet("/pilot", () => Results.Redirect("/bliv-pilot", permanent: true));   // also answers /pilot/

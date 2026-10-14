@@ -1,36 +1,124 @@
 @page "/varer"
+@inject ShopUseCases Shop
+@inject NavigationManager Nav
 
-@* bogshoppen.dk "Varer" tab (user 2026-10-12: "a tab on bogshoppen. Forside and one more"). Product-oriented: what is coming,
-   with an example of each, and the price promise. The real items (from Lager/Vareinfo) go here once they are registered. *@
+@* bogshoppen.dk "Varer" tab. Since 2026-10-15 the real stock from Bogshoppen Lager (user: "people be able to search
+   products and make offer -> here the links and so on can be seen. So sales should be instant buy or bet").
+   Køb nu here; Byd (pre-bid for the Saturday live auction) comes next. *@
 <PageTitle>Varer · Bogshoppen</PageTitle>
 
 <header class="bs-head bs-head-varer">
-    <span class="bs-tag">Liveauktioner – snart</span>
+    <span class="bs-tag">Søg i lageret</span>
     <h1>Varer</h1>
-    <p>Varerne bliver vist her snart – med billede, pris og links til andre butikker.</p>
+    <p>Her kan du søge i alt det, vi har registreret. Ved hver vare kan du se, hvad den koster andre steder – og vores pris er 10 % lavere.</p>
 </header>
 
 <section class="k-card bs-card">
-    <h2>Det kommer der på</h2>
+    <h2>Søg</h2>
     <div>
-    <ul class="bs-products">
-        @foreach (var (title, example) in BogshoppenRules.Products)
-        {
-            <li><b>@title</b> <span>– fx @example</span></li>
-        }
-    </ul>
-    <p class="k-help">Leder du efter noget bestemt? Skriv det i chatten – så kigger vi efter det, mens vi registrerer.</p>
-    <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+        <p class="k-help">Skriv en titel, et nummer, en forfatter eller et år – fx <i>Anders And 1972</i> eller <i>Pratchett</i>. Tryk Søg.</p>
+        <form class="bs-search" method="get" action="/varer" @onsubmit="Search" @onsubmit:preventDefault>
+            <input class="k-input" name="q" @bind="_q" placeholder="Hvad leder du efter?" aria-label="Søg i varerne" />
+            <select class="k-input" name="art" @bind="_kind" aria-label="Slags">
+                <option value="">Alle slags</option>
+                @foreach (var k in Kinds) { <option value="@k">@k</option> }
+            </select>
+            <button class="k-btn k-btn-primary" type="submit">Søg</button>
+        </form>
     </div>
 </section>
+
+@if (_error is not null)
+{
+    <p class="k-center k-help" role="alert">@_error</p>
+}
+else if (_items is null)
+{
+    <p class="k-center k-help">Henter varerne …</p>
+}
+else
+{
+    <section class="k-card bs-card">
+        <h2>@(_items.Count == 0 ? "Ingen varer fundet" : _items.Count >= 60 ? "De første 60 varer" : $"{_items.Count} varer")</h2>
+        <div>
+            @if (_items.Count == 0)
+            {
+                <p>Vi har ikke fundet noget, der passer. Prøv med færre ord – eller skriv i chatten, hvad du leder efter. Så kigger vi efter det, mens vi pakker kasserne ud.</p>
+                <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+            }
+            else
+            {
+                <p class="k-help">Tryk på en vare for at se priserne andre steder og købe den.</p>
+                <ul class="bs-items">
+                    @foreach (var i in _items)
+                    {
+                        <li>
+                            <a class="bs-item" href="/varer/@i.Id">
+                                @if (i.HasPhoto) { <img src="/varer/foto/@i.Id" alt="" loading="lazy" /> }
+                                <span class="bs-item-main">
+                                    <b>@i.Line</b>
+                                    <span class="k-help">@i.Kind · @i.Condition stand</span>
+                                </span>
+                                <span class="bs-item-price">
+                                    @if (i.Available == 0) { <span>Reserveret</span> }
+                                    else if (i.BuyNowKr is { } kr) { <b>@kr kr</b> }
+                                    else if (i.ExpectKr is { } ex) { <span>ca. @ex kr</span> }
+                                    else { <span>Pris kommer</span> }
+                                </span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </section>
+}
 
 <section class="k-card bs-card">
     <h2>Vores prisløfte – og du kan se det selv</h2>
     <ul class="bs-promise">
         <li><b>Ved hver vare viser vi links</b> til andre sider, der sælger den samme vare – og <b>vores pris er 10 % lavere</b>.</li>
         <li><b>Har du fundet den billigere et andet sted?</b> Send os linket – så tager vi udgangspunkt i den pris og sælger <b>10 % under</b>.</li>
-        <li><b>Jo flere varer du køber, jo større rabat.</b></li>
+        <li><b>Køb nu</b> betaler du med kort eller MobilePay. <b>Snart kan du også byde</b> – så kommer varen med på lørdagens liveauktion.</li>
     </ul>
 </section>
 
-<p class="k-center"><a class="k-btn k-btn-primary bs-btn" href="/#foelg">Skriv dig op – og få et login til liveauktionerne</a></p>
+<section class="k-card bs-card">
+    <h2>Det kommer der mere af</h2>
+    <div>
+    <p>Vi registrerer kasse for kasse, så der kommer nye varer hver uge.</p>
+    <ul class="bs-products">
+        @foreach (var (title, example) in BogshoppenRules.Products)
+        {
+            <li><b>@title</b> <span>– fx @example</span></li>
+        }
+    </ul>
+    <a class="k-btn k-btn-primary bs-btn" href="/#foelg">Skriv dig op – og få et login til liveauktionerne</a>
+    </div>
+</section>
+
+@code {
+    // Lager's kinds, in the order people look for them.
+    private static readonly string[] Kinds = ["Bog", "Tegneserie", "Anders And-blad", "Jumbobog", "Magasin", "CD", "DVD", "Blu-ray", "Konsolspil", "Magic-kort", "Merchandise", "Andet"];
+
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "art")] public string? Art { get; set; }
+
+    private string _q = "", _kind = "";
+    private List<ShopItem>? _items;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _q = Q ?? "";
+        _kind = Art ?? "";
+        var (_, items, error) = await Shop.SearchAsync(_q, _kind);
+        (_items, _error) = (items, error);
+    }
+
+    private void Search()
+    {
+        var url = "/varer" + (_q.Trim() != "" || _kind != "" ? $"?q={Uri.EscapeDataString(_q.Trim())}&art={Uri.EscapeDataString(_kind)}" : "");
+        Nav.NavigateTo(url);
+    }
+}

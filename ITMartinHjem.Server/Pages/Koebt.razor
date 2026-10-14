@@ -1,0 +1,65 @@
+@page "/varer/koebt"
+@inject ShopUseCases Shop
+
+@* Where Stripe sends the buyer back. Asking Lager here books the payment at once (the job in Lager does it too). *@
+<PageTitle>Tak for købet · Bogshoppen</PageTitle>
+
+@if (_order is null)
+{
+    <section class="k-card bs-card">
+        <h2>@(_loading ? "Tjekker betalingen …" : "Vi kunne ikke finde ordren")</h2>
+        @if (!_loading)
+        {
+            <div>
+                <p>Har du betalt, er det i orden – du får en kvittering fra Stripe på mail, og vi skriver til dig. Ellers skriv i chatten.</p>
+                <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+            </div>
+        }
+    </section>
+}
+else if (_order.Paid)
+{
+    <header class="bs-head bs-head-varer">
+        <span class="bs-tag">Betalt</span>
+        <h1>Tak for købet!</h1>
+        <p>@_order.Line – @_order.PaidKr kr</p>
+    </header>
+    <section class="k-card bs-card">
+        <h2>Hvad sker der nu?</h2>
+        <div>
+            @if (_order.Delivery == "Send med posten")
+            {
+                <p>Vi pakker den og sender den med posten. Du får en kvittering fra Stripe på <b>@_order.Email</b>, og vi skriver, når den er sendt.</p>
+            }
+            else
+            {
+                <p>Vi skriver til dig på <b>@_order.Email</b> eller ringer, så vi kan aftale, hvornår du henter den. Kvitteringen kommer fra Stripe.</p>
+            }
+            <p>Spørgsmål? Skriv i chatten eller til @Shop.Seller.Email.</p>
+            <a class="k-btn k-btn-primary bs-btn" href="/varer">Se flere varer</a>
+        </div>
+    </section>
+}
+else
+{
+    <section class="k-card bs-card">
+        <h2>@(_order.Expired ? "Betalingen blev ikke gennemført" : "Betalingen er ikke kommet igennem endnu")</h2>
+        <div>
+            <p>@(_order.Expired ? "Der er ikke trukket penge. Varen er til salg igen – du kan prøve en gang til." : "Vent et øjeblik, og opdatér siden. Der trækkes kun penge, hvis betalingen gik igennem.")</p>
+            <a class="k-btn k-btn-primary bs-btn" href="/varer">Tilbage til varerne</a>
+        </div>
+    </section>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "ordre")] public string? Ordre { get; set; }
+
+    private ShopOrder? _order;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _order = string.IsNullOrWhiteSpace(Ordre) ? null : await Shop.OrderAsync(Ordre);
+        _loading = false;
+    }
+}

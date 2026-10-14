@@ -43,6 +43,7 @@ builder.Services.AddLagerApplication();
 builder.Services.AddHostedService<PriceHunterJob>();
 builder.Services.AddHostedService<AuctionSyncJob>();
 builder.Services.AddHostedService<GoldListJob>();
+builder.Services.AddHostedService<ShopJob>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -61,8 +62,10 @@ app.UseStaticFiles();
 // Vareinfo calls /api/info/* with its key instead (Lager__InfoKey).
 var pin = app.Configuration["Lager:Pin"] ?? "";
 var infoKey = app.Configuration["Lager:InfoKey"] ?? "";
+var shopKey = app.Configuration["Lager:ShopKey"] ?? "";
 bool LoggedIn(HttpContext ctx) => pin.Length >= 6 && ctx.Request.Cookies["lager_auth"] == pin;
 bool FromVareinfo(HttpContext ctx) => infoKey.Length >= 12 && ctx.Request.Headers["X-Info-Key"] == infoKey;
+bool FromShop(HttpContext ctx) => shopKey.Length >= 12 && ctx.Request.Headers["X-Shop-Key"] == shopKey;
 
 app.Use(async (ctx, next) =>
 {
@@ -72,6 +75,7 @@ app.Use(async (ctx, next) =>
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
             || p.EndsWith(".svg") || p.EndsWith(".png");
     if (p.StartsWith("/api/info/")) { if (FromVareinfo(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
+    if (p.StartsWith("/api/butik/")) { if (FromShop(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (open || LoggedIn(ctx)) { await next(); return; }
     if (p.StartsWith("/_blazor")) { ctx.Response.StatusCode = 401; return; }
     ctx.Response.Redirect("/login");
@@ -96,6 +100,7 @@ app.MapGet("/foto/{id:int}", (int id, IVareinfoGateway v) => Results.Redirect($"
 app.MapGet("/kolofonfoto/{id:int}", (int id, IVareinfoGateway v) => Results.Redirect($"{v.PublicBase}/kolofonfoto/{id}"));
 
 app.MapInfoApi();
+app.MapShopApi();
 
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
     Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));

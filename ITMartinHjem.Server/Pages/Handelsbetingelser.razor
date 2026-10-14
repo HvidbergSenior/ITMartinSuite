@@ -1,0 +1,75 @@
+@page "/handelsbetingelser"
+@inject ShopUseCases Shop
+
+@* The terms for Køb nu on bogshoppen.dk (2026-10-15). Seller details come from Hjem__Shop* in magic.env - Køb nu is
+   hidden until company and CVR are set. Plain Danish consumer rules for online sales of used goods. *@
+<PageTitle>Handelsbetingelser · Bogshoppen</PageTitle>
+
+<header class="bs-head bs-head-varer">
+    <span class="bs-tag">Når du køber</span>
+    <h1>Handelsbetingelser</h1>
+    <p>Det gælder, når du køber en vare med Køb nu på bogshoppen.dk.</p>
+</header>
+
+<section class="k-card bs-card">
+    <h2>Hvem sælger</h2>
+    <div>
+        @if (Shop.Seller.Complete)
+        {
+            <p><b>@Shop.Seller.Company</b>, CVR @Shop.Seller.Cvr@(Shop.Seller.Address != "" ? ", " + Shop.Seller.Address : "").</p>
+            <p>Bogshoppen er butikkens navn. Mail: @Shop.Seller.Email · Telefon: @Shop.Seller.Phone</p>
+        }
+        else
+        {
+            <p>Køb nu er ikke åbnet endnu. Skriv til @Shop.Seller.Email, hvis du vil købe noget.</p>
+        }
+    </div>
+</section>
+
+<section class="k-card bs-card">
+    <h2>Varer og priser</h2>
+    <div>
+        <p>Næsten alt er brugt. Standen står ved hver vare (Som ny, Meget god, God, Slidt, Defekt). Priserne er i danske kroner.</p>
+        <p>Fragt står på betalingssiden, før du betaler. Du kan også vælge at hente varen.</p>
+    </div>
+</section>
+
+<section class="k-card bs-card">
+    <h2>Betaling</h2>
+    <div>
+        <p>Du betaler med kort eller MobilePay på Stripes sikre betalingsside. Vi ser aldrig dit kortnummer. Pengene trækkes, når du betaler, og du får en kvittering på mail.</p>
+        <p>Varen er holdt til dig i 30 minutter, mens du betaler. Betaler du ikke, er den til salg igen.</p>
+    </div>
+</section>
+
+<section class="k-card bs-card">
+    <h2>14 dages fortrydelsesret</h2>
+    <div>
+        <p>Du kan fortryde købet i 14 dage fra den dag, du har fået varen. Skriv til os inden da, og send eller aflever varen inden for 14 dage efter.</p>
+        <p>Du betaler selv for at sende den retur. Vi betaler hele købsprisen tilbage – også den almindelige fragt – senest 14 dage efter, at du har skrevet, og når vi har fået varen igen.</p>
+        <p>Varen skal komme tilbage i samme stand, som da du fik den.</p>
+    </div>
+</section>
+
+<section class="k-card bs-card">
+    <h2>Reklamation</h2>
+    <div>
+        <p>Du har 2 års reklamationsret efter købeloven. Brugte varer bedømmes efter den stand, vi har beskrevet. Er der en fejl, vi ikke har nævnt, så skriv til os – så finder vi en løsning.</p>
+    </div>
+</section>
+
+<section class="k-card bs-card">
+    <h2>Dine oplysninger</h2>
+    <div>
+        <p>Vi bruger dit navn, din mail, telefon og adresse til at sende eller udlevere varen og til regnskabet. Vi sender ikke nyhedsbreve og deler ikke dine oplysninger med andre end Stripe (betalingen) og fragtfirmaet.</p>
+    </div>
+</section>
+
+<section class="k-card bs-card">
+    <h2>Klage</h2>
+    <div>
+        <p>Skriv til os først. Kan vi ikke blive enige, kan du klage til Nævnenes Hus (naevneneshus.dk) eller via EU's klageportal (ec.europa.eu/odr).</p>
+    </div>
+</section>
+
+<p class="k-center"><a class="k-btn k-btn-sm" href="/varer">Til varerne</a></p>

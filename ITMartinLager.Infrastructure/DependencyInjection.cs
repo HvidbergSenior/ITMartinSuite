@@ -21,18 +21,24 @@ public static class DependencyInjection
         services.AddScoped<IPriceRepository, PriceRepository>();
         services.AddScoped<IBookCheckRepository, BookCheckRepository>();
         services.AddScoped<IGoldRepository, GoldRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
 
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
         services.AddSingleton<IBookValuer, ClaudeBookValuer>();
         services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(120));   // a pile photo takes a while to read
         services.AddHttpClient<IAuctionGateway, AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IMagicGateway, MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient<IPaymentGateway, StripeCheckout>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddPriceSources();
 
         services.AddSingleton(new LagerOptions
         {
             InfoKey = cfg["Lager:InfoKey"] ?? "",
             KolofonFromKr = int.TryParse(cfg["Lager:KolofonFromKr"], out var kr) ? kr : Kolofon.DefaultFromKr,
+            ShopKey = cfg["Lager:ShopKey"] ?? "",
+            ShopAutoMaxKr = int.TryParse(cfg["Lager:ShopAutoMaxKr"], out var auto) ? auto : Shop.DefaultAutoMaxKr,
+            ShopShippingKr = int.TryParse(cfg["Lager:ShopShippingKr"], out var ship) ? ship : 0,
+            ShopPickup = cfg["Lager:ShopPickup"] ?? "",
         });
         return services;
     }
