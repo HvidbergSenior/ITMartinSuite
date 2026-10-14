@@ -92,7 +92,7 @@ else
 
     <section class="k-card">
         <h2 class="k-card-title">Optag fra: guitar eller mikrofon</h2>
-        <p class="k-help">Vælg hvor guitaren kommer ind (fx dit lydkort / HyperX), og tryk Test lyd. Spil - baren skal op over midten, men ikke helt ud. Valget huskes på denne computer. Med høretelefoner i PC'en hører du loopet, uden at det kommer med på optagelsen.</p>
+        <p class="k-help">Vælg hvor guitaren kommer ind (fx dit lydkort / HyperX), og tryk Test lyd. Spil - når baren kommer op til midten, er det nok: appen gør optagelsen højere bagefter. Valget huskes på denne computer. Med høretelefoner i PC'en hører du loopet, uden at det kommer med på optagelsen.</p>
         @if (_inputs is null)
         {
             <button class="k-btn" @onclick="FindInputs">Find indgange</button>
@@ -119,7 +119,7 @@ else
                 }
             </div>
             <div class="ss-meter" aria-hidden="true"><div class="ss-meter-bar" id="ss-meter-bar"></div><span class="ss-meter-mid"></span></div>
-            <p class="k-muted ss-small">Tom bar = der kommer intet ind: vælg en anden indgang, eller skru op for gain på lydkortet. Helt ude til højre = for højt, skru lidt ned.</p>
+            <p class="k-muted ss-small">Tom bar = der kommer intet ind: vælg en anden indgang. Op til midten = godt nok. Vil du have mindre sus: skru op for gain på lydkortet, eller i Windows under Indstillinger > System > Lyd > Input (Inputlydstyrke 100). Helt ude til højre = for højt, skru lidt ned.</p>
         }
     </section>
 
