@@ -156,6 +156,10 @@ public sealed class Item
         return true;
     }
 
+    /// <summary>Another row of what looks like the same thing (other box, other condition) - "Vi har flere".</summary>
+    public bool LooksLike(Item o) => o.Id != Id && LooksLike(new Found(o.Kind, o.Title, o.Artist, o.Series, o.Number, o.Year,
+        o.Platform, o.Condition, o.Quantity, o.Confidence, "", Barcode: o.Barcode));
+
     public static string TitleKey(string title) => new(title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
     private static bool Eq(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);

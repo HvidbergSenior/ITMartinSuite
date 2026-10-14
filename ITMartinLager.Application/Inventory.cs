@@ -58,6 +58,13 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         return new ItemView(item, finds, checks);
     }
 
+    /// <summary>"Vi har flere" (user 2026-10-15: "we have more than one ... and the box numbers"): the other unsold rows
+    /// of what looks like the same thing, with their boxes.</summary>
+    public async Task<List<Item>> OthersLikeAsync(Item item, CancellationToken ct = default) =>
+        (await items.WithTitlesAsync([item.Title], ct, item.Barcode != "" ? [item.Barcode] : null))
+            .Where(i => i.Status != Statuses.Solgt && i.LooksLike(item))
+            .OrderBy(i => i.Box?.Code ?? "~").ToList();
+
     /// <summary>Saves a corrected item. A changed title, number or ISBN = the old prices are about another book,
     /// so the hunter takes it next.</summary>
     public async Task SaveAsync(Item item, CancellationToken ct = default)

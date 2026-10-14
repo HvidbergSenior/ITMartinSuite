@@ -109,7 +109,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
             return k != "" && keys.Any(x => x == k || (Math.Min(x.Length, k.Length) >= 8 && (x.StartsWith(k) || k.StartsWith(x))));
         }
         var ids = candidates.Where(c => Near(c.Title) || (c.Barcode != "" && codes.Contains(c.Barcode))).Select(c => c.Id).ToList();
-        return await db.Items.Where(i => ids.Contains(i.Id)).ToListAsync(ct);
+        return await db.Items.Include(i => i.Box).Where(i => ids.Contains(i.Id)).ToListAsync(ct);
     }
 
     public async Task<int> UnitsAsync(CancellationToken ct)

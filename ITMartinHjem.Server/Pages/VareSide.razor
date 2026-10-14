@@ -24,7 +24,7 @@ else
     <header class="bs-head bs-head-varer">
         <span class="bs-tag">@_item.Kind</span>
         <h1>@_item.Line</h1>
-        <p>Stand: <b>@_item.Condition</b>@(_item.Available > 1 ? $" · {_item.Available} stk. på lager" : "")</p>
+        <p>Stand: <b>@_item.Condition</b>@(_item.Available > 1 ? " · Vi har flere" : "")</p>
     </header>
 
     @if (_item.HasPhoto)

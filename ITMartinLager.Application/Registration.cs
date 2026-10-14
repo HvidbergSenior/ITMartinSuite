@@ -17,7 +17,10 @@ public sealed class RegistrationUseCases(IItemRepository items)
         var merged = new List<Item>();
         foreach (var f in list)
         {
-            var same = stock.FirstOrDefault(i => i.SameAs(f));
+            // In a box (user 2026-10-15: "if duplicate it should just add one. The amounts are not that important. It
+            // is more the box number"): what looks like the same thing in the same box is one more copy, even when the
+            // condition or a detail was read a little differently.
+            var same = stock.FirstOrDefault(i => i.SameAs(f)) ?? (boxId is not null ? stock.FirstOrDefault(i => i.LooksLike(f)) : null);
             if (same is not null)
             {
                 same.Quantity += f.Quantity;

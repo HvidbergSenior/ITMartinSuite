@@ -40,19 +40,20 @@ public class StoreTests
     }
 
     [Test]
-    public async Task Same_issue_same_condition_in_same_box_adds_up_but_other_condition_is_its_own_line()
+    public async Task Same_issue_in_same_box_adds_up_whatever_the_condition_but_another_issue_is_its_own_line()
     {
+        // User 2026-10-15: "if duplicate it should just add one. The amounts are not that important. It is more the box number".
         var box = await Boxes.AddNextAsync("", default);
         await Registration.SaveAsync(box.Id, null, [Aa("12", 1968), Aa("13", 1968)]);
-        var (added, merged) = await Registration.SaveAsync(box.Id, null, [Aa("12", 1968, qty: 2), Aa("12", 1968, "Slidt")]);
+        var (added, merged) = await Registration.SaveAsync(box.Id, null, [Aa("12", 1968, qty: 2), Aa("12", 1968, "Slidt"), Aa("14", 1968)]);
         using var db = Db();
 
         added.Should().Be(1);
-        merged.Should().Be(1);
+        merged.Should().Be(2);
         var rows = await db.Items.OrderBy(i => i.Id).ToListAsync();
         rows.Should().HaveCount(3);
-        rows[0].Quantity.Should().Be(3);
-        rows[2].Condition.Should().Be("Slidt");
+        rows[0].Quantity.Should().Be(4);
+        rows[2].Number.Should().Be("14");
     }
 
     [Test]

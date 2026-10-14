@@ -170,3 +170,42 @@ public class ShopTests
         f["expires_at"].Should().Be(new DateTimeOffset(2026, 10, 15, 10, 30, 0, TimeSpan.Zero).ToUnixTimeSeconds().ToString());
     }
 }
+
+public class BoxMergeTests
+{
+    private SqliteConnection _conn = null!;
+    private TestDbFactory Factory => new(_conn);
+
+    [SetUp]
+    public void Open()
+    {
+        _conn = new SqliteConnection("Data Source=:memory:");
+        _conn.Open();
+        using var db = Factory.CreateDbContext();
+        LagerDbInitializer.Upgrade(db);
+    }
+
+    [TearDown]
+    public void Close() => _conn.Dispose();
+
+    private static Found F(string title, string condition) => new(Kinds.Bog, title, "Terry Pratchett", "", "", 1987, "", condition, 1, 0.9, "");
+
+    [Test]
+    public async Task A_duplicate_in_the_box_just_adds_one_and_other_boxes_show_as_we_have_more()
+    {
+        var boxes = new BoxRepository(Factory);
+        var items = new ItemRepository(Factory);
+        var k1 = await boxes.AddNextAsync("", default);
+        var k2 = await boxes.AddNextAsync("", default);
+        var reg = new RegistrationUseCases(items);
+
+        await reg.SaveAsync(k1.Id, null, [F("Mort", "God")]);
+        (await reg.SaveAsync(k1.Id, null, [F("Mort", "Meget god")])).Should().Be((0, 1));   // read a bit differently = same thing
+        await reg.SaveAsync(k2.Id, null, [F("Mort", "God")]);                              // another box = its own row
+
+        var inK1 = (await items.InBoxAsync(k1.Id, default)).Single();
+        inK1.Quantity.Should().Be(2);
+        var others = await new ItemUseCases(items, new PriceRepository(Factory), Mock.Of<IPhotoStore>()).OthersLikeAsync(inK1);
+        others.Single().Box!.Code.Should().Be("K0002");
+    }
+}

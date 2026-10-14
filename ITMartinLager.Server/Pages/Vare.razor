@@ -16,7 +16,16 @@ else
 {
     <section class="k-card">
         <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @_item.Line()</h1>
-        <p>Ligger i <a href="/kasse/@_box"><b>@(_box ?? "ingen kasse")</b></a> · @_item.Quantity stk. · <b>@_item.Status</b>@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
+        <p>Ligger i <a href="/kasse/@_box"><b>@(_box is { } bc ? $"Kasse {BoxNo(bc)} ({bc})" : "ingen kasse")</b></a> · @(_item.Quantity > 1 ? "flere stk." : "1 stk.") · <b>@_item.Status</b>@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
+        @if (_others.Count > 0)
+        {
+            <p class="lg-ok" role="status"><b>Vi har flere:</b>
+                @foreach (var o in _others)
+                {
+                    <a class="k-btn k-btn-sm k-btn-secondary" href="/vare/@o.Id">@(o.Box is { } ob ? $"Kasse {BoxNo(ob.Code)}" : "Uden kasse")@(o.Condition != _item.Condition ? $" · {o.Condition}" : "")</a>
+                }
+            </p>
+        }
         @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
 
         <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
@@ -243,11 +252,15 @@ else
         }
     }
 
+    private List<Item> _others = [];
+    private static int BoxNo(string code) => int.TryParse(code.TrimStart('K'), out var n) ? n : 0;
+
     private async Task Load()
     {
         var view = await Items.GetAsync(Id);
         _item = view?.Item;
         _box = _item?.Box?.Code;
+        _others = _item is null ? [] : await Items.OthersLikeAsync(_item);
         _finds = view?.Finds.Where(f => !f.Similar).ToList() ?? [];
         _gold = _item is null ? null : await Gold.MatchAsync(_item);
         _note = _item is null ? null : ITMartinLager.Domain.Gold.Interesting(await Gold.AllAsync(), _item.Kind, _item.Title, _item.Series, _item.Number, _item.Year, _item.Price ?? _item.PriceHint);
