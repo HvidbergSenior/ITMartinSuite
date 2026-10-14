@@ -9,6 +9,9 @@ public class TeamSettings
 {
     public bool ShowBanners { get; set; } = true;
 
+    // Extra sections Admin has switched on (AppSection keys); empty = only maps + statistics.
+    public List<string> ExtraSections { get; set; } = new();
+
     // Standing map-ban plan: map name -> "ban" (vote to ban it) or "play"
     // (vote to keep it). In ranked 5 maps are offered and every teammate has
     // one vote, so the point is that all five votes go the same way.

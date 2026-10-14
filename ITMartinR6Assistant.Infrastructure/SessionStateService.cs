@@ -120,6 +120,18 @@ public class SessionStateService
         NotifyStateChanged();
     }
 
+    public bool IsSectionOn(string key) => _team.ExtraSections.Contains(key, StringComparer.OrdinalIgnoreCase);
+
+    public void ToggleSection(string key)
+    {
+        lock (_lock)
+        {
+            if (_team.ExtraSections.RemoveAll(k => k.Equals(key, StringComparison.OrdinalIgnoreCase)) == 0) _team.ExtraSections.Add(key);
+            SaveTeamSettings();
+        }
+        NotifyStateChanged();
+    }
+
     public IReadOnlyDictionary<string, string> MapPreferences => _team.MapPreferences;
 
     // Cycle none -> ban -> play -> none.

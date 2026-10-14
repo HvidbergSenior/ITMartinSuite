@@ -18,6 +18,19 @@
         </div>
     </div>
 
+    @* The app shows only maps + statistics (user 2026-10-14); the rest is switched on here, for the whole team. *@
+    <div class="info-box">
+        <div class="info-box-title">Vis i appen</div>
+        <div class="small muted">Kamp, Maps og statistik vises altid. Tryk på en knap for at vise eller skjule resten for hele holdet.</div>
+        <div class="site-chips">
+            @foreach (var (key, label) in AppSection.Extras)
+            {
+                var k = key;
+                <button class="site-chip @(Session.IsSectionOn(k) ? "site-chip-on" : "")" @onclick="() => Session.ToggleSection(k)">@label <span class="muted small">@(Session.IsSectionOn(k) ? "vises" : "skjult")</span></button>
+            }
+        </div>
+    </div>
+
     @if (_gameData is null)
     {
         <div class="admin-loading">Loader data...</div>

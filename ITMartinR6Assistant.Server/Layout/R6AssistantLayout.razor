@@ -39,8 +39,8 @@
                 <nav class="r6-nav" aria-label="Hovedmenu">
                     <NavLink href="/" Match="NavLinkMatch.All">🎮 <span>Kamp</span></NavLink>
                     <NavLink href="/maps">🗺 <span>Maps</span></NavLink>
-                    <NavLink href="/operatorer">👤 <span>Operatører</span></NavLink>
-                    <NavLink href="/vaaben">🔫 <span>Våben</span></NavLink>
+                    @if (Session.IsSectionOn(AppSection.Operators)) { <NavLink href="/operatorer">👤 <span>Operatører</span></NavLink> }
+                    @if (Session.IsSectionOn(AppSection.Weapons)) { <NavLink href="/vaaben">🔫 <span>Våben</span></NavLink> }
                     <NavLink href="/admin">🛠 <span>Admin</span></NavLink>
                 </nav>
             }

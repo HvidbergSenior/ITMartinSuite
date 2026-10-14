@@ -309,55 +309,61 @@
             <div class="muted small">Scriptet læser kun replay-filerne med det åbne værktøj r6-dissect og sender score, drab og operatører. Omkring en tredjedel af runderne i denne sæson kan ikke læses af værktøjet; resultatet passer alligevel.</div>
         </Fold>
 
-        <Fold Key="k-loadouts" Title="Loadouts" Class="specs-card" Open="false">
-            <Loadouts />
-        </Fold>
+        @if (Session.IsSectionOn(AppSection.Loadouts))
+        {
+            <Fold Key="k-loadouts" Title="Loadouts" Class="specs-card" Open="false">
+                <Loadouts />
+            </Fold>
+        }
 
-        <Fold Key="k-pc" Title="PC-tjek og Siege-indstillinger" Class="specs-card" Open="false">
-            @if (string.IsNullOrEmpty(Identity.Name))
-            {
-                <div class="specs-hint">Sæt dit navn (knappen øverst) for at gemme dine specifikationer.</div>
-            }
-            else
-            {
-                @foreach (var field in SpecFields)
+        @if (Session.IsSectionOn(AppSection.PcCheck))
+        {
+            <Fold Key="k-pc" Title="PC-tjek og Siege-indstillinger" Class="specs-card" Open="false">
+                @if (string.IsNullOrEmpty(Identity.Name))
                 {
-                    var value = ResolveSpec(field.Key);
-                    <div class="specs-row">
-                        <div class="specs-label">@field.Label</div>
-                        <textarea class="specs-input" rows="1" placeholder="@(field.Key == "headset_software" ? "Ingen (normalt)" : "Ikke sat - skriv selv")" title="@value"
-                                  @onchange="e => SetManualSpec(field.Key, e.Value?.ToString())">@value</textarea>
-                    </div>
+                    <div class="specs-hint">Sæt dit navn (knappen øverst) for at gemme dine specifikationer.</div>
                 }
-                <div class="specs-actions">
-                    <a class="specs-test-btn" href="/scripts/PreGameCheck.cmd" download>Tjek min PC (dobbeltklik)</a>
-                    <button class="specs-help-btn" @onclick="() => _showHelpForm = !_showHelpForm">Noget virker ikke?</button>
-                </div>
-                @if (_showHelpForm)
+                else
                 {
-                    <div class="specs-help-form">
-                        <textarea class="specs-help-input" placeholder="Fx: min lyd virker ikke, eller: spillet stammer hvert par minutter" @bind="_helpProblem"></textarea>
-                        <button class="specs-help-submit-btn" @onclick="AskForHelp" disabled="@_helpLoading">Spørg</button>
-                        @if (_helpLoading) { <div class="sg-loading"><span class="sg-spinner"></span> Tænker...</div> }
-                        else if (!string.IsNullOrWhiteSpace(_helpAnswer)) { <div class="explain-card" style="white-space:pre-wrap">@_helpAnswer</div> }
-                    </div>
-                }
-            }
-            <div class="quick-panel">
-                <div class="quick-intro">Sieges indstillinger forklaret &ndash; vælg én og få en kort forklaring. Ændrer ikke noget på din PC.</div>
-                <select class="quick-op-select" value="@_selectedSetting?.Key" @onchange="OnSettingSelected">
-                    <option value="">-- vælg indstilling --</option>
-                    @foreach (var group in SettingsGuideService.Settings.GroupBy(s => s.Category))
+                    @foreach (var field in SpecFields)
                     {
-                        <optgroup label="@group.Key">
-                            @foreach (var entry in group) { <option value="@entry.Key">@entry.Name</option> }
-                        </optgroup>
+                        var value = ResolveSpec(field.Key);
+                        <div class="specs-row">
+                            <div class="specs-label">@field.Label</div>
+                            <textarea class="specs-input" rows="1" placeholder="@(field.Key == "headset_software" ? "Ingen (normalt)" : "Ikke sat - skriv selv")" title="@value"
+                                      @onchange="e => SetManualSpec(field.Key, e.Value?.ToString())">@value</textarea>
+                        </div>
                     }
-                </select>
-                @if (_settingLoading) { <div class="sg-loading"><span class="sg-spinner"></span> Genererer forklaring...</div> }
-                else if (!string.IsNullOrWhiteSpace(_settingExplanation)) { <div class="explain-card" style="white-space:pre-wrap">@_settingExplanation</div> }
-            </div>
-        </Fold>
+                    <div class="specs-actions">
+                        <a class="specs-test-btn" href="/scripts/PreGameCheck.cmd" download>Tjek min PC (dobbeltklik)</a>
+                        <button class="specs-help-btn" @onclick="() => _showHelpForm = !_showHelpForm">Noget virker ikke?</button>
+                    </div>
+                    @if (_showHelpForm)
+                    {
+                        <div class="specs-help-form">
+                            <textarea class="specs-help-input" placeholder="Fx: min lyd virker ikke, eller: spillet stammer hvert par minutter" @bind="_helpProblem"></textarea>
+                            <button class="specs-help-submit-btn" @onclick="AskForHelp" disabled="@_helpLoading">Spørg</button>
+                            @if (_helpLoading) { <div class="sg-loading"><span class="sg-spinner"></span> Tænker...</div> }
+                            else if (!string.IsNullOrWhiteSpace(_helpAnswer)) { <div class="explain-card" style="white-space:pre-wrap">@_helpAnswer</div> }
+                        </div>
+                    }
+                }
+                <div class="quick-panel">
+                    <div class="quick-intro">Sieges indstillinger forklaret &ndash; vælg én og få en kort forklaring. Ændrer ikke noget på din PC.</div>
+                    <select class="quick-op-select" value="@_selectedSetting?.Key" @onchange="OnSettingSelected">
+                        <option value="">-- vælg indstilling --</option>
+                        @foreach (var group in SettingsGuideService.Settings.GroupBy(s => s.Category))
+                        {
+                            <optgroup label="@group.Key">
+                                @foreach (var entry in group) { <option value="@entry.Key">@entry.Name</option> }
+                            </optgroup>
+                        }
+                    </select>
+                    @if (_settingLoading) { <div class="sg-loading"><span class="sg-spinner"></span> Genererer forklaring...</div> }
+                    else if (!string.IsNullOrWhiteSpace(_settingExplanation)) { <div class="explain-card" style="white-space:pre-wrap">@_settingExplanation</div> }
+                </div>
+            </Fold>
+        }
     }
 </div>
 
