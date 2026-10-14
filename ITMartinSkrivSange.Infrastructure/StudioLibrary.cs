@@ -137,23 +137,24 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
         return Relative(dest);
     }
 
-    // The browser's webm has no length (players can't show the time or seek) and a laptop mic a metre from a guitar comes in
-    // around -47 dB (2026-10-14: the first takes sounded like nothing). ffmpeg brings it to normal loudness as an mp3 with a
-    // length, which also plays on an iPhone. The webm is only removed when the mp3 is there; without ffmpeg the webm stays.
+    // The browser's webm has no length (players can't show the time or seek) and a mic a metre from a guitar comes in
+    // around -47 dB (2026-10-14: the first takes sounded like nothing). ffmpeg makes it an mp3 with a length (also plays on an
+    // iPhone) and turns the whole take up by ONE fixed amount, so its loudest point lands at -1.5 dB.
+    // Not loudnorm: in one pass that is an automatic volume control, and it pumped the quiet seconds before playing up to
+    // the same level as the guitar - the room's faint hiss became "loud background noise" (user, same day).
+    // The webm is only removed when the mp3 is there; without ffmpeg the webm stays.
+    private const double TargetPeakDb = -1.5, MaxGainDb = 30;
+
     private static async Task<string?> LoudMp3Async(string webm)
     {
         var mp3 = Path.ChangeExtension(webm, ".mp3");
-        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-        foreach (var a in new[] { "-y", "-i", webm, "-vn", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "44100", "-c:a", "libmp3lame", "-q:a", "2", mp3 })
-            psi.ArgumentList.Add(a);
         try
         {
-            using var proc = System.Diagnostics.Process.Start(psi);
-            if (proc is null) return null;
-            _ = proc.StandardOutput.ReadToEndAsync();
-            _ = proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-            if (proc.ExitCode != 0 || !File.Exists(mp3) || new FileInfo(mp3).Length == 0) return null;
+            var (_, measured) = await FfmpegAsync("-hide_banner", "-nostats", "-i", webm, "-vn", "-af", "volumedetect", "-f", "null", "-");
+            var gain = PeakGainDb(measured);
+            var (ok, _) = await FfmpegAsync("-y", "-i", webm, "-vn", "-af", FormattableString.Invariant($"volume={gain:0.0}dB"),
+                "-ar", "44100", "-c:a", "libmp3lame", "-q:a", "2", mp3);
+            if (!ok || !File.Exists(mp3) || new FileInfo(mp3).Length == 0) return null;
             File.Delete(webm);
             return mp3;
         }
@@ -161,6 +162,26 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
         {
             return null;   // ffmpeg missing (local Windows) - keep the webm
         }
+    }
+
+    /// <summary>The fixed gain that puts the take's loudest point at -1.5 dB, from ffmpeg volumedetect's "max_volume: -23.4 dB" (at most +30 dB).</summary>
+    internal static double PeakGainDb(string volumedetectOutput)
+    {
+        var m = Regex.Match(volumedetectOutput, @"max_volume:\s*(-?[\d.]+) dB");
+        if (!m.Success || !double.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var max))
+            return 0;
+        return Math.Clamp(TargetPeakDb - max, 0, MaxGainDb);
+    }
+
+    private static async Task<(bool Ok, string Log)> FfmpegAsync(params string[] args)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+        using var proc = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException("ffmpeg did not start");
+        var stdout = proc.StandardOutput.ReadToEndAsync();
+        var stderr = proc.StandardError.ReadToEndAsync();
+        await proc.WaitForExitAsync();
+        return (proc.ExitCode == 0, await stderr + await stdout);
     }
 
     // Short "hum an idea" clips - deliberately apart from the takes, a sketch must never show up as a take.

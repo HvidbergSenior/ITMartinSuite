@@ -405,3 +405,13 @@ public class FollowOnTests
         song.PartBefore(PartKind.Intro).Should().BeNull();
     }
 }
+
+public class TakeGainTests
+{
+    [TestCase("[Parsed_volumedetect_0 @ 0x55] mean_volume: -46.2 dB\n[Parsed_volumedetect_0 @ 0x55] max_volume: -22.4 dB", 20.9)]
+    [TestCase("max_volume: -0.5 dB", 0)]          // already loud - never turned down
+    [TestCase("max_volume: -60.0 dB", 30)]        // near silence - at most +30 dB
+    [TestCase("no numbers here", 0)]
+    public void One_fixed_gain_puts_the_loudest_point_at_minus_1_5(string log, double gain) =>
+        ITMartinSkrivSange.Infrastructure.StudioLibrary.PeakGainDb(log).Should().BeApproximately(gain, 0.01);
+}
