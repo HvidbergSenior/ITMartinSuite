@@ -142,7 +142,7 @@ app.MapPost("/api/remove/{slug}/{name}", (
 }).DisableAntiforgery();
 
 // Home-screen app for one event: its own name and start page, the camera icon.
-app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, string? token, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
 {
     var c = options.Value.Find(slug) ?? options.Value.Renamed(slug);
     if (c is null || !UploadStore.IsValidSlug(slug)) return Results.NotFound();
@@ -152,7 +152,9 @@ app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, Microsoft.Extensi
     {
         name = $"{name} – billeder",
         short_name = name,
-        start_url = $"/event/{slug}",
+        // A right code is kept in the start page, so the home-screen icon opens the event without "Adgang nægtet";
+        // a wrong or missing one is left out (never echoed back).
+        start_url = $"/event/{slug}" + (!string.IsNullOrEmpty(token) && options.Value.IsAuthorized(slug, token) ? "?token=" + Uri.EscapeDataString(token) : ""),
         scope = $"/event/{slug}",
         display = "standalone",
         background_color = "#121917",

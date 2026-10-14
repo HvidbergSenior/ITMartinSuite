@@ -243,6 +243,24 @@ body.view-only #addonsSection,body.view-only #collectionsSection,body.view-only 
 .v-arrow.right{right:10px}
 .v-counter{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);color:rgba(255,255,255,.6);font-size:12px;padding:4px 10px;border-radius:999px}
 
+/* ── Theme "skuespiller" (Julius, 2026-10-14): a cinema front - dark, warm gold, film strips. Only photos + videos. ── */
+body[data-theme="skuespiller"]{--accent:#e8b04a;--accent-hover:#d49a30;background:radial-gradient(ellipse at 50% -10%,rgba(232,176,74,.20),transparent 60%),#0d0b0a;color:#f4ede2}
+.s-hero{margin:14px 0 10px;border-radius:18px;overflow:hidden;background:linear-gradient(160deg,#1c1612,#0f0c0a);border:1px solid rgba(232,176,74,.35);box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.s-strip{height:18px;background:#000 repeating-linear-gradient(90deg,transparent 0 10px,rgba(244,237,226,.85) 10px 22px,transparent 22px 34px);background-size:34px 8px;background-repeat:repeat-x;background-position:0 5px}
+.s-in{padding:26px 20px 22px;text-align:center}
+.s-kicker{font:800 .8rem/1 system-ui,sans-serif;letter-spacing:.32em;text-transform:uppercase;color:#e8b04a}
+.s-name{margin:10px 0 6px;font:900 clamp(2.6rem,10vw,5rem)/1 Georgia,"Times New Roman",serif;letter-spacing:.04em;color:#fff7e8;text-shadow:0 0 36px rgba(232,176,74,.35)}
+.s-line{margin:0 auto;max-width:46ch;font:italic 1.15rem/1.4 Georgia,serif;color:#f1dcb4}
+.s-count{margin-top:12px;font:700 .85rem system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#cdbba0}
+.s-chips{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}
+.s-chip{border:1px solid rgba(232,176,74,.6);background:transparent;color:#f4ede2;border-radius:999px;padding:8px 16px;font:800 1rem system-ui,sans-serif;cursor:pointer}
+.s-chip.on,.s-chip:hover,.s-chip:focus-visible{background:#e8b04a;color:#1a1208}
+body[data-theme="skuespiller"] .file-card{border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+body[data-theme="skuespiller"] video.file-thumb{width:100%;height:100%;object-fit:cover;display:block}
+body[data-theme="skuespiller"][data-show="pic"] .file-card:has(.vid-overlay){display:none}
+body[data-theme="skuespiller"][data-show="vid"] .file-card:not(:has(.vid-overlay)){display:none}
+body[data-theme="skuespiller"] #fileSectionLabel{display:none}
+
 /* ── Theme "koncert": a stage for the audience songs ─────────────────────── */
 
 /* ── Theme "bedstemor" (HvidbergFamily): "Hej allesammen – det her er Bedstemors billeder".
@@ -682,6 +700,26 @@ function renderBrowse(data, titleOverride) {
     bh.querySelectorAll('.b-chip').forEach(b => b.onclick = () => loadBrowse(b.dataset.rel, b.dataset.name));
     document.getElementById('bPhone').onclick = () => window.kolibri ? window.kolibri.openInstall() : alertPhoneSteps();
   } else if (bh) bh.style.display = 'none';
+  // Theme "skuespiller" (Julius 2026-10-14, user: "only pictures and videos ... a nice UI that shows actor Julius and his life on
+  // Teaterhøjskolen Rødkilde på Møn"): a cinema front with film strip, name, line, counts and Alle/Billeder/Videoer chips.
+  // The chips only hide cards with CSS, so the viewer's file indexes stay right.
+  let sh = document.getElementById('skuespillerHero');
+  if (theme === 'skuespiller') {
+    if (!sh) { sh = document.createElement('div'); sh.id = 'skuespillerHero'; document.getElementById('folderSection').parentNode.insertBefore(sh, document.getElementById('folderSection')); }
+    sh.style.display = atRoot ? '' : 'none';
+    const nVid = files.filter(f => f.isVideo).length, nPic = files.filter(f => !f.isVideo && !f.isAudio && !f.isDoc).length;
+    sh.innerHTML = `<div class="s-hero"><div class="s-strip"></div><div class="s-in">`
+      + `<div class="s-kicker">Skuespiller</div><h1 class="s-name">${esc(headline || galleryDisplayName || 'Skuespiller')}</h1>`
+      + (tagline ? `<p class="s-line">${esc(tagline)}</p>` : '')
+      + `<div class="s-count">${nPic} ${nPic === 1 ? 'billede' : 'billeder'} · ${nVid} ${nVid === 1 ? 'video' : 'videoer'}</div>`
+      + `<div class="s-chips"><button type="button" class="s-chip on" data-show="">Alle</button><button type="button" class="s-chip" data-show="pic">Billeder</button><button type="button" class="s-chip" data-show="vid">Videoer</button></div>`
+      + `</div><div class="s-strip"></div></div>`;
+    document.body.dataset.show = '';
+    sh.querySelectorAll('.s-chip').forEach(b => b.onclick = () => {
+      document.body.dataset.show = b.dataset.show;
+      sh.querySelectorAll('.s-chip').forEach(o => o.classList.toggle('on', o === b));
+    });
+  } else if (sh) sh.style.display = 'none';
   currentHideAddons = !!hideAddons;
   // View-only gallery: no add-ons, no collection rows, no summary hero -
   // just folders and files. Also a body class so CSS can give the root
@@ -737,7 +775,7 @@ function fileSectionLabel(files) {
 function fileCardHtml(f, i) {
   if (f.isVideo) return `
     <div class="file-card" onclick="openViewer(${i})">
-      ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" alt="">` : ''}
+      ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" alt="">` : (document.body.dataset.theme === 'skuespiller' ? `<video class="file-thumb" src="${esc(f.webPath)}#t=0.5" preload="metadata" muted playsinline></video>` : '')}
       <div class="file-overlay vid-overlay">▶</div>
       <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
       ${f.showTitle ? `<div class="file-title">${esc(f.caption || f.name.replace(/.[^.]+$/, ""))}</div>` : ''}

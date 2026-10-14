@@ -13,7 +13,8 @@
 
 <PageTitle>@DisplayName – billeder</PageTitle>
 <HeadContent>
-    <link rel="manifest" href="/event/@Slug/manifest.webmanifest" />
+    @* The code goes into the manifest too, so the installed icon opens WITH its code (user 2026-10-14: installed in Chrome on the PC -> "Adgang nægtet"). *@
+    <link rel="manifest" href="@($"/event/{Slug}/manifest.webmanifest" + (_token.Length > 0 ? "?token=" + Uri.EscapeDataString(_token) : ""))" />
     <link rel="apple-touch-icon" href="/event-icon-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
