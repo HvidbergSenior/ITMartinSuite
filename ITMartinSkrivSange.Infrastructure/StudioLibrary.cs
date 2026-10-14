@@ -145,6 +145,12 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
     // The webm is only removed when the mp3 is there; without ffmpeg the webm stays.
     private const double TargetPeakDb = -1.5, MaxGainDb = 30;
 
+    // After the gain: rumble off below 70 Hz, steady room sound (hum, hiss, fan) reduced, and the pauses turned down 20 dB by
+    // a soft gate - not to silence, so soft notes and a chord's decay stay. Tried on a real QuadCast take 2026-10-14
+    // (user: knob at max, sitting close, still noise): pause -37 -> -48 dB, playing, soft spot and decay unchanged.
+    // Stronger noise reduction took the pause lower but risks a "watery" guitar.
+    private const string CleanUp = "highpass=f=70,afftdn=nr=20:nf=-40:tn=1,agate=threshold=0.035:ratio=4:attack=5:release=400:range=0.1";
+
     private static async Task<string?> LoudMp3Async(string webm)
     {
         var mp3 = Path.ChangeExtension(webm, ".mp3");
@@ -152,7 +158,7 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
         {
             var (_, measured) = await FfmpegAsync("-hide_banner", "-nostats", "-i", webm, "-vn", "-af", "volumedetect", "-f", "null", "-");
             var gain = PeakGainDb(measured);
-            var (ok, _) = await FfmpegAsync("-y", "-i", webm, "-vn", "-af", FormattableString.Invariant($"volume={gain:0.0}dB"),
+            var (ok, _) = await FfmpegAsync("-y", "-i", webm, "-vn", "-af", FormattableString.Invariant($"volume={gain:0.0}dB,{CleanUp}"),
                 "-ar", "44100", "-c:a", "libmp3lame", "-q:a", "2", mp3);
             if (!ok || !File.Exists(mp3) || new FileInfo(mp3).Length == 0) return null;
             File.Delete(webm);
