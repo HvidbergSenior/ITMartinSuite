@@ -1,4 +1,4 @@
-namespace ITMartinSkrivSange.Server.Services;
+namespace ITMartinSkrivSange.Domain.Studio;
 
 // Ported from ITMartinSongCreator (undeployed prototype) directly into
 // MusikStudio's own /songwriter flow, rather than running SongCreator as a

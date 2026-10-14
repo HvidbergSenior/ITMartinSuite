@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- SkrivSange - the domain: songs in six parts (Intro, Vers 1, Vers 2, Bridge, Vers 3, Outro), chord progressions in open
+       grips + capo, and the rules for suggesting them. Also the old Musik Studio draft rules (Studio/). No files, no EF, no HTTP.
+       Restructured from the flat ITMartinSkrivSange.Server 2026-10-14. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinSkrivSange.Tests" />
+  </ItemGroup>
+
+</Project>

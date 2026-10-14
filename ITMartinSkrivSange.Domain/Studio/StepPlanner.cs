@@ -1,6 +1,4 @@
-using ITMartinSkrivSange.Server.Data.Entities;
-
-namespace ITMartinSkrivSange.Server.Services;
+namespace ITMartinSkrivSange.Domain.Studio;
 
 public enum StepStatus { NotStarted, Done, NotNecessary }
 

@@ -1,14 +1,16 @@
 using System.Diagnostics;
 
-namespace ITMartinSkrivSange.Server.Services;
+using ITMartinSkrivSange.Application;
 
-public sealed class StemService
+namespace ITMartinSkrivSange.Infrastructure;
+
+public sealed class DemucsStemSeparator : IStemSeparator
 {
     private readonly string _python;
 
     public bool IsAvailable { get; }
 
-    public StemService()
+    public DemucsStemSeparator()
     {
         _python = DetectPython();
         IsAvailable = _python is not null;
@@ -17,7 +19,6 @@ public sealed class StemService
     public async Task<StemResult> SeparateAsync(
         string inputPath,
         string stemsOutputDir,
-        IProgress<string>? progress = null,
         CancellationToken ct = default)
     {
         Directory.CreateDirectory(stemsOutputDir);
@@ -46,7 +47,6 @@ public sealed class StemService
                 if (!string.IsNullOrWhiteSpace(line))
                 {
                     stderrLines.Add(line.Trim());
-                    progress?.Report(line.Trim());
                 }
             }
         }, ct);
@@ -90,8 +90,7 @@ public sealed class StemService
 
     // Demucs splits into 4 stems, not 2 - drums/bass/other all need mixing
     // together to get a real "everything except vocals" karaoke track, same
-    // ffmpeg amix approach StudioLibraryService.MixdownAsync already uses
-    // elsewhere for a different purpose (vocal+backing overdub mixdown).
+    // ffmpeg amix approach the studio's vocal+backing mixdown uses.
     private static async Task<string?> MixInstrumentalAsync(string stemsDir, CancellationToken ct)
     {
         var parts = new[] { "drums", "bass", "other" }
@@ -146,5 +145,3 @@ public sealed class StemService
         return null!;
     }
 }
-
-public record StemResult(string? Vocals, string? Drums, string? Bass, string? Other, string? Instrumental = null);

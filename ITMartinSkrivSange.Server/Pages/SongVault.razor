@@ -1,243 +1,156 @@
 @page "/vault"
-@rendermode InteractiveServer
-@inject StudioLibraryService Library
-@inject StemService Stems
-@inject ChordDetectionService ChordDetect
+@inject Vault Vault
 @inject IJSRuntime JS
 
-<PageTitle>Song Vault</PageTitle>
+<PageTitle>Song Vault - SkrivSange</PageTitle>
 
-<style>
-    .vault { display: flex; gap: 20px; padding: 16px; font-family: sans-serif; color: #eee; background: #1a1a1a; min-height: 100vh; }
-    .vault-list { width: 260px; flex-shrink: 0; }
-    .vault-list button { display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 4px; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 6px; color: #eee; cursor: pointer; }
-    .vault-list button.active { background: #3a5a8a; border-color: #5a7aca; }
-    .vault-detail { flex: 1; max-width: 720px; }
-    .vault-card { background: #232323; border: 1px solid #3a3a3a; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
-    .vault-card h3 { margin-top: 0; }
-    .vault-card audio { width: 100%; margin-top: 6px; }
-    .vault-card textarea { width: 100%; min-height: 90px; background: #181818; color: #eee; border: 1px solid #3a3a3a; border-radius: 6px; padding: 8px; font-family: monospace; }
-    .vault-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .vault-row input[type=number] { width: 90px; background: #181818; color: #eee; border: 1px solid #3a3a3a; border-radius: 6px; padding: 6px; }
-    .vault-btn { background: #3a5a8a; border: none; border-radius: 6px; color: #fff; padding: 8px 12px; cursor: pointer; }
-    .vault-btn:disabled { opacity: 0.5; cursor: default; }
-    .vault-btn.danger { background: #8a3a3a; }
-    .vault-muted { color: #999; font-size: 0.9em; }
-</style>
-
-<div class="vault">
-    <div class="vault-list">
-        <a href="/sange" style="color:#9ab;display:block;margin-bottom:8px">← Mine sange</a>
-        <h3>Sange</h3>
-        @foreach (var s in _songs)
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">Song Vault</h1>
+    <p class="k-help">Vælg en indspilning fra musikmappen. Så kan du dele den i vokal og instrumental, finde akkorder og tempo, skrive teksten og synge ovenpå instrumentalen.</p>
+    @if (_error is not null) { <p class="k-alert k-alert-warn">@_error</p> }
+    <label class="k-label" for="vault-pick">Indspilning</label>
+    <select id="vault-pick" class="k-input" value="@(_song?.RelativePath ?? "")" @onchange="e => Select(e.Value?.ToString())">
+        <option value="">Vælg en sang ...</option>
+        @foreach (var s in _sources)
         {
-            <button class="@(s.RelativePath == _selectedFile ? "active" : "")" @onclick="() => SelectSong(s.RelativePath)">
-                @s.Title
-            </button>
+            <option value="@s.RelativePath">@s.Title</option>
         }
-    </div>
+    </select>
+    @if (_sources.Count == 0) { <p class="k-muted ss-small">Ingen lyd- eller videofiler fundet i musikmappen.</p> }
+</section>
 
-    @if (_selectedFile is not null)
-    {
-        <div class="vault-detail">
-            <div class="vault-card">
-                <h3>🎧 Original</h3>
-                <audio controls src="/stream?path=@Uri.EscapeDataString(_selectedFile)" preload="metadata" />
-            </div>
+@if (_song is not null)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">Original</h2>
+        <audio controls src="/stream?path=@Uri.EscapeDataString(_song.RelativePath)" preload="metadata" class="ss-audio"></audio>
+    </section>
 
-            <div class="vault-card">
-                <h3>🎤 Vokal / 🎸 Instrumental</h3>
-                @if (_stems is { Vocals: not null })
-                {
-                    <p class="vault-muted">Vokal</p>
-                    <audio controls src="/stream?path=@Uri.EscapeDataString(RelStem("vocals.wav"))" preload="metadata" />
-                }
-                @if (_stems is { Instrumental: not null })
-                {
-                    <p class="vault-muted">Instrumental (trommer+bas+andet)</p>
-                    <audio controls src="/stream?path=@Uri.EscapeDataString(RelStem("instrumental.wav"))" preload="metadata" />
-                }
-                @if (_stems is null)
-                {
-                    <p class="vault-muted">Spor ikke udtrukket endnu.</p>
-                }
-                <button class="vault-btn" @onclick="ExtractStems" disabled="@(_extracting || !Stems.IsAvailable)">
-                    @(_extracting ? "Udtrækker... (kan tage flere minutter)" : _stems is null ? "🎚 Udtræk spor" : "🎚 Udtræk spor igen")
-                </button>
-                @if (!Stems.IsAvailable)
-                {
-                    <p class="vault-muted">Demucs/Python ikke tilgængelig i denne container.</p>
-                }
-            </div>
+    <section class="k-card">
+        <h2 class="k-card-title">Vokal og instrumental</h2>
+        @if (_song.Stems is { Vocals: not null })
+        {
+            <p class="k-label">Vokal</p>
+            <audio controls src="/stream?path=@Uri.EscapeDataString(Vault.StemPath(_song, "vocals.wav"))" preload="metadata" class="ss-audio"></audio>
+        }
+        @if (_song.Stems is { Instrumental: not null })
+        {
+            <p class="k-label k-mt">Instrumental (trommer, bas og resten)</p>
+            <audio controls src="/stream?path=@Uri.EscapeDataString(Vault.StemPath(_song, "instrumental.wav"))" preload="metadata" class="ss-audio"></audio>
+        }
+        @if (_song.Stems is null) { <p class="k-help">Sporene er ikke delt endnu.</p> }
+        @if (Vault.CanSplit)
+        {
+            <button class="k-btn k-mt" @onclick="Split" disabled="@_busy">@(_busy ? "Deler ... (kan tage flere minutter)" : _song.Stems is null ? "Del i vokal og instrumental" : "Del igen")</button>
+        }
+        else
+        {
+            <p class="k-muted ss-small">Opdeling kræver Demucs (Python), som ikke er installeret i denne udgave.</p>
+        }
+    </section>
 
-            <div class="vault-card">
-                <h3>📝 Tekst</h3>
-                <textarea @bind="_lyricsEdit" @bind:event="oninput" @onblur="SaveLyrics" placeholder="Skriv eller ret teksten mens du lytter til vokalen ovenfor..."></textarea>
-            </div>
+    <section class="k-card">
+        <h2 class="k-card-title">Tekst</h2>
+        <p class="k-help">Skriv eller ret teksten mens du lytter. Gemmes når du forlader feltet.</p>
+        <textarea class="k-textarea" rows="6" @bind="_lyrics" @bind:after="SaveMeta"></textarea>
+    </section>
 
-            <div class="vault-card">
-                <h3>🎼 Akkorder</h3>
-                <textarea @bind="_chordsEdit" @bind:event="oninput" @onblur="SaveChords"></textarea>
-                <button class="vault-btn" @onclick="DetectChords" disabled="@(_detectingChords || !ChordDetect.IsAvailable)">
-                    @(_detectingChords ? "Genkender..." : "🎼 Genkend akkorder")
-                </button>
+    <section class="k-card">
+        <h2 class="k-card-title">Akkorder og tempo</h2>
+        <label class="k-label" for="vault-chords">Akkorder (mm:ss akkord pr. linje)</label>
+        <textarea id="vault-chords" class="k-textarea ss-mono" rows="6" @bind="_chords" @bind:after="SaveMeta"></textarea>
+        <label class="k-label k-mt" for="vault-bpm">Tempo (BPM)</label>
+        <input id="vault-bpm" class="k-input ss-bpm" type="number" @bind="_tempo" @bind:after="SaveMeta" />
+        @if (Vault.CanDetect)
+        {
+            <div class="ss-row k-mt">
+                <button class="k-btn" @onclick="DetectChords" disabled="@_busy">Find akkorder</button>
+                <button class="k-btn" @onclick="DetectTempo" disabled="@_busy">Find tempo</button>
             </div>
+        }
+        else
+        {
+            <p class="k-muted ss-small">At finde akkorder og tempo kræver librosa (Python), som ikke er installeret i denne udgave.</p>
+        }
+    </section>
 
-            <div class="vault-card">
-                <h3>🥁 Tempo (BPM)</h3>
-                <div class="vault-row">
-                    <input type="number" @bind="_tempoEdit" @bind:event="oninput" @onblur="SaveTempo" />
-                    <button class="vault-btn" @onclick="DetectTempo" disabled="@(_detectingTempo || !ChordDetect.IsAvailable)">
-                        @(_detectingTempo ? "Måler..." : "🥁 Find tempo")
-                    </button>
-                </div>
-            </div>
-
-            <div class="vault-card">
-                <h3>🎙 Optag</h3>
-                <p class="vault-muted">Optager mens instrumentalen (eller originalen) spiller.</p>
-                @if (!_recording)
-                {
-                    <button class="vault-btn" @onclick="StartRecording">🎙 Start optagelse</button>
-                }
-                else
-                {
-                    <button class="vault-btn danger" @onclick="StopRecording">⏹ Stop optagelse</button>
-                }
-                @foreach (var r in _recordings)
-                {
-                    <div style="margin-top:8px">
-                        <p class="vault-muted">@r.CreatedAt.ToLocalTime()</p>
-                        <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" />
-                    </div>
-                }
-            </div>
-        </div>
-    }
-</div>
+    <section class="k-card">
+        <h2 class="k-card-title">Optag dig selv (@_song.Recordings.Count)</h2>
+        <p class="k-help">Optager mikrofonen, mens instrumentalen (eller originalen) spiller.</p>
+        @if (!_recording)
+        {
+            <button class="k-btn k-btn-primary" @onclick="StartRecording">Start optagelse</button>
+        }
+        else
+        {
+            <button class="k-btn k-btn-danger" @onclick="StopRecording">Stop optagelse</button>
+        }
+        @foreach (var r in _song.Recordings)
+        {
+            <p class="k-muted ss-small k-mt">@r.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")</p>
+            <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" class="ss-audio"></audio>
+        }
+    </section>
+}
 
 @code {
-    private List<SourceFile> _songs = [];
-    private string? _selectedFile;
-    private string _songKey = "";
-    private SongMeta _meta = new();
-    private StemResult? _stems;
-    private List<RecordingFile> _recordings = [];
-
-    private string _lyricsEdit = "";
-    private string _chordsEdit = "";
-    private double? _tempoEdit;
-
-    private bool _extracting;
-    private bool _detectingChords;
-    private bool _detectingTempo;
+    private List<SourceFile> _sources = [];
+    private VaultSong? _song;
+    private string _lyrics = "";
+    private string _chords = "";
+    private double? _tempo;
+    private bool _busy;
     private bool _recording;
+    private string? _error;
 
-    protected override void OnInitialized()
-    {
-        _songs = Library.GetSourceFiles();
-    }
+    protected override void OnInitialized() => _sources = Vault.Sources();
 
-    private void SelectSong(string relativePath)
+    private void Select(string? relativePath)
     {
-        _selectedFile = relativePath;
-        _songKey = Library.SafeKey(relativePath);
-        _meta = Library.LoadMeta(_songKey);
-        _lyricsEdit = _meta.Lyrics;
-        _chordsEdit = _meta.Chords;
-        _tempoEdit = _meta.Tempo;
-        _stems = Library.GetExistingStems(_songKey);
-        _recordings = Library.GetRecordings(_songKey);
+        _error = null;
         _recording = false;
+        _song = string.IsNullOrEmpty(relativePath) ? null : Vault.Open(relativePath);
+        if (_song is null) return;
+        (_lyrics, _chords, _tempo) = (_song.Meta.Lyrics, _song.Meta.Chords, _song.Meta.Tempo);
     }
 
-    private string RelStem(string fileName) => $"stems/{_songKey}/{fileName}";
-
-    private string FullSourcePath => Path.Combine(Library.Root, _selectedFile!);
-
-    private async Task ExtractStems()
+    private void SaveMeta()
     {
-        if (_selectedFile is null) return;
-        _extracting = true;
+        if (_song is null) return;
+        Vault.SaveMeta(_song, new SongMeta(_lyrics, _chords, _tempo));
+    }
+
+    private async Task Busy(Func<VaultSong, Task> work)
+    {
+        if (_song is null) return;
+        _busy = true;
+        _error = null;
         StateHasChanged();
-        try
-        {
-            var dir = Path.Combine(Library.StemsDir, _songKey);
-            await Stems.SeparateAsync(FullSourcePath, dir);
-            _stems = Library.GetExistingStems(_songKey);
-        }
-        finally
-        {
-            _extracting = false;
-        }
+        try { await work(_song); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
     }
 
-    private async Task DetectChords()
-    {
-        if (_selectedFile is null) return;
-        _detectingChords = true;
-        StateHasChanged();
-        try
-        {
-            var segments = await ChordDetect.DetectAsync(FullSourcePath);
-            _chordsEdit = ChordDetectionService.FormatAsChordChart(segments);
-            SaveChords();
-        }
-        finally
-        {
-            _detectingChords = false;
-        }
-    }
+    private Task Split() => Busy(async s => _song = s with { Stems = await Vault.SplitAsync(s) });
 
-    private async Task DetectTempo()
-    {
-        if (_selectedFile is null) return;
-        _detectingTempo = true;
-        StateHasChanged();
-        try
-        {
-            _tempoEdit = await ChordDetect.DetectTempoAsync(FullSourcePath);
-            SaveTempo();
-        }
-        finally
-        {
-            _detectingTempo = false;
-        }
-    }
+    private Task DetectChords() => Busy(async s => { _chords = await Vault.DetectChordsAsync(s); SaveMeta(); });
 
-    private void SaveLyrics()
-    {
-        _meta = _meta with { Lyrics = _lyricsEdit };
-        Library.SaveMeta(_songKey, _meta);
-    }
-
-    private void SaveChords()
-    {
-        _meta = _meta with { Chords = _chordsEdit };
-        Library.SaveMeta(_songKey, _meta);
-    }
-
-    private void SaveTempo()
-    {
-        _meta = _meta with { Tempo = _tempoEdit };
-        Library.SaveMeta(_songKey, _meta);
-    }
+    private Task DetectTempo() => Busy(async s => { _tempo = await Vault.DetectTempoAsync(s); SaveMeta(); });
 
     private async Task StartRecording()
     {
+        if (_song is null) return;
         _recording = true;
-        var playUrl = _stems?.Instrumental is not null
-            ? $"/stream?path={Uri.EscapeDataString(RelStem("instrumental.wav"))}"
-            : $"/stream?path={Uri.EscapeDataString(_selectedFile!)}";
-        await JS.InvokeVoidAsync("studio.startOverdub", _songKey, playUrl, false, 0);
+        var playPath = _song.Stems?.Instrumental is not null ? Vault.StemPath(_song, "instrumental.wav") : _song.RelativePath;
+        await JS.InvokeVoidAsync("studio.startOverdub", _song.Key, $"/stream?path={Uri.EscapeDataString(playPath)}", false, 0);
     }
 
     private async Task StopRecording()
     {
+        if (_song is null) return;
         _recording = false;
         await JS.InvokeVoidAsync("studio.stopRecording");
         await Task.Delay(800);
-        _recordings = Library.GetRecordings(_songKey);
-        StateHasChanged();
+        _song = _song with { Recordings = Vault.Recordings(_song) };
     }
 }

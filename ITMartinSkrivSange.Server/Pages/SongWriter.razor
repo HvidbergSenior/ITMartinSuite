@@ -1,23 +1,19 @@
 @page "/skriv"
 @page "/skriv/{SongKey}"
-@rendermode InteractiveServer
 @implements IDisposable
-@inject StudioDbContext Db
-@inject StudioLibraryService Library
+@inject Drafts Drafts
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject IConfiguration Config
-@using Microsoft.EntityFrameworkCore
 
-<PageTitle>@(_song?.Title ?? "Skriv sang") — SkrivSange</PageTitle>
+<PageTitle>@(_song?.Title ?? "Gammelt udkast") - SkrivSange</PageTitle>
 
 <div class="sw-page">
 
-    <div class="sw-header">
-        <a href="/sange" class="topbar-back">← Mine sange</a>
-        <h1 class="sw-title">🎸 Skriv en sang</h1>
-        <p class="sw-sub">Fra ingenting til en hjemmelavet sang — vælg, skriv, nyn</p>
-    </div>
+    <section class="k-card" data-nofold>
+        <h1 class="k-card-title">@(_song?.Title ?? "Gammelt udkast")</h1>
+        <p class="k-help">Den gamle guide til udkast i Musik Studio: akkordrække, spillemønster, tempo, idé-optagelse og tekst. Nye sange skriver du del for del under <a class="k-btn k-btn-sm" href="/sange">Mine sange</a>.</p>
+    </section>
 
     <!-- Title first, low friction - creates the draft song as soon as it's
          given, so the checklist/sketch-recorder/lyrics box below have a real
@@ -39,14 +35,14 @@
         @if (StepPlanner.NextStep(_steps) is { } next)
         {
             <div class="next-step-banner">
-                <span>👉 Næste: <strong>@next.Label</strong></span>
+                <span>Næste: <strong>@next.Label</strong></span>
                 <button class="btn-primary" @onclick="() => NavigateToStep(next)">Gå dertil →</button>
             </div>
         }
         else
         {
             <div class="next-step-banner next-step-banner--ready">
-                ✓ Klar — @if (!string.IsNullOrWhiteSpace(StudioUrl)) { <a href="@StudioUrl" target="_blank" rel="noopener">åbn Musik Studio ↗</a><text> og øv videre</text> } else { <text>øv videre i Musik Studio</text> }
+                ✓ Klar - @if (!string.IsNullOrWhiteSpace(StudioUrl)) { <a href="@StudioUrl" target="_blank" rel="noopener">åbn Musik Studio ↗</a><text> og øv videre</text> } else { <text>øv videre i Musik Studio</text> }
             </div>
         }
         <StepChecklist Steps="_steps" OnToggle="ToggleStep" OnNavigate="NavigateToStep" />
@@ -118,27 +114,27 @@
         @if (_chosenBpm.HasValue)
         {
             <div class="sw-section" id="sw-sketch">
-                <div class="sw-step-label">🎤 Idé-optagelse (valgfrit)</div>
-                <p style="font-size:13px;color:var(--muted);margin:0">Nyn 4 linjer, spil sammen — download og læg ind i Suno for inspiration.</p>
+                <div class="sw-step-label">Idé-optagelse (valgfrit)</div>
+                <p style="font-size:13px;color:var(--muted);margin:0">Nyn 4 linjer, spil sammen - download og læg ind i Suno for inspiration.</p>
                 @if (!_sketchRecording)
                 {
-                    <button class="btn-primary" style="width:fit-content" @onclick="StartSketch">⏺ Optag idé</button>
+                    <button class="btn-primary" style="width:fit-content" @onclick="StartSketch">Optag idé</button>
                 }
                 else
                 {
-                    <button class="btn-primary" style="width:fit-content;background:var(--red)" @onclick="StopSketch">⏹ Stop (@FormatTime(_sketchTimer))</button>
+                    <button class="btn-primary" style="width:fit-content;background:var(--red)" @onclick="StopSketch">Stop (@FormatTime(_sketchTimer))</button>
                 }
                 @foreach (var sk in _sketches)
                 {
                     <div class="rec-item">
                         <div class="rec-item-info">
-                            <span class="rec-item-name">🎤 @sk.Name</span>
+                            <span class="rec-item-name">@sk.Name</span>
                             <span class="rec-item-date">@sk.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
                         </div>
-                        <audio controls src="/stream?path=@Uri.EscapeDataString(sk.RelativePath)" class="rec-player" />
+                        <audio controls src="/stream?path=@Uri.EscapeDataString(sk.RelativePath)" class="rec-player"></audio>
                         <div class="rec-item-actions">
-                            <a class="btn-ghost-sm" href="/download?path=@Uri.EscapeDataString(sk.RelativePath)">⬇ Download</a>
-                            <button class="btn-delete-sm" @onclick="() => DeleteSketch(sk)">🗑</button>
+                            <a class="btn-ghost-sm" href="/download?path=@Uri.EscapeDataString(sk.RelativePath)">Download</a>
+                            <button class="btn-delete-sm" @onclick="() => DeleteSketch(sk)">Slet</button>
                         </div>
                     </div>
                 }
@@ -185,7 +181,7 @@
              once the song later gets a source file and graduates to Indøv
              sang, this text is already sitting in Forbered's Tekst card. -->
         <div class="sw-section" id="sw-lyrics">
-            <div class="sw-step-label">✍️ Tekstudkast (valgfrit)</div>
+            <div class="sw-step-label">Tekstudkast (valgfrit)</div>
             <textarea class="sw-input" style="min-height:140px" placeholder="Skriv løse linjer, et vers, hvad som helst..."
                       value="@_lyricsDraft" @onchange="OnLyricsChanged"></textarea>
         </div>
@@ -248,7 +244,7 @@
     // - re-evaluates automatically if the user goes back and picks a
     // different progression before reaching this step.
     private List<MelodyIdea> _melodyIdeas =>
-        _chosenProg is null ? [] : ITMartinSkrivSange.Server.Services.MelodyIdeas.GetIdeas(_chosenProg.Chords);
+        _chosenProg is null ? [] : MelodyIdeas.GetIdeas(_chosenProg.Chords);
 
     private List<SongStep> _steps =>
         _song is null ? [] : StepPlanner.GetSteps(_song, _sketches.Count > 0);
@@ -261,7 +257,7 @@
     protected override async Task OnInitializedAsync()
     {
         if (string.IsNullOrWhiteSpace(SongKey)) return;
-        _song = await Db.Songs.FirstOrDefaultAsync(s => s.Key == SongKey);
+        _song = await Drafts.GetAsync(SongKey);
         if (_song is null) return;
         _title = _song.Title;
         _lyricsDraft = _song.Lyrics;
@@ -270,16 +266,7 @@
         var firstChords = _song.ChordChart.Split('\n')[0];
         _chosenProg = _progressions.FirstOrDefault(p => p.Chords.All(c => firstChords.Contains(c)));
         _chosenStructure = _structures.FirstOrDefault(s => _song.Notes.Contains($"Sangstruktur: {s.Name}"));
-        _sketches = Library.GetSketches(_song.Key);
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-        string? ok;
-        try { ok = await JS.InvokeAsync<string?>("localStorage.getItem", "skrivsange_auth"); }
-        catch { return; }
-        if (ok != "1") { Nav.NavigateTo("/", forceLoad: true); }
+        _sketches = Drafts.Sketches(_song.Key);
     }
 
     private async Task OnTitleChanged(ChangeEventArgs e)
@@ -289,14 +276,9 @@
 
         if (_song is null)
         {
-            var baseKey = Library.SafeKey(_title);
-            var existingKeys = await Db.Songs.Select(s => s.Key).ToListAsync();
-            var key = existingKeys.Contains(baseKey) ? baseKey + "_" + Guid.NewGuid().ToString("N")[..4] : baseKey;
-            _song = new StudioSong { Key = key, Title = _title.Trim() };
-            Db.Songs.Add(_song);
-            await Db.SaveChangesAsync();
-            _sketches = Library.GetSketches(_song.Key);
-            Nav.NavigateTo("/skriv/" + Uri.EscapeDataString(key), replace: true);
+            _song = await Drafts.CreateAsync(_title);
+            _sketches = Drafts.Sketches(_song.Key);
+            Nav.NavigateTo("/skriv/" + Uri.EscapeDataString(_song.Key), replace: true);
         }
         else
         {
@@ -343,12 +325,12 @@
             var steps = SongStructures.GeneratePracticeSteps(_chosenProg.Chords, _chosenStructure);
             _song.ChordChart = string.Join("\n", steps.Select(s => $"{s.Section}: {string.Join(" ", s.Chords)}"));
 
-            var notesLines = new List<string> { $"🎵 Sangstruktur: {_chosenStructure.Name}", "" };
+            var notesLines = new List<string> { $"Sangstruktur: {_chosenStructure.Name}", "" };
             notesLines.AddRange(steps.Where(s => s.Note is not null).Select(s => $"{s.Section}: {s.Note}"));
             if (_chosenMelodyIdeas.Count > 0)
             {
                 notesLines.Add("");
-                notesLines.Add("💡 Melodi-idéer:");
+                notesLines.Add("Melodi-idéer:");
                 notesLines.AddRange(_chosenMelodyIdeas.Select(i => $"- {i.Title}: {i.Description}"));
             }
             _song.Notes = string.Join("\n", notesLines);
@@ -418,13 +400,13 @@
         _sketchRecording = false;
         await JS.InvokeVoidAsync("studio.stopSketch");
         await Task.Delay(500);
-        if (_song is not null) _sketches = Library.GetSketches(_song.Key);
+        if (_song is not null) _sketches = Drafts.Sketches(_song.Key);
     }
 
     private void DeleteSketch(SketchFile sk)
     {
-        if (!Library.DeleteRecording(sk.RelativePath) || _song is null) return;
-        _sketches = Library.GetSketches(_song.Key);
+        if (!Drafts.DeleteSketch(sk) || _song is null) return;
+        _sketches = Drafts.Sketches(_song.Key);
     }
 
     // ── Auto-save ──────────────────────────────────────────────────────────────
@@ -439,8 +421,7 @@
         _saveTimer.Elapsed += async (_, _) =>
         {
             if (_disposed) return;
-            _song.UpdatedAt = DateTime.UtcNow;
-            try { await Db.SaveChangesAsync(); } catch { return; }
+            try { await InvokeAsync(() => Drafts.SaveAsync(_song)); } catch { return; }
             if (_disposed) return;
             await InvokeAsync(StateHasChanged);
         };

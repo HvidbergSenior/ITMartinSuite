@@ -1,9 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
 
-namespace ITMartinSkrivSange.Server.Services;
+using ITMartinSkrivSange.Application;
+using ITMartinSkrivSange.Domain.Studio;
 
-public record ChordSegment(double StartSeconds, double EndSeconds, string Chord);
+namespace ITMartinSkrivSange.Infrastructure;
 
 // Detects chords by actually listening to an audio file - the one real gap
 // ChordAiService can't cover (it only recalls known songs by name/lyrics, or
@@ -13,13 +14,13 @@ public record ChordSegment(double StartSeconds, double EndSeconds, string Chord)
 // because autochord's native `vamp` dependency needs a C++ compiler that
 // isn't installed here - librosa ships prebuilt wheels, no compiler needed.
 // Lower accuracy than a trained model, but a real, working starting point.
-public sealed class ChordDetectionService
+public sealed class LibrosaChordDetector : IChordDetector
 {
     private readonly string _python;
 
     public bool IsAvailable { get; }
 
-    public ChordDetectionService()
+    public LibrosaChordDetector()
     {
         _python = DetectPython();
         IsAvailable = _python is not null;
@@ -93,13 +94,6 @@ public sealed class ChordDetectionService
         if __name__ == '__main__':
             main(sys.argv[1])
         """;
-
-    // Renders detected segments as a readable, editable chord-chart block
-    // (mm:ss timestamp per chord change) - same textarea format the rest of
-    // the app already uses for chord charts, so the result drops straight in.
-    public static string FormatAsChordChart(List<ChordSegment> segments) =>
-        string.Join("\n", segments.Select(s =>
-            $"{TimeSpan.FromSeconds(s.StartSeconds):mm\\:ss} {s.Chord}"));
 
     private const string PythonScript = """
         import sys, json

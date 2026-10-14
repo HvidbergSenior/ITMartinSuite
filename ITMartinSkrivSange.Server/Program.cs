@@ -1,200 +1,92 @@
-using ITMartinSkrivSange.Server.Data;
-using ITMartinSkrivSange.Server.Services;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
+using ITMartin.Shared.UI.Kolibri;
+using ITMartinSkrivSange.Application;
+using ITMartinSkrivSange.Infrastructure;
+using ITMartinSkrivSange.Server;
+using Microsoft.AspNetCore.Mvc;
 
+// SkrivSange - write your own songs (split out of Musik Studio 2026-09-15; DDD/Clean 2026-10-14).
+// Layers: Domain (songs, chords, capo, suggestions) / Application (use cases + ports) / Infrastructure (skrivsange.db,
+// the studio's studio.db, the music folder, ffmpeg/Demucs/librosa) / this Server.
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
+
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "SkrivSange";
+    k.KolibriName = "Kolibri Tunge";
+    k.Family = "tunge";
+    k.Tagline = "Skriv din egen sang - del for del, med greb du kan spille.";
+    k.About =
+    [
+        "SkrivSange hjælper dig med at skrive en sang på guitar: Intro, Vers 1, Vers 2, Bridge, Vers 3 og Outro.",
+        "Hver del får en akkordrække i åbne greb (C, G, D, Am, Em ...). Capoen flytter tonearten, så grebene er de samme.",
+        "Du kan høre akkorderne spillet med et enkelt anslag, og du skriver tekstnoter til hver del undervejs.",
+    ];
+    k.HowTo =
+    [
+        "Tryk Ny sang og giv den en titel.",
+        "Vælg stemning, og tryk Foreslå på Vers 1 - eller vælg selv en akkordrække.",
+        "Tryk Foreslå på de andre dele: versene bliver ens, broen bliver anderledes, intro og outro vokser ud af verset.",
+        "Tryk Spil for at høre en del. Skriv tekstnoter i feltet under akkorderne - det gemmes af sig selv.",
+    ];
+    k.Version = "2026.10";
+});
+
+builder.Services.AddSkrivSangeInfrastructure(builder.Configuration);
+builder.Services.AddSkrivSangeApplication();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
-    .AddHubOptions(o => o.MaximumReceiveMessageSize = 30 * 1024 * 1024);
-
-builder.Services.AddDbContext<StudioDbContext>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("StudioDb")
-        ?? "Data Source=/app/data/studio.db"));
-
-builder.Services.AddHttpClient("fal");
-builder.Services.AddScoped<StudioLibraryService>();
-builder.Services.AddSingleton<StemService>();
-builder.Services.AddSingleton<ChordDetectionService>();
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 1024 * 1024);
 
 var app = builder.Build();
+app.Services.UpgradeSkrivSangeDatabases();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
-    db.Database.EnsureCreated();
-    // Shared with the studio over SMB - WAL is unsafe there, see the studio's Program.cs.
-    try { db.Database.ExecuteSqlRaw("PRAGMA journal_mode=DELETE"); } catch { }
-    // Add columns introduced after initial schema — safe to re-run (SQLite ignores duplicate column errors)
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN FingerpickPattern TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN StrumPattern TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN Artist TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackId TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackLabel TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SyncedLyrics TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SkippedSteps TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN CoverImagePath TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SectionTimings TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN LineBeats TEXT NULL"); } catch { }
-
-}
-
-if (!app.Environment.IsDevelopment())
-    app.UseExceptionHandler("/Error");
-
+app.MapKolibri();
+if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
 app.UseStaticFiles();
+
+// The studio's code (StudioSettings__AccessCode in magic.env). Checked on the server - the cookie holds a hash, not the code.
+var code = (app.Configuration["StudioSettings:AccessCode"] ?? "").Trim();
+var token = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("skrivsange:" + code.ToLowerInvariant())));
+bool LoggedIn(HttpContext ctx) => code.Length > 0 && ctx.Request.Cookies["skrivsange_auth"] == token;
+
+app.Use(async (ctx, next) =>
+{
+    var p = ctx.Request.Path.Value ?? "";
+    var open = p == "/" || p.StartsWith("/api/login") || p.StartsWith("/_framework") || p.StartsWith("/_content")
+            || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
+            || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.StartsWith("/Error")
+            || p.EndsWith(".css") || p.EndsWith(".js") || p.EndsWith(".svg") || p.EndsWith(".png");
+    if (p == "/" && LoggedIn(ctx)) { ctx.Response.Redirect("/sange"); return; }
+    if (open || LoggedIn(ctx)) { await next(); return; }
+    if (p.StartsWith("/_blazor") || p.StartsWith("/api/") || p.StartsWith("/stream") || p.StartsWith("/download"))
+    {
+        ctx.Response.StatusCode = 401;
+        return;
+    }
+    ctx.Response.Redirect("/");
+});
+
+app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "kode")] string typed) =>
+{
+    if (code.Length == 0 || !string.Equals(typed.Trim(), code, StringComparison.OrdinalIgnoreCase)) return Results.Redirect("/?fejl=1");
+    ctx.Response.Cookies.Append("skrivsange_auth", token, new CookieOptions
+    {
+        HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365)
+    });
+    return Results.Redirect("/sange");
+}).DisableAntiforgery();
+
+app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("skrivsange_auth"); return Results.Redirect("/"); });
+
+app.MapMusicFiles();
+
 app.UseAntiforgery();
-
-var musikRoot = app.Configuration["MusicSettings:Root"] ?? "/musik";
-
-app.MapGet("/stream", (string path, HttpContext ctx) =>
-{
-    var full = Path.GetFullPath(Path.Combine(musikRoot, path));
-    if (!full.StartsWith(musikRoot, StringComparison.OrdinalIgnoreCase))
-        return Results.BadRequest();
-    if (!File.Exists(full))
-        return Results.NotFound();
-
-    var isAudioOnlyTake = Path.GetFileNameWithoutExtension(full).StartsWith("take-", StringComparison.OrdinalIgnoreCase);
-    var mime = Path.GetExtension(full).ToLowerInvariant() switch
-    {
-        ".mp3"  => "audio/mpeg",
-        ".m4a"  => "audio/mp4",
-        ".wav"  => "audio/wav",
-        ".ogg"  => "audio/ogg",
-        ".flac" => "audio/flac",
-        ".aac"  => "audio/aac",
-        ".mp4"  => "video/mp4",
-        ".mov"  => "video/quicktime",
-        ".webm" => isAudioOnlyTake ? "audio/webm" : "video/webm",
-        ".jpg"  => "image/jpeg",
-        ".jpeg" => "image/jpeg",
-        ".png"  => "image/png",
-        ".webp" => "image/webp",
-        _       => "application/octet-stream"
-    };
-
-    return Results.File(full, mime, enableRangeProcessing: true);
-});
-
-// Save a recording take to /musik/recordings/{songKey}/take-{timestamp}.webm
-// Optionally promote to /musik/myversions/{songKey}.webm
-app.MapPost("/api/recording/{songKey}", async (string songKey, HttpRequest req, IConfiguration cfg) =>
-{
-    // Kestrel's default 30MB request body cap was silently truncating longer
-    // video takes mid-upload - the partial file still landed on disk and
-    // showed up in the takes list, but was corrupt and wouldn't play. Raise
-    // it well past what a single take can realistically reach.
-    var sizeFeature = req.HttpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
-    if (sizeFeature is { IsReadOnly: false }) sizeFeature.MaxRequestBodySize = 500 * 1024 * 1024;
-
-    var root = cfg["MusicSettings:Root"] ?? "/musik";
-    var dir = Path.Combine(root, "recordings", songKey);
-    Directory.CreateDirectory(dir);
-
-    var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-    var prefix = req.ContentType?.Contains("video") == true ? "vtake" : "take";
-
-    // Optional "record one section at a time" tag (see the Optag tab's
-    // section picker) - embedded straight into the filename rather than a
-    // side-table, same idiom as the take-/vtake-/aitake-/mixtake- prefixes
-    // GetRecordings() already parses back out.
-    var section = req.Query["section"].ToString();
-    var sectionTag = string.IsNullOrWhiteSpace(section)
-        ? ""
-        : "-" + new string(section.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
-
-    var dest = Path.Combine(dir, $"{prefix}{sectionTag}-{timestamp}.webm");
-
-    try
-    {
-        await using (var stream = File.Create(dest))
-        {
-            await req.Body.CopyToAsync(stream);
-        }
-    }
-    catch
-    {
-        // Don't leave a truncated, unplayable file behind that would still
-        // show up as a take in the list.
-        if (File.Exists(dest)) File.Delete(dest);
-        throw;
-    }
-
-    var rel = Path.GetRelativePath(root, dest).Replace('\\', '/');
-    return Results.Ok(new { path = rel, filename = Path.GetFileName(dest) });
-});
-
-// Promote a take to myversions (publish to public app)
-// Delete a recording take
-app.MapDelete("/api/recording", (string path, IConfiguration cfg) =>
-{
-    var root = cfg["MusicSettings:Root"] ?? "/musik";
-    var full = Path.GetFullPath(Path.Combine(root, path));
-    if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return Results.BadRequest();
-    if (File.Exists(full)) File.Delete(full);
-    return Results.Ok();
-});
-
-// Save a short "hum an idea" sketch clip for the Skriv sang flow - parallel
-// to /api/recording but a distinct, much smaller-scoped concept: not a take,
-// never mixed into the take list, just a quick scratch clip meant to be
-// downloaded and handed to Suno externally. No 500MB body-size override like
-// /api/recording needs - sketches are seconds long.
-app.MapPost("/api/sketch/{songKey}", async (string songKey, HttpRequest req, IConfiguration cfg) =>
-{
-    var root = cfg["MusicSettings:Root"] ?? "/musik";
-    var dir = Path.Combine(root, "sketches", songKey);
-    Directory.CreateDirectory(dir);
-    var ext = req.ContentType?.Contains("webm") == true ? ".webm" : ".ogg";
-    var dest = Path.Combine(dir, $"sketch-{DateTime.UtcNow:yyyyMMdd-HHmmss}{ext}");
-    try
-    {
-        await using var stream = File.Create(dest);
-        await req.Body.CopyToAsync(stream);
-    }
-    catch
-    {
-        if (File.Exists(dest)) File.Delete(dest);
-        throw;
-    }
-    var rel = Path.GetRelativePath(root, dest).Replace('\\', '/');
-    return Results.Ok(new { path = rel });
-});
-
-// Delete a sketch - same path-under-root convention as /api/recording DELETE
-app.MapDelete("/api/sketch", (string path, IConfiguration cfg) =>
-{
-    var root = cfg["MusicSettings:Root"] ?? "/musik";
-    var full = Path.GetFullPath(Path.Combine(root, path));
-    if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return Results.BadRequest();
-    if (File.Exists(full)) File.Delete(full);
-    return Results.Ok();
-});
-
-// Forces a browser download instead of inline playback - /stream never sets
-// Content-Disposition: attachment, so there was previously no way to get a
-// file out of this app onto the user's own machine (needed to hand a sketch
-// clip to Suno).
-app.MapGet("/download", (string path, IConfiguration cfg) =>
-{
-    var root = cfg["MusicSettings:Root"] ?? "/musik";
-    var full = Path.GetFullPath(Path.Combine(root, path));
-    if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return Results.BadRequest();
-    if (!File.Exists(full)) return Results.NotFound();
-    var mime = Path.GetExtension(full).ToLowerInvariant() switch
-    {
-        ".webm" => "audio/webm",
-        ".ogg"  => "audio/ogg",
-        ".mp3"  => "audio/mpeg",
-        _       => "application/octet-stream"
-    };
-    return Results.File(full, mime, fileDownloadName: Path.GetFileName(full));
-});
-
-// ── Spotify ───────────────────────────────────────────────────────────────
-app.MapRazorComponents<ITMartinSkrivSange.Server.App>()
+app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();
-

@@ -1,4 +1,4 @@
-namespace ITMartinSkrivSange.Server.Data.Entities;
+namespace ITMartinSkrivSange.Domain.Studio;
 
 public class StudioSong
 {

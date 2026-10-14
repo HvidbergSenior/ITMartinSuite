@@ -1,0 +1,323 @@
+@page "/sang/{Id:guid}"
+@implements IAsyncDisposable
+@inject SongWriting Writing
+@inject IJSRuntime JS
+
+<PageTitle>@(_song?.Title ?? "Sang") - SkrivSange</PageTitle>
+
+@if (_song is null)
+{
+    <section class="k-card" data-nofold>
+        <h1 class="k-card-title">@(_loaded ? "Sangen findes ikke" : "Henter ...")</h1>
+        @if (_loaded) { <a class="k-btn k-btn-primary" href="/sange">Til Mine sange</a> }
+    </section>
+}
+else
+{
+    <section class="k-card ss-top" data-nofold>
+        <h1 class="k-card-title">@_song.Title</h1>
+        <p class="ss-summary">@_song.Summary()</p>
+        <p class="k-help">Seks dele: tryk <b>Foreslå</b> på en del for akkorder der passer til resten, eller <b>Vælg selv</b>. <b>Spil</b> spiller delen med anslaget nedenfor. Tekstnoterne gemmes af sig selv.</p>
+        @if (_error is not null) { <p class="k-alert k-alert-warn">@_error</p> }
+        <div class="ss-row">
+            @if (_playing is null)
+            {
+                <button class="k-btn k-btn-primary" @onclick="PlaySong" disabled="@(!_song.Parts.Any(p => p.HasChords))">Spil hele sangen</button>
+            }
+            else
+            {
+                <button class="k-btn k-btn-danger" @onclick="Stop">Stop</button>
+            }
+            <a class="k-btn k-btn-ghost" href="/sange">Mine sange</a>
+        </div>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Sangen: titel, stemning, capo, tempo, anslag</h2>
+        <p class="k-help">Stemningen bestemmer, hvad Foreslå starter med. Capoen flytter hele sangen op - grebene er de samme.</p>
+
+        <label class="k-label" for="ss-title">Titel</label>
+        <input id="ss-title" class="k-input" value="@_song.Title" maxlength="@Song.MaxTitle" @onchange="Rename" />
+
+        <div class="k-label k-mt">Stemning</div>
+        <div class="ss-chips">
+            @foreach (var mood in ProgressionLibrary.Moods)
+            {
+                <button class="ss-chip @(mood == _song.Mood ? "is-on" : "")" aria-pressed="@(mood == _song.Mood)" @onclick="() => Do(s => Writing.SetMoodAsync(s, mood))">@mood</button>
+            }
+        </div>
+
+        <div class="ss-grid k-mt">
+            <div>
+                <label class="k-label" for="ss-capo">Capo</label>
+                <select id="ss-capo" class="k-input" value="@_song.Capo" @onchange="e => Do(s => Writing.SetCapoAsync(s, int.Parse(e.Value!.ToString()!)))">
+                    @for (var c = 0; c <= Capo.Max; c++)
+                    {
+                        <option value="@c">@(c == 0 ? "Ingen capo" : $"Bånd {c}")</option>
+                    }
+                </select>
+                @if (_song.HomeGrip is { } home)
+                {
+                    <p class="k-muted ss-small">Greb i @Chords.KeyName(home) - klinger i @_song.SoundingKey</p>
+                }
+            </div>
+            <div>
+                <label class="k-label" for="ss-bpm">Tempo (BPM)</label>
+                <div class="ss-row">
+                    <button class="k-btn k-btn-sm" @onclick="() => Do(s => Writing.SetBpmAsync(s, s.Bpm - 5))" aria-label="5 langsommere">−</button>
+                    <input id="ss-bpm" class="k-input ss-bpm" type="number" min="@Song.MinBpm" max="@Song.MaxBpm" value="@_song.Bpm"
+                           @onchange="e => { if (int.TryParse(e.Value?.ToString(), out var b)) return Do(s => Writing.SetBpmAsync(s, b)); return Task.CompletedTask; }" />
+                    <button class="k-btn k-btn-sm" @onclick="() => Do(s => Writing.SetBpmAsync(s, s.Bpm + 5))" aria-label="5 hurtigere">+</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="k-label k-mt">Anslag</div>
+        <div class="ss-chips">
+            @foreach (var strum in Strums.All)
+            {
+                <button class="ss-chip @(strum.Id == _song.StrumId ? "is-on" : "")" aria-pressed="@(strum.Id == _song.StrumId)" title="@strum.Feel"
+                        @onclick="() => Do(s => Writing.SetStrumAsync(s, strum.Id))">
+                    @strum.Name <span class="ss-strum">@StrumText(strum)</span>
+                </button>
+            }
+        </div>
+        <p class="k-muted ss-small">@Strums.Find(_song.StrumId).Feel. N = ned, O = op, · = lad den klinge.</p>
+    </section>
+
+    @foreach (var part in _song.Parts)
+    {
+        var kind = part.Kind;
+        var playingThis = _playing == kind;
+        <section class="k-card ss-part" id="part-@kind">
+            <h2 class="k-card-title">@part.Label <span class="ss-head-chords">@(part.HasChords ? string.Join(" ", part.Chords) : "ingen akkorder endnu")</span></h2>
+
+            @if (part.HasChords)
+            {
+                <div class="ss-chords">
+                    @for (var i = 0; i < part.Chords.Count; i++)
+                    {
+                        <span class="ss-grip" id="chord-@((int)kind)-@i">@part.Chords[i]</span>
+                    }
+                </div>
+                @if (_song.Capo > 0)
+                {
+                    <p class="k-muted ss-small">Med capo på bånd @_song.Capo klinger det som @string.Join(" ", Chords.Transpose(part.Chords, _song.Capo))</p>
+                }
+                @if (ProgressionLibrary.Find(part.ProgressionId) is { } prog)
+                {
+                    <p class="k-muted ss-small">@prog.Name (@prog.Mood.ToLowerInvariant()) - @prog.Feel</p>
+                }
+            }
+            else
+            {
+                <p class="k-help">Tryk Foreslå, eller Vælg selv mellem akkordrækkerne.</p>
+            }
+
+            @if (_why.TryGetValue(kind, out var why)) { <p class="k-alert k-alert-info">@why</p> }
+
+            <div class="ss-row">
+                <button class="k-btn k-btn-primary" @onclick="() => Suggest(kind)">@(part.HasChords ? "Foreslå en anden" : "Foreslå")</button>
+                @if (part.HasChords)
+                {
+                    @if (playingThis)
+                    {
+                        <button class="k-btn k-btn-danger" @onclick="Stop">Stop</button>
+                    }
+                    else
+                    {
+                        <button class="k-btn" @onclick="() => PlayPart(kind)" disabled="@(_playing is not null)">Spil</button>
+                    }
+                }
+                <button class="k-btn k-btn-ghost" aria-expanded="@(_picker == kind)" @onclick="() => _picker = _picker == kind ? null : kind">@(_picker == kind ? "Luk listen" : "Vælg selv")</button>
+                @if (part.HasChords)
+                {
+                    <button class="k-btn k-btn-ghost" @onclick="() => Do(s => Writing.ClearChordsAsync(s, kind))">Ryd akkorder</button>
+                }
+            </div>
+
+            @if (_picker == kind)
+            {
+                <div class="ss-picker">
+                    @foreach (var mood in ProgressionLibrary.Moods.OrderBy(m => m == _song.Mood ? 0 : 1))
+                    {
+                        <div class="k-label k-mt">@mood</div>
+                        <div class="ss-options">
+                            @foreach (var p in ProgressionLibrary.ForMood(mood))
+                            {
+                                <button class="ss-option @(p.Id == part.ProgressionId ? "is-on" : "")" aria-pressed="@(p.Id == part.ProgressionId)" @onclick="() => Pick(kind, p.Id)">
+                                    <b>@string.Join(" ", p.Chords)</b>
+                                    <span>@p.Name - @p.Feel</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <label class="k-label k-mt" for="notes-@kind">Tekstnoter til @part.Label.ToLowerInvariant()</label>
+            <textarea id="notes-@kind" class="k-textarea ss-notes" rows="4" maxlength="@Song.MaxNotes"
+                      placeholder="Linjer, ord, rim, hvad delen skal handle om ..." value="@NotesValue(part)"
+                      @oninput="e => NotesTyped(kind, e.Value?.ToString())" @onchange="e => NotesDone(kind, e.Value?.ToString())"></textarea>
+            <p class="k-muted ss-small">@(_saved.Contains(kind) ? "Gemt." : "Gemmes af sig selv, mens du skriver.")</p>
+        </section>
+    }
+
+    <section class="k-card">
+        <h2 class="k-card-title">Slet sangen</h2>
+        <p class="k-help">Sletter titlen, akkorderne og alle tekstnoter. Det kan ikke fortrydes.</p>
+        @if (_confirmDelete)
+        {
+            <div class="ss-row">
+                <button class="k-btn k-btn-danger" @onclick="Delete">Ja, slet @_song.Title</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = false">Nej</button>
+            </div>
+        }
+        else
+        {
+            <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = true">Slet sangen</button>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private Song? _song;
+    private bool _loaded;
+    private string? _error;
+    private PartKind? _picker;
+    private PartKind? _playing;      // the part playing, or Intro..Outro while the whole song plays
+    private bool _playingSong;
+    private bool _confirmDelete;
+    private readonly Dictionary<PartKind, string> _why = [];
+    private readonly HashSet<PartKind> _saved = [];
+    private readonly Dictionary<PartKind, string> _pendingNotes = [];
+    private System.Threading.Timer? _notesTimer;
+    private DotNetObjectReference<Sang>? _self;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _song = await Writing.GetAsync(Id);
+        _loaded = true;
+    }
+
+    private static string StrumText(StrumPattern s) =>
+        string.Join(" ", s.Pattern.Select(c => c switch { 'D' => "N", 'U' => "O", _ => "·" }));
+
+    private async Task Do(Func<Song, Task> change)
+    {
+        if (_song is null) return;
+        _error = null;
+        try { await change(_song); }
+        catch (SongException ex) { _error = ex.Message; }
+    }
+
+    private Task Rename(ChangeEventArgs e) => Do(s => Writing.RenameAsync(s, e.Value?.ToString() ?? ""));
+
+    private async Task Suggest(PartKind kind)
+    {
+        if (_song is null) return;
+        _error = null;
+        try { _why[kind] = (await Writing.SuggestAndUseAsync(_song, kind)).Why; }
+        catch (SongException ex) { _error = ex.Message; }
+    }
+
+    private async Task Pick(PartKind kind, string progressionId)
+    {
+        _why.Remove(kind);
+        await Do(s => Writing.UseProgressionAsync(s, kind, progressionId));
+        _picker = null;
+    }
+
+    // ---- Lyric notes: saved 1 s after the last key, and at once when the field is left.
+
+    // What is typed but not saved yet wins, so a re-render never takes letters back.
+    private string NotesValue(SongPart p) => _pendingNotes.TryGetValue(p.Kind, out var t) ? t : p.Notes;
+
+    private void NotesTyped(PartKind kind, string? text)
+    {
+        _pendingNotes[kind] = text ?? "";
+        _saved.Remove(kind);
+        _notesTimer ??= new System.Threading.Timer(_ => InvokeAsync(FlushNotes));
+        _notesTimer.Change(1000, Timeout.Infinite);
+    }
+
+    private async Task NotesDone(PartKind kind, string? text)
+    {
+        _pendingNotes[kind] = text ?? "";
+        await FlushNotes();
+    }
+
+    private async Task FlushNotes()
+    {
+        if (_song is null || _pendingNotes.Count == 0) return;
+        foreach (var (kind, text) in _pendingNotes.ToList())
+        {
+            await Writing.WriteNotesAsync(_song, kind, text);
+            if (_pendingNotes.GetValueOrDefault(kind) != text) continue;   // typed on while saving - the timer takes the rest
+            _pendingNotes.Remove(kind);
+            _saved.Add(kind);
+        }
+        StateHasChanged();
+    }
+
+    // ---- Playing (js/strum.js: plucked strings in Web Audio, no sound files).
+
+    private object PartForJs(SongPart p) => new { index = (int)p.Kind, chords = p.Chords };
+
+    private async Task PlayPart(PartKind kind) => await Play([_song!.Part(kind)], kind, song: false);
+
+    private async Task PlaySong() => await Play(_song!.Parts.Where(p => p.HasChords).ToList(), _song.Parts.First(p => p.HasChords).Kind, song: true);
+
+    private async Task Play(List<SongPart> parts, PartKind first, bool song)
+    {
+        if (_song is null || parts.Count == 0) return;
+        _self ??= DotNetObjectReference.Create(this);
+        _playing = first;
+        _playingSong = song;
+        try
+        {
+            await JS.InvokeVoidAsync("skrivStrum.play", parts.Select(PartForJs), _song.Bpm, Strums.Find(_song.StrumId).Pattern, _song.Capo, _self);
+        }
+        catch (JSException)
+        {
+            _playing = null;
+            _error = "Browseren kunne ikke spille lyd. Prøv Chrome, Edge eller Safari.";
+        }
+    }
+
+    [JSInvokable] public async Task PartStarted(int index)
+    {
+        if (_playingSong) { _playing = (PartKind)index; await InvokeAsync(StateHasChanged); }
+    }
+
+    [JSInvokable] public async Task PlayDone()
+    {
+        _playing = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Stop()
+    {
+        _playing = null;
+        try { await JS.InvokeVoidAsync("skrivStrum.stop"); } catch (JSException) { }
+    }
+
+    private async Task Delete()
+    {
+        if (_song is null) return;
+        await Writing.DeleteAsync(_song);
+        Nav.NavigateTo("/sange");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_notesTimer is not null) await _notesTimer.DisposeAsync();
+        if (_song is not null && _pendingNotes.Count > 0)
+            foreach (var (kind, text) in _pendingNotes) await Writing.WriteNotesAsync(_song, kind, text);
+        try { if (_playing is not null) await JS.InvokeVoidAsync("skrivStrum.stop"); } catch (Exception) { }
+        _self?.Dispose();
+    }
+}

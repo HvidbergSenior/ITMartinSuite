@@ -1,5 +1,10 @@
-﻿@inherits LayoutComponentBase
-<div class="studio-root">
+@inherits LayoutComponentBase
+
+<KolibriHeader>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/sange">🎸 Mine sange</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/vault">🎧 Song Vault</a>
+</KolibriHeader>
+<div class="k-main"><div class="k-content">
     @Body
-    <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
-</div>
+</div></div>
+<KolibriFooter />
