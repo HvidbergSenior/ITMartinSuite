@@ -1,11 +1,48 @@
 @page "/varer"
 @inject ShopUseCases Shop
 @inject NavigationManager Nav
+@inject IConfiguration Config
 
 @* bogshoppen.dk "Varer" tab. Since 2026-10-15 the real stock from Bogshoppen Lager (user: "people be able to search
    products and make offer -> here the links and so on can be seen. So sales should be instant buy or bet").
    Køb nu here; Byd (pre-bid for the Saturday live auction) comes next. *@
 <PageTitle>Varer · Bogshoppen</PageTitle>
+
+@if (!_show)
+{
+    @* Not shown yet (user 2026-10-15: "dont show varer yet") - the teaser from 2026-10-12 until Hjem__ShowFound=true. *@
+    <header class="bs-head bs-head-varer">
+        <span class="bs-tag">Liveauktioner – snart</span>
+        <h1>Varer</h1>
+        <p>Varerne bliver vist her snart – med billede, pris og links til andre butikker.</p>
+    </header>
+
+    <section class="k-card bs-card">
+        <h2>Det kommer der på</h2>
+        <div>
+        <ul class="bs-products">
+            @foreach (var (title, example) in BogshoppenRules.Products)
+            {
+                <li><b>@title</b> <span>– fx @example</span></li>
+            }
+        </ul>
+        <p class="k-help">Leder du efter noget bestemt? Skriv det i chatten – så kigger vi efter det, mens vi registrerer.</p>
+        <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+        </div>
+    </section>
+
+    <section class="k-card bs-card">
+        <h2>Vores prisløfte – og du kan se det selv</h2>
+        <ul class="bs-promise">
+            <li><b>Ved hver vare viser vi links</b> til andre sider, der sælger den samme vare – og <b>vores pris er 10 % lavere</b>.</li>
+            <li><b>Har du fundet den billigere et andet sted?</b> Send os linket – så tager vi udgangspunkt i den pris og sælger <b>10 % under</b>.</li>
+            <li><b>Jo flere varer du køber, jo større rabat.</b></li>
+        </ul>
+    </section>
+
+    <p class="k-center"><a class="k-btn k-btn-primary bs-btn" href="/#foelg">Skriv dig op – og få et login til liveauktionerne</a></p>
+    return;
+}
 
 <header class="bs-head bs-head-varer">
     <span class="bs-tag">Søg i lageret</span>
@@ -108,8 +145,12 @@ else
     private List<ShopItem>? _items;
     private string? _error;
 
+    private bool _show;
+
     protected override async Task OnParametersSetAsync()
     {
+        _show = Config.GetValue<bool>("Hjem:ShowFound");
+        if (!_show) return;
         _q = Q ?? "";
         _kind = Art ?? "";
         var (_, items, error) = await Shop.SearchAsync(_q, _kind);
