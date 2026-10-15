@@ -6,7 +6,7 @@
 <PageTitle>Samling – Bibliotek</PageTitle>
 
 <div class="top-row">
-    <h1>@(Viewer is { IsAdmin: false } v ? v.Name + "s samling" : "Samling")</h1>
+    <h1>@(Viewer is { IsAdmin: false } v ? v.Name + "s musik" : "Samling")</h1>
     <a class="top-link" href="/api/auth/logout">Log ud</a>
 </div>
 
@@ -18,7 +18,9 @@
     </section>
 }
 
-@if (_all is not null)
+@* A customer gets two things only (user 2026-10-15): listen here, and Send musik in the menu.
+   No counts, filters, shelf status or scanning. *@
+@if (_all is not null && !IsCustomer)
 {
     <div class="stat-row">
         <div class="stat">
@@ -36,6 +38,8 @@
     </div>
 }
 
+@if (!IsCustomer)
+{
 <input type="search" placeholder="Søg titel, kunstner eller stregkode" @bind="_query" @bind:event="oninput" />
 
 <div class="filter-row">
@@ -47,10 +51,14 @@
     <button class="chip @(_status == MediaStatus.Ejet ? "chip-on" : "")" @onclick="() => Toggle(MediaStatus.Ejet)">Kun på hylden</button>
     <button class="chip @(_status == MediaStatus.Rippet ? "chip-on" : "")" @onclick="() => Toggle(MediaStatus.Rippet)">Rippet</button>
 </div>
+}
 
 @if (_all is null)
 {
     <p class="muted">Henter…</p>
+}
+else if (_all.Count == 0 && IsCustomer)
+{
 }
 else if (_all.Count == 0)
 {
@@ -75,7 +83,7 @@ else
     {
         <p class="group-head"><a href="@KindUrl()">← Alle</a> <b>@_group</b> · @shown.Count titler</p>
     }
-    else
+    else if (!IsCustomer)
     {
         <p class="hint">@shown.Count vist</p>
     }
@@ -101,6 +109,22 @@ else
         @foreach (var i in singles)
         {
             <div class="tile">
+              @if (IsCustomer && i.JellyfinId != "")
+              {
+                <div class="tile-link" role="button" tabindex="0" data-play-album="@i.JellyfinId" aria-label="Afspil @i.Title">
+                  <div class="tile-cover">
+                      @if (!string.IsNullOrEmpty(i.CoverUrl))
+                      {
+                          <img src="@i.CoverUrl" alt="" loading="lazy" onerror="this.style.display='none'" />
+                      }
+                      <span class="tile-icon">@Icon(i.Kind)</span>
+                  </div>
+                  <div class="tile-title">@i.Title</div>
+                  <div class="tile-sub">@i.Artist</div>
+                </div>
+                <button type="button" class="tile-play" data-play-album="@i.JellyfinId">▶ Afspil</button>
+                continue;
+              }
               <a class="tile-link" href="/titel/@i.Id">
                 <div class="tile-cover">
                     @if (!string.IsNullOrEmpty(i.CoverUrl))
@@ -147,6 +171,8 @@ else
 
     [CascadingParameter] public Viewer? Viewer { get; set; }
 
+    private bool IsCustomer => Viewer is { IsAdmin: false };
+
     protected override async Task OnInitializedAsync()
     {
         if (Viewer is null) { _all = []; return; }
@@ -164,8 +190,8 @@ else
             "alle" => null,
             "serier" => MediaKind.Serie,
             "musik" => MediaKind.Musik,
-            // A customer's shelf is mostly CDs, so they start on everything, not on Film.
-            null when Viewer is { IsAdmin: false } => null,
+            // A customer only has music.
+            _ when Viewer is { IsAdmin: false } => MediaKind.Musik,
             _ => MediaKind.Film
         };
         _group = string.IsNullOrWhiteSpace(GroupText) ? null : GroupText;

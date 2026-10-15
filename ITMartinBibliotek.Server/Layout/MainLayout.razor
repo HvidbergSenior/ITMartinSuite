@@ -8,18 +8,25 @@
 </div>
 
 <nav class="bottom-nav">
-    <NavLink href="/" Match="NavLinkMatch.All"><span>💿</span>Samling</NavLink>
-    <NavLink href="/scan" class="nav-primary"><span>📷</span>Scan</NavLink>
-    @* Straight into Jellyfin - the settings page used to sit behind this label, which
-       is not what you expect when you just want to watch something. *@
-    @if (_jellyfinUrl != "")
+    @if (Viewer is { IsAdmin: false })
     {
-        <a href="@_jellyfinUrl" target="_blank" rel="noopener"><span>▶️</span>Jellyfin</a>
+        @* A customer has two things only: listen, and send the CDs they ripped (their upload box). *@
+        <NavLink href="/" Match="NavLinkMatch.All"><span>🎵</span>Hør musik</NavLink>
+        @if (Customers.Get(Viewer.Owner) is { Upload: not "" } c)
+        {
+            <a href="@c.Upload" target="_blank" rel="noopener"><span>⬆️</span>Send musik</a>
+        }
     }
-    @if (Viewer is { IsAdmin: false } && Customers.Get(Viewer.Owner) is { Upload: not "" } c)
+    else
     {
-        @* The customer's own upload box: where their ripped CDs are sent from. *@
-        <a href="@c.Upload" target="_blank" rel="noopener"><span>⬆️</span>Send musik</a>
+        <NavLink href="/" Match="NavLinkMatch.All"><span>💿</span>Samling</NavLink>
+        <NavLink href="/scan" class="nav-primary"><span>📷</span>Scan</NavLink>
+        @* Straight into Jellyfin - the settings page used to sit behind this label, which
+           is not what you expect when you just want to watch something. *@
+        @if (_jellyfinUrl != "")
+        {
+            <a href="@_jellyfinUrl" target="_blank" rel="noopener"><span>▶️</span>Jellyfin</a>
+        }
     }
     @if (Viewer is { IsAdmin: true })
     {
