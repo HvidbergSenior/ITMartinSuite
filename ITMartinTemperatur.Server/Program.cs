@@ -16,7 +16,7 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Temperatur viser, hvad termometeret siger på den nærmeste rigtige vejrstation – ikke hvad en vejrudsigt regner med.",
-        "I Danmark kommer målingerne fra DMI, i Tyskland fra den tyske vejrtjeneste DWD og i Spanien fra AEMET. Andre steder viser appen en beregnet temperatur og skriver det tydeligt.",
+        "I Danmark kommer målingerne fra DMI, i Tyskland fra den tyske vejrtjeneste DWD, i Spanien fra AEMET og i Frankrig fra Météo-France. Andre steder viser appen en beregnet temperatur og skriver det tydeligt.",
     ];
     k.HowTo =
     [
@@ -30,7 +30,7 @@ builder.Services.AddKolibri(k =>
 });
 
 builder.Services.AddTemperaturApplication();
-builder.Services.AddTemperaturInfrastructure(builder.Configuration["Temperatur:AemetKey"] ?? "");
+builder.Services.AddTemperaturInfrastructure(builder.Configuration["Temperatur:AemetKey"] ?? "", builder.Configuration["Temperatur:MeteoFranceKey"] ?? "");
 
 var app = builder.Build();
 app.MapKolibri();
@@ -47,8 +47,8 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <!doctype html><html lang="da" data-family="{info.Family}"><head><meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Temperatur</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css"><link rel="stylesheet" href="/app.css?v=2">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script>
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css"><link rel="stylesheet" href="/app.css?v=3">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=3" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info)}<main class="k-main"><div class="k-content">{(greeting == "" ? "" : $"<p class=\"tp-greeting\">{System.Net.WebUtility.HtmlEncode(greeting)}</p>")}{body}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");

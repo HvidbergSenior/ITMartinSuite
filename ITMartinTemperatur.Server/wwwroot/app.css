@@ -24,3 +24,9 @@
 .tp-list .tp-l-deg { flex: none; width: 64px; font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
 .tp-list .tp-l-name { flex: 1; min-width: 0; }
 .tp-list .tp-l-sub { display: block; color: var(--k-muted); font-size: 14px; }
+/* "Ikke sådan / Bare sådan" - the thermometer joke, drawn; the cross and the tick carry the meaning, not only the colour. */
+.tp-howto { display: flex; justify-content: center; gap: 28px; margin: 14px 0 4px; flex-wrap: wrap; }
+.tp-howto figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tp-howto figcaption { font-size: 15px; }
+.tp-no figcaption { color: #b71c1c; }
+.tp-yes figcaption { color: #1b5e20; }

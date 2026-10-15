@@ -165,6 +165,100 @@ public sealed class AemetSource(IHttpClientFactory http, string apiKey) : IStati
                 : char.ToUpper(w[0]) + w[1..].ToLowerInvariant()));
 }
 
+// France: Météo-France "Observations Package" v2 (free account, API key Temperatur__MeteoFranceKey, the key from 2026-10-15
+// runs to 2027-10-15, 100 calls a minute). One call = every station's 6-minute measurement for one time slot (~1,500 with
+// a temperature, in KELVIN). The newest slot is often still empty, so it steps back a slot at a time. Kept 6 minutes and shared.
+public sealed class MeteoFranceSource(IHttpClientFactory http, string apiKey) : IStationSource
+{
+    private const string Base = "https://public-api.meteofrance.fr/public/DPPaquetObs/v2";
+    private IReadOnlyList<Reading> _all = [];
+    private System.DateTime _at;
+    private Dictionary<string, string> _names = [];
+    private System.DateTime _namesAt;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
+    public string Name => "Météo-France";
+    public Area Covers => new(41.2, -5.3, 51.2, 9.7);   // mainland France and Corsica
+
+    public async Task<IReadOnlyList<Reading>> NearAsync(GeoPoint here, double radiusKm, CancellationToken ct) =>
+        (await AllAsync(ct)).Where(r => here.KmTo(r.Point) <= radiusKm).ToList();
+
+    private async Task<IReadOnlyList<Reading>> AllAsync(CancellationToken ct)
+    {
+        if (System.DateTime.UtcNow - _at < TimeSpan.FromMinutes(6)) return _all;
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (System.DateTime.UtcNow - _at < TimeSpan.FromMinutes(6)) return _all;
+            var names = await NamesAsync(ct);
+            var now = System.DateTime.UtcNow;
+            var slot = new System.DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute - now.Minute % 6, 0, DateTimeKind.Utc);
+            for (var back = 0; back < 6; back++)
+            {
+                var t = slot.AddMinutes(-6 * back).ToString("yyyy-MM-ddTHH:mm:00Z", CultureInfo.InvariantCulture);
+                var list = await SlotAsync(t, names, ct);
+                if (list.Count == 0) continue;
+                _all = list;
+                _at = System.DateTime.UtcNow;
+                break;
+            }
+            return _all;
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task<List<Reading>> SlotAsync(string time, Dictionary<string, string> names, CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{Base}/paquet/stations/infrahoraire-6m?date={time}&format=geojson");
+        req.Headers.Add("apikey", apiKey);
+        using var res = await http.CreateClient("weather").SendAsync(req, ct);
+        if (!res.IsSuccessStatusCode) return [];
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsByteArrayAsync(ct));
+        var features = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement : doc.RootElement.GetProperty("features");
+        var list = new List<Reading>();
+        foreach (var f in features.EnumerateArray())
+        {
+            var p = f.GetProperty("properties");
+            if (!p.TryGetProperty("t", out var t) || t.ValueKind != JsonValueKind.Number) continue;
+            var c = f.GetProperty("geometry").GetProperty("coordinates");
+            var id = p.GetProperty("geo_id_insee").GetString() ?? "";
+            list.Add(new Reading(names.GetValueOrDefault(id, "Station " + id),
+                new GeoPoint(c[1].GetDouble(), c[0].GetDouble()),
+                Math.Round(t.GetDouble() - 273.15, 1),
+                p.GetProperty("validity_time").GetDateTimeOffset(), Name, true));
+        }
+        return list;
+    }
+
+    // Id_station;Id_omm;Nom_usuel;... (Latin-1) - "NICE-RIMIEZ" -> "Nice-Rimiez", "BALAN_AERO" -> "Balan Aero".
+    private async Task<Dictionary<string, string>> NamesAsync(CancellationToken ct)
+    {
+        if (_names.Count > 0 && System.DateTime.UtcNow - _namesAt < TimeSpan.FromDays(1)) return _names;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{Base}/liste-stations");
+            req.Headers.Add("apikey", apiKey);
+            using var res = await http.CreateClient("weather").SendAsync(req, ct);
+            res.EnsureSuccessStatusCode();
+            var text = System.Text.Encoding.Latin1.GetString(await res.Content.ReadAsByteArrayAsync(ct));
+            var names = new Dictionary<string, string>();
+            foreach (var line in text.Split('\n').Skip(1))
+            {
+                var parts = line.Split(';');
+                if (parts.Length > 2 && parts[0].Length > 0) names[parts[0].Trim()] = Title(parts[2].Trim());
+            }
+            _names = names;
+            _namesAt = System.DateTime.UtcNow;
+        }
+        catch (HttpRequestException) { }   // without names the stations still count, with their number
+        return _names;
+    }
+
+    private static string Title(string s) =>
+        string.Join(' ', s.Replace('_', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w =>
+            string.Join('-', w.Split('-').Select(x => x.Length == 0 ? x : char.ToUpper(x[0]) + x[1..].ToLowerInvariant()))));
+}
+
 // Open-Meteo (no key, free for non-commercial use): a weather model's value for the exact spot. Shown as calculated.
 public sealed class OpenMeteoModel(IHttpClientFactory http) : IModelSource
 {
@@ -202,7 +296,7 @@ public sealed class OpenMeteoPlaces(IHttpClientFactory http) : IPlaceSearch
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddTemperaturInfrastructure(this IServiceCollection services, string aemetKey = "")
+    public static IServiceCollection AddTemperaturInfrastructure(this IServiceCollection services, string aemetKey = "", string meteoFranceKey = "")
     {
         services.AddHttpClient("weather", c =>
         {
@@ -214,6 +308,8 @@ public static class DependencyInjection
         // Spain only when a key is configured; without it Spain falls back to the calculated value.
         if (aemetKey.Length > 20)
             services.AddSingleton<IStationSource>(sp => new AemetSource(sp.GetRequiredService<IHttpClientFactory>(), aemetKey));
+        if (meteoFranceKey.Length > 20)
+            services.AddSingleton<IStationSource>(sp => new MeteoFranceSource(sp.GetRequiredService<IHttpClientFactory>(), meteoFranceKey));
         services.AddSingleton<IModelSource, OpenMeteoModel>();
         services.AddSingleton<IPlaceSearch, OpenMeteoPlaces>();
         return services;

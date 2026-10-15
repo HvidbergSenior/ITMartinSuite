@@ -2,6 +2,34 @@
     <h1>Hvor varmt er det her?</h1>
     <p class="k-help">Målt på den nærmeste rigtige vejrstation – ikke en vejrudsigt.<br>Termometeret skal ikke stikkes nogen steder. Du holder bare telefonen i hånden :-)</p>
 
+    <div class="tp-howto" aria-hidden="true">
+        <figure class="tp-no">
+            <svg viewBox="0 0 120 100" width="120" height="100">
+                <!-- a bottom with an old thermometer on its way - crossed out -->
+                <path d="M22 30 C22 14, 58 12, 60 34 C62 12, 98 14, 98 30 L98 62 C98 84, 60 88, 60 70 C60 88, 22 84, 22 62 Z"
+                      fill="#f3d7c4" stroke="#7a5a48" stroke-width="2.5"/>
+                <path d="M60 36 L60 66" stroke="#7a5a48" stroke-width="2.5" stroke-linecap="round"/>
+                <rect x="88" y="6" width="8" height="34" rx="4" transform="rotate(35 92 23)" fill="#ffffff" stroke="#555" stroke-width="2"/>
+                <circle cx="80" cy="40" r="5" fill="#c62828"/>
+                <path d="M14 14 L106 90 M106 14 L14 90" stroke="#c62828" stroke-width="9" stroke-linecap="round"/>
+            </svg>
+            <figcaption><b>Ikke sådan</b></figcaption>
+        </figure>
+        <figure class="tp-yes">
+            <svg viewBox="0 0 120 100" width="120" height="100">
+                <!-- a hand holding a phone that shows a temperature - ticked -->
+                <rect x="40" y="8" width="40" height="70" rx="7" fill="#1e293b" stroke="#0f172a" stroke-width="2"/>
+                <rect x="45" y="16" width="30" height="50" rx="3" fill="#e0f2fe"/>
+                <text x="60" y="46" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a" font-family="system-ui, sans-serif">15°</text>
+                <path d="M30 60 C30 50, 40 48, 42 56 L42 40 C42 34, 50 34, 50 40 L50 62 L80 62 C86 62, 88 70, 82 72 L80 74 C86 76, 86 84, 80 85 L44 86 C34 86, 30 78, 30 70 Z"
+                      fill="#f3d7c4" stroke="#7a5a48" stroke-width="2.5" stroke-linejoin="round"/>
+                <circle cx="98" cy="22" r="17" fill="#2e7d32"/>
+                <path d="M89 22 L96 29 L108 15" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <figcaption><b>Bare sådan</b></figcaption>
+        </figure>
+    </div>
+
     <div id="tp-now" class="tp-now" aria-live="polite">
         <div class="tp-deg" id="tp-deg">–</div>
         <div class="tp-where" id="tp-where">Tryk på knappen for at finde din temperatur.</div>
@@ -44,6 +72,5 @@
 <details class="k-card" data-remember="tp-om">
     <summary><b>Om siden</b></summary>
     <p>Siden bruger din position til at finde den nærmeste vejrstation og viser, hvad den målte for få minutter siden. Positionen bliver ikke gemt.</p>
-    <p>I Danmark kommer målingerne fra <b>DMI</b>, i Tyskland fra den tyske vejrtjeneste <b>DWD</b> og i Spanien fra <b>AEMET</b>. Er der ingen station inden for afstanden, eller er du et andet sted, viser siden en <b>beregnet</b> temperatur fra en vejrmodel og skriver det tydeligt.</p>
-    <p>Frankrig kommer snart.</p>
+    <p>I Danmark kommer målingerne fra <b>DMI</b>, i Tyskland fra den tyske vejrtjeneste <b>DWD</b>, i Spanien fra <b>AEMET</b> og i Frankrig fra <b>Météo-France</b>. Er der ingen station inden for afstanden, eller er du et andet sted, viser siden en <b>beregnet</b> temperatur fra en vejrmodel og skriver det tydeligt.</p>
 </details>
