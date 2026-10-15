@@ -9,6 +9,16 @@
     </div>
 
     <button type="button" class="k-btn k-btn-primary tp-find" id="tp-find">Find min temperatur</button>
+    <p class="tp-place" id="tp-place" hidden></p>
+
+    <form class="tp-search" id="tp-search" autocomplete="off">
+        <label class="k-label" for="tp-town">Eller skriv en by</label>
+        <div class="tp-search-row">
+            <input class="k-input" id="tp-town" placeholder="Fx Aarhus eller Málaga" enterkeyhint="search" />
+            <button type="submit" class="k-btn">Søg</button>
+        </div>
+        <div class="tp-hits" id="tp-hits"></div>
+    </form>
 
     <div class="tp-radius" role="group" aria-label="Afstand til stationer">
         <span>Stationer inden for</span>

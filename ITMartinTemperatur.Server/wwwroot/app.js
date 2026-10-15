@@ -82,24 +82,57 @@
             .catch(function () { msg('Kunne ikke hente temperaturen. Tjek forbindelsen, og prøv igen.'); });
     }
 
+    // A town chosen by name instead of the device's position.
+    function useTown(name, lat, lon) {
+        last = { lat: lat, lon: lon };
+        var p = $('tp-place'); p.textContent = 'Viser: ' + name; p.hidden = false;
+        $('tp-hits').innerHTML = '';
+        load();
+        clearInterval(timer);
+        timer = setInterval(load, 5 * 60 * 1000);
+    }
+
+    function search(e) {
+        e.preventDefault();
+        var q = $('tp-town').value.trim(), hits = $('tp-hits');
+        if (!q) return;
+        hits.textContent = 'Søger …';
+        fetch('/api/steder?navn=' + encodeURIComponent(q))
+            .then(function (r) { return r.json(); })
+            .then(function (list) {
+                hits.innerHTML = '';
+                if (!list.length) { hits.textContent = 'Fandt ingen by med det navn. Prøv at stave det lidt anderledes.'; return; }
+                list.forEach(function (t) {
+                    var b = document.createElement('button');
+                    b.type = 'button'; b.className = 'k-btn k-btn-sm'; b.textContent = t.navn;
+                    b.addEventListener('click', function () { useTown(t.navn, t.lat, t.lon); });
+                    hits.appendChild(b);
+                });
+            })
+            .catch(function () { hits.textContent = 'Søgningen virker ikke lige nu. Prøv igen om lidt.'; });
+    }
+
     function locate() {
         if (!navigator.geolocation) { msg('Din browser kan ikke give positionen.'); return; }
         msg('Finder din position …');
         navigator.geolocation.getCurrentPosition(function (p) {
             last = { lat: p.coords.latitude.toFixed(4), lon: p.coords.longitude.toFixed(4) };
+            var pl = $('tp-place'); pl.textContent = 'Viser: der hvor du er'; pl.hidden = false;
             load();
             clearInterval(timer);
             timer = setInterval(load, 5 * 60 * 1000);
         }, function (e) {
             msg(e.code === 1
                 ? 'Siden fik ikke lov til at bruge din position. Tryk på hængelåsen ved adressen, tillad Placering, og prøv igen.'
-                : 'Din position kunne ikke findes lige nu. Prøv igen.');
+                : 'Din position kunne ikke findes. Skriv en by herunder i stedet.');
+            $('tp-town').focus();
         }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         markRadius();
         $('tp-find').addEventListener('click', locate);
+        $('tp-search').addEventListener('submit', search);
         document.querySelectorAll('.tp-radius [data-km]').forEach(function (b) {
             b.addEventListener('click', function () {
                 km = parseInt(b.getAttribute('data-km'), 10);

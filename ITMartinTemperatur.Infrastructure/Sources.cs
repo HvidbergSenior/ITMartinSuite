@@ -112,6 +112,22 @@ public sealed class OpenMeteoModel(IHttpClientFactory http) : IModelSource
     private sealed record OmCurrent(string Time, double Temperature_2m);
 }
 
+// Place names to positions (Open-Meteo geocoding, no key) - Danish names for countries.
+public sealed class OpenMeteoPlaces(IHttpClientFactory http) : IPlaceSearch
+{
+    public async Task<IReadOnlyList<Place>> FindAsync(string name, CancellationToken ct)
+    {
+        var url = $"https://geocoding-api.open-meteo.com/v1/search?name={Uri.EscapeDataString(name)}&count=6&language=da&format=json";
+        using var doc = JsonDocument.Parse(await http.CreateClient("weather").GetStringAsync(url, ct));
+        if (!doc.RootElement.TryGetProperty("results", out var results)) return [];
+        string S(JsonElement e, string p) => e.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
+        return results.EnumerateArray()
+            .Select(r => new Place(S(r, "name"), S(r, "admin1"), S(r, "country"),
+                new GeoPoint(r.GetProperty("latitude").GetDouble(), r.GetProperty("longitude").GetDouble())))
+            .ToList();
+    }
+}
+
 public static class DependencyInjection
 {
     public static IServiceCollection AddTemperaturInfrastructure(this IServiceCollection services)
@@ -124,6 +140,7 @@ public static class DependencyInjection
         services.AddSingleton<IStationSource, DmiSource>();
         services.AddSingleton<IStationSource, DwdSource>();
         services.AddSingleton<IModelSource, OpenMeteoModel>();
+        services.AddSingleton<IPlaceSearch, OpenMeteoPlaces>();
         return services;
     }
 }

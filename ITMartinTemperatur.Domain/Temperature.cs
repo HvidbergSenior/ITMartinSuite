@@ -35,6 +35,12 @@ public readonly record struct Area(double MinLat, double MinLon, double MaxLat, 
 // otherwise it is calculated by a weather model and must be shown as such.
 public sealed record Reading(string Station, GeoPoint Point, double Celsius, DateTimeOffset Observed, string Source, bool Measured);
 
+// A place found by name ("Málaga, Andalusien, Spanien") for when the device cannot give its position.
+public sealed record Place(string Name, string Region, string Country, GeoPoint Point)
+{
+    public string Label => string.Join(", ", new[] { Name, Region, Country }.Where(s => s != "").Distinct());
+}
+
 public sealed record NearbyReading(Reading Reading, double DistanceKm);
 
 // Compare = what the usual weather apps say for the same spot (a model value), next to the measurement.

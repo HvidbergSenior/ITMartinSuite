@@ -18,6 +18,11 @@ public interface IModelSource
     Task<Reading?> AtAsync(GeoPoint here, CancellationToken ct);
 }
 
+public interface IPlaceSearch
+{
+    Task<IReadOnlyList<Place>> FindAsync(string name, CancellationToken ct);
+}
+
 public interface IClock { DateTimeOffset Now { get; } }
 
 public sealed class SystemClock : IClock { public DateTimeOffset Now => DateTimeOffset.UtcNow; }

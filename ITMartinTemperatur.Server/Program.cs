@@ -80,4 +80,12 @@ app.MapGet("/api/temperatur", async (double lat, double lon, int? km, Temperatur
     });
 });
 
+// Find a town by name, for a PC without a position or for "how warm is it in Málaga?".
+app.MapGet("/api/steder", async (string navn, IPlaceSearch places, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(navn) || navn.Length > 80) return Results.Ok(Array.Empty<object>());
+    var found = await places.FindAsync(navn.Trim(), ct);
+    return Results.Ok(found.Select(p => new { navn = p.Label, lat = Math.Round(p.Point.Lat, 4), lon = Math.Round(p.Point.Lon, 4) }));
+});
+
 app.Run();
