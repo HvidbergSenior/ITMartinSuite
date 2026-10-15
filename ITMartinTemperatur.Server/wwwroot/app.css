@@ -1,3 +1,5 @@
+.tp-greeting { text-align: center; font-size: 18px; font-weight: 600; margin: 4px 0 12px; }
+.tp-compare p { margin: 6px 0; }
 /* Temperatur - one big number, the station it came from, how fresh it is. */
 .tp-hero { text-align: center; }
 .tp-now { margin: 18px 0 14px; }

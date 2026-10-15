@@ -37,7 +37,13 @@ public sealed record Reading(string Station, GeoPoint Point, double Celsius, Dat
 
 public sealed record NearbyReading(Reading Reading, double DistanceKm);
 
-public sealed record TemperatureHere(NearbyReading? Main, IReadOnlyList<NearbyReading> Nearby, bool Measured);
+// Compare = what the usual weather apps say for the same spot (a model value), next to the measurement.
+public sealed record TemperatureHere(NearbyReading? Main, IReadOnlyList<NearbyReading> Nearby, bool Measured, Reading? Compare = null)
+{
+    // Measured minus the weather apps' value, when there is both a measurement and a model value.
+    public double? Difference => Measured && Main is not null && Compare is not null
+        ? Math.Round(Main.Reading.Celsius - Compare.Celsius, 1) : null;
+}
 
 public static class TemperatureRules
 {

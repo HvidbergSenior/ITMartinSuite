@@ -38,6 +38,8 @@ app.UseStaticFiles();
 
 // The page: the shared Kolibri header and footer around wwwroot/side.html (read once).
 var body = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "side.html"));
+// A personal greeting for the people this copy is made for (Temperatur__Hilsen, e.g. "Hej Jørgen og Marianne - god tur!").
+var greeting = app.Configuration["Temperatur:Hilsen"] ?? "";
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
 {
     ctx.Response.Headers.CacheControl = "no-cache";
@@ -48,7 +50,7 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css"><link rel="stylesheet" href="/app.css?v=1">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=1" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
-        <body>{KolibriStaticPages.Header(info)}<main class="k-main"><div class="k-content">{body}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+        <body>{KolibriStaticPages.Header(info)}<main class="k-main"><div class="k-content">{(greeting == "" ? "" : $"<p class=\"tp-greeting\">{System.Net.WebUtility.HtmlEncode(greeting)}</p>")}{body}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
 });
 
@@ -72,6 +74,8 @@ app.MapGet("/api/temperatur", async (double lat, double lon, int? km, Temperatur
         her = r.Main is null ? null : Item(r.Main),
         maalt = r.Measured,
         stationer = r.Nearby.Take(12).Select(Item),
+        vejrApps = r.Compare is null ? (double?)null : Math.Round(r.Compare.Celsius, 1),
+        forskel = r.Difference,
         radius = TemperatureRules.ClampRadius(km ?? 25),
     });
 });

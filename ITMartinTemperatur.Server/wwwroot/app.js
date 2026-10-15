@@ -52,6 +52,14 @@
             $('tp-when').textContent = '';
             msg('Der er ingen vejrstation inden for ' + d.radius + ' km. Vælg en større afstand for at få en målt temperatur.');
         }
+        var cmp = $('tp-compare');
+        if (d.maalt && d.vejrApps !== null && d.vejrApps !== undefined) {
+            var f = d.forskel, word = f === 0 ? 'præcis det samme som' : (Math.abs(f).toFixed(1).replace('.', ',') + '° ' + (f > 0 ? 'varmere end' : 'koldere end'));
+            $('tp-compare-text').textContent = 'Vejr-apps siger ' + fmtDeg(d.vejrApps) + ' her. Termometeret på ' + d.her.station + ' viser ' + fmtDeg(d.her.grader) + ' – det er ' + word + ' vejr-apps.';
+            cmp.hidden = false;
+        } else {
+            cmp.hidden = true;
+        }
         var others = (d.stationer || []).slice(1);
         others.forEach(function (s) {
             var li = document.createElement('li');

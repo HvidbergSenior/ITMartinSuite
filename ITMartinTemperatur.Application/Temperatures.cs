@@ -41,13 +41,13 @@ public sealed class Temperatures(IEnumerable<IStationSource> sources, IModelSour
         }));
         var measured = results.SelectMany(r => r).ToList();
         var now = clock.Now;
-        if (TemperatureRules.Nearby(measured, here, radius, now).Count > 0)
-            return TemperatureRules.Decide(measured, null, here, radius, now);
 
+        // The model value is always fetched: it is the fallback, and otherwise the comparison with the weather apps.
         Reading? calculated = null;
         try { calculated = await model.AtAsync(here, ct); }
         catch (Exception ex) when (ex is not OperationCanceledException) { log.LogWarning(ex, "Model failed"); }
-        return TemperatureRules.Decide(measured, calculated, here, radius, now);
+        var result = TemperatureRules.Decide(measured, calculated, here, radius, now);
+        return result.Measured ? result with { Compare = calculated } : result;
     }
 
     private static bool Overlaps(Area a, Area b) =>
