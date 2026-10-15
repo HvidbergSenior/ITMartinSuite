@@ -24,19 +24,29 @@ public sealed class DmiSource(IHttpClientFactory http) : IStationSource
         var box = Area.Around(here, radiusKm);
         var bbox = string.Join(',', new[] { box.MinLon, box.MinLat, box.MaxLon, box.MaxLat }.Select(F));
         var client = http.CreateClient("weather");
-        using var doc = JsonDocument.Parse(await client.GetStringAsync(
-            $"{Base}/observation/items?parameterId=temp_dry&period=latest-hour&bbox={bbox}&limit=2000", ct));
+        // An explicit time window, not period=latest-hour: that shortcut leaves about half the stations out
+        // (Kastrup among them - checked 2026-10-15: 48 vs 96 stations). The answer comes in pages; all are read.
+        var since = System.DateTime.UtcNow.AddMinutes(-70).ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        string? url = $"{Base}/observation/items?parameterId=temp_dry&datetime={since}/..&bbox={bbox}&limit=10000";
         var names = await NamesAsync(ct);
         var list = new List<Reading>();
-        foreach (var f in doc.RootElement.GetProperty("features").EnumerateArray())
+        for (var page = 0; url is not null && page < 10; page++)
         {
-            var p = f.GetProperty("properties");
-            var c = f.GetProperty("geometry").GetProperty("coordinates");
-            var id = p.GetProperty("stationId").GetString() ?? "";
-            list.Add(new Reading(names.GetValueOrDefault(id, "DMI " + id),
-                new GeoPoint(c[1].GetDouble(), c[0].GetDouble()),
-                p.GetProperty("value").GetDouble(),
-                p.GetProperty("observed").GetDateTimeOffset(), Name, true));
+            using var doc = JsonDocument.Parse(await client.GetStringAsync(url, ct));
+            foreach (var f in doc.RootElement.GetProperty("features").EnumerateArray())
+            {
+                var p = f.GetProperty("properties");
+                var c = f.GetProperty("geometry").GetProperty("coordinates");
+                var id = p.GetProperty("stationId").GetString() ?? "";
+                list.Add(new Reading(names.GetValueOrDefault(id, "DMI " + id),
+                    new GeoPoint(c[1].GetDouble(), c[0].GetDouble()),
+                    p.GetProperty("value").GetDouble(),
+                    p.GetProperty("observed").GetDateTimeOffset(), Name, true));
+            }
+            url = doc.RootElement.TryGetProperty("links", out var links)
+                ? links.EnumerateArray().Where(l => l.GetProperty("rel").GetString() == "next")
+                    .Select(l => l.GetProperty("href").GetString()).FirstOrDefault()
+                : null;
         }
         return list;
     }
