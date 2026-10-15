@@ -16,7 +16,7 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Temperatur viser, hvad termometeret siger på den nærmeste rigtige vejrstation – ikke hvad en vejrudsigt regner med.",
-        "I Danmark kommer målingerne fra DMI, i Tyskland fra den tyske vejrtjeneste DWD. Andre steder viser appen en beregnet temperatur og skriver det tydeligt.",
+        "I Danmark kommer målingerne fra DMI, i Tyskland fra den tyske vejrtjeneste DWD og i Spanien fra AEMET. Andre steder viser appen en beregnet temperatur og skriver det tydeligt.",
     ];
     k.HowTo =
     [
@@ -30,7 +30,7 @@ builder.Services.AddKolibri(k =>
 });
 
 builder.Services.AddTemperaturApplication();
-builder.Services.AddTemperaturInfrastructure();
+builder.Services.AddTemperaturInfrastructure(builder.Configuration["Temperatur:AemetKey"] ?? "");
 
 var app = builder.Build();
 app.MapKolibri();

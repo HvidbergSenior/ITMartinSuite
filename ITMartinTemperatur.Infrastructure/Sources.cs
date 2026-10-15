@@ -103,6 +103,65 @@ public sealed class DwdSource(IHttpClientFactory http) : IStationSource
     private static string F(double d) => d.ToString("0.####", CultureInfo.InvariantCulture);
 }
 
+// Spain: AEMET OpenData (free key, Temperatur__AemetKey; the key from 2026-10-15 runs to 2027-01-23). One request gives a
+// link to ~10,000 rows - the last 12 hours of every station - so the whole package is kept for 10 minutes and shared.
+public sealed class AemetSource(IHttpClientFactory http, string apiKey) : IStationSource
+{
+    private IReadOnlyList<Reading> _all = [];
+    private System.DateTime _at;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
+    public string Name => "AEMET";
+    public Area Covers => new(27.4, -18.5, 44.0, 4.6);   // mainland, Balearics and the Canaries
+
+    public async Task<IReadOnlyList<Reading>> NearAsync(GeoPoint here, double radiusKm, CancellationToken ct)
+    {
+        var all = await AllAsync(ct);
+        return all.Where(r => here.KmTo(r.Point) <= radiusKm).ToList();
+    }
+
+    private async Task<IReadOnlyList<Reading>> AllAsync(CancellationToken ct)
+    {
+        if (System.DateTime.UtcNow - _at < TimeSpan.FromMinutes(10)) return _all;
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (System.DateTime.UtcNow - _at < TimeSpan.FromMinutes(10)) return _all;
+            var client = http.CreateClient("weather");
+            using var req = new HttpRequestMessage(HttpMethod.Get, "https://opendata.aemet.es/opendata/api/observacion/convencional/todas");
+            req.Headers.Add("api_key", apiKey);
+            using var res = await client.SendAsync(req, ct);
+            res.EnsureSuccessStatusCode();
+            using var meta = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
+            var link = meta.RootElement.GetProperty("datos").GetString()!;
+            // The data file is ISO-8859-15 (Spanish letters), not UTF-8.
+            var bytes = await client.GetByteArrayAsync(link, ct);
+            var text = System.Text.Encoding.Latin1.GetString(bytes);
+            using var doc = JsonDocument.Parse(text);
+            var list = new List<Reading>();
+            foreach (var r in doc.RootElement.EnumerateArray())
+            {
+                if (!r.TryGetProperty("ta", out var ta) || ta.ValueKind != JsonValueKind.Number) continue;
+                if (!DateTimeOffset.TryParseExact(r.GetProperty("fint").GetString(), "yyyy-MM-dd'T'HH:mm:sszzz",
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)) continue;
+                list.Add(new Reading(Title(r.GetProperty("ubi").GetString() ?? ""),
+                    new GeoPoint(r.GetProperty("lat").GetDouble(), r.GetProperty("lon").GetDouble()),
+                    ta.GetDouble(), at, Name, true));
+            }
+            _all = list;
+            _at = System.DateTime.UtcNow;
+            return _all;
+        }
+        finally { _gate.Release(); }
+    }
+
+    // "MÁLAGA  PUERTO  OCEANOGRÁFICO" -> "Málaga Puerto Oceanográfico"
+    private static string Title(string s) =>
+        string.Join(' ', s.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(w => w.Length <= 2 && w.All(char.IsLetter) && w != w.ToUpperInvariant() ? w
+                : char.ToUpper(w[0]) + w[1..].ToLowerInvariant()));
+}
+
 // Open-Meteo (no key, free for non-commercial use): a weather model's value for the exact spot. Shown as calculated.
 public sealed class OpenMeteoModel(IHttpClientFactory http) : IModelSource
 {
@@ -140,7 +199,7 @@ public sealed class OpenMeteoPlaces(IHttpClientFactory http) : IPlaceSearch
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddTemperaturInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddTemperaturInfrastructure(this IServiceCollection services, string aemetKey = "")
     {
         services.AddHttpClient("weather", c =>
         {
@@ -149,6 +208,9 @@ public static class DependencyInjection
         });
         services.AddSingleton<IStationSource, DmiSource>();
         services.AddSingleton<IStationSource, DwdSource>();
+        // Spain only when a key is configured; without it Spain falls back to the calculated value.
+        if (aemetKey.Length > 20)
+            services.AddSingleton<IStationSource>(sp => new AemetSource(sp.GetRequiredService<IHttpClientFactory>(), aemetKey));
         services.AddSingleton<IModelSource, OpenMeteoModel>();
         services.AddSingleton<IPlaceSearch, OpenMeteoPlaces>();
         return services;
