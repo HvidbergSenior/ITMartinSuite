@@ -33,21 +33,20 @@
     @if (IsMusic)
     {
     <div class="steps">
-        <div class="step"><span class="step-emoji">💿</span><span class="step-no">1</span><div class="step-text"><b>Rip cd'en</b><span>Med Medieafspiller i Windows (Rip cd). Musikken lander i mappen Musik.</span></div></div>
-        <div class="step"><span class="step-emoji">📤</span><span class="step-no">2</span><div class="step-text"><b>Træk kunstnerens mappe herind</b><span>Åbn mappen Musik og træk mappen med kunstnerens navn ind i boksen. Lad siden være åben, mens den sendes.</span></div></div>
-        <div class="step"><span class="step-emoji">🎵</span><span class="step-no">3</span><div class="step-text"><b>Hør den i Bibliotek</b><span>Efter cirka en halv time står albummet i din samling.</span></div></div>
+        <div class="step"><span class="step-emoji">💿</span><span class="step-no">1</span><div class="step-text"><b>Læg cd'en i</b><span>Den kopieres af sig selv.</span></div></div>
+        <div class="step"><span class="step-emoji">📤</span><span class="step-no">2</span><div class="step-text"><b>Tryk Vælg mappen Musik</b><span>Tryk Musik til venstre, så Upload og Upload igen.</span></div></div>
+        <div class="step"><span class="step-emoji">🎵</span><span class="step-no">3</span><div class="step-text"><b>Hør den i Bibliotek</b><span>Om en halv time.</span></div></div>
     </div>
 
     <div class="dropzone" id="dz">
         <div class="dz-icon">💿</div>
-        <div class="dz-text">Træk kunstnerens mappe herind</div>
+        <div class="dz-text">Træk mappen Musik herind</div>
         <div class="dz-or">eller</div>
         <label class="dz-btn">
-            Vælg en mappe på computeren
+            Vælg mappen Musik
             <input type="file" id="fd" webkitdirectory multiple style="display:none" />
         </label>
         <input type="file" id="fi" multiple style="display:none" />
-        <div class="dz-hint">Mappen med kunstnerens navn – så kommer alle albummer og cover med</div>
     </div>
     }
     else
@@ -220,7 +219,7 @@
     @if (_loaded && _uploads.Count == 0 && _existing.Count == 0 && _albums.Count == 0)
     {
         <div class="empty-hint">
-            @(IsMusic ? "📭 Du har ikke sendt noget endnu – træk den første mappe ind i boksen ovenfor"
+            @(IsMusic ? "📭 Du har ikke sendt noget endnu – træk mappen Musik ind i boksen ovenfor"
                       : "📭 I har ikke sendt noget endnu – træk de første billeder ind i boksen ovenfor")
         </div>
     }
