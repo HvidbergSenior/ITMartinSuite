@@ -255,6 +255,29 @@ app.MapGet("/api/vejledning", (HttpContext ctx) =>
         : Results.NotFound();
 });
 
+// A customer's own Rip CD: the free zip plus send-til.txt with their upload link, so the program
+// asks nothing and sends every album straight into their library. Only to that customer (it holds the token).
+app.MapGet("/api/ripcd", (HttpContext ctx, IWebHostEnvironment env) =>
+{
+    var viewer = ViewerOf(ctx);
+    var customer = customers.Get(viewer.Owner);
+    if (customer is null || customer.Upload == "") return Results.NotFound();
+
+    var free = env.WebRootFileProvider.GetFileInfo("download/RipCD.zip");
+    if (!free.Exists || free.PhysicalPath is null) return Results.NotFound();
+
+    var ms = new MemoryStream();
+    File.OpenRead(free.PhysicalPath).CopyTo(ms);
+    using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Update, leaveOpen: true))
+    {
+        using var w = new StreamWriter(zip.CreateEntry("send-til.txt").Open(), new System.Text.UTF8Encoding(false));
+        w.WriteLine("# Rip CD sender hver cd hertil - til " + (customer.Navn == "" ? customer.Key : customer.Navn) + "s samling i Bibliotek. Del ikke filen.");
+        w.WriteLine(customer.Upload);
+    }
+    ms.Position = 0;
+    return Results.File(ms, "application/zip", "RipCD.zip");
+});
+
 app.UseAntiforgery();
 
 app.MapKolibri();

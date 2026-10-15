@@ -5,12 +5,19 @@
 # Kun musik-cd'er: dvd/blu-ray har kopibeskyttelse, og den må man ikke bryde (ophavsretsloven §75c).
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.1'
+$Version = '1.2'
 $Ua = "ITMartinRipCD/$Version (ITMartin@Mensa.dk)"   # MusicBrainz vil have en kontakt i User-Agent
 $AppDir = Join-Path $env:APPDATA 'ITMartin\RipCD'
 $WorkRoot = Join-Path $env:LOCALAPPDATA 'ITMartin\RipCD\arbejde'
 $SettingsFile = Join-Path $AppDir 'indstillinger.json'
 $LogFile = Join-Path $AppDir 'log.txt'
+$SentFile = Join-Path $AppDir 'sendt.txt'      # albummapper, der er sendt til Martin (én pr. linje)
+$ProgDir = Join-Path $AppDir 'program'          # her bor programmet, så ikonet på skrivebordet altid virker
+# Kundens egen udgave (hentet fra Bibliotek) har send-til.txt med upload-linket: så spørges der ikke om noget,
+# og hvert album sendes af sig selv til kundens samling. Den gratis udgave har ingen fil og opfører sig som før.
+$SendTo = $null
+$sendFile = Join-Path $PSScriptRoot 'send-til.txt'
+if (Test-Path -LiteralPath $sendFile) { $SendTo = (Get-Content -LiteralPath $sendFile -Encoding UTF8 | Where-Object { $_ -match '^https://' } | Select-Object -First 1) }
 New-Item -ItemType Directory -Force $AppDir, $WorkRoot | Out-Null
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -210,6 +217,81 @@ function Rip-One([string]$drive, $s) {
     Say "FÆRDIG: $artist - $album ($made numre$(if ($cover) { ', med cover' }))" Green
     Say "        $dst" Green
     Remove-Item $work -Recurse -Force   # først når alle numre er lavet - ellers bliver rippet liggende til næste forsøg
+    if ($SendTo) { [void](Send-Album $dst) }
+}
+
+# --- Ikon på skrivebordet: kopiér programmet til %APPDATA% og lav "Rip CD", der starter som administrator ---
+# (så kommer Windows' spørgsmål med det samme, i stedet for at vinduet blinker og gemmer det i proceslinjen)
+function Install-Shortcut {
+    try {
+        if ($PSScriptRoot -ne $ProgDir) {
+            New-Item -ItemType Directory -Force $ProgDir | Out-Null
+            Get-ChildItem -LiteralPath $PSScriptRoot -File | Copy-Item -Destination $ProgDir -Force
+        }
+        $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Rip CD.lnk'
+        if (Test-Path -LiteralPath $lnk) { return }
+        $sh = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+        $sh.TargetPath = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $sh.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $ProgDir 'RipCD.ps1')`""
+        $sh.WorkingDirectory = $ProgDir
+        $sh.IconLocation = Join-Path $env:WINDIR 'System32\imageres.dll,25'
+        $sh.Description = 'ITMartin Rip CD - læg en musik-cd i'
+        $sh.Save()
+        $b = [IO.File]::ReadAllBytes($lnk); $b[0x15] = $b[0x15] -bor 0x20; [IO.File]::WriteAllBytes($lnk, $b)   # "Kør som administrator"
+        Say 'Der er nu et ikon på skrivebordet: Rip CD. Næste gang dobbeltklikker du bare på det.' Green
+    } catch { Log "Ikon fejl: $($_.Exception.Message)" }
+}
+
+# --- Send et album til kundens samling (upload-boksen hos Martin), mappe for mappe ---
+function Sent-Albums { if (Test-Path -LiteralPath $SentFile) { @(Get-Content -LiteralPath $SentFile -Encoding UTF8) } else { @() } }
+
+function Send-Album([string]$dir) {
+    $album = Split-Path $dir -Leaf; $artist = Split-Path (Split-Path $dir -Parent) -Leaf
+    $api = ($SendTo -replace '/upload/', '/api/upload/')
+    $files = @(Get-ChildItem -LiteralPath $dir -File | Where-Object { $_.Extension -in '.flac', '.mp3', '.jpg' })
+    if ($files.Count -eq 0) { return $true }
+    Say "Sender $artist - $album til din samling ($($files.Count) filer) ..." Cyan
+    Add-Type -AssemblyName System.Net.Http
+    $http = New-Object System.Net.Http.HttpClient
+    $http.Timeout = [TimeSpan]::FromMinutes(10)
+    try {
+        foreach ($f in $files) {
+            $ok = $false
+            for ($try = 1; $try -le 3 -and -not $ok; $try++) {
+                $stream = [IO.File]::OpenRead($f.FullName)
+                try {
+                    $form = New-Object System.Net.Http.MultipartFormDataContent
+                    $form.Add((New-Object System.Net.Http.StringContent("$artist/$album")), 'path')
+                    $content = New-Object System.Net.Http.StreamContent($stream)
+                    $form.Add($content, 'file', $f.Name)
+                    $r = $http.PostAsync($api, $form).GetAwaiter().GetResult()
+                    $ok = $r.IsSuccessStatusCode
+                    if (-not $ok) { Log "Upload $($f.Name): $([int]$r.StatusCode)" }
+                } catch { Log "Upload $($f.Name) forsøg ${try}: $($_.Exception.Message)" }
+                finally { $stream.Dispose() }
+                if (-not $ok) { Start-Sleep -Seconds (5 * $try) }
+            }
+            if (-not $ok) {
+                Say "  Kunne ikke sende $($f.Name) - tjek internettet. Det prøves igen, næste gang du starter Rip CD." Yellow
+                return $false
+            }
+        }
+    } finally { $http.Dispose() }
+    Add-Content -LiteralPath $SentFile -Value $dir -Encoding UTF8
+    Say "  Sendt. Om ca. en halv time står det i din samling i Bibliotek." Green
+    $true
+}
+
+# Albums, der ikke kom af sted endnu (internettet var nede - eller rippet med en ældre Rip CD).
+# Kun FLAC-albummer med "01 ..."-navne: det er dem, Rip CD laver; anden musik i mappen røres ikke.
+function Send-Pending($s) {
+    if (-not $SendTo) { return }
+    $sent = Sent-Albums
+    foreach ($a in @(Get-ChildItem -LiteralPath $s.Folder -Directory -ErrorAction SilentlyContinue | Get-ChildItem -Directory -ErrorAction SilentlyContinue)) {
+        if ($sent -contains $a.FullName) { continue }
+        $ripped = @(Get-ChildItem -LiteralPath $a.FullName -File | Where-Object { $_.Name -match "^\d\d .+\.$($s.Format)$" })
+        if ($ripped.Count -gt 0) { [void](Send-Album $a.FullName) }
+    }
 }
 
 # --- Start ---
@@ -225,12 +307,20 @@ $script:Ffmpeg = Find-Ffmpeg; if (-not $script:Ffmpeg) { Install-Tool 'Gyan.FFmp
 if (-not $script:Freac -or -not $script:Ffmpeg) { Say 'Værktøjerne kunne ikke installeres. Se log.txt i %APPDATA%\ITMartin\RipCD.' Red; Read-Host 'Tryk Enter for at lukke'; exit 1 }
 
 $s = Load-Settings
+if (-not $s -and $SendTo) {
+    # Kundens udgave: FLAC (samme lyd som cd'en) i mappen Musik - ingen spørgsmål.
+    $s = [pscustomobject]@{ Format = 'flac'; Folder = [Environment]::GetFolderPath('MyMusic') }
+    $s | ConvertTo-Json | Set-Content $SettingsFile -Encoding UTF8
+}
 if (-not $s) { $s = Ask-Settings }
+elseif ($SendTo) { Write-Host "Musikken gemmes i $($s.Folder) og sendes til din samling i Bibliotek." }
 else {
     Write-Host "Format: $($s.Format.ToUpper())   Mappe: $($s.Folder)"
     if ((Read-Host 'Tryk Enter for at fortsætte, eller skriv  ny  for at ændre') -eq 'ny') { $s = Ask-Settings }
 }
 New-Item -ItemType Directory -Force $s.Folder | Out-Null
+Install-Shortcut
+Send-Pending $s
 
 $drive = Get-Drive
 if (-not $drive) { Say 'Fandt intet cd-drev. Sæt et USB-cd-drev i og start igen.' Red; Read-Host 'Tryk Enter for at lukke'; exit 1 }

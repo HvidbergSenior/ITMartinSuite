@@ -4,6 +4,9 @@ namespace ITMartinUpload.Server.Services;
 
 public sealed record StoredFile(string Name, long Size, DateTime ModifiedUtc);
 
+/// <summary>One album a music customer sent: "David Bowie – Hunky Dory", its tracks and size.</summary>
+public sealed record StoredAlbum(string Name, int Tracks, long Size, DateTime ModifiedUtc);
+
 /// <summary>
 /// Everything that touches the disk: where a customer's files live, what a file may be
 /// called, and how a name collision is resolved. Kept free of ASP.NET types so the rules
@@ -36,6 +39,24 @@ public sealed class UploadStore
         return string.IsNullOrWhiteSpace(name) ? null : name;
     }
 
+    /// <summary>
+    /// The Artist/Album folder a music file goes in: the last two folders that were sent, each one
+    /// cleaned like a file name, so "Musik/David Bowie/Hunky Dory" and "..\..\etc" can never climb out.
+    /// Null when nothing usable is left - the file then lands at the top like before.
+    /// </summary>
+    public static string? SafeSubfolder(string? folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder)) return null;
+        var parts = folder.Replace('\\', '/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(SafeFileName)
+            .Where(p => p is not null && !string.Equals(p, TrashFolderName, StringComparison.OrdinalIgnoreCase))
+            .Select(p => p!)
+            .TakeLast(2)
+            .ToArray();
+        return parts.Length == 0 ? null : Path.Combine(parts);
+    }
+
     public string FolderFor(string slug) =>
         Path.Combine(_options.Root, slug.ToLowerInvariant());
 
@@ -59,9 +80,9 @@ public sealed class UploadStore
 
     public const string PartSuffix = ".part";
 
-    public async Task<string> SaveAsync(string slug, string safeName, Stream content, CancellationToken ct = default)
+    public async Task<string> SaveAsync(string slug, string safeName, Stream content, CancellationToken ct = default, string? subfolder = null)
     {
-        var folder = FolderFor(slug);
+        var folder = subfolder is null ? FolderFor(slug) : Path.Combine(FolderFor(slug), subfolder);
         Directory.CreateDirectory(folder);
         var dest = UniquePath(folder, safeName, File.Exists);
 
@@ -94,6 +115,14 @@ public sealed class UploadStore
         return List(slug).Any(f =>
             f.Size == size &&
             string.Equals(f.Name, safeName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>True when that exact file (same folder, name and size) is already here - a Rip CD
+    /// retry after a dropped connection must not leave "01 Changes_1.flac" next to the first one.</summary>
+    public bool AlreadyHaveIn(string slug, string? subfolder, string safeName, long size)
+    {
+        var path = subfolder is null ? Path.Combine(FolderFor(slug), safeName) : Path.Combine(FolderFor(slug), subfolder, safeName);
+        return File.Exists(path) && new FileInfo(path).Length == size;
     }
 
     private static readonly string[] ImageExtensions =
@@ -164,6 +193,31 @@ public sealed class UploadStore
                 .Select(p => new FileInfo(p))
                 .OrderByDescending(fi => fi.LastWriteTimeUtc)
                 .Select(fi => new StoredFile(fi.Name, fi.Length, fi.LastWriteTimeUtc))
+                .ToList();
+        }
+        catch (IOException) { return []; }
+        catch (UnauthorizedAccessException) { return []; }
+    }
+
+    private static readonly string[] AudioExtensions = [".flac", ".mp3", ".m4a", ".aac", ".wav", ".wma", ".ogg", ".opus", ".alac"];
+
+    /// <summary>What a music customer has sent, album by album (the Artist/Album folders), newest first.</summary>
+    public IReadOnlyList<StoredAlbum> Albums(string slug)
+    {
+        try
+        {
+            var folder = FolderFor(slug);
+            if (!Directory.Exists(folder)) return [];
+            return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                .Where(p => AudioExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()))
+                .Select(p => new FileInfo(p))
+                .Select(fi => (fi, dir: Path.GetRelativePath(folder, fi.DirectoryName!)))
+                .Where(x => !x.dir.Split(Path.DirectorySeparatorChar)[0].Equals(TrashFolderName, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(x => x.dir)
+                .Select(g => new StoredAlbum(
+                    g.Key == "." ? "Løse numre" : string.Join(" – ", g.Key.Split(Path.DirectorySeparatorChar)),
+                    g.Count(), g.Sum(x => x.fi.Length), g.Max(x => x.fi.LastWriteTimeUtc)))
+                .OrderByDescending(a => a.ModifiedUtc)
                 .ToList();
         }
         catch (IOException) { return []; }

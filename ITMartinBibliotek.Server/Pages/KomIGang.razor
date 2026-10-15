@@ -23,7 +23,7 @@
     <p class="guide-progress" role="status">
         @if (_done >= Steps.Length)
         {
-            <b>✓ Alle @Steps.Length trin er klaret.</b><text> Nu skal du bare lægge flere cd'er ind (trin 3 og 4).</text>
+            <b>✓ Alle @Steps.Length trin er klaret.</b><text> Nu skal du bare lægge flere cd'er ind (trin 3).</text>
         }
         else
         {
@@ -198,34 +198,62 @@
             <p class="hint">iPhone: <b>Del</b> (firkanten med pilen) → <b>Føj til hjemmeskærm</b>. Telefonen husker din PIN-kode.</p>
         </text>),
 
-        new("Din første cd", "på computeren", @<text>
-            <p>Du lægger selv cd'en over på computeren med det gratis program <b>Rip CD</b>. Martin ser med og fortæller, hvad du skal trykke på.</p>
-            <a class="btn" href="/download/RipCD.zip" download>⬇️ Hent Rip CD</a>
-            <ol class="guide-steps">
-                <li>Tryk <b>Hent Rip CD</b>. Find <b>RipCD.zip</b> i mappen <b>Overførsler</b>, højreklik og vælg <b>Udpak alle</b> → <b>Udpak</b>.</li>
-                <li>Dobbeltklik på <b>Start Rip CD</b>. Svar <b>Ja</b>, når Windows spørger. Kommer der en blå boks: <b>Flere oplysninger</b> → <b>Kør alligevel</b>.</li>
-                <li>Vælg <b>FLAC</b> – samme lyd som cd'en.</li>
-                <li>Læg cd'en i. Efter 3–8 minutter kommer skuffen ud af sig selv.</li>
-            </ol>
+        new("Læg dine cd'er ind", "på computeren", @<text>
+            <p>Du vælger selv, hvordan du vil gøre. Begge veje ender i din samling her i Bibliotek.</p>
+
+            <div class="guide-choice">
+                <h3>A · Med Rip CD – nemmest</h3>
+                <p>Du henter et lille gratis program én gang. Bagefter lægger du bare en cd i – resten sker af sig selv.</p>
+                @if (_customer is { Upload: not "" })
+                {
+                    <a class="btn btn-primary" href="/api/ripcd" download>⬇️ Hent din Rip CD</a>
+                }
+                else
+                {
+                    <a class="btn btn-primary" href="/download/RipCD.zip" download>⬇️ Hent Rip CD</a>
+                }
+                <p class="hint">Første gang (kun én gang):</p>
+                <ol class="guide-steps">
+                    <li>Tryk <b>Hent din Rip CD</b>. Åbn mappen <b>Overførsler</b>, højreklik på <b>RipCD.zip</b> og vælg <b>Udpak alle</b> → <b>Udpak</b>.</li>
+                    <li>Dobbeltklik på <b>Start Rip CD</b>. Svar <b>Ja</b>, når Windows spørger. Kommer der en blå boks: <b>Flere oplysninger</b> → <b>Kør alligevel</b>.</li>
+                    <li>Nu er der et ikon på skrivebordet, der hedder <b>Rip CD</b>. Du kan lukke vinduet.</li>
+                </ol>
+                <p class="hint">Hver gang:</p>
+                <ol class="guide-steps">
+                    <li>Dobbeltklik på <b>Rip CD</b> på skrivebordet. Svar <b>Ja</b>.</li>
+                    <li>Læg en cd i. Efter 3–8 minutter kommer skuffen ud – så er den sendt til din samling.</li>
+                    <li>Læg den næste i, eller luk vinduet.</li>
+                </ol>
+            </div>
+
+            <div class="guide-choice">
+                <h3>B · Uden at hente noget</h3>
+                <p>Du bruger Windows' eget program <b>Medieafspiller</b> og sender selv musikken bagefter.</p>
+                <ol class="guide-steps">
+                    <li>Læg cd'en i. Tryk <b>Start</b>, skriv <b>Medieafspiller</b> og åbn den.</li>
+                    <li>Tryk på cd'en i venstre side og så <b>Rip cd</b>. Vent til alle numre er færdige.</li>
+                    @if (_customer is { Upload: not "" } c)
+                    {
+                        <li>Åbn dit upload-link: <a class="btn" href="@c.Upload" target="_blank" rel="noopener">⬆️ Åbn dit upload-link</a></li>
+                    }
+                    else
+                    {
+                        <li>Åbn det upload-link, du har fået af Martin.</li>
+                    }
+                    <li>Åbn mappen <b>Musik</b> på computeren, og træk <b>kunstnerens mappe</b> ind på siden. Vent til alle er sendt.</li>
+                </ol>
+                <p class="hint">Medieafspiller står i Windows 11. Kan du ikke finde den, så brug A.</p>
+            </div>
+
             <p class="guide-note">⚖️ <b>Du skal selv trykke.</b> Loven siger, at du må kopiere dine egne cd'er til dig selv – men ikke lade andre gøre det for dig.</p>
-            <p class="hint">Næste gang starter du bare Rip CD og lægger en cd i. Musikken ligger i mappen <b>Musik</b>.</p>
         </text>),
 
-        new("Send musikken hertil", "på computeren", @<text>
-            @if (_customer is { Upload: not "" } c)
-            {
-                <a class="btn btn-primary" href="@c.Upload" target="_blank" rel="noopener">⬆️ Åbn dit upload-link</a>
-            }
-            else
-            {
-                <p class="hint">Dit upload-link får du af Martin.</p>
-            }
+        new("Se at musikken er kommet", "telefon eller computer", @<text>
             <ol class="guide-steps">
-                <li>Åbn dit upload-link på <b>computeren</b>.</li>
-                <li>Åbn mappen <b>Musik</b>, så kunstneren og så albummet. Markér alle filerne med <b>Ctrl + A</b>.</li>
-                <li>Træk dem ind på siden, og vent til alle er sendt.</li>
+                <li>Vent cirka en halv time efter, at cd'en er sendt.</li>
+                <li>Åbn <a href="/?kind=musik">din samling</a> og vælg <b>Musik</b>. Albummet står der med navn og cover.</li>
             </ol>
-            <p class="hint">Efter cirka en halv time står albummet i <a href="/?kind=musik">din samling</a>. Musikken er kun din.</p>
+            <p class="hint">Er det der ikke efter en time, så ring til Martin. Musikken er kun din – ingen andre kan se den.</p>
         </text>),
 
         new("Hør musik på telefonen", "på telefonen", @<text>

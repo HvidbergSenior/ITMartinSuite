@@ -77,15 +77,20 @@ app.MapPost("/api/upload/{slug}", async (
     var safeName = UploadStore.SafeFileName(file.FileName);
     if (safeName is null) return Results.BadRequest("Ugyldigt filnavn");
 
-    await store.SaveAsync(slug, safeName, file.OpenReadStream(), ct);
+    // Music customers keep the Artist/Album folder Rip CD sends along ("path" form field).
+    var customer = options.Value.Find(slug);
+    var subfolder = customer?.Music == true ? UploadStore.SafeSubfolder(form["path"]) : null;
+    if (customer?.Music == true && store.AlreadyHaveIn(slug, subfolder, safeName, file.Length)) return Results.Ok();
+
+    await store.SaveAsync(slug, safeName, file.OpenReadStream(), ct, subfolder);
 
     // One ping per batch, not one per photo: a customer sending 400 pictures
     // must not put 400 notifications on Martin's phone.
     if (activity.ShouldAnnounceUpload(slug))
     {
-        var name = options.Value.Find(slug)?.Name ?? slug;
+        var name = customer?.Name ?? slug;
         _ = push.SendAsync(UploadPushService.Martin,
-            $"{name} sender billeder",
+            customer?.Music == true ? $"{name} sender musik" : $"{name} sender billeder",
             "Filerne lander i deres mappe på NAS'en.",
             $"/svar");
     }

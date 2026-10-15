@@ -222,4 +222,43 @@ public class UploadStoreTests
         using var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
         await _store.SaveAsync(slug, UploadStore.SafeFileName(name)!, ms);
     }
+
+    [TestCase("David Bowie/Hunky Dory", "David Bowie|Hunky Dory")]
+    [TestCase("Musik/David Bowie/Hunky Dory", "David Bowie|Hunky Dory")]
+    [TestCase(@"Musik\David Bowie\Hunky Dory", "David Bowie|Hunky Dory")]
+    [TestCase("../../etc", "etc")]
+    [TestCase("..", null)]
+    [TestCase("", null)]
+    [TestCase(null, null)]
+    [TestCase("_fjernet/x", "x")]
+    public void SafeSubfolder_keeps_only_the_last_two_clean_folders(string? input, string? expected) =>
+        UploadStore.SafeSubfolder(input).Should().Be(expected?.Replace('|', Path.DirectorySeparatorChar));
+
+    [Test]
+    public async Task SaveAsync_puts_music_in_its_album_folder_and_a_retry_is_recognised()
+    {
+        var sub = UploadStore.SafeSubfolder("David Bowie/Hunky Dory");
+        var dest = await _store.SaveAsync("jytte", "01 Changes.flac", new MemoryStream([1, 2, 3]), subfolder: sub);
+
+        dest.Should().Be(Path.Combine(_root, "jytte", "David Bowie", "Hunky Dory", "01 Changes.flac"));
+        _store.AlreadyHaveIn("jytte", sub, "01 Changes.flac", 3).Should().BeTrue();
+        _store.AlreadyHaveIn("jytte", sub, "01 Changes.flac", 4).Should().BeFalse();
+        _store.AlreadyHaveIn("jytte", null, "01 Changes.flac", 3).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Albums_lists_each_album_folder_with_its_tracks()
+    {
+        var sub = UploadStore.SafeSubfolder("David Bowie/Hunky Dory");
+        await _store.SaveAsync("jytte", "01 Changes.flac", new MemoryStream([1, 2]), subfolder: sub);
+        await _store.SaveAsync("jytte", "02 Oh! You Pretty Things.flac", new MemoryStream([1, 2, 3]), subfolder: sub);
+        await _store.SaveAsync("jytte", "folder.jpg", new MemoryStream([9]), subfolder: sub);
+
+        var albums = _store.Albums("jytte");
+
+        albums.Should().ContainSingle();
+        albums[0].Name.Should().Be("David Bowie – Hunky Dory");
+        albums[0].Tracks.Should().Be(2);
+        albums[0].Size.Should().Be(5);
+    }
 }

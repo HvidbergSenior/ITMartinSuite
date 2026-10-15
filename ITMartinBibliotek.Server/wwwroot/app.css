@@ -282,6 +282,8 @@ body.has-player .page { padding-bottom: 210px; }
 .guide-steps li { margin: 6px 0; }
 .guide-dev { margin: 8px 0; }
 .guide-note { border-left: 3px solid var(--ink-soft); padding: 6px 10px; background: var(--surface-2); border-radius: 6px; }
+.guide-choice { border: 1px solid var(--line, var(--ink-soft)); border-radius: 10px; padding: 10px 14px; margin: 12px 0; background: var(--surface-2); }
+.guide-choice h3 { margin: 2px 0 6px; font-size: 1.05rem; }
 .guide-code { font-family: ui-monospace, Consolas, monospace; background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
 .empty-guide { text-align: center; }
 

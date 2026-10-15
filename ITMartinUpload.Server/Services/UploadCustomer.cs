@@ -7,6 +7,7 @@ namespace ITMartinUpload.Server.Services;
 ///   Customers__0__Token=...           (optional, falls back to Upload:Token)
 ///   Customers__0__Greeting=...        (optional, overrides the default "Hej <Name>!")
 ///   Customers__0__Intro=...           (optional, the line under the greeting)
+///   Customers__0__Music=true          (optional, CD rips: keeps Artist/Album folders)
 /// </summary>
 public sealed class UploadCustomer
 {
@@ -15,6 +16,10 @@ public sealed class UploadCustomer
     public string Token { get; set; } = "";
     public string Greeting { get; set; } = "";
     public string Intro { get; set; } = "";
+
+    /// <summary>A music customer (Customers__N__Music=true): files arrive as Artist/Album/track from
+    /// Rip CD, so the folders are kept - flat, every album's "01 …" and folder.jpg would collide.</summary>
+    public bool Music { get; set; }
 
     /// <summary>
     /// An open event (Customers__N__Public=true): the link works without a code, for anyone
