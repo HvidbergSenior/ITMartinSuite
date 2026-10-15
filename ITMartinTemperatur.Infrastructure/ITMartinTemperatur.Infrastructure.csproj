@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Temperatur - the weather services: DMI (Denmark), DWD via Bright Sky (Germany), Open-Meteo (calculated, everywhere else). -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinTemperatur.Application\ITMartinTemperatur.Application.csproj" />
+    <ProjectReference Include="..\ITMartinTemperatur.Domain\ITMartinTemperatur.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinTemperatur.Tests" />
+  </ItemGroup>
+
+</Project>

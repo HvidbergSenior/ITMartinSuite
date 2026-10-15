@@ -1,0 +1,18 @@
+/* Temperatur - one big number, the station it came from, how fresh it is. */
+.tp-hero { text-align: center; }
+.tp-now { margin: 18px 0 14px; }
+.tp-deg { font-size: clamp(72px, 22vw, 120px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tp-where { font-size: 19px; font-weight: 600; margin-top: 8px; }
+.tp-when { color: var(--k-muted); margin-top: 4px; }
+.tp-calc { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--k-border); font-size: 14px; font-weight: 400; }
+.tp-find { min-width: 240px; min-height: var(--k-tap); font-size: 17px; }
+.tp-radius { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; margin-top: 16px; }
+.tp-radius span { color: var(--k-muted); margin-right: 4px; }
+.tp-radius .is-on { background: var(--k-accent); border-color: var(--k-accent); color: #fff; }
+.tp-msg { margin-top: 12px; }
+.tp-list { list-style: none; margin: 0; padding: 0; }
+.tp-list li { display: flex; align-items: baseline; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--k-border); }
+.tp-list li:last-child { border-bottom: none; }
+.tp-list .tp-l-deg { flex: none; width: 64px; font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+.tp-list .tp-l-name { flex: 1; min-width: 0; }
+.tp-list .tp-l-sub { display: block; color: var(--k-muted); font-size: 14px; }

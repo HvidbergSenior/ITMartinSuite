@@ -1,0 +1,33 @@
+<section class="k-card tp-hero" data-nofold>
+    <h1>Hvor varmt er det her?</h1>
+    <p class="k-help">Målt på den nærmeste rigtige vejrstation – ikke en vejrudsigt.</p>
+
+    <div id="tp-now" class="tp-now" aria-live="polite">
+        <div class="tp-deg" id="tp-deg">–</div>
+        <div class="tp-where" id="tp-where">Tryk på knappen for at finde din temperatur.</div>
+        <div class="tp-when" id="tp-when"></div>
+    </div>
+
+    <button type="button" class="k-btn k-btn-primary tp-find" id="tp-find">Find min temperatur</button>
+
+    <div class="tp-radius" role="group" aria-label="Afstand til stationer">
+        <span>Stationer inden for</span>
+        <button type="button" class="k-btn k-btn-sm" data-km="10">10 km</button>
+        <button type="button" class="k-btn k-btn-sm" data-km="25">25 km</button>
+        <button type="button" class="k-btn k-btn-sm" data-km="50">50 km</button>
+        <button type="button" class="k-btn k-btn-sm" data-km="100">100 km</button>
+    </div>
+    <p class="k-help tp-msg" id="tp-msg" hidden></p>
+</section>
+
+<section class="k-card" id="tp-list-card" hidden>
+    <h2 class="k-card-title">Andre stationer i nærheden</h2>
+    <ol class="tp-list" id="tp-list"></ol>
+</section>
+
+<details class="k-card" data-remember="tp-om">
+    <summary><b>Om siden</b></summary>
+    <p>Siden bruger din position til at finde den nærmeste vejrstation og viser, hvad den målte for få minutter siden. Positionen bliver ikke gemt.</p>
+    <p>I Danmark kommer målingerne fra <b>DMI</b>, i Tyskland fra den tyske vejrtjeneste <b>DWD</b>. Er der ingen station inden for afstanden, eller er du et andet sted, viser siden en <b>beregnet</b> temperatur fra en vejrmodel og skriver det tydeligt.</p>
+    <p>Spanien og Frankrig kommer snart.</p>
+</details>

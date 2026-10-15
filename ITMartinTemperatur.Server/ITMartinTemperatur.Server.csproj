@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- "Temperatur" (Kolibri Svæv), 2026-10-15: what the temperature is right here, right now - measured at the nearest
+         real weather station (DMI in Denmark, DWD in Germany), not a forecast. Elsewhere a calculated value, said so. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinTemperatur.Server</RootNamespace>
+        <AssemblyName>ITMartinTemperatur.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinTemperatur.Application\ITMartinTemperatur.Application.csproj" />
+        <ProjectReference Include="..\ITMartinTemperatur.Infrastructure\ITMartinTemperatur.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>
