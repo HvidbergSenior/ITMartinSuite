@@ -278,6 +278,9 @@ app.MapGet("/api/ripcd", (HttpContext ctx, IWebHostEnvironment env) =>
     return Results.File(ms, "application/zip", "RipCD.zip");
 });
 
+// The step-by-step guide was removed 2026-10-15 (Martin guides the customer himself); old links land on the collection.
+app.MapGet("/kom-i-gang", () => Results.Redirect("/"));
+
 app.UseAntiforgery();
 
 app.MapKolibri();

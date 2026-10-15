@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @inject JellyfinClient Jellyfin
+@inject Customers Customers
 
 <div class="page">
     @Body
@@ -15,9 +16,10 @@
     {
         <a href="@_jellyfinUrl" target="_blank" rel="noopener"><span>▶️</span>Jellyfin</a>
     }
-    @if (Viewer is { IsAdmin: false })
+    @if (Viewer is { IsAdmin: false } && Customers.Get(Viewer.Owner) is { Upload: not "" } c)
     {
-        <NavLink href="/kom-i-gang"><span>❓</span>Sådan</NavLink>
+        @* The customer's own upload box: where their ripped CDs are sent from. *@
+        <a href="@c.Upload" target="_blank" rel="noopener"><span>⬆️</span>Send musik</a>
     }
     @if (Viewer is { IsAdmin: true })
     {
