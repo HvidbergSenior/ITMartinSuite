@@ -132,7 +132,8 @@ public sealed class AemetSource(IHttpClientFactory http, string apiKey) : IStati
             req.Headers.Add("api_key", apiKey);
             using var res = await client.SendAsync(req, ct);
             res.EnsureSuccessStatusCode();
-            using var meta = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
+            // AEMET labels both answers "ISO-8859-15", which .NET does not know by that name - read the bytes as Latin-1.
+            using var meta = JsonDocument.Parse(System.Text.Encoding.Latin1.GetString(await res.Content.ReadAsByteArrayAsync(ct)));
             var link = meta.RootElement.GetProperty("datos").GetString()!;
             // The data file is ISO-8859-15 (Spanish letters), not UTF-8.
             var bytes = await client.GetByteArrayAsync(link, ct);
@@ -142,8 +143,10 @@ public sealed class AemetSource(IHttpClientFactory http, string apiKey) : IStati
             foreach (var r in doc.RootElement.EnumerateArray())
             {
                 if (!r.TryGetProperty("ta", out var ta) || ta.ValueKind != JsonValueKind.Number) continue;
-                if (!DateTimeOffset.TryParseExact(r.GetProperty("fint").GetString(), "yyyy-MM-dd'T'HH:mm:sszzz",
-                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)) continue;
+                // "2026-10-15T14:00:00+0000" - UTC, written without the colon .NET's zzz expects.
+                var fint = (r.GetProperty("fint").GetString() ?? "").Replace("+0000", "");
+                if (!DateTimeOffset.TryParseExact(fint, "yyyy-MM-dd'T'HH:mm:ss",
+                        CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var at)) continue;
                 list.Add(new Reading(Title(r.GetProperty("ubi").GetString() ?? ""),
                     new GeoPoint(r.GetProperty("lat").GetDouble(), r.GetProperty("lon").GetDouble()),
                     ta.GetDouble(), at, Name, true));

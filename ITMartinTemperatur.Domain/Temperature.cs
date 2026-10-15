@@ -53,8 +53,9 @@ public sealed record TemperatureHere(NearbyReading? Main, IReadOnlyList<NearbyRe
 
 public static class TemperatureRules
 {
-    // An observation older than this is not "now".
-    public static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(90);
+    // An observation older than this is not "now". AEMET publishes once an hour with up to an hour's delay, so 2.5 h;
+    // the page always says when it was measured.
+    public static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(150);
 
     public static readonly int[] RadiusChoicesKm = [10, 25, 50, 100];
 
