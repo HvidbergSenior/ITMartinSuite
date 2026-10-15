@@ -43,7 +43,10 @@
         if (d.maalt) {
             $('tp-where').textContent = d.her.station + ' · ' + dist(d.her.km);
             $('tp-when').textContent = ago(d.her.maalt) + ' · ' + d.her.kilde;
-            msg('');
+            // A far station measures the countryside, not your street - say so, so the number is not read as wrong.
+            msg(d.her.km > 10
+                ? 'Det nærmeste termometer er ' + Math.round(d.her.km) + ' km væk. I en by er det ofte lidt varmere end på stationen.'
+                : '');
         } else {
             $('tp-where').innerHTML = '';
             var t = document.createElement('span'); t.textContent = 'Beregnet for dit sted';
