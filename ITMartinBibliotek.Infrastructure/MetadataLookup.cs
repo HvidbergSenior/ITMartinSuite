@@ -1,19 +1,16 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ITMartinBibliotek.Server.Data.Entities;
+using ITMartinBibliotek.Application;
+using ITMartinBibliotek.Domain;
+using Microsoft.Extensions.Logging;
 
-namespace ITMartinBibliotek.Server.Services;
-
-public sealed record Candidate(
-    string Source, string Title, string Artist, int? Year, string CoverUrl,
-    MediaKind Kind, MediaFormat? Format,
-    string TmdbId = "", string MusicBrainzId = "", string DiscogsId = "");
+namespace ITMartinBibliotek.Infrastructure;
 
 // Barcode and title lookups against the free metadata sources named in the
 // brief. Every call is one HTTP request per user action (scan or search),
 // never a loop over the catalog.
-public sealed class MetadataLookup(IHttpClientFactory httpFactory, SettingsStore settings, ILogger<MetadataLookup> log)
+public sealed class MetadataLookup(IHttpClientFactory httpFactory, ISettings settings, ILogger<MetadataLookup> log) : IMetadataLookup
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
@@ -35,7 +32,7 @@ public sealed class MetadataLookup(IHttpClientFactory httpFactory, SettingsStore
             if (productName is not null)
             {
                 var query = TitleMatch.CleanProductName(productName);
-                var format = GuessFormat(productName);
+                var format = LibraryPaths.GuessFormat(productName);
                 var hits = await Safe(() => SearchTmdbAsync(query, ct), "TMDB");
                 if (hits.Count == 0)
                     hits.Add(new Candidate("Stregkode", query, "", TitleMatch.YearIn(productName), "", MediaKind.Film, format));
@@ -77,7 +74,7 @@ public sealed class MetadataLookup(IHttpClientFactory httpFactory, SettingsStore
 
     private async Task<List<Candidate>> DiscogsByBarcodeAsync(string barcode, CancellationToken ct)
     {
-        var token = await settings.GetAsync(SettingsStore.DiscogsToken);
+        var token = await settings.GetAsync(SettingKeys.DiscogsToken);
         if (string.IsNullOrWhiteSpace(token)) return [];
         var http = httpFactory.CreateClient("discogs");
         var url = $"https://api.discogs.com/database/search?barcode={barcode}&token={token}&per_page=8";
@@ -93,7 +90,7 @@ public sealed class MetadataLookup(IHttpClientFactory httpFactory, SettingsStore
                 int.TryParse(r.Year, out var y) ? y : null,
                 r.CoverImage ?? "",
                 isVideo ? MediaKind.Film : MediaKind.Musik,
-                GuessFormat(string.Join(" ", r.Format)) ?? MediaFormat.Cd,
+                LibraryPaths.GuessFormat(string.Join(" ", r.Format)) ?? MediaFormat.Cd,
                 DiscogsId: r.Id.ToString());
         }).ToList();
     }
@@ -111,7 +108,7 @@ public sealed class MetadataLookup(IHttpClientFactory httpFactory, SettingsStore
 
     private async Task<List<Candidate>> SearchTmdbAsync(string query, CancellationToken ct)
     {
-        var key = await settings.GetAsync(SettingsStore.TmdbApiKey);
+        var key = await settings.GetAsync(SettingKeys.TmdbApiKey);
         if (string.IsNullOrWhiteSpace(key)) return [];
         var http = httpFactory.CreateClient("tmdb");
         var url = $"https://api.themoviedb.org/3/search/multi?query={Uri.EscapeDataString(query)}&api_key={key}&language=da-DK&include_adult=false";
@@ -129,14 +126,6 @@ public sealed class MetadataLookup(IHttpClientFactory httpFactory, SettingsStore
                 null,
                 TmdbId: r.Id.ToString()))
             .ToList();
-    }
-
-    public static MediaFormat? GuessFormat(string text)
-    {
-        if (text.Contains("blu", StringComparison.OrdinalIgnoreCase) || text.Contains("4k", StringComparison.OrdinalIgnoreCase)) return MediaFormat.BluRay;
-        if (text.Contains("dvd", StringComparison.OrdinalIgnoreCase)) return MediaFormat.Dvd;
-        if (text.Contains("cd", StringComparison.OrdinalIgnoreCase)) return MediaFormat.Cd;
-        return null;
     }
 
     private async Task<T> Safe<T>(Func<Task<T>> call, string source) where T : new()

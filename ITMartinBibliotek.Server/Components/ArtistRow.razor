@@ -1,0 +1,11 @@
+<li>
+    <a class="artist-row" href="@Links.Artist(Artist)">
+        <Cover Url="@Artist.CoverUrl" Square="true" Class="artist-thumb" />
+        <span class="artist-name">@Artist.Name</span>
+        <span class="artist-count">@Artist.Albums.Count @(Artist.Albums.Count == 1 ? "album" : "album")</span>
+    </a>
+</li>
+
+@code {
+    [Parameter, EditorRequired] public Artist Artist { get; set; } = default!;
+}

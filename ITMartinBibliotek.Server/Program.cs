@@ -1,10 +1,10 @@
 using ITMartin.Shared.UI.Kolibri;
+using ITMartinBibliotek.Application;
 using ITMartinBibliotek.Server;
-using ITMartinBibliotek.Server.Data;
-using ITMartinBibliotek.Server.Services;
+using ITMartinBibliotek.Domain;
+using ITMartinBibliotek.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,49 +16,25 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Dine cd'er, dvd'er og blu-rays – på hylden og på skærmen.";
     k.About =
     [
-        "Bibliotek er kataloget over din egen samling. Scan stregkoden, og skiven står på listen med cover, år og spor.",
-        "Det der er rippet, kan afspilles direkte: musik spiller her i appen – også med skærmen slukket – og film åbner i Jellyfin. Resten ved du hvor står, så du køber ikke den samme film to gange.",
+        "Bibliotek er din egen samling af cd'er, dvd'er og blu-rays – på hylden og på skærmen.",
+        "Musik spiller her i appen, også med skærmen slukket. Film og serier åbner i Jellyfin.",
     ];
     k.HowTo =
     [
-        "Tryk Scan og hold stregkoden foran kameraet.",
-        "Ret titlen hvis opslaget tog fejl – eller skriv den ind selv.",
-        "Musik: tryk ▶ Afspil på et album. Afspilleren nederst – og telefonens låseskærm – styrer pause og næste nummer, og hele albummet spiller færdigt.",
-        "Film og serier: tryk ▶ Afspil, så åbner de i Jellyfin.",
+        "Søg efter en kunstner, et album, en sang eller en film i feltet øverst.",
+        "Musik: vælg en kunstner i listen A–Å, så et album. Tryk ▶ Afspil, eller tryk på en sang for at starte ved den.",
+        "Afspilleren nederst – og telefonens låseskærm – styrer pause og næste nummer.",
+        "Film og serier: tryk ▶ Afspil, så åbner de i Jellyfin. Ny skive: tryk Scan og hold stregkoden foran kameraet.",
     ];
-    k.Version = "2026.09";
+    k.Version = "2026.10";
     k.ThemeColor = "#121917";
 });
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var dbPath = builder.Configuration.GetConnectionString("BibliotekDb")
-    ?? "Data Source=/app/data/bibliotek.db";
-
-builder.Services.AddDbContextFactory<BibliotekDbContext>(o => o.UseSqlite(dbPath));
-builder.Services.AddSingleton<SettingsStore>();
-builder.Services.AddSingleton<JellyfinClient>();
-builder.Services.AddSingleton<MetadataLookup>();
-builder.Services.AddSingleton<Customers>();
-builder.Services.AddSingleton<JellyfinSync>();
-builder.Services.AddHostedService<CustomerSyncService>();
-builder.Services.AddSingleton<RipStatusStore>();
-
-// Audio streams run as long as a track plays, so they get no overall timeout.
-builder.Services.AddHttpClient("jellyfin-stream", c => c.Timeout = Timeout.InfiniteTimeSpan);
-
-// MusicBrainz and Discogs reject requests without a descriptive User-Agent.
-const string userAgent = "ITMartinBibliotek/1.0 (hvidbergsenior@gmail.com)";
-foreach (var name in new[] { "jellyfin", "musicbrainz", "discogs", "upc", "tmdb" })
-{
-    builder.Services.AddHttpClient(name, c =>
-    {
-        c.Timeout = TimeSpan.FromSeconds(15);
-        c.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
-        c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-    });
-}
+builder.Services.AddBibliotekInfrastructure(builder.Configuration);
+builder.Services.AddBibliotekApplication();
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["Bibliotek:KeysDir"] ?? "/app/data/keys"))
@@ -66,28 +42,7 @@ builder.Services.AddDataProtection()
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<BibliotekDbContext>>();
-    using var db = factory.CreateDbContext();
-    db.Database.EnsureCreated();
-    // EnsureCreated never alters an existing file, so columns added later are added by hand.
-    var conn = db.Database.GetDbConnection();
-    conn.Open();
-    using (var cmd = conn.CreateCommand())
-    {
-        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = 'Collection'";
-        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
-            db.Database.ExecuteSqlRaw("ALTER TABLE Items ADD COLUMN Collection TEXT NOT NULL DEFAULT ''");
-    }
-    using (var cmd = conn.CreateCommand())
-    {
-        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Items') WHERE name = 'Owner'";
-        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
-            db.Database.ExecuteSqlRaw("ALTER TABLE Items ADD COLUMN Owner TEXT NOT NULL DEFAULT ''");
-    }
-    db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Items_Owner ON Items (Owner)");
-}
+app.Services.EnsureBibliotekSchema();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -159,7 +114,7 @@ var ripKey = app.Configuration["Bibliotek:RipKey"] ?? "";
 bool RipKeyOk(HttpContext ctx) =>
     ripKey.Length >= 16 && ctx.Request.Headers.TryGetValue("X-Rip-Key", out var k) && k == ripKey;
 
-app.MapPost("/api/rip/job", async (HttpContext ctx, RipJob job, RipStatusStore store, JellyfinClient jellyfin, ILogger<RipStatusStore> log) =>
+app.MapPost("/api/rip/job", async (HttpContext ctx, RipJob job, IRipStatus store, IJellyfin jellyfin, ILogger<RipJob> log) =>
 {
     if (!RipKeyOk(ctx)) return Results.Unauthorized();
     if (string.IsNullOrWhiteSpace(job.Id)) return Results.BadRequest();
@@ -174,14 +129,14 @@ app.MapPost("/api/rip/job", async (HttpContext ctx, RipJob job, RipStatusStore s
 }).DisableAntiforgery();
 
 // Title lookup for a disc label (TMDB in Danish, so "Ørkenens Sønner" is found too).
-app.MapGet("/api/rip/lookup", async (HttpContext ctx, string q, MetadataLookup lookup) =>
+app.MapGet("/api/rip/lookup", async (HttpContext ctx, string q, Catalog catalog) =>
 {
     if (!RipKeyOk(ctx)) return Results.Unauthorized();
-    var hits = await lookup.SearchTitleAsync(q, ITMartinBibliotek.Server.Data.Entities.MediaKind.Film);
+    var hits = await catalog.LookupTitleAsync(q, MediaKind.Film);
     return Results.Ok(hits.Select(h => new { h.Title, h.Year, Kind = h.Kind.ToString() }));
 });
 
-app.MapPost("/api/rip/heartbeat", (HttpContext ctx, RipStatusStore store) =>
+app.MapPost("/api/rip/heartbeat", (HttpContext ctx, IRipStatus store) =>
 {
     if (!RipKeyOk(ctx)) return Results.Unauthorized();
     store.Heartbeat();
@@ -190,37 +145,27 @@ app.MapPost("/api/rip/heartbeat", (HttpContext ctx, RipStatusStore store) =>
 
 // Bibliotek's own music player (player.js). Track lists and audio come from Jellyfin
 // through the app, so the phone needs only the PIN cookie, never a Jellyfin login.
-// A customer may only play albums from their own library - checked on every request,
-// including each byte range, because the album id alone is guessable from Jellyfin.
-async Task<bool> MayPlay(HttpContext ctx, string albumId, IDbContextFactory<BibliotekDbContext> dbf)
+// The play id is an album, or several joined with '_' (a 2-cd set Jellyfin split in two).
+app.MapGet("/api/afspil/album/{playId}", async (string playId, HttpContext ctx, Playback playback) =>
 {
-    if (!JellyfinClient.IsId(albumId)) return false;
-    var viewer = ViewerOf(ctx);
-    if (viewer.IsAdmin) return true;
-    await using var db = await dbf.CreateDbContextAsync();
-    return await db.Items.AnyAsync(i => i.JellyfinId == albumId && i.Owner == viewer.Owner);
-}
-
-app.MapGet("/api/afspil/album/{albumId}", async (string albumId, HttpContext ctx, JellyfinClient jellyfin, IDbContextFactory<BibliotekDbContext> dbf) =>
-{
-    if (!await MayPlay(ctx, albumId, dbf)) return Results.NotFound();
-    var album = await jellyfin.AlbumAsync(albumId);
+    if (!await playback.MayPlayAsync(ViewerOf(ctx), playId)) return Results.NotFound();
+    var album = await playback.AlbumAsync(playId);
     return album is null ? Results.NotFound() : Results.Ok(album);
 });
 
 // Album + position instead of a track id: the first tap can start the audio at once, inside
 // the tap itself, which is what lets an iPhone go on to the next tracks with the screen off.
-app.MapGet("/api/afspil/album/{albumId}/spor/{index:int}", async (string albumId, int index, HttpContext ctx, JellyfinClient jellyfin, IDbContextFactory<BibliotekDbContext> dbf) =>
+app.MapGet("/api/afspil/album/{playId}/spor/{index:int}", async (string playId, int index, HttpContext ctx, Playback playback) =>
 {
-    var album = await MayPlay(ctx, albumId, dbf) ? await jellyfin.AlbumAsync(albumId) : null;
-    if (album is null || index < 0 || index >= album.Tracks.Count)
+    if (!await playback.MayPlayAsync(ViewerOf(ctx), playId))
     {
         ctx.Response.StatusCode = 404;
         return;
     }
     try
     {
-        using var res = await jellyfin.OpenAudioAsync(album.Tracks[index].Id, ctx.Request.Headers.Range.ToString(), ctx.RequestAborted);
+        using var res = await playback.OpenTrackAsync(playId, index, ctx.Request.Headers.Range.ToString(), ctx.RequestAborted);
+        if (res is null) { ctx.Response.StatusCode = 404; return; }
         ctx.Response.StatusCode = (int)res.StatusCode;
         var h = res.Content.Headers;
         if (h.ContentType is { } type) ctx.Response.ContentType = type.ToString();
@@ -232,12 +177,9 @@ app.MapGet("/api/afspil/album/{albumId}/spor/{index:int}", async (string albumId
     catch (OperationCanceledException) { }   // the phone moved on to another range or track
 });
 
-app.MapPost("/api/afspil/spillet/{trackId}", async (string trackId, HttpContext ctx, JellyfinClient jellyfin, ILogger<JellyfinClient> log) =>
+app.MapPost("/api/afspil/spillet/{trackId}", async (string trackId, HttpContext ctx, Playback playback, ILogger<Playback> log) =>
 {
-    if (!JellyfinClient.IsId(trackId)) return Results.NotFound();
-    // Played marks go to the household's Jellyfin account, so a customer's listening stays out of it.
-    if (!ViewerOf(ctx).IsAdmin) return Results.Ok();
-    try { await jellyfin.MarkPlayedAsync(trackId); }
+    try { await playback.MarkPlayedAsync(ViewerOf(ctx), trackId); }
     catch (Exception ex) { log.LogWarning(ex, "Marking {Track} played in Jellyfin failed", trackId); }
     return Results.Ok();
 }).DisableAntiforgery();

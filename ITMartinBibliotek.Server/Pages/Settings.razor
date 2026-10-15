@@ -1,8 +1,6 @@
 @page "/indstillinger"
 @layout AdminLayout
-@inject SettingsStore Store
-@inject JellyfinClient Jellyfin
-@inject JellyfinSync Sync
+@inject Admin Admin
 
 <PageTitle>Jellyfin – Bibliotek</PageTitle>
 
@@ -65,23 +63,23 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var all = await Store.GetAllAsync();
-        _jellyfinUrl = all.GetValueOrDefault(SettingsStore.JellyfinUrl, "");
-        _jellyfinPublic = all.GetValueOrDefault(SettingsStore.JellyfinPublicUrl, "");
-        _jellyfinKey = all.GetValueOrDefault(SettingsStore.JellyfinApiKey, "");
-        _tmdb = all.GetValueOrDefault(SettingsStore.TmdbApiKey, "");
-        _discogs = all.GetValueOrDefault(SettingsStore.DiscogsToken, "");
-        if (DateTime.TryParse(all.GetValueOrDefault(SettingsStore.LastSync, ""), null, System.Globalization.DateTimeStyles.RoundtripKind, out var ls))
+        var all = await Admin.SettingsAsync();
+        _jellyfinUrl = all.GetValueOrDefault(SettingKeys.JellyfinUrl, "");
+        _jellyfinPublic = all.GetValueOrDefault(SettingKeys.JellyfinPublicUrl, "");
+        _jellyfinKey = all.GetValueOrDefault(SettingKeys.JellyfinApiKey, "");
+        _tmdb = all.GetValueOrDefault(SettingKeys.TmdbApiKey, "");
+        _discogs = all.GetValueOrDefault(SettingKeys.DiscogsToken, "");
+        if (DateTime.TryParse(all.GetValueOrDefault(SettingKeys.LastSync, ""), null, System.Globalization.DateTimeStyles.RoundtripKind, out var ls))
             _lastSync = ls;
     }
 
     private async Task SaveAll()
     {
-        await Store.SetAsync(SettingsStore.JellyfinUrl, _jellyfinUrl);
-        await Store.SetAsync(SettingsStore.JellyfinPublicUrl, _jellyfinPublic);
-        await Store.SetAsync(SettingsStore.JellyfinApiKey, _jellyfinKey);
-        await Store.SetAsync(SettingsStore.TmdbApiKey, _tmdb);
-        await Store.SetAsync(SettingsStore.DiscogsToken, _discogs);
+        await Admin.SetAsync(SettingKeys.JellyfinUrl, _jellyfinUrl);
+        await Admin.SetAsync(SettingKeys.JellyfinPublicUrl, _jellyfinPublic);
+        await Admin.SetAsync(SettingKeys.JellyfinApiKey, _jellyfinKey);
+        await Admin.SetAsync(SettingKeys.TmdbApiKey, _tmdb);
+        await Admin.SetAsync(SettingKeys.DiscogsToken, _discogs);
         _ok = true;
         _message = "Gemt.";
     }
@@ -90,7 +88,7 @@
     {
         _busy = true;
         await SaveAll();
-        (_ok, _message) = await Jellyfin.TestAsync();
+        (_ok, _message) = await Admin.TestAsync();
         _busy = false;
     }
 
@@ -100,7 +98,7 @@
         await SaveAll();
         try
         {
-            var r = await Sync.RunAsync();
+            var r = await Admin.SyncAsync();
             _ok = true;
             _message = $"{r.InLibrary} titler i Jellyfin: {r.Matched} matchede discs i samlingen, {r.Imported} nye hentet ind"
                      + (r.NoLongerFound > 0 ? $", {r.NoLongerFound} ikke længere i Jellyfin" : "") + ".";

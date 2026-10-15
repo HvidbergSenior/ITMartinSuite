@@ -1,4 +1,4 @@
-namespace ITMartinBibliotek.Server.Services;
+namespace ITMartinBibliotek.Domain;
 
 // Who is looking at the app. Owner "" is the household (admin PIN); a customer
 // sees and plays only the items whose Owner is their own key - their private CD
@@ -16,23 +16,24 @@ public sealed class Customer
     public string Pin { get; set; } = "";
     public string Bibliotek { get; set; } = "";  // the customer's own Jellyfin library (virtual folder name)
 
-    // Shown on the customer's own "Sådan gør du" page (/kom-i-gang) - only to that customer.
-    public string Upload { get; set; } = "";         // their upload box link incl. token
+    // Only shown to that customer.
+    public string Upload { get; set; } = "";         // their upload box link incl. token ("Send musik")
     public string JellyfinBruger { get; set; } = "";
     public string JellyfinKode { get; set; } = "";
 }
 
-// Customers come from config (Bibliotek__Kunder__0__Key / __Navn / __Pin / __Bibliotek),
+// The household PIN plus the customers (from config: Bibliotek__Kunder__0__Key / __Navn / __Pin / __Bibliotek),
 // so adding one is an env line + restart, and PINs never sit in the database.
 public sealed class Customers
 {
     private readonly string _adminPin;
     private readonly List<Customer> _list;
 
-    public Customers(IConfiguration cfg)
+    public Customers(string adminPin, IEnumerable<Customer> customers)
     {
-        _adminPin = cfg["Bibliotek:AdminPin"] ?? "bibliotek2026";
-        _list = (cfg.GetSection("Bibliotek:Kunder").Get<List<Customer>>() ?? [])
+        _adminPin = adminPin;
+        // A customer with the household's PIN, a short PIN or no library would be a way in or a dead login.
+        _list = customers
             .Where(c => c.Key.Trim() != "" && c.Pin.Trim().Length >= 4 && c.Bibliotek.Trim() != "" && c.Pin != _adminPin)
             .ToList();
     }

@@ -1,4 +1,4 @@
-namespace ITMartinBibliotek.Server.Data.Entities;
+namespace ITMartinBibliotek.Domain;
 
 public enum MediaKind { Film = 0, Serie = 1, Musik = 2 }
 
@@ -40,10 +40,4 @@ public sealed class MediaItem
 
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-}
-
-public sealed class Setting
-{
-    public string Key { get; set; } = string.Empty;
-    public string Value { get; set; } = string.Empty;
 }

@@ -1,5 +1,6 @@
 using FluentAssertions;
-using ITMartinBibliotek.Server.Services;
+using ITMartinBibliotek.Domain;
+using ITMartinBibliotek.Infrastructure;
 using Microsoft.Extensions.Configuration;
 
 namespace ITMartinBibliotek.Tests;
@@ -16,7 +17,7 @@ public class CustomerTests
             cfg[$"Bibliotek:Kunder:{i}:Pin"] = list[i].pin;
             cfg[$"Bibliotek:Kunder:{i}:Bibliotek"] = list[i].lib;
         }
-        return new Customers(new ConfigurationBuilder().AddInMemoryCollection(cfg).Build());
+        return CustomerConfig.Load(new ConfigurationBuilder().AddInMemoryCollection(cfg).Build());
     }
 
     [Test]
@@ -60,5 +61,5 @@ public class CustomerTests
     [TestCase("/other/place", "")]
     [TestCase(null, "")]
     public void Nested_customer_folder_wins_over_the_household_library(string? path, string expected) =>
-        JellyfinClient.LibraryForPath(path, Libs).Should().Be(expected);
+        LibraryPaths.LibraryForPath(path, Libs).Should().Be(expected);
 }

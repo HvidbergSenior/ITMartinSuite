@@ -1,13 +1,15 @@
 @inherits LayoutComponentBase
-@inject JellyfinClient Jellyfin
+@inject Admin Admin
 @inject Customers Customers
+
+<KolibriHeader Wide="true" />
 
 <div class="page">
     @Body
     <KolibriFooter />
 </div>
 
-<nav class="bottom-nav">
+<nav class="bottom-nav" aria-label="Menu">
     @if (Viewer is { IsAdmin: false })
     {
         @* A customer has two things only: listen, and send the CDs they ripped (their upload box). *@
@@ -17,19 +19,16 @@
             <a href="@c.Upload" target="_blank" rel="noopener"><span>⬆️</span>Send musik</a>
         }
     }
-    else
+    else if (Viewer is { IsAdmin: true })
     {
         <NavLink href="/" Match="NavLinkMatch.All"><span>💿</span>Samling</NavLink>
-        <NavLink href="/scan" class="nav-primary"><span>📷</span>Scan</NavLink>
+        <NavLink href="/scan"><span>📷</span>Scan</NavLink>
         @* Straight into Jellyfin - the settings page used to sit behind this label, which
            is not what you expect when you just want to watch something. *@
         @if (_jellyfinUrl != "")
         {
             <a href="@_jellyfinUrl" target="_blank" rel="noopener"><span>▶️</span>Jellyfin</a>
         }
-    }
-    @if (Viewer is { IsAdmin: true })
-    {
         <NavLink href="/rip"><span>💽</span>Rip</NavLink>
         <NavLink href="/indstillinger"><span>⚙️</span>Indstillinger</NavLink>
     }
@@ -40,5 +39,8 @@
 
     private string _jellyfinUrl = "";
 
-    protected override async Task OnInitializedAsync() => _jellyfinUrl = await Jellyfin.HomeUrlAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        if (Viewer is { IsAdmin: true }) _jellyfinUrl = await Admin.JellyfinHomeAsync();
+    }
 }

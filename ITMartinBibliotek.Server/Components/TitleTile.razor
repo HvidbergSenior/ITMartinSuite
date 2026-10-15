@@ -1,0 +1,18 @@
+@* A film or a series. The poster opens the details; ▶ Afspil opens it in Jellyfin.
+   Only a disc that is not ripped says so - "rippet" is the normal case and needs no label. *@
+<div class="tile">
+    <a class="tile-link" href="/titel/@Item.Id">
+        <Cover Url="@Item.CoverUrl" Icon="@Display.Icon(Item.Kind)" />
+        <span class="tile-title">@Item.Title</span>
+        <span class="tile-sub">@(Item.Year?.ToString() ?? "")@(Item.Status == MediaStatus.Ejet ? " · kun på hylden" : "")</span>
+    </a>
+    @if (Item.JellyfinId != "" && PlayBase != "")
+    {
+        <a class="tile-play" href="@(PlayBase + Item.JellyfinId)" target="_blank" rel="noopener">▶ Afspil</a>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public MediaItem Item { get; set; } = default!;
+    [Parameter] public string PlayBase { get; set; } = "";
+}

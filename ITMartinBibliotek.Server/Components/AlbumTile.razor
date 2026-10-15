@@ -1,0 +1,34 @@
+@* One album: cover, title, artist/year. Normally the cover opens the album page and the round
+   button plays it; with TapToPlay (a customer's shelf) the whole tile just plays. *@
+<div class="tile">
+    @if (TapToPlay && Album.CanPlay)
+    {
+        <button type="button" class="tile-link" data-play-album="@Album.PlayId" aria-label="Afspil @Album.Title">
+            <Cover Url="@Album.CoverUrl" Square="true" />
+            <span class="tile-title">@Album.Title</span>
+            <span class="tile-sub">@Sub</span>
+        </button>
+    }
+    else
+    {
+        <a class="tile-link" href="@Links.Album(Album)">
+            <Cover Url="@Album.CoverUrl" Square="true" />
+            <span class="tile-title">@Album.Title</span>
+            <span class="tile-sub">@Sub</span>
+        </a>
+        @if (Album.CanPlay)
+        {
+            <button type="button" class="tile-play-round" data-play-album="@Album.PlayId" aria-label="Afspil @Album.Title">▶</button>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Album Album { get; set; } = default!;
+    [Parameter] public bool ShowArtist { get; set; }
+    [Parameter] public bool TapToPlay { get; set; }
+
+    private string Sub => ShowArtist
+        ? Album.Artist + (Album.Year is { } y ? $" · {y}" : "")
+        : Album.Year?.ToString() ?? "";
+}

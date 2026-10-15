@@ -1,20 +1,12 @@
-using ITMartinBibliotek.Server.Data;
-using ITMartinBibliotek.Server.Data.Entities;
+using ITMartinBibliotek.Application;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinBibliotek.Server.Services;
+namespace ITMartinBibliotek.Infrastructure;
 
 // Connection details and API keys are entered once in Indstillinger and
 // kept in the database, so a deploy never needs new env vars for them.
-public sealed class SettingsStore(IDbContextFactory<BibliotekDbContext> dbFactory)
+public sealed class SettingsStore(IDbContextFactory<BibliotekDbContext> dbFactory) : ISettings
 {
-    public const string JellyfinUrl = "JellyfinUrl";
-    public const string JellyfinApiKey = "JellyfinApiKey";
-    public const string JellyfinPublicUrl = "JellyfinPublicUrl";
-    public const string TmdbApiKey = "TmdbApiKey";
-    public const string DiscogsToken = "DiscogsToken";
-    public const string LastSync = "LastSync";
-
     public async Task<string> GetAsync(string key)
     {
         await using var db = await dbFactory.CreateDbContextAsync();

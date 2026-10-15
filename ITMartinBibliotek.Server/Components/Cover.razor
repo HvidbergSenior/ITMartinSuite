@@ -1,0 +1,16 @@
+@* A cover that fades in when Jellyfin has sent it, with a quiet note symbol until then
+   (or for good, when there is no picture). *@
+<span class="cover @(Square ? "cover-square" : "cover-poster") @Class">
+    <span class="cover-icon" aria-hidden="true">@Icon</span>
+    @if (!string.IsNullOrEmpty(Url))
+    {
+        <img src="@Url" alt="" loading="lazy" decoding="async" onload="this.classList.add('is-loaded')" onerror="this.remove()" />
+    }
+</span>
+
+@code {
+    [Parameter] public string Url { get; set; } = "";
+    [Parameter] public bool Square { get; set; }
+    [Parameter] public string Icon { get; set; } = "♪";
+    [Parameter] public string Class { get; set; } = "";
+}

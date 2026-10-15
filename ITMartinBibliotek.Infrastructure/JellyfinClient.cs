@@ -2,30 +2,15 @@ using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.RegularExpressions;
-using ITMartinBibliotek.Server.Data.Entities;
+using ITMartinBibliotek.Application;
+using ITMartinBibliotek.Domain;
 
-namespace ITMartinBibliotek.Server.Services;
-
-// Library = the Jellyfin library (virtual folder) the item sits in; it decides which customer owns it.
-public sealed record JellyfinItem(string Id, string Name, string Type, int? Year, string Artist, string TmdbId, string MusicBrainzId, string Collection, string Library = "")
-{
-    public MediaKind Kind => Type switch
-    {
-        "Series" => MediaKind.Serie,
-        "MusicAlbum" => MediaKind.Musik,
-        _ => MediaKind.Film
-    };
-}
-
-public sealed record PlayerTrack(string Id, string Name, string Artist, int Seconds, int Disc, int Number);
-
-public sealed record PlayerAlbum(string Id, string Name, string Artist, int? Year, string Cover, List<PlayerTrack> Tracks);
+namespace ITMartinBibliotek.Infrastructure;
 
 // Thin client over the parts of Jellyfin's REST API the catalog needs:
 // list what is in the library, build image/play links for it, and feed the
 // app's own music player (album track lists, audio streams, played marks).
-public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore settings)
+public sealed class JellyfinClient(IHttpClientFactory httpFactory, ISettings settings) : IJellyfin
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
@@ -33,12 +18,6 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
     // album + position to a track, so track lists are kept for a while.
     private readonly ConcurrentDictionary<string, (DateTime at, PlayerAlbum album)> _albums = new();
     private string _playedUserId = "";
-
-    [GeneratedRegex("^[0-9a-f]{32}$")]
-    private static partial Regex IdPattern();
-
-    // Jellyfin ids are 32 hex chars; anything else never reaches an API URL.
-    public static bool IsId(string id) => IdPattern().IsMatch(id);
 
     public async Task<(bool ok, string message)> TestAsync()
     {
@@ -60,44 +39,15 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
         const string url = "Items?IncludeItemTypes=Movie,Series,MusicAlbum&Recursive=true&Fields=ProductionYear,ProviderIds,AlbumArtist,Path&Limit=5000";
         var page = await http.GetFromJsonAsync<ItemsPage>(url, Json) ?? new ItemsPage();
         var folders = await http.GetFromJsonAsync<List<VirtualFolder>>("Library/VirtualFolders", Json) ?? [];
-        var roots = folders.SelectMany(f => f.Locations).Select(Norm).ToHashSet();
+        var roots = folders.SelectMany(f => f.Locations).Select(LibraryPaths.Norm).ToHashSet();
         var libraries = folders.Select(f => (f.Name, f.Locations)).ToList();
         return page.Items.Select(i => new JellyfinItem(
             i.Id, i.Name, i.Type, i.ProductionYear, i.AlbumArtist ?? "",
             i.ProviderIds.GetValueOrDefault("Tmdb", ""),
             i.ProviderIds.GetValueOrDefault("MusicBrainzAlbum", i.ProviderIds.GetValueOrDefault("MusicBrainzReleaseGroup", "")),
-            i.Type == "MusicAlbum" ? "" : CollectionFromPath(i.Path, i.Type, roots),
-            LibraryForPath(i.Path, libraries)))
+            i.Type == "MusicAlbum" ? "" : LibraryPaths.CollectionFromPath(i.Path, i.Type, roots),
+            LibraryPaths.LibraryForPath(i.Path, libraries)))
             .ToList();
-    }
-
-    // Film\X-Men\X2 (2003)\X2 (2003).mkv -> "X-Men". The title's own folder is skipped
-    // (a movie Path is the file, a series Path is its folder); the next folder up is the
-    // collection unless it is a library root, i.e. the title is not grouped.
-    public static string CollectionFromPath(string? path, string type, IReadOnlySet<string> roots)
-    {
-        if (string.IsNullOrEmpty(path)) return "";
-        var parts = path.Replace('\\', '/').TrimEnd('/').Split('/');
-        var up = type == "Series" ? 1 : 2;
-        if (parts.Length <= up) return "";
-        var parent = string.Join('/', parts[..^up]);
-        return roots.Contains(parent) ? "" : parts[^(up + 1)];
-    }
-
-    private static string Norm(string path) => path.Replace('\\', '/').TrimEnd('/');
-
-    // The library whose folder holds the path. The longest location wins, so a customer
-    // folder nested inside a household library (Musik/Kunder/Jytte) still counts as the customer's.
-    public static string LibraryForPath(string? path, IEnumerable<(string Name, List<string> Locations)> libraries)
-    {
-        if (string.IsNullOrEmpty(path)) return "";
-        var p = Norm(path) + "/";
-        return libraries
-            .SelectMany(l => l.Locations.Select(loc => (l.Name, Loc: Norm(loc) + "/")))
-            .Where(x => p.StartsWith(x.Loc, StringComparison.Ordinal))
-            .OrderByDescending(x => x.Loc.Length)
-            .Select(x => x.Name)
-            .FirstOrDefault() ?? "";
     }
 
     // Rescans one library only - a customer's few albums, not the household's whole collection.
@@ -160,6 +110,17 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
         return album;
     }
 
+    // Songs by name over the whole server; the caller keeps only albums the viewer owns.
+    public async Task<List<TrackHit>> SearchTracksAsync(string query, int limit)
+    {
+        var http = await ClientAsync();
+        var page = await http.GetFromJsonAsync<ItemsPage>(
+            $"Items?SearchTerm={Uri.EscapeDataString(query)}&IncludeItemTypes=Audio&Recursive=true&Limit={limit}&Fields=AlbumId", Json) ?? new ItemsPage();
+        return page.Items.Where(t => !string.IsNullOrEmpty(t.AlbumId))
+            .Select(t => new TrackHit(t.Id, t.Name, t.Artists.Count > 0 ? string.Join(", ", t.Artists) : t.AlbumArtist ?? "", t.AlbumId!, t.Album ?? ""))
+            .ToList();
+    }
+
     // The original file (FLAC/MP3/M4A) straight from Jellyfin with byte ranges passed
     // through, so the phone can seek and Jellyfin never has to transcode.
     public async Task<HttpResponseMessage> OpenAudioAsync(string trackId, string range, CancellationToken ct)
@@ -187,15 +148,15 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
 
     private async Task<string> PublicBaseAsync()
     {
-        var pub = await settings.GetAsync(SettingsStore.JellyfinPublicUrl);
-        if (string.IsNullOrWhiteSpace(pub)) pub = await settings.GetAsync(SettingsStore.JellyfinUrl);
+        var pub = await settings.GetAsync(SettingKeys.JellyfinPublicUrl);
+        if (string.IsNullOrWhiteSpace(pub)) pub = await settings.GetAsync(SettingKeys.JellyfinUrl);
         return pub.TrimEnd('/');
     }
 
     private async Task<HttpClient> ClientAsync(string name = "jellyfin")
     {
-        var baseUrl = (await settings.GetAsync(SettingsStore.JellyfinUrl)).TrimEnd('/');
-        var key = await settings.GetAsync(SettingsStore.JellyfinApiKey);
+        var baseUrl = (await settings.GetAsync(SettingKeys.JellyfinUrl)).TrimEnd('/');
+        var key = await settings.GetAsync(SettingKeys.JellyfinApiKey);
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("Jellyfin-adresse og API-nøgle mangler under Indstillinger.");
         var http = httpFactory.CreateClient(name);
@@ -235,6 +196,8 @@ public sealed partial class JellyfinClient(IHttpClientFactory httpFactory, Setti
         public long RunTimeTicks { get; set; }
         public int? IndexNumber { get; set; }
         public int? ParentIndexNumber { get; set; }
+        public string? AlbumId { get; set; }
+        public string? Album { get; set; }
     }
 
     private sealed class UserDto

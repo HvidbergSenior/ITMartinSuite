@@ -1,7 +1,6 @@
 @page "/titel/{IdText}"
-@inject IDbContextFactory<BibliotekDbContext> DbFactory
-@inject MetadataLookup Lookup
-@inject JellyfinClient Jellyfin
+@layout AdminLayout
+@inject Catalog Catalog
 @inject NavigationManager Nav
 
 <PageTitle>@(_item?.Title ?? "Titel") – Bibliotek</PageTitle>
@@ -14,7 +13,7 @@ else
 {
     <div class="top-row">
         <h1>@(_isNew ? "Ny titel" : _item.Title)</h1>
-        <a class="top-link" href="/">Samling</a>
+        <a class="top-link" href="@(_item.Kind == MediaKind.Musik ? Links.Music : "/?kind=" + (_item.Kind == MediaKind.Serie ? "serier" : "film"))">Tilbage</a>
     </div>
 
     @if (Ny == "1")
@@ -24,23 +23,13 @@ else
 
     <div class="detail-head">
         <div class="detail-cover">
-            @if (!string.IsNullOrEmpty(_item.CoverUrl))
-            {
-                <img src="@_item.CoverUrl" alt="" onerror="this.style.display='none'" />
-            }
-            <span>@Index.Icon(_item.Kind)</span>
+            <Cover Url="@_item.CoverUrl" Icon="@Display.Icon(_item.Kind)" Square="@(_item.Kind == MediaKind.Musik)" />
         </div>
         <div class="detail-status">
-            <div class="section-label" style="margin-top:0">Status</div>
-            <button class="status-btn @(_item.Status == MediaStatus.Ejet ? "on-ejet" : "")" @onclick="() => SetStatus(MediaStatus.Ejet)">
-                💿 Kun på hylden
-            </button>
-            <button class="status-btn @(_item.Status == MediaStatus.Rippet ? "on-rippet" : "")" @onclick="() => SetStatus(MediaStatus.Rippet)">
-                ✅ Rippet og klar
-            </button>
+            <p class="muted">@(_item.Status == MediaStatus.Rippet ? "Rippet – kan afspilles." : "Kun på hylden – ikke rippet endnu.")</p>
             @if (_item.Kind == MediaKind.Musik && _item.JellyfinId != "")
             {
-                <button type="button" class="btn btn-primary btn-block" data-play-album="@_item.JellyfinId">▶ Afspil albummet</button>
+                <button type="button" class="btn btn-primary btn-block" data-play-album="@_item.JellyfinId">▶ Afspil</button>
                 <a class="hint" href="@_playUrl" target="_blank" rel="noopener">Åbn i Jellyfin</a>
             }
             else if (!string.IsNullOrEmpty(_playUrl))
@@ -103,7 +92,7 @@ else
 
     <div class="btn-row">
         <button class="btn btn-primary" @onclick="Save" disabled="@_saving">Gem</button>
-        <button class="btn" @onclick="FindMetadata" disabled="@_busy">🔎 Slå titlen op</button>
+        <button class="btn" @onclick="FindMetadata" disabled="@_busy">Slå titlen op</button>
     </div>
     @if (_saved)
     {
@@ -121,11 +110,7 @@ else
         {
             <button class="hit" @onclick="() => Apply(c)">
                 <div class="hit-cover">
-                    @if (!string.IsNullOrEmpty(c.CoverUrl))
-                    {
-                        <img src="@c.CoverUrl" alt="" loading="lazy" onerror="this.style.display='none'" />
-                    }
-                    <span>@Index.Icon(c.Kind)</span>
+                    <Cover Url="@c.CoverUrl" Icon="@Display.Icon(c.Kind)" />
                 </div>
                 <div class="hit-body">
                     <div class="hit-title">@c.Title</div>
@@ -137,7 +122,7 @@ else
     }
     else if (_candidates is { Count: 0 })
     {
-        <p class="muted">Ingen træffere. @(_item.Kind == MediaKind.Musik ? "" : "Er TMDB-nøglen sat under ⚙️?")</p>
+        <p class="muted">Ingen træffere. @(_item.Kind == MediaKind.Musik ? "" : "Er TMDB-nøglen sat under Indstillinger?")</p>
     }
 
     @if (!_isNew)
@@ -146,7 +131,7 @@ else
             @if (_item.TmdbId != "") { <span>TMDB @_item.TmdbId</span> }
             @if (_item.MusicBrainzId != "") { <span>MusicBrainz @_item.MusicBrainzId[..8]…</span> }
             @if (_item.DiscogsId != "") { <span>Discogs @_item.DiscogsId</span> }
-            @if (_item.JellyfinId != "") { <span>Jellyfin ✓</span> }
+            @if (_item.JellyfinId != "") { <span>I Jellyfin</span> }
             <span>Tilføjet @_item.AddedAt.ToLocalTime().ToString("d. MMM yyyy")</span>
         </div>
         <button class="btn btn-danger" @onclick="Delete">Fjern fra samlingen</button>
@@ -170,42 +155,29 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Viewer is null) { Nav.NavigateTo("/login", true); return; }
+        if (Viewer is not { IsAdmin: true }) return;
         if (IdText == "ny")
         {
             _isNew = true;
-            _item = new MediaItem { Barcode = Barcode ?? "", Format = MediaFormat.Dvd, Owner = Viewer.Owner };
+            _item = Catalog.New(Viewer, Barcode ?? "");
             return;
         }
         if (!Guid.TryParse(IdText, out var id)) { Nav.NavigateTo("/"); return; }
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _item = await db.Items.FindAsync(id);
-        if (_item is null || _item.Owner != Viewer.Owner) { _item = null; Nav.NavigateTo("/"); return; }
-        _playUrl = _item.JellyfinId == "" ? "" : await Jellyfin.PlayUrlAsync(_item.JellyfinId);
-    }
-
-    private async Task SetStatus(MediaStatus s)
-    {
-        _item!.Status = s;
-        if (!_isNew) await Save();
+        _item = await Catalog.GetAsync(Viewer, id);
+        if (_item is null) { Nav.NavigateTo("/"); return; }
+        _playUrl = await Catalog.PlayUrlAsync(_item);
     }
 
     private async Task Save()
     {
         if (_item is null || string.IsNullOrWhiteSpace(_item.Title)) return;
         _saving = true;
-        _item.Title = _item.Title.Trim();
-        _item.UpdatedAt = DateTime.UtcNow;
-        await using var db = await DbFactory.CreateDbContextAsync();
+        await Catalog.SaveAsync(_item, _isNew);
         if (_isNew)
         {
-            db.Items.Add(_item);
-            await db.SaveChangesAsync();
             Nav.NavigateTo($"/titel/{_item.Id}?ny=1");
             return;
         }
-        db.Items.Update(_item);
-        await db.SaveChangesAsync();
         _saving = false;
         _saved = true;
     }
@@ -215,30 +187,20 @@ else
         if (_item is null || string.IsNullOrWhiteSpace(_item.Title)) return;
         _busy = true;
         _candidates = null;
-        var query = _item.Kind == MediaKind.Musik && _item.Artist != "" ? $"{_item.Artist} {_item.Title}" : _item.Title;
-        _candidates = await Lookup.SearchTitleAsync(query, _item.Kind);
+        _candidates = await Catalog.FindAsync(_item);
         _busy = false;
     }
 
     private async Task Apply(Candidate c)
     {
-        _item!.Title = c.Title;
-        if (c.Artist != "") _item.Artist = c.Artist;
-        _item.Kind = c.Kind;
-        _item.Year ??= c.Year;
-        if (c.CoverUrl != "") _item.CoverUrl = c.CoverUrl;
-        if (c.TmdbId != "") _item.TmdbId = c.TmdbId;
-        if (c.MusicBrainzId != "") _item.MusicBrainzId = c.MusicBrainzId;
-        if (c.DiscogsId != "") _item.DiscogsId = c.DiscogsId;
+        Catalog.Apply(_item!, c);
         _candidates = null;
         await Save();
     }
 
     private async Task Delete()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        db.Items.Remove(_item!);
-        await db.SaveChangesAsync();
+        await Catalog.DeleteAsync(_item!);
         Nav.NavigateTo("/");
     }
 }

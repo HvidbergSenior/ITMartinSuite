@@ -1,0 +1,10 @@
+@* What this page is and how to use it - folded away until someone wants to know (kolibri.js remembers it). *@
+<details class="page-info" id="@Id">
+    <summary>Om siden</summary>
+    @ChildContent
+</details>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

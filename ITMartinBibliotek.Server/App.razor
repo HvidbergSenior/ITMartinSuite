@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#121917" />
 </head>
 <body>
-    <Routes @rendermode="InteractiveServer" Owner="@_owner" />
+    <Routes @rendermode="PageRenderMode" Owner="@_owner" />
     <script src="scanner.js?v=@CacheBuster"></script>
     <script src="player.js?v=@CacheBuster"></script>
     <script>window.bibliotekScrollTo=function(id){var e=document.getElementById(id);if(e)e.scrollIntoView({behavior:"smooth",block:"start"});};</script>
@@ -34,4 +34,8 @@
     // Set by the PIN middleware; null on /login. The circuit's parameters are data-protected,
     // so the owner cannot be swapped in the browser.
     private string? _owner => (HttpContext?.Items["viewer"] as Viewer)?.Owner;
+
+    // The login page is a plain HTML form posting to /api/auth/login - it needs no live connection.
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext?.Request.Path.StartsWithSegments("/login") == true ? null : InteractiveServer;
 }

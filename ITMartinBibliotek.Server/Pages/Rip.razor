@@ -1,7 +1,7 @@
 @page "/rip"
 @layout AdminLayout
 @implements IDisposable
-@inject RipStatusStore Store
+@inject IRipStatus Store
 
 <PageTitle>Rip – Bibliotek</PageTitle>
 
@@ -54,7 +54,7 @@
     {
         <div class="card rip-failed">
             <div class="rip-head">
-                <span class="rip-icon">⚠️</span>
+                <span class="rip-icon rip-icon-warn">!</span>
                 <div>
                     <b>@(j.Title.Length > 0 ? j.Title : j.Label) kunne ikke rippes</b>
                     <div class="small">@j.Error</div>
@@ -68,7 +68,7 @@
     {
         <div class="card">
             <div class="rip-head">
-                <span class="rip-icon">🏷️</span>
+                <span class="rip-icon">Navn?</span>
                 <div>
                     <b>@j.Title</b>
                     <div class="muted small">Navnet er gættet ud fra diskens etiket “@j.Label”. Passer det ikke, så sig det rigtige navn til Claude.</div>
@@ -114,7 +114,7 @@
         Store.Upsert(j);
     }
 
-    private static string Icon(string kind) => kind switch { "cd" => "💿", "bluray" => "🔵", _ => "📀" };
+    private static string Icon(string kind) => kind switch { "cd" => "CD", "bluray" => "BD", _ => "DVD" };
 
     private static string StatusText(string s) => s switch
     {

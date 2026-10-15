@@ -1,0 +1,39 @@
+@page "/kunstner/{Key}"
+@inject Library Library
+
+<PageTitle>@(_artist?.Name ?? "Kunstner") – Bibliotek</PageTitle>
+
+<div class="top-row">
+    <a class="back-link" href="@Links.Music">← Musik</a>
+</div>
+
+@if (_loaded && _artist is null)
+{
+    <p class="muted">Kunstneren findes ikke i samlingen.</p>
+}
+else if (_artist is not null)
+{
+    <h1>@_artist.Name</h1>
+    <p class="lede">@_artist.Albums.Count @(_artist.Albums.Count == 1 ? "album" : "album")</p>
+    <div class="grid grid-albums">
+        @foreach (var a in _artist.Albums)
+        {
+            <AlbumTile Album="a" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+    [CascadingParameter] public Viewer? Viewer { get; set; }
+
+    private Artist? _artist;
+    private bool _loaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Viewer is null) return;
+        _artist = await Library.ArtistAsync(Viewer, Key);
+        _loaded = true;
+    }
+}

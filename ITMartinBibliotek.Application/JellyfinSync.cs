@@ -1,8 +1,7 @@
-using ITMartinBibliotek.Server.Data;
-using ITMartinBibliotek.Server.Data.Entities;
-using Microsoft.EntityFrameworkCore;
+using ITMartinBibliotek.Domain;
+using Microsoft.Extensions.Logging;
 
-namespace ITMartinBibliotek.Server.Services;
+namespace ITMartinBibliotek.Application;
 
 public sealed record SyncResult(int InLibrary, int Matched, int Imported, int NoLongerFound);
 
@@ -12,7 +11,7 @@ public sealed record SyncResult(int InLibrary, int Matched, int Imported, int No
 // collection page shows the whole library, not just scanned discs.
 // Each Jellyfin item belongs to the owner of the library it sits in (Customers),
 // and only matches catalog items of that same owner.
-public sealed class JellyfinSync(IDbContextFactory<BibliotekDbContext> dbFactory, JellyfinClient jellyfin, SettingsStore settings, Customers customers, ILogger<JellyfinSync> log)
+public sealed class JellyfinSync(IMediaRepository repo, IJellyfin jellyfin, ISettings settings, Customers customers, ILogger<JellyfinSync> log)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -26,8 +25,9 @@ public sealed class JellyfinSync(IDbContextFactory<BibliotekDbContext> dbFactory
     private async Task<SyncResult> RunLockedAsync()
     {
         var library = await jellyfin.ListLibraryAsync();
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var items = await db.Items.ToListAsync();
+        var items = await repo.AllAsync();
+        var added = new List<MediaItem>();
+        var changed = new List<MediaItem>();
 
         var matched = 0;
         var imported = 0;
@@ -54,13 +54,14 @@ public sealed class JellyfinSync(IDbContextFactory<BibliotekDbContext> dbFactory
                     MusicBrainzId = jf.MusicBrainzId,
                     Owner = owner,
                 };
-                db.Items.Add(item);
+                added.Add(item);
                 items.Add(item);
                 imported++;
             }
             else
             {
                 matched++;
+                changed.Add(item);
             }
 
             item.JellyfinId = jf.Id;
@@ -83,15 +84,17 @@ public sealed class JellyfinSync(IDbContextFactory<BibliotekDbContext> dbFactory
             log.LogWarning("Sync: {Gone} of {Linked} linked items missing from Jellyfin - skipping removals", goneItems.Count, linked);
             goneItems.Clear();
         }
+        var removed = new List<MediaItem>();
         foreach (var i in goneItems)
         {
             i.JellyfinId = "";
             i.Status = MediaStatus.Ejet;
-            if (i.Format == MediaFormat.Digital) db.Items.Remove(i);
+            if (i.Format == MediaFormat.Digital) removed.Add(i);
+            else changed.Add(i);
         }
 
-        await db.SaveChangesAsync();
-        await settings.SetAsync(SettingsStore.LastSync, DateTime.UtcNow.ToString("O"));
+        await repo.ApplySyncAsync(added, changed, removed);
+        await settings.SetAsync(SettingKeys.LastSync, DateTime.UtcNow.ToString("O"));
         return new SyncResult(library.Count, matched, imported, goneItems.Count);
     }
 
@@ -102,26 +105,5 @@ public sealed class JellyfinSync(IDbContextFactory<BibliotekDbContext> dbFactory
         if (i.MusicBrainzId != "" && jf.MusicBrainzId != "") return i.MusicBrainzId == jf.MusicBrainzId;
         if (i.Kind != jf.Kind) return false;
         return TitleMatch.Same(i.Title, i.Year, jf.Name, jf.Year);
-    }
-}
-
-// Customers upload CDs through the upload box and expect them in the app without asking
-// anyone to press Synkroniser: every 20 minutes their libraries are rescanned and synced.
-public sealed class CustomerSyncService(Customers customers, JellyfinClient jellyfin, JellyfinSync sync, ILogger<CustomerSyncService> log) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken ct)
-    {
-        if (customers.All.Count == 0) return;
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(20));
-        do
-        {
-            try
-            {
-                // Jellyfin scans in the background, so new albums land in the sync after this one.
-                foreach (var c in customers.All) await jellyfin.RefreshLibraryAsync(c.Bibliotek);
-                await sync.RunAsync();
-            }
-            catch (Exception ex) { log.LogWarning(ex, "Customer sync failed"); }
-        } while (await timer.WaitForNextTickAsync(ct));
     }
 }

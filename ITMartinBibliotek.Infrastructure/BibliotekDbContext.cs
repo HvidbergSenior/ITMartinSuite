@@ -1,7 +1,13 @@
-using ITMartinBibliotek.Server.Data.Entities;
+using ITMartinBibliotek.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinBibliotek.Server.Data;
+namespace ITMartinBibliotek.Infrastructure;
+
+public sealed class Setting
+{
+    public string Key { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+}
 
 public sealed class BibliotekDbContext(DbContextOptions<BibliotekDbContext> options) : DbContext(options)
 {

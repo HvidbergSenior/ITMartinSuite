@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace ITMartinBibliotek.Server.Services;
+namespace ITMartinBibliotek.Domain;
 
 // Title normalisation used both when matching Jellyfin items to the catalog
 // and when turning a barcode-database product name into a searchable title.

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Bibliotek - SQLite (EF Core), Jellyfin, MusicBrainz/Discogs/UPCitemdb/TMDB, the rip-station status file, customer config. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinBibliotek.Application\ITMartinBibliotek.Application.csproj" />
+    <ProjectReference Include="..\ITMartinBibliotek.Domain\ITMartinBibliotek.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinBibliotek.Tests" />
+  </ItemGroup>
+
+</Project>

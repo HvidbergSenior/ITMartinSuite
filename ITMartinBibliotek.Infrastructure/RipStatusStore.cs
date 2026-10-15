@@ -1,28 +1,12 @@
 using System.Text.Json;
+using ITMartinBibliotek.Application;
+using Microsoft.Extensions.Configuration;
 
-namespace ITMartinBibliotek.Server.Services;
-
-// One disc going through the rip station on the PC (ripstation.ps1).
-// The station owns the job and posts the whole record on every change.
-public sealed class RipJob
-{
-    public string Id { get; set; } = "";
-    public string Kind { get; set; } = "";          // "cd" | "dvd" | "bluray"
-    public string Label { get; set; } = "";         // disc volume label as the drive reports it
-    public string Title { get; set; } = "";         // what it was saved as
-    public string Status { get; set; } = "";        // ripping | copying | converting | finishing | done | failed
-    public string Step { get; set; } = "";          // plain-Danish line shown under the title
-    public int Progress { get; set; }               // 0-100 for the current step
-    public string Target { get; set; } = "";        // NAS folder
-    public bool NeedsName { get; set; }             // name guessed from the disc label - check it
-    public string Error { get; set; } = "";
-    public DateTime StartedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-}
+namespace ITMartinBibliotek.Infrastructure;
 
 // Status lives in a small JSON file next to the database: the station posts a
 // few times a minute, there is one writer, and nothing else needs to query it.
-public sealed class RipStatusStore
+public sealed class RipStatusStore : IRipStatus
 {
     private const int Keep = 300;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };

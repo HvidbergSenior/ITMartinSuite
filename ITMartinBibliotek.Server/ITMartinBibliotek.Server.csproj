@@ -9,11 +9,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+      <ProjectReference Include="..\ITMartinBibliotek.Application\ITMartinBibliotek.Application.csproj" />
+      <ProjectReference Include="..\ITMartinBibliotek.Infrastructure\ITMartinBibliotek.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

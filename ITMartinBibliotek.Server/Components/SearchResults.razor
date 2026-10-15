@@ -1,0 +1,66 @@
+@* One search over everything: artists, albums, songs, films and series - never only the open shelf. *@
+@if (Result.IsEmpty && Songs.Count == 0 && !SongsLoading)
+{
+    <p class="muted search-empty">Intet fundet for “@Query”. Prøv et kortere ord, fx kun kunstnerens efternavn.</p>
+}
+
+@if (Result.Artists.Count > 0)
+{
+    <h2 class="result-head">Kunstnere</h2>
+    <ul class="artist-list">
+        @foreach (var a in Result.Artists.Take(8))
+        {
+            <ArtistRow Artist="a" />
+        }
+    </ul>
+}
+
+@if (Result.Albums.Count > 0)
+{
+    <h2 class="result-head">Album</h2>
+    <div class="grid grid-albums">
+        @foreach (var a in Result.Albums.Take(12))
+        {
+            <AlbumTile Album="a" ShowArtist="true" />
+        }
+    </div>
+}
+
+@if (Songs.Count > 0 || SongsLoading)
+{
+    <h2 class="result-head">Sange</h2>
+    @if (Songs.Count == 0)
+    {
+        <p class="muted">Søger efter sange…</p>
+    }
+    <ol class="track-list">
+        @foreach (var s in Songs)
+        {
+            <li>
+                <button type="button" class="track" data-play-album="@s.PlayId" data-play-track="@s.Index">
+                    <span class="track-no" aria-hidden="true">▶</span>
+                    <span class="track-name">@s.Name<span class="track-sub">@s.Artist · @s.AlbumName</span></span>
+                </button>
+            </li>
+        }
+    </ol>
+}
+
+@if (Result.Titles.Count > 0)
+{
+    <h2 class="result-head">Film og serier</h2>
+    <div class="grid grid-posters">
+        @foreach (var i in Result.Titles.Take(12))
+        {
+            <TitleTile Item="i" PlayBase="@PlayBase" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public SearchResult Result { get; set; } = default!;
+    [Parameter] public List<SongHit> Songs { get; set; } = [];
+    [Parameter] public bool SongsLoading { get; set; }
+    [Parameter] public string Query { get; set; } = "";
+    [Parameter] public string PlayBase { get; set; } = "";
+}

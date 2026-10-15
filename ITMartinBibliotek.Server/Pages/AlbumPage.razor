@@ -1,0 +1,90 @@
+@page "/album/{Key}"
+@inject Library Library
+
+<PageTitle>@(_page?.Album.Title ?? "Album") – Bibliotek</PageTitle>
+
+<div class="top-row">
+    @if (_page is not null && Viewer is { IsAdmin: true })
+    {
+        <a class="back-link" href="@Links.ArtistByName(_page.Album.Artist)">← @_page.Album.Artist</a>
+    }
+    else
+    {
+        <a class="back-link" href="/">← Tilbage</a>
+    }
+</div>
+
+@if (_loaded && _page is null)
+{
+    <p class="muted">Albummet findes ikke i samlingen.</p>
+}
+else if (_page is not null)
+{
+    var album = _page.Album;
+    <div class="album-head">
+        <Cover Url="@album.CoverUrl" Square="true" Class="album-cover" />
+        <div class="album-info">
+            <h1>@album.Title</h1>
+            <p class="album-meta">@album.Artist@(album.Year is { } y ? $" · {y}" : "")@(_page.Tracks.Count > 0 ? $" · {_page.Tracks.Count} sange" : "")</p>
+            @if (album.CanPlay)
+            {
+                <button type="button" class="btn btn-primary btn-play" data-play-album="@album.PlayId">▶ Afspil</button>
+            }
+        </div>
+    </div>
+
+    @if (_page.Tracks.Count == 0)
+    {
+        <p class="muted">Sangene kunne ikke hentes fra Jellyfin lige nu.</p>
+    }
+    else
+    {
+        var discs = _page.Tracks.Select(t => t.Disc).Distinct().Count();
+        <ol class="track-list">
+            @for (var i = 0; i < _page.Tracks.Count; i++)
+            {
+                var t = _page.Tracks[i];
+                var index = i;
+                @if (discs > 1 && (i == 0 || _page.Tracks[i - 1].Disc != t.Disc))
+                {
+                    <li class="disc-head">Cd @t.Disc</li>
+                }
+                <li>
+                    <button type="button" class="track" data-play-album="@album.PlayId" data-play-track="@index">
+                        <span class="track-no">@(t.Number > 0 ? t.Number : index + 1)</span>
+                        <span class="track-name">@t.Name@if (t.Artist != "" && Shelf.Fold(t.Artist) != Shelf.Fold(album.Artist)) {<span class="track-sub">@t.Artist</span>}</span>
+                        <span class="track-time">@Time(t.Seconds)</span>
+                    </button>
+                </li>
+            }
+        </ol>
+    }
+
+    @if (Viewer is { IsAdmin: true })
+    {
+        <p class="edit-links">
+            @for (var i = 0; i < album.Parts.Count; i++)
+            {
+                var part = album.Parts[i];
+                <a href="/titel/@part.Id">Ret oplysninger@(album.Parts.Count > 1 ? $" (del {i + 1})" : "")</a>
+            }
+        </p>
+    }
+}
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+    [CascadingParameter] public Viewer? Viewer { get; set; }
+
+    private AlbumView? _page;
+    private bool _loaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Viewer is null) return;
+        _page = await Library.AlbumAsync(Viewer, Key);
+        _loaded = true;
+    }
+
+    private static string Time(int s) => $"{s / 60}:{s % 60:00}";
+}

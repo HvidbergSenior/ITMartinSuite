@@ -1,6 +1,6 @@
 using FluentAssertions;
-using ITMartinBibliotek.Server.Data.Entities;
-using ITMartinBibliotek.Server.Services;
+using ITMartinBibliotek.Domain;
+using ITMartinBibliotek.Infrastructure;
 
 namespace ITMartinBibliotek.Tests;
 
@@ -33,5 +33,5 @@ public class TitleMatchTests
     [TestCase("CD, Album", MediaFormat.Cd)]
     [TestCase("Vinyl", null)]
     public void GuessFormat_reads_the_disc_type_out_of_free_text(string text, MediaFormat? expected) =>
-        MetadataLookup.GuessFormat(text).Should().Be(expected);
+        LibraryPaths.GuessFormat(text).Should().Be(expected);
 }
