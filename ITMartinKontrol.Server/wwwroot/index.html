@@ -73,6 +73,16 @@ button.restart{color:var(--muted)}
 .kapp.ok .dot { background:#22c55e; } .kapp.bad .dot { background:#ef4444; } .kapp.warn .dot { background:#f59e0b; }
 .kapp .kn { font-weight:600; } .kapp small { display:block; color:#8890a6; font-size:.75rem; }
 .kapp a { color:inherit; text-decoration:none; }
+.guard{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:13px}
+.guard summary,.msgs summary{cursor:pointer;font-weight:700}
+.guard p,.msgs p{margin:6px 0;color:var(--muted)}
+.guard ul,.msgs ul{margin:6px 0 0;padding-left:18px}
+.guard li,.msgs li{margin:4px 0}
+.msgs li b{display:block}
+.guard .step{color:var(--amber);font-weight:700}
+button.reset{border-color:var(--amber);color:var(--amber);margin-top:4px}
+select.prio{font:inherit;font-size:12px;padding:5px 6px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+select.prio.p1{border-color:#22c55e}select.prio.p3{border-color:var(--amber)}
 </style>
 </head>
 <body>
@@ -80,6 +90,7 @@ button.restart{color:var(--muted)}
   <h1>⏻ Kontrol</h1>
   <div class="sub">Alle containere på NAS og photoserver. Hver app står med navn og hvad den gør. Tænd, sluk, genstart – PIN første gang. ✏️ retter beskrivelsen. Forbrug samples hvert minut, 48 timer tilbage.</div>
   <div class="filters"><button id="fAll" class="on">Alle</button><button id="fRun">Kun kørende</button><button id="bell" title="Push-alarmer til denne telefon">🔔 Alarmer</button><span class="lock" id="stamp"></span></div>
+  <details class="host msgs" id="beskeder" open><summary>📨 Beskeder <small class="lock" id="msgCount"></small></summary><p>Alt, hvad Kontrol har sendt til telefonen – med hele teksten. Tryk på en besked på telefonen, så åbner den her.</p><ul id="msgList"><li class="lock">henter…</li></ul></details>
   <div class="host" id="kolibri"><h2>🐦 Kolibri-apps <small id="kstamp"></small></h2><div id="kolibriList" class="klist"></div><div id="backup" class="kapp" style="margin-top:8px"><span class="dot"></span><div><span class="kn">💾 Ugentlig backup</span><small id="backupSub">henter…</small></div></div></div>
 <div class="host" id="homepage"><h2>🏠 På hjemmesiden <small>flueben = vises på <a href="https://itmartin.dk/mine-apps" target="_blank" style="color:inherit">itmartin.dk/mine-apps</a> · PIN første gang</small></h2><div id="homepageList" class="klist"><small>henter…</small></div></div>
 <div id="hosts"></div>
@@ -164,6 +175,7 @@ function render(hosts) {
         '<div class="meter"><div class="k">RAM</div><div class="v">' + fmt(u.memUsedMb / 1024, 1) + ' <small>/ ' + fmt(u.memTotalMb / 1024, 1) + ' GB</small></div><div class="bar"><i class="' + heat(mp) + '" style="width:' + mp + '%"></i></div></div>' +
         (u.diskTotalGb > 0 ? '<div class="meter"><div class="k">Disk</div><div class="v">' + fmt(u.diskUsedGb, 0) + ' <small>/ ' + fmt(u.diskTotalGb, 0) + ' GB</small></div><div class="bar"><i class="' + heat(dp) + '" style="width:' + dp + '%"></i></div></div>' : '') +
         '</div>' + chart(h.history, u.memTotalMb);
+      if (h.guard) html += guardBox(h);
     }
     var list = h.containers.filter(function (c) { return !onlyRunning || c.running; });
     var apps = list.filter(function (c) { return !info(c.name).helper; }), helpers = list.filter(function (c) { return info(c.name).helper; });
@@ -173,8 +185,61 @@ function render(hosts) {
     addRows(apps);
     if (helpers.length) { var sh = document.createElement("div"); sh.className = "subhead"; sh.textContent = "Hjælpere – databaser, køer og tunnel, som apps bruger"; el.appendChild(sh); addRows(helpers); }
     root.appendChild(el);
+    var rb = el.querySelector("button.reset");
+    if (rb) rb.addEventListener("click", function () { resetHost(h.name, rb); });
   });
+  renderMessages(hosts);
   document.getElementById("stamp").textContent = "opdateret " + new Date().toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" });
+}
+
+var PRIO = { 1: "Skal køre", 2: "Vigtig", 3: "Kan vente" };
+function when(t) { var d = new Date(t); return d.toLocaleDateString("da-DK", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }); }
+
+// Memory guard per host: what it watches, what it did, and the ordered restart.
+function guardBox(h) {
+  var g = h.guard, m = g.last, open = false;
+  try { open = localStorage.getItem("kontrolGuardOpen-" + h.name) === "1"; } catch (e) {}
+  var now = m ? fmt(m.availMb) + " MB fri RAM · " + fmt(m.swapUsedMb) + " MB i swap" + (m.swapInPerSec > 0 ? " · " + fmt(m.swapInPerSec) + " sider/s ind fra swap" : "") : "venter på første måling";
+  var acts = (g.actions || []).slice(0, 8).map(function (a) { return "<li>" + esc(when(a.at)) + " – <b>" + esc(a.name) + "</b>: " + esc(a.what) + "</li>"; }).join("");
+  return '<details class="guard" data-host="' + esc(h.name) + '"' + (open || g.resetting ? " open" : "") + '><summary>🛡 Hukommelsesvagt' + (g.enabled ? "" : " (slået fra)") + ' – ' + now + '</summary>' +
+    '<p>Bliver der under ' + g.lowMb + ' MB fri RAM (eller læser den meget fra swap), slukker Kontrol én app ad gangen: først <b>Kan vente</b> (største først), og under ' + g.criticalMb + ' MB også <b>Vigtig</b>. <b>Skal køre</b> slukkes aldrig. En app, der går ned og genstarter igen og igen, slukkes også. Du får en besked hver gang.</p>' +
+    '<p>Vælg prioritet ved hver app nedenfor (PIN første gang).</p>' +
+    '<p><b>Genstart i rækkefølge</b> slukker de apps, der kører, og tænder dem igen én ad gangen – Skal køre, så Vigtig, så Kan vente – med 20 sek. imellem, så serveren ikke bliver overbelastet.</p>' +
+    (g.resetting ? '<div class="step">⏳ ' + esc(g.resetStep || "Genstarter…") + '</div>' : '<button class="reset">↻ Genstart i rækkefølge</button>') +
+    (acts ? '<ul>' + acts + '</ul>' : '<p>Har ikke slukket noget endnu.</p>') + '</details>';
+}
+document.addEventListener("toggle", function (e) {
+  var d = e.target; if (!d.classList || !d.classList.contains("guard")) return;
+  try { localStorage.setItem("kontrolGuardOpen-" + d.dataset.host, d.open ? "1" : "0"); } catch (x) {}
+}, true);
+
+function renderMessages(hosts) {
+  var all = [];
+  hosts.forEach(function (h) { (h.messages || []).forEach(function (m) { all.push({ at: m.at, title: m.title, body: m.body, host: h.name }); }); });
+  all.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
+  document.getElementById("msgCount").textContent = all.length ? all.length + " siden Kontrol startede" : "";
+  document.getElementById("msgList").innerHTML = all.length
+    ? all.slice(0, 30).map(function (m) { return "<li><b>" + esc(m.title) + "</b>" + esc(m.body) + ' <small class="lock">· ' + esc(when(m.at)) + " · " + esc(m.host) + "</small></li>"; }).join("")
+    : '<li class="lock">Ingen beskeder endnu.</li>';
+}
+
+function resetHost(host, btn) {
+  var pin = getPin(); if (!pin) return;
+  btn.disabled = true; btn.textContent = "Starter…";
+  fetch("/api/hosts/" + encodeURIComponent(host) + "/reset", { method: "POST", headers: { "X-Kontrol-Pin": pin } }).then(function (r) {
+    if (r.status === 401) { forgetPin(); msg.textContent = "Forkert PIN – prøv igen."; return; }
+    msg.textContent = r.ok ? host + ": genstart i rækkefølge er i gang – følg den i Hukommelsesvagt." : "Det lykkedes ikke (" + r.status + ").";
+  }).then(function () { setTimeout(refresh, 1500); });
+}
+
+function setPrio(host, name, level, sel) {
+  var pin = getPin(); if (!pin) { refresh(); return; }
+  fetch("/api/hosts/" + encodeURIComponent(host) + "/apps/" + encodeURIComponent(name) + "/priority/" + level, { method: "POST", headers: { "X-Kontrol-Pin": pin } }).then(function (r) {
+    if (r.status === 401) { forgetPin(); msg.textContent = "Forkert PIN – prøv igen."; refresh(); return; }
+    if (!r.ok) { msg.textContent = "Kunne ikke gemme (" + r.status + ")."; refresh(); return; }
+    sel.className = "prio p" + level;
+    msg.textContent = info(name).title + ": " + PRIO[level] + ".";
+  });
 }
 
 function row(h, c) {
@@ -186,11 +251,15 @@ function row(h, c) {
     '<div class="name"><span class="ic">' + esc(i.icon) + '</span><div><span class="t">' + esc(i.title) + addr + '</span>' + desc +
     '<span class="tech">' + (c.running ? "🟢 kører" : "⚪ slukket") + ' · ' + esc(c.name) + ' · ' + esc(c.status) + (c.ports ? ' · :' + esc(c.ports) : '') + '</span></div></div>' +
     '<div class="use">' + (c.running ? fmt(c.cpuPct, 1) + ' % · ' + fmt(c.memMb, 0) + ' MB<div class="mini"><i style="width:' + Math.min(100, c.cpuPct || 0) + '%"></i></div>' + spark(c.cpuHistory) : '') + '</div>' +
-    '<div class="btns"><button class="pen" title="Ret beskrivelse">✏️</button>' +
+    '<div class="btns">' + (c.protected ? '' : '<select class="prio p' + (c.priority || 2) + '" title="Prioritet når RAM bliver lav">' +
+      [1, 2, 3].map(function (p) { return '<option value="' + p + '"' + ((c.priority || 2) === p ? " selected" : "") + '>' + PRIO[p] + '</option>'; }).join("") + '</select>') +
+    '<button class="pen" title="Ret beskrivelse">✏️</button>' +
     (c.running
       ? (c.protected ? '<span class="lock">🔒 beskyttet</span>' : '<button class="restart" title="Genstart">↻ Genstart</button><button class="stop">⏹ Sluk</button>')
       : '<button class="start">▶ Tænd</button>') + '</div>';
   var close = function () { var x = r.querySelector(".confirm, .edit"); if (x) x.remove(); };
+  var ps = r.querySelector("select.prio");
+  if (ps) ps.addEventListener("change", function () { setPrio(h.name, c.name, +ps.value, ps); });
   r.querySelector(".pen").addEventListener("click", function () {
     if (r.querySelector(".edit")) { close(); return; } close();
     var f = document.createElement("div"); f.className = "edit";

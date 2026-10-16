@@ -9,6 +9,9 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<Sampler>());
 builder.Services.AddSingleton<PushStore>();
 builder.Services.AddSingleton<AlarmService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AlarmService>());
+builder.Services.AddSingleton<PriorityStore>();
+builder.Services.AddSingleton<MemoryGuard>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<MemoryGuard>());
 builder.Services.AddHttpClient("peer", c => c.Timeout = TimeSpan.FromSeconds(8));
 
 builder.Services.AddKolibri(k =>
@@ -64,7 +67,7 @@ string[]? PinScope(HttpRequest req)
 bool PinOk(HttpRequest req) => PinScope(req) is { Length: 0 };
 
 // One host as the UI sees it: live container list + usage + 48 h history.
-async Task<HostView> LocalViewAsync(DockerClient docker, Sampler sampler, CancellationToken ct)
+async Task<HostView> LocalViewAsync(DockerClient docker, Sampler sampler, PriorityStore prio, MemoryGuard guard, PushStore push, CancellationToken ct)
 {
     var containers = await docker.ListAllAsync(ct);
     var usage = sampler.LastContainers;
@@ -74,13 +77,44 @@ async Task<HostView> LocalViewAsync(DockerClient docker, Sampler sampler, Cancel
             protectedNames.Contains(c.Name, StringComparer.Ordinal),
             usage.TryGetValue(c.Name, out var u) ? u.CpuPct : null,
             usage.TryGetValue(c.Name, out var u2) ? u2.MemMb : null,
-            hist.Select(s => s.C.TryGetValue(c.Name, out var v) ? v[0] : 0).ToArray())).ToList(),
-        new History(hist.Select(s => s.T).ToArray(), hist.Select(s => s.Cpu).ToArray(), hist.Select(s => s.Mem).ToArray()));
+            hist.Select(s => s.C.TryGetValue(c.Name, out var v) ? v[0] : 0).ToArray(), prio.Get(c.Name))).ToList(),
+        new History(hist.Select(s => s.T).ToArray(), hist.Select(s => s.Cpu).ToArray(), hist.Select(s => s.Mem).ToArray()),
+        guard.Status, push.Log);
 }
 
-app.MapGet("/api/hosts", async (DockerClient docker, Sampler sampler, IHttpClientFactory f, CancellationToken ct) =>
+// Forwards a POST to the peer that owns the host ("*" = whichever host you are). null = it is us.
+async Task<IResult?> ForwardAsync(string host, string path, IHttpClientFactory f, CancellationToken ct)
 {
-    var views = new List<HostView> { await LocalViewAsync(docker, sampler, ct) };
+    if (host == hostName || host == "*") return null;
+    var p = peers.FirstOrDefault(x => x.Name == host);
+    if (p is null) return Results.NotFound();
+    using var msg = new HttpRequestMessage(HttpMethod.Post, $"{p.Url.TrimEnd('/')}/api/hosts/{Uri.EscapeDataString(p.RemoteHostName ?? "")}/{path}");
+    msg.Headers.Add("X-Kontrol-Pin", pin);
+    var r = await f.CreateClient("peer").SendAsync(msg, ct);
+    return Results.StatusCode((int)r.StatusCode);
+}
+
+// Priority per app: 1 Skal køre, 2 Vigtig, 3 Kan vente. Used by the memory guard and "Genstart i rækkefølge".
+app.MapPost("/api/hosts/{host}/apps/{name}/priority/{level:int}", async (string host, string name, int level, HttpRequest req, PriorityStore prio, IHttpClientFactory f, CancellationToken ct) =>
+{
+    if (!PinOk(req)) return Results.StatusCode(401);
+    if (!ITMartinKontrol.Domain.Priority.Valid(level)) return Results.BadRequest();
+    if (await ForwardAsync(host, $"apps/{Uri.EscapeDataString(name)}/priority/{level}", f, ct) is { } fwd) return fwd;
+    prio.Set(name, level);
+    return Results.Ok();
+});
+
+// "Genstart i rækkefølge": runs in the background; progress shows in the host's Guard status.
+app.MapPost("/api/hosts/{host}/reset", async (string host, HttpRequest req, MemoryGuard guard, IHttpClientFactory f, CancellationToken ct) =>
+{
+    if (!PinOk(req)) return Results.StatusCode(401);
+    if (await ForwardAsync(host, "reset", f, ct) is { } fwd) return fwd;
+    return guard.TryStartReset() ? Results.Ok() : Results.Problem("En genstart kører allerede.");
+});
+
+app.MapGet("/api/hosts", async (DockerClient docker, Sampler sampler, PriorityStore prio, MemoryGuard guard, PushStore push, IHttpClientFactory f, CancellationToken ct) =>
+{
+    var views = new List<HostView> { await LocalViewAsync(docker, sampler, prio, guard, push, ct) };
     foreach (var p in peers)
     {
         try
@@ -91,7 +125,7 @@ app.MapGet("/api/hosts", async (DockerClient docker, Sampler sampler, IHttpClien
         }
         catch (Exception ex)
         {
-            views.Add(new HostView(p.Name, false, ex.GetType().Name + ": " + ex.Message, new HostUsage(0, 0, 0, 0, 0, "none"), DateTime.MinValue, [], new History([], [], [])));
+            views.Add(new HostView(p.Name, false, ex.GetType().Name + ": " + ex.Message, new HostUsage(0, 0, 0, 0, 0, "none"), DateTime.MinValue, [], new History([], [], []), null, []));
         }
     }
     return Results.Ok(views);
@@ -301,9 +335,9 @@ public sealed record PushEndpointRequest(string Endpoint);
 public sealed record NotifyRequest(string Title, string Body, string? Url);
 public sealed record LimitedPin(string Pin, string[] Apps);
 public sealed record Peer(string Name, string Url, string? RemoteHostName = "*");
-public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory);
+public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory, int Priority = ITMartinKontrol.Domain.Priority.Important);
 public sealed record History(DateTime[] T, double[] Cpu, double[] Mem);
-public sealed record HostView(string Name, bool Local, string? Error, HostUsage Host, DateTime At, List<ContainerView> Containers, History History);
+public sealed record HostView(string Name, bool Local, string? Error, HostUsage Host, DateTime At, List<ContainerView> Containers, History History, GuardStatus? Guard = null, List<PushStore.Sent>? Messages = null);
 
 public sealed record BackupView(bool Found, string? LastRun, bool Ok, double AgeDays, bool Stale, string? Error, string? NasToPhotoserver, string? PhotoserverToNas);
 public static class BackupStatus

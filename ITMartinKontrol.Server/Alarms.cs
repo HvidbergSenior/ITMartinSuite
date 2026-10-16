@@ -42,6 +42,11 @@ public sealed class PushStore
     public string PublicKey => _vapid.PublicKey;
     public int Count { get { lock (_gate) return _subs.Count; } }
 
+    // Every push in full, newest first - a phone cuts the text off, the "Beskeder" box on the page does not.
+    public sealed record Sent(DateTime At, string Title, string Body);
+    private readonly List<Sent> _sent = [];
+    public List<Sent> Log { get { lock (_sent) return _sent.ToList(); } }
+
     public void Add(Subscriber s)
     {
         lock (_gate) { _subs.RemoveAll(x => x.Endpoint == s.Endpoint); _subs.Add(s); Save(); }
@@ -57,6 +62,8 @@ public sealed class PushStore
     /// <summary>Sends to every phone; drops endpoints that are gone. Returns how many got it.</summary>
     public async Task<int> SendAllAsync(string title, string body, string url = "/", CancellationToken ct = default)
     {
+        lock (_sent) { _sent.Insert(0, new Sent(DateTime.UtcNow, title, body)); if (_sent.Count > 50) _sent.RemoveAt(50); }
+        if (url == "/") url = "/#beskeder";
         List<Subscriber> targets; lock (_gate) targets = _subs.ToList();
         var payload = JsonSerializer.Serialize(new { title, body, url });
         var sent = 0;

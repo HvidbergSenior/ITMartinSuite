@@ -26,7 +26,7 @@ public sealed class DockerClient
         _http = new HttpClient(handler) { BaseAddress = new Uri("http://docker/"), Timeout = TimeSpan.FromSeconds(30) };
     }
 
-    public record ContainerInfo(string Name, string Status, bool Running, string Image, string Ports, DateTime? StartedAt);
+    public record ContainerInfo(string Name, string Status, bool Running, string Image, string Ports, DateTime? StartedAt, string State = "");
     public record ContainerUsage(double CpuPct, double MemMb, double MemLimitMb);
 
     public async Task<List<ContainerInfo>> ListAllAsync(CancellationToken ct = default)
@@ -45,7 +45,7 @@ public sealed class DockerClient
                     .Select(x => x.GetProperty("PublicPort").GetInt32().ToString()).Distinct())
                 : "";
             list.Add(new ContainerInfo(name, c.GetProperty("Status").GetString() ?? state, state == "running",
-                c.GetProperty("Image").GetString() ?? "", ports, null));
+                c.GetProperty("Image").GetString() ?? "", ports, null, state));
         }
         return list.OrderBy(x => x.Name).ToList();
     }
