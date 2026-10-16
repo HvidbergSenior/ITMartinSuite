@@ -281,6 +281,37 @@ body[data-theme="skuespiller"] #hdrTitle{visibility:hidden}
 /* The shared install pill + its guide card are white by default - dark here, so the white text shows. */
 body[data-theme="skuespiller"] .k-install-pill,body[data-theme="skuespiller"] .k-install-card{background:#1a1512!important;border:2px solid #fff!important}
 
+/* ── Theme "vaersgo" (Annette og Kent 2026-10-16: "ONLY Billeder and Videoer. Center them and make more Værsgo"):
+   a warm "here you are" front - cream and dark brown, high contrast in light AND dark mode, two big centred cards,
+   and a plain info box about what the finished collection can also hold (information, nothing to pick or buy). ── */
+body[data-theme="vaersgo"]{--accent:#b4532a;--accent-hover:#963f1b;--bg:#fbf6ee;--bg-card:#ffffff;--bg-btn:#f1e6d6;--border:#e2d3bd;
+  --text:#2b1d12;--text-muted:#2b1d12;--text-dim:#4a3626;--text-dimmer:#5a4433;--hdr-bg:rgba(251,246,238,.97);
+  background:radial-gradient(ellipse at 50% -20%,rgba(244,180,120,.35),transparent 60%),#fbf6ee;color:#2b1d12}
+body[data-theme="vaersgo"] .folder-grid,body[data-theme="vaersgo"] .file-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+body.at-root[data-theme="vaersgo"] .folder-card{width:min(340px,44vw);border-radius:20px;border:2px solid #e2d3bd;box-shadow:0 12px 30px rgba(120,70,30,.18)}
+body[data-theme="vaersgo"] .folder-card{border-radius:16px}
+body[data-theme="vaersgo"] .file-card{width:min(220px,44vw);aspect-ratio:1;border-radius:14px;box-shadow:0 6px 16px rgba(120,70,30,.15)}
+body[data-theme="vaersgo"] .section-title,body[data-theme="vaersgo"] .grid-title,body[data-theme="vaersgo"] .section-label{text-align:center}
+body.at-root[data-theme="vaersgo"] #folderSection .section-label{display:none}
+body[data-theme="vaersgo"] #btnGalleries{display:none!important}
+body.at-root[data-theme="vaersgo"] #hdrTitle{visibility:hidden}
+.v-hero{margin:18px auto 14px;max-width:760px;text-align:center;padding:30px 20px 24px;border-radius:24px;background:linear-gradient(160deg,#fff7ec,#fde8d2);border:2px solid #f0d5b5;color:#2b1d12}
+.v-kicker{font:800 1rem/1 system-ui,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#963f1b}
+.v-name{margin:12px 0 8px;font:700 clamp(2rem,7vw,3.4rem)/1.08 Georgia,"Times New Roman",serif;color:#2b1d12}
+.v-line{margin:0 auto;max-width:48ch;font:1.15rem/1.5 Georgia,serif;color:#2b1d12}
+.v-count{margin-top:14px;font:700 1rem system-ui,sans-serif;color:#2b1d12}
+.v-btns{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:18px}
+.v-btn{display:inline-block;border:2px solid #2b1d12;background:#2b1d12;color:#fff;border-radius:999px;padding:12px 22px;font:800 1.05rem system-ui,sans-serif;cursor:pointer;text-decoration:none}
+.v-btn.alt{background:#fff;color:#2b1d12}
+.v-more{margin:26px auto 10px;max-width:760px;border-radius:18px;background:#fff;border:2px solid #e2d3bd;color:#2b1d12;padding:14px 18px}
+.v-more summary{cursor:pointer;font:800 1.1rem system-ui,sans-serif;text-align:center;list-style:none}
+.v-more summary::-webkit-details-marker{display:none}
+.v-more p{margin:10px 0 0;text-align:center;font-size:1rem}
+.v-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.v-item{border:1px solid #e2d3bd;border-radius:14px;padding:12px;text-align:center;background:#fffaf3}
+.v-item b{display:block;font-size:1.05rem}
+.v-item span{display:block;font-size:.92rem;margin-top:4px;color:#4a3626}
+
 /* ── Theme "koncert": a stage for the audience songs ─────────────────────── */
 
 /* ── Theme "bedstemor" (HvidbergFamily): "Hej allesammen – det her er Bedstemors billeder".
@@ -744,6 +775,30 @@ function renderBrowse(data, titleOverride) {
       sh.querySelectorAll('.s-chip').forEach(o => o.classList.toggle('on', o === b));
     });
   } else if (sh) sh.style.display = 'none';
+  // Theme "vaersgo" (Annette og Kent 2026-10-16): a warm welcome, the two cards centred below, and an info box
+  // about what the finished collection can also hold - information only, nothing to pick or buy.
+  let vh = document.getElementById('vaersgoHero'), vm = document.getElementById('vaersgoMore');
+  if (theme === 'vaersgo') {
+    const fsec = document.getElementById('folderSection');
+    if (!vh) { vh = document.createElement('div'); vh.id = 'vaersgoHero'; fsec.parentNode.insertBefore(vh, fsec); }
+    if (!vm) { vm = document.createElement('div'); vm.id = 'vaersgoMore'; fsec.parentNode.insertBefore(vm, fsec.nextSibling); }
+    vh.style.display = atRoot ? '' : 'none';
+    vm.style.display = atRoot ? '' : 'none';
+    vh.innerHTML = `<div class="v-hero"><div class="v-kicker">Værsgo</div><h1 class="v-name">${esc(headline || galleryDisplayName || 'Jeres billeder')}</h1>`
+      + (tagline ? `<p class="v-line">${esc(tagline)}</p>` : '')
+      + `<div class="v-count">Tryk på Billeder eller Videoer for at se dem.</div>`
+      + `<div class="v-btns">${data.uploadUrl ? `<a class="v-btn" href="${esc(data.uploadUrl)}">📤 Send flere billeder</a>` : ''}<button type="button" class="v-btn alt" id="vPhone">📲 Læg galleriet på telefonen</button></div></div>`;
+    let open = true; try { open = localStorage.getItem('vaersgoMoreOpen') !== '0'; } catch (e) {}
+    vm.innerHTML = `<details class="v-more"${open ? ' open' : ''}><summary>Det kan I også få, når alle billederne er sorteret ▾</summary>`
+      + `<p>Når I har sendt det hele, kan galleriet også få:</p><div class="v-items">`
+      + `<div class="v-item"><b>📚 Årbog</b><span>De bedste billeder fra hvert år samlet ét sted.</span></div>`
+      + `<div class="v-item"><b>👤 Personer</b><span>Tryk på et navn og se alle billeder af den person.</span></div>`
+      + `<div class="v-item"><b>🎄 Traditioner</b><span>Jul, fødselsdage og andre mærkedage år for år.</span></div>`
+      + `<div class="v-item"><b>✈️ Rejser</b><span>Hver tur i sit eget album.</span></div></div>`
+      + `<p>Sig til Martin, hvis I vil have noget af det med.</p></details>`;
+    vm.querySelector('details').addEventListener('toggle', e => { try { localStorage.setItem('vaersgoMoreOpen', e.target.open ? '1' : '0'); } catch (x) {} });
+    document.getElementById('vPhone').onclick = () => window.kolibri ? window.kolibri.openInstall() : alertPhoneSteps();
+  } else { if (vh) vh.style.display = 'none'; if (vm) vm.style.display = 'none'; }
   currentHideAddons = !!hideAddons;
   // View-only gallery: no add-ons, no collection rows, no summary hero -
   // just folders and files. Also a body class so CSS can give the root

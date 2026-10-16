@@ -30,6 +30,15 @@
         <p class="sub">@Intro</p>
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(_customer?.GalleryUrl))
+    {
+    <a class="gallery-box" href="@_customer!.GalleryUrl" target="_blank" rel="noopener">
+        <span class="gallery-emoji">🖼️</span>
+        <span class="gallery-text"><b>Se jeres galleri</b><span>@(string.IsNullOrWhiteSpace(_customer.GalleryNote) ? "De billeder, Martin har sorteret indtil nu." : _customer.GalleryNote)</span></span>
+        <span class="gallery-go">Åbn ›</span>
+    </a>
+    }
+
     @if (IsMusic)
     {
     <div class="steps">

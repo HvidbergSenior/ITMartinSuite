@@ -17,6 +17,11 @@ public sealed class UploadCustomer
     public string Greeting { get; set; } = "";
     public string Intro { get; set; } = "";
 
+    /// <summary>Customers__N__GalleryUrl (+ optional __GalleryNote): a "Se jeres galleri" box at the top of the page,
+    /// once FileSorter has made a gallery from what they sent (Annette og Kent 2026-10-16).</summary>
+    public string GalleryUrl { get; set; } = "";
+    public string GalleryNote { get; set; } = "";
+
     /// <summary>A music customer (Customers__N__Music=true): files arrive as Artist/Album/track from
     /// Rip CD, so the folders are kept - flat, every album's "01 …" and folder.jpg would collide.</summary>
     public bool Music { get; set; }

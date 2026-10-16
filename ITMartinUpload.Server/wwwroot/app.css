@@ -350,3 +350,18 @@ html, body {
 .ev-dev[open] summary::after { content: "－"; }
 .ev-dev ol, .ev-dev .ev-camera { margin: 0 12px 12px; }
 .ev-dev ol { padding-left: 32px; }
+
+/* "Se jeres galleri" box (Customers__N__GalleryUrl, 2026-10-16) - a whole box to press, not a text link. */
+.gallery-box {
+    display: flex; align-items: center; gap: 14px;
+    margin: 0 0 22px; padding: 16px 18px;
+    border-radius: 16px; border: 2px solid var(--accent);
+    background: var(--card); color: var(--text); text-decoration: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.gallery-box:hover { transform: translateY(-1px); }
+.gallery-emoji { font-size: 32px; flex: none; }
+.gallery-text { flex: 1; min-width: 0; }
+.gallery-text b { display: block; font-size: 18px; font-weight: 800; }
+.gallery-text span { display: block; font-size: 14px; margin-top: 2px; }
+.gallery-go { flex: none; background: var(--accent); color: var(--accent-ink); font-weight: 800; padding: 10px 16px; border-radius: 12px; }

@@ -346,7 +346,7 @@ var galleries = app.Configuration
         CoreCategoriesOnly: s.GetValue<bool>("CoreCategoriesOnly"),
         ViewOnly: s.GetValue<bool>("ViewOnly"),
         Theme: s["Theme"], Headline: s["Headline"], Tagline: s["Tagline"],
-        CelebrationFolder: s["CelebrationFolder"], CelebrationName: s["CelebrationName"], BirthDate: s["BirthDate"], EditPin: s["EditPin"], MusicName: s["MusicName"]))
+        CelebrationFolder: s["CelebrationFolder"], CelebrationName: s["CelebrationName"], BirthDate: s["BirthDate"], EditPin: s["EditPin"], MusicName: s["MusicName"], RootFolders: s["RootFolders"], UploadUrl: s["UploadUrl"]))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -718,12 +718,12 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     {
         folders = ViewOnlyRootFolders
             .Select(v => (Name: g.RootName(v), Full: Path.Combine(r, v.Rel), v.Rel, v.Icon, v.Row))
-            .Where(v => Directory.Exists(v.Full) && HasAnyMediaFile(v.Full))
+            .Where(v => g.ShowAtRoot(v.Rel) && Directory.Exists(v.Full) && HasAnyMediaFile(v.Full))
             .Select(v => new FolderEntry(v.Name, v.Rel, FolderCover(v.Full, r, g.Slug), v.Row, v.Icon))
             .ToList();
 
         var smartRoot = Path.Combine(r, "SmartFolders");
-        if (Directory.Exists(smartRoot))
+        if (Directory.Exists(smartRoot) && string.IsNullOrWhiteSpace(g.RootFolders))
         {
             folders.AddRange(Directory.EnumerateDirectories(smartRoot)
                 .Where(d => !IsSystemFolder(d) && !KnownSmartFolderSets.Contains(Path.GetFileName(d)))
@@ -857,7 +857,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
             ?? (parentRel == "" ? Path.GetFileName(current) : null);
     }
 
-    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline,
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline, uploadUrl = g.UploadUrl,
         people = withPeople && atRoot ? PeopleIndex.Get(r).Names.Select(n => new { name = PeopleIndex.DisplayName(n), relPath = "SmartFolders/People/" + n }).ToArray() : null };
     browseCache[cacheKey] = (DateTime.UtcNow.AddMinutes(10), browsePayload);
     return Results.Ok(browsePayload);
@@ -1410,8 +1410,13 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
 // Theme/Headline/Tagline: a per-gallery look. "koncert" = the stage-style
 // front for the audience versions of the songs (2026-09-17).
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null, string? CelebrationFolder = null, string? CelebrationName = null, string? BirthDate = null, string? EditPin = null, string? MusicName = null)
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null, string? CelebrationFolder = null, string? CelebrationName = null, string? BirthDate = null, string? EditPin = null, string? MusicName = null, string? RootFolders = null, string? UploadUrl = null)
 {
+    // Galleries__N__RootFolders=Billeder,Videoer: a view-only root shows only these (Annette og Kent 2026-10-16:
+    // "ONLY Billeder and Videoer") - no Årbog/Personer/hand-curated albums even when they exist on disk.
+    public bool ShowAtRoot(string rel) =>
+        string.IsNullOrWhiteSpace(RootFolders) || RootFolders.Split(',', StringSplitOptions.TrimEntries).Contains(rel, StringComparer.OrdinalIgnoreCase);
+
     // Galleries__N__MusicName: what the Musik tile is called in this gallery ("Bents Korsange").
     // The folder on disk stays "Musik" - the gallery's audio handling keys on that name.
     public string RootName((string Name, string Rel, string Icon, int Row) v) =>
