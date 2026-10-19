@@ -1,8 +1,9 @@
-@page "/svar"
+﻿@page "/svar"
 @rendermode InteractiveServer
 @implements IAsyncDisposable
 @inject ITMartinUpload.Server.Services.MessageStore Messages
 @inject ITMartinUpload.Server.Services.UploadStore Store
+@inject ITMartinUpload.Server.Services.SortStatusReader SortStatus
 @inject Microsoft.Extensions.Options.IOptions<ITMartinUpload.Server.Services.UploadOptions> Options
 @inject IConfiguration Config
 @inject NavigationManager Nav
@@ -56,7 +57,16 @@
                         <span class="badge">@unanswered nye</span>
                     }
                 </span>
-                <span class="section-meta">@Store.List(customer.Slug).Count filer uploadet</span>
+                @* Same overblik as the customer sees (2026-10-19); music customers are not sorted by FileSorter. *@
+                @if (customer.Music)
+                {
+                    <span class="section-meta">@Store.List(customer.Slug).Count filer uploadet</span>
+                }
+                else
+                {
+                    var sum = SortStatus.For(customer).Summary;
+                    <span class="section-meta">@sum.Received modtaget · @sum.Sorted i galleriet · @sum.Duplicates dubletter · @sum.NotIncluded ikke med@(sum.Failed > 0 ? $" · {sum.Failed} fejl" : "") · @sum.Waiting venter</span>
+                }
             </div>
 
             <div class="chat-log">

@@ -1,4 +1,4 @@
-namespace ITMartinUpload.Server.Services;
+﻿namespace ITMartinUpload.Server.Services;
 
 /// <summary>
 /// One customer we have handed an upload link to. Bound from configuration:
@@ -26,6 +26,10 @@ public sealed class UploadCustomer
     /// Rip CD, so the folders are kept - flat, every album's "01 …" and folder.jpg would collide.</summary>
     public bool Music { get; set; }
 
+    /// <summary>Customers__N__Library: the customer's FileSorter library folder under Upload:LibraryRoot, where
+    /// _kilder.json says what happened to each uploaded file. Empty = same as the slug.</summary>
+    public string Library { get; set; } = "";
+
     /// <summary>
     /// An open event (Customers__N__Public=true): the link works without a code, for anyone
     /// who has it. Only this folder is opened - every other customer still needs its token.
@@ -51,6 +55,9 @@ public sealed class UploadCustomer
 public sealed class UploadOptions
 {
     public string Root { get; set; } = "/app/data";
+
+    /// <summary>FileSorter's library folders, mounted read-only (status overview per customer).</summary>
+    public string LibraryRoot { get; set; } = "/app/library";
 
     /// <summary>Shared fallback token, used when a customer has none of its own.</summary>
     public string Token { get; set; } = "";

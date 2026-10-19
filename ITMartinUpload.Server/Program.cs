@@ -40,6 +40,7 @@ builder.Services.Configure<UploadOptions>(options =>
     options.Root = builder.Configuration["UploadRoot"] ?? options.Root;
 });
 builder.Services.AddSingleton<UploadStore>();
+builder.Services.AddSingleton<SortStatusReader>();
 builder.Services.AddSingleton<MessageStore>();
 builder.Services.AddSingleton<UploadPushService>();
 builder.Services.AddSingleton<UploadActivity>();

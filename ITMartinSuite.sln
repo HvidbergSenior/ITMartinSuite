@@ -19,14 +19,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinFileSorter.Infrastr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinFileSorter.Server", "ITMartinFileSorter.Server\ITMartinFileSorter.Server.csproj", "{887DD214-74E5-49A5-84AB-192AED9D532A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLibrary.Application", "ITMartinLibrary.Application\ITMartinLibrary.Application.csproj", "{0EE7AACA-F6C6-455F-89FB-422707DEDB71}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLibrary.Domain", "ITMartinLibrary.Domain\ITMartinLibrary.Domain.csproj", "{5964C197-6D07-4D55-9CF3-2D77A4AB3454}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLibrary.Infrastructure", "ITMartinLibrary.Infrastructure\ITMartinLibrary.Infrastructure.csproj", "{FB33427F-84ED-4CCF-BFAA-CF38EDB6186D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLibrary.Server", "ITMartinLibrary.Server\ITMartinLibrary.Server.csproj", "{7EA8C572-DC60-4AE4-9967-8697735D4040}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinBudget.Domain", "ITMartinBudget.Domain\ITMartinBudget.Domain.csproj", "{D5E181C0-9D14-4D0A-B712-79014673F4D4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinBudget.Application", "ITMartinBudget.Application\ITMartinBudget.Application.csproj", "{18E4BD65-F552-4A83-96D8-010B2E74A5ED}"
@@ -147,8 +139,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Curator.Server", "ITMartin.Curator.Server\ITMartin.Curator.Server.csproj", "{54DC15E5-7F00-46E5-A22F-4AACA451F9D6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.MagicCollection.Server", "ITMartin.MagicCollection.Server\ITMartin.MagicCollection.Server.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLibrary.Search.Server", "ITMartinLibrary.Search.Server\ITMartinLibrary.Search.Server.csproj", "{B2C3D4E5-F6A7-8901-BCDE-F12345678901}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMusic.Server", "ITMartinMusic.Server\ITMartinMusic.Server.csproj", "{3301296B-994E-4371-9595-07D34CE2617A}"
 EndProject
@@ -406,6 +396,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinKontrol.Domain", "I
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinKontrol.Tests", "ITMartinKontrol.Tests\ITMartinKontrol.Tests.csproj", "{55224C59-3919-47EB-8795-B1F94A56737C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinUpload.Domain", "ITMartinUpload.Domain\ITMartinUpload.Domain.csproj", "{9D5548ED-D0E0-4265-AF18-788AEA145FBC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -447,22 +439,6 @@ Global
 		{887DD214-74E5-49A5-84AB-192AED9D532A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{887DD214-74E5-49A5-84AB-192AED9D532A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{887DD214-74E5-49A5-84AB-192AED9D532A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0EE7AACA-F6C6-455F-89FB-422707DEDB71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0EE7AACA-F6C6-455F-89FB-422707DEDB71}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0EE7AACA-F6C6-455F-89FB-422707DEDB71}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0EE7AACA-F6C6-455F-89FB-422707DEDB71}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5964C197-6D07-4D55-9CF3-2D77A4AB3454}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5964C197-6D07-4D55-9CF3-2D77A4AB3454}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5964C197-6D07-4D55-9CF3-2D77A4AB3454}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5964C197-6D07-4D55-9CF3-2D77A4AB3454}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FB33427F-84ED-4CCF-BFAA-CF38EDB6186D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FB33427F-84ED-4CCF-BFAA-CF38EDB6186D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FB33427F-84ED-4CCF-BFAA-CF38EDB6186D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FB33427F-84ED-4CCF-BFAA-CF38EDB6186D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7EA8C572-DC60-4AE4-9967-8697735D4040}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7EA8C572-DC60-4AE4-9967-8697735D4040}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7EA8C572-DC60-4AE4-9967-8697735D4040}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7EA8C572-DC60-4AE4-9967-8697735D4040}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D5E181C0-9D14-4D0A-B712-79014673F4D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D5E181C0-9D14-4D0A-B712-79014673F4D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D5E181C0-9D14-4D0A-B712-79014673F4D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -611,10 +587,6 @@ Global
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B2C3D4E5-F6A7-8901-BCDE-F12345678901}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B2C3D4E5-F6A7-8901-BCDE-F12345678901}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B2C3D4E5-F6A7-8901-BCDE-F12345678901}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B2C3D4E5-F6A7-8901-BCDE-F12345678901}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C3D4E5F6-A7B8-9012-CDEF-123456789012}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C3D4E5F6-A7B8-9012-CDEF-123456789012}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C3D4E5F6-A7B8-9012-CDEF-123456789012}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -1203,5 +1175,9 @@ Global
 		{55224C59-3919-47EB-8795-B1F94A56737C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{55224C59-3919-47EB-8795-B1F94A56737C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{55224C59-3919-47EB-8795-B1F94A56737C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D5548ED-D0E0-4265-AF18-788AEA145FBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D5548ED-D0E0-4265-AF18-788AEA145FBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D5548ED-D0E0-4265-AF18-788AEA145FBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D5548ED-D0E0-4265-AF18-788AEA145FBC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

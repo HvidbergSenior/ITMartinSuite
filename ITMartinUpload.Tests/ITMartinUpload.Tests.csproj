@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ITMartinUpload.Server\ITMartinUpload.Server.csproj" />
+    <ProjectReference Include="..\ITMartinUpload.Domain\ITMartinUpload.Domain.csproj" />
   </ItemGroup>
 
 </Project>

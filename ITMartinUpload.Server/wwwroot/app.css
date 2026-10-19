@@ -1,4 +1,4 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+﻿*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ITKolibri palette - same greens as itmartin.dk/pilot and the other Kolibri apps. */
 :root, [data-theme="dark"] {
@@ -365,3 +365,17 @@ html, body {
 .gallery-text b { display: block; font-size: 18px; font-weight: 800; }
 .gallery-text span { display: block; font-size: 14px; margin-top: 2px; }
 .gallery-go { flex: none; background: var(--accent); color: var(--accent-ink); font-weight: 800; padding: 10px 16px; border-radius: 12px; }
+
+/* Folder button next to "Vælg billeder" (2026-10-19) */
+.dz-btn-alt { margin-top: 8px; background: transparent !important; border: 2px solid currentColor; }
+/* Overblik: what happened to the uploaded files after sorting (2026-10-19). Dark text on light chips - readable for colour-blind eyes. */
+.sort-overview { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 0 0 12px; background: var(--surface, #fff); }
+.sort-title { font-weight: 700; margin-bottom: 8px; }
+.sort-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.sort-chip { display: inline-block; border: 1px solid #b9b2a3; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 600; color: #1f2937; background: #f3f1ec; }
+.sort-chip.small { font-size: 11px; padding: 1px 8px; margin-left: 6px; }
+.sort-chip.st-sorted { background: #dff3e4; border-color: #4f9a62; }
+.sort-chip.st-dup { background: #ece9f7; border-color: #7a6fb0; }
+.sort-chip.st-not { background: #eeeeee; border-color: #8a8a8a; }
+.sort-chip.st-fail { background: #fde2dd; border-color: #b4533f; }
+.sort-chip.st-wait { background: #fff4d6; border-color: #b08a2e; }
