@@ -191,7 +191,7 @@
             <div class="sort-overview">
                 @if (_sortSummary.AnySorted)
                 {
-                    <div class="sort-title">Sidst sorteret @_sortSummary.LastRunUtc!.Value.ToLocalTime().ToString("d. MMMM 'kl.' HH:mm")</div>
+                    <div class="sort-title">Sidst sorteret @LastRunText</div>
                 }
                 else
                 {
@@ -325,6 +325,11 @@
     private List<ExistingFile> _existing = [];
     private Dictionary<string, ITMartinUpload.Domain.FileSortStatus> _sortStatus = new(StringComparer.OrdinalIgnoreCase);
     private ITMartinUpload.Domain.SortSummary _sortSummary = new(0, 0, 0, 0, 0, 0, null);
+
+    // Danish month and Danish time, whatever the container's culture and time zone are.
+    private string LastRunText =>
+        TimeZoneInfo.ConvertTime(_sortSummary.LastRunUtc!.Value, TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"))
+            .ToString("d. MMMM 'kl.' HH:mm", new System.Globalization.CultureInfo("da-DK"));
 
     private static string ChipClass(ITMartinUpload.Domain.SortState s) => s switch
     {
