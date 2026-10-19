@@ -9,7 +9,7 @@ public static class Chords
 
     /// <summary>The open grips a song is written in. No F, no Bm, no barre.</summary>
     public static readonly IReadOnlyList<string> OpenGrips =
-        ["C", "D", "E", "G", "A", "Am", "Dm", "Em", "Cadd9", "Dsus4", "Asus2", "Em7", "Am7", "Fmaj7", "A7", "D7", "E7", "B7", "G7"];
+        ["C", "D", "E", "G", "A", "Am", "Dm", "Em", "Cadd9", "Dsus4", "Dsus2", "Asus2", "Em7", "Am7", "Fmaj7", "A7", "D7", "E7", "B7", "G7"];
 
     public static bool IsOpenGrip(string chord) => OpenGrips.Contains(chord);
 
