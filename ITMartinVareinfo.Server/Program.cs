@@ -1,9 +1,11 @@
+using System.Text.RegularExpressions;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinVareinfo.Application;
 using ITMartinVareinfo.Infrastructure;
 using ITMartinVareinfo.Server;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
+using SixLabors.ImageSharp;
 
 // Bogshoppen Vareinfo (2026-10-12): split out of Lager - user: "one is for pricing and storage. No matter what it is.
 // Books, dvds or whatever. and another app is for search and adding info on each product". This app finds out WHAT a
@@ -72,7 +74,7 @@ app.Use(async (ctx, next) =>
             || p.EndsWith(".svg") || p.EndsWith(".png");
     if (p.StartsWith("/api/lager/")) { if (FromLager(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (open || LoggedIn(ctx)) { await next(); return; }
-    if (p.StartsWith("/_blazor")) { ctx.Response.StatusCode = 401; return; }
+    if (p.StartsWith("/_blazor") || p.StartsWith("/api/")) { ctx.Response.StatusCode = 401; return; }   // the photo queue keeps the photo and asks for login
     ctx.Response.Redirect("/login");
 });
 
@@ -111,6 +113,33 @@ app.MapPost("/api/lager/laes", async (HttpRequest req, ReadingUseCases reading) 
         return Results.Problem("Billedet kunne ikke åbnes. Tag et nyt billede.", statusCode: 400);
     }
 }).DisableAntiforgery();
+// The pages' photos (fotokoe.js): a plain upload instead of the Blazor connection, which phones drop while the camera
+// app is open (photos lost without a word, 2026-10-19). The phone keeps the photo until one of these says OK.
+async Task<IResult> Upload(HttpRequest req, Func<IFormCollection, Stream, Task> store)
+{
+    var form = await req.ReadFormAsync();
+    if (form.Files.Count == 0) return Results.BadRequest("Intet billede.");
+    await using var s = form.Files[0].OpenReadStream();
+    try { await store(form, s); return Results.Ok(); }
+    catch (VareinfoException ex) { return Results.BadRequest(ex.Message); }
+    catch (ImageFormatException ex)   // also unknown format / broken content - the same photo will never open
+    {
+        app.Logger.LogWarning("Photo upload could not be opened: {Message}", ex.Message);
+        return Results.BadRequest("Billedet kunne ikke åbnes.");
+    }
+}
+app.MapPost("/api/foto", (HttpRequest req, BoxPhotoUseCases boxes) => Upload(req, async (form, s) =>
+{
+    if (!int.TryParse(form["boxId"], out var boxId) || !Regex.IsMatch(form["boxCode"].ToString(), "^K[0-9]+$"))
+        throw new VareinfoException("Kassen mangler - genindlæs siden.");
+    await boxes.StoreAsync(s, new LagerBox(boxId, form["boxCode"].ToString()));
+})).DisableAntiforgery();
+app.MapPost("/api/kolofonfoto", (HttpRequest req, KolofonUseCases kolofons) => Upload(req, async (form, s) =>
+{
+    if (!int.TryParse(form["itemId"], out var itemId) || itemId <= 0) throw new VareinfoException("Bogen mangler - genindlæs siden.");
+    await kolofons.SavePhotoAsync(itemId, form["title"].ToString(), s);
+})).DisableAntiforgery();
+
 app.MapGet("/api/lager/stregkode/{code}", async (string code, ReadingUseCases reading) =>
     await reading.LookupBarcodeAsync(code) is { } f ? Results.Ok(f) : Results.NotFound());
 

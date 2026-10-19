@@ -1,6 +1,9 @@
 @page "/kolofon"
 @inject KolofonUseCases Kolofons
 @inject LagerLinks Boxes
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@using System.Text.Json
 
 <PageTitle>Kolofon – Bogshoppen Vareinfo</PageTitle>
 
@@ -27,6 +30,7 @@
         </ol>
         <p class="k-small k-muted">Alle andre bøger klarer sig med forsiden. Grænsen på @_fromKr kr sættes i Lager (Lager__KolofonFromKr).</p>
     </details>
+    <p data-photo-status role="status" hidden></p>
     @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
     @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
 </section>
@@ -36,9 +40,8 @@
     <section class="k-card">
         <h2 class="k-card-title">📷 Kolofon til @(Titel ?? $"vare {Vare}")</h2>
         <p>Slå op på bagsiden af titelbladet og tag billedet tæt på, så teksten er skarp. Det læses inden for et par minutter og skrives på bogen i Lager.</p>
-        <label class="k-btn k-btn-primary lg-big lg-camera">
-            @(_busy == Vare ? "⏳ Gemmer …" : "📷 Tag billede af kolofonen")
-            <InputFile OnChange="SaveOne" accept="image/*" capture="environment" class="lg-hidden-file" />
+        <label class="k-btn k-btn-primary lg-big lg-camera">📷 Tag billede af kolofonen
+            <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/kolofonfoto" data-fields="@Fields(Vare, Titel ?? $"Vare {Vare}")" />
         </label>
         <p><a href="@Boxes.LagerBase/vare/@Vare">← Tilbage til varen i Lager</a></p>
     </section>
@@ -62,9 +65,8 @@
                 <li>
                     <a href="@Boxes.LagerBase/vare/@b.ItemId"><span class="lg-box">@(b.BoxCode != "" ? b.BoxCode : "–")</span>
                         <span class="lg-main"><b>@b.Line</b><span class="k-small k-muted">@(b.FirstEditionLook ? "📖 omslaget ligner 1. udgave" : "")@(b.FirstEditionLook && b.TopKr > 0 ? " · " : "")@(b.TopKr > 0 ? $"fundet til op til {b.TopKr} kr" : "")</span></span></a>
-                    <label class="k-btn k-btn-secondary k-btn-sm lg-camera">
-                        @(_busy == b.ItemId ? "⏳" : "📷 Kolofon")
-                        <InputFile OnChange="e => Save(b, e)" accept="image/*" capture="environment" class="lg-hidden-file" />
+                    <label class="k-btn k-btn-secondary k-btn-sm lg-camera">📷 Kolofon
+                        <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/kolofonfoto" data-fields="@Fields(b.ItemId, b.Title)" />
                     </label>
                 </li>
             }
@@ -92,7 +94,7 @@
 
     private List<KolofonWanted>? _rows;
     private List<KolofonShot> _read = [];
-    private int _fromKr, _waiting, _busy;
+    private int _fromKr, _waiting;
     private string? _msg, _err;
 
     protected override async Task OnInitializedAsync() => await Load();
@@ -105,18 +107,29 @@
         _read = await Kolofons.RecentlyReadAsync();
     }
 
-    private Task SaveOne(InputFileChangeEventArgs e) => Save(new KolofonWanted(Vare, "", Titel ?? "", Titel ?? $"Vare {Vare}", false, 0), e);
+    // Plain upload through fotokoe.js, not InputFile: the phone keeps the photo until the server has it (2026-10-19).
+    private static string Fields(int itemId, string title) => JsonSerializer.Serialize(new { itemId, title });
+    private DotNetObjectReference<KolofonSide>? _ref;
 
-    private async Task Save(KolofonWanted b, InputFileChangeEventArgs e)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        _busy = b.ItemId; _err = null; _msg = null;
-        try
-        {
-            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await Kolofons.SavePhotoAsync(b.ItemId, b.Title, s);
-            _msg = $"Kolofonen til \"{b.Title}\" er gemt og bliver læst om lidt.";
-            await Load();
-        }
-        catch (Exception ex) { _err = ex.Message; }
-        finally { _busy = 0; }
+        if (!firstRender) return;
+        _ref = DotNetObjectReference.Create(this);
+        try { await JS.InvokeVoidAsync("photoQueue.listen", _ref); } catch (JSDisconnectedException) { }
+    }
+
+    [JSInvokable]
+    public async Task PhotoSent()
+    {
+        _err = null;
+        _msg = "Kolofonen er gemt og bliver læst om lidt.";
+        await Load();
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }
+        _ref?.Dispose();
     }
 }

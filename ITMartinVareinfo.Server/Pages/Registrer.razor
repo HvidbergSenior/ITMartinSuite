@@ -5,6 +5,7 @@
 @inject LagerLinks Lager
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+@using System.Text.Json
 
 @* Box by box, camera only (user 2026-10-15): "Take picture -> storage", "scanning should just beep beep beep. next box",
    "only pictures camera... All the further investigation should be done in the other app". Photos and barcodes are
@@ -28,11 +29,24 @@ else
     <section class="k-card">
         <h2 class="k-card-title">📷 Billeder</h2>
         <p>Læg 10-20 ting ud med forsiden op, og tag billedet lige ovenfra. Gentag til kassen er tom.</p>
-        <label class="k-btn k-btn-primary lg-big lg-camera @(_busy ? "is-busy" : "")">
-            @(_busy ? "⏳ Gemmer billedet …" : "📷 Tag billede")
-            <InputFile OnChange="Store" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
-        </label>
-        <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang.</p>
+        @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
+        <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@BoxFields">📷 Tag billeder</button>
+        <div id="foto-cam" class="lg-scan" hidden>
+            <video id="foto-video" muted playsinline></video>
+            <button type="button" class="k-btn k-btn-primary lg-big" data-camera-shoot>📸 Tag billede</button>
+            <p id="foto-cam-note" class="lg-answer" role="status"></p>
+            <button type="button" class="k-btn k-btn-secondary" data-camera-close>✓ Færdig med billeder</button>
+        </div>
+        <p data-photo-status role="status" hidden></p>
+        <p class="k-small k-muted">Kameraet åbner her på siden, så du kan tage det ene billede efter det andet. Billederne gemmes først på telefonen og sendes bagefter – mister du forbindelsen, sendes de, når den er tilbage.</p>
+        <div class="lg-row">
+            <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
+                <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@BoxFields" />
+            </label>
+            <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Vælg billeder fra telefonen
+                <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@BoxFields" />
+            </label>
+        </div>
     </section>
 
     <section class="k-card">
@@ -118,33 +132,28 @@ else
         await Refresh();
     }
 
-    private async Task Store(InputFileChangeEventArgs e)
+    // Each photo carries its own box, so photos still waiting on the phone land in the right box after "Ny kasse".
+    private string BoxFields => _box is null ? "{}" : JsonSerializer.Serialize(new { boxId = _box.Id, boxCode = _box.Code });
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_box is null) return;
-        _busy = true; _error = null; _saved = null; _confirmNew = false;
+        if (!firstRender) return;
+        _ref ??= DotNetObjectReference.Create(this);
+        try { await JS.InvokeVoidAsync("photoQueue.listen", _ref); } catch (JSDisconnectedException) { }
+    }
+
+    // fotokoe.js: one more photo is on the server.
+    [JSInvokable]
+    public async Task PhotoSent()
+    {
+        await Refresh();
         StateHasChanged();
-        var stored = 0;
-        try
-        {
-            foreach (var file in e.GetMultipleFiles(20))
-            {
-                await using var s = file.OpenReadStream(30 * 1024 * 1024);
-                await Boxes.StoreAsync(s, _box);
-                stored++;
-            }
-            _saved = $"{stored} billede{(stored == 1 ? "" : "r")} gemt i kasse {_box.Number}. Tag det næste.";
-        }
-        catch (Exception ex) { _error = (stored > 0 ? $"{stored} blev gemt, men: " : "") + ex.Message; }
-        finally
-        {
-            _busy = false;
-            await Refresh();
-        }
     }
 
     private async Task NewBox()
     {
         await StopScan();
+        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }   // its photos belong to the old box
         _busy = true; _error = null; _saved = null;
         try
         {
@@ -225,6 +234,7 @@ else
     {
         _scanning = false;
         try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
+        try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }
         _ref?.Dispose();
     }
 }
