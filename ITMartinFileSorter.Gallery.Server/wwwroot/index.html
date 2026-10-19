@@ -312,6 +312,27 @@ body.at-root[data-theme="vaersgo"] #hdrTitle{visibility:hidden}
 .v-item b{display:block;font-size:1.05rem}
 .v-item span{display:block;font-size:.92rem;margin-top:4px;color:#4a3626}
 
+/* ── Theme "facebook" (Martin's public Facebook demo 2026-10-19: "pænt design, centered and clear message - only the ones
+   I am solo on"): a calm centred welcome, the solo note in its own box, a button back to itmartin.dk/dine-data,
+   and the year folders and photos centred below. Dark text on light, no blue text (user is a bit colour-blind). ── */
+body[data-theme="facebook"]{--accent:#1f2937;--accent-hover:#111827;--bg:#f6f4ef;--bg-card:#ffffff;--bg-btn:#ebe7de;--border:#ddd6c8;
+  --text:#1f2937;--text-muted:#4b5563;background:#f6f4ef;color:#1f2937}
+body[data-theme="facebook"] .folder-grid,body[data-theme="facebook"] .file-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+body[data-theme="facebook"] .folder-card{width:min(260px,44vw);border-radius:18px;border:2px solid #ddd6c8;box-shadow:0 10px 24px rgba(31,41,55,.12)}
+body[data-theme="facebook"] .file-card{width:min(220px,44vw);aspect-ratio:1;border-radius:14px;box-shadow:0 6px 16px rgba(31,41,55,.12)}
+body[data-theme="facebook"] .section-title,body[data-theme="facebook"] .grid-title,body[data-theme="facebook"] .section-label{text-align:center}
+body[data-theme="facebook"] #btnGalleries{display:none!important}
+body.at-root[data-theme="facebook"] #hdrTitle{visibility:hidden}
+.f-hero{margin:22px auto 16px;max-width:720px;text-align:center;padding:32px 22px 26px;border-radius:24px;background:#fff;border:2px solid #ddd6c8;color:#1f2937;box-shadow:0 14px 34px rgba(31,41,55,.10)}
+.f-kicker{font:800 .95rem/1 system-ui,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:#4b5563}
+.f-name{margin:12px 0 10px;font:700 clamp(2rem,7vw,3.2rem)/1.08 Georgia,"Times New Roman",serif;color:#111827}
+.f-line{margin:0 auto;max-width:46ch;font:1.15rem/1.5 Georgia,serif;color:#1f2937}
+.f-solo{margin:20px auto 0;max-width:46ch;padding:14px 18px;border-radius:16px;background:#f6f4ef;border:2px dashed #b8ad98;font:700 1.05rem/1.45 system-ui,sans-serif;color:#1f2937}
+.f-count{margin-top:14px;font:600 1rem system-ui,sans-serif;color:#4b5563}
+.f-btns{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:20px}
+.f-btn{display:inline-block;border:2px solid #111827;background:#111827;color:#fff;border-radius:999px;padding:12px 22px;font:800 1.05rem system-ui,sans-serif;cursor:pointer;text-decoration:none}
+.f-btn.alt{background:#fff;color:#111827}
+
 /* ── Theme "koncert": a stage for the audience songs ─────────────────────── */
 
 /* ── Theme "bedstemor" (HvidbergFamily): "Hej allesammen – det her er Bedstemors billeder".
@@ -775,6 +796,20 @@ function renderBrowse(data, titleOverride) {
       sh.querySelectorAll('.s-chip').forEach(o => o.classList.toggle('on', o === b));
     });
   } else if (sh) sh.style.display = 'none';
+  // Theme "facebook" (Martin's public demo 2026-10-19): centred welcome + the "only photos where I am alone" note,
+  // a button to the dine-data page and the phone guide. Shown on the front only.
+  let fh = document.getElementById('facebookHero');
+  if (theme === 'facebook') {
+    const fsec = document.getElementById('folderSection');
+    if (!fh) { fh = document.createElement('div'); fh.id = 'facebookHero'; fsec.parentNode.insertBefore(fh, fsec); }
+    fh.style.display = atRoot ? '' : 'none';
+    fh.innerHTML = `<div class="f-hero"><div class="f-kicker">Hentet ud af Facebook</div><h1 class="f-name">${esc(headline || galleryDisplayName || 'Mine billeder fra Facebook')}</h1>`
+      + (tagline ? `<p class="f-line">${esc(tagline)}</p>` : '')
+      + `<div class="f-solo">Her ser du kun de billeder, hvor jeg er alene på billedet.<br>Alle de andre – med familie og venner – ligger i mit private galleri.</div>`
+      + `<div class="f-count">Tryk på et år for at se billederne.</div>`
+      + `<div class="f-btns"><a class="f-btn" href="https://itmartin.dk/dine-data">Få styr på dine egne billeder</a><button type="button" class="f-btn alt" id="fPhone">Læg galleriet på telefonen</button></div></div>`;
+    document.getElementById('fPhone').onclick = () => window.kolibri ? window.kolibri.openInstall() : alertPhoneSteps();
+  } else if (fh) fh.style.display = 'none';
   // Theme "vaersgo" (Annette og Kent 2026-10-16): a warm welcome, the two cards centred below, and an info box
   // about what the finished collection can also hold - information only, nothing to pick or buy.
   let vh = document.getElementById('vaersgoHero'), vm = document.getElementById('vaersgoMore');
