@@ -20,7 +20,7 @@ public class SharedCssTests : PageTest
 
     // The inner-box classes - the same list as the shared rule in ITMartinHjem.Server/wwwroot/app.css.
     private const string InnerBoxes = ".hj-part, .bs-bigstep, .sp-means, .hj-qa-boxlink, .bs-products li, .bs-promise li, .hj-qa-a, " +
-                                      ".tm-card, .bs-manifest, .hj-week, .hj-chat-challenge, .hj-day-entry";
+                                      ".tm-card, .bs-manifest, .hj-week, .hj-chat-challenge, .hj-day-entry, .hj-mine";
 
     // Small components that are allowed their own outline inside a box (not boxes).
     private const string Allowed = "input, textarea, select, button, a.k-btn, .k-btn, img, video, .k-dot, .k-tag, .hj-tile, .hj-chip, " +

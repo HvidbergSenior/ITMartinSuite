@@ -40,6 +40,7 @@ public class QuickSortStepOrderTests
     // test pass.
     private static readonly string[] ExpectedStepOrder =
     [
+        "StoragePreflightWorkflowStep",     // 0.  Runs before anything touches either path: source and destination must exist, be readable/writable and have room, or the run refuses to start (the 2026-09-10 USB drive that dropped off the bus while its mount still "looked" present).
         "CleanStartWorkflowStep",           // 1.  Strips a prior run's generated artifacts (_Galleri, SmartFolders, .packageN, manifest/collections/filestatus.json) so a re-copied already-sorted library scans as clean raw input.
         "LibraryRootReconcileWorkflowStep", // 2.  Reconciles the shared library root before this run adds anything new to it (added 2026-09-06 - its missing DI registration was crashing every fresh QuickSort import before this fix).
         "DvdJoinWorkflowStep",              // 3.  Joins split DVD-rip video segments back into whole files, if any.
@@ -48,7 +49,7 @@ public class QuickSortStepOrderTests
         "MediaRulesWorkflowStep",           // 6.  Extension/codec-based type classification (incl. real .mp4 codec check), plus corrupt-video detection and exclusion filtering as of 2026-09-06. Also removes never-necessary categories (Skærmbilleder/Memes/Gifs/Chat/Film/Ikke_identificeret/LivePhotos) from MediaFiles entirely as of 2026-09-08 - "the important thing is categorizing", nothing after this step ever sees them again.
         "HashWorkflowStep",                 // 7.  Computes each file's content hash.
         "MetadataWorkflowStep",             // 8.  Reads EXIF/video metadata - date, GPS, camera model, etc.
-        "DuplicateDetectionWorkflowStep",   // 9.  Exact-hash + perceptual-hash image duplicate grouping.
+        "DuplicateDetectionWorkflowStep",   // 9.  Groups byte-identical files only (same content hash) since 2026-10-19 - burst shots and look-alikes are kept.
         "AudioDuplicateDetectionWorkflowStep", // 10. Same idea, scoped to audio tracks.
         "CleanupEvaluationWorkflowStep",    // 11. Decides Keep/Delete/Review per file (junk, near-duplicates). Moved here 2026-09-07 (was after ImageQuality) - every decision it makes only needs data already available by this point (DuplicateGroups from the two steps just above, Width/Height/Duration/Artist from Metadata), so a known duplicate/delete-candidate is now skipped by the two expensive per-image steps below instead of being processed and thrown away.
         "ImageNormalizationWorkflowStep",   // 12. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (every image not already marked Duplicates/DeleteCandidates).

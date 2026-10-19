@@ -586,10 +586,11 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
    Checked by ITMartinHjem.UiTests (SharedCssTests) on all pages of itmartin.dk and bogshoppen.dk. Big boxes (.k-card) = Kolibri default. */
 .k-content .hj-part, .k-content .bs-bigstep, .k-content .sp-means, .k-content .hj-qa-boxlink,
 .k-content .bs-products li, .k-content .bs-promise li, .k-content .hj-qa-a, .k-content .tm-card, .k-content .bs-manifest,
-.k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry {
+.k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry, .k-content .hj-mine {
     border: 2px solid var(--k-border); border-left: 5px solid var(--k-accent); border-radius: 12px; background: var(--k-card);
 }
-.k-content .bs-manifest, .k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry, .k-content .hj-qa-a { padding: 10px 12px; }
+.k-content .bs-manifest, .k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry, .k-content .hj-qa-a, .k-content .hj-mine { padding: 10px 12px; }
+/* "Da jeg hentede mine egne ..." - Martin's own numbers on /dine-data, an inner box like the rest (2026-10-19: used .bu-safe's green frame). */
 .k-content .hj-day-entry { margin: 0 0 8px; }
 .k-content .bs-bigstep { text-align: left; }
 .k-content .hj-part.hj-chat-top.is-on { border-left-color: var(--k-success, #1f9d55); }   /* green = Martin is here now */
