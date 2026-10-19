@@ -1,4 +1,5 @@
 using ITMartin.Media.Application.Pipelines.QuickSort.Orchestration;
+using ITMartin.Media.Application.Pipelines.QuickSort.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
@@ -176,6 +177,26 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
             exportRoot, eligible.Count, newlyDone, duplicatesOfExisting);
 
         await WriteManualRotationListAsync(exportRoot, eligible, cancellationToken);
+        await WriteSourceStatusAsync(state, exportRoot, cancellationToken);
+    }
+
+    // _kilder.json: where each file of the source folder ended up, so the Upload app can show the customer an overview.
+    private async Task WriteSourceStatusAsync(QuickSortWorkflowState state, string exportRoot, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(state.RootPath) || !Directory.Exists(state.RootPath)) return;
+        try
+        {
+            var report = SourceStatusReport.Build(
+                state.RootPath, exportRoot, state.MediaFiles, state.DuplicateGroups,
+                Directory.EnumerateFiles(state.RootPath, "*", SearchOption.AllDirectories), DateTimeOffset.UtcNow);
+            var json = System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(Path.Combine(exportRoot, SourceStatusReport.FileName), json, cancellationToken);
+            _logger.LogInformation("Source status written: {Count} source files -> {File}", report.Files.Count, SourceStatusReport.FileName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Could not write {File} in {Root}", SourceStatusReport.FileName, exportRoot);
+        }
     }
 
     // Cameras stopped being the problem around here. Devices from roughly
