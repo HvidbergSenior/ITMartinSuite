@@ -17,8 +17,19 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Jeres egen lille gruppe-chat – uden Facebook og uden reklamer.";
     k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";
-    k.OwnOmPage = true;
-    k.OwnHjaelpPage = true;
+    k.About =
+    [
+        "Snak er en lille, privat chat for jeres gruppe - i stedet for en Facebook-gruppe. Kun dem med gruppens kode kan komme ind.",
+        "Der er ingen reklamer, og intet bliver solgt eller delt. Under Opgaver lægger gruppens tovholder opgaver ud, og alle kan se, hvem der tager hvad.",
+    ];
+    k.HowTo =
+    [
+        "Åbn snak.itmartin.dk og skriv gruppens kode og det navn, de andre skal se.",
+        "Skriv i chatten. Slå beskeder til, så får du besked, når der skrives.",
+        "Læg Snak på telefonen, så den åbner som en app.",
+    ];
+    // Snak's page is a static index.html, so /om and /hjaelp come as plain HTML (2026-10-19: they gave 404).
+    k.StaticPages = true;
     k.HealthChecks = sp => Task.FromResult<IReadOnlyList<KolibriHealthItem>>(
     [
         new("data", Directory.Exists(sp.GetRequiredService<IConfiguration>()["Snak:DataDir"] ?? "/data")),

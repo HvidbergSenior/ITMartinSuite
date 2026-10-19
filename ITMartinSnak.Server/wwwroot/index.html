@@ -157,6 +157,9 @@
         </main>
     </section>
 </div>
+<!-- Same footer as every Kolibri app (KolibriStaticPages.Footer); Snak's page is static, so the markup is copied here. -->
+<footer class="k-footer"><span>&copy; <span id="kYear">2026</span> ITMartin · Den digitale kolibri</span> <a href="/om">Om Snak</a> <a href="#k-install" class="k-footer-install">Læg på telefonen</a> <a href="/hjaelp">Noget virker ikke?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Vilkår &amp; privatliv</a></footer>
+<script>document.getElementById("kYear").textContent = new Date().getFullYear();</script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/snak-sw.js").catch(function () {});</script>
 </body>
 </html>
