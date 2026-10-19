@@ -197,4 +197,23 @@ public class RunCostTests
         var raw = Day(D, _ => 1.00);
         PriceModel.CostOfRun(raw, Spot, Wash, D.ToDateTime(new TimeOnly(23, 0))).Should().BeNull();
     }
+
+    [Test]
+    public void Cheapest_from_now_looks_at_today_and_tomorrow_and_skips_the_quiet_hours()
+    {
+        // Today: dear evening, cheapest 02-04 (quiet), cheap 12-14. Tomorrow: 13-15 even cheaper.
+        var raw = Day(D, h => h >= 2 && h < 4 ? 0.10 : h >= 12 && h < 14 ? 0.50 : 1.00)
+            .Concat(Day(D.AddDays(1), h => h >= 13 && h < 15 ? 0.30 : 1.00)).ToList();
+        var quiet = new HouseholdSettings { ShowAllIn = false, QuietFromHour = 23, QuietToHour = 6 };
+
+        var best = PriceModel.CheapestFrom(raw, quiet, Wash, D.ToDateTime(new TimeOnly(20, 7)));
+
+        best!.Start.Should().Be(D.AddDays(1).ToDateTime(new TimeOnly(13, 0)));   // the night is quiet, tomorrow 13 wins
+        best.CostKr.Should().Be(0.30);
+    }
+
+    [Test]
+    public void Cheapest_from_now_can_be_now() =>
+        PriceModel.CheapestFrom(Day(D, h => h >= 20 ? 0.20 : 1.00), Spot, Wash, D.ToDateTime(new TimeOnly(20, 5)))!
+            .Start.Should().Be(D.ToDateTime(new TimeOnly(20, 0)));
 }

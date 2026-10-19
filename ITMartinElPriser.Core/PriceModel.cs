@@ -150,6 +150,21 @@ public static class PriceModel
         return new RunOption(snapped, snapped.AddHours(a.DurationHours), Math.Round(cost, 2), Math.Round(cost / a.KwhPerRun, 3));
     }
 
+    // The cheapest start from `from` on, over every price known (today and tomorrow), outside the quiet hours -
+    // what the front page suggests (user 2026-10-19: "change it to cheapest"). Earliest wins a tie. Null when no
+    // whole run fits in the known prices.
+    public static RunOption? CheapestFrom(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime from)
+    {
+        var t = new DateTime(from.Year, from.Month, from.Day, from.Hour, from.Minute / SlotMinutes * SlotMinutes, 0);
+        RunOption? best = null;
+        for (var end = t.AddHours(48); t < end; t = t.AddMinutes(SlotMinutes))
+        {
+            if (IsQuiet(t, s) || CostOfRun(raw, s, a, t) is not { } o) continue;
+            if (best is null || o.CostKr < best.CostKr) best = o;
+        }
+        return best;
+    }
+
     // Best and worst start for this appliance on a given day (whole day, no
     // quiet-hour filter - it is "what could it have cost", not a suggestion).
     public static (RunOption? Cheapest, RunOption? Dearest) DayRange(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateOnly day)
