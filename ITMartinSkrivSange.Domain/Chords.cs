@@ -13,6 +13,21 @@ public static class Chords
 
     public static bool IsOpenGrip(string chord) => OpenGrips.Contains(chord);
 
+    /// <summary>A chord a song may hold: an open grip or a barre grip (2026-10-19: real songs keep their real chords;
+    /// Foreslå and the library still stick to open grips).</summary>
+    public static bool HasGrip(string chord) => Grips.For(chord) is not null;
+
+    /// <summary>The chord itself when it has a grip, else its plain major or minor (C#add9 -> C#) - after a transpose.</summary>
+    public static string Playable(string chord)
+    {
+        if (Grips.For(chord) is { } g) return g.Chord;
+        return Split(chord) is { } s && RootIndex(chord) is { } i ? Display[i] + (IsMinor(chord) ? "m" : "") : chord;
+    }
+
+    /// <summary>"A#m" -> "Bbm", "Db" -> "C#": the root the way a chord sheet writes it; null when it isn't a chord name.</summary>
+    public static string? Normalize(string chord) =>
+        Split(chord) is { } s && RootIndex(chord) is { } i ? Display[i] + s.Suffix : null;
+
     /// <returns>The root (C, F#, Bb ...) and the rest (m, 7, sus4 ...), or null when it isn't a chord name.</returns>
     public static (string Root, string Suffix)? Split(string chord)
     {

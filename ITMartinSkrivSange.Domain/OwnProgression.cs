@@ -59,10 +59,12 @@ public static class ChordInput
         var chords = new List<string>();
         foreach (var w in words)
         {
-            // Case doesn't matter ("am" = "Am") - no two open grips differ only by case.
-            var grip = Chords.OpenGrips.FirstOrDefault(g => string.Equals(g, w, StringComparison.OrdinalIgnoreCase));
+            // Case doesn't matter ("am" = "Am", "bm" = "Bm") - no two grips differ only by case. Barre grips too since 2026-10-19.
+            var grip = Chords.OpenGrips.FirstOrDefault(g => string.Equals(g, w, StringComparison.OrdinalIgnoreCase))
+                       ?? Grips.Names.FirstOrDefault(g => string.Equals(g, w, StringComparison.OrdinalIgnoreCase))
+                       ?? (Grips.For(char.ToUpperInvariant(w[0]) + w[1..]) is { } found ? found.Chord : null);
             if (grip is null)
-                throw new SongException($"{w} kendes ikke som åbent greb. Brug fx {string.Join(", ", Chords.OpenGrips.Take(8))} - og capo for at skifte toneart.");
+                throw new SongException($"{w} kendes ikke som greb. Brug fx {string.Join(", ", Chords.OpenGrips.Take(8))} - og capo for at skifte toneart.");
             chords.Add(grip);
         }
         return chords;

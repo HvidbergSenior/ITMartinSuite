@@ -23,6 +23,13 @@ public sealed class SongWriting(ISongStore store, IOwnProgressionStore own, Time
     public Task RenameAsync(Song song, string title, CancellationToken ct = default) => Change(song, s => s.Rename(title, Now), ct);
     public Task SetMoodAsync(Song song, string mood, CancellationToken ct = default) => Change(song, s => s.SetMood(mood, Now), ct);
     public Task SetCapoAsync(Song song, int capo, CancellationToken ct = default) => Change(song, s => s.SetCapo(capo, Now), ct);
+    public Task TransposeAsync(Song song, int semitones, CancellationToken ct = default) => Change(song, s => s.Transpose(semitones, Now), ct);
+    public async Task<int> EasiestGripsAsync(Song song, CancellationToken ct = default)
+    {
+        var barre = 0;
+        await Change(song, s => barre = s.EasiestGrips(Now), ct);
+        return barre;
+    }
     public Task SetBpmAsync(Song song, int bpm, CancellationToken ct = default) => Change(song, s => s.SetBpm(bpm, Now), ct);
     public Task SetStrumAsync(Song song, string strumId, CancellationToken ct = default) => Change(song, s => s.SetStrum(strumId, Now), ct);
 

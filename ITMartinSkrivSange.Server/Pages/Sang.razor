@@ -69,6 +69,18 @@ else
                 {
                     <p class="k-muted ss-small">Greb i @Chords.KeyName(home) - klinger i @_song.SoundingKey</p>
                 }
+                @* User 2026-10-19: real songs in his own voice - move the whole song, then let it find the easiest grips. *@
+                <p class="k-label k-mt">Toneart til din stemme</p>
+                <div class="ss-row">
+                    <button class="k-btn k-btn-sm" @onclick="() => Do(s => Writing.TransposeAsync(s, -1))" aria-label="Et halvt trin ned">− ½ tone</button>
+                    <button class="k-btn k-btn-sm" @onclick="() => Do(s => Writing.TransposeAsync(s, 1))" aria-label="Et halvt trin op">+ ½ tone</button>
+                    <button class="k-btn k-btn-sm k-btn-secondary" @onclick="Easiest">Nemmeste greb</button>
+                </div>
+                <p class="k-muted ss-small">Transponér flytter alle akkorder op eller ned, så sangen passer til din stemme. <b>Nemmeste greb</b> beholder lyden og vælger den capo, der giver færrest barré-greb.@(_barreLeft is { } b ? (b == 0 ? " Ingen barré-greb tilbage." : $" {b} barré-greb tilbage.") : "")</p>
+                @if (_song.Parts.SelectMany(p => p.Chords).Where(Grips.IsBarre).Distinct().ToList() is { Count: > 0 } barre)
+                {
+                    <p class="k-muted ss-small">Barré-greb i sangen: @string.Join(" ", barre)</p>
+                }
             </div>
             <div>
                 <label class="k-label" for="ss-bpm">Tempo (BPM)</label>
@@ -460,6 +472,9 @@ else
     private readonly Dictionary<PartKind, string> _why = [];
     private readonly HashSet<PartKind> _saved = [];
     private readonly Dictionary<PartKind, string> _pendingNotes = [];
+    private int? _barreLeft;
+
+    private Task Easiest() => Do(async s => _barreLeft = await Writing.EasiestGripsAsync(s));
     private System.Threading.Timer? _notesTimer;
     private DotNetObjectReference<Sang>? _self;
 

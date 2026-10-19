@@ -85,17 +85,47 @@ public sealed class Song
         Capo = capo; Touch(nowUtc);
     }
 
+    /// <summary>Moves every chord <paramref name="semitones"/> half steps (user 2026-10-19: "and a transpose") - to put the
+    /// song where the voice is. The capo stays; the grips change.</summary>
+    public void Transpose(int semitones, DateTime nowUtc)
+    {
+        if (semitones % 12 == 0) return;
+        Regrip(semitones);
+        Touch(nowUtc);
+    }
+
+    /// <summary>Same sound, easiest hands: the capo that needs the fewest barre chords (then the lowest capo).
+    /// Returns how many barre chords are left.</summary>
+    public int EasiestGrips(DateTime nowUtc)
+    {
+        var best = Enumerable.Range(0, Domain.Capo.Max + 1)
+            .Select(c => (Capo: c, Barre: _parts.SelectMany(p => p.Chords).Count(ch => Grips.IsBarre(Chords.Playable(Chords.Transpose(ch, Capo - c))))))
+            .OrderBy(x => x.Barre).ThenBy(x => x.Capo).First();
+        if (best.Capo != Capo) { Regrip(Capo - best.Capo); Capo = best.Capo; Touch(nowUtc); }
+        return best.Barre;
+    }
+
+    private void Regrip(int semitones)
+    {
+        for (var i = 0; i < _parts.Count; i++)
+        {
+            var p = _parts[i];
+            if (!p.HasChords) continue;
+            _parts[i] = p with { Chords = p.Chords.Select(c => Chords.Playable(Chords.Transpose(c, semitones))).ToList(), ProgressionId = null };
+        }
+    }
+
     public void SetBpm(int bpm, DateTime nowUtc) { Bpm = Math.Clamp(bpm, MinBpm, MaxBpm); Touch(nowUtc); }
 
     public void SetStrum(string strumId, DateTime nowUtc) { StrumId = Strums.Find(strumId).Id; Touch(nowUtc); }
 
     public void UseProgression(PartKind kind, Progression p, DateTime nowUtc) => UseChords(kind, p.Chords, p.Id, nowUtc);
 
-    /// <summary>Only open grips (the capo does the key), 1-8 chords.</summary>
+    /// <summary>Chords that have a grip (open or barre), 1-8 chords.</summary>
     public void UseChords(PartKind kind, IReadOnlyList<string> chords, string? progressionId, DateTime nowUtc)
     {
         if (chords.Count is 0 or > MaxChords) throw new SongException($"En del skal have 1-{MaxChords} akkorder.");
-        if (chords.FirstOrDefault(c => !Chords.IsOpenGrip(c)) is { } bad) throw new SongException($"{bad} er ikke et åbent greb - brug capo i stedet.");
+        if (chords.FirstOrDefault(c => !Chords.HasGrip(c)) is { } bad) throw new SongException($"{bad} kender jeg ikke som greb.");
         _parts[(int)kind] = Part(kind) with { Chords = chords.ToList(), ProgressionId = progressionId };
         Touch(nowUtc);
     }

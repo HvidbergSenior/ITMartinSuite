@@ -47,11 +47,11 @@ public class SongRuleTests
     public void A_title_is_required() => FluentActions.Invoking(() => Song.Create("  ", Now)).Should().Throw<SongException>();
 
     [Test]
-    public void Barre_chords_are_refused()
+    public void Chords_without_a_grip_are_refused()   // barre chords are fine since 2026-10-19 (real songs)
     {
         var song = Song.Create("x", Now);
-        FluentActions.Invoking(() => song.UseChords(PartKind.Vers1, ["F", "Bm"], null, Now))
-            .Should().Throw<SongException>().WithMessage("*capo*");
+        FluentActions.Invoking(() => song.UseChords(PartKind.Vers1, ["F", "Hm"], null, Now))
+            .Should().Throw<SongException>().WithMessage("Hm*");
     }
 
     [Test]
@@ -219,8 +219,11 @@ public class SongWritingTests
 public class OwnChordTests
 {
     [Test]
-    public void Unknown_or_barre_chords_are_refused_with_a_hint() =>
-        FluentActions.Invoking(() => ChordInput.Parse("Am F#m")).Should().Throw<SongException>().WithMessage("F#m*capo*");
+    public void Unknown_chords_are_refused_with_a_hint() =>
+        FluentActions.Invoking(() => ChordInput.Parse("Am Xyz")).Should().Throw<SongException>().WithMessage("Xyz*capo*");
+
+    [Test]
+    public void Barre_chords_can_be_typed_in_any_case() => ChordInput.Parse("am f#m bm bb").Should().Equal("Am", "F#m", "Bm", "Bb");
 
     [Test]
     public void A_given_name_is_kept_and_numbering_continues_after_the_highest()
@@ -284,14 +287,14 @@ public class GripTests
 
     [Test]
     public void Fingers_only_where_a_fret_is_pressed() =>
-        Chords.OpenGrips.Select(c => Grips.For(c)!).Should().OnlyContain(g =>
+        Grips.Names.Select(c => Grips.For(c)!).Should().OnlyContain(g =>
             g.Frets.Count == 6 && g.Frets.Zip(g.Fingers).All(x => (x.First > 0) == (x.Second > 0)));
 
     [Test]
     public void The_grip_plays_the_notes_of_the_chord()
     {
         int[] open = [4, 9, 2, 7, 11, 4];   // E A D G B E
-        foreach (var c in Chords.OpenGrips)
+        foreach (var c in Grips.Names)
         {
             var g = Grips.For(c)!;
             var played = g.Frets.Select((f, s) => f < 0 ? -1 : (open[s] + f) % 12).Where(n => n >= 0).ToHashSet();
@@ -428,4 +431,63 @@ public class LyricsLinkTests
     [TestCase("(ABBA)")]
     [TestCase("Sang ()")]
     public void Own_songs_have_no_link(string title) => LyricsLink.For(title).Should().BeNull();
+}
+
+public class BarreAndTransposeTests
+{
+    private static readonly DateTime T = new(2026, 10, 19, 20, 0, 0, DateTimeKind.Utc);
+
+    [TestCase("Bm", "x24432")]
+    [TestCase("F", "133211")]
+    [TestCase("F#m", "244222")]
+    [TestCase("Bb", "x13331")]
+    [TestCase("Fm", "133111")]
+    [TestCase("C#m", "x46654")]
+    public void Real_songs_get_barre_grips(string chord, string grip) => Grips.For(chord)!.Short.Should().Be(grip);
+
+    [Test]
+    public void Every_major_and_minor_on_every_root_has_a_grip()
+    {
+        foreach (var root in new[] { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B" })
+            foreach (var suffix in new[] { "", "m", "7", "m7", "maj7" })
+                Chords.HasGrip(root + suffix).Should().BeTrue(root + suffix);
+        Grips.For("A#m")!.Chord.Should().Be("Bbm");   // sharps find the chord-sheet name
+    }
+
+    [Test]
+    public void Open_grips_stay_open() => Grips.IsBarre("Am").Should().BeFalse();
+
+    [Test]
+    public void A_song_may_hold_barre_chords()
+    {
+        var song = Song.Create("Space Oddity (David Bowie)", T);
+        song.UseChords(PartKind.Vers1, ["C", "E7", "F", "Fm"], null, T);
+        song.Part(PartKind.Vers1).Chords.Should().Equal("C", "E7", "F", "Fm");
+    }
+
+    [Test]
+    public void Transpose_moves_every_chord_and_keeps_the_capo()
+    {
+        var song = Song.Create("Test (X)", T);
+        song.SetCapo(2, T);
+        song.UseChords(PartKind.Vers1, ["Am", "Fmaj7", "C", "G"], "mel-bitter", T);
+        song.Transpose(-1, T);
+        song.Part(PartKind.Vers1).Chords.Should().Equal("Abm", "Emaj7", "B", "F#");
+        song.Part(PartKind.Vers1).ProgressionId.Should().BeNull();
+        song.Capo.Should().Be(2);
+    }
+
+    [Test]
+    public void Transpose_falls_back_to_a_plain_chord_when_there_is_no_grip() =>
+        Chords.Playable(Chords.Transpose("Cadd9", 1)).Should().Be("C#");
+
+    [Test]
+    public void Easiest_grips_keeps_the_sound_and_finds_the_capo_without_barre()
+    {
+        var song = Song.Create("Tieduprightnow (Parcels)", T);
+        song.UseChords(PartKind.Vers1, ["Fm", "Bb", "Cm", "Eb"], null, T);
+        song.EasiestGrips(T).Should().Be(0);
+        song.Capo.Should().Be(3);
+        song.Part(PartKind.Vers1).Chords.Should().Equal("Dm", "G", "Am", "C");   // capo 3: sounds Fm Bb Cm Eb
+    }
 }
