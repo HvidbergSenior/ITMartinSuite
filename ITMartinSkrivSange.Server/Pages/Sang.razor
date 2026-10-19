@@ -29,8 +29,16 @@ else
             {
                 <button class="k-btn k-btn-danger" @onclick="Stop">Stop</button>
             }
+            @if (LyricsLink.For(_song.Title) is { } lyrics)
+            {
+                <a class="k-btn k-btn-secondary" href="@lyrics" target="_blank" rel="noopener">Tekst og akkorder</a>
+            }
             <a class="k-btn k-btn-ghost" href="/sange">Mine sange</a>
         </div>
+        @if (LyricsLink.For(_song.Title) is not null)
+        {
+            <p class="k-help">Teksten gemmes ikke her (ophavsret). <b>Tekst og akkorder</b> åbner sangen på Ultimate Guitar i en ny fane - vælg den øverste med "Chords". Hav den åben ved siden af, mens du indspiller.</p>
+        }
     </section>
 
     <section class="k-card">

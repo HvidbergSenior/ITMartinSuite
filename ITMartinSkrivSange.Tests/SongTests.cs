@@ -415,3 +415,17 @@ public class TakeGainTests
     public void One_fixed_gain_puts_the_loudest_point_at_minus_1_5(string log, double gain) =>
         ITMartinSkrivSange.Infrastructure.StudioLibrary.PeakGainDb(log).Should().BeApproximately(gain, 0.01);
 }
+
+public class LyricsLinkTests
+{
+    [Test]
+    public void A_song_by_someone_else_links_to_its_lyrics_and_chords() =>
+        LyricsLink.For("Losing My Religion (R.E.M.)").Should()
+            .Be("https://www.ultimate-guitar.com/search.php?search_type=title&value=R.E.M.%20Losing%20My%20Religion");
+
+    [TestCase("Den allerførste sang")]
+    [TestCase("Brækket Hjerte")]
+    [TestCase("(ABBA)")]
+    [TestCase("Sang ()")]
+    public void Own_songs_have_no_link(string title) => LyricsLink.For(title).Should().BeNull();
+}
