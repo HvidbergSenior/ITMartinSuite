@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using Anthropic;
@@ -73,12 +73,6 @@ public sealed class LibraryPolishService : ILibraryPolishService
             UnplayableFolderName, RotationUnknownFolderName,
             DuplicatesRemovedFolderName, SmallAlbumsRemovedFolderName,
         };
-
-    // Same threshold and reasoning as DuplicateService's QuickSort pass -
-    // below this many differing bits (of 64) two images are treated as the
-    // same photo re-saved at a different quality rather than two distinct
-    // photos.
-    private const int NearDuplicateHammingThreshold = 6;
 
     private readonly ILogger<LibraryPolishService> _logger;
     private readonly IDbContextFactory<MediaDbContext> _dbFactory;
@@ -402,14 +396,12 @@ public sealed class LibraryPolishService : ILibraryPolishService
         var libraryRoot = Path.GetDirectoryName(folderPath.TrimEnd(Path.DirectorySeparatorChar, '/')) ?? folderPath;
 
         var byHash = new Dictionary<string, List<string>>();
-        var allFiles = new List<string>();
         var checkedCount = 0;
 
         foreach (var file in Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories))
         {
             cancellationToken.ThrowIfCancellationRequested();
             checkedCount++;
-            allFiles.Add(file);
 
             string hash;
             try
@@ -430,7 +422,6 @@ public sealed class LibraryPolishService : ILibraryPolishService
         }
 
         var deleted = 0;
-        var handled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var group in byHash.Values.Where(g => g.Count > 1))
         {
@@ -438,7 +429,6 @@ public sealed class LibraryPolishService : ILibraryPolishService
             // exact same bytes, so which name survives doesn't matter beyond
             // being reproducible if this pass ever runs again.
             var ordered = group.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
-            foreach (var f in ordered) handled.Add(f);
 
             foreach (var duplicate in ordered.Skip(1))
             {
@@ -451,9 +441,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
                     // (as this did until 2026-09-09) shipped 4,359 files /
                     // 5.0 GB of pure duplicates in a "Dubletter" folder on the
                     // customer's delivered drive, against the rule that only
-                    // one copy of each file should exist. Near-duplicates
-                    // below are different: those bytes differ, a match can be
-                    // wrong, and they are still quarantined.
+                    // one copy of each file should exist.
                     File.Delete(duplicate);
                     deleted++;
                 }
@@ -464,86 +452,12 @@ public sealed class LibraryPolishService : ILibraryPolishService
             }
         }
 
-        // Near-duplicates: catches the same "same photo, different bytes"
-        // case as DuplicateService's QuickSort pass (recompressed re-imports
-        // etc.), for already-sorted libraries where a scoped polish pass -
-        // not a full QuickSort re-run - is the right fix (see
-        // feedback_package1_not_idempotent). Bucketed by containing folder,
-        // since files landing here are already organized into Year/Month
-        // folders and that's exactly where these collisions happen.
-        var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".jpg", ".jpeg", ".png", ".heic", ".webp"
-        };
-
-        var nearDuplicateGroups = 0;
-
-        foreach (var folderGroup in allFiles
-                     .Where(f => !handled.Contains(f) && imageExtensions.Contains(Path.GetExtension(f)))
-                     .GroupBy(f => Path.GetDirectoryName(f) ?? folderPath))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var hashed = new List<(string Path, ulong Hash, long Size)>();
-
-            foreach (var file in folderGroup)
-            {
-                var hash = await _perceptualHashService.ComputeAsync(file, cancellationToken);
-                if (hash is { } h)
-                {
-                    long size;
-                    try { size = new FileInfo(file).Length; }
-                    catch (IOException) { continue; }
-
-                    hashed.Add((file, h, size));
-                }
-            }
-
-            var used = new bool[hashed.Count];
-
-            for (var i = 0; i < hashed.Count; i++)
-            {
-                if (used[i]) continue;
-
-                var members = new List<(string Path, ulong Hash, long Size)> { hashed[i] };
-
-                for (var j = i + 1; j < hashed.Count; j++)
-                {
-                    if (used[j]) continue;
-
-                    if (_perceptualHashService.HammingDistance(hashed[i].Hash, hashed[j].Hash) <= NearDuplicateHammingThreshold)
-                    {
-                        members.Add(hashed[j]);
-                        used[j] = true;
-                    }
-                }
-
-                if (members.Count <= 1) continue;
-
-                used[i] = true;
-                nearDuplicateGroups++;
-
-                // Largest file wins - the smaller copies are the ones that
-                // got recompressed harder on their way back into the library.
-                var keep = members.OrderByDescending(m => m.Size).First();
-                foreach (var loser in members.Where(m => m.Path != keep.Path))
-                {
-                    try
-                    {
-                        MoveToQuarantine(loser.Path, libraryRoot, DuplicatesRemovedFolderName);
-                        deleted++;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to move near-duplicate {Path} to {Folder}", loser.Path, DuplicatesRemovedFolderName);
-                    }
-                }
-            }
-        }
+        // Only identical files are duplicates (user 2026-10-19): the near-duplicate pass that moved burst shots and
+        // look-alikes to Dubletter/ is gone - those are different pictures.
 
         _logger.LogInformation(
-            "Deduplicate pass complete for {FolderPath}: {Checked} checked, {Deleted} duplicates moved to {Folder}/ ({NearDuplicateGroups} were near-duplicate/recompressed matches)",
-            folderPath, checkedCount, deleted, DuplicatesRemovedFolderName, nearDuplicateGroups);
+            "Deduplicate pass complete for {FolderPath}: {Checked} checked, {Deleted} identical duplicates removed",
+            folderPath, checkedCount, deleted);
 
         return new DeduplicateResult { Checked = checkedCount, Deleted = deleted };
     }
