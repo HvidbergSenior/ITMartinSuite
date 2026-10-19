@@ -180,6 +180,9 @@ public sealed class MemoryGuard(DockerClient docker, Sampler sampler, PrioritySt
         if (notify) await push.SendAllAsync($"Kontrol slukkede {name}", $"{_host}: {why}. Tænd den igen i Kontrol, når der er plads.", "/", ct);
     }
 
+    /// <summary>Another job's action (opening hours) in the same list, so all automatic starts/stops are in one place.</summary>
+    public void Note(string name, string what) => Record(name, what);
+
     private void Record(string name, string what)
     {
         lock (_actions)

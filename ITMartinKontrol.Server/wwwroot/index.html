@@ -193,6 +193,9 @@ function render(hosts) {
 }
 
 var PRIO = { 1: "Skal køre", 2: "Vigtig", 3: "Kan vente" };
+// Opening hours (OpeningHours.Choices on the server): Kontrol tænder appen når tiden begynder og slukker når den slutter.
+var HOURS = ["altid", "07-17", "08-16", "08-20", "06-22"];
+function hoursLabel(v) { return v === "altid" ? "Åben altid" : "Åben " + v.replace("-", "–"); }
 function when(t) { var d = new Date(t); return d.toLocaleDateString("da-DK", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }); }
 
 // Memory guard per host: what it watches, what it did, and the ordered restart.
@@ -203,7 +206,7 @@ function guardBox(h) {
   var acts = (g.actions || []).slice(0, 8).map(function (a) { return "<li>" + esc(when(a.at)) + " – <b>" + esc(a.name) + "</b>: " + esc(a.what) + "</li>"; }).join("");
   return '<details class="guard" data-host="' + esc(h.name) + '"' + (open || g.resetting ? " open" : "") + '><summary>🛡 Hukommelsesvagt' + (g.enabled ? "" : " (slået fra)") + ' – ' + now + '</summary>' +
     '<p>Bliver der under ' + g.lowMb + ' MB fri RAM (eller læser den meget fra swap), slukker Kontrol én app ad gangen: først <b>Kan vente</b> (største først), og under ' + g.criticalMb + ' MB også <b>Vigtig</b>. <b>Skal køre</b> slukkes aldrig. En app, der går ned og genstarter igen og igen, slukkes også. Du får en besked hver gang.</p>' +
-    '<p>Vælg prioritet ved hver app nedenfor (PIN første gang).</p>' +
+    '<p>Vælg prioritet ved hver app nedenfor (PIN første gang). Vælg også en <b>åbningstid</b>, hvis appen kun skal køre om dagen – Kontrol tænder den, når tiden begynder, og slukker den, når den slutter. Tænder eller slukker du selv ind imellem, lader Kontrol den være.</p>' +
     '<p><b>Genstart i rækkefølge</b> slukker de apps, der kører, og tænder dem igen én ad gangen – Skal køre, så Vigtig, så Kan vente – med 20 sek. imellem, så serveren ikke bliver overbelastet.</p>' +
     (g.resetting ? '<div class="step">⏳ ' + esc(g.resetStep || "Genstarter…") + '</div>' : '<button class="reset">↻ Genstart i rækkefølge</button>') +
     (acts ? '<ul>' + acts + '</ul>' : '<p>Har ikke slukket noget endnu.</p>') + '</details>';
@@ -242,6 +245,15 @@ function setPrio(host, name, level, sel) {
   });
 }
 
+function setHours(host, name, value, sel) {
+  var pin = getPin(); if (!pin) { refresh(); return; }
+  fetch("/api/hosts/" + encodeURIComponent(host) + "/apps/" + encodeURIComponent(name) + "/hours/" + encodeURIComponent(value), { method: "POST", headers: { "X-Kontrol-Pin": pin } }).then(function (r) {
+    if (r.status === 401) { forgetPin(); msg.textContent = "Forkert PIN – prøv igen."; refresh(); return; }
+    if (!r.ok) { msg.textContent = "Kunne ikke gemme (" + r.status + ")."; refresh(); return; }
+    msg.textContent = info(name).title + ": " + (value === "altid" ? "åben altid." : "tændes kl. " + value.split("-")[0] + " og slukkes kl. " + value.split("-")[1] + " hver dag.");
+  });
+}
+
 function row(h, c) {
   var i = info(c.name);
   var r = document.createElement("div"); r.className = "app" + (c.running ? "" : " off");
@@ -252,7 +264,9 @@ function row(h, c) {
     '<span class="tech">' + (c.running ? "🟢 kører" : "⚪ slukket") + ' · ' + esc(c.name) + ' · ' + esc(c.status) + (c.ports ? ' · :' + esc(c.ports) : '') + '</span></div></div>' +
     '<div class="use">' + (c.running ? fmt(c.cpuPct, 1) + ' % · ' + fmt(c.memMb, 0) + ' MB<div class="mini"><i style="width:' + Math.min(100, c.cpuPct || 0) + '%"></i></div>' + spark(c.cpuHistory) : '') + '</div>' +
     '<div class="btns">' + (c.protected ? '' : '<select class="prio p' + (c.priority || 2) + '" title="Prioritet når RAM bliver lav">' +
-      [1, 2, 3].map(function (p) { return '<option value="' + p + '"' + ((c.priority || 2) === p ? " selected" : "") + '>' + PRIO[p] + '</option>'; }).join("") + '</select>') +
+      [1, 2, 3].map(function (p) { return '<option value="' + p + '"' + ((c.priority || 2) === p ? " selected" : "") + '>' + PRIO[p] + '</option>'; }).join("") + '</select>' +
+      '<select class="prio hours" title="Åbningstid: tændes og slukkes automatisk">' +
+      HOURS.map(function (v) { return '<option value="' + v + '"' + ((c.hours || "altid") === v ? " selected" : "") + '>' + hoursLabel(v) + '</option>'; }).join("") + '</select>') +
     '<button class="pen" title="Ret beskrivelse">✏️</button>' +
     (c.running
       ? (c.protected ? '<span class="lock">🔒 beskyttet</span>' : '<button class="restart" title="Genstart">↻ Genstart</button><button class="stop">⏹ Sluk</button>')
@@ -260,6 +274,8 @@ function row(h, c) {
   var close = function () { var x = r.querySelector(".confirm, .edit"); if (x) x.remove(); };
   var ps = r.querySelector("select.prio");
   if (ps) ps.addEventListener("change", function () { setPrio(h.name, c.name, +ps.value, ps); });
+  var hs = r.querySelector("select.hours");
+  if (hs) hs.addEventListener("change", function () { setHours(h.name, c.name, hs.value, hs); });
   r.querySelector(".pen").addEventListener("click", function () {
     if (r.querySelector(".edit")) { close(); return; } close();
     var f = document.createElement("div"); f.className = "edit";

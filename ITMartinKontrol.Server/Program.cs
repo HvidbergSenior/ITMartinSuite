@@ -12,6 +12,8 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<AlarmService>());
 builder.Services.AddSingleton<PriorityStore>();
 builder.Services.AddSingleton<MemoryGuard>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MemoryGuard>());
+builder.Services.AddSingleton<HoursStore>();
+builder.Services.AddHostedService<HoursKeeper>();
 builder.Services.AddHttpClient("peer", c => c.Timeout = TimeSpan.FromSeconds(8));
 
 builder.Services.AddKolibri(k =>
@@ -67,7 +69,7 @@ string[]? PinScope(HttpRequest req)
 bool PinOk(HttpRequest req) => PinScope(req) is { Length: 0 };
 
 // One host as the UI sees it: live container list + usage + 48 h history.
-async Task<HostView> LocalViewAsync(DockerClient docker, Sampler sampler, PriorityStore prio, MemoryGuard guard, PushStore push, CancellationToken ct)
+async Task<HostView> LocalViewAsync(DockerClient docker, Sampler sampler, PriorityStore prio, HoursStore hours, MemoryGuard guard, PushStore push, CancellationToken ct)
 {
     var containers = await docker.ListAllAsync(ct);
     var usage = sampler.LastContainers;
@@ -77,7 +79,7 @@ async Task<HostView> LocalViewAsync(DockerClient docker, Sampler sampler, Priori
             protectedNames.Contains(c.Name, StringComparer.Ordinal),
             usage.TryGetValue(c.Name, out var u) ? u.CpuPct : null,
             usage.TryGetValue(c.Name, out var u2) ? u2.MemMb : null,
-            hist.Select(s => s.C.TryGetValue(c.Name, out var v) ? v[0] : 0).ToArray(), prio.Get(c.Name))).ToList(),
+            hist.Select(s => s.C.TryGetValue(c.Name, out var v) ? v[0] : 0).ToArray(), prio.Get(c.Name), hours.Get(c.Name)?.ToString())).ToList(),
         new History(hist.Select(s => s.T).ToArray(), hist.Select(s => s.Cpu).ToArray(), hist.Select(s => s.Mem).ToArray()),
         guard.Status, push.Log);
 }
@@ -104,6 +106,17 @@ app.MapPost("/api/hosts/{host}/apps/{name}/priority/{level:int}", async (string 
     return Results.Ok();
 });
 
+// Opening hours per app: "07-17" etc. (OpeningHours.Choices) or "altid". HoursKeeper starts/stops at the edges.
+app.MapPost("/api/hosts/{host}/apps/{name}/hours/{value}", async (string host, string name, string value, HttpRequest req, HoursStore hours, IHttpClientFactory f, CancellationToken ct) =>
+{
+    if (!PinOk(req)) return Results.StatusCode(401);
+    var h = ITMartinKontrol.Domain.OpeningHours.Parse(value);
+    if (h is null && value != "altid") return Results.BadRequest();
+    if (await ForwardAsync(host, $"apps/{Uri.EscapeDataString(name)}/hours/{Uri.EscapeDataString(value)}", f, ct) is { } fwd) return fwd;
+    hours.Set(name, h);
+    return Results.Ok();
+});
+
 // "Genstart i rækkefølge": runs in the background; progress shows in the host's Guard status.
 app.MapPost("/api/hosts/{host}/reset", async (string host, HttpRequest req, MemoryGuard guard, IHttpClientFactory f, CancellationToken ct) =>
 {
@@ -112,9 +125,9 @@ app.MapPost("/api/hosts/{host}/reset", async (string host, HttpRequest req, Memo
     return guard.TryStartReset() ? Results.Ok() : Results.Problem("En genstart kører allerede.");
 });
 
-app.MapGet("/api/hosts", async (DockerClient docker, Sampler sampler, PriorityStore prio, MemoryGuard guard, PushStore push, IHttpClientFactory f, CancellationToken ct) =>
+app.MapGet("/api/hosts", async (DockerClient docker, Sampler sampler, PriorityStore prio, HoursStore hours, MemoryGuard guard, PushStore push, IHttpClientFactory f, CancellationToken ct) =>
 {
-    var views = new List<HostView> { await LocalViewAsync(docker, sampler, prio, guard, push, ct) };
+    var views = new List<HostView> { await LocalViewAsync(docker, sampler, prio, hours, guard, push, ct) };
     foreach (var p in peers)
     {
         try
@@ -335,7 +348,7 @@ public sealed record PushEndpointRequest(string Endpoint);
 public sealed record NotifyRequest(string Title, string Body, string? Url);
 public sealed record LimitedPin(string Pin, string[] Apps);
 public sealed record Peer(string Name, string Url, string? RemoteHostName = "*");
-public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory, int Priority = ITMartinKontrol.Domain.Priority.Important);
+public sealed record ContainerView(string Name, string Status, bool Running, string Image, string Ports, bool Protected, double? CpuPct, double? MemMb, double[] CpuHistory, int Priority = ITMartinKontrol.Domain.Priority.Important, string? Hours = null);
 public sealed record History(DateTime[] T, double[] Cpu, double[] Mem);
 public sealed record HostView(string Name, bool Local, string? Error, HostUsage Host, DateTime At, List<ContainerView> Containers, History History, GuardStatus? Guard = null, List<PushStore.Sent>? Messages = null);
 
