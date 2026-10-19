@@ -104,6 +104,20 @@ app.MapShopApi();
 
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
     Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));
+// Item photos as a zip: all, or one box (?kasse=K0001). Built in a temp file that deletes itself when sent - all photos
+// can be more than should sit in memory.
+app.MapGet("/api/varefotos.zip", async (string? kasse, ExportUseCases export, CancellationToken ct) =>
+{
+    var file = new FileStream(Path.GetTempFileName(), FileMode.Create, FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.DeleteOnClose);
+    if (await export.PhotosZipAsync(file, kasse, ct) == 0)
+    {
+        await file.DisposeAsync();
+        return Results.Text("Der er ingen varefotos" + (kasse is null ? "" : $" i {kasse}") +
+            " endnu. Åbn en vare og tryk 'Tag billede af varen' – så kommer billedet med her.", "text/plain; charset=utf-8");
+    }
+    file.Position = 0;
+    return Results.File(file, "application/zip", $"varefotos-{kasse ?? "alle"}-{DateTime.Now:yyyy-MM-dd}.zip");
+});
 app.MapGet("/api/boeger.csv", async (ExportUseCases export) =>
     Results.File(await export.BooksCsvAsync(), "text/csv", $"boeger-tjekket-{DateTime.Now:yyyy-MM-dd}.csv"));
 

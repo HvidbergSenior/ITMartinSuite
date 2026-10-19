@@ -99,6 +99,36 @@ public class UseCaseTests
         var wanted = await Items.KolofonWantedAsync(150, 200, default);
         wanted.Select(w => (w.Item.Title, w.TopKr)).Should().Equal(("Ternet Ninja", 0), ("Mort", 400));
     }
+
+    [Test]
+    public async Task Item_photos_download_as_a_zip_named_after_the_items()
+    {
+        var withPhoto = new Item { Kind = Kinds.AndersAnd, Title = "Anders And & Co.", Number = "3", Year = 1955, ItemPhoto = "photos/items/a.jpg" };
+        var fileGone = new Item { Kind = Kinds.Bog, Title = "Mort", ItemPhoto = "photos/items/gone.jpg" };
+        var noPhoto = new Item { Kind = Kinds.Bog, Title = "Ternet Ninja" };
+        await Items.AddAsync([withPhoto, fileGone, noPhoto], default);
+        var store = new Mock<IPhotoStore>();
+        store.Setup(s => s.ReadAsync("photos/items/a.jpg", It.IsAny<CancellationToken>())).ReturnsAsync([1, 2, 3]);
+        store.Setup(s => s.ReadAsync("photos/items/gone.jpg", It.IsAny<CancellationToken>())).ReturnsAsync((byte[]?)null);
+        var export = new ExportUseCases(Items, Mock.Of<IBookCheckRepository>(), store.Object);
+
+        using var zipped = new MemoryStream();
+        (await export.PhotosZipAsync(zipped, null)).Should().Be(1);
+        zipped.Position = 0;
+        using var zip = new System.IO.Compression.ZipArchive(zipped);
+        zip.Entries.Select(e => (e.FullName, e.Length)).Should().Equal(($"Uden kasse/{withPhoto.Id} Anders And & Co. nr. 3 1955.jpg", 3L));
+
+        using var none = new MemoryStream();
+        (await export.PhotosZipAsync(none, "K0099")).Should().Be(0);   // another box: nothing
+    }
+
+    [Test]
+    public void Photo_file_names_are_safe_everywhere()
+    {
+        new Item { Id = 7, Title = "AC/DC: Back in Black?", Year = 1980 }.PhotoFileName().Should().Be("7 AC DC Back in Black 1980.jpg");
+        new Item { Id = 8 }.PhotoFileName().Should().Be("8.jpg");
+        new Item { Id = 9, Title = new string('x', 120) }.PhotoFileName().Should().Be($"9 {new string('x', 80)}.jpg");
+    }
 }
 
 // The layer rules (CLAUDE.md, user: "i started ITMartin suite as ddd and clean"): Domain knows nothing outside itself,

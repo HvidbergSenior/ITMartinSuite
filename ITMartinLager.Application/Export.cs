@@ -1,10 +1,33 @@
+using System.IO.Compression;
 using System.Text;
 
 namespace ITMartinLager.Application;
 
-/// <summary>Everything as CSV (Excel-friendly: semicolons + BOM) - the way out for accountants, DBA lists and backups.</summary>
-public sealed class ExportUseCases(IItemRepository items, IBookCheckRepository checks)
+/// <summary>Everything as CSV (Excel-friendly: semicolons + BOM) - the way out for accountants, DBA lists and backups.
+/// And the item photos as a zip.</summary>
+public sealed class ExportUseCases(IItemRepository items, IBookCheckRepository checks, IPhotoStore photos)
 {
+    /// <summary>The item photos as one zip, a folder per box (user 2026-10-19: "download item photos"). Null box = all.
+    /// Written straight into the stream; returns how many photos went in.</summary>
+    public async Task<int> PhotosZipAsync(Stream output, string? boxCode, CancellationToken ct = default)
+    {
+        var withPhoto = (await items.AllAsync(ct))
+            .Where(i => i.ItemPhoto != "" && (boxCode is null || i.Box?.Code == boxCode))
+            .OrderBy(i => i.Box?.Code).ThenBy(i => i.Id).ToList();
+        var count = 0;
+        using var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
+        foreach (var i in withPhoto)
+        {
+            if (await photos.ReadAsync(i.ItemPhoto, ct) is not { Length: > 0 } jpeg) continue;   // file gone or empty: skip, not fail
+            // A JPEG is already packed - compressing it again only costs time.
+            var entry = zip.CreateEntry($"{i.Box?.Code ?? "Uden kasse"}/{i.PhotoFileName()}", CompressionLevel.NoCompression);
+            await using var s = entry.Open();
+            await s.WriteAsync(jpeg, ct);
+            count++;
+        }
+        return count;
+    }
+
     private static string C(object? v) => "\"" + (v?.ToString() ?? "").Replace("\"", "\"\"") + "\"";
 
     public async Task<byte[]> ItemsCsvAsync(CancellationToken ct = default)

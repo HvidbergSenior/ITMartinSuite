@@ -124,6 +124,16 @@ public sealed class Item
         Number != "" ? "nr. " + Number : "", Year?.ToString() ?? "", Platform,
     }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
+    // The item photo's name in a download (user 2026-10-19): id first (unique, sorts), then what it is. Only characters
+    // Windows, Mac and phones all accept; the server is Linux, so Path.GetInvalidFileNameChars is not enough.
+    public string PhotoFileName()
+    {
+        var text = new string(Line().Select(c => char.IsControl(c) || "\\/:*?\"<>|·".Contains(c) ? ' ' : c).ToArray());
+        text = string.Join(' ', text.Split(' ', StringSplitOptions.RemoveEmptyEntries)).TrimEnd('.');
+        if (text.Length > 80) text = text[..80].TrimEnd(' ', '.');
+        return text == "" ? $"{Id}.jpg" : $"{Id} {text}.jpg";
+    }
+
     public string Valuation => PriceHint is > 0 ? Valuations.Valued : PricesAt is null ? Valuations.Waiting : Valuations.NoPrice;
 
     // Same thing in the same condition = one row with a higher quantity, so 7 copies of Anders And 12/1968 stay one
