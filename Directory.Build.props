@@ -1,0 +1,8 @@
+<Project>
+  <!-- ImageSharp 4 refuses a Release build without a Six Labors license, and only looks for sixlabors.lic inside each
+       project folder. The free community key (2026-10-19) sits once at the solution root - gitignored, copied into
+       Docker builds by COPY . . - so every project is pointed at it here. -->
+  <PropertyGroup Condition="'$(SixLaborsLicenseFile)' == '' And Exists('$(MSBuildThisFileDirectory)sixlabors.lic')">
+    <SixLaborsLicenseFile>$(MSBuildThisFileDirectory)sixlabors.lic</SixLaborsLicenseFile>
+  </PropertyGroup>
+</Project>

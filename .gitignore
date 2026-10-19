@@ -91,3 +91,5 @@ docker-compose.yaml
 
 # Claude Code local settings + nested agent worktrees - never commit
 .claude/
+# Six Labors (ImageSharp 4) license key - secret, never commit (2026-10-19)
+sixlabors.lic
