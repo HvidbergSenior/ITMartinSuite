@@ -32,6 +32,18 @@
 @* "Martin er her nu" right under the name, so every visitor sees it (user 2026-09-28). *@
 @* The front page = three questions (user 2026-10-12): "Vil du chatte? Skal jeg streame? Skal jeg hjælpe dig remote?" *@
 <CascadingValue Name="Plain" Value="true">
+@* One open "Vidste du …" right under the head box (user 2026-10-19: "there used to be a lot of vidste du" - they are all inside the
+   folded boxes now). One fact at a time from the tiles + extra facts, "Næste" for another, a button to the page it belongs to. *@
+@{ var fact = Facts[_factIndex % Facts.Length]; }
+<section class="k-card hj-vidste" data-nofold>
+    <h2 class="k-card-title">Vidste du …</h2>
+    <p class="hj-vidste-text">@fact.Fact.TrimStart('…', ' ')</p>
+    <div class="hj-vidste-btns">
+        <a class="k-btn k-btn-primary" href="@fact.Href" target="@(fact.Href.StartsWith("http") ? "_blank" : null)" rel="@(fact.Href.StartsWith("http") ? "noopener" : null)">@fact.Title →</a>
+        <button type="button" class="k-btn" @onclick="() => _factIndex++">Næste</button>
+    </div>
+</section>
+
 @* Things from the Bogshoppen boxes Martin chose in Lager - same box as on bogshoppen.dk (user 2026-10-15). *@
 <FoundInBoxes />
 
@@ -170,6 +182,18 @@ else if (_family && !_owner)
     ];
 
     public enum TileGroup { App, Page, Site }
+
+    // Facts for the open "Vidste du …" box: every tile's fact + extra ones that have no tile of their own.
+    // Martin's own Facebook download 2026-10-15: 10,211 photos/videos 2008-2026, Facebook strips the date from the files.
+    private static readonly (string Title, string Href, string Fact)[] Facts =
+    [
+        ("Det de store ikke fortæller", "/dine-data", "… at Facebook fjerner datoen fra dine billeder, når du henter dem ud? Jeg havde 10.211 billeder og videoer – alle uden dato."),
+        ("Se mine Facebook-billeder", "https://gallery.itmartin.dk/facebook-demo", "… at jeg har fået alle mine billeder hjem fra Facebook og sat den rigtige dato på igen? Se et udpluk – ingen kode."),
+        .. Tiles.Select(t => (t.Title, t.Href, t.Fact)),
+    ];
+
+    // Start on a fact that changes every minute - the same one in the prerender and the live render, so it does not jump.
+    private int _factIndex = (int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % 1000);
 
     // Real pictures instead of emoji icons (user 2026-10-12): the app examples, and a photo of Martin for "Om mig".
     private static readonly Dictionary<string, string> Pictures = new()
