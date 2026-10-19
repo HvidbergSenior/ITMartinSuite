@@ -367,7 +367,7 @@ html, body {
 .gallery-go { flex: none; background: var(--accent); color: var(--accent-ink); font-weight: 800; padding: 10px 16px; border-radius: 12px; }
 
 /* Folder button next to "Vælg billeder" (2026-10-19) */
-.dz-btn-alt { margin-top: 8px; background: transparent !important; border: 2px solid currentColor; }
+.dz-btn.dz-btn-alt { margin-top: 8px; background: #ffffff !important; color: #14382c !important; border: 2px solid #14382c; }
 /* Overblik: what happened to the uploaded files after sorting (2026-10-19). Dark text on light chips - readable for colour-blind eyes. */
 .sort-overview { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 0 0 12px; background: var(--surface, #fff); }
 .sort-title { font-weight: 700; margin-bottom: 8px; }
