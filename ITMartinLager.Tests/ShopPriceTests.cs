@@ -23,12 +23,12 @@ public class IssueSearchTests
 {
     [Test]
     public void An_Anders_And_blad_is_searched_with_number_and_year() =>
-        ITMartinLager.Domain.Pricing.TitleFor(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.AndersAnd, Title = "Anders And & Co.", Number = "12", Year = 1968 })
+        ITMartinLager.Domain.Pricing.TitleFor(new ITMartinLager.Domain.Item { Kind = Kinds.AndersAnd, Title = "Anders And & Co.", Number = "12", Year = 1968 })
             .Should().Be("Anders And & Co. 12 1968");
 
     [Test]
     public void A_book_is_not_searched_with_its_year() =>
-        ITMartinLager.Domain.Pricing.TitleFor(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Bog, Title = "Mort", Year = 1987 })
+        ITMartinLager.Domain.Pricing.TitleFor(new ITMartinLager.Domain.Item { Kind = Kinds.Bog, Title = "Mort", Year = 1987 })
             .Should().Be("Mort");
 
     [Test]
@@ -44,12 +44,12 @@ public class AlternativeSearchTests
 {
     [Test]
     public void An_album_with_aargang_and_year_is_searched_again_with_the_year() =>
-        ITMartinLager.Domain.Pricing.AlternativeTitleFor(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Tegneserie, Title = "Storm Petersen Album", Number = "29", Year = 1941 })
+        ITMartinLager.Domain.Pricing.AlternativeTitleFor(new ITMartinLager.Domain.Item { Kind = Kinds.Tegneserie, Title = "Storm Petersen Album", Number = "29", Year = 1941 })
             .Should().Be("Storm Petersen Album 1941");
 
     [Test]
     public void Without_a_number_there_is_no_second_search() =>
-        ITMartinLager.Domain.Pricing.AlternativeTitleFor(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Bog, Title = "Mort", Year = 1987 })
+        ITMartinLager.Domain.Pricing.AlternativeTitleFor(new ITMartinLager.Domain.Item { Kind = Kinds.Bog, Title = "Mort", Year = 1987 })
             .Should().BeNull();
 }
 
@@ -60,17 +60,17 @@ public class SimilarSearchTests
 
     [Test]
     public void An_album_is_compared_with_the_same_album_in_other_years() =>
-        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(ITMartinLager.Domain.Kinds.Tegneserie, "Storm Petersen Album", "29", 1941))
+        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(Kinds.Tegneserie, "Storm Petersen Album", "29", 1941))
             .Should().Be("Storm Petersen Album");
 
     [Test]
     public void An_Anders_And_blad_is_compared_with_other_issues_of_the_same_year() =>
-        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(ITMartinLager.Domain.Kinds.AndersAnd, "Anders And & Co.", "12", 1968))
+        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(Kinds.AndersAnd, "Anders And & Co.", "12", 1968))
             .Should().Be("Anders And & Co. 1968");
 
     [Test]
     public void A_plain_title_has_nothing_broader() =>
-        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(ITMartinLager.Domain.Kinds.Bog, "Mort")).Should().BeNull();
+        ITMartinLager.Domain.Pricing.SimilarTitleFor(I(Kinds.Bog, "Mort")).Should().BeNull();
 
     [Test]
     public void Magen_til_never_sets_our_price()
@@ -88,7 +88,7 @@ public class SimilarSearchTests
 // 2026-10-12: Spider-Geddon #3 was priced from other series, sets, graded copies and postcards. Real listing names.
 public class OneCopyTests
 {
-    private static readonly ITMartinLager.Domain.Item Spider = new() { Kind = ITMartinLager.Domain.Kinds.Tegneserie, Title = "Spider-Geddon", Series = "Marvel", Number = "3" };
+    private static readonly ITMartinLager.Domain.Item Spider = new() { Kind = Kinds.Tegneserie, Title = "Spider-Geddon", Series = "Marvel", Number = "3" };
     private static bool Keep(string name) => ITMartinLager.Domain.Pricing.IsOneCopyOf(Spider, new ITMartinLager.Domain.Offer(name, 30, "u"));
 
     [TestCase("Spider-Geddon #3 - Regular Cover - Marvel Comics - 2019", true)]
@@ -104,11 +104,11 @@ public class OneCopyTests
 
     [Test]
     public void A_book_by_author_first_still_counts() =>
-        ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Bog, Title = "Mort", Artist = "Terry Pratchett" },
+        ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = Kinds.Bog, Title = "Mort", Artist = "Terry Pratchett" },
             new ITMartinLager.Domain.Offer("Terry Pratchett - Mort (Corgi 1988)", 40, "u")).Should().BeTrue();
 
     [Test]
     public void Danish_comics_with_publisher_first_still_count() =>
-        ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = ITMartinLager.Domain.Kinds.Tegneserie, Title = "Tintin", Number = "5" },
+        ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = Kinds.Tegneserie, Title = "Tintin", Number = "5" },
             new ITMartinLager.Domain.Offer("Carlsen Tintin nr. 5 Faraos cigarer 1. oplag", 300, "u")).Should().BeTrue();
 }

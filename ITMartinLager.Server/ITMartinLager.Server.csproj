@@ -27,4 +27,9 @@
       <InternalsVisibleTo Include="ITMartinLager.Tests" />
     </ItemGroup>
 
+  <!-- The shared words of the buying/selling apps (Kinds, Found, Barcodes ...). -->
+  <ItemGroup>
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
 </Project>

@@ -62,7 +62,7 @@ public interface IScanRepository
 /// <summary>A box on Lager (Code K0007 = NR 7 on the box).</summary>
 public sealed record LagerBox(int Id, string Code)
 {
-    public int Number => BoxNumbers.Of(Code);
+    public int Number => BoxCodes.Number(Code);
 }
 
 public interface IKolofonShotRepository

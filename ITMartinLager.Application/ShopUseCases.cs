@@ -2,12 +2,7 @@ using ITMartinLager.Domain;
 
 namespace ITMartinLager.Application;
 
-/// <summary>One thing in the shop, as bogshoppen.dk shows it. BuyNowKr null = no Køb nu yet (ExpectKr = what we think it
-/// is worth). Available = copies not reserved by someone paying right now.</summary>
-public sealed record ShopItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
-    int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto);
-
-public sealed record ShopProof(string Source, int Kr, string Original, string Url, bool IsNew);
+// ShopItem / ShopProof are the shapes bogshoppen.dk gets (ITMartinVarer.Contracts).
 
 /// <summary>The shop on bogshoppen.dk: search, the price promise with its proof links, and Køb nu through Stripe.</summary>
 public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices, IOrderRepository orders, IPaymentGateway payments,

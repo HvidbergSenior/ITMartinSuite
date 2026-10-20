@@ -21,4 +21,8 @@
     <InternalsVisibleTo Include="ITMartinHjem.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
 </Project>

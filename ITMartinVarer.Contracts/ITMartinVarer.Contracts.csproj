@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Varer - the published language of the buying/selling apps (2026-10-20): the words (kinds, conditions, box codes),
+       what was read off a thing (Found) and the shapes the apps send each other as JSON. Shared by Vareinfo, Lager,
+       Hjem and the product-type services, so no app depends on another. No EF, no HTTP, no rules beyond normalising. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

@@ -1,9 +1,5 @@
 namespace ITMartinLager.Domain;
 
-// What was read off a cover or looked up by barcode - not saved yet.
-public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
-    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "", decimal? PriceHint = null, string EditionHint = "");
-
 public sealed record BookValue(int? Low, int? High, string Demand, string Verdict, string Reason, string Where = "", string[]? Basis = null)
 {
     public const string Unsure = "Tjek selv";

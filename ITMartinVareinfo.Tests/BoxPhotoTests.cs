@@ -39,8 +39,10 @@ public class BoxPhotoTests
     [Test]
     public void Box_numbers_are_what_is_written_on_the_box()
     {
-        BoxNumbers.Of("K0007").Should().Be(7);
-        BoxNumbers.Of("K0120").Should().Be(120);
+        BoxCodes.Number("K0007").Should().Be(7);
+        BoxCodes.Number("K0120").Should().Be(120);
+        BoxCodes.Next("K0007").Should().Be("K0008");
+        BoxCodes.Next(null).Should().Be("K0001");
         new LagerBox(3, "K0012").Number.Should().Be(12);
     }
 

@@ -65,7 +65,7 @@ var infoKey = app.Configuration["Lager:InfoKey"] ?? "";
 var shopKey = app.Configuration["Lager:ShopKey"] ?? "";
 bool LoggedIn(HttpContext ctx) => pin.Length >= 6 && ctx.Request.Cookies["lager_auth"] == pin;
 bool FromVareinfo(HttpContext ctx) => infoKey.Length >= 12 && ctx.Request.Headers["X-Info-Key"] == infoKey;
-bool FromShop(HttpContext ctx) => shopKey.Length >= 12 && ctx.Request.Headers["X-Shop-Key"] == shopKey;
+bool FromShop(HttpContext ctx) => shopKey.Length >= 12 && ctx.Request.Headers[ShopHeaders.Key] == shopKey;
 
 app.Use(async (ctx, next) =>
 {

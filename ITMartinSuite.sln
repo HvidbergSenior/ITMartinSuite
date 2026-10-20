@@ -368,6 +368,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinKontrol.Tests", "IT
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinUpload.Domain", "ITMartinUpload.Domain\ITMartinUpload.Domain.csproj", "{9D5548ED-D0E0-4265-AF18-788AEA145FBC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinVarer.Contracts", "ITMartinVarer.Contracts\ITMartinVarer.Contracts.csproj", "{447E6AFA-DBD2-4F17-9FFB-13FC732EFEE8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -1089,5 +1091,9 @@ Global
 		{9D5548ED-D0E0-4265-AF18-788AEA145FBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D5548ED-D0E0-4265-AF18-788AEA145FBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D5548ED-D0E0-4265-AF18-788AEA145FBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{447E6AFA-DBD2-4F17-9FFB-13FC732EFEE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{447E6AFA-DBD2-4F17-9FFB-13FC732EFEE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{447E6AFA-DBD2-4F17-9FFB-13FC732EFEE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{447E6AFA-DBD2-4F17-9FFB-13FC732EFEE8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

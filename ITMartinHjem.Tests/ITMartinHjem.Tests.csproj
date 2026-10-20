@@ -27,4 +27,8 @@
     <ProjectReference Include="..\ITMartinHjem.Infrastructure\ITMartinHjem.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
 </Project>

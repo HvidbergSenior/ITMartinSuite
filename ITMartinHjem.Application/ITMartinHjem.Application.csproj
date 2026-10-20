@@ -19,4 +19,10 @@
     <InternalsVisibleTo Include="ITMartinHjem.Tests" />
   </ItemGroup>
 
+  <!-- The shop shapes Lager answers in (ShopItem, ShopProof, ShopOrder) - shared with Lager, no reference to it. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinVarer.Contracts\ITMartinVarer.Contracts.csproj" />
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
 </Project>

@@ -1,51 +1,7 @@
 namespace ITMartinVareinfo.Domain;
 
-// The words both apps use. Vareinfo and Lager are separate apps with their own databases (2026-10-12 split), so each
-// keeps its own copy and they meet only as text in the API - a new kind never breaks old rows on either side.
-
-// What kind of thing it is.
-public static class Kinds
-{
-    public const string Cd = "CD", Dvd = "DVD", BluRay = "Blu-ray", Magasin = "Magasin", AndersAnd = "Anders And-blad",
-        Jumbobog = "Jumbobog", Tegneserie = "Tegneserie", Konsolspil = "Konsolspil", Bog = "Bog",
-        Magic = "Magic-kort", Merch = "Merchandise", Andet = "Andet";
-
-    public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Magasin, Bog, Cd, Dvd, BluRay, Konsolspil, Magic, Merch, Andet];
-
-    public static string Icon(string kind) => kind switch
-    {
-        Cd => "🎵", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆", Tegneserie => "💥",
-        Konsolspil => "🎮", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
-    };
-
-    public static string Normalise(string? kind) =>
-        All.FirstOrDefault(k => string.Equals(k, kind?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? Andet;
-}
-
-public static class Conditions
-{
-    public static readonly string[] All = ["Som ny", "Meget god", "God", "Slidt", "Defekt"];
-    public static string Normalise(string? c) =>
-        All.FirstOrDefault(x => string.Equals(x, c?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "God";
-}
-
-// What a book's cover itself says about the edition (read with the pile, no extra AI call). "Mulig 1. udgave" puts it
-// on Lager's kolofon list even before the price hunter has found anything.
-public static class EditionHints
-{
-    public const string First = "Mulig 1. udgave", BookClub = "Bogklub", Cheap = "Billigbog";
-    public static readonly string[] All = ["", First, BookClub, Cheap];
-    public static string Normalise(string? h) =>
-        All.FirstOrDefault(x => x != "" && string.Equals(x, h?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "";
-}
-
-// What was read off a cover or looked up by barcode - the product info Lager stores with the item.
-public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
-    string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "",
-    decimal? PriceHint = null, string EditionHint = "");
-
-// What the AI read on one kolofon photo (the back of the title page).
-public sealed record KolofonReading(string? Isbn, string? Edition, int? Year, string? Publisher, string? Note);
+// The shared words (Kinds, Conditions, EditionHints, BoxCodes, Barcodes, Found, KolofonReading) are in
+// ITMartinVarer.Contracts - Vareinfo and Lager meet only as JSON in those shapes.
 
 // One photo of a pile (kept, so a wrong reading can be checked against the picture). Lager's items point to it by Id.
 // Box photos (user 2026-10-15: "Take picture -> storage -> when time comes"): taken box by box and only STORED - Waiting
@@ -71,17 +27,11 @@ public sealed class Photo
     }
 }
 
-// Lager's box codes as the person writes them on the box: K0007 = NR 7.
-public static class BoxNumbers
-{
-    public static int Of(string code) => int.TryParse(code.Trim().TrimStart('K', 'k'), out var n) ? n : 0;
-}
-
 /// <summary>Box photos per box: how many wait, how many the job will read, how many are read and what they held.
 /// Scans = barcodes scanned into the box and not looked up yet (ScansWanted of them pressed Læs).</summary>
 public sealed record BoxPhotos(string BoxCode, int Waiting, int Wanted, int Read, int Found, int Scans = 0, int ScansWanted = 0)
 {
-    public int Number => BoxNumbers.Of(BoxCode);
+    public int Number => BoxCodes.Number(BoxCode);
     public bool HasUnread => Waiting > Wanted || Scans > ScansWanted;
 }
 

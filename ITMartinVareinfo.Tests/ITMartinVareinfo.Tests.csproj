@@ -28,4 +28,9 @@
     <ProjectReference Include="..\ITMartinVareinfo.Infrastructure\ITMartinVareinfo.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- The shared words of the buying/selling apps (Kinds, Found, Barcodes ...). -->
+  <ItemGroup>
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
 </Project>

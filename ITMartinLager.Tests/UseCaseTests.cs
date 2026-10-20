@@ -131,21 +131,29 @@ public class UseCaseTests
     }
 }
 
-// The layer rules (CLAUDE.md, user: "i started ITMartin suite as ddd and clean"): Domain knows nothing outside itself,
-// Application only Domain, and no page talks to the database.
+// The layer rules (CLAUDE.md, user: "i started ITMartin suite as ddd and clean"): Domain knows nothing outside itself
+// except the shared words of the buying/selling apps (ITMartinVarer.Contracts - plain records, no EF/HTTP), Application
+// only Domain, and no page talks to the database.
 public class LayerTests
 {
+    private const string SharedWords = "ITMartinVarer.Contracts";
+
     private static string[] Refs(Type t) => t.Assembly.GetReferencedAssemblies().Select(a => a.Name!).ToArray();
 
     [Test]
     public void Domain_has_no_outside_dependencies() =>
         Refs(typeof(Item)).Where(n => n.StartsWith("ITMartin") || n.StartsWith("Microsoft.EntityFramework") || n.StartsWith("Anthropic"))
-            .Should().BeEmpty();
+            .Should().BeEquivalentTo([SharedWords]);
 
     [Test]
     public void Application_depends_only_on_Domain() =>
         Refs(typeof(ItemUseCases)).Where(n => n.StartsWith("ITMartin") || n.StartsWith("Microsoft.EntityFramework") || n.StartsWith("Anthropic"))
-            .Should().BeEquivalentTo(["ITMartinLager.Domain"]);
+            .Should().BeEquivalentTo(["ITMartinLager.Domain", SharedWords]);
+
+    [Test]
+    public void Shared_words_depend_on_nothing() =>
+        Refs(typeof(Found)).Where(n => n.StartsWith("ITMartin") || n.StartsWith("Microsoft"))
+            .Should().BeEmpty();
 
     [Test]
     public void No_page_uses_the_database_or_infrastructure()

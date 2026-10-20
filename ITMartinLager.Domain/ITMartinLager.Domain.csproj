@@ -11,4 +11,10 @@
     <InternalsVisibleTo Include="ITMartinLager.Tests" />
   </ItemGroup>
 
+  <!-- The shared words (Kinds, Found, Barcodes ...) - the published language of the buying/selling apps. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinVarer.Contracts\ITMartinVarer.Contracts.csproj" />
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
 </Project>

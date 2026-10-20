@@ -3,20 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ITMartinHjem.Application;
 
 // The shop on bogshoppen.dk (2026-10-15): the stock lives in Bogshoppen Lager (photoserver), this site only shows what
-// Lager's shop API answers and sends the buyer to Stripe. Hjem keeps its own copies of the shapes - the two apps meet
-// only as JSON.
-
-/// <summary>BuyNowKr null = no Køb nu yet (ExpectKr = what it is worth on the other sites, minus 10 %).</summary>
-public sealed record ShopItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
-    int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto);
-
-public sealed record ShopProof(string Source, int Kr, string Original, string Url, bool IsNew);
-
-public sealed record ShopOrder(string Status, string Line, int Kr, int PaidKr, string Delivery, string Email)
-{
-    public bool Paid => Status == "Betalt";
-    public bool Expired => Status == "Udløbet";
-}
+// Lager's shop API answers and sends the buyer to Stripe. The two apps meet only as JSON, in the shapes of
+// ITMartinVarer.Contracts (ShopItem, ShopProof, ShopOrder).
 
 public interface IShopGateway
 {

@@ -34,11 +34,6 @@ public static class Shop
             .Take(max).ToList();
 }
 
-public static class OrderStatuses
-{
-    public const string Pending = "Afventer betaling", Paid = "Betalt", Expired = "Udløbet";
-}
-
 /// <summary>A Køb nu: one copy of one item, paid through Stripe Checkout. While it is pending, the copy is reserved.</summary>
 public sealed class Order
 {

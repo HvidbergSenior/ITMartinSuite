@@ -1,40 +1,6 @@
 namespace ITMartinLager.Domain;
 
-// What kind of thing it is. Stored as text, so a new kind never breaks old rows.
-public static class Kinds
-{
-    public const string Cd = "CD", Dvd = "DVD", BluRay = "Blu-ray", Magasin = "Magasin", AndersAnd = "Anders And-blad",
-        Jumbobog = "Jumbobog", Tegneserie = "Tegneserie", Konsolspil = "Konsolspil", Bog = "Bog",
-        Magic = "Magic-kort", Merch = "Merchandise", Andet = "Andet";
-
-    public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Magasin, Bog, Cd, Dvd, BluRay, Konsolspil, Magic, Merch, Andet];
-
-    public static string Icon(string kind) => kind switch
-    {
-        Cd => "🎵", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆", Tegneserie => "💥",
-        Konsolspil => "🎮", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
-    };
-
-    public static string Normalise(string? kind) =>
-        All.FirstOrDefault(k => string.Equals(k, kind?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? Andet;
-}
-
-public static class Conditions
-{
-    public static readonly string[] All = ["Som ny", "Meget god", "God", "Slidt", "Defekt"];
-    public static string Normalise(string? c) =>
-        All.FirstOrDefault(x => string.Equals(x, c?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "God";
-}
-
-// What a book's cover itself says about the edition (read with the pile, no extra AI call). "Mulig 1. udgave" puts it
-// on the kolofon list even before the price hunter has found anything.
-public static class EditionHints
-{
-    public const string First = "Mulig 1. udgave", BookClub = "Bogklub", Cheap = "Billigbog";
-    public static readonly string[] All = ["", First, BookClub, Cheap];
-    public static string Normalise(string? h) =>
-        All.FirstOrDefault(x => x != "" && string.Equals(x, h?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "";
-}
+// Kinds, Conditions, EditionHints, BoxCodes, Barcodes and Found are the shared words in ITMartinVarer.Contracts.
 
 // Has the price hunter valued it? (user 2026-10-12: "it should be the type of product and a IsValued flag ... and the
 // valued price on the sites" - instead of choosing a box). Worked out from the item, never stored.
@@ -59,11 +25,12 @@ public sealed class Box
     public string Note { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public static string CodeFor(int n) => $"K{n:D4}";
+    public int Number => BoxCodes.Number(Code);
+
+    public static string CodeFor(int n) => BoxCodes.For(n);
 
     // The next code after the last one: K0001, K0002 ...
-    public static string NextCode(string? last) =>
-        CodeFor(last is not null && int.TryParse(last.TrimStart('K'), out var x) ? x + 1 : 1);
+    public static string NextCode(string? last) => BoxCodes.Next(last);
 }
 
 public sealed class Item

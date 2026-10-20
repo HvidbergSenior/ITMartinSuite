@@ -5,17 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartinHjem.Infrastructure;
 
-// Bogshoppen Lager's shop API (/api/butik/*) on the photoserver, from the NAS over the LAN. Key: X-Shop-Key =
+// Bogshoppen Lager's shop API (/api/butik/*) on the photoserver, from the NAS over the LAN. Key: ShopHeaders.Key =
 // Hjem__LagerShopKey here and Lager__ShopKey there. Hjem__LagerApi = http://10.0.0.200:9149.
 public sealed class LagerShopGateway(HttpClient http) : IShopGateway
 {
-    private sealed record SearchBody(bool CanPay, List<ShopItem> Items);
-    private sealed record ItemBody(bool CanPay, ShopItem Item, List<ShopProof> Proof);
-    private sealed record BuyAnswer(string? Url, string? Error);
-
     public async Task<(bool CanPay, List<ShopItem> Items)> SearchAsync(string? text, string? kind, CancellationToken ct = default)
     {
-        var b = await http.GetFromJsonAsync<SearchBody>($"/api/butik/soeg?q={Uri.EscapeDataString(text ?? "")}&art={Uri.EscapeDataString(kind ?? "")}", ct);
+        var b = await http.GetFromJsonAsync<ShopSearch>($"/api/butik/soeg?q={Uri.EscapeDataString(text ?? "")}&art={Uri.EscapeDataString(kind ?? "")}", ct);
         return (b?.CanPay ?? false, b?.Items ?? []);
     }
 
@@ -24,16 +20,13 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
         using var res = await http.GetAsync($"/api/butik/varer/{id}", ct);
         if (res.StatusCode == HttpStatusCode.NotFound) return null;
         res.EnsureSuccessStatusCode();
-        var b = (await res.Content.ReadFromJsonAsync<ItemBody>(ct))!;
+        var b = (await res.Content.ReadFromJsonAsync<ShopItemPage>(ct))!;
         return (b.CanPay, b.Item, b.Proof);
     }
 
-    private sealed record Chosen(ShopItem Item, List<ShopProof> Proof);
-    private sealed record FrontBody(bool CanPay, List<Chosen> Items);
-
     public async Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(CancellationToken ct = default)
     {
-        var b = await http.GetFromJsonAsync<FrontBody>("/api/butik/forside", ct);
+        var b = await http.GetFromJsonAsync<ShopFront>("/api/butik/forside", ct);
         return (b?.Items ?? []).Select(x => (x.Item, x.Proof)).ToList();
     }
 
@@ -45,10 +38,10 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
 
     public async Task<(string? Url, string? Error)> BuyAsync(int id, string siteBase, CancellationToken ct = default)
     {
-        using var res = await http.PostAsJsonAsync($"/api/butik/varer/{id}/koeb", new { SiteBase = siteBase }, ct);
+        using var res = await http.PostAsJsonAsync($"/api/butik/varer/{id}/koeb", new ShopBuy(siteBase), ct);
         if (res.IsSuccessStatusCode || res.StatusCode == HttpStatusCode.BadRequest)
         {
-            var a = await res.Content.ReadFromJsonAsync<BuyAnswer>(ct);
+            var a = await res.Content.ReadFromJsonAsync<ShopBuyAnswer>(ct);
             return (a?.Url, a?.Url is null ? a?.Error ?? "Det gik ikke." : null);
         }
         res.EnsureSuccessStatusCode();
@@ -71,7 +64,7 @@ public static class LagerShopRegistration
         {
             c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(lagerApi) ? "http://10.0.0.200:9149" : lagerApi);
             c.Timeout = TimeSpan.FromSeconds(20);
-            c.DefaultRequestHeaders.Add("X-Shop-Key", shopKey ?? "");
+            c.DefaultRequestHeaders.Add(ShopHeaders.Key, shopKey ?? "");
         });
         return services;
     }

@@ -1,8 +1,5 @@
 namespace ITMartinLager.Domain;
 
-// What the AI read on one kolofon photo (the back of the title page).
-public sealed record KolofonReading(string? Isbn, string? Edition, int? Year, string? Publisher, string? Note);
-
 // Kolofon (2026-10-11, user: "to save in db and get price just cover. A job can run through kolofon if needed"):
 // the cover stays the only step for every item; a kolofon photo is asked for only when the edition may matter.
 public static class Kolofon
