@@ -1,27 +1,27 @@
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Models.Messages;
-using ITMartinVareinfo.Infrastructure.Persistence;
+using ITMartinLager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinVareinfo.Infrastructure.External;
+namespace ITMartinLager.Infrastructure.External;
 
 // One photo of a PILE (10-20 covers side by side) -> one Claude call that reads every item. Never one call per item:
-// 100,000 items is ~7,000 photos this way (CLAUDE.md cost rules). Cheap model by default (Vareinfo:AiModel), and a hard
-// daily cap (Vareinfo:MaxAiCallsPerDay) counted in the database, so a restart or a loop cannot run up the bill.
-public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<VareinfoDb> dbf, ILogger<ClaudeCoverReader> log) : ICoverReader
+// 100,000 items is ~7,000 photos this way (CLAUDE.md cost rules). Cheap model by default (Lager:AiModel), and a hard
+// daily cap (Lager:MaxAiCallsPerDay) counted in the database, so a restart or a loop cannot run up the bill.
+public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<LagerDb> dbf, ILogger<ClaudeCoverReader> log) : ICoverReader
 {
         private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
     private static readonly SemaphoreSlim CapGate = new(1, 1);
 
-    private string Model => cfg["Vareinfo:AiModel"] ?? "claude-haiku-4-5";
-    // Which model reads a pile photo. The cheap one by default; a stronger one (Vareinfo__PileModel, e.g.
+    private string Model => cfg["Lager:AiModel"] ?? "claude-haiku-4-5";
+    // Which model reads a pile photo. The cheap one by default; a stronger one (Lager__PileModel, e.g.
     // claude-sonnet-5-5) reads small issue numbers better (2026-10-12 test: Haiku dropped "Nr. 22", "#3", "No. 2").
-    private string PileModel => cfg["Vareinfo:PileModel"] is { Length: > 0 } m ? m : Model;
-    public int MaxCallsPerDay => int.TryParse(cfg["Vareinfo:MaxAiCallsPerDay"], out var n) ? n : 800;
+    private string PileModel => cfg["Lager:PileModel"] is { Length: > 0 } m ? m : Model;
+    public int MaxCallsPerDay => int.TryParse(cfg["Lager:MaxAiCallsPerDay"], out var n) ? n : 800;
     // The collector text is the shop's focus, so it gets the most accurate model (user 2026-10-05: Haiku invented
-    // a track list). Reading covers stays on the cheap model. Vareinfo__InterestModel switches it (e.g. claude-sonnet-5-5).
-    private string InterestModel => cfg["Vareinfo:InterestModel"] ?? "claude-opus-5-5";
+    // a track list). Reading covers stays on the cheap model. Lager__InterestModel switches it (e.g. claude-sonnet-5-5).
+    private string InterestModel => cfg["Lager:InterestModel"] ?? "claude-opus-5-5";
     public bool Enabled => !string.IsNullOrWhiteSpace(cfg["Claude:ApiKey"]);
 
     private static readonly Tool ReportTool = new()
@@ -333,7 +333,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Vare
             var day = await db.AiDays.FindAsync([today], ct);
             if (day is null) db.AiDays.Add(day = new AiDay { Day = today });
             if (day.Calls >= MaxCallsPerDay)
-                throw new InvalidOperationException($"Dagens grænse på {MaxCallsPerDay} AI-kald er nået. Fortsæt i morgen, eller hæv Vareinfo__MaxAiCallsPerDay.");
+                throw new InvalidOperationException($"Dagens grænse på {MaxCallsPerDay} AI-kald er nået. Fortsæt i morgen, eller hæv Lager__MaxAiCallsPerDay.");
             day.Calls++;
             await db.SaveChangesAsync(ct);
         }

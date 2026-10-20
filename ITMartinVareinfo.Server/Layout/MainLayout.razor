@@ -1,12 +1,20 @@
 @inherits LayoutComponentBase
-@inject LagerLinks Boxes
+@inject HelperUseCases Helpers
 
 <KolibriHeader>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/">📷 Registrér</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/kolofon">📖 Kolofon</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="@Boxes.LagerBase">📦 Lager</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/">📷 Kasse</a>
+    @if (Me is { IsAdmin: true })
+    {
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/hjaelpere">👥 Hjælpere</a>
+        <a class="k-btn k-btn-ghost k-btn-sm" href="@Helpers.LagerBase">📦 Lager</a>
+    }
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud@(Me is null ? "" : $" ({Me.Name})")</a>
 </KolibriHeader>
 <div class="k-main"><div class="k-content">
     @Body
 </div></div>
 <KolibriFooter />
+
+@code {
+    [CascadingParameter] public Taker? Me { get; set; }
+}

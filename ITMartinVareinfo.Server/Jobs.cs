@@ -2,58 +2,28 @@ using ITMartinVareinfo.Application;
 
 namespace ITMartinVareinfo.Server;
 
-// Reads waiting kolofon photos, up to 10 in one AI call, every 2 minutes, and sends what was read to Lager.
-// Vareinfo__KolofonReader=false turns it off.
-public sealed class KolofonJob(IServiceScopeFactory scopes, IConfiguration cfg, ILogger<KolofonJob> log) : BackgroundService
+// Makes the uploads ready (reading copy + close-ups), a few side by side: 100 phones can send faster than the photos can
+// be cut, so they wait here instead of on the phones. Vareinfo__PhotoWorkers sets how many at once (default half the
+// cores - the photoserver also runs the other apps).
+public sealed class PhotoJob(IServiceScopeFactory scopes, IConfiguration cfg, ILogger<PhotoJob> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
-        if (!cfg.GetValue("Vareinfo:KolofonReader", true)) { log.LogInformation("Kolofon reader is off"); return; }
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
-        do
+        var workers = Math.Clamp(cfg.GetValue("Vareinfo:PhotoWorkers", Environment.ProcessorCount / 2), 1, 16);
+        log.LogInformation("Photo job: {Workers} at a time", workers);
+        while (!stop.IsCancellationRequested)
         {
+            var done = 0;
             try
             {
                 using var scope = scopes.CreateScope();
-                var read = await scope.ServiceProvider.GetRequiredService<KolofonUseCases>().ReadWaitingAsync(stop);
-                if (read > 0) log.LogInformation("Kolofons read: {Count}", read);
+                done = await scope.ServiceProvider.GetRequiredService<CaptureUseCases>().ProcessWaitingAsync(workers * 4, workers, stop);
             }
-            catch (OperationCanceledException) { return; }
-            catch (Exception ex) { log.LogWarning("Kolofon round failed: {Message}", ex.Message); }   // cap reached, Lager down - try again later
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
+            catch (Exception ex) { log.LogWarning("Photo round failed: {Message}", ex.Message); }
+            // Work waiting: straight on. Nothing: look again in 2 seconds (one small query).
+            if (done == 0)
+                try { await Task.Delay(TimeSpan.FromSeconds(2), stop); } catch (OperationCanceledException) { return; }
         }
-        while (await WaitAsync(timer, stop));
-    }
-
-    private static async Task<bool> WaitAsync(PeriodicTimer t, CancellationToken stop)
-    {
-        try { return await t.WaitForNextTickAsync(stop); } catch (OperationCanceledException) { return false; }
-    }
-}
-
-// Reads the box photos the person pressed Læs for, up to 5 per minute (one AI call each), into their box on Lager.
-// Vareinfo__BoxReader=false turns it off.
-public sealed class BoxPhotoJob(IServiceScopeFactory scopes, IConfiguration cfg, ILogger<BoxPhotoJob> log) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stop)
-    {
-        if (!cfg.GetValue("Vareinfo:BoxReader", true)) { log.LogInformation("Box photo reader is off"); return; }
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
-        do
-        {
-            try
-            {
-                using var scope = scopes.CreateScope();
-                var read = await scope.ServiceProvider.GetRequiredService<BoxPhotoUseCases>().ReadWantedAsync(stop);
-                if (read > 0) log.LogInformation("Box photos read: {Count}", read);
-            }
-            catch (OperationCanceledException) { return; }
-            catch (Exception ex) { log.LogWarning("Box photo round failed: {Message}", ex.Message); }   // cap reached, Lager down - try again later
-        }
-        while (await WaitAsync(timer, stop));
-    }
-
-    private static async Task<bool> WaitAsync(PeriodicTimer t, CancellationToken stop)
-    {
-        try { return await t.WaitForNextTickAsync(stop); } catch (OperationCanceledException) { return false; }
     }
 }

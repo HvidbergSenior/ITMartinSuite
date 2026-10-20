@@ -5,6 +5,7 @@
 @inject PriceHuntUseCases Hunt
 @inject IVareinfoGateway Vareinfo
 @inject GoldUseCases Gold
+@inject KolofonUseCases Kolofons
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
 
@@ -153,15 +154,16 @@ else
     {
         <section class="k-card" data-fold-closed>
             <h2 class="k-card-title">📖 Kolofon (udgave og oplag)</h2>
-            <p>Kun for bøger, hvor udgaven kan betyde noget for prisen. Billedet af bagsiden af titelbladet tages i Vareinfo; AI'en læser udgave, oplag, år, forlag og ISBN inden for et par minutter og skriver det her.</p>
+            <p>Kun for bøger, hvor udgaven kan betyde noget for prisen. Slå op på bagsiden af titelbladet og tag billedet tæt på, så teksten er skarp. AI'en læser udgave, oplag, år, forlag og ISBN inden for et par minutter og skriver det her.</p>
             @if (_item.KolofonPhoto != "")
             {
                 <p>@(_item.KolofonAt is { } k ? $"Læst {k.ToLocalTime():d/M HH:mm}." : "⏳ Venter på at blive læst.")@(_item.Edition != "" ? $" Udgave: {_item.Edition}." : "")</p>
-                <img class="lg-photo" src="@(Vareinfo.PublicBase)/kolofonfoto/@_item.Id" alt="Kolofonen" loading="lazy" />
+                <img class="lg-photo" src="/kolofonfoto/@_item.Id?v=@_photoVer" alt="Kolofonen" loading="lazy" />
             }
-            <a class="k-btn k-btn-secondary" href="@(Vareinfo.PublicBase)/kolofon?vare=@_item.Id&titel=@Uri.EscapeDataString(_item.Title)">
-                @(_item.KolofonPhoto == "" ? "📷 Tag billede af kolofonen" : "📷 Tag nyt billede af kolofonen") (i Vareinfo)
-            </a>
+            <label class="k-btn k-btn-secondary lg-camera">
+                @(_busy ? "⏳ Gemmer …" : _item.KolofonPhoto == "" ? "📷 Tag billede af kolofonen" : "📷 Tag nyt billede af kolofonen")
+                <InputFile OnChange="SaveKolofon" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
+            </label>
         </section>
     }
 
@@ -331,6 +333,21 @@ else
             await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) _item!.ItemPhoto = await Items.SavePhotoAsync(Id, s);
             _photoVer = DateTime.UtcNow.Ticks;
             _msg = "Billedet er gemt.";
+        }
+        catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveKolofon(InputFileChangeEventArgs e)
+    {
+        _busy = true; _err = null;
+        try
+        {
+            await Save();
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) _item!.KolofonPhoto = await Kolofons.SavePhotoAsync(Id, s);
+            _item.KolofonAt = null;
+            _photoVer = DateTime.UtcNow.Ticks;
+            _msg = "Kolofonen er gemt og bliver læst om et par minutter.";
         }
         catch (Exception ex) { _err = ex.Message; }
         finally { _busy = false; }

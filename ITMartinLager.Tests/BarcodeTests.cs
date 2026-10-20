@@ -1,9 +1,9 @@
 using FluentAssertions;
-using ITMartinVareinfo.Application;
-using ITMartinVareinfo.Domain;
-using ITMartinVareinfo.Infrastructure.External;
+using ITMartinLager.Application;
+using ITMartinLager.Domain;
+using ITMartinLager.Infrastructure.External;
 
-namespace ITMartinVareinfo.Tests;
+namespace ITMartinLager.Tests;
 
 public class BarcodeTests
 {

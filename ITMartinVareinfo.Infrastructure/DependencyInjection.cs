@@ -7,32 +7,35 @@ namespace ITMartinVareinfo.Infrastructure;
 
 public static class DependencyInjection
 {
-    /// <summary>The data folder: vareinfo.db, photos/ (Vareinfo__DataDir, default /app/data in the container).</summary>
+    /// <summary>The data folder: vareinfo.db, inbox/ (uploads), photos/ (Vareinfo__DataDir, default /app/data in the container).</summary>
     public static string DataDir(IConfiguration cfg) => cfg["Vareinfo:DataDir"] ?? "/app/data";
 
     public static IServiceCollection AddVareinfoInfrastructure(this IServiceCollection services, IConfiguration cfg)
     {
         var dataDir = DataDir(cfg);
         Directory.CreateDirectory(Path.Combine(dataDir, "photos"));
-        services.AddDbContextFactory<VareinfoDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "vareinfo.db")}"));
+        Directory.CreateDirectory(Path.Combine(dataDir, "inbox"));
+        // Default Timeout: a write waits up to 30 s for another phone's write instead of failing at once.
+        services.AddDbContextFactory<VareinfoDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "vareinfo.db")};Default Timeout=30"));
         services.AddScoped<IPhotoRepository, PhotoRepository>();
-        services.AddScoped<IKolofonShotRepository, KolofonShotRepository>();
         services.AddScoped<IScanRepository, ScanRepository>();
-
+        services.AddScoped<IHelperRepository, HelperRepository>();
+        services.AddScoped<IBoxClaimRepository, BoxClaimRepository>();
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
-        services.AddSingleton<ICoverReader, ClaudeCoverReader>();
-        services.AddHttpClient<IBarcodeLookup, BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
-        services.AddHttpClient<ILagerGateway, LagerLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
 
-        services.AddSingleton(new VareinfoOptions { AutoInterest = cfg.GetValue<bool>("Vareinfo:AutoInterest") });
+        services.AddSingleton(new VareinfoOptions
+        {
+            AdminPin = cfg["Vareinfo:Pin"] ?? "",
+            AdminName = cfg["Vareinfo:AdminName"] is { Length: > 0 } n ? n : "Martin",
+            LagerPublicUrl = cfg["Vareinfo:LagerPublicUrl"] ?? "https://lager.bogshoppen.dk",
+        });
         return services;
     }
 
-    /// <summary>Creates vareinfo.db, and at the first start takes over Lager's photos (Vareinfo__ImportLagerDb).</summary>
-    public static int UpgradeVareinfoDatabase(this IServiceProvider services, IConfiguration cfg)
+    /// <summary>Creates or upgrades vareinfo.db - call once at start.</summary>
+    public static void UpgradeVareinfoDatabase(this IServiceProvider services)
     {
         using var db = services.GetRequiredService<IDbContextFactory<VareinfoDb>>().CreateDbContext();
         VareinfoDbInitializer.Upgrade(db);
-        return cfg["Vareinfo:ImportLagerDb"] is { Length: > 0 } file ? VareinfoDbInitializer.ImportFromLager(db, file) : 0;
     }
 }

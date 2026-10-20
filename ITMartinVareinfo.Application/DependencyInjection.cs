@@ -8,10 +8,8 @@ public static class DependencyInjection
     public static IServiceCollection AddVareinfoApplication(this IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
-        services.AddScoped<ReadingUseCases>();
-        services.AddScoped<LagerLinks>();
-        services.AddScoped<KolofonUseCases>();
-        services.AddScoped<BoxPhotoUseCases>();
+        services.AddScoped<CaptureUseCases>();
+        services.AddScoped<HelperUseCases>();
         return services;
     }
 }

@@ -2,7 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ITMartinVareinfo.Infrastructure.Persistence;
 
-// A context per call (IDbContextFactory) - Blazor Server circuits live long, a shared context would go stale.
+// A context per call (IDbContextFactory) - Blazor Server circuits live long, a shared context would go stale, and the
+// uploads of many phones run side by side.
 public sealed class PhotoRepository(IDbContextFactory<VareinfoDb> dbf) : IPhotoRepository
 {
     public async Task<Photo> AddAsync(Photo photo, CancellationToken ct)
@@ -26,110 +27,137 @@ public sealed class PhotoRepository(IDbContextFactory<VareinfoDb> dbf) : IPhotoR
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<List<Photo>> WantedAsync(int max, CancellationToken ct)
+    public async Task<List<Photo>> UnprocessedAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Photos.Where(p => p.Waiting && p.ReadWanted).OrderBy(p => p.Id).Take(max).ToListAsync(ct);
+        return await db.Photos.Where(p => !p.Ready).OrderBy(p => p.Id).Take(max).ToListAsync(ct);
     }
 
-    public async Task<int> WantReadAsync(string? boxCode, CancellationToken ct)
+    public async Task<List<Photo>> UnsentAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Photos.Where(p => p.Waiting && !p.ReadWanted && (boxCode == null || p.BoxCode == boxCode))
-            .ExecuteUpdateAsync(s => s.SetProperty(p => p.ReadWanted, true), ct);
+        return await db.Photos.Where(p => p.Ready && p.SentAt == null).OrderBy(p => p.Id).Take(max).ToListAsync(ct);
     }
 
-    public async Task<List<BoxPhotos>> BoxesAsync(CancellationToken ct)
+    public async Task MarkSentAsync(IReadOnlyCollection<int> ids, DateTime now, CancellationToken ct)
     {
+        if (ids.Count == 0) return;
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var rows = await db.Photos.Where(p => p.BoxCode != "")
-            .GroupBy(p => p.BoxCode)
-            .Select(g => new BoxPhotos(g.Key, g.Count(p => p.Waiting), g.Count(p => p.Waiting && p.ReadWanted),
-                g.Count(p => !p.Waiting), g.Sum(p => p.Found), 0, 0))
-            .ToListAsync(ct);
-        return rows.OrderByDescending(b => b.BoxCode).ToList();
-    }
-}
-
-public sealed class KolofonShotRepository(IDbContextFactory<VareinfoDb> dbf) : IKolofonShotRepository
-{
-    public async Task AddAsync(KolofonShot shot, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        db.KolofonShots.Add(shot);
-        await db.SaveChangesAsync(ct);
+        await db.Photos.Where(p => ids.Contains(p.Id)).ExecuteUpdateAsync(s => s.SetProperty(p => p.SentAt, now), ct);
     }
 
-    public async Task<List<KolofonShot>> WaitingAsync(int max, CancellationToken ct)
+    public async Task<int> CountAsync(string boxCode, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.KolofonShots.Where(s => s.ReadAt == null).OrderBy(s => s.TakenAt).Take(max).ToListAsync(ct);
+        return await db.Photos.CountAsync(p => p.BoxCode == boxCode, ct);
     }
 
-    public async Task<int> WaitingCountAsync(CancellationToken ct)
+    public async Task<Dictionary<string, int>> PerBoxAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.KolofonShots.CountAsync(s => s.ReadAt == null, ct);
-    }
-
-    public async Task<List<KolofonShot>> RecentlyReadAsync(int max, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.KolofonShots.Where(s => s.ReadAt != null).OrderByDescending(s => s.ReadAt).Take(max).ToListAsync(ct);
-    }
-
-    public async Task<KolofonShot?> LatestForAsync(int itemId, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.KolofonShots.Where(s => s.ItemId == itemId).OrderByDescending(s => s.TakenAt).FirstOrDefaultAsync(ct);
-    }
-
-    public async Task UpdateAsync(IEnumerable<KolofonShot> shots, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        db.KolofonShots.UpdateRange(shots);
-        await db.SaveChangesAsync(ct);
+        return await db.Photos.GroupBy(p => p.BoxCode).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
     }
 }
 
 public sealed class ScanRepository(IDbContextFactory<VareinfoDb> dbf) : IScanRepository
 {
-    public async Task<int> AddOrCountAsync(string code, int boxId, string boxCode, CancellationToken ct)
+    public async Task<int> AddOrCountAsync(string code, string boxCode, Taker who, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var same = await db.Scans.FirstOrDefaultAsync(s => s.Code == code && s.BoxCode == boxCode && s.Waiting, ct);
-        if (same is null) db.Scans.Add(same = new Scan { Code = code, BoxId = boxId, BoxCode = boxCode });
+        var same = await db.Scans.FirstOrDefaultAsync(s => s.Code == code && s.BoxCode == boxCode && s.SentAt == null, ct);
+        if (same is null) db.Scans.Add(same = new Scan { Code = code, BoxCode = boxCode, HelperId = who.Id, Helper = who.Name });
         else same.Quantity++;
         await db.SaveChangesAsync(ct);
         return same.Quantity;
     }
 
-    public async Task<List<Scan>> WantedAsync(int max, CancellationToken ct)
+    public async Task<List<Scan>> UnsentAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Scans.Where(s => s.Waiting && s.ReadWanted).OrderBy(s => s.Id).Take(max).ToListAsync(ct);
+        return await db.Scans.Where(s => s.SentAt == null).OrderBy(s => s.Id).Take(max).ToListAsync(ct);
     }
 
-    public async Task<int> WantReadAsync(string? boxCode, CancellationToken ct)
+    public async Task MarkSentAsync(IReadOnlyCollection<int> ids, DateTime now, CancellationToken ct)
     {
+        if (ids.Count == 0) return;
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Scans.Where(s => s.Waiting && !s.ReadWanted && (boxCode == null || s.BoxCode == boxCode))
-            .ExecuteUpdateAsync(x => x.SetProperty(s => s.ReadWanted, true), ct);
+        await db.Scans.Where(s => ids.Contains(s.Id)).ExecuteUpdateAsync(x => x.SetProperty(s => s.SentAt, now), ct);
     }
 
-    public async Task UpdateAsync(IEnumerable<Scan> scans, CancellationToken ct)
+    public async Task<int> CountAsync(string boxCode, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        db.Scans.UpdateRange(scans);
+        return await db.Scans.Where(s => s.BoxCode == boxCode).SumAsync(s => s.Quantity, ct);
+    }
+
+    public async Task<Dictionary<string, int>> PerBoxAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Scans.GroupBy(s => s.BoxCode).Select(g => new { g.Key, Count = g.Sum(s => s.Quantity) }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+    }
+}
+
+public sealed class HelperRepository(IDbContextFactory<VareinfoDb> dbf) : IHelperRepository
+{
+    public async Task<List<Helper>> ActiveAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Helpers.Where(h => h.Active).OrderBy(h => h.Name).ToListAsync(ct);
+    }
+
+    public async Task<Helper?> ByCodeAsync(string code, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Helpers.FirstOrDefaultAsync(h => h.Code == code, ct);
+    }
+
+    public async Task<Helper?> GetAsync(int id, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Helpers.FindAsync([id], ct);
+    }
+
+    public async Task AddAsync(Helper helper, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.Helpers.Add(helper);
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<Dictionary<string, (int Waiting, int Wanted)>> PerBoxAsync(CancellationToken ct)
+    public async Task UpdateAsync(Helper helper, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var rows = await db.Scans.Where(s => s.Waiting).GroupBy(s => s.BoxCode)
-            .Select(g => new { g.Key, Waiting = g.Sum(s => s.Quantity), Wanted = g.Where(s => s.ReadWanted).Sum(s => s.Quantity) })
-            .ToListAsync(ct);
-        return rows.ToDictionary(r => r.Key, r => (r.Waiting, r.Wanted));
+        db.Helpers.Update(helper);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class BoxClaimRepository(IDbContextFactory<VareinfoDb> dbf) : IBoxClaimRepository
+{
+    public async Task<BoxClaim?> GetAsync(string boxCode, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.BoxClaims.AsNoTracking().FirstOrDefaultAsync(c => c.BoxCode == boxCode, ct);
+    }
+
+    public async Task SaveAsync(BoxClaim claim, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        if (await db.BoxClaims.AnyAsync(c => c.BoxCode == claim.BoxCode, ct)) db.BoxClaims.Update(claim);
+        else db.BoxClaims.Add(claim);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<BoxClaim>> AllAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.BoxClaims.AsNoTracking().ToListAsync(ct);
+    }
+
+    public async Task<List<BoxClaim>> OpenForAsync(int helperId, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.BoxClaims.AsNoTracking().Where(c => c.HelperId == helperId && c.DoneAt == null)
+            .OrderByDescending(c => c.LastAt).ToListAsync(ct);
     }
 }

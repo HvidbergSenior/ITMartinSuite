@@ -10,6 +10,8 @@ public interface IBoxRepository
 {
     /// <summary>A new box with the next code (K0001, K0002 ...).</summary>
     Task<Box> AddNextAsync(string place, CancellationToken ct);
+    /// <summary>The box with this code (K0007 = NR 7 written on it), made the first time it is seen.</summary>
+    Task<Box> GetOrAddAsync(string code, CancellationToken ct);
     Task<Box?> GetAsync(int id, CancellationToken ct);
     Task<Box?> ByCodeAsync(string code, CancellationToken ct);
     Task<List<Box>> RecentAsync(int count, CancellationToken ct);
@@ -40,6 +42,8 @@ public interface IItemRepository
     Task<List<int>> NextToHuntAsync(string[] kinds, DateTime staleBefore, int count, CancellationToken ct);
     /// <summary>Books without a kolofon photo that have a used find at fromKr or more, or a 1st-edition cover; highest find first.</summary>
     Task<List<(Item Item, int TopKr)>> KolofonWantedAsync(int fromKr, int max, CancellationToken ct);
+    /// <summary>Books with a kolofon photo that is not read yet, oldest first; with their boxes.</summary>
+    Task<List<Item>> KolofonWaitingAsync(int max, CancellationToken ct);
     /// <summary>Everything, with boxes, for the CSV export.</summary>
     Task<List<Item>> AllAsync(CancellationToken ct);
 }

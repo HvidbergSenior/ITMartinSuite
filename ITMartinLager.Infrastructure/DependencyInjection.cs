@@ -22,10 +22,13 @@ public static class DependencyInjection
         services.AddScoped<IBookCheckRepository, BookCheckRepository>();
         services.AddScoped<IGoldRepository, GoldRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IIntakeRepository, IntakeRepository>();
 
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
         services.AddSingleton<IBookValuer, ClaudeBookValuer>();
-        services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(120));   // a pile photo takes a while to read
+        services.AddSingleton<ICoverReader, ClaudeCoverReader>();
+        services.AddHttpClient<IBarcodeLookup, BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
+        services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IAuctionGateway, AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IMagicGateway, MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IPaymentGateway, StripeCheckout>(c => c.Timeout = TimeSpan.FromSeconds(30));
@@ -33,7 +36,6 @@ public static class DependencyInjection
 
         services.AddSingleton(new LagerOptions
         {
-            InfoKey = cfg["Lager:InfoKey"] ?? "",
             KolofonFromKr = int.TryParse(cfg["Lager:KolofonFromKr"], out var kr) ? kr : Kolofon.DefaultFromKr,
             ShopKey = cfg["Lager:ShopKey"] ?? "",
             ShopAutoMaxKr = int.TryParse(cfg["Lager:ShopAutoMaxKr"], out var auto) ? auto : Shop.DefaultAutoMaxKr,

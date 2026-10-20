@@ -1,0 +1,67 @@
+@page "/kolofon"
+@inject KolofonUseCases Kolofons
+
+@* Moved here from Vareinfo (2026-10-20): Vareinfo only takes the box photos; the kolofon photo is taken on the book's
+   own page here, and the job reads the waiting ones 10 per AI call. *@
+<PageTitle>Kolofon – Bogshoppen Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">📖 Bøger der skal have taget billede af kolofonen</h1>
+    @if (_rows is null) { <p class="k-muted">Henter listen …</p> }
+    else if (_rows.Count == 0)
+    {
+        <p class="lg-answer">Ingen lige nu</p>
+        <p>En bog kommer på listen, når omslaget ligner en 1. udgave, eller når prisjægeren finder den til salg for @Kolofons.FromKr kr eller mere et sted.</p>
+    }
+    else
+    {
+        <p class="lg-answer">@_rows.Count bøger</p>
+        <p>Omslaget ligner en 1. udgave, eller bogen er til salg for @Kolofons.FromKr kr eller mere et sted. Så kan udgaven betyde noget for prisen.</p>
+    }
+    <details class="lg-more">
+        <summary>Sådan gør du</summary>
+        <ol>
+            <li>Find bogen i kassen (kassens nummer står ved bogen).</li>
+            <li>Tryk på bogen herunder, så åbner dens side.</li>
+            <li>Slå op på bagsiden af titelbladet, hvor udgave, oplag, forlag og ISBN står med lille skrift. Det er kolofonen.</li>
+            <li>Tryk <b>📷 Tag billede af kolofonen</b> under 📖 Kolofon og tag billedet tæt på, så teksten er skarp.</li>
+            <li>Inden for et par minutter læser AI'en op til 10 kolofoner ad gangen. Udgave, forlag, år og ISBN skrives på bogen, og priserne bliver slået op igen for netop den udgave.</li>
+        </ol>
+        <p class="k-small k-muted">Alle andre bøger klarer sig med forsiden. Grænsen på @Kolofons.FromKr kr sættes med Lager__KolofonFromKr.</p>
+    </details>
+</section>
+
+@if (_waiting.Count > 0)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">⏳ Venter på at blive læst: @_waiting.Count</h2>
+        <p>Læses af sig selv, op til 10 ad gangen hvert 2. minut.</p>
+    </section>
+}
+
+@if (_rows is { Count: > 0 })
+{
+    <section class="k-card">
+        <h2 class="k-card-title">Listen</h2>
+        <ul class="lg-list">
+            @foreach (var (item, topKr) in _rows)
+            {
+                <li>
+                    <a href="/vare/@item.Id"><span class="lg-box">@(item.Box?.Code ?? "–")</span>
+                        <span class="lg-main"><b>@item.Line()</b><span class="k-small k-muted">@(item.EditionHint == EditionHints.First ? "📖 omslaget ligner 1. udgave" : "")@(item.EditionHint == EditionHints.First && topKr > 0 ? " · " : "")@(topKr > 0 ? $"fundet til op til {topKr} kr" : "")</span></span></a>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    private List<(Item Item, int TopKr)>? _rows;
+    private List<Item> _waiting = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _rows = await Kolofons.WantedAsync();
+        _waiting = await Kolofons.WaitingAsync();
+    }
+}

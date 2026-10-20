@@ -105,3 +105,68 @@ public sealed class GoldListJob(IServiceScopeFactory scopes, IConfiguration cfg,
         }
     }
 }
+
+// Every minute: fetch the helpers' new photos and scans from Vareinfo (boxes are made as they appear), then read what
+// the person pressed Læs for - up to 5 pile photos (one AI call each) and 20 barcodes. Lager__Intake=false turns it off.
+public sealed class IntakeJob(IServiceScopeFactory scopes, IConfiguration cfg, ILogger<IntakeJob> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stop)
+    {
+        if (!cfg.GetValue("Lager:Intake", true)) { log.LogInformation("Intake is off (Lager__Intake=false)"); return; }
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        do
+        {
+            using var scope = scopes.CreateScope();
+            var intake = scope.ServiceProvider.GetRequiredService<IntakeUseCases>();
+            try
+            {
+                // Everything new at once (up to 200 per call), so a day with 100 helpers does not fall behind.
+                int got;
+                while ((got = await intake.FetchAsync(stop)) == IntakeUseCases.FetchPerRound) log.LogInformation("Fetched {Count} from Vareinfo", got);
+                if (got > 0) log.LogInformation("Fetched {Count} from Vareinfo", got);
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
+            catch (Exception ex) { log.LogWarning("Fetching from Vareinfo failed: {Message}", ex.Message); }   // Vareinfo down - next minute
+            try
+            {
+                var read = await intake.ReadWantedAsync(stop);
+                if (read > 0) log.LogInformation("Box photos and scans read: {Count}", read);
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
+            catch (Exception ex) { log.LogWarning("Reading box photos failed: {Message}", ex.Message); }   // cap reached - try again later
+        }
+        while (await WaitAsync(timer, stop));
+    }
+
+    private static async Task<bool> WaitAsync(PeriodicTimer t, CancellationToken stop)
+    {
+        try { return await t.WaitForNextTickAsync(stop); } catch (OperationCanceledException) { return false; }
+    }
+}
+
+// Reads waiting kolofon photos, up to 10 in one AI call, every 2 minutes. Lager__KolofonReader=false turns it off.
+public sealed class KolofonJob(IServiceScopeFactory scopes, IConfiguration cfg, ILogger<KolofonJob> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stop)
+    {
+        if (!cfg.GetValue("Lager:KolofonReader", true)) { log.LogInformation("Kolofon reader is off"); return; }
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
+        do
+        {
+            try
+            {
+                using var scope = scopes.CreateScope();
+                var read = await scope.ServiceProvider.GetRequiredService<KolofonUseCases>().ReadWaitingAsync(stop);
+                if (read > 0) log.LogInformation("Kolofons read: {Count}", read);
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
+            catch (Exception ex) { log.LogWarning("Kolofon round failed: {Message}", ex.Message); }   // cap reached - try again later
+        }
+        while (await WaitAsync(timer, stop));
+    }
+
+    private static async Task<bool> WaitAsync(PeriodicTimer t, CancellationToken stop)
+    {
+        try { return await t.WaitForNextTickAsync(stop); } catch (OperationCanceledException) { return false; }
+    }
+}

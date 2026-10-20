@@ -82,7 +82,7 @@ public sealed class CheckedBook
 /// Every valued book is kept in "Alle tjekkede bøger" (user 2026-10-07: "save all automatically").</summary>
 public sealed class BookCheckUseCases(
     IEnumerable<IPriceSource> sources, IBookValuer valuer, IBookCheckRepository checks, RegistrationUseCases registration,
-    IVareinfoGateway vareinfo, TimeProvider clock)
+    ICoverReader reader, IPhotoStore photos, IBarcodeLookup barcodes, TimeProvider clock)
 {
     /// <summary>The sites the Bøger page asks, in this order.</summary>
     public static readonly string[] Sites = ["DBA", "AbeBooks", "Bokbörsen", "Nemos Bibliotek", "Faraos"];
@@ -94,11 +94,20 @@ public sealed class BookCheckUseCases(
     public int MaxCallsPerDay => valuer.MaxCallsPerDay;
     public Task<int> CallsTodayAsync(CancellationToken ct = default) => valuer.CallsTodayAsync(ct);
 
-    /// <summary>The titles on a photo of a pile - read by Vareinfo, which also keeps the photo.</summary>
-    public Task<(int PhotoId, List<Found> Found)> ReadPileAsync(Stream photo, CancellationToken ct = default) =>
-        vareinfo.ReadPileAsync(photo, "bøger", "boeger", ct);
+    /// <summary>The titles on a photo of a pile, read at once (one AI call). The photo is not kept - this page checks a
+    /// pile on the spot; box photos are taken in Vareinfo.</summary>
+    public async Task<List<Found>> ReadPileAsync(Stream photo, CancellationToken ct = default)
+    {
+        using var original = new MemoryStream();
+        await photo.CopyToAsync(original, ct);
+        original.Position = 0;
+        var jpeg = await photos.ShrinkAsync(original, ct);
+        original.Position = 0;
+        var closeUps = await photos.TilesAsync(original, ct);
+        return await reader.ReadPileAsync(jpeg, closeUps, "bøger", ct);
+    }
 
-    public Task<Found?> LookupBarcodeAsync(string code, CancellationToken ct = default) => vareinfo.LookupBarcodeAsync(code, ct);
+    public Task<Found?> LookupBarcodeAsync(string code, CancellationToken ct = default) => barcodes.LookupAsync(Barcodes.Clean(code), ct);
 
     private readonly List<IPriceSource> _sites = sources.Where(s => Sites.Contains(s.Name)).OrderBy(s => Array.IndexOf(Sites, s.Name)).ToList();
 

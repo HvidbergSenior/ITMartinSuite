@@ -9,12 +9,31 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
 {
     public async Task<Box> AddNextAsync(string place, CancellationToken ct)
     {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        var last = await db.Boxes.OrderByDescending(b => b.Id).Select(b => b.Code).FirstOrDefaultAsync(ct);
-        var box = new Box { Code = Box.NextCode(last), Place = place };
-        db.Boxes.Add(box);
-        await db.SaveChangesAsync(ct);
-        return box;
+        // The highest number + 1 (the helpers pick numbers in any order, so not the newest box). Codes are zero-padded,
+        // so the text order is the number order. Two at once: the unique code index refuses one - it takes the next.
+        for (var attempt = 0; ; attempt++)
+        {
+            await using var db = await dbf.CreateDbContextAsync(ct);
+            var last = await db.Boxes.OrderByDescending(b => b.Code).Select(b => b.Code).FirstOrDefaultAsync(ct);
+            var box = new Box { Code = Box.NextCode(last), Place = place };
+            db.Boxes.Add(box);
+            try { await db.SaveChangesAsync(ct); return box; }
+            catch (DbUpdateException) when (attempt < 5) { }
+        }
+    }
+
+    public async Task<Box> GetOrAddAsync(string code, CancellationToken ct)
+    {
+        code = Box.CodeFor(BoxCodes.Number(code));
+        for (var attempt = 0; ; attempt++)
+        {
+            await using var db = await dbf.CreateDbContextAsync(ct);
+            if (await db.Boxes.FirstOrDefaultAsync(b => b.Code == code, ct) is { } found) return found;
+            var box = new Box { Code = code };
+            db.Boxes.Add(box);
+            try { await db.SaveChangesAsync(ct); return box; }
+            catch (DbUpdateException) when (attempt < 3) { }   // made at the same moment elsewhere - read it again
+        }
     }
 
     public async Task<Box?> GetAsync(int id, CancellationToken ct)
@@ -189,6 +208,13 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
             .ToListAsync(ct);
         return items.Select(i => (i, top.GetValueOrDefault(i.Id)))
             .OrderByDescending(x => x.i.EditionHint == EditionHints.First).ThenByDescending(x => x.Item2).Take(max).ToList();
+    }
+
+    public async Task<List<Item>> KolofonWaitingAsync(int max, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Items.Include(i => i.Box).Where(i => i.KolofonPhoto != "" && i.KolofonAt == null)
+            .OrderBy(i => i.UpdatedAt).Take(max).ToListAsync(ct);
     }
 
     public async Task<List<Item>> AllAsync(CancellationToken ct)

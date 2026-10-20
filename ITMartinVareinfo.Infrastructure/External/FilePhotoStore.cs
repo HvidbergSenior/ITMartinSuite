@@ -45,6 +45,20 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         return tiles;
     }
 
+    public async Task SaveRawAsync(string path, Stream photo, CancellationToken ct)
+    {
+        var full = Inside(path) ?? throw new InvalidOperationException("Ugyldig sti til billedet.");
+        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+        await using (var file = File.Create(full)) await photo.CopyToAsync(file, ct);
+        try { await Image.IdentifyAsync(full, ct); }   // the header only - is it a picture at all?
+        catch { File.Delete(full); throw; }            // ImageFormatException - the upload says "kunne ikke åbnes"
+    }
+
+    public void Delete(string path)
+    {
+        if (Inside(path) is { } full && File.Exists(full)) File.Delete(full);
+    }
+
     public async Task SaveAsync(string path, byte[] jpeg, CancellationToken ct)
     {
         var full = Inside(path) ?? throw new InvalidOperationException("Ugyldig sti til billedet.");

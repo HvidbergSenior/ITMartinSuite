@@ -3,7 +3,7 @@ using ITMartinLager.Domain;
 namespace ITMartinLager.Application;
 
 /// <summary>Taking things into stock. What they ARE is found out in Vareinfo (photo of a pile, barcodes) - Lager gets
-/// the result through /api/info and from the Bøger page (2026-10-12 split). No box needed (user 2026-10-12: choosing
+/// the result through the intake (IntakeUseCases) and from the Bøger page. No box needed (user 2026-10-12: choosing
 /// a box is "way to difficult") - a box is only an optional "where is it".</summary>
 public sealed class RegistrationUseCases(IItemRepository items)
 {

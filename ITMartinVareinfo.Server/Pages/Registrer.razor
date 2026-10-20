@@ -1,34 +1,40 @@
 @page "/"
 @page "/registrer"
-@inject ReadingUseCases Reg
-@inject BoxPhotoUseCases Boxes
-@inject LagerLinks Lager
+@inject CaptureUseCases Capture
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @using System.Text.Json
 
-@* Box by box, camera only (user 2026-10-15): "Take picture -> storage", "scanning should just beep beep beep. next box",
-   "only pictures camera... All the further investigation should be done in the other app". Photos and barcodes are
-   only stored here; Læs reads them later into the box on Lager, where everything else happens. *@
-<PageTitle>Registrér – Bogshoppen Vareinfo</PageTitle>
+@* The capture page (user 2026-10-20): "The users of that app should easily take pictures of all and select the relevant
+   box number ... 100 people on 100 boxes with own phone each". Type the number on the box -> photos and barcodes -> done.
+   Everything is only stored; Lager reads it later. *@
+<PageTitle>Kasse – Bogshoppen Vareinfo</PageTitle>
 
-@if (_box is null)
+@if (Me is null)
 {
-    <section class="k-card"><p>⏳ Henter kassen fra Lager …</p>@if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }</section>
+    <section class="k-card"><p><a class="k-btn k-btn-primary" href="/login">Log ind</a></p></section>
+}
+else if (_box is null)
+{
+    <section class="k-card">
+        <h1 class="k-card-title">📦 Hvilken kasse?</h1>
+        <p>Hej @Me.Name. Skriv det nummer, der står på kassen, og tryk <b>Start kassen</b>. Står der ikke noget nummer, så spørg Martin.</p>
+        <form class="lg-row" @onsubmit="Take">
+            <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@BoxClaim.MaxNumber" placeholder="Kassens nr." @bind="_number" aria-label="Kassens nummer" />
+            <button class="k-btn k-btn-primary lg-big" type="submit" disabled="@_busy">Start kassen</button>
+        </form>
+        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+        @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
+        <p data-photo-status role="status" hidden></p>
+    </section>
 }
 else
 {
     <section class="k-card">
         <h1 class="k-card-title">📦 Kasse @_box.Number</h1>
-        <p>Skriv <b>NR @_box.Number</b> på kassen. Tag billeder af alt i kassen – eller scan stregkoderne. Det hele <b>gemmes bare</b> i kasse @_box.Number; der læses ikke noget nu.</p>
-        <p class="lg-answer" role="status">I kasse @_box.Number: <b>@CurrentPhotos billeder</b> og <b>@CurrentScans stregkoder</b>.</p>
+        <p class="lg-answer" role="status">I kasse @_box.Number: <b>@_photos billeder</b> og <b>@_scans stregkoder</b>.</p>
+        <p>Læg 10-20 ting fra kassen ud med forsiden op, og tag billedet lige ovenfra. Gentag til kassen er tom. Det hele <b>gemmes bare</b> – det læses senere på Lager.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
-        @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
-    </section>
-
-    <section class="k-card">
-        <h2 class="k-card-title">📷 Billeder</h2>
-        <p>Læg 10-20 ting ud med forsiden op, og tag billedet lige ovenfra. Gentag til kassen er tom.</p>
         @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
         <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@BoxFields">📷 Tag billeder</button>
         <div id="foto-cam" class="lg-scan" hidden>
@@ -49,7 +55,7 @@ else
         </div>
     </section>
 
-    <section class="k-card">
+    <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">▮▯▮ Stregkoder</h2>
         <p>Bedst til DVD, Blu-ray, CD, spil og bøger. Hold stregkoden foran kameraet – <b>bip</b> – næste. Samme stregkode igen = ét eksemplar mere.</p>
         @if (!_scanning)
@@ -67,73 +73,45 @@ else
     </section>
 
     <section class="k-card">
-        <h2 class="k-card-title">Kassen er fuld?</h2>
-        @if (!_confirmNew)
+        <h2 class="k-card-title">Er kassen tom?</h2>
+        <p>Når alt i kassen har været på et billede, så tryk her. Så er kassen fri, og du kan tage den næste.</p>
+        @if (!_confirmDone)
         {
-            <button class="k-btn k-btn-secondary" @onclick="() => _confirmNew = true" disabled="@_busy">Ny kasse</button>
+            <button class="k-btn k-btn-secondary lg-big" @onclick="() => _confirmDone = true" disabled="@_busy">✓ Kassen er færdig</button>
         }
         else
         {
             <div class="lg-row">
-                <button class="k-btn k-btn-primary" @onclick="NewBox" disabled="@_busy">✓ Ja, start kasse @(_box.Number + 1)</button>
-                <button class="k-btn k-btn-ghost" @onclick="() => _confirmNew = false">Nej, fortsæt med kasse @_box.Number</button>
+                <button class="k-btn k-btn-primary" @onclick="Finish" disabled="@_busy">✓ Ja, kasse @_box.Number er færdig</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => _confirmDone = false">Nej, jeg er ikke færdig</button>
             </div>
         }
     </section>
-
-    @if (_boxes.Count > 0)
-    {
-        <section class="k-card">
-            <h2 class="k-card-title">Læs kasserne</h2>
-            <p>Tryk <b>Læs</b>, når det passer dig. Billederne læses af AI'en og stregkoderne slås op – i baggrunden, ca. 5 billeder i minuttet. Tingene lægges i kassen på <a href="@Lager.LagerBase">Lager</a>, hvor priser og alt det andet findes. Du kan godt lukke siden imens.</p>
-            <ul class="lg-boxes">
-                @foreach (var b in _boxes)
-                {
-                    <li>
-                        <b>Kasse @b.Number</b> ·
-                        @if (b.Waiting + b.Scans > 0)
-                        {
-                            <span>@b.Waiting billeder og @b.Scans stregkoder venter@(b.Wanted + b.ScansWanted > 0 ? " (bliver læst nu)" : "")</span>
-                        }
-                        @if (b.Read > 0 || (b.Waiting + b.Scans == 0)) { <span> · læst – <a href="@Lager.LagerBase/kasse/@b.BoxCode" target="_blank" rel="noopener">se på Lager</a></span> }
-                        @if (b.HasUnread) { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => WantRead(b.BoxCode)">Læs kasse @b.Number</button> }
-                    </li>
-                }
-            </ul>
-            @if (_boxes.Count(b => b.HasUnread) > 1)
-            {
-                <button class="k-btn k-btn-primary" @onclick="() => WantRead(null)">Læs alle</button>
-            }
-            <button class="k-btn k-btn-ghost k-btn-sm" @onclick="Refresh">↻ Opdatér</button>
-            <p class="k-small k-muted">AI-kald i dag: @_callsToday af @Reg.MaxCallsPerDay (ét pr. billede – stregkoder er gratis).</p>
-        </section>
-    }
 }
 
 @code {
-    private LagerBox? _box;
-    private List<BoxPhotos> _boxes = [];
-    private bool _confirmNew, _busy, _scanning;
+    [CascadingParameter] public Taker? Me { get; set; }
+
+    private BoxClaim? _box;
+    private int? _number;
+    private int _photos, _scans;
+    private bool _confirmDone, _busy, _scanning;
     private string? _error, _saved;
-    private int _callsToday;
     private string _scanStatus = "";
     private string _lastCode = "";
     private DateTime _lastAt;
     private DotNetObjectReference<Registrer>? _ref;
 
-    private BoxPhotos? Current => _boxes.FirstOrDefault(b => b.BoxCode == _box?.Code);
-    private int CurrentPhotos => Current is { } c ? c.Waiting + c.Read : 0;
-    private int CurrentScans => Current?.Scans ?? 0;
-
     protected override async Task OnInitializedAsync()
     {
-        try { _box = await Boxes.CurrentBoxAsync(); }
-        catch (Exception ex) { _error = "Kunne ikke hente kassen fra Lager: " + ex.Message; }
-        await Refresh();
+        if (Me is null) return;
+        // Back on the page (reload, next morning): the box this helper was filling.
+        _box = await Capture.MyBoxAsync(Me);
+        await Count();
     }
 
-    // Each photo carries its own box, so photos still waiting on the phone land in the right box after "Ny kasse".
-    private string BoxFields => _box is null ? "{}" : JsonSerializer.Serialize(new { boxId = _box.Id, boxCode = _box.Code });
+    // Each photo carries its own box, so photos still waiting on the phone land in the right box after the next box.
+    private string BoxFields => _box is null ? "{}" : JsonSerializer.Serialize(new { boxCode = _box.BoxCode });
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -146,49 +124,52 @@ else
     [JSInvokable]
     public async Task PhotoSent()
     {
-        await Refresh();
+        await Count();
         StateHasChanged();
     }
 
-    private async Task NewBox()
+    private async Task Take()
     {
-        await StopScan();
-        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }   // its photos belong to the old box
+        if (Me is null) return;
         _busy = true; _error = null; _saved = null;
         try
         {
-            _box = await Boxes.NewBoxAsync();
-            _saved = $"Ny kasse: skriv NR {_box.Number} på den.";
+            if (_number is not { } n) throw new VareinfoException("Skriv nummeret på kassen.");
+            _box = await Capture.TakeBoxAsync(n, Me);
+            _confirmDone = false;
+            await Count();
         }
-        catch (Exception ex) { _error = ex.Message; }
-        finally { _busy = false; _confirmNew = false; await Refresh(); }
+        catch (VareinfoException ex) { _error = ex.Message; }
+        finally { _busy = false; }
     }
 
-    private async Task WantRead(string? code)
+    private async Task Finish()
     {
-        _error = null;
+        if (Me is null || _box is null) return;
+        await StopScan();
+        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
+        _busy = true;
         try
         {
-            var n = await Boxes.WantReadAsync(code);
-            _saved = $"{n} billeder og stregkoder bliver læst i baggrunden. Tryk ↻ Opdatér for at se hvor langt den er.";
+            await Capture.FinishBoxAsync(_box.BoxCode, Me);
+            _saved = $"Kasse {_box.Number} er færdig: {_photos} billeder og {_scans} stregkoder. Skriv nummeret på den næste kasse.";
+            _box = null;
+            _number = null;
         }
         catch (Exception ex) { _error = ex.Message; }
-        await Refresh();
+        finally { _busy = false; _confirmDone = false; }
     }
 
-    private async Task Refresh()
+    private async Task Count()
     {
-        try
-        {
-            _boxes = await Boxes.BoxesAsync();
-            _callsToday = await Reg.CallsTodayAsync();
-        }
+        if (_box is null) return;
+        try { (_photos, _scans) = await Capture.CountAsync(_box.BoxCode); }
         catch (Exception ex) { _error = ex.Message; }
     }
 
     private async Task StartScan()
     {
-        _error = null; _saved = null;
+        _error = null;
         _scanning = true;
         _scanStatus = "Hold stregkoden foran kameraet …";
         StateHasChanged();
@@ -202,7 +183,7 @@ else
         if (!_scanning) return;
         _scanning = false;
         try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
-        await Refresh();
+        await Count();
     }
 
     // Called by scanner.js for each code. The same code twice within 4 s = the camera saw it again, not a second copy.
@@ -212,13 +193,14 @@ else
         var code = Barcodes.Clean(raw);
         var again = code == _lastCode && (DateTime.Now - _lastAt).TotalSeconds < 4;
         _lastCode = code; _lastAt = DateTime.Now;
-        if (!again && code.Length >= 8 && _box is not null)
+        if (!again && code.Length >= 8 && _box is not null && Me is not null)
         {
             try
             {
-                var copies = await Boxes.ScanAsync(code, _box);
+                var copies = await Capture.ScanAsync(code, _box.BoxCode, Me);
                 _ = JS.InvokeVoidAsync("scanner.beep");
                 _scanStatus = copies > 1 ? $"✓ {code} – nu {copies} stk. i kasse {_box.Number}" : $"✓ {code} gemt i kasse {_box.Number}";
+                await Count();
             }
             catch (Exception ex) { _scanStatus = "⚠ " + ex.Message; }
         }

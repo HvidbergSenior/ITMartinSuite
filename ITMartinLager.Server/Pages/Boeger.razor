@@ -174,13 +174,12 @@
             {
                 _status = files.Count > 1 ? $"Læser billede {n + 1} af {files.Count} …" : "Læser titlerne …";
                 StateHasChanged();
-                int photoId;
                 List<Found> found;
                 await using (var s = files[n].OpenReadStream(30 * 1024 * 1024))
-                    (photoId, found) = await Checks.ReadPileAsync(s);
+                    found = await Checks.ReadPileAsync(s);
                 if (found.Count == 0) { _error = "AI'en fandt ingen bøger på billedet. Tag det lidt tættere på, i godt lys."; continue; }
 
-                var fresh = found.Select(f => CheckedBook.From(f, photoId)).ToList();
+                var fresh = found.Select(f => CheckedBook.From(f)).ToList();
                 _books.AddRange(fresh);
                 await AssessAsync(fresh);
             }

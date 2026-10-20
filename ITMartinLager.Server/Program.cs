@@ -22,14 +22,14 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Bogshoppen Lager er registret over alt det, Bogshoppen sælger: bøger, Anders And-blade, Jumbobøger, tegneserier, magasiner, CD'er, DVD'er, Blu-rays, konsolspil og Magic-kort.",
-        "Du lægger 10-20 ting ud side om side og tager ét billede. Så læser AI'en titel, nummer, år og stand på dem alle på én gang, og de lægges i den kasse, du står ved.",
+        "Billederne tages i Vareinfo: hver hjælper har sin egen kasse og tager billeder af 10-20 ting ad gangen. Når du trykker Læs, læser AI'en titel, nummer, år og stand på dem alle, og de lægges i kassen her.",
         "Hver kasse har et nummer og en QR-label, så alt kan findes igen med søgningen. Webshop, auktioner og markedspladser bygger senere på det samme register.",
     ];
     k.HowTo =
     [
-        "Vælg eller opret kassen, du lægger tingene i, under Registrér.",
-        "Læg en bunke ud med forsiden op, og tryk 📷 Tag billede.",
-        "Ret det, AI'en har læst forkert (gul = usikker), og tryk Gem.",
+        "Hjælperne tager billeder af kasserne i Vareinfo (📷 Registrér) – hver med sin egen kode og sit eget kassenummer.",
+        "Nye billeder kommer herind af sig selv hvert minut. Under 📦 Kasser trykker du Læs ved en kasse – så læser AI'en billederne og lægger tingene i kassen.",
+        "Ret det, AI'en har læst forkert, på varens side.",
         "Find alt igen under Søg – med kassenummer.",
         "Bøger: tryk 📚 Bøger og tag et billede af en bunke – så ser du pris, efterspørgsel og om bogen er værd at sælge.",
     ];
@@ -44,6 +44,8 @@ builder.Services.AddHostedService<PriceHunterJob>();
 builder.Services.AddHostedService<AuctionSyncJob>();
 builder.Services.AddHostedService<GoldListJob>();
 builder.Services.AddHostedService<ShopJob>();
+builder.Services.AddHostedService<IntakeJob>();
+builder.Services.AddHostedService<KolofonJob>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("bogshoppen-lager");
@@ -59,12 +61,9 @@ if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
 app.UseStaticFiles();
 
 // One shared PIN for Martin and Rico (Lager__Pin in magic.env). Everything but login and static files needs it.
-// Vareinfo calls /api/info/* with its key instead (Lager__InfoKey).
 var pin = app.Configuration["Lager:Pin"] ?? "";
-var infoKey = app.Configuration["Lager:InfoKey"] ?? "";
 var shopKey = app.Configuration["Lager:ShopKey"] ?? "";
 bool LoggedIn(HttpContext ctx) => pin.Length >= 6 && ctx.Request.Cookies["lager_auth"] == pin;
-bool FromVareinfo(HttpContext ctx) => infoKey.Length >= 12 && ctx.Request.Headers["X-Info-Key"] == infoKey;
 bool FromShop(HttpContext ctx) => shopKey.Length >= 12 && ctx.Request.Headers[ShopHeaders.Key] == shopKey;
 
 app.Use(async (ctx, next) =>
@@ -74,7 +73,6 @@ app.Use(async (ctx, next) =>
             || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
             || p.EndsWith(".svg") || p.EndsWith(".png");
-    if (p.StartsWith("/api/info/")) { if (FromVareinfo(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (p.StartsWith("/api/butik/")) { if (FromShop(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (open || LoggedIn(ctx)) { await next(); return; }
     if (p.StartsWith("/_blazor")) { ctx.Response.StatusCode = 401; return; }
@@ -93,13 +91,12 @@ app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "pin")] string type
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("lager_auth"); return Results.Redirect("/login"); });
 
-// Photos: the item's own photo is here; pile and kolofon photos moved to Vareinfo (old links are sent on).
+// Photos: the item's own photo and its kolofon are here; the box photos are in Vareinfo (old links are sent on).
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
 app.MapGet("/varefoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id)));
 app.MapGet("/foto/{id:int}", (int id, IVareinfoGateway v) => Results.Redirect($"{v.PublicBase}/foto/{id}"));
-app.MapGet("/kolofonfoto/{id:int}", (int id, IVareinfoGateway v) => Results.Redirect($"{v.PublicBase}/kolofonfoto/{id}"));
+app.MapGet("/kolofonfoto/{id:int}", async (int id, KolofonUseCases k) => Jpeg(await k.PhotoFileAsync(id)));
 
-app.MapInfoApi();
 app.MapShopApi();
 
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>

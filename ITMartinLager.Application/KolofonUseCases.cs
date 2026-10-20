@@ -3,34 +3,48 @@ using ITMartinLager.Domain;
 namespace ITMartinLager.Application;
 
 /// <summary>Kolofons (2026-10-11, user: "to save in db and get price just cover. A job can run through kolofon if
-/// needed"). Lager knows which books are worth one (price or first-edition look); Vareinfo takes and reads the photo
-/// (2026-10-12 split) and sends what it read back here.</summary>
-public sealed class KolofonUseCases(IItemRepository items, LagerOptions options, TimeProvider clock)
+/// needed"): the list says which books need one, the photo is taken on the item page here, and the job reads the
+/// waiting ones 10 per AI call (2026-10-20: moved here from Vareinfo, which now only takes the box photos).</summary>
+public sealed class KolofonUseCases(IItemRepository items, IPhotoStore photos, ICoverReader reader, LagerOptions options, TimeProvider clock)
 {
-    public const string TakenInVareinfo = "vareinfo";
-
     public int FromKr => options.KolofonFromKr;
 
     public Task<List<(Item Item, int TopKr)>> WantedAsync(CancellationToken ct = default) => items.KolofonWantedAsync(FromKr, 200, ct);
 
-    /// <summary>A photo was taken in Vareinfo: off the list, "venter på at blive læst" on the item page.</summary>
-    public async Task<bool> TakenAsync(int itemId, CancellationToken ct = default)
+    public Task<List<Item>> WaitingAsync(CancellationToken ct = default) => items.KolofonWaitingAsync(200, ct);
+
+    /// <summary>Keeps the photo; the book leaves the list and shows "venter på at blive læst". Returns its path.</summary>
+    public async Task<string> SavePhotoAsync(int itemId, Stream photo, CancellationToken ct = default)
     {
-        if (await items.GetAsync(itemId, ct) is not { } item) return false;
-        Kolofon.PhotoTaken(item, TakenInVareinfo);
+        var item = await items.GetAsync(itemId, ct) ?? throw new LagerException("Varen findes ikke længere.");
+        var jpeg = await photos.ShrinkAsync(photo, ct);
+        var path = Path.Combine("photos", "kolofon", $"{itemId}-{clock.GetLocalNow():yyyyMMddHHmmss}.jpg");
+        await photos.SaveAsync(path, jpeg, ct);
+        Kolofon.PhotoTaken(item, path);
         await items.UpdateAsync([item], ct);
-        return true;
+        return path;
     }
 
-    /// <summary>What Vareinfo read (null = unreadable) onto the book. A new ISBN makes the price hunter search again.</summary>
-    public async Task<bool> ReadAsync(int itemId, KolofonReading? reading, CancellationToken ct = default)
+    public async Task<string?> PhotoFileAsync(int itemId, CancellationToken ct = default) =>
+        await items.GetAsync(itemId, ct) is { } i ? photos.FullPath(i.KolofonPhoto) : null;
+
+    /// <summary>Reads up to 10 waiting kolofons in ONE call and puts what was read on the books. Returns how many.
+    /// A new ISBN makes the price hunter search again.</summary>
+    public async Task<int> ReadWaitingAsync(CancellationToken ct = default)
     {
-        if (await items.GetAsync(itemId, ct) is not { } item) return false;
+        if (!reader.Enabled) return 0;
+        var waiting = await items.KolofonWaitingAsync(Kolofon.PerCall, ct);
+        if (waiting.Count == 0) return 0;
         var now = clock.GetUtcNow().UtcDateTime;
-        if (item.KolofonPhoto == "") item.KolofonPhoto = TakenInVareinfo;
-        if (reading is null) Kolofon.Unreadable(item, now);
-        else Kolofon.Apply(item, reading, now);
-        await items.UpdateAsync([item], ct);
-        return true;
+        var withFile = new List<(Item Item, byte[] Jpeg)>();
+        foreach (var item in waiting)
+            if (await photos.ReadAsync(item.KolofonPhoto, ct) is { } jpeg) withFile.Add((item, jpeg));
+            else Kolofon.Unreadable(item, now);   // the file is gone
+        var read = withFile.Count > 0 ? await reader.ReadKolofonsAsync(withFile.Select(x => x.Jpeg).ToList(), ct) : [];
+        for (var n = 0; n < withFile.Count; n++)
+            if (read.GetValueOrDefault(n) is { } r) Kolofon.Apply(withFile[n].Item, r, now);
+            else Kolofon.Unreadable(withFile[n].Item, now);
+        await items.UpdateAsync(waiting, ct);
+        return waiting.Count;
     }
 }

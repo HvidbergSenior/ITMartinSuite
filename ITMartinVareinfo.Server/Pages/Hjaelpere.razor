@@ -1,0 +1,127 @@
+@page "/hjaelpere"
+@inject HelperUseCases Helpers
+@inject CaptureUseCases Capture
+@implements IDisposable
+
+@* Martin's page (2026-10-20): a code per helper, and who is filling which box right now - for a day with many helpers. *@
+<PageTitle>Hjælpere – Bogshoppen Vareinfo</PageTitle>
+
+@if (Me is not { IsAdmin: true })
+{
+    <section class="k-card">
+        <h1 class="k-card-title">Kun for Martin</h1>
+        <p>Siden her er til at lave koder til hjælperne. <a class="k-btn k-btn-secondary" href="/">📷 Tilbage til kassen</a></p>
+    </section>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="k-card-title">👥 Hjælpere</h1>
+        <p>Hver hjælper får sin egen kode og logger ind med den på telefonen. Så står der på hvert billede, hvem der tog det, og to kan ikke tage den samme kasse.</p>
+        <form class="lg-row" @onsubmit="Add">
+            <input class="k-input" @bind="_name" placeholder="Navn, fx Rico" aria-label="Hjælperens navn" />
+            <button class="k-btn k-btn-primary" type="submit">➕ Ny hjælper</button>
+        </form>
+        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+        @if (_added is not null)
+        {
+            <p class="lg-ok" role="status">✓ <b>@_added.Name</b> har koden <b class="lg-code">@_added.Code</b>. Giv koden til @_added.Name sammen med linket @_link</p>
+        }
+        @if (_helpers.Count > 0)
+        {
+            <ul class="lg-list">
+                @foreach (var h in _helpers)
+                {
+                    <li>
+                        <span class="lg-main"><b>@h.Name</b><span class="k-small">Kode <b class="lg-code">@h.Code</b></span></span>
+                        @if (_confirmRemove == h.Id)
+                        {
+                            <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Remove(h.Id)">Ja, fjern @h.Name</button>
+                            <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _confirmRemove = null">Nej</button>
+                        }
+                        else
+                        {
+                            <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _confirmRemove = h.Id">Fjern</button>
+                        }
+                    </li>
+                }
+            </ul>
+            <p class="k-small k-muted">Fjern = koden virker ikke mere. Billederne, hjælperen har taget, bliver.</p>
+        }
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">📦 Kasserne lige nu</h2>
+        <p>Hvem der er i gang med hvilken kasse, og hvor mange billeder der er taget. Opdateres af sig selv hvert 10. sekund. En kasse uden nye billeder i 2 timer bliver fri igen.</p>
+        @if (_boxes.Count == 0) { <p class="lg-answer">Ingen kasser endnu</p> }
+        else
+        {
+            <p class="lg-answer">@_boxes.Count(b => b.Busy) i gang · @_boxes.Count(b => b.Done) færdige · @_boxes.Sum(b => b.Photos) billeder</p>
+            <ul class="lg-list">
+                @foreach (var b in _boxes)
+                {
+                    <li>
+                        <span class="lg-box">@b.Number</span>
+                        <span class="lg-main"><b>@(b.Busy ? $"I gang – {b.Helper}" : b.Done ? $"Færdig – {b.Helper}" : b.Helper != "" ? $"Ledig (sidst {b.Helper})" : "Ledig")</b>
+                            <span class="k-small k-muted">@b.Photos billeder · @b.Scans stregkoder@(b.LastAt is { } at ? $" · sidst {at.ToLocalTime():HH:mm}" : "")</span></span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+@code {
+    [CascadingParameter] public Taker? Me { get; set; }
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private List<Helper> _helpers = [];
+    private List<BoxStatus> _boxes = [];
+    private string _name = "";
+    private Helper? _added;
+    private int? _confirmRemove;
+    private string? _error;
+    private Timer? _timer;
+    private string _link => Nav.BaseUri.TrimEnd('/');
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Me is not { IsAdmin: true }) return;
+        await Load();
+        _timer = new Timer(_ => InvokeAsync(async () => { await LoadBoxes(); StateHasChanged(); }), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+    }
+
+    private async Task Load()
+    {
+        _helpers = await Helpers.AllAsync();
+        await LoadBoxes();
+    }
+
+    private async Task LoadBoxes()
+    {
+        try { _boxes = await Capture.OverviewAsync(); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task Add()
+    {
+        _error = null; _added = null;
+        try
+        {
+            _added = await Helpers.AddAsync(_name);
+            _name = "";
+            await Load();
+        }
+        catch (VareinfoException ex) { _error = ex.Message; }
+    }
+
+    private async Task Remove(int id)
+    {
+        await Helpers.RemoveAsync(id);
+        _confirmRemove = null;
+        _added = null;
+        await Load();
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

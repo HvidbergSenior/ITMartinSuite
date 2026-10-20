@@ -53,6 +53,18 @@ public static class LagerDbInitializer
                 "Address" TEXT NOT NULL DEFAULT '', "Delivery" TEXT NOT NULL DEFAULT '', "Handled" INTEGER NOT NULL DEFAULT 0);
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_Orders_Token" ON "Orders" ("Token");
             CREATE INDEX IF NOT EXISTS "IX_Orders_Status" ON "Orders" ("Status");
+            CREATE TABLE IF NOT EXISTS "BoxShots" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_BoxShots" PRIMARY KEY AUTOINCREMENT,
+                "VareinfoId" INTEGER NOT NULL, "BoxCode" TEXT NOT NULL, "Helper" TEXT NOT NULL, "Tiles" INTEGER NOT NULL,
+                "TakenAt" TEXT NOT NULL, "Wanted" INTEGER NOT NULL, "ReadAt" TEXT NULL, "Found" INTEGER NOT NULL);
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_BoxShots_VareinfoId" ON "BoxShots" ("VareinfoId");
+            CREATE INDEX IF NOT EXISTS "IX_BoxShots_BoxCode" ON "BoxShots" ("BoxCode");
+            CREATE TABLE IF NOT EXISTS "BoxScans" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_BoxScans" PRIMARY KEY AUTOINCREMENT,
+                "VareinfoId" INTEGER NOT NULL, "BoxCode" TEXT NOT NULL, "Helper" TEXT NOT NULL, "Code" TEXT NOT NULL,
+                "Quantity" INTEGER NOT NULL, "TakenAt" TEXT NOT NULL, "Wanted" INTEGER NOT NULL, "ReadAt" TEXT NULL, "Known" INTEGER NOT NULL);
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_BoxScans_VareinfoId" ON "BoxScans" ("VareinfoId");
+            CREATE INDEX IF NOT EXISTS "IX_BoxScans_BoxCode" ON "BoxScans" ("BoxCode");
             """);
         foreach (var col in new[] { "Nemos", "Proof", "Faraos", "Bokborsen" })
         {

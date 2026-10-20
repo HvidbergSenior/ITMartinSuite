@@ -80,3 +80,6 @@
 }
 .lg-boxes { list-style: none; padding: 0; margin: 0 0 .8rem; display: grid; gap: .5rem; }
 .lg-boxes li { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+
+/* A helper's code on the Hjælpere page: big and spaced, easy to read out loud. */
+.lg-code { font-family: ui-monospace, monospace; font-size: 1.15em; letter-spacing: 0.12em; }

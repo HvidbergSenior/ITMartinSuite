@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Bogshoppen Vareinfo – find ud af hvad tingene er: billede af en bunke, stregkoder, kolofoner." />
+    <meta name="description" content="Bogshoppen Vareinfo – skriv kassens nummer og tag billeder af alt i den." />
     <title>Bogshoppen Vareinfo</title>
     <base href="/" />
     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
@@ -14,7 +14,7 @@
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveServer" Me="@(HttpContext?.Items[nameof(Taker)] as Taker)" />
     <script src="_content/ITMartin.Shared.UI/scanner.js?v=@CacheBuster"></script>
     <script src="fotokoe.js?v=@CacheBuster"></script>
     <script src="_framework/blazor.server.js"></script>
@@ -24,4 +24,8 @@
 
 @code {
     public static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+
+    // Set by the sign-in middleware; null on /login. The circuit's parameters are data-protected, so who it is cannot
+    // be swapped in the browser.
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
 }
