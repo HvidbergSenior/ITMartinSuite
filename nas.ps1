@@ -29,16 +29,15 @@ $NAS = "$NasUser@$NasIp"
 # Named groups — shortcuts for multi-container sets
 $Groups = @{
     "filesorter" = @("rabbitmq", "filesorter-web", "filesorter-worker")
-    "magazine"   = @("magazine-web", "magazine-search-web")
-    "claude"     = @("library-web", "library-search-web", "curator-web", "magic-web", "filesorter-web", "receipt-web", "magazine-web", "budget-web")
+    "claude"     = @("curator-web", "magic-web", "filesorter-web", "receipt-web", "budget-web")
 }
 
 # ── Always-on (no profile, started by docker compose up -d) ──────────────
-#   receipt-web, library-web, adhd-web
+#   receipt-web, adhd-web
 #   magic-web, magic-postgres, magic-collection-web
 #   gallery-web, gallery-mie, gallery-hvidbergfamily, gallery-hvidberg
 #   testhub-web, club-web
-#   index-web, cloudflared
+#   cloudflared
 
 # ── Manual (profiles: [manual]) — use nas-up / nas-down ──────────────────
 #   musik-web          — public music sharing
@@ -46,10 +45,7 @@ $Groups = @{
 #   musik-studio-web   — private studio
 #   budget-web         — personal budget
 #   r6assistant-web    — gaming tool
-#   library-search-web — book search
 #   curator-web        — media curator
-#   magazine-web       — magazine scanner
-#   magazine-search-web
 #   filesorter-web     — file sorter (use group: filesorter)
 #   filesorter-worker  — file sorter worker
 #   rabbitmq           — message broker (auto-started with filesorter)
@@ -57,7 +53,6 @@ $Groups = @{
 #   imagegen-web       — AI image generator (port 8107)
 #   auction-web        — auction (testing soon)
 #   bartab-web         — bar tab (not in use yet)
-#   market-web         — marketplace (not in use yet)
 
 function nas-up {
     param([Parameter(Mandatory)][string]$Name)

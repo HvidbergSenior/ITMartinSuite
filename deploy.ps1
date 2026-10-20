@@ -40,19 +40,13 @@ $ServiceMap = @{
     "r6assistant-web"        = @{ Dockerfile = "ITMartinR6Assistant.Server/Dockerfile";               Context = "." }
     "r6intel-web"            = @{ Dockerfile = "ITMartinR6Intel.Server/Dockerfile";                   Context = "." }
     "receipt-web"            = @{ Dockerfile = "ITMartin.Receipt.Server/Dockerfile";                  Context = "." }
-    "library-web"            = @{ Dockerfile = "ITMartinLibrary.Server/Dockerfile";                   Context = "." }
-    "library-search-web"     = @{ Dockerfile = "ITMartinLibrary.Search.Server/Dockerfile";            Context = "." }
     "adhd-web"               = @{ Dockerfile = "ITMartinAdhd.Server/Dockerfile";                      Context = "." }
-    "market-web"             = @{ Dockerfile = "ITMartinMarket.Server/Dockerfile";                    Context = "." }
     "bartab-web"             = @{ Dockerfile = "ITMartinBarTab.Server/Dockerfile";                    Context = "." }
     "auction-web"            = @{ Dockerfile = "ITMartinAuction.Server/Dockerfile";                   Context = "."; Profile = "manual" }
     "testhub-web"            = @{ Dockerfile = "ITMartinTestHub.Server/Dockerfile";                   Context = "." }
-    "index-web"              = @{ Dockerfile = "ITMartin.IndexServer/Dockerfile";                     Context = "." }
     "kontrol-web"            = @{ Dockerfile = "ITMartinKontrol.Server/Dockerfile";                    Context = "." }
     "musik-web"              = @{ Dockerfile = "ITMartinMusic.Server/Dockerfile";                     Context = "." }
     "club-web"               = @{ Dockerfile = "ITMartinClub.Server/Dockerfile";                      Context = "." }
-    "magazine-web"           = @{ Dockerfile = "ITMartinMagazine.Server/Dockerfile";                  Context = "." }
-    "magazine-search-web"    = @{ Dockerfile = "ITMartinMagazine.Search.Server/Dockerfile";           Context = "." }
     "musik-studio-web"       = @{ Dockerfile = "ITMartinMusikStudio.Server/Dockerfile";               Context = "." }
     "scan-web"               = @{ Dockerfile = "ITMartinScan.Server/Dockerfile";                      Context = "." }
     "imagegen-web"           = @{ Dockerfile = "ITMartinImageGen.Server/Dockerfile";                  Context = "." }
@@ -64,9 +58,7 @@ $ServiceMap = @{
     "upload-web"             = @{ Dockerfile = "ITMartinUpload.Server/Dockerfile";                     Context = "."; Profile = "manual" }
     "cloudoverblik-web"      = @{ Dockerfile = "ITMartinCloudOverblik.Server/Dockerfile";              Context = "." }
     "stats-web"              = @{ Dockerfile = "ITMartinStats.Server/Dockerfile";                      Context = "." }
-    "uret-web"               = @{ Dockerfile = "ITMartinUret.Server/Dockerfile";                        Context = "."; Profile = "manual" }
     "stream-web"             = @{ Dockerfile = "ITMartinStream.Server/Dockerfile";                      Context = "."; Profile = "manual" }
-    "mediaseller-web"        = @{ Dockerfile = "ITMartinMediaSeller.Server/Dockerfile";                  Context = "."; Profile = "manual" }
     "star-realms-web"        = @{ Dockerfile = "ITMartinStarRealms.Server/Dockerfile";                   Context = "."; Profile = "manual" }
     "pdf-web"                = @{ Dockerfile = "ITMartinPdf.Server/Dockerfile";                           Context = "."; Profile = "manual" }
     "elpriser-web"           = @{ Dockerfile = "ITMartinElPriser.Server/Dockerfile";                      Context = "."; Profile = "manual" }
@@ -75,8 +67,6 @@ $ServiceMap = @{
     "player-web"             = @{ Dockerfile = "ITMartinPlayer.Server/Dockerfile";                        Context = "."; Profile = "manual" }
     # musiccheck-web: now "Mine skiver" (ITMartinMusicCheck.Server), runs on the PHOTOSERVER as mineskiver-web :9146 - build + docker save/ssh load, not this script
     "dreamreader-web"        = @{ Dockerfile = "ITMartinDreamReader.Server/Dockerfile";                    Context = "." }
-    "rewlhul-web"            = @{ Dockerfile = "ITMartinRewlhul.Server/Dockerfile";                         Context = "." }
-    "redigerdokument-web"    = @{ Dockerfile = "ITMartinRedigerDokument.Server/Dockerfile";                  Context = "."; Profile = "manual" }
     "aeromedrecord-web"      = @{ Dockerfile = "ITMartinAeroMedRecord.Server/Dockerfile";                     Context = "."; Profile = "manual" }
     "polstrer-web"           = @{ Dockerfile = "ITMartinPolstrer.Server/Dockerfile";                          Context = "." }
     "polstrer-tavle-web"     = @{ Dockerfile = "ITMartinPolstrerTavle.Server/Dockerfile";                     Context = "." }

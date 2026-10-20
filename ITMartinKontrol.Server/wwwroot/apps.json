@@ -266,12 +266,6 @@
     "desc": "Hvad bruger en person/familie på abonnementer? Kan kobles sammen med Budget.",
     "off": "Abonnementsoverblikket kan ikke ses."
   },
-  "index-web": {
-    "icon": "🏠",
-    "title": "ITMartin Suite (gammel)",
-    "desc": "Gammel idé: vis folk nemt, hvilke apps du har.",
-    "off": "Den gamle app-oversigt svarer ikke."
-  },
   "testhub-web": {
     "icon": "🧪",
     "title": "TestHub",
@@ -307,53 +301,17 @@
     "desc": "Scan gamle blade og magasiner for at finde ud af, hvad de er værd.",
     "off": "Scanning virker ikke."
   },
-  "magazine-web": {
-    "icon": "📖",
-    "title": "Magazine Scanner",
-    "desc": "Dine mange gamle magasiner: scan dem og find prisen.",
-    "off": "Magasin-scanning virker ikke."
-  },
-  "magazine-search-web": {
-    "icon": "🔍",
-    "title": "Magazine Search",
-    "desc": "Søg i de scannede magasiner og deres priser.",
-    "off": "Magasin-søgning virker ikke."
-  },
-  "library-web": {
-    "icon": "📦",
-    "title": "Lager",
-    "desc": "Gem, find og søg i alle dine produkter på lager – dvd'er, magasiner osv. Fælles for produkt-apps.",
-    "off": "Lageret kan ikke ses."
-  },
-  "library-search-web": {
-    "icon": "🔍",
-    "title": "Lager-søgning",
-    "desc": "Søgedelen af lageret: find et produkt på tværs af dvd'er, magasiner osv.",
-    "off": "Lager-søgning virker ikke."
-  },
   "dreamreader-web": {
     "icon": "🌙",
     "title": "Drømmelæser",
     "desc": "Skriv dine drømme ned – og opdag, om du har drømt det samme om de samme mennesker mange gange.",
     "off": "Drømmedagbogen kan ikke åbnes."
   },
-  "redigerdokument-web": {
-    "icon": "📝",
-    "title": "RedigerDokument",
-    "desc": "Bryd store dokumenter (krav, specifikationer skrevet før koden) ned i små, brugbare bidder.",
-    "off": "Dokumenter kan ikke brydes ned."
-  },
   "aeromedrecord-web": {
     "icon": "📑",
     "title": "Formidling (kundesystem)",
     "desc": "Nyt system til en kunde. Venter – lad det være.",
     "off": "Kundesystemet svarer ikke."
-  },
-  "uret-web": {
-    "icon": "🕰️",
-    "title": "Uret",
-    "desc": "Del oplevelser som Movia-sagen uden at blive dømt: hvad gjorde andre, hvad kan jeg gøre, hvem har været i samme situation.",
-    "off": "Historierne kan ikke læses eller deles."
   },
   "curator-web": {
     "icon": "🗂️",
@@ -364,23 +322,5 @@
     "icon": "👪",
     "title": "Family (skal slettes)",
     "desc": "Idé: familien strukturerer ting sammen – erstattet af Bestøver Klub. Brugeren har sagt: slet den."
-  },
-  "market-web": {
-    "icon": "🛒",
-    "title": "Market",
-    "desc": "Markedsplads/webshop-idé. God idé, ikke færdig.",
-    "off": "Webshoppen kan ikke åbnes."
-  },
-  "mediaseller-web": {
-    "icon": "💿",
-    "title": "MediaSeller",
-    "desc": "Salg af film, dvd'er og cd'er – snart 100.000+ stk. Kan kobles sammen med lageret.",
-    "off": "Salgssiden svarer ikke."
-  },
-  "rewlhul-web": {
-    "icon": "🎉",
-    "title": "Rewlhul",
-    "desc": "Hurtigt festspil. Denne version er ikke sjov nok – trænger til klik, lyde og nye idéer.",
-    "off": "Festspillet kan ikke spilles."
   }
 }

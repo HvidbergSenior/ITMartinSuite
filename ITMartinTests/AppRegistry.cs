@@ -23,8 +23,6 @@ public static class AppRegistry
 
         // ── Real shops / real users ────────────────────────────────────────────
         new("Kvittering",         "receipt-web",          "https://kvittering.itmartin.dk"),
-        new("Library Scan",       "library-web",          "https://scan-books.itmartin.dk"),
-        new("Library Search",     "library-search-web",   "https://search-books.itmartin.dk"),
         new("ADHD FindIt",        "adhd-web",             "https://adhd.itmartin.dk"),
         new("Magic Card",         "magic-web",            "https://magic-card-pricing.itmartin.dk"),
         new("Magic Collection",   "magic-collection-web", "https://magic-collection.itmartin.dk"),
@@ -38,16 +36,12 @@ public static class AppRegistry
         new("Club (R6 Oldboyz)",  "club-web",             "https://r6OldBoyz.itmartin.dk"),
         new("BarTab",             "bartab-web",           "https://bartab.itmartin.dk"),
         new("Auction",            "auction-web",          "https://auction.itmartin.dk"),
-        new("Market",             "market-web",           "https://market.itmartin.dk"),
         new("Family Planner",     "family-web",           "https://idag.itmartin.dk"),
         new("Møbelpolstrer",      "polstrer-web",         "https://polstrer.itmartin.dk"),
 
         // ── Tools ─────────────────────────────────────────────────────────────
-        new("Portal",             "index-web",            "https://all-apps.itmartin.dk"),
         new("FileSorter",         "filesorter-web",       "https://filesorter.itmartin.dk"),
         new("Budget",             "budget-web",           "https://budget.itmartin.dk"),
-        new("Magazine",           "magazine-web",         "https://magazine.itmartin.dk"),
-        new("Magazine Search",    "magazine-search-web",  "https://magazine-search.itmartin.dk"),
         new("Image Generator",    "imagegen-web",         "https://billedbehandling.itmartin.dk"),
         new("Cloud Overblik",     "cloudoverblik-web",    "https://cloudoverblik.itmartin.dk"),
         new("Test Hub",           "testhub-web",          "https://test.itmartin.dk"),
@@ -55,6 +49,5 @@ public static class AppRegistry
         new("Upload",             "upload-web",           "https://upload.itmartin.dk"),
         new("R6 Assistant",       "r6assistant-web",      "https://r6.itmartin.dk"),
         new("R6 Intel",           "r6intel-web",          "https://r6intel.itmartin.dk"),
-        new("Media Seller",       "mediaseller-web",      "https://mediaseller.itmartin.dk"),
     ];
 }

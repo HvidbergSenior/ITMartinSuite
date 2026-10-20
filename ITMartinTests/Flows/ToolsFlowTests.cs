@@ -1,23 +1,10 @@
 namespace ITMartinTests.Flows;
 
-/// <summary>Portal, FileSorter, Budget, Magazine, Magazine Search, ImageGen, CloudOverblik, TestHub, Scan, Upload</summary>
+/// <summary>FileSorter, Budget, ImageGen, CloudOverblik, TestHub, Scan, Upload</summary>
 [TestFixture]
 [Category("Flow")]
 public class ToolsFlowTests : FlowTestBase
 {
-    // ── Portal ────────────────────────────────────────────────────────────────
-
-    [Test]
-    public async Task Portal_Index_Loads_With_Links()
-    {
-        await GoOrSkip("https://all-apps.itmartin.dk");
-        await WaitForPage();
-        await AssertBodyHasContent("Portal");
-
-        var linkCount = await Page.Locator("a[href]").CountAsync();
-        Assert.That(linkCount, Is.GreaterThan(0), "Portal should have navigation links to other apps");
-    }
-
     // ── FileSorter ────────────────────────────────────────────────────────────
 
     [Test]
@@ -56,60 +43,6 @@ public class ToolsFlowTests : FlowTestBase
 
         var hasContent = await Page.Locator(".budget, .category, table tr, ul li, input, h1, h2, div[class]").CountAsync() > 0;
         Assert.That(hasContent, Is.True, "Budget should show categories, amounts, or inputs");
-    }
-
-    // ── Magazine ──────────────────────────────────────────────────────────────
-
-    [Test]
-    public async Task Magazine_Index_Loads()
-    {
-        await GoOrSkip("https://magazine.itmartin.dk");
-        await WaitForPage();
-        await AssertBodyHasContent("Magazine index");
-    }
-
-    [Test]
-    public async Task Magazine_Shows_Articles_Or_Content()
-    {
-        await GoOrSkip("https://magazine.itmartin.dk");
-        await WaitForPage();
-        await AssertBodyHasContent("Magazine articles");
-
-        var hasContent = await Page.Locator("article, .article, .blad, ul li, .card, h1, h2, div[class]").CountAsync() > 0;
-        Assert.That(hasContent, Is.True, "Magazine should show articles or headings");
-    }
-
-    // ── Magazine Search ───────────────────────────────────────────────────────
-
-    [Test]
-    public async Task MagazineSearch_Has_Search_Input()
-    {
-        await GoOrSkip("https://magazine-search.itmartin.dk");
-        await WaitForPage();
-        await AssertBodyHasContent("Magazine Search");
-
-        var hasInput = await Page.Locator("input").CountAsync() > 0;
-        Assert.That(hasInput, Is.True, "Magazine Search should have a search input");
-    }
-
-    [Test]
-    public async Task MagazineSearch_Returns_Results_Or_Empty()
-    {
-        await GoOrSkip("https://magazine-search.itmartin.dk");
-        await WaitForPage();
-
-        var input = Page.Locator("input").First;
-        if (await input.CountAsync() == 0)
-        {
-            Assert.Ignore("No search input on Magazine Search page");
-            return;
-        }
-
-        await input.FillAsync("natur");
-        await input.PressAsync("Enter");
-        await Task.Delay(2_000);
-
-        await AssertBodyHasContent("Magazine Search results");
     }
 
     // ── Image Generator ───────────────────────────────────────────────────────

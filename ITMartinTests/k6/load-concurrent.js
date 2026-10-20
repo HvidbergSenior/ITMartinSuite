@@ -32,7 +32,6 @@ const APPS = [
   { name: 'Poll',           url: __ENV.POLL_URL           || 'https://stem.itmartin.dk'            },
   { name: 'DailyBrief',    url: __ENV.DAILYBRIEF_URL     || 'https://nyheder.itmartin.dk'         },
   { name: 'Gallery',       url: __ENV.GALLERY_URL         || 'https://gallery.itmartin.dk'         },
-  { name: 'LibrarySearch', url: __ENV.LIBRARY_SEARCH_URL  || 'https://search-books.itmartin.dk'    },
   { name: 'Receipt',       url: __ENV.RECEIPT_URL         || 'https://kvittering.itmartin.dk'      },
   { name: 'Club',          url: __ENV.CLUB_URL            || 'https://lions-club.itmartin.dk'      },
   { name: 'Musik',         url: __ENV.MUSIK_URL           || 'https://musik.itmartin.dk'           },

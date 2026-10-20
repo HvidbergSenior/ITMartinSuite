@@ -28,8 +28,6 @@ public static class SeedService
             new AppEntry { Name = "Market",          Icon = "🛍️", Url = "https://market.itmartin.dk",           Description = "Markedsplads",                         SortOrder = 11 },
             new AppEntry { Name = "R6 Assistant",    Icon = "🎮", Url = "https://r6.itmartin.dk",               Description = "Rainbow Six Siege-assistent",          SortOrder = 12 },
             new AppEntry { Name = "Portal",          Icon = "🏠", Url = "https://all-apps.itmartin.dk",         Description = "Hovedportal og indeks",                SortOrder = 13 },
-            new AppEntry { Name = "Library Scan",    Icon = "📷", Url = "https://scan-books.itmartin.dk",       Description = "Scan en bogreol med kameraet – AI identificerer bøgerne",   SortOrder = 14 },
-            new AppEntry { Name = "Library Search",  Icon = "🔍", Url = "https://search-books.itmartin.dk",    Description = "Søg i bøger identificeret fra scannede bogreoler",          SortOrder = 15 },
             new AppEntry { Name = "Club",            Icon = "🏛️", Url = "https://lions-club.itmartin.dk",       Description = "Gruppeorganisator med opslagstavle, kalender og dokumenter", SortOrder = 16 },
             new AppEntry { Name = "Magic Scan",      Icon = "🃏", Url = "https://magic-card-pricing.itmartin.dk", Description = "AI-drevet MTG-kortscanner med prisopslag",              SortOrder = 17 },
             new AppEntry { Name = "TestHub",          Icon = "🧪", Url = "https://test.itmartin.dk",               Description = "Test-app til kvalitetstestning af ITMartin-apps",       SortOrder = 18 },
@@ -46,8 +44,6 @@ public static class SeedService
 
     private static readonly Dictionary<string, string> CorrectUrls = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Library Scan"]   = "https://scan-books.itmartin.dk",
-        ["Library Search"] = "https://search-books.itmartin.dk",
         ["Club"]           = "https://lions-club.itmartin.dk",
         ["Magic Scan"]     = "https://magic-card-pricing.itmartin.dk",
         ["FindIt"]         = "https://adhd.itmartin.dk",

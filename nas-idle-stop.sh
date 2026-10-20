@@ -24,7 +24,7 @@ log() { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*"; }
 # Never touch these — real external shop use, core infra, or the tracking
 # mechanism itself. Everything else with profiles:[manual] is fair game,
 # including "heavy" apps like magic-web — idle is idle.
-EXCLUDE=(receipt-web library-web index-web cloudflared rabbitmq stats-web magic-postgres cloudoverblik-web)
+EXCLUDE=(receipt-web cloudflared rabbitmq stats-web magic-postgres cloudoverblik-web)
 
 # service -> public domain (as tracked in Stats' Host column). Services with
 # no public domain (internal/local-only tools) are left out here and fall
@@ -34,12 +34,10 @@ declare -A SERVICE_HOST=(
     [gallery-web]="gallery.itmartin.dk"
     [filesorter-web]="sort.itmartin.dk"
     [budget-web]="budget.itmartin.dk"
-    [library-search-web]="search-books.itmartin.dk"
     [family-web]="familie.itmartin.dk"
     [adhd-web]="adhd.itmartin.dk"
     [bartab-web]="bartab.itmartin.dk"
     [auction-web]="auction.itmartin.dk"
-    [market-web]="market.itmartin.dk"
     [imagegen-web]="billedbehandling.itmartin.dk"
     [cloudoverblik-web]="cloudoverblik.itmartin.dk"
     [testhub-web]="test.itmartin.dk"
@@ -49,7 +47,6 @@ declare -A SERVICE_HOST=(
     [scan-web]="scan.itmartin.dk"
     [upload-web]="upload.itmartin.dk"
     [poll-web]="stem.itmartin.dk"
-    [uret-web]="uretfaerdighed.itmartin.dk"
     [stream-web]="stream.itmartin.dk"
 )
 
@@ -87,14 +84,14 @@ stop_service() {
 now=$(date -u +%s)
 
 # Every service currently in docker-compose with profiles:[manual], minus EXCLUDE.
-ALL_MANAGED=(index-web filesorter-web filesorter-worker curator-web gallery-web
+ALL_MANAGED=(filesorter-web filesorter-worker curator-web gallery-web
     gallery-mie gallery-hvidbergfamily gallery-hvidberg budget-web r6assistant-web
-    magic-web library-search-web magic-collection-web receipt-web library-web
-    family-web adhd-web bartab-web auction-web market-web imagegen-web
-    cloudoverblik-web testhub-web club-web musik-web magazine-web
-    magazine-search-web musik-studio-web r6intel-web r6strat-web live-web
-    image-processor scan-web upload-web dailybrief-web poll-web mediaseller-web
-    uret-web stream-web)
+    magic-web magic-collection-web receipt-web
+    family-web adhd-web bartab-web auction-web imagegen-web
+    cloudoverblik-web testhub-web club-web musik-web
+    musik-studio-web r6intel-web r6strat-web live-web
+    image-processor scan-web upload-web dailybrief-web poll-web
+    stream-web)
 
 for svc in "${ALL_MANAGED[@]}"; do
     is_excluded "$svc" && continue
