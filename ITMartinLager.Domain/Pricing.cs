@@ -201,7 +201,7 @@ public static partial class Pricing
 public sealed record SourceAnswer(string Source, bool IsNew, Listings? Result);
 
 // One hunt's outcome for one item: the per-site checks, the finds kept as proof and the normal used price.
-public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, int Answered, int? Normal, int? SimilarNormal = null)
+public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, int Answered, int? Normal, int? SimilarNormal = null, int? NewNormal = null)
 {
     public static HuntResult From(int itemId, IReadOnlyList<SourceAnswer> answers, DateTime now, IReadOnlyList<SourceAnswer>? similar = null)
     {
@@ -241,14 +241,19 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
                 Url = o.Url, FoundAt = now, Similar = true,
             }));
         var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!)).Select(o => (int)o.Price!.Value).ToList();
-        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalOf(likeKr));
+        // New shops (Saxo, Amazon ...): the price a new copy is compared with.
+        var fresh = answers.Where(a => a.IsNew && a.Result is { Ambiguous: false }).SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();
+        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalOf(likeKr),
+            Pricing.NormalOf(fresh));
     }
 
-    // Onto the item: when it was hunted (nothing answered = try again tomorrow, not in 30 days) and the price hint.
+    // Onto the item: when it was hunted (nothing answered = try again tomorrow, not in 30 days) and the price hint. A new
+    // copy is priced 10 % under the new shops (2026-10-20); used prices only when no new shop has it.
     public void ApplyTo(Item item, DateTime now)
     {
         item.PricesAt = Answered == 0 ? now - Pricing.StaleAfter + TimeSpan.FromDays(1) : now;
-        if (ShopPrice(Normal) is { } p) item.PriceHint = p;
+        var market = item.Usage == Usages.New ? NewNormal ?? Normal : Normal;
+        if (ShopPrice(market) is { } p) item.PriceHint = p;
         item.SimilarHint = Normal is null ? SimilarNormal : null;
     }
 

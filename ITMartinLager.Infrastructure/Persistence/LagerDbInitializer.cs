@@ -68,16 +68,25 @@ public static class LagerDbInitializer
             CREATE TABLE IF NOT EXISTS "OrderLines" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_OrderLines" PRIMARY KEY AUTOINCREMENT,
                 "OrderId" INTEGER NOT NULL, "ItemId" INTEGER NOT NULL, "Line" TEXT NOT NULL DEFAULT '', "Kind" TEXT NOT NULL DEFAULT '',
+                "Usage" TEXT NOT NULL DEFAULT 'Brugt',
                 "ListKr" INTEGER NOT NULL DEFAULT 0, "Kr" INTEGER NOT NULL DEFAULT 0, "Offer" TEXT NOT NULL DEFAULT '',
                 CONSTRAINT "FK_OrderLines_Orders_OrderId" FOREIGN KEY ("OrderId") REFERENCES "Orders" ("Id") ON DELETE CASCADE);
             CREATE INDEX IF NOT EXISTS "IX_OrderLines_OrderId" ON "OrderLines" ("OrderId");
             CREATE INDEX IF NOT EXISTS "IX_OrderLines_ItemId" ON "OrderLines" ("ItemId");
             CREATE TABLE IF NOT EXISTS "Campaigns" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_Campaigns" PRIMARY KEY AUTOINCREMENT,
-                "Name" TEXT NOT NULL DEFAULT '', "Kind" TEXT NOT NULL DEFAULT '', "ProductType" TEXT NOT NULL DEFAULT '',
+                "Name" TEXT NOT NULL DEFAULT '', "Kind" TEXT NOT NULL DEFAULT '', "ProductType" TEXT NOT NULL DEFAULT '', "Usage" TEXT NOT NULL DEFAULT '',
                 "Weekday" INTEGER NULL, "DayOfMonth" INTEGER NULL, "Percent" INTEGER NOT NULL DEFAULT 0, "Count" INTEGER NOT NULL DEFAULT 0,
                 "BundleKr" INTEGER NOT NULL DEFAULT 0, "Active" INTEGER NOT NULL DEFAULT 0);
             """);
+        // New or used (2026-10-20): on the offers and the sale lines too - before old orders get their lines below.
+        foreach (var (table, col, type) in new[] { ("Campaigns", "Usage", "TEXT NOT NULL DEFAULT ''"), ("OrderLines", "Usage", "TEXT NOT NULL DEFAULT 'Brugt'") })
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{col}'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+                db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {col} {type}");
+        }
         // Orders before baskets and the sale steps (2026-10-20): Channel/PackedAt/DoneAt/Tracking added; each old order
         // gets its one line; "Handled" (sent or picked up) becomes the status it meant.
         foreach (var (col, type) in new[] { ("Channel", "TEXT NOT NULL DEFAULT 'Køb nu'"), ("PackedAt", "TEXT NULL"), ("DoneAt", "TEXT NULL"),
@@ -89,8 +98,8 @@ public static class LagerDbInitializer
                 db.Database.ExecuteSqlRaw($"ALTER TABLE Orders ADD COLUMN {col} {type}");
         }
         db.Database.ExecuteSqlRaw("""
-            INSERT INTO "OrderLines" ("OrderId", "ItemId", "Line", "Kind", "ListKr", "Kr", "Offer")
-            SELECT o."Id", o."ItemId", o."Line", '', o."Kr", o."Kr", '' FROM "Orders" o
+            INSERT INTO "OrderLines" ("OrderId", "ItemId", "Line", "Kind", "Usage", "ListKr", "Kr", "Offer")
+            SELECT o."Id", o."ItemId", o."Line", '', 'Brugt', o."Kr", o."Kr", '' FROM "Orders" o
             WHERE NOT EXISTS (SELECT 1 FROM "OrderLines" l WHERE l."OrderId" = o."Id");
             """);
         using (var cmd = conn.CreateCommand())
@@ -124,7 +133,7 @@ public static class LagerDbInitializer
             ("PriceHint", "REAL NULL"), ("MagicRef", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"),
             ("PricesAt", "TEXT NULL"), ("KolofonPhoto", "TEXT NOT NULL DEFAULT ''"), ("KolofonAt", "TEXT NULL"),
             ("Edition", "TEXT NOT NULL DEFAULT ''"), ("Publisher", "TEXT NOT NULL DEFAULT ''"), ("EditionHint", "TEXT NOT NULL DEFAULT ''"),
-            ("SimilarHint", "REAL NULL"), ("FeaturedAt", "TEXT NULL"),
+            ("SimilarHint", "REAL NULL"), ("FeaturedAt", "TEXT NULL"), ("Usage", "TEXT NOT NULL DEFAULT 'Brugt'"),
         })
         {
             using var cmd = conn.CreateCommand();

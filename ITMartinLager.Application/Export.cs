@@ -33,10 +33,10 @@ public sealed class ExportUseCases(IItemRepository items, IBookCheckRepository c
     public async Task<byte[]> ItemsCsvAsync(CancellationToken ct = default)
     {
         var rows = (await items.AllAsync(ct)).OrderBy(i => i.Kind).ThenBy(i => i.Series).ThenBy(i => i.Title);
-        var sb = new StringBuilder("﻿Id;Type;Titel;Kunstner;Serie;Nummer;År;Platform;Stand;Antal;Kasse;Pris;Status;Note;Det interessante;Udgave;Forlag;ISBN\n");
+        var sb = new StringBuilder("﻿Id;Type;Titel;Kunstner;Serie;Nummer;År;Platform;Ny/brugt;Stand;Antal;Kasse;Pris;Status;Note;Det interessante;Udgave;Forlag;ISBN\n");
         foreach (var i in rows)
             sb.AppendLine(string.Join(';', i.Id, C(i.Kind), C(i.Title), C(i.Artist), C(i.Series), C(i.Number), i.Year, C(i.Platform),
-                C(i.Condition), i.Quantity, C(i.Box?.Code), i.Price, C(i.Status), C(i.Note), C(i.Interest), C(i.Edition), C(i.Publisher), C(i.Barcode)));
+                C(i.Usage), C(i.Condition), i.Quantity, C(i.Box?.Code), i.Price, C(i.Status), C(i.Note), C(i.Interest), C(i.Edition), C(i.Publisher), C(i.Barcode)));
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 

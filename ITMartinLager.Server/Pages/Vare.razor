@@ -54,6 +54,7 @@ else
             <label>Udgave / oplag <input class="k-input" @bind="_item.Edition" placeholder="1. udgave, 1. oplag" /></label>
             <label>Forlag <input class="k-input" @bind="_item.Publisher" /></label>
             <label>Konsol <input class="k-input" @bind="_item.Platform" /></label>
+            <label>Ny eller brugt <select class="k-input" @bind="_item.Usage">@foreach (var u in Usages.All) { <option value="@u">@u</option> }</select></label>
             <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
             <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
             <label>Pris (kr)@(_item.PriceHint is { } ph ? $" – forslag {ph:0} kr" : "") <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>

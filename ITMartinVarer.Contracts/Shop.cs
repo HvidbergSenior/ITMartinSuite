@@ -9,9 +9,10 @@ public static class ShopHeaders
 
 /// <summary>One thing in the shop. BuyNowKr null = no Køb nu yet (ExpectKr = what it is worth on the other sites,
 /// minus 10 %). Available = copies not reserved by someone paying right now. Type = ProductTypes. DayKr = today's
-/// price when a day offer covers it (DayOffer says which). Badge = "🏆 GULD" / "🥈 SØLV" / "🥉 BRONZE" or "".</summary>
+/// price when a day offer covers it (DayOffer says which). Badge = "🏆 GULD" / "🥈 SØLV" / "🥉 BRONZE" or "". Usage = Usages.</summary>
 public sealed record ShopItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
-    int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto, string Type = "", int? DayKr = null, string DayOffer = "", string Badge = "");
+    int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto, string Type = "", int? DayKr = null, string DayOffer = "", string Badge = "",
+    string Usage = "");
 
 /// <summary>The proof for the price promise: one listing on another site.</summary>
 public sealed record ShopProof(string Source, int Kr, string Original, string Url, bool IsNew);

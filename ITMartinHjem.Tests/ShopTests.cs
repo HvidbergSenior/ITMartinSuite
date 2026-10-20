@@ -22,7 +22,7 @@ public class ShopTests
             return Task.FromResult<(string?, string?)>(("https://checkout.stripe.com/x", null));
         }
         public Task<ShopOrder?> OrderAsync(string token, CancellationToken ct = default) => Task.FromResult<ShopOrder?>(null);
-        public Task<ShopMarket> MarketAsync(string? type, string? kind, string? text, string? sort, int page, CancellationToken ct = default) =>
+        public Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default) =>
             down ? throw new HttpRequestException() : Task.FromResult(new ShopMarket(true, [new ShopType("Bøger", 1)], [], [Mort], 1));
         public Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default) =>
             down ? throw new HttpRequestException() : Task.FromResult(new ShopQuote(true, [new ShopQuoteLine(1, Mort.Line, 80, 40, "50 % på bøger")], 40, 40, [], []));
@@ -38,19 +38,19 @@ public class ShopTests
     {
         var lager = new FakeLager();
         var nameless = new ShopUseCases(lager, new ShopSeller("", "", "", "a@b.dk", ""));
-        (await nameless.MarketAsync(null, null, null, null, 0)).Market!.CanPay.Should().BeFalse();
+        (await nameless.MarketAsync(null, null, null, null, null, 0)).Market!.CanPay.Should().BeFalse();
         (await nameless.QuoteAsync([1]))!.CanPay.Should().BeFalse();
         (await nameless.BuyBasketAsync([1], "https://bogshoppen.dk")).Error.Should().NotBeNull();
         lager.Buys.Should().Be(0);
 
         var named = new ShopUseCases(lager, new ShopSeller("ITMartin", "46253442", "", "a@b.dk", ""));
-        (await named.MarketAsync(null, null, null, null, 0)).Market!.CanPay.Should().BeTrue();
+        (await named.MarketAsync(null, null, null, null, null, 0)).Market!.CanPay.Should().BeTrue();
         (await named.QuoteAsync([1]))!.Total.Should().Be(40);
         (await named.QuoteAsync([]))!.Lines.Should().BeEmpty();
         (await named.BuyBasketAsync([1], "https://bogshoppen.dk")).Url.Should().EndWith("/kurv");
 
         var down = new ShopUseCases(new FakeLager(down: true), new ShopSeller("ITMartin", "46253442", "", "", ""));
-        (await down.MarketAsync(null, null, null, null, 0)).Error.Should().Be(ShopUseCases.Unreachable);
+        (await down.MarketAsync(null, null, null, null, null, 0)).Error.Should().Be(ShopUseCases.Unreachable);
         (await down.QuoteAsync([1])).Should().BeNull();
     }
 

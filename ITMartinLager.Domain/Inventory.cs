@@ -44,6 +44,7 @@ public sealed class Item
     public string Platform { get; set; } = "";   // console games
     public string Artist { get; set; } = "";     // CDs (and author for books)
     public string Condition { get; set; } = "God";
+    public string Usage { get; set; } = Usages.Used;   // Brugt / Ny (Usages) - new = never sold before, priced against new prices
     public int Quantity { get; set; } = 1;
     public int? BoxId { get; set; }
     public Box? Box { get; set; }
@@ -106,7 +107,7 @@ public sealed class Item
     // Same thing in the same condition = one row with a higher quantity, so 7 copies of Anders And 12/1968 stay one
     // line however many photos they turned up in. Whether a second photo IS a second copy, the person decides in Vareinfo.
     public bool SameAs(Found f) =>
-        Kind == f.Kind && Condition == f.Condition && Year == f.Year
+        Kind == f.Kind && Condition == f.Condition && Usage == Usages.Normalise(f.Usage) && Year == f.Year
         && Eq(Title, f.Title) && Eq(Artist, f.Artist) && Eq(Series, f.Series) && Eq(Number, f.Number) && Eq(Platform, f.Platform);
 
     // "Is this the thing we already have?" for a photo taken again: only what identifies it - the title (case, spaces and
@@ -151,6 +152,7 @@ public sealed class Item
             Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
             Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
             Note = f.Note, Interest = f.Interest, Barcode = f.Barcode, PriceHint = f.PriceHint, EditionHint = f.EditionHint,
+            Usage = Usages.Normalise(f.Usage),
             BoxId = boxId, PhotoId = photoId,
         };
         item.Touch();

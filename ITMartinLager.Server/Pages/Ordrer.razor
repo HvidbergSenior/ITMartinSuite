@@ -31,7 +31,7 @@
                             <span class="k-small">@o.Status · @o.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")@(o.Tracking != "" ? $" · pakke {o.Tracking}" : "")</span>
                             @foreach (var l in o.Lines)
                             {
-                                <span class="k-small">· <a href="/vare/@l.ItemId">@l.Line</a> – @l.Kr kr@(l.Offer != "" ? $" ({l.Offer}, normalt {l.ListKr} kr)" : "")</span>
+                                <span class="k-small">· <a href="/vare/@l.ItemId">@l.Line</a>@(l.Usage == Usages.New ? " (ny – almindelig moms)" : "") – @l.Kr kr@(l.Offer != "" ? $" ({l.Offer}, normalt {l.ListKr} kr)" : "")</span>
                             }
                             @if (o.Paid)
                             {

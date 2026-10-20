@@ -117,11 +117,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     private static IQueryable<Item> Listed(LagerDb db) =>
         db.Items.Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
 
-    public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string text, string sort, int skip, int take, CancellationToken ct)
+    public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         var q = Listed(db);
         if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
+        if (usage is not null) q = q.Where(i => i.Usage == usage);
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
         {
             var w = word;

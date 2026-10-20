@@ -9,7 +9,7 @@
     <h1 class="k-card-title">🏷️ Dagens tilbud</h1>
     <p>Tilbud, der kører af sig selv på bestemte dage – på bogshoppen.dk, i kurven og ved betalingen. Kun tilbud, der er <b>slået til</b>, gælder.</p>
     <ul>
-        <li><b>Procent</b>: fx 50 % på bøger hver mandag. Prisen vises ved hver vare den dag.</li>
+        <li><b>Procent</b>: fx 50 % på brugte bøger hver mandag. Et tilbud kan gælde brugte ting, nye ting eller begge. Prisen vises ved hver vare den dag.</li>
         <li><b>Bundt</b>: fx 10 for 800 kr. Lægger køberen 10 ting i kurven, koster de 800 kr tilsammen. De dyreste ting kommer i bundtet først, og et bundt bruges kun, når det er billigere end at købe tingene hver for sig.</li>
         <li>En ting får højst ét tilbud – det, der er bedst for køberen.</li>
     </ul>
@@ -50,6 +50,12 @@
                 <select class="k-input" @bind="_edit.ProductType">
                     <option value="">Alt</option>
                     @foreach (var t in ProductTypes.All) { <option value="@t">@t</option> }
+                </select>
+            </label>
+            <label>Ny eller brugt
+                <select class="k-input" @bind="_edit.Usage">
+                    <option value="">Begge</option>
+                    @foreach (var u in Usages.All) { <option value="@u">Kun @u.ToLowerInvariant()</option> }
                 </select>
             </label>
             <label>Ugedag
@@ -103,7 +109,7 @@
         _error = _msg = null;
         _edit = new Campaign
         {
-            Id = c.Id, Name = c.Name, Kind = c.Kind, ProductType = c.ProductType, Weekday = c.Weekday, DayOfMonth = c.DayOfMonth,
+            Id = c.Id, Name = c.Name, Kind = c.Kind, ProductType = c.ProductType, Usage = c.Usage, Weekday = c.Weekday, DayOfMonth = c.DayOfMonth,
             Percent = c.Percent, Count = c.Count, BundleKr = c.BundleKr, Active = c.Active,
         };
     }

@@ -47,6 +47,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                           "year":       { "type": ["integer", "null"] },
                           "platform":   { "type": "string", "description": "Console games only: 'PlayStation 2', 'Nintendo 64' ..." },
                           "condition":  { "type": "string", "enum": {{JsonSerializer.Serialize(Conditions.All)}} },
+                          "usage":      { "type": "string", "enum": {{JsonSerializer.Serialize(Usages.All)}},
+                                          "description": "Ny ONLY when it is clearly unused and never sold: sealed in plastic, shop sticker, price label of a new-goods shop. Else Brugt." },
                           "quantity":   { "type": "integer", "minimum": 1 },
                           "confidence": { "type": "number", "description": "0-1: how sure the title/number reading is" },
                           "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" },
@@ -88,6 +90,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         - Film: "DVD", "Blu-ray" eller "VHS" ud fra æsken. Konsolspil: platform (fx "PlayStation 2").
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
+        - usage: "Ny" kun når tingen tydeligt er ny og aldrig solgt (forseglet i plastik, butikkens mærkat). Ellers "Brugt".
         - Ens eksemplarer = én post med quantity.
         - Bøger: titel og forfatter præcist som trykt (med æ/ø/å). Kan kun en del læses, så skriv det, der kan læses, og
           sæt confidence lavt - opfind aldrig en titel, der "lyder rigtig".
@@ -347,7 +350,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         Kinds.Normalise(r.Kind), (r.Title ?? "").Trim(), (r.Artist ?? "").Trim(), (r.Series ?? "").Trim(),
         (r.Number ?? "").Trim(), r.Year is > 1800 and < 2100 ? r.Year : null, (r.Platform ?? "").Trim(),
         Conditions.Normalise(r.Condition), Math.Clamp(r.Quantity ?? 1, 1, 999), Math.Clamp(r.Confidence ?? 0.5, 0, 1),
-        (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint));
+        (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint), Usage: Usages.Normalise(r.Usage));
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
     internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
@@ -374,6 +377,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         public int? Year { get; set; }
         public string? Platform { get; set; }
         public string? Condition { get; set; }
+        public string? Usage { get; set; }
         public int? Quantity { get; set; }
         public double? Confidence { get; set; }
         public string? Note { get; set; }

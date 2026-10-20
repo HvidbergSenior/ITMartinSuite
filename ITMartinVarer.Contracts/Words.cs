@@ -95,3 +95,15 @@ public static class ProductTypes
 
     public static string[] KindsOf(string type) => Kinds.All.Where(k => For(k) == type).ToArray();
 }
+
+// New or used (user 2026-10-20: "there should be a used and new field"). Not the same as the condition ("Som ny" is a
+// used thing in fine shape): new = never sold before, e.g. still in its plastic. It decides which prices it is compared
+// with, which offers cover it, and - for the bookkeeping - brugtmoms (used) or ordinary moms (new).
+public static class Usages
+{
+    public const string Used = "Brugt", New = "Ny";
+    public static readonly string[] All = [Used, New];
+
+    /// <summary>Anything unknown is used - almost everything in the boxes is.</summary>
+    public static string Normalise(string? u) => string.Equals(u?.Trim(), New, StringComparison.OrdinalIgnoreCase) ? New : Used;
+}

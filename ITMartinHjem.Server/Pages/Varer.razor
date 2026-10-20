@@ -90,6 +90,13 @@
             </select>
             <button class="k-btn k-btn-primary" type="submit">Søg</button>
         </form>
+        @* New or used (user 2026-10-20: "there should be a used and new field"). *@
+        <div class="bs-tools" role="group" aria-label="Ny eller brugt">
+            @foreach (var (label, value) in new[] { ("Både nyt og brugt", ""), ("Kun brugt", Usages.Used), ("Kun nyt", Usages.New) })
+            {
+                <button class="k-btn k-btn-sm @(_usage == value ? "k-btn-primary" : "")" aria-pressed="@(_usage == value ? "true" : "false")" @onclick="() => Go(_type, _q, _sort, value)">@label</button>
+            }
+        </div>
     </div>
 </section>
 
@@ -140,8 +147,9 @@ else
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     [SupplyParameterFromQuery(Name = "type")] public string? Type { get; set; }
     [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "brugt")] public string? Brugt { get; set; }
 
-    private string _q = "", _type = "", _sort = ShopSorts.Newest;
+    private string _q = "", _type = "", _sort = ShopSorts.Newest, _usage = "";
     private ShopMarket? _market;
     private List<ShopItem> _items = [];
     private int _page, _basket;
@@ -153,7 +161,8 @@ else
         _show = Config.GetValue<bool>("Hjem:ShowFound");
         if (!_show) return;
         (_q, _type, _sort, _page) = (Q ?? "", Type ?? "", ShopSorts.All.Contains(Sort) ? Sort! : ShopSorts.Newest, 0);
-        (_market, _error) = await Shop.MarketAsync(_type, null, _q, _sort, 0);
+        _usage = Usages.All.Contains(Brugt) ? Brugt! : "";
+        (_market, _error) = await Shop.MarketAsync(_type, null, _usage, _q, _sort, 0);
         _items = _market?.Items ?? [];
     }
 
@@ -163,10 +172,13 @@ else
         try { _basket = await JS.InvokeAsync<int>("bsKurv.count"); StateHasChanged(); } catch (JSException) { }
     }
 
-    private void Go(string type, string q, string sort)
+    private void Go(string type, string q, string sort) => Go(type, q, sort, _usage);
+
+    private void Go(string type, string q, string sort, string usage)
     {
         var parts = new List<string>();
         if (type != "") parts.Add("type=" + Uri.EscapeDataString(type));
+        if (usage != "") parts.Add("brugt=" + Uri.EscapeDataString(usage));
         if (q.Trim() != "") parts.Add("q=" + Uri.EscapeDataString(q.Trim()));
         if (sort != ShopSorts.Newest) parts.Add("sort=" + sort);
         Nav.NavigateTo("/varer" + (parts.Count > 0 ? "?" + string.Join("&", parts) : ""));
@@ -175,7 +187,7 @@ else
     private async Task More()
     {
         _busy = true;
-        var (next, error) = await Shop.MarketAsync(_type, null, _q, _sort, _page + 1);
+        var (next, error) = await Shop.MarketAsync(_type, null, _usage, _q, _sort, _page + 1);
         if (next is not null) { _page++; _items.AddRange(next.Items); }
         _error = error;
         _busy = false;

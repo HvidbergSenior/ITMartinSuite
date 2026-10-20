@@ -21,16 +21,16 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
     private DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 
     public async Task<List<ShopItem>> SearchAsync(string? text, string? kind, CancellationToken ct = default) =>
-        (await MarketAsync(null, kind, text, ShopSorts.Title, 0, ct)).Items;
+        (await MarketAsync(null, kind, null, text, ShopSorts.Title, 0, ct)).Items;
 
     /// <summary>The marketplace (user 2026-10-20: "a place where they easily can see products in different categories"):
     /// the product types with how much is for sale in each, today's offers, and one page of things - of one type, one
     /// kind or everything, matching the search.</summary>
-    public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? text, string? sort, int page, CancellationToken ct = default)
+    public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default)
     {
         IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
             : !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
-        var (found, total) = await items.ListedAsync(kinds, (text ?? "").Trim(), ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest,
+        var (found, total) = await items.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(), ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest,
             Math.Max(0, page) * MaxResults, MaxResults, ct);
         var perKind = await items.ListedPerKindAsync(ct);
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
@@ -72,7 +72,7 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
     public async Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default)
     {
         var (lines, gone) = await BasketAsync(itemIds, ct);
-        var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr)).ToList(), await campaigns.AllAsync(ct), Today);
+        var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList(), await campaigns.AllAsync(ct), Today);
         return new ShopQuote(CanPay,
             priced.Lines.Select((p, n) => new ShopQuoteLine(p.ItemId, lines[n].Item.Line(), p.ListKr, p.Kr, p.Offer)).ToList(),
             priced.Total, priced.Saved, await TodayAsync(ct), gone.Select(g => g.Id).Distinct().ToList());
@@ -89,7 +89,7 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
         var (lines, gone) = await BasketAsync(itemIds, ct);
         if (lines.Count == 0 && gone.Count == 0) throw new LagerException("Kurven er tom.");
         if (gone.Count > 0) throw new LagerException(itemIds.Count == 1 ? gone[0].Why : "Noget i kurven er lige blevet solgt eller reserveret. Se kurven igen.");
-        var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr)).ToList(), await campaigns.AllAsync(ct), Today);
+        var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList(), await campaigns.AllAsync(ct), Today);
         var order = Order.For(lines.Select((l, n) => (l.Item, priced.Lines[n])).ToList(), Now);
         await orders.AddAsync(order, ct);
         var site = siteBase.TrimEnd('/');
@@ -187,12 +187,12 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
         return list.Select(i =>
         {
             var buyNow = Shop.BuyNowKr(i, options.ShopAutoMaxKr);
-            var day = buyNow is { } kr ? Campaigns.DayPrice(i.Kind, kr, offers, Today) : null;
-            var dayOffer = day is null ? "" : offers.Where(c => c.On(Today) && c.Kind == CampaignKinds.Percent && c.Fits(i.Kind)).MaxBy(c => c.Percent)!.Text;
+            var day = buyNow is { } kr ? Campaigns.DayPrice(i.Kind, i.Usage, kr, offers, Today) : null;
+            var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
             return new ShopItem(i.Id, i.Kind, i.Line(), i.Title, i.Interest, i.Condition, i.Year, buyNow,
                 i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.ItemPhoto != "",
-                ProductTypes.For(i.Kind), day, dayOffer, Shop.Badge(goldList, i));
+                ProductTypes.For(i.Kind), day, dayOffer, Shop.Badge(goldList, i), i.Usage);
         }).ToList();
     }
 }

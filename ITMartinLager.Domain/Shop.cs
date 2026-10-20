@@ -95,7 +95,8 @@ public sealed class Order
             ExpiresAt = now + PayWithin + TimeSpan.FromMinutes(1),
             Lines = lines.Select(l => new OrderLine
             {
-                ItemId = l.Item.Id, Line = l.Item.Line(), Kind = l.Item.Kind, ListKr = l.Price.ListKr, Kr = l.Price.Kr, Offer = l.Price.Offer,
+                ItemId = l.Item.Id, Line = l.Item.Line(), Kind = l.Item.Kind, Usage = l.Item.Usage, ListKr = l.Price.ListKr, Kr = l.Price.Kr,
+                Offer = l.Price.Offer,
             }).ToList(),
         };
     }
@@ -160,6 +161,8 @@ public sealed class OrderLine
     public int ItemId { get; set; }
     public string Line { get; set; } = "";
     public string Kind { get; set; } = "";
+    /// <summary>Brugt or Ny when it was sold - for the bookkeeping: brugtmoms covers used goods, new goods carry ordinary moms.</summary>
+    public string Usage { get; set; } = Usages.Used;
     public int ListKr { get; set; }              // the normal shop price
     public int Kr { get; set; }                  // what it was sold for
     public string Offer { get; set; } = "";      // "10 for 800 kr", "50 % på bøger" or ""

@@ -21,6 +21,7 @@ public sealed class CampaignUseCases(ICampaignRepository campaigns, TimeProvider
         if (c.Name == "") throw new LagerException("Giv tilbuddet et navn, fx Bogmandag.");
         if (!CampaignKinds.All.Contains(c.Kind)) throw new LagerException("Vælg procent eller bundt.");
         if (c.ProductType != "" && !ProductTypes.All.Contains(c.ProductType)) throw new LagerException("Ukendt varetype.");
+        if (c.Usage != "" && !Usages.All.Contains(c.Usage)) throw new LagerException("Vælg brugt, ny eller begge.");
         if (c.Weekday is < 0 or > 6 || c.DayOfMonth is < 1 or > 31) throw new LagerException("Ugedagen eller datoen findes ikke.");
         if (!c.Valid)
             throw new LagerException(c.Kind == CampaignKinds.Percent ? "Procent skal være mellem 1 og 99." : "Et bundt er mindst 2 ting til en pris over 0 kr.");

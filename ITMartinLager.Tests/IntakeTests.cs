@@ -139,5 +139,7 @@ public class IntakeTests
         f.Confidence.Should().Be(1);
         ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = "frimærke", Title = "x" }).Kind.Should().Be(Kinds.Andet);
         ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = "vinyl", Title = "x" }).Kind.Should().Be(Kinds.Vinyl);
+        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Title = "x", Usage = "Ny" }).Usage.Should().Be(Usages.New);
+        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Title = "x" }).Usage.Should().Be(Usages.Used);
     }
 }

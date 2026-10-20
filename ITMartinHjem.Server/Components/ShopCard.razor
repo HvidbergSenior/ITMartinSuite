@@ -8,7 +8,7 @@
         else { <span class="bs-card-noimg">@Item.Type</span> }
         @if (Mark != "") { <span class="bs-badge bs-badge-@Mark.ToLowerInvariant()">@Mark</span> }
         <b>@Item.Line</b>
-        <span class="k-help">@Item.Kind · @Item.Condition stand</span>
+        <span class="k-help">@(Item.Usage == Usages.New ? "Ny" : "Brugt") · @Item.Kind · @Item.Condition stand</span>
         @if (Item.Available == 0) { <span>Reserveret lige nu</span> }
         else if (Item.DayKr is { } day && Item.BuyNowKr is { } normal)
         {

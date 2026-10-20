@@ -72,6 +72,8 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         var before = await items.GetAsync(item.Id, ct) ?? throw new LagerException("Varen findes ikke længere.");
         item.Kind = Kinds.Normalise(item.Kind);
         item.Condition = Conditions.Normalise(item.Condition);
+        item.Usage = Usages.Normalise(item.Usage);
+        if (item.Usage != before.Usage) item.PricesAt = null;   // new is priced against new shops, used against used markets
         item.EditionHint = EditionHints.Normalise(item.EditionHint);
         item.Barcode = Barcodes.ToIsbn13(item.Barcode ?? "");   // ISBN-10 (also ending in X) becomes ISBN-13
         if (Pricing.SearchKey(item) != Pricing.SearchKey(before)) item.PricesAt = null;

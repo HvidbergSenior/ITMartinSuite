@@ -30,11 +30,12 @@ public class CampaignTests
     {
         var p = Campaigns.Price([Book(1, 100), Film(2, 60)], On(), Monday);
         p.Lines.Select(l => (l.ItemId, l.Kr)).Should().Equal((1, 50), (2, 60));
-        p.Lines[0].Offer.Should().Be("50 % på bøger");
+        p.Lines[0].Offer.Should().Be("50 % på brugte bøger");
         p.Saved.Should().Be(50);
         Campaigns.Price([Book(1, 100)], On(), Tuesday).Total.Should().Be(100);   // not a Monday
-        Campaigns.DayPrice(Kinds.Bog, 99, On(), Monday).Should().Be(50);
-        Campaigns.DayPrice(Kinds.Dvd, 99, On(), Monday).Should().BeNull();
+        Campaigns.DayPrice(Kinds.Bog, Usages.Used, 99, On(), Monday).Should().Be(50);
+        Campaigns.DayPrice(Kinds.Bog, Usages.New, 99, On(), Monday).Should().BeNull();   // "50 pct on used books" - a new book is not covered
+        Campaigns.DayPrice(Kinds.Dvd, Usages.Used, 99, On(), Monday).Should().BeNull();
     }
 
     [Test]
@@ -83,7 +84,7 @@ public class CampaignTests
     public void Text_and_when_read_as_the_buyer_sees_them()
     {
         var c = On();
-        (c[0].Text, c[0].When).Should().Be(("50 % på bøger", "Hver mandag"));
+        (c[0].Text, c[0].When).Should().Be(("50 % på brugte bøger", "Hver mandag"));
         (c[1].Text, c[1].When).Should().Be(("10 for 800 kr", "Hver mandag"));
         c[^1].When.Should().Be("Den 31. i måneden");
     }
@@ -214,8 +215,8 @@ public class BasketTests
         quote.Lines.Select(l => l.Kr).Should().Equal(50, 50, 60);
         (quote.Total, quote.Saved).Should().Be((160, 100));
         quote.Gone.Should().Equal(999);
-        quote.Today.Single().Text.Should().Be("50 % på bøger");
-        (await shop.MarketAsync(ProductTypes.Boeger, null, null, null, 0)).Items.Single().DayKr.Should().Be(50);
+        quote.Today.Single().Text.Should().Be("50 % på brugte bøger");
+        (await shop.MarketAsync(ProductTypes.Boeger, null, null, null, null, 0)).Items.Single().DayKr.Should().Be(50);
 
         // Something gone = no payment; the buyer sees the basket again first.
         await shop.Invoking(s => s.BuyAsync([mort.Id, 999], "https://bogshoppen.dk")).Should().ThrowAsync<LagerException>().WithMessage("*kurven*");
@@ -247,12 +248,12 @@ public class BasketTests
         await Add(Kinds.Cd, "Abbey Road", 60);
         var (shop, _) = Make(DateTimeOffset.UtcNow);
 
-        var all = await shop.MarketAsync(null, null, null, ShopSorts.Dearest, 0);
+        var all = await shop.MarketAsync(null, null, null, null, ShopSorts.Dearest, 0);
         all.Types.Should().BeEquivalentTo([new ShopType(ProductTypes.Boeger, 2), new ShopType(ProductTypes.Musik, 2)]);
         all.Items.First().Title.Should().Be("Abbey Road");
         all.Total.Should().Be(4);
 
-        var music = await shop.MarketAsync(ProductTypes.Musik, null, "abbey", ShopSorts.Cheapest, 0);
+        var music = await shop.MarketAsync(ProductTypes.Musik, null, null, "abbey", ShopSorts.Cheapest, 0);
         music.Items.Select(i => (i.Kind, i.BuyNowKr)).Should().Equal((Kinds.Cd, 60), (Kinds.Vinyl, 200));
         music.Items.Should().OnlyContain(i => i.Type == ProductTypes.Musik);
     }
@@ -280,5 +281,55 @@ public class BasketTests
         var o = new OrderRepository(new TestDbFactory(conn)).ByTokenAsync("t1", default).Result!;
         o.Status.Should().Be(OrderStatuses.PickedUp);
         o.Lines.Single().Should().Match<OrderLine>(l => l.ItemId == 7 && l.Kr == 80);
+    }
+}
+
+// New or used (user 2026-10-20: "there should be a used and new field").
+public class UsageTests
+{
+    private static readonly DateTime Now = new(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
+    private static Offer O(string name, decimal kr) => new(name, kr, "https://x/" + kr);
+
+    [Test]
+    public void Anything_unknown_is_used()
+    {
+        Usages.Normalise("ny").Should().Be(Usages.New);
+        Usages.Normalise(null).Should().Be(Usages.Used);
+        Usages.Normalise("forseglet").Should().Be(Usages.Used);
+        Item.From(new Found(Kinds.Bog, "Mort", "", "", "", null, "", "God", 1, 0.9, "", Usage: "Ny"), null, null).Usage.Should().Be(Usages.New);
+    }
+
+    [Test]
+    public void A_new_copy_is_priced_under_the_new_shops_and_a_used_one_under_the_used_market()
+    {
+        var answers = new List<SourceAnswer>
+        {
+            new("DBA", false, ListingParse.Summarise([O("Mort", 50), O("Mort", 60)], "u")),
+            new("Saxo", true, ListingParse.Summarise([O("Mort", 200)], "u")),
+        };
+        var used = new Item { Kind = Kinds.Bog, Title = "Mort" };
+        var fresh = new Item { Kind = Kinds.Bog, Title = "Mort", Usage = Usages.New };
+        HuntResult.From(1, answers, Now).ApplyTo(used, Now);
+        HuntResult.From(2, answers, Now).ApplyTo(fresh, Now);
+        used.PriceHint.Should().BeLessThan(60);
+        fresh.PriceHint.Should().Be(180);   // 10 % under the new shop
+    }
+
+    [Test]
+    public void A_new_and_a_used_copy_of_the_same_book_are_two_rows()
+    {
+        var used = new Item { Kind = Kinds.Bog, Title = "Mort", Condition = "God" };
+        used.SameAs(new Found(Kinds.Bog, "Mort", "", "", "", null, "", "God", 1, 1, "", Usage: Usages.New)).Should().BeFalse();
+        used.SameAs(new Found(Kinds.Bog, "Mort", "", "", "", null, "", "God", 1, 1, "")).Should().BeTrue();
+    }
+
+    [Test]
+    public void An_offer_for_new_things_only_and_the_text_says_so()
+    {
+        var c = new Campaign { Kind = CampaignKinds.Percent, ProductType = ProductTypes.Film, Usage = Usages.New, Percent = 20, Active = true };
+        c.Text.Should().Be("20 % på nye film");
+        c.Fits(Kinds.Dvd, Usages.New).Should().BeTrue();
+        c.Fits(Kinds.Dvd, Usages.Used).Should().BeFalse();
+        new Campaign { Kind = CampaignKinds.Bundle, Usage = Usages.Used, Count = 10, BundleKr = 300 }.Text.Should().Be("10 for 300 kr (alt brugt)");
     }
 }
