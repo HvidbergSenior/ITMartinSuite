@@ -216,4 +216,30 @@ public class RunCostTests
     public void Cheapest_from_now_can_be_now() =>
         PriceModel.CheapestFrom(Day(D, h => h >= 20 ? 0.20 : 1.00), Spot, Wash, D.ToDateTime(new TimeOnly(20, 5)))!
             .Start.Should().Be(D.ToDateTime(new TimeOnly(20, 0)));
+
+    [Test]
+    public void Cheapest_with_the_night_finds_the_night_and_its_own_run_length()
+    {
+        // Tonight 02-03:30 is the cheapest - a 1.5 hour wash fits it exactly (user 2026-10-20: Asko, "also at night").
+        var raw = Day(D, _ => 1.00).Concat(Day(D.AddDays(1), h => h is >= 2 and < 4 ? 0.20 : 1.00)).ToList();
+        var quiet = new HouseholdSettings { ShowAllIn = false, QuietFromHour = 23, QuietToHour = 6 };
+        var asko = new HomeMachine { Kind = HomeMachine.WashKind, Hours = 1.5, Kwh = 1.0 }.ToAppliance();
+
+        var night = PriceModel.CheapestFrom(raw, quiet, asko, D.ToDateTime(new TimeOnly(22, 40)), night: true);
+        night!.Start.Should().Be(D.AddDays(1).ToDateTime(new TimeOnly(2, 0)));
+        night.End.Should().Be(D.AddDays(1).ToDateTime(new TimeOnly(3, 30)));
+        night.CostKr.Should().Be(0.20);
+
+        PriceModel.CheapestFrom(raw, quiet, asko, D.ToDateTime(new TimeOnly(22, 40)))!.Start.Hour.Should().NotBeInRange(0, 5);
+    }
+
+    [Test]
+    public void A_machine_from_the_cookie_is_kept_within_sensible_bounds()
+    {
+        var m = new HomeMachine { Kind = "x", Hours = 9, Kwh = 0 }.Clean();
+        (m.Kind, m.Hours, m.Kwh).Should().Be((HomeMachine.DishKind, HomeMachine.MaxHours, HomeMachine.MinKwh));
+        new HomeMachine { Hours = 1.4 }.Clean().Hours.Should().Be(1.5);   // on the quarter-hour grid
+        new HouseholdSettings().Dish.Kwh.Should().Be(0.54);
+        new HouseholdSettings().Wash.IsWash.Should().BeTrue();
+    }
 }

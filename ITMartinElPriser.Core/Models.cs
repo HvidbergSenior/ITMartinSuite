@@ -27,6 +27,12 @@ public sealed class HouseholdSettings
     public int QuietFromHour { get; set; } = 23;
     public int QuietToHour { get; set; } = 6;
 
+    // The free front page's machines (user 2026-10-20: "see both washing machine and dishwasher" and "also at night").
+    // Hours and kWh are the household's own, kept in the cookie; Machine = the one shown.
+    public HomeMachine Dish { get; set; } = HomeMachine.Dishwasher();
+    public HomeMachine Wash { get; set; } = HomeMachine.WashingMachine();
+    public string Machine { get; set; } = HomeMachine.DishKind;
+
     // "I nat" card: how much the EV needs and how fast the charger is. Kept
     // here so the free app remembers it in the cookie like the tariffs.
     public double EvKwh { get; set; } = 30;
@@ -194,4 +200,36 @@ public sealed class RunEntry
     public double? DearestThatDayKr { get; set; }
     public bool AllIn { get; set; }
     public DateTime LoggedAt { get; set; } = DateTime.UtcNow;
+}
+
+// One machine on the free front page: what a run takes (kWh spread evenly over the hours).
+public sealed class HomeMachine
+{
+    public const string DishKind = "opvask", WashKind = "vask";
+    public const double MinHours = 0.5, MaxHours = 4, MinKwh = 0.1, MaxKwh = 5;
+
+    public string Kind { get; set; } = DishKind;
+    public double Hours { get; set; } = 2;
+    public double Kwh { get; set; } = 1;
+
+    // Dishwasher: Bosch SMD6TCX00E, energy class A, 54 kWh / 100 Eco cycles (EU energy label, EPREL).
+    public static HomeMachine Dishwasher() => new() { Kind = DishKind, Hours = 2, Kwh = 0.54 };
+    // Washing machine: a normal 40 °C wash, about 1 kWh.
+    public static HomeMachine WashingMachine() => new() { Kind = WashKind, Hours = 2, Kwh = 1.0 };
+
+    public bool IsWash => Kind == WashKind;
+    public string Name => IsWash ? "Vaskemaskine" : "Opvaskemaskine";
+    // "én vask" / "én opvask"
+    public string Run => IsWash ? "vask" : "opvask";
+
+    /// <summary>Whatever the cookie says: hours on the quarter-hour grid within 0.5-4, kWh within 0.1-5.</summary>
+    public HomeMachine Clean()
+    {
+        Hours = Math.Clamp(Math.Round(Hours * 4) / 4, MinHours, MaxHours);
+        Kwh = Math.Clamp(Math.Round(Kwh, 2), MinKwh, MaxKwh);
+        if (Kind is not (DishKind or WashKind)) Kind = DishKind;
+        return this;
+    }
+
+    public Appliance ToAppliance() => new() { Name = Name, KwhPerRun = Kwh, DurationHours = Hours };
 }

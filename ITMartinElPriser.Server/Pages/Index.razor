@@ -59,11 +59,14 @@
 
 <PageHelp Key="help-nu">
     <ul>
-        <li><b>Det store tal</b> er hvad én opvask koster, hvis du starter den nu – regnet over 2 timer, kvarter for kvarter. Regnet med en moderne opvasker på Eco-programmet (0,54 kWh ifølge EU-energimærket). Alt inkl. moms, elafgift og nettarif. Vil du se, hvad netop <i>din</i> maskine koster – og hvad en ny sparemodel ville spare dig – så er det i MinElpris.</li>
+        <li><b>Vælg maskine</b> øverst i boksen: opvaskemaskine eller vaskemaskine.</li>
+        <li><b>Det store tal</b> er hvad én opvask eller vask koster, hvis du starter den nu – kvarter for kvarter, så længe maskinen kører. Alt inkl. moms, elafgift og nettarif.</li>
+        <li><b>Din egen maskine:</b> tryk <b>Ret tid og strøm</b> og vælg, hvor længe dit program kører, og hvor mange kWh det bruger (står i manualen eller på energimærket). Det gemmes på din egen telefon. Ved du det ikke, så brug det, der står: opvask 0,54 kWh (Eco), vask 1 kWh (40 grader).</li>
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af samme dag. Dyre timer er også stribede, og den billigste time er mærket „billigst“, så du kan se det uden at skelne farverne.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle, så viser det store tal hvad opvasken koster hvis den starter der. Tryk igen for at gå tilbage til nu.</li>
-        <li><b>Billigst</b> er det starttidspunkt fra nu og frem, hvor opvasken koster mindst – i dag eller i morgen, men ikke om natten (kl. 23–06), så maskinen ikke larmer mens I sover. Morgendagens priser kommer ca. kl. 13.</li>
-        <li>Flere maskiner (vaskemaskine, tørretumbler, ovn) finder du i <a href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">MinElpris</a>.</li>
+        <li><b>Start kl. … – det er billigst</b> er det starttidspunkt fra nu og frem, hvor maskinen koster mindst – også om natten. Er det om natten, står der også det billigste tidspunkt mellem kl. 6 og 23, hvis du ikke vil have den kørende, mens I sover.</li>
+        <li><b>Om natten:</b> har maskinen <b>senere start</b> (et ur eller en knap med en lille klokke), så sæt den, før du går i seng. Der står, hvor mange timer du skal sætte den til. Morgendagens priser kommer ca. kl. 13.</li>
+        <li>Flere maskiner (tørretumbler, ovn, elbil) finder du i <a href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">MinElpris</a>.</li>
     </ul>
 </PageHelp>
 
@@ -71,7 +74,7 @@
 {
     <div class="card now-tile"><div class="muted">Henter priser…</div></div>
 }
-else if (!_snap.HasData || Dishes(QuarterNow()) is not { } now)
+else if (!_snap.HasData || RunAt(QuarterNow()) is not { } now)
 {
     <div class="card now-tile">
         <div class="now-verdict lvl-mid">Ingen priser lige nu</div>
@@ -80,8 +83,8 @@ else if (!_snap.HasData || Dishes(QuarterNow()) is not { } now)
 }
 else
 {
-    // One machine, one price: the dishwasher started now - or at the hour tapped in the bars -
-    // and the cheapest start from now on.
+    // One machine, one price: the chosen machine started now - or at the hour tapped in the bars -
+    // and the cheapest start from now on, night included.
     var strip = Strip();
     // Heights on one scale over BOTH whole days (past hours included), colours from each hour's
     // own day (Rank01) - so an hour keeps its height and colour all day instead of changing as
@@ -92,47 +95,70 @@ else
     var cheapest = strip.MinBy(h => h.KrPerKwh);
     var picked = _selected is { } sel ? strip.FirstOrDefault(h => h.Start == sel) : null;
     var start = picked?.Start ?? QuarterNow();
-    var run = picked is null ? now : Dishes(start);
+    var run = picked is null ? now : RunAt(start);
     double? rank = picked is null ? _snap.NowRank01 : picked.Rank01;
     var lvl = Level(rank);
-    // The cheapest start from now on (user 2026-10-19: "change it to cheapest" - "same time tomorrow" was misread).
-    var best = Cheapest();
+    // The cheapest start from now on (user 2026-10-19: "change it to cheapest"), night included (2026-10-20: "also at
+    // night"), said as one sentence: "Start i nat kl. 02:00 – det er billigst". The best start while you are up comes under it.
+    var best = Cheapest(night: true);
+    var awake = Cheapest(night: false);
     var hasTomorrow = _snap.Tomorrow?.Hours.Count > 0;
-    var m = Machines[_machine];
+    var m = Current;
     <div class="card now-tile @lvl">
-        @* One answer (user 2026-09-28): what a dishwasher run costs right now. The new-vs-old model
-           comparison was removed - your own machine comes later via its energy label. *@
-        <div class="now-device">En opvask i en ny opvasker (0,54 kWh på Eco) · 2 timer · start @(picked is null ? "nu" : When(start))</div>
+        <div class="chips chips-small" role="group" aria-label="Vælg maskine">
+            <button class="chip @(m.IsWash ? "" : "on")" aria-pressed="@(!m.IsWash)" @onclick="() => PickMachineAsync(HomeMachine.DishKind)">Opvaskemaskine</button>
+            <button class="chip @(m.IsWash ? "on" : "")" aria-pressed="@m.IsWash" @onclick="() => PickMachineAsync(HomeMachine.WashKind)">Vaskemaskine</button>
+        </div>
+        <div class="now-device">Én @m.Run · @Kwh(m.Kwh) kWh · @Hours(m.Hours) · start @(picked is null ? "nu" : When(start))</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
             @* The sum behind the big number, in a neutral colour (never fighting the verdict's colour). *@
-            <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over 2 timer = @Kr(run.CostKr) kr</div>
+            <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over @Hours(m.Hours) = @Kr(run.CostKr) kr</div>
         }
-        <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele opvasken endnu" : Verdict(rank))</div>
-        <div class="now-tomorrow">
-            @if (best is not null && run is not null)
-            {
-                @* One colour, and the difference said in words - not red/green on one line. *@
+        <div class="now-verdict @lvl">@(run is null ? $"Priserne dækker ikke hele {m.Run}en endnu" : Verdict(rank))</div>
+        @if (best is not null && run is not null)
+        {
+            @* One colour, and the answer said in words - not red/green on one line. *@
+            <div class="now-best">
                 @if (best.Start <= QuarterNow())
                 {
-                    <span>Billigst er <b>lige nu</b></span>
+                    <b>Start nu – det er billigst.</b>
                 }
                 else
                 {
-                    <span>Billigst @StartWhen(best.Start)</span>
-                    <b>@Kr(best.CostKr) KR</b>
-                    @if (run.CostKr - best.CostKr >= 0.01)
-                    {
-                        <span class="muted small">spar @Kr(run.CostKr - best.CostKr) kr</span>
-                    }
+                    <b>Start @StartAt(best.Start) – det er billigst.</b>
+                    <span>Den koster @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" – du sparer {Kr(run.CostKr - best.CostKr)} kr i forhold til nu" : "").</span>
+                    <span class="muted small">Har maskinen senere start: sæt den til @Delay(best.Start).</span>
                 }
-            }
-            @if (!hasTomorrow)
-            {
-                <span class="muted small">Morgendagens priser kommer ca. kl. 13.</span>
-            }
-        </div>
+                @if (awake is not null && PriceModel.IsQuiet(best.Start, _s) && awake.Start != best.Start)
+                {
+                    <span class="muted small">Ikke om natten? Mellem kl. 6 og 23 er det billigst @(awake.Start <= QuarterNow() ? "lige nu" : StartAt(awake.Start)) – @Kr(awake.CostKr) kr.</span>
+                }
+            </div>
+        }
+        @if (!hasTomorrow)
+        {
+            <div class="muted small u-center">Morgendagens priser kommer ca. kl. 13.</div>
+        }
+        <button class="linkish small" @onclick="() => _editMachine = !_editMachine">@(_editMachine ? "Luk" : "Ret tid og strøm")</button>
+        @if (_editMachine)
+        {
+            @* The household's own programme (user 2026-10-20: the Asko runs 1.5 hours). Kept in the cookie on the phone. *@
+            <div class="row2 u-mt8">
+                <label class="small">Kører i
+                    <select class="k-input" value="@m.Hours.ToString(CultureInfo.InvariantCulture)" @onchange="SetHoursAsync">
+                        @foreach (var h in HourChoices) { <option value="@h.ToString(CultureInfo.InvariantCulture)">@Hours(h)</option> }
+                    </select>
+                </label>
+                <label class="small">Bruger (kWh)
+                    <input class="k-input" type="number" inputmode="decimal" min="0.1" max="5" step="0.1"
+                           value="@m.Kwh.ToString(CultureInfo.InvariantCulture)" @onchange="SetKwhAsync" />
+                </label>
+            </div>
+            <div class="muted small u-mt6">Står i manualen eller på energimærket. Gemmes kun på din telefon.</div>
+            <button class="linkish small" @onclick="ResetMachineAsync">Brug standard (@(m.IsWash ? "1 kWh, 2 timer" : "0,54 kWh, 2 timer"))</button>
+        }
         @if (picked is not null)
         {
             <button class="linkish small" @onclick="() => _selected = null">↺ Tilbage til nu</button>
@@ -146,7 +172,7 @@ else
                 @foreach (var h in strip)
                 {
                     var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
-                    @* The whole column is the tap target: it moves the dishwasher's start to that hour. *@
+                    @* The whole column is the tap target: it moves the machine's start to that hour. *@
                     <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
                          @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
                         <div class="bar @Band(h.Rank01) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
@@ -167,7 +193,7 @@ else
                 }
             </div>
             <div class="muted small u-mt6 u-center">Høje, stribede søjler er dyre timer – lave er billige.</div>
-            <div class="muted small u-mt6 u-center">Tryk på en søjle – så viser det store tal prisen hvis opvasken starter der.</div>
+            <div class="muted small u-mt6 u-center">Tryk på en søjle – så viser det store tal prisen, hvis @(Current.Run)en starter der.</div>
         </div>
     }
 
@@ -179,8 +205,8 @@ else
     <div class="card now-tile lvl-cheap">
         <div class="small muted">Hvad havde du sparet?</div>
         <div class="now-price lvl-cheap">@hs.Saved.ToString("0", Da) kr</div>
-        <div class="now-unit">på @hs.Days dage, hvis opvasken var startet på dagens billigste tid i stedet for kl. 18</div>
-        <div class="now-compare">Det er med én opvask om dagen. MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
+        <div class="now-unit">på @hs.Days dage, hvis @(Current.Run)en var startet på dagens billigste tid i stedet for kl. 18</div>
+        <div class="now-compare">Det er med én @Current.Run om dagen. MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
     </div>
 }
 
@@ -203,36 +229,64 @@ else
 
     private List<PricePoint> _raw = [];
     private HouseholdSettings _s = new();
-    // The free app prices one machine: a dishwasher, 1 kWh over 2 hours, each quarter at its own price.
-    // Two fixed machines, always 2 hours (user's wish) so the prices compare like for like.
-    // New: Bosch SMD6TCX00E, energy class A, 54 kWh / 100 Eco cycles (EU energy label, EPREL).
-    // Old: a typical 15-20 year old machine on its normal programme, about 1.5 kWh.
-    private sealed record Machine(string Short, string Name, double Kwh);
-    private static readonly Machine[] Machines =
-    [
-        new("Ny sparemodel", "Bosch SMD6TCX00E (A, Eco)", 0.54),
-        new("Gammel", "Gammel opvasker (ca. 2005)", 1.5),
-    ];
-    private const int CyclesPerYear = 280;   // the EU energy label's yearly basis
-    private int _machine;
+    // The free app prices one machine at a time: the dishwasher or the washing machine (user 2026-10-20), with the
+    // household's own hours and kWh from the cookie, each quarter at its own price.
+    private HomeMachine Current => (_s.Machine == HomeMachine.WashKind ? _s.Wash : _s.Dish).Clean();
+    private bool _editMachine;
+    private static readonly double[] HourChoices = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4];
 
-    private RunOption? Dishes(DateTime start) => Dishes(start, _machine);
+    private RunOption? RunAt(DateTime start) =>
+        _raw.Count == 0 ? null : PriceModel.CostOfRun(_raw, _s, Current.ToAppliance(), start);
 
-    private RunOption? Cheapest() =>
-        _raw.Count == 0 ? null
-        : PriceModel.CheapestFrom(_raw, _s, new Appliance { Name = Machines[_machine].Name, KwhPerRun = Machines[_machine].Kwh, DurationHours = 2 }, QuarterNow());
+    private RunOption? Cheapest(bool night) =>
+        _raw.Count == 0 ? null : PriceModel.CheapestFrom(_raw, _s, Current.ToAppliance(), QuarterNow(), night);
 
-    // "kl. 22:45", "i nat kl. 01", "i morgen kl. 13:15" - When() plus the minutes when it is not on the hour.
-    private string StartWhen(DateTime t) => When(t) + (t.Minute != 0 ? $":{t:mm}" : "");
+    // "kl. 22:45", "i nat kl. 02:00", "i morgen kl. 13:15".
+    private string StartAt(DateTime t) => $"{When(t)}:{t:mm}";
 
-    private RunOption? Dishes(DateTime start, int machine) =>
-        _raw.Count == 0 ? null
-        : PriceModel.CostOfRun(_raw, _s, new Appliance { Name = Machines[machine].Name, KwhPerRun = Machines[machine].Kwh, DurationHours = 2 }, start);
-
-    private async Task PickMachineAsync(int i)
+    // For a machine with a delayed start: how long from now until the start, in the machine's own steps (half hours).
+    private string Delay(DateTime start)
     {
-        _machine = i;
-        await JS.InvokeVoidAsync("epUi.set", "machine", i.ToString(CultureInfo.InvariantCulture));
+        var halves = Math.Max(1, (int)Math.Round((start - DkTime.Now).TotalMinutes / 30));
+        var h = halves / 2;
+        return (h, halves % 2 == 1) switch
+        {
+            (0, _) => "½ time",
+            (1, false) => "1 time",
+            (_, false) => $"{h} timer",
+            (_, true) => $"{h}½ time" + (h == 1 ? "" : "r"),
+        };
+    }
+
+    private async Task PickMachineAsync(string kind)
+    {
+        _s.Machine = kind;
+        _selected = null;
+        await SaveMachineAsync();
+    }
+
+    private async Task SetHoursAsync(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var h)) { Current.Hours = h; await SaveMachineAsync(); }
+    }
+
+    private async Task SetKwhAsync(ChangeEventArgs e)
+    {
+        // A phone may send "1,5" or "1.5".
+        if (double.TryParse(e.Value?.ToString()?.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var k) && k > 0) { Current.Kwh = k; await SaveMachineAsync(); }
+    }
+
+    private async Task ResetMachineAsync()
+    {
+        if (Current.IsWash) _s.Wash = HomeMachine.WashingMachine(); else _s.Dish = HomeMachine.Dishwasher();
+        await SaveMachineAsync();
+    }
+
+    private async Task SaveMachineAsync()
+    {
+        Current.Clean();
+        await Prefs.SaveAsync(_s);
+        _ = InvokeAsync(LoadTeasersAsync);   // "Hvad havde du sparet?" follows the machine
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -244,6 +298,7 @@ else
     }
 
     private static string Kwh(double v) => v.ToString("0.##", Da);
+    private static string Hours(double h) => h == 1 ? "1 time" : h < 1 ? $"{h * 60:0} min" : $"{h.ToString("0.##", Da)} timer";
 
     private DateTime QuarterNow()
     {
@@ -265,7 +320,7 @@ else
     private bool _searching;
     private string _locateMsg = "";
 
-    // "Hvad havde du sparet?" - the last 30 days: the chosen dishwasher started at 18:00 every day
+    // "Hvad havde du sparet?" - the last 30 days: the chosen machine started at 18:00 every day
     // vs at that day's cheapest start. Real prices, all-in with this household's grid tariff.
     private sealed record Hindsight(double Saved, int Days);
     private Hindsight? _hindsight;
@@ -275,7 +330,7 @@ else
         {
             var today = DateOnly.FromDateTime(DkTime.Now);
             var raw = await Prices.GetRangeAsync(today.AddDays(-30), today, _s.PriceArea);
-            var dish = new Appliance { Name = Machines[_machine].Name, KwhPerRun = Machines[_machine].Kwh, DurationHours = 2 };
+            var dish = Current.ToAppliance();
             double saved = 0; var days = 0;
             for (var d = today.AddDays(-30); d < today; d = d.AddDays(1))
             {

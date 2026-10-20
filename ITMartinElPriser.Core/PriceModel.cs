@@ -152,14 +152,15 @@ public static class PriceModel
 
     // The cheapest start from `from` on, over every price known (today and tomorrow), outside the quiet hours -
     // what the front page suggests (user 2026-10-19: "change it to cheapest"). Earliest wins a tie. Null when no
-    // whole run fits in the known prices.
-    public static RunOption? CheapestFrom(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime from)
+    // whole run fits in the known prices. night = also starts in the quiet hours (user 2026-10-20: "also at night" -
+    // a machine with a delayed start can run while you sleep).
+    public static RunOption? CheapestFrom(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime from, bool night = false)
     {
         var t = new DateTime(from.Year, from.Month, from.Day, from.Hour, from.Minute / SlotMinutes * SlotMinutes, 0);
         RunOption? best = null;
         for (var end = t.AddHours(48); t < end; t = t.AddMinutes(SlotMinutes))
         {
-            if (IsQuiet(t, s) || CostOfRun(raw, s, a, t) is not { } o) continue;
+            if ((!night && IsQuiet(t, s)) || CostOfRun(raw, s, a, t) is not { } o) continue;
             if (best is null || o.CostKr < best.CostKr) best = o;
         }
         return best;

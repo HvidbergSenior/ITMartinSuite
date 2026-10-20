@@ -315,6 +315,12 @@ details.fold[open] summary::after { content: "－"; }
 .now-device { color: var(--muted); font-size: .95rem; font-weight: 600; margin-bottom: 8px; }
 .now-tomorrow { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 1.1rem; display: flex; justify-content: center; gap: 10px; align-items: baseline; }
 .now-tomorrow b { font-size: 1.4rem; }
+/* "Start i nat kl. 02:00 – det er billigst" (2026-10-20): the answer as a sentence, the details under it. */
+.now-best { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: grid; gap: 4px; text-align: center; }
+.now-best b { font-size: 1.3rem; line-height: 1.25; }
+.now-tile .chips { justify-content: center; }
+.now-tile label { display: grid; gap: 4px; flex: 1; }
+.now-best span, .now-tile label { color: var(--text); }
 .linkish { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; margin-top: 10px; }
 .install-guide ol { padding-left: 20px; display: grid; gap: 4px; margin: 6px 0 4px; }
 .install-dev { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin-top: 8px; }
