@@ -16,7 +16,7 @@
         @(_busy ? "⏳ " + _status : "📷 Tag billede af bøgerne")
         <InputFile OnChange="Upload" accept="image/*" capture="environment" multiple disabled="@_busy" class="lg-hidden-file" />
     </label>
-    <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald til vurdering i dag: @_callsToday af @Checks.MaxCallsPerDay. Titlerne læses af Vareinfo.</p>
+    <p class="k-small k-muted">Du kan også vælge flere billeder fra telefonen på én gang. AI-kald til vurdering i dag: @_callsToday af @Checks.MaxCallsPerDay.</p>
 
     <p><b>Eller scan ISBN-stregkoden</b> bag på bogen – mest præcist for bøger efter ca. 1975. Bøgerne vurderes 10 ad gangen og når du trykker Færdig.</p>
     <div class="lg-row">

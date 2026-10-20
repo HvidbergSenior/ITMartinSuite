@@ -1,6 +1,6 @@
 @page "/kasse/{Code}"
 @inject BoxUseCases Boxes
-@inject IVareinfoGateway Vareinfo
+@inject VareinfoLinks Vareinfo
 
 <PageTitle>@Code – Bogshoppen Lager</PageTitle>
 
@@ -17,7 +17,7 @@ else
             <button class="k-btn k-btn-secondary" @onclick="SavePlace">Gem placering</button>
         </div>
         <div class="lg-row">
-            <a class="k-btn k-btn-primary" href="@Vareinfo.PublicBase">📷 Læg flere ting i (Vareinfo)</a>
+            <a class="k-btn k-btn-primary" href="@Vareinfo.Base">📷 Læg flere ting i (Vareinfo)</a>
             <a class="k-btn k-btn-secondary" href="/kasse/@_box.Code/label" target="_blank">🏷️ Print label</a>
             @if (_items.Count(i => i.ItemPhoto != "") is > 0 and var photos)
             {

@@ -3,7 +3,7 @@
 @inject NavigationManager Nav
 @inject AuctionUseCases Auction
 @inject PriceHuntUseCases Hunt
-@inject IVareinfoGateway Vareinfo
+@inject VareinfoLinks Vareinfo
 @inject GoldUseCases Gold
 @inject KolofonUseCases Kolofons
 
@@ -225,7 +225,7 @@ else
     {
         <section class="k-card" data-fold-closed>
             <h2 class="k-card-title">🗂️ Billedet af bunken den blev registreret fra</h2>
-            <img class="lg-photo" src="@(Vareinfo.PublicBase)/foto/@pid" alt="Registreringsbillede" loading="lazy" />
+            <img class="lg-photo" src="@Vareinfo.Photo(pid)" alt="Registreringsbillede" loading="lazy" />
         </section>
     }
 }

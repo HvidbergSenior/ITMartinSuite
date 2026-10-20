@@ -61,7 +61,9 @@ public sealed class BarcodeLookup(HttpClient http, ILogger<BarcodeLookup> log) :
         var format = rel.Media?.FirstOrDefault()?.Format ?? "";
         var kind = format.Contains("DVD", StringComparison.OrdinalIgnoreCase) ? Kinds.Dvd
             : format.Contains("Blu", StringComparison.OrdinalIgnoreCase) ? Kinds.BluRay
-            : format.Contains("CD", StringComparison.OrdinalIgnoreCase) ? Kinds.Cd : Kinds.Andet;
+            : format.Contains("CD", StringComparison.OrdinalIgnoreCase) ? Kinds.Cd
+            : format.Contains("Vinyl", StringComparison.OrdinalIgnoreCase) ? Kinds.Vinyl
+            : format.Contains("Cassette", StringComparison.OrdinalIgnoreCase) ? Kinds.Kassette : Kinds.Andet;
         var artist = string.Join("", (rel.ArtistCredit ?? []).Select(a => a.Name + (a.JoinPhrase ?? "")));
         return new Found(kind, rel.Title, artist, "", "", Year(rel.Date ?? ""), "", "God", 1, 0.95, format == "" ? "" : format, "", ean);
     }
@@ -84,6 +86,9 @@ public sealed class BarcodeLookup(HttpClient http, ILogger<BarcodeLookup> log) :
             if (t.Contains(key)) return (Kinds.Konsolspil, name);
         if (t.Contains(" blu ray ") || t.Contains(" bluray ") || t.Contains(" 4k ")) return (Kinds.BluRay, "");
         if (t.Contains(" dvd ")) return (Kinds.Dvd, "");
+        if (t.Contains(" vhs ")) return (Kinds.Vhs, "");
+        if (t.Contains(" vinyl ") || t.Contains(" lp ")) return (Kinds.Vinyl, "");
+        if (t.Contains(" cassette ") || t.Contains(" kassette ") || t.Contains(" mc ")) return (Kinds.Kassette, "");
         if (t.Contains(" cd ")) return (Kinds.Cd, "");
         return (Kinds.Andet, "");
     }

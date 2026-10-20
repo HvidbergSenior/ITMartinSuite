@@ -78,11 +78,14 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         - kind - vælg ud fra hvad det ER:
           * "Anders And-blad": ugebladet Anders And & Co.: serie "Anders And & Co.", nummer og år fra forsiden.
           * "Jumbobog": KUN når der står "Jumbobog" på den. Nummer fra ryggen/forsiden.
+          * "Superhelteblad": superheltehæfter - Marvel og DC (X-Men, Spider-Man, Batman, Superman ...), også de danske
+            udgaver (Fantastic Four, Superman-bladet). Nummer fra forsiden.
           * "Tegneserie": alle andre tegneserier og tegneseriealbum - Superserien, Storm P.-album, Gyldenspjæt,
-            Tintin, Asterix, julehæfter med tegneserier, amerikanske comics (Marvel, DC, undergrund som Zap Comix).
+            Tintin, Asterix, Lucky Luke, julehæfter med tegneserier, undergrund som Zap Comix.
           * "Bog": bøger med tekst, også fagbøger og instruktionsbøger (musik, hobby, sprog), selv om der følger en CD med.
           * "Magasin": blade med artikler (ikke tegneserier).
-        - CD: titel = albummets navn, artist = kunstneren. Konsolspil: platform (fx "PlayStation 2").
+        - CD, "Vinyl" (LP/single) og "Kassettebånd": titel = albummets navn, artist = kunstneren.
+        - Film: "DVD", "Blu-ray" eller "VHS" ud fra æsken. Konsolspil: platform (fx "PlayStation 2").
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
         - Ens eksemplarer = én post med quantity.

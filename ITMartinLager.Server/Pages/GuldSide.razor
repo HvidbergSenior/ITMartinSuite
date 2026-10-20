@@ -5,7 +5,7 @@
 
 <section class="k-card">
     <h1 class="k-card-title">🏆 Guld, 🥈 sølv og 🥉 bronze</h1>
-    <p>Enkelte numre, der er til salg for mange penge lige nu – op til @ITMartinLager.Domain.Gold.PerTier af hver slags i hver kategori:
+    <p>Enkelte numre og titler, der er til salg for mange penge lige nu – for hver varetype og op til @ITMartinLager.Domain.Gold.PerTier af hver slags i hver kategori:
        <b>🏆 Guld</b> fra @ITMartinLager.Domain.Gold.GoldFrom kr, <b>🥈 Sølv</b> fra @ITMartinLager.Domain.Gold.SilverFrom kr (værd at sælge for sig), <b>🥉 Bronze</b> fra @ITMartinLager.Domain.Gold.BronzeFrom kr (interessant).
        Når noget, du registrerer, står her, får det mærket i Vareinfo og på Lager.</p>
 
@@ -20,9 +20,17 @@
             </button>
         }
     </div>
+    @* One list per product type (user 2026-10-20: "bronze, silver, gold on ever producttype"). *@
+    <div class="lg-chips">
+        <button class="k-btn k-btn-sm @(_type is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => { _type = null; _category = null; }">Alle varetyper</button>
+        @foreach (var t in ITMartinLager.Domain.Gold.Types)
+        {
+            <button class="k-btn k-btn-sm @(_type == t ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => { _type = t; _category = null; }">@t (@Filtered(_tier, null, t).Count())</button>
+        }
+    </div>
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_category is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _category = null">Alle kategorier</button>
-        @foreach (var c in ITMartinLager.Domain.Gold.Categories)
+        @foreach (var c in ITMartinLager.Domain.Gold.Categories.Where(c => _type is null || c.Type == _type))
         {
             <button class="k-btn k-btn-sm @(_category == c.Name ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _category = c.Name">@c.Name (@Count(_tier, c.Name))</button>
         }
@@ -34,7 +42,7 @@
     <button class="k-btn k-btn-ghost k-btn-sm" @onclick="Rebuild" disabled="@_busy">@(_busy ? "⏳ Spørger DBA … (et par minutter)" : "🔄 Byg listen igen nu")</button>
     <details class="lg-more">
         <summary>Sådan laves listen</summary>
-        <p>En gang om ugen spørger Lager DBA om de dyreste annoncer først i hver kategori (10 sider). Samlinger, bunker, drømmepriser (fx 99999 kr) og merchandise (ure, mønter, plakater, figurer) tælles ikke med – kun annoncer for ét nummer, med nummer og/eller år. Prisen er midten af annoncerne for det nummer. Det er udbudspriser, ikke solgte priser.</p>
+        <p>En gang om ugen spørger Lager DBA om de dyreste annoncer først i hver kategori (10 sider). Samlinger, bunker, drømmepriser (fx 99999 kr) og merchandise (ure, mønter, plakater, figurer) tælles ikke med – kun annoncer for én ting: blade og tegneserier med nummer og/eller år, bøger, film, musik og Magic-kort med titlen. For musik og film tælles afspillere og plakater ikke med, for Magic kun enkelte kort. Prisen er midten af annoncerne for det nummer eller den titel. Det er udbudspriser, ikke solgte priser.</p>
     </details>
 </section>
 
@@ -55,21 +63,22 @@
 @code {
     private List<GoldEntry>? _all;
     private string _q = "";
-    private string? _tier, _category;
+    private string? _tier, _category, _type;
     private bool _busy;
 
     protected override async Task OnInitializedAsync() => _all = await Gold.AllAsync();
 
-    private IEnumerable<GoldEntry> Filtered(string? tier, string? category) => (_all ?? [])
+    private IEnumerable<GoldEntry> Filtered(string? tier, string? category, string? type = null) => (_all ?? [])
         .Where(e => tier is null || e.Tier == tier)
+        .Where(e => type is null || ProductTypes.For(e.Kind) == type)
         .Where(e => category is null || e.Category == category);
 
-    private int Count(string? tier, string? category) => Filtered(tier, category).Count();
+    private int Count(string? tier, string? category) => Filtered(tier, category, _type).Count();
 
     private IEnumerable<GoldEntry> Hits()
     {
         var words = _q.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return Filtered(_tier, _category)
+        return Filtered(_tier, _category, _type)
             .Where(e => words.All(w => $"{e.Category} {e.Issue} {e.Name} {e.Tier}".ToLowerInvariant().Contains(w)))
             .OrderByDescending(e => e.Kr);
     }

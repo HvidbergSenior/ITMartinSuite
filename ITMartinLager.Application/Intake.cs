@@ -99,3 +99,10 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         await registration.SaveAsync(box.Id, photoId, clean, ct);
     }
 }
+
+/// <summary>Where Vareinfo is, for the buttons and photo links a person clicks.</summary>
+public sealed class VareinfoLinks(IVareinfoGateway vareinfo)
+{
+    public string Base => vareinfo.PublicBase;
+    public string Photo(int photoId) => $"{vareinfo.PublicBase}/foto/{photoId}";
+}

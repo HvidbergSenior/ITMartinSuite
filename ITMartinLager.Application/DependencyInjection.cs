@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<PriceHuntUseCases>();
         services.AddScoped<KolofonUseCases>();
         services.AddScoped<IntakeUseCases>();
+        services.AddScoped<VareinfoLinks>();
         services.AddScoped<AuctionUseCases>();
         services.AddScoped<MagicImportUseCases>();
         services.AddScoped<BookCheckUseCases>();

@@ -43,13 +43,13 @@ internal static class PriceSourceRegistration
         Add(sp => Used(sp.GetRequiredService<GulogGratisListings>(), ""));
         Add(sp => new PriceSource("eBay", false, "", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i))));
-        // American comics and merchandise sell in dollars - eBay's US site.
+        // American comics (superhero comics above all) and merchandise sell in dollars - eBay's US site.
         Add(sp => new PriceSource("eBay USA", false, "USA", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct, "EBAY_US"),
-            (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i), "EBAY_US"), [Kinds.Tegneserie, Kinds.Merch]));
+            (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i), "EBAY_US"), [Kinds.Tegneserie, Kinds.Superhelte, Kinds.Merch]));
         // HipComic tried 2026-10-12: its Cloudflare check answers 403 to every .NET client (curl gets in) - left out.
-        // CDs: Discogs, the record collectors' market - copies for sale and the lowest price, in kroner.
+        // CDs, records and tapes: Discogs, the record collectors' market - copies for sale and the lowest price, in kroner.
         Add(sp => new PriceSource("Discogs", false, "", (t, a, i, ct) => sp.GetRequiredService<DiscogsListings>().LookupAsync(t, a, ct),
-            (t, a, i) => DiscogsListings.SearchUrl(t, a), [Kinds.Cd]));
+            (t, a, i) => DiscogsListings.SearchUrl(t, a), [Kinds.Cd, Kinds.Vinyl, Kinds.Kassette]));
         Add(sp => new PriceSource("Tradera", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<TraderaListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => TraderaListings.SearchUrl(QOrIsbn(t, a, i))));
         Add(sp => Used(sp.GetRequiredService<BlocketListings>(), "Sverige"));

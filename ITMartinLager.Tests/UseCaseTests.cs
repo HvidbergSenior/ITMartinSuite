@@ -178,3 +178,15 @@ public class LayerTests
         }
     }
 }
+
+// Pages and endpoints reach the outside world only through use cases (2026-10-20): no page injects a port.
+public class PagePortTests
+{
+    [Test]
+    public void No_page_injects_a_gateway_repository_or_store()
+    {
+        var server = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..", "ITMartinLager.Server");
+        foreach (var file in Directory.GetFiles(server, "*.razor", SearchOption.AllDirectories).Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")))
+            File.ReadAllText(file).Should().NotMatchRegex(@"@inject I[A-Z]\w*(Gateway|Repository|Store|Source|Reader|Lookup)\b", file);
+    }
+}

@@ -7,13 +7,17 @@ public static class Kinds
 {
     public const string Cd = "CD", Dvd = "DVD", BluRay = "Blu-ray", Magasin = "Magasin", AndersAnd = "Anders And-blad",
         Jumbobog = "Jumbobog", Tegneserie = "Tegneserie", Konsolspil = "Konsolspil", Bog = "Bog",
-        Magic = "Magic-kort", Merch = "Merchandise", Andet = "Andet";
+        Magic = "Magic-kort", Merch = "Merchandise", Andet = "Andet",
+        // 2026-10-20 with the product-type services: film on tape, records and tapes, American superhero comics.
+        Vhs = "VHS", Vinyl = "Vinyl", Kassette = "Kassettebånd", Superhelte = "Superhelteblad";
 
-    public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Magasin, Bog, Cd, Dvd, BluRay, Konsolspil, Magic, Merch, Andet];
+    public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Superhelte, Magasin, Bog, Cd, Vinyl, Kassette, Dvd, BluRay, Vhs,
+        Konsolspil, Magic, Merch, Andet];
 
     public static string Icon(string kind) => kind switch
     {
-        Cd => "🎵", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆", Tegneserie => "💥",
+        Cd or Vinyl => "🎵", Kassette or Vhs => "📼", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆",
+        Tegneserie => "💥", Superhelte => "🦸",
         Konsolspil => "🎮", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
     };
 
@@ -65,4 +69,29 @@ public static class Barcodes
     }
 
     public static bool IsIsbn(string code) => code.Length == 13 && (code.StartsWith("978") || code.StartsWith("979"));
+}
+
+// The product-type services (user 2026-10-20: "separate services for each producttype and the lager and vareinfo should
+// be the shared base"): which one looks after a kind - identification, catalogue fields, price sources, gold lists.
+// Lager decides the kind when it reads a photo, and this decides where it belongs.
+public static class ProductTypes
+{
+    public const string Magic = "Magic", Film = "Film", Musik = "Musik", Tegneserier = "Tegneserier", Blade = "Blade",
+        Superhelte = "Superhelte", Boeger = "Bøger", Andet = "Andet";
+
+    public static readonly string[] All = [Boeger, Blade, Tegneserier, Superhelte, Musik, Film, Magic, Andet];
+
+    public static string For(string kind) => kind switch
+    {
+        Kinds.Magic => Magic,
+        Kinds.Dvd or Kinds.BluRay or Kinds.Vhs => Film,
+        Kinds.Cd or Kinds.Vinyl or Kinds.Kassette => Musik,
+        Kinds.Tegneserie => Tegneserier,
+        Kinds.AndersAnd or Kinds.Jumbobog or Kinds.Magasin => Blade,
+        Kinds.Superhelte => Superhelte,
+        Kinds.Bog => Boeger,
+        _ => Andet,   // console games, merchandise, the rest - no service yet
+    };
+
+    public static string[] KindsOf(string type) => Kinds.All.Where(k => For(k) == type).ToArray();
 }

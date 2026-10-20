@@ -5,9 +5,9 @@ namespace ITMartinLager.Domain;
 public static partial class Pricing
 {
     // Everything but Magic cards, which get Cardmarket's price from the MTG Scanner (user 2026-10-12: "also cds, dvds etc").
-    public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin,
-        Kinds.Cd, Kinds.Dvd, Kinds.BluRay, Kinds.Konsolspil, Kinds.Merch, Kinds.Andet];
-    public static readonly string[] PaperKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin];
+    public static readonly string[] HuntedKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Superhelte, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin,
+        Kinds.Cd, Kinds.Vinyl, Kinds.Kassette, Kinds.Dvd, Kinds.BluRay, Kinds.Vhs, Kinds.Konsolspil, Kinds.Merch, Kinds.Andet];
+    public static readonly string[] PaperKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Superhelte, Kinds.Jumbobog, Kinds.AndersAnd, Kinds.Magasin];
     // The international antiquarian markets (AbeBooks, ZVAB, Bokbörsen) have books and albums, not Danish weekly blade
     // or Jumbobøger - asked anyway, they only answer with foreign books that share a word ("anders").
     public static readonly string[] AntiquarianKinds = [Kinds.Bog, Kinds.Tegneserie, Kinds.Magasin];
@@ -15,7 +15,7 @@ public static partial class Pricing
     // Pegasus (pegasus.dk, the comic shop in Copenhagen) blocks automatic searches with a browser check, and its search
     // is a form, not a link. So comics get a link to the shop and the words to search for, and a person looks (user 2026-10-13).
     public const string PegasusUrl = "https://www.pegasus.dk";
-    public static bool PegasusFits(Item i) => i.Kind is Kinds.Tegneserie or Kinds.Jumbobog or Kinds.AndersAnd;
+    public static bool PegasusFits(Item i) => i.Kind is Kinds.Tegneserie or Kinds.Superhelte or Kinds.Jumbobog or Kinds.AndersAnd;
 
     // The shop sells 10 % under the other sites (user 2026-10-12: "We sell 10 pct below other sites"), and shows the
     // customer the links that prove it.
@@ -118,7 +118,7 @@ public static partial class Pricing
         var words = ListingParse.Words(o.Name);
         if (words.Any(NotOneCopy.Contains) || CopyRangeRx().IsMatch(o.Name) || RatioRx().IsMatch(o.Name)) return false;
         // A comic with an issue number: the title must come first (after brand/creator words) - "Edge of X" is another series.
-        if (item.Kind == Kinds.Tegneserie && item.Number.Trim() != "")
+        if (item.Kind is Kinds.Tegneserie or Kinds.Superhelte && item.Number.Trim() != "")
         {
             var title = ListingParse.Words(item.Title.Trim() != "" ? item.Title : item.Series).Where(w => !ListingParse.IsNumber(w)).ToList();
             var creator = ListingParse.Words(item.Artist).ToHashSet();

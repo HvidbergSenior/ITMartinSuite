@@ -137,6 +137,7 @@ public class IntakeTests
         f.Year.Should().BeNull();
         f.Quantity.Should().Be(1);
         f.Confidence.Should().Be(1);
-        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = "vinyl", Title = "x" }).Kind.Should().Be(Kinds.Andet);
+        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = "frimærke", Title = "x" }).Kind.Should().Be(Kinds.Andet);
+        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = "vinyl", Title = "x" }).Kind.Should().Be(Kinds.Vinyl);
     }
 }
