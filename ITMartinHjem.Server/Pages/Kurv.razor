@@ -1,0 +1,132 @@
+@page "/kurv"
+@inject ShopUseCases Shop
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@* The basket (2026-10-20): the ids live in the buyer's browser (kurv.js); Lager prices them with today's offers every
+   time this page opens, and the same prices go to the payment. *@
+<PageTitle>Kurv · Bogshoppen</PageTitle>
+
+<header class="bs-head bs-head-varer">
+    <span class="bs-tag">Kurv</span>
+    <h1>Din kurv</h1>
+    <p>Her ser du prisen for det hele med dagens tilbud. Tryk Betal for at betale med kort eller MobilePay.</p>
+</header>
+
+@if (_loading)
+{
+    <p class="k-center k-help">Regner kurven ud …</p>
+}
+else if (_quote is null)
+{
+    <section class="k-card bs-card"><h2>Lageret svarer ikke lige nu</h2><div><p>@ShopUseCases.Unreachable</p></div></section>
+}
+else if (_quote.Lines.Count == 0 && _quote.Gone.Count == 0)
+{
+    <section class="k-card bs-card">
+        <h2>Kurven er tom</h2>
+        <div>
+            <p>Tryk <b>Læg i kurven</b> ved de ting, du vil have – så kan du betale for dem på én gang.</p>
+            <a class="k-btn k-btn-primary bs-btn" href="/varer">Se varerne</a>
+        </div>
+    </section>
+}
+else
+{
+    @if (_quote.Today.Count > 0)
+    {
+        <section class="bs-offers" aria-label="Dagens tilbud">
+            <h2>Dagens tilbud</h2>
+            <ul>@foreach (var o in _quote.Today) { <li><b>@o.Text</b> – @o.When.ToLowerInvariant()</li> }</ul>
+        </section>
+    }
+
+    <section class="k-card bs-card">
+        <h2>@_quote.Lines.Count @(_quote.Lines.Count == 1 ? "ting" : "ting") i kurven</h2>
+        <div>
+            @if (_quote.Gone.Count > 0)
+            {
+                <p class="bs-warn" role="alert">@_quote.Gone.Count @(_quote.Gone.Count == 1 ? "ting er" : "ting er") ikke til salg mere (solgt, eller en anden er ved at betale for den). Den er taget ud af kurven.</p>
+            }
+            <ul class="bs-basket">
+                @foreach (var l in _quote.Lines)
+                {
+                    <li>
+                        <span class="bs-item-main"><b><a href="/varer/@l.Id">@l.Line</a></b>
+                            @if (l.Offer != "") { <span class="k-help">@l.Offer – ellers @l.ListKr kr</span> }</span>
+                        <b>@l.Kr kr</b>
+                        <button class="k-btn k-btn-sm" @onclick="() => Remove(l.Id)">Fjern</button>
+                    </li>
+                }
+            </ul>
+            @if (_quote.Lines.Count > 0)
+            {
+                <p class="bs-total">I alt: @_quote.Total kr <span class="k-help">+ fragt, eller hent det</span></p>
+                @if (_quote.Saved > 0) { <p>Du sparer <b>@_quote.Saved kr</b> med dagens tilbud.</p> }
+                @if (_quote.CanPay)
+                {
+                    <p class="k-help">Tryk Betal. Så kommer du til betalingen (kort eller MobilePay) og vælger, om det skal sendes eller hentes. Tingene er holdt til dig i 30 minutter.</p>
+                    <button class="k-btn k-btn-primary bs-btn" @onclick="Pay" disabled="@_busy">@(_busy ? "Et øjeblik …" : $"Betal {_quote.Total} kr")</button>
+                    <p class="k-help">Du har 14 dages fortrydelsesret.</p>
+                    <a class="k-btn k-btn-sm" href="/handelsbetingelser">Læs handelsbetingelserne</a>
+                }
+                else
+                {
+                    <p>Betaling på siden åbner snart. Vil du have tingene nu? Skriv i chatten, så holder vi dem til dig.</p>
+                    <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+                }
+            }
+            @if (_error is not null) { <p class="bs-warn" role="alert">@_error</p> }
+            <p><a class="k-btn k-btn-sm" href="/varer">Se flere varer</a> <button class="k-btn k-btn-sm k-btn-ghost" @onclick="Clear">Tøm kurven</button></p>
+        </div>
+    </section>
+}
+
+@code {
+    private ShopQuote? _quote;
+    private List<int> _ids = [];
+    private bool _loading = true, _busy;
+    private string? _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try { _ids = await JS.InvokeAsync<List<int>>("bsKurv.get"); } catch (JSException) { _ids = []; }
+        await Load();
+        StateHasChanged();
+    }
+
+    private async Task Load()
+    {
+        _quote = await Shop.QuoteAsync(_ids);
+        _loading = false;
+        // What is no longer for sale leaves the basket, so the next payment is not refused for it.
+        if (_quote is { Gone.Count: > 0 })
+            foreach (var id in _quote.Gone) while (_ids.Remove(id)) await JS.InvokeAsync<int>("bsKurv.remove", id);
+    }
+
+    private async Task Remove(int id)
+    {
+        _ids.Remove(id);
+        await JS.InvokeAsync<int>("bsKurv.remove", id);
+        await Load();
+    }
+
+    private async Task Clear()
+    {
+        _ids.Clear();
+        await JS.InvokeAsync<int>("bsKurv.clear");
+        await Load();
+    }
+
+    private async Task Pay()
+    {
+        _busy = true; _error = null;
+        var site = new Uri(Nav.BaseUri).GetLeftPart(UriPartial.Authority);
+        var (url, error) = await Shop.BuyBasketAsync(_ids, site);
+        if (url is not null) { Nav.NavigateTo(url, forceLoad: true); return; }
+        _error = error;
+        _busy = false;
+        await Load();
+    }
+}

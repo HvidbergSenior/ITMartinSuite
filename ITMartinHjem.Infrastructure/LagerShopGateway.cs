@@ -54,6 +54,33 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
         if (!res.IsSuccessStatusCode) return null;
         return await res.Content.ReadFromJsonAsync<ShopOrder>(ct);
     }
+
+    public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? text, string? sort, int page, CancellationToken ct = default)
+    {
+        static string E(string? s) => Uri.EscapeDataString(s ?? "");
+        return (await http.GetFromJsonAsync<ShopMarket>($"/api/butik/marked?type={E(type)}&art={E(kind)}&q={E(text)}&sort={E(sort)}&side={page}", ct))!;
+    }
+
+    private sealed record BasketIds(IReadOnlyList<int> ItemIds);
+
+    public async Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default)
+    {
+        using var res = await http.PostAsJsonAsync("/api/butik/kurv", new BasketIds(itemIds), ct);
+        res.EnsureSuccessStatusCode();
+        return (await res.Content.ReadFromJsonAsync<ShopQuote>(ct))!;
+    }
+
+    public async Task<(string? Url, string? Error)> BuyBasketAsync(IReadOnlyList<int> itemIds, string siteBase, CancellationToken ct = default)
+    {
+        using var res = await http.PostAsJsonAsync("/api/butik/kurv/koeb", new ShopBuy(siteBase, itemIds.ToList()), ct);
+        if (res.IsSuccessStatusCode || res.StatusCode == HttpStatusCode.BadRequest)
+        {
+            var a = await res.Content.ReadFromJsonAsync<ShopBuyAnswer>(ct);
+            return (a?.Url, a?.Url is null ? a?.Error ?? "Det gik ikke." : null);
+        }
+        res.EnsureSuccessStatusCode();
+        return (null, null);
+    }
 }
 
 public static class LagerShopRegistration

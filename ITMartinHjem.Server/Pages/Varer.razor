@@ -2,8 +2,10 @@
 @inject ShopUseCases Shop
 @inject NavigationManager Nav
 @inject IConfiguration Config
+@inject IJSRuntime JS
 
-@* bogshoppen.dk "Varer" tab. Since 2026-10-15 the real stock from Bogshoppen Lager (user: "people be able to search
+@* bogshoppen.dk "Varer" = the marketplace (2026-10-20, user: "a place where they easily can see products in different
+   categories - look autoproff.com") on top of the real stock from Bogshoppen Lager (2026-10-15, user: "people be able to search
    products and make offer -> here the links and so on can be seen. So sales should be instant buy or bet").
    Køb nu here; Byd (pre-bid for the Saturday live auction) comes next. *@
 <PageTitle>Varer · Bogshoppen</PageTitle>
@@ -45,20 +47,46 @@
 }
 
 <header class="bs-head bs-head-varer">
-    <span class="bs-tag">Søg i lageret</span>
+    <span class="bs-tag">Markedet</span>
     <h1>Varer</h1>
-    <p>Her kan du søge i alt det, vi har registreret. Ved hver vare kan du se, hvad den koster andre steder – og vores pris er 10 % lavere.</p>
+    <p>Alt det, vi har registreret – sorteret efter slags. Ved hver vare kan du se, hvad den koster andre steder, og vores pris er 10 % lavere.</p>
 </header>
 
+@if (_market is { Today.Count: > 0 })
+{
+    @* Today's offers (user 2026-10-20: "books monday -> 50 pct ... Monday 10 for 800 ... 31. in every month 10 for 300"). *@
+    <section class="bs-offers" aria-label="Dagens tilbud">
+        <h2>Dagens tilbud</h2>
+        <ul>@foreach (var o in _market.Today) { <li><b>@o.Text</b> – @o.When.ToLowerInvariant()</li> }</ul>
+        <p class="k-help">Bundter regnes ud i kurven: læg tingene i, så ser du prisen. De dyreste ting kommer i bundtet først.</p>
+    </section>
+}
+
 <section class="k-card bs-card">
-    <h2>Søg</h2>
+    <h2>Vælg en slags</h2>
     <div>
-        <p class="k-help">Skriv en titel, et nummer, en forfatter eller et år – fx <i>Anders And 1972</i> eller <i>Pratchett</i>. Tryk Søg.</p>
-        <form class="bs-search" method="get" action="/varer" @onsubmit="Search" @onsubmit:preventDefault>
+        <p class="k-help">Tryk på en slags for kun at se den. Tryk Alt for at se det hele igen.</p>
+        <div class="bs-types">
+            <button class="bs-type" aria-pressed="@(_type == "" ? "true" : "false")" @onclick='() => Go("", _q, _sort)'><b>Alt</b><span>@(_market?.Types.Sum(t => t.Count) ?? 0) varer</span></button>
+            @foreach (var t in _market?.Types ?? [])
+            {
+                <button class="bs-type" aria-pressed="@(_type == t.Type ? "true" : "false")" @onclick="() => Go(t.Type, _q, _sort)"><b>@t.Type</b><span>@t.Count varer</span></button>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="k-card bs-card">
+    <h2>Søg og sortér</h2>
+    <div>
+        <p class="k-help">Skriv en titel, et nummer, en forfatter eller et år – fx <i>Anders And 1972</i> eller <i>Pratchett</i> – og tryk Søg.</p>
+        <form class="bs-tools" method="get" action="/varer" @onsubmit="() => Go(_type, _q, _sort)" @onsubmit:preventDefault>
             <input class="k-input" name="q" @bind="_q" placeholder="Hvad leder du efter?" aria-label="Søg i varerne" />
-            <select class="k-input" name="art" @bind="_kind" aria-label="Slags">
-                <option value="">Alle slags</option>
-                @foreach (var k in Kinds) { <option value="@k">@k</option> }
+            <select class="k-input" @bind="_sort" @bind:after="() => Go(_type, _q, _sort)" aria-label="Sortér">
+                <option value="@ShopSorts.Newest">Nyeste først</option>
+                <option value="@ShopSorts.Cheapest">Billigste først</option>
+                <option value="@ShopSorts.Dearest">Dyreste først</option>
+                <option value="@ShopSorts.Title">Titel A-Å</option>
             </select>
             <button class="k-btn k-btn-primary" type="submit">Søg</button>
         </form>
@@ -69,43 +97,31 @@
 {
     <p class="k-center k-help" role="alert">@_error</p>
 }
-else if (_items is null)
+else if (_market is null)
 {
     <p class="k-center k-help">Henter varerne …</p>
 }
 else
 {
     <section class="k-card bs-card">
-        <h2>@(_items.Count == 0 ? "Ingen varer fundet" : _items.Count >= 60 ? "De første 60 varer" : $"{_items.Count} varer")</h2>
+        <h2>@(_market.Total == 0 ? "Ingen varer fundet" : $"{_market.Total} varer{(_type != "" ? " – " + _type.ToLowerInvariant() : "")}")</h2>
         <div>
-            @if (_items.Count == 0)
+            @if (_market.Total == 0)
             {
-                <p>Vi har ikke fundet noget, der passer. Prøv med færre ord – eller skriv i chatten, hvad du leder efter. Så kigger vi efter det, mens vi pakker kasserne ud.</p>
+                <p>Vi har ikke fundet noget, der passer. Prøv med færre ord eller en anden slags – eller skriv i chatten, hvad du leder efter.</p>
                 <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
             }
             else
             {
-                <p class="k-help">Tryk på en vare for at se priserne andre steder og købe den.</p>
-                <ul class="bs-items">
-                    @foreach (var i in _items)
-                    {
-                        <li>
-                            <a class="bs-item" href="/varer/@i.Id">
-                                @if (i.HasPhoto) { <img src="/varer/foto/@i.Id" alt="" loading="lazy" /> }
-                                <span class="bs-item-main">
-                                    <b>@i.Line</b>
-                                    <span class="k-help">@i.Kind · @i.Condition stand</span>
-                                </span>
-                                <span class="bs-item-price">
-                                    @if (i.Available == 0) { <span>Reserveret</span> }
-                                    else if (i.BuyNowKr is { } kr) { <b>@kr kr</b> }
-                                    else if (i.ExpectKr is { } ex) { <span>ca. @ex kr</span> }
-                                    else { <span>Pris kommer</span> }
-                                </span>
-                            </a>
-                        </li>
-                    }
+                <p class="k-help">Tryk på en vare for at se priserne andre steder. Tryk <b>Læg i kurven</b> for at købe flere ting på én gang@(_basket > 0 ? $" – du har {_basket} i kurven" : "").</p>
+                <ul class="bs-cards">
+                    @foreach (var i in _items) { <ShopCard Item="i" CanBuy="_market.CanPay" Added="n => _basket = n" /> }
                 </ul>
+                @if (_items.Count < _market.Total)
+                {
+                    <p class="k-center"><button class="k-btn bs-btn" @onclick="More" disabled="@_busy">@(_busy ? "Henter …" : $"Vis flere ({_market.Total - _items.Count} mere)")</button></p>
+                }
+                @if (_basket > 0) { <p class="k-center"><a class="k-btn k-btn-primary bs-btn" href="/kurv">Gå til kurven (@_basket)</a></p> }
             }
         </div>
     </section>
@@ -116,50 +132,52 @@ else
     <ul class="bs-promise">
         <li><b>Ved hver vare viser vi links</b> til andre sider, der sælger den samme vare – og <b>vores pris er 10 % lavere</b>.</li>
         <li><b>Har du fundet den billigere et andet sted?</b> Send os linket – så tager vi udgangspunkt i den pris og sælger <b>10 % under</b>.</li>
-        <li><b>Køb nu</b> betaler du med kort eller MobilePay. <b>Snart kan du også byde</b> – så kommer varen med på lørdagens liveauktion.</li>
+        <li><b>Køb nu</b> betaler du med kort eller MobilePay – én ting eller en hel kurv. <b>Snart kan du også byde</b> på lørdagens liveauktion.</li>
     </ul>
-</section>
-
-<section class="k-card bs-card">
-    <h2>Det kommer der mere af</h2>
-    <div>
-    <p>Vi registrerer kasse for kasse, så der kommer nye varer hver uge.</p>
-    <ul class="bs-products">
-        @foreach (var (title, example) in BogshoppenRules.Products)
-        {
-            <li><b>@title</b> <span>– fx @example</span></li>
-        }
-    </ul>
-    <a class="k-btn k-btn-primary bs-btn" href="/#foelg">Skriv dig op – og få et login til liveauktionerne</a>
-    </div>
 </section>
 
 @code {
-    // Lager's kinds, in the order people look for them.
-    private static readonly string[] Kinds = ["Bog", "Tegneserie", "Anders And-blad", "Jumbobog", "Magasin", "CD", "DVD", "Blu-ray", "Konsolspil", "Magic-kort", "Merchandise", "Andet"];
-
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
-    [SupplyParameterFromQuery(Name = "art")] public string? Art { get; set; }
+    [SupplyParameterFromQuery(Name = "type")] public string? Type { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
 
-    private string _q = "", _kind = "";
-    private List<ShopItem>? _items;
+    private string _q = "", _type = "", _sort = ShopSorts.Newest;
+    private ShopMarket? _market;
+    private List<ShopItem> _items = [];
+    private int _page, _basket;
+    private bool _show, _busy;
     private string? _error;
-
-    private bool _show;
 
     protected override async Task OnParametersSetAsync()
     {
         _show = Config.GetValue<bool>("Hjem:ShowFound");
         if (!_show) return;
-        _q = Q ?? "";
-        _kind = Art ?? "";
-        var (_, items, error) = await Shop.SearchAsync(_q, _kind);
-        (_items, _error) = (items, error);
+        (_q, _type, _sort, _page) = (Q ?? "", Type ?? "", ShopSorts.All.Contains(Sort) ? Sort! : ShopSorts.Newest, 0);
+        (_market, _error) = await Shop.MarketAsync(_type, null, _q, _sort, 0);
+        _items = _market?.Items ?? [];
     }
 
-    private void Search()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var url = "/varer" + (_q.Trim() != "" || _kind != "" ? $"?q={Uri.EscapeDataString(_q.Trim())}&art={Uri.EscapeDataString(_kind)}" : "");
-        Nav.NavigateTo(url);
+        if (!firstRender || !_show) return;
+        try { _basket = await JS.InvokeAsync<int>("bsKurv.count"); StateHasChanged(); } catch (JSException) { }
+    }
+
+    private void Go(string type, string q, string sort)
+    {
+        var parts = new List<string>();
+        if (type != "") parts.Add("type=" + Uri.EscapeDataString(type));
+        if (q.Trim() != "") parts.Add("q=" + Uri.EscapeDataString(q.Trim()));
+        if (sort != ShopSorts.Newest) parts.Add("sort=" + sort);
+        Nav.NavigateTo("/varer" + (parts.Count > 0 ? "?" + string.Join("&", parts) : ""));
+    }
+
+    private async Task More()
+    {
+        _busy = true;
+        var (next, error) = await Shop.MarketAsync(_type, null, _q, _sort, _page + 1);
+        if (next is not null) { _page++; _items.AddRange(next.Items); }
+        _error = error;
+        _busy = false;
     }
 }

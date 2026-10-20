@@ -2,6 +2,7 @@
 @inject ShopUseCases Shop
 @inject NavigationManager Nav
 @inject IConfiguration Config
+@inject IJSRuntime JS
 
 @* One product on bogshoppen.dk: what it is, the price promise with the proof links, and Køb nu (Stripe). *@
 <PageTitle>@(_item?.Line ?? "Vare") · Bogshoppen</PageTitle>
@@ -42,11 +43,21 @@ else
             }
             else if (_item.BuyNowKr is { } kr)
             {
-                <p class="bs-price"><b>@kr kr</b> <span class="k-help">+ fragt, eller hent den</span></p>
+                @if (_item.DayKr is { } day)
+                {
+                    <p class="bs-price"><b>@day kr i dag</b> <span class="k-help">+ fragt, eller hent den</span></p>
+                    <p>@_item.DayOffer – ellers @kr kr.</p>
+                }
+                else
+                {
+                    <p class="bs-price"><b>@kr kr</b> <span class="k-help">+ fragt, eller hent den</span></p>
+                }
                 @if (_canBuy)
                 {
-                    <p class="k-help">Tryk Køb nu. Så kommer du til betalingen (kort eller MobilePay) og vælger, om den skal sendes eller hentes. Varen er holdt til dig i 30 minutter.</p>
-                    <button class="k-btn k-btn-primary bs-btn" @onclick="Buy" disabled="@_busy">@(_busy ? "Et øjeblik …" : $"Køb nu – {kr} kr")</button>
+                    <p class="k-help">Tryk Køb nu. Så kommer du til betalingen (kort eller MobilePay) og vælger, om den skal sendes eller hentes. Varen er holdt til dig i 30 minutter. Vil du købe flere ting på én gang, så tryk Læg i kurven – bundt-tilbud regnes ud i kurven.</p>
+                    <button class="k-btn k-btn-primary bs-btn" @onclick="Buy" disabled="@_busy">@(_busy ? "Et øjeblik …" : $"Køb nu – {_item.DayKr ?? kr} kr")</button>
+                    <button class="k-btn bs-btn" @onclick="AddToBasket">@(_inBasket > 0 ? $"Lagt i kurven ({_inBasket})" : "Læg i kurven")</button>
+                    @if (_inBasket > 0) { <a class="k-btn k-btn-sm" href="/kurv">Gå til kurven</a> }
                     <p class="k-help">Du har 14 dages fortrydelsesret.</p>
                     <a class="k-btn k-btn-sm" href="/handelsbetingelser">Læs handelsbetingelserne</a>
                 }
@@ -115,6 +126,10 @@ else
         else _item = null;
         _loading = false;
     }
+
+    private int _inBasket;
+
+    private async Task AddToBasket() => _inBasket = await JS.InvokeAsync<int>("bsKurv.add", Id);
 
     private async Task Buy()
     {

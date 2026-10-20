@@ -1,5 +1,6 @@
 @page "/varer/koebt"
 @inject ShopUseCases Shop
+@inject IJSRuntime JS
 
 @* Where Stripe sends the buyer back. Asking Lager here books the payment at once (the job in Lager does it too). *@
 <PageTitle>Tak for købet · Bogshoppen</PageTitle>
@@ -62,4 +63,16 @@ else
         _order = string.IsNullOrWhiteSpace(Ordre) ? null : await Shop.OrderAsync(Ordre);
         _loading = false;
     }
+
+    // Paid = the basket is bought; it is emptied so the next visit starts fresh.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_order is { Paid: true } && !_cleared)
+        {
+            _cleared = true;
+            try { await JS.InvokeAsync<int>("bsKurv.clear"); } catch (JSException) { }
+        }
+    }
+
+    private bool _cleared;
 }
