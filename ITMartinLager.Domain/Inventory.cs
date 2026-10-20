@@ -157,6 +157,23 @@ public sealed class Item
         return item;
     }
 
+    /// <summary>One copy is sold: it leaves the stock, and the last one makes the row Solgt (the row keeps saying what
+    /// was sold, for whom and for how much). how = "i butikken for 120 kr (ordre 7)".</summary>
+    public void SellCopy(int kr, string buyer, DateTime now, string how)
+    {
+        Quantity = Math.Max(0, Quantity - 1);
+        if (Quantity == 0)
+        {
+            Status = Statuses.Solgt;
+            SoldPrice = kr;
+            SoldTo = buyer;
+            SoldAt = now;
+            Quantity = 1;
+        }
+        Note = (Note + $"\nSolgt {now:yyyy-MM-dd} {how}").Trim();
+        Touch();
+    }
+
     public void Touch()
     {
         UpdatedAt = DateTime.UtcNow;

@@ -65,7 +65,50 @@ public static class LagerDbInitializer
                 "Quantity" INTEGER NOT NULL, "TakenAt" TEXT NOT NULL, "Wanted" INTEGER NOT NULL, "ReadAt" TEXT NULL, "Known" INTEGER NOT NULL);
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_BoxScans_VareinfoId" ON "BoxScans" ("VareinfoId");
             CREATE INDEX IF NOT EXISTS "IX_BoxScans_BoxCode" ON "BoxScans" ("BoxCode");
+            CREATE TABLE IF NOT EXISTS "OrderLines" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_OrderLines" PRIMARY KEY AUTOINCREMENT,
+                "OrderId" INTEGER NOT NULL, "ItemId" INTEGER NOT NULL, "Line" TEXT NOT NULL DEFAULT '', "Kind" TEXT NOT NULL DEFAULT '',
+                "ListKr" INTEGER NOT NULL DEFAULT 0, "Kr" INTEGER NOT NULL DEFAULT 0, "Offer" TEXT NOT NULL DEFAULT '',
+                CONSTRAINT "FK_OrderLines_Orders_OrderId" FOREIGN KEY ("OrderId") REFERENCES "Orders" ("Id") ON DELETE CASCADE);
+            CREATE INDEX IF NOT EXISTS "IX_OrderLines_OrderId" ON "OrderLines" ("OrderId");
+            CREATE INDEX IF NOT EXISTS "IX_OrderLines_ItemId" ON "OrderLines" ("ItemId");
+            CREATE TABLE IF NOT EXISTS "Campaigns" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_Campaigns" PRIMARY KEY AUTOINCREMENT,
+                "Name" TEXT NOT NULL DEFAULT '', "Kind" TEXT NOT NULL DEFAULT '', "ProductType" TEXT NOT NULL DEFAULT '',
+                "Weekday" INTEGER NULL, "DayOfMonth" INTEGER NULL, "Percent" INTEGER NOT NULL DEFAULT 0, "Count" INTEGER NOT NULL DEFAULT 0,
+                "BundleKr" INTEGER NOT NULL DEFAULT 0, "Active" INTEGER NOT NULL DEFAULT 0);
             """);
+        // Orders before baskets and the sale steps (2026-10-20): Channel/PackedAt/DoneAt/Tracking added; each old order
+        // gets its one line; "Handled" (sent or picked up) becomes the status it meant.
+        foreach (var (col, type) in new[] { ("Channel", "TEXT NOT NULL DEFAULT 'Køb nu'"), ("PackedAt", "TEXT NULL"), ("DoneAt", "TEXT NULL"),
+                     ("Tracking", "TEXT NOT NULL DEFAULT ''") })
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('Orders') WHERE name = '{col}'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+                db.Database.ExecuteSqlRaw($"ALTER TABLE Orders ADD COLUMN {col} {type}");
+        }
+        db.Database.ExecuteSqlRaw("""
+            INSERT INTO "OrderLines" ("OrderId", "ItemId", "Line", "Kind", "ListKr", "Kr", "Offer")
+            SELECT o."Id", o."ItemId", o."Line", '', o."Kr", o."Kr", '' FROM "Orders" o
+            WHERE NOT EXISTS (SELECT 1 FROM "OrderLines" l WHERE l."OrderId" = o."Id");
+            """);
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Orders') WHERE name = 'Handled'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) > 0)
+                db.Database.ExecuteSqlRaw("""
+                    UPDATE "Orders" SET "Status" = CASE WHEN "Delivery" LIKE 'Afhent%' THEN 'Afhentet' ELSE 'Sendt' END,
+                        "DoneAt" = "PaidAt", "Handled" = 0
+                    WHERE "Status" = 'Betalt' AND "Handled" = 1;
+                    """);
+        }
+        // The user's day offers, switched off until a person turns them on in Tilbud.
+        if (!db.Campaigns.Any())
+        {
+            db.Campaigns.AddRange(Campaign.Examples());
+            db.SaveChanges();
+        }
         foreach (var col in new[] { "Nemos", "Proof", "Faraos", "Bokborsen" })
         {
             using var cmd = conn.CreateCommand();

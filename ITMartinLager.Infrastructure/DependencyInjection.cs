@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IGoldRepository, GoldRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IIntakeRepository, IntakeRepository>();
+        services.AddScoped<ICampaignRepository, CampaignRepository>();
 
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
         services.AddSingleton<IBookValuer, ClaudeBookValuer>();

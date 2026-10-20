@@ -14,6 +14,8 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
     public DbSet<PriceFind> PriceFinds => Set<PriceFind>();
     public DbSet<GoldEntry> GoldEntries => Set<GoldEntry>();
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderLine> OrderLines => Set<OrderLine>();
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<BoxShot> BoxShots => Set<BoxShot>();
     public DbSet<BoxScan> BoxScans => Set<BoxScan>();
 
@@ -38,6 +40,8 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
         b.Entity<GoldEntry>().HasIndex(x => x.Category);
         b.Entity<Order>().HasIndex(x => x.Token).IsUnique();
         b.Entity<Order>().HasIndex(x => x.Status);
+        b.Entity<Order>().HasMany(o => o.Lines).WithOne().HasForeignKey(l => l.OrderId);
+        b.Entity<OrderLine>().HasIndex(x => x.ItemId);
         b.Entity<BoxShot>().HasIndex(x => x.VareinfoId).IsUnique();
         b.Entity<BoxShot>().HasIndex(x => x.BoxCode);
         b.Entity<BoxScan>().HasIndex(x => x.VareinfoId).IsUnique();

@@ -113,6 +113,45 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return await q.OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
     }
 
+    // Shop.Listed as SQL: in stock or for sale, copies left, a title.
+    private static IQueryable<Item> Listed(LagerDb db) =>
+        db.Items.Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
+
+    public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string text, string sort, int skip, int take, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var q = Listed(db);
+        if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
+        foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
+        {
+            var w = word;
+            q = q.Where(i => i.Search.Contains(w));
+        }
+        var total = await q.CountAsync(ct);
+        // The price a buyer sees: a person's price, else the suggested shop price; things without one last.
+        q = sort switch
+        {
+            ShopSorts.Cheapest => q.OrderBy(i => (i.Price ?? i.PriceHint) == null).ThenBy(i => i.Price ?? i.PriceHint).ThenBy(i => i.Title),
+            ShopSorts.Dearest => q.OrderBy(i => (i.Price ?? i.PriceHint) == null).ThenByDescending(i => i.Price ?? i.PriceHint).ThenBy(i => i.Title),
+            ShopSorts.Title => q.OrderBy(i => i.Title).ThenBy(i => i.Year).ThenBy(i => i.Number),
+            _ => q.OrderByDescending(i => i.CreatedAt).ThenByDescending(i => i.Id),
+        };
+        return (await q.Skip(skip).Take(take).ToListAsync(ct), total);
+    }
+
+    public async Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await Listed(db).GroupBy(i => i.Kind).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+    }
+
+    public async Task<List<Item>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0) return [];
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Items.Where(i => ids.Contains(i.Id)).ToListAsync(ct);
+    }
+
     public async Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct, IReadOnlyCollection<string>? barcodes = null)
     {
         var keys = titles.Select(Item.TitleKey).Where(t => t != "").ToList();

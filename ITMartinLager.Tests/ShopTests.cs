@@ -42,7 +42,7 @@ public class ShopTests
         pay.SetupGet(p => p.Enabled).Returns(true);
         pay.Setup(p => p.StartAsync(It.IsAny<Order>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(("cs_test_1", "https://checkout.stripe.com/c/pay/cs_test_1"));
-        return (new ShopUseCases(Items, new PriceRepository(Factory), new OrderRepository(Factory), pay.Object, _opt, TimeProvider.System), pay);
+        return (new ShopUseCases(Items, new PriceRepository(Factory), new OrderRepository(Factory), pay.Object, new CampaignRepository(Factory), new GoldRepository(Factory), _opt, TimeProvider.System), pay);
     }
 
     [Test]
@@ -158,7 +158,7 @@ public class ShopTests
         var (shop, _) = Make();
         await shop.Invoking(s => s.BuyAsync(dear.Id, "https://bogshoppen.dk")).Should().ThrowAsync<LagerException>().WithMessage("*fast pris*");
 
-        var off = new ShopUseCases(Items, new PriceRepository(Factory), new OrderRepository(Factory), Mock.Of<IPaymentGateway>(), _opt, TimeProvider.System);
+        var off = new ShopUseCases(Items, new PriceRepository(Factory), new OrderRepository(Factory), Mock.Of<IPaymentGateway>(), new CampaignRepository(Factory), new GoldRepository(Factory), _opt, TimeProvider.System);
         off.CanPay.Should().BeFalse();
         var cheap = await Add("Mort", 50);
         await off.Invoking(s => s.BuyAsync(cheap.Id, "https://bogshoppen.dk")).Should().ThrowAsync<LagerException>().WithMessage("*Betaling*");

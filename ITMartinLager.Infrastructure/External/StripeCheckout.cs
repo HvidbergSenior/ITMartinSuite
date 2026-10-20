@@ -40,11 +40,18 @@ public sealed class StripeCheckout(HttpClient http, IConfiguration cfg) : IPayme
         Add("client_reference_id", N(order.Id));
         Add("metadata[order]", N(order.Id));
         Add("expires_at", N(new DateTimeOffset(DateTime.SpecifyKind(order.CreatedAt, DateTimeKind.Utc) + Order.PayWithin).ToUnixTimeSeconds()));
-        Add("line_items[0][quantity]", "1");
-        Add("line_items[0][price_data][currency]", "dkk");
-        Add("line_items[0][price_data][unit_amount]", N(order.Kr * 100L));
-        Add("line_items[0][price_data][product_data][name]", Cut(order.Line, 250));
-        Add("line_items[0][price_data][product_data][description]", Cut(description, 250));
+        // One payment line per thing, at today's price, with the offer that gave it - the receipt shows the basket.
+        var lines = order.Lines.Count > 0
+            ? order.Lines.Select(l => (Name: l.Line, Kr: l.Kr, Text: l.Offer != "" ? $"{l.Kind} · {l.Offer}" : l.Kind)).ToList()
+            : [(Name: order.Line, Kr: order.Kr, Text: description)];
+        for (var i = 0; i < lines.Count; i++)
+        {
+            Add($"line_items[{i}][quantity]", "1");
+            Add($"line_items[{i}][price_data][currency]", "dkk");
+            Add($"line_items[{i}][price_data][unit_amount]", N(lines[i].Kr * 100L));
+            Add($"line_items[{i}][price_data][product_data][name]", Cut(lines[i].Name, 250));
+            if (lines[i].Text != "") Add($"line_items[{i}][price_data][product_data][description]", Cut(lines[i].Text, 250));
+        }
         Add("phone_number_collection[enabled]", "true");
         var n = 0;
         if (pickup != "")

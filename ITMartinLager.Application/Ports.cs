@@ -131,14 +131,24 @@ public interface IPaymentGateway
 
 public interface IOrderRepository
 {
+    /// <summary>With its lines.</summary>
     Task AddAsync(Order order, CancellationToken ct);
     Task UpdateAsync(Order order, CancellationToken ct);
+    Task<Order?> GetAsync(int id, CancellationToken ct);
     Task<Order?> ByTokenAsync(string token, CancellationToken ct);
     Task<List<Order>> PendingAsync(CancellationToken ct);
-    /// <summary>Copies reserved per item right now (pending, not expired).</summary>
+    /// <summary>Copies reserved per item right now (lines of pending, not expired orders).</summary>
     Task<Dictionary<int, int>> ReservedAsync(IReadOnlyCollection<int> itemIds, DateTime utcNow, CancellationToken ct);
     Task<List<Order>> RecentAsync(int max, CancellationToken ct);
-    Task SetHandledAsync(int id, bool handled, CancellationToken ct);
+}
+
+/// <summary>The day offers (Lager's Tilbud page).</summary>
+public interface ICampaignRepository
+{
+    Task<List<Campaign>> AllAsync(CancellationToken ct);
+    /// <summary>Adds (Id 0) or updates.</summary>
+    Task SaveAsync(Campaign campaign, CancellationToken ct);
+    Task DeleteAsync(int id, CancellationToken ct);
 }
 
 /// <summary>A message for the person, in Danish - shown as it is.</summary>

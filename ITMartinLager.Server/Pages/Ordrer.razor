@@ -1,35 +1,39 @@
 @page "/ordrer"
 @inject ShopUseCases Shop
 
+@* The sales after payment (user 2026-10-20: "sold, packed, in storage or something"): Betalt -> Pakket -> Sendt / Afhentet.
+   The rules for what may come next are on the Order (Domain); this page only shows and asks. *@
 <PageTitle>Ordrer – Bogshoppen Lager</PageTitle>
 
 <section class="k-card">
-    <h1 class="k-card-title">🧾 Ordrer fra butikken</h1>
-    <p>Her står alt, der er købt med <b>Køb nu</b> på bogshoppen.dk. Når en ordre er betalt, er varen trukket fra lageret (den sidste = Solgt).</p>
-    <p>Pak varen og send den – eller aftal afhentning med køberen. Tryk så <b>Sendt / afhentet</b>, så den ryger ned i bunden.</p>
+    <h1 class="k-card-title">🧾 Ordrer</h1>
+    <p>Her står alt, der er købt med <b>Køb nu</b> på bogshoppen.dk – én ting eller en hel kurv. Når en ordre er betalt, er tingene trukket fra lageret (den sidste af en slags = Solgt).</p>
+    <p>Pak ordren og tryk <b>📦 Pakket</b>. Når den er afleveret til posten, så skriv pakkens nummer og tryk <b>Sendt</b> – eller tryk <b>Afhentet</b>, når køberen har hentet den. Trykker du forkert, så tryk <b>Fortryd</b>.</p>
     @if (!Shop.CanPay)
     {
         <p class="lg-warn" role="status">⚠ Køb nu er slået fra: Stripe-nøglen (Lager__StripeSecretKey) eller fragt/afhentning (Lager__ShopShippingKr / Lager__ShopPickup) mangler i magic.env.</p>
     }
+    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
 </section>
 
-@foreach (var group in new[] { ("Skal sendes eller afhentes", _orders.Where(o => o.Status == OrderStatuses.Paid && !o.Handled).ToList()),
-                               ("Venter på betaling", _orders.Where(o => o.Status == OrderStatuses.Pending).ToList()),
-                               ("Klaret", _orders.Where(o => o.Status == OrderStatuses.Paid && o.Handled).ToList()),
-                               ("Ikke betalt (udløbet)", _orders.Where(o => o.Status == OrderStatuses.Expired).Take(20).ToList()) })
+@foreach (var (title, list) in Groups())
 {
-    @if (group.Item2.Count > 0)
+    @if (list.Count > 0)
     {
-        <section class="k-card">
-            <h2 class="k-card-title">@group.Item1 (@group.Item2.Count)</h2>
+        <section class="k-card" data-fold-closed="@(title.StartsWith("Ikke") || title.StartsWith("Klaret") ? "true" : null)">
+            <h2 class="k-card-title">@title (@list.Count)</h2>
             <ul class="lg-list">
-                @foreach (var o in group.Item2)
+                @foreach (var o in list)
                 {
                     <li class="lg-order">
                         <span class="lg-main">
-                            <b><a href="/vare/@o.ItemId">@o.Line</a></b>
-                            <span class="k-small">@o.Kr kr@(o.PaidKr > o.Kr ? $" + fragt = {o.PaidKr} kr" : "") · @o.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm") · ordre @o.Id</span>
-                            @if (o.Status == OrderStatuses.Paid)
+                            <b>Ordre @o.Id · @o.Kr kr@(o.PaidKr > o.Kr ? $" + fragt = {o.PaidKr} kr" : "")</b>
+                            <span class="k-small">@o.Status · @o.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")@(o.Tracking != "" ? $" · pakke {o.Tracking}" : "")</span>
+                            @foreach (var l in o.Lines)
+                            {
+                                <span class="k-small">· <a href="/vare/@l.ItemId">@l.Line</a> – @l.Kr kr@(l.Offer != "" ? $" ({l.Offer}, normalt {l.ListKr} kr)" : "")</span>
+                            }
+                            @if (o.Paid)
                             {
                                 <span class="k-small"><b>@o.Delivery</b> · @o.Name · @o.Email · @o.Phone</span>
                                 @if (o.Address != "") { <span class="k-small">@o.Address</span> }
@@ -37,7 +41,23 @@
                         </span>
                         @if (o.Status == OrderStatuses.Paid)
                         {
-                            <button class="k-btn k-btn-sm @(o.Handled ? "k-btn-ghost" : "k-btn-primary")" @onclick="() => Toggle(o)">@(o.Handled ? "Fortryd" : "✓ Sendt / afhentet")</button>
+                            <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Step(() => Shop.PackAsync(o.Id))">📦 Pakket</button>
+                        }
+                        @if (o.Status is OrderStatuses.Paid or OrderStatuses.Packed)
+                        {
+                            @if (o.Delivery.StartsWith("Afhent"))
+                            {
+                                <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Step(() => Shop.PickedUpAsync(o.Id))">✓ Afhentet</button>
+                            }
+                            else
+                            {
+                                <input class="k-input" placeholder="Pakkens nummer" @bind="_tracking[o.Id]" aria-label="Pakkens nummer for ordre @o.Id" />
+                                <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Send(o.Id)">✓ Sendt</button>
+                            }
+                        }
+                        @if (o.Status is OrderStatuses.Packed or OrderStatuses.Sent or OrderStatuses.PickedUp)
+                        {
+                            <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Step(() => Shop.UndoAsync(o.Id))">Fortryd</button>
                         }
                     </li>
                 }
@@ -52,12 +72,33 @@
 
 @code {
     private List<Order> _orders = [];
+    private readonly Dictionary<int, string?> _tracking = [];
+    private string? _error;
 
-    protected override async Task OnInitializedAsync() => _orders = await Shop.RecentOrdersAsync();
+    protected override async Task OnInitializedAsync() => await Load();
 
-    private async Task Toggle(Order o)
+    private async Task Load()
     {
-        await Shop.SetHandledAsync(o.Id, !o.Handled);
         _orders = await Shop.RecentOrdersAsync();
+        foreach (var o in _orders) _tracking.TryAdd(o.Id, "");
+    }
+
+    private IEnumerable<(string, List<Order>)> Groups() =>
+    [
+        ("Skal pakkes", _orders.Where(o => o.Status == OrderStatuses.Paid).ToList()),
+        ("Pakket – skal sendes eller afhentes", _orders.Where(o => o.Status == OrderStatuses.Packed).ToList()),
+        ("Venter på betaling", _orders.Where(o => o.Status == OrderStatuses.Pending).ToList()),
+        ("Klaret – sendt eller afhentet", _orders.Where(o => o.Status is OrderStatuses.Sent or OrderStatuses.PickedUp).ToList()),
+        ("Ikke betalt (udløbet)", _orders.Where(o => o.Status is OrderStatuses.Expired or OrderStatuses.Cancelled).Take(20).ToList()),
+    ];
+
+    private Task Send(int id) => Step(() => Shop.SendAsync(id, _tracking.GetValueOrDefault(id) ?? string.Empty));
+
+    private async Task Step(Func<Task> step)
+    {
+        _error = null;
+        try { await step(); }
+        catch (LagerException ex) { _error = ex.Message; }
+        await Load();
     }
 }

@@ -1,0 +1,138 @@
+@page "/tilbud"
+@inject CampaignUseCases Campaigns
+
+@* Day offers (user 2026-10-20: "books monday -> 50 pct on used books. Also Monday 10 for 800, tuesday 10 for 700 and so
+   on. Or 31. in every month 10 for 300"). The pricing rule is in the Domain (Campaigns.Price); this page edits the offers. *@
+<PageTitle>Tilbud – Bogshoppen Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">🏷️ Dagens tilbud</h1>
+    <p>Tilbud, der kører af sig selv på bestemte dage – på bogshoppen.dk, i kurven og ved betalingen. Kun tilbud, der er <b>slået til</b>, gælder.</p>
+    <ul>
+        <li><b>Procent</b>: fx 50 % på bøger hver mandag. Prisen vises ved hver vare den dag.</li>
+        <li><b>Bundt</b>: fx 10 for 800 kr. Lægger køberen 10 ting i kurven, koster de 800 kr tilsammen. De dyreste ting kommer i bundtet først, og et bundt bruges kun, når det er billigere end at købe tingene hver for sig.</li>
+        <li>En ting får højst ét tilbud – det, der er bedst for køberen.</li>
+    </ul>
+    <p class="lg-answer">I dag (@Campaign.DayName((int)Campaigns.Today.DayOfWeek) d. @Campaigns.Today.Day.): @(_today.Count == 0 ? "ingen tilbud" : string.Join(" · ", _today.Select(c => c.Text)))</p>
+    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+    @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+    <details class="lg-more">
+        <summary>Godt at vide om førpriser</summary>
+        <p>Skriver man "50 % rabat", skal førprisen efter reglerne om prisoplysning være den laveste pris i de 30 dage før. Kører et tilbud hver uge, var varen også billig sidste mandag. Derfor står tilbuddet her som en dagspris ("50 % på bøger hver mandag") og ikke som en nedsat pris. Spørg revisoren eller Forbrugerombudsmanden, hvis du er i tvivl.</p>
+    </details>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Alle tilbud (@_all.Count)</h2>
+    <ul class="lg-list">
+        @foreach (var c in _all)
+        {
+            <li>
+                <span class="lg-main"><b>@c.Name</b><span class="k-small">@c.When · @c.Text · @(c.Active ? "slået til" : "slået fra")</span></span>
+                <button class="k-btn k-btn-sm @(c.Active ? "k-btn-ghost" : "k-btn-primary")" @onclick="() => Toggle(c)">@(c.Active ? "Slå fra" : "Slå til")</button>
+                <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Edit(c)">Ret</button>
+            </li>
+        }
+    </ul>
+    <button class="k-btn k-btn-secondary" @onclick="() => Edit(new Campaign { Kind = CampaignKinds.Bundle, Count = 10 })">➕ Nyt tilbud</button>
+</section>
+
+@if (_edit is not null)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">@(_edit.Id == 0 ? "Nyt tilbud" : $"Ret: {_edit.Name}")</h2>
+        <div class="lg-form">
+            <label>Navn <input class="k-input" @bind="_edit.Name" placeholder="fx Bogmandag" /></label>
+            <label>Slags
+                <select class="k-input" @bind="_edit.Kind">@foreach (var k in CampaignKinds.All) { <option value="@k">@k</option> }</select>
+            </label>
+            <label>Varetype
+                <select class="k-input" @bind="_edit.ProductType">
+                    <option value="">Alt</option>
+                    @foreach (var t in ProductTypes.All) { <option value="@t">@t</option> }
+                </select>
+            </label>
+            <label>Ugedag
+                <select class="k-input" @bind="_weekday">
+                    <option value="">Alle dage</option>
+                    @for (var d = 1; d <= 7; d++) { var w = d % 7; <option value="@w">@Campaign.DayName(w)</option> }
+                </select>
+            </label>
+            <label>Dato i måneden <input class="k-input" type="number" min="1" max="31" @bind="_edit.DayOfMonth" placeholder="fx 31 – tom = alle" /></label>
+            @if (_edit.Kind == CampaignKinds.Percent)
+            {
+                <label>Procent <input class="k-input" type="number" min="1" max="99" @bind="_edit.Percent" /></label>
+            }
+            else
+            {
+                <label>Antal ting <input class="k-input" type="number" min="2" @bind="_edit.Count" /></label>
+                <label>For i alt (kr) <input class="k-input" type="number" min="1" @bind="_edit.BundleKr" /></label>
+            }
+            <label><input type="checkbox" @bind="_edit.Active" /> Slået til</label>
+        </div>
+        <div class="lg-row">
+            <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _edit = null">Annullér</button>
+            @if (_edit.Id != 0) { <button class="k-btn k-btn-ghost" @onclick="Delete">Slet tilbuddet</button> }
+        </div>
+    </section>
+}
+
+@code {
+    private List<Campaign> _all = [], _today = [];
+    private Campaign? _edit;
+    private string? _error, _msg;
+
+    // The weekday select works on text ("" = every day).
+    private string _weekday
+    {
+        get => _edit?.Weekday?.ToString() ?? "";
+        set { if (_edit is not null) _edit.Weekday = int.TryParse(value, out var w) ? w : null; }
+    }
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _all = await Campaigns.AllAsync();
+        _today = await Campaigns.OnAsync(Campaigns.Today);
+    }
+
+    private void Edit(Campaign c)
+    {
+        _error = _msg = null;
+        _edit = new Campaign
+        {
+            Id = c.Id, Name = c.Name, Kind = c.Kind, ProductType = c.ProductType, Weekday = c.Weekday, DayOfMonth = c.DayOfMonth,
+            Percent = c.Percent, Count = c.Count, BundleKr = c.BundleKr, Active = c.Active,
+        };
+    }
+
+    private async Task Save()
+    {
+        _error = _msg = null;
+        try
+        {
+            await Campaigns.SaveAsync(_edit!);
+            _msg = $"{_edit!.Name} er gemt.";
+            _edit = null;
+        }
+        catch (LagerException ex) { _error = ex.Message; }
+        await Load();
+    }
+
+    private async Task Toggle(Campaign c)
+    {
+        await Campaigns.SetActiveAsync(c, !c.Active);
+        _msg = $"{c.Name} er slået {(c.Active ? "til" : "fra")}.";
+        await Load();
+    }
+
+    private async Task Delete()
+    {
+        await Campaigns.DeleteAsync(_edit!.Id);
+        _msg = $"{_edit.Name} er slettet.";
+        _edit = null;
+        await Load();
+    }
+}
