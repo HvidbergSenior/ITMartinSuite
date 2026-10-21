@@ -14,19 +14,22 @@ public sealed class DiscogsListings(HttpClient http, ILogger<DiscogsListings> lo
     private static readonly ConcurrentDictionary<string, (DateTime At, Listings Result)> Cache = new();
 
     private static string Q(string title, string artist) => $"{artist} {title}".Trim();
-    public static string SearchUrl(string title, string artist) =>
-        "https://www.discogs.com/search/?type=release&format_exact=CD&q=" + Uri.EscapeDataString(Q(title, artist));
+    // Discogs' own format names (2026-10-21: vinyl and tapes were searched as CDs and found nothing).
+    public const string Cd = "CD", Vinyl = "Vinyl", Cassette = "Cassette";
 
-    public async Task<Listings?> LookupAsync(string title, string artist, CancellationToken ct = default)
+    public static string SearchUrl(string title, string artist, string format = Cd) =>
+        $"https://www.discogs.com/search/?type=release&format_exact={format}&q=" + Uri.EscapeDataString(Q(title, artist));
+
+    public async Task<Listings?> LookupAsync(string title, string artist, CancellationToken ct = default, string format = Cd)
     {
         if (string.IsNullOrWhiteSpace(title)) return null;
-        var key = Q(title, artist).ToLowerInvariant();
+        var key = format + ":" + Q(title, artist).ToLowerInvariant();
         if (Cache.TryGetValue(key, out var hit) && hit.At > DateTime.UtcNow.AddDays(-1)) return hit.Result;
 
         await Gate.WaitAsync(ct);
         try
         {
-            var search = await GetAsync($"https://api.discogs.com/database/search?type=release&format=CD&per_page=10&q={Uri.EscapeDataString(Q(title, artist))}", ct);
+            var search = await GetAsync($"https://api.discogs.com/database/search?type=release&format={Uri.EscapeDataString(format)}&per_page=10&q={Uri.EscapeDataString(Q(title, artist))}", ct);
             if (search is null) return null;
             var match = ListingParse.Matcher(title, artist);
             var offers = new List<Offer>();
@@ -46,7 +49,7 @@ public sealed class DiscogsListings(HttpClient http, ILogger<DiscogsListings> lo
                 var year = r.TryGetProperty("year", out var y) ? $" ({y})" : "";
                 offers.Add(new Offer($"{name}{year} – {forSale} til salg", forSale > 0 ? kr : null, $"https://www.discogs.com/sell/release/{id}"));
             }
-            var result = ListingParse.Summarise(offers, SearchUrl(title, artist), match.Ambiguous) with { Want = want, Have = have };
+            var result = ListingParse.Summarise(offers, SearchUrl(title, artist, format), match.Ambiguous) with { Want = want, Have = have };
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }

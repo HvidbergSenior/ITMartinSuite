@@ -8,7 +8,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
 {
     private readonly List<IPriceSource> _sources = sources.ToList();
 
-    public int SourceCount => _sources.Count;
+    public int SourceCount => _sources.Select(s => s.Name).Distinct().Count();   // Discogs is one site with a source per format
 
     /// <summary>"Brugt: DBA, eBay, Tradera (Sverige) ... Ny: Bog &amp; idé."</summary>
     public string SourceList
@@ -17,7 +17,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         {
             static string Name(IPriceSource s) => s.Country == "" ? s.Name : $"{s.Name} ({s.Country})";
             static string And(List<string> n) => n.Count <= 1 ? string.Join("", n) : string.Join(", ", n.Take(n.Count - 1)) + " og " + n[^1];
-            return $"Brugt: {And(_sources.Where(s => !s.IsNew).Select(Name).ToList())}. Ny: {And(_sources.Where(s => s.IsNew).Select(Name).ToList())}.";
+            return $"Brugt: {And(_sources.Where(s => !s.IsNew).Select(Name).Distinct().ToList())}. Ny: {And(_sources.Where(s => s.IsNew).Select(Name).Distinct().ToList())}.";
         }
     }
 

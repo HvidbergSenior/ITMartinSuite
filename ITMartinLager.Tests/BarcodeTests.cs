@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using FluentAssertions;
 using ITMartinLager.Application;
 using ITMartinLager.Domain;
@@ -45,4 +46,22 @@ public class DiscogsBarcodeTests
     [TestCase(new[] { "Blu-ray", "DVD" }, "Blu-ray")]
     [TestCase(new[] { "File" }, "Andet")]
     public void The_format_gives_the_kind(string[] formats, string kind) => BarcodeLookup.DiscogsKind(formats).Should().Be(kind);
+}
+
+// Vinyl and tapes are searched as vinyl and cassettes on Discogs (2026-10-21), one source per format.
+public class DiscogsFormatTests
+{
+    private static List<ITMartinLager.Application.IPriceSource> Sources()
+    {
+        var services = new ServiceCollection().AddLogging();
+        ITMartinLager.Infrastructure.PriceSites.PriceSourceRegistration.AddPriceSources(services);
+        return services.BuildServiceProvider().GetServices<ITMartinLager.Application.IPriceSource>().ToList();
+    }
+
+    [TestCase("CD", "format_exact=CD")]
+    [TestCase("Vinyl", "format_exact=Vinyl")]
+    [TestCase("Kassettebånd", "format_exact=Cassette")]
+    public void Each_music_kind_gets_one_Discogs_search_in_its_own_format(string kind, string url) =>
+        Sources().Where(s => s.Name == "Discogs" && s.Fits(kind)).Should().ContainSingle()
+            .Which.SearchUrl("Midt om natten", "Kim Larsen", "").Should().Contain(url);
 }

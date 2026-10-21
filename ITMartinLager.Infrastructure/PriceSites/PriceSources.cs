@@ -48,8 +48,10 @@ internal static class PriceSourceRegistration
             (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i), "EBAY_US"), [Kinds.Tegneserie, Kinds.Superhelte, Kinds.Merch]));
         // HipComic tried 2026-10-12: its Cloudflare check answers 403 to every .NET client (curl gets in) - left out.
         // CDs, records and tapes: Discogs, the record collectors' market - copies for sale and the lowest price, in kroner.
-        Add(sp => new PriceSource("Discogs", false, "", (t, a, i, ct) => sp.GetRequiredService<DiscogsListings>().LookupAsync(t, a, ct),
-            (t, a, i) => DiscogsListings.SearchUrl(t, a), [Kinds.Cd, Kinds.Vinyl, Kinds.Kassette]));
+        // One source per format, so a record is searched as vinyl and a tape as a cassette - only the one that fits runs.
+        foreach (var (kind, format) in new[] { (Kinds.Cd, DiscogsListings.Cd), (Kinds.Vinyl, DiscogsListings.Vinyl), (Kinds.Kassette, DiscogsListings.Cassette) })
+            Add(sp => new PriceSource("Discogs", false, "", (t, a, i, ct) => sp.GetRequiredService<DiscogsListings>().LookupAsync(t, a, ct, format),
+                (t, a, i) => DiscogsListings.SearchUrl(t, a, format), [kind]));
         Add(sp => new PriceSource("Tradera", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<TraderaListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => TraderaListings.SearchUrl(QOrIsbn(t, a, i))));
         Add(sp => Used(sp.GetRequiredService<BlocketListings>(), "Sverige"));
