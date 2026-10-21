@@ -92,7 +92,14 @@ public sealed class DatePolls(IAggregateStore<DatePoll> store, IImageFiles image
 // Packages: several questions + picture ratings answered as one forespørgsel by a household ("name + house number").
 public sealed class Packages(IAggregateStore<Package> packages, IAggregateStore<Poll> polls, IAggregateStore<ImageSession> sessions, TimeProvider clock)
 {
-    public sealed record Answers(Dictionary<int, int> Votes, Dictionary<int, string> VoteComments, Dictionary<int, int> Ratings, Dictionary<int, string> RatingComments);
+    /// <summary>Votes: per question the chosen answers (several when the question allows it).</summary>
+    /// <summary>Grades: per "karakter" question, per answer the score given.</summary>
+    public sealed record Answers(Dictionary<int, List<int>> Votes, Dictionary<int, string> VoteComments, Dictionary<int, int> Ratings, Dictionary<int, string> RatingComments)
+    {
+        public Dictionary<int, Dictionary<int, int>> Grades { get; } = [];
+        /// <summary>Per "karakter" question, per answer the comment written on it.</summary>
+        public Dictionary<int, Dictionary<int, string>> GradeComments { get; } = [];
+    }
 
     /// <summary>The active package with its active questions and series, or null.</summary>
     public async Task<Package?> GetActiveAsync(int id, CancellationToken ct = default)
@@ -111,7 +118,14 @@ public sealed class Packages(IAggregateStore<Package> packages, IAggregateStore<
     {
         var a = new Answers([], [], [], []);
         foreach (var poll in p.Polls)
-            if ((await polls.GetAsync(poll.Id, ct))?.Votes.FirstOrDefault(v => v.VoterName == voterLabel) is { } v) { a.Votes[poll.Id] = v.OptionId; a.VoteComments[poll.Id] = v.Comment; }
+        {
+            var mine = (await polls.GetAsync(poll.Id, ct))?.Votes.Where(v => v.VoterName == voterLabel).ToList() ?? [];
+            if (mine.Count == 0) continue;
+            a.Votes[poll.Id] = mine.Select(v => v.OptionId).ToList();
+            if (mine.Any(v => v.Score > 0)) a.Grades[poll.Id] = mine.Where(v => v.Score > 0).ToDictionary(v => v.OptionId, v => v.Score);
+            if (poll.Kind == QuestionKinds.Grade) a.GradeComments[poll.Id] = mine.Where(v => v.Comment != "").ToDictionary(v => v.OptionId, v => v.Comment);
+            a.VoteComments[poll.Id] = mine.Select(v => v.Comment).FirstOrDefault(c => c != "") ?? "";
+        }
         foreach (var s in p.Sessions)
             foreach (var img in (await sessions.GetAsync(s.Id, ct))?.Images ?? [])
                 if (img.Ratings.FirstOrDefault(r => r.VoterToken == token) is { } r) { a.Ratings[img.Id] = r.Score; a.RatingComments[img.Id] = r.Comment; }
@@ -120,6 +134,12 @@ public sealed class Packages(IAggregateStore<Package> packages, IAggregateStore<
 
     public Task ChooseAsync(int pollId, string voterLabel, int optionId, string pendingComment, CancellationToken ct = default) =>
         polls.ChangeAsync(pollId, p => { PackageRules.Choose(p, voterLabel, optionId, pendingComment, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
+
+    public Task GradeAsync(int pollId, string voterLabel, int optionId, int score, CancellationToken ct = default) =>
+        polls.ChangeAsync(pollId, p => { PackageRules.Grade(p, voterLabel, optionId, score, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
+
+    public Task GradeCommentAsync(int pollId, string voterLabel, int optionId, string comment, CancellationToken ct = default) =>
+        polls.ChangeAsync(pollId, p => { PackageRules.GradeComment(p, voterLabel, optionId, comment, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
 
     public async Task<bool> CommentAsync(int pollId, string voterLabel, string comment, CancellationToken ct = default)
     {

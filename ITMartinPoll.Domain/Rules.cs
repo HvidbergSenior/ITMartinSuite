@@ -86,12 +86,50 @@ public static class PackageRules
     public static bool IsIdentified(string name, string house, bool needsHouse) =>
         !string.IsNullOrWhiteSpace(name) && (!needsHouse || !string.IsNullOrWhiteSpace(house));
 
-    /// <summary>One answer per household per question; choosing again changes it. A comment written before the choice comes with it.</summary>
+    /// <summary>One answer per person per question; choosing again changes it. A question that allows several answers
+    /// (user 2026-10-21: "also choose more things") keeps each one, and a second tap on the same answer takes it back.
+    /// A comment written before the first choice comes with it.</summary>
     public static void Choose(Poll poll, string voterLabel, int optionId, string pendingComment, DateTime nowUtc)
     {
-        var v = poll.Votes.FirstOrDefault(x => x.VoterName == voterLabel);
+        var mine = poll.Votes.Where(x => x.VoterName == voterLabel).ToList();
+        if (poll.AllowMultiple)
+        {
+            if (mine.FirstOrDefault(v => v.OptionId == optionId) is { } same)
+            {
+                poll.Votes.Remove(same);
+                // the comment belongs to the person, not to one answer - keep it on an answer that is left
+                if (same.Comment != "" && mine.FirstOrDefault(v => v != same) is { } other && other.Comment == "") other.Comment = same.Comment;
+                return;
+            }
+            poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Comment = mine.Count == 0 ? pendingComment : "", VotedAt = nowUtc });
+            return;
+        }
+        var v = mine.FirstOrDefault();
         if (v is null) poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Comment = pendingComment, VotedAt = nowUtc });
         else { v.OptionId = optionId; v.VotedAt = nowUtc; }
+    }
+
+    /// <summary>"Giv karakter": 1-5 for one answer; the same score again takes it back, another score changes it.</summary>
+    public static void Grade(Poll poll, string voterLabel, int optionId, int score, DateTime nowUtc)
+    {
+        if (score is < 1 or > QuestionKinds.MaxScore || poll.Options.All(o => o.Id != optionId)) return;
+        var v = poll.Votes.FirstOrDefault(x => x.VoterName == voterLabel && x.OptionId == optionId);
+        if (v is null) poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Score = score, VotedAt = nowUtc });
+        else if (v.Score == score) { if (v.Comment == "") poll.Votes.Remove(v); else v.Score = 0; }
+        else { v.Score = score; v.VotedAt = nowUtc; }
+    }
+
+    /// <summary>"Giv karakter": a comment on one answer (user 2026-10-21: "people can comment on each and make grades").
+    /// Kept on that answer's row - a comment without a score yet is a row with Score 0, not counted in the average.</summary>
+    public static void GradeComment(Poll poll, string voterLabel, int optionId, string comment, DateTime nowUtc)
+    {
+        if (poll.Options.All(o => o.Id != optionId)) return;
+        var c = comment.Trim();
+        if (c.Length > 1000) c = c[..1000];
+        var v = poll.Votes.FirstOrDefault(x => x.VoterName == voterLabel && x.OptionId == optionId);
+        if (v is null) { if (c != "") poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Comment = c, VotedAt = nowUtc }); }
+        else if (c == "" && v.Score == 0) poll.Votes.Remove(v);
+        else v.Comment = c;
     }
 
     /// <returns>False when there is no answer yet (the comment is then kept and saved with the choice).</returns>

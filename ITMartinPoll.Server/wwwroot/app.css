@@ -1108,3 +1108,23 @@ html[data-theme="dark"] .lav-ready { background: var(--k-card); }
 .lav-bar > i { position: absolute; inset: 0 auto 0 0; background: var(--k-accent-soft); }
 html[data-theme="dark"] .lav-bar > i { background: color-mix(in srgb, var(--k-accent) 35%, transparent); }
 
+/* The three kinds of question on the answer page (2026-10-21). */
+.pkg-hint { font-size: var(--k-fs-small); font-weight: 600; color: var(--k-muted); margin: var(--k-space-1) 0 var(--k-space-2); }
+.poll-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: var(--k-space-2); }
+.grade-item { border: 1px solid var(--k-border); border-radius: var(--k-radius); padding: var(--k-space-3); margin-bottom: var(--k-space-2); background: var(--k-bg-deep); }
+.grade-label { font-weight: 700; margin-bottom: var(--k-space-2); }
+.grade-scores { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--k-space-1); margin-bottom: var(--k-space-2); }
+.grade-btn { min-height: var(--k-tap, 44px); border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-card);
+    color: var(--k-text); font: inherit; font-weight: 700; cursor: pointer; }
+.grade-btn.selected { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text); }
+.grade-comment { width: 100%; }
+
+
+/* The question builder on /lav (2026-10-21): the three kinds, quick answers, weekday chips. */
+.lav-kinds, .lav-chips { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin: var(--k-space-2) 0; }
+.lav-sub { font-weight: 700; margin: var(--k-space-3) 0 var(--k-space-1); }
+.lav-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: var(--k-space-2) 0; }
+.lav-day { min-height: var(--k-tap, 44px); border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-bg-deep);
+    color: var(--k-text); font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; }
+.lav-day.on { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text); }
+.lav-add { margin-bottom: var(--k-space-3); border-style: dashed; }

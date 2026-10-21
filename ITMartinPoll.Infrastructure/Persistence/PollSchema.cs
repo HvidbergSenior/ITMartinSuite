@@ -49,6 +49,12 @@ public static class PollSchema
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Packages\" ADD COLUMN \"OpenByLink\" INTEGER NOT NULL DEFAULT 0;"); }
     catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Packages\" ADD COLUMN \"OwnerCode\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"Kind\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Votes\" ADD COLUMN \"Score\" INTEGER NOT NULL DEFAULT 0;"); }
+    catch { /* column already exists */ }
     // Customers' own polls (/lav, 2026-10-21).
     if (!db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM pragma_table_info('Polls') WHERE name = 'OwnerCode'").AsEnumerable().Any(n => n > 0))
         db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"OwnerCode\" TEXT NOT NULL DEFAULT '';");

@@ -25,9 +25,14 @@ public interface ICustomerCodes
 }
 
 // "Lav din egen afstemning" (/lav, user 2026-10-21): a customer makes simple polls with their kundenummer and sees the results.
-public sealed class CustomerPolls(IAggregateStore<Poll> polls, ICustomerCodes codes, TimeProvider clock)
+public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<Package> packages, ICustomerCodes codes, TimeProvider clock)
 {
-    public sealed record Mine(int Id, string Title, bool Open, int People, List<(string Label, int People)> Results);
+    /// <summary>One poll or several questions in one (a package). Path = the link to send.</summary>
+    public sealed record Mine(int Id, bool IsPackage, string Title, bool Open, int People, List<MineQuestion> Questions)
+    {
+        public string Path => IsPackage ? $"/pakke/{Id}" : $"/poll/{Id}";
+    }
+    public sealed record MineQuestion(string Text, List<(string Label, int People)> Results);
 
     public static string Normalize(string? code) => new((code ?? "").Where(char.IsDigit).ToArray());
 
@@ -37,36 +42,82 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, ICustomerCodes co
     public async Task<(string? Error, int Id)> CreateAsync(string? code, string title, string body, IEnumerable<string> options,
         bool allowMultiple, DateTime? deadlineUtc, CancellationToken ct = default)
     {
+        var (error, mine) = await CreateAsync(code, title, body, [new QuestionDraft(title, options.ToList(), allowMultiple)], deadlineUtc, ct);
+        return (error, mine?.Id ?? 0);
+    }
+
+    /// <summary>One question = an ordinary poll; several = one link with all of them (a package, answered with a name).</summary>
+    /// <returns>Error (Danish) or what was made.</returns>
+    public async Task<(string? Error, Mine? Made)> CreateAsync(string? code, string title, string intro, IReadOnlyList<QuestionDraft> questions,
+        DateTime? deadlineUtc, CancellationToken ct = default)
+    {
         var k = Normalize(code);
         var (ok, error) = await codes.CheckAsync(k, ct);
-        if (!ok) return (error, 0);
+        if (!ok) return (error, null);
         var now = clock.GetUtcNow().UtcDateTime;
-        // Open = active AND not past its end date (a free poll ends by itself after a month - it must not block the next one).
-        var open = (await polls.ListAsync(ct)).Count(p => p.OwnerCode == k && p.IsActive && !(p.Deadline is { } d && d.ToUniversalTime() < now));
-        var (why, poll) = CustomerPollRules.Make(k, title, body, options, allowMultiple, deadlineUtc, open, now);
-        if (why is not null) return (why, 0);
-        return (null, (await polls.AddAsync(poll!, ct)).Id);
+        var open = await OpenCountAsync(k, now, ct);
+        var filled = questions.Where(q => q.Text.Trim().Length > 0 || q.Options.Any(o => o.Trim().Length > 0)).ToList();
+        // A "karakter" question needs the package page (it is the one that can give 1-5 per answer).
+        if (filled.Count <= 1 && filled.All(q => q.Kind != QuestionKinds.Grade))
+        {
+            var q = filled.FirstOrDefault() ?? new QuestionDraft("", [], false);
+            // One question: the title is what it is about, the question itself (when it says more) under it.
+            var body = q.Text.Trim() != "" && q.Text.Trim() != title.Trim() ? q.Text.Trim() + (intro.Trim() != "" ? "\n\n" + intro.Trim() : "") : intro;
+            var (why, poll) = CustomerPollRules.Make(k, title.Trim() != "" ? title : q.Text, body, q.Options, q.AllowMultiple, deadlineUtc, open, now, q.Kind);
+            if (why is not null) return (why, null);
+            var p = await polls.AddAsync(poll!, ct);
+            return (null, new Mine(p.Id, false, p.Title, true, 0, []));
+        }
+        var (whyNot, package) = CustomerPollRules.MakeSurvey(k, title, intro, filled, deadlineUtc, open, now);
+        if (whyNot is not null) return (whyNot, null);
+        var made = await packages.AddAsync(package!, ct);
+        return (null, new Mine(made.Id, true, made.Title, true, 0, []));
     }
+
+    // Free: one open of each kind (user 2026-10-21, rule B) - a poll and a poll with several questions are the same kind.
+    // Open = active AND not past its end date (a free poll ends by itself - it must not block the next one).
+    private async Task<int> OpenCountAsync(string k, DateTime now, CancellationToken ct) =>
+        (await polls.ListAsync(ct)).Count(p => p.OwnerCode == k && p.PackageId == null && IsOpen(p.IsActive, p.Deadline, now))
+        + (await packages.ListAsync(ct)).Count(p => p.OwnerCode == k && p.IsActive && p.Polls.Any(q => IsOpen(q.IsActive, q.Deadline, now)));
+
+    private static bool IsOpen(bool active, DateTime? deadline, DateTime now) => active && !(deadline is { } d && d.ToUniversalTime() < now);
 
     public async Task<List<Mine>> MineAsync(string? code, CancellationToken ct = default)
     {
         var k = Normalize(code);
         if (k.Length != 8) return [];
         var now = clock.GetUtcNow().UtcDateTime;
-        return (await polls.ListAsync(ct)).Where(p => p.OwnerCode == k).OrderByDescending(p => p.CreatedAt).Select(p =>
+        var all = await polls.ListAsync(ct);
+        static MineQuestion Results(Poll p)
         {
             var votes = p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc))).ToList();
-            return new Mine(p.Id, p.Title, p.IsActive && !(p.Deadline is { } d && d.ToUniversalTime() < now), VoteRules.People(votes),
-                p.Options.OrderBy(o => o.SortOrder).Select(o => (o.Label, VoteRules.PeopleFor(votes, o.Id))).ToList());
-        }).ToList();
+            if (p.Kind == QuestionKinds.Grade)
+                // grades: the average per answer, best first ("Hvilket mærke er pænest?")
+                return new MineQuestion(p.Title, p.Options
+                    .Select(o => (o, p.Votes.Where(v => v.OptionId == o.Id && v.Score > 0).Select(v => v.Score).ToList()))
+                    .OrderByDescending(x => x.Item2.Count == 0 ? 0 : x.Item2.Average())
+                    .Select(x => (x.Item2.Count == 0 ? $"{x.o.Label} – ingen karakter endnu" : $"{x.o.Label} – {x.Item2.Average():0.0} af 5", x.Item2.Count)).ToList());
+            return new MineQuestion(p.Title, p.Options.OrderBy(o => o.SortOrder).Select(o => (o.Label, VoteRules.PeopleFor(votes, o.Id))).ToList());
+        }
+        var single = all.Where(p => p.OwnerCode == k && p.PackageId == null).Select(p =>
+            new Mine(p.Id, false, p.Title, IsOpen(p.IsActive, p.Deadline, now),
+                VoteRules.People(p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, v.VotedAt))), [Results(p)]));
+        var several = (await packages.ListAsync(ct)).Where(x => x.OwnerCode == k).Select(x =>
+        {
+            var qs = all.Where(p => p.PackageId == x.Id).OrderBy(p => p.Id).ToList();
+            return new Mine(x.Id, true, x.Title, x.IsActive && qs.Any(q => IsOpen(q.IsActive, q.Deadline, now)),
+                qs.SelectMany(q => q.Votes.Select(v => v.VoterName)).Distinct().Count(), qs.Select(Results).ToList());
+        });
+        return single.Concat(several).OrderByDescending(m => m.Open).ThenByDescending(m => m.Id).ToList();
     }
 
-    /// <summary>Close or open again - only the customer's own poll.</summary>
-    public async Task ToggleAsync(string? code, int id, CancellationToken ct = default)
+    /// <summary>Close or open again - only the customer's own.</summary>
+    public async Task ToggleAsync(string? code, Mine m, CancellationToken ct = default)
     {
         var k = Normalize(code);
         if (k.Length != 8) return;
-        await polls.ChangeAsync(id, p => { if (p.OwnerCode == k) p.IsActive = !p.IsActive; return Task.CompletedTask; }, ct);
+        if (m.IsPackage) await packages.ChangeAsync(m.Id, p => { if (p.OwnerCode == k) p.IsActive = !p.IsActive; return Task.CompletedTask; }, ct);
+        else await polls.ChangeAsync(m.Id, p => { if (p.OwnerCode == k) p.IsActive = !p.IsActive; return Task.CompletedTask; }, ct);
     }
 }
 

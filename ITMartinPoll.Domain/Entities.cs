@@ -47,6 +47,9 @@ public class Package
     // as packages have been since 2026-09-30 (the Skelagerhøjen ladestander forespørgsel stays that way).
     public bool     OpenByLink { get; set; }
 
+    // Made by a customer on /lav with their kundenummer (several questions in one, 2026-10-21). "" = Martin's own.
+    public string   OwnerCode { get; set; } = "";
+
     public List<Poll>         Polls    { get; set; } = [];
     public List<ImageSession> Sessions { get; set; } = [];
 }
@@ -71,6 +74,10 @@ public class Poll
 
     // Made by a customer with their kundenummer on /lav (user 2026-10-21). "" = made by Martin in admin.
     public string    OwnerCode { get; set; } = "";
+
+    // What kind of question (user 2026-10-21, "maybe make 3 choices"): "" = choose answers, "karakter" = give each answer
+    // 1-5, "dage" = pick the days you can (the answers are days). See QuestionKinds.
+    public string    Kind { get; set; } = "";
 
     public List<PollOption> Options { get; set; } = [];
     public List<Vote>       Votes   { get; set; } = [];
@@ -117,6 +124,7 @@ public class Vote
     public string     Comment   { get; set; } = "";
     public string     VoterName { get; set; } = "";
     public string     Email     { get; set; } = "";   // lower-case; only set when the poll has RequireContact
+    public int        Score     { get; set; }        // "karakter" questions: 1-5 for this answer; 0 = an ordinary choice
     public bool       WantsAuctionNews { get; set; }   // explicit opt-in (markedsføringsloven §10), never pre-ticked
     public DateTime   VotedAt   { get; set; } = DateTime.UtcNow;
     public Poll       Poll      { get; set; } = null!;

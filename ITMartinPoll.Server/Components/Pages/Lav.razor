@@ -5,21 +5,23 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
-@* "Lav din egen afstemning" (user 2026-10-21): free for customers - the kundenummer from the sign-up on itmartin.dk opens it.
-   The number is remembered on this phone. Every box says what it is and how to use it. *@
+@* "Lav din egen afstemning" (user 2026-10-21): free for customers - the kundenummer from the sign-up opens it, and the phone
+   remembers it. Three numbered steps with colour ("it is not simple to use"); as many questions as you like ("only one
+   question per poll"), each of three kinds ("maybe make 3 choices"): choose answers (Ja/Nej, A/B ...), give grades 1-5 with a
+   comment on each, or pick days (weekends the next 3 months, every Tuesday ...). *@
 <PageTitle>Lav din egen afstemning – Stem</PageTitle>
 
 <div class="lav">
     <PageHelp>
-        <p>Her laver du din egen afstemning og ser, hvad folk har stemt.</p>
-        <p><b>Sådan gør du:</b> skriv dit kundenummer, skriv spørgsmålet og mindst 2 svar, og tryk Lav afstemningen. Send linket til dem, der skal stemme.</p>
-        <p>Vi spørger ikke efter e-mails på din afstemning – kun et navn, hvis folk selv vil skrive det.</p>
+        <p>Her laver du din egen afstemning og ser, hvad folk har svaret.</p>
+        <p><b>Sådan gør du:</b> skriv hvad det handler om, tilføj dine spørgsmål og tryk Lav afstemningen. Send linket til dem, der skal svare.</p>
+        <p>Tre slags spørgsmål: <b>Vælg svar</b> (fx Ja/Nej eller A/B), <b>Giv karakter</b> (1–5 og en kommentar til hver) og <b>Vælg dage</b> (fx weekender de næste 3 måneder).</p>
+        <p>Vi spørger ikke efter e-mails på din afstemning – kun et navn, når der er flere spørgsmål.</p>
     </PageHelp>
 
     @if (!Customer.Ready)
     {
-        @* The phone may remember the kundenummer - read in a moment. Only the heading until then, so the number box does
-           not flash before the form (user 2026-10-21: "when i push lav din egen afstemning something happens"). *@
+        @* The phone may remember the kundenummer - read in a moment. Only the heading until then (no flash of the number box). *@
         <section class="k-card">
             <h1 class="k-card-title">Lav din egen afstemning</h1>
             <p>Et øjeblik …</p>
@@ -40,58 +42,117 @@
     }
     else
     {
-        @* Three numbered steps, the extras folded away, colour on the steps (user 2026-10-21: "I need some colors as well...
-           and also it is not simple to use"). *@
         var open = Customer.Mine.FirstOrDefault(m => m.Open);
-        @if (_newId > 0)
+        @if (_made is not null)
         {
             <section class="k-card lav-ready" data-nofold>
                 <h2 class="k-card-title">Din afstemning er klar</h2>
-                <p>Send linket til dem, der skal stemme. De skal ikke oprette noget.</p>
-                <p class="lav-link">@Link(_newId)</p>
-                <button class="k-btn k-btn-primary k-btn-block" @onclick="() => ShareAsync(_newId)">Del linket</button>
+                <p>Send linket til dem, der skal svare. De skal ikke oprette noget.</p>
+                <p class="lav-link">@Link(_made)</p>
+                <button class="k-btn k-btn-primary k-btn-block" @onclick="() => ShareAsync(_made)">Del linket</button>
                 <div class="btn-pair">
-                    <button class="k-btn" @onclick="() => CopyAsync(_newId)">@(_copied == _newId ? "Kopieret" : "Kopiér linket")</button>
-                    <a class="k-btn" href="@Link(_newId)" target="_blank" rel="noopener">Se den</a>
+                    <button class="k-btn" @onclick="() => CopyAsync(_made)">@(_copied == _made.Path ? "Kopieret" : "Kopiér linket")</button>
+                    <a class="k-btn" href="@Link(_made)" target="_blank" rel="noopener">Se den</a>
                 </div>
             </section>
         }
         else if (open is not null)
         {
-            @* Free version: one open poll at a time - say it up front instead of after the person has typed everything. *@
+            @* Free version: one open at a time - said up front instead of after the person has typed everything. *@
             <section class="k-card lav-ready" data-nofold>
                 <h2 class="k-card-title">Du har en åben afstemning</h2>
-                <p><b>@open.Title</b> – @open.People har stemt. I den gratis udgave har du én åben ad gangen.</p>
+                <p><b>@open.Title</b> – @open.People har svaret. I den gratis udgave har du én åben ad gangen.</p>
                 <div class="btn-pair">
-                    <button class="k-btn" @onclick="() => ShareAsync(open.Id)">Del linket</button>
-                    <button class="k-btn" @onclick="() => ToggleAsync(open.Id)">Luk den og lav en ny</button>
+                    <button class="k-btn" @onclick="() => ShareAsync(open)">Del linket</button>
+                    <button class="k-btn" @onclick="() => ToggleAsync(open)">Luk den og lav en ny</button>
                 </div>
             </section>
         }
         else
         {
             <section class="k-card lav-step" data-nofold>
-                <h2 class="k-card-title"><span class="lav-num">1</span> Hvad vil du spørge om?</h2>
-                <input class="k-input lav-big" @bind="_title" maxlength="120" placeholder="fx Hvor skal vi holde sommerfest?" />
+                <h2 class="k-card-title"><span class="lav-num">1</span> Hvad handler det om?</h2>
+                <input class="k-input lav-big" @bind="_title" maxlength="120" placeholder="fx Sommerfest i foreningen" />
             </section>
+
+            @for (var qi = 0; qi < _questions.Count; qi++)
+            {
+                var q = _questions[qi];
+                var number = qi + 1;
+                <section class="k-card lav-step" data-nofold>
+                    <h2 class="k-card-title"><span class="lav-num">2</span> Spørgsmål @(number)</h2>
+                    <div class="lav-kinds" role="group" aria-label="Slags spørgsmål">
+                        <button class="k-btn k-btn-sm @(q.Kind == QuestionKinds.Choose ? "k-btn-primary" : "")" @onclick="() => q.Kind = QuestionKinds.Choose">Vælg svar</button>
+                        <button class="k-btn k-btn-sm @(q.Kind == QuestionKinds.Grade ? "k-btn-primary" : "")" @onclick="() => q.Kind = QuestionKinds.Grade">Giv karakter</button>
+                        <button class="k-btn k-btn-sm @(q.Kind == QuestionKinds.Days ? "k-btn-primary" : "")" @onclick="() => q.Kind = QuestionKinds.Days">Vælg dage</button>
+                    </div>
+                    <input class="k-input lav-big" @bind="q.Text" maxlength="120"
+                           placeholder="@(q.Kind == QuestionKinds.Grade ? "fx Hvilket mærke er pænest?" : q.Kind == QuestionKinds.Days ? "fx Hvilke dage kan du?" : "fx Hvor skal vi holde festen?")" />
+
+                    @if (q.Kind == QuestionKinds.Days)
+                    {
+                        @* The days in a period on the chosen weekdays become the answers. *@
+                        <div class="lav-sub">Hvilken periode?</div>
+                        <div class="lav-chips">
+                            @foreach (var (label, months) in Periods)
+                            {
+                                var mo = months;
+                                <button class="k-btn k-btn-sm @(q.Months == mo ? "k-btn-primary" : "")" @onclick="() => q.Months = mo">@label</button>
+                            }
+                        </div>
+                        <div class="lav-sub">Hvilke dage?</div>
+                        <div class="lav-chips">
+                            <button class="k-btn k-btn-sm" @onclick="() => q.SetDays(DayRules.Weekend)">Weekender</button>
+                            <button class="k-btn k-btn-sm" @onclick="() => q.SetDays(DayRules.Weekdays)">Hverdage</button>
+                            <button class="k-btn k-btn-sm" @onclick="() => q.SetDays(Enum.GetValues<DayOfWeek>())">Alle dage</button>
+                        </div>
+                        <div class="lav-weekdays" role="group" aria-label="Ugedage">
+                            @foreach (var d in WeekOrder)
+                            {
+                                var day = d;
+                                <button class="lav-day @(q.Days.Contains(day) ? "on" : "")" aria-pressed="@(q.Days.Contains(day) ? "true" : "false")"
+                                        @onclick="() => q.Toggle(day)">@DayNames[(int)day]</button>
+                            }
+                        </div>
+                        var days = q.DayOptions(Today);
+                        <p class="k-help">@(days.Count == 0 ? "Vælg mindst én ugedag." : $"{days.Count} dage: {string.Join(", ", days.Take(4))}{(days.Count > 4 ? " …" : "")}")</p>
+                    }
+                    else
+                    {
+                        <div class="lav-sub">@(q.Kind == QuestionKinds.Grade ? "Hvad skal have karakter?" : "Hvad kan man svare?")</div>
+                        @if (q.Kind == QuestionKinds.Choose)
+                        {
+                            <div class="lav-chips">
+                                <button class="k-btn k-btn-sm" @onclick='() => q.Options = ["Ja", "Nej"]'>Ja / Nej</button>
+                                <button class="k-btn k-btn-sm" @onclick='() => q.Options = ["A", "B"]'>A / B</button>
+                                <button class="k-btn k-btn-sm" @onclick='() => q.Options = ["Ja", "Nej", "Måske"]'>Ja / Nej / Måske</button>
+                            </div>
+                        }
+                        @for (var i = 0; i < q.Options.Count; i++)
+                        {
+                            var n = i;
+                            <input class="k-input lav-big lav-option" @bind="q.Options[n]" maxlength="100" placeholder="@(q.Kind == QuestionKinds.Grade ? $"Ting {n + 1}, fx et mærke" : $"Svar {n + 1}")" />
+                        }
+                        @if (q.Options.Count < CustomerPollRules.MaxOptions) { <button class="k-btn k-btn-block" @onclick="() => q.Options.Add(string.Empty)">+ Tilføj @(q.Kind == QuestionKinds.Grade ? "en ting" : "et svar")</button> }
+                        @if (q.Kind == QuestionKinds.Choose) { <label class="lav-check"><input type="checkbox" @bind="q.Multi" /> Man må vælge flere svar</label> }
+                        @if (q.Kind == QuestionKinds.Grade) { <p class="k-help">Folk giver hver ting 1–5 og kan skrive en kommentar til hver.</p> }
+                    }
+                    @if (_questions.Count > 1) { <button class="k-btn k-btn-sm k-mt" @onclick="() => _questions.Remove(q)">Fjern spørgsmål @(number)</button> }
+                </section>
+            }
+            @if (_questions.Count < CustomerPollRules.MaxQuestions)
+            {
+                <button class="k-btn k-btn-block lav-add" @onclick="() => _questions.Add(new QuestionForm())">+ Tilføj et spørgsmål</button>
+            }
+
             <section class="k-card lav-step" data-nofold>
-                <h2 class="k-card-title"><span class="lav-num">2</span> Hvad kan man svare?</h2>
-                @for (var i = 0; i < _options.Count; i++)
-                {
-                    var n = i;
-                    <input class="k-input lav-big lav-option" @bind="_options[n]" maxlength="100" placeholder="@($"Svar {n + 1}")" />
-                }
-                @if (_options.Count < CustomerPollRules.MaxOptions) { <button class="k-btn k-btn-block" @onclick="() => _options.Add(string.Empty)">+ Tilføj et svar</button> }
+                <h2 class="k-card-title"><span class="lav-num">3</span> Lav den og send linket</h2>
                 <details class="lav-more">
                     <summary>Flere valg</summary>
-                    <label class="lav-check"><input type="checkbox" @bind="_multi" /> Man må vælge flere svar</label>
                     <label class="lav-label">Fortæl lidt mere (valgfrit) <textarea class="k-input k-textarea" rows="2" @bind="_body" maxlength="1000"></textarea></label>
                     <label class="lav-label">Slutter (valgfrit) <input class="k-input" type="date" @bind="_end" max="@DateTime.Today.AddDays(CustomerPollRules.MaxDays).ToString("yyyy-MM-dd")" /></label>
                     <p class="k-help">Den lukker af sig selv efter højst 14 dage.</p>
                 </details>
-            </section>
-            <section class="k-card lav-step" data-nofold>
-                <h2 class="k-card-title"><span class="lav-num">3</span> Lav den og send linket</h2>
                 @if (_error != "") { <p class="lav-warn">@_error</p> }
                 <button class="k-btn k-btn-primary k-btn-block lav-go" disabled="@_busy" @onclick="CreateAsync">Lav afstemningen</button>
             </section>
@@ -102,17 +163,21 @@
             @if (Customer.Mine.Count == 0) { <p>Du har ikke lavet nogen endnu.</p> }
             @foreach (var m in Customer.Mine)
             {
-                var total = Math.Max(1, m.Results.Sum(r => r.People));
                 <div class="lav-mine">
                     <div><b>@m.Title</b> <span class="lav-tag @(m.Open ? "is-open" : "")">@(m.Open ? "ÅBEN" : "LUKKET")</span></div>
-                    <div class="k-help">@m.People @(m.People == 1 ? "person" : "personer") har stemt</div>
-                    @foreach (var r in m.Results)
+                    <div class="k-help">@m.People @(m.People == 1 ? "person" : "personer") har svaret</div>
+                    @foreach (var question in m.Questions)
                     {
-                        <div class="lav-bar"><span>@r.Label</span><b>@r.People</b><i style="width:@(r.People * 100 / total)%"></i></div>
+                        @if (m.Questions.Count > 1) { <div class="lav-sub">@question.Text</div> }
+                        var total = Math.Max(1, question.Results.Count == 0 ? 1 : question.Results.Max(r => r.People));
+                        @foreach (var r in question.Results)
+                        {
+                            <div class="lav-bar"><span>@r.Label</span><b>@r.People</b><i style="width:@(r.People * 100 / total)%"></i></div>
+                        }
                     }
                     <div class="btn-pair">
-                        <button class="k-btn k-btn-sm" @onclick="() => ShareAsync(m.Id)">Del linket</button>
-                        <button class="k-btn k-btn-sm" @onclick="() => ToggleAsync(m.Id)">@(m.Open ? "Luk" : "Åbn igen")</button>
+                        <button class="k-btn k-btn-sm" @onclick="() => ShareAsync(m)">Del linket</button>
+                        <button class="k-btn k-btn-sm" @onclick="() => ToggleAsync(m)">@(m.Open ? "Luk" : "Åbn igen")</button>
                     </div>
                 </div>
             }
@@ -122,13 +187,37 @@
 </div>
 
 @code {
-    private string _code = "", _error = "", _title = "", _body = "";
-    private bool _busy, _multi;
+    private string _code = "", _error = "", _title = "", _body = "", _copied = "";
+    private bool _busy;
     private DateTime? _end;
-    private int _newId, _copied;
-    private List<string> _options = ["", ""];
+    private CustomerPolls.Mine? _made;
+    private List<QuestionForm> _questions = [new()];
 
-    private string Link(int id) => Nav.ToAbsoluteUri($"/poll/{id}").ToString();
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+    private static readonly (string Label, int Months)[] Periods = [("Næste måned", 1), ("Næste 3 måneder", 3), ("Næste 6 måneder", 6)];
+    private static readonly DayOfWeek[] WeekOrder = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+    private static readonly string[] DayNames = ["Søn", "Man", "Tir", "Ons", "Tor", "Fre", "Lør"];
+
+    // One question while it is being written (UI state only; the rules are in CustomerPollRules / DayRules).
+    private sealed class QuestionForm
+    {
+        public string Kind { get; set; } = QuestionKinds.Choose;
+        public string Text { get; set; } = "";
+        public List<string> Options { get; set; } = ["", ""];
+        public bool Multi { get; set; }
+        public int Months { get; set; } = 3;
+        public HashSet<DayOfWeek> Days { get; } = [DayOfWeek.Saturday, DayOfWeek.Sunday];
+
+        public void SetDays(IEnumerable<DayOfWeek> days) { Days.Clear(); Days.UnionWith(days); }
+        public void Toggle(DayOfWeek d) { if (!Days.Remove(d)) Days.Add(d); }
+        public List<string> DayOptions(DateOnly today) => DayRules.Days(today, today.AddMonths(Months), Days);
+
+        public QuestionDraft Draft(DateOnly today) => Kind == QuestionKinds.Days
+            ? new QuestionDraft(Text, DayOptions(today), true, Kind)
+            : new QuestionDraft(Text, Options.ToList(), Multi, Kind);
+    }
+
+    private string Link(CustomerPolls.Mine m) => Nav.ToAbsoluteUri(m.Path).ToString();
 
     // The kundenummer is read once per visit (CustomerSession, from MainLayout): opened from the menu it is known already.
     protected override void OnInitialized() => Customer.Changed += OnCustomerChanged;
@@ -145,35 +234,35 @@
 
     private async Task CreateAsync()
     {
-        _busy = true; _error = ""; _newId = 0;
+        _busy = true; _error = ""; _made = null;
         try
         {
             DateTime? endUtc = _end is { } d ? TimeZoneInfo.ConvertTimeToUtc(d.Date.AddDays(1).AddSeconds(-1), TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen")) : null;
-            var (error, id) = await Mine.CreateAsync(Customer.Code, _title, _body, _options, _multi, endUtc);
+            var (error, made) = await Mine.CreateAsync(Customer.Code, _title, _body, _questions.Select(q => q.Draft(Today)).ToList(), endUtc);
             if (error is not null) { _error = error; return; }
-            _newId = id; _title = _body = ""; _options = ["", ""]; _multi = false; _end = null;
+            _made = made; _title = _body = ""; _questions = [new()]; _end = null;
             await Customer.RefreshAsync();
         }
         finally { _busy = false; }
     }
 
-    private async Task ToggleAsync(int id) { await Mine.ToggleAsync(Customer.Code, id); await Customer.RefreshAsync(); }
+    private async Task ToggleAsync(CustomerPolls.Mine m) { await Mine.ToggleAsync(Customer.Code, m); _made = null; await Customer.RefreshAsync(); }
 
-    private async Task CopyAsync(int id)
+    private async Task CopyAsync(CustomerPolls.Mine m)
     {
-        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", Link(id)); _copied = id; } catch { }
+        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", Link(m)); _copied = m.Path; } catch { }
     }
 
     // The phone's own share menu (Messenger, SMS, mail ...); where there is none (most PCs), the link is copied instead.
-    private async Task ShareAsync(int id)
+    private async Task ShareAsync(CustomerPolls.Mine m)
     {
         try
         {
             var shared = await JS.InvokeAsync<bool>("eval",
-                $"(navigator.share ? navigator.share({{ title: 'Stem', url: '{Link(id)}' }}).then(() => true, () => true) : Promise.resolve(false))");
-            if (!shared) await CopyAsync(id);
+                $"(navigator.share ? navigator.share({{ title: 'Stem', url: '{Link(m)}' }}).then(() => true, () => true) : Promise.resolve(false))");
+            if (!shared) await CopyAsync(m);
         }
-        catch { await CopyAsync(id); }
+        catch { await CopyAsync(m); }
     }
 
     private async Task LogoutAsync() { _code = ""; await Customer.LogoutAsync(); }

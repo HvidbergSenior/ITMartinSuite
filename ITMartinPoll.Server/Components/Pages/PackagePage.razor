@@ -138,23 +138,54 @@
             @foreach (var poll in _package.Polls.OrderBy(p => p.Id))
             {
                 var p = poll;
-                var chosen = _votes.GetValueOrDefault(p.Id);
+                var chosen = _votes.GetValueOrDefault(p.Id) ?? [];
                 <div class="pkg-question">
                     <div class="pkg-question-title">@p.Title</div>
                     @if (!string.IsNullOrWhiteSpace(p.Body))
                     {
                         <div class="pkg-question-body">@p.Body</div>
                     }
-                    <div class="poll-options">
+                    @if (p.Kind == QuestionKinds.Grade)
+                    {
+                        @* "Giv karakter" (2026-10-21): 1-5 for each, and a comment on each. Tap the same number again to take it back. *@
+                        <div class="pkg-hint">Giv hver af dem 1–5. Skriv gerne en kommentar til hver.</div>
                         @foreach (var opt in p.Options.OrderBy(o => o.SortOrder))
                         {
                             var o = opt;
-                            <button class="poll-option-btn @(chosen == o.Id ? "selected" : "")"
+                            var mine = _grades.GetValueOrDefault(p.Id)?.GetValueOrDefault(o.Id) ?? 0;
+                            <div class="grade-item">
+                                <div class="grade-label">@o.Label</div>
+                                <div class="grade-scores" role="group" aria-label="@($"Karakter til {o.Label}")">
+                                    @for (var n = 1; n <= QuestionKinds.MaxScore; n++)
+                                    {
+                                        var score = n;
+                                        <button class="grade-btn @(mine == score ? "selected" : "")" aria-pressed="@(mine == score ? "true" : "false")"
+                                                @onclick="() => GradeAsync(p.Id, o.Id, score)">@score</button>
+                                    }
+                                </div>
+                                <input class="poll-input grade-comment" maxlength="1000" placeholder="Kommentar (valgfrit)"
+                                       value="@(_gradeComments.GetValueOrDefault(p.Id)?.GetValueOrDefault(o.Id) ?? "")"
+                                       @onchange="e => GradeCommentAsync(p.Id, o.Id, e.Value?.ToString() ?? string.Empty)" />
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                    @if (p.AllowMultiple) { <div class="pkg-hint">@(p.Kind == QuestionKinds.Days ? "Sæt kryds ved alle de dage, du kan." : "Vælg gerne flere.")</div> }
+                    <div class="poll-options @(p.Kind == QuestionKinds.Days ? "poll-days" : "")">
+                        @foreach (var opt in p.Options.OrderBy(o => o.SortOrder))
+                        {
+                            var o = opt;
+                            var on = chosen.Contains(o.Id);
+                            <button class="poll-option-btn @(on ? "selected" : "")" aria-pressed="@(on ? "true" : "false")"
                                     @onclick="() => SaveVoteAsync(p.Id, o.Id)">
-                                @o.Label
+                                @(p.AllowMultiple ? (on ? "☑ " : "☐ ") : "")@o.Label
                             </button>
                         }
                     </div>
+                    }
+                    @if (p.Kind != QuestionKinds.Grade)
+                    {
                     <div class="poll-comment-wrap">
                         <textarea class="poll-comment-input" rows="6"
                                   placeholder="Vil du uddybe? (valgfrit)"
@@ -162,6 +193,7 @@
                                   value="@_voteComments.GetValueOrDefault(p.Id, "")"
                                   @onchange="e => SaveVoteCommentAsync(p.Id, e.Value?.ToString() ?? string.Empty)"></textarea>
                     </div>
+                    }
                 </div>
             }
 
@@ -270,7 +302,9 @@
 
     private int? _openImageId;
 
-    private Dictionary<int, int>    _votes          = [];   // PollId  -> OptionId
+    private Dictionary<int, List<int>> _votes       = [];   // PollId  -> the chosen OptionIds (several when the question allows it)
+    private Dictionary<int, Dictionary<int, int>>    _grades        = [];   // "karakter": PollId -> OptionId -> 1-5
+    private Dictionary<int, Dictionary<int, string>> _gradeComments = [];   // "karakter": PollId -> OptionId -> comment
     private Dictionary<int, string> _voteComments   = [];   // PollId  -> comment
     private Dictionary<int, int>    _ratings        = [];   // ImageId -> score
     private Dictionary<int, string> _ratingComments = [];   // ImageId -> comment
@@ -337,6 +371,7 @@
         if (_package is null) return;
         var a = await Packages.AnswersAsync(_package, VoterLabel, _token);
         (_votes, _voteComments, _ratings, _ratingComments) = (a.Votes, a.VoteComments, a.Ratings, a.RatingComments);
+        (_grades, _gradeComments) = (a.Grades, a.GradeComments);
     }
 
     private async Task ConfirmIdentity()
@@ -365,7 +400,28 @@
     private async Task SaveVoteAsync(int pollId, int optionId)
     {
         await Packages.ChooseAsync(pollId, VoterLabel, optionId, _voteComments.GetValueOrDefault(pollId, ""));
-        _votes[pollId] = optionId;
+        var multi = _package?.Polls.FirstOrDefault(x => x.Id == pollId)?.AllowMultiple == true;
+        var list = _votes.TryGetValue(pollId, out var l) ? l : _votes[pollId] = [];
+        if (!multi) { list.Clear(); list.Add(optionId); }
+        else if (!list.Remove(optionId)) list.Add(optionId);   // the same answer again takes it back
+        if (list.Count == 0) _votes.Remove(pollId);
+        _saved = true;
+    }
+
+    private async Task GradeAsync(int pollId, int optionId, int score)
+    {
+        await Packages.GradeAsync(pollId, VoterLabel, optionId, score);
+        var g = _grades.TryGetValue(pollId, out var x) ? x : _grades[pollId] = [];
+        if (g.GetValueOrDefault(optionId) == score) g.Remove(optionId); else g[optionId] = score;
+        if (g.Count > 0) _votes[pollId] = g.Keys.ToList(); else _votes.Remove(pollId);   // a question with any grade counts as answered
+        _saved = true;
+    }
+
+    private async Task GradeCommentAsync(int pollId, int optionId, string comment)
+    {
+        await Packages.GradeCommentAsync(pollId, VoterLabel, optionId, comment);
+        var c = _gradeComments.TryGetValue(pollId, out var x) ? x : _gradeComments[pollId] = [];
+        c[optionId] = comment.Trim();
         _saved = true;
     }
 
