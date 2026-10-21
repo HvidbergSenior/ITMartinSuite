@@ -111,7 +111,8 @@ a { color: var(--accent); text-decoration: none; }
 .btn-row + .k-btn-block, .k-btn-block + .btn-row, .k-btn-block + .k-btn-block { margin-top: var(--k-space-3, 12px); }
 .ok { margin: var(--k-space-3, 12px) 0 0; }
 /* "Hvad havde du sparet?" while it is worked out: about the height of the finished box, so the page does not jump. */
-.hindsight-wait { min-height: 230px; }
+.hindsight-wait { min-height: 360px; }   /* measured: 360 px on a phone, 278 px on a PC */
+@media (min-width: 700px) { .hindsight-wait { min-height: 278px; } }
 .btn-row .k-btn { flex: 1; }
 .note { background: var(--bg3); border-radius: 10px; padding: 10px 12px; font-size: .88rem; margin-top: 10px; }
 .ok { color: var(--cheap); }
