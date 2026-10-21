@@ -15,7 +15,16 @@
         <p>Vi spørger ikke efter e-mails på din afstemning – kun et navn, hvis folk selv vil skrive det.</p>
     </PageHelp>
 
-    @if (!_in)
+    @if (!_checked)
+    {
+        @* The phone may remember the kundenummer - read in a moment. Only the heading until then, so the number box does
+           not flash before the form (user 2026-10-21: "when i push lav din egen afstemning something happens"). *@
+        <section class="k-card">
+            <h1 class="k-card-title">Lav din egen afstemning</h1>
+            <p>Et øjeblik …</p>
+        </section>
+    }
+    else if (!_in)
     {
         <section class="k-card">
             <h1 class="k-card-title">Lav din egen afstemning</h1>
@@ -81,7 +90,7 @@
 @code {
     private const string Key = "stem-kundenummer";
     private string _code = "", _error = "", _title = "", _body = "";
-    private bool _in, _busy, _multi;
+    private bool _in, _busy, _multi, _checked;
     private DateTime? _end;
     private int _newId;
     private List<string> _options = ["", ""];
@@ -93,7 +102,9 @@
     {
         if (!first) return;
         try { _code = await JS.InvokeAsync<string?>("localStorage.getItem", Key) ?? ""; } catch { }
-        if (_code != "") { await LoginAsync(); StateHasChanged(); }
+        if (_code != "") await LoginAsync();
+        _checked = true;
+        StateHasChanged();
     }
 
     private async Task LoginAsync()
