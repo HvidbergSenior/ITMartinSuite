@@ -6,6 +6,8 @@
 <KolibriHeader>
     <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Forside</NavLink>
     <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/lav">Lav ny</NavLink>
+    @* Light/dark (App.razor's script listens for clicks on it), like ElPriser. *@
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
 </KolibriHeader>
 <div class="k-main"><div class="k-content">
     @Body

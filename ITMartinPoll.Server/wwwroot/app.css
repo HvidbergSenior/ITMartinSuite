@@ -1025,8 +1025,7 @@ a { color: inherit; text-decoration: none; }
 
 /* COLOUR-BLIND SAFE (user 2026-10-10: "stem er dårlige farver for mig der er farveblind"). The bestoever indigo/blue
    is hard for him to read - Stem uses near-black ink on white, pale-yellow highlight with dark text, and never colour alone. */
-html[data-family="bestoever"] { --k-accent:#1f2937; --k-accent-dark:#111827; --k-accent-soft:#fef3c7; }
-html[data-theme="dark"][data-family="bestoever"] { --k-accent:#4b5563; --k-accent-dark:#374151; --k-accent-soft:#fef3c7; }
+/* (Stem's own dark-blue accent removed 2026-10-21 - all apps use the one Kolibri colour) */
 /* (selected = the ElPriser look, see the block at the end) */
 .poll-result-row.chosen .poll-result-label { font-weight:800; text-decoration:underline; }
 .poll-deadline-banner { color:#111827; }
@@ -1080,5 +1079,11 @@ html[data-theme="dark"][data-family="bestoever"] { --k-accent:#4b5563; --k-accen
 .pkg-identity, .pkg-front-howto {
     background: var(--k-card); border: 1px solid var(--k-border); border-radius: var(--k-radius-lg, 22px); padding: var(--k-space-4);
     margin-bottom: var(--k-space-3);
+}
+
+/* The choices and results sit in a box too, like everything in ElPriser (2026-10-21). */
+.poll-vote, .poll-results {
+    background: var(--k-card); border: 1px solid var(--k-border); border-radius: var(--k-radius-lg, 18px);
+    box-shadow: var(--k-shadow); padding: var(--k-space-4); margin-bottom: var(--k-space-3);
 }
 

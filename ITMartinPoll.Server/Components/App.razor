@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <html lang="da" data-family="bestoever">
 <head>
-    @* Lyst tema, og kun lyst (bruger, 2026-09-10). Temavælgeren og det
-       tilhørende script er fjernet, og paletten står nu direkte i :root i
-       app.css - så der er intet at anvende før første paint, og ingen gammel
-       "dark"-værdi i localStorage kan slå igennem. *@
+    <script>
+        // Dark or light: what the visitor chose with Lys/Mørk, else what the phone is set to (user 2026-10-21 "follow the
+        // phone"). Set before the first paint, so it never flashes the other way.
+        (function () {
+            var t = localStorage.getItem('stem_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f4f6f5" />
@@ -21,6 +25,29 @@
     @* One connected app, like ElPriser (2026-10-21): every page in the same connection, so going between pages does not
        flicker and the kundenummer is read once per visit (CustomerSession). *@
     <Routes @rendermode="InteractiveServer" />
+    <script>
+    // The Lys/Mørk button is in the Kolibri header, which Blazor renders again - so the click is caught on the document
+    // and the label is kept in step whenever the page changes.
+    (function () {
+        function sync() {
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
+            var btn = document.getElementById('themeToggleBtn');
+            var label = current === 'light' ? 'Mørk' : 'Lys';
+            if (btn && btn.textContent !== label) btn.textContent = label;   // only when it differs - else the observer loops
+            var meta = document.querySelector('meta[name=theme-color]');
+            if (meta) meta.setAttribute('content', current === 'light' ? '#f4f6f5' : '#121917');
+        }
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
+            var next = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('stem_theme', next);
+            sync();
+        });
+        new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
+        sync();
+    })();
+    </script>
     <script src="_framework/blazor.web.js"></script>
     <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/kolibri-sw.js").catch(function(){});}</script>
     <script>

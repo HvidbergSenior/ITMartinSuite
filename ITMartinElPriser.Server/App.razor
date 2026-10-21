@@ -3,7 +3,8 @@
 <head>
     <script>
         (function () {
-            var theme = localStorage.getItem('elpriser_theme') || 'dark';
+            // What the visitor chose with Lys/Mørk, else what the phone is set to (user 2026-10-21 "follow the phone").
+            var theme = localStorage.getItem('elpriser_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>

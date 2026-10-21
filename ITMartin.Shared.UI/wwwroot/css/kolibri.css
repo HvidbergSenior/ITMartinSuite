@@ -78,6 +78,10 @@ html[data-family="flyve"]     { --k-accent:#0369a1; --k-accent-dark:#075985; --k
 html[data-family="navigere"]  { --k-accent:#0f766e; --k-accent-dark:#115e59; --k-accent-soft:#d9f2ef; }
 html[data-family="tunge"]     { --k-accent:#be185d; --k-accent-dark:#9d174d; --k-accent-soft:#fbe1ec; }
 
+/* ONE colour for all apps (user 2026-10-21: "i like the red color on elpriser" -> "I want this to be the theme in colors
+   for my apps"): ElPriser's orange-red on every family. The families keep their names (Kolibri Puls, Bestøver ...). */
+html[data-family] { --k-accent:#c96a2b; --k-accent-dark:#a3521f; --k-accent-soft:#f9e9de; }
+
 html[data-theme="dark"] {
     --k-bg:#121917; --k-bg-deep:#0d1311; --k-card:#1b2420; --k-text:#ecf2ee;
     --k-muted:#9fb0a8; --k-muted-2:#7f8f88; --k-border:#2b3733; --k-border-2:#243029; --k-border-3:#36443f;
