@@ -17,8 +17,9 @@ else
 @* bogshoppen.dk has its own two tabs (user 2026-10-12: "a tab on bogshoppen. Forside and one more" -> Varer). *@
 <nav class="hj-nav bs-nav">
     <a href="/">Forside</a>
-    <a href="/varer">Varer</a>
-    @if (ShopVisible) { <a href="/kurv">Kurv<span data-kurv-count></span></a> }
+    @* Varer and Kurv only once the shop is open, or for Martin with the preview code (user 2026-10-21: "varer is visible on
+       bogshoppen.dk???" - nothing of the shop on the sites until he has tested it). *@
+    @if (ShopVisible) { <a href="/varer">Varer</a> <a href="/kurv">Kurv<span data-kurv-count></span></a> }
     <a href="/om-bogshoppen">Om Bogshoppen</a>
     <a href="/spoergsmaal">Spørgsmål</a>
 </nav>
