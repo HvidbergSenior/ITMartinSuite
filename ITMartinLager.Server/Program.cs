@@ -43,7 +43,6 @@ builder.Services.AddLagerApplication();
 builder.Services.AddHostedService<PriceHunterJob>();
 builder.Services.AddHostedService<AuctionSyncJob>();
 builder.Services.AddHostedService<GoldListJob>();
-builder.Services.AddHostedService<ShopJob>();
 builder.Services.AddHostedService<IntakeJob>();
 builder.Services.AddHostedService<KolofonJob>();
 builder.Services.AddDataProtection()
@@ -60,11 +59,12 @@ app.MapKolibri();
 if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
 app.UseStaticFiles();
 
-// One shared PIN for Martin and Rico (Lager__Pin in magic.env). Everything but login and static files needs it.
+// One shared PIN for Martin and Rico (Lager__Pin in magic.env). Everything but login and static files needs it; Salg
+// calls /api/salg/* with its key instead.
 var pin = app.Configuration["Lager:Pin"] ?? "";
-var shopKey = app.Configuration["Lager:ShopKey"] ?? "";
+var salgKey = app.Configuration["Lager:SalgKey"] ?? "";
 bool LoggedIn(HttpContext ctx) => pin.Length >= 6 && ctx.Request.Cookies["lager_auth"] == pin;
-bool FromShop(HttpContext ctx) => shopKey.Length >= 12 && ctx.Request.Headers[ShopHeaders.Key] == shopKey;
+bool FromSalg(HttpContext ctx) => salgKey.Length >= 12 && ctx.Request.Headers[StockHeaders.Key] == salgKey;
 
 app.Use(async (ctx, next) =>
 {
@@ -73,7 +73,7 @@ app.Use(async (ctx, next) =>
             || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
             || p.EndsWith(".svg") || p.EndsWith(".png");
-    if (p.StartsWith("/api/butik/")) { if (FromShop(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
+    if (p.StartsWith("/api/salg/")) { if (FromSalg(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (open || LoggedIn(ctx)) { await next(); return; }
     if (p.StartsWith("/_blazor")) { ctx.Response.StatusCode = 401; return; }
     ctx.Response.Redirect("/login");
@@ -97,7 +97,7 @@ app.MapGet("/varefoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(awai
 app.MapGet("/foto/{id:int}", (int id, VareinfoLinks v) => Results.Redirect(v.Photo(id)));
 app.MapGet("/kolofonfoto/{id:int}", async (int id, KolofonUseCases k) => Jpeg(await k.PhotoFileAsync(id)));
 
-app.MapShopApi();
+app.MapStockApi();
 
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
     Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));

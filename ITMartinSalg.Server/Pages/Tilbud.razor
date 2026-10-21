@@ -3,7 +3,7 @@
 
 @* Day offers (user 2026-10-20: "books monday -> 50 pct on used books. Also Monday 10 for 800, tuesday 10 for 700 and so
    on. Or 31. in every month 10 for 300"). The pricing rule is in the Domain (Campaigns.Price); this page edits the offers. *@
-<PageTitle>Tilbud – Bogshoppen Lager</PageTitle>
+<PageTitle>Tilbud – Bogshoppen Salg</PageTitle>
 
 <section class="k-card">
     <h1 class="k-card-title">🏷️ Dagens tilbud</h1>
@@ -123,7 +123,7 @@
             _msg = $"{_edit!.Name} er gemt.";
             _edit = null;
         }
-        catch (LagerException ex) { _error = ex.Message; }
+        catch (SalgException ex) { _error = ex.Message; }
         await Load();
     }
 

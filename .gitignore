@@ -92,3 +92,6 @@ docker-compose.yaml
 .claude/
 # Six Labors (ImageSharp 4) license key - secret, never commit (2026-10-19)
 sixlabors.lic
+
+# Salg local dev data (launchSettings Salg__DataDir=data)
+ITMartinSalg.Server/data/

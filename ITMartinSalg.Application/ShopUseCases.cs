@@ -1,14 +1,15 @@
-using ITMartinLager.Domain;
+using ITMartinSalg.Domain;
 
-namespace ITMartinLager.Application;
+namespace ITMartinSalg.Application;
 
-// ShopItem / ShopProof / ShopMarket / ShopQuote are the shapes bogshoppen.dk gets (ITMartinVarer.Contracts).
+// ShopItem / ShopProof / ShopMarket / ShopQuote are the shapes bogshoppen.dk gets (ITMartinVarer.Contracts) - the same
+// as when Lager answered them, so Hjem only changed its URL and key.
 
 /// <summary>The shop on bogshoppen.dk: the marketplace by product type, the price promise with its proof links, today's
-/// offers, and Køb nu for one thing or a basket through Stripe. The rules (who is listed, what a basket costs today,
-/// what a sale may do next) are in the Domain; this only fetches, asks them and saves.</summary>
-public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices, IOrderRepository orders, IPaymentGateway payments,
-    ICampaignRepository campaigns, IGoldRepository gold, LagerOptions options, TimeProvider clock)
+/// offers, and Køb nu for one thing or a basket through Stripe. What is for sale comes from Lager; the rules (the Køb nu
+/// price, what a basket costs today, what a sale may do next) are in the Domain; this only fetches, asks them and saves.</summary>
+public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, IPaymentGateway payments, ICampaignRepository campaigns,
+    SalgOptions options, TimeProvider clock)
 {
     public const int MaxResults = 60;
     /// <summary>A basket is at most this many things (a bundle is 10 - room for a few bundles).</summary>
@@ -16,6 +17,8 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
 
     /// <summary>Stripe keys are in, and there is a way to get the thing (shipping or pickup).</summary>
     public bool CanPay => payments.Enabled && (options.ShopShippingKr > 0 || options.ShopPickup != "");
+
+    public string LagerBase => stock.PublicBase;
 
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
     private DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
@@ -30,12 +33,12 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
     {
         IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
             : !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
-        var (found, total) = await items.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(), ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest,
-            Math.Max(0, page) * MaxResults, MaxResults, ct);
-        var perKind = await items.ListedPerKindAsync(ct);
+        var found = await stock.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),
+            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct);
+        var perKind = await stock.PerKindAsync(ct);
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();
-        return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found, ct), total);
+        return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total);
     }
 
     /// <summary>Today's offers, as the buyer reads them.</summary>
@@ -44,28 +47,19 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
 
     public async Task<(ShopItem Item, List<ShopProof> Proof)?> ItemAsync(int id, CancellationToken ct = default)
     {
-        if (await items.GetAsync(id, ct) is not { } item || !Shop.Listed(item)) return null;
-        var (finds, _) = await prices.ForItemAsync(id, ct);
-        return ((await ViewsAsync([item], ct))[0],
-            Shop.Proof(finds).Select(f => new ShopProof(f.Source, f.Kr, f.Original, f.Url, f.IsNew)).ToList());
+        if (await stock.ItemAsync(id, ct) is not { } page) return null;
+        return ((await ViewsAsync([page.Item], ct))[0], page.Proof);
     }
 
     /// <summary>"Fundet i kasserne" on both front pages: the chosen items, each with its proof links ("kan også købes her").</summary>
     public async Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(int max = 12, CancellationToken ct = default)
     {
-        var chosen = (await items.FeaturedAsync(max, ct)).Where(Shop.Listed).ToList();
-        var views = await ViewsAsync(chosen, ct);
-        var list = new List<(ShopItem, List<ShopProof>)>();
-        for (var n = 0; n < chosen.Count; n++)
-        {
-            var (finds, _) = await prices.ForItemAsync(chosen[n].Id, ct);
-            list.Add((views[n], Shop.Proof(finds, 4).Select(f => new ShopProof(f.Source, f.Kr, f.Original, f.Url, f.IsNew)).ToList()));
-        }
-        return list;
+        var chosen = await stock.FeaturedAsync(max, ct);
+        var views = await ViewsAsync(chosen.Select(c => c.Item).ToList(), ct);
+        return chosen.Select((c, n) => (views[n], c.Proof)).ToList();
     }
 
-    public async Task<string?> PhotoPathAsync(int id, CancellationToken ct = default) =>
-        await items.GetAsync(id, ct) is { ItemPhoto.Length: > 0 } i && Shop.Listed(i) ? i.ItemPhoto : null;
+    public Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default) => stock.PhotoAsync(id, ct);
 
     /// <summary>The basket priced for today: what each thing costs with today's offers, and the ones that are gone
     /// (sold, reserved, no price) - the basket page shows them so the buyer knows.</summary>
@@ -74,7 +68,7 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
         var (lines, gone) = await BasketAsync(itemIds, ct);
         var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList(), await campaigns.AllAsync(ct), Today);
         return new ShopQuote(CanPay,
-            priced.Lines.Select((p, n) => new ShopQuoteLine(p.ItemId, lines[n].Item.Line(), p.ListKr, p.Kr, p.Offer)).ToList(),
+            priced.Lines.Select((p, n) => new ShopQuoteLine(p.ItemId, lines[n].Item.Line, p.ListKr, p.Kr, p.Offer)).ToList(),
             priced.Total, priced.Saved, await TodayAsync(ct), gone.Select(g => g.Id).Distinct().ToList());
     }
 
@@ -85,10 +79,10 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
     /// Refused when something in it is gone - the buyer sees the basket again first.</summary>
     public async Task<string> BuyAsync(IReadOnlyList<int> itemIds, string siteBase, CancellationToken ct = default)
     {
-        if (!CanPay) throw new LagerException("Betaling er ikke slået til endnu. Skriv til os, så finder vi ud af det.");
+        if (!CanPay) throw new SalgException("Betaling er ikke slået til endnu. Skriv til os, så finder vi ud af det.");
         var (lines, gone) = await BasketAsync(itemIds, ct);
-        if (lines.Count == 0 && gone.Count == 0) throw new LagerException("Kurven er tom.");
-        if (gone.Count > 0) throw new LagerException(itemIds.Count == 1 ? gone[0].Why : "Noget i kurven er lige blevet solgt eller reserveret. Se kurven igen.");
+        if (lines.Count == 0 && gone.Count == 0) throw new SalgException("Kurven er tom.");
+        if (gone.Count > 0) throw new SalgException(itemIds.Count == 1 ? gone[0].Why : "Noget i kurven er lige blevet solgt eller reserveret. Se kurven igen.");
         var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList(), await campaigns.AllAsync(ct), Today);
         var order = Order.For(lines.Select((l, n) => (l.Item, priced.Lines[n])).ToList(), Now);
         await orders.AddAsync(order, ct);
@@ -109,18 +103,19 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
         return order;
     }
 
-    /// <summary>Every pending order: paid ones are booked, expired ones free their copies. Returns how many changed.</summary>
+    /// <summary>Every open order: paid ones are booked in Lager, expired ones free their copies, and a paid one Lager
+    /// did not get (it was down) is sent again. Returns how many changed.</summary>
     public async Task<int> SyncAsync(CancellationToken ct = default)
     {
         var changed = 0;
-        foreach (var o in await orders.PendingAsync(ct))
+        foreach (var o in await orders.OpenAsync(ct))
             if (await CheckAsync(o, ct)) changed++;
         return changed;
     }
 
     public Task<List<Order>> RecentOrdersAsync(CancellationToken ct = default) => orders.RecentAsync(200, ct);
 
-    // ---- after payment: Pakket -> Sendt / Afhentet (Lager's Ordrer page) ----
+    // ---- after payment: Pakket -> Sendt / Afhentet (Salg's Ordrer page) ----
 
     public Task PackAsync(int orderId, CancellationToken ct = default) => StepAsync(orderId, o => o.Pack(Now), ct);
     public Task SendAsync(int orderId, string tracking, CancellationToken ct = default) => StepAsync(orderId, o => o.Send(tracking, Now), ct);
@@ -129,44 +124,48 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
 
     private async Task StepAsync(int orderId, Action<Order> step, CancellationToken ct)
     {
-        var order = await orders.GetAsync(orderId, ct) ?? throw new LagerException("Ordren findes ikke.");
+        var order = await orders.GetAsync(orderId, ct) ?? throw new SalgException("Ordren findes ikke.");
         try { step(order); }
-        catch (InvalidOperationException ex) { throw new LagerException(ex.Message); }
+        catch (InvalidOperationException ex) { throw new SalgException(ex.Message); }
         await orders.UpdateAsync(order, ct);
     }
 
     private async Task<bool> CheckAsync(Order order, CancellationToken ct)
     {
-        if (order.Status != OrderStatuses.Pending) return false;
-        var state = order.CheckoutId == "" ? new PaymentState(false, order.ExpiresAt < Now) : await payments.StateAsync(order.CheckoutId, ct);
-        if (state.Paid)
+        var changed = false;
+        if (order.Status == OrderStatuses.Pending)
         {
-            // An item deleted meanwhile is simply not there - the order still says it was paid.
-            var sold = (await items.ByIdsAsync(order.Lines.Select(l => l.ItemId).Distinct().ToList(), ct)).ToDictionary(i => i.Id);
-            order.Pay(sold, state, Now);
-            await items.UpdateAsync(sold.Values, ct);
+            var state = order.CheckoutId == "" ? new PaymentState(false, order.ExpiresAt < Now) : await payments.StateAsync(order.CheckoutId, ct);
+            if (state.Paid) order.Pay(state, Now);
+            else if (state.Expired) order.Expire();
+            else return false;
+            await orders.UpdateAsync(order, ct);
+            changed = true;
         }
-        else if (state.Expired) order.Expire();
-        else return false;
+        if (!order.NeedsBooking) return changed;
+        // The payment is saved first: if Lager is down now, the next round sends the sale again (Lager books it once).
+        try { await stock.BookAsync(order.Sale(), ct); }
+        catch (SalgException) { return changed; }
+        order.StockBooked = true;
         await orders.UpdateAsync(order, ct);
         return true;
     }
 
     // The basket's things with their Køb nu price; a copy is gone when it is sold, reserved by someone paying, has no
     // price, or the basket asks for more copies than are free.
-    private async Task<(List<(Item Item, int Kr)> Lines, List<(int Id, string Why)> Gone)> BasketAsync(IReadOnlyList<int> itemIds, CancellationToken ct)
+    private async Task<(List<(StockItem Item, int Kr)> Lines, List<(int Id, string Why)> Gone)> BasketAsync(IReadOnlyList<int> itemIds, CancellationToken ct)
     {
         var ids = itemIds.Take(MaxBasket).ToList();
-        var found = (await items.ByIdsAsync(ids.Distinct().ToList(), ct)).ToDictionary(i => i.Id);
+        var found = (await stock.ByIdsAsync(ids.Distinct().ToList(), ct)).ToDictionary(i => i.Id);
         var reserved = await orders.ReservedAsync(found.Keys.ToList(), Now, ct);
         var taken = new Dictionary<int, int>();
-        var lines = new List<(Item, int)>();
+        var lines = new List<(StockItem, int)>();
         var gone = new List<(int, string)>();
         foreach (var id in ids)
         {
             string? why = null;
             int kr = 0;
-            if (found.GetValueOrDefault(id) is not { } item || !Shop.Listed(item)) why = "Varen er desværre solgt.";
+            if (found.GetValueOrDefault(id) is not { } item) why = "Varen er desværre solgt.";
             else if (Shop.BuyNowKr(item, options.ShopAutoMaxKr) is not { } price) why = "Varen har ikke en fast pris endnu.";
             else if (item.Quantity - reserved.GetValueOrDefault(id) - taken.GetValueOrDefault(id) <= 0)
                 why = "En anden er ved at betale for den lige nu. Prøv igen om en halv time.";
@@ -178,21 +177,19 @@ public sealed class ShopUseCases(IItemRepository items, IPriceRepository prices,
         return (lines, gone);
     }
 
-    private async Task<List<ShopItem>> ViewsAsync(IReadOnlyList<Item> list, CancellationToken ct)
+    private async Task<List<ShopItem>> ViewsAsync(IReadOnlyList<StockItem> list, CancellationToken ct)
     {
         if (list.Count == 0) return [];
         var reserved = await orders.ReservedAsync(list.Select(i => i.Id).ToList(), Now, ct);
         var offers = await campaigns.AllAsync(ct);
-        var goldList = await gold.AllAsync(ct);
         return list.Select(i =>
         {
             var buyNow = Shop.BuyNowKr(i, options.ShopAutoMaxKr);
             var day = buyNow is { } kr ? Campaigns.DayPrice(i.Kind, i.Usage, kr, offers, Today) : null;
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
-            return new ShopItem(i.Id, i.Kind, i.Line(), i.Title, i.Interest, i.Condition, i.Year, buyNow,
-                i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : null,
-                Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.ItemPhoto != "",
-                ProductTypes.For(i.Kind), day, dayOffer, Shop.Badge(goldList, i), i.Usage);
+            return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 ? i.HintKr : null,
+                Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage);
         }).ToList();
     }
 }

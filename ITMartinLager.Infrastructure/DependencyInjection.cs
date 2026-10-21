@@ -21,9 +21,8 @@ public static class DependencyInjection
         services.AddScoped<IPriceRepository, PriceRepository>();
         services.AddScoped<IBookCheckRepository, BookCheckRepository>();
         services.AddScoped<IGoldRepository, GoldRepository>();
-        services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IIntakeRepository, IntakeRepository>();
-        services.AddScoped<ICampaignRepository, CampaignRepository>();
+        services.AddScoped<ISaleBookingRepository, SaleBookingRepository>();
 
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
         services.AddSingleton<IBookValuer, ClaudeBookValuer>();
@@ -32,16 +31,12 @@ public static class DependencyInjection
         services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IAuctionGateway, AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IMagicGateway, MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
-        services.AddHttpClient<IPaymentGateway, StripeCheckout>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddPriceSources();
 
         services.AddSingleton(new LagerOptions
         {
             KolofonFromKr = int.TryParse(cfg["Lager:KolofonFromKr"], out var kr) ? kr : Kolofon.DefaultFromKr,
-            ShopKey = cfg["Lager:ShopKey"] ?? "",
-            ShopAutoMaxKr = int.TryParse(cfg["Lager:ShopAutoMaxKr"], out var auto) ? auto : Shop.DefaultAutoMaxKr,
-            ShopShippingKr = int.TryParse(cfg["Lager:ShopShippingKr"], out var ship) ? ship : 0,
-            ShopPickup = cfg["Lager:ShopPickup"] ?? "",
+            SalgPublicUrl = cfg["Lager:SalgPublicUrl"] is { Length: > 0 } salg ? salg : "https://salg.bogshoppen.dk",
         });
         return services;
     }

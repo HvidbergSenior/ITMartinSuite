@@ -1,7 +1,7 @@
-namespace ITMartinLager.Domain;
+namespace ITMartinSalg.Domain;
 
 // Day offers (user 2026-10-20: "Products of the day like books monday -> 50 pct on used books. Also Monday 10 for 800,
-// tuesday 10 for 700 and so on. Or 31. in every month 10 for 300"). A campaign is a rule a person switches on in Lager;
+// tuesday 10 for 700 and so on. Or 31. in every month 10 for 300"). A campaign is a rule a person switches on in Salg;
 // the price of a basket is worked out here, so the shop, the basket page and the payment always agree.
 
 public static class CampaignKinds

@@ -1,8 +1,8 @@
-using ITMartinLager.Domain;
+using ITMartinSalg.Domain;
 
-namespace ITMartinLager.Application;
+namespace ITMartinSalg.Application;
 
-/// <summary>The day offers (Lager's Tilbud page): Martin turns them on and off, changes the numbers, adds new ones, and
+/// <summary>The day offers (Salg's Tilbud page): Martin turns them on and off, changes the numbers, adds new ones, and
 /// tries a basket against a day before the buyers see it.</summary>
 public sealed class CampaignUseCases(ICampaignRepository campaigns, TimeProvider clock)
 {
@@ -18,13 +18,13 @@ public sealed class CampaignUseCases(ICampaignRepository campaigns, TimeProvider
     public async Task SaveAsync(Campaign c, CancellationToken ct = default)
     {
         c.Name = c.Name.Trim();
-        if (c.Name == "") throw new LagerException("Giv tilbuddet et navn, fx Bogmandag.");
-        if (!CampaignKinds.All.Contains(c.Kind)) throw new LagerException("Vælg procent eller bundt.");
-        if (c.ProductType != "" && !ProductTypes.All.Contains(c.ProductType)) throw new LagerException("Ukendt varetype.");
-        if (c.Usage != "" && !Usages.All.Contains(c.Usage)) throw new LagerException("Vælg brugt, ny eller begge.");
-        if (c.Weekday is < 0 or > 6 || c.DayOfMonth is < 1 or > 31) throw new LagerException("Ugedagen eller datoen findes ikke.");
+        if (c.Name == "") throw new SalgException("Giv tilbuddet et navn, fx Bogmandag.");
+        if (!CampaignKinds.All.Contains(c.Kind)) throw new SalgException("Vælg procent eller bundt.");
+        if (c.ProductType != "" && !ProductTypes.All.Contains(c.ProductType)) throw new SalgException("Ukendt varetype.");
+        if (c.Usage != "" && !Usages.All.Contains(c.Usage)) throw new SalgException("Vælg brugt, ny eller begge.");
+        if (c.Weekday is < 0 or > 6 || c.DayOfMonth is < 1 or > 31) throw new SalgException("Ugedagen eller datoen findes ikke.");
         if (!c.Valid)
-            throw new LagerException(c.Kind == CampaignKinds.Percent ? "Procent skal være mellem 1 og 99." : "Et bundt er mindst 2 ting til en pris over 0 kr.");
+            throw new SalgException(c.Kind == CampaignKinds.Percent ? "Procent skal være mellem 1 og 99." : "Et bundt er mindst 2 ting til en pris over 0 kr.");
         await campaigns.SaveAsync(c, ct);
     }
 

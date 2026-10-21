@@ -1,10 +1,12 @@
 @inherits LayoutComponentBase
+@inject SalgLinks Salg
 
-@* Four tabs (user 2026-10-21: "too many tabs"): the daily ones, the rest on /mere. *@
+@* Four tabs (user 2026-10-21: "too many tabs"): the daily ones, the rest on /mere. Ordrer opens Salg, where the
+   orders live since the split the same day. *@
 <KolibriHeader>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/">🔎 Søg</a>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/kasser">📦 Kasser</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/ordrer">🧾 Ordrer</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="@Salg.Orders">🧾 Ordrer</a>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">☰ Mere</a>
 </KolibriHeader>
 <div class="k-main"><div class="k-content">

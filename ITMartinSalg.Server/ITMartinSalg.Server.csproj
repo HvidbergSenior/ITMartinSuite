@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- Bogshoppen Salg (2026-10-21, split out of Lager - user: "one app one responsible ... like micro services"):
+         the shop API bogshoppen.dk calls (/api/butik), Køb nu through Stripe, the orders (Betalt -> Pakket -> Sendt)
+         and the day offers. What is for sale comes from Lager's stock API. This is the thin web layer: pages, login,
+         the order job. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinSalg.Server</RootNamespace>
+        <AssemblyName>ITMartinSalg.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+      <ProjectReference Include="..\ITMartinSalg.Application\ITMartinSalg.Application.csproj" />
+      <ProjectReference Include="..\ITMartinSalg.Infrastructure\ITMartinSalg.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="ITMartinSalg.Tests" />
+    </ItemGroup>
+
+  <!-- The shared words of the buying/selling apps (Kinds, Found, Barcodes ...). -->
+  <ItemGroup>
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
+</Project>

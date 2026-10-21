@@ -2,14 +2,14 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
-namespace ITMartinLager.Infrastructure.External;
+namespace ITMartinSalg.Infrastructure.External;
 
 // Stripe Checkout over its REST API (no SDK): a hosted payment page per order - card, MobilePay and whatever else the
-// Stripe account has switched on. Lager__StripeSecretKey in magic.env (sk_live_... or sk_test_...), never in the repo.
-// No webhook: the buyer's return and ShopJob (every minute) ask Stripe whether it was paid.
+// Stripe account has switched on. Salg__StripeSecretKey in magic.env (sk_live_... or sk_test_...), never in the repo.
+// No webhook: the buyer's return and OrderJob (every minute) ask Stripe whether it was paid.
 public sealed class StripeCheckout(HttpClient http, IConfiguration cfg) : IPaymentGateway
 {
-    private string Key => cfg["Lager:StripeSecretKey"] ?? "";
+    private string Key => cfg["Salg:StripeSecretKey"] ?? "";
     public bool Enabled => Key.StartsWith("sk_") || Key.StartsWith("rk_");
 
     private HttpRequestMessage Req(HttpMethod m, string path, IEnumerable<KeyValuePair<string, string>>? form = null)
@@ -120,7 +120,7 @@ public sealed class StripeCheckout(HttpClient http, IConfiguration cfg) : IPayme
             {
                 var msg = "";
                 try { msg = JsonDocument.Parse(body).RootElement.GetProperty("error").GetProperty("message").GetString() ?? ""; } catch { }
-                throw new LagerException("Betalingen kunne ikke startes" + (msg != "" ? $" (Stripe: {msg})" : "") + ". Prøv igen om lidt.");
+                throw new SalgException("Betalingen kunne ikke startes" + (msg != "" ? $" (Stripe: {msg})" : "") + ". Prøv igen om lidt.");
             }
             return JsonDocument.Parse(body);
         }

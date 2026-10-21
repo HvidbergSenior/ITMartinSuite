@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Bogshoppen Salg - the domain: orders, day offers, the Køb nu price. No EF, no HTTP. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinSalg.Tests" />
+  </ItemGroup>
+
+  <!-- The shared words (Kinds, Found, Barcodes ...) - the published language of the buying/selling apps. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinVarer.Contracts\ITMartinVarer.Contracts.csproj" />
+    <Using Include="ITMartinVarer.Contracts" />
+  </ItemGroup>
+
+</Project>

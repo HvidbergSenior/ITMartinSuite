@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "ITMartinSalg": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5254",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Salg__Pin": "test1234",
+        "Salg__DataDir": "data",
+        "Salg__LagerUrl": "http://localhost:5252",
+        "Salg__LagerPublicUrl": "http://localhost:5252",
+        "Salg__LagerKey": "devkey-salg-123456"
+      }
+    }
+  }
+}

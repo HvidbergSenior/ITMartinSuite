@@ -59,26 +59,6 @@ public sealed class AuctionSyncJob(IServiceScopeFactory scopes, ILogger<AuctionS
     }
 }
 
-// Køb nu orders: asks Stripe every minute whether a pending one was paid (booked, the copy leaves the stock) or expired
-// (the copy is free again). The buyer's return page asks too - this catches the ones who closed the tab.
-public sealed class ShopJob(IServiceScopeFactory scopes, ILogger<ShopJob> log) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken ct)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
-        while (await timer.WaitForNextTickAsync(ct))
-        {
-            try
-            {
-                using var scope = scopes.CreateScope();
-                var changed = await scope.ServiceProvider.GetRequiredService<ShopUseCases>().SyncAsync(ct);
-                if (changed > 0) log.LogInformation("Shop orders: {Changed} paid or expired", changed);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException) { log.LogWarning("Shop sync failed: {Message}", ex.Message); }
-        }
-    }
-}
-
 // The gold list, once a week (and at start when it is empty): the dearest single issues per category on DBA.
 // Lager__GoldList=false turns it off.
 public sealed class GoldListJob(IServiceScopeFactory scopes, IConfiguration cfg, ILogger<GoldListJob> log) : BackgroundService

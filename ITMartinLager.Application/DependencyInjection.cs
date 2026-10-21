@@ -20,8 +20,8 @@ public static class DependencyInjection
         services.AddScoped<BookCheckUseCases>();
         services.AddScoped<ExportUseCases>();
         services.AddScoped<GoldUseCases>();
-        services.AddScoped<ShopUseCases>();
-        services.AddScoped<CampaignUseCases>();
+        services.AddScoped<StockForSaleUseCases>();
+        services.AddScoped<SalgLinks>();
         return services;
     }
 }

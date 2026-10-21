@@ -5,8 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartinHjem.Infrastructure;
 
-// Bogshoppen Lager's shop API (/api/butik/*) on the photoserver, from the NAS over the LAN. Key: ShopHeaders.Key =
-// Hjem__LagerShopKey here and Lager__ShopKey there. Hjem__LagerApi = http://10.0.0.200:9149.
+// The shop API (/api/butik/*) on the photoserver, from the NAS over the LAN - Bogshoppen Salg since 2026-10-21 (Lager
+// before, same paths and shapes). Key: ShopHeaders.Key = Hjem__SalgShopKey here and Salg__ShopKey there.
+// Hjem__SalgApi = http://10.0.0.200:9154.
 public sealed class LagerShopGateway(HttpClient http) : IShopGateway
 {
     public async Task<(bool CanPay, List<ShopItem> Items)> SearchAsync(string? text, string? kind, CancellationToken ct = default)
@@ -89,7 +90,7 @@ public static class LagerShopRegistration
     {
         services.AddHttpClient<IShopGateway, LagerShopGateway>(c =>
         {
-            c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(lagerApi) ? "http://10.0.0.200:9149" : lagerApi);
+            c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(lagerApi) ? "http://10.0.0.200:9154" : lagerApi);
             c.Timeout = TimeSpan.FromSeconds(20);
             c.DefaultRequestHeaders.Add(ShopHeaders.Key, shopKey ?? "");
         });

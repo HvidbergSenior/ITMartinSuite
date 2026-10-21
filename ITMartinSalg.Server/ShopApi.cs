@@ -1,10 +1,11 @@
-using ITMartinLager.Application;
+using ITMartinSalg.Application;
 
-namespace ITMartinLager.Server;
+namespace ITMartinSalg.Server;
 
-// The API bogshoppen.dk (hjem-web) calls for the shop (2026-10-15, marketplace + basket 2026-10-20): the marketplace by
-// product type, one item with its proof links, its photo, the basket priced with today's offers, Køb nu and the buyer's
-// return. Only with the shop key (ShopHeaders.Key = Lager__ShopKey) - the check is in Program.cs. The answers are the
+// The API bogshoppen.dk (hjem-web) calls for the shop (2026-10-15 in Lager, moved to Salg 2026-10-21 with the same
+// paths and shapes): the marketplace by product type, one item with its proof links, its photo, the basket priced with
+// today's offers, Køb nu and the buyer's return. Only with the shop key (ShopHeaders.Key = Salg__ShopKey) - the check
+// is in Program.cs. The answers are the
 // shapes in ITMartinVarer.Contracts - never anything a buyer should not see. Each endpoint calls a use case.
 public static class ShopApi
 {
@@ -26,8 +27,8 @@ public static class ShopApi
         api.MapGet("/varer/{id:int}", async (int id, ShopUseCases shop) =>
             await shop.ItemAsync(id) is { } x ? Results.Ok(new ShopItemPage(shop.CanPay, x.Item, x.Proof)) : Results.NotFound());
 
-        api.MapGet("/varer/{id:int}/foto", async (int id, ShopUseCases shop, ItemUseCases items) =>
-            await shop.PhotoPathAsync(id) is not null && await items.PhotoFileAsync(id) is { } file ? Results.File(file, "image/jpeg") : Results.NotFound());
+        api.MapGet("/varer/{id:int}/foto", async (int id, ShopUseCases shop) =>
+            await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 
         api.MapPost("/kurv", async (BasketIds body, ShopUseCases shop) => await shop.QuoteAsync(body.ItemIds ?? []));
 
@@ -42,7 +43,7 @@ public static class ShopApi
                     ? Results.Ok(new ShopOrder(o.Status, o.Line, o.Kr, o.PaidKr, o.Delivery, o.Email, o.Tracking))
                     : Results.NotFound();
             }
-            catch (LagerException ex) { return Results.Problem(ex.Message, statusCode: 503); }
+            catch (SalgException ex) { return Results.Problem(ex.Message, statusCode: 503); }
         });
     }
 
@@ -51,6 +52,6 @@ public static class ShopApi
         if (!Uri.TryCreate(body.SiteBase, UriKind.Absolute, out var site) || site.Scheme is not ("https" or "http"))
             return Results.BadRequest(new ShopBuyAnswer(null, "Ugyldig side."));
         try { return Results.Ok(new ShopBuyAnswer(await shop.BuyAsync(ids, site.GetLeftPart(UriPartial.Authority)), null)); }
-        catch (LagerException ex) { return Results.BadRequest(new ShopBuyAnswer(null, ex.Message)); }
+        catch (SalgException ex) { return Results.BadRequest(new ShopBuyAnswer(null, ex.Message)); }
     }
 }

@@ -109,46 +109,16 @@ public interface IMagicGateway
 public sealed record LagerOptions
 {
     public int KolofonFromKr { get; init; } = Kolofon.DefaultFromKr;
-    /// <summary>The key bogshoppen.dk sends (Lager__ShopKey) - its calls to /api/butik/* need it.</summary>
-    public string ShopKey { get; init; } = "";
-    /// <summary>Suggested prices from here up need a person's price before Køb nu (Lager__ShopAutoMaxKr).</summary>
-    public int ShopAutoMaxKr { get; init; } = Shop.DefaultAutoMaxKr;
-    /// <summary>Shipping with PostNord, kr (Lager__ShopShippingKr). 0 = pickup only.</summary>
-    public int ShopShippingKr { get; init; }
-    /// <summary>Where and how to pick up (Lager__ShopPickup), shown at checkout. Empty = no pickup.</summary>
-    public string ShopPickup { get; init; } = "";
+    /// <summary>Where a person opens Salg - the orders and the day offers (Lager__SalgPublicUrl).</summary>
+    public string SalgPublicUrl { get; init; } = "https://salg.bogshoppen.dk";
 }
 
-/// <summary>Stripe Checkout (hosted page: card, MobilePay - whatever the Stripe account has switched on).</summary>
-public interface IPaymentGateway
+/// <summary>The sales Salg has booked here (by its order token) - each is taken out of the stock once.</summary>
+public interface ISaleBookingRepository
 {
-    bool Enabled { get; }
-    /// <summary>Starts a checkout for one order. Returns Stripe's id and the page to send the buyer to.</summary>
-    Task<(string CheckoutId, string Url)> StartAsync(Order order, string description, string successUrl, string cancelUrl,
-        int shippingKr, string pickup, CancellationToken ct);
-    Task<PaymentState> StateAsync(string checkoutId, CancellationToken ct);
-}
-
-public interface IOrderRepository
-{
-    /// <summary>With its lines.</summary>
-    Task AddAsync(Order order, CancellationToken ct);
-    Task UpdateAsync(Order order, CancellationToken ct);
-    Task<Order?> GetAsync(int id, CancellationToken ct);
-    Task<Order?> ByTokenAsync(string token, CancellationToken ct);
-    Task<List<Order>> PendingAsync(CancellationToken ct);
-    /// <summary>Copies reserved per item right now (lines of pending, not expired orders).</summary>
-    Task<Dictionary<int, int>> ReservedAsync(IReadOnlyCollection<int> itemIds, DateTime utcNow, CancellationToken ct);
-    Task<List<Order>> RecentAsync(int max, CancellationToken ct);
-}
-
-/// <summary>The day offers (Lager's Tilbud page).</summary>
-public interface ICampaignRepository
-{
-    Task<List<Campaign>> AllAsync(CancellationToken ct);
-    /// <summary>Adds (Id 0) or updates.</summary>
-    Task SaveAsync(Campaign campaign, CancellationToken ct);
-    Task DeleteAsync(int id, CancellationToken ct);
+    Task<bool> ExistsAsync(string saleRef, CancellationToken ct);
+    /// <summary>Saves the sold items and the booking together.</summary>
+    Task BookAsync(string saleRef, IEnumerable<Item> soldItems, CancellationToken ct);
 }
 
 /// <summary>A message for the person, in Danish - shown as it is.</summary>

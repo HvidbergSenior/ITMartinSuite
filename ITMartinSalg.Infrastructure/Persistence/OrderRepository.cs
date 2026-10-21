@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinLager.Infrastructure.Persistence;
+namespace ITMartinSalg.Infrastructure.Persistence;
 
 // Orders with their lines (OrderLines). A context per call, like the other repositories.
-public sealed class OrderRepository(IDbContextFactory<LagerDb> dbf) : IOrderRepository
+public sealed class OrderRepository(IDbContextFactory<SalgDb> dbf) : IOrderRepository
 {
     public async Task AddAsync(Order order, CancellationToken ct)
     {
@@ -31,10 +31,12 @@ public sealed class OrderRepository(IDbContextFactory<LagerDb> dbf) : IOrderRepo
         return await db.Orders.Include(o => o.Lines).FirstOrDefaultAsync(o => o.Token == token, ct);
     }
 
-    public async Task<List<Order>> PendingAsync(CancellationToken ct)
+    public async Task<List<Order>> OpenAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Orders.Include(o => o.Lines).Where(o => o.Status == OrderStatuses.Pending).OrderBy(o => o.Id).ToListAsync(ct);
+        string[] paid = [OrderStatuses.Paid, OrderStatuses.Packed, OrderStatuses.Sent, OrderStatuses.PickedUp];
+        return await db.Orders.Include(o => o.Lines)
+            .Where(o => o.Status == OrderStatuses.Pending || (!o.StockBooked && paid.Contains(o.Status))).OrderBy(o => o.Id).ToListAsync(ct);
     }
 
     public async Task<Dictionary<int, int>> ReservedAsync(IReadOnlyCollection<int> itemIds, DateTime utcNow, CancellationToken ct)
@@ -53,7 +55,7 @@ public sealed class OrderRepository(IDbContextFactory<LagerDb> dbf) : IOrderRepo
     }
 }
 
-public sealed class CampaignRepository(IDbContextFactory<LagerDb> dbf) : ICampaignRepository
+public sealed class CampaignRepository(IDbContextFactory<SalgDb> dbf) : ICampaignRepository
 {
     public async Task<List<Campaign>> AllAsync(CancellationToken ct)
     {

@@ -65,8 +65,10 @@ builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hje
     KigMedStatus = builder.Configuration["Hjem:KigMedStatus"] ?? "http://10.0.0.200:9144/api/status",
     ElPriserSnapshot = builder.Configuration["Hjem:ElPriserSnapshot"] ?? "http://10.0.0.126:8120/api/snapshot?area=DK1&allIn=true",
 }, builder.Configuration["Hjem:StemApi"]);
-// The shop on bogshoppen.dk/varer (2026-10-15): stock + Køb nu live in Bogshoppen Lager on the photoserver.
-builder.Services.AddLagerShopGateway(builder.Configuration["Hjem:LagerApi"], builder.Configuration["Hjem:LagerShopKey"]);
+// The shop on bogshoppen.dk/varer (2026-10-15): Køb nu, orders and offers live in Bogshoppen Salg on the photoserver
+// since 2026-10-21 (same /api/butik as Lager had - Hjem__SalgApi / Hjem__SalgShopKey, the old Lager names still work).
+builder.Services.AddLagerShopGateway(builder.Configuration["Hjem:SalgApi"] ?? builder.Configuration["Hjem:LagerApi"],
+    builder.Configuration["Hjem:SalgShopKey"] ?? builder.Configuration["Hjem:LagerShopKey"]);
 builder.Services.AddHjemShop(new ShopSeller(builder.Configuration["Hjem:ShopCompany"] ?? "", builder.Configuration["Hjem:ShopCvr"] ?? "",
     builder.Configuration["Hjem:ShopAddress"] ?? "", builder.Configuration["Hjem:ShopEmail"] ?? "ITMartin@Mensa.dk",
     builder.Configuration["Hjem:ShopPhone"] ?? "31 19 47 30"));

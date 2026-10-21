@@ -1,17 +1,18 @@
+@page "/"
 @page "/ordrer"
 @inject ShopUseCases Shop
 
 @* The sales after payment (user 2026-10-20: "sold, packed, in storage or something"): Betalt -> Pakket -> Sendt / Afhentet.
    The rules for what may come next are on the Order (Domain); this page only shows and asks. *@
-<PageTitle>Ordrer – Bogshoppen Lager</PageTitle>
+<PageTitle>Ordrer – Bogshoppen Salg</PageTitle>
 
 <section class="k-card">
     <h1 class="k-card-title">🧾 Ordrer</h1>
-    <p>Her står alt, der er købt med <b>Køb nu</b> på bogshoppen.dk – én ting eller en hel kurv. Når en ordre er betalt, er tingene trukket fra lageret (den sidste af en slags = Solgt).</p>
+    <p>Her står alt, der er købt med <b>Køb nu</b> på bogshoppen.dk – én ting eller en hel kurv. Når en ordre er betalt, får Bogshoppen Lager besked og trækker tingene fra lageret (den sidste af en slags = Solgt).</p>
     <p>Pak ordren og tryk <b>📦 Pakket</b>. Når den er afleveret til posten, så skriv pakkens nummer og tryk <b>Sendt</b> – eller tryk <b>Afhentet</b>, når køberen har hentet den. Trykker du forkert, så tryk <b>Fortryd</b>.</p>
     @if (!Shop.CanPay)
     {
-        <p class="lg-warn" role="status">⚠ Køb nu er slået fra: Stripe-nøglen (Lager__StripeSecretKey) eller fragt/afhentning (Lager__ShopShippingKr / Lager__ShopPickup) mangler i magic.env.</p>
+        <p class="lg-warn" role="status">⚠ Køb nu er slået fra: Stripe-nøglen (Salg__StripeSecretKey) eller fragt/afhentning (Salg__ShopShippingKr / Salg__ShopPickup) mangler i magic.env.</p>
     }
     @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
 </section>
@@ -31,7 +32,11 @@
                             <span class="k-small">@o.Status · @o.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")@(o.Tracking != "" ? $" · pakke {o.Tracking}" : "")</span>
                             @foreach (var l in o.Lines)
                             {
-                                <span class="k-small">· <a href="/vare/@l.ItemId">@l.Line</a>@(l.Usage == Usages.New ? " (ny – almindelig moms)" : "") – @l.Kr kr@(l.Offer != "" ? $" ({l.Offer}, normalt {l.ListKr} kr)" : "")</span>
+                                <span class="k-small">· <a href="@Shop.LagerBase/vare/@l.ItemId">@l.Line</a>@(l.Usage == Usages.New ? " (ny – almindelig moms)" : "") – @l.Kr kr@(l.Offer != "" ? $" ({l.Offer}, normalt {l.ListKr} kr)" : "")</span>
+                            }
+                            @if (o.NeedsBooking)
+                            {
+                                <span class="k-small lg-warn">⚠ Lageret har ikke fået besked endnu – det prøves igen hvert minut.</span>
                             }
                             @if (o.Paid)
                             {
@@ -98,7 +103,7 @@
     {
         _error = null;
         try { await step(); }
-        catch (LagerException ex) { _error = ex.Message; }
+        catch (SalgException ex) { _error = ex.Message; }
         await Load();
     }
 }
