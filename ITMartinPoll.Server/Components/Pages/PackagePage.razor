@@ -41,9 +41,9 @@
     {
         <div class="poll-empty"><p>Forespørgslen findes ikke.</p></div>
     }
-    else if (!Session.IsAdmin)
+    else if (!Session.IsAdmin && !_package.OpenByLink)
     {
-        @* Packages (the ladestander forespørgsel) are admin-only since 2026-09-30 (user). *@
+        @* Packages are admin-only since 2026-09-30 (user), unless opened by link (FezBoyz, 2026-10-21). *@
         <div class="poll-empty"><p>Denne forespørgsel er ikke åben.</p></div>
     }
     else

@@ -43,6 +43,10 @@ public class Package
     public bool     IsActive  { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Anyone with the link may answer (user 2026-10-21, FezBoyz: "all questions should be in one"). Off = admin only,
+    // as packages have been since 2026-09-30 (the Skelagerhøjen ladestander forespørgsel stays that way).
+    public bool     OpenByLink { get; set; }
+
     public List<Poll>         Polls    { get; set; } = [];
     public List<ImageSession> Sessions { get; set; } = [];
 }
