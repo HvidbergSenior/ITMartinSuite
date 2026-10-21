@@ -1087,3 +1087,24 @@ a { color: inherit; text-decoration: none; }
     box-shadow: var(--k-shadow); padding: var(--k-space-4); margin-bottom: var(--k-space-3);
 }
 
+/* /lav in three numbered steps with colour (user 2026-10-21: "I need some colors as well... it is not simple to use").
+   The colour is the one Kolibri accent; every state is said in words too (user is a bit colour-blind). */
+.lav-step { border-left: 5px solid var(--k-accent); }
+.lav-num { display: inline-grid; place-items: center; width: 1.7em; height: 1.7em; margin-right: .35em; border-radius: 50%;
+    background: var(--k-accent); color: var(--k-accent-text); font-size: .85em; font-weight: 800; vertical-align: .1em; }
+.lav-big { font-size: 1.1rem; min-height: 52px; width: 100%; }
+.lav-option { margin-bottom: var(--k-space-2); }
+.lav-go { font-size: 1.15rem; min-height: 56px; }
+.lav-more { margin-top: var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius); padding: var(--k-space-2) var(--k-space-3); }
+.lav-more > summary { cursor: pointer; font-weight: 700; }
+.lav-ready { background: var(--k-accent-soft); border: 2px solid var(--k-accent); }
+html[data-theme="dark"] .lav-ready { background: var(--k-card); }
+.btn-pair { display: flex; gap: var(--k-space-2); flex-wrap: wrap; margin-top: var(--k-space-2); }
+.btn-pair > .k-btn { flex: 1 1 10rem; }
+.lav-tag.is-open { background: var(--k-accent); color: var(--k-accent-text); border-color: var(--k-accent); }
+.lav-bar { position: relative; display: flex; justify-content: space-between; gap: var(--k-space-2); padding: 6px 10px; margin: 4px 0;
+    border-radius: 8px; background: var(--k-bg-deep); overflow: hidden; }
+.lav-bar > span, .lav-bar > b { position: relative; z-index: 1; }
+.lav-bar > i { position: absolute; inset: 0 auto 0 0; background: var(--k-accent-soft); }
+html[data-theme="dark"] .lav-bar > i { background: color-mix(in srgb, var(--k-accent) 35%, transparent); }
+
