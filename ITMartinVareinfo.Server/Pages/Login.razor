@@ -9,7 +9,7 @@
         <p>Skriv din egen kode – den har du fået af Martin.</p>
         @if (Fejl == "1") { <p class="lg-warn">Koden passer ikke – prøv igen.</p> }
         <form method="post" action="/api/login">
-            <input type="password" name="kode" class="k-input lg-pin" placeholder="Din kode" inputmode="numeric" autocomplete="current-password" autofocus />
+            <input type="password" name="kode" class="k-input lg-pin" placeholder="Din kode" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password" autofocus />
             <button class="k-btn k-btn-primary lg-big" type="submit">Log ind</button>
         </form>
     </section>
