@@ -25,6 +25,7 @@ builder.Services.AddPollApplication();
 builder.Services.AddPollInfrastructure(pollDb, builder.Configuration["Kunder:Url"], builder.Configuration["Kunder:ApiKey"]);
 
 builder.Services.AddScoped<AdminSession>();
+builder.Services.AddScoped<CustomerSession>();
 
 // Kolibri.UI identity: names, /om text, /hjaelp contact, /health, PWA manifest.
 builder.Services.AddKolibri(k =>

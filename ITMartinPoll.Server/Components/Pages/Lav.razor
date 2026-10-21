@@ -1,6 +1,8 @@
 @page "/lav"
 @rendermode InteractiveServer
 @inject CustomerPolls Mine
+@inject CustomerSession Customer
+@implements IDisposable
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -15,7 +17,7 @@
         <p>Vi spørger ikke efter e-mails på din afstemning – kun et navn, hvis folk selv vil skrive det.</p>
     </PageHelp>
 
-    @if (!_checked)
+    @if (!Customer.Ready)
     {
         @* The phone may remember the kundenummer - read in a moment. Only the heading until then, so the number box does
            not flash before the form (user 2026-10-21: "when i push lav din egen afstemning something happens"). *@
@@ -24,7 +26,7 @@
             <p>Et øjeblik …</p>
         </section>
     }
-    else if (!_in)
+    else if (!Customer.LoggedIn)
     {
         <section class="k-card">
             <h1 class="k-card-title">Lav din egen afstemning</h1>
@@ -70,8 +72,8 @@
         <section class="k-card">
             <h2 class="k-card-title">Mine afstemninger</h2>
             <p>Her ser du, hvad folk har stemt. Tryk Luk, når afstemningen er slut.</p>
-            @if (_mine.Count == 0) { <p>Du har ikke lavet nogen endnu.</p> }
-            @foreach (var m in _mine)
+            @if (Customer.Mine.Count == 0) { <p>Du har ikke lavet nogen endnu.</p> }
+            @foreach (var m in Customer.Mine)
             {
                 <div class="lav-mine">
                     <b>@m.Title</b> <span class="lav-tag">@(m.Open ? "ÅBEN" : "LUKKET")</span> · @m.People @(m.People == 1 ? "har" : "har") stemt
@@ -88,36 +90,24 @@
 </div>
 
 @code {
-    private const string Key = "stem-kundenummer";
     private string _code = "", _error = "", _title = "", _body = "";
-    private bool _in, _busy, _multi, _checked;
+    private bool _busy, _multi;
     private DateTime? _end;
     private int _newId;
     private List<string> _options = ["", ""];
-    private List<CustomerPolls.Mine> _mine = [];
 
     private string Link(int id) => Nav.ToAbsoluteUri($"/poll/{id}").ToString();
 
-    protected override async Task OnAfterRenderAsync(bool first)
-    {
-        if (!first) return;
-        try { _code = await JS.InvokeAsync<string?>("localStorage.getItem", Key) ?? ""; } catch { }
-        if (_code != "") await LoginAsync();
-        _checked = true;
-        StateHasChanged();
-    }
+    // The kundenummer is read once per visit (CustomerSession, from MainLayout): opened from the menu it is known already.
+    protected override void OnInitialized() => Customer.Changed += OnCustomerChanged;
+    protected override Task OnAfterRenderAsync(bool first) => first ? Customer.StartAsync() : Task.CompletedTask;
+    private void OnCustomerChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Customer.Changed -= OnCustomerChanged;
 
     private async Task LoginAsync()
     {
         _busy = true; _error = "";
-        try
-        {
-            var (ok, error) = await Mine.LoginAsync(_code);
-            if (!ok) { _error = error; return; }
-            _in = true;
-            try { await JS.InvokeVoidAsync("localStorage.setItem", Key, _code); } catch { }
-            _mine = await Mine.MineAsync(_code);
-        }
+        try { _error = await Customer.LoginAsync(_code) ?? ""; }
         finally { _busy = false; }
     }
 
@@ -127,21 +117,17 @@
         try
         {
             DateTime? endUtc = _end is { } d ? TimeZoneInfo.ConvertTimeToUtc(d.Date.AddDays(1).AddSeconds(-1), TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen")) : null;
-            var (error, id) = await Mine.CreateAsync(_code, _title, _body, _options, _multi, endUtc);
+            var (error, id) = await Mine.CreateAsync(Customer.Code, _title, _body, _options, _multi, endUtc);
             if (error is not null) { _error = error; return; }
             _newId = id; _title = _body = ""; _options = ["", ""]; _multi = false; _end = null;
-            _mine = await Mine.MineAsync(_code);
+            await Customer.RefreshAsync();
         }
         finally { _busy = false; }
     }
 
-    private async Task ToggleAsync(int id) { await Mine.ToggleAsync(_code, id); _mine = await Mine.MineAsync(_code); }
+    private async Task ToggleAsync(int id) { await Mine.ToggleAsync(Customer.Code, id); await Customer.RefreshAsync(); }
 
     private async Task CopyAsync(int id) { try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", Link(id)); } catch { } }
 
-    private async Task LogoutAsync()
-    {
-        try { await JS.InvokeVoidAsync("localStorage.removeItem", Key); } catch { }
-        _in = false; _code = ""; _mine = [];
-    }
+    private async Task LogoutAsync() { _code = ""; await Customer.LogoutAsync(); }
 }

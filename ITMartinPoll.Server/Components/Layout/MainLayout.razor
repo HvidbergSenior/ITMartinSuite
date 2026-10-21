@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject CustomerSession Customer
 
 @* The same frame as ElPriser (user 2026-10-21: "it should be the same feel as ElPriser"): KolibriHeader with the tabs,
    k-main/k-content, KolibriFooter. The voting pages keep their own "← Tilbage" row under the header. *@
@@ -10,3 +11,8 @@
     @Body
 </div></div>
 <KolibriFooter />
+
+@code {
+    // Read the kundenummer as soon as Stem opens, so Lav ny knows it before it is pressed.
+    protected override Task OnAfterRenderAsync(bool first) => first ? Customer.StartAsync() : Task.CompletedTask;
+}
