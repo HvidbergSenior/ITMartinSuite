@@ -8,7 +8,7 @@ public sealed record Offer(string Name, decimal? Price, string Url, string Origi
 // Proof = up to 3 listings nearest the middle price. Ambiguous = the title is too broad to know they are this book
 // ("Zombie", "Flint" without an author) - then there are no prices, so nothing can be priced from it.
 public sealed record Listings(int Count, decimal? Low, decimal? Median, decimal? High, string Url, List<Offer> Proof,
-    decimal? Wild = null, bool Ambiguous = false, decimal? NewPrice = null)
+    decimal? Wild = null, bool Ambiguous = false, decimal? NewPrice = null, int? Want = null, int? Have = null)
 {
     public bool HasPrices => Low is not null;
 

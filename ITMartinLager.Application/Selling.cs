@@ -17,7 +17,7 @@ public sealed class AuctionUseCases(IAuctionGateway auctions, IItemRepository it
         if (code == "") throw new LagerException("Vælg en auktion.");
         var jpeg = item.ItemPhoto != "" ? await photos.ReadAsync(item.ItemPhoto, ct) : null;
         lot = Math.Clamp(lot, 1, Math.Max(1, item.Quantity));
-        var highlight = Gold.ForAuction(await gold.AllAsync(ct), item.Kind, item.Title, item.Series, item.Number, item.Year, item.Price ?? item.PriceHint);
+        var highlight = Gold.ForAuction(await gold.AllAsync(ct), item.Kind, item.Title, item.Series, item.Number, item.Year, item.Price ?? item.PriceHint, item.Want, item.Have);
         var id = await auctions.SendAsync(code, item.Line(), AuctionResult.Description(item), Math.Max(0, startPrice), lot, jpeg, highlight, ct);
         AuctionResult.Sent(item, id, code);
         await items.UpdateAsync([item], ct);

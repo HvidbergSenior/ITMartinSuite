@@ -47,6 +47,13 @@ public static partial class Gold
     public static string TierOf(int kr) => kr >= GoldFrom ? GoldTier : kr >= SilverFrom ? SilverTier : BronzeTier;
     public static string BadgeOf(string tier) => tier switch { GoldTier => "🏆 GULD", SilverTier => "🥈 SØLV", _ => "🥉 BRONZE" };
 
+    // Collectors' demand (Discogs want/have, user 2026-10-21): many want it and no more have it than want it = put it first.
+    // A hot item goes one tier up (bronze -> silver -> gold), and is at least bronze even when it is cheap today.
+    public const int HotWant = 10;
+    public static bool Hot(int? want, int? have) => want is { } w && w >= HotWant && w >= (have ?? 0);
+    public static string Up(string tier) => tier == BronzeTier ? SilverTier : GoldTier;
+    public static string DemandText(int? want, int? have) => $"🔥 {want} samlere ønsker den på Discogs, {have ?? 0} har den";
+
     public static readonly GoldCategory[] Categories =
     [
         new(Kinds.AndersAnd, "Anders And & Co.", "anders and & co", ["anders", "and"], false),
@@ -155,9 +162,13 @@ public static partial class Gold
     /// product i need to see if it is interesting to make further investigation or not"). Its own valued price first
     /// (when the hunter has one), then the exact issue on the list, then "the series has valuable issues - check".
     /// Null = ordinary, nothing to dig into.</summary>
-    public static string? Interesting(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null)
+    public static string? Interesting(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null,
+        int? want = null, int? have = null)
     {
-        if (ownPrice is { } p && p >= BronzeFrom) return $"{BadgeOf(TierOf((int)p))} – vurderet til ca. {p:0} kr";
+        var hot = Hot(want, have);
+        if (ownPrice is { } p && p >= BronzeFrom)
+            return hot ? $"{BadgeOf(Up(TierOf((int)p)))} – vurderet til ca. {p:0} kr · {DemandText(want, have)}" : $"{BadgeOf(TierOf((int)p))} – vurderet til ca. {p:0} kr";
+        if (hot) return $"{BadgeOf(BronzeTier)} – {DemandText(want, have)}" + (ownPrice is { } low ? $" (vurderet til ca. {low:0} kr)" : "");
         if (Match(list, kind, title, series, number, year) is { } e) return $"{e.Badge} – {e.Category} {e.Issue} sælges for ca. {e.Kr} kr";
         var words = ListingParse.Words($"{title} {series}");
         // "Måske" is for a numbered series with valuable issues; a single title is either on the list or not.
@@ -174,9 +185,13 @@ public static partial class Gold
 
     /// <summary>The mark as bidders on Live Auktion see it (2026-10-12: "put interesting and bronze, silver, gold on
     /// liveauctions"): the badge and what it goes for elsewhere - no internal words like "Guld-listen".</summary>
-    public static string? ForAuction(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null)
+    public static string? ForAuction(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null,
+        int? want = null, int? have = null)
     {
-        if (ownPrice is { } p && p >= BronzeFrom) return $"{BadgeOf(TierOf((int)p))} – sælges for ca. {p:0} kr andre steder";
+        var hot = Hot(want, have);
+        if (ownPrice is { } p && p >= BronzeFrom)
+            return $"{BadgeOf(hot ? Up(TierOf((int)p)) : TierOf((int)p))} – sælges for ca. {p:0} kr andre steder" + (hot ? " · eftertragtet af samlere" : "");
+        if (hot) return $"{BadgeOf(BronzeTier)} – eftertragtet af samlere";
         if (Match(list, kind, title, series, number, year) is { } e) return $"{e.Badge} – sælges for ca. {e.Kr} kr andre steder";
         return Interesting(list, kind, title, series, number, year) is { } note && note.StartsWith("🔎")
             ? "🔎 MÅSKE – fra en serie med eftertragtede samlernumre" : null;

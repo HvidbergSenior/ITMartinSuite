@@ -135,7 +135,7 @@ public static partial class Pricing
     {
         if (r.Ambiguous) return r;
         var kept = r.All.Where(o => IsOneCopyOf(item, o)).ToList();
-        return kept.Count == r.All.Count ? r : ListingParse.Summarise(kept, r.Url);
+        return kept.Count == r.All.Count ? r : ListingParse.Summarise(kept, r.Url) with { Want = r.Want, Have = r.Have };
     }
 
     // "1-5", "#1-3", "1 til 52", "#1,2,3," - several issues in one listing.
@@ -201,7 +201,8 @@ public static partial class Pricing
 public sealed record SourceAnswer(string Source, bool IsNew, Listings? Result);
 
 // One hunt's outcome for one item: the per-site checks, the finds kept as proof and the normal used price.
-public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, int Answered, int? Normal, int? SimilarNormal = null, int? NewNormal = null)
+public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, int Answered, int? Normal, int? SimilarNormal = null, int? NewNormal = null,
+    int? Want = null, int? Have = null)
 {
     public static HuntResult From(int itemId, IReadOnlyList<SourceAnswer> answers, DateTime now, IReadOnlyList<SourceAnswer>? similar = null)
     {
@@ -243,8 +244,10 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!)).Select(o => (int)o.Price!.Value).ToList();
         // New shops (Saxo, Amazon ...): the price a new copy is compared with.
         var fresh = answers.Where(a => a.IsNew && a.Result is { Ambiguous: false }).SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();
+        // Discogs want/have: from the first source that knows it (only Discogs today).
+        var demand = answers.Select(a => a.Result).FirstOrDefault(r => r?.Want is not null);
         return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalOf(likeKr),
-            Pricing.NormalOf(fresh));
+            Pricing.NormalOf(fresh), demand?.Want, demand?.Have);
     }
 
     // Onto the item: when it was hunted (nothing answered = try again tomorrow, not in 30 days) and the price hint. A new
@@ -255,6 +258,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         var market = item.Usage == Usages.New ? NewNormal ?? Normal : Normal;
         if (ShopPrice(market) is { } p) item.PriceHint = p;
         item.SimilarHint = Normal is null ? SimilarNormal : null;
+        if (Want is not null) (item.Want, item.Have) = (Want, Have);
     }
 
     private static int? ShopPrice(int? normal) => Pricing.ShopPrice(normal);

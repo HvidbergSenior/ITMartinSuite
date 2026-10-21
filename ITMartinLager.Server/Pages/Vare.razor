@@ -71,6 +71,10 @@ else
 
     @if (Pricing.HuntedKinds.Contains(_item.Kind))
     {
+        @if (_item.Want is { } want && !ITMartinLager.Domain.Gold.Hot(_item.Want, _item.Have))
+        {
+            <p class="k-small k-muted">Discogs: @want samlere ønsker den, @(_item.Have ?? 0) har den. Eftertragtet = mindst @ITMartinLager.Domain.Gold.HotWant ønsker, og flere ønsker end har.</p>
+        }
         @if (_note is { } note)
         {
             <section class="k-card lg-gold">
@@ -284,7 +288,7 @@ else
         _others = _item is null ? [] : await Items.OthersLikeAsync(_item);
         _finds = view?.Finds.Where(f => !f.Similar).ToList() ?? [];
         _gold = _item is null ? null : await Gold.MatchAsync(_item);
-        _note = _item is null ? null : ITMartinLager.Domain.Gold.Interesting(await Gold.AllAsync(), _item.Kind, _item.Title, _item.Series, _item.Number, _item.Year, _item.Price ?? _item.PriceHint);
+        _note = _item is null ? null : ITMartinLager.Domain.Gold.Interesting(await Gold.AllAsync(), _item.Kind, _item.Title, _item.Series, _item.Number, _item.Year, _item.Price ?? _item.PriceHint, _item.Want, _item.Have);
         _similar = view?.Finds.Where(f => f.Similar).ToList() ?? [];
         _checks = view?.Checks ?? [];
     }

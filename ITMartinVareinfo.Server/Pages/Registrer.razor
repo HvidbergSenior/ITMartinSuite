@@ -46,6 +46,7 @@ else
         <h1 class="k-card-title">📦 Kasse @_box.Number</h1>
         <p class="lg-answer" role="status">I kasse @_box.Number: <b>@_photos billeder</b> og <b>@_scans stregkoder</b>.</p>
         <p>Læg 10-20 ting fra kassen ud med forsiden op, og tag billedet lige ovenfra. Gentag til kassen er tom. Det hele <b>gemmes bare</b> – det læses senere på Lager.</p>
+        <p><b>CD'er, DVD'er, LP'er og bøger på række:</b> stil dem tæt op ad hinanden med ryggen mod dig og tag ét billede af 20-30 rygge ad gangen – gå tæt på, så teksten på ryggene kan læses.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
         @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
         <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@BoxFields">📷 Tag billeder</button>

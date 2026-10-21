@@ -67,7 +67,12 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
     private const string System = """
         Du registrerer brugte varer til salg i en dansk butik: Anders And-blade, Anders And Jumbobøger, tegneserier,
         magasiner, bøger, CD'er, DVD'er, Blu-rays, konsolspil og Magic: The Gathering-kort.
-        Billedet viser en bunke varer lagt ud side om side. Find HVER vare og kald report_items.
+        Billedet viser en bunke varer lagt ud side om side - ELLER en række CD'er, DVD'er, LP'er eller bøger, der står
+        med ryggen mod kameraet (i en kasse eller på en hylde). Find HVER vare og kald report_items.
+        - Rygge: hver smal stribe er én vare. Teksten på ryggen står ofte på langs (drejet 90 grader) - læs den alligevel.
+          Typisk "KUNSTNER · ALBUM" eller "ALBUM - KUNSTNER" på en CD/LP, "FORFATTER  TITEL  FORLAG" på en bog, filmens
+          titel på en DVD. Logoet eller formen afgør kind (smal plastikryg = CD, høj æske = DVD, tynd pap = LP).
+          Tæl striberne, så ingen ryg springes over; en ryg, der ikke kan læses, kommer med med confidence lavt og en note.
         - Læs titel, nummer og år præcist som de står på forsiden/ryggen. Gæt aldrig et nummer - lad det være tomt,
           og sæt confidence lavt, hvis det ikke kan læses.
         - Skriv BOGSTAV FOR BOGSTAV som trykt: æ, ø og å beholdes ("Søuhyret", ikke "Souhyret"), og særlige stavemåder

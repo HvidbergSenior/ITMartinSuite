@@ -113,3 +113,40 @@ public class GoldTests
         Pricing.NormalDanishFirst([("DBA", 40), ("AbeBooks", 400), ("eBay", 500)]).Should().Be(400);   // too few Danish: all count
     }
 }
+
+// Collectors' demand from Discogs (2026-10-21): many want it, few have it = one tier up, at least bronze.
+public class DemandTests
+{
+    private static readonly List<GoldEntry> None = [];
+
+    [Test]
+    public void Hot_means_at_least_ten_wanting_and_no_more_having()
+    {
+        Gold.Hot(12, 10).Should().BeTrue();
+        Gold.Hot(9, 0).Should().BeFalse();
+        Gold.Hot(2, 24).Should().BeFalse();   // the Frank Sinatra box: 2 want, 24 have
+        Gold.Hot(null, null).Should().BeFalse();
+    }
+
+    [Test]
+    public void A_hot_record_goes_one_tier_up_and_a_cheap_one_becomes_bronze()
+    {
+        Gold.Interesting(None, Kinds.Vinyl, "Kind of Blue", "", "", 1959, 250, 40, 30)!.Should().StartWith("🏆 GULD").And.Contain("40 samlere");
+        Gold.Interesting(None, Kinds.Cd, "Sjælden", "", "", null, 120, 15, 3)!.Should().StartWith("🥈 SØLV");
+        Gold.Interesting(None, Kinds.Cd, "Billig men ønsket", "", "", null, 40, 25, 5)!.Should().StartWith("🥉 BRONZE").And.Contain("ca. 40 kr");
+        Gold.Interesting(None, Kinds.Cd, "Almindelig", "", "", null, 40, 2, 24).Should().BeNull();
+        Gold.ForAuction(None, Kinds.Cd, "Sjælden", "", "", null, 120, 15, 3).Should().Be("🥈 SØLV – sælges for ca. 120 kr andre steder · eftertragtet af samlere");
+    }
+}
+
+public class DemandHuntTests
+{
+    [Test]
+    public void Want_and_have_from_Discogs_land_on_the_item()
+    {
+        var discogs = ListingParse.Summarise([new Offer("Small Factory - For If You Cannot Fly", 80, "https://x/1")], "u") with { Want = 31, Have = 12 };
+        var item = new Item { Kind = Kinds.Cd, Title = "For If You Cannot Fly", Artist = "Small Factory" };
+        HuntResult.From(1, [new SourceAnswer("Discogs", false, discogs), new SourceAnswer("DBA", false, null)], DateTime.UtcNow).ApplyTo(item, DateTime.UtcNow);
+        (item.Want, item.Have).Should().Be((31, 12));
+    }
+}

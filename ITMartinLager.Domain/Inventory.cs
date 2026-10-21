@@ -45,6 +45,9 @@ public sealed class Item
     public string Artist { get; set; } = "";     // CDs (and author for books)
     public string Condition { get; set; } = "God";
     public string Usage { get; set; } = Usages.Used;   // Brugt / Ny (Usages) - new = never sold before, priced against new prices
+    // Discogs collectors (2026-10-21): how many want this release and how many have it - demand, not price.
+    public int? Want { get; set; }
+    public int? Have { get; set; }
     public int Quantity { get; set; } = 1;
     public int? BoxId { get; set; }
     public Box? Box { get; set; }

@@ -134,6 +134,7 @@ public static class LagerDbInitializer
             ("PricesAt", "TEXT NULL"), ("KolofonPhoto", "TEXT NOT NULL DEFAULT ''"), ("KolofonAt", "TEXT NULL"),
             ("Edition", "TEXT NOT NULL DEFAULT ''"), ("Publisher", "TEXT NOT NULL DEFAULT ''"), ("EditionHint", "TEXT NOT NULL DEFAULT ''"),
             ("SimilarHint", "REAL NULL"), ("FeaturedAt", "TEXT NULL"), ("Usage", "TEXT NOT NULL DEFAULT 'Brugt'"),
+            ("Want", "INTEGER NULL"), ("Have", "INTEGER NULL"),
         })
         {
             using var cmd = conn.CreateCommand();

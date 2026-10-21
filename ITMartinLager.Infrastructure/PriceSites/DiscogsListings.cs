@@ -30,12 +30,15 @@ public sealed class DiscogsListings(HttpClient http, ILogger<DiscogsListings> lo
             if (search is null) return null;
             var match = ListingParse.Matcher(title, artist);
             var offers = new List<Offer>();
+            int? want = null, have = null;   // the first matching release's collectors (2026-10-21: demand for guld/sølv/bronze)
             foreach (var r in search.Value.GetProperty("results").EnumerateArray())
             {
                 if (offers.Count >= Releases) break;
                 var name = r.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";   // "Artist - Album"
                 if (!match.Matches(name) || !r.TryGetProperty("id", out var idEl)) continue;
                 var id = idEl.GetInt64();
+                if (want is null && r.TryGetProperty("community", out var cm))
+                    (want, have) = (Int(cm, "want"), Int(cm, "have"));
                 var stats = await GetAsync($"https://api.discogs.com/marketplace/stats/{id}?curr_abbr=DKK", ct);
                 var forSale = stats is { } s && s.TryGetProperty("num_for_sale", out var n) && n.ValueKind == JsonValueKind.Number ? n.GetInt32() : 0;
                 decimal? kr = stats is { } s2 && s2.TryGetProperty("lowest_price", out var lp) && lp.ValueKind == JsonValueKind.Object
@@ -43,7 +46,7 @@ public sealed class DiscogsListings(HttpClient http, ILogger<DiscogsListings> lo
                 var year = r.TryGetProperty("year", out var y) ? $" ({y})" : "";
                 offers.Add(new Offer($"{name}{year} – {forSale} til salg", forSale > 0 ? kr : null, $"https://www.discogs.com/sell/release/{id}"));
             }
-            var result = ListingParse.Summarise(offers, SearchUrl(title, artist), match.Ambiguous);
+            var result = ListingParse.Summarise(offers, SearchUrl(title, artist), match.Ambiguous) with { Want = want, Have = have };
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }
@@ -54,6 +57,9 @@ public sealed class DiscogsListings(HttpClient http, ILogger<DiscogsListings> lo
         }
         finally { Gate.Release(); }
     }
+
+    private static int? Int(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : null;
 
     private async Task<JsonElement?> GetAsync(string url, CancellationToken ct)
     {

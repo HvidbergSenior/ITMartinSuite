@@ -54,7 +54,7 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     /// through all interesting in one go").</summary>
     public async Task<List<(Item Item, string Note)>> InterestingAsync(IReadOnlyList<GoldEntry> gold, CancellationToken ct = default) =>
         (await items.AllAsync(ct)).Where(i => i.Status != Statuses.Solgt)
-            .Select(i => (Item: i, Note: Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint)))
+            .Select(i => (Item: i, Note: Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint, i.Want, i.Have)))
             .Where(x => x.Note is not null).Select(x => (x.Item, x.Note!))
             .OrderBy(x => Gold.Rank(x.Item2)).ThenByDescending(x => x.Item.Price ?? x.Item.PriceHint ?? 0).ToList();
 
