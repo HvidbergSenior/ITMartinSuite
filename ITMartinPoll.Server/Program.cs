@@ -37,7 +37,7 @@ builder.Services.AddKolibri(k =>
     [
         "Stem er til, når flere skal beslutte noget: en dato, en farve, hvilket foto der skal på væggen, hvem der tager hvad.",
         "Den, der spørger, laver en afstemning på et minut og deler ét link. Alle stemmer fra telefonen – ingen konto, ingen app at hente. Resultatet ligger der bagefter, så ingen behøver spørge igen.",
-        "At lave din egen afstemning (Lav ny øverst) er gratis for kunder hos ITMartin og Bogshoppen: du skal bruge dit kundenummer, som du får, når du skriver dig op gratis på itmartin.dk. Den gratis udgave har én åben afstemning ad gangen; flere er den udvidede udgave.",
+        "At lave din egen afstemning (Lav ny øverst) er gratis for kunder hos ITMartin og Bogshoppen: du skal bruge dit kundenummer, som du får, når du skriver dig op gratis på itmartin.dk. Den gratis udgave har én åben afstemning ad gangen, og den lukker efter højst en måned; mere er den udvidede udgave.",
         "Fire slags: almindelig afstemning, billedvurdering (giv billeder point), datoafstemning (ja/nej/måske pr. dato) og pakker, hvor flere spørgsmål samles til én gruppe.",
     ];
     k.HowTo =

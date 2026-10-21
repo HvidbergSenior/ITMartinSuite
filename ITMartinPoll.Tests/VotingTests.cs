@@ -149,6 +149,9 @@ public class CustomerPollTests
         var (error, poll) = CustomerPollRules.Make("48217730", " Sommerfest? ", "", ["Have", "Hal", ""], true, null, 0, Now);
         error.Should().BeNull();
         (poll!.Title, poll.OwnerCode, poll.RequireContact, poll.AllowMultiple, poll.Options.Count).Should().Be(("Sommerfest?", "48217730", false, true, 2));
+        poll.Deadline.Should().Be(Now.AddDays(30));   // free: closes by itself after a month
+        CustomerPollRules.Make("48217730", "Q", "", ["a", "b"], false, Now.AddDays(90), 0, Now).Poll!.Deadline.Should().Be(Now.AddDays(30));
+        CustomerPollRules.Make("48217730", "Q", "", ["a", "b"], false, Now.AddDays(5), 0, Now).Poll!.Deadline.Should().Be(Now.AddDays(5));
     }
 
     [Test]

@@ -41,7 +41,8 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, ICustomerCodes co
         var (ok, error) = await codes.CheckAsync(k, ct);
         if (!ok) return (error, 0);
         var now = clock.GetUtcNow().UtcDateTime;
-        var open = (await polls.ListAsync(ct)).Count(p => p.OwnerCode == k && p.IsActive);
+        // Open = active AND not past its end date (a free poll ends by itself after a month - it must not block the next one).
+        var open = (await polls.ListAsync(ct)).Count(p => p.OwnerCode == k && p.IsActive && !(p.Deadline is { } d && d.ToUniversalTime() < now));
         var (why, poll) = CustomerPollRules.Make(k, title, body, options, allowMultiple, deadlineUtc, open, now);
         if (why is not null) return (why, 0);
         return (null, (await polls.AddAsync(poll!, ct)).Id);

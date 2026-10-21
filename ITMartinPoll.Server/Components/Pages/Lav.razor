@@ -33,7 +33,7 @@
         <section class="k-card">
             <h1 class="k-card-title">Ny afstemning</h1>
             <p><b>Sådan gør du:</b> skriv spørgsmålet og mindst 2 svarmuligheder, og tryk Lav afstemningen. Så får du et link, du kan sende til dem, der skal stemme.</p>
-            <p>I den gratis udgave har du <b>én åben afstemning ad gangen</b>. Vil du have flere, så spørg Martin om den udvidede udgave.</p>
+            <p>I den gratis udgave har du <b>én åben afstemning ad gangen</b>, og den lukker af sig selv efter <b>højst en måned</b>. Vil du have mere, så spørg Martin om den udvidede udgave.</p>
             <label class="lav-label">Spørgsmålet <input class="k-input" @bind="_title" maxlength="120" placeholder="fx Hvor skal vi holde sommerfest?" /></label>
             <label class="lav-label">Lidt mere (valgfrit) <textarea class="k-input k-textarea" rows="2" @bind="_body" maxlength="1000"></textarea></label>
             <b>Svarmuligheder</b>
@@ -44,7 +44,7 @@
             }
             @if (_options.Count < CustomerPollRules.MaxOptions) { <button class="k-btn k-btn-sm k-mt" @onclick="() => _options.Add(string.Empty)">Flere svarmuligheder</button> }
             <label class="lav-check"><input type="checkbox" @bind="_multi" /> Man må vælge flere svar</label>
-            <label class="lav-label">Slutter (valgfrit) <input class="k-input" type="date" @bind="_end" /></label>
+            <label class="lav-label">Slutter (valgfrit – senest om en måned) <input class="k-input" type="date" @bind="_end" max="@DateTime.Today.AddDays(CustomerPollRules.MaxDays).ToString("yyyy-MM-dd")" /></label>
             @if (_error != "") { <p class="lav-warn">@_error</p> }
             <button class="k-btn k-btn-primary k-btn-block k-mt" disabled="@_busy" @onclick="CreateAsync">Lav afstemningen</button>
             @if (_newId > 0)
