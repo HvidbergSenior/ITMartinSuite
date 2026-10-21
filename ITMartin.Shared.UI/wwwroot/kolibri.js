@@ -3,7 +3,7 @@
 //     - <details> boxes remember open/closed.
 //     - Cards with a heading (.k-card / .card whose first child is a title) get a ▾ toggle.
 //       Opt out with data-nofold. Cards stay open until the user closes them.
-//  2. "Læg på telefonen": a small button + sheet with iPhone / Android / PC steps, the box for
+//  2. "Læg på telefonen": a clear bar at the bottom on the first visits (until "Ikke nu", back after 14 days), then a small button + sheet with iPhone / Android / PC steps, the box for
 //     the current device already open. Hidden when the app runs from the home screen.
 // Blazor re-renders pages, so both run again from a MutationObserver.
 (function () {
@@ -21,6 +21,12 @@
             '.k-folded>.k-fold-head::after{transform:rotate(-90deg)}' +
             '.k-folded>:not(.k-fold-head){display:none!important}' +
             '.k-install-pill{position:fixed;z-index:900;left:12px;bottom:calc(12px + var(--k-bottom-offset,0px) + env(safe-area-inset-bottom,0px));border:1px solid ' + c('border', 'rgba(128,128,128,.35)') + ';background:' + c('card', '#fff') + ';color:' + c('text', '#1a1a1a') + ';border-radius:999px;padding:8px 14px;font:600 14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}' +
+            // The bar (user 2026-10-21: "the læg på telefonen needs to be obvious... most people do not know that they can do that").
+            '.k-install-bar{position:fixed;z-index:900;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;border:2px solid ' + c('text', '#1a1a1a') + ';background:' + c('card', '#fff') + ';color:' + c('text', '#1a1a1a') + ';border-radius:16px;padding:12px 14px;box-shadow:0 4px 18px rgba(0,0,0,.25);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}' +
+            '.k-install-bar b{display:block;font-size:1.05rem;margin-bottom:2px}' +
+            '.k-install-bar-btns{display:flex;gap:8px;margin-top:10px}' +
+            '.k-install-bar-go{flex:1;padding:11px;border-radius:10px;border:0;background:' + c('accent', '#1f7a5c') + ';color:#fff;font:700 15px system-ui,sans-serif;cursor:pointer}' +
+            '.k-install-bar-later{padding:11px 14px;border-radius:10px;border:1px solid ' + c('border', 'rgba(128,128,128,.45)') + ';background:transparent;color:inherit;font:600 15px system-ui,sans-serif;cursor:pointer}' +
             '.k-install-sheet{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:12px}' +
             '.k-install-sheet[hidden]{display:none}' +
             '@media (min-width:640px){.k-install-sheet{align-items:center}}' +
@@ -32,9 +38,9 @@
             '.k-install-dev summary{font-weight:600;cursor:pointer}' +
             '.k-install-dev ol{margin:8px 0 4px;padding-left:1.3em}.k-install-dev li{margin:4px 0}' +
             '.k-install-now{width:100%;margin-top:8px;padding:10px;border-radius:10px;border:0;background:' + c('accent', '#1f7a5c') + ';color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer}' +
-            '.k-install-hide{margin-top:12px;border:0;background:none;color:' + c('muted', '#666') + ';text-decoration:underline;cursor:pointer;font:inherit;font-size:14px;padding:0}' +
+            '.k-install-hide{margin-top:12px;border:1px solid ' + c('border', 'rgba(128,128,128,.45)') + ';border-radius:10px;background:transparent;color:inherit;cursor:pointer;font:600 14px system-ui,sans-serif;padding:9px 14px}' +
             '.k-footer-install[hidden]{display:none!important}' +
-            '@media print{.k-install-pill,.k-install-sheet{display:none!important}}';
+            '@media print{.k-install-pill,.k-install-bar,.k-install-sheet{display:none!important}}';
         var s = document.createElement('style');
         s.id = 'k-js-style';
         s.textContent = css;
@@ -143,7 +149,7 @@
 
     function renderInstall() {
         var box = document.getElementById('k-install');
-        if (installed()) { if (box) box.remove(); return; }
+        if (installed()) { if (box) box.remove(); if (document.body) document.body.style.paddingBottom = ''; return; }
         if (!document.body) return;
         if (!box) {
             box = document.createElement('div');
@@ -153,21 +159,32 @@
         var where = dev.pc ? T('skrivebordet', 'your desktop') : T('telefonen', 'your phone');
         var hidden = store.get('install_hidden') === '1';
         var open = box.classList.contains('open');
+        // The bar until the person says "Ikke nu"; then the small pill, and the bar again after 14 days.
+        var later = +(store.get('install_later') || 0);
+        var bar = Date.now() - later > 14 * 864e5;
         box.innerHTML =
+            (bar ? '<div class="k-install-bar" role="region" aria-label="' + T('Læg på ', 'Add to ') + where + '">' +
+                '<b>' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</b>' +
+                T(dev.pc ? 'Så åbner du den med ét klik fra skrivebordet, ligesom et rigtigt program. Det tager 10 sekunder.'
+                         : 'Så åbner du den med ét tryk fra din hjemmeskærm, ligesom en app. Det tager 10 sekunder.',
+                  dev.pc ? 'Then you open it with one click from your desktop, like a real program. It takes 10 seconds.'
+                         : 'Then you open it with one tap from your home screen, like an app. It takes 10 seconds.') +
+                '<div class="k-install-bar-btns"><button type="button" class="k-install-bar-go" aria-haspopup="dialog">' + T('Vis mig hvordan', 'Show me how') + '</button>' +
+                '<button type="button" class="k-install-bar-later">' + T('Ikke nu', 'Not now') + '</button></div></div>' : '') +
             // PC: no floating button - it sat on top of bottom menus; the footer link opens the same sheet.
-            (hidden || dev.pc ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">' + T('Læg på ', 'Add to ') + where + '</button>') +
+            (bar || hidden || dev.pc ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">' + T('Læg på ', 'Add to ') + where + '</button>') +
             '<div class="k-install-sheet" role="dialog" aria-modal="true" aria-label="' + T('Læg på ', 'Add to ') + where + '"' + (open ? '' : ' hidden') + '>' +
             '<div class="k-install-card"><button type="button" class="k-install-x" aria-label="' + T('Luk', 'Close') + '">✕</button>' +
             '<h2>📲 ' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</h2>' +
             steps() +
-            (hidden || dev.pc ? '' : '<button type="button" class="k-install-hide">' + T('Skjul knappen', 'Hide the button') + '</button>') +
+            (hidden || dev.pc ? '' : '<button type="button" class="k-install-hide">' + T('Vis ikke knappen igen', 'Do not show the button again') + '</button>') +
             '</div></div>';
         liftPill(box);
     }
 
     // Phones: keep the button clear of a menu bar fixed to the bottom of the screen (MinElpris, ElPriser …).
     function liftPill(box) {
-        var pill = box.querySelector('.k-install-pill');
+        var pill = box.querySelector('.k-install-pill, .k-install-bar');
         if (!pill) return;
         var lift = 0;
         document.querySelectorAll('nav, footer, [class*="nav"], [class*="bar"]').forEach(function (el) {
@@ -178,14 +195,17 @@
             if (r.height > 0 && r.height < 200 && Math.abs(window.innerHeight - r.bottom) < 4) lift = Math.max(lift, r.height);
         });
         pill.style.bottom = lift ? 'calc(' + (lift + 8) + 'px + env(safe-area-inset-bottom, 0px))' : '';
+        // The page must still be readable to the end: room under the last box while the bar is up.
+        document.body.style.paddingBottom = box.querySelector('.k-install-bar') ? (pill.offsetHeight + lift + 24) + 'px' : '';
     }
     function openSheet() { var b = document.getElementById('k-install'); if (!b) return; b.classList.add('open'); b.querySelector('.k-install-sheet').hidden = false; }
     function closeSheet() { var b = document.getElementById('k-install'); if (!b) return; b.classList.remove('open'); b.querySelector('.k-install-sheet').hidden = true; }
     document.addEventListener('click', async function (e) {
         var t = e.target;
-        if (t.closest('.k-install-pill, a[href="#k-install"]')) { e.preventDefault(); if (!installed()) openSheet(); return; }
+        if (t.closest('.k-install-pill, .k-install-bar-go, a[href="#k-install"]')) { e.preventDefault(); if (!installed()) openSheet(); return; }
+        if (t.closest('.k-install-bar-later')) { store.set('install_later', String(Date.now())); renderInstall(); return; }
         if (t.closest('.k-install-x') || t.classList.contains('k-install-sheet')) { closeSheet(); return; }
-        if (t.closest('.k-install-hide')) { store.set('install_hidden', '1'); closeSheet(); renderInstall(); return; }
+        if (t.closest('.k-install-hide')) { store.set('install_hidden', '1'); store.set('install_later', String(Date.now())); closeSheet(); renderInstall(); return; }
         if (t.closest('.k-install-now') && promptEvent) {
             promptEvent.prompt();
             var r = await promptEvent.userChoice; promptEvent = null;
