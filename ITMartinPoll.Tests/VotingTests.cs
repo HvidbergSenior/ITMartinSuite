@@ -133,3 +133,25 @@ public class CustomerListTests
     }
 }
 
+
+public class CustomerPollTests
+{
+    private static readonly DateTime Now = new(2026, 10, 21, 18, 0, 0, DateTimeKind.Utc);
+
+    [Test]
+    public void A_customer_poll_needs_a_question_and_two_choices_and_never_asks_for_emails()
+    {
+        CustomerPollRules.Make("48217730", " ", "", ["a", "b"], false, null, 0, Now).Error.Should().Contain("handler om");
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", " ", "have"], false, null, 0, Now).Error.Should().Contain("mindst 2");
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, Now.AddHours(-1), 0, Now).Error.Should().Contain("fremtiden");
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, null, CustomerPollRules.MaxOpen, Now).Error.Should().Contain("Luk en");
+
+        var (error, poll) = CustomerPollRules.Make("48217730", " Sommerfest? ", "", ["Have", "Hal", ""], true, null, 0, Now);
+        error.Should().BeNull();
+        (poll!.Title, poll.OwnerCode, poll.RequireContact, poll.AllowMultiple, poll.Options.Count).Should().Be(("Sommerfest?", "48217730", false, true, 2));
+    }
+
+    [Test]
+    public void The_kundenummer_is_typed_with_or_without_the_space() =>
+        CustomerPolls.Normalize(" 4821 7730 ").Should().Be("48217730");
+}

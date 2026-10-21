@@ -45,7 +45,7 @@ public class KundekartotekTests
 
         var c = (await _k.ListAsync()).Should().ContainSingle().Subject;
         c.Email.Should().Be("ole@gmail.com");
-        c.Code.Should().HaveLength(8);
+        c.Code.Should().HaveLength(8).And.MatchRegex("^[1-9][0-9]{7}$");
         c.Interests.Should().Be("ElPriser ; Temperatur");
         c.Consents.Should().ContainSingle(x => x.Company == Companies.ITMartin);
         c.Apps.Should().Equal("ElPriser", "Temperatur");
@@ -95,9 +95,29 @@ public class KundekartotekTests
     }
 
     [Test]
+    public async Task The_kundenummer_opens_the_free_apps_until_they_unsubscribe()
+    {
+        var (_, code) = await _k.SignUpWithCodeAsync(Yes("ole@gmail.com", "ElPriser"));
+        var apps = await _apps.AllAsync();
+        (await _k.CheckCodeAsync(KundeWords.ShowCode(code), "elpriser", apps)).Ok.Should().BeTrue();   // "4821 7730" typed with a space
+        (await _k.CheckCodeAsync(code, "Tilbud", apps)).Error.Should().Contain("ikke med");
+        (await _k.CheckCodeAsync("12345678", "Stem", apps)).Error.Should().Contain("kender vi ikke");
+        (await _k.SignUpWithCodeAsync(Yes("ole@gmail.com", "Stem"))).Code.Should().Be(code);   // same number when they sign up again
+
+        await _k.UnsubscribeAsync("ole@gmail.com");
+        (await _k.CheckCodeAsync(code, "Stem", apps)).Error.Should().Contain("afmeldt");
+
+        // A Bogshoppen yes opens the free apps too; a buyer who never ticked the box does not.
+        var (_, bs) = await _k.SignUpWithCodeAsync(Yes("mie@gmail.com", "Liveauktioner", Companies.Bogshoppen));
+        (await _k.CheckCodeAsync(bs, "ElPriser", apps)).Ok.Should().BeTrue();
+        await _k.BoughtAsync(new PurchaseRequest("kim@gmail.com", "Kim", "", "Bogshoppen Salg", "t1", "Tintin", 80, DateTime.UtcNow));
+        (await _k.ListAsync()).Single(c => c.Email == "kim@gmail.com").CodeWorks.Should().BeFalse();
+    }
+
+    [Test]
     public async Task The_free_apps_start_as_the_three_the_user_named_and_can_be_switched_off()
     {
-        (await _apps.AvailableAsync()).Select(a => a.Name).Should().Equal("ElPriser", "Temperatur", "Stem");
+        (await _apps.AvailableAsync()).Select(a => (a.Name, a.NeedsCode)).Should().Equal(("ElPriser", true), ("Temperatur", false), ("Stem", true));
         var stem = (await _apps.AllAsync()).Single(a => a.Name == "Stem");
         stem.Available = false;
         await _apps.SaveAsync(stem);

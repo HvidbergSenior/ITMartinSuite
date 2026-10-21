@@ -16,15 +16,15 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "ElPriser viser timeprisen på strøm i dag og i morgen, så du kan lægge vask, opvask og opladning på de billige timer.",
-        "Tjek regning forklarer din elregning linje for linje, og Besked sender et prik til telefonen, når prisen falder.",
-        "Alt i ElPriser er gratis og kræver ingen konto.",
+        "Besked sender et prik til telefonen, når prisen falder – gratis for kunder med et kundenummer.",
+        "Prisen nu og de billige timer er gratis og kræver ingen konto. Din elregning forklaret linje for linje findes i MinElpris, den udvidede udgave.",
         "Adresser og kort: © OpenStreetMap-bidragydere (openstreetmap.org/copyright). Nettariffer: Strømligning.",
     ];
     k.HowTo =
     [
         "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
         "Slå Besked til for at få et prik, når strømmen er billig.",
-        "Tryk Tjek regning, hvis du vil forstå din elregning.",
+        "Vil du have din elregning forklaret? Det er en del af MinElpris – spørg Martin på itmartin.dk.",
     ];
     k.Version = "2026.09";
     k.IconPath = "icon.svg";
@@ -38,7 +38,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddElPriserSources();
 // The free app's own adapters (who wants a message, Web Push, PDF text) and its use cases. Settings live in a cookie on
 // the visitor's phone (PrefsService = the IHouseholdPrefs port, Server side because it needs the request and JS).
-builder.Services.AddElPriserApp();
+builder.Services.AddElPriserApp(builder.Configuration);
 builder.Services.AddElPriserApplication();
 builder.Services.AddScoped<PrefsService>();
 builder.Services.AddScoped<IHouseholdPrefs>(sp => sp.GetRequiredService<PrefsService>());
@@ -58,8 +58,10 @@ app.UseAntiforgery();
 
 app.MapGet("/api/push/public-key", (PushUseCases push) => Results.Text(push.PublicKey));
 
-app.MapPost("/api/push/subscribe", (PushSignup req, HttpContext http, PushUseCases push) =>
-    push.Subscribe(req, PrefsService.ReadCookie(http)) is { } id ? Results.Ok(new { id }) : Results.BadRequest()).DisableAntiforgery();
+// Beskeder need the kundenummer (2026-10-21); 400 { error } tells the person why.
+app.MapPost("/api/push/subscribe", async (PushSignup req, HttpContext http, PushUseCases push, CancellationToken ct) =>
+    await push.SubscribeAsync(req, PrefsService.ReadCookie(http), ct) is ({ } id, _) ? Results.Ok(new { id }) : Results.BadRequest(new { error = "kode" }))
+    .DisableAntiforgery();
 
 app.MapPost("/api/push/unsubscribe", (UnsubscribeRequest req, PushUseCases push) => { push.Unsubscribe(req.Endpoint); return Results.Ok(); })
     .DisableAntiforgery();

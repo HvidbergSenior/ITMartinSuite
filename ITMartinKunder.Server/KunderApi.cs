@@ -7,6 +7,13 @@ internal static class KunderEndpoints
     public static void MapKunderApi(this WebApplication app)
     {
         app.MapPost(KunderApi.SignUp, async (SignUpRequest r, Kundekartotek k) => Answer(await k.SignUpAsync(r))).DisableAntiforgery();
+        app.MapPost(KunderApi.SignUpWithCode, async (SignUpRequest r, Kundekartotek k) =>
+        {
+            var (error, code) = await k.SignUpWithCodeAsync(r);
+            return error is null ? Results.Ok(new SignUpResponse(code)) : Results.BadRequest(new ErrorResponse(error));
+        }).DisableAntiforgery();
+        app.MapPost(KunderApi.CheckCode, async (CodeCheckRequest r, Kundekartotek k, FreeApps apps) =>
+            Results.Ok(await k.CheckCodeAsync(r.Code, r.App, await apps.AllAsync()))).DisableAntiforgery();
         app.MapPost(KunderApi.Bought, async (PurchaseRequest r, Kundekartotek k) => Answer(await k.BoughtAsync(r))).DisableAntiforgery();
         app.MapPost(KunderApi.Import, async (ImportRequest r, Kundekartotek k) => Answer(await k.ImportAsync(r))).DisableAntiforgery();
         app.MapPost(KunderApi.Unsubscribe, async (UnsubscribeRequest r, Kundekartotek k) =>
@@ -24,7 +31,7 @@ internal static class KunderEndpoints
             static string Q(string v) => "\"" + v.Replace("\"", "\"\"") + "\"";
             var site = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
             var rows = await k.ActiveAsync(company);
-            var csv = "Navn;Email;Telefon;Kundekode;Interesser;Apps;Ja givet;Afmeld-link\n" + string.Concat(rows.Select(c =>
+            var csv = "Navn;Email;Telefon;Kundenummer;Interesser;Apps;Ja givet;Afmeld-link\n" + string.Concat(rows.Select(c =>
                 $"{Q(c.Name)};{Q(c.Email)};{Q(c.Phone)};{Q(c.Code)};{Q(c.Interests)};{Q(string.Join(", ", c.Apps))};" +
                 $"{c.Consents.First(x => x.Company == company).At:yyyy-MM-dd HH:mm};{site}/afmeld/{c.UnsubscribeToken}\n"));
             return Results.File(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray(),

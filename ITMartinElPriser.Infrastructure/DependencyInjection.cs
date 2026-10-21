@@ -1,3 +1,5 @@
+using ITMartinKunder.Client;
+using Microsoft.Extensions.Configuration;
 using ITMartinElPriser.Application;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,9 +23,12 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>The free ElPriser app's own adapters: who wants a message (DataDir/subscribers.json), Web Push, PDF text.</summary>
-    public static IServiceCollection AddElPriserApp(this IServiceCollection services)
+    /// <summary>The free ElPriser app's own adapters: who wants a message (DataDir/subscribers.json), Web Push, PDF text,
+    /// and Kunder for the kundenummer.</summary>
+    public static IServiceCollection AddElPriserApp(this IServiceCollection services, IConfiguration config)
     {
+        services.AddKunderClient(config, config["DataDir"] ?? "/data");
+        services.AddSingleton<ICustomerCodes, KunderCodes>();
         services.AddSingleton<ISubscriberStore, SubscriberStore>();
         services.AddSingleton<IPushSender, WebPushSender>();
         services.AddSingleton<IPdfText, PdfPigText>();

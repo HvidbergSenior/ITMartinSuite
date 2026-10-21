@@ -136,10 +136,16 @@ public static class PriceModel
 
     // Price one concrete run starting at `start` (snapped to the 15-min grid).
     // Null when the price curve does not cover the whole run.
-    public static RunOption? CostOfRun(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime start)
+    public static RunOption? CostOfRun(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime start) =>
+        CostOfRun(Priced(raw, s), s.ShowAllIn, a, start);
+
+    // Every price worked out once, in time order. The loops below used to do this again for EVERY start they tried
+    // (192 starts x ~200 points, twice per screen update) - switching machine on the front page was slow (user 2026-10-21).
+    private static List<PricedPoint> Priced(List<PricePoint> raw, HouseholdSettings s) =>
+        raw.Select(p => PriceBreakdownCalculator.Compute(p, s)).OrderBy(p => p.TimeDk).ToList();
+
+    private static RunOption? CostOfRun(List<PricedPoint> points, bool allIn, Appliance a, DateTime start)
     {
-        var allIn = s.ShowAllIn;
-        var points = raw.Select(p => PriceBreakdownCalculator.Compute(p, s)).OrderBy(p => p.TimeDk).ToList();
         var slots = Math.Max(1, (int)Math.Round(a.DurationHours * 60 / SlotMinutes));
         var snapped = new DateTime(start.Year, start.Month, start.Day, start.Hour, start.Minute / SlotMinutes * SlotMinutes, 0);
         var i = points.FindIndex(p => p.TimeDk == snapped);
@@ -158,9 +164,10 @@ public static class PriceModel
     {
         var t = new DateTime(from.Year, from.Month, from.Day, from.Hour, from.Minute / SlotMinutes * SlotMinutes, 0);
         RunOption? best = null;
+        var points = Priced(raw, s);
         for (var end = t.AddHours(48); t < end; t = t.AddMinutes(SlotMinutes))
         {
-            if ((!night && IsQuiet(t, s)) || CostOfRun(raw, s, a, t) is not { } o) continue;
+            if ((!night && IsQuiet(t, s)) || CostOfRun(points, s.ShowAllIn, a, t) is not { } o) continue;
             if (best is null || o.CostKr < best.CostKr) best = o;
         }
         return best;
@@ -171,8 +178,9 @@ public static class PriceModel
     public static (RunOption? Cheapest, RunOption? Dearest) DayRange(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateOnly day)
     {
         var options = new List<RunOption>();
+        var points = Priced(raw, s);
         for (var t = day.ToDateTime(TimeOnly.MinValue); t < day.AddDays(1).ToDateTime(TimeOnly.MinValue); t = t.AddMinutes(SlotMinutes))
-            if (CostOfRun(raw, s, a, t) is { } o) options.Add(o);
+            if (CostOfRun(points, s.ShowAllIn, a, t) is { } o) options.Add(o);
         return (options.MinBy(o => o.CostKr), options.MaxBy(o => o.CostKr));
     }
 

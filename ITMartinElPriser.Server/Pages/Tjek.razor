@@ -1,164 +1,19 @@
 @page "/tjek"
-@using System.Globalization
-@inject BillCheckUseCases Check
 
-@* The free hook for MinElpris (user 2026-09-28: "something with a wow effect, so users want to see
-   the paid version"): the user's OWN bill, read in memory only (nothing stored - the free app has no
-   accounts), shows who gets the money, whether the supplier's price matches what it reports to
-   Forsyningstilsynet, and how much could be saved. Which supplier, and the switch, are in MinElpris. *@
-
+@* "Tjek elregning" moved out of the free app into the paid version, MinElpris (user 2026-10-21: "remove tjek elregning and
+   move it to the paid version"). The address stays, so saved links and old tiles still land somewhere that explains it. *@
 <PageTitle>Tjek din elregning – ElPriser</PageTitle>
-<h1>Tjek din elregning</h1>
 
-<PageHelp Key="help-tjek">
-    <p><b>Det er her:</b> Læg din elregning ind som PDF – så ser du på få sekunder, hvor pengene går hen, om dit elselskab tager den pris, det har oplyst til Forsyningstilsynet, og hvad du kan spare.</p>
-    <p><b>Sådan gør du:</b> Find regningen som PDF (se “Sådan finder du din regning” under knappen), tryk “Vælg regning” og vælg filen. Regningen bliver kun læst – den gemmes ikke.</p>
-</PageHelp>
-
-@if (_bill is null)
-{
-    <div class="k-card">
-        <div class="k-card-title">Hvad betaler du egentlig for?</div>
-        <p class="small">De fleste ved ikke, at kun en del af elregningen går til elselskabet. Og at elselskaberne selv oplyser deres priser til Forsyningstilsynet – så vi kan tjekke, om din regning passer.</p>
-        <label class="k-btn k-btn-primary k-btn-block u-center">
-            Vælg regning (PDF)
-            <InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" class="u-hide"/>
-        </label>
-        @if (_busy) { <p class="k-muted small">Læser regningen…</p> }
-        @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
-        <details class="k-card fold u-mt10" data-remember="tjek-howto">
-            <summary>Sådan finder du din regning som PDF</summary>
-            <ol class="small">
-                <li><b>Tjek din mail og e-Boks / Digital Post.</b> De fleste elselskaber sender regningen dér. Søg på elselskabets navn eller “elregning”.</li>
-                <li><b>Eller hent den i elselskabets app eller på “Mit …”-siden:</b> find <b>Regninger</b> eller <b>Dokumenter</b> → den seneste → <b>Download</b>.</li>
-                <li><b>Gem PDF’en</b> (iPhone: “Arkiver i Filer”) og tryk “Vælg regning” ovenfor.</li>
-            </ol>
-            <p class="k-muted small">Brug en <b>månedsregning</b> – ikke årsopgørelsen. Vi kan læse NRGi’s regninger nu; flere elselskaber kommer.</p>
-        </details>
+<div class="k-card">
+    <h1 class="k-card-title">Din elregning forklaret</h1>
+    <p>At få elregningen forklaret linje for linje er nu en del af <b>MinElpris</b> – den udvidede udgave af ElPriser.
+        Dér læser vi din regning, viser hvem du betaler til, og om du kan spare ved at skifte elselskab.</p>
+    <p><b>Sådan får du den:</b> skriv til Martin, så finder I ud af det sammen.</p>
+    <div class="btn-row">
+        <a class="k-btn k-btn-primary" href="https://itmartin.dk/#chat" target="_blank" rel="noopener">Chat med Martin</a>
+        <a class="k-btn" href="mailto:ITMartin@Mensa.dk?subject=MinElpris">Mail</a>
+        <a class="k-btn" href="tel:+4531194730">31 19 47 30</a>
     </div>
-}
-else
-{
-    var b = _bill;
-    var supplierKr = b.PartKr(BillParty.Supplier);
-    <section class="k-card now-tile">
-        <h2 class="k-card-title">Din regning</h2>
-        <div class="small k-muted">@Period(b)</div>
-        <div class="now-price">@b.TotalKr.ToString("0", Da) kr</div>
-        <div class="now-unit">@b.Kwh.ToString("0", Da) kWh · @b.KrPerKwh.ToString("0.00", Da) kr pr. kWh alt inkl.</div>
-        <div class="now-compare">Kun <b>@supplierKr.ToString("0", Da) kr</b> (@Pct(supplierKr, b.TotalKr)) går til <b>@b.Supplier</b>. Resten er transport og afgifter, som er ens uanset elselskab.</div>
-    </section>
-
-    <div class="k-card">
-        <div class="k-card-title">Hvem får dine penge?</div>
-        @foreach (var party in new[] { BillParty.Supplier, BillParty.Grid, BillParty.State })
-        {
-            var sum = b.PartKr(party);
-            if (sum == 0) continue;
-            var open = _openParty == party;
-            <div class="bill-line tap u-mt8" role="button" tabindex="0" aria-expanded="@(open ? "true" : "false")"
-                 @onclick="() => _openParty = open ? null : party">
-                <div class="appl-row"><span><b>@PartyTitle(party, b)</b></span><b>@sum.ToString("0", Da) kr · @Pct(sum, b.TotalKr) @(open ? "▾" : "▸")</b></div>
-                <div class="bill-bar"><i style="--w:@((b.TotalKr > 0 ? sum / b.TotalKr * 100 : 0).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div>
-                <p class="k-muted small u-mt4">@ElBillParser.ExplainParty(party)@(open ? "" : " Tryk for linjerne.")</p>
-            </div>
-            @if (open)
-            {
-                @foreach (var l in b.Lines.Where(x => x.Party == party))
-                {
-                    <div class="bill-sub">
-                        <div class="appl-row small">
-                            <span><b>@l.Name</b>@(l.RateKr is { } r ? $" · {l.Kwh?.ToString("0", Da)} kWh × {r.ToString("0.000", Da)} kr" : "")</span>
-                            <b>@l.Kr.ToString("0.00", Da) kr</b>
-                        </div>
-                        <p class="k-muted small u-mt2">@ElBillParser.Explain(l)</p>
-                    </div>
-                }
-            }
-        }
-    </div>
-
-    @if (_cmp is { } c)
-    {
-        @if (c.PortalLooksWrong && c.BillMarkupKr is { } bmw && c.PortalMarkupKr is { } pmw)
-        {
-            <div class="k-card">
-                <div class="k-card-title">elpris.dk viser et forkert tal for @b.Supplier</div>
-                <p class="small">Tillægget er elselskabets egen fortjeneste oven i selve strømmen. På din regning: <b>@((bmw * 100).ToString("0.00", Da)) øre</b> pr. kWh – det ser normalt ud.</p>
-                <p class="small">@b.Supplier har oplyst <b>@((pmw * 100).ToString("0.00", Da)) øre</b> som tillæg til Forsyningstilsynet (elpris.dk)@(c.Current?.Updated is { } uw ? $" den {uw.ToString("d. MMMM yyyy", Da)}" : "").
-                    Det ligner hele prisen pr. kWh, ikke et tillæg – de andre elselskabers tillæg ligger på 0–55 øre. Det er sandsynligvis en indtastningsfejl hos @b.Supplier på elpris.dk, ikke en fejl på din regning.</p>
-                <p class="small"><b>Vil du hjælpe andre?</b> Skriv til @b.Supplier: “På elpris.dk står der @((pmw * 100).ToString("0.00", Da)) øre i tillæg på @(c.Current?.Name ?? "jeres produkt"), men min regning siger @((bmw * 100).ToString("0.00", Da)) øre. Vil I rette tallet på elpris.dk?”</p>
-            </div>
-        }
-        else if (c.BillMarkupKr is { } bm && c.PortalMarkupKr is { } pm && Math.Abs(bm - pm) * 100 >= 0.3)
-        {
-            <div class="k-card now-tile lvl-expensive">
-                <div class="k-card-title">Din regning passer ikke med elpris.dk</div>
-                <p class="small">Tillægget er elselskabets egen fortjeneste oven i selve strømmen. På din regning: <b>@((bm * 100).ToString("0.00", Da)) øre</b> pr. kWh. @b.Supplier har oplyst <b>@((pm * 100).ToString("0.00", Da)) øre</b> til Forsyningstilsynet (elpris.dk)@(c.Current?.Updated is { } u ? $", senest opdateret {u.ToString("d. MMMM yyyy", Da)}" : "").</p>
-                <p class="small">Med dit forbrug er forskellen ca. <b>@(Math.Abs(c.MarkupGapYearlyKr ?? 0).ToString("0", Da)) kr om året</b>. Oftest betyder det, at prisen er ændret, uden at elpris.dk er opdateret – det skal elselskabet ellers gøre.</p>
-                <p class="small"><b>Spørg @b.Supplier:</b> “Min regning siger @((bm * 100).ToString("0.00", Da)) øre i tillæg, men I oplyser @((pm * 100).ToString("0.00", Da)) øre på elpris.dk. Hvilken pris gælder, og hvornår blev den ændret?”</p>
-            </div>
-        }
-        else if (c.BillMarkupKr is not null && c.PortalMarkupKr is not null)
-        {
-            <section class="k-card"><h2 class="k-card-title">Tillægget passer</h2><p class="small">Tillægget på din regning passer med det, @b.Supplier har oplyst til Forsyningstilsynet.</p></section>
-        }
-
-        @if (c.SavingYearlyKr is > 50 and var save)
-        {
-            <div class="k-card now-tile lvl-cheap">
-                <h2 class="k-card-title">Det kan du spare</h2>
-                <div class="small k-muted">Samme slags pris, samme strøm, ca. @c.YearlyKwh.ToString("#,##0", Da) kWh om året</div>
-                <div class="now-price lvl-cheap">Spar ca. @save.ToString("#,##0", Da) kr</div>
-                <div class="now-unit">om året ved at skifte elselskab</div>
-                <div class="now-compare"><b>Hvilket selskab</b> og <b>hvordan du skifter</b> med ét tryk – det viser MinElpris, sammen med hele regningen linje for linje og dit forbrug time for time.</div>
-                <a class="k-btn k-btn-primary k-btn-block u-mt10" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se hvem – i MinElpris →</a>
-            </div>
-        }
-        else if (c.SavingYearlyKr is not null)
-        {
-            <section class="k-card"><h2 class="k-card-title">Du har en af de billigste</h2><p class="small">Du har allerede et af de billigste produkter til dit forbrug.</p></section>
-        }
-    }
-
-    <div class="k-card">
-        <h2 class="k-card-title">En anden regning</h2>
-        <p class="small k-muted u-mb8">Regningen er kun læst – den er ikke gemt. Priser fra <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</p>
-        <label class="k-btn">Tjek en anden regning<InputFile OnChange="ReadAsync" accept=".pdf,application/pdf" class="u-hide"/></label>
-    </div>
-}
-
-@code {
-    private static readonly CultureInfo Da = new("da-DK");
-    private ElBill? _bill;
-    private BillComparison? _cmp;
-    private BillParty? _openParty;
-    private bool _busy;
-    private string _error = "";
-
-    private async Task ReadAsync(InputFileChangeEventArgs e)
-    {
-        _error = ""; _busy = true;
-        try
-        {
-            await using var upload = e.File.OpenReadStream(maxAllowedSize: BillCheckUseCases.MaxBytes);
-            using var ms = new MemoryStream();
-            await upload.CopyToAsync(ms);
-            var r = await Check.CheckAsync(ms.ToArray());
-            if (r.Error != "") { _error = r.Error; return; }
-            (_bill, _cmp) = (r.Bill, r.Comparison);
-        }
-        catch (IOException) { _error = "Filen er for stor eller kunne ikke læses. Prøv at hente regningen igen fra elselskabet."; }
-        finally { _busy = false; }
-    }
-
-    private static string Period(ElBill b) =>
-        b.From is { } f && b.To is { } t ? $"{f.ToString("d. MMM", Da)} – {t.ToString("d. MMM yyyy", Da)}" : "";
-    private static string Pct(double part, double total) => total > 0 ? (part / total * 100).ToString("0", Da) + " %" : "";
-    private static string PartyTitle(BillParty p, ElBill b) => p switch
-    {
-        BillParty.Supplier => $"Elselskabet – {b.Supplier}",
-        BillParty.Grid => $"Netselskabet – {b.Grid}",
-        _ => "Staten og Energinet",
-    };
-}
+    <p class="k-mt">Prisen nu og de billige timer er stadig gratis:</p>
+    <a class="k-btn k-btn-block" href="/">Se prisen nu</a>
+</div>

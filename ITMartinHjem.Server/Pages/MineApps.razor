@@ -14,7 +14,9 @@
         // Asleep unless Martin has woken it (Kontrol / Svar) AND the container answers.
         // No address = a showcase only (Polstrer, user 2026-10-08: "close polstrer for other users"): shown, never opened.
         var showcase = a.Url.Length == 0;
-        var free = ITMartinHjem.Domain.TrialRules.IsFree(a.Name, _free);
+        var freeApp = _free.FirstOrDefault(f => string.Equals(f.Name, a.Name, StringComparison.OrdinalIgnoreCase));
+        var free = freeApp is not null;
+        var open = freeApp is { NeedsCode: false };   // Temperatur: open to all, no sign-up needed (user 2026-10-21)
         var up = a.Awake && (showcase || Apps.IsUp(a.Url) != false);   // a showcase sleeps too when Martin says so
         @* Every app is a show/hide box: closed shows only icon + name (user 2026-10-05: "way too much text in one go"). *@
         var target = string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase);
@@ -35,7 +37,8 @@
                 </div>
                 @* "Prøv gratis" only on the free apps Martin has switched on in Kunder (user 2026-10-21: "all others cannot be tried
                    for free"); one sign-up gives all of them. No newsletters. *@
-                @if (free) { <TrialForm App="@a.Name" FreeApps="_free" /> }
+                @if (open) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name – helt gratis</a> }
+                else if (free) { <TrialForm App="@a.Name" FreeApps="WithCode" /> }
                 @* Contact line on every app (user 2026-10-12: "a contact me if interested in this app"); a sleeping app is tried for free by contacting Martin, who wakes it (user 2026-10-12). *@
                 <div class="hj-app-contact"><b>@(up || showcase || !free ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig:
                     <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/#chat">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
@@ -78,8 +81,8 @@
             <h2 class="k-card-title">Gratis – sådan prøver du en app</h2>
             <div>
     <p>Alle mine apps kan bruges gratis, og den gratis udgave kan sagtens stå alene. Har du brug for mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
-    <p><b>Sådan prøver du:</b> Tryk på en af de apps, hvor der står <b>Prøv gratis</b>, og skriv din e-mail. Du skriver dig op <b>én gang</b> og får adgang til alle de gratis apps@(_free.Count > 0 ? ": " + string.Join(", ", _free) : "").
-        Jeg sender dig adgangen på mail.</p>
+    <p><b>Sådan prøver du:</b> Tryk på en af de apps, hvor der står <b>Prøv gratis</b>, og skriv din e-mail. Du skriver dig op <b>én gang</b> og får et kundenummer til alle de gratis apps@(WithCode.Count > 0 ? ": " + string.Join(", ", WithCode) : "")
+        – og et login til liveauktionerne på bogshoppen.dk, når de åbner. Nogle apps er helt åbne – der trykker du bare Åbn.</p>
     <p>De andre apps kan ikke prøves gratis lige nu – men skriv til mig, hvis du er interesseret i en af dem.</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu</p>
     </div>
@@ -147,7 +150,8 @@
 
 @code {
     private List<AppLink> _apps = [];
-    private IReadOnlyList<string> _free = [];
+    private IReadOnlyList<FreeAppView> _free = [];
+    private IReadOnlyList<string> WithCode => _free.Where(f => f.NeedsCode).Select(f => f.Name).ToList();
     private string? _info;
 
     private void Toggle(string key) => _info = _info == key ? null : key;

@@ -2,15 +2,31 @@ using ITMartinElPriser.Domain;
 
 namespace ITMartinElPriser.Application;
 
-public sealed record PushSignup(string Endpoint, string P256dh, string Auth, string? Name, bool NotifyCheapest, bool NotifyExpensive);
+public sealed record PushSignup(string Endpoint, string P256dh, string Auth, string? Name, bool NotifyCheapest, bool NotifyExpensive, string? Code = null);
 
 /// <summary>Besked: a phone asks for a message an hour before the cheapest (and dearest) two hours, and can test it.</summary>
-public sealed class PushUseCases(ISubscriberStore store, IPushSender sender, GetPriceSnapshot snapshot)
+public sealed class PushUseCases(ISubscriberStore store, IPushSender sender, GetPriceSnapshot snapshot, ICustomerCodes codes)
 {
     public string PublicKey => sender.PublicKey;
 
+    public Task<(bool Ok, string Error)> CheckCodeAsync(string? code, CancellationToken ct = default) => codes.CheckAsync(code ?? "", ct);
+
+    /// <summary>Beskeder need the kundenummer (user 2026-10-21). A phone that already gets beskeder may change its choices
+    /// without it (it signed up before the rule, or already showed its number).</summary>
+    /// <returns>The phone's id, or an error for the person.</returns>
+    public async Task<(Guid? Id, string? Error)> SubscribeAsync(PushSignup req, HouseholdSettings settings, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(req.Endpoint)) return (null, "Telefonen gav ingen besked-adresse – prøv igen.");
+        if (Status(req.Endpoint) is null)
+        {
+            var (ok, error) = await codes.CheckAsync(req.Code ?? "", ct);
+            if (!ok) return (null, error);
+        }
+        return (Subscribe(req, settings), null);
+    }
+
     /// <summary>Adds or updates the phone, with the price settings it has right now (from its cookie).</summary>
-    public Guid? Subscribe(PushSignup req, HouseholdSettings settings)
+    internal Guid? Subscribe(PushSignup req, HouseholdSettings settings)
     {
         if (string.IsNullOrWhiteSpace(req.Endpoint)) return null;
         PushSubscriber? sub = null;
@@ -28,6 +44,7 @@ public sealed class PushUseCases(ISubscriberStore store, IPushSender sender, Get
             sub.NotifyCheapest = req.NotifyCheapest;
             sub.NotifyExpensive = req.NotifyExpensive;
             sub.Settings = settings;
+            if (!string.IsNullOrWhiteSpace(req.Code)) sub.CustomerCode = new string(req.Code.Where(char.IsDigit).ToArray());
         });
         return sub!.Id;
     }

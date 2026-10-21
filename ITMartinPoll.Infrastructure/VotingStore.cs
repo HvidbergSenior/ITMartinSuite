@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddSingleton<IVotingStore>(sp => sp.GetRequiredService<VotingStore>());
         services.AddKunderClient(kunderUrl, kunderApiKey, dataDir);
         services.AddScoped<ICustomerStore, KunderCustomerStore>();
+        services.AddScoped<ICustomerCodes, KunderCodes>();
         services.AddHostedService(sp => new MoveOldCustomersJob(sp, Path.Combine(dataDir, "kunder-flyttet.txt")));
         return services;
     }

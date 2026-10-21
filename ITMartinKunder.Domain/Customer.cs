@@ -14,7 +14,7 @@ public sealed class Customer
     public string Phone { get; set; } = "";
     public string Interests { get; set; } = "";      // what they chose/wrote, per app: "Tilbud ; Anders And-blade, Tintin | leder efter ..."
     public string Note { get; set; } = "";           // Martin's own note
-    public string Code { get; set; } = "";           // kundekode: ONE code for all free apps (user 2026-10-21)
+    public string Code { get; set; } = "";           // kundenummer: 8 random digits, ONE for all free apps (user 2026-10-21) - random, so nobody can guess the next
     public string UnsubscribeToken { get; set; } = NewToken();
     public DateTime? UnsubscribedAt { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -22,6 +22,10 @@ public sealed class Customer
     public List<CustomerEvent> Events { get; set; } = [];
 
     public bool Active => UnsubscribedAt is null;
+    /// <summary>The kundenummer opens the extras in the free apps while a yes stands - to ITMartin OR Bogshoppen (user 2026-10-21:
+    /// "Bogshoppens customers also get free access to the apps"; the two become one company). A buyer without a yes has none.</summary>
+    public bool CodeWorks => Code != "" && Companies.All.Any(SaidYesTo);
+
     public bool SaidYesTo(string company) => Active && Consents.Any(c => c.Company == company && c.WithdrawnAt is null);
     public IEnumerable<string> Apps => Events.Select(e => e.App).Where(a => a != "").Distinct();
 
@@ -70,9 +74,9 @@ public sealed class Customer
         Interests = Cut(Interests.Length == 0 ? i : Interests + " ; " + i, MaxInterests);
     }
 
-    // 8 letters/digits without the ones people misread (0/O, 1/I/l): easy to read aloud and type on a phone.
-    private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    public static string NewCode() => string.Concat(Enumerable.Range(0, 8).Select(_ => CodeChars[RandomNumberGenerator.GetInt32(CodeChars.Length)]));
+    // The kundenummer (user 2026-10-21: "maybe their pin should be their customer number"): 8 random digits, first never 0 -
+    // the phone's number pad, nothing to misread, and 90 million numbers so the next one cannot be guessed.
+    public static string NewCode() => (RandomNumberGenerator.GetInt32(1, 10) * 10_000_000 + RandomNumberGenerator.GetInt32(10_000_000)).ToString();
     public static string NewToken() => Guid.NewGuid().ToString("N");
 
     internal static string Cut(string s, int max) => s.Length > max ? s[..max] : s;

@@ -47,6 +47,9 @@ public static class PollSchema
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Votes\" ADD COLUMN \"VoterName\" TEXT NOT NULL DEFAULT '';"); }
     catch { /* column already exists */ }
+    // Customers' own polls (/lav, 2026-10-21).
+    if (!db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM pragma_table_info('Polls') WHERE name = 'OwnerCode'").AsEnumerable().Any(n => n > 0))
+        db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"OwnerCode\" TEXT NOT NULL DEFAULT '';");
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "Packages" (
             "Id"        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

@@ -89,6 +89,7 @@ public class ElPriserApiTests
             {
                 s.AddSingleton<IPriceSource>(new FakePrices());
                 s.AddSingleton<TimeProvider>(new Afternoon());
+                s.AddSingleton<ICustomerCodes>(new FakeCodes());   // Kunder: only 48217730 is a customer
                 // The scheduler would push to real phones - not in a test.
                 foreach (var d in s.Where(d => d.ServiceType == typeof(IHostedService)).ToList()) s.Remove(d);
             });
@@ -128,11 +129,24 @@ public class ElPriserApiTests
         r.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    private sealed class FakeCodes : ICustomerCodes
+    {
+        public Task<(bool Ok, string Error)> CheckAsync(string code, CancellationToken ct = default) =>
+            Task.FromResult(new string(code.Where(char.IsDigit).ToArray()) == "48217730" ? (true, "") : (false, "Det kundenummer kender vi ikke."));
+    }
+
     [Test]
-    public async Task A_phone_can_subscribe_see_its_status_and_unsubscribe()
+    public async Task A_phone_can_subscribe_with_a_kundenummer_see_its_status_and_unsubscribe()
     {
         const string ep = "https://push.example/abc";
         (await _client.PostAsJsonAsync("/api/push/subscribe", new { endpoint = ep, p256dh = "k", auth = "a", name = "Test", notifyCheapest = true, notifyExpensive = false }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);   // beskeder need the kundenummer (2026-10-21)
+        (await _client.PostAsJsonAsync("/api/push/subscribe", new { endpoint = ep, p256dh = "k", auth = "a", name = "Test", notifyCheapest = true, notifyExpensive = false, code = "1111 2222" }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await _client.PostAsJsonAsync("/api/push/subscribe", new { endpoint = ep, p256dh = "k", auth = "a", name = "Test", notifyCheapest = true, notifyExpensive = false, code = "4821 7730" }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        // The same phone changes its choices without the number again.
+        (await _client.PostAsJsonAsync("/api/push/subscribe", new { endpoint = ep, p256dh = "k", auth = "a", name = "Test", notifyCheapest = true, notifyExpensive = true }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         (await _client.GetAsync("/api/push/status?endpoint=" + Uri.EscapeDataString(ep))).StatusCode.Should().Be(HttpStatusCode.OK);
         (await _client.PostAsJsonAsync("/api/push/unsubscribe", new { endpoint = ep })).StatusCode.Should().Be(HttpStatusCode.OK);

@@ -21,6 +21,53 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
         return await SendOrQueueAsync(KunderApi.SignUp, req, ct);
     }
 
+    /// <returns>Error for the person; else their kundenummer, or "" when Kunder did not answer (the sign-up waits in the
+    /// outbox and Martin sends the number by mail later).</returns>
+    public async Task<(string? Error, string Code)> SignUpWithCodeAsync(SignUpRequest req, CancellationToken ct = default)
+    {
+        req = req with { Email = KundeWords.Normalize(req.Email), AtUtc = req.AtUtc ?? DateTime.UtcNow };
+        if (!KundeWords.IsRealEmail(req.Email)) return ("Skriv en rigtig e-mail, fx navn@gmail.com.", "");
+        try
+        {
+            using var res = await http.PostAsJsonAsync(KunderApi.SignUpWithCode, req, Json, ct);
+            if (res.IsSuccessStatusCode) return (null, (await res.Content.ReadFromJsonAsync<SignUpResponse>(Json, ct))?.Code ?? "");
+            if (res.StatusCode == HttpStatusCode.BadRequest)
+                return ((await res.Content.ReadFromJsonAsync<ErrorResponse>(Json, ct))?.Error ?? "Det kunne ikke gemmes.", "");
+            throw new HttpRequestException($"Kunder answered {(int)res.StatusCode}");
+        }
+        catch (Exception ex) when (Unreachable(ex, ct))
+        {
+            log.LogWarning("Kunder did not answer ({Message}) - sign-up kept in the outbox", ex.Message);
+            outbox.Add(KunderApi.SignUp, req);
+            return (null, "");
+        }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, CodeCheckResponse Answer)> _codes = new();
+
+    /// <summary>May this kundenummer use the extras in this app? A yes is remembered for 10 minutes. When Kunder does not
+    /// answer, the person is told to try again in a moment (nothing is let in unchecked).</summary>
+    public async Task<CodeCheckResponse> CheckCodeAsync(string? code, string app, CancellationToken ct = default)
+    {
+        var k = KundeWords.NormalizeCode(code);
+        if (k.Length != 8) return new(false, Error: "Dit kundenummer har 8 cifre – du finder det i mailen fra Martin.");
+        var key = app.ToLowerInvariant() + "|" + k;
+        if (_codes.TryGetValue(key, out var hit) && DateTime.UtcNow - hit.At < TimeSpan.FromMinutes(10)) return hit.Answer;
+        try
+        {
+            using var res = await http.PostAsJsonAsync(KunderApi.CheckCode, new CodeCheckRequest(k, app), Json, ct);
+            if (!res.IsSuccessStatusCode) throw new HttpRequestException($"Kunder answered {(int)res.StatusCode}");
+            var answer = await res.Content.ReadFromJsonAsync<CodeCheckResponse>(Json, ct) ?? new(false, Error: "Prøv igen om lidt.");
+            if (answer.Ok) _codes[key] = (DateTime.UtcNow, answer); else _codes.TryRemove(key, out _);
+            return answer;
+        }
+        catch (Exception ex) when (Unreachable(ex, ct))
+        {
+            log.LogWarning("Kunder did not answer the code check ({Message})", ex.Message);
+            return new(false, Error: "Vi kan ikke tjekke dit kundenummer lige nu – prøv igen om et par minutter.");
+        }
+    }
+
     public Task BoughtAsync(PurchaseRequest req, CancellationToken ct = default) =>
         SendOrQueueAsync(KunderApi.Bought, req with { Email = KundeWords.Normalize(req.Email) }, ct);
 

@@ -5,7 +5,16 @@
 <div class="tf">
     @if (_sent)
     {
-        <p><b>Tak!</b> Du er skrevet op. Martin sender dig adgang til de gratis apps på <b>@_email</b> – som regel samme dag. Kig også i spam-mappen.</p>
+        @if (_code != "")
+        {
+            <p><b>Tak – du er skrevet op!</b> Dit kundenummer er</p>
+            <p class="tf-code">@ITMartinHjem.Domain.SignUpRules.Show(_code)</p>
+            <p>Skriv det, når @string.Join(" eller ", FreeApps) beder om det. Vi har også sendt det til <b>@_email</b> (kig i spam-mappen, hvis det ikke kommer).</p>
+        }
+        else
+        {
+            <p><b>Tak – du er skrevet op!</b> Martin sender dit kundenummer til <b>@_email</b> – som regel samme dag. Kig også i spam-mappen.</p>
+        }
     }
     else if (!_open)
     {
@@ -13,8 +22,8 @@
     }
     else
     {
-        <p class="k-help">Skriv dig op én gang, så får du adgang til alle de gratis apps: <b>@string.Join(", ", FreeApps)</b>.
-            Martin sender dig adgangen på mail.</p>
+        <p class="k-help">Skriv dig op én gang, så får du et kundenummer til alle de gratis apps: <b>@string.Join(", ", FreeApps)</b> –
+            og et login til liveauktionerne på bogshoppen.dk, når de åbner.</p>
         <input class="k-input" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" autocomplete="name" />
         <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
         <SignUpMeans />
@@ -26,19 +35,19 @@
 
 @code {
     [Parameter, EditorRequired] public string App { get; set; } = "";
-    /// <summary>The free apps Martin has switched on in Kunder.</summary>
+    /// <summary>The free apps whose extras need the kundenummer (ElPriser, Stem).</summary>
     [Parameter, EditorRequired] public IReadOnlyList<string> FreeApps { get; set; } = [];
 
     private bool _open, _sent, _consent, _busy;
-    private string _name = "", _email = "", _error = "";
+    private string _name = "", _email = "", _error = "", _code = "";
 
     private async Task SendAsync()
     {
         _busy = true; _error = "";
         try
         {
-            var error = await Kartotek.RequestTrialAsync(App, _name, _email, _consent);
-            if (error is null) { _email = _email.Trim().ToLowerInvariant(); _sent = true; } else _error = error;
+            var r = await Kartotek.RequestTrialAsync(App, _name, _email, _consent);
+            if (r.Error is null) { _email = _email.Trim().ToLowerInvariant(); _code = r.Code; _sent = true; } else _error = r.Error;
         }
         finally { _busy = false; }
     }

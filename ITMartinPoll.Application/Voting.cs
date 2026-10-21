@@ -17,6 +17,58 @@ public interface ICustomerStore
     Task MoveAsync(Customer old, CancellationToken ct = default);
 }
 
+/// <summary>Kunder: is this kundenummer good for Stem's extras (making your own poll)?</summary>
+public interface ICustomerCodes
+{
+    /// <returns>Ok, or an error for the person (Danish).</returns>
+    Task<(bool Ok, string Error)> CheckAsync(string code, CancellationToken ct = default);
+}
+
+// "Lav din egen afstemning" (/lav, user 2026-10-21): a customer makes simple polls with their kundenummer and sees the results.
+public sealed class CustomerPolls(IAggregateStore<Poll> polls, ICustomerCodes codes, TimeProvider clock)
+{
+    public sealed record Mine(int Id, string Title, bool Open, int People, List<(string Label, int People)> Results);
+
+    public static string Normalize(string? code) => new((code ?? "").Where(char.IsDigit).ToArray());
+
+    public Task<(bool Ok, string Error)> LoginAsync(string? code, CancellationToken ct = default) => codes.CheckAsync(Normalize(code), ct);
+
+    /// <returns>Error (Danish) or the new poll's id.</returns>
+    public async Task<(string? Error, int Id)> CreateAsync(string? code, string title, string body, IEnumerable<string> options,
+        bool allowMultiple, DateTime? deadlineUtc, CancellationToken ct = default)
+    {
+        var k = Normalize(code);
+        var (ok, error) = await codes.CheckAsync(k, ct);
+        if (!ok) return (error, 0);
+        var now = clock.GetUtcNow().UtcDateTime;
+        var open = (await polls.ListAsync(ct)).Count(p => p.OwnerCode == k && p.IsActive);
+        var (why, poll) = CustomerPollRules.Make(k, title, body, options, allowMultiple, deadlineUtc, open, now);
+        if (why is not null) return (why, 0);
+        return (null, (await polls.AddAsync(poll!, ct)).Id);
+    }
+
+    public async Task<List<Mine>> MineAsync(string? code, CancellationToken ct = default)
+    {
+        var k = Normalize(code);
+        if (k.Length != 8) return [];
+        var now = clock.GetUtcNow().UtcDateTime;
+        return (await polls.ListAsync(ct)).Where(p => p.OwnerCode == k).OrderByDescending(p => p.CreatedAt).Select(p =>
+        {
+            var votes = p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc))).ToList();
+            return new Mine(p.Id, p.Title, p.IsActive && !(p.Deadline is { } d && d.ToUniversalTime() < now), VoteRules.People(votes),
+                p.Options.OrderBy(o => o.SortOrder).Select(o => (o.Label, VoteRules.PeopleFor(votes, o.Id))).ToList());
+        }).ToList();
+    }
+
+    /// <summary>Close or open again - only the customer's own poll.</summary>
+    public async Task ToggleAsync(string? code, int id, CancellationToken ct = default)
+    {
+        var k = Normalize(code);
+        if (k.Length != 8) return;
+        await polls.ChangeAsync(id, p => { if (p.OwnerCode == k) p.IsActive = !p.IsActive; return Task.CompletedTask; }, ct);
+    }
+}
+
 // Sign up from other sites (the old /api/customers - itmartin.dk used it before Kunder) and leave with one e-mail.
 public sealed class CustomerList(ICustomerStore store, TimeProvider clock)
 {

@@ -65,6 +65,9 @@ public class Poll
     // Name + e-mail required and one vote per e-mail (Bogshoppen poll 2026-10-10). E-mail is never shown publicly.
     public bool      RequireContact { get; set; }
 
+    // Made by a customer with their kundenummer on /lav (user 2026-10-21). "" = made by Martin in admin.
+    public string    OwnerCode { get; set; } = "";
+
     public List<PollOption> Options { get; set; } = [];
     public List<Vote>       Votes   { get; set; } = [];
 

@@ -48,8 +48,9 @@
     <div>
         @if (_sent)
         {
-            <p class="bs-done"><b>Tak – du er skrevet op ✓</b> Vi sender dit login til <b>@_email</b>, når den første liveauktion er klar.
-                Du kan altid afmelde dig.</p>
+            <p class="bs-done"><b>Tak – du er skrevet op</b>@(_code != "" ? $" Dit kundenummer er {ITMartinHjem.Domain.SignUpRules.Show(_code)}." : "")
+                Det er dit login til liveauktionerne, når den første er klar, og det giver dig adgang til de gratis apps på itmartin.dk.
+                Vi har sendt det til <b>@_email</b>. Du kan altid afmelde dig.</p>
             <a class="k-btn k-btn-sm" href="/afmeld">Afmeld</a>
         }
         else
@@ -75,7 +76,7 @@
 
 @code {
     private readonly HashSet<string> _collects = [];
-    private string _name = "", _email = "", _note = "", _error = "";
+    private string _name = "", _email = "", _note = "", _error = "", _code = "";
     private bool _consent, _busy, _sent;
 
     private void Toggle(string title) { if (!_collects.Remove(title)) _collects.Add(title); }
@@ -85,8 +86,8 @@
         _busy = true; _error = "";
         try
         {
-            var error = await Kartotek.FollowBogshoppenAsync(_name, _email, _collects, _note, _consent);
-            if (error is null) { _email = _email.Trim().ToLowerInvariant(); _sent = true; } else _error = error;
+            var r = await Kartotek.FollowBogshoppenAsync(_name, _email, _collects, _note, _consent);
+            if (r.Error is null) { _email = _email.Trim().ToLowerInvariant(); _code = r.Code; _sent = true; } else _error = r.Error;
         }
         finally { _busy = false; }
     }

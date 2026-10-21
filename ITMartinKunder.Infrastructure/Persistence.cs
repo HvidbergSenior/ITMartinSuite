@@ -31,6 +31,7 @@ internal sealed class CustomerRepository(IDbContextFactory<KunderDb> dbf) : ICus
     public Task<Customer?> ByEmailAsync(string email, CancellationToken ct) => One(db => Whole(db).FirstOrDefaultAsync(c => c.Email == email, ct));
     public Task<Customer?> ByTokenAsync(string token, CancellationToken ct) => One(db => Whole(db).FirstOrDefaultAsync(c => c.UnsubscribeToken == token, ct));
     public Task<Customer?> GetAsync(int id, CancellationToken ct) => One(db => Whole(db).FirstOrDefaultAsync(c => c.Id == id, ct));
+    public Task<Customer?> ByCodeAsync(string code, CancellationToken ct) => One(db => Whole(db).FirstOrDefaultAsync(c => c.Code == code, ct));
 
     public async Task<bool> CodeTakenAsync(string code, CancellationToken ct)
     {
@@ -129,7 +130,42 @@ public static class DependencyInjection
             cmd.ExecuteNonQuery();
         }
         using (var wal = conn.CreateCommand()) { wal.CommandText = "PRAGMA journal_mode=WAL;"; wal.ExecuteNonQuery(); }
+        // Columns that came later (CREATE TABLE IF NOT EXISTS leaves an existing table alone).
+        if (AddColumn(conn, "FreeApps", "NeedsCode", "INTEGER NOT NULL DEFAULT 1"))
+            Run(conn, "UPDATE \"FreeApps\" SET \"NeedsCode\" = 0 WHERE \"Name\" = 'Temperatur'");   // user 2026-10-21: Temperatur stays open
+        // The first codes had letters; the kundenummer is digits (user 2026-10-21) - none had been sent to anyone yet.
+        foreach (var id in Ids(conn, "SELECT \"Id\" FROM \"Customers\" WHERE \"Code\" <> '' AND \"Code\" GLOB '*[^0-9]*'"))
+        {
+            string code;
+            do code = Customer.NewCode(); while (Ids(conn, $"SELECT \"Id\" FROM \"Customers\" WHERE \"Code\" = '{code}'").Count > 0);
+            Run(conn, $"UPDATE \"Customers\" SET \"Code\" = '{code}' WHERE \"Id\" = {id}");
+        }
         if (!db.FreeApps.Any()) { db.FreeApps.AddRange(FreeApp.Start()); db.SaveChanges(); }
         if (opened) conn.Close();
+    }
+
+    /// <returns>True when the column was added now.</returns>
+    private static bool AddColumn(System.Data.Common.DbConnection conn, string table, string column, string type)
+    {
+        if (Ids(conn, $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = '{column}'").Count > 0) return false;
+        Run(conn, $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {type}");
+        return true;
+    }
+
+    private static void Run(System.Data.Common.DbConnection conn, string sql)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+
+    private static List<long> Ids(System.Data.Common.DbConnection conn, string sql)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        using var r = cmd.ExecuteReader();
+        var ids = new List<long>();
+        while (r.Read()) ids.Add(r.GetInt64(0));
+        return ids;
     }
 }

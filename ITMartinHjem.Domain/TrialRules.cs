@@ -8,9 +8,7 @@ public static class TrialRules
     public const int MaxName = 60, MaxEmail = 120;
 
     // Stored with the customer as proof of what they agreed to (markedsføringsloven §10, GDPR art. 7).
-    public const string ConsentText =
-        "Ja tak – skriv mig op som kunde hos ITMartin, så jeg kan bruge alle de gratis apps og nemt få jeres tilbud. " +
-        "Ingen reklamer, ingen nyhedsbreve – og jeg kan afmelde mig når som helst.";
+    public const string ConsentText = SignUpRules.ConsentText;
 
     public const string NotFree = "Den app kan ikke prøves gratis lige nu – skriv til Martin i chatten, så finder vi ud af det.";
 
@@ -22,5 +20,9 @@ public static class TrialRules
 
     // The message Martin gets in Svar (and as a push); his answer there goes to the person by mail.
     public static string RequestMessage(string app, string email) =>
-        $"Jeg vil gerne bruge de gratis apps (startede ved {app}). Send mig adgang på {email} – min kundekode står i Kunder.";
+        $"Ny kunde: vil bruge de gratis apps (startede ved {app}), {email}. Kundenummeret er sendt på mail – står også i Kunder.";
+
+    /// <summary>When Kunder did not answer: the number comes later, Martin sends it.</summary>
+    public static string RequestMessageNoCode(string app, string email) =>
+        $"Ny kunde: vil bruge de gratis apps (startede ved {app}), {email}. Kunder svarede ikke - send kundenummeret fra Kunder, når den er der.";
 }

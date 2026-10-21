@@ -18,6 +18,8 @@ public sealed class PushSubscriber
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastSentAt { get; set; }
     public int Failures { get; set; }
+    /// <summary>The kundenummer that switched beskeder on (user 2026-10-21: beskeder need it). "" = signed up before that.</summary>
+    public string CustomerCode { get; set; } = "";
 }
 
 public sealed class SubscriberData

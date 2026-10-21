@@ -1031,3 +1031,13 @@ html[data-theme="dark"][data-family="bestoever"] { --k-accent:#4b5563; --k-accen
 .poll-result-row.chosen .poll-result-label { font-weight:800; text-decoration:underline; }
 .poll-deadline-banner { color:#111827; }
 .poll-submit-btn { border:2px solid #111827; }
+
+/* /lav - a customer's own polls (2026-10-21). States in words, high contrast (user is a bit colour-blind). */
+.lav { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+.lav-label { display: grid; gap: .2rem; font-weight: 600; margin: .6rem 0; }
+.lav-check { display: flex; gap: .5rem; align-items: center; font-weight: 600; margin: .6rem 0; }
+.lav-warn { border-left: 4px solid currentColor; padding: .4rem .7rem; border-radius: 6px; background: rgba(128,128,128,.12); }
+.lav-done { border: 2px solid currentColor; border-radius: 10px; padding: .6rem .8rem; }
+.lav-link { font-family: ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+.lav-mine { border-top: 1px solid rgba(128,128,128,.3); padding: .6rem 0; }
+.lav-tag { display: inline-block; font-size: .75rem; font-weight: 700; border: 2px solid currentColor; border-radius: 6px; padding: 0 .35rem; }

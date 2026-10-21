@@ -7,9 +7,7 @@ public static class BogshoppenRules
     public const string Source = "bogshoppen.dk: Liveauktioner";
 
     // Stored with the customer as proof of what they agreed to (markedsføringsloven §10, GDPR art. 7).
-    public const string ConsentText =
-        "Ja tak – skriv mig op som kunde hos Bogshoppen. Så får jeg et login til liveauktionerne, og I husker, hvad jeg samler, " +
-        "så det er nemt for mig at få jeres tilbud. Ingen reklamer, ingen nyhedsbreve – og jeg kan afmelde mig når som helst.";
+    public const string ConsentText = SignUpRules.ConsentText;
 
     // What the first live auctions will have - a title and one example each (user: "just the titles... give an example of each").
     public static readonly IReadOnlyList<(string Title, string Example)> Products =

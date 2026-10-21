@@ -9,7 +9,8 @@
     <h1 class="k-card-title">Gratis apps</h1>
     <p>Når nogen skriver sig op som kunde hos ITMartin, får de adgang til <b>alle</b> de apps, der er slået til her.
         Kun de apps kan prøves gratis på itmartin.dk – alle andre kan ikke.</p>
-    <p>Sådan gør du: sæt eller fjern fluebenet ved "Slået til", og tryk Gem. Lavest tal i Rækkefølge står først.</p>
+    <p>Sådan gør du: sæt eller fjern fluebenet ved "Slået til", og tryk Gem. "Kræver kundenummer" betyder, at de ekstra ting i appen
+        (beskeder i ElPriser, lav din egen afstemning i Stem) kun virker med kundenummeret fra tilmeldingen. Lavest tal i Rækkefølge står først.</p>
 </section>
 
 @if (_error is not null) { <p class="ku-warn">@_error</p> }
@@ -24,7 +25,8 @@
             <label>Det gør den <input class="k-input" @bind="a.Text" /></label>
             <label>Rækkefølge <input class="k-input" type="number" @bind="a.Sort" /></label>
         </div>
-        <label class="ku-check"><input type="checkbox" @bind="a.Available" /> Slået til (kan prøves gratis)</label>
+        <label class="ku-check"><input type="checkbox" @bind="a.Available" /> Slået til (med i de gratis apps)</label>
+        <label class="ku-check"><input type="checkbox" @bind="a.NeedsCode" /> Kræver kundenummer (de ekstra ting i appen). Uden flueben er appen helt åben.</label>
         <div class="ku-row">
             <button class="k-btn k-btn-primary" @onclick="() => Save(a)">Gem</button>
             @if (a.Id != 0)

@@ -35,7 +35,7 @@
     <section class="k-card ku-cust @(c.Active ? "" : "is-off")" data-fold-closed="1">
         <h3 class="k-card-title">@(c.Name == "" ? c.Email : c.Name) @if (!c.Active) { <span class="ku-tag">AFMELDT</span> }</h3>
         <div>@c.Email @if (c.Phone != "") { <span> · @c.Phone</span> }</div>
-        @if (c.Code != "") { <div>Kundekode: <b class="ku-code">@c.Code</b></div> }
+        @if (c.Code != "") { <div>Kundenummer: <b class="ku-code">@KundeWords.ShowCode(c.Code)</b></div> }
         @if (c.Interests != "") { <div>Interesser: @c.Interests</div> }
         <ul class="ku-list">
             @foreach (var s in c.Consents)

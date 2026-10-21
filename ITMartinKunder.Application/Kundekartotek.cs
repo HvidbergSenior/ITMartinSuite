@@ -8,6 +8,7 @@ public interface ICustomerRepository
     Task<Customer?> ByEmailAsync(string email, CancellationToken ct);
     Task<Customer?> ByTokenAsync(string token, CancellationToken ct);
     Task<Customer?> GetAsync(int id, CancellationToken ct);
+    Task<Customer?> ByCodeAsync(string code, CancellationToken ct);
     Task<bool> CodeTakenAsync(string code, CancellationToken ct);
     Task<List<Customer>> AllAsync(CancellationToken ct);
     /// <summary>Adds (Id 0) or saves the customer with its consents and events.</summary>
@@ -22,16 +23,32 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
     /// <returns>Error for the person (Danish), or null when they are on the list.</returns>
-    public async Task<string?> SignUpAsync(SignUpRequest r, CancellationToken ct = default)
+    public async Task<string?> SignUpAsync(SignUpRequest r, CancellationToken ct = default) => (await SignUpWithCodeAsync(r, ct)).Error;
+
+    /// <returns>Error for the person, or their kundenummer (the same one every time they sign up).</returns>
+    public async Task<(string? Error, string Code)> SignUpWithCodeAsync(SignUpRequest r, CancellationToken ct = default)
     {
         var email = KundeWords.Normalize(r.Email);
-        if (!KundeWords.IsRealEmail(email) || email.Length > Customer.MaxEmail) return "Skriv en rigtig e-mail, fx navn@gmail.com.";
-        if (r.ConsentText.Trim().Length == 0) return "Sæt flueben, hvis du vil skrives op som kunde.";
+        if (!KundeWords.IsRealEmail(email) || email.Length > Customer.MaxEmail) return ("Skriv en rigtig e-mail, fx navn@gmail.com.", "");
+        if (r.ConsentText.Trim().Length == 0) return ("Sæt flueben, hvis du vil skrives op som kunde.", "");
         var c = await repo.ByEmailAsync(email, ct) ?? Customer.New(email, r.Name, Now);
         var code = await FreeCodeAsync(ct);
         c.SignUp(r with { Email = email }, Now, () => code);
         await repo.SaveAsync(c, ct);
-        return null;
+        return (null, c.Code);
+    }
+
+    /// <summary>ElPriser/Stem ask: may this kundenummer use the extras in this app?</summary>
+    public async Task<CodeCheckResponse> CheckCodeAsync(string? code, string app, IReadOnlyList<FreeApp> freeApps, CancellationToken ct = default)
+    {
+        var k = KundeWords.NormalizeCode(code);
+        if (k.Length != 8) return new(false, Error: "Dit kundenummer har 8 cifre – du finder det i mailen fra Martin.");
+        if (!freeApps.Any(a => a.Available && string.Equals(a.Name, app.Trim(), StringComparison.OrdinalIgnoreCase)))
+            return new(false, Error: "Den app er ikke med i de gratis apps lige nu.");
+        var c = await repo.ByCodeAsync(k, ct);
+        if (c is null) return new(false, Error: "Det kundenummer kender vi ikke. Tjek det, eller skriv dig op gratis på itmartin.dk.");
+        if (!c.CodeWorks) return new(false, Error: "Du er afmeldt. Skriv dig op igen på itmartin.dk, så virker dit kundenummer igen.");
+        return new(true, c.Name);
     }
 
     public async Task<string?> BoughtAsync(PurchaseRequest r, CancellationToken ct = default)
@@ -137,13 +154,13 @@ public sealed class FreeApps(IFreeAppRepository repo)
 
     /// <summary>The ones that are on, for the sign-up boxes on the sites.</summary>
     public async Task<List<FreeAppInfo>> AvailableAsync(CancellationToken ct = default) =>
-        (await AllAsync(ct)).Where(a => a.Available).Select(a => new FreeAppInfo(a.Name, a.Url, a.Text)).ToList();
+        (await AllAsync(ct)).Where(a => a.Available).Select(a => new FreeAppInfo(a.Name, a.Url, a.Text, a.NeedsCode)).ToList();
 
     public async Task SaveAsync(FreeApp changed, CancellationToken ct = default)
     {
         var app = changed.Id == 0 ? new FreeApp() : (await repo.AllAsync(ct)).FirstOrDefault(a => a.Id == changed.Id)
                   ?? throw new KunderException("Appen findes ikke.");
-        try { app.Change(changed.Name, changed.Url, changed.Text, changed.Available, changed.Sort); }
+        try { app.Change(changed.Name, changed.Url, changed.Text, changed.Available, changed.NeedsCode, changed.Sort); }
         catch (ArgumentException ex) { throw new KunderException(ex.Message); }
         await repo.SaveAsync(app, ct);
     }

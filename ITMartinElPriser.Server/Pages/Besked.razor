@@ -1,13 +1,15 @@
 @page "/besked"
 @inject IJSRuntime JS
 @inject FrontPageUseCases Front
+@inject PushUseCases Push
 
 <PageTitle>Besked – ElPriser</PageTitle>
 
 <h1>Besked på telefonen</h1>
 <PageHelp Key="help-besked">
     <p>Telefonen får en besked <b>en time før</b> dagens billigste to timer – så du kan nå at fylde vaskemaskinen. Du kan også få en advarsel før de dyreste timer.</p>
-    <p>Vi gemmer kun telefonens besked-adresse og dit prisområde – intet navn eller e-mail. Stop når som helst nederst på siden.</p>
+    <p>Beskeder er gratis for kunder: skriv dig op én gang på itmartin.dk (Mine apps → ElPriser → Prøv gratis), så får du et kundenummer på mail. Skriv det her, og tryk Slå beskeder til.</p>
+    <p>Vi gemmer kun telefonens besked-adresse, dit prisområde og dit kundenummer. Stop når som helst nederst på siden.</p>
 </PageHelp>
 
 <div class="k-card">
@@ -58,7 +60,13 @@
             }
             else
             {
+                <div class="field">
+                    <label>Dit kundenummer (8 cifre – står i mailen, du fik, da du skrev dig op)</label>
+                    <input type="text" inputmode="numeric" autocomplete="off" @bind="_code" placeholder="fx 4821 7730" />
+                </div>
                 <button class="k-btn k-btn-primary k-btn-block" @onclick="SubscribeAsync" disabled="@_busy">@(_busy ? "Vent…" : "Slå beskeder til")</button>
+                <p class="small k-muted">Har du ikke et kundenummer? Det er gratis:</p>
+                <a class="k-btn k-btn-block" href="https://itmartin.dk/mine-apps?app=ElPriser" target="_blank" rel="noopener">Skriv dig op gratis på itmartin.dk</a>
             }
             @if (_msg is not null) { <div class="note">@_msg</div> }
             break;
@@ -75,6 +83,7 @@
 @code {
     private string? _state;
     private string _name = "";
+    private string _code = "";
     private bool _cheapest = true;
     private bool _expensive;
     private bool _busy;
@@ -83,6 +92,7 @@
     protected override async Task OnAfterRenderAsync(bool first)
     {
         if (!first) return;
+        try { _code = await JS.InvokeAsync<string?>("localStorage.getItem", "elpriser-kundenummer") ?? ""; } catch { }
         try
         {
             _state = await JS.InvokeAsync<string>("elpush.state");
@@ -104,7 +114,13 @@
         _busy = true; _msg = null;
         try
         {
-            _state = await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive);
+            // The kundenummer first, so the person hears what is wrong before the phone asks for permission.
+            var (ok, error) = await Push.CheckCodeAsync(_code);
+            if (!ok) { _msg = error; return; }
+            try { await JS.InvokeVoidAsync("localStorage.setItem", "elpriser-kundenummer", _code); } catch { }
+            var state = await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive, _code);
+            if (state == "code") { _msg = "Dit kundenummer kunne ikke tjekkes lige nu – prøv igen om lidt."; return; }
+            _state = state;
             _msg = _state == "on" ? "Tilmeldt. Tryk 'Send test' for at se at det virker." : _state == "denied" ? "Du sagde nej til beskeder – slå dem til i telefonens indstillinger." : "Noget gik galt – prøv igen.";
         }
         finally { _busy = false; }
@@ -115,7 +131,7 @@
         _busy = true;
         try
         {
-            await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive);
+            await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive, _code);
             _msg = "Gemt.";
         }
         finally { _busy = false; }

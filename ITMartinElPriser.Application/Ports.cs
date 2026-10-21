@@ -2,6 +2,14 @@ using ITMartinElPriser.Domain;
 
 namespace ITMartinElPriser.Application;
 
+/// <summary>Kunder (the Kundekartotek for all apps): is this kundenummer good for ElPriser's extras? (user 2026-10-21:
+/// beskeder need the kundenummer you get when you sign up for free on itmartin.dk.)</summary>
+public interface ICustomerCodes
+{
+    /// <returns>Ok, or an error for the person (Danish).</returns>
+    Task<(bool Ok, string Error)> CheckAsync(string code, CancellationToken ct = default);
+}
+
 /// <summary>Day-ahead spot prices per 15 minutes (Energinet's DayAheadPrices in production, cached 30 min).</summary>
 public interface IPriceSource
 {

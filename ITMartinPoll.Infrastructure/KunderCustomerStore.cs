@@ -33,6 +33,16 @@ internal sealed class KunderCustomerStore(KunderClient kunder) : ICustomerStore
             c.UnsubscribedAt is { } u ? DateTime.SpecifyKind(u, DateTimeKind.Utc) : null, DateTime.SpecifyKind(c.CreatedAt, DateTimeKind.Utc)), ct);
 }
 
+// Kunder answers whether a kundenummer opens Stem's extras (making your own poll).
+internal sealed class KunderCodes(KunderClient kunder) : ICustomerCodes
+{
+    public async Task<(bool Ok, string Error)> CheckAsync(string code, CancellationToken ct = default)
+    {
+        var r = await kunder.CheckCodeAsync(code, "Stem", ct);
+        return (r.Ok, r.Error);
+    }
+}
+
 // Once: Stem's old list (poll.db Customers) into Kunder. The mark file stops it from running again, so a customer
 // Martin deletes in Kunder (GDPR) is never brought back by a Stem restart.
 internal sealed class MoveOldCustomersJob(IServiceProvider services, string markFile) : BackgroundService

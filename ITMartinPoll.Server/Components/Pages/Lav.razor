@@ -1,0 +1,133 @@
+@page "/lav"
+@rendermode InteractiveServer
+@inject CustomerPolls Mine
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+@* "Lav din egen afstemning" (user 2026-10-21): free for customers - the kundenummer from the sign-up on itmartin.dk opens it.
+   The number is remembered on this phone. Every box says what it is and how to use it. *@
+<PageTitle>Lav din egen afstemning – Stem</PageTitle>
+
+<div class="poll-root">
+    <KolibriHeader />
+    <div class="k-content lav">
+
+    @if (!_in)
+    {
+        <section class="k-card">
+            <h1 class="k-card-title">Lav din egen afstemning</h1>
+            <p>Spørg familien, foreningen eller vennerne – og se hvad de vælger. Det er gratis for kunder hos ITMartin og Bogshoppen.</p>
+            <p><b>Sådan gør du:</b> skriv dit kundenummer (8 cifre – det står i mailen, du fik, da du skrev dig op) og tryk Fortsæt.</p>
+            <input class="k-input" inputmode="numeric" autocomplete="off" @bind="_code" placeholder="fx 4821 7730" />
+            @if (_error != "") { <p class="lav-warn">@_error</p> }
+            <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="LoginAsync">Fortsæt</button>
+            <p class="k-mt">Har du ikke et kundenummer? Det er gratis:</p>
+            <a class="k-btn" href="https://itmartin.dk/mine-apps?app=Stem" target="_blank" rel="noopener">Skriv dig op gratis på itmartin.dk</a>
+        </section>
+    }
+    else
+    {
+        <section class="k-card">
+            <h1 class="k-card-title">Ny afstemning</h1>
+            <p><b>Sådan gør du:</b> skriv spørgsmålet og mindst 2 svarmuligheder, og tryk Lav afstemningen. Så får du et link, du kan sende til dem, der skal stemme.</p>
+            <label class="lav-label">Spørgsmålet <input class="k-input" @bind="_title" maxlength="120" placeholder="fx Hvor skal vi holde sommerfest?" /></label>
+            <label class="lav-label">Lidt mere (valgfrit) <textarea class="k-input k-textarea" rows="2" @bind="_body" maxlength="1000"></textarea></label>
+            <b>Svarmuligheder</b>
+            @for (var i = 0; i < _options.Count; i++)
+            {
+                var n = i;
+                <input class="k-input k-mt" @bind="_options[n]" maxlength="100" placeholder="@($"Svar {n + 1}")" />
+            }
+            @if (_options.Count < CustomerPollRules.MaxOptions) { <button class="k-btn k-btn-sm k-mt" @onclick="() => _options.Add(string.Empty)">Flere svarmuligheder</button> }
+            <label class="lav-check"><input type="checkbox" @bind="_multi" /> Man må vælge flere svar</label>
+            <label class="lav-label">Slutter (valgfrit) <input class="k-input" type="date" @bind="_end" /></label>
+            @if (_error != "") { <p class="lav-warn">@_error</p> }
+            <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="CreateAsync">Lav afstemningen</button>
+            @if (_newId > 0)
+            {
+                <div class="lav-done k-mt">
+                    <p><b>Din afstemning er klar.</b> Send dette link til dem, der skal stemme:</p>
+                    <p class="lav-link">@Link(_newId)</p>
+                    <button class="k-btn k-btn-sm" @onclick="() => CopyAsync(_newId)">Kopiér linket</button>
+                    <a class="k-btn k-btn-sm" href="@Link(_newId)" target="_blank" rel="noopener">Se den</a>
+                </div>
+            }
+        </section>
+
+        <section class="k-card">
+            <h2 class="k-card-title">Mine afstemninger</h2>
+            <p>Her ser du, hvad folk har stemt. Tryk Luk, når afstemningen er slut.</p>
+            @if (_mine.Count == 0) { <p>Du har ikke lavet nogen endnu.</p> }
+            @foreach (var m in _mine)
+            {
+                <div class="lav-mine">
+                    <b>@m.Title</b> <span class="lav-tag">@(m.Open ? "ÅBEN" : "LUKKET")</span> · @m.People @(m.People == 1 ? "har" : "har") stemt
+                    <ul>@foreach (var r in m.Results) { <li>@r.Label: <b>@r.People</b></li> }</ul>
+                    <div class="k-row">
+                        <button class="k-btn k-btn-sm" @onclick="() => CopyAsync(m.Id)">Kopiér linket</button>
+                        <button class="k-btn k-btn-sm" @onclick="() => ToggleAsync(m.Id)">@(m.Open ? "Luk" : "Åbn igen")</button>
+                    </div>
+                </div>
+            }
+            <button class="k-btn k-btn-sm k-mt" @onclick="LogoutAsync">Glem mit kundenummer på denne telefon</button>
+        </section>
+    }
+    </div>
+</div>
+
+@code {
+    private const string Key = "stem-kundenummer";
+    private string _code = "", _error = "", _title = "", _body = "";
+    private bool _in, _busy, _multi;
+    private DateTime? _end;
+    private int _newId;
+    private List<string> _options = ["", ""];
+    private List<CustomerPolls.Mine> _mine = [];
+
+    private string Link(int id) => Nav.ToAbsoluteUri($"/poll/{id}").ToString();
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try { _code = await JS.InvokeAsync<string?>("localStorage.getItem", Key) ?? ""; } catch { }
+        if (_code != "") { await LoginAsync(); StateHasChanged(); }
+    }
+
+    private async Task LoginAsync()
+    {
+        _busy = true; _error = "";
+        try
+        {
+            var (ok, error) = await Mine.LoginAsync(_code);
+            if (!ok) { _error = error; return; }
+            _in = true;
+            try { await JS.InvokeVoidAsync("localStorage.setItem", Key, _code); } catch { }
+            _mine = await Mine.MineAsync(_code);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task CreateAsync()
+    {
+        _busy = true; _error = ""; _newId = 0;
+        try
+        {
+            DateTime? endUtc = _end is { } d ? TimeZoneInfo.ConvertTimeToUtc(d.Date.AddDays(1).AddSeconds(-1), TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen")) : null;
+            var (error, id) = await Mine.CreateAsync(_code, _title, _body, _options, _multi, endUtc);
+            if (error is not null) { _error = error; return; }
+            _newId = id; _title = _body = ""; _options = ["", ""]; _multi = false; _end = null;
+            _mine = await Mine.MineAsync(_code);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task ToggleAsync(int id) { await Mine.ToggleAsync(_code, id); _mine = await Mine.MineAsync(_code); }
+
+    private async Task CopyAsync(int id) { try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", Link(id)); } catch { } }
+
+    private async Task LogoutAsync()
+    {
+        try { await JS.InvokeVoidAsync("localStorage.removeItem", Key); } catch { }
+        _in = false; _code = ""; _mine = [];
+    }
+}

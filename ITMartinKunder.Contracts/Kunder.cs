@@ -12,11 +12,21 @@ public static class KunderApi
     public const string Unsubscribe = "/api/kunder/afmeld";
     public const string UnsubscribeLink = "/api/kunder/afmeld-link";
     public const string Import = "/api/kunder/import";
+    /// <summary>POST: is this kundenummer good for this app? (ElPriser beskeder, Stem lav din egen afstemning - user 2026-10-21)</summary>
+    public const string CheckCode = "/api/kunder/kode";
+    /// <summary>POST: like SignUp, but answers with the kundenummer (itmartin.dk shows it and mails it).</summary>
+    public const string SignUpWithCode = "/api/kunder/tilmeld-kode";
     /// <summary>GET, open: the free apps a sign-up gives access to right now (Martin switches them on/off in Kunder).</summary>
     public const string FreeApps = "/api/gratis-apps";
 }
 
-public sealed record FreeAppInfo(string Name, string Url, string Text);
+/// <summary>NeedsCode = the extras in the app need the kundenummer (ElPriser, Stem); false = open to all (Temperatur).</summary>
+public sealed record FreeAppInfo(string Name, string Url, string Text, bool NeedsCode = true);
+
+public sealed record SignUpResponse(string Code);
+public sealed record CodeCheckRequest(string Code, string App);
+/// <summary>Ok, or Error (Danish, for the person).</summary>
+public sealed record CodeCheckResponse(bool Ok, string Name = "", string Error = "");
 
 /// <summary>Who the customer said yes to. One yes to ITMartin covers ALL free apps (user 2026-10-21:
 /// "customer should sign up for all free apps in one go"); Bogshoppen (Martin and Rico) is its own yes.</summary>
@@ -30,6 +40,12 @@ public static class Companies
 public static class KundeWords
 {
     public static string Normalize(string? email) => (email ?? "").Trim().ToLowerInvariant();
+
+    /// <summary>The kundenummer is typed by hand: spaces and dashes do not matter.</summary>
+    public static string NormalizeCode(string? code) => new string((code ?? "").Where(char.IsDigit).ToArray());
+
+    /// <summary>"48217730" -> "4821 7730", easier to read aloud and type.</summary>
+    public static string ShowCode(string code) => code.Length == 8 ? code[..4] + " " + code[4..] : code;
 
     public static bool IsRealEmail(string email) =>
         MailAddress.TryCreate(email, out var ma) && ma.Address == email && email.Split('@')[1].Contains('.');

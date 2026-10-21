@@ -162,6 +162,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<Voting>();
         services.AddScoped<CustomerList>();
+        services.AddScoped<CustomerPolls>();
         services.AddScoped<Catalog>();
         services.AddScoped<PollEditor>();
         services.AddScoped<ImageRatings>();

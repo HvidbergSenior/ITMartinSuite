@@ -42,7 +42,7 @@ window.elpush = (function () {
             return sub ? sub.endpoint : null;
         },
 
-        subscribe: async function (name, cheapest, expensive) {
+        subscribe: async function (name, cheapest, expensive, code) {
             var r = await reg();
             var perm = await Notification.requestPermission();
             if (perm !== 'granted') return 'denied';
@@ -52,9 +52,9 @@ window.elpush = (function () {
             var j = sub.toJSON();
             var res = await fetch('/api/push/subscribe', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, name: name, notifyCheapest: cheapest, notifyExpensive: expensive })
+                body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, name: name, notifyCheapest: cheapest, notifyExpensive: expensive, code: code || null })
             });
-            return res.ok ? 'on' : 'error';
+            return res.ok ? 'on' : res.status === 400 ? 'code' : 'error';
         },
 
         unsubscribe: async function () {
