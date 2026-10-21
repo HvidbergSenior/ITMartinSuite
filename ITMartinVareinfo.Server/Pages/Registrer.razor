@@ -51,7 +51,8 @@ else
         @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
         <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@BoxFields">📷 Tag billeder</button>
         <div id="foto-cam" class="lg-scan" hidden>
-            <video id="foto-video" muted playsinline></video>
+            <video id="foto-video" class="lg-cam-video" muted playsinline></video>
+            <div id="foto-cam-tools" class="lg-row lg-cam-tools"></div>
             <button type="button" class="k-btn k-btn-primary lg-big" data-camera-shoot>📸 Tag billede</button>
             <p id="foto-cam-note" class="lg-answer" role="status"></p>
             <button type="button" class="k-btn k-btn-secondary" data-camera-close>✓ Færdig med billeder</button>

@@ -142,6 +142,69 @@ window.photoQueue = {
         panel.hidden = false;
         button.hidden = true;
         await video.play().catch(function () { });
+        await this.tools(track);
+    },
+
+    // Zoom, lens and light - only what this phone's browser offers (2026-10-21: "should it be zoomable?").
+    // iPhone Safari has no zoom on a web camera but lists its lenses; Android Chrome has zoom and torch.
+    async tools(track) {
+        var box = document.getElementById("foto-cam-tools"), self = this;
+        if (!box) return;
+        box.innerHTML = "";
+        var caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+            var label = document.createElement("label"); label.className = "lg-cam-zoom"; label.textContent = "Zoom ";
+            var range = document.createElement("input");
+            range.type = "range"; range.min = caps.zoom.min; range.max = Math.min(caps.zoom.max, 5); range.step = caps.zoom.step || 0.1;
+            range.value = (track.getSettings && track.getSettings().zoom) || caps.zoom.min;
+            range.addEventListener("input", function () { track.applyConstraints({ advanced: [{ zoom: Number(range.value) }] }).catch(function () { }); });
+            label.appendChild(range); box.appendChild(label);
+        }
+        if (caps.torch) {
+            var on = false, light = document.createElement("button");
+            light.type = "button"; light.className = "k-btn k-btn-secondary k-btn-sm"; light.textContent = "💡 Lys til";
+            light.addEventListener("click", function () {
+                on = !on; light.textContent = on ? "💡 Lys fra" : "💡 Lys til";
+                track.applyConstraints({ advanced: [{ torch: on }] }).catch(function () { });
+            });
+            box.appendChild(light);
+        }
+        var lenses = [];
+        try {
+            lenses = (await navigator.mediaDevices.enumerateDevices())
+                .filter(function (d) { return d.kind === "videoinput" && /back|rear|bag|environment/i.test(d.label); });
+        } catch (e) { }
+        if (lenses.length > 1) {
+            var pick = document.createElement("select"); pick.className = "k-input lg-cam-lens"; pick.setAttribute("aria-label", "Linse");
+            var current = track.getSettings ? track.getSettings().deviceId : "";
+            lenses.forEach(function (d) {
+                var o = document.createElement("option"); o.value = d.deviceId; o.textContent = self.lensName(d.label);
+                if (d.deviceId === current) o.selected = true;
+                pick.appendChild(o);
+            });
+            pick.addEventListener("change", function () { self.switchLens(pick.value); });
+            box.appendChild(pick);
+        }
+    },
+
+    lensName(label) {
+        if (/ultra/i.test(label)) return "0,5× vidvinkel (meget med)";
+        if (/tele/i.test(label)) return "Tele 2-3× (tæt på)";
+        if (/dual|triple/i.test(label)) return "Auto (skifter selv)";
+        return "1× normal";
+    },
+
+    async switchLens(deviceId) {
+        var video = document.getElementById("foto-video");
+        if (this.cam.stream) this.cam.stream.getTracks().forEach(function (t) { t.stop(); });
+        try {
+            this.cam.stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId }, width: { ideal: 4096 }, height: { ideal: 3072 } }, audio: false });
+        } catch (e) { this.cam.stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } }, audio: false }); }
+        var track = this.cam.stream.getVideoTracks()[0];
+        this.cam.capture = "ImageCapture" in window ? new ImageCapture(track) : null;
+        video.srcObject = this.cam.stream;
+        await video.play().catch(function () { });
+        await this.tools(track);
     },
 
     async shoot() {
@@ -156,10 +219,16 @@ window.photoQueue = {
             blob = await new Promise(function (r) { c.toBlob(r, "image/jpeg", 0.92); });
         }
         if (!blob) { note.textContent = "⚠ Billedet blev ikke taget – prøv igen."; return; }
+        // How big did it come out? Small = the AI cannot read titles: say so at once.
+        var size = "";
+        var small = false;
+        try { var bmp = await createImageBitmap(blob); size = bmp.width + "×" + bmp.height; small = Math.max(bmp.width, bmp.height) < 2000; if (bmp.close) bmp.close(); } catch (e) { }
         window.scanner && window.scanner.beep && window.scanner.beep();
         video.classList.remove("is-flash"); void video.offsetWidth; video.classList.add("is-flash");
         this.cam.taken++;
-        note.textContent = "✓ " + this.cam.taken + " billede" + (this.cam.taken === 1 ? "" : "r") + " taget. Læg de næste ting ud og tag det næste.";
+        note.textContent = small
+            ? "⚠ Billedet blev lille (" + size + ") – titlerne kan måske ikke læses. Gå tættere på, eller brug »Brug telefonens kamera« nedenfor."
+            : "✓ " + this.cam.taken + " billede" + (this.cam.taken === 1 ? "" : "r") + " taget" + (size ? " (" + size + ")" : "") + ". Læg de næste ting ud og tag det næste.";
         await this.add(blob, this.cam.url, this.cam.fields);
     },
 

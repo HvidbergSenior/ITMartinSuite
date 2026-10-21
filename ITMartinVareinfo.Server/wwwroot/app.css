@@ -83,3 +83,9 @@
 
 /* A helper's code on the Hjælpere page: big and spaced, easy to read out loud. */
 .lg-code { font-family: ui-monospace, monospace; font-size: 1.15em; letter-spacing: 0.12em; }
+/* The photo camera shows the whole picture it will take (cover cut the edges off), 2026-10-21. */
+.lg-scan video.lg-cam-video { object-fit: contain; max-height: 60vh; }
+.lg-cam-tools { gap: .5rem; align-items: center; flex-wrap: wrap; }
+.lg-cam-zoom { display: flex; align-items: center; gap: .4rem; flex: 1 1 200px; }
+.lg-cam-zoom input { flex: 1; }
+.lg-cam-lens { max-width: 14rem; }
