@@ -9,7 +9,7 @@ namespace ITMartinSalg.Application;
 /// offers, and Køb nu for one thing or a basket through Stripe. What is for sale comes from Lager; the rules (the Køb nu
 /// price, what a basket costs today, what a sale may do next) are in the Domain; this only fetches, asks them and saves.</summary>
 public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, IPaymentGateway payments, ICampaignRepository campaigns,
-    SalgOptions options, TimeProvider clock)
+    ICustomerRecord customers, SalgOptions options, TimeProvider clock)
 {
     public const int MaxResults = 60;
     /// <summary>A basket is at most this many things (a bundle is 10 - room for a few bundles).</summary>
@@ -140,6 +140,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             else if (state.Expired) order.Expire();
             else return false;
             await orders.UpdateAsync(order, ct);
+            if (state.Paid) await customers.BoughtAsync(order, ct);   // the buyer is a customer in Kunder (not a yes to offers)
             changed = true;
         }
         if (!order.NeedsBooking) return changed;

@@ -16,4 +16,7 @@ public static class CustomerRules
     ];
 
     public static string Normalize(string? email) => (email ?? "").Trim().ToLowerInvariant();
+
+    /// <summary>Who the yes is for in Kunder: "Prøv gratis" on itmartin.dk = ITMartin; Stem's polls and bogshoppen.dk = Bogshoppen.</summary>
+    public static string CompanyOf(string source) => source.StartsWith("itmartin.dk", StringComparison.OrdinalIgnoreCase) ? "ITMartin" : "Bogshoppen";
 }

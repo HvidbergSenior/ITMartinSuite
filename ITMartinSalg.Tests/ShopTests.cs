@@ -90,11 +90,13 @@ public class ShopTests
     private SqliteConnection _conn = null!;
     private TestDbFactory Factory => new(_conn);
     private FakeStock _stock = null!;
+    private readonly Mock<ICustomerRecord> _buyers = new();
     private readonly SalgOptions _opt = new() { ShopPickup = "Aarhus C efter aftale", ShopShippingKr = 49 };
 
     [SetUp]
     public void Open()
     {
+        _buyers.Reset();
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();
         using var db = Factory.CreateDbContext();
@@ -118,7 +120,7 @@ public class ShopTests
         pay.SetupGet(p => p.Enabled).Returns(true);
         pay.Setup(p => p.StartAsync(It.IsAny<Order>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(("cs_test_1", "https://checkout.stripe.com/c/pay/cs_test_1"));
-        return (new ShopUseCases(_stock, new OrderRepository(Factory), pay.Object, new CampaignRepository(Factory), _opt,
+        return (new ShopUseCases(_stock, new OrderRepository(Factory), pay.Object, new CampaignRepository(Factory), _buyers.Object, _opt,
             day is { } d ? new Clock(d) : TimeProvider.System), pay);
     }
 
@@ -162,6 +164,7 @@ public class ShopTests
         (order.Status, order.PaidKr, order.Delivery, order.Address, order.StockBooked).Should().Be((OrderStatuses.Paid, 129, "Send med posten", "Vej 1, 8000 Aarhus C", true));
         (await shop.SyncAsync()).Should().Be(0);   // booked once
         _stock.Booked.Should().ContainSingle();
+        _buyers.Verify(b => b.BoughtAsync(It.Is<Order>(o => o.Email == "a@b.dk"), It.IsAny<CancellationToken>()), Times.Once);   // Anna is a customer in Kunder, once
     }
 
     [Test]
@@ -215,7 +218,7 @@ public class ShopTests
         var (shop, _) = Make();
         await shop.Invoking(s => s.BuyAsync(dear.Id, "https://bogshoppen.dk")).Should().ThrowAsync<SalgException>().WithMessage("*fast pris*");
 
-        var off = new ShopUseCases(_stock, new OrderRepository(Factory), Mock.Of<IPaymentGateway>(), new CampaignRepository(Factory), _opt, TimeProvider.System);
+        var off = new ShopUseCases(_stock, new OrderRepository(Factory), Mock.Of<IPaymentGateway>(), new CampaignRepository(Factory), _buyers.Object, _opt, TimeProvider.System);
         off.CanPay.Should().BeFalse();
         var cheap = _stock.Add(Kinds.Bog, "Mort", hint: 50);
         await off.Invoking(s => s.BuyAsync(cheap.Id, "https://bogshoppen.dk")).Should().ThrowAsync<SalgException>().WithMessage("*Betaling*");

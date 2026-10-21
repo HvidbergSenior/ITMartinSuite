@@ -1,0 +1,62 @@
+@page "/gratis-apps"
+@inject FreeApps Apps
+
+@* The free apps one sign-up gives (user 2026-10-21: "the available free apps I should have control of" - "all others
+   cannot be tried for free"). itmartin.dk reads the ones that are on from /api/gratis-apps. *@
+<PageTitle>Gratis apps – Kunder</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Gratis apps</h1>
+    <p>Når nogen skriver sig op som kunde hos ITMartin, får de adgang til <b>alle</b> de apps, der er slået til her.
+        Kun de apps kan prøves gratis på itmartin.dk – alle andre kan ikke.</p>
+    <p>Sådan gør du: sæt eller fjern fluebenet ved "Slået til", og tryk Gem. Lavest tal i Rækkefølge står først.</p>
+</section>
+
+@if (_error is not null) { <p class="ku-warn">@_error</p> }
+
+@foreach (var a in _apps)
+{
+    <section class="k-card ku-app @(a.Available ? "" : "is-off")">
+        <h3 class="k-card-title">@(a.Name == "" ? "Ny app" : a.Name) <span class="ku-tag">@(a.Available ? "SLÅET TIL" : "SLÅET FRA")</span></h3>
+        <div class="ku-form">
+            <label>Navn <input class="k-input" @bind="a.Name" /></label>
+            <label>Adresse <input class="k-input" @bind="a.Url" placeholder="https://..." /></label>
+            <label>Det gør den <input class="k-input" @bind="a.Text" /></label>
+            <label>Rækkefølge <input class="k-input" type="number" @bind="a.Sort" /></label>
+        </div>
+        <label class="ku-check"><input type="checkbox" @bind="a.Available" /> Slået til (kan prøves gratis)</label>
+        <div class="ku-row">
+            <button class="k-btn k-btn-primary" @onclick="() => Save(a)">Gem</button>
+            @if (a.Id != 0)
+            {
+                @if (_confirm == a.Id)
+                {
+                    <button class="k-btn k-btn-danger" @onclick="() => Delete(a)">Ja, fjern den</button>
+                    <button class="k-btn" @onclick="() => _confirm = 0">Fortryd</button>
+                }
+                else { <button class="k-btn" @onclick="() => _confirm = a.Id">Fjern</button> }
+            }
+        </div>
+    </section>
+}
+
+<button class="k-btn" @onclick="Add">Tilføj en app</button>
+
+@code {
+    private List<FreeApp> _apps = [];
+    private int _confirm;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync() => _apps = await Apps.AllAsync();
+
+    private void Add() => _apps.Add(new FreeApp { Sort = (_apps.Count + 1) * 10 });
+
+    private async Task Save(FreeApp a)
+    {
+        try { await Apps.SaveAsync(a); _error = null; await LoadAsync(); }
+        catch (KunderException ex) { _error = ex.Message; }
+    }
+
+    private async Task Delete(FreeApp a) { await Apps.DeleteAsync(a.Id); _confirm = 0; await LoadAsync(); }
+}

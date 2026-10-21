@@ -2,36 +2,95 @@
 @inject SiteUseCases Site
 @inject AppLinkUseCases Apps
 @inject IJSRuntime JS
+@inject Customers Kartotek
 
 <PageTitle>Mine apps · Martin Hvidberg</PageTitle>
 
 @* Principle (user 2026-09-28): every app is useful for free; a paid version is something you ask for. *@
 <PageHead Title="Mine apps" Tag="Gratis at prøve" Line="Apps, der hjælper dig – uden reklamer." />
-@* Show/hide box (user 2026-10-12). *@
-@* User's own text 2026-10-14 ("I need to explain what my apps are"), split into show/hide boxes the same day (user: "break this into
-   hide/show boxes"). The first box starts open; kolibri.js remembers what the visitor opened. *@
-<article class="k-card hj-page">
-    <h2 class="k-card-title">Mine apps er webapps</h2>
-    <div>
+<div class="hj-apps">
+    @foreach (var a in _apps)
+    {
+        // Asleep unless Martin has woken it (Kontrol / Svar) AND the container answers.
+        // No address = a showcase only (Polstrer, user 2026-10-08: "close polstrer for other users"): shown, never opened.
+        var showcase = a.Url.Length == 0;
+        var free = ITMartinHjem.Domain.TrialRules.IsFree(a.Name, _free);
+        var up = a.Awake && (showcase || Apps.IsUp(a.Url) != false);   // a showcase sleeps too when Martin says so
+        @* Every app is a show/hide box: closed shows only icon + name (user 2026-10-05: "way too much text in one go"). *@
+        var target = string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase);
+        @* ?app=Name (the front-page tiles): that card starts open, so the example picture shows. *@
+        <div class="k-card hj-app @(up ? "" : "off") @(target ? "hj-app-target" : "")" id="app-@a.Id" data-fold-closed="@(target ? null : "1")">
+            <h3 class="hj-app-head">@a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
+            <div class="hj-app-body">
+                <div class="k-help">@NoEmoji.Strip(a.Description)</div>
+                @if (a.Picture.Length > 0) { <a href="@a.Picture" target="_blank" rel="noopener" title="Tryk for at se billedet stort"><img class="hj-app-pic" src="@a.Picture" alt="Sådan ser @a.Name ud, når den bliver brugt" loading="lazy" /></a><div class="k-help k-center">Tryk på billedet for at se det stort</div> }
+                <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? NoEmoji.Strip(a.FreeText) : "Kom i gang med det samme – ingen betaling.")</div>
+                <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? NoEmoji.Strip(a.PaidText) : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
+                <div class="k-row k-mt">
+                    @* "Brug gratis" removed 2026-10-12 (user): people get in via "Prøv gratis" below (e-mail -> Kundekartotek -> PIN). *@
+                    @if (showcase && up) { <span class="k-help"><i>Eksempel – appen bruges kun af den, den er lavet til.</i></span> }
+                    else if (!up && free) { <span class="k-help"><i>Sover lige nu – tryk "Prøv gratis", så tænder jeg den til dig.</i></span> }
+                    else if (!up) { <span class="k-help"><i>Sover lige nu.</i></span> }
+                    @* "Spørg om din egen app / udvidet" button removed 2026-10-12 (user) - Prøv gratis + the contact line below do it. *@
+                </div>
+                @* "Prøv gratis" only on the free apps Martin has switched on in Kunder (user 2026-10-21: "all others cannot be tried
+                   for free"); one sign-up gives all of them. No newsletters. *@
+                @if (free) { <TrialForm App="@a.Name" FreeApps="_free" /> }
+                @* Contact line on every app (user 2026-10-12: "a contact me if interested in this app"); a sleeping app is tried for free by contacting Martin, who wakes it (user 2026-10-12). *@
+                <div class="hj-app-contact"><b>@(up || showcase || !free ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig:
+                    <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/#chat">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
+            </div>
+        </div>
+    }
+</div>
+
+<p class="k-center k-mt"><a class="k-btn k-btn-primary" href="/bliv-pilot/">Vil du være pilot og prøve en app sammen med mig?</a></p>
+
+@* Apps first, the explaining after (user 2026-10-21: "on apps i want the apps on top... All the show/hide boxes should be
+   elsewhere and maybe like on frontpage"): small tiles like the front page; a tile opens its text right under the tiles.
+   The texts are the user's own (2026-10-14). *@
+<section class="k-card hj-tilegroup" id="om-mine-apps">
+    <h2 class="k-card-title">Om mine apps</h2>
+    <nav class="hj-tiles" aria-label="Om mine apps">
+        <button class="hj-tile @(_info == "webapps" ? "is-open" : "")" @onclick="@(() => Toggle("webapps"))"><b>Mine apps er webapps</b><span class="hj-tile-line">Ingen download – åbn dem i browseren</span></button>
+        <button class="hj-tile @(_info == "gratis" ? "is-open" : "")" @onclick="@(() => Toggle("gratis"))"><b>Gratis – sådan prøver du en app</b><span class="hj-tile-line">Hvilke apps du kan prøve, og hvordan</span></button>
+        <button class="hj-tile @(_info == "forskel" ? "is-open" : "")" @onclick="@(() => Toggle("forskel"))"><b>Mobilapp eller webapp – hvad er forskellen?</b><span class="hj-tile-line">Hvorfor webappen er den store</span></button>
+        <button class="hj-tile @(_info == "telefon" ? "is-open" : "")" @onclick="@(() => Toggle("telefon"))"><b>Prøv lige at kigge på din telefon</b><span class="hj-tile-line">Hvor mange apps har du egentlig?</span></button>
+        <button class="hj-tile @(_info == "udfordring" ? "is-open" : "")" @onclick="@(() => Toggle("udfordring"))"><b>En udfordring til dig, der har lyst</b><span class="hj-tile-line">Send mig en app – jeg laver din udgave</span></button>
+    </nav>
+</section>
+@{
+    if (_info == "webapps")
+    {
+        <article class="k-card hj-page">
+            <h2 class="k-card-title">Mine apps er webapps</h2>
+            <div>
     <p><b>Mine apps er ikke mobilapps – de er webapps!</b></p>
     <p>Det betyder, at du ikke skal downloade eller installere noget. Du åbner bare appen i din browser – på mobilen, din tablet eller din computer.</p>
     <p>Det er nemt, hurtigt og fungerer på tværs af enheder. Du slipper for appbutikker, installationer og opdateringer. Du bruger bare appen, når du har brug for den.</p>
     </div>
-</article>
-
-<article class="k-card hj-page" data-fold-closed="1">
-    <h2 class="k-card-title">Gratis – sådan prøver du en app</h2>
-    <div>
-    <p>Alle mine apps er <b>gratis at bruge</b>, og den gratis udgave kan sagtens stå alene. Har du brug for mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
-    <p><b>Sådan prøver du en app:</b> Tryk på den, vælg <b>Prøv gratis</b>, og indtast din e-mail. Så sender jeg dig adgang via en PIN-kode.</p>
-    <p>Nogle apps er klar til brug, mens andre stadig er under udvikling. Jeg gør dem løbende klar, så de bliver så enkle og nemme at bruge som muligt.</p>
+            <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
+        </article>
+    }
+    else if (_info == "gratis")
+    {
+        <article class="k-card hj-page">
+            <h2 class="k-card-title">Gratis – sådan prøver du en app</h2>
+            <div>
+    <p>Alle mine apps kan bruges gratis, og den gratis udgave kan sagtens stå alene. Har du brug for mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
+    <p><b>Sådan prøver du:</b> Tryk på en af de apps, hvor der står <b>Prøv gratis</b>, og skriv din e-mail. Du skriver dig op <b>én gang</b> og får adgang til alle de gratis apps@(_free.Count > 0 ? ": " + string.Join(", ", _free) : "").
+        Jeg sender dig adgangen på mail.</p>
+    <p>De andre apps kan ikke prøves gratis lige nu – men skriv til mig, hvis du er interesseret i en af dem.</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu</p>
     </div>
-</article>
-
-<article class="k-card hj-page" data-fold-closed="1">
-    <h2 class="k-card-title">Mobilapp eller webapp – hvad er forskellen?</h2>
-    <div>
+            <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
+        </article>
+    }
+    else if (_info == "forskel")
+    {
+        <article class="k-card hj-page">
+            <h2 class="k-card-title">Mobilapp eller webapp – hvad er forskellen?</h2>
+            <div>
     @* User 2026-10-14: "Webapp is the one you make. the biggest and has all. A mobile app is an app you make later which will fit into exactly the mobile device. that means you actually lose some features". *@
     <p>I virkeligheden er det <b>webappen, man laver først</b>. Det er den store udgave, der kan det hele. En mobilapp laver man senere, så den passer præcist til telefonen – og det betyder, at man faktisk <b>mister nogle af funktionerne</b> på vejen.</p>
     @* User 2026-10-14: "I worked on large systems for about 20 years... We had usually 10-15 people on the WebApp part -> One guy did the mobile part". *@
@@ -56,64 +115,42 @@
     </table>
     </div>
     </div>
-</article>
-
-<article class="k-card hj-page" data-fold-closed="1">
-    <h2 class="k-card-title">Prøv lige at kigge på din telefon</h2>
-    <div>
+            <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
+        </article>
+    }
+    else if (_info == "telefon")
+    {
+        <article class="k-card hj-page">
+            <h2 class="k-card-title">Prøv lige at kigge på din telefon</h2>
+            <div>
     <p>Hvor mange mobilapps har du på din skærm? Hvor lang tid tager det dig at finde lige præcis den app, du skal bruge? Hvor mange af dem bruger du overhovedet længere? Og har du apps, du ikke tør slette, fordi du ikke ved, hvad de gør? LOL</p>
     <p>Det kan jeg hjælpe dig med. Derfor er mine apps nemmere og mere fokuserede – lavet til mennesker med særlige behov. Og det betyder i det her tilfælde faktisk også alle jer, der læser med :-)</p>
     </div>
-</article>
-
-<article class="k-card hj-page" data-fold-closed="1">
-    <h2 class="k-card-title">En udfordring til dig, der har lyst</h2>
-    <div>
+            <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
+        </article>
+    }
+    else if (_info == "udfordring")
+    {
+        <article class="k-card hj-page">
+            <h2 class="k-card-title">En udfordring til dig, der har lyst</h2>
+            <div>
     @* User 2026-10-14: "en udfordring til dem, der har lyst. Find en mobilapp, send navnet til mig og lad mig lave en version af den, som du vil have... :-)" *@
     <p>Find en mobilapp, send navnet til mig – og lad mig lave en version af den, som <b>du</b> vil have den :-)</p>
     <a class="k-btn k-btn-sm" href="/#chat">Send mig navnet på appen</a>
     <p class="k-mt"><b>Nysgerrig? Prøv en af mine apps, eller chat med mig, hvis du vil vide mere.</b></p>
     <a class="k-btn k-btn-sm" href="/#chat">Chat med mig</a>
     </div>
-</article>
-
-<div class="hj-apps">
-    @foreach (var a in _apps)
-    {
-        // Asleep unless Martin has woken it (Kontrol / Svar) AND the container answers.
-        // No address = a showcase only (Polstrer, user 2026-10-08: "close polstrer for other users"): shown, never opened.
-        var showcase = a.Url.Length == 0;
-        var up = a.Awake && (showcase || Apps.IsUp(a.Url) != false);   // a showcase sleeps too when Martin says so
-        @* Every app is a show/hide box: closed shows only icon + name (user 2026-10-05: "way too much text in one go"). *@
-        var target = string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase);
-        @* ?app=Name (the front-page tiles): that card starts open, so the example picture shows. *@
-        <div class="k-card hj-app @(up ? "" : "off") @(target ? "hj-app-target" : "")" id="app-@a.Id" data-fold-closed="@(target ? null : "1")">
-            <h3 class="hj-app-head">@a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
-            <div class="hj-app-body">
-                <div class="k-help">@NoEmoji.Strip(a.Description)</div>
-                @if (a.Picture.Length > 0) { <a href="@a.Picture" target="_blank" rel="noopener" title="Tryk for at se billedet stort"><img class="hj-app-pic" src="@a.Picture" alt="Sådan ser @a.Name ud, når den bliver brugt" loading="lazy" /></a><div class="k-help k-center">Tryk på billedet for at se det stort</div> }
-                <div class="hj-app-tier"><span class="k-tag">Gratis</span> @(a.FreeText.Length > 0 ? NoEmoji.Strip(a.FreeText) : "Kom i gang med det samme – ingen betaling.")</div>
-                <div class="hj-app-tier"><span class="k-tag hj-tag-plus">Udvidet</span> @(a.PaidText.Length > 0 ? NoEmoji.Strip(a.PaidText) : "Har du brug for mere, laver vi en udvidet udgave til dig.")</div>
-                <div class="k-row k-mt">
-                    @* "Brug gratis" removed 2026-10-12 (user): people get in via "Prøv gratis" below (e-mail -> Kundekartotek -> PIN). *@
-                    @if (showcase && up) { <span class="k-help"><i>Eksempel – appen bruges kun af den, den er lavet til.</i></span> }
-                    else if (!up) { <span class="k-help"><i>Sover lige nu – tryk "Prøv gratis", så tænder jeg den til dig.</i></span> }
-                    @* "Spørg om din egen app / udvidet" button removed 2026-10-12 (user) - Prøv gratis + the contact line below do it. *@
-                </div>
-                @* "Prøv gratis" on every app (user 2026-10-12): e-mail -> Kundekartotek -> Martin sends a PIN. No newsletters. *@
-                <TrialForm App="@a.Name" />
-                @* Contact line on every app (user 2026-10-12: "a contact me if interested in this app"); a sleeping app is tried for free by contacting Martin, who wakes it (user 2026-10-12). *@
-                <div class="hj-app-contact"><b>@(up || showcase ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig:
-                    <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/#chat">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
-            </div>
-        </div>
+            <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
+        </article>
     }
-</div>
-
-<p class="k-center k-mt"><a class="k-btn k-btn-primary" href="/bliv-pilot/">Vil du være pilot og prøve en app sammen med mig?</a></p>
+}
 
 @code {
     private List<AppLink> _apps = [];
+    private IReadOnlyList<string> _free = [];
+    private string? _info;
+
+    private void Toggle(string key) => _info = _info == key ? null : key;
     [SupplyParameterFromQuery(Name = "app")] public string? App { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool first)
@@ -126,5 +163,6 @@
     protected override async Task OnInitializedAsync()
     {
         _apps = await Site.ShownAppsAsync();
+        _free = await Kartotek.FreeAppsAsync();
     }
 }

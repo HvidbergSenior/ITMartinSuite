@@ -2,12 +2,14 @@ using ITMartinPoll.Application;
 using ITMartinPoll.Domain;
 using ITMartinPoll.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using ITMartinKunder.Client;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartinPoll.Infrastructure;
 
-// Voting and the Kundekartotek on PollDb. A short-lived DbContext per call (Blazor Server keeps scoped services for the whole visit).
-public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore, ICustomerStore
+// Voting on PollDb. A short-lived DbContext per call (Blazor Server keeps scoped services for the whole visit).
+// The Kundekartotek is Kunder since 2026-10-21 (KunderCustomerStore); poll.db Customers is only the old list, moved once.
+public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore
 {
     public async Task<Ballot?> GetAsync(int pollId, CancellationToken ct = default)
     {
@@ -36,40 +38,15 @@ public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore, I
             });
             first = false;
         }
-        if (vote.OptIn is { } o) Apply(db, await db.Customers.FirstOrDefaultAsync(x => x.Email == o.Email, ct), o);
         await db.SaveChangesAsync(ct);
-    }
-
-    public async Task<bool> UnsubscribeAsync(string email, DateTime nowUtc, CancellationToken ct = default)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        var c = await db.Customers.FirstOrDefaultAsync(x => x.Email == email, ct);
-        if (c is null) return false;
-        if (c.UnsubscribedAt is null) { c.UnsubscribedAt = nowUtc; c.WantsAuctionNews = false; await db.SaveChangesAsync(ct); }
-        return true;
-    }
-
-    public async Task UpsertAsync(CustomerOptIn o, CancellationToken ct = default)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        Apply(db, await db.Customers.FirstOrDefaultAsync(x => x.Email == o.Email, ct), o);
-        await db.SaveChangesAsync(ct);
-    }
-
-    // New or returning customer: the newest consent wins, interests are added, and an earlier unsubscribe is lifted (they said yes again).
-    private static void Apply(PollDb db, Customer? c, CustomerOptIn o)
-    {
-        if (c is null) db.Customers.Add(c = new Customer { Email = o.Email, CreatedAt = o.AtUtc });
-        if (o.Name.Length > 0) c.Name = o.Name;
-        c.Source = o.Source; c.ConsentText = o.ConsentText; c.ConsentAt = o.AtUtc;
-        c.WantsAuctionNews = true; c.UnsubscribedAt = null;
-        c.Interests = c.Interests.Length == 0 || c.Interests == o.Interests ? o.Interests : c.Interests + " ; " + o.Interests;
     }
 }
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPollInfrastructure(this IServiceCollection services, string connectionString, string imagesDir = "/app/data/images")
+    /// <param name="dataDir">Where the Kunder outbox and the "old list moved" mark live (/app/data).</param>
+    public static IServiceCollection AddPollInfrastructure(this IServiceCollection services, string connectionString, string? kunderUrl,
+        string? kunderApiKey, string dataDir = "/app/data", string imagesDir = "/app/data/images")
     {
         services.AddDbContextFactory<PollDb>(o => o.UseSqlite(connectionString));
         static void Store<T>(IServiceCollection s, Func<PollDb, IQueryable<T>> whole) where T : class =>
@@ -83,7 +60,9 @@ public static class DependencyInjection
         services.AddSingleton<IImageFiles>(new FileImageStore(imagesDir));
         services.AddSingleton<VotingStore>();
         services.AddSingleton<IVotingStore>(sp => sp.GetRequiredService<VotingStore>());
-        services.AddSingleton<ICustomerStore>(sp => sp.GetRequiredService<VotingStore>());
+        services.AddKunderClient(kunderUrl, kunderApiKey, dataDir);
+        services.AddScoped<ICustomerStore, KunderCustomerStore>();
+        services.AddHostedService(sp => new MoveOldCustomersJob(sp, Path.Combine(dataDir, "kunder-flyttet.txt")));
         return services;
     }
 

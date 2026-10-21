@@ -179,29 +179,3 @@ public sealed class HelpEvents(IAggregateStore<HelpEvent> store, IChangeSignal s
             signal.Changed(ChangeChannels.Help(id));
     }
 }
-
-// The Kundekartotek seen from Stem's admin (list, unsubscribe, delete, CSV) and the link in mails (/afmeld/{token}).
-public sealed class CustomerAdmin(IAggregateStore<Customer> customers, TimeProvider clock)
-{
-    public async Task<List<Customer>> ListAsync(CancellationToken ct = default) =>
-        (await customers.ListAsync(ct)).OrderByDescending(c => c.ConsentAt).ToList();
-
-    public Task UnsubscribeAsync(int id, CancellationToken ct = default) =>
-        customers.ChangeAsync(id, c => { c.UnsubscribedAt ??= clock.GetUtcNow().UtcDateTime; c.WantsAuctionNews = false; return Task.CompletedTask; }, ct);
-
-    public Task DeleteAsync(int id, CancellationToken ct = default) => customers.DeleteAsync(id, ct);
-
-    /// <returns>The e-mail that is now unsubscribed, or null when the link is wrong.</returns>
-    public async Task<string?> UnsubscribeByTokenAsync(string token, CancellationToken ct = default)
-    {
-        if (token.Length < 16) return null;
-        var c = (await customers.ListAsync(ct)).FirstOrDefault(x => x.UnsubscribeToken == token);
-        if (c is null) return null;
-        await UnsubscribeAsync(c.Id, ct);
-        return c.Email;
-    }
-
-    /// <summary>Only people who still want mails - for the Bcc line or a mail tool.</summary>
-    public async Task<List<Customer>> ActiveAsync(CancellationToken ct = default) =>
-        (await customers.ListAsync(ct)).Where(c => c.WantsAuctionNews && c.UnsubscribedAt == null).OrderBy(c => c.Name).ToList();
-}

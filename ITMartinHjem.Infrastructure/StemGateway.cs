@@ -5,26 +5,9 @@ using ITMartinHjem.Application;
 namespace ITMartinHjem.Infrastructure;
 
 // Stem's /api/polls over the NAS docker network (Hjem:StemApi, default http://poll-web:8080).
-public sealed class StemGateway(HttpClient http) : IPollGateway, ICustomerGateway
+// The Kundekartotek is no longer here - it is in Kunder (KunderGateway, 2026-10-21).
+public sealed class StemGateway(HttpClient http) : IPollGateway
 {
-    private sealed record UnsubscribeResult(bool Found);
-
-    public async Task<string?> SignUpAsync(string email, string name, string source, string consentText, string interests, CancellationToken ct = default)
-    {
-        using var res = await http.PostAsJsonAsync("/api/customers", new { email, name, source, consentText, interests }, ct);
-        if (res.IsSuccessStatusCode) return null;
-        if (res.StatusCode == HttpStatusCode.BadRequest) return (await res.Content.ReadFromJsonAsync<ErrorBody>(ct))?.Error ?? "Kunne ikke gemmes.";
-        res.EnsureSuccessStatusCode();
-        return null;
-    }
-
-    public async Task<bool> UnsubscribeAsync(string email, CancellationToken ct = default)
-    {
-        using var res = await http.PostAsJsonAsync("/api/customers/unsubscribe", new { email }, ct);
-        res.EnsureSuccessStatusCode();
-        return (await res.Content.ReadFromJsonAsync<UnsubscribeResult>(ct))?.Found ?? false;
-    }
-
     private sealed record ErrorBody(string? Error, PollView? Poll);
 
     public async Task<PollView?> GetAsync(int pollId, CancellationToken ct = default)

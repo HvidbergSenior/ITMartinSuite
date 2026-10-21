@@ -50,6 +50,13 @@ public interface IOrderRepository
     Task<List<Order>> RecentAsync(int max, CancellationToken ct);
 }
 
+/// <summary>Kunder, the Kundekartotek for all apps (2026-10-21): a paid order makes the buyer a customer there - as a
+/// buyer, NOT as a yes to offers. Never throws: what Kunder does not take now waits in an outbox.</summary>
+public interface ICustomerRecord
+{
+    Task BoughtAsync(Order order, CancellationToken ct);
+}
+
 /// <summary>The day offers (Salg's Tilbud page).</summary>
 public interface ICampaignRepository
 {

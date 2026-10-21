@@ -653,3 +653,7 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .bs-basket li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border:2px solid #2a1d12;border-radius:12px;background:#fffdf7;color:#111827}
 .bs-basket .bs-item-main{flex:1 1 200px}
 .bs-total{font-size:1.4rem;font-weight:800;margin:10px 0 4px}
+
+/* Mine apps: "Om mine apps" tiles are buttons that open their text under the tiles (user 2026-10-21: apps on top, info like the front page). */
+button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.hj-tile.is-open { border: 2px solid var(--k-text); }

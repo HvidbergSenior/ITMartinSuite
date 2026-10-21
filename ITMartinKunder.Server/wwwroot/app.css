@@ -1,0 +1,15 @@
+/* Kunder - high contrast, states always in words (user is a bit colour-blind). */
+.ku-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .6rem 0; }
+.ku-chips { display: flex; gap: .4rem; flex-wrap: wrap; margin: .6rem 0; }
+.ku-search { width: 100%; font-size: 1.1rem; margin-top: .4rem; }
+.ku-big { font-size: 1.15rem; padding: .8rem 1.3rem; margin-top: .6rem; }
+.ku-pin { font-size: 1.2rem; margin: .6rem 0; }
+.ku-warn { border-left: 4px solid var(--k-text); padding: .4rem .7rem; border-radius: 6px; background: var(--k-bg-deep, rgba(128,128,128,.12)); }
+.ku-tag { display: inline-block; font-size: .75rem; font-weight: 700; border: 2px solid var(--k-text); border-radius: 6px; padding: 0 .35rem; margin-left: .4rem; vertical-align: middle; }
+.ku-code { font-family: ui-monospace, Consolas, monospace; letter-spacing: .08em; }
+.ku-list { margin: .4rem 0; padding-left: 1.1rem; }
+.ku-cust.is-off, .ku-app.is-off { opacity: .6; }
+.ku-form { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+.ku-form label { display: grid; gap: .2rem; font-weight: 600; }
+.ku-check { display: flex; gap: .5rem; align-items: center; font-weight: 600; margin: .6rem 0; }
+.ku-login { max-width: 26rem; margin: 12vh auto; padding: 0 16px; }

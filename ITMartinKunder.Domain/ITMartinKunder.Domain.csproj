@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Kunder - the domain: a customer, their yes per company (ITMartin = all free apps, Bogshoppen), what they bought,
+       their app logins, the kundekode and leaving with one e-mail. No EF, no HTTP. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinKunder.Contracts\ITMartinKunder.Contracts.csproj" />
+    <Using Include="ITMartinKunder.Contracts" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinKunder.Tests" />
+  </ItemGroup>
+
+</Project>

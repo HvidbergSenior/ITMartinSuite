@@ -2,13 +2,20 @@ using ITMartinHjem.Domain;
 
 namespace ITMartinHjem.Application;
 
-// The Kundekartotek lives in Stem (poll.db Customers); Hjem signs people up and off through Stem's API.
+/// <summary>Who they said yes to: ITMartin (all free apps) or Bogshoppen.</summary>
+public enum CustomerOf { ITMartin, Bogshoppen }
+
+public sealed record CustomerSignUp(string Email, string Name, CustomerOf Company, string App, string Source, string ConsentText, string Interests);
+
+// The Kundekartotek lives in Kunder (2026-10-21, one list for all apps); Hjem signs people up and off through its API.
+// The adapter keeps a sign-up in an outbox when Kunder is down, so the person is never turned away for that.
 public interface ICustomerGateway
 {
     /// <returns>Error for the person (Danish), or null when they are on the list.</returns>
-    Task<string?> SignUpAsync(string email, string name, string source, string consentText, string interests, CancellationToken ct = default);
-    /// <returns>True when the e-mail was on the list and is now unsubscribed.</returns>
-    Task<bool> UnsubscribeAsync(string email, CancellationToken ct = default);
+    Task<string?> SignUpAsync(CustomerSignUp signUp, CancellationToken ct = default);
+    Task UnsubscribeAsync(string email, CancellationToken ct = default);
+    /// <summary>The names of the free apps Martin has switched on in Kunder.</summary>
+    Task<IReadOnlyList<string>> FreeAppsAsync(CancellationToken ct = default);
 }
 
 // Martin's inbox (the chat in Svar): a new message there pushes to his phone, and his reply is mailed to the person.
@@ -21,7 +28,10 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox)
 {
     public const string Unreachable = "Det kunne ikke gemmes lige nu – prøv igen om lidt, eller skriv til ITMartin@Mensa.dk.";
 
-    /// <summary>"Prøv gratis": customer in the Kundekartotek + a request in Martin's inbox. Needs the ticked consent.</summary>
+    /// <summary>The apps a sign-up gives (the ones Martin has switched on in Kunder).</summary>
+    public Task<IReadOnlyList<string>> FreeAppsAsync(CancellationToken ct = default) => kartotek.FreeAppsAsync(ct);
+
+    /// <summary>"Prøv gratis": customer in the Kundekartotek + a request in Martin's inbox. Needs the ticked consent and a free app.</summary>
     public async Task<string?> RequestTrialAsync(string app, string? name, string? email, bool consent, CancellationToken ct = default)
     {
         var e = (email ?? "").Trim().ToLowerInvariant();
@@ -29,9 +39,10 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox)
         if (e.Length == 0) return "Skriv din e-mail, så kan Martin sende dig adgang.";
         if (e.Length > TrialRules.MaxEmail || n.Length > TrialRules.MaxName) return "Navn eller e-mail er for lang.";
         if (!consent) return "Sæt flueben, hvis du vil skrives op som kunde – ellers kan du skrive til Martin i chatten.";
+        if (!TrialRules.IsFree(app, await kartotek.FreeAppsAsync(ct))) return TrialRules.NotFree;
         try
         {
-            var error = await kartotek.SignUpAsync(e, n, TrialRules.Source(app), TrialRules.ConsentText(app), app, ct);
+            var error = await kartotek.SignUpAsync(new(e, n, CustomerOf.ITMartin, app, TrialRules.Source(app), TrialRules.ConsentText, app), ct);
             if (error is not null) return error;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return Unreachable; }
@@ -47,7 +58,11 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox)
         if (e.Length == 0) return "Skriv din e-mail, så kan vi sende dig et login til liveauktionerne.";
         if (e.Length > TrialRules.MaxEmail || n.Length > TrialRules.MaxName) return "Navn eller e-mail er for lang.";
         if (!consent) return "Sæt flueben, hvis du vil skrives op som kunde.";
-        try { return await kartotek.SignUpAsync(e, n, BogshoppenRules.Source, BogshoppenRules.ConsentText, BogshoppenRules.Interests(collects, note), ct); }
+        try
+        {
+            return await kartotek.SignUpAsync(new(e, n, CustomerOf.Bogshoppen, "bogshoppen.dk", BogshoppenRules.Source, BogshoppenRules.ConsentText,
+                BogshoppenRules.Interests(collects, note)), ct);
+        }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return Unreachable; }
     }
 

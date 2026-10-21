@@ -133,11 +133,11 @@ public class TrialRequestTests
 {
     private sealed class FakeKartotek : ICustomerGateway
     {
-        public List<(string Email, string Source, string Consent)> SignedUp = [];
+        public List<CustomerSignUp> SignedUp = [];
         public List<string> Unsubscribed = [];
-        public Task<string?> SignUpAsync(string email, string name, string source, string consentText, string interests, CancellationToken ct = default)
-        { SignedUp.Add((email, source, consentText)); return Task.FromResult<string?>(null); }
-        public Task<bool> UnsubscribeAsync(string email, CancellationToken ct = default) { Unsubscribed.Add(email); return Task.FromResult(true); }
+        public Task<string?> SignUpAsync(CustomerSignUp s, CancellationToken ct = default) { SignedUp.Add(s); return Task.FromResult<string?>(null); }
+        public Task UnsubscribeAsync(string email, CancellationToken ct = default) { Unsubscribed.Add(email); return Task.CompletedTask; }
+        public Task<IReadOnlyList<string>> FreeAppsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<string>>(["ElPriser", "Temperatur", "Stem"]);
     }
     private sealed class FakeInbox : IOwnerInbox
     {
@@ -146,15 +146,17 @@ public class TrialRequestTests
     }
 
     [Test]
-    public async Task Trial_needs_the_ticked_consent_and_then_lands_in_kartotek_and_inbox()
+    public async Task Trial_needs_the_ticked_consent_and_a_free_app_and_then_lands_in_kartotek_and_inbox()
     {
         var k = new FakeKartotek(); var inbox = new FakeInbox(); var uc = new Customers(k, inbox);
-        (await uc.RequestTrialAsync("Tilbud", "Ole", "Ole@Gmail.com", consent: false)).Should().StartWith("Sæt flueben");
+        (await uc.RequestTrialAsync("ElPriser", "Ole", "Ole@Gmail.com", consent: false)).Should().StartWith("Sæt flueben");
+        (await uc.RequestTrialAsync("Tilbud", "Ole", "Ole@Gmail.com", consent: true)).Should().Be(TrialRules.NotFree);   // not on the free list
         k.SignedUp.Should().BeEmpty();
-        (await uc.RequestTrialAsync("Tilbud", "Ole", " Ole@Gmail.com ", consent: true)).Should().BeNull();
-        k.SignedUp.Should().ContainSingle().Which.Should().Be(("ole@gmail.com", TrialRules.Source("Tilbud"), TrialRules.ConsentText("Tilbud")));
-        TrialRules.ConsentText("Tilbud").Should().Contain("Ingen reklamer, ingen nyhedsbreve").And.Contain("afmelde");
-        inbox.Texts.Should().ContainSingle().Which.Should().Contain("Tilbud").And.Contain("ole@gmail.com");
+        (await uc.RequestTrialAsync("elpriser", "Ole", " Ole@Gmail.com ", consent: true)).Should().BeNull();
+        k.SignedUp.Should().ContainSingle().Which.Should().Be(new CustomerSignUp("ole@gmail.com", "Ole", CustomerOf.ITMartin, "elpriser",
+            TrialRules.Source("elpriser"), TrialRules.ConsentText, "elpriser"));
+        TrialRules.ConsentText.Should().Contain("alle de gratis apps").And.Contain("Ingen reklamer, ingen nyhedsbreve").And.Contain("afmelde");
+        inbox.Texts.Should().ContainSingle().Which.Should().Contain("elpriser").And.Contain("ole@gmail.com");
     }
 
     [Test]
@@ -171,10 +173,11 @@ public class BogshoppenFollowTests
 {
     private sealed class Kartotek : ICustomerGateway
     {
-        public List<(string Email, string Source, string Interests)> Rows = [];
-        public Task<string?> SignUpAsync(string email, string name, string source, string consentText, string interests, CancellationToken ct = default)
-        { Rows.Add((email, source, interests)); return Task.FromResult<string?>(null); }
-        public Task<bool> UnsubscribeAsync(string email, CancellationToken ct = default) => Task.FromResult(true);
+        public List<(string Email, CustomerOf Company, string Source, string Interests)> Rows = [];
+        public Task<string?> SignUpAsync(CustomerSignUp s, CancellationToken ct = default)
+        { Rows.Add((s.Email, s.Company, s.Source, s.Interests)); return Task.FromResult<string?>(null); }
+        public Task UnsubscribeAsync(string email, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<string>> FreeAppsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<string>>([]);
     }
     private sealed class NoInbox : IOwnerInbox { public Task NewRequestAsync(string n, string e, string t, CancellationToken ct = default) => Task.CompletedTask; }
 
@@ -184,7 +187,7 @@ public class BogshoppenFollowTests
         var k = new Kartotek(); var uc = new Customers(k, new NoInbox());
         (await uc.FollowBogshoppenAsync("Ole", "ole@gmail.com", ["Tintin"], null, consent: false)).Should().NotBeNull();
         (await uc.FollowBogshoppenAsync("Ole", "Ole@Gmail.com", ["Tintin", "Hacket felt", "Asterix"], "Tintin nr. 5", consent: true)).Should().BeNull();
-        k.Rows.Should().ContainSingle().Which.Should().Be(("ole@gmail.com", BogshoppenRules.Source, "Tintin, Asterix | Tintin nr. 5"));
+        k.Rows.Should().ContainSingle().Which.Should().Be(("ole@gmail.com", CustomerOf.Bogshoppen, BogshoppenRules.Source, "Tintin, Asterix | Tintin nr. 5"));
         BogshoppenRules.ConsentText.Should().Contain("Ingen reklamer, ingen nyhedsbreve").And.Contain("afmelde");
     }
 }

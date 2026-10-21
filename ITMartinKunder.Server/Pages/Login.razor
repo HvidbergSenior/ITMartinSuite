@@ -1,0 +1,20 @@
+@page "/login"
+@layout EmptyLayout
+
+<PageTitle>Log ind – Kunder</PageTitle>
+
+<div class="ku-login">
+    <section class="k-card">
+        <h1 class="k-card-title">Kunder</h1>
+        <p>Kundekartoteket for alle apps. Skriv din PIN-kode.</p>
+        @if (Fejl == "1") { <p class="ku-warn">Forkert PIN – prøv igen.</p> }
+        <form method="post" action="/api/login">
+            <input type="password" name="pin" class="k-input ku-pin" placeholder="PIN-kode" autofocus />
+            <button class="k-btn k-btn-primary ku-big" type="submit">Log ind</button>
+        </form>
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Fejl { get; set; }
+}

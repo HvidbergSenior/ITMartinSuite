@@ -31,6 +31,9 @@ public sealed class HjemInfraOptions
     public string SmtpReplyTo { get; set; } = "ITMartin@Mensa.dk";
     public string KigMedStatus { get; set; } = "http://10.0.0.200:9144/api/status";
     public string ElPriserSnapshot { get; set; } = "http://10.0.0.126:8120/api/snapshot?area=DK1&allIn=true";
+    /// <summary>Kunder, the Kundekartotek for all apps (Kunder__Url / Kunder__ApiKey, same names in every app).</summary>
+    public string? KunderUrl { get; set; }
+    public string? KunderApiKey { get; set; }
 }
 
 // Files live under <DataDir>/media. Photos are turned upright from EXIF once, at upload (the old Olympus

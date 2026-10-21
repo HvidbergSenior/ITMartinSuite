@@ -60,6 +60,7 @@ public class VotingStoreTests
 {
     private SqliteConnection _conn = null!;
     private Voting _voting = null!;
+    private readonly FakeKunder _kunder = new();
 
     private sealed class Factory(DbContextOptions<PollDb> o) : IDbContextFactory<PollDb>
     {
@@ -79,7 +80,7 @@ public class VotingStoreTests
                 Options = [new PollOption { Label = "Anders And-blade", SortOrder = 0 }, new PollOption { Label = "Tintin", SortOrder = 1 }] });
             db.SaveChanges();
         }
-        _voting = new Voting(new VotingStore(new Factory(options)), TimeProvider.System);
+        _voting = new Voting(new VotingStore(new Factory(options)), _kunder, TimeProvider.System);
     }
 
     [TearDown] public void TearDown() => _conn.Dispose();
@@ -97,37 +98,38 @@ public class VotingStoreTests
 
         (await _voting.VoteAsync(1, new([1], "Ole", "ole@gmail.com", null, false))).Error.Should().Contain("allerede stemt");
 
-        using var cmd = _conn.CreateCommand();
-        cmd.CommandText = "SELECT count(*), max(Interests) FROM Customers";
-        using var r = cmd.ExecuteReader(); r.Read();
-        r.GetInt32(0).Should().Be(1);
-        r.GetString(1).Should().Be("Anders And-blade, Tintin | tak");
+        _kunder.OptIns.Should().ContainSingle().Which.Interests.Should().Be("Anders And-blade, Tintin | tak");   // to Kunder, once
     }
+}
+
+// Kunder (the Kundekartotek since 2026-10-21) as the use cases see it.
+internal sealed class FakeKunder : ICustomerStore
+{
+    public List<CustomerOptIn> OptIns = [];
+    public List<string> Unsubscribed = [];
+    public List<string> Moved = [];
+    public Task UpsertAsync(CustomerOptIn o, CancellationToken ct = default) { OptIns.Add(o); return Task.CompletedTask; }
+    public Task UnsubscribeAsync(string email, CancellationToken ct = default) { Unsubscribed.Add(email); return Task.CompletedTask; }
+    public Task<(bool Found, string Email)> UnsubscribeByLinkAsync(string token, CancellationToken ct = default) => Task.FromResult((true, "x@y.dk"));
+    public Task MoveAsync(Customer old, CancellationToken ct = default) { Moved.Add(old.Email); return Task.CompletedTask; }
 }
 
 public class CustomerListTests
 {
     [Test]
-    public async Task Sign_up_then_unsubscribe_by_email_and_sign_up_again_lifts_it()
+    public async Task Sign_up_checks_the_email_and_passes_it_on_to_Kunder_and_afmeld_takes_just_the_email()
     {
-        using var conn = new SqliteConnection("Data Source=:memory:"); conn.Open();
-        var options = new DbContextOptionsBuilder<PollDb>().UseSqlite(conn).Options;
-        using (var db = new PollDb(options)) db.Database.EnsureCreated();
-        var list = new CustomerList(new VotingStore(new TestFactory(options)), TimeProvider.System);
+        var kunder = new FakeKunder();
+        var list = new CustomerList(kunder, TimeProvider.System);
 
         (await list.SignUpAsync("ikke-en-mail", "Ole", "x", "y", "z")).Should().NotBeNull();
         (await list.SignUpAsync(" Ole@Gmail.com", "Ole", "itmartin.dk: Prøv gratis – Tilbud", "consent", "Tilbud")).Should().BeNull();
-        (await list.UnsubscribeAsync("ole@gmail.com")).Should().BeTrue();
-        (await list.UnsubscribeAsync("ukendt@gmail.com")).Should().BeFalse();
-        Scalar(conn, "SELECT UnsubscribedAt IS NOT NULL FROM Customers").Should().Be(1L);
-        (await list.SignUpAsync("ole@gmail.com", "", "s", "c", "Polstrer")).Should().BeNull();
-        Scalar(conn, "SELECT count(*) FROM Customers WHERE UnsubscribedAt IS NULL AND Interests = 'Tilbud ; Polstrer'").Should().Be(1L);
-    }
-
-    private static object? Scalar(SqliteConnection c, string sql) { using var cmd = c.CreateCommand(); cmd.CommandText = sql; return cmd.ExecuteScalar(); }
-
-    private sealed class TestFactory(DbContextOptions<PollDb> o) : IDbContextFactory<PollDb>
-    {
-        public PollDb CreateDbContext() => new(o);
+        kunder.OptIns.Should().ContainSingle().Which.Email.Should().Be("ole@gmail.com");
+        await list.UnsubscribeAsync(" OLE@gmail.com");
+        kunder.Unsubscribed.Should().Equal("ole@gmail.com");
+        (await list.UnsubscribeByLinkAsync("kort")).Found.Should().BeFalse();
+        CustomerRules.CompanyOf("itmartin.dk: Prøv gratis – Tilbud").Should().Be("ITMartin");
+        CustomerRules.CompanyOf("Stem: Første liveauktion").Should().Be("Bogshoppen");
     }
 }
+

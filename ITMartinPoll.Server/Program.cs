@@ -22,7 +22,7 @@ builder.Services.AddRazorComponents()
 var pollDb = builder.Configuration.GetConnectionString("PollDb") ?? "Data Source=/app/data/poll.db";
 // The layered part of Stem (2026-10-12): voting, used by the poll page and by /api/polls (bogshoppen.dk). Same poll.db.
 builder.Services.AddPollApplication();
-builder.Services.AddPollInfrastructure(pollDb);
+builder.Services.AddPollInfrastructure(pollDb, builder.Configuration["Kunder:Url"], builder.Configuration["Kunder:ApiKey"]);
 
 builder.Services.AddScoped<AdminSession>();
 
@@ -82,7 +82,8 @@ app.MapPost("/api/polls/{id:int}/vote", async (int id, VoteBody body, Voting vot
     return error is null ? Results.Ok(view) : view is null ? Results.NotFound(new { error }) : Results.BadRequest(new { error, poll = view });
 }).DisableAntiforgery();
 
-// Kundekartotek from other sites (2026-10-12): "prøv gratis" sign-ups and one-step unsubscribe by e-mail (bogshoppen.dk/afmeld, itmartin.dk/afmeld).
+// Kundekartotek from other sites (2026-10-12): "prøv gratis" sign-ups and one-step unsubscribe by e-mail. Since 2026-10-21
+// itmartin.dk talks to Kunder itself; these stay for an older Hjem and pass everything on to Kunder.
 app.MapPost("/api/customers", async (CustomerBody body, CustomerList customers) =>
 {
     var error = await customers.SignUpAsync(body.Email, body.Name, body.Source ?? "", body.ConsentText ?? "", body.Interests ?? "");
@@ -90,7 +91,10 @@ app.MapPost("/api/customers", async (CustomerBody body, CustomerList customers) 
 }).DisableAntiforgery();
 
 app.MapPost("/api/customers/unsubscribe", async (UnsubscribeBody body, CustomerList customers) =>
-    Results.Ok(new { found = await customers.UnsubscribeAsync(body.Email) })).DisableAntiforgery();
+{
+    await customers.UnsubscribeAsync(body.Email);
+    return Results.Ok(new { found = true });
+}).DisableAntiforgery();
 
 app.UseAntiforgery();
 
@@ -107,17 +111,6 @@ app.MapGet("/pakke/{id:int}/pdf", async (int id, Packages packages, HttpContext 
     var bytes = ITMartinPoll.Server.Services.PackagePdf.Render(package);
     var fileName = string.Concat(package.Title.Select(c => char.IsLetterOrDigit(c) ? c : '-')).Trim('-') + ".pdf";
     return Results.File(bytes, "application/pdf", fileName);
-});
-
-// Kundekartotek as CSV (admin cookie) - only people who still want mails, for the Bcc line or a mail tool.
-app.MapGet("/admin/kunder.csv", async (CustomerAdmin customers, HttpContext ctx, IConfiguration cfg) =>
-{
-    if (ctx.Request.Cookies["poll_admin"] != ITMartinPoll.Server.AdminToken.For(cfg["Poll:AdminPin"] ?? "1234")) return Results.NotFound();
-    static string Q(string v) => "\"" + v.Replace("\"", "\"\"") + "\"";
-    var rows = await customers.ActiveAsync();
-    var csv = "Navn;Email;Telefon;Interesser;Kilde;Samtykke givet;Afmeld-link\n" + string.Concat(rows.Select(c =>
-        $"{Q(c.Name)};{Q(c.Email)};{Q(c.Phone)};{Q(c.Interests)};{Q(c.Source)};{c.ConsentAt:yyyy-MM-dd HH:mm};https://stem.itmartin.dk/afmeld/{c.UnsubscribeToken}\n"));
-    return Results.File(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray(), "text/csv", "kundekartotek.csv");
 });
 
 app.MapRazorComponents<App>()

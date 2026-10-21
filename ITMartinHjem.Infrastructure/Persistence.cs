@@ -1,3 +1,4 @@
+using ITMartinKunder.Client;
 using ITMartinHjem.Application;
 using ITMartinHjem.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -105,7 +106,8 @@ public static class DependencyInjection
             c.Timeout = TimeSpan.FromSeconds(10);
         });
         services.AddTransient<IPollGateway>(sp => sp.GetRequiredService<StemGateway>());
-        services.AddTransient<ICustomerGateway>(sp => sp.GetRequiredService<StemGateway>());
+        services.AddKunderClient(options.KunderUrl, options.KunderApiKey, options.DataDir);
+        services.AddTransient<ICustomerGateway, KunderGateway>();
         services.AddDbContextFactory<HjemQuestionsDb>(o => o.UseSqlite(connectionString));
         services.AddSingleton<IPublicQuestionStore, PublicQuestionStore>();
         return services;

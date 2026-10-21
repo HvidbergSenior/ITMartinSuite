@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "ITMartinKunder": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5255",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Kunder__Pin": "test1234",
+        "Kunder__DataDir": "data",
+        "Kunder__ApiKey": "devkey-kunder-1234567"
+      }
+    }
+  }
+}

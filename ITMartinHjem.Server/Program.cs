@@ -64,6 +64,8 @@ builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hje
     SmtpReplyTo = builder.Configuration["Hjem:Smtp:ReplyTo"] ?? "ITMartin@Mensa.dk",
     KigMedStatus = builder.Configuration["Hjem:KigMedStatus"] ?? "http://10.0.0.200:9144/api/status",
     ElPriserSnapshot = builder.Configuration["Hjem:ElPriserSnapshot"] ?? "http://10.0.0.126:8120/api/snapshot?area=DK1&allIn=true",
+    KunderUrl = builder.Configuration["Kunder:Url"],
+    KunderApiKey = builder.Configuration["Kunder:ApiKey"],
 }, builder.Configuration["Hjem:StemApi"]);
 // The shop on bogshoppen.dk/varer (2026-10-15): Køb nu, orders and offers live in Bogshoppen Salg on the photoserver
 // since 2026-10-21 (same /api/butik as Lager had - Hjem__SalgApi / Hjem__SalgShopKey, the old Lager names still work).

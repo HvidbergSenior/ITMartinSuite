@@ -1,5 +1,6 @@
 using ITMartinSalg.Infrastructure.External;
 using ITMartinSalg.Infrastructure.Persistence;
+using ITMartinKunder.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,6 +20,8 @@ public static class DependencyInjection
         services.AddScoped<ICampaignRepository, CampaignRepository>();
         services.AddHttpClient<IPaymentGateway, StripeCheckout>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IStockGateway, LagerStockLink>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddKunderClient(cfg, dataDir);
+        services.AddScoped<ICustomerRecord, KunderBuyers>();
 
         services.AddSingleton(new SalgOptions
         {

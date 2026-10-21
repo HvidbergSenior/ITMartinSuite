@@ -1,10 +1,7 @@
 @page "/admin/kunder"
-@rendermode InteractiveServer
-@inject CustomerAdmin Customers
-@inject AdminSession Session
+@inject IConfiguration Config
 
-@* Kundekartotek (user 2026-10-10): everyone who ticked "send mig et login til liveauktionerne". NO newsletters. Only opt-ins land here.
-   Delete = GDPR right to erasure; Afmeldt = keeps the row so we can prove they said stop and never mail them again. *@
+@* The Kundekartotek moved to Kunder on 2026-10-21 (one list for all apps). This old address sends Martin there. *@
 <PageTitle>Kundekartotek — Stem</PageTitle>
 
 <div class="poll-root">
@@ -12,78 +9,12 @@
         <a href="/admin" class="poll-back">← Admin</a>
         <span class="poll-logo">Kundekartotek</span>
     </header>
-
-    @if (!Session.IsAdmin)
-    {
-        <div class="poll-empty"><p>Ingen adgang. <a href="/admin">Log ind</a></p></div>
-    }
-    else
-    {
-        <div class="admin-form">
-            <p class="admin-hint">
-                Her er alle, der selv har sat flueben for et login til liveauktionerne, og det de interesserer sig for.
-                <b>Ingen nyhedsbreve</b> – e-mailen er kun til at sende login. Skriv til én ad gangen (eller Bcc, aldrig Til/Cc),
-                og sæt personens afmeld-link (står i CSV-filen) i mailen.
-            </p>
-            <a class="admin-create-btn" href="/admin/kunder.csv" download>⬇ Hent som CSV (@Active.Count aktive)</a>
-
-            <input class="poll-input" placeholder="Søg navn eller e-mail" @bind="_q" @bind:event="oninput" />
-
-            @if (_rows.Count == 0)
-            {
-                <div class="poll-empty" style="min-height:auto;padding:12px 0">Ingen i kartoteket endnu.</div>
-            }
-            @foreach (var c in Shown)
-            {
-                <div class="cust-row @(c.UnsubscribedAt is null ? "" : "cust-off")">
-                    <div><b>@c.Name</b> · @c.Email</div>
-                    @if (c.Interests != "") { <div>Interesser: @c.Interests</div> }
-                    <div class="admin-hint">
-                        @c.Source · samtykke @c.ConsentAt.ToLocalTime().ToString("d. MMM yyyy HH:mm")
-                        @if (c.UnsubscribedAt is not null) { <b> · AFMELDT @c.UnsubscribedAt.Value.ToLocalTime().ToString("d. MMM yyyy")</b> }
-                    </div>
-                    <div class="cust-actions">
-                        @if (c.UnsubscribedAt is null)
-                        {
-                            <button class="admin-btn small" @onclick="() => Unsubscribe(c)">Afmeld</button>
-                        }
-                        @if (_confirm == c.Id)
-                        {
-                            <button class="admin-btn danger small" @onclick="() => Delete(c)">Ja, slet helt</button>
-                            <button class="admin-btn small" @onclick="() => _confirm = 0">Fortryd</button>
-                        }
-                        else
-                        {
-                            <button class="admin-btn danger small" @onclick="() => _confirm = c.Id">Slet</button>
-                        }
-                    </div>
-                </div>
-            }
-        </div>
-    }
+    <div class="admin-form">
+        <p class="admin-hint">Kundekartoteket er flyttet til <b>Kunder</b> – én liste for alle apps. Dem, der skriver sig op i Stem, kommer også dér.</p>
+        <a class="admin-create-btn" href="@KunderSite">Åbn Kunder</a>
+    </div>
 </div>
 
 @code {
-    private List<Customer> _rows = [];
-    private string _q = "";
-    private int _confirm;
-
-    private List<Customer> Active => _rows.Where(c => c.WantsAuctionNews && c.UnsubscribedAt is null).ToList();
-    private IEnumerable<Customer> Shown => string.IsNullOrWhiteSpace(_q) ? _rows
-        : _rows.Where(c => c.Name.Contains(_q, StringComparison.OrdinalIgnoreCase) || c.Email.Contains(_q, StringComparison.OrdinalIgnoreCase));
-
-    protected override Task OnInitializedAsync() => LoadAsync();
-    private async Task LoadAsync() => _rows = await Customers.ListAsync();
-
-    private async Task Unsubscribe(Customer c)
-    {
-        await Customers.UnsubscribeAsync(c.Id);
-        c.UnsubscribedAt ??= DateTime.UtcNow; c.WantsAuctionNews = false;
-    }
-
-    private async Task Delete(Customer c)
-    {
-        await Customers.DeleteAsync(c.Id);
-        _confirm = 0; await LoadAsync();
-    }
+    private string KunderSite => Config["Kunder:PublicUrl"] ?? "https://kunder.itmartin.dk";
 }

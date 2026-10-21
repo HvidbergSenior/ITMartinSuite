@@ -1,7 +1,7 @@
 @page "/afmeld/{Token}"
-@inject CustomerAdmin Customers
+@inject CustomerList Customers
 
-@* One-click unsubscribe from the Kundekartotek (link in every auction mail). Static page: works without JavaScript. *@
+@* One-click unsubscribe (the link in mails sent before 2026-10-21). The list is in Kunder now; the link is passed on there. *@
 <PageTitle>Afmeld mails</PageTitle>
 
 <div class="poll-root">
@@ -9,8 +9,8 @@
         <div class="poll-content">
             @if (_found)
             {
-                <h1 class="poll-title">Du er afmeldt ✓</h1>
-                <p class="poll-body">Vi sender ikke flere mails til @_email.
+                <h1 class="poll-title">Du er afmeldt</h1>
+                <p class="poll-body">Vi sender ikke flere mails@(_email == "" ? "" : " til " + _email).
                     Vil du have dine oplysninger slettet helt, så skriv til ITMartin@Mensa.dk.</p>
             }
             else
@@ -27,10 +27,5 @@
     private bool _found;
     private string _email = "";
 
-    protected override async Task OnInitializedAsync()
-    {
-        var email = await Customers.UnsubscribeByTokenAsync(Token);
-        if (email is null) return;
-        _found = true; _email = email;
-    }
+    protected override async Task OnInitializedAsync() => (_found, _email) = await Customers.UnsubscribeByLinkAsync(Token);
 }

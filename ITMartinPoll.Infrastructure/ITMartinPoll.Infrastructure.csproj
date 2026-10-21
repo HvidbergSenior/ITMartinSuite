@@ -4,6 +4,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ITMartinPoll.Application\ITMartinPoll.Application.csproj" />
     <ProjectReference Include="..\ITMartinPoll.Domain\ITMartinPoll.Domain.csproj" />
+    <ProjectReference Include="..\ITMartinKunder.Client\ITMartinKunder.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

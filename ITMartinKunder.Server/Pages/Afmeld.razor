@@ -1,0 +1,51 @@
+@page "/afmeld"
+@page "/afmeld/{Token}"
+@layout EmptyLayout
+@inject Kundekartotek Kartotek
+
+@* Leaving is easy (user 2026-10-12: "make easy way to unsubscribe"): the link in a mail, or one e-mail typed here.
+   Open page. Unknown e-mails get the same answer, so nobody can test which e-mails are on the list. *@
+<PageTitle>Afmeld</PageTitle>
+
+<div class="ku-login">
+    <section class="k-card">
+        @if (_email is not null)
+        {
+            <h1 class="k-card-title">Du er afmeldt</h1>
+            <p>Vi skriver ikke mere til @_email. Vil du have dine oplysninger slettet helt, så skriv til ITMartin@Mensa.dk.</p>
+        }
+        else if (_done)
+        {
+            <h1 class="k-card-title">Du er afmeldt</h1>
+            <p>Står @_typed på listen, er den afmeldt nu. Vil du slettes helt, så skriv til ITMartin@Mensa.dk.</p>
+        }
+        else
+        {
+            <h1 class="k-card-title">Afmeld dig</h1>
+            @if (Token is not null) { <p class="ku-warn">Linket virker ikke. Skriv din e-mail herunder i stedet.</p> }
+            <p>Skriv den e-mail, du skrev dig op med, og tryk Afmeld. Det tager 10 sekunder.</p>
+            <input class="k-input" type="email" @bind="_typed" placeholder="din@email.dk" />
+            <button class="k-btn k-btn-primary ku-big" @onclick="Send">Afmeld</button>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter] public string? Token { get; set; }
+    private string _typed = "";
+    private string? _email;
+    private bool _done;
+
+    // Runs at prerender and again when the page goes live - unsubscribing twice changes nothing.
+    protected override async Task OnInitializedAsync()
+    {
+        if (Token is not null) _email = await Kartotek.UnsubscribeByLinkAsync(Token);
+    }
+
+    private async Task Send()
+    {
+        if (!_typed.Contains('@')) return;
+        await Kartotek.UnsubscribeAsync(_typed);
+        _done = true;
+    }
+}
