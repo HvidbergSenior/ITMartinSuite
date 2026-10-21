@@ -81,6 +81,11 @@ public static class PackageRules
 
     public static bool IsIdentified(string name, string house) => !string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(house);
 
+    /// <summary>A package opened by link (friends, a family - FezBoyz 2026-10-21) asks for a name only; the household
+    /// number belongs to the forening packages (Skelagerhøjen).</summary>
+    public static bool IsIdentified(string name, string house, bool needsHouse) =>
+        !string.IsNullOrWhiteSpace(name) && (!needsHouse || !string.IsNullOrWhiteSpace(house));
+
     /// <summary>One answer per household per question; choosing again changes it. A comment written before the choice comes with it.</summary>
     public static void Choose(Poll poll, string voterLabel, int optionId, string pendingComment, DateTime nowUtc)
     {

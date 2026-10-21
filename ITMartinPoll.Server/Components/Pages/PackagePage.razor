@@ -33,9 +33,9 @@
         }
     </header>
 
-    @if (_loading)
+    @if (_package is null && _loading)
     {
-        <div class="poll-empty"><p>Indlæser…</p></div>
+        @* Only while the server has nothing yet; a package shows at once (user 2026-10-21: "when refreshing there is another page first"). *@
     }
     else if (_package is null)
     {
@@ -81,7 +81,11 @@
            traced to a household is useless when the point is to size a shared
            installation. *@
         <div class="pkg-identity @(_identified ? "done" : "")">
-            @if (_identified)
+            @if (_loading)
+            {
+                @* The phone's remembered name is read in a moment - nothing to show yet, rather than a form that jumps away. *@
+            }
+            else if (_identified)
             {
                 <div class="pkg-identity-done">
                     Svarer som <strong>@VoterLabel</strong>
@@ -94,16 +98,26 @@
                 <div class="pkg-identity-fields">
                     <input class="poll-input" placeholder="Fornavn, f.eks. Martin"
                            maxlength="40" @bind="_name" @bind:event="oninput" />
-                    <input class="poll-input pkg-house-input" placeholder="Husstand, f.eks. 222"
-                           maxlength="10" @bind="_house" @bind:event="oninput" />
+                    @if (NeedsHouse)
+                    {
+                        <input class="poll-input pkg-house-input" placeholder="Husstand, f.eks. 222"
+                               maxlength="10" @bind="_house" @bind:event="oninput" />
+                    }
                 </div>
                 <div class="pkg-identity-hint">
-                    Skriv fornavn og husstandsnummer — f.eks. <strong>Martin 222</strong>.
-                    Så ved vi hvilke husstande der har svaret, og du kan rette dit svar senere.
+                    @if (NeedsHouse)
+                    {
+                        <text>Skriv fornavn og husstandsnummer — f.eks. <strong>Martin 222</strong>.
+                        Så ved vi hvilke husstande der har svaret, og du kan rette dit svar senere.</text>
+                    }
+                    else
+                    {
+                        <text>Skriv dit navn, så de andre kan se, hvem der har svaret. Du kan rette dit svar senere.</text>
+                    }
                 </div>
                 @if (_identityError)
                 {
-                    <div class="form-error">Både navn og husstandsnummer skal udfyldes</div>
+                    <div class="form-error">@(NeedsHouse ? "Både navn og husstandsnummer skal udfyldes" : "Skriv dit navn")</div>
                 }
                 <button class="poll-submit-btn" @onclick="ConfirmIdentity">Fortsæt →</button>
             }
@@ -262,7 +276,8 @@
     private Dictionary<int, int>    _ratings        = [];   // ImageId -> score
     private Dictionary<int, string> _ratingComments = [];   // ImageId -> comment
 
-    private string VoterLabel => PackageRules.VoterLabel(_name, _house);
+    private string VoterLabel => PackageRules.VoterLabel(_name, NeedsHouse ? _house : "");
+    private bool NeedsHouse => _package is not { OpenByLink: true };
 
     private string[] Steps => (_package?.Instructions ?? "")
         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -308,7 +323,7 @@
 
         _name  = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_first_name") ?? "";
         _house = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_house") ?? "";
-        _identified = !string.IsNullOrWhiteSpace(_name) && !string.IsNullOrWhiteSpace(_house);
+        _identified = PackageRules.IsIdentified(_name, _house, NeedsHouse);
 
         if (_identified) await LoadExistingAnswersAsync();
 
@@ -327,7 +342,7 @@
 
     private async Task ConfirmIdentity()
     {
-        if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_house))
+        if (!PackageRules.IsIdentified(_name, _house, NeedsHouse))
         {
             _identityError = true;
             return;
