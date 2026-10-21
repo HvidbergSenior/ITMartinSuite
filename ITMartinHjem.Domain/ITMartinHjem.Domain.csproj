@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Hjem (itmartin.dk) - the domain. Started 2026-10-12 with "Det spørger folk om" (public Q&A from the chat);
-       the rest of Hjem is still flat in ITMartinHjem.Server and moves here bit by bit. No EF, no HTTP. -->
+  <!-- Hjem (itmartin.dk) - the domain: the site texts, pages, timeline, chat and visit counting (all of it since 2026-10-20). No EF, no HTTP. -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

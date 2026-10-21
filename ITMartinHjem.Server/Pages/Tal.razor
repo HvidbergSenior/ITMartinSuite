@@ -1,6 +1,5 @@
 @page "/admin/tal"
-@inject IDbContextFactory<HjemDb> Dbf
-@inject Tracker Tracker
+@inject VisitUseCases Visits
 
 <PageTitle>Tal · Martin Hvidberg</PageTitle>
 
@@ -133,15 +132,14 @@
 
     private async Task LoadAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        var since = DateTime.UtcNow.AddDays(-90);
-        _all = await db.Hits.AsNoTracking().Where(h => h.At >= since).ToListAsync();
-        var links = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
+        var numbers = await Visits.NumbersAsync(90);
+        _all = numbers.Hits;
+        var links = numbers.Apps;
 
         // Apps: fixed windows, so the table answers "can I stop it?" whatever period is chosen above.
         var names = links.Where(l => Uri.TryCreate(l.Url, UriKind.Absolute, out _))
             .GroupBy(l => new Uri(l.Url).Host.ToLowerInvariant()).ToDictionary(g => g.Key, g => $"{g.First().Icon} {g.First().Name}".Trim());
-        var hosts = _all.Select(h => h.Host).Where(h => h != Tracker.Site).Concat(names.Keys.Where(h => h != Tracker.Site)).Distinct();
+        var hosts = _all.Select(h => h.Host).Where(h => h != VisitRules.Site).Concat(names.Keys.Where(h => h != VisitRules.Site)).Distinct();
         _apps = hosts.Select(host =>
         {
             var hits = _all.Where(h => h.Host == host).ToList();
@@ -159,9 +157,9 @@
     {
         var from = Since(_days);
         var period = _all.Where(h => h.At >= from).ToList();
-        var site = period.Where(h => h.Host == Tracker.Site && !h.Path.StartsWith("/admin")).ToList();
+        var site = period.Where(h => h.Host == VisitRules.Site && !h.Path.StartsWith("/admin")).ToList();
         _siteVisitors = DayVisitors(site);
-        _appVisitors = DayVisitors(period.Where(h => h.Host != Tracker.Site));
+        _appVisitors = DayVisitors(period.Where(h => h.Host != VisitRules.Site));
 
         _pages = site.GroupBy(h => h.Path).Select(g =>
         {
@@ -179,7 +177,7 @@
 
     private async Task DeleteAllAsync()
     {
-        _deleted = await Tracker.DeleteAllAsync();
+        _deleted = await Visits.DeleteAllAsync();
         _confirm = false;
         await LoadAsync();
     }

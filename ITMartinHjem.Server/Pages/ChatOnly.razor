@@ -1,8 +1,8 @@
 @page "/chat"
 @layout BareLayout
 @implements IDisposable
-@inject IDbContextFactory<HjemDb> Dbf
-@inject ChatService Chat
+@inject SiteUseCases Site
+@inject ChatUseCases Chat
 
 @* The chat alone - opened by the 💬 bubble on itmartin.dk (wwwroot/widget.js). *@
 <ChatBox Available="_available" OwnerName="@_first" StartOpen="true" />
@@ -20,8 +20,7 @@
 
     private async Task LoadAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        var s = await db.Settings.AsNoTracking().FirstAsync();
+        var s = await Site.SettingsAsync();
         _available = s.Available;
         _first = s.Name.Split(' ')[0];
     }

@@ -1,5 +1,5 @@
 @implements IDisposable
-@inject ChatService Chat
+@inject ChatUseCases Chat
 @inject NavigationManager Nav
 
 @* The pilot form under the "Bliv pilot" page (SitePage, slug PageSlug). It becomes a conversation in Svar with a
@@ -10,7 +10,7 @@
     {
         <div class="k-card-title">Tak, @_sentTo! </div>
         <p>Jeg har fået din besked om <b>@_ydelse</b> og ringer til dig på @_tlf inden for to dage.</p>
-        @if (MailService.LooksLikeEmail(_email)) { <p>Du får en kvittering på <b>@_email</b> – og mit svar kommer også dertil.</p> }
+        @if (ChatRules.LooksLikeEmail(_email)) { <p>Du får en kvittering på <b>@_email</b> – og mit svar kommer også dertil.</p> }
         <button class="k-btn" @onclick="() => _sentTo = null">Send en til</button>
     }
     else

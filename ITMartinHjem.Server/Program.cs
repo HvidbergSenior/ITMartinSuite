@@ -1,4 +1,5 @@
 using ITMartinHjem.Application;
+using ITMartinHjem.Domain;
 using ITMartinHjem.Infrastructure;
 using System.Net;
 using System.Security.Claims;
@@ -6,12 +7,10 @@ using System.Security.Cryptography;
 using System.Text;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinHjem.Server;
-using ITMartinHjem.Server.Data;
 using ITMartinHjem.Server.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,36 +41,36 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 builder.Services.AddCors(o => o.AddPolicy("itmartin", p => p
     .WithOrigins("https://itmartin.dk", "https://www.itmartin.dk", "http://localhost:5199").WithMethods("GET")));
-// Visit counting: every app on *.itmartin.dk and *.bogshoppen.dk posts its page views here (Services/Tracker).
+// Visit counting: every app on *.itmartin.dk and *.bogshoppen.dk posts its page views here (Domain/VisitRules).
 builder.Services.AddCors(o => o.AddPolicy("track", p => p
     .SetIsOriginAllowed(origin => Uri.TryCreate(origin, UriKind.Absolute, out var u)
-        && Tracker.DomainOf(u.Host) is not null)
+        && VisitRules.DomainOf(u.Host) is not null)
     .WithMethods("POST").AllowAnyHeader()));
 builder.Services.AddCascadingAuthenticationState();
 
 var dataDir = builder.Configuration["Hjem:DataDir"] ?? "/app/data";
 Directory.CreateDirectory(dataDir);
-builder.Services.AddDbContextFactory<HjemDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "hjem.db")}"));
-// The layered part of Hjem (2026-10-12: public Q&A "Det spørger folk om"); same hjem.db.
+// All of Hjem is layered since 2026-10-20 (Domain / Application / Infrastructure); this project only has the pages and endpoints.
 builder.Services.AddHjemApplication();
-builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}", builder.Configuration["Hjem:StemApi"]);
+builder.Services.AddSingleton(new HjemOptions());
+builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}", new HjemInfraOptions
+{
+    DataDir = dataDir,
+    ClaudeApiKey = builder.Configuration["Claude:ApiKey"],
+    SmtpHost = builder.Configuration["Hjem:Smtp:Host"] ?? "send.one.com",
+    SmtpPort = builder.Configuration.GetValue("Hjem:Smtp:Port", 587),
+    SmtpUser = builder.Configuration["Hjem:Smtp:User"] ?? "info@itmartin.dk",
+    SmtpPassword = builder.Configuration["Hjem:Smtp:Password"],
+    SmtpReplyTo = builder.Configuration["Hjem:Smtp:ReplyTo"] ?? "ITMartin@Mensa.dk",
+    KigMedStatus = builder.Configuration["Hjem:KigMedStatus"] ?? "http://10.0.0.200:9144/api/status",
+    ElPriserSnapshot = builder.Configuration["Hjem:ElPriserSnapshot"] ?? "http://10.0.0.126:8120/api/snapshot?area=DK1&allIn=true",
+}, builder.Configuration["Hjem:StemApi"]);
 // The shop on bogshoppen.dk/varer (2026-10-15): stock + Køb nu live in Bogshoppen Lager on the photoserver.
 builder.Services.AddLagerShopGateway(builder.Configuration["Hjem:LagerApi"], builder.Configuration["Hjem:LagerShopKey"]);
 builder.Services.AddHjemShop(new ShopSeller(builder.Configuration["Hjem:ShopCompany"] ?? "", builder.Configuration["Hjem:ShopCvr"] ?? "",
     builder.Configuration["Hjem:ShopAddress"] ?? "", builder.Configuration["Hjem:ShopEmail"] ?? "ITMartin@Mensa.dk",
     builder.Configuration["Hjem:ShopPhone"] ?? "31 19 47 30"));
-builder.Services.AddSingleton<MediaStore>();
-builder.Services.AddSingleton<TextCheck>();   // AI proofreading of the owner's own text in Svar
-builder.Services.AddSingleton<PushService>();
-builder.Services.AddSingleton<MailService>();   // "Martin har svaret dig" mails to chat visitors
-builder.Services.AddSingleton<ChatService>();
-builder.Services.AddSingleton<IOwnerInbox, OwnerInbox>();   // "prøv gratis" requests land in the chat in Svar
 builder.Services.AddHostedService<ChatSweeper>();   // reply mails/notifications, kept in the DB
-builder.Services.AddHttpClient("status", c => c.Timeout = TimeSpan.FromSeconds(10))
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-builder.Services.AddSingleton<AppStatus>();
-builder.Services.AddSingleton<Tracker>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<AppStatus>());
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
@@ -98,24 +97,10 @@ fwd.KnownProxies.Clear();
 app.UseForwardedHeaders(fwd);
 app.MapKolibri();
 
-await using (var db = await app.Services.GetRequiredService<IDbContextFactory<HjemDb>>().CreateDbContextAsync())
-{
-    await db.Database.EnsureCreatedAsync();
-    await Schema.EnsureColumnsAsync(db);
-    await app.Services.UpgradeHjemTablesAsync();
-    await AppStatus.SeedAsync(db);
-    await app.Services.GetRequiredService<Tracker>().StartAsync();
-    if (!await db.Settings.AnyAsync())
-    {
-        db.Settings.Add(new Settings
-        {
-            Id = 1,
-            Intro = "Er du interesseret, viser og deler jeg gerne, hvad jeg laver, og mine tanker om produkterne.",
-            NowText = "Jeg bygger små apps, der hjælper folk med at gøre det rigtige over for store selskaber. Lige nu: MinElpris – så du kan se, om du betaler for meget for strømmen.",
-        });
-        await db.SaveChangesAsync();
-    }
-}
+await app.Services.UpgradeHjemTablesAsync();
+await app.Services.GetRequiredService<ISettingsRepository>().EnsureAsync(Settings.FirstRun());
+await app.Services.GetRequiredService<AppLinkUseCases>().SeedAsync();
+await app.Services.GetRequiredService<VisitUseCases>().StartAsync();
 
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
@@ -158,7 +143,7 @@ app.UseCors();
 app.Use(async (ctx, next) =>
 {
     // On bogshoppen.dk/tael-ikke-mig the cookie is for *.bogshoppen.dk (Lager) - a browser only takes its own domain.
-    if (ctx.Request.Path.Equals("/tael-ikke-mig", StringComparison.OrdinalIgnoreCase) && Tracker.DomainOf(ctx.Request.Host.Host) is { } domain)
+    if (ctx.Request.Path.Equals("/tael-ikke-mig", StringComparison.OrdinalIgnoreCase) && VisitRules.DomainOf(ctx.Request.Host.Host) is { } domain)
         ctx.Response.Cookies.Append("ikke_mig", "1", new CookieOptions
         {
             Domain = domain, Path = "/", MaxAge = TimeSpan.FromDays(400),
@@ -168,10 +153,9 @@ app.Use(async (ctx, next) =>
 });
 
 // ── Live "Lige nu" for itmartin.dk (wwwroot/widget.js reads this) ───────────────────
-app.MapGet("/api/nu", (IDbContextFactory<HjemDb> dbf) =>
+app.MapGet("/api/nu", async (SiteUseCases site) =>
 {
-    using var db = dbf.CreateDbContext();
-    var s = db.Settings.AsNoTracking().First();
+    var s = await site.SettingsAsync();
     var player = Embed.PlayerUrl(s.NowLink);
     var media = s.NowMediaName.Length == 0 ? null : new
     {
@@ -184,7 +168,7 @@ app.MapGet("/api/nu", (IDbContextFactory<HjemDb> dbf) =>
         name = s.Name,
         intro = s.Intro,
         html = TinyMarkdown.Render(s.NowText).Value,
-        updated = ITMartinHjem.Server.Services.Dk.Local(s.NowUpdated).ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK")),
+        updated = Dk.Local(s.NowUpdated).ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK")),
         available = s.Available,
         player,
         link = player is null && s.NowLink.Length > 0 ? s.NowLink : null,
@@ -195,31 +179,32 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-// ── Visit counting (Services/Tracker; numbers on /admin/tal). Apps: the old snippet to stats.itmartin.dk/api/hit.
+// ── Visit counting (Application/VisitUseCases; numbers on /admin/tal). Apps: the old snippet to stats.itmartin.dk/api/hit.
 // The website itself: wwwroot/t.js, which also sends the time on the page.
-app.MapPost("/api/hit", async (HttpContext ctx, HitRequest req, Tracker tracker) =>
-    await tracker.RecordAsync(ctx, req) is { } id ? Results.Json(new { id }) : Results.NoContent())
+app.MapPost("/api/hit", async (HttpContext ctx, HitRequest req, VisitUseCases visits) =>
+    await visits.RecordAsync(req, ctx.Request.Headers.UserAgent.ToString(), ClientIp(ctx), ctx.User.IsOwner()) is { } id
+        ? Results.Json(new { id }) : Results.NoContent())
     .DisableAntiforgery().RequireCors("track");
 
-app.MapPost("/api/hit/{id:long}/tid", async (long id, HttpContext ctx, Tracker tracker) =>
+app.MapPost("/api/hit/{id:long}/tid", async (long id, HttpContext ctx, VisitUseCases visits) =>
 {
     using var reader = new StreamReader(ctx.Request.Body);
-    if (int.TryParse((await reader.ReadToEndAsync()).Trim(), out var seconds)) await tracker.SetSecondsAsync(id, seconds);
+    if (int.TryParse((await reader.ReadToEndAsync()).Trim(), out var seconds)) await visits.SetSecondsAsync(id, seconds);
     return Results.NoContent();
 }).DisableAntiforgery().RequireCors("track");
 
 // itmartin.dk/tael-ikke-mig: this browser is Martin's - never count it, and remove its earlier visits (t.js sends the id).
 // Only the browser id is marked, never the IP: a mobile IP is shared with strangers.
 // The apps (kolibri.js) call it too, with their own browser id, when they see the ikke_mig cookie below.
-app.MapPost("/api/hit/mig", async (HitRequest req, Tracker tracker) => Results.Json(new { removed = await tracker.MarkOwnerVisitorAsync(req.VisitorId) }))
+app.MapPost("/api/hit/mig", async (HitRequest req, VisitUseCases visits) => Results.Json(new { removed = await visits.MarkOwnerVisitorAsync(req.VisitorId) }))
     .DisableAntiforgery().RequireCors("track");
 
-app.MapGet("/api/last-seen", async (Tracker tracker) => Results.Ok(await tracker.LastSeenAsync()));
+app.MapGet("/api/last-seen", async (VisitUseCases visits) => Results.Ok(await visits.LastSeenAsync()));
 
 // ── Login: one small form, two kinds (familie = password, ejer = PIN) ───────────────
 app.MapGet("/login", (string? who, string? err) => Results.Content(LoginPage(who == "ejer", err is not null), "text/html"));
 
-app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg, Tracker tracker) =>
+app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg, VisitUseCases visits) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     var owner = form["who"] == "ejer";
@@ -235,7 +220,7 @@ app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg, Tracker tracke
     await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
         new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
         new AuthenticationProperties { IsPersistent = true });
-    if (owner) await tracker.MarkOwnerAsync(ctx);   // Martin's own visits are not counted from this IP
+    if (owner) await visits.MarkOwnerIpAsync(ClientIp(ctx));   // Martin's own visits are not counted from this IP
     return Results.Redirect(owner ? "/admin" : "/");
 }).DisableAntiforgery();
 
@@ -246,18 +231,12 @@ app.MapGet("/logout", async (HttpContext ctx) =>
 });
 
 // ── "Lige nu" pictures/film (always public). The file name changes on every upload, so browsers may cache it.
-app.MapGet("/nu/{name}", (string name, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>
+app.MapGet("/nu/{name}", async (string name, HttpContext ctx, SiteUseCases site) =>
 {
-    using var db = dbf.CreateDbContext();
-    var s = db.Settings.AsNoTracking().First();
-    var photo = s.Entries().FirstOrDefault(p => p.Stored.Length > 0 && (p.Stored == name || p.Thumb == name));
-    if (name != s.NowMediaName && name != s.NowMediaThumb && photo is null) return Results.NotFound();
-    var path = store.PathFor(name);
-    if (!File.Exists(path)) return Results.NotFound();
+    if (await site.NowFileAsync(name) is not { } f) return Results.NotFound();
     // private: browsers may keep it, Cloudflare may not - a picture removed in Svar must disappear at once.
     ctx.Response.Headers.CacheControl = "private, max-age=86400";
-    var type = photo is not null || name == s.NowMediaThumb ? "image/jpeg" : s.NowMediaType;
-    return Results.File(path, type, enableRangeProcessing: true);
+    return Results.File(f.Path, f.ContentType, enableRangeProcessing: true);
 });
 
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
@@ -276,91 +255,64 @@ app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true))
 // Birthday day on the hand-made pages (wwwroot/nav.js draws the strip when this says on).
 app.MapGet("/api/fest", (IConfiguration config) => Results.Ok(new { on = ITMartinHjem.Server.Components.Fest.IsOn(config) }));
 
-app.MapGet("/api/menu", async (IDbContextFactory<HjemDb> dbf) =>
-{
-    await using var db = await dbf.CreateDbContextAsync();
-    var items = (await SiteMenu.BuildAsync(db)).Select(x => new { title = x.Title, href = x.Href });
-    return Results.Json(items);
-});
+app.MapGet("/api/menu", async (SiteUseCases site) =>
+    Results.Json((await site.MenuAsync()).Select(x => new { title = x.Title, href = x.Href })));
 
 // ── Kontrol ("🏠 På hjemmesiden") switches apps on/off on /mine-apps. Shared key Hjem__KontrolKey
 // in magic.env - both containers read the same file.
 bool KontrolKeyOk(HttpRequest req, IConfiguration cfg) =>
     cfg["Hjem:KontrolKey"] is { Length: > 10 } k && req.Headers["X-Hjem-Key"] == k;
 
-app.MapGet("/api/kontrol/apps", async (HttpRequest req, IConfiguration cfg, IDbContextFactory<HjemDb> dbf, AppStatus status) =>
+app.MapGet("/api/kontrol/apps", async (HttpRequest req, IConfiguration cfg, AppLinkUseCases apps) =>
 {
     if (!KontrolKeyOk(req, cfg)) return Results.Unauthorized();
-    await using var db = await dbf.CreateDbContextAsync();
-    var apps = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
-    return Results.Json(apps.Select(a => new { a.Id, a.Icon, a.Name, a.Url, a.Description, a.Show, a.Awake, up = status.IsUp(a.Url) }));
+    return Results.Json((await apps.AllWithStatusAsync())
+        .Select(x => new { x.Link.Id, x.Link.Icon, x.Link.Name, x.Link.Url, x.Link.Description, x.Link.Show, x.Link.Awake, up = x.Up }));
 });
 
-app.MapPost("/api/kontrol/apps/{id:int}/awake/{awake:bool}", async (int id, bool awake, HttpRequest req, IConfiguration cfg, IDbContextFactory<HjemDb> dbf) =>
-{
-    if (!KontrolKeyOk(req, cfg)) return Results.Unauthorized();
-    await using var db = await dbf.CreateDbContextAsync();
-    var n = await db.AppLinks.Where(a => a.Id == id).ExecuteUpdateAsync(x => x.SetProperty(a => a.Awake, awake));
-    return n == 1 ? Results.Ok() : Results.NotFound();
-}).DisableAntiforgery();
+app.MapPost("/api/kontrol/apps/{id:int}/awake/{awake:bool}", async (int id, bool awake, HttpRequest req, IConfiguration cfg, AppLinkUseCases apps) =>
+    !KontrolKeyOk(req, cfg) ? Results.Unauthorized() : await apps.SetAwakeAsync(id, awake) ? Results.Ok() : Results.NotFound())
+    .DisableAntiforgery();
 
-app.MapPost("/api/kontrol/apps/{id:int}/show/{show:bool}", async (int id, bool show, HttpRequest req, IConfiguration cfg, IDbContextFactory<HjemDb> dbf) =>
-{
-    if (!KontrolKeyOk(req, cfg)) return Results.Unauthorized();
-    await using var db = await dbf.CreateDbContextAsync();
-    var n = await db.AppLinks.Where(a => a.Id == id).ExecuteUpdateAsync(x => x.SetProperty(a => a.Show, show));
-    return n == 1 ? Results.Ok() : Results.NotFound();
-}).DisableAntiforgery();
+app.MapPost("/api/kontrol/apps/{id:int}/show/{show:bool}", async (int id, bool show, HttpRequest req, IConfiguration cfg, AppLinkUseCases apps) =>
+    !KontrolKeyOk(req, cfg) ? Results.Unauthorized() : await apps.SetShowAsync(id, show) ? Results.Ok() : Results.NotFound())
+    .DisableAntiforgery();
 
 // ── The pilot form (wwwroot/bliv-pilot/index.html posts to send.php, as it did on one.com).
 // Instead of a mail it becomes a conversation in Svar, with a push to Martin's phone.
-app.MapPost("/bliv-pilot/send.php", async (HttpContext ctx, ChatService chat) =>
+app.MapPost("/bliv-pilot/send.php", async (HttpContext ctx, ChatUseCases chat) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     string F(string k) => form[k].ToString().Trim();
     if (F("website").Length > 0) return Results.Redirect("/bliv-pilot");            // spam trap
     var (ydelse, navn, tlf, by, besked, email) = (F("ydelse"), F("navn"), F("telefon"), F("by"), F("besked"), F("email"));
     if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/bliv-pilot#pilot");
-    await chat.VisitorWritesAsync("pilot-" + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
-        $"🐦 Pilot-henvendelse: {ydelse}\nTelefon: {tlf}\nBy: {by}" + (email.Length > 0 ? $"\nE-mail: {email}" : "") + $"\n\n{besked}", email);
+    await chat.PilotRequestAsync(ydelse, navn, tlf, by, besked, email);
     Func<string?, string?> e = System.Net.WebUtility.HtmlEncode;
     return Results.Content($$"""
         <!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tak</title>
         <style>body{font:18px/1.5 system-ui,sans-serif;max-width:560px;margin:60px auto;padding:0 16px;color:#1d2a25}a{color:#1f7a5c}</style></head>
         <body><h1>Tak, {{e(navn)}}!</h1>
         <p>Jeg har fået din besked om <b>{{e(ydelse)}}</b> og ringer til dig på {{e(tlf)}} inden for to dage.</p>
-        {{(MailService.LooksLikeEmail(email) ? $"<p>Du får en kvittering på <b>{e(email)}</b> – og mit svar kommer også dertil.</p>" : "")}}
+        {{(ChatRules.LooksLikeEmail(email) ? $"<p>Du får en kvittering på <b>{e(email)}</b> – og mit svar kommer også dertil.</p>" : "")}}
         <p><a href="/bliv-pilot">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
         """, "text/html");
 }).DisableAntiforgery();
 
 // ── Pictures on the pages (Om mig …): only files that a page actually uses.
-app.MapGet("/f/{name}", async (string name, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>
+app.MapGet("/f/{name}", async (string name, HttpContext ctx, SiteUseCases site) =>
 {
-    name = Path.GetFileName(name);
-    await using var db = await dbf.CreateDbContextAsync();
-    if (!await db.Pages.AnyAsync(p => p.Body.Contains("/f/" + name))) return Results.NotFound();
-    var path = store.PathFor(name);
-    if (!File.Exists(path)) return Results.NotFound();
+    if (await site.PageFileAsync(name) is not { } f) return Results.NotFound();
     ctx.Response.Headers.CacheControl = "public, max-age=604800";
-    var type = Path.GetExtension(name).ToLowerInvariant() switch
-    {
-        ".png" => "image/png", ".mp4" => "video/mp4", ".webm" => "video/webm", ".mov" => "video/quicktime", _ => "image/jpeg",
-    };
-    return Results.File(path, type, enableRangeProcessing: true);
+    return Results.File(f.Path, f.ContentType, enableRangeProcessing: true);
 });
 
 // ── Media: family files only with the family cookie ─────────────────────────────────
-app.MapGet("/m/{id:int}/{size}", async (int id, string size, HttpContext ctx, IDbContextFactory<HjemDb> dbf, MediaStore store) =>
+app.MapGet("/m/{id:int}/{size}", async (int id, string size, HttpContext ctx, SiteUseCases site) =>
 {
-    await using var db = await dbf.CreateDbContextAsync();
-    var m = await db.Media.Include(x => x.Post).AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
-    if (m is null || (m.Post.Visibility == Visibility.Familie && !ctx.User.IsFamily())) return Results.NotFound();
-    var name = size == "t" && m.ThumbName is not null ? m.ThumbName : m.StoredName;
-    var path = store.PathFor(name);
-    if (!File.Exists(path)) return Results.NotFound();
-    ctx.Response.Headers.CacheControl = m.Post.Visibility == Visibility.Familie ? "private, max-age=86400" : "public, max-age=604800";
-    return Results.File(path, m.ContentType, size == "d" ? m.FileName : null, enableRangeProcessing: true);
+    if (await site.TimelineFileAsync(id, size, ctx.User.IsFamily()) is not { } f) return Results.NotFound();
+    ctx.Response.Headers.CacheControl = f.Private ? "private, max-age=86400" : "public, max-age=604800";
+    return Results.File(f.Path, f.ContentType, f.DownloadName, enableRangeProcessing: true);
 });
 
 // The owner's home-screen icon: opens straight on /admin (the front page keeps Kolibri's manifest).
@@ -378,24 +330,21 @@ app.MapGet("/admin.webmanifest", () => Results.Json(new
 }, contentType: "application/manifest+json"));
 
 // ── Push: only the owner subscribes (called from wwwroot/hjem.js) ───────────────────
-app.MapGet("/api/push/public-key", (PushService push) => Results.Text(push.PublicKey));
+app.MapGet("/api/push/public-key", (PushUseCases push) => Results.Text(push.PublicKey));
 
-app.MapPost("/api/push/subscribe", async (SubRequest req, HttpContext ctx, IDbContextFactory<HjemDb> dbf) =>
+app.MapPost("/api/push/subscribe", async (SubRequest req, HttpContext ctx, PushUseCases push) =>
 {
     if (!ctx.User.IsOwner()) return Results.Unauthorized();
-    await using var db = await dbf.CreateDbContextAsync();
-    if (!await db.PushSubs.AnyAsync(s => s.Endpoint == req.Endpoint))
-        db.PushSubs.Add(new PushSub { Endpoint = req.Endpoint, P256dh = req.P256dh, Auth = req.Auth });
-    await db.SaveChangesAsync();
+    await push.SubscribeOwnerAsync(req.Endpoint, req.P256dh, req.Auth);
     return Results.Ok();
 }).DisableAntiforgery();
 
 // A chat visitor asks for a browser notification when Martin answers (wwwroot/hjem.js visitorPush).
-app.MapPost("/api/push/visitor", async (VisitorSubRequest req, ChatService chat) =>
+app.MapPost("/api/push/visitor", async (VisitorSubRequest req, ChatUseCases chat) =>
     await chat.SetVisitorPushAsync(req.VisitorKey, req.Endpoint, req.P256dh, req.Auth) ? Results.Ok() : Results.BadRequest())
     .DisableAntiforgery();
 
-app.MapPost("/api/push/test", async (HttpContext ctx, PushService push) =>
+app.MapPost("/api/push/test", async (HttpContext ctx, PushUseCases push) =>
     ctx.User.IsOwner() ? Results.Ok(await push.SendToOwnerAsync("Martin Hvidberg", "Beskeder virker ✅ – her kommer spørgsmål fra din side.", "/admin")) : Results.Unauthorized())
     .DisableAntiforgery();
 
@@ -404,6 +353,10 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+// Behind the Cloudflare tunnel the visitor's IP is in CF-Connecting-IP.
+static string ClientIp(HttpContext ctx) =>
+    ctx.Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "";
 
 static bool SameText(string a, string b) =>
     CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(a), Encoding.UTF8.GetBytes(b));

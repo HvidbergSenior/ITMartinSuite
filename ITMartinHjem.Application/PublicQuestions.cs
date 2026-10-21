@@ -81,6 +81,16 @@ public static class DependencyInjection
         services.AddScoped<PublicQuestions>();
         services.AddScoped<SitePolls>();
         services.AddScoped<Customers>();
+        // The site itself (2026-10-20: everything moved out of the flat Server). Singletons: the repositories open a
+        // context per call, and ChatUseCases carries the live events between the visitor's and Martin's screens.
+        services.AddSingleton<PushUseCases>();
+        services.AddSingleton<ChatUseCases>();
+        services.AddSingleton<IOwnerInbox, ChatOwnerInbox>();   // "prøv gratis" requests land in the chat in Svar
+        services.AddSingleton<VisitUseCases>();
+        services.AddSingleton<SiteUseCases>();
+        services.AddSingleton<OwnerUseCases>();
+        services.AddSingleton<AppLinkUseCases>();
+        services.AddSingleton<NeighbourUseCases>();
         return services;
     }
 }

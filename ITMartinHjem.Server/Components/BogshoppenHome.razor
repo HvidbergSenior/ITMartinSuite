@@ -1,4 +1,4 @@
-@inject IDbContextFactory<HjemDb> Dbf
+@inject SiteUseCases Site
 
 @* bogshoppen.dk (user 2026-10-05): a small home page like ITMartin's - just the setup and a short text about the
    collaboration. Text = Svar -> Sider -> "bogshoppen-dk"; all news about the collaboration lives on the itmartin.dk tab. *@
@@ -48,8 +48,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _page = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == PageSlug);
-        _available = (await db.Settings.AsNoTracking().FirstAsync()).Available;
+        _page = await Site.PageBySlugAsync(PageSlug);
+        _available = (await Site.SettingsAsync()).Available;
     }
 }

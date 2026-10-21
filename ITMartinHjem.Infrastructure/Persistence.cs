@@ -74,8 +74,31 @@ public sealed class PublicQuestionStore(IDbContextFactory<HjemQuestionsDb> dbf) 
 public static class DependencyInjection
 {
     /// <param name="stemApi">Stem (poll-web) base address, reached over the NAS docker network.</param>
-    public static IServiceCollection AddHjemInfrastructure(this IServiceCollection services, string connectionString, string? stemApi = null)
+    public static IServiceCollection AddHjemInfrastructure(this IServiceCollection services, string connectionString, HjemInfraOptions options, string? stemApi = null)
     {
+        // The site itself (moved out of the flat Server 2026-10-20).
+        services.AddSingleton(options);
+        services.AddDbContextFactory<HjemDb>(o => o.UseSqlite(connectionString));
+        services.AddSingleton<ISettingsRepository, SettingsRepository>();
+        services.AddSingleton<IDayNoteRepository, DayNoteRepository>();
+        services.AddSingleton<IPageRepository, PageRepository>();
+        services.AddSingleton<IAppLinkRepository, AppLinkRepository>();
+        services.AddSingleton<IPostRepository, PostRepository>();
+        services.AddSingleton<IChatRepository, ChatRepository>();
+        services.AddSingleton<IPushSubscriptionRepository, PushSubscriptionRepository>();
+        services.AddSingleton<IHitRepository, HitRepository>();
+        services.AddSingleton<IMediaStore, MediaStore>();
+        services.AddSingleton<IPushSender, WebPushSender>();
+        services.AddSingleton<IMailSender, SmtpMailSender>();
+        services.AddSingleton<ITextChecker, ClaudeTextChecker>();   // AI proofreading of the owner's own text in Svar
+        services.AddSingleton<IVisitorHasher, SaltedHasher>();
+        services.AddSingleton<INeighbourApps, NeighbourApps>();
+        services.AddHttpClient(AppStatusChecker.Client, c => c.Timeout = TimeSpan.FromSeconds(10))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddSingleton<AppStatusChecker>();
+        services.AddSingleton<IAppStatus>(sp => sp.GetRequiredService<AppStatusChecker>());
+        services.AddHostedService(sp => sp.GetRequiredService<AppStatusChecker>());
+
         services.AddHttpClient<StemGateway>(c =>
         {
             c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(stemApi) ? "http://poll-web:8080" : stemApi);
@@ -88,9 +111,11 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>Adds the moved-out tables to hjem.db - once at start.</summary>
+    /// <summary>Creates hjem.db or adds the tables and columns that came later - once at start.</summary>
     public static async Task UpgradeHjemTablesAsync(this IServiceProvider services)
     {
+        await using (var site = await services.GetRequiredService<IDbContextFactory<HjemDb>>().CreateDbContextAsync())
+            await Schema.EnsureAsync(site);
         await using var db = await services.GetRequiredService<IDbContextFactory<HjemQuestionsDb>>().CreateDbContextAsync();
         await HjemQuestionsDb.EnsureTablesAsync(db);
     }

@@ -1,4 +1,4 @@
-namespace ITMartinHjem.Server.Services;
+namespace ITMartinHjem.Domain;
 
 // The container runs on UTC, so ToLocalTime()/DateTime.Today are UTC there - always show Danish time via this.
 public static class Dk

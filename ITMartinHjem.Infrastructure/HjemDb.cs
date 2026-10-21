@@ -1,10 +1,26 @@
-using ITMartinHjem.Server.Data;
+using ITMartinHjem.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinHjem.Server.Services;
+namespace ITMartinHjem.Infrastructure;
 
-// EnsureCreated never changes an existing database, so columns added later are put in here.
-public static class Schema
+// hjem.db - the site's own tables (moved out of the flat Server 2026-10-20; same file, same tables, conventions only).
+public sealed class HjemDb(DbContextOptions<HjemDb> options) : DbContext(options)
+{
+    public DbSet<Settings> Settings => Set<Settings>();
+    public DbSet<Post> Posts => Set<Post>();
+    public DbSet<Media> Media => Set<Media>();
+    public DbSet<ChatThread> Threads => Set<ChatThread>();
+    public DbSet<ChatMessage> Messages => Set<ChatMessage>();
+    public DbSet<PushSub> PushSubs => Set<PushSub>();
+    public DbSet<Page> Pages => Set<Page>();
+    public DbSet<AppLink> AppLinks => Set<AppLink>();
+    public DbSet<DayNote> DayNotes => Set<DayNote>();
+    public DbSet<Hit> Hits => Set<Hit>();
+    public DbSet<OwnerIp> OwnerIps => Set<OwnerIp>();
+}
+
+// EnsureCreated never changes an existing database, so tables and columns added later are put in here.
+internal static class Schema
 {
     private static readonly (string Table, string Column, string Sql)[] Added =
     [
@@ -23,8 +39,9 @@ public static class Schema
         ("AppLinks", "Picture", "TEXT NOT NULL DEFAULT ''"),
     ];
 
-    public static async Task EnsureColumnsAsync(HjemDb db)
+    public static async Task EnsureAsync(HjemDb db)
     {
+        await db.Database.EnsureCreatedAsync();
         var conn = db.Database.GetDbConnection();
         await conn.OpenAsync();
         await using (var create = conn.CreateCommand())

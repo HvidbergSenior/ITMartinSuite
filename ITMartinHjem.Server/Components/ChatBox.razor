@@ -1,5 +1,5 @@
 @implements IDisposable
-@inject ChatService Chat
+@inject ChatUseCases Chat
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -112,8 +112,8 @@
         if ((DateTime.UtcNow - _lastSend).TotalSeconds < 3) { _note = "Vent et øjeblik…"; return; }
         _busy = true;
         _lastSend = DateTime.UtcNow;
-        var hadEmail = _email.Trim().Length > 0 && !MailService.LooksLikeEmail(_email.Trim());
-        if (_thread is not null && MailService.LooksLikeEmail(_email.Trim())) await Chat.SetVisitorEmailAsync(_key, _email);
+        var hadEmail = _email.Trim().Length > 0 && !ChatRules.LooksLikeEmail(_email.Trim());
+        if (_thread is not null && ChatRules.LooksLikeEmail(_email.Trim())) await Chat.SetVisitorEmailAsync(_key, _email);
         await Chat.VisitorWritesAsync(_key, _name, _text, _email);
         _text = "";
         _thread = await Chat.GetAsync(_key);

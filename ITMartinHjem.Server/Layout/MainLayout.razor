@@ -1,5 +1,5 @@
 @inherits LayoutComponentBase
-@inject IDbContextFactory<HjemDb> Dbf
+@inject SiteUseCases Site
 @inject IConfiguration Config
 @inject NavigationManager Nav
 
@@ -43,8 +43,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _menu = await SiteMenu.BuildAsync(db);
+        _menu = await Site.MenuAsync();
         _bs = BogshoppenHome.IsHost(new Uri(Nav.Uri).Host);
         _fest = Fest.IsOn(Config) && !Nav.ToBaseRelativePath(Nav.Uri).StartsWith("admin", StringComparison.OrdinalIgnoreCase);
     }

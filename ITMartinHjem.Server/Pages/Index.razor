@@ -1,7 +1,7 @@
 @page "/"
 @implements IDisposable
-@inject IDbContextFactory<HjemDb> Dbf
-@inject ChatService Chat
+@inject SiteUseCases Site
+@inject ChatUseCases Chat
 @inject NavigationManager Nav
 
 @* First screen = one answer: who I am and what I am doing now. The timeline and the
@@ -156,7 +156,7 @@ else if (_family && !_owner)
     private List<Post> _posts = [];
     private int _hiddenFamily;
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
-    public const string CollabSlug = "foelg-samarbejdet";
+    public const string CollabSlug = PageRules.Collab;
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
 
@@ -228,13 +228,8 @@ else if (_family && !_owner)
 
     private async Task LoadAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _s = await db.Settings.AsNoTracking().FirstAsync();
-        _hero = await db.Pages.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == "forside");
-        var q = db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking();
-        if (!_family) q = q.Where(p => p.Visibility == Visibility.Offentlig);
-        _posts = await q.OrderByDescending(p => p.At).ToListAsync();
-        _hiddenFamily = _family ? 0 : await db.Posts.CountAsync(p => p.Visibility == Visibility.Familie);
+        var front = await Site.FrontAsync(_family);
+        (_s, _hero, _posts, _hiddenFamily) = (front.Settings, front.Hero, front.Posts, front.HiddenFamily);
     }
 
     private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });

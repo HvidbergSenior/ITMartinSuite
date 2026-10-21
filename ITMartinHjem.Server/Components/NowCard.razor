@@ -1,4 +1,4 @@
-@inject IDbContextFactory<HjemDb> Dbf
+@inject SiteUseCases Site
 
 @* Martin's "Lige nu" (text + picture/film/stream, edited in Svar -> 📌 Lige nu). Shown at the top of the
    "Hvad laver ITKolibrien lige nu?" tab - SitePage puts it there for slug NowCard.PageSlug. *@
@@ -65,7 +65,7 @@ else if (_s is not null)
 }
 
 @code {
-    public const string PageSlug = "hvad-laver-itkolibrien";
+    public const string PageSlug = PageRules.Today;
     // Front page (user 2026-10-05 "a bit too much info"): only today - no fixed Lige nu text/media, no earlier days.
     [Parameter] public bool Compact { get; set; }
     private static readonly CultureInfo Da = new("da-DK");
@@ -117,10 +117,8 @@ else if (_s is not null)
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _s = await db.Settings.AsNoTracking().FirstAsync();
-        _notes = (await db.DayNotes.AsNoTracking().ToListAsync())
-            .Where(n => (n.Plan.Length > 0 || n.Done.Length > 0) && DateTime.TryParse(n.Day, out _))
-            .ToDictionary(n => DateTime.Parse(n.Day), n => n);
+        var today = await Site.TodayAsync();
+        _s = today.Settings;
+        _notes = today.Notes;
     }
 }

@@ -1,6 +1,6 @@
 @page "/mine-apps"
-@inject IDbContextFactory<HjemDb> Dbf
-@inject AppStatus Status
+@inject SiteUseCases Site
+@inject AppLinkUseCases Apps
 @inject IJSRuntime JS
 
 <PageTitle>Mine apps · Martin Hvidberg</PageTitle>
@@ -83,7 +83,7 @@
         // Asleep unless Martin has woken it (Kontrol / Svar) AND the container answers.
         // No address = a showcase only (Polstrer, user 2026-10-08: "close polstrer for other users"): shown, never opened.
         var showcase = a.Url.Length == 0;
-        var up = a.Awake && (showcase || Status.IsUp(a.Url) != false);   // a showcase sleeps too when Martin says so
+        var up = a.Awake && (showcase || Apps.IsUp(a.Url) != false);   // a showcase sleeps too when Martin says so
         @* Every app is a show/hide box: closed shows only icon + name (user 2026-10-05: "way too much text in one go"). *@
         var target = string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase);
         @* ?app=Name (the front-page tiles): that card starts open, so the example picture shows. *@
@@ -125,7 +125,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _apps = await db.AppLinks.AsNoTracking().Where(a => a.Show).OrderBy(a => a.Sort).ToListAsync();
+        _apps = await Site.ShownAppsAsync();
     }
 }

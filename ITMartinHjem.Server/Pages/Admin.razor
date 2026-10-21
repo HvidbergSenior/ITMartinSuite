@@ -1,9 +1,7 @@
 @page "/admin"
 @implements IDisposable
-@inject IDbContextFactory<HjemDb> Dbf
-@inject ChatService Chat
-@inject MediaStore Store
-@inject TextCheck Checker
+@inject OwnerUseCases Owner
+@inject ChatUseCases Chat
 @inject PublicQuestions Questions
 @inject IJSRuntime JS
 @inject NavigationManager Nav
@@ -351,14 +349,13 @@ else if (_review is { } rv)
     private bool _dateTouched;
     private readonly List<Media> _removed = [];
 
-    private static Post NewDraft() => new() { At = Dk.Today };
+    private static Post NewDraft() => Post.Draft();
 
     protected override async Task OnInitializedAsync()
     {
         _owner = (AuthTask is null ? null : (await AuthTask).User).IsOwner();
         if (!_owner) return;
-        await using (var db = await Dbf.CreateDbContextAsync())
-            _s = await db.Settings.FirstAsync();
+        _s = await Owner.SettingsAsync();
         await LoadThreadsAsync();
         await LoadQaAsync();
         await LoadPostsAsync();
@@ -374,7 +371,7 @@ else if (_review is { } rv)
     private Timer? _dayTimer;
     private async Task NewDayCheckAsync()
     {
-        if (_today.Day == DkNow().ToString("yyyy-MM-dd") || _checking || _review is not null) return;
+        if (_today.Day == DayNote.Key(Dk.Now) || _checking || _review is not null) return;
         await LoadTodayAsync();
         _todayNote = "🌅 Ny dag – skriv dagens plan";
         StateHasChanged();
@@ -390,9 +387,7 @@ else if (_review is { } rv)
     // ── availability + texts ──
     private async Task ToggleAvailableAsync(ChangeEventArgs e)
     {
-        _s.Available = e.Value is true;
-        await SaveSettingsCoreAsync();
-        Chat.RaiseAvailability();
+        await Owner.SetAvailableAsync(_s, e.Value is true);
     }
 
     private string _nowNote = "";
@@ -403,56 +398,43 @@ else if (_review is { } rv)
         StateHasChanged();
         try
         {
-            await using var stream = e.File.OpenReadStream(MediaStore.MaxBytes);
-            var saved = await Store.SaveAsync(stream, e.File.Name, e.File.ContentType);
-            DeleteNowFiles();
-            _s.NowMediaName = saved.Media.StoredName;
-            _s.NowMediaThumb = saved.Media.ThumbName ?? "";
-            _s.NowMediaType = saved.Media.ContentType;
-            await SaveSettingsAsync();
+            await using var stream = e.File.OpenReadStream(OwnerUseCases.MaxUploadBytes);
+            var saved = await Owner.UploadAsync(stream, e.File.Name, e.File.ContentType);
+            await Owner.SetNowMediaAsync(_s, saved.Media);
+            _savedNote = "Gemt ✓";
             _nowNote = "Lagt på forsiden ✓";
         }
         catch (Exception ex) { _nowNote = $"Det lykkedes ikke: {ex.Message}"; }
     }
 
     private string _dayText = "", _dayNote = "";
-    private const int MaxDayEntries = 300;   // about a month of days; the oldest go (files too)
 
     private DayNote _today = new();
     private string _todayNote = "";
 
     private async Task LoadTodayAsync()
     {
-        var day = DkNow().ToString("yyyy-MM-dd");
-        await using var db = await Dbf.CreateDbContextAsync();
-        _today = await db.DayNotes.AsNoTracking().FirstOrDefaultAsync(d => d.Day == day) ?? new DayNote { Day = day };
+        _today = await Owner.TodayAsync();
         Approve(_today.Plan, _today.Done, _s.NowText, _s.Intro);
     }
 
     private async Task SaveTodayAsync()
     {
-        _today.Plan = await ReviewAsync(_today.Plan, TextCheck.Kind.Liste);
-        _today.Done = await ReviewAsync(_today.Done, TextCheck.Kind.Liste);
-        var day = DkNow().ToString("yyyy-MM-dd");
-        if (_today.Day != day)   // Svar left open past midnight: yesterday's text stays on yesterday, today starts empty
+        _today.Plan = await ReviewAsync(_today.Plan, TextKind.Liste);
+        _today.Done = await ReviewAsync(_today.Done, TextKind.Liste);
+        if (await Owner.SaveTodayAsync(_today) is not { } saved)   // Svar left open past midnight: yesterday's text stays on yesterday
         {
             await LoadTodayAsync();
             _todayNote = "🌅 Det var gårsdagens tekst – nu er det en ny dag. Skriv dagens plan.";
             return;
         }
-        await using var db = await Dbf.CreateDbContextAsync();
-        var row = await db.DayNotes.FirstOrDefaultAsync(d => d.Day == day);
-        if (row is null) db.DayNotes.Add(row = new DayNote { Day = day });
-        row.Plan = _today.Plan.Trim();
-        row.Done = _today.Done.Trim();
-        await db.SaveChangesAsync();
-        _today = row;
+        _today = saved;
         _todayNote = "Gemt ✓";
     }
 
     // ── AI proofreading: one check per save; the owner picks the suggestion or keeps his own text.
     private bool _checking;
-    private TextCheck.Result? _review;
+    private TextReview? _review;
     private string _reviewOriginal = "";
     private TaskCompletionSource<string>? _reviewTcs;
     private readonly HashSet<string> _approved = [];   // text already checked or already on the site - not sent to AI again
@@ -465,17 +447,17 @@ else if (_review is { } rv)
     // "Gem" under the fixed Lige nu text and intro (SaveSettingsAsync itself is also used by picture saves - no check there).
     private async Task SaveNowTextAsync()
     {
-        _s.NowText = await ReviewAsync(_s.NowText, TextCheck.Kind.Opslag);
-        _s.Intro = await ReviewAsync(_s.Intro, TextCheck.Kind.Linje);
+        _s.NowText = await ReviewAsync(_s.NowText, TextKind.Opslag);
+        _s.Intro = await ReviewAsync(_s.Intro, TextKind.Linje);
         await SaveSettingsAsync();
     }
 
-    private async Task<string> ReviewAsync(string text, TextCheck.Kind kind)
+    private async Task<string> ReviewAsync(string text, TextKind kind)
     {
         if (string.IsNullOrWhiteSpace(text) || _approved.Contains(text.Trim())) return text;
         _checking = true;
         StateHasChanged();
-        var r = await Checker.CheckAsync(text, kind);
+        var r = await Owner.CheckTextAsync(text, kind);
         _checking = false;
         if (r is null || (!r.Changed && r.Notes.Count == 0)) { StateHasChanged(); Approve(text); return text.Trim(); }
         _review = r;
@@ -490,14 +472,14 @@ else if (_review is { } rv)
         return chosen;
     }
 
-    private static DateTime DkNow() => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen");
+    private static DateTime DkNow() => Dk.Now;
 
     // Pictures for "Min dag": saved at once (no "Gem"), the typed line goes with the first picture.
     private async Task OnDayPhotosAsync(InputFileChangeEventArgs e)
     {
         var files = e.GetMultipleFiles(30);
         var entries = _s.Entries();
-        var text = await ReviewAsync(_dayText, TextCheck.Kind.Linje);
+        var text = await ReviewAsync(_dayText, TextKind.Linje);
         var added = 0;
         foreach (var f in files)
         {
@@ -505,9 +487,9 @@ else if (_review is { } rv)
             StateHasChanged();
             try
             {
-                await using var stream = f.OpenReadStream(MediaStore.MaxBytes);
-                var saved = await Store.SaveAsync(stream, f.Name, f.ContentType);
-                if (saved.Media.ThumbName is null) { Store.Delete(saved.Media); continue; }   // not a picture
+                await using var stream = f.OpenReadStream(OwnerUseCases.MaxUploadBytes);
+                var saved = await Owner.UploadAsync(stream, f.Name, f.ContentType);
+                if (saved.Media.ThumbName is null) { Owner.DeleteFile(saved.Media); continue; }   // not a picture
                 // A picture taken earlier today keeps its own time (EXIF is already local time); otherwise now.
                 var at = saved.TakenAt is { } t && t.Date == DkNow().Date ? t : DkNow();
                 entries.Add(new Settings.DayEntry(saved.Media.StoredName, saved.Media.ThumbName, at, added == 0 ? text : ""));
@@ -524,7 +506,7 @@ else if (_review is { } rv)
     private async Task AddDayTextAsync()
     {
         var entries = _s.Entries();
-        var text = await ReviewAsync(_dayText, TextCheck.Kind.Linje);
+        var text = await ReviewAsync(_dayText, TextKind.Linje);
         entries.Add(new Settings.DayEntry("", "", DkNow(), text));
         await SaveEntriesAsync(entries);
         _dayText = "";
@@ -533,47 +515,28 @@ else if (_review is { } rv)
 
     private async Task RemoveDayEntryAsync(Settings.DayEntry e)
     {
-        if (e.Stored.Length > 0) Store.Delete(new Media { StoredName = e.Stored, ThumbName = e.Thumb });
-        await SaveEntriesAsync(_s.Entries().Where(x => x != e).ToList());
+        await Owner.RemoveDayEntryAsync(_s, e);
+        _savedNote = "Gemt ✓";
         _dayNote = "Fjernet ✓";
     }
 
     private async Task SaveEntriesAsync(List<Settings.DayEntry> entries)
     {
-        entries = entries.OrderByDescending(x => x.At).ToList();
-        foreach (var old in entries.Skip(MaxDayEntries).Where(x => x.Stored.Length > 0))
-            Store.Delete(new Media { StoredName = old.Stored, ThumbName = old.Thumb });
-        _s.SetEntries(entries.Take(MaxDayEntries));
-        await SaveSettingsAsync();
+        await Owner.SaveDayEntriesAsync(_s, entries);
+        _savedNote = "Gemt ✓";
     }
 
     private async Task RemoveNowMedia()
     {
-        DeleteNowFiles();
-        _s.NowMediaName = _s.NowMediaThumb = _s.NowMediaType = "";
-        await SaveSettingsAsync();
+        await Owner.RemoveNowMediaAsync(_s);
+        _savedNote = "Gemt ✓";
         _nowNote = "Fjernet ✓";
-    }
-
-    private void DeleteNowFiles()
-    {
-        if (_s.NowMediaName.Length > 0)
-            Store.Delete(new Media { StoredName = _s.NowMediaName, ThumbName = _s.NowMediaThumb });
     }
 
     private async Task SaveSettingsAsync()
     {
-        _s.NowUpdated = DateTime.UtcNow;
-        await SaveSettingsCoreAsync();
-        Chat.RaiseAvailability();
+        await Owner.SaveSettingsAsync(_s);
         _savedNote = "Gemt ✓";
-    }
-
-    private async Task SaveSettingsCoreAsync()
-    {
-        await using var db = await Dbf.CreateDbContextAsync();
-        db.Settings.Update(_s);
-        await db.SaveChangesAsync();
     }
 
     // ── chat ──
@@ -604,7 +567,7 @@ else if (_review is { } rv)
 
     private async Task ReplyAsync()
     {
-        _reply = await ReviewAsync(_reply, TextCheck.Kind.Chat);
+        _reply = await ReviewAsync(_reply, TextKind.Chat);
         if (_reply.Trim().Length == 0) return;
         await Chat.OwnerWritesAsync(_openId, _reply);
         _reply = "";
@@ -682,8 +645,7 @@ else if (_review is { } rv)
     // ── posts ──
     private async Task LoadPostsAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _posts = await db.Posts.Include(p => p.Media).AsNoTracking().OrderByDescending(p => p.At).ToListAsync();
+        _posts = await Owner.PostsAsync();
     }
 
     private void OnDate(ChangeEventArgs e)
@@ -703,8 +665,8 @@ else if (_review is { } rv)
             StateHasChanged();
             try
             {
-                await using var s = f.OpenReadStream(MediaStore.MaxBytes);
-                var saved = await Store.SaveAsync(s, f.Name, f.ContentType);
+                await using var s = f.OpenReadStream(OwnerUseCases.MaxUploadBytes);
+                var saved = await Owner.UploadAsync(s, f.Name, f.ContentType);
                 saved.Media.Sort = _edit.Media.Count;
                 _edit.Media.Add(saved.Media);
                 if (!_dateTouched && _edit.Id == 0 && saved.TakenAt is { } t) { _edit.At = t.Date; _dateTouched = true; }
@@ -723,22 +685,10 @@ else if (_review is { } rv)
 
     private async Task SavePostAsync()
     {
-        _edit.Title = await ReviewAsync(_edit.Title, TextCheck.Kind.Linje);
-        _edit.Body = await ReviewAsync(_edit.Body, TextCheck.Kind.Opslag);
-        await using var db = await Dbf.CreateDbContextAsync();
-        if (_edit.Id == 0)
-        {
-            db.Posts.Add(_edit);
-        }
-        else
-        {
-            var p = await db.Posts.Include(x => x.Media).FirstAsync(x => x.Id == _edit.Id);
-            p.Title = _edit.Title; p.Body = _edit.Body; p.At = _edit.At; p.Visibility = _edit.Visibility;
-            foreach (var gone in p.Media.Where(m => _removed.Any(r => r.Id == m.Id)).ToList()) { p.Media.Remove(gone); db.Media.Remove(gone); }
-            foreach (var added in _edit.Media.Where(m => m.Id == 0)) p.Media.Add(added);
-        }
-        await db.SaveChangesAsync();
-        foreach (var r in _removed) Store.Delete(r);
+        _edit.Title = await ReviewAsync(_edit.Title, TextKind.Linje);
+        _edit.Body = await ReviewAsync(_edit.Body, TextKind.Opslag);
+        await Owner.SavePostAsync(_edit, _removed);
+        _edit = NewDraft(); _removed.Clear();   // saved: its files stay
         NewPost();
         await LoadPostsAsync();
         _uploadNote = "Lagt på siden ✓";
@@ -747,15 +697,15 @@ else if (_review is { } rv)
     private void NewPost()
     {
         // Files uploaded to a draft that was never saved: throw them away again.
-        foreach (var m in _edit.Media.Where(m => m.Id == 0)) Store.Delete(m);
+        Owner.DropDraft(_edit);
         _edit = NewDraft(); _removed.Clear(); _dateTouched = false; _uploadNote = "";
     }
 
     private async Task EditAsync(int id)
     {
         NewPost();
-        await using var db = await Dbf.CreateDbContextAsync();
-        _edit = await db.Posts.Include(p => p.Media.OrderBy(m => m.Sort)).AsNoTracking().FirstAsync(p => p.Id == id);
+        if (await Owner.PostAsync(id) is not { } post) return;
+        _edit = post;
         Approve(_edit.Title, _edit.Body);
         _dateTouched = true;
         Nav.NavigateTo("/admin#opslag");
@@ -763,11 +713,7 @@ else if (_review is { } rv)
 
     private async Task DeletePostAsync(int id)
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        var p = await db.Posts.Include(x => x.Media).FirstAsync(x => x.Id == id);
-        foreach (var m in p.Media) Store.Delete(m);
-        db.Posts.Remove(p);
-        await db.SaveChangesAsync();
+        await Owner.DeletePostAsync(id);
         _confirmDeletePost = 0;
         await LoadPostsAsync();
     }
@@ -782,8 +728,7 @@ else if (_review is { } rv)
 
     private async Task LoadPagesAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _pages = await db.Pages.AsNoTracking().OrderBy(p => p.Slug).ToListAsync();
+        _pages = await Owner.PagesAsync();
     }
 
     private void NewPage() { _pageEdit = new Page { Sort = 50 }; _pageNote = ""; _confirmDeletePage = false; }
@@ -800,8 +745,8 @@ else if (_review is { } rv)
         if (_pageEdit is null) return;
         try
         {
-            await using var s = e.File.OpenReadStream(MediaStore.MaxBytes);
-            var saved = await Store.SaveAsync(s, e.File.Name, e.File.ContentType);
+            await using var s = e.File.OpenReadStream(OwnerUseCases.MaxUploadBytes);
+            var saved = await Owner.UploadAsync(s, e.File.Name, e.File.ContentType);
             // Always a date under the picture (user's wish): from the photo itself, else today.
             var caption = "📅 " + (saved.TakenAt ?? Dk.Today).ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK"));
             _pageEdit.Body = _pageEdit.Body.TrimEnd() + $"\n\n![{caption}](/f/{saved.Media.StoredName})\n";
@@ -813,19 +758,9 @@ else if (_review is { } rv)
     private async Task SavePageAsync()
     {
         if (_pageEdit is null) return;
-        _pageEdit.Title = await ReviewAsync(_pageEdit.Title, TextCheck.Kind.Linje);
-        _pageEdit.Body = await ReviewAsync(_pageEdit.Body, TextCheck.Kind.Opslag);
-        var slug = System.Text.RegularExpressions.Regex.Replace(_pageEdit.Slug.Trim().Trim('/').ToLowerInvariant(), @"[^a-z0-9æøå/\-]", "-");
-        if (slug.Length == 0 || _pageEdit.Title.Trim().Length == 0) { _pageNote = "Siden skal have en titel og en adresse."; return; }
-        if (slug is "admin" or "chat" or "login" or "logout" or "api" or "m" or "f" or "nu" || slug.StartsWith("api/") || slug.StartsWith("kolibri"))
-        { _pageNote = $"Adressen \"{slug}\" bruges af appen selv – vælg en anden."; return; }
-        await using var db = await Dbf.CreateDbContextAsync();
-        if (await db.Pages.AnyAsync(p => p.Slug == slug && p.Id != _pageEdit.Id)) { _pageNote = "Der findes allerede en side med den adresse."; return; }
-        var page = _pageEdit.Id == 0 ? db.Pages.Add(new Page()).Entity : await db.Pages.FirstAsync(p => p.Id == _pageEdit.Id);
-        page.Slug = slug; page.Title = _pageEdit.Title.Trim(); page.Body = _pageEdit.Body; page.InMenu = _pageEdit.InMenu; page.Sort = _pageEdit.Sort;
-        page.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
-        _pageEdit.Id = page.Id; _pageEdit.Slug = slug;
+        _pageEdit.Title = await ReviewAsync(_pageEdit.Title, TextKind.Linje);
+        _pageEdit.Body = await ReviewAsync(_pageEdit.Body, TextKind.Opslag);
+        if (await Owner.SavePageAsync(_pageEdit) is { } error) { _pageNote = error; return; }
         _pageNote = "Gemt ✓";
         await LoadPagesAsync();
     }
@@ -833,8 +768,7 @@ else if (_review is { } rv)
     private async Task DeletePageAsync()
     {
         if (_pageEdit is null) return;
-        await using var db = await Dbf.CreateDbContextAsync();
-        await db.Pages.Where(p => p.Id == _pageEdit.Id).ExecuteDeleteAsync();
+        await Owner.DeletePageAsync(_pageEdit.Id);
         _pageEdit = null;
         await LoadPagesAsync();
     }
@@ -845,8 +779,7 @@ else if (_review is { } rv)
 
     private async Task LoadAppsAsync()
     {
-        await using var db = await Dbf.CreateDbContextAsync();
-        _appLinks = await db.AppLinks.AsNoTracking().OrderBy(a => a.Sort).ToListAsync();
+        _appLinks = await Owner.AppsAsync();
         Approve(_appLinks.SelectMany(a => new[] { a.Description, a.FreeText, a.PaidText }).ToArray());
     }
 
@@ -856,16 +789,11 @@ else if (_review is { } rv)
     {
         foreach (var a in _appLinks)
         {
-            a.Description = await ReviewAsync(a.Description, TextCheck.Kind.Linje);
-            a.FreeText = await ReviewAsync(a.FreeText, TextCheck.Kind.Linje);
-            a.PaidText = await ReviewAsync(a.PaidText, TextCheck.Kind.Linje);
+            a.Description = await ReviewAsync(a.Description, TextKind.Linje);
+            a.FreeText = await ReviewAsync(a.FreeText, TextKind.Linje);
+            a.PaidText = await ReviewAsync(a.PaidText, TextKind.Linje);
         }
-        await using var db = await Dbf.CreateDbContextAsync();
-        foreach (var a in _appLinks.Where(a => a.Name.Trim().Length > 0 && a.Url.StartsWith("http")))
-        {
-            if (a.Id == 0) db.AppLinks.Add(a); else db.AppLinks.Update(a);
-        }
-        await db.SaveChangesAsync();
+        await Owner.SaveAppsAsync(_appLinks);
         await LoadAppsAsync();
         _appsNote = "Gemt ✓ (en ny app får sin status inden for 2 minutter)";
     }
