@@ -1,6 +1,16 @@
 <!DOCTYPE html>
-<html lang="da" data-family="idag">
+@* The shared Kolibri look like the apps (user 2026-10-21: the homepage in the apps' orange-red too); the old "idag" theme
+   is no longer used. bogshoppen.dk keeps its own shop look (.bs-site) and stays light. *@
+<html lang="da" data-family="puls">
 <head>
+    <script>
+        // Dark or light like the apps: what the visitor chose with Lys/Mørk, else the phone's setting - before the first paint.
+        (function () {
+            if (/bogshoppen\.dk$/.test(location.hostname)) return;
+            var t = localStorage.getItem('itmartin_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     @* bogshoppen.dk is served by this app too: its own tab title and description, so a shared link
@@ -40,6 +50,25 @@
     <script src="_framework/blazor.server.js"></script>
     @* sw.js = the Kolibri installability worker plus push handling for the owner's chat alerts. *@
     <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(function(){});}</script>
+    <script>
+    // The Lys/Mørk button in the menu (Blazor renders it again, so the click is caught on the document).
+    (function () {
+        function sync() {
+            var btn = document.getElementById('themeToggleBtn');
+            var label = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'Mørk' : 'Lys';
+            if (btn && btn.textContent !== label) btn.textContent = label;
+        }
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
+            var next = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('itmartin_theme', next);
+            sync();
+        });
+        new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
+        sync();
+    })();
+    </script>
     <div id="components-reconnect-modal">
         <span class="reconnect-msg">Forbinder igen…</span>
         <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>

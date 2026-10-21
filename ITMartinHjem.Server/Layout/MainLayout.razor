@@ -10,6 +10,8 @@
 @* The site menu - order and contents come from SiteMenu (pages marked "Vis i menuen" in Svar). *@
 <nav class="hj-nav">
     @foreach (var i in _menu) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href">@i.Title</a> }
+    @* Light/dark like the apps (App.razor's script listens for clicks on it). *@
+    <button id="themeToggleBtn" class="hj-nav-theme" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
 </nav>
 }
 else
