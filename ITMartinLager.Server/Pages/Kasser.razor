@@ -13,6 +13,7 @@
         <input class="k-input" @bind="_place" placeholder="Hvor står den? (fx Garagen, reol 2)" />
         <button class="k-btn k-btn-primary" @onclick="New">➕ Ny kasse</button>
     </div>
+    <p><a class="k-btn k-btn-secondary" href="/kasser/labels" target="_blank">🏷️ Print labels til mange kasser</a></p>
     <p class="k-small"><a href="/api/eksport.csv">⬇️ Hent hele lageret som regneark (CSV)</a></p>
     <p class="k-small"><a href="/api/varefotos.zip" download>⬇️ Hent alle varefotos (zip)</a> – en mappe pr. kasse, hvert billede hedder som varen. Kun varer, der har fået et billede med 'Tag billede af varen'.</p>
 </section>

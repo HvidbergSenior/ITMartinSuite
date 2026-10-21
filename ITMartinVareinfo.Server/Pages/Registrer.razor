@@ -18,7 +18,19 @@ else if (_box is null)
 {
     <section class="k-card">
         <h1 class="k-card-title">📦 Hvilken kasse?</h1>
-        <p>Hej @Me.Name. Skriv det nummer, der står på kassen, og tryk <b>Start kassen</b>. Står der ikke noget nummer, så spørg Martin.</p>
+        <p>Hej @Me.Name. Har kassen en label med QR-kode, så tryk <b>Scan kassens label</b> og hold kameraet foran QR-koden. Ellers skriv det nummer, der står på kassen, og tryk <b>Start kassen</b>. Står der ikke noget nummer, så spørg Martin.</p>
+        @if (!_scanningLabel)
+        {
+            <button type="button" class="k-btn k-btn-primary lg-big" @onclick="StartLabelScan" disabled="@_busy">▣ Scan kassens label</button>
+        }
+        else
+        {
+            <div class="lg-scan">
+                <video id="label-video" muted playsinline></video>
+                <p class="lg-answer" role="status">Hold kameraet foran QR-koden på kassens label …</p>
+                <button type="button" class="k-btn k-btn-secondary" @onclick="StopLabelScan">Annullér – jeg skriver nummeret</button>
+            </div>
+        }
         <form class="lg-row" @onsubmit="Take">
             <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@BoxClaim.MaxNumber" placeholder="Kassens nr." @bind="_number" aria-label="Kassens nummer" />
             <button class="k-btn k-btn-primary lg-big" type="submit" disabled="@_busy">Start kassen</button>
@@ -167,6 +179,40 @@ else
         catch (Exception ex) { _error = ex.Message; }
     }
 
+    // ── The box label (Lager prints it: number + QR to /kasse/K0007). Scanning it = typing the number, without typos.
+    private bool _scanningLabel;
+
+    private async Task StartLabelScan()
+    {
+        _error = null; _saved = null;
+        _scanningLabel = true;
+        StateHasChanged();
+        _ref ??= DotNetObjectReference.Create(this);
+        try { await JS.InvokeVoidAsync("scanner.start", _ref, new { qr = true, videoId = "label-video" }); }
+        catch (Exception ex) { _scanningLabel = false; _error = "Kameraet kunne ikke startes: " + ex.Message + " Skriv nummeret i stedet."; }
+    }
+
+    private async Task StopLabelScan()
+    {
+        _scanningLabel = false;
+        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
+    }
+
+    // Called by scanner.js with the first QR code it sees.
+    [JSInvokable]
+    public async Task OnQr(string raw)
+    {
+        _scanningLabel = false;
+        if (BoxCodes.FromLabel(raw) is var n and > 0)
+        {
+            _number = n;
+            _ = JS.InvokeVoidAsync("scanner.beep");
+            await Take();
+        }
+        else _error = "Det var ikke en kasse-label fra Bogshoppen. Prøv igen, eller skriv nummeret på kassen.";
+        StateHasChanged();
+    }
+
     private async Task StartScan()
     {
         _error = null;
@@ -214,7 +260,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        _scanning = false;
+        _scanning = _scanningLabel = false;
         try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
         try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }
         _ref?.Dispose();

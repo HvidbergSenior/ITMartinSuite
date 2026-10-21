@@ -1,19 +1,22 @@
 // Camera barcode reader (copied from Bibliotek, 2026-10-05). Uses the browser's own
 // BarcodeDetector (Android Chrome) and falls back to ZXing loaded on
-// demand elsewhere (iOS Safari, desktop). Reports the first EAN/UPC seen.
+// demand elsewhere (iOS Safari, desktop). Reports the first EAN/UPC seen to OnBarcode -
+// or, with { qr: true, videoId }, the first QR code to OnQr (Vareinfo: scan the box label, 2026-10-21).
 window.scanner = {
     video: null,
     stream: null,
     running: false,
     zxingReader: null,
 
-    async start(dotnetRef) {
+    async start(dotnetRef, opts) {
         this.stop();
         this.running = true;
+        this.qr = !!(opts && opts.qr);
+        var videoId = (opts && opts.videoId) || "scan-video";
 
-        for (var attempt = 0; attempt < 30 && !document.getElementById("scan-video"); attempt++)
+        for (var attempt = 0; attempt < 30 && !document.getElementById(videoId); attempt++)
             await new Promise(function (r) { setTimeout(r, 50); });
-        this.video = document.getElementById("scan-video");
+        this.video = document.getElementById(videoId);
         if (!this.video) throw new Error("Video element not found");
 
         var constraintSets = [
@@ -44,7 +47,8 @@ window.scanner = {
     },
 
     async _nativeLoop(dotnetRef) {
-        var detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+        var detector = new BarcodeDetector({ formats: this.qr ? ["qr_code"] : ["ean_13", "ean_8", "upc_a", "upc_e"] });
+        var method = this.qr ? "OnQr" : "OnBarcode";
         var self = this;
         var tick = async function () {
             if (!self.running) return;
@@ -53,7 +57,7 @@ window.scanner = {
                     var codes = await detector.detect(self.video);
                     if (codes.length > 0) {
                         self.stop();
-                        await dotnetRef.invokeMethodAsync("OnBarcode", codes[0].rawValue);
+                        await dotnetRef.invokeMethodAsync(method, codes[0].rawValue);
                         return;
                     }
                 }
@@ -73,14 +77,15 @@ window.scanner = {
             });
         }
         var hints = new Map();
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, this.qr ? [ZXing.BarcodeFormat.QR_CODE] : [
             ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E]);
+        var method = this.qr ? "OnQr" : "OnBarcode";
         this.zxingReader = new ZXing.BrowserMultiFormatReader(hints, 200);
         var self = this;
         this.zxingReader.decodeFromStream(this.stream, this.video, function (result, err) {
             if (result && self.running) {
                 self.stop();
-                dotnetRef.invokeMethodAsync("OnBarcode", result.getText());
+                dotnetRef.invokeMethodAsync(method, result.getText());
             }
         });
     },

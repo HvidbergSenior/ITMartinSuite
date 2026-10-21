@@ -243,3 +243,25 @@ public class LayerTests
         new[] { typeof(Photo), typeof(CaptureUseCases), typeof(Infrastructure.Persistence.VareinfoDb) }.SelectMany(Refs)
             .Should().NotContain(n => n.StartsWith("ITMartinLager") || n.StartsWith("Anthropic"));
 }
+
+// The box label QR (Lager prints it, Vareinfo scans it) - 2026-10-21.
+public class BoxLabelTests
+{
+    [TestCase("https://lager.bogshoppen.dk/kasse/K0007", 7)]
+    [TestCase("http://10.0.0.200:9149/kasse/K0123/", 123)]
+    [TestCase("K0001", 1)]
+    [TestCase("k42", 42)]
+    [TestCase("https://example.com/vare/5", 0)]
+    [TestCase("5706710230823", 0)]
+    [TestCase("", 0)]
+    public void The_box_number_is_read_from_the_label(string scanned, int number) =>
+        BoxCodes.FromLabel(scanned).Should().Be(number);
+
+    [Test]
+    public void A_sheet_is_in_order_and_capped()
+    {
+        BoxCodes.Range(0, 3).Should().Equal("K0001", "K0002", "K0003");
+        BoxCodes.Range(5, 2).Should().Equal("K0005");
+        BoxCodes.Range(1, 500).Should().HaveCount(BoxCodes.MaxSheet);
+    }
+}

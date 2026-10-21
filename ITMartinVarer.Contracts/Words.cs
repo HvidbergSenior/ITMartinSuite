@@ -51,6 +51,22 @@ public static class BoxCodes
 
     // The next code after the last one: K0001, K0002 ...
     public static string Next(string? last) => For(last is null ? 1 : Number(last) + 1);
+
+    /// <summary>The box number in a scanned label QR ("https://lager.bogshoppen.dk/kasse/K0007" or just "K0007"); 0 = not a box label.</summary>
+    public static int FromLabel(string? scanned)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(scanned ?? "", @"(?:^|/)[Kk](\d{1,4})/?$");
+        return m.Success ? int.Parse(m.Groups[1].Value) : 0;
+    }
+
+    /// <summary>The boxes from..to for a label sheet - at most <see cref="MaxSheet"/>, in order, never below 1.</summary>
+    public const int MaxSheet = 60;
+    public static List<string> Range(int from, int to)
+    {
+        from = Math.Max(1, from);
+        to = Math.Clamp(to, from, from + MaxSheet - 1);
+        return Enumerable.Range(from, to - from + 1).Select(For).ToList();
+    }
 }
 
 // EAN / ISBN rules.
