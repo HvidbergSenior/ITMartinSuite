@@ -109,8 +109,8 @@ public class GoldTests
     [Test]
     public void Our_price_comes_from_the_Danish_market_when_it_has_enough()
     {
-        Pricing.NormalDanishFirst([("DBA", 40), ("DBA", 60), ("AbeBooks", 400), ("eBay", 500), ("ZVAB", 450)]).Should().Be(60);
-        Pricing.NormalDanishFirst([("DBA", 40), ("AbeBooks", 400), ("eBay", 500)]).Should().Be(400);   // too few Danish: all count
+        Pricing.NormalDanishFirst([("DBA", 40), ("DBA", 60), ("AbeBooks", 400), ("eBay", 500), ("ZVAB", 450)]).Should().Be(40);   // the lower middle of 40 and 60 (2026-10-21: asking prices, so the lower one)
+        Pricing.NormalDanishFirst([("DBA", 40), ("AbeBooks", 400), ("eBay", 500)]).Should().Be(40);   // too few Danish: all count (eBay never), one vote each
     }
 }
 

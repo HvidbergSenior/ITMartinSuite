@@ -92,7 +92,7 @@ public class OneCopyTests
     private static bool Keep(string name) => ITMartinLager.Domain.Pricing.IsOneCopyOf(Spider, new ITMartinLager.Domain.Offer(name, 30, "u"));
 
     [TestCase("Spider-Geddon #3 - Regular Cover - Marvel Comics - 2019", true)]
-    [TestCase("Spider-Geddon #3 NM+ 2019 Marvel Comics High Grade", true)]
+    [TestCase("Spider-Geddon #3 NM+ 2019 Marvel Comics High Grade", false)]   // NM+ = a graded collector copy (2026-10-21)
     [TestCase("✪ SPIDER-GEDDON #3, MARVEL COMICS COMIC POSTCARD/POSTCARD NEW", false)]
     [TestCase("Edge of Spider-Geddon #3 Nov.2018 CVR A", false)]
     [TestCase("Spider-Girls #1,2,3 FULL SET Marvel Comics 2018 SPIDER-GEDDON SPIDER-WOMAN", false)]
@@ -110,5 +110,5 @@ public class OneCopyTests
     [Test]
     public void Danish_comics_with_publisher_first_still_count() =>
         ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = Kinds.Tegneserie, Title = "Tintin", Number = "5" },
-            new ITMartinLager.Domain.Offer("Carlsen Tintin nr. 5 Faraos cigarer 1. oplag", 300, "u")).Should().BeTrue();
+            new ITMartinLager.Domain.Offer("Carlsen Tintin nr. 5 Faraos cigarer", 300, "u")).Should().BeTrue();
 }

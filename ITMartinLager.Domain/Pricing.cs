@@ -21,6 +21,9 @@ public static partial class Pricing
     // customer the links that prove it.
     public const decimal ShopFactor = 0.9m;
 
+    /// <summary>Under this the AI was unsure what the thing is - no suggested price until a person has looked (2026-10-21).</summary>
+    public const double MinConfidence = 0.6;
+
     // Under 20 kr: whole kroner (a Magic card for 3 kr stays 3 kr). From 20 kr: down to the nearest 5, so it stays under.
     public static int? ShopPrice(decimal? market)
     {
@@ -113,10 +116,64 @@ public static partial class Pricing
     private static readonly HashSet<string> Brands = ["marvel", "comics", "comic", "walt", "disney", "disneys", "tegneserie", "tegneserier",
         "album", "hergé", "herge", "image", "dark", "horse", "panini", "carlsen", "egmont", "serieforlaget", "interpresse", "semic", "the", "new"];
 
+    // Another format of the same title (2026-10-21: the Californication CD was priced from LPs on DBA, 170 kr, while used
+    // CDs go for 5-30 kr). Per kind: the words that mean the listing is NOT this format. Signed and box/deluxe copies
+    // are other things too.
+    private static readonly HashSet<string> NotTheRecord = ["signed", "signeret", "signiert", "autograph", "autographed", "box", "boxset",
+        "deluxe", "slipmat", "shirt", "plakat", "poster"];
+    private static readonly Dictionary<string, HashSet<string>> OtherFormats = new()
+    {
+        [Kinds.Cd] = ["vinyl", "vinil", "schallplatte", "kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
+        [Kinds.Vinyl] = ["kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
+        [Kinds.Kassette] = ["vinyl", "vinil", "schallplatte", "dvd", "blu", "bluray", "vhs"],
+        [Kinds.Dvd] = ["blu", "bluray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack"],
+        [Kinds.BluRay] = ["vhs", "vinyl", "soundtrack"],
+        [Kinds.Vhs] = ["dvd", "blu", "bluray", "uhd", "vinyl", "soundtrack"],
+    };
+
+    /// <summary>The listing is of another format than the item (a CD item and an LP listing, a DVD and a Blu-ray ...).</summary>
+    public static bool OtherFormat(string kind, string listing)
+    {
+        if (!OtherFormats.TryGetValue(kind, out var other)) return false;
+        if (ListingParse.Words(listing).Any(w => other.Contains(w) || NotTheRecord.Contains(w))) return true;
+        // Short words Words() leaves out: "LP", "CD", "4K" and 7"/12" singles.
+        var low = " " + listing.ToLowerInvariant() + " ";
+        if (kind != Kinds.Vinyl && (LpRx().IsMatch(low) || SingleRx().IsMatch(low))) return true;
+        if (kind is Kinds.Vinyl or Kinds.Kassette && CdRx().IsMatch(low)) return true;
+        if (kind is Kinds.Dvd or Kinds.Vhs && FourKRx().IsMatch(low)) return true;
+        return false;
+    }
+
+    // Collector copies (2026-10-21: Birger og Viola 3 priced 220 kr from two "1. udgave, 1. oplag, Near Mint" listings):
+    // a first printing, a graded or a special copy is a collector price, not what an ordinary copy sells for - unless
+    // ours is one too.
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b1\.?\s*(udgave|udg\.?|oplag)\b|første\s*udgave|førsteudgave|first\s+edition|1st\s+edition|erstausgabe|first\s+printing", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex FirstEditionRx();
+    [System.Text.RegularExpressions.GeneratedRegex(@"near\s*mint|very\s*fine|\bnm\+?(?=\W|$)|\bvf(?=\W|$)|\bmint\b|\bungelesen\b|\bklassiker\b|\blimited\b|\blimiteret\b|samlerudgave|collector", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex CollectorRx();
+
+    /// <summary>A first edition or a graded/special copy, when the item itself is not one.</summary>
+    public static bool CollectorCopy(Item item, string listing)
+    {
+        var ours = $"{item.Title} {item.Series} {item.Edition} {item.EditionHint}";
+        if (FirstEditionRx().IsMatch(listing) && !FirstEditionRx().IsMatch(ours)) return true;
+        return CollectorRx().IsMatch(listing) && !CollectorRx().IsMatch(ours);
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"[\s(\[/,+-]lps?[\s)\]/,.:+-]", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex LpRx();
+    [System.Text.RegularExpressions.GeneratedRegex("\\b(7|10|12)\\s*(\"|''|inch|tommer|zoll)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex SingleRx();
+    [System.Text.RegularExpressions.GeneratedRegex(@"[\s(\[/,+-]cds?[\s)\]/,.:+-]", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex CdRx();
+    [System.Text.RegularExpressions.GeneratedRegex(@"[\s(\[/,+-]4k[\s)\]/,.:+-]", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex FourKRx();
+
     public static bool IsOneCopyOf(Item item, Offer o)
     {
         var words = ListingParse.Words(o.Name);
         if (words.Any(NotOneCopy.Contains) || CopyRangeRx().IsMatch(o.Name) || RatioRx().IsMatch(o.Name)) return false;
+        if (OtherFormat(item.Kind, o.Name) || CollectorCopy(item, o.Name)) return false;
         // A comic with an issue number: the title must come first (after brand/creator words) - "Edge of X" is another series.
         if (item.Kind is Kinds.Tegneserie or Kinds.Superhelte && item.Number.Trim() != "")
         {
@@ -173,11 +230,43 @@ public static partial class Pricing
     public static readonly string[] DanishSources = ["DBA", "GulogGratis", "Nemos Bibliotek", "Faraos"];
     public const int DanishEnough = 2;
 
-    /// <summary>The normal used price with Danish listings first: Danish only when there are enough, else everything.</summary>
+    // Shown as links, never part of our price (user 2026-10-21: "ebay DE is not realistic is it?"): eBay is shops' asking
+    // prices, many from abroad, and the API only shows what is for sale, not what sold - a used Californication CD had a
+    // middle price of 291 kr there.
+    public static readonly string[] NotForNormal = ["eBay", "eBay USA"];
+
+    /// <summary>The normal used price with Danish listings first (user 2026-10-12: "always prioritize Danish market"):
+    /// Danish only when there are enough - unless the Danish price is over 2x what the other sites say, then the Danish
+    /// listings are the odd ones (2026-10-21) and every site counts. eBay never counts.</summary>
     public static int? NormalDanishFirst(IReadOnlyCollection<(string Source, int Kr)> used)
     {
-        var danish = used.Where(u => DanishSources.Contains(u.Source)).Select(u => u.Kr).ToList();
-        return danish.Count >= DanishEnough ? NormalOf(danish) : NormalOf(used.Select(u => u.Kr).ToList());
+        var counted = used.Where(u => !NotForNormal.Contains(u.Source)).ToList();
+        var danish = counted.Where(u => DanishSources.Contains(u.Source)).ToList();
+        var all = Realistic(counted);
+        if (danish.Count < DanishEnough) return all;
+        var d = Realistic(danish);
+        var others = counted.Where(u => !DanishSources.Contains(u.Source)).ToList();
+        return others.Count >= DanishEnough && Realistic(others) is { } o && d > o * 2 ? all : d;
+    }
+
+    /// <summary>What it really sells for (user 2026-10-21: "our price should be an algorithm based on NOT the unrealistic
+    /// ones"): asking prices over 2x the middle are left out as unrealistic, then each site gets one vote - its own
+    /// middle price - and the price is the middle of those votes (the lower one when it is even). One site full of odd
+    /// listings can no longer decide the price on its own.</summary>
+    public static int? Realistic(IReadOnlyCollection<(string Source, int Kr)> used)
+    {
+        var priced = used.Where(u => u.Kr > 0).ToList();
+        if (priced.Count == 0) return null;
+        var middle = LowerMiddle(priced.Select(u => u.Kr).ToList());
+        var votes = priced.Where(u => u.Kr <= middle * 2).GroupBy(u => u.Source)
+            .Select(g => LowerMiddle(g.Select(u => u.Kr).ToList())).ToList();
+        return LowerMiddle(votes);
+    }
+
+    private static int LowerMiddle(List<int> values)
+    {
+        var sorted = values.OrderBy(x => x).ToList();
+        return sorted[(sorted.Count - 1) / 2];
     }
 
     // The normal used price: the middle of the used asking prices, after leaving out the ones over 3x the middle.
@@ -230,8 +319,11 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
                 Original = o.Original, Url = o.Url, FoundAt = now,
             }));
         }
+        // Every matching listing counts for the price (the kept ones are only a sample for the links).
         var used = answers.Where(a => !a.IsNew && a.Result is { Ambiguous: false })
-            .SelectMany(a => Kept(a).Select(o => (a.Source, Kr: (int)o.Price!.Value))).ToList();
+            .SelectMany(a => a.Result!.All.Where(o => o.Price is > 0).DistinctBy(o => (o.Url, o.Price))
+                .Where(o => a.Source != "ZVAB" || !abeIds.Contains(Pricing.ListingNumber(o.Url)))
+                .Select(o => (a.Source, Kr: (int)o.Price!.Value))).ToList();
 
         // "Magen til": kept apart, flagged, and never part of the normal price.
         var like = (similar ?? []).Where(a => !a.IsNew && a.Result is { Ambiguous: false }).ToList();
@@ -251,14 +343,18 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
     }
 
     // Onto the item: when it was hunted (nothing answered = try again tomorrow, not in 30 days) and the price hint. A new
-    // copy is priced 10 % under the new shops (2026-10-20); used prices only when no new shop has it.
+    // copy is priced 10 % under the new shops (2026-10-20); used prices only when no new shop has it. The hint is worked
+    // out again each time - no realistic listings now = no hint, not an old one. Not sure what the thing is (under
+    // Pricing.MinConfidence, e.g. "Lead Data" = a blank CD-R read as an album) = no hint at all; a person looks first.
     public void ApplyTo(Item item, DateTime now)
     {
         item.PricesAt = Answered == 0 ? now - Pricing.StaleAfter + TimeSpan.FromDays(1) : now;
-        var market = item.Usage == Usages.New ? NewNormal ?? Normal : Normal;
-        if (ShopPrice(market) is { } p) item.PriceHint = p;
-        item.SimilarHint = Normal is null ? SimilarNormal : null;
         if (Want is not null) (item.Want, item.Have) = (Want, Have);
+        if (Answered == 0) return;
+        if (item.Confidence < Pricing.MinConfidence) { item.PriceHint = null; item.SimilarHint = null; return; }
+        var market = item.Usage == Usages.New ? NewNormal ?? Normal : Normal;
+        item.PriceHint = ShopPrice(market);
+        item.SimilarHint = Normal is null ? SimilarNormal : null;
     }
 
     private static int? ShopPrice(int? normal) => Pricing.ShopPrice(normal);
