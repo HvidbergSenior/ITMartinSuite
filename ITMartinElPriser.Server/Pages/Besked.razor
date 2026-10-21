@@ -16,10 +16,6 @@
     <h2 class="k-card-title">Besked på telefonen</h2>
     @switch (_state)
     {
-        case null:
-            <div class="k-muted">Tjekker…</div>
-            break;
-
         case "unsupported":
             <div class="err">Denne browser kan ikke modtage beskeder. Prøv Chrome på Android eller Safari på iPhone.</div>
             break;
@@ -64,7 +60,8 @@
                     <label>Dit kundenummer (8 cifre – står i mailen, du fik, da du skrev dig op)</label>
                     <input type="text" inputmode="numeric" autocomplete="off" @bind="_code" placeholder="fx 4821 7730" />
                 </div>
-                <button class="k-btn k-btn-primary k-btn-block" @onclick="SubscribeAsync" disabled="@_busy">@(_busy ? "Vent…" : "Slå beskeder til")</button>
+                @* While the phone is being checked the form is already there, greyed out - no "Tjekker…" page that jumps away. *@
+                <button class="k-btn k-btn-primary k-btn-block" @onclick="SubscribeAsync" disabled="@(_busy || _state is null)">@(_busy ? "Vent…" : _state is null ? "Tjekker telefonen …" : "Slå beskeder til")</button>
                 <p class="small k-muted">Har du ikke et kundenummer? Det er gratis:</p>
                 <a class="k-btn k-btn-block" href="https://itmartin.dk/mine-apps?app=ElPriser" target="_blank" rel="noopener">Skriv dig op gratis på itmartin.dk</a>
             }

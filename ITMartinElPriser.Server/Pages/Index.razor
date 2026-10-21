@@ -11,7 +11,9 @@
    so every box folds (kolibri.js) and the phone remembers it. *@
 <h1 class="k-visually-hidden">ElPriser</h1>
 
-@if (_askHome || _gridName.Length == 0)
+@* Only once the saved settings are read - before that every visitor looked new for a moment and the box flashed
+   (user 2026-10-21: "when refreshing there is another page first"). *@
+@if (_view is not null && (_askHome || _gridName.Length == 0))
 {
     <section class="k-card">
         <h2 class="k-card-title">Hvor bor du?</h2>
@@ -223,7 +225,16 @@ else
 }
 
 
-@if (_hindsight is { } hs && hs.SavedKr >= 1)
+@if (_hindsight is null && _hindsightLoading && _view is not null)
+{
+    @* The box holds its place while it is worked out, so nothing jumps down when the number comes. *@
+    <section class="k-card now-tile lvl-cheap hindsight-wait">
+        <h2 class="k-card-title">Hvad havde du sparet?</h2>
+        <div class="now-price lvl-cheap">…</div>
+        <div class="now-unit">Regner ud …</div>
+    </section>
+}
+else if (_hindsight is { } hs && hs.SavedKr >= 1)
 {
     @* Checked 2026-10-21 (user: "is that calculated correct?"): real prices for each of the last days, the household's
        own tariff, the machine priced quarter by quarter while it runs - started at 18:00 vs at that day's cheapest
@@ -345,10 +356,12 @@ else
 
     // "Hvad havde du sparet?" - worked out in the Domain (Hindsight) from the last 30 days' real prices.
     private Hindsight? _hindsight;
+    private bool _hindsightLoading = true;
     private async Task LoadHindsightAsync()
     {
         try { _hindsight = _view is null ? null : await Front.HindsightAsync(_view.Settings); }
         catch { _hindsight = null; }   // Energinet down: the box simply is not shown
+        _hindsightLoading = false;
         StateHasChanged();
     }
     private bool _askHome;
