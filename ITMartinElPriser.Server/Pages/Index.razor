@@ -27,6 +27,26 @@
         }
     </section>
 }
+@if (_askSupplier)
+{
+    @* The elselskab (user 2026-10-21 "chip on the front"): it is on the bill, and its markup makes the price here the person's own. *@
+    <section class="k-card">
+        <h2 class="k-card-title">Dit elselskab</h2>
+        <p>Elselskabet lægger sit eget tillæg oven i strømprisen. Vælg dit, så er prisen her din egen pris. Navnet står øverst på din elregning.</p>
+        <select class="field" @bind="_supplierPick" aria-label="Elselskab">
+            @foreach (var sp in Front.Suppliers) { <option value="@sp.Id">@sp.Name</option> }
+        </select>
+        @if (_supplierPick == SupplierPreset.Custom.Id)
+        {
+            <label class="small u-mt8">Dit elselskabs tillæg, øre pr. kWh uden moms (står på regningen)</label>
+            <input class="field" type="number" min="0" max="300" step="0.1" @bind="_customOre" />
+        }
+        <div class="btn-row">
+            <button class="k-btn k-btn-primary" @onclick="SaveSupplierAsync">Gem elselskab</button>
+            <button class="k-btn" @onclick="() => _askSupplier = false">Fortryd</button>
+        </div>
+    </section>
+}
 @if (_locateMsg.Length > 0)
 {
     <p class="k-alert k-alert-info small" role="status">@_locateMsg</p>
@@ -48,6 +68,7 @@
 
 <PageHelp Key="help-nu">
     <ul>
+        <li><b>Dit hjem og dit elselskab</b> øverst i boksen: tryk på dem for at skifte. Elselskabet står øverst på din elregning, og med det bliver prisen din egen.</li>
         <li><b>Vælg maskine</b> øverst i boksen: opvaskemaskine eller vaskemaskine.</li>
         <li><b>Det store tal</b> er hvad én opvask eller vask koster, hvis du starter den nu – kvarter for kvarter, så længe maskinen kører. Alt inkl. moms, elafgift og nettarif.</li>
         <li><b>Din egen maskine:</b> tryk <b>Ret tid og strøm</b> og vælg, hvor længe dit program kører, og hvor mange kWh det bruger (står i manualen eller på energimærket). Det gemmes på din egen telefon. Ved du det ikke, så brug det, der står: opvask 0,54 kWh (Eco), vask 1 kWh (40 grader).</li>
@@ -101,6 +122,9 @@ else
             @if (_searching) { <text>Finder dig…</text> }
             else if (_gridName.Length > 0) { <text>@_postal <small>@_gridName</small> · skift</text> }
             else { <text>Hvor bor du?</text> }
+        </button>
+        <button class="area-chip" title="Skift elselskab" @onclick="OpenSupplier">
+            @(FrontPageUseCases.SupplierName(_s) is { Length: > 0 } sn ? $"Elselskab: {sn} · skift" : "Vælg dit elselskab")
         </button>
         <div class="chips chips-small" role="group" aria-label="Vælg maskine">
             <button class="chip @(m.IsWash ? "" : "on")" aria-pressed="@(!m.IsWash)" @onclick="() => PickMachineAsync(HomeMachine.DishKind)">Opvaskemaskine</button>
@@ -328,6 +352,23 @@ else
         StateHasChanged();
     }
     private bool _askHome;
+    private bool _askSupplier;
+    private string _supplierPick = "";
+    private double _customOre;
+
+    private void OpenSupplier()
+    {
+        _supplierPick = _s.SupplierId.Length > 0 ? _s.SupplierId : Front.Suppliers.FirstOrDefault()?.Id ?? "";
+        _customOre = _s.CustomTillaegOre;
+        _askSupplier = !_askSupplier;
+    }
+
+    private async Task SaveSupplierAsync()
+    {
+        await Front.PickSupplierAsync(_s, _supplierPick, _customOre);
+        _askSupplier = false;
+        await HomeSavedAsync();   // the prices change with the markup: load again, like a new home
+    }
     private string _addr = "";
 
     // A typed address or postcode -> the grid company there. Being typed, it IS the home.

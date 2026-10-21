@@ -81,6 +81,23 @@ public sealed class FrontPageUseCases(IPriceSource prices, IHouseholdPrefs prefs
         return prefs.SaveAsync(s);
     }
 
+    // ---- the elselskab (user 2026-10-21: a chip on the front page, now that /regning is part of MinElpris) ----
+
+    public IReadOnlyList<SupplierPreset> Suppliers => SupplierPreset.All;
+
+    /// <summary>"" when none is chosen (the default supplier is then used).</summary>
+    public static string SupplierName(HouseholdSettings s) => SupplierPreset.All.FirstOrDefault(p => p.Id == s.SupplierId)?.Name ?? "";
+
+    /// <summary>The elselskab adds its own markup on top of the power price - with it, the price shown is the person's own.
+    /// customOre: their markup in øre/kWh excl. VAT, only for "Andet".</summary>
+    public Task PickSupplierAsync(HouseholdSettings s, string supplierId, double? customOre)
+    {
+        if (!SupplierPreset.All.Any(p => p.Id == supplierId)) return Task.CompletedTask;
+        s.SupplierId = supplierId;
+        if (supplierId == SupplierPreset.Custom.Id && customOre is >= 0 and <= 300) s.CustomTillaegOre = customOre.Value;
+        return prefs.SaveAsync(s);
+    }
+
     // ---- home ----
 
     /// <summary>A typed address or postcode. Being typed, it IS the home - saved at once.</summary>

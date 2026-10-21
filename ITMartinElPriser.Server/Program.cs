@@ -23,6 +23,7 @@ builder.Services.AddKolibri(k =>
     k.HowTo =
     [
         "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
+        "Vælg dit hjem og dit elselskab øverst i boksen med prisen (\"Elselskab … skift\"), så er prisen din egen.",
         "Vil du have besked, når strømmen bliver billig? Skriv dig op gratis på itmartin.dk (Mine apps → ElPriser → Prøv gratis), så får du et kundenummer på mail. Skriv det under Besked, og tryk Slå beskeder til.",
         "Vil du have din elregning forklaret? Det er en del af MinElpris – spørg Martin på itmartin.dk.",
     ];
