@@ -28,23 +28,27 @@
     <script src="_framework/blazor.server.js"></script>
     <script src="js/push.js?v=@CacheBuster"></script>
     <script src="js/ui.js?v=@CacheBuster"></script>
-    <button id="themeToggleBtn" class="theme-toggle" title="Skift lys/mørk visning">Lys/mørk</button>
     <script>
+    // The light/dark button is in the Kolibri header, which Blazor renders again - so the click is caught on the
+    // document and the label is kept in step whenever the page changes.
     (function () {
-        var btn = document.getElementById('themeToggleBtn');
         function sync() {
             var current = document.documentElement.getAttribute('data-theme') || 'dark';
-            btn.textContent = current === 'light' ? 'Mørk' : 'Lys';
+            var btn = document.getElementById('themeToggleBtn');
+            var label = current === 'light' ? 'Mørk' : 'Lys';
+            if (btn && btn.textContent !== label) btn.textContent = label;   // only when it differs - else the observer loops
             var meta = document.querySelector('meta[name=theme-color]');
             if (meta) meta.setAttribute('content', current === 'light' ? '#f5f5f7' : '#0b1220');
         }
-        btn.addEventListener('click', function () {
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
             var current = document.documentElement.getAttribute('data-theme') || 'dark';
             var next = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('elpriser_theme', next);
             sync();
         });
+        new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
         sync();
     })();
     </script>

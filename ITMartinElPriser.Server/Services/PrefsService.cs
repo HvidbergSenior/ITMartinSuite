@@ -1,5 +1,4 @@
 using ITMartinElPriser.Application;
-using ITMartinElPriser.Infrastructure;
 using System.Text.Json;
 using Microsoft.JSInterop;
 using ITMartinElPriser.Domain;
@@ -9,7 +8,7 @@ namespace ITMartinElPriser.Server.Services;
 // The free app keeps nothing about you on the server. Region and tariff
 // presets live in a cookie on your own phone: read from the request that
 // opened the Blazor circuit, written back through a tiny JS helper.
-public sealed class PrefsService(IHttpContextAccessor http, IJSRuntime js, IGridTariffSource tariffs)
+public sealed class PrefsService(IHttpContextAccessor http, IJSRuntime js, IGridTariffSource tariffs) : IHouseholdPrefs
 {
     public const string CookieName = "ep_prefs";
     private HouseholdSettings? _settings;
@@ -50,12 +49,5 @@ public sealed class PrefsService(IHttpContextAccessor http, IJSRuntime js, IGrid
         return s;
     }
 
-    // Short label for the header: "DK1 · N1 · NRGi Time".
-    public static string Describe(HouseholdSettings s)
-    {
-        if (!s.ShowAllIn) return $"Spotpris · {s.PriceArea}";
-        var grid = s.GridName.Length > 0 ? s.GridName : GridCompanyPreset.All.FirstOrDefault(g => g.Id == s.GridCompanyId)?.Name ?? "eget net";
-        var sup = SupplierPreset.All.FirstOrDefault(p => p.Id == s.SupplierId)?.Name ?? "eget tillæg";
-        return $"{s.PriceArea} · {grid} · {sup}";
-    }
+    public static string Describe(HouseholdSettings s) => HouseholdText.Describe(s);
 }

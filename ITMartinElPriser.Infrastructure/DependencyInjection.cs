@@ -20,4 +20,13 @@ public static class DependencyInjection
         services.AddSingleton<IGridTariffSource>(sp => sp.GetRequiredService<GridTariffs>());
         return services;
     }
+
+    /// <summary>The free ElPriser app's own adapters: who wants a message (DataDir/subscribers.json), Web Push, PDF text.</summary>
+    public static IServiceCollection AddElPriserApp(this IServiceCollection services)
+    {
+        services.AddSingleton<ISubscriberStore, SubscriberStore>();
+        services.AddSingleton<IPushSender, WebPushSender>();
+        services.AddSingleton<IPdfText, PdfPigText>();
+        return services;
+    }
 }

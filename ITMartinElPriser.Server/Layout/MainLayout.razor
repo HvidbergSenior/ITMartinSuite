@@ -1,16 +1,15 @@
 @inherits LayoutComponentBase
 
-<div class="ep-root">
-    <div class="ep-page">
-        @Body
-        <KolibriFooter />
-    </div>
-</div>
-
-<nav class="bottom-nav">
-    <NavLink href="/" Match="NavLinkMatch.All">Nu</NavLink>
-    <NavLink href="/besked">Besked</NavLink>
-    <NavLink href="/tjek">Tjek regning</NavLink>
-    @* Locked Grøn/Elselskab tabs removed 2026-09-28 (user) - the pull towards MinElpris is now the
-       "wow" on Tjek regning and the demo, not greyed-out tabs. *@
-</nav>
+@* The shared Kolibri frame like the other apps (user 2026-10-21: "elpriser should be ddd and clean as the others. also
+   using the shared components"): KolibriHeader with the three tabs, k-main/k-content, KolibriFooter. *@
+<KolibriHeader>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Nu</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/besked">Besked</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/tjek">Tjek regning</NavLink>
+    @* Light/dark (App.razor's script listens for clicks on it). *@
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
+</KolibriHeader>
+<div class="k-main"><div class="k-content">
+    @Body
+</div></div>
+<KolibriFooter />

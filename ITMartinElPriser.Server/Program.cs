@@ -1,8 +1,8 @@
-using ITMartinElPriser.Infrastructure;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinElPriser.Application;
 using ITMartinElPriser.Domain;
 using ITMartinElPriser.Infrastructure;
+using ITMartinElPriser.Server;
 using ITMartinElPriser.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,12 +36,13 @@ builder.Services.AddHttpContextAccessor();
 // Energinet / Strømligning / elpris.dk behind the Application ports (ITMartinElPriser.Infrastructure). Singletons with
 // their own HttpClient: they cache (prices 30 min, suppliers a day) - per-request instances would throw the cache away.
 builder.Services.AddElPriserSources();
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<GetPriceSnapshot>();
-builder.Services.AddSingleton<SubscriberStore>();
-builder.Services.AddSingleton<PushService>();
-builder.Services.AddHostedService<NotificationScheduler>();
+// The free app's own adapters (who wants a message, Web Push, PDF text) and its use cases. Settings live in a cookie on
+// the visitor's phone (PrefsService = the IHouseholdPrefs port, Server side because it needs the request and JS).
+builder.Services.AddElPriserApp();
+builder.Services.AddElPriserApplication();
 builder.Services.AddScoped<PrefsService>();
+builder.Services.AddScoped<IHouseholdPrefs>(sp => sp.GetRequiredService<PrefsService>());
+builder.Services.AddHostedService<NotificationJob>();
 
 var app = builder.Build();
 
@@ -55,53 +56,21 @@ app.UseAntiforgery();
 
 // ── Push subscription API (called from wwwroot/js/push.js) ──────────────────
 
-app.MapGet("/api/push/public-key", (PushService push) => Results.Text(push.PublicKey));
+app.MapGet("/api/push/public-key", (PushUseCases push) => Results.Text(push.PublicKey));
 
-app.MapPost("/api/push/subscribe", (SubscribeRequest req, HttpContext http, SubscriberStore store) =>
-{
-    if (string.IsNullOrWhiteSpace(req.Endpoint)) return Results.BadRequest();
-    var settings = PrefsService.ReadCookie(http);
-    PushSubscriber? sub = null;
-    store.Update(d =>
-    {
-        sub = d.Subscribers.FirstOrDefault(s => s.Endpoint == req.Endpoint);
-        if (sub is null)
-        {
-            sub = new PushSubscriber { Endpoint = req.Endpoint };
-            d.Subscribers.Add(sub);
-        }
-        sub.P256dh = req.P256dh;
-        sub.Auth = req.Auth;
-        sub.Name = string.IsNullOrWhiteSpace(req.Name) ? sub.Name : req.Name.Trim();
-        sub.NotifyCheapest = req.NotifyCheapest;
-        sub.NotifyExpensive = req.NotifyExpensive;
-        sub.Settings = settings;
-    });
-    return Results.Ok(new { id = sub!.Id });
-}).DisableAntiforgery();
+app.MapPost("/api/push/subscribe", (PushSignup req, HttpContext http, PushUseCases push) =>
+    push.Subscribe(req, PrefsService.ReadCookie(http)) is { } id ? Results.Ok(new { id }) : Results.BadRequest()).DisableAntiforgery();
 
-app.MapPost("/api/push/unsubscribe", (UnsubscribeRequest req, SubscriberStore store) =>
-{
-    store.Update(d => d.Subscribers.RemoveAll(s => s.Endpoint == req.Endpoint));
-    return Results.Ok();
-}).DisableAntiforgery();
+app.MapPost("/api/push/unsubscribe", (UnsubscribeRequest req, PushUseCases push) => { push.Unsubscribe(req.Endpoint); return Results.Ok(); })
+    .DisableAntiforgery();
 
-app.MapGet("/api/push/status", (string endpoint, SubscriberStore store) =>
-{
-    var s = store.Get().Subscribers.FirstOrDefault(x => x.Endpoint == endpoint);
-    return s is null ? Results.NotFound() : Results.Ok(new { s.Name, s.NotifyCheapest, s.NotifyExpensive });
-});
+app.MapGet("/api/push/status", (string endpoint, PushUseCases push) =>
+    push.Status(endpoint) is { } s ? Results.Ok(new { s.Name, s.NotifyCheapest, s.NotifyExpensive }) : Results.NotFound());
 
 // "Send mig en test" - proves the whole chain on this phone right now.
-app.MapPost("/api/push/test", async (UnsubscribeRequest req, SubscriberStore store, PushService push, GetPriceSnapshot snapshot) =>
-{
-    var sub = store.Get().Subscribers.FirstOrDefault(s => s.Endpoint == req.Endpoint);
-    if (sub is null) return Results.NotFound();
-    var snap = await snapshot.ExecuteAsync(sub.Settings, null, null, [], CancellationToken.None);
-    var body = snap.NowKrPerKwh is { } p ? $"Lige nu koster strømmen {p:0.00} kr/kWh. Beskeder virker ✓" : "Beskeder virker ✓";
-    var ok = await push.SendAsync(sub, new PushService.Message("ElPriser", body));
-    return ok ? Results.Ok() : Results.StatusCode(410);
-}).DisableAntiforgery();
+app.MapPost("/api/push/test", async (UnsubscribeRequest req, PushUseCases push) =>
+    await push.TestAsync(req.Endpoint) switch { null => Results.NotFound(), true => Results.Ok(), false => Results.StatusCode(410) })
+    .DisableAntiforgery();
 
 // Plain JSON for anyone who wants the numbers: ?area=DK2&allIn=false (itmartin.dk's "Vidste du" box reads it).
 app.MapGet("/api/snapshot", async (GetPriceSnapshot snapshot, HttpContext http, string? area, bool? allIn, CancellationToken ct) =>
@@ -115,7 +84,6 @@ app.MapRazorComponents<ITMartinElPriser.Server.App>()
 
 app.Run();
 
-public sealed record SubscribeRequest(string Endpoint, string P256dh, string Auth, string? Name, bool NotifyCheapest, bool NotifyExpensive);
 public sealed record UnsubscribeRequest(string Endpoint);
 
 // For the API tests (WebApplicationFactory<Program>).

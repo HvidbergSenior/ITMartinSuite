@@ -1,61 +1,50 @@
 @page "/"
-@using ITMartinElPriser.Infrastructure
 @using System.Globalization
-@inject IPriceSource Prices
-@inject PrefsService Prefs
-@inject IGridTariffSource Grids
+@inject FrontPageUseCases Front
 @inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>ElPriser</PageTitle>
 
 @* The front page answers one question in five seconds: what does power cost now, and
-   should I wait? Planning (start times, night, EV) lives in MinElpris (/planlaeg). *@
-<div class="ep-header">
-    <img class="ep-logo" src="/_content/ITMartin.Shared.UI/kolibri-icon.svg" alt="" />
-    <div class="ep-title">ElPriser</div>
-    @* Home, not "where the phone is": asked once (location if you are home, or your address). Tap to change. *@
-    <button class="area-chip" title="Skift dit hjem" @onclick="() => _askHome = !_askHome" disabled="@_searching">
-        @if (_searching) { <text>Finder dig…</text> }
-        else if (_gridName.Length > 0) { <text>@_postal <small>@_gridName</small></text> }
-        else { <text>Hvor bor du?</text> }
-    </button>
-</div>
+   should I wait? Planning (start times, night, EV) lives in MinElpris (/planlaeg). Every box has a heading,
+   so every box folds (kolibri.js) and the phone remembers it. *@
+<h1 class="k-visually-hidden">ElPriser</h1>
 
 @if (_askHome || _gridName.Length == 0)
 {
-    <div class="card">
-        <div class="card-title">Hvor bor du?</div>
+    <section class="k-card">
+        <h2 class="k-card-title">Hvor bor du?</h2>
         <p class="small">Prisen afhænger af netselskabet, der leverer strømmen til dit hjem. Vi gemmer kun postnummer og netselskab – på din egen telefon.</p>
-        <button class="btn btn-primary btn-block" @onclick="LocateAsync" disabled="@_searching">Jeg er hjemme nu – brug min placering</button>
+        <button class="k-btn k-btn-primary k-btn-block" @onclick="LocateAsync" disabled="@_searching">Jeg er hjemme nu – brug min placering</button>
         <form class="row2 u-mt8" @onsubmit="FindAddressAsync" @onsubmit:preventDefault>
             <input class="field u-f1" @bind="_addr" placeholder="…eller skriv din adresse eller dit postnummer" aria-label="Adresse eller postnummer" />
-            <button class="btn" type="submit" disabled="@_searching">Find</button>
+            <button class="k-btn" type="submit" disabled="@_searching">Find</button>
         </form>
         @if (_gridName.Length > 0)
         {
-            <button class="btn u-mt8" @onclick="() => _askHome = false">Behold @_gridName</button>
+            <button class="k-btn u-mt8" @onclick="() => _askHome = false">Behold @_gridName</button>
         }
-    </div>
+    </section>
 }
 @if (_locateMsg.Length > 0)
 {
-    <div class="card small" role="status">@_locateMsg</div>
+    <p class="k-alert k-alert-info small" role="status">@_locateMsg</p>
 }
 @if (_pending is { } pend)
 {
-    <div class="card small" role="status">
+    <section class="k-card small" role="status">
+        <h2 class="k-card-title">Nyt hjem?</h2>
         <p class="u-mb8">Du er ved <b>@pend.Place.Label</b>, hvor netselskabet er <b>@pend.Grid.Name</b>. Er det dit nye hjem?</p>
-        <p class="muted u-mb8">Priserne skal regnes med netselskabet, hvor du bor – ikke hvor du er lige nu.</p>
+        <p class="k-muted u-mb8">Priserne skal regnes med netselskabet, hvor du bor – ikke hvor du er lige nu.</p>
         <div class="btn-row">
-            <button class="btn btn-primary" @onclick="() => SaveHomeAsync(pend.Place, pend.Grid)">Ja, skift til @pend.Grid.Name</button>
-            <button class="btn" @onclick="() => _pending = null">Nej, behold @_gridName</button>
+            <button class="k-btn k-btn-primary" @onclick="() => SaveHomeAsync(pend.Place, pend.Grid)">Ja, skift til @pend.Grid.Name</button>
+            <button class="k-btn" @onclick="() => _pending = null">Nej, behold @_gridName</button>
         </div>
-    </div>
+    </section>
 }
 
-@* First thing on the page (user wish): how to put ElPriser on the phone. Gone once installed. *@
-<InstallGuide />
+@* How to put ElPriser on the phone: the shared Kolibri install button (kolibri.js), like every other app. *@
 
 <PageHelp Key="help-nu">
     <ul>
@@ -70,16 +59,17 @@
     </ul>
 </PageHelp>
 
-@if (_snap is null)
+@if (_view is null)
 {
-    <div class="card now-tile"><div class="muted">Henter priser…</div></div>
+    <section class="k-card now-tile"><h2 class="k-card-title">Prisen nu</h2><div class="k-muted">Henter priser…</div></section>
 }
-else if (!_snap.HasData || RunAt(QuarterNow()) is not { } now)
+else if (!_snap!.HasData || _view.RunAt(QuarterNow()) is not { } now)
 {
-    <div class="card now-tile">
+    <section class="k-card now-tile">
+        <h2 class="k-card-title">Prisen nu</h2>
         <div class="now-verdict lvl-mid">Ingen priser lige nu</div>
         <div class="now-compare">Energinet svarer ikke. Prøv igen om lidt.</div>
-    </div>
+    </section>
 }
 else
 {
@@ -95,16 +85,23 @@ else
     var cheapest = strip.MinBy(h => h.KrPerKwh);
     var picked = _selected is { } sel ? strip.FirstOrDefault(h => h.Start == sel) : null;
     var start = picked?.Start ?? QuarterNow();
-    var run = picked is null ? now : RunAt(start);
+    var run = picked is null ? now : _view.RunAt(start);
     double? rank = picked is null ? _snap.NowRank01 : picked.Rank01;
     var lvl = Level(rank);
     // The cheapest start from now on (user 2026-10-19: "change it to cheapest"), night included (2026-10-20: "also at
     // night"), said as one sentence: "Start i nat kl. 02:00 – det er billigst". The best start while you are up comes under it.
-    var best = Cheapest(night: true);
-    var awake = Cheapest(night: false);
+    var best = _view.Cheapest(QuarterNow(), night: true);
+    var awake = _view.Cheapest(QuarterNow(), night: false);
     var hasTomorrow = _snap.Tomorrow?.Hours.Count > 0;
     var m = Current;
-    <div class="card now-tile @lvl">
+    <section class="k-card now-tile @lvl">
+        <h2 class="k-card-title">Prisen nu</h2>
+        @* Home, not "where the phone is": asked once (location if you are home, or your address). Tap to change. *@
+        <button class="area-chip" title="Skift dit hjem" @onclick="() => _askHome = !_askHome" disabled="@_searching">
+            @if (_searching) { <text>Finder dig…</text> }
+            else if (_gridName.Length > 0) { <text>@_postal <small>@_gridName</small> · skift</text> }
+            else { <text>Hvor bor du?</text> }
+        </button>
         <div class="chips chips-small" role="group" aria-label="Vælg maskine">
             <button class="chip @(m.IsWash ? "" : "on")" aria-pressed="@(!m.IsWash)" @onclick="() => PickMachineAsync(HomeMachine.DishKind)">Opvaskemaskine</button>
             <button class="chip @(m.IsWash ? "on" : "")" aria-pressed="@m.IsWash" @onclick="() => PickMachineAsync(HomeMachine.WashKind)">Vaskemaskine</button>
@@ -129,17 +126,17 @@ else
                 {
                     <b>Start @StartAt(best.Start) – det er billigst.</b>
                     <span>Den koster @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" – du sparer {Kr(run.CostKr - best.CostKr)} kr i forhold til nu" : "").</span>
-                    <span class="muted small">Har maskinen senere start: sæt den til @Delay(best.Start).</span>
+                    <span class="k-muted small">Har maskinen senere start: sæt den til @Delay(best.Start).</span>
                 }
-                @if (awake is not null && PriceModel.IsQuiet(best.Start, _s) && awake.Start != best.Start)
+                @if (awake is not null && _view.IsQuiet(best.Start) && awake.Start != best.Start)
                 {
-                    <span class="muted small">Ikke om natten? Mellem kl. 6 og 23 er det billigst @(awake.Start <= QuarterNow() ? "lige nu" : StartAt(awake.Start)) – @Kr(awake.CostKr) kr.</span>
+                    <span class="k-muted small">Ikke om natten? Mellem kl. 6 og 23 er det billigst @(awake.Start <= QuarterNow() ? "lige nu" : StartAt(awake.Start)) – @Kr(awake.CostKr) kr.</span>
                 }
             </div>
         }
         @if (!hasTomorrow)
         {
-            <div class="muted small u-center">Morgendagens priser kommer ca. kl. 13.</div>
+            <div class="k-muted small u-center">Morgendagens priser kommer ca. kl. 13.</div>
         }
         <button class="linkish small" @onclick="() => _editMachine = !_editMachine">@(_editMachine ? "Luk" : "Ret tid og strøm")</button>
         @if (_editMachine)
@@ -156,18 +153,19 @@ else
                            value="@m.Kwh.ToString(CultureInfo.InvariantCulture)" @onchange="SetKwhAsync" />
                 </label>
             </div>
-            <div class="muted small u-mt6">Står i manualen eller på energimærket. Gemmes kun på din telefon.</div>
+            <div class="k-muted small u-mt6">Står i manualen eller på energimærket. Gemmes kun på din telefon.</div>
             <button class="linkish small" @onclick="ResetMachineAsync">Brug standard (@(m.IsWash ? "1 kWh, 2 timer" : "0,54 kWh, 2 timer"))</button>
         }
         @if (picked is not null)
         {
             <button class="linkish small" @onclick="() => _selected = null">↺ Tilbage til nu</button>
         }
-    </div>
+    </section>
 
     @if (strip.Count > 0)
     {
-        <div class="card">
+        <section class="k-card">
+            <h2 class="k-card-title">Time for time</h2>
             <div class="bars">
                 @foreach (var h in strip)
                 {
@@ -192,30 +190,36 @@ else
                     <span>@label</span>
                 }
             </div>
-            <div class="muted small u-mt6 u-center">Høje, stribede søjler er dyre timer – lave er billige.</div>
-            <div class="muted small u-mt6 u-center">Tryk på en søjle – så viser det store tal prisen, hvis @(Current.Run)en starter der.</div>
-        </div>
+            <div class="k-muted small u-mt6 u-center">Høje, stribede søjler er dyre timer – lave er billige.</div>
+            <div class="k-muted small u-mt6 u-center">Tryk på en søjle – så viser det store tal prisen, hvis @(Current.Run)en starter der.</div>
+        </section>
     }
 
 }
 
 
-@if (_hindsight is { } hs && hs.Saved > 1)
+@if (_hindsight is { } hs && hs.SavedKr >= 1)
 {
-    <div class="card now-tile lvl-cheap">
-        <div class="small muted">Hvad havde du sparet?</div>
-        <div class="now-price lvl-cheap">@hs.Saved.ToString("0", Da) kr</div>
-        <div class="now-unit">på @hs.Days dage, hvis @(Current.Run)en var startet på dagens billigste tid i stedet for kl. 18</div>
-        <div class="now-compare">Det er med én @Current.Run om dagen. MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
-    </div>
+    @* Checked 2026-10-21 (user: "is that calculated correct?"): real prices for each of the last days, the household's
+       own tariff, the machine priced quarter by quarter while it runs - started at 18:00 vs at that day's cheapest
+       quarter (night included). Worked out in the Domain (Hindsight) and tested. *@
+    <section class="k-card now-tile lvl-cheap">
+        <h2 class="k-card-title">Hvad havde du sparet?</h2>
+        <div class="now-price lvl-cheap">@hs.SavedKr.ToString("0", Da) kr</div>
+        <div class="now-unit">på de sidste @hs.Days dage – ca. @Round10(hs.PerYearKr) kr om året</div>
+        <div class="now-compare">Med én @Current.Run om dagen (@Kwh(Current.Kwh) kWh, @Hours(Current.Hours)): startet kl. 18 hver dag havde den kostet <b>@Kr(hs.UsualKr) kr</b>. Startet på dagens billigste tid havde den kostet <b>@Kr(hs.CheapestKr) kr</b>. Alt inkl. moms, afgifter og @(_gridName.Length > 0 ? _gridName : "nettarif").</div>
+        @if (_gridName.Length == 0)
+        {
+            <div class="k-muted small u-mt6">Vi kender ikke dit netselskab endnu – skriv hvor du bor øverst, så bliver tallet præcist.</div>
+        }
+        <div class="k-muted small u-mt6">MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
+    </section>
 }
 
 @* The "Det får du i MinElpris" teaser block was removed 2026-09-28 (user): ElPriser stands on its own. *@
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
-    private PriceSnapshot? _snap;
-    private string _area = "DK1";
     private DateTime? _selected;
     private Timer? _timer;
 
@@ -224,22 +228,21 @@ else
         await LoadAsync();
         // The "now" price steps every 15 minutes; a phone left open on the counter
         // must never be more than a couple of minutes stale.
-        _timer = new Timer(async _ => { await LoadAsync(); await InvokeAsync(StateHasChanged); }, null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
+        // On the page's own thread, and a failed refresh (Energinet slow) keeps the prices already shown.
+        _timer = new Timer(_ => InvokeAsync(async () =>
+        {
+            try { await LoadAsync(); StateHasChanged(); } catch { }
+        }), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
     }
 
-    private List<PricePoint> _raw = [];
-    private HouseholdSettings _s = new();
+    private NowView? _view;
+    private PriceSnapshot? _snap => _view?.Snapshot;
+    private HouseholdSettings _s => _view?.Settings ?? new();
     // The free app prices one machine at a time: the dishwasher or the washing machine (user 2026-10-20), with the
     // household's own hours and kWh from the cookie, each quarter at its own price.
-    private HomeMachine Current => (_s.Machine == HomeMachine.WashKind ? _s.Wash : _s.Dish).Clean();
+    private HomeMachine Current => _view?.Machine ?? HomeMachine.Dishwasher();
     private bool _editMachine;
     private static readonly double[] HourChoices = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4];
-
-    private RunOption? RunAt(DateTime start) =>
-        _raw.Count == 0 ? null : PriceModel.CostOfRun(_raw, _s, Current.ToAppliance(), start);
-
-    private RunOption? Cheapest(bool night) =>
-        _raw.Count == 0 ? null : PriceModel.CheapestFrom(_raw, _s, Current.ToAppliance(), QuarterNow(), night);
 
     // "kl. 22:45", "i nat kl. 02:00", "i morgen kl. 13:15".
     private string StartAt(DateTime t) => $"{When(t)}:{t:mm}";
@@ -260,33 +263,30 @@ else
 
     private async Task PickMachineAsync(string kind)
     {
-        _s.Machine = kind;
         _selected = null;
-        await SaveMachineAsync();
+        await Front.PickMachineAsync(_s, kind);
+        _ = InvokeAsync(LoadHindsightAsync);   // "Hvad havde du sparet?" follows the machine
     }
 
     private async Task SetHoursAsync(ChangeEventArgs e)
     {
-        if (double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var h)) { Current.Hours = h; await SaveMachineAsync(); }
+        if (double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var h))
+            await MachineChangedAsync(Front.SetMachineAsync(_s, h, null));
     }
 
     private async Task SetKwhAsync(ChangeEventArgs e)
     {
         // A phone may send "1,5" or "1.5".
-        if (double.TryParse(e.Value?.ToString()?.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var k) && k > 0) { Current.Kwh = k; await SaveMachineAsync(); }
+        if (double.TryParse(e.Value?.ToString()?.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var k))
+            await MachineChangedAsync(Front.SetMachineAsync(_s, null, k));
     }
 
-    private async Task ResetMachineAsync()
-    {
-        if (Current.IsWash) _s.Wash = HomeMachine.WashingMachine(); else _s.Dish = HomeMachine.Dishwasher();
-        await SaveMachineAsync();
-    }
+    private Task ResetMachineAsync() => MachineChangedAsync(Front.ResetMachineAsync(_s));
 
-    private async Task SaveMachineAsync()
+    private async Task MachineChangedAsync(Task save)
     {
-        Current.Clean();
-        await Prefs.SaveAsync(_s);
-        _ = InvokeAsync(LoadTeasersAsync);   // "Hvad havde du sparet?" follows the machine
+        await save;
+        _ = InvokeAsync(LoadHindsightAsync);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -294,10 +294,11 @@ else
         if (!firstRender) return;
         // First visit: nothing is guessed from where the phone happens to be - the "Hvor bor du?"
         // card asks (use my location if I am home, or type the address).
-        _ = InvokeAsync(LoadTeasersAsync);
+        _ = InvokeAsync(LoadHindsightAsync);
     }
 
     private static string Kwh(double v) => v.ToString("0.##", Da);
+    private static string Round10(double kr) => (Math.Round(kr / 10) * 10).ToString("#,##0", Da);
     private static string Hours(double h) => h == 1 ? "1 time" : h < 1 ? $"{h * 60:0} min" : $"{h.ToString("0.##", Da)} timer";
 
     private DateTime QuarterNow()
@@ -308,41 +309,21 @@ else
 
     private async Task LoadAsync()
     {
-        var s = _s = await Prefs.GetAsync();
-        _area = s.PriceArea;
-        _postal = s.PostalCode;
-        _gridName = s.GridName;
-        var raw = _raw = await Prices.GetPricesAsync(_area);
-        _snap = PriceModel.Build(raw, s, [], DkTime.Now);
+        _view = await Front.LoadAsync();
+        _postal = _view.Settings.PostalCode;
+        _gridName = _view.Settings.GridName;
     }
 
     private string _postal = "", _gridName = "";
     private bool _searching;
     private string _locateMsg = "";
 
-    // "Hvad havde du sparet?" - the last 30 days: the chosen machine started at 18:00 every day
-    // vs at that day's cheapest start. Real prices, all-in with this household's grid tariff.
-    private sealed record Hindsight(double Saved, int Days);
+    // "Hvad havde du sparet?" - worked out in the Domain (Hindsight) from the last 30 days' real prices.
     private Hindsight? _hindsight;
-    private async Task LoadTeasersAsync()
+    private async Task LoadHindsightAsync()
     {
-        try
-        {
-            var today = DateOnly.FromDateTime(DkTime.Now);
-            var raw = await Prices.GetRangeAsync(today.AddDays(-30), today, _s.PriceArea);
-            var dish = Current.ToAppliance();
-            double saved = 0; var days = 0;
-            for (var d = today.AddDays(-30); d < today; d = d.AddDays(1))
-            {
-                var usual = PriceModel.CostOfRun(raw, _s, dish, d.ToDateTime(new TimeOnly(18, 0)));
-                var (cheapest, _) = PriceModel.DayRange(raw, _s, dish, d);
-                if (usual is null || cheapest is null) continue;
-                saved += Math.Max(0, usual.CostKr - cheapest.CostKr);
-                days++;
-            }
-            _hindsight = days >= 7 ? new Hindsight(saved, days) : null;
-        }
-        catch { _hindsight = null; }
+        try { _hindsight = _view is null ? null : await Front.HindsightAsync(_view.Settings); }
+        catch { _hindsight = null; }   // Energinet down: the box simply is not shown
         StateHasChanged();
     }
     private bool _askHome;
@@ -351,21 +332,10 @@ else
     // A typed address or postcode -> the grid company there. Being typed, it IS the home.
     private async Task FindAddressAsync()
     {
-        if (_addr.Trim().Length < 4) { _locateMsg = "Skriv en adresse eller et postnummer (4 cifre)."; return; }
         _searching = true;
         _locateMsg = "";
         StateHasChanged();
-        var place = await Grids.ResolveAsync(_addr.Trim());
-        if (place is null)
-        {
-            _searching = false;
-            _locateMsg = "Vi kunne ikke finde den adresse. Prøv med vej, husnummer og postnummer – eller kun postnummeret.";
-            return;
-        }
-        var g = await Grids.FindAtAsync(place.Lat, place.Lon);
-        _searching = false;
-        if (g is null) { _locateMsg = "Vi kunne ikke finde netselskabet lige nu. Prøv igen om lidt."; return; }
-        await SaveHomeAsync(place, g);
+        await ShowAsync(await Front.FindAddressAsync(_addr));
     }
 
     private sealed record GeoPoint(double Lat, double Lon, int Error = 0);
@@ -378,75 +348,43 @@ else
         var pos = await JS.InvokeAsync<GeoPoint?>("epUi.locate");
         if (pos is null || pos.Error != 0)
         {
-            // Never a silent nothing (user 2026-10-05: "Jeg er hjemme nu virker ikke på telefon"):
-            // say why the phone gave no location and what to do, with the address field as the way out.
+            // Never a silent nothing (user 2026-10-05: "Jeg er hjemme nu virker ikke på telefon").
             _searching = false;
-            _locateMsg = (pos?.Error ?? 2) switch
-            {
-                1 => "Telefonen må ikke give ElPriser din placering. Tryk på ikonet til venstre for adressen øverst → Tilladelser → Placering → Tillad, og prøv igen. Eller skriv din adresse herunder.",
-                8 => "Du har åbnet ElPriser inde i Facebook, og Facebook giver ikke din placering videre. Tryk på ⋮ øverst til højre → Åbn i Chrome (Open in browser), og tryk så her igen. Eller skriv din adresse herunder.",
-                3 => "Telefonen var for længe om at finde din placering. Prøv igen – eller skriv din adresse herunder.",
-                9 => "Din browser kan ikke give en placering. Skriv din adresse eller dit postnummer herunder.",
-                _ => "Telefonen kunne ikke finde din placering. Slå Placering til (træk ned fra toppen af skærmen → Placering), og prøv igen. Eller skriv din adresse herunder.",
-            };
+            _locateMsg = FrontPageUseCases.LocationProblem(pos?.Error ?? 2);
             StateHasChanged();
             return;
         }
-        var place = await Grids.ReverseAsync(pos.Lat, pos.Lon);
-        if (place is null)
-        {
-            // Abroad (or no address nearby): say so, and keep whatever was set before.
-            _searching = false;
-            _locateMsg = "Du ser ud til at være uden for Danmark. ElPriser viser danske elpriser – dit netselskab findes, når du er hjemme igen."
-                + (_gridName.Length > 0 ? $" Vi bruger stadig {_gridName}." : " Indtil da vises priserne uden din nettarif.");
-            StateHasChanged();
-            return;
-        }
-        _locateMsg = "";
-        await UsePlaceAsync(place);
-    }
-
-
-
-    private async Task UsePlaceAsync(Place place)
-    {
-        var g = await Grids.FindAtAsync(place.Lat, place.Lon);
-        _searching = false;
-        if (g is null)
-        {
-            _locateMsg = "Vi kunne ikke finde netselskabet for din placering lige nu. Prøv igen om lidt.";
-            StateHasChanged();
-            return;
-        }
-        var s = Prefs.Get();
-        // What matters is the grid company at HOME, not where the phone is right now. Already set
-        // and this place has another company (visiting another city)? Ask before switching.
-        if (s.GridSupplierId.Length > 0 && s.GridSupplierId != g.Id && !_askHome)
-        {
-            _pending = (place, g);
-            StateHasChanged();
-            return;
-        }
-        await SaveHomeAsync(place, g);
+        await ShowAsync(await Front.AtLocationAsync(pos.Lat, pos.Lon, _askHome));
     }
 
     private (Place Place, GridCompany Grid)? _pending;
 
+    private async Task ShowAsync(HomeAnswer answer)
+    {
+        _searching = false;
+        switch (answer)
+        {
+            case HomeAnswer.Problem p: _locateMsg = p.Message; break;
+            case HomeAnswer.AskSwitch a: _pending = (a.Place, a.Grid); break;
+            case HomeAnswer.Saved: await HomeSavedAsync(); break;
+        }
+        StateHasChanged();
+    }
+
     private async Task SaveHomeAsync(Place place, GridCompany g)
+    {
+        await Front.SaveHomeAsync(place, g);
+        await HomeSavedAsync();
+    }
+
+    private async Task HomeSavedAsync()
     {
         _pending = null;
         _askHome = false;
         _locateMsg = "";
-        var s = Prefs.Get();
-        s.PostalCode = place.PostalCode;
-        s.GridSupplierId = g.Id;
-        s.GridName = g.Name;
-        s.PriceArea = g.PriceArea;
-        s.NettarifLookup = null;
-        await Prefs.SaveAsync(s);
-
-        _snap = null;
+        _view = null;
         await LoadAsync();
+        _ = InvokeAsync(LoadHindsightAsync);
     }
 
     // The current hour onwards, today and tomorrow in one strip.

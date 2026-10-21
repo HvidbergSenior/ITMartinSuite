@@ -1,51 +1,12 @@
 
-@using ITMartinElPriser.Infrastructure
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @page "/regning"
 @using System.Globalization
-@inject IPriceSource Prices
-@inject PrefsService Prefs
+@inject MonthBillUseCases Month
 
 <PageTitle>Regning – ElPriser</PageTitle>
 
 <h1>Hvad betyder regningen?</h1>
-<p class="muted small u-m4-14">Vælg dit elselskab og skriv dit forbrug, så viser vi hvordan en måned fordeler sig – linje for linje, med de seneste 30 dages priser – og hvad hver linje egentlig er.</p>
+<p class="k-muted small u-m4-14">Vælg dit elselskab og skriv dit forbrug, så viser vi hvordan en måned fordeler sig – linje for linje, med de seneste 30 dages priser – og hvad hver linje egentlig er.</p>
 
 <PageHelp Key="help-regning">
     <ul>
@@ -55,9 +16,9 @@
     </ul>
 </PageHelp>
 
-<div class="card">
-    <div class="card-title">Hvad har du?</div>
-    <div class="muted small u-mb8">Begge dele står på din regning. Netselskabet bestemmer transport-prisen og kan ikke vælges; leverandøren kan.</div>
+<div class="k-card">
+    <div class="k-card-title">Hvad har du?</div>
+    <div class="k-muted small u-mb8">Begge dele står på din regning. Netselskabet bestemmer transport-prisen og kan ikke vælges; leverandøren kan.</div>
     <div class="field">
         <label>Elleverandør</label>
         <select @bind="_s.SupplierId" @bind:after="() => SettingsChangedAsync()">
@@ -70,7 +31,7 @@
     }
     @if (_s.GridSupplierId.Length > 0)
     {
-        <div class="field"><label>Netselskab</label><div><b>@_s.GridName</b> <span class="muted small">– fra postnummer @_s.PostalCode, med netselskabets egne tariffer. Skift på forsiden.</span></div></div>
+        <div class="field"><label>Netselskab</label><div><b>@_s.GridName</b> <span class="k-muted small">– fra postnummer @_s.PostalCode, med netselskabets egne tariffer. Skift på forsiden.</span></div></div>
     }
     else
     {
@@ -97,19 +58,20 @@
             <label>Dit forbrug, kWh pr. måned</label>
             <input type="number" min="10" max="5000" step="10" @bind="_kwh" @bind:after="RecalcAsync" />
         </div>
-        <div class="field u-f1"><label>&nbsp;</label><span class="muted small">≈ @((_kwh * 12).ToString("N0", Da)) kWh/år</span></div>
+        <div class="field u-f1"><label>&nbsp;</label><span class="k-muted small">≈ @((_kwh * 12).ToString("N0", Da)) kWh/år</span></div>
     </div>
-    <div class="muted small">Typisk: lejlighed 150–200, hus 250–350, hus med varmepumpe eller elbil 500+. Tallet står på din seneste regning eller på eloverblik.dk.</div>
+    <div class="k-muted small">Typisk: lejlighed 150–200, hus 250–350, hus med varmepumpe eller elbil 500+. Tallet står på din seneste regning eller på eloverblik.dk.</div>
 </div>
 
 @if (_bill is null)
 {
-    <div class="card muted">Regner…</div>
+    <div class="k-card k-muted">Regner…</div>
 }
 else
 {
     var b = _bill;
-    <div class="card now-tile">
+    <div class="k-card now-tile">
+        <h2 class="k-card-title">En måned</h2>
         <div class="now-price">≈ @b.TotalKr.ToString("0", Da)</div>
         <div class="now-unit">kr pr. måned · @_kwh kWh · @((b.Kwh > 0 ? b.TotalKr / b.Kwh : 0).ToString("0.00", Da)) kr/kWh alt inkl.</div>
         @{
@@ -123,9 +85,9 @@ else
         }
     </div>
 
-    <div class="card">
-        <div class="card-title">Sådan ser regningen ud</div>
-        <div class="muted small u-mb8">Et eksempel med dine tal, stillet op som elselskaberne gør det. Tryk på en linje for at få ordet forklaret. Tallene i cirklerne viser hvem pengene ender hos.</div>
+    <div class="k-card">
+        <div class="k-card-title">Sådan ser regningen ud</div>
+        <div class="k-muted small u-mb8">Et eksempel med dine tal, stillet op som elselskaberne gør det. Tryk på en linje for at få ordet forklaret. Tallene i cirklerne viser hvem pengene ender hos.</div>
         @{
             var perKwh = b.Kwh > 0 ? 1 / b.Kwh : 0;
             var exMoms = b.TotalKr - Kr("moms");
@@ -134,20 +96,20 @@ else
         }
         <div class="bill-paper">
             <div class="bill-head">
-                <div><b>@_supplierName</b><br /><span class="muted">Elregning</span></div>
-                <div class="muted u-right">Kundenr. 1234567<br />Periode: @b.From.ToString("d/M", Da)–@b.To.AddDays(-1).ToString("d/M yyyy", Da)<br />Målt forbrug: <b>@b.Kwh.ToString("0", Da) kWh</b></div>
+                <div><b>@_supplierName</b><br /><span class="k-muted">Elregning</span></div>
+                <div class="k-muted u-right">Kundenr. 1234567<br />Periode: @b.From.ToString("d/M", Da)–@b.To.AddDays(-1).ToString("d/M yyyy", Da)<br />Målt forbrug: <b>@b.Kwh.ToString("0", Da) kWh</b></div>
             </div>
 
-            <div class="bill-sec">① Elhandel <span class="muted">– @_supplierName</span></div>
+            <div class="bill-sec">① Elhandel <span class="k-muted">– @_supplierName</span></div>
             @Paper("spot", "Strøm, spotpris", Unit("spot"))
             @Paper("tillaeg", "Tillæg", Unit("tillaeg"))
             @Paper("abo-lev", "Abonnement", "1 md.")
 
-            <div class="bill-sec">② Transport <span class="muted">– @_gridName, opkræves af @_supplierName</span></div>
+            <div class="bill-sec">② Transport <span class="k-muted">– @_gridName, opkræves af @_supplierName</span></div>
             @Paper("net", "Nettarif", Unit("net"))
             @Paper("abo-net", "Netabonnement", "1 md.")
 
-            <div class="bill-sec">③ Afgifter og tariffer <span class="muted">– staten / Energinet</span></div>
+            <div class="bill-sec">③ Afgifter og tariffer <span class="k-muted">– staten / Energinet</span></div>
             @Paper("energinet", "Transmissions- og systemtarif", Unit("energinet"))
             @Paper("afgift", "Elafgift", Unit("afgift"))
 
@@ -155,20 +117,20 @@ else
             @Paper("moms", "③ Moms 25 %", "")
             <div class="bill-r bill-total"><span>I alt inkl. moms</span><b>@b.TotalKr.ToString("N2", Da) kr</b></div>
 
-            <div class="bill-r muted u-mt8"><span>Betalt aconto</span><b>-@aconto.ToString("N2", Da)</b></div>
+            <div class="bill-r k-muted u-mt8"><span>Betalt aconto</span><b>-@aconto.ToString("N2", Da)</b></div>
             <div class="bill-r"><span>@((b.TotalKr - aconto) >= 0 ? "Til betaling" : "Til udbetaling")</span><b>@Math.Abs(b.TotalKr - aconto).ToString("N2", Da) kr</b></div>
         </div>
-        <div class="muted small u-mt8">Rækkefølgen og navnene varierer fra selskab til selskab – nogle skriver "Nettarif C" eller "Transport af el", andre lægger transporten sammen i én linje. Beløbene og hvem de går til er de samme. Aconto-linjen er kun et eksempel.</div>
+        <div class="k-muted small u-mt8">Rækkefølgen og navnene varierer fra selskab til selskab – nogle skriver "Nettarif C" eller "Transport af el", andre lægger transporten sammen i én linje. Beløbene og hvem de går til er de samme. Aconto-linjen er kun et eksempel.</div>
     </div>
 
-    <div class="card">
-        <div class="card-title">Linje for linje – tryk for forklaring</div>
+    <div class="k-card">
+        <div class="k-card-title">Linje for linje – tryk for forklaring</div>
         @foreach (var l in b.Lines)
         {
             var open = _open == l.Id;
             <div class="bill-line" @onclick="() => _open = open ? null : l.Id">
                 <div class="appl-row">
-                    <span><b>@l.Title</b> <span class="muted small">· @l.Recipient@(l.IsFixed ? " · fast" : "")</span></span>
+                    <span><b>@l.Title</b> <span class="k-muted small">· @l.Recipient@(l.IsFixed ? " · fast" : "")</span></span>
                     <b>@l.Kr.ToString("0.00", Da) kr</b>
                 </div>
                 @if (b.TotalKr > 0) { <div class="bill-bar"><i style="--w:@((l.Kr / b.TotalKr * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div> }
@@ -185,8 +147,8 @@ else
         <div class="appl-row u-pt10 u-bold"><span>I alt</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
     </div>
 
-    <div class="card">
-        <div class="card-title">Sådan læser du regningen</div>
+    <div class="k-card">
+        <div class="k-card-title">Sådan læser du regningen</div>
         <ol class="small guide">
             <li><b>Én regning, tre modtagere.</b> Elleverandøren (@_supplierName) sender regningen, men beholder kun strømmen, tillægget og sit abonnement. Nettarif og net-abonnement sendes videre til netselskabet (@_gridName), og afgift, Energinet-tariffer og moms går til staten. Leverandøren er altså bare kassereren for det meste af beløbet.</li>
             <li><b>Det du kan vælge:</b> kun leverandøren. Netselskab, tariffer og afgifter er de samme uanset hvem du handler hos. Når du sammenligner tilbud, så se udelukkende på tillæg pr. kWh + abonnement.</li>
@@ -194,13 +156,13 @@ else
             <li><b>Det du kun kan skrue ned:</b> Energinet, elafgift og moms følger antal kWh. Mindre forbrug er det eneste der virker.</li>
             <li><b>Aconto og årsopgørelse:</b> mange betaler et fast aconto-beløb hver måned og får en efterregning eller penge tilbage én gang om året. Beløbet her er hvad en måned <i>faktisk</i> koster – ikke det der bliver trukket. Sammenlign med "forbrug i perioden" på årsopgørelsen.</li>
         </ol>
-        <p class="small muted">Regnet som om forbruget er jævnt fordelt over døgnet. Abonnementerne er fra appens forudsætninger (@_supplierName / @_gridName) – vælg dit eget netselskab og leverandør øverst. Vinterens høj- og spidslasttariffer er skøn.</p>
+        <p class="small k-muted">Regnet som om forbruget er jævnt fordelt over døgnet. Abonnementerne er fra appens forudsætninger (@_supplierName / @_gridName) – vælg dit eget netselskab og leverandør øverst. Vinterens høj- og spidslasttariffer er skøn.</p>
     </div>
 
-    <div class="card cta">
-        <div class="card-title">Vil du se din rigtige regning?</div>
+    <div class="k-card cta">
+        <div class="k-card-title">Vil du se din rigtige regning?</div>
         <div class="small">MinElpris læser din elmåler time for time og regner regningen ud fra det du faktisk brugte – og finder de apparater der koster mest.</div>
-        <a class="btn btn-primary btn-block u-mt10" href="https://minelpris.itmartin.dk">Åbn MinElpris →</a>
+        <a class="k-btn k-btn-primary k-btn-block u-mt10" href="https://minelpris.itmartin.dk">Åbn MinElpris →</a>
     </div>
 }
 
@@ -215,14 +177,13 @@ else
         var l = _bill?.Lines.FirstOrDefault(x => x.Id == id);
         if (l is null) return;
         var open = _open == id;
-        <div class="bill-r tap @(open ? "on" : "")" @onclick="() => _open = open ? null : id"><span>@name</span><span class="muted">@detail</span><b>@l.Kr.ToString("N2", Da)</b></div>
+        <div class="bill-r tap @(open ? "on" : "")" @onclick="() => _open = open ? null : id"><span>@name</span><span class="k-muted">@detail</span><b>@l.Kr.ToString("N2", Da)</b></div>
         if (open)
         {
             <div class="bill-explain paper-explain"><p><b>@l.Title</b> – @l.What</p><p><b>Kan du gøre noget?</b> @l.Influence</p>@if (!string.IsNullOrEmpty(l.Tip)) { <p class="lvl-cheap">@l.Tip</p> }</div>
         }
     };
 
-    private const int Days = 30;
     private int _kwh = 300;
     private Bill? _bill;
     private string? _open;
@@ -233,7 +194,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _s = await Prefs.GetAsync();
+        _s = await Month.SettingsAsync();
         await AreaChangedAsync();
     }
 
@@ -242,38 +203,21 @@ else
     private async Task AreaChangedAsync()
     {
         _bill = null;
-        var to = DateOnly.FromDateTime(DkTime.Now);
-        _raw = await Prices.GetRangeAsync(to.AddDays(-Days), to, _s.PriceArea);
+        _raw = await Month.PricesAsync(_s);
         await SettingsChangedAsync(save: _seen);
         _seen = true;
     }
 
     private bool _seen;
 
-    // save=false on first load: JS interop (the cookie) is not available
-    // while the page is being prerendered.
+    // save=false on first load: JS interop (the cookie) is not available while the page is being prerendered.
     private async Task SettingsChangedAsync(bool save = true)
     {
-        _s.ShowAllIn = true; // the bill only makes sense all-in
-        if (save) await Prefs.SaveAsync(_s);
         _supplierName = SupplierPreset.All.FirstOrDefault(p => p.Id == _s.SupplierId)?.Name ?? "elleverandøren";
         _gridName = _s.GridName.Length > 0 ? _s.GridName : GridCompanyPreset.All.FirstOrDefault(g => g.Id == _s.GridCompanyId)?.Name ?? "netselskabet";
-        await RecalcAsync();
+        if (_raw is not null) _bill = await Month.BuildAsync(_s, _raw, _kwh, save);
     }
 
-    // The month's kWh spread evenly over every hour of the last 30 days, so
-    // the split between spot, tariffs and fees reflects real recent prices.
-    private Task RecalcAsync()
-    {
-        if (_raw is null) return Task.CompletedTask;
-        var priced = _raw.Select(p => PriceBreakdownCalculator.Compute(p, _s)).ToList();
-        var to = DateOnly.FromDateTime(DkTime.Now);
-        var from = to.AddDays(-Days);
-        var perHour = Math.Clamp(_kwh, 1, 10000) / (double)(Days * 24);
-        var kwhByHour = new Dictionary<DateTime, double>();
-        for (var t = from.ToDateTime(TimeOnly.MinValue); t < to.ToDateTime(TimeOnly.MinValue); t = t.AddHours(1))
-            kwhByHour[t] = perHour;
-        _bill = BillCalculator.Build(from, to, kwhByHour, priced, _s);
-        return Task.CompletedTask;
-    }
+    // The kWh changed: the same prices, a new bill.
+    private Task RecalcAsync() => SettingsChangedAsync(save: false);
 }

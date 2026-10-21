@@ -1,3 +1,5 @@
+// ElPriser.Domain has a PushSubscriber too (2026-10-21) - MinElpris means its own.
+using PushSubscriber = ITMartinMitEl.Server.Services.PushSubscriber;
 using Microsoft.AspNetCore.DataProtection;
 using ITMartinElPriser.Infrastructure;
 using ITMartin.Shared.UI.Kolibri;

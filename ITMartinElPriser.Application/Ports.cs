@@ -37,3 +37,36 @@ public interface ISupplierSource
     DateTime? FetchedUtc { get; }
     Task<List<SupplierProduct>> GetAsync(string? gridArea = null);
 }
+
+/// <summary>The household's own settings. In the free app they live in a cookie on the visitor's phone - nothing about
+/// the visitor is kept on the server.</summary>
+public interface IHouseholdPrefs
+{
+    /// <summary>As saved (no tariff looked up).</summary>
+    HouseholdSettings Get();
+    /// <summary>With the grid company's exact tariff attached - use this whenever prices are computed.</summary>
+    Task<HouseholdSettings> GetAsync();
+    Task SaveAsync(HouseholdSettings settings);
+}
+
+/// <summary>The phones that asked for messages (one JSON file on the data volume).</summary>
+public interface ISubscriberStore
+{
+    SubscriberData Get();
+    /// <summary>Changes and saves in one go.</summary>
+    void Update(Action<SubscriberData> change);
+}
+
+/// <summary>Web Push (VAPID). The keys are made once and kept - new keys would silently orphan every phone.</summary>
+public interface IPushSender
+{
+    string PublicKey { get; }
+    /// <summary>False when the phone is gone (it is then removed from the store).</summary>
+    Task<bool> SendAsync(PushSubscriber to, PushMessage message, CancellationToken ct = default);
+}
+
+/// <summary>The text of a PDF, page by page in reading order.</summary>
+public interface IPdfText
+{
+    string Read(byte[] pdf);
+}
