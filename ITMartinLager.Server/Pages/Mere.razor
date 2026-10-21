@@ -1,0 +1,20 @@
+@page "/mere"
+@inject VareinfoLinks Vareinfo
+
+<PageTitle>Mere – Bogshoppen Lager</PageTitle>
+
+@* The tools that are not used every day (user 2026-10-21: "the lager app has too many tabs"). The menu keeps
+   Søg, Kasser and Ordrer; everything else is one big button here with what it is for. *@
+<section class="k-card">
+    <h1 class="k-card-title">Mere</h1>
+    <p>Her er de værktøjer, du ikke bruger hver dag. Tryk på det, du skal bruge.</p>
+    <div class="lg-more">
+        <a class="lg-more-btn" href="@Vareinfo.Base"><b>📷 Registrér</b><span>Tag billeder af tingene i en kasse – i Vareinfo, også for hjælpere.</span></a>
+        <a class="lg-more-btn" href="/guld"><b>🏆 Guld, sølv og bronze</b><span>De dyreste numre og titler lige nu – se om du har en af dem.</span></a>
+        <a class="lg-more-btn" href="/tilbud"><b>🏷️ Dagens tilbud</b><span>Tilbud, der kører af sig selv på bestemte dage på bogshoppen.dk.</span></a>
+        <a class="lg-more-btn" href="/boeger"><b>📚 Bøger</b><span>Er bøgerne værd at sælge? Ét billede af 10-20 bøger.</span></a>
+        <a class="lg-more-btn" href="/kolofon"><b>📖 Kolofon</b><span>Bøger, der skal have taget billede af kolofonen (udgave og oplag).</span></a>
+        <a class="lg-more-btn" href="/magic"><b>🃏 Magic-kort</b><span>Hent kort ind fra MTG Scanner med pris i kroner.</span></a>
+        <a class="lg-more-btn" href="/kasser/labels"><b>🏷️ Print labels</b><span>Labels med QR-kode til mange kasser på én gang.</span></a>
+    </div>
+</section>

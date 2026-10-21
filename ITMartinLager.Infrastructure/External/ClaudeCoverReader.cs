@@ -93,6 +93,10 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
           * "Magasin": blade med artikler (ikke tegneserier).
         - CD, "Vinyl" (LP/single) og "Kassettebånd": titel = albummets navn, artist = kunstneren.
         - Film: "DVD", "Blu-ray" eller "VHS" ud fra æsken. Konsolspil: platform (fx "PlayStation 2").
+        - Spil i en CD-æske er IKKE en CD: står der et spilfirma på ryggen (Eidos, EA, Ubisoft, Activision, Blizzard,
+          Sierra, Microsoft Games, "PC CD-ROM"), så er kind "Konsolspil" og platform "PC" (eller konsollen).
+        - Tomme diske er ikke varer: blanke CD-R/DVD-R/RW (Fujifilm, TDK, Verbatim, Maxell, "CD-Recordable", "650MB",
+          "700MB") og hjemmebrændte diske uden trykt omslag kommer IKKE med på listen.
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
         - usage: "Ny" kun når tingen tydeligt er ny og aldrig solgt (forseglet i plastik, butikkens mærkat). Ellers "Brugt".

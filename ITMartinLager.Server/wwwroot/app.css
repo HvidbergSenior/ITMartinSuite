@@ -80,3 +80,10 @@
 }
 .lg-order { display: flex; gap: .6rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .lg-order .lg-main { display: flex; flex-direction: column; gap: .15rem; }
+/* /mere: big buttons, one per tool, with what it is for (2026-10-21). */
+.lg-more { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.lg-more-btn { display: grid; gap: .2rem; padding: .9rem 1rem; border: 2px solid var(--k-border, #c9d2ce); border-radius: 12px;
+    background: var(--k-card, #fff); color: inherit; text-decoration: none; }
+.lg-more-btn b { font-size: 1.05rem; }
+.lg-more-btn span { font-size: .9rem; opacity: .85; }
+.lg-more-btn:hover, .lg-more-btn:focus-visible { border-color: var(--k-accent, #1f7a5c); }
