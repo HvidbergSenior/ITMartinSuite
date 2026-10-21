@@ -79,7 +79,7 @@ public class IntakeTests
     }
 
     [Test]
-    public async Task Scans_are_looked_up_on_Laes_and_unknown_codes_are_kept()
+    public async Task Scans_are_looked_up_on_Laes_and_unknown_codes_are_only_counted()
     {
         var vareinfo = Vareinfo(new CaptureBatch([], [new CapturedScan(1, "K0003", "Rico", "9780552131063", 2, At), new CapturedScan(2, "K0003", "Rico", "5051892000000", 1, At)]));
         var lookup = new Mock<IBarcodeLookup>();
@@ -93,9 +93,9 @@ public class IntakeTests
         (await intake.ReadWantedAsync()).Should().Be(2);
 
         var items = await Items.InBoxAsync((await Boxes.ByCodeAsync("K0003", default))!.Id, default);
-        items.Should().HaveCount(2);
-        items.Single(i => i.Title == "Mort").Should().Match<Item>(i => i.Quantity == 2 && i.Barcode == "9780552131063");
-        items.Single(i => i.Title != "Mort").Title.Should().Contain("5051892000000");
+        // The unknown code is not an item (it would count a photographed DVD twice) - Kasser shows it as 1 unknown.
+        items.Should().ContainSingle().Which.Should().Match<Item>(i => i.Title == "Mort" && i.Quantity == 2 && i.Barcode == "9780552131063");
+        (await intake.BoxesAsync()).Single().Unknown.Should().Be(1);
         reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

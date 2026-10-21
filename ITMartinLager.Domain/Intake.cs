@@ -46,13 +46,10 @@ public sealed class BoxScan
         Wanted = false;
     }
 
-    /// <summary>Not found anywhere: still saved, so it is in the box - a person fills in the title.</summary>
-    public static Found Unknown(string code) => new(Barcodes.IsIsbn(code) ? Kinds.Bog : Kinds.Andet, $"Ukendt – stregkode {code}",
-        "", "", "", null, "", "God", 1, 0, "Stregkoden blev ikke fundet – skriv titlen", Barcode: code);
 }
 
 /// <summary>Per box: photos and scans waiting (Wanted of them pressed Læs), read, and what the read photos held.</summary>
-public sealed record BoxIntake(string BoxCode, int Waiting, int Wanted, int Read, int Found, int Scans, int ScansWanted, string Helpers)
+public sealed record BoxIntake(string BoxCode, int Waiting, int Wanted, int Read, int Found, int Scans, int ScansWanted, string Helpers, int Unknown = 0)
 {
     public int Number => BoxCodes.Number(BoxCode);
     public bool HasUnread => Waiting > Wanted || Scans > ScansWanted;

@@ -32,16 +32,18 @@ public sealed class IntakeRepository(IDbContextFactory<LagerDb> dbf) : IIntakeRe
         var scans = await db.BoxScans.Where(s => s.ReadAt == null).GroupBy(s => s.BoxCode)
             .Select(g => new { g.Key, Waiting = g.Sum(s => s.Quantity), Wanted = g.Where(s => s.Wanted).Sum(s => s.Quantity) })
             .ToListAsync(ct);
+        var unknown = await db.BoxScans.Where(s => s.ReadAt != null && !s.Known).GroupBy(s => s.BoxCode)
+            .Select(g => new { g.Key, Count = g.Sum(s => s.Quantity) }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         var helpers = (await db.BoxShots.Select(s => new { s.BoxCode, s.Helper })
                 .Union(db.BoxScans.Select(s => new { s.BoxCode, s.Helper })).ToListAsync(ct))
             .GroupBy(x => x.BoxCode).ToDictionary(g => g.Key, g => string.Join(", ", g.Select(x => x.Helper).Where(h => h != "").Distinct().Order()));
-        var codes = shots.Select(s => s.Key).Union(scans.Select(s => s.Key));
+        var codes = shots.Select(s => s.Key).Union(scans.Select(s => s.Key)).Union(unknown.Keys);
         return codes.Select(code =>
             {
                 var p = shots.FirstOrDefault(s => s.Key == code);
                 var s = scans.FirstOrDefault(x => x.Key == code);
                 return new BoxIntake(code, p?.Waiting ?? 0, p?.Wanted ?? 0, p?.Read ?? 0, p?.Found ?? 0, s?.Waiting ?? 0, s?.Wanted ?? 0,
-                    helpers.GetValueOrDefault(code) ?? "");
+                    helpers.GetValueOrDefault(code) ?? "", unknown.GetValueOrDefault(code));
             })
             .OrderByDescending(b => b.BoxCode).ToList();
     }

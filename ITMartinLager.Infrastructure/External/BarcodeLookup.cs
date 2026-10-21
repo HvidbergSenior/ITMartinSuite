@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace ITMartinLager.Infrastructure.External;
 
 // Barcode -> what it is, from free sources without keys: books by ISBN (Google Books, then Open Library), CDs by
-// EAN (MusicBrainz), everything else (DVD, Blu-ray, games) by UPCitemdb's free trial (~100 a day), with kind and
+// EAN (Discogs barcode search first - it also knows European pressings, 2026-10-21 - then MusicBrainz), everything else (DVD, Blu-ray, games) by UPCitemdb's free trial (~100 a day), with kind and
 // console guessed from the product title. A miss returns null - the person types it in.
 public sealed class BarcodeLookup(HttpClient http, ILogger<BarcodeLookup> log) : IBarcodeLookup
 {
@@ -17,7 +17,7 @@ public sealed class BarcodeLookup(HttpClient http, ILogger<BarcodeLookup> log) :
         code = Barcodes.Clean(code);
         if (code.Length < 8) return null;
         if (Barcodes.IsIsbn(code)) return await Try(() => GoogleBooks(code, ct), "Google Books") ?? await Try(() => OpenLibrary(code, ct), "Open Library");
-        return await Try(() => MusicBrainz(code, ct), "MusicBrainz") ?? await Try(() => UpcItemDb(code, ct), "UPCitemdb");
+        return await Try(() => Discogs(code, ct), "Discogs") ?? await Try(() => MusicBrainz(code, ct), "MusicBrainz") ?? await Try(() => UpcItemDb(code, ct), "UPCitemdb");
     }
 
     private async Task<Found?> Try(Func<Task<Found?>> call, string source)
@@ -67,6 +67,33 @@ public sealed class BarcodeLookup(HttpClient http, ILogger<BarcodeLookup> log) :
         var artist = string.Join("", (rel.ArtistCredit ?? []).Select(a => a.Name + (a.JoinPhrase ?? "")));
         return new Found(kind, rel.Title, artist, "", "", Year(rel.Date ?? ""), "", "God", 1, 0.95, format == "" ? "" : format, "", ean);
     }
+
+    // Discogs (no key, ~25 calls a minute): "Frank Sinatra - Frank Sinatra", format ["CD", "Compilation", ...].
+    private async Task<Found?> Discogs(string ean, CancellationToken ct)
+    {
+        var r = await Get<DgSearch>($"https://api.discogs.com/database/search?barcode={ean}&per_page=5", ct);
+        var rel = r?.Results?.FirstOrDefault(x => x.Type == "release") ?? r?.Results?.FirstOrDefault();
+        if (rel?.Title is not { Length: > 0 } full) return null;
+        var (artist, title) = SplitDiscogsTitle(full);
+        var formats = rel.Format ?? [];
+        return new Found(DiscogsKind(formats), title, artist, "", "", Year(rel.Year ?? ""), "", "God", 1, 0.9, string.Join(", ", formats), "", ean);
+    }
+
+    // "Artist - Title" (the artist can hold " - " too, the title rarely does: split at the first one).
+    public static (string Artist, string Title) SplitDiscogsTitle(string full)
+    {
+        var i = full.IndexOf(" - ", StringComparison.Ordinal);
+        return i > 0 ? (full[..i].Trim(), full[(i + 3)..].Trim()) : ("", full.Trim());
+    }
+
+    public static string DiscogsKind(IReadOnlyList<string> formats) =>
+        formats.Any(f => f.Contains("Blu-ray", StringComparison.OrdinalIgnoreCase)) ? Kinds.BluRay
+        : formats.Any(f => f.Equals("DVD", StringComparison.OrdinalIgnoreCase) || f.Equals("DVD-Video", StringComparison.OrdinalIgnoreCase)) ? Kinds.Dvd
+        : formats.Any(f => f.Equals("Vinyl", StringComparison.OrdinalIgnoreCase) || f.Equals("LP", StringComparison.OrdinalIgnoreCase)) ? Kinds.Vinyl
+        : formats.Any(f => f.Equals("Cassette", StringComparison.OrdinalIgnoreCase)) ? Kinds.Kassette
+        : formats.Any(f => f.Equals("VHS", StringComparison.OrdinalIgnoreCase)) ? Kinds.Vhs
+        : formats.Any(f => f.StartsWith("CD", StringComparison.OrdinalIgnoreCase)) ? Kinds.Cd
+        : Kinds.Andet;
 
     private async Task<Found?> UpcItemDb(string code, CancellationToken ct)
     {
@@ -123,6 +150,8 @@ public sealed class BarcodeLookup(HttpClient http, ILogger<BarcodeLookup> log) :
     }
     private sealed class MbCredit { public string Name { get; set; } = ""; public string? JoinPhrase { get; set; } }
     private sealed class MbMedium { public string? Format { get; set; } }
+    private sealed class DgSearch { public List<DgResult>? Results { get; set; } }
+    private sealed class DgResult { public string? Title { get; set; } public string? Type { get; set; } public string? Year { get; set; } public List<string>? Format { get; set; } }
     private sealed class UpcLookup { public List<UpcItem>? Items { get; set; } }
     private sealed class UpcItem { public string? Title { get; set; } }
 }

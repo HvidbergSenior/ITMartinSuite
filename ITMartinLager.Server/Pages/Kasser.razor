@@ -34,6 +34,7 @@
                             <span class="k-small k-muted">
                                 @if (b.Waiting + b.Scans > 0) { <span>@b.Waiting billeder og @b.Scans stregkoder venter@(b.Wanted + b.ScansWanted > 0 ? " (bliver læst nu)" : "")</span> }
                                 @if (b.Read > 0) { <span>@(b.Waiting + b.Scans > 0 ? " · " : "")@b.Read læst, @b.Found ting fundet</span> }
+                                @if (b.Unknown > 0) { <span> · @b.Unknown @(b.Unknown == 1 ? "stregkode" : "stregkoder") ukendt – tag et billede af forsiden</span> }
                                 @if (b.Helpers != "") { <span> · taget af @b.Helpers</span> }
                             </span></span></a>
                     @if (b.HasUnread) { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => WantRead(b.BoxCode)">Læs kasse @b.Number</button> }

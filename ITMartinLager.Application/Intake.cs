@@ -68,7 +68,9 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         return done;
     }
 
-    // Unknown codes are saved too, as "Ukendt - stregkode ...". Each box's things go in at once.
+    // A code no source knows is NOT saved as an item (user 2026-10-21): it is usually a Danish DVD/CD whose cover photo
+    // already found it, so an "Ukendt" item would count it twice. The scan stays (Known = false) and Kasser shows the count.
+    // Each box's things go in at once.
     private async Task<int> LookUpScansAsync(CancellationToken ct)
     {
         var wanted = await intake.WantedScansAsync(ScansPerRound, ct);
@@ -80,7 +82,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             {
                 var f = await barcodes.LookupAsync(s.Code, ct);
                 known[s] = f is not null;
-                found.Add((f ?? BoxScan.Unknown(s.Code)) with { Barcode = s.Code, Quantity = s.Quantity });
+                if (f is not null) found.Add(f with { Barcode = s.Code, Quantity = s.Quantity });
             }
             await SaveInBoxAsync(box.Key, null, found, ct);
             var now = clock.GetUtcNow().UtcDateTime;

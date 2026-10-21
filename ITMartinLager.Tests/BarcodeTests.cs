@@ -26,3 +26,23 @@ public class BarcodeTests
         Barcodes.IsIsbn("978014044913").Should().BeFalse();
     }
 }
+
+// Discogs barcode search (2026-10-21): it knew the Frank Sinatra CD the other free sources had only as a title.
+public class DiscogsBarcodeTests
+{
+    [Test]
+    public void The_title_splits_into_artist_and_title()
+    {
+        BarcodeLookup.SplitDiscogsTitle("Frank Sinatra - Frank Sinatra").Should().Be(("Frank Sinatra", "Frank Sinatra"));
+        BarcodeLookup.SplitDiscogsTitle("Gnags - Mr. Swing King - Live").Should().Be(("Gnags", "Mr. Swing King - Live"));
+        BarcodeLookup.SplitDiscogsTitle("Untitled").Should().Be(("", "Untitled"));
+    }
+
+    [TestCase(new[] { "CD", "Compilation", "Remastered" }, "CD")]
+    [TestCase(new[] { "Vinyl", "LP", "Album" }, "Vinyl")]
+    [TestCase(new[] { "Cassette", "Album" }, "Kassettebånd")]
+    [TestCase(new[] { "DVD", "PAL" }, "DVD")]
+    [TestCase(new[] { "Blu-ray", "DVD" }, "Blu-ray")]
+    [TestCase(new[] { "File" }, "Andet")]
+    public void The_format_gives_the_kind(string[] formats, string kind) => BarcodeLookup.DiscogsKind(formats).Should().Be(kind);
+}
