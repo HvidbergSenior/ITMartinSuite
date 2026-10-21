@@ -51,7 +51,7 @@
 
             @if (_state == "on")
             {
-                <div class="ok u-mt10">✓ Denne telefon får beskeder@(string.IsNullOrWhiteSpace(_name) ? "" : $" ({_name})")</div>
+                <div class="ok">✓ Denne telefon får beskeder@(string.IsNullOrWhiteSpace(_name) ? "" : $" ({_name})")</div>
                 <div class="btn-row">
                     <button class="k-btn" @onclick="SaveAsync" disabled="@_busy">Gem valg</button>
                     <button class="k-btn" @onclick="TestAsync" disabled="@_busy">Send test</button>
@@ -75,7 +75,7 @@
 
 <div class="k-card">
     <div class="k-card-title">Sådan virker det</div>
-    <div class="small k-muted">
+    <div>
         Hver dag ca. kl. 13 kommer morgendagens priser. Appen finder de billigste to timer i træk for <b>@Front.Describe()</b> (skift dit hjem på forsiden, og tryk "Gem valg" igen her) og sender en besked én time før. Vi gemmer kun det der skal til for at sende beskeden: telefonens besked-adresse, dit prisområde og dit kundenummer – ingen e-mail.
     </div>
 </div>

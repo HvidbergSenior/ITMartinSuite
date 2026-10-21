@@ -106,7 +106,10 @@ a { color: var(--accent); text-decoration: none; }
 .switch { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
 .switch:first-child { border-top: none; }
 .switch input { width: 22px; height: 22px; accent-color: var(--accent); }
-.btn-row { display: flex; gap: 8px; margin-top: 8px; }
+/* Buttons never touch each other or the next button (user 2026-10-21 Besked screenshot: "and spacing"). Kolibri spacing tokens. */
+.btn-row { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); margin: var(--k-space-3, 12px) 0; }
+.btn-row + .k-btn-block, .k-btn-block + .btn-row, .k-btn-block + .k-btn-block { margin-top: var(--k-space-3, 12px); }
+.ok { margin: var(--k-space-3, 12px) 0 0; }
 .btn-row .k-btn { flex: 1; }
 .note { background: var(--bg3); border-radius: 10px; padding: 10px 12px; font-size: .88rem; margin-top: 10px; }
 .ok { color: var(--cheap); }
