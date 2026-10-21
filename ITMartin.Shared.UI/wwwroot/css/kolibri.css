@@ -222,6 +222,9 @@ html[data-mode="tv"] .k-grid { grid-template-columns: repeat(auto-fit, minmax(38
 .k-fold-head::after { content: "▾"; margin-left: auto; color: var(--k-muted); font-size: .9em; transition: transform var(--k-transition); }
 .k-folded > .k-fold-head::after { transform: rotate(-90deg); }
 .k-folded > :not(.k-fold-head) { display: none !important; }
+/* A box that starts closed is closed from the first moment - before kolibri.js gets to it, so it never flashes open
+   (user 2026-10-21: "pushing lav ny gives a flicker"). Opened once by the visitor, the script opens it as before. */
+.k-card[data-fold-closed]:not([data-k-fold]) > :not(:first-child) { display: none; }
 .k-folded > .k-fold-head { margin-bottom: 0; }
 .k-fold-head:focus-visible { outline: 2px solid var(--k-accent); outline-offset: 3px; border-radius: 4px; }
 
