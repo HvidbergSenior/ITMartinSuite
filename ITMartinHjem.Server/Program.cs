@@ -69,6 +69,7 @@ builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hje
 // since 2026-10-21 (same /api/butik as Lager had - Hjem__SalgApi / Hjem__SalgShopKey, the old Lager names still work).
 builder.Services.AddLagerShopGateway(builder.Configuration["Hjem:SalgApi"] ?? builder.Configuration["Hjem:LagerApi"],
     builder.Configuration["Hjem:SalgShopKey"] ?? builder.Configuration["Hjem:LagerShopKey"]);
+builder.Services.AddSingleton(new ShopVisibility(builder.Configuration.GetValue<bool>("Hjem:ShowFound"), builder.Configuration["Hjem:ShopPreviewCode"] ?? ""));
 builder.Services.AddHjemShop(new ShopSeller(builder.Configuration["Hjem:ShopCompany"] ?? "", builder.Configuration["Hjem:ShopCvr"] ?? "",
     builder.Configuration["Hjem:ShopAddress"] ?? "", builder.Configuration["Hjem:ShopEmail"] ?? "ITMartin@Mensa.dk",
     builder.Configuration["Hjem:ShopPhone"] ?? "31 19 47 30"));
@@ -243,8 +244,20 @@ app.MapGet("/nu/{name}", async (string name, HttpContext ctx, SiteUseCases site)
 
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
 // Shop photos come from Lager through here, so the buyer never talks to the photoserver.
-app.MapGet("/varer/foto/{id:int}", async (int id, ShopUseCases shop) =>
-    await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+app.MapGet("/varer/foto/{id:int}", async (int id, HttpContext ctx, ShopVisibility visibility, ShopUseCases shop) =>
+    visibility.Visible(ctx.Request.Cookies[ShopVisibility.Cookie]) && await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+// Martin's preview of the shop while it is closed (user 2026-10-21: "i want to test it first"): /vis-butik?kode=... once
+// on each phone/PC, /skjul-butik to see it as the public does. A wrong code just goes to the teaser.
+app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibility) =>
+{
+    if (visibility.CodeOk(kode))
+        ctx.Response.Cookies.Append(ShopVisibility.Cookie, kode!, new CookieOptions
+        {
+            HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(60)
+        });
+    return Results.Redirect("/varer");
+});
+app.MapGet("/skjul-butik", (HttpContext ctx) => { ctx.Response.Cookies.Delete(ShopVisibility.Cookie); return Results.Redirect("/varer"); });
 
 app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
 // The pilot page moved to /bliv-pilot/ (2026-09-29): browsers kept a stale one.com copy of /pilot/ without the menu.

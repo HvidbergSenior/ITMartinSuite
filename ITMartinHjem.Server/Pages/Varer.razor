@@ -1,7 +1,6 @@
 @page "/varer"
 @inject ShopUseCases Shop
 @inject NavigationManager Nav
-@inject IConfiguration Config
 @inject IJSRuntime JS
 
 @* bogshoppen.dk "Varer" = the marketplace (2026-10-20, user: "a place where they easily can see products in different
@@ -156,9 +155,11 @@ else
     private bool _show, _busy;
     private string? _error;
 
+    [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
-        _show = Config.GetValue<bool>("Hjem:ShowFound");
+        _show = ShopVisible;
         if (!_show) return;
         (_q, _type, _sort, _page) = (Q ?? "", Type ?? "", ShopSorts.All.Contains(Sort) ? Sort! : ShopSorts.Newest, 0);
         _usage = Usages.All.Contains(Brugt) ? Brugt! : "";

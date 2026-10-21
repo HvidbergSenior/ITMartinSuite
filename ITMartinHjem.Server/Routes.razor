@@ -1,5 +1,12 @@
-<Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-    </Found>
-</Router>
+<CascadingValue Name="ShopVisible" Value="ShopVisible" IsFixed="true">
+    <Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
+        <Found Context="routeData">
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        </Found>
+    </Router>
+</CascadingValue>
+
+@code {
+    /// <summary>The shop is shown to this visitor (ShopVisibility) - else the teaser, and no basket.</summary>
+    [Parameter] public bool ShopVisible { get; set; }
+}

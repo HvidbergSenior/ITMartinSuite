@@ -113,6 +113,18 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
     }
 }
 
+/// <summary>Who sees the shop (user 2026-10-21: "nothing should be on homepages. i want to test it first"): everyone when
+/// Hjem__ShowFound=true, else only a browser that opened /vis-butik?kode=Hjem__ShopPreviewCode (cookie bs_preview).</summary>
+public sealed record ShopVisibility(bool ShowAll, string PreviewCode)
+{
+    public const string Cookie = "bs_preview";
+
+    /// <summary>A code shorter than 8 never opens anything.</summary>
+    public bool CodeOk(string? code) => PreviewCode.Length >= 8 && code == PreviewCode;
+
+    public bool Visible(string? cookie) => ShowAll || CodeOk(cookie);
+}
+
 public static class ShopRegistration
 {
     public static IServiceCollection AddHjemShop(this IServiceCollection services, ShopSeller seller)

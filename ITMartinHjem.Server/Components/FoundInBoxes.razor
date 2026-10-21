@@ -1,5 +1,4 @@
 @inject ShopUseCases Shop
-@inject IConfiguration Config
 
 @* "Fundet i kasserne" on bogshoppen.dk AND itmartin.dk (user 2026-10-15: "the webshop should be on both ... I dont want
    to have a webshop feel ... more interest oriented and of course a way of selling to interested people", "remember the
@@ -48,9 +47,11 @@
 @code {
     private List<(ShopItem Item, List<ShopProof> Proof)> _items = [];
 
-    // Off until Martin says so (user 2026-10-15: "dont show varer yet on homepage") - Hjem__ShowFound=true in magic.env.
+    [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+
+    // Off until Martin says so (user 2026-10-15: "dont show varer yet on homepage") - ShopVisibility: Hjem__ShowFound, or his preview cookie.
     protected override async Task OnInitializedAsync()
     {
-        if (Config.GetValue<bool>("Hjem:ShowFound")) _items = await Shop.FeaturedAsync();
+        if (ShopVisible) _items = await Shop.FeaturedAsync();
     }
 }

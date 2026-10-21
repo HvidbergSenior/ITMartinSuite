@@ -13,7 +13,12 @@
     <p>Her ser du prisen for det hele med dagens tilbud. Tryk Betal for at betale med kort eller MobilePay.</p>
 </header>
 
-@if (_loading)
+@if (!ShopVisible)
+{
+    @* Not open yet (user 2026-10-21: "i want to test it first") - no basket and no payment for the public. *@
+    <section class="k-card bs-card"><h2>Kurven er ikke åben endnu</h2><div><p>Vi er ved at gøre butikken klar.</p><a class="k-btn k-btn-primary bs-btn" href="/varer">Se hvad der kommer</a></div></section>
+}
+else if (_loading)
 {
     <p class="k-center k-help">Regner kurven ud …</p>
 }
@@ -88,9 +93,11 @@ else
     private bool _loading = true, _busy;
     private string? _error;
 
+    [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender || !ShopVisible) return;
         try { _ids = await JS.InvokeAsync<List<int>>("bsKurv.get"); } catch (JSException) { _ids = []; }
         await Load();
         StateHasChanged();

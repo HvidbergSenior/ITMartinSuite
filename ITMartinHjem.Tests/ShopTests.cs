@@ -76,3 +76,19 @@ public class ShopTests
         error.Should().Be(ShopUseCases.Unreachable);
     }
 }
+
+// The shop stays closed until Martin has tested it (user 2026-10-21) - only his preview cookie opens it.
+public class ShopVisibilityTests
+{
+    [Test]
+    public void Closed_unless_switched_on_or_the_right_preview_code()
+    {
+        var closed = new ShopVisibility(false, "proeve-2026");
+        closed.Visible(null).Should().BeFalse();
+        closed.Visible("forkert").Should().BeFalse();
+        closed.Visible("proeve-2026").Should().BeTrue();
+        new ShopVisibility(false, "").Visible("").Should().BeFalse();       // no code set = nobody
+        new ShopVisibility(false, "kort").Visible("kort").Should().BeFalse();   // too short to be a code
+        new ShopVisibility(true, "").Visible(null).Should().BeTrue();
+    }
+}

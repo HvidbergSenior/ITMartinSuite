@@ -1,7 +1,6 @@
 @page "/varer/{Id:int}"
 @inject ShopUseCases Shop
 @inject NavigationManager Nav
-@inject IConfiguration Config
 @inject IJSRuntime JS
 
 @* One product on bogshoppen.dk: what it is, the price promise with the proof links, and Køb nu (Stripe). *@
@@ -117,10 +116,12 @@ else
     private bool _canBuy, _loading = true, _busy;
     private string? _error;
 
+    [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
-        // Not shown yet (user 2026-10-15) - "ikke til salg" page until Hjem__ShowFound=true.
-        if (!Config.GetValue<bool>("Hjem:ShowFound")) { _item = null; _loading = false; return; }
+        // Not shown yet (user 2026-10-15) - "ikke til salg" page unless ShopVisibility says so.
+        if (!ShopVisible) { _item = null; _loading = false; return; }
         _loading = true;
         if (await Shop.ItemAsync(Id) is { } x) (_canBuy, _item, _proof) = (x.CanBuy, x.Item, x.Proof);
         else _item = null;
