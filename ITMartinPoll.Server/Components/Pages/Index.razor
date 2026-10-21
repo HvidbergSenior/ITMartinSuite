@@ -6,7 +6,6 @@
 <PageTitle>Stem</PageTitle>
 
 <div class="poll-root">
-    <KolibriHeader />
 
     @* Problem/formål- og "sådan bruger du appen"-bannerne er fjernet (bruger,
        2026-09-10). De solgte appen til en førstegangsbesøgende, men forsiden
@@ -15,16 +14,24 @@
 
     @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any() && !_packages.Any() && !_helpEvents.Any())
     {
-        <div class="poll-empty">
-            @if (Session.IsAdmin) { <p>Ingen aktive meningsmålinger lige nu</p> }
-            else
-            {
-                <p><b>Afstemningerne her er private.</b></p>
-                <p>Har du fået et link til en afstemning, så åbn det direkte – så kommer du lige derhen.</p>
-                <p>Vil du selv spørge familien, foreningen eller vennerne? Det er gratis for kunder.</p>
-                <a class="k-btn k-btn-primary" href="/lav">Lav din egen afstemning</a>
-            }
-        </div>
+        @if (Session.IsAdmin) { <div class="poll-empty"><p>Ingen aktive meningsmålinger lige nu</p></div> }
+        else
+        {
+            <PageHelp>
+                <p>Stem er til, når flere skal beslutte noget sammen: en dato, hvor festen skal holdes, hvilket billede der skal på væggen.</p>
+                <p><b>Sådan stemmer du:</b> åbn linket, du har fået, sæt dit kryds og tryk Stem. Du skal ikke oprette noget.</p>
+                <p><b>Sådan spørger du selv:</b> tryk Lav ny øverst. Det er gratis for kunder – du skal bruge dit kundenummer.</p>
+            </PageHelp>
+            <section class="k-card">
+                <h2 class="k-card-title">Har du fået et link?</h2>
+                <p>Afstemningerne her er private, så de står ikke på listen. Åbn linket, du har fået – så kommer du lige derhen.</p>
+            </section>
+            <section class="k-card">
+                <h2 class="k-card-title">Lav din egen afstemning</h2>
+                <p>Spørg familien, foreningen eller vennerne – og se hvad de vælger. Gratis for kunder hos ITMartin og Bogshoppen.</p>
+                <a class="k-btn k-btn-primary k-btn-block" href="/lav">Lav din egen afstemning</a>
+            </section>
+        }
     }
     else
     {

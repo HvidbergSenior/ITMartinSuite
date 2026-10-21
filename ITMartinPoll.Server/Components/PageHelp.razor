@@ -1,0 +1,11 @@
+@* A page's own description as a Kolibri box, like ElPriser: closed until the visitor opens it once, and the phone
+   remembers it (kolibri.js folds every .k-card that starts with a heading). *@
+<section class="k-card page-help" data-fold-closed>
+    <h2 class="k-card-title">@Title</h2>
+    <div>@ChildContent</div>
+</section>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Hvad viser siden?";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

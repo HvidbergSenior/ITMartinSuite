@@ -144,7 +144,7 @@ public class CustomerPollTests
         CustomerPollRules.Make("48217730", " ", "", ["a", "b"], false, null, 0, Now).Error.Should().Contain("handler om");
         CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", " ", "have"], false, null, 0, Now).Error.Should().Contain("mindst 2");
         CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, Now.AddHours(-1), 0, Now).Error.Should().Contain("fremtiden");
-        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, null, CustomerPollRules.MaxOpen, Now).Error.Should().Contain("Luk en");
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, null, 1, Now).Error.Should().Be(CustomerPollRules.FreeLimit);   // free = one open at a time
 
         var (error, poll) = CustomerPollRules.Make("48217730", " Sommerfest? ", "", ["Have", "Hal", ""], true, null, 0, Now);
         error.Should().BeNull();

@@ -8,9 +8,12 @@
    The number is remembered on this phone. Every box says what it is and how to use it. *@
 <PageTitle>Lav din egen afstemning – Stem</PageTitle>
 
-<div class="poll-root">
-    <KolibriHeader />
-    <div class="k-content lav">
+<div class="lav">
+    <PageHelp>
+        <p>Her laver du din egen afstemning og ser, hvad folk har stemt.</p>
+        <p><b>Sådan gør du:</b> skriv dit kundenummer, skriv spørgsmålet og mindst 2 svar, og tryk Lav afstemningen. Send linket til dem, der skal stemme.</p>
+        <p>Vi spørger ikke efter e-mails på din afstemning – kun et navn, hvis folk selv vil skrive det.</p>
+    </PageHelp>
 
     @if (!_in)
     {
@@ -20,9 +23,9 @@
             <p><b>Sådan gør du:</b> skriv dit kundenummer (8 cifre – det står i mailen, du fik, da du skrev dig op) og tryk Fortsæt.</p>
             <input class="k-input" inputmode="numeric" autocomplete="off" @bind="_code" placeholder="fx 4821 7730" />
             @if (_error != "") { <p class="lav-warn">@_error</p> }
-            <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="LoginAsync">Fortsæt</button>
+            <button class="k-btn k-btn-primary k-btn-block k-mt" disabled="@_busy" @onclick="LoginAsync">Fortsæt</button>
             <p class="k-mt">Har du ikke et kundenummer? Det er gratis:</p>
-            <a class="k-btn" href="https://itmartin.dk/mine-apps?app=Stem" target="_blank" rel="noopener">Skriv dig op gratis på itmartin.dk</a>
+            <a class="k-btn k-btn-block" href="https://itmartin.dk/mine-apps?app=Stem" target="_blank" rel="noopener">Skriv dig op gratis på itmartin.dk</a>
         </section>
     }
     else
@@ -30,6 +33,7 @@
         <section class="k-card">
             <h1 class="k-card-title">Ny afstemning</h1>
             <p><b>Sådan gør du:</b> skriv spørgsmålet og mindst 2 svarmuligheder, og tryk Lav afstemningen. Så får du et link, du kan sende til dem, der skal stemme.</p>
+            <p>I den gratis udgave har du <b>én åben afstemning ad gangen</b>. Vil du have flere, så spørg Martin om den udvidede udgave.</p>
             <label class="lav-label">Spørgsmålet <input class="k-input" @bind="_title" maxlength="120" placeholder="fx Hvor skal vi holde sommerfest?" /></label>
             <label class="lav-label">Lidt mere (valgfrit) <textarea class="k-input k-textarea" rows="2" @bind="_body" maxlength="1000"></textarea></label>
             <b>Svarmuligheder</b>
@@ -42,7 +46,7 @@
             <label class="lav-check"><input type="checkbox" @bind="_multi" /> Man må vælge flere svar</label>
             <label class="lav-label">Slutter (valgfrit) <input class="k-input" type="date" @bind="_end" /></label>
             @if (_error != "") { <p class="lav-warn">@_error</p> }
-            <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="CreateAsync">Lav afstemningen</button>
+            <button class="k-btn k-btn-primary k-btn-block k-mt" disabled="@_busy" @onclick="CreateAsync">Lav afstemningen</button>
             @if (_newId > 0)
             {
                 <div class="lav-done k-mt">
@@ -72,7 +76,6 @@
             <button class="k-btn k-btn-sm k-mt" @onclick="LogoutAsync">Glem mit kundenummer på denne telefon</button>
         </section>
     }
-    </div>
 </div>
 
 @code {

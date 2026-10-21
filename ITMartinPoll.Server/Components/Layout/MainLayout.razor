@@ -1,3 +1,12 @@
 @inherits LayoutComponentBase
-@Body
+
+@* The same frame as ElPriser (user 2026-10-21: "it should be the same feel as ElPriser"): KolibriHeader with the tabs,
+   k-main/k-content, KolibriFooter. The voting pages keep their own "← Tilbage" row under the header. *@
+<KolibriHeader>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Forside</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/lav">Lav ny</NavLink>
+</KolibriHeader>
+<div class="k-main"><div class="k-content">
+    @Body
+</div></div>
 <KolibriFooter />

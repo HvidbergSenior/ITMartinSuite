@@ -15,10 +15,10 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Root ─────────────────────────────── */
 
+/* Inside the shared k-content column (MainLayout, same frame as ElPriser 2026-10-21). */
 .poll-root {
     max-width: 640px;
     margin: 0 auto;
-    min-height: 100dvh;
 }
 
 /* ── Header ──────────────────────────── */
@@ -1033,7 +1033,9 @@ html[data-theme="dark"][data-family="bestoever"] { --k-accent:#4b5563; --k-accen
 .poll-submit-btn { border:2px solid #111827; }
 
 /* /lav - a customer's own polls (2026-10-21). States in words, high contrast (user is a bit colour-blind). */
-.lav { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+.lav { max-width: 640px; margin: 0 auto; }
+.k-content > .poll-root > .k-card, .k-content > .lav > .k-card, .k-content > .poll-root > .page-help { margin-bottom: var(--k-space-3, 12px); }
+.k-card .k-btn-block + .k-btn-block, .k-card p + .k-btn-block { margin-top: var(--k-space-3, 12px); }
 .lav-label { display: grid; gap: .2rem; font-weight: 600; margin: .6rem 0; }
 .lav-check { display: flex; gap: .5rem; align-items: center; font-weight: 600; margin: .6rem 0; }
 .lav-warn { border-left: 4px solid currentColor; padding: .4rem .7rem; border-radius: 6px; background: rgba(128,128,128,.12); }
