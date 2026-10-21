@@ -1,0 +1,38 @@
+@page "/chat-med-martin"
+@implements IDisposable
+@inject SiteUseCases Site
+@inject ChatUseCases Chat
+
+@* The chat on its own page with the menu (user 2026-10-21: the chat box is no longer on the front page). Every old
+   "/#chat" button on the sites, ElPriser and Stem lands here (the front page sends #chat on). *@
+<PageTitle>Chat med Martin</PageTitle>
+
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">Chat med Martin</h1>
+    <p>Skriv dit spørgsmål her, så svarer jeg, så snart jeg kan. Står der, at jeg er her nu, svarer jeg med det samme.</p>
+    <p class="k-help">Vil du hellere ringe eller skrive en mail? <a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a>
+        <a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a></p>
+</section>
+<ChatBox Available="_available" OwnerName="@_first" Prominent="true" StartOpen="true" />
+
+@code {
+    private bool _available;
+    private string _first = "Martin";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        Chat.AvailabilityChanged += OnAvailability;
+    }
+
+    private async Task LoadAsync()
+    {
+        var s = await Site.SettingsAsync();
+        _available = s.Available;
+        _first = s.Name.Split(' ')[0];
+    }
+
+    private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    public void Dispose() => Chat.AvailabilityChanged -= OnAvailability;
+}

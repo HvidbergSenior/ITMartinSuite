@@ -3,6 +3,7 @@
 @inject SiteUseCases Site
 @inject ChatUseCases Chat
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 @* First screen = one answer: who I am and what I am doing now. The timeline and the
    chat come after it; old years are folded and the phone remembers what was open. *@
@@ -59,26 +60,9 @@
 
 @* Today's plan moved to the "📅 I dag" tab (/hvad-laver-itkolibrien) 2026-10-12 (user). *@
 
-@* Chat, stream and remote help in ONE box (user 2026-10-12), the three questions as sub-headings. *@
-<section class="k-card hj-trio">
-    <h2 class="k-card-title">Chat, stream eller hjælp på din skærm</h2>
-    <div class="hj-trio-parts">
-        <ChatBox Available="_s.Available" OwnerName="@FirstName" Prominent="true" Embedded="true" Title="Vil du chatte?" Photo="/f/1992b2f17f9cca20.jpg">
-            @* The app challenge lives in the chat (user 2026-10-14: "Udfordringen kan være i chatten"); also on Mine apps. *@
-            <p class="hj-chat-challenge"><b>Udfordring:</b> Find en mobilapp, send mig navnet her i chatten – og lad mig lave en version af den, som du vil have den :-)</p>
-        </ChatBox>
-        <div class="hj-part hj-stream">
-            <h3 class="hj-part-title">Skal jeg streame?</h3>
-            <LiveCard />
-            <p class="k-help">Vil du se mig arbejde på en app – eller have mig til at vise noget bestemt? Skriv det i chatten, så går jeg live.</p>
-            <a class="k-btn k-btn-sm" href="#chat">Skriv det i chatten</a>
-        </div>
-        <SeMedTip Embedded="true" />
-    </div>
-</section>
-
-@* Public Q&A from the chat, no names (user 2026-10-12): shown once Martin has put the first one up. *@
-<QuestionsBox ShowEmpty="true" AllSites="true" />
+@* The front page = Vidste du, Hvem er ITMartin?, Om mig og mit arbejde, Mine andre sider (user 2026-10-21: "Chat box and
+   Det spørger folk om og mine apps do not need to be there"). The chat is its own page, /chat-med-martin; old /#chat
+   buttons are sent there (OnAfterRenderAsync). *@
 
 
 @* Apps are only on the Mine apps tab (user 2026-10-04: "Forsiden skal heller ikke have mine apps"). *@
@@ -89,14 +73,6 @@
    that lost their tab. Titles/lines are fixed here; the pages themselves are edited in Svar -> Sider. *@
 @* Tiles in three groups, each saying where it leads (user 2026-10-12: "the links go to other pages and apps... needs to be structured"). *@
 @* Each group is a show/hide box (user 2026-10-12). *@
-<section class="k-card hj-tilegroup">
-<h2 class="k-card-title">Mine apps – se eksemplerne</h2>
-<nav class="hj-tiles" aria-label="Mine apps">
-    @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.App)) { @TileLink(tile) }
-    <ElTip />
-    <BudgetTip />
-</nav>
-</section>
 <section class="k-card hj-tilegroup">
 <h2 class="k-card-title">Om mig og mit arbejde</h2>
 <nav class="hj-tiles" aria-label="Om mig og mit arbejde">
@@ -149,6 +125,14 @@ else if (_family && !_owner)
 }
 
 @code {
+    // Old "Chat med Martin" buttons point at /#chat (the box that was here until 2026-10-21) - send them to the chat page.
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try { await JS.InvokeVoidAsync("eval", "if (location.hash === '#chat') location.replace('/chat-med-martin')"); }
+        catch (JSException) { }
+    }
+
     [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
 
     private static readonly CultureInfo Da = new("da-DK");
