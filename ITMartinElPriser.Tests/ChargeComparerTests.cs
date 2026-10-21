@@ -1,5 +1,5 @@
 using FluentAssertions;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinElPriser.Tests;
 

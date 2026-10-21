@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 // One line as it appears on the bill, with the plain-Danish story behind it:
 // who gets the money, what it pays for and whether the household can do

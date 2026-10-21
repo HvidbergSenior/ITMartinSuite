@@ -1,7 +1,7 @@
 using ITMartinElPriser.Infrastructure;
 using System.Text.Json;
 using FluentAssertions;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinElPriser.Tests;
 

@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 // The data the outside services deliver (Energinet, Strømligning, elpris.dk), as plain domain types.
 // The services themselves live in ITMartinElPriser.Infrastructure.

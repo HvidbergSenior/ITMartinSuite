@@ -1,6 +1,6 @@
 using ITMartinElPriser.Application;
 using ITMartinElPriser.Infrastructure;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinElPriser.Server.Services;
 

@@ -1,5 +1,5 @@
 using ITMartinElPriser.Infrastructure;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinLadestander.Server.Services;
 

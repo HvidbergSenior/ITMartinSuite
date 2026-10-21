@@ -1,6 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinLadestander.Server.Services;
 

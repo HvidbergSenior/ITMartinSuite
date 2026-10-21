@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Models.Messages;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinMitEl.Server.Services;
 

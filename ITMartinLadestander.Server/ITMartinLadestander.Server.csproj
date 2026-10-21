@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ITMartinElPriser.Core\ITMartinElPriser.Core.csproj" />
+        <ProjectReference Include="..\ITMartinElPriser.Domain\ITMartinElPriser.Domain.csproj" />
         <!-- only for kolibri.js (install-on-phone guide + show/hide boxes) -->
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
         <ProjectReference Include="..\ITMartinElPriser.Infrastructure\ITMartinElPriser.Infrastructure.csproj" />

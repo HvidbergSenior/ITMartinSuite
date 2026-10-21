@@ -2,7 +2,7 @@ using ITMartinElPriser.Infrastructure;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using FluentAssertions;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 using ITMartinMitEl.Server.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 

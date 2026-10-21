@@ -1,6 +1,6 @@
 using System.Text.Json;
 using WebPush;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinMitEl.Server.Services;
 

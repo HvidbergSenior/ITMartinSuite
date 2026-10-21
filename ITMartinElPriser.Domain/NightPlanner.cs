@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 // "Sæt timeren": the cheapest contiguous start tonight for something that
 // runs unattended - a dishwasher on a timer, an EV charger. Night is

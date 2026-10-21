@@ -2,7 +2,7 @@ using ITMartinElPriser.Application;
 using ITMartinElPriser.Infrastructure;
 using System.Text.Json;
 using Microsoft.JSInterop;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinElPriser.Server.Services;
 

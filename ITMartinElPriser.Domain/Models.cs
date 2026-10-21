@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 // Everything needed to turn a raw spot price into what a household pays, plus
 // the two kinds of load (a run, a device). Shared by the free ElPriser app and

@@ -1,6 +1,6 @@
 using ITMartinElPriser.Infrastructure;
 using System.Security.Claims;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 using ITMartinLadestander.Server.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;

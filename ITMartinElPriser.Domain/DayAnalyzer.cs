@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 // "What did we use on that day, and what did it cost?" from the meter's own quarter-hours.
 // The meter only knows the whole house, so the machines are worked out from the shape:

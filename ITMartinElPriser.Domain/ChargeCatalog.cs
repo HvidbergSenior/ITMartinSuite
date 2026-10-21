@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 /// <summary>Where the car gets its power. The comparison prices each place separately.</summary>
 public enum ChargeSpot { Hjem, Forening, Arbejde, Offentlig, Lyn }

@@ -1,7 +1,7 @@
 using ITMartinElPriser.Infrastructure;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinElPriser.Application;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 using ITMartinElPriser.Infrastructure;
 using ITMartinElPriser.Server.Services;
 

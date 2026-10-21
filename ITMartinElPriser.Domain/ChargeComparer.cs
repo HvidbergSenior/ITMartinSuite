@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 /// <summary>What one person tells us about their driving. kWh are from the socket (what you pay for).</summary>
 public sealed class ChargeProfile

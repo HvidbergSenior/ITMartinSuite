@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 // Who a bill line goes to. Only the supplier part differs between electricity companies.
 public enum BillParty { Supplier, Grid, State, Other }

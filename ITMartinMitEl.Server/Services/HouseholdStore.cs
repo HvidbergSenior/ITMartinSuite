@@ -1,5 +1,5 @@
 using System.Text.Json;
-using ITMartinElPriser.Core;
+using ITMartinElPriser.Domain;
 
 namespace ITMartinMitEl.Server.Services;
 

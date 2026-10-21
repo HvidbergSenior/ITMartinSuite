@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\ITMartinElPriser.Core\ITMartinElPriser.Core.csproj" />
+    <ProjectReference Include="..\ITMartinElPriser.Domain\ITMartinElPriser.Domain.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

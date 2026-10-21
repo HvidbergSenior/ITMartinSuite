@@ -1,4 +1,4 @@
-namespace ITMartinElPriser.Core;
+namespace ITMartinElPriser.Domain;
 
 public sealed record HourBar(DateTime Start, double KrPerKwh, bool IsNow, bool IsPast, double Rank01);
 
