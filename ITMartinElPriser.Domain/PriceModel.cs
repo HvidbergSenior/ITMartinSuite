@@ -156,7 +156,11 @@ public static class PriceModel
         return new RunOption(snapped, snapped.AddHours(a.DurationHours), Math.Round(cost, 2), Math.Round(cost / a.KwhPerRun, 3));
     }
 
-    // The cheapest start from `from` on, over every price known (today and tomorrow), outside the quiet hours -
+    /// <summary>How far ahead the front page looks for the cheapest start (user 2026-10-21: "it should suggest the cheapest
+    /// within the next half day not 14,5 hours").</summary>
+    public const int SearchHours = 12;
+
+    // The cheapest start from `from` and the next SearchHours on, outside the quiet hours -
     // what the front page suggests (user 2026-10-19: "change it to cheapest"). Earliest wins a tie. Null when no
     // whole run fits in the known prices. night = also starts in the quiet hours (user 2026-10-20: "also at night" -
     // a machine with a delayed start can run while you sleep).
@@ -165,7 +169,7 @@ public static class PriceModel
         var t = new DateTime(from.Year, from.Month, from.Day, from.Hour, from.Minute / SlotMinutes * SlotMinutes, 0);
         RunOption? best = null;
         var points = Priced(raw, s);
-        for (var end = t.AddHours(48); t < end; t = t.AddMinutes(SlotMinutes))
+        for (var end = t.AddHours(SearchHours); t < end; t = t.AddMinutes(SlotMinutes))
         {
             if ((!night && IsQuiet(t, s)) || CostOfRun(points, s.ShowAllIn, a, t) is not { } o) continue;
             if (best is null || o.CostKr < best.CostKr) best = o;

@@ -53,8 +53,8 @@
         <li><b>Din egen maskine:</b> tryk <b>Ret tid og strøm</b> og vælg, hvor længe dit program kører, og hvor mange kWh det bruger (står i manualen eller på energimærket). Det gemmes på din egen telefon. Ved du det ikke, så brug det, der står: opvask 0,54 kWh (Eco), vask 1 kWh (40 grader).</li>
         <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af samme dag. Dyre timer er også stribede, og den billigste time er mærket „billigst“, så du kan se det uden at skelne farverne.</li>
         <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle, så viser det store tal hvad opvasken koster hvis den starter der. Tryk igen for at gå tilbage til nu.</li>
-        <li><b>Start kl. … – det er billigst</b> er det starttidspunkt fra nu og frem, hvor maskinen koster mindst – også om natten. Er det om natten, står der også det billigste tidspunkt mellem kl. 6 og 23, hvis du ikke vil have den kørende, mens I sover.</li>
-        <li><b>Om natten:</b> har maskinen <b>senere start</b> (et ur eller en knap med en lille klokke), så sæt den, før du går i seng. Der står, hvor mange timer du skal sætte den til. Morgendagens priser kommer ca. kl. 13.</li>
+        <li><b>Start kl. … – det er billigst</b> er det starttidspunkt inden for de næste 12 timer, hvor maskinen koster mindst – også om natten. Er det om natten, står der også det billigste tidspunkt mellem kl. 6 og 23, hvis du ikke vil have den kørende, mens I sover.</li>
+        <li><b>Kan du tidsindstille maskinen?</b> Mange maskiner har <b>senere start</b> (et ur eller en knap med en lille klokke). Der står, hvor mange timer du skal sætte den til – så starter den selv på det billigste tidspunkt, også mens du sover. Morgendagens priser kommer ca. kl. 13.</li>
         <li>Flere maskiner (tørretumbler, ovn, elbil) finder du i <a href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">MinElpris</a>.</li>
     </ul>
 </PageHelp>
@@ -126,7 +126,8 @@ else
                 {
                     <b>Start @StartAt(best.Start) – det er billigst.</b>
                     <span>Den koster @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" – du sparer {Kr(run.CostKr - best.CostKr)} kr i forhold til nu" : "").</span>
-                    <span class="k-muted small">Har maskinen senere start: sæt den til @Delay(best.Start).</span>
+                    @* User 2026-10-21: "Har maskinen senere start: sæt den til 14½ timer. Something like. Hvis du kan tidsindstille". *@
+                    <span>Kan du tidsindstille maskinen? Sæt den til <b>@Delay(best.Start)</b>.</span>
                 }
                 @if (awake is not null && _view.IsQuiet(best.Start) && awake.Start != best.Start)
                 {

@@ -199,17 +199,19 @@ public class RunCostTests
     }
 
     [Test]
-    public void Cheapest_from_now_looks_at_today_and_tomorrow_and_skips_the_quiet_hours()
+    public void Cheapest_from_now_looks_12_hours_ahead_and_skips_the_quiet_hours()
     {
-        // Today: dear evening, cheapest 02-04 (quiet), cheap 12-14. Tomorrow: 13-15 even cheaper.
-        var raw = Day(D, h => h >= 2 && h < 4 ? 0.10 : h >= 12 && h < 14 ? 0.50 : 1.00)
-            .Concat(Day(D.AddDays(1), h => h >= 13 && h < 15 ? 0.30 : 1.00)).ToList();
+        // From 20:07: tonight 02-04 is cheapest but quiet; tomorrow 07-09 is cheap and within 12 hours;
+        // tomorrow 13-15 is cheaper still, but 17 hours away (user 2026-10-21: "within the next half day").
+        var raw = Day(D, h => h >= 21 && h < 23 ? 0.80 : 1.00)
+            .Concat(Day(D.AddDays(1), h => h >= 2 && h < 4 ? 0.10 : h >= 7 && h < 9 ? 0.50 : h >= 13 && h < 15 ? 0.30 : 1.00)).ToList();
         var quiet = new HouseholdSettings { ShowAllIn = false, QuietFromHour = 23, QuietToHour = 6 };
 
         var best = PriceModel.CheapestFrom(raw, quiet, Wash, D.ToDateTime(new TimeOnly(20, 7)));
 
-        best!.Start.Should().Be(D.AddDays(1).ToDateTime(new TimeOnly(13, 0)));   // the night is quiet, tomorrow 13 wins
-        best.CostKr.Should().Be(0.30);
+        best!.Start.Should().Be(D.AddDays(1).ToDateTime(new TimeOnly(7, 0)));
+        best.CostKr.Should().Be(0.50);
+        (best.Start - D.ToDateTime(new TimeOnly(20, 7))).TotalHours.Should().BeLessThan(PriceModel.SearchHours);
     }
 
     [Test]
