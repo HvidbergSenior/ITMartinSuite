@@ -57,6 +57,19 @@ public sealed class Sager(IForloebStore store, IDocumentFiles files, IForloebAi 
     public Task<List<Forloeb>> DelteAsync() => store.DelteAsync();
     public async Task<string> OverskriftAsync() => (await store.SiteStateAsync()).Overskrift;
 
+    /// <summary>The other shared stories with the same counterpart.</summary>
+    public async Task<List<Forloeb>> LignendeAsync(Forloeb f)
+    {
+        var key = ForloebRules.ModpartNoegle(f.Modpart);
+        return (await store.DelteAsync()).Where(x => x.Id != f.Id && ForloebRules.ModpartNoegle(x.Modpart) == key).ToList();
+    }
+
+    /// <summary>Counterparts that already have shared stories, by their most used spelling - offered when a new story starts.</summary>
+    public async Task<List<string>> ModparterAsync() =>
+        (await store.DelteAsync()).GroupBy(x => ForloebRules.ModpartNoegle(x.Modpart))
+            .Select(g => g.GroupBy(x => x.Modpart).OrderByDescending(n => n.Count()).First().Key)
+            .OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
+
     // -------------------------------------------------------------- AI help
 
     /// <summary>The user's informal message rewritten for publishing (nothing is saved yet).</summary>
@@ -85,6 +98,10 @@ public sealed class Sager(IForloebStore store, IDocumentFiles files, IForloebAi 
 
     public async Task<Forloeb> OpretAsync(Omskrivning o, DateTime startedAt, bool delt)
     {
+        // A counterpart that already has stories keeps its spelling, so the new story joins that group.
+        var key = ForloebRules.ModpartNoegle(o.Modpart);
+        if (key.Length > 0 && (await ModparterAsync()).FirstOrDefault(m => ForloebRules.ModpartNoegle(m) == key) is { } kendt)
+            o.Modpart = kendt;
         var f = Forloeb.Opret(o, startedAt, delt, Now);
         await store.AddAsync(f);
         QueueRefresh(f.Id);
@@ -107,6 +124,10 @@ public sealed class Sager(IForloebStore store, IDocumentFiles files, IForloebAi 
 
     public Task<bool> AfslutAsync(string slug, string key, Udfald udfald, string udfaldTekst, string laering, bool delt) =>
         ChangedAsync(slug, f => f.Afslut(key, udfald, udfaldTekst, laering, delt, Now));
+
+    /// <summary>No AI refresh: the why and the prediction are the owner's own words, not part of the analysis.</summary>
+    public Task<bool> SaetHvorforAsync(string slug, string key, string hvorfor, string forudsigelse) =>
+        store.ChangeAsync(slug, f => f.SaetHvorfor(key, hvorfor, forudsigelse, Now));
 
     public Task<bool> SaetDeltAsync(string slug, string key, bool delt) =>
         ChangedAsync(slug, f => f.SaetDelt(key, delt, Now));

@@ -25,6 +25,9 @@ public sealed class Forloeb
     public Udfald Udfald { get; set; }
     public string UdfaldTekst { get; set; } = "";  // "Sådan endte det"
     public string Laering { get; set; } = "";      // "Hvad lærte jeg"
+    public string Hvorfor { get; set; } = "";      // "Hvorfor gik jeg hele vejen?" (user 2026-10-22)
+    public string Forudsigelse { get; set; } = ""; // what the owner expects, written BEFORE the outcome
+    public DateTime? ForudsigelseAt { get; set; }
     public bool Delt { get; set; }                 // "del anonymiseret" -> on the front page
     public string AnalyseJson { get; set; } = "";  // Analyse (six questions), AI
     public string Resume { get; set; } = "";       // 3-4 lines, AI, shown on the card
@@ -102,6 +105,21 @@ public sealed class Forloeb
         return true;
     }
 
+    /// <summary>Why the owner goes through every step, and what they expect. The prediction can only be
+    /// written while the forløb is open - it is worth something only because it came before the answer.</summary>
+    public bool SaetHvorfor(string key, string hvorfor, string forudsigelse, DateTime now)
+    {
+        if (!HarNoegle(key)) return false;
+        Hvorfor = hvorfor.Trim();
+        if (!Lukket && forudsigelse.Trim() != Forudsigelse)
+        {
+            Forudsigelse = forudsigelse.Trim();
+            ForudsigelseAt = Forudsigelse.Length > 0 ? now : null;
+        }
+        UpdatedAt = now;
+        return true;
+    }
+
     public bool SaetDelt(string key, bool delt, DateTime now)
     {
         if (!HarNoegle(key)) return false;
@@ -148,6 +166,18 @@ public static class ForloebRules
         if (string.IsNullOrWhiteSpace(json)) return new Analyse();
         try { return JsonSerializer.Deserialize<Analyse>(json, Json) ?? new Analyse(); }
         catch (JsonException) { return new Analyse(); }
+    }
+
+    private static readonly HashSet<string> ModpartFyld = ["aps", "as", "operations", "operation", "denmark", "danmark", "dk"];
+
+    /// <summary>Stories about the same counterpart are grouped (user 2026-10-22: "added to existing and not new ones"):
+    /// "Q-Park", "QPark" and "Q-Park Operations Denmark A/S" all give "qpark".</summary>
+    public static string ModpartNoegle(string? modpart)
+    {
+        var plain = new string((modpart ?? "").ToLowerInvariant().Replace("a/s", " ")
+            .Select(c => char.IsLetterOrDigit(c) ? c : ' ').ToArray());
+        var words = plain.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => !ModpartFyld.Contains(w));
+        return string.Concat(words);
     }
 
     /// <summary>The front-page headline is only rewritten (one AI call) when this changes.</summary>

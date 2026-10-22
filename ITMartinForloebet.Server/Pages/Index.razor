@@ -28,8 +28,14 @@
     }
     else
     {
+        @* One group per counterpart (user 2026-10-22): a new story with Movia joins the Movia stories. *@
+        @foreach (var g in _forloeb.GroupBy(x => ForloebRules.ModpartNoegle(x.Modpart)))
+        {
+            var navn = g.First().Modpart;
+        <div class="group">
+        <div class="group-head"><span class="group-name">@navn</span> <span class="muted">@g.Count() @(g.Count() == 1 ? "historie" : "historier")</span></div>
         <div class="cards">
-            @foreach (var f in _forloeb)
+            @foreach (var f in g)
             {
                 var open = _open == f.Id;
                 var a = f.Analyse;
@@ -60,6 +66,9 @@
                 </div>
             }
         </div>
+        <a class="btn-secondary group-add" href="/ny?modpart=@Uri.EscapeDataString(navn)">Har du også en historie med @navn?</a>
+        </div>
+        }
     }
 
     <div class="cta">

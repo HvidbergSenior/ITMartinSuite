@@ -123,3 +123,11 @@ li.ja::before { content: "✓"; color: var(--ok); position: absolute; left: 0; }
 .reconnect-failed-msg { display: none; }
 .components-reconnect-failed .reconnect-msg { display: none; }
 .components-reconnect-failed .reconnect-failed-msg { display: inline; }
+
+/* Stories grouped by counterpart (2026-10-22) */
+.group { margin: 0 0 20px; }
+.group-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
+.group-name { font-weight: 700; font-size: 17px; }
+.group-add { display: inline-block; margin-top: 10px; text-decoration: none; }
+.hvorfor p { margin: 4px 0 10px; }
+details.owner-block > summary { cursor: pointer; }

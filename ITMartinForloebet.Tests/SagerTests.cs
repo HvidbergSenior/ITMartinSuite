@@ -99,6 +99,41 @@ public class SagerTests
     }
 
     [Test]
+    public void The_prediction_is_only_written_while_the_case_is_open()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var f = Forloeb.Opret(new Omskrivning { Tekst = "Afgift", Modpart = "Q-Park", Omraade = "Kontrolafgift" }, now, true, now);
+
+        f.SaetHvorfor("forkert", "x", "y", now).Should().BeFalse();
+        f.SaetHvorfor(f.EditKey, " Jeg vil se processen ", " De afviser ", now).Should().BeTrue();
+        (f.Hvorfor, f.Forudsigelse, f.ForudsigelseAt).Should().Be(("Jeg vil se processen", "De afviser", now));
+
+        f.Afslut(f.EditKey, Udfald.Afvist, "Afvist", "", true, now.AddDays(30)).Should().BeTrue();
+        f.SaetHvorfor(f.EditKey, "Ny grund", "Jeg vidste det godt", now.AddDays(31)).Should().BeTrue();
+        f.Hvorfor.Should().Be("Ny grund", "the why can still be changed");
+        (f.Forudsigelse, f.ForudsigelseAt).Should().Be(("De afviser", now), "a prediction after the answer is worth nothing");
+    }
+
+    [Test]
+    public async Task Stories_with_the_same_counterpart_are_grouped()
+    {
+        ForloebRules.ModpartNoegle("Q-Park").Should().Be("qpark");
+        ForloebRules.ModpartNoegle("Q-Park Operations Denmark A/S").Should().Be("qpark");
+        ForloebRules.ModpartNoegle(" QPARK ").Should().Be("qpark");
+        ForloebRules.ModpartNoegle("Movia").Should().NotBe("qpark");
+
+        var sager = NewSager();
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var first = await sager.OpretAsync(new Omskrivning { Tekst = "Første", Modpart = "Q-Park", Omraade = "Kontrolafgift" }, now, delt: true);
+        var second = await sager.OpretAsync(new Omskrivning { Tekst = "Anden", Modpart = "Q-Park Operations Denmark A/S", Omraade = "Kontrolafgift" }, now, delt: true);
+        await sager.OpretAsync(new Omskrivning { Tekst = "Tredje", Modpart = "Movia", Omraade = "Kontrolafgift" }, now, delt: true);
+
+        second.Modpart.Should().Be("Q-Park", "a new story takes the spelling of the group it joins");
+        (await sager.LignendeAsync(first)).Select(x => x.Id).Should().Equal(second.Id);
+        (await sager.ModparterAsync()).Should().Equal("Movia", "Q-Park");
+    }
+
+    [Test]
     public async Task A_case_is_opened_extended_and_analysed_in_the_background()
     {
         var sager = NewSager();

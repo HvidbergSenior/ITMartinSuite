@@ -94,6 +94,30 @@ public static class DependencyInjection
         var factory = services.GetRequiredService<IDbContextFactory<ForloebetDbContext>>();
         await using var db = await factory.CreateDbContextAsync();
         await db.Database.EnsureCreatedAsync();
+        await AddMissingColumnsAsync(db);
         await Seed.EnsureAsync(db);
+    }
+
+    /// <summary>EnsureCreated never changes an existing database: columns added later are added here.</summary>
+    private static async Task AddMissingColumnsAsync(ForloebetDbContext db)
+    {
+        var conn = db.Database.GetDbConnection();
+        await conn.OpenAsync();
+        var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "PRAGMA table_info('Forloeb')";
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync()) have.Add(r.GetString(1));
+        }
+        // 2026-10-22: why the owner goes all the way + the prediction written before the outcome.
+        (string Name, string Sql)[] wanted =
+        [
+            ("Hvorfor", "ALTER TABLE Forloeb ADD COLUMN Hvorfor TEXT NOT NULL DEFAULT ''"),
+            ("Forudsigelse", "ALTER TABLE Forloeb ADD COLUMN Forudsigelse TEXT NOT NULL DEFAULT ''"),
+            ("ForudsigelseAt", "ALTER TABLE Forloeb ADD COLUMN ForudsigelseAt TEXT NULL"),
+        ];
+        foreach (var (name, sql) in wanted.Where(w => !have.Contains(w.Name)))
+            await db.Database.ExecuteSqlRawAsync(sql);
     }
 }

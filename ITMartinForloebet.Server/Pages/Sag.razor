@@ -31,6 +31,37 @@ else
             </div>
         }
 
+        @* Why the owner goes through every step, and what they expected - shown before the outcome (user 2026-10-22). *@
+        @if (!string.IsNullOrWhiteSpace(_f.Hvorfor) || !string.IsNullOrWhiteSpace(_f.Forudsigelse))
+        {
+            <div class="closed hvorfor">
+                @if (!string.IsNullOrWhiteSpace(_f.Hvorfor))
+                {
+                    <div class="q-label">Hvorfor jeg går hele vejen</div>
+                    <p>@_f.Hvorfor</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(_f.Forudsigelse))
+                {
+                    <div class="q-label">Min forudsigelse – skrevet @(_f.ForudsigelseAt?.ToString("d. MMM yyyy")), før svaret</div>
+                    <p>@_f.Forudsigelse</p>
+                }
+            </div>
+        }
+        @if (_owner)
+        {
+            <details class="owner-block" open="@(string.IsNullOrWhiteSpace(_f.Hvorfor))">
+                <summary class="section-label">Hvorfor går du hele vejen?</summary>
+                <p class="hint">Vises offentligt. Skriv ingen navne på personer.</p>
+                <textarea class="big" @bind="_hvorfor" rows="3" placeholder="fx: Jeg regner ikke med at vinde, men jeg vil se, hvordan processen er for almindelige mennesker."></textarea>
+                @if (!_f.Lukket)
+                {
+                    <div class="field"><label>Hvad tror du, der sker? (kan kun skrives, mens sagen er åben)</label>
+                        <textarea class="big" @bind="_forudsigelse" rows="3" placeholder="fx: De afviser klagen med et standardsvar."></textarea></div>
+                }
+                <button class="btn-primary" disabled="@_busy" @onclick="GemHvorfor">@(_hvorforGemt ? "Gemt" : "Gem")</button>
+            </details>
+        }
+
         @if (_f.Lukket)
         {
             <div class="closed">
@@ -186,6 +217,23 @@ else
             <Analysis Value="a" />
         }
 
+        @* Other people's stories with the same counterpart, and the way to add one (user 2026-10-22). *@
+        <div class="section-label">Lignende historier med @_f.Modpart</div>
+        @if (_lignende.Count == 0)
+        {
+            <p class="muted">Ingen andre har delt en historie med @_f.Modpart endnu.</p>
+        }
+        else
+        {
+            <div class="cards">
+                @foreach (var l in _lignende)
+                {
+                    <a class="card card-line" href="/sag/@l.Slug">@l.Titel · @l.Uger uger · @(l.Lukket ? ForloebRules.UdfaldTekst(l.Udfald) : "åbent")</a>
+                }
+            </div>
+        }
+        <a class="btn-secondary group-add" href="/ny?modpart=@Uri.EscapeDataString(_f.Modpart)">Har du også en historie med @_f.Modpart?</a>
+
         <p class="foot"><a href="/">← Forsiden</a> · <a href="/om">Om Forløbet</a></p>
     </div>
 }
@@ -212,6 +260,10 @@ else
     private string _laering = "";
     private bool _delt = true;
 
+    private List<Forloeb> _lignende = [];
+    private string _hvorfor = "", _forudsigelse = "";
+    private bool _hvorforGemt;
+
     protected override async Task OnInitializedAsync()
     {
         Service.Opdateret += OnUpdated;
@@ -226,7 +278,20 @@ else
         _f = await Service.GetAsync(Slug);
         _loaded = true;
         _owner = _f is not null && _key.Length > 0 && _f.EditKey == _key;
-        if (_f is not null) _delt = _f.Delt;
+        if (_f is not null)
+        {
+            _delt = _f.Delt;
+            (_hvorfor, _forudsigelse) = (_f.Hvorfor, _f.Forudsigelse);
+            _lignende = await Service.LignendeAsync(_f);
+        }
+    }
+
+    private async Task GemHvorfor()
+    {
+        _busy = true;
+        _hvorforGemt = await Service.SaetHvorforAsync(Slug, _key, _hvorfor, _forudsigelse);
+        await LoadAsync();
+        _busy = false;
     }
 
     private void OnUpdated(int id) => InvokeAsync(async () => { if (_f?.Id == id) { await LoadAsync(); StateHasChanged(); } });

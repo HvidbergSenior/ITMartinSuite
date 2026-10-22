@@ -24,8 +24,10 @@ builder.Services.AddKolibri(k =>
         "Læg det seneste brev ind (foto eller tekst).",
         "Læs de tre bokse – og gør det, der står under Gør nu.",
         "Kom tilbage, når der kommer et nyt brev.",
+        "Skriv, hvorfor du går hele vejen – og hvad du tror, der sker, mens sagen stadig er åben.",
+        "Har du en historie med samme modpart, så tryk \"Har du også en historie med …?\" – så lægges den sammen med de andre.",
     ];
-    k.Version = "2026.09";
+    k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";
     k.OwnOmPage = true; // Pages/Om.razor is the editorial statement - keep it
 });

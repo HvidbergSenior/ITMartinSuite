@@ -13,6 +13,10 @@
     @if (_preview is null)
     {
         <h1>Hvad er sket?</h1>
+        @if (!string.IsNullOrWhiteSpace(Modpart))
+        {
+            <div class="note">Din historie lægges sammen med de andre historier med <b>@Modpart</b>.</div>
+        }
         <p class="hint">Skriv kort og uformelt, som det falder dig ind. Nævn hvem modparten er (fx Movia, Tryg, kommunen) og hvad de gjorde eller sagde. Du får en omskrevet version at godkende, før noget gemmes.</p>
 
         <textarea class="big" @bind="_raw" rows="7" placeholder="fx: Fik en kontrolafgift fra Movia for 29/6 men jeg var slet ikke i bussen. De siger jeg svarede rigtigt på et kontrolspørgsmål. Har politianmeldt det."></textarea>
@@ -49,7 +53,8 @@
         <div class="field-row">
             <div class="field">
                 <label>Modpart</label>
-                <input type="text" @bind="_preview.Modpart" />
+                <input type="text" @bind="_preview.Modpart" list="modparter" />
+                <datalist id="modparter">@foreach (var m in _modparter) { <option value="@m"></option> }</datalist>
             </div>
             <div class="field">
                 <label>Område</label>
@@ -86,6 +91,10 @@
 </div>
 
 @code {
+    // ?modpart=Movia from "Har du også en historie med Movia?" - the story joins that group.
+    [SupplyParameterFromQuery] public string? Modpart { get; set; }
+
+    private List<string> _modparter = [];
     private string _raw = "";
     private DateTime _startedAt = DateTime.Today;
     private Omskrivning? _preview;
@@ -93,12 +102,15 @@
     private bool _busy;
     private string? _error;
 
+    protected override async Task OnInitializedAsync() => _modparter = await Service.ModparterAsync();
+
     private async Task Omskriv()
     {
         _busy = true; _error = null;
         try
         {
             _preview = await Service.OmskrivAsync(_raw, null);
+            if (!string.IsNullOrWhiteSpace(Modpart)) _preview.Modpart = Modpart;
             if (_preview.Dato is not null && DateTime.TryParse(_preview.Dato, out var d)) _startedAt = d;
         }
         catch (AiBudgetExceededException ex) { _error = ex.Message; }
