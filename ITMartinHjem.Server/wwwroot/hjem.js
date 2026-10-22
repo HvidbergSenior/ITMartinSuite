@@ -92,3 +92,37 @@ window.hjem = (function () {
         }
     };
 })();
+
+// Example pictures (a.hj-zoom) open big on top of the page instead of a new tab - on a phone people
+// had to close that tab to get back (user 2026-10-22). Close: Luk button, tap anywhere, Esc or back.
+(function () {
+    var box = null;
+    function close(fromBack) {
+        if (!box) return;
+        box.remove(); box = null;
+        document.body.style.overflow = '';
+        if (!fromBack && history.state && history.state.hjZoom) history.back();
+    }
+    document.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a.hj-zoom');
+        if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        e.preventDefault();
+        var img = a.querySelector('img');
+        box = document.createElement('div');
+        box.className = 'hj-zoom-box';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Billedet i stor størrelse');
+        box.innerHTML = '<button type="button" class="k-btn k-btn-primary hj-zoom-close">Luk ✕</button><img alt="">'
+            + '<div class="hj-zoom-help">Tryk hvor som helst for at lukke</div>';
+        var big = box.querySelector('img');
+        big.src = a.getAttribute('href');
+        big.alt = img ? img.alt : '';
+        box.addEventListener('click', function () { close(false); });
+        document.body.appendChild(box);
+        document.body.style.overflow = 'hidden';
+        history.pushState({ hjZoom: true }, '');
+        box.querySelector('button').focus();
+    }, true);   // capture: before Blazor's link handling
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(false); });
+    window.addEventListener('popstate', function () { close(true); });
+})();

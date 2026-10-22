@@ -31,8 +31,9 @@ builder.Services.AddKolibri(k =>
         "Læs \"Lige nu\" øverst – det er det, jeg arbejder med.",
         "Rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål.",
+        "På Mine apps: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
     ];
-    k.Version = "2026.09";
+    k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";
 });
 
