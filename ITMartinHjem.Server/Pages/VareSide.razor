@@ -120,6 +120,8 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        // Shop off for visitors (user 2026-10-22): also when reached by an in-app link, which skips the server redirect.
+        if (!ShopVisible) { Nav.NavigateTo("/", replace: true); return; }
         // Not shown yet (user 2026-10-15) - "ikke til salg" page unless ShopVisibility says so.
         if (!ShopVisible) { _item = null; _loading = false; return; }
         _loading = true;

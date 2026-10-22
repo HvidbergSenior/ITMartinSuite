@@ -95,6 +95,12 @@ else
 
     [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
 
+    protected override void OnParametersSet()
+    {
+        // Shop off for visitors (user 2026-10-22): also when reached by an in-app link, which skips the server redirect.
+        if (!ShopVisible) { Nav.NavigateTo("/", replace: true); return; }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || !ShopVisible) return;

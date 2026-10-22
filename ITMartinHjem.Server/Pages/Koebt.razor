@@ -1,6 +1,7 @@
 @page "/varer/koebt"
 @inject ShopUseCases Shop
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 @* Where Stripe sends the buyer back. Asking Lager here books the payment at once (the job in Lager does it too). *@
 <PageTitle>Tak for købet · Bogshoppen</PageTitle>
@@ -58,8 +59,12 @@ else
     private ShopOrder? _order;
     private bool _loading = true;
 
+    [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
+        // Shop off for visitors (user 2026-10-22): also when reached by an in-app link, which skips the server redirect.
+        if (!ShopVisible) { Nav.NavigateTo("/", replace: true); return; }
         _order = string.IsNullOrWhiteSpace(Ordre) ? null : await Shop.OrderAsync(Ordre);
         _loading = false;
     }

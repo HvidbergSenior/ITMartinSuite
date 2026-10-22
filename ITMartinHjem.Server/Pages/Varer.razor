@@ -159,6 +159,8 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        // Shop off for visitors (user 2026-10-22): also when reached by an in-app link, which skips the server redirect.
+        if (!ShopVisible) { Nav.NavigateTo("/", replace: true); return; }
         _show = ShopVisible;
         if (!_show) return;
         (_q, _type, _sort, _page) = (Q ?? "", Type ?? "", ShopSorts.All.Contains(Sort) ? Sort! : ShopSorts.Newest, 0);
