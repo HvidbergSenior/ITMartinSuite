@@ -12,12 +12,13 @@ public sealed class PushUseCases(ISubscriberStore store, IPushSender sender, Get
     public Task<(bool Ok, string Error)> CheckCodeAsync(string? code, CancellationToken ct = default) => codes.CheckAsync(code ?? "", ct);
 
     /// <summary>Beskeder need the kundenummer (user 2026-10-21). A phone that already gets beskeder may change its choices
-    /// without it (it signed up before the rule, or already showed its number).</summary>
+    /// without it (it signed up before the rule, or already showed its number) - but a number it adds later is checked
+    /// (user 2026-10-22: the old phones get into the Kundekartotek that way).</summary>
     /// <returns>The phone's id, or an error for the person.</returns>
     public async Task<(Guid? Id, string? Error)> SubscribeAsync(PushSignup req, HouseholdSettings settings, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Endpoint)) return (null, "Telefonen gav ingen besked-adresse – prøv igen.");
-        if (Status(req.Endpoint) is null)
+        if (Status(req.Endpoint) is null || !string.IsNullOrWhiteSpace(req.Code))
         {
             var (ok, error) = await codes.CheckAsync(req.Code ?? "", ct);
             if (!ok) return (null, error);
@@ -86,6 +87,12 @@ public sealed class NotifyUseCases(IPriceSource prices, ISubscriberStore store, 
                     store.Update(d => { d.SentPushes.Add(key); d.Prune(nowDk); });
                     if (await sender.SendAsync(sub, message, ct)) sent++;
                 }
+        }
+        // The phones from before the kundenummer rule: asked once to sign up (marked first, so a restart never asks twice).
+        foreach (var sub in subs.Where(s => PushPlan.ShouldAskForCode(s, nowDk)))
+        {
+            store.Update(d => { if (d.Subscribers.FirstOrDefault(x => x.Id == sub.Id) is { } x) x.AskedForCodeAt = DateTime.UtcNow; });
+            if (await sender.SendAsync(sub, PushPlan.AskForCode, ct)) sent++;
         }
         return sent;
     }

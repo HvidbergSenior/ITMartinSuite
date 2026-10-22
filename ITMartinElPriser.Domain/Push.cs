@@ -20,6 +20,9 @@ public sealed class PushSubscriber
     public int Failures { get; set; }
     /// <summary>The kundenummer that switched beskeder on (user 2026-10-21: beskeder need it). "" = signed up before that.</summary>
     public string CustomerCode { get; set; } = "";
+    /// <summary>When the phone was asked once to add its kundenummer (user 2026-10-22: the old phones keep beskeder but
+    /// should get into the Kundekartotek). Null = not asked yet.</summary>
+    public DateTime? AskedForCodeAt { get; set; }
 }
 
 public sealed class SubscriberData
@@ -60,6 +63,15 @@ public static class PushPlan
     }
 
     public static string LogKey(Guid subscriberId, string kind, DateTime windowStart) => $"{subscriberId}|{kind}|{windowStart:yyyy-MM-dd HH:mm}";
+
+    /// <summary>One message to a phone that got beskeder before the kundenummer rule: please sign up. Beskeder keep
+    /// working either way (user 2026-10-22). Sent in the daytime only, never at night.</summary>
+    public static readonly PushMessage AskForCode = new("ElPriser – skriv dig op gratis",
+        "Du får beskeder fra ElPriser. Skriv dig op gratis på itmartin.dk og få et kundenummer – tryk her. Dine beskeder fortsætter uanset hvad.",
+        "/besked");
+
+    public static bool ShouldAskForCode(PushSubscriber s, DateTime nowDk) =>
+        s.CustomerCode.Length == 0 && s.AskedForCodeAt is null && nowDk.Hour is >= 10 and < 20;
 
     /// <summary>The messages due now for one price snapshot: (kind, window start, who wants it, message).</summary>
     public static List<(string Kind, DateTime Start, Func<PushSubscriber, bool> Wants, PushMessage Message)> DueNow(PriceSnapshot snap, DateTime now)

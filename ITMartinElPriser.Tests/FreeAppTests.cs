@@ -84,6 +84,16 @@ public class HindsightTests
 public class PushPlanTests
 {
     [Test]
+    public void A_phone_without_a_kundenummer_is_asked_once_and_only_in_the_daytime()
+    {
+        var day = new DateTime(2026, 10, 22, 12, 0, 0);
+        PushPlan.ShouldAskForCode(new PushSubscriber(), day).Should().BeTrue();
+        PushPlan.ShouldAskForCode(new PushSubscriber(), day.AddHours(10)).Should().BeFalse();   // 22:00
+        PushPlan.ShouldAskForCode(new PushSubscriber { AskedForCodeAt = day }, day).Should().BeFalse();
+        PushPlan.ShouldAskForCode(new PushSubscriber { CustomerCode = "48217730" }, day).Should().BeFalse();
+    }
+
+    [Test]
     public void A_message_is_due_in_the_one_tick_55_to_60_minutes_before()
     {
         var start = new DateTime(2026, 10, 21, 14, 0, 0);
@@ -116,7 +126,7 @@ public class PushPlanTests
         var prices = new Mock<IPriceSource>();
         prices.Setup(p => p.GetPricesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(raw);
         var store = new MemoryStore();
-        store.Update(d => d.Subscribers.Add(new PushSubscriber { Endpoint = "e1", Settings = new HouseholdSettings { ShowAllIn = false } }));
+        store.Update(d => d.Subscribers.Add(new PushSubscriber { Endpoint = "e1", CustomerCode = "48217730", Settings = new HouseholdSettings { ShowAllIn = false } }));
         var sender = new Mock<IPushSender>();
         sender.Setup(s => s.SendAsync(It.IsAny<PushSubscriber>(), It.IsAny<PushMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var notify = new NotifyUseCases(prices.Object, store, sender.Object, Mock.Of<IGridTariffSource>());
@@ -124,6 +134,23 @@ public class PushPlanTests
         (await notify.RunOnceAsync(now)).Should().Be(1);
         (await notify.RunOnceAsync(now.AddMinutes(1))).Should().Be(0);   // same window: never twice
         sender.Verify(s => s.SendAsync(It.IsAny<PushSubscriber>(), It.Is<PushMessage>(m => m.Body.StartsWith("Kl. 14:00")), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task A_phone_without_a_kundenummer_gets_the_sign_up_message_once()
+    {
+        var prices = new Mock<IPriceSource>();
+        prices.Setup(p => p.GetPricesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var store = new MemoryStore();
+        store.Update(d => d.Subscribers.Add(new PushSubscriber { Endpoint = "old" }));
+        var sender = new Mock<IPushSender>();
+        sender.Setup(s => s.SendAsync(It.IsAny<PushSubscriber>(), It.IsAny<PushMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var notify = new NotifyUseCases(prices.Object, store, sender.Object, Mock.Of<IGridTariffSource>());
+
+        var noon = new DateTime(2026, 10, 22, 12, 0, 0);
+        (await notify.RunOnceAsync(noon)).Should().Be(1);
+        (await notify.RunOnceAsync(noon.AddMinutes(5))).Should().Be(0);
+        sender.Verify(s => s.SendAsync(It.IsAny<PushSubscriber>(), PushPlan.AskForCode, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private sealed class MemoryStore : ISubscriberStore

@@ -53,6 +53,19 @@
                     <button class="k-btn" @onclick="TestAsync" disabled="@_busy">Send test</button>
                 </div>
                 <button class="k-btn k-btn-danger k-btn-block" @onclick="UnsubscribeAsync" disabled="@_busy">Stop beskeder på denne telefon</button>
+                @* A phone from before the kundenummer rule keeps its beskeder, and is asked to sign up (user 2026-10-22). *@
+                @if (!_hasCode)
+                {
+                    <div class="note k-mt">
+                        <b>Skriv dig op gratis</b> – så får du et kundenummer til alle de gratis apps. Dine beskeder fortsætter uanset hvad.
+                        <div class="field">
+                            <label>Dit kundenummer (8 cifre – står i mailen, du fik, da du skrev dig op)</label>
+                            <input type="text" inputmode="numeric" autocomplete="off" @bind="_code" placeholder="fx 4821 7730" />
+                        </div>
+                        <button class="k-btn k-btn-primary k-btn-block" @onclick="AddCodeAsync" disabled="@_busy">Gem kundenummer</button>
+                        <a class="k-btn k-btn-block k-mt" href="https://itmartin.dk/mine-apps?app=ElPriser" target="_blank" rel="noopener">Har du ikke et? Skriv dig op gratis på itmartin.dk</a>
+                    </div>
+                }
             }
             else
             {
@@ -96,7 +109,7 @@
             if (_state == "on")
             {
                 var me = await JS.InvokeAsync<Status?>("elpush.status");
-                if (me is not null) { _name = me.Name; _cheapest = me.NotifyCheapest; _expensive = me.NotifyExpensive; }
+                if (me is not null) { _name = me.Name; _cheapest = me.NotifyCheapest; _expensive = me.NotifyExpensive; _hasCode = me.HasCode; }
                 else _state = "off"; // browser has a subscription the server forgot - re-subscribe
             }
         }
@@ -104,7 +117,24 @@
         StateHasChanged();
     }
 
-    private sealed record Status(string Name, bool NotifyCheapest, bool NotifyExpensive);
+    private sealed record Status(string Name, bool NotifyCheapest, bool NotifyExpensive, bool HasCode);
+
+    private bool _hasCode = true;
+
+    private async Task AddCodeAsync()
+    {
+        _busy = true; _msg = null;
+        try
+        {
+            var (ok, error) = await Push.CheckCodeAsync(_code);
+            if (!ok) { _msg = error; return; }
+            try { await JS.InvokeVoidAsync("localStorage.setItem", "elpriser-kundenummer", _code); } catch { }
+            var state = await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive, _code);
+            if (state == "on") { _hasCode = true; _msg = "Tak – dit kundenummer er gemt."; }
+            else _msg = "Dit kundenummer kunne ikke gemmes lige nu – prøv igen om lidt.";
+        }
+        finally { _busy = false; }
+    }
 
     private async Task SubscribeAsync()
     {

@@ -154,6 +154,21 @@ public class ElPriserApiTests
     }
 
     [Test]
+    public async Task An_old_phone_keeps_beskeder_and_can_add_its_kundenummer_later()
+    {
+        const string ep = "https://push.example/old";
+        _factory.Services.GetRequiredService<ISubscriberStore>().Update(d => d.Subscribers.Add(new PushSubscriber { Endpoint = ep }));
+        (await _client.PostAsJsonAsync("/api/push/subscribe", new { endpoint = ep, p256dh = "k", auth = "a", notifyCheapest = true, notifyExpensive = false }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _client.GetStringAsync("/api/push/status?endpoint=" + Uri.EscapeDataString(ep))).Should().Contain("\"hasCode\":false");
+        (await _client.PostAsJsonAsync("/api/push/subscribe", new { endpoint = ep, p256dh = "k", auth = "a", notifyCheapest = true, notifyExpensive = false, code = "1111 2222" }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);   // a number it adds is checked
+        (await _client.PostAsJsonAsync("/api/push/subscribe", new { endpoint = ep, p256dh = "k", auth = "a", notifyCheapest = true, notifyExpensive = false, code = "4821 7730" }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _client.GetStringAsync("/api/push/status?endpoint=" + Uri.EscapeDataString(ep))).Should().Contain("\"hasCode\":true");
+    }
+
+    [Test]
     public async Task A_stranger_can_not_read_another_phones_status() =>
         (await _client.GetAsync("/api/push/status?endpoint=" + Uri.EscapeDataString("https://push.example/someone-else")))
         .StatusCode.Should().Be(HttpStatusCode.NotFound);

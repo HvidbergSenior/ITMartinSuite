@@ -25,6 +25,7 @@ builder.Services.AddKolibri(k =>
         "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
         "Vælg dit hjem og dit elselskab øverst i boksen med prisen (\"Elselskab … skift\"), så er prisen din egen.",
         "Vil du have besked, når strømmen bliver billig? Skriv dig op gratis på itmartin.dk (Mine apps → ElPriser → Prøv gratis), så får du et kundenummer på mail. Skriv det under Besked, og tryk Slå beskeder til.",
+        "Fik du beskeder, før kundenummeret kom? De fortsætter. Skriv dig op gratis, og skriv dit kundenummer under Besked.",
         "Vil du have din elregning forklaret? Det er en del af MinElpris – spørg Martin på itmartin.dk.",
     ];
     k.Version = "2026.10";
@@ -68,7 +69,7 @@ app.MapPost("/api/push/unsubscribe", (UnsubscribeRequest req, PushUseCases push)
     .DisableAntiforgery();
 
 app.MapGet("/api/push/status", (string endpoint, PushUseCases push) =>
-    push.Status(endpoint) is { } s ? Results.Ok(new { s.Name, s.NotifyCheapest, s.NotifyExpensive }) : Results.NotFound());
+    push.Status(endpoint) is { } s ? Results.Ok(new { s.Name, s.NotifyCheapest, s.NotifyExpensive, HasCode = s.CustomerCode.Length > 0 }) : Results.NotFound());
 
 // "Send mig en test" - proves the whole chain on this phone right now.
 app.MapPost("/api/push/test", async (UnsubscribeRequest req, PushUseCases push) =>
