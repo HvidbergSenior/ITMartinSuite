@@ -150,3 +150,22 @@
         }
     });
 })();
+
+// Lys/Mørk in the header - the same button and memory as ElPriser and Stem (the theme is set in <head> before first paint).
+(function () {
+    function sync() {
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var btn = document.getElementById('themeToggleBtn');
+        if (btn) btn.textContent = current === 'light' ? 'Mørk' : 'Lys';
+        var meta = document.querySelector('meta[name=theme-color]');
+        if (meta) meta.setAttribute('content', current === 'light' ? '#f5f5f7' : '#0b1220');
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
+        var next = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('temperatur_theme', next); } catch (err) { }
+        sync();
+    });
+    sync();
+})();

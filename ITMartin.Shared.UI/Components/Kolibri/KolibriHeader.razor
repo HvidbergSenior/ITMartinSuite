@@ -4,7 +4,8 @@
 <header class="k-header">
     <div class="k-header-in @(Wide ? "wide" : "")">
         <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0">
-            <img class="k-logo" src="/@Info.IconPath.TrimStart('/')" alt="" />
+            @* The ITMartin brand logo top-left in every app (user 2026-10-22: "my own ITMartin Kolibri... the text can be there"). *@
+            <img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin" />
             <div class="k-brand">
                 <b>@(string.IsNullOrWhiteSpace(Title) ? Info.Name : Title)</b>
                 @if (!string.IsNullOrWhiteSpace(Info.KolibriName)) { <span>@Info.KolibriName@(string.IsNullOrWhiteSpace(Info.Tenant) ? "" : $" · {Info.Tenant}")</span> }

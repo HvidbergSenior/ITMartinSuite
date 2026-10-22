@@ -28,5 +28,5 @@
 .tp-howto { display: flex; justify-content: center; gap: 28px; margin: 14px 0 4px; flex-wrap: wrap; }
 .tp-howto figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .tp-howto figcaption { font-size: 15px; }
-.tp-no figcaption { color: #b71c1c; }
-.tp-yes figcaption { color: #1b5e20; }
+
+

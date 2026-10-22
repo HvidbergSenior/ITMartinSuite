@@ -24,8 +24,9 @@ public static class KolibriStaticPages
 
     private static string E(string s) => WebUtility.HtmlEncode(s);
 
-    public static string Header(KolibriAppInfo info, string? title = null) =>
-        $"""<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo" src="/{E(info.IconPath.TrimStart('/'))}" alt=""><div class="k-brand"><b>{E(title ?? info.Name)}</b>{(info.KolibriName.Length > 0 ? $"<span>{E(info.KolibriName)}</span>" : "")}</div></a></div></header>""";
+    /// <param name="actions">Raw HTML for the right side (like KolibriHeader's ChildContent), e.g. the Lys/Mørk button.</param>
+    public static string Header(KolibriAppInfo info, string? title = null, string actions = "") =>
+        $"""<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div class="k-brand"><b>{E(title ?? info.Name)}</b>{(info.KolibriName.Length > 0 ? $"<span>{E(info.KolibriName)}</span>" : "")}</div></a>{(actions.Length > 0 ? $"<div class=\"k-header-actions\">{actions}</div>" : "")}</div></header>""";
 
     public static string Footer(KolibriAppInfo info) =>
         $"""<footer class="k-footer"><span>&copy; {DateTime.Now.Year} ITMartin · {E(info.T("Den digitale kolibri", "The digital hummingbird"))}</span> <a href="/om">{E(info.T("Om", "About"))} {E(info.Name)}</a> <a href="#k-install" class="k-footer-install">{E(info.T("Læg på telefonen", "Add to phone"))}</a> <a href="/hjaelp">{E(info.T("Noget virker ikke?", "Something not working?"))}</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">{E(info.T("Vilkår & privatliv", "Terms & privacy"))}</a></footer>""";

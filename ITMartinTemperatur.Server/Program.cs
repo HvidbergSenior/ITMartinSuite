@@ -25,7 +25,7 @@ builder.Services.AddKolibri(k =>
         "Vælg en større afstand, hvis der ikke er en station tæt på.",
     ];
     k.Version = "2026.10";
-    k.ThemeColor = "#1d4ed8";
+    k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
 
@@ -40,17 +40,21 @@ app.UseStaticFiles();
 var body = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "side.html"));
 // A personal greeting for the people this copy is made for (Temperatur__Hilsen, e.g. "Hej Jørgen og Marianne - god tur!").
 var greeting = app.Configuration["Temperatur:Hilsen"] ?? "";
+// Lys/Mørk like ElPriser and Stem (user 2026-10-22: "temperatur need the same css as the other two apps"); app.js handles the click.
+const string ThemeButton = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>""";
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
 {
     ctx.Response.Headers.CacheControl = "no-cache";
     return Results.Content($"""
-        <!doctype html><html lang="da" data-family="{info.Family}"><head><meta charset="utf-8">
+        <!doctype html><html lang="da" data-family="{info.Family}"><head>
+        <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('temperatur_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+        <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Temperatur</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css"><link rel="stylesheet" href="/app.css?v=3">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=3" defer></script>
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=4">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=4" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
-        <body>{KolibriStaticPages.Header(info)}<main class="k-main"><div class="k-content">{(greeting == "" ? "" : $"<p class=\"tp-greeting\">{System.Net.WebUtility.HtmlEncode(greeting)}</p>")}{body}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+        <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(greeting == "" ? "" : $"<p class=\"tp-greeting\">{System.Net.WebUtility.HtmlEncode(greeting)}</p>")}{body}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
 });
 
