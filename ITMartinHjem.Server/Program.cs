@@ -247,6 +247,20 @@ app.MapGet("/nu/{name}", async (string name, HttpContext ctx, SiteUseCases site)
 
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
 // Shop photos come from Lager through here, so the buyer never talks to the photoserver.
+// Varer + Kurv are OFF for visitors (user 2026-10-22: "varer needs to be disabled for users") - without the /vis-butik
+// cookie the shop pages go to the front page; the photos below are gated the same way.
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path;
+    var shopPage = (path.StartsWithSegments("/varer", StringComparison.OrdinalIgnoreCase) && !path.StartsWithSegments("/varer/foto", StringComparison.OrdinalIgnoreCase))
+                   || path.StartsWithSegments("/kurv", StringComparison.OrdinalIgnoreCase);
+    if (shopPage && !ctx.RequestServices.GetRequiredService<ShopVisibility>().Visible(ctx.Request.Cookies[ShopVisibility.Cookie]))
+    {
+        ctx.Response.Redirect("/");
+        return;
+    }
+    await next();
+});
 app.MapGet("/varer/foto/{id:int}", async (int id, HttpContext ctx, ShopVisibility visibility, ShopUseCases shop) =>
     visibility.Visible(ctx.Request.Cookies[ShopVisibility.Cookie]) && await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 // Martin's preview of the shop while it is closed (user 2026-10-21: "i want to test it first"): /vis-butik?kode=... once
@@ -260,7 +274,7 @@ app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibili
         });
     return Results.Redirect("/varer");
 });
-app.MapGet("/skjul-butik", (HttpContext ctx) => { ctx.Response.Cookies.Delete(ShopVisibility.Cookie); return Results.Redirect("/varer"); });
+app.MapGet("/skjul-butik", (HttpContext ctx) => { ctx.Response.Cookies.Delete(ShopVisibility.Cookie); return Results.Redirect("/"); });
 
 app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
 // The pilot page moved to /bliv-pilot/ (2026-09-29): browsers kept a stale one.com copy of /pilot/ without the menu.

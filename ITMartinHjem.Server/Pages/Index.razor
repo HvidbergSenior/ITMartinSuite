@@ -47,8 +47,9 @@
 </section>
 
 @* Sign up as a customer right on the front page (user 2026-10-22) - the same one yes as Mine apps and bogshoppen.dk:
-   a kundenummer for all the free apps + the live-auction login. The form opens under the button, so nothing jumps on load. *@
-<section class="k-card hj-signup" id="bliv-kunde" data-nofold>
+   a kundenummer for all the free apps + the live-auction login. The form opens under the button, so nothing jumps on load.
+   A show/hide box like the others, starting closed (user 2026-10-22). *@
+<section class="k-card hj-signup" id="bliv-kunde" data-fold-closed="1">
     <h2 class="k-card-title">Bliv kunde – gratis</h2>
     <p>Skriv dig op én gang, så får du et kundenummer på mail. Med det kan du bruge mine gratis apps – og du har et login til liveauktionerne på bogshoppen.dk, når de åbner. Ingen reklamer, ingen nyhedsbreve.</p>
     <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som kunde" />

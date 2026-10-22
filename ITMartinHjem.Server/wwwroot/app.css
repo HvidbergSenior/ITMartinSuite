@@ -521,6 +521,8 @@ html[data-family="idag"] .hj-head, .bs-head { text-align: center; padding: 22px 
 html[data-family="idag"] .hj-head h1, .bs-head h1 { margin: 6px 0 4px; font-size: 2rem; line-height: 1.15; }
 html[data-family="idag"] .hj-tagline, .bs-tag { display: inline-block; margin: 0; padding: 2px 12px; border-radius: 999px; font-weight: 800; font-size: .85rem; letter-spacing: .02em; }
 html[data-family="idag"] .hj-head .hj-intro, .bs-head p { margin: 0; font-weight: 600; }
+.bs-head .bs-head-btn { display: inline-block; margin: 14px 0 0; padding: 12px 22px; }
+.bs-signup { border: 2px solid #2a1d12; }
 .bs-head::before { content: "📚"; display: block; font-size: 2.6rem; margin-bottom: 6px; }
 
 /* bogshoppen.dk live-auction teaser (2026-10-12) */

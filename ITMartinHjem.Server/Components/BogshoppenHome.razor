@@ -10,23 +10,24 @@
    became a teaser + sign-up. *@
 @* Same head box as itmartin.dk, day tag included (user 2026-10-12: the two home pages "identical" - but ITMartin is Martin's
    company, the new Bogshoppen is Rico and Martin's company). *@
+@* "Coming soon + sign up + who are Rico and Martin" first (user 2026-10-22). *@
 <header class="bs-head">
-    <span class="bs-tag">Det er @DkToday.ToString("dddd", Da)</span>
+    <span class="bs-tag">Kommer snart</span>
     @* "Version 2" - the new Bogshoppen (user 2026-10-12). *@
     <h1>Bogshoppen Version 2</h1>
-    <p>Rico og Martins virksomhed</p>
+    <p>Rico og Martins nye Bogshoppen – med liveauktioner. Skriv dig op, så hører du det først.</p>
+    <a class="k-btn k-btn-primary bs-btn bs-head-btn" href="#foelg">Skriv mig op – gratis</a>
 </header>
-
-<FoundInBoxes />
 
 @{ var (intro, parts) = Sections.Split(_page?.Body); }
 @if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
-@* "Hvem er Rico og Martin?" starts folded, like "Hvem er ITMartin?" on itmartin.dk (user 2026-10-12: "closed"). *@
-<div class="bs-card"><SectionBoxes Parts="parts" FirstOpen="false" /></div>
+@* "Hvem er Rico og Martin?" starts OPEN now (user 2026-10-22: "who is Rico Martin" - was folded since 2026-10-12). *@
+<div class="bs-card"><SectionBoxes Parts="parts" FirstOpen="true" /></div>
 
-@* Live-auction teaser right after Rico/Martin (user 2026-10-12: no votes - "start with live-auctions and the product will be
-   shown soon", "make teaser"): what is coming, how to buy, how to follow along (sign up as customer, NO newsletters). *@
+@* Sign-up first, then the live-auction teaser and how to buy (user 2026-10-22). No newsletters. *@
 <AuctionTeaser />
+
+<FoundInBoxes />
 
 @* The manifest ("Bogshoppen stod for hygge …") and "Den digitale kolibri tænker" moved to the Om Bogshoppen tab 2026-10-12 (user). *@
 
@@ -37,8 +38,6 @@
 
 @code {
     public const string PageSlug = "bogshoppen-dk";
-    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
-    private static DateTime DkToday => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private Page? _page;
     private bool _available;
 
