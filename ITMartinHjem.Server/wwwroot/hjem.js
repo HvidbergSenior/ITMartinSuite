@@ -112,7 +112,7 @@ window.hjem = (function () {
         box.className = 'hj-zoom-box';
         box.setAttribute('role', 'dialog');
         box.setAttribute('aria-label', 'Billedet i stor størrelse');
-        box.innerHTML = '<button type="button" class="k-btn k-btn-primary hj-zoom-close">Luk ✕</button><img alt="">'
+        box.innerHTML = '<button type="button" class="k-btn hj-zoom-close">Luk ✕</button><img alt="">'
             + '<div class="hj-zoom-help">Tryk hvor som helst for at lukke</div>';
         var big = box.querySelector('img');
         big.src = a.getAttribute('href');

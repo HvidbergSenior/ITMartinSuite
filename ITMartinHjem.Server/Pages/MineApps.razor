@@ -22,7 +22,8 @@
         var target = string.Equals(a.Name, App, StringComparison.OrdinalIgnoreCase);
         @* ?app=Name (the front-page tiles): that card starts open, so the example picture shows. *@
         <div class="k-card hj-app @(up ? "" : "off") @(target ? "hj-app-target" : "")" id="app-@a.Id" data-fold-closed="@(target ? null : "1")">
-            <h3 class="hj-app-head">@a.Name <span class="k-dot hj-dot @(up ? "on" : "")" title="@(up ? "Kører nu" : "Sover")"></span></h3>
+            @* Running/asleep in WORDS, not only a green/grey dot - the user is colour-blind (2026-10-22). *@
+            <h3 class="hj-app-head">@a.Name <span class="hj-state @(up ? "on" : "")"><span class="k-dot hj-dot @(up ? "on" : "")"></span>@(up ? "Kører" : "Sover")</span></h3>
             <div class="hj-app-body">
                 <div class="k-help">@NoEmoji.Strip(a.Description)</div>
                 @* Big picture opens ON the page (hjem.js), not in a new tab: on a phone people had to close the tab to get back (user 2026-10-22). *@
