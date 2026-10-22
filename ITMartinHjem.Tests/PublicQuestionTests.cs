@@ -157,6 +157,8 @@ public class TrialRequestTests
         var k = new FakeKartotek(); var inbox = new FakeInbox(); var mail = new FakeMail(); var uc = new Customers(k, inbox, mail);
         (await uc.RequestTrialAsync("ElPriser", "Ole", "Ole@Gmail.com", consent: false)).Error.Should().StartWith("Sæt flueben");
         (await uc.RequestTrialAsync("Tilbud", "Ole", "Ole@Gmail.com", consent: true)).Error.Should().Be(TrialRules.NotFree);   // not on the free list
+        TrialRules.IsFree(TrialRules.FrontPage, []).Should().BeTrue();   // the front-page box signs up to all the free apps
+        TrialRules.Source(TrialRules.FrontPage).Should().Be("itmartin.dk: Bliv kunde – forsiden");
         k.SignedUp.Should().BeEmpty();
         (await uc.RequestTrialAsync("elpriser", "Ole", " Ole@Gmail.com ", consent: true)).Should().Be(new SignUpResult(null, "48217730"));
         mail.Sent.Should().ContainSingle().Which.Body.Should().Contain("4821 7730").And.Contain("ElPriser, Stem").And.NotContain("Temperatur")

@@ -12,11 +12,16 @@ public static class TrialRules
 
     public const string NotFree = "Den app kan ikke prøves gratis lige nu – skriv til Martin i chatten, så finder vi ud af det.";
 
-    /// <summary>Only the apps Martin has switched on in Kunder (user 2026-10-21: "all others cannot be tried for free").</summary>
-    public static bool IsFree(string app, IEnumerable<string> freeApps) =>
-        freeApps.Any(f => string.Equals(f.Trim(), app.Trim(), StringComparison.OrdinalIgnoreCase));
+    /// <summary>The sign-up box on the itmartin.dk front page (user 2026-10-22: "on first page there should be a way to signup
+    /// as customer") - not one app, the same yes to all the free apps.</summary>
+    public const string FrontPage = "itmartin.dk";
 
-    public static string Source(string app) => $"itmartin.dk: Prøv gratis – {app}";
+    /// <summary>Only the apps Martin has switched on in Kunder (user 2026-10-21: "all others cannot be tried for free"),
+    /// or the front page.</summary>
+    public static bool IsFree(string app, IEnumerable<string> freeApps) =>
+        app == FrontPage || freeApps.Any(f => string.Equals(f.Trim(), app.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    public static string Source(string app) => app == FrontPage ? "itmartin.dk: Bliv kunde – forsiden" : $"itmartin.dk: Prøv gratis – {app}";
 
     // The message Martin gets in Svar (and as a push); his answer there goes to the person by mail.
     public static string RequestMessage(string app, string email) =>

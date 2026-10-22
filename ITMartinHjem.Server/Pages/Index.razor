@@ -4,6 +4,7 @@
 @inject ChatUseCases Chat
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject Customers Kartotek
 
 @* First screen = one answer: who I am and what I am doing now. The timeline and the
    chat come after it; old years are folded and the phone remembers what was open. *@
@@ -43,6 +44,14 @@
         <a class="k-btn k-btn-primary" href="@fact.Href" target="@(fact.Href.StartsWith("http") ? "_blank" : null)" rel="@(fact.Href.StartsWith("http") ? "noopener" : null)">@fact.Title →</a>
         <button type="button" class="k-btn" @onclick="() => _factIndex++">Næste</button>
     </div>
+</section>
+
+@* Sign up as a customer right on the front page (user 2026-10-22) - the same one yes as Mine apps and bogshoppen.dk:
+   a kundenummer for all the free apps + the live-auction login. The form opens under the button, so nothing jumps on load. *@
+<section class="k-card hj-signup" id="bliv-kunde" data-nofold>
+    <h2 class="k-card-title">Bliv kunde – gratis</h2>
+    <p>Skriv dig op én gang, så får du et kundenummer på mail. Med det kan du bruge mine gratis apps – og du har et login til liveauktionerne på bogshoppen.dk, når de åbner. Ingen reklamer, ingen nyhedsbreve.</p>
+    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som kunde" />
 </section>
 
 @* Things from the Bogshoppen boxes Martin chose in Lager - same box as on bogshoppen.dk (user 2026-10-15). *@
@@ -137,6 +146,7 @@ else if (_family && !_owner)
 
     private static readonly CultureInfo Da = new("da-DK");
     private Settings _s = new();
+    private IReadOnlyList<string> _freeWithCode = [];
     private List<Post> _posts = [];
     private int _hiddenFamily;
     private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
@@ -207,6 +217,9 @@ else if (_family && !_owner)
         _family = user.IsFamily();
         _owner = user.IsOwner();
         await LoadAsync();
+        // Kunder down must never take the front page with it - the form then just names no apps.
+        try { _freeWithCode = (await Kartotek.FreeAppsAsync()).Where(f => f.NeedsCode).Select(f => f.Name).ToList(); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { }
         Chat.AvailabilityChanged += OnAvailability;
     }
 

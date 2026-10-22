@@ -18,7 +18,7 @@
     }
     else if (!_open)
     {
-        <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => _open = true">Prøv gratis</button>
+        <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => _open = true">@Button</button>
     }
     else
     {
@@ -37,6 +37,7 @@
     [Parameter, EditorRequired] public string App { get; set; } = "";
     /// <summary>The free apps whose extras need the kundenummer (ElPriser, Stem).</summary>
     [Parameter, EditorRequired] public IReadOnlyList<string> FreeApps { get; set; } = [];
+    [Parameter] public string Button { get; set; } = "Prøv gratis";
 
     private bool _open, _sent, _consent, _busy;
     private string _name = "", _email = "", _error = "", _code = "";
