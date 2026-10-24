@@ -27,6 +27,11 @@ public sealed class Box
 
     public int Number => BoxCodes.Number(Code);
 
+    /// <summary>A test box (user 2026-10-24: "when I call it something like Test ... the products are only for show"):
+    /// its placering starts with "Test". Its things can be shown in the shop but are never sold.</summary>
+    public bool IsTest => IsTestName(Place);
+    public static bool IsTestName(string place) => place.TrimStart().StartsWith("test", StringComparison.OrdinalIgnoreCase);
+
     public static string CodeFor(int n) => BoxCodes.For(n);
 
     // The next code after the last one: K0001, K0002 ...

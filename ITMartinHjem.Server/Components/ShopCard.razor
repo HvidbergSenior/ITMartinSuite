@@ -9,7 +9,8 @@
         @if (Mark != "") { <span class="bs-badge bs-badge-@Mark.ToLowerInvariant()">@Mark</span> }
         <b>@Item.Line</b>
         <span class="k-help">@(Item.Usage == Usages.New ? "Ny" : "Brugt") · @Item.Kind · @Item.Condition stand</span>
-        @if (Item.Available == 0) { <span>Reserveret lige nu</span> }
+        @if (Item.ForShow) { <span class="bs-forshow">Kun til visning</span> }
+        else if (Item.Available == 0) { <span>Reserveret lige nu</span> }
         else if (Item.DayKr is { } day && Item.BuyNowKr is { } normal)
         {
             <span class="bs-card-price">@day kr <span class="bs-card-day">i dag</span></span>

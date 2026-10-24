@@ -19,7 +19,8 @@
                         <p class="k-help">@i.Kind · @i.Condition stand@(i.Available > 1 ? " · vi har flere" : "")</p>
                         @if (i.Interest != "") { <p>@i.Interest</p> }
                         <p>
-                            @if (i.BuyNowKr is { } kr) { <span>Hos os: <b>@kr kr</b></span> }
+                            @if (i.ForShow) { <span class="bs-forshow">Kun til visning</span> }
+                            else if (i.BuyNowKr is { } kr) { <span>Hos os: <b>@kr kr</b></span> }
                             else if (i.ExpectKr is { } ex) { <span>Andre steder omkring @ex kr – hos os efter aftale</span> }
                             else { <span>Pris efter aftale</span> }
                         </p>

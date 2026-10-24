@@ -167,6 +167,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             string? why = null;
             int kr = 0;
             if (found.GetValueOrDefault(id) is not { } item) why = "Varen er desværre solgt.";
+            else if (item.ForShow) why = "Varen er kun til visning og kan ikke købes.";
             else if (Shop.BuyNowKr(item, options.ShopAutoMaxKr) is not { } price) why = "Varen har ikke en fast pris endnu.";
             else if (item.Quantity - reserved.GetValueOrDefault(id) - taken.GetValueOrDefault(id) <= 0)
                 why = "En anden er ved at betale for den lige nu. Prøv igen om en halv time.";
@@ -190,7 +191,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
             return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 ? i.HintKr : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
-                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage);
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow);
         }).ToList();
     }
 }

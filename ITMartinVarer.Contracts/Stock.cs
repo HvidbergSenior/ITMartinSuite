@@ -13,7 +13,7 @@ public static class StockHeaders
 /// (10 % under the other sites); Confidence = how sure the AI was what it is. Badge = "🏆 GULD" / "🥈 SØLV" / "🥉 BRONZE"
 /// or "". Usage = Usages.</summary>
 public sealed record StockItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
-    int Quantity, string Usage, int? PriceKr, int? HintKr, double Confidence, bool HasPhoto, string Badge);
+    int Quantity, string Usage, int? PriceKr, int? HintKr, double Confidence, bool HasPhoto, string Badge, bool ForShow = false);
 
 /// <summary>One page of things for sale and how many match in all.</summary>
 public sealed record StockPage(List<StockItem> Items, int Total);

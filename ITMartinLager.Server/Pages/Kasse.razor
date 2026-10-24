@@ -11,7 +11,8 @@
 else
 {
     <section class="k-card">
-        <h1 class="k-card-title">📦 Kasse @_box.Code</h1>
+        <h1 class="k-card-title">📦 Kasse @_box.Code @if (_box.IsTest) { <span class="lg-test">TEST – kun til visning</span> }</h1>
+        <p class="k-help">Skriv en placering, der starter med <b>Test</b> (fx "Test – eksempler"), så er det en testkasse: tingene kan vises i butikken, men kan aldrig købes.</p>
         <div class="lg-row">
             <input class="k-input" @bind="_box.Place" placeholder="Hvor står den?" />
             <button class="k-btn k-btn-secondary" @onclick="SavePlace">Gem placering</button>

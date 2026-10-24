@@ -87,3 +87,4 @@
 .lg-more-btn b { font-size: 1.05rem; }
 .lg-more-btn span { font-size: .9rem; opacity: .85; }
 .lg-more-btn:hover, .lg-more-btn:focus-visible { border-color: var(--k-accent, #1f7a5c); }
+.lg-test{display:inline-block;margin-left:.5em;font-size:.8rem;font-weight:800;border:2px solid currentColor;border-radius:6px;padding:.05em .4em;vertical-align:middle}

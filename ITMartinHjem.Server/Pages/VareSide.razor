@@ -36,7 +36,11 @@ else
     <section class="k-card bs-card">
         <h2>Pris</h2>
         <div>
-            @if (_item.Available == 0)
+            @if (_item.ForShow)
+            {
+                <p><b>Kun til visning.</b> Den her vare er et eksempel og kan ikke købes.</p>
+            }
+            else if (_item.Available == 0)
             {
                 <p><b>En anden er ved at betale for den lige nu.</b> Bliver købet ikke gennemført, er den til salg igen om en halv time.</p>
             }

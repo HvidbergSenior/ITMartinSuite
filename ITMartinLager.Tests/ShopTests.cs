@@ -38,6 +38,19 @@ public class StockForSaleTests
         new(Items, new PriceRepository(Factory), new GoldRepository(Factory), new SaleBookingRepository(Factory), TimeProvider.System);
 
     [Test]
+    public void A_box_whose_placering_starts_with_Test_is_a_test_box_and_its_things_are_only_for_show()
+    {
+        Box.IsTestName("Test").Should().BeTrue();
+        Box.IsTestName("  test – eksempler").Should().BeTrue();
+        Box.IsTestName("Garagen, reol 3").Should().BeFalse();
+        Box.IsTestName("Kontest").Should().BeFalse();
+        var item = new Item { Id = 1, Title = "Eksempel", Box = new Box { Code = "K0001", Place = "Test" } };
+        Shop.View(item, []).ForShow.Should().BeTrue();
+        item.Box = new Box { Code = "K0002", Place = "Garagen" };
+        Shop.View(item, []).ForShow.Should().BeFalse();
+    }
+
+    [Test]
     public void Only_unsold_items_off_auction_are_listed()
     {
         Shop.Listed(new Item { Title = "Mort", Status = Statuses.Lager }).Should().BeTrue();

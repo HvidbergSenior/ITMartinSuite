@@ -138,6 +138,18 @@ public class ShopTests
     }
 
     [Test]
+    public async Task A_test_box_item_is_shown_but_never_sold()
+    {
+        var item = _stock.Add(Kinds.Bog, "Eksempel", price: 100);
+        _stock.Items[_stock.Items.IndexOf(item)] = item = item with { ForShow = true };
+        Shop.BuyNowKr(item, 200).Should().BeNull();
+        var (shop, _) = Make();
+        var shown = (await shop.SearchAsync("eksempel", null)).Single();
+        (shown.ForShow, shown.BuyNowKr).Should().Be((true, (int?)null));
+        await shop.Invoking(s => s.BuyAsync(item.Id, "https://bogshoppen.dk")).Should().ThrowAsync<SalgException>();
+    }
+
+    [Test]
     public async Task Buying_reserves_the_copy_and_paying_tells_Lager_once()
     {
         var item = _stock.Add(Kinds.Bog, "Mort", hint: 80);

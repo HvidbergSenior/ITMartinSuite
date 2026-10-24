@@ -656,6 +656,7 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .bs-card-item img{width:100%;height:180px;object-fit:cover;background:#f3ede0}
 .bs-card-noimg{height:180px;display:flex;align-items:center;justify-content:center;background:#f3ede0;color:#5b4a3a;font-weight:700}
 .bs-card-price{font-size:1.25rem;font-weight:800}
+.bs-forshow{display:inline-block;font-weight:800;border:2px solid currentColor;border-radius:6px;padding:.1em .45em}
 .bs-card-day{font-weight:700;color:#7a1d0c}
 .bs-card-actions{padding:0 12px 12px}
 .bs-badge{align-self:flex-start;font-weight:800;font-size:.8rem;letter-spacing:.05em;padding:2px 8px;border-radius:999px;border:2px solid #2a1d12;background:#fff}

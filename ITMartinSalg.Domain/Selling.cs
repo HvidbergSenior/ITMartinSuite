@@ -16,6 +16,7 @@ public static class Shop
     /// when it is under autoMaxKr and the AI was sure what the thing is. Null = no Køb nu yet.</summary>
     public static int? BuyNowKr(StockItem i, int autoMaxKr)
     {
+        if (i.ForShow) return null;   // a test box: only for show, never sold (user 2026-10-24)
         if (i.PriceKr is > 0) return i.PriceKr;
         if (i.HintKr is > 0 && i.HintKr < autoMaxKr && i.Confidence >= MinConfidence) return i.HintKr;
         return null;
