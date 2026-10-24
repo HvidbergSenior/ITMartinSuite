@@ -31,15 +31,20 @@
 
 @* The manifest ("Bogshoppen stod for hygge …") and "Den digitale kolibri tænker" moved to the Om Bogshoppen tab 2026-10-12 (user). *@
 
-@* Bogshoppen's own "Det spørger folk om" - questions from the chat, no names (user 2026-10-12). *@
-<QuestionsBox Site="@QuestionRules.Bogshoppen" ShowEmpty="true" />
-
-<ChatBox Available="_available" OwnerName="Martin" />
+@* bogshoppen.dk is ONLY the shop (user 2026-10-24): questions and the chat are on itmartin.dk/spoergsmaal, where the
+   Bogshoppen questions show too. One box with a button instead of the old Q&A box and chat. *@
+<section class="k-card bs-card" id="spoerg">
+    <h2 class="k-card-title">Spørgsmål?</h2>
+    <p>Har du et spørgsmål – fx om vi tager imod bøger, blade eller film, om gavekort, eller om noget du leder efter?
+        Spørgsmål og svar samler vi på itmartin.dk. Der kan du også se, hvad andre har spurgt om.</p>
+    <a class="k-btn k-btn-primary bs-btn" href="@AskUrl">Stil dit spørgsmål på itmartin.dk</a>
+</section>
 
 @code {
     public const string PageSlug = "bogshoppen-dk";
+    /// <summary>Where bogshoppen.dk sends every question (user 2026-10-24: "all questions ... with a link to itmartin").</summary>
+    public const string AskUrl = "https://itmartin.dk/spoergsmaal#chat";
     private Page? _page;
-    private bool _available;
 
     // bogshoppen.dk and www.bogshoppen.dk are served by this app too (Cloudflare tunnel -> hjem-web).
     public static bool IsHost(string host) =>
@@ -48,6 +53,5 @@
     protected override async Task OnInitializedAsync()
     {
         _page = await Site.PageBySlugAsync(PageSlug);
-        _available = (await Site.SettingsAsync()).Available;
     }
 }

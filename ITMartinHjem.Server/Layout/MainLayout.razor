@@ -23,7 +23,8 @@ else
        bogshoppen.dk???" - nothing of the shop on the sites until he has tested it). *@
     @if (ShopVisible) { <a href="/varer">Varer</a> <a href="/kurv">Kurv<span data-kurv-count></span></a> }
     <a href="/om-bogshoppen">Om Bogshoppen</a>
-    <a href="/spoergsmaal">Spørgsmål</a>
+    @* Questions live on itmartin.dk (user 2026-10-24: bogshoppen.dk is only the shop). *@
+    <a href="@BogshoppenHome.AskUrl">Spørgsmål</a>
 </nav>
 }
 @if (_fest && !_bs)

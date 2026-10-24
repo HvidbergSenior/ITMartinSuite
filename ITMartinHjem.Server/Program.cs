@@ -245,6 +245,19 @@ app.MapGet("/nu/{name}", async (string name, HttpContext ctx, SiteUseCases site)
     return Results.File(f.Path, f.ContentType, enableRangeProcessing: true);
 });
 
+// bogshoppen.dk is ONLY the shop (user 2026-10-24): questions and the chat live on itmartin.dk - old links go there.
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path;
+    if (ITMartinHjem.Server.Components.BogshoppenHome.IsHost(ctx.Request.Host.Host) && (path.StartsWithSegments("/spoergsmaal", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/chat", StringComparison.OrdinalIgnoreCase)))
+    {
+        ctx.Response.Redirect(ITMartinHjem.Server.Components.BogshoppenHome.AskUrl, permanent: true);
+        return;
+    }
+    await next();
+});
+
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
 // Shop photos come from Lager through here, so the buyer never talks to the photoserver.
 // Varer + Kurv are OFF for visitors (user 2026-10-22: "varer needs to be disabled for users") - without the /vis-butik

@@ -63,14 +63,14 @@ else
                 else
                 {
                     <p>Betaling på siden åbner snart. Vil du have den nu? Skriv i chatten, så holder vi den til dig.</p>
-                    <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+                    <a class="k-btn k-btn-sm" href="@BogshoppenHome.AskUrl">Spørg på itmartin.dk</a>
                 }
             }
             else
             {
                 <p>Den har ikke en fast pris endnu@(_item.ExpectKr is { } ex ? $" – andre steder koster den omkring {ex} kr" : "").</p>
                 <p>Snart kan du <b>byde</b> på den, så kommer den med på lørdagens liveauktion. Indtil da: skriv i chatten, hvad du vil give.</p>
-                <a class="k-btn k-btn-sm" href="/#chat">Skriv i chatten</a>
+                <a class="k-btn k-btn-sm" href="@BogshoppenHome.AskUrl">Spørg på itmartin.dk</a>
             }
             @if (_error is not null) { <p class="bs-warn" role="alert">@_error</p> }
         </div>
