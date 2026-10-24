@@ -42,7 +42,8 @@ public static class Letters
 
          Apps bliver lavet sammen med jer
          Alle apps er lavet for at hjælpe dig – ikke for at sælge dig noget. De bliver bedre, når du siger, hvad du mangler.
-         Har du et ønske, en idé, eller noget der kan gøres bedre? Svar bare på denne mail, eller skriv i chatten på itmartin.dk. Jeg læser det hele.
+         Har du et spørgsmål, et ønske, en idé, eller noget der kan gøres bedre? Stil det på itmartin.dk/spoergsmaal.
+         Svaret kommer i chatten, og er det noget, andre også kan bruge, kommer det op på siden – uden dit navn.
 
          Det får du ikke: reklamer, nyhedsbreve eller dine oplysninger givet videre til andre.
 

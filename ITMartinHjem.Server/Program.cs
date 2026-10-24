@@ -30,10 +30,10 @@ builder.Services.AddKolibri(k =>
     [
         "Læs \"Lige nu\" øverst – det er det, jeg arbejder med.",
         "Rul ned gennem tidslinjen, eller fold et år ud.",
-        "Tryk \"Skriv til Martin\" for at stille et spørgsmål.",
+        "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
         "På Mine apps: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.10.24";
     k.ThemeColor = "#f4f6f5";
 });
 

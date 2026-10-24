@@ -1,6 +1,9 @@
 @page "/spoergsmaal"
+@implements IDisposable
 @inject PublicQuestions Questions
 @inject NavigationManager Nav
+@inject SiteUseCases SiteSettings
+@inject ChatUseCases Chat
 
 <PageTitle>Det spørger folk om · @(Site == QuestionRules.Bogshoppen ? "Bogshoppen" : "ITMartin")</PageTitle>
 
@@ -24,14 +27,21 @@
         </div>
     }
     <div class="hj-qa-ask">
-        <p class="k-help">Fandt du ikke svaret? Spørg mig i chatten.</p>
-        <a class="k-btn k-btn-sm" href="/#chat">Spørg mig i chatten</a>
+        <p class="k-help">Fandt du ikke svaret? Stil dit spørgsmål lige herunder.</p>
+        <a class="k-btn k-btn-sm" href="#chat">Stil et spørgsmål</a>
     </div>
 </article>
 
+@* "Stil et spørgsmål" right on the page (user 2026-10-24: questions like "do you take books?" belong in spørgsmål/svar,
+   not in mails). It is the ordinary chat: the answer comes in the chat, and Martin puts good ones up from Svar. *@
+<ChatBox Available="_available" OwnerName="@_first" Title="Stil et spørgsmål">
+    <p class="k-help">Spørg om hvad som helst – fx om vi tager imod bøger, blade eller film, eller om en af appsene.
+        Svaret kommer her i chatten. Er det noget, andre også kan bruge, kommer spørgsmålet og svaret op på siden – <b>uden dit navn</b>.</p>
+</ChatBox>
+
 @if (_found is null) { <p class="k-help k-center">Henter…</p> }
-else if (_found.Total == 0) { <p class="k-help k-center">Der er ingen spørgsmål her endnu.</p><p class="k-center"><a class="k-btn k-btn-sm" href="/#chat">Stil det første i chatten</a></p> }
-else if (_found.Questions.Count == 0) { <p class="k-help k-center">Ingen spørgsmål passer. Prøv et andet ord – eller spørg mig i chatten.</p><p class="k-center"><a class="k-btn k-btn-sm" href="/#chat">Spørg mig i chatten</a></p> }
+else if (_found.Total == 0) { <p class="k-help k-center">Der er ingen spørgsmål her endnu.</p><p class="k-center"><a class="k-btn k-btn-sm" href="#chat">Stil det første i chatten</a></p> }
+else if (_found.Questions.Count == 0) { <p class="k-help k-center">Ingen spørgsmål passer. Prøv et andet ord – eller spørg mig i chatten.</p><p class="k-center"><a class="k-btn k-btn-sm" href="#chat">Spørg mig i chatten</a></p> }
 else
 {
     @foreach (var q in _found.Questions)
@@ -64,8 +74,13 @@ else
     private PublicQuestions.Found? _found;
     private Dictionary<int, List<PublicQuestion>> _related = [];
 
+    private bool _available;
+    private string _first = "Martin";
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadChatAsync();
+        Chat.AvailabilityChanged += OnAvailability;
         _q = InitialQ ?? "";
         _topic = string.IsNullOrWhiteSpace(InitialTopic) ? null : InitialTopic;
         await SearchAsync();
@@ -90,4 +105,15 @@ else
         _found = await Questions.SearchAsync(_q, _topic, Site == QuestionRules.Bogshoppen ? Site : null);   // itmartin.dk: both sites
         _related = await Questions.RelatedForAsync(_found.Questions.Take(30));
     }
+
+    private async Task LoadChatAsync()
+    {
+        var s = await SiteSettings.SettingsAsync();
+        _available = s.Available;
+        _first = s.Name.Split(' ')[0];
+    }
+
+    private void OnAvailability() => InvokeAsync(async () => { await LoadChatAsync(); StateHasChanged(); });
+
+    public void Dispose() => Chat.AvailabilityChanged -= OnAvailability;
 }
