@@ -34,45 +34,7 @@
     </div>
 </section>
 
-<section class="k-card bs-card bs-auction">
-    <h2>Liveauktioner – snart</h2>
-    <div>
-        <p><b>Vi starter med liveauktioner.</b> Vi viser varerne i kameraet, og du byder fra mobilen. Varerne bliver vist her snart.</p>
-
-        @* "Se hvilke varer der kommer" button removed 2026-10-22: Varer is off for visitors until the shop opens (user). *@
-
-    </div>
-</section>
-
-@* Each part is its own show/hide box (user 2026-10-12: "hide/show boxes on bogshoppen where appropriate"). *@
-@* Big boxes like "Chat med Martin" (user 2026-10-12), one per step. *@
-<section class="k-card bs-card" data-fold-closed="1">
-    <h2>Sådan køber du</h2>
-    <div>
-        <div class="bs-bigsteps">
-            <div class="bs-bigstep">
-                <h4>1. Skriv dig op</h4>
-                <p>Det tager et minut – navn og e-mail. Ingen reklamer, ingen nyhedsbreve.</p>
-                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="#foelg">Skriv mig op</a>
-            </div>
-            <div class="bs-bigstep">
-                <h4>2. Få dit login</h4>
-                <p>Vi sender dig et login til liveauktionerne på mail, når den første auktion er klar.</p>
-            </div>
-            <div class="bs-bigstep">
-                <h4>3. Kig med og byd live</h4>
-                <p>Vi viser varerne i kameraet. Du ser med på mobilen, stiller spørgsmål i chatten og byder med ét tryk.</p>
-                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="https://kigmed.itmartin.dk" target="_blank" rel="noopener">Kig med live</a>
-            </div>
-            <div class="bs-bigstep">
-                <h4>4. Hent eller få det sendt</h4>
-                <p>Hent varen efter aftale, eller få den sendt med posten.</p>
-                <a class="k-btn k-btn-primary k-btn-block bs-btn" href="@BogshoppenHome.AskUrl">Spørg Martin på itmartin.dk</a>
-            </div>
-        </div>
-
-    </div>
-</section>
+@* "Liveauktioner – snart" and "Sådan køber du" removed 2026-10-24 (user: "remove liveauktioner and Sådan køber du from bogshoppen"). *@
 
 @code {
     private readonly HashSet<string> _collects = [];
