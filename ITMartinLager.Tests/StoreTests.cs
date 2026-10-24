@@ -33,6 +33,15 @@ public class StoreTests
         new(Kinds.AndersAnd, "Anders And & Co.", "", "Anders And & Co.", nr, year, "", cond, qty, 0.9, "");
 
     [Test]
+    public async Task The_same_thing_photographed_three_times_in_a_box_stays_one()
+    {
+        var box = await Boxes.AddNextAsync("", default);
+        for (var n = 0; n < 3; n++) await Registration.SaveAsync(box.Id, null, [Aa("12", 1968)]);
+        using var db = Db();
+        (await db.Items.SingleAsync()).Quantity.Should().Be(1);
+    }
+
+    [Test]
     public async Task The_shop_list_knows_which_things_are_in_a_test_box()
     {
         // 2026-10-24 bug: the list query did not load the box, so test-box things came out as for sale.
@@ -52,9 +61,10 @@ public class StoreTests
     }
 
     [Test]
-    public async Task Same_issue_in_same_box_adds_up_whatever_the_condition_but_another_issue_is_its_own_line()
+    public async Task Same_issue_in_same_box_is_one_line_whatever_the_condition_but_another_issue_is_its_own_line()
     {
         // User 2026-10-15: "if duplicate it should just add one. The amounts are not that important. It is more the box number".
+        // User 2026-10-24: another photo of the same box = the same copies; the amount is the most seen in one photo (here 3).
         var box = await Boxes.AddNextAsync("", default);
         await Registration.SaveAsync(box.Id, null, [Aa("12", 1968), Aa("13", 1968)]);
         var (added, merged) = await Registration.SaveAsync(box.Id, null, [Aa("12", 1968, qty: 2), Aa("12", 1968, "Slidt"), Aa("14", 1968)]);
@@ -64,7 +74,7 @@ public class StoreTests
         merged.Should().Be(2);
         var rows = await db.Items.OrderBy(i => i.Id).ToListAsync();
         rows.Should().HaveCount(3);
-        rows[0].Quantity.Should().Be(4);
+        rows[0].Quantity.Should().Be(3);
         rows[2].Number.Should().Be("14");
     }
 

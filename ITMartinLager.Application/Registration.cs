@@ -7,14 +7,18 @@ namespace ITMartinLager.Application;
 /// a box is "way to difficult") - a box is only an optional "where is it".</summary>
 public sealed class RegistrationUseCases(IItemRepository items)
 {
-    /// <summary>Same thing in the same condition = one row with a higher quantity (in the box, when one is given;
-    /// anywhere in stock otherwise). Vareinfo only sends a thing we already have when the person said "+1 eksemplar".</summary>
+    /// <summary>Same thing in the same condition = one row (in the box, when one is given; anywhere in stock otherwise).
+    /// In a box the amount is the most seen in ONE photo - another photo of the same thing is the same copy (user 2026-10-24).
+    /// Vareinfo only sends a thing we already have when the person said "+1 eksemplar".</summary>
     public async Task<(int Added, int Merged)> SaveAsync(int? boxId, int? photoId, IEnumerable<Found> found, CancellationToken ct = default)
     {
         var list = found.ToList();
         var stock = boxId is { } b ? await items.InBoxAsync(b, ct) : await items.WithTitlesAsync(list.Select(f => f.Title).ToList(), ct);
         var added = new List<Item>();
         var merged = new List<Item>();
+        // Already in the box before this photo, and how many of each this photo shows.
+        var before = boxId is not null ? stock.ToHashSet() : [];
+        var seenNow = new Dictionary<Item, int>();
         foreach (var f in list)
         {
             // In a box (user 2026-10-15: "if duplicate it should just add one. The amounts are not that important. It
@@ -23,7 +27,15 @@ public sealed class RegistrationUseCases(IItemRepository items)
             var same = stock.FirstOrDefault(i => i.SameAs(f)) ?? (boxId is not null ? stock.FirstOrDefault(i => i.LooksLike(f)) : null);
             if (same is not null)
             {
-                same.Quantity += f.Quantity;
+                if (before.Contains(same))
+                {
+                    // User 2026-10-24 ("took pictures of the same item 3 times... it says increment"): in a box, seeing it
+                    // again in another photo is the same copy. Only more copies in one photo than we have raise the amount.
+                    seenNow[same] = seenNow.GetValueOrDefault(same) + f.Quantity;
+                    if (seenNow[same] <= same.Quantity) continue;
+                    same.Quantity = seenNow[same];
+                }
+                else same.Quantity += f.Quantity;   // two copies in the same photo
                 same.Touch();
                 if (!merged.Contains(same) && !added.Contains(same)) merged.Add(same);
                 continue;

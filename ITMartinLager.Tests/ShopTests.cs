@@ -150,7 +150,7 @@ public class BoxMergeTests
     private static Found F(string title, string condition) => new(Kinds.Bog, title, "Terry Pratchett", "", "", 1987, "", condition, 1, 0.9, "");
 
     [Test]
-    public async Task A_duplicate_in_the_box_just_adds_one_and_other_boxes_show_as_we_have_more()
+    public async Task A_duplicate_in_the_box_is_the_same_copy_and_other_boxes_show_as_we_have_more()
     {
         var boxes = new BoxRepository(Factory);
         var items = new ItemRepository(Factory);
@@ -159,11 +159,11 @@ public class BoxMergeTests
         var reg = new RegistrationUseCases(items);
 
         await reg.SaveAsync(k1.Id, null, [F("Mort", "God")]);
-        (await reg.SaveAsync(k1.Id, null, [F("Mort", "Meget god")])).Should().Be((0, 1));   // read a bit differently = same thing
+        (await reg.SaveAsync(k1.Id, null, [F("Mort", "Meget god")])).Should().Be((0, 1));   // read a bit differently in another photo = same copy
         await reg.SaveAsync(k2.Id, null, [F("Mort", "God")]);                              // another box = its own row
 
         var inK1 = (await items.InBoxAsync(k1.Id, default)).Single();
-        inK1.Quantity.Should().Be(2);
+        inK1.Quantity.Should().Be(1);   // user 2026-10-24: another photo of the same box does not count it again
         var others = await new ItemUseCases(items, new PriceRepository(Factory), Mock.Of<IPhotoStore>()).OthersLikeAsync(inK1);
         others.Single().Box!.Code.Should().Be("K0002");
     }

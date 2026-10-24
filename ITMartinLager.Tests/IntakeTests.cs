@@ -69,11 +69,11 @@ public class IntakeTests
         (await intake.WantReadAsync("K0007")).Should().Be(2);
         (await intake.ReadWantedAsync()).Should().Be(2);
 
-        // One call per photo with its 4 close-ups; the same two books twice in one box = 2 copies each.
+        // One call per photo with its 4 close-ups; the same two books in two photos of one box = the same copies (user 2026-10-24).
         reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.Is<IReadOnlyList<byte[]>>(c => c.Count == 4), "", It.IsAny<CancellationToken>()), Times.Exactly(2));
         var box7 = await Boxes.ByCodeAsync("K0007", default);
         var inBox = await Items.InBoxAsync(box7!.Id, default);
-        inBox.Select(i => (i.Title, i.Quantity, i.PhotoId)).Should().BeEquivalentTo(new[] { ("Mort", 2, (int?)11), ("Sourcery", 2, (int?)11) });
+        inBox.Select(i => (i.Title, i.Quantity, i.PhotoId)).Should().BeEquivalentTo(new[] { ("Mort", 1, (int?)11), ("Sourcery", 1, (int?)11) });
         (await Items.InBoxAsync((await Boxes.ByCodeAsync("K0042", default))!.Id, default)).Should().BeEmpty();
         (await intake.BoxesAsync()).Last().Should().Be(new BoxIntake("K0007", 0, 0, 2, 4, 0, 0, "Anna, Rico"));
     }
