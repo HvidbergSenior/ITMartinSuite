@@ -6,10 +6,10 @@
 <div class="lg-login">
     <section class="k-card">
         <h1 class="k-card-title">📷 Bogshoppen Vareinfo</h1>
-        <p>Skriv din egen kode – den har du fået af Martin.</p>
+        <p>Skriv din egen kode – eller dit kundenummer, hvis Martin har gjort dig til hjælper.</p>
         @if (Fejl == "1") { <p class="lg-warn">Koden passer ikke – prøv igen.</p> }
         <form method="post" action="/api/login">
-            <input type="password" name="kode" class="k-input lg-pin" placeholder="Din kode" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password" autofocus />
+            <input type="password" name="kode" class="k-input lg-pin" placeholder="Din kode eller kundenummer" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password" autofocus />
             <button class="k-btn k-btn-primary lg-big" type="submit">Log ind</button>
         </form>
     </section>

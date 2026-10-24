@@ -163,6 +163,22 @@ public class CaptureTests
         (await capture.MyBoxAsync(_anna))!.BoxCode.Should().Be("K0007");
     }
 
+    private sealed class OneHelper : IHelperNumbers
+    {
+        public Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default) =>
+            Task.FromResult(kundenummer == "48217730" ? "Jonas" : null);
+    }
+
+    [Test]
+    public async Task A_helper_ticked_in_Kunder_signs_in_with_the_kundenummer()
+    {
+        var helpers = new HelperUseCases(new HelperRepository(Factory), new VareinfoOptions { AdminPin = "246810" }, new OneHelper());
+        var me = await helpers.SignInAsync("4821 7730");
+        me.Should().Be(new Taker(-48217730, "Jonas"));
+        me!.IsAdmin.Should().BeFalse();
+        (await helpers.SignInAsync("11112222")).Should().BeNull();   // a kundenummer that is not a helper
+    }
+
     [Test]
     public async Task Helpers_sign_in_with_their_own_code_and_a_removed_code_stops_working()
     {

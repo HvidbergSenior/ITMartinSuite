@@ -1,6 +1,13 @@
+<CascadingValue Value="Me" IsFixed="true">
 <Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+</CascadingValue>
+
+@code {
+    // Who is logged in (Program.cs puts it in HttpContext.Items; App.razor hands it over) - helpers see less (2026-10-24).
+    [Parameter] public LagerUser? Me { get; set; }
+}

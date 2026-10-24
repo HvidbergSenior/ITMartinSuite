@@ -6,10 +6,19 @@
 <KolibriHeader>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/">🔎 Søg</a>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/kasser">📦 Kasser</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="@Salg.Orders">🧾 Ordrer</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">☰ Mere</a>
+    @* Helpers (kundenummer, 2026-10-24): only Søg and Kasser. *@
+    @if (Me is { IsAdmin: true })
+    {
+        <a class="k-btn k-btn-ghost k-btn-sm" href="@Salg.Orders">🧾 Ordrer</a>
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">☰ Mere</a>
+    }
+    else if (Me is { } who) { <span class="k-small">👤 @who.Name · <a href="/api/logout">Log ud</a></span> }
 </KolibriHeader>
 <div class="k-main"><div class="k-content">
     @Body
 </div></div>
 <KolibriFooter />
+
+@code {
+    [CascadingParameter] public LagerUser? Me { get; set; }
+}

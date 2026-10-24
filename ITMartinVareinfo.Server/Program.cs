@@ -29,13 +29,13 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Log ind med din egen kode (du får den af Martin).",
+        "Log ind med din egen kode (du får den af Martin) – eller med dit kundenummer, hvis Martin har gjort dig til hjælper i Kunder.",
         "Skriv nummeret, der står på kassen, og tryk Start kassen. Bruger en anden den kasse, får du besked – tag så en anden.",
         "Læg 10-20 ting fra kassen ud med forsiden op, og tryk 📸 Tag billede. Gentag til kassen er tom. Stregkoder kan også scannes – bip, næste.",
         "Tryk ✓ Kassen er færdig – så kan du tage den næste kasse.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.10.24";
     k.ThemeColor = "#f4f6f5";
 });
 

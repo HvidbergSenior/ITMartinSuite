@@ -27,6 +27,8 @@ else
                 }
             </p>
         }
+        @if (Admin)
+        {
         <div class="lg-row">
             @if (_item.FeaturedAt is null)
             {
@@ -39,6 +41,7 @@ else
                 <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Feature(false)">Tag den af forsiden</button>
             }
         </div>
+        }
         @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
 
         <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
@@ -57,19 +60,22 @@ else
             <label>Ny eller brugt <select class="k-input" @bind="_item.Usage">@foreach (var u in Usages.All) { <option value="@u">@u</option> }</select></label>
             <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
             <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
-            <label>Pris (kr)@(_item.PriceHint is { } ph ? $" – forslag {ph:0} kr" : "") <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
-            <label>Status <select class="k-input" @bind="_item.Status">@foreach (var s in Statuses.All) { <option value="@s">@s</option> }</select></label>
+            @if (Admin)
+            {
+                <label>Pris (kr)@(_item.PriceHint is { } ph ? $" – forslag {ph:0} kr" : "") <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
+                <label>Status <select class="k-input" @bind="_item.Status">@foreach (var s in Statuses.All) { <option value="@s">@s</option> }</select></label>
+            }
             <label>Note <input class="k-input" @bind="_item.Note" /></label>
         </div>
         <div class="lg-row">
             <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
-            <button class="k-btn k-btn-ghost" @onclick="Delete">🗑️ Slet</button>
+            @if (Admin) { <button class="k-btn k-btn-ghost" @onclick="Delete">🗑️ Slet</button> }
         </div>
         @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
         @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
     </section>
 
-    @if (Pricing.HuntedKinds.Contains(_item.Kind))
+    @if (Admin && Pricing.HuntedKinds.Contains(_item.Kind))
     {
         @if (_item.Want is { } want && !ITMartinLager.Domain.Gold.Hot(_item.Want, _item.Have))
         {
@@ -182,6 +188,8 @@ else
         </label>
     </section>
 
+    @if (Admin)
+    {
     <section class="k-card">
         <h2 class="k-card-title">🔨 Sæt på auktion</h2>
         @if (_item.Status == Statuses.PaaAuktion && _item.AuctionCode != "")
@@ -226,6 +234,8 @@ else
         }
     </section>
 
+    }
+
     @if (_item.PhotoId is { } pid)
     {
         <section class="k-card" data-fold-closed>
@@ -236,6 +246,8 @@ else
 }
 
 @code {
+    [CascadingParameter] public LagerUser? Me { get; set; }
+    private bool Admin => Me is { IsAdmin: true };
     [Parameter] public int Id { get; set; }
     private Item? _item;
     private string? _box, _msg, _err;
@@ -276,7 +288,7 @@ else
 
     private async Task Feature(bool on)
     {
-        if (_item is null) return;
+        if (_item is null || !Admin) return;
         _item.FeaturedAt = (await Items.FeatureAsync(_item.Id, on)).FeaturedAt;
     }
 
@@ -377,6 +389,7 @@ else
 
     private async Task Delete()
     {
+        if (!Admin) return;   // helpers cannot delete (2026-10-24)
         await Items.DeleteAsync(Id);
         Nav.NavigateTo(_box is null ? "/" : $"/kasse/{_box}");
     }

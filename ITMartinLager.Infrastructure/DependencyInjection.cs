@@ -29,6 +29,9 @@ public static class DependencyInjection
         services.AddSingleton<ICoverReader, ClaudeCoverReader>();
         services.AddHttpClient<IBarcodeLookup, BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
         services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        // Helpers log in with their kundenummer (Kunder__Url / Kunder__ApiKey, user 2026-10-24).
+        ITMartinKunder.Client.KunderClientExtensions.AddKunderClient(services, cfg, dataDir);
+        services.AddScoped<IHelperNumbers, External.KunderHelperNumbers>();
         services.AddHttpClient<IAuctionGateway, AuctionLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IMagicGateway, MagicLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddPriceSources();

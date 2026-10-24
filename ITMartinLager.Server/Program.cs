@@ -31,9 +31,10 @@ builder.Services.AddKolibri(k =>
         "Nye billeder kommer herind af sig selv hvert minut. Under 📦 Kasser trykker du Læs ved en kasse – så læser AI'en billederne og lægger tingene i kassen.",
         "Ret det, AI'en har læst forkert, på varens side.",
         "Find alt igen under Søg – med kassenummer.",
+        "Hjælpere logger ind med deres kundenummer (Martin sætter dem som hjælper i Kunder). De ser kun Søg og Kasser: de kan trykke Læs og rette varer, men ser ingen priser og kan ikke slette eller ændre en kasses placering.",
         "Bøger: tryk 📚 Bøger og tag et billede af en bunke – så ser du pris, efterspørgsel og om bogen er værd at sælge.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.10.24";
     k.ThemeColor = "#f4f6f5";
 });
 
@@ -64,6 +65,12 @@ app.UseStaticFiles();
 var pin = app.Configuration["Lager:Pin"] ?? "";
 var salgKey = app.Configuration["Lager:SalgKey"] ?? "";
 bool LoggedIn(HttpContext ctx) => pin.Length >= 6 && ctx.Request.Cookies["lager_auth"] == pin;
+// A helper's kundenummer (Kunder's Hjælper tick, user 2026-10-24) - 8 digits, never the PIN.
+async Task<string?> HelperAsync(HttpContext ctx, string? typed)
+{
+    var digits = new string((typed ?? "").Where(char.IsDigit).ToArray());
+    return digits.Length == 8 && digits != pin ? await ctx.RequestServices.GetRequiredService<IHelperNumbers>().HelperNameAsync(digits) : null;
+}
 bool FromSalg(HttpContext ctx) => salgKey.Length >= 12 && ctx.Request.Headers[StockHeaders.Key] == salgKey;
 
 app.Use(async (ctx, next) =>
@@ -74,19 +81,29 @@ app.Use(async (ctx, next) =>
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
             || p.EndsWith(".svg") || p.EndsWith(".png");
     if (p.StartsWith("/api/salg/")) { if (FromSalg(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
-    if (open || LoggedIn(ctx)) { await next(); return; }
+    if (LoggedIn(ctx)) { ctx.Items[nameof(LagerUser)] = new LagerUser("Martin", true); await next(); return; }
+    if (open) { await next(); return; }
+    if (await HelperAsync(ctx, ctx.Request.Cookies["lager_auth"]) is { } helper)
+    {
+        if (!LagerUser.HelperMayOpen(p)) { ctx.Response.Redirect("/kasser"); return; }
+        ctx.Items[nameof(LagerUser)] = new LagerUser(helper, false);
+        await next();
+        return;
+    }
     if (p.StartsWith("/_blazor")) { ctx.Response.StatusCode = 401; return; }
     ctx.Response.Redirect("/login");
 });
 
-app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "pin")] string typed) =>
+app.MapPost("/api/login", async (HttpContext ctx, [FromForm(Name = "pin")] string typed) =>
 {
-    if (pin.Length < 6 || typed != pin) return Results.Redirect("/login?fejl=1");
-    ctx.Response.Cookies.Append("lager_auth", pin, new CookieOptions
+    var value = pin.Length >= 6 && typed == pin ? pin
+        : await HelperAsync(ctx, typed) is not null ? new string(typed.Where(char.IsDigit).ToArray()) : null;
+    if (value is null) return Results.Redirect("/login?fejl=1");
+    ctx.Response.Cookies.Append("lager_auth", value, new CookieOptions
     {
         HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365)
     });
-    return Results.Redirect("/");
+    return Results.Redirect(value == pin ? "/" : "/kasser");
 }).DisableAntiforgery();
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("lager_auth"); return Results.Redirect("/login"); });

@@ -165,7 +165,13 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
 }
 
 /// <summary>The helpers and their codes (Martin's Hjælpere page), and signing in with a code.</summary>
-public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions options)
+/// <summary>Kunder (user 2026-10-24): is this kundenummer a helper Martin has ticked? Name = who it is; null = no.</summary>
+public interface IHelperNumbers
+{
+    Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default);
+}
+
+public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions options, IHelperNumbers? numbers = null)
 {
     public string LagerBase => options.LagerPublicUrl.TrimEnd('/');
 
@@ -175,7 +181,11 @@ public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions op
         code = (code ?? "").Trim();
         if (code.Length < Helper.CodeLength) return null;
         if (options.AdminPin.Length >= 6 && code == options.AdminPin) return new Taker(0, options.AdminName);
-        return await helpers.ByCodeAsync(code, ct) is { Active: true } h ? h.AsTaker : null;
+        if (await helpers.ByCodeAsync(code, ct) is { Active: true } h) return h.AsTaker;
+        // A helper's kundenummer (8 digits, spaces allowed): Id = minus the number, so it never meets a code helper's Id.
+        var digits = new string(code.Where(char.IsDigit).ToArray());
+        return digits.Length == 8 && numbers is not null && await numbers.HelperNameAsync(digits, ct) is { } name
+            ? new Taker(-int.Parse(digits), name) : null;
     }
 
     public Task<List<Helper>> AllAsync(CancellationToken ct = default) => helpers.ActiveAsync(ct);

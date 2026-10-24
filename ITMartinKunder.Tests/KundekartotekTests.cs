@@ -160,6 +160,20 @@ public class KundekartotekTests
         (await _k.CleanUpAsync()).Should().Be(0);                               // afmeldt today: still kept 30 days
     }
 
+    [Test]
+    public async Task A_kundenummer_opens_Vareinfo_and_Lager_only_while_Martin_has_ticked_Hjaelper()
+    {
+        var (_, code) = await _k.SignUpWithCodeAsync(Yes("ole@gmail.com", "ElPriser"));
+        var apps = await _apps.AllAsync();
+        (await _k.CheckCodeAsync(code, KunderRoles.Helper, apps)).Ok.Should().BeFalse();
+        var ole = (await _k.ListAsync()).Single();
+        await _k.SetHelperAsync(ole.Id, true);
+        var ok = await _k.CheckCodeAsync(KundeWords.ShowCode(code), "hjælper", apps);
+        (ok.Ok, ok.Name).Should().Be((true, "Ole"));
+        await _k.UnsubscribeAsync("ole@gmail.com");
+        (await _k.CheckCodeAsync(code, KunderRoles.Helper, apps)).Ok.Should().BeFalse();   // afmeldt = no more access
+    }
+
     private sealed class FakeMail : IMailSender
     {
         public bool Works = true;

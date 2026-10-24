@@ -1,3 +1,4 @@
+using ITMartinKunder.Client;
 using ITMartinVareinfo.Infrastructure.External;
 using ITMartinVareinfo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,9 @@ public static class DependencyInjection
         services.AddScoped<IHelperRepository, HelperRepository>();
         services.AddScoped<IBoxClaimRepository, BoxClaimRepository>();
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
+        // Helpers log in with their kundenummer (Kunder__Url / Kunder__ApiKey, user 2026-10-24).
+        services.AddKunderClient(cfg, dataDir);
+        services.AddScoped<IHelperNumbers, KunderHelperNumbers>();
 
         services.AddSingleton(new VareinfoOptions
         {

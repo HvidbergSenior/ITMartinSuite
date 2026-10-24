@@ -25,6 +25,13 @@ public sealed record FreeAppInfo(string Name, string Url, string Text, bool Need
 
 public sealed record SignUpResponse(string Code);
 public sealed record CodeCheckRequest(string Code, string App);
+
+/// <summary>The "app" Lager and Vareinfo ask for (user 2026-10-24: helpers log in with their kundenummer): ok only for a
+/// customer Martin has ticked as Hjælper in Kunder, while their yes stands.</summary>
+public static class KunderRoles
+{
+    public const string Helper = "Hjælper";
+}
 /// <summary>Ok, or Error (Danish, for the person).</summary>
 public sealed record CodeCheckResponse(bool Ok, string Name = "", string Error = "");
 

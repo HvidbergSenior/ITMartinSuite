@@ -14,6 +14,7 @@ public sealed class Customer
     public string Phone { get; set; } = "";
     public string Interests { get; set; } = "";      // what they chose/wrote, per app: "Tilbud ; Anders And-blade, Tintin | leder efter ..."
     public string Note { get; set; } = "";           // Martin's own note
+    public bool IsHelper { get; set; }               // Martin's tick: may log into Vareinfo + Lager with the kundenummer (2026-10-24)
     public string Code { get; set; } = "";           // kundenummer: 8 random digits, ONE for all free apps (user 2026-10-21) - random, so nobody can guess the next
     public string UnsubscribeToken { get; set; } = NewToken();
     public DateTime? UnsubscribedAt { get; set; }
@@ -25,6 +26,9 @@ public sealed class Customer
     /// <summary>The kundenummer opens the extras in the free apps while a yes stands - to ITMartin OR Bogshoppen (user 2026-10-21:
     /// "Bogshoppens customers also get free access to the apps"; the two become one company). A buyer without a yes has none.</summary>
     public bool CodeWorks => Code != "" && Companies.All.Any(SaidYesTo);
+
+    /// <summary>Helper login works while Martin's tick stands and the kundenummer works (afmeldt = no more access).</summary>
+    public bool HelperWorks => IsHelper && CodeWorks;
 
     public bool SaidYesTo(string company) => Active && Consents.Any(c => c.Company == company && c.WithdrawnAt is null);
     public IEnumerable<string> Apps => Events.Select(e => e.App).Where(a => a != "").Distinct();

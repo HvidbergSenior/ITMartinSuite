@@ -45,6 +45,12 @@ public interface IBarcodeLookup
     Task<Found?> LookupAsync(string code, CancellationToken ct);
 }
 
+/// <summary>Kunder (user 2026-10-24): is this kundenummer a helper Martin has ticked? Name = who it is; null = no.</summary>
+public interface IHelperNumbers
+{
+    Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default);
+}
+
 /// <summary>Vareinfo (2026-10-20): the capture app - helpers take photos and scan barcodes box by box, and it keeps
 /// them. Lager pulls what is new and fetches a photo when it reads it. Server to server with a shared key.</summary>
 public interface IVareinfoGateway

@@ -43,6 +43,9 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
     {
         var k = KundeWords.NormalizeCode(code);
         if (k.Length != 8) return new(false, Error: "Dit kundenummer har 8 cifre – du finder det i mailen fra Martin.");
+        if (string.Equals(app.Trim(), KunderRoles.Helper, StringComparison.OrdinalIgnoreCase))
+            return await repo.ByCodeAsync(k, ct) is { HelperWorks: true } h ? new(true, h.Name == "" ? h.Email : h.Name)
+                : new(false, Error: "Det nummer er ikke en hjælper. Spørg Martin.");
         if (!freeApps.Any(a => a.Available && string.Equals(a.Name, app.Trim(), StringComparison.OrdinalIgnoreCase)))
             return new(false, Error: "Den app er ikke med i de gratis apps lige nu.");
         var c = await repo.ByCodeAsync(k, ct);
@@ -105,6 +108,14 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
 
     public async Task<List<Customer>> ListAsync(CancellationToken ct = default) =>
         (await repo.AllAsync(ct)).OrderByDescending(c => c.Events.Select(e => e.At).DefaultIfEmpty(c.CreatedAt).Max()).ToList();
+
+    /// <summary>Martin's Hjælper tick: the kundenummer then opens Vareinfo and Lager (limited).</summary>
+    public async Task SetHelperAsync(int id, bool helper, CancellationToken ct = default)
+    {
+        if (await repo.GetAsync(id, ct) is not { } c) return;
+        c.IsHelper = helper;
+        await repo.SaveAsync(c, ct);
+    }
 
     public async Task AdminUnsubscribeAsync(int id, CancellationToken ct = default)
     {

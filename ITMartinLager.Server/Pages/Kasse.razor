@@ -12,11 +12,16 @@ else
 {
     <section class="k-card">
         <h1 class="k-card-title">📦 Kasse @_box.Code @if (_box.IsTest) { <span class="lg-test">TEST – kun til visning</span> }</h1>
-        <p class="k-help">Skriv en placering, der starter med <b>Test</b> (fx "Test – eksempler"), så er det en testkasse: tingene kan vises i butikken, men kan aldrig købes.</p>
-        <div class="lg-row">
-            <input class="k-input" @bind="_box.Place" placeholder="Hvor står den?" />
-            <button class="k-btn k-btn-secondary" @onclick="SavePlace">Gem placering</button>
-        </div>
+        @* Only Martin sets the placering - and so decides which boxes are test boxes (helpers cannot, 2026-10-24). *@
+        @if (Admin)
+        {
+            <p class="k-help">Skriv en placering, der starter med <b>Test</b> (fx "Test – eksempler"), så er det en testkasse: tingene kan vises i butikken, men kan aldrig købes.</p>
+            <div class="lg-row">
+                <input class="k-input" @bind="_box.Place" placeholder="Hvor står den?" />
+                <button class="k-btn k-btn-secondary" @onclick="SavePlace">Gem placering</button>
+            </div>
+        }
+        else if (_box.Place != "") { <p>Placering: <b>@_box.Place</b></p> }
         <div class="lg-row">
             <a class="k-btn k-btn-primary" href="@Vareinfo.Base">📷 Læg flere ting i (Vareinfo)</a>
             <a class="k-btn k-btn-secondary" href="/kasse/@_box.Code/label" target="_blank">🏷️ Print label</a>
@@ -40,6 +45,8 @@ else
 }
 
 @code {
+    [CascadingParameter] public LagerUser? Me { get; set; }
+    private bool Admin => Me is { IsAdmin: true };
     [Parameter] public string Code { get; set; } = "";
     private Box? _box;
     private List<Item> _items = [];
@@ -49,6 +56,7 @@ else
 
     private async Task SavePlace()
     {
+        if (!Admin) return;
         await Boxes.SetPlaceAsync(_box!.Id, _box.Place);
         _msg = "Placeringen er gemt.";
     }
