@@ -123,6 +123,43 @@ public class KundekartotekTests
         await _apps.SaveAsync(stem);
         (await _apps.AvailableAsync()).Select(a => a.Name).Should().Equal("ElPriser", "Temperatur");
     }
+
+    private sealed class FakeMail : IMailSender
+    {
+        public bool Works = true;
+        public List<(string To, string Subject, string Body)> Sent = [];
+        public Task<bool> SendAsync(string to, string subject, string body, CancellationToken ct = default)
+        {
+            if (Works) Sent.Add((to, subject, body));
+            return Task.FromResult(Works);
+        }
+    }
+
+    [Test]
+    public async Task The_received_letter_goes_once_to_each_customer_with_their_own_number_and_afmeld_link()
+    {
+        await _k.SignUpAsync(Yes("ole@gmail.com", "ElPriser"));
+        await _k.SignUpAsync(Yes("bo@gmail.com", "bogshoppen.dk", Companies.Bogshoppen));
+        await _k.SignUpAsync(Yes("gone@gmail.com", "Stem"));
+        await _k.UnsubscribeAsync("gone@gmail.com");
+        await _k.BoughtAsync(new PurchaseRequest("buyer@gmail.com", "Kim", "", "Salg", "o1", "Bog", 50, DateTime.UtcNow));
+
+        var f = new Factory(new DbContextOptionsBuilder<KunderDb>().UseSqlite(_conn).Options);
+        var mail = new FakeMail { Works = false };
+        var breve = new KundeBreve(new CustomerRepository(f), mail, TimeProvider.System);
+        var waiting = await breve.WaitingAsync(Letters.Received);
+        waiting.Select(c => c.Email).Should().BeEquivalentTo(["ole@gmail.com", "bo@gmail.com"]);   // not the unsubscribed, not a buyer without a yes
+
+        (await breve.SendReceivedAsync(waiting[0].Id, "https://kunder.itmartin.dk")).Should().BeFalse();   // mail server down: still waiting
+        (await breve.WaitingAsync(Letters.Received)).Should().HaveCount(2);
+
+        mail.Works = true;
+        foreach (var c in waiting) (await breve.SendReceivedAsync(c.Id, "https://kunder.itmartin.dk/")).Should().BeTrue();
+        foreach (var c in waiting) (await breve.SendReceivedAsync(c.Id, "https://kunder.itmartin.dk/")).Should().BeFalse();   // never twice
+        mail.Sent.Should().HaveCount(2);
+        mail.Sent[0].Body.Should().Contain(KundeWords.ShowCode(waiting[0].Code)).And.Contain($"https://kunder.itmartin.dk/afmeld/{waiting[0].UnsubscribeToken}");
+        (await breve.WaitingAsync(Letters.Received)).Should().BeEmpty();
+    }
 }
 
 public class KunderClientTests

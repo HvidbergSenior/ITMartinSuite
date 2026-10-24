@@ -13,3 +13,4 @@
 .ku-form label { display: grid; gap: .2rem; font-weight: 600; }
 .ku-check { display: flex; gap: .5rem; align-items: center; font-weight: 600; margin: .6rem 0; }
 .ku-login { max-width: 26rem; margin: 12vh auto; padding: 0 16px; }
+.ku-letter { white-space: pre-wrap; font-family: inherit; background: var(--k-surface-2, rgba(127,127,127,.08)); padding: .8rem; border-radius: 8px; overflow-wrap: anywhere; }

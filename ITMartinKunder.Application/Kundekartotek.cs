@@ -168,6 +168,32 @@ public sealed class FreeApps(IFreeAppRepository repo)
     public Task DeleteAsync(int id, CancellationToken ct = default) => repo.DeleteAsync(id, ct);
 }
 
+/// <summary>Sends one plain-text mail. False = not sent (no password set, or the mail server said no).</summary>
+public interface IMailSender
+{
+    Task<bool> SendAsync(string to, string subject, string body, CancellationToken ct = default);
+}
+
+// Letters from Martin to the customers (user 2026-10-24), one mail per person with their own kundenummer and afmeld link.
+// Nothing goes out until Martin presses send on the page; each letter is sent once per customer.
+public sealed class KundeBreve(ICustomerRepository repo, IMailSender mail, TimeProvider clock)
+{
+    /// <summary>The customers still waiting for this letter, oldest sign-up first.</summary>
+    public async Task<List<Customer>> WaitingAsync(string key, CancellationToken ct = default) =>
+        (await repo.AllAsync(ct)).Where(c => Letters.Waits(c, key)).OrderBy(c => c.CreatedAt).ToList();
+
+    /// <returns>True when mailed now; false when it could not be sent (they stay waiting) or they no longer wait.</returns>
+    public async Task<bool> SendReceivedAsync(int customerId, string kunderSite, CancellationToken ct = default)
+    {
+        if (await repo.GetAsync(customerId, ct) is not { } c || !Letters.Waits(c, Letters.Received)) return false;
+        var (subject, body) = Letters.ReceivedMail(c, kunderSite);
+        if (!await mail.SendAsync(c.Email, subject, body, ct)) return false;
+        c.Events.Add(Letters.Sent(Letters.Received, subject, clock.GetUtcNow().UtcDateTime));
+        await repo.SaveAsync(c, ct);
+        return true;
+    }
+}
+
 public sealed class KunderException(string message) : Exception(message);
 
 public static class DependencyInjection
@@ -178,6 +204,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<Kundekartotek>();
         services.AddScoped<FreeApps>();
+        services.AddScoped<KundeBreve>();
         return services;
     }
 }

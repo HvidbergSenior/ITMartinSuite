@@ -106,6 +106,7 @@ public static class DependencyInjection
         services.AddDbContextFactory<KunderDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "kunder.db")};Default Timeout=30"));
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IFreeAppRepository, FreeAppRepository>();
+        services.AddSingleton<IMailSender, SmtpMailSender>();
         return services;
     }
 

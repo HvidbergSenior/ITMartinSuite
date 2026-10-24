@@ -96,7 +96,7 @@ public sealed class Consent
 
 public static class EventKinds
 {
-    public const string SignedUp = "Tilmeldt", Bought = "Køb", Imported = "Flyttet";
+    public const string SignedUp = "Tilmeldt", Bought = "Køb", Imported = "Flyttet", Mailed = "Mail";
 }
 
 /// <summary>What happened with a customer in an app: signed up there, bought.</summary>

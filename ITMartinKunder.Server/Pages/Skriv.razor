@@ -1,0 +1,83 @@
+@page "/skriv"
+@inject KundeBreve Breve
+@inject IConfiguration Cfg
+
+@* "Vi har fået din tilmelding" (user 2026-10-24): one mail per customer with their own kundenummer and afmeld link.
+   Nothing is sent until Martin presses send and then confirms; each customer gets the letter once. *@
+<PageTitle>Skriv til kunderne</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Skriv til kunderne</h1>
+    <p>Her sender du mailen "Vi har fået din tilmelding" til alle, der har skrevet sig op og ikke har fået den endnu.
+        Hver kunde får sin egen mail med sit eget kundenummer og sit eget afmeld-link – ingen kan se de andre.</p>
+    <p>Sådan gør du: læs mailen nedenfor, tryk på en kunde for at se netop deres mail, og tryk så <b>Send</b>.
+        Den, der har fået mailen, får den aldrig igen.</p>
+</section>
+
+@if (_waiting.Count == 0)
+{
+    <section class="k-card"><p>Alle kunder har fået mailen. Nye kunder kommer her, når de skriver sig op.</p></section>
+}
+else
+{
+    <section class="k-card">
+        <h2 class="k-card-title">Venter på mailen (@_waiting.Count)</h2>
+        <div class="ku-chips">
+            @foreach (var c in _waiting)
+            {
+                <button class="k-btn k-btn-sm @(_shown?.Id == c.Id ? "k-btn-primary" : "")" @onclick="() => _shown = c">@(c.Name == "" ? c.Email : c.Name)</button>
+            }
+        </div>
+        @if (_shown is not null)
+        {
+            var (subject, body) = Letters.ReceivedMail(_shown, Site);
+            <p class="k-help">Til: @_shown.Email</p>
+            <p><b>Emne: @subject</b></p>
+            <pre class="ku-letter">@body</pre>
+        }
+        <div class="ku-row">
+            @if (_busy) { <p>Sender … @_sent af @_total</p> }
+            else if (_confirm)
+            {
+                <button class="k-btn k-btn-primary" @onclick="SendAll">Ja, send til @_waiting.Count kunder nu</button>
+                <button class="k-btn" @onclick="() => _confirm = false">Fortryd</button>
+            }
+            else { <button class="k-btn k-btn-primary" @onclick="() => _confirm = true">Send til @_waiting.Count kunder</button> }
+        </div>
+    </section>
+}
+
+@if (_result is not null) { <section class="k-card"><p>@_result</p></section> }
+
+@code {
+    private List<Customer> _waiting = [];
+    private Customer? _shown;
+    private bool _confirm, _busy;
+    private int _sent, _total;
+    private string? _result;
+
+    private string Site => Cfg["Kunder:PublicUrl"] ?? "https://kunder.itmartin.dk";
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _waiting = await Breve.WaitingAsync(Letters.Received);
+        _shown = _waiting.FirstOrDefault();
+    }
+
+    private async Task SendAll()
+    {
+        (_confirm, _busy, _sent, _total) = (false, true, 0, _waiting.Count);
+        var failed = new List<string>();
+        foreach (var c in _waiting.ToList())
+        {
+            if (await Breve.SendReceivedAsync(c.Id, Site)) _sent++; else failed.Add(c.Email);
+            StateHasChanged();
+        }
+        _busy = false;
+        _result = failed.Count == 0 ? $"Sendt til {_sent} kunder."
+            : $"Sendt til {_sent} kunder. Kunne ikke sendes til: {string.Join(", ", failed)} – de venter stadig, prøv igen senere.";
+        await LoadAsync();
+    }
+}
