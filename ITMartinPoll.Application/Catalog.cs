@@ -169,6 +169,7 @@ public static class DependencyInjection
         services.AddScoped<DatePolls>();
         services.AddScoped<Packages>();
         services.AddScoped<HelpEvents>();
+        services.AddScoped<Privacy>();
         return services;
     }
 }

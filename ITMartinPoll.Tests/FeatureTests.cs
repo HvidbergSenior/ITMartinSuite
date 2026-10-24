@@ -129,4 +129,57 @@ public class FeatureTests
         (await store.DeleteAsync(e.Id)).Should().BeTrue();
         (await store.ListAsync()).Should().BeEmpty();
     }
+
+    [Test]
+    public async Task Old_closed_polls_lose_names_emails_and_chat_but_keep_results_open_polls_keep_everything()
+    {
+        var now = new DateTime(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc);
+        await using (var db = new PollDb(_options))
+        {
+            var old = new Poll { Title = "Logo", IsActive = false, CreatedAt = now.AddYears(-1) };
+            var open = new Poll { Title = "Nu", IsActive = true, CreatedAt = now.AddYears(-1) };
+            db.Polls.AddRange(old, open);
+            await db.SaveChangesAsync();
+            var o1 = new PollOption { PollId = old.Id, Label = "A" };
+            var o2 = new PollOption { PollId = open.Id, Label = "B" };
+            db.Options.AddRange(o1, o2);
+            await db.SaveChangesAsync();
+            db.Votes.AddRange(
+                new Vote { PollId = old.Id, OptionId = o1.Id, VoterName = "Ole", Email = "ole@gmail.com", Comment = "Flot", VotedAt = now.AddMonths(-8) },
+                new Vote { PollId = old.Id, OptionId = o1.Id, VoterName = "Bo", VotedAt = now.AddMonths(-7) },
+                new Vote { PollId = old.Id, OptionId = o1.Id, VoterName = "ole", VotedAt = now.AddMonths(-7) },
+                new Vote { PollId = open.Id, OptionId = o2.Id, VoterName = "Kim", Email = "kim@gmail.com", VotedAt = now.AddMonths(-8) });
+            var help = new HelpEvent { Title = "Hjælp", Deadline = now.AddMonths(-9).ToLocalTime(), CreatedAt = now.AddYears(-1) };
+            help.Signups.Add(new HelpSignup { Name = "Anne", Phone = "12345678", SignedUpAt = now.AddMonths(-10) });
+            help.Chat.Add(new HelpChatMessage { Name = "Anne", Text = "Hej", SentAt = now.AddMonths(-10) });
+            db.HelpEvents.Add(help);
+            await db.SaveChangesAsync();
+        }
+
+        var cleaner = new ITMartinPoll.Infrastructure.PersonalDataCleaner(new Factory(_options));
+        (await cleaner.ForgetOldAsync(now)).Should().Be(2);
+        (await cleaner.ForgetOldAsync(now)).Should().Be(0);   // nothing left to take
+
+        await using (var db = new PollDb(_options))
+        {
+            var votes = await db.Votes.OrderBy(v => v.Id).ToListAsync();
+            votes.Select(v => v.VoterName).Should().Equal("Deltager 1", "Deltager 2", "Deltager 1", "Kim");   // same person = same number
+            votes[0].Email.Should().BeEmpty();
+            votes[0].Comment.Should().Be("Flot");
+            votes[3].Email.Should().Be("kim@gmail.com");                                            // open poll untouched
+            var signup = await db.HelpSignups.SingleAsync();
+            (signup.Name, signup.Phone).Should().Be(("Deltager 1", ""));
+            (await db.HelpChat.CountAsync()).Should().Be(0);
+        }
+    }
+
+    [Test]
+    public void A_closed_poll_keeps_names_for_6_months_after_the_last_answer()
+    {
+        var now = DateTime.UtcNow;
+        PrivacyRules.ShouldForget(false, null, now.AddMonths(-5), now).Should().BeFalse();
+        PrivacyRules.ShouldForget(false, null, now.AddMonths(-7), now).Should().BeTrue();
+        PrivacyRules.ShouldForget(true, null, now.AddYears(-2), now).Should().BeFalse();                  // still open, no deadline
+        PrivacyRules.ShouldForget(true, now.AddMonths(-7).ToLocalTime(), now.AddMonths(-7), now).Should().BeTrue();   // deadline passed
+    }
 }

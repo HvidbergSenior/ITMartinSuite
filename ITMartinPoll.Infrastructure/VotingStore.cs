@@ -64,6 +64,8 @@ public static class DependencyInjection
         services.AddScoped<ICustomerStore, KunderCustomerStore>();
         services.AddScoped<ICustomerCodes, KunderCodes>();
         services.AddHostedService(sp => new MoveOldCustomersJob(sp, Path.Combine(dataDir, "kunder-flyttet.txt")));
+        services.AddScoped<IPersonalDataCleaner, PersonalDataCleaner>();
+        services.AddHostedService<PrivacyJob>();
         return services;
     }
 
