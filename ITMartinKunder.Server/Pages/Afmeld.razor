@@ -12,12 +12,12 @@
         @if (_email is not null)
         {
             <h1 class="k-card-title">Du er afmeldt</h1>
-            <p>Vi skriver ikke mere til @_email. Vil du have dine oplysninger slettet helt, så skriv til ITMartin@Mensa.dk.</p>
+            <p>Vi skriver ikke mere til @_email. Dine oplysninger slettes af sig selv om 30 dage. Vil du have dem slettet med det samme, så skriv til ITMartin@Mensa.dk.</p>
         }
         else if (_done)
         {
             <h1 class="k-card-title">Du er afmeldt</h1>
-            <p>Står @_typed på listen, er den afmeldt nu. Vil du slettes helt, så skriv til ITMartin@Mensa.dk.</p>
+            <p>Står @_typed på listen, er den afmeldt nu, og oplysningerne slettes af sig selv om 30 dage. Vil du slettes med det samme, så skriv til ITMartin@Mensa.dk.</p>
         }
         else
         {
@@ -27,6 +27,7 @@
             <input class="k-input" type="email" @bind="_typed" placeholder="din@email.dk" />
             <button class="k-btn k-btn-primary ku-big" @onclick="Send">Afmeld</button>
         }
+        <a class="k-btn k-btn-sm k-mt" href="https://itmartin.dk/vilkaar">Vilkår &amp; privatliv</a>
     </section>
 </div>
 

@@ -124,6 +124,42 @@ public class KundekartotekTests
         (await _apps.AvailableAsync()).Select(a => a.Name).Should().Equal("ElPriser", "Temperatur");
     }
 
+    [Test]
+    public void Retention_keeps_a_yes_deletes_afmeldt_after_30_days_and_keeps_purchases_5_years()
+    {
+        var now = new DateTime(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc);
+        Customer Yes() { var c = Customer.New("a@b.dk", "", now.AddYears(-3)); c.Consents.Add(new Consent { Company = Companies.ITMartin, At = now.AddYears(-3) }); return c; }
+        Retention.ShouldDelete(Yes(), now).Should().BeFalse();
+
+        var left = Yes(); left.Unsubscribe(now.AddDays(-29));
+        Retention.ShouldDelete(left, now).Should().BeFalse();
+        left.UnsubscribedAt = now.AddDays(-31);
+        Retention.ShouldDelete(left, now).Should().BeTrue();
+
+        left.Events.Add(CustomerEvent.Of(EventKinds.Bought, "Salg", "o1", "Bog", 50, now.AddYears(-4)));
+        Retention.ShouldDelete(left, now).Should().BeFalse();                   // bought 4 years ago: kept for bogføringsloven
+        Retention.ShouldDelete(left, now.AddYears(1).AddDays(1)).Should().BeTrue();
+
+        var buyer = Customer.New("k@b.dk", "", now.AddYears(-6));
+        buyer.Events.Add(CustomerEvent.Of(EventKinds.Bought, "Salg", "o2", "Bog", 50, now.AddYears(-2)));
+        Retention.ShouldDelete(buyer, now).Should().BeFalse();
+        Retention.ShouldDelete(buyer, now.AddYears(3).AddDays(1)).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Hent_mine_data_has_everything_and_clean_up_leaves_people_with_a_yes()
+    {
+        await _k.SignUpAsync(Yes("ole@gmail.com", "ElPriser"));
+        var ole = (await _k.ListAsync()).Single();
+        var x = await _k.ExportAsync(ole.Id);
+        x!.Email.Should().Be("ole@gmail.com");
+        x.Samtykker.Should().ContainSingle(s => s.Company == Companies.ITMartin);
+        x.Haendelser.Should().ContainSingle(e => e.App == "ElPriser");
+        (await _k.CleanUpAsync()).Should().Be(0);
+        await _k.UnsubscribeAsync("ole@gmail.com");
+        (await _k.CleanUpAsync()).Should().Be(0);                               // afmeldt today: still kept 30 days
+    }
+
     private sealed class FakeMail : IMailSender
     {
         public bool Works = true;

@@ -29,6 +29,8 @@ builder.Services.AddKolibri(k =>
         "Kunder: søg på navn eller e-mail. Tryk på en kunde for at se hvad de har sagt ja til, og hvad de har købt. Afmeld eller slet herfra.",
         "Gratis apps: slå en app til eller fra. Kun de apps, der er slået til, kan prøves gratis og står ved tilmeldingen på itmartin.dk.",
         "Hent som CSV giver dem, der stadig har sagt ja – til Bcc-linjen. Skriv aldrig til flere i Til eller Cc.",
+        "Hent data: på en kunde giver \"Hent data\" alt, vi har om personen (som fil) – send den, når nogen beder om deres data.",
+        "Afmeldte slettes af sig selv efter 30 dage; køb gemmes i 5 år (bogføringsloven). Slet sletter med det samme.",
         "Skriv: send mailen \"Vi har fået din tilmelding\" til alle, der ikke har fået den – én mail pr. kunde med deres eget kundenummer og afmeld-link. Tryk Send og så Ja; ingen får den to gange.",
     ];
     k.Version = "2026.10.24";
@@ -38,6 +40,7 @@ builder.Services.AddKolibri(k =>
 var dataDir = ITMartinKunder.Infrastructure.DependencyInjection.DataDir(builder.Configuration);
 builder.Services.AddKunderInfrastructure(builder.Configuration);
 builder.Services.AddKunderApplication();
+builder.Services.AddHostedService<CleanUpJob>();
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))
     .SetApplicationName("kunder");

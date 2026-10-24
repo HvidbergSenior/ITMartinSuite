@@ -126,6 +126,24 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
     /// <summary>GDPR erasure: the person is gone from the list, everything about them.</summary>
     public Task DeleteAsync(int id, CancellationToken ct = default) => repo.DeleteAsync(id, ct);
 
+    /// <summary>The nightly clean-up (Retention): afmeldt customers after 30 days, purchases after 5 years.</summary>
+    /// <returns>How many were deleted.</returns>
+    public async Task<int> CleanUpAsync(CancellationToken ct = default)
+    {
+        var gone = (await repo.AllAsync(ct)).Where(c => Retention.ShouldDelete(c, Now)).ToList();
+        foreach (var c in gone) await repo.DeleteAsync(c.Id, ct);
+        return gone.Count;
+    }
+
+    /// <summary>"Hent mine data" (GDPR art. 15/20): everything Kunder has about one person, for Martin to send them.</summary>
+    public async Task<CustomerExport?> ExportAsync(int id, CancellationToken ct = default) =>
+        await repo.GetAsync(id, ct) is not { } c ? null : new CustomerExport(
+            c.Email, c.Name, c.Phone, c.Interests, c.Note, c.Code, c.CreatedAt, c.UnsubscribedAt,
+            c.Consents.Select(x => new ConsentExport(x.Company, x.Text, x.Source, x.At, x.WithdrawnAt)).ToList(),
+            c.Events.OrderBy(e => e.At).Select(e => new EventExport(e.Kind, e.App, e.What, e.Kr, e.At)).ToList(),
+            $"Det her er alt, hvad ITMartin og Bogshoppen har gemt om dig i kundekartoteket. Afmeldt slettes efter {Retention.UnsubscribedKeepDays} dage, " +
+            $"køb gemmes i {Retention.PurchaseKeepYears} år (bogføringsloven). Se itmartin.dk/vilkaar.");
+
     /// <summary>Only people with a yes to that company that still stands - for the Bcc line or a mail tool.</summary>
     public async Task<List<Customer>> ActiveAsync(string company, CancellationToken ct = default) =>
         (await repo.AllAsync(ct)).Where(c => c.SaidYesTo(company)).OrderBy(c => c.Name).ToList();
@@ -167,6 +185,11 @@ public sealed class FreeApps(IFreeAppRepository repo)
 
     public Task DeleteAsync(int id, CancellationToken ct = default) => repo.DeleteAsync(id, ct);
 }
+
+public sealed record CustomerExport(string Email, string Name, string Phone, string Interests, string MartinsNote, string Kundenummer,
+    DateTime CreatedAtUtc, DateTime? UnsubscribedAtUtc, List<ConsentExport> Samtykker, List<EventExport> Haendelser, string Forklaring);
+public sealed record ConsentExport(string Company, string Text, string Source, DateTime AtUtc, DateTime? WithdrawnAtUtc);
+public sealed record EventExport(string Kind, string App, string What, int Kr, DateTime AtUtc);
 
 /// <summary>Sends one plain-text mail. False = not sent (no password set, or the mail server said no).</summary>
 public interface IMailSender

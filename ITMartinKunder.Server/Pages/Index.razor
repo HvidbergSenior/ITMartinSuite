@@ -9,7 +9,8 @@
     <h1 class="k-card-title">Kundekartotek</h1>
     <p>Her er alle kunder fra alle apps: dem der selv har sat flueben for at blive skrevet op, og dem der har købt på bogshoppen.dk.
         <b>Ingen reklamer og ingen nyhedsbreve.</b> Skriv til én ad gangen eller med Bcc – aldrig flere i Til eller Cc.</p>
-    <p>Sådan gør du: søg på navn eller e-mail, tryk på en kunde for at se mere. Hent listen som CSV til Bcc-linjen.</p>
+    <p>Sådan gør du: søg på navn eller e-mail, tryk på en kunde for at se mere. Hent listen som CSV til Bcc-linjen.
+        Beder nogen om deres data, så tryk <b>Hent data</b> på kunden og send filen. Afmeldte slettes af sig selv efter 30 dage, køb gemmes i 5 år.</p>
     <div class="ku-row">
         <a class="k-btn k-btn-primary" href="/kunder.csv?firma=ITMartin" download>Hent ITMartin-kunder (@Active(Companies.ITMartin))</a>
         <a class="k-btn" href="/kunder.csv?firma=Bogshoppen" download>Hent Bogshoppen-kunder (@Active(Companies.Bogshoppen))</a>
@@ -65,6 +66,7 @@
             @if (c.Note != "") { <div>Note: @c.Note</div> }
             <div class="ku-row">
                 <button class="k-btn k-btn-sm" @onclick="() => Edit(c)">Ret</button>
+                <a class="k-btn k-btn-sm" href="/kunder/@(c.Id).json" download>Hent data</a>
                 @if (c.Active) { <button class="k-btn k-btn-sm" @onclick="() => Unsubscribe(c)">Afmeld</button> }
                 @if (_confirm == c.Id)
                 {

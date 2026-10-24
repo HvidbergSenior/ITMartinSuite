@@ -24,6 +24,14 @@ internal static class KunderEndpoints
 
         app.MapGet(KunderApi.FreeApps, async (FreeApps apps) => Results.Ok(await apps.AvailableAsync()));
 
+        // "Hent mine data" for one person (Martin's cookie) - he sends the file to whoever asked.
+        app.MapGet("/kunder/{id:int}.json", async (int id, Kundekartotek k) =>
+            await k.ExportAsync(id) is { } x
+                ? Results.File(System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(x, new System.Text.Json.JsonSerializerOptions
+                    { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
+                    "application/json", $"mine-data-{id}.json")
+                : Results.NotFound());
+
         // The ones who still said yes to that company - for the Bcc line or a mail tool (Martin's cookie).
         app.MapGet("/kunder.csv", async (string? firma, Kundekartotek k, HttpContext ctx) =>
         {
