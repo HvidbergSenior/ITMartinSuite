@@ -10,7 +10,9 @@
 @* Public Q&A from the chat, without names (user 2026-10-12: "they ask the same questions and also i want transparency",
    "people should be able to find other questions regarding the same"). Martin chooses what goes up, in Svar. *@
 <PageHead Title="Det spørger folk om" Tag="Spørgsmål og svar" Line="Uden navne." />
-<article class="k-card hj-page" data-nofold>
+@* Every box shows/hides (user 2026-10-24 "remember show/hide boxes"): heading first, no data-nofold. *@
+<article class="k-card hj-page">
+    <h2 class="k-card-title">Søg i spørgsmålene</h2>
     <p>Her er spørgsmål, folk har stillet mig i chatten – og mine svar. <b>Uden navne.</b> Måske er dit spørgsmål allerede besvaret.</p>
     @* Order and air (user 2026-10-12: "space on /spoergsmaal"): search first, then topics, then "not found? ask in the chat". *@
     <p class="k-help"><b>Sådan gør du:</b> skriv et ord i søgefeltet (fx <i>budget</i> eller <i>billeder</i>), eller tryk på et emne.
@@ -44,11 +46,12 @@ else if (_found.Total == 0) { <p class="k-help k-center">Der er ingen spørgsmå
 else if (_found.Questions.Count == 0) { <p class="k-help k-center">Ingen spørgsmål passer. Prøv et andet ord – eller spørg mig i chatten.</p><p class="k-center"><a class="k-btn k-btn-sm" href="#chat">Spørg mig i chatten</a></p> }
 else
 {
-    @foreach (var q in _found.Questions)
+    @* The question is the box heading; the first one is open, the rest closed until opened (remembered per device). *@
+    @foreach (var (q, i) in _found.Questions.Select((q, i) => (q, i)))
     {
-        <section class="k-card hj-qa" id="q@(q.Id)" data-nofold>
+        <section class="k-card hj-qa" id="q@(q.Id)" data-fold-closed="@(i > 0 ? "1" : null)">
+            <h2 class="k-card-title hj-qa-q">@NoEmoji.Strip(q.Question)</h2>
             <button class="k-tag hj-qa-topic" @onclick="() => PickAsync(q.Topic)">@(q.Site == QuestionRules.Bogshoppen && Site != QuestionRules.Bogshoppen ? "Bogshoppen · " : "")@q.Topic</button>
-            <h2 class="hj-qa-q">@NoEmoji.Strip(q.Question)</h2>
             <div class="hj-qa-a"><b>Martin svarer:</b> @NoEmoji.Strip(q.Answer)</div>
             <div class="k-help">@Dk.Local(q.PublishedAt).ToString("d. MMMM yyyy", Da)</div>
             @if (_related.TryGetValue(q.Id, out var rel) && rel.Count > 0)
