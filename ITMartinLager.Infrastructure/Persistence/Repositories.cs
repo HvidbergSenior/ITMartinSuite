@@ -113,9 +113,9 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return await q.OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
     }
 
-    // Shop.Listed as SQL: in stock or for sale, copies left, a title.
+    // Shop.Listed as SQL: in stock or for sale, copies left, a title. With the box: a test box = only for show (Box.IsTest).
     private static IQueryable<Item> Listed(LagerDb db) =>
-        db.Items.Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
+        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
 
     public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct)
     {
@@ -174,7 +174,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     public async Task<List<Item>> FeaturedAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Items.Where(i => i.FeaturedAt != null && (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg))
+        return await db.Items.Include(i => i.Box).Where(i => i.FeaturedAt != null && (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg))
             .OrderByDescending(i => i.FeaturedAt).Take(max).ToListAsync(ct);
     }
 

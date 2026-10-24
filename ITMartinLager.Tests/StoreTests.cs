@@ -33,6 +33,18 @@ public class StoreTests
         new(Kinds.AndersAnd, "Anders And & Co.", "", "Anders And & Co.", nr, year, "", cond, qty, 0.9, "");
 
     [Test]
+    public async Task The_shop_list_knows_which_things_are_in_a_test_box()
+    {
+        // 2026-10-24 bug: the list query did not load the box, so test-box things came out as for sale.
+        var test = await Boxes.AddNextAsync("Test kun til visning", default);
+        var real = await Boxes.AddNextAsync("Garagen", default);
+        await Registration.SaveAsync(test.Id, null, [Aa("12", 1968)]);
+        await Registration.SaveAsync(real.Id, null, [Aa("13", 1968)]);
+        var (page, _) = await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default);
+        page.Select(i => Shop.View(i, []).ForShow).Should().BeEquivalentTo([true, false]);
+    }
+
+    [Test]
     public async Task Boxes_are_numbered_K0001_K0002()
     {
         (await Boxes.AddNextAsync("Garagen", default)).Code.Should().Be("K0001");
