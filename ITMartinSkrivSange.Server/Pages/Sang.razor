@@ -175,7 +175,7 @@ else
                         var picked = _focus == (kind, index);
                         <div class="ss-tile-wrap">
                             <button class="ss-grip @(picked ? "is-picked" : "")" id="chord-@((int)kind)-@i" aria-expanded="@picked"
-                                    title="Tryk for andre akkorder og hvad der lyder godt bagefter" @onclick="() => Focus(kind, index)"><span class="ss-grip-name">@part.Chords[i]</span><GripDiagram Chord="@part.Chords[i]" /></button>
+                                    title="Tryk for andre akkorder og hvad der lyder godt bagefter" @onclick="() => Focus(kind, index)"><span class="ss-grip-name">@part.Chords[i]</span><GripDiagram Chord="@part.Chords[i]" Capo="@_song.Capo" /></button>
                             <button class="ss-grip-x" aria-label="Fjern @part.Chords[i]" title="Fjern @part.Chords[i]" @onclick="() => Remove(kind, index)">✕</button>
                         </div>
                     }

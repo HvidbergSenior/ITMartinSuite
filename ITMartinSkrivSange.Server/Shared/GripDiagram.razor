@@ -1,10 +1,12 @@
 @* A chord box: 6 strings (low E left), 4 frets, the nut on top, x = not played, o = open, dots with the finger number.
    Drawn in currentColor so it follows the text colour (light and dark). A barre grip higher up (2026-10-19) starts at its
-   lowest fret, shown as "5fr" on the left, with a thin line instead of the nut. *@
+   lowest fret, shown as "5" on the left, with a thin line instead of the nut. With a capo (2026-10-25: Gm in Du Er with
+   capo 2 was read as the 3rd fret of the neck) the number is the real fret on the neck - capo + the fret above the capo. *@
 @if (Grips.For(Chord) is { } grip)
 {
     var top = grip.Frets.Max() > 4 ? grip.Frets.Where(f => f > 0).Min() - 1 : 0;
-    <svg class="ss-diagram" viewBox="0 0 64 74" role="img" aria-label="@Chord greb @grip.Short">
+    <svg class="ss-diagram" viewBox="0 0 64 74" role="img" aria-label="@($"{Chord} greb {grip.Short}{Where(top)}")">
+        <title>@($"{Chord}{Where(top)}")</title>
         @* Nut and frets *@
         @if (top == 0)
         {
@@ -13,7 +15,7 @@
         else
         {
             <line x1="8" x2="58" y1="13.5" y2="13.5" stroke="currentColor" stroke-width="1" opacity=".55" />
-            @Label(3, 24, "7", $"{top + 1}", " class=\"ss-basefret\"")
+            @Label(3, 24, "7", $"{Capo + top + 1}", " class=\"ss-basefret\"")
         }
         @for (var f = 1; f <= 4; f++)
         {
@@ -47,6 +49,11 @@
 
 @code {
     [Parameter, EditorRequired] public string Chord { get; set; } = "";
+    [Parameter] public int Capo { get; set; }
+
+    // " - 5. bånd på halsen (3. over capoen)" for a grip higher up; nothing for one at the nut/capo.
+    private string Where(int top) => top == 0 ? ""
+        : Capo > 0 ? $" - {Capo + top + 1}. bånd på halsen ({top + 1}. over capoen)" : $" - {top + 1}. bånd";
 
     // SVG wants "6.5", also on a Danish machine.
     private static string N(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);

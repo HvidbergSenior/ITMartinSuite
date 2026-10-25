@@ -33,6 +33,7 @@ builder.Services.AddKolibri(k =>
         "Tryk Foreslå på de andre dele: versene bliver ens, broen bliver anderledes, intro og outro vokser ud af verset.",
         "Skriv selv: skriv fx Am G Am G - de bruges i delen og gemmes som MartinChord, så du kan vælge dem i alle sange.",
         "Tryk på en akkord for at skifte den ud eller sætte en ny ind efter den.",
+        "Barré-greb højere oppe har et lille tal ved siden af: det bånd på halsen, hvor pegefingeren ligger - også når der sidder en capo.",
         "Vælg spillemåde (slag, pluk eller kombi), og tryk Spil for at høre en del. Skriv tekstnoter under akkorderne - det gemmes af sig selv.",
         "Optag: tryk Optag, vent 2 sekunder før du spiller (så lærer appen rummets lyd og fjerner den), og spil. Optagelsen kommer under knappen.",
         "Del en optagelse: tryk Del ved den - så får du et link, som familie og venner kan lytte på uden kode. Del det ikke offentligt, når sangen er en andens.",
