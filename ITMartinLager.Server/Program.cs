@@ -29,6 +29,7 @@ builder.Services.AddKolibri(k =>
     [
         "Hjælperne tager billeder af kasserne i Vareinfo (📷 Registrér) – hver med sin egen kode og sit eget kassenummer.",
         "Nye billeder kommer herind af sig selv hvert minut. Under 📦 Kasser trykker du Læs ved en kasse – så læser AI'en billederne og lægger tingene i kassen.",
+        "Mangler en dansk tegneserie sit år, slår Lager serien og nummeret op i Grand Comics Database - året sættes kun på, når det er sikkert.",
         "Ret det, AI'en har læst forkert, på varens side. Står der ⚠ Tjek navn ved en vare, var AI'en usikker – se efter på billedet.",
         "Priserne findes på DBA, GulogGratis, Accord (brugte cd'er og plader), Nemos Bibliotek, Faraos, Tradera og eBay. Nypriser: Bog & idé (bøger) og Fantask (tegneserier) - en brugt bliver aldrig dyrere. Discogs viser hvilken plade det er, og hvor mange samlere der ønsker den, men tæller ikke med i prisen.",
         "Prislinks viser kun annoncer for netop den ting alene: ikke plakater, kasketter, samlekort, puslespil, flere stk. i én annonce, tingen sammen med noget andet (+, inkl., og ...) eller tv-serien af samme navn.",

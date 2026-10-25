@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddSingleton<IBookValuer, ClaudeBookValuer>();
         services.AddSingleton<ICoverReader, ClaudeCoverReader>();
         services.AddHttpClient<IBarcodeLookup, BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
+        services.AddHttpClient<IComicCatalog, GcdCatalog>(c => c.Timeout = TimeSpan.FromSeconds(15));
         services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         // Helpers log in with their kundenummer (Kunder__Url / Kunder__ApiKey, user 2026-10-24).
         ITMartinKunder.Client.KunderClientExtensions.AddKunderClient(services, cfg, dataDir);

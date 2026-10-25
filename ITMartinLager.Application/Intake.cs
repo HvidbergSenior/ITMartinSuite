@@ -7,7 +7,7 @@ namespace ITMartinLager.Application;
 /// written on the box). Nothing is read until the person presses Læs: then one AI call per pile photo, under the daily
 /// cap, and the barcodes are looked up on the free sites. What was found goes into its box.</summary>
 public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository intake, IBoxRepository boxes,
-    RegistrationUseCases registration, ICoverReader reader, IBarcodeLookup barcodes, TimeProvider clock)
+    RegistrationUseCases registration, ICoverReader reader, IBarcodeLookup barcodes, TimeProvider clock, IComicCatalog? comics = null)
 {
     /// <summary>Photos and scans fetched per round - the job runs every minute.</summary>
     public const int FetchPerRound = 200;
@@ -104,7 +104,37 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         var clean = found.Where(f => !string.IsNullOrWhiteSpace(f.Title))
             .Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition), Quantity = Math.Max(1, f.Quantity) })
             .ToList();
+        clean = await WithYearsAsync(clean, ct);
         await registration.SaveAsync(box.Id, photoId, clean, ct);
+    }
+
+    /// <summary>Most comic years asked per photo - GCD is run by volunteers, it is asked gently.</summary>
+    public const int YearsPerPhoto = 8;
+
+    // A comic with series and number but no year gets its year from the Grand Comics Database - only when it is sure.
+    private async Task<List<Found>> WithYearsAsync(List<Found> found, CancellationToken ct)
+    {
+        if (comics is null) return found;
+        var asked = 0;
+        var result = new List<Found>(found.Count);
+        foreach (var f in found)
+        {
+            if (f.Year is null && f.Series.Trim() != "" && f.Number.Trim() != "" && asked < YearsPerPhoto
+                && f.Kind is Kinds.Tegneserie or Kinds.Superhelte or Kinds.AndersAnd or Kinds.Jumbobog)
+            {
+                asked++;
+                int? year = null;
+                try { year = await comics.YearAsync(f.Series, f.Number, ct); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { }
+                if (year is { } y)
+                {
+                    result.Add(f with { Year = y, Note = (f.Note + " Året er fra Grand Comics Database.").Trim() });
+                    continue;
+                }
+            }
+            result.Add(f);
+        }
+        return result;
     }
 }
 

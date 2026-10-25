@@ -39,6 +39,13 @@ public interface ICoverReader
     Task<Dictionary<int, KolofonReading>> ReadKolofonsAsync(IReadOnlyList<byte[]> jpegs, CancellationToken ct);
 }
 
+/// <summary>Grand Comics Database (2026-10-25): the year of a Danish comic from its series and number. Null = not known for
+/// sure (no match, several matches, GCD did not answer).</summary>
+public interface IComicCatalog
+{
+    Task<int?> YearAsync(string series, string number, CancellationToken ct);
+}
+
 /// <summary>Barcode -> what it is (Google Books, Open Library, MusicBrainz, UPCitemdb). Null = not found.</summary>
 public interface IBarcodeLookup
 {
