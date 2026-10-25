@@ -151,7 +151,23 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
     // ("some stops though"). A gentle one (-36 dB, 1.2 s) let the room back in ("noise came back") - the room sits at about
     // -31 dB, the same as a soft chord ringing out, so no level gate can tell them apart. In between now: -30 dB, waits 1 s
     // before closing (no chatter between strums), turns down ~16 dB. Stronger noise reduction risks a "watery" guitar.
-    private const string CleanUp = "highpass=f=70,afftdn=nr=20:nf=-40:tn=1,agate=threshold=0.03:ratio=3:attack=10:release=1000:range=0.15:knee=4";
+    // 2026-10-25 ("there is some holes in the recorded"): that gate still shut 7-8 times for ~0.5 s in a 58 s take of
+    // Space Oddity. No gate any more: the noise reduction learns the room itself from the quiet seconds before playing
+    // (0.3-2 s) - but only when they ARE quiet (20 dB under the loudest point), so it never learns the guitar.
+    private const string CleanUp = "highpass=f=70,afftdn=nr=20:nf=-40:tn=1";
+    private const string LearnRoom = "asendcmd=c='0.3 afftdn sn start; 2.0 afftdn sn stop',";
+    private const double QuietStartDb = 20;
+
+    /// <summary>Are the first seconds only room (no guitar yet)? From volumedetect of 0.3-2 s and of the whole take.</summary>
+    internal static bool QuietStart(string startOutput, string wholeOutput) =>
+        MaxVolume(startOutput) is { } start && MaxVolume(wholeOutput) is { } whole && start <= whole - QuietStartDb;
+
+    private static double? MaxVolume(string volumedetectOutput)
+    {
+        var m = Regex.Match(volumedetectOutput, @"max_volume:\s*(-?[\d.]+) dB");
+        return m.Success && double.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)
+            ? v : null;
+    }
 
     private static async Task<string?> LoudMp3Async(string webm)
     {
@@ -160,7 +176,9 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
         {
             var (_, measured) = await FfmpegAsync("-hide_banner", "-nostats", "-i", webm, "-vn", "-af", "volumedetect", "-f", "null", "-");
             var gain = PeakGainDb(measured);
-            var (ok, _) = await FfmpegAsync("-y", "-i", webm, "-vn", "-af", FormattableString.Invariant($"volume={gain:0.0}dB,{CleanUp}"),
+            var (_, start) = await FfmpegAsync("-hide_banner", "-nostats", "-i", webm, "-vn", "-af", "atrim=0.3:2,volumedetect", "-f", "null", "-");
+            var learn = QuietStart(start, measured) ? LearnRoom : "";
+            var (ok, _) = await FfmpegAsync("-y", "-i", webm, "-vn", "-af", FormattableString.Invariant($"volume={gain:0.0}dB,{learn}{CleanUp}"),
                 "-ar", "44100", "-c:a", "libmp3lame", "-q:a", "2", mp3);
             if (!ok || !File.Exists(mp3) || new FileInfo(mp3).Length == 0) return null;
             File.Delete(webm);

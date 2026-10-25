@@ -34,8 +34,9 @@ builder.Services.AddKolibri(k =>
         "Skriv selv: skriv fx Am G Am G - de bruges i delen og gemmes som MartinChord, så du kan vælge dem i alle sange.",
         "Tryk på en akkord for at skifte den ud eller sætte en ny ind efter den.",
         "Vælg spillemåde (slag, pluk eller kombi), og tryk Spil for at høre en del. Skriv tekstnoter under akkorderne - det gemmes af sig selv.",
+        "Optag: tryk Optag, vent 2 sekunder før du spiller (så lærer appen rummets lyd og fjerner den), og spil. Optagelsen kommer under knappen.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.10.25";
 });
 
 builder.Services.AddSkrivSangeInfrastructure(builder.Configuration);

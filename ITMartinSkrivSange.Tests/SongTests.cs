@@ -417,6 +417,13 @@ public class TakeGainTests
     [TestCase("no numbers here", 0)]
     public void One_fixed_gain_puts_the_loudest_point_at_minus_1_5(string log, double gain) =>
         ITMartinSkrivSange.Infrastructure.StudioLibrary.PeakGainDb(log).Should().BeApproximately(gain, 0.01);
+
+    // 2026-10-25: the room is learned from the first seconds only when no guitar is in them yet.
+    [TestCase("max_volume: -40.0 dB", "max_volume: -18.0 dB", true)]
+    [TestCase("max_volume: -25.0 dB", "max_volume: -18.0 dB", false)]   // playing from the start
+    [TestCase("nothing", "max_volume: -18.0 dB", false)]
+    public void The_room_is_learned_only_from_a_quiet_start(string start, string whole, bool learn) =>
+        ITMartinSkrivSange.Infrastructure.StudioLibrary.QuietStart(start, whole).Should().Be(learn);
 }
 
 public class LyricsLinkTests
