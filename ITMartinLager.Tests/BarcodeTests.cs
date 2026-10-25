@@ -62,5 +62,5 @@ public class DiscogsFormatTests
     [Test]
     public void Only_the_Danish_sites_Tradera_and_one_eBay_are_searched() =>
         Sources().Select(s => s.Name).Distinct().Should().BeEquivalentTo(
-            ["DBA", "GulogGratis", "eBay", "Tradera", "Nemos Bibliotek", "Faraos", "Bog & idé"]);
+            ["DBA", "GulogGratis", "eBay", "Discogs", "Accord", "Tradera", "Nemos Bibliotek", "Faraos", "Fantask", "Bog & idé"]);
 }

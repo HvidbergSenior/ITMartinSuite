@@ -33,7 +33,7 @@ internal static class PriceSourceRegistration
         Client<DbaListings>(); Client<GulogGratisListings>(); Client<EbayListings>(); Client<TraderaListings>(); Client<BlocketListings>();
         Client<FinnListings>(); Client<ToriListings>(); Client<KleinanzeigenListings>(); Client<AbeBooksListings>(); Client<ZvabListings>();
         Client<BokborsenListings>(); Client<NemosListings>(); Client<FaraosListings>(); Client<BogIdeListings>();
-        Client<DiscogsListings>();
+        Client<DiscogsListings>(); Client<AccordListings>(); Client<FantaskListings>();
         string[] paper = Pricing.PaperKinds;
 
         void Add(Func<IServiceProvider, IPriceSource> make) => services.AddTransient(make);
@@ -46,6 +46,15 @@ internal static class PriceSourceRegistration
         // 2026-10-25 (user: "the finnish ones should be removed ... actually i want Danish, Tradera and One from ebay"):
         // eBay USA, Discogs, Blocket, Finn.no, Tori.fi, Kleinanzeigen, AbeBooks, ZVAB and Bokbörsen are out. Their
         // classes stay, so one can come back with one line here.
+        // Discogs is back (2026-10-25) only to know the record and how many collectors want/have it - its prices are
+        // links, never part of our price (Pricing.NotForNormal). One source per format, only the one that fits runs.
+        foreach (var (kind, format) in new[] { (Kinds.Cd, DiscogsListings.Cd), (Kinds.Vinyl, DiscogsListings.Vinyl), (Kinds.Kassette, DiscogsListings.Cassette) })
+            Add(sp => new PriceSource("Discogs", false, "", (t, a, i, ct) => sp.GetRequiredService<DiscogsListings>().LookupAsync(t, a, ct, format),
+                (t, a, i) => DiscogsListings.SearchUrl(t, a, format), [kind]));
+        // Accord (2026-10-25, the used-record chain by Strøget): used CDs, records and tapes only, in the item's own format.
+        foreach (var (kind, format) in new[] { (Kinds.Cd, AccordListings.Cd), (Kinds.Vinyl, AccordListings.Vinyl), (Kinds.Kassette, AccordListings.Cassette) })
+            Add(sp => new PriceSource("Accord", false, "", (t, a, i, ct) => sp.GetRequiredService<AccordListings>().LookupAsync(t, a, format, ct),
+                (t, a, i) => AccordListings.SearchUrl($"{a} {t}".Trim()), [kind]));
         Add(sp => new PriceSource("Tradera", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<TraderaListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => TraderaListings.SearchUrl(QOrIsbn(t, a, i))));
         Add(sp => new PriceSource("Nemos Bibliotek", false, "", (t, a, i, ct) => sp.GetRequiredService<NemosListings>().LookupAsync(t, a, ct),
@@ -54,6 +63,10 @@ internal static class PriceSourceRegistration
             (t, a, i) => FaraosListings.SearchUrl(t), paper));
         // Amazon.de removed 2026-10-12 (user: "useless, too bad price") - it showed new prices far above what a used copy
         // sells for, and its one-at-a-time limit held every book check up.
+        // New prices for comics (2026-10-25): Fantask in Sankt Peders Stræde - a used copy is priced under it. Saxo, Lauritz and
+        // antikvariat.net were tried the same day: they turn automatic visitors away (403), so they are left out.
+        Add(sp => new PriceSource("Fantask", true, "", (t, a, i, ct) => sp.GetRequiredService<FantaskListings>().LookupAsync(t, a, ct),
+            (t, a, i) => FantaskListings.SearchUrl(t), [Kinds.Tegneserie, Kinds.Superhelte]));
         Add(sp => new PriceSource("Bog & idé", true, "", (t, a, i, ct) => sp.GetRequiredService<BogIdeListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => BogIdeListings.SearchUrl(QOrIsbn(t, a, i)), paper));
         return services;

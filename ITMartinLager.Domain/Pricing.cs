@@ -337,13 +337,15 @@ public static partial class Pricing
 
     // Danish market first (user 2026-10-12: "always prioritize Danish market ... I dont know if it can pay off to put
     // things on foreign markets"): our price comes from these when they have at least DanishEnough prices.
-    public static readonly string[] DanishSources = ["DBA", "GulogGratis", "Nemos Bibliotek", "Faraos"];
+    public static readonly string[] DanishSources = ["DBA", "GulogGratis", "Nemos Bibliotek", "Faraos", "Accord"];
     public const int DanishEnough = 2;
 
     // Shown as links, never part of our price (user 2026-10-21: "ebay DE is not realistic is it?"): eBay is shops' asking
     // prices, many from abroad, and the API only shows what is for sale, not what sold - a used Californication CD had a
     // middle price of 291 kr there.
-    public static readonly string[] NotForNormal = ["eBay", "eBay USA"];
+    // Discogs (2026-10-25, user: Danish + Tradera + one eBay for prices): it tells which record it is and how many
+    // collectors want it - its asking prices are shown as links only.
+    public static readonly string[] NotForNormal = ["eBay", "eBay USA", "Discogs"];
 
     /// <summary>The normal used price with Danish listings first (user 2026-10-12: "always prioritize Danish market"):
     /// Danish only when there are enough - unless the Danish price is over 2x what the other sites say, then the Danish
