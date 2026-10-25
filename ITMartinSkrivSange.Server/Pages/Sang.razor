@@ -392,7 +392,7 @@ else
                     <div class="ss-row">
                         @if (_recordingPart == kind)
                         {
-                            <button class="k-btn k-btn-danger" @onclick="StopRecording">Stop optagelse (@FormatTime(_recSeconds))</button>
+                            <button class="k-btn k-btn-danger" @onclick="StopRecording">Stop optagelse (@FormatTime((int)_recClock.Elapsed.TotalSeconds))</button>
                         }
                         else
                         {
@@ -468,7 +468,9 @@ else
     private bool _recordWithLoop = true;
     private bool _startingRecording;                 // the device is opening - Optag can't be pressed twice
     private int _speed = 100;                        // practice tempo in % of the song's BPM
-    private int _recSeconds;
+    // The counter on Stop optagelse reads a stopwatch (2026-10-25: counting timer ticks ran ~3 s ahead of the real time);
+    // the timer only redraws it.
+    private readonly System.Diagnostics.Stopwatch _recClock = new();
     private System.Threading.Timer? _recTimer;
     private string _typedChords = "";
     private string _typedName = "";
@@ -783,8 +785,9 @@ else
         }
         _startingRecording = false;
         _recordingPart = kind;
-        _recSeconds = 0;
-        _recTimer = new System.Threading.Timer(_ => InvokeAsync(() => { _recSeconds++; StateHasChanged(); }), null, 1000, 1000);
+        if (_recTimer is not null) await _recTimer.DisposeAsync();
+        _recClock.Restart();
+        _recTimer = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, 250, 250);
         if (_metering) await StopMeter();
         if (_recordWithLoop) await Loop(kind);
     }
@@ -792,6 +795,7 @@ else
     private async Task StopRecording()
     {
         if (_recTimer is not null) { await _recTimer.DisposeAsync(); _recTimer = null; }
+        _recClock.Stop();
         await Stop();
         try { await JS.InvokeVoidAsync("studio.stopRecording"); } catch (JSException) { }
         _recordingPart = null;   // studio.stopRecording waits for the upload, so the new take is on disk now
