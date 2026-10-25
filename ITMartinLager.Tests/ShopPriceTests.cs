@@ -159,6 +159,23 @@ public class OneCopyTests
     public void A_film_is_not_a_puzzle_or_a_bundle(string name, bool kept) =>
         KeepFor(new() { Kind = Kinds.Dvd, Title = "Guardians of the Galaxy" }, name).Should().Be(kept);
 
+    // Third run on the test box: sequels, bundles and box sets.
+    [TestCase("Guardians Of The Galaxy 2", false)]
+    [TestCase("Guardians of the Galaxy Vol. 3 (SVENSK TEXT) (INPLASTAD)", false)]
+    [TestCase("Guardians of the galaxy 3D", false)]
+    [TestCase("Guardians of the Galaxy / The Amazing Spider-Man 1+2 / Fantastiska Vidunder", false)]
+    [TestCase("Guardians of the galaxy", true)]
+    [TestCase("Guardians of the Galaxy (2014)", true)]
+    public void A_sequel_a_bundle_or_a_3D_copy_is_not_the_film(string name, bool kept) =>
+        ITMartinLager.Domain.Pricing.OnlyThisItem(new() { Kind = Kinds.Dvd, Title = "Guardians of the Galaxy" },
+            ITMartinLager.Domain.ListingParse.Summarise([new ITMartinLager.Domain.Offer(name, 30, "u")], "u"), "Tradera", searchedWithFormat: true).All.Count.Should().Be(kept ? 1 : 0);
+
+    [TestCase("Underworld: Rise Of The Lycans", true)]
+    [TestCase("Underworld - Evolution - Rise Of The Lycans 3 DVDs MA15+ PAL R4 2006 Sony T", false)]
+    public void A_box_set_is_not_one_film(string name, bool kept) =>
+        ITMartinLager.Domain.Pricing.OnlyThisItem(new() { Kind = Kinds.Dvd, Title = "Underworld – Rise of the Lycans" },
+            ITMartinLager.Domain.ListingParse.Summarise([new ITMartinLager.Domain.Offer(name, 30, "u")], "u"), "eBay", searchedWithFormat: true).All.Count.Should().Be(kept ? 1 : 0);
+
     // 2026-10-25, Vibeke's test box: real names the hunter kept for the Guardians of the Galaxy DVD.
     [TestCase("Guardians of the galaxy blueray", false)]                // a Blu-ray is not the DVD
     [TestCase("Guardians of the Galaxy, DVD, action", true)]

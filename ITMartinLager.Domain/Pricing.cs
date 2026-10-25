@@ -134,7 +134,7 @@ public static partial class Pricing
         [Kinds.Cd] = ["vinyl", "vinil", "schallplatte", "kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
         [Kinds.Vinyl] = ["kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
         [Kinds.Kassette] = ["vinyl", "vinil", "schallplatte", "dvd", "blu", "bluray", "vhs"],
-        [Kinds.Dvd] = ["blu", "bluray", "blueray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack"],
+        [Kinds.Dvd] = ["blu", "bluray", "blueray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack", "3d", "dvds", "boks", "samleboks"],
         [Kinds.BluRay] = ["vhs", "vinyl", "soundtrack"],
         // A comic of the same name is not the TV series, the film or the novel (2026-10-25: "The Walking Dead").
         [Kinds.Tegneserie] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
@@ -205,6 +205,12 @@ public static partial class Pricing
         if (item.Kind is not (Kinds.Dvd or Kinds.BluRay or Kinds.Vhs)) return true;
         var low = " " + listing.ToLowerInvariant() + " ";
         if (CdRx().IsMatch(low) || System.Text.RegularExpressions.Regex.IsMatch(low, @"#\s*\d")) return false;
+        // A 3D copy is another edition - unless ours is one.
+        if (System.Text.RegularExpressions.Regex.IsMatch(low, @"\b3d\b") && !item.Title.Contains("3D", StringComparison.OrdinalIgnoreCase)) return false;
+        // A sequel or another part is another film (2026-10-25: "Guardians Of The Galaxy 2", "Vol. 3" for the first one):
+        // a small number in the listing that our title does not have.
+        var ours = ListingParse.Words(item.Title).Where(ListingParse.IsNumber).ToHashSet();
+        if (ListingParse.Words(listing).Any(w => ListingParse.IsNumber(w) && w.Length <= 2 && w != "0" && !ours.Contains(w))) return false;
         // Searched as "dvd ...": the site already looked for the film, a title without the word still counts.
         if (!needFormatWord) return true;
         return ListingParse.Words(listing).Any(FilmWords.Contains) || System.Text.RegularExpressions.Regex.IsMatch(low, @"\bbd\b|blu-ray|4k");
@@ -298,6 +304,15 @@ public static partial class Pricing
     public static bool WithSomethingElse(Item item, string listing)
     {
         if (System.Text.RegularExpressions.Regex.IsMatch(listing, @"\s\+\s|\s\+\d|\bm/\s*\w")) return true;
+        // "Guardians of the Galaxy / The Amazing Spider-Man 1+2": a slash between titles (not "AC/DC", not "1/2").
+        // "Eddie Izzard / Dress To Kill" is artist / title - only a part with two words of its own is another product.
+        if (System.Text.RegularExpressions.Regex.IsMatch(listing, @"\s/\s") && !$" {CleanTitle(item.Title)} {item.Artist} ".Contains(" / "))
+        {
+            var mine = ListingParse.Words($"{CleanTitle(item.Title)} {item.Artist} {item.Series}").ToHashSet();
+            if (listing.Split(" / ").Skip(1).Any(part => ListingParse.Words(part)
+                    .Count(w => !ListingParse.IsNumber(w) && !mine.Contains(w) && !AboutTheCopy.Contains(w)) >= 2))
+                return true;
+        }
         var all = System.Text.RegularExpressions.Regex.Matches(listing.ToLowerInvariant(), @"[\p{L}\p{N}]+").Select(m => m.Value).ToList();
         if (all.Any(AlwaysMore.Contains)) return true;
         var ours = ListingParse.Words($"{CleanTitle(item.Title)} {item.Artist} {item.Series}").ToHashSet();
