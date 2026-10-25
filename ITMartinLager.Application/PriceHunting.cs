@@ -53,7 +53,11 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
 
     private async Task<List<SourceAnswer>> AskAllAsync(Item item, string title, string isbn, CancellationToken ct)
     {
-        var asked = _sources.Where(s => s.Fits(item.Kind)).Select(s => (s, s.LookupAsync(title, item.Artist, isbn, ct))).ToList();
+        // A film is searched WITH its format (2026-10-25: "Guardians of the Galaxy" alone found LEGO and costumes, and Danish
+        // sellers seldom write DVD in the title): the format goes where the author would, so "dvd Guardians of the Galaxy".
+        var format = Pricing.SearchFormat(item.Kind);
+        var asked = _sources.Where(s => s.Fits(item.Kind))
+            .Select(s => (s, s.LookupAsync(title, format != "" && !Pricing.FormatSure.Contains(s.Name) ? format : item.Artist, isbn, ct))).ToList();
         var answers = new List<SourceAnswer>();
         foreach (var (source, lookup) in asked)
         {
@@ -63,7 +67,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
             try { r = await lookup; } catch (Exception) when (!ct.IsCancellationRequested) { }
             // Sets, graded copies, other series out. New shops too when they were searched by title (2026-10-25: Bog & idé
             // gave "Søde Sally Sukkertop" for "Som i et æventyr") - an ISBN answer is the book itself.
-            if (r is not null && (!source.IsNew || isbn == "")) r = Pricing.OnlyThisItem(item, r, source.Name);
+            if (r is not null && (!source.IsNew || isbn == "")) r = Pricing.OnlyThisItem(item, r, source.Name, searchedWithFormat: format != "");
             answers.Add(new SourceAnswer(source.Name, source.IsNew, r));
         }
         return answers;

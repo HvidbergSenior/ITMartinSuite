@@ -58,6 +58,23 @@ public class DiscogsFormatTests
         return services.BuildServiceProvider().GetServices<ITMartinLager.Application.IPriceSource>().ToList();
     }
 
+    [Test, Explicit, Category("Live")]
+    public async Task Live_a_film_searched_with_its_format()
+    {
+        foreach (var title in new[] { "Guardians of the Galaxy", "Underworld Rise of the Lycans" })
+        {
+            var item = new ITMartinLager.Domain.Item { Kind = Kinds.Dvd, Title = title };
+            foreach (var s in Sources().Where(s => s.Name is "DBA" or "GulogGratis"))
+            {
+                var r = await s.LookupAsync(title, ITMartinLager.Domain.Pricing.SearchFormat(item.Kind), "", CancellationToken.None);
+                if (r is null) { TestContext.Out.WriteLine($"{title} | {s.Name} | no answer"); continue; }
+                var kept = ITMartinLager.Domain.Pricing.OnlyThisItem(item, r, s.Name, searchedWithFormat: true);
+                TestContext.Out.WriteLine($"{title} | {s.Name} | {r.All.Count} found, {kept.All.Count} kept");
+                foreach (var o in kept.All.Take(6)) TestContext.Out.WriteLine($"    {o.Price} | {o.Name}");
+            }
+        }
+    }
+
     // 2026-10-25 (user): "Danish, Tradera and One from ebay" - nothing else is searched.
     [Test]
     public void Only_the_Danish_sites_Tradera_and_one_eBay_are_searched() =>

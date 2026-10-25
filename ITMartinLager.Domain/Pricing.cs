@@ -192,7 +192,10 @@ public static partial class Pricing
         "manga", "roman", "novel", "rundhals", "baumwolle", "hoodie", "tshirt", "sweatshirt"];
     private static readonly HashSet<string> MusicWords = ["cd", "album", "musik", "music", "single", "maxi", "ep", "lp", "vinyl", "kassette", "cassette"];
 
-    public static bool IsTheFilm(Item item, string listing)
+    /// <summary>The word a film is searched with: "dvd", "blu-ray", "vhs" - "" for everything else.</summary>
+    public static string SearchFormat(string kind) => kind switch { Kinds.Dvd => "dvd", Kinds.BluRay => "blu-ray", Kinds.Vhs => "vhs", _ => "" };
+
+    public static bool IsTheFilm(Item item, string listing, bool needFormatWord = true)
     {
         var isMusic = item.Kind is Kinds.Cd or Kinds.Vinyl or Kinds.Kassette;
         if ((isMusic || item.Kind is Kinds.Dvd or Kinds.BluRay or Kinds.Vhs) && ListingParse.Words(listing).Any(NotMusicOrFilm.Contains)) return false;
@@ -202,6 +205,8 @@ public static partial class Pricing
         if (item.Kind is not (Kinds.Dvd or Kinds.BluRay or Kinds.Vhs)) return true;
         var low = " " + listing.ToLowerInvariant() + " ";
         if (CdRx().IsMatch(low) || System.Text.RegularExpressions.Regex.IsMatch(low, @"#\s*\d")) return false;
+        // Searched as "dvd ...": the site already looked for the film, a title without the word still counts.
+        if (!needFormatWord) return true;
         return ListingParse.Words(listing).Any(FilmWords.Contains) || System.Text.RegularExpressions.Regex.IsMatch(low, @"\bbd\b|blu-ray|4k");
     }
 
@@ -325,11 +330,11 @@ public static partial class Pricing
         System.Text.RegularExpressions.Regex.Match(url, @"ebay\.[a-z.]+/itm/(\d+)") is { Success: true } m ? "ebay:" + m.Groups[1].Value : CleanUrl(url);
 
     /// <summary>The site's answer with only the listings that are one ordinary copy of this item.</summary>
-    public static Listings OnlyThisItem(Item item, Listings r, string source = "")
+    public static Listings OnlyThisItem(Item item, Listings r, string source = "", bool searchedWithFormat = false)
     {
         if (r.Ambiguous) return r;
         var formatSure = FormatSure.Contains(source);
-        var kept = r.All.Where(o => IsOneCopyOf(item, o) && (formatSure || IsTheFilm(item, o.Name))).ToList();
+        var kept = r.All.Where(o => IsOneCopyOf(item, o) && (formatSure || IsTheFilm(item, o.Name, needFormatWord: !searchedWithFormat))).ToList();
         return kept.Count == r.All.Count ? r : ListingParse.Summarise(kept, r.Url) with { Want = r.Want, Have = r.Have };
     }
 
