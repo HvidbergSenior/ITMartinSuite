@@ -159,6 +159,31 @@ public class OneCopyTests
     public void A_film_is_not_a_puzzle_or_a_bundle(string name, bool kept) =>
         KeepFor(new() { Kind = Kinds.Dvd, Title = "Guardians of the Galaxy" }, name).Should().Be(kept);
 
+    // 2026-10-25, Vibeke's test box: real names the hunter kept for the Guardians of the Galaxy DVD.
+    [TestCase("Guardians of the galaxy blueray", false)]                // a Blu-ray is not the DVD
+    [TestCase("Guardians of the Galaxy, DVD, action", true)]
+    [TestCase("Guardians of the Galaxy", false)]                       // no word says it is the film
+    [TestCase("LEGO Guardians of the Galaxy", false)]
+    [TestCase("Halsband Guardians of the Galaxy", false)]
+    [TestCase("Guardians of the Galaxy Rocket Raccoon Plyschleksak", false)]
+    [TestCase("Guardians of the Galaxy #19", false)]
+    [TestCase("Guardians of the Galaxy Vol. 2: Awesome Mix Vol. 2 - Various Artists CD 83VG The", false)]
+    [TestCase("Guardians of the Galaxy | Kühlschrankmagnet | NEU", false)]
+    [TestCase("Guardians of the Galaxy Vol. 2 Gamora Cosplay Costume Outfit Halloween Suit", false)]
+    [TestCase("LEGO Marvel Guardians of the Galaxy Julekalender (76231)", false)]
+    public void A_dvd_listing_must_say_it_is_the_film(string name, bool kept) =>
+        ITMartinLager.Domain.Pricing.OnlyThisItem(new() { Kind = Kinds.Dvd, Title = "Guardians of the Galaxy" },
+            ITMartinLager.Domain.ListingParse.Summarise([new ITMartinLager.Domain.Offer(name, 30, "u")], "u"), "DBA").All.Count.Should().Be(kept ? 1 : 0);
+
+    [TestCase("Racetrack Babies - Love Sick CD", true)]
+    [TestCase("Love Sick by Frank Tallis Hardback Book The Cheap Fast Free Post", false)]
+    [TestCase("Sick Einzelband (Deutsche Ausgabe) Kaze Manga BL Boyslove Oneshot", false)]
+    [TestCase("Banksy Love Sick Girl Erbrechen Valentinstag Herzen Rundhals Baumwolle Herr", false)]
+    [TestCase("Deidra Duncan Love Sick", false)]                         // no artist read - must say it is music
+    public void A_cd_read_without_artist_only_counts_music_listings(string name, bool kept) =>
+        ITMartinLager.Domain.Pricing.OnlyThisItem(new() { Kind = Kinds.Cd, Title = "Love Sick" },
+            ITMartinLager.Domain.ListingParse.Summarise([new ITMartinLager.Domain.Offer(name, 30, "u")], "u"), "eBay").All.Count.Should().Be(kept ? 1 : 0);
+
     [TestCase("The Andrews Sisters - Rum And Coca Cola 20 Greatest Hits", true)]
     public void And_in_the_title_is_not_a_bundle(string name, bool kept) =>
         KeepFor(new() { Kind = Kinds.Cd, Title = "Rum And Coca Cola - 20 Greatest Hits", Artist = "Andrews Sisters" }, name).Should().Be(kept);

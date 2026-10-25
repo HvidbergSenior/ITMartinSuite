@@ -134,7 +134,7 @@ public static partial class Pricing
         [Kinds.Cd] = ["vinyl", "vinil", "schallplatte", "kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
         [Kinds.Vinyl] = ["kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
         [Kinds.Kassette] = ["vinyl", "vinil", "schallplatte", "dvd", "blu", "bluray", "vhs"],
-        [Kinds.Dvd] = ["blu", "bluray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack"],
+        [Kinds.Dvd] = ["blu", "bluray", "blueray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack"],
         [Kinds.BluRay] = ["vhs", "vinyl", "soundtrack"],
         // A comic of the same name is not the TV series, the film or the novel (2026-10-25: "The Walking Dead").
         [Kinds.Tegneserie] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
@@ -180,6 +180,31 @@ public static partial class Pricing
     [System.Text.RegularExpressions.GeneratedRegex(@"[\s(\[/,+-]4k[\s)\]/,.:+-]", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
     private static partial System.Text.RegularExpressions.Regex FourKRx();
 
+    // Sources that only ever answer in the item's own format (a CD search on Accord/Discogs is CDs).
+    public static readonly HashSet<string> FormatSure = ["Discogs", "Accord"];
+
+    private static readonly HashSet<string> FilmWords = ["dvd", "blu", "bluray", "blueray", "film", "movie", "vhs", "disc", "uhd", "dvdfilm"];
+
+    /// <summary>A film listing must say it is a film (2026-10-25, Guardians of the Galaxy DVD: 38 links were LEGO, plush,
+    /// costumes, the soundtrack CD and the comics): a format word, and no CD or comic number ("#19").</summary>
+    // A book or a shirt of the same name is never a record or a film ("Love Sick by Frank Tallis Hardback Book").
+    private static readonly HashSet<string> NotMusicOrFilm = ["book", "hardback", "hardcover", "paperback", "taschenbuch", "buch", "bok",
+        "manga", "roman", "novel", "rundhals", "baumwolle", "hoodie", "tshirt", "sweatshirt"];
+    private static readonly HashSet<string> MusicWords = ["cd", "album", "musik", "music", "single", "maxi", "ep", "lp", "vinyl", "kassette", "cassette"];
+
+    public static bool IsTheFilm(Item item, string listing)
+    {
+        var isMusic = item.Kind is Kinds.Cd or Kinds.Vinyl or Kinds.Kassette;
+        if ((isMusic || item.Kind is Kinds.Dvd or Kinds.BluRay or Kinds.Vhs) && ListingParse.Words(listing).Any(NotMusicOrFilm.Contains)) return false;
+        // A record read without its artist (2026-10-25, "Love Sick"): only listings that say it is music count.
+        if (isMusic && item.Artist.Trim() == "")
+            return System.Text.RegularExpressions.Regex.Matches(listing.ToLowerInvariant(), @"[\p{L}\p{N}]+").Any(m => MusicWords.Contains(m.Value));
+        if (item.Kind is not (Kinds.Dvd or Kinds.BluRay or Kinds.Vhs)) return true;
+        var low = " " + listing.ToLowerInvariant() + " ";
+        if (CdRx().IsMatch(low) || System.Text.RegularExpressions.Regex.IsMatch(low, @"#\s*\d")) return false;
+        return ListingParse.Words(listing).Any(FilmWords.Contains) || System.Text.RegularExpressions.Regex.IsMatch(low, @"\bbd\b|blu-ray|4k");
+    }
+
     public static bool IsOneCopyOf(Item item, Offer o)
     {
         var words = ListingParse.Words(o.Name);
@@ -208,8 +233,12 @@ public static partial class Pricing
         "pressphoto", "card", "cards", "topps", "fleer", "trading", "sticker", "stickers", "klistermærke", "klistermærker", "keychain",
         "nøglering", "schlüsselanhänger", "mug", "zieher", "reissverschluss", "reißverschluss", "billet", "banknote", "print", "anzeige",
         "werbung", "reklame", "patch", "figure", "figur", "actionfigur", "funko",
-        // 2026-10-25: "Guardians of the Galaxy also finds puslespil".
-        "puslespil", "puzzle", "puzzles", "pussel", "palapeli", "brikker", "teile"];
+        // 2026-10-25: "Guardians of the Galaxy also finds puslespil" - and LEGO, plush, costumes, magnets, calendars.
+        "puslespil", "puzzle", "puzzles", "pussel", "palapeli", "brikker", "teile", "lego", "byggesæt", "legetøj", "leksak",
+        "spielzeug", "toy", "toys", "plush", "plysch", "plyschleksak", "bamse", "tøjdyr", "magnet", "kühlschrankmagnet",
+        "køleskabsmagnet", "cosplay", "costume", "kostume", "kostüm", "udklædning", "jacket", "jakke", "jacka", "halsband",
+        "halskæde", "necklace", "julekalender", "adventskalender", "plansch", "filmplansch", "matchbox", "lampe",
+        "lamp", "tæppe", "blanket", "sengetøj", "pude", "kudde", "kissen", "taske", "rygsæk", "pung", "ur"];
     private static readonly HashSet<string> Consoles = ["xbox", "playstation", "ps2", "ps3", "ps4", "ps5", "nintendo", "wii", "gamecube", "psp"];
 
     // "Kasket Karl 15 stk", "2 stk tegneserier" - several copies in one listing ("1 stk" is one).
@@ -296,10 +325,11 @@ public static partial class Pricing
         System.Text.RegularExpressions.Regex.Match(url, @"ebay\.[a-z.]+/itm/(\d+)") is { Success: true } m ? "ebay:" + m.Groups[1].Value : CleanUrl(url);
 
     /// <summary>The site's answer with only the listings that are one ordinary copy of this item.</summary>
-    public static Listings OnlyThisItem(Item item, Listings r)
+    public static Listings OnlyThisItem(Item item, Listings r, string source = "")
     {
         if (r.Ambiguous) return r;
-        var kept = r.All.Where(o => IsOneCopyOf(item, o)).ToList();
+        var formatSure = FormatSure.Contains(source);
+        var kept = r.All.Where(o => IsOneCopyOf(item, o) && (formatSure || IsTheFilm(item, o.Name))).ToList();
         return kept.Count == r.All.Count ? r : ListingParse.Summarise(kept, r.Url) with { Want = r.Want, Have = r.Have };
     }
 

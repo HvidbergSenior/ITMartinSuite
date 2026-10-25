@@ -63,7 +63,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
             try { r = await lookup; } catch (Exception) when (!ct.IsCancellationRequested) { }
             // Sets, graded copies, other series out. New shops too when they were searched by title (2026-10-25: Bog & idé
             // gave "Søde Sally Sukkertop" for "Som i et æventyr") - an ISBN answer is the book itself.
-            if (r is not null && (!source.IsNew || isbn == "")) r = Pricing.OnlyThisItem(item, r);
+            if (r is not null && (!source.IsNew || isbn == "")) r = Pricing.OnlyThisItem(item, r, source.Name);
             answers.Add(new SourceAnswer(source.Name, source.IsNew, r));
         }
         return answers;
