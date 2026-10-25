@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "ITMartinLaes": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5261",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Laes__Pin": "test1234",
+        "Laes__DataDir": "data"
+      }
+    }
+  }
+}

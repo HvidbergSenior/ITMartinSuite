@@ -394,6 +394,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinKunder.Server", "IT
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinKunder.Tests", "ITMartinKunder.Tests\ITMartinKunder.Tests.csproj", "{7A4AA720-31AD-43D1-BA6D-FA1B54BC1B29}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLaes.Domain", "ITMartinLaes.Domain\ITMartinLaes.Domain.csproj", "{CA77DB2E-BA6C-4637-A2CA-7EA812F39572}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLaes.Application", "ITMartinLaes.Application\ITMartinLaes.Application.csproj", "{12F72C49-09B2-4012-9867-16643D4D51C7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLaes.Infrastructure", "ITMartinLaes.Infrastructure\ITMartinLaes.Infrastructure.csproj", "{D1093C26-536A-44C2-BD4A-64B8CABAC8B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLaes.Server", "ITMartinLaes.Server\ITMartinLaes.Server.csproj", "{72FCC573-D68F-4627-BA2D-B8C0587C7218}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLaes.Tests", "ITMartinLaes.Tests\ITMartinLaes.Tests.csproj", "{DB66ED66-857F-4ED7-BABA-FD624AA11028}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -1167,5 +1177,25 @@ Global
 		{7A4AA720-31AD-43D1-BA6D-FA1B54BC1B29}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7A4AA720-31AD-43D1-BA6D-FA1B54BC1B29}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7A4AA720-31AD-43D1-BA6D-FA1B54BC1B29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA77DB2E-BA6C-4637-A2CA-7EA812F39572}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA77DB2E-BA6C-4637-A2CA-7EA812F39572}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA77DB2E-BA6C-4637-A2CA-7EA812F39572}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA77DB2E-BA6C-4637-A2CA-7EA812F39572}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12F72C49-09B2-4012-9867-16643D4D51C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12F72C49-09B2-4012-9867-16643D4D51C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12F72C49-09B2-4012-9867-16643D4D51C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12F72C49-09B2-4012-9867-16643D4D51C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1093C26-536A-44C2-BD4A-64B8CABAC8B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1093C26-536A-44C2-BD4A-64B8CABAC8B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1093C26-536A-44C2-BD4A-64B8CABAC8B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1093C26-536A-44C2-BD4A-64B8CABAC8B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72FCC573-D68F-4627-BA2D-B8C0587C7218}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72FCC573-D68F-4627-BA2D-B8C0587C7218}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72FCC573-D68F-4627-BA2D-B8C0587C7218}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72FCC573-D68F-4627-BA2D-B8C0587C7218}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DB66ED66-857F-4ED7-BABA-FD624AA11028}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DB66ED66-857F-4ED7-BABA-FD624AA11028}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DB66ED66-857F-4ED7-BABA-FD624AA11028}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DB66ED66-857F-4ED7-BABA-FD624AA11028}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

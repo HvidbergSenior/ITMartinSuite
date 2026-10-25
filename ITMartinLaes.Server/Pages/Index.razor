@@ -1,0 +1,55 @@
+@page "/"
+@inject Shelf Shelf
+
+<PageTitle>Mine bøger – Kolibri Læs</PageTitle>
+
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">📚 Mine bøger</h1>
+    <p>Her er dine PDF-bøger. Tryk på en bog for at læse den eller se resuméet.</p>
+    @if (_books is null)
+    {
+        <p class="ls-small">Henter ...</p>
+    }
+    else if (_books.Count == 0)
+    {
+        <p>Hylden er tom. Læg din første bog på herunder.</p>
+    }
+    else
+    {
+        <div class="ls-shelf">
+            @foreach (var b in _books)
+            {
+                <a class="k-btn k-btn-secondary ls-book" href="/bog/@b.Id">
+                    <b>@b.Title</b>
+                    <span class="ls-small">@b.Pages sider@(b.ReadAt is not null ? $" · du er på side {b.LastPage}" : "")</span><br />
+                    <span class="ls-small">@StateText(b)</span>
+                </a>
+            }
+        </div>
+    }
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">➕ Læg en bog på hylden</h2>
+    <p>Vælg en PDF fra din computer eller telefon (højst 300 MB). Bogen gemmes på din egen server, og AI'en begynder at lave resuméet med det samme.</p>
+    @if (!string.IsNullOrEmpty(Fejl)) { <p class="ls-warn" role="alert">⚠ @Fejl</p> }
+    <form method="post" action="/api/bog" enctype="multipart/form-data" class="ls-row">
+        <input type="file" name="pdf" accept="application/pdf,.pdf" class="k-input" required />
+        <button class="k-btn k-btn-primary" type="submit">Læg på hylden</button>
+    </form>
+    <p class="ls-small">En stor bog tager lidt tid at sende – vent, til siden skifter.</p>
+</section>
+
+@code {
+    [SupplyParameterFromQuery] public string? Fejl { get; set; }
+    private List<Book>? _books;
+
+    protected override async Task OnInitializedAsync() => _books = await Shelf.AllAsync();
+
+    private static string StateText(Book b) => b.State switch
+    {
+        SummaryState.Klar => "✓ Resumé klar",
+        SummaryState.Fejl => "⚠ Resuméet kunne ikke laves",
+        _ => $"AI'en læser bogen ({Summaries.Progress(b).Done} af {Summaries.Progress(b).All})",
+    };
+}

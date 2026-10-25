@@ -1,0 +1,39 @@
+@page "/bog/{Id:guid}/laes"
+@layout EmptyLayout
+@implements IAsyncDisposable
+@inject Shelf Shelf
+@inject IJSRuntime JS
+
+<PageTitle>@(_book?.Title ?? "Bog") – Kolibri Læs</PageTitle>
+
+@* The reader (book.js, the pages as pictures from the server): the pages fill the screen, two side by side when there is room. Arrows, the arrow keys
+   or a swipe turn the page; the page is saved, so "Læs videre" starts there. *@
+<div class="ls-reader">
+    <div class="ls-reader-bar">
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/bog/@Id">← Tilbage</a>
+        <button class="k-btn k-btn-secondary" onclick="book.prev()" aria-label="Forrige side">◀</button>
+        <button class="k-btn k-btn-secondary" onclick="book.next()" aria-label="Næste side">▶</button>
+        <span class="ls-pageno" id="ls-pageno" role="status">@(_book is null ? "" : $"Side {Side} af {_book.Pages}")</span>
+    </div>
+    <div class="ls-spread" id="ls-spread"></div>
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [SupplyParameterFromQuery(Name = "side")] public int Side { get; set; } = 1;
+    private Book? _book;
+
+    protected override async Task OnInitializedAsync() => _book = await Shelf.GetAsync(Id);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _book is null) return;
+        try { await JS.InvokeVoidAsync("book.open", $"/api/bog/{Id}/side/", $"/api/bog/{Id}/side/", Math.Max(1, Side), _book.Pages); }
+        catch (JSDisconnectedException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("book.close"); } catch (Exception) { }
+    }
+}

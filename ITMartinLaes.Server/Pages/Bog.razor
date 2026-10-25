@@ -1,0 +1,134 @@
+@page "/bog/{Id:guid}"
+@implements IDisposable
+@inject Shelf Shelf
+@inject NavigationManager Nav
+
+<PageTitle>@(_book?.Title ?? "Bog") – Kolibri Læs</PageTitle>
+
+@if (_book is null)
+{
+    <section class="k-card" data-nofold>
+        <h1 class="k-card-title">@(_loaded ? "Bogen findes ikke" : "Henter ...")</h1>
+        @if (_loaded) { <a class="k-btn k-btn-primary" href="/">Til Mine bøger</a> }
+    </section>
+}
+else
+{
+    <section class="k-card" data-nofold>
+        <h1 class="k-card-title">📖 @_book.Title</h1>
+        <p class="ls-small">@_book.Pages sider@(_book.ReadAt is not null ? $" · du kom til side {_book.LastPage}" : "")</p>
+        <div class="ls-row">
+            <a class="k-btn k-btn-primary ls-big" href="/bog/@_book.Id/laes?side=@_book.LastPage">📖 @(_book.ReadAt is null ? "Læs bogen" : $"Læs videre fra side {_book.LastPage}")</a>
+            @if (_book.ReadAt is not null) { <a class="k-btn k-btn-secondary" href="/bog/@_book.Id/laes?side=1">Fra begyndelsen</a> }
+        </div>
+    </section>
+
+    <section class="k-card" data-nofold>
+        <h2 class="k-card-title">📝 Resumé</h2>
+        @switch (_book.State)
+        {
+            case SummaryState.Klar:
+                <p style="white-space: pre-line">@_book.Summary</p>
+                break;
+            case SummaryState.Fejl:
+                <p class="ls-warn" role="alert">⚠ @_book.Error</p>
+                <button class="k-btn k-btn-secondary" @onclick="Again">Prøv igen</button>
+                break;
+            default:
+                var (done, all) = Summaries.Progress(_book);
+                <p role="status">AI'en læser bogen – del @done af @all. Resuméet kommer af sig selv; du kan bare læse imens.</p>
+                <progress class="ls-progress" max="@all" value="@done"></progress>
+                break;
+        }
+    </section>
+
+    @if (_book.State == SummaryState.Klar && _book.Points.Count > 0)
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">⭐ De vigtigste pointer</h2>
+            <ol class="ls-points">
+                @foreach (var p in _book.Points) { <li>@p</li> }
+            </ol>
+        </section>
+    }
+
+    @if (_book.State == SummaryState.Klar && _book.Chapters.Count > 0)
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">📑 Kapitlerne</h2>
+            <p class="ls-small">Tryk Gå til siden for at læse kapitlet i bogen.</p>
+            @foreach (var c in _book.Chapters)
+            {
+                <div class="ls-chapter">
+                    <h3>@c.Title <span class="ls-small">· side @c.Page</span></h3>
+                    @if (c.Text != "") { <p>@c.Text</p> }
+                    <a class="k-btn k-btn-secondary k-btn-sm" href="/bog/@_book.Id/laes?side=@c.Page">Gå til siden</a>
+                </div>
+            }
+        </section>
+    }
+
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">⚙️ Bogen</h2>
+        <label class="k-label" for="ls-title">Titel</label>
+        <input id="ls-title" class="k-input" value="@_book.Title" maxlength="@Book.MaxTitle" @onchange="Rename" />
+        <div class="ls-row">
+            @if (_book.State == SummaryState.Klar) { <button class="k-btn k-btn-secondary" @onclick="Again">Lav resuméet igen</button> }
+            @if (!_confirmDelete)
+            {
+                <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = true">Tag bogen af hylden</button>
+            }
+            else
+            {
+                <button class="k-btn k-btn-danger" @onclick="Remove">Ja, slet @_book.Title</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = false">Nej</button>
+            }
+        </div>
+        <p class="ls-small">Resuméet har brugt @_book.Calls AI-kald.</p>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private Book? _book;
+    private bool _loaded, _confirmDelete;
+    private System.Threading.Timer? _poll;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+        // While the AI reads, look again every 15 s so the progress moves and the summary shows up by itself.
+        _poll = new System.Threading.Timer(_ => InvokeAsync(async () =>
+        {
+            if (_book is null || _book.State is SummaryState.Klar or SummaryState.Fejl) return;
+            await Load();
+            StateHasChanged();
+        }), null, 15000, 15000);
+    }
+
+    private async Task Load()
+    {
+        _book = await Shelf.GetAsync(Id);
+        _loaded = true;
+    }
+
+    private async Task Rename(ChangeEventArgs e)
+    {
+        await Shelf.RenameAsync(Id, e.Value?.ToString() ?? "");
+        await Load();
+    }
+
+    private async Task Again()
+    {
+        await Shelf.SummariseAgainAsync(Id);
+        await Load();
+    }
+
+    private async Task Remove()
+    {
+        await Shelf.RemoveAsync(Id);
+        Nav.NavigateTo("/");
+    }
+
+    public void Dispose() => _poll?.Dispose();
+}
