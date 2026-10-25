@@ -34,8 +34,9 @@ builder.Services.AddKolibri(k =>
         "Læg 10-20 ting fra kassen ud med forsiden op, og tryk 📸 Tag billede. Gentag til kassen er tom. Stregkoder kan også scannes – bip, næste.",
         "Tryk ✓ Kassen er færdig – så kan du tage den næste kasse.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
+        "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«.",
     ];
-    k.Version = "2026.10.24";
+    k.Version = "2026.10.25";
     k.ThemeColor = "#f4f6f5";
 });
 

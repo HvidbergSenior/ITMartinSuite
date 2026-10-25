@@ -31,8 +31,11 @@ window.scanner = {
         }
         if (!this.stream) throw lastError || new Error("Ingen adgang til kameraet");
 
-        this.video.srcObject = this.stream;
+        // iPhone Safari plays a camera without a tap only when the muted PROPERTY is set (2026-10-25).
+        this.video.muted = true; this.video.autoplay = true; this.video.playsInline = true;
+        this.video.setAttribute("muted", "");
         this.video.setAttribute("playsinline", "true");
+        this.video.srcObject = this.stream;
         await this.video.play();
 
         var track = this.stream.getVideoTracks()[0];

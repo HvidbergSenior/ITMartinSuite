@@ -138,10 +138,9 @@ window.photoQueue = {
             var caps = track.getCapabilities ? track.getCapabilities() : null;
             if (caps && caps.focusMode && caps.focusMode.indexOf("continuous") >= 0) await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
         } catch (e) { }
-        video.srcObject = this.cam.stream;
         panel.hidden = false;
         button.hidden = true;
-        await video.play().catch(function () { });
+        await this.startVideo(video, this.cam.stream);
         await this.tools(track);
     },
 
@@ -202,9 +201,23 @@ window.photoQueue = {
         } catch (e) { this.cam.stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } }, audio: false }); }
         var track = this.cam.stream.getVideoTracks()[0];
         this.cam.capture = "ImageCapture" in window ? new ImageCapture(track) : null;
-        video.srcObject = this.cam.stream;
-        await video.play().catch(function () { });
+        await this.startVideo(video, this.cam.stream);
         await this.tools(track);
+    },
+
+    // iPhone Safari (2026-10-25: a helper saw no picture): Blazor sets "muted" only as an attribute, not the
+    // muted property, and the tap is used up by the getUserMedia wait - so Safari refuses play() and the box stays black.
+    // Set the properties ourselves; if Safari still refuses, one tap on the box starts it.
+    async startVideo(video, stream) {
+        var note = document.getElementById("foto-cam-note");
+        video.muted = true; video.defaultMuted = true; video.autoplay = true; video.playsInline = true;
+        video.setAttribute("muted", ""); video.setAttribute("playsinline", ""); video.setAttribute("webkit-playsinline", "");
+        video.srcObject = stream;
+        try { await video.play(); }
+        catch (e) {
+            if (note) note.textContent = "Tryk på det sorte felt for at se kameraet.";
+            video.addEventListener("click", function () { video.play().then(function () { if (note) note.textContent = ""; }).catch(function () { }); }, { once: true });
+        }
     },
 
     async shoot() {
