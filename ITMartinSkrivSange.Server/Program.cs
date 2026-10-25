@@ -35,12 +35,14 @@ builder.Services.AddKolibri(k =>
         "Tryk på en akkord for at skifte den ud eller sætte en ny ind efter den.",
         "Vælg spillemåde (slag, pluk eller kombi), og tryk Spil for at høre en del. Skriv tekstnoter under akkorderne - det gemmes af sig selv.",
         "Optag: tryk Optag, vent 2 sekunder før du spiller (så lærer appen rummets lyd og fjerner den), og spil. Optagelsen kommer under knappen.",
+        "Del en optagelse: tryk Del ved den - så får du et link, som familie og venner kan lytte på uden kode. Del det ikke offentligt, når sangen er en andens.",
     ];
     k.Version = "2026.10.25";
 });
 
 builder.Services.AddSkrivSangeInfrastructure(builder.Configuration);
 builder.Services.AddSkrivSangeApplication();
+builder.Services.AddSingleton(new ShareLinks((builder.Configuration["StudioSettings:AccessCode"] ?? "").Trim().ToLowerInvariant()));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
@@ -63,7 +65,7 @@ app.Use(async (ctx, next) =>
     var p = ctx.Request.Path.Value ?? "";
     var open = p == "/" || p.StartsWith("/api/login") || p.StartsWith("/_framework") || p.StartsWith("/_content")
             || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
-            || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.StartsWith("/Error")
+            || p.StartsWith("/health") || p == "/lyt" || p == "/lyt/lyd" || p.StartsWith("/manifest.webmanifest") || p.StartsWith("/Error")
             || p.EndsWith(".css") || p.EndsWith(".js") || p.EndsWith(".svg") || p.EndsWith(".png");
     if (p == "/" && LoggedIn(ctx)) { ctx.Response.Redirect("/sange"); return; }
     if (open || LoggedIn(ctx)) { await next(); return; }
@@ -88,6 +90,7 @@ app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "kode")] string typ
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("skrivsange_auth"); return Results.Redirect("/"); });
 
 app.MapMusicFiles();
+app.MapShareLinks();
 
 app.UseAntiforgery();
 app.MapRazorComponents<App>()

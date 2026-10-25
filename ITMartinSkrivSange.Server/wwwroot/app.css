@@ -102,7 +102,9 @@ button.ss-grip { display: inline-flex; flex-direction: column; align-items: cent
 .ss-speed { width: auto; }
 .ss-inline { margin: 0; }
 .ss-check { display: inline-flex; gap: .35rem; align-items: center; }
-.ss-take { display: grid; grid-template-columns: auto 1fr auto; gap: .5rem; align-items: center; margin: .3rem 0; }
+.ss-take { display: grid; grid-template-columns: auto 1fr auto auto; gap: .5rem; align-items: center; margin: .3rem 0; }
+.ss-share { margin: .2rem 0 .8rem; }
+.ss-share .k-input { width: 100%; }
 @media (max-width: 560px) { .ss-take { grid-template-columns: 1fr auto; } .ss-take audio { grid-column: 1 / -1; } }
 
 /* Add/remove chords on the fly: a small x on each tile, a + tile at the end. */

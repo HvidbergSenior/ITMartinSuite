@@ -3,6 +3,7 @@
 @inject SongWriting Writing
 @inject Practice Practice
 @inject IJSRuntime JS
+@inject ShareLinks Links
 
 <PageTitle>@(_song?.Title ?? "Sang") - SkrivSange</PageTitle>
 
@@ -404,8 +405,16 @@ else
                         <div class="ss-take">
                             <span class="k-muted ss-small">@take.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")</span>
                             <audio controls preload="none" src="/stream?path=@Uri.EscapeDataString(take.RelativePath)" class="ss-audio"></audio>
+                            <button class="k-btn k-btn-secondary k-btn-sm" @onclick="() => Share(take)">Del</button>
                             <button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => DeleteTake(take)">Slet</button>
                         </div>
+                        @if (_shared == take.RelativePath)
+                        {
+                            <div class="ss-share">
+                                <p class="ss-small">@_sharedNote Send linket til familie og venner – de kan lytte uden kode. Del det ikke offentligt (sangen er en andens).</p>
+                                <input class="k-input" readonly value="@Links.Url(Nav.BaseUri, take.RelativePath)" aria-label="Link til optagelsen" onclick="this.select()" />
+                            </div>
+                        }
                     }
                     @if (takes.Count == 0) { <p class="k-muted ss-small">Ingen optagelser af @part.Label.ToLowerInvariant() endnu.</p> }
                 </div>
@@ -786,6 +795,21 @@ else
         await Stop();
         try { await JS.InvokeVoidAsync("studio.stopRecording"); } catch (JSException) { }
         _recordingPart = null;   // studio.stopRecording waits for the upload, so the new take is on disk now
+    }
+
+    // "Del": a private listen link for this one take, copied straight away when the browser allows it.
+    private string? _shared;
+    private string _sharedNote = "";
+
+    private async Task Share(RecordingFile take)
+    {
+        _shared = take.RelativePath;
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Links.Url(Nav.BaseUri, take.RelativePath));
+            _sharedNote = "Linket er kopieret.";
+        }
+        catch { _sharedNote = "Kopiér linket herunder."; }
     }
 
     private void DeleteTake(RecordingFile take)
