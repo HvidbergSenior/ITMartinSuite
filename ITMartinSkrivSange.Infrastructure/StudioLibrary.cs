@@ -14,6 +14,19 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
     private string RecordingsDir => Path.Combine(root, "recordings");
     private string MetaDir => Path.Combine(root, "meta");
     private string SketchesDir => Path.Combine(root, "sketches");
+    // The koncert gallery (gallery.itmartin.dk/?g=koncert) shows this folder, read-only.
+    private string GalleryDir => Path.Combine(root, "Udgivet");
+
+    public bool InGallery(string fileName) => File.Exists(Path.Combine(GalleryDir, fileName));
+
+    public string? CopyToGallery(string relativePath, string name)
+    {
+        if (Resolve(relativePath) is not { } full) return null;
+        Directory.CreateDirectory(GalleryDir);
+        var fileName = name + Path.GetExtension(full);
+        File.Copy(full, Path.Combine(GalleryDir, fileName), overwrite: false);
+        return fileName;
+    }
 
     public string StemsDir(string songKey) => Path.Combine(root, "stems", songKey);
 

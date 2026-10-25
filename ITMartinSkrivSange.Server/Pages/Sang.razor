@@ -413,6 +413,15 @@ else
                             <div class="ss-share">
                                 <p class="ss-small">@_sharedNote Send linket til familie og venner – de kan lytte uden kode. Del det ikke offentligt (sangen er en andens).</p>
                                 <input class="k-input" readonly value="@Links.Url(Nav.BaseUri, take.RelativePath)" aria-label="Link til optagelsen" onclick="this.select()" />
+                                @if (_inGallery is null)
+                                {
+                                    <button class="k-btn k-btn-secondary k-btn-sm k-mt" @onclick="() => PutInGallery(take)">Læg i koncert-galleriet</button>
+                                    <p class="k-muted ss-small">Så kommer den med i dit galleri (gallery.itmartin.dk/?g=koncert, med kode) ved siden af dine andre sange.</p>
+                                }
+                                else
+                                {
+                                    <p class="ss-small" role="status">@_inGallery</p>
+                                }
                             </div>
                         }
                     }
@@ -805,9 +814,24 @@ else
     private string? _shared;
     private string _sharedNote = "";
 
+    private string? _inGallery;
+
+    private void PutInGallery(RecordingFile take)
+    {
+        if (_song is null) return;
+        try
+        {
+            _inGallery = Practice.PutInGallery(_song, take) is { } name
+                ? $"✓ Lagt i koncert-galleriet som »{name}«. Se den på gallery.itmartin.dk/?g=koncert."
+                : "Optagelsen findes ikke længere.";
+        }
+        catch (IOException ex) { _inGallery = "Kunne ikke lægge den i galleriet: " + ex.Message; }
+    }
+
     private async Task Share(RecordingFile take)
     {
         _shared = take.RelativePath;
+        _inGallery = null;
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", Links.Url(Nav.BaseUri, take.RelativePath));

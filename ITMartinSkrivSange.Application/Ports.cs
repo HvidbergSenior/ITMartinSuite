@@ -54,6 +54,10 @@ public interface IStudioLibrary
     List<SketchFile> GetSketches(string songKey);
     Task<string> SaveSketchAsync(string songKey, Stream content, string? contentType);
     bool Delete(string relativePath);
+    /// <summary>Copies a take into the koncert gallery's folder (Udgivet) as name + its extension. Returns the file name,
+    /// or null when the take is gone.</summary>
+    string? CopyToGallery(string relativePath, string name);
+    bool InGallery(string fileName);
 }
 
 // Demucs (Python) - splits a song into vocals and instrumental. Not installed in the light container.

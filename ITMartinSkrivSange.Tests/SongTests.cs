@@ -409,6 +409,18 @@ public class FollowOnTests
     }
 }
 
+public class GalleryNameTests
+{
+    [Test]
+    public void A_take_gets_the_song_title_and_a_number_when_the_name_is_taken()
+    {
+        var taken = new HashSet<string> { "Du Er (Søren Huss).mp3", "Du Er (Søren Huss) 2.mp3" };
+        ITMartinSkrivSange.Application.Practice.GalleryName("Space Oddity (David Bowie)", ".mp3", taken.Contains).Should().Be("Space Oddity (David Bowie)");
+        ITMartinSkrivSange.Application.Practice.GalleryName("Du Er (Søren Huss)", ".mp3", taken.Contains).Should().Be("Du Er (Søren Huss) 3");
+        ITMartinSkrivSange.Application.Practice.GalleryName("AC/DC", ".mp3", _ => false).Should().Be("ACDC");
+    }
+}
+
 public class TakeGainTests
 {
     [TestCase("[Parsed_volumedetect_0 @ 0x55] mean_volume: -46.2 dB\n[Parsed_volumedetect_0 @ 0x55] max_volume: -22.4 dB", 20.9)]

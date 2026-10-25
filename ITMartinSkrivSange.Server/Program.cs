@@ -37,6 +37,7 @@ builder.Services.AddKolibri(k =>
         "Vælg spillemåde (slag, pluk eller kombi), og tryk Spil for at høre en del. Skriv tekstnoter under akkorderne - det gemmes af sig selv.",
         "Optag: tryk Optag, vent 2 sekunder før du spiller (så lærer appen rummets lyd og fjerner den), og spil. Optagelsen kommer under knappen.",
         "Del en optagelse: tryk Del ved den - så får du et link, som familie og venner kan lytte på uden kode. Del det ikke offentligt, når sangen er en andens.",
+        "Vil du have den i dit galleri: tryk Del og så Læg i koncert-galleriet. Den kommer med på gallery.itmartin.dk/?g=koncert under sangens navn.",
     ];
     k.Version = "2026.10.25";
 });
