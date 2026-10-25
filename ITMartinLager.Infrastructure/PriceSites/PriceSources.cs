@@ -43,27 +43,11 @@ internal static class PriceSourceRegistration
         Add(sp => Used(sp.GetRequiredService<GulogGratisListings>(), ""));
         Add(sp => new PriceSource("eBay", false, "", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i))));
-        // American comics (superhero comics above all) and merchandise sell in dollars - eBay's US site.
-        Add(sp => new PriceSource("eBay USA", false, "USA", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct, "EBAY_US"),
-            (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i), "EBAY_US"), [Kinds.Tegneserie, Kinds.Superhelte, Kinds.Merch]));
-        // HipComic tried 2026-10-12: its Cloudflare check answers 403 to every .NET client (curl gets in) - left out.
-        // CDs, records and tapes: Discogs, the record collectors' market - copies for sale and the lowest price, in kroner.
-        // One source per format, so a record is searched as vinyl and a tape as a cassette - only the one that fits runs.
-        foreach (var (kind, format) in new[] { (Kinds.Cd, DiscogsListings.Cd), (Kinds.Vinyl, DiscogsListings.Vinyl), (Kinds.Kassette, DiscogsListings.Cassette) })
-            Add(sp => new PriceSource("Discogs", false, "", (t, a, i, ct) => sp.GetRequiredService<DiscogsListings>().LookupAsync(t, a, ct, format),
-                (t, a, i) => DiscogsListings.SearchUrl(t, a, format), [kind]));
+        // 2026-10-25 (user: "the finnish ones should be removed ... actually i want Danish, Tradera and One from ebay"):
+        // eBay USA, Discogs, Blocket, Finn.no, Tori.fi, Kleinanzeigen, AbeBooks, ZVAB and Bokbörsen are out. Their
+        // classes stay, so one can come back with one line here.
         Add(sp => new PriceSource("Tradera", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<TraderaListings>().LookupAsync(t, a, i, ct),
             (t, a, i) => TraderaListings.SearchUrl(QOrIsbn(t, a, i))));
-        Add(sp => Used(sp.GetRequiredService<BlocketListings>(), "Sverige"));
-        Add(sp => Used(sp.GetRequiredService<FinnListings>(), "Norge"));
-        Add(sp => Used(sp.GetRequiredService<ToriListings>(), "Finland"));
-        Add(sp => Used(sp.GetRequiredService<KleinanzeigenListings>(), "Tyskland"));
-        Add(sp => new PriceSource("AbeBooks", false, "", (t, a, i, ct) => sp.GetRequiredService<AbeBooksListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => AbeBooksListings.SearchUrl(QOrIsbn(t, a, i)), Pricing.AntiquarianKinds));
-        Add(sp => new PriceSource("ZVAB", false, "Tyskland", (t, a, i, ct) => sp.GetRequiredService<ZvabListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => ZvabListings.SearchUrl(QOrIsbn(t, a, i)), Pricing.AntiquarianKinds));
-        Add(sp => new PriceSource("Bokbörsen", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<BokborsenListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => BokborsenListings.SearchUrl(QOrIsbn(t, a, i)), Pricing.AntiquarianKinds));
         Add(sp => new PriceSource("Nemos Bibliotek", false, "", (t, a, i, ct) => sp.GetRequiredService<NemosListings>().LookupAsync(t, a, ct),
             (t, a, i) => NemosListings.SearchUrl(t), paper));
         Add(sp => new PriceSource("Faraos", false, "", (t, a, i, ct) => sp.GetRequiredService<FaraosListings>().LookupAsync(t, a, ct),

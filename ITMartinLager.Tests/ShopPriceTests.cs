@@ -146,6 +146,23 @@ public class OneCopyTests
     public void Several_copies_in_one_listing_are_not_one_copy(string name, bool kept) =>
         KeepFor(new() { Kind = Kinds.Tegneserie, Title = "Kasket Karl – Med på den værste" }, name).Should().Be(kept);
 
+    // 2026-10-25: "Guardians of the Galaxy also finds puslespil" + "if the price is for the product plus anything else".
+    [TestCase("Guardians of the Galaxy DVD", true)]
+    [TestCase("Guardians of the Galaxy puslespil 1000 brikker", false)]
+    [TestCase("Guardians of the Galaxy Puzzle 500 Teile", false)]
+    [TestCase("Guardians of the Galaxy + Avengers DVD", false)]
+    [TestCase("Guardians of the Galaxy og Avengers Endgame", false)]
+    [TestCase("Guardians of the Galaxy & Thor Ragnarok", false)]
+    [TestCase("Guardians of the Galaxy inkl. plakat", false)]
+    [TestCase("Guardians of the Galaxy med danske undertekster", true)]
+    [TestCase("Guardians of the Galaxy dvd med cover og booklet", true)]
+    public void A_film_is_not_a_puzzle_or_a_bundle(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Dvd, Title = "Guardians of the Galaxy" }, name).Should().Be(kept);
+
+    [TestCase("The Andrews Sisters - Rum And Coca Cola 20 Greatest Hits", true)]
+    public void And_in_the_title_is_not_a_bundle(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Cd, Title = "Rum And Coca Cola - 20 Greatest Hits", Artist = "Andrews Sisters" }, name).Should().Be(kept);
+
     [Test]
     public void Links_lose_the_tracking_bits_and_one_ebay_listing_is_one_link()
     {

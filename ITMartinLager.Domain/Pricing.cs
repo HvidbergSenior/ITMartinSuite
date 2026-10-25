@@ -188,6 +188,7 @@ public static partial class Pricing
         if (item.Kind != Kinds.Merch && words.Any(w => NotTheThing.Contains(w) || (w == "magazine" && item.Kind != Kinds.Magasin))) return false;
         if (item.Kind != Kinds.Konsolspil && words.Any(Consoles.Contains)) return false;
         if (!AboutThis(item, words)) return false;
+        if (item.Kind != Kinds.Merch && WithSomethingElse(item, o.Name)) return false;
         // A comic with an issue number: the title must come first (after brand/creator words) - "Edge of X" is another series.
         if (item.Kind is Kinds.Tegneserie or Kinds.Superhelte && item.Number.Trim() != "")
         {
@@ -206,7 +207,9 @@ public static partial class Pricing
     private static readonly HashSet<string> NotTheThing = ["cap", "caps", "hat", "hoodie", "shirt", "tshirt", "pressefoto", "pressefotos",
         "pressphoto", "card", "cards", "topps", "fleer", "trading", "sticker", "stickers", "klistermærke", "klistermærker", "keychain",
         "nøglering", "schlüsselanhänger", "mug", "zieher", "reissverschluss", "reißverschluss", "billet", "banknote", "print", "anzeige",
-        "werbung", "reklame", "patch", "figure", "figur", "actionfigur", "funko"];
+        "werbung", "reklame", "patch", "figure", "figur", "actionfigur", "funko",
+        // 2026-10-25: "Guardians of the Galaxy also finds puslespil".
+        "puslespil", "puzzle", "puzzles", "pussel", "palapeli", "brikker", "teile"];
     private static readonly HashSet<string> Consoles = ["xbox", "playstation", "ps2", "ps3", "ps4", "ps5", "nintendo", "wii", "gamecube", "psp"];
 
     // "Kasket Karl 15 stk", "2 stk tegneserier" - several copies in one listing ("1 stk" is one).
@@ -243,6 +246,44 @@ public static partial class Pricing
             if (series.Count > 0 && !series.Any(main.Contains) && !series.Any(Has)) return false;
         }
         return true;
+    }
+
+    // The product plus something else in one listing (user 2026-10-25: "if the price is for the product plus anything else
+    // it should be handled"): "+", "inkl." ... always mean more than the product; "og"/"&"/"with" only when what follows
+    // is not part of our own title or artist ("Rum And Coca Cola" stays one product).
+    private static readonly HashSet<string> AlwaysMore = ["inkl", "inklusiv", "inklusive", "incl", "including", "inclusive", "plus",
+        "samt", "medfølger", "følger", "extras", "ekstra", "zubehör", "tillbehör", "tilbehør"];
+    private static readonly HashSet<string> Joins = ["og", "and", "und", "och", "with", "med", "mit"];
+    // Words a seller adds about the copy itself - not another product after "og"/"med".
+    private static readonly HashSet<string> AboutTheCopy = ["cover", "omslag", "booklet", "hæfte", "cd", "dvd", "case", "æske", "kasse",
+        "kassette", "box", "originalt", "original", "orig", "tekst", "tekstark", "plastik", "folie", "kvittering", "stand", "god", "fin",
+        "pæn", "ny", "brugt", "ubrugt", "uåbnet", "forseglet", "sealed", "danske", "dansk", "tekster", "undertekster", "subtitles",
+        "bonus", "ekstramateriale", "special", "edition", "udgave", "version", "slipcover", "sleeve", "insert", "inlay"];
+
+    /// <summary>Does the listing sell more than this one product?</summary>
+    public static bool WithSomethingElse(Item item, string listing)
+    {
+        if (System.Text.RegularExpressions.Regex.IsMatch(listing, @"\s\+\s|\s\+\d|\bm/\s*\w")) return true;
+        var all = System.Text.RegularExpressions.Regex.Matches(listing.ToLowerInvariant(), @"[\p{L}\p{N}]+").Select(m => m.Value).ToList();
+        if (all.Any(AlwaysMore.Contains)) return true;
+        var ours = ListingParse.Words($"{CleanTitle(item.Title)} {item.Artist} {item.Series}").ToHashSet();
+        var raw = $" {CleanTitle(item.Title)} {item.Artist} {item.Series} ".ToLowerInvariant();
+        for (var i = 0; i < all.Count - 1; i++)
+        {
+            var w = all[i];
+            if (!Joins.Contains(w) || raw.Contains($" {w} ")) continue;
+            var after = all.Skip(i + 1).Where(x => x.Length >= 3 && !ListingParse.IsNumber(x)).ToList();
+            var other = after.Where(x => !ours.Contains(x) && !AboutTheCopy.Contains(x)).ToList();
+            if (other.Count >= 2) return true;
+        }
+        // "Guardians of the Galaxy & Avengers": an ampersand before words that are not ours.
+        var amp = listing.IndexOf(" & ", StringComparison.Ordinal);
+        if (amp > 0 && !raw.Contains(" & "))
+        {
+            var after = ListingParse.Words(listing[(amp + 3)..]).Where(x => !ListingParse.IsNumber(x)).ToList();
+            if (after.Count(x => !ours.Contains(x) && !AboutTheCopy.Contains(x)) >= 2) return true;
+        }
+        return false;
     }
 
     /// <summary>"https://www.ebay.de/itm/306342744192?_skw=...&hash=..." -> "https://www.ebay.de/itm/306342744192": the

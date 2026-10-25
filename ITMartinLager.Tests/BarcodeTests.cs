@@ -58,10 +58,9 @@ public class DiscogsFormatTests
         return services.BuildServiceProvider().GetServices<ITMartinLager.Application.IPriceSource>().ToList();
     }
 
-    [TestCase("CD", "format_exact=CD")]
-    [TestCase("Vinyl", "format_exact=Vinyl")]
-    [TestCase("Kassettebånd", "format_exact=Cassette")]
-    public void Each_music_kind_gets_one_Discogs_search_in_its_own_format(string kind, string url) =>
-        Sources().Where(s => s.Name == "Discogs" && s.Fits(kind)).Should().ContainSingle()
-            .Which.SearchUrl("Midt om natten", "Kim Larsen", "").Should().Contain(url);
+    // 2026-10-25 (user): "Danish, Tradera and One from ebay" - nothing else is searched.
+    [Test]
+    public void Only_the_Danish_sites_Tradera_and_one_eBay_are_searched() =>
+        Sources().Select(s => s.Name).Distinct().Should().BeEquivalentTo(
+            ["DBA", "GulogGratis", "eBay", "Tradera", "Nemos Bibliotek", "Faraos", "Bog & idé"]);
 }
