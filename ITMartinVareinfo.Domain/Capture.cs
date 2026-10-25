@@ -35,6 +35,8 @@ public sealed class BoxClaim
 {
     public static readonly TimeSpan Idle = TimeSpan.FromHours(2);
     public const int MaxNumber = 9999;
+    /// <summary>The highest number a helper can type - above it are the personal test boxes.</summary>
+    public const int MaxNormal = BoxCodes.FirstTest - 1;
 
     public string BoxCode { get; set; } = "";    // K0007 = NR 7 written on the box
     public int HelperId { get; set; }
@@ -44,6 +46,7 @@ public sealed class BoxClaim
     public DateTime? DoneAt { get; set; }        // "Kassen er færdig"
 
     public int Number => BoxCodes.Number(BoxCode);
+    public bool IsTest => BoxCodes.IsTest(BoxCode);
 
     /// <summary>Someone else is filling it right now.</summary>
     public bool BusyFor(int helperId, DateTime now) => DoneAt is null && HelperId != helperId && now - LastAt < Idle;

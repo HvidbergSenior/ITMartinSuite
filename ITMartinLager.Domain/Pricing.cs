@@ -42,9 +42,17 @@ public static partial class Pricing
     // Comics are sold by issue: "Anders And & Co." alone is a thousand different blade. A weekly blad is only one issue
     // with its YEAR too - nr. 12 is in every year (2026-10-12 test: "Anders And & Co. 12" from 1968 matched 2021's nr. 12),
     // so the year joins the search and, being a number, must be in every listing that counts.
+    // "The Face of Defeat..." (2026-10-25): an AI reading cut short - the dots are no part of the title and no site has them.
+    // "Co." keeps its one dot.
+    public static string CleanTitle(string title)
+    {
+        var t = title.Trim();
+        return t.EndsWith("...") || t.EndsWith('…') ? t.TrimEnd('.', '…', ' ').Trim() : t;
+    }
+
     public static string TitleFor(Item i)
     {
-        var t = i.Title.Trim() != "" ? i.Title.Trim() : i.Series.Trim();
+        var t = CleanTitle(i.Title) != "" ? CleanTitle(i.Title) : i.Series.Trim();
         var words = ListingParse.Words(t);
         if (i.Number != "" && !words.Contains(i.Number.Trim().ToLowerInvariant())) t = $"{t} {i.Number.Trim()}";
         if (i.Kind is Kinds.AndersAnd or Kinds.Magasin && i.Year is { } y && !words.Contains(y.ToString())) t = $"{t} {y}";
@@ -56,7 +64,7 @@ public static partial class Pricing
     public static string? AlternativeTitleFor(Item i)
     {
         if (i.Number.Trim() == "" || i.Year is not { } y || i.Kind == Kinds.AndersAnd) return null;
-        var t = i.Title.Trim() != "" ? i.Title.Trim() : i.Series.Trim();
+        var t = CleanTitle(i.Title) != "" ? CleanTitle(i.Title) : i.Series.Trim();
         return ListingParse.Words(t).Contains(y.ToString()) ? t : $"{t} {y}";
     }
 
@@ -65,7 +73,7 @@ public static partial class Pricing
     // ("Sammy nr. 5", "Anders And 1955 nr 3") and short titles. Broader searches, tried in this order until one answers.
     public static List<string> FallbackTitlesFor(Item i)
     {
-        var title = i.Title.Trim();
+        var title = CleanTitle(i.Title);
         var series = i.Series.Trim();
         var number = i.Number.Trim();
         var year = i.Kind is Kinds.AndersAnd or Kinds.Magasin && i.Year is { } y ? y.ToString() : "";
@@ -95,7 +103,7 @@ public static partial class Pricing
     // its year (other issues from 1968). Null when that is no broader than the exact search.
     public static string? SimilarTitleFor(Item i)
     {
-        var t = i.Title.Trim() != "" ? i.Title.Trim() : i.Series.Trim();
+        var t = CleanTitle(i.Title) != "" ? CleanTitle(i.Title) : i.Series.Trim();
         var year = i.Year?.ToString();
         var words = t.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(w => new string(w.Where(char.IsLetterOrDigit).ToArray()) is var k && (k == "" || !ListingParse.IsNumber(k.ToLowerInvariant()))).ToList();
@@ -128,6 +136,9 @@ public static partial class Pricing
         [Kinds.Kassette] = ["vinyl", "vinil", "schallplatte", "dvd", "blu", "bluray", "vhs"],
         [Kinds.Dvd] = ["blu", "bluray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack"],
         [Kinds.BluRay] = ["vhs", "vinyl", "soundtrack"],
+        // A comic of the same name is not the TV series, the film or the novel (2026-10-25: "The Walking Dead").
+        [Kinds.Tegneserie] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
+        [Kinds.Superhelte] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
         [Kinds.Vhs] = ["dvd", "blu", "bluray", "uhd", "vinyl", "soundtrack"],
     };
 
@@ -172,8 +183,11 @@ public static partial class Pricing
     public static bool IsOneCopyOf(Item item, Offer o)
     {
         var words = ListingParse.Words(o.Name);
-        if (words.Any(NotOneCopy.Contains) || CopyRangeRx().IsMatch(o.Name) || RatioRx().IsMatch(o.Name)) return false;
+        if (words.Any(NotOneCopy.Contains) || CopyRangeRx().IsMatch(o.Name) || RatioRx().IsMatch(o.Name) || PiecesRx().IsMatch(o.Name)) return false;
         if (OtherFormat(item.Kind, o.Name) || CollectorCopy(item, o.Name)) return false;
+        if (item.Kind != Kinds.Merch && words.Any(w => NotTheThing.Contains(w) || (w == "magazine" && item.Kind != Kinds.Magasin))) return false;
+        if (item.Kind != Kinds.Konsolspil && words.Any(Consoles.Contains)) return false;
+        if (!AboutThis(item, words)) return false;
         // A comic with an issue number: the title must come first (after brand/creator words) - "Edge of X" is another series.
         if (item.Kind is Kinds.Tegneserie or Kinds.Superhelte && item.Number.Trim() != "")
         {
@@ -186,6 +200,59 @@ public static partial class Pricing
         }
         return true;
     }
+
+    // Not the thing itself but something about it (2026-10-25, Eigil's box: "The Chris Rock Show" found a cap, a zipper pull,
+    // a press photo and a magazine ad; "The Face of Defeat" and "The Walking Dead" found Topps cards and a play banknote).
+    private static readonly HashSet<string> NotTheThing = ["cap", "caps", "hat", "hoodie", "shirt", "tshirt", "pressefoto", "pressefotos",
+        "pressphoto", "card", "cards", "topps", "fleer", "trading", "sticker", "stickers", "klistermærke", "klistermærker", "keychain",
+        "nøglering", "schlüsselanhänger", "mug", "zieher", "reissverschluss", "reißverschluss", "billet", "banknote", "print", "anzeige",
+        "werbung", "reklame", "patch", "figure", "figur", "actionfigur", "funko"];
+    private static readonly HashSet<string> Consoles = ["xbox", "playstation", "ps2", "ps3", "ps4", "ps5", "nintendo", "wii", "gamecube", "psp"];
+
+    // "Kasket Karl 15 stk", "2 stk tegneserier" - several copies in one listing ("1 stk" is one).
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b([2-9]|\d{2,})\s*(stk|styk|pcs|stück|kpl)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex PiecesRx();
+
+    // Kinds whose listings must name this title (and artist/series): books have their own title match on the sites,
+    // Anders And, Jumbobøger, games and Magic are named too differently by sellers.
+    private static readonly HashSet<string> NamedKinds = [Kinds.Tegneserie, Kinds.Superhelte, Kinds.Cd, Kinds.Vinyl, Kinds.Kassette, Kinds.Dvd,
+        Kinds.BluRay, Kinds.Vhs];
+
+    /// <summary>Is the listing about this title at all? (2026-10-25: "Som i et æventyr" found an e-book of other fairy
+    /// tales, "Love Sick" by Racetrack Babies a Beanie Baby.) Every word of the main title (before " – " or ":") must be
+    /// there - one may be missing from 5 words up; a record or film also needs a word of the artist, a comic a word of
+    /// its series when the series is not in the title.</summary>
+    public static bool AboutThis(Item item, List<string> listing)
+    {
+        if (!NamedKinds.Contains(item.Kind)) return true;
+        var squashed = string.Concat(listing.Where(w => !ListingParse.IsNumber(w)));
+        bool Has(string w) => squashed.Contains(w);
+        var title = CleanTitle(item.Title) != "" ? CleanTitle(item.Title) : item.Series;
+        var cut = title.IndexOfAny([':', '–']);
+        if (cut < 0) cut = title.IndexOf(" - ", StringComparison.Ordinal);
+        var main = ListingParse.Words(cut > 2 ? title[..cut] : title).Where(w => !ListingParse.IsNumber(w)).ToList();
+        if (main.Count > 0 && main.Count(Has) < (main.Count >= 5 ? main.Count - 1 : main.Count)) return false;
+        if (item.Kind is Kinds.Cd or Kinds.Vinyl or Kinds.Kassette or Kinds.Dvd or Kinds.BluRay or Kinds.Vhs)
+        {
+            var artist = ListingParse.Words(item.Artist).Where(w => !ListingParse.IsNumber(w) && !main.Contains(w)).ToList();
+            if (artist.Count > 0 && !artist.Any(Has)) return false;
+        }
+        if (item.Kind is Kinds.Tegneserie or Kinds.Superhelte)
+        {
+            var series = ListingParse.Words(item.Series).Where(w => !ListingParse.IsNumber(w) && !Brands.Contains(w)).ToList();
+            if (series.Count > 0 && !series.Any(main.Contains) && !series.Any(Has)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>"https://www.ebay.de/itm/306342744192?_skw=...&hash=..." -> "https://www.ebay.de/itm/306342744192": the
+    /// search and tracking bits are no part of the listing.</summary>
+    public static string CleanUrl(string url) =>
+        System.Text.RegularExpressions.Regex.Match(url, @"^(https?://[^/]*ebay\.[a-z.]+/itm/\d+)") is { Success: true } m ? m.Groups[1].Value : url;
+
+    // The same eBay listing is shown on ebay.de and ebay.com - one key for both.
+    public static string ListingKey(string url) =>
+        System.Text.RegularExpressions.Regex.Match(url, @"ebay\.[a-z.]+/itm/(\d+)") is { Success: true } m ? "ebay:" + m.Groups[1].Value : CleanUrl(url);
 
     /// <summary>The site's answer with only the listings that are one ordinary copy of this item.</summary>
     public static Listings OnlyThisItem(Item item, Listings r)
@@ -206,6 +273,8 @@ public static partial class Pricing
     public static string QueryFor(string title, string author)
     {
         var surname = author.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "";
+        // "Rock The Chris Rock Show" (2026-10-25): the name is in the title already.
+        if (surname != "" && ListingParse.Words(title).Contains(surname.ToLowerInvariant())) return title.Trim();
         return $"{surname} {title}".Trim();
     }
 
@@ -316,7 +385,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             finds.AddRange(Kept(a).Select(o => new PriceFind
             {
                 ItemId = itemId, Source = a.Source, IsNew = a.IsNew, Name = Cut(o.Name, 300), Kr = (int)o.Price!.Value,
-                Original = o.Original, Url = o.Url, FoundAt = now,
+                Original = o.Original, Url = Pricing.CleanUrl(o.Url), FoundAt = now,
             }));
         }
         // Every matching listing counts for the price (the kept ones are only a sample for the links).
@@ -331,8 +400,10 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             finds.AddRange(Pricing.Keep(a.Result!).Select(o => new PriceFind
             {
                 ItemId = itemId, Source = a.Source, Name = Cut(o.Name, 300), Kr = (int)o.Price!.Value, Original = o.Original,
-                Url = o.Url, FoundAt = now, Similar = true,
+                Url = Pricing.CleanUrl(o.Url), FoundAt = now, Similar = true,
             }));
+        // One link per listing (the same eBay listing came from both ebay.de and ebay.com).
+        finds = finds.DistinctBy(f => (Pricing.ListingKey(f.Url), f.Similar)).ToList();
         var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!)).Select(o => (int)o.Price!.Value).ToList();
         // New shops (Saxo, Amazon ...): the price a new copy is compared with.
         var fresh = answers.Where(a => a.IsNew && a.Result is { Ambiguous: false }).SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();

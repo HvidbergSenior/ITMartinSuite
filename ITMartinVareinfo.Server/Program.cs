@@ -33,6 +33,7 @@ builder.Services.AddKolibri(k =>
         "Skriv nummeret, der står på kassen, og tryk Start kassen. Bruger en anden den kasse, får du besked – tag så en anden.",
         "Læg 10-20 ting fra kassen ud med forsiden op, og tryk 📸 Tag billede. Gentag til kassen er tom. Stregkoder kan også scannes – bip, næste.",
         "Tryk ✓ Kassen er færdig – så kan du tage den næste kasse.",
+        "Vil du bare prøve? Tryk Min testkasse. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«.",
     ];

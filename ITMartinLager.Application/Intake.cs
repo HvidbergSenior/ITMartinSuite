@@ -26,8 +26,14 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
     {
         var batch = await vareinfo.NewAsync(FetchPerRound, ct);
         if (batch.Photos.Count + batch.Scans.Count == 0) return 0;
-        foreach (var code in batch.Photos.Select(p => p.BoxCode).Concat(batch.Scans.Select(s => s.BoxCode)).Distinct())
-            await boxes.GetOrAddAsync(code, ct);
+        var owners = batch.Photos.Select(p => (p.BoxCode, p.Helper)).Concat(batch.Scans.Select(s => (s.BoxCode, s.Helper)))
+            .GroupBy(x => x.BoxCode).ToDictionary(g => g.Key, g => g.First().Helper);
+        foreach (var (code, owner) in owners)
+        {
+            var box = await boxes.GetOrAddAsync(code, ct);
+            // A personal test box (9000-9999) is named after its owner the first time, so Kasser shows whose it is.
+            if (BoxCodes.IsTest(code) && box.Place == "") await boxes.SetPlaceAsync(box.Id, $"Test {owner}".Trim(), ct);
+        }
         await intake.AddAsync(
             batch.Photos.Select(p => new BoxShot { VareinfoId = p.Id, BoxCode = p.BoxCode, Helper = p.Helper, Tiles = p.Tiles, TakenAt = p.TakenAt }),
             batch.Scans.Select(s => new BoxScan { VareinfoId = s.Id, BoxCode = s.BoxCode, Helper = s.Helper, Code = s.Code, Quantity = s.Quantity, TakenAt = s.TakenAt }),

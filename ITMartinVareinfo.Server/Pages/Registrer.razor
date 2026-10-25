@@ -32,19 +32,25 @@ else if (_box is null)
             </div>
         }
         <form class="lg-row" @onsubmit="Take">
-            <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@BoxClaim.MaxNumber" placeholder="Kassens nr." @bind="_number" aria-label="Kassens nummer" />
+            <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@BoxClaim.MaxNormal" placeholder="Kassens nr." @bind="_number" aria-label="Kassens nummer" />
             <button class="k-btn k-btn-primary lg-big" type="submit" disabled="@_busy">Start kassen</button>
         </form>
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
         @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
         <p data-photo-status role="status" hidden></p>
     </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Min testkasse</h2>
+        <p>Vil du bare prøve? Din egen testkasse er kun din, og tingene i den bliver <b>kun vist</b> – de bliver aldrig solgt. Tryk <b>Min testkasse</b> og tag billeder af hvad som helst.</p>
+        <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="TakeTest" disabled="@_busy">Min testkasse</button>
+    </section>
 }
 else
 {
     <section class="k-card">
-        <h1 class="k-card-title">📦 Kasse @_box.Number</h1>
-        <p class="lg-answer" role="status">I kasse @_box.Number: <b>@_photos billeder</b> og <b>@_scans stregkoder</b>.</p>
+        <h1 class="k-card-title">📦 @BoxName(_box)</h1>
+        <p class="lg-answer" role="status">I @BoxName(_box).ToLowerInvariant(): <b>@_photos billeder</b> og <b>@_scans stregkoder</b>.</p>
         <p>Læg 10-20 ting fra kassen ud med forsiden op, og tag billedet lige ovenfra. Gentag til kassen er tom. Det hele <b>gemmes bare</b> – det læses senere på Lager.</p>
         <p><b>CD'er, DVD'er, LP'er og bøger på række:</b> stil dem tæt op ad hinanden med ryggen mod dig og tag ét billede af 20-30 rygge ad gangen – gå tæt på, så teksten på ryggene kan læses.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
@@ -96,7 +102,7 @@ else
         else
         {
             <div class="lg-row">
-                <button class="k-btn k-btn-primary" @onclick="Finish" disabled="@_busy">✓ Ja, kasse @_box.Number er færdig</button>
+                <button class="k-btn k-btn-primary" @onclick="Finish" disabled="@_busy">✓ Ja, @BoxName(_box).ToLowerInvariant() er færdig</button>
                 <button class="k-btn k-btn-ghost" @onclick="() => _confirmDone = false">Nej, jeg er ikke færdig</button>
             </div>
         }
@@ -157,6 +163,22 @@ else
         finally { _busy = false; }
     }
 
+    private async Task TakeTest()
+    {
+        if (Me is null) return;
+        _busy = true; _error = null; _saved = null;
+        try
+        {
+            _box = await Capture.MyTestBoxAsync(Me);
+            _confirmDone = false;
+            await Count();
+        }
+        catch (VareinfoException ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private static string BoxName(BoxClaim box) => box.IsTest ? $"Testkasse {box.Number}" : $"Kasse {box.Number}";
+
     private async Task Finish()
     {
         if (Me is null || _box is null) return;
@@ -166,7 +188,7 @@ else
         try
         {
             await Capture.FinishBoxAsync(_box.BoxCode, Me);
-            _saved = $"Kasse {_box.Number} er færdig: {_photos} billeder og {_scans} stregkoder. Skriv nummeret på den næste kasse.";
+            _saved = $"{BoxName(_box)} er færdig: {_photos} billeder og {_scans} stregkoder. Skriv nummeret på den næste kasse.";
             _box = null;
             _number = null;
         }

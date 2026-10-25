@@ -52,6 +52,11 @@ public static class BoxCodes
     // The next code after the last one: K0001, K0002 ...
     public static string Next(string? last) => For(last is null ? 1 : Number(last) + 1);
 
+    // Personal test boxes (user 2026-10-25: "i want all helpers to have their own Testbox... Also myself"): the top
+    // numbers, one per person, handed out from 9999 down. Never written on a real box; their things are only for show.
+    public const int FirstTest = 9000;
+    public static bool IsTest(string code) => Number(code) >= FirstTest;
+
     /// <summary>The box number in a scanned label QR ("https://lager.bogshoppen.dk/kasse/K0007" or just "K0007"); 0 = not a box label.</summary>
     public static int FromLabel(string? scanned)
     {

@@ -61,7 +61,9 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
             // A site that times out throws a "cancelled" too - that is "did not answer", not the app shutting down
             // (2026-10-12: one slow Faraos search stopped the whole price hunter until the next restart).
             try { r = await lookup; } catch (Exception) when (!ct.IsCancellationRequested) { }
-            if (r is not null && !source.IsNew) r = Pricing.OnlyThisItem(item, r);   // sets, graded copies, other series out
+            // Sets, graded copies, other series out. New shops too when they were searched by title (2026-10-25: Bog & idé
+            // gave "Søde Sally Sukkertop" for "Som i et æventyr") - an ISBN answer is the book itself.
+            if (r is not null && (!source.IsNew || isbn == "")) r = Pricing.OnlyThisItem(item, r);
             answers.Add(new SourceAnswer(source.Name, source.IsNew, r));
         }
         return answers;

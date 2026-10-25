@@ -42,7 +42,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                           "kind":       { "type": "string", "enum": {{JsonSerializer.Serialize(Kinds.All)}} },
                           "title":      { "type": "string", "description": "Title as printed (album title for a CD)" },
                           "artist":     { "type": "string", "description": "CD artist or book author, empty if none" },
-                          "series":     { "type": "string", "description": "Series/publication printed on the cover, e.g. 'Anders And & Co.', 'Superserien', 'Fantomet'" },
+                          "series":     { "type": "string", "description": "Series printed on the cover, e.g. 'Anders And & Co.', 'Superserien', 'Edderkoppen', 'The Amazing Spider-Man'. Never just the publisher." },
+                          "publisher":  { "type": "string", "description": "Publisher/label if printed: 'Marvel', 'DC', 'Semic', 'Interpresse', 'Image'. Empty if not seen." },
                           "number":     { "type": "string", "description": "Issue/volume number as printed, e.g. '12', '22', '3'. Never a year." },
                           "year":       { "type": ["integer", "null"] },
                           "platform":   { "type": "string", "description": "Console games only: 'PlayStation 2', 'Nintendo 64' ..." },
@@ -79,9 +80,12 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
           rettes aldrig ("Zap Comix", ikke "Comics"; "Storm Petersen", ikke et ord du kender bedre). Brug nærbillederne.
         - number = hæftets/albummets nummer ("Nr. 22", "No. 2", "#3"). Et årstal er ALDRIG et nummer - det skal i year.
           "29. Aargang 1941" = number "29", year 1941.
-        - series = serien eller udgivelsen, der står på forsiden: "Superserien", "Anders And & Co.", "Gyldenspjæt",
-          "Marvel"-titlen. title = hæftets egen titel ("Søuhyret fra Volapyk"); står der også en undertitel
-          ("Tony Thumbes Transaktioner"), skriv den i note.
+        - series = seriens navn, der står på forsiden: "Superserien", "Anders And & Co.", "Gyldenspjæt", "Edderkoppen",
+          "The Amazing Spider-Man", "Batman". Forlaget (Marvel, DC, Semic, Interpresse, Image, Dynamite) er ALDRIG serien -
+          det skal i publisher. title = hæftets egen titel ("Søuhyret fra Volapyk"). Står der også en undertitel eller
+          et særnummer ("Med på den værste", "Two Day Special", "Grim Hunt Part 3"), så skriv den med i title efter
+          " – ": "Kasket Karl – Med på den værste", "The Walking Dead – Two Day Special".
+        - Titler læses hele - forkort aldrig med "..." eller "…". Er en del skjult, så skriv det, der kan ses, uden prikker.
         - kind - vælg ud fra hvad det ER:
           * "Anders And-blad": ugebladet Anders And & Co.: serie "Anders And & Co.", nummer og år fra forsiden.
           * "Jumbobog": KUN når der står "Jumbobog" på den. Nummer fra ryggen/forsiden.
@@ -91,7 +95,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
             Tintin, Asterix, Lucky Luke, julehæfter med tegneserier, undergrund som Zap Comix.
           * "Bog": bøger med tekst, også fagbøger og instruktionsbøger (musik, hobby, sprog), selv om der følger en CD med.
           * "Magasin": blade med artikler (ikke tegneserier).
-        - CD, "Vinyl" (LP/single) og "Kassettebånd": titel = albummets navn, artist = kunstneren.
+        - CD, "Vinyl" (LP/single) og "Kassettebånd": titel = albummets navn, artist = kunstneren eller gruppen, som den
+          står på forsiden - ikke alle de medvirkende musikere ("The Klaus Suonsaari Quintet", ikke fem navne).
         - Film: "DVD", "Blu-ray" eller "VHS" ud fra æsken. Konsolspil: platform (fx "PlayStation 2").
         - Spil i en CD-æske er IKKE en CD: står der et spilfirma på ryggen (Eidos, EA, Ubisoft, Activision, Blizzard,
           Sierra, Microsoft Games, "PC CD-ROM"), så er kind "Konsolspil" og platform "PC" (eller konsollen).
@@ -359,7 +364,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         Kinds.Normalise(r.Kind), (r.Title ?? "").Trim(), (r.Artist ?? "").Trim(), (r.Series ?? "").Trim(),
         (r.Number ?? "").Trim(), r.Year is > 1800 and < 2100 ? r.Year : null, (r.Platform ?? "").Trim(),
         Conditions.Normalise(r.Condition), Math.Clamp(r.Quantity ?? 1, 1, 999), Math.Clamp(r.Confidence ?? 0.5, 0, 1),
-        (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint), Usage: Usages.Normalise(r.Usage));
+        (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint), Usage: Usages.Normalise(r.Usage),
+        Publisher: (r.Publisher ?? "").Trim());
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
     internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
@@ -382,6 +388,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         public string? Title { get; set; }
         public string? Artist { get; set; }
         public string? Series { get; set; }
+        public string? Publisher { get; set; }
         public string? Number { get; set; }
         public int? Year { get; set; }
         public string? Platform { get; set; }

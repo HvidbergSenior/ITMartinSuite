@@ -29,7 +29,7 @@ public sealed class Box
 
     /// <summary>A test box (user 2026-10-24: "when I call it something like Test ... the products are only for show"):
     /// its placering starts with "Test". Its things can be shown in the shop but are never sold.</summary>
-    public bool IsTest => IsTestName(Place);
+    public bool IsTest => IsTestName(Place) || BoxCodes.IsTest(Code);
     public static bool IsTestName(string place) => place.TrimStart().StartsWith("test", StringComparison.OrdinalIgnoreCase);
 
     public static string CodeFor(int n) => BoxCodes.For(n);
@@ -160,7 +160,7 @@ public sealed class Item
             Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
             Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
             Note = f.Note, Interest = f.Interest, Barcode = f.Barcode, PriceHint = f.PriceHint, EditionHint = f.EditionHint,
-            Usage = Usages.Normalise(f.Usage),
+            Usage = Usages.Normalise(f.Usage), Publisher = f.Publisher,
             BoxId = boxId, PhotoId = photoId,
         };
         item.Touch();

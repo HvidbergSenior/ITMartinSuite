@@ -53,6 +53,25 @@ public class CaptureTests
         new(new BoxClaimRepository(Factory), new PhotoRepository(Factory), new ScanRepository(Factory), store ?? Store().Object, _clock);
 
     [Test]
+    public async Task Everyone_has_their_own_test_box_the_same_every_time_and_nobody_can_type_its_number()
+    {
+        var capture = Capture();
+        var ricos = await capture.MyTestBoxAsync(_rico);
+        var annas = await capture.MyTestBoxAsync(_anna);
+        ricos.BoxCode.Should().Be("K9999");
+        annas.BoxCode.Should().Be("K9998");
+        ricos.IsTest.Should().BeTrue();
+
+        await capture.FinishBoxAsync(ricos.BoxCode, _rico);
+        _clock.Now = _clock.Now.AddDays(3);
+        (await capture.MyTestBoxAsync(_rico)).BoxCode.Should().Be("K9999");
+
+        var typed = () => capture.TakeBoxAsync(9998, _rico);
+        await typed.Should().ThrowAsync<VareinfoException>();
+        (await capture.TakeBoxAsync(8999, _rico)).IsTest.Should().BeFalse();
+    }
+
+    [Test]
     public async Task One_helper_per_box_and_a_finished_or_forgotten_box_is_free_again()
     {
         var capture = Capture();

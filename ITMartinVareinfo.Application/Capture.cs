@@ -18,7 +18,7 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
     /// <summary>"Vælg kasse": the number written on the box. Refused while another helper is filling it.</summary>
     public async Task<BoxClaim> TakeBoxAsync(int number, Taker me, CancellationToken ct = default)
     {
-        if (number is < 1 or > BoxClaim.MaxNumber) throw new VareinfoException($"Skriv nummeret på kassen (1-{BoxClaim.MaxNumber}).");
+        if (number is < 1 or > BoxClaim.MaxNormal) throw new VareinfoException($"Skriv nummeret på kassen (1-{BoxClaim.MaxNormal}).");
         var code = BoxCodes.For(number);
         await ClaimGate.WaitAsync(ct);
         try
@@ -27,6 +27,29 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
             if (claim is not null && claim.BusyFor(me.Id, Now))
                 throw new VareinfoException($"Kasse {number} bruges af {claim.HelperName} lige nu – tag en anden kasse.");
             claim ??= new BoxClaim { BoxCode = code };
+            claim.Take(me, Now);
+            await claims.SaveAsync(claim, ct);
+            return claim;
+        }
+        finally { ClaimGate.Release(); }
+    }
+
+    /// <summary>"Min testkasse": the person's own test box - the same one every time, made the first time (from 9999 down).
+    /// Nobody else can take it; its things are only for show in Lager and the shop.</summary>
+    public async Task<BoxClaim> MyTestBoxAsync(Taker me, CancellationToken ct = default)
+    {
+        await ClaimGate.WaitAsync(ct);
+        try
+        {
+            var all = await claims.AllAsync(ct);
+            var claim = all.FirstOrDefault(c => c.IsTest && c.HelperId == me.Id);
+            if (claim is null)
+            {
+                var used = all.Where(c => c.IsTest).Select(c => c.Number).ToHashSet();
+                var free = Enumerable.Range(BoxCodes.FirstTest, BoxClaim.MaxNumber - BoxCodes.FirstTest + 1).Reverse().FirstOrDefault(n => !used.Contains(n));
+                if (free == 0) throw new VareinfoException("Der er ikke flere testkasser - spørg Martin.");
+                claim = new BoxClaim { BoxCode = BoxCodes.For(free) };
+            }
             claim.Take(me, Now);
             await claims.SaveAsync(claim, ct);
             return claim;

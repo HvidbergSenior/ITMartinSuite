@@ -102,6 +102,61 @@ public class OneCopyTests
     [TestCase("Marvel Spider-Geddon 3", true)]
     public void Only_one_ordinary_copy_of_this_comic_counts(string name, bool kept) => Keep(name).Should().Be(kept);
 
+    // 2026-10-25, Eigil's box K0001: real listing names the hunter kept as proof.
+    private static bool KeepFor(ITMartinLager.Domain.Item item, string name) =>
+        ITMartinLager.Domain.Pricing.IsOneCopyOf(item, new ITMartinLager.Domain.Offer(name, 30, "u"));
+
+    [TestCase("Eddie Izzard / Dress To Kill", true)]
+    [TestCase("Eddie Izzard Dress to Kill Ad Print P-216305", false)]
+    public void A_stand_up_dvd_is_not_its_magazine_ad(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Dvd, Title = "Dress to Kill", Artist = "Eddie Izzard" }, name).Should().Be(kept);
+
+    [TestCase("The Chris Rock Show - Sesong 1 & 2", true)]
+    [TestCase("Vintage The Chris Rock Show Cap OSFA Snap 90's OG HBO Logo SNL Comedy", false)]
+    [TestCase("THE CHRIS ROCK SHOW METALL LOGO REISSVERSCHLUSS ZIEHER TV SHOW FERNSEH", false)]
+    [TestCase("2001 Fleer WWF Raw is War Chris Jericho The Rock Show Enders WWE #89", false)]
+    public void A_dvd_is_not_merchandise_of_the_show(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Dvd, Title = "The Chris Rock Show", Artist = "Chris Rock" }, name).Should().Be(kept);
+
+    [TestCase("Racetrack Babies - Love Sick (2002) – 11 til salg", true)]
+    [TestCase("Ty Beanie Babys Love Sick & Jungle Love. Japan Seratti Haus", false)]
+    public void A_cd_needs_its_artist(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Cd, Title = "Love Sick", Artist = "Racetrack Babies" }, name).Should().Be(kept);
+
+    [TestCase("The Spectacular Spider-Man #242 Marvel Comic January 1997 Face of Defeat", true)]
+    [TestCase("2004 Topps Star Wars: Clone Wars The Face of Defeat #61 yf0", false)]
+    public void A_comic_needs_its_series(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Superhelte, Title = "The Face of Defeat...", Series = "The Spectacular Spider-Man" }, name).Should().Be(kept);
+
+    [TestCase("The Walking Dead", true)]
+    [TestCase("The Walking Dead - Xbox 360", false)]
+    [TestCase("The walking dead - Season 1", false)]
+    [TestCase("The WALKING DEAD Billet Million Dollar US Serie Zombie", false)]
+    public void A_comic_is_not_the_tv_series_or_the_game(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Superhelte, Title = "The Walking Dead – Two Day Special", Series = "The Walking Dead" }, name).Should().Be(kept);
+
+    [TestCase("Birger og Viola 3 Som i et æventyr", true)]
+    [TestCase("Søde Sally Sukkertop og andre ækle æventyr 3", false)]
+    public void A_comic_album_is_not_another_book_with_a_title_word(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Tegneserie, Title = "Som i et æventyr", Series = "Birger og Viola", Number = "3" }, name).Should().Be(kept);
+
+    [TestCase("Kasket Karl Med På Den Værste, Reg Smythe,", true)]
+    [TestCase("Kasket Karl 15 stk,", false)]
+    [TestCase("2 stk tegneserier..KASKET KARL.", false)]
+    public void Several_copies_in_one_listing_are_not_one_copy(string name, bool kept) =>
+        KeepFor(new() { Kind = Kinds.Tegneserie, Title = "Kasket Karl – Med på den værste" }, name).Should().Be(kept);
+
+    [Test]
+    public void Links_lose_the_tracking_bits_and_one_ebay_listing_is_one_link()
+    {
+        ITMartinLager.Domain.Pricing.CleanUrl("https://www.ebay.de/itm/306342744192?_skw=Rum&hash=item4753735080:g:-")
+            .Should().Be("https://www.ebay.de/itm/306342744192");
+        ITMartinLager.Domain.Pricing.ListingKey("https://www.ebay.com/itm/257778590325?_skw=x")
+            .Should().Be(ITMartinLager.Domain.Pricing.ListingKey("https://www.ebay.de/itm/257778590325?hash=y"));
+        ITMartinLager.Domain.Pricing.QueryFor("The Chris Rock Show", "Chris Rock").Should().Be("The Chris Rock Show");
+        ITMartinLager.Domain.Pricing.CleanTitle("The Face of Defeat...").Should().Be("The Face of Defeat");
+    }
+
     [Test]
     public void A_book_by_author_first_still_counts() =>
         ITMartinLager.Domain.Pricing.IsOneCopyOf(new ITMartinLager.Domain.Item { Kind = Kinds.Bog, Title = "Mort", Artist = "Terry Pratchett" },
