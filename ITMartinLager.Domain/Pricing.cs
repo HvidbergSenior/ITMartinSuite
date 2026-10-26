@@ -119,6 +119,27 @@ public static partial class Pricing
         return broad == TitleFor(i) || broad == AlternativeTitleFor(i) ? null : broad;
     }
 
+    // The series itself as a "magen til" search (2026-10-26, Basserne 612/423/823: no copy for sale, other issues at
+    // 13-32 kr on Nemos): a comic or magazine with a series and a number - not Anders And, whose series is searched already.
+    public static Item? SeriesItemFor(Item i)
+    {
+        var series = i.Series.Trim();
+        if (i.Kind is not (Kinds.Tegneserie or Kinds.Superhelte or Kinds.Magasin) || series == "" || i.Number.Trim() == "") return null;
+        return new Item { Kind = i.Kind, Title = series, Series = series, Artist = i.Artist, Note = i.Note };
+    }
+
+    // A reading the AI was unsure of (Basserne 779, confidence 0.4) is right after all when a used listing names the same
+    // series and the same number - then it gets its price like any other.
+    public static bool ConfirmsReading(Item i, string listing)
+    {
+        var number = i.Number.Trim().ToLowerInvariant();
+        if (number == "") return false;
+        var words = ListingParse.Words(listing);
+        var name = ListingParse.Words(i.Series.Trim() != "" ? i.Series : i.Title).Where(w => !ListingParse.IsNumber(w)).ToList();
+        return name.Count > 0 && name.All(words.Contains) && words.Contains(number)
+               && (i.Year is not { } y || words.Contains(y.ToString()));
+    }
+
     // Is this listing really one ordinary copy of this item? (2026-10-12, Spider-Geddon #3: the sites' broad searches gave
     // "Edge of Spider-Geddon #3", "Spider-Girls #1-3 set", "#1 2 3 4 5 Run Set Lot", CGC 9.8 graded copies, 1:25 variant
     // covers and postcards - none of them the comic on the table.)
@@ -561,7 +582,8 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         item.PricesAt = Answered == 0 ? now - Pricing.StaleAfter + TimeSpan.FromDays(1) : now;
         if (Want is not null) (item.Want, item.Have) = (Want, Have);
         if (Answered == 0) return;
-        if (item.Confidence < Pricing.MinConfidence) { item.PriceHint = null; item.SimilarHint = null; return; }
+        if (item.Confidence < Pricing.MinConfidence && !Finds.Any(f => !f.Similar && !f.IsNew && Pricing.ConfirmsReading(item, f.Name)))
+        { item.PriceHint = null; item.SimilarHint = null; return; }
         var market = item.Usage == Usages.New ? NewNormal ?? Normal : Normal;
         item.PriceHint = ShopPrice(market);
         item.SimilarHint = Normal is null ? SimilarNormal : null;

@@ -42,6 +42,10 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         List<SourceAnswer>? similar = null;
         if (answers.All(a => a.Result is not { HasPrices: true } || a.IsNew) && Pricing.SimilarTitleFor(item) is { } like)
             similar = await AskAllAsync(item, like, "", ct);
+        // Still nothing: other issues of the same series ("Basserne 612" is not for sale, Nemos has 30 other Basserne).
+        if (answers.All(a => a.Result is not { HasPrices: true } || a.IsNew) && (similar ?? []).All(a => a.Result is not { HasPrices: true } || a.IsNew)
+            && Pricing.SeriesItemFor(item) is { } series)
+            similar = await AskAllAsync(series, Pricing.TitleFor(series), "", ct);
 
         var now = clock.GetUtcNow().UtcDateTime;
         var result = HuntResult.From(itemId, answers, now, similar);

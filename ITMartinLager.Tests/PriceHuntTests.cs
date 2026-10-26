@@ -256,6 +256,32 @@ public class PriceHuntTests
     }
 
     [Test]
+    public void An_unsure_reading_is_confirmed_by_a_listing_with_the_same_series_and_number()
+    {
+        var basserne = new Item { Kind = Kinds.Tegneserie, Title = "Basserne", Series = "Basserne", Number = "779", Confidence = 0.4 };
+        Pricing.ConfirmsReading(basserne, "Basserne 779").Should().BeTrue();
+        Pricing.ConfirmsReading(basserne, "Basserne 952").Should().BeFalse();
+
+        var now = DateTime.UtcNow;
+        var answers = new[] { new SourceAnswer("Nemos Bibliotek", false, ListingParse.Summarise([new Offer("Basserne 779", 13, "u")], "s")) };
+        HuntResult.From(1, answers, now).ApplyTo(basserne, now);
+        basserne.PriceHint.Should().NotBeNull();
+
+        var unsure = new Item { Kind = Kinds.Tegneserie, Title = "Basserne", Series = "Basserne", Number = "778", Confidence = 0.4 };
+        HuntResult.From(1, answers, now).ApplyTo(unsure, now);
+        unsure.PriceHint.Should().BeNull();
+    }
+
+    [Test]
+    public void No_copy_for_sale_asks_for_the_series_as_magen_til()
+    {
+        var rodoje = new Item { Kind = Kinds.Tegneserie, Title = "Rødøje", Series = "Basserne", Number = "612" };
+        Pricing.TitleFor(Pricing.SeriesItemFor(rodoje)!).Should().Be("Basserne");
+        Pricing.IsOneCopyOf(Pricing.SeriesItemFor(rodoje)!, new Offer("Basserne 952", 13, "u")).Should().BeTrue();
+        Pricing.SeriesItemFor(new Item { Kind = Kinds.Bog, Title = "Genfærd", Series = "Harry Hole", Number = "9" }).Should().BeNull();
+    }
+
+    [Test]
     public void A_box_set_may_be_a_box_of_many_discs()
     {
         var matador = new Item { Kind = Kinds.Dvd, Title = "Matador – Matador Kollektionen 1929-1947", Note = "DR boks" };
