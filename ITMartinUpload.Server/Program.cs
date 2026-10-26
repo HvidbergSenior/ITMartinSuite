@@ -46,7 +46,10 @@ builder.Services.AddSingleton<UploadPushService>();
 builder.Services.AddSingleton<UploadActivity>();
 
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    // A big file list from the page (1,900 photos at once, 2026-10-26) must not break the connection; upload.js also
+    // sends it in parts of 100.
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 1024 * 1024);
 
 var app = builder.Build();
 

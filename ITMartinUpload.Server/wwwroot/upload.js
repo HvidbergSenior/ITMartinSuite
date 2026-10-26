@@ -67,16 +67,22 @@ async function collect(entries) {
     return out;
 }
 
+// The list goes to the page in parts (2026-10-26: Annette picked 1,900 photos - the whole list in one message was
+// bigger than the connection takes, the page froze and nothing was sent). Uploading starts after the first part.
+const LIST_PART = 100;
+
 async function enqueue(items, slug, token, dotNetRef) {
-    const files = items.map(i => i.file);
-    const infos = items.map(i => ({ name: i.file.name, size: i.file.size, dir: i.dir }));
-    // An empty id means the server already has that exact file - don't send it again.
-    const ids = await dotNetRef.invokeMethodAsync('AddFiles', infos);
-    for (let i = 0; i < files.length; i++) {
-        if (!ids[i]) continue;
-        _queue.push({ file: files[i], dir: items[i].dir, id: ids[i], slug, token, dotNetRef });
+    for (let start = 0; start < items.length; start += LIST_PART) {
+        const part = items.slice(start, start + LIST_PART);
+        const infos = part.map(i => ({ name: i.file.name, size: i.file.size, dir: i.dir }));
+        // An empty id means the server already has that exact file - don't send it again.
+        const ids = await dotNetRef.invokeMethodAsync('AddFiles', infos);
+        for (let i = 0; i < part.length; i++) {
+            if (!ids[i]) continue;
+            _queue.push({ file: part[i].file, dir: part[i].dir, id: ids[i], slug, token, dotNetRef });
+        }
+        drain();
     }
-    drain();
 }
 
 function drain() {
