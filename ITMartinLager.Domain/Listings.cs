@@ -15,6 +15,10 @@ public sealed record Listings(int Count, decimal? Low, decimal? Median, decimal?
     // Every listing that matched the title (priced or not) - the price hunter keeps a selection of them per item.
     public List<Offer> All { get; init; } = [];
 
+    // The listings of an Ambiguous answer, kept aside - never a price, but for a series "magen til" ("Basserne" alone is
+    // too broad for one issue, and just right for what other issues cost) they are what was asked for (2026-10-26).
+    public List<Offer> Broad { get; init; } = [];
+
     public string Text => Count == 0 ? "ingen til salg"
         : Ambiguous ? $"{Count} fund, men titlen er for bred til at vide om det er denne bog – ikke bevis"
         : Count == 0 && NewPrice is { } np0 ? $"ingen brugte, ny i butikken {np0:0} kr"

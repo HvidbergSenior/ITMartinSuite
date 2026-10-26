@@ -48,7 +48,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
             // "Basserne" alone is "too broad to know it is this one" - for a series that is the point, so the listings are
             // filtered as usual (other things named Basserne out) and kept.
             similar = (await AskAllAsync(series, Pricing.TitleFor(series), "", ct))
-                .Select(a => a.Result is { Ambiguous: true } r ? a with { Result = Pricing.OnlyThisItem(series, r with { Ambiguous = false }, a.Source) } : a)
+                .Select(a => a.Result is { Ambiguous: true } r ? a with { Result = Pricing.OnlyThisItem(series, ListingParse.Summarise(r.Broad, r.Url), a.Source) } : a)
                 .ToList();
 
         var now = clock.GetUtcNow().UtcDateTime;

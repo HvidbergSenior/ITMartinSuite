@@ -279,6 +279,11 @@ public class PriceHuntTests
         Pricing.TitleFor(Pricing.SeriesItemFor(rodoje)!).Should().Be("Basserne");
         Pricing.IsOneCopyOf(Pricing.SeriesItemFor(rodoje)!, new Offer("Basserne 952", 13, "u")).Should().BeTrue();
         Pricing.SeriesItemFor(new Item { Kind = Kinds.Bog, Title = "Genfærd", Series = "Harry Hole", Number = "9" }).Should().BeNull();
+
+        // A broad answer keeps its listings aside - no price from it, but the series step can use them.
+        var broad = ListingParse.Summarise([new Offer("Basserne 952", 13, "u1"), new Offer("Basserne 48", 28, "u2")], "s", ambiguous: true);
+        broad.All.Should().BeEmpty();
+        ListingParse.Summarise(broad.Broad, broad.Url).HasPrices.Should().BeTrue();
     }
 
     [Test]

@@ -58,7 +58,7 @@ public static partial class ListingParse
     {
         offers = offers.Select(o => o.Price is { } p && Placeholder(p) ? o with { Price = null } : o).ToList();
         var priced = offers.Where(o => o.Price is not null).OrderBy(o => o.Price).ToList();
-        if (ambiguous || priced.Count == 0) return new Listings(offers.Count, null, null, null, url, [], null, ambiguous && offers.Count > 0) { All = ambiguous ? [] : offers };
+        if (ambiguous || priced.Count == 0) return new Listings(offers.Count, null, null, null, url, [], null, ambiguous && offers.Count > 0) { All = ambiguous ? [] : offers, Broad = ambiguous ? offers : [] };
         var median = priced[priced.Count / 2].Price!.Value;
         var sane = priced.Where(o => o.Price <= median * 3).ToList();
         decimal? wild = priced[^1].Price > median * 3 ? priced[^1].Price : null;
