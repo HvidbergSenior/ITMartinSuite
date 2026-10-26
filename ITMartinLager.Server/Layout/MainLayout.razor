@@ -11,6 +11,8 @@
     {
         <a class="k-btn k-btn-ghost k-btn-sm" href="@Salg.Orders">🧾 Ordrer</a>
         <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">☰ Mere</a>
+        @* Admins could not log out (user 2026-10-26: "cannot logout of lager") - needed to switch to a test login. *@
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud (@Me.Name)</a>
     }
     else if (Me is { } who) { <span class="k-small">👤 @who.Name · <a href="/api/logout">Log ud</a></span> }
 </KolibriHeader>
