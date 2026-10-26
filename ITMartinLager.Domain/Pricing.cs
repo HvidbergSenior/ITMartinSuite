@@ -124,7 +124,9 @@ public static partial class Pricing
     public static Item? SeriesItemFor(Item i)
     {
         var series = i.Series.Trim();
-        if (i.Kind is not (Kinds.Tegneserie or Kinds.Superhelte or Kinds.Magasin) || series == "" || i.Number.Trim() == "") return null;
+        // Also without a number ("Udvidet nummer", "nummer ulæseligt"): the series is still what it is.
+        if (i.Kind is not (Kinds.Tegneserie or Kinds.Superhelte or Kinds.Magasin) || series == "") return null;
+        if (i.Number.Trim() == "" && string.Equals(CleanTitle(i.Title), series, StringComparison.OrdinalIgnoreCase)) return null;
         return new Item { Kind = i.Kind, Title = series, Series = series, Artist = i.Artist, Note = i.Note };
     }
 
@@ -335,6 +337,11 @@ public static partial class Pricing
     public static bool AboutThis(Item item, List<string> listing)
     {
         if (!NamedKinds.Contains(item.Kind)) return true;
+        // A numbered blad is named by series and number: "Basserne 2001 Nr. 612" is "Rødøje", Basserne 612 (2026-10-26 -
+        // the story title the AI read is in no listing).
+        if (item.Kind is Kinds.Tegneserie or Kinds.Superhelte && item.Number.Trim() != "" && listing.Contains(item.Number.Trim().ToLowerInvariant())
+            && ListingParse.Words(item.Series).Where(w => !ListingParse.IsNumber(w) && !Brands.Contains(w)).ToList() is { Count: > 0 } sw && sw.All(listing.Contains))
+            return true;
         var squashed = string.Concat(listing.Where(w => !ListingParse.IsNumber(w)));
         bool Has(string w) => squashed.Contains(w);
         var title = CleanTitle(item.Title) != "" ? CleanTitle(item.Title) : item.Series;
@@ -564,12 +571,13 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             }));
         // One link per listing (the same eBay listing came from both ebay.de and ebay.com).
         finds = finds.DistinctBy(f => (Pricing.ListingKey(f.Url), f.Similar)).ToList();
-        var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!)).Select(o => (int)o.Price!.Value).ToList();
+        // Danish first here too (2026-10-26: other Basserne gave 40 kr with eBay's 35-304 kr in; Nemos/Faraos say 12-22).
+        var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!).Select(o => (a.Source, Kr: (int)o.Price!.Value))).ToList();
         // New shops (Saxo, Amazon ...): the price a new copy is compared with.
         var fresh = answers.Where(a => a.IsNew && a.Result is { Ambiguous: false }).SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();
         // Discogs want/have: from the first source that knows it (only Discogs today).
         var demand = answers.Select(a => a.Result).FirstOrDefault(r => r?.Want is not null);
-        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalOf(likeKr),
+        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalDanishFirst(likeKr),
             Pricing.NormalOf(fresh), demand?.Want, demand?.Have);
     }
 
@@ -583,7 +591,13 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         if (Want is not null) (item.Want, item.Have) = (Want, Have);
         if (Answered == 0) return;
         if (item.Confidence < Pricing.MinConfidence && !Finds.Any(f => !f.Similar && !f.IsNew && Pricing.ConfirmsReading(item, f.Name)))
-        { item.PriceHint = null; item.SimilarHint = null; return; }
+        {
+            // Unsure what it is = no price. But a blad's series is read right even when its number is not, so what other
+            // issues cost is still shown (user 2026-10-26: "if no one is for sale there should be a similar").
+            item.PriceHint = null;
+            item.SimilarHint = Pricing.SeriesItemFor(item) is not null ? SimilarNormal : null;
+            return;
+        }
         var market = item.Usage == Usages.New ? NewNormal ?? Normal : Normal;
         item.PriceHint = ShopPrice(market);
         item.SimilarHint = Normal is null ? SimilarNormal : null;

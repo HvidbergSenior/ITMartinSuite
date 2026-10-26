@@ -80,7 +80,7 @@ public class SimilarSearchTests
         var r = ITMartinLager.Domain.HuntResult.From(1, [new("DBA", false, new ITMartinLager.Domain.Listings(0, null, null, null, "u", []))], DateTime.UtcNow, [new("DBA", false, like)]);
         r.ApplyTo(item, DateTime.UtcNow);
         item.PriceHint.Should().BeNull();
-        item.SimilarHint.Should().Be(100);
+        item.SimilarHint.Should().Be(50);   // since 2026-10-26 the same "realistic, Danish first" middle as a real price
         r.Finds.Should().OnlyContain(f => f.Similar);
     }
 }

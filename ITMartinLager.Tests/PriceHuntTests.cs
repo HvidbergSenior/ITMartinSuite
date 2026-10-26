@@ -278,6 +278,10 @@ public class PriceHuntTests
         var rodoje = new Item { Kind = Kinds.Tegneserie, Title = "Rødøje", Series = "Basserne", Number = "612" };
         Pricing.TitleFor(Pricing.SeriesItemFor(rodoje)!).Should().Be("Basserne");
         Pricing.IsOneCopyOf(Pricing.SeriesItemFor(rodoje)!, new Offer("Basserne 952", 13, "u")).Should().BeTrue();
+        // Faraos names the issue, not the story: "Basserne 2001 Nr. 612" is Rødøje.
+        Pricing.IsOneCopyOf(rodoje, new Offer("Basserne 2001 Nr. 612", 18, "u", "Fine, 1. udgave, 1. oplag")).Should().BeTrue();
+        Pricing.IsOneCopyOf(rodoje, new Offer("Basserne 2001 Nr. 611", 18, "u")).Should().BeFalse();
+        Pricing.SeriesItemFor(new Item { Kind = Kinds.Tegneserie, Title = "Udvidet nummer", Series = "Basserne" }).Should().NotBeNull();
         Pricing.SeriesItemFor(new Item { Kind = Kinds.Bog, Title = "Genfærd", Series = "Harry Hole", Number = "9" }).Should().BeNull();
 
         // A broad answer keeps its listings aside - no price from it, but the series step can use them.

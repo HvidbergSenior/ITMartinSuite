@@ -112,10 +112,14 @@ else
                     <p class="lg-answer">Lige præcis denne er ikke til salg nogen steder lige nu</p>
                     @if (_similar.Count > 0)
                     {
-                        var like = Pricing.NormalOf(_similar.Select(f => f.Kr).ToList());
+                        var like = Pricing.NormalDanishFirst(_similar.Select(f => (f.Source, f.Kr)).ToList()) ?? Pricing.NormalOf(_similar.Select(f => f.Kr).ToList());
+                        var what = Pricing.SeriesItemFor(_item) is { } s && _similar.Any(f => f.Name.Contains(s.Title, StringComparison.OrdinalIgnoreCase))
+                            ? $"andre numre af {s.Title}" : $"{Pricing.SimilarTitleFor(_item)} i en anden årgang, et andet nummer eller en anden udgave";
                         <div class="lg-proof">
-                            <p><b>Men magen til koster ca. @like kr</b> – @Pricing.SimilarTitleFor(_item) i en anden årgang, et andet nummer eller en anden udgave (midten af @_similar.Count annoncer).
+                            <p><b>Men magen til koster ca. @like kr</b> – @what (midten af @_similar.Count annoncer, danske først).
                                Det er et pejlemærke, ikke bevis for netop denne – derfor sætter Lager ingen pris af sig selv. Skriv selv prisen ovenfor.</p>
+                            @* "Basserne cost this and this for this and this" (user 2026-10-26) - per site, Danish first, from the listings themselves. *@
+                            <p class="k-small">@SimilarSummary()</p>
                             <ul class="lg-prices">
                                 @foreach (var f in _similar.OrderBy(f => f.Kr).Take(8)) { @Find(f, like) }
                             </ul>
@@ -304,6 +308,14 @@ else
         _similar = view?.Finds.Where(f => f.Similar).ToList() ?? [];
         _checks = view?.Checks ?? [];
     }
+
+    // "Faraos: 12-22 kr (8 annoncer) · Nemos: 8-47 kr (12) · eBay (udland): 35-304 kr (10)."
+    private string SimilarSummary() =>
+        string.Join(" · ", _similar.GroupBy(f => f.Source)
+            .OrderBy(g => Pricing.DanishSources.Contains(g.Key) ? 0 : 1).ThenBy(g => g.Min(f => f.Kr))
+            .Select(g => $"{g.Key}{(Pricing.DanishSources.Contains(g.Key) ? "" : " (udland)")}: "
+                         + (g.Min(f => f.Kr) == g.Max(f => f.Kr) ? $"{g.Min(f => f.Kr)} kr" : $"{g.Min(f => f.Kr)}-{g.Max(f => f.Kr)} kr")
+                         + $" ({g.Count()} annonce{(g.Count() == 1 ? "" : "r")})")) + ".";
 
     private static RenderFragment Find(PriceFind f, int? normal) => __builder =>
     {

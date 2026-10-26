@@ -33,6 +33,11 @@ public sealed partial class FaraosListings(HttpClient http, ILogger<FaraosListin
                        ?? await SearchAsync(string.Join(' ', ListingParse.Words(query).Where(w => !ListingParse.IsNumber(w))), ct);
             if (json is null) { log.LogInformation("Faraos search failed for {Query}", query); return null; }
             var result = Parse(json, title, author, SearchUrl(query));
+            // A broad search ("Basserne") fills page 1 with new books; the used copies start on page 2 (2026-10-26).
+            if (result.All.Count == 0 && result.Broad.Count == 0
+                && await SearchAsync(NrRx().Replace(query, " "), ct, page: 2) is { } used
+                && Parse(used, title, author, SearchUrl(query)) is { Count: > 0 } second)
+                result = second with { NewPrice = result.NewPrice };
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }
@@ -44,10 +49,10 @@ public sealed partial class FaraosListings(HttpClient http, ILogger<FaraosListin
         finally { Gate.Release(); }
     }
 
-    private async Task<string?> SearchAsync(string text, CancellationToken ct)
+    private async Task<string?> SearchAsync(string text, CancellationToken ct, int page = 1)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
-        var body = JsonSerializer.Serialize(new { inSearchDialog = true, searchString = text.Trim(), tag = (string?)null, sortOrder = 5, subPage = 0, page = 1 });
+        var body = JsonSerializer.Serialize(new { inSearchDialog = true, searchString = text.Trim(), tag = (string?)null, sortOrder = 5, subPage = 0, page });
         using var req = new HttpRequestMessage(HttpMethod.Post, Api) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
         req.Headers.TryAddWithoutValidation("Origin", "https://www.faraos.dk");
         req.Headers.UserAgent.ParseAdd("BogshoppenLager/1.0 (ITMartin@Mensa.dk)");
@@ -84,7 +89,10 @@ public sealed partial class FaraosListings(HttpClient http, ILogger<FaraosListin
                     if (!ed.TryGetProperty("conditions", out var conds) || conds.ValueKind != JsonValueKind.Array) continue;
                     foreach (var c in conds.EnumerateArray())
                         if (Price(c, "price") is { } kr)
-                            used.Add(new Offer($"{name} ({Str(ed, "editionName")}, {Str(c, "name")})", kr, link));
+                            // Edition and grade are the shop's own fields, shown beside the price - not in the name, where
+                            // "1. udgave, 1. oplag" (every Danish blad) and "Near Mint" read as a seller's collector copy and
+                            // threw out nearly every Faraos copy (found 2026-10-26, Basserne 612).
+                            used.Add(new Offer(name, kr, link, $"{Str(c, "name")}, {Str(ed, "editionName")}"));
                 }
             }
             else if (it.TryGetProperty("status", out var st) && !(st.TryGetProperty("isUsed", out var u) && u.GetBoolean())

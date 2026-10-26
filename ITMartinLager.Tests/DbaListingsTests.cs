@@ -140,7 +140,7 @@ public class DbaListingsTests
             """;
         var l = FaraosListings.Parse(json, "Anders And & Co. 1975 Nr. 1", "", "u");
         (l.Count, l.Low, l.High, l.NewPrice).Should().Be((3, 22m, 30m, 50m));
-        l.Proof[0].Name.Should().Contain("Fine -");
+        l.Proof[0].Original.Should().Contain("Fine -");
         l.Text.Should().EndWith("ny i butikken 50 kr");
     }
 
