@@ -36,4 +36,20 @@ public class SessionLabelTests
         // Printed again with another name: the name already on the box is kept.
         (await boxes.LabelSheetAsync("K0021~Noget andet")).Single().Note.Should().Be("Anders And 1970'erne");
     }
+
+    [Test]
+    public async Task An_admin_deletes_a_box_and_what_Vareinfo_sent_for_it()
+    {
+        var f = new TestDbFactory(_conn);
+        var intake = new IntakeRepository(f);
+        var boxes = new BoxUseCases(new BoxRepository(f), new ItemRepository(f), intake);
+        await boxes.LabelSheetAsync("K0031~Slettes, K0032");
+        await intake.AddAsync([new ITMartinLager.Domain.BoxShot { VareinfoId = 1, BoxCode = "K0031", Helper = "Martin", TakenAt = DateTime.UtcNow }], [], default);
+
+        (await boxes.DeleteAsync("K0031")).Should().Be(0);
+
+        (await boxes.AllAsync()).Select(b => b.Code).Should().Equal("K0032");
+        (await intake.PerBoxAsync(default)).Should().NotContain(b => b.BoxCode == "K0031");
+        (await boxes.DeleteAsync("K9876")).Should().Be(0);   // not there: nothing happens
+    }
 }

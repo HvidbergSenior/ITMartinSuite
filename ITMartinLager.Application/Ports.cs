@@ -86,6 +86,8 @@ public interface IIntakeRepository
     Task<List<BoxScan>> WantedScansAsync(int max, CancellationToken ct);
     Task UpdateAsync(IEnumerable<BoxShot> shots, CancellationToken ct);
     Task UpdateAsync(IEnumerable<BoxScan> scans, CancellationToken ct);
+    /// <summary>The photos and scans that came from Vareinfo for this box (a deleted box).</summary>
+    Task ForgetBoxAsync(string boxCode, CancellationToken ct);
 }
 
 /// <summary>Photo files in the data folder. Paths are relative to it.</summary>

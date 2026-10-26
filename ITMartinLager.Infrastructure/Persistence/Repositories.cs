@@ -81,6 +81,12 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         await using var db = await dbf.CreateDbContextAsync(ct);
         await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Note, note), ct);
     }
+
+    public async Task DeleteAsync(int id, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.Boxes.Where(b => b.Id == id).ExecuteDeleteAsync(ct);
+    }
 }
 
 public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemRepository

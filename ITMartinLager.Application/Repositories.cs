@@ -19,6 +19,7 @@ public interface IBoxRepository
     Task<int> CountAsync(CancellationToken ct);
     Task SetPlaceAsync(int id, string place, CancellationToken ct);
     Task SetNoteAsync(int id, string note, CancellationToken ct);
+    Task DeleteAsync(int id, CancellationToken ct);
 }
 
 public interface IItemRepository

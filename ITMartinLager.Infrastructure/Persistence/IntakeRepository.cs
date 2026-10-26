@@ -82,4 +82,11 @@ public sealed class IntakeRepository(IDbContextFactory<LagerDb> dbf) : IIntakeRe
         db.BoxScans.UpdateRange(scans);
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task ForgetBoxAsync(string boxCode, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.BoxShots.Where(x => x.BoxCode == boxCode).ExecuteDeleteAsync(ct);
+        await db.BoxScans.Where(x => x.BoxCode == boxCode).ExecuteDeleteAsync(ct);
+    }
 }

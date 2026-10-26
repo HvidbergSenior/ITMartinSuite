@@ -3,7 +3,7 @@ using ITMartinLager.Domain;
 namespace ITMartinLager.Application;
 
 /// <summary>Boxes: numbering, places, contents.</summary>
-public sealed class BoxUseCases(IBoxRepository boxes, IItemRepository items)
+public sealed class BoxUseCases(IBoxRepository boxes, IItemRepository items, IIntakeRepository? intake = null)
 {
     public Task<Box> NewAsync(string place, CancellationToken ct = default) => boxes.AddNextAsync(place.Trim(), ct);
     public Task<List<Box>> RecentAsync(int count, CancellationToken ct = default) => boxes.RecentAsync(count, ct);
@@ -35,6 +35,18 @@ public sealed class BoxUseCases(IBoxRepository boxes, IItemRepository items)
     }
 
     public Task<List<BoxSummary>> AllAsync(CancellationToken ct = default) => boxes.SummariesAsync(ct);
+
+    /// <summary>Admin (user 2026-10-26: "as admin user i should be able to delete kasser etc"): the box, the things in it
+    /// and what Vareinfo sent for it are gone. The page asks first and says how many things. Returns how many things went.</summary>
+    public async Task<int> DeleteAsync(string code, CancellationToken ct = default)
+    {
+        if (await boxes.ByCodeAsync(code, ct) is not { } box) return 0;
+        var inBox = await items.InBoxAsync(box.Id, ct);
+        foreach (var i in inBox) await items.DeleteAsync(i.Id, ct);
+        if (intake is not null) await intake.ForgetBoxAsync(box.Code, ct);
+        await boxes.DeleteAsync(box.Id, ct);
+        return inBox.Count;
+    }
     public Task SetPlaceAsync(int id, string place, CancellationToken ct = default) => boxes.SetPlaceAsync(id, place.Trim(), ct);
 
     public async Task<(Box? Box, List<Item> Items)> ContentsAsync(string code, CancellationToken ct = default)

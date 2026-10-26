@@ -1,6 +1,7 @@
 @page "/kasse/{Code}"
 @inject BoxUseCases Boxes
 @inject VareinfoLinks Vareinfo
+@inject NavigationManager Nav
 
 <PageTitle>@Code – Bogshoppen Lager</PageTitle>
 
@@ -31,6 +32,22 @@ else
             }
         </div>
         @if (_msg is not null) { <p class="lg-ok">✓ @_msg</p> }
+        @if (Admin)
+        {
+            @* Admin may delete a box (user 2026-10-26) - asked first, with how many things go with it. *@
+            @if (!_confirmDelete)
+            {
+                <button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => _confirmDelete = true">Slet kassen</button>
+            }
+            else
+            {
+                <p class="lg-warn">Slet kasse @_box.Code@(_items.Count > 0 ? $" og de {_items.Sum(i => i.Quantity)} ting i den" : "")? Det kan ikke fortrydes.</p>
+                <div class="lg-row">
+                    <button class="k-btn k-btn-primary" @onclick="Delete">Ja, slet @(_items.Count > 0 ? "kassen og tingene" : "kassen")</button>
+                    <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = false">Nej</button>
+                </div>
+            }
+        }
     </section>
 
     <section class="k-card">
@@ -51,6 +68,14 @@ else
     private Box? _box;
     private List<Item> _items = [];
     private string? _msg;
+    private bool _confirmDelete;
+
+    private async Task Delete()
+    {
+        if (!Admin || _box is null) return;
+        await Boxes.DeleteAsync(_box.Code);
+        Nav.NavigateTo("/kasser");
+    }
 
     protected override async Task OnParametersSetAsync() => (_box, _items) = await Boxes.ContentsAsync(Code);
 
