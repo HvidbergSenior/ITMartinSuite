@@ -39,13 +39,11 @@ public static class VareinfoDbInitializer
         if (Columns(conn, "Photos").Count > 0 && !Columns(conn, "Photos").Contains("RawPath"))
             foreach (var table in new[] { "Photos", "Scans", "KolofonShots", "AiDays" })
                 if (Columns(conn, table).Count > 0) Exec(conn, $"""ALTER TABLE "{table}" RENAME TO "Old_{table}_{DateTime.UtcNow:yyyyMMdd}" """);
-        if (Columns(conn, "Photos").Count == 0)
-        {
-            // EnsureCreated does nothing when any table exists, so the new tables come from the model's own script.
-            foreach (var statement in db.Database.GenerateCreateScript().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                Exec(conn, statement.Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
-                    .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS "));
-        }
+        // EnsureCreated does nothing when any table exists, so the tables come from the model's own script - on every
+        // start, IF NOT EXISTS: a table added later (Sessions, 2026-10-26) is made in the live file too.
+        foreach (var statement in db.Database.GenerateCreateScript().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            Exec(conn, statement.Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
+                .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS "));
         // Many phones at once: readers never wait for the writer.
         Exec(conn, "PRAGMA journal_mode=WAL;");
         if (opened) conn.Close();

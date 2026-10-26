@@ -83,3 +83,22 @@ public class SessionTests
     public void A_session_without_a_name_is_named_after_the_day() =>
         WorkSession.Start(" ", new DateTime(2026, 10, 31, 9, 0, 0, DateTimeKind.Utc)).Name.Should().StartWith("Session 31.");
 }
+
+public class UpgradeTests
+{
+    [Test]
+    public void A_database_from_before_the_sessions_gets_the_new_tables()
+    {
+        using var conn = new SqliteConnection("Data Source=:memory:");
+        conn.Open();
+        var f = new TestDbFactory(conn);
+        using (var db = f.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
+        using (var cmd = conn.CreateCommand()) { cmd.CommandText = "DROP TABLE SessionBoxes; DROP TABLE Sessions;"; cmd.ExecuteNonQuery(); }
+
+        using (var db = f.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
+
+        using var check = conn.CreateCommand();
+        check.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('Sessions', 'SessionBoxes')";
+        Convert.ToInt32(check.ExecuteScalar()).Should().Be(2);
+    }
+}
