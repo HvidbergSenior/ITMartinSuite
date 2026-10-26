@@ -28,13 +28,19 @@ public class CaptureTests
     private readonly Taker _rico = new(1, "Rico"), _anna = new(2, "Anna");
 
     [SetUp]
-    public void Open()
+    public async Task Open()
     {
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();
-        using var db = Factory.CreateDbContext();
-        VareinfoDbInitializer.Upgrade(db);
+        using (var db = Factory.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
+        // Helpers only take boxes Martin made ready (2026-10-26) - the boxes these tests use are in one open session.
+        var sessions = Sessions();
+        var s = await sessions.StartAsync("Test");
+        foreach (var n in new[] { 1, 7, 8, 8999 }.Concat(Enumerable.Range(101, 100))) await sessions.AddBoxAsync(s.Id, n, null);
     }
+
+    private SessionUseCases Sessions() =>
+        new(new SessionRepository(Factory), new BoxClaimRepository(Factory), new PhotoRepository(Factory), _clock);
 
     [TearDown]
     public void Close() => _conn.Dispose();
@@ -50,7 +56,7 @@ public class CaptureTests
     }
 
     private CaptureUseCases Capture(IPhotoStore? store = null) =>
-        new(new BoxClaimRepository(Factory), new PhotoRepository(Factory), new ScanRepository(Factory), store ?? Store().Object, _clock);
+        new(new BoxClaimRepository(Factory), new PhotoRepository(Factory), new ScanRepository(Factory), store ?? Store().Object, Sessions(), _clock);
 
     [Test]
     public async Task Everyone_has_their_own_test_box_the_same_every_time_and_nobody_can_type_its_number()

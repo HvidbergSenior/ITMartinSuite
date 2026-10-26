@@ -17,6 +17,9 @@ public sealed record CapturedPhoto(int Id, string BoxCode, string Helper, int Ti
 /// <summary>A barcode scanned into a box; Quantity = scanned that many times.</summary>
 public sealed record CapturedScan(int Id, string BoxCode, string Helper, string Code, int Quantity, DateTime TakenAt);
 
-public sealed record CaptureBatch(List<CapturedPhoto> Photos, List<CapturedScan> Scans);
+/// <summary>The name Martin gave a box in a Vareinfo session ("Anders And 1970'erne") - Lager shows it on Kasser.</summary>
+public sealed record CapturedBox(string BoxCode, string Name);
+
+public sealed record CaptureBatch(List<CapturedPhoto> Photos, List<CapturedScan> Scans, List<CapturedBox>? Boxes = null);
 
 public sealed record CaptureReceived(List<int> PhotoIds, List<int> ScanIds);

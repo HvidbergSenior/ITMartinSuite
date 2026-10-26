@@ -1,0 +1,145 @@
+@page "/sessioner"
+@inject SessionUseCases Sessions
+@inject HelperUseCases Helpers
+
+@* Martin's page (user 2026-10-26: "I prepare a session with 4 helpers. I point to 20 boxes and name them" ... "an easy
+   way to make qr labels on each"). The rules are in WorkSession / SessionUseCases; this page only calls them. *@
+<PageTitle>Sessioner – Bogshoppen Vareinfo</PageTitle>
+
+@if (Me is not { IsAdmin: true })
+{
+    <section class="k-card">
+        <h1 class="k-card-title">Kun for Martin</h1>
+        <p>Her gør Martin kasserne klar til hjælperne.</p>
+        <a class="k-btn k-btn-secondary" href="/">📷 Tilbage til kassen</a>
+    </section>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="k-card-title">🗂️ Sessioner</h1>
+        <p>En session er de kasser, I tager billeder af sammen – fx 20 kasser til 4 hjælpere en lørdag. Hjælperne ser <b>kun</b> kasserne i de åbne sessioner (og deres egen testkasse) og trykker bare på den, de har foran sig.</p>
+        <ol>
+            <li>Skriv et navn og tryk <b>Ny session</b>.</li>
+            <li>Tryk <b>Lav nye kasser</b> (fx 20) – de får de næste numre. Har kassen allerede et nummer, så brug <b>Tilføj kasse</b>.</li>
+            <li>Giv kasserne et navn (fx <i>Anders And 1970'erne</i>), og tryk <b>Print labels</b>. Sæt en label på hver kasse.</li>
+            <li>Når I er færdige, tryk <b>Luk session</b>. Billederne bliver gemt.</li>
+        </ol>
+        <form class="lg-row" @onsubmit="Start">
+            <input class="k-input" @bind="_newName" placeholder="Navn, fx Lørdag i garagen" aria-label="Sessionens navn" />
+            <button class="k-btn k-btn-primary" type="submit" disabled="@_busy">➕ Ny session</button>
+        </form>
+        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+        @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+    </section>
+
+    @foreach (var s in _sessions)
+    {
+        <section class="k-card" data-fold-closed="@(s.Open ? null : "")">
+            <h2 class="k-card-title">@s.Name @(s.Open ? "" : "(lukket)") – @s.Boxes.Count kasser</h2>
+            @if (s.Open)
+            {
+                <div class="lg-row">
+                    <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@SessionUseCases.MaxNewAtOnce" @bind="_count" aria-label="Hvor mange nye kasser" />
+                    <button class="k-btn k-btn-primary" @onclick="() => NewBoxes(s.Id)" disabled="@_busy">Lav @(_count) nye kasser</button>
+                </div>
+                <div class="lg-row">
+                    <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@BoxClaim.MaxNormal" @bind="_addNumber" placeholder="Nr." aria-label="Kassens nummer" />
+                    <input class="k-input" @bind="_addName" placeholder="Navn (kan udelades)" aria-label="Kassens navn" />
+                    <button class="k-btn k-btn-secondary" @onclick="() => AddBox(s.Id)" disabled="@_busy">Tilføj kasse</button>
+                </div>
+            }
+            @if (s.Boxes.Count > 0)
+            {
+                <p><a class="k-btn k-btn-primary" href="@LabelsUrl(s)" target="_blank" rel="noopener">🖨️ Print labels (@Math.Min(s.Boxes.Count, BoxCodes.MaxSheet))</a>
+                    @if (s.Boxes.Count > BoxCodes.MaxSheet) { <span class="k-small"> – de første @BoxCodes.MaxSheet; resten på næste ark</span> }</p>
+                <ul class="lg-list">
+                    @foreach (var b in s.Boxes.OrderBy(b => b.SortOrder))
+                    {
+                        <li>
+                            <span class="lg-box">@b.BoxCode</span>
+                            <input class="k-input" value="@b.Name" placeholder="Navn" aria-label="Navn på kasse @b.Number"
+                                   @onchange="e => Rename(b.Id, e.Value?.ToString())" />
+                            <span class="k-small">@State(b.BoxCode)</span>
+                            @if (_confirmRemove == b.Id)
+                            {
+                                <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Remove(b.Id)">Ja, tag den ud</button>
+                                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _confirmRemove = null">Nej</button>
+                            }
+                            else
+                            {
+                                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _confirmRemove = b.Id">Tag ud</button>
+                            }
+                        </li>
+                    }
+                </ul>
+                <p class="k-small k-muted">Navnet gemmes, når du går ud af feltet. Tager du en kasse ud, bliver billederne i den gemt.</p>
+            }
+            <div class="lg-row">
+                @if (s.Open) { <button class="k-btn k-btn-secondary" @onclick="() => Close(s.Id)" disabled="@_busy">Luk session</button> }
+                else { <button class="k-btn k-btn-secondary" @onclick="() => Reopen(s.Id)" disabled="@_busy">Åbn igen</button> }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [CascadingParameter] public Taker? Me { get; set; }
+
+    private List<WorkSession> _sessions = [];
+    private Dictionary<string, BoxChoice> _states = [];
+    private string _newName = "", _addName = "";
+    private int _count = 20;
+    private int? _addNumber, _confirmRemove;
+    private bool _busy;
+    private string? _error, _msg;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        if (Me is not { IsAdmin: true }) return;
+        _sessions = await Sessions.AllAsync();
+        _states = (await Sessions.ChoicesAsync(Me)).ToDictionary(c => c.BoxCode);
+    }
+
+    private string State(string code) => _states.GetValueOrDefault(code) is not { } c ? "" : c.State switch
+    {
+        ChoiceState.Busy or ChoiceState.Mine => $"{c.Who} er i gang · {c.Photos} billeder",
+        ChoiceState.Done => $"færdig · {c.Who} · {c.Photos} billeder",
+        _ => c.Photos > 0 ? $"fri · {c.Photos} billeder" : "fri",
+    };
+
+    // Lager prints the sheet: number, QR and the name on each label - the boxes are made there when missing.
+    private string LabelsUrl(WorkSession s) =>
+        $"{Helpers.LagerBase}/kasser/labels?kasser=" + Uri.EscapeDataString(string.Join(",",
+            s.Boxes.OrderBy(b => b.SortOrder).Take(BoxCodes.MaxSheet).Select(b => b.Name == "" ? b.BoxCode : $"{b.BoxCode}~{b.Name.Replace(",", " ").Replace("~", " ")}")));
+
+    private Task Start() => Do(async () => { var s = await Sessions.StartAsync(_newName); _newName = ""; _msg = $"{s.Name} er lavet. Lav eller tilføj kasser nedenfor."; });
+
+    private Task NewBoxes(int id) => Do(async () =>
+    {
+        var numbers = await Sessions.NewBoxesAsync(id, _count);
+        _msg = numbers.Count == 1 ? $"Kasse {numbers[0]} er lavet." : $"Kasse {numbers[0]}-{numbers[^1]} er lavet. Giv dem et navn og tryk Print labels.";
+    });
+
+    private Task AddBox(int id) => Do(async () =>
+    {
+        if (_addNumber is not { } n) throw new VareinfoException("Skriv kassens nummer.");
+        await Sessions.AddBoxAsync(id, n, _addName);
+        (_addNumber, _addName, _msg) = (null, "", $"Kasse {n} er med.");
+    });
+
+    private Task Rename(int boxId, string? name) => Do(() => Sessions.RenameBoxAsync(boxId, name));
+    private Task Remove(int boxId) => Do(async () => { await Sessions.RemoveBoxAsync(boxId); _confirmRemove = null; });
+    private Task Close(int id) => Do(async () => { await Sessions.CloseAsync(id); _msg = "Sessionen er lukket. Hjælperne ser ikke kasserne mere."; });
+    private Task Reopen(int id) => Do(() => Sessions.ReopenAsync(id));
+
+    private async Task Do(Func<Task> action)
+    {
+        _busy = true; _error = null; _msg = null;
+        try { await action(); await Load(); }
+        catch (VareinfoException ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+}

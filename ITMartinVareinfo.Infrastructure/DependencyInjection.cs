@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IScanRepository, ScanRepository>();
         services.AddScoped<IHelperRepository, HelperRepository>();
         services.AddScoped<IBoxClaimRepository, BoxClaimRepository>();
+        services.AddScoped<ISessionRepository, SessionRepository>();
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
         // Helpers log in with their kundenummer (Kunder__Url / Kunder__ApiKey, user 2026-10-24).
         services.AddKunderClient(cfg, dataDir);

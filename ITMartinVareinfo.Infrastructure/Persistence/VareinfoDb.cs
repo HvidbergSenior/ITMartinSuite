@@ -8,6 +8,8 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
     public DbSet<Scan> Scans => Set<Scan>();
     public DbSet<Helper> Helpers => Set<Helper>();
     public DbSet<BoxClaim> BoxClaims => Set<BoxClaim>();
+    public DbSet<WorkSession> Sessions => Set<WorkSession>();
+    public DbSet<SessionBox> SessionBoxes => Set<SessionBox>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -18,6 +20,10 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
         b.Entity<Helper>().HasIndex(x => x.Code).IsUnique();
         b.Entity<BoxClaim>().HasKey(x => x.BoxCode);
         b.Entity<BoxClaim>().HasIndex(x => x.HelperId);
+        b.Entity<WorkSession>().HasMany(s => s.Boxes).WithOne().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<WorkSession>().Ignore(s => s.Open);
+        b.Entity<SessionBox>().Ignore(x => x.Number).Ignore(x => x.Title);
+        b.Entity<SessionBox>().HasIndex(x => x.BoxCode);
     }
 }
 

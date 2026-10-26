@@ -161,3 +161,56 @@ public sealed class BoxClaimRepository(IDbContextFactory<VareinfoDb> dbf) : IBox
             .OrderByDescending(c => c.LastAt).ToListAsync(ct);
     }
 }
+
+// The sessions Martin prepares (2026-10-26), with their boxes.
+public sealed class SessionRepository(IDbContextFactory<VareinfoDb> dbf) : ISessionRepository
+{
+    public async Task<List<WorkSession>> AllAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Sessions.AsNoTracking().Include(s => s.Boxes).OrderByDescending(s => s.CreatedAt).ToListAsync(ct);
+    }
+
+    public async Task<WorkSession?> GetAsync(int id, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Sessions.AsNoTracking().Include(s => s.Boxes).FirstOrDefaultAsync(s => s.Id == id, ct);
+    }
+
+    public async Task SaveAsync(WorkSession session, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        if (session.Id == 0) db.Sessions.Add(session);
+        else
+        {
+            db.Sessions.Update(session);
+            foreach (var box in session.Boxes) db.Entry(box).State = box.Id == 0 ? EntityState.Added : EntityState.Modified;
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<SessionBox?> BoxAsync(int boxId, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.SessionBoxes.AsNoTracking().FirstOrDefaultAsync(b => b.Id == boxId, ct);
+    }
+
+    public async Task UpdateBoxAsync(SessionBox box, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.SessionBoxes.Update(box);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveBoxAsync(int boxId, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.SessionBoxes.Where(b => b.Id == boxId).ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<List<int>> UsedNumbersAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return (await db.SessionBoxes.Select(b => b.BoxCode).ToListAsync(ct)).Select(BoxCodes.Number).ToList();
+    }
+}

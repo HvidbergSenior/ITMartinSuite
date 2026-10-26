@@ -60,7 +60,7 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         var counts = await db.Items.Where(i => i.BoxId != null).GroupBy(i => i.BoxId)
             .Select(g => new { Id = g.Key!.Value, Lines = g.Count(), Units = g.Sum(i => i.Quantity) }).ToDictionaryAsync(x => x.Id, ct);
         return (await db.Boxes.OrderByDescending(b => b.Id).ToListAsync(ct))
-            .Select(b => new BoxSummary(b.Id, b.Code, b.Place, counts.GetValueOrDefault(b.Id)?.Lines ?? 0, counts.GetValueOrDefault(b.Id)?.Units ?? 0))
+            .Select(b => new BoxSummary(b.Id, b.Code, b.Place, counts.GetValueOrDefault(b.Id)?.Lines ?? 0, counts.GetValueOrDefault(b.Id)?.Units ?? 0, b.Note))
             .ToList();
     }
 
@@ -74,6 +74,12 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Place, place), ct);
+    }
+
+    public async Task SetNoteAsync(int id, string note, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Note, note), ct);
     }
 }
 

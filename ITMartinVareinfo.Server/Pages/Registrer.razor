@@ -1,6 +1,7 @@
 @page "/"
 @page "/registrer"
 @inject CaptureUseCases Capture
+@inject SessionUseCases Sessions
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @using System.Text.Json
@@ -16,9 +17,47 @@
 }
 else if (_box is null)
 {
+    @* The prepared boxes (user 2026-10-26: "I prepare which boxes so that they just have to choose"): a helper only taps
+       one of these - or their own test box below. *@
     <section class="k-card">
-        <h1 class="k-card-title">📦 Hvilken kasse?</h1>
-        <p>Hej @Me.Name. Har kassen en label med QR-kode, så tryk <b>Scan kassens label</b> og hold kameraet foran QR-koden. Ellers skriv det nummer, der står på kassen, og tryk <b>Start kassen</b>. Står der ikke noget nummer, så spørg Martin.</p>
+        <h1 class="k-card-title">📦 Vælg en kasse</h1>
+        @if (_choices.Count == 0)
+        {
+            <p>Hej @Me.Name. Der er ikke gjort kasser klar lige nu. Martin gør dem klar, før I går i gang – imens kan du prøve din <b>testkasse</b> nedenfor.</p>
+        }
+        else
+        {
+            <p>Hej @Me.Name. Tryk på den kasse, du har foran dig. Nummeret står på kassen. En kasse, en anden er i gang med, kan du ikke vælge.</p>
+            <ul class="lg-list">
+                @foreach (var c in _choices)
+                {
+                    <li>
+                        <span class="lg-main"><b>@c.Title</b>
+                            <span class="k-small">@(c.State switch
+                            {
+                                ChoiceState.Mine => "Din – du er i gang",
+                                ChoiceState.Busy => $"{c.Who} er i gang",
+                                ChoiceState.Done => $"Færdig{(c.Who != "" ? " – " + c.Who : "")}",
+                                _ => "Fri",
+                            })@(c.Photos > 0 ? $" · {c.Photos} billeder" : "")</span></span>
+                        @if (c.CanTake)
+                        {
+                            <button class="k-btn k-btn-primary" @onclick="() => TakeChoice(c)" disabled="@_busy">@(c.State == ChoiceState.Mine ? "Fortsæt" : "Vælg")</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+        @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
+        <p data-photo-status role="status" hidden></p>
+    </section>
+
+    @if (Me.IsAdmin)
+    {
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Andre kasser (kun Martin)</h2>
+        <p>Har kassen en label med QR-kode, så tryk <b>Scan kassens label</b> og hold kameraet foran QR-koden. Ellers skriv det nummer, der står på kassen, og tryk <b>Start kassen</b>. Hjælperne kan kun vælge kasserne på listen ovenfor – dem gør du klar under <b>Sessioner</b>.</p>
         @if (!_scanningLabel)
         {
             <button type="button" class="k-btn k-btn-primary lg-big" @onclick="StartLabelScan" disabled="@_busy">▣ Scan kassens label</button>
@@ -35,10 +74,8 @@ else if (_box is null)
             <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@BoxClaim.MaxNormal" placeholder="Kassens nr." @bind="_number" aria-label="Kassens nummer" />
             <button class="k-btn k-btn-primary lg-big" type="submit" disabled="@_busy">Start kassen</button>
         </form>
-        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
-        @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
-        <p data-photo-status role="status" hidden></p>
     </section>
+    }
 
     <section class="k-card">
         <h2 class="k-card-title">Min testkasse</h2>
@@ -127,8 +164,29 @@ else
         if (Me is null) return;
         // Back on the page (reload, next morning): the box this helper was filling.
         _box = await Capture.MyBoxAsync(Me);
+        await LoadChoices();
         await Count();
     }
+
+    private List<BoxChoice> _choices = [];
+
+    private async Task LoadChoices()
+    {
+        if (Me is null) return;
+        try { _choices = await Sessions.ChoicesAsync(Me); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task TakeChoice(BoxChoice c)
+    {
+        _number = BoxCodes.Number(c.BoxCode);
+        await Take();
+        if (_box is null) await LoadChoices();   // someone else took it a moment ago - show the list as it is now
+    }
+
+    // "Kasse 7 – Anders And 1970'erne" when Martin named it in the session.
+    private string BoxName(BoxClaim box) => box.IsTest ? $"Testkasse {box.Number}"
+        : _choices.FirstOrDefault(c => c.BoxCode == box.BoxCode)?.Title ?? $"Kasse {box.Number}";
 
     // Each photo carries its own box, so photos still waiting on the phone land in the right box after the next box.
     private string BoxFields => _box is null ? "{}" : JsonSerializer.Serialize(new { boxCode = _box.BoxCode });
@@ -177,7 +235,6 @@ else
         finally { _busy = false; }
     }
 
-    private static string BoxName(BoxClaim box) => box.IsTest ? $"Testkasse {box.Number}" : $"Kasse {box.Number}";
 
     private async Task Finish()
     {
@@ -188,9 +245,10 @@ else
         try
         {
             await Capture.FinishBoxAsync(_box.BoxCode, Me);
-            _saved = $"{BoxName(_box)} er færdig: {_photos} billeder og {_scans} stregkoder. Skriv nummeret på den næste kasse.";
+            _saved = $"{BoxName(_box)} er færdig: {_photos} billeder og {_scans} stregkoder. Vælg den næste kasse på listen.";
             _box = null;
             _number = null;
+            await LoadChoices();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; _confirmDone = false; }

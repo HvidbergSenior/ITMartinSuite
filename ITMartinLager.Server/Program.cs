@@ -34,11 +34,12 @@ builder.Services.AddKolibri(k =>
         "Priserne findes på DBA, GulogGratis, Accord (brugte cd'er og plader), Nemos Bibliotek, Faraos, Tradera og eBay. Nypriser: Bog & idé (bøger) og Fantask (tegneserier) - en brugt bliver aldrig dyrere. Discogs viser hvilken plade det er, og hvor mange samlere der ønsker den, men tæller ikke med i prisen.",
         "Prislinks viser kun annoncer for netop den ting alene: ikke plakater, kasketter, samlekort, puslespil, flere stk. i én annonce, tingen sammen med noget andet (+, inkl., og ...) eller tv-serien af samme navn.",
         "Testkasser: alle (også Martin) har deres egen testkasse i Vareinfo (nr. 9000-9999). Den hedder Test og navnet her, og tingene i den bliver kun vist – aldrig solgt.",
+        "Kasser fra en session i Vareinfo får det navn, Martin gav dem dér (fx Anders And 1970'erne). Labels til en session printes fra Vareinfo – 🖨️ Print labels åbner arket her.",
         "Find alt igen under Søg – med kassenummer.",
         "Hjælpere logger ind med deres kundenummer (Martin sætter dem som hjælper i Kunder). De ser kun Søg og Kasser: de kan trykke Læs og rette varer, men ser ingen priser og kan ikke slette eller ændre en kasses placering.",
         "Bøger: tryk 📚 Bøger og tag et billede af en bunke – så ser du pris, efterspørgsel og om bogen er værd at sælge.",
     ];
-    k.Version = "2026.10.25";
+    k.Version = "2026.10.26";
     k.ThemeColor = "#f4f6f5";
 });
 

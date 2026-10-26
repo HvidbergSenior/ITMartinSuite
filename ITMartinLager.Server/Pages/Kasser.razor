@@ -55,7 +55,7 @@
     <ul class="lg-list">
         @foreach (var r in _rows)
         {
-            <li><a href="/kasse/@r.Code"><span class="lg-box">@r.Code</span><span class="lg-main"><b>@(r.Place == "" ? "(ingen placering)" : r.Place)</b>@if (Box.IsTestName(r.Place)) { <span class="lg-test">TEST – kun til visning</span> }<span class="k-small k-muted">@r.Units ting · @r.Lines linjer</span></span></a></li>
+            <li><a href="/kasse/@r.Code"><span class="lg-box">@r.Code</span><span class="lg-main"><b>@(r.Note != "" ? r.Note + (r.Place != "" ? " · " + r.Place : "") : r.Place == "" ? "(ingen placering)" : r.Place)</b>@if (Box.IsTestName(r.Place)) { <span class="lg-test">TEST – kun til visning</span> }<span class="k-small k-muted">@r.Units ting · @r.Lines linjer</span></span></a></li>
         }
     </ul>
 </section>

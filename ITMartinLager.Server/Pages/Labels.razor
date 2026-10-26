@@ -33,6 +33,7 @@
             <div class="lg-label-code">@l.Code</div>
             <div class="lg-label-qr">@((MarkupString)l.Qr)</div>
             <div class="lg-label-place">@l.Place</div>
+            @if (l.Name != "") { <div class="lg-label-place">@l.Name</div> }
             <div class="lg-label-brand">Bogshoppen</div>
         </div>
     }
@@ -41,20 +42,23 @@
 @code {
     [SupplyParameterFromQuery(Name = "fra")] public int? Fra { get; set; }
     [SupplyParameterFromQuery(Name = "til")] public int? Til { get; set; }
+    /// <summary>The boxes of a Vareinfo session: "K0021~Anders And,K0022~Bøger" (its Print labels button).</summary>
+    [SupplyParameterFromQuery(Name = "kasser")] public string? Kasser { get; set; }
 
-    private sealed record Label(string Code, string Qr, string Place);
+    private sealed record Label(string Code, string Qr, string Place, string Name);
     private List<Label> _labels = [];
 
     protected override async Task OnParametersSetAsync()
     {
         _labels = [];
-        if (Fra is not { } from) return;
-        foreach (var box in await Boxes.LabelSheetAsync(from, Til ?? from))
+        var sheet = !string.IsNullOrWhiteSpace(Kasser) ? await Boxes.LabelSheetAsync(Kasser)
+            : Fra is { } from ? await Boxes.LabelSheetAsync(from, Til ?? from) : [];
+        foreach (var box in sheet)
         {
             var url = Nav.ToAbsoluteUri($"/kasse/{box.Code}").ToString();
             var qr = new QRCoder.SvgQRCode(new QRCoder.QRCodeGenerator().CreateQrCode(url, QRCoder.QRCodeGenerator.ECCLevel.M))
                 .GetGraphic(8, "#000000", "#ffffff", drawQuietZones: true);
-            _labels.Add(new Label(box.Code, qr, box.Place));
+            _labels.Add(new Label(box.Code, qr, box.Place, box.Note));
         }
     }
 }

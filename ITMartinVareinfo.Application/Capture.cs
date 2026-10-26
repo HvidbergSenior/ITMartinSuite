@@ -7,7 +7,7 @@ namespace ITMartinVareinfo.Application;
 /// An upload is only kept (fast) - the reading copy and close-ups are made in the background, a few at a time, so 100
 /// phones uploading at once never wait on each other.</summary>
 public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository photoRows, IScanRepository scans, IPhotoStore photos,
-    TimeProvider clock)
+    SessionUseCases sessions, TimeProvider clock)
 {
     // Taking a box is check-then-save; one Vareinfo container, so one gate is enough to stop two helpers taking the
     // same box in the same instant.
@@ -15,11 +15,15 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
 
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
-    /// <summary>"Vælg kasse": the number written on the box. Refused while another helper is filling it.</summary>
+    /// <summary>"Vælg kasse": Martin may take any number; a helper only a box in an open session (user 2026-10-26: "a
+    /// helper should ONLY have their Testkasse. I prepare which boxes so that they just have to choose"). Refused while
+    /// another helper is filling it.</summary>
     public async Task<BoxClaim> TakeBoxAsync(int number, Taker me, CancellationToken ct = default)
     {
         if (number is < 1 or > BoxClaim.MaxNormal) throw new VareinfoException($"Skriv nummeret på kassen (1-{BoxClaim.MaxNormal}).");
         var code = BoxCodes.For(number);
+        if (!me.IsAdmin && !await sessions.IsOpenAsync(code, ct))
+            throw new VareinfoException("Den kasse er ikke gjort klar - vælg en af kasserne på listen.");
         await ClaimGate.WaitAsync(ct);
         try
         {
@@ -151,9 +155,15 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
 
     // ---- for Lager (GET /api/lager/nye, POST /api/lager/modtaget, GET /api/lager/foto/{id}) ----
 
-    public async Task<CaptureBatch> NewForLagerAsync(int max, CancellationToken ct = default) =>
-        new((await photoRows.UnsentAsync(max, ct)).Select(p => p.ToCaptured()).ToList(),
+    public async Task<CaptureBatch> NewForLagerAsync(int max, CancellationToken ct = default)
+    {
+        var batch = new CaptureBatch((await photoRows.UnsentAsync(max, ct)).Select(p => p.ToCaptured()).ToList(),
             (await scans.UnsentAsync(max, ct)).Select(s => s.ToCaptured()).ToList());
+        var codes = batch.Photos.Select(p => p.BoxCode).Concat(batch.Scans.Select(s => s.BoxCode)).ToHashSet();
+        if (codes.Count == 0) return batch;
+        // The names Martin gave the boxes go along, so Lager's Kasser says "Kasse 7 – Anders And 1970'erne".
+        return batch with { Boxes = (await sessions.NamesAsync(codes, ct)).Select(n => new CapturedBox(n.Key, n.Value)).ToList() };
+    }
 
     public async Task ReceivedAsync(CaptureReceived received, CancellationToken ct = default)
     {

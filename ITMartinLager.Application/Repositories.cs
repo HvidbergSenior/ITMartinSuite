@@ -4,7 +4,7 @@ namespace ITMartinLager.Application;
 
 // The register's storage. Every write method saves at once. Implemented with EF Core + SQLite in Infrastructure.
 
-public sealed record BoxSummary(int Id, string Code, string Place, int Lines, int Units);
+public sealed record BoxSummary(int Id, string Code, string Place, int Lines, int Units, string Note = "");
 
 public interface IBoxRepository
 {
@@ -18,6 +18,7 @@ public interface IBoxRepository
     Task<List<BoxSummary>> SummariesAsync(CancellationToken ct);
     Task<int> CountAsync(CancellationToken ct);
     Task SetPlaceAsync(int id, string place, CancellationToken ct);
+    Task SetNoteAsync(int id, string note, CancellationToken ct);
 }
 
 public interface IItemRepository
