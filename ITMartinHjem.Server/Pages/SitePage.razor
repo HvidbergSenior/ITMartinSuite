@@ -34,7 +34,6 @@ else if (_page is not null)
     @* "Følg samarbejdet": the Bogshoppen story (same text as the front box) first, then the page's own news.
        Every "## " part is its own show/hide box (user 2026-10-05). *@
     <SectionBoxes Parts="_parts" />
-    @if (_page.Slug == PilotForm.PageSlug) { <PilotForm /> }
     @if (_children.Count > 0)
     {
         <div class="hj-subpages">

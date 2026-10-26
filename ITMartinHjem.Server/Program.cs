@@ -312,10 +312,12 @@ app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibili
 app.MapGet("/skjul-butik", (HttpContext ctx) => { ctx.Response.Cookies.Delete(ShopVisibility.Cookie); return Results.Redirect("/"); });
 
 app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
-// The pilot page moved to /bliv-pilot/ (2026-09-29): browsers kept a stale one.com copy of /pilot/ without the menu.
-app.MapGet("/pilot", () => Results.Redirect("/bliv-pilot", permanent: true));   // also answers /pilot/
-app.MapPost("/pilot/send.php", () => Results.Redirect("/bliv-pilot/send.php", permanent: true, preserveMethod: true));
-// Since 2026-09-30 /bliv-pilot is a normal page (text in Svar -> Sider + Components/PilotForm); /bliv-pilot/ lands there too.
+// No more pilots (user 2026-10-26: "ikke flere piloter på ITMartin"): old pilot links and forms land on Om mig og kontakt.
+// The page text stays in Svar -> Sider, and earlier pilot requests stay in Svar.
+app.MapGet("/pilot", () => Results.Redirect("/om-mig", permanent: true));        // also answers /pilot/
+app.MapGet("/bliv-pilot", () => Results.Redirect("/om-mig", permanent: true));   // also answers /bliv-pilot/ and ?k=...
+app.MapPost("/pilot/send.php", () => Results.Redirect("/om-mig")).DisableAntiforgery();
+app.MapPost("/bliv-pilot/send.php", () => Results.Redirect("/om-mig")).DisableAntiforgery();
 app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
 
 // ── The site menu for hand-made pages in wwwroot (pilot): wwwroot/nav.js draws it from this.
@@ -344,27 +346,6 @@ app.MapPost("/api/kontrol/apps/{id:int}/awake/{awake:bool}", async (int id, bool
 app.MapPost("/api/kontrol/apps/{id:int}/show/{show:bool}", async (int id, bool show, HttpRequest req, IConfiguration cfg, AppLinkUseCases apps) =>
     !KontrolKeyOk(req, cfg) ? Results.Unauthorized() : await apps.SetShowAsync(id, show) ? Results.Ok() : Results.NotFound())
     .DisableAntiforgery();
-
-// ── The pilot form (wwwroot/bliv-pilot/index.html posts to send.php, as it did on one.com).
-// Instead of a mail it becomes a conversation in Svar, with a push to Martin's phone.
-app.MapPost("/bliv-pilot/send.php", async (HttpContext ctx, ChatUseCases chat) =>
-{
-    var form = await ctx.Request.ReadFormAsync();
-    string F(string k) => form[k].ToString().Trim();
-    if (F("website").Length > 0) return Results.Redirect("/bliv-pilot");            // spam trap
-    var (ydelse, navn, tlf, by, besked, email) = (F("ydelse"), F("navn"), F("telefon"), F("by"), F("besked"), F("email"));
-    if (navn.Length == 0 || tlf.Length == 0 || ydelse.Length == 0) return Results.Redirect("/bliv-pilot#pilot");
-    await chat.PilotRequestAsync(ydelse, navn, tlf, by, besked, email);
-    Func<string?, string?> e = System.Net.WebUtility.HtmlEncode;
-    return Results.Content($$"""
-        <!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tak</title>
-        <style>body{font:18px/1.5 system-ui,sans-serif;max-width:560px;margin:60px auto;padding:0 16px;color:#1d2a25}a{color:#1f7a5c}</style></head>
-        <body><h1>Tak, {{e(navn)}}!</h1>
-        <p>Jeg har fået din besked om <b>{{e(ydelse)}}</b> og ringer til dig på {{e(tlf)}} inden for to dage.</p>
-        {{(ChatRules.LooksLikeEmail(email) ? $"<p>Du får en kvittering på <b>{e(email)}</b> – og mit svar kommer også dertil.</p>" : "")}}
-        <p><a href="/bliv-pilot">Tilbage</a> · <a href="/">Til forsiden</a></p></body></html>
-        """, "text/html");
-}).DisableAntiforgery();
 
 // ── Pictures on the pages (Om mig …): only files that a page actually uses.
 app.MapGet("/f/{name}", async (string name, HttpContext ctx, SiteUseCases site) =>

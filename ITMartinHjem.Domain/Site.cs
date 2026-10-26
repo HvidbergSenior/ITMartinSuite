@@ -182,8 +182,8 @@ public static partial class PageRules
 
 // The top menu, the same everywhere (Blazor layout + /api/menu for the hand-made pilot page):
 // Forside first, then the pages marked "Vis i menuen" by their Rækkefølge, with "Mine apps" slotted in
-// at MineAppsSort. Since 2026-10-07 (user) the menu is just Forside + Mine apps; Om mig and Bliv pilot are
-// choices on the front page, not tabs.
+// at MineAppsSort. Since 2026-10-07 (user) the menu is just Forside + Mine apps; Om mig is a
+// choice on the front page, not a tab (no pilots since 2026-10-26).
 public static class SiteMenu
 {
     public const int MineAppsSort = 50;

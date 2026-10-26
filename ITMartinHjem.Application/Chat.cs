@@ -206,13 +206,6 @@ public sealed class ChatUseCases(IChatRepository threads, PushUseCases push, IPu
     }
 
     public void RaiseAvailability() => AvailabilityChanged?.Invoke();
-
-    // ── The forms that become conversations in Svar ──
-
-    /// <summary>The pilot form (wwwroot/bliv-pilot): a conversation in Svar instead of a mail, with a push to Martin.</summary>
-    public Task PilotRequestAsync(string ydelse, string navn, string tlf, string by, string besked, string email) =>
-        VisitorWritesAsync(ChatRules.PilotPrefix + Guid.NewGuid().ToString("N"), $"{navn} (pilot)",
-            $"🐦 Pilot-henvendelse: {ydelse}\nTelefon: {tlf}\nBy: {by}" + (email.Length > 0 ? $"\nE-mail: {email}" : "") + $"\n\n{besked}", email);
 }
 
 // Application's IOwnerInbox = the chat in Svar: each "prøv gratis" request becomes its own conversation.
