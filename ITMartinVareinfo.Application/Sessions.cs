@@ -16,7 +16,12 @@ public interface ISessionRepository
     Task RemoveBoxAsync(int boxId, CancellationToken ct);
     /// <summary>Every box number in any session (open or closed).</summary>
     Task<List<int>> UsedNumbersAsync(CancellationToken ct);
+    /// <summary>The session and its box list - the photos taken in the boxes are kept.</summary>
+    Task DeleteAsync(int sessionId, CancellationToken ct);
 }
+
+/// <summary>Someone Martin can give a box to: Taker.Id (minus the kundenummer for Kunder's helpers) and the name.</summary>
+public sealed record HelperChoice(int Id, string Name);
 
 public sealed class SessionUseCases(ISessionRepository sessions, IBoxClaimRepository claims, IPhotoRepository photos, TimeProvider clock)
 {
@@ -62,6 +67,17 @@ public sealed class SessionUseCases(ISessionRepository sessions, IBoxClaimReposi
         await sessions.UpdateBoxAsync(box, ct);
     }
 
+    /// <summary>"Til": the box is for this helper only (null = the shared pool).</summary>
+    public async Task GiveBoxAsync(int boxId, HelperChoice? helper, CancellationToken ct = default)
+    {
+        if (await sessions.BoxAsync(boxId, ct) is not { } box) return;
+        box.GiveTo(helper?.Id, helper?.Name);
+        await sessions.UpdateBoxAsync(box, ct);
+    }
+
+    /// <summary>Gone from the list - the photos taken in its boxes are kept (they are already on their way to Lager).</summary>
+    public Task DeleteAsync(int sessionId, CancellationToken ct = default) => sessions.DeleteAsync(sessionId, ct);
+
     /// <summary>Out of the session - the photos already taken in it are kept.</summary>
     public Task RemoveBoxAsync(int boxId, CancellationToken ct = default) => sessions.RemoveBoxAsync(boxId, ct);
 
@@ -80,10 +96,13 @@ public sealed class SessionUseCases(ISessionRepository sessions, IBoxClaimReposi
         await sessions.SaveAsync(s, ct);
     }
 
-    /// <summary>The helper's list: the boxes of every open session, each free / theirs / someone else's / done.</summary>
+    /// <summary>The helper's list: the boxes of every open session, each free / theirs / someone else's / done. A helper
+    /// who was given boxes sees only those; the others see the pool (boxes given to nobody). Martin sees all.</summary>
     public async Task<List<BoxChoice>> ChoicesAsync(Taker me, CancellationToken ct = default)
     {
         var open = await OpenBoxesAsync(ct);
+        if (!me.IsAdmin)
+            open = open.Any(b => b.HelperId == me.Id) ? open.Where(b => b.HelperId == me.Id).ToList() : open.Where(b => b.HelperId is null).ToList();
         if (open.Count == 0) return [];
         var all = (await claims.AllAsync(ct)).ToDictionary(c => c.BoxCode);
         var counts = await photos.PerBoxAsync(ct);
@@ -91,9 +110,9 @@ public sealed class SessionUseCases(ISessionRepository sessions, IBoxClaimReposi
         return open.Select(b => BoxChoice.For(b, all.GetValueOrDefault(b.BoxCode), me, now, counts.GetValueOrDefault(b.BoxCode))).ToList();
     }
 
-    /// <summary>Is this box in an open session? (a helper may only take those)</summary>
-    public async Task<bool> IsOpenAsync(string boxCode, CancellationToken ct = default) =>
-        (await OpenBoxesAsync(ct)).Any(b => b.BoxCode == boxCode);
+    /// <summary>Is this box in an open session, and for this person? (a helper may only take those)</summary>
+    public async Task<bool> IsOpenForAsync(string boxCode, Taker me, CancellationToken ct = default) =>
+        (await OpenBoxesAsync(ct)).Any(b => b.BoxCode == boxCode && b.IsFor(me));
 
     /// <summary>The names Martin gave these boxes (the newest session's name wins) - Lager shows them on Kasser.</summary>
     public async Task<Dictionary<string, string>> NamesAsync(IReadOnlyCollection<string> boxCodes, CancellationToken ct = default) =>

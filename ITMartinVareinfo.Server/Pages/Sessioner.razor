@@ -23,6 +23,7 @@ else
             <li>Skriv et navn og tryk <b>Ny session</b>.</li>
             <li>Tryk <b>Lav nye kasser</b> (fx 20) – de får de næste numre. Har kassen allerede et nummer, så brug <b>Tilføj kasse</b>.</li>
             <li>Giv kasserne et navn (fx <i>Anders And 1970'erne</i>), og tryk <b>Print labels</b>. Sæt en label på hver kasse.</li>
+            <li>Vælg under <b>Til</b>, hvem kassen er til. Så ser den hjælper kun sine egne kasser. Står der <b>Alle</b>, kan alle tage den.</li>
             <li>Når I er færdige, tryk <b>Luk session</b>. Billederne bliver gemt.</li>
         </ol>
         <form class="lg-row" @onsubmit="Start">
@@ -60,6 +61,19 @@ else
                             <span class="lg-box">@b.BoxCode</span>
                             <input class="k-input" value="@b.Name" placeholder="Navn" aria-label="Navn på kasse @b.Number"
                                    @onchange="e => Rename(b.Id, e.Value?.ToString())" />
+                            <label class="k-small">Til
+                                <select class="k-input" aria-label="Hvem kasse @b.Number er til" @onchange="e => Give(b.Id, e.Value?.ToString())">
+                                    <option value="" selected="@(b.HelperId is null)">Alle</option>
+                                    @foreach (var h in _helpers)
+                                    {
+                                        <option value="@h.Id" selected="@(b.HelperId == h.Id)">@h.Name</option>
+                                    }
+                                    @if (b.HelperId is { } given && _helpers.All(h => h.Id != given))
+                                    {
+                                        <option value="@given" selected>@b.HelperName</option>
+                                    }
+                                </select>
+                            </label>
                             <span class="k-small">@State(b.BoxCode)</span>
                             @if (_confirmRemove == b.Id)
                             {
@@ -78,6 +92,16 @@ else
             <div class="lg-row">
                 @if (s.Open) { <button class="k-btn k-btn-secondary" @onclick="() => Close(s.Id)" disabled="@_busy">Luk session</button> }
                 else { <button class="k-btn k-btn-secondary" @onclick="() => Reopen(s.Id)" disabled="@_busy">Åbn igen</button> }
+                @if (_confirmDelete == s.Id)
+                {
+                    <button class="k-btn k-btn-primary" @onclick="() => Delete(s.Id)" disabled="@_busy">Ja, slet @s.Name</button>
+                    <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = null">Nej</button>
+                    <span class="k-small">Billederne fra kasserne bliver gemt – kun sessionen og listen forsvinder.</span>
+                }
+                else
+                {
+                    <button class="k-btn k-btn-ghost" @onclick="() => _confirmDelete = s.Id">Slet session</button>
+                }
             </div>
         </section>
     }
@@ -90,7 +114,8 @@ else
     private Dictionary<string, BoxChoice> _states = [];
     private string _newName = "", _addName = "";
     private int _count = 20;
-    private int? _addNumber, _confirmRemove;
+    private int? _addNumber, _confirmRemove, _confirmDelete;
+    private List<HelperChoice> _helpers = [];
     private bool _busy;
     private string? _error, _msg;
 
@@ -100,6 +125,7 @@ else
     {
         if (Me is not { IsAdmin: true }) return;
         _sessions = await Sessions.AllAsync();
+        _helpers = await Helpers.ChoicesAsync();
         _states = (await Sessions.ChoicesAsync(Me)).ToDictionary(c => c.BoxCode);
     }
 
@@ -131,6 +157,11 @@ else
     });
 
     private Task Rename(int boxId, string? name) => Do(() => Sessions.RenameBoxAsync(boxId, name));
+
+    private Task Give(int boxId, string? value) => Do(() =>
+        Sessions.GiveBoxAsync(boxId, int.TryParse(value, out var id) ? _helpers.FirstOrDefault(h => h.Id == id) ?? new HelperChoice(id, "") : null));
+
+    private Task Delete(int id) => Do(async () => { await Sessions.DeleteAsync(id); _confirmDelete = null; _msg = "Sessionen er slettet. Billederne er gemt."; });
     private Task Remove(int boxId) => Do(async () => { await Sessions.RemoveBoxAsync(boxId); _confirmRemove = null; });
     private Task Close(int id) => Do(async () => { await Sessions.CloseAsync(id); _msg = "Sessionen er lukket. Hjælperne ser ikke kasserne mere."; });
     private Task Reopen(int id) => Do(() => Sessions.ReopenAsync(id));

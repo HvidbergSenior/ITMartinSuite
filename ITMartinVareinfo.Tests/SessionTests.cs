@@ -71,6 +71,36 @@ public class SessionTests
     }
 
     [Test]
+    public async Task A_box_given_to_a_helper_is_only_theirs_and_the_others_see_the_pool()
+    {
+        var s = await _sessions.StartAsync("Hos Marianne og Jørgen");
+        await _sessions.AddBoxAsync(s.Id, 1, "Martin");
+        await _sessions.AddBoxAsync(s.Id, 2, "Marianne");
+        await _sessions.AddBoxAsync(s.Id, 3, null);
+        var boxes = (await _sessions.AllAsync()).Single().Boxes.OrderBy(b => b.SortOrder).ToList();
+        await _sessions.GiveBoxAsync(boxes[1].Id, new HelperChoice(_bertil.Id, "Bertil"));
+
+        (await _sessions.ChoicesAsync(_bertil)).Select(c => c.BoxCode).Should().Equal("K0002");          // only his own
+        (await _sessions.ChoicesAsync(_vibeke)).Select(c => c.BoxCode).Should().Equal("K0001", "K0003"); // the pool
+        (await _sessions.ChoicesAsync(_martin)).Should().HaveCount(3);                                   // Martin sees all
+        await _capture.Invoking(c => c.TakeBoxAsync(2, _vibeke)).Should().ThrowAsync<VareinfoException>();
+        (await _capture.TakeBoxAsync(2, _bertil)).HelperName.Should().Be("Bertil");
+
+        await _sessions.GiveBoxAsync(boxes[1].Id, null);   // back to Alle
+        (await _sessions.ChoicesAsync(_vibeke)).Should().HaveCount(3);
+    }
+
+    [Test]
+    public async Task Deleting_a_session_removes_its_list_but_not_the_photos()
+    {
+        var s = await _sessions.StartAsync("Prøve");
+        await _sessions.AddBoxAsync(s.Id, 5, null);
+        await _sessions.DeleteAsync(s.Id);
+        (await _sessions.AllAsync()).Should().BeEmpty();
+        (await _sessions.ChoicesAsync(_bertil)).Should().BeEmpty();
+    }
+
+    [Test]
     public async Task The_box_names_go_to_Lager_with_the_photos()
     {
         var s = await _sessions.StartAsync("Lørdag");

@@ -23,6 +23,7 @@ internal static class KunderEndpoints
             .DisableAntiforgery();
 
         app.MapGet(KunderApi.FreeApps, async (FreeApps apps) => Results.Ok(await apps.AvailableAsync()));
+        app.MapGet(KunderApi.Helpers, async (Kundekartotek k) => Results.Ok(await k.HelpersAsync()));
 
         // "Hent mine data" for one person (Martin's cookie) - he sends the file to whoever asked.
         app.MapGet("/kunder/{id:int}.json", async (int id, Kundekartotek k) =>

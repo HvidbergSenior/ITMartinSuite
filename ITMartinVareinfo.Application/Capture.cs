@@ -22,7 +22,7 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
     {
         if (number is < 1 or > BoxClaim.MaxNormal) throw new VareinfoException($"Skriv nummeret på kassen (1-{BoxClaim.MaxNormal}).");
         var code = BoxCodes.For(number);
-        if (!me.IsAdmin && !await sessions.IsOpenAsync(code, ct))
+        if (!me.IsAdmin && !await sessions.IsOpenForAsync(code, me, ct))
             throw new VareinfoException("Den kasse er ikke gjort klar - vælg en af kasserne på listen.");
         await ClaimGate.WaitAsync(ct);
         try
@@ -205,6 +205,9 @@ public interface IHelperNumbers
 
     /// <summary>Kunder's Admin tick (2026-10-26): the kundenummer opens the app as admin. Name = who it is; null = no.</summary>
     Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) => Task.FromResult<string?>(null);
+
+    /// <summary>Kunder's ticked helpers (kundenummer, name) - for the helper choice per box. Empty when unknown.</summary>
+    Task<List<(string Kundenummer, string Name)>> AllAsync(CancellationToken ct = default) => Task.FromResult(new List<(string, string)>());
 }
 
 public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions options, IHelperNumbers? numbers = null)
@@ -227,6 +230,15 @@ public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions op
     }
 
     public Task<List<Helper>> AllAsync(CancellationToken ct = default) => helpers.ActiveAsync(ct);
+
+    /// <summary>Everyone Martin can give a box to: Kunder's ticked helpers and the helpers with their own code here.</summary>
+    public async Task<List<HelperChoice>> ChoicesAsync(CancellationToken ct = default)
+    {
+        var fromKunder = numbers is null ? [] : await numbers.AllAsync(ct);
+        return fromKunder.Select(h => new HelperChoice(-int.Parse(h.Kundenummer), h.Name))
+            .Concat((await helpers.ActiveAsync(ct)).Select(h => new HelperChoice(h.Id, h.Name)))
+            .OrderBy(h => h.Name).ToList();
+    }
 
     /// <summary>A new helper with a new six-digit code (never Martin's PIN, never another helper's).</summary>
     public async Task<Helper> AddAsync(string name, CancellationToken ct = default)

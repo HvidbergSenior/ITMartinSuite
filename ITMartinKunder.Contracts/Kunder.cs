@@ -18,7 +18,12 @@ public static class KunderApi
     public const string SignUpWithCode = "/api/kunder/tilmeld-kode";
     /// <summary>GET, open: the free apps a sign-up gives access to right now (Martin switches them on/off in Kunder).</summary>
     public const string FreeApps = "/api/gratis-apps";
+    /// <summary>GET (key): the customers Martin has ticked as Hjælper - Vareinfo's session page picks a helper per box.</summary>
+    public const string Helpers = "/api/kunder/hjaelpere";
 }
+
+/// <summary>A ticked helper: the kundenummer (Vareinfo's helper id is minus it) and the name.</summary>
+public sealed record HelperInfo(string Code, string Name);
 
 /// <summary>NeedsCode = the extras in the app need the kundenummer (ElPriser, Stem); false = open to all (Temperatur).</summary>
 public sealed record FreeAppInfo(string Name, string Url, string Text, bool NeedsCode = true);

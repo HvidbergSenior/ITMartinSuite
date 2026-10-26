@@ -56,8 +56,17 @@ public sealed class SessionBox
     public string BoxCode { get; set; } = "";   // K0007
     public string Name { get; set; } = "";
     public int SortOrder { get; set; }
+    /// <summary>The helper this box is for (user 2026-10-26, "Box per helper"): Taker.Id - a kundenummer helper is minus
+    /// the number. Null = the shared pool, any helper can take it.</summary>
+    public int? HelperId { get; set; }
+    public string HelperName { get; set; } = "";
 
     public int Number => BoxCodes.Number(BoxCode);
+
+    /// <summary>Martin sees every box; a helper the boxes given to them, or the pool ones.</summary>
+    public bool IsFor(Taker me) => me.IsAdmin || HelperId is null || HelperId == me.Id;
+
+    public void GiveTo(int? helperId, string? name) => (HelperId, HelperName) = helperId is null ? (null, "") : (helperId, (name ?? "").Trim());
 
     /// <summary>"Kasse 7 – Anders And 1970'erne", or just "Kasse 7".</summary>
     public string Title => Name == "" ? $"Kasse {Number}" : $"Kasse {Number} – {Name}";

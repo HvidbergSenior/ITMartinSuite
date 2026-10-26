@@ -124,6 +124,11 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
         await repo.SaveAsync(c, ct);
     }
 
+    /// <summary>The ticked helpers whose kundenummer works, by name (Vareinfo's helper choice per box).</summary>
+    public async Task<List<HelperInfo>> HelpersAsync(CancellationToken ct = default) =>
+        (await repo.AllAsync(ct)).Where(c => c.HelperWorks).Select(c => new HelperInfo(c.Code, c.Name == "" ? c.Email : c.Name))
+            .OrderBy(h => h.Name).ToList();
+
     /// <summary>Martin's Admin tick: the kundenummer then opens Vareinfo and Lager as admin.</summary>
     public async Task SetAdminAsync(int id, bool admin, CancellationToken ct = default)
     {

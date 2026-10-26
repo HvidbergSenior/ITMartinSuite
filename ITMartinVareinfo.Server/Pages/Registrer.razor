@@ -20,14 +20,14 @@ else if (_box is null)
     @* The prepared boxes (user 2026-10-26: "I prepare which boxes so that they just have to choose"): a helper only taps
        one of these - or their own test box below. *@
     <section class="k-card">
-        <h1 class="k-card-title">📦 Vælg en kasse</h1>
+        <h1 class="k-card-title">📦 @(_choices.Count == 1 && !Me.IsAdmin ? "Din kasse" : "Vælg en kasse")</h1>
         @if (_choices.Count == 0)
         {
             <p>Hej @Me.Name. Der er ikke gjort kasser klar lige nu. Martin gør dem klar, før I går i gang – imens kan du prøve din <b>testkasse</b> nedenfor.</p>
         }
         else
         {
-            <p>Hej @Me.Name. Tryk på den kasse, du har foran dig. Nummeret står på kassen. En kasse, en anden er i gang med, kan du ikke vælge.</p>
+            <p>Hej @Me.Name. Tryk på den kasse, du har foran dig – nummeret står på kassen.@(_choices.Count > 1 ? " En kasse, en anden er i gang med, kan du ikke vælge." : "")</p>
             <ul class="lg-list">
                 @foreach (var c in _choices)
                 {
@@ -87,9 +87,8 @@ else
 {
     <section class="k-card">
         <h1 class="k-card-title">📦 @BoxName(_box)</h1>
-        <p class="lg-answer" role="status">I @BoxName(_box).ToLowerInvariant(): <b>@_photos billeder</b> og <b>@_scans stregkoder</b>.</p>
-        <p>Læg 10-20 ting fra kassen ud med forsiden op, og tag billedet lige ovenfra. Gentag til kassen er tom. Det hele <b>gemmes bare</b> – det læses senere på Lager.</p>
-        <p><b>CD'er, DVD'er, LP'er og bøger på række:</b> stil dem tæt op ad hinanden med ryggen mod dig og tag ét billede af 20-30 rygge ad gangen – gå tæt på, så teksten på ryggene kan læses.</p>
+        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(Me.IsAdmin ? $" og {_scans} stregkoder" : "") taget.</p>
+        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Gentag til kassen er tom.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
         @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
         <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@BoxFields">📷 Tag billeder</button>
@@ -101,7 +100,15 @@ else
             <button type="button" class="k-btn k-btn-secondary" data-camera-close>✓ Færdig med billeder</button>
         </div>
         <p data-photo-status role="status" hidden></p>
-        <p class="k-small k-muted">Kameraet åbner her på siden, så du kan tage det ene billede efter det andet. Billederne gemmes først på telefonen og sendes bagefter – mister du forbindelsen, sendes de, når den er tilbage.</p>
+        <details class="lg-more-tips">
+            <summary>Gode råd</summary>
+            <ul>
+                <li>Tag billedet lige ovenfra, så alt kan ses.</li>
+                <li><b>CD'er, DVD'er, LP'er og bøger på række:</b> stil dem tæt med ryggen mod dig, og tag ét billede af 20-30 rygge – gå tæt på, så teksten kan læses.</li>
+                <li>Kameraet bliver åbent, så du kan tage det ene billede efter det andet.</li>
+                <li>Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.</li>
+            </ul>
+        </details>
         <div class="lg-row">
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
                 <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@BoxFields" />
@@ -112,6 +119,10 @@ else
         </div>
     </section>
 
+    @* Barcodes are not a helper's job (user 2026-10-26: "hide stregkoder for helper... something that can be done
+       afterwards") - only Martin sees them. *@
+    @if (Me.IsAdmin)
+    {
     <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">▮▯▮ Stregkoder</h2>
         <p>Bedst til DVD, Blu-ray, CD, spil og bøger. Hold stregkoden foran kameraet – <b>bip</b> – næste. Samme stregkode igen = ét eksemplar mere.</p>
@@ -128,10 +139,11 @@ else
             </div>
         }
     </section>
+    }
 
     <section class="k-card">
         <h2 class="k-card-title">Er kassen tom?</h2>
-        <p>Når alt i kassen har været på et billede, så tryk her. Så er kassen fri, og du kan tage den næste.</p>
+        <p>Når alt har været på et billede, så tryk her.</p>
         @if (!_confirmDone)
         {
             <button class="k-btn k-btn-secondary lg-big" @onclick="() => _confirmDone = true" disabled="@_busy">✓ Kassen er færdig</button>
@@ -245,7 +257,7 @@ else
         try
         {
             await Capture.FinishBoxAsync(_box.BoxCode, Me);
-            _saved = $"{BoxName(_box)} er færdig: {_photos} billeder og {_scans} stregkoder. Vælg den næste kasse på listen.";
+            _saved = $"{BoxName(_box)} er færdig: {_photos} billeder{(Me.IsAdmin ? $" og {_scans} stregkoder" : "")}. Tak!";
             _box = null;
             _number = null;
             await LoadChoices();

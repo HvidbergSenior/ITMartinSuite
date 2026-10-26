@@ -31,10 +31,10 @@ builder.Services.AddKolibri(k =>
     [
         "Log ind med din egen kode (du får den af Martin) – eller med dit kundenummer, hvis Martin har gjort dig til hjælper i Kunder.",
         "Tryk Vælg ved den kasse, du har foran dig – nummeret står på kassen. Martin gør kasserne klar, før I går i gang. En kasse, en anden er i gang med, kan du ikke vælge.",
-        "Læg 10-20 ting fra kassen ud med forsiden op, og tryk 📸 Tag billede. Gentag til kassen er tom. Stregkoder kan også scannes – bip, næste.",
+        "Læg 10-20 ting fra kassen ud med forsiden op, og tryk 📸 Tag billede. Gentag til kassen er tom. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
         "Tryk ✓ Kassen er færdig – så kan du tage den næste kasse.",
         "Vil du bare prøve? Tryk Min testkasse. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
-        "Martin: under 🗂️ Sessioner laver du en session, trykker Lav nye kasser (fx 20), giver dem navne og trykker 🖨️ Print labels. Hjælperne ser kun kasserne i de åbne sessioner. Tryk Luk session, når I er færdige.",
+        "Martin: under 🗂️ Sessioner laver du en session, trykker Lav nye kasser (fx 20), giver dem navne og trykker 🖨️ Print labels. Vælg under Til, hvem en kasse er til – så ser den hjælper kun sine egne. Tryk Luk session, når I er færdige, eller Slet session for at fjerne den (billederne gemmes).",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«.",
     ];

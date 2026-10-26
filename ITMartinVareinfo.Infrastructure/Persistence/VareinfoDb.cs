@@ -44,6 +44,9 @@ public static class VareinfoDbInitializer
         foreach (var statement in db.Database.GenerateCreateScript().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             Exec(conn, statement.Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
                 .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS "));
+        // Columns added after a table was made (IF NOT EXISTS does not add them).
+        AddColumn(conn, "SessionBoxes", "HelperId", "INTEGER NULL");          // 2026-10-26 box per helper
+        AddColumn(conn, "SessionBoxes", "HelperName", "TEXT NOT NULL DEFAULT ''");
         // Many phones at once: readers never wait for the writer.
         Exec(conn, "PRAGMA journal_mode=WAL;");
         if (opened) conn.Close();
@@ -57,6 +60,11 @@ public static class VareinfoDbInitializer
         using var r = cmd.ExecuteReader();
         while (r.Read()) have.Add(r.GetString(1));
         return have;
+    }
+
+    private static void AddColumn(System.Data.Common.DbConnection conn, string table, string column, string type)
+    {
+        if (Columns(conn, table) is { Count: > 0 } have && !have.Contains(column)) Exec(conn, $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {type}");
     }
 
     private static void Exec(System.Data.Common.DbConnection conn, string sql)

@@ -117,6 +117,17 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
         return _freeApps;
     }
 
+    /// <summary>The ticked helpers (Vareinfo's session page). Empty when Kunder does not answer.</summary>
+    public async Task<List<HelperInfo>> HelpersAsync(CancellationToken ct = default)
+    {
+        try { return await http.GetFromJsonAsync<List<HelperInfo>>(KunderApi.Helpers, ct) ?? []; }
+        catch (Exception ex) when (Unreachable(ex, ct) || ex is JsonException)
+        {
+            log.LogWarning("Kunder did not give the helpers ({Message})", ex.Message);
+            return [];
+        }
+    }
+
     private async Task<string?> SendOrQueueAsync<T>(string path, T body, CancellationToken ct)
     {
         try

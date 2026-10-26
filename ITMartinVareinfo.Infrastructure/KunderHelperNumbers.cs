@@ -9,6 +9,9 @@ internal sealed class KunderHelperNumbers(KunderClient kunder) : IHelperNumbers
     public async Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default) =>
         await kunder.CheckCodeAsync(kundenummer, KunderRoles.Helper, ct) is { Ok: true } r ? (r.Name == "" ? "Hjælper" : r.Name) : null;
 
+    public async Task<List<(string Kundenummer, string Name)>> AllAsync(CancellationToken ct = default) =>
+        (await kunder.HelpersAsync(ct)).Select(h => (h.Code, h.Name)).ToList();
+
     public async Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) =>
         await kunder.CheckCodeAsync(kundenummer, KunderRoles.Admin, ct) is { Ok: true } r ? (r.Name == "" ? "Admin" : r.Name) : null;
 }

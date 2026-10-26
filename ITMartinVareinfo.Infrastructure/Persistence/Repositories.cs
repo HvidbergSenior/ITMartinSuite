@@ -213,4 +213,11 @@ public sealed class SessionRepository(IDbContextFactory<VareinfoDb> dbf) : ISess
         await using var db = await dbf.CreateDbContextAsync(ct);
         return (await db.SessionBoxes.Select(b => b.BoxCode).ToListAsync(ct)).Select(BoxCodes.Number).ToList();
     }
+
+    public async Task DeleteAsync(int sessionId, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.SessionBoxes.Where(b => b.SessionId == sessionId).ExecuteDeleteAsync(ct);
+        await db.Sessions.Where(s => s.Id == sessionId).ExecuteDeleteAsync(ct);
+    }
 }
