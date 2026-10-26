@@ -43,6 +43,9 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
     {
         var k = KundeWords.NormalizeCode(code);
         if (k.Length != 8) return new(false, Error: "Dit kundenummer har 8 cifre – du finder det i mailen fra Martin.");
+        if (string.Equals(app.Trim(), KunderRoles.Admin, StringComparison.OrdinalIgnoreCase))
+            return await repo.ByCodeAsync(k, ct) is { AdminWorks: true } a ? new(true, a.Name == "" ? a.Email : a.Name)
+                : new(false, Error: "Det nummer er ikke admin.");
         if (string.Equals(app.Trim(), KunderRoles.Helper, StringComparison.OrdinalIgnoreCase))
             return await repo.ByCodeAsync(k, ct) is { HelperWorks: true } h ? new(true, h.Name == "" ? h.Email : h.Name)
                 : new(false, Error: "Det nummer er ikke en hjælper. Spørg Martin.");
@@ -118,6 +121,14 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
     {
         if (await repo.GetAsync(id, ct) is not { } c) return;
         c.IsHelper = helper;
+        await repo.SaveAsync(c, ct);
+    }
+
+    /// <summary>Martin's Admin tick: the kundenummer then opens Vareinfo and Lager as admin.</summary>
+    public async Task SetAdminAsync(int id, bool admin, CancellationToken ct = default)
+    {
+        if (await repo.GetAsync(id, ct) is not { } c) return;
+        c.IsAdmin = admin;
         await repo.SaveAsync(c, ct);
     }
 

@@ -204,6 +204,22 @@ public class CaptureTests
         (await helpers.SignInAsync("11112222")).Should().BeNull();   // a kundenummer that is not a helper
     }
 
+    private sealed class HelperAndAdmin : IHelperNumbers
+    {
+        public Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default) =>
+            Task.FromResult(kundenummer == "48217730" ? "Martin" : null);
+        public Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) =>
+            Task.FromResult(kundenummer == "55556666" ? "MartinAdmin" : null);
+    }
+
+    [Test]
+    public async Task An_admin_ticked_in_Kunder_signs_in_as_admin_and_a_helper_as_a_helper()
+    {
+        var helpers = new HelperUseCases(new HelperRepository(Factory), new VareinfoOptions { AdminPin = "246810" }, new HelperAndAdmin());
+        (await helpers.SignInAsync("5555 6666")).Should().Be(new Taker(0, "MartinAdmin"));
+        (await helpers.SignInAsync("48217730"))!.IsAdmin.Should().BeFalse();
+    }
+
     [Test]
     public async Task Helpers_sign_in_with_their_own_code_and_a_removed_code_stops_working()
     {

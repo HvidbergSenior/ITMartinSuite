@@ -16,7 +16,7 @@ public sealed class KunderDb(DbContextOptions<KunderDb> options) : DbContext(opt
         b.Entity<Customer>().HasIndex(x => x.Email).IsUnique();
         b.Entity<Customer>().HasIndex(x => x.UnsubscribeToken).IsUnique();
         b.Entity<Customer>().HasIndex(x => x.Code);
-        b.Entity<Customer>().Ignore(x => x.Active).Ignore(x => x.Apps).Ignore(x => x.HelperWorks).Ignore(x => x.CodeWorks);
+        b.Entity<Customer>().Ignore(x => x.Active).Ignore(x => x.Apps).Ignore(x => x.HelperWorks).Ignore(x => x.AdminWorks).Ignore(x => x.CodeWorks);
         b.Entity<Customer>().HasMany(x => x.Consents).WithOne().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<Customer>().HasMany(x => x.Events).WithOne().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<CustomerEvent>().HasIndex(x => new { x.App, x.Ref });
@@ -135,6 +135,7 @@ public static class DependencyInjection
         if (AddColumn(conn, "FreeApps", "NeedsCode", "INTEGER NOT NULL DEFAULT 1"))
             Run(conn, "UPDATE \"FreeApps\" SET \"NeedsCode\" = 0 WHERE \"Name\" = 'Temperatur'");   // user 2026-10-21: Temperatur stays open
         AddColumn(conn, "Customers", "IsHelper", "INTEGER NOT NULL DEFAULT 0");   // 2026-10-24 helpers log in with the kundenummer
+        AddColumn(conn, "Customers", "IsAdmin", "INTEGER NOT NULL DEFAULT 0");    // 2026-10-26 admin login with the kundenummer
         // The first codes had letters; the kundenummer is digits (user 2026-10-21) - none had been sent to anyone yet.
         foreach (var id in Ids(conn, "SELECT \"Id\" FROM \"Customers\" WHERE \"Code\" <> '' AND \"Code\" GLOB '*[^0-9]*'"))
         {

@@ -56,6 +56,9 @@ public interface IBarcodeLookup
 public interface IHelperNumbers
 {
     Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default);
+
+    /// <summary>Kunder's Admin tick (2026-10-26): the kundenummer opens the app as admin. Name = who it is; null = no.</summary>
+    Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }
 
 /// <summary>Vareinfo (2026-10-20): the capture app - helpers take photos and scan barcodes box by box, and it keeps

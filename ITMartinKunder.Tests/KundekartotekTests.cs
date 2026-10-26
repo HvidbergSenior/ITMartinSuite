@@ -115,6 +115,20 @@ public class KundekartotekTests
     }
 
     [Test]
+    public async Task Only_a_ticked_admin_opens_as_admin_and_not_after_unsubscribing()
+    {
+        var apps = await _apps.AllAsync();
+        var (_, code) = await _k.SignUpWithCodeAsync(Yes("martin@gmail.com", "Liveauktioner", Companies.Bogshoppen));
+        (await _k.CheckCodeAsync(code, KunderRoles.Admin, apps)).Ok.Should().BeFalse();
+        var id = (await _k.ListAsync()).Single().Id;
+        await _k.SetAdminAsync(id, true);
+        (await _k.CheckCodeAsync(code, KunderRoles.Admin, apps)).Ok.Should().BeTrue();
+        (await _k.CheckCodeAsync(code, KunderRoles.Helper, apps)).Ok.Should().BeFalse();   // admin is not automatically helper
+        await _k.UnsubscribeAsync("martin@gmail.com");
+        (await _k.CheckCodeAsync(code, KunderRoles.Admin, apps)).Ok.Should().BeFalse();
+    }
+
+    [Test]
     public async Task Every_working_kundenummer_opens_the_bogshoppen_market()
     {
         var apps = await _apps.AllAsync();

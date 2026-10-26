@@ -76,6 +76,12 @@ async Task<string?> HelperAsync(HttpContext ctx, string? typed)
     var digits = new string((typed ?? "").Where(char.IsDigit).ToArray());
     return digits.Length == 8 && digits != pin ? await ctx.RequestServices.GetRequiredService<IHelperNumbers>().HelperNameAsync(digits) : null;
 }
+// An admin's kundenummer (Kunder's Admin tick, 2026-10-26) opens everything, like the PIN.
+async Task<string?> AdminAsync(HttpContext ctx, string? typed)
+{
+    var digits = new string((typed ?? "").Where(char.IsDigit).ToArray());
+    return digits.Length == 8 && digits != pin ? await ctx.RequestServices.GetRequiredService<IHelperNumbers>().AdminNameAsync(digits) : null;
+}
 bool FromSalg(HttpContext ctx) => salgKey.Length >= 12 && ctx.Request.Headers[StockHeaders.Key] == salgKey;
 
 app.Use(async (ctx, next) =>
@@ -90,6 +96,12 @@ app.Use(async (ctx, next) =>
     if (p.StartsWith("/api/salg/")) { if (FromSalg(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (LoggedIn(ctx)) { ctx.Items[nameof(LagerUser)] = new LagerUser("Martin", true); await next(); return; }
     if (open) { await next(); return; }
+    if (await AdminAsync(ctx, ctx.Request.Cookies["lager_auth"]) is { } admin)
+    {
+        ctx.Items[nameof(LagerUser)] = new LagerUser(admin, true);
+        await next();
+        return;
+    }
     if (await HelperAsync(ctx, ctx.Request.Cookies["lager_auth"]) is { } helper)
     {
         if (!LagerUser.HelperMayOpen(p)) { ctx.Response.Redirect("/kasser"); return; }
@@ -103,14 +115,15 @@ app.Use(async (ctx, next) =>
 
 app.MapPost("/api/login", async (HttpContext ctx, [FromForm(Name = "pin")] string typed) =>
 {
+    var isAdmin = pin.Length >= 6 && typed == pin || await AdminAsync(ctx, typed) is not null;
     var value = pin.Length >= 6 && typed == pin ? pin
-        : await HelperAsync(ctx, typed) is not null ? new string(typed.Where(char.IsDigit).ToArray()) : null;
+        : isAdmin || await HelperAsync(ctx, typed) is not null ? new string(typed.Where(char.IsDigit).ToArray()) : null;
     if (value is null) return Results.Redirect("/login?fejl=1");
     ctx.Response.Cookies.Append("lager_auth", value, new CookieOptions
     {
         HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365)
     });
-    return Results.Redirect(value == pin ? "/" : "/kasser");
+    return Results.Redirect(isAdmin ? "/" : "/kasser");
 }).DisableAntiforgery();
 
 // ITMartin Admin's front page (2026-10-26): what waits to be read. Only with Admin__StatusKey.

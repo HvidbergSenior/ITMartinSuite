@@ -15,6 +15,7 @@ public sealed class Customer
     public string Interests { get; set; } = "";      // what they chose/wrote, per app: "Tilbud ; Anders And-blade, Tintin | leder efter ..."
     public string Note { get; set; } = "";           // Martin's own note
     public bool IsHelper { get; set; }               // Martin's tick: may log into Vareinfo + Lager with the kundenummer (2026-10-24)
+    public bool IsAdmin { get; set; }                // Martin's tick: the kundenummer opens Vareinfo + Lager as admin (2026-10-26)
     public string Code { get; set; } = "";           // kundenummer: 8 random digits, ONE for all free apps (user 2026-10-21) - random, so nobody can guess the next
     public string UnsubscribeToken { get; set; } = NewToken();
     public DateTime? UnsubscribedAt { get; set; }
@@ -29,6 +30,10 @@ public sealed class Customer
 
     /// <summary>Helper login works while Martin's tick stands and the kundenummer works (afmeldt = no more access).</summary>
     public bool HelperWorks => IsHelper && CodeWorks;
+
+    /// <summary>Admin login (user 2026-10-26: "a customer Martin and a customer MartinAdmin so i can test ui for each"):
+    /// sessions, boxes, labels - while Martin's tick stands and the kundenummer works.</summary>
+    public bool AdminWorks => IsAdmin && CodeWorks;
 
     public bool SaidYesTo(string company) => Active && Consents.Any(c => c.Company == company && c.WithdrawnAt is null);
     public IEnumerable<string> Apps => Events.Select(e => e.App).Where(a => a != "").Distinct();

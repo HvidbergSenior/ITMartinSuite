@@ -35,7 +35,7 @@
 @foreach (var c in Shown)
 {
     <section class="k-card ku-cust @(c.Active ? "" : "is-off")" data-fold-closed="1">
-        <h3 class="k-card-title">@(c.Name == "" ? c.Email : c.Name) @if (!c.Active) { <span class="ku-tag">AFMELDT</span> } @if (c.IsHelper) { <span class="ku-tag">HJÆLPER</span> }</h3>
+        <h3 class="k-card-title">@(c.Name == "" ? c.Email : c.Name) @if (!c.Active) { <span class="ku-tag">AFMELDT</span> } @if (c.IsHelper) { <span class="ku-tag">HJÆLPER</span> } @if (c.IsAdmin) { <span class="ku-tag">ADMIN</span> }</h3>
         <div>@c.Email @if (c.Phone != "") { <span> · @c.Phone</span> }</div>
         @if (c.Code != "") { <div>Kundenummer: <b class="ku-code">@KundeWords.ShowCode(c.Code)</b></div> }
         @if (c.Interests != "") { <div>Interesser: @c.Interests</div> }
@@ -69,6 +69,7 @@
                 <button class="k-btn k-btn-sm" @onclick="() => Edit(c)">Ret</button>
                 <a class="k-btn k-btn-sm" href="/kunder/@(c.Id).json" download>Hent data</a>
                 <button class="k-btn k-btn-sm" @onclick="() => Helper(c, !c.IsHelper)">@(c.IsHelper ? "Fjern som hjælper" : "Gør til hjælper")</button>
+                <button class="k-btn k-btn-sm" @onclick="() => Admin(c, !c.IsAdmin)">@(c.IsAdmin ? "Fjern som admin" : "Gør til admin")</button>
                 @if (c.Active) { <button class="k-btn k-btn-sm" @onclick="() => Unsubscribe(c)">Afmeld</button> }
                 @if (_confirm == c.Id)
                 {
@@ -114,6 +115,8 @@
 
     // Hjælper (2026-10-24): the kundenummer then logs into Vareinfo and Lager - takes up to 10 minutes to stop again.
     private async Task Helper(Customer c, bool on) { await Kartotek.SetHelperAsync(c.Id, on); await LoadAsync(); }
+
+    private async Task Admin(Customer c, bool on) { await Kartotek.SetAdminAsync(c.Id, on); await LoadAsync(); }
 
     private async Task Unsubscribe(Customer c) { await Kartotek.AdminUnsubscribeAsync(c.Id); await LoadAsync(); }
 

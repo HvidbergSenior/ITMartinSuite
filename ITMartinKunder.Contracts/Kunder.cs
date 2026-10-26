@@ -32,6 +32,10 @@ public static class KunderRoles
 {
     public const string Helper = "Hjælper";
 
+    /// <summary>The "app" Vareinfo and Lager ask first (2026-10-26): ok only for a customer Martin has ticked as Admin -
+    /// they then open as for Martin's PIN (sessions, boxes, labels, prices).</summary>
+    public const string Admin = "Admin";
+
     /// <summary>The marketplace on bogshoppen.dk (2026-10-26: customers log in with the kundenummer, see the things and
     /// mark them "interessant"): ok for every customer whose kundenummer works - not one of the free apps.</summary>
     public const string Market = "Bogshoppen";

@@ -202,6 +202,9 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
 public interface IHelperNumbers
 {
     Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default);
+
+    /// <summary>Kunder's Admin tick (2026-10-26): the kundenummer opens the app as admin. Name = who it is; null = no.</summary>
+    Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }
 
 public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions options, IHelperNumbers? numbers = null)
@@ -217,8 +220,10 @@ public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions op
         if (await helpers.ByCodeAsync(code, ct) is { Active: true } h) return h.AsTaker;
         // A helper's kundenummer (8 digits, spaces allowed): Id = minus the number, so it never meets a code helper's Id.
         var digits = new string(code.Where(char.IsDigit).ToArray());
-        return digits.Length == 8 && numbers is not null && await numbers.HelperNameAsync(digits, ct) is { } name
-            ? new Taker(-int.Parse(digits), name) : null;
+        if (digits.Length != 8 || numbers is null) return null;
+        // An admin's kundenummer (Kunder's Admin tick, 2026-10-26) opens it like the main PIN.
+        if (await numbers.AdminNameAsync(digits, ct) is { } admin) return new Taker(0, admin);
+        return await numbers.HelperNameAsync(digits, ct) is { } name ? new Taker(-int.Parse(digits), name) : null;
     }
 
     public Task<List<Helper>> AllAsync(CancellationToken ct = default) => helpers.ActiveAsync(ct);
