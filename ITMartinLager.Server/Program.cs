@@ -104,7 +104,7 @@ app.Use(async (ctx, next) =>
     }
     if (await HelperAsync(ctx, ctx.Request.Cookies["lager_auth"]) is { } helper)
     {
-        if (!LagerUser.HelperMayOpen(p)) { ctx.Response.Redirect("/kasser"); return; }
+        if (!LagerUser.HelperMayOpen(p)) { ctx.Response.Redirect("/"); return; }
         ctx.Items[nameof(LagerUser)] = new LagerUser(helper, false);
         await next();
         return;
@@ -123,7 +123,7 @@ app.MapPost("/api/login", async (HttpContext ctx, [FromForm(Name = "pin")] strin
     {
         HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365)
     });
-    return Results.Redirect(isAdmin ? "/" : "/kasser");
+    return Results.Redirect("/");
 }).DisableAntiforgery();
 
 // ITMartin Admin's front page (2026-10-26): what waits to be read. Only with Admin__StatusKey.

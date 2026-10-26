@@ -6,7 +6,8 @@ public sealed record LagerUser(string Name, bool IsAdmin)
 {
     /// <summary>The pages a helper may open (plus login, photos and the static files).</summary>
     public static bool HelperMayOpen(string path) =>
-        path == "/" || path.StartsWith("/kasser") || path.StartsWith("/kasse/") || path.StartsWith("/vare/")
+        // Helpers only see the things (user 2026-10-26: "as helper on lager you should only be able to see items").
+        path == "/" || path.StartsWith("/vare/")
         || path.StartsWith("/varefoto/") || path.StartsWith("/kolofonfoto/") || path.StartsWith("/foto/") || path.StartsWith("/_blazor")
         || path.StartsWith("/api/logout");
 }

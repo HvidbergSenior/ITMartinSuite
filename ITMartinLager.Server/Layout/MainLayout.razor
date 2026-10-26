@@ -5,10 +5,10 @@
    orders live since the split the same day. *@
 <KolibriHeader>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/">🔎 Søg</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/kasser">📦 Kasser</a>
-    @* Helpers (kundenummer, 2026-10-24): only Søg and Kasser. *@
+    @* Helpers (kundenummer): only Søg - the things (2026-10-26). *@
     @if (Me is { IsAdmin: true })
     {
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/kasser">📦 Kasser</a>
         <a class="k-btn k-btn-ghost k-btn-sm" href="@Salg.Orders">🧾 Ordrer</a>
         <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">☰ Mere</a>
         @* Admins could not log out (user 2026-10-26: "cannot logout of lager") - needed to switch to a test login. *@
