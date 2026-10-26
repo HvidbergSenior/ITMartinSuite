@@ -13,6 +13,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+      <ProjectReference Include="..\ITMartinAdmin.Contracts\ITMartinAdmin.Contracts.csproj" />
       <ProjectReference Include="..\ITMartinKunder.Application\ITMartinKunder.Application.csproj" />
       <ProjectReference Include="..\ITMartinKunder.Infrastructure\ITMartinKunder.Infrastructure.csproj" />
     </ItemGroup>

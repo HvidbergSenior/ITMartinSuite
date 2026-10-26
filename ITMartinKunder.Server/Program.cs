@@ -64,6 +64,8 @@ bool FromApp(HttpContext ctx) => apiKey.Length >= 16 && ctx.Request.Headers[Kund
 app.Use(async (ctx, next) =>
 {
     var p = ctx.Request.Path.Value ?? "";
+    // ITMartin Admin asks with its own key - the endpoint checks it.
+    if (p == ITMartinAdmin.Contracts.AdminStatusApi.Path) { await next(); return; }
     var open = p.StartsWith("/login") || p.StartsWith("/api/login") || p.StartsWith("/afmeld") || p == KunderApi.FreeApps
             || p.StartsWith("/_framework") || p.StartsWith("/_content") || p.StartsWith("/kolibri") || p.StartsWith("/om")
             || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp") || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest")
@@ -83,6 +85,20 @@ app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "pin")] string type
     });
     return Results.Redirect("/");
 }).DisableAntiforgery();
+
+// ITMartin Admin's front page (2026-10-26): the customer list in numbers. Only with Admin__StatusKey.
+app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, Kundekartotek k) =>
+{
+    if (!ITMartinAdmin.Contracts.AdminStatusApi.KeyOk(app.Configuration["Admin:StatusKey"], ctx.Request.Headers[ITMartinAdmin.Contracts.AdminStatusApi.KeyHeader])) return Results.Unauthorized();
+    var all = await k.ListAsync();
+    var week = DateTime.UtcNow.AddDays(-7);
+    return Results.Ok(new ITMartinAdmin.Contracts.AppStatus("Kunder",
+    [
+        new("nye kunder de sidste 7 dage", all.Count(c => c.Active && c.CreatedAt >= week), false, "https://kunder.itmartin.dk/"),
+        new("kunder i alt", all.Count(c => c.Active)),
+        new("hjælpere", all.Count(c => c.HelperWorks)),
+    ]));
+});
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("kunder_auth"); return Results.Redirect("/login"); });
 

@@ -14,6 +14,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+      <ProjectReference Include="..\ITMartinAdmin.Contracts\ITMartinAdmin.Contracts.csproj" />
       <ProjectReference Include="..\ITMartinVareinfo.Application\ITMartinVareinfo.Application.csproj" />
       <ProjectReference Include="..\ITMartinVareinfo.Infrastructure\ITMartinVareinfo.Infrastructure.csproj" />
     </ItemGroup>

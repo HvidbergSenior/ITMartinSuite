@@ -1,0 +1,11 @@
+@inherits LayoutComponentBase
+
+@* ITMartin Admin (2026-10-26): one front door to every admin page. *@
+<KolibriHeader>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/">🏠 Forside</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud</a>
+</KolibriHeader>
+<div class="k-main"><div class="k-content">
+    @Body
+</div></div>
+<KolibriFooter />

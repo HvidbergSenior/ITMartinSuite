@@ -1,0 +1,87 @@
+@page "/"
+@inject DashboardUseCases Dashboard
+
+@* The front page (user 2026-10-26: "one front door"): what waits for Martin first, then every admin page as a button,
+   then each app's numbers. The links and the rules are in the Domain; the numbers come from the apps. *@
+<PageTitle>ITMartin Admin</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Det venter på dig</h1>
+    @if (_answers is null)
+    {
+        @* Holds its place while the apps answer (no jump on load). *@
+        <p class="ad-hold">Spørger apps'ene …</p>
+    }
+    else if (Domain.Dashboard.AllQuiet(_answers))
+    {
+        <p class="ad-ok">Alt er roligt – intet venter på dig lige nu.</p>
+    }
+    else
+    {
+        @if (_todo.Count == 0) { <p>Intet venter på dig fra de apps, der svarer.</p> }
+        <ul class="ad-todo">
+            @foreach (var (app, line) in _todo)
+            {
+                <li>
+                    <span><b>@line.Count</b> @line.Label <span class="k-small">(@app)</span></span>
+                    @if (line.Url != "") { <a class="k-btn k-btn-primary k-btn-sm" href="@line.Url">Åbn</a> }
+                </li>
+            }
+        </ul>
+        @foreach (var down in _answers.Where(a => !a.Answered))
+        {
+            <p class="ad-warn">@down.App svarer ikke – den er måske stoppet i Kontrol.</p>
+        }
+    }
+    <button class="k-btn k-btn-ghost k-btn-sm" @onclick="Load" disabled="@(_answers is null)">Opdatér</button>
+</section>
+
+@foreach (var group in Dashboard.Links)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">@group.Key</h2>
+        <div class="ad-tiles">
+            @foreach (var l in group)
+            {
+                <a class="ad-tile" href="@l.Url"><b>@l.Title</b><span>@l.What</span></a>
+            }
+        </div>
+    </section>
+}
+
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Tal fra apps'ene</h2>
+    @if (_answers is null)
+    {
+        <p class="ad-hold">Spørger apps'ene …</p>
+    }
+    else
+    {
+        @foreach (var a in _answers)
+        {
+            <h3 class="ad-app">@a.App</h3>
+            @if (!a.Answered) { <p class="ad-warn">Svarer ikke lige nu.</p> }
+            else
+            {
+                <ul class="ad-lines">
+                    @foreach (var l in a.Lines) { <li><b>@l.Count</b> @l.Label</li> }
+                </ul>
+            }
+        }
+    }
+</section>
+
+@code {
+    private List<AppAnswer>? _answers;
+    private List<(string App, StatusLine Line)> _todo = [];
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _answers = null;
+        StateHasChanged();
+        _answers = await Dashboard.AnswersAsync();
+        _todo = Domain.Dashboard.ToDo(_answers);
+    }
+}

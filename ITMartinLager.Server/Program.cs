@@ -81,6 +81,8 @@ bool FromSalg(HttpContext ctx) => salgKey.Length >= 12 && ctx.Request.Headers[St
 app.Use(async (ctx, next) =>
 {
     var p = ctx.Request.Path.Value ?? "";
+    // ITMartin Admin asks with its own key - the endpoint checks it.
+    if (p == ITMartinAdmin.Contracts.AdminStatusApi.Path) { await next(); return; }
     var open = p.StartsWith("/login") || p.StartsWith("/api/login") || p.StartsWith("/_framework") || p.StartsWith("/_content")
             || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
@@ -110,6 +112,19 @@ app.MapPost("/api/login", async (HttpContext ctx, [FromForm(Name = "pin")] strin
     });
     return Results.Redirect(value == pin ? "/" : "/kasser");
 }).DisableAntiforgery();
+
+// ITMartin Admin's front page (2026-10-26): what waits to be read. Only with Admin__StatusKey.
+app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, IntakeUseCases intake, BoxUseCases boxes) =>
+{
+    if (!ITMartinAdmin.Contracts.AdminStatusApi.KeyOk(app.Configuration["Admin:StatusKey"], ctx.Request.Headers[ITMartinAdmin.Contracts.AdminStatusApi.KeyHeader])) return Results.Unauthorized();
+    var waiting = await intake.BoxesAsync();
+    return Results.Ok(new ITMartinAdmin.Contracts.AppStatus("Lager",
+    [
+        new("billeder venter på at blive læst", waiting.Sum(b => b.Waiting), true, "https://lager.bogshoppen.dk/kasser"),
+        new("stregkoder ukendt – tag et billede af forsiden", waiting.Sum(b => b.Unknown), true, "https://lager.bogshoppen.dk/kasser"),
+        new("kasser", (await boxes.AllAsync()).Count, false, "https://lager.bogshoppen.dk/kasser"),
+    ]));
+});
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("lager_auth"); return Results.Redirect("/login"); });
 

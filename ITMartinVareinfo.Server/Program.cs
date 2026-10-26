@@ -69,6 +69,8 @@ bool FromLager(HttpContext ctx) => lagerKey.Length >= 12 && ctx.Request.Headers[
 app.Use(async (ctx, next) =>
 {
     var p = ctx.Request.Path.Value ?? "";
+    // ITMartin Admin asks with its own key - the endpoint checks it.
+    if (p == ITMartinAdmin.Contracts.AdminStatusApi.Path) { await next(); return; }
     var open = p.StartsWith("/login") || p.StartsWith("/api/login") || p.StartsWith("/_framework") || p.StartsWith("/_content")
             || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
@@ -94,6 +96,21 @@ app.MapPost("/api/login", async (HttpContext ctx, [FromForm(Name = "kode")] stri
     });
     return Results.Redirect("/");
 }).DisableAntiforgery();
+
+// ITMartin Admin's front page (2026-10-26): the sessions and the boxes in progress. Only with Admin__StatusKey.
+app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, SessionUseCases sessions, CaptureUseCases capture) =>
+{
+    if (!ITMartinAdmin.Contracts.AdminStatusApi.KeyOk(app.Configuration["Admin:StatusKey"], ctx.Request.Headers[ITMartinAdmin.Contracts.AdminStatusApi.KeyHeader])) return Results.Unauthorized();
+    var all = await sessions.AllAsync();
+    var open = all.Where(s => s.Open).ToList();
+    var boxes = await capture.OverviewAsync();
+    return Results.Ok(new ITMartinAdmin.Contracts.AppStatus("Vareinfo",
+    [
+        new("åbne sessioner", open.Count, false, "https://vareinfo.bogshoppen.dk/sessioner"),
+        new("kasser i de åbne sessioner", open.Sum(s => s.Boxes.Count), false, "https://vareinfo.bogshoppen.dk/sessioner"),
+        new("kasser i gang lige nu", boxes.Count(b => b.Busy), false, "https://vareinfo.bogshoppen.dk/hjaelpere"),
+    ]));
+});
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete(Cookie); return Results.Redirect("/login"); });
 

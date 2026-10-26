@@ -61,6 +61,8 @@ bool FromShop(HttpContext ctx) => shopKey.Length >= 12 && ctx.Request.Headers[Sh
 app.Use(async (ctx, next) =>
 {
     var p = ctx.Request.Path.Value ?? "";
+    // ITMartin Admin asks with its own key - the endpoint checks it.
+    if (p == ITMartinAdmin.Contracts.AdminStatusApi.Path) { await next(); return; }
     var open = p.StartsWith("/login") || p.StartsWith("/api/login") || p.StartsWith("/_framework") || p.StartsWith("/_content")
             || p.StartsWith("/kolibri") || p.StartsWith("/om") || p.StartsWith("/hjaelp") || p.StartsWith("/api/hjaelp")
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
@@ -80,6 +82,20 @@ app.MapPost("/api/login", (HttpContext ctx, [FromForm(Name = "pin")] string type
     });
     return Results.Redirect("/");
 }).DisableAntiforgery();
+
+// ITMartin Admin's front page (2026-10-26): what waits for Martin here. Only with Admin__StatusKey.
+app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, ShopUseCases shop, InterestUseCases interest) =>
+{
+    if (!ITMartinAdmin.Contracts.AdminStatusApi.KeyOk(app.Configuration["Admin:StatusKey"], ctx.Request.Headers[ITMartinAdmin.Contracts.AdminStatusApi.KeyHeader])) return Results.Unauthorized();
+    var orders = await shop.RecentOrdersAsync();
+    return Results.Ok(new ITMartinAdmin.Contracts.AppStatus("Salg",
+    [
+        new("ordrer at pakke", orders.Count(o => o.Status == OrderStatuses.Paid), true, "https://salg.bogshoppen.dk/"),
+        new("pakket – ikke sendt eller hentet", orders.Count(o => o.Status == OrderStatuses.Packed), true, "https://salg.bogshoppen.dk/"),
+        new("ting markeret interessant", (await interest.TopAsync(1000)).Count, false, "https://salg.bogshoppen.dk/interesse"),
+        new("ordrer betalt i alt", orders.Count(o => o.Paid)),
+    ]));
+});
 
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("salg_auth"); return Results.Redirect("/login"); });
 

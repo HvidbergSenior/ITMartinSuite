@@ -1,0 +1,20 @@
+@page "/login"
+@layout EmptyLayout
+
+<PageTitle>Log ind – ITMartin Admin</PageTitle>
+
+<div class="ad-login">
+    <section class="k-card">
+        <h1 class="k-card-title">ITMartin Admin</h1>
+        <p>Alle dine admin-sider ét sted. Skriv din PIN-kode og tryk <b>Log ind</b>.</p>
+        @if (Fejl == "1") { <p class="ad-warn" role="alert">Forkert PIN – prøv igen.</p> }
+        <form method="post" action="/api/login">
+            <input type="password" name="pin" class="k-input ad-pin" placeholder="PIN-kode" aria-label="PIN-kode" autofocus />
+            <button class="k-btn k-btn-primary ad-big" type="submit">Log ind</button>
+        </form>
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Fejl { get; set; }
+}
