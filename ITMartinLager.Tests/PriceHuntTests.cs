@@ -201,8 +201,10 @@ public class PriceHuntTests
     {
         Pricing.FallbackTitlesFor(new Item { Kind = Kinds.Tegneserie, Title = "Vampyrernes nat", Series = "Sammy", Number = "5" })
             .Should().Equal("Sammy 5", "Sammy Vampyrernes nat");
-        Pricing.FallbackTitlesFor(new Item { Kind = Kinds.AndersAnd, Title = "Walt Disney's Anders And & Co.", Series = "Anders And & Co.", Number = "3", Year = 1955 })
-            .Should().Equal("Anders And & Co. 3 1955");
+        // Since 2026-10-26 a numbered blad is searched by series + number + year first, so nothing is left to fall back to.
+        var blad = new Item { Kind = Kinds.AndersAnd, Title = "Walt Disney's Anders And & Co.", Series = "Anders And & Co.", Number = "3", Year = 1955 };
+        Pricing.TitleFor(blad).Should().Be("Anders And & Co. 3 1955");
+        Pricing.FallbackTitlesFor(blad).Should().BeEmpty();
         Pricing.FallbackTitlesFor(new Item { Kind = Kinds.Tegneserie, Title = "The Amazing Spider-Man: Spidey Saves the Day! The Big Book", Series = "The Amazing Spider-Man" })
             .Should().Equal("Spidey Saves the Day");
         Pricing.FallbackTitlesFor(new Item { Kind = Kinds.Bog, Title = "Mort: A Discworld Novel" }).Should().Equal("Mort");
@@ -215,5 +217,52 @@ public class PriceHuntTests
         var sammy = new Item { Kind = Kinds.Tegneserie, Title = "Vampyrernes nat", Series = "Sammy", Number = "5" };
         Pricing.IsOneCopyOf(sammy, new Offer("Sammy 5 Vampyrernes nat", 40, "u")).Should().BeTrue();
         Pricing.IsOneCopyOf(sammy, new Offer("Spirou 5 Vampyrernes nat", 40, "u")).Should().BeFalse();
+    }
+
+    // 2026-10-26, Jørgen's and Marianne's first boxes.
+    [Test]
+    public void A_blad_is_searched_by_series_not_the_cover_headline()
+    {
+        var blad = new Item { Kind = Kinds.AndersAnd, Title = "Sluk lyset, hvis du tør!", Series = "Anders And & Co.", Number = "41", Year = 1987 };
+        Pricing.TitleFor(blad).Should().Be("Anders And & Co. 41 1987");
+        Pricing.SimilarTitleFor(blad).Should().Be("Anders And & Co. 1987");
+    }
+
+    [Test]
+    public void A_blad_listing_must_say_Anders_And()
+    {
+        var blad = new Item { Kind = Kinds.AndersAnd, Title = "Anders And & Co.", Series = "Anders And & Co.", Number = "20", Year = 1985 };
+        Pricing.IsOneCopyOf(blad, new Offer("Engel i sne af Anders Totland (f. 1986) (Bog)", 159, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(blad, new Offer("FN : vores sidste, bedste håb : samtaler om FN gennem 70 år af Anders Agner Pedersen (f. 1985)", 58, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(blad, new Offer("Anders And & Co. 1985 nummer 20", 8, "u")).Should().BeTrue();
+    }
+
+    [Test]
+    public void Several_copies_titles_or_a_poster_are_not_one_copy()
+    {
+        var kalender = new Item { Kind = Kinds.AndersAnd, Title = "Julekalender", Series = "Anders And & Co.", Number = "47", Year = 1985 };
+        Pricing.IsOneCopyOf(kalender, new Offer("2 Anders and Julekalendere som indlæg", 50, "u")).Should().BeFalse();
+
+        var bog = new Item { Kind = Kinds.Bog, Title = "Genfærd", Artist = "Jo Nesbø" };
+        Pricing.IsOneCopyOf(bog, new Offer("Jo Nesbø Rød hals, Politi, Genfærd, Panserhjerte, Kakerlakkerne, Kniv", 100, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(bog, new Offer("Jo Nesbø diverse krimi Headhunterne, Politi, Genfærd", 80, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(bog, new Offer("Jo Nesbø krimipakke – Kakerlakkerne, Frelseren, Genfærd, Marekors, Sorgenfri", 50, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(bog, new Offer("Genfærd, Jo Nesbø, genre: krimi og spænding", 40, "u")).Should().BeTrue();
+        Pricing.IsOneCopyOf(bog, new Offer("Genfærd af Jo Nesbø (Bog)", 34, "u")).Should().BeTrue();
+
+        var film = new Item { Kind = Kinds.Dvd, Title = "Olsen Banden på sporet" };
+        Pricing.IsOneCopyOf(film, new Offer("Olsen Banden på sporet original biografplakat", 1000, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(film, new Offer("Olsen Banden på sporet", 20, "u")).Should().BeTrue();
+    }
+
+    [Test]
+    public void A_box_set_may_be_a_box_of_many_discs()
+    {
+        var matador = new Item { Kind = Kinds.Dvd, Title = "Matador – Matador Kollektionen 1929-1947", Note = "DR boks" };
+        Pricing.IsOneCopyOf(matador, new Offer("Matador komplet boks 1-24, 12 dvds", 300, "u")).Should().BeTrue();
+        Pricing.IsTheFilm(matador, "Matador komplet boks 1-24", needFormatWord: false).Should().BeTrue();
+
+        var film = new Item { Kind = Kinds.Dvd, Title = "Underworld" };
+        Pricing.IsOneCopyOf(film, new Offer("Underworld boks 1-4 dvds", 100, "u")).Should().BeFalse();
     }
 }

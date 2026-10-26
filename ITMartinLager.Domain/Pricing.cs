@@ -50,9 +50,15 @@ public static partial class Pricing
         return t.EndsWith("...") || t.EndsWith('…') ? t.TrimEnd('.', '…', ' ').Trim() : t;
     }
 
+    // An Anders And blad with a number is sold as "Anders And & Co. 41 1987" - the headline on the cover ("Sluk lyset, hvis
+    // du tør!") is in no listing, and with it 2026-10-26 found nothing on any site. The series is searched instead.
+    private static string BaseTitle(Item i) =>
+        i.Kind == Kinds.AndersAnd && i.Number.Trim() != "" && i.Series.Trim() != "" ? i.Series.Trim()
+        : CleanTitle(i.Title) != "" ? CleanTitle(i.Title) : i.Series.Trim();
+
     public static string TitleFor(Item i)
     {
-        var t = CleanTitle(i.Title) != "" ? CleanTitle(i.Title) : i.Series.Trim();
+        var t = BaseTitle(i);
         var words = ListingParse.Words(t);
         if (i.Number != "" && !words.Contains(i.Number.Trim().ToLowerInvariant())) t = $"{t} {i.Number.Trim()}";
         if (i.Kind is Kinds.AndersAnd or Kinds.Magasin && i.Year is { } y && !words.Contains(y.ToString())) t = $"{t} {y}";
@@ -103,7 +109,7 @@ public static partial class Pricing
     // its year (other issues from 1968). Null when that is no broader than the exact search.
     public static string? SimilarTitleFor(Item i)
     {
-        var t = CleanTitle(i.Title) != "" ? CleanTitle(i.Title) : i.Series.Trim();
+        var t = BaseTitle(i);
         var year = i.Year?.ToString();
         var words = t.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(w => new string(w.Where(char.IsLetterOrDigit).ToArray()) is var k && (k == "" || !ListingParse.IsNumber(k.ToLowerInvariant()))).ToList();
@@ -210,17 +216,57 @@ public static partial class Pricing
         // A sequel or another part is another film (2026-10-25: "Guardians Of The Galaxy 2", "Vol. 3" for the first one):
         // a small number in the listing that our title does not have.
         var ours = ListingParse.Words(item.Title).Where(ListingParse.IsNumber).ToHashSet();
-        if (ListingParse.Words(listing).Any(w => ListingParse.IsNumber(w) && w.Length <= 2 && w != "0" && !ours.Contains(w))) return false;
+        if (!IsBoxSet(item) && ListingParse.Words(listing).Any(w => ListingParse.IsNumber(w) && w.Length <= 2 && w != "0" && !ours.Contains(w))) return false;
         // Searched as "dvd ...": the site already looked for the film, a title without the word still counts.
         if (!needFormatWord) return true;
         return ListingParse.Words(listing).Any(FilmWords.Contains) || System.Text.RegularExpressions.Regex.IsMatch(low, @"\bbd\b|blu-ray|4k");
     }
 
+    // A box set ("Matador Kollektionen", DR boks, "episode 1-13") IS several discs and a collection - for one of those the
+    // box words and "1-24" are the thing itself (2026-10-26: Matador and Nynne found nothing at all).
+    [System.Text.RegularExpressions.GeneratedRegex(@"boks|\bbox|kollektion|collection|samling|komplet|sæson|season|episode|serie\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex BoxSetRx();
+    private static readonly HashSet<string> BoxWords = ["dvds", "boks", "samleboks", "box", "boxset", "collection", "samling", "komplet",
+        "complete", "komplett", "sammlung"];
+
+    public static bool IsBoxSet(Item item) =>
+        item.Kind is Kinds.Dvd or Kinds.BluRay or Kinds.Vhs && BoxSetRx().IsMatch($"{item.Title} {item.Note} {item.Edition}");
+
+    // "2 Anders and Julekalendere som indlæg" (2026-10-26, priced 45 kr each from one 50 kr listing for two): a count in
+    // front is several copies - unless our own title starts with that number.
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\s*([2-9]|\d{2})\s+\p{L}")]
+    private static partial System.Text.RegularExpressions.Regex CountFirstRx();
+
+    // Anders And blade: the listing must say Anders And (2026-10-26: "Engel i sne af Anders Totland (f. 1986)" and
+    // "FN ... af Anders Agner Pedersen (f. 1985)" were kept for blade from 1985/86 - a first name and a year).
+    [System.Text.RegularExpressions.GeneratedRegex(@"anders[\s-]*and(?!\p{L})|andersand", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex AndersAndRx();
+
+    // "Jo Nesbø Rød hals, Politi, Genfærd, Panserhjerte, Kakerlakkerne, Kniv" - a list of titles is a bundle: parts after
+    // commas that name something of their own (a capital word that is not ours). "Genfærd, Jo Nesbø, genre: krimi" is one.
+    private static bool TitleList(Item item, string listing)
+    {
+        var parts = listing.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3 && !ListingParse.Words(listing).Any(w => w == "diverse" || w.EndsWith("pakke"))) return false;
+        var mine = ListingParse.Words($"{CleanTitle(item.Title)} {item.Artist} {item.Series} {item.Publisher}").ToHashSet();
+        var others = parts.Count(p => System.Text.RegularExpressions.Regex.Matches(p, @"\b\p{Lu}[\p{L}]+")
+            .Any(m => m.Value.ToLowerInvariant() is var w && w.Length >= 3 && !mine.Contains(w) && !AboutTheCopy.Contains(w) && !Brands.Contains(w)));
+        return others >= 3 || (others >= 2 && ListingParse.Words(listing).Any(w => w == "diverse" || w.EndsWith("pakke")));
+    }
+
     public static bool IsOneCopyOf(Item item, Offer o)
     {
         var words = ListingParse.Words(o.Name);
-        if (words.Any(NotOneCopy.Contains) || CopyRangeRx().IsMatch(o.Name) || RatioRx().IsMatch(o.Name) || PiecesRx().IsMatch(o.Name)) return false;
-        if (OtherFormat(item.Kind, o.Name) || CollectorCopy(item, o.Name)) return false;
+        var box = IsBoxSet(item);
+        if (words.Any(w => NotOneCopy.Contains(w) && !(box && BoxWords.Contains(w))) || (!box && CopyRangeRx().IsMatch(o.Name))
+            || RatioRx().IsMatch(o.Name) || PiecesRx().IsMatch(o.Name)) return false;
+        if (CountFirstRx().Match(o.Name) is { Success: true } c && !CleanTitle(item.Title).StartsWith(c.Groups[1].Value)) return false;
+        if (box ? OtherFormat(item.Kind, string.Join(' ', words.Where(w => !BoxWords.Contains(w)))) : OtherFormat(item.Kind, o.Name)) return false;
+        if (CollectorCopy(item, o.Name)) return false;
+        if (item.Kind == Kinds.AndersAnd && AndersAndRx().IsMatch($"{item.Title} {item.Series}") && !AndersAndRx().IsMatch(o.Name)) return false;
+        if (item.Kind != Kinds.Merch && TitleList(item, o.Name)) return false;
+        // "biografplakat", "filmplakat", "kinoposter": the poster, not the film.
+        if (item.Kind != Kinds.Merch && words.Any(w => w.Length > 6 && (w.EndsWith("plakat") || w.EndsWith("poster")))) return false;
         if (item.Kind != Kinds.Merch && words.Any(w => NotTheThing.Contains(w) || (w == "magazine" && item.Kind != Kinds.Magasin))) return false;
         if (item.Kind != Kinds.Konsolspil && words.Any(Consoles.Contains)) return false;
         if (!AboutThis(item, words)) return false;

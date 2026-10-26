@@ -143,7 +143,7 @@ else
                 <ul class="k-small lg-sources">
                     @foreach (var c in _checks.OrderBy(c => c.Source))
                     {
-                        <li><a href="@(c.SearchUrl != "" ? c.SearchUrl : "#")" target="_blank" rel="noopener">@c.Source</a>:
+                        <li><b>@c.Source</b>:
                             @(!c.Ok ? "kunne ikke spørges (blokeret eller nede)"
                               : c.Ambiguous ? $"{c.Count} fund, men titlen er for bred til at vide om det er denne"
                               : c.Count == 0 ? "ingen til salg"
@@ -308,11 +308,13 @@ else
     private static RenderFragment Find(PriceFind f, int? normal) => __builder =>
     {
         var flag = Pricing.Flag(f.Kr, normal);
+        // The whole row opens the listing itself - never the shop's front page or a search (user 2026-10-26).
         <li class="@(flag != "" ? "lg-flag" : "")">
-            Fundet på <b>@f.Source</b> til <b>@f.Kr kr</b>@(f.Original != "" ? $" ({f.Original})" : "")@(f.IsNew ? " – ny" : "")
-            · <a href="@f.Url" target="_blank" rel="noopener">Link</a>
+            <a class="lg-find" href="@f.Url" target="_blank" rel="noopener">
+                <b>@f.Kr kr</b>@(f.Original != "" ? $" ({f.Original})" : "")@(f.IsNew ? " – ny" : "") · @f.Name
+                <span class="k-small k-muted">på @f.Source – tryk for at se varen</span>
+            </a>
             @if (flag != "") { <span class="lg-flag-text">⚠ @flag</span> }
-            <span class="k-small k-muted">@f.Name</span>
         </li>
     };
 
