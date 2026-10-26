@@ -95,3 +95,8 @@ sixlabors.lic
 
 # Salg local dev data (launchSettings Salg__DataDir=data)
 ITMartinSalg.Server/data/
+
+# Local Vareinfo runtime data (db, photos, data-protection keys)
+ITMartinVareinfo.Server/data/
+# Local compose backups (contain passwords)
+docker-compose.yaml.local-bak-*
