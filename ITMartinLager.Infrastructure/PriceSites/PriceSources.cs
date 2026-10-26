@@ -61,6 +61,10 @@ internal static class PriceSourceRegistration
             (t, a, i) => NemosListings.SearchUrl(t), paper));
         Add(sp => new PriceSource("Faraos", false, "", (t, a, i, ct) => sp.GetRequiredService<FaraosListings>().LookupAsync(t, a, ct),
             (t, a, i) => FaraosListings.SearchUrl(t), paper));
+        // AbeBooks back 2026-10-26 (user: "turn on abebooks but only show like 2 realistic bids from it") - many Danish
+        // antikvariater sell there too; antikvariat.net itself turns automatic visitors away. Books, albums, magazines.
+        Add(sp => new PriceSource("AbeBooks", false, "", (t, a, i, ct) => sp.GetRequiredService<AbeBooksListings>().LookupAsync(t, a, i, ct),
+            (t, a, i) => AbeBooksListings.SearchUrl(QOrIsbn(t, a, i)), Pricing.AntiquarianKinds));
         // Amazon.de removed 2026-10-12 (user: "useless, too bad price") - it showed new prices far above what a used copy
         // sells for, and its one-at-a-time limit held every book check up.
         // New prices for comics (2026-10-25): Fantask in Sankt Peders Stræde - a used copy is priced under it. Saxo, Lauritz and

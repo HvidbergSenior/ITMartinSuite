@@ -447,6 +447,17 @@ public static partial class Pricing
     public static string SearchKey(Item i) => $"{i.Kind}|{i.Title}|{i.Artist}|{i.Series}|{i.Number}|{i.Barcode}";
 
     // The cheapest, the ones around the middle and the dearest - so both "normally 5 kr" and "50 kr on Amazon" are kept.
+    // Sources whose links are only a glimpse: the few listings nearest their own middle price, never the dreamers
+    // (user 2026-10-26: AbeBooks "but only show like 2 realistic bids from it"). All still count as before.
+    public static readonly Dictionary<string, int> ShowOnly = new() { ["AbeBooks"] = 2 };
+
+    public static List<Offer> Keep(Listings r, string source)
+    {
+        if (!ShowOnly.TryGetValue(source, out var n) || r.Median is not { } mid) return Keep(r);
+        return r.All.Where(o => o.Price is > 0 && o.Price <= mid * 3).DistinctBy(o => (o.Url, o.Price))
+            .OrderBy(o => Math.Abs(o.Price!.Value - mid)).Take(n).OrderBy(o => o.Price).ToList();
+    }
+
     public static List<Offer> Keep(Listings r)
     {
         var priced = r.All.Where(o => o.Price is > 0).DistinctBy(o => (o.Url, o.Price)).OrderBy(o => o.Price).ToList();
@@ -535,7 +546,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         var abeIds = answers.Where(a => a.Source == "AbeBooks" && a.Result is not null)
             .SelectMany(a => a.Result!.All).Select(o => Pricing.ListingNumber(o.Url)).Where(n => n != "").ToHashSet();
         IEnumerable<Offer> Kept(SourceAnswer a) =>
-            Pricing.Keep(a.Result!).Where(o => a.Source != "ZVAB" || !abeIds.Contains(Pricing.ListingNumber(o.Url)));
+            Pricing.Keep(a.Result!, a.Source).Where(o => a.Source != "ZVAB" || !abeIds.Contains(Pricing.ListingNumber(o.Url)));
 
         var checks = new List<PriceCheck>();
         var finds = new List<PriceFind>();
@@ -564,7 +575,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         // "Magen til": kept apart, flagged, and never part of the normal price.
         var like = (similar ?? []).Where(a => !a.IsNew && a.Result is { Ambiguous: false }).ToList();
         foreach (var a in like)
-            finds.AddRange(Pricing.Keep(a.Result!).Select(o => new PriceFind
+            finds.AddRange(Pricing.Keep(a.Result!, a.Source).Select(o => new PriceFind
             {
                 ItemId = itemId, Source = a.Source, Name = Cut(o.Name, 300), Kr = (int)o.Price!.Value, Original = o.Original,
                 Url = Pricing.CleanUrl(o.Url), FoundAt = now, Similar = true,

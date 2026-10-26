@@ -301,3 +301,21 @@ public class PriceHuntTests
         Pricing.IsOneCopyOf(film, new Offer("Underworld boks 1-4 dvds", 100, "u")).Should().BeFalse();
     }
 }
+
+public class ShowOnlyTests
+{
+    // 2026-10-26: "turn on abebooks but only show like 2 realistic bids from it".
+    [Test]
+    public void AbeBooks_shows_the_two_listings_nearest_its_middle_but_all_count()
+    {
+        var offers = new[] { 40, 60, 75, 80, 95, 120, 900 }.Select((kr, n) => new Offer($"Genfærd {n}", kr, $"u{n}")).ToList();
+        var r = ListingParse.Summarise(offers, "s");
+        var shown = Pricing.Keep(r, "AbeBooks");
+        shown.Select(o => (int)o.Price!.Value).Should().Equal(75, 80);
+        Pricing.Keep(r, "DBA").Should().HaveCount(7);
+
+        var result = HuntResult.From(1, [new SourceAnswer("AbeBooks", false, r)], DateTime.UtcNow);
+        result.Finds.Should().HaveCount(2);
+        result.Normal.Should().NotBeNull();
+    }
+}

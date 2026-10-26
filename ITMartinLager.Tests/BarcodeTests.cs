@@ -77,7 +77,7 @@ public class DiscogsFormatTests
 
     // 2026-10-25 (user): "Danish, Tradera and One from ebay" - nothing else is searched.
     [Test]
-    public void Only_the_Danish_sites_Tradera_and_one_eBay_are_searched() =>
+    public void The_Danish_sites_Tradera_one_eBay_and_AbeBooks_are_searched() =>
         Sources().Select(s => s.Name).Distinct().Should().BeEquivalentTo(
-            ["DBA", "GulogGratis", "eBay", "Discogs", "Accord", "Tradera", "Nemos Bibliotek", "Faraos", "Fantask", "Bog & idé"]);
+            ["DBA", "GulogGratis", "eBay", "Discogs", "Accord", "Tradera", "Nemos Bibliotek", "Faraos", "AbeBooks", "Fantask", "Bog & idé"]);
 }
