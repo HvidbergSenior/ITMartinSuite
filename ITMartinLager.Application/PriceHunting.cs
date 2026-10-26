@@ -45,7 +45,11 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         // Still nothing: other issues of the same series ("Basserne 612" is not for sale, Nemos has 30 other Basserne).
         if (answers.All(a => a.Result is not { HasPrices: true } || a.IsNew) && (similar ?? []).All(a => a.Result is not { HasPrices: true } || a.IsNew)
             && Pricing.SeriesItemFor(item) is { } series)
-            similar = await AskAllAsync(series, Pricing.TitleFor(series), "", ct);
+            // "Basserne" alone is "too broad to know it is this one" - for a series that is the point, so the listings are
+            // filtered as usual (other things named Basserne out) and kept.
+            similar = (await AskAllAsync(series, Pricing.TitleFor(series), "", ct))
+                .Select(a => a.Result is { Ambiguous: true } r ? a with { Result = Pricing.OnlyThisItem(series, r with { Ambiguous = false }, a.Source) } : a)
+                .ToList();
 
         var now = clock.GetUtcNow().UtcDateTime;
         var result = HuntResult.From(itemId, answers, now, similar);
