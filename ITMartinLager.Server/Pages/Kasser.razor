@@ -3,66 +3,79 @@
 @inject IntakeUseCases Intake
 @inject NavigationManager Nav
 
+@* Kasser (user 2026-10-26: "make the lager vareinfo nice" -> "Lager Kasser clearer"): one card per box - its name, who
+   took the photos, what waits and what was found, in words, and one Læs button. The tools are folded at the bottom. *@
 <PageTitle>Kasser – Bogshoppen Lager</PageTitle>
 
 <section class="k-card">
     <h1 class="k-card-title">📦 Kasser</h1>
-    <p>Hver kasse, reol eller sæk har et nummer og en label med QR-kode. Scan labelen med telefonen, så ser du hvad der er i.</p>
-    <p>Hjælperne skriver selv nummeret på kassen og tager billederne i <a href="@Intake.VareinfoBase">📷 Vareinfo</a>. Kassen kommer herind af sig selv med det første billede.</p>
+    <p>Her er alle kasserne. Billederne kommer fra Vareinfo af sig selv. Tryk <b>Læs</b> ved en kasse, så finder AI'en tingene på billederne og lægger dem i kassen – det tager ca. et minut pr. 5 billeder, og du kan godt lukke siden imens.</p>
+    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+    @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
     <div class="lg-row">
-        <input class="k-input" @bind="_place" placeholder="Hvor står den? (fx Garagen, reol 2)" />
-        <button class="k-btn k-btn-primary" @onclick="New">➕ Ny kasse</button>
-    </div>
-    <p><a class="k-btn k-btn-secondary" href="/kasser/labels" target="_blank">🏷️ Print labels til mange kasser</a></p>
-    <p class="k-small"><a href="/api/eksport.csv">⬇️ Hent hele lageret som regneark (CSV)</a></p>
-    <p class="k-small"><a href="/api/varefotos.zip" download>⬇️ Hent alle varefotos (zip)</a> – en mappe pr. kasse, hvert billede hedder som varen. Kun varer, der har fået et billede med 'Tag billede af varen'.</p>
-</section>
-
-@if (_intake.Count > 0)
-{
-    <section class="k-card">
-        <h2 class="k-card-title">📷 Billeder fra Vareinfo</h2>
-        <p>Tryk <b>Læs</b>, når det passer dig. Billederne læses af AI'en og stregkoderne slås op – i baggrunden, ca. 5 billeder i minuttet. Tingene lægges i kassen. Du kan godt lukke siden imens.</p>
-        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
-        @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
-        <ul class="lg-list">
-            @foreach (var b in _intake)
-            {
-                <li>
-                    <a href="/kasse/@b.BoxCode"><span class="lg-box">@b.BoxCode</span>
-                        <span class="lg-main"><b>Kasse @b.Number</b>
-                            <span class="k-small k-muted">
-                                @if (b.Waiting + b.Scans > 0) { <span>@b.Waiting billeder og @b.Scans stregkoder venter@(b.Wanted + b.ScansWanted > 0 ? " (bliver læst nu)" : "")</span> }
-                                @if (b.Read > 0) { <span>@(b.Waiting + b.Scans > 0 ? " · " : "")@b.Read læst, @b.Found ting fundet</span> }
-                                @if (b.Unknown > 0) { <span> · @b.Unknown @(b.Unknown == 1 ? "stregkode" : "stregkoder") ukendt – tag et billede af forsiden</span> }
-                                @if (b.Helpers != "") { <span> · taget af @b.Helpers</span> }
-                            </span></span></a>
-                    @if (b.HasUnread) { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => WantRead(b.BoxCode)">Læs kasse @b.Number</button> }
-                </li>
-            }
-        </ul>
-        @if (_intake.Count(b => b.HasUnread) > 1)
+        @if (_cards.Count(c => c.Intake?.HasUnread == true) > 1)
         {
-            <button class="k-btn k-btn-primary" @onclick="() => WantRead(null)">Læs alle</button>
+            <button class="k-btn k-btn-primary" @onclick="() => WantRead(null)">Læs alle kasser</button>
         }
         <button class="k-btn k-btn-ghost k-btn-sm" @onclick="Load">↻ Opdatér</button>
-        <p class="k-small k-muted">AI-kald i dag: @_callsToday af @Intake.MaxCallsPerDay (ét pr. billede – stregkoder er gratis).</p>
-    </section>
-}
+    </div>
+</section>
 
-<section class="k-card">
-    <h2 class="k-card-title">Alle kasser (@_rows.Count)</h2>
-    <ul class="lg-list">
-        @foreach (var r in _rows)
-        {
-            <li><a href="/kasse/@r.Code"><span class="lg-box">@r.Code</span><span class="lg-main"><b>@(r.Note != "" ? r.Note + (r.Place != "" ? " · " + r.Place : "") : r.Place == "" ? "(ingen placering)" : r.Place)</b>@if (Box.IsTestName(r.Place)) { <span class="lg-test">TEST – kun til visning</span> }<span class="k-small k-muted">@r.Units ting · @r.Lines linjer</span></span></a></li>
-        }
-    </ul>
+@if (_cards.Count == 0)
+{
+    <section class="k-card"><p>Der er ingen kasser endnu. De kommer, når hjælperne tager billeder i Vareinfo.</p></section>
+}
+<div class="lg-boxcards">
+    @foreach (var c in _cards)
+    {
+        <section class="k-card lg-boxcard">
+            <a class="lg-boxcard-head" href="/kasse/@c.Code">
+                <span class="lg-box">@c.Code</span>
+                <b>@c.Title</b>
+                @if (c.IsTest) { <span class="lg-test">TEST – kun til visning</span> }
+            </a>
+            <ul class="lg-boxfacts">
+                @if (c.Intake is { } i)
+                {
+                    @if (i.Waiting > 0) { <li><b>@i.Waiting</b> @(i.Waiting == 1 ? "billede venter" : "billeder venter")@(i.Wanted > 0 ? " – bliver læst nu" : "")</li> }
+                    @if (i.Scans > 0) { <li><b>@i.Scans</b> @(i.Scans == 1 ? "stregkode venter" : "stregkoder venter")</li> }
+                    @if (i.Read > 0) { <li><b>@i.Read</b> læst – <b>@i.Found</b> ting fundet</li> }
+                    @if (i.Unknown > 0) { <li class="lg-check">⚠ @i.Unknown @(i.Unknown == 1 ? "stregkode" : "stregkoder") ukendt – tag et billede af forsiden</li> }
+                    @if (i.Helpers != "") { <li>Taget af @i.Helpers</li> }
+                }
+                <li><b>@c.Units</b> ting i kassen</li>
+            </ul>
+            @if (c.Intake?.HasUnread == true)
+            {
+                <button class="k-btn k-btn-primary" @onclick="() => WantRead(c.Code)">Læs kasse @c.Number</button>
+            }
+        </section>
+    }
+</div>
+
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Værktøjer</h2>
+    <p>Lav en kasse uden Vareinfo, print labels, eller hent lageret som regneark og fotos.</p>
+    <div class="lg-row">
+        <input class="k-input" @bind="_place" placeholder="Hvor står den? (fx Garagen, reol 2)" aria-label="Placering af den nye kasse" />
+        <button class="k-btn k-btn-secondary" @onclick="New">➕ Ny kasse</button>
+    </div>
+    <div class="lg-row">
+        <a class="k-btn k-btn-secondary" href="/kasser/labels" target="_blank">🏷️ Print labels til mange kasser</a>
+        <a class="k-btn k-btn-secondary" href="/api/eksport.csv">⬇️ Hele lageret som regneark</a>
+        <a class="k-btn k-btn-secondary" href="/api/varefotos.zip" download>⬇️ Alle varefotos (zip)</a>
+    </div>
+    <p class="k-small k-muted">AI-kald i dag: @_callsToday af @Intake.MaxCallsPerDay (ét pr. billede – stregkoder er gratis).</p>
 </section>
 
 @code {
-    private List<BoxSummary> _rows = [];
-    private List<BoxIntake> _intake = [];
+    /// <summary>A box with what came from Vareinfo for it (or a box that only has photos so far).</summary>
+    private sealed record Card(string Code, string Title, bool IsTest, int Units, BoxIntake? Intake)
+    {
+        public int Number => BoxCodes.Number(Code);
+    }
+
+    private List<Card> _cards = [];
     private string _place = "";
     private string? _msg, _error;
     private int _callsToday;
@@ -71,8 +84,17 @@
 
     private async Task Load()
     {
-        _rows = await Boxes.AllAsync();
-        _intake = await Intake.BoxesAsync();
+        var rows = (await Boxes.AllAsync()).ToDictionary(r => r.Code);
+        var intake = (await Intake.BoxesAsync()).ToDictionary(i => i.BoxCode);
+        _cards = rows.Keys.Union(intake.Keys).Select(code =>
+            {
+                var r = rows.GetValueOrDefault(code);
+                var name = r is null ? "" : r.Note != "" ? r.Note + (r.Place != "" && !Box.IsTestName(r.Place) ? " · " + r.Place : "") : r.Place;
+                var title = name == "" ? $"Kasse {BoxCodes.Number(code)}" : name;
+                return new Card(code, title, BoxCodes.IsTest(code) || (r is not null && Box.IsTestName(r.Place)), r?.Units ?? 0, intake.GetValueOrDefault(code));
+            })
+            // What waits first, then the newest numbers.
+            .OrderByDescending(c => c.Intake?.HasUnread == true).ThenBy(c => c.IsTest).ThenByDescending(c => c.Number).ToList();
         _callsToday = await Intake.CallsTodayAsync();
     }
 
