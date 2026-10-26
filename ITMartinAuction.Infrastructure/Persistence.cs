@@ -129,7 +129,8 @@ public static class DemoSeeder
     public static async Task SeedAsync(AuctionDbContext db)
     {
         if (await db.Sessions.AnyAsync()) return;
-        var session = new AuctionSession { Code = "DEMO", Name = "Klub-auktion", Status = AuctionStatus.Live };
+        var session = AuctionSession.Open("Klub-auktion", "DEMO", DateTime.UtcNow);
+        session.Status = AuctionStatus.Live;
         db.Sessions.Add(session);
         await db.SaveChangesAsync();
         var item1 = new AuctionItem { SessionId = session.Id, Name = "Håndlavet fuglekasse", StartingPrice = 50m, Status = AuctionItemStatus.Active, SortOrder = 0 };
@@ -140,7 +141,7 @@ public static class DemoSeeder
         var bo = new Bidder { SessionId = session.Id, Name = "Bo", BidderNumber = 2, Color = "#4f8ef7" };
         db.Bidders.AddRange(anna, bo);
         await db.SaveChangesAsync();
-        db.Bids.AddRange(new Bid { AuctionItemId = item1.Id, BidderId = anna.Id, Amount = 55m }, new Bid { AuctionItemId = item1.Id, BidderId = bo.Id, Amount = 65m });
+        db.Bids.AddRange(new Bid { AuctionItemId = item1.Id, BidderId = anna.Id, Amount = 55m, PlacedAt = session.CreatedAt }, new Bid { AuctionItemId = item1.Id, BidderId = bo.Id, Amount = 65m, PlacedAt = session.CreatedAt.AddSeconds(5) });
         session.ActiveItemId = item1.Id;
         await db.SaveChangesAsync();
     }

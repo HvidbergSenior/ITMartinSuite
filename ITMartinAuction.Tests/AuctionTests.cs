@@ -53,6 +53,43 @@ public class BiddingRuleTests
     }
 
     [Test]
+    public void Live_bids_are_checked_on_the_active_item_only()
+    {
+        var item = Item(100, (120, false));
+        item.Invoking(i => Bidding.Check(AuctionStatus.Live, i, 500)).Should().Throw<InvalidOperationException>().WithMessage("Genstand er ikke aktiv");
+        item.Status = AuctionItemStatus.Active;
+        item.Invoking(i => Bidding.Check(AuctionStatus.Live, i, 120)).Should().Throw<InvalidOperationException>().WithMessage("Mindste bud er 121 kr");
+        Bidding.Check(AuctionStatus.Live, item, 121).Should().BeFalse();
+        Bidding.Check(AuctionStatus.PreAuction, Item(100), 100).Should().BeTrue();
+    }
+
+    [Test]
+    public void Bought_now_is_told_apart_from_sold_to_a_bid()
+    {
+        var hammered = Item(50, (65, false));
+        Bidding.Close(hammered, sold: true);
+        hammered.IsBoughtNow.Should().BeFalse();
+
+        var passed = Item(50);
+        Bidding.Close(passed, sold: true);
+        Bidding.BuyNow(passed, "Bo", "12345678");
+        passed.IsBoughtNow.Should().BeTrue();
+    }
+
+    [Test]
+    public void The_catalogue_is_in_running_order_and_interesting_means_marked_gold_first()
+    {
+        var session = new AuctionSession { Items =
+        [
+            new AuctionItem { Name = "a", SortOrder = 0 },
+            new AuctionItem { Name = "b", SortOrder = 1, Highlight = "🥉 BRONZE – x" },
+            new AuctionItem { Name = "c", SortOrder = 2, Highlight = "🏆 GULD – x" },
+        ] };
+        session.Catalogue().Select(i => i.Name).Should().Equal("a", "b", "c");
+        session.Catalogue(onlyInteresting: true).Select(i => i.Name).Should().Equal("c", "b");
+    }
+
+    [Test]
     public void Marks_order_gold_silver_bronze_maybe()
     {
         new[] { "🔎 MÅSKE – x", "🥉 BRONZE – x", null, "🏆 GULD – x", "🥈 SØLV – x" }.OrderBy(Highlights.Rank)
@@ -84,7 +121,7 @@ public class LagerIntakeTests
         await using var db = Db();
         var store = new AuctionStore(db);
         var hub = new Mock<IAuctionBroadcast>();
-        var auctions = new AuctionUseCases(store, hub.Object, Mock.Of<ICountdown>(), Mock.Of<IPhotoStore>());
+        var auctions = new AuctionUseCases(store, hub.Object, Mock.Of<ICountdown>(), Mock.Of<IPhotoStore>(), TimeProvider.System);
         var session = await auctions.CreateAsync("Bogshoppen fredag");
         var lager = new LagerUseCases(store, auctions, Mock.Of<IPhotoStore>());
 
@@ -104,7 +141,7 @@ public class LagerIntakeTests
     {
         await using var db = Db();
         var store = new AuctionStore(db);
-        var auctions = new AuctionUseCases(store, Mock.Of<IAuctionBroadcast>(), Mock.Of<ICountdown>(), Mock.Of<IPhotoStore>());
+        var auctions = new AuctionUseCases(store, Mock.Of<IAuctionBroadcast>(), Mock.Of<ICountdown>(), Mock.Of<IPhotoStore>(), Clock);
         var s = await auctions.CreateAsync("Test");
         var item = await auctions.AddItemAsync(s.Code, s.AdminToken, "Tintin 5", null, 100, 1, null);
         await auctions.StartLiveAsync(s.Code, s.AdminToken);
@@ -115,6 +152,64 @@ public class LagerIntakeTests
         await auctions.PlaceBidAsync(s.Code, item.Id, "phone-1", 100);
         await auctions.CloseItemAsync(s.Code, s.AdminToken, item.Id, sold: true);
         (await lager(store, auctions).StatusAsync([item.Id])).Single().Should().Match<LagerStatusOut>(x => x.Status == "Sold" && x.WinningBid == 100);
+    }
+
+    [Test]
+    public async Task Bids_and_sessions_get_the_time_from_the_clock_not_the_machine()
+    {
+        await using var db = Db();
+        var store = new AuctionStore(db);
+        var auctions = new AuctionUseCases(store, Mock.Of<IAuctionBroadcast>(), Mock.Of<ICountdown>(), Mock.Of<IPhotoStore>(), Clock);
+        var s = await auctions.CreateAsync("Test");
+        var item = await auctions.AddItemAsync(s.Code, s.AdminToken, "Tintin 5", null, 100, 1, null);
+        await auctions.OpenPreAuctionAsync(s.Code, s.AdminToken);
+        await auctions.GetOrCreateBidderAsync(s.Code, "phone-1");
+        await auctions.PlaceBidAsync(s.Code, item.Id, "phone-1", 120);
+
+        var full = await auctions.GetByCodeAsync(s.Code);
+        (full!.CreatedAt, full.ExpiresAt).Should().Be((Then, Then.AddDays(7)));
+        full.Items.Single().Bids.Single().PlacedAt.Should().Be(Then);
+    }
+
+    [Test]
+    public async Task A_pre_bid_replaces_your_old_one_and_never_goes_under_the_starting_price()
+    {
+        await using var db = Db();
+        var store = new AuctionStore(db);
+        var auctions = new AuctionUseCases(store, Mock.Of<IAuctionBroadcast>(), Mock.Of<ICountdown>(), Mock.Of<IPhotoStore>(), Clock);
+        var s = await auctions.CreateAsync("Test");
+        var item = await auctions.AddItemAsync(s.Code, s.AdminToken, "Tintin 5", null, 100, 1, null);
+        await auctions.OpenPreAuctionAsync(s.Code, s.AdminToken);
+        await auctions.GetOrCreateBidderAsync(s.Code, "phone-1");
+
+        await auctions.Invoking(a => a.PlaceBidAsync(s.Code, item.Id, "phone-1", 50)).Should().ThrowAsync<InvalidOperationException>().WithMessage("Forudbud skal være mindst 100 kr");
+        await auctions.PlaceBidAsync(s.Code, item.Id, "phone-1", 120);
+        await auctions.PlaceBidAsync(s.Code, item.Id, "phone-1", 150);
+
+        (await auctions.GetByCodeAsync(s.Code))!.Items.Single().Bids.Should().ContainSingle().Which.Amount.Should().Be(150);
+    }
+
+    [Test]
+    public async Task No_bids_after_the_auction_has_ended()
+    {
+        await using var db = Db();
+        var store = new AuctionStore(db);
+        var auctions = new AuctionUseCases(store, Mock.Of<IAuctionBroadcast>(), Mock.Of<ICountdown>(), Mock.Of<IPhotoStore>(), Clock);
+        var s = await auctions.CreateAsync("Test");
+        var item = await auctions.AddItemAsync(s.Code, s.AdminToken, "Tintin 5", null, 100, 1, null);
+        await auctions.StartLiveAsync(s.Code, s.AdminToken);
+        await auctions.ActivateItemAsync(s.Code, s.AdminToken, item.Id);
+        await auctions.GetOrCreateBidderAsync(s.Code, "phone-1");
+        await auctions.EndAuctionAsync(s.Code, s.AdminToken);
+
+        await auctions.Invoking(a => a.PlaceBidAsync(s.Code, item.Id, "phone-1", 500)).Should().ThrowAsync<InvalidOperationException>().WithMessage("Genstand er ikke aktiv");
+    }
+
+    private static readonly DateTime Then = new(2026, 10, 31, 10, 0, 0, DateTimeKind.Utc);
+    private static readonly TimeProvider Clock = new FixedClock(Then);
+    private sealed class FixedClock(DateTime now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(now, TimeSpan.Zero);
     }
 
     private static LagerUseCases lager(IAuctionStore store, AuctionUseCases a) => new(store, a, Mock.Of<IPhotoStore>());

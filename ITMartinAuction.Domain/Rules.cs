@@ -14,6 +14,35 @@ public static class Bidding
 
     public static Bid? TopLiveBid(AuctionItem item) => item.Bids.Where(b => !b.IsPreBid).MaxBy(b => b.Amount);
 
+    /// <summary>The live bids, newest first (the bid history on the phones).</summary>
+    public static List<Bid> LiveBids(AuctionItem item) => item.Bids.Where(b => !b.IsPreBid).OrderByDescending(b => b.PlacedAt).ToList();
+
+    /// <summary>The live bids, highest first (the auctioneer's top chips).</summary>
+    public static IEnumerable<Bid> HighestLiveBids(AuctionItem item, int count) =>
+        item.Bids.Where(b => !b.IsPreBid).OrderByDescending(b => b.Amount).Take(count);
+
+    public static List<Bid> PreBids(AuctionItem item) => item.Bids.Where(b => b.IsPreBid).ToList();
+
+    public static Bid? PreBidOf(AuctionItem item, Guid? bidderId) =>
+        bidderId is { } id ? item.Bids.FirstOrDefault(b => b.IsPreBid && b.BidderId == id) : null;
+
+    /// <summary>Whether a bid of this amount may be placed now. Before the auction it is a pre-bid (at least the
+    /// starting price, one per bidder - a new one replaces the old); live it must be on the active item and at least
+    /// MinBid. Returns true for a pre-bid, throws with the message for the phone otherwise.</summary>
+    public static bool Check(AuctionStatus phase, AuctionItem item, decimal amount)
+    {
+        if (phase == AuctionStatus.PreAuction)
+        {
+            if (item.Status != AuctionItemStatus.Pending) throw new InvalidOperationException("Genstand er ikke åben for forudbud");
+            if (amount < item.StartingPrice) throw new InvalidOperationException($"Forudbud skal være mindst {item.StartingPrice:0} kr");
+            return true;
+        }
+        if (phase != AuctionStatus.Live || item.Status != AuctionItemStatus.Active) throw new InvalidOperationException("Genstand er ikke aktiv");
+        var min = MinBid(item);
+        if (amount < min) throw new InvalidOperationException($"Mindste bud er {min:0} kr");
+        return false;
+    }
+
     /// <summary>When an item goes live, the highest pre-bid becomes its first live bid; the other pre-bids are dropped.
     /// Returns the promoted bid (or null) and the pre-bids to remove.</summary>
     public static (Bid? Promoted, List<Bid> Stale) PromotePreBid(AuctionItem item)

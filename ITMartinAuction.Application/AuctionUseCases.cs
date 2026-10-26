@@ -4,13 +4,15 @@ namespace ITMartinAuction.Application;
 
 /// <summary>Running an auction: create, phases, items, bidding, hammer, buy now, chat. (The old AuctionService, moved
 /// into use cases with ports on 2026-10-12 - same behaviour, same messages to the phones.)</summary>
-public sealed class AuctionUseCases(IAuctionStore store, IAuctionBroadcast hub, ICountdown countdown, IPhotoStore photos)
+public sealed class AuctionUseCases(IAuctionStore store, IAuctionBroadcast hub, ICountdown countdown, IPhotoStore photos, TimeProvider clock)
 {
+    private DateTime Now => clock.GetUtcNow().UtcDateTime;
+
     // ── Sessions ───────────────────────────────────────────────────────
 
     public async Task<AuctionSession> CreateAsync(string name)
     {
-        var session = new AuctionSession { Name = name, Code = Codes.Generate(Random.Shared) };
+        var session = AuctionSession.Open(name, Codes.Generate(Random.Shared), Now);
         store.Add(session);
         await store.SaveAsync();
         return session;
@@ -29,8 +31,8 @@ public sealed class AuctionUseCases(IAuctionStore store, IAuctionBroadcast hub, 
     public async Task<Bidder> GetOrCreateBidderAsync(string code, string token)
     {
         var session = await store.SessionWithBiddersAsync(Codes.Normalise(code)) ?? throw new InvalidOperationException("Session ikke fundet");
-        if (session.Bidders.FirstOrDefault(b => b.Token == token) is { } existing) return existing;
-        var bidder = new Bidder { SessionId = session.Id, Token = token, Color = BidderColors.For(session.Bidders.Count) };
+        if (session.BidderByToken(token) is { } existing) return existing;
+        var bidder = new Bidder { SessionId = session.Id, Token = token, Color = BidderColors.For(session.Bidders.Count), JoinedAt = Now };
         store.Add(bidder);
         await store.SaveAsync();
         return bidder;
@@ -86,7 +88,7 @@ public sealed class AuctionUseCases(IAuctionStore store, IAuctionBroadcast hub, 
         var item = new AuctionItem
         {
             SessionId = session.Id, Name = name, Description = description, StartingPrice = startingPrice,
-            LotQuantity = lotQuantity, PhotoPath = photoPath, SortOrder = session.Items.Count,
+            LotQuantity = lotQuantity, PhotoPath = photoPath, SortOrder = session.Items.Count, CreatedAt = Now,
             Highlight = string.IsNullOrWhiteSpace(highlight) ? null : highlight.Trim(),
         };
         store.Add(item);
@@ -128,17 +130,15 @@ public sealed class AuctionUseCases(IAuctionStore store, IAuctionBroadcast hub, 
     public async Task PlaceBidAsync(string code, Guid itemId, string token, decimal amount)
     {
         var session = await store.SessionWithBiddersAsync(Codes.Normalise(code)) ?? throw new InvalidOperationException("Session ikke fundet");
-        var bidder = session.Bidders.FirstOrDefault(b => b.Token == token) ?? throw new InvalidOperationException("Budgiver ikke fundet");
+        var bidder = session.BidderByToken(token) ?? throw new InvalidOperationException("Budgiver ikke fundet");
         var item = await store.ItemAsync(itemId, withBids: true) ?? throw new InvalidOperationException("Genstand ikke fundet");
+        if (item.SessionId != session.Id) throw new InvalidOperationException("Genstand ikke fundet");
 
-        var isPreBid = session.Status == AuctionStatus.PreAuction;
-        if (!isPreBid && item.Status != AuctionItemStatus.Active) throw new InvalidOperationException("Genstand er ikke aktiv");
-        var minBid = Bidding.MinBid(item);
-        if (!isPreBid && amount < minBid) throw new InvalidOperationException($"Mindste bud er {minBid:0} kr");
-        if (isPreBid && item.Bids.FirstOrDefault(b => b.IsPreBid && b.BidderId == bidder.Id) is { } replaced) store.Remove([replaced]);
+        var isPreBid = Bidding.Check(session.Status, item, amount);
+        if (isPreBid && Bidding.PreBidOf(item, bidder.Id) is { } replaced) store.Remove([replaced]);
 
         var num = await EnsureBidderNumberAsync(session.Id, bidder);
-        var bid = new Bid { AuctionItemId = itemId, BidderId = bidder.Id, Amount = amount, IsPreBid = isPreBid };
+        var bid = new Bid { AuctionItemId = itemId, BidderId = bidder.Id, Amount = amount, IsPreBid = isPreBid, PlacedAt = Now };
         store.Add(bid);
         await store.SaveAsync();
 
@@ -178,8 +178,8 @@ public sealed class AuctionUseCases(IAuctionStore store, IAuctionBroadcast hub, 
     {
         var session = await store.SessionWithBiddersAsync(Codes.Normalise(code)) ?? throw new InvalidOperationException("Session ikke fundet");
         if (session.Status != AuctionStatus.Ended) throw new InvalidOperationException("Chat er kun åben når auktionen er slut");
-        var bidder = session.Bidders.FirstOrDefault(b => b.Token == token) ?? throw new InvalidOperationException("Budgiver ikke fundet");
-        var msg = new ChatMessage { SessionId = session.Id, BidderNumber = bidder.BidderNumber ?? 0, Message = message.Trim() };
+        var bidder = session.BidderByToken(token) ?? throw new InvalidOperationException("Budgiver ikke fundet");
+        var msg = new ChatMessage { SessionId = session.Id, BidderNumber = bidder.BidderNumber ?? 0, Message = message.Trim(), SentAt = Now };
         store.Add(msg);
         await store.SaveAsync();
         await hub.SendAsync(session.Code, "ChatMessage", new { msg.Id, msg.BidderNumber, msg.Message, msg.SentAt, bidder.Color });

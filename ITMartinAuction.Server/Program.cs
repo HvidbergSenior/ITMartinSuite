@@ -20,10 +20,10 @@ builder.Services.AddKolibri(k =>
     k.HowTo =
     [
         "Auktionarius: tryk Admin, læg tingene ind med foto og mindstepris.",
-        "Deltagere: åbn linket, skriv dit navn, og byd.",
+        "Deltagere: åbn linket, skriv dit navn, og byd. Før auktionen kan du give et forudbud på mindst startprisen – et nyt forudbud erstatter dit gamle.",
         "Vis Skærm-siden på en stor skærm i lokalet, så alle kan følge med.",
     ];
-    k.Version = "2026.09";
+    k.Version = "2026.10.26";
     k.ThemeColor = "#0f1117";
 });
 

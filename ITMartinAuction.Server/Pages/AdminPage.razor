@@ -78,15 +78,12 @@ else
 
                         @if (_activeItem is not null)
                         {
-                            var adminTopBid = _activeItem.Bids
-                                .Where(b => !b.IsPreBid)
-                                .OrderByDescending(b => b.Amount)
-                                .FirstOrDefault();
+                            var adminTopBid = Bidding.TopLiveBid(_activeItem);
                             <div class="live-item-name">@_activeItem.Name</div>
                             @if (_activeItem.IsHighlighted) { <div class="hl hl-@Highlights.Rank(_activeItem.Highlight)">@_activeItem.Highlight</div> }
                             @if (adminTopBid is not null)
                             {
-                                var bidder = _session.Bidders.FirstOrDefault(b => b.Id == adminTopBid.BidderId);
+                                var bidder = _session.BidderById(adminTopBid.BidderId);
                                 <div class="live-top-bid">
                                     @adminTopBid.Amount.ToString("0") kr — Budgiver #@(bidder?.BidderNumber?.ToString() ?? "?")
                                 </div>
@@ -156,10 +153,9 @@ else
                     {
                         <p class="muted queue-empty">Ingen genstande endnu</p>
                     }
-                    @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
+                    @foreach (var item in _session.Catalogue())
                     {
-                        var preBids = item.Bids.Where(b => b.IsPreBid).ToList();
-                        var liveBids = item.Bids.Where(b => !b.IsPreBid).ToList();
+                        var preBids = Bidding.PreBids(item);
                         <div class="admin-item @(item.Status == AuctionItemStatus.Active ? "admin-item-active" : "")
                                                @(item.Status == AuctionItemStatus.Sold   ? "admin-item-done"   : "")
                                                @(item.Status == AuctionItemStatus.Passed ? "admin-item-done"   : "")">
@@ -175,10 +171,10 @@ else
                                 }
                                 @if (item.Status == AuctionItemStatus.Sold && item.WinningBid.HasValue)
                                 {
-                                    var w = _session.Bidders.FirstOrDefault(b => b.Id == item.WinnerBidderId);
+                                    var w = _session.BidderById(item.WinnerBidderId);
                                     <span class="badge-sold">✓ @item.WinningBid.Value.ToString("0") kr — Budgiver #@(w?.BidderNumber?.ToString() ?? "?")</span>
                                 }
-                                else if (item.Status == AuctionItemStatus.Passed && item.BuyNowBuyerName is not null)
+                                else if (item.IsBoughtNow)
                                 {
                                     <span class="badge-sold">Købt: @item.BuyNowBuyerName</span>
                                 }
@@ -195,12 +191,12 @@ else
                                     <button class="btn-open" @onclick="() => OpenItem(item.Id)">Åbn</button>
                                 }
                             </div>
-                            @if (liveBids.Any())
+                            @if (Bidding.TopLiveBid(item) is not null)
                             {
                                 <div class="admin-bids">
-                                    @foreach (var b in liveBids.OrderByDescending(b => b.Amount).Take(3))
+                                    @foreach (var b in Bidding.HighestLiveBids(item, 3))
                                     {
-                                        var bidder = _session.Bidders.FirstOrDefault(x => x.Id == b.BidderId);
+                                        var bidder = _session.BidderById(b.BidderId);
                                         <span class="admin-bid-chip" style="border-color:@(bidder?.Color ?? "#555")">
                                             #@(bidder?.BidderNumber?.ToString() ?? "?") @b.Amount.ToString("0") kr
                                         </span>
@@ -277,7 +273,7 @@ else
             return;
         }
 
-        _activeItem = _session.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+        _activeItem = _session.ActiveItem;
 
         _hub = new HubConnectionBuilder()
             .WithUrl(Nav.ToAbsoluteUri("/hubs/auction"))
@@ -287,7 +283,7 @@ else
         _hub.On<object>("PhaseChanged", _ => InvokeAsync(async () =>
         {
             _session = await Svc.GetAdminSessionAsync(Code, _adminToken);
-            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _activeItem = _session?.ActiveItem;
             StateHasChanged();
         }));
 
@@ -300,15 +296,15 @@ else
         _hub.On<object>("ItemActivated", _ => InvokeAsync(async () =>
         {
             _session    = await Svc.GetAdminSessionAsync(Code, _adminToken);
-            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
-            _countdown  = 30;
+            _activeItem = _session?.ActiveItem;
+            _countdown  = Bidding.FirstCountdownSeconds;
             StateHasChanged();
         }));
 
         _hub.On<object>("BidPlaced", _ => InvokeAsync(async () =>
         {
             _session    = await Svc.GetAdminSessionAsync(Code, _adminToken);
-            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _activeItem = _session?.ActiveItem;
             StateHasChanged();
         }));
 
@@ -327,7 +323,7 @@ else
         _hub.On<object>("ItemClosed", _ => InvokeAsync(async () =>
         {
             _session    = await Svc.GetAdminSessionAsync(Code, _adminToken);
-            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _activeItem = _session?.ActiveItem;
             _countdown  = 0;
             StateHasChanged();
         }));

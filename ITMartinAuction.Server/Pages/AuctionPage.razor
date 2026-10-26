@@ -60,9 +60,9 @@ else
                     </div>
                 }
                 <div class="catalog">
-                    @foreach (var item in (_onlyInteresting ? _session.Items.Where(i => i.IsHighlighted).OrderBy(i => Highlights.Rank(i.Highlight)).ThenBy(i => i.SortOrder) : _session.Items.OrderBy(i => i.SortOrder)))
+                    @foreach (var item in _session.Catalogue(_onlyInteresting))
                     {
-                        var myPrebid = item.Bids.FirstOrDefault(b => b.IsPreBid && b.BidderId == _me?.Id);
+                        var myPrebid = Bidding.PreBidOf(item, _me?.Id);
                         <div class="catalog-card">
                             @if (item.PhotoPath is not null)
                             {
@@ -85,7 +85,7 @@ else
                                 }
                                 <div class="catalog-start">Startpris: @item.StartingPrice.ToString("0") kr</div>
                                 @{
-                                    var prebidCount = item.Bids.Count(b => b.IsPreBid);
+                                    var prebidCount = Bidding.PreBids(item).Count;
                                 }
                                 @if (prebidCount > 0)
                                 {
@@ -223,7 +223,7 @@ else
                 <!-- Item list (sidebar, read-only for bidders) -->
                 <div class="item-queue">
                     <div class="queue-title">Rækkefølge</div>
-                    @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
+                    @foreach (var item in _session.Catalogue())
                     {
                         <div class="queue-item @(item.Status == AuctionItemStatus.Active ? "queue-item-active" : "")
                                                @(item.Status == AuctionItemStatus.Sold   ? "queue-item-sold"   : "")
@@ -260,18 +260,18 @@ else
                 <!-- Results -->
                 <div class="ended-results">
                     <h3>🏆 Resultater</h3>
-                    @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
+                    @foreach (var item in _session.Catalogue())
                     {
                         <div class="result-row @(item.Status == AuctionItemStatus.Sold ? "result-sold" : "result-passed")">
                             <span class="result-name">@item.Name</span>
-                            @if (item.Status == AuctionItemStatus.Sold && item.BuyNowBuyerName is null)
+                            @if (item.Status == AuctionItemStatus.Sold && !item.IsBoughtNow)
                             {
-                                var winner = _session.Bidders.FirstOrDefault(b => b.Id == item.WinnerBidderId);
+                                var winner = _session.BidderById(item.WinnerBidderId);
                                 <span class="result-winner" style="color:@(winner?.Color ?? "#22c55e")">
                                     Budgiver #@(winner?.BidderNumber?.ToString() ?? "?") — @item.WinningBid?.ToString("0") kr
                                 </span>
                             }
-                            else if (item.Status == AuctionItemStatus.Sold && item.BuyNowBuyerName is not null)
+                            else if (item.IsBoughtNow)
                             {
                                 <span class="result-winner">Købt nu — @item.BuyNowBuyerName</span>
                             }
@@ -397,20 +397,12 @@ else
     private List<ChatMessage> _chatMessages = [];
     private string            _chatInput    = "";
 
-    private decimal MinLiveBid => _activeItem is null ? 0
-        : _activeItem.Bids.Where(b => !b.IsPreBid).Any()
-            ? _activeItem.Bids.Where(b => !b.IsPreBid).Max(b => b.Amount) + 1
-            : _activeItem.StartingPrice;
+    private decimal MinLiveBid => _activeItem is null ? 0 : Bidding.MinBid(_activeItem);
+    private Bid? TopLiveBid => _activeItem is null ? null : Bidding.TopLiveBid(_activeItem);
+    private List<Bid> LiveBids => _activeItem is null ? [] : Bidding.LiveBids(_activeItem);
 
-    private Bid? TopLiveBid => _activeItem?.Bids
-        .Where(b => !b.IsPreBid)
-        .OrderByDescending(b => b.Amount)
-        .FirstOrDefault();
-
-    private List<Bid> LiveBids => _activeItem?.Bids
-        .Where(b => !b.IsPreBid)
-        .OrderByDescending(b => b.PlacedAt)
-        .ToList() ?? [];
+    /// <summary>The part of the "ItemClosed" message the phone needs: which item the hammer fell on.</summary>
+    private sealed record ItemClosedMessage(Guid ItemId);
 
     private static string PhaseDanish(AuctionStatus s) => s switch
     {
@@ -425,7 +417,7 @@ else
     {
         _session = await Svc.GetByCodeAsync(Code);
         if (_session is null) return;
-        _activeItem = _session.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+        _activeItem = _session.ActiveItem;
 
         if (_session.Status == AuctionStatus.Ended)
             _chatMessages = await Svc.GetChatAsync(Code);
@@ -466,7 +458,7 @@ else
         _hub.On<object>("BidderJoined", _ => InvokeAsync(async () =>
         {
             _session = await Svc.GetByCodeAsync(Code);
-            _me = _session?.Bidders.FirstOrDefault(b => b.Token == _myToken);
+            _me = _session?.BidderByToken(_myToken);
             StateHasChanged();
         }));
 
@@ -482,19 +474,19 @@ else
         _hub.On<object>("ItemActivated", _ => InvokeAsync(async () =>
         {
             _session    = await Svc.GetByCodeAsync(Code);
-            _me         = _session?.Bidders.FirstOrDefault(b => b.Token == _myToken);
-            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _me         = _session?.BidderByToken(_myToken);
+            _activeItem = _session?.ActiveItem;
             _bidAmount  = MinLiveBid;
             _bidError   = "";
-            _countdown  = 30;
+            _countdown  = Bidding.FirstCountdownSeconds;
             StateHasChanged();
         }));
 
         _hub.On<object>("BidPlaced", _ => InvokeAsync(async () =>
         {
             _session     = await Svc.GetByCodeAsync(Code);
-            _me          = _session?.Bidders.FirstOrDefault(b => b.Token == _myToken);
-            _activeItem  = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _me          = _session?.BidderByToken(_myToken);
+            _activeItem  = _session?.ActiveItem;
             _bidAmount   = MinLiveBid;
             _newBidFlash = true;
             StateHasChanged();
@@ -519,20 +511,17 @@ else
             StateHasChanged();
         }));
 
-        _hub.On<object>("ItemClosed", _ => InvokeAsync(async () =>
+        _hub.On<ItemClosedMessage>("ItemClosed", closed => InvokeAsync(async () =>
         {
             _session    = await Svc.GetByCodeAsync(Code);
-            _me         = _session?.Bidders.FirstOrDefault(b => b.Token == _myToken);
-            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _me         = _session?.BidderByToken(_myToken);
+            _activeItem = _session?.ActiveItem;
             _countdown  = 0;
 
-            // Find the just-closed item to show winner overlay
-            var closedItem = _session?.Items
-                .Where(i => i.Status == AuctionItemStatus.Sold && i.WinnerBidderId.HasValue)
-                .OrderByDescending(i => i.CreatedAt)
-                .FirstOrDefault();
+            // The winner overlay is for the item the hammer just fell on - only when it was sold to a bid
+            var closedItem = _session?.Items.FirstOrDefault(i => i.Id == closed.ItemId);
 
-            if (closedItem is not null && closedItem.WinnerBidderId.HasValue)
+            if (closedItem is { Status: AuctionItemStatus.Sold, WinnerBidderId: not null })
             {
                 var winner = _session?.Bidders.FirstOrDefault(b => b.Id == closedItem.WinnerBidderId);
                 _winnerItemName = closedItem.Name;

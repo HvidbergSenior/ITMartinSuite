@@ -10,13 +10,30 @@ public sealed class AuctionSession
     public AuctionStatus Status { get; set; } = AuctionStatus.Draft;
     public string AdminToken { get; set; } = Guid.NewGuid().ToString("N");
     public DateTime? AuctionDate { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddDays(7);   // CleanupJob deletes it then
+    public DateTime CreatedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }   // CleanupJob deletes it then
     public Guid? ActiveItemId { get; set; }
 
     public List<AuctionItem> Items { get; set; } = [];
     public List<Bidder> Bidders { get; set; } = [];
     public List<ChatMessage> ChatMessages { get; set; } = [];
+
+    /// <summary>A session lives a week - Bogshoppen Lager fetches the results long before.</summary>
+    public static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
+
+    public static AuctionSession Open(string name, string code, DateTime now) =>
+        new() { Name = name, Code = code, CreatedAt = now, ExpiresAt = now + Lifetime };
+
+    public AuctionItem? ActiveItem => Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+
+    public Bidder? BidderById(Guid? id) => id is { } x ? Bidders.FirstOrDefault(b => b.Id == x) : null;
+
+    public Bidder? BidderByToken(string token) => Bidders.FirstOrDefault(b => b.Token == token);
+
+    /// <summary>The catalogue in running order; "only interesting" = the marked items, gold first.</summary>
+    public IEnumerable<AuctionItem> Catalogue(bool onlyInteresting = false) => onlyInteresting
+        ? Items.Where(i => i.IsHighlighted).OrderBy(i => Highlights.Rank(i.Highlight)).ThenBy(i => i.SortOrder)
+        : Items.OrderBy(i => i.SortOrder);
 }
 
 public enum AuctionStatus { Draft, PreAuction, Live, Ended }
@@ -36,7 +53,7 @@ public sealed class AuctionItem
     public decimal? WinningBid { get; set; }
     public string? BuyNowBuyerName { get; set; }
     public string? BuyNowBuyerPhone { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
     // From Bogshoppen Lager (2026-10-12, user: "put interesting and bronze, silver, gold on liveauctions... that should
     // be fun"): "🏆 GULD – sælges for ca. 1.500 kr andre steder", "🥈 SØLV …", "🥉 BRONZE …", "🔎 MÅSKE …". Null = ordinary.
     public string? Highlight { get; set; }
@@ -44,6 +61,9 @@ public sealed class AuctionItem
     public List<Bid> Bids { get; set; } = [];
 
     public bool IsHighlighted => !string.IsNullOrWhiteSpace(Highlight);
+
+    /// <summary>Sold after the hammer passed it - by name and phone, no bid.</summary>
+    public bool IsBoughtNow => Status == AuctionItemStatus.Sold && WinningBid is null && BuyNowBuyerName is not null;
 }
 
 public enum AuctionItemStatus { Pending, Active, Sold, Passed }
@@ -57,7 +77,7 @@ public sealed class Bidder
     public string? Phone { get; set; }
     public int? BidderNumber { get; set; }           // public anonymous number (Budgiver #3)
     public string Color { get; set; } = "#f5a623";
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+    public DateTime JoinedAt { get; set; }
 }
 
 public sealed class Bid
@@ -67,7 +87,7 @@ public sealed class Bid
     public Guid BidderId { get; set; }
     public decimal Amount { get; set; }
     public bool IsPreBid { get; set; }
-    public DateTime PlacedAt { get; set; } = DateTime.UtcNow;
+    public DateTime PlacedAt { get; set; }
 
     public Bidder? Bidder { get; set; }
 }
@@ -78,5 +98,5 @@ public sealed class ChatMessage
     public Guid SessionId { get; set; }
     public int BidderNumber { get; set; }
     public string Message { get; set; } = "";
-    public DateTime SentAt { get; set; } = DateTime.UtcNow;
+    public DateTime SentAt { get; set; }
 }
