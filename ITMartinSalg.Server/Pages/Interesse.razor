@@ -1,0 +1,48 @@
+@page "/interesse"
+@inject InterestUseCases Interest
+@inject ShopUseCases Shop
+
+@* "Interessant" from the marketplace (user 2026-10-24: customers mark things, no buying yet; then a live auction picked
+   by the marks). The marks are kept by InterestUseCases; this page only shows them, most marked first. *@
+<PageTitle>Interesse – Bogshoppen Salg</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">⭐ Det, kunderne synes er interessant</h1>
+    <p>Kunder, der logger ind på bogshoppen.dk med deres kundenummer, kan trykke <b>Interessant</b> ved en vare. Her står de ting, flest har markeret – øverst dem med flest markeringer.</p>
+    <p>Brug listen, når I vælger ting til en liveauktion. Køb er ikke slået til for kunderne endnu – de kan kun kigge og markere.</p>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">@(_rows is null ? "Henter …" : _rows.Count == 0 ? "Ingen markeringer endnu" : $"{_rows.Count} ting er markeret")</h2>
+    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+    @if (_rows is { Count: 0 })
+    {
+        <p>Når kunderne begynder at markere, kommer tingene her.</p>
+    }
+    else if (_rows is not null)
+    {
+        <ul class="lg-list">
+            @foreach (var r in _rows)
+            {
+                <li>
+                    <span class="lg-main">
+                        <b>@r.Line</b>
+                        <span class="k-small">@r.Count @(r.Count == 1 ? "kunde" : "kunder") · senest @r.LastAt.ToLocalTime().ToString("d. MMM HH:mm")@(r.Kind != "" ? " · " + r.Kind : "")@(r.BuyNowKr is { } kr ? $" · {kr} kr" : "")@(r.ForSale ? "" : " · ikke til salg mere")</span>
+                    </span>
+                    @if (r.ForSale) { <a class="k-btn k-btn-sm k-btn-secondary" href="@($"{Shop.LagerBase}/vare/{r.ItemId}")">Se i Lager</a> }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private List<InterestRow>? _rows;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _rows = await Interest.TopAsync(); }
+        catch (SalgException ex) { _error = ex.Message; _rows = []; }
+    }
+}

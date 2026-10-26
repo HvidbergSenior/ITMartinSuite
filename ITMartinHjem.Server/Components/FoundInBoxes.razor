@@ -49,10 +49,11 @@
     private List<(ShopItem Item, List<ShopProof> Proof)> _items = [];
 
     [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+    [CascadingParameter(Name = "ShopCustomer")] private string ShopCustomer { get; set; } = "";
 
     // Off until Martin says so (user 2026-10-15: "dont show varer yet on homepage") - ShopVisibility: Hjem__ShowFound, or his preview cookie.
     protected override async Task OnInitializedAsync()
     {
-        if (ShopVisible) _items = await Shop.FeaturedAsync();
+        if (ShopVisible || ShopCustomer != "") _items = await Shop.FeaturedAsync();
     }
 }

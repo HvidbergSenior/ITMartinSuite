@@ -35,6 +35,13 @@ public static class ShopApi
         api.MapPost("/varer/{id:int}/koeb", (int id, ShopBuy body, ShopUseCases shop) => Buy(body.ItemIds is { Count: > 0 } ids ? ids : [id], body, shop));
         api.MapPost("/kurv/koeb", (ShopBuy body, ShopUseCases shop) => Buy(body.ItemIds ?? [], body, shop));
 
+        // "Interessant" (2026-10-26): the site checked the kundenummer in Kunder before it calls these.
+        api.MapPost("/varer/{id:int}/interessant", async (int id, ShopInterestMark body, InterestUseCases interest) =>
+            await interest.ToggleAsync(body.Customer, id));
+
+        api.MapGet("/interesse/{customer}", async (string customer, InterestUseCases interest) =>
+            new ShopMine(await interest.MineAsync(customer)));
+
         api.MapGet("/ordrer/{token}", async (string token, ShopUseCases shop) =>
         {
             try

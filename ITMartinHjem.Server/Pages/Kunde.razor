@@ -1,0 +1,75 @@
+@page "/kunde"
+@inject ShopVisibility Visibility
+
+@* The marketplace for customers (user 2026-10-24: "customers log in with kundenummer, see some products, mark items
+   'interessant' ... NO buying yet"). The form posts to /kunde/log-ind (Program.cs): Kunder checks the number, a
+   data-protected cookie remembers it. *@
+<PageTitle>Log ind · Bogshoppen</PageTitle>
+
+<header class="bs-head bs-head-varer">
+    <span class="bs-tag">For kunder</span>
+    <h1>Se varerne</h1>
+    <p>Log ind med dit kundenummer og se de ting, vi har registreret. Tryk <b>Interessant</b> ved det, du kunne tænke dig – liveauktionerne starter med de ting, flest har markeret.</p>
+</header>
+
+@if (!Visibility.Customers)
+{
+    <section class="k-card bs-card">
+        <h2>Det åbner snart</h2>
+        <div>
+            <p>Vi er ved at gøre varerne klar. Er du skrevet op, får du besked, når du kan logge ind.</p>
+            <a class="k-btn k-btn-primary bs-btn" href="/#foelg">Skriv mig op – gratis</a>
+        </div>
+    </section>
+}
+else if (ShopCustomer != "")
+{
+    <section class="k-card bs-card">
+        <h2>Du er logget ind</h2>
+        <div>
+            <p>Du er logget ind med kundenummer <b>@Show(ShopCustomer)</b>. Gå til varerne og tryk <b>Interessant</b> ved det, du kunne tænke dig. Du kan ikke købe endnu.</p>
+            <a class="k-btn k-btn-primary bs-btn" href="/varer">Se varerne</a>
+            <a class="k-btn k-btn-sm" href="/kunde/log-ud">Log ud</a>
+        </div>
+    </section>
+}
+else
+{
+    <section class="k-card bs-card">
+        <h2>Log ind med dit kundenummer</h2>
+        <div>
+            <p>Skriv dit kundenummer – de 8 cifre fra mailen, du fik, da du skrev dig op. Tryk så <b>Log ind</b>.</p>
+            @if (!string.IsNullOrEmpty(Fejl)) { <p class="bs-warn" role="alert">@Fejl</p> }
+            <form class="bs-tools" method="post" action="/kunde/log-ind">
+                <input class="k-input" name="kode" inputmode="numeric" autocomplete="one-time-code" placeholder="fx 4821 7730" aria-label="Dit kundenummer" required />
+                <button class="k-btn k-btn-primary" type="submit">Log ind</button>
+            </form>
+            <p class="k-help">Har du ikke et kundenummer? Skriv dig op gratis på forsiden – så får du det med det samme og på mail.</p>
+            <a class="k-btn k-btn-sm" href="/#foelg">Skriv mig op – gratis</a>
+        </div>
+    </section>
+}
+
+<section class="k-card bs-card">
+    <h2>Sådan gør du</h2>
+    <div>
+        <ul>
+            <li><b>Se varerne</b>: vælg en slags, eller søg efter en titel, et nummer eller et år.</li>
+            <li><b>Interessant</b>: tryk ved det, du kunne tænke dig. Tryk igen, hvis du fortryder. Kun vi kan se, hvem der har markeret – andre ser kun, hvor mange.</li>
+            <li><b>Køb</b> er ikke åbnet endnu. Først kommer liveauktionerne.</li>
+        </ul>
+        <details>
+            <summary>Læg siden på din telefon</summary>
+            <p><b>iPhone</b>: åbn bogshoppen.dk/kunde i Safari, tryk Del-knappen og så <b>Føj til hjemmeskærm</b>.</p>
+            <p><b>Android</b>: åbn siden i Chrome, tryk på de tre prikker og så <b>Føj til startskærm</b> (eller <b>Installer app</b>).</p>
+            <p>Åbnede du linket fra Facebook eller Messenger, så tryk først på de tre prikker og vælg <b>Åbn i browser</b>.</p>
+        </details>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "fejl")] public string? Fejl { get; set; }
+    [CascadingParameter(Name = "ShopCustomer")] private string ShopCustomer { get; set; } = "";
+
+    private static string Show(string code) => code.Length == 8 ? code[..4] + " " + code[4..] : code;
+}

@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddDbContextFactory<SalgDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "salg.db")};Default Timeout=30"));
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<ICampaignRepository, CampaignRepository>();
+        services.AddScoped<IInterestRepository, InterestRepository>();
         services.AddHttpClient<IPaymentGateway, StripeCheckout>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IStockGateway, LagerStockLink>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddKunderClient(cfg, dataDir);

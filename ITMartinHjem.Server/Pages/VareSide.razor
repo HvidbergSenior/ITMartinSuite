@@ -1,5 +1,6 @@
 @page "/varer/{Id:int}"
 @inject ShopUseCases Shop
+@inject MarketUseCases Market
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -55,7 +56,7 @@ else
                 {
                     <p class="bs-price"><b>@kr kr</b> <span class="k-help">+ fragt, eller hent den</span></p>
                 }
-                @if (_canBuy)
+                @if (_canBuy && ShopVisible)
                 {
                     <p class="k-help">Tryk Køb nu. Så kommer du til betalingen (kort eller MobilePay) og vælger, om den skal sendes eller hentes. Varen er holdt til dig i 30 minutter. Vil du købe flere ting på én gang, så tryk Læg i kurven – bundt-tilbud regnes ud i kurven.</p>
                     <button class="k-btn k-btn-primary bs-btn" @onclick="Buy" disabled="@_busy">@(_busy ? "Et øjeblik …" : $"Køb nu – {_item.DayKr ?? kr} kr")</button>
@@ -64,7 +65,7 @@ else
                     <p class="k-help">Du har 14 dages fortrydelsesret.</p>
                     <a class="k-btn k-btn-sm" href="/handelsbetingelser">Læs handelsbetingelserne</a>
                 }
-                else
+                else if (ShopVisible)
                 {
                     <p>Betaling på siden åbner snart. Vil du have den nu? Skriv i chatten, så holder vi den til dig.</p>
                     <a class="k-btn k-btn-sm" href="@BogshoppenHome.AskUrl">Spørg på itmartin.dk</a>
@@ -73,8 +74,18 @@ else
             else
             {
                 <p>Den har ikke en fast pris endnu@(_item.ExpectKr is { } ex ? $" – andre steder koster den omkring {ex} kr" : "").</p>
-                <p>Snart kan du <b>byde</b> på den, så kommer den med på lørdagens liveauktion. Indtil da: skriv i chatten, hvad du vil give.</p>
-                <a class="k-btn k-btn-sm" href="@BogshoppenHome.AskUrl">Spørg på itmartin.dk</a>
+                @if (ShopVisible)
+                {
+                    <p>Snart kan du <b>byde</b> på den, så kommer den med på lørdagens liveauktion. Indtil da: skriv i chatten, hvad du vil give.</p>
+                    <a class="k-btn k-btn-sm" href="@BogshoppenHome.AskUrl">Spørg på itmartin.dk</a>
+                }
+            }
+            @if (!ShopVisible && !_item.ForShow)
+            {
+                @* The marketplace for customers (2026-10-26): no buying yet - mark it for the live auctions. *@
+                <p>Kunne du tænke dig den? Tryk <b>Interessant</b>. Liveauktionerne starter med de ting, flest har markeret. Tryk igen, hvis du fortryder.</p>
+                <button class="k-btn bs-btn @(_marked ? "k-btn-primary" : "")" aria-pressed="@(_marked ? "true" : "false")" @onclick="ToggleInterest" disabled="@_busy">@(_marked ? "Interessant – markeret" : "Interessant")</button>
+                @if (_count > 0) { <p class="k-help">@_count synes den er interessant.</p> }
             }
             @if (_error is not null) { <p class="bs-warn" role="alert">@_error</p> }
         </div>
@@ -121,17 +132,30 @@ else
     private string? _error;
 
     [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+    [CascadingParameter(Name = "ShopCustomer")] private string ShopCustomer { get; set; } = "";
+    private bool _marked;
+    private int _count;
 
     protected override async Task OnParametersSetAsync()
     {
         // Shop off for visitors (user 2026-10-22): also when reached by an in-app link, which skips the server redirect.
-        if (!ShopVisible) { Nav.NavigateTo("/", replace: true); return; }
-        // Not shown yet (user 2026-10-15) - "ikke til salg" page unless ShopVisibility says so.
-        if (!ShopVisible) { _item = null; _loading = false; return; }
+        // A customer logged into the marketplace (2026-10-26) sees it too - without Køb nu.
+        if (!ShopVisible && ShopCustomer == "") { Nav.NavigateTo("/", replace: true); return; }
         _loading = true;
         if (await Shop.ItemAsync(Id) is { } x) (_canBuy, _item, _proof) = (x.CanBuy, x.Item, x.Proof);
         else _item = null;
+        if (_item is not null && !ShopVisible)
+            (_marked, _count) = ((await Market.MineAsync(ShopCustomer)).Contains(Id), _item.Interested);
         _loading = false;
+    }
+
+    private async Task ToggleInterest()
+    {
+        _busy = true; _error = null;
+        var r = await Market.ToggleAsync(ShopCustomer, Id);
+        if (r.Error is null) (_marked, _count) = (r.Marked, r.Count);
+        else _error = r.Error;
+        _busy = false;
     }
 
     private int _inBasket;

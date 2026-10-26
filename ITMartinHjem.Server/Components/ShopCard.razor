@@ -1,4 +1,5 @@
 @inject IJSRuntime JS
+@inject MarketUseCases Market
 
 @* One thing in the marketplace (2026-10-20): photo, what it is, the gold/silver/bronze mark (a word, never colour alone -
    no emojis on the sites), today's price when an offer covers it, and "Læg i kurven". *@
@@ -19,11 +20,20 @@
         else if (Item.BuyNowKr is { } kr) { <span class="bs-card-price">@kr kr</span> }
         else if (Item.ExpectKr is { } ex) { <span>ca. @ex kr – pris kommer</span> }
         else { <span>Pris kommer</span> }
+        @if (_count > 0) { <span class="k-help">@_count @(_count == 1 ? "synes" : "synes") den er interessant</span> }
     </a>
     @if (CanBuy && Item.Available > 0 && Item.BuyNowKr is not null)
     {
         <div class="bs-card-actions">
             <button class="k-btn k-btn-sm k-btn-primary" @onclick="Add">@(_added ? "Lagt i kurven" : "Læg i kurven")</button>
+        </div>
+    }
+    else if (Customer != "")
+    {
+        @* The marketplace for customers (2026-10-26): no buying yet - mark it, press again to take it back. *@
+        <div class="bs-card-actions">
+            <button class="k-btn k-btn-sm @(_marked ? "k-btn-primary" : "")" aria-pressed="@(_marked ? "true" : "false")" @onclick="Toggle" disabled="@_busy">@(_marked ? "Interessant – markeret" : "Interessant")</button>
+            @if (_error is not null) { <span class="bs-warn" role="alert">@_error</span> }
         </div>
     }
 </li>
@@ -32,8 +42,28 @@
     [Parameter, EditorRequired] public ShopItem Item { get; set; } = default!;
     [Parameter] public bool CanBuy { get; set; }
     [Parameter] public EventCallback<int> Added { get; set; }
+    /// <summary>The kundenummer of a customer logged into the marketplace ("" = none): shows Interessant instead of the basket.</summary>
+    [Parameter] public string Customer { get; set; } = "";
+    [Parameter] public bool Marked { get; set; }
 
-    private bool _added;
+    private bool _added, _marked, _busy, _set;
+    private int _count;
+    private string? _error;
+
+    protected override void OnParametersSet()
+    {
+        if (_set) return;   // after a press the card keeps its own answer
+        (_marked, _count) = (Marked, Item.Interested);
+    }
+
+    private async Task Toggle()
+    {
+        _busy = true; _error = null;
+        var r = await Market.ToggleAsync(Customer, Item.Id);
+        if (r.Error is null) (_marked, _count, _set) = (r.Marked, r.Count, true);
+        else _error = r.Error;
+        _busy = false;
+    }
 
     // "🏆 GULD" -> "GULD" (no emojis on the sites).
     private string Mark => Item.Badge.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "";

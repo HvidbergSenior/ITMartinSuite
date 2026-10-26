@@ -22,6 +22,7 @@ else
     @* Varer and Kurv only once the shop is open, or for Martin with the preview code (user 2026-10-21: "varer is visible on
        bogshoppen.dk???" - nothing of the shop on the sites until he has tested it). *@
     @if (ShopVisible) { <a href="/varer">Varer</a> <a href="/kurv">Kurv<span data-kurv-count></span></a> }
+    else if (ShopCustomer != "") { <a href="/varer">Varer</a> <a href="/kunde">Mit login</a> }
     <a href="/om-bogshoppen">Om Bogshoppen</a>
     @* Questions live on itmartin.dk (user 2026-10-24: bogshoppen.dk is only the shop). *@
     <a href="@BogshoppenHome.AskUrl">Spørgsmål</a>
@@ -44,6 +45,7 @@ else
 @code {
     private List<SiteMenu.Item> _menu = [];
     [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+    [CascadingParameter(Name = "ShopCustomer")] private string ShopCustomer { get; set; } = "";
     private bool _fest, _bs;   // _bs = visitor came via bogshoppen.dk: no ITMartin menu
 
     protected override async Task OnInitializedAsync()

@@ -46,7 +46,7 @@
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
-    <Routes @rendermode="InteractiveServer" ShopVisible="@ShopVisible" />
+    <Routes @rendermode="InteractiveServer" ShopVisible="@ShopVisible" ShopCustomer="@ShopCustomer" />
     <script src="_framework/blazor.server.js"></script>
     @* sw.js = the Kolibri installability worker plus push handling for the owner's chat alerts. *@
     <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(function(){});}</script>
@@ -83,5 +83,8 @@
     // Read here, where the request is - the pages run in the circuit and get it as a parameter (data-protected).
     [Inject] private ShopVisibility Visibility { get; set; } = null!;
     private bool ShopVisible => Visibility.Visible(HttpContext?.Request.Cookies[ShopVisibility.Cookie]);
+    // The kundenummer of a customer logged into the marketplace ("" = none) - read here for the same reason.
+    [Inject] private MarketCookie Market { get; set; } = null!;
+    private string ShopCustomer => Market.Read(HttpContext);
     private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
 }

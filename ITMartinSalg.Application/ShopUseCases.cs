@@ -9,7 +9,7 @@ namespace ITMartinSalg.Application;
 /// offers, and Køb nu for one thing or a basket through Stripe. What is for sale comes from Lager; the rules (the Køb nu
 /// price, what a basket costs today, what a sale may do next) are in the Domain; this only fetches, asks them and saves.</summary>
 public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, IPaymentGateway payments, ICampaignRepository campaigns,
-    ICustomerRecord customers, SalgOptions options, TimeProvider clock)
+    ICustomerRecord customers, IInterestRepository interests, SalgOptions options, TimeProvider clock)
 {
     public const int MaxResults = 60;
     /// <summary>A basket is at most this many things (a bundle is 10 - room for a few bundles).</summary>
@@ -183,6 +183,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     {
         if (list.Count == 0) return [];
         var reserved = await orders.ReservedAsync(list.Select(i => i.Id).ToList(), Now, ct);
+        var marked = await interests.CountsAsync(list.Select(i => i.Id).Distinct().ToList(), ct);
         var offers = await campaigns.AllAsync(ct);
         return list.Select(i =>
         {
@@ -191,7 +192,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
             return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 ? i.HintKr : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
-                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow);
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id));
         }).ToList();
     }
 }

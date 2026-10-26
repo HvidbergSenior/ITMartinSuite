@@ -114,8 +114,10 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
 }
 
 /// <summary>Who sees the shop (user 2026-10-21: "nothing should be on homepages. i want to test it first"): everyone when
-/// Hjem__ShowFound=true, else only a browser that opened /vis-butik?kode=Hjem__ShopPreviewCode (cookie bs_preview).</summary>
-public sealed record ShopVisibility(bool ShowAll, string PreviewCode)
+/// Hjem__ShowFound=true, else only a browser that opened /vis-butik?kode=Hjem__ShopPreviewCode (cookie bs_preview).
+/// Customers = Hjem__MarketForCustomers (2026-10-26): a customer logged in with the kundenummer sees the marketplace and
+/// marks things "interessant" - without Køb nu and the basket, those stay with Visible.</summary>
+public sealed record ShopVisibility(bool ShowAll, string PreviewCode, bool Customers = false)
 {
     public const string Cookie = "bs_preview";
 

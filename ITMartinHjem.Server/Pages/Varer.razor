@@ -1,5 +1,6 @@
 @page "/varer"
 @inject ShopUseCases Shop
+@inject MarketUseCases Market
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -50,6 +51,19 @@
     <h1>Varer</h1>
     <p>Alt det, vi har registreret – sorteret efter slags. Ved hver vare kan du se, hvad den koster andre steder, og vores pris er 10 % lavere.</p>
 </header>
+
+@if (!ShopVisible)
+{
+    @* A customer logged in with the kundenummer (2026-10-26): look and mark - buying is not open yet. *@
+    <section class="k-card bs-card">
+        <h2>Marker det, du synes er interessant</h2>
+        <div>
+            <p>Tryk <b>Interessant</b> ved de ting, du kunne tænke dig. Tryk igen, hvis du fortryder. Du kan ikke købe endnu – først kommer liveauktionerne, og dem starter vi med de ting, flest har markeret.</p>
+            <p class="k-help">Du er logget ind med dit kundenummer@(_mine.Count > 0 ? $" og har markeret {_mine.Count} {(_mine.Count == 1 ? "ting" : "ting")}" : "").</p>
+            <a class="k-btn k-btn-sm" href="/kunde">Mit login</a>
+        </div>
+    </section>
+}
 
 @if (_market is { Today.Count: > 0 })
 {
@@ -119,9 +133,16 @@ else
             }
             else
             {
-                <p class="k-help">Tryk på en vare for at se priserne andre steder. Tryk <b>Læg i kurven</b> for at købe flere ting på én gang@(_basket > 0 ? $" – du har {_basket} i kurven" : "").</p>
+                @if (ShopVisible)
+                {
+                    <p class="k-help">Tryk på en vare for at se priserne andre steder. Tryk <b>Læg i kurven</b> for at købe flere ting på én gang@(_basket > 0 ? $" – du har {_basket} i kurven" : "").</p>
+                }
+                else
+                {
+                    <p class="k-help">Tryk på en vare for at se priserne andre steder. Tryk <b>Interessant</b> ved det, du kunne tænke dig.</p>
+                }
                 <ul class="bs-cards">
-                    @foreach (var i in _items) { <ShopCard Item="i" CanBuy="_market.CanPay" Added="n => _basket = n" /> }
+                    @foreach (var i in _items) { <ShopCard Item="i" CanBuy="_market.CanPay && ShopVisible" Added="n => _basket = n" Customer="@(ShopVisible ? "" : ShopCustomer)" Marked="_mine.Contains(i.Id)" /> }
                 </ul>
                 @if (_items.Count < _market.Total)
                 {
@@ -138,7 +159,14 @@ else
     <ul class="bs-promise">
         <li><b>Ved hver vare viser vi links</b> til andre sider, der sælger den samme vare – og <b>vores pris er 10 % lavere</b>.</li>
         <li><b>Har du fundet den billigere et andet sted?</b> Send os linket – så tager vi udgangspunkt i den pris og sælger <b>10 % under</b>.</li>
-        <li><b>Køb nu</b> betaler du med kort eller MobilePay – én ting eller en hel kurv. <b>Snart kan du også byde</b> på lørdagens liveauktion.</li>
+        @if (ShopVisible)
+        {
+            <li><b>Køb nu</b> betaler du med kort eller MobilePay – én ting eller en hel kurv. <b>Snart kan du også byde</b> på lørdagens liveauktion.</li>
+        }
+        else
+        {
+            <li><b>Snart kommer liveauktionerne</b> – med de ting, flest har markeret som interessante.</li>
+        }
     </ul>
 </section>
 
@@ -156,12 +184,16 @@ else
     private string? _error;
 
     [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
+    [CascadingParameter(Name = "ShopCustomer")] private string ShopCustomer { get; set; } = "";
+    private HashSet<int> _mine = [];
 
     protected override async Task OnParametersSetAsync()
     {
         // Shop off for visitors (user 2026-10-22): also when reached by an in-app link, which skips the server redirect.
-        if (!ShopVisible) { Nav.NavigateTo("/", replace: true); return; }
-        _show = ShopVisible;
+        // A customer logged into the marketplace (2026-10-26) sees it too - without the basket.
+        if (!ShopVisible && ShopCustomer == "") { Nav.NavigateTo("/", replace: true); return; }
+        _show = true;
+        if (!ShopVisible) _mine = await Market.MineAsync(ShopCustomer);
         if (!_show) return;
         (_q, _type, _sort, _page) = (Q ?? "", Type ?? "", ShopSorts.All.Contains(Sort) ? Sort! : ShopSorts.Newest, 0);
         _usage = Usages.All.Contains(Brugt) ? Brugt! : "";
@@ -171,7 +203,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || !_show) return;
+        if (!firstRender || !_show || !ShopVisible) return;
         try { _basket = await JS.InvokeAsync<int>("bsKurv.count"); StateHasChanged(); } catch (JSException) { }
     }
 

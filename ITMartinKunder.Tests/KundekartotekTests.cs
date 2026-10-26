@@ -115,6 +115,20 @@ public class KundekartotekTests
     }
 
     [Test]
+    public async Task Every_working_kundenummer_opens_the_bogshoppen_market()
+    {
+        var apps = await _apps.AllAsync();
+        var (_, it) = await _k.SignUpWithCodeAsync(Yes("ole@gmail.com", "ElPriser"));
+        var (_, bs) = await _k.SignUpWithCodeAsync(Yes("mie@gmail.com", "Liveauktioner", Companies.Bogshoppen));
+        (await _k.CheckCodeAsync(it, KunderRoles.Market, apps)).Ok.Should().BeTrue();
+        (await _k.CheckCodeAsync(bs, "bogshoppen", apps)).Ok.Should().BeTrue();
+        (await _k.CheckCodeAsync("12345678", KunderRoles.Market, apps)).Error.Should().Contain("kender vi ikke");
+
+        await _k.UnsubscribeAsync("mie@gmail.com");
+        (await _k.CheckCodeAsync(bs, KunderRoles.Market, apps)).Error.Should().Contain("afmeldt");
+    }
+
+    [Test]
     public async Task The_free_apps_start_as_the_three_the_user_named_and_can_be_switched_off()
     {
         (await _apps.AvailableAsync()).Select(a => (a.Name, a.NeedsCode)).Should().Equal(("ElPriser", true), ("Temperatur", false), ("Stem", true));

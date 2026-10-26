@@ -66,6 +66,19 @@ public interface ICampaignRepository
     Task DeleteAsync(int id, CancellationToken ct);
 }
 
+/// <summary>The "interessant" marks from the marketplace.</summary>
+public interface IInterestRepository
+{
+    Task<Interest?> FindAsync(string customer, int itemId, CancellationToken ct);
+    Task AddAsync(Interest interest, CancellationToken ct);
+    Task RemoveAsync(Interest interest, CancellationToken ct);
+    /// <summary>Marks per item (items without marks are left out).</summary>
+    Task<Dictionary<int, int>> CountsAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct);
+    Task<List<int>> MineAsync(string customer, CancellationToken ct);
+    /// <summary>The most marked items: count, and when the last mark came.</summary>
+    Task<List<(int ItemId, int Count, DateTime LastAt)>> TopAsync(int max, CancellationToken ct);
+}
+
 /// <summary>Settings the use cases read (Salg__* in magic.env).</summary>
 public sealed record SalgOptions
 {

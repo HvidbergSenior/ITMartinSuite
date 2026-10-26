@@ -10,6 +10,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ShopUseCases>();
         services.AddScoped<CampaignUseCases>();
+        services.AddScoped<InterestUseCases>();
         return services;
     }
 }

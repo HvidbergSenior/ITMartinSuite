@@ -7,6 +7,7 @@ public sealed class SalgDb(DbContextOptions<SalgDb> options) : DbContext(options
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<Interest> Interests => Set<Interest>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -14,6 +15,8 @@ public sealed class SalgDb(DbContextOptions<SalgDb> options) : DbContext(options
         b.Entity<Order>().HasIndex(x => x.Status);
         b.Entity<Order>().HasMany(o => o.Lines).WithOne().HasForeignKey(l => l.OrderId);
         b.Entity<OrderLine>().HasIndex(x => x.ItemId);
+        b.Entity<Interest>().HasIndex(x => new { x.Customer, x.ItemId }).IsUnique();
+        b.Entity<Interest>().HasIndex(x => x.ItemId);
     }
 }
 

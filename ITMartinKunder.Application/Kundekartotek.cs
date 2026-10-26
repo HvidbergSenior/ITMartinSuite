@@ -46,6 +46,10 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
         if (string.Equals(app.Trim(), KunderRoles.Helper, StringComparison.OrdinalIgnoreCase))
             return await repo.ByCodeAsync(k, ct) is { HelperWorks: true } h ? new(true, h.Name == "" ? h.Email : h.Name)
                 : new(false, Error: "Det nummer er ikke en hjælper. Spørg Martin.");
+        if (string.Equals(app.Trim(), KunderRoles.Market, StringComparison.OrdinalIgnoreCase))
+            return await repo.ByCodeAsync(k, ct) is { } m
+                ? m.CodeWorks ? new(true, m.Name) : new(false, Error: "Du er afmeldt. Skriv dig op igen på bogshoppen.dk, så virker dit kundenummer igen.")
+                : new(false, Error: "Det kundenummer kender vi ikke. Tjek det, eller skriv dig op gratis på bogshoppen.dk.");
         if (!freeApps.Any(a => a.Available && string.Equals(a.Name, app.Trim(), StringComparison.OrdinalIgnoreCase)))
             return new(false, Error: "Den app er ikke med i de gratis apps lige nu.");
         var c = await repo.ByCodeAsync(k, ct);

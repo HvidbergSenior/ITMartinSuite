@@ -31,6 +31,10 @@ public sealed record CodeCheckRequest(string Code, string App);
 public static class KunderRoles
 {
     public const string Helper = "Hjælper";
+
+    /// <summary>The marketplace on bogshoppen.dk (2026-10-26: customers log in with the kundenummer, see the things and
+    /// mark them "interessant"): ok for every customer whose kundenummer works - not one of the free apps.</summary>
+    public const string Market = "Bogshoppen";
 }
 /// <summary>Ok, or Error (Danish, for the person).</summary>
 public sealed record CodeCheckResponse(bool Ok, string Name = "", string Error = "");

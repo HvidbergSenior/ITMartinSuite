@@ -10,10 +10,11 @@ public static class ShopHeaders
 /// <summary>One thing in the shop. BuyNowKr null = no Køb nu yet (ExpectKr = what it is worth on the other sites,
 /// minus 10 %). Available = copies not reserved by someone paying right now. Type = ProductTypes. DayKr = today's
 /// price when a day offer covers it (DayOffer says which). Badge = "🏆 GULD" / "🥈 SØLV" / "🥉 BRONZE" or "". Usage = Usages.
-/// ForShow = from a test box (user 2026-10-24): shown, never sold - no Køb nu, no kurv.</summary>
+/// ForShow = from a test box (user 2026-10-24): shown, never sold - no Køb nu, no kurv. Interested = how many customers
+/// marked it "interessant" on the marketplace.</summary>
 public sealed record ShopItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
     int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto, string Type = "", int? DayKr = null, string DayOffer = "", string Badge = "",
-    string Usage = "", bool ForShow = false);
+    string Usage = "", bool ForShow = false, int Interested = 0);
 
 /// <summary>The proof for the price promise: one listing on another site.</summary>
 public sealed record ShopProof(string Source, int Kr, string Original, string Url, bool IsNew);
@@ -56,6 +57,15 @@ public sealed record ShopMarket(bool CanPay, List<ShopType> Types, List<ShopOffe
 /// <summary>A basket priced for today: each copy, what it costs today and why, and the total.</summary>
 public sealed record ShopQuote(bool CanPay, List<ShopQuoteLine> Lines, int Total, int Saved, List<ShopOffer> Today, List<int> Gone);
 public sealed record ShopQuoteLine(int Id, string Line, int ListKr, int Kr, string Offer);
+
+// "Interessant" (user 2026-10-24): a customer logged in with the kundenummer marks things - no buying yet.
+
+/// <summary>Mark or unmark a thing for this kundenummer (the site checked it in Kunder first).</summary>
+public sealed record ShopInterestMark(string Customer);
+/// <summary>After pressing: whether it is marked now, how many have it marked, or the reason in Danish.</summary>
+public sealed record ShopInterest(bool Marked, int Count, string? Error = null);
+/// <summary>The things this kundenummer has marked.</summary>
+public sealed record ShopMine(List<int> ItemIds);
 
 /// <summary>Sort orders for the marketplace.</summary>
 public static class ShopSorts
