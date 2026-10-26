@@ -319,3 +319,17 @@ public class ShowOnlyTests
         result.Normal.Should().NotBeNull();
     }
 }
+
+public class KioskTests
+{
+    // 2026-10-26: "what does it cost as new... Basserne right now and anders and blade".
+    [Test]
+    public void The_most_specific_series_wins()
+    {
+        KioskPrice[] prices = [new() { Series = "Anders And & Co.", Kr = 40 }, new() { Series = "Anders And Ekstra", Kr = 55 }, new() { Series = "Basserne", Kr = 45 }];
+        Kiosk.For(new Item { Kind = Kinds.AndersAnd, Title = "Sluk lyset, hvis du tør!", Series = "Anders And & Co." }, prices)!.Kr.Should().Be(40);
+        Kiosk.For(new Item { Kind = Kinds.AndersAnd, Title = "Anders And Ekstra", Series = "Anders And Ekstra" }, prices)!.Kr.Should().Be(55);
+        Kiosk.For(new Item { Kind = Kinds.Tegneserie, Title = "Rødøje", Series = "Basserne" }, prices)!.Kr.Should().Be(45);
+        Kiosk.For(new Item { Kind = Kinds.Bog, Title = "Genfærd" }, prices).Should().BeNull();
+    }
+}

@@ -6,6 +6,7 @@
 @inject VareinfoLinks Vareinfo
 @inject GoldUseCases Gold
 @inject KolofonUseCases Kolofons
+@inject KioskUseCases Kiosk
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
 
@@ -93,6 +94,11 @@ else
         }
         <section class="k-card">
             <h2 class="k-card-title">💰 Priser fundet på nettet</h2>
+            @if (_kiosk is { } kp)
+            {
+                <p class="k-small">🗞️ <b>Nyt @kp.Series koster @kp.Kr kr i kiosken i dag</b>@(kp.Note != "" ? $" ({kp.Note})" : "").
+                    Et gammelt blad kan være mere værd end et nyt, hvis samlere søger det – men et almindeligt brugt blad sælges sjældent over kioskprisen.</p>
+            }
             @if (_finds.Count == 0 && _checks.Count == 0)
             {
                 <p>Ikke slået op endnu. Prisjægeren gør det af sig selv i baggrunden (et par varer i minuttet) – eller tryk herunder.</p>
@@ -266,6 +272,7 @@ else
     private string? _note;
     private List<PriceFind> _similar = [];
     private List<PriceFind> _finds = [];
+    private KioskPrice? _kiosk;
     private List<PriceCheck> _checks = [];
     private bool _hunting;
 
@@ -307,6 +314,7 @@ else
         _note = _item is null ? null : ITMartinLager.Domain.Gold.Interesting(await Gold.AllAsync(), _item.Kind, _item.Title, _item.Series, _item.Number, _item.Year, _item.Price ?? _item.PriceHint, _item.Want, _item.Have);
         _similar = view?.Finds.Where(f => f.Similar).ToList() ?? [];
         _checks = view?.Checks ?? [];
+        _kiosk = _item is null ? null : await Kiosk.ForAsync(_item);
     }
 
     // "Faraos: 12-22 kr (8 annoncer) · Nemos: 8-47 kr (12) · eBay (udland): 35-304 kr (10)."

@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<GoldUseCases>();
         services.AddScoped<StockForSaleUseCases>();
         services.AddScoped<SalgLinks>();
+        services.AddScoped<KioskUseCases>();
         return services;
     }
 }

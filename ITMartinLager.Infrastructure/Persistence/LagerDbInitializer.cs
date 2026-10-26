@@ -61,6 +61,21 @@ public static class LagerDbInitializer
                 "Ref" TEXT NOT NULL, "BookedAt" TEXT NOT NULL);
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_SaleBookings_Ref" ON "SaleBookings" ("Ref");
             """);
+        // Kiosk prices (2026-10-26): made once, with the one price known that day; after that only /kiosk changes it.
+        using (var made = conn.CreateCommand())
+        {
+            made.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'KioskPrices'";
+            if (Convert.ToInt32(made.ExecuteScalar()) == 0)
+            {
+                db.Database.ExecuteSqlRaw("""
+                    CREATE TABLE "KioskPrices" (
+                        "Id" INTEGER NOT NULL CONSTRAINT "PK_KioskPrices" PRIMARY KEY AUTOINCREMENT,
+                        "Series" TEXT NOT NULL, "Kr" INTEGER NOT NULL, "Note" TEXT NOT NULL, "UpdatedAt" TEXT NOT NULL);
+                    """);
+                db.KioskPrices.AddRange(Kiosk.Start.Select(p => new KioskPrice { Series = p.Series, Kr = p.Kr, Note = p.Note }));
+                db.SaveChanges();
+            }
+        }
         // Orders, OrderLines and Campaigns moved to Salg (salg.db) 2026-10-21. An old lager.db keeps its tables - Salg
         // copied them once from a copy of this file - and nothing here writes to them any more.
         foreach (var col in new[] { "Nemos", "Proof", "Faraos", "Bokborsen" })

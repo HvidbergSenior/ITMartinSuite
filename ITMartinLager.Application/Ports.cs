@@ -141,3 +141,11 @@ public interface ISaleBookingRepository
 
 /// <summary>A message for the person, in Danish - shown as it is.</summary>
 public sealed class LagerException(string message) : Exception(message);
+
+/// <summary>Today's kiosk prices per blad series (/kiosk).</summary>
+public interface IKioskRepository
+{
+    Task<List<KioskPrice>> ListAsync(CancellationToken ct = default);
+    Task SaveAsync(KioskPrice price, CancellationToken ct = default);
+    Task DeleteAsync(int id, CancellationToken ct = default);
+}

@@ -1,0 +1,78 @@
+@page "/kiosk"
+@inject KioskUseCases Kiosk
+
+<PageTitle>Ny i kiosken – Bogshoppen Lager</PageTitle>
+
+@* "What does it cost as new - Basserne right now and anders and blade" (user 2026-10-26). No shop has an open price
+   list for the current issue, so the cover price is typed in here - it changes about once a year. *@
+@if (Me is not { IsAdmin: true })
+{
+    <section class="k-card"><h1 class="k-card-title">Ny i kiosken</h1><p>Kun Martin kan se og rette kioskpriserne.</p></section>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="k-card-title">🗞️ Ny i kiosken i dag</h1>
+        <p>Hvad koster det nyeste nummer af bladet nyt i kiosken lige nu? Prisen står på varens side ved alle blade fra den serie, så du kan se et brugt blad i forhold til et nyt.</p>
+        <p class="k-small k-muted">Sådan gør du: skriv bladets navn, som det står i feltet Serie / blad på varen (fx Basserne), prisen i hele kroner og hvor du så den. Samme navn igen retter prisen. Tjek priserne en gang om året – fx på forsiden af et nyt blad.</p>
+        @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+        <div class="lg-form">
+            <label>Blad <input class="k-input" @bind="_series" placeholder="Basserne" /></label>
+            <label>Pris i kr. <input class="k-input" type="number" inputmode="numeric" @bind="_kr" /></label>
+            <label>Hvor fra <input class="k-input" @bind="_note" placeholder="forsiden, okt. 2026" /></label>
+        </div>
+        <button class="k-btn" @onclick="Save">Gem pris</button>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Priserne</h2>
+        @if (_prices.Count == 0)
+        {
+            <p>Ingen priser endnu – skriv den første ovenfor.</p>
+        }
+        else
+        {
+            <ul class="lg-prices">
+                @foreach (var p in _prices)
+                {
+                    <li>
+                        <b>@p.Series: @p.Kr kr</b>
+                        <span class="k-small k-muted">@(p.Note != "" ? p.Note + " · " : "")rettet @p.UpdatedAt.ToLocalTime().ToString("d/M yyyy")</span>
+                        <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Edit(p)">Ret</button>
+                        <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Delete(p)">🗑️ Slet</button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+@code {
+    [CascadingParameter] public LagerUser? Me { get; set; }
+    private List<KioskPrice> _prices = [];
+    private string _series = "", _note = "";
+    private int? _kr;
+    private string? _err;
+
+    protected override async Task OnInitializedAsync() => _prices = await Kiosk.ListAsync();
+
+    private async Task Save()
+    {
+        _err = null;
+        try
+        {
+            await Kiosk.SaveAsync(_series, _kr ?? 0, _note);
+            (_series, _kr, _note) = ("", null, "");
+            _prices = await Kiosk.ListAsync();
+        }
+        catch (LagerException ex) { _err = ex.Message; }
+    }
+
+    private void Edit(KioskPrice p) => (_series, _kr, _note) = (p.Series, p.Kr, p.Note);
+
+    private async Task Delete(KioskPrice p)
+    {
+        await Kiosk.DeleteAsync(p.Id);
+        _prices = await Kiosk.ListAsync();
+    }
+}
