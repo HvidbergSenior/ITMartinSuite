@@ -6,7 +6,7 @@
    On bogshoppen.dk it takes Bogshoppen's colours. *@
 @* Martin's photo on every itmartin.dk tab, like the front page (user 2026-10-27: "the picture should be on all tabs"). *@
 <header class="@(Bogshoppen ? "bs-head bs-head-page" : "hj-head hj-head-page hj-head-me")" data-emoji="@Emoji">
-    @if (!Bogshoppen) { <img class="hj-head-photo" src="/martin.jpg" alt="Martin Hvidberg" width="88" height="88" /> }
+    @if (!Bogshoppen) { <img class="hj-head-photo" src="/martin-20261007.jpg" alt="Martin Hvidberg" width="88" height="88" /> }
     @if (Tag.Length > 0) { <span class="@(Bogshoppen ? "bs-tag" : "hj-tagline")">@NoEmoji.Strip(Tag)</span> }
     <h1>@Text</h1>
     @if (Line.Length > 0) { <p class="@(Bogshoppen ? "" : "hj-intro")">@Line</p> }
