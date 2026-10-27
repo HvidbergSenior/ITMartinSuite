@@ -116,6 +116,16 @@
         });
     }
 
+    // A button to "#id" of a closed box opens that box (2026-10-27: itmartin.dk's "Skriv mig op – gratis" -> the sign-up box).
+    document.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href^="#"]');
+        var card = a && a.getAttribute('href').length > 1 && document.getElementById(a.getAttribute('href').slice(1));
+        if (!card || !card.classList.contains('k-folded')) return;
+        card.classList.remove('k-folded');
+        var head = cardHead(card);
+        if (head) head.setAttribute('aria-expanded', 'true');
+    });
+
     /* ---------- 2. install on the phone ---------- */
     var promptEvent = null;
     window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); promptEvent = e; renderInstall(); });
