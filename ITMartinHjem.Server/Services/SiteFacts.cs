@@ -25,6 +25,9 @@ public static class SiteFacts
         new("ElPriser", "/mine-apps?app=ElPriser", "… at du kan spare på strømmen ved at starte opvask og vask, når prisen er lavest – og at ElPriser viser dig hvornår?"),
         new("Har du en idé?", "/start-din-virksomhed", "… at jeg kan lave en enkel hjemmeside til din forening eller dit lille firma – som du selv kan skrive i fra telefonen?"),
         new("Særlige behov", "/ydelser/adhd-og-autisme", "… at jeg kan gøre telefonen eller PC'en enklere for en, der har svært ved den – kun de apps, der bliver brugt, og store, tydelige knapper?"),
+        // User 2026-10-27: "at jeg hjælper mennesker med særlige udfordringer. Kan give råd til bekymrede forældre og/eller mennesker
+        // som er i tvivl om hvad de skal gøre" (ADHD, pædagog 5 år på botilbud - see page ydelser/adhd-og-autisme).
+        new("Særlige behov", "/ydelser/adhd-og-autisme", "… at jeg hjælper mennesker med særlige udfordringer – og gerne giver råd til bekymrede forældre eller dig, der er i tvivl om, hvad du skal gøre?"),
         // User 2026-10-27: "and what I can do" - things Martin has built and can make for you.
         new("Polstrer", "/mine-apps?app=Polstrer", "… at jeg kan lave en app til netop dit arbejde – som til møbelpolstreren, der tager billeder af hvert trin og husker sine teknikker?"),
         // User 2026-10-27: "at jeg laver ALT selv. Hjemmeside, apps, musik".
