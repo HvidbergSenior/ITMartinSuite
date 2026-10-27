@@ -690,3 +690,6 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 }
 .hj-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .hj-tab-outro { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--k-border, rgba(0,0,0,.12)); }
+/* ITMartin Kolibri logo in the menu on every itmartin.dk tab (2026-10-27) - like top-left in the apps */
+.hj-nav { align-items: center; }
+.hj-nav a.hj-nav-logo { padding: 0; margin-right: 8px; display: inline-flex; }

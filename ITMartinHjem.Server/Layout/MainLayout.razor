@@ -12,6 +12,8 @@
 {
 @* The site menu - order and contents come from SiteMenu (pages marked "Vis i menuen" in Svar). *@
 <nav class="hj-nav">
+    @* The same ITMartin Kolibri logo as top-left in every app (user 2026-10-27: "and the ITMartin Kolibri which are on the apps"). *@
+    <a class="hj-nav-logo" href="/" aria-label="ITMartin – forsiden"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin" /></a>
     @foreach (var i in _menu) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href">@i.Title</a> }
     @* Light/dark like the apps (App.razor's script listens for clicks on it). *@
     <button id="themeToggleBtn" class="hj-nav-theme" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
