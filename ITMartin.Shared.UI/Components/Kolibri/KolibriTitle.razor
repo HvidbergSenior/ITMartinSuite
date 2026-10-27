@@ -1,0 +1,11 @@
+@using ITMartin.Shared.UI.Kolibri
+@inject KolibriAppInfo Info
+@* The tab title when a page sets none: the app's name. Put it in the layout BEFORE @Body (KolibriHeader has it) - a page's own
+   <PageTitle> renders later and wins. App.razor must NOT have a fixed <title>: browsers show the FIRST <title>, so every page
+   read the same name in the tab, on Google and in the visit numbers (2026-10-27, itmartin.dk/admin/tal). *@
+<PageTitle>@(string.IsNullOrWhiteSpace(Text) ? Info.Name : Text)</PageTitle>
+
+@code {
+    /// <summary>Fallback title instead of the app's name.</summary>
+    [Parameter] public string? Text { get; set; }
+}
