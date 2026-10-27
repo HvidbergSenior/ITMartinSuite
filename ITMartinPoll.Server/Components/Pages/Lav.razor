@@ -172,9 +172,20 @@
                     {
                         @if (m.Questions.Count > 1) { <div class="lav-sub">@question.Text</div> }
                         var total = Math.Max(1, question.Results.Count == 0 ? 1 : question.Results.Max(r => r.People));
-                        @foreach (var r in question.Results)
+                        @for (var i = 0; i < question.Results.Count; i++)
                         {
+                            var r = question.Results[i];
+                            var who = i < question.Who.Count ? question.Who[i] : [];
                             <div class="lav-bar"><span>@r.Label</span><b>@r.People</b><i style="width:@(r.People * 100 / total)%"></i></div>
+                            @* Who answered what - only you, the maker, see the names here (user 2026-10-27). *@
+                            @if (who.Count > 0) { <div class="lav-who">@string.Join(", ", who)</div> }
+                        }
+                        @if (question.Comments.Count > 0)
+                        {
+                            <div class="lav-comments">
+                                <b>Kommentarer</b>
+                                @foreach (var c in question.Comments) { <div><b>@c.Name:</b> @c.Text</div> }
+                            </div>
                         }
                     }
                     <div class="btn-pair">

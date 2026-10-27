@@ -1166,3 +1166,7 @@ html[data-theme="dark"] .lav-bar > i { background: color-mix(in srgb, var(--k-ac
 .help-thanks { margin: 0 0 var(--k-space-3); background: var(--k-card); color: var(--k-text); border: 2px solid var(--k-accent); }
 .help-error { color: var(--k-danger, #b91c1c); }
 .help-add-btn { min-height: var(--k-tap, 48px); border-color: var(--k-accent); color: var(--k-accent); border-radius: var(--k-radius); }
+/* Mine afstemninger: the names under each answer and the comments - for the maker only (2026-10-27). */
+.lav-who { font-size: var(--k-fs-small); color: var(--k-text); margin: 0 0 8px 10px; }
+.lav-comments { margin: var(--k-space-2) 0; padding: var(--k-space-2) var(--k-space-3); border-left: 3px solid var(--k-accent);
+    background: var(--k-bg-deep); border-radius: 6px; font-size: var(--k-fs-small); display: grid; gap: 4px; }

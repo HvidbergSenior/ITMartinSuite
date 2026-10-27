@@ -32,7 +32,10 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<P
     {
         public string Path => IsPackage ? $"/pakke/{Id}" : $"/poll/{Id}";
     }
-    public sealed record MineQuestion(string Text, List<(string Label, int People)> Results);
+    /// <summary>Who = the names behind each answer (same order as Results), Comments = what people wrote - shown to the maker
+    /// only, on /lav (user 2026-10-27: "cannot see who answered what").</summary>
+    public sealed record MineQuestion(string Text, List<(string Label, int People)> Results, List<List<string>> Who,
+        List<(string Name, string Text)> Comments);
 
     public static string Normalize(string? code) => new((code ?? "").Where(char.IsDigit).ToArray());
 
@@ -91,14 +94,25 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<P
         static MineQuestion Results(Poll p)
         {
             var votes = p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc))).ToList();
+            var comments = p.Votes.Where(v => v.Comment.Trim().Length > 0)
+                .Select(v => (Name: Who(v.VoterName), Text: v.Comment.Trim(), Label: p.Kind == QuestionKinds.Grade ? p.Options.FirstOrDefault(o => o.Id == v.OptionId)?.Label ?? "" : ""))
+                .Distinct().Select(c => (c.Name, c.Label.Length > 0 ? $"{c.Label}: {c.Text}" : c.Text)).ToList();
             if (p.Kind == QuestionKinds.Grade)
-                // grades: the average per answer, best first ("Hvilket mærke er pænest?")
-                return new MineQuestion(p.Title, p.Options
-                    .Select(o => (o, p.Votes.Where(v => v.OptionId == o.Id && v.Score > 0).Select(v => v.Score).ToList()))
-                    .OrderByDescending(x => x.Item2.Count == 0 ? 0 : x.Item2.Average())
-                    .Select(x => (x.Item2.Count == 0 ? $"{x.o.Label} – ingen karakter endnu" : $"{x.o.Label} – {x.Item2.Average():0.0} af 5", x.Item2.Count)).ToList());
-            return new MineQuestion(p.Title, p.Options.OrderBy(o => o.SortOrder).Select(o => (o.Label, VoteRules.PeopleFor(votes, o.Id))).ToList());
+            {
+                // grades: the average per answer, best first ("Hvilket mærke er pænest?"), and who gave what
+                var graded = p.Options
+                    .Select(o => (o, Votes: p.Votes.Where(v => v.OptionId == o.Id && v.Score > 0).ToList()))
+                    .OrderByDescending(x => x.Votes.Count == 0 ? 0 : x.Votes.Average(v => v.Score)).ToList();
+                return new MineQuestion(p.Title,
+                    graded.Select(x => (x.Votes.Count == 0 ? $"{x.o.Label} – ingen karakter endnu" : $"{x.o.Label} – {x.Votes.Average(v => v.Score):0.0} af 5", x.Votes.Count)).ToList(),
+                    graded.Select(x => x.Votes.Select(v => $"{Who(v.VoterName)} {v.Score}").ToList()).ToList(), comments);
+            }
+            var options = p.Options.OrderBy(o => o.SortOrder).ToList();
+            return new MineQuestion(p.Title,
+                options.Select(o => (o.Label, VoteRules.PeopleFor(votes, o.Id))).ToList(),
+                options.Select(o => p.Votes.Where(v => v.OptionId == o.Id).Select(v => Who(v.VoterName)).Distinct().ToList()).ToList(), comments);
         }
+        static string Who(string name) => name.Trim().Length > 0 ? name.Trim() : "Uden navn";
         var single = all.Where(p => p.OwnerCode == k && p.PackageId == null).Select(p =>
             new Mine(p.Id, false, p.Title, IsOpen(p.IsActive, p.Deadline, now),
                 VoteRules.People(p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, v.VotedAt))), [Results(p)]));
