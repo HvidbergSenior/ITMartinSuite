@@ -76,7 +76,8 @@ details[open] > summary.k-card-title { margin-bottom: 8px; }
 .forslag p { margin: 0 0 8px; }
 .to { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-.figur-billede { width: 100%; max-height: 360px; object-fit: cover; border-radius: var(--k-radius); border: 1px solid var(--k-border); display: block; }
+/* The whole portrait (3:4), never cropped - the head was cut off in a wide 360 px strip. */
+.figur-billede { width: auto; max-width: 100%; max-height: min(70vh, 560px); margin: 0 auto; object-fit: contain; border-radius: var(--k-radius); border: 1px solid var(--k-border); display: block; }
 .fil-knap { cursor: pointer; }
 .spell-ret { border: 1px solid var(--k-border); border-radius: var(--k-radius); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .spell-ret summary { cursor: pointer; font-weight: 600; }
