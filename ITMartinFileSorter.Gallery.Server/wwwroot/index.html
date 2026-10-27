@@ -1600,14 +1600,52 @@ function setupLivePhoto(imgEl, videoUrl, stage) {
   imgEl.addEventListener('touchcancel', stop);
 }
 
-function viewerNav(delta) {
-  if (!playlist.length) return;
+let _viewerCrossing = false;
+async function viewerNav(delta) {
+  if (!playlist.length || _viewerCrossing) return;
   const stage = document.getElementById('vStage');
   const media = stage.querySelector('video, audio');
   if (media) { media.pause(); media.src = ''; }
-  playIdx = ((playIdx + delta) + playlist.length) % playlist.length;
+  const next = playIdx + delta;
+  // Past the last photo of a folder: carry on into the next folder (user 2026-10-27: "go from last picture 2002 to
+  // first picture on 2003"). Only wraps round inside the folder when there is no neighbour to go to.
+  if ((next < 0 || next >= playlist.length) && await viewerCrossFolder(delta)) return;
+  playIdx = (next + playlist.length) % playlist.length;
   zoomReset();
   renderViewer();
+}
+
+// The neighbouring folder (2002 -> 2003, or back) among the parent's folders, going into the first/last subfolder
+// that has files. Not across the top categories (Billeder -> Videoer) and not in collections/search views.
+async function viewerCrossFolder(delta) {
+  if (viewingCollection || viewingSpecialAddon || !currentRelPath || !parentRelPath) return false;
+  _viewerCrossing = true;
+  try {
+    const browse = async rel => {
+      const res = await fetch(`/api/browse?gallery=${encodeURIComponent(currentGallery)}&path=${encodeURIComponent(rel)}`);
+      return res.ok ? res.json() : null;
+    };
+    const parent = await browse(parentRelPath);
+    const siblings = (parent?.folders || []).slice().sort((a, b) => (a.row ?? 99) - (b.row ?? 99));
+    let target = siblings[siblings.findIndex(f => f.relPath === currentRelPath) + delta];
+    for (let depth = 0; target && depth < 4; depth++) {
+      const data = await browse(target.relPath);
+      if (!data) return false;
+      if ((data.files || []).some(f => !f.isDoc)) {
+        await loadBrowse(target.relPath, target.name);
+        if (!playlist.length) return false;
+        playIdx = delta > 0 ? 0 : playlist.length - 1;
+        zoomReset();
+        renderViewer();
+        return true;
+      }
+      const subs = data.folders || [];
+      target = delta > 0 ? subs[0] : subs[subs.length - 1];
+    }
+    return false;
+  } finally {
+    _viewerCrossing = false;
+  }
 }
 
 // ── Pinch-zoom in the viewer ────────────────────────────────────────────────
@@ -1737,6 +1775,11 @@ function zoomClamp() {
 
   stage.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) zoom.pinching = false;
+    // A sideways swipe on an unzoomed photo pages: swipe left = next, swipe right = previous.
+    if (zoomTarget() && moved && !wasPinch && e.touches.length === 0 && e.changedTouches.length === 1 && zoom.scale <= 1.01) {
+      const dx = e.changedTouches[0].clientX - touchStartX, dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { viewerNav(dx < 0 ? 1 : -1); return; }
+    }
     if (!zoomTarget() || e.touches.length !== 0 || e.changedTouches.length !== 1 || wasPinch || moved) return;
 
     // A clean single-finger tap on a photo. The browser would now synthesize
