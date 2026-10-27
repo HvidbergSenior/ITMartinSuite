@@ -33,6 +33,8 @@ public static class TrialRules
         "Særlige behov – ADHD, autisme",
         "Nyt liv til en gammel computer",
         "Mine data hos Facebook, Apple og Google",
+        "Hvad er mine ting værd?",
+        "Jeg har ting, jeg gerne vil af med",
         "Liveauktioner på Bogshoppen",
     ];
 
