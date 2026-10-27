@@ -414,9 +414,9 @@
         picture: () => `<h2>Picture</h2>
             <p class="intro">A picture makes the character come alive at the table. Use your own drawing or a photo, or let the AI make one.</p>
             <img id="billede" class="figur-billede" ${fig.picture ? `src="/api/billede?kode=${encodeURIComponent(code)}&v=${fig.picture}"` : 'hidden'} alt="${esc(fig.name)}" />
-            ${canEdit() ? '<label class="k-btn fil-knap">Choose picture<input type="file" id="fil" accept="image/*" hidden /></label>' : ''}
+            ${canEdit() ? '<label class="k-btn k-btn-block fil-knap">Choose picture<input type="file" id="fil" accept="image/*" hidden /></label>' : ''}
             ${field('look', 'What does the character look like?', { max: 300, ph: 'e.g. red hair, green cloak, bow on the back' })}
-            ${canEdit() ? `<button type="button" class="k-btn k-btn-sm" id="ai">Make a picture with AI (Billedbehandling)</button>
+            ${canEdit() ? `<button type="button" class="k-btn k-btn-block" id="ai">Make a picture with AI (Billedbehandling)</button>
             <p class="k-help" id="aiHjaelp" hidden>Billedbehandling opens with your description (the page is in Danish). Press <b>Generér</b> (generate), then <b>Hent</b> (download).
                 Come back here and press <b>Choose picture</b>. 5 free pictures a day.</p>` : ''}`,
 

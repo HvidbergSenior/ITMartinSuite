@@ -17,7 +17,7 @@ builder.Services.AddKolibri(k =>
     k.KolibriName = "Kolibri Kommunikere";
     k.Family = "kommunikere";
     k.Tagline = "Make your role-playing character step by step – with your game master, at the table or from far away.";
-    k.Version = "2026.10";
+    k.Version = "2026.10.27";
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
