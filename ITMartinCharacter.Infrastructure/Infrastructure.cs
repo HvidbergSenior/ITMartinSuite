@@ -22,6 +22,8 @@ public static class DependencyInjection
         services.AddSingleton<IFigureStore>(new JsonFigureStore(Path.Combine(dataDir, "figurer")));
         services.AddSingleton<IPictureStore>(new FilePictureStore(Path.Combine(dataDir, "billeder")));
         services.AddSingleton<ILiveFeed, SseLiveFeed>();
+        // FalAi__ApiKey in magic.env, like Billedbehandling; no key = no AI button, own pictures still work.
+        services.AddHttpClient<IPortraitMaker, FalPortraitMaker>(c => c.Timeout = TimeSpan.FromSeconds(60));
         services.AddHttpClient<ISpellBook, SrdSpellBook>(c =>
         {
             c.BaseAddress = new Uri("https://www.dnd5eapi.co/");
@@ -104,6 +106,50 @@ public sealed class FilePictureStore(string dir) : IPictureStore
     public void Delete(string figureId)
     {
         if (FileOf(figureId) is { } f && File.Exists(f)) File.Delete(f);
+    }
+}
+
+/// <summary>
+/// fal.ai flux/schnell - the cheapest, fastest text-to-image model (about 1 øre for a 576x768 picture, a few seconds). The
+/// picture comes back as a link on fal.media; it is fetched here and kept as our own JPEG, under the size the upload also allows.
+/// </summary>
+public sealed class FalPortraitMaker(HttpClient http, IConfiguration cfg) : IPortraitMaker
+{
+    private readonly string? _key = string.IsNullOrWhiteSpace(cfg["FalAi:ApiKey"]) ? null : cfg["FalAi:ApiKey"];
+
+    public bool IsAvailable => _key is not null;
+
+    public async Task<byte[]?> MakeAsync(string prompt, CancellationToken ct)
+    {
+        if (_key is null) return null;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://fal.run/fal-ai/flux/schnell")
+            {
+                Content = JsonContent.Create(new
+                {
+                    prompt,
+                    image_size = new { width = 576, height = 768 },
+                    num_images = 1,
+                    output_format = "jpeg",
+                    enable_safety_checker = true,
+                }),
+            };
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Key", _key);
+            using var resp = await http.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            if (!doc.RootElement.TryGetProperty("images", out var images) || images.GetArrayLength() == 0) return null;
+            // Only fal.ai's own image host - never fetch a link from anywhere else.
+            if (!Uri.TryCreate(images[0].GetProperty("url").GetString(), UriKind.Absolute, out var url) || url.Scheme != "https" ||
+                !(url.Host == "fal.media" || url.Host.EndsWith(".fal.media"))) return null;
+            var bytes = await http.GetByteArrayAsync(url, ct);
+            return FigureRules.IsPicture(bytes) ? bytes : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException or KeyNotFoundException)
+        {
+            return null;
+        }
     }
 }
 

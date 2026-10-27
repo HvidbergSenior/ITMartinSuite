@@ -44,6 +44,8 @@ public sealed class Figure
     public string AdventureNotes { get; set; } = "";
     public string MasterNotes { get; set; } = "";
     public int Picture { get; set; }
+    /// <summary>How many AI pictures this figure has had made - each one costs money, so there is a ceiling.</summary>
+    public int AiPictures { get; set; }
     /// <summary>The step the player is on, so the game master can follow along.</summary>
     public string Step { get; set; } = Steps.Start;
     public bool Ready { get; set; }
@@ -124,6 +126,8 @@ public static class FigureRules
 {
     public const int MaxName = 60, MaxShort = 60, MaxLong = 3000, MaxSpells = 40, MaxComment = 1000, MaxComments = 500;
     public const int MaxHpLimit = 999, MinHp = -99, MaxPictureBytes = 600_000;
+    /// <summary>AI pictures per figure (about 1 øre each) - enough to try again a few times, never a runaway bill.</summary>
+    public const int MaxAiPictures = 8;
     public static readonly TimeSpan KeepIdle = TimeSpan.FromDays(400);
 
     // No 0/O/1/I/L - codes are read aloud and typed on phones.
@@ -333,6 +337,28 @@ public static class FigureRules
     }
 
     /// <summary>A character picture must be a JPEG (the phone shrinks it before sending) and not too big.</summary>
+    public static int AiPicturesLeft(Figure f) => Math.Max(0, MaxAiPictures - f.AiPictures);
+
+    /// <summary>
+    /// What the AI is asked to draw: the style of the game kind, then people, class and the player's own words about the look.
+    /// User 2026-10-27: "most important is that while generating the character you end up with a picture of him/her ...
+    /// Should be able to change it" - so the picture is made from what is already filled in.
+    /// </summary>
+    public static string PortraitPrompt(Figure f)
+    {
+        var style = f.Kind switch
+        {
+            GameKinds.Mystery => "Character portrait, 1920s painted illustration style, moody light",
+            GameKinds.Coop => "Character portrait, colourful adventure illustration style",
+            _ => "Fantasy character portrait, detailed painted illustration style",
+        };
+        var who = string.Join(" ", new[] { Cut(f.People, MaxShort), Cut(f.Class, MaxShort) }.Where(x => x.Length > 0));
+        var parts = new List<string> { style, who.Length > 0 ? "a " + who : "an adventurer" };
+        if (Cut(f.Look, 300) is { Length: > 0 } look) parts.Add(look);
+        parts.Add("head to knees, facing the viewer, plain soft background, no text, no frame");
+        return string.Join(", ", parts);
+    }
+
     public static bool IsPicture(byte[] bytes) =>
         bytes.Length is > 100 and <= MaxPictureBytes && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF;
 

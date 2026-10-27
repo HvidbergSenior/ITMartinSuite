@@ -17,12 +17,13 @@ builder.Services.AddKolibri(k =>
     k.KolibriName = "Kolibri Kommunikere";
     k.Family = "kommunikere";
     k.Tagline = "Make your role-playing character step by step – with your game master, at the table or from far away.";
-    k.Version = "2026.10.27";
+    k.Version = "2026.10.27.2";
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
         "Character helps you make a figure for a role-playing game – Dungeons & Dragons, a murder mystery or a cooperative game.",
         "You go step by step: people, class, background, ability scores, hit points, gear, spells, picture and story. Everything is saved as you type.",
+        "On the picture step the AI draws your character from the people, class and your own words about the look. Not right? Change the words and make a new one – or use your own drawing or photo.",
         "Your game master can open the same figure with their own code and help you live – also from another place. You can write to each other on every step.",
         "When the figure is ready, it gets a short code. The game master uses it in Game Master (spilleder.itmartin.dk), and after the adventure hit points, gear and notes come back here.",
         "Peoples, classes and spells from the D&D 5e SRD 5.1 by Wizards of the Coast, used under CC-BY-4.0 (creativecommons.org/licenses/by/4.0). No ads.",
@@ -159,6 +160,14 @@ app.MapPost("/api/figur/billede", async (HttpContext c, Workshop w) =>
     await c.Request.Body.CopyToAsync(ms, c.RequestAborted);
     return w.SetPicture(x.Id, x.Viewer, ms.ToArray()) is { } v ? Results.Json(v, web)
         : Results.BadRequest(new { fejl = "The picture could not be saved. Try another one." });
+});
+
+// The AI draws the figure from people, class and look; a new one replaces the old.
+app.MapPost("/api/figur/billede/ai", async (HttpContext c, Workshop w) =>
+{
+    if (Who(c, w) is not { } x) return Results.Unauthorized();
+    var (v, error) = await w.MakePictureAsync(x.Id, x.Viewer, c.RequestAborted);
+    return error.Length == 0 && v is not null ? Results.Json(v, web) : Results.BadRequest(new { fejl = error, figur = v });
 });
 
 app.MapGet("/api/billede", (HttpContext c, Workshop w) =>

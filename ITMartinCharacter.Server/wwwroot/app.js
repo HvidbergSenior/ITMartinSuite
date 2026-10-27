@@ -411,14 +411,17 @@
             <p class="intro">What is your character good at – and bad at? A weakness makes the game more fun.</p>
             ${field('skills', 'Skills and weaknesses', { area: true, rows: 6, ph: 'e.g. good at reading people, can pick locks, afraid of the dark' })}`,
 
-        picture: () => `<h2>Picture</h2>
-            <p class="intro">A picture makes the character come alive at the table. Use your own drawing or a photo, or let the AI make one.</p>
+        picture: () => {
+            const ai = canEdit() && fig.aiLeft > 0;
+            return `<h2>Picture</h2>
+            <p class="intro">${ai ? 'Say what your character looks like, then press <b>Make the picture</b>. The AI draws it from your people, class and these words in a few seconds. Not right? Change the words and make a new one.'
+                : 'A picture makes the character come alive at the table. Use your own drawing or a photo.'}</p>
             <img id="billede" class="figur-billede" ${fig.picture ? `src="/api/billede?kode=${encodeURIComponent(code)}&v=${fig.picture}"` : 'hidden'} alt="${esc(fig.name)}" />
-            ${canEdit() ? '<label class="k-btn k-btn-block fil-knap">Choose picture<input type="file" id="fil" accept="image/*" hidden /></label>' : ''}
-            ${field('look', 'What does the character look like?', { max: 300, ph: 'e.g. red hair, green cloak, bow on the back' })}
-            ${canEdit() ? `<button type="button" class="k-btn k-btn-block" id="ai">Make a picture with AI (Billedbehandling)</button>
-            <p class="k-help" id="aiHjaelp" hidden>Billedbehandling opens with your description (the page is in Danish). Press <b>Generér</b> (generate), then <b>Hent</b> (download).
-                Come back here and press <b>Choose picture</b>. 5 free pictures a day.</p>` : ''}`,
+            ${field('look', 'What does the character look like?', { max: 300, ph: 'e.g. red hair, green cloak, bow on the back, a scar over one eye' })}
+            ${ai ? `<button type="button" class="k-btn ${fig.picture ? '' : 'k-btn-primary'} k-btn-block" id="ai">${fig.picture ? 'Make a new picture' : 'Make the picture'}</button>
+                <p class="k-help">${fig.aiLeft} AI ${fig.aiLeft === 1 ? 'picture' : 'pictures'} left for this character.</p>` : ''}
+            ${canEdit() ? `<label class="k-btn k-btn-block fil-knap">${fig.picture ? 'Use my own picture instead' : 'Use my own picture'}<input type="file" id="fil" accept="image/*" hidden /></label>` : ''}`;
+        },
 
         story: () => `<h2>Story</h2>
             <p class="intro">Who is your character? What do they want, what are they afraid of, who do they love or hate? A few lines are enough.</p>
@@ -479,7 +482,8 @@
     function readyHtml() {
         const missing = fig.steps.filter(s => s !== 'ready' && !done(s)).map(label);
         return `<h2>Ready</h2>
-            ${fig.picture ? `<img class="figur-billede" src="/api/billede?kode=${encodeURIComponent(code)}&v=${fig.picture}" alt="${esc(fig.name)}" />` : ''}
+            ${fig.picture ? `<img class="figur-billede" src="/api/billede?kode=${encodeURIComponent(code)}&v=${fig.picture}" alt="${esc(fig.name)}" />`
+                : canEdit() && fig.aiLeft > 0 ? '<button type="button" class="k-btn k-btn-block" id="ai">Make a picture of the character</button>' : ''}
             <div class="opsummering">
                 <h3>${esc(fig.name || 'No name yet')}</h3>
                 <p class="linje">${esc([fig.people, fig.class, fig.background].filter(Boolean).join(' · '))}</p>
@@ -594,11 +598,18 @@
                 apply(d); renderStep();
             } catch (err) { showErr(err.message); }
         };
-        if ($('ai')) $('ai').onclick = () => {
-            const style = fig.kind === 'mystery' ? 'Portrait, 1920s painted style, whole figure visible:' : fig.kind === 'coop' ? 'Portrait, adventure illustration, whole figure visible:' : 'Fantasy portrait, painted style, whole figure visible:';
-            const beskriv = [style, fig.people && 'a ' + fig.people.toLowerCase(), fig.class, $('f-look')?.value.trim()].filter(Boolean).join(' ');
-            window.open('https://billedbehandling.itmartin.dk/?beskriv=' + encodeURIComponent(beskriv), '_blank', 'noopener');
-            $('aiHjaelp').hidden = false;
+        if ($('ai')) $('ai').onclick = async () => {
+            const b = $('ai');
+            for (const k of Object.keys(pending)) { clearTimeout(pending[k].t); await run(k); }  // the newest look words go in
+            b.disabled = true; b.textContent = 'Making the picture …';
+            showErr('');
+            try {
+                const r = await fetch('/api/figur/billede/ai', { method: 'POST', credentials: 'same-origin', headers: { 'X-Kode': code } });
+                const d = await r.json().catch(() => ({}));
+                if (d.figur) apply(d.figur);
+                if (!r.ok) throw new Error(d.fejl || 'The picture could not be made. Try again.');
+                apply(d); renderStep();
+            } catch (err) { renderStep(); showErr(err.message); }
         };
 
         // ready

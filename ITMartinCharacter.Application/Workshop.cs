@@ -22,6 +22,13 @@ public interface IPictureStore
     void Delete(string figureId);
 }
 
+// Makes a character picture from a text (fal.ai in Infrastructure). Returns a small JPEG, or null when it failed.
+public interface IPortraitMaker
+{
+    bool IsAvailable { get; }
+    Task<byte[]?> MakeAsync(string prompt, CancellationToken ct);
+}
+
 // The player and the game master with the same figure open see each change at once (server-sent events).
 public interface ILiveFeed
 {
@@ -53,15 +60,16 @@ public sealed record FigureView(string Id, string Viewer, string Kind, IReadOnly
     string MasterName, string PlayerCode, string MasterCode, string FigureCode, string Name, string People, string Class,
     string Background, int[] Abilities, int[] Final, string AbilityMethod, List<int> Rolls, int? SuggestedHp, int Hp, int MaxHp,
     string Gear, List<Spell> Spells, string Skills, string Look, string Story, string AdventureNotes, string? MasterNotes,
-    int Picture, bool Ready, bool Locked, List<Comment> Comments, DateTime UpdatedAt)
+    int Picture, int AiLeft, bool Ready, bool Locked, List<Comment> Comments, DateTime UpdatedAt)
 {
-    public static FigureView Of(Figure f, string viewer)
+    /// <param name="ai">Can AI pictures be made at all (key set)? If not, AiLeft is 0 and the button is hidden.</param>
+    public static FigureView Of(Figure f, string viewer, bool ai)
     {
         var m = viewer == Viewers.Master;
         return new(f.Id, viewer, f.Kind, Domain.Steps.For(f.Kind), f.Step, f.PlayerName, f.MasterName, f.PlayerCode,
             f.MasterCode, f.FigureCode, f.Name, f.People, f.Class, f.Background, f.Abilities.ToArray(), Srd.Final(f),
             f.AbilityMethod, f.Rolls.ToList(), Srd.StartHp(f), f.Hp, f.MaxHp, f.Gear, f.Spells.ToList(), f.Skills, f.Look, f.Story,
-            f.AdventureNotes, m ? f.MasterNotes : null, f.Picture, f.Ready, f.Locked, f.Comments.TakeLast(200).ToList(), f.UpdatedAt);
+            f.AdventureNotes, m ? f.MasterNotes : null, f.Picture, ai ? FigureRules.AiPicturesLeft(f) : 0, f.Ready, f.Locked, f.Comments.TakeLast(200).ToList(), f.UpdatedAt);
     }
 }
 
@@ -83,17 +91,23 @@ public sealed class Workshop
     private readonly IPictureStore _pictures;
     private readonly ILiveFeed _live;
     private readonly ICustomerCheck _customers;
+    private readonly IPortraitMaker _portraits;
     private readonly TimeProvider _clock;
+    private readonly HashSet<string> _drawing = [];
+    private (DateOnly Day, int Count) _aiToday;
     private readonly object _gate = new();
     private readonly Dictionary<string, Figure> _figures = new();
     private readonly ConcurrentDictionary<string, (int Count, DateTime First)> _wrong = new();
 
     public const int MaxWrongTries = 10;
+    /// <summary>AI pictures for the whole app per day - a hard ceiling on the fal.ai bill (about 1 øre each).</summary>
+    public const int MaxAiPicturesPerDay = 100;
     public static readonly TimeSpan WrongTriesWindow = TimeSpan.FromMinutes(15);
 
-    public Workshop(IFigureStore store, IPictureStore pictures, ILiveFeed live, ICustomerCheck customers, TimeProvider clock)
+    public Workshop(IFigureStore store, IPictureStore pictures, ILiveFeed live, ICustomerCheck customers, IPortraitMaker portraits,
+        TimeProvider clock)
     {
-        (_store, _pictures, _live, _customers, _clock) = (store, pictures, live, customers, clock);
+        (_store, _pictures, _live, _customers, _portraits, _clock) = (store, pictures, live, customers, portraits, clock);
         var now = Now;
         foreach (var f in store.LoadAll())
         {
@@ -198,7 +212,7 @@ public sealed class Workshop
 
     public FigureView? View(string figureId, string viewer)
     {
-        lock (_gate) return _figures.TryGetValue(figureId, out var f) ? FigureView.Of(f, viewer) : null;
+        lock (_gate) return _figures.TryGetValue(figureId, out var f) ? FigureView.Of(f, viewer, _portraits.IsAvailable) : null;
     }
 
     public FigureView? SetText(string id, string viewer, string field, string? value) => Change(id, viewer, f => FigureRules.SetText(f, viewer, field, value));
@@ -248,6 +262,41 @@ public sealed class Workshop
 
     public byte[]? Picture(string id) => _pictures.Load(id);
 
+    /// <summary>
+    /// The AI draws the figure from what is filled in (people, class, look). A new one replaces the old, so the player can try
+    /// again until it fits - within the ceilings per figure and per day, counted before the call so failures count too.
+    /// </summary>
+    public async Task<(FigureView? View, string Error)> MakePictureAsync(string id, string viewer, CancellationToken ct)
+    {
+        if (!_portraits.IsAvailable) return (null, "AI pictures are not switched on. Choose your own picture instead.");
+        string prompt;
+        lock (_gate)
+        {
+            if (!_figures.TryGetValue(id, out var f) || !FigureRules.MayEdit(f, viewer)) return (null, "The figure is locked.");
+            if (FigureRules.AiPicturesLeft(f) == 0)
+                return (null, $"This figure has had its {FigureRules.MaxAiPictures} AI pictures. Choose your own picture instead.");
+            var today = DateOnly.FromDateTime(Now);
+            if (_aiToday.Day != today) _aiToday = (today, 0);
+            if (_aiToday.Count >= MaxAiPicturesPerDay) return (null, "No more AI pictures today – try again tomorrow, or choose your own picture.");
+            if (!_drawing.Add(id)) return (null, "A picture is already being made – wait a moment.");
+            _aiToday.Count++;
+            f.AiPictures++;
+            Touch(f);
+            prompt = FigureRules.PortraitPrompt(f);
+        }
+        try
+        {
+            var jpeg = await _portraits.MakeAsync(prompt, ct);
+            if (jpeg is null || !FigureRules.IsPicture(jpeg)) return (Change(id, viewer, _ => true), "The picture could not be made. Try again.");
+            lock (_gate) _pictures.Save(id, jpeg);
+            return (Change(id, viewer, f => { f.Picture++; return true; }), "");
+        }
+        finally
+        {
+            lock (_gate) _drawing.Remove(id);
+        }
+    }
+
     // Both people see every change; the game master's private notes only go to the game master.
     private FigureView? Change(string id, string viewer, Func<Figure, bool> f)
     {
@@ -258,13 +307,13 @@ public sealed class Workshop
             Touch(fig);
         }
         Broadcast(fig);
-        lock (_gate) return FigureView.Of(fig, viewer);
+        lock (_gate) return FigureView.Of(fig, viewer, _portraits.IsAvailable);
     }
 
     private void Broadcast(Figure f)
     {
         FigureView player, master;
-        lock (_gate) (player, master) = (FigureView.Of(f, Viewers.Player), FigureView.Of(f, Viewers.Master));
+        lock (_gate) (player, master) = (FigureView.Of(f, Viewers.Player, _portraits.IsAvailable), FigureView.Of(f, Viewers.Master, _portraits.IsAvailable));
         _live.Send(f.Id, "figur", player, v => v == Viewers.Player);
         _live.Send(f.Id, "figur", master, v => v == Viewers.Master);
     }

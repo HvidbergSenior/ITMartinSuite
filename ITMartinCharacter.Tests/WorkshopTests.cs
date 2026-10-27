@@ -26,11 +26,26 @@ public class WorkshopTests
             Task.FromResult(customerNo == "11112222" ? (true, "Julius", "") : (false, "", "We don't know that customer number."));
     }
 
+    private sealed class FakePortraits : IPortraitMaker
+    {
+        public bool IsAvailable { get; set; } = true;
+        public bool Fail { get; set; }
+        public List<string> Prompts = [];
+        public Task<byte[]?> MakeAsync(string prompt, CancellationToken ct)
+        {
+            Prompts.Add(prompt);
+            return Task.FromResult(Fail ? null : (byte[]?)[0xFF, 0xD8, 0xFF, .. new byte[200]]);
+        }
+    }
+
+    private FakePortraits _portraits = null!;
+
     [SetUp]
     public void SetUp()
     {
         _dir = Path.Combine(Path.GetTempPath(), "character-test-" + Guid.NewGuid().ToString("N"));
         _live = new RecordingLive();
+        _portraits = new FakePortraits();
     }
 
     [TearDown]
@@ -40,7 +55,7 @@ public class WorkshopTests
     }
 
     private Workshop NewWorkshop() => new(new JsonFigureStore(Path.Combine(_dir, "figurer")), new FilePictureStore(Path.Combine(_dir, "billeder")),
-        _live, new FakeCustomers(), TimeProvider.System);
+        _live, new FakeCustomers(), _portraits, TimeProvider.System);
 
     private static async Task<(Workshop W, string Id, string PlayerCode, string MasterCode)> NewFigure(Workshop w, string kind = "dnd")
     {
@@ -180,5 +195,49 @@ public class WorkshopTests
         var (list, _, _) = await w.MineAsync("11112222", "ip", default);
         list.Should().ContainSingle(x => x.Id == o.FigureId);
         (await w.CreateAsync("", "dnd", "99998888", "ip", default)).Error.Should().Be(OpenError.Customer);
+    }
+
+    [Test]
+    public async Task Ai_picture_is_made_from_people_class_and_look_and_a_new_one_replaces_it()
+    {
+        var (w, id, _, _) = await NewFigure(NewWorkshop());
+        w.SetText(id, Viewers.Player, "people", "Elf").Should().NotBeNull();
+        w.SetText(id, Viewers.Player, "class", "Wizard").Should().NotBeNull();
+        w.SetText(id, Viewers.Player, "look", "red hair, green cloak").Should().NotBeNull();
+
+        var (v, error) = await w.MakePictureAsync(id, Viewers.Player, default);
+        error.Should().BeEmpty();
+        v!.Picture.Should().Be(1);
+        v.AiLeft.Should().Be(FigureRules.MaxAiPictures - 1);
+        _portraits.Prompts.Single().Should().Contain("a Elf Wizard").And.Contain("red hair, green cloak");
+        w.Picture(id).Should().NotBeNull();
+
+        (v, _) = await w.MakePictureAsync(id, Viewers.Player, default);
+        v!.Picture.Should().Be(2);
+    }
+
+    [Test]
+    public async Task Ai_pictures_stop_at_the_ceiling_per_figure_and_failures_count()
+    {
+        var (w, id, _, _) = await NewFigure(NewWorkshop());
+        _portraits.Fail = true;
+        for (var i = 0; i < FigureRules.MaxAiPictures; i++)
+            (await w.MakePictureAsync(id, Viewers.Player, default)).Error.Should().NotBeEmpty();
+        _portraits.Fail = false;
+
+        var (v, error) = await w.MakePictureAsync(id, Viewers.Player, default);
+        v.Should().BeNull();
+        error.Should().Contain("own picture");
+        _portraits.Prompts.Should().HaveCount(FigureRules.MaxAiPictures);
+    }
+
+    [Test]
+    public async Task No_key_means_no_ai_button_and_no_call()
+    {
+        _portraits.IsAvailable = false;
+        var (w, id, _, _) = await NewFigure(NewWorkshop());
+        w.View(id, Viewers.Player)!.AiLeft.Should().Be(0);
+        (await w.MakePictureAsync(id, Viewers.Player, default)).Error.Should().NotBeEmpty();
+        _portraits.Prompts.Should().BeEmpty();
     }
 }
