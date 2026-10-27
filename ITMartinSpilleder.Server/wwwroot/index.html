@@ -22,6 +22,7 @@
     <section id="start" class="start" hidden>
         <h1>Spilleder</h1>
         <p class="kolibri-navn">Kolibri Kommunikere</p>
+        <p class="indgang" id="indgang" hidden></p>
 
         <details class="k-card formaal">
             <summary class="k-card-title">Formål</summary>
@@ -31,13 +32,13 @@
         </details>
 
         <form id="deltagForm" class="k-card k-stack">
-            <h2 class="k-card-title">Vær med i et spil</h2>
+            <h2 class="k-card-title" id="deltagTitel">Vær med i et spil</h2>
             <div>
-                <label class="k-label" for="deltagKode">Spilkode</label>
+                <label class="k-label" for="deltagKode" id="deltagKodeLabel">Spilkode</label>
                 <input class="k-input kode" id="deltagKode" autocomplete="off" autocapitalize="characters" maxlength="10" required />
-                <p class="k-help">Du får koden af spillederen.</p>
+                <p class="k-help" id="deltagKodeHjaelp">Du får koden af spillederen.</p>
             </div>
-            <div>
+            <div id="deltagNavnFelt">
                 <label class="k-label" for="deltagNavn">Dit navn</label>
                 <input class="k-input" id="deltagNavn" maxlength="30" autocomplete="given-name" />
                 <p class="k-help">Dit rigtige navn. Din figur skriver du bagefter.</p>
@@ -46,7 +47,7 @@
             <p class="fejl" id="deltagFejl" hidden></p>
         </form>
 
-        <details class="k-card">
+        <details class="k-card" id="nytBoks">
             <summary class="k-card-title">Start et nyt spil (spilleder)</summary>
             <form id="nytForm" class="k-stack">
                 <div>
@@ -93,7 +94,7 @@
             <details id="koderBoks" class="k-card" open hidden>
                 <summary class="k-card-title">Spilkode til spillerne</summary>
                 <p class="stor-kode" id="spilKode"></p>
-                <p>Spillerne åbner <b>spilleder.itmartin.dk</b> og skriver koden og deres navn.</p>
+                <p>Spillerne åbner <b>spilleder.itmartin.dk/spiller</b> og skriver koden og deres navn.</p>
                 <button class="k-btn" type="button" id="delKode">Del koden</button>
                 <details class="leder-kode">
                     <summary>Din lederkode (hemmelig)</summary>

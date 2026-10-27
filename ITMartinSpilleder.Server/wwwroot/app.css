@@ -5,6 +5,7 @@ body { background: var(--k-bg); color: var(--k-text); }
 
 .start { max-width: 480px; margin: 0 auto; padding: 28px 16px; display: flex; flex-direction: column; gap: 12px; }
 .start h1 { font-size: 2.2rem; margin: 0; }
+.indgang { margin: 0; font-weight: 700; padding: 6px 10px; border-left: 3px solid var(--k-accent-dark); background: var(--k-accent-soft); }
 .kolibri-navn { margin: 0 0 4px; color: var(--k-muted); font-size: 14px; }
 .start .k-card { margin: 0; }
 .kode { text-transform: uppercase; letter-spacing: .12em; font-size: 20px; }

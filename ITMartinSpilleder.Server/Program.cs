@@ -28,7 +28,7 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Spillederen starter et spil og får en spilkode. Spillerne åbner spilleder.itmartin.dk, skriver koden og deres navn.",
+        "Spillederen åbner spilleder.itmartin.dk/leder, starter et spil og får en spilkode. Spillerne åbner spilleder.itmartin.dk/spiller og skriver koden og deres navn.",
         "Under Spillere udfylder hver spiller sit kort. Tryk − og + for at ændre liv.",
         "Under Beskeder vælger spillederen, hvem beskeden er til. Slå med terningerne samme sted.",
     ];
@@ -55,6 +55,15 @@ app.UseStaticFiles(new StaticFileOptions
             ctx.Context.Response.Headers.CacheControl = "no-cache";
     }
 });
+
+// Two entrances to the same app, like R6 (user 2026-10-27): /leder for the game master, /spiller for the players.
+// Same page; app.js shows the right start box from the address.
+foreach (var entrance in new[] { "/leder", "/spiller" })
+    app.MapGet(entrance, (HttpContext c) =>
+    {
+        c.Response.Headers.CacheControl = "no-cache";
+        return Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html; charset=utf-8");
+    });
 
 var web = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 const string Cookie = "spil";

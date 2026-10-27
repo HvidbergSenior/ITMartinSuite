@@ -54,6 +54,27 @@
         } catch { showStart(); }
     }
 
+    // /leder = the game master's entrance, /spiller = the players' entrance, / = both.
+    const entrance = location.pathname.replace(/\/+$/, '').toLowerCase();
+    function setupEntrance() {
+        if (entrance === '/leder') {
+            $('indgang').textContent = 'Indgang for spillederen';
+            $('indgang').hidden = false;
+            $('nytBoks').open = true;
+            $('start').insertBefore($('nytBoks'), $('deltagForm'));
+            $('deltagTitel').textContent = 'Har du allerede startet et spil?';
+            $('deltagKodeLabel').textContent = 'Din lederkode';
+            $('deltagKodeHjaelp').textContent = 'Lederkoden (8 tegn) står under Spilkode til spillerne på den telefon, hvor du startede spillet.';
+            $('deltagNavnFelt').hidden = true;
+            $('deltagForm').querySelector('button[type=submit]').textContent = 'Fortsæt som spilleder';
+        } else if (entrance === '/spiller') {
+            $('indgang').textContent = 'Indgang for spillere';
+            $('indgang').hidden = false;
+            $('nytBoks').hidden = true;
+        }
+    }
+    setupEntrance();
+
     function showStart() {
         $('app').hidden = true;
         $('start').hidden = false;
@@ -500,7 +521,7 @@
         setTimeout(() => { $('gemSpil').textContent = 'Gem'; }, 1500);
     };
     $('delKode').onclick = async () => {
-        const text = `Vær med i ${spil.title}: åbn https://spilleder.itmartin.dk og skriv spilkoden ${spil.joinCode}`;
+        const text = `Vær med i ${spil.title}: åbn https://spilleder.itmartin.dk/spiller og skriv spilkoden ${spil.joinCode}`;
         try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); $('delKode').textContent = 'Kopieret'; } } catch { }
     };
     $('forlad').onclick = async () => {
