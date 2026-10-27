@@ -41,6 +41,8 @@ public static class SiteFacts
         new("Ingen reklamer", "/ingen-reklamer", "… at jeg af princip IKKE har reklamer i mine apps – og aldrig får det?"),
         new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE tilføjer en funktion, bare fordi jeg kan? Bliver noget for kompliceret, spørger jeg først: Hvad kan vi fjerne?"),
         new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE bruger Google, Amazon eller Microsofts store skyer? Mine apps kører på mine egne servere i Danmark."),
+        // User 2026-10-27: "...hader subscriptions. At noget er billigt i starten, men bliver dyrere og dyrere som frøen i kogende vand".
+        new("Priser", "/apps", "… at jeg hader abonnementer, der er billige i starten og så bliver dyrere og dyrere? Det er som frøen i vandet, der langsomt bliver varmet op – man opdager det først, når det er for sent."),
         // User 2026-10-27: "... hælder mod openSource".
         new("Om mig og kontakt", "/om-mig", "… at jeg hælder mod open source? Så bliver du ikke låst fast til ét firmas programmer – og andre kan se, hvordan det virker."),
         new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE bygger for at blive stor? En app behøver ikke tusindvis af brugere – den skal løse et rigtigt problem for nogen."),
