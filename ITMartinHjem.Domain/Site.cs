@@ -45,6 +45,11 @@ public sealed class DayNote
 
     public static string Key(DateTime danish) => danish.ToString("yyyy-MM-dd");
     public bool HasText => Plan.Length > 0 || Done.Length > 0;
+
+    /// <summary>The day's ONE thing (user 2026-10-27: "Only ONE thing each day") = the first line of the plan without its bullet;
+    /// the front page says "Det er tirsdag den 27. oktober, og jeg skal kode en app". "" = nothing planned.</summary>
+    public string OneThing => Plan.Replace("\r", "").Split('\n')
+        .Select(l => l.Trim().TrimStart('*', '-', '•').Trim()).FirstOrDefault(l => l.Length > 0) ?? "";
 }
 
 // One row (Id = 1): the page's own texts and the chat switch.
@@ -182,11 +187,13 @@ public static partial class PageRules
 
 // The top menu, the same everywhere (Blazor layout + /api/menu for the hand-made pilot page):
 // Forside first, then the pages marked "Vis i menuen" by their Rækkefølge, with "Mine apps" slotted in
-// at MineAppsSort. Since 2026-10-07 (user) the menu is just Forside + Mine apps; Om mig is a
-// choice on the front page, not a tab (no pilots since 2026-10-26).
+// at MineAppsSort. Since 2026-10-07 (user) the menu is short (no pilots since 2026-10-26). "Om mig" is a tab again since
+// 2026-10-27 (user: "more tabs and fewer boxes" -> front page = head box, Vidste du, sign-up; who Martin is moved to /om-itmartin).
 public static class SiteMenu
 {
     public const int MineAppsSort = 50;
+    public const int AboutSort = 10;
+    public const string About = "/om-itmartin";
     // "I dag" tab (user 2026-10-12: the day plan box moves off the front page into its own tab) - the ITKolibrien page.
     public const int TodaySort = 40;  // user 2026-10-05: Forside, Hvad laver ITKolibrien, Om mig, Særlige behov, Priser, Mine apps (50), Følg samarbejdet, Bliv pilot
 
@@ -195,6 +202,7 @@ public static class SiteMenu
     public static List<Item> Build(IEnumerable<Page> menuPages)
     {
         var middle = menuPages.Select(p => (Sort: p.Sort, Item: new Item(p.Title, "/" + p.Slug)))
+            .Append((Sort: AboutSort, Item: new Item("Om mig", About)))
             .Append((Sort: TodaySort, Item: new Item("I dag", "/" + PageRules.Today)))
             .Append((Sort: MineAppsSort, Item: new Item("Mine apps", "/mine-apps")))
             .Append((Sort: MineAppsSort + 1, Item: new Item("Spørgsmål", "/spoergsmaal")))   // Q&A tab (user 2026-10-12: "where is the Q/A?")

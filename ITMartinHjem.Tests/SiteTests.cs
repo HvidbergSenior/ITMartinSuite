@@ -45,10 +45,18 @@ public class SiteTests
     }
 
     [Test]
+    public void The_days_one_thing_is_the_first_plan_line_without_its_bullet()
+    {
+        new DayNote { Plan = "\n* Kode en App\n* Ring til Rico" }.OneThing.Should().Be("Kode en App");
+        new DayNote { Plan = "  " }.OneThing.Should().BeEmpty();
+    }
+
+    [Test]
     public void The_menu_starts_with_Forside_and_slots_in_the_fixed_tabs()
     {
-        var menu = SiteMenu.Build([new Page { Title = "Om mig", Slug = "om-mig", Sort = 45 }]);
-        menu.Select(i => i.Title).Should().Equal("Forside", "I dag", "Om mig", "Mine apps", "Spørgsmål");
+        var menu = SiteMenu.Build([new Page { Title = "Priser", Slug = "apps", Sort = 45 }]);
+        menu.Select(i => i.Title).Should().Equal("Forside", "Om mig", "I dag", "Priser", "Mine apps", "Spørgsmål");
+        menu[1].Href.Should().Be(SiteMenu.About);
     }
 
     [Test]

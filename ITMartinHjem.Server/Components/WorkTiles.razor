@@ -1,0 +1,65 @@
+@using ITMartinHjem.Server.Services
+
+@* Small boxes instead of menu tabs (user 2026-10-07: "i want small boxes"): Om mig and the pages
+   that lost their tab. Titles/lines are fixed here; the pages themselves are edited in Svar -> Sider. *@
+@* Tiles in groups, each saying where it leads (user 2026-10-12: "the links go to other pages and apps... needs to be structured").
+   Each group is a show/hide box (user 2026-10-12). On the Om mig tab since 2026-10-27 (front page = fewer boxes). *@
+<section class="k-card hj-tilegroup">
+<h2 class="k-card-title">Om mig og mit arbejde</h2>
+<nav class="hj-tiles" aria-label="Om mig og mit arbejde">
+    @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.Page)) { @TileLink(tile) }
+    <StartTip />
+    <AdhdTip />
+</nav>
+</section>
+<section class="k-card hj-tilegroup">
+<h2 class="k-card-title">Mine andre sider</h2>
+<nav class="hj-tiles" aria-label="Mine andre sider">
+    @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.Site)) { @TileLink(tile) }
+</nav>
+</section>
+
+@code {
+    public enum TileGroup { App, Page, Site }
+
+    // Every box has a "Vidste du …" (user 2026-10-08) that matches where the box leads (checked 2026-10-12). App tiles open the example on Mine apps, not the app itself (user 2026-10-12). Facts are the user's own numbers or sourced (source in the comment).
+    // The front page's "Vidste du …" box uses these facts too.
+    public static readonly (TileGroup Group, string Icon, string Title, string Line, string Href, string Fact)[] Tiles =
+    [
+        // the user's own family library (ToshibaTest run, 2026-09): 87,009 files in, 34,079 out
+        (TileGroup.App, "", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/mine-apps?app=Tjek%20dine%20billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
+        (TileGroup.Page, "", "Om mig og kontakt", "Hvem jeg er, og hvordan du fanger mig", "/om-mig", "… at jeg har arbejdet som systemudvikler i 20 år – og som socialpædagog i 5 år med mennesker med udviklingshandicap?"),
+        (TileGroup.App, "", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
+        (TileGroup.App, "", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
+        // Statista, Feb 2025: average daily social media use of internet users worldwide = 141 min (141*365/1440 = 35.7 days)
+        // Global E-waste Monitor 2024 / Dell + HP LCAs: 68-81 % of a laptop's CO2 is from making it (user 2026-10-12: green, both sites)
+        (TileGroup.Page, "", "Grønt og bæredygtigt", "Giv gamle ting nyt liv – i stedet for at købe nyt", "/baeredygtighed", "… at 68–81 % af en bærbar computers CO₂ bliver udledt, før du tænder den – når den bliver lavet?"),
+        // Martin's own Facebook download 2026-10-15: 47 companies reported to Meta 558 times in 15 months.
+        (TileGroup.Page, "", "Det de store ikke fortæller", "Facebook, Apple og dine data – og hvad du kan gøre", "/dine-data", "… at 47 firmaer fortalte Facebook om mig 558 gange på 15 måneder – uden at jeg var på Facebook?"),
+        (TileGroup.Page, "", "Ingen reklamer", "Hvorfor mine apps aldrig har reklamer", "/ingen-reklamer", "… at vi i snit bruger 141 minutter om dagen på sociale medier? Det er 36 døgn om året."),
+        (TileGroup.Page, "", "Hvad laver jeg nu?", "I dag og denne uge", "/hvad-laver-itkolibrien", ""),
+        (TileGroup.Site, "", "Bogshoppen", "Liveauktioner – snart", "https://bogshoppen.dk", "… at Bogshoppen har over 100.000 bøger, blade og tegneserier, der skal finde nye ejere?"),
+        (TileGroup.Page, "", "Særlige behov", "ADHD, autisme og IT", "/ydelser/adhd-og-autisme", "… at der findes meget få gode apps til folk med særlige udfordringer? De skal have en app, der passer til Søren – ikke til kassen »autisme«."),
+        (TileGroup.Page, "", "Priser", "Hvad koster det?", "/apps", "… at alle mine apps har en gratis udgave, der kan noget i sig selv?"),
+    ];
+
+    // Real pictures instead of emoji icons (user 2026-10-12): the app examples, and a photo of Martin for "Om mig".
+    private static readonly Dictionary<string, string> Pictures = new()
+    {
+        ["Tjek dine billeder"] = "/apps/billeder.jpg",
+        ["Hjælp på din skærm"] = "/apps/semed.jpg",
+        ["Kig med live"] = "/apps/kigmed.jpg",
+        ["Om mig og kontakt"] = "/f/1992b2f17f9cca20.jpg",
+    };
+
+    // Every tile says where it leads: an app example on Mine apps, a page here, or another site.
+    private static RenderFragment TileLink((TileGroup Group, string Icon, string Title, string Line, string Href, string Fact) t) => __builder =>
+    {
+        var external = t.Href.StartsWith("http");
+        <a class="hj-tile" href="@t.Href" target="@(external ? "_blank" : null)" rel="@(external ? "noopener" : null)">
+            @if (Pictures.TryGetValue(t.Title, out var pic)) { <img class="hj-tile-pic" src="@pic" alt="" loading="lazy" /> }<b>@t.Title</b><span class="hj-tile-line">@t.Line</span>
+            @if (t.Fact.Length > 0) { <span class="hj-tile-fact">Vidste du @t.Fact</span> }
+            <span class="hj-tile-go">@(t.Group switch { TileGroup.App => "Se eksemplet →", TileGroup.Site => new Uri(t.Href).Host + " →", _ => "Læs mere →" })</span>
+        </a>
+    };
+}

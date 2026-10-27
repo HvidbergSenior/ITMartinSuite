@@ -43,6 +43,10 @@ public sealed class SiteUseCases(ISettingsRepository settings, IPageRepository p
             .Where(n => n.HasText && DateTime.TryParse(n.Day, out _))
             .ToDictionary(n => DateTime.Parse(n.Day), n => n));
 
+    /// <summary>Today's ONE thing from the I dag plan (front page head line), "" when nothing is planned.</summary>
+    public async Task<string> OneThingAsync(DateTime danishToday) =>
+        (await days.AllAsync()).FirstOrDefault(n => n.Day == DayNote.Key(danishToday))?.OneThing ?? "";
+
     public Task<List<AppLink>> ShownAppsAsync() => apps.ShownAsync();
 
     // "Lige nu" pictures/film and "Min dag" photos: public only while the front page uses them.

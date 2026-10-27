@@ -6,8 +6,9 @@
 @inject IJSRuntime JS
 @inject Customers Kartotek
 
-@* First screen = one answer: who I am and what I am doing now. The timeline and the
-   chat come after it; old years are folded and the phone remembers what was open. *@
+@* The front page = three things (user 2026-10-27: "more tabs and fewer boxes" -> "do it"): the head box (who, and the two next
+   steps), one "Vidste du …" and the sign-up. Who Martin is, the tiles and his posts are on the Om mig tab (/om-itmartin);
+   "Fundet i kasserne" is on bogshoppen.dk only. *@
 
 @if (BogshoppenHome.IsHost(new Uri(Nav.Uri).Host)) { <BogshoppenHome /> return; }
 
@@ -20,11 +21,14 @@
    his own picks, changing every minute (Services/MartinPhotos). *@
 <header class="hj-head hj-head-me">
     <span class="hj-head-photo"><img src="@_photo.Src" alt="Martin Hvidberg@(_photo.Place.Length > 0 ? " – " + _photo.Place : "")" width="150" height="150" />@if (_photo.Place.Length > 0) { <span class="hj-head-place">@_photo.Place</span> }</span>
-    @* Theme "idag" (user 2026-10-05): "Det er mandag, hvad skal jeg mon lave i dag og hvad skal jeg lave i denne uge? Spændende" *@
-    <span class="hj-tagline">Det er @Today.ToString("dddd", Da)</span>
+    @* Theme "idag" (user 2026-10-05) + the date and the day's ONE thing from I dag (user 2026-10-27: "Det er tirsdag den...
+       og jeg skal.... Kode en App", "Only ONE thing each day"). *@
+    <span class="hj-tagline">Det er @Today.ToString("dddd 'den' d. MMMM", Da)@(_oneThing.Length > 0 ? ", og jeg skal " + char.ToLower(_oneThing[0], Da) + _oneThing[1..] : "")</span>
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
+    @* "Snart ét firma" as one line here instead of its own box (2026-10-27, fewer boxes); the full box stays on bogshoppen.dk. *@
+    <p class="hj-head-note"><b>Snart ét firma:</b> ITMartin og Bogshoppen bliver samlet inden for 1–2 måneder. Dit kundenummer virker begge steder.</p>
     @* Clear next steps in the first screen (2026-10-27, /admin/tal: 52 on the front page, only 10 went on to Mine apps).
        "Skriv mig op – gratis" like on bogshoppen.dk (user 2026-10-27: "easier to sign up ... on both sites"). *@
     <div class="hj-head-btns">
@@ -34,112 +38,23 @@
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">Skriv opslag / svar beskeder</a> }
 </header>
 
-@* Bogshoppen teaser + "Ingen reklamer" headline box removed 2026-10-07 (user: "way too many tabs and info");
-   both pages still exist (/foelg-samarbejdet, /ingen-reklamer). *@
-
-
-@* "Denne uge" is on the ITKolibrien tab, not here (user 2026-10-05). *@
-
-
-
-@* "Martin er her nu" right under the name, so every visitor sees it (user 2026-09-28). *@
-@* The front page = three questions (user 2026-10-12): "Vil du chatte? Skal jeg streame? Skal jeg hjælpe dig remote?" *@
 <CascadingValue Name="Plain" Value="true">
-@* ITMartin + Bogshoppen = one company soon (user 2026-10-27). *@
-<OneCompany />
-
 @* One open "Vidste du …" right under the head box (user 2026-10-19: "there used to be a lot of vidste du"). Shared box
    (Components/VidsteDu) - it starts on one of the concrete ones (SiteFacts.ItMartin). *@
 <VidsteDu Facts="Facts" StartAmong="SiteFacts.ItMartin.Count" />
 
 @* Sign up as a customer right on the front page (user 2026-10-22) - the same one yes as Mine apps and bogshoppen.dk:
-   a kundenummer for all the free apps + the live-auction login. The form opens under the button, so nothing jumps on load.
-   Starts open since 2026-10-27 and can be closed like every box (user: "not clickable show/hide"); the head box's
-   "Skriv mig op – gratis" opens it again (kolibri.js) and lands on the form. *@
+   a kundenummer for all the free apps + the live-auction login. Starts open and can be closed like every box (user
+   2026-10-27: "not clickable show/hide"); the head box's "Skriv mig op – gratis" opens it again (kolibri.js). *@
 <section class="k-card hj-signup" id="bliv-kunde">
     <h2 class="k-card-title">Skriv dig op – gratis</h2>
     <p>Ingen reklamer, ingen nyhedsbreve – og du kan altid afmelde dig.</p>
     <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som kunde" Open="true" Topics="true" />
 </section>
 
-@* Things from the Bogshoppen boxes Martin chose in Lager - same box as on bogshoppen.dk (user 2026-10-15). *@
-<FoundInBoxes />
-
-@* Who Martin is - at the top under the head box since 2026-10-12 (user: "Top Hvem er ITMartin"); folded, so the first screen is just today + this week (user 2026-10-05). *@
-@if (_hero is not null)
-{
-    @* Tabs instead of one long folded text since 2026-10-27 (user: "hvem er ITMartin as tabs maybe?") - starts open, show/hide like every box, one tab at a time. *@
-    <section class="k-card hj-page hj-sec hj-hero">
-        <h2>Hvem er ITMartin?</h2>
-        <HeroTabs Body="@_hero.Body" />
-    </section>
-}
-
-@* Today's plan moved to the "📅 I dag" tab (/hvad-laver-itkolibrien) 2026-10-12 (user). *@
-
-@* The front page = Vidste du, Hvem er ITMartin?, Om mig og mit arbejde, Mine andre sider (user 2026-10-21: "Chat box and
-   Det spørger folk om og mine apps do not need to be there"). The chat is its own page, /chat-med-martin; old /#chat
-   buttons are sent there (OnAfterRenderAsync). *@
-
-
-@* Apps are only on the Mine apps tab (user 2026-10-04: "Forsiden skal heller ikke have mine apps"). *@
-
-
-
-@* Small boxes instead of menu tabs (user 2026-10-07: "i want small boxes"): Om mig and the pages
-   that lost their tab. Titles/lines are fixed here; the pages themselves are edited in Svar -> Sider. *@
-@* Tiles in three groups, each saying where it leads (user 2026-10-12: "the links go to other pages and apps... needs to be structured"). *@
-@* Each group is a show/hide box (user 2026-10-12). *@
-<section class="k-card hj-tilegroup">
-<h2 class="k-card-title">Om mig og mit arbejde</h2>
-<nav class="hj-tiles" aria-label="Om mig og mit arbejde">
-    @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.Page)) { @TileLink(tile) }
-    <StartTip />
-    <AdhdTip />
-</nav>
-</section>
-<section class="k-card hj-tilegroup">
-<h2 class="k-card-title">Mine andre sider</h2>
-<nav class="hj-tiles" aria-label="Mine andre sider">
-    @foreach (var tile in Tiles.Where(t => t.Group == TileGroup.Site)) { @TileLink(tile) }
-</nav>
-</section>
-
-@* "Lige nu" lives on the "Hvad laver ITKolibrien lige nu?" tab since 2026-09-28 (Components/NowCard). *@
-
-
+@* More about Martin is one press away (the Om mig tab). *@
+<a class="k-btn k-btn-block hj-more" href="@SiteMenu.About">Læs mere om mig og mit arbejde →</a>
 </CascadingValue>
-
-@if (_posts.Count > 0)
-{
-    <h2 class="hj-h2">Seneste</h2>
-    @foreach (var p in _posts.Take(3)) { <PostCard Post="p" /> }
-
-    @if (_posts.Count > 3)
-    {
-        <h2 class="hj-h2">Tidslinje</h2>
-        <p class="k-help">Tryk på et år for at se, hvad der skete.</p>
-        @foreach (var year in _posts.Skip(3).GroupBy(p => p.At.Year))
-        {
-            <details class="hj-year" data-remember="year-@year.Key">
-                <summary><b>@year.Key</b> <span class="k-muted">· @year.Count() @(year.Count() == 1 ? "opslag" : "opslag")</span></summary>
-                @foreach (var p in year) { <PostCard Post="p" /> }
-            </details>
-        }
-    }
-}
-
-@if (!_family && _hiddenFamily > 0)
-{
-    <div class="k-card hj-lock" data-nofold>
-        <p><b>@_hiddenFamily familieopslag</b> er kun for familien.</p>
-        <a class="k-btn k-btn-sm" href="/login">Skriv familiens kodeord</a>
-    </div>
-}
-else if (_family && !_owner)
-{
-    <p class="k-help k-center">Du ser familiens billeder. <a class="k-btn k-btn-sm" href="/logout">Log ud</a></p>
-}
 
 @code {
     // Old "Chat med Martin" buttons point at /#chat (the box that was here until 2026-10-21) - send them to the chat page.
@@ -155,70 +70,24 @@ else if (_family && !_owner)
     private static readonly CultureInfo Da = new("da-DK");
     private Settings _s = new();
     private IReadOnlyList<string> _freeWithCode = [];
-    private List<Post> _posts = [];
-    private int _hiddenFamily;
-    private Page? _hero;   // Svar -> Sider -> "forside": pictures of Martin + the business
+    private Page? _hero;   // Svar -> Sider -> "forside": its title is the heading
+    private string _oneThing = "";
     public const string CollabSlug = PageRules.Collab;
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
-
-    // Every box has a "Vidste du …" (user 2026-10-08) that matches where the box leads (checked 2026-10-12). App tiles open the example on Mine apps, not the app itself (user 2026-10-12). Facts are the user's own numbers or sourced (source in the comment).
-    private static readonly (TileGroup Group, string Icon, string Title, string Line, string Href, string Fact)[] Tiles =
-    [
-        // the user's own family library (ToshibaTest run, 2026-09): 87,009 files in, 34,079 out
-        (TileGroup.App, "", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/mine-apps?app=Tjek%20dine%20billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
-        (TileGroup.Page, "", "Om mig og kontakt", "Hvem jeg er, og hvordan du fanger mig", "/om-mig", "… at jeg har arbejdet som systemudvikler i 20 år – og som socialpædagog i 5 år med mennesker med udviklingshandicap?"),
-        (TileGroup.App, "", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
-        (TileGroup.App, "", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
-        // Statista, Feb 2025: average daily social media use of internet users worldwide = 141 min (141*365/1440 = 35.7 days)
-        // Global E-waste Monitor 2024 / Dell + HP LCAs: 68-81 % of a laptop's CO2 is from making it (user 2026-10-12: green, both sites)
-        (TileGroup.Page, "", "Grønt og bæredygtigt", "Giv gamle ting nyt liv – i stedet for at købe nyt", "/baeredygtighed", "… at 68–81 % af en bærbar computers CO₂ bliver udledt, før du tænder den – når den bliver lavet?"),
-        // Martin's own Facebook download 2026-10-15: 47 companies reported to Meta 558 times in 15 months.
-        (TileGroup.Page, "", "Det de store ikke fortæller", "Facebook, Apple og dine data – og hvad du kan gøre", "/dine-data", "… at 47 firmaer fortalte Facebook om mig 558 gange på 15 måneder – uden at jeg var på Facebook?"),
-        (TileGroup.Page, "", "Ingen reklamer", "Hvorfor mine apps aldrig har reklamer", "/ingen-reklamer", "… at vi i snit bruger 141 minutter om dagen på sociale medier? Det er 36 døgn om året."),
-        (TileGroup.Page, "", "Hvad laver jeg nu?", "I dag og denne uge", "/hvad-laver-itkolibrien", ""),
-        (TileGroup.Site, "", "Bogshoppen", "Liveauktioner – snart", "https://bogshoppen.dk", "… at Bogshoppen har over 100.000 bøger, blade og tegneserier, der skal finde nye ejere?"),
-        (TileGroup.Page, "", "Særlige behov", "ADHD, autisme og IT", "/ydelser/adhd-og-autisme", "… at der findes meget få gode apps til folk med særlige udfordringer? De skal have en app, der passer til Søren – ikke til kassen »autisme«."),
-        (TileGroup.Page, "", "Priser", "Hvad koster det?", "/apps", "… at alle mine apps har en gratis udgave, der kan noget i sig selv?"),
-    ];
-
-    public enum TileGroup { App, Page, Site }
+    private readonly MartinPhotos.Photo _photo = MartinPhotos.Now;
 
     // Facts for the open "Vidste du …" box. The small, concrete everyday help comes FIRST and the box always starts on one of
     // those (user 2026-10-27: "Facebook bæredygtighed etc should not be dominant... The concrete examples should"); the
-    // Facebook/green/other facts follow after Næste and stay in their own tiles.
-
+    // Facebook/green/other facts follow after Næste and stay in their own tiles (Om mig tab).
     private static readonly IReadOnlyList<SiteFacts.Fact> Facts =
     [
         .. SiteFacts.ItMartin,
         new("Det de store ikke fortæller", "/dine-data", "… at Facebook fjerner datoen fra dine billeder, når du henter dem ud? Jeg havde 10.211 billeder og videoer – alle uden dato."),
         new("Se mine Facebook-billeder", "https://gallery.itmartin.dk/facebook-demo", "… at jeg har fået alle mine billeder hjem fra Facebook og sat den rigtige dato på igen? Se et udpluk – ingen kode."),
         // A tile without a fact is left out (user 2026-10-27 removed "jeg skriver min plan for dagen her hver morgen").
-        .. Tiles.Where(t => t.Fact.Length > 0).Select(t => new SiteFacts.Fact(t.Title, t.Href, t.Fact)),
+        .. WorkTiles.Tiles.Where(t => t.Fact.Length > 0).Select(t => new SiteFacts.Fact(t.Title, t.Href, t.Fact)),
     ];
-
-
-    // Real pictures instead of emoji icons (user 2026-10-12): the app examples, and a photo of Martin for "Om mig".
-    private static readonly Dictionary<string, string> Pictures = new()
-    {
-        ["Tjek dine billeder"] = "/apps/billeder.jpg",
-        ["Hjælp på din skærm"] = "/apps/semed.jpg",
-        ["Kig med live"] = "/apps/kigmed.jpg",
-        ["Om mig og kontakt"] = "/f/1992b2f17f9cca20.jpg",
-    };
-
-    // Every tile says where it leads: an app example on Mine apps, a page here, or another site.
-    private static RenderFragment TileLink((TileGroup Group, string Icon, string Title, string Line, string Href, string Fact) t) => __builder =>
-    {
-        var external = t.Href.StartsWith("http");
-        <a class="hj-tile" href="@t.Href" target="@(external ? "_blank" : null)" rel="@(external ? "noopener" : null)">
-            @if (Pictures.TryGetValue(t.Title, out var pic)) { <img class="hj-tile-pic" src="@pic" alt="" loading="lazy" /> }<b>@t.Title</b><span class="hj-tile-line">@t.Line</span>
-            @if (t.Fact.Length > 0) { <span class="hj-tile-fact">Vidste du @t.Fact</span> }
-            <span class="hj-tile-go">@(t.Group switch { TileGroup.App => "Se eksemplet →", TileGroup.Site => new Uri(t.Href).Host + " →", _ => "Læs mere →" })</span>
-        </a>
-    };
-
-    private string FirstName => _s.Name.Split(' ')[0];
 
     protected override async Task OnInitializedAsync()
     {
@@ -235,11 +104,11 @@ else if (_family && !_owner)
     private async Task LoadAsync()
     {
         var front = await Site.FrontAsync(_family);
-        (_s, _hero, _posts, _hiddenFamily) = (front.Settings, front.Hero, front.Posts, front.HiddenFamily);
+        (_s, _hero) = (front.Settings, front.Hero);
+        _oneThing = await Site.OneThingAsync(Today);
     }
 
     private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
 
     public void Dispose() => Chat.AvailabilityChanged -= OnAvailability;
-    private readonly MartinPhotos.Photo _photo = MartinPhotos.Now;
 }
