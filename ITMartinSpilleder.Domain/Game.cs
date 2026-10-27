@@ -15,10 +15,16 @@ public sealed record Spell(string Name, string Text);
 // Gear = weapons and equipment, shown on the card with everything else ("all things on the sheet should be seen on your person").
 public sealed record Player(string Id, string Name, string Character, string Race, string Role, int Hp, int MaxHp, string Notes,
     List<Spell> Spells, string TokenHash, DateTime JoinedAt, int Picture = 0, bool Locked = false, string Gear = "",
-    string Code = "", List<string>? MoreTokenHashes = null, string CustomerNo = "");
+    string Code = "", List<string>? MoreTokenHashes = null, string CustomerNo = "", string FigureCode = "", string Sheet = "");
+// FigureCode = the figure made in Character (character.itmartin.dk) this card was imported from; hit points, gear and notes go
+// back there after play. Sheet = the rest of that figure as text (ability scores, background, story) - shown, not edited here.
 // CustomerNo = the ITMartin kundenummer (8 digits, Kunder) when the player is a customer: they log in with it on any phone
 // and the game master can add them with it (user 2026-10-27). Guests join with the game code and have CustomerNo "". 
 // Code = the player's own 8-character code: logging in with it gives the same card back on another phone (and test logins).
+
+// A finished figure from Character (character.itmartin.dk), as Game Master gets it.
+public sealed record ImportedFigure(string FigureCode, string Name, string People, string Class, int Hp, int MaxHp, string Gear,
+    List<Spell> Spells, string Sheet, string AdventureNotes, bool HasPicture);
 
 // A message at the table. To = the player ids it is for; empty = everyone. From = "leder" or a player id.
 // Kind: "besked" or "terning" (a dice roll made by the server, so nobody can cheat).
@@ -118,6 +124,24 @@ public static class GameRules
             .Select(s => new Spell(Cut(s.Name, MaxSpellName), Cut(s.Text, MaxSpellText)))
             .Where(s => s.Name.Length > 0)
             .Take(MaxSpells).ToList(),
+    };
+
+    /// <summary>
+    /// A figure from Character fills the card. The card's notes become what happened on earlier adventures (from Character),
+    /// so nothing is written there twice.
+    /// </summary>
+    public static Player Import(Player p, ImportedFigure f) => p with
+    {
+        Character = Cut(f.Name, MaxField),
+        Race = Cut(f.People, MaxField),
+        Role = Cut(f.Class, MaxField),
+        MaxHp = Math.Clamp(f.MaxHp, 1, MaxHpLimit),
+        Hp = Math.Clamp(f.Hp, MinHp, Math.Clamp(f.MaxHp, 1, MaxHpLimit)),
+        Gear = Cut(f.Gear, MaxNotes),
+        Notes = Cut(f.AdventureNotes, MaxNotes),
+        Spells = f.Spells.Select(s => new Spell(Cut(s.Name, MaxSpellName), Cut(s.Text, MaxSpellText))).Where(s => s.Name.Length > 0).Take(MaxSpells).ToList(),
+        FigureCode = f.FigureCode,
+        Sheet = Cut(f.Sheet, MaxSpellText),
     };
 
     /// <summary>The − / + buttons: HP goes up or down, never above MaxHp (below 0 is allowed - some games count that).</summary>

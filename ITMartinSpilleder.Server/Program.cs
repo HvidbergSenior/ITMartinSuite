@@ -31,6 +31,7 @@ builder.Services.AddKolibri(k =>
         "The game master opens spilleder.itmartin.dk/master, starts a game and gets a game code. The players open spilleder.itmartin.dk/player and enter the code and their name.",
         "Under Players each player fills in their card. Press − and + to change hit points.",
         "Under Messages the game master chooses who the message is for. Roll the dice in the same place.",
+        "Made your character on character.itmartin.dk? Press Edit card, then Import from Character, and write the 6-letter figure code. Hit points, gear and notes go back to Character.",
     ];
     k.StaticPages = true;
     k.HealthChecks = sp => Task.FromResult<IReadOnlyList<KolibriHealthItem>>(
@@ -175,6 +176,14 @@ app.MapPost("/api/spillere/{id}/billede", async (HttpContext c, string id, Table
     return p is null ? Results.BadRequest(new { fejl = "The picture could not be saved. Try another one." }) : Results.Json(p, web);
 });
 
+// A ready figure from Character (character.itmartin.dk) fills the card - by its 6-letter figure code.
+app.MapPost("/api/spillere/{id}/import", async (HttpContext c, string id, ImportBody b, Tables t) =>
+{
+    if (Who(c, t) is not { } w) return Results.Unauthorized();
+    var (p, error) = await t.ImportAsync(w.Game, w.Viewer, id, b.Kode, c.RequestAborted);
+    return p is null ? Results.BadRequest(new { fejl = error }) : Results.Json(p, web);
+});
+
 app.MapGet("/api/billede/{id}", (HttpContext c, string id, Tables t) =>
 {
     if (Who(c, t) is not { } w) return Results.Unauthorized();
@@ -279,6 +288,7 @@ public sealed record RenameBody(string? Titel, string? Navn);
 public sealed record SpellBody(string? Navn, string? Tekst);
 public sealed record CardBody(string? Navn, string? Figur, string? Race, string? Klasse, int Liv, int MaxLiv, string? Noter, string? Udstyr, List<SpellBody>? Besvaergelser);
 public sealed record LockBody(bool Laast);
+public sealed record ImportBody(string? Kode);
 public sealed record CustomerBody(string? Kundenummer);
 public sealed record HpBody(int Aendring);
 public sealed record NoteBody(List<string>? Til, string? Tekst);

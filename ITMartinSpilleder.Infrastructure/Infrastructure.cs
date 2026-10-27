@@ -25,6 +25,13 @@ public static class DependencyInjection
         services.AddSingleton<IPictureStore>(new FilePictureStore(Path.Combine(dataDir, "billeder")));
         services.AddSingleton<ILiveFeed, SseLiveFeed>();
         services.AddSingleton<IPushSender>(sp => new WebPushSender(dataDir, sp.GetRequiredService<ILogger<WebPushSender>>()));
+        // Character (character.itmartin.dk) on the same Docker network; Character__ApiKey is the same in both apps (magic.env).
+        services.AddHttpClient<ICharacterSource, HttpCharacterSource>(c =>
+        {
+            c.BaseAddress = new Uri(cfg["Character:Url"] is { Length: > 0 } u ? u : "http://character-web:8080/");
+            c.Timeout = TimeSpan.FromSeconds(10);
+            c.DefaultRequestHeaders.Add("X-Api-Key", cfg["Character:ApiKey"] ?? "");
+        });
         services.AddHttpClient<ISpellBook, SrdSpellBook>(c =>
         {
             c.BaseAddress = new Uri("https://www.dnd5eapi.co/");
@@ -215,6 +222,55 @@ public sealed class WebPushSender : IPushSender
                     _log.LogWarning("Spilleder push failed: {Error}", ex.Message);
                 }
             }
+        });
+    }
+}
+
+/// <summary>The ready figures in Character, server to server with the shared key.</summary>
+public sealed class HttpCharacterSource(HttpClient http, ILogger<HttpCharacterSource> log) : ICharacterSource
+{
+    private sealed record SpellDto(string? Name, string? Text);
+    private sealed record FigureDto(string FigureCode, string? Name, string? People, string? Class, int Hp, int MaxHp, string? Gear,
+        List<SpellDto>? Spells, string? Sheet, string? AdventureNotes, bool HasPicture);
+
+    private static bool Safe(string code) => code.Length == 6 && code.All(char.IsAsciiLetterOrDigit);
+
+    public async Task<ImportedFigure?> GetAsync(string figureCode, CancellationToken ct)
+    {
+        if (!Safe(figureCode)) return null;
+        try
+        {
+            using var r = await http.GetAsync("api/eventyr/" + figureCode, ct);
+            if (!r.IsSuccessStatusCode) return null;
+            var d = await r.Content.ReadFromJsonAsync<FigureDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web), ct);
+            return d is null ? null : new ImportedFigure(d.FigureCode, d.Name ?? "", d.People ?? "", d.Class ?? "", d.Hp, d.MaxHp, d.Gear ?? "",
+                (d.Spells ?? []).Select(s => new Spell(s.Name ?? "", s.Text ?? "")).ToList(), d.Sheet ?? "", d.AdventureNotes ?? "", d.HasPicture);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            log.LogWarning("Character import failed: {Error}", ex.Message);
+            return null;
+        }
+    }
+
+    public async Task<byte[]?> PictureAsync(string figureCode, CancellationToken ct)
+    {
+        if (!Safe(figureCode)) return null;
+        try
+        {
+            using var r = await http.GetAsync($"api/eventyr/{figureCode}/billede", ct);
+            return r.IsSuccessStatusCode ? await r.Content.ReadAsByteArrayAsync(ct) : null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+    }
+
+    public void SendBack(string figureCode, int hp, int maxHp, string gear, string notes)
+    {
+        if (!Safe(figureCode)) return;
+        _ = Task.Run(async () =>
+        {
+            try { await http.PostAsJsonAsync("api/eventyr/" + figureCode, new { hp, maxHp, gear, notes }); }
+            catch (Exception ex) { log.LogWarning("Character write-back failed: {Error}", ex.Message); }
         });
     }
 }

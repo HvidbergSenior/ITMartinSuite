@@ -48,6 +48,16 @@ public interface ICustomerCheck
     Task<(bool Ok, string Name, string Error)> CheckAsync(string customerNo, CancellationToken ct);
 }
 
+// The figures made in Character (character.itmartin.dk, over HTTP in Infrastructure).
+public interface ICharacterSource
+{
+    /// <returns>The ready figure, or null when the code is not a ready figure (or Character does not answer).</returns>
+    Task<ImportedFigure?> GetAsync(string figureCode, CancellationToken ct);
+    Task<byte[]?> PictureAsync(string figureCode, CancellationToken ct);
+    /// <summary>Hit points, gear and notes back to the figure after a change at the table (fire and forget).</summary>
+    void SendBack(string figureCode, int hp, int maxHp, string gear, string notes);
+}
+
 // The character pictures (one JPEG per player, files in Infrastructure).
 public interface IPictureStore
 {
@@ -58,12 +68,12 @@ public interface IPictureStore
 
 // What a player's phone gets: the card without the login hash.
 public sealed record PlayerView(string Id, string Name, string Character, string Race, string Role, int Hp, int MaxHp, string Notes,
-    List<Spell> Spells, int Picture, bool Locked, string Gear, string? Code)
+    List<Spell> Spells, int Picture, bool Locked, string Gear, string? Code, string FigureCode, string Sheet)
 {
     /// <param name="viewer">The personal code is only shown to that player and to the game master.</param>
     public static PlayerView Of(Player p, string? viewer = null) =>
         new(p.Id, p.Name, p.Character, p.Race, p.Role, p.Hp, p.MaxHp, p.Notes, p.Spells.ToList(), p.Picture, p.Locked, p.Gear,
-            viewer == Viewer.Leader || viewer == p.Id ? p.Code : null);
+            viewer == Viewer.Leader || viewer == p.Id ? p.Code : null, p.FigureCode, p.Sheet);
 }
 
 public sealed record GameView(string Title, string LeaderName, string JoinCode, string? LeaderCode, string Me, bool Leader,
@@ -84,6 +94,7 @@ public sealed class Tables
     private readonly IPushSender _push;
     private readonly IPictureStore _pictures;
     private readonly ICustomerCheck _customers;
+    private readonly ICharacterSource _characters;
     private readonly TimeProvider _clock;
     private readonly string _createCode;
     private readonly object _gate = new();
@@ -94,9 +105,10 @@ public sealed class Tables
     public static readonly TimeSpan WrongTriesWindow = TimeSpan.FromMinutes(15);
 
     public Tables(IGameStore store, ILiveFeed live, IPushSender push, IPictureStore pictures, ICustomerCheck customers, TimeProvider clock,
-        string createCode)
+        string createCode, ICharacterSource characters)
     {
         (_store, _live, _push, _pictures, _customers, _clock, _createCode) = (store, live, push, pictures, customers, clock, createCode);
+        _characters = characters;
         var now = Now;
         _games = new();
         foreach (var g in store.LoadAll())
@@ -278,8 +290,38 @@ public sealed class Tables
     /// <summary>A player edits their own sheet while it is unlocked, and saving locks it; the leader edits any sheet.</summary>
     public PlayerView? EditCard(string gameId, string viewer, string playerId, string? name, string? character, string? race,
         string? role, int hp, int maxHp, string? notes, string? gear, IEnumerable<Spell>? spells) =>
-        ChangePlayer(gameId, viewer, playerId, p => !GameRules.MayEditSheet(p, viewer) ? null
-            : GameRules.EditCard(p, name, character, race, role, hp, maxHp, notes, gear, spells) with { Locked = viewer != Viewer.Leader || p.Locked });
+        SendBack(ChangePlayer(gameId, viewer, playerId, p => !GameRules.MayEditSheet(p, viewer) ? null
+            : GameRules.EditCard(p, name, character, race, role, hp, maxHp, notes, gear, spells) with { Locked = viewer != Viewer.Leader || p.Locked }));
+
+    /// <summary>
+    /// Import a ready figure from Character by its figure code: the card is filled and locked like a saved card
+    /// (user 2026-10-27: "data from that should be used during adventure").
+    /// </summary>
+    public async Task<(PlayerView? Player, string Error)> ImportAsync(string gameId, string viewer, string playerId, string? figureCode,
+        CancellationToken ct)
+    {
+        lock (_gate)
+            if (!_games.TryGetValue(gameId, out var g) || g.Players.FirstOrDefault(p => p.Id == playerId) is not { } pl || !GameRules.MayEditSheet(pl, viewer))
+                return (null, "You can't change this card now. Ask the game master to unlock it.");
+        var f = await _characters.GetAsync(GameRules.CleanCode(figureCode), ct);
+        if (f is null) return (null, "We can't find a ready character with that code. In Character, press Ready for adventure first – then you get a 6-letter code.");
+        var picture = f.HasPicture ? await _characters.PictureAsync(f.FigureCode, ct) : null;
+        if (picture is not null && GameRules.IsPicture(picture)) _pictures.Save(gameId, playerId, picture);
+        else picture = null;
+        var v = ChangePlayer(gameId, viewer, playerId, p => GameRules.Import(p, f) with
+        {
+            Picture = picture is null ? p.Picture : p.Picture + 1,
+            Locked = viewer != Viewer.Leader || p.Locked,
+        });
+        return v is null ? (null, "The card could not be saved. Try again.") : (v, "");
+    }
+
+    // A card that came from Character sends hit points, gear and notes back there, so the figure carries on to the next adventure.
+    private PlayerView? SendBack(PlayerView? p)
+    {
+        if (p is { FigureCode.Length: > 0 }) _characters.SendBack(p.FigureCode, p.Hp, p.MaxHp, p.Gear, p.Notes);
+        return p;
+    }
 
     /// <summary>The leader opens a sheet for changes (fx new weapon) or locks it again.</summary>
     public PlayerView? SetLocked(string gameId, string viewer, string playerId, bool locked)
@@ -293,7 +335,7 @@ public sealed class Tables
     /// <summary>The − / + buttons. Everyone sees it at once (and the change, so the screen can flash "−3").</summary>
     public PlayerView? ChangeHp(string gameId, string viewer, string playerId, int delta)
     {
-        var p = ChangePlayer(gameId, viewer, playerId, x => GameRules.ChangeHp(x, delta));
+        var p = SendBack(ChangePlayer(gameId, viewer, playerId, x => GameRules.ChangeHp(x, delta)));
         if (p is not null) _live.Send(gameId, "hp", new { id = p.Id, hp = p.Hp, maxHp = p.MaxHp, delta });
         return p;
     }
@@ -418,7 +460,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(sp => new Tables(sp.GetRequiredService<IGameStore>(), sp.GetRequiredService<ILiveFeed>(),
             sp.GetRequiredService<IPushSender>(), sp.GetRequiredService<IPictureStore>(), sp.GetRequiredService<ICustomerCheck>(),
-            sp.GetRequiredService<TimeProvider>(), createCode));
+            sp.GetRequiredService<TimeProvider>(), createCode, sp.GetRequiredService<ICharacterSource>()));
         return services;
     }
 }

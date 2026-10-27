@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Character - the JSON files, pictures, server-sent events, Kunder check and the SRD spell lookup. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinCharacter.Application\ITMartinCharacter.Application.csproj" />
+    <ProjectReference Include="..\ITMartinCharacter.Domain\ITMartinCharacter.Domain.csproj" />
+    <ProjectReference Include="..\ITMartinKunder.Client\ITMartinKunder.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinCharacter.Tests" />
+  </ItemGroup>
+
+</Project>

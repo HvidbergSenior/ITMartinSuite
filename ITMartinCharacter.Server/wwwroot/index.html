@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-family="kommunikere">
+<head>
+    <script>
+        // Light/Dark: what the visitor chose, else what the phone is set to - set before the first paint (same as ElPriser).
+        (function () {
+            var t = null; try { t = localStorage.getItem('character_theme'); } catch (e) { }
+            document.documentElement.setAttribute('data-theme', t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Character – make your role-playing character step by step, with your game master." />
+    <meta name="theme-color" content="#f4f6f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Character" />
+    <title>Character</title>
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=3" />
+    <link rel="stylesheet" href="app.css?v=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=3" defer></script>
+    <script src="app.js?v=1" defer></script>
+</head>
+<body>
+<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div class="k-brand"><b>Character</b><span>Kolibri Kommunikere</span></div></a><div class="k-header-actions"><button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Switch light/dark">Light/dark</button></div></div></header>
+<div class="side">
+
+    <!-- Start: a new figure, or open one with a code. -->
+    <section id="start" class="start" hidden>
+        <p class="indgang" id="indgang" hidden></p>
+
+        <details class="k-card" id="formaalBoks">
+            <summary class="k-card-title">Purpose</summary>
+            <p>Character helps you make a figure for a role-playing game – step by step: people, class, ability scores, hit points, gear, spells, picture and story.</p>
+            <p>Your game master can open the same figure and help you live – at the table or from another place. You can write to each other on every step.</p>
+            <p>When the figure is ready, your game master brings it into <b>Game Master</b> with a short code. Everything is saved as you type.</p>
+        </details>
+
+        <div id="mineBoks" class="k-card" hidden>
+            <h2 class="k-card-title">Your characters on this phone</h2>
+            <div id="mineListe" class="mine-liste"></div>
+        </div>
+
+        <form id="nyForm" class="k-card k-stack">
+            <h2 class="k-card-title">Make a new character</h2>
+            <div>
+                <label class="k-label" for="nyNavn">Your name</label>
+                <input class="k-input" id="nyNavn" maxlength="30" autocomplete="given-name" />
+                <p class="k-help">Your real name – the character gets its own name in the first step.</p>
+            </div>
+            <div>
+                <span class="k-label">Kind of game</span>
+                <div class="valg" id="nySlags">
+                    <label><input type="radio" name="slags" value="dnd" checked /> D&amp;D adventure</label>
+                    <label><input type="radio" name="slags" value="mystery" /> Murder mystery</label>
+                    <label><input type="radio" name="slags" value="coop" /> Cooperative</label>
+                </div>
+                <p class="k-help">Ask your game master if you are not sure. You can change it later.</p>
+            </div>
+            <div>
+                <label class="k-label" for="nyKunde">Customer number <span class="valgfri">(optional)</span></label>
+                <input class="k-input" id="nyKunde" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="e.g. 4821 7730" />
+                <p class="k-help">ITMartin customers: then you find your characters again on any phone with your customer number.</p>
+            </div>
+            <button class="k-btn k-btn-primary k-btn-block" type="submit">Start</button>
+            <p class="fejl" id="nyFejl" hidden></p>
+        </form>
+
+        <form id="aabnForm" class="k-card k-stack">
+            <h2 class="k-card-title" id="aabnTitel">Open a character with a code</h2>
+            <div>
+                <label class="k-label" for="aabnKode" id="aabnLabel">Code</label>
+                <input class="k-input kode" id="aabnKode" autocomplete="off" autocapitalize="characters" maxlength="10" required />
+                <p class="k-help" id="aabnHjaelp">Your personal code, or – for the game master – the code the player sent you.</p>
+            </div>
+            <button class="k-btn k-btn-primary k-btn-block" type="submit">Open</button>
+            <p class="fejl" id="aabnFejl" hidden></p>
+        </form>
+
+        <details class="k-card" id="kundeBoks">
+            <summary class="k-card-title">Find your characters with your customer number</summary>
+            <form id="kundeForm" class="k-stack">
+                <input class="k-input" id="kundeNr" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="e.g. 4821 7730" aria-label="Customer number" />
+                <button class="k-btn" type="submit">Find</button>
+                <p class="fejl" id="kundeFejl" hidden></p>
+                <div id="kundeListe" class="mine-liste"></div>
+            </form>
+        </details>
+    </section>
+
+    <!-- The figure: steps on top, one step at a time, the help thread under each step. -->
+    <section id="app" class="app" hidden>
+        <header class="top">
+            <div class="brand">
+                <b id="titel"></b>
+                <span id="hvem"></span>
+            </div>
+            <div class="top-hoejre">
+                <span class="gemt" id="gemt" aria-live="polite"></span>
+                <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="tilbage">My characters</button>
+            </div>
+        </header>
+        <p class="tilstede" id="tilstede" hidden></p>
+        <nav class="trin" id="trinListe" aria-label="Steps"></nav>
+
+        <main class="view">
+            <details class="k-card side-info">
+                <summary class="k-card-title">About this page</summary>
+                <p>Go through the steps one by one – everything is saved as you type, so you never lose anything.</p>
+                <p>Your game master can open the same character and see every change at once. Under each step you can write to each other.</p>
+            </details>
+
+            <div id="delBoks" class="k-card" hidden></div>
+
+            <article class="k-card trin-kort" id="trinKort"></article>
+
+            <div class="k-card hjaelp">
+                <h2 class="k-card-title" id="hjaelpTitel">Talk about this step</h2>
+                <div id="kommentarer" class="kommentarer"></div>
+                <form id="kommentarForm" class="k-row">
+                    <input class="k-input" id="kommentarTekst" maxlength="1000" placeholder="Write a message…" aria-label="Message" />
+                    <button class="k-btn k-btn-primary" type="submit">Send</button>
+                </form>
+                <p class="fejl" id="kommentarFejl" hidden></p>
+            </div>
+
+            <div class="frem-tilbage">
+                <button type="button" class="k-btn" id="forrige">Back</button>
+                <button type="button" class="k-btn k-btn-primary" id="naeste">Next</button>
+            </div>
+
+            <details class="k-card" id="koderBoks">
+                <summary class="k-card-title">Codes and sharing</summary>
+                <div id="koder"></div>
+            </details>
+
+            <details class="k-card" id="hjemBoks">
+                <summary class="k-card-title">Put Character on your home screen</summary>
+                <p>Then it opens like an app with one tap.</p>
+                <details id="hjemIphone">
+                    <summary>iPhone and iPad (Safari)</summary>
+                    <ol>
+                        <li>Open <b>character.itmartin.dk</b> in <b>Safari</b>.</li>
+                        <li>Tap the <b>Share</b> button (the square with the arrow up).</li>
+                        <li>Tap <b>Add to Home Screen</b> and then <b>Add</b>.</li>
+                    </ol>
+                </details>
+                <details id="hjemAndroid">
+                    <summary>Android (Chrome)</summary>
+                    <ol>
+                        <li>Open <b>character.itmartin.dk</b> in <b>Chrome</b>.</li>
+                        <li>Tap the <b>three dots</b> at the top right.</li>
+                        <li>Tap <b>Add to Home screen</b> or <b>Install app</b>.</li>
+                    </ol>
+                </details>
+                <details id="hjemPc">
+                    <summary>Computer (Chrome or Edge)</summary>
+                    <ol>
+                        <li>Open <b>character.itmartin.dk</b>.</li>
+                        <li>Click the install icon in the address bar, or the menu <b>⋯</b> → <b>Apps</b> → <b>Install</b>.</li>
+                    </ol>
+                </details>
+            </details>
+        </main>
+    </section>
+</div>
+<footer class="k-footer"><span>&copy; <span id="kYear">2026</span> ITMartin · The digital hummingbird</span> <a href="/om">About Character</a> <a href="#k-install" class="k-footer-install">Put on your phone</a> <a href="/hjaelp">Something not working?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Terms &amp; privacy</a></footer>
+<script>document.getElementById("kYear").textContent = new Date().getFullYear();</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/figur-sw.js").catch(function () {});</script>
+</body>
+</html>

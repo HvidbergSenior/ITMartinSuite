@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "ITMartinCharacter": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5259",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Character__DataDir": "bin/character-data",
+        "Character__ApiKey": "dev-character-key"
+      }
+    }
+  }
+}

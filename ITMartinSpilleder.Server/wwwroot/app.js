@@ -223,6 +223,7 @@
             </div>
             <div class="livbar" aria-hidden="true"><i style="width:${pct}%"></i></div>
             ${leder && p.code ? `<p class="k-help">Personal code: <b>${esc(p.code)}</b></p>` : ''}
+            ${p.sheet ? `<details class="besv"><summary>From Character${p.figureCode ? ' · ' + esc(p.figureCode) : ''}</summary><p>${esc(p.sheet)}</p></details>` : ''}
             ${p.gear ? `<div class="felt"><span class="felt-navn">Weapons and gear</span><p class="noter">${esc(p.gear)}</p></div>` : ''}
             ${p.notes ? `<div class="felt"><span class="felt-navn">Notes</span><p class="noter">${esc(p.notes)}</p></div>` : ''}
             ${p.spells.length ? '<span class="felt-navn">Spells and abilities</span>' : ''}
@@ -281,6 +282,14 @@
                 <h3>Edit card</h3>
                 <p class="kladde" id="rKladde" hidden>Your draft is back – nothing was lost. Press <b>Save card</b> when you are done.
                     <button type="button" class="link" id="rGlemKladde">Discard the draft</button></p>
+                <details class="spell-ret" id="rImportBoks" ${p.character ? '' : 'open'}>
+                    <summary>Import from Character</summary>
+                    <p class="k-help">Made your character on <b>character.itmartin.dk</b>? Write the 6-letter figure code from the step Ready – everything is filled in, also the picture.</p>
+                    <div class="k-row"><input class="k-input kode" id="rImportKode" maxlength="8" autocomplete="off" placeholder="e.g. K7M2QX" aria-label="Figure code" />
+                        <button type="button" class="k-btn k-btn-primary" id="rImport">Import</button></div>
+                    <p class="fejl" id="rImportFejl" hidden></p>
+                    <p class="k-help">No character yet? <a href="https://character.itmartin.dk" target="_blank" rel="noopener">Make one step by step</a> – your game master can help.</p>
+                </details>
                 <label class="k-label" for="rNavn">Player's name</label>
                 <input class="k-input" id="rNavn" maxlength="30" value="${esc(p.name)}" />
                 <label class="k-label" for="rFigur">Character's name</label>
@@ -430,6 +439,13 @@
                     });
                 } catch (err) { $('rHits').innerHTML = `<p class="fejl">${esc(err.message)}</p>`; }
             }, 300);
+        };
+        $('rImport').onclick = async () => {
+            $('rImportFejl').hidden = true;
+            try {
+                await api('POST', `/api/spillere/${p.id}/import`, { kode: $('rImportKode').value });
+                store.set(draftKey, ''); editId = ''; await reload();
+            } catch (err) { $('rImportFejl').textContent = err.message; $('rImportFejl').hidden = false; }
         };
         $('rFortryd').onclick = () => { editId = ''; renderCards(); };
         $('rRacer').querySelectorAll('input').forEach(i => i.checked = i.value === $('rRace').value.trim());

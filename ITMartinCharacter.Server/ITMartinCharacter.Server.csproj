@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- "Character" (Kolibri Kommunikere), 2026-10-27: make a role-playing figure step by step, player and game master together
+         (also from two places), then Game Master imports it. No ads. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinCharacter.Server</RootNamespace>
+        <AssemblyName>ITMartinCharacter.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinCharacter.Application\ITMartinCharacter.Application.csproj" />
+        <ProjectReference Include="..\ITMartinCharacter.Infrastructure\ITMartinCharacter.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ITMartinCharacter.Tests" />
+    </ItemGroup>
+
+</Project>

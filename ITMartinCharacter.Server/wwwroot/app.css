@@ -1,0 +1,109 @@
+/* Character: steps on top, one step at a time, the help thread under it. Colours from kolibri.css; high contrast and never colour
+   alone (user is a bit colour-blind) - a chosen chip has a border and a tick, a finished step a tick, "new" is a word. */
+[hidden] { display: none !important; }
+body { background: var(--k-bg); color: var(--k-text); }
+
+.start { max-width: 520px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.start .k-card { margin: 0; }
+.indgang { margin: 0; font-weight: 700; padding: 6px 10px; border-left: 3px solid var(--k-accent-dark); background: var(--k-accent-soft); }
+.kode { text-transform: uppercase; letter-spacing: .12em; font-size: 20px; }
+.fejl { color: var(--k-danger); font-weight: 600; margin: 0; }
+.valgfri { font-weight: 400; color: var(--k-muted); }
+details > summary.k-card-title { cursor: pointer; min-height: 32px; margin: 0; }
+details[open] > summary.k-card-title { margin-bottom: 8px; }
+.mine-liste { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.mine-knap { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; width: 100%; }
+.mine-knap span { font-size: 14px; font-weight: 400; color: var(--k-muted); }
+
+.app { max-width: 820px; margin: 0 auto; }
+.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--k-border); background: var(--k-card); }
+.brand { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.brand b { font-size: 20px; overflow-wrap: anywhere; }
+.brand span { font-size: 13px; color: var(--k-muted); }
+.top-hoejre { display: flex; align-items: center; gap: 10px; }
+.gemt { font-size: 13px; color: var(--k-muted); }
+.gemt.ikke { color: var(--k-danger); font-weight: 700; }
+.tilstede { margin: 0; padding: 8px 16px; background: var(--k-accent-soft); font-weight: 600; border-bottom: 1px solid var(--k-border); }
+.tilstede::before { content: "● "; }
+
+/* the steps: one row that scrolls sideways on a phone */
+.trin { display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px; scroll-padding: 16px; border-bottom: 1px solid var(--k-border); }
+.trin button { flex: 0 0 auto; font: inherit; font-size: 15px; font-weight: 600; min-height: 40px; padding: 4px 12px; border-radius: 999px;
+    border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); cursor: pointer; white-space: nowrap; }
+.trin button .nr { display: inline-block; min-width: 1.4em; color: var(--k-muted); }
+.trin button.faerdig .nr::before { content: "✓"; color: var(--k-text); }
+.trin button.faerdig .nr { font-size: 0; }
+.trin button.faerdig .nr::before { font-size: 15px; }
+.trin button[aria-current="step"] { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; }
+.trin button[aria-current="step"] .nr, .trin button[aria-current="step"].faerdig .nr::before { color: #fff; }
+.trin .ny, .trin .her { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 0 5px; border-radius: 999px; border: 1px solid currentColor; }
+
+.view { padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 12px; }
+.view > .k-card { margin: 0; }
+.side-info p { margin: 0 0 6px; }
+.del-linje { margin: 0 0 8px; }
+
+.trin-kort { display: flex; flex-direction: column; gap: 8px; }
+.trin-kort h2 { margin: 0; font-size: 24px; }
+.trin-kort .intro { margin: 0 0 4px; }
+.trin-kort .k-input, .trin-kort .k-textarea { margin: 0; }
+.trin-kort hr { border: 0; border-top: 1px solid var(--k-border); margin: 8px 0; width: 100%; }
+.laast { margin: 0; font-size: 15px; padding: 8px 10px; border-left: 3px solid var(--k-text); background: var(--k-accent-soft); }
+
+/* choices: big tappable chips; the chosen one is filled AND has a tick */
+.valg { display: flex; flex-wrap: wrap; gap: 6px; }
+.valg label { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 12px; border-radius: 999px;
+    border: 1px solid var(--k-border); background: var(--k-card); cursor: pointer; font-weight: 600; }
+.valg label:has(input:checked) { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; }
+.chip { font: inherit; font-weight: 600; min-height: 40px; padding: 6px 12px; border-radius: 14px; border: 1px solid var(--k-border);
+    background: var(--k-card); color: var(--k-text); cursor: pointer; text-align: left; display: inline-block; }
+.chip small { display: block; font-weight: 400; font-size: 13px; color: var(--k-muted); }
+.chip.valgt { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; }
+.chip.valgt::before { content: "✓ "; }
+.chip.valgt small { color: #fff; }
+.chip:disabled { cursor: default; opacity: .7; }
+
+.evner { display: flex; flex-direction: column; gap: 6px; }
+.evne { display: grid; grid-template-columns: 1fr 90px 70px; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--k-border); }
+.evne > div { display: flex; flex-direction: column; min-width: 0; }
+.evne small { font-size: 13px; color: var(--k-muted); }
+.evne-tal { margin: 0; text-align: center; font-size: 18px; font-weight: 700; }
+.evne-res { font-size: 20px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.evne-res small { font-size: 14px; font-weight: 600; color: var(--k-muted); }
+.forslag { padding: 10px; border: 2px solid var(--k-text); border-radius: var(--k-radius); background: var(--k-accent-soft); }
+.forslag p { margin: 0 0 8px; }
+.to { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.figur-billede { width: 100%; max-height: 360px; object-fit: cover; border-radius: var(--k-radius); border: 1px solid var(--k-border); display: block; }
+.fil-knap { cursor: pointer; align-self: flex-start; }
+.spell-ret { border: 1px solid var(--k-border); border-radius: var(--k-radius); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.spell-ret summary { cursor: pointer; font-weight: 600; }
+.opslag { display: flex; flex-direction: column; gap: 4px; }
+.opslag button { text-align: left; }
+
+.opsummering { border: 1px solid var(--k-border); border-radius: var(--k-radius); padding: 10px 12px; }
+.opsummering h3 { margin: 0; font-size: 22px; }
+.opsummering p { margin: 6px 0 0; }
+.opsummering .linje { font-weight: 600; }
+.noter { white-space: pre-wrap; overflow-wrap: anywhere; }
+.evne-linje { display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; }
+.klar { padding: 12px; border: 2px solid var(--k-text); border-radius: var(--k-radius); background: var(--k-accent-soft); }
+.klar p { margin: 0 0 6px; }
+.stor-kode { font-size: 32px; font-weight: 800; letter-spacing: .18em; font-variant-numeric: tabular-nums; }
+.felt-navn { font-size: 13px; font-weight: 700; color: var(--k-muted); text-transform: uppercase; letter-spacing: .04em; }
+
+.hjaelp .k-row .k-input { flex: 1; min-width: 0; margin: 0; }
+.kommentarer { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.kommentar { padding: 8px 10px; border: 1px solid var(--k-border); border-radius: var(--k-radius); max-width: 90%; }
+.kommentar.egen { align-self: flex-end; background: var(--k-accent-soft); }
+.kommentar .meta { font-size: 13px; color: var(--k-muted); }
+.kommentar p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.frem-tilbage { display: flex; justify-content: space-between; gap: 8px; }
+#koderBoks p { margin: 0 0 12px; }
+#hjemBoks details { border-top: 1px solid var(--k-border); padding: 8px 0; }
+#hjemBoks details summary { font-weight: 600; cursor: pointer; }
+#hjemBoks ol { margin: 6px 0 0; padding-left: 1.3em; }
+
+@media (max-width: 420px) { .evne { grid-template-columns: 1fr 76px 60px; } .stor-kode { font-size: 26px; } }

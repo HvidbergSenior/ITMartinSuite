@@ -42,12 +42,40 @@ public class TableTests
             });
     }
 
+    // One ready figure in Character; records what comes back after play.
+    private sealed class FakeCharacters : ICharacterSource
+    {
+        public List<(string Code, int Hp, int MaxHp, string Gear, string Notes)> Back = [];
+        public Task<ImportedFigure?> GetAsync(string figureCode, CancellationToken ct) => Task.FromResult(figureCode == "THORIN"
+            ? new ImportedFigure("THORIN", "Thorin", "Dwarf", "Fighter", 13, 13, "axe", [new Spell("Second Wind", "heal 1d10")], "STR 15 (+2)", "Found the mine.", false)
+            : null);
+        public Task<byte[]?> PictureAsync(string figureCode, CancellationToken ct) => Task.FromResult<byte[]?>(null);
+        public void SendBack(string figureCode, int hp, int maxHp, string gear, string notes) => Back.Add((figureCode, hp, maxHp, gear, notes));
+    }
+
+    private FakeCharacters _characters = null!;
+
     [SetUp]
     public void SetUp()
     {
         _dir = Path.Combine(Path.GetTempPath(), "spil-test-" + Guid.NewGuid().ToString("N"));
         _live = new RecordingLive();
         _push = new RecordingPush();
+        _characters = new FakeCharacters();
+    }
+
+    [Test]
+    public async Task A_figure_from_Character_fills_the_card_locks_it_and_hit_points_go_back()
+    {
+        var t = NewTables();
+        var (leader, _) = t.Create("opret123", "Test", "Julius", "ip");
+        var (player, _) = t.Join(t.View(leader!.GameId, Viewer.Leader)!.JoinCode, "Anna", "ip");
+        (await t.ImportAsync(leader.GameId, player!.Viewer, player.Viewer, "nope", default)).Player.Should().BeNull();
+        var (p, _) = await t.ImportAsync(leader.GameId, player.Viewer, player.Viewer, "thorin", default);
+        (p!.Character, p.Race, p.Role, p.MaxHp, p.Locked, p.Sheet, p.Notes).Should().Be(("Thorin", "Dwarf", "Fighter", 13, true, "STR 15 (+2)", "Found the mine."));
+        t.ChangeHp(leader.GameId, player.Viewer, player.Viewer, -5);
+        _characters.Back.Should().ContainSingle().Which.Should().Be(("THORIN", 8, 13, "axe", "Found the mine."));
+        (await t.ImportAsync(leader.GameId, player.Viewer, player.Viewer, "THORIN", default)).Player.Should().BeNull("the card is locked now");
     }
 
     [TearDown]
@@ -57,7 +85,7 @@ public class TableTests
     }
 
     private Tables NewTables() => new(new JsonGameStore(Path.Combine(_dir, "spil")), _live, _push,
-        new FilePictureStore(Path.Combine(_dir, "billeder")), new FakeCustomers(), TimeProvider.System, "opret123");
+        new FilePictureStore(Path.Combine(_dir, "billeder")), new FakeCustomers(), TimeProvider.System, "opret123", _characters);
 
     private static (Tables T, string Game, string A, string B) Table(Tables t)
     {
