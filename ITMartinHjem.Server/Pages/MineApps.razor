@@ -43,7 +43,7 @@
                 else if (free) { <TrialForm App="@a.Name" FreeApps="WithCode" /> }
                 @* Contact line on every app (user 2026-10-12: "a contact me if interested in this app"); a sleeping app is tried for free by contacting Martin, who wakes it (user 2026-10-12). *@
                 <div class="hj-app-contact"><b>@(up || showcase || !free ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig:
-                    <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/#chat">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
+                    <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/chat-med-martin">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
             </div>
         </div>
     }
@@ -142,9 +142,9 @@
             <div>
     @* User 2026-10-14: "en udfordring til dem, der har lyst. Find en mobilapp, send navnet til mig og lad mig lave en version af den, som du vil have... :-)" *@
     <p>Find en mobilapp, send navnet til mig – og lad mig lave en version af den, som <b>du</b> vil have den :-)</p>
-    <a class="k-btn k-btn-sm" href="/#chat">Send mig navnet på appen</a>
+    <a class="k-btn k-btn-sm" href="/chat-med-martin">Send mig navnet på appen</a>
     <p class="k-mt"><b>Nysgerrig? Prøv en af mine apps, eller chat med mig, hvis du vil vide mere.</b></p>
-    <a class="k-btn k-btn-sm" href="/#chat">Chat med mig</a>
+    <a class="k-btn k-btn-sm" href="/chat-med-martin">Chat med mig</a>
     </div>
             <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
         </article>

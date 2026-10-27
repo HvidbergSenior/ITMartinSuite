@@ -31,24 +31,24 @@ public static class SiteFacts
         // User 2026-10-27: "and what I can do" - things Martin has built and can make for you.
         new("Polstrer", "/mine-apps?app=Polstrer", "… at jeg kan lave en app til netop dit arbejde – som til møbelpolstreren, der tager billeder af hvert trin og husker sine teknikker?"),
         // User 2026-10-27: "at jeg laver ALT selv. Hjemmeside, apps, musik".
-        new("Om mig og kontakt", "/om-mig", "… at jeg laver ALT selv – hjemmesiden, alle apps og musikken? Så kan jeg også lave det, du har brug for."),
+        new("Om mig", "/om-itmartin", "… at jeg laver ALT selv – hjemmesiden, alle apps og musikken? Så kan jeg også lave det, du har brug for."),
         new("Tjek dine billeder", "/billeder", "… at jeg kan lave et familiegalleri med kode, så kun familien ser billederne – på telefonen, uden Facebook?"),
         new("Skriv til mig", "/chat-med-martin", "… at jeg kan lave en fødselsdagsside med billeder og hilsner, som hele familien kan se og skrive på?"),
         new("Notatskriver", "/mine-apps?app=Notatskriver", "… at Notatskriver kan skrive et referat af et møde – og at lyden aldrig forlader din egen computer?"),
         new("Tilbud", "/mine-apps?app=Tilbud", "… at Tilbud finder dine varer på tilbud i butikkerne nær dig – uden butikkernes egne apps?"),
-        new("Om mig og kontakt", "/om-mig", "… at jeg har 20 års erfaring som systemudvikler – og kan hjælpe din virksomhed med et system, der driller?"),
+        new("Om mig", "/om-itmartin", "… at jeg har 20 års erfaring som systemudvikler – og kan hjælpe din virksomhed med et system, der driller?"),
         // User 2026-10-27: "At jeg af princip IKKE - kig på artifacts about my principles" -> artifact "Små, rene snebolde" ("nogle ting,
         // jeg aldrig vil gøre til en del af snebolden") + memory: no ads ever, no big clouds.
         new("Priser", "/apps", "… at jeg af princip IKKE sælger timer? Du betaler ikke mere, fordi noget tog længere tid at få til at virke."),
         new("Det de store ikke fortæller", "/dine-data", "… at jeg af princip IKKE samler data, bare fordi jeg kan? Kan en app virke uden dine oplysninger, så skal den det."),
         new("Ingen reklamer", "/ingen-reklamer", "… at jeg af princip IKKE har reklamer i mine apps – og aldrig får det?"),
-        new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE tilføjer en funktion, bare fordi jeg kan? Bliver noget for kompliceret, spørger jeg først: Hvad kan vi fjerne?"),
-        new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE bruger Google, Amazon eller Microsofts store skyer? Mine apps kører på mine egne servere i Danmark."),
+        new("Om mig", "/om-itmartin", "… at jeg af princip IKKE tilføjer en funktion, bare fordi jeg kan? Bliver noget for kompliceret, spørger jeg først: Hvad kan vi fjerne?"),
+        new("Om mig", "/om-itmartin", "… at jeg af princip IKKE bruger Google, Amazon eller Microsofts store skyer? Mine apps kører på mine egne servere i Danmark."),
         // User 2026-10-27: "...hader subscriptions. At noget er billigt i starten, men bliver dyrere og dyrere som frøen i kogende vand".
         new("Priser", "/apps", "… at jeg hader abonnementer, der er billige i starten og så bliver dyrere og dyrere? Det er som frøen i vandet, der langsomt bliver varmet op – man opdager det først, når det er for sent."),
         // User 2026-10-27: "... hælder mod openSource".
-        new("Om mig og kontakt", "/om-mig", "… at jeg hælder mod open source? Så bliver du ikke låst fast til ét firmas programmer – og andre kan se, hvordan det virker."),
-        new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE bygger for at blive stor? En app behøver ikke tusindvis af brugere – den skal løse et rigtigt problem for nogen."),
+        new("Om mig", "/om-itmartin", "… at jeg hælder mod open source? Så bliver du ikke låst fast til ét firmas programmer – og andre kan se, hvordan det virker."),
+        new("Om mig", "/om-itmartin", "… at jeg af princip IKKE bygger for at blive stor? En app behøver ikke tusindvis af brugere – den skal løse et rigtigt problem for nogen."),
         // User 2026-10-27: "jeg kan finde priser på dine ting... Og modtager gerne ting som I vil af med".
         new("Skriv til mig", "/chat-med-martin", "… at jeg kan finde ud af, hvad dine ting er værd – bøger, tegneserier, film, musik og spil?"),
         new("Bogshoppen", "https://bogshoppen.dk", "… at jeg gerne tager imod de ting, du vil af med? Så får de nye ejere i stedet for at ende i containeren."),

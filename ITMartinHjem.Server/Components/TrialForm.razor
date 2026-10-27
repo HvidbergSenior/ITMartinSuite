@@ -24,10 +24,14 @@
     {
         <p class="k-help">Skriv dig op én gang, så får du et kundenummer til alle de gratis apps: <b>@string.Join(", ", FreeApps)</b> –
             og et login til liveauktionerne på bogshoppen.dk, når de åbner.</p>
-        @if (Topics)
+        <input class="k-input" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" autocomplete="name" />
+        <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" @bind:event="oninput" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
+        @* The ticks + note show UNDER the e-mail once it has an @, so the form looks quick to start and nothing above the
+           field moves while typing (2026-10-27). *@
+        @if (Topics && _email.Contains('@'))
         {
             @* Same tick buttons as bogshoppen.dk's "det, du samler" (user 2026-10-27), about what Martin helps with. Never pre-ticked. *@
-            <p class="k-help">Sæt gerne kryds ved det, du gerne vil have hjælp til – så ved jeg, hvad du er interesseret i.</p>
+            <p class="k-help k-mt">Sæt gerne kryds ved det, du gerne vil have hjælp til – så ved jeg, hvad du er interesseret i.</p>
             <div class="sp-options">
                 @foreach (var t in ITMartinHjem.Domain.TrialRules.Topics)
                 {
@@ -35,11 +39,6 @@
                             @onclick="() => Toggle(t)">@t</button>
                 }
             </div>
-        }
-        <input class="k-input" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" autocomplete="name" />
-        <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
-        @if (Topics)
-        {
             <textarea class="k-input k-textarea k-mt" @bind="_note" maxlength="@ITMartinHjem.Domain.TrialRules.MaxNote" rows="2" placeholder="Er der noget bestemt, du vil have hjælp til? (valgfrit)" aria-label="Er der noget bestemt, du vil have hjælp til?"></textarea>
         }
         <SignUpMeans />

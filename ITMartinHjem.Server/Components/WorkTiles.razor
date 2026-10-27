@@ -28,7 +28,6 @@
     [
         // the user's own family library (ToshibaTest run, 2026-09): 87,009 files in, 34,079 out
         (TileGroup.App, "", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/mine-apps?app=Tjek%20dine%20billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
-        (TileGroup.Page, "", "Om mig og kontakt", "Hvem jeg er, og hvordan du fanger mig", "/om-mig", "… at jeg har arbejdet som systemudvikler i 20 år – og som socialpædagog i 5 år med mennesker med udviklingshandicap?"),
         (TileGroup.App, "", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
         (TileGroup.App, "", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
         // Statista, Feb 2025: average daily social media use of internet users worldwide = 141 min (141*365/1440 = 35.7 days)
@@ -49,7 +48,6 @@
         ["Tjek dine billeder"] = "/apps/billeder.jpg",
         ["Hjælp på din skærm"] = "/apps/semed.jpg",
         ["Kig med live"] = "/apps/kigmed.jpg",
-        ["Om mig og kontakt"] = "/f/1992b2f17f9cca20.jpg",
     };
 
     // Every tile says where it leads: an app example on Mine apps, a page here, or another site.
@@ -58,7 +56,7 @@
         var external = t.Href.StartsWith("http");
         <a class="hj-tile" href="@t.Href" target="@(external ? "_blank" : null)" rel="@(external ? "noopener" : null)">
             @if (Pictures.TryGetValue(t.Title, out var pic)) { <img class="hj-tile-pic" src="@pic" alt="" loading="lazy" /> }<b>@t.Title</b><span class="hj-tile-line">@t.Line</span>
-            @if (t.Fact.Length > 0) { <span class="hj-tile-fact">Vidste du @t.Fact</span> }
+            @* No "Vidste du" on the tiles since 2026-10-27 (the Om mig tab got long; the facts rotate in the front page's Vidste du box). *@
             <span class="hj-tile-go">@(t.Group switch { TileGroup.App => "Se eksemplet →", TileGroup.Site => new Uri(t.Href).Host + " →", _ => "Læs mere →" })</span>
         </a>
     };

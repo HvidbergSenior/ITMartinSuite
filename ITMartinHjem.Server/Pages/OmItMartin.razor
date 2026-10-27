@@ -8,6 +8,17 @@
 <PageHead Title="Om mig" Tag="Hvem er ITMartin?" Line="Hvem jeg er, hvad jeg laver – og hvad jeg har lavet." />
 
 <CascadingValue Name="Plain" Value="true">
+@* How to reach Martin first (2026-10-27: the old "Om mig og kontakt" page is part of this tab now, /om-mig redirects here). *@
+<section class="k-card" id="kontakt" data-nofold>
+    <h2 class="k-card-title">Kontakt mig</h2>
+    <p class="k-help">Skriv, ring eller send en mail – første snak er altid gratis.</p>
+    <div class="k-row k-mt">
+        <a class="k-btn k-btn-primary" href="/chat-med-martin">Chat med mig</a>
+        <a class="k-btn" href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a>
+        <a class="k-btn" href="tel:+4531194730">31 19 47 30</a>
+    </div>
+</section>
+
 @if (_hero is not null)
 {
     @* Tabs instead of one long text (user 2026-10-27: "hvem er ITMartin as tabs maybe?") - show/hide like every box, one tab at a time. *@
@@ -15,6 +26,14 @@
         <h2>Hvem er ITMartin?</h2>
         <HeroTabs Body="@_hero.Body" />
     </section>
+}
+
+@* Martin's own "Om mig og kontakt" text (Svar -> Sider -> om-mig), each "## " part a show/hide box. *@
+@if (_about is not null)
+{
+    var (intro, parts) = Sections.Split(_about.Body);
+    @if (intro.Length > 0) { <section class="k-card hj-page">@TinyMarkdown.Render(intro)</section> }
+    <SectionBoxes Parts="parts" FirstOpen="false" />
 }
 
 <WorkTiles />
@@ -55,6 +74,7 @@ else if (_family && !_owner)
     [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
 
     private Page? _hero;   // Svar -> Sider -> "forside"
+    private Page? _about;  // Svar -> Sider -> "om-mig"
     private List<Post> _posts = [];
     private int _hiddenFamily;
     private bool _family, _owner;
@@ -66,5 +86,6 @@ else if (_family && !_owner)
         _owner = user.IsOwner();
         var front = await Site.FrontAsync(_family);
         (_hero, _posts, _hiddenFamily) = (front.Hero, front.Posts, front.HiddenFamily);
+        _about = await Site.PageBySlugAsync("om-mig");
     }
 }

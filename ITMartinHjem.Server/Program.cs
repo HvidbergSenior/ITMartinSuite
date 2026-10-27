@@ -30,7 +30,7 @@ builder.Services.AddKolibri(k =>
     [
         "Bliv kunde gratis: tryk \"Skriv mig op – gratis\" øverst på forsiden, sæt gerne kryds ved det, du vil have hjælp til, skriv din e-mail, sæt flueben og tryk \"Send mig adgang\". Dit kundenummer kommer på skærmen og på mail.",
         "Tryk \"Om mig\" i menuen: under \"Hvem er ITMartin?\" trykker du på en fane (fx \"Hjælp på din skærm\") for at læse om den del af mit arbejde.",
-        "Læs \"Lige nu\" under I dag – det er det, jeg arbejder med.",
+        "Øverst på forsiden står, hvad jeg skal i dag. Tryk \"Hvad laver jeg nu?\" under Om mig for at se hele dagen.",
         "På Om mig: rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
         "På Mine apps: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
@@ -313,13 +313,15 @@ app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibili
 });
 app.MapGet("/skjul-butik", (HttpContext ctx) => { ctx.Response.Cookies.Delete(ShopVisibility.Cookie); return Results.Redirect("/"); });
 
-app.MapGet("/kontakt", () => Results.Redirect("/om-mig", permanent: true));
+app.MapGet("/kontakt", () => Results.Redirect("/om-itmartin", permanent: true));
+// The old "Om mig og kontakt" page is part of the Om mig tab since 2026-10-27 (two "om mig" places confused visitors).
+app.MapGet("/om-mig", () => Results.Redirect("/om-itmartin", permanent: true));
 // No more pilots (user 2026-10-26: "ikke flere piloter på ITMartin"): old pilot links and forms land on Om mig og kontakt.
 // The page text stays in Svar -> Sider, and earlier pilot requests stay in Svar.
-app.MapGet("/pilot", () => Results.Redirect("/om-mig", permanent: true));        // also answers /pilot/
-app.MapGet("/bliv-pilot", () => Results.Redirect("/om-mig", permanent: true));   // also answers /bliv-pilot/ and ?k=...
-app.MapPost("/pilot/send.php", () => Results.Redirect("/om-mig")).DisableAntiforgery();
-app.MapPost("/bliv-pilot/send.php", () => Results.Redirect("/om-mig")).DisableAntiforgery();
+app.MapGet("/pilot", () => Results.Redirect("/om-itmartin", permanent: true));        // also answers /pilot/
+app.MapGet("/bliv-pilot", () => Results.Redirect("/om-itmartin", permanent: true));   // also answers /bliv-pilot/ and ?k=...
+app.MapPost("/pilot/send.php", () => Results.Redirect("/om-itmartin")).DisableAntiforgery();
+app.MapPost("/bliv-pilot/send.php", () => Results.Redirect("/om-itmartin")).DisableAntiforgery();
 app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
 
 // ── The site menu for hand-made pages in wwwroot (pilot): wwwroot/nav.js draws it from this.
