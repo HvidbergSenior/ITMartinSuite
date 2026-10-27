@@ -18,7 +18,7 @@ public static class MartinPhotos
         new("/martin/martin-20250724.jpg", "Sommerferie"),
         new("/martin/martin-20250917.jpg", "Minder min far hvert år den 17/9 (elskede lakridspiber og rødvin)"),
         new("/martin/martin-20251220.jpg", "Jeg tror på julemanden"),
-        new("/martin/martin-20260210.jpg", "Min sten, der holder mig oppe"),
+        new("/martin/martin-20260210.jpg", "Min sten, der holder mig oppe – Vibz, ikke rødvin"),
         new("/martin/martin-20260604.jpg", "Northside 2026"),
         new("/martin/martin-20260605.jpg", "Northside 2026"),
     ];
