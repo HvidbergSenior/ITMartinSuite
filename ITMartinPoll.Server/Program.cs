@@ -48,6 +48,7 @@ builder.Services.AddKolibri(k =>
         "Skriv dit navn, hvis der bliver bedt om det, og tryk Stem.",
         "Kom tilbage til samme link for at se resultatet.",
         "Vil du selv spørge? Tryk Lav ny, skriv dit kundenummer, spørgsmålet og svarene, og send linket videre.",
+        "Vil du selv svare på din egen afstemning? Tryk Svar selv under Lav ny – du svarer på samme side som de andre.",
     ];
     k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";

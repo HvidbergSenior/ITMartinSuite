@@ -63,6 +63,8 @@
                 <h2 class="k-card-title">Du har en åben afstemning</h2>
                 <p><b>@open.Title</b> – @open.People har svaret. I den gratis udgave har du én åben ad gangen.</p>
                 <div class="btn-pair">
+                    @* The maker answers too - through the same link as everyone (user 2026-10-27 "can I answer?"). *@
+                    <a class="k-btn" href="@open.Path">Svar selv</a>
                     <button class="k-btn" @onclick="() => ShareAsync(open)">Del linket</button>
                     <button class="k-btn" @onclick="() => ToggleAsync(open)">Luk den og lav en ny</button>
                 </div>
@@ -176,6 +178,10 @@
                         }
                     }
                     <div class="btn-pair">
+                        @if (m.Open)
+                        {
+                            <a class="k-btn k-btn-sm" href="@m.Path">Svar selv</a>
+                        }
                         <button class="k-btn k-btn-sm" @onclick="() => ShareAsync(m)">Del linket</button>
                         <button class="k-btn k-btn-sm" @onclick="() => ToggleAsync(m)">@(m.Open ? "Luk" : "Åbn igen")</button>
                     </div>
