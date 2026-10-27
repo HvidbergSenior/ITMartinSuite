@@ -593,6 +593,11 @@ app.MapPost("/api/logout", (string gallery, HttpContext ctx) =>
     return Results.Ok();
 });
 
+// Loose photos straight in a folder that also has subfolders (undated photos next to the year folders) are shown as
+// their own virtual folder after the real ones - user 2026-10-27: Annette's 88 undated photos were invisible.
+// Same name as the static export's page for them.
+const string LooseFolderName = "Ukendt dato";
+
 app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
 {
     var g = galleries.FirstOrDefault(x => x.Slug == gallery);
@@ -607,6 +612,15 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
 
     var r       = g.Path;
     var current = string.IsNullOrWhiteSpace(path) ? r : Path.GetFullPath(Path.Combine(r, path));
+
+    // ".../Ukendt dato" that is not a real folder = the loose files of the folder above it.
+    var looseView = false;
+    if (!Directory.Exists(current) && Path.GetFileName(current).Equals(LooseFolderName, StringComparison.OrdinalIgnoreCase) &&
+        Directory.GetParent(current)?.FullName is { } looseParent && Directory.Exists(looseParent) && !IsSameDir(looseParent, r))
+    {
+        current = looseParent;
+        looseView = true;
+    }
 
     if (!Directory.Exists(current)) return Results.NotFound();
     if (!IsSafe(current, r))        return Results.BadRequest("path outside library");
@@ -707,6 +721,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     // plain folder grid and once as a labeled example row, is confusing for a
     // non-technical viewer - keep exactly one place it appears.
     var folders = priorityFolders.Concat(restFolders).ToList();
+    if (looseView) folders = [];
 
     // View-only gallery (Galleries__N__ViewOnly): the root is exactly the
     // seven things a family wants to open and nothing else - no add-ons, no
@@ -791,6 +806,19 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         // still shown normally one level deeper where there's nothing else
         // to navigate to and these ARE the real content.
         filePaths = [];
+
+        // ...but not hidden altogether: they get a "Ukendt dato" card after the real folders, unless the library
+        // already has its own folder for them.
+        var loose = Directory.EnumerateFiles(current).Where(IsMedia).ToList();
+        if (loose.Count > 0 && !atRoot && !inMusikFolder &&
+            !folders.Any(f => f.name.Contains("dato", StringComparison.OrdinalIgnoreCase) ||
+                              f.name.Contains("årsmapper", StringComparison.OrdinalIgnoreCase) ||
+                              f.name.Contains("Udaterede", StringComparison.OrdinalIgnoreCase)))
+        {
+            var first = loose.FirstOrDefault(f => IsImg(Ext(f))) ?? loose[0];
+            folders.Add(new FolderEntry(LooseFolderName, NormalizeRel(Rel(current, r)) + "/" + LooseFolderName,
+                IsImg(Ext(first)) ? Thumb(first, r, g.Slug) ?? Web(first, r, g.Slug) : Thumb(first, r, g.Slug)));
+        }
     }
     else
     {
@@ -855,6 +883,12 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         title = ViewOnlyRootFolders.Where(v => v.Rel.Equals(relNow, StringComparison.OrdinalIgnoreCase)).Select(g.RootName).FirstOrDefault()
             // A curated album straight under SmartFolders is titled by its folder name.
             ?? (parentRel == "" ? Path.GetFileName(current) : null);
+    }
+
+    if (looseView)
+    {
+        parentRel = NormalizeRel(Rel(current, r));
+        title = LooseFolderName;
     }
 
     var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline, uploadUrl = g.UploadUrl,
