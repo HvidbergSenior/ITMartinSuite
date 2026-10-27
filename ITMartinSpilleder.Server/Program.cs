@@ -13,24 +13,24 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddKolibri(k =>
 {
-    k.Name = "Spilleder";
+    k.Name = "Game Master";
     k.KolibriName = "Kolibri Kommunikere";
     k.Family = "kommunikere";
-    k.Tagline = "Hjælp til spillederen og spillerne ved bordet – hemmelige beskeder, spillere og liv.";
+    k.Tagline = "Help at the table for the game master and the players – secret messages, players and hit points.";
     k.Version = "2026.10";
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
-        "Spilleder hjælper jer ved bordet, når I spiller rollespil som Dungeons & Dragons, Varulv eller et mordmysterium.",
-        "Alle kan se spillerne: navn, figur, race, klasse, liv og besværgelser. Når en spiller mister liv, ser alle det med det samme.",
-        "Spillederen kan sende en hemmelig besked til én spiller, fx \"Du ser noget glimte til højre\". Kun den spiller ser den.",
-        "Besværgelser fra D&D 5e SRD 5.1 af Wizards of the Coast, brugt under CC-BY-4.0 (creativecommons.org/licenses/by/4.0). Ingen reklamer.",
+        "Game Master helps you at the table when you play role-playing games like Dungeons & Dragons, Werewolf or a murder mystery.",
+        "Everyone can see the players: name, character, race, class, hit points and spells. When a player loses hit points, everyone sees it at once.",
+        "The game master can send a secret message to one player, like \"You see something glinting to your right\". Only that player sees it.",
+        "Spells from the D&D 5e SRD 5.1 by Wizards of the Coast, used under CC-BY-4.0 (creativecommons.org/licenses/by/4.0). No ads.",
     ];
     k.HowTo =
     [
-        "Spillederen åbner spilleder.itmartin.dk/leder, starter et spil og får en spilkode. Spillerne åbner spilleder.itmartin.dk/spiller og skriver koden og deres navn.",
-        "Under Spillere udfylder hver spiller sit kort. Tryk − og + for at ændre liv.",
-        "Under Beskeder vælger spillederen, hvem beskeden er til. Slå med terningerne samme sted.",
+        "The game master opens spilleder.itmartin.dk/master, starts a game and gets a game code. The players open spilleder.itmartin.dk/player and enter the code and their name.",
+        "Under Players each player fills in their card. Press − and + to change hit points.",
+        "Under Messages the game master chooses who the message is for. Roll the dice in the same place.",
     ];
     k.StaticPages = true;
     k.HealthChecks = sp => Task.FromResult<IReadOnlyList<KolibriHealthItem>>(
@@ -56,9 +56,10 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-// Two entrances to the same app, like R6 (user 2026-10-27): /leder for the game master, /spiller for the players.
+// Two entrances to the same app, like R6 (user 2026-10-27): /master for the game master, /player for the players
+// (the Danish /leder and /spiller from the first version keep working).
 // Same page; app.js shows the right start box from the address.
-foreach (var entrance in new[] { "/leder", "/spiller" })
+foreach (var entrance in new[] { "/master", "/player", "/leder", "/spiller" })
     app.MapGet(entrance, (HttpContext c) =>
     {
         c.Response.Headers.CacheControl = "no-cache";
@@ -92,10 +93,10 @@ IResult SignIn(HttpContext c, Joined j)
 
 IResult Fejl(JoinError e) => e switch
 {
-    JoinError.Locked => Results.Json(new { fejl = "For mange forkerte forsøg. Vent et kvarter og prøv igen." }, statusCode: 429),
-    JoinError.WrongCode => Results.Json(new { fejl = "Koden passer ikke. Spørg spillederen." }, statusCode: 401),
-    JoinError.Full => Results.BadRequest(new { fejl = "Der er ikke plads til flere spillere i dette spil." }),
-    _ => Results.BadRequest(new { fejl = "Skriv dit navn." }),
+    JoinError.Locked => Results.Json(new { fejl = "Too many wrong tries. Wait 15 minutes and try again." }, statusCode: 429),
+    JoinError.WrongCode => Results.Json(new { fejl = "That code is not right. Ask the game master." }, statusCode: 401),
+    JoinError.Full => Results.BadRequest(new { fejl = "There is no room for more players in this game." }),
+    _ => Results.BadRequest(new { fejl = "Enter your name." }),
 };
 
 app.MapPost("/api/nyt-spil", (HttpContext c, NewGameBody b, Tables t) =>
@@ -143,11 +144,11 @@ app.MapPost("/api/spillere/{id}/liv", (HttpContext c, string id, HpBody b, Table
 app.MapPost("/api/spillere/{id}/billede", async (HttpContext c, string id, Tables t) =>
 {
     if (Who(c, t) is not { } w) return Results.Unauthorized();
-    if (c.Request.ContentLength > GameRules.MaxPictureBytes) return Results.BadRequest(new { fejl = "Billedet er for stort." });
+    if (c.Request.ContentLength > GameRules.MaxPictureBytes) return Results.BadRequest(new { fejl = "The picture is too big." });
     using var ms = new MemoryStream();
     await c.Request.Body.CopyToAsync(ms, c.RequestAborted);
     var p = t.SetPicture(w.Game, w.Viewer, id, ms.ToArray());
-    return p is null ? Results.BadRequest(new { fejl = "Billedet kunne ikke gemmes. Prøv et andet." }) : Results.Json(p, web);
+    return p is null ? Results.BadRequest(new { fejl = "The picture could not be saved. Try another one." }) : Results.Json(p, web);
 });
 
 app.MapGet("/api/billede/{id}", (HttpContext c, string id, Tables t) =>
@@ -174,14 +175,14 @@ app.MapPost("/api/beskeder", (HttpContext c, NoteBody b, Tables t) =>
 {
     if (Who(c, t) is not { } w) return Results.Unauthorized();
     var n = t.Write(w.Game, w.Viewer, b.Til, b.Tekst);
-    return n is null ? Results.BadRequest(new { fejl = "Skriv en besked." }) : Results.Json(n, web);
+    return n is null ? Results.BadRequest(new { fejl = "Write a message." }) : Results.Json(n, web);
 });
 
 app.MapPost("/api/terning", (HttpContext c, DiceBody b, Tables t) =>
 {
     if (Who(c, t) is not { } w) return Results.Unauthorized();
     var n = t.Roll(w.Game, w.Viewer, b.Terning, b.Hemmelig, b.Hvorfor);
-    return n is null ? Results.BadRequest(new { fejl = "Skriv terningen som fx d20, 2d6 eller 1d8+2." }) : Results.Json(n, web);
+    return n is null ? Results.BadRequest(new { fejl = "Write the dice like d20, 2d6 or 1d8+2." }) : Results.Json(n, web);
 });
 
 // ---- spells from the free D&D 5e SRD ----
@@ -190,14 +191,14 @@ app.MapGet("/api/besvaergelser", async (HttpContext c, string? q, Tables t, ISpe
 {
     if (Who(c, t) is null) return Results.Unauthorized();
     try { return Results.Json(await book.SearchAsync(q ?? "", c.RequestAborted), web); }
-    catch (Exception) { return Results.Json(new { fejl = "Opslaget svarer ikke lige nu. Skriv selv, hvad den gør." }, statusCode: 502); }
+    catch (Exception) { return Results.Json(new { fejl = "The spell look-up is not answering right now. Write what it does yourself." }, statusCode: 502); }
 });
 
 app.MapGet("/api/besvaergelser/{index}", async (HttpContext c, string index, Tables t, ISpellBook book) =>
 {
     if (Who(c, t) is null) return Results.Unauthorized();
     try { return await book.GetAsync(index, c.RequestAborted) is { } s ? Results.Json(s, web) : Results.NotFound(); }
-    catch (Exception) { return Results.Json(new { fejl = "Opslaget svarer ikke lige nu. Skriv selv, hvad den gør." }, statusCode: 502); }
+    catch (Exception) { return Results.Json(new { fejl = "The spell look-up is not answering right now. Write what it does yourself." }, statusCode: 502); }
 });
 
 // ---- live updates + push ----

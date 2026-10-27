@@ -16,19 +16,17 @@
 
     // Lines the game master often needs (user: "You see something interesting to the right").
     const QUICK = [
-        'Du ser noget glimte til højre.',
-        'Du hører fodtrin bag dig.',
-        'Kun du bemærker, at døren står på klem.',
-        'Du har en mærkelig følelse af at blive iagttaget.',
-        'Slå en d20 og send mig resultatet – hemmeligt.',
-        'Du ved, at personen lyver.',
+        'You see something glinting to your right.',
+        'You hear footsteps behind you.',
+        'Only you notice that the door is ajar.',
+        'You have a strange feeling of being watched.',
+        'Roll a d20 and send me the result – secretly.',
+        'You know that this person is lying.',
     ];
 
     // The SRD races (D&D 5e) as quick picks - any other text works too, the app is not tied to D&D.
-    const RACES = ['Menneske', 'Elver', 'Dværg', 'Halvling', 'Gnom', 'Halvelver', 'Halvork', 'Dragefødt', 'Tiefling'];
-    const RACE_EN = { Menneske: 'human', Elver: 'elf', 'Dværg': 'dwarf', Halvling: 'halfling', Gnom: 'gnome', Halvelver: 'half-elf',
-        Halvork: 'half-orc', 'Dragefødt': 'dragonborn', Tiefling: 'tiefling' };
-    // Example figures per race: figurer/eksempler.json = { "Halvling": ["figurer/halvling-1.jpg", ...] } (made once with Billedbehandling).
+    const RACES = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Gnome', 'Half-Elf', 'Half-Orc', 'Dragonborn', 'Tiefling'];
+    // Example figures per race: figurer/eksempler.json = { "Halfling": ["figurer/halvling-1.jpg", ...] } (made once with Billedbehandling).
     let examples = {};
     fetch('figurer/eksempler.json').then(r => r.ok ? r.json() : {}).then(j => { examples = j || {}; }).catch(() => { });
 
@@ -40,7 +38,7 @@
         });
         if (r.status === 401) { showStart(); throw new Error('Du er ikke med i et spil.'); }
         const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
-        if (!r.ok) throw new Error((data && data.fejl) || 'Det gik ikke. Prøv igen.');
+        if (!r.ok) throw new Error((data && data.fejl) || 'Something went wrong. Please try again.');
         return data;
     }
 
@@ -54,21 +52,21 @@
         } catch { showStart(); }
     }
 
-    // /leder = the game master's entrance, /spiller = the players' entrance, / = both.
+    // /master (or /leder) = the game master's entrance, /player (or /spiller) = the players' entrance, / = both.
     const entrance = location.pathname.replace(/\/+$/, '').toLowerCase();
     function setupEntrance() {
-        if (entrance === '/leder') {
-            $('indgang').textContent = 'Indgang for spillederen';
+        if (entrance === '/master' || entrance === '/leder') {
+            $('indgang').textContent = 'Entrance for the game master';
             $('indgang').hidden = false;
             $('nytBoks').open = true;
             $('start').insertBefore($('nytBoks'), $('deltagForm'));
-            $('deltagTitel').textContent = 'Har du allerede startet et spil?';
-            $('deltagKodeLabel').textContent = 'Din lederkode';
-            $('deltagKodeHjaelp').textContent = 'Lederkoden (8 tegn) står under Spilkode til spillerne på den telefon, hvor du startede spillet.';
+            $('deltagTitel').textContent = 'Already started a game?';
+            $('deltagKodeLabel').textContent = 'Your master code';
+            $('deltagKodeHjaelp').textContent = 'The master code (8 characters) is under "Game code for the players" on the phone where you started the game.';
             $('deltagNavnFelt').hidden = true;
-            $('deltagForm').querySelector('button[type=submit]').textContent = 'Fortsæt som spilleder';
-        } else if (entrance === '/spiller') {
-            $('indgang').textContent = 'Indgang for spillere';
+            $('deltagForm').querySelector('button[type=submit]').textContent = 'Continue as game master';
+        } else if (entrance === '/player' || entrance === '/spiller') {
+            $('indgang').textContent = 'Entrance for players';
             $('indgang').hidden = false;
             $('nytBoks').hidden = true;
         }
@@ -90,7 +88,7 @@
         try {
             const r = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const d = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(d.fejl || 'Det gik ikke. Prøv igen.');
+            if (!r.ok) throw new Error(d.fejl || 'Something went wrong. Please try again.');
             await perm;
             enter(await (await fetch('/api/spil', { credentials: 'same-origin' })).json());
         } catch (err) {
@@ -127,19 +125,19 @@
         spil = s; me = s.me; leder = s.leader;
         players = s.players; notes = s.notes;
         $('titel').textContent = s.title;
-        document.title = s.title + ' · Spilleder';
-        $('hvem').textContent = leder ? s.leaderName + ' · spilleder' : (players.find(p => p.id === me)?.name || '') + ' · spiller';
+        document.title = s.title + ' · Game Master';
+        $('hvem').textContent = leder ? s.leaderName + ' · game master' : (players.find(p => p.id === me)?.name || '') + ' · player';
         $('koderBoks').hidden = !leder;
         $('spilKode').textContent = s.joinCode;
         $('lederKode').textContent = s.leaderCode || '';
         $('spilBoks').hidden = !leder;
         $('retTitel').value = s.title; $('retLederNavn').value = s.leaderName;
         $('hurtige').hidden = !leder;
-        $('skrivTitel').textContent = leder ? 'Send en besked – også hemmelig' : 'Send en besked';
+        $('skrivTitel').textContent = leder ? 'Send a message – also secret' : 'Send a message';
         $('beskedInfo').textContent = leder
-            ? 'Vælg hvem beskeden er til. Vælger du én spiller, er beskeden hemmelig – kun den spiller ser den. Du ser alle beskeder.'
-            : 'Her kommer beskeder fra spillederen. "Hemmelig" betyder, at kun du kan se den. Du kan skrive til alle eller kun til spillederen.';
-        $('hemmeligTekst').textContent = leder ? 'Hemmeligt – kun du ser slaget' : 'Hemmeligt – kun spillederen ser slaget';
+            ? 'Choose who the message is for. If you choose one player, the message is secret – only that player sees it. You see all messages.'
+            : 'Messages from the game master show up here. "Secret" means only you can see it. You can write to everyone or only to the game master.';
+        $('hemmeligTekst').textContent = leder ? 'Secret – only you see the roll' : 'Secret – only the game master sees the roll';
         renderHurtige(); renderTil(); renderCards(); renderNotes();
     }
 
@@ -214,25 +212,25 @@
         const edit = canEdit(p.id);
         return `<article class="kort${p.id === me ? ' mig' : ''}${low ? ' lav' : ''}" id="k-${p.id}">
             ${p.picture ? `<img class="figur-billede" src="/api/billede/${p.id}?v=${p.picture}" alt="${esc(p.character || p.name)}" loading="lazy" />` : ''}
-            <div><h3>${esc(p.character || p.name)}</h3><span class="spiller">${p.character ? 'spilles af ' + esc(p.name) : 'har ikke skrevet sin figur endnu'}${p.id === me ? ' (dig)' : ''}</span></div>
+            <div><h3>${esc(p.character || p.name)}</h3><span class="spiller">${p.character ? 'played by ' + esc(p.name) : 'has not created a character yet'}${p.id === me ? ' (you)' : ''}</span></div>
             ${line ? `<p class="linje">${esc(line)}</p>` : ''}
             <div class="liv">
-                ${edit ? `<button type="button" class="k-btn" data-hp="-1" aria-label="Mist 1 liv">−</button>` : ''}
-                <span class="tal" aria-label="Liv">${p.hp}<small> / ${p.maxHp}</small></span>
-                ${edit ? `<button type="button" class="k-btn" data-hp="1" aria-label="Få 1 liv">+</button>` : ''}
+                ${edit ? `<button type="button" class="k-btn" data-hp="-1" aria-label="Lose 1 hit point">−</button>` : ''}
+                <span class="tal" aria-label="Hit points">${p.hp}<small> / ${p.maxHp}</small></span>
+                ${edit ? `<button type="button" class="k-btn" data-hp="1" aria-label="Gain 1 hit point">+</button>` : ''}
                 <span class="flash-plads"></span>
             </div>
             <div class="livbar" aria-hidden="true"><i style="width:${pct}%"></i></div>
-            ${p.gear ? `<div class="felt"><span class="felt-navn">Udstyr og våben</span><p class="noter">${esc(p.gear)}</p></div>` : ''}
-            ${p.notes ? `<div class="felt"><span class="felt-navn">Noter</span><p class="noter">${esc(p.notes)}</p></div>` : ''}
-            ${p.spells.length ? '<span class="felt-navn">Besværgelser og evner</span>' : ''}
-            ${p.spells.map(s => `<details class="besv"><summary>${esc(s.name)}</summary><p>${esc(s.text || 'Ingen beskrivelse endnu.')}</p></details>`).join('')}
-            ${p.id === me && p.locked && !leder ? '<p class="laast">Dit kort er gemt og låst. Vil du ændre noget, fx nyt våben, så spørg spillederen, som kan åbne det for dig.</p>' : ''}
-            ${p.id === me && !p.locked && !leder && p.character ? '<p class="laast">Spillederen har åbnet dit kort. Ret det, og tryk Gem kortet – så låses det igen.</p>' : ''}
+            ${p.gear ? `<div class="felt"><span class="felt-navn">Weapons and gear</span><p class="noter">${esc(p.gear)}</p></div>` : ''}
+            ${p.notes ? `<div class="felt"><span class="felt-navn">Notes</span><p class="noter">${esc(p.notes)}</p></div>` : ''}
+            ${p.spells.length ? '<span class="felt-navn">Spells and abilities</span>' : ''}
+            ${p.spells.map(s => `<details class="besv"><summary>${esc(s.name)}</summary><p>${esc(s.text || 'No description yet.')}</p></details>`).join('')}
+            ${p.id === me && p.locked && !leder ? '<p class="laast">Your card is saved and locked. To change something, like a new weapon, ask the game master to unlock it for you.</p>' : ''}
+            ${p.id === me && !p.locked && !leder && p.character ? '<p class="laast">The game master has unlocked your card. Make your changes and press Save card – then it locks again.</p>' : ''}
             ${edit ? `<div class="kort-knapper">
-                ${canEditSheet(p) ? `<button type="button" class="k-btn k-btn-sm" data-ret>${p.character ? 'Ret kort' : 'Lav din figur'}</button>` : ''}
-                ${leder ? `<button type="button" class="k-btn k-btn-sm" data-laas>${p.locked ? 'Lad spilleren rette' : 'Lås kortet'}</button>
-                    <button type="button" class="k-btn k-btn-sm k-btn-ghost" data-fjern>Fjern spiller</button>` : ''}</div>` : ''}
+                ${canEditSheet(p) ? `<button type="button" class="k-btn k-btn-sm" data-ret>${p.character ? 'Edit card' : 'Create your character'}</button>` : ''}
+                ${leder ? `<button type="button" class="k-btn k-btn-sm" data-laas>${p.locked ? 'Let the player edit' : 'Lock the card'}</button>
+                    <button type="button" class="k-btn k-btn-sm k-btn-ghost" data-fjern>Remove player</button>` : ''}</div>` : ''}
         </article>`;
     }
 
@@ -246,7 +244,7 @@
         if (ret) ret.onclick = () => { editId = p.id; renderCards(); };
         const fjern = el.querySelector('[data-fjern]');
         if (fjern) fjern.onclick = async () => {
-            if (fjern.dataset.sikker !== '1') { fjern.dataset.sikker = '1'; fjern.textContent = 'Tryk igen for at fjerne ' + p.name; return; }
+            if (fjern.dataset.sikker !== '1') { fjern.dataset.sikker = '1'; fjern.textContent = 'Press again to remove ' + p.name; return; }
             try { await api('DELETE', '/api/spillere/' + p.id); } catch { }
         };
     }
@@ -278,52 +276,52 @@
     function editHtml(p) {
         return `<article class="kort${p.id === me ? ' mig' : ''}" id="k-${p.id}">
             <form class="ret" id="retForm">
-                <h3>Ret kort</h3>
-                <p class="kladde" id="rKladde" hidden>Din kladde er hentet – intet er gået tabt. Tryk <b>Gem kortet</b>, når du er færdig.
-                    <button type="button" class="link" id="rGlemKladde">Glem kladden</button></p>
-                <label class="k-label" for="rNavn">Spillerens navn</label>
+                <h3>Edit card</h3>
+                <p class="kladde" id="rKladde" hidden>Your draft is back – nothing was lost. Press <b>Save card</b> when you are done.
+                    <button type="button" class="link" id="rGlemKladde">Discard the draft</button></p>
+                <label class="k-label" for="rNavn">Player's name</label>
                 <input class="k-input" id="rNavn" maxlength="30" value="${esc(p.name)}" />
-                <label class="k-label" for="rFigur">Figurens navn</label>
-                <input class="k-input" id="rFigur" maxlength="60" value="${esc(p.character)}" placeholder="fx Thorin Stenhånd" />
-                <span class="k-label">Race / folk</span>
+                <label class="k-label" for="rFigur">Character's name</label>
+                <input class="k-input" id="rFigur" maxlength="60" value="${esc(p.character)}" placeholder="e.g. Thorin Stonehand" />
+                <span class="k-label">Race</span>
                 <div class="til" id="rRacer">${RACES.map(r => `<label><input type="radio" name="race" value="${esc(r)}" ${p.race === r ? 'checked' : ''} /> ${esc(r)}</label>`).join('')}</div>
-                <input class="k-input" id="rRace" maxlength="60" value="${esc(p.race)}" placeholder="eller skriv selv, fx varulv" aria-label="Race eller folk" />
+                <input class="k-input" id="rRace" maxlength="60" value="${esc(p.race)}" placeholder="or write your own, e.g. werewolf" aria-label="Race" />
                 <div id="rEksempler" class="eksempler"></div>
-                <span class="k-label">Billede af figuren</span>
+                <span class="k-label">Picture of the character</span>
                 <div class="billede-ret">
                     <img id="rBillede" class="figur-billede" ${p.picture ? `src="/api/billede/${p.id}?v=${p.picture}"` : 'hidden'} alt="" />
-                    <label class="k-btn k-btn-sm fil-knap">Vælg billede<input type="file" id="rFil" accept="image/*" hidden /></label>
+                    <label class="k-btn k-btn-sm fil-knap">Choose picture<input type="file" id="rFil" accept="image/*" hidden /></label>
                 </div>
-                <label class="k-label" for="rUdseende">Hvordan ser figuren ud? <span class="valgfri">(til AI-billedet)</span></label>
-                <input class="k-input" id="rUdseende" maxlength="200" placeholder="fx rødt hår, grøn kappe, bue på ryggen" />
-                <button type="button" class="k-btn k-btn-sm" id="rAi">Lav din figur med AI i Billedbehandling</button>
-                <p class="k-help" id="rAiHjaelp" hidden>Billedbehandling åbner med din beskrivelse. Tryk <b>Generér</b>, så <b>Hent</b>. Kom tilbage hertil og tryk <b>Vælg billede</b>. Gratis 5 billeder om dagen.</p>
+                <label class="k-label" for="rUdseende">What does the character look like? <span class="valgfri">(for the AI picture)</span></label>
+                <input class="k-input" id="rUdseende" maxlength="200" placeholder="e.g. red hair, green cloak, bow on the back" />
+                <button type="button" class="k-btn k-btn-sm" id="rAi">Create your character with AI (Billedbehandling)</button>
+                <p class="k-help" id="rAiHjaelp" hidden>Billedbehandling opens with your description (the page is in Danish). Press <b>Generér</b> (generate), then <b>Hent</b> (download). Come back here and press <b>Choose picture</b>. 5 free pictures a day.</p>
                 <p class="fejl" id="rBilledFejl" hidden></p>
                 <div class="to">
-                    <div><label class="k-label" for="rKlasse">Klasse / rolle</label><input class="k-input" id="rKlasse" maxlength="60" value="${esc(p.role)}" placeholder="fx kriger" /></div>
+                    <div><label class="k-label" for="rKlasse">Class / role</label><input class="k-input" id="rKlasse" maxlength="60" value="${esc(p.role)}" placeholder="e.g. fighter" /></div>
                     <div></div>
-                    <div><label class="k-label" for="rLiv">Liv nu</label><input class="k-input" id="rLiv" type="number" inputmode="numeric" value="${p.hp}" /></div>
-                    <div><label class="k-label" for="rMax">Liv højst</label><input class="k-input" id="rMax" type="number" inputmode="numeric" min="1" value="${p.maxHp}" /></div>
+                    <div><label class="k-label" for="rLiv">Hit points now</label><input class="k-input" id="rLiv" type="number" inputmode="numeric" value="${p.hp}" /></div>
+                    <div><label class="k-label" for="rMax">Max hit points</label><input class="k-input" id="rMax" type="number" inputmode="numeric" min="1" value="${p.maxHp}" /></div>
                 </div>
-                <label class="k-label" for="rUdstyr">Udstyr og våben</label>
-                <textarea class="k-textarea" id="rUdstyr" maxlength="2000" rows="3" placeholder="fx langsværd, skjold, 20 guld, reb">${esc(p.gear)}</textarea>
-                <label class="k-label" for="rNoter">Noter (alle kan se dem)</label>
-                <textarea class="k-textarea" id="rNoter" maxlength="2000" rows="3" placeholder="fx udstyr, guld, hvad der skete sidst">${esc(p.notes)}</textarea>
-                <span class="k-label">Besværgelser og evner</span>
+                <label class="k-label" for="rUdstyr">Weapons and gear</label>
+                <textarea class="k-textarea" id="rUdstyr" maxlength="2000" rows="3" placeholder="e.g. longsword, shield, 20 gold, rope">${esc(p.gear)}</textarea>
+                <label class="k-label" for="rNoter">Notes (everyone can see them)</label>
+                <textarea class="k-textarea" id="rNoter" maxlength="2000" rows="3" placeholder="e.g. what happened last time, who you owe money">${esc(p.notes)}</textarea>
+                <span class="k-label">Spells and abilities</span>
                 <div id="rSpells" class="k-stack"></div>
-                <button type="button" class="k-btn k-btn-sm" id="rNySpell">Tilføj en besværgelse eller evne</button>
+                <button type="button" class="k-btn k-btn-sm" id="rNySpell">Add a spell or ability</button>
                 <details class="spell-ret">
-                    <summary>Slå en D&amp;D-besværgelse op</summary>
-                    <input class="k-input" id="rSoeg" placeholder="Skriv på engelsk, fx fireball" aria-label="Søg besværgelse" />
+                    <summary>Look up a D&amp;D spell</summary>
+                    <input class="k-input" id="rSoeg" placeholder="e.g. fireball" aria-label="Search spell" />
                     <div id="rHits" class="opslag"></div>
-                    <p class="k-help">Fra D&amp;D 5e SRD 5.1 (Wizards of the Coast, CC-BY-4.0). Teksten er på engelsk.</p>
+                    <p class="k-help">From the D&amp;D 5e SRD 5.1 (Wizards of the Coast, CC-BY-4.0).</p>
                 </details>
                 <div class="kort-knapper">
-                    <button class="k-btn k-btn-primary" type="submit">Gem kortet</button>
-                    <button class="k-btn k-btn-ghost" type="button" id="rFortryd">Luk</button>
+                    <button class="k-btn k-btn-primary" type="submit">Save card</button>
+                    <button class="k-btn k-btn-ghost" type="button" id="rFortryd">Close</button>
                 </div>
-                <p class="k-help">Alt, du skriver, gemmes som kladde på denne telefon, også hvis du lukker. De andre ser det først, når du trykker <b>Gem kortet</b>.</p>
-                ${leder ? '' : '<p class="laast">Når du trykker <b>Gem kortet</b>, bliver kortet låst. Vil du ændre noget senere, skal spillederen åbne det for dig.</p>'}
+                <p class="k-help">Everything you write is kept as a draft on this phone, even if you close it. The others only see it when you press <b>Save card</b>.</p>
+                ${leder ? '' : '<p class="laast">When you press <b>Save card</b>, the card is locked. To change something later, the game master has to unlock it for you.</p>'}
                 <p class="fejl" id="rFejl" hidden></p>
             </form>
         </article>`;
@@ -361,8 +359,8 @@
         const drawExamples = () => {
             const list = examples[$('rRace').value.trim()] || [];
             $('rEksempler').innerHTML = list.length
-                ? `<span class="k-help">Eksempler – tryk på en for at bruge den:</span><div class="eksempel-liste">${list.map((src, i) =>
-                    `<button type="button" class="eksempel" data-ex="${i}"><img src="${esc(src)}" alt="Eksempel ${i + 1}" loading="lazy" /></button>`).join('')}</div>`
+                ? `<span class="k-help">Examples – tap one to use it:</span><div class="eksempel-liste">${list.map((src, i) =>
+                    `<button type="button" class="eksempel" data-ex="${i}"><img src="${esc(src)}" alt="Example ${i + 1}" loading="lazy" /></button>`).join('')}</div>`
                 : '';
             $('rEksempler').querySelectorAll('[data-ex]').forEach(b => b.onclick = async () => {
                 picErr('');
@@ -378,8 +376,8 @@
         drawExamples();
         $('rAi').onclick = () => {
             const race = $('rRace').value.trim(), klasse = $('rKlasse').value.trim(), look = $('rUdseende').value.trim();
-            const beskriv = ['Fantasy-portræt, malet stil, hele figuren synlig:', RACE_EN[race] ? `en ${race.toLowerCase()} (${RACE_EN[race]})` : race,
-                klasse, look].filter(Boolean).join(' ');
+            const beskriv = ['Fantasy portrait, painted style, whole figure visible:', race && 'a ' + race.toLowerCase(), klasse, look]
+                .filter(Boolean).join(' ');
             window.open('https://billedbehandling.itmartin.dk/?beskriv=' + encodeURIComponent(beskriv), '_blank', 'noopener');
             $('rAiHjaelp').hidden = false;
         };
@@ -402,9 +400,9 @@
         $('rGlemKladde').onclick = () => { store.set(draftKey, ''); editId = p.id; renderCards(); };
         const drawSpells = () => {
             $('rSpells').innerHTML = spells.map((s, i) => `<div class="spell-ret">
-                <input class="k-input" data-sn="${i}" maxlength="60" value="${esc(s.name)}" placeholder="Navn, fx Ildkugle" aria-label="Navn" />
-                <textarea class="k-textarea" data-st="${i}" rows="3" maxlength="3000" placeholder="Hvad gør den?" aria-label="Hvad gør den">${esc(s.text)}</textarea>
-                <button type="button" class="k-btn k-btn-sm k-btn-ghost" data-sx="${i}">Fjern</button></div>`).join('');
+                <input class="k-input" data-sn="${i}" maxlength="60" value="${esc(s.name)}" placeholder="Name, e.g. Fireball" aria-label="Name" />
+                <textarea class="k-textarea" data-st="${i}" rows="3" maxlength="3000" placeholder="What does it do?" aria-label="What does it do">${esc(s.text)}</textarea>
+                <button type="button" class="k-btn k-btn-sm k-btn-ghost" data-sx="${i}">Remove</button></div>`).join('');
             $('rSpells').querySelectorAll('[data-sn]').forEach(el => el.oninput = () => spells[+el.dataset.sn].name = el.value);
             $('rSpells').querySelectorAll('[data-st]').forEach(el => el.oninput = () => spells[+el.dataset.st].text = el.value);
             $('rSpells').querySelectorAll('[data-sx]').forEach(el => el.onclick = () => { spells.splice(+el.dataset.sx, 1); drawSpells(); saveDraft(); });
@@ -420,7 +418,7 @@
                 try {
                     const hits = await api('GET', '/api/besvaergelser?q=' + encodeURIComponent(q));
                     $('rHits').innerHTML = hits.length ? hits.map(h => `<button type="button" class="k-btn k-btn-sm" data-idx="${esc(h.index)}">${esc(h.name)}</button>`).join('')
-                        : '<p class="k-help">Ingen fundet. Skriv selv besværgelsen ovenfor.</p>';
+                        : '<p class="k-help">None found. Write the spell yourself above.</p>';
                     $('rHits').querySelectorAll('[data-idx]').forEach(b => b.onclick = async () => {
                         try {
                             const s = await api('GET', '/api/besvaergelser/' + b.dataset.idx);
@@ -458,8 +456,8 @@
     function renderTil() {
         const was = [...document.querySelectorAll('#til input:checked')].map(i => i.value);
         const opts = leder
-            ? [['', 'Alle'], ...players.map(p => [p.id, p.character || p.name])]
-            : [['', 'Alle'], ['leder', 'Kun spillederen']];
+            ? [['', 'Everyone'], ...players.map(p => [p.id, p.character || p.name])]
+            : [['', 'Everyone'], ['leder', 'Only the game master']];
         const type = leder ? 'checkbox' : 'radio';
         $('til').innerHTML = opts.map(([v, l]) =>
             `<label><input type="${type}" name="til" value="${esc(v)}" ${was.includes(v) || (!was.length && v === '') ? 'checked' : ''} /> ${esc(l)}</label>`).join('');
@@ -497,32 +495,32 @@
     document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => roll(b.dataset.t));
     $('slaaEgen').onclick = () => roll($('terningTekst').value);
 
-    const nameOf = id => id === 'leder' ? (spil?.leaderName || 'spillederen') : (players.find(p => p.id === id)?.character || players.find(p => p.id === id)?.name || 'en spiller');
-    const timeFmt = new Intl.DateTimeFormat('da-DK', { hour: '2-digit', minute: '2-digit' });
+    const nameOf = id => id === 'leder' ? (spil?.leaderName || 'the game master') : (players.find(p => p.id === id)?.character || players.find(p => p.id === id)?.name || 'a player');
+    const timeFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
 
     function renderNotes() {
         $('ingenBeskeder').hidden = notes.length > 0;
         // Newest first, right under the write box.
         $('beskeder').innerHTML = [...notes].reverse().map(n => {
             const secret = n.to.length > 0;
-            const to = secret ? (n.to.length === 1 && n.to[0] === n.from ? 'kun til dig selv' : 'kun til ' + n.to.map(id => id === me ? 'dig' : nameOf(id)).join(', ')) : 'til alle';
+            const to = secret ? (n.to.length === 1 && n.to[0] === n.from ? 'only to yourself' : 'only to ' + n.to.map(id => id === me ? 'you' : nameOf(id)).join(', ')) : 'to everyone';
             const dice = n.kind === 'terning';
             return `<article class="besked${secret ? ' hemmelig-b' : ''}${dice ? ' terning-b' : ''}">
-                <div class="meta">${secret ? '<span class="maerke">Hemmelig</span>' : ''}<span>${esc(n.from === me ? 'Dig' : n.fromName)} ${esc(to)}</span><span>${timeFmt.format(new Date(n.at))}</span></div>
-                <p class="tekst">${dice ? 'Terning: ' + esc(n.fromName) + ' ' : ''}${esc(n.text)}</p></article>`;
+                <div class="meta">${secret ? '<span class="maerke">Secret</span>' : ''}<span>${esc(n.from === me ? 'You' : n.fromName)} ${esc(to)}</span><span>${timeFmt.format(new Date(n.at))}</span></div>
+                <p class="tekst">${dice ? 'Dice: ' + esc(n.fromName) + ' ' : ''}${esc(n.text)}</p></article>`;
         }).join('');
     }
 
     // ---------- the game (leader) ----------
 
     $('gemSpil').onclick = async () => {
-        try { await api('PUT', '/api/spil', { titel: $('retTitel').value, navn: $('retLederNavn').value }); $('gemSpil').textContent = 'Gemt'; await reload(); }
+        try { await api('PUT', '/api/spil', { titel: $('retTitel').value, navn: $('retLederNavn').value }); $('gemSpil').textContent = 'Saved'; await reload(); }
         catch (err) { $('gemSpil').textContent = err.message; }
-        setTimeout(() => { $('gemSpil').textContent = 'Gem'; }, 1500);
+        setTimeout(() => { $('gemSpil').textContent = 'Save'; }, 1500);
     };
     $('delKode').onclick = async () => {
-        const text = `Vær med i ${spil.title}: åbn https://spilleder.itmartin.dk/spiller og skriv spilkoden ${spil.joinCode}`;
-        try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); $('delKode').textContent = 'Kopieret'; } } catch { }
+        const text = `Join ${spil.title}: open https://spilleder.itmartin.dk/player and enter the game code ${spil.joinCode}`;
+        try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); $('delKode').textContent = 'Copied'; } } catch { }
     };
     $('forlad').onclick = async () => {
         try { await fetch('/api/forlad', { method: 'POST', credentials: 'same-origin' }); } catch { }
@@ -550,7 +548,7 @@
         if (store.get('spil_push_fra') && !ask) { bar.hidden = true; return; }
         if (!pushPossible) {
             if (isIos && !standalone) {
-                bar.innerHTML = '<b>Få hemmelige beskeder på din iPhone:</b> sæt Spilleder på hjemmeskærmen først. <button type="button" class="link" id="visHjem">Sådan gør du</button>';
+                bar.innerHTML = '<b>Get secret messages on your iPhone:</b> put Game Master on the home screen first. <button type="button" class="link" id="visHjem">How to do it</button>';
                 bar.hidden = false;
                 $('visHjem').onclick = () => show('mig');
             } else bar.hidden = true;
@@ -559,10 +557,10 @@
         if (Notification.permission === 'default' && ask) await Notification.requestPermission().catch(() => { });
         if (Notification.permission === 'granted') {
             try { await subscribe(); store.set('spil_push_fra', ''); bar.hidden = true; }
-            catch { bar.textContent = 'Beskeder på telefonen kunne ikke slås til lige nu. Prøv igen senere under ⋯.'; bar.hidden = false; }
+            catch { bar.textContent = 'Notifications could not be turned on right now. Try again later under ⋯.'; bar.hidden = false; }
         } else if (Notification.permission === 'denied') bar.hidden = true;
         else {
-            bar.innerHTML = '<b>Få besked, når ' + (leder ? 'en spiller' : 'spillederen') + ' skriver til dig.</b> <button type="button" class="k-btn k-btn-sm k-btn-primary" id="barTil">Slå beskeder til</button>';
+            bar.innerHTML = '<b>Get notified when ' + (leder ? 'a player' : 'the game master') + ' writes to you.</b> <button type="button" class="k-btn k-btn-sm k-btn-primary" id="barTil">Turn on notifications</button>';
             bar.hidden = false;
             $('barTil').onclick = () => setupPush(true);
         }
@@ -573,13 +571,13 @@
         const s = $('pushStatus');
         const on = pushPossible && Notification.permission === 'granted' && endpoint && !store.get('spil_push_fra');
         $('pushTil').hidden = !!on; $('pushFra').hidden = !on;
-        if (on) s.textContent = 'Slået til. Telefonen giver besked, når der kommer en besked til dig.';
-        else if (!pushPossible && isIos && !standalone) s.textContent = 'På iPhone skal Spilleder ligge på hjemmeskærmen, før den kan give besked. Se nedenfor.';
-        else if (!pushPossible) s.textContent = 'Denne browser kan ikke give besked. Brug Chrome, Edge eller Safari.';
+        if (on) s.textContent = 'On. Your phone notifies you when a message for you arrives.';
+        else if (!pushPossible && isIos && !standalone) s.textContent = 'On iPhone, Game Master must be on the home screen before it can notify you. See below.';
+        else if (!pushPossible) s.textContent = 'This browser cannot show notifications. Use Chrome, Edge or Safari.';
         else if (Notification.permission === 'denied') s.textContent = isIos
-            ? 'Du har sagt nej. Åbn Indstillinger → Notifikationer → Spilleder (Settings → Notifications) og slå Tillad til.'
-            : 'Du har sagt nej. Tryk på låsen ved adressen øverst → Notifikationer → Tillad (Notifications → Allow).';
-        else s.textContent = 'Slået fra. Tryk Slå beskeder til, og sig Tillad.';
+            ? 'You said no. Open Settings → Notifications → Game Master and turn on Allow Notifications.'
+            : 'You said no. Tap the lock next to the address at the top → Notifications → Allow.';
+        else s.textContent = 'Off. Press Turn on notifications and choose Allow.';
     }
     $('pushTil').onclick = async () => { store.set('spil_push_fra', ''); await setupPush(true); pushStatus(); };
     $('pushFra').onclick = async () => {
@@ -602,7 +600,7 @@
 
     function syncTheme() {
         const cur = document.documentElement.getAttribute('data-theme') || 'light';
-        $('themeToggleBtn').textContent = cur === 'light' ? 'Mørk' : 'Lys';
+        $('themeToggleBtn').textContent = cur === 'light' ? 'Dark' : 'Light';
         document.querySelector('meta[name=theme-color]')?.setAttribute('content', cur === 'light' ? '#f4f6f5' : '#0b1220');
     }
     $('themeToggleBtn').onclick = () => {

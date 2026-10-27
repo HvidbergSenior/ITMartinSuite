@@ -70,8 +70,8 @@ public static class GameRules
     public static Game NewGame(string? title, string? leaderName, DateTime nowUtc, string leaderToken) => new()
     {
         Id = Guid.NewGuid().ToString("N")[..12],
-        Title = Cut(title, MaxTitle) is { Length: > 0 } t ? t : "Vores eventyr",
-        LeaderName = Cut(leaderName, MaxName) is { Length: > 0 } n ? n : "Spilleder",
+        Title = Cut(title, MaxTitle) is { Length: > 0 } t ? t : "Our adventure",
+        LeaderName = Cut(leaderName, MaxName) is { Length: > 0 } n ? n : "Game master",
         JoinCode = NewCode(6),
         LeaderCode = NewCode(8),
         LeaderTokenHashes = [Hash(leaderToken)],

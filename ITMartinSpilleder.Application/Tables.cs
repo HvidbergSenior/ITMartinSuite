@@ -143,7 +143,7 @@ public sealed class Tables
         }
         _wrong.TryRemove(clientIp, out _);
         PlayersChanged(g);
-        _push.Send(g.Id, v => v == Viewer.Leader, "Ny spiller", p.Name + " er med");
+        _push.Send(g.Id, v => v == Viewer.Leader, "New player", p.Name + " has joined");
         return (new Joined(g.Id, p.Id, token), JoinError.None);
     }
 
@@ -186,7 +186,7 @@ public sealed class Tables
     {
         if (viewer != Viewer.Leader) return null;
         var p = ChangePlayer(gameId, viewer, playerId, x => x with { Locked = locked });
-        if (p is not null && !locked) _push.Send(gameId, v => v == playerId, "Du må rette dit kort", "Spillederen har åbnet dit kort.");
+        if (p is not null && !locked) _push.Send(gameId, v => v == playerId, "You may edit your card", "The game master has unlocked your card.");
         return p;
     }
 
@@ -278,7 +278,7 @@ public sealed class Tables
         if (r is null) return null;
         var (rolls, bonus, total) = r.Value;
         var why = GameRules.Cut(reason, 60);
-        var text = $"slog {GameRules.Cut(dice, 12).ToLowerInvariant()}{(why.Length > 0 ? " (" + why + ")" : "")}: " +
+        var text = $"rolled {GameRules.Cut(dice, 12).ToLowerInvariant()}{(why.Length > 0 ? " (" + why + ")" : "")}: " +
                    (rolls.Length > 1 || bonus != 0 ? string.Join(" + ", rolls) + (bonus != 0 ? (bonus > 0 ? " + " : " − ") + Math.Abs(bonus) : "") + " = " : "") +
                    total;
         return AddNote(gameId, viewer, secret ? [Viewer.Leader] : [], text, "terning");
@@ -299,7 +299,7 @@ public sealed class Tables
         var note = n;
         _live.Send(gameId, "besked", note, v => GameRules.CanSee(note, v));
         _push.Send(gameId, v => v != viewer && GameRules.CanSee(note, v),
-            note.To.Count > 0 && viewer == Viewer.Leader ? "Hemmelig besked" : note.FromName, (kind == "terning" ? note.FromName + " " : "") + note.Text);
+            note.To.Count > 0 && viewer == Viewer.Leader ? "Secret message" : note.FromName, (kind == "terning" ? note.FromName + " " : "") + note.Text);
         return note;
     }
 

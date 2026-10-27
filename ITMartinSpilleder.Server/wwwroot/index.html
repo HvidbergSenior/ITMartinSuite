@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="da" data-family="kommunikere">
+<html lang="en" data-family="kommunikere">
 <head>
     <script>
-        // Lys/Mørk: what the visitor chose, else what the phone is set to - set before the first paint (same as ElPriser).
+        // Light/Dark: what the visitor chose, else what the phone is set to - set before the first paint (same as ElPriser).
         (function () {
             var t = null; try { t = localStorage.getItem('spilleder_theme'); } catch (e) { }
             document.documentElement.setAttribute('data-theme', t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
@@ -10,20 +10,20 @@
     </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Spilleder – hjælp ved bordet: spillerne, liv, hemmelige beskeder og terninger." />
+    <meta name="description" content="Game Master – help at the table: the players, hit points, secret messages and dice." />
     <meta name="theme-color" content="#f4f6f5" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Spilleder" />
-    <title>Spilleder</title>
-    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=2" />
-    <link rel="stylesheet" href="app.css?v=2" />
+    <meta name="apple-mobile-web-app-title" content="Game Master" />
+    <title>Game Master</title>
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=3" />
+    <link rel="stylesheet" href="app.css?v=3" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=2" defer></script>
-    <script src="app.js?v=2" defer></script>
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=3" defer></script>
+    <script src="app.js?v=3" defer></script>
 </head>
 <body>
-<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div class="k-brand"><b>Spilleder</b><span>Kolibri Kommunikere</span></div></a><div class="k-header-actions"><button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button></div></div></header>
+<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div class="k-brand"><b>Game Master</b><span>Kolibri Kommunikere</span></div></a><div class="k-header-actions"><button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Switch light/dark">Light/dark</button></div></div></header>
 <div class="spil">
 
     <!-- Start: join with the game code, or start a new game (game master). -->
@@ -31,47 +31,47 @@
         <p class="indgang" id="indgang" hidden></p>
 
         <details class="k-card formaal">
-            <summary class="k-card-title">Formål</summary>
-            <p>Spilleder hjælper jer ved bordet, når I spiller rollespil – fx Dungeons &amp; Dragons, Varulv eller et mordmysterium.</p>
-            <p>Alle kan se spillerne: navn, figur, race, klasse, liv og besværgelser, så ingen glemmer noget. Når en spiller mister liv, ser alle det med det samme.</p>
-            <p>Spillederen kan sende en hemmelig besked til én spiller – fx <i>"Du ser noget glimte til højre"</i>. Kun den spiller ser den.</p>
+            <summary class="k-card-title">Purpose</summary>
+            <p>Game Master helps you at the table when you play role-playing games – like Dungeons &amp; Dragons, Werewolf or a murder mystery.</p>
+            <p>Everyone can see the players: name, character, race, class, hit points and spells, so nobody forgets anything. When a player loses hit points, everyone sees it at once.</p>
+            <p>The game master can send a secret message to one player – like <i>"You see something glinting to your right"</i>. Only that player sees it.</p>
         </details>
 
         <form id="deltagForm" class="k-card k-stack">
-            <h2 class="k-card-title" id="deltagTitel">Vær med i et spil</h2>
+            <h2 class="k-card-title" id="deltagTitel">Join a game</h2>
             <div>
-                <label class="k-label" for="deltagKode" id="deltagKodeLabel">Spilkode</label>
+                <label class="k-label" for="deltagKode" id="deltagKodeLabel">Game code</label>
                 <input class="k-input kode" id="deltagKode" autocomplete="off" autocapitalize="characters" maxlength="10" required />
-                <p class="k-help" id="deltagKodeHjaelp">Du får koden af spillederen.</p>
+                <p class="k-help" id="deltagKodeHjaelp">You get the code from the game master.</p>
             </div>
             <div id="deltagNavnFelt">
-                <label class="k-label" for="deltagNavn">Dit navn</label>
+                <label class="k-label" for="deltagNavn">Your name</label>
                 <input class="k-input" id="deltagNavn" maxlength="30" autocomplete="given-name" />
-                <p class="k-help">Dit rigtige navn. Din figur skriver du bagefter.</p>
+                <p class="k-help">Your real name. You create your character next.</p>
             </div>
-            <button class="k-btn k-btn-primary k-btn-block" type="submit">Vær med</button>
+            <button class="k-btn k-btn-primary k-btn-block" type="submit">Join</button>
             <p class="fejl" id="deltagFejl" hidden></p>
         </form>
 
         <details class="k-card" id="nytBoks">
-            <summary class="k-card-title">Start et nyt spil (spilleder)</summary>
+            <summary class="k-card-title">Start a new game (game master)</summary>
             <form id="nytForm" class="k-stack">
                 <div>
-                    <label class="k-label" for="nytKode">Kode til at starte spil</label>
+                    <label class="k-label" for="nytKode">Code to start games</label>
                     <input class="k-input" id="nytKode" autocomplete="off" required />
-                    <p class="k-help">Du har fået den af ITMartin.</p>
+                    <p class="k-help">You got it from ITMartin.</p>
                 </div>
                 <div>
-                    <label class="k-label" for="nytTitel">Spillets navn</label>
-                    <input class="k-input" id="nytTitel" maxlength="60" placeholder="fx Dragens hule" />
+                    <label class="k-label" for="nytTitel">Name of the game</label>
+                    <input class="k-input" id="nytTitel" maxlength="60" placeholder="e.g. The Dragon's Lair" />
                 </div>
                 <div>
-                    <label class="k-label" for="nytNavn">Dit navn</label>
+                    <label class="k-label" for="nytNavn">Your name</label>
                     <input class="k-input" id="nytNavn" maxlength="30" required />
                 </div>
-                <button class="k-btn k-btn-primary k-btn-block" type="submit">Start spillet</button>
+                <button class="k-btn k-btn-primary k-btn-block" type="submit">Start the game</button>
                 <p class="fejl" id="nytFejl" hidden></p>
-                <p class="k-help">Har du allerede startet et spil på en anden telefon? Skriv din <b>lederkode</b> under "Vær med i et spil".</p>
+                <p class="k-help">Already started a game on another phone? Enter your <b>master code</b> under "Join a game".</p>
             </form>
         </details>
     </section>
@@ -82,9 +82,9 @@
                 <b id="titel"></b><span id="hvem"></span>
             </div>
             <nav class="tabs" role="tablist">
-                <button role="tab" id="tabSpillere" aria-selected="true">Spillere</button>
-                <button role="tab" id="tabBeskeder" aria-selected="false">Beskeder <span class="badge" id="nyeBadge" hidden></span></button>
-                <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
+                <button role="tab" id="tabSpillere" aria-selected="true">Players</button>
+                <button role="tab" id="tabBeskeder" aria-selected="false">Messages <span class="badge" id="nyeBadge" hidden></span></button>
+                <button role="tab" id="tabMig" aria-selected="false" aria-label="Settings and help">⋯</button>
             </nav>
         </header>
 
@@ -92,49 +92,49 @@
 
         <main id="viewSpillere" class="view">
             <details class="k-card side-info">
-                <summary class="k-card-title">Om denne side</summary>
-                <p>Her er alle spillerne ved bordet. Alle kan se alle kort.</p>
-                <p>Tryk <b>−</b> og <b>+</b> for at ændre liv – de andre ser det med det samme. Tryk <b>Ret kort</b> for at skrive figur, race, klasse, noter og besværgelser.</p>
+                <summary class="k-card-title">About this page</summary>
+                <p>Here are all the players at the table. Everyone can see every card.</p>
+                <p>Press <b>−</b> and <b>+</b> to change hit points – the others see it at once. Press <b>Edit card</b> to write character, race, class, gear, notes and spells.</p>
             </details>
 
             <details id="koderBoks" class="k-card" open hidden>
-                <summary class="k-card-title">Spilkode til spillerne</summary>
+                <summary class="k-card-title">Game code for the players</summary>
                 <p class="stor-kode" id="spilKode"></p>
-                <p>Spillerne åbner <b>spilleder.itmartin.dk/spiller</b> og skriver koden og deres navn.</p>
-                <button class="k-btn" type="button" id="delKode">Del koden</button>
+                <p>The players open <b>spilleder.itmartin.dk/player</b> and enter the code and their name.</p>
+                <button class="k-btn" type="button" id="delKode">Share the code</button>
                 <details class="leder-kode">
-                    <summary>Din lederkode (hemmelig)</summary>
-                    <p><b id="lederKode"></b> – brug den, hvis du vil være spilleder på en anden telefon eller computer. Giv den ikke til spillerne.</p>
+                    <summary>Your master code (secret)</summary>
+                    <p><b id="lederKode"></b> – use it to be game master on another phone or computer. Don't give it to the players.</p>
                 </details>
             </details>
 
             <div id="kort" class="kort-liste"></div>
             <div class="tom" id="ingenSpillere">
-                <strong>Ingen spillere endnu</strong>
-                Giv spilkoden til spillerne. Når de er med, kommer deres kort her.
+                <strong>No players yet</strong>
+                Give the game code to the players. When they join, their cards appear here.
             </div>
         </main>
 
         <main id="viewBeskeder" class="view" hidden>
             <details class="k-card side-info">
-                <summary class="k-card-title">Om denne side</summary>
+                <summary class="k-card-title">About this page</summary>
                 <p id="beskedInfo"></p>
             </details>
 
             <form id="skriv" class="k-card k-stack">
-                <h2 class="k-card-title" id="skrivTitel">Send en besked</h2>
+                <h2 class="k-card-title" id="skrivTitel">Send a message</h2>
                 <div>
-                    <span class="k-label">Til</span>
+                    <span class="k-label">To</span>
                     <div id="til" class="til"></div>
                 </div>
                 <div id="hurtige" class="hurtige" hidden></div>
-                <textarea id="tekst" class="k-textarea" rows="2" maxlength="2000" placeholder="Skriv en besked…" aria-label="Besked"></textarea>
+                <textarea id="tekst" class="k-textarea" rows="2" maxlength="2000" placeholder="Write a message…" aria-label="Message"></textarea>
                 <button class="k-btn k-btn-primary" type="submit">Send</button>
                 <p class="fejl" id="skrivFejl" hidden></p>
             </form>
 
             <details class="k-card" id="terningBoks">
-                <summary class="k-card-title">Slå med terning</summary>
+                <summary class="k-card-title">Roll the dice</summary>
                 <div class="terninger">
                     <button type="button" class="k-btn" data-t="d4">d4</button>
                     <button type="button" class="k-btn" data-t="d6">d6</button>
@@ -145,77 +145,77 @@
                     <button type="button" class="k-btn" data-t="d100">d100</button>
                 </div>
                 <div class="k-row terning-egen">
-                    <input class="k-input" id="terningTekst" maxlength="12" placeholder="fx 2d6+1" aria-label="Egen terning" />
-                    <button type="button" class="k-btn" id="slaaEgen">Slå</button>
+                    <input class="k-input" id="terningTekst" maxlength="12" placeholder="e.g. 2d6+1" aria-label="Your own dice" />
+                    <button type="button" class="k-btn" id="slaaEgen">Roll</button>
                 </div>
-                <input class="k-input" id="terningHvorfor" maxlength="60" placeholder="Hvad slår du for? (kan undværes) fx angreb" aria-label="Hvad slår du for" />
-                <label class="hemmelig"><input type="checkbox" id="terningHemmelig" /> <span id="hemmeligTekst">Hemmeligt – kun spillederen ser slaget</span></label>
+                <input class="k-input" id="terningHvorfor" maxlength="60" placeholder="What is the roll for? (optional) e.g. attack" aria-label="What is the roll for" />
+                <label class="hemmelig"><input type="checkbox" id="terningHemmelig" /> <span id="hemmeligTekst">Secret – only the game master sees the roll</span></label>
                 <p class="fejl" id="terningFejl" hidden></p>
             </details>
 
             <div id="beskeder" class="beskeder" aria-live="polite"></div>
             <div class="tom" id="ingenBeskeder">
-                <strong>Ingen beskeder endnu</strong>
-                Beskeder og terningeslag kommer her – det nyeste øverst.
+                <strong>No messages yet</strong>
+                Messages and dice rolls show up here – newest first.
             </div>
         </main>
 
         <main id="viewMig" class="view" hidden>
             <details class="k-card" id="spilBoks" hidden open>
-                <summary class="k-card-title">Spillet</summary>
-                <label class="k-label" for="retTitel">Spillets navn</label>
+                <summary class="k-card-title">The game</summary>
+                <label class="k-label" for="retTitel">Name of the game</label>
                 <input class="k-input" id="retTitel" maxlength="60" />
-                <label class="k-label" for="retLederNavn">Dit navn som spilleder</label>
+                <label class="k-label" for="retLederNavn">Your name as game master</label>
                 <input class="k-input" id="retLederNavn" maxlength="30" />
-                <button class="k-btn" type="button" id="gemSpil">Gem</button>
+                <button class="k-btn" type="button" id="gemSpil">Save</button>
             </details>
             <details class="k-card" open>
-                <summary class="k-card-title">Beskeder på telefonen</summary>
+                <summary class="k-card-title">Notifications on your phone</summary>
                 <p id="pushStatus"></p>
                 <div class="k-row">
-                    <button class="k-btn k-btn-primary" id="pushTil" type="button">Slå beskeder til</button>
-                    <button class="k-btn" id="pushFra" type="button" hidden>Slå beskeder fra</button>
+                    <button class="k-btn k-btn-primary" id="pushTil" type="button">Turn on notifications</button>
+                    <button class="k-btn" id="pushFra" type="button" hidden>Turn off notifications</button>
                 </div>
             </details>
             <details class="k-card" id="hjemBoks">
-                <summary class="k-card-title">Sæt Spilleder på hjemmeskærmen</summary>
-                <p>Så åbner Spilleder som en app med ét tryk. <b>På iPhone skal den ligge på hjemmeskærmen</b>, før den kan give dig besked.</p>
+                <summary class="k-card-title">Put Game Master on your home screen</summary>
+                <p>Then it opens like an app with one tap. <b>On iPhone it must be on the home screen</b> before it can send you notifications.</p>
                 <details id="hjemIphone">
-                    <summary>iPhone og iPad (Safari)</summary>
+                    <summary>iPhone and iPad (Safari)</summary>
                     <ol>
-                        <li>Åbn <b>spilleder.itmartin.dk</b> i <b>Safari</b>.</li>
-                        <li>Tryk på <b>Del</b>-knappen (firkanten med pilen op).</li>
-                        <li>Tryk <b>Føj til hjemmeskærm</b> (Add to Home Screen) og så <b>Tilføj</b>.</li>
-                        <li>Åbn Spilleder fra det nye ikon, og tryk <b>Slå beskeder til</b>.</li>
+                        <li>Open <b>spilleder.itmartin.dk</b> in <b>Safari</b>.</li>
+                        <li>Tap the <b>Share</b> button (the square with the arrow up).</li>
+                        <li>Tap <b>Add to Home Screen</b> and then <b>Add</b>.</li>
+                        <li>Open Game Master from the new icon and tap <b>Turn on notifications</b>.</li>
                     </ol>
                 </details>
                 <details id="hjemAndroid">
                     <summary>Android (Chrome)</summary>
                     <ol>
-                        <li>Åbn <b>spilleder.itmartin.dk</b> i <b>Chrome</b>.</li>
-                        <li>Tryk på de <b>tre prikker</b> øverst til højre.</li>
-                        <li>Tryk <b>Føj til startskærm</b> eller <b>Installer app</b> (Add to Home screen / Install app).</li>
+                        <li>Open <b>spilleder.itmartin.dk</b> in <b>Chrome</b>.</li>
+                        <li>Tap the <b>three dots</b> at the top right.</li>
+                        <li>Tap <b>Add to Home screen</b> or <b>Install app</b>.</li>
                     </ol>
                 </details>
                 <details id="hjemPc">
-                    <summary>Computer (Chrome eller Edge)</summary>
+                    <summary>Computer (Chrome or Edge)</summary>
                     <ol>
-                        <li>Åbn <b>spilleder.itmartin.dk</b>.</li>
-                        <li>Klik på installer-ikonet i adresselinjen, eller menuen <b>⋯</b> → <b>Apps</b> → <b>Installer Spilleder</b> (Install).</li>
+                        <li>Open <b>spilleder.itmartin.dk</b>.</li>
+                        <li>Click the install icon in the address bar, or the menu <b>⋯</b> → <b>Apps</b> → <b>Install</b>.</li>
                     </ol>
                 </details>
             </details>
             <details class="k-card">
-                <summary class="k-card-title">Om Spilleder</summary>
-                <p>Spilleder er til rollespil og andre spil, hvor spillederen skal fortælle én spiller noget, de andre ikke må høre. Ingen reklamer, og intet bliver solgt eller delt.</p>
-                <p class="k-help">Besværgelser du slår op, kommer fra <i>System Reference Document 5.1</i> af Wizards of the Coast LLC, brugt under licensen Creative Commons Attribution 4.0 (creativecommons.org/licenses/by/4.0). Teksten er på engelsk.</p>
-                <p class="k-help">Spørgsmål eller noget der ikke virker: ITMartin@Mensa.dk · 31 19 47 30</p>
-                <button class="k-btn k-btn-ghost" id="forlad" type="button">Forlad spillet på denne telefon</button>
+                <summary class="k-card-title">About Game Master</summary>
+                <p>Game Master is for role-playing and other games where the game master has to tell one player something the others must not hear. No ads, and nothing is sold or shared.</p>
+                <p class="k-help">Spells you look up come from the <i>System Reference Document 5.1</i> by Wizards of the Coast LLC, used under the Creative Commons Attribution 4.0 licence (creativecommons.org/licenses/by/4.0).</p>
+                <p class="k-help">Questions or something not working: ITMartin@Mensa.dk · +45 31 19 47 30</p>
+                <button class="k-btn k-btn-ghost" id="forlad" type="button">Leave the game on this phone</button>
             </details>
         </main>
     </section>
 </div>
-<footer class="k-footer"><span>&copy; <span id="kYear">2026</span> ITMartin · Den digitale kolibri</span> <a href="/om">Om Spilleder</a> <a href="#k-install" class="k-footer-install">Læg på telefonen</a> <a href="/hjaelp">Noget virker ikke?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Vilkår &amp; privatliv</a></footer>
+<footer class="k-footer"><span>&copy; <span id="kYear">2026</span> ITMartin · The digital hummingbird</span> <a href="/om">About Game Master</a> <a href="#k-install" class="k-footer-install">Put on your phone</a> <a href="/hjaelp">Something not working?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Terms &amp; privacy</a></footer>
 <script>document.getElementById("kYear").textContent = new Date().getFullYear();</script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/spil-sw.js").catch(function () {});</script>
 </body>
