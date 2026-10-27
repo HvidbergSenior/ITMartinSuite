@@ -41,6 +41,8 @@ public static class SiteFacts
         new("Ingen reklamer", "/ingen-reklamer", "… at jeg af princip IKKE har reklamer i mine apps – og aldrig får det?"),
         new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE tilføjer en funktion, bare fordi jeg kan? Bliver noget for kompliceret, spørger jeg først: Hvad kan vi fjerne?"),
         new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE bruger Google, Amazon eller Microsofts store skyer? Mine apps kører på mine egne servere i Danmark."),
+        // User 2026-10-27: "... hælder mod openSource".
+        new("Om mig og kontakt", "/om-mig", "… at jeg hælder mod open source? Så bliver du ikke låst fast til ét firmas programmer – og andre kan se, hvordan det virker."),
         new("Om mig og kontakt", "/om-mig", "… at jeg af princip IKKE bygger for at blive stor? En app behøver ikke tusindvis af brugere – den skal løse et rigtigt problem for nogen."),
         // User 2026-10-27: "jeg kan finde priser på dine ting... Og modtager gerne ting som I vil af med".
         new("Skriv til mig", "/chat-med-martin", "… at jeg kan finde ud af, hvad dine ting er værd – bøger, tegneserier, film, musik og spil?"),
