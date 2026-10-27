@@ -41,6 +41,13 @@ public interface ISpellBook
 
 public sealed record SpellHit(string Index, string Name);
 
+// Is this ITMartin kundenummer a customer who may use Game Master? (Kunder over HTTP in Infrastructure.)
+public interface ICustomerCheck
+{
+    /// <returns>Ok + the customer's name, or an error for the person (English).</returns>
+    Task<(bool Ok, string Name, string Error)> CheckAsync(string customerNo, CancellationToken ct);
+}
+
 // The character pictures (one JPEG per player, files in Infrastructure).
 public interface IPictureStore
 {
@@ -51,10 +58,12 @@ public interface IPictureStore
 
 // What a player's phone gets: the card without the login hash.
 public sealed record PlayerView(string Id, string Name, string Character, string Race, string Role, int Hp, int MaxHp, string Notes,
-    List<Spell> Spells, int Picture, bool Locked, string Gear)
+    List<Spell> Spells, int Picture, bool Locked, string Gear, string? Code)
 {
-    public static PlayerView Of(Player p) =>
-        new(p.Id, p.Name, p.Character, p.Race, p.Role, p.Hp, p.MaxHp, p.Notes, p.Spells.ToList(), p.Picture, p.Locked, p.Gear);
+    /// <param name="viewer">The personal code is only shown to that player and to the game master.</param>
+    public static PlayerView Of(Player p, string? viewer = null) =>
+        new(p.Id, p.Name, p.Character, p.Race, p.Role, p.Hp, p.MaxHp, p.Notes, p.Spells.ToList(), p.Picture, p.Locked, p.Gear,
+            viewer == Viewer.Leader || viewer == p.Id ? p.Code : null);
 }
 
 public sealed record GameView(string Title, string LeaderName, string JoinCode, string? LeaderCode, string Me, bool Leader,
@@ -62,7 +71,9 @@ public sealed record GameView(string Title, string LeaderName, string JoinCode, 
 
 public sealed record Joined(string GameId, string Viewer, string Token);
 
-public enum JoinError { None, WrongCode, Locked, Full, NoName }
+public enum JoinError { None, WrongCode, Locked, Full, NoName, NotInGame, AlreadyInGame, Customer }
+
+public sealed record JoinResult(Joined? Joined, JoinError Error, string Message = "");
 
 // The tables (games). A few friends around a table, so everything is held in memory and each game is written to its own
 // file on every change. Every change goes live to the open pages - a secret message only to the ones who may see it.
@@ -72,6 +83,7 @@ public sealed class Tables
     private readonly ILiveFeed _live;
     private readonly IPushSender _push;
     private readonly IPictureStore _pictures;
+    private readonly ICustomerCheck _customers;
     private readonly TimeProvider _clock;
     private readonly string _createCode;
     private readonly object _gate = new();
@@ -81,9 +93,10 @@ public sealed class Tables
     public const int MinCreateCode = 6, MaxWrongTries = 10;
     public static readonly TimeSpan WrongTriesWindow = TimeSpan.FromMinutes(15);
 
-    public Tables(IGameStore store, ILiveFeed live, IPushSender push, IPictureStore pictures, TimeProvider clock, string createCode)
+    public Tables(IGameStore store, ILiveFeed live, IPushSender push, IPictureStore pictures, ICustomerCheck customers, TimeProvider clock,
+        string createCode)
     {
-        (_store, _live, _push, _pictures, _clock, _createCode) = (store, live, push, pictures, clock, createCode);
+        (_store, _live, _push, _pictures, _customers, _clock, _createCode) = (store, live, push, pictures, customers, clock, createCode);
         var now = Now;
         _games = new();
         foreach (var g in store.LoadAll())
@@ -115,6 +128,83 @@ public sealed class Tables
         return (new Joined(g.Id, Viewer.Leader, token), JoinError.None);
     }
 
+    // ---- customer numbers (user 2026-10-27: "customer code!", "so dungeonmaster can add players via customer number") ----
+
+    /// <summary>A customer starts a new game and is its game master. Name = the name given, else the name in Kunder.</summary>
+    public async Task<JoinResult> StartAsync(string? customerNo, string? title, string? leaderName, string clientIp, CancellationToken ct)
+    {
+        if (IsLocked(clientIp)) return new(null, JoinError.Locked);
+        var k = GameRules.CleanCustomerNo(customerNo);
+        if (k.Length == 0) { Wrong(clientIp); return new(null, JoinError.WrongCode); }
+        var (ok, name, error) = await _customers.CheckAsync(k, ct);
+        if (!ok) { Wrong(clientIp); return new(null, JoinError.Customer, error); }
+        var token = GameRules.NewToken();
+        var g = GameRules.NewGame(title, GameRules.Cut(leaderName, GameRules.MaxName) is { Length: > 0 } n ? n : name, Now, token, k);
+        lock (_gate)
+        {
+            while (_games.Values.Any(x => x.JoinCode == g.JoinCode || x.LeaderCode == g.LeaderCode))
+                (g.JoinCode, g.LeaderCode) = (GameRules.NewCode(6), GameRules.NewCode(8));
+            _games[g.Id] = g;
+            _store.Save(g);
+        }
+        _wrong.TryRemove(clientIp, out _);
+        return new(new Joined(g.Id, Viewer.Leader, token), JoinError.None);
+    }
+
+    /// <summary>
+    /// Log in with a kundenummer: the newest game this customer runs as game master, else the newest game they play in.
+    /// </summary>
+    public async Task<JoinResult> LoginCustomerAsync(string? customerNo, string clientIp, CancellationToken ct)
+    {
+        if (IsLocked(clientIp)) return new(null, JoinError.Locked);
+        var k = GameRules.CleanCustomerNo(customerNo);
+        if (k.Length == 0) { Wrong(clientIp); return new(null, JoinError.WrongCode); }
+        var (ok, _, error) = await _customers.CheckAsync(k, ct);
+        if (!ok) { Wrong(clientIp); return new(null, JoinError.Customer, error); }
+        var token = GameRules.NewToken();
+        lock (_gate)
+        {
+            _wrong.TryRemove(clientIp, out _);
+            if (_games.Values.Where(x => x.LeaderCustomerNo == k).MaxBy(x => x.LastActive) is { } led)
+            {
+                led.LeaderTokenHashes.Add(GameRules.Hash(token));
+                Touch(led);
+                return new(new Joined(led.Id, Viewer.Leader, token), JoinError.None);
+            }
+            var mine = _games.Values.SelectMany(x => x.Players.Where(p => p.CustomerNo == k).Select(p => (Game: x, Player: p)))
+                .OrderByDescending(x => x.Game.LastActive).FirstOrDefault();
+            if (mine.Player is null) return new(null, JoinError.NotInGame);
+            var i = mine.Game.Players.IndexOf(mine.Player);
+            mine.Game.Players[i] = mine.Player with { MoreTokenHashes = [.. (mine.Player.MoreTokenHashes ?? []).TakeLast(9), GameRules.Hash(token)] };
+            Touch(mine.Game);
+            return new(new Joined(mine.Game.Id, mine.Player.Id, token), JoinError.None);
+        }
+    }
+
+    /// <summary>The game master adds a customer as a player; they log in with their own kundenummer and are in the game.</summary>
+    public async Task<(PlayerView? Player, JoinError Error, string Message)> AddCustomerAsync(string gameId, string viewer, string? customerNo,
+        CancellationToken ct)
+    {
+        if (viewer != Viewer.Leader) return (null, JoinError.WrongCode, "");
+        var k = GameRules.CleanCustomerNo(customerNo);
+        if (k.Length == 0) return (null, JoinError.WrongCode, "");
+        var (ok, name, error) = await _customers.CheckAsync(k, ct);
+        if (!ok) return (null, JoinError.Customer, error);
+        Game? g;
+        Player? p;
+        lock (_gate)
+        {
+            if (!_games.TryGetValue(gameId, out g)) return (null, JoinError.WrongCode, "");
+            if (g.Players.Any(x => x.CustomerNo == k)) return (null, JoinError.AlreadyInGame, "");
+            p = GameRules.NewPlayer(g, name.Length > 0 ? name : "Player", GameRules.NewToken(), Now, k);
+            if (p is null) return (null, JoinError.Full, "");
+            g.Players.Add(p);
+            Touch(g);
+        }
+        PlayersChanged(g);
+        return (PlayerView.Of(p, viewer), JoinError.None, "");
+    }
+
     /// <summary>The game code makes a new player; the leader code lets the leader in on one more phone.</summary>
     public (Joined? Joined, JoinError Error) Join(string? code, string? name, string clientIp)
     {
@@ -132,6 +222,16 @@ public sealed class Tables
                 Touch(g);
                 _wrong.TryRemove(clientIp, out _);
                 return (new Joined(g.Id, Viewer.Leader, token), JoinError.None);
+            }
+            // A player's own code: the same card again on this phone.
+            var own = c.Length == 8 ? _games.Values.SelectMany(x => x.Players.Select(p => (Game: x, Player: p))).FirstOrDefault(x => x.Player.Code == c) : default;
+            if (own.Player is not null)
+            {
+                var i = own.Game.Players.IndexOf(own.Player);
+                own.Game.Players[i] = own.Player with { MoreTokenHashes = [.. (own.Player.MoreTokenHashes ?? []).TakeLast(9), GameRules.Hash(token)] };
+                Touch(own.Game);
+                _wrong.TryRemove(clientIp, out _);
+                return (new Joined(own.Game.Id, own.Player.Id, token), JoinError.None);
             }
             g = _games.Values.FirstOrDefault(x => x.JoinCode == c && c.Length == 6);
             if (g is null) { Wrong(clientIp); return (null, JoinError.WrongCode); }
@@ -171,7 +271,7 @@ public sealed class Tables
             if (!_games.TryGetValue(gameId, out var g)) return null;
             var leader = viewer == Viewer.Leader;
             return new GameView(g.Title, g.LeaderName, g.JoinCode, leader ? g.LeaderCode : null, viewer, leader,
-                g.Players.Select(PlayerView.Of).ToList(), g.Notes.Where(n => GameRules.CanSee(n, viewer)).TakeLast(300).ToList());
+                g.Players.Select(p => PlayerView.Of(p, viewer)).ToList(), g.Notes.Where(n => GameRules.CanSee(n, viewer)).TakeLast(300).ToList());
         }
     }
 
@@ -257,13 +357,13 @@ public sealed class Tables
             Touch(g);
         }
         PlayersChanged(g);
-        lock (_gate) return g.Players.Where(p => p.Id == playerId).Select(PlayerView.Of).FirstOrDefault();
+        lock (_gate) return g.Players.Where(p => p.Id == playerId).Select(p => PlayerView.Of(p)).FirstOrDefault();
     }
 
     private void PlayersChanged(Game g)
     {
         List<PlayerView> list;
-        lock (_gate) list = g.Players.Select(PlayerView.Of).ToList();
+        lock (_gate) list = g.Players.Select(p => PlayerView.Of(p)).ToList();
         _live.Send(g.Id, "spillere", list);
     }
 
@@ -317,7 +417,8 @@ public static class DependencyInjection
     {
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(sp => new Tables(sp.GetRequiredService<IGameStore>(), sp.GetRequiredService<ILiveFeed>(),
-            sp.GetRequiredService<IPushSender>(), sp.GetRequiredService<IPictureStore>(), sp.GetRequiredService<TimeProvider>(), createCode));
+            sp.GetRequiredService<IPushSender>(), sp.GetRequiredService<IPictureStore>(), sp.GetRequiredService<ICustomerCheck>(),
+            sp.GetRequiredService<TimeProvider>(), createCode));
         return services;
     }
 }

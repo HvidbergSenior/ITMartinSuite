@@ -30,6 +30,18 @@ public class TableTests
         public void Send(string gameId, Func<string, bool> to, string title, string body) => Sent.Add((to, title, body));
     }
 
+    // Two known customers; everything else is unknown.
+    private sealed class FakeCustomers : ICustomerCheck
+    {
+        public Task<(bool Ok, string Name, string Error)> CheckAsync(string customerNo, CancellationToken ct) =>
+            Task.FromResult(customerNo switch
+            {
+                "11112222" => (true, "Julius", ""),
+                "33334444" => (true, "Anna", ""),
+                _ => (false, "", "We don't know that customer number."),
+            });
+    }
+
     [SetUp]
     public void SetUp()
     {
@@ -45,7 +57,7 @@ public class TableTests
     }
 
     private Tables NewTables() => new(new JsonGameStore(Path.Combine(_dir, "spil")), _live, _push,
-        new FilePictureStore(Path.Combine(_dir, "billeder")), TimeProvider.System, "opret123");
+        new FilePictureStore(Path.Combine(_dir, "billeder")), new FakeCustomers(), TimeProvider.System, "opret123");
 
     private static (Tables T, string Game, string A, string B) Table(Tables t)
     {
@@ -117,6 +129,54 @@ public class TableTests
         t.EditCard(g, a, a, "Anna", "Pip", "Halvling", "Tyv", 6, 8, "", "langsværd", [])!.Gear.Should().Be("langsværd");
         t.View(g, a)!.Players.Single(p => p.Id == a).Locked.Should().BeTrue("locked again after the change");
         t.EditCard(g, Viewer.Leader, a, "Anna", "Pip", "Halvling", "Tyv", 6, 8, "forbandet", "langsværd", []).Should().NotBeNull("the leader may always edit");
+    }
+
+    [Test]
+    public void A_players_own_code_gives_the_same_card_on_another_phone()
+    {
+        var (t, g, a, b) = Table(NewTables());
+        var code = t.View(g, a)!.Players.Single(p => p.Id == a).Code!;
+        code.Should().HaveLength(8);
+        t.View(g, b)!.Players.Single(p => p.Id == a).Code.Should().BeNull("only the player and the game master see it");
+        t.View(g, Viewer.Leader)!.Players.Single(p => p.Id == a).Code.Should().Be(code);
+
+        var again = t.Join(code, "", "7").Joined!;
+        again.Viewer.Should().Be(a);
+        t.WhoIs(g, again.Token).Should().Be(a);
+        t.View(g, Viewer.Leader)!.Players.Should().HaveCount(2, "no new player was made");
+    }
+
+    [Test]
+    public async Task Game_master_starts_with_customer_number_and_adds_a_customer_player()
+    {
+        var t = NewTables();
+        var start = await t.StartAsync("1111 2222", "Dragon", null, "1", default);
+        var g = start.Joined!.GameId;
+        t.View(g, Viewer.Leader)!.LeaderName.Should().Be("Julius", "the name comes from Kunder");
+
+        (await t.AddCustomerAsync(g, Viewer.Leader, "99998888", default)).Error.Should().Be(JoinError.Customer);
+        var (anna, _, _) = await t.AddCustomerAsync(g, Viewer.Leader, "33334444", default);
+        anna!.Name.Should().Be("Anna");
+        (await t.AddCustomerAsync(g, Viewer.Leader, "33334444", default)).Error.Should().Be(JoinError.AlreadyInGame);
+
+        var login = await t.LoginCustomerAsync("33334444", "2", default);
+        login.Joined!.Viewer.Should().Be(anna.Id);
+        (await t.LoginCustomerAsync("11112222", "3", default)).Joined!.Viewer.Should().Be(Viewer.Leader);
+        (await t.LoginCustomerAsync("99998888", "4", default)).Error.Should().Be(JoinError.Customer);
+    }
+
+    [Test]
+    public async Task A_customer_in_no_game_is_told_so()
+    {
+        (await NewTables().LoginCustomerAsync("33334444", "1", default)).Error.Should().Be(JoinError.NotInGame);
+    }
+
+    [Test]
+    public void Customer_number_must_be_8_digits()
+    {
+        GameRules.CleanCustomerNo("4821 7730").Should().Be("48217730");
+        GameRules.CleanCustomerNo("ABCD1234").Should().BeEmpty();
+        GameRules.CleanCustomerNo("1234567").Should().BeEmpty();
     }
 
     [Test]

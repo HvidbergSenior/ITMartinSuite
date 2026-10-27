@@ -4,7 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using ITMartinSpilleder.Application;
+using ITMartinKunder.Client;
 using ITMartinSpilleder.Domain;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using WebPush;
@@ -14,8 +16,11 @@ namespace ITMartinSpilleder.Infrastructure;
 public static class DependencyInjection
 {
     /// <summary>JSON files, live feed, WebPush and the SRD spell lookup - files in the data folder (Spilleder:DataDir, default /data).</summary>
-    public static IServiceCollection AddSpillederInfrastructure(this IServiceCollection services, string dataDir)
+    public static IServiceCollection AddSpillederInfrastructure(this IServiceCollection services, string dataDir, IConfiguration cfg)
     {
+        // Kunder__Url + Kunder__ApiKey like every app; customers are checked as app "Game Master" (the free app "Spilleder" in Kunder).
+        services.AddKunderClient(cfg, dataDir);
+        services.AddSingleton<ICustomerCheck, KunderCustomerCheck>();
         services.AddSingleton<IGameStore>(new JsonGameStore(Path.Combine(dataDir, "spil")));
         services.AddSingleton<IPictureStore>(new FilePictureStore(Path.Combine(dataDir, "billeder")));
         services.AddSingleton<ILiveFeed, SseLiveFeed>();
@@ -26,6 +31,26 @@ public static class DependencyInjection
             c.Timeout = TimeSpan.FromSeconds(10);
         });
         return services;
+    }
+}
+
+/// <summary>The kundenummer check against Kunder; Kunder's answers are Danish, the app is English, so they are put in English here.</summary>
+public sealed class KunderCustomerCheck(IServiceProvider sp) : ICustomerCheck
+{
+    // The name Martin gave the app in Kunder's free-apps list (kunder.itmartin.dk/gratis-apps).
+    public const string App = "Spilleder";
+
+    public async Task<(bool Ok, string Name, string Error)> CheckAsync(string customerNo, CancellationToken ct)
+    {
+        var r = await sp.GetRequiredService<KunderClient>().CheckCodeAsync(customerNo, App, ct);
+        if (r.Ok) return (true, r.Name, "");
+        var e = r.Error;
+        return (false, "",
+            e.Contains("kender vi ikke") ? "We don't know that customer number. Check it, or sign up for free at itmartin.dk." :
+            e.Contains("afmeldt") ? "That customer number is unsubscribed. Sign up again at itmartin.dk and it works again." :
+            e.Contains("gratis apps") ? "Game Master is not open for customers yet. Ask ITMartin." :
+            e.Contains("8 cifre") ? "A customer number has 8 digits – you find it in the mail from ITMartin." :
+            "We can't check customer numbers right now – try again in a few minutes.");
     }
 }
 

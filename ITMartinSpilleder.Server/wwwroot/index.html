@@ -40,12 +40,12 @@
         <form id="deltagForm" class="k-card k-stack">
             <h2 class="k-card-title" id="deltagTitel">Join a game</h2>
             <div>
-                <label class="k-label" for="deltagKode" id="deltagKodeLabel">Game code</label>
+                <label class="k-label" for="deltagKode" id="deltagKodeLabel">Customer number or game code</label>
                 <input class="k-input kode" id="deltagKode" autocomplete="off" autocapitalize="characters" maxlength="10" required />
-                <p class="k-help" id="deltagKodeHjaelp">You get the code from the game master.</p>
+                <p class="k-help" id="deltagKodeHjaelp">ITMartin customers: your customer number (8 digits). Guests: the game code from the game master, and your name below.</p>
             </div>
             <div id="deltagNavnFelt">
-                <label class="k-label" for="deltagNavn">Your name</label>
+                <label class="k-label" for="deltagNavn">Your name <span class="valgfri">(guests only)</span></label>
                 <input class="k-input" id="deltagNavn" maxlength="30" autocomplete="given-name" />
                 <p class="k-help">Your real name. You create your character next.</p>
             </div>
@@ -57,21 +57,21 @@
             <summary class="k-card-title">Start a new game (game master)</summary>
             <form id="nytForm" class="k-stack">
                 <div>
-                    <label class="k-label" for="nytKode">Code to start games</label>
-                    <input class="k-input" id="nytKode" autocomplete="off" required />
-                    <p class="k-help">You got it from ITMartin.</p>
+                    <label class="k-label" for="nytKode">Your customer number</label>
+                    <input class="k-input" id="nytKode" autocomplete="off" inputmode="numeric" required />
+                    <p class="k-help">The 8 digits in your mail from ITMartin. Not a customer yet? Sign up for free at <b>itmartin.dk</b>.</p>
                 </div>
                 <div>
                     <label class="k-label" for="nytTitel">Name of the game</label>
                     <input class="k-input" id="nytTitel" maxlength="60" placeholder="e.g. The Dragon's Lair" />
                 </div>
                 <div>
-                    <label class="k-label" for="nytNavn">Your name</label>
-                    <input class="k-input" id="nytNavn" maxlength="30" required />
+                    <label class="k-label" for="nytNavn">Your name as game master <span class="valgfri">(optional)</span></label>
+                    <input class="k-input" id="nytNavn" maxlength="30" />
                 </div>
                 <button class="k-btn k-btn-primary k-btn-block" type="submit">Start the game</button>
                 <p class="fejl" id="nytFejl" hidden></p>
-                <p class="k-help">Already started a game on another phone? Enter your <b>master code</b> under "Join a game".</p>
+                <p class="k-help">Already started a game? Enter your <b>customer number</b> under "Join a game" – you get your newest game back.</p>
             </form>
         </details>
     </section>
@@ -106,6 +106,17 @@
                     <summary>Your master code (secret)</summary>
                     <p><b id="lederKode"></b> – use it to be game master on another phone or computer. Don't give it to the players.</p>
                 </details>
+            </details>
+
+            <details id="tilfoejBoks" class="k-card" hidden>
+                <summary class="k-card-title">Add a player by customer number</summary>
+                <p>Players who are ITMartin customers can be added with their customer number. They just log in with it – no game code needed.</p>
+                <div class="k-row">
+                    <input class="k-input" id="tilfoejNr" inputmode="numeric" maxlength="12" placeholder="e.g. 4821 7730" aria-label="Customer number" />
+                    <button class="k-btn k-btn-primary" type="button" id="tilfoejKnap">Add player</button>
+                </div>
+                <p class="fejl" id="tilfoejFejl" hidden></p>
+                <p class="k-help" id="tilfoejOk" hidden></p>
             </details>
 
             <div id="kort" class="kort-liste"></div>
@@ -168,6 +179,11 @@
                 <label class="k-label" for="retLederNavn">Your name as game master</label>
                 <input class="k-input" id="retLederNavn" maxlength="30" />
                 <button class="k-btn" type="button" id="gemSpil">Save</button>
+            </details>
+            <details class="k-card" id="egenKodeBoks" hidden open>
+                <summary class="k-card-title">Your personal code</summary>
+                <p class="stor-kode" id="egenKode"></p>
+                <p>Enter this code under "Join a game" on another phone or computer, and you get your own card back. Keep it to yourself.</p>
             </details>
             <details class="k-card" open>
                 <summary class="k-card-title">Notifications on your phone</summary>

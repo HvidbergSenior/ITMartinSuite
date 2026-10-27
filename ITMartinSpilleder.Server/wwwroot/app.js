@@ -61,8 +61,8 @@
             $('nytBoks').open = true;
             $('start').insertBefore($('nytBoks'), $('deltagForm'));
             $('deltagTitel').textContent = 'Already started a game?';
-            $('deltagKodeLabel').textContent = 'Your master code';
-            $('deltagKodeHjaelp').textContent = 'The master code (8 characters) is under "Game code for the players" on the phone where you started the game.';
+            $('deltagKodeLabel').textContent = 'Your customer number';
+            $('deltagKodeHjaelp').textContent = 'You get your newest game back. (The master code from the game also works.)';
             $('deltagNavnFelt').hidden = true;
             $('deltagForm').querySelector('button[type=submit]').textContent = 'Continue as game master';
         } else if (entrance === '/player' || entrance === '/spiller') {
@@ -128,6 +128,7 @@
         document.title = s.title + ' · Game Master';
         $('hvem').textContent = leder ? s.leaderName + ' · game master' : (players.find(p => p.id === me)?.name || '') + ' · player';
         $('koderBoks').hidden = !leder;
+        $('tilfoejBoks').hidden = !leder;
         $('spilKode').textContent = s.joinCode;
         $('lederKode').textContent = s.leaderCode || '';
         $('spilBoks').hidden = !leder;
@@ -151,7 +152,7 @@
         }
         if (which !== 'mig') store.set('spil_tab', which);
         if (which === 'beskeder') { unread = 0; badge(); }
-        if (which === 'mig') { pushStatus(); openHomeGuide(); }
+        if (which === 'mig') { pushStatus(); openHomeGuide(); showOwnCode(); }
     }
     $('tabSpillere').onclick = () => show('spillere');
     $('tabBeskeder').onclick = () => show('beskeder');
@@ -221,6 +222,7 @@
                 <span class="flash-plads"></span>
             </div>
             <div class="livbar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+            ${leder && p.code ? `<p class="k-help">Personal code: <b>${esc(p.code)}</b></p>` : ''}
             ${p.gear ? `<div class="felt"><span class="felt-navn">Weapons and gear</span><p class="noter">${esc(p.gear)}</p></div>` : ''}
             ${p.notes ? `<div class="felt"><span class="felt-navn">Notes</span><p class="noter">${esc(p.notes)}</p></div>` : ''}
             ${p.spells.length ? '<span class="felt-navn">Spells and abilities</span>' : ''}
@@ -509,6 +511,24 @@
                 <div class="meta">${secret ? '<span class="maerke">Secret</span>' : ''}<span>${esc(n.from === me ? 'You' : n.fromName)} ${esc(to)}</span><span>${timeFmt.format(new Date(n.at))}</span></div>
                 <p class="tekst">${dice ? 'Dice: ' + esc(n.fromName) + ' ' : ''}${esc(n.text)}</p></article>`;
         }).join('');
+    }
+
+    // The game master adds a customer as a player by their customer number.
+    $('tilfoejKnap').onclick = async () => {
+        $('tilfoejFejl').hidden = true; $('tilfoejOk').hidden = true;
+        try {
+            const p = await api('POST', '/api/spillere/kunde', { kundenummer: $('tilfoejNr').value });
+            $('tilfoejNr').value = '';
+            $('tilfoejOk').textContent = `${p.name} is added. They log in with their customer number.`;
+            $('tilfoejOk').hidden = false;
+        } catch (err) { $('tilfoejFejl').textContent = err.message; $('tilfoejFejl').hidden = false; }
+    };
+
+    // The player's own code (under ⋯): log in with it on another phone and get the same card back.
+    function showOwnCode() {
+        const mine = players.find(p => p.id === me);
+        $('egenKodeBoks').hidden = !mine?.code;
+        $('egenKode').textContent = mine?.code || '';
     }
 
     // ---------- the game (leader) ----------

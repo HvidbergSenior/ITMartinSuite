@@ -14,7 +14,11 @@ public sealed record Spell(string Name, string Text);
 // not edit anymore... only when dungeonmaster gives permission, for instance if you change weapons"). HP stays open - it is play.
 // Gear = weapons and equipment, shown on the card with everything else ("all things on the sheet should be seen on your person").
 public sealed record Player(string Id, string Name, string Character, string Race, string Role, int Hp, int MaxHp, string Notes,
-    List<Spell> Spells, string TokenHash, DateTime JoinedAt, int Picture = 0, bool Locked = false, string Gear = "");
+    List<Spell> Spells, string TokenHash, DateTime JoinedAt, int Picture = 0, bool Locked = false, string Gear = "",
+    string Code = "", List<string>? MoreTokenHashes = null, string CustomerNo = "");
+// CustomerNo = the ITMartin kundenummer (8 digits, Kunder) when the player is a customer: they log in with it on any phone
+// and the game master can add them with it (user 2026-10-27). Guests join with the game code and have CustomerNo "". 
+// Code = the player's own 8-character code: logging in with it gives the same card back on another phone (and test logins).
 
 // A message at the table. To = the player ids it is for; empty = everyone. From = "leder" or a player id.
 // Kind: "besked" or "terning" (a dice roll made by the server, so nobody can cheat).
@@ -29,6 +33,8 @@ public sealed class Game
     public string LeaderName { get; set; } = "";
     public string JoinCode { get; set; } = "";
     public string LeaderCode { get; set; } = "";
+    /// <summary>The game master's kundenummer: logging in with it opens the game master's newest game.</summary>
+    public string LeaderCustomerNo { get; set; } = "";
     public List<string> LeaderTokenHashes { get; set; } = [];
     public List<Player> Players { get; set; } = [];
     public List<Note> Notes { get; set; } = [];
@@ -65,10 +71,18 @@ public static class GameRules
 
     public static string Hash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
+    /// <summary>A kundenummer is 8 digits ("4821 7730" is fine); "" when the text is not one.</summary>
+    public static string CleanCustomerNo(string? s)
+    {
+        var d = new string((s ?? "").Where(char.IsAsciiDigit).ToArray());
+        return d.Length == 8 && (s ?? "").All(c => char.IsAsciiDigit(c) || c is ' ' or '-') ? d : "";
+    }
+
     public static string CleanCode(string? code) => (code ?? "").Trim().ToUpperInvariant().Replace(" ", "").Replace("-", "");
 
-    public static Game NewGame(string? title, string? leaderName, DateTime nowUtc, string leaderToken) => new()
+    public static Game NewGame(string? title, string? leaderName, DateTime nowUtc, string leaderToken, string customerNo = "") => new()
     {
+        LeaderCustomerNo = customerNo,
         Id = Guid.NewGuid().ToString("N")[..12],
         Title = Cut(title, MaxTitle) is { Length: > 0 } t ? t : "Our adventure",
         LeaderName = Cut(leaderName, MaxName) is { Length: > 0 } n ? n : "Game master",
@@ -80,11 +94,13 @@ public static class GameRules
     };
 
     /// <returns>The new player, or null when the name is missing or the table is full.</returns>
-    public static Player? NewPlayer(Game g, string? name, string token, DateTime nowUtc)
+    public static Player? NewPlayer(Game g, string? name, string token, DateTime nowUtc, string customerNo = "")
     {
         var n = Cut(name, MaxName);
         if (n.Length == 0 || g.Players.Count >= MaxPlayers) return null;
-        return new Player(Guid.NewGuid().ToString("N")[..8], n, "", "", "", 10, 10, "", [], Hash(token), nowUtc);
+        string code;
+        do code = NewCode(8); while (g.LeaderCode == code || g.Players.Any(p => p.Code == code));
+        return new Player(Guid.NewGuid().ToString("N")[..8], n, "", "", "", 10, 10, "", [], Hash(token), nowUtc, Code: code, CustomerNo: customerNo);
     }
 
     public static Player EditCard(Player p, string? name, string? character, string? race, string? role, int hp, int maxHp, string? notes,
@@ -120,7 +136,7 @@ public static class GameRules
         if (string.IsNullOrEmpty(token)) return null;
         var h = Hash(token);
         if (g.LeaderTokenHashes.Contains(h)) return Viewer.Leader;
-        return g.Players.FirstOrDefault(p => p.TokenHash == h)?.Id;
+        return g.Players.FirstOrDefault(p => p.TokenHash == h || (p.MoreTokenHashes?.Contains(h) ?? false))?.Id;
     }
 
     public static string NameOf(Game g, string viewer) =>

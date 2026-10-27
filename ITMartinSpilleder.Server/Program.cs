@@ -40,7 +40,7 @@ builder.Services.AddKolibri(k =>
 });
 
 var dataDir = builder.Configuration["Spilleder:DataDir"] ?? "/data";
-builder.Services.AddSpillederInfrastructure(dataDir);
+builder.Services.AddSpillederInfrastructure(dataDir, builder.Configuration);
 builder.Services.AddSpillederApplication(builder.Configuration["Spilleder:Code"] ?? "");
 
 var app = builder.Build();
@@ -91,24 +91,48 @@ IResult SignIn(HttpContext c, Joined j)
     return Results.Ok(new { leder = j.Viewer == Viewer.Leader });
 }
 
-IResult Fejl(JoinError e) => e switch
+IResult Fejl(JoinError e, string message = "") => e switch
 {
+    JoinError.Customer => Results.BadRequest(new { fejl = message }),
+    JoinError.NotInGame => Results.BadRequest(new { fejl = "You are not in a game yet. Ask the game master to add your customer number, or join with the game code." }),
+    JoinError.AlreadyInGame => Results.BadRequest(new { fejl = "That customer is already in this game." }),
     JoinError.Locked => Results.Json(new { fejl = "Too many wrong tries. Wait 15 minutes and try again." }, statusCode: 429),
     JoinError.WrongCode => Results.Json(new { fejl = "That code is not right. Ask the game master." }, statusCode: 401),
     JoinError.Full => Results.BadRequest(new { fejl = "There is no room for more players in this game." }),
     _ => Results.BadRequest(new { fejl = "Enter your name." }),
 };
 
-app.MapPost("/api/nyt-spil", (HttpContext c, NewGameBody b, Tables t) =>
+// A game master starts a game with their kundenummer (the old shared start code Spilleder:Code still works if set).
+app.MapPost("/api/nyt-spil", async (HttpContext c, NewGameBody b, Tables t) =>
 {
+    if (GameRules.CleanCustomerNo(b.Kode).Length == 8)
+    {
+        var r = await t.StartAsync(b.Kode, b.Titel, b.Navn, ClientIp(c), c.RequestAborted);
+        return r.Joined is null ? Fejl(r.Error, r.Message) : SignIn(c, r.Joined);
+    }
     var (j, e) = t.Create(b.Kode, b.Titel, b.Navn, ClientIp(c));
     return j is null ? Fejl(e) : SignIn(c, j);
 });
 
-app.MapPost("/api/deltag", (HttpContext c, JoinBody b, Tables t) =>
+// One field: a kundenummer (8 digits), the game code (guests), a personal code or the master code.
+app.MapPost("/api/deltag", async (HttpContext c, JoinBody b, Tables t) =>
 {
+    if (GameRules.CleanCustomerNo(b.Kode).Length == 8)
+    {
+        var r = await t.LoginCustomerAsync(b.Kode, ClientIp(c), c.RequestAborted);
+        return r.Joined is null ? Fejl(r.Error, r.Message) : SignIn(c, r.Joined);
+    }
     var (j, e) = t.Join(b.Kode, b.Navn, ClientIp(c));
     return j is null ? Fejl(e) : SignIn(c, j);
+});
+
+// The game master adds a customer as a player by their kundenummer.
+app.MapPost("/api/spillere/kunde", async (HttpContext c, CustomerBody b, Tables t) =>
+{
+    if (Who(c, t) is not { } w) return Results.Unauthorized();
+    var (p, e, m) = await t.AddCustomerAsync(w.Game, w.Viewer, b.Kundenummer, c.RequestAborted);
+    return p is not null ? Results.Json(p, web)
+        : e == JoinError.WrongCode ? Results.BadRequest(new { fejl = "Write the customer number – 8 digits." }) : Fejl(e, m);
 });
 
 app.MapPost("/api/forlad", (HttpContext c) => { c.Response.Cookies.Delete(Cookie); return Results.Ok(); });
@@ -255,6 +279,7 @@ public sealed record RenameBody(string? Titel, string? Navn);
 public sealed record SpellBody(string? Navn, string? Tekst);
 public sealed record CardBody(string? Navn, string? Figur, string? Race, string? Klasse, int Liv, int MaxLiv, string? Noter, string? Udstyr, List<SpellBody>? Besvaergelser);
 public sealed record LockBody(bool Laast);
+public sealed record CustomerBody(string? Kundenummer);
 public sealed record HpBody(int Aendring);
 public sealed record NoteBody(List<string>? Til, string? Tekst);
 public sealed record DiceBody(string? Terning, bool Hemmelig, string? Hvorfor);
