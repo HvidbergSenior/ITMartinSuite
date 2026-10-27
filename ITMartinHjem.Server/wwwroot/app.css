@@ -711,3 +711,39 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
   .hj-head-photo { width: 180px; height: auto; }
   .hj-head-photo img { height: 180px; }
 }
+/* The Om mig tab, calmer (user 2026-10-27: "should be prettier and more calm"): a plain head instead of the gradient, one photo,
+   Martin's text as quiet rows in one card, soft buttons, more air, no pictures on the tiles. Only on this tab (.hj-calm). */
+.hj-calm .hj-head.hj-head-calm { background: var(--k-card); color: var(--k-text); border: 1px solid var(--k-border); box-shadow: none;
+  padding: 28px 28px 24px 200px; margin: 8px 0 24px; }
+.hj-calm .hj-head-calm::after { display: none; }
+.hj-calm .hj-head-calm h1 { color: var(--k-text); font-weight: 700; margin: 4px 0 6px; }
+.hj-calm .hj-head-calm .hj-intro { color: var(--k-muted); margin: 0; line-height: 1.6; }
+.hj-calm .hj-head-calm .hj-tagline { background: none; padding: 0; font-weight: 600; color: var(--k-muted); }
+.hj-calm .hj-head-calm .hj-head-note { opacity: 1; margin-top: 14px; }
+.hj-calm .hj-head-calm .hj-head-photo img { border-color: var(--k-card); }
+.hj-calm .k-card { box-shadow: none; margin: 0 0 24px; }
+/* soft buttons: a light fill and dark text, no strong orange (high contrast stays - the user is a bit colour-blind) */
+.hj-calm .k-btn { background: var(--k-accent-soft); color: var(--k-text); border: 1px solid transparent; box-shadow: none; font-weight: 600; }
+.hj-calm .k-btn:hover, .hj-calm .k-btn:focus-visible { border-color: var(--k-text); }
+.hj-calm .hj-tabs .k-btn-primary { background: var(--k-text); color: var(--k-card); }
+.hj-calm .hj-tabs .k-btn-ghost { background: none; border-color: var(--k-border); }
+.hj-calm-om { padding: 4px 26px; }
+.hj-calm-intro { padding: 18px 0 4px; line-height: 1.7; }
+.hj-calm-row { border-top: 1px solid var(--k-border); }
+.hj-calm-row:first-child { border-top: 0; }
+.hj-calm-row > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 20px 0; font-size: 1.12rem; font-weight: 600; min-height: var(--k-tap, 44px); }
+.hj-calm-row > summary::-webkit-details-marker { display: none; }
+.hj-calm-row > summary::after { content: "+"; flex: none; font-size: 1.5rem; font-weight: 400; line-height: 1; color: var(--k-muted); }
+.hj-calm-row[open] > summary::after { content: "−"; }
+.hj-calm-row > div { padding: 0 0 24px; line-height: 1.75; }
+.hj-calm-row > div p { margin: 0 0 14px; }
+.hj-calm .tm-img { max-width: 340px; max-height: 260px; object-fit: cover; border-radius: 14px; margin: 14px 0; }
+.hj-calm .hj-tilegroup { background: none; border: 0; padding: 4px 0; }
+.hj-calm .hj-tile { box-shadow: none; padding: 16px; }
+.hj-calm .hj-tile-pic { display: none; }
+@media (max-width:520px) {
+  .hj-calm .hj-head.hj-head-calm { padding: 22px 18px 20px; }
+  .hj-calm-om { padding: 2px 18px; }
+  .hj-calm .tm-img { max-width: 100%; }
+}

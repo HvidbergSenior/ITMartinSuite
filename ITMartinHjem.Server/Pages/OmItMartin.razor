@@ -5,36 +5,43 @@
    tabs from the forside page in Svar), the tiles about his work and other sites, and his posts. The front page keeps only the
    head box, Vidste du and the sign-up. *@
 <PageTitle>Om mig · Martin Hvidberg</PageTitle>
-<PageHead Title="Om mig" Tag="Hvem er ITMartin?" Line="Hvem jeg er, hvad jeg laver – og hvad jeg har lavet." />
-
-<CascadingValue Name="Plain" Value="true">
-@* How to reach Martin first (2026-10-27: the old "Om mig og kontakt" page is part of this tab now, /om-mig redirects here). *@
-<section class="k-card" id="kontakt" data-nofold>
-    <h2 class="k-card-title">Kontakt mig</h2>
-    <p class="k-help">Skriv, ring eller send en mail – første snak er altid gratis.</p>
-    <div class="k-row k-mt">
-        <a class="k-btn k-btn-primary" href="/chat-med-martin">Chat med mig</a>
+@* Calmer since 2026-10-27 (user: "should be prettier and more calm"): a quiet head with the one photo and the contact buttons
+   (no separate contact box), all of Martin's text as calm show/hide rows in ONE card instead of ten boxes, soft buttons, more air.
+   Only the look changed - the words are Martin's own, from Svar -> Sider. *@
+<div class="hj-calm">
+<PageHead Title="Om mig" Tag="Hvem er ITMartin?" Line="Hvem jeg er, hvad jeg laver – og hvad jeg har lavet." Calm="true">
+    <p class="hj-head-note" id="kontakt">Skriv, ring eller send en mail – første snak er altid gratis.</p>
+    <div class="hj-head-btns">
+        <a class="k-btn" href="/chat-med-martin">Chat med mig</a>
         <a class="k-btn" href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a>
         <a class="k-btn" href="tel:+4531194730">31 19 47 30</a>
     </div>
+</PageHead>
+
+<CascadingValue Name="Plain" Value="true">
+<section class="k-card hj-calm-om" data-nofold>
+    @if (_hero is not null)
+    {
+        @* "Hvem er ITMartin?" as tabs (user 2026-10-27) - the first row, open until the visitor closes it. *@
+        <details class="hj-calm-row" open>
+            <summary>Hvem er ITMartin?</summary>
+            <div><HeroTabs Body="@_hero.Body" /></div>
+        </details>
+    }
+    @* Martin's own "Om mig og kontakt" text (Svar -> Sider -> om-mig), each "## " part a quiet show/hide row. *@
+    @if (_about is not null)
+    {
+        var (intro, parts) = Sections.Split(_about.Body);
+        @if (intro.Length > 0) { <div class="hj-calm-intro">@TinyMarkdown.Render(intro)</div> }
+        @foreach (var p in parts)
+        {
+            <details class="hj-calm-row">
+                <summary>@NoEmoji.Strip(p.Title)</summary>
+                <div>@TinyMarkdown.Render(p.Body.Length > 0 ? p.Body : " ")</div>
+            </details>
+        }
+    }
 </section>
-
-@if (_hero is not null)
-{
-    @* Tabs instead of one long text (user 2026-10-27: "hvem er ITMartin as tabs maybe?") - show/hide like every box, one tab at a time. *@
-    <section class="k-card hj-page hj-sec hj-hero">
-        <h2>Hvem er ITMartin?</h2>
-        <HeroTabs Body="@_hero.Body" />
-    </section>
-}
-
-@* Martin's own "Om mig og kontakt" text (Svar -> Sider -> om-mig), each "## " part a show/hide box. *@
-@if (_about is not null)
-{
-    var (intro, parts) = Sections.Split(_about.Body);
-    @if (intro.Length > 0) { <section class="k-card hj-page">@TinyMarkdown.Render(intro)</section> }
-    <SectionBoxes Parts="parts" FirstOpen="false" />
-}
 
 <WorkTiles />
 </CascadingValue>
@@ -69,6 +76,7 @@ else if (_family && !_owner)
 {
     <p class="k-help k-center">Du ser familiens billeder. <a class="k-btn k-btn-sm" href="/logout">Log ud</a></p>
 }
+</div>
 
 @code {
     [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
