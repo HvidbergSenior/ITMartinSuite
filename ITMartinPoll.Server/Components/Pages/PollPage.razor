@@ -3,6 +3,7 @@
 @inject IJSRuntime  JS
 @inject ITMartinPoll.Application.Voting Voting
 @inject NavigationManager Nav
+@inject AdminSession Session
 
 <PageTitle>@(_poll?.Title ?? "Meningsmåling")</PageTitle>
 
@@ -15,9 +16,19 @@
     {
         <div class="poll-empty"><p>Meningsmålingen findes ikke.</p></div>
     }
+    else if (!_poll.IsActive && !Session.IsAdmin)
+    {
+        @* A poll the maker has switched off is not shown to guests (old bug: the page ignored IsActive). *@
+        <div class="poll-empty"><p>Denne afstemning er ikke åben længere.</p></div>
+    }
     else
     {
         <div class="poll-view">
+            <PageHelp>
+                <p>Et spørgsmål fra den, der sendte dig linket. Når du har stemt, ser du, hvad alle har svaret indtil nu.</p>
+                <p><b>Sådan gør du:</b> tryk på dit svar@(_poll.AllowMultiple ? " (du må vælge flere – et flueben betyder valgt)" : ""),
+                   skriv evt. en kommentar og tryk <b>Stem</b>.</p>
+            </PageHelp>
 
             @if (!string.IsNullOrEmpty(_poll.ImageName))
             {
@@ -29,7 +40,7 @@
 
                 @if (!string.IsNullOrEmpty(_poll.Body))
                 {
-                    <p class="poll-body">@_poll.Body</p>
+                    <PollText Text="@_poll.Body" />
                 }
 
                 @if (_poll.Deadline.HasValue)
@@ -98,7 +109,7 @@
                             <button class="poll-option-btn @(_selected.Contains(optId) ? "selected" : "")"
                                     aria-pressed="@(_selected.Contains(optId) ? "true" : "false")"
                                     @onclick="() => Toggle(optId)">
-                                @(_poll.AllowMultiple ? (_selected.Contains(optId) ? "☑ " : "☐ ") : "")@opt.Label
+                                @if (_poll.AllowMultiple) { <span class="pkg-box" aria-hidden="true">@(_selected.Contains(optId) ? "✓" : "")</span> }@opt.Label
                             </button>
                         }
                     </div>

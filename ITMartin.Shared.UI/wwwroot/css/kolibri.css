@@ -83,6 +83,7 @@ html[data-family="tunge"]     { --k-accent:#be185d; --k-accent-dark:#9d174d; --k
 html[data-family] { --k-accent:#c96a2b; --k-accent-dark:#a3521f; --k-accent-soft:#f9e9de; }
 
 html[data-theme="dark"] {
+    color-scheme: dark;   /* scrollbars, date pickers and checkboxes dark too (a white scrollbar in the Stem chat) */
     --k-bg:#121917; --k-bg-deep:#0d1311; --k-card:#1b2420; --k-text:#ecf2ee;
     --k-muted:#9fb0a8; --k-muted-2:#7f8f88; --k-border:#2b3733; --k-border-2:#243029; --k-border-3:#36443f;
     --k-accent-soft:#1f3a30; --k-shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35);
@@ -136,6 +137,17 @@ small, .k-small { font-size: var(--k-fs-small); color: var(--k-muted); }
 .k-brand b { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .k-brand span { font-size: 12px; color: var(--k-muted); }
 .k-header-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.k-header-actions > * { white-space: nowrap; }
+/* Phone width: the app name stays readable and the tabs stay on one line ("Lav ny" wrapped, "Stem" became "St..."). */
+@media (max-width: 440px) {
+    .k-header { padding-left: 10px; padding-right: 10px; }
+    .k-header-in { gap: 6px; }
+    .k-logo-brand { height: 28px; padding: 2px 4px; }
+    .k-brand { flex: none; }
+    .k-brand span { display: none; }
+    .k-header-actions { gap: 0; min-width: 0; }
+    .k-header-actions .k-btn-sm { padding: 6px 8px; }
+}
 .k-main { flex: 1; padding: var(--k-space-4) 16px var(--k-space-6); }
 .k-content { max-width: var(--k-content-max); margin: 0 auto; }
 .k-content.wide { max-width: var(--k-content-wide); }

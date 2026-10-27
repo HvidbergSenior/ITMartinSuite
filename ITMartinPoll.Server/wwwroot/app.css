@@ -1128,3 +1128,41 @@ html[data-theme="dark"] .lav-bar > i { background: color-mix(in srgb, var(--k-ac
     color: var(--k-text); font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; }
 .lav-day.on { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text); }
 .lav-add { margin-bottom: var(--k-space-3); border-style: dashed; }
+
+/* Stem perfect pass (2026-10-27, user: "it is used by others"). Day answers under month headings with a real tick box;
+   date-poll answers and buttons on the one Kolibri colour - the chosen answer is said in words too (✓), never colour alone. */
+.pkg-month { font-weight: 800; text-transform: capitalize; margin: var(--k-space-3) 0 var(--k-space-1); padding-bottom: 4px;
+    border-bottom: 2px solid var(--k-accent); color: var(--k-text); }
+.pkg-day { display: flex; width: 100%; margin-bottom: var(--k-space-2); }
+.poll-option-btn { display: flex; align-items: center; gap: 10px; }
+.pkg-box { flex: none; display: inline-grid; place-items: center; width: 1.4em; height: 1.4em; border: 2px solid currentColor;
+    border-radius: 5px; font-weight: 900; line-height: 1; }
+.poll-body ul { margin: var(--k-space-2) 0; padding-left: 1.3em; }
+.poll-body li { margin-bottom: 4px; }
+.poll-body p { margin: 0 0 var(--k-space-2); }
+.dp-answers { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--k-space-2); margin-bottom: var(--k-space-2); }
+.dp-choice { min-height: var(--k-tap, 48px); border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-bg-deep);
+    color: var(--k-text); font: inherit; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+.dp-choice.on { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text); font-weight: 800; }
+.dp-choice:disabled { opacity: .55; cursor: default; }
+.dp-star { width: 100%; margin-bottom: var(--k-space-2); }
+.dp-date { font-weight: 800; color: var(--k-text); text-transform: capitalize; margin-bottom: var(--k-space-2); }
+.dp-counts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--k-fs-small); color: var(--k-muted); }
+.dp-me { display: flex; align-items: center; gap: var(--k-space-2); flex-wrap: wrap; }
+.dp-row { display: flex; gap: var(--k-space-2); flex-wrap: wrap; }
+.dp-row > .poll-input { flex: 1 1 10rem; min-width: 0; }
+.month-header { font-size: var(--k-fs-body); font-weight: 800; color: var(--k-text); padding: var(--k-space-3) 0 4px;
+    border-bottom: 2px solid var(--k-accent); margin-bottom: var(--k-space-2); text-transform: capitalize; }
+/* The name box, the questions and the "gemmes med det samme" banner line up with the other boxes (old 16px side margins). */
+.pkg-identity, .pkg-question, .pkg-autosave-banner { margin-left: 0; margin-right: 0; }
+.pkg-identity { border: 2px solid var(--k-accent); background: var(--k-card); border-radius: var(--k-radius-lg, 18px); }
+.pkg-identity.done, .pkg-identity.dp-me { border: 1px solid var(--k-border); padding: var(--k-space-3); }
+.pkg-identity-hint { font-size: var(--k-fs-small); color: var(--k-muted); margin: 6px 0 0; }
+.pkg-identity-done { color: var(--k-text); font-size: var(--k-fs-body); }
+/* Danish months and weekdays are lower-case: only the first letter of the line is capital ("Fredag 6. november"). */
+.dp-date, .month-header, .pkg-month { text-transform: none; }
+.dp-date::first-letter, .month-header::first-letter, .pkg-month::first-letter { text-transform: uppercase; }
+/* /tilmeld on the Kolibri tokens (the thank-you box was hard-coded green, unreadable in Mørk). */
+.help-thanks { margin: 0 0 var(--k-space-3); background: var(--k-card); color: var(--k-text); border: 2px solid var(--k-accent); }
+.help-error { color: var(--k-danger, #b91c1c); }
+.help-add-btn { min-height: var(--k-tap, 48px); border-color: var(--k-accent); color: var(--k-accent); border-radius: var(--k-radius); }

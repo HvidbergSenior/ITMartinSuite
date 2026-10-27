@@ -49,8 +49,11 @@ builder.Services.AddKolibri(k =>
         "Kom tilbage til samme link for at se resultatet.",
         "Vil du selv spørge? Tryk Lav ny, skriv dit kundenummer, spørgsmålet og svarene, og send linket videre.",
         "Vil du selv svare på din egen afstemning? Tryk Svar selv under Lav ny – du svarer på samme side som de andre.",
+        "Hver side har et Hvad viser siden?-felt øverst – tryk på det, så står der, hvad du kan gøre.",
+        "I en datoafstemning trykker du Ja, Måske eller Nej ved hver dato; dit svar får et ✓. Har du skrevet forkert navn, så tryk Skift navn.",
+        "Dage, der allerede er gået, vises ikke længere – resten står samlet under hver måned.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.10.27";
     k.ThemeColor = "#f4f6f5";
 });
 

@@ -27,17 +27,15 @@
 
             <div class="poll-content">
                 <h1 class="poll-title">@_event.Title</h1>
-                @foreach (var para in _event.Body.Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
-                {
-                    <p class="poll-body">@para</p>
-                }
+                <PollText Text="@_event.Body" />
             </div>
 
-            @* What is on the page, and how to use it - first, before the form. *@
-            <div class="help-howto">
-                <b>Sådan gør du:</b> sæt kryds ved de tider du kan, og ved det du kan hjælpe med. Kan du noget andet,
-                så skriv det under "Andet jeg kan". Skriv dit navn og tryk <b>Jeg kommer</b>. Du kan se herunder hvem der kommer hvornår.
-            </div>
+            @* What is on the page, and how to use it - the same "Hvad viser siden?" box as every Stem page. *@
+            <PageHelp>
+                <p>En liste over tider og opgaver, hvor du kan give en hånd, og hvem der allerede kommer.</p>
+                <p><b>Sådan gør du:</b> sæt kryds ved de tider du kan, og ved det du kan hjælpe med. Kan du noget andet,
+                   så skriv det under "Andet jeg kan". Skriv dit navn og tryk <b>Jeg kommer</b>. Nederst kan du skrive i chatten.</p>
+            </PageHelp>
 
             @Photo(0)
 

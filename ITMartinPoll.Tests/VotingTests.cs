@@ -210,6 +210,19 @@ public class QuestionKindTests
     }
 
     [Test]
+    public void Day_labels_turn_back_into_dates_across_new_year()
+    {
+        var made = new DateOnly(2026, 10, 21);
+        var labels = DayRules.Days(made, new DateOnly(2027, 2, 1), DayRules.Weekend);
+        var dates = DayRules.Dates(labels, made);
+        dates.Should().HaveCount(labels.Count).And.NotContainNulls();
+        dates[0].Should().Be(new DateOnly(2026, 10, 24));
+        dates[^1].Should().Be(new DateOnly(2027, 1, 31));
+        DayRules.Dates(["Fyn", "lør 9. jan"], made).Should().Equal(null, new DateOnly(2027, 1, 9));
+        DayRules.MonthHeading(new DateOnly(2027, 1, 9)).Should().Be("januar 2027");
+    }
+
+    [Test]
     public void Several_questions_become_one_link_answered_with_a_name()
     {
         var (error, pkg) = CustomerPollRules.MakeSurvey("48217730", "FezBoyz", "", [

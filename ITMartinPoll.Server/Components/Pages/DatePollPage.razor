@@ -19,6 +19,12 @@
     else
     {
         <div class="poll-view">
+            <PageHelp>
+                <p>En afstemning om, hvilken dato der passer bedst. Under hver dato står, hvor mange der har svaret Ja, Måske og Nej.</p>
+                <p><b>Sådan gør du:</b> skriv dit navn og tryk <b>Fortsæt</b>. Tryk så <b>Ja</b>, <b>Måske</b> eller <b>Nej</b> ved
+                   hver dato – dit svar får et ✓. Tryk <b>☆ Foretræk</b> ved den ene dato, du helst vil have. Alt gemmes med det
+                   samme; der er ingen send-knap. Nederst kan du tilbyde at være vært og skrive i chatten.</p>
+            </PageHelp>
 
             @if (!string.IsNullOrEmpty(_poll.ImageName))
             {
@@ -30,7 +36,7 @@
 
                 @if (!string.IsNullOrEmpty(_poll.Description))
                 {
-                    <p class="poll-body">@_poll.Description</p>
+                    <PollText Text="@_poll.Description" />
                 }
 
                 @if (_poll.Deadline.HasValue)
@@ -58,18 +64,23 @@
             }
             else if (!_hasName)
             {
-                <div class="admin-form" style="padding:0 16px">
-                    <label class="form-label">Dit navn</label>
-                    <input class="poll-input" placeholder="Skriv dit navn for at svare - eller flere navne adskilt af komma, hvis du stemmer for andre (fx 'Far, Vibz, Eigil, Bertil, Julius')"
+                <div class="pkg-identity">
+                    <div class="poll-vote-label">Hvem svarer?</div>
+                    <input class="poll-input" style="width:100%" placeholder="Dit navn, fx Mikkel" maxlength="120"
                            @bind="_voterNamesInput" @bind:event="oninput" @onkeydown="OnNameKey" />
-                    <button class="poll-submit-btn" @onclick="SaveName" disabled="@string.IsNullOrWhiteSpace(_voterNamesInput)">Fortsæt</button>
+                    <div class="pkg-identity-hint">Svarer du også for andre? Skriv navnene med komma imellem, fx <b>Far, Eigil, Bertil</b>.</div>
+                    <button class="poll-submit-btn" style="width:100%" @onclick="SaveName" disabled="@string.IsNullOrWhiteSpace(_voterNamesInput)">Fortsæt →</button>
                 </div>
             }
             else
             {
-                <a class="poll-back" style="display:block;padding:0 16px;margin-top:8px;cursor:pointer" @onclick='() => JS.InvokeVoidAsync("scrollToId", "chat")'>↓ Gå til chat</a>
+                <div class="pkg-identity dp-me">
+                    <span>Svarer som <strong>@string.Join(", ", _voterNames)</strong></span>
+                    <button class="k-btn k-btn-sm" @onclick="ChangeName">Skift navn</button>
+                    <button class="k-btn k-btn-sm" style="margin-left:auto" @onclick='() => JS.InvokeVoidAsync("scrollToId", "chat")'>↓ Til chatten</button>
+                </div>
 
-                <div class="admin-form" style="padding-top:0">
+                <div>
                     @{
                         int? lastMonthKey = null;
                         var dateIndex = 0;
@@ -90,30 +101,37 @@
                             lastMonthKey = monthKey;
                             <div class="month-header">@d.Date.ToString("MMMM yyyy")</div>
                         }
-                        <div class="poll-results" style="padding:0 0 16px">
-                            <div class="poll-results-label" style="margin-bottom:8px">@d.Date.ToString("dddd d. MMMM")</div>
+                        var closed = _poll.HasDeadlinePassed;
+                        <div class="poll-results">
+                            <div class="dp-date">@d.Date.ToString("dddd d. MMMM")</div>
 
-                            <div class="option-row" style="margin-bottom:8px">
-                                <button class="admin-btn @(mine?.Status == "Yes" ? "datepoll-active-yes" : "")" @onclick='() => RespondAsync(dateId, "Yes")'>Ja</button>
-                                <button class="admin-btn @(mine?.Status == "Maybe" ? "datepoll-active-maybe" : "")" @onclick='() => RespondAsync(dateId, "Maybe")'>Måske</button>
-                                <button class="admin-btn @(mine?.Status == "No" ? "datepoll-active-no" : "")" @onclick='() => RespondAsync(dateId, "No")'>Nej</button>
-                                <button class="admin-btn @(mine?.IsPreferred == true ? "datepoll-active-preferred" : "")"
-                                        title="Din foretrukne uge, hvis du kun kunne vælge én - uafhængigt af om du faktisk kan"
-                                        @onclick="() => TogglePreferredAsync(dateId)">
-                                    @(mine?.IsPreferred == true ? "★ Foretrukken" : "☆ Foretræk denne")
-                                </button>
+                            @* The one Kolibri colour for the chosen answer, said in words too (✓) - no red/green (user is a bit colour-blind). *@
+                            <div class="dp-answers" role="group" aria-label="@($"Kan du {d.Date:dddd d. MMMM}?")">
+                                @foreach (var (status, label) in Answers)
+                                {
+                                    var s = status;
+                                    var on = mine?.Status == s;
+                                    <button class="dp-choice @(on ? "on" : "")" aria-pressed="@(on ? "true" : "false")" disabled="@closed"
+                                            @onclick="() => RespondAsync(dateId, s)">@(on ? "✓ " : "")@label</button>
+                                }
                             </div>
+                            <button class="dp-choice dp-star @(mine?.IsPreferred == true ? "on" : "")" disabled="@closed"
+                                    aria-pressed="@(mine?.IsPreferred == true ? "true" : "false")"
+                                    title="Den dato du helst vil have, hvis du kun kunne vælge én"
+                                    @onclick="() => TogglePreferredAsync(dateId)">
+                                @(mine?.IsPreferred == true ? "★ Din foretrukne dato" : "☆ Foretræk denne dato")
+                            </button>
 
-                            @if (mine is not null)
+                            @if (mine is not null && !closed)
                             {
-                                <input class="poll-input" placeholder="Kommentar (valgfrit), fx 'ikke sikker endnu, måske'"
+                                <input class="poll-input" style="width:100%;margin-bottom:var(--k-space-2)" placeholder="Kommentar (valgfrit)"
                                        value="@mine.Comment" maxlength="200"
                                        @onchange="e => SaveCommentAsync(dateId, e.Value?.ToString() ?? string.Empty)" />
                             }
 
                             @{ var counts = d.Responses.GroupBy(r => r.Status).ToDictionary(g => g.Key, g => g.Count()); }
                             @{ var preferredCount = d.Responses.Count(r => r.IsPreferred); }
-                            <div class="poll-card-meta" style="margin-top:8px">
+                            <div class="dp-counts">
                                 <span>Ja: @counts.GetValueOrDefault("Yes")</span>
                                 <span>Måske: @counts.GetValueOrDefault("Maybe")</span>
                                 <span>Nej: @counts.GetValueOrDefault("No")</span>
@@ -134,20 +152,23 @@
 
                     @if (_poll.ChatOpen)
                     {
-                        <div class="option-row" style="margin-top:4px">
-                            <input type="date" class="poll-input" value="@_suggestedDate"
-                                   @onchange="e => _suggestedDate = e.Value?.ToString() ?? string.Empty" />
-                            <button class="admin-btn" @onclick="SuggestDateAsync" disabled="@string.IsNullOrEmpty(_suggestedDate)">+ Foreslå dato</button>
+                        <div class="poll-results">
+                            <div class="dp-date" style="text-transform:none">Mangler der en dato?</div>
+                            <div class="dp-row">
+                                <input type="date" class="poll-input" value="@_suggestedDate" aria-label="Dato du vil foreslå"
+                                       @onchange="e => _suggestedDate = e.Value?.ToString() ?? string.Empty" />
+                                <button class="k-btn k-btn-primary" @onclick="SuggestDateAsync" disabled="@string.IsNullOrEmpty(_suggestedDate)">+ Foreslå dato</button>
+                            </div>
+                            @if (!string.IsNullOrEmpty(_suggestError))
+                            {
+                                <div class="form-error">@_suggestError</div>
+                            }
                         </div>
-                        @if (!string.IsNullOrEmpty(_suggestError))
-                        {
-                            <div class="form-error">@_suggestError</div>
-                        }
                     }
                 </div>
 
-                <div class="admin-form" style="padding-top:0" id="vaert">
-                    <h3 style="margin:8px 0 4px">Hvem vil gerne være vært?</h3>
+                <div class="poll-results" id="vaert">
+                    <div class="dp-date" style="text-transform:none">Hvem vil gerne være vært?</div>
                     @if (_hosts.Count == 0) { <p class="muted" style="margin:0 0 8px">Ingen har tilbudt endnu.</p> }
                     else
                     {
@@ -164,12 +185,14 @@
                         {
                             <input class="poll-input" style="margin-top:6px" maxlength="120" @bind="_hostPlace" placeholder="Hvor? Fx: hos mig i Aarhus – plads til alle" />
                         }
-                        <button class="admin-btn" style="margin-top:6px" @onclick="SaveHostAsync">Gem</button>
-                        @if (_hostNote.Length > 0) { <span class="muted"> @_hostNote</span> }
+                        <div class="dp-me" style="margin-top:var(--k-space-2)">
+                            <button class="k-btn k-btn-primary" @onclick="SaveHostAsync">Gem</button>
+                            @if (_hostNote.Length > 0) { <span class="muted">@_hostNote</span> }
+                        </div>
                     }
                 </div>
 
-                <div class="admin-form" style="padding-top:0" id="chat">
+                <div class="poll-results" id="chat">
                     <DatePollChatWidget DatePollId="DatePollId" ChatOpen="_poll.ChatOpen" VoterName="@(_voterNames.FirstOrDefault() ?? string.Empty)" />
                 </div>
             }
@@ -178,16 +201,12 @@
     }
 </div>
 
-<style>
-    .datepoll-active-yes   { background: #16A34A !important; border-color: #16A34A !important; color: white !important; }
-    .datepoll-active-maybe { background: #B45309 !important; border-color: #B45309 !important; color: white !important; }
-    .datepoll-active-no    { background: #B91C1C !important; border-color: #B91C1C !important; color: white !important; }
-    .datepoll-active-preferred { background: #CA8A04 !important; border-color: #CA8A04 !important; color: white !important; }
-    .month-header { font-size: 15px; font-weight: 800; color: var(--text); padding: 20px 0 4px; border-bottom: 2px solid var(--accent-strong); margin-bottom: 8px; text-transform: capitalize; }
-</style>
-
 @code {
     [Parameter] public int DatePollId { get; set; }
+
+    private static readonly (string Status, string Label)[] Answers = [("Yes", "Ja"), ("Maybe", "Måske"), ("No", "Nej")];
+
+    private void ChangeName() { _hasName = false; _myResponses = []; }
 
     private DatePoll? _poll;
     private bool _hasName;

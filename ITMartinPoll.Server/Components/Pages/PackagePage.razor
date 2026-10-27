@@ -47,6 +47,12 @@
     }
     else
     {
+        <PageHelp>
+            <p>Et spørgsmål (eller flere) fra den, der sendte dig linket. Øverst står spørgsmålet, så skriver du dit navn, og
+               nedenunder svarer du ved at trykke.</p>
+            <p><b>Sådan gør du:</b> skriv dit navn og tryk <b>Fortsæt</b>. Tryk på dine svar – et flueben betyder valgt, tryk
+               igen for at fjerne det. Alt gemmes med det samme; du kan komme tilbage til linket og rette.</p>
+        </PageHelp>
         <div class="poll-content">
             @if (!string.IsNullOrWhiteSpace(_package.Audience))
             {
@@ -88,7 +94,7 @@
             {
                 <div class="pkg-identity-done">
                     Svarer som <strong>@VoterLabel</strong>
-                    <button class="admin-btn" @onclick="() => _identified = false">Skift</button>
+                    <button class="k-btn k-btn-sm" @onclick="() => _identified = false">Skift navn</button>
                 </div>
             }
             else
@@ -172,17 +178,47 @@
                     else
                     {
                     @if (p.AllowMultiple) { <div class="pkg-hint">@(p.Kind == QuestionKinds.Days ? "Sæt kryds ved alle de dage, du kan." : "Vælg gerne flere.")</div> }
-                    <div class="poll-options @(p.Kind == QuestionKinds.Days ? "poll-days" : "")">
+                    @if (p.Kind == QuestionKinds.Days)
+                    {
+                        @* Days that have passed are left out (unless you ticked one), the rest under month headings
+                           (2026-10-27: a long flat list on the phone still offered 24. okt after it had gone). *@
+                        var opts = p.Options.OrderBy(o => o.SortOrder).ToList();
+                        var dates = DayRules.Dates(opts.Select(o => o.Label), DateOnly.FromDateTime(p.CreatedAt));
+                        var today = DateOnly.FromDateTime(DateTime.Now);
+                        var gone = 0;
+                        string? month = null;
+                        @for (var i = 0; i < opts.Count; i++)
+                        {
+                            var o = opts[i];
+                            var on = chosen.Contains(o.Id);
+                            if (dates[i] is { } d && d < today && !on) { gone++; continue; }
+                            var heading = dates[i] is { } dd ? DayRules.MonthHeading(dd) : "";
+                            if (heading != month)
+                            {
+                                month = heading;
+                                if (heading.Length > 0) { <div class="pkg-month">@heading</div> }
+                            }
+                            <button class="poll-option-btn pkg-day @(on ? "selected" : "")" aria-pressed="@(on ? "true" : "false")"
+                                    @onclick="() => SaveVoteAsync(p.Id, o.Id)">
+                                <span class="pkg-box" aria-hidden="true">@(on ? "✓" : "")</span>@o.Label
+                            </button>
+                        }
+                        @if (gone > 0) { <div class="pkg-hint">@gone @(gone == 1 ? "dag" : "dage") er allerede gået og vises ikke.</div> }
+                    }
+                    else
+                    {
+                    <div class="poll-options">
                         @foreach (var opt in p.Options.OrderBy(o => o.SortOrder))
                         {
                             var o = opt;
                             var on = chosen.Contains(o.Id);
                             <button class="poll-option-btn @(on ? "selected" : "")" aria-pressed="@(on ? "true" : "false")"
                                     @onclick="() => SaveVoteAsync(p.Id, o.Id)">
-                                @(p.AllowMultiple ? (on ? "☑ " : "☐ ") : "")@o.Label
+                                @if (p.AllowMultiple) { <span class="pkg-box" aria-hidden="true">@(on ? "✓" : "")</span> }@o.Label
                             </button>
                         }
                     </div>
+                    }
                     }
                     @if (p.Kind != QuestionKinds.Grade)
                     {

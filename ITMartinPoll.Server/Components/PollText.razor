@@ -1,0 +1,42 @@
+@* A poll's own text as the maker wrote it: line breaks kept, and lines starting with "* " or "- " as a real list
+   (2026-10-27: the SBSYS poll showed "Sådan gør du: * Skriv dit navn øverst * Svar ..." in one long line). *@
+<div class="poll-body">
+    @foreach (var block in Blocks())
+    {
+        if (block.IsList)
+        {
+            <ul>@foreach (var item in block.Lines) { <li>@item</li> }</ul>
+        }
+        else
+        {
+            <p>@foreach (var (line, i) in block.Lines.Select((l, i) => (l, i))) { if (i > 0) { <br /> } @line }</p>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string Text { get; set; } = "";
+
+    private sealed record Block(bool IsList, List<string> Lines);
+
+    private List<Block> Blocks()
+    {
+        var blocks = new List<Block>();
+        foreach (var raw in Text.Replace("\r", "").Split('\n'))
+        {
+            // Bullets typed on one line ("Sådan gør du: * a * b") become their own lines.
+            var parts = raw.Split(" * ");
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var line = parts[i].Trim();
+                var isItem = i > 0 || line.StartsWith("* ") || line.StartsWith("- ") || line.StartsWith("• ");
+                if (i == 0 && isItem) line = line[2..].Trim();
+                if (line.Length == 0) { if (!isItem) blocks.Add(new Block(false, [])); continue; }
+                var last = blocks.LastOrDefault();
+                if (last is not null && last.IsList == isItem && (isItem || last.Lines.Count > 0)) last.Lines.Add(line);
+                else blocks.Add(new Block(isItem, [line]));
+            }
+        }
+        return blocks.Where(b => b.Lines.Count > 0).ToList();
+    }
+}

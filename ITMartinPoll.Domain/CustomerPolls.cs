@@ -101,5 +101,30 @@ public static class DayRules
             if (on.Contains(d.DayOfWeek)) list.Add(Label(d));
         return list;
     }
+
+    /// <summary>The dates behind the labels (they carry no year): the first label is in the year the question was made,
+    /// or the next year when its month is well before that; later labels move to the next year when the month goes back.
+    /// Lets the answer page hide days that have passed and put the rest under month headings.</summary>
+    /// <returns>One date per label, in the same order; null for a label that is not a day.</returns>
+    public static List<DateOnly?> Dates(IEnumerable<string> labels, DateOnly madeOn)
+    {
+        var result = new List<DateOnly?>();
+        int? year = null, lastMonth = null;
+        foreach (var label in labels)
+        {
+            var parts = label.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var month = parts.Length == 3 ? Array.IndexOf(Months, parts[2]) + 1 : 0;
+            if (month == 0 || !int.TryParse(parts[1].TrimEnd('.'), out var day)) { result.Add(null); continue; }
+            year ??= month < madeOn.Month - 1 ? madeOn.Year + 1 : madeOn.Year;
+            if (lastMonth is { } m && month < m) year++;
+            lastMonth = month;
+            result.Add(day <= DateTime.DaysInMonth(year.Value, month) ? new DateOnly(year.Value, month, day) : null);
+        }
+        return result;
+    }
+
+    private static readonly string[] MonthNames = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august",
+        "september", "oktober", "november", "december"];
+    public static string MonthHeading(DateOnly d) => $"{MonthNames[d.Month - 1]} {d.Year}";
 }
 
