@@ -1,0 +1,13 @@
+@inject NavigationManager Nav
+
+@* ITMartin and Bogshoppen become one company (user 2026-10-27: "tell people that ITMartin/Bogshoppen are the same company in 1-2 months").
+   Same box on both front pages, in each site's look. Change or remove it when the merger is done. *@
+<section class="k-card @(Bogshoppen ? "bs-card" : "") hj-onecompany">
+    <h2 class="k-card-title">Snart ét firma</h2>
+    <p>Inden for 1–2 måneder bliver <b>ITMartin</b> og <b>Bogshoppen</b> samlet i ét firma. Det er de samme mennesker – Martin og Rico – og det er stadig gratis at være kunde.</p>
+    <p>Du skal ikke gøre noget: dit kundenummer virker begge steder, både til de gratis apps på itmartin.dk og til liveauktionerne på bogshoppen.dk.</p>
+</section>
+
+@code {
+    private bool Bogshoppen => BogshoppenHome.IsHost(new Uri(Nav.Uri).Host);
+}
