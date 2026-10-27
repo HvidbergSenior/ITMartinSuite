@@ -53,7 +53,8 @@ app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
     {
-        if (ctx.File.Name.EndsWith(".html") || ctx.File.Name == "figur-sw.js")
+        // CSS/JS too: a layout fix stayed invisible for hours behind the 4 h browser cache (2026-10-27).
+        if (ctx.File.Name.EndsWith(".html") || ctx.File.Name.EndsWith(".css") || ctx.File.Name.EndsWith(".js"))
             ctx.Context.Response.Headers.CacheControl = "no-cache";
     }
 });
