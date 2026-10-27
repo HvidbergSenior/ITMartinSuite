@@ -680,7 +680,10 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* Front page 2026-10-27: Martin's photo in place of the sun, sign-up + apps buttons, "Hvem er ITMartin?" tabs */
 .hj-head.hj-head-me { padding-left: 190px; min-height: 186px; }
 .hj-head.hj-head-me::before { content: none; display: none; }
-.hj-head-photo { position: absolute; left: 18px; top: 18px; width: 150px; height: 150px; border-radius: 18px; object-fit: cover;
+.hj-head-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hj-head-place { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); padding: 3px 9px; border-radius: 10px;
+  background: rgba(0,0,0,.62); color: #fff; font-size: .74rem; font-weight: 700; line-height: 1.25; }
+.hj-head-photo { position: absolute; left: 18px; top: 18px; width: 150px; height: 150px; border-radius: 18px; overflow: hidden;
   border: 3px solid rgba(255,255,255,.9); box-shadow: var(--k-shadow); }
 .hj-head-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 @media (max-width:520px) {
