@@ -120,6 +120,25 @@ public static class VisitRules
     private static string Cut(string s, int n) => s.Length <= n ? s : s[..n];
 
     // ── The numbers on /admin/tal. Days count from Danish midnight: "I dag" = since 00:00 here.
+
+    // Names for hosts with no app card (or a card without an address) - else /admin/tal shows a bare host name (2026-10-27).
+    // An app card's own name wins. Listed here = also shown with "ingen" before its first visit (e.g. a new app).
+    public static readonly IReadOnlyDictionary<string, string> KnownApps = new Dictionary<string, string>
+    {
+        ["bogshoppen.dk"] = "📚 bogshoppen.dk (hjemmesiden)",
+        ["polstrer.itmartin.dk"] = "🛋️ Polstrer",
+        ["snak.itmartin.dk"] = "💬 Snak",
+        ["laes.itmartin.dk"] = "📖 Læs",
+        ["kunder.itmartin.dk"] = "👥 Kunder",
+        ["admin.itmartin.dk"] = "🔑 ITMartin Admin",
+        ["vareinfo.bogshoppen.dk"] = "🏷️ Vareinfo",
+        ["salg.bogshoppen.dk"] = "🛍️ Salg",
+        ["lager.bogshoppen.dk"] = "📦 Lager",
+    };
+
+    // Apps that never send a visit (Kontrol is skipped by kolibri.js on purpose, Jellyfin is not ours):
+    // "ingen" there does not mean nobody uses it.
+    public static readonly IReadOnlySet<string> NotCounted = new HashSet<string> { "kontrol.itmartin.dk", "jellyfin.itmartin.dk" };
     public static DateTime SinceUtc(int days) =>
         TimeZoneInfo.ConvertTimeToUtc(Dk.Today.AddDays(1 - days), TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"));
 

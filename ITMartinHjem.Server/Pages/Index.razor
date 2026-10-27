@@ -11,15 +11,26 @@
 
 @if (BogshoppenHome.IsHost(new Uri(Nav.Uri).Host)) { <BogshoppenHome /> return; }
 
+<PageTitle>ITMartin – apps og hjælp · Martin Hvidberg</PageTitle>
+
 @* Temporary birthday front - switches itself off after Hjem:FestUntil (default 2026-09-30 23:59). *@
 <Fest />
 
-<header class="hj-head">
+@* Martin's own face in the head box instead of the sun (user 2026-10-27: "i should have a picture of me on the frontpage");
+   cropped from the 28 Sep 2024 guitar photo, nobody else in it, metadata gone. *@
+<header class="hj-head hj-head-me">
+    <img class="hj-head-photo" src="/martin.jpg" alt="Martin Hvidberg" width="88" height="88" />
     @* Theme "idag" (user 2026-10-05): "Det er mandag, hvad skal jeg mon lave i dag og hvad skal jeg lave i denne uge? Spændende" *@
     <span class="hj-tagline">Det er @Today.ToString("dddd", Da)</span>
     @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
+    @* Clear next steps in the first screen (2026-10-27, /admin/tal: 52 on the front page, only 10 went on to Mine apps).
+       "Skriv mig op – gratis" like on bogshoppen.dk (user 2026-10-27: "easier to sign up ... on both sites"). *@
+    <div class="hj-head-btns">
+        <a class="k-btn k-btn-primary" href="#bliv-kunde">Skriv mig op – gratis</a>
+        <a class="k-btn" href="/mine-apps">Se mine gratis apps</a>
+    </div>
     @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">Skriv opslag / svar beskeder</a> }
 </header>
 
@@ -48,11 +59,11 @@
 
 @* Sign up as a customer right on the front page (user 2026-10-22) - the same one yes as Mine apps and bogshoppen.dk:
    a kundenummer for all the free apps + the live-auction login. The form opens under the button, so nothing jumps on load.
-   A show/hide box like the others, starting closed (user 2026-10-22). *@
-<section class="k-card hj-signup" id="bliv-kunde" data-fold-closed="1">
-    <h2 class="k-card-title">Bliv kunde – gratis</h2>
-    <p>Skriv dig op én gang, så får du et kundenummer på mail. Med det kan du bruge mine gratis apps – og du har et login til liveauktionerne på bogshoppen.dk, når de åbner. Ingen reklamer, ingen nyhedsbreve.</p>
-    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som kunde" />
+   Open since 2026-10-27, so the head box's "Skriv mig op – gratis" lands on the form (like bogshoppen.dk). *@
+<section class="k-card hj-signup" id="bliv-kunde" data-nofold>
+    <h2 class="k-card-title">Skriv dig op – gratis</h2>
+    <p>Ingen reklamer, ingen nyhedsbreve – og du kan altid afmelde dig.</p>
+    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som kunde" Open="true" Topics="true" />
 </section>
 
 @* Things from the Bogshoppen boxes Martin chose in Lager - same box as on bogshoppen.dk (user 2026-10-15). *@
@@ -61,10 +72,10 @@
 @* Who Martin is - at the top under the head box since 2026-10-12 (user: "Top Hvem er ITMartin"); folded, so the first screen is just today + this week (user 2026-10-05). *@
 @if (_hero is not null)
 {
-    @* Same kind of box as the rest (user 2026-10-08): a card with a heading that kolibri.js folds, starting closed. *@
-    <section class="k-card hj-page hj-sec hj-hero" data-fold-closed="1">
+    @* Tabs instead of one long folded text since 2026-10-27 (user: "hvem er ITMartin as tabs maybe?") - open, one tab at a time. *@
+    <section class="k-card hj-page hj-sec hj-hero" data-nofold>
         <h2>Hvem er ITMartin?</h2>
-        <div>@TinyMarkdown.Render(_hero.Body)</div>
+        <HeroTabs Body="@_hero.Body" />
     </section>
 }
 
@@ -183,6 +194,11 @@ else if (_family && !_owner)
     [
         ("Det de store ikke fortæller", "/dine-data", "… at Facebook fjerner datoen fra dine billeder, når du henter dem ud? Jeg havde 10.211 billeder og videoer – alle uden dato."),
         ("Se mine Facebook-billeder", "https://gallery.itmartin.dk/facebook-demo", "… at jeg har fået alle mine billeder hjem fra Facebook og sat den rigtige dato på igen? Se et udpluk – ingen kode."),
+        // Small, concrete everyday help (user 2026-10-27: "small everyday trouble on phone or pc, gives huge satisfaction when fixed. I do that").
+        ("Skriv til mig", "/chat-med-martin", "… at små, irriterende ting på telefonen eller PC'en – printeren, der driller, mailen, der ikke kommer, opdateringen, der hænger – giver en kæmpe lettelse, når de er løst? Det hjælper jeg med."),
+        ("Skriv til mig", "/chat-med-martin", "… at »lageret er fuldt« på telefonen tit kan løses på et kvarter – uden at du mister et eneste billede?"),
+        ("Hjælp på din skærm", "/mine-apps?app=Se%20med", "… at jeg kan flytte dine billeder, kontakter og apps fra den gamle telefon til den nye sammen med dig – så intet bliver væk?"),
+        ("Grønt og bæredygtigt", "/baeredygtighed", "… at en langsom PC tit kan blive hurtig igen uden at købe en ny? Ofte er det bare nogle programmer, der starter af sig selv."),
         .. Tiles.Select(t => (t.Title, t.Href, t.Fact)),
     ];
 

@@ -3,6 +3,9 @@
 @inject IConfiguration Config
 @inject NavigationManager Nav
 
+@* Fallback tab title - a page's own <PageTitle> renders later and wins. *@
+<PageTitle>@(_bs ? "Bogshoppen" : "Martin Hvidberg")</PageTitle>
+
 @* Birthday day (Components/Fest): rose/gold colours + a strip under the menu on every page, not in Svar. *@
 <div class="@(_fest ? "fest-site" : "") @(_bs ? "bs-site" : "")">
 @if (!_bs)

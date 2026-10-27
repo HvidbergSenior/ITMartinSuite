@@ -38,8 +38,8 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
     public Task<IReadOnlyList<FreeAppView>> FreeAppsAsync(CancellationToken ct = default) => kartotek.FreeAppsAsync(ct);
 
     /// <summary>"Prøv gratis": customer in the Kundekartotek, the kundenummer by mail at once, a note in Martin's inbox.
-    /// Needs the ticked consent and a free app.</summary>
-    public async Task<SignUpResult> RequestTrialAsync(string app, string? name, string? email, bool consent, CancellationToken ct = default)
+    /// Needs the ticked consent and a free app. Topics/note = what they want help with (front page).</summary>
+    public async Task<SignUpResult> RequestTrialAsync(string app, string? name, string? email, bool consent, IEnumerable<string>? topics = null, string? note = null, CancellationToken ct = default)
     {
         var e = (email ?? "").Trim().ToLowerInvariant();
         var n = (name ?? "").Trim();
@@ -49,7 +49,7 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
         var free = await kartotek.FreeAppsAsync(ct);
         if (!TrialRules.IsFree(app, free.Select(f => f.Name))) return new(TrialRules.NotFree);
         SignUpResult r;
-        try { r = await kartotek.SignUpAsync(new(e, n, CustomerOf.ITMartin, app, TrialRules.Source(app), TrialRules.ConsentText, app), ct); }
+        try { r = await kartotek.SignUpAsync(new(e, n, CustomerOf.ITMartin, app, TrialRules.Source(app), TrialRules.ConsentText, TrialRules.Interests(app, topics, note)), ct); }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return new(Unreachable); }
         if (r.Error is not null) return r;
         await WelcomeAsync(n, e, r.Code, free, ct);

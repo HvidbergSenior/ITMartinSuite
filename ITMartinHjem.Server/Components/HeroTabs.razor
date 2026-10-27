@@ -1,0 +1,43 @@
+@using ITMartinHjem.Server.Services
+@* "Hvem er ITMartin?" as tabs (user 2026-10-27: "hvem er ITMartin as tabs maybe?"): the text of page "forside" in Svar -> Sider,
+   the part before the first "### " is the first tab, every "### Title" is its own tab, and what comes after "---" stays under
+   all tabs (the closing line). One tab shows at a time, so the box is short without folding. *@
+@{ var (intro, tabs, outro) = Split(Body); }
+<div class="hj-tabs" role="tablist">
+    <button type="button" role="tab" class="k-btn k-btn-sm @(_tab == 0 ? "k-btn-primary" : "k-btn-ghost")" @onclick="() => _tab = 0">Hvem er jeg?</button>
+    @for (var i = 0; i < tabs.Count; i++)
+    {
+        var n = i + 1;
+        <button type="button" role="tab" class="k-btn k-btn-sm @(_tab == n ? "k-btn-primary" : "k-btn-ghost")" @onclick="() => _tab = n">@tabs[i].Title</button>
+    }
+</div>
+<div class="hj-tab-body" role="tabpanel">@TinyMarkdown.Render(_tab == 0 || _tab > tabs.Count ? intro : tabs[_tab - 1].Body)</div>
+@if (outro.Length > 0) { <div class="hj-tab-outro">@TinyMarkdown.Render(outro)</div> }
+
+@code {
+    [Parameter] public string Body { get; set; } = "";
+    private int _tab;
+
+    private static (string Intro, List<Sections.Part> Tabs, string Outro) Split(string text)
+    {
+        var lines = text.Replace("\r", "").Split('\n');
+        var cut = Array.FindLastIndex(lines, l => l.Trim() == "---");
+        var outro = cut >= 0 ? string.Join('\n', lines[(cut + 1)..]).Trim() : "";
+        var intro = new List<string>();
+        var tabs = new List<Sections.Part>();
+        string? title = null;
+        var body = new List<string>();
+        foreach (var line in cut >= 0 ? lines[..cut] : lines)
+        {
+            if (line.StartsWith("### "))
+            {
+                if (title is not null) tabs.Add(new(title, string.Join('\n', body).Trim()));
+                title = line[4..].Trim().Replace("**", "");
+                body = [];
+            }
+            else (title is null ? intro : body).Add(line);
+        }
+        if (title is not null) tabs.Add(new(title, string.Join('\n', body).Trim()));
+        return (string.Join('\n', intro).Trim(), tabs, outro);
+    }
+}

@@ -21,6 +21,34 @@ public static class TrialRules
     public static bool IsFree(string app, IEnumerable<string> freeApps) =>
         app == FrontPage || freeApps.Any(f => string.Equals(f.Trim(), app.Trim(), StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>What people can tick on the front-page sign-up (user 2026-10-27: like "Sæt gerne kryds ved det, du samler" on
+    /// bogshoppen.dk, but about ITMartin) - the things Martin helps with, from page "forside". Stored with the customer.</summary>
+    public static readonly IReadOnlyList<string> Topics =
+    [
+        "Gratis apps (ElPriser, Tilbud, Budget …)",
+        "Mine billeder og videoer samlet og sorteret",
+        "Hjælp på min skærm",
+        "En app til netop mit arbejde",
+        "Fra idé til virksomhed og hjemmeside",
+        "Særlige behov – ADHD, autisme",
+        "Nyt liv til en gammel computer",
+        "Mine data hos Facebook, Apple og Google",
+        "Liveauktioner på Bogshoppen",
+    ];
+
+    public const int MaxNote = 280;
+
+    /// <summary>What the customer wants, for Kunder: the ticked topics (only known ones) and the free text; the app they came from
+    /// when they said nothing.</summary>
+    public static string Interests(string app, IEnumerable<string>? picked, string? note)
+    {
+        var list = string.Join(", ", (picked ?? []).Where(Topics.Contains).Distinct());
+        var n = (note ?? "").Trim();
+        if (n.Length > MaxNote) n = n[..MaxNote];
+        var said = n.Length == 0 ? list : list.Length == 0 ? n : list + " | " + n;
+        return said.Length == 0 ? app : said;
+    }
+
     public static string Source(string app) => app == FrontPage ? "itmartin.dk: Bliv kunde – forsiden" : $"itmartin.dk: Prøv gratis – {app}";
 
     // The message Martin gets in Svar (and as a push); his answer there goes to the person by mail.

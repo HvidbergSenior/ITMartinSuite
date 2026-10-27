@@ -28,13 +28,15 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Læs \"Lige nu\" øverst – det er det, jeg arbejder med.",
+        "Bliv kunde gratis: tryk \"Skriv mig op – gratis\" øverst på forsiden, sæt gerne kryds ved det, du vil have hjælp til, skriv din e-mail, sæt flueben og tryk \"Send mig adgang\". Dit kundenummer kommer på skærmen og på mail.",
+        "Under \"Hvem er ITMartin?\" på forsiden: tryk på en fane (fx \"Hjælp på din skærm\") for at læse om den del af mit arbejde.",
+        "Læs \"Lige nu\" under I dag – det er det, jeg arbejder med.",
         "Rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
         "På Mine apps: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
         "Bogshoppen-kunder: gå til bogshoppen.dk/kunde, skriv dit kundenummer og tryk Log ind. Så kan du se varerne og trykke Interessant ved det, du kunne tænke dig. Køb er ikke åbnet endnu.",
     ];
-    k.Version = "2026.10.26";
+    k.Version = "2026.10.27";
     k.ThemeColor = "#f4f6f5";
 });
 

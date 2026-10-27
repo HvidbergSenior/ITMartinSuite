@@ -676,3 +676,17 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* The Lys/Mørk button in the menu looks like the menu links (2026-10-21). */
 .hj-nav-theme { border: 0; background: none; font: inherit; font-weight: 600; color: inherit; cursor: pointer; padding: 4px 0; }
 @media (max-width: 420px) { .hj-nav { gap: 4px 10px; padding: 10px 8px; } }   /* five items on one line on a phone */
+
+/* Front page 2026-10-27: Martin's photo in place of the sun, sign-up + apps buttons, "Hvem er ITMartin?" tabs */
+.hj-head.hj-head-me { padding-left: 124px; min-height: 120px; }
+.hj-head.hj-head-me::before { content: none; display: none; }
+.hj-head-photo { position: absolute; left: 18px; top: 18px; width: 88px; height: 88px; border-radius: 50%; object-fit: cover;
+  border: 3px solid rgba(255,255,255,.9); box-shadow: var(--k-shadow); }
+.hj-head-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+@media (max-width:520px) {
+  .hj-head.hj-head-me { padding: 18px 16px 16px; }
+  .hj-head-photo { position: static; display: block; margin: 0 0 10px; }
+  .hj-head-btns .k-btn { flex: 1 1 100%; }
+}
+.hj-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.hj-tab-outro { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--k-border, rgba(0,0,0,.12)); }

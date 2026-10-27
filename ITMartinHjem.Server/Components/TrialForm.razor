@@ -16,7 +16,7 @@
             <p><b>Tak – du er skrevet op!</b> Martin sender dit kundenummer til <b>@_email</b> – som regel samme dag. Kig også i spam-mappen.</p>
         }
     }
-    else if (!_open)
+    else if (!_open && !Open)
     {
         <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => _open = true">@Button</button>
     }
@@ -24,8 +24,24 @@
     {
         <p class="k-help">Skriv dig op én gang, så får du et kundenummer til alle de gratis apps: <b>@string.Join(", ", FreeApps)</b> –
             og et login til liveauktionerne på bogshoppen.dk, når de åbner.</p>
+        @if (Topics)
+        {
+            @* Same tick buttons as bogshoppen.dk's "det, du samler" (user 2026-10-27), about what Martin helps with. Never pre-ticked. *@
+            <p class="k-help">Sæt gerne kryds ved det, du gerne vil have hjælp til – så ved jeg, hvad du er interesseret i.</p>
+            <div class="sp-options">
+                @foreach (var t in ITMartinHjem.Domain.TrialRules.Topics)
+                {
+                    <button type="button" class="sp-option @(_topics.Contains(t) ? "on" : "")" aria-pressed="@(_topics.Contains(t) ? "true" : "false")"
+                            @onclick="() => Toggle(t)">@t</button>
+                }
+            </div>
+        }
         <input class="k-input" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" autocomplete="name" />
         <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
+        @if (Topics)
+        {
+            <textarea class="k-input k-textarea k-mt" @bind="_note" maxlength="@ITMartinHjem.Domain.TrialRules.MaxNote" rows="2" placeholder="Er der noget bestemt, du vil have hjælp til? (valgfrit)" aria-label="Er der noget bestemt, du vil have hjælp til?"></textarea>
+        }
         <SignUpMeans />
         <label class="sp-optin"><input type="checkbox" @bind="_consent" /> <span>@ITMartinHjem.Domain.TrialRules.ConsentText</span></label>
         @if (_error.Length > 0) { <p class="form-error">@_error</p> }
@@ -38,16 +54,23 @@
     /// <summary>The free apps whose extras need the kundenummer (ElPriser, Stem).</summary>
     [Parameter, EditorRequired] public IReadOnlyList<string> FreeApps { get; set; } = [];
     [Parameter] public string Button { get; set; } = "Prøv gratis";
+    /// <summary>Show the form at once (front page: the head box's "Skriv mig op – gratis" lands on it).</summary>
+    [Parameter] public bool Open { get; set; }
+    /// <summary>Tick buttons for what they want help with (front page).</summary>
+    [Parameter] public bool Topics { get; set; }
 
     private bool _open, _sent, _consent, _busy;
-    private string _name = "", _email = "", _error = "", _code = "";
+    private string _name = "", _email = "", _note = "", _error = "", _code = "";
+    private readonly HashSet<string> _topics = [];
+
+    private void Toggle(string t) { if (!_topics.Remove(t)) _topics.Add(t); }
 
     private async Task SendAsync()
     {
         _busy = true; _error = "";
         try
         {
-            var r = await Kartotek.RequestTrialAsync(App, _name, _email, _consent);
+            var r = await Kartotek.RequestTrialAsync(App, _name, _email, _consent, _topics, _note);
             if (r.Error is null) { _email = _email.Trim().ToLowerInvariant(); _code = r.Code; _sent = true; } else _error = r.Error;
         }
         finally { _busy = false; }

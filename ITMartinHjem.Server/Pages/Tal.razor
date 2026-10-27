@@ -85,14 +85,15 @@
 
 <section class="k-card">
     <div class="k-card-title">📱 Apps</div>
-    <p class="k-card-sub">Besøgende pr. app. Står der "ingen" i 30 dage, kan du roligt stoppe den i Kontrol.</p>
+    <p class="k-card-sub">Besøgende pr. app. Står der "ingen" i 30 dage, kan du roligt stoppe den i Kontrol.
+        "tælles ikke" = appen sender ingen besøg, så tallet siger intet om, hvor meget den bruges.</p>
     <table class="hj-tal">
         <thead><tr><th>App</th><th>I dag</th><th>7 dage</th><th>30 dage</th><th>Sidst</th><th>Mest fra</th></tr></thead>
         <tbody>
             @foreach (var a in _apps)
             {
-                <tr class="@(a.D30 == 0 ? "hj-tal-off" : "")">
-                    <td>@a.Name</td><td>@a.D1</td><td>@a.D7</td><td>@(a.D30 == 0 ? "ingen" : a.D30)</td>
+                <tr class="@(a.D30 == 0 && !a.NotCounted ? "hj-tal-off" : "")">
+                    <td>@a.Name</td><td>@a.D1</td><td>@a.D7</td><td>@(a.D30 > 0 ? a.D30 : a.NotCounted ? "tælles ikke" : "ingen")</td>
                     <td>@(a.Last is { } l ? Dk.Local(l).ToString("d/M HH:mm") : "–")</td><td>@a.From</td>
                 </tr>
             }
@@ -120,7 +121,7 @@
     private List<AppRow> _apps = [];
 
     private sealed record PageRow(string Path, string Label, int Views, int Visitors, int Median);
-    private sealed record AppRow(string Name, int D1, int D7, int D30, DateTime? Last, string From);
+    private sealed record AppRow(string Name, int D1, int D7, int D30, DateTime? Last, string From, bool NotCounted);
 
     private string PeriodText => _days == 1 ? "I dag (siden midnat)" : $"De sidste {_days} dage";
 
@@ -139,6 +140,7 @@
         // Apps: fixed windows, so the table answers "can I stop it?" whatever period is chosen above.
         var names = links.Where(l => Uri.TryCreate(l.Url, UriKind.Absolute, out _))
             .GroupBy(l => new Uri(l.Url).Host.ToLowerInvariant()).ToDictionary(g => g.Key, g => $"{g.First().Icon} {g.First().Name}".Trim());
+        foreach (var (host, name) in VisitRules.KnownApps) names.TryAdd(host, name);
         var hosts = _all.Select(h => h.Host).Where(h => h != VisitRules.Site).Concat(names.Keys.Where(h => h != VisitRules.Site)).Distinct();
         _apps = hosts.Select(host =>
         {
@@ -146,8 +148,8 @@
             var from = hits.GroupBy(VisitorKey).Select(g => g.OrderBy(h => h.At).First().Source).GroupBy(s => s)
                 .OrderByDescending(g => g.Count()).FirstOrDefault()?.Key ?? "";
             return new AppRow(names.GetValueOrDefault(host, host), Visitors(hits, 1), Visitors(hits, 7), Visitors(hits, 30),
-                hits.Count == 0 ? null : hits.Max(h => h.At), from);
-        }).OrderByDescending(a => a.D30).ThenBy(a => a.Name).ToList();
+                hits.Count == 0 ? null : hits.Max(h => h.At), from, VisitRules.NotCounted.Contains(host));
+        }).OrderByDescending(a => a.D30).ThenBy(a => a.NotCounted).ThenBy(a => a.Name).ToList();
         Compute();
     }
 
