@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="da" data-family="kommunikere">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Spilleder – hjælp ved bordet: spillerne, liv, hemmelige beskeder og terninger." />
+    <meta name="theme-color" content="#f4f6f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Spilleder" />
+    <title>Spilleder</title>
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=1" />
+    <link rel="stylesheet" href="app.css?v=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=1" defer></script>
+    <script src="app.js?v=1" defer></script>
+</head>
+<body>
+<div class="spil">
+
+    <!-- Start: join with the game code, or start a new game (game master). -->
+    <section id="start" class="start" hidden>
+        <h1>Spilleder</h1>
+        <p class="kolibri-navn">Kolibri Kommunikere</p>
+
+        <details class="k-card formaal">
+            <summary class="k-card-title">Formål</summary>
+            <p>Spilleder hjælper jer ved bordet, når I spiller rollespil – fx Dungeons &amp; Dragons, Varulv eller et mordmysterium.</p>
+            <p>Alle kan se spillerne: navn, figur, race, klasse, liv og besværgelser, så ingen glemmer noget. Når en spiller mister liv, ser alle det med det samme.</p>
+            <p>Spillederen kan sende en hemmelig besked til én spiller – fx <i>"Du ser noget glimte til højre"</i>. Kun den spiller ser den.</p>
+        </details>
+
+        <form id="deltagForm" class="k-card k-stack">
+            <h2 class="k-card-title">Vær med i et spil</h2>
+            <div>
+                <label class="k-label" for="deltagKode">Spilkode</label>
+                <input class="k-input kode" id="deltagKode" autocomplete="off" autocapitalize="characters" maxlength="10" required />
+                <p class="k-help">Du får koden af spillederen.</p>
+            </div>
+            <div>
+                <label class="k-label" for="deltagNavn">Dit navn</label>
+                <input class="k-input" id="deltagNavn" maxlength="30" autocomplete="given-name" />
+                <p class="k-help">Dit rigtige navn. Din figur skriver du bagefter.</p>
+            </div>
+            <button class="k-btn k-btn-primary k-btn-block" type="submit">Vær med</button>
+            <p class="fejl" id="deltagFejl" hidden></p>
+        </form>
+
+        <details class="k-card">
+            <summary class="k-card-title">Start et nyt spil (spilleder)</summary>
+            <form id="nytForm" class="k-stack">
+                <div>
+                    <label class="k-label" for="nytKode">Kode til at starte spil</label>
+                    <input class="k-input" id="nytKode" autocomplete="off" required />
+                    <p class="k-help">Du har fået den af ITMartin.</p>
+                </div>
+                <div>
+                    <label class="k-label" for="nytTitel">Spillets navn</label>
+                    <input class="k-input" id="nytTitel" maxlength="60" placeholder="fx Dragens hule" />
+                </div>
+                <div>
+                    <label class="k-label" for="nytNavn">Dit navn</label>
+                    <input class="k-input" id="nytNavn" maxlength="30" required />
+                </div>
+                <button class="k-btn k-btn-primary k-btn-block" type="submit">Start spillet</button>
+                <p class="fejl" id="nytFejl" hidden></p>
+                <p class="k-help">Har du allerede startet et spil på en anden telefon? Skriv din <b>lederkode</b> under "Vær med i et spil".</p>
+            </form>
+        </details>
+    </section>
+
+    <section id="app" class="app" hidden>
+        <header class="top">
+            <div class="brand">
+                <b id="titel">Spilleder</b><span id="hvem"></span>
+            </div>
+            <nav class="tabs" role="tablist">
+                <button role="tab" id="tabSpillere" aria-selected="true">Spillere</button>
+                <button role="tab" id="tabBeskeder" aria-selected="false">Beskeder <span class="badge" id="nyeBadge" hidden></span></button>
+                <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
+            </nav>
+        </header>
+
+        <div id="pushBar" class="bar" hidden></div>
+
+        <main id="viewSpillere" class="view">
+            <details class="k-card side-info">
+                <summary class="k-card-title">Om denne side</summary>
+                <p>Her er alle spillerne ved bordet. Alle kan se alle kort.</p>
+                <p>Tryk <b>−</b> og <b>+</b> for at ændre liv – de andre ser det med det samme. Tryk <b>Ret kort</b> for at skrive figur, race, klasse, noter og besværgelser.</p>
+            </details>
+
+            <details id="koderBoks" class="k-card" open hidden>
+                <summary class="k-card-title">Spilkode til spillerne</summary>
+                <p class="stor-kode" id="spilKode"></p>
+                <p>Spillerne åbner <b>spilleder.itmartin.dk</b> og skriver koden og deres navn.</p>
+                <button class="k-btn" type="button" id="delKode">Del koden</button>
+                <details class="leder-kode">
+                    <summary>Din lederkode (hemmelig)</summary>
+                    <p><b id="lederKode"></b> – brug den, hvis du vil være spilleder på en anden telefon eller computer. Giv den ikke til spillerne.</p>
+                </details>
+            </details>
+
+            <div id="kort" class="kort-liste"></div>
+            <div class="tom" id="ingenSpillere">
+                <strong>Ingen spillere endnu</strong>
+                Giv spilkoden til spillerne. Når de er med, kommer deres kort her.
+            </div>
+        </main>
+
+        <main id="viewBeskeder" class="view" hidden>
+            <details class="k-card side-info">
+                <summary class="k-card-title">Om denne side</summary>
+                <p id="beskedInfo"></p>
+            </details>
+
+            <form id="skriv" class="k-card k-stack">
+                <h2 class="k-card-title" id="skrivTitel">Send en besked</h2>
+                <div>
+                    <span class="k-label">Til</span>
+                    <div id="til" class="til"></div>
+                </div>
+                <div id="hurtige" class="hurtige" hidden></div>
+                <textarea id="tekst" class="k-textarea" rows="2" maxlength="2000" placeholder="Skriv en besked…" aria-label="Besked"></textarea>
+                <button class="k-btn k-btn-primary" type="submit">Send</button>
+                <p class="fejl" id="skrivFejl" hidden></p>
+            </form>
+
+            <details class="k-card" id="terningBoks">
+                <summary class="k-card-title">Slå med terning</summary>
+                <div class="terninger">
+                    <button type="button" class="k-btn" data-t="d4">d4</button>
+                    <button type="button" class="k-btn" data-t="d6">d6</button>
+                    <button type="button" class="k-btn" data-t="d8">d8</button>
+                    <button type="button" class="k-btn" data-t="d10">d10</button>
+                    <button type="button" class="k-btn" data-t="d12">d12</button>
+                    <button type="button" class="k-btn" data-t="d20">d20</button>
+                    <button type="button" class="k-btn" data-t="d100">d100</button>
+                </div>
+                <div class="k-row terning-egen">
+                    <input class="k-input" id="terningTekst" maxlength="12" placeholder="fx 2d6+1" aria-label="Egen terning" />
+                    <button type="button" class="k-btn" id="slaaEgen">Slå</button>
+                </div>
+                <input class="k-input" id="terningHvorfor" maxlength="60" placeholder="Hvad slår du for? (kan undværes) fx angreb" aria-label="Hvad slår du for" />
+                <label class="hemmelig"><input type="checkbox" id="terningHemmelig" /> <span id="hemmeligTekst">Hemmeligt – kun spillederen ser slaget</span></label>
+                <p class="fejl" id="terningFejl" hidden></p>
+            </details>
+
+            <div id="beskeder" class="beskeder" aria-live="polite"></div>
+            <div class="tom" id="ingenBeskeder">
+                <strong>Ingen beskeder endnu</strong>
+                Beskeder og terningeslag kommer her – det nyeste øverst.
+            </div>
+        </main>
+
+        <main id="viewMig" class="view" hidden>
+            <details class="k-card" id="spilBoks" hidden open>
+                <summary class="k-card-title">Spillet</summary>
+                <label class="k-label" for="retTitel">Spillets navn</label>
+                <input class="k-input" id="retTitel" maxlength="60" />
+                <label class="k-label" for="retLederNavn">Dit navn som spilleder</label>
+                <input class="k-input" id="retLederNavn" maxlength="30" />
+                <button class="k-btn" type="button" id="gemSpil">Gem</button>
+            </details>
+            <details class="k-card" open>
+                <summary class="k-card-title">Beskeder på telefonen</summary>
+                <p id="pushStatus"></p>
+                <div class="k-row">
+                    <button class="k-btn k-btn-primary" id="pushTil" type="button">Slå beskeder til</button>
+                    <button class="k-btn" id="pushFra" type="button" hidden>Slå beskeder fra</button>
+                </div>
+            </details>
+            <details class="k-card" id="hjemBoks">
+                <summary class="k-card-title">Sæt Spilleder på hjemmeskærmen</summary>
+                <p>Så åbner Spilleder som en app med ét tryk. <b>På iPhone skal den ligge på hjemmeskærmen</b>, før den kan give dig besked.</p>
+                <details id="hjemIphone">
+                    <summary>iPhone og iPad (Safari)</summary>
+                    <ol>
+                        <li>Åbn <b>spilleder.itmartin.dk</b> i <b>Safari</b>.</li>
+                        <li>Tryk på <b>Del</b>-knappen (firkanten med pilen op).</li>
+                        <li>Tryk <b>Føj til hjemmeskærm</b> (Add to Home Screen) og så <b>Tilføj</b>.</li>
+                        <li>Åbn Spilleder fra det nye ikon, og tryk <b>Slå beskeder til</b>.</li>
+                    </ol>
+                </details>
+                <details id="hjemAndroid">
+                    <summary>Android (Chrome)</summary>
+                    <ol>
+                        <li>Åbn <b>spilleder.itmartin.dk</b> i <b>Chrome</b>.</li>
+                        <li>Tryk på de <b>tre prikker</b> øverst til højre.</li>
+                        <li>Tryk <b>Føj til startskærm</b> eller <b>Installer app</b> (Add to Home screen / Install app).</li>
+                    </ol>
+                </details>
+                <details id="hjemPc">
+                    <summary>Computer (Chrome eller Edge)</summary>
+                    <ol>
+                        <li>Åbn <b>spilleder.itmartin.dk</b>.</li>
+                        <li>Klik på installer-ikonet i adresselinjen, eller menuen <b>⋯</b> → <b>Apps</b> → <b>Installer Spilleder</b> (Install).</li>
+                    </ol>
+                </details>
+            </details>
+            <details class="k-card">
+                <summary class="k-card-title">Om Spilleder</summary>
+                <p>Spilleder er til rollespil og andre spil, hvor spillederen skal fortælle én spiller noget, de andre ikke må høre. Ingen reklamer, og intet bliver solgt eller delt.</p>
+                <p class="k-help">Besværgelser du slår op, kommer fra <i>System Reference Document 5.1</i> af Wizards of the Coast LLC, brugt under licensen Creative Commons Attribution 4.0 (creativecommons.org/licenses/by/4.0). Teksten er på engelsk.</p>
+                <p class="k-help">Spørgsmål eller noget der ikke virker: ITMartin@Mensa.dk · 31 19 47 30</p>
+                <button class="k-btn k-btn-ghost" id="forlad" type="button">Forlad spillet på denne telefon</button>
+            </details>
+        </main>
+    </section>
+</div>
+<footer class="k-footer"><span>&copy; <span id="kYear">2026</span> ITMartin · Den digitale kolibri</span> <a href="/om">Om Spilleder</a> <a href="#k-install" class="k-footer-install">Læg på telefonen</a> <a href="/hjaelp">Noget virker ikke?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Vilkår &amp; privatliv</a></footer>
+<script>document.getElementById("kYear").textContent = new Date().getFullYear();</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/spil-sw.js").catch(function () {});</script>
+</body>
+</html>

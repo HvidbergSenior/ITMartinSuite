@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- "Spilleder" (Kolibri Kommunikere), 2026-10-27: help at the table for the game master and the players - shared
+         player cards with live HP, secret messages to one player, dice, SRD spell look-up. No ads. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinSpilleder.Server</RootNamespace>
+        <AssemblyName>ITMartinSpilleder.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinSpilleder.Application\ITMartinSpilleder.Application.csproj" />
+        <ProjectReference Include="..\ITMartinSpilleder.Infrastructure\ITMartinSpilleder.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ITMartinSpilleder.Tests" />
+    </ItemGroup>
+
+</Project>

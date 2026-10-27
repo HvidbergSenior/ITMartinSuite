@@ -403,6 +403,9 @@
     private bool _ready;
     private string _visitorKey = "unknown";
 
+    // Another Kolibri app can send a description along (Spilleder 2026-10-27: "use billedbehandling to make users create a figure").
+    [SupplyParameterFromQuery(Name = "beskriv")] public string? Beskriv { get; set; }
+
     protected override void OnInitialized()
     {
         // Must capture this now — HttpContext is only reliably available during the initial
@@ -414,6 +417,12 @@
     {
         if (!firstRender) return;
         await RestoreStateAsync();
+        if (!string.IsNullOrWhiteSpace(Beskriv))
+        {
+            _mode = Mode.Generate;
+            _genDescription = Beskriv.Length > 500 ? Beskriv[..500] : Beskriv;
+            await PersistStateAsync();
+        }
         try
         {
             var code = await Js.InvokeAsync<string?>("localStorage.getItem", CodeKey);

@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "ITMartinSpilleder": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5258",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Spilleder__Code": "spil123456",
+        "Spilleder__DataDir": "bin/spil-data"
+      }
+    }
+  }
+}
