@@ -188,25 +188,31 @@ else if (_family && !_owner)
 
     public enum TileGroup { App, Page, Site }
 
-    // Facts for the open "Vidste du …" box: every tile's fact + extra ones that have no tile of their own.
-    // Martin's own Facebook download 2026-10-15: 10,211 photos/videos 2008-2026, Facebook strips the date from the files.
-    private static readonly (string Title, string Href, string Fact)[] Facts =
+    // Facts for the open "Vidste du …" box. The small, concrete everyday help comes FIRST and the box always starts on one of
+    // those (user 2026-10-27: "Facebook bæredygtighed etc should not be dominant... The concrete examples should"); the
+    // Facebook/green/other facts follow after Næste and stay in their own tiles.
+    private static readonly (string Title, string Href, string Fact)[] Concrete =
     [
-        ("Det de store ikke fortæller", "/dine-data", "… at Facebook fjerner datoen fra dine billeder, når du henter dem ud? Jeg havde 10.211 billeder og videoer – alle uden dato."),
-        ("Se mine Facebook-billeder", "https://gallery.itmartin.dk/facebook-demo", "… at jeg har fået alle mine billeder hjem fra Facebook og sat den rigtige dato på igen? Se et udpluk – ingen kode."),
-        // Small, concrete everyday help (user 2026-10-27: "small everyday trouble on phone or pc, gives huge satisfaction when fixed. I do that").
+        // User 2026-10-27: "small everyday trouble on phone or pc, gives huge satisfaction when fixed. I do that".
         ("Skriv til mig", "/chat-med-martin", "… at små, irriterende ting på telefonen eller PC'en – printeren, der driller, mailen, der ikke kommer, opdateringen, der hænger – giver en kæmpe lettelse, når de er løst? Det hjælper jeg med."),
         ("Skriv til mig", "/chat-med-martin", "… at »lageret er fuldt« på telefonen tit kan løses på et kvarter – uden at du mister et eneste billede?"),
         ("Hjælp på din skærm", "/mine-apps?app=Se%20med", "… at jeg kan flytte dine billeder, kontakter og apps fra den gamle telefon til den nye sammen med dig – så intet bliver væk?"),
-        ("Grønt og bæredygtigt", "/baeredygtighed", "… at en langsom PC tit kan blive hurtig igen uden at købe en ny? Ofte er det bare nogle programmer, der starter af sig selv."),
+        ("Skriv til mig", "/chat-med-martin", "… at en langsom PC tit kan blive hurtig igen uden at købe en ny? Ofte er det bare nogle programmer, der starter af sig selv."),
         // User 2026-10-27: "jeg kan finde priser på dine ting... Og modtager gerne ting som I vil af med".
         ("Skriv til mig", "/chat-med-martin", "… at jeg kan finde ud af, hvad dine ting er værd – bøger, tegneserier, film, musik og spil?"),
         ("Bogshoppen", "https://bogshoppen.dk", "… at jeg gerne tager imod de ting, du vil af med? Så får de nye ejere i stedet for at ende i containeren."),
+    ];
+
+    private static readonly (string Title, string Href, string Fact)[] Facts =
+    [
+        .. Concrete,
+        ("Det de store ikke fortæller", "/dine-data", "… at Facebook fjerner datoen fra dine billeder, når du henter dem ud? Jeg havde 10.211 billeder og videoer – alle uden dato."),
+        ("Se mine Facebook-billeder", "https://gallery.itmartin.dk/facebook-demo", "… at jeg har fået alle mine billeder hjem fra Facebook og sat den rigtige dato på igen? Se et udpluk – ingen kode."),
         .. Tiles.Select(t => (t.Title, t.Href, t.Fact)),
     ];
 
-    // Start on a fact that changes every minute - the same one in the prerender and the live render, so it does not jump.
-    private int _factIndex = (int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % 1000);
+    // Start on a concrete fact that changes every minute - the same one in the prerender and the live render, so it does not jump.
+    private int _factIndex = (int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % Concrete.Length);
 
     // Real pictures instead of emoji icons (user 2026-10-12): the app examples, and a photo of Martin for "Om mig".
     private static readonly Dictionary<string, string> Pictures = new()
