@@ -312,6 +312,10 @@ public class HelpEvent
     public List<HelpTask>   Tasks   { get; set; } = [];
     public List<HelpSignup> Signups { get; set; } = [];
     public List<HelpChatMessage> Chat { get; set; } = [];   // navigation added 2026-10-12 (column HelpEventId was already there)
+
+    /// <summary>Sign-up, new tasks and chat close at the deadline or when the event is switched off (2026-10-27: "Bogshoppen
+    /// lukker" still took sign-ups weeks after the weekend). The list of who came stays visible.</summary>
+    public bool IsOpen => IsActive && !(Deadline.HasValue && Deadline.Value.ToUniversalTime() < DateTime.UtcNow);
 }
 
 public class HelpSlot

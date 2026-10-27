@@ -173,7 +173,7 @@ public static class HelpRules
     public static HelpTask? AddTask(HelpEvent e, string label, string addedBy)
     {
         var l = label.Trim();
-        if (l.Length < 2) return null;
+        if (l.Length < 2 || !e.IsOpen) return null;
         var t = e.Tasks.FirstOrDefault(x => x.Label.Equals(l, StringComparison.OrdinalIgnoreCase));
         if (t is null) e.Tasks.Add(t = new HelpTask { HelpEventId = e.Id, Label = l, SortOrder = 100, AddedBy = addedBy.Trim() });
         return t;
@@ -182,6 +182,7 @@ public static class HelpRules
     /// <returns>Error (Danish) or null when signed up.</returns>
     public static string? SignUp(HelpEvent e, string name, string phone, string comment, IReadOnlyCollection<int> slots, IReadOnlyCollection<int> tasks)
     {
+        if (!e.IsOpen) return "Tilmeldingen er lukket.";
         if (name.Trim().Length < 2) return "Skriv dit navn, så vi ved hvem der kommer.";
         if (slots.Count == 0) return "Sæt kryds ved mindst én tid.";
         e.Signups.Add(new HelpSignup
@@ -192,6 +193,8 @@ public static class HelpRules
         return null;
     }
 
-    public static void Chat(HelpEvent e, string name, string text, bool organiser) =>
-        e.Chat.Add(new HelpChatMessage { HelpEventId = e.Id, Name = name.Trim(), Text = text.Trim(), IsOrganiser = organiser });
+    public static void Chat(HelpEvent e, string name, string text, bool organiser)
+    {
+        if (e.IsOpen || organiser) e.Chat.Add(new HelpChatMessage { HelpEventId = e.Id, Name = name.Trim(), Text = text.Trim(), IsOrganiser = organiser });
+    }
 }

@@ -39,7 +39,12 @@
 
             @Photo(0)
 
-            @if (_done)
+            @if (!_event.IsOpen)
+            {
+                @* Closed at the deadline (or switched off): no form, the list of who came stays below. *@
+                <div class="help-thanks">Tilmeldingen er lukket. Tak til alle, der gav en hånd – herunder kan du se, hvem der kom.</div>
+            }
+            else if (_done)
             {
                 <div class="help-thanks">Tak, @_doneName! Du står på listen herunder.</div>
             }
@@ -155,11 +160,18 @@
                         </div>
                     }
                 </div>
+                @if (_event.IsOpen || IsAdmin)
+                {
                 <input class="poll-input" placeholder="Dit navn" maxlength="60" @bind="_name" @bind:event="oninput" />
                 <div class="help-add">
                     <input class="poll-input" placeholder="Skriv en besked …" maxlength="500" @bind="_msg" @bind:event="oninput" @onkeydown="SendOnEnter" />
                     <button class="help-add-btn" @onclick="Send" disabled="@(_msg.Trim().Length == 0 || _name.Trim().Length < 2)">Send</button>
                 </div>
+                }
+                else
+                {
+                    <span class="muted">Chatten er lukket.</span>
+                }
             </div>
         </div>
     }
