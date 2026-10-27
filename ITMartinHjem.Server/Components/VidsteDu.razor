@@ -1,0 +1,27 @@
+@using ITMartinHjem.Server.Services
+@inject NavigationManager Nav
+
+@* One open "Vidste du …" box, one fact at a time: a button to where it belongs + "Næste" (user 2026-10-19). Shared since 2026-10-27 by
+   the itmartin.dk front page, Mine apps and bogshoppen.dk (user: "vidste du should be on Bogshoppen.dk as well"). *@
+@{ var fact = Facts[_index % Facts.Count]; var external = fact.Href.StartsWith("http"); }
+<section class="k-card hj-vidste @(Bogshoppen ? "bs-card" : "")" data-nofold>
+    <h2 class="k-card-title">Vidste du …</h2>
+    <p class="hj-vidste-text">@fact.Text.TrimStart('…', ' ')</p>
+    <div class="hj-vidste-btns">
+        <a class="k-btn k-btn-primary @(Bogshoppen ? "bs-btn" : "")" href="@fact.Href" target="@(external ? "_blank" : null)" rel="@(external ? "noopener" : null)">@fact.Title →</a>
+        <button type="button" class="k-btn" @onclick="() => _index++">Næste</button>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SiteFacts.Fact> Facts { get; set; } = [];
+    /// <summary>Start on one of the first N facts (the concrete ones) - all when 0.</summary>
+    [Parameter] public int StartAmong { get; set; }
+
+    // A fact that changes every minute - the same one in the prerender and the live render, so it does not jump.
+    private int _index;
+    protected override void OnInitialized() =>
+        _index = (int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % Math.Max(1, StartAmong > 0 ? Math.Min(StartAmong, Facts.Count) : Facts.Count));
+
+    private bool Bogshoppen => BogshoppenHome.IsHost(new Uri(Nav.Uri).Host);
+}

@@ -24,6 +24,7 @@
 
 @* ITMartin + Bogshoppen = one company soon (user 2026-10-27) - same box as on itmartin.dk. *@
 <OneCompany />
+<VidsteDu Facts="SiteFacts.ForBogshoppen()" StartAmong="SiteFacts.Bogshoppen.Count" />
 
 @{ var (intro, parts) = Sections.Split(_page?.Body); }
 @if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
