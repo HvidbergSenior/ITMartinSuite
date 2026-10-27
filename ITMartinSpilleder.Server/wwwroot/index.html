@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="da" data-family="kommunikere">
 <head>
+    <script>
+        // Lys/Mørk: what the visitor chose, else what the phone is set to - set before the first paint (same as ElPriser).
+        (function () {
+            var t = null; try { t = localStorage.getItem('spilleder_theme'); } catch (e) { }
+            document.documentElement.setAttribute('data-theme', t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Spilleder – hjælp ved bordet: spillerne, liv, hemmelige beskeder og terninger." />
@@ -8,20 +15,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Spilleder" />
     <title>Spilleder</title>
-    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=1" />
-    <link rel="stylesheet" href="app.css?v=1" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=2" />
+    <link rel="stylesheet" href="app.css?v=2" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=1" defer></script>
-    <script src="app.js?v=1" defer></script>
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=2" defer></script>
+    <script src="app.js?v=2" defer></script>
 </head>
 <body>
+<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div class="k-brand"><b>Spilleder</b><span>Kolibri Kommunikere</span></div></a><div class="k-header-actions"><button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button></div></div></header>
 <div class="spil">
 
     <!-- Start: join with the game code, or start a new game (game master). -->
     <section id="start" class="start" hidden>
-        <h1>Spilleder</h1>
-        <p class="kolibri-navn">Kolibri Kommunikere</p>
         <p class="indgang" id="indgang" hidden></p>
 
         <details class="k-card formaal">
@@ -73,7 +79,7 @@
     <section id="app" class="app" hidden>
         <header class="top">
             <div class="brand">
-                <b id="titel">Spilleder</b><span id="hvem"></span>
+                <b id="titel"></b><span id="hvem"></span>
             </div>
             <nav class="tabs" role="tablist">
                 <button role="tab" id="tabSpillere" aria-selected="true">Spillere</button>

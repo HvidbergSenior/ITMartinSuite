@@ -562,7 +562,7 @@
             catch { bar.textContent = 'Beskeder på telefonen kunne ikke slås til lige nu. Prøv igen senere under ⋯.'; bar.hidden = false; }
         } else if (Notification.permission === 'denied') bar.hidden = true;
         else {
-            bar.innerHTML = '<b>Få besked, når spillederen skriver til dig.</b> <button type="button" class="k-btn k-btn-sm k-btn-primary" id="barTil">Slå beskeder til</button>';
+            bar.innerHTML = '<b>Få besked, når ' + (leder ? 'en spiller' : 'spillederen') + ' skriver til dig.</b> <button type="button" class="k-btn k-btn-sm k-btn-primary" id="barTil">Slå beskeder til</button>';
             bar.hidden = false;
             $('barTil').onclick = () => setupPush(true);
         }
@@ -597,6 +597,29 @@
         const id = isIos ? 'hjemIphone' : /android/i.test(navigator.userAgent) ? 'hjemAndroid' : 'hjemPc';
         $(id).open = true;
     }
+
+    // ---------- Lys/Mørk + remembered boxes (same as ElPriser) ----------
+
+    function syncTheme() {
+        const cur = document.documentElement.getAttribute('data-theme') || 'light';
+        $('themeToggleBtn').textContent = cur === 'light' ? 'Mørk' : 'Lys';
+        document.querySelector('meta[name=theme-color]')?.setAttribute('content', cur === 'light' ? '#f4f6f5' : '#0b1220');
+    }
+    $('themeToggleBtn').onclick = () => {
+        const next = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        store.set('spilleder_theme', next);
+        syncTheme();
+    };
+    syncTheme();
+
+    // Every box on the page remembers open/closed on this device (user: "all boxes show/hide").
+    document.querySelectorAll('details').forEach(d => {
+        const key = 'spil_open_' + (d.id || d.querySelector('summary')?.textContent.trim() || '');
+        const saved = store.get(key);
+        if (saved) d.open = saved === '1';
+        d.addEventListener('toggle', () => store.set(key, d.open ? '1' : '0'));
+    });
 
     boot();
 })();
