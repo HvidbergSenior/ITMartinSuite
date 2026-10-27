@@ -355,7 +355,7 @@ public static class FigureRules
         var who = string.Join(" ", new[] { Cut(f.People, MaxShort), Cut(f.Class, MaxShort) }.Where(x => x.Length > 0));
         var parts = new List<string> { style, who.Length > 0 ? "a " + who : "an adventurer" };
         if (Cut(f.Look, 300) is { Length: > 0 } look) parts.Add(look);
-        parts.Add("head to knees, facing the viewer, plain soft background, no text, no frame");
+        parts.Add("head to knees, facing the viewer, plain soft background, no text, no signature, no watermark, no frame");
         return string.Join(", ", parts);
     }
 
