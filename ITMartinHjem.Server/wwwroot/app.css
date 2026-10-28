@@ -739,3 +739,24 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
   .hj-calm-om { padding: 2px 18px; }
   .hj-calm .tm-img { max-width: 100%; }
 }
+/* Mine hjælpere: "Mine apps er webapps" always visible at the top (user 2026-10-28: "should be more visible"). */
+.hj-webapp-note { background: var(--k-accent-soft); border: 0; border-left: 6px solid var(--k-accent); padding: 18px 22px; margin: 0 0 20px; }
+.hj-webapp-note p { margin: 0 0 10px; line-height: 1.6; color: var(--k-text); }
+.hj-webapp-note p:last-child { margin-bottom: 0; }
+.hj-webapp-note .hj-webapp-title { font-size: 1.25rem; font-weight: 800; }
+/* bogshoppen.dk with the same feel as itmartin.dk (user 2026-10-28: "need to have the feel ... also on bogshoppen.dk"):
+   the warm gradient head, the Kolibri page background and white cards, the orange accent. Buttons keep DARK text
+   (colour-blind fix 2026-10-11: white on red-brown was unreadable) - white in the head, pale orange elsewhere. */
+.bs-site { --k-accent:#c96a2b; --k-accent-dark:#a3521f; --k-accent-soft:#f9e9de; --k-bg:#f4f6f5; --k-card:#ffffff; --k-border:#dbe2df;
+  --k-text:#17211d; --k-muted:#5b6864; background:#f4f6f5; color:#17211d; }
+.bs-head { position:relative; overflow:hidden; border:0; box-shadow:var(--k-shadow);
+  background:linear-gradient(120deg,#ffe58a 0%,#ffc98f 55%,#ffad97 100%); color:#2b1d12; }
+.bs-head::after { content:""; position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%;
+  background:rgba(255,255,255,.22); pointer-events:none; }
+.bs-head h1 { color:#2b1d12; }
+.bs-head p { color:#4a3222; }
+.bs-tag { background:rgba(255,255,255,.7); color:#2b1d12; }
+.bs-head .k-btn, .bs-head .bs-btn, .bs-head .k-btn-primary { background:#fff; color:#17211d; border:2px solid #17211d; }
+.bs-site .k-btn-primary, .bs-site .bs-btn { background:#f9e9de; color:#17211d; border:2px solid #17211d; }
+.bs-site .k-btn-primary:hover, .bs-site .bs-btn:hover { background:#ffd9bf; color:#17211d; }
+.bs-card h2 { color:#17211d; }

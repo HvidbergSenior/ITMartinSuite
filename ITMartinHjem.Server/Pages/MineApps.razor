@@ -8,6 +8,13 @@
 
 @* Principle (user 2026-09-28): every app is useful for free; a paid version is something you ask for. *@
 <PageHead Title="Mine hjælpere" Tag="Gratis at prøve" Line="Små hjælpere til hverdagen – uden reklamer." />
+@* "Mine apps er webapps" always shown at the top, not hidden in a tile at the bottom (user 2026-10-28: "should be more visible").
+   The user's own words. *@
+<section class="k-card hj-webapp-note" data-nofold>
+    <p class="hj-webapp-title">Mine apps er ikke mobilapps – de er webapps!</p>
+    <p>Det betyder, at du ikke skal downloade eller installere noget. Du åbner bare appen i din browser – på mobilen, din tablet eller din computer.</p>
+    <p>Det er nemt, hurtigt og fungerer på tværs af enheder. Du slipper for appbutikker, installationer og opdateringer. Du bruger bare appen, når du har brug for den.</p>
+</section>
 <div class="hj-apps">
     @foreach (var a in _apps)
     {
@@ -58,7 +65,6 @@
 <section class="k-card hj-tilegroup" id="om-mine-apps">
     <h2 class="k-card-title">Om mine hjælpere</h2>
     <nav class="hj-tiles" aria-label="Om mine hjælpere">
-        <button class="hj-tile @(_info == "webapps" ? "is-open" : "")" @onclick="@(() => Toggle("webapps"))"><b>Mine apps er webapps</b><span class="hj-tile-line">Ingen download – åbn dem i browseren</span></button>
         <button class="hj-tile @(_info == "gratis" ? "is-open" : "")" @onclick="@(() => Toggle("gratis"))"><b>Gratis – sådan prøver du en app</b><span class="hj-tile-line">Hvilke apps du kan prøve, og hvordan</span></button>
         <button class="hj-tile @(_info == "forskel" ? "is-open" : "")" @onclick="@(() => Toggle("forskel"))"><b>Mobilapp eller webapp – hvad er forskellen?</b><span class="hj-tile-line">Hvorfor webappen er den store</span></button>
         <button class="hj-tile @(_info == "telefon" ? "is-open" : "")" @onclick="@(() => Toggle("telefon"))"><b>Prøv lige at kigge på din telefon</b><span class="hj-tile-line">Hvor mange apps har du egentlig?</span></button>
@@ -66,19 +72,7 @@
     </nav>
 </section>
 @{
-    if (_info == "webapps")
-    {
-        <article class="k-card hj-page">
-            <h2 class="k-card-title">Mine apps er webapps</h2>
-            <div>
-    <p><b>Mine apps er ikke mobilapps – de er webapps!</b></p>
-    <p>Det betyder, at du ikke skal downloade eller installere noget. Du åbner bare appen i din browser – på mobilen, din tablet eller din computer.</p>
-    <p>Det er nemt, hurtigt og fungerer på tværs af enheder. Du slipper for appbutikker, installationer og opdateringer. Du bruger bare appen, når du har brug for den.</p>
-    </div>
-            <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
-        </article>
-    }
-    else if (_info == "gratis")
+    if (_info == "gratis")
     {
         <article class="k-card hj-page">
             <h2 class="k-card-title">Gratis – sådan prøver du en app</h2>
