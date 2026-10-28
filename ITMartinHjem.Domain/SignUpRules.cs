@@ -14,6 +14,24 @@ public static class SignUpRules
     /// <summary>"48217730" -> "4821 7730".</summary>
     public static string Show(string code) => code.Length == 8 ? code[..4] + " " + code[4..] : code;
 
+    /// <summary>The note to Martin on every sign-up, from both sites (user 2026-10-28: "when people sign up i dont get mails" -
+    /// bogshoppen.dk sign-ups told him nothing, itmartin.dk ones only by Svar/push).</summary>
+    public static (string Subject, string Body) OwnerMail(string site, string name, string email, string what, string code)
+    {
+        var who = name.Trim().Length > 0 ? name.Trim() : email;
+        return ($"Ny kunde på {site}: {who}",
+            $"""
+            {who} har skrevet sig op på {site}.
+
+            Navn: {(name.Trim().Length > 0 ? name.Trim() : "(ikke skrevet)")}
+            E-mail: {email}
+            Interesseret i: {(what.Trim().Length > 0 ? what.Trim() : "(intet valgt)")}
+            Kundenummer: {(code.Length > 0 ? Show(code) : "(kommer, når Kunder svarer)")}
+
+            Se kunden i Kunder: https://kunder.itmartin.dk
+            """);
+    }
+
     /// <summary>The mail the person gets at once with their kundenummer (plain text, Danish).</summary>
     public static (string Subject, string Body) WelcomeMail(string name, string code, IEnumerable<string> appsWithCode) =>
         ("Dit kundenummer hos ITMartin og Bogshoppen",

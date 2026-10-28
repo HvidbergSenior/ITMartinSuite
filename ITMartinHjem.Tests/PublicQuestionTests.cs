@@ -154,14 +154,16 @@ public class TrialRequestTests
     [Test]
     public async Task Trial_needs_the_ticked_consent_and_a_free_app_and_then_lands_in_kartotek_and_inbox()
     {
-        var k = new FakeKartotek(); var inbox = new FakeInbox(); var mail = new FakeMail(); var uc = new Customers(k, inbox, mail);
+        var k = new FakeKartotek(); var inbox = new FakeInbox(); var mail = new FakeMail(); var uc = new Customers(k, inbox, mail, new HjemOptions());
         (await uc.RequestTrialAsync("ElPriser", "Ole", "Ole@Gmail.com", consent: false)).Error.Should().StartWith("Sæt flueben");
         (await uc.RequestTrialAsync("Tilbud", "Ole", "Ole@Gmail.com", consent: true)).Error.Should().Be(TrialRules.NotFree);   // not on the free list
         TrialRules.IsFree(TrialRules.FrontPage, []).Should().BeTrue();   // the front-page box signs up to all the free apps
         TrialRules.Source(TrialRules.FrontPage).Should().Be("itmartin.dk: Bliv kunde – forsiden");
         k.SignedUp.Should().BeEmpty();
         (await uc.RequestTrialAsync("elpriser", "Ole", " Ole@Gmail.com ", consent: true)).Should().Be(new SignUpResult(null, "48217730"));
-        mail.Sent.Should().ContainSingle().Which.Body.Should().Contain("4821 7730").And.Contain("ElPriser, Stem").And.NotContain("Temperatur")
+        mail.Sent.Should().HaveCount(2);   // the welcome to the person + the note to Martin (user 2026-10-28)
+        mail.Sent.Should().ContainSingle(m => m.To == "ITMartin@Mensa.dk").Which.Body.Should().Contain("ole@gmail.com").And.Contain("4821 7730").And.Contain("itmartin.dk");
+        mail.Sent.Should().ContainSingle(m => m.To == "ole@gmail.com").Which.Body.Should().Contain("4821 7730").And.Contain("ElPriser, Stem").And.NotContain("Temperatur")
             .And.Contain("liveauktionerne").And.Contain("afmeld");
         k.SignedUp.Should().ContainSingle().Which.Should().Be(new CustomerSignUp("ole@gmail.com", "Ole", CustomerOf.ITMartin, "elpriser",
             TrialRules.Source("elpriser"), TrialRules.ConsentText, "elpriser"));
@@ -173,7 +175,7 @@ public class TrialRequestTests
     [Test]
     public async Task Unsubscribe_takes_just_the_email()
     {
-        var k = new FakeKartotek(); var uc = new Customers(k, new FakeInbox(), new FakeMail());
+        var k = new FakeKartotek(); var uc = new Customers(k, new FakeInbox(), new FakeMail(), new HjemOptions());
         (await uc.UnsubscribeAsync("")).Should().NotBeNull();
         (await uc.UnsubscribeAsync(" OLE@gmail.com")).Should().BeNull();
         k.Unsubscribed.Should().Equal("ole@gmail.com");
@@ -195,7 +197,7 @@ public class BogshoppenFollowTests
     [Test]
     public async Task Follow_keeps_only_known_titles_plus_the_note_and_needs_consent()
     {
-        var k = new Kartotek(); var uc = new Customers(k, new NoInbox(), new TrialRequestTests.FakeMail());
+        var k = new Kartotek(); var uc = new Customers(k, new NoInbox(), new TrialRequestTests.FakeMail(), new HjemOptions());
         (await uc.FollowBogshoppenAsync("Ole", "ole@gmail.com", ["Tintin"], null, consent: false)).Error.Should().NotBeNull();
         (await uc.FollowBogshoppenAsync("Ole", "Ole@Gmail.com", ["Tintin", "Hacket felt", "Asterix"], "Tintin nr. 5", consent: true)).Error.Should().BeNull();
         k.Rows.Should().ContainSingle().Which.Should().Be(("ole@gmail.com", CustomerOf.Bogshoppen, BogshoppenRules.Source, "Tintin, Asterix | Tintin nr. 5"));

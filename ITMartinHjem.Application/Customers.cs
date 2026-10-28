@@ -30,7 +30,7 @@ public interface IOwnerInbox
     Task NewRequestAsync(string name, string email, string text, CancellationToken ct = default);
 }
 
-public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMailSender mail)
+public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMailSender mail, HjemOptions options)
 {
     public const string Unreachable = "Det kunne ikke gemmes lige nu – prøv igen om lidt, eller skriv til ITMartin@Mensa.dk.";
 
@@ -53,6 +53,7 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return new(Unreachable); }
         if (r.Error is not null) return r;
         await WelcomeAsync(n, e, r.Code, free, ct);
+        await TellOwnerAsync("itmartin.dk", n, e, TrialRules.Interests(app, topics, note), r.Code, ct);
         await inbox.NewRequestAsync(n, e, r.Code != "" ? TrialRules.RequestMessage(app, e) : TrialRules.RequestMessageNoCode(app, e), ct);
         return r;
     }
@@ -63,6 +64,13 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
         if (code == "") return;
         var (subject, body) = SignUpRules.WelcomeMail(name, code, free.Where(f => f.NeedsCode).Select(f => f.Name));
         await mail.SendAsync(email, subject, body, ct);
+    }
+
+    // A mail to Martin on every sign-up, both sites (best effort - the customer is already saved in Kunder).
+    private async Task TellOwnerAsync(string site, string name, string email, string what, string code, CancellationToken ct)
+    {
+        var (subject, body) = SignUpRules.OwnerMail(site, name, email, what, code);
+        await mail.SendAsync(options.OwnerEmail, subject, body, ct);
     }
 
     /// <summary>bogshoppen.dk "Sådan følger du med": customer for the live auctions, with what they collect. Needs the ticked consent.</summary>
@@ -80,7 +88,9 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
                 BogshoppenRules.Interests(collects, note)), ct);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return new(Unreachable); }
-        if (r.Error is null) await WelcomeAsync(n, e, r.Code, await kartotek.FreeAppsAsync(ct), ct);
+        if (r.Error is not null) return r;
+        await WelcomeAsync(n, e, r.Code, await kartotek.FreeAppsAsync(ct), ct);
+        await TellOwnerAsync("bogshoppen.dk", n, e, BogshoppenRules.Interests(collects, note), r.Code, ct);
         return r;
     }
 
