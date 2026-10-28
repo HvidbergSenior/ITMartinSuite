@@ -73,73 +73,115 @@ public static class DatePollRules
         p.ChatMessages.Add(new DatePollChatMessage { DatePollId = p.Id, SenderName = string.IsNullOrWhiteSpace(name) ? "Anonym" : name.Trim(), Text = text.Trim() });
 }
 
+/// <summary>Who answers a package: the name label ("Martin 222", or just "Mads" on a link), or - when the link lets you
+/// answer without a name (user 2026-10-28) - the phone's own token. A named answer is found again by its name, as always.</summary>
+public sealed record Voter(string Label, string Token)
+{
+    public bool Owns(Vote v) => Label.Length > 0 ? v.VoterName == Label : Token.Length > 0 && v.VoterName == "" && v.VoterToken == Token;
+
+    public Vote NewVote(Poll poll, int optionId, DateTime nowUtc) =>
+        new() { PollId = poll.Id, OptionId = optionId, VoterName = Label, VoterToken = Token, VotedAt = nowUtc };
+
+    /// <summary>The same person across questions (for counting people): the name, or the phone.</summary>
+    public static string Key(Vote v) => v.VoterName != "" ? v.VoterName : "~" + v.VoterToken;
+}
+
 public static class PackageRules
 {
-    // Vote has no voter token, so a household is "name + house number" - that is why the number is mandatory:
-    // two people called Martin would otherwise overwrite each other's answer.
+    // Vote has no voter token on old rows, so a household is "name + house number" - that is why the number is mandatory
+    // there: two people called Martin would otherwise overwrite each other's answer.
     public static string VoterLabel(string name, string house) => $"{name.Trim()} {house.Trim()}".Trim();
 
     public static bool IsIdentified(string name, string house) => !string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(house);
 
-    /// <summary>A package opened by link (friends, a family - FezBoyz 2026-10-21) asks for a name only; the household
-    /// number belongs to the forening packages (Skelagerhøjen).</summary>
+    /// <summary>A package opened by link (friends, a family - FezBoyz 2026-10-21) asks for a name only, and the name is
+    /// optional there (user 2026-10-28); the household number belongs to the forening packages (Skelagerhøjen), where both
+    /// are needed.</summary>
     public static bool IsIdentified(string name, string house, bool needsHouse) =>
-        !string.IsNullOrWhiteSpace(name) && (!needsHouse || !string.IsNullOrWhiteSpace(house));
+        needsHouse ? IsIdentified(name, house) : true;
 
     /// <summary>One answer per person per question; choosing again changes it. A question that allows several answers
-    /// (user 2026-10-21: "also choose more things") keeps each one, and a second tap on the same answer takes it back.
-    /// A comment written before the first choice comes with it.</summary>
-    public static void Choose(Poll poll, string voterLabel, int optionId, string pendingComment, DateTime nowUtc)
+    /// (user 2026-10-21: "also choose more things") keeps each one, and a second tap on the same answer takes it back -
+    /// with its own comment and star. A comment written before the first choice comes with it.</summary>
+    public static void Choose(Poll poll, Voter voter, int optionId, string pendingComment, DateTime nowUtc)
     {
-        var mine = poll.Votes.Where(x => x.VoterName == voterLabel).ToList();
+        var mine = poll.Votes.Where(voter.Owns).ToList();
         if (poll.AllowMultiple)
         {
             if (mine.FirstOrDefault(v => v.OptionId == optionId) is { } same)
             {
                 poll.Votes.Remove(same);
-                // the comment belongs to the person, not to one answer - keep it on an answer that is left
-                if (same.Comment != "" && mine.FirstOrDefault(v => v != same) is { } other && other.Comment == "") other.Comment = same.Comment;
+                // "Vælg dage" keeps one comment for the person - move it to a day that is left. A comment on an answer goes with it.
+                if (poll.Kind == QuestionKinds.Days && same.Comment != "" && mine.FirstOrDefault(v => v != same) is { } other && other.Comment == "")
+                    other.Comment = same.Comment;
+                // a star needs at least two answers to choose between
+                if (mine.Count <= 2) foreach (var left in mine) left.Priority = 0;
                 return;
             }
-            poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Comment = mine.Count == 0 ? pendingComment : "", VotedAt = nowUtc });
+            var added = voter.NewVote(poll, optionId, nowUtc);
+            added.Comment = mine.Count == 0 ? pendingComment : "";
+            poll.Votes.Add(added);
             return;
         }
         var v = mine.FirstOrDefault();
-        if (v is null) poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Comment = pendingComment, VotedAt = nowUtc });
+        if (v is null) { var first = voter.NewVote(poll, optionId, nowUtc); first.Comment = pendingComment; poll.Votes.Add(first); }
         else { v.OptionId = optionId; v.VotedAt = nowUtc; }
     }
 
     /// <summary>"Giv karakter": 1-5 for one answer; the same score again takes it back, another score changes it.</summary>
-    public static void Grade(Poll poll, string voterLabel, int optionId, int score, DateTime nowUtc)
+    public static void Grade(Poll poll, Voter voter, int optionId, int score, DateTime nowUtc)
     {
         if (score is < 1 or > QuestionKinds.MaxScore || poll.Options.All(o => o.Id != optionId)) return;
-        var v = poll.Votes.FirstOrDefault(x => x.VoterName == voterLabel && x.OptionId == optionId);
-        if (v is null) poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Score = score, VotedAt = nowUtc });
+        var v = poll.Votes.FirstOrDefault(x => voter.Owns(x) && x.OptionId == optionId);
+        if (v is null) { var n = voter.NewVote(poll, optionId, nowUtc); n.Score = score; poll.Votes.Add(n); }
         else if (v.Score == score) { if (v.Comment == "") poll.Votes.Remove(v); else v.Score = 0; }
         else { v.Score = score; v.VotedAt = nowUtc; }
     }
 
-    /// <summary>"Giv karakter": a comment on one answer (user 2026-10-21: "people can comment on each and make grades").
-    /// Kept on that answer's row - a comment without a score yet is a row with Score 0, not counted in the average.</summary>
-    public static void GradeComment(Poll poll, string voterLabel, int optionId, string comment, DateTime nowUtc)
+    /// <summary>A comment on one answer: "Giv karakter" (user 2026-10-21: "people can comment on each and make grades") -
+    /// a comment without a score yet is a row with Score 0, not counted in the average - and, since 2026-10-28, a chosen
+    /// answer in "Vælg svar" ("comments per choice").</summary>
+    /// <returns>False when there is nothing to put it on (an answer that is not chosen).</returns>
+    public static bool OptionComment(Poll poll, Voter voter, int optionId, string comment, DateTime nowUtc)
     {
-        if (poll.Options.All(o => o.Id != optionId)) return;
+        if (poll.Options.All(o => o.Id != optionId)) return false;
         var c = comment.Trim();
         if (c.Length > 1000) c = c[..1000];
-        var v = poll.Votes.FirstOrDefault(x => x.VoterName == voterLabel && x.OptionId == optionId);
-        if (v is null) { if (c != "") poll.Votes.Add(new Vote { PollId = poll.Id, OptionId = optionId, VoterName = voterLabel, Comment = c, VotedAt = nowUtc }); }
-        else if (c == "" && v.Score == 0) poll.Votes.Remove(v);
+        var v = poll.Votes.FirstOrDefault(x => voter.Owns(x) && x.OptionId == optionId);
+        if (v is null)
+        {
+            if (poll.Kind != QuestionKinds.Grade || c == "") return false;
+            var n = voter.NewVote(poll, optionId, nowUtc); n.Comment = c; poll.Votes.Add(n);
+        }
+        else if (c == "" && v.Score == 0 && poll.Kind == QuestionKinds.Grade) poll.Votes.Remove(v);
         else v.Comment = c;
+        return true;
     }
 
+    /// <summary>"Vælg dage" (and old answers): one comment for the person on the question.</summary>
     /// <returns>False when there is no answer yet (the comment is then kept and saved with the choice).</returns>
-    public static bool Comment(Poll poll, string voterLabel, string comment)
+    public static bool Comment(Poll poll, Voter voter, string comment)
     {
-        var v = poll.Votes.FirstOrDefault(x => x.VoterName == voterLabel);
+        var v = poll.Votes.FirstOrDefault(voter.Owns);
         if (v is null) return false;
         v.Comment = comment.Trim();
         return true;
     }
+
+    /// <summary>First priority (user 2026-10-28): among several chosen answers, one gets the star; tapping it again takes
+    /// the star back. Only on a question where several may be chosen, only on an answer you chose.</summary>
+    public static void SetFirst(Poll poll, Voter voter, int optionId)
+    {
+        if (!poll.AllowMultiple) return;
+        var mine = poll.Votes.Where(voter.Owns).ToList();
+        if (mine.FirstOrDefault(v => v.OptionId == optionId) is not { } target) return;
+        var on = target.Priority != 1;
+        foreach (var v in mine) v.Priority = 0;
+        if (on) target.Priority = 1;
+    }
+
+    /// <summary>How many people put this answer first.</summary>
+    public static int FirstCount(Poll poll, int optionId) => poll.Votes.Count(v => v.OptionId == optionId && v.Priority == 1);
 }
 
 public static class RatingRules

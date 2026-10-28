@@ -92,6 +92,8 @@ public class PollOption
     public int    PollId    { get; set; }
     public string Label     { get; set; } = "";
     public int    SortOrder { get; set; }
+    // A picture for this answer (user 2026-10-28, "pictures as choices"): a file in /poll-images, null = text only.
+    public string? ImageName { get; set; }
     public Poll   Poll      { get; set; } = null!;
     public List<Vote> Votes { get; set; } = [];
 }
@@ -125,6 +127,10 @@ public class Vote
     public string     VoterName { get; set; } = "";
     public string     Email     { get; set; } = "";   // lower-case; only set when the poll has RequireContact
     public int        Score     { get; set; }        // "karakter" questions: 1-5 for this answer; 0 = an ordinary choice
+    // 1 = the voter's first priority among several chosen answers (user 2026-10-28), 0 = an ordinary choice.
+    public int        Priority  { get; set; }
+    // The phone that answered a package without a name (PackageRules.Voter); emptied by the privacy job.
+    public string     VoterToken { get; set; } = "";
     public bool       WantsAuctionNews { get; set; }   // explicit opt-in (markedsføringsloven §10), never pre-ticked
     public DateTime   VotedAt   { get; set; } = DateTime.UtcNow;
     public Poll       Poll      { get; set; } = null!;

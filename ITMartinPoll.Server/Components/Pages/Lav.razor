@@ -15,8 +15,11 @@
     <PageHelp>
         <p>Her laver du din egen afstemning og ser, hvad folk har svaret.</p>
         <p><b>Sådan gør du:</b> skriv hvad det handler om, tilføj dine spørgsmål og tryk Lav afstemningen. Send linket til dem, der skal svare.</p>
-        <p>Tre slags spørgsmål: <b>Vælg svar</b> (fx Ja/Nej eller A/B), <b>Giv karakter</b> (1–5 og en kommentar til hver) og <b>Vælg dage</b> (fx weekender de næste 3 måneder).</p>
-        <p>Vi spørger ikke efter e-mails på din afstemning – kun et navn, når der er flere spørgsmål.</p>
+        <p>Tre slags spørgsmål: <b>Vælg svar</b> (fx Ja/Nej eller A/B), <b>Giv karakter</b> (1–5 og en kommentar til hver) og <b>Vælg dage</b> (fx weekender de næste 3 måneder).
+           Vil du vise noget, kan hvert svar få et <b>billede</b> – tryk Billede ved svaret.</p>
+        <p>Folk kan skrive en kommentar til hvert svar, de vælger, og give deres første valg en stjerne.</p>
+        <p>Gratis: én åben afstemning af hver slags ad gangen, og den lukker efter højst 14 dage.</p>
+        <p>Vi spørger ikke efter e-mails på din afstemning – navnet er frivilligt.</p>
     </PageHelp>
 
     @if (!Customer.Ready)
@@ -42,7 +45,9 @@
     }
     else
     {
-        var open = Customer.Mine.FirstOrDefault(m => m.Open);
+        // Free: one open of each kind (rule B) - the kinds an open poll uses cannot be picked again until it closes.
+        var busy = Customer.Mine.Where(m => m.Open).SelectMany(m => m.Kinds).ToHashSet();
+        var openNow = Customer.Mine.Where(m => m.Open).ToList();
         @if (_made is not null)
         {
             <section class="k-card lav-ready" data-nofold>
@@ -56,22 +61,31 @@
                 </div>
             </section>
         }
-        else if (open is not null)
+        else if (QuestionKinds.All.All(busy.Contains))
         {
-            @* Free version: one open at a time - said up front instead of after the person has typed everything. *@
+            @* Free version: all three kinds are open - said up front instead of after the person has typed everything. *@
             <section class="k-card lav-ready" data-nofold>
-                <h2 class="k-card-title">Du har en åben afstemning</h2>
-                <p><b>@open.Title</b> – @open.People har svaret. I den gratis udgave har du én åben ad gangen.</p>
-                <div class="btn-pair">
-                    @* The maker answers too - through the same link as everyone (user 2026-10-27 "can I answer?"). *@
-                    <a class="k-btn" href="@open.Path">Svar selv</a>
-                    <button class="k-btn" @onclick="() => ShareAsync(open)">Del linket</button>
-                    <button class="k-btn" @onclick="() => ToggleAsync(open)">Luk den og lav en ny</button>
-                </div>
+                <h2 class="k-card-title">Du har åbne afstemninger af alle tre slags</h2>
+                <p>I den gratis udgave har du én åben af hver slags. Luk en af dem for at lave en ny.</p>
+                @foreach (var open in openNow)
+                {
+                    <p><b>@open.Title</b> – @open.People har svaret.</p>
+                    <div class="btn-pair">
+                        @* The maker answers too - through the same link as everyone (user 2026-10-27 "can I answer?"). *@
+                        <a class="k-btn" href="@open.Path">Svar selv</a>
+                        <button class="k-btn" @onclick="() => ShareAsync(open)">Del linket</button>
+                        <button class="k-btn" @onclick="() => ToggleAsync(open)">Luk den</button>
+                    </div>
+                }
             </section>
         }
         else
         {
+            @if (busy.Count > 0)
+            {
+                <p class="k-help">Du har allerede en åben med @string.Join(" og ", QuestionKinds.All.Where(busy.Contains).Select(k => $"„{QuestionKinds.Name(k)}“")) –
+                   i den gratis udgave én af hver slags. De andre slags kan du godt lave nu.</p>
+            }
             <section class="k-card lav-step" data-nofold>
                 <h2 class="k-card-title"><span class="lav-num">1</span> Hvad handler det om?</h2>
                 <input class="k-input lav-big" @bind="_title" maxlength="120" placeholder="fx Sommerfest i foreningen" />
@@ -81,12 +95,17 @@
             {
                 var q = _questions[qi];
                 var number = qi + 1;
+                if (busy.Contains(q.Kind)) q.Kind = FreeKind(busy);   // never start on a kind that is open already
                 <section class="k-card lav-step" data-nofold>
                     <h2 class="k-card-title"><span class="lav-num">2</span> Spørgsmål @(number)</h2>
                     <div class="lav-kinds" role="group" aria-label="Slags spørgsmål">
-                        <button class="k-btn k-btn-sm @(q.Kind == QuestionKinds.Choose ? "k-btn-primary" : "")" @onclick="() => q.Kind = QuestionKinds.Choose">Vælg svar</button>
-                        <button class="k-btn k-btn-sm @(q.Kind == QuestionKinds.Grade ? "k-btn-primary" : "")" @onclick="() => q.Kind = QuestionKinds.Grade">Giv karakter</button>
-                        <button class="k-btn k-btn-sm @(q.Kind == QuestionKinds.Days ? "k-btn-primary" : "")" @onclick="() => q.Kind = QuestionKinds.Days">Vælg dage</button>
+                        @foreach (var kind in QuestionKinds.All)
+                        {
+                            var k = kind;
+                            var taken = busy.Contains(k);
+                            <button class="k-btn k-btn-sm @(q.Kind == k ? "k-btn-primary" : "")" disabled="@taken" aria-pressed="@(q.Kind == k ? "true" : "false")"
+                                    @onclick="() => q.Kind = k">@QuestionKinds.Name(k)@(taken ? " (har en åben)" : "")</button>
+                        }
                     </div>
                     <input class="k-input lav-big" @bind="q.Text" maxlength="120"
                            placeholder="@(q.Kind == QuestionKinds.Grade ? "fx Hvilket mærke er pænest?" : q.Kind == QuestionKinds.Days ? "fx Hvilke dage kan du?" : "fx Hvor skal vi holde festen?")" />
@@ -125,15 +144,29 @@
                         @if (q.Kind == QuestionKinds.Choose)
                         {
                             <div class="lav-chips">
-                                <button class="k-btn k-btn-sm" @onclick='() => q.Options = ["Ja", "Nej"]'>Ja / Nej</button>
-                                <button class="k-btn k-btn-sm" @onclick='() => q.Options = ["A", "B"]'>A / B</button>
-                                <button class="k-btn k-btn-sm" @onclick='() => q.Options = ["Ja", "Nej", "Måske"]'>Ja / Nej / Måske</button>
+                                <button class="k-btn k-btn-sm" @onclick='() => q.Quick("Ja", "Nej")'>Ja / Nej</button>
+                                <button class="k-btn k-btn-sm" @onclick='() => q.Quick("A", "B")'>A / B</button>
+                                <button class="k-btn k-btn-sm" @onclick='() => q.Quick("Ja", "Nej", "Måske")'>Ja / Nej / Måske</button>
                             </div>
                         }
                         @for (var i = 0; i < q.Options.Count; i++)
                         {
                             var n = i;
-                            <input class="k-input lav-big lav-option" @bind="q.Options[n]" maxlength="100" placeholder="@(q.Kind == QuestionKinds.Grade ? $"Ting {n + 1}, fx et mærke" : $"Svar {n + 1}")" />
+                            var pic = q.ImageAt(n);
+                            @* A picture per answer (user 2026-10-28, "pictures as choices"): made small on the phone before it is sent. *@
+                            <div class="lav-answer">
+                                <input class="k-input lav-big lav-option" @bind="q.Options[n]" maxlength="100" placeholder="@(q.Kind == QuestionKinds.Grade ? $"Ting {n + 1}, fx et mærke" : $"Svar {n + 1}")" />
+                                <label class="k-btn k-btn-sm lav-pic-btn">@(pic is null ? "Billede" : "Skift")
+                                    <InputFile accept="image/*" aria-label="@($"Billede til svar {n + 1}")" OnChange="e => PickImageAsync(q, n, e)" />
+                                </label>
+                                @if (pic is not null)
+                                {
+                                    <div class="lav-pic">
+                                        <img src="/poll-images/@pic" alt="@($"Billede til svar {n + 1}")" />
+                                        <button class="k-btn k-btn-sm" @onclick="() => q.SetImage(n, null)">Fjern billedet</button>
+                                    </div>
+                                }
+                            </div>
                         }
                         @if (q.Options.Count < CustomerPollRules.MaxOptions) { <button class="k-btn k-btn-block" @onclick="() => q.Options.Add(string.Empty)">+ Tilføj @(q.Kind == QuestionKinds.Grade ? "en ting" : "et svar")</button> }
                         @if (q.Kind == QuestionKinds.Choose) { <label class="lav-check"><input type="checkbox" @bind="q.Multi" /> Man må vælge flere svar</label> }
@@ -144,7 +177,7 @@
             }
             @if (_questions.Count < CustomerPollRules.MaxQuestions)
             {
-                <button class="k-btn k-btn-block lav-add" @onclick="() => _questions.Add(new QuestionForm())">+ Tilføj et spørgsmål</button>
+                <button class="k-btn k-btn-block lav-add" @onclick="() => _questions.Add(new QuestionForm { Kind = FreeKind(busy) })">+ Tilføj et spørgsmål</button>
             }
 
             <section class="k-card lav-step" data-nofold>
@@ -225,13 +258,43 @@
         public int Months { get; set; } = 3;
         public HashSet<DayOfWeek> Days { get; } = [DayOfWeek.Saturday, DayOfWeek.Sunday];
 
+        public List<string?> Images { get; } = [];   // same order as Options; null = no picture
+
+        public string? ImageAt(int n) => n < Images.Count ? Images[n] : null;
+        public void SetImage(int n, string? name) { while (Images.Count <= n) Images.Add(null); Images[n] = name; }
+        public void Quick(params string[] answers) { Options = [.. answers]; Images.Clear(); }
+
         public void SetDays(IEnumerable<DayOfWeek> days) { Days.Clear(); Days.UnionWith(days); }
         public void Toggle(DayOfWeek d) { if (!Days.Remove(d)) Days.Add(d); }
         public List<string> DayOptions(DateOnly today) => DayRules.Days(today, today.AddMonths(Months), Days);
 
         public QuestionDraft Draft(DateOnly today) => Kind == QuestionKinds.Days
             ? new QuestionDraft(Text, DayOptions(today), true, Kind)
-            : new QuestionDraft(Text, Options.ToList(), Multi, Kind);
+            : new QuestionDraft(Text, Options.ToList(), Multi, Kind, Images.ToList());
+    }
+
+    // A kind the customer can still make (the first free one), so a new question never starts on a taken kind.
+    private static string FreeKind(HashSet<string> busy) => QuestionKinds.All.FirstOrDefault(k => !busy.Contains(k)) ?? QuestionKinds.Choose;
+
+    private async Task PickImageAsync(QuestionForm q, int n, InputFileChangeEventArgs e)
+    {
+        _error = "";
+        try
+        {
+            // The phone makes it a jpeg of at most 1200 px first - a 10 MB photo becomes ~200 KB before it is sent.
+            var small = await e.File.RequestImageFileAsync("image/jpeg", 1200, 1200);
+            await using var read = small.OpenReadStream(5_000_000);
+            using var copy = new MemoryStream();
+            await read.CopyToAsync(copy);
+            copy.Position = 0;
+            var name = await Mine.SaveImageAsync(Customer.Code, copy);
+            if (name is null) { _error = "Dit kundenummer virker ikke længere – skriv det igen."; return; }
+            q.SetImage(n, name);
+        }
+        catch
+        {
+            _error = "Billedet kunne ikke bruges. Prøv et andet billede.";
+        }
     }
 
     private string Link(CustomerPolls.Mine m) => Nav.ToAbsoluteUri(m.Path).ToString();
@@ -258,6 +321,7 @@
             var (error, made) = await Mine.CreateAsync(Customer.Code, _title, _body, _questions.Select(q => q.Draft(Today)).ToList(), endUtc);
             if (error is not null) { _error = error; return; }
             _made = made; _title = _body = ""; _questions = [new()]; _end = null;
+            _questions[0].Kind = FreeKind(Customer.Mine.Where(m => m.Open).SelectMany(m => m.Kinds).Concat(made!.Kinds).ToHashSet());
             await Customer.RefreshAsync();
         }
         finally { _busy = false; }

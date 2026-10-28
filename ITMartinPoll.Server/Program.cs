@@ -38,7 +38,7 @@ builder.Services.AddKolibri(k =>
     [
         "Stem er til, når flere skal beslutte noget: en dato, en farve, hvilket foto der skal på væggen, hvem der tager hvad.",
         "Den, der spørger, laver en afstemning på et minut og deler ét link. Alle stemmer fra telefonen – ingen konto, ingen app at hente. Resultatet ligger der bagefter, så ingen behøver spørge igen.",
-        "At lave din egen afstemning (Lav ny øverst) er gratis for kunder hos ITMartin og Bogshoppen: du skal bruge dit kundenummer, som du får, når du skriver dig op gratis på itmartin.dk. Den gratis udgave har én åben afstemning ad gangen, og den lukker efter højst 14 dage; mere er den udvidede udgave.",
+        "At lave din egen afstemning (Lav ny øverst) er gratis for kunder hos ITMartin og Bogshoppen: du skal bruge dit kundenummer, som du får, når du skriver dig op gratis på itmartin.dk. Den gratis udgave har én åben afstemning af hver slags (Vælg svar, Giv karakter, Vælg dage) ad gangen, og den lukker efter højst 14 dage; mere er den udvidede udgave.",
         "Fire slags: almindelig afstemning, billedvurdering (giv billeder point), datoafstemning (ja/nej/måske pr. dato) og pakker, hvor flere spørgsmål samles til én gruppe.",
     ];
     k.HowTo =
@@ -53,8 +53,11 @@ builder.Services.AddKolibri(k =>
         "Hver side har et Hvad viser siden?-felt øverst – tryk på det, så står der, hvad du kan gøre.",
         "I en datoafstemning trykker du Ja, Måske eller Nej ved hver dato; dit svar får et ✓. Har du skrevet forkert navn, så tryk Skift navn.",
         "Dage, der allerede er gået, vises ikke længere – resten står samlet under hver måned.",
+        "Har du valgt et svar, kan du skrive en kommentar til netop det svar. Har du valgt flere, kan du give ét af dem en stjerne (★ Mit første valg).",
+        "Svar med flere spørgsmål kan du give uden navn – tryk bare Fortsæt. Telefonen husker dine svar, så du kan rette dem.",
+        "Laver du en afstemning, kan hvert svar få et billede: tryk Billede ved svaret og vælg et foto. Telefonen gør det lille, før det sendes.",
     ];
-    k.Version = "2026.10.27";
+    k.Version = "2026.10.28";
     k.ThemeColor = "#f4f6f5";
 });
 

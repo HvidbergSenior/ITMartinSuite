@@ -64,6 +64,8 @@ public sealed class Catalog(IAggregateStore<Poll> polls, IAggregateStore<ImageSe
     public Task ToggleAsync(Poll p, CancellationToken ct = default) => polls.ChangeAsync(p.Id, x => { x.IsActive = !x.IsActive; return Task.CompletedTask; }, ct);
     public Task ToggleAsync(ImageSession s, CancellationToken ct = default) => sessions.ChangeAsync(s.Id, x => { x.IsActive = !x.IsActive; return Task.CompletedTask; }, ct);
     public Task ToggleAsync(DatePoll d, CancellationToken ct = default) => datePolls.ChangeAsync(d.Id, x => { x.IsActive = !x.IsActive; return Task.CompletedTask; }, ct);
+    // Admin: anyone with the link may answer (name only), or admin only (user 2026-10-21; switch 2026-10-28).
+    public Task ToggleOpenByLinkAsync(Package p, CancellationToken ct = default) => packages.ChangeAsync(p.Id, x => { x.OpenByLink = !x.OpenByLink; return Task.CompletedTask; }, ct);
     public Task DeleteAsync(Poll p, CancellationToken ct = default) => polls.DeleteAsync(p.Id, ct);
     public Task DeleteAsync(ImageSession s, CancellationToken ct = default) => sessions.DeleteAsync(s.Id, ct);
     public Task DeleteAsync(DatePoll d, CancellationToken ct = default) => datePolls.DeleteAsync(d.Id, ct);

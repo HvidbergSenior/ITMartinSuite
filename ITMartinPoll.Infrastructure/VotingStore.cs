@@ -21,7 +21,7 @@ public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore
         return new Ballot(p.Id, p.Title, p.Body, p.AllowMultiple, p.RequireContact, p.IsActive,
             p.Deadline?.ToUniversalTime(),   // stored as local time, read the same way as Poll.HasDeadlinePassed
             options.Select(o => new BallotOption(o.Id, o.Label, o.SortOrder)).ToList(),
-            votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc))).ToList());
+            votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc), v.Priority, v.Comment)).ToList());
     }
 
     public async Task SaveAsync(int pollId, AcceptedVote vote, CancellationToken ct = default)
@@ -32,8 +32,9 @@ public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore
         {
             db.Votes.Add(new Vote
             {
-                PollId = pollId, OptionId = r.OptionId, VoterName = r.VoterName, Email = r.Email, VotedAt = r.VotedAtUtc,
-                Comment = first ? vote.Comment : "",   // the comment belongs to the person, keep it once
+                PollId = pollId, OptionId = r.OptionId, VoterName = r.VoterName, Email = r.Email, VotedAt = r.VotedAtUtc, Priority = r.Priority,
+                // a comment on this answer; the general comment belongs to the person, keep it once
+                Comment = r.Comment != "" ? r.Comment : first ? vote.Comment : "",
                 WantsAuctionNews = vote.WantsAuctionNews,
             });
             first = false;

@@ -24,8 +24,8 @@ internal sealed class PersonalDataCleaner(IDbContextFactory<PollDb> dbf) : IPers
             if (!PrivacyRules.ShouldForget(p.IsActive, p.Deadline, last, nowUtc)) continue;
             var ordered = p.Votes.OrderBy(v => v.VotedAt).ToList();
             var map = PrivacyRules.Pseudonyms(ordered.Select(v => v.VoterName));
-            if (map.Count == 0 && ordered.All(v => v.Email == "")) continue;
-            foreach (var v in ordered) { v.VoterName = map.GetValueOrDefault(v.VoterName, v.VoterName); v.Email = ""; }
+            if (map.Count == 0 && ordered.All(v => v.Email == "" && v.VoterToken == "")) continue;
+            foreach (var v in ordered) { v.VoterName = map.GetValueOrDefault(v.VoterName, v.VoterName); v.Email = ""; v.VoterToken = ""; }
             cleaned++;
         }
 

@@ -81,7 +81,7 @@ public class FeatureTests
         (await editor.SaveAsync(0, new PollEditor.Form("Kaffe?", "", null, null, false, false, ["Ja", " "]))).Should().Be("Minimum 2 svarmuligheder");
         await editor.SaveAsync(0, new PollEditor.Form("Kaffe?", "", null, null, false, false, ["Ja", "Nej"]));
         var poll = (await store.ListAsync()).Single();
-        await store.ChangeAsync(poll.Id, p => { PackageRules.Choose(p, "Ole 12", p.Options[0].Id, "", DateTime.UtcNow); return Task.CompletedTask; });
+        await store.ChangeAsync(poll.Id, p => { PackageRules.Choose(p, new Voter("Ole 12", ""), p.Options[0].Id, "", DateTime.UtcNow); return Task.CompletedTask; });
 
         await editor.SaveAsync(poll.Id, new PollEditor.Form("Kaffe i dag?", "", null, null, false, false, ["Ja", "Nej"]));
         (await store.GetAsync(poll.Id))!.Votes.Should().ContainSingle("same options - the vote stays");
@@ -97,8 +97,8 @@ public class FeatureTests
         var polls = Store(Aggregates.Poll);
         var poll = await polls.AddAsync(new Poll { Title = "Ladestander?", CreatedAt = DateTime.UtcNow, Options = [new() { Label = "Ja" }, new() { Label = "Nej" }] });
         var uc = new Packages(Store(Aggregates.Package), polls, Store(Aggregates.Session), TimeProvider.System);
-        var label = PackageRules.VoterLabel(" Martin ", " 12 ");
-        label.Should().Be("Martin 12");
+        PackageRules.VoterLabel(" Martin ", " 12 ").Should().Be("Martin 12");
+        var label = new Voter("Martin 12", "");
 
         (await uc.CommentAsync(poll.Id, label, "kun hvis billig")).Should().BeFalse();
         await uc.ChooseAsync(poll.Id, label, poll.Options[0].Id, "kun hvis billig");

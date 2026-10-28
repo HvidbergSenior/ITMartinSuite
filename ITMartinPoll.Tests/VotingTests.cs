@@ -141,17 +141,18 @@ public class CustomerPollTests
     [Test]
     public void A_customer_poll_needs_a_question_and_two_choices_and_never_asks_for_emails()
     {
-        CustomerPollRules.Make("48217730", " ", "", ["a", "b"], false, null, 0, Now).Error.Should().Contain("handler om");
-        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", " ", "have"], false, null, 0, Now).Error.Should().Contain("mindst 2");
-        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, Now.AddHours(-1), 0, Now).Error.Should().Contain("fremtiden");
-        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, null, 1, Now).Error.Should().Be(CustomerPollRules.FreeLimit);   // free = one open at a time
+        CustomerPollRules.Make("48217730", " ", "", ["a", "b"], false, null, [], Now).Error.Should().Contain("handler om");
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", " ", "have"], false, null, [], Now).Error.Should().Contain("mindst 2");
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, Now.AddHours(-1), [], Now).Error.Should().Contain("fremtiden");
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, null, [QuestionKinds.Choose], Now).Error.Should().Be(CustomerPollRules.FreeLimit(QuestionKinds.Choose));   // free = one open of each kind
+        CustomerPollRules.Make("48217730", "Sommerfest?", "", ["Have", "Hal"], false, null, [QuestionKinds.Days, QuestionKinds.Grade], Now).Error.Should().BeNull();   // other kinds open: fine
 
-        var (error, poll) = CustomerPollRules.Make("48217730", " Sommerfest? ", "", ["Have", "Hal", ""], true, null, 0, Now);
+        var (error, poll) = CustomerPollRules.Make("48217730", " Sommerfest? ", "", ["Have", "Hal", ""], true, null, [], Now);
         error.Should().BeNull();
         (poll!.Title, poll.OwnerCode, poll.RequireContact, poll.AllowMultiple, poll.Options.Count).Should().Be(("Sommerfest?", "48217730", false, true, 2));
         poll.Deadline.Should().Be(Now.AddDays(14));   // free: closes by itself after 14 days
-        CustomerPollRules.Make("48217730", "Q", "", ["a", "b"], false, Now.AddDays(90), 0, Now).Poll!.Deadline.Should().Be(Now.AddDays(14));
-        CustomerPollRules.Make("48217730", "Q", "", ["a", "b"], false, Now.AddDays(5), 0, Now).Poll!.Deadline.Should().Be(Now.AddDays(5));
+        CustomerPollRules.Make("48217730", "Q", "", ["a", "b"], false, Now.AddDays(90), [], Now).Poll!.Deadline.Should().Be(Now.AddDays(14));
+        CustomerPollRules.Make("48217730", "Q", "", ["a", "b"], false, Now.AddDays(5), [], Now).Poll!.Deadline.Should().Be(Now.AddDays(5));
     }
 
     [Test]
@@ -162,6 +163,7 @@ public class CustomerPollTests
 public class QuestionKindTests
 {
     private static readonly DateTime Now = new(2026, 10, 21, 18, 0, 0, DateTimeKind.Utc);
+    private static readonly Voter Mads = new("Mads", "");
 
     private static Poll Q(bool multi = false, string kind = QuestionKinds.Choose) => new()
     {
@@ -172,15 +174,15 @@ public class QuestionKindTests
     public void Choose_several_keeps_each_and_a_second_tap_takes_it_back()
     {
         var p = Q(multi: true);
-        PackageRules.Choose(p, "Mads", 10, "", Now);
-        PackageRules.Choose(p, "Mads", 11, "", Now);
+        PackageRules.Choose(p, Mads, 10, "", Now);
+        PackageRules.Choose(p, Mads, 11, "", Now);
         p.Votes.Select(v => v.OptionId).Should().Equal(10, 11);
-        PackageRules.Choose(p, "Mads", 10, "", Now);
+        PackageRules.Choose(p, Mads, 10, "", Now);
         p.Votes.Select(v => v.OptionId).Should().Equal(11);
 
         var one = Q();
-        PackageRules.Choose(one, "Mads", 10, "", Now);
-        PackageRules.Choose(one, "Mads", 11, "", Now);
+        PackageRules.Choose(one, Mads, 10, "", Now);
+        PackageRules.Choose(one, Mads, 11, "", Now);
         one.Votes.Should().ContainSingle().Which.OptionId.Should().Be(11);   // one answer: choosing again changes it
     }
 
@@ -188,15 +190,15 @@ public class QuestionKindTests
     public void Grades_are_1_to_5_per_answer_with_a_comment_on_each()
     {
         var p = Q(kind: QuestionKinds.Grade);
-        PackageRules.Grade(p, "Mads", 10, 4, Now);
-        PackageRules.Grade(p, "Mads", 11, 9, Now);   // out of range: ignored
-        PackageRules.GradeComment(p, "Mads", 11, "for dyr", Now);
+        PackageRules.Grade(p, Mads, 10, 4, Now);
+        PackageRules.Grade(p, Mads, 11, 9, Now);   // out of range: ignored
+        PackageRules.OptionComment(p, Mads, 11, "for dyr", Now).Should().BeTrue();
         p.Votes.Should().HaveCount(2);
         p.Votes.Single(v => v.OptionId == 10).Score.Should().Be(4);
         p.Votes.Single(v => v.OptionId == 11).Should().Match<Vote>(v => v.Score == 0 && v.Comment == "for dyr");
 
-        PackageRules.Grade(p, "Mads", 11, 2, Now);
-        PackageRules.Grade(p, "Mads", 11, 2, Now);   // same again takes the grade back, the comment stays
+        PackageRules.Grade(p, Mads, 11, 2, Now);
+        PackageRules.Grade(p, Mads, 11, 2, Now);   // same again takes the grade back, the comment stays
         p.Votes.Single(v => v.OptionId == 11).Should().Match<Vote>(v => v.Score == 0 && v.Comment == "for dyr");
     }
 
@@ -229,14 +231,118 @@ public class QuestionKindTests
             new QuestionDraft("Hvor?", ["Fyn", "Århus", "Vestpå"], true),
             new QuestionDraft("Hvilket mærke er pænest?", ["A", "B"], false, QuestionKinds.Grade),
             new QuestionDraft("Hvilke dage?", DayRules.Days(new DateOnly(2026, 10, 21), new DateOnly(2027, 1, 21), DayRules.Weekend), false, QuestionKinds.Days),
-        ], null, 0, Now);
+        ], null, [], Now);
         error.Should().BeNull();
         pkg!.OpenByLink.Should().BeTrue();
         pkg.Polls.Select(p => p.Kind).Should().Equal(QuestionKinds.Choose, QuestionKinds.Grade, QuestionKinds.Days);
         pkg.Polls[2].AllowMultiple.Should().BeTrue();   // you can be free on several days
         pkg.Polls.Should().OnlyContain(p => p.Deadline == Now.AddDays(14) && p.OwnerCode == "48217730");
 
-        CustomerPollRules.MakeSurvey("48217730", "X", "", [new QuestionDraft("", ["a", "b"], false)], null, 0, Now).Error.Should().Contain("Skriv spørgsmål 1");
-        CustomerPollRules.MakeSurvey("48217730", "X", "", [new QuestionDraft("Q", ["a", "b"], false)], null, 1, Now).Error.Should().Be(CustomerPollRules.FreeLimit);
+        CustomerPollRules.MakeSurvey("48217730", "X", "", [new QuestionDraft("", ["a", "b"], false)], null, [], Now).Error.Should().Contain("Skriv spørgsmål 1");
+        CustomerPollRules.MakeSurvey("48217730", "X", "", [new QuestionDraft("Q", ["a", "b"], false), new QuestionDraft("Dage?", ["lør 7. nov", "søn 8. nov"], true, QuestionKinds.Days)], null, [QuestionKinds.Days], Now)
+            .Error.Should().Be(CustomerPollRules.FreeLimit(QuestionKinds.Days));   // a link takes every kind it asks
+    }
+}
+
+// Stem for customers, 2026-10-28: one open of each kind, pictures on answers, no name needed on a link,
+// a comment on each chosen answer and a star for the first priority.
+public class CustomerExtrasTests
+{
+    private static readonly DateTime Now = new(2026, 10, 28, 18, 0, 0, DateTimeKind.Utc);
+    private const string Pic = "c-0123456789abcdef0123456789abcdef.jpg";
+
+    private static Poll Q(bool multi = true, string kind = QuestionKinds.Choose) => new()
+    {
+        Id = 1, Kind = kind, AllowMultiple = multi,
+        Options = [new PollOption { Id = 10, Label = "A" }, new PollOption { Id = 11, Label = "B" }, new PollOption { Id = 12, Label = "C" }],
+    };
+
+    [Test]
+    public void Pictures_stay_with_their_answer_and_a_picture_alone_is_an_answer()
+    {
+        var (error, poll) = CustomerPollRules.Make("48217730", "Hvilken sofa?", "", ["Rød", "", "  ", "Grøn"], false, null, [], Now,
+            images: [Pic, null, Pic.Replace('0', '1'), null]);
+        error.Should().BeNull();
+        poll!.Options.Select(o => (o.Label, o.ImageName)).Should().Equal(("Rød", Pic), ("Billede 3", Pic.Replace('0', '1')), ("Grøn", null));
+    }
+
+    [TestCase("c-0123456789abcdef0123456789abcdef.jpg", true)]
+    [TestCase("0123456789abcdef0123456789abcdef.jpg", true)]
+    [TestCase("../../etc/passwd", false)]
+    [TestCase("c-0123456789abcdef0123456789abcdef.svg", false)]
+    [TestCase(null, false)]
+    public void Only_names_the_picture_store_made_are_kept(string? name, bool ok) => CustomerPollRules.IsStoredImage(name).Should().Be(ok);
+
+    [Test]
+    public void Days_never_carry_pictures() =>
+        CustomerPollRules.Make("48217730", "Dage?", "", ["lør 7. nov", "søn 8. nov"], true, null, [], Now, QuestionKinds.Days, [Pic, Pic])
+            .Poll!.Options.Should().OnlyContain(o => o.ImageName == null);
+
+    [Test]
+    public void Without_a_name_each_phone_keeps_its_own_answers()
+    {
+        var p = Q(multi: false);
+        PackageRules.Choose(p, new Voter("", "phone-1"), 10, "", Now);
+        PackageRules.Choose(p, new Voter("", "phone-2"), 11, "", Now);
+        PackageRules.Choose(p, new Voter("", "phone-1"), 12, "", Now);   // phone 1 changes its mind
+        p.Votes.Select(v => (v.VoterToken, v.OptionId)).Should().BeEquivalentTo([("phone-1", 12), ("phone-2", 11)]);
+        p.Votes.Select(Voter.Key).Distinct().Should().HaveCount(2);
+        new Voter("", "").Owns(p.Votes[0]).Should().BeFalse();   // no name and no phone = nobody's answers
+        PackageRules.IsIdentified("", "", needsHouse: false).Should().BeTrue();
+        PackageRules.IsIdentified("Martin", "", needsHouse: true).Should().BeFalse();   // the husstand packages still need both
+    }
+
+    [Test]
+    public void A_comment_goes_on_a_chosen_answer_and_leaves_with_it()
+    {
+        var p = Q();
+        var me = new Voter("Mads", "");
+        PackageRules.OptionComment(p, me, 10, "hvis det er billigt", Now).Should().BeFalse();   // not chosen yet
+        PackageRules.Choose(p, me, 10, "", Now);
+        PackageRules.Choose(p, me, 11, "", Now);
+        PackageRules.OptionComment(p, me, 10, "hvis det er billigt", Now).Should().BeTrue();
+        p.Votes.Single(v => v.OptionId == 10).Comment.Should().Be("hvis det er billigt");
+        PackageRules.Choose(p, me, 10, "", Now);   // taken back
+        p.Votes.Should().ContainSingle().Which.Comment.Should().BeEmpty();
+    }
+
+    [Test]
+    public void One_chosen_answer_can_have_the_star()
+    {
+        var p = Q();
+        var me = new Voter("Mads", "");
+        PackageRules.Choose(p, me, 10, "", Now);
+        PackageRules.Choose(p, me, 11, "", Now);
+        PackageRules.SetFirst(p, me, 12);   // not chosen: nothing
+        p.Votes.Should().OnlyContain(v => v.Priority == 0);
+        PackageRules.SetFirst(p, me, 10);
+        PackageRules.SetFirst(p, me, 11);   // the star moves
+        p.Votes.Single(v => v.Priority == 1).OptionId.Should().Be(11);
+        PackageRules.FirstCount(p, 11).Should().Be(1);
+        PackageRules.SetFirst(p, me, 11);   // again: taken back
+        p.Votes.Should().OnlyContain(v => v.Priority == 0);
+
+        PackageRules.SetFirst(p, me, 10);
+        PackageRules.Choose(p, me, 11, "", Now);   // only one left: no star
+        p.Votes.Should().ContainSingle().Which.Priority.Should().Be(0);
+
+        var single = Q(multi: false);
+        PackageRules.Choose(single, me, 10, "", Now);
+        PackageRules.SetFirst(single, me, 10);
+        single.Votes.Single().Priority.Should().Be(0);   // one answer only: a star means nothing
+    }
+
+    [Test]
+    public void A_single_poll_takes_a_star_and_a_comment_per_answer()
+    {
+        var ballot = new Ballot(1, "Q", "", true, false, true, null,
+            [new BallotOption(10, "A", 0), new BallotOption(11, "B", 1)], []);
+        var (error, vote) = VoteRules.Accept(ballot, new VoteRequest([10, 11], "Mads", null, "", false, 11,
+            new Dictionary<int, string> { [10] = " fin ", [12] = "not chosen" }), Now);
+        error.Should().BeNull();
+        vote!.Rows.Select(r => (r.OptionId, r.Priority, r.Comment)).Should().Equal((10, 0, "fin"), (11, 1, ""));
+
+        var one = VoteRules.Accept(ballot, new VoteRequest([10], "Mads", null, "", false, 10), Now).Vote!;
+        one.Rows.Single().Priority.Should().Be(0);   // a star needs two answers
     }
 }

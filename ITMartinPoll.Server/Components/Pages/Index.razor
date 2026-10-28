@@ -50,6 +50,10 @@
                     <div class="pkg-audience">@pkg.Audience</div>
                 }
                 <div class="pkg-front-badge">FORESPØRGSEL · @(pkg.Polls.Count + pkg.Sessions.Count) dele</div>
+                @* Admin switch (2026-10-28): anyone with the link may answer with a name only, or admin only (husstand packages). *@
+                <button class="k-btn k-btn-sm" aria-pressed="@(pkg.OpenByLink ? "true" : "false")" @onclick="() => ToggleLinkAsync(pkg)">
+                    @(pkg.OpenByLink ? "Åben for alle med linket (kun navn) – tryk for kun admin" : "Kun admin – tryk for at åbne for alle med linket")
+                </button>
                 <h1 class="pkg-front-title">@pkg.Title</h1>
 
                 @if (!string.IsNullOrWhiteSpace(pkg.Intro))
@@ -196,6 +200,8 @@
     private List<DatePoll>     _datePolls = [];
     private List<HelpEvent>    _helpEvents = [];
     private List<Package>      _packages = [];
+
+    private async Task ToggleLinkAsync(Package p) { await Catalog.ToggleOpenByLinkAsync(p); p.OpenByLink = !p.OpenByLink; }
 
     // Nothing is listed for guests (user 2026-10-10) - rules in Application.Catalog.
     protected override async Task OnInitializedAsync()

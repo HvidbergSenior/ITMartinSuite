@@ -25,10 +25,11 @@ public interface ICustomerCodes
 }
 
 // "Lav din egen afstemning" (/lav, user 2026-10-21): a customer makes simple polls with their kundenummer and sees the results.
-public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<Package> packages, ICustomerCodes codes, TimeProvider clock)
+public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<Package> packages, ICustomerCodes codes, IImageFiles images, TimeProvider clock)
 {
-    /// <summary>One poll or several questions in one (a package). Path = the link to send.</summary>
-    public sealed record Mine(int Id, bool IsPackage, string Title, bool Open, int People, List<MineQuestion> Questions)
+    /// <summary>One poll or several questions in one (a package). Path = the link to send. Kinds = the kinds of question
+    /// in it (rule B: an open one takes those kinds).</summary>
+    public sealed record Mine(int Id, bool IsPackage, string Title, bool Open, int People, List<MineQuestion> Questions, IReadOnlyList<string> Kinds)
     {
         public string Path => IsPackage ? $"/pakke/{Id}" : $"/poll/{Id}";
     }
@@ -58,7 +59,7 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<P
         var (ok, error) = await codes.CheckAsync(k, ct);
         if (!ok) return (error, null);
         var now = clock.GetUtcNow().UtcDateTime;
-        var open = await OpenCountAsync(k, now, ct);
+        var open = await OpenKindsAsync(k, now, ct);
         var filled = questions.Where(q => q.Text.Trim().Length > 0 || q.Options.Any(o => o.Trim().Length > 0)).ToList();
         // A "karakter" question needs the package page (it is the one that can give 1-5 per answer).
         if (filled.Count <= 1 && filled.All(q => q.Kind != QuestionKinds.Grade))
@@ -66,22 +67,33 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<P
             var q = filled.FirstOrDefault() ?? new QuestionDraft("", [], false);
             // One question: the title is what it is about, the question itself (when it says more) under it.
             var body = q.Text.Trim() != "" && q.Text.Trim() != title.Trim() ? q.Text.Trim() + (intro.Trim() != "" ? "\n\n" + intro.Trim() : "") : intro;
-            var (why, poll) = CustomerPollRules.Make(k, title.Trim() != "" ? title : q.Text, body, q.Options, q.AllowMultiple, deadlineUtc, open, now, q.Kind);
+            var (why, poll) = CustomerPollRules.Make(k, title.Trim() != "" ? title : q.Text, body, q.Options, q.AllowMultiple, deadlineUtc, open, now, q.Kind, q.Images);
             if (why is not null) return (why, null);
             var p = await polls.AddAsync(poll!, ct);
-            return (null, new Mine(p.Id, false, p.Title, true, 0, []));
+            return (null, new Mine(p.Id, false, p.Title, true, 0, [], [p.Kind]));
         }
         var (whyNot, package) = CustomerPollRules.MakeSurvey(k, title, intro, filled, deadlineUtc, open, now);
         if (whyNot is not null) return (whyNot, null);
         var made = await packages.AddAsync(package!, ct);
-        return (null, new Mine(made.Id, true, made.Title, true, 0, []));
+        return (null, new Mine(made.Id, true, made.Title, true, 0, [], made.Polls.Select(p => p.Kind).Distinct().ToList()));
     }
 
-    // Free: one open of each kind (user 2026-10-21, rule B) - a poll and a poll with several questions are the same kind.
-    // Open = active AND not past its end date (a free poll ends by itself - it must not block the next one).
-    private async Task<int> OpenCountAsync(string k, DateTime now, CancellationToken ct) =>
-        (await polls.ListAsync(ct)).Count(p => p.OwnerCode == k && p.PackageId == null && IsOpen(p.IsActive, p.Deadline, now))
-        + (await packages.ListAsync(ct)).Count(p => p.OwnerCode == k && p.IsActive && p.Polls.Any(q => IsOpen(q.IsActive, q.Deadline, now)));
+    /// <summary>A picture for an answer, made small on the phone first (the page asks the browser for a jpeg of at most
+    /// 1200 px). Only for a good kundenummer.</summary>
+    /// <returns>The stored name, or null when the number is not good.</returns>
+    public async Task<string?> SaveImageAsync(string? code, Stream jpeg, CancellationToken ct = default)
+    {
+        var (ok, _) = await codes.CheckAsync(Normalize(code), ct);
+        return ok ? await images.SaveAsync(jpeg, "svar.jpg", "c-", ct) : null;
+    }
+
+    // Free: one open of each kind (user 2026-10-21, rule B; 2026-10-28: a link with several questions takes each kind it
+    // asks). Open = active AND not past its end date (a free poll ends by itself - it must not block the next one).
+    private async Task<HashSet<string>> OpenKindsAsync(string k, DateTime now, CancellationToken ct) =>
+        (await polls.ListAsync(ct)).Where(p => p.OwnerCode == k && p.PackageId == null && IsOpen(p.IsActive, p.Deadline, now)).Select(p => p.Kind)
+            .Concat((await packages.ListAsync(ct)).Where(p => p.OwnerCode == k && p.IsActive)
+                .SelectMany(p => p.Polls.Where(q => IsOpen(q.IsActive, q.Deadline, now)).Select(q => q.Kind)))
+            .ToHashSet();
 
     private static bool IsOpen(bool active, DateTime? deadline, DateTime now) => active && !(deadline is { } d && d.ToUniversalTime() < now);
 
@@ -94,8 +106,9 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<P
         static MineQuestion Results(Poll p)
         {
             var votes = p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc))).ToList();
+            // a comment belongs to its answer (grades, and chosen answers since 2026-10-28); "Vælg dage" has one per person
             var comments = p.Votes.Where(v => v.Comment.Trim().Length > 0)
-                .Select(v => (Name: Who(v.VoterName), Text: v.Comment.Trim(), Label: p.Kind == QuestionKinds.Grade ? p.Options.FirstOrDefault(o => o.Id == v.OptionId)?.Label ?? "" : ""))
+                .Select(v => (Name: Who(v.VoterName), Text: v.Comment.Trim(), Label: p.Kind != QuestionKinds.Days ? p.Options.FirstOrDefault(o => o.Id == v.OptionId)?.Label ?? "" : ""))
                 .Distinct().Select(c => (c.Name, c.Label.Length > 0 ? $"{c.Label}: {c.Text}" : c.Text)).ToList();
             if (p.Kind == QuestionKinds.Grade)
             {
@@ -107,20 +120,24 @@ public sealed class CustomerPolls(IAggregateStore<Poll> polls, IAggregateStore<P
                     graded.Select(x => (x.Votes.Count == 0 ? $"{x.o.Label} – ingen karakter endnu" : $"{x.o.Label} – {x.Votes.Average(v => v.Score):0.0} af 5", x.Votes.Count)).ToList(),
                     graded.Select(x => x.Votes.Select(v => $"{Who(v.VoterName)} {v.Score}").ToList()).ToList(), comments);
             }
+            // the star = first priority among several answers (2026-10-28): counted on the answer and shown after the name
             var options = p.Options.OrderBy(o => o.SortOrder).ToList();
             return new MineQuestion(p.Title,
-                options.Select(o => (o.Label, VoteRules.PeopleFor(votes, o.Id))).ToList(),
-                options.Select(o => p.Votes.Where(v => v.OptionId == o.Id).Select(v => Who(v.VoterName)).Distinct().ToList()).ToList(), comments);
+                options.Select(o => (PackageRules.FirstCount(p, o.Id) is var first and > 0 ? $"{o.Label} (★ {first} som første valg)" : o.Label,
+                    VoteRules.PeopleFor(votes, o.Id))).ToList(),
+                options.Select(o => p.Votes.Where(v => v.OptionId == o.Id).Select(v => Who(v.VoterName) + (v.Priority == 1 ? " ★" : "")).Distinct().ToList()).ToList(), comments);
         }
         static string Who(string name) => name.Trim().Length > 0 ? name.Trim() : "Uden navn";
         var single = all.Where(p => p.OwnerCode == k && p.PackageId == null).Select(p =>
             new Mine(p.Id, false, p.Title, IsOpen(p.IsActive, p.Deadline, now),
-                VoteRules.People(p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, v.VotedAt))), [Results(p)]));
+                VoteRules.People(p.Votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, v.VotedAt))), [Results(p)], [p.Kind]));
         var several = (await packages.ListAsync(ct)).Where(x => x.OwnerCode == k).Select(x =>
         {
             var qs = all.Where(p => p.PackageId == x.Id).OrderBy(p => p.Id).ToList();
+            // people = names, and each phone that answered without a name
             return new Mine(x.Id, true, x.Title, x.IsActive && qs.Any(q => IsOpen(q.IsActive, q.Deadline, now)),
-                qs.SelectMany(q => q.Votes.Select(v => v.VoterName)).Distinct().Count(), qs.Select(Results).ToList());
+                qs.SelectMany(q => q.Votes.Select(Voter.Key)).Distinct().Count(), qs.Select(Results).ToList(),
+                qs.Where(q => IsOpen(q.IsActive, q.Deadline, now)).Select(q => q.Kind).Distinct().ToList());
         });
         return single.Concat(several).OrderByDescending(m => m.Open).ThenByDescending(m => m.Id).ToList();
     }

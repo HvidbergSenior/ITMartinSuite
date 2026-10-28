@@ -26,7 +26,7 @@
         <div class="poll-view">
             <PageHelp>
                 <p>Et spørgsmål fra den, der sendte dig linket. Når du har stemt, ser du, hvad alle har svaret indtil nu.</p>
-                <p><b>Sådan gør du:</b> tryk på dit svar@(_poll.AllowMultiple ? " (du må vælge flere – et flueben betyder valgt)" : ""),
+                <p><b>Sådan gør du:</b> tryk på dit svar@(_poll.AllowMultiple ? " (du må vælge flere – et flueben betyder valgt, og dit første valg kan få en stjerne)" : ""),
                    skriv evt. en kommentar og tryk <b>Stem</b>.</p>
             </PageHelp>
 
@@ -62,12 +62,19 @@
                     </div>
                     @foreach (var opt in _poll.Options.OrderBy(o => o.SortOrder))
                     {
-                        var count   = opt.Votes.Count;
+                        @* Counted from the poll's own votes: the poll is read without tracking, so opt.Votes stays empty
+                           (it showed 0% for every answer from 2026-10-12 until 2026-10-28). *@
+                        var mine    = _poll.Votes.Where(v => v.OptionId == opt.Id).ToList();
+                        var count   = mine.Count;
                         var total   = People;
                         var pct     = total > 0 ? (int)Math.Round(count * 100.0 / total) : 0;
                         var isChosen = _chosen.Contains(opt.Id);
+                        var stars   = mine.Count(v => v.Priority == 1);
                         <div class="poll-result-row @(isChosen ? "chosen" : "")">
-                            <div class="poll-result-label">@opt.Label</div>
+                            <div class="poll-result-label">
+                                @if (opt.ImageName is not null) { <img class="opt-thumb" src="/poll-images/@opt.ImageName" alt="" loading="lazy" /> }
+                                @opt.Label@if (stars > 0) { <span class="opt-stars" title="@($"{stars} har den som første valg")"> ★ @stars</span> }
+                            </div>
                             <div class="poll-result-bar-wrap">
                                 <div class="poll-result-bar" style="width:@pct%"></div>
                             </div>
@@ -106,11 +113,23 @@
                         @foreach (var opt in _poll.Options.OrderBy(o => o.SortOrder))
                         {
                             var optId = opt.Id;
-                            <button class="poll-option-btn @(_selected.Contains(optId) ? "selected" : "")"
-                                    aria-pressed="@(_selected.Contains(optId) ? "true" : "false")"
+                            var label = opt.Label;
+                            var on = _selected.Contains(optId);
+                            <button class="poll-option-btn @(on ? "selected" : "") @(opt.ImageName is null ? "" : "has-pic")"
+                                    aria-pressed="@(on ? "true" : "false")"
                                     @onclick="() => Toggle(optId)">
-                                @if (_poll.AllowMultiple) { <span class="pkg-box" aria-hidden="true">@(_selected.Contains(optId) ? "✓" : "")</span> }@opt.Label
+                                @if (opt.ImageName is not null) { <img class="opt-pic" src="/poll-images/@opt.ImageName" alt="" loading="lazy" /> }
+                                <span>@if (_poll.AllowMultiple) { <span class="pkg-box" aria-hidden="true">@(on ? "✓" : "")</span> }@label</span>
                             </button>
+                            @if (on && _poll.AllowMultiple)
+                            {
+                                @* Several answers: a comment on each, and a star for the first choice (2026-10-28). *@
+                                <div class="opt-extra">
+                                    @if (_selected.Count > 1) { <StarButton On="@(_firstSel == optId)" Label="@label" OnClick="() => _firstSel = _firstSel == optId ? 0 : optId" /> }
+                                    <input class="poll-input opt-comment" maxlength="280" placeholder="@($"Kommentar til {label} (valgfrit)")"
+                                           value="@_optComments.GetValueOrDefault(optId, "")" @onchange="e => _optComments[optId] = e.Value?.ToString() ?? string.Empty" />
+                                </div>
+                            }
                         }
                     </div>
 
@@ -133,6 +152,8 @@
                             </label>
                             <p class="poll-privacy">@Privacy</p>
                         }
+                        @if (!_poll.AllowMultiple)
+                        {
                         <div class="poll-comment-wrap">
                             <textarea class="poll-comment-input"
                                       placeholder="Vil du uddybe? (valgfrit)"
@@ -141,6 +162,7 @@
                                       @bind:event="oninput"></textarea>
                             <div class="poll-comment-chars">@_comment.Length/280</div>
                         </div>
+                        }
                         @if (_error != "") { <div class="form-error">@_error</div> }
                         <button class="poll-submit-btn" @onclick="SubmitVote">Stem</button>
                     }
@@ -171,9 +193,17 @@
     // People, not rows: a multi-choice voter has one Vote row per chosen option.
     private int People => _poll is null ? 0 : _poll.Votes.Select(v => v.Email != "" ? v.Email : (v.VoterName + "|" + v.VotedAt.Ticks)).Distinct().Count();
 
+    private int _firstSel;                                    // the star among several answers, 0 = none
+    private Dictionary<int, string> _optComments = [];        // a comment per chosen answer (several answers)
+
     private void Toggle(int optId)
     {
-        if (_poll?.AllowMultiple == true) { if (!_selected.Remove(optId)) _selected.Add(optId); }
+        if (_poll?.AllowMultiple == true)
+        {
+            if (!_selected.Remove(optId)) _selected.Add(optId);
+            else { _optComments.Remove(optId); if (_firstSel == optId) _firstSel = 0; }
+            if (_selected.Count < 2) _firstSel = 0;
+        }
         else _selected = [optId];
     }
     private string _comment       = "";
@@ -220,7 +250,8 @@
         if (_selected.Count == 0 || _poll is null) return;
         var email = _email.Trim().ToLowerInvariant();
         var (error, _) = await Voting.VoteAsync(PollId,
-            new ITMartinPoll.Domain.VoteRequest(_selected.ToList(), _voterName, email, _comment, _auctionNews));
+            new ITMartinPoll.Domain.VoteRequest(_selected.ToList(), _voterName, email, _comment, _auctionNews,
+                _firstSel == 0 ? null : _firstSel, _optComments.Where(c => _selected.Contains(c.Key)).ToDictionary(c => c.Key, c => c.Value)));
         if (error is not null) { _error = error; return; }
 
         await JS.InvokeVoidAsync("localStorage.setItem", $"poll_voted_{PollId}", string.Join(",", _selected));

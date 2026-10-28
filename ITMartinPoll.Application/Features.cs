@@ -89,7 +89,8 @@ public sealed class DatePolls(IAggregateStore<DatePoll> store, IImageFiles image
     }
 }
 
-// Packages: several questions + picture ratings answered as one forespørgsel by a household ("name + house number").
+// Packages: several questions + picture ratings answered as one forespørgsel - by a household ("name + house number"),
+// or on a link by a name or nobody in particular (the phone's token, PackageRules.Voter).
 public sealed class Packages(IAggregateStore<Package> packages, IAggregateStore<Poll> polls, IAggregateStore<ImageSession> sessions, TimeProvider clock)
 {
     /// <summary>Votes: per question the chosen answers (several when the question allows it).</summary>
@@ -97,8 +98,10 @@ public sealed class Packages(IAggregateStore<Package> packages, IAggregateStore<
     public sealed record Answers(Dictionary<int, List<int>> Votes, Dictionary<int, string> VoteComments, Dictionary<int, int> Ratings, Dictionary<int, string> RatingComments)
     {
         public Dictionary<int, Dictionary<int, int>> Grades { get; } = [];
-        /// <summary>Per "karakter" question, per answer the comment written on it.</summary>
-        public Dictionary<int, Dictionary<int, string>> GradeComments { get; } = [];
+        /// <summary>Per question, per answer the comment written on it (grades and chosen answers; not "Vælg dage").</summary>
+        public Dictionary<int, Dictionary<int, string>> OptionComments { get; } = [];
+        /// <summary>Per question the answer with the star (first priority).</summary>
+        public Dictionary<int, int> First { get; } = [];
     }
 
     /// <summary>The active package with its active questions and series, or null.</summary>
@@ -114,17 +117,19 @@ public sealed class Packages(IAggregateStore<Package> packages, IAggregateStore<
     public Task<Package?> GetAsync(int id, CancellationToken ct = default) => packages.GetAsync(id, ct);
 
     // What this household already said, so a return visit shows their answers instead of a blank form.
-    public async Task<Answers> AnswersAsync(Package p, string voterLabel, string token, CancellationToken ct = default)
+    public async Task<Answers> AnswersAsync(Package p, Voter voter, CancellationToken ct = default)
     {
         var a = new Answers([], [], [], []);
+        var token = voter.Token;
         foreach (var poll in p.Polls)
         {
-            var mine = (await polls.GetAsync(poll.Id, ct))?.Votes.Where(v => v.VoterName == voterLabel).ToList() ?? [];
+            var mine = (await polls.GetAsync(poll.Id, ct))?.Votes.Where(voter.Owns).ToList() ?? [];
             if (mine.Count == 0) continue;
             a.Votes[poll.Id] = mine.Select(v => v.OptionId).ToList();
             if (mine.Any(v => v.Score > 0)) a.Grades[poll.Id] = mine.Where(v => v.Score > 0).ToDictionary(v => v.OptionId, v => v.Score);
-            if (poll.Kind == QuestionKinds.Grade) a.GradeComments[poll.Id] = mine.Where(v => v.Comment != "").ToDictionary(v => v.OptionId, v => v.Comment);
-            a.VoteComments[poll.Id] = mine.Select(v => v.Comment).FirstOrDefault(c => c != "") ?? "";
+            if (poll.Kind != QuestionKinds.Days) a.OptionComments[poll.Id] = mine.Where(v => v.Comment != "").ToDictionary(v => v.OptionId, v => v.Comment);
+            else a.VoteComments[poll.Id] = mine.Select(v => v.Comment).FirstOrDefault(c => c != "") ?? "";
+            if (mine.FirstOrDefault(v => v.Priority == 1) is { } star) a.First[poll.Id] = star.OptionId;
         }
         foreach (var s in p.Sessions)
             foreach (var img in (await sessions.GetAsync(s.Id, ct))?.Images ?? [])
@@ -132,21 +137,29 @@ public sealed class Packages(IAggregateStore<Package> packages, IAggregateStore<
         return a;
     }
 
-    public Task ChooseAsync(int pollId, string voterLabel, int optionId, string pendingComment, CancellationToken ct = default) =>
-        polls.ChangeAsync(pollId, p => { PackageRules.Choose(p, voterLabel, optionId, pendingComment, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
+    public Task ChooseAsync(int pollId, Voter voter, int optionId, string pendingComment, CancellationToken ct = default) =>
+        polls.ChangeAsync(pollId, p => { PackageRules.Choose(p, voter, optionId, pendingComment, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
 
-    public Task GradeAsync(int pollId, string voterLabel, int optionId, int score, CancellationToken ct = default) =>
-        polls.ChangeAsync(pollId, p => { PackageRules.Grade(p, voterLabel, optionId, score, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
+    public Task GradeAsync(int pollId, Voter voter, int optionId, int score, CancellationToken ct = default) =>
+        polls.ChangeAsync(pollId, p => { PackageRules.Grade(p, voter, optionId, score, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
 
-    public Task GradeCommentAsync(int pollId, string voterLabel, int optionId, string comment, CancellationToken ct = default) =>
-        polls.ChangeAsync(pollId, p => { PackageRules.GradeComment(p, voterLabel, optionId, comment, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
-
-    public async Task<bool> CommentAsync(int pollId, string voterLabel, string comment, CancellationToken ct = default)
+    /// <returns>False when the answer is not chosen (nothing to put the comment on).</returns>
+    public async Task<bool> OptionCommentAsync(int pollId, Voter voter, int optionId, string comment, CancellationToken ct = default)
     {
         var saved = false;
-        await polls.ChangeAsync(pollId, p => { saved = PackageRules.Comment(p, voterLabel, comment); return Task.CompletedTask; }, ct);
+        await polls.ChangeAsync(pollId, p => { saved = PackageRules.OptionComment(p, voter, optionId, comment, clock.GetUtcNow().UtcDateTime); return Task.CompletedTask; }, ct);
         return saved;
     }
+
+    public async Task<bool> CommentAsync(int pollId, Voter voter, string comment, CancellationToken ct = default)
+    {
+        var saved = false;
+        await polls.ChangeAsync(pollId, p => { saved = PackageRules.Comment(p, voter, comment); return Task.CompletedTask; }, ct);
+        return saved;
+    }
+
+    public Task FirstAsync(int pollId, Voter voter, int optionId, CancellationToken ct = default) =>
+        polls.ChangeAsync(pollId, p => { PackageRules.SetFirst(p, voter, optionId); return Task.CompletedTask; }, ct);
 
     public Task RateAsync(int sessionId, int imageId, string token, string voterLabel, int score, string pendingComment, CancellationToken ct = default) =>
         sessions.ChangeAsync(sessionId, s => { RatingRules.Rate(s, imageId, token, voterLabel, score, null, clock.GetUtcNow().UtcDateTime);

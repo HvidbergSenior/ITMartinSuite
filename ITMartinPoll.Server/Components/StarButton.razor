@@ -1,0 +1,10 @@
+@* First priority among several chosen answers (user 2026-10-28). Said in words as well as the star - never by colour alone. *@
+<button type="button" class="k-btn k-btn-sm opt-star @(On ? "on" : "")" aria-pressed="@(On ? "true" : "false")"
+        aria-label="@(On ? $"{Label} er dit første valg – tryk for at fjerne stjernen" : $"Gør {Label} til dit første valg")"
+        @onclick="OnClick">@(On ? "★ Mit første valg" : "☆ Gør til mit første valg")</button>
+
+@code {
+    [Parameter] public bool On { get; set; }
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public EventCallback OnClick { get; set; }
+}

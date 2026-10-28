@@ -13,10 +13,13 @@ public sealed record Ballot(
 public sealed record BallotOption(int Id, string Label, int SortOrder);
 
 // One row per chosen option (a multi-choice voter has several rows with the same name/e-mail/time).
-public sealed record CastVote(int OptionId, string VoterName, string Email, DateTime VotedAtUtc);
+// Priority 1 = the voter's first priority; Comment = what they wrote on this answer.
+public sealed record CastVote(int OptionId, string VoterName, string Email, DateTime VotedAtUtc, int Priority = 0, string Comment = "");
 
 // What a voter sends - from the poll page or from bogshoppen.dk.
-public sealed record VoteRequest(IReadOnlyCollection<int> OptionIds, string? Name, string? Email, string? Comment, bool AuctionNews);
+// FirstOptionId = the star among several chosen answers; OptionComments = a comment per chosen answer (2026-10-28).
+public sealed record VoteRequest(IReadOnlyCollection<int> OptionIds, string? Name, string? Email, string? Comment, bool AuctionNews,
+    int? FirstOptionId = null, IReadOnlyDictionary<int, string>? OptionComments = null);
 
 // The rows to store, and the opt-in for the Kundekartotek when the voter ticked it.
 public sealed record AcceptedVote(IReadOnlyList<CastVote> Rows, string Comment, bool WantsAuctionNews, CustomerOptIn? OptIn);
@@ -60,7 +63,10 @@ public static class VoteRules
         else email = "";   // never stored when the poll does not ask for it
 
         var wants = poll.RequireContact && req.AuctionNews;
-        var rows = chosen.Select(id => new CastVote(id, name, email, nowUtc)).ToList();
+        // The star only means something among several answers.
+        var first = poll.AllowMultiple && chosen.Count > 1 && req.FirstOptionId is { } f && chosen.Contains(f) ? f : 0;
+        var rows = chosen.Select(id => new CastVote(id, name, email, nowUtc, id == first ? 1 : 0,
+            Cut((req.OptionComments?.GetValueOrDefault(id) ?? "").Trim(), MaxComment))).ToList();
         CustomerOptIn? optIn = null;
         if (wants)
         {
