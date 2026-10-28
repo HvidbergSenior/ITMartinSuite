@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Upload - use cases (receive/list/remove files, sort overview, the chat with Martin) and their ports (disk, messages, push, previews). -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinUpload.Domain\ITMartinUpload.Domain.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

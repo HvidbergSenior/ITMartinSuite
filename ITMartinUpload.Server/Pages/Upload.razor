@@ -1,14 +1,12 @@
-﻿@page "/upload/{Slug}"
+@page "/upload/{Slug}"
 @rendermode InteractiveServer
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IConfiguration Config
 @inject NavigationManager Nav
-@inject ITMartinUpload.Server.Services.UploadStore Store
-@inject Microsoft.Extensions.Options.IOptions<ITMartinUpload.Server.Services.UploadOptions> Options
-@inject ITMartinUpload.Server.Services.MessageStore Messages
-@inject ITMartinUpload.Server.Services.UploadPushService Push
-@inject ITMartinUpload.Server.Services.SortStatusReader SortStatus
+@inject ITMartinUpload.Domain.CustomerBook Customers
+@inject ITMartinUpload.Application.CustomerFiles Files
+@inject ITMartinUpload.Application.Conversations Chat
 
 <PageTitle>Upload – @DisplayName – ITMartin</PageTitle>
 
@@ -339,11 +337,11 @@
         ITMartinUpload.Domain.SortState.Failed => "st-fail",
         _ => "st-wait",
     };
-    private IReadOnlyList<ITMartinUpload.Server.Services.StoredAlbum> _albums = [];
+    private IReadOnlyList<ITMartinUpload.Domain.StoredAlbum> _albums = [];
     private bool _loaded;
     private string _filter = "";
     private string? _confirmRemove;
-    private List<ITMartinUpload.Server.Services.ChatMessage> _messages = [];
+    private List<ITMartinUpload.Domain.ChatMessage> _messages = [];
     private string _draft = "";
     private bool _messageSent;
     private System.Threading.Timer? _poll;
@@ -352,7 +350,7 @@
     private string? _removeError;
 
     private bool IsImage(string name) =>
-        ITMartinUpload.Server.Services.UploadStore.IsImage(name);
+        ITMartinUpload.Domain.UploadNames.IsImage(name);
 
     private string FileUrl(string name, bool thumb) =>
         $"/api/file/{Uri.EscapeDataString(Slug)}/{Uri.EscapeDataString(name)}"
@@ -362,7 +360,7 @@
     private void Remove(string name)
     {
         _confirmRemove = null;
-        if (!Store.Remove(Slug, name))
+        if (!Files.Remove(Slug, _token, name))
         {
             _removeError = $"Kunne ikke fjerne {name}. Prøv igen, eller ring til Martin.";
             return;
@@ -377,7 +375,7 @@
             : _existing.Where(f => f.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase));
     private bool _authorized = true;
     private string _token = "";
-    private ITMartinUpload.Server.Services.UploadCustomer? _customer;
+    private ITMartinUpload.Domain.UploadCustomer? _customer;
 
     private bool IsMusic => _customer?.Music == true;
     private string DisplayName => string.IsNullOrWhiteSpace(_customer?.Name) ? Slug : _customer!.Name;
@@ -400,9 +398,9 @@
     {
         var qs = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
         _token = qs["token"] ?? "";
-        _customer = Options.Value.Find(Slug);
+        _customer = Customers.Find(Slug);
 
-        if (!Options.Value.IsAuthorized(Slug, _token))
+        if (!Customers.IsAuthorized(Slug, _token))
         {
             _authorized = false;
             return;
@@ -412,25 +410,21 @@
     }
 
     private void LoadMessages() =>
-        _messages = Messages.Read(Slug).ToList();
+        _messages = Chat.Read(Slug).ToList();
 
     private void SendMessage()
     {
         var text = _draft;
-        if (!Messages.Add(Slug, ITMartinUpload.Server.Services.ChatMessage.Customer, text)) return;
+        if (!Chat.FromCustomer(Slug, text)) return;
         _draft = "";
         _messageSent = true;
         LoadMessages();
-
-        var preview = text.Length > 80 ? text[..80] + "…" : text;
-        _ = Push.SendAsync(ITMartinUpload.Server.Services.UploadPushService.Martin,
-            $"{DisplayName} spørger", preview, "/svar");
     }
 
     private async Task EnablePush()
     {
         _pushJs ??= await JS.InvokeAsync<IJSObjectReference>("import", "/push.js");
-        var key = Push.GetPublicKey();
+        var key = Chat.PushKey;
         _pushStatus = await _pushJs.InvokeAsync<string>("subscribe", Slug, _token, key);
     }
 
@@ -462,10 +456,7 @@
         var ids = new string[files.Length];
         for (var i = 0; i < files.Length; i++)
         {
-            var already = IsMusic
-                ? ITMartinUpload.Server.Services.UploadStore.SafeFileName(files[i].Name) is { } safe
-                  && Store.AlreadyHaveIn(Slug, ITMartinUpload.Server.Services.UploadStore.SafeSubfolder(files[i].Dir), safe, files[i].Size)
-                : Store.AlreadyHave(Slug, files[i].Name, files[i].Size);
+            var already = Files.AlreadyHave(_customer, Slug, files[i].Name, files[i].Dir, files[i].Size);
             ids[i] = already ? "" : Guid.NewGuid().ToString();
             _uploads.Add(new(
                 already ? $"skip-{i}-{Guid.NewGuid():N}" : ids[i],
@@ -514,13 +505,13 @@
 
     private void LoadExisting()
     {
-        _existing = Store.List(Slug)
+        _existing = Files.List(Slug)
             .Select(f => new ExistingFile(f.Name, f.Size, f.ModifiedUtc))
             .ToList();
-        if (IsMusic) _albums = Store.Albums(Slug);
+        if (IsMusic) _albums = Files.Albums(Slug);
         else if (_customer is not null)
         {
-            var (files, summary) = SortStatus.For(_customer);
+            var (files, summary) = Files.SortStatus(_customer);
             _sortStatus = files.ToDictionary(f => f.Name, StringComparer.OrdinalIgnoreCase);
             _sortSummary = summary;
         }

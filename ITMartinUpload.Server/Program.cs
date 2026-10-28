@@ -1,5 +1,7 @@
 using ITMartin.Shared.UI.Kolibri;
-using ITMartinUpload.Server.Services;
+using ITMartinUpload.Application;
+using ITMartinUpload.Domain;
+using ITMartinUpload.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 
 const long tenGigabytes = 10L * 1024 * 1024 * 1024;
@@ -25,7 +27,7 @@ builder.Services.AddKolibri(k =>
         "Lad siden være åben, mens den blå streg kører. Du kan sagtens sende mange filer ad gangen.",
         "Kom bare igen senere – alt, du har sendt, står nederst på siden.",
     ];
-    k.Version = "2026.09";
+    k.Version = "2026.10.28";
     k.ThemeColor = "#121917";
 });
 
@@ -33,17 +35,16 @@ builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = tenGigabytes);
 
 // UploadRoot stays supported so the existing compose file keeps working.
-builder.Services.Configure<UploadOptions>(options =>
+builder.Services.Configure<StorageOptions>(options =>
 {
     builder.Configuration.GetSection("Upload").Bind(options);
-    builder.Configuration.GetSection("Customers").Bind(options.Customers);
     options.Root = builder.Configuration["UploadRoot"] ?? options.Root;
 });
-builder.Services.AddSingleton<UploadStore>();
-builder.Services.AddSingleton<SortStatusReader>();
-builder.Services.AddSingleton<MessageStore>();
-builder.Services.AddSingleton<UploadPushService>();
-builder.Services.AddSingleton<UploadActivity>();
+var customers = new CustomerBook();
+builder.Configuration.GetSection("Upload").Bind(customers);
+builder.Configuration.GetSection("Customers").Bind(customers.Customers);
+builder.Services.AddSingleton(customers);
+builder.Services.AddUpload();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
@@ -61,100 +62,59 @@ app.UseAntiforgery();
 app.MapKolibri();
 
 app.MapPost("/api/upload/{slug}", async (
-    string slug,
-    string? token,
-    HttpRequest request,
-    UploadStore store,
-    UploadPushService push,
-    UploadActivity activity,
-    Microsoft.Extensions.Options.IOptions<UploadOptions> options,
-    CancellationToken ct) =>
+    string slug, string? token, HttpRequest request, CustomerFiles files, CancellationToken ct) =>
 {
-    if (!options.Value.IsAuthorized(slug, token)) return Results.Unauthorized();
-    if (!UploadStore.IsValidSlug(slug)) return Results.BadRequest("Ugyldigt navn");
+    if (!customers.IsAuthorized(slug, token)) return Results.Unauthorized();
+    if (!UploadNames.IsValidSlug(slug)) return Results.BadRequest("Ugyldigt navn");
     if (!request.HasFormContentType) return Results.BadRequest("Forkert format");
 
     var form = await request.ReadFormAsync(ct);
     var file = form.Files.FirstOrDefault();
     if (file is null || file.Length == 0) return Results.BadRequest("Ingen fil modtaget");
 
-    var safeName = UploadStore.SafeFileName(file.FileName);
-    if (safeName is null) return Results.BadRequest("Ugyldigt filnavn");
-
-    // Music customers keep the Artist/Album folder Rip CD sends along ("path" form field).
-    var customer = options.Value.Find(slug);
-    var subfolder = customer?.Music == true ? UploadStore.SafeSubfolder(form["path"]) : null;
-    if (customer?.Music == true && store.AlreadyHaveIn(slug, subfolder, safeName, file.Length)) return Results.Ok();
-
-    await store.SaveAsync(slug, safeName, file.OpenReadStream(), ct, subfolder);
-
-    // One ping per batch, not one per photo: a customer sending 400 pictures
-    // must not put 400 notifications on Martin's phone.
-    if (activity.ShouldAnnounceUpload(slug))
+    await using var content = file.OpenReadStream();
+    return await files.ReceiveAsync(slug, token, file.FileName, form["path"], file.Length, content, ct) switch
     {
-        var name = customer?.Name ?? slug;
-        _ = push.SendAsync(UploadPushService.Martin,
-            customer?.Music == true ? $"{name} sender musik" : $"{name} sender billeder",
-            "Filerne lander i deres mappe på NAS'en.",
-            $"/svar");
-    }
-
-    return Results.Ok();
+        ReceiveResult.Unauthorized => Results.Unauthorized(),
+        ReceiveResult.BadSlug => Results.BadRequest("Ugyldigt navn"),
+        ReceiveResult.BadFileName => Results.BadRequest("Ugyldigt filnavn"),
+        _ => Results.Ok(),
+    };
 }).DisableAntiforgery();
 
 // Push sign-up. A customer may only subscribe to their own thread, and only with
 // the token from their link; "martin" is behind the admin pin.
-app.MapPost("/api/push/{who}", async (
-    string who, string? token, string? pin, PushRegistration registration,
-    UploadPushService push, IConfiguration config,
-    Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+app.MapPost("/api/push/{who}", (
+    string who, string? token, string? pin, PushRegistration registration, Conversations chat, IConfiguration config) =>
 {
-    var allowed = who == UploadPushService.Martin
-        ? !string.IsNullOrEmpty(config["Upload:AdminPin"]) && pin == config["Upload:AdminPin"]
-        : options.Value.IsAuthorized(who, token);
-
-    if (!allowed) return Results.Unauthorized();
-
-    push.Subscribe(who, registration with { Who = who });
-    await Task.CompletedTask;
-    return Results.Ok();
+    var pinOk = !string.IsNullOrEmpty(config["Upload:AdminPin"]) && pin == config["Upload:AdminPin"];
+    return chat.Subscribe(who, token, pinOk, registration) ? Results.Ok() : Results.Unauthorized();
 }).DisableAntiforgery();
 
-app.MapGet("/api/push-key", (UploadPushService push) => Results.Text(push.GetPublicKey()));
+app.MapGet("/api/push-key", (Conversations chat) => Results.Text(chat.PushKey));
 
 // The customer's own files, so they can see what they sent and take something back out.
-app.MapGet("/api/file/{slug}/{name}", (
-    string slug, string name, string? token, bool? thumb,
-    UploadStore store, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+app.MapGet("/api/file/{slug}/{name}", (string slug, string name, string? token, bool? thumb, CustomerFiles files) =>
 {
-    if (!options.Value.IsAuthorized(slug, token)) return Results.Unauthorized();
-
-    var path = store.ResolveOwnFile(slug, name);
-    if (path is null) return Results.NotFound();
-
-    var contentType = UploadStore.ContentTypeFor(path);
-    if (thumb == true && UploadStore.IsImage(path))
-    {
-        var jpeg = ThumbnailFactory.Create(path);
-        if (jpeg is not null) return Results.File(jpeg, "image/jpeg");
-    }
-
-    return Results.File(path, contentType, enableRangeProcessing: true);
+    if (!customers.IsAuthorized(slug, token)) return Results.Unauthorized();
+    var file = files.Open(slug, token, name, thumb == true);
+    if (file is null) return Results.NotFound();
+    return file.Thumbnail is { } jpeg
+        ? Results.File(jpeg, "image/jpeg")
+        : Results.File(file.Path, file.ContentType, enableRangeProcessing: true);
 });
 
-app.MapPost("/api/remove/{slug}/{name}", (
-    string slug, string name, string? token,
-    UploadStore store, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+app.MapPost("/api/remove/{slug}/{name}", (string slug, string name, string? token, CustomerFiles files) =>
 {
-    if (!options.Value.IsAuthorized(slug, token)) return Results.Unauthorized();
-    return store.Remove(slug, name) ? Results.Ok() : Results.NotFound();
+    if (!customers.IsAuthorized(slug, token)) return Results.Unauthorized();
+    return files.Remove(slug, token, name) ? Results.Ok() : Results.NotFound();
 }).DisableAntiforgery();
 
 // Home-screen app for one event: its own name and start page, the camera icon.
-app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, string? token, Microsoft.Extensions.Options.IOptions<UploadOptions> options) =>
+app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, string? token) =>
 {
-    var c = options.Value.Find(slug) ?? options.Value.Renamed(slug);
-    if (c is null || !UploadStore.IsValidSlug(slug)) return Results.NotFound();
+    var c = customers.Find(slug) ?? customers.Renamed(slug);
+    if (c is null || !UploadNames.IsValidSlug(slug)) return Results.NotFound();
     slug = c.Slug;
     var name = string.IsNullOrWhiteSpace(c.Name) ? slug : c.Name;
     var manifest = new
@@ -163,7 +123,7 @@ app.MapGet("/event/{slug}/manifest.webmanifest", (string slug, string? token, Mi
         short_name = name,
         // A right code is kept in the start page, so the home-screen icon opens the event without "Adgang nægtet";
         // a wrong or missing one is left out (never echoed back).
-        start_url = $"/event/{slug}" + (!string.IsNullOrEmpty(token) && options.Value.IsAuthorized(slug, token) ? "?token=" + Uri.EscapeDataString(token) : ""),
+        start_url = $"/event/{slug}" + (!string.IsNullOrEmpty(token) && customers.IsAuthorized(slug, token) ? "?token=" + Uri.EscapeDataString(token) : ""),
         scope = $"/event/{slug}",
         display = "standalone",
         background_color = "#121917",

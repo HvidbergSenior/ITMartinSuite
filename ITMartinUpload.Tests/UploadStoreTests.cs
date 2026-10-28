@@ -1,5 +1,6 @@
 using FluentAssertions;
-using ITMartinUpload.Server.Services;
+using ITMartinUpload.Domain;
+using ITMartinUpload.Infrastructure;
 
 namespace ITMartinUpload.Tests;
 
@@ -12,7 +13,7 @@ public class UploadStoreTests
     public void SetUp()
     {
         _root = Path.Combine(Path.GetTempPath(), "upload-tests", Guid.NewGuid().ToString("N"));
-        _store = new UploadStore(new UploadOptions { Root = _root });
+        _store = new UploadStore(new StorageOptions { Root = _root });
     }
 
     [TearDown]
@@ -28,29 +29,29 @@ public class UploadStoreTests
     [TestCase("annette kent", false)]
     [TestCase("annette/kent", false)]
     public void IsValidSlug_accepts_only_safe_names(string slug, bool expected) =>
-        UploadStore.IsValidSlug(slug).Should().Be(expected);
+        UploadNames.IsValidSlug(slug).Should().Be(expected);
 
     [Test]
     public void IsValidSlug_rejects_overlong_names() =>
-        UploadStore.IsValidSlug(new string('a', 51)).Should().BeFalse();
+        UploadNames.IsValidSlug(new string('a', 51)).Should().BeFalse();
 
     [TestCase("ferie.jpg", "ferie.jpg")]
     [TestCase(@"C:\Users\Annette\ferie.jpg", "ferie.jpg")]
     [TestCase("/home/kent/ferie.jpg", "ferie.jpg")]
     [TestCase("../../ferie.jpg", "ferie.jpg")]
     public void SafeFileName_strips_any_path(string sent, string expected) =>
-        UploadStore.SafeFileName(sent).Should().Be(expected);
+        UploadNames.SafeFileName(sent).Should().Be(expected);
 
     [TestCase("")]
     [TestCase("   ")]
     [TestCase("..")]
     [TestCase(null)]
     public void SafeFileName_returns_null_when_nothing_usable_is_left(string? sent) =>
-        UploadStore.SafeFileName(sent).Should().BeNull();
+        UploadNames.SafeFileName(sent).Should().BeNull();
 
     [Test]
     public void UniquePath_keeps_the_name_when_the_folder_is_empty() =>
-        UploadStore.UniquePath("/f", "ferie.jpg", _ => false)
+        UploadNames.UniquePath("/f", "ferie.jpg", _ => false)
             .Should().Be(Path.Combine("/f", "ferie.jpg"));
 
     [Test]
@@ -62,7 +63,7 @@ public class UploadStoreTests
             Path.Combine("/f", "ferie_1.jpg"),
         };
 
-        UploadStore.UniquePath("/f", "ferie.jpg", taken.Contains)
+        UploadNames.UniquePath("/f", "ferie.jpg", taken.Contains)
             .Should().Be(Path.Combine("/f", "ferie_2.jpg"));
     }
 
@@ -161,7 +162,7 @@ public class UploadStoreTests
 
         var folder = Path.Combine(_root, "annette-kent");
         File.Exists(Path.Combine(folder, "ferie.jpg")).Should().BeFalse();
-        File.Exists(Path.Combine(folder, UploadStore.TrashFolderName, "ferie.jpg")).Should().BeTrue();
+        File.Exists(Path.Combine(folder, UploadNames.TrashFolderName, "ferie.jpg")).Should().BeTrue();
         _store.List("annette-kent").Should().BeEmpty();
     }
 
@@ -173,7 +174,7 @@ public class UploadStoreTests
         await SaveAsync("annette-kent", "ferie.jpg", "second");
         _store.Remove("annette-kent", "ferie.jpg");
 
-        var trash = Path.Combine(_root, "annette-kent", UploadStore.TrashFolderName);
+        var trash = Path.Combine(_root, "annette-kent", UploadNames.TrashFolderName);
         Directory.GetFiles(trash).Should().HaveCount(2);
     }
 
@@ -215,12 +216,12 @@ public class UploadStoreTests
     [TestCase("film.mp4", false)]
     [TestCase("kontrakt.pdf", false)]
     public void IsImage_knows_what_can_be_shown_as_a_preview(string name, bool expected) =>
-        UploadStore.IsImage(name).Should().Be(expected);
+        UploadNames.IsImage(name).Should().Be(expected);
 
     private async Task SaveAsync(string slug, string name, string content)
     {
         using var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
-        await _store.SaveAsync(slug, UploadStore.SafeFileName(name)!, ms);
+        await _store.SaveAsync(slug, UploadNames.SafeFileName(name)!, ms);
     }
 
     [TestCase("David Bowie/Hunky Dory", "David Bowie|Hunky Dory")]
@@ -232,12 +233,12 @@ public class UploadStoreTests
     [TestCase(null, null)]
     [TestCase("_fjernet/x", "x")]
     public void SafeSubfolder_keeps_only_the_last_two_clean_folders(string? input, string? expected) =>
-        UploadStore.SafeSubfolder(input).Should().Be(expected?.Replace('|', Path.DirectorySeparatorChar));
+        UploadNames.SafeSubfolder(input).Should().Be(expected?.Replace('|', Path.DirectorySeparatorChar));
 
     [Test]
     public async Task SaveAsync_puts_music_in_its_album_folder_and_a_retry_is_recognised()
     {
-        var sub = UploadStore.SafeSubfolder("David Bowie/Hunky Dory");
+        var sub = UploadNames.SafeSubfolder("David Bowie/Hunky Dory");
         var dest = await _store.SaveAsync("jytte", "01 Changes.flac", new MemoryStream([1, 2, 3]), subfolder: sub);
 
         dest.Should().Be(Path.Combine(_root, "jytte", "David Bowie", "Hunky Dory", "01 Changes.flac"));
@@ -249,7 +250,7 @@ public class UploadStoreTests
     [Test]
     public async Task Albums_lists_each_album_folder_with_its_tracks()
     {
-        var sub = UploadStore.SafeSubfolder("David Bowie/Hunky Dory");
+        var sub = UploadNames.SafeSubfolder("David Bowie/Hunky Dory");
         await _store.SaveAsync("jytte", "01 Changes.flac", new MemoryStream([1, 2]), subfolder: sub);
         await _store.SaveAsync("jytte", "02 Oh! You Pretty Things.flac", new MemoryStream([1, 2, 3]), subfolder: sub);
         await _store.SaveAsync("jytte", "folder.jpg", new MemoryStream([9]), subfolder: sub);

@@ -3,7 +3,9 @@ using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 
-namespace ITMartinUpload.Server.Services;
+using ITMartinUpload.Application;
+
+namespace ITMartinUpload.Infrastructure;
 
 /// <summary>
 /// Small previews for the "Det, I har sendt" list. A customer's phone photo is several
@@ -15,7 +17,7 @@ namespace ITMartinUpload.Server.Services;
 /// ~200 MB in memory) - on the 1.7 GB NAS that got upload-web killed (exit 137) seconds after every start while
 /// Annette's page was open. Now: decoded straight to preview size, one at a time, and huge files get the icon.
 /// </remarks>
-public static class ThumbnailFactory
+public sealed class ThumbnailFactory : IThumbnails
 {
     private const int MaxEdge = 320;
     /// <summary>Files above this get the generic icon - no preview is worth that much memory on the NAS.</summary>
@@ -23,7 +25,7 @@ public static class ThumbnailFactory
 
     private static readonly SemaphoreSlim OneAtATime = new(1, 1);
 
-    public static byte[]? Create(string path)
+    public byte[]? Create(string path)
     {
         try
         {

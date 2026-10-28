@@ -1,33 +1,33 @@
 using System.Net;
 using System.Text.Json;
+using ITMartinUpload.Application;
+using ITMartinUpload.Domain;
 using WebPush;
 
-namespace ITMartinUpload.Server.Services;
-
-public sealed record PushRegistration(string Endpoint, string P256DH, string Auth, string Who);
+namespace ITMartinUpload.Infrastructure;
 
 /// <summary>
 /// Web push for the two people in a conversation: Martin gets a ping when a customer
 /// writes or uploads, the customer gets one when Martin answers. Subscriptions are
 /// files on the data volume - no database for what is at most a handful of devices.
 /// </summary>
-public sealed class UploadPushService
+public sealed class UploadPushService : IPushSender
 {
-    public const string Martin = "martin";
+    private const string Martin = IPushSender.Martin;
 
     private readonly string _dataDir;
     private readonly string _vapidFile;
     private readonly object _lock = new();
     private (string Public, string Private)? _keys;
 
-    public UploadPushService(Microsoft.Extensions.Options.IOptions<UploadOptions> options)
+    public UploadPushService(Microsoft.Extensions.Options.IOptions<StorageOptions> options)
     {
         _dataDir = options.Value.Root;
         Directory.CreateDirectory(_dataDir);
         _vapidFile = Path.Combine(_dataDir, "upload-vapid.json");
     }
 
-    public string GetPublicKey() => Keys().Public;
+    public string PublicKey => Keys().Public;
 
     private (string Public, string Private) Keys()
     {
@@ -56,7 +56,7 @@ public sealed class UploadPushService
 
     public IReadOnlyList<PushRegistration> Read(string who)
     {
-        if (who != Martin && !UploadStore.IsValidSlug(who)) return [];
+        if (who != Martin && !UploadNames.IsValidSlug(who)) return [];
         lock (_lock)
         {
             var path = FileFor(who);
@@ -69,7 +69,7 @@ public sealed class UploadPushService
 
     public void Subscribe(string who, PushRegistration registration)
     {
-        if (who != Martin && !UploadStore.IsValidSlug(who)) return;
+        if (who != Martin && !UploadNames.IsValidSlug(who)) return;
         if (string.IsNullOrWhiteSpace(registration.Endpoint)) return;
 
         lock (_lock)

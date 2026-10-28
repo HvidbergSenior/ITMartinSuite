@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Upload - the customer folders on disk, the json chat files, FileSorter's _kilder.json, WebPush and ImageSharp previews. -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinUpload.Application\ITMartinUpload.Application.csproj" />
+    <ProjectReference Include="..\ITMartinUpload.Domain\ITMartinUpload.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.2" />
+    <PackageReference Include="WebPush" Version="1.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

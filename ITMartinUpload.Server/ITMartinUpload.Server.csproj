@@ -8,13 +8,13 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.24" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.2" />
-    <PackageReference Include="WebPush" Version="1.0.*" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+    <ProjectReference Include="..\ITMartinUpload.Application\ITMartinUpload.Application.csproj" />
     <ProjectReference Include="..\ITMartinUpload.Domain\ITMartinUpload.Domain.csproj" />
+    <ProjectReference Include="..\ITMartinUpload.Infrastructure\ITMartinUpload.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace ITMartinUpload.Server.Services;
+namespace ITMartinUpload.Domain;
 
 /// <summary>
 /// Keeps a customer's upload burst down to one notification. A phone photo library

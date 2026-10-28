@@ -1,84 +1,28 @@
+using ITMartinUpload.Application;
+using ITMartinUpload.Domain;
 using Microsoft.Extensions.Options;
+using static ITMartinUpload.Domain.UploadNames;
 
-namespace ITMartinUpload.Server.Services;
-
-public sealed record StoredFile(string Name, long Size, DateTime ModifiedUtc);
-
-/// <summary>One album a music customer sent: "David Bowie – Hunky Dory", its tracks and size.</summary>
-public sealed record StoredAlbum(string Name, int Tracks, long Size, DateTime ModifiedUtc);
+namespace ITMartinUpload.Infrastructure;
 
 /// <summary>
-/// Everything that touches the disk: where a customer's files live, what a file may be
-/// called, and how a name collision is resolved. Kept free of ASP.NET types so the rules
-/// can be tested without a web server.
+/// The customer folders on disk (the NAS volume): saving under a free name, listing, and moving a file to the trash
+/// folder. The naming rules are in <see cref="UploadNames"/>.
 /// </summary>
-public sealed class UploadStore
+public sealed class UploadStore : IUploadFiles
 {
-    private readonly UploadOptions _options;
+    private readonly StorageOptions _options;
 
-    public UploadStore(IOptions<UploadOptions> options) : this(options.Value) { }
+    public UploadStore(IOptions<StorageOptions> options) : this(options.Value) { }
 
-    public UploadStore(UploadOptions options)
+    public UploadStore(StorageOptions options)
     {
         _options = options;
         Directory.CreateDirectory(_options.Root);
     }
 
-    public static bool IsValidSlug(string? slug) =>
-        !string.IsNullOrEmpty(slug) &&
-        slug.Length <= 50 &&
-        slug.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '_');
-
-    /// <summary>Strips any path the browser sent; returns null when nothing usable is left.</summary>
-    public static string? SafeFileName(string? fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName)) return null;
-        var name = Path.GetFileName(fileName.Replace('\\', '/').Trim());
-        if (string.IsNullOrWhiteSpace(name) || name is "." or "..") return null;
-        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-        return string.IsNullOrWhiteSpace(name) ? null : name;
-    }
-
-    /// <summary>
-    /// The Artist/Album folder a music file goes in: the last two folders that were sent, each one
-    /// cleaned like a file name, so "Musik/David Bowie/Hunky Dory" and "..\..\etc" can never climb out.
-    /// Null when nothing usable is left - the file then lands at the top like before.
-    /// </summary>
-    public static string? SafeSubfolder(string? folder)
-    {
-        if (string.IsNullOrWhiteSpace(folder)) return null;
-        var parts = folder.Replace('\\', '/')
-            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(SafeFileName)
-            .Where(p => p is not null && !string.Equals(p, TrashFolderName, StringComparison.OrdinalIgnoreCase))
-            .Select(p => p!)
-            .TakeLast(2)
-            .ToArray();
-        return parts.Length == 0 ? null : Path.Combine(parts);
-    }
-
     public string FolderFor(string slug) =>
         Path.Combine(_options.Root, slug.ToLowerInvariant());
-
-    /// <summary>
-    /// First free name in the folder: "IMG_1.jpg", then "IMG_1_1.jpg", "IMG_1_2.jpg" …
-    /// A re-upload never overwrites what the customer sent us earlier.
-    /// </summary>
-    public static string UniquePath(string folder, string safeName, Func<string, bool> exists)
-    {
-        var dest = Path.Combine(folder, safeName);
-        if (!exists(dest)) return dest;
-
-        var baseName = Path.GetFileNameWithoutExtension(safeName);
-        var ext = Path.GetExtension(safeName);
-        for (var n = 1; ; n++)
-        {
-            dest = Path.Combine(folder, $"{baseName}_{n}{ext}");
-            if (!exists(dest)) return dest;
-        }
-    }
-
-    public const string PartSuffix = ".part";
 
     public async Task<string> SaveAsync(string slug, string safeName, Stream content, CancellationToken ct = default, string? subfolder = null)
     {
@@ -124,29 +68,6 @@ public sealed class UploadStore
         var path = subfolder is null ? Path.Combine(FolderFor(slug), safeName) : Path.Combine(FolderFor(slug), subfolder, safeName);
         return File.Exists(path) && new FileInfo(path).Length == size;
     }
-
-    private static readonly string[] ImageExtensions =
-        [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff"];
-
-    public static bool IsImage(string path) =>
-        ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
-
-    public static string ContentTypeFor(string path) =>
-        Path.GetExtension(path).ToLowerInvariant() switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            ".heic" or ".heif" => "image/heic",
-            ".mp4" or ".m4v" => "video/mp4",
-            ".mov" => "video/quicktime",
-            ".pdf" => "application/pdf",
-            _ => "application/octet-stream",
-        };
-
-    /// <summary>The folder a removed file is parked in - nothing is ever really deleted here.</summary>
-    public const string TrashFolderName = "_fjernet";
 
     /// <summary>
     /// Resolves a file the customer refers to by name, inside their own folder only.
@@ -199,8 +120,6 @@ public sealed class UploadStore
         catch (UnauthorizedAccessException) { return []; }
     }
 
-    private static readonly string[] AudioExtensions = [".flac", ".mp3", ".m4a", ".aac", ".wav", ".wma", ".ogg", ".opus", ".alac"];
-
     /// <summary>What a music customer has sent, album by album (the Artist/Album folders), newest first.</summary>
     public IReadOnlyList<StoredAlbum> Albums(string slug)
     {
@@ -209,7 +128,7 @@ public sealed class UploadStore
             var folder = FolderFor(slug);
             if (!Directory.Exists(folder)) return [];
             return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
-                .Where(p => AudioExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()))
+                .Where(IsAudio)
                 .Select(p => new FileInfo(p))
                 .Select(fi => (fi, dir: Path.GetRelativePath(folder, fi.DirectoryName!)))
                 .Where(x => !x.dir.Split(Path.DirectorySeparatorChar)[0].Equals(TrashFolderName, StringComparison.OrdinalIgnoreCase))

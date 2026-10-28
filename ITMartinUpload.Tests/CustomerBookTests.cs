@@ -1,11 +1,11 @@
 using FluentAssertions;
-using ITMartinUpload.Server.Services;
+using ITMartinUpload.Domain;
 
 namespace ITMartinUpload.Tests;
 
-public class UploadOptionsTests
+public class CustomerBookTests
 {
-    private static UploadOptions Options() => new()
+    private static CustomerBook Options() => new()
     {
         Token = "faelles",
         Customers =
@@ -61,7 +61,7 @@ public class UploadOptionsTests
 
     [Test]
     public void Without_any_token_configured_everything_is_open() =>
-        new UploadOptions().IsAuthorized("annette-kent", null).Should().BeTrue();
+        new CustomerBook().IsAuthorized("annette-kent", null).Should().BeTrue();
 
     [Test]
     public void Greeting_uses_the_customer_name() =>

@@ -1,24 +1,58 @@
 using FluentAssertions;
-using ITMartinUpload.Server.Services;
+using ITMartinUpload.Application;
+using ITMartinUpload.Domain;
+using ITMartinUpload.Infrastructure;
 
 namespace ITMartinUpload.Tests;
 
 public class MessageStoreTests
 {
     private string _root = "";
-    private MessageStore _messages = null!;
+    private Conversations _messages = null!;
 
     [SetUp]
     public void SetUp()
     {
         _root = Path.Combine(Path.GetTempPath(), "upload-tests", Guid.NewGuid().ToString("N"));
-        _messages = new MessageStore(new UploadStore(new UploadOptions { Root = _root }));
+        _messages = Chat(_root);
     }
 
     [TearDown]
     public void TearDown()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
+    }
+
+    private static Conversations Chat(string root)
+    {
+        var book = new CustomerBook { Customers = [new UploadCustomer { Slug = "annette-kent", Name = "Annette og Kent" }] };
+        return new Conversations(book, new MessageStore(new UploadStore(new StorageOptions { Root = root })), new NoPush());
+    }
+
+    internal sealed class NoPush : IPushSender
+    {
+        public List<(string Who, string Title)> Sent { get; } = [];
+        public string PublicKey => "test";
+        public void Subscribe(string who, PushRegistration registration) { }
+        public Task SendAsync(string who, string title, string body, string? url = null)
+        {
+            Sent.Add((who, title));
+            return Task.CompletedTask;
+        }
+    }
+
+    [Test]
+    public void A_customer_message_pings_Martin_and_an_answer_pings_the_customer()
+    {
+        var push = new NoPush();
+        var book = new CustomerBook { Customers = [new UploadCustomer { Slug = "annette-kent", Name = "Annette og Kent" }] };
+        var chat = new Conversations(book, new MessageStore(new UploadStore(new StorageOptions { Root = _root })), push);
+
+        chat.FromCustomer("annette-kent", "Skal videoer med?").Should().BeTrue();
+        chat.FromMartin("annette-kent", "Ja").Should().BeTrue();
+        chat.FromMartin("annette-kent", "   ").Should().BeFalse();
+
+        push.Sent.Should().Equal(("martin", "Annette og Kent spørger"), ("annette-kent", "Martin har svaret"));
     }
 
     [Test]
@@ -40,7 +74,7 @@ public class MessageStoreTests
     {
         _messages.Add("annette-kent", ChatMessage.Customer, "Hej Martin");
 
-        var reopened = new MessageStore(new UploadStore(new UploadOptions { Root = _root }));
+        var reopened = Chat(_root);
         reopened.Read("annette-kent").Should().ContainSingle();
     }
 

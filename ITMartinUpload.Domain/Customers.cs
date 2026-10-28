@@ -1,4 +1,4 @@
-﻿namespace ITMartinUpload.Server.Services;
+﻿namespace ITMartinUpload.Domain;
 
 /// <summary>
 /// One customer we have handed an upload link to. Bound from configuration:
@@ -44,6 +44,12 @@ public sealed class UploadCustomer
         OldSlugs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Contains(slug, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>"Annette og Kent", or the slug when no name is set.</summary>
+    public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Slug : Name;
+
+    /// <summary>The FileSorter library folder name: <see cref="Library"/>, else the slug.</summary>
+    public string LibraryName => string.IsNullOrWhiteSpace(Library) ? Slug : Library;
+
     /// <summary>"Hej Annette og Kent!" unless the customer has its own greeting.</summary>
     public string GreetingOrDefault =>
         !string.IsNullOrWhiteSpace(Greeting) ? Greeting
@@ -51,14 +57,11 @@ public sealed class UploadCustomer
         : "Velkommen!";
 }
 
-/// <summary>Everything the upload endpoint and the page need, in one place.</summary>
-public sealed class UploadOptions
+/// <summary>
+/// Every customer with a link, and who may open which folder (Upload:Token + Customers__N__ in configuration).
+/// </summary>
+public sealed class CustomerBook
 {
-    public string Root { get; set; } = "/app/data";
-
-    /// <summary>FileSorter's library folders, mounted read-only (status overview per customer).</summary>
-    public string LibraryRoot { get; set; } = "/app/library";
-
     /// <summary>Shared fallback token, used when a customer has none of its own.</summary>
     public string Token { get; set; } = "";
 

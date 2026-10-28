@@ -25,6 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\ITMartinUpload.Server\ITMartinUpload.Server.csproj" />
     <ProjectReference Include="..\ITMartinUpload.Domain\ITMartinUpload.Domain.csproj" />
+    <ProjectReference Include="..\ITMartinUpload.Application\ITMartinUpload.Application.csproj" />
+    <ProjectReference Include="..\ITMartinUpload.Infrastructure\ITMartinUpload.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

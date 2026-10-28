@@ -3,8 +3,8 @@
 @implements IDisposable
 @inject IJSRuntime JS
 @inject NavigationManager Nav
-@inject ITMartinUpload.Server.Services.UploadStore Store
-@inject Microsoft.Extensions.Options.IOptions<ITMartinUpload.Server.Services.UploadOptions> Options
+@inject ITMartinUpload.Domain.CustomerBook Customers
+@inject ITMartinUpload.Application.CustomerFiles Files
 @inject ILogger<Event> Logger
 
 @* An event for a few people: everyone opens the same link, takes pictures, and sees everyone
@@ -180,13 +180,13 @@
     private const string NameKeyStorage = "event-name";
     private bool _authorized = true;
     private string _token = "";
-    private ITMartinUpload.Server.Services.UploadCustomer? _customer;
+    private ITMartinUpload.Domain.UploadCustomer? _customer;
     private string _name = "", _nameInput = "";
     private bool _nameReady;
     private bool _busy;
     private int _sent, _total;
     private string? _error;
-    private List<ITMartinUpload.Server.Services.StoredFile> _files = [];
+    private List<ITMartinUpload.Domain.StoredFile> _files = [];
     private Timer? _poll;
     private bool _showInstall, _canPrompt, _ios, _pc, _edge, _inApp, _installSkipped;
 
@@ -210,14 +210,14 @@
     {
         var qs = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
         _token = qs["token"] ?? "";
-        if (Options.Value.Renamed(Slug) is { } moved)
+        if (Customers.Renamed(Slug) is { } moved)
         {
             // Keep the code (2026-10-14: julius -> julius-film; old links and installed icons carry ?token=).
             Nav.NavigateTo($"/event/{moved.Slug}" + new Uri(Nav.Uri).Query, replace: true);
             return;
         }
-        _customer = Options.Value.Find(Slug);
-        if (!Options.Value.IsAuthorized(Slug, _token)) { _authorized = false; return; }
+        _customer = Customers.Find(Slug);
+        if (!Customers.IsAuthorized(Slug, _token)) { _authorized = false; return; }
         Load();
         // Everyone's new photos appear without reloading.
         _poll = new Timer(_ => InvokeAsync(() => { Load(); StateHasChanged(); }), null, TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(8));
@@ -251,7 +251,7 @@
     }
 
     private void Load() =>
-        _files = Store.List(Slug).Where(f => ITMartinUpload.Server.Services.UploadStore.IsImage(f.Name) || IsVideo(f.Name)).ToList();
+        _files = Files.List(Slug).Where(f => ITMartinUpload.Domain.UploadNames.IsImage(f.Name) || IsVideo(f.Name)).ToList();
 
     private async Task NameKey(KeyboardEventArgs e)
     {
@@ -279,10 +279,8 @@
             try
             {
                 var ext = Path.GetExtension(f.Name);
-                var name = ITMartinUpload.Server.Services.UploadStore.SafeFileName($"{_name} - {DateTime.Now:yyyyMMdd-HHmmss}-{_sent + 1}{ext}");
-                if (name is null) continue;
                 await using var src = f.OpenReadStream(maxAllowedSize: 500L * 1024 * 1024);
-                await Store.SaveAsync(Slug, name, src);
+                if (!await Files.SaveEventPhotoAsync(Slug, _name, _sent + 1, ext, src)) continue;
                 _sent++;
                 StateHasChanged();
             }
