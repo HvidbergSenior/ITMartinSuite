@@ -12,7 +12,7 @@ internal sealed class SettingsRepository(IDbContextFactory<HjemDb> dbf) : ISetti
     public async Task<Settings> GetAsync(CancellationToken ct = default)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Settings.AsNoTracking().FirstAsync(ct);
+        return await db.Settings.AsNoTracking().OrderBy(s => s.Id).FirstAsync(ct);   // one row; OrderBy keeps EF quiet
     }
 
     public async Task SaveAsync(Settings settings, CancellationToken ct = default)

@@ -33,8 +33,9 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
                 "Site" TEXT NOT NULL DEFAULT 'itmartin')
             """);
         // Added 2026-10-12 (questions per site) - a table made before that gets the column here.
-        try { await db.Database.ExecuteSqlRawAsync("""ALTER TABLE "PublicQuestions" ADD COLUMN "Site" TEXT NOT NULL DEFAULT 'itmartin'"""); }
-        catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column", StringComparison.OrdinalIgnoreCase)) { }
+        // Checked first (2026-10-28), so a normal start no longer logs a failed ALTER TABLE.
+        var has = await db.Database.SqlQueryRaw<int>("""SELECT COUNT(*) AS "Value" FROM pragma_table_info('PublicQuestions') WHERE name = 'Site'""").SingleAsync();
+        if (has == 0) await db.Database.ExecuteSqlRawAsync("""ALTER TABLE "PublicQuestions" ADD COLUMN "Site" TEXT NOT NULL DEFAULT 'itmartin'""");
     }
 }
 
