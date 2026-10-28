@@ -33,7 +33,7 @@ builder.Services.AddKolibri(k =>
         "Øverst på forsiden står, hvad jeg skal i dag. Tryk \"Hvad laver jeg nu?\" under Om mig for at se hele dagen.",
         "På Om mig: rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
-        "På Mine apps: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
+        "På Mine hjælpere: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
         "Bogshoppen-kunder: gå til bogshoppen.dk/kunde, skriv dit kundenummer og tryk Log ind. Så kan du se varerne og trykke Interessant ved det, du kunne tænke dig. Køb er ikke åbnet endnu.",
     ];
     k.Version = "2026.10.27";

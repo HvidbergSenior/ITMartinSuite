@@ -41,9 +41,9 @@ public static class SiteFacts
         // jeg aldrig vil gøre til en del af snebolden") + memory: no ads ever, no big clouds.
         new("Priser", "/apps", "… at jeg af princip IKKE sælger timer? Du betaler ikke mere, fordi noget tog længere tid at få til at virke."),
         new("Det de store ikke fortæller", "/dine-data", "… at jeg af princip IKKE samler data, bare fordi jeg kan? Kan en app virke uden dine oplysninger, så skal den det."),
-        new("Ingen reklamer", "/ingen-reklamer", "… at jeg af princip IKKE har reklamer i mine apps – og aldrig får det?"),
+        new("Ingen reklamer", "/ingen-reklamer", "… at jeg af princip IKKE har reklamer i mine hjælpere – og aldrig får det?"),
         new("Om mig", "/om-itmartin", "… at jeg af princip IKKE tilføjer en funktion, bare fordi jeg kan? Bliver noget for kompliceret, spørger jeg først: Hvad kan vi fjerne?"),
-        new("Om mig", "/om-itmartin", "… at jeg af princip IKKE bruger Google, Amazon eller Microsofts store skyer? Mine apps kører på mine egne servere i Danmark."),
+        new("Om mig", "/om-itmartin", "… at jeg af princip IKKE bruger Google, Amazon eller Microsofts store skyer? Mine hjælpere kører på mine egne servere i Danmark."),
         // User 2026-10-27: "...hader subscriptions. At noget er billigt i starten, men bliver dyrere og dyrere som frøen i kogende vand".
         new("Priser", "/apps", "… at jeg hader abonnementer, der er billige i starten og så bliver dyrere og dyrere? Det er som frøen i vandet, der langsomt bliver varmet op – man opdager det først, når det er for sent."),
         // User 2026-10-27: "... hælder mod openSource".
@@ -74,11 +74,11 @@ public static class SiteFacts
     // Mine apps (user 2026-10-27: the "Om mine apps" boxes "should have its own") - from the user's own texts there (2026-10-14).
     public static readonly IReadOnlyList<Fact> MineApps =
     [
-        new("Om mine apps", "#om-mine-apps", "… at mine apps ikke skal downloades? Du åbner dem bare i browseren – på mobilen, tabletten eller computeren."),
+        new("Om mine hjælpere", "#om-mine-apps", "… at mine apps ikke skal downloades? Du åbner dem bare i browseren – på mobilen, tabletten eller computeren."),
         new("Skriv mig op – gratis", "/#bliv-kunde", "… at du skriver dig op én gang – og så får et kundenummer til alle de gratis apps?"),
-        new("Om mine apps", "#om-mine-apps", "… at det er webappen, man laver først? Mobilappen laver man senere – og den mister faktisk nogle af funktionerne på vejen."),
-        new("Om mine apps", "#om-mine-apps", "… at vi typisk sad 10–15 mand på webappen i de store it-systemer – og én fyr lavede mobildelen?"),
-        new("Om mine apps", "#om-mine-apps", "… at mobilappen tit er den måde, man lettest holder fast i kunderne – så de bliver ved med at betale og give deres oplysninger fra sig?"),
+        new("Om mine hjælpere", "#om-mine-apps", "… at det er webappen, man laver først? Mobilappen laver man senere – og den mister faktisk nogle af funktionerne på vejen."),
+        new("Om mine hjælpere", "#om-mine-apps", "… at vi typisk sad 10–15 mand på webappen i de store it-systemer – og én fyr lavede mobildelen?"),
+        new("Om mine hjælpere", "#om-mine-apps", "… at mobilappen tit er den måde, man lettest holder fast i kunderne – så de bliver ved med at betale og give deres oplysninger fra sig?"),
         new("Skriv til mig", "/chat-med-martin", "… at mange har apps på telefonen, de ikke tør slette, fordi de ikke ved, hvad de gør? Det kan jeg hjælpe dig med."),
         new("Send mig navnet", "/chat-med-martin", "… at du kan sende mig navnet på en mobilapp – så laver jeg en udgave af den, som du vil have den?"),
     ];

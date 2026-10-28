@@ -25,7 +25,7 @@ public static class SignUpRules
          {Show(code)}
 
          Med dit kundenummer kan du bruge de ekstra ting i de gratis apps: {string.Join(", ", appsWithCode)}.
-         Skriv nummeret, når appen beder om det. Du finder alle apps på itmartin.dk under Mine apps.
+         Skriv nummeret, når appen beder om det. Du finder dem alle på itmartin.dk under Mine hjælpere.
 
          Når liveauktionerne på bogshoppen.dk åbner i november og december, er det også dit login dér.
 

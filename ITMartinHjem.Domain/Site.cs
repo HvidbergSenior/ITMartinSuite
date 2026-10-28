@@ -205,7 +205,7 @@ public static class SiteMenu
             .Append((Sort: AboutSort, Item: new Item("Om mig", About)))
             // "I dag" is no longer a tab (user 2026-10-27: "i dag tab remove"); the page stays (Svar writes the plan, the front page
             // shows the day's ONE thing, the "Hvad laver jeg nu?" tile on Om mig opens it).
-            .Append((Sort: MineAppsSort, Item: new Item("Mine apps", "/mine-apps")))
+            .Append((Sort: MineAppsSort, Item: new Item("Mine hjælpere", "/mine-apps")))
             .Append((Sort: MineAppsSort + 1, Item: new Item("Spørgsmål", "/spoergsmaal")))   // Q&A tab (user 2026-10-12: "where is the Q/A?")
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
