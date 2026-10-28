@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Gallery - use cases (browse a library, summary, collections, on this day, search, song sheets, birthday pages) and their ports (disk, manifest, collections, studio.db, tags, EXIF, page edits). -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinGallery.Domain\ITMartinGallery.Domain.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
