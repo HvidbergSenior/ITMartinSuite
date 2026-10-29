@@ -1,5 +1,4 @@
 @inject SiteUseCases Site
-@inject ShopVisibility Visibility
 
 @* bogshoppen.dk (user 2026-10-05): a small home page like ITMartin's - just the setup and a short text about the
    collaboration. Text = Svar -> Sider -> "bogshoppen-dk"; all news about the collaboration lives on the itmartin.dk tab. *@
@@ -22,8 +21,6 @@
     @* Buttons in a row like itmartin.dk's head (user 2026-10-29: "bogshoppen should be looking like itmartin"). *@
     <div class="hj-head-btns">
         <a class="k-btn k-btn-primary bs-btn bs-head-btn" href="#foelg">Skriv mig op – gratis</a>
-        @* The marketplace for customers (2026-10-26) - only while Hjem__MarketForCustomers=true. *@
-        @if (Visibility.Customers) { <a class="k-btn bs-btn bs-head-btn" href="/kunde">Har du et kundenummer? Se varerne</a> }
     </div>
 </header>
 

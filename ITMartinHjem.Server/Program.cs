@@ -34,9 +34,8 @@ builder.Services.AddKolibri(k =>
         "På Om mig: rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
         "På Mine hjælpere: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
-        "Bogshoppen-kunder: gå til bogshoppen.dk/kunde, skriv dit kundenummer og tryk Log ind. Så kan du se varerne og trykke Interessant ved det, du kunne tænke dig. Køb er ikke åbnet endnu.",
     ];
-    k.Version = "2026.10.27";
+    k.Version = "2026.10.29";
     k.ThemeColor = "#f4f6f5";
 });
 
@@ -267,19 +266,15 @@ app.Use(async (ctx, next) =>
 
 // Kontakt was merged into "Om mig og kontakt" (2026-09-28) - old links land there.
 // Shop photos come from Lager through here, so the buyer never talks to the photoserver.
-// Varer + Kurv are OFF for visitors (user 2026-10-22: "varer needs to be disabled for users") - without the /vis-butik
-// cookie the shop pages go to the front page; the photos below are gated the same way.
+// No webshop on bogshoppen.dk (user 2026-10-29: "i do not want to make a traditionel webshop with varer and Kurv"): the old
+// Varer, Kurv and kunde-login links go to the front page.
 app.Use(async (ctx, next) =>
 {
     var path = ctx.Request.Path;
-    var marketPage = path.StartsWithSegments("/varer", StringComparison.OrdinalIgnoreCase) && !path.StartsWithSegments("/varer/foto", StringComparison.OrdinalIgnoreCase);
-    var buyPage = path.StartsWithSegments("/kurv", StringComparison.OrdinalIgnoreCase);
-    var open = ctx.RequestServices.GetRequiredService<ShopVisibility>().Visible(ctx.Request.Cookies[ShopVisibility.Cookie]);
-    // A customer logged in with the kundenummer sees the marketplace (2026-10-26) - never the basket.
-    var customer = marketPage && !open && ctx.RequestServices.GetRequiredService<ITMartinHjem.Server.MarketCookie>().Read(ctx) != "";
-    if ((marketPage && !open && !customer) || (buyPage && !open))
+    if ((path.StartsWithSegments("/varer", StringComparison.OrdinalIgnoreCase) && !path.StartsWithSegments("/varer/foto", StringComparison.OrdinalIgnoreCase))
+        || path.StartsWithSegments("/kurv", StringComparison.OrdinalIgnoreCase) || path.StartsWithSegments("/kunde", StringComparison.OrdinalIgnoreCase))
     {
-        ctx.Response.Redirect("/");
+        ctx.Response.Redirect("/", permanent: true);
         return;
     }
     await next();
@@ -287,21 +282,6 @@ app.Use(async (ctx, next) =>
 app.MapGet("/varer/foto/{id:int}", async (int id, HttpContext ctx, ShopVisibility visibility, ITMartinHjem.Server.MarketCookie market, ShopUseCases shop) =>
     (visibility.Visible(ctx.Request.Cookies[ShopVisibility.Cookie]) || market.Read(ctx) != "") && await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 
-// The marketplace for customers (user 2026-10-24: "customers log in with kundenummer ... mark items interessant, NO
-// buying yet"): /kunde has the form, Kunder checks the number, a data-protected cookie remembers it. Only while
-// Hjem__MarketForCustomers=true.
-app.MapPost("/kunde/log-ind", async (HttpContext ctx, ShopVisibility visibility, MarketUseCases market, ITMartinHjem.Server.MarketCookie cookie) =>
-{
-    if (!visibility.Customers) return Results.Redirect("/kunde");
-    var form = await ctx.Request.ReadFormAsync();
-    var (customer, error) = await market.LoginAsync(form["kode"]);
-    if (customer is null) return Results.Redirect("/kunde?fejl=" + Uri.EscapeDataString(error ?? ""));
-    cookie.Write(ctx, customer);
-    return Results.Redirect("/varer");
-}).DisableAntiforgery();
-app.MapGet("/kunde/log-ud", (HttpContext ctx) => { ITMartinHjem.Server.MarketCookie.Clear(ctx); return Results.Redirect("/kunde"); });
-// Martin's preview of the shop while it is closed (user 2026-10-21: "i want to test it first"): /vis-butik?kode=... once
-// on each phone/PC, /skjul-butik to see it as the public does. A wrong code just goes to the teaser.
 app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibility) =>
 {
     if (visibility.CodeOk(kode))
@@ -309,7 +289,7 @@ app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibili
         {
             HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(60)
         });
-    return Results.Redirect("/varer");
+    return Results.Redirect("/");
 });
 app.MapGet("/skjul-butik", (HttpContext ctx) => { ctx.Response.Cookies.Delete(ShopVisibility.Cookie); return Results.Redirect("/"); });
 
