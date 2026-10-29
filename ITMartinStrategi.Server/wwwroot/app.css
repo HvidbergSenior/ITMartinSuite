@@ -109,3 +109,12 @@ a.chip { text-decoration: none; display: inline-flex; align-items: center; }
 .lib-use span:first-of-type { flex: 1; min-width: 0; }
 .lib-use-go { color: var(--k-accent); font-weight: 700; }
 .lib-icon-sm { width: 22px; height: 22px; object-fit: contain; }
+
+/* Challenge weeks (2026-10-29) */
+.u-mt6 { margin-top: 6px; } .u-mt8 { margin-top: 8px; }
+.ch-week { display: grid; gap: 2px; text-align: left; justify-items: start; white-space: normal; margin-top: 6px; }
+.ch-week span { color: var(--k-muted, #667); font-size: .88rem; font-weight: 500; }
+.ch-order { display: grid; gap: 8px; }
+.ch-bird { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--k-border, #ddd); }
+.ch-attempt { padding: 6px 0; border-top: 1px solid var(--k-border, #ddd); }
+.ch-new { display: grid; grid-template-columns: 6rem 1fr; gap: 8px; }

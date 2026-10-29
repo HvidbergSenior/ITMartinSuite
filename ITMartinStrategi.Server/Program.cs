@@ -42,6 +42,11 @@ builder.Services.AddSingleton<SteamService>();
 builder.Services.AddHttpClient("wiki", c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd("ITMartinStrategi/1.0 (ITMartin@Mensa.dk)"); });
 builder.Services.AddSingleton<WikiLibrary>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WikiLibrary>());
+// Wingspan challenge weeks (2026-10-29): layered like the rest of the suite - Domain/Application/Infrastructure, the page only shows.
+ITMartinStrategi.Application.DependencyInjection.AddStrategiApplication(builder.Services);
+ITMartinStrategi.Infrastructure.DependencyInjection.AddStrategiInfrastructure(builder.Services,
+    Path.Combine(builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"), "games", "wingspan-start.json"),
+    builder.Configuration["DataDir"] ?? "/app/data");
 
 var app = builder.Build();
 app.MapKolibri();

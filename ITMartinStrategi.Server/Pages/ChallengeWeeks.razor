@@ -1,0 +1,155 @@
+@page "/game/wingspan/challenge"
+@using ITMartinStrategi.Application
+@using ITMartinStrategi.Domain
+@inject ChallengeUseCases Challenges
+@inject NavigationManager Nav
+
+@* Wingspan "Champ of the Birds" weeks (user 2026-10-29: "i will write the names of the birds and in strategi app this should be
+   written down. Thoughts and why"). The same deck for everyone all week: write the birds down once, plan, try, log the score.
+   The page only shows; the plan is ChallengeAdvisor's (no AI, no cost). *@
+
+<PageTitle>Challenge weeks – Wingspan – Strategy</PageTitle>
+
+<a class="muted small" href="/game/wingspan">← Wingspan</a>
+<h1>Challenge weeks</h1>
+<p class="muted small">The weekly challenge against the Automa has the same birds for everyone. Write them down here once – start hand first, then the birds you see along the way – and you get the row to build in, the order to play them and the combos between them. Log every attempt, so the next one builds on it.</p>
+
+@if (_week is null)
+{
+    <section class="k-card">
+        <h2 class="k-card-title">New week</h2>
+        <input class="k-input" placeholder="Week, e.g. 2026 week 44" @bind="_weekName" aria-label="Week" />
+        <textarea class="k-input u-mt8" rows="3" placeholder="Start birds, separated by commas – short names are fine (Red-backed, Common Chaff …)" @bind="_birdsIn" aria-label="Start birds"></textarea>
+        <button class="k-btn k-btn-primary u-mt8" @onclick="Create">Save and plan</button>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Your weeks</h2>
+        @if (_weeks.Count == 0) { <p class="muted small">None yet.</p> }
+        @foreach (var w in _weeks)
+        {
+            <a class="k-btn k-btn-block ch-week" href="/game/wingspan/challenge?id=@w.Id">
+                <b>@w.Week</b>
+                <span>@(w.StartBirds.Count + w.SeenBirds.Count) birds · @w.Attempts.Count attempts@(w.Best is { } b ? $" · best {b.Score}" : "")</span>
+            </a>
+        }
+    </section>
+}
+else
+{
+    var plan = Challenges.Plan(_week);
+    var match = Challenges.Match(_week.StartBirds.Concat(_week.SeenBirds));
+
+    <section class="k-card">
+        <h2 class="k-card-title">@_week.Week – the plan</h2>
+        <p><b>Build your engine in @plan.Row.</b> @plan.RowWhy</p>
+        @if (plan.Combos.Count > 0)
+        {
+            <h3 class="small">Combos this week</h3>
+            <ul class="small">@foreach (var c in plan.Combos) { <li>@c</li> }</ul>
+        }
+        <h3 class="small">Order</h3>
+        <div class="ch-order">
+            @foreach (var a in plan.Order)
+            {
+                <div class="ch-bird">
+                    <div><b>@a.Bird.Name</b> <span class="muted small">Tier @a.Bird.Tier · @a.Bird.Points pts · @Cost(a.Bird) · @string.Join("/", a.Bird.Habitats)</span></div>
+                    <div class="small"><b>@a.Role</b> – @a.When. @a.Note</div>
+                    <div class="muted small">@a.Bird.Power</div>
+                </div>
+            }
+        </div>
+        @if (match.Unknown.Count > 0)
+        {
+            <p class="small u-mt8" style="color:var(--k-danger)">
+                Not found: @foreach (var u in match.Unknown) { <span>@u.Typed@(u.Suggestions.Count > 0 ? $" (did you mean {string.Join(", ", u.Suggestions)}?)" : "") </span> }
+            </p>
+        }
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Birds this week</h2>
+        <div class="small"><b>Start hand:</b> @Names(_week.StartBirds)</div>
+        <div class="small u-mt6"><b>Seen later:</b> @(_week.SeenBirds.Count > 0 ? Names(_week.SeenBirds) : "none yet")</div>
+        <textarea class="k-input u-mt8" rows="2" placeholder="Birds you saw in the tray or drew – comma separated" @bind="_birdsIn" aria-label="More birds"></textarea>
+        <button class="k-btn u-mt8" @onclick="AddSeen">Add birds</button>
+        <div class="u-mt8">
+            @foreach (var n in _week.StartBirds.Concat(_week.SeenBirds))
+            {
+                <button class="k-btn k-btn-ghost k-btn-sm" title="Remove @n" @onclick="() => Remove(n)">✕ @n</button>
+            }
+        </div>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Attempts</h2>
+        @foreach (var a in _week.Attempts.OrderByDescending(a => a.PlayedUtc))
+        {
+            <div class="ch-attempt"><b>@a.Score@(a == _week.Best ? " – best" : "")</b> <span class="muted small">@a.PlayedUtc.ToLocalTime().ToString("d MMM HH:mm")</span>
+                @if (a.Note.Length > 0) { <div class="small">@a.Note</div> }
+            </div>
+        }
+        <div class="ch-new u-mt8">
+            <input class="k-input" type="number" min="0" max="400" placeholder="Score" @bind="_score" aria-label="Score" />
+            <input class="k-input" placeholder="What did you do – what would you change?" @bind="_attemptNote" aria-label="Note" />
+        </div>
+        <button class="k-btn k-btn-primary u-mt8" @onclick="AddAttempt">Save attempt</button>
+    </section>
+
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Notes for this week</h2>
+        <textarea class="k-input" rows="4" @bind="_weekNote" aria-label="Notes"></textarea>
+        <button class="k-btn u-mt8" @onclick="SaveNote">Save notes</button>
+        <button class="k-btn k-btn-ghost u-mt8" @onclick="DeleteWeek">Delete this week</button>
+    </section>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")] public Guid? Id { get; set; }
+
+    private IReadOnlyList<WingspanChallenge> _weeks = [];
+    private WingspanChallenge? _week;
+    private string _weekName = "", _birdsIn = "", _attemptNote = "", _weekNote = "";
+    private int? _score;
+
+    protected override void OnParametersSet() => Load();
+
+    private void Load()
+    {
+        _weeks = Challenges.Weeks();
+        _week = Id is { } id ? Challenges.Week(id) : null;
+        _weekNote = _week?.Note ?? "";
+    }
+
+    private void Create()
+    {
+        if (ChallengeUseCases.SplitNames(_birdsIn).Count == 0) return;
+        var w = Challenges.Create(_weekName, _birdsIn);
+        _birdsIn = "";
+        Nav.NavigateTo($"/game/wingspan/challenge?id={w.Id}");
+    }
+
+    private void AddSeen() { if (_week is null) return; Challenges.AddSeen(_week.Id, _birdsIn); _birdsIn = ""; Load(); }
+    private void Remove(string n) { if (_week is null) return; Challenges.RemoveBird(_week.Id, n); Load(); }
+    private void SaveNote() { if (_week is null) return; Challenges.SetNote(_week.Id, _weekNote); Load(); }
+
+    private void AddAttempt()
+    {
+        if (_week is null || _score is not { } s) return;
+        Challenges.AddAttempt(_week.Id, s, _attemptNote);
+        _score = null; _attemptNote = "";
+        Load();
+    }
+
+    private void DeleteWeek()
+    {
+        if (_week is null) return;
+        Challenges.Delete(_week.Id);
+        Nav.NavigateTo("/game/wingspan/challenge");
+    }
+
+    private static string Names(IEnumerable<string> names) => string.Join(", ", names);
+
+    private static string Cost(WingspanBird b) =>
+        b.Food.Count == 0 ? "free" : string.Join(b.FoodOr ? " or " : " + ", b.Food.Select(f => f.Value > 1 ? $"{f.Value} {f.Key}" : f.Key));
+}
