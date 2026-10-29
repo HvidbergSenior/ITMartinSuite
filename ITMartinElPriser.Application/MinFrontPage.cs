@@ -42,7 +42,7 @@ public sealed class MinFrontPageUseCases(IPriceSource prices, IHouseholdHome hou
         var s = household.Settings;
         var raw = await prices.GetPricesAsync(s.PriceArea, ct);
         // No machines photographed yet (a fresh household): the typical washer, dishwasher and dryer until there are.
-        var machines = household.Appliances.Count > 0 ? household.Appliances.OrderBy(a => a.SortOrder).ToList() : Appliance.Defaults();
+        var machines = household.Appliances.Count > 0 ? household.Appliances.OrderBy(a => a.SortOrder).Select(RunMeasure.Priced).ToList() : Appliance.Defaults();
         return new MinNowView(s, raw, PriceModel.Build(raw, s, [], DkTime.Now), machines);
     }
 

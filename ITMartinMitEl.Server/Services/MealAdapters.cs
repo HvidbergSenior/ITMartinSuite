@@ -39,3 +39,11 @@ public sealed class HouseholdHome(HouseholdStore store) : IHouseholdHome
     public IReadOnlyList<Appliance> Appliances => store.Get().Appliances;
     public RunEntry? LastRun => store.Get().Runs.OrderByDescending(r => r.StartedAt).FirstOrDefault();
 }
+
+/// <summary>Runs and machines of the logged-in household, saved together.</summary>
+public sealed class RunBook(HouseholdStore store) : IRunBook
+{
+    public IReadOnlyList<RunEntry> Runs => store.Get().Runs;
+    public IReadOnlyList<Appliance> Appliances => store.Get().Appliances;
+    public void Update(Action<List<RunEntry>, List<Appliance>> change) => store.Update(d => change(d.Runs, d.Appliances));
+}

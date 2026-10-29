@@ -2,6 +2,7 @@
 @using ITMartinElPriser.Application
 @using System.Globalization
 @inject MinFrontPageUseCases Front
+@inject RunMeasuringUseCases Measuring
 @inject HouseholdStore Store
 @inject PhotoReader Photos
 @inject RunLogService RunLog
@@ -193,6 +194,7 @@ else if (_view is not null && string.IsNullOrWhiteSpace(_s.MeteringPointId))
 
     protected override async Task OnInitializedAsync()
     {
+        Measuring.MeasurePending();   // runs the meter now covers get their real kWh, and the machines follow
         _view = await Front.LoadAsync();
         // The "now" price steps every 15 minutes; a phone left open on the counter must never be more than a couple of minutes stale.
         _timer = new Timer(_ => InvokeAsync(async () =>

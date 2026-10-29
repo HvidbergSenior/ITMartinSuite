@@ -81,6 +81,7 @@ builder.Services.AddScoped<ConsumptionStore>(sp =>
 builder.Services.AddScoped<ITMartinElPriser.Application.IHouseholdMeals, HouseholdMeals>();
 builder.Services.AddScoped<ITMartinElPriser.Application.IMeterReadings, MeterReadings>();
 builder.Services.AddScoped<ITMartinElPriser.Application.IHouseholdHome, HouseholdHome>();
+builder.Services.AddScoped<ITMartinElPriser.Application.IRunBook, RunBook>();
 ITMartinElPriser.Application.DependencyInjection.AddMinElprisApplication(builder.Services);
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<RunLogService>();

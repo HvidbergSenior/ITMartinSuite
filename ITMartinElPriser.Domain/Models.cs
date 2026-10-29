@@ -85,6 +85,11 @@ public sealed class Appliance
     // Set from a photo of the rating plate / energy label (MinElpris: camera only, not editable).
     public PhotoFacts? Photo { get; set; }
 
+    // What the meter measured (RunMeasure): a test run, or the average of 3+ normal runs. Null = the label's figure.
+    public double? MeasuredKwhPerRun { get; set; }
+    public int MeasuredRuns { get; set; }
+    public bool MeasuredByTest { get; set; }
+
     // Optional programs (30/40/60/90 °C, Eco/Normal). When there are any, the
     // flat fields above are kept in sync as the weekly mix (see
     // SyncFromPrograms), so everything that only knows "one run" still adds
@@ -117,6 +122,7 @@ public sealed class Appliance
     public Appliance Clone() => new()
     {
         Id = Id, Name = Name, Icon = Icon, Model = Model, KwhPerRun = KwhPerRun, DurationHours = DurationHours, RunsPerWeek = RunsPerWeek, SortOrder = SortOrder, Photo = Photo,
+        MeasuredKwhPerRun = MeasuredKwhPerRun, MeasuredRuns = MeasuredRuns, MeasuredByTest = MeasuredByTest,
         Programs = Programs.Select(p => new ApplianceProgram { Name = p.Name, KwhPerRun = p.KwhPerRun, DurationHours = p.DurationHours, RunsPerWeek = p.RunsPerWeek }).ToList(),
     };
 
@@ -200,6 +206,14 @@ public sealed class RunEntry
     public double? DearestThatDayKr { get; set; }
     public bool AllIn { get; set; }
     public DateTime LoggedAt { get; set; } = DateTime.UtcNow;
+
+    // A calibration run (user 2026-10-29: "test your devices to calibrate... oven on 200 degrees for an hour"):
+    // a fixed recipe with nothing else big running - one clean measurement is enough to set the machine's kWh.
+    public bool IsTest { get; set; }
+    // What the meter says the run really used (its extra draw above the day's base load), once the meter has the day.
+    public double? MeasuredKwh { get; set; }
+    public bool MeasuredUncertain { get; set; }
+    public string MeasureNote { get; set; } = "";
 }
 
 // One machine on the free front page: what a run takes (kWh spread evenly over the hours).

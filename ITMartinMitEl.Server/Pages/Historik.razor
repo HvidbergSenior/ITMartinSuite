@@ -2,6 +2,7 @@
 @using System.Globalization
 @inject HouseholdStore Store
 @inject RunLogService RunLog
+@inject ITMartinElPriser.Application.RunMeasuringUseCases Measuring
 
 <PageTitle>Historik – MinElpris</PageTitle>
 
@@ -14,7 +15,7 @@
 {
     <div class="k-card">
         <h2 class="k-card-title">Ingen ture endnu</h2>
-        <p class="small">Tag et billede af displayet med <b>📷 Jeg starter en maskine</b> på forsiden når du starter den – så lander turen her med sin pris.</p>
+        <p class="small">Tag et billede af displayet med <b>Jeg starter en maskine</b> på forsiden når du starter den – så lander turen her med sin pris, og måleren viser bagefter hvad den brugte. Eller test en maskine under Enheder.</p>
     </div>
 }
 else
@@ -55,7 +56,8 @@ else
             {
                 <div class="hist-row">
                     <span style="font-size:1.3rem">@r.Icon</span>
-                    <span>@r.ApplianceName<br /><span class="k-muted">kl. @r.StartedAt.ToString("HH:mm")–@r.StartedAt.AddHours(r.DurationHours).ToString("HH:mm") · @r.KwhPerRun.ToString("0.#", Da) kWh · @r.AvgKrPerKwh.ToString("0.00", Da) kr/kWh@(r.CheapestThatDayKr is { } c && c < r.CostKr - 0.05 ? $" · bedst {c.ToString("0.00", Da)}" : "")</span></span>
+                    <span>@r.ApplianceName<br /><span class="k-muted">kl. @r.StartedAt.ToString("HH:mm")–@r.StartedAt.AddHours(r.DurationHours).ToString("HH:mm") · @r.KwhPerRun.ToString("0.#", Da) kWh · @r.AvgKrPerKwh.ToString("0.00", Da) kr/kWh@(r.CheapestThatDayKr is { } c && c < r.CostKr - 0.05 ? $" · bedst {c.ToString("0.00", Da)}" : "")</span>
+                        <br /><span class="small @(r.MeasuredKwh is not null && !r.MeasuredUncertain ? "lvl-cheap" : "k-muted")">@Measured(r)</span></span>
                     <b class="@Verdict(r)">@r.CostKr.ToString("0.00", Da) kr</b>
                     <button class="hist-del" title="Slet" @onclick="() => Delete(r.Id)">✕</button>
                 </div>
@@ -69,7 +71,17 @@ else
     private List<RunEntry> _runs = [];
     private DateTime _monthStart;
 
-    protected override void OnInitialized() => Load();
+    protected override void OnInitialized()
+    {
+        Measuring.MeasurePending();
+        Load();
+    }
+
+    // What the meter said about the run (RunMeasure) - or that it has not got the day yet.
+    private static string Measured(RunEntry r) =>
+        r.MeasuredKwh is { } k && !r.MeasuredUncertain ? $"Målt {k.ToString("0.0#", Da)} kWh på måleren"
+        : r.MeasureNote.Length > 0 ? (r.MeasuredKwh is { } u ? $"Usikker måling ({u.ToString("0.0#", Da)} kWh): {r.MeasureNote}" : r.MeasureNote)
+        : "Måles, når måleren har dagen (1–2 dage)";
 
     private void Load()
     {

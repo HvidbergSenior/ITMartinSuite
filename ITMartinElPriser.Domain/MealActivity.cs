@@ -78,6 +78,7 @@ public static class MealPlanner
         {
             var a = own.FirstOrDefault(x => x.Photo is not null && k.Matches(x.Name) && x.KwhPerRun > 0);
             var d = devices.FirstOrDefault(x => x.Photo is not null && k.Matches(x.Name) && x.Watts > 0);
+            if (a is not null) a = RunMeasure.Priced(a);
             var h = a?.DurationHours ?? k.Hours;
             kwh += a?.KwhPerRun ?? (d is not null ? d.Watts / 1000.0 * k.Hours * k.Duty : k.KwhPerUse);
             hours = Math.Max(hours, h);

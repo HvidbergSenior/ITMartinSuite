@@ -6,6 +6,8 @@
 @inject HouseholdStore Store
 @inject ConsumptionStore Consumption
 @inject PhotoReader Photos
+@inject ITMartinElPriser.Application.RunMeasuringUseCases Measuring
+@inject RunLogService RunLog
 
 <PageTitle>Enheder – MinElpris</PageTitle>
 
@@ -45,6 +47,27 @@ else
                     @if (a.Photo?.EnergyClass is { Length: > 0 } ec) { <span class="dev-class">@ec</span> }
                 </div>
                 @Compare(aYear, a.Photo)
+                @* Measured instead of guessed (user 2026-10-29): a short test with nothing else running, read from the meter. *@
+                <div class="measure u-mt8">
+                    @if (a.MeasuredKwhPerRun is { } mk)
+                    {
+                        <div class="small lvl-cheap"><b>Målt: @mk.ToString("0.0#", Da) kWh pr. tur</b> – @(a.MeasuredByTest ? "fra jeres test" : $"snit af {a.MeasuredRuns} ture"). Det er det tal appen regner med.</div>
+                    }
+                    else
+                    {
+                        <div class="small k-muted">Ikke målt endnu – appen regner med mærkepladens tal.</div>
+                    }
+                    @if (Measuring.PendingTest(a.Id) is { } pt)
+                    {
+                        <div class="small u-mt6">Test startet @pt.StartedAt.ToString("d. MMM 'kl.' HH:mm", Da). Resultatet kommer, når måleren har dagen – normalt 1–2 dage.</div>
+                    }
+                    else
+                    {
+                        var recipe = Measuring.Recipe(a);
+                        <div class="small u-mt6"><b>Test maskinen:</b> @recipe.Text Start ikke andre store ting imens (ovn, tørretumbler, elbil).</div>
+                        <button class="k-btn k-btn-primary k-btn-sm u-mt6" @onclick="() => StartTestAsync(a.Id)">Jeg starter testen nu</button>
+                    }
+                </div>
                 <div class="dev-actions">
                     @if (a.Photo is null) { <span class="k-muted small">Ikke fra billede – tag et billede af mærkepladen for model og sammenligning.</span> }
                     <button class="k-btn k-btn-sm" @onclick="() => RemoveMachine(a.Id)">Fjern</button>
@@ -250,7 +273,20 @@ else
     private HourProfile? _profile;
     private bool _guideOpen = true;
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override Task OnInitializedAsync()
+    {
+        Measuring.MeasurePending();
+        return LoadAsync();
+    }
+
+
+    private async Task StartTestAsync(Guid id)
+    {
+        if (DemoHousehold.IsDemo(Store.HouseholdId)) { _photoError = "I demoen gemmes intet – opret din egen MinElpris for at teste maskinerne."; return; }
+        if (Store.Get().Appliances.FirstOrDefault(x => x.Id == id) is not { } a) return;
+        var entry = await RunLog.LogAsync(id, DkTime.Now, null, default, Measuring.Recipe(a));
+        _photoError = entry is null ? "Prisen for nu kendes ikke – prøv igen om lidt." : null;
+    }
 
     private bool _reading;
     private string? _photoError, _photoAdded;

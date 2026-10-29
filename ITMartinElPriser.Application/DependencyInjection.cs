@@ -22,6 +22,7 @@ public static class DependencyInjection
     {
         services.AddScoped<MealUseCases>();
         services.AddScoped<MinFrontPageUseCases>();
+        services.AddScoped<RunMeasuringUseCases>();
         return services;
     }
 }
