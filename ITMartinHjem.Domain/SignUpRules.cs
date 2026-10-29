@@ -8,7 +8,7 @@ public static class SignUpRules
     // Stored with the customer as proof of what they agreed to (markedsføringsloven §10, GDPR art. 7).
     public const string ConsentText =
         "Ja tak – skriv mig op som kunde hos ITMartin og Bogshoppen. Så får jeg adgang til de gratis apps og et login til Bogshoppen, " +
-        "og I husker, hvad jeg interesserer mig for, så det er nemt for mig at få jeres tilbud. " +
+        "og I husker de produkter, jeg trykker på, så det er nemt for mig at få jeres tilbud. " +
         "Ingen reklamer, ingen nyhedsbreve – og jeg kan afmelde mig når som helst.";
 
     /// <summary>"48217730" -> "4821 7730".</summary>
