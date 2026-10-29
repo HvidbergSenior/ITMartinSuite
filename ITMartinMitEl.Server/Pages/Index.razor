@@ -13,13 +13,7 @@
    one big number for the household's OWN machine now and its cheapest start, hour by hour, "Hvad havde du sparet?",
    and one small box from the meter. Every box is a k-card with a heading, so kolibri.js folds it. The sums are
    MinFrontPageUseCases'. The 7-tile "Det kan MinElpris" grid and the machine list went - they are the tabs below. *@
-<div class="ep-header">
-    <div class="ep-logo">⚡</div>
-    <div>
-        <div class="ep-title">MinElpris</div>
-        <div class="ep-sub">@(_s.MeteringPointAddress is { Length: > 0 } addr ? addr : _s.GridName)</div>
-    </div>
-</div>
+<h1 class="k-visually-hidden">MinElpris</h1>
 
 <Onboarding OnChanged="OnboardingChangedAsync" />
 
@@ -161,6 +155,7 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1 && Current is { } hm)
 {
     <section class="k-card">
         <h2 class="k-card-title">Dit hjem</h2>
+        @if (_s.MeteringPointAddress is { Length: > 0 } addr) { <div class="k-muted small u-mb8">@addr</div> }
         <div class="appl-row"><span>@home.LatestDay.ToString("dddd d. MMM", Da): <b>@home.DayKwh.ToString("0.0", Da) kWh</b></span><b>@Kr(home.DayKr) kr</b></div>
         <div class="appl-row"><span>@DkTime.Now.ToString("MMMM", Da) indtil nu: <b>@home.MonthKwh.ToString("0", Da) kWh</b></span><b>@home.MonthKr.ToString("0", Da) kr</b></div>
         @if (home.MonthProjectedKr > 0)

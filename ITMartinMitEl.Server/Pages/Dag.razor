@@ -23,58 +23,58 @@
 </PageHelp>
 
 <div class="day-nav">
-    <button class="btn" @onclick="() => GoAsync(_date.AddDays(-1))">‹</button>
+    <button class="k-btn" @onclick="() => GoAsync(_date.AddDays(-1))">‹</button>
     <input type="date" value="@_date.ToString("yyyy-MM-dd")" max="@_latest.ToString("yyyy-MM-dd")" @onchange="PickAsync" />
-    <button class="btn" disabled="@(_date >= _latest)" @onclick="() => GoAsync(_date.AddDays(1))">›</button>
+    <button class="k-btn" disabled="@(_date >= _latest)" @onclick="() => GoAsync(_date.AddDays(1))">›</button>
 </div>
 
 @if (_loading)
 {
-    <div class="card"><div class="muted">Henter @_date.ToString("dddd d. MMMM", Da) fra din måler…</div></div>
+    <div class="k-card"><div class="k-muted">Henter @_date.ToString("dddd d. MMMM", Da) fra din måler…</div></div>
 }
 else if (_noToken)
 {
-    <div class="card">
-        <div class="card-title">Ingen måler forbundet</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Ingen måler forbundet</h2>
         <p class="small">Forbind din elmåler under <a href="/indstillinger">Indstillinger</a> med et token fra eloverblik.dk.</p>
     </div>
 }
 else if (_report is not { Quarters.Count: > 0 } r)
 {
-    <div class="card">
-        <div class="card-title">Ingen målinger for @_date.ToString("d. MMMM", Da)</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Ingen målinger for @_date.ToString("d. MMMM", Da)</h2>
         <p class="small">@(Consumption.LastSyncError ?? "Datahub har ikke data for den dag endnu – typisk 1–2 dage bagud.")</p>
     </div>
 }
 else
 {
     var total = r.EnergyKr + r.SubscriptionsKr;
-    <div class="card now-tile">
+    <div class="k-card now-tile">
         <div class="now-device">@_date.ToString("dddd d. MMMM yyyy", Da)</div>
         <div class="now-price">@Kr(total) KR</div>
         <div class="now-calc">@Kwh(r.TotalKwh) kWh strøm = @Kr(r.EnergyKr) kr@(r.SubscriptionsKr > 0 ? $" + abonnementer {Kr(r.SubscriptionsKr)} kr" : "")</div>
         @if (r.Quarters.Count < 96 && r.Quarters.Count != 92 && r.Quarters.Count != 100)
         {
-            <div class="muted small">Kun @r.Quarters.Count af dagens kvarterer er målt endnu.</div>
+            <div class="k-muted small">Kun @r.Quarters.Count af dagens kvarterer er målt endnu.</div>
         }
     </div>
 
     var maxKw = Math.Max(0.5, r.Quarters.Max(q => q.Kw));
-    <div class="card">
+    <div class="k-card">
         <div class="bars qbars">
             @foreach (var q in r.Quarters)
             {
                 var ev = r.Events.FirstOrDefault(e => q.Start >= e.Start && q.Start < e.End);
                 var pct = 3 + 97 * q.Kw / maxKw;
-                <div class="bar @(ev is null ? "q-base" : "q-event")" title="@q.Start.ToString("HH:mm") · @((q.Kw * 1000).ToString("0", Da)) W · @Kr(q.Kr) kr@(ev is null ? "" : " · " + ev.Label)"
+                <div class="bar @(ev is null ?"q-base" : "q-event")" title="@q.Start.ToString("HH:mm") · @((q.Kw * 1000).ToString("0", Da)) W · @Kr(q.Kr) kr@(ev is null ? "" : " · " + ev.Label)"
                      style="height:@pct.ToString("0.#", CultureInfo.InvariantCulture)%"></div>
             }
         </div>
         <div class="bar-axis qaxis"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
     </div>
 
-    <div class="card">
-        <div class="card-title">Det var sandsynligvis</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Det var sandsynligvis</h2>
         <div class="day-events">
             @foreach (var e in r.Events.OrderByDescending(e => e.Kr))
             {
@@ -82,7 +82,7 @@ else
                     <span class="de-icon">@e.Icon</span>
                     <div class="de-main">
                         <b>@e.Label</b> <span class="de-sure s-@e.Sure.ToString().ToLowerInvariant()">@Sure(e.Sure)</span>
-                        <div class="muted small">kl. @e.Start.ToString("HH:mm")–@e.End.ToString("HH:mm") · @Kwh(e.Kwh) kWh · op til @((e.PeakKw * 1000).ToString("0", Da)) W · @e.Why</div>
+                        <div class="k-muted small">kl. @e.Start.ToString("HH:mm")–@e.End.ToString("HH:mm") · @Kwh(e.Kwh) kWh · op til @((e.PeakKw * 1000).ToString("0", Da)) W · @e.Why</div>
                     </div>
                     <b class="de-kr">@Kr(e.Kr) kr</b>
                 </div>
@@ -91,7 +91,7 @@ else
                 <span class="de-icon">🔌</span>
                 <div class="de-main">
                     <b>Grundforbrug</b> <span class="de-sure s-registered">målt</span>
-                    <div class="muted small">ca. @((r.BaseKw * 1000).ToString("0", Da)) W hele døgnet (køleskab, router, standby …) · @Kwh(r.BaseKwh) kWh@(r.AlwaysOnKnownKw > 0 ? $" · dine altid-tændte apparater: {(r.AlwaysOnKnownKw * 1000).ToString("0", Da)} W" : "")</div>
+                    <div class="k-muted small">ca. @((r.BaseKw * 1000).ToString("0", Da)) W hele døgnet (køleskab, router, standby …) · @Kwh(r.BaseKwh) kWh@(r.AlwaysOnKnownKw > 0 ? $" · dine altid-tændte apparater: {(r.AlwaysOnKnownKw * 1000).ToString("0", Da)} W" : "")</div>
                 </div>
                 <b class="de-kr">@Kr(r.BaseKr) kr</b>
             </div>
@@ -100,7 +100,7 @@ else
             {
                 <div class="day-event">
                     <span class="de-icon">·</span>
-                    <div class="de-main"><b>Småt</b><div class="muted small">lys, tv, opladere og andet under @((0.4 * 1000).ToString("0", Da)) W over grundforbruget</div></div>
+                    <div class="de-main"><b>Småt</b><div class="k-muted small">lys, tv, opladere og andet under @((0.4 * 1000).ToString("0", Da)) W over grundforbruget</div></div>
                     <b class="de-kr">@Kr(rest) kr</b>
                 </div>
             }
@@ -110,15 +110,15 @@ else
 
     @if (Store.Get().Settings.Meter is { } m)
     {
-        <details class="card fold">
-            <summary>🔎 Fra din måler</summary>
+        <section class="k-card" data-fold-closed>
+            <h2 class="k-card-title">Fra din måler</h2>
             <div class="fold-body small">
                 <p>Netselskab: <b>@m.GridOperatorName</b> · Elhandel: <b>@m.SupplierName</b> · måles hvert @(m.MeterReadingOccurrence == "PT15M" ? "kvarter" : "time").</p>
                 <p>Nettarif (ex. moms, rabat trukket fra): nat @Ore(m.NetTariffByHour, 3) · dag @Ore(m.NetTariffByHour, 12) · kl. 17–21 @Ore(m.NetTariffByHour, 18) øre/kWh.
                    Energinet @((m.EnerginetKrPerKwh * 100).ToString("0.0", Da)) øre · elafgift @((m.ElafgiftKrPerKwh * 100).ToString("0.0", Da)) øre · abonnementer @m.SubscriptionsKrPerMonth.ToString("0.00", Da) kr/md.</p>
-                <p class="muted">Hentet fra eloverblik.dk @DkTime.FromUtc(m.FetchedUtc).ToString("d/M HH:mm").</p>
+                <p class="k-muted">Hentet fra eloverblik.dk @DkTime.FromUtc(m.FetchedUtc).ToString("d/M HH:mm").</p>
             </div>
-        </details>
+        </section>
     }
 }
 

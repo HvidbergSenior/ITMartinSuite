@@ -11,47 +11,47 @@
 
 @if (!Tenant.IsAdvisor)
 {
-    <p class="muted">Den her side er for rådgivere. <a href="/">Tilbage til dit eget forbrug</a>.</p>
+    <p class="k-muted">Den her side er for rådgivere. <a href="/">Tilbage til dit eget forbrug</a>.</p>
 }
 else
 {
-    <p class="muted small" style="margin:4px 0 14px">
+    <p class="k-muted small" style="margin:4px 0 14px">
         Du ser kun de kunder, der selv har givet dig en kode – og kun så længe de lader adgangen stå åben.
     </p>
 
-    <div class="card">
-        <div class="card-title">Ny kunde</div>
-        <div class="muted small" style="margin-bottom:8px">
+    <div class="k-card">
+        <h2 class="k-card-title">Ny kunde</h2>
+        <div class="k-muted small" style="margin-bottom:8px">
             Kunden laver koden under <b>Konto</b> i sin egen app og giver dig den.
         </div>
         <div class="field"><label>Kode</label><input @bind="_code" placeholder="ABCD-EFGH" /></div>
-        <button class="btn btn-primary" @onclick="Redeem">Hent kunden ind</button>
+        <button class="k-btn k-btn-primary" @onclick="Redeem">Hent kunden ind</button>
         @if (_message is not null)
         {
-            <p class="small @(_ok ? "ok" : "err")">@_message</p>
+            <p class="small @(_ok ?"ok" : "err")">@_message</p>
         }
     </div>
 
     @if (_customers.Count == 0)
     {
-        <p class="muted">Ingen kunder endnu.</p>
+        <p class="k-muted">Ingen kunder endnu.</p>
     }
     else
     {
         @foreach (var c in _customers)
         {
-            <details class="card fold" open>
-                <summary class="card-title">@c.HouseholdName</summary>
-                <div class="muted small">@c.OwnerEmail</div>
-                <div class="muted small">
+            <section class="k-card">
+                <h2 class="k-card-title">@c.HouseholdName</h2>
+                <div class="k-muted small">@c.OwnerEmail</div>
+                <div class="k-muted small">
                     Adgang siden @c.GrantedUtc.ToLocalTime().ToString("d. MMM yyyy") ·
                     udløber @c.ExpiresUtc.ToLocalTime().ToString("d. MMM yyyy")
                 </div>
-                <div class="muted small" style="margin-top:6px">
+                <div class="k-muted small" style="margin-top:6px">
                     @Summary(c.HouseholdId)
                 </div>
-                <a class="btn btn-primary" style="margin-top:10px" href="@($"/vaelg/{c.HouseholdId}")">Åbn @c.HouseholdName</a>
-            </details>
+                <a class="k-btn k-btn-primary" style="margin-top:10px" href="@($"/vaelg/{c.HouseholdId}")">Åbn @c.HouseholdName</a>
+            </section>
         }
     }
 }

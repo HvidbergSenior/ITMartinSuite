@@ -13,21 +13,21 @@
 
 @if (!_connected)
 {
-    <div class="card">
-        <div class="card-title">👋 Kom i gang – det tager 2 minutter</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Kom i gang – det tager 2 minutter</h2>
         <p class="small">Forbind din elmåler én gang med MitID. Så henter vi selv resten: din adresse, dit netselskab, dit elselskab, dit forbrug time for time flere år tilbage – alt det, der skal til for at finde ud af, hvor du kan spare.</p>
         <details class="install-dev" data-remember="onb-howto" open>
-            <summary>❓ Sådan henter du din nøgle (token) på eloverblik.dk</summary>
+            <summary>Sådan henter du din nøgle (token) på eloverblik.dk</summary>
             <ol class="small">
                 <li>Gå til <a href="https://eloverblik.dk" target="_blank" rel="noopener"><b>eloverblik.dk</b></a> og tryk <b>Log ind</b> (privat) med <b>MitID</b>.</li>
                 <li>Tryk på <b>profil-ikonet</b> øverst til højre → <b>Datadeling</b>.</li>
                 <li>Tryk <b>Opret token</b>, giv den navnet <b>MinElpris</b>, og tryk <b>Opret</b>.</li>
                 <li>Tryk <b>Kopiér</b> – og sæt den lange tekst ind herunder.</li>
             </ol>
-            <p class="muted small">Nøglen kan kun <b>læse</b> dit forbrug – ikke ændre noget. Den gælder et år, og du kan slette den på eloverblik.dk når som helst.</p>
+            <p class="k-muted small">Nøglen kan kun <b>læse</b> dit forbrug – ikke ændre noget. Den gælder et år, og du kan slette den på eloverblik.dk når som helst.</p>
         </details>
         <textarea class="field" style="width:100%;min-height:70px;margin-top:8px" @bind="_token" placeholder="Sæt din token ind her (starter med eyJ…)" aria-label="Token fra eloverblik.dk"></textarea>
-        <button class="btn btn-primary btn-block" style="margin-top:8px" @onclick="FetchAllAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_token))">@(_busy ? "Henter dine data…" : "Hent mine data")</button>
+        <button class="k-btn k-btn-primary k-btn-block" style="margin-top:8px" @onclick="FetchAllAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_token))">@(_busy ? "Henter dine data…" : "Hent mine data")</button>
         @if (_steps.Count > 0)
         {
             <ul class="onb-steps small">
@@ -40,22 +40,22 @@
 else if (!_seen)
 {
     @* One answer first (user: "too much at once"); everything else folded away. *@
-    <div class="card now-tile lvl-cheap">
-        <div class="card-title">✅ Jeres elmåler er forbundet</div>
+    <div class="k-card now-tile lvl-cheap">
+        <h2 class="k-card-title">Jeres elmåler er forbundet</h2>
         <div class="onb-headline">@(_yearlyKwh > 0 ? $"I bruger ca. {_yearlyKwh.ToString("#,##0", Da)} kWh om året" : "Vi har fundet jeres måler")</div>
-        <p class="small muted">@(_yearlyKwh > 0 ? "Næste skridt: se om et andet elselskab er billigere til netop jeres forbrug." : "Forbruget kommer om 1–2 dage (Datahub er bagud). Imens kan du sammenligne elselskaber.")</p>
-        <a class="btn btn-primary btn-block" href="/elselskab" @onclick="DoneAsync">🏢 Find et billigere elselskab</a>
+        <p class="small k-muted">@(_yearlyKwh > 0 ? "Næste skridt: se om et andet elselskab er billigere til netop jeres forbrug." : "Forbruget kommer om 1–2 dage (Datahub er bagud). Imens kan du sammenligne elselskaber.")</p>
+        <a class="k-btn k-btn-primary k-btn-block" href="/elselskab" @onclick="DoneAsync">🏢 Find et billigere elselskab</a>
         <details class="install-dev" data-remember="onb-found" style="margin-top:10px">
-            <summary>🔎 Det har vi fundet om jer</summary>
+            <summary>Det har vi fundet om jer</summary>
             <div class="onb-found">
                 @foreach (var f in Found())
                 {
-                    <div class="appl-row small"><span>@f.Icon @f.Label</span><b class="@(f.Ok ? "" : "lvl-mid")">@f.Value</b></div>
+                    <div class="appl-row small"><span>@f.Icon @f.Label</span><b class="@(f.Ok ?"" : "lvl-mid")">@f.Value</b></div>
                 }
             </div>
         </details>
         <details class="install-dev" data-remember="onb-more">
-            <summary>💡 Flere steder at spare</summary>
+            <summary>Flere steder at spare</summary>
             <div class="teasers">
                 <a class="teaser" href="/dag"><b>🔎 Hvad bruger huset?</b><span>Time for time – også om natten</span></a>
                 <a class="teaser" href="/planlaeg"><b>📅 Billigste tider</b><span>Vask, opvask og elbil</span></a>
@@ -63,7 +63,7 @@ else if (!_seen)
                 <a class="teaser" href="/enheder"><b>📸 Tag billede af maskinerne</b><span>Hvad netop jeres bruger</span></a>
             </div>
         </details>
-        <button class="btn btn-block" style="margin-top:10px" @onclick="DoneAsync">Vis min forside</button>
+        <button class="k-btn k-btn-block" style="margin-top:10px" @onclick="DoneAsync">Vis min forside</button>
     </div>
 }
 

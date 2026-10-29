@@ -10,9 +10,9 @@
 
 <h1>Administration</h1>
 
-<div class="card">
-    <div class="card-title">Nulstil en adgangskode</div>
-    <div class="muted small" style="margin-bottom:8px">
+<div class="k-card">
+    <h2 class="k-card-title">Nulstil en adgangskode</h2>
+    <div class="k-muted small" style="margin-bottom:8px">
         Der er ingen mailserver i systemet endnu, så en glemt adgangskode sættes her og siges til kunden.
     </div>
     <form method="post" @formname="reset">
@@ -20,24 +20,24 @@
         <div class="field"><label>Admin-PIN</label><input type="password" name="Form.Pin" autocomplete="off" /></div>
         <div class="field"><label>Mail</label><input name="Form.Email" value="@Form.Email" autocomplete="username" /></div>
         <div class="field"><label>Ny adgangskode</label><input type="password" name="Form.Password" autocomplete="new-password" /></div>
-        <button class="btn btn-primary" type="submit">Sæt ny adgangskode</button>
+        <button class="k-btn k-btn-primary" type="submit">Sæt ny adgangskode</button>
     </form>
     @if (_message is not null)
     {
-        <p class="small @(_ok ? "ok" : "err")">@_message</p>
+        <p class="small @(_ok ?"ok" : "err")">@_message</p>
     }
 </div>
 
 @if (_users is not null)
 {
-    <div class="card">
-        <div class="card-title">Brugere (@_users.Count)</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Brugere (@_users.Count)</h2>
         @foreach (var u in _users)
         {
             <div class="grant">
                 <div>
                     <b>@(string.IsNullOrWhiteSpace(u.DisplayName) ? u.Email : u.DisplayName)</b>
-                    <div class="muted small">
+                    <div class="k-muted small">
                         @u.Email · @(u.Role == UserRoles.Advisor ? "rådgiver" : "kunde") ·
                         oprettet @u.CreatedAtUtc.ToLocalTime().ToString("d. MMM yyyy")
                         @if (u.LastLoginUtc is { } seen)

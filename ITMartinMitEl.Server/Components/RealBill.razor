@@ -11,33 +11,33 @@
 
 @if (_bill is null)
 {
-    <div class="card">
-        <div class="card-title">📄 Læg din rigtige elregning ind</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Læg din rigtige elregning ind</h2>
         <p class="small">Upload regningen som PDF – den du får på mail eller finder i elselskabets app. Så læser vi den for dig: hvem du betaler til, hvad hver linje er, og om dit elselskab er dyrere end andre.</p>
-        <label class="btn btn-primary btn-block" style="text-align:center">
+        <label class="k-btn k-btn-primary k-btn-block" style="text-align:center">
             📎 Vælg regning (PDF)
             <InputFile OnChange="UploadAsync" accept=".pdf,application/pdf" style="display:none" />
         </label>
-        @if (_busy) { <p class="muted small">Læser regningen…</p> }
+        @if (_busy) { <p class="k-muted small">Læser regningen…</p> }
         @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
         <details class="install-dev" style="margin-top:10px" data-remember="realbill-howto">
-            <summary>❓ Sådan finder du din regning som PDF</summary>
+            <summary>Sådan finder du din regning som PDF</summary>
             <ol class="small">
                 <li><b>Tjek din mail og e-Boks / Digital Post.</b> De fleste elselskaber sender regningen dér som PDF. Søg på elselskabets navn eller “elregning”.</li>
                 <li><b>Eller hent den i elselskabets app eller på “Mit …”-siden.</b> Log ind, find <b>Regninger</b> eller <b>Dokumenter</b>, og tryk på den seneste regning → <b>Download</b> / <b>Hent PDF</b>.
-                    <br /><span class="muted">NRGi: app’en eller siden “Mit NRGi” → “Se alle dine regninger” (står nederst på regningen).</span></li>
+                    <br /><span class="k-muted">NRGi: app’en eller siden “Mit NRGi” → “Se alle dine regninger” (står nederst på regningen).</span></li>
                 <li><b>Gem PDF’en</b> på telefonen (iPhone: “Arkiver i Filer”; Android: “Download”) eller på computeren.</li>
                 <li><b>Tryk “📎 Vælg regning (PDF)”</b> ovenfor og vælg filen. Regningen bliver kun gemt i din egen husstand her i appen.</li>
             </ol>
-            <p class="muted small">Tip: brug den seneste <b>månedsregning</b> – ikke en årsopgørelse. Har du kun papir, så gem den til vi kan læse fotos.</p>
+            <p class="k-muted small">Tip: brug den seneste <b>månedsregning</b> – ikke en årsopgørelse. Har du kun papir, så gem den til vi kan læse fotos.</p>
         </details>
     </div>
 }
 else
 {
     var b = _bill;
-    <div class="card now-tile">
-        <div class="small muted">📄 Din rigtige regning · @Period(b)</div>
+    <div class="k-card now-tile">
+        <div class="small k-muted">📄 Din rigtige regning · @Period(b)</div>
         <div class="now-price">@b.TotalKr.ToString("0.00", Da) kr</div>
         <div class="now-unit">@b.Kwh.ToString("0", Da) kWh · @b.KrPerKwh.ToString("0.00", Da) kr/kWh alt inkl.</div>
         <div class="now-compare">
@@ -45,8 +45,8 @@ else
         </div>
     </div>
 
-    <details class="card fold" open data-remember="realbill-lines">
-        <summary class="card-title">Hvem får pengene? – tryk på en linje</summary>
+    <section class="k-card">
+        <h2 class="k-card-title">Hvem får pengene? – tryk på en linje</h2>
         @foreach (var party in new[] { BillParty.Supplier, BillParty.Grid, BillParty.State, BillParty.Other })
         {
             var lines = b.Lines.Where(l => l.Party == party).ToList();
@@ -58,7 +58,7 @@ else
                     <b>@sum.ToString("0.00", Da) kr · @Pct(sum, b.TotalKr)</b>
                 </div>
                 <div class="bill-bar"><i style="width:@((b.TotalKr > 0 ? sum / b.TotalKr * 100 : 0).ToString("0.#", CultureInfo.InvariantCulture))%"></i></div>
-                <p class="muted small" style="margin:4px 0 2px">@ElBillParser.ExplainParty(party)</p>
+                <p class="k-muted small" style="margin:4px 0 2px">@ElBillParser.ExplainParty(party)</p>
             </div>
             @foreach (var l in lines)
             {
@@ -74,25 +74,25 @@ else
             }
         }
         <div class="appl-row" style="padding-top:10px;font-weight:700"><span>I alt inkl. moms</span><b>@b.TotalKr.ToString("0.00", Da) kr</b></div>
-    </details>
+    </section>
 
     @if (_check is not null)
     {
-        <div class="card">
-            <div class="card-title">🔎 Tjek af dit elselskabs pris</div>
+        <div class="k-card">
+            <h2 class="k-card-title">Tjek af dit elselskabs pris</h2>
             <p class="small">@((MarkupString)_check)</p>
         </div>
     }
 
-    <a class="card cta-link" href="/elselskab">⚖️ Er @b.Supplier for dyr? Sammenlign med de andre elselskaber →</a>
+    <a class="k-card cta-link" href="/elselskab">⚖️ Er @b.Supplier for dyr? Sammenlign med de andre elselskaber →</a>
 
-    <div class="card">
-        <div class="small muted">Målernr. @(b.MeterNumber.Length > 0 ? b.MeterNumber : "–") · Aftagenr. @(b.MeteringPointId.Length > 0 ? b.MeteringPointId : "–")@(b.InvoiceDate is { } d ? $" · faktura {d.ToString("d. MMM yyyy", Da)}" : "")</div>
-        <label class="btn" style="margin-top:8px">
+    <div class="k-card">
+        <div class="small k-muted">Målernr. @(b.MeterNumber.Length > 0 ? b.MeterNumber : "–") · Aftagenr. @(b.MeteringPointId.Length > 0 ? b.MeteringPointId : "–")@(b.InvoiceDate is { } d ? $" · faktura {d.ToString("d. MMM yyyy", Da)}" : "")</div>
+        <label class="k-btn" style="margin-top:8px">
             📎 Læg en nyere regning ind
             <InputFile OnChange="UploadAsync" accept=".pdf,application/pdf" style="display:none" />
         </label>
-        @if (_busy) { <p class="muted small">Læser regningen…</p> }
+        @if (_busy) { <p class="k-muted small">Læser regningen…</p> }
         @if (_error.Length > 0) { <p class="small lvl-expensive">@_error</p> }
     </div>
 }

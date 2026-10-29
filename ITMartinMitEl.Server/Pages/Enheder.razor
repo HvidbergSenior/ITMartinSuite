@@ -16,7 +16,7 @@
 
 @if (_loading)
 {
-    <div class="card muted">Regner…</div>
+    <div class="k-card k-muted">Regner…</div>
 }
 else
 {
@@ -27,9 +27,9 @@ else
 
     @* Camera only (user decision 2026-09-27): a photo of the plate or energy label sets the machine up.
        Nothing here can be typed or edited - a wrong one is removed and photographed again. *@
-    <div class="card">
-        <div class="card-title">📷 Dine maskiner og apparater</div>
-        <div class="muted small" style="margin-bottom:8px">Tag et billede af mærkepladen eller energimærket – så finder appen model, forbrug og hvad en ny sparemodel ville spare.</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Dine maskiner og apparater</h2>
+        <div class="k-muted small" style="margin-bottom:8px">Tag et billede af mærkepladen eller energimærket – så finder appen model, forbrug og hvad en ny sparemodel ville spare.</div>
         <CameraButton Text="📷 Tilføj med kamera" BusyText="Læser mærkepladen…" Busy="_reading" OnPhoto="AddFromPhotoAsync" />
         @if (_photoError is { } pe) { <div class="small err" style="margin-top:8px">@pe</div> }
         @if (_photoAdded is { } pa) { <div class="small lvl-cheap" style="margin-top:8px">✔ @pa</div> }
@@ -40,14 +40,14 @@ else
             <div class="dev-card">
                 <div class="dev-head">
                     <span class="de-icon">@a.Icon</span>
-                    <div class="de-main"><b>@a.Name</b> <span class="muted small">@a.Model</span>
-                        <div class="muted small">@a.KwhPerRun.ToString("0.0#", Da) kWh pr. tur · @a.DurationHours.ToString("0.#", Da) t · ca. @a.RunsPerWeek.ToString("0.#", Da) gange om ugen</div></div>
+                    <div class="de-main"><b>@a.Name</b> <span class="k-muted small">@a.Model</span>
+                        <div class="k-muted small">@a.KwhPerRun.ToString("0.0#", Da) kWh pr. tur · @a.DurationHours.ToString("0.#", Da) t · ca. @a.RunsPerWeek.ToString("0.#", Da) gange om ugen</div></div>
                     @if (a.Photo?.EnergyClass is { Length: > 0 } ec) { <span class="dev-class">@ec</span> }
                 </div>
                 @Compare(aYear, a.Photo)
                 <div class="dev-actions">
-                    @if (a.Photo is null) { <span class="muted small">Ikke fra billede – tag et billede af mærkepladen for model og sammenligning.</span> }
-                    <button class="btn btn-small" @onclick="() => RemoveMachine(a.Id)">Fjern</button>
+                    @if (a.Photo is null) { <span class="k-muted small">Ikke fra billede – tag et billede af mærkepladen for model og sammenligning.</span> }
+                    <button class="k-btn k-btn-sm" @onclick="() => RemoveMachine(a.Id)">Fjern</button>
                 </div>
             </div>
         }
@@ -57,23 +57,23 @@ else
             <div class="dev-card">
                 <div class="dev-head">
                     <span class="de-icon">@d.Icon</span>
-                    <div class="de-main"><b>@d.Name</b> <span class="muted small">@d.Model</span>
-                        <div class="muted small">ca. @d.Watts.ToString("0", Da) W · @(d.HoursPerDay >= 24 ? "altid tændt" : $"{d.HoursPerDay.ToString("0.#", Da)} t om dagen")</div></div>
+                    <div class="de-main"><b>@d.Name</b> <span class="k-muted small">@d.Model</span>
+                        <div class="k-muted small">ca. @d.Watts.ToString("0", Da) W · @(d.HoursPerDay >= 24 ? "altid tændt" : $"{d.HoursPerDay.ToString("0.#", Da)} t om dagen")</div></div>
                     @if (d.Photo?.EnergyClass is { Length: > 0 } ec) { <span class="dev-class">@ec</span> }
                 </div>
                 @Compare(dYear, d.Photo)
                 <div class="dev-actions">
-                    @if (d.Photo is null) { <span class="muted small">Ikke fra billede – tag et billede af typeskiltet for model og sammenligning.</span> }
-                    <button class="btn btn-small" @onclick="() => RemoveDevice(d.Id)">Fjern</button>
+                    @if (d.Photo is null) { <span class="k-muted small">Ikke fra billede – tag et billede af typeskiltet for model og sammenligning.</span> }
+                    <button class="k-btn k-btn-sm" @onclick="() => RemoveDevice(d.Id)">Fjern</button>
                 </div>
             </div>
         }
     </div>
 
-    <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" @onclick="() => _guideOpen = !_guideOpen">
-            <span>🔎 Sådan finder du strømslugerne</span><span>@(_guideOpen ? "▲" : "▼")</span>
-        </div>
+    <div class="k-card">
+        <h2 class="k-card-title" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" @onclick="() => _guideOpen = !_guideOpen">
+            <span>Sådan finder du strømslugerne</span><span>@(_guideOpen ? "▲" : "▼")</span>
+        </h2>
         @if (_guideOpen)
         {
             <ol class="guide">
@@ -85,7 +85,7 @@ else
                     }
                     else
                     {
-                        <div class="guide-fact muted">Forbind elmåleren under <a href="/indstillinger">Indstillinger</a>, så står jeres eget tal her.</div>
+                        <div class="guide-fact k-muted">Forbind elmåleren under <a href="/indstillinger">Indstillinger</a>, så står jeres eget tal her.</div>
                     }
                 </li>
                 <li>
@@ -108,7 +108,7 @@ else
                     @if (_meterKwhPerDay is { } mk3 && mk3 > 0)
                     {
                         var pct = listKwhDay / mk3 * 100;
-                        <div class="guide-fact">Listen forklarer nu <b class="@(pct > 115 ? "lvl-expensive" : pct < 60 ? "lvl-mid" : "lvl-cheap")">@pct.ToString("0", Da) %</b> af det målte. Målet er 85–110 %.</div>
+                        <div class="guide-fact">Listen forklarer nu <b class="@(pct > 115 ?"lvl-expensive" : pct < 60 ? "lvl-mid" : "lvl-cheap")">@pct.ToString("0", Da) %</b> af det målte. Målet er 85–110 %.</div>
                     }
                 </li>
                 <li>
@@ -130,10 +130,10 @@ else
 
     if (_devices.Count == 0 && _appliances.Count == 0)
     {
-    <details class="card fold" open>
-        <summary class="card-title">Ingen enheder endnu</summary>
+    <section class="k-card">
+        <h2 class="k-card-title">Ingen enheder endnu</h2>
         <p class="small">Tag et billede af mærkepladen på køleskab, fryser, tv, varmepumpe, vaskemaskine osv. med 📷 ovenfor.</p>
-    </details>
+    </section>
     }
     else
     {
@@ -143,17 +143,17 @@ else
     var kwhDay = _devices.Sum(d => d.KwhPerDay) + _appliances.Sum(a => a.Appliance.KwhPerRun * a.Appliance.RunsPerWeek / 7);
     var shiftSaving = _devices.Sum(d => d.SavingPerDayKr ?? 0);
 
-    <div class="card now-tile">
+    <div class="k-card now-tile">
         <div class="now-price">@Kr(Pick(totalDay, totalMonth, totalYear))</div>
         <div class="now-unit">kr pr. @PeriodName() · @(Pick(kwhDay, kwhDay * 365 / 12, kwhDay * 365).ToString("0", Da)) kWh · @_devices.Count enheder + @_appliances.Count maskiner</div>
         @if (_meterKwhPerDay is { } mk && mk > 0)
         {
             var pct = kwhDay / mk * 100;
-            <div class="now-compare">Måleren viser <b>@mk.ToString("0.0", Da) kWh/dag</b> i snit – listen forklarer <b class="@(pct > 115 ? "lvl-expensive" : pct < 60 ? "lvl-mid" : "lvl-cheap")">@pct.ToString("0", Da) %</b> af det@(pct > 115 ? " – nogle tal er sat for højt" : pct < 60 ? " – der mangler nok enheder" : "").</div>
+            <div class="now-compare">Måleren viser <b>@mk.ToString("0.0", Da) kWh/dag</b> i snit – listen forklarer <b class="@(pct > 115 ?"lvl-expensive" : pct < 60 ? "lvl-mid" : "lvl-cheap")">@pct.ToString("0", Da) %</b> af det@(pct > 115 ? " – nogle tal er sat for højt" : pct < 60 ? " – der mangler nok enheder" : "").</div>
         }
         else
         {
-            <div class="now-compare muted">Forbind elmåleren under Indstillinger, så ses hvor stor en del af det målte forbrug listen forklarer.</div>
+            <div class="now-compare k-muted">Forbind elmåleren under Indstillinger, så ses hvor stor en del af det målte forbrug listen forklarer.</div>
         }
         @if (shiftSaving > 0.01)
         {
@@ -162,24 +162,24 @@ else
     </div>
 
     <div class="period-tabs">
-        <button class="tab @(_period == 0 ? "on" : "")" @onclick="() => _period = 0">Pr. dag</button>
-        <button class="tab @(_period == 1 ? "on" : "")" @onclick="() => _period = 1">Pr. måned</button>
-        <button class="tab @(_period == 2 ? "on" : "")" @onclick="() => _period = 2">Pr. år</button>
+        <button class="tab @(_period == 0 ?"on" : "")" @onclick="() => _period = 0">Pr. dag</button>
+        <button class="tab @(_period == 1 ?"on" : "")" @onclick="() => _period = 1">Pr. måned</button>
+        <button class="tab @(_period == 2 ?"on" : "")" @onclick="() => _period = 2">Pr. år</button>
     </div>
 
     @if (_appliances.Count > 0)
     {
-        <details class="card fold" open>
-            <summary class="card-title">Pr. tur – maskiner</summary>
+        <section class="k-card">
+            <h2 class="k-card-title">Pr. tur – maskiner</h2>
             @foreach (var a in _appliances)
             {
                 var v = _snap?.Appliances.FirstOrDefault(x => x.Appliance.Id == a.Appliance.Id);
                 <div class="dev-row">
                     <div class="dev-icon">@a.Appliance.Icon</div>
-                    <div class="dev-name">@a.Appliance.Name <span class="muted">· @(a.Appliance.Programs.Count > 0 ? "gns. " : "")@a.Appliance.KwhPerRun.ToString("0.#", Da) kWh · @a.Appliance.RunsPerWeek.ToString("0.#", Da) ture/uge@(a.Appliance.Programs.Count > 0 ? $" ({string.Join(", ", a.Appliance.Programs.Select(p => p.Name))})" : "")</span></div>
+                    <div class="dev-name">@a.Appliance.Name <span class="k-muted">· @(a.Appliance.Programs.Count > 0 ? "gns. " : "")@a.Appliance.KwhPerRun.ToString("0.#", Da) kWh · @a.Appliance.RunsPerWeek.ToString("0.#", Da) ture/uge@(a.Appliance.Programs.Count > 0 ? $" ({string.Join(", ", a.Appliance.Programs.Select(p => p.Name))})" : "")</span></div>
                     <div class="dev-kr">@Kr(Pick(a.MonthKr * 12 / 365, a.MonthKr, a.YearKr)) kr</div>
                     <div class="dev-sub">
-                        <span>Én tur: <b>@a.PerRunKr.ToString("0.00", Da) kr</b> <span class="muted">(@a.Basis)</span></span>
+                        <span>Én tur: <b>@a.PerRunKr.ToString("0.00", Da) kr</b> <span class="k-muted">(@a.Basis)</span></span>
                         @if (v?.Now is { } n)
                         {
                             <span>
@@ -192,19 +192,19 @@ else
                     @if (totalDay > 0) { <div class="dev-share" style="width:@((a.MonthKr / totalMonth * 100).ToString("0", CultureInfo.InvariantCulture))%"></div> }
                 </div>
             }
-        </details>
+        </section>
     }
 
     @if (_devices.Count > 0)
     {
-        <details class="card fold" open>
-            <summary class="card-title">Enheder</summary>
+        <section class="k-card">
+            <h2 class="k-card-title">Enheder</h2>
             @foreach (var d in _devices.OrderByDescending(x => x.DayKr))
             {
                 var dev = d.Device;
                 <div class="dev-row">
                     <div class="dev-icon">@dev.Icon</div>
-                    <div class="dev-name">@dev.Name <span class="muted">· @dev.Watts.ToString("0", Da) W · @(dev.HoursPerDay >= 24 ? "altid tændt" : $"{dev.HoursPerDay.ToString("0.#", Da)} t/dag{(dev.UsualFromHour is { } uf ? $" fra kl. {uf}" : "")}")@(dev.DaysPerWeek < 7 ? $" · {dev.DaysPerWeek} dage/uge" : "")</span></div>
+                    <div class="dev-name">@dev.Name <span class="k-muted">· @dev.Watts.ToString("0", Da) W · @(dev.HoursPerDay >= 24 ? "altid tændt" : $"{dev.HoursPerDay.ToString("0.#", Da)} t/dag{(dev.UsualFromHour is { } uf ? $" fra kl. {uf}" : "")}")@(dev.DaysPerWeek < 7 ? $" · {dev.DaysPerWeek} dage/uge" : "")</span></div>
                     <div class="dev-kr">@Kr(Pick(d.DayKr, d.MonthKr, d.YearKr)) kr</div>
                     <div class="dev-sub">
                         <span>@Pick(d.KwhPerDay, d.KwhPerDay * 365 / 12, d.KwhPerDay * 365).ToString("0.#", Da) kWh · @d.AvgKrPerKwh.ToString("0.00", Da) kr/kWh</span>
@@ -218,16 +218,16 @@ else
                         }
                         @if (_meterKwhPerDay is { } mk2 && mk2 > 0)
                         {
-                            <span class="muted">@((d.KwhPerDay / mk2 * 100).ToString("0", Da)) % af måleren</span>
+                            <span class="k-muted">@((d.KwhPerDay / mk2 * 100).ToString("0", Da)) % af måleren</span>
                         }
                     </div>
                     @if (totalDay > 0) { <div class="dev-share" style="width:@((d.DayKr / totalDay * 100).ToString("0", CultureInfo.InvariantCulture))%"></div> }
                 </div>
             }
-        </details>
+        </section>
     }
 
-    <div class="muted small" style="margin-top:8px">
+    <div class="k-muted small" style="margin-top:8px">
         Måned og år er regnet med jeres typiske døgnkurve (snit af de sidste @_profileDays dage@(_snap?.AllIn == false ? ", spotpris" : ", alt inkl.")) – ikke dagens pris alene. Enheder med et fast tidsrum prissættes for netop de timer.
         Ret tal og tidsrum under <a href="/indstillinger">Indstillinger</a>.
     </div>
@@ -298,8 +298,8 @@ else
                 <tr><td colspan="2" class="dev-save">Du kan spare</td><td class="dev-save">@(Math.Max(0, (yearKwh - newKwh) * price).ToString("0", Da)) kr/år</td></tr>
             }
         </table>
-        @if (newKwh > 0 && p!.NewModelSource.Length > 0) { <div class="muted small">Kilde ifølge AI: @p.NewModelSource · @p.Note</div> }
-        else if (p?.Note is { Length: > 0 } note) { <div class="muted small">@note</div> }
+        @if (newKwh > 0 && p!.NewModelSource.Length > 0) { <div class="k-muted small">Kilde ifølge AI: @p.NewModelSource · @p.Note</div> }
+        else if (p?.Note is { Length: > 0 } note) { <div class="k-muted small">@note</div> }
     };
 
     private async Task LoadAsync()

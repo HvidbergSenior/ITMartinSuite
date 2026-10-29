@@ -3,47 +3,37 @@
 @inject TenantContext Tenant
 @inject HouseholdRegistry Registry
 
-<div class="ep-root">
-    <div class="ep-page">
-        @if (Tenant.IsAdvisor && _viewing is not null)
-        {
-            @* An advisor must never be in doubt about whose numbers are on the screen. *@
-            <div class="advisor-bar">
-                Du ser <b>@_viewing</b> som rådgiver.
-                <a href="/kunder">Skift kunde</a>
-            </div>
-        }
-        @if (Tenant.Email == DemoHousehold.Email)
-        {
-            @* The demo from ElPriser: clear that it is a demo, and the way to your own. *@
-            <div class="advisor-bar">
-                👀 <b>Du ser en demo</b> med rigtige tal fra en familie i Aarhus. Klik rundt – intet bliver gemt.
-                <a href="/logout?next=/opret">Opret din egen →</a>
-            </div>
-        }
-        @Body
-        <KolibriFooter />
-    </div>
-</div>
-
-<nav class="bottom-nav">
-    <NavLink href="/" Match="NavLinkMatch.All"><span>⚡</span>Nu</NavLink>
-    <NavLink href="/dag"><span>🔎</span>Dag</NavLink>
-    <NavLink href="/planlaeg"><span>📅</span>Planlæg</NavLink>
-    <NavLink href="/mad"><span>🍳</span>Mad</NavLink>
-    <NavLink href="/enheder"><span>🏠</span>Enheder</NavLink>
-    <NavLink href="/historik"><span>📒</span>Historik</NavLink>
-    <NavLink href="/regning"><span>🧾</span>Regning</NavLink>
-    <NavLink href="/groen"><span>🌱</span>Grøn</NavLink>
-    <NavLink href="/elselskab"><span>🏢</span>Elselskab</NavLink>
-    <NavLink href="/besked"><span>🔔</span>Besked</NavLink>
-    <NavLink href="/indstillinger"><span>⚙️</span>Indstillinger</NavLink>
-    <NavLink href="/konto"><span>👤</span>Konto</NavLink>
-    @if (Tenant.IsAdvisor)
+@* The same Kolibri frame as the free ElPriser (user 2026-10-29: "same template man... css and all"): KolibriHeader with
+   the few tabs that matter, k-main/k-content, KolibriFooter. Everything else is one tap away under Mere. *@
+<KolibriHeader>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Nu</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/dag">Dag</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/mad">Mad</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/enheder">Enheder</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/mere">Mere</NavLink>
+    @* Light/dark (App.razor's script listens for clicks on it). *@
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
+</KolibriHeader>
+<div class="k-main"><div class="k-content">
+    @if (Tenant.IsAdvisor && _viewing is not null)
     {
-        <NavLink href="/kunder"><span>🧑‍🤝‍🧑</span>Kunder</NavLink>
+        @* An advisor must never be in doubt about whose numbers are on the screen. *@
+        <div class="advisor-bar">
+            Du ser <b>@_viewing</b> som rådgiver.
+            <a href="/kunder">Skift kunde</a>
+        </div>
     }
-</nav>
+    @if (Tenant.Email == DemoHousehold.Email)
+    {
+        @* The demo from ElPriser: clear that it is a demo, and the way to your own. *@
+        <div class="advisor-bar">
+            <b>Du ser en demo</b> med rigtige tal fra en familie i Aarhus. Klik rundt – intet bliver gemt.
+            <a href="/logout?next=/opret">Opret din egen</a>
+        </div>
+    }
+    @Body
+</div></div>
+<KolibriFooter />
 
 @code {
     private string? _viewing;

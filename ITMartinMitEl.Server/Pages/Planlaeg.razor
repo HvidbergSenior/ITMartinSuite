@@ -7,8 +7,8 @@
 <PageTitle>Planlæg – MinElpris</PageTitle>
 
 <h1>Hvornår skal den starte?</h1>
-<details class="card fold">
-    <summary>ⓘ Hvad viser siden?</summary>
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Hvad viser siden?</h2>
     <div class="fold-body small">
     <ul>
         <li>Vælg <b>hvor længe</b> maskinen kører – så viser vi det billigste tidspunkt at starte.</li>
@@ -16,22 +16,22 @@
         <li><b>🔌 Hvad koster det?</b> viser den præcise pris for én tur – nu, om 1, 2, 3 og 6 timer, og det billigste tidspunkt. Vælg en af dine maskiner, eller ✏️ Egen med watt og timer.</li>
     </ul>
     </div>
-</details>
+</section>
 
 <div class="chips">
     @foreach (var c in Choices)
     {
-        <button class="chip @(_choice == c.Key ? "on" : "")" @onclick="() => Pick(c.Key)">@c.Label</button>
+        <button class="chip @(_choice == c.Key ?"on" : "")" @onclick="() => Pick(c.Key)">@c.Label</button>
     }
 </div>
 
 @if (_raw is null)
 {
-    <div class="card"><div class="muted">Regner…</div></div>
+    <div class="k-card"><div class="k-muted">Regner…</div></div>
 }
 else
 {
-    <div class="card plan-result">
+    <div class="k-card plan-result">
         @switch (_choice)
         {
             case "2":
@@ -42,13 +42,13 @@ else
                     <div class="plan-price">@Kr(b.AvgKrPerKwh) kr/kWh i snit de 2 timer</div>
                     @if (w.Now is { } now && b != now)
                     {
-                        <div class="muted small">Starter du nu: @Kr(now.AvgKrPerKwh) kr/kWh@(saving > 0 ? $" · du sparer {saving} %" : "")</div>
+                        <div class="k-muted small">Starter du nu: @Kr(now.AvgKrPerKwh) kr/kWh@(saving > 0 ? $" · du sparer {saving} %" : "")</div>
                     }
-                    <div class="muted small" style="margin-top:6px">Vask, opvask, tørretumbler. Nattetimer (23–06) foreslås ikke.</div>
+                    <div class="k-muted small" style="margin-top:6px">Vask, opvask, tørretumbler. Nattetimer (23–06) foreslås ikke.</div>
                 }
                 else
                 {
-                    <div class="muted">Ingen priser at regne på endnu.</div>
+                    <div class="k-muted">Ingen priser at regne på endnu.</div>
                 }
                 break;
 
@@ -59,15 +59,15 @@ else
                 {
                     <div class="plan-when lvl-cheap">Start i nat kl. @nb.Start.ToString("HH:mm")</div>
                     <div class="plan-price">@Kr(nb.AvgKrPerKwh) kr/kWh i snit de @hours.ToString("0") timer</div>
-                    <div class="muted small" style="margin-top:6px">@(hours == 4 ? "Varmtvandsbeholder, elbil på 11 kW, opvask på timer." : "Det der kører hele natten – fx elbil på 1-faset lader.") Natten regnes 22–07.</div>
+                    <div class="k-muted small" style="margin-top:6px">@(hours == 4 ? "Varmtvandsbeholder, elbil på 11 kW, opvask på timer." : "Det der kører hele natten – fx elbil på 1-faset lader.") Natten regnes 22–07.</div>
                     @if (_night is { Complete: false })
                     {
-                        <div class="muted small">Morgendagens priser kommer ca. kl. 13 – indtil da er kun aftenen regnet med.</div>
+                        <div class="k-muted small">Morgendagens priser kommer ca. kl. 13 – indtil da er kun aftenen regnet med.</div>
                     }
                 }
                 else
                 {
-                    <div class="muted">Nattens priser er ikke kendt endnu – de kommer ca. kl. 13.</div>
+                    <div class="k-muted">Nattens priser er ikke kendt endnu – de kommer ca. kl. 13.</div>
                 }
                 break;
 
@@ -75,9 +75,9 @@ else
                 <div class="chips chips-small">
                     @foreach (var m in Machines)
                     {
-                        <button class="chip @(_machine == m.Name ? "on" : "")" @onclick="() => PickMachine(m.Name)">@m.Icon @m.Name</button>
+                        <button class="chip @(_machine == m.Name ?"on" : "")" @onclick="() => PickMachine(m.Name)">@m.Icon @m.Name</button>
                     }
-                    <button class="chip @(_machine == "" ? "on" : "")" @onclick='() => PickMachine("")'>✏️ Egen</button>
+                    <button class="chip @(_machine =="" ? "on" : "")" @onclick='() => PickMachine("")'>✏️ Egen</button>
                 </div>
                 @if (_machine == "")
                 {
@@ -87,11 +87,11 @@ else
                     </div>
                 }
                 var dev = Device();
-                <div class="muted small" style="margin-bottom:8px">@dev.KwhPerRun.ToString("0.##", Da) kWh over @dev.DurationHours.ToString("0.##", Da) timer</div>
+                <div class="k-muted small" style="margin-bottom:8px">@dev.KwhPerRun.ToString("0.##", Da) kWh over @dev.DurationHours.ToString("0.##", Da) timer</div>
                 var rows = CostRows(dev);
                 @if (rows.Count == 0)
                 {
-                    <div class="muted">Priserne dækker ikke en hel tur endnu.</div>
+                    <div class="k-muted">Priserne dækker ikke en hel tur endnu.</div>
                 }
                 else
                 {
@@ -99,13 +99,13 @@ else
                     <div class="cost-rows">
                         @foreach (var r in rows)
                         {
-                            <div class="cost-row @(r.Run.CostKr <= best + 0.005 ? "best" : "")">
-                                <span>@r.Label <span class="muted small">kl. @r.Run.Start.ToString("HH:mm")</span></span>
+                            <div class="cost-row @(r.Run.CostKr <= best + 0.005 ?"best" : "")">
+                                <span>@r.Label <span class="k-muted small">kl. @r.Run.Start.ToString("HH:mm")</span></span>
                                 <b>@r.Run.CostKr.ToString("0.00", Da) kr</b>
                             </div>
                         }
                     </div>
-                    <div class="muted small" style="margin-top:8px">Præcis pris for én tur: hvert kvarter maskinen kører, til det kvarters pris.</div>
+                    <div class="k-muted small" style="margin-top:8px">Præcis pris for én tur: hvert kvarter maskinen kører, til det kvarters pris.</div>
                 }
                 break;
 
@@ -120,26 +120,26 @@ else
                     <div class="plan-price">@ev.CostKr.ToString("0", Da) kr for opladningen (@((_night.EvKwh / _night.EvKw).ToString("0.#", Da)) timer)</div>
                     @if (_night.EvFromHome is { } home && home.CostKr > ev.CostKr)
                     {
-                        <div class="muted small">Sat i kl. 17 når du kommer hjem: @home.CostKr.ToString("0", Da) kr – du sparer <b>@((home.CostKr - ev.CostKr).ToString("0", Da)) kr</b> pr. opladning.</div>
+                        <div class="k-muted small">Sat i kl. 17 når du kommer hjem: @home.CostKr.ToString("0", Da) kr – du sparer <b>@((home.CostKr - ev.CostKr).ToString("0", Da)) kr</b> pr. opladning.</div>
                     }
                 }
                 else
                 {
-                    <div class="muted">Nattens priser er ikke kendt endnu – de kommer ca. kl. 13.</div>
+                    <div class="k-muted">Nattens priser er ikke kendt endnu – de kommer ca. kl. 13.</div>
                 }
                 break;
         }
     </div>
 
-    <details class="card fold">
-        <summary>Hvorfor er strøm dyrest kl. 17–21?</summary>
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Hvorfor er strøm dyrest kl. 17–21?</h2>
         <div class="small" style="margin-top:8px">Nettariffen – det dit netselskab tager for at levere strømmen – er højest når alle kommer hjem og laver mad. Om vinteren kan den være op til 9 gange nattens. Derfor: sæt starttid i bilen, laderen eller maskinen i stedet for bare at sætte stikket i.</div>
-    </details>
+    </section>
 
-    <details class="card fold">
-        <summary>Sådan regner vi</summary>
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Sådan regner vi</h2>
         <div class="small" style="margin-top:8px">Priserne kommer fra Energinet i kvarterer og er inkl. moms, elafgift og nettarif for dit område. Et starttidspunkt er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris.</div>
-    </details>
+    </section>
 
 }
 

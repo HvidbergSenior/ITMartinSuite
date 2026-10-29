@@ -15,22 +15,22 @@
 
 @if (string.IsNullOrWhiteSpace(Store.Get().Settings.MeteringPointId))
 {
-    <div class="card">
-        <div class="card-title">Ikke forbundet</div>
+    <div class="k-card">
+        <h2 class="k-card-title">Ikke forbundet</h2>
         <p class="small">Forbind din elmåler under <a href="/indstillinger">Indstillinger</a> – så viser siden hvad strømmen faktisk kostede time for time.</p>
     </div>
 }
 else if (_days is null)
 {
-    <div class="card muted">Henter…</div>
+    <div class="k-card k-muted">Henter…</div>
 }
 else if (_days.Count == 0)
 {
-    <details class="card fold" open>
-        <summary class="card-title">Ingen målinger endnu</summary>
+    <section class="k-card">
+        <h2 class="k-card-title">Ingen målinger endnu</h2>
         <p class="small">@(Consumption.LastSyncError is { } e ? $"Sidste hentning fejlede: {e}" : "Datahub leverer normalt målinger 1–2 dage efter. Prøv igen i morgen.")</p>
-        <button class="btn btn-block" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent nu")</button>
-    </details>
+        <button class="k-btn k-btn-block" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent nu")</button>
+    </section>
 }
 else
 {
@@ -39,11 +39,11 @@ else
         @for (var i = 0; i < _days.Count; i++)
         {
             var idx = i;
-            <button class="tab @(idx == _sel ? "on" : "")" style="flex:none;padding:8px 12px" @onclick="() => _sel = idx">@_days[idx].Date.ToString("ddd d/M", Da)</button>
+            <button class="tab @(idx == _sel ?"on" : "")" style="flex:none;padding:8px 12px" @onclick="() => _sel = idx">@_days[idx].Date.ToString("ddd d/M", Da)</button>
         }
     </div>
 
-    <div class="card now-tile">
+    <div class="k-card now-tile">
         <div class="now-price">@d.CostKr.ToString("0.00", Da)</div>
         <div class="now-unit">kr · @d.Kwh.ToString("0.0", Da) kWh · snit @((d.Kwh > 0 ? d.CostKr / d.Kwh : 0).ToString("0.00", Da)) kr/kWh</div>
         @if (d.CheapestPossibleKr is { } cp && d.Kwh > 0)
@@ -52,14 +52,14 @@ else
         }
     </div>
 
-    <details class="card fold" open>
-        <summary class="card-title">Time for time – @d.Date.ToString("dddd d. MMMM", Da)</summary>
+    <section class="k-card">
+        <h2 class="k-card-title">Time for time – @d.Date.ToString("dddd d. MMMM", Da)</h2>
         @{ var maxKwh = d.Hours.Max(h => h.Kwh); }
         <div class="bars">
             @foreach (var h in d.Hours)
             {
                 var pct = maxKwh > 0 ? 8 + 92 * h.Kwh / maxKwh : 8;
-                <div class="bar @(_selHour == h.Hour ? "sel" : "")" style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(h.PriceRank)" @onclick="() => _selHour = h.Hour" title="@h.Hour:00 @h.Kwh kWh"></div>
+                <div class="bar @(_selHour == h.Hour ?"sel" : "")" style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(h.PriceRank)" @onclick="() => _selHour = h.Hour" title="@h.Hour:00 @h.Kwh kWh"></div>
             }
         </div>
         <div class="bar-axis">@foreach (var h in d.Hours) { <span>@(h.Hour % 3 == 0 ? h.Hour.ToString() : "")</span> }</div>
@@ -67,34 +67,34 @@ else
             @if (_selHour is { } sh && d.Hours.FirstOrDefault(x => x.Hour == sh) is { } hb)
             {
                 <span>Kl. @sh:00–@((sh + 1) % 24):00 · @hb.Kwh.ToString("0.00", Da) kWh</span>
-                <b>@hb.CostKr.ToString("0.00", Da) kr <span class="muted small">(@hb.KrPerKwh.ToString("0.00", Da) kr/kWh)</span></b>
+                <b>@hb.CostKr.ToString("0.00", Da) kr <span class="k-muted small">(@hb.KrPerKwh.ToString("0.00", Da) kr/kWh)</span></b>
             }
             else
             {
-                <span class="muted">Søjlehøjde = forbrug, farve = pris den time</span>
+                <span class="k-muted">Søjlehøjde = forbrug, farve = pris den time</span>
             }
         </div>
         <div class="legend"><span><i style="background:var(--cheap)"></i>billig time</span><span><i style="background:var(--mid)"></i>middel</span><span><i style="background:var(--expensive)"></i>dyr time</span></div>
-    </details>
+    </section>
 
-    <details class="card fold" open>
-        <summary class="card-title">Sidste @_days.Count dage</summary>
+    <section class="k-card">
+        <h2 class="k-card-title">Sidste @_days.Count dage</h2>
         @foreach (var x in _days)
         {
             <div class="appl-row" style="padding:6px 0;border-top:1px solid var(--border)">
-                <span>@x.Date.ToString("ddd d/M", Da) <span class="muted small">@x.Kwh.ToString("0.0", Da) kWh</span></span>
+                <span>@x.Date.ToString("ddd d/M", Da) <span class="k-muted small">@x.Kwh.ToString("0.0", Da) kWh</span></span>
                 <b>@x.CostKr.ToString("0.00", Da) kr</b>
             </div>
         }
         <div class="appl-row" style="padding:8px 0 0;font-weight:700">
             <span>I alt</span><b>@_days.Sum(x => x.CostKr).ToString("0.00", Da) kr</b>
         </div>
-        <div class="muted small" style="margin-top:8px">
+        <div class="k-muted small" style="margin-top:8px">
             Sidst hentet @((Consumption.LastSyncUtc is { } lsu ? DkTime.FromUtc(lsu).ToString("d/M HH:mm") : null) ?? "aldrig").
             <button class="link" style="background:none;border:none;color:var(--accent);cursor:pointer;font:inherit" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent igen")</button>
             @if (Consumption.LastSyncError is { } err) { <span class="err"> – @err</span> }
         </div>
-    </details>
+    </section>
 }
 
 @code {

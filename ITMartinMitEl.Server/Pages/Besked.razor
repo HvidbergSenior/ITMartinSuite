@@ -9,11 +9,11 @@
     <p>Få en besked en time før dagens billigste strøm – så du kan nå at fylde vaskemaskinen.</p>
 </PageHelp>
 
-<div class="card">
+<div class="k-card">
     @switch (_state)
     {
         case null:
-            <div class="muted">Tjekker…</div>
+            <div class="k-muted">Tjekker…</div>
             break;
 
         case "unsupported":
@@ -49,14 +49,14 @@
             {
                 <div class="ok" style="margin-top:10px">✓ Denne telefon får beskeder@(string.IsNullOrWhiteSpace(_name) ? "" : $" ({_name})")</div>
                 <div class="btn-row">
-                    <button class="btn" @onclick="SaveAsync" disabled="@_busy">Gem valg</button>
-                    <button class="btn" @onclick="TestAsync" disabled="@_busy">Send test</button>
+                    <button class="k-btn" @onclick="SaveAsync" disabled="@_busy">Gem valg</button>
+                    <button class="k-btn" @onclick="TestAsync" disabled="@_busy">Send test</button>
                 </div>
-                <button class="btn btn-danger btn-block" @onclick="UnsubscribeAsync" disabled="@_busy">Stop beskeder på denne telefon</button>
+                <button class="k-btn k-btn-danger k-btn-block" @onclick="UnsubscribeAsync" disabled="@_busy">Stop beskeder på denne telefon</button>
             }
             else
             {
-                <button class="btn btn-primary btn-block" @onclick="SubscribeAsync" disabled="@_busy">@(_busy ? "Vent…" : "Slå beskeder til")</button>
+                <button class="k-btn k-btn-primary k-btn-block" @onclick="SubscribeAsync" disabled="@_busy">@(_busy ? "Vent…" : "Slå beskeder til")</button>
             }
             @if (_msg is not null) { <div class="note">@_msg</div> }
             break;
@@ -65,22 +65,22 @@
 
 @if (_others.Count > 0)
 {
-    <details class="card fold" open>
-        <summary class="card-title">Tilmeldte telefoner</summary>
+    <section class="k-card">
+        <h2 class="k-card-title">Tilmeldte telefoner</h2>
         @foreach (var s in _others)
         {
-            <div class="switch"><span>@(string.IsNullOrWhiteSpace(s.Name) ? "Uden navn" : s.Name) <span class="muted small">· @(s.NotifyCheapest ? "billigst" : "")@(s.NotifyCheapest && s.NotifyExpensive ? " + " : "")@(s.NotifyExpensive ? "dyrest" : "")</span></span>
-                <span class="muted small">@(s.LastSentAt is { } l ? "sidst " + DkTime.FromUtc(l).ToString("d/M HH:mm") : "ingen sendt endnu")</span></div>
+            <div class="switch"><span>@(string.IsNullOrWhiteSpace(s.Name) ? "Uden navn" : s.Name) <span class="k-muted small">· @(s.NotifyCheapest ? "billigst" : "")@(s.NotifyCheapest && s.NotifyExpensive ? " + " : "")@(s.NotifyExpensive ? "dyrest" : "")</span></span>
+                <span class="k-muted small">@(s.LastSentAt is { } l ? "sidst " + DkTime.FromUtc(l).ToString("d/M HH:mm") : "ingen sendt endnu")</span></div>
         }
-    </details>
+    </section>
 }
 
-<details class="card fold" open>
-    <summary class="card-title">Sådan virker det</summary>
-    <div class="small muted">
+<section class="k-card">
+    <h2 class="k-card-title">Sådan virker det</h2>
+    <div class="small k-muted">
         Hver dag ca. kl. 13 kommer morgendagens priser. Appen finder det billigste tidspunkt at køre den første maskine (@Store.Get().Appliances.FirstOrDefault()?.Name) og sender en besked én time før. Beskeden viser hvad turen koster, så du kan se om det er værd at vente.
     </div>
-</details>
+</section>
 
 @code {
     private string? _state;

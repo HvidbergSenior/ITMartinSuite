@@ -1,6 +1,6 @@
 @* One big "take a photo" button. On a phone it opens the camera straight away; the browser shrinks
    the picture to 1600 px before upload, so it is quick and small enough for the AI. *@
-<label class="btn btn-primary btn-block camera-btn @(Busy ? "busy" : "")">
+<label class="k-btn k-btn-primary k-btn-block camera-btn @(Busy ?"busy" : "")">
     @(Busy ? BusyText : Text)
     <InputFile OnChange="PickedAsync" accept="image/*" capture="environment" disabled="@Busy" class="camera-input" />
 </label>

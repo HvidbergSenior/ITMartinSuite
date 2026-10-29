@@ -1,0 +1,38 @@
+@page "/mere"
+@inject TenantContext Tenant
+
+<PageTitle>Mere – MinElpris</PageTitle>
+
+@* The header keeps only Nu, Dag, Mad and Enheder (like the free app's few tabs); the rest is here as buttons, each
+   saying what it is for (buttons, not links - user rule). *@
+<h1>Mere i MinElpris</h1>
+
+<section class="k-card">
+    <h2 class="k-card-title">Spar på strømmen</h2>
+    <div class="more-grid">
+        <a class="k-btn k-btn-block more-btn" href="/planlaeg"><b>Planlæg</b><span>Hvornår vask, opvask og elbil er billigst</span></a>
+        <a class="k-btn k-btn-block more-btn" href="/historik"><b>Historik</b><span>De ture I har registreret, og hvad de kostede</span></a>
+        <a class="k-btn k-btn-block more-btn" href="/besked"><b>Besked</b><span>Få besked på telefonen når strømmen er billig</span></a>
+        <a class="k-btn k-btn-block more-btn" href="/groen"><b>Grøn</b><span>Hvornår strømmen er grønnest</span></a>
+    </div>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Regning og elselskab</h2>
+    <div class="more-grid">
+        <a class="k-btn k-btn-block more-btn" href="/regning"><b>Regning</b><span>Læg regningen ind – hver linje forklaret</span></a>
+        <a class="k-btn k-btn-block more-btn" href="/elselskab"><b>Elselskab</b><span>Billigere elselskab til netop jeres forbrug</span></a>
+    </div>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Jeres MinElpris</h2>
+    <div class="more-grid">
+        <a class="k-btn k-btn-block more-btn" href="/indstillinger"><b>Indstillinger</b><span>Elmåler, netselskab og priser</span></a>
+        <a class="k-btn k-btn-block more-btn" href="/konto"><b>Konto</b><span>Login, flere i husstanden, hjælp fra Martin</span></a>
+        @if (Tenant.IsAdvisor)
+        {
+            <a class="k-btn k-btn-block more-btn" href="/kunder"><b>Kunder</b><span>Skift mellem de husstande du hjælper</span></a>
+        }
+    </div>
+</section>

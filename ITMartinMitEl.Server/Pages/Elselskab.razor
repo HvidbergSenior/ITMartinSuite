@@ -8,7 +8,7 @@
 
 <PageTitle>Elselskab – MinElpris</PageTitle>
 
-<h1>🏢 Elselskab</h1>
+<h1>Elselskab</h1>
 
 <PageHelp Key="help-elselskab">
     <ul>
@@ -20,26 +20,26 @@
     </ul>
 </PageHelp>
 
-<div class="card">
+<div class="k-card">
     <div class="row2">
         <div class="field"><label>Dit forbrug, kWh om året</label><input type="number" min="100" max="50000" step="100" @bind="_kwh" @bind:after="SaveKwhAsync" /></div>
     </div>
     <div class="chips">
-        <button class="chip @(!_fixed ? "on" : "")" @onclick="() => _fixed = false">Variabel pris</button>
-        <button class="chip @(_fixed ? "on" : "")" @onclick="() => _fixed = true">Fast pris</button>
+        <button class="chip @(!_fixed ?"on" : "")" @onclick="() => _fixed = false">Variabel pris</button>
+        <button class="chip @(_fixed ?"on" : "")" @onclick="() => _fixed = true">Fast pris</button>
     </div>
-    <div class="muted small">@(_fixed
+    <div class="k-muted small">@(_fixed
         ? "Fast pris: du betaler den samme pris pr. kWh i hele aftalens periode – inkl. selve strømmen. Kan ikke sammenlignes direkte med variabel."
         : "Variabel pris: du betaler spotprisen time for time + selskabets tillæg. Det er her ElPriser-rådene om at flytte forbrug virker.")</div>
 </div>
 
 @if (_all is null)
 {
-    <div class="card"><div class="muted">Henter selskaber…</div></div>
+    <div class="k-card"><div class="k-muted">Henter selskaber…</div></div>
 }
 else if (_all.Count == 0)
 {
-    <div class="card"><div class="muted">Listen over selskaber kan ikke hentes lige nu. Se <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</div></div>
+    <div class="k-card"><div class="k-muted">Listen over selskaber kan ikke hentes lige nu. Se <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> (Forsyningstilsynet).</div></div>
 }
 else
 {
@@ -50,9 +50,9 @@ else
     @if (current is not null && cheapest is not null)
     {
         var diff = current.YearlyKr(_kwh) - cheapest.YearlyKr(_kwh);
-        <div class="card now-tile @(diff > 100 ? "lvl-expensive" : "lvl-cheap")">
-            <div class="small muted">Dit nuværende: <b>@current.Company – @current.Name</b>@(_fromBill is not null ? " · fra din regning" : "")</div>
-            <div class="now-price @(diff > 100 ? "lvl-expensive" : "lvl-cheap")">@Kr0(current.YearlyKr(_kwh)) kr/år</div>
+        <div class="k-card now-tile @(diff > 100 ?"lvl-expensive" : "lvl-cheap")">
+            <div class="small k-muted">Dit nuværende: <b>@current.Company – @current.Name</b>@(_fromBill is not null ? " · fra din regning" : "")</div>
+            <div class="now-price @(diff > 100 ?"lvl-expensive" : "lvl-cheap")">@Kr0(current.YearlyKr(_kwh)) kr/år</div>
             @if (current.Fixed != _fixed)
             {
                 <div class="now-compare">Dit produkt har @(current.Fixed ? "fast" : "variabel") pris – skift fanen ovenfor for at sammenligne med samme slags.</div>
@@ -63,29 +63,29 @@ else
                 <div class="now-compare">Billigst med @(_fixed ? "fast" : "variabel") pris: <b>@cheapest.Company – @cheapest.Name</b>, ca. @Kr0(cheapest.YearlyKr(_kwh)) kr/år@(cheapest.Binding.Length > 0 && !cheapest.Binding.StartsWith("0") ? $" · binding {cheapest.Binding}" : " · ingen binding")</div>
                 @if (cheapest.Link.Length > 0)
                 {
-                    <a class="btn btn-primary" style="margin-top:8px" href="@cheapest.Link" target="_blank" rel="noopener">Se og skift til @cheapest.Company ↗</a>
+                    <a class="k-btn k-btn-primary" style="margin-top:8px" href="@cheapest.Link" target="_blank" rel="noopener">Se og skift til @cheapest.Company ↗</a>
                 }
-                <div class="muted small" style="margin-top:6px">Strømmen og leveringen er præcis den samme – kun prisen er forskellig. Det nye selskab klarer skiftet.</div>
+                <div class="k-muted small" style="margin-top:6px">Strømmen og leveringen er præcis den samme – kun prisen er forskellig. Det nye selskab klarer skiftet.</div>
             }
             else
             {
                 <div class="now-advice lvl-cheap">➜ Du har et af de billigste produkter</div>
             }
-            <div class="muted small">Beregnet med @Kr0(_kwh) kWh om året@(_fromBill is not null ? " – skønnet ud fra din regning" : "").</div>
+            <div class="k-muted small">Beregnet med @Kr0(_kwh) kWh om året@(_fromBill is not null ? " – skønnet ud fra din regning" : "").</div>
         </div>
     }
     else if (current is null && _fromBill is null)
     {
-        <a class="card cta-link" href="/regning">📄 Læg din elregning ind, så finder vi dit nuværende produkt og dit forbrug automatisk →</a>
+        <a class="k-card cta-link" href="/regning">📄 Læg din elregning ind, så finder vi dit nuværende produkt og dit forbrug automatisk →</a>
     }
 
-    <div class="card sup-list">
+    <div class="k-card sup-list">
         @foreach (var (p, i) in list.Take(_showAll ? list.Count : 10).Select((p, i) => (p, i)))
         {
-            <details class="sup @(p.Id == _currentId ? "mine" : "")">
+            <details class="sup @(p.Id == _currentId ?"mine" : "")">
                 <summary>
                     <span class="sup-rank">@(i + 1)</span>
-                    <span class="sup-name"><b>@p.Company</b><span class="muted small">@p.Name@(p.Binding.Length > 0 ? " · binding" : "")</span></span>
+                    <span class="sup-name"><b>@p.Company</b><span class="k-muted small">@p.Name@(p.Binding.Length > 0 ? " · binding" : "")</span></span>
                     <span class="sup-cost">ca. @Kr0(p.YearlyKr(_kwh)) kr/år</span>
                 </summary>
                 <div class="sup-detail small">
@@ -123,19 +123,19 @@ else
                     {
                         <div class="appl-row"><span>Du kan skifte til den</span><b>efter @p.DeliveryStart</b></div>
                     }
-                    <div class="muted">Alle beløb inkl. moms.@(p.Updated is { } u ? $" Opdateret {u.ToLocalTime().ToString("d. MMM yyyy", Da)}." : "")</div>
+                    <div class="k-muted">Alle beløb inkl. moms.@(p.Updated is { } u ? $" Opdateret {u.ToLocalTime().ToString("d. MMM yyyy", Da)}." : "")</div>
                     <div class="btn-row">
                         @if (p.Id == _currentId)
                         {
-                            <button class="btn" @onclick="() => SetCurrentAsync(null)">✓ Mit nuværende – fjern</button>
+                            <button class="k-btn" @onclick="() => SetCurrentAsync(null)">✓ Mit nuværende – fjern</button>
                         }
                         else
                         {
-                            <button class="btn" @onclick="() => SetCurrentAsync(p.Id)">Det er mit nuværende</button>
+                            <button class="k-btn" @onclick="() => SetCurrentAsync(p.Id)">Det er mit nuværende</button>
                         }
                         @if (p.Link.Length > 0)
                         {
-                            <a class="btn" href="@p.Link" target="_blank" rel="noopener">Se produktet ↗</a>
+                            <a class="k-btn" href="@p.Link" target="_blank" rel="noopener">Se produktet ↗</a>
                         }
                     </div>
                 </div>
@@ -143,13 +143,13 @@ else
         }
         @if (!_showAll && list.Count > 10)
         {
-            <button class="btn btn-block" @onclick="() => _showAll = true">Vis alle @list.Count</button>
+            <button class="k-btn k-btn-block" @onclick="() => _showAll = true">Vis alle @list.Count</button>
         }
     </div>
 }
 
-<details class="card fold" data-remember="sup-howto">
-    <summary>🔁 Sådan skifter du elselskab</summary>
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Sådan skifter du elselskab</h2>
     <div class="small fold-body">
         <ul>
             <li><b>Tjek din binding</b> hos det nuværende selskab – står i din aftale eller på “Mit overblik”.</li>
@@ -158,18 +158,18 @@ else
             <li><b>Strømmen går aldrig</b> – skiftet tager typisk få dage. Du får en slutregning fra det gamle selskab.</li>
         </ul>
     </div>
-</details>
+</section>
 
-<details class="card fold" data-remember="sup-fixed">
-    <summary>⚖️ Fast eller variabel pris?</summary>
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Fast eller variabel pris?</h2>
     <div class="small fold-body">
         <p><b>Variabel</b> følger spotprisen time for time. Den er som regel billigst i længden, og du kan spare mere ved at flytte forbrug til de billige timer – det er det ElPriser hjælper med.</p>
         <p><b>Fast</b> giver den samme pris hele perioden. Du betaler for tryghed: prisen er typisk sat højere end den forventede spotpris, og du får intet ud af at flytte dit forbrug.</p>
     </div>
-</details>
+</section>
 
-<details class="card fold" data-remember="sup-mygrid">
-    <summary>🔌 Dit netselskab@(_gridName.Length > 0 ? $": {_gridName}" : "") – tarif i dag</summary>
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Dit netselskab@(_gridName.Length > 0 ? $": {_gridName}" : "") – tarif i dag</h2>
     <div class="small fold-body">
         @if (_gridName.Length == 0)
         {
@@ -177,7 +177,7 @@ else
         }
         else if (_tariff.Count == 0)
         {
-            <p class="muted">Tariffen kan ikke hentes lige nu.</p>
+            <p class="k-muted">Tariffen kan ikke hentes lige nu.</p>
         }
         else
         {
@@ -185,27 +185,27 @@ else
             <div class="cost-rows">
                 @foreach (var band in Bands())
                 {
-                    <div class="cost-row @(band.Ore <= _tariff.Min(x => x.OreInclVat) + 0.05 ? "best" : "")">
+                    <div class="cost-row @(band.Ore <= _tariff.Min(x => x.OreInclVat) + 0.05 ?"best" : "")">
                         <span>kl. @band.From.ToString("00")–@band.To.ToString("00")</span><b>@band.Ore.ToString("0.0", Da) øre/kWh</b>
                     </div>
                 }
             </div>
-            <p class="muted" style="margin-top:6px">Om vinteren (oktober–marts) er aftentimerne typisk flere gange dyrere end om sommeren.</p>
+            <p class="k-muted" style="margin-top:6px">Om vinteren (oktober–marts) er aftentimerne typisk flere gange dyrere end om sommeren.</p>
         }
     </div>
-</details>
+</section>
 
-<details class="card fold" data-remember="sup-grid">
-    <summary>🔌 Hvorfor kan jeg ikke skifte netselskab?</summary>
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Hvorfor kan jeg ikke skifte netselskab?</h2>
     <div class="small fold-body">
         <p>Netselskabet (fx Radius/Cerius, N1, Trefor, Konstant) ejer kablerne til dit hus og har monopol i sit område. Deres del af regningen – <b>nettariffen</b> – er den samme uanset hvilket elselskab du vælger. Den er højest kl. 17–21, og det er den del du påvirker ved at flytte forbrug.</p>
         <p>Læs mere om netselskaber og fleksibilitet under <a href="/groen">🌱 Grøn</a>.</p>
     </div>
-</details>
+</section>
 
-<a class="card cta-link" href="/regning">🧾 Forstå din elregning – linje for linje →</a>
+<a class="k-card cta-link" href="/regning">🧾 Forstå din elregning – linje for linje →</a>
 
-<p class="muted small" style="margin-top:8px">Data: <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> – Forsyningstilsynets officielle prisportal, som alle elselskaber skal indberette til. Opdateres dagligt. Kun produkter til private.</p>
+<p class="k-muted small" style="margin-top:8px">Data: <a href="https://elpris.dk" target="_blank" rel="noopener">elpris.dk</a> – Forsyningstilsynets officielle prisportal, som alle elselskaber skal indberette til. Opdateres dagligt. Kun produkter til private.</p>
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
