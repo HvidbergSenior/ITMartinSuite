@@ -55,15 +55,8 @@
     }
 </section>
 
-<section class="k-card">
-    <h2 class="k-card-title">Nattero</h2>
-    <div class="k-muted small" style="margin-bottom:8px">Der foreslås ikke starttidspunkter i dette tidsrum – og der sendes ingen beskeder om dem.</div>
-    <div class="row2">
-        <div class="field"><label>Fra kl.</label><input type="number" min="0" max="23" @bind="_s.QuietFromHour" /></div>
-        <div class="field"><label>Til kl.</label><input type="number" min="0" max="23" @bind="_s.QuietToHour" /></div>
-    </div>
-</section>
-
+@* No Nattero setting (user 2026-10-29: "we want to run at night" + "the same as in the free"): like the free app, the
+   cheapest start includes the night (a machine with a delayed start), and "Ikke om natten?" gives the best daytime one. *@
 <section class="k-card">
     <h2 class="k-card-title">Din elmåler (eloverblik.dk)</h2>
     <div class="k-muted small" style="margin-bottom:8px">
