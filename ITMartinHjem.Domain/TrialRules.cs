@@ -35,7 +35,7 @@ public static class TrialRules
         "Mine data hos Facebook, Apple og Google",
         "Hvad er mine ting værd?",
         "Jeg har ting, jeg gerne vil af med",
-        "Liveauktioner på Bogshoppen",
+        "Bogshoppens nye måder at sælge på",
     ];
 
     public const int MaxNote = 280;

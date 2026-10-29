@@ -38,7 +38,7 @@ public static class Letters
 
          Og snart:
          - Et lager, hvor du kan se vores varer og markere dem, du synes er interessante. Så ved vi, hvad folk gerne vil have.
-         - Liveauktioner på bogshoppen.dk i november og december. Dit kundenummer er dit login.
+         - Bogshoppen på bogshoppen.dk: nye måder at sælge på – ikke en traditionel webshop. Dit kundenummer er dit login.
 
          Apps bliver lavet sammen med jer
          Alle apps er lavet for at hjælpe dig – ikke for at sælge dig noget. De bliver bedre, når du siger, hvad du mangler.

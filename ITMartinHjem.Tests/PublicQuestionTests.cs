@@ -164,11 +164,11 @@ public class TrialRequestTests
         mail.Sent.Should().HaveCount(2);   // the welcome to the person + the note to Martin (user 2026-10-28)
         mail.Sent.Should().ContainSingle(m => m.To == "ITMartin@Mensa.dk").Which.Body.Should().Contain("ole@gmail.com").And.Contain("4821 7730").And.Contain("itmartin.dk");
         mail.Sent.Should().ContainSingle(m => m.To == "ole@gmail.com").Which.Body.Should().Contain("4821 7730").And.Contain("ElPriser, Stem").And.NotContain("Temperatur")
-            .And.Contain("liveauktionerne").And.Contain("afmeld");
+            .And.Contain("bogshoppen.dk").And.NotContain("liveauktion").And.Contain("afmeld");
         k.SignedUp.Should().ContainSingle().Which.Should().Be(new CustomerSignUp("ole@gmail.com", "Ole", CustomerOf.ITMartin, "elpriser",
             TrialRules.Source("elpriser"), TrialRules.ConsentText, "elpriser"));
         TrialRules.ConsentText.Should().Be(BogshoppenRules.ConsentText).And.Contain("ITMartin og Bogshoppen").And.Contain("gratis apps")
-            .And.Contain("liveauktionerne").And.Contain("Ingen reklamer, ingen nyhedsbreve").And.Contain("afmelde");
+            .And.Contain("login til Bogshoppen").And.NotContain("liveauktion").And.Contain("Ingen reklamer, ingen nyhedsbreve").And.Contain("afmelde");
         inbox.Texts.Should().ContainSingle().Which.Should().Contain("elpriser").And.Contain("ole@gmail.com");
     }
 

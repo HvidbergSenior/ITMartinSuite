@@ -63,7 +63,7 @@ public static class SiteFacts
         new("Om Bogshoppen", "/om-bogshoppen", "… at Rico og Martin har været venner i over 30 år?"),
         new("Skriv til os", "https://itmartin.dk/chat-med-martin", "… at vi gerne tager imod de ting, du vil af med? Så får de nye ejere i stedet for at ende i containeren."),
         new("Skriv til os", "https://itmartin.dk/chat-med-martin", "… at vi kan finde ud af, hvad dine ting er værd – bøger, tegneserier, film, musik og spil?"),
-        new("Skriv mig op – gratis", "#foelg", "… at det er gratis at skrive sig op – og at du får besked og et login, når den første liveauktion starter?"),
+        new("Skriv mig op – gratis", "#foelg", "… at det er gratis at skrive sig op – og at du får dit kundenummer med det samme?"),
         new("Se de gratis apps", "https://itmartin.dk/mine-apps", "… at dit kundenummer også giver dig Martins gratis apps på itmartin.dk?"),
     ];
 
