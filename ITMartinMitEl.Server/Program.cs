@@ -80,6 +80,7 @@ builder.Services.AddScoped<ConsumptionStore>(sp =>
 // Mad (meals): use cases in ElPriser.Application, ports on top of the household's own stores.
 builder.Services.AddScoped<ITMartinElPriser.Application.IHouseholdMeals, HouseholdMeals>();
 builder.Services.AddScoped<ITMartinElPriser.Application.IMeterReadings, MeterReadings>();
+builder.Services.AddScoped<ITMartinElPriser.Application.IHouseholdHome, HouseholdHome>();
 ITMartinElPriser.Application.DependencyInjection.AddMinElprisApplication(builder.Services);
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<RunLogService>();

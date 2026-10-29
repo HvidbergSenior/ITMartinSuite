@@ -28,4 +28,14 @@ public sealed class MeterReadings(ConsumptionStore consumption) : IMeterReadings
             foreach (var q in consumption.Quarters(d)) all[q.Key] = q.Value;
         return all;
     }
+
+    public IReadOnlyDictionary<DateTime, double> Hours(DateOnly fromInclusive, DateOnly toExclusive) => consumption.Range(fromInclusive, toExclusive);
+}
+
+/// <summary>The front page's view of the logged-in household.</summary>
+public sealed class HouseholdHome(HouseholdStore store) : IHouseholdHome
+{
+    public HouseholdSettings Settings => store.Get().Settings;
+    public IReadOnlyList<Appliance> Appliances => store.Get().Appliances;
+    public RunEntry? LastRun => store.Get().Runs.OrderByDescending(r => r.StartedAt).FirstOrDefault();
 }

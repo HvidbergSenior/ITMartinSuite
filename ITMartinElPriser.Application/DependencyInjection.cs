@@ -21,6 +21,7 @@ public static class DependencyInjection
     public static IServiceCollection AddMinElprisApplication(this IServiceCollection services)
     {
         services.AddScoped<MealUseCases>();
+        services.AddScoped<MinFrontPageUseCases>();
         return services;
     }
 }

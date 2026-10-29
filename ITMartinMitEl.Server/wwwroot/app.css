@@ -296,3 +296,20 @@ details.card.fold[open] > summary { margin-bottom: 8px; }
 .teaser b { color: var(--text); }
 .teaser span { font-size: .85rem; color: var(--muted); }
 .teaser:hover, .teaser:focus-visible { border-color: var(--accent); }
+
+/* Front page like the free ElPriser (2026-10-29): the same bars, price box and helpers as ElPriser's app.css. */
+.bar { height: var(--h, 50%); background: var(--mid); }
+.bar.band-cheap { background: var(--cheap); }
+.bar.band-mid { background: var(--mid); }
+.bar.band-expensive { background: repeating-linear-gradient(135deg, var(--expensive) 0 5px, color-mix(in srgb, var(--expensive) 60%, var(--bg)) 5px 8px); }
+.bar.midnight { box-shadow: -3px 0 0 -1px var(--muted); }
+.bars { overflow: visible; padding-top: 22px; }
+.now-best { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: grid; gap: 4px; text-align: center; }
+.now-best b { font-size: 1.3rem; line-height: 1.25; }
+.now-best span { color: var(--text); }
+.now-tile .chips { justify-content: center; }
+.linkish { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; margin-top: 10px; }
+.u-center { text-align: center; }
+.u-mt6 { margin-top: 6px; }
+.hindsight-wait { min-height: 360px; }
+@media (min-width: 700px) { .hindsight-wait { min-height: 278px; } }

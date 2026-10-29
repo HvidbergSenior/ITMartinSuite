@@ -117,6 +117,7 @@ public class MealUseCasesTests
     {
         public DateOnly? LatestDay => null;
         public IReadOnlyDictionary<DateTime, double> Quarters(DateOnly f, DateOnly t) => new Dictionary<DateTime, double>();
+        public IReadOnlyDictionary<DateTime, double> Hours(DateOnly f, DateOnly t) => new Dictionary<DateTime, double>();
     }
 
     private static List<PricePoint> Today()
@@ -149,5 +150,46 @@ public class MealUseCasesTests
         (dinner.StartHour, dinner.StartMinute, dinner.DaysPerWeek).Should().Be((18, 0, 5));
         uc.ToggleKind(dinner.Id, "airfryer");
         dinner.Kinds.Should().NotContain("airfryer");
+    }
+}
+
+[TestFixture]
+public class MinFrontPageUseCasesTests
+{
+    private sealed class Home : ITMartinElPriser.Application.IHouseholdHome
+    {
+        public HouseholdSettings Settings { get; } = new() { ShowAllIn = false };
+        public IReadOnlyList<Appliance> Appliances { get; } = Appliance.Defaults();
+        public RunEntry? LastRun => null;
+    }
+
+    private sealed class Prices(List<PricePoint> day) : ITMartinElPriser.Application.IPriceSource
+    {
+        public Task<List<PricePoint>> GetPricesAsync(string priceArea = "DK1", CancellationToken ct = default) => Task.FromResult(day);
+        public Task<List<PricePoint>> GetDayAsync(DateOnly date, string priceArea = "DK1", CancellationToken ct = default) => Task.FromResult(day);
+        public Task<List<PricePoint>> GetRangeAsync(DateOnly f, DateOnly t, string priceArea = "DK1", CancellationToken ct = default) => Task.FromResult(day);
+    }
+
+    private sealed class NoMeter : ITMartinElPriser.Application.IMeterReadings
+    {
+        public DateOnly? LatestDay => null;
+        public IReadOnlyDictionary<DateTime, double> Quarters(DateOnly f, DateOnly t) => new Dictionary<DateTime, double>();
+        public IReadOnlyDictionary<DateTime, double> Hours(DateOnly f, DateOnly t) => new Dictionary<DateTime, double>();
+    }
+
+    [Test]
+    public async Task Front_page_prices_the_households_own_machines_and_has_no_home_box_without_a_meter()
+    {
+        var d = DateOnly.FromDateTime(DkTime.Now);
+        var day = Enumerable.Range(0, 96).Select(i => d.ToDateTime(TimeOnly.MinValue).AddMinutes(15 * i))
+            .Select(t => new PricePoint { TimeDk = t, TimeUtc = t.AddHours(-1), PriceKrPerKwh = t.Hour < 6 ? 0.5 : 1.5 }).ToList();
+        var uc = new ITMartinElPriser.Application.MinFrontPageUseCases(new Prices(day), new Home(), new NoMeter());
+
+        var view = await uc.LoadAsync();
+        view.Machines.Select(m => m.Name).Should().Equal("Vaskemaskine", "Opvaskemaskine", "Tørretumbler");
+        view.Machine(null)!.Name.Should().Be("Vaskemaskine", "the first machine is shown until another is tapped");
+        view.Machine(view.Machines[2].Id)!.Name.Should().Be("Tørretumbler");
+        view.RunAt(view.Machines[0], d.ToDateTime(new TimeOnly(2, 0)))!.CostKr.Should().BeApproximately(1.0 * 0.5, 0.001);
+        (await uc.HomeAsync()).Should().BeNull();
     }
 }

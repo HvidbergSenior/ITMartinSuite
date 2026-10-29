@@ -17,6 +17,8 @@ public interface IMeterReadings
 {
     DateOnly? LatestDay { get; }
     IReadOnlyDictionary<DateTime, double> Quarters(DateOnly fromInclusive, DateOnly toInclusive);
+    /// <summary>kWh per whole hour in [from, to), keyed by the hour's start.</summary>
+    IReadOnlyDictionary<DateTime, double> Hours(DateOnly fromInclusive, DateOnly toExclusive);
 }
 
 /// <summary>One meal as the page shows it: the next time it is cooked, the cheapest start in its window, and what
