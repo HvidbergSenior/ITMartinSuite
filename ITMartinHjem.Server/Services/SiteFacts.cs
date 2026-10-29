@@ -55,7 +55,7 @@ public static class SiteFacts
     ];
 
     // bogshoppen.dk (user 2026-10-27: "vidste du should be on Bogshoppen.dk as well"): Bogshoppen first, then a few of
-    // Martin's - soon one company (Components/OneCompany). Numbers from the bogshoppen page text (100.000+, ~40 years, 30+ years friends).
+    // Martin's - Bogshoppen is part of ITMartin (Components/OneCompany). Numbers from the bogshoppen page text (100.000+, ~40 years, 30+ years friends).
     public static readonly IReadOnlyList<Fact> Bogshoppen =
     [
         new("Skriv mig op – gratis", "#foelg", "… at Bogshoppen har over 100.000 bøger, blade og tegneserier, der skal finde nye ejere?"),
