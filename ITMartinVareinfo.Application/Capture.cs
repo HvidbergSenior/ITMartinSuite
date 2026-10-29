@@ -100,7 +100,7 @@ public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository 
 
     // The session the photo was taken in - it must be one this person may use (open or closed).
     private async Task<WorkSession> SessionAsync(int sessionId, Taker me, CancellationToken ct) =>
-        await sessionRows.GetAsync(sessionId, ct) is { } s && s.IsFor(me) ? s : throw new VareinfoException("Sessionen mangler - vælg sessionen igen.");
+        await sessionRows.GetAsync(sessionId, ct) is { } s && s.IsFor(me) ? s : throw new SessionGoneException();
 }
 
 /// <summary>The helpers and their codes (Martin's Hjælpere page), and signing in with a code.</summary>

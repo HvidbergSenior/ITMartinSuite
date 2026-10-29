@@ -41,6 +41,8 @@ else if (_session is null)
         @if (Me.IsAdmin) { <p><a class="k-btn k-btn-secondary" href="/sessioner">Sessioner – start en ny</a></p> }
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
         <p data-photo-status role="status" hidden></p>
+        @* Photos whose session is gone wait on the phone (fotokoe.js, 2026-10-29) - choose a session above to send them. *@
+        <div data-photo-stranded class="lg-warn" role="status" hidden><p data-photo-stranded-text></p></div>
     </section>
 
     <section class="k-card">
@@ -66,6 +68,10 @@ else
             <button type="button" class="k-btn k-btn-secondary" data-camera-close>✓ Færdig med billeder</button>
         </div>
         <p data-photo-status role="status" hidden></p>
+        <div data-photo-stranded class="lg-warn" role="status" hidden>
+            <p data-photo-stranded-text></p>
+            <button type="button" class="k-btn k-btn-primary" data-photo-adopt>Send dem til denne session</button>
+        </div>
         <details class="lg-more-tips">
             <summary>Gode råd</summary>
             <ul>

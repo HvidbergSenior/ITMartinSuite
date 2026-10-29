@@ -37,7 +37,8 @@ builder.Services.AddKolibri(k =>
         "Vil du bare prøve? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
         "Martin: under Sessioner skriver du sted og/eller formål og trykker Start session – den får selv det næste nummer. Vælg under Til, hvis en session kun er til én hjælper. Tryk Luk, når I er færdige (billederne gemmes). Kun en session uden billeder kan slettes.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
-        "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«.",
+        "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
+        "Er en session blevet slettet, mens billeder ventede på telefonen, bliver de på telefonen: vælg en session, og tryk Send dem til denne session.",
     ];
     k.Version = "2026.10.29";
     k.ThemeColor = "#f4f6f5";
@@ -125,6 +126,8 @@ app.MapPost("/api/foto", async (HttpContext ctx, CaptureUseCases capture) =>
         await capture.StoreAsync(s, int.TryParse(form["sessionId"], out var id) ? id : 0, (Taker)ctx.Items[nameof(Taker)]!);
         return Results.Ok();
     }
+    // 409, not 400: the photo is fine, its session is gone - the phone keeps it and asks for a session (fotokoe.js).
+    catch (SessionGoneException ex) { return Results.Conflict(ex.Message); }
     catch (VareinfoException ex) { return Results.BadRequest(ex.Message); }
     catch (Exception ex) when (ex is ImageFormatException or UnknownImageFormatException)   // the same photo will never open
     {

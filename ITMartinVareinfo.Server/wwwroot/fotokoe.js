@@ -53,13 +53,46 @@ window.photoQueue = {
         await this.tx("readwrite", function (s) { return s.delete(item.id); });
     },
 
+    async save(item) {
+        if (typeof item.id === "string") return;   // kept in memory: changed in place
+        await this.tx("readwrite", function (s) { return s.put(item); });
+    },
+
+    // Photos whose session is gone (the server answered 409) wait here until a session is chosen - never thrown away
+    // (2026-10-29: Vibeke's first photos were removed as "afvist" after their session was deleted).
+    async stranded() { return (await this.all()).filter(function (i) { return i.stranded; }); },
+
+    // "Send dem til denne session": the open session's fields go on every waiting photo, then they are sent.
+    async adopt() {
+        var open = document.querySelector("[data-camera-open][data-fields]");
+        var fields = open ? JSON.parse(open.dataset.fields || "{}") : null;
+        if (!fields || !fields.sessionId) return;
+        var items = await this.stranded();
+        for (var i = 0; i < items.length; i++) { items[i].fields = fields; items[i].stranded = false; await this.save(items[i]); }
+        this.pump();
+    },
+
+    async showStranded() {
+        var waiting = (await this.stranded()).length;
+        var canAdopt = !!document.querySelector("[data-camera-open][data-fields]");
+        document.querySelectorAll("[data-photo-stranded]").forEach(function (box) {
+            box.hidden = waiting === 0;
+            var text = box.querySelector("[data-photo-stranded-text]");
+            if (text) text.textContent = "⚠ " + waiting + " billede" + (waiting === 1 ? "" : "r") + " venter på telefonen: den session, de blev taget i, findes ikke længere. "
+                + (canAdopt ? "Tryk »Send dem til denne session«, så kommer de med her." : "Vælg en session ovenfor, så kan du sende dem dertil.");
+            var btn = box.querySelector("[data-photo-adopt]");
+            if (btn) btn.hidden = !canAdopt;
+        });
+    },
+
     async pump() {
         if (this.sending) return;
         this.sending = true;
         try {
             for (;;) {
-                var items = await this.all();
+                var items = (await this.all()).filter(function (i) { return !i.stranded; });
                 this.show(items.length);
+                await this.showStranded();
                 if (items.length === 0) { this.failed = 0; return; }
                 var item = items[0];
                 var form = new FormData();
@@ -74,6 +107,12 @@ window.photoQueue = {
                     continue;
                 }
                 if (res && res.status === 401) { this.show(items.length, "login"); return; }
+                if (res && res.status === 409) {
+                    // The photo is fine, its session is gone: keep it on the phone until a session is chosen.
+                    item.stranded = true;
+                    await this.save(item);
+                    continue;
+                }
                 if (res && res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
                     // The server read it and said no (not a picture etc.) - sending it again will not help.
                     this.rejected = await res.text().catch(function () { return ""; });
@@ -124,11 +163,12 @@ window.photoQueue = {
             { video: { facingMode: "environment" }, audio: false },
             { video: true, audio: false }
         ];
+        var why = "";
         for (var i = 0; i < sets.length && !this.cam.stream; i++) {
-            try { this.cam.stream = await navigator.mediaDevices.getUserMedia(sets[i]); } catch (e) { }
+            try { this.cam.stream = await navigator.mediaDevices.getUserMedia(sets[i]); } catch (e) { why = (e && e.name) || why; }
         }
         if (!this.cam.stream) {
-            note.textContent = "⚠ Kameraet kunne ikke startes her. Brug knappen »Brug telefonens kamera« nedenfor.";
+            note.textContent = this.cameraProblem(why);
             panel.hidden = false;
             return;
         }
@@ -245,6 +285,31 @@ window.photoQueue = {
         await this.add(blob, this.cam.url, this.cam.fields);
     },
 
+    // Why the in-page camera did not start, in words a helper can act on (2026-10-29: Vibeke, iPhone, Vareinfo as a
+    // home-screen icon - such an app asks for the camera again every time it is opened, and a "Tillad ikke" sticks
+    // until the app is closed all the way). The phone's own camera (the button below) works in every case.
+    cameraProblem(name) {
+        var ua = navigator.userAgent || "";
+        var iphone = /iPhone|iPad|iPod/.test(ua);
+        var homeScreen = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+        var inApp = /FBAN|FBAV|FB_IAB|Instagram|Messenger/.test(ua);
+        var fallback = " Eller brug »Brug telefonens kamera« nedenfor – det virker altid.";
+        if (inApp) return "⚠ Siden er åbnet inde i Facebook/Messenger, og der må den ikke bruge kameraet. Tryk ⋯ og vælg »Åbn i browser«." + fallback;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+            return "⚠ Telefonens browser kan ikke bruge kameraet inde i siden" + (iphone ? " (iPhone skal have iOS 13.4 eller nyere)." : ".") + fallback;
+        if (name === "NotAllowedError" || name === "SecurityError")
+            return iphone && homeScreen
+                ? "⚠ Kameraet fik ikke lov. Luk Vareinfo helt (stryg den væk), åbn den igen, og tryk »Tillad«, når telefonen spørger om kameraet." + fallback
+                : iphone
+                    ? "⚠ Kameraet fik ikke lov. Gå til Indstillinger › Safari › Kamera og vælg »Spørg« eller »Tillad«, og prøv igen." + fallback
+                    : "⚠ Kameraet fik ikke lov. Tryk på hængelåsen ved adressen › Tilladelser › Kamera › Tillad, og prøv igen." + fallback;
+        if (name === "NotReadableError" || name === "AbortError")
+            return "⚠ Kameraet bruges af en anden app lige nu. Luk den (fx kameraet eller et videoopkald), og prøv igen." + fallback;
+        if (name === "NotFoundError" || name === "OverconstrainedError")
+            return "⚠ Telefonen fandt ikke et kamera, siden kan bruge." + fallback;
+        return "⚠ Kameraet kunne ikke startes her." + fallback;
+    },
+
     closeCamera() {
         if (this.cam.stream) this.cam.stream.getTracks().forEach(function (t) { t.stop(); });
         this.cam.stream = null; this.cam.capture = null;
@@ -264,10 +329,11 @@ document.addEventListener("change", function (e) {
     input.value = "";
 });
 document.addEventListener("click", function (e) {
-    var t = e.target.closest ? e.target.closest("[data-camera-open],[data-camera-shoot],[data-camera-close]") : null;
+    var t = e.target.closest ? e.target.closest("[data-camera-open],[data-camera-shoot],[data-camera-close],[data-photo-adopt]") : null;
     if (!t) return;
     e.preventDefault();
-    if (t.hasAttribute("data-camera-open")) photoQueue.openCamera(t);
+    if (t.hasAttribute("data-photo-adopt")) photoQueue.adopt();
+    else if (t.hasAttribute("data-camera-open")) photoQueue.openCamera(t);
     else if (t.hasAttribute("data-camera-shoot")) photoQueue.shoot();
     else photoQueue.closeCamera();
 });

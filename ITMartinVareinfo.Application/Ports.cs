@@ -68,3 +68,8 @@ public sealed record VareinfoOptions
 
 /// <summary>A message for the person, in Danish - shown as it is.</summary>
 public sealed class VareinfoException(string message) : Exception(message);
+
+/// <summary>The photo's session is not there (any more) for this person - fx deleted while the photo waited on the phone
+/// (2026-10-29: Vibeke's first photos were thrown away like that). The photo itself is fine: the phone keeps it until a
+/// session is chosen, so the upload answers 409, not 400.</summary>
+public sealed class SessionGoneException() : Exception("Sessionen findes ikke længere - vælg en session, så sendes billedet.");

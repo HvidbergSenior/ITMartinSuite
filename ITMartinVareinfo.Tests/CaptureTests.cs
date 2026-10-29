@@ -129,6 +129,17 @@ public class CaptureTests
         (await capture.ScanAsync("9780552131063", _session.Id, _rico)).Should().Be(1);   // Lager has the first two - a new row
     }
 
+    // 2026-10-29: Vibeke's first photos waited on her phone while the session was deleted - and were thrown away as "afvist".
+    // A gone session is its own answer, so the phone keeps the photo and asks for a session instead.
+    [Test]
+    public async Task A_photo_for_a_deleted_session_is_told_apart_from_a_bad_photo()
+    {
+        var gone = await Sessions().StartAsync("Slettes");
+        await Sessions().DeleteAsync(gone.Id);
+
+        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), gone.Id, _rico)).Should().ThrowAsync<SessionGoneException>();
+    }
+
     [Test]
     public async Task A_photo_still_on_the_phone_lands_in_its_session_even_after_it_was_closed()
     {
@@ -136,7 +147,7 @@ public class CaptureTests
         await Sessions().CloseAsync(_session.Id);
 
         await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
-        await capture.Invoking(c => c.StoreAsync(new MemoryStream([1]), 0, _rico)).Should().ThrowAsync<VareinfoException>();
+        await capture.Invoking(c => c.StoreAsync(new MemoryStream([1]), 0, _rico)).Should().ThrowAsync<SessionGoneException>();
 
         (await capture.CountAsync(_session.Id)).Photos.Should().Be(1);
     }
@@ -148,8 +159,8 @@ public class CaptureTests
         await sessions.GiveAsync(_session.Id, new HelperChoice(_anna.Id, "Anna"));
         var ricos = await sessions.PracticeAsync(_rico);
 
-        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), _session.Id, _rico)).Should().ThrowAsync<VareinfoException>();
-        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), ricos.Id, _anna)).Should().ThrowAsync<VareinfoException>();
+        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), _session.Id, _rico)).Should().ThrowAsync<SessionGoneException>();
+        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), ricos.Id, _anna)).Should().ThrowAsync<SessionGoneException>();
         await Capture().StoreAsync(new MemoryStream([1]), _session.Id, _anna);
     }
 
