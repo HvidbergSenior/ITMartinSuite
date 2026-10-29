@@ -121,3 +121,29 @@ button.ss-grip { display: inline-flex; flex-direction: column; align-items: cent
 .ss-meter { position: relative; height: 1.4rem; border: 2px solid var(--k-text); border-radius: 6px; overflow: hidden; background: var(--k-card); margin: .5rem 0; }
 .ss-meter-bar { height: 100%; width: 0; background: var(--k-text); transition: width .05s linear; }
 .ss-meter-mid { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 2px dashed var(--k-muted); }
+
+/* Tekst med akkorder (2026-10-29): the sheet Martin pasted. Monospace keeps each chord over its word; chord lines are
+   bold with a line under them - weight, not colour, tells them apart. */
+.ss-sheet-input { width: 100%; font-family: ui-monospace, Consolas, monospace; white-space: pre; overflow-x: auto; }
+.ss-sheet { font-family: ui-monospace, Consolas, monospace; line-height: 1.35; overflow-x: auto; padding: .4rem 0; }
+.ss-sheet > div { white-space: pre; min-height: 1.35em; }
+.ss-sheet-chords { font-weight: 800; color: var(--k-text); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.ss-sheet-text { color: var(--k-text); }
+.ss-sheet-section { font-family: var(--k-font, inherit); font-weight: 700; font-size: .8em; text-transform: uppercase; letter-spacing: .04em;
+                    color: var(--k-muted); margin-top: .8em; border-top: 1px solid var(--k-border-3); padding-top: .3em; }
+.ss-sheet-blank { height: .6em; }
+
+/* "Vis mens jeg optager": the sheet stays on screen while the page scrolls to the part's Optag. Wide: a column on the
+   right (the page makes room). Phone: the lower half. */
+.ss-sheet-pinned { position: fixed; z-index: 50; background: var(--k-card); color: var(--k-text); border: 2px solid var(--k-text);
+                   overflow-y: auto; padding: 0 12px 12px; box-shadow: 0 4px 24px rgba(0,0,0,.25);
+                   left: 0; right: 0; bottom: 0; height: 48vh; border-radius: 12px 12px 0 0; }
+.ss-sheet-pinned-bar { position: sticky; top: 0; background: var(--k-card); display: flex; gap: .6rem; align-items: center;
+                       padding: .5rem 0; border-bottom: 1px solid var(--k-border-3); }
+.ss-sheet-pinned-bar span { color: var(--k-muted); }
+.ss-sheet-pinned-bar button { margin-left: auto; }
+body:has(.ss-sheet-pinned) { padding-bottom: 50vh; }
+@media (min-width: 900px) {
+    .ss-sheet-pinned { left: auto; top: 0; bottom: 0; right: 0; width: min(44vw, 38rem); height: auto; border-radius: 0; }
+    body:has(.ss-sheet-pinned) { padding-bottom: 0; padding-right: min(44vw, 38rem); }
+}

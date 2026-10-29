@@ -15,6 +15,9 @@ public sealed class SongDbContext(DbContextOptions<SongDbContext> options) : DbC
     internal const string CreateOwnProgressions =
         "CREATE TABLE IF NOT EXISTS OwnProgressions (Id TEXT NOT NULL PRIMARY KEY, Name TEXT NOT NULL, Chords TEXT NOT NULL, CreatedAt TEXT NOT NULL)";
 
+    /// <summary>Columns that came after the first Songs schema (the pasted chord sheet, 2026-10-29).</summary>
+    internal static readonly string[] AddedSongColumns = ["Sheet TEXT NOT NULL DEFAULT ''", "SheetShift INTEGER NOT NULL DEFAULT 0"];
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<SongRow>(e =>
@@ -75,6 +78,8 @@ public sealed class SongRow
     public int Bpm { get; set; }
     public string StrumId { get; set; } = "";
     public string PartsJson { get; set; } = "[]";
+    public string Sheet { get; set; } = "";
+    public int SheetShift { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -107,6 +112,8 @@ internal sealed class EfSongStore(IDbContextFactory<SongDbContext> factory) : IS
         row.Bpm = song.Bpm;
         row.StrumId = song.StrumId;
         row.UpdatedAt = song.UpdatedAt;
+        row.Sheet = song.Sheet;
+        row.SheetShift = song.SheetShift;
         row.PartsJson = JsonSerializer.Serialize(song.Parts.Select(p => new PartDto(p.Kind.ToString(), p.Chords.ToList(), p.ProgressionId, p.Notes)));
         await db.SaveChangesAsync(ct);
     }
@@ -123,6 +130,6 @@ internal sealed class EfSongStore(IDbContextFactory<SongDbContext> factory) : IS
             .Where(p => Enum.TryParse<PartKind>(p.Kind, out _))
             .Select(p => new SongPart(Enum.Parse<PartKind>(p.Kind), p.Chords, p.ProgressionId, p.Notes ?? ""));
         return Song.Restore(r.Id, r.Title, r.Mood, r.Capo, r.Bpm, r.StrumId, parts,
-            DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc), DateTime.SpecifyKind(r.UpdatedAt, DateTimeKind.Utc));
+            DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc), DateTime.SpecifyKind(r.UpdatedAt, DateTimeKind.Utc), r.Sheet, r.SheetShift);
     }
 }

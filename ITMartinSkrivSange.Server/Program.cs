@@ -25,6 +25,7 @@ builder.Services.AddKolibri(k =>
         "Akkorderne vises som greb (hvor fingrene skal sidde), og du kan høre dem slået, plukket eller begge dele.",
         "Tryk på en akkord for at få andre der ligner, og akkorder der lyder godt bagefter. Dine egne rækker gemmes som MartinChord.",
         "Du skriver tekstnoter til hver del undervejs.",
+        "Synger du en andens sang, sætter du selv teksten med akkorder ind - så står akkorderne i dine greb over ordene, mens du optager.",
     ];
     k.HowTo =
     [
@@ -35,11 +36,12 @@ builder.Services.AddKolibri(k =>
         "Tryk på en akkord for at skifte den ud eller sætte en ny ind efter den.",
         "Barré-greb højere oppe har et lille tal ved siden af: det bånd på halsen, hvor pegefingeren ligger - også når der sidder en capo.",
         "Vælg spillemåde (slag, pluk eller kombi), og tryk Spil for at høre en del. Skriv tekstnoter under akkorderne - det gemmes af sig selv.",
+        "Tekst med akkorder: kopiér sangen fra Ultimate Guitar (knappen Tekst og akkorder) og sæt den ind på sangens side. Akkorderne flyttes til dine greb og din capo; − og + flytter dem en halvtone. Vis mens jeg optager holder teksten på skærmen, mens du optager.",
         "Optag: tryk Optag, vent 2 sekunder før du spiller (så lærer appen rummets lyd og fjerner den), og spil. Optagelsen kommer under knappen.",
         "Del en optagelse: tryk Del ved den - så får du et link, som familie og venner kan lytte på uden kode. Del det ikke offentligt, når sangen er en andens.",
         "Vil du have den i dit galleri: tryk Del og så Læg i koncert-galleriet. Den kommer med på gallery.itmartin.dk/?g=koncert under sangens navn.",
     ];
-    k.Version = "2026.10.25";
+    k.Version = "2026.10.29";
 });
 
 builder.Services.AddSkrivSangeInfrastructure(builder.Configuration);

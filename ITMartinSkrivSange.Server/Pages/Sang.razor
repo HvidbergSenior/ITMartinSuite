@@ -36,11 +36,49 @@ else
             }
             <a class="k-btn k-btn-ghost" href="/sange">Mine sange</a>
         </div>
-        @if (LyricsLink.For(_song.Title) is not null)
+        @if (LyricsLink.For(_song.Title) is not null && !_song.HasSheet)
         {
-            <p class="k-help">Teksten gemmes ikke her (ophavsret). <b>Tekst og akkorder</b> åbner sangen på Ultimate Guitar i en ny fane - vælg den øverste med "Chords". Hav den åben ved siden af, mens du indspiller.</p>
+            <p class="k-help"><b>Tekst og akkorder</b> åbner sangen på Ultimate Guitar i en ny fane. Kopiér den derfra og sæt den ind i <b>Tekst med akkorder</b> herunder - så står akkorderne i dine greb over teksten.</p>
         }
     </section>
+
+    <section class="k-card" data-fold-closed="@(_song.HasSheet ? null : "")">
+        <h2 class="k-card-title">Tekst med akkorder</h2>
+        @if (!_song.HasSheet || _editingSheet)
+        {
+            <p class="k-help">Sæt sangens tekst med akkorderne over ind her: marker det hele på Ultimate Guitar (eller dit eget ark), kopiér, og sæt det ind. Akkorderne flyttes af sig selv til sangens greb og capo - teksten bliver som du satte den ind. Den gemmes kun her i din egen SkrivSange.</p>
+            <textarea class="k-input ss-sheet-input" rows="12" @bind="_sheetText" placeholder="Fx:&#10;[Vers]&#10;E        F#m7     B7&#10;(linje med tekst)"></textarea>
+            <div class="ss-row">
+                <button class="k-btn k-btn-primary" @onclick="SaveSheet" disabled="@string.IsNullOrWhiteSpace(_sheetText)">Gem teksten</button>
+                @if (_editingSheet) { <button class="k-btn k-btn-ghost" @onclick="() => _editingSheet = false">Fortryd</button> }
+            </div>
+        }
+        else
+        {
+            <p class="k-help">Akkorderne står i dine greb med <b>capo @_song.Capo</b>@(_song.SheetShift == 0 ? "" : $" (flyttet {(_song.SheetShift > 0 ? "+" : "")}{_song.SheetShift} halvtoner fra arket)"). Passer de ikke, så flyt dem med <b>−</b> og <b>+</b>. <b>Vis mens jeg optager</b> holder teksten fast på skærmen, mens du går ned og trykker Optag.</p>
+            <div class="ss-row">
+                <button class="k-btn k-btn-primary" @onclick="() => _sheetPinned = !_sheetPinned">@(_sheetPinned ? "Skjul ved siden af" : "Vis mens jeg optager")</button>
+                <button class="k-btn k-btn-secondary" @onclick="() => Do(s => Writing.ShiftSheetAsync(s, -1))" aria-label="Akkorderne en halvtone ned">− halvtone</button>
+                <button class="k-btn k-btn-secondary" @onclick="() => Do(s => Writing.ShiftSheetAsync(s, 1))" aria-label="Akkorderne en halvtone op">+ halvtone</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => _sheetSize = Math.Max(0.8, _sheetSize - 0.15)">Mindre skrift</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => _sheetSize = Math.Min(2.2, _sheetSize + 0.15)">Større skrift</button>
+                <button class="k-btn k-btn-ghost" @onclick="EditSheet">Ret teksten</button>
+                <button class="k-btn k-btn-ghost" @onclick="() => Do(s => Writing.ClearSheetAsync(s))">Fjern teksten</button>
+            </div>
+            @if (!_sheetPinned) { <SheetView Lines="_song.SheetLines" Size="_sheetSize" /> }
+        }
+    </section>
+
+    @if (_song.HasSheet && _sheetPinned && !_editingSheet)
+    {
+        <aside class="ss-sheet-pinned" aria-label="Tekst med akkorder">
+            <div class="ss-sheet-pinned-bar">
+                <b>@_song.Title</b> <span>capo @_song.Capo</span>
+                <button class="k-btn k-btn-ghost" @onclick="() => _sheetPinned = false">Luk</button>
+            </div>
+            <SheetView Lines="_song.SheetLines" Size="_sheetSize" />
+        </aside>
+    }
 
     <section class="k-card">
         <h2 class="k-card-title">Sangen: titel, stemning, capo, tempo, spillemåde</h2>
@@ -495,6 +533,19 @@ else
     private int? _barreLeft;
 
     private Task Easiest() => Do(async s => _barreLeft = await Writing.EasiestGripsAsync(s));
+
+    private string _sheetText = "";
+    private bool _editingSheet;
+    private bool _sheetPinned;
+    private double _sheetSize = 1.15;      // rem
+
+    private async Task SaveSheet()
+    {
+        await Do(s => Writing.PasteSheetAsync(s, _sheetText));
+        if (_error is null) { _editingSheet = false; _sheetText = ""; }
+    }
+
+    private void EditSheet() { _sheetText = _song?.Sheet ?? ""; _editingSheet = true; }
     private System.Threading.Timer? _notesTimer;
     private DotNetObjectReference<Sang>? _self;
 

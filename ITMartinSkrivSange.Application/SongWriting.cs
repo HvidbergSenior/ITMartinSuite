@@ -91,6 +91,11 @@ public sealed class SongWriting(ISongStore store, IOwnProgressionStore own, Time
 
     public Task WriteNotesAsync(Song song, PartKind kind, string? notes, CancellationToken ct = default) => Change(song, s => s.WriteNotes(kind, notes, Now), ct);
 
+    // The chord sheet Martin pastes himself (user 2026-10-29: the text with the chords while recording) - the app never fetches lyrics.
+    public Task PasteSheetAsync(Song song, string? sheet, CancellationToken ct = default) => Change(song, s => s.PasteSheet(sheet, Now), ct);
+    public Task ShiftSheetAsync(Song song, int semitones, CancellationToken ct = default) => Change(song, s => s.ShiftSheet(semitones, Now), ct);
+    public Task ClearSheetAsync(Song song, CancellationToken ct = default) => Change(song, s => s.ClearSheet(Now), ct);
+
     public Task DeleteAsync(Song song, CancellationToken ct = default) => store.DeleteAsync(song.Id, ct);
 
     private async Task Change(Song song, Action<Song> change, CancellationToken ct)

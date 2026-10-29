@@ -1,0 +1,27 @@
+@* The pasted chord sheet: chord lines bold (in the song's grips), text as pasted, sections as small headings. Monospace,
+   so every chord stays over its word. Chords get a frame and weight, not only a colour (user is a bit colour-blind). *@
+<div class="ss-sheet" style="font-size: @(Size.ToString(System.Globalization.CultureInfo.InvariantCulture))rem">
+    @foreach (var line in Lines)
+    {
+        @switch (line.Kind)
+        {
+            case SheetLineKind.Section:
+                <div class="ss-sheet-section">@line.Text</div>
+                break;
+            case SheetLineKind.Chords:
+                <div class="ss-sheet-chords">@line.Text</div>
+                break;
+            case SheetLineKind.Text:
+                <div class="ss-sheet-text">@line.Text</div>
+                break;
+            default:
+                <div class="ss-sheet-blank"></div>
+                break;
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SheetLine> Lines { get; set; } = [];
+    [Parameter] public double Size { get; set; } = 1.15;
+}

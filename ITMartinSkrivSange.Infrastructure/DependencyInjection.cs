@@ -38,6 +38,9 @@ public static class DependencyInjection
                 Directory.CreateDirectory(dir);
             songDb.Database.EnsureCreated();
             songDb.Database.ExecuteSqlRaw(SongDbContext.CreateOwnProgressions);
+            var songColumns = songDb.Database.SqlQueryRaw<string>("SELECT name AS Value FROM pragma_table_info('Songs')").ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var column in SongDbContext.AddedSongColumns.Where(c => !songColumns.Contains(c.Split(' ')[0])))
+                songDb.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN " + column);
         }
 
         // The studio's db sits on the NAS share. When it can't be reached, the new songs still work - only the old drafts are gone.

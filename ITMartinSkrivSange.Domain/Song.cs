@@ -49,6 +49,14 @@ public sealed class Song
     public DateTime UpdatedAt { get; private set; }
     public IReadOnlyList<SongPart> Parts => _parts;
 
+    /// <summary>The chord sheet (text with chords over it) Martin pasted himself, kept as pasted. Empty = none.</summary>
+    public string Sheet { get; private set; } = "";
+
+    /// <summary>Half steps the sheet's chords are moved to meet the song's grips (-2 = a sheet in E played in D grips).</summary>
+    public int SheetShift { get; private set; }
+
+    public bool HasSheet => Sheet.Trim().Length > 0;
+
     private Song(Guid id, string title, string mood, int capo, int bpm, string strumId, IEnumerable<SongPart> parts, DateTime createdAt, DateTime updatedAt)
     {
         (Id, Title, Mood, Capo, Bpm, StrumId, CreatedAt, UpdatedAt) = (id, title, mood, capo, bpm, strumId, createdAt, updatedAt);
@@ -61,10 +69,44 @@ public sealed class Song
         new(Guid.NewGuid(), CleanTitle(title), ProgressionLibrary.Moods[0], 0, DefaultBpm, Strums.Default.Id, [], nowUtc, nowUtc);
 
     /// <summary>Rebuilds a stored song. Values outside the rules are pulled back inside instead of failing.</summary>
-    public static Song Restore(Guid id, string title, string mood, int capo, int bpm, string strumId, IEnumerable<SongPart> parts, DateTime createdAt, DateTime updatedAt) =>
+    public static Song Restore(Guid id, string title, string mood, int capo, int bpm, string strumId, IEnumerable<SongPart> parts, DateTime createdAt, DateTime updatedAt,
+        string? sheet = null, int sheetShift = 0) =>
         new(id, string.IsNullOrWhiteSpace(title) ? "Uden titel" : title.Trim(),
             ProgressionLibrary.Moods.Contains(mood) ? mood : ProgressionLibrary.Moods[0],
-            Math.Clamp(capo, 0, Domain.Capo.Max), Math.Clamp(bpm, MinBpm, MaxBpm), Strums.Find(strumId).Id, parts, createdAt, updatedAt);
+            Math.Clamp(capo, 0, Domain.Capo.Max), Math.Clamp(bpm, MinBpm, MaxBpm), Strums.Find(strumId).Id, parts, createdAt, updatedAt)
+        {
+            Sheet = CleanSheet(sheet),
+            SheetShift = Math.Clamp(sheetShift, -11, 11),
+        };
+
+    /// <summary>The chord sheet Martin pasted. The chords are moved to the song's grips at once (a sheet in E, the song
+    /// in D grips with capo 2 -> moved -2); <see cref="ShiftSheet"/> moves them further by hand.</summary>
+    public void PasteSheet(string? sheet, DateTime nowUtc)
+    {
+        Sheet = CleanSheet(sheet);
+        if (!HasSheet) throw new SongException("Sæt teksten med akkorder ind først.");
+        SheetShift = ChordSheet.BestShift(Sheet, _parts.SelectMany(p => p.Chords), Capo);
+        Touch(nowUtc);
+    }
+
+    public void ShiftSheet(int semitones, DateTime nowUtc)
+    {
+        if (!HasSheet) return;
+        var s = (SheetShift + semitones) % 12;
+        SheetShift = s > 6 ? s - 12 : s < -6 ? s + 12 : s;
+        Touch(nowUtc);
+    }
+
+    public void ClearSheet(DateTime nowUtc) { Sheet = ""; SheetShift = 0; Touch(nowUtc); }
+
+    /// <summary>The sheet as lines, chords moved to the song's grips.</summary>
+    public IReadOnlyList<SheetLine> SheetLines => HasSheet ? ChordSheet.Lines(Sheet, SheetShift) : [];
+
+    private static string CleanSheet(string? sheet)
+    {
+        var s = (sheet ?? "").Replace("\r\n", "\n").TrimEnd();
+        return s.Length > ChordSheet.MaxLength ? s[..ChordSheet.MaxLength] : s;
+    }
 
     public SongPart Part(PartKind kind) => _parts[(int)kind];
 
