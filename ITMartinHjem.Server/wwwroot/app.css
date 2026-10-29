@@ -65,6 +65,9 @@
 .hj-nav a:hover { color: var(--k-accent); }
 .hj-page h1 { margin: 0 0 12px; font-size: 1.7rem; }
 .hj-page h2 { font-size: 1.2rem; margin: 18px 0 8px; }
+/* The box title itself starts at the top like every other box (2026-10-29 user: "spacing on Spørgsmål" - the folded
+   "Søg i spørgsmålene" box got the 18px meant for headings inside the text). */
+.hj-page > h2.k-card-title, .hj-page > h2:first-child { margin-top: 0; }
 .hj-page p { margin: 0 0 10px; }
 .hj-page ul { margin: 0 0 12px; padding-left: 1.2em; display: grid; gap: 4px; }
 .tm-img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 10px; margin: 8px 0; display: block; }
