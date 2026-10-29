@@ -35,7 +35,8 @@ public sealed class SongException(string message) : Exception(message);
 // A song being written: title, mood, capo, tempo, strum, and the six parts.
 public sealed class Song
 {
-    public const int MaxTitle = 80, MaxNotes = 4000, MaxChords = 8, MinBpm = 40, MaxBpm = 200, DefaultBpm = 90;
+    // MaxChords was 8 (Foreslå makes 4-chord rows); real songs from chord sheets need whole verses in one part (2026-10-29).
+    public const int MaxTitle = 80, MaxNotes = 4000, MaxChords = 32, MinBpm = 40, MaxBpm = 200, DefaultBpm = 90;
 
     private readonly List<SongPart> _parts;
 
