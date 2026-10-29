@@ -35,6 +35,10 @@ public sealed class FeedbackUseCases(IFeedbackStore store, IOwnerInbox inbox, Ti
     public async Task<List<Feedback>> AllAsync(CancellationToken ct = default) =>
         (await store.AllAsync(ct)).OrderByDescending(f => f.CreatedAt).ToList();
 
+    /// <summary>What Martin has not answered or shown yet, oldest first - "Venter på dig" on Min side.</summary>
+    public async Task<List<Feedback>> WaitingAsync(CancellationToken ct = default) =>
+        (await store.AllAsync(ct)).Where(f => f.Waiting).OrderBy(f => f.CreatedAt).ToList();
+
     public Task<bool> ShowAsync(int id, string? reply, CancellationToken ct = default) => store.UpdateAsync(id, f => f.Show(reply), ct);
     public Task<bool> HideAsync(int id, CancellationToken ct = default) => store.UpdateAsync(id, f => f.Hide(), ct);
     public Task<bool> AnswerAsync(int id, string? reply, CancellationToken ct = default) => store.UpdateAsync(id, f => f.Answer(reply), ct);

@@ -1,9 +1,10 @@
 @page "/admin"
-<PageTitle>Svar · Martin Hvidberg</PageTitle>
+<PageTitle>Min side · Martin Hvidberg</PageTitle>
 @implements IDisposable
 @inject OwnerUseCases Owner
 @inject ChatUseCases Chat
 @inject PublicQuestions Questions
+@inject FeedbackUseCases Feedbacks
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -18,27 +19,47 @@
     return;
 }
 
+@* Martin's own page (user 2026-10-29 "yes build it"): what is waiting first, then the daily things (Beskeder, Min dag,
+   Opslag), then what is rarely changed - folded. *@
 <header class="hj-head">
-    <h1>Din side</h1>
-    <p class="k-help">Her svarer du på beskeder, skriver hvad du laver lige nu, og lægger billeder, videoer, lyd og dokumenter på tidslinjen. <a href="/">Se forsiden</a> · <a href="/admin/tal">📊 Tal</a> · <a href="/logout">Log ud</a></p>
+    <h1>Min side</h1>
+    <p class="k-help">Her svarer du på det, folk har skrevet, skriver din dag og lægger opslag på siden. Det, du sjældent retter, ligger lukket nederst – tryk på overskriften for at åbne det.</p>
+    <div class="k-row">
+        <a class="k-btn k-btn-sm" href="/">Se forsiden</a>
+        <a class="k-btn k-btn-sm" href="/admin/tal">Tal</a>
+        <a class="k-btn k-btn-sm k-btn-ghost" href="/logout">Log ud</a>
+    </div>
 </header>
 
-@* One answer first: am I available, and is anybody waiting? *@
+@* One answer first: am I available, and is anybody waiting - chats and Kritik (ros/ris/forslag) in one place. *@
 <section class="k-card hj-avail" data-nofold>
+    <div class="k-card-title">Venter på dig</div>
     <label class="hj-switch">
         <input type="checkbox" checked="@_s.Available" @onchange="ToggleAvailableAsync" />
-        <span><b>@(_s.Available ? "🟢 Jeg er her nu" : "⚪ Jeg er ikke ved skærmen")</b><br />
+        <span><b>@(_s.Available ? "Jeg er her nu" : "Jeg er ikke ved skærmen")</b><br />
         <span class="k-help">@(_s.Available ? "Besøgende ser, at du svarer med det samme." : "Besøgende kan stadig skrive – du får en besked på telefonen.")</span></span>
     </label>
+    @if (_unread == 0 && _kritik.Count == 0) { <p class="k-help">Der venter ikke noget lige nu.</p> }
     @if (_unread > 0)
     {
         @* Tapping it opens the newest waiting conversation (user 2026-09-29: "kan ikke åbne de ventende beskeder"). *@
-        <button class="hj-unread k-btn k-btn-primary" @onclick="OpenNewestUnreadAsync">💬 @_unread @(_unread == 1 ? "samtale venter" : "samtaler venter") på svar – tryk for at læse</button>
+        <button class="hj-unread k-btn k-btn-primary" @onclick="OpenNewestUnreadAsync">@_unread @(_unread == 1 ? "samtale venter" : "samtaler venter") på svar – tryk for at læse</button>
+    }
+    @if (_kritik.Count > 0)
+    {
+        <p class="k-mt"><b>@_kritik.Count på Kritik</b> venter på dit svar:</p>
+        <ul class="hj-qa-admin">
+            @foreach (var f in _kritik.Take(3))
+            {
+                <li><span><span class="k-tag">@FeedbackRules.Title(f.Kind)</span> @(f.Text.Length > 90 ? f.Text[..90] + "…" : f.Text)</span></li>
+            }
+        </ul>
+        <a class="k-btn k-btn-primary" href="/kritik">Svar på Kritik</a>
     }
 </section>
 
 <section class="k-card">
-    <div class="k-card-title">💬 Beskeder</div>
+    <div class="k-card-title">Beskeder</div>
     @if (_threads.Count == 0)
     {
         <p class="k-help">Ingen beskeder endnu. Når nogen skriver på forsiden, dukker det op her – og på telefonen, hvis du har slået beskeder til nederst.</p>
@@ -78,57 +99,14 @@
     }
 </section>
 
-@* Public Q&A from the chat, no names (user 2026-10-12). Nothing is public until Martin presses Læg op. *@
-<section class="k-card" id="spoergsmaal">
-    <div class="k-card-title">💬 Det spørger folk om (offentligt)</div>
-    <p class="k-help">Spørgsmål fra chatten, som alle kan se på <a href="/spoergsmaal" target="_blank">itmartin.dk/spoergsmaal</a> og på forsiden – <b>uden navne</b>.
-        Tryk "Vis på Det spørger folk om" under en samtale, og vælg om det hører til ITMartin.dk eller Bogshoppen.dk. Navn, e-mail og telefonnummer fjernes af sig selv – læs teksten igennem og ret resten, før du lægger den op.
-        Giv den et <b>emne</b> (fx Budget, Billeder), så folk kan finde de andre spørgsmål om det samme.</p>
-    @if (_qaOpen)
-    {
-        <label class="k-label">❓ Spørgsmålet (som de besøgende ser det)</label>
-        <textarea class="k-input k-textarea" @bind="_qaQ" rows="3" maxlength="1000"></textarea>
-        <label class="k-label">💬 Dit svar</label>
-        <textarea class="k-input k-textarea" @bind="_qaA" rows="5" maxlength="3000"></textarea>
-        <label class="k-label">🌐 Hvor skal det vises?</label>
-        <div class="k-row">
-            <label><input type="radio" name="qa-site" checked="@(_qaSite == QuestionRules.ITMartin)" @onchange="() => _qaSite = QuestionRules.ITMartin" /> ITMartin.dk</label>
-            <label><input type="radio" name="qa-site" checked="@(_qaSite == QuestionRules.Bogshoppen)" @onchange="() => _qaSite = QuestionRules.Bogshoppen" /> Bogshoppen.dk</label>
-        </div>
-        <label class="k-label">🏷️ Emne</label>
-        <input class="k-input" @bind="_qaTopic" list="qa-topics" maxlength="40" placeholder="fx Budget, Billeder, ElPriser, Apps" />
-        <datalist id="qa-topics">@foreach (var t in _qaTopics) { <option value="@t" /> }</datalist>
-        <div class="k-row k-mt">
-            <button class="k-btn k-btn-primary" @onclick="SaveQaAsync">@(_qaEditId is null ? "👁 Læg op – uden navn" : "Gem ændringer")</button>
-            <button class="k-btn k-btn-ghost" @onclick="() => _qaOpen = false">Annuller</button>
-        </div>
-    }
-    @if (_qaNote.Length > 0) { <p class="k-help">@_qaNote</p> }
-    @if (_qaAll.Count == 0) { <p class="k-help">Ingen spørgsmål lagt op endnu.</p> }
-    else
-    {
-        <ul class="hj-qa-admin">
-            @foreach (var q in _qaAll.OrderByDescending(q => q.PublishedAt))
-            {
-                <li>
-                    <span><span class="k-tag">@(q.Site == QuestionRules.Bogshoppen ? "📚 " : "")@q.Topic</span> @(q.Question.Length > 90 ? q.Question[..90] + "…" : q.Question)</span>
-                    <button class="k-btn k-btn-sm" @onclick="() => EditQa(q)">Ret</button>
-                    @if (_qaConfirmRemove == q.Id) { <button class="k-btn k-btn-sm k-btn-danger" @onclick="() => RemoveQaAsync(q.Id)">Ja, fjern</button> }
-                    else { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _qaConfirmRemove = q.Id">Fjern</button> }
-                </li>
-            }
-        </ul>
-    }
-</section>
-
 @if (_checking)
 {
-    <div class="hj-review"><b>✨ AI læser din tekst igennem…</b></div>
+    <div class="hj-review"><b>AI læser din tekst igennem…</b></div>
 }
 else if (_review is { } rv)
 {
     <div class="hj-review">
-        <b>✨ AI's forslag</b>
+        <b>AI's forslag</b>
         @if (rv.Changed)
         {
             <div class="hj-review-text">@rv.Suggested</div>
@@ -149,17 +127,17 @@ else if (_review is { } rv)
 }
 
 <section class="k-card" id="lige-nu">
-    <div class="k-card-title">📌 Min dag</div>
-    <p class="k-help">✨ Al tekst, du gemmer eller sender i Svar, bliver læst igennem af AI: stavefejl, opgaver i punktform og ting der kan misforstås. Du vælger selv, om du vil bruge forslaget. Tekst du ikke har ændret, bliver ikke tjekket igen.</p>
+    <div class="k-card-title">Min dag</div>
+    <p class="k-help">Al tekst, du gemmer eller sender her, bliver læst igennem af AI: stavefejl, opgaver i punktform og ting der kan misforstås. Du vælger selv, om du vil bruge forslaget. Tekst du ikke har ændret, bliver ikke tjekket igen.</p>
     <p class="k-help"><b>Saml din dag:</b> skriv om morgenen, hvad du regner med at lave. I løbet af dagen tager du billeder eller skriver en linje, hver gang der sker noget.
         Om aftenen skriver du, hvad det egentlig blev til. Hvert billede eller hver linje bliver et punkt med klokkeslæt på siden "Hvad laver ITKolibrien lige nu?". I morgen starter en ny dag af sig selv – de tidligere dage kan stadig ses længere nede.</p>
-    <label class="k-label">🌅 I morges: hvad regner du med at lave i dag? <span class="k-help">(én opgave pr. linje)</span></label>
+    <label class="k-label">I morges: hvad regner du med at lave i dag? <span class="k-help">(én opgave pr. linje)</span></label>
     <textarea class="k-input k-textarea" @bind="_today.Plan" maxlength="2000" rows="4" placeholder="@PlanHint"></textarea>
-    <label class="k-label">🌙 I aften: hvad fik du lavet? <span class="k-help">(én ting pr. linje)</span></label>
+    <label class="k-label">I aften: hvad fik du lavet? <span class="k-help">(én ting pr. linje)</span></label>
     <textarea class="k-input k-textarea" @bind="_today.Done" maxlength="2000" rows="4" placeholder="Skriv det i aften – det må gerne være noget helt andet 🙂"></textarea>
     <button class="k-btn k-btn-primary k-mt" @onclick="SaveTodayAsync">Gem planen</button>
     @if (_todayNote.Length > 0) { <span class="k-help"> @_todayNote</span> }
-    <label class="k-label k-mt">📍 I løbet af dagen: skriv en linje og/eller tag et billede</label>
+    <label class="k-label k-mt">I løbet af dagen: skriv en linje og/eller tag et billede</label>
     <textarea class="k-input k-textarea" @bind="_dayText" @bind:event="oninput" maxlength="600" rows="2" placeholder="Hvad laver du nu? (kan springes over)" aria-label="Hvad laver du nu?"></textarea>
     <div class="k-row k-mt">
         <label class="k-btn k-btn-primary">📷 Tag billede<InputFile OnChange="OnDayPhotosAsync" accept="image/*" capture="environment" style="display:none" /></label>
@@ -198,17 +176,12 @@ else if (_review is { } rv)
     <p class="k-help">YouTube-, Twitch- og Vimeo-links (også direkte udsendelser) afspilles på siden. Andre links bliver en "▶ Se med"-knap. Et link vises i stedet for billedet/filmen.
         <b>Sådan streamer du fra telefonen:</b> åbn YouTube-appen → <b>+</b> → <b>Gå live</b> (Go live), og kopiér linket til udsendelsen herind.</p>
     </details>
-    <details class="k-mt" data-remember="adm-intro">
-        <summary>Navn og introtekst</summary>
-        <label class="k-label">Navn</label><input class="k-input" @bind="_s.Name" maxlength="80" />
-        <label class="k-label">Intro (under navnet)</label><textarea class="k-input k-textarea" @bind="_s.Intro" maxlength="400"></textarea>
-    </details>
     <button class="k-btn k-btn-primary k-mt" @onclick="SaveNowTextAsync">Gem</button>
     @if (_savedNote.Length > 0) { <span class="k-help"> @_savedNote</span> }
 </section>
 
 <section class="k-card" id="opslag">
-    <div class="k-card-title">@(_edit.Id == 0 ? "➕ Nyt opslag" : "✏️ Ret opslag")</div>
+    <div class="k-card-title">@(_edit.Id == 0 ? "Nyt opslag" : "Ret opslag")</div>
     <p class="k-help">Vælg billeder, videoer, lyd eller dokumenter fra telefonen eller PC'en. Datoen bliver sat fra det første billede, hvis det har en – ellers i dag. Du kan rette den.</p>
     <label class="k-label">Overskrift (valgfri)</label>
     <input class="k-input" @bind="_edit.Title" maxlength="140" />
@@ -240,10 +213,10 @@ else if (_review is { } rv)
     </div>
 </section>
 
-<section class="k-card">
-    <div class="k-card-title">📚 Opslag (@_posts.Count)</div>
+<section class="k-card" data-fold-closed>
+    <div class="k-card-title">Dine opslag (@_posts.Count)</div>
     @if (_posts.Count == 0) { <p class="k-help">Ingen opslag endnu – lav det første ovenfor.</p> }
-    @foreach (var p in _posts)
+    @foreach (var p in _allPosts ? _posts : _posts.Take(5))
     {
         <div class="appl-row hj-admin-post">
             <span>@p.At.ToString("d/M yyyy") @(p.Visibility == Visibility.Familie ? "🔒" : "🌍") <b>@(p.Title.Length > 0 ? p.Title : Short(p.Body))</b> <span class="k-help">@p.Media.Count filer</span></span>
@@ -254,10 +227,54 @@ else if (_review is { } rv)
             </span>
         </div>
     }
+    @if (_posts.Count > 5 && !_allPosts) { <button class="k-btn k-btn-sm k-mt" @onclick="() => _allPosts = true">Vis alle @_posts.Count</button> }
 </section>
 
-<section class="k-card" id="sider">
-    <div class="k-card-title">📄 Sider (@_pages.Count)</div>
+@* Public Q&A from the chat, no names (user 2026-10-12). Nothing is public until Martin presses Læg op. *@
+<section class="k-card" id="spoergsmaal" data-fold-closed>
+    <div class="k-card-title">Det spørger folk om (offentligt)</div>
+    <p class="k-help">Spørgsmål fra chatten, som alle kan se på <a href="/spoergsmaal" target="_blank">itmartin.dk/spoergsmaal</a> og på forsiden – <b>uden navne</b>.
+        Tryk "Vis på Det spørger folk om" under en samtale, og vælg om det hører til ITMartin.dk eller Bogshoppen.dk. Navn, e-mail og telefonnummer fjernes af sig selv – læs teksten igennem og ret resten, før du lægger den op.
+        Giv den et <b>emne</b> (fx ElPriser, Billeder), så folk kan finde de andre spørgsmål om det samme.</p>
+    @if (_qaOpen)
+    {
+        <label class="k-label">Spørgsmålet (som de besøgende ser det)</label>
+        <textarea class="k-input k-textarea" @bind="_qaQ" rows="3" maxlength="1000"></textarea>
+        <label class="k-label">Dit svar</label>
+        <textarea class="k-input k-textarea" @bind="_qaA" rows="5" maxlength="3000"></textarea>
+        <label class="k-label">Hvor skal det vises?</label>
+        <div class="k-row">
+            <label><input type="radio" name="qa-site" checked="@(_qaSite == QuestionRules.ITMartin)" @onchange="() => _qaSite = QuestionRules.ITMartin" /> ITMartin.dk</label>
+            <label><input type="radio" name="qa-site" checked="@(_qaSite == QuestionRules.Bogshoppen)" @onchange="() => _qaSite = QuestionRules.Bogshoppen" /> Bogshoppen.dk</label>
+        </div>
+        <label class="k-label">Emne</label>
+        <input class="k-input" @bind="_qaTopic" list="qa-topics" maxlength="40" placeholder="fx ElPriser, Temperatur, Stem, Billeder" />
+        <datalist id="qa-topics">@foreach (var t in _qaTopics) { <option value="@t" /> }</datalist>
+        <div class="k-row k-mt">
+            <button class="k-btn k-btn-primary" @onclick="SaveQaAsync">@(_qaEditId is null ? "👁 Læg op – uden navn" : "Gem ændringer")</button>
+            <button class="k-btn k-btn-ghost" @onclick="() => _qaOpen = false">Annuller</button>
+        </div>
+    }
+    @if (_qaNote.Length > 0) { <p class="k-help">@_qaNote</p> }
+    @if (_qaAll.Count == 0) { <p class="k-help">Ingen spørgsmål lagt op endnu.</p> }
+    else
+    {
+        <ul class="hj-qa-admin">
+            @foreach (var q in _qaAll.OrderByDescending(q => q.PublishedAt))
+            {
+                <li>
+                    <span><span class="k-tag">@(q.Site == QuestionRules.Bogshoppen ? "📚 " : "")@q.Topic</span> @(q.Question.Length > 90 ? q.Question[..90] + "…" : q.Question)</span>
+                    <button class="k-btn k-btn-sm" @onclick="() => EditQa(q)">Ret</button>
+                    @if (_qaConfirmRemove == q.Id) { <button class="k-btn k-btn-sm k-btn-danger" @onclick="() => RemoveQaAsync(q.Id)">Ja, fjern</button> }
+                    else { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _qaConfirmRemove = q.Id">Fjern</button> }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+<section class="k-card" id="sider" data-fold-closed>
+    <div class="k-card-title">Sider (@_pages.Count)</div>
     <p class="k-help">Dine faste sider – Om mig, Kontakt, Ydelser, Priser … Adressen er fx <b>om-mig</b> eller <b>ydelser/cloud</b>; en side med "/" bliver vist under sin forælder. Skriv <b>## </b> for en overskrift, <b>*</b> for en punktliste, <b>**fed**</b> og <b>[tekst](/kontakt)</b> for et link.</p>
     @foreach (var p in _pages)
     {
@@ -298,9 +315,9 @@ else if (_review is { } rv)
     }
 </section>
 
-<section class="k-card" id="apps">
-    <div class="k-card-title">🧩 Mine apps på siden</div>
-    <p class="k-help">Siden <a href="/mine-apps" target="_blank">/mine-apps</a> viser de apps, der har flueben i "Vis". En app, der er slukket, vises som "sover lige nu" i stedet for en fejl. Ret tekst eller rækkefølge, og tryk Gem.</p>
+<section class="k-card" id="apps" data-fold-closed>
+    <div class="k-card-title">Mine apps på siden</div>
+    <p class="k-help"><b>Sæt kun flueben i Vågen ved en app, der er færdig og i drift</b> – siden sender folk til de vågne apps. (Det her flytter til ITMartin Admin senere.) Siden <a href="/mine-apps" target="_blank">/mine-apps</a> viser de apps, der har flueben i "Vis". En app, der er slukket, vises som "sover lige nu" i stedet for en fejl. Ret tekst eller rækkefølge, og tryk Gem.</p>
     @foreach (var a in _appLinks)
     {
         <div class="hj-admin-app">
@@ -322,8 +339,12 @@ else if (_review is { } rv)
     </div>
 </section>
 
-<section class="k-card">
-    <div class="k-card-title">📱 Besked på telefonen</div>
+<section class="k-card" data-fold-closed>
+    <div class="k-card-title">Indstillinger</div>
+    <label class="k-label">Navn</label><input class="k-input" @bind="_s.Name" maxlength="80" />
+    <label class="k-label">Intro (under navnet)</label><textarea class="k-input k-textarea" @bind="_s.Intro" maxlength="400"></textarea>
+    <button class="k-btn k-btn-primary k-mt" @onclick="SaveNowTextAsync">Gem navn og intro</button>
+    <div class="k-label k-mt">Besked på telefonen</div>
     <p class="k-help">Slå det til på den telefon, du vil have besked på, når nogen skriver. <b>iPhone:</b> læg først siden på hjemskærmen (Del → Føj til hjemmeskærm), og åbn den derfra. <b>Android/PC:</b> tryk bare på knappen.</p>
     <p>Status: <b>@PushLabel</b></p>
     <div class="k-row">
@@ -331,6 +352,7 @@ else if (_review is { } rv)
         @if (_push == "on") { <button class="k-btn" @onclick="TestAsync">Send en prøve</button> }
     </div>
 </section>
+
 
 @code {
     // Razor encodes "&#10;" in an attribute literally - real line breaks come from a C# string.
@@ -344,6 +366,8 @@ else if (_review is { } rv)
     private List<ChatThread> _threads = [];
     private ChatThread? _open;
     private int _openId, _unread, _confirmDeletePost;
+    private List<Feedback> _kritik = [];   // Kritik (ros/ris/forslag) not answered or shown yet
+    private bool _allPosts;
     private string _reply = "", _savedNote = "", _uploadNote = "", _push = "…";
     private List<Post> _posts = [];
     private Post _edit = NewDraft();
@@ -358,6 +382,7 @@ else if (_review is { } rv)
         if (!_owner) return;
         _s = await Owner.SettingsAsync();
         await LoadThreadsAsync();
+        _kritik = await Feedbacks.WaitingAsync();
         await LoadQaAsync();
         await LoadPostsAsync();
         await LoadPagesAsync();

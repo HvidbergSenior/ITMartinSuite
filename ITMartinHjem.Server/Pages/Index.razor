@@ -5,6 +5,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject Customers Kartotek
+@inject FeedbackUseCases Feedbacks
 
 @* The front page = three things (user 2026-10-27: "more tabs and fewer boxes" -> "do it"): the head box (who, and the two next
    steps), one "Vidste du …" and the sign-up. Who Martin is, the tiles and his posts are on the Om mig tab (/om-itmartin);
@@ -35,7 +36,7 @@
         <a class="k-btn k-btn-primary" href="#bliv-kunde">Skriv mig op – gratis</a>
         <a class="k-btn" href="/mine-apps">Se mine gratis apps</a>
     </div>
-    @if (_owner) { <a class="k-btn k-btn-sm" href="/admin">Skriv opslag / svar beskeder</a> }
+    @if (_owner) { <a class="k-btn k-btn-sm @(_waiting > 0 ? "k-btn-primary" : "")" href="/admin">Min side@(_waiting > 0 ? $" ({_waiting} venter)" : "")</a> }
 </header>
 
 <CascadingValue Name="Plain" Value="true">
@@ -75,6 +76,7 @@
     public const string CollabSlug = PageRules.Collab;
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
+    private int _waiting;   // Martin only: chats without an answer + Kritik not answered or shown
     private readonly MartinPhotos.Photo _photo = MartinPhotos.Now;
 
     // Facts for the open "Vidste du …" box. The small, concrete everyday help comes FIRST and the box always starts on one of
@@ -95,6 +97,7 @@
         var user = AuthTask is null ? null : (await AuthTask).User;
         _family = user.IsFamily();
         _owner = user.IsOwner();
+        if (_owner) _waiting = (await Chat.ThreadsAsync()).Count(t => t.UnreadForOwner) + (await Feedbacks.WaitingAsync()).Count;
         await LoadAsync();
         // Kunder down must never take the front page with it - the form then just names no apps.
         try { _freeWithCode = (await Kartotek.FreeAppsAsync()).Where(f => f.NeedsCode).Select(f => f.Name).ToList(); }

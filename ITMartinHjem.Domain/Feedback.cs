@@ -39,6 +39,9 @@ public sealed class Feedback
 
     public void Hide() => Shown = false;
 
+    /// <summary>Waiting for Martin (Min side, 2026-10-29): not answered and not shown yet.</summary>
+    public bool Waiting => !Shown && Reply.Length == 0;
+
     /// <summary>Martin's reply without showing it (fx to a ris that stays private).</summary>
     public void Answer(string? reply) => Reply = FeedbackRules.Clean(reply, MaxReply);
 }

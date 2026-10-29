@@ -38,6 +38,17 @@ public class FeedbackTests
     }
 
     [Test]
+    public void It_waits_for_Martin_until_he_answers_or_shows_it()
+    {
+        var a = Feedback.Write("ris", "Du svarede for sent.", "", mayShow: false, Now);
+        var b = Feedback.Write("ros", "Godt!", "", mayShow: true, Now);
+        (a.Waiting, b.Waiting).Should().Be((true, true));
+        a.Answer("Undskyld – det gør jeg bedre.");
+        b.Show(null);
+        (a.Waiting, b.Waiting).Should().Be((false, false));
+    }
+
+    [Test]
     public void Phone_and_email_are_taken_out_and_kind_falls_back_to_ros()
     {
         var f = Feedback.Write("noget", "Ring til mig på 31 19 47 30 eller skriv til a@b.dk", "", true, Now);
