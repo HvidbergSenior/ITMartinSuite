@@ -1,5 +1,8 @@
 @page "/admin"
 @rendermode InteractiveServer
+@* No login needed (2026-10-29): a forgotten password is reset HERE, so the page cannot sit behind the login.
+   The admin PIN guards it; a wrong PIN waits 2 s so it cannot be guessed fast. *@
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @inject AccountService Accounts
 @inject IConfiguration Config
 @inject TenantContext Tenant
@@ -74,6 +77,7 @@ else
         _unlocked = ExpectedPin.Length > 0 && _pin == ExpectedPin;
         _wrongPin = !_unlocked;
         _pin = "";
+        if (_wrongPin) await Task.Delay(2000);
         if (_unlocked) await LoadAsync();
     }
 
