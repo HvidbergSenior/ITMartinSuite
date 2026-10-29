@@ -1,0 +1,168 @@
+@page "/mad"
+@using ITMartinElPriser.Infrastructure
+@using System.Globalization
+@inject ElectricityPriceService Prices
+@inject HouseholdStore Store
+@inject ConsumptionStore Consumption
+
+<PageTitle>Mad – MinElpris</PageTitle>
+
+@* A meal = several cooking devices together (user 2026-10-29). Tapped together - kinds, time, days -
+   never typed numbers. Priced with MealPlanner; the meter part shows what the evening really cost. *@
+<h1>Hvad koster maden?</h1>
+
+<PageHelp Key="help-mad">
+    <ul>
+        <li>Hvert måltid er <b>flere apparater på én gang</b> – fx ovn, kogeplader og emfang til aftensmaden.</li>
+        <li>Tryk på de apparater I bruger, og på det tidspunkt I plejer at lave mad. Så viser vi hvad det koster i dag, og hvad det koster på det billigste tidspunkt der stadig giver mening.</li>
+        <li><b>Fra din måler</b> viser hvad maden faktisk kostede de sidste 4 uger, og hvad det samme forbrug ville have kostet på det bedste tidspunkt.</li>
+        <li>Forbruget er typiske tal for hvert apparat. Tag et billede af mærkepladen under <a href="/enheder">Enheder</a> (navngiv den fx "Ovn"), så bruger vi jeres egen.</li>
+    </ul>
+</PageHelp>
+
+@if (_raw is null)
+{
+    <div class="card"><div class="muted">Regner…</div></div>
+}
+else
+{
+    @foreach (var m in Store.Get().Meals)
+    {
+        var run = MealPlanner.AsRun(m, Store.Get().Appliances, Store.Get().Devices);
+        var plan = MealPlanner.Plan(_raw, _s, m, run, Day(m));
+        var perMonth = 30.0 * m.DaysPerWeek / 7;
+        <details class="card fold" open>
+            <summary class="card-title">@m.Name <span class="muted small">kl. @Time(m.StartHour, m.StartMinute)</span></summary>
+            <div class="fold-body">
+                @if (m.Kinds.Count == 0)
+                {
+                    <div class="muted">Vælg hvilke apparater I bruger nedenfor.</div>
+                }
+                else if (plan.Usual is { } u)
+                {
+                    <div class="plan-when">@u.CostKr.ToString("0.00", Da) kr</div>
+                    <div class="plan-price">@DayWord(m) kl. @Time(m.StartHour, m.StartMinute) · ca. @((u.CostKr * perMonth).ToString("0", Da)) kr om måneden</div>
+                    <div class="muted small">@plan.KwhPerMeal.ToString("0.0#", Da) kWh over @plan.Hours.ToString("0.##", Da) @(plan.Hours == 1 ? "time" : "timer")</div>
+                    @if (plan.Cheapest is { } c && plan.SavingKr * perMonth >= 5)
+                    {
+                        <div class="small lvl-cheap mt-8">Start kl. @c.Start.ToString("HH:mm") i stedet: @c.CostKr.ToString("0.00", Da) kr – spar ca. @((plan.SavingKr * perMonth).ToString("0", Da)) kr om måneden.</div>
+                    }
+                    else
+                    {
+                        <div class="small lvl-cheap mt-8">Jeres tidspunkt er godt – at flytte maden sparer under 5 kr om måneden.</div>
+                    }
+                }
+                else
+                {
+                    <div class="muted">Priserne for @DayWord(m).ToLower() kl. @Time(m.StartHour, m.StartMinute) er ikke kendt endnu – morgendagens kommer ca. kl. 13.</div>
+                }
+
+                @if (_meter.TryGetValue(m.Id, out var r) && r is not null)
+                {
+                    <div class="cost-rows mt-8">
+                        <div class="cost-row"><span>Fra din måler, snit pr. dag <span class="muted small">@r.Days dage</span></span><b>@r.RealKrPerDay.ToString("0.00", Da) kr</b></div>
+                        <div class="cost-row best"><span>Samme forbrug på bedste tidspunkt</span><b>@r.PerfectKrPerDay.ToString("0.00", Da) kr</b></div>
+                    </div>
+                    <div class="muted small mt-8">
+                        Ca. @r.KwhPerDay.ToString("0.0", Da) kWh ekstra mellem kl. @m.WindowFromHour og @(m.WindowToHour >= 24 ? "midnat" : $"kl. {m.WindowToHour}")@(r.UsualStart is { } us ? $", oftest fra kl. {us:HH\\:mm}" : "").
+                        I brugte @r.PerfectPercent % perfekt.
+                    </div>
+                }
+
+                <div class="small mt-8"><b>Apparater</b></div>
+                <div class="chips chips-small">
+                    @foreach (var k in CookingKinds.All)
+                    {
+                        <button class="chip @(m.Kinds.Contains(k.Key) ? "on" : "")" @onclick="() => ToggleKind(m.Id, k.Key)">@k.Name</button>
+                    }
+                </div>
+                <div class="small mt-8"><b>Plejer at starte</b></div>
+                <div class="chips chips-small">
+                    @foreach (var (h, min) in Starts(m, run))
+                    {
+                        <button class="chip @(m.StartHour == h && m.StartMinute == min ? "on" : "")" @onclick="() => SetStart(m.Id, h, min)">@Time(h, min)</button>
+                    }
+                </div>
+                <div class="small mt-8"><b>Dage om ugen</b></div>
+                <div class="chips chips-small">
+                    @foreach (var d in new[] { 2, 3, 5, 7 })
+                    {
+                        <button class="chip @(m.DaysPerWeek == d ? "on" : "")" @onclick="() => SetDays(m.Id, d)">@d</button>
+                    }
+                </div>
+            </div>
+        </details>
+    }
+
+    <details class="card fold">
+        <summary>Hvorfor er aftensmaden dyr?</summary>
+        <div class="fold-body small">Kl. 17–21 er nettariffen højest, fordi alle laver mad på samme tid. Mad efter kl. 21 rammer den billigere tarif – derfor er en sen ret ofte billigere end aftensmaden, selvom det er de samme apparater.</div>
+    </details>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private const int MeterDays = 28;
+
+    private List<PricePoint>? _raw;
+    private HouseholdSettings _s = new();
+    private DateTime _now;
+    private Dictionary<Guid, MealMeterReport?> _meter = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _s = Store.Get().Settings;
+        _now = DkTime.Now;
+        _raw = await Prices.GetPricesAsync(_s.PriceArea);
+        await LoadMeterAsync();
+    }
+
+    // Last 4 weeks of quarters from the meter, priced with the real prices of those days.
+    private async Task LoadMeterAsync()
+    {
+        _meter = [];
+        if (Consumption.LatestDay is not { } last) return;
+        var from = last.AddDays(-(MeterDays - 1));
+        var quarters = new Dictionary<DateTime, double>();
+        for (var d = from; d <= last; d = d.AddDays(1))
+            foreach (var q in Consumption.Quarters(d)) quarters[q.Key] = q.Value;
+        if (quarters.Count == 0) return;
+        var prices = await Prices.GetRangeAsync(from, last.AddDays(1), _s.PriceArea);
+        var data = Store.Get();
+        foreach (var m in data.Meals)
+            _meter[m.Id] = MealPlanner.FromMeter(quarters, prices, _s, m, MealPlanner.AsRun(m, data.Appliances, data.Devices).DurationHours);
+    }
+
+    // Today while the meal is still ahead, else tomorrow when its prices are known.
+    private DateOnly Day(MealActivity m)
+    {
+        var today = DateOnly.FromDateTime(_now);
+        var start = today.ToDateTime(new TimeOnly(m.StartHour % 24, m.StartMinute));
+        var tomorrowKnown = _raw is { Count: > 0 } && DateOnly.FromDateTime(_raw.Max(p => p.TimeDk)) > today;
+        return start > _now || !tomorrowKnown ? today : today.AddDays(1);
+    }
+
+    private string DayWord(MealActivity m) => Day(m) == DateOnly.FromDateTime(_now) ? "I dag" : "I morgen";
+
+    // Half-hour starts where the whole meal still ends inside its window.
+    private static IEnumerable<(int H, int M)> Starts(MealActivity m, Appliance run)
+    {
+        for (var t = m.WindowFromHour * 60; t + run.DurationHours * 60 <= m.WindowToHour * 60; t += 30)
+            yield return (t / 60, t % 60);
+    }
+
+    private static string Time(int h, int m) => $"{h % 24:00}:{m:00}";
+
+    private async Task ChangeAsync(Guid id, Action<MealActivity> change)
+    {
+        Store.Update(d => { if (d.Meals.FirstOrDefault(x => x.Id == id) is { } m) change(m); });
+        await LoadMeterAsync();
+    }
+
+    private Task ToggleKind(Guid id, string key) =>
+        ChangeAsync(id, m => { if (!m.Kinds.Remove(key)) m.Kinds.Add(key); });
+
+    private Task SetStart(Guid id, int h, int min) => ChangeAsync(id, m => { m.StartHour = h; m.StartMinute = min; });
+
+    private Task SetDays(Guid id, int d) => ChangeAsync(id, m => m.DaysPerWeek = d);
+}

@@ -25,6 +25,8 @@ public sealed class HouseholdData
     public HouseholdSettings Settings { get; set; } = new();
     public List<Appliance> Appliances { get; set; } = Appliance.Defaults();
     public List<Device> Devices { get; set; } = [];
+    // Meals = several cooking devices together (Aftensmad, Børnenes sene mad) - see MealPlanner.
+    public List<MealActivity> Meals { get; set; } = MealActivity.Defaults();
     public List<PushSubscriber> Subscribers { get; set; } = [];
     // "<subscriberId>|<kind>|<yyyy-MM-dd HH:mm>" of pushes already sent, so a
     // restart never double-sends and a day is only announced once.
