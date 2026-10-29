@@ -91,6 +91,24 @@ public static class MealPlanner
         return best;
     }
 
+    // Today while the meal is still ahead, else tomorrow once its prices are known.
+    public static DateOnly NextDay(MealActivity m, List<PricePoint> raw, DateTime now)
+    {
+        var today = DateOnly.FromDateTime(now);
+        var start = today.ToDateTime(new TimeOnly(m.StartHour % 24, m.StartMinute));
+        var tomorrowKnown = raw.Count > 0 && DateOnly.FromDateTime(raw.Max(p => p.TimeDk)) > today;
+        return start > now || !tomorrowKnown ? today : today.AddDays(1);
+    }
+
+    // Half-hour starts where the whole meal still ends inside its window - the times that can be tapped.
+    public static List<TimeOnly> Starts(MealActivity m, Appliance run)
+    {
+        var list = new List<TimeOnly>();
+        for (var t = m.WindowFromHour * 60; t + run.DurationHours * 60 <= m.WindowToHour * 60; t += 30)
+            list.Add(new TimeOnly(t / 60 % 24, t % 60));
+        return list;
+    }
+
     // quarters = the meter's kWh per quarter (any days), prices = the real prices for the same days.
     // Base load per day = its 25 % quietest quarter; everything above it inside the window is the meal.
     public static MealMeterReport? FromMeter(IReadOnlyDictionary<DateTime, double> quarters, List<PricePoint> prices, HouseholdSettings s, MealActivity m, double mealHours)

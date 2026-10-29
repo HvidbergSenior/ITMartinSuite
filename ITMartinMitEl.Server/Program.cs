@@ -42,11 +42,8 @@ builder.Services.AddKolibri(k =>
 // Singletons with their own HttpClient: both services cache (prices for
 // 30 min, the Eloverblik access token for 12 h) - a transient-per-request
 // registration would throw the cache away every call.
-builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
-// Grøn + Elselskab pages (moved from the free app 2026-09-27).
-builder.Services.AddSingleton(sp => new Co2Service(new HttpClient(), sp.GetRequiredService<ILogger<Co2Service>>()));
-builder.Services.AddSingleton(sp => new SupplierCatalog(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<SupplierCatalog>>()));
-builder.Services.AddSingleton(sp => new GridTariffs(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<GridTariffs>>()));
+// The four price/CO2/supplier/grid sources once each, by type and by port (the same as the free app).
+builder.Services.AddElPriserSources();
 // Accounts and per-household data (phase 2). The stores are resolved per request
 // from the signed-in user's household, so a page can only ever read its own home.
 var dbPath = builder.Configuration["MitEl:DbPath"]
@@ -80,6 +77,10 @@ builder.Services.AddScoped<ConsumptionStore>(sp =>
     var tenant = sp.GetRequiredService<TenantContext>();
     return registry.Consumption(tenant.CurrentHouseholdId() ?? Guid.Empty);
 });
+// Mad (meals): use cases in ElPriser.Application, ports on top of the household's own stores.
+builder.Services.AddScoped<ITMartinElPriser.Application.IHouseholdMeals, HouseholdMeals>();
+builder.Services.AddScoped<ITMartinElPriser.Application.IMeterReadings, MeterReadings>();
+ITMartinElPriser.Application.DependencyInjection.AddMinElprisApplication(builder.Services);
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddSingleton<RunLogService>();
 builder.Services.AddSingleton<ApplianceLookup>();

@@ -16,4 +16,11 @@ public static class DependencyInjection
         services.AddScoped<MonthBillUseCases>();
         return services;
     }
+
+    /// <summary>MinElpris' use cases. The ports (household, meter) come from the MinElpris Server, one per logged-in household.</summary>
+    public static IServiceCollection AddMinElprisApplication(this IServiceCollection services)
+    {
+        services.AddScoped<MealUseCases>();
+        return services;
+    }
 }

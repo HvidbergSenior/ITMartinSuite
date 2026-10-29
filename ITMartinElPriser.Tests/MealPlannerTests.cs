@@ -95,3 +95,59 @@ public class MealPlannerTests
         at23.CostKr.Should().BeLessThan(at17.CostKr);
     }
 }
+
+[TestFixture]
+public class MealUseCasesTests
+{
+    private sealed class FakePrices(List<PricePoint> day) : ITMartinElPriser.Application.IPriceSource
+    {
+        public Task<List<PricePoint>> GetPricesAsync(string priceArea = "DK1", CancellationToken ct = default) => Task.FromResult(day);
+        public Task<List<PricePoint>> GetDayAsync(DateOnly date, string priceArea = "DK1", CancellationToken ct = default) => Task.FromResult(day);
+        public Task<List<PricePoint>> GetRangeAsync(DateOnly f, DateOnly t, string priceArea = "DK1", CancellationToken ct = default) => Task.FromResult(day);
+    }
+
+    private sealed class FakeHousehold : ITMartinElPriser.Application.IHouseholdMeals
+    {
+        public readonly List<MealActivity> Meals = MealActivity.Defaults();
+        public ITMartinElPriser.Application.MealHousehold Get() => new(new HouseholdSettings { ShowAllIn = false }, Meals, [], []);
+        public void Change(Guid id, Action<MealActivity> change) => change(Meals.First(m => m.Id == id));
+    }
+
+    private sealed class NoMeter : ITMartinElPriser.Application.IMeterReadings
+    {
+        public DateOnly? LatestDay => null;
+        public IReadOnlyDictionary<DateTime, double> Quarters(DateOnly f, DateOnly t) => new Dictionary<DateTime, double>();
+    }
+
+    private static List<PricePoint> Today()
+    {
+        var d = DateOnly.FromDateTime(DkTime.Now);
+        var list = new List<PricePoint>();
+        for (var i = 0; i < 96; i++)
+        {
+            var t = d.ToDateTime(TimeOnly.MinValue).AddMinutes(15 * i);
+            list.Add(new PricePoint { TimeDk = t, TimeUtc = t.AddHours(-1), PriceKrPerKwh = t.Hour is >= 17 and < 19 ? 3 : 1 });
+        }
+        return list;
+    }
+
+    [Test]
+    public async Task Both_default_meals_load_without_a_meter_and_taps_change_them()
+    {
+        var h = new FakeHousehold();
+        var uc = new ITMartinElPriser.Application.MealUseCases(new FakePrices(Today()), h, new NoMeter());
+
+        var cards = await uc.LoadAsync();
+        cards.Select(c => c.Meal.Name).Should().Equal("Aftensmad", "Børnenes sene mad");
+        cards.Should().OnlyContain(c => c.Meter == null && c.Starts.Count > 0);
+
+        var dinner = h.Meals[0];
+        uc.ToggleKind(dinner.Id, "airfryer");
+        uc.SetStart(dinner.Id, new TimeOnly(18, 0));
+        uc.SetDays(dinner.Id, 5);
+        dinner.Kinds.Should().Contain("airfryer");
+        (dinner.StartHour, dinner.StartMinute, dinner.DaysPerWeek).Should().Be((18, 0, 5));
+        uc.ToggleKind(dinner.Id, "airfryer");
+        dinner.Kinds.Should().NotContain("airfryer");
+    }
+}

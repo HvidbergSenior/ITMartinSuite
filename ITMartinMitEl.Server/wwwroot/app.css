@@ -194,7 +194,7 @@ a { color: var(--accent); text-decoration: none; }
 .cost-row.best { outline: 2px solid var(--cheap); }
 .cost-row.best b { color: var(--cheap); }
 .fold-body { margin-top: 8px; }
-.mt-8 { margin-top: 8px; }
+.u-mt8 { margin-top: 8px; }
 .fold-body p + p { margin-top: 8px; }
 .fold-body ul { padding-left: 18px; display: grid; gap: 6px; }
 
