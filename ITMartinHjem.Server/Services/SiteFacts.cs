@@ -13,29 +13,28 @@ public static class SiteFacts
         // User 2026-10-27: "small everyday trouble on phone or pc, gives huge satisfaction when fixed. I do that".
         new("Skriv til mig", "/chat-med-martin", "… at små, irriterende ting på telefonen eller PC'en – printeren, der driller, mailen, der ikke kommer, opdateringen, der hænger – giver en kæmpe lettelse, når de er løst? Det hjælper jeg med."),
         new("Skriv til mig", "/chat-med-martin", "… at »lageret er fuldt« på telefonen tit kan løses på et kvarter – uden at du mister et eneste billede?"),
-        new("Hjælp på din skærm", "/mine-apps?app=Se%20med", "… at jeg kan flytte dine billeder, kontakter og apps fra den gamle telefon til den nye sammen med dig – så intet bliver væk?"),
+        new("Skriv til mig", "/chat-med-martin", "… at jeg kan flytte dine billeder, kontakter og apps fra den gamle telefon til den nye sammen med dig – så intet bliver væk?"),
         new("Skriv til mig", "/chat-med-martin", "… at en langsom PC tit kan blive hurtig igen uden at købe en ny? Ofte er det bare nogle programmer, der starter af sig selv."),
         // User 2026-10-27: "make more that reflects what I can help with" - from what Martin actually does (billeder, Se med,
-        // Budget, ElPriser, hjemmesider, særlige behov).
-        new("Tjek dine billeder", "/mine-apps?app=Tjek%20dine%20billeder", "… at billederne på en gammel telefon i skuffen eller en gammel computer sagtens kan reddes – og samles ét sted, sorteret efter år?"),
-        new("Tjek dine billeder", "/mine-apps?app=Tjek%20dine%20billeder", "… at når iCloud eller Google Fotos siger »fuld«, kan jeg få dine billeder hjem på din egen disk – så du ikke skal betale hver måned?"),
+        // ElPriser, hjemmesider, særlige behov).
+        new("Skriv til mig", "/chat-med-martin", "… at billederne på en gammel telefon i skuffen eller en gammel computer sagtens kan reddes – og samles ét sted, sorteret efter år?"),
+        new("Skriv til mig", "/chat-med-martin", "… at når iCloud eller Google Fotos siger »fuld«, kan jeg få dine billeder hjem på din egen disk – så du ikke skal betale hver måned?"),
         new("Skriv til mig", "/chat-med-martin", "… at jeg kan sætte din nye PC op sammen med dig – flytte filer, mail og printer – så den virker som den gamle, bare hurtigere?"),
         new("Skriv til mig", "/chat-med-martin", "… at den mail, det dokument eller det billede, du er sikker på er væk, tit kan findes igen?"),
-        new("Budget", "/budget", "… at mange betaler for abonnementer, de har glemt? Jeg kan hjælpe dig med at finde dem i dit kontoudtog."),
         new("ElPriser", "/mine-apps?app=ElPriser", "… at du kan spare på strømmen ved at starte opvask og vask, når prisen er lavest – og at ElPriser viser dig hvornår?"),
+        // Only the three apps in production may be pointed to (user 2026-10-29: "ONLY the three apps in prod should be able
+        // to be used"): ElPriser, Temperatur, Stem. Texts from their Mine apps descriptions.
+        new("Temperatur", "/mine-apps?app=Temperatur", "… at Temperatur viser den målte temperatur ved den nærmeste rigtige vejrstation – ikke en vejrudsigt?"),
+        new("Stem", "/mine-apps?app=Stem", "… at du kan lave en afstemning, finde en dato eller samle tilmeldinger med Stem – uden at nogen skal oprette en konto?"),
         new("Har du en idé?", "/start-din-virksomhed", "… at jeg kan lave en enkel hjemmeside til din forening eller dit lille firma – som du selv kan skrive i fra telefonen?"),
         new("Særlige behov", "/ydelser/adhd-og-autisme", "… at jeg kan gøre telefonen eller PC'en enklere for en, der har svært ved den – kun de apps, der bliver brugt, og store, tydelige knapper?"),
         // User 2026-10-27: "at jeg hjælper mennesker med særlige udfordringer. Kan give råd til bekymrede forældre og/eller mennesker
         // som er i tvivl om hvad de skal gøre" (ADHD, pædagog 5 år på botilbud - see page ydelser/adhd-og-autisme).
         new("Særlige behov", "/ydelser/adhd-og-autisme", "… at jeg hjælper mennesker med særlige udfordringer – og gerne giver råd til bekymrede forældre eller dig, der er i tvivl om, hvad du skal gøre?"),
-        // User 2026-10-27: "and what I can do" - things Martin has built and can make for you.
-        new("Polstrer", "/mine-apps?app=Polstrer", "… at jeg kan lave en app til netop dit arbejde – som til møbelpolstreren, der tager billeder af hvert trin og husker sine teknikker?"),
         // User 2026-10-27: "at jeg laver ALT selv. Hjemmeside, apps, musik".
         new("Om mig", "/om-itmartin", "… at jeg laver ALT selv – hjemmesiden, alle apps og musikken? Så kan jeg også lave det, du har brug for."),
-        new("Tjek dine billeder", "/billeder", "… at jeg kan lave et familiegalleri med kode, så kun familien ser billederne – på telefonen, uden Facebook?"),
+        new("Skriv til mig", "/chat-med-martin", "… at jeg kan lave et familiegalleri med kode, så kun familien ser billederne – på telefonen, uden Facebook?"),
         new("Skriv til mig", "/chat-med-martin", "… at jeg kan lave en fødselsdagsside med billeder og hilsner, som hele familien kan se og skrive på?"),
-        new("Notatskriver", "/mine-apps?app=Notatskriver", "… at Notatskriver kan skrive et referat af et møde – og at lyden aldrig forlader din egen computer?"),
-        new("Tilbud", "/mine-apps?app=Tilbud", "… at Tilbud finder dine varer på tilbud i butikkerne nær dig – uden butikkernes egne apps?"),
         new("Om mig", "/om-itmartin", "… at jeg har 20 års erfaring som systemudvikler – og kan hjælpe din virksomhed med et system, der driller?"),
         // User 2026-10-27: "At jeg af princip IKKE - kig på artifacts about my principles" -> artifact "Små, rene snebolde" ("nogle ting,
         // jeg aldrig vil gøre til en del af snebolden") + memory: no ads ever, no big clouds.

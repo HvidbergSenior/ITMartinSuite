@@ -26,10 +26,10 @@
     // The front page's "Vidste du …" box uses these facts too.
     public static readonly (TileGroup Group, string Icon, string Title, string Line, string Href, string Fact)[] Tiles =
     [
-        // the user's own family library (ToshibaTest run, 2026-09): 87,009 files in, 34,079 out
-        (TileGroup.App, "", "Tjek dine billeder", "Hvor mange billeder har du – og hvor mange er dubletter?", "/mine-apps?app=Tjek%20dine%20billeder", "… at en familie havde 87.009 filer, men kun 34.079 rigtige billeder?"),
-        (TileGroup.App, "", "Hjælp på din skærm", "Del skærmen med mig – så hjælper jeg med det samme", "/mine-apps?app=Se%20med", "… at jeg kan være på din skærm på 2 minutter – uden at du skal installere noget?"),
-        (TileGroup.App, "", "Kig med live", "Se med, når jeg sender live", "/mine-apps?app=Kig%20med", "… at du kan stille spørgsmål og stemme, mens jeg sender?"),
+        // Only the three apps in production (user 2026-10-29: "ONLY the three apps in prod should be able to be used").
+        (TileGroup.App, "", "ElPriser", "Elprisen time for time – og hvornår strømmen er billig", "/mine-apps?app=ElPriser", "… at du kan spare på strømmen ved at starte opvask og vask, når prisen er lavest – og at ElPriser viser dig hvornår?"),
+        (TileGroup.App, "", "Temperatur", "Den målte temperatur, hvor du er", "/mine-apps?app=Temperatur", "… at Temperatur viser den målte temperatur ved den nærmeste rigtige vejrstation – ikke en vejrudsigt?"),
+        (TileGroup.App, "", "Stem", "Afstemninger, datovalg og tilmeldinger", "/mine-apps?app=Stem", "… at du kan lave en afstemning, finde en dato eller samle tilmeldinger med Stem – uden at nogen skal oprette en konto?"),
         // Statista, Feb 2025: average daily social media use of internet users worldwide = 141 min (141*365/1440 = 35.7 days)
         // Global E-waste Monitor 2024 / Dell + HP LCAs: 68-81 % of a laptop's CO2 is from making it (user 2026-10-12: green, both sites)
         (TileGroup.Page, "", "Grønt og bæredygtigt", "Giv gamle ting nyt liv – i stedet for at købe nyt", "/baeredygtighed", "… at 68–81 % af en bærbar computers CO₂ bliver udledt, før du tænder den – når den bliver lavet?"),
@@ -45,9 +45,9 @@
     // Real pictures instead of emoji icons (user 2026-10-12): the app examples, and a photo of Martin for "Om mig".
     private static readonly Dictionary<string, string> Pictures = new()
     {
-        ["Tjek dine billeder"] = "/apps/billeder.jpg",
-        ["Hjælp på din skærm"] = "/apps/semed.jpg",
-        ["Kig med live"] = "/apps/kigmed.jpg",
+        ["ElPriser"] = "/apps/elpriser.jpg",
+        ["Temperatur"] = "/apps/temperatur.jpg",
+        ["Stem"] = "/apps/stem.jpg",
     };
 
     // Every tile says where it leads: an app example on Mine apps, a page here, or another site.

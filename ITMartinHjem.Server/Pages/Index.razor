@@ -87,7 +87,7 @@
         new("Om mig", "/om-itmartin", "… at jeg har arbejdet som systemudvikler i 20 år – og som socialpædagog i 5 år med mennesker med udviklingshandicap?"),
         new("Se mine Facebook-billeder", "https://gallery.itmartin.dk/facebook-demo", "… at jeg har fået alle mine billeder hjem fra Facebook og sat den rigtige dato på igen? Se et udpluk – ingen kode."),
         // A tile without a fact is left out (user 2026-10-27 removed "jeg skriver min plan for dagen her hver morgen").
-        .. WorkTiles.Tiles.Where(t => t.Fact.Length > 0).Select(t => new SiteFacts.Fact(t.Title, t.Href, t.Fact)),
+        .. WorkTiles.Tiles.Where(t => t.Fact.Length > 0 && SiteFacts.ItMartin.All(f => f.Text != t.Fact)).Select(t => new SiteFacts.Fact(t.Title, t.Href, t.Fact)),
     ];
 
     protected override async Task OnInitializedAsync()
