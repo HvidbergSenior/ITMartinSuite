@@ -21,13 +21,12 @@
 }
 else
 {
-@* bogshoppen.dk has its own two tabs (user 2026-10-12: "a tab on bogshoppen. Forside and one more" -> Varer). *@
+@* bogshoppen.dk = products (user 2026-10-29: "bogshoppen should only have Om bogshoppen og forside (where you can sign up)",
+   "And also the products", "Bogshoppen is Products. ItMartin is processes"). No Varer/Kurv, no Spørgsmål tab. *@
 <nav class="hj-nav bs-nav">
     <a href="/">Forside</a>
-    @* No Varer/Kurv - bogshoppen.dk is not a webshop (user 2026-10-29: "i do not want to make a traditionel webshop with varer and Kurv"). *@
+    <a href="/produkter">Produkter</a>
     <a href="/om-bogshoppen">Om Bogshoppen</a>
-    @* Questions live on itmartin.dk (user 2026-10-24: bogshoppen.dk is only the shop). *@
-    <a href="@BogshoppenHome.AskUrl">Spørgsmål</a>
 </nav>
 }
 @if (_fest && !_bs)

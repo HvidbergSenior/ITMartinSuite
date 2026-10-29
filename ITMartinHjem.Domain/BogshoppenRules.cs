@@ -23,7 +23,25 @@ public static class BogshoppenRules
         ("Bøger", "Night Watch af Terry Pratchett"),
         ("Musik på cd", "dansk rock og pop"),
         ("Film på dvd og Blu-ray", "tegnefilm og klassikere"),
+        // Martin's own areas (Magic, brætspil) - and each has a community in Kolibri Fællesskab (2026-10-29).
+        ("Magic-kort", "Magic: The Gathering"),
+        ("Brætspil", "familiespil og strategispil"),
     ];
+
+    /// <summary>Kolibri Fællesskab - the communities for nerds (user 2026-10-29: "communities with books, anders and blade").</summary>
+    public const string CommunityUrl = "https://faellesskab.itmartin.dk/";
+
+    /// <summary>The community a product group belongs to (its slug in ITMartinFaellesskab.Domain.CommunityRules).</summary>
+    public static string CommunityFor(string product) => product switch
+    {
+        "Anders And" or "Jumbobøger" => "anders-and",
+        "Bøger" => "boeger",
+        "Musik på cd" => "musik",
+        "Film på dvd og Blu-ray" => "videoaften",
+        "Magic-kort" => "magic",
+        "Brætspil" => "braetspil",
+        _ => "blade",   // Tintin, Asterix, Lucky Luke, Fantomet, Storm P., superhelte
+    };
 
     /// <summary>What the customer collects, kept as their interests (only titles from the list).</summary>
     public static string Interests(IEnumerable<string> picked, string? note)

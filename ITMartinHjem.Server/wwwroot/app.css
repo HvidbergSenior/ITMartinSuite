@@ -772,3 +772,11 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-head h1 { margin: 0 0 4px; }
 .bs-head .hj-head-btns .bs-head-btn { display: inline-flex; margin: 0; padding: 10px 16px; }
 @media (max-width:520px) { .bs-head { padding: 18px 16px 16px; } .bs-head .hj-head-btns .k-btn { flex: 1 1 100%; } }
+/* bogshoppen.dk/produkter (2026-10-29): each product group = a box you press, to its community in Kolibri Fællesskab. */
+.bs-groups { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.bs-card a.bs-group { display: flex; flex-direction: column; gap: 2px; height: 100%; box-sizing: border-box; padding: 12px 14px; text-decoration: none;
+  color: var(--k-text); background: var(--k-card); border: 2px solid var(--k-border); border-left: 5px solid var(--k-accent); border-radius: 12px; }
+.bs-card a.bs-group:hover { border-color: var(--k-text); }
+.bs-group b { font-size: 1.1rem; }
+.bs-group span { color: var(--k-muted); }
+.bs-group .bs-group-go { margin-top: auto; padding-top: 6px; color: var(--k-text); font-weight: 700; }

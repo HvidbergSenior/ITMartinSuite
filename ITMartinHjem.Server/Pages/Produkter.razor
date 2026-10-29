@@ -1,0 +1,40 @@
+@page "/produkter"
+
+@* bogshoppen.dk = products, itmartin.dk = processes (user 2026-10-29: "bogshoppen should only have Om bogshoppen og forside
+   (where you can sign up)", "And also the products", "Bogshoppen is Products. ItMartin is processes"). Not a webshop - no
+   basket, no prices: what we have, and the community where people who love it meet. *@
+<PageTitle>Produkter · Bogshoppen</PageTitle>
+
+<header class="bs-head bs-head-varer">
+    <span class="bs-tag">Det har vi</span>
+    <h1>Produkter</h1>
+    <p>Over 100.000 bøger, blade, tegneserier, film, musik og spil fra Bogshoppens kasser.</p>
+    <p class="hj-head-note"><b>Sådan gør du:</b> tryk på det, du samler på. Så kommer du til fællesskabet, hvor dem, der elsker det samme, mødes – og hvor vi fortæller, når vi finder noget i kasserne.</p>
+</header>
+
+<section class="k-card bs-card" data-nofold>
+    <h2 class="k-card-title">Det samler vi på</h2>
+    <ul class="bs-groups">
+        @foreach (var (title, example) in BogshoppenRules.Products)
+        {
+            <li>
+                <a class="bs-group" href="@(BogshoppenRules.CommunityUrl)?f=@BogshoppenRules.CommunityFor(title)">
+                    <b>@title</b>
+                    <span>fx @example</span>
+                    <span class="bs-group-go">Gå til fællesskabet</span>
+                </a>
+            </li>
+        }
+    </ul>
+</section>
+
+<FoundInBoxes />
+
+<section class="k-card bs-card">
+    <h2 class="k-card-title">Leder du efter noget bestemt?</h2>
+    <p>Skriv det til os – så kigger vi efter det, mens vi pakker kasserne ud. Skriv dig gerne op, så får du besked.</p>
+    <div class="hj-head-btns">
+        <a class="k-btn k-btn-primary bs-btn" href="/#foelg">Skriv mig op – gratis</a>
+        <a class="k-btn bs-btn" href="@BogshoppenHome.AskUrl">Skriv det på itmartin.dk</a>
+    </div>
+</section>
