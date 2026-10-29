@@ -13,6 +13,11 @@ public sealed class Practice(IStudioLibrary library)
 
     public bool DeleteTake(RecordingFile take) => library.Delete(take.RelativePath);
 
+    /// <summary>"Mere guitar": a new take with the guitar lifted over the voice; the take itself stays. A guitar
+    /// version is not lifted again (it would only grow boomy).</summary>
+    public Task<string?> MoreGuitarAsync(RecordingFile take) =>
+        take.IsGuitar || take.IsVideo ? Task.FromResult<string?>(null) : library.MoreGuitarAsync(take.RelativePath);
+
     /// <summary>"Læg i galleriet" (user 2026-10-25: "i pushed del... but it is not on galery"): the take is copied into
     /// the koncert gallery as the song's title - "Space Oddity (David Bowie).mp3", then "... 2.mp3" for the next one.
     /// The take itself stays. Returns the name it got, or null when the take is gone.</summary>

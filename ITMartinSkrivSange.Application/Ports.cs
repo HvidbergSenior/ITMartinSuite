@@ -34,7 +34,8 @@ public interface IStudioDraftStore
 // Sidecar metadata for Song Vault - one JSON file per song, keyed by the file's SafeKey like stems/recordings.
 public sealed record SongMeta(string Lyrics = "", string Chords = "", double? Tempo = null);
 public sealed record SourceFile(string RelativePath, string Title);
-public sealed record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo, bool IsAi = false, string? Section = null);
+/// <param name="IsGuitar">A "Mere guitar" version of a take (gtake-, 2026-10-29).</param>
+public sealed record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo, bool IsAi = false, string? Section = null, bool IsGuitar = false);
 public sealed record SketchFile(string RelativePath, string Name, DateTime CreatedAt);
 public sealed record StemResult(string? Vocals, string? Drums, string? Bass, string? Other, string? Instrumental = null);
 
@@ -51,6 +52,9 @@ public interface IStudioLibrary
     string StemsDir(string songKey);
     List<RecordingFile> GetRecordings(string songKey);
     Task<string> SaveRecordingAsync(string songKey, Stream content, string? contentType, string? section);
+    /// <summary>A new take next to <paramref name="relativePath"/> with the guitar lifted (user 2026-10-29 "can gitar get louder?").
+    /// The take itself stays. Returns the new take's path, or null when it could not be made (no ffmpeg, take gone).</summary>
+    Task<string?> MoreGuitarAsync(string relativePath);
     List<SketchFile> GetSketches(string songKey);
     Task<string> SaveSketchAsync(string songKey, Stream content, string? contentType);
     bool Delete(string relativePath);

@@ -39,6 +39,7 @@ builder.Services.AddKolibri(k =>
         "Tekst med akkorder: kopiér sangen fra Ultimate Guitar (knappen Tekst og akkorder) og sæt den ind på sangens side. Akkorderne flyttes til dine greb og din capo; − og + flytter dem en halvtone. Vis mens jeg optager holder teksten på skærmen, mens du optager.",
         "Optag: tryk Optag, vent 2 sekunder før du spiller (så lærer appen rummets lyd og fjerner den), og spil. Optagelsen kommer under knappen.",
         "Del en optagelse: tryk Del ved den - så får du et link, som familie og venner kan lytte på uden kode. Del det ikke offentligt, når sangen er en andens.",
+        "Mere guitar: tryk Mere guitar ved en optagelse - så kommer der en ny udgave, hvor guitaren står stærkere i forhold til stemmen. Den gamle bliver som den er.",
         "Vil du have den i dit galleri: tryk Del og så Læg i koncert-galleriet. Den kommer med på gallery.itmartin.dk/?g=koncert under sangens navn.",
     ];
     k.Version = "2026.10.29";

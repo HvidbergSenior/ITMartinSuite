@@ -116,7 +116,7 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
     // slug (letters/digits only) sits between the take-type prefix and the
     // fixed yyyyMMdd-HHmmss timestamp.
     private static readonly Regex TakeFilenamePattern = new(
-        @"^(?:take|vtake|aitake|mixtake|mergetake)(?:-(?<section>[a-z0-9]+))?-\d{8}-\d{6}$", RegexOptions.Compiled);
+        @"^(?:take|vtake|aitake|mixtake|mergetake|gtake)(?:-(?<section>[a-z0-9]+))?-\d{8}-\d{6}$", RegexOptions.Compiled);
 
     public List<RecordingFile> GetRecordings(string songKey)
     {
@@ -130,7 +130,7 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
                 var name = Path.GetFileNameWithoutExtension(f);
                 var m = TakeFilenamePattern.Match(name);
                 var section = m.Success && m.Groups["section"].Success ? m.Groups["section"].Value : null;
-                return new RecordingFile(Relative(f), name, new FileInfo(f).CreationTimeUtc, name.StartsWith("vtake"), name.StartsWith("aitake"), section);
+                return new RecordingFile(Relative(f), name, new FileInfo(f).CreationTimeUtc, name.StartsWith("vtake"), name.StartsWith("aitake"), section, name.StartsWith("gtake"));
             })
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
@@ -202,6 +202,41 @@ public sealed class StudioLibrary(string root) : IStudioLibrary
             return null;   // ffmpeg missing (local Windows) - keep the webm
         }
     }
+
+    // "Mere guitar" (user 2026-10-29 "can gitar get louder?"): one QuadCast hears voice and guitar together, so they can't
+    // be pulled apart - but they sit in different places. Up: the guitar's body (around 180 Hz) and its string shine
+    // (around 6.5 kHz). Down a little: 2.8 kHz, where a voice is clearest. Then the same fixed gain as a new take, so
+    // the loudest point lands at -1.5 dB again. A new file (gtake-), the take itself is never changed.
+    internal const string GuitarEq = "equalizer=f=180:t=q:w=1:g=5,equalizer=f=2800:t=q:w=1.2:g=-4,equalizer=f=6500:t=q:w=1:g=3";
+
+    public async Task<string?> MoreGuitarAsync(string relativePath)
+    {
+        if (Resolve(relativePath) is not { } take) return null;
+        var name = Path.GetFileNameWithoutExtension(take);
+        var m = TakeFilenamePattern.Match(name);
+        if (!m.Success || name.StartsWith("vtake")) return null;
+        var section = m.Groups["section"].Success ? "-" + m.Groups["section"].Value : "";
+        var dest = Path.Combine(Path.GetDirectoryName(take)!, $"gtake{section}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.mp3");
+        try
+        {
+            var (_, measured) = await FfmpegAsync("-hide_banner", "-nostats", "-i", take, "-vn", "-af", GuitarEq + ",volumedetect", "-f", "null", "-");
+            var gain = GuitarGainDb(measured);
+            var (ok, _) = await FfmpegAsync("-y", "-i", take, "-vn", "-af", FormattableString.Invariant($"{GuitarEq},volume={gain:0.0}dB"),
+                "-ar", "44100", "-c:a", "libmp3lame", "-q:a", "2", dest);
+            if (ok && File.Exists(dest) && new FileInfo(dest).Length > 0) return Relative(dest);
+            if (File.Exists(dest)) File.Delete(dest);   // our own half-made file, never the take
+            return null;
+        }
+        catch (Exception)
+        {
+            return null;   // ffmpeg missing (local Windows)
+        }
+    }
+
+    /// <summary>Like <see cref="PeakGainDb"/>, but may also turn DOWN: the lifted guitar can reach 0 dB (it clipped in a test
+    /// on a real take 2026-10-29), and a take that is already loud must come back under -1.5 dB.</summary>
+    internal static double GuitarGainDb(string volumedetectOutput) =>
+        MaxVolume(volumedetectOutput) is { } max ? Math.Clamp(TargetPeakDb - max, -20, MaxGainDb) : TargetPeakDb;
 
     /// <summary>The fixed gain that puts the take's loudest point at -1.5 dB, from ffmpeg volumedetect's "max_volume: -23.4 dB" (at most +30 dB).</summary>
     internal static double PeakGainDb(string volumedetectOutput)

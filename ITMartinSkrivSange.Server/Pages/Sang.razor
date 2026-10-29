@@ -441,9 +441,14 @@ else
                     @foreach (var take in takes)
                     {
                         <div class="ss-take">
-                            <span class="k-muted ss-small">@take.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")</span>
+                            <span class="k-muted ss-small">@take.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")@(take.IsGuitar ? " · mere guitar" : "")</span>
                             <audio controls preload="none" src="/stream?path=@Uri.EscapeDataString(take.RelativePath)" class="ss-audio"></audio>
                             <button class="k-btn k-btn-secondary k-btn-sm" @onclick="() => Share(take)">Del</button>
+                            @if (!take.IsGuitar && !take.IsVideo)
+                            {
+                                <button class="k-btn k-btn-secondary k-btn-sm" @onclick="() => MoreGuitar(take)" disabled="@(_lifting is not null)"
+                                        title="Laver en ny udgave med guitaren højere i forhold til stemmen - optagelsen her bliver som den er">@(_lifting == take.RelativePath ? "Laver ..." : "Mere guitar")</button>
+                            }
                             <button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => DeleteTake(take)">Slet</button>
                         </div>
                         @if (_shared == take.RelativePath)
@@ -889,6 +894,19 @@ else
             _sharedNote = "Linket er kopieret.";
         }
         catch { _sharedNote = "Kopiér linket herunder."; }
+    }
+
+    private string? _lifting;      // the take a "Mere guitar" version is being made of
+
+    private async Task MoreGuitar(RecordingFile take)
+    {
+        _lifting = take.RelativePath;
+        _error = null;
+        try
+        {
+            if (await Practice.MoreGuitarAsync(take) is null) _error = "Guitar-udgaven kunne ikke laves - prøv igen om lidt.";
+        }
+        finally { _lifting = null; }
     }
 
     private void DeleteTake(RecordingFile take)

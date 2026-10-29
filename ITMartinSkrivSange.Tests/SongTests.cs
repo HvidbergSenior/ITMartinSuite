@@ -430,6 +430,13 @@ public class TakeGainTests
     public void One_fixed_gain_puts_the_loudest_point_at_minus_1_5(string log, double gain) =>
         ITMartinSkrivSange.Infrastructure.StudioLibrary.PeakGainDb(log).Should().BeApproximately(gain, 0.01);
 
+    // 2026-10-29 "Mere guitar": the lifted guitar reached 0 dB on a real take - its gain must be able to turn down.
+    [TestCase("max_volume: 0.0 dB", -1.5)]
+    [TestCase("max_volume: -10.0 dB", 8.5)]
+    [TestCase("no numbers here", -1.5)]
+    public void The_guitar_version_lands_at_minus_1_5_also_when_too_loud(string log, double gain) =>
+        ITMartinSkrivSange.Infrastructure.StudioLibrary.GuitarGainDb(log).Should().BeApproximately(gain, 0.01);
+
     // 2026-10-25: the room is learned from the first seconds only when no guitar is in them yet.
     [TestCase("max_volume: -40.0 dB", "max_volume: -18.0 dB", true)]
     [TestCase("max_volume: -25.0 dB", "max_volume: -18.0 dB", false)]   // playing from the start
