@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="da" data-family="kommunikere">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Kolibri Fællesskab – fællesskaber for nørder: læseklub, Anders And, blade, Magic, brætspil, PC-spil, videoaften og musik. Uden reklamer." />
+    <meta name="theme-color" content="#f4f6f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Fællesskab" />
+    <title>Kolibri Fællesskab</title>
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=1" />
+    <link rel="stylesheet" href="app.css?v=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=1" defer></script>
+    <script src="app.js?v=1" defer></script>
+</head>
+<body>
+<div class="k-content fk">
+
+    <!-- The overview: every community as a box you press. -->
+    <section id="oversigt">
+        <header class="fk-head">
+            <span class="fk-tag">Bogshoppen · en del af ITMartin</span>
+            <h1>Kolibri Fællesskab</h1>
+            <p>Fællesskaber for nørder. Find dem, der elsker det samme som dig – bøger, Anders And, blade, Magic, spil, film og musik.</p>
+            <p class="fk-how"><b>Sådan gør du:</b> tryk på et fællesskab. Så ser du, hvad vi kigger på lige nu, hvornår vi mødes, og tips til mere af det samme. Log ind med dit kundenummer for at være med og skrive i chatten.</p>
+        </header>
+        <div id="liste" class="fk-list" aria-live="polite"></div>
+        <section class="k-card" id="ingenKode" data-nofold>
+            <h2 class="k-card-title">Har du ikke et kundenummer?</h2>
+            <p>Det er gratis. Skriv dig op på bogshoppen.dk, så får du det med det samme og på mail. Ingen reklamer, ingen nyhedsbreve.</p>
+            <a class="k-btn k-btn-primary" href="https://bogshoppen.dk/#foelg">Skriv mig op – gratis</a>
+        </section>
+    </section>
+
+    <!-- One community. -->
+    <section id="side" hidden>
+        <button type="button" class="k-btn k-btn-sm fk-back" id="tilbage">Alle fællesskaber</button>
+        <header class="fk-head">
+            <span class="fk-tag" id="sTag">Fællesskab</span>
+            <h1 id="sTitel"></h1>
+            <p id="sLinje"></p>
+            <p class="fk-how" id="sAktivitet"></p>
+            <div class="fk-head-btns">
+                <button type="button" class="k-btn k-btn-primary" id="medKnap">Jeg er med</button>
+                <span class="fk-count" id="sMedlemmer"></span>
+            </div>
+        </header>
+
+        <section class="k-card" id="nuBoks" data-nofold>
+            <h2 class="k-card-title" id="nuLabel">Lige nu</h2>
+            <div id="nu"></div>
+            <!-- Martin (admin code) sets what we look at now and when we meet. -->
+            <form id="nuForm" class="k-stack fk-admin" hidden>
+                <label class="k-label" for="nuTitel">Titel</label>
+                <input class="k-input" id="nuTitel" maxlength="120" required />
+                <label class="k-label" for="nuHvornaar">Hvornår mødes vi? <span class="fk-opt">(kan undværes)</span></label>
+                <input class="k-input" id="nuHvornaar" maxlength="80" placeholder="fx fredag 7. november kl. 19, online" />
+                <label class="k-label" for="nuNote">Mere om det <span class="fk-opt">(kan undværes)</span></label>
+                <textarea class="k-input k-textarea" id="nuNote" maxlength="1000" rows="3"></textarea>
+                <div class="k-row">
+                    <button class="k-btn k-btn-primary" type="submit">Gem</button>
+                    <button class="k-btn" type="button" id="nuFjern">Fjern</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="k-card" id="tipsBoks" hidden>
+            <h2 class="k-card-title">Måske kan du også lide</h2>
+            <p class="k-help" id="tipsHjaelp">Tips til mere af det samme. Tryk på et tip for at læse mere.</p>
+            <ul id="tips" class="fk-tips"></ul>
+        </section>
+
+        <section class="k-card" id="chatBoks">
+            <h2 class="k-card-title">Snak med de andre</h2>
+            <div id="loginBoks">
+                <p>Log ind med dit kundenummer for at læse og skrive i chatten. Det er de 8 cifre fra mailen, du fik, da du skrev dig op.</p>
+                <form id="loginForm" class="k-stack">
+                    <label class="k-label" for="kode">Dit kundenummer</label>
+                    <input class="k-input" id="kode" inputmode="numeric" autocomplete="one-time-code" placeholder="fx 4821 7730" required />
+                    <label class="k-label" for="navn">Dit navn <span class="fk-opt">(det ser de andre)</span></label>
+                    <input class="k-input" id="navn" maxlength="30" autocomplete="given-name" />
+                    <button class="k-btn k-btn-primary" type="submit">Log ind</button>
+                    <p class="fk-fejl" id="loginFejl" role="alert" hidden></p>
+                </form>
+                <a class="k-btn k-btn-sm" href="https://bogshoppen.dk/#foelg">Har du ikke et kundenummer? Skriv dig op gratis</a>
+            </div>
+            <div id="chat" hidden>
+                <form id="navnForm" class="k-row fk-name" hidden>
+                    <input class="k-input" id="nytNavn" maxlength="30" placeholder="Dit navn" aria-label="Dit navn" />
+                    <button class="k-btn" type="submit">Gem navn</button>
+                </form>
+                <form id="skriv" class="fk-write">
+                    <textarea class="k-input k-textarea" id="tekst" rows="2" maxlength="2000" placeholder="Skriv til de andre…" aria-label="Besked"></textarea>
+                    <button class="k-btn k-btn-primary" type="submit">Send</button>
+                </form>
+                <p class="fk-fejl" id="skrivFejl" role="alert" hidden></p>
+                <div id="beskeder" class="fk-msgs" aria-live="polite"></div>
+                <p class="k-help" id="tomChat">Ingen har skrevet endnu. Skriv den første besked.</p>
+                <button type="button" class="k-btn k-btn-sm" id="logUd">Log ud på denne telefon</button>
+            </div>
+        </section>
+    </section>
+</div>
+<!-- Same footer as every Kolibri app (KolibriStaticPages.Footer); the page is static, so the markup is copied here. -->
+<footer class="k-footer"><span>&copy; <span id="kYear">2026</span> ITMartin · Den digitale kolibri</span> <a href="/om">Om Fællesskab</a> <a href="#k-install" class="k-footer-install">Læg på telefonen</a> <a href="/hjaelp">Noget virker ikke?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Vilkår &amp; privatliv</a></footer>
+<script>document.getElementById("kYear").textContent = new Date().getFullYear();</script>
+</body>
+</html>

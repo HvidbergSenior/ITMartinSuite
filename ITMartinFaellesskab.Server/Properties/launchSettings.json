@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "ITMartinFaellesskab": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5261",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Faellesskab__AdminCode": "admin1234",
+        "Faellesskab__DataDir": "faellesskab-data"
+      }
+    }
+  }
+}

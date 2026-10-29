@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- "Fællesskab" (Kolibri Fællesskab), 2026-10-29: communities for nerds - books, Anders And, blade, Magic, board
+         games, PC games, videoaften and music. Bogshoppen's interests lead here. Log in with the kundenummer, no ads. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinFaellesskab.Server</RootNamespace>
+        <AssemblyName>ITMartinFaellesskab.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinFaellesskab.Application\ITMartinFaellesskab.Application.csproj" />
+        <ProjectReference Include="..\ITMartinFaellesskab.Infrastructure\ITMartinFaellesskab.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ITMartinFaellesskab.Tests" />
+    </ItemGroup>
+
+</Project>

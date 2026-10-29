@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Fællesskab - the domain: the communities for nerds (books, Anders And, blade, Magic, games, film, music), their
+       members, messages, "right now" and the rules. No files, no HTTP. 2026-10-29. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinFaellesskab.Tests" />
+  </ItemGroup>
+
+</Project>
