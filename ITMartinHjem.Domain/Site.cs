@@ -207,6 +207,7 @@ public static class SiteMenu
             // shows the day's ONE thing, the "Hvad laver jeg nu?" tile on Om mig opens it).
             .Append((Sort: MineAppsSort, Item: new Item("Mine hjælpere", "/mine-apps")))
             .Append((Sort: MineAppsSort + 1, Item: new Item("Spørgsmål", "/spoergsmaal")))   // Q&A tab (user 2026-10-12: "where is the Q/A?")
+            .Append((Sort: MineAppsSort + 2, Item: new Item("Kritik", "/kritik")))   // ros, ris og forslag (user 2026-10-29)
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
         return [new Item("Forside", "/"), .. middle];   // no emojis in the menu (user 2026-10-12: they look AI-made)

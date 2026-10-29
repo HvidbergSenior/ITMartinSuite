@@ -776,3 +776,9 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-group b { font-size: 1.1rem; }
 .bs-group span { color: var(--k-muted); }
 .bs-group .bs-group-go { margin-top: auto; padding-top: 6px; color: var(--k-text); font-weight: 700; }
+/* /kritik - ros, ris og forslag (2026-10-29) */
+.hj-kritik-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.hj-kritik-list .hj-kritik-item, .hj-kritik-owner .hj-kritik-item { display: grid; gap: 6px; padding: 10px 12px; margin: 0 0 10px; }
+.hj-kritik-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.hj-kritik-error { color: var(--k-danger); font-weight: 700; margin: 8px 0 0; }
+.hj-kritik-thanks { margin: 0 0 10px; }

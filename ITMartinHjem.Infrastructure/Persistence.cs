@@ -10,6 +10,7 @@ namespace ITMartinHjem.Infrastructure;
 public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) : DbContext(options)
 {
     public DbSet<PublicQuestion> PublicQuestions => Set<PublicQuestion>();
+    public DbSet<Feedback> Feedback => Set<Feedback>();   // Kritik (2026-10-29)
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -20,6 +21,10 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
         q.Property(x => x.Answer).IsRequired();
         q.Property(x => x.Topic).IsRequired();
         q.Property(x => x.Site).IsRequired();
+
+        var f = b.Entity<Feedback>();
+        f.ToTable("Feedback");
+        f.HasKey(x => x.Id);
     }
 
     // hjem.db already exists (EnsureCreated by the Server), so this table is added by hand - idempotent.
@@ -36,6 +41,13 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
         // Checked first (2026-10-28), so a normal start no longer logs a failed ALTER TABLE.
         var has = await db.Database.SqlQueryRaw<int>("""SELECT COUNT(*) AS "Value" FROM pragma_table_info('PublicQuestions') WHERE name = 'Site'""").SingleAsync();
         if (has == 0) await db.Database.ExecuteSqlRawAsync("""ALTER TABLE "PublicQuestions" ADD COLUMN "Site" TEXT NOT NULL DEFAULT 'itmartin'""");
+        // Kritik (2026-10-29).
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "Feedback" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_Feedback" PRIMARY KEY AUTOINCREMENT,
+                "Kind" TEXT NOT NULL, "Text" TEXT NOT NULL, "Name" TEXT NOT NULL, "MayShow" INTEGER NOT NULL,
+                "Shown" INTEGER NOT NULL, "Reply" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL)
+            """);
     }
 }
 
@@ -70,6 +82,38 @@ public sealed class PublicQuestionStore(IDbContextFactory<HjemQuestionsDb> dbf) 
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         await db.PublicQuestions.Where(q => q.Id == id).ExecuteDeleteAsync(ct);
+    }
+}
+
+public sealed class FeedbackStore(IDbContextFactory<HjemQuestionsDb> dbf) : IFeedbackStore
+{
+    public async Task<List<Feedback>> AllAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Feedback.AsNoTracking().ToListAsync(ct);
+    }
+
+    public async Task AddAsync(Feedback f, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.Feedback.Add(f);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<bool> UpdateAsync(int id, Action<Feedback> change, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var f = await db.Feedback.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (f is null) return false;
+        change(f);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task DeleteAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.Feedback.Where(f => f.Id == id).ExecuteDeleteAsync(ct);
     }
 }
 
@@ -111,6 +155,7 @@ public static class DependencyInjection
         services.AddTransient<ICustomerGateway, KunderGateway>();
         services.AddDbContextFactory<HjemQuestionsDb>(o => o.UseSqlite(connectionString));
         services.AddSingleton<IPublicQuestionStore, PublicQuestionStore>();
+        services.AddSingleton<IFeedbackStore, FeedbackStore>();
         return services;
     }
 

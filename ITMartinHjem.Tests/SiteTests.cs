@@ -55,7 +55,7 @@ public class SiteTests
     public void The_menu_starts_with_Forside_and_slots_in_the_fixed_tabs()
     {
         var menu = SiteMenu.Build([new Page { Title = "Priser", Slug = "apps", Sort = 45 }]);
-        menu.Select(i => i.Title).Should().Equal("Forside", "Om mig", "Priser", "Mine hjælpere", "Spørgsmål");
+        menu.Select(i => i.Title).Should().Equal("Forside", "Om mig", "Priser", "Mine hjælpere", "Spørgsmål", "Kritik");
         menu[1].Href.Should().Be(SiteMenu.About);
     }
 

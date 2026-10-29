@@ -1,0 +1,140 @@
+@page "/kritik"
+@inject FeedbackUseCases Feedbacks
+
+<PageTitle>Kritik · ITMartin</PageTitle>
+
+@* User 2026-10-29: "a Kritik session - for Ros/ris and suggestions... I can write whatever I want about myself. What matters
+   are how other people look at me. So here you can comment on my way of working". Nothing shows before Martin presses Vis,
+   and only if the writer said yes. Martin answers and shows/hides further down, only when logged in. *@
+<PageHead Title="Kritik" Tag="Ros, ris og forslag"
+          Line="Jeg kan skrive, hvad jeg vil, om mig selv. Det, der betyder noget, er, hvordan andre oplever mig. Så her kan du sige din mening om, hvordan jeg arbejder." />
+
+<section class="k-card hj-kritik-form" id="skriv">
+    <h2 class="k-card-title">Sig din mening</h2>
+    @if (_sent)
+    {
+        <p class="hj-kritik-thanks"><b>Tak.</b> Jeg har fået det og læser det.@(_sentMayShow ? " Når jeg har læst det, kan det komme op på siden." : " Det bliver kun mellem os.")</p>
+        <button class="k-btn k-btn-sm" type="button" @onclick="Again">Skriv en til</button>
+    }
+    else
+    {
+        <p class="k-help"><b>Sådan gør du:</b> vælg ros, ris eller forslag, skriv hvad du synes, og tryk Send. Du behøver ikke skrive dit navn.
+            Sæt flueben, hvis det gerne må stå på siden – ellers er det kun mig, der læser det.</p>
+        <div class="hj-kritik-kinds" role="group" aria-label="Hvad vil du skrive?">
+            @foreach (var (kind, title) in FeedbackRules.Kinds)
+            {
+                <button type="button" class="hj-chip @(_kind == kind ? "on" : "")" aria-pressed="@(_kind == kind ? "true" : "false")" @onclick="() => _kind = kind">@title</button>
+            }
+        </div>
+        <textarea class="k-input k-textarea k-mt" @bind="_text" maxlength="@Feedback.MaxText" rows="5" aria-label="Hvad synes du?"
+                  placeholder="@Placeholder"></textarea>
+        <input class="k-input k-mt" @bind="_name" maxlength="@Feedback.MaxName" placeholder="Dit navn (kan undværes)" aria-label="Dit navn" autocomplete="given-name" />
+        <label class="sp-optin k-mt"><input type="checkbox" @bind="_mayShow" /> <span>Det må gerne stå på siden@(string.IsNullOrWhiteSpace(_name) ? " (uden navn)" : " med mit navn")</span></label>
+        @if (_error.Length > 0) { <p class="hj-kritik-error" role="alert">@_error</p> }
+        <button class="k-btn k-btn-primary k-mt" type="button" @onclick="SendAsync" disabled="@_busy">Send</button>
+    }
+</section>
+
+<section class="k-card hj-kritik-list">
+    <h2 class="k-card-title">Det siger andre</h2>
+    @if (_public is null) { <p class="k-help">Henter…</p> }
+    else if (_public.Count == 0) { <p class="k-help">Her står ikke noget endnu. Skriv det første ovenfor.</p> }
+    else
+    {
+        @foreach (var f in _public)
+        {
+            <div class="hj-part hj-kritik-item">
+                <span class="k-tag">@FeedbackRules.Title(f.Kind)</span>
+                <p class="hj-kritik-text">@NoEmoji.Strip(f.Text)</p>
+                <p class="k-help">@(f.Name.Length > 0 ? f.Name : "Anonym") · @Dk.Local(f.CreatedAt).ToString("d. MMMM yyyy", Da)</p>
+                @if (f.Reply.Length > 0) { <div class="hj-qa-a"><b>Martin svarer:</b> @NoEmoji.Strip(f.Reply)</div> }
+            </div>
+        }
+    }
+</section>
+
+@if (_owner && _all is not null)
+{
+    @* Only Martin (logged in): everything that has been written, answer + Vis/Skjul + Slet. *@
+    <section class="k-card hj-kritik-owner">
+        <h2 class="k-card-title">Alt, der er skrevet (kun dig)</h2>
+        <p class="k-help">Kun det, du viser, kommer på siden. "Må ikke vises" kan ikke vises – det har den, der skrev, sagt nej til.</p>
+        @foreach (var f in _all)
+        {
+            <div class="hj-part hj-kritik-item">
+                <span class="k-tag">@FeedbackRules.Title(f.Kind)</span>
+                <span class="k-help"> · @(f.Name.Length > 0 ? f.Name : "Anonym") · @Dk.Local(f.CreatedAt).ToString("d. MMM yyyy HH:mm", Da) · @(f.Shown ? "Vises" : f.MayShow ? "Må vises" : "Må ikke vises")</span>
+                <p class="hj-kritik-text">@f.Text</p>
+                <textarea class="k-input k-textarea" rows="2" maxlength="@Feedback.MaxReply" placeholder="Dit svar (kan undværes)" aria-label="Dit svar"
+                          value="@Reply(f)" @onchange="e => _replies[f.Id] = e.Value?.ToString() ?? string.Empty"></textarea>
+                <div class="hj-head-btns">
+                    @if (f.MayShow && !f.Shown) { <button class="k-btn k-btn-sm" type="button" @onclick="() => ShowAsync(f.Id)">Vis på siden</button> }
+                    @if (f.Shown) { <button class="k-btn k-btn-sm" type="button" @onclick="() => ShowAsync(f.Id)">Gem svar</button>
+                                    <button class="k-btn k-btn-sm" type="button" @onclick="() => HideAsync(f.Id)">Skjul</button> }
+                    @if (!f.Shown) { <button class="k-btn k-btn-sm" type="button" @onclick="() => AnswerAsync(f.Id)">Gem svar</button> }
+                    @if (_confirmDelete == f.Id)
+                    {
+                        <button class="k-btn k-btn-sm" type="button" @onclick="() => DeleteAsync(f.Id)">Ja, slet</button>
+                        <button class="k-btn k-btn-sm" type="button" @onclick="() => _confirmDelete = 0">Fortryd</button>
+                    }
+                    else { <button class="k-btn k-btn-sm" type="button" @onclick="() => _confirmDelete = f.Id">Slet</button> }
+                </div>
+            </div>
+        }
+        @if (_all.Count == 0) { <p class="k-help">Ingen har skrevet endnu.</p> }
+    </section>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private string _kind = FeedbackRules.Praise, _text = "", _name = "", _error = "";
+    private bool _mayShow, _sent, _sentMayShow, _busy, _owner;
+    private int _confirmDelete;
+    private List<Feedback>? _public, _all;
+    private readonly Dictionary<int, string> _replies = [];
+
+    private string Placeholder => _kind switch
+    {
+        FeedbackRules.Criticism => "Hvad kunne jeg have gjort bedre?",
+        FeedbackRules.Suggestion => "Hvad synes du, jeg skal prøve?",
+        _ => "Hvad var godt?",
+    };
+
+    private string Reply(Feedback f) => _replies.TryGetValue(f.Id, out var r) ? r : f.Reply;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _owner = (AuthTask is null ? null : (await AuthTask).User).IsOwner();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _public = await Feedbacks.PublicAsync();
+        if (_owner) _all = await Feedbacks.AllAsync();
+    }
+
+    private async Task SendAsync()
+    {
+        _error = "";
+        if (string.IsNullOrWhiteSpace(_text)) { _error = "Skriv, hvad du synes, før du trykker Send."; return; }
+        _busy = true;
+        try
+        {
+            await Feedbacks.WriteAsync(_kind, _text, _name, _mayShow);
+            (_sent, _sentMayShow, _text) = (true, _mayShow, "");
+            await LoadAsync();
+        }
+        catch (ArgumentException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Det kunne ikke gemmes lige nu – prøv igen om lidt."; }
+        finally { _busy = false; }
+    }
+
+    private void Again() => (_sent, _mayShow) = (false, false);
+
+    private async Task ShowAsync(int id) { await Feedbacks.ShowAsync(id, Reply(_all!.First(f => f.Id == id))); _replies.Remove(id); await LoadAsync(); }
+    private async Task HideAsync(int id) { await Feedbacks.HideAsync(id); await LoadAsync(); }
+    private async Task AnswerAsync(int id) { await Feedbacks.AnswerAsync(id, Reply(_all!.First(f => f.Id == id))); _replies.Remove(id); await LoadAsync(); }
+    private async Task DeleteAsync(int id) { await Feedbacks.RemoveAsync(id); _confirmDelete = 0; await LoadAsync(); }
+}

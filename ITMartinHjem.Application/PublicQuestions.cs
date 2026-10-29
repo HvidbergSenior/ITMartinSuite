@@ -79,6 +79,7 @@ public static class DependencyInjection
     {
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<PublicQuestions>();
+        services.AddScoped<FeedbackUseCases>();   // Kritik (2026-10-29)
         services.AddScoped<SitePolls>();
         services.AddScoped<Customers>();
         // The site itself (2026-10-20: everything moved out of the flat Server). Singletons: the repositories open a
