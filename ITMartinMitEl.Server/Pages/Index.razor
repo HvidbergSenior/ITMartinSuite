@@ -62,6 +62,10 @@ else
                 <button class="chip @(a.Id == m.Id ? "on" : "")" aria-pressed="@(a.Id == m.Id)" @onclick="() => PickMachine(a.Id)">@a.Name</button>
             }
         </div>
+        @if (_view.Typical)
+        {
+            <div class="k-muted small u-mb8">Typiske maskiner – I har ikke taget billeder af jeres egne endnu. <a href="/enheder">Tilføj dem under Enheder</a>.</div>
+        }
         <div class="now-device">Én tur · @Kwh(m.KwhPerRun) kWh · @Hours(m.DurationHours) · start @(picked is null ? "nu" : When(start))</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)

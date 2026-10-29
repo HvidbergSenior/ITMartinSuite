@@ -12,8 +12,10 @@ public interface IHouseholdHome
 
 /// <summary>Today and tomorrow priced for this household, and its own machines run against them - the same as the free
 /// front page's NowView, but with the machines the household photographed instead of a dishwasher/washer cookie.</summary>
-public sealed class MinNowView(HouseholdSettings settings, List<PricePoint> raw, PriceSnapshot snapshot, IReadOnlyList<Appliance> machines)
+public sealed class MinNowView(HouseholdSettings settings, List<PricePoint> raw, PriceSnapshot snapshot, IReadOnlyList<Appliance> machines, bool typical = false)
 {
+    /// <summary>True = the household has not photographed any machines yet; these are typical ones, not theirs.</summary>
+    public bool Typical { get; } = typical;
     public HouseholdSettings Settings { get; } = settings;
     public PriceSnapshot Snapshot { get; } = snapshot;
     public IReadOnlyList<Appliance> Machines { get; } = machines;
@@ -43,7 +45,7 @@ public sealed class MinFrontPageUseCases(IPriceSource prices, IHouseholdHome hou
         var raw = await prices.GetPricesAsync(s.PriceArea, ct);
         // No machines photographed yet (a fresh household): the typical washer, dishwasher and dryer until there are.
         var machines = household.Appliances.Count > 0 ? household.Appliances.OrderBy(a => a.SortOrder).Select(RunMeasure.Priced).ToList() : Appliance.Defaults();
-        return new MinNowView(s, raw, PriceModel.Build(raw, s, [], DkTime.Now), machines);
+        return new MinNowView(s, raw, PriceModel.Build(raw, s, [], DkTime.Now), machines, household.Appliances.Count == 0);
     }
 
     /// <summary>The last 30 days with real prices: the machine at 18:00 every day vs at the day's cheapest start.</summary>
