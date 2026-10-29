@@ -193,3 +193,23 @@ public class MinFrontPageUseCasesTests
         (await uc.HomeAsync()).Should().BeNull();
     }
 }
+
+[TestFixture]
+public class CookingKindTests
+{
+    [TestCase("Induktionskogeplade", "kogeplader")]
+    [TestCase("Emhætte", "emfang")]
+    [TestCase("Ovn Bosch", "ovn")]
+    [TestCase("Airfryer", "airfryer")]
+    [TestCase("Mikroovn", "mikroovn")]
+    public void Camera_names_find_their_kind(string name, string key) =>
+        CookingKinds.All.Where(k => k.Matches(name)).Select(k => k.Key).Should().Equal(key);
+
+    [Test]
+    public void A_hob_from_its_rating_plate_counts_a_realistic_share_of_its_max_power()
+    {
+        var hob = new Device { Name = "Induktionskogeplade", Watts = 7400, Photo = new PhotoFacts() };
+        var run = MealPlanner.AsRun(new MealActivity { Kinds = ["kogeplader"] }, [], [hob]);
+        run.KwhPerRun.Should().BeApproximately(7.4 * 0.75 * 0.2, 0.001);
+    }
+}

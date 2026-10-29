@@ -1,19 +1,29 @@
 namespace ITMartinElPriser.Domain;
 
 // One kind of cooking device with what a normal meal on it draws. Typical values, so a meal
-// can be priced the moment it is tapped together; a photographed machine of the same name replaces them.
-public sealed record CookingKind(string Key, string Name, double KwhPerUse, double Hours);
+// can be priced the moment it is tapped together; a photographed machine replaces them.
+// Words = what the camera's AI may call it ("Induktionskogeplade", "Emhætte"); Duty = the share of the plate's
+// maximum watts a meal really draws (a 7.4 kW hob is never on full for 45 minutes).
+public sealed record CookingKind(string Key, string Name, double KwhPerUse, double Hours, string[] Words, double Duty)
+{
+    public bool Matches(string name)
+    {
+        var n = name.ToLowerInvariant();
+        if (Key == "ovn" && n.Contains("mikro")) return false;
+        return Words.Any(n.Contains);
+    }
+}
 
 public static class CookingKinds
 {
     public static readonly CookingKind[] All =
     [
-        new("ovn", "Ovn", 1.1, 1.0),
-        new("kogeplader", "Kogeplader", 0.9, 0.75),
-        new("airfryer", "Airfryer", 0.5, 0.33),
-        new("emfang", "Emfang", 0.08, 0.75),
-        new("mikroovn", "Mikroovn", 0.2, 0.15),
-        new("elkedel", "Elkedel", 0.1, 0.1),
+        new("ovn", "Ovn", 1.1, 1.0, ["ovn"], 0.5),
+        new("kogeplader", "Kogeplader", 0.9, 0.75, ["kogeplade", "induktion", "komfur", "kogefelt"], 0.2),
+        new("airfryer", "Airfryer", 0.5, 0.33, ["airfryer", "air fryer", "airfrier", "varmluftsfrituese"], 0.7),
+        new("emfang", "Emfang", 0.08, 0.75, ["emfang", "emhætte", "emhaette", "udsugning"], 1.0),
+        new("mikroovn", "Mikroovn", 0.2, 0.15, ["mikro"], 0.9),
+        new("elkedel", "Elkedel", 0.1, 0.1, ["kedel"], 1.0),
     ];
 
     public static CookingKind? Find(string key) => All.FirstOrDefault(k => k.Key == key);
@@ -66,10 +76,10 @@ public static class MealPlanner
         double kwh = 0, hours = 0;
         foreach (var k in m.Kinds.Select(CookingKinds.Find).OfType<CookingKind>())
         {
-            var a = own.FirstOrDefault(x => x.Photo is not null && Same(x.Name, k.Name));
-            var d = devices.FirstOrDefault(x => x.Photo is not null && Same(x.Name, k.Name));
+            var a = own.FirstOrDefault(x => x.Photo is not null && k.Matches(x.Name) && x.KwhPerRun > 0);
+            var d = devices.FirstOrDefault(x => x.Photo is not null && k.Matches(x.Name) && x.Watts > 0);
             var h = a?.DurationHours ?? k.Hours;
-            kwh += a?.KwhPerRun ?? (d is not null ? d.Watts / 1000.0 * k.Hours : k.KwhPerUse);
+            kwh += a?.KwhPerRun ?? (d is not null ? d.Watts / 1000.0 * k.Hours * k.Duty : k.KwhPerUse);
             hours = Math.Max(hours, h);
         }
         return new Appliance { Name = m.Name, KwhPerRun = Math.Max(0.001, kwh), DurationHours = Math.Max(0.25, hours) };
@@ -154,5 +164,4 @@ public static class MealPlanner
         return new MealMeterReport(days, kwhSum / days, realSum / days, perfectSum / days, usual);
     }
 
-    private static bool Same(string a, string b) => a.Trim().Equals(b, StringComparison.OrdinalIgnoreCase);
 }
