@@ -760,3 +760,10 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-site .k-btn-primary, .bs-site .bs-btn { background:#f9e9de; color:#17211d; border:2px solid #17211d; }
 .bs-site .k-btn-primary:hover, .bs-site .bs-btn:hover { background:#ffd9bf; color:#17211d; }
 .bs-card h2 { color:#17211d; }
+/* bogshoppen.dk head = itmartin.dk's head spacing (user 2026-10-29: "bogshoppen should be looking like itmartin.. Look at css
+   spacing"): left-aligned, same padding, tag/heading margins and the buttons in a row (.hj-head-btns). */
+.bs-head { text-align: left; padding: 18px 20px 16px; margin: 8px 0 16px; }
+.bs-head .bs-tag { margin: 0 0 4px; }
+.bs-head h1 { margin: 0 0 4px; }
+.bs-head .hj-head-btns .bs-head-btn { display: inline-flex; margin: 0; padding: 10px 16px; }
+@media (max-width:520px) { .bs-head { padding: 18px 16px 16px; } .bs-head .hj-head-btns .k-btn { flex: 1 1 100%; } }
