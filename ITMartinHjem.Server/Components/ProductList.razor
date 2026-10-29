@@ -1,0 +1,105 @@
+@inject ShopUseCases Shop
+
+@* The products from Lager on bogshoppen.dk/produkter (user 2026-10-29: "i want to see the products on bogshoppen.dk as a
+   produkter - You can not buy them... It should say TESTING", "important data from lager should be on the products").
+   Not a webshop: no basket, no buy button - what Lager knows about each thing, and a test price that is not checked yet. *@
+<section class="k-card bs-card bs-products" id="alle">
+    <h2 class="k-card-title">Alle produkter</h2>
+    <p class="bs-test" role="note"><b>TEST</b> Siden er under test. Du kan ikke købe noget her endnu, og priserne er ikke tjekket – de kan være forkerte.</p>
+    <p class="k-help">Alt det, vi har fotograferet i Bogshoppens kasser. Vælg en slags, eller søg efter en titel. Er du interesseret i noget, så tryk <b>Jeg er interesseret</b> og skriv til os.</p>
+
+    @if (_error is not null)
+    {
+        <p class="k-alert k-alert-warn">@_error</p>
+    }
+    else if (_market is null)
+    {
+        <p class="k-help">Henter produkterne ...</p>
+    }
+    else
+    {
+        <div class="bs-filter" role="group" aria-label="Vælg slags">
+            <button class="k-btn k-btn-sm @(_type == "" ? "is-on" : "")" aria-pressed="@(_type == "")" @onclick='() => Pick("")'>Alle (@_market.Types.Sum(t => t.Count))</button>
+            @foreach (var t in _market.Types)
+            {
+                <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
+            }
+        </div>
+        <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
+            <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="Søg, fx Barnaby eller Storm P" @bind="_text" />
+            <button class="k-btn k-btn-primary" type="submit">Søg</button>
+        </form>
+
+        <p class="bs-count" role="status">@ResultText</p>
+        <ul class="bs-found-list">
+            @foreach (var i in _items)
+            {
+                <li class="bs-found-item">
+                    @if (i.HasPhoto) { <img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /> }
+                    <h3>@i.Line</h3>
+                    <p class="k-help">@Facts(i)</p>
+                    @if (i.Interest != "") { <p>@i.Interest</p> }
+                    <p>
+                        @if (i.ForShow) { <span class="bs-forshow">Kun til visning</span> }
+                        else if ((i.BuyNowKr ?? i.ExpectKr) is { } kr) { <span>Testpris: <b>@kr kr</b> <span class="k-muted">(ikke tjekket)</span></span> }
+                        else { <span class="k-muted">Ingen pris endnu</span> }
+                    </p>
+                    @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
+                    <div class="bs-found-actions">
+                        <a class="k-btn k-btn-primary k-btn-sm" href="https://itmartin.dk/spoergsmaal?interesse=@Uri.EscapeDataString(i.Line)#chat">Jeg er interesseret</a>
+                    </div>
+                </li>
+            }
+        </ul>
+        @if (_items.Count < _market.Total)
+        {
+            <button class="k-btn k-mt" @onclick="More" disabled="@_loading">@(_loading ? "Henter ..." : $"Vis flere ({_market.Total - _items.Count} til)")</button>
+        }
+    }
+</section>
+
+@code {
+    private ShopMarket? _market;
+    private readonly List<ShopItem> _items = [];
+    private string? _error;
+    private string _type = "", _text = "";
+    private int _page = 1;
+    private bool _loading;
+
+    protected override Task OnInitializedAsync() => Load(reset: true);
+
+    private string ResultText => _market is null ? "" : _market.Total switch
+    {
+        0 => "Ingen produkter passer.",
+        1 => "1 produkt.",
+        var n => $"{n} produkter{(_type == "" ? "" : $" i {_type}")}.",
+    };
+
+    /// <summary>The things Lager knows about it, in one line: kind, condition, new/used, year, how many.</summary>
+    private static string Facts(ShopItem i) => string.Join(" · ", new[]
+    {
+        i.Kind,
+        i.Condition == "" ? "" : $"{i.Condition} stand",
+        i.Usage,
+        i.Year is { } y ? y.ToString() : "",
+        i.Available > 1 ? $"vi har {i.Available}" : "",
+    }.Where(s => s != ""));
+
+    private Task Pick(string type) { _type = type; return Load(reset: true); }
+    private Task Search() => Load(reset: true);
+    private Task More() { _page++; return Load(reset: false); }
+
+    private async Task Load(bool reset)
+    {
+        _loading = true;
+        if (reset) _page = 1;
+        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, null, _page);
+        _loading = false;
+        _error = error;
+        if (market is null) return;
+        if (reset) _items.Clear();
+        _items.AddRange(market.Items);
+        // Keep the type chips with their full counts while a type or a search is chosen.
+        _market = reset && _type == "" && _text == "" ? market : market with { Types = _market?.Types ?? market.Types };
+    }
+}

@@ -786,3 +786,12 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-head.bs-head-me { padding-left: 190px; min-height: 230px; }
 .bs-head.bs-head-me::before { content: none; display: none; }
 @media (max-width:520px) { .bs-head.bs-head-me { padding: 18px 16px 16px; min-height: 0; } }
+
+/* Alle produkter (2026-10-29, TEST): the products from Lager, no basket. The TEST note has a thick frame and the word, not only a colour. */
+.bs-test{border:3px solid var(--k-text);border-radius:10px;padding:8px 12px;margin:6px 0 10px;background:var(--k-card);font-size:1.05rem}
+.bs-test b{display:inline-block;margin-right:6px;padding:1px 8px;border:2px solid var(--k-text);border-radius:6px;letter-spacing:.06em}
+.bs-filter{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.bs-filter .k-btn.is-on{border-width:3px;font-weight:800;box-shadow:0 0 0 2px var(--k-text)}
+.bs-search{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+.bs-search .k-input{flex:1 1 14rem}
+.bs-count{font-weight:700;margin:6px 0}

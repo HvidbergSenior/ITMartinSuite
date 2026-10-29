@@ -285,8 +285,9 @@ app.Use(async (ctx, next) =>
     }
     await next();
 });
-app.MapGet("/varer/foto/{id:int}", async (int id, HttpContext ctx, ShopVisibility visibility, ITMartinHjem.Server.MarketCookie market, ShopUseCases shop) =>
-    (visibility.Visible(ctx.Request.Cookies[ShopVisibility.Cookie]) || market.Read(ctx) != "") && await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+// Open to all since 2026-10-29: the products are shown on bogshoppen.dk/produkter (TEST, nothing to buy).
+app.MapGet("/varer/foto/{id:int}", async (int id, ShopUseCases shop) =>
+    await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 
 app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibility) =>
 {
