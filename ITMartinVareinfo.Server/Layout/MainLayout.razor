@@ -2,10 +2,10 @@
 @inject HelperUseCases Helpers
 
 <KolibriHeader>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/">📷 Kasse</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/">📷 Tag billeder</a>
     @if (Me is { IsAdmin: true })
     {
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/sessioner">🗂️ Sessioner</a>
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/sessioner">Sessioner</a>
         <a class="k-btn k-btn-ghost k-btn-sm" href="/hjaelpere">👥 Hjælpere</a>
         <a class="k-btn k-btn-ghost k-btn-sm" href="@Helpers.LagerBase">📦 Lager</a>
     }

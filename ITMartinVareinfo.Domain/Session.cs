@@ -1,97 +1,74 @@
 namespace ITMartinVareinfo.Domain;
 
-/// <summary>A session Martin prepares (user 2026-10-26: "I prepare a session with 4 helpers. I point to 20 boxes and
-/// name them" - "a helper should ONLY have their Testkasse. I prepare which boxes so that they just have to choose").
-/// The boxes of every open session are one shared pool: a helper taps a free one, the others see who has it until it
-/// is done. A helper never types a box number.</summary>
+/// <summary>A scanning session (user 2026-10-29: "it should be Session 1, 2, 3, etc... A session should be named
+/// something like location and/or intent" - "so remove all that has to do with boxes"). Martin starts it, the helpers
+/// tap it and take photos - many helpers in the same session at once. A product is found again by the session title:
+/// "Session 3 – Boxit, reol 2".</summary>
 public sealed class WorkSession
 {
-    /// <summary>A session holds at most this many boxes (a day's work for many helpers).</summary>
-    public const int MaxBoxes = 200;
+    /// <summary>Lager still keeps things per box code (until Lager gets sessions too): session N goes to Lager as
+    /// K(5000+N), far above the numbers Lager writes on its own boxes, below the personal test codes (9000+).</summary>
+    public const int FirstCode = 5000;
+    public const int MaxNumber = BoxCodes.FirstTest - FirstCode - 1;
 
     public int Id { get; set; }
+    /// <summary>1, 2, 3 ... - the next after the highest so far. 0 = a personal practice session.</summary>
+    public int Number { get; set; }
+    /// <summary>Place and/or purpose: "Boxit, reol 2", "Loppemarked lørdag". May be empty.</summary>
     public string Name { get; set; } = "";
+    /// <summary>The code Lager keeps the photos under (K5003). Never shown in Vareinfo.</summary>
+    public string BoxCode { get; set; } = "";
     public DateTime CreatedAt { get; set; }
     public DateTime? ClosedAt { get; set; }
-    public List<SessionBox> Boxes { get; set; } = [];
-
-    public bool Open => ClosedAt is null;
-
-    public static WorkSession Start(string? name, DateTime now) => new()
-    {
-        Name = string.IsNullOrWhiteSpace(name) ? $"Session {now.ToLocalTime():d. MMM}" : name.Trim(),
-        CreatedAt = now,
-    };
-
-    /// <summary>Points to a box (a number written on it, 1-MaxNormal). Throws when it is already in this session,
-    /// out of range, or the session is full.</summary>
-    public SessionBox Add(int number, string? name)
-    {
-        if (number is < 1 or > BoxClaim.MaxNormal) throw new InvalidOperationException($"Kassens nummer skal være 1-{BoxClaim.MaxNormal}.");
-        if (Boxes.Count >= MaxBoxes) throw new InvalidOperationException($"En session har højst {MaxBoxes} kasser.");
-        var code = BoxCodes.For(number);
-        if (Boxes.Any(b => b.BoxCode == code)) throw new InvalidOperationException($"Kasse {number} er allerede med.");
-        var box = new SessionBox { BoxCode = code, Name = (name ?? "").Trim(), SortOrder = Boxes.Count };
-        Boxes.Add(box);
-        return box;
-    }
-
-    public void Close(DateTime now) => ClosedAt ??= now;
-
-    /// <summary>The next free numbers after every number used so far (boxes in sessions, boxes helpers have taken) -
-    /// new boxes never get a number that is already on another box. Test boxes (9000-9999) do not count.</summary>
-    public static List<int> NextNumbers(IEnumerable<int> used, int count)
-    {
-        var last = used.Where(n => n is > 0 and <= BoxClaim.MaxNormal).DefaultIfEmpty(0).Max();
-        if (last + count > BoxClaim.MaxNormal) throw new InvalidOperationException("Der er ikke flere kassenumre.");
-        return Enumerable.Range(last + 1, Math.Max(0, count)).ToList();
-    }
-}
-
-/// <summary>One box in a session: the number on the box and the name Martin gave it ("Anders And 1970'erne").</summary>
-public sealed class SessionBox
-{
-    public int Id { get; set; }
-    public int SessionId { get; set; }
-    public string BoxCode { get; set; } = "";   // K0007
-    public string Name { get; set; } = "";
-    public int SortOrder { get; set; }
-    /// <summary>The helper this box is for (user 2026-10-26, "Box per helper"): Taker.Id - a kundenummer helper is minus
-    /// the number. Null = the shared pool, any helper can take it.</summary>
+    /// <summary>The helper this session is for (Taker.Id - a kundenummer helper is minus the number). Null = every helper.</summary>
     public int? HelperId { get; set; }
     public string HelperName { get; set; } = "";
 
-    public int Number => BoxCodes.Number(BoxCode);
+    public bool Open => ClosedAt is null;
+    public bool IsPractice => BoxCodes.IsTest(BoxCode);
 
-    /// <summary>Martin sees every box; a helper the boxes given to them, or the pool ones.</summary>
-    public bool IsFor(Taker me) => me.IsAdmin || HelperId is null || HelperId == me.Id;
+    /// <summary>"Session 3 – Boxit, reol 2", "Session 3", or "Øvesession – Rico".</summary>
+    public string Title => IsPractice ? $"Øvesession – {HelperName}" : Name == "" ? $"Session {Number}" : $"Session {Number} – {Name}";
+
+    public static WorkSession Start(int number, string? name, DateTime now)
+    {
+        if (number is < 1 or > MaxNumber) throw new InvalidOperationException("Der er ikke flere sessionsnumre.");
+        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now };
+    }
+
+    /// <summary>The next number: one more than the highest so far.</summary>
+    public static int NextNumber(IEnumerable<int> used) => used.DefaultIfEmpty(0).Max() + 1;
+
+    /// <summary>A person's own practice session (user 2026-10-25: "i want all helpers to have their own Testbox... Also
+    /// myself") - only theirs, never closed; its things are only for show in Lager, never sold.</summary>
+    public static WorkSession Practice(Taker me, int testNumber, DateTime now) => new()
+    {
+        BoxCode = BoxCodes.For(testNumber), HelperId = me.Id, HelperName = me.Name, CreatedAt = now,
+    };
+
+    public void Rename(string? name) => Name = Clean(name);
+
+    /// <summary>Martin sees every session; a helper the sessions given to them, or the ones for everybody.</summary>
+    public bool IsFor(Taker me) => IsPractice ? HelperId == me.Id : me.IsAdmin || HelperId is null || HelperId == me.Id;
 
     public void GiveTo(int? helperId, string? name) => (HelperId, HelperName) = helperId is null ? (null, "") : (helperId, (name ?? "").Trim());
 
-    /// <summary>"Kasse 7 – Anders And 1970'erne", or just "Kasse 7".</summary>
-    public string Title => Name == "" ? $"Kasse {Number}" : $"Kasse {Number} – {Name}";
+    public void Close(DateTime now) => ClosedAt ??= now;
+
+    private static string Clean(string? name) => (name ?? "").Trim();
 }
 
-/// <summary>How a session box looks to one helper right now.</summary>
-public enum ChoiceState { Free, Mine, Busy, Done }
+/// <summary>Photos (or scanned copies) one helper took in one session.</summary>
+public sealed record HelperTally(int SessionId, string Helper, int Count, DateTime LastAt);
 
-/// <summary>One button on the helper's list.</summary>
-public sealed record BoxChoice(string BoxCode, string Title, ChoiceState State, string Who, int Photos)
+/// <summary>One session on Martin's overview: how far, who took photos, when the latest came.</summary>
+public sealed record SessionStatus(WorkSession Session, int Photos, int Scans, IReadOnlyList<string> Helpers, DateTime? LastAt)
 {
-    public bool CanTake => State is ChoiceState.Free or ChoiceState.Mine;
-
-    /// <summary>What the helper sees for a box: free, theirs, someone else's right now, or done. A box left without a
-    /// photo for BoxClaim.Idle is free again.</summary>
-    public static BoxChoice For(SessionBox box, BoxClaim? claim, Taker me, DateTime now, int photos)
+    public static SessionStatus For(WorkSession s, IEnumerable<HelperTally> photos, IEnumerable<HelperTally> scans)
     {
-        var state = claim switch
-        {
-            null => ChoiceState.Free,
-            { DoneAt: not null } => ChoiceState.Done,
-            _ when claim.OpenFor(me.Id, now) => ChoiceState.Mine,
-            _ when claim.BusyFor(me.Id, now) => ChoiceState.Busy,
-            _ => ChoiceState.Free,
-        };
-        return new BoxChoice(box.BoxCode, box.Title, state, claim?.HelperName ?? "", photos);
+        var p = photos.Where(t => t.SessionId == s.Id).ToList();
+        var c = scans.Where(t => t.SessionId == s.Id).ToList();
+        var last = p.Concat(c).Select(t => (DateTime?)t.LastAt).DefaultIfEmpty(null).Max();
+        return new SessionStatus(s, p.Sum(t => t.Count), c.Sum(t => t.Count), p.Select(t => t.Helper).Distinct().Order().ToList(), last);
     }
 }

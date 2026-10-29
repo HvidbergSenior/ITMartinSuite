@@ -26,6 +26,7 @@ public class CaptureTests
     private TestDbFactory Factory => new(_conn);
     private readonly TestClock _clock = new();
     private readonly Taker _rico = new(1, "Rico"), _anna = new(2, "Anna");
+    private WorkSession _session = null!;
 
     [SetUp]
     public async Task Open()
@@ -33,14 +34,11 @@ public class CaptureTests
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();
         using (var db = Factory.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
-        // Helpers only take boxes Martin made ready (2026-10-26) - the boxes these tests use are in one open session.
-        var sessions = Sessions();
-        var s = await sessions.StartAsync("Test");
-        foreach (var n in new[] { 1, 7, 8, 8999 }.Concat(Enumerable.Range(101, 100))) await sessions.AddBoxAsync(s.Id, n, null);
+        _session = await Sessions().StartAsync("Boxit, reol 2");
     }
 
     private SessionUseCases Sessions() =>
-        new(new SessionRepository(Factory), new BoxClaimRepository(Factory), new PhotoRepository(Factory), _clock);
+        new(new SessionRepository(Factory), new PhotoRepository(Factory), new ScanRepository(Factory), _clock);
 
     [TearDown]
     public void Close() => _conn.Dispose();
@@ -56,62 +54,20 @@ public class CaptureTests
     }
 
     private CaptureUseCases Capture(IPhotoStore? store = null) =>
-        new(new BoxClaimRepository(Factory), new PhotoRepository(Factory), new ScanRepository(Factory), store ?? Store().Object, Sessions(), _clock);
+        new(new PhotoRepository(Factory), new ScanRepository(Factory), store ?? Store().Object, new SessionRepository(Factory), Sessions(), _clock);
 
     [Test]
-    public async Task Everyone_has_their_own_test_box_the_same_every_time_and_nobody_can_type_its_number()
-    {
-        var capture = Capture();
-        var ricos = await capture.MyTestBoxAsync(_rico);
-        var annas = await capture.MyTestBoxAsync(_anna);
-        ricos.BoxCode.Should().Be("K9999");
-        annas.BoxCode.Should().Be("K9998");
-        ricos.IsTest.Should().BeTrue();
-
-        await capture.FinishBoxAsync(ricos.BoxCode, _rico);
-        _clock.Now = _clock.Now.AddDays(3);
-        (await capture.MyTestBoxAsync(_rico)).BoxCode.Should().Be("K9999");
-
-        var typed = () => capture.TakeBoxAsync(9998, _rico);
-        await typed.Should().ThrowAsync<VareinfoException>();
-        (await capture.TakeBoxAsync(8999, _rico)).IsTest.Should().BeFalse();
-    }
-
-    [Test]
-    public async Task One_helper_per_box_and_a_finished_or_forgotten_box_is_free_again()
-    {
-        var capture = Capture();
-        (await capture.TakeBoxAsync(7, _rico)).BoxCode.Should().Be("K0007");
-
-        await capture.Invoking(c => c.TakeBoxAsync(7, _anna)).Should().ThrowAsync<VareinfoException>().WithMessage("Kasse 7 bruges af Rico*");
-        (await capture.TakeBoxAsync(7, _rico)).HelperName.Should().Be("Rico");   // Rico again (reload) is fine
-        (await capture.TakeBoxAsync(8, _anna)).HelperName.Should().Be("Anna");
-
-        await capture.FinishBoxAsync("K0007", _rico);
-        (await capture.MyBoxAsync(_rico)).Should().BeNull();
-        (await capture.TakeBoxAsync(7, _anna)).HelperName.Should().Be("Anna");   // finished = free
-
-        _clock.Now += BoxClaim.Idle + TimeSpan.FromMinutes(1);                   // Anna went home without "færdig"
-        (await capture.TakeBoxAsync(8, _rico)).HelperName.Should().Be("Rico");
-        await capture.Invoking(c => c.TakeBoxAsync(0, _rico)).Should().ThrowAsync<VareinfoException>();
-    }
-
-    [Test]
-    public async Task Hundred_helpers_taking_boxes_at_the_same_moment_each_get_their_own()
+    public async Task Hundred_helpers_in_the_same_session_at_the_same_moment_all_get_their_photos_kept()
     {
         var capture = Capture();
         var helpers = Enumerable.Range(1, 100).Select(n => new Taker(n, $"Hjælper {n}")).ToList();
 
-        // Everybody asks for box 1 at once: exactly one gets it.
-        var tries = await Task.WhenAll(helpers.Select(async h =>
-        {
-            try { await capture.TakeBoxAsync(1, h); return true; } catch (VareinfoException) { return false; }
-        }));
-        tries.Count(ok => ok).Should().Be(1);
+        await Task.WhenAll(helpers.Select(h => capture.StoreAsync(new MemoryStream([1]), _session.Id, h)));
 
-        // Each their own box: all 100 at once, all fine.
-        await Task.WhenAll(helpers.Select(h => capture.TakeBoxAsync(100 + h.Id, h)));
-        (await capture.OverviewAsync()).Count(b => b.Busy).Should().Be(101);
+        (await capture.CountAsync(_session.Id)).Photos.Should().Be(100);
+        var status = (await Sessions().OverviewAsync()).Single();
+        status.Helpers.Should().HaveCount(100);
+        status.LastAt.Should().Be(_clock.Now.UtcDateTime);
     }
 
     [Test]
@@ -119,19 +75,18 @@ public class CaptureTests
     {
         var store = Store();
         var capture = Capture(store.Object);
-        await capture.TakeBoxAsync(7, _rico);
-        await capture.StoreAsync(new MemoryStream([1]), "K0007", _rico);
-        await capture.StoreAsync(new MemoryStream([1]), "K0007", _rico);
+        await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
+        await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
 
         store.Verify(s => s.SaveRawAsync(It.Is<string>(p => p.StartsWith("inbox")), It.IsAny<Stream>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         store.Verify(s => s.ShrinkAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()), Times.Never);   // nothing cut while uploading
         (await capture.NewForLagerAsync(10)).Photos.Should().BeEmpty();                                        // not ready yet
-        (await capture.CountAsync("K0007")).Should().Be((2, 0));
+        (await capture.CountAsync(_session.Id)).Should().Be((2, 0));
 
         (await capture.ProcessWaitingAsync(10, 4)).Should().Be(2);
         store.Verify(s => s.Delete(It.Is<string>(p => p.StartsWith("inbox"))), Times.Exactly(2));             // the upload is not kept
         var batch = await capture.NewForLagerAsync(10);
-        batch.Photos.Should().HaveCount(2).And.OnlyContain(p => p.BoxCode == "K0007" && p.Helper == "Rico" && p.Tiles == 4);
+        batch.Photos.Should().HaveCount(2).And.OnlyContain(p => p.BoxCode == "K5001" && p.Helper == "Rico" && p.Tiles == 4);
         (await capture.PhotoFileAsync(batch.Photos[0].Id, 3)).Should().EndWith("-t3.jpg");
         (await capture.PhotoFileAsync(batch.Photos[0].Id, 4)).Should().BeNull();
     }
@@ -142,7 +97,7 @@ public class CaptureTests
         var store = Store();
         store.Setup(x => x.ShrinkAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidDataException("broken"));
         var capture = Capture(store.Object);
-        await capture.StoreAsync(new MemoryStream([1]), "K0007", _rico);
+        await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
 
         for (var n = 0; n < Photo.MaxAttempts; n++) await capture.ProcessWaitingAsync(10, 1);
 
@@ -153,39 +108,49 @@ public class CaptureTests
     }
 
     [Test]
-    public async Task Lager_gets_each_photo_and_scan_until_it_says_it_has_them()
+    public async Task Lager_gets_each_photo_and_scan_with_the_session_title_until_it_says_it_has_them()
     {
         var capture = Capture();
-        await capture.StoreAsync(new MemoryStream([1]), "K0001", _rico);
+        await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
         await capture.ProcessWaitingAsync(10, 1);
-        (await capture.ScanAsync("9780552131063", "K0001", _rico)).Should().Be(1);
-        (await capture.ScanAsync("9780552131063", "K0001", _rico)).Should().Be(2);   // same code again = one more copy
-        await capture.Invoking(c => c.ScanAsync("12", "K0001", _rico)).Should().ThrowAsync<VareinfoException>();
+        (await capture.ScanAsync("9780552131063", _session.Id, _rico)).Should().Be(1);
+        (await capture.ScanAsync("9780552131063", _session.Id, _rico)).Should().Be(2);   // same code again = one more copy
+        await capture.Invoking(c => c.ScanAsync("12", _session.Id, _rico)).Should().ThrowAsync<VareinfoException>();
 
         var first = await capture.NewForLagerAsync(10);
         (await capture.NewForLagerAsync(10)).Should().BeEquivalentTo(first);         // asked again before saying OK: the same
         first.Scans.Single().Quantity.Should().Be(2);
+        first.Boxes.Should().Equal(new CapturedBox("K5001", "Session 1 – Boxit, reol 2"));
 
         await capture.ReceivedAsync(new CaptureReceived(first.Photos.Select(p => p.Id).ToList(), first.Scans.Select(s => s.Id).ToList()));
         var after = await capture.NewForLagerAsync(10);
         after.Photos.Should().BeEmpty();
         after.Scans.Should().BeEmpty();
-        (await capture.ScanAsync("9780552131063", "K0001", _rico)).Should().Be(1);   // Lager has the first two - a new row
+        (await capture.ScanAsync("9780552131063", _session.Id, _rico)).Should().Be(1);   // Lager has the first two - a new row
     }
 
     [Test]
-    public async Task A_photo_still_on_the_phone_lands_in_its_own_box_even_after_the_box_is_finished()
+    public async Task A_photo_still_on_the_phone_lands_in_its_session_even_after_it_was_closed()
     {
         var capture = Capture();
-        await capture.TakeBoxAsync(7, _rico);
-        await capture.FinishBoxAsync("K0007", _rico);
-        await capture.TakeBoxAsync(7, _anna);
+        await Sessions().CloseAsync(_session.Id);
 
-        await capture.StoreAsync(new MemoryStream([1]), "K0007", _rico);
-        await capture.Invoking(c => c.StoreAsync(new MemoryStream([1]), "", _rico)).Should().ThrowAsync<VareinfoException>();
+        await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
+        await capture.Invoking(c => c.StoreAsync(new MemoryStream([1]), 0, _rico)).Should().ThrowAsync<VareinfoException>();
 
-        (await capture.CountAsync("K0007")).Photos.Should().Be(1);
-        (await capture.MyBoxAsync(_anna))!.BoxCode.Should().Be("K0007");
+        (await capture.CountAsync(_session.Id)).Photos.Should().Be(1);
+    }
+
+    [Test]
+    public async Task Nobody_uploads_into_a_session_that_is_not_for_them()
+    {
+        var sessions = Sessions();
+        await sessions.GiveAsync(_session.Id, new HelperChoice(_anna.Id, "Anna"));
+        var ricos = await sessions.PracticeAsync(_rico);
+
+        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), _session.Id, _rico)).Should().ThrowAsync<VareinfoException>();
+        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), ricos.Id, _anna)).Should().ThrowAsync<VareinfoException>();
+        await Capture().StoreAsync(new MemoryStream([1]), _session.Id, _anna);
     }
 
     private sealed class OneHelper : IHelperNumbers
@@ -301,7 +266,8 @@ public class LayerTests
             .Should().NotContain(n => n.StartsWith("ITMartinLager") || n.StartsWith("Anthropic"));
 }
 
-// The box label QR (Lager prints it, Vareinfo scans it) - 2026-10-21.
+// The box label QR (Lager prints it) - 2026-10-21. Vareinfo no longer scans it (sessions, 2026-10-29); the words stay
+// in ITMartinVarer.Contracts until Lager gets sessions too.
 public class BoxLabelTests
 {
     [TestCase("https://lager.bogshoppen.dk/kasse/K0007", 7)]

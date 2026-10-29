@@ -46,26 +46,27 @@ public sealed class PhotoRepository(IDbContextFactory<VareinfoDb> dbf) : IPhotoR
         await db.Photos.Where(p => ids.Contains(p.Id)).ExecuteUpdateAsync(s => s.SetProperty(p => p.SentAt, now), ct);
     }
 
-    public async Task<int> CountAsync(string boxCode, CancellationToken ct)
+    public async Task<int> CountAsync(int sessionId, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Photos.CountAsync(p => p.BoxCode == boxCode, ct);
+        return await db.Photos.CountAsync(p => p.SessionId == sessionId, ct);
     }
 
-    public async Task<Dictionary<string, int>> PerBoxAsync(CancellationToken ct)
+    public async Task<List<HelperTally>> PerSessionAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Photos.GroupBy(p => p.BoxCode).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        return await db.Photos.GroupBy(p => new { p.SessionId, p.Helper })
+            .Select(g => new HelperTally(g.Key.SessionId, g.Key.Helper, g.Count(), g.Max(p => p.TakenAt))).ToListAsync(ct);
     }
 }
 
 public sealed class ScanRepository(IDbContextFactory<VareinfoDb> dbf) : IScanRepository
 {
-    public async Task<int> AddOrCountAsync(string code, string boxCode, Taker who, CancellationToken ct)
+    public async Task<int> AddOrCountAsync(string code, WorkSession session, Taker who, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var same = await db.Scans.FirstOrDefaultAsync(s => s.Code == code && s.BoxCode == boxCode && s.SentAt == null, ct);
-        if (same is null) db.Scans.Add(same = new Scan { Code = code, BoxCode = boxCode, HelperId = who.Id, Helper = who.Name });
+        var same = await db.Scans.FirstOrDefaultAsync(s => s.Code == code && s.SessionId == session.Id && s.SentAt == null, ct);
+        if (same is null) db.Scans.Add(same = new Scan { Code = code, SessionId = session.Id, BoxCode = session.BoxCode, HelperId = who.Id, Helper = who.Name });
         else same.Quantity++;
         await db.SaveChangesAsync(ct);
         return same.Quantity;
@@ -84,16 +85,17 @@ public sealed class ScanRepository(IDbContextFactory<VareinfoDb> dbf) : IScanRep
         await db.Scans.Where(s => ids.Contains(s.Id)).ExecuteUpdateAsync(x => x.SetProperty(s => s.SentAt, now), ct);
     }
 
-    public async Task<int> CountAsync(string boxCode, CancellationToken ct)
+    public async Task<int> CountAsync(int sessionId, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Scans.Where(s => s.BoxCode == boxCode).SumAsync(s => s.Quantity, ct);
+        return await db.Scans.Where(s => s.SessionId == sessionId).SumAsync(s => s.Quantity, ct);
     }
 
-    public async Task<Dictionary<string, int>> PerBoxAsync(CancellationToken ct)
+    public async Task<List<HelperTally>> PerSessionAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Scans.GroupBy(s => s.BoxCode).Select(g => new { g.Key, Count = g.Sum(s => s.Quantity) }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        return await db.Scans.GroupBy(s => new { s.SessionId, s.Helper })
+            .Select(g => new HelperTally(g.Key.SessionId, g.Key.Helper, g.Sum(s => s.Quantity), g.Max(s => s.TakenAt))).ToListAsync(ct);
     }
 }
 
@@ -132,92 +134,32 @@ public sealed class HelperRepository(IDbContextFactory<VareinfoDb> dbf) : IHelpe
     }
 }
 
-public sealed class BoxClaimRepository(IDbContextFactory<VareinfoDb> dbf) : IBoxClaimRepository
-{
-    public async Task<BoxClaim?> GetAsync(string boxCode, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.BoxClaims.AsNoTracking().FirstOrDefaultAsync(c => c.BoxCode == boxCode, ct);
-    }
-
-    public async Task SaveAsync(BoxClaim claim, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        if (await db.BoxClaims.AnyAsync(c => c.BoxCode == claim.BoxCode, ct)) db.BoxClaims.Update(claim);
-        else db.BoxClaims.Add(claim);
-        await db.SaveChangesAsync(ct);
-    }
-
-    public async Task<List<BoxClaim>> AllAsync(CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.BoxClaims.AsNoTracking().ToListAsync(ct);
-    }
-
-    public async Task<List<BoxClaim>> OpenForAsync(int helperId, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.BoxClaims.AsNoTracking().Where(c => c.HelperId == helperId && c.DoneAt == null)
-            .OrderByDescending(c => c.LastAt).ToListAsync(ct);
-    }
-}
-
-// The sessions Martin prepares (2026-10-26), with their boxes.
+// The scanning sessions (2026-10-29: numbered, named after place and/or purpose).
 public sealed class SessionRepository(IDbContextFactory<VareinfoDb> dbf) : ISessionRepository
 {
     public async Task<List<WorkSession>> AllAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Sessions.AsNoTracking().Include(s => s.Boxes).OrderByDescending(s => s.CreatedAt).ToListAsync(ct);
+        return await db.Sessions.AsNoTracking().OrderByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id).ToListAsync(ct);
     }
 
     public async Task<WorkSession?> GetAsync(int id, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Sessions.AsNoTracking().Include(s => s.Boxes).FirstOrDefaultAsync(s => s.Id == id, ct);
+        return await db.Sessions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
     public async Task SaveAsync(WorkSession session, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         if (session.Id == 0) db.Sessions.Add(session);
-        else
-        {
-            db.Sessions.Update(session);
-            foreach (var box in session.Boxes) db.Entry(box).State = box.Id == 0 ? EntityState.Added : EntityState.Modified;
-        }
+        else db.Sessions.Update(session);
         await db.SaveChangesAsync(ct);
-    }
-
-    public async Task<SessionBox?> BoxAsync(int boxId, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.SessionBoxes.AsNoTracking().FirstOrDefaultAsync(b => b.Id == boxId, ct);
-    }
-
-    public async Task UpdateBoxAsync(SessionBox box, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        db.SessionBoxes.Update(box);
-        await db.SaveChangesAsync(ct);
-    }
-
-    public async Task RemoveBoxAsync(int boxId, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        await db.SessionBoxes.Where(b => b.Id == boxId).ExecuteDeleteAsync(ct);
-    }
-
-    public async Task<List<int>> UsedNumbersAsync(CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return (await db.SessionBoxes.Select(b => b.BoxCode).ToListAsync(ct)).Select(BoxCodes.Number).ToList();
     }
 
     public async Task DeleteAsync(int sessionId, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        await db.SessionBoxes.Where(b => b.SessionId == sessionId).ExecuteDeleteAsync(ct);
         await db.Sessions.Where(s => s.Id == sessionId).ExecuteDeleteAsync(ct);
     }
 }

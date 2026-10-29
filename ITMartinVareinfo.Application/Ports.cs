@@ -30,16 +30,6 @@ public interface IHelperRepository
     Task UpdateAsync(Helper helper, CancellationToken ct);
 }
 
-public interface IBoxClaimRepository
-{
-    Task<BoxClaim?> GetAsync(string boxCode, CancellationToken ct);
-    /// <summary>Adds or updates.</summary>
-    Task SaveAsync(BoxClaim claim, CancellationToken ct);
-    Task<List<BoxClaim>> AllAsync(CancellationToken ct);
-    /// <summary>The helper's boxes not marked done, latest first.</summary>
-    Task<List<BoxClaim>> OpenForAsync(int helperId, CancellationToken ct);
-}
-
 public interface IPhotoRepository
 {
     Task<Photo> AddAsync(Photo photo, CancellationToken ct);
@@ -50,20 +40,20 @@ public interface IPhotoRepository
     /// <summary>Ready photos Lager does not have yet, oldest first.</summary>
     Task<List<Photo>> UnsentAsync(int max, CancellationToken ct);
     Task MarkSentAsync(IReadOnlyCollection<int> ids, DateTime now, CancellationToken ct);
-    Task<int> CountAsync(string boxCode, CancellationToken ct);
-    /// <summary>Per box: photos.</summary>
-    Task<Dictionary<string, int>> PerBoxAsync(CancellationToken ct);
+    Task<int> CountAsync(int sessionId, CancellationToken ct);
+    /// <summary>Per session and helper: photos and the latest.</summary>
+    Task<List<HelperTally>> PerSessionAsync(CancellationToken ct);
 }
 
 public interface IScanRepository
 {
-    /// <summary>Stores the scan, or one more copy on the unsent scan of the same code in the same box. Returns the copies.</summary>
-    Task<int> AddOrCountAsync(string code, string boxCode, Taker who, CancellationToken ct);
+    /// <summary>Stores the scan, or one more copy on the unsent scan of the same code in the same session. Returns the copies.</summary>
+    Task<int> AddOrCountAsync(string code, WorkSession session, Taker who, CancellationToken ct);
     Task<List<Scan>> UnsentAsync(int max, CancellationToken ct);
     Task MarkSentAsync(IReadOnlyCollection<int> ids, DateTime now, CancellationToken ct);
-    Task<int> CountAsync(string boxCode, CancellationToken ct);
-    /// <summary>Per box: scanned copies.</summary>
-    Task<Dictionary<string, int>> PerBoxAsync(CancellationToken ct);
+    Task<int> CountAsync(int sessionId, CancellationToken ct);
+    /// <summary>Per session and helper: scanned copies and the latest.</summary>
+    Task<List<HelperTally>> PerSessionAsync(CancellationToken ct);
 }
 
 /// <summary>Settings the use cases read (Vareinfo__* in magic.env).</summary>

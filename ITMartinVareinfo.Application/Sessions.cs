@@ -2,133 +2,120 @@ using ITMartinVareinfo.Domain;
 
 namespace ITMartinVareinfo.Application;
 
-/// <summary>The sessions Martin prepares (user 2026-10-26: "I prepare a session with 4 helpers. I point to 20 boxes and
-/// name them"). One shared pool: every helper sees the boxes of the open sessions and taps a free one.</summary>
+/// <summary>The scanning sessions (user 2026-10-29: "Session 1, 2, 3, etc... named something like location and/or
+/// intent"). Martin starts one; every helper it is for sees it while it is open and taps it.</summary>
 public interface ISessionRepository
 {
-    /// <summary>Newest first, with their boxes.</summary>
+    /// <summary>Newest first, practice sessions included.</summary>
     Task<List<WorkSession>> AllAsync(CancellationToken ct);
     Task<WorkSession?> GetAsync(int id, CancellationToken ct);
-    /// <summary>Adds (Id 0) or updates, boxes included.</summary>
+    /// <summary>Adds (Id 0) or updates.</summary>
     Task SaveAsync(WorkSession session, CancellationToken ct);
-    Task<SessionBox?> BoxAsync(int boxId, CancellationToken ct);
-    Task UpdateBoxAsync(SessionBox box, CancellationToken ct);
-    Task RemoveBoxAsync(int boxId, CancellationToken ct);
-    /// <summary>Every box number in any session (open or closed).</summary>
-    Task<List<int>> UsedNumbersAsync(CancellationToken ct);
-    /// <summary>The session and its box list - the photos taken in the boxes are kept.</summary>
     Task DeleteAsync(int sessionId, CancellationToken ct);
 }
 
-/// <summary>Someone Martin can give a box to: Taker.Id (minus the kundenummer for Kunder's helpers) and the name.</summary>
+/// <summary>Someone Martin can give a session to: Taker.Id (minus the kundenummer for Kunder's helpers) and the name.</summary>
 public sealed record HelperChoice(int Id, string Name);
 
-public sealed class SessionUseCases(ISessionRepository sessions, IBoxClaimRepository claims, IPhotoRepository photos, TimeProvider clock)
+/// <summary>One button on the helper's list.</summary>
+public sealed record SessionChoice(int Id, string Title, int Photos);
+
+public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepository photos, IScanRepository scans, TimeProvider clock)
 {
-    /// <summary>New boxes made at a time ("Lav 20 nye kasser").</summary>
-    public const int MaxNewAtOnce = 100;
+    // Numbering and practice sessions are check-then-save; one Vareinfo container, so one gate is enough.
+    private static readonly SemaphoreSlim Gate = new(1, 1);
 
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
-    public Task<List<WorkSession>> AllAsync(CancellationToken ct = default) => sessions.AllAsync(ct);
+    /// <summary>The real sessions (not the practice ones), newest first.</summary>
+    public async Task<List<WorkSession>> AllAsync(CancellationToken ct = default) =>
+        (await sessions.AllAsync(ct)).Where(s => !s.IsPractice).ToList();
 
+    /// <summary>"Ny session": the next number, and the place/purpose Martin wrote (may be empty).</summary>
     public async Task<WorkSession> StartAsync(string? name, CancellationToken ct = default)
     {
-        var s = WorkSession.Start(name, Now);
-        await sessions.SaveAsync(s, ct);
-        return s;
+        await Gate.WaitAsync(ct);
+        try
+        {
+            var number = WorkSession.NextNumber((await AllAsync(ct)).Select(s => s.Number));
+            var s = Guard(() => WorkSession.Start(number, name, Now));
+            await sessions.SaveAsync(s, ct);
+            return s;
+        }
+        finally { Gate.Release(); }
     }
 
-    /// <summary>"Lav nye kasser": count boxes with the next free numbers - write the numbers on the boxes (or print
-    /// their labels in Lager). Returns the numbers.</summary>
-    public async Task<List<int>> NewBoxesAsync(int sessionId, int count, CancellationToken ct = default)
+    public Task RenameAsync(int id, string? name, CancellationToken ct = default) => ChangeAsync(id, s => s.Rename(name), ct);
+
+    /// <summary>"Til": the session is for this helper only (null = every helper).</summary>
+    public Task GiveAsync(int id, HelperChoice? helper, CancellationToken ct = default) => ChangeAsync(id, s => s.GiveTo(helper?.Id, helper?.Name), ct);
+
+    /// <summary>Closed: it leaves the helpers' list (the photos are kept, and photos still on a phone still come in).</summary>
+    public Task CloseAsync(int id, CancellationToken ct = default) => ChangeAsync(id, s => s.Close(Now), ct);
+
+    public Task ReopenAsync(int id, CancellationToken ct = default) => ChangeAsync(id, s => s.ClosedAt = null, ct);
+
+    /// <summary>Only a session nobody took a photo or scan in - one with photos is closed instead, so a product can
+    /// always be found again by its session.</summary>
+    public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
-        if (count is < 1 or > MaxNewAtOnce) throw new VareinfoException($"Skriv hvor mange kasser (1-{MaxNewAtOnce}).");
-        var s = await OpenSessionAsync(sessionId, ct);
-        var used = (await sessions.UsedNumbersAsync(ct)).Concat((await claims.AllAsync(ct)).Select(c => c.Number));
-        var numbers = Guard(() => WorkSession.NextNumbers(used, count));
-        foreach (var n in numbers) Guard(() => s.Add(n, null));
-        await sessions.SaveAsync(s, ct);
-        return numbers;
+        if (await photos.CountAsync(id, ct) + await scans.CountAsync(id, ct) > 0)
+            throw new VareinfoException("Der er taget billeder i sessionen - luk den i stedet. Så kan tingene findes igen.");
+        await sessions.DeleteAsync(id, ct);
     }
 
-    /// <summary>"Tilføj en kasse": a box that already has a number (written on it, or from an earlier session).</summary>
-    public async Task AddBoxAsync(int sessionId, int number, string? name, CancellationToken ct = default)
+    /// <summary>The helper's list: the open sessions for them. A helper who was given sessions sees only those; the
+    /// others see the ones for everybody. Martin sees all.</summary>
+    public async Task<List<SessionChoice>> ChoicesAsync(Taker me, CancellationToken ct = default)
     {
-        var s = await OpenSessionAsync(sessionId, ct);
-        Guard(() => s.Add(number, name));
-        await sessions.SaveAsync(s, ct);
-    }
-
-    public async Task RenameBoxAsync(int boxId, string? name, CancellationToken ct = default)
-    {
-        if (await sessions.BoxAsync(boxId, ct) is not { } box) return;
-        box.Name = (name ?? "").Trim();
-        await sessions.UpdateBoxAsync(box, ct);
-    }
-
-    /// <summary>"Til": the box is for this helper only (null = the shared pool).</summary>
-    public async Task GiveBoxAsync(int boxId, HelperChoice? helper, CancellationToken ct = default)
-    {
-        if (await sessions.BoxAsync(boxId, ct) is not { } box) return;
-        box.GiveTo(helper?.Id, helper?.Name);
-        await sessions.UpdateBoxAsync(box, ct);
-    }
-
-    /// <summary>Gone from the list - the photos taken in its boxes are kept (they are already on their way to Lager).</summary>
-    public Task DeleteAsync(int sessionId, CancellationToken ct = default) => sessions.DeleteAsync(sessionId, ct);
-
-    /// <summary>Out of the session - the photos already taken in it are kept.</summary>
-    public Task RemoveBoxAsync(int boxId, CancellationToken ct = default) => sessions.RemoveBoxAsync(boxId, ct);
-
-    /// <summary>Closed: its boxes leave the helpers' list (the photos are kept).</summary>
-    public async Task CloseAsync(int sessionId, CancellationToken ct = default)
-    {
-        if (await sessions.GetAsync(sessionId, ct) is not { } s) return;
-        s.Close(Now);
-        await sessions.SaveAsync(s, ct);
-    }
-
-    public async Task ReopenAsync(int sessionId, CancellationToken ct = default)
-    {
-        if (await sessions.GetAsync(sessionId, ct) is not { } s) return;
-        s.ClosedAt = null;
-        await sessions.SaveAsync(s, ct);
-    }
-
-    /// <summary>The helper's list: the boxes of every open session, each free / theirs / someone else's / done. A helper
-    /// who was given boxes sees only those; the others see the pool (boxes given to nobody). Martin sees all.</summary>
-    public async Task<List<BoxChoice>> ChoicesAsync(Taker me, CancellationToken ct = default)
-    {
-        var open = await OpenBoxesAsync(ct);
-        if (!me.IsAdmin)
-            open = open.Any(b => b.HelperId == me.Id) ? open.Where(b => b.HelperId == me.Id).ToList() : open.Where(b => b.HelperId is null).ToList();
+        var open = (await AllAsync(ct)).Where(s => s.Open && s.IsFor(me)).OrderBy(s => s.Number).ToList();
+        if (!me.IsAdmin && open.Any(s => s.HelperId == me.Id)) open = open.Where(s => s.HelperId == me.Id).ToList();
         if (open.Count == 0) return [];
-        var all = (await claims.AllAsync(ct)).ToDictionary(c => c.BoxCode);
-        var counts = await photos.PerBoxAsync(ct);
-        var now = Now;
-        return open.Select(b => BoxChoice.For(b, all.GetValueOrDefault(b.BoxCode), me, now, counts.GetValueOrDefault(b.BoxCode))).ToList();
+        var counts = await photos.PerSessionAsync(ct);
+        return open.Select(s => new SessionChoice(s.Id, s.Title, counts.Where(t => t.SessionId == s.Id).Sum(t => t.Count))).ToList();
     }
 
-    /// <summary>Is this box in an open session, and for this person? (a helper may only take those)</summary>
-    public async Task<bool> IsOpenForAsync(string boxCode, Taker me, CancellationToken ct = default) =>
-        (await OpenBoxesAsync(ct)).Any(b => b.BoxCode == boxCode && b.IsFor(me));
+    /// <summary>The session the helper opened (the page keeps its id in the address), when it is open and for them.</summary>
+    public async Task<WorkSession?> OpenForAsync(int id, Taker me, CancellationToken ct = default) =>
+        await sessions.GetAsync(id, ct) is { Open: true } s && s.IsFor(me) ? s : null;
 
-    /// <summary>The names Martin gave these boxes (the newest session's name wins) - Lager shows them on Kasser.</summary>
-    public async Task<Dictionary<string, string>> NamesAsync(IReadOnlyCollection<string> boxCodes, CancellationToken ct = default) =>
-        (await sessions.AllAsync(ct)).SelectMany(s => s.Boxes)
-            .Where(b => b.Name != "" && boxCodes.Contains(b.BoxCode))
-            .GroupBy(b => b.BoxCode).ToDictionary(g => g.Key, g => g.First().Name);
-
-    private async Task<List<SessionBox>> OpenBoxesAsync(CancellationToken ct) =>
-        (await sessions.AllAsync(ct)).Where(s => s.Open).OrderBy(s => s.CreatedAt)
-            .SelectMany(s => s.Boxes.OrderBy(b => b.SortOrder)).DistinctBy(b => b.BoxCode).ToList();
-
-    private async Task<WorkSession> OpenSessionAsync(int id, CancellationToken ct)
+    /// <summary>"Min øvesession": the person's own - the same one every time, made the first time (codes from 9999 down).</summary>
+    public async Task<WorkSession> PracticeAsync(Taker me, CancellationToken ct = default)
     {
-        var s = await sessions.GetAsync(id, ct) ?? throw new VareinfoException("Sessionen findes ikke.");
-        if (!s.Open) throw new VareinfoException("Sessionen er lukket - åbn den igen først.");
-        return s;
+        await Gate.WaitAsync(ct);
+        try
+        {
+            var all = (await sessions.AllAsync(ct)).Where(s => s.IsPractice).ToList();
+            if (all.FirstOrDefault(s => s.HelperId == me.Id) is { } mine) return mine;
+            var used = all.Select(s => BoxCodes.Number(s.BoxCode)).ToHashSet();
+            var free = Enumerable.Range(BoxCodes.FirstTest, 9999 - BoxCodes.FirstTest + 1).Reverse().FirstOrDefault(n => !used.Contains(n));
+            if (free == 0) throw new VareinfoException("Der er ikke flere øvesessioner - spørg Martin.");
+            var s = WorkSession.Practice(me, free, Now);
+            await sessions.SaveAsync(s, ct);
+            return s;
+        }
+        finally { Gate.Release(); }
+    }
+
+    /// <summary>Martin's overview: every session with its photos, scans and helpers - open ones first.</summary>
+    public async Task<List<SessionStatus>> OverviewAsync(CancellationToken ct = default)
+    {
+        var p = await photos.PerSessionAsync(ct);
+        var c = await scans.PerSessionAsync(ct);
+        return (await AllAsync(ct)).Select(s => SessionStatus.For(s, p, c))
+            .OrderByDescending(s => s.Session.Open).ThenByDescending(s => s.Session.Number).ToList();
+    }
+
+    /// <summary>The session titles for these Lager codes - Lager shows them on Kasser until it knows sessions.</summary>
+    public async Task<Dictionary<string, string>> NamesAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default) =>
+        (await sessions.AllAsync(ct)).Where(s => !s.IsPractice && codes.Contains(s.BoxCode))
+            .GroupBy(s => s.BoxCode).ToDictionary(g => g.Key, g => g.First().Title);
+
+    private async Task ChangeAsync(int id, Action<WorkSession> change, CancellationToken ct)
+    {
+        if (await sessions.GetAsync(id, ct) is not { } s) return;
+        change(s);
+        await sessions.SaveAsync(s, ct);
     }
 
     private static T Guard<T>(Func<T> rule)

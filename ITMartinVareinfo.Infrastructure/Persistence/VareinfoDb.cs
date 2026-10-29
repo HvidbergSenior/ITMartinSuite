@@ -7,23 +7,16 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
     public DbSet<Photo> Photos => Set<Photo>();
     public DbSet<Scan> Scans => Set<Scan>();
     public DbSet<Helper> Helpers => Set<Helper>();
-    public DbSet<BoxClaim> BoxClaims => Set<BoxClaim>();
     public DbSet<WorkSession> Sessions => Set<WorkSession>();
-    public DbSet<SessionBox> SessionBoxes => Set<SessionBox>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        b.Entity<Photo>().HasIndex(x => x.BoxCode);
+        b.Entity<Photo>().HasIndex(x => x.SessionId);
         b.Entity<Photo>().HasIndex(x => new { x.Ready, x.SentAt });
-        b.Entity<Scan>().HasIndex(x => x.BoxCode);
+        b.Entity<Scan>().HasIndex(x => x.SessionId);
         b.Entity<Scan>().HasIndex(x => x.SentAt);
         b.Entity<Helper>().HasIndex(x => x.Code).IsUnique();
-        b.Entity<BoxClaim>().HasKey(x => x.BoxCode);
-        b.Entity<BoxClaim>().HasIndex(x => x.HelperId);
-        b.Entity<WorkSession>().HasMany(s => s.Boxes).WithOne().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
-        b.Entity<WorkSession>().Ignore(s => s.Open);
-        b.Entity<SessionBox>().Ignore(x => x.Number).Ignore(x => x.Title);
-        b.Entity<SessionBox>().HasIndex(x => x.BoxCode);
+        b.Entity<WorkSession>().Ignore(s => s.Open).Ignore(s => s.IsPractice).Ignore(s => s.Title);
     }
 }
 
@@ -39,14 +32,20 @@ public static class VareinfoDbInitializer
         if (Columns(conn, "Photos").Count > 0 && !Columns(conn, "Photos").Contains("RawPath"))
             foreach (var table in new[] { "Photos", "Scans", "KolofonShots", "AiDays" })
                 if (Columns(conn, table).Count > 0) Exec(conn, $"""ALTER TABLE "{table}" RENAME TO "Old_{table}_{DateTime.UtcNow:yyyyMMdd}" """);
+        // Columns added after a table was made (CREATE TABLE IF NOT EXISTS does not add them) - before the script
+        // below, whose indexes may use them. 2026-10-29 sessions instead of boxes; the box tables of 2026-10-26
+        // (BoxClaims, SessionBoxes) are left in the file as they are.
+        AddColumn(conn, "Photos", "SessionId", "INTEGER NOT NULL DEFAULT 0");
+        AddColumn(conn, "Scans", "SessionId", "INTEGER NOT NULL DEFAULT 0");
+        AddColumn(conn, "Sessions", "Number", "INTEGER NOT NULL DEFAULT 0");
+        AddColumn(conn, "Sessions", "BoxCode", "TEXT NOT NULL DEFAULT ''");
+        AddColumn(conn, "Sessions", "HelperId", "INTEGER NULL");
+        AddColumn(conn, "Sessions", "HelperName", "TEXT NOT NULL DEFAULT ''");
         // EnsureCreated does nothing when any table exists, so the tables come from the model's own script - on every
-        // start, IF NOT EXISTS: a table added later (Sessions, 2026-10-26) is made in the live file too.
+        // start, IF NOT EXISTS: a table added later is made in the live file too.
         foreach (var statement in db.Database.GenerateCreateScript().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             Exec(conn, statement.Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
                 .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS "));
-        // Columns added after a table was made (IF NOT EXISTS does not add them).
-        AddColumn(conn, "SessionBoxes", "HelperId", "INTEGER NULL");          // 2026-10-26 box per helper
-        AddColumn(conn, "SessionBoxes", "HelperName", "TEXT NOT NULL DEFAULT ''");
         // Many phones at once: readers never wait for the writer.
         Exec(conn, "PRAGMA journal_mode=WAL;");
         if (opened) conn.Close();

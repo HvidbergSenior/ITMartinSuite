@@ -2,96 +2,62 @@
 @page "/registrer"
 @inject CaptureUseCases Capture
 @inject SessionUseCases Sessions
+@inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @using System.Text.Json
 
-@* The capture page (user 2026-10-20): "The users of that app should easily take pictures of all and select the relevant
-   box number ... 100 people on 100 boxes with own phone each". Type the number on the box -> photos and barcodes -> done.
-   Everything is only stored; Lager reads it later. *@
-<PageTitle>Kasse – Bogshoppen Vareinfo</PageTitle>
+@* The capture page (user 2026-10-29: "Session 1, 2, 3, etc... named something like location and/or intent" - no boxes).
+   Tap the session -> photos (and Martin: barcodes). The open session is in the address (?s=12), so a reload or the next
+   morning lands in it again. Everything is only stored; Lager reads it later. *@
+<PageTitle>Tag billeder – Bogshoppen Vareinfo</PageTitle>
 
 @if (Me is null)
 {
     <section class="k-card"><p><a class="k-btn k-btn-primary" href="/login">Log ind</a></p></section>
 }
-else if (_box is null)
+else if (_session is null)
 {
-    @* The prepared boxes (user 2026-10-26: "I prepare which boxes so that they just have to choose"): a helper only taps
-       one of these - or their own test box below. *@
     <section class="k-card">
-        <h1 class="k-card-title">📦 @(_choices.Count == 1 && !Me.IsAdmin ? "Din kasse" : "Vælg en kasse")</h1>
+        <h1 class="k-card-title">@(_choices.Count == 1 && !Me.IsAdmin ? "Din session" : "Vælg en session")</h1>
         @if (_choices.Count == 0)
         {
-            <p>Hej @Me.Name. Der er ikke gjort kasser klar lige nu. Martin gør dem klar, før I går i gang – imens kan du prøve din <b>testkasse</b> nedenfor.</p>
+            <p>Hej @Me.Name. Der er ingen session i gang lige nu. Martin starter den, før I går i gang – imens kan du prøve din <b>øvesession</b> nedenfor.@(Me.IsAdmin ? " Du starter en session under Sessioner." : "")</p>
         }
         else
         {
-            <p>Hej @Me.Name. Tryk på den kasse, du har foran dig – nummeret står på kassen.@(_choices.Count > 1 ? " En kasse, en anden er i gang med, kan du ikke vælge." : "")</p>
+            <p>Hej @Me.Name. Tryk på den session, du er med i – navnet siger hvor, eller hvad I tager billeder af. I kan godt være flere i samme session.</p>
             <ul class="lg-list">
                 @foreach (var c in _choices)
                 {
                     <li>
                         <span class="lg-main"><b>@c.Title</b>
-                            <span class="k-small">@(c.State switch
-                            {
-                                ChoiceState.Mine => "Din – du er i gang",
-                                ChoiceState.Busy => $"{c.Who} er i gang",
-                                ChoiceState.Done => $"Færdig{(c.Who != "" ? " – " + c.Who : "")}",
-                                _ => "Fri",
-                            })@(c.Photos > 0 ? $" · {c.Photos} billeder" : "")</span></span>
-                        @if (c.CanTake)
-                        {
-                            <button class="k-btn k-btn-primary" @onclick="() => TakeChoice(c)" disabled="@_busy">@(c.State == ChoiceState.Mine ? "Fortsæt" : "Vælg")</button>
-                        }
+                            <span class="k-small">@(c.Photos > 0 ? $"{c.Photos} billeder indtil nu" : "Ingen billeder endnu")</span></span>
+                        <button class="k-btn k-btn-primary" @onclick="() => Open(c.Id)">Vælg</button>
                     </li>
                 }
             </ul>
         }
+        @if (Me.IsAdmin) { <p><a class="k-btn k-btn-secondary" href="/sessioner">Sessioner – start en ny</a></p> }
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
-        @if (_saved is not null) { <p class="lg-ok" role="status">✓ @_saved</p> }
         <p data-photo-status role="status" hidden></p>
     </section>
 
-    @if (Me.IsAdmin)
-    {
-    <section class="k-card" data-fold-closed>
-        <h2 class="k-card-title">Andre kasser (kun Martin)</h2>
-        <p>Har kassen en label med QR-kode, så tryk <b>Scan kassens label</b> og hold kameraet foran QR-koden. Ellers skriv det nummer, der står på kassen, og tryk <b>Start kassen</b>. Hjælperne kan kun vælge kasserne på listen ovenfor – dem gør du klar under <b>Sessioner</b>.</p>
-        @if (!_scanningLabel)
-        {
-            <button type="button" class="k-btn k-btn-primary lg-big" @onclick="StartLabelScan" disabled="@_busy">▣ Scan kassens label</button>
-        }
-        else
-        {
-            <div class="lg-scan">
-                <video id="label-video" muted playsinline></video>
-                <p class="lg-answer" role="status">Hold kameraet foran QR-koden på kassens label …</p>
-                <button type="button" class="k-btn k-btn-secondary" @onclick="StopLabelScan">Annullér – jeg skriver nummeret</button>
-            </div>
-        }
-        <form class="lg-row" @onsubmit="Take">
-            <input class="k-input lg-pin" type="number" inputmode="numeric" min="1" max="@BoxClaim.MaxNormal" placeholder="Kassens nr." @bind="_number" aria-label="Kassens nummer" />
-            <button class="k-btn k-btn-primary lg-big" type="submit" disabled="@_busy">Start kassen</button>
-        </form>
-    </section>
-    }
-
     <section class="k-card">
-        <h2 class="k-card-title">Min testkasse</h2>
-        <p>Vil du bare prøve? Din egen testkasse er kun din, og tingene i den bliver <b>kun vist</b> – de bliver aldrig solgt. Tryk <b>Min testkasse</b> og tag billeder af hvad som helst.</p>
-        <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="TakeTest" disabled="@_busy">Min testkasse</button>
+        <h2 class="k-card-title">Min øvesession</h2>
+        <p>Vil du bare prøve? Din egen øvesession er kun din, og tingene i den bliver <b>kun vist</b> – de bliver aldrig solgt. Tryk <b>Min øvesession</b> og tag billeder af hvad som helst.</p>
+        <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="Practice" disabled="@_busy">Min øvesession</button>
     </section>
 }
 else
 {
     <section class="k-card">
-        <h1 class="k-card-title">📦 @BoxName(_box)</h1>
-        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(Me.IsAdmin ? $" og {_scans} stregkoder" : "") taget.</p>
-        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Gentag til kassen er tom.</p>
+        <h1 class="k-card-title">@_session.Title</h1>
+        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(Me.IsAdmin ? $" og {_scans} stregkoder" : "") taget i sessionen.</p>
+        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Gentag, til alt har været på et billede.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
         @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
-        <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@BoxFields">📷 Tag billeder</button>
+        <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@SessionFields">📷 Tag billeder</button>
         <div id="foto-cam" class="lg-scan" hidden>
             <video id="foto-video" class="lg-cam-video" muted playsinline></video>
             <div id="foto-cam-tools" class="lg-row lg-cam-tools"></div>
@@ -111,10 +77,10 @@ else
         </details>
         <div class="lg-row">
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
-                <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@BoxFields" />
+                <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
             </label>
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Vælg billeder fra telefonen
-                <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@BoxFields" />
+                <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
             </label>
         </div>
     </section>
@@ -142,66 +108,61 @@ else
     }
 
     <section class="k-card">
-        <h2 class="k-card-title">Er kassen tom?</h2>
-        <p>Når alt har været på et billede, så tryk her.</p>
-        @if (!_confirmDone)
-        {
-            <button class="k-btn k-btn-secondary lg-big" @onclick="() => _confirmDone = true" disabled="@_busy">✓ Kassen er færdig</button>
-        }
-        else
-        {
-            <div class="lg-row">
-                <button class="k-btn k-btn-primary" @onclick="Finish" disabled="@_busy">✓ Ja, @BoxName(_box).ToLowerInvariant() er færdig</button>
-                <button class="k-btn k-btn-ghost" @onclick="() => _confirmDone = false">Nej, jeg er ikke færdig</button>
-            </div>
-        }
+        <h2 class="k-card-title">Færdig her?</h2>
+        <p>Billederne er gemt, så snart de er sendt. Martin lukker sessionen, når I er færdige.</p>
+        <button class="k-btn k-btn-secondary lg-big" @onclick="Leave">Vælg en anden session</button>
     </section>
 }
 
 @code {
     [CascadingParameter] public Taker? Me { get; set; }
+    [SupplyParameterFromQuery(Name = "s")] public int? SessionId { get; set; }
 
-    private BoxClaim? _box;
-    private int? _number;
+    private WorkSession? _session;
+    private List<SessionChoice> _choices = [];
     private int _photos, _scans;
-    private bool _confirmDone, _busy, _scanning;
-    private string? _error, _saved;
+    private bool _busy, _scanning;
+    private string? _error;
     private string _scanStatus = "";
     private string _lastCode = "";
     private DateTime _lastAt;
     private DotNetObjectReference<Registrer>? _ref;
 
-    protected override async Task OnInitializedAsync()
+    // The address says which session (?s=12): after a reload, or a tap on Vælg / Min øvesession.
+    protected override async Task OnParametersSetAsync()
     {
         if (Me is null) return;
-        // Back on the page (reload, next morning): the box this helper was filling.
-        _box = await Capture.MyBoxAsync(Me);
-        await LoadChoices();
-        await Count();
-    }
-
-    private List<BoxChoice> _choices = [];
-
-    private async Task LoadChoices()
-    {
-        if (Me is null) return;
-        try { _choices = await Sessions.ChoicesAsync(Me); }
+        _error = null;
+        try
+        {
+            _session = SessionId is { } id ? await Sessions.OpenForAsync(id, Me) : null;
+            if (SessionId is not null && _session is null) _error = "Den session er lukket eller ikke din – vælg en på listen.";
+            if (_session is null) _choices = await Sessions.ChoicesAsync(Me);
+            await Count();
+        }
         catch (Exception ex) { _error = ex.Message; }
     }
 
-    private async Task TakeChoice(BoxChoice c)
+    private void Open(int id) => Nav.NavigateTo($"/?s={id}");
+
+    private async Task Leave()
     {
-        _number = BoxCodes.Number(c.BoxCode);
-        await Take();
-        if (_box is null) await LoadChoices();   // someone else took it a moment ago - show the list as it is now
+        await StopScan();
+        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
+        Nav.NavigateTo("/");
     }
 
-    // "Kasse 7 – Anders And 1970'erne" when Martin named it in the session.
-    private string BoxName(BoxClaim box) => box.IsTest ? $"Testkasse {box.Number}"
-        : _choices.FirstOrDefault(c => c.BoxCode == box.BoxCode)?.Title ?? $"Kasse {box.Number}";
+    private async Task Practice()
+    {
+        if (Me is null) return;
+        _busy = true; _error = null;
+        try { Open((await Sessions.PracticeAsync(Me)).Id); }
+        catch (VareinfoException ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
 
-    // Each photo carries its own box, so photos still waiting on the phone land in the right box after the next box.
-    private string BoxFields => _box is null ? "{}" : JsonSerializer.Serialize(new { boxCode = _box.BoxCode });
+    // Each photo carries its own session, so photos still waiting on the phone land in the right one.
+    private string SessionFields => _session is null ? "{}" : JsonSerializer.Serialize(new { sessionId = _session.Id });
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -218,93 +179,11 @@ else
         StateHasChanged();
     }
 
-    private async Task Take()
-    {
-        if (Me is null) return;
-        _busy = true; _error = null; _saved = null;
-        try
-        {
-            if (_number is not { } n) throw new VareinfoException("Skriv nummeret på kassen.");
-            _box = await Capture.TakeBoxAsync(n, Me);
-            _confirmDone = false;
-            await Count();
-        }
-        catch (VareinfoException ex) { _error = ex.Message; }
-        finally { _busy = false; }
-    }
-
-    private async Task TakeTest()
-    {
-        if (Me is null) return;
-        _busy = true; _error = null; _saved = null;
-        try
-        {
-            _box = await Capture.MyTestBoxAsync(Me);
-            _confirmDone = false;
-            await Count();
-        }
-        catch (VareinfoException ex) { _error = ex.Message; }
-        finally { _busy = false; }
-    }
-
-
-    private async Task Finish()
-    {
-        if (Me is null || _box is null) return;
-        await StopScan();
-        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
-        _busy = true;
-        try
-        {
-            await Capture.FinishBoxAsync(_box.BoxCode, Me);
-            _saved = $"{BoxName(_box)} er færdig: {_photos} billeder{(Me.IsAdmin ? $" og {_scans} stregkoder" : "")}. Tak!";
-            _box = null;
-            _number = null;
-            await LoadChoices();
-        }
-        catch (Exception ex) { _error = ex.Message; }
-        finally { _busy = false; _confirmDone = false; }
-    }
-
     private async Task Count()
     {
-        if (_box is null) return;
-        try { (_photos, _scans) = await Capture.CountAsync(_box.BoxCode); }
+        if (_session is null) return;
+        try { (_photos, _scans) = await Capture.CountAsync(_session.Id); }
         catch (Exception ex) { _error = ex.Message; }
-    }
-
-    // ── The box label (Lager prints it: number + QR to /kasse/K0007). Scanning it = typing the number, without typos.
-    private bool _scanningLabel;
-
-    private async Task StartLabelScan()
-    {
-        _error = null; _saved = null;
-        _scanningLabel = true;
-        StateHasChanged();
-        _ref ??= DotNetObjectReference.Create(this);
-        try { await JS.InvokeVoidAsync("scanner.start", _ref, new { qr = true, videoId = "label-video" }); }
-        catch (Exception ex) { _scanningLabel = false; _error = "Kameraet kunne ikke startes: " + ex.Message + " Skriv nummeret i stedet."; }
-    }
-
-    private async Task StopLabelScan()
-    {
-        _scanningLabel = false;
-        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
-    }
-
-    // Called by scanner.js with the first QR code it sees.
-    [JSInvokable]
-    public async Task OnQr(string raw)
-    {
-        _scanningLabel = false;
-        if (BoxCodes.FromLabel(raw) is var n and > 0)
-        {
-            _number = n;
-            _ = JS.InvokeVoidAsync("scanner.beep");
-            await Take();
-        }
-        else _error = "Det var ikke en kasse-label fra Bogshoppen. Prøv igen, eller skriv nummeret på kassen.";
-        StateHasChanged();
     }
 
     private async Task StartScan()
@@ -333,13 +212,13 @@ else
         var code = Barcodes.Clean(raw);
         var again = code == _lastCode && (DateTime.Now - _lastAt).TotalSeconds < 4;
         _lastCode = code; _lastAt = DateTime.Now;
-        if (!again && code.Length >= 8 && _box is not null && Me is not null)
+        if (!again && code.Length >= 8 && _session is not null && Me is not null)
         {
             try
             {
-                var copies = await Capture.ScanAsync(code, _box.BoxCode, Me);
+                var copies = await Capture.ScanAsync(code, _session.Id, Me);
                 _ = JS.InvokeVoidAsync("scanner.beep");
-                _scanStatus = copies > 1 ? $"✓ {code} – nu {copies} stk. i kasse {_box.Number}" : $"✓ {code} gemt i kasse {_box.Number}";
+                _scanStatus = copies > 1 ? $"✓ {code} – nu {copies} stk. i sessionen" : $"✓ {code} gemt";
                 await Count();
             }
             catch (Exception ex) { _scanStatus = "⚠ " + ex.Message; }
@@ -354,7 +233,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        _scanning = _scanningLabel = false;
+        _scanning = false;
         try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
         try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }
         _ref?.Dispose();

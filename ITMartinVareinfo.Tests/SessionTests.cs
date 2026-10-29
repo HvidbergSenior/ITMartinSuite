@@ -7,8 +7,8 @@ using Moq;
 
 namespace ITMartinVareinfo.Tests;
 
-// Sessions (user 2026-10-26: "I prepare a session with 4 helpers. I point to 20 boxes and name them" - "a helper should
-// ONLY have their Testkasse. I prepare which boxes so that they just have to choose").
+// Sessions (user 2026-10-29: "it should be Session 1, 2, 3, etc... A session should be named something like location
+// and/or intent" - "so remove all that has to do with boxes").
 public class SessionTests
 {
     private SqliteConnection _conn = null!;
@@ -24,111 +24,136 @@ public class SessionTests
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();
         using (var db = Factory.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
-        _sessions = new SessionUseCases(new SessionRepository(Factory), new BoxClaimRepository(Factory), new PhotoRepository(Factory), _clock);
-        _capture = new CaptureUseCases(new BoxClaimRepository(Factory), new PhotoRepository(Factory), new ScanRepository(Factory),
-            Mock.Of<IPhotoStore>(), _sessions, _clock);
+        _sessions = new SessionUseCases(new SessionRepository(Factory), new PhotoRepository(Factory), new ScanRepository(Factory), _clock);
+        _capture = new CaptureUseCases(new PhotoRepository(Factory), new ScanRepository(Factory), Mock.Of<IPhotoStore>(),
+            new SessionRepository(Factory), _sessions, _clock);
     }
 
     [TearDown]
     public void Close() => _conn.Dispose();
 
     [Test]
-    public async Task New_boxes_get_the_next_numbers_and_never_one_already_used()
+    public async Task Sessions_are_numbered_1_2_3_and_titled_by_place_and_purpose()
     {
-        await _capture.TakeBoxAsync(5, _martin);   // Martin started box 5 by hand earlier
-        var s = await _sessions.StartAsync("Lørdag i garagen");
-        await _sessions.AddBoxAsync(s.Id, 2, "Anders And 1970'erne");
+        var one = await _sessions.StartAsync(" Boxit, reol 2 ");
+        var two = await _sessions.StartAsync(null);
+        await _sessions.PracticeAsync(_bertil);   // a practice session takes no number
+        var three = await _sessions.StartAsync("Loppemarked lørdag");
 
-        (await _sessions.NewBoxesAsync(s.Id, 3)).Should().Equal(6, 7, 8);
-        var again = await _sessions.StartAsync(null);
-        (await _sessions.NewBoxesAsync(again.Id, 2)).Should().Equal(9, 10);
-        await _sessions.Invoking(x => x.AddBoxAsync(s.Id, 2, null)).Should().ThrowAsync<VareinfoException>().WithMessage("Kasse 2 er allerede med.");
+        (one.Number, two.Number, three.Number).Should().Be((1, 2, 3));
+        one.Title.Should().Be("Session 1 – Boxit, reol 2");
+        two.Title.Should().Be("Session 2");
+        three.BoxCode.Should().Be("K5003");   // Lager's code, never shown here
+
+        await _sessions.RenameAsync(two.Id, "Garagen, hylde 1");
+        (await _sessions.AllAsync()).Select(s => s.Title).Should().Equal("Session 3 – Loppemarked lørdag", "Session 2 – Garagen, hylde 1", "Session 1 – Boxit, reol 2");
     }
 
     [Test]
-    public async Task A_helper_sees_only_the_prepared_boxes_and_cannot_take_another()
+    public async Task Helpers_see_the_open_sessions_and_a_closed_one_leaves_the_list()
     {
-        (await _sessions.ChoicesAsync(_bertil)).Should().BeEmpty();   // nothing ready: only the test box
-        await _capture.Invoking(c => c.TakeBoxAsync(3, _bertil)).Should().ThrowAsync<VareinfoException>().WithMessage("*ikke gjort klar*");
-        (await _capture.MyTestBoxAsync(_bertil)).IsTest.Should().BeTrue();
+        (await _sessions.ChoicesAsync(_bertil)).Should().BeEmpty();
+        var s = await _sessions.StartAsync("Boxit, reol 2");
+        await _capture.StoreAsync(new MemoryStream([1]), s.Id, _vibeke);
 
-        var s = await _sessions.StartAsync("Lørdag");
-        await _sessions.AddBoxAsync(s.Id, 3, "Bøger");
-        await _sessions.AddBoxAsync(s.Id, 4, null);
-        (await _sessions.ChoicesAsync(_bertil)).Select(c => (c.Title, c.State)).Should().Equal(("Kasse 3 – Bøger", ChoiceState.Free), ("Kasse 4", ChoiceState.Free));
-
-        await _capture.TakeBoxAsync(3, _bertil);
-        (await _sessions.ChoicesAsync(_vibeke)).First().Should().Match<BoxChoice>(c => c.State == ChoiceState.Busy && c.Who == "Bertil" && !c.CanTake);
-        (await _sessions.ChoicesAsync(_bertil)).First().State.Should().Be(ChoiceState.Mine);
-
-        await _capture.FinishBoxAsync("K0003", _bertil);
-        (await _sessions.ChoicesAsync(_vibeke)).First().State.Should().Be(ChoiceState.Done);
+        (await _sessions.ChoicesAsync(_bertil)).Should().Equal(new SessionChoice(s.Id, "Session 1 – Boxit, reol 2", 1));
+        (await _sessions.OpenForAsync(s.Id, _bertil)).Should().NotBeNull();
 
         await _sessions.CloseAsync(s.Id);
-        (await _sessions.ChoicesAsync(_vibeke)).Should().BeEmpty();
-        await _capture.Invoking(c => c.TakeBoxAsync(4, _vibeke)).Should().ThrowAsync<VareinfoException>();
-        (await _capture.TakeBoxAsync(4, _martin)).HelperName.Should().Be("Martin");   // Martin may still take any box
-    }
-
-    [Test]
-    public async Task A_box_given_to_a_helper_is_only_theirs_and_the_others_see_the_pool()
-    {
-        var s = await _sessions.StartAsync("Hos Marianne og Jørgen");
-        await _sessions.AddBoxAsync(s.Id, 1, "Martin");
-        await _sessions.AddBoxAsync(s.Id, 2, "Marianne");
-        await _sessions.AddBoxAsync(s.Id, 3, null);
-        var boxes = (await _sessions.AllAsync()).Single().Boxes.OrderBy(b => b.SortOrder).ToList();
-        await _sessions.GiveBoxAsync(boxes[1].Id, new HelperChoice(_bertil.Id, "Bertil"));
-
-        (await _sessions.ChoicesAsync(_bertil)).Select(c => c.BoxCode).Should().Equal("K0002");          // only his own
-        (await _sessions.ChoicesAsync(_vibeke)).Select(c => c.BoxCode).Should().Equal("K0001", "K0003"); // the pool
-        (await _sessions.ChoicesAsync(_martin)).Should().HaveCount(3);                                   // Martin sees all
-        await _capture.Invoking(c => c.TakeBoxAsync(2, _vibeke)).Should().ThrowAsync<VareinfoException>();
-        (await _capture.TakeBoxAsync(2, _bertil)).HelperName.Should().Be("Bertil");
-
-        await _sessions.GiveBoxAsync(boxes[1].Id, null);   // back to Alle
-        (await _sessions.ChoicesAsync(_vibeke)).Should().HaveCount(3);
-    }
-
-    [Test]
-    public async Task Deleting_a_session_removes_its_list_but_not_the_photos()
-    {
-        var s = await _sessions.StartAsync("Prøve");
-        await _sessions.AddBoxAsync(s.Id, 5, null);
-        await _sessions.DeleteAsync(s.Id);
-        (await _sessions.AllAsync()).Should().BeEmpty();
         (await _sessions.ChoicesAsync(_bertil)).Should().BeEmpty();
+        (await _sessions.OpenForAsync(s.Id, _bertil)).Should().BeNull();
+        await _sessions.ReopenAsync(s.Id);
+        (await _sessions.ChoicesAsync(_bertil)).Should().HaveCount(1);
     }
 
     [Test]
-    public async Task The_box_names_go_to_Lager_with_the_photos()
+    public async Task A_session_given_to_a_helper_is_only_theirs_and_the_others_see_the_rest()
     {
-        var s = await _sessions.StartAsync("Lørdag");
-        await _sessions.AddBoxAsync(s.Id, 3, "Bøger");
-        await _sessions.AddBoxAsync(s.Id, 4, null);
-        (await _sessions.NamesAsync(["K0003", "K0004", "K0009"])).Should().BeEquivalentTo(new Dictionary<string, string> { ["K0003"] = "Bøger" });
+        var a = await _sessions.StartAsync("Hos Marianne");
+        var b = await _sessions.StartAsync("Boxit");
+        await _sessions.GiveAsync(a.Id, new HelperChoice(_bertil.Id, "Bertil"));
+
+        (await _sessions.ChoicesAsync(_bertil)).Select(c => c.Id).Should().Equal(a.Id);   // only his own
+        (await _sessions.ChoicesAsync(_vibeke)).Select(c => c.Id).Should().Equal(b.Id);   // the ones for everybody
+        (await _sessions.ChoicesAsync(_martin)).Should().HaveCount(2);                     // Martin sees all
+
+        await _sessions.GiveAsync(a.Id, null);   // back to Alle
+        (await _sessions.ChoicesAsync(_vibeke)).Should().HaveCount(2);
     }
 
     [Test]
-    public void A_session_without_a_name_is_named_after_the_day() =>
-        WorkSession.Start(" ", new DateTime(2026, 10, 31, 9, 0, 0, DateTimeKind.Utc)).Name.Should().StartWith("Session 31.");
+    public async Task Everyone_has_their_own_practice_session_the_same_every_time()
+    {
+        var bertils = await _sessions.PracticeAsync(_bertil);
+        var vibekes = await _sessions.PracticeAsync(_vibeke);
+        (bertils.BoxCode, vibekes.BoxCode).Should().Be(("K9999", "K9998"));
+        bertils.Title.Should().Be("Øvesession – Bertil");
+
+        _clock.Now = _clock.Now.AddDays(3);
+        (await _sessions.PracticeAsync(_bertil)).Id.Should().Be(bertils.Id);
+        (await _sessions.OpenForAsync(bertils.Id, _vibeke)).Should().BeNull();
+        (await _sessions.OpenForAsync(bertils.Id, _martin)).Should().BeNull();   // not even Martin's
+        (await _sessions.ChoicesAsync(_martin)).Should().BeEmpty();
+        (await _sessions.AllAsync()).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Only_a_session_without_photos_can_be_deleted()
+    {
+        var empty = await _sessions.StartAsync("Prøve");
+        var used = await _sessions.StartAsync("Boxit");
+        await _capture.StoreAsync(new MemoryStream([1]), used.Id, _bertil);
+
+        await _sessions.DeleteAsync(empty.Id);
+        await _sessions.Invoking(x => x.DeleteAsync(used.Id)).Should().ThrowAsync<VareinfoException>().WithMessage("*luk den i stedet*");
+        (await _sessions.AllAsync()).Select(s => s.Id).Should().Equal(used.Id);
+    }
+
+    [Test]
+    public async Task The_overview_shows_photos_scans_and_helpers_per_session()
+    {
+        var s = await _sessions.StartAsync("Boxit");
+        await _capture.StoreAsync(new MemoryStream([1]), s.Id, _bertil);
+        await _capture.StoreAsync(new MemoryStream([1]), s.Id, _vibeke);
+        await _capture.ScanAsync("9780552131063", s.Id, _martin);
+
+        var st = (await _sessions.OverviewAsync()).Single();
+        (st.Photos, st.Scans).Should().Be((2, 1));
+        st.Helpers.Should().Equal("Bertil", "Vibeke");
+    }
 }
 
 public class UpgradeTests
 {
     [Test]
-    public void A_database_from_before_the_sessions_gets_the_new_tables()
+    public void A_database_with_the_box_sessions_of_2026_10_26_gets_the_session_columns_and_keeps_its_tables()
     {
         using var conn = new SqliteConnection("Data Source=:memory:");
         conn.Open();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                CREATE TABLE "Sessions" ("Id" INTEGER PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL, "ClosedAt" TEXT NULL);
+                CREATE TABLE "SessionBoxes" ("Id" INTEGER PRIMARY KEY AUTOINCREMENT, "SessionId" INTEGER NOT NULL, "BoxCode" TEXT NOT NULL);
+                CREATE TABLE "Photos" ("Id" INTEGER PRIMARY KEY AUTOINCREMENT, "BoxCode" TEXT NOT NULL, "HelperId" INTEGER NOT NULL, "Helper" TEXT NOT NULL,
+                    "RawPath" TEXT NOT NULL, "Path" TEXT NOT NULL, "Tiles" INTEGER NOT NULL, "Ready" INTEGER NOT NULL, "Attempts" INTEGER NOT NULL,
+                    "TakenAt" TEXT NOT NULL, "SentAt" TEXT NULL);
+                """;
+            cmd.ExecuteNonQuery();
+        }
         var f = new TestDbFactory(conn);
         using (var db = f.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
-        using (var cmd = conn.CreateCommand()) { cmd.CommandText = "DROP TABLE SessionBoxes; DROP TABLE Sessions;"; cmd.ExecuteNonQuery(); }
+        using (var db = f.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);   // a second start changes nothing
 
-        using (var db = f.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
-
+        using (var db = f.CreateDbContext())
+        {
+            db.Sessions.Add(WorkSession.Start(1, "Boxit", DateTime.UtcNow));
+            db.SaveChanges();
+            db.Photos.Add(new Photo { SessionId = 1, BoxCode = "K5001", RawPath = "inbox/a.jpg" });
+            db.SaveChanges();
+        }
         using var check = conn.CreateCommand();
-        check.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('Sessions', 'SessionBoxes')";
-        Convert.ToInt32(check.ExecuteScalar()).Should().Be(2);
+        check.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE name = 'SessionBoxes'";
+        Convert.ToInt32(check.ExecuteScalar()).Should().Be(1);
     }
 }

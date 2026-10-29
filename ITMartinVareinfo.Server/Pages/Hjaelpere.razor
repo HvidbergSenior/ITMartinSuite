@@ -1,23 +1,23 @@
 @page "/hjaelpere"
 @inject HelperUseCases Helpers
-@inject CaptureUseCases Capture
+@inject SessionUseCases Sessions
 @implements IDisposable
 
-@* Martin's page (2026-10-20): a code per helper, and who is filling which box right now - for a day with many helpers. *@
+@* Martin's page (2026-10-20): a code per helper, and how far each open session is - for a day with many helpers. *@
 <PageTitle>Hjælpere – Bogshoppen Vareinfo</PageTitle>
 
 @if (Me is not { IsAdmin: true })
 {
     <section class="k-card">
         <h1 class="k-card-title">Kun for Martin</h1>
-        <p>Siden her er til at lave koder til hjælperne. <a class="k-btn k-btn-secondary" href="/">📷 Tilbage til kassen</a></p>
+        <p>Siden her er til at lave koder til hjælperne. <a class="k-btn k-btn-secondary" href="/">📷 Tilbage til billederne</a></p>
     </section>
 }
 else
 {
     <section class="k-card">
         <h1 class="k-card-title">👥 Hjælpere</h1>
-        <p>Hver hjælper får sin egen kode og logger ind med den på telefonen. Så står der på hvert billede, hvem der tog det, og to kan ikke tage den samme kasse.</p>
+        <p>Hver hjælper får sin egen kode og logger ind med den på telefonen. Så står der på hvert billede, hvem der tog det.</p>
         <form class="lg-row" @onsubmit="Add">
             <input class="k-input" @bind="_name" placeholder="Navn, fx Rico" aria-label="Hjælperens navn" />
             <button class="k-btn k-btn-primary" type="submit">➕ Ny hjælper</button>
@@ -51,19 +51,19 @@ else
     </section>
 
     <section class="k-card">
-        <h2 class="k-card-title">📦 Kasserne lige nu</h2>
-        <p>Hvem der er i gang med hvilken kasse, og hvor mange billeder der er taget. Opdateres af sig selv hvert 10. sekund. En kasse uden nye billeder i 2 timer bliver fri igen.</p>
-        @if (_boxes.Count == 0) { <p class="lg-answer">Ingen kasser endnu</p> }
+        <h2 class="k-card-title">Sessionerne lige nu</h2>
+        <p>Hvor mange billeder der er taget i hver åben session, og af hvem. Opdateres af sig selv hvert 10. sekund.</p>
+        @if (_open.Count == 0) { <p class="lg-answer">Ingen åbne sessioner – start en under <a class="k-btn k-btn-secondary k-btn-sm" href="/sessioner">Sessioner</a></p> }
         else
         {
-            <p class="lg-answer">@_boxes.Count(b => b.Busy) i gang · @_boxes.Count(b => b.Done) færdige · @_boxes.Sum(b => b.Photos) billeder</p>
+            <p class="lg-answer">@_open.Count åbne · @_open.Sum(s => s.Photos) billeder</p>
             <ul class="lg-list">
-                @foreach (var b in _boxes)
+                @foreach (var s in _open)
                 {
                     <li>
-                        <span class="lg-box">@b.Number</span>
-                        <span class="lg-main"><b>@(b.Busy ? $"I gang – {b.Helper}" : b.Done ? $"Færdig – {b.Helper}" : b.Helper != "" ? $"Ledig (sidst {b.Helper})" : "Ledig")</b>
-                            <span class="k-small k-muted">@b.Photos billeder · @b.Scans stregkoder@(b.LastAt is { } at ? $" · sidst {at.ToLocalTime():HH:mm}" : "")</span></span>
+                        <span class="lg-box">@s.Session.Number</span>
+                        <span class="lg-main"><b>@s.Session.Title</b>
+                            <span class="k-small k-muted">@s.Photos billeder · @s.Scans stregkoder@(s.Helpers.Count > 0 ? " · " + string.Join(", ", s.Helpers) : "")@(s.LastAt is { } at ? $" · sidst {at.ToLocalTime():HH:mm}" : "")</span></span>
                     </li>
                 }
             </ul>
@@ -76,7 +76,7 @@ else
     [Inject] private NavigationManager Nav { get; set; } = default!;
 
     private List<Helper> _helpers = [];
-    private List<BoxStatus> _boxes = [];
+    private List<SessionStatus> _open = [];
     private string _name = "";
     private Helper? _added;
     private int? _confirmRemove;
@@ -88,18 +88,18 @@ else
     {
         if (Me is not { IsAdmin: true }) return;
         await Load();
-        _timer = new Timer(_ => InvokeAsync(async () => { await LoadBoxes(); StateHasChanged(); }), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+        _timer = new Timer(_ => InvokeAsync(async () => { await LoadSessions(); StateHasChanged(); }), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
     }
 
     private async Task Load()
     {
         _helpers = await Helpers.AllAsync();
-        await LoadBoxes();
+        await LoadSessions();
     }
 
-    private async Task LoadBoxes()
+    private async Task LoadSessions()
     {
-        try { _boxes = await Capture.OverviewAsync(); }
+        try { _open = (await Sessions.OverviewAsync()).Where(s => s.Session.Open).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
     }
 

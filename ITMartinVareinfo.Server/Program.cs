@@ -7,9 +7,9 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using SixLabors.ImageSharp;
 
-// Bogshoppen Vareinfo = the capture app (2026-10-20, user: "One app for just taking pictures and storing ... select the
-// relevant box number ... 100 people on 100 boxes with own phone each"). Helpers sign in with their own code, type the
-// number on their box and take photos and scan barcodes. Nothing is read here: Lager fetches the photos (/api/lager/*)
+// Bogshoppen Vareinfo = the capture app (2026-10-20, user: "One app for just taking pictures and storing ... 100 people
+// with own phone each"). Helpers sign in with their own code, tap a session ("Session 3 – Boxit, reol 2", 2026-10-29)
+// and take photos; Martin also scans barcodes. Nothing is read here: Lager fetches the photos (/api/lager/*)
 // and reads them when Martin presses Læs. Layers: Domain / Application / Infrastructure (SQLite, photo files) / this Server.
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
@@ -20,25 +20,26 @@ builder.Services.AddKolibri(k =>
     k.Name = "Bogshoppen Vareinfo";
     k.KolibriName = "Kolibri Rede";
     k.Family = "rede";
-    k.Tagline = "Skriv kassens nummer – og tag billeder af alt i den.";
+    k.Tagline = "Vælg sessionen – og tag billeder af alt.";
     k.About =
     [
-        "Bogshoppen Vareinfo er kameraet til Bogshoppens kasser: bøger, Anders And-blade, tegneserier, blade, CD'er, plader, film, spil og Magic-kort.",
-        "Hver hjælper har sin egen kode og sin egen kasse. Mange kan tage billeder på samme tid – hver med sin egen telefon og sin egen kasse.",
-        "Billederne gemmes bare. Bagefter læses de på Bogshoppen Lager, hvor tingene lægges i kassen og får en pris.",
+        "Bogshoppen Vareinfo er kameraet til Bogshoppens ting: bøger, Anders And-blade, tegneserier, blade, CD'er, plader, film, spil og Magic-kort.",
+        "Der tages billeder i sessioner: Session 1, 2, 3 … med et navn efter stedet og/eller formålet, fx »Session 3 – Boxit, reol 2«. Så kan tingene findes igen bagefter.",
+        "Mange kan tage billeder på samme tid – hver med sin egen telefon, også i samme session.",
+        "Billederne gemmes bare. Bagefter læses de på Bogshoppen Lager, hvor tingene får en pris.",
     ];
     k.HowTo =
     [
         "Log ind med din egen kode (du får den af Martin) – eller med dit kundenummer, hvis Martin har gjort dig til hjælper i Kunder.",
-        "Tryk Vælg ved den kasse, du har foran dig – nummeret står på kassen. Martin gør kasserne klar, før I går i gang. En kasse, en anden er i gang med, kan du ikke vælge.",
-        "Læg 10-20 ting fra kassen ud med forsiden op, og tryk 📸 Tag billede. Gentag til kassen er tom. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
-        "Tryk ✓ Kassen er færdig – så kan du tage den næste kasse.",
-        "Vil du bare prøve? Tryk Min testkasse. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
-        "Martin: under 🗂️ Sessioner laver du en session, trykker Lav nye kasser (fx 20), giver dem navne og trykker 🖨️ Print labels. Vælg under Til, hvem en kasse er til – så ser den hjælper kun sine egne. Tryk Luk session, når I er færdige, eller Slet session for at fjerne den (billederne gemmes).",
+        "Tryk Vælg ved den session, du er med i. Martin starter sessionerne, før I går i gang.",
+        "Læg 10-20 ting ud med forsiden op, og tryk 📸 Tag billede. Gentag, til alt har været på et billede. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
+        "Færdig? Tryk Vælg en anden session. Billederne er gemt, så snart de er sendt.",
+        "Vil du bare prøve? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
+        "Martin: under Sessioner skriver du sted og/eller formål og trykker Start session – den får selv det næste nummer. Vælg under Til, hvis en session kun er til én hjælper. Tryk Luk, når I er færdige (billederne gemmes). Kun en session uden billeder kan slettes.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«.",
     ];
-    k.Version = "2026.10.26";
+    k.Version = "2026.10.29";
     k.ThemeColor = "#f4f6f5";
 });
 
@@ -97,18 +98,15 @@ app.MapPost("/api/login", async (HttpContext ctx, [FromForm(Name = "kode")] stri
     return Results.Redirect("/");
 }).DisableAntiforgery();
 
-// ITMartin Admin's front page (2026-10-26): the sessions and the boxes in progress. Only with Admin__StatusKey.
-app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, SessionUseCases sessions, CaptureUseCases capture) =>
+// ITMartin Admin's front page (2026-10-26): the open sessions and what is taken in them. Only with Admin__StatusKey.
+app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, SessionUseCases sessions) =>
 {
     if (!ITMartinAdmin.Contracts.AdminStatusApi.KeyOk(app.Configuration["Admin:StatusKey"], ctx.Request.Headers[ITMartinAdmin.Contracts.AdminStatusApi.KeyHeader])) return Results.Unauthorized();
-    var all = await sessions.AllAsync();
-    var open = all.Where(s => s.Open).ToList();
-    var boxes = await capture.OverviewAsync();
+    var open = (await sessions.OverviewAsync()).Where(s => s.Session.Open).ToList();
     return Results.Ok(new ITMartinAdmin.Contracts.AppStatus("Vareinfo",
     [
         new("åbne sessioner", open.Count, false, "https://vareinfo.bogshoppen.dk/sessioner"),
-        new("kasser i de åbne sessioner", open.Sum(s => s.Boxes.Count), false, "https://vareinfo.bogshoppen.dk/sessioner"),
-        new("kasser i gang lige nu", boxes.Count(b => b.Busy), false, "https://vareinfo.bogshoppen.dk/hjaelpere"),
+        new("billeder i de åbne sessioner", open.Sum(s => s.Photos), false, "https://vareinfo.bogshoppen.dk/hjaelpere"),
     ]));
 });
 
@@ -124,7 +122,7 @@ app.MapPost("/api/foto", async (HttpContext ctx, CaptureUseCases capture) =>
     await using var s = form.Files[0].OpenReadStream();
     try
     {
-        await capture.StoreAsync(s, form["boxCode"].ToString(), (Taker)ctx.Items[nameof(Taker)]!);
+        await capture.StoreAsync(s, int.TryParse(form["sessionId"], out var id) ? id : 0, (Taker)ctx.Items[nameof(Taker)]!);
         return Results.Ok();
     }
     catch (VareinfoException ex) { return Results.BadRequest(ex.Message); }
@@ -135,7 +133,7 @@ app.MapPost("/api/foto", async (HttpContext ctx, CaptureUseCases capture) =>
     }
 }).DisableAntiforgery();
 
-// A box photo, for Lager's item page ("billedet af bunken den blev registreret fra").
+// A session photo, for Lager's item page ("billedet af bunken den blev registreret fra").
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
 app.MapGet("/foto/{id:int}", async (int id, CaptureUseCases capture) => Jpeg(await capture.PhotoFileAsync(id, null)));
 

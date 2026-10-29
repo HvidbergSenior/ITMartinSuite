@@ -2,118 +2,37 @@ using ITMartinVareinfo.Domain;
 
 namespace ITMartinVareinfo.Application;
 
-/// <summary>Taking photos box by box (user 2026-10-20: "select the relevant box number ... 100 people on 100 boxes
-/// with own phone each. Done in one box time"). The helper types the number on the box; one helper per box at a time.
-/// An upload is only kept (fast) - the reading copy and close-ups are made in the background, a few at a time, so 100
-/// phones uploading at once never wait on each other.</summary>
-public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository photoRows, IScanRepository scans, IPhotoStore photos,
-    SessionUseCases sessions, TimeProvider clock)
+/// <summary>Taking photos in a session (user 2026-10-29: "Session 1, 2, 3 ... named something like location and/or
+/// intent" - no boxes). Many helpers in the same session at once, each with their own phone. An upload is only kept
+/// (fast) - the reading copy and close-ups are made in the background, a few at a time, so 100 phones uploading at once
+/// never wait on each other.</summary>
+public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository scans, IPhotoStore photos,
+    ISessionRepository sessionRows, SessionUseCases sessions, TimeProvider clock)
 {
-    // Taking a box is check-then-save; one Vareinfo container, so one gate is enough to stop two helpers taking the
-    // same box in the same instant.
-    private static readonly SemaphoreSlim ClaimGate = new(1, 1);
-
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
-    /// <summary>"Vælg kasse": Martin may take any number; a helper only a box in an open session (user 2026-10-26: "a
-    /// helper should ONLY have their Testkasse. I prepare which boxes so that they just have to choose"). Refused while
-    /// another helper is filling it.</summary>
-    public async Task<BoxClaim> TakeBoxAsync(int number, Taker me, CancellationToken ct = default)
+    /// <summary>Keeps the upload. Not refused because the session was closed meanwhile: a photo still waiting on the
+    /// phone belongs to the session it was taken in.</summary>
+    public async Task StoreAsync(Stream photo, int sessionId, Taker me, CancellationToken ct = default)
     {
-        if (number is < 1 or > BoxClaim.MaxNormal) throw new VareinfoException($"Skriv nummeret på kassen (1-{BoxClaim.MaxNormal}).");
-        var code = BoxCodes.For(number);
-        if (!me.IsAdmin && !await sessions.IsOpenForAsync(code, me, ct))
-            throw new VareinfoException("Den kasse er ikke gjort klar - vælg en af kasserne på listen.");
-        await ClaimGate.WaitAsync(ct);
-        try
-        {
-            var claim = await claims.GetAsync(code, ct);
-            if (claim is not null && claim.BusyFor(me.Id, Now))
-                throw new VareinfoException($"Kasse {number} bruges af {claim.HelperName} lige nu – tag en anden kasse.");
-            claim ??= new BoxClaim { BoxCode = code };
-            claim.Take(me, Now);
-            await claims.SaveAsync(claim, ct);
-            return claim;
-        }
-        finally { ClaimGate.Release(); }
-    }
-
-    /// <summary>"Min testkasse": the person's own test box - the same one every time, made the first time (from 9999 down).
-    /// Nobody else can take it; its things are only for show in Lager and the shop.</summary>
-    public async Task<BoxClaim> MyTestBoxAsync(Taker me, CancellationToken ct = default)
-    {
-        await ClaimGate.WaitAsync(ct);
-        try
-        {
-            var all = await claims.AllAsync(ct);
-            var claim = all.FirstOrDefault(c => c.IsTest && c.HelperId == me.Id);
-            if (claim is null)
-            {
-                var used = all.Where(c => c.IsTest).Select(c => c.Number).ToHashSet();
-                var free = Enumerable.Range(BoxCodes.FirstTest, BoxClaim.MaxNumber - BoxCodes.FirstTest + 1).Reverse().FirstOrDefault(n => !used.Contains(n));
-                if (free == 0) throw new VareinfoException("Der er ikke flere testkasser - spørg Martin.");
-                claim = new BoxClaim { BoxCode = BoxCodes.For(free) };
-            }
-            claim.Take(me, Now);
-            await claims.SaveAsync(claim, ct);
-            return claim;
-        }
-        finally { ClaimGate.Release(); }
-    }
-
-    /// <summary>The box the helper is filling (after a reload or on another day), or null.</summary>
-    public async Task<BoxClaim?> MyBoxAsync(Taker me, CancellationToken ct = default) =>
-        (await claims.OpenForAsync(me.Id, ct)).FirstOrDefault(c => c.OpenFor(me.Id, Now));
-
-    /// <summary>"Kassen er færdig" - the box is free, the helper picks the next.</summary>
-    public async Task FinishBoxAsync(string boxCode, Taker me, CancellationToken ct = default)
-    {
-        if (await claims.GetAsync(boxCode, ct) is not { } claim || claim.HelperId != me.Id) return;
-        claim.Finish(Now);
-        await claims.SaveAsync(claim, ct);
-    }
-
-    /// <summary>Keeps the upload. Never refused for the box: a photo still waiting on the phone belongs to the box it
-    /// was taken in, even if that box was finished or taken over meanwhile.</summary>
-    public async Task StoreAsync(Stream photo, string boxCode, Taker me, CancellationToken ct = default)
-    {
-        var code = CheckedCode(boxCode);
+        var s = await SessionAsync(sessionId, me, ct);
         var now = Now;
         var raw = Path.Combine("inbox", $"{now:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.jpg");
         await photos.SaveRawAsync(raw, photo, ct);
-        await photoRows.AddAsync(new Photo { BoxCode = code, HelperId = me.Id, Helper = me.Name, RawPath = raw, TakenAt = now }, ct);
-        await TouchAsync(code, me, ct);
+        await photoRows.AddAsync(new Photo { SessionId = s.Id, BoxCode = s.BoxCode, HelperId = me.Id, Helper = me.Name, RawPath = raw, TakenAt = now }, ct);
     }
 
-    /// <summary>A barcode into the box - just stored ("beep beep beep"). Returns how many copies of it the box now has.</summary>
-    public async Task<int> ScanAsync(string code, string boxCode, Taker me, CancellationToken ct = default)
+    /// <summary>A barcode in the session - just stored ("beep beep beep"). Returns how many copies of it the session now has.</summary>
+    public async Task<int> ScanAsync(string code, int sessionId, Taker me, CancellationToken ct = default)
     {
         var clean = Barcodes.Clean(code);
         if (clean.Length < 8) throw new VareinfoException("Stregkoden kunne ikke læses - prøv igen.");
-        var copies = await scans.AddOrCountAsync(clean, CheckedCode(boxCode), me, ct);
-        await TouchAsync(boxCode, me, ct);
-        return copies;
+        return await scans.AddOrCountAsync(clean, await SessionAsync(sessionId, me, ct), me, ct);
     }
 
-    /// <summary>Photos and scans in one box so far.</summary>
-    public async Task<(int Photos, int Scans)> CountAsync(string boxCode, CancellationToken ct = default) =>
-        (await photoRows.CountAsync(boxCode, ct), await scans.CountAsync(boxCode, ct));
-
-    /// <summary>Every box: who has it and how far (Martin's overview).</summary>
-    public async Task<List<BoxStatus>> OverviewAsync(CancellationToken ct = default)
-    {
-        var all = (await claims.AllAsync(ct)).ToDictionary(c => c.BoxCode);
-        var photoCounts = await photoRows.PerBoxAsync(ct);
-        var scanCounts = await scans.PerBoxAsync(ct);
-        var now = Now;
-        return all.Keys.Union(photoCounts.Keys).Union(scanCounts.Keys).Select(code =>
-            {
-                var c = all.GetValueOrDefault(code);
-                return new BoxStatus(code, c?.HelperName ?? "", photoCounts.GetValueOrDefault(code), scanCounts.GetValueOrDefault(code),
-                    c?.LastAt, c?.DoneAt is not null, c is not null && c.BusyFor(-1, now));
-            })
-            .OrderByDescending(b => b.Busy).ThenBy(b => b.BoxCode).ToList();
-    }
+    /// <summary>Photos and scans in one session so far.</summary>
+    public async Task<(int Photos, int Scans)> CountAsync(int sessionId, CancellationToken ct = default) =>
+        (await photoRows.CountAsync(sessionId, ct), await scans.CountAsync(sessionId, ct));
 
     /// <summary>Makes up to max uploads ready (reading copy + close-ups), parallel at most at a time. The upload is
     /// deleted once the copies are saved. Returns how many were done.</summary>
@@ -138,7 +57,7 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
             {
                 var jpeg = await photos.ShrinkAsync(new MemoryStream(original), ct);
                 var tiles = await photos.TilesAsync(new MemoryStream(original), ct);
-                var path = Path.Combine("photos", p.TakenAt.ToString("yyyy-MM"), $"{p.Id}-{p.BoxCode}.jpg");
+                var path = Path.Combine("photos", p.TakenAt.ToString("yyyy-MM"), $"{p.Id}-s{p.SessionId}.jpg");
                 await photos.SaveAsync(path, jpeg, ct);
                 for (var n = 0; n < tiles.Count; n++) await photos.SaveAsync(Photo.TilePath(path, n), tiles[n], ct);
                 var raw = p.RawPath;
@@ -161,7 +80,7 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
             (await scans.UnsentAsync(max, ct)).Select(s => s.ToCaptured()).ToList());
         var codes = batch.Photos.Select(p => p.BoxCode).Concat(batch.Scans.Select(s => s.BoxCode)).ToHashSet();
         if (codes.Count == 0) return batch;
-        // The names Martin gave the boxes go along, so Lager's Kasser says "Kasse 7 – Anders And 1970'erne".
+        // The session titles go along, so Lager's Kasser says "Session 3 – Boxit, reol 2" (Lager keeps them per code).
         return batch with { Boxes = (await sessions.NamesAsync(codes, ct)).Select(n => new CapturedBox(n.Key, n.Value)).ToList() };
     }
 
@@ -179,22 +98,9 @@ public sealed class CaptureUseCases(IBoxClaimRepository claims, IPhotoRepository
         return photos.FullPath(p.Path);
     }
 
-    private static string CheckedCode(string boxCode)
-    {
-        var n = BoxCodes.Number(boxCode ?? "");
-        if (n is < 1 or > BoxClaim.MaxNumber) throw new VareinfoException("Kassen mangler - vælg kassen igen.");
-        return BoxCodes.For(n);
-    }
-
-    // The box was used just now - it stays the helper's (not idle) as long as photos keep coming.
-    private async Task TouchAsync(string boxCode, Taker me, CancellationToken ct)
-    {
-        if (await claims.GetAsync(CheckedCode(boxCode), ct) is { } claim && claim.HelperId == me.Id && claim.DoneAt is null)
-        {
-            claim.LastAt = Now;
-            await claims.SaveAsync(claim, ct);
-        }
-    }
+    // The session the photo was taken in - it must be one this person may use (open or closed).
+    private async Task<WorkSession> SessionAsync(int sessionId, Taker me, CancellationToken ct) =>
+        await sessionRows.GetAsync(sessionId, ct) is { } s && s.IsFor(me) ? s : throw new VareinfoException("Sessionen mangler - vælg sessionen igen.");
 }
 
 /// <summary>The helpers and their codes (Martin's Hjælpere page), and signing in with a code.</summary>
@@ -206,7 +112,7 @@ public interface IHelperNumbers
     /// <summary>Kunder's Admin tick (2026-10-26): the kundenummer opens the app as admin. Name = who it is; null = no.</summary>
     Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) => Task.FromResult<string?>(null);
 
-    /// <summary>Kunder's ticked helpers (kundenummer, name) - for the helper choice per box. Empty when unknown.</summary>
+    /// <summary>Kunder's ticked helpers (kundenummer, name) - for the helper choice per session. Empty when unknown.</summary>
     Task<List<(string Kundenummer, string Name)>> AllAsync(CancellationToken ct = default) => Task.FromResult(new List<(string, string)>());
 }
 
@@ -231,7 +137,7 @@ public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions op
 
     public Task<List<Helper>> AllAsync(CancellationToken ct = default) => helpers.ActiveAsync(ct);
 
-    /// <summary>Everyone Martin can give a box to: Kunder's ticked helpers and the helpers with their own code here.</summary>
+    /// <summary>Everyone Martin can give a session to: Kunder's ticked helpers and the helpers with their own code here.</summary>
     public async Task<List<HelperChoice>> ChoicesAsync(CancellationToken ct = default)
     {
         var fromKunder = numbers is null ? [] : await numbers.AllAsync(ct);

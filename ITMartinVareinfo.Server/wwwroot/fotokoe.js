@@ -30,7 +30,7 @@ window.photoQueue = {
         });
     },
 
-    // url = where the photo goes, fields = the form fields that go with it (box, item).
+    // url = where the photo goes, fields = the form fields that go with it (session, item).
     async add(blob, url, fields) {
         this.rejected = null;
         try { await this.tx("readwrite", function (s) { return s.add({ url: url, fields: fields, blob: blob, at: Date.now() }); }); }
