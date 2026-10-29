@@ -1,0 +1,7 @@
+@* The changing photo of Bogshoppen's own blade in a bogshoppen.dk head box (2026-10-29) - the same frame as Martin's photo on
+   itmartin.dk (.hj-head-photo). The head box needs the class bs-head-me. *@
+<span class="hj-head-photo"><img src="@_photo.Src" alt="@_photo.Place" width="150" height="150" /><span class="hj-head-place">@_photo.Place</span></span>
+
+@code {
+    private readonly MartinPhotos.Photo _photo = BogshoppenPhotos.Now;
+}

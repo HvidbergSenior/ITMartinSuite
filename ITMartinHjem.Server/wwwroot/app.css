@@ -782,3 +782,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-kritik-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .hj-kritik-error { color: var(--k-danger); font-weight: 700; margin: 8px 0 0; }
 .hj-kritik-thanks { margin: 0 0 10px; }
+/* bogshoppen.dk head box with a photo of Bogshoppen's own blade, like Martin's photo on itmartin.dk (2026-10-29) */
+.bs-head.bs-head-me { padding-left: 190px; min-height: 230px; }
+.bs-head.bs-head-me::before { content: none; display: none; }
+@media (max-width:520px) { .bs-head.bs-head-me { padding: 18px 16px 16px; min-height: 0; } }

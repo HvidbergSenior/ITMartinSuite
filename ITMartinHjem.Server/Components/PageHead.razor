@@ -5,7 +5,8 @@
    emoji on top, pill tag, heading, optional line. A title that starts with an emoji ("Hvad laver …") gives the top emoji.
    On bogshoppen.dk it takes Bogshoppen's colours. *@
 @* Martin's photo on every itmartin.dk tab, like the front page (user 2026-10-27: "the picture should be on all tabs"). *@
-<header class="@(Bogshoppen ? "bs-head bs-head-page" : "hj-head hj-head-page hj-head-me" + (Calm ? " hj-head-calm" : ""))" data-emoji="@Emoji">
+<header class="@(Bogshoppen ? "bs-head bs-head-page bs-head-me" : "hj-head hj-head-page hj-head-me" + (Calm ? " hj-head-calm" : ""))" data-emoji="@Emoji">
+    @if (Bogshoppen) { <BogshoppenPhoto /> }
     @if (!Bogshoppen) { <span class="hj-head-photo"><img src="@_photo.Src" alt="Martin Hvidberg@(_photo.Place.Length > 0 ? " – " + _photo.Place : "")" width="150" height="150" />@if (_photo.Place.Length > 0) { <span class="hj-head-place">@_photo.Place</span> }</span> }
     @if (Tag.Length > 0) { <span class="@(Bogshoppen ? "bs-tag" : "hj-tagline")">@NoEmoji.Strip(Tag)</span> }
     <h1>@Text</h1>
