@@ -161,15 +161,17 @@ small, .k-small { font-size: var(--k-fs-small); color: var(--k-muted); }
 .k-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     min-height: var(--k-tap); padding: 10px 16px; border-radius: var(--k-radius);
-    border: 1px solid var(--k-border-3); background: var(--k-card); color: var(--k-text);
-    font: inherit; font-weight: 600; cursor: pointer; text-decoration: none;
+    border: 2px solid var(--k-text); background: var(--k-accent-soft); color: var(--k-text);
+    font: inherit; font-weight: 700; cursor: pointer; text-decoration: none;
     transition: background var(--k-transition), border-color var(--k-transition), transform .05s;
 }
-.k-btn:hover { background: var(--k-bg-deep); }
+/* Every app's buttons = bogshoppen.dk's (user 2026-10-29: "i like the color on boxes" -> yes for all helpers): pale accent, dark
+   text, 2px dark frame - colour-blind safe (dark text on pale, never white on orange). Primary looks the same; the frame says "button". */
+.k-btn:hover { background: var(--k-accent-soft); border-color: var(--k-accent-dark); }
 .k-btn:active { transform: translateY(1px); }
 .k-btn:disabled { opacity: .5; cursor: default; }
-.k-btn-primary { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text); }
-.k-btn-primary:hover { background: var(--k-accent-dark); border-color: var(--k-accent-dark); }
+.k-btn-primary { background: var(--k-accent-soft); border-color: var(--k-text); color: var(--k-text); }
+.k-btn-primary:hover { background: var(--k-accent-soft); border-color: var(--k-accent-dark); }
 .k-btn-danger { background: var(--k-danger); border-color: var(--k-danger); color: #fff; }
 .k-btn-ghost { background: transparent; border-color: transparent; color: var(--k-accent); }
 .k-btn-block { width: 100%; }
