@@ -107,6 +107,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IFreeAppRepository, FreeAppRepository>();
         services.AddSingleton<IMailSender, SmtpMailSender>();
+        services.AddSingleton<IMailDomains, DnsMailDomains>();
         return services;
     }
 

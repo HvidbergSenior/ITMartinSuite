@@ -11,7 +11,8 @@ public sealed record CustomerSignUp(string Email, string Name, CustomerOf Compan
 public sealed record FreeAppView(string Name, string Url, bool NeedsCode);
 
 /// <summary>Error for the person, or Code = their kundenummer ("" when Kunder did not answer - it is mailed later).</summary>
-public sealed record SignUpResult(string? Error, string Code = "");
+/// <summary>Suggestion = the address they probably meant ("Mente du …?", Kunder 2026-10-29) - the form shows it as a button.</summary>
+public sealed record SignUpResult(string? Error, string Code = "", string Suggestion = "");
 
 // The Kundekartotek lives in Kunder (2026-10-21, one list for all apps); Hjem signs people up and off through its API.
 // The adapter keeps a sign-up in an outbox when Kunder is down, so the person is never turned away for that.

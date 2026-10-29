@@ -12,7 +12,7 @@ public sealed class KunderGateway(KunderClient kunder) : ICustomerGateway
     {
         var (error, code) = await kunder.SignUpWithCodeAsync(new SignUpRequest(s.Email, s.Name,
             s.Company == CustomerOf.Bogshoppen ? Companies.Bogshoppen : Companies.ITMartin, s.App, s.Source, s.ConsentText, s.Interests), ct);
-        return new(error, code);
+        return new(error, code, error is null ? "" : KundeWords.SuggestEmail(s.Email) ?? "");
     }
 
     public Task UnsubscribeAsync(string email, CancellationToken ct = default) => kunder.UnsubscribeAsync(email, ct);

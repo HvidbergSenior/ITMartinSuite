@@ -18,6 +18,7 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
     {
         req = req with { Email = KundeWords.Normalize(req.Email), AtUtc = req.AtUtc ?? DateTime.UtcNow };
         if (!KundeWords.IsRealEmail(req.Email)) return "Skriv en rigtig e-mail, fx navn@gmail.com.";
+        if (KundeWords.SuggestEmail(req.Email) is { } meant) return $"Mente du {meant}? Ret e-mailen, og tryk igen.";
         return await SendOrQueueAsync(KunderApi.SignUp, req, ct);
     }
 
@@ -27,6 +28,7 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
     {
         req = req with { Email = KundeWords.Normalize(req.Email), AtUtc = req.AtUtc ?? DateTime.UtcNow };
         if (!KundeWords.IsRealEmail(req.Email)) return ("Skriv en rigtig e-mail, fx navn@gmail.com.", "");
+        if (KundeWords.SuggestEmail(req.Email) is { } meant) return ($"Mente du {meant}? Ret e-mailen, og tryk igen.", "");
         try
         {
             using var res = await http.PostAsJsonAsync(KunderApi.SignUpWithCode, req, Json, ct);

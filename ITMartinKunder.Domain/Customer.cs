@@ -39,13 +39,13 @@ public sealed class Customer
     public IEnumerable<string> Apps => Events.Select(e => e.App).Where(a => a != "").Distinct();
 
     public static Customer New(string email, string name, DateTime utcNow) =>
-        new() { Email = email, Name = Cut(name.Trim(), MaxName), CreatedAt = utcNow };
+        new() { Email = email, Name = Cut(CustomerNames.Nice(name), MaxName), CreatedAt = utcNow };
 
     /// <summary>A ticked box: the newest yes per company wins, interests are added, an earlier afmeld is lifted (they said yes again).</summary>
     public void SignUp(SignUpRequest r, DateTime utcNow, Func<string> newCode)
     {
         var at = r.AtUtc ?? utcNow;
-        if (r.Name.Trim().Length > 0) Name = Cut(r.Name.Trim(), MaxName);
+        if (r.Name.Trim().Length > 0) Name = Cut(CustomerNames.Nice(r.Name), MaxName);
         var company = Companies.All.Contains(r.Company) ? r.Company : Companies.ITMartin;
         var consent = Consents.FirstOrDefault(c => c.Company == company);
         if (consent is null) Consents.Add(consent = new Consent { Company = company });

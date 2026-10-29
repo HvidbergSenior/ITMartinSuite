@@ -69,6 +69,54 @@ public static class KundeWords
 
     public static bool IsRealEmail(string email) =>
         MailAddress.TryCreate(email, out var ma) && ma.Address == email && email.Split('@')[1].Contains('.');
+
+    // "Mente du …?" (user 2026-10-29, after rikkebunch@hotmaol.com signed up and then again with hotmail.com): typos in
+    // the big mail providers. hotmaol.com HAS a mail server (a typo domain someone bought), so a DNS check alone misses
+    // it. Short names (live, msn, me) are only checked for their ending - "life.dk" is a real domain next to "live.dk".
+    private static readonly string[] Providers =
+        ["gmail.com", "hotmail.com", "hotmail.dk", "outlook.com", "outlook.dk", "yahoo.com", "yahoo.dk", "icloud.com",
+         "live.dk", "live.com", "msn.com", "me.com", "mail.dk", "jubii.dk", "gmail.dk",
+         // real domains right next to the big ones - never "corrected"
+         "ymail.com", "email.com", "email.dk", "mail.com", "gmx.com", "gmx.dk", "gmx.net", "aol.com", "mac.com", "proton.me", "protonmail.com"];
+    private static readonly string[] LongNames = ["gmail", "hotmail", "outlook", "yahoo", "icloud"];
+    private static readonly Dictionary<string, string> Endings = new()
+        { ["con"] = "com", ["cm"] = "com", ["om"] = "com", ["comm"] = "com", ["cpm"] = "com", ["vom"] = "com", ["xom"] = "com", ["co"] = "com",
+          ["dkk"] = "dk", ["dl"] = "dk", ["sk"] = "dk", ["fk"] = "dk" };
+
+    /// <summary>The address they most likely meant ("rikke@hotmaol.com" -> "rikke@hotmail.com"), or null when it looks right.</summary>
+    public static string? SuggestEmail(string? email)
+    {
+        var e = Normalize(email);
+        var at = e.LastIndexOf('@');
+        if (at < 1 || at == e.Length - 1) return null;
+        var (local, domain) = (e[..at], e[(at + 1)..]);
+        if (Providers.Contains(domain)) return null;
+        var dot = domain.LastIndexOf('.');
+        var (name, end) = dot < 0 ? (domain, "") : (domain[..dot], domain[(dot + 1)..]);
+        var fixedEnd = Endings.GetValueOrDefault(end, end);
+        // The ending only ("gmail.con", "live.dkk").
+        if (fixedEnd != end && Providers.Contains($"{name}.{fixedEnd}")) return $"{local}@{name}.{fixedEnd}";
+        // The name of a big provider, one or two letters off ("hotmaol", "gmial", "outlok").
+        var close = LongNames.Where(n => n != name && Distance(n, name) <= (n.Length >= 6 ? 2 : 1)).OrderBy(n => Distance(n, name)).FirstOrDefault();
+        if (close is null) return null;
+        var guess = Providers.Contains($"{close}.{fixedEnd}") ? $"{close}.{fixedEnd}" : Providers.First(p => p.StartsWith(close + "."));
+        return $"{local}@{guess}";
+    }
+
+    // Letters to change, add, remove or swap with the neighbour to get from a to b.
+    private static int Distance(string a, string b)
+    {
+        var d = new int[a.Length + 1, b.Length + 1];
+        for (var i = 0; i <= a.Length; i++) d[i, 0] = i;
+        for (var j = 0; j <= b.Length; j++) d[0, j] = j;
+        for (var i = 1; i <= a.Length; i++)
+            for (var j = 1; j <= b.Length; j++)
+            {
+                d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+                if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1]) d[i, j] = Math.Min(d[i, j], d[i - 2, j - 2] + 1);
+            }
+        return d[a.Length, b.Length];
+    }
 }
 
 /// <summary>A ticked "skriv mig op" box. ConsentText = the exact words they ticked (markedsføringsloven §10, GDPR art. 7).

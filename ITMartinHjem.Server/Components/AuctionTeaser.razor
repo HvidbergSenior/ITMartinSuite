@@ -25,6 +25,8 @@
             <SignUpMeans />
             <label class="sp-optin"><input type="checkbox" @bind="_consent" /> <span>@BogshoppenRules.ConsentText</span></label>
             @if (_error.Length > 0) { <p class="form-error">@_error</p> }
+            @if (_suggestion.Length > 0) { <button type="button" class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="UseSuggestionAsync">Ja, brug @_suggestion</button> }
+        @if (_suggestion.Length > 0) { <button type="button" class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="UseSuggestionAsync">Ja, brug @_suggestion</button> }
             <button class="k-btn k-btn-primary bs-btn k-mt" disabled="@_busy" @onclick="SendAsync">Skriv mig op</button>
         }
     </div>
@@ -34,16 +36,19 @@
 
 @code {
     private readonly HashSet<string> _collects = [];   // nothing to tick any more (2026-10-29) - sent empty
-    private string _name = "", _email = "", _note = "", _error = "", _code = "";
+    private string _name = "", _email = "", _note = "", _error = "", _code = "", _suggestion = "";
+
+    // "Mente du …?" (2026-10-29): one press fixes the address and sends again.
+    private async Task UseSuggestionAsync() { _email = _suggestion; await SendAsync(); }
     private bool _consent, _busy, _sent;
 
     private async Task SendAsync()
     {
-        _busy = true; _error = "";
+        _busy = true; _error = ""; _suggestion = "";
         try
         {
             var r = await Kartotek.FollowBogshoppenAsync(_name, _email, _collects, _note, _consent);
-            if (r.Error is null) { _email = _email.Trim().ToLowerInvariant(); _code = r.Code; _sent = true; } else _error = r.Error;
+            if (r.Error is null) { _email = _email.Trim().ToLowerInvariant(); _code = r.Code; _sent = true; } else (_error, _suggestion) = (r.Error, r.Suggestion);
         }
         finally { _busy = false; }
     }

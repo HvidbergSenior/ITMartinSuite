@@ -16,9 +16,16 @@ public interface ICustomerRepository
     Task DeleteAsync(int id, CancellationToken ct);
 }
 
+/// <summary>Does this mail domain take mail (a mail server in DNS)? Null = could not tell (DNS slow or down) - then the
+/// sign-up is never refused for it. Implemented in ITMartinKunder.Infrastructure.</summary>
+public interface IMailDomains
+{
+    Task<bool?> TakesMailAsync(string domain, CancellationToken ct);
+}
+
 // One Kundekartotek for every app (user 2026-10-21). The apps call the API (through ITMartinKunder.Client);
 // Martin uses the list page.
-public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
+public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, IMailDomains? domains = null)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -31,12 +38,29 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock)
         var email = KundeWords.Normalize(r.Email);
         if (!KundeWords.IsRealEmail(email) || email.Length > Customer.MaxEmail) return ("Skriv en rigtig e-mail, fx navn@gmail.com.", "");
         if (r.ConsentText.Trim().Length == 0) return ("Sæt flueben, hvis du vil skrives op som kunde.", "");
-        var c = await repo.ByEmailAsync(email, ct) ?? Customer.New(email, r.Name, Now);
+        var c = await repo.ByEmailAsync(email, ct);
+        if (c is null && await NewEmailErrorAsync(email, ct) is { } error) return (error, "");
+        c ??= Customer.New(email, r.Name, Now);
         var code = await FreeCodeAsync(ct);
         c.SignUp(r with { Email = email }, Now, () => code);
         await repo.SaveAsync(c, ct);
         return (null, c.Code);
     }
+
+    /// <summary>A new e-mail (user 2026-10-29): a typo in a big provider gets "Mente du …?", and a domain without a mail
+    /// server is refused - the kundenummer mail would never arrive. A DNS that does not answer never stops anyone.</summary>
+    private async Task<string?> NewEmailErrorAsync(string email, CancellationToken ct)
+    {
+        if (KundeWords.SuggestEmail(email) is { } meant) return $"Mente du {meant}? Ret e-mailen, og tryk igen.";
+        if (domains is null) return null;
+        var domain = email[(email.LastIndexOf('@') + 1)..];
+        return await domains.TakesMailAsync(domain, ct) == false
+            ? $"Vi kan ikke finde en mailserver for »{domain}«. Tjek det, der står efter @ – så du får mailen med dit kundenummer."
+            : null;
+    }
+
+    /// <summary>Martin's list: per customer, another one that may be the same person (Doubles.Find).</summary>
+    public async Task<Dictionary<int, int>> PossibleDoublesAsync(CancellationToken ct = default) => Doubles.Find(await repo.AllAsync(ct));
 
     /// <summary>ElPriser/Stem ask: may this kundenummer use the extras in this app?</summary>
     public async Task<CodeCheckResponse> CheckCodeAsync(string? code, string app, IReadOnlyList<FreeApp> freeApps, CancellationToken ct = default)
