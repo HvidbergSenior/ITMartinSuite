@@ -330,18 +330,16 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
   background:#0a3f6b;color:#fff;font-weight:800;font-size:.75rem;letter-spacing:.06em;box-shadow:var(--k-shadow)}
 
 /* bogshoppen.dk (Components/BogshoppenHome): cream paper + dark ink - colour-blind safe, dark text on pale only */
-.bs-site{--k-accent:#7a2e12;--k-accent-dark:#5c210c;--k-accent-soft:#f6e9dc;--k-accent-text:#fff;--k-bg:#fbf6ee;--k-card:#fffdf9;--k-border:#e6d6c2;--k-text:#2a1d12;--k-muted:#5e4a38;
-  background:#fbf6ee;color:#2a1d12;min-height:100vh}
+.bs-site{min-height:100vh}   /* colours = the Kolibri tokens, like itmartin.dk (2026-10-29) */
 .bs-head{text-align:center;padding:28px 16px 18px;margin:8px 0 16px;border-radius:var(--k-radius-lg,18px);background:#f3e6d4;border:2px solid #e6d6c2}
 .bs-head h1{margin:6px 0 4px;font-size:2.2rem;color:#2a1d12}
 .bs-head p{margin:0;color:#5e4a38;font-weight:600}
 .bs-tag{display:inline-block;padding:2px 12px;border-radius:999px;background:#5c210c;color:#fff;font-weight:800;font-size:.8rem;letter-spacing:.04em}
-.bs-card h2{color:#7a2e12}
-.bs-card a{color:#5c210c;text-decoration:underline}
-.bs-btn{display:block;text-align:center;margin:16px 0;font-size:1.1rem}
+.bs-card h2{color:var(--k-text)}
+.bs-card a:not(.k-btn){color:var(--k-text);text-decoration:underline}
 /* "Snart" teaser: ways to buy. State is text + icon, never colour alone (colour-blind user). */
 .bs-ways{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-.bs-way{display:flex;flex-direction:column;gap:3px;padding:12px;border:1px solid #e6d6c2;border-radius:12px;background:#fbf6ee;color:#2a1d12}
+.bs-way{display:flex;flex-direction:column;gap:3px;padding:12px;border:1px solid var(--k-border);border-radius:12px;background:var(--k-bg);color:var(--k-text)}
 .bs-way-icon{font-size:1.6em;line-height:1}
 .bs-way-line{color:#5e4a38;font-size:.92em}
 .bs-way-state{margin-top:auto;padding-top:6px;font-size:.85em;font-weight:700;color:#5e4a38}
@@ -433,19 +431,17 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .hj-zoom-box img { max-width: 100%; max-height: calc(100vh - 130px); border-radius: 12px; background: #fff; }
 .hj-zoom-close { position: absolute; top: 12px; right: 12px; font-size: 1.1rem; padding: 10px 18px; background: #fff; color: #111; border: 2px solid #111; font-weight: 700; }
 .hj-zoom-help { color: #fff; font-size: .95rem; }
-.bs-manifest{padding:10px 14px;border-left:5px solid #7a2e12;background:#f3e6d4;border-radius:8px;color:#2a1d12}
+.bs-manifest{padding:10px 14px;border-left:5px solid var(--k-accent);background:var(--k-accent-soft);border-radius:8px;color:var(--k-text)}
 .bs-think-quote{font-size:1.25rem;font-style:italic;font-weight:700;color:#5c210c;margin:4px 0 10px}
 .bs-think li{margin:4px 0}
 .bs-manifest p{margin:6px 0}
 /* bogshoppen.dk colour-blind fix (user 2026-10-11 could not read the white-on-red-brown poll button):
    buttons = black text on pale yellow + black border, headings dark ink - same as Stem. */
-.bs-site .k-btn-primary, .bs-site .bs-btn{background:#fef3c7;color:#111827;border:2px solid #111827;font-weight:800}
-.bs-site .k-btn-primary:hover, .bs-site .bs-btn:hover{background:#fde68a;color:#111827}
-.bs-card h2{color:#2a1d12}
-.bs-think-quote{color:#2a1d12}
+.bs-card h2{color:var(--k-text)}
+.bs-think-quote{color:var(--k-text)}
 .bs-tag{background:#2a1d12}
-.bs-manifest{border-left-color:#2a1d12}
-.bs-vote{border:2px solid #2a1d12}
+.bs-manifest{border-left-color:var(--k-accent)}
+.bs-vote{border:2px solid var(--k-text)}
 
 /* Today's plan inside the front-page header box (2026-10-12) */
 .hj-head-today { margin-top: 12px; text-align: left; }
@@ -525,7 +521,7 @@ html[data-family="idag"] .hj-head h1, .bs-head h1 { margin: 6px 0 4px; font-size
 html[data-family="idag"] .hj-tagline, .bs-tag { display: inline-block; margin: 0; padding: 2px 12px; border-radius: 999px; font-weight: 800; font-size: .85rem; letter-spacing: .02em; }
 html[data-family="idag"] .hj-head .hj-intro, .bs-head p { margin: 0; font-weight: 600; }
 .bs-head .bs-head-btn { display: inline-block; margin: 14px 0 0; padding: 12px 22px; }
-.bs-signup { border: 2px solid #2a1d12; }
+.bs-signup, .hj-signup { border: 2px solid var(--k-text); }
 .bs-head::before { content: "📚"; display: block; font-size: 2.6rem; margin-bottom: 6px; }
 
 /* bogshoppen.dk live-auction teaser (2026-10-12) */
@@ -601,7 +597,7 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .k-content .hj-part, .k-content .bs-bigstep, .k-content .sp-means, .k-content .hj-qa-boxlink,
 .k-content .bs-products li, .k-content .bs-promise li, .k-content .hj-qa-a, .k-content .tm-card, .k-content .bs-manifest,
 .k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry, .k-content .hj-mine {
-    border: 2px solid var(--k-border); border-left: 5px solid var(--k-accent); border-radius: 12px; background: var(--k-card);
+    border: 2px solid var(--k-text); border-left: 5px solid var(--k-accent); border-radius: 12px; background: var(--k-card);   /* dark frame = bogshoppen.dk's (2026-10-29) */
 }
 .k-content .bs-manifest, .k-content .hj-week, .k-content .hj-chat-challenge, .k-content .hj-day-entry, .k-content .hj-qa-a, .k-content .hj-mine { padding: 10px 12px; }
 /* "Da jeg hentede mine egne ..." - Martin's own numbers on /dine-data, an inner box like the rest (2026-10-19: used .bu-safe's green frame). */
@@ -627,8 +623,8 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .bs-search{display:flex;flex-wrap:wrap;gap:8px}
 .bs-search .k-input{flex:1 1 200px;min-width:0}
 .bs-items{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-.bs-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:2px solid #2a1d12;border-radius:12px;background:#fffdf7;color:#111827!important;text-decoration:none!important}
-.bs-item:hover{background:#fef3c7}
+.bs-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:2px solid var(--k-text);border-radius:12px;background:var(--k-card);color:var(--k-text)!important;text-decoration:none!important}
+.bs-item:hover{background:var(--k-accent-soft)}
 .bs-item img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none}
 .bs-item-main{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
 .bs-item-price{flex:none;text-align:right;white-space:nowrap}
@@ -638,34 +634,34 @@ html[data-family="idag"] .hj-news::before, html[data-family="nyhed"] .hj-news::b
 .bs-warn{color:#7a1d0c;font-weight:700}
 /* "Fundet i kasserne" - both front pages (2026-10-15) */
 .bs-found-list{list-style:none;padding:0;margin:0;display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
-.bs-found-item{border:2px solid #2a1d12;border-radius:14px;padding:12px;background:#fffdf7;color:#111827;display:flex;flex-direction:column;gap:4px}
+.bs-found-item{border:2px solid var(--k-text);border-radius:14px;padding:12px;background:var(--k-card);color:var(--k-text);display:flex;flex-direction:column;gap:4px}
 .bs-found-item h3{margin:4px 0 0;font-size:1.1rem}
 .bs-found-item p{margin:2px 0}
 .bs-found-item img{width:100%;max-height:220px;object-fit:cover;border-radius:10px}
 .bs-found-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:8px}
 /* The marketplace on bogshoppen.dk/varer (2026-10-20): product-type tiles, today's offers, product cards, basket. */
 .bs-types{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin:0}
-.bs-type{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border:2px solid #2a1d12;border-radius:12px;background:#fffdf7;color:#111827;font:inherit;text-align:left;cursor:pointer}
+.bs-type{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border:2px solid var(--k-text);border-radius:12px;background:var(--k-card);color:var(--k-text);font:inherit;text-align:left;cursor:pointer}
 .bs-type b{font-size:1.1rem}
-.bs-type[aria-pressed=true]{background:#2a1d12;color:#fffdf7}
-.bs-offers{border:3px solid #2a1d12;border-radius:14px;background:#fef3c7;color:#111827;padding:12px 14px;margin:0 0 14px}
+.bs-type[aria-pressed=true]{background:var(--k-text);color:var(--k-card)}
+.bs-offers{border:3px solid var(--k-text);border-radius:14px;background:var(--k-accent-soft);color:var(--k-text);padding:12px 14px;margin:0 0 14px}
 .bs-offers h2{margin:0 0 6px;font-size:1.15rem}
 .bs-offers ul{margin:0;padding-left:20px}
 .bs-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .bs-tools .k-input{flex:1 1 200px;min-width:0}
 .bs-cards{list-style:none;padding:0;margin:0;display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
-.bs-card-item{border:2px solid #2a1d12;border-radius:14px;background:#fffdf7;color:#111827;display:flex;flex-direction:column;overflow:hidden}
-.bs-card-item a{color:#111827!important;text-decoration:none!important;display:flex;flex-direction:column;gap:4px;padding:10px 12px;flex:1}
+.bs-card-item{border:2px solid var(--k-text);border-radius:14px;background:var(--k-card);color:var(--k-text);display:flex;flex-direction:column;overflow:hidden}
+.bs-card-item a{color:var(--k-text)!important;text-decoration:none!important;display:flex;flex-direction:column;gap:4px;padding:10px 12px;flex:1}
 .bs-card-item img{width:100%;height:180px;object-fit:cover;background:#f3ede0}
 .bs-card-noimg{height:180px;display:flex;align-items:center;justify-content:center;background:#f3ede0;color:#5b4a3a;font-weight:700}
 .bs-card-price{font-size:1.25rem;font-weight:800}
 .bs-forshow{display:inline-block;font-weight:800;border:2px solid currentColor;border-radius:6px;padding:.1em .45em}
 .bs-card-day{font-weight:700;color:#7a1d0c}
 .bs-card-actions{padding:0 12px 12px}
-.bs-badge{align-self:flex-start;font-weight:800;font-size:.8rem;letter-spacing:.05em;padding:2px 8px;border-radius:999px;border:2px solid #2a1d12;background:#fff}
+.bs-badge{align-self:flex-start;font-weight:800;font-size:.8rem;letter-spacing:.05em;padding:2px 8px;border-radius:999px;border:2px solid var(--k-text);background:#fff}
 .bs-badge-guld{background:#facc15}.bs-badge-sølv{background:#e5e7eb}.bs-badge-bronze{background:#f5c39a}
 .bs-basket{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-.bs-basket li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border:2px solid #2a1d12;border-radius:12px;background:#fffdf7;color:#111827}
+.bs-basket li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border:2px solid var(--k-text);border-radius:12px;background:var(--k-card);color:var(--k-text)}
 .bs-basket .bs-item-main{flex:1 1 200px}
 .bs-total{font-size:1.4rem;font-weight:800;margin:10px 0 4px}
 
@@ -752,8 +748,6 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* bogshoppen.dk with the same feel as itmartin.dk (user 2026-10-28: "need to have the feel ... also on bogshoppen.dk"):
    the warm gradient head, the Kolibri page background and white cards, the orange accent. Buttons keep DARK text
    (colour-blind fix 2026-10-11: white on red-brown was unreadable) - white in the head, pale orange elsewhere. */
-.bs-site { --k-accent:#c96a2b; --k-accent-dark:#a3521f; --k-accent-soft:#f9e9de; --k-bg:#f4f6f5; --k-card:#ffffff; --k-border:#dbe2df;
-  --k-text:#17211d; --k-muted:#5b6864; background:#f4f6f5; color:#17211d; }
 .bs-head { position:relative; overflow:hidden; border:0; box-shadow:var(--k-shadow);
   background:linear-gradient(120deg,#ffe58a 0%,#ffc98f 55%,#ffad97 100%); color:#2b1d12; }
 .bs-head::after { content:""; position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%;
@@ -761,10 +755,12 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-head h1 { color:#2b1d12; }
 .bs-head p { color:#4a3222; }
 .bs-tag { background:rgba(255,255,255,.7); color:#2b1d12; }
-.bs-head .k-btn, .bs-head .bs-btn, .bs-head .k-btn-primary { background:#fff; color:#17211d; border:2px solid #17211d; }
-.bs-site .k-btn-primary, .bs-site .bs-btn { background:#f9e9de; color:#17211d; border:2px solid #17211d; }
-.bs-site .k-btn-primary:hover, .bs-site .bs-btn:hover { background:#ffd9bf; color:#17211d; }
-.bs-card h2 { color:#17211d; }
+/* Buttons on BOTH sites = bogshoppen.dk's (user 2026-10-29: "i like the color on boxes" -> bogshoppen.dk's): pale accent with dark
+   text and a 2px dark frame (colour-blind safe, 2026-10-11); white in the warm head box. Tokens, so dark mode works too. */
+.k-content .k-btn { background: var(--k-accent-soft); color: var(--k-text); border: 2px solid var(--k-text); font-weight: 700; }
+.k-content .k-btn:hover { background: var(--k-accent-soft); color: var(--k-text); border-color: var(--k-accent-dark); }
+.k-content .hj-head .k-btn, .k-content .bs-head .k-btn { background: #fff; color: #17211d; border: 2px solid #17211d; }
+.bs-card h2 { color:var(--k-text); }
 /* bogshoppen.dk head = itmartin.dk's head spacing (user 2026-10-29: "bogshoppen should be looking like itmartin.. Look at css
    spacing"): left-aligned, same padding, tag/heading margins and the buttons in a row (.hj-head-btns). */
 .bs-head { text-align: left; padding: 18px 20px 16px; margin: 8px 0 16px; }
@@ -775,7 +771,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* bogshoppen.dk/produkter (2026-10-29): each product group = a box you press, to its community in Kolibri Fællesskab. */
 .bs-groups { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 .bs-card a.bs-group { display: flex; flex-direction: column; gap: 2px; height: 100%; box-sizing: border-box; padding: 12px 14px; text-decoration: none;
-  color: var(--k-text); background: var(--k-card); border: 2px solid var(--k-border); border-left: 5px solid var(--k-accent); border-radius: 12px; }
+  color: var(--k-text); background: var(--k-card); border: 2px solid var(--k-text); border-left: 5px solid var(--k-accent); border-radius: 12px; }
 .bs-card a.bs-group:hover { border-color: var(--k-text); }
 .bs-group b { font-size: 1.1rem; }
 .bs-group span { color: var(--k-muted); }
