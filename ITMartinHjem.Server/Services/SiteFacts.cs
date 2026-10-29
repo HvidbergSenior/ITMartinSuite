@@ -55,11 +55,11 @@ public static class SiteFacts
     ];
 
     // bogshoppen.dk (user 2026-10-27: "vidste du should be on Bogshoppen.dk as well"): Bogshoppen first, then a few of
-    // Martin's - Bogshoppen is part of ITMartin (the head note on both front pages). Numbers from the bogshoppen page text (100.000+, ~40 years, 30+ years friends).
+    // Martin's - Bogshoppen is part of ITMartin (the head note on both front pages). Numbers from the bogshoppen page text (100.000+, 23 years - user 2026-10-29, 30+ years friends).
     public static readonly IReadOnlyList<Fact> Bogshoppen =
     [
         new("Skriv mig op – gratis", "#foelg", "… at Bogshoppen har over 100.000 bøger, blade og tegneserier, der skal finde nye ejere?"),
-        new("Om Bogshoppen", "/om-bogshoppen", "… at Bogshoppen har handlet med bøger, tegneserier, film, musik og brætspil i omkring 40 år?"),
+        new("Om Bogshoppen", "/om-bogshoppen", "… at Bogshoppen har handlet med bøger, tegneserier, film, musik og brætspil i 23 år?"),   // 23, not ~40 (user 2026-10-29)
         new("Om Bogshoppen", "/om-bogshoppen", "… at Rico og Martin har været venner i over 30 år?"),
         new("Skriv til os", "https://itmartin.dk/chat-med-martin", "… at vi gerne tager imod de ting, du vil af med? Så får de nye ejere i stedet for at ende i containeren."),
         new("Skriv til os", "https://itmartin.dk/chat-med-martin", "… at vi kan finde ud af, hvad dine ting er værd – bøger, tegneserier, film, musik og spil?"),
