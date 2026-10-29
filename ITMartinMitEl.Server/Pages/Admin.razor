@@ -1,44 +1,35 @@
 @page "/admin"
-@rendermode InteractiveServer
 @* No login needed (2026-10-29): a forgotten password is reset HERE, so the page cannot sit behind the login.
+   A plain form (no interactive circuit - /_blazor stays behind the login): PIN + mail + new password in one post.
    The admin PIN guards it; a wrong PIN waits 2 s so it cannot be guessed fast. *@
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @inject AccountService Accounts
 @inject IConfiguration Config
-@inject TenantContext Tenant
 
 <PageTitle>Administration – MinElpris</PageTitle>
 
 <h1>Administration</h1>
 
-@if (!_unlocked)
-{
-    <div class="card">
-        <div class="card-title">Adgangskode</div>
-        <div class="field"><label>Admin-PIN</label><input type="password" @bind="_pin" /></div>
-        <button class="btn btn-primary" @onclick="Unlock">Luk op</button>
-        @if (_wrongPin)
-        {
-            <p class="small err">Forkert PIN.</p>
-        }
+<div class="card">
+    <div class="card-title">Nulstil en adgangskode</div>
+    <div class="muted small" style="margin-bottom:8px">
+        Der er ingen mailserver i systemet endnu, så en glemt adgangskode sættes her og siges til kunden.
     </div>
-}
-else
-{
-    <div class="card">
-        <div class="card-title">Nulstil en adgangskode</div>
-        <div class="muted small" style="margin-bottom:8px">
-            Der er ingen mailserver i systemet endnu, så en glemt adgangskode sættes her og siges til kunden.
-        </div>
-        <div class="field"><label>Mail</label><input @bind="_email" /></div>
-        <div class="field"><label>Ny adgangskode</label><input @bind="_password" /></div>
-        <button class="btn btn-primary" @onclick="Reset">Sæt ny adgangskode</button>
-        @if (_message is not null)
-        {
-            <p class="small @(_ok ? "ok" : "err")">@_message</p>
-        }
-    </div>
+    <form method="post" @formname="reset">
+        <AntiforgeryToken />
+        <div class="field"><label>Admin-PIN</label><input type="password" name="Form.Pin" autocomplete="off" /></div>
+        <div class="field"><label>Mail</label><input name="Form.Email" value="@Form.Email" autocomplete="username" /></div>
+        <div class="field"><label>Ny adgangskode</label><input type="password" name="Form.Password" autocomplete="new-password" /></div>
+        <button class="btn btn-primary" type="submit">Sæt ny adgangskode</button>
+    </form>
+    @if (_message is not null)
+    {
+        <p class="small @(_ok ? "ok" : "err")">@_message</p>
+    }
+</div>
 
+@if (_users is not null)
+{
     <div class="card">
         <div class="card-title">Brugere (@_users.Count)</div>
         @foreach (var u in _users)
@@ -61,33 +52,33 @@ else
 }
 
 @code {
-    private bool _unlocked;
-    private bool _wrongPin;
-    private string _pin = "";
-    private string _email = "";
-    private string _password = "";
+    public sealed class ResetForm
+    {
+        public string Pin { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+
+    [SupplyParameterFromForm(FormName = "reset")] private ResetForm Form { get; set; } = new();
+
     private string? _message;
     private bool _ok;
-    private List<UserAccount> _users = [];
+    private List<UserAccount>? _users;
 
     private string ExpectedPin => Config["MitEl:AdminPin"] ?? "";
 
-    private async Task Unlock()
+    protected override async Task OnInitializedAsync()
     {
-        _unlocked = ExpectedPin.Length > 0 && _pin == ExpectedPin;
-        _wrongPin = !_unlocked;
-        _pin = "";
-        if (_wrongPin) await Task.Delay(2000);
-        if (_unlocked) await LoadAsync();
-    }
-
-    private async Task LoadAsync() => _users = await Accounts.AllUsersAsync();
-
-    private async Task Reset()
-    {
-        var result = await Accounts.ResetPasswordAsync(_email, _password);
+        if (string.IsNullOrEmpty(Form.Pin)) return; // first visit, nothing posted
+        if (ExpectedPin.Length == 0 || Form.Pin != ExpectedPin)
+        {
+            await Task.Delay(2000);
+            _message = "Forkert PIN.";
+            return;
+        }
+        var result = await Accounts.ResetPasswordAsync(Form.Email, Form.Password);
         _ok = result.Ok;
-        _message = result.Ok ? $"Adgangskoden for {_email} er sat. Sig den til kunden." : result.Error;
-        if (result.Ok) { _email = ""; _password = ""; await LoadAsync(); }
+        _message = result.Ok ? $"Adgangskoden for {Form.Email} er sat. Sig den til kunden." : result.Error;
+        _users = await Accounts.AllUsersAsync();
     }
 }
