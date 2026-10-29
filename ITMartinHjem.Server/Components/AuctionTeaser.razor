@@ -10,20 +10,15 @@
         @if (_sent)
         {
             <p class="bs-done"><b>Tak – du er skrevet op</b>@(_code != "" ? $" Dit kundenummer er {ITMartinHjem.Domain.SignUpRules.Show(_code)}." : "")
-                Det er dit login til liveauktionerne, når den første er klar, og det giver dig adgang til de gratis apps på itmartin.dk.
+                Med det kan du senere trykke på de produkter, du er interesseret i, og det giver dig adgang til de gratis apps på itmartin.dk.
                 Vi har sendt det til <b>@_email</b>. Du kan altid afmelde dig.</p>
             <a class="k-btn k-btn-sm" href="/afmeld">Afmeld</a>
         }
         else
         {
-            <p>Bogshoppen åbner snart igen – med liveauktioner. Skriv dig op, så får du besked og et login, når den første auktion starter. Sæt gerne kryds ved det, du samler.</p>
-            <div class="sp-options">
-                @foreach (var (title, _) in BogshoppenRules.Products)
-                {
-                    <button type="button" class="sp-option @(_collects.Contains(title) ? "on" : "")" aria-pressed="@(_collects.Contains(title) ? "true" : "false")"
-                            @onclick="() => Toggle(title)">@(_collects.Contains(title) ? "" : "") @title</button>
-                }
-            </div>
+            @* No auction text and no product ticks any more (user 2026-10-29: "this not needed anymore ... They just push products later
+               to show interest. But sign up of course"). *@
+            <p>Skriv dig op gratis, så får du dit kundenummer med det samme. Senere kan du trykke på de produkter, du er interesseret i.</p>
             <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="Dit navn" aria-label="Dit navn" autocomplete="name" />
             <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
             <textarea class="k-input k-textarea k-mt" @bind="_note" maxlength="280" rows="2" placeholder="Leder du efter noget bestemt? (valgfrit)" aria-label="Leder du efter noget bestemt?"></textarea>
@@ -38,11 +33,9 @@
 @* "Liveauktioner – snart" and "Sådan køber du" removed 2026-10-24 (user: "remove liveauktioner and Sådan køber du from bogshoppen"). *@
 
 @code {
-    private readonly HashSet<string> _collects = [];
+    private readonly HashSet<string> _collects = [];   // nothing to tick any more (2026-10-29) - sent empty
     private string _name = "", _email = "", _note = "", _error = "", _code = "";
     private bool _consent, _busy, _sent;
-
-    private void Toggle(string title) { if (!_collects.Remove(title)) _collects.Add(title); }
 
     private async Task SendAsync()
     {
