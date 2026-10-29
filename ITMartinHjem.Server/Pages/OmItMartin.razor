@@ -6,7 +6,7 @@
    head box, Vidste du and the sign-up. *@
 <PageTitle>Om mig · Martin Hvidberg</PageTitle>
 @* Calmer since 2026-10-27 (user: "should be prettier and more calm"): a quiet head with the one photo and the contact buttons
-   (no separate contact box), all of Martin's text as calm show/hide rows in ONE card instead of ten boxes, soft buttons, more air.
+   (no separate contact box), soft buttons. Since 2026-10-29 each part is its own box again (user).
    Only the look changed - the words are Martin's own, from Svar -> Sider. *@
 <div class="hj-calm">
 <PageHead Title="Om mig" Tag="Hvem er ITMartin?" Line="Hvem jeg er, hvad jeg laver – og hvad jeg har lavet." Calm="true">
@@ -19,29 +19,22 @@
 </PageHead>
 
 <CascadingValue Name="Plain" Value="true">
-<section class="k-card hj-calm-om" data-nofold>
-    @if (_hero is not null)
-    {
-        @* "Hvem er ITMartin?" as tabs (user 2026-10-27) - the first row, open until the visitor closes it. *@
-        <details class="hj-calm-row" open>
-            <summary>Hvem er ITMartin?</summary>
-            <div><HeroTabs Body="@_hero.Body" /></div>
-        </details>
-    }
-    @* Martin's own "Om mig og kontakt" text (Svar -> Sider -> om-mig), each "## " part a quiet show/hide row. *@
-    @if (_about is not null)
-    {
-        var (intro, parts) = Sections.Split(_about.Body);
-        @if (intro.Length > 0) { <div class="hj-calm-intro">@TinyMarkdown.Render(intro)</div> }
-        @foreach (var p in parts)
-        {
-            <details class="hj-calm-row">
-                <summary>@NoEmoji.Strip(p.Title)</summary>
-                <div>@TinyMarkdown.Render(p.Body.Length > 0 ? p.Body : " ")</div>
-            </details>
-        }
-    }
-</section>
+@* Every part its own box again, like the boxes around them (user 2026-10-29: "all these should also be in the boxes over them");
+   was one calm card with rows since 2026-10-27. "Hvem er ITMartin?" open, the rest closed until opened (remembered per phone). *@
+@if (_hero is not null)
+{
+    <section class="k-card hj-page hj-sec">
+        <h2>Hvem er ITMartin?</h2>
+        <div><HeroTabs Body="@_hero.Body" /></div>
+    </section>
+}
+@* Martin's own "Om mig og kontakt" text (Svar -> Sider -> om-mig), each "## " part a box. *@
+@if (_about is not null)
+{
+    var (intro, parts) = Sections.Split(_about.Body);
+    @if (intro.Length > 0) { <section class="k-card hj-page">@TinyMarkdown.Render(intro)</section> }
+    <SectionBoxes Parts="parts" FirstOpen="false" />
+}
 
 <WorkTiles />
 </CascadingValue>
