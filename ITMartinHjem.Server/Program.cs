@@ -261,6 +261,12 @@ app.Use(async (ctx, next) =>
         ctx.Response.Redirect(ITMartinHjem.Server.Components.BogshoppenHome.AskUrl, permanent: true);
         return;
     }
+    // Ros/ris too (2026-10-29): bogshoppen.dk/kritik -> itmartin.dk/kritik.
+    if (ITMartinHjem.Server.Components.BogshoppenHome.IsHost(ctx.Request.Host.Host) && path.StartsWithSegments("/kritik", StringComparison.OrdinalIgnoreCase))
+    {
+        ctx.Response.Redirect(ITMartinHjem.Server.Components.BogshoppenHome.KritikUrl, permanent: true);
+        return;
+    }
     await next();
 });
 
