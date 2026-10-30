@@ -53,7 +53,8 @@ if (channels.Count == 0)
             ]),
             new("Budget – indsigt i stedet for regler",
             [
-                "Før: Vores indtægt faldt drastisk. Børnene skulle selv betale for noget. Men hvad? Skulle de bare betale 1.000 kr om måneden hver? Nej – først ville vi have indsigt i, hvad vi faktisk bruger penge på.",
+                "Før: Vores indtægt faldt drastisk. Børnene skulle selv betale for noget. Men hvad? Skulle de bare betale 1.000 kr om måneden hver? Nej. Bare at smide flere penge ind fra de unge ændrer jo ikke noget ved vanerne. Vi skulle finde ud af, HVOR vi kan ændre noget – og først ville vi have indsigt i, hvad vi faktisk bruger penge på.",
+                "Bare det at dele forståelsen af, hvad tingene koster, giver i sig selv en besparelse.",
                 "Budget viste os, at netbankernes apps ikke er gode nok: MobilePay-overførsler og kategorier gemmer sig. Vi fandt ud af, hvor meget vi bruger på abonnementer – og hvor meget vi bruger på parkering i stedet for at cykle, fordi vi fik det præcise beløb at sammenligne med cyklen.",
             ]),
             new("Bogshoppen – det er dig, der bestemmer",
