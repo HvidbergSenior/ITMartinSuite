@@ -47,19 +47,19 @@ if (channels.Count == 0)
             new("FileSorter – billederne fundet igen",
             [
                 "87.009 filer blev til 34.079 rigtige billeder og videoer, sorteret efter år. Resten var dubletter og skrammel – som ellers ville ligge på en server og bruge strøm.",
-            ], "Telefonen bliver ved med at minde om, at lageret er fuldt – så det nemmeste er at sige ja til mere plads i skyen i stedet for at rydde op."),
+            ], "Telefonen bliver ved med at minde om, at lageret er fuldt – så det nemmeste er at sige ja til mere plads i skyen. Hver ekstra fil ligger i et datacenter og bruger strøm, også dem ingen ser."),
             new("ElPriser – fra mors påmindelser til én knap",
             [
                 "Nu trykker alle på én knap ved maskinen og ser, hvad det koster – for hele turen, ikke kun lige nu. Start nu eller vent. Mor behøver ikke minde os om det.",
-            ], "Mor var den eneste, der holdt øje med strømprisen – og elselskabets app var fyldt med alt muligt andet."),
+            ], "Mor var den eneste, der holdt øje med strømprisen – og elselskabets app var fyldt med alt muligt andet. De billige timer er ofte dem med mest vindstrøm, så det handler også om grøn strøm."),
             new("Budget – indsigt i stedet for regler",
             [
                 "Flere penge fra de unge ændrer ingen vaner. Budget viste os abonnementerne – og hvad parkering koster i forhold til cyklen. Bare at forstå, hvad tingene koster, er en besparelse.",
-            ], "Indtægten faldt, og netbanken viste ikke, hvor pengene faktisk gik hen."),
+            ], "Indtægten faldt, og netbanken viste ikke, hvor pengene faktisk gik hen. Mange abonnementer – streaming, sky, apps – kører i datacentre hver dag, uden at vi tænker over det."),
             new("Bogshoppen – det er dig, der bestemmer",
             [
                 "En DVD virker på en PS3 – det er dig, der bestemmer, ikke streamingtjenesten. Fem film på fredag, og familien vælger én, alle kan lide – også mor.",
-            ], "100.000 bøger, film og CD'er med værdi var på vej i skraldespanden."),
+            ], "100.000 bøger, film og CD'er med værdi var på vej i skraldespanden. Genbrug i stedet for nyt – og en film på hylden bruger ingen strøm, mens en film på streaming hentes fra et datacenter igen og igen."),
         ]));
 builder.Services.AddKanalApplication(channels, () => DateTime.UtcNow);
 
