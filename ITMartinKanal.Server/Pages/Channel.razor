@@ -1,0 +1,82 @@
+@page "/{Slug}"
+@using ITMartinKanal.Domain
+@using ITMartinKanal.Application
+@inject KanalUseCases Kanal
+@inject IConfiguration Config
+
+@* A plain page (static, no live connection - lighter on the old computer). Writing is a form post to /{slug}/skriv. *@
+@if (_channel is null)
+{
+    <PageTitle>Kanal</PageTitle>
+    <section class="k-card" data-nofold><h1 class="k-card-title">Kanalen findes ikke</h1></section>
+}
+else
+{
+    <PageTitle>@_channel.Title · Kanal</PageTitle>
+    <section class="k-card" data-nofold>
+        <h1 class="k-card-title">@_channel.Title</h1>
+        <p>@_channel.Intro</p>
+        <p class="k-help"><b>Om siden:</b> den kører på en gammel computer hjemme hos Martin Hvidberg (ITMartin) – ikke i et datacenter. Den sover fra kl. 23 til kl. 7.
+            Ingen konto, ingen reklamer, ingen sporing.</p>
+    </section>
+
+    <section class="k-card" id="skriv" data-nofold>
+        <h2 class="k-card-title">Skriv en kommentar</h2>
+        <p class="k-help"><b>Sådan gør du:</b> vælg et emne, skriv din kommentar og tryk Send. Dit navn kan undværes. Telefonnumre og e-mails bliver fjernet.</p>
+        @if (Fejl is { Length: > 0 }) { <p class="ka-msg" role="alert">@Fejl</p> }
+        @if (Ok == "1") { <p class="ka-msg" role="status">Tak – din kommentar står nu på siden.</p> }
+        <form method="post" action="/@_channel.Slug/skriv">
+            <div class="ka-topics" role="radiogroup" aria-label="Emne">
+                @foreach (var (t, i) in _channel.Topics.Select((t, i) => (t, i)))
+                {
+                    <label><input type="radio" name="topic" value="@t" checked="@(i == 0)" /> <span>@t</span></label>
+                }
+            </div>
+            <textarea class="k-input k-textarea" name="text" rows="5" maxlength="@KanalComment.MaxText" required aria-label="Din kommentar"
+                      placeholder="Hvad tænker du?"></textarea>
+            <input class="k-input k-mt" name="name" maxlength="@KanalComment.MaxName" placeholder="Dit navn (kan undværes)" aria-label="Dit navn" />
+            <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true" />
+            <button class="k-btn k-btn-primary k-mt" type="submit">Send</button>
+        </form>
+    </section>
+
+    <section class="k-card" id="kommentarer" data-nofold>
+        <h2 class="k-card-title">Kommentarer (@_comments.Count)</h2>
+        @if (_comments.Count == 0) { <p class="k-help">Ingen endnu. Skriv den første.</p> }
+        @foreach (var c in _comments)
+        {
+            <div class="ka-comment">
+                <p class="k-help"><b>@(c.Name.Length > 0 ? c.Name : "Anonym")</b> · @c.Topic · @Dk(c.At)</p>
+                @foreach (var line in c.Text.Split('\n')) { <p>@line</p> }
+                @if (_owner)
+                {
+                    <form method="post" action="/@_channel.Slug/slet/@c.Id"><button class="k-btn k-btn-sm k-btn-ghost" type="submit">Slet</button></form>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [CascadingParameter] public HttpContext? Http { get; set; }
+    [SupplyParameterFromQuery] public string? Ok { get; set; }
+    [SupplyParameterFromQuery] public string? Fejl { get; set; }
+
+    private KanalChannel? _channel;
+    private List<KanalComment> _comments = [];
+    private bool _owner;
+
+    private static readonly TimeZoneInfo Danish = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+
+    protected override void OnParametersSet()
+    {
+        _channel = Kanal.Channel(Slug);
+        if (_channel is null) return;
+        _comments = Kanal.Comments(_channel.Slug);
+        _owner = Http is not null && Program.Owner(Http, Config);
+    }
+
+    private static string Dk(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Danish).ToString("d. MMM 'kl.' HH:mm", new System.Globalization.CultureInfo("da-DK"));
+}

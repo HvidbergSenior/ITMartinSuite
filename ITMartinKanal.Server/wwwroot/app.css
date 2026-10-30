@@ -1,0 +1,7 @@
+/* Kanal - ElPriser's look (the reference app). */
+.ka-topics { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.ka-topics label { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--k-border); font-weight: 700; cursor: pointer; }
+.ka-topics input:checked + span { color: var(--k-accent); }
+.ka-comment { border-left: 3px solid var(--k-accent); padding: 4px 0 4px 12px; margin: 0 0 14px; }
+.ka-comment p { margin: 0 0 4px; }
+.ka-msg { font-weight: 600; }
