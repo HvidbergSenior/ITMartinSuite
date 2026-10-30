@@ -9,6 +9,9 @@ public static class MartinPhotos
 {
     public sealed record Photo(string Src, string Place);
 
+    // "Mindes" (remembers), not "Minder" (reminds) - corrected 2026-10-30.
+    public static readonly Photo Father = new("/martin/martin-20250917.jpg", "Mindes min far hvert år den 17/9 (han elskede lakridspiber og rødvin)");
+
     public static readonly IReadOnlyList<Photo> All =
     [
         new("/martin/martin-20250329.jpg", "TV2 koncert 2025"),
@@ -22,9 +25,6 @@ public static class MartinPhotos
         new("/martin/martin-20260604.jpg", "Northside 2026"),
         new("/martin/martin-20260605.jpg", "Northside 2026"),
     ];
-
-    // "Mindes" (remembers), not "Minder" (reminds) - corrected 2026-10-30.
-    public static readonly Photo Father = new("/martin/martin-20250917.jpg", "Mindes min far hvert år den 17/9 (han elskede lakridspiber og rødvin)");
 
     public static Photo Now => All[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % All.Count)];
 
