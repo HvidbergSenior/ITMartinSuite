@@ -16,6 +16,7 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "ElPriser viser timeprisen på strøm i dag og i morgen, så du kan lægge vask, opvask og opladning på de billige timer.",
+        "Hvorfor ElPriser? Strøm koster mest, når du har mest brug for den. Prisen svinger time for time, og nettariffen er op til 9 gange dyrere kl. 17–21 end om natten. ElPriser viser dig de billige timer, så du kan flytte opvask, vask og opladning – uden at skulle vælge side.",
         "Besked sender en besked til telefonen en time før dagens billigste to timer – gratis for kunder med et kundenummer.",
         "Prisen nu og de billige timer er gratis og kræver ingen konto. Din elregning forklaret linje for linje findes i MinElpris, den udvidede udgave.",
         "Adresser og kort: © OpenStreetMap-bidragydere (openstreetmap.org/copyright). Nettariffer: Strømligning.",
