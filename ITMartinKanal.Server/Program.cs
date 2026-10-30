@@ -59,7 +59,7 @@ if (channels.Count == 0)
             [
                 "100.000 bøger, film og CD'er kunne være smidt ud. Men de har værdi. Det handler om bæredygtighed: at give tingene et nyt liv i stedet for at smide dem ud.",
                 "Konkurrenterne er Netflix og de andre streamingtjenester. Kan man konkurrere? Ja. En DVD kan afspilles på en PS3, en Blu-ray også. Det er ikke Netflix, der bestemmer, hvad du kan se – det er dig. Ingen censur, ingen manipulation, ingen månedlig betaling.",
-                "Og kan du huske dengang i videobutikken? Lej eller køb fem film og se dem sammen fredag aften – i stedet for at scrolle gennem film uden at vælge én. Så kan familien vælge en film, alle kan lide – også mor.",
+                "Og kan du huske dengang i videobutikken? Lej eller køb fem film og se dem sammen fredag aften – i stedet for at scrolle gennem film uden at vælge én. Så kan familien vælge en film, alle kan lide – også mor. Og nogle film er værd at se mere end én gang – de står jo på hylden.",
             ]),
             new("FileSorter – billederne fundet igen",
             [
