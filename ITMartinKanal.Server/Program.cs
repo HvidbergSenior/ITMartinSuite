@@ -32,14 +32,15 @@ builder.Services.AddKolibri(k =>
 
 builder.Services.AddRazorComponents();
 builder.Services.AddKanalInfrastructure(builder.Configuration["DataDir"] ?? "/data");
-// Nothing configured = the demo channel for Pelle Dragsted.
+// Nothing configured = the demo channel. Independent on purpose (user 2026-10-30: "the discussion about datacentre and ai should
+// be independent not political and/or party related") - a neutral address and text, not "Pelle's page", though the link goes to him.
 var channels = builder.Configuration.GetSection("Kanal:Channels").GetChildren()
     .Select(c => new KanalChannel((c["Slug"] ?? "").ToLowerInvariant(), c["Title"] ?? "", c["Intro"] ?? "",
         c.GetSection("Topics").GetChildren().Select(t => t.Value ?? "").Where(t => t.Length > 0).ToArray())).ToList();
 if (channels.Count == 0)
-    channels.Add(new KanalChannel("pelle", "Datacentre og grøn energi",
-        "Hej Pelle. Her kan du – og alle andre – skrive en kommentar om datacentre og grøn energi. Siden kører på en gammel computer hjemme hos mig og sover om natten.",
-        ["Datacentre", "Grøn energi"]));
+    channels.Add(new KanalChannel("datacentre", "Datacentre, AI og grøn energi",
+        "Et uafhængigt sted, hvor alle kan skrive, hvad de tænker om datacentre, AI og grøn energi. Siden er ikke politisk og ikke knyttet til noget parti – alle synspunkter er velkomne.",
+        ["Datacentre", "AI", "Grøn energi"]));
 builder.Services.AddKanalApplication(channels, () => DateTime.UtcNow);
 
 var app = builder.Build();
