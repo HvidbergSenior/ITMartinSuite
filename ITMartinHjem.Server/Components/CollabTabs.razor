@@ -1,0 +1,26 @@
+@using ITMartinHjem.Application
+@using ITMartinHjem.Domain
+@inject CollabSpaces Spaces
+
+@* Tabs on /per, /per/tekster and /per/musik, right under the head (user 2026-10-30: "navigation from musik to text for per and me").
+   The same tabs as ElPriser ("ElPriser is the ONE to look at always"): text, no icons, the active one filled. *@
+@if (_space is not null)
+{
+    <nav class="hj-collab-tabs" aria-label="@_space.Name og Martin">
+        <a class="@(Room.Length == 0 ? "active" : "")" href="/@_space.Slug" aria-current="@(Room.Length == 0 ? "page" : null)">Forside</a>
+        @foreach (var r in CollabRules.Rooms)
+        {
+            <a class="@(r.Slug == Room ? "active" : "")" href="/@_space.Slug/@r.Slug" aria-current="@(r.Slug == Room ? "page" : null)">@r.Title</a>
+        }
+    </nav>
+}
+
+@code {
+    [Parameter] public string Space { get; set; } = "";
+    /// <summary>"" = the space's own front page.</summary>
+    [Parameter] public string Room { get; set; } = "";
+
+    private CollabSpace? _space;
+
+    protected override void OnParametersSet() => _space = Spaces.Find(Space);
+}

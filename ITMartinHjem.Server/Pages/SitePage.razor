@@ -18,6 +18,9 @@ else if (_page is not null)
     <PageTitle>@NoEmoji.Strip(_page.Title) · Martin Hvidberg</PageTitle>
     @* Same head box on every tab as on the front page and bogshoppen.dk (user 2026-10-12). *@
     <PageHead Title="@_page.Title" Tag="@(_parent?.Title ?? (_page.Slug == NowCard.PageSlug ? "I dag" : "ITMartin"))" />
+    @* Samarbejde tabs (2026-10-30): /per, /per/tekster, /per/musik. *@
+    @if (ITMartinHjem.Domain.CollabRules.Split(_page.Slug) is { } tabRoom) { <CollabTabs Space="@tabRoom.Space" Room="@tabRoom.Room" /> }
+    else { <CollabTabs Space="@_page.Slug" /> }
     @if (_parent is not null || _page.Slug == NowCard.PageSlug || !string.IsNullOrWhiteSpace(_intro))
     {
     <article class="k-card hj-page">
