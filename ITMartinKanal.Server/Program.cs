@@ -60,6 +60,12 @@ if (channels.Count == 0)
             [
                 "En DVD virker på en PS3 – det er dig, der bestemmer, ikke streamingtjenesten. Fem film på fredag, og familien vælger én, alle kan lide – også mor.",
             ], "100.000 bøger, film og CD'er med værdi var på vej i skraldespanden. Genbrug i stedet for nyt – og en film på hylden bruger ingen strøm, mens en film på streaming hentes fra et datacenter igen og igen."),
+            new("Konklusion – små hjælpere, stor forskel",
+            [
+                "Alle hjælperne er enkle og gør kun én ting: giver dig indsigt, lige når du har brug for den. De bruger næsten ingen strøm og næsten ingen lagerplads – de kører på en gammel computer, der sover om natten.",
+                "Sammenlign med de store systemer, vi bruger hver dag – sygehusenes journaler, Aula, Facebook og skyen på vores telefoner. De bliver ved med at vokse: flere funktioner, mere data og mere strøm i datacentrene.",
+                "Det behøver ikke være sådan. Små, enkle løsninger kan ofte det, vi faktisk har brug for.",
+            ]),
         ]));
 builder.Services.AddKanalApplication(channels, () => DateTime.UtcNow);
 
