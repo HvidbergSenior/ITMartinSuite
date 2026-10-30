@@ -48,6 +48,7 @@ if (channels.Count == 0)
             [
                 "Før: Mor fandt de billige timer i elselskabets egen app – men den var fyldt med alt muligt, der ikke var relevant lige der. Så mindede hun os om, at det var billigt at starte vaskemaskinen kl. 13 i dag. Vi andre ville gerne gøre hende glad og prøvede – men nogle gange glemte vi det, og andre gange startede vi den senere. Det gav diskussioner, og mor tænkte: Hvorfor er det kun mig, der tænker på det her?",
                 "Nu: Lige når du står ved maskinen, trykker du på en knap på telefonen og ser, hvad det koster nu, hvad det vil koste senere, hvornår det er billigere – og hvor meget du faktisk sparer. Så kan du starte den eller vente.",
+                "Mange tror, de sparer, fordi strømmen er billig lige nu, når de trykker start. Men maskinen kører i flere timer, og man betaler prisen i hver af de timer – ikke kun prisen i det øjeblik, man starter den. ElPriser regner hele turen med.",
                 "Beskederne fortæller også, når det er billigst lige nu – og om det kan betale sig at vente til i aften. Mor behøver ikke længere minde os om det.",
             ]),
             new("Budget – indsigt i stedet for regler",
