@@ -42,34 +42,34 @@ if (channels.Count == 0)
     // Martin's own family, in his own words (shortened, nothing added).
     channels.Add(new KanalChannel("familien", "Sådan gav digitale hjælpere vores familie perspektiv",
         "Vi er en familie med tre unge på 20+, en mor og en far. Her fortæller vi, hvordan fire små digitale hjælpere har ændret den måde, vi ser på vores forbrug – uden tvang, og uden at nogen skal være politiet. Hver hjælper er født af noget i hverdagen, der bare ikke var rigtigt. Hjælperne bestemmer ikke noget – de er et supplement til den proces, du og din familie selv går igennem. Siden er ikke politisk og ikke knyttet til noget parti.",
-        ["ElPriser", "Budget", "Bogshoppen", "FileSorter"],
+        ["FileSorter", "ElPriser", "Budget", "Bogshoppen"],
         [
-            new("ElPriser – fra mors påmindelser til én knap",
-            [
-                "Før: Mor fandt de billige timer i elselskabets egen app – men den var fyldt med alt muligt, der ikke var relevant lige der. Så mindede hun os om, at det var billigt at starte vaskemaskinen kl. 13 i dag. Vi andre ville gerne gøre hende glad og prøvede – men nogle gange glemte vi det, og andre gange startede vi den senere. Det gav diskussioner, og mor tænkte: Hvorfor er det kun mig, der tænker på det her?",
-                "Nu: Lige når du står ved maskinen, trykker du på en knap på telefonen og ser, hvad det koster nu, hvad det vil koste senere, hvornår det er billigere – og hvor meget du faktisk sparer. Så kan du starte den eller vente.",
-                "Mange tror, de sparer, fordi strømmen er billig lige nu, når de trykker start. Men maskinen kører i flere timer, og man betaler prisen i hver af de timer – ikke kun prisen i det øjeblik, man starter den. ElPriser regner hele turen med.",
-                "Beskederne fortæller også, når det er billigst lige nu – og om det kan betale sig at vente til i aften. Mor behøver ikke længere minde os om det.",
-            ]),
-            new("Budget – indsigt i stedet for regler",
-            [
-                "Før: Vores indtægt faldt drastisk. Børnene skulle selv betale for noget. Men hvad? Skulle de bare betale 1.000 kr om måneden hver? Nej. Bare at smide flere penge ind fra de unge ændrer jo ikke noget ved vanerne. Vi skulle finde ud af, HVOR vi kan ændre noget – og først ville vi have indsigt i, hvad vi faktisk bruger penge på.",
-                "Budget viste os, at netbankernes apps ikke er gode nok: MobilePay-overførsler og kategorier gemmer sig. Vi fandt ud af, hvor meget vi bruger på abonnementer – og hvor meget vi bruger på parkering i stedet for at cykle, fordi vi fik det præcise beløb at sammenligne med cyklen.",
-                "Bare det at dele forståelsen af, hvad tingene koster, giver i sig selv en besparelse.",
-            ]),
-            new("Bogshoppen – det er dig, der bestemmer",
-            [
-                "100.000 bøger, film og CD'er kunne være smidt ud. Men de har værdi. Det handler om bæredygtighed: at give tingene et nyt liv i stedet for at smide dem ud.",
-                "Konkurrenterne er Netflix og de andre streamingtjenester. Kan man konkurrere? Ja. En DVD kan afspilles på en PS3, en Blu-ray også. Det er ikke Netflix, der bestemmer, hvad du kan se – det er dig. Ingen censur, ingen manipulation, ingen månedlig betaling.",
-                "Og kan du huske dengang i videobutikken? Lej eller køb fem film og se dem sammen fredag aften – i stedet for at scrolle gennem film uden at vælge én. Så kan familien vælge en film, alle kan lide – også mor. Og nogle film er værd at se mere end én gang – de står jo på hylden.",
-            ]),
             new("FileSorter – billederne fundet igen",
             [
                 "Vores billeder lå spredt over gamle harddiske og telefoner – 87.009 filer. Da de var sorteret, var der 34.079 rigtige billeder og videoer tilbage. Resten var dubletter, skærmbilleder og skrammel.",
                 "Nu ligger de sorteret efter år, og vi kan finde dem igen.",
                 "Når lageret er fuldt, bliver telefonen ved med at minde dig om det – igen og igen. Det nemmeste er at trykke Ja til mere plads i skyen. Så processen skubber os til bare at lægge flere filer i datacentrene, i stedet for at rydde op.",
                 "Hver dublet ligger på en server et sted og bruger strøm. Derfor rydder vi op i stedet – så serverne ikke bliver fyldt med det, ingen ser.",
-            ]),
+            ], "Billederne lå spredt og fyldte mere og mere – og det nemmeste var at betale for mere plads i skyen i stedet for at rydde op."),
+            new("ElPriser – fra mors påmindelser til én knap",
+            [
+                "Før: Mor fandt de billige timer i elselskabets egen app – men den var fyldt med alt muligt, der ikke var relevant lige der. Så mindede hun os om, at det var billigt at starte vaskemaskinen kl. 13 i dag. Vi andre ville gerne gøre hende glad og prøvede – men nogle gange glemte vi det, og andre gange startede vi den senere. Det gav diskussioner, og mor tænkte: Hvorfor er det kun mig, der tænker på det her?",
+                "Nu: Lige når du står ved maskinen, trykker du på en knap på telefonen og ser, hvad det koster nu, hvad det vil koste senere, hvornår det er billigere – og hvor meget du faktisk sparer. Så kan du starte den eller vente.",
+                "Mange tror, de sparer, fordi strømmen er billig lige nu, når de trykker start. Men maskinen kører i flere timer, og man betaler prisen i hver af de timer – ikke kun prisen i det øjeblik, man starter den. ElPriser regner hele turen med.",
+                "Beskederne fortæller også, når det er billigst lige nu – og om det kan betale sig at vente til i aften. Mor behøver ikke længere minde os om det.",
+            ], "Mor var den eneste, der holdt øje med strømprisen – og elselskabets app gjorde det ikke nemt at se, hvad det kostede lige der, ved maskinen."),
+            new("Budget – indsigt i stedet for regler",
+            [
+                "Før: Vores indtægt faldt drastisk. Børnene skulle selv betale for noget. Men hvad? Skulle de bare betale 1.000 kr om måneden hver? Nej. Bare at smide flere penge ind fra de unge ændrer jo ikke noget ved vanerne. Vi skulle finde ud af, HVOR vi kan ændre noget – og først ville vi have indsigt i, hvad vi faktisk bruger penge på.",
+                "Budget viste os, at netbankernes apps ikke er gode nok: MobilePay-overførsler og kategorier gemmer sig. Vi fandt ud af, hvor meget vi bruger på abonnementer – og hvor meget vi bruger på parkering i stedet for at cykle, fordi vi fik det præcise beløb at sammenligne med cyklen.",
+                "Bare det at dele forståelsen af, hvad tingene koster, giver i sig selv en besparelse.",
+            ], "Netbankens app viste ikke, hvor pengene faktisk gik hen – MobilePay, abonnementer og parkering gemte sig."),
+            new("Bogshoppen – det er dig, der bestemmer",
+            [
+                "100.000 bøger, film og CD'er kunne være smidt ud. Men de har værdi. Det handler om bæredygtighed: at give tingene et nyt liv i stedet for at smide dem ud.",
+                "Konkurrenterne er Netflix og de andre streamingtjenester. Kan man konkurrere? Ja. En DVD kan afspilles på en PS3, en Blu-ray også. Det er ikke Netflix, der bestemmer, hvad du kan se – det er dig. Ingen censur, ingen manipulation, ingen månedlig betaling.",
+                "Og kan du huske dengang i videobutikken? Lej eller køb fem film og se dem sammen fredag aften – i stedet for at scrolle gennem film uden at vælge én. Så kan familien vælge en film, alle kan lide – også mor. Og nogle film er værd at se mere end én gang – de står jo på hylden.",
+            ], "100.000 bøger, film og CD'er med værdi var på vej i skraldespanden – mens streamingtjenesterne bestemmer, hvad vi kan se."),
         ]));
 builder.Services.AddKanalApplication(channels, () => DateTime.UtcNow);
 

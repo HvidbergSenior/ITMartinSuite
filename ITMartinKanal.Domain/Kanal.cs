@@ -30,8 +30,9 @@ public sealed class KanalComment
 /// (2026-10-30: "how digital helpers helped a family with perspective").</summary>
 public sealed record KanalChannel(string Slug, string Title, string Intro, string[] Topics, KanalStory[]? Stories = null);
 
-/// <summary>One story box: a heading and its paragraphs.</summary>
-public sealed record KanalStory(string Title, string[] Paragraphs);
+/// <summary>One story box: a heading, "Hvorfor denne hjælper?" first (the thing that just was not right - like Forløbet,
+/// user 2026-10-30), then the paragraphs.</summary>
+public sealed record KanalStory(string Title, string[] Paragraphs, string Why = "");
 
 public sealed class KanalData
 {

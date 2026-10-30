@@ -25,6 +25,7 @@ else
     {
         <section class="k-card">
             <h2 class="k-card-title">@s.Title</h2>
+            @if (s.Why.Length > 0) { <p class="ka-why"><b>Hvorfor denne hjælper?</b> @s.Why</p> }
             @foreach (var p in s.Paragraphs) { <p>@p</p> }
         </section>
     }
