@@ -41,7 +41,7 @@ if (channels.Count == 0)
     // Re-focused 2026-10-30 ("it should not be Pelle. Rather... how digital helpers helped a family with perspective"):
     // Martin's own family, in his own words (shortened, nothing added).
     channels.Add(new KanalChannel("familien", "Sådan gav digitale hjælpere vores familie perspektiv",
-        "Vi er en familie med tre unge på 20+, en mor og en far. Her fortæller vi, hvordan fire små digitale hjælpere har ændret den måde, vi ser på vores forbrug – uden tvang, og uden at nogen skal være politiet. Hver hjælper er født af noget i hverdagen, der bare ikke var rigtigt. Hjælperne bestemmer ikke noget – de er et supplement til den proces, du og din familie selv går igennem. Siden er ikke politisk og ikke knyttet til noget parti.",
+        "Vi er en familie med tre unge på 20+, en mor og en far. Her fortæller vi, hvordan fire små digitale hjælpere har ændret den måde, vi ser på vores forbrug – uden tvang, og uden at nogen skal være politiet. Hver hjælper er født af noget i hverdagen, der bare ikke var rigtigt. Hjælperne bestemmer ikke noget – de er et supplement til den proces, du og din familie selv går igennem. Vi prøver ikke at være frelste – vi deler bare, hvad der virkede for os. Siden er ikke politisk og ikke knyttet til noget parti.",
         ["FileSorter", "ElPriser", "Budget", "Bogshoppen"],
         [
             new("FileSorter – billederne fundet igen",
