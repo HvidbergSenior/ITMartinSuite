@@ -52,8 +52,11 @@ public sealed class CollabNote
     }
 }
 
-/// <summary>One private corner: its address (per), the other person's name (Per) and the code that opens it.</summary>
-public sealed record CollabSpace(string Slug, string Name, string Code);
+/// <summary>One corner: its address (per), the other person's name (Per) and the code that opens it ("" = open to anyone with the link).</summary>
+public sealed record CollabSpace(string Slug, string Name, string Code)
+{
+    public bool Open => Code.Trim().Length == 0;
+}
 
 public sealed record CollabRoom(string Slug, string Title, string[] Extensions, long MaxBytes, string Accept);
 

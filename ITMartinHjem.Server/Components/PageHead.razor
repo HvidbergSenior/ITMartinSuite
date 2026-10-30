@@ -38,5 +38,6 @@
     // No emojis on the sites (2026-10-12): nothing on top, and none in the title or tag.
     private string Emoji => "";
     private string Text => NoEmoji.Strip(Split().Text);
-    private readonly MartinPhotos.Photo _photo = MartinPhotos.Now;
+    private MartinPhotos.Photo _photo => _fixed ??= MartinPhotos.ForPage(new Uri(Nav.Uri).AbsolutePath);
+    private MartinPhotos.Photo? _fixed;
 }

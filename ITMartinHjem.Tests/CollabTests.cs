@@ -78,7 +78,9 @@ public class CollabTests
         CollabRules.CodeFits(per, " guitar26 ").Should().BeTrue();
         CollabRules.CodeFits(per, "guitar").Should().BeFalse();
         CollabRules.CodeFits(per with { Code = "" }, "").Should().BeFalse();
-        new CollabSpaces([per, new CollabSpace("ingen", "Ingen", "")]).Find("ingen").Should().BeNull();
+        new CollabSpaces([per, new CollabSpace("", "Ingen", "")]).Find("").Should().BeNull();
+        new CollabSpace("per", "Per", "").Open.Should().BeTrue();
+        per.Open.Should().BeFalse();
     }
 
     [Test]

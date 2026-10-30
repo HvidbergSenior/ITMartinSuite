@@ -13,9 +13,10 @@ namespace ITMartinHjem.Server;
 // The other person opens the space with its code (a cookie role); Martin, logged in on Min side, opens every space.
 public static class CollabEndpoints
 {
-    /// <summary>Who writes in this space: "Martin" for the owner, the space's name for its code holder, null for anyone else.</summary>
+    /// <summary>Who writes in this space: "Martin" for the owner, the space's name for its code holder (or anyone while the
+    /// space has no code), null for anyone else.</summary>
     public static string? Who(this ClaimsPrincipal? user, CollabSpace space) =>
-        user.IsOwner() ? CollabRules.Owner : user?.IsInRole(CollabRules.RoleFor(space.Slug)) == true ? space.Name : null;
+        user.IsOwner() ? CollabRules.Owner : space.Open || user?.IsInRole(CollabRules.RoleFor(space.Slug)) == true ? space.Name : null;
 
     public static void MapCollab(this WebApplication app)
     {

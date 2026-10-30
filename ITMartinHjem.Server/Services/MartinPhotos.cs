@@ -16,12 +16,19 @@ public static class MartinPhotos
         new("/martin/martin-20250502.jpg", "Eigil student 2025"),
         new("/martin/martin-20250721.jpg", "Familien på ferie 2025"),
         new("/martin/martin-20250724.jpg", "Sommerferie"),
-        new("/martin/martin-20250917.jpg", "Minder min far hvert år den 17/9 (elskede lakridspiber og rødvin)"),
+        Father,
         new("/martin/martin-20251220.jpg", "Jeg tror på julemanden"),
         new("/martin/martin-20260210.jpg", "Min sten, der holder mig oppe – Vibz, ikke rødvin"),
         new("/martin/martin-20260604.jpg", "Northside 2026"),
         new("/martin/martin-20260605.jpg", "Northside 2026"),
     ];
 
+    // "Mindes" (remembers), not "Minder" (reminds) - corrected 2026-10-30.
+    public static readonly Photo Father = new("/martin/martin-20250917.jpg", "Mindes min far hvert år den 17/9 (han elskede lakridspiber og rødvin)");
+
     public static Photo Now => All[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % All.Count)];
+
+    /// <summary>The Per pages always show the father picture (user 2026-10-30: "this picture should be there always (he knew my father)").</summary>
+    public static Photo ForPage(string? slug) =>
+        (slug ?? "").Trim('/').ToLowerInvariant() is "per" or ['p', 'e', 'r', '/', ..] ? Father : Now;
 }

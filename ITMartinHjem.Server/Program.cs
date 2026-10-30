@@ -57,9 +57,11 @@ Directory.CreateDirectory(dataDir);
 // All of Hjem is layered since 2026-10-20 (Domain / Application / Infrastructure); this project only has the pages and endpoints.
 builder.Services.AddHjemApplication();
 builder.Services.AddSingleton(new HjemOptions());
-// Samarbejde (2026-10-30): private corners like itmartin.dk/per - Hjem__Samarbejde__0__Slug=per, __Name=Per, __Code=... in magic.env.
-builder.Services.AddSingleton(new CollabSpaces(builder.Configuration.GetSection("Hjem:Samarbejde").GetChildren()
-    .Select(c => new CollabSpace(c["Slug"] ?? "", c["Name"] ?? "", c["Code"] ?? ""))));
+// Samarbejde (2026-10-30): corners like itmartin.dk/per - Hjem__Samarbejde__0__Slug=per, __Name=Per, __Code=... in magic.env.
+// Nothing set = /per for Per, open without a code (user: "Dont need password for Per part yet... When we use it I will add pw").
+var collabSpaces = builder.Configuration.GetSection("Hjem:Samarbejde").GetChildren()
+    .Select(c => new CollabSpace(c["Slug"] ?? "", c["Name"] ?? "", c["Code"] ?? "")).ToList();
+builder.Services.AddSingleton(new CollabSpaces(collabSpaces.Count > 0 ? collabSpaces : [new CollabSpace("per", "Per", "")]));
 builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}", new HjemInfraOptions
 {
     DataDir = dataDir,

@@ -22,10 +22,11 @@ public interface ICollabDisk
     void Delete(string space, string storedName);
 }
 
-/// <summary>The private corners set up in magic.env (Hjem__Samarbejde__0__Slug / __Name / __Code).</summary>
+/// <summary>The corners set up in appsettings.json / magic.env (Hjem__Samarbejde__0__Slug / __Name / __Code).
+/// No code = open to anyone with the link (user 2026-10-30: "Dont need password for Per part yet... When we use it I will add pw").</summary>
 public sealed class CollabSpaces(IEnumerable<CollabSpace> spaces)
 {
-    private readonly List<CollabSpace> _all = spaces.Where(s => s.Slug.Length > 0 && s.Code.Length > 0)
+    private readonly List<CollabSpace> _all = spaces.Where(s => s.Slug.Length > 0 && s.Name.Length > 0)
         .Select(s => s with { Slug = s.Slug.Trim().ToLowerInvariant() }).ToList();
 
     public CollabSpace? Find(string? slug) => _all.FirstOrDefault(s => s.Slug == (slug ?? "").Trim().ToLowerInvariant());
