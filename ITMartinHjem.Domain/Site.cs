@@ -194,6 +194,7 @@ public static class SiteMenu
     public const int MineAppsSort = 50;
     public const int AboutSort = 10;
     public const string About = "/om-itmartin";
+    public const string Family = "https://kanal.itmartin.dk/familien";
     // "I dag" tab (user 2026-10-12: the day plan box moves off the front page into its own tab) - the ITKolibrien page.
     public const int TodaySort = 40;  // user 2026-10-05: Forside, Hvad laver ITKolibrien, Om mig, Særlige behov, Priser, Mine apps (50), Følg samarbejdet, Bliv pilot
 
@@ -208,6 +209,9 @@ public static class SiteMenu
             .Append((Sort: MineAppsSort, Item: new Item("Mine hjælpere", "/mine-apps")))
             .Append((Sort: MineAppsSort + 1, Item: new Item("Spørgsmål", "/spoergsmaal")))   // Q&A tab (user 2026-10-12: "where is the Q/A?")
             .Append((Sort: MineAppsSort + 2, Item: new Item("Kritik", "/kritik")))   // ros, ris og forslag (user 2026-10-29)
+            // The family page on Kanal (user 2026-10-30: "should be a tab in itmartin.dk") - how the helpers gave the family
+            // perspective. One place for the stories: the tab opens kanal.itmartin.dk/familien.
+            .Append((Sort: AboutSort + 1, Item: new Item("Familien", Family)))
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
         return [new Item("Forside", "/"), .. middle];   // no emojis in the menu (user 2026-10-12: they look AI-made)
