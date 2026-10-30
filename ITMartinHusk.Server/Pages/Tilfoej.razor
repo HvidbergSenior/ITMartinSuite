@@ -1,0 +1,52 @@
+@page "/tilfoej"
+@inject HuskUseCases Husk
+@inject NavigationManager Nav
+
+<PageTitle>Tilføj · Husk</PageTitle>
+
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">Tilføj et møde</h1>
+    <p class="k-help"><b>Sådan gør du:</b> skriv hvad det er, vælg dag og klokkeslæt, og tryk Husk det. Resten kan undværes.
+        Husk viser det først, når det er i dag eller i morgen – og giver dig besked aftenen før, om morgenen og en time før.</p>
+
+    <label class="k-label" for="hu-title">Hvad er det?</label>
+    <input class="k-input" id="hu-title" @bind="_title" maxlength="@HuskItem.MaxTitle" placeholder="fx Jobsamtale med Job Aarhus" />
+
+    <div class="hu-row">
+        <div><label class="k-label" for="hu-day">Dag</label><input class="k-input" id="hu-day" type="date" @bind="_day" /></div>
+        <div><label class="k-label" for="hu-time">Klokken</label><input class="k-input" id="hu-time" type="time" @bind="_time" /></div>
+    </div>
+
+    <label class="k-label" for="hu-place">Hvor? <span class="k-help">(eller "telefon")</span></label>
+    <input class="k-input" id="hu-place" @bind="_place" maxlength="@HuskItem.MaxText" />
+
+    <label class="k-label" for="hu-bring">Husk at tage med</label>
+    <input class="k-input" id="hu-bring" @bind="_bring" maxlength="@HuskItem.MaxText" placeholder="fx sundhedskort, CV" />
+
+    <label class="k-label" for="hu-from">Hvem har indkaldt dig?</label>
+    <select class="k-select" id="hu-from" @bind="_from">
+        <option value="">Vælg</option>
+        @foreach (var p in HuskRules.Places) { <option value="@p.Name">@p.Name</option> }
+        <option value="Kommunen">Kommunen</option>
+        <option value="Andet">Andet</option>
+    </select>
+
+    @if (_error.Length > 0) { <p role="alert"><b>@_error</b></p> }
+    <button class="k-btn k-btn-primary k-mt" @onclick="Save">Husk det</button>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "fra")] public string? Fra { get; set; }
+
+    private string _title = "", _place = "", _bring = "", _from = "", _error = "";
+    private DateOnly _day = DateOnly.FromDateTime(DkTime.Now.AddDays(1));
+    private TimeOnly _time = new(9, 0);
+
+    protected override void OnInitialized() => _from = Fra ?? "";
+
+    private void Save()
+    {
+        _error = Husk.AddMeeting(_title, _day.ToDateTime(_time), _place, _bring, _from) ?? "";
+        if (_error.Length == 0) Nav.NavigateTo("/");
+    }
+}

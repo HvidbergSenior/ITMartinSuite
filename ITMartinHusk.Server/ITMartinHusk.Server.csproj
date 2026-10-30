@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinHusk.Server</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinHusk.Domain\ITMartinHusk.Domain.csproj" />
+        <ProjectReference Include="..\ITMartinHusk.Application\ITMartinHusk.Application.csproj" />
+        <ProjectReference Include="..\ITMartinHusk.Infrastructure\ITMartinHusk.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>

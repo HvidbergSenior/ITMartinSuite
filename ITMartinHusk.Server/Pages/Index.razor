@@ -1,0 +1,194 @@
+@page "/"
+@implements IDisposable
+@inject HuskUseCases Husk
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>Husk</PageTitle>
+
+@* ONE thing first (user 2026-10-30: "I can only concentrate on today and maybe tomorrow... One thing at a time"). Below it at
+   most one "og så". Anything later is hidden - the reminders bring it forward when it is close. *@
+@if (_first is null)
+{
+    <section class="k-card hu-card hu-calm" data-nofold>
+        <p class="hu-kicker">I dag og i morgen</p>
+        <h1 class="hu-title">Intet at huske</h1>
+        <p class="k-help">Der er ikke noget i dag eller i morgen. Husk giver dig besked, når noget nærmer sig.</p>
+    </section>
+}
+else
+{
+    var c = _first;
+    <section class="k-card hu-card @(c.Kind is CardKind.Post or CardKind.DidYouGo ? "hu-urgent" : "")" data-nofold>
+        <p class="hu-kicker">@Kicker(c)</p>
+        <h1 class="hu-title">@c.Item.Title</h1>
+        <p class="hu-when">@c.When@(c.Item.Place.Length > 0 ? " · " + c.Item.Place : "")</p>
+        @if (c.Item.Bring.Length > 0) { <p class="hu-bring">Husk: <b>@c.Item.Bring</b></p> }
+        @if (c.Item.From.Length > 0 && c.Kind != CardKind.Post) { <p class="k-help">Fra @c.Item.From</p> }
+
+        @switch (c.Kind)
+        {
+            case CardKind.Post:
+                <p class="k-help">Åbn din post og læs den nu. Står der en dato i brevet, så tilføj den bagefter.</p>
+                <div class="hu-buttons">
+                    <a class="k-btn" href="https://post.borger.dk" target="_blank" rel="noopener">Åbn Digital Post</a>
+                    <button class="k-btn k-btn-primary" @onclick="() => Set(c.Item, HuskState.Read)">Læst</button>
+                </div>
+                break;
+            case CardKind.DidYouGo when _whatNow:
+                <p><b>Gør det i dag:</b> skriv eller ring til @(c.Item.From.Length > 0 ? c.Item.From : "dem, der indkaldte dig"), og sig at du ikke nåede det.
+                    Så mister du kun den ene dag – ikke flere.</p>
+                <p class="k-help">Skriv fx: "Jeg nåede ikke @c.Item.Title @c.Item.At.ToString("d/M") kl. @c.Item.At.ToString("H.mm"). Jeg vil gerne have en ny tid."</p>
+                <div class="hu-buttons">
+                    <button class="k-btn k-btn-primary" @onclick="() => Set(c.Item, HuskState.NotThere)">Jeg har skrevet eller ringet</button>
+                </div>
+                break;
+            case CardKind.DidYouGo:
+                <p>Nåede du det?</p>
+                <div class="hu-buttons">
+                    <button class="k-btn k-btn-primary" @onclick="() => Set(c.Item, HuskState.Came)">Ja, jeg var der</button>
+                    <button class="k-btn" @onclick="() => _whatNow = true">Nej – hvad gør jeg?</button>
+                </div>
+                break;
+            default:
+                <div class="hu-buttons">
+                    @if (c.Item.State == HuskState.Ready) { <span class="k-tag">Du er klar</span> }
+                    else { <button class="k-btn" @onclick="() => Set(c.Item, HuskState.Ready)">Jeg er klar</button> }
+                    <button class="k-btn k-btn-primary" @onclick="() => Set(c.Item, HuskState.Came)">Jeg kom</button>
+                </div>
+                break;
+        }
+    </section>
+
+    @if (_next is not null)
+    {
+        <section class="k-card hu-next" data-nofold>
+            <p class="k-help">Og så: <b>@_next.Item.Title</b> – @_next.When</p>
+        </section>
+    }
+}
+
+@* The daily check round (Talentmessen was in Jobnet the whole time): one place at a time. *@
+@if (_today?.CheckRoundDue == true && _step < HuskRules.Places.Count)
+{
+    var p = HuskRules.Places[_step];
+    <section class="k-card" data-nofold>
+        <h2 class="k-card-title">Tjek-runde @(_step + 1) af @HuskRules.Places.Count: @p.Name</h2>
+        <p>Kig i <b>@p.Where</b>. Er der noget nyt – et møde, en frist eller et brev?</p>
+        <div class="hu-buttons">
+            <a class="k-btn" href="@p.Url" target="_blank" rel="noopener">Åbn @p.Name</a>
+            <a class="k-btn" href="/tilfoej?fra=@Uri.EscapeDataString(p.Name)">Ja, tilføj det</a>
+            <button class="k-btn k-btn-primary" @onclick="NextStep">Intet nyt</button>
+        </div>
+    </section>
+}
+
+<details class="k-card" data-remember="hu-post">
+    <summary><b>Ny post?</b></summary>
+    <p class="k-help"><b>Sådan gør du:</b> fik du besked om ny post i e-Boks eller Digital Post? Skriv, hvem den er fra, og tryk Ny post.
+        Så står den øverst og minder dig hver halve time, til du har læst den. Husk gemmer aldrig selve brevet.</p>
+    <input class="k-input" @bind="_postFrom" placeholder="Fra hvem? fx Aarhus Kommune" aria-label="Hvem er posten fra?" maxlength="@HuskItem.MaxTitle" />
+    @if (_postError.Length > 0) { <p role="alert">@_postError</p> }
+    <button class="k-btn k-btn-primary k-mt" @onclick="AddPost">Ny post</button>
+</details>
+
+<details class="k-card" data-remember="hu-push">
+    <summary><b>Beskeder på telefonen</b> @(_push == "on" ? "– slået til" : "")</summary>
+    @switch (_push)
+    {
+        case "on":
+            <p>Du får besked aftenen før kl. 19, om morgenen kl. 7.30 og en time før – og med det samme ved ny post.</p>
+            <div class="hu-buttons">
+                <button class="k-btn" @onclick="TestPush">Send mig en test</button>
+                <button class="k-btn k-btn-ghost" @onclick="PushOff">Slå fra</button>
+            </div>
+            break;
+        case "ios-needs-homescreen":
+            <p>På iPhone skal Husk først lægges på hjemmeskærmen: tryk Del (firkanten med pilen) → <b>Føj til hjemmeskærm</b>. Åbn Husk derfra og slå beskeder til.</p>
+            break;
+        case "denied":
+            <p>Telefonen har sagt nej til beskeder fra Husk. Slå dem til i telefonens indstillinger (Settings) under Husk eller browseren.</p>
+            break;
+        case "unsupported":
+            <p>Denne browser kan ikke få beskeder. Prøv Chrome eller Safari på telefonen.</p>
+            break;
+        default:
+            <p>Tryk på knappen og sig ja, når telefonen spørger.</p>
+            <button class="k-btn k-btn-primary" @onclick="PushOn">Slå beskeder til</button>
+            break;
+    }
+    @if (_pushNote.Length > 0) { <p class="k-help">@_pushNote</p> }
+</details>
+
+@code {
+    private HuskToday? _today;
+    private HuskCard? _first, _next;
+    private bool _whatNow;
+    private int _step;
+    private string _postFrom = "", _postError = "", _push = "", _pushNote = "";
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        Load();
+        // "om 40 minutter" must stay true while the page is open.
+        _timer = new Timer(_ => InvokeAsync(() => { Load(); StateHasChanged(); }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try { _push = await JS.InvokeAsync<string>("huskpush.state"); StateHasChanged(); }
+        catch (JSException) { _push = "unsupported"; }
+    }
+
+    private void Load()
+    {
+        _today = Husk.Today();
+        _first = _today.Cards.FirstOrDefault();
+        // "og så" only for a meeting today or tomorrow - never a second piece of post or a second question.
+        _next = _today.Cards.Skip(1).FirstOrDefault(c => c.Kind is CardKind.Today or CardKind.Tomorrow);
+    }
+
+    private static string Kicker(HuskCard c) => c.Kind switch
+    {
+        CardKind.Post => "Ny post – læs den nu",
+        CardKind.DidYouGo => "Nåede du det?",
+        CardKind.Today => "I dag",
+        _ => "I morgen",
+    };
+
+    private void Set(HuskItem item, HuskState state)
+    {
+        Husk.Set(item.Id, state);
+        _whatNow = false;
+        Load();
+    }
+
+    private void NextStep()
+    {
+        _step++;
+        if (_step >= HuskRules.Places.Count) Husk.CheckRoundDone();
+        Load();
+    }
+
+    private void AddPost()
+    {
+        _postError = Husk.AddPost(_postFrom) ?? "";
+        if (_postError.Length == 0) _postFrom = "";
+        Load();
+    }
+
+    private async Task PushOn()
+    {
+        _push = await JS.InvokeAsync<string>("huskpush.subscribe");
+        _pushNote = _push == "on" ? "Beskeder er slået til. Tryk \"Send mig en test\" for at se, at det virker." : "";
+    }
+
+    private async Task PushOff() => _push = await JS.InvokeAsync<string>("huskpush.unsubscribe");
+
+    private async Task TestPush() =>
+        _pushNote = await JS.InvokeAsync<bool>("huskpush.test") ? "Testen er sendt – den kommer om et øjeblik." : "Testen kunne ikke sendes. Slå beskeder fra og til igen.";
+
+    public void Dispose() => _timer?.Dispose();
+}

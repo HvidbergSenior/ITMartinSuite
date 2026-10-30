@@ -1,0 +1,13 @@
+{
+  "name": "Husk",
+  "short_name": "Husk",
+  "description": "Kun i dag og i morgen – én ting ad gangen.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "lang": "da",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,19 @@
+/* Husk - built on ElPriser's look (the reference app). One big card first; everything else is quieter. */
+.k-header-actions .active { background: var(--k-accent); color: var(--k-accent-text, #fff); }   /* active tab filled, as in ElPriser's bottom nav */
+.hu-card { padding: 22px 20px; }
+.hu-kicker { margin: 0 0 4px; font-weight: 700; color: var(--k-muted); text-transform: uppercase; letter-spacing: .04em; font-size: .85rem; }
+.hu-title { margin: 0 0 6px; font-size: 1.7rem; line-height: 1.2; }
+.hu-when { margin: 0 0 8px; font-size: 1.2rem; font-weight: 700; color: var(--k-accent); }
+.hu-bring { margin: 0 0 8px; }
+.hu-urgent { border: 2px solid var(--k-accent); }
+.hu-calm .hu-title { color: var(--k-muted); }
+.hu-next { padding-top: 10px; padding-bottom: 10px; }
+.hu-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.hu-buttons .k-btn { min-height: 44px; flex: 1 1 140px; }
+.hu-row { display: flex; gap: 10px; }
+.hu-row > div { flex: 1; }
+.hu-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--k-border); }
+#components-reconnect-modal { display: none; }
+#components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed {
+    display: flex; position: fixed; inset: 0; z-index: 200; align-items: center; justify-content: center; background: rgba(0,0,0,.6); color: #fff;
+}

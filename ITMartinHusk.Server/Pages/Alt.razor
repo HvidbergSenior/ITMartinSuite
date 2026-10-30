@@ -1,0 +1,30 @@
+@page "/alt"
+@inject HuskUseCases Husk
+
+<PageTitle>Alt · Husk</PageTitle>
+
+@* Behind its own tab on purpose: the front page shows one thing; this is for the times you need to look ahead. *@
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">Alt, der venter</h1>
+    <p class="k-help">Her står alt, også det der ligger langt ude. Du behøver ikke kigge her – forsiden viser det, når det nærmer sig.</p>
+    @if (_items.Count == 0) { <p>Der venter ikke noget.</p> }
+    @foreach (var i in _items)
+    {
+        <div class="hu-line">
+            <span><b>@i.Title</b><br /><span class="k-help">@HuskRules.When(i.At, DkTime.Now)@(i.Place.Length > 0 ? " · " + i.Place : "")</span></span>
+            <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Remove(i.Id)">Slet</button>
+        </div>
+    }
+</section>
+
+@code {
+    private List<HuskItem> _items = [];
+
+    protected override void OnInitialized() => _items = Husk.AllOpen();
+
+    private void Remove(Guid id)
+    {
+        Husk.Remove(id);
+        _items = Husk.AllOpen();
+    }
+}
