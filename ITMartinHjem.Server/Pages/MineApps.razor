@@ -44,7 +44,7 @@
                 <div class="k-row k-mt">
                     @* "Brug gratis" removed 2026-10-12 (user): people get in via "Prøv gratis" below (e-mail -> Kundekartotek -> PIN). *@
                     @if (showcase && up) { <span class="k-help"><i>Eksempel – appen bruges kun af den, den er lavet til.</i></span> }
-                    else if (!up && free) { <span class="k-help"><i>Sover lige nu – tryk "Prøv gratis", så tænder jeg den til dig.</i></span> }
+                    else if (!up && free) { <span class="k-help"><i>Sover lige nu – skriv dig op herunder, så tænder den for dig.</i></span> }
                     else if (!up) { <span class="k-help"><i>Sover lige nu.</i></span> }
                     @* "Spørg om din egen app / udvidet" button removed 2026-10-12 (user) - Prøv gratis + the contact line below do it. *@
                 </div>
@@ -52,8 +52,10 @@
                    for free"); one sign-up gives all of them. No newsletters. *@
                 @if (open) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name – helt gratis</a> }
                 else if (free) { <TrialForm App="@a.Name" FreeApps="WithCode" /> }
-                @* Contact line on every app (user 2026-10-12: "a contact me if interested in this app"); a sleeping app is tried for free by contacting Martin, who wakes it (user 2026-10-12). *@
-                <div class="hj-app-contact"><b>@(up || showcase || !free ? $"Interesseret i {a.Name}?" : $"Vil du prøve {a.Name} gratis?")</b> Kontakt mig:
+                @* The app's own address on every card (user 2026-10-30: "users should not contact me for free version... the url of the apps should be there"). *@
+                @if (!showcase && !open) { <div class="k-row k-mt"><span class="k-help">Adresse:</span> <a class="k-btn k-btn-sm" href="@a.Url" target="_blank" rel="noopener">@Address(a.Url)</a></div> }
+                @* Contacting Martin is only for the udvidet udgave - the free one needs no contact (user 2026-10-30). *@
+                <div class="hj-app-contact"><b>Vil du have en udvidet udgave af @a.Name?</b> Kontakt mig:
                     <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/chat-med-martin">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
             </div>
         </div>
@@ -84,7 +86,8 @@
     <p>Alle mine hjælpere kan bruges gratis, og den gratis udgave kan sagtens stå alene. Har du brug for mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
     <p><b>Sådan prøver du:</b> Tryk på en af de apps, hvor der står <b>Prøv gratis</b>, og skriv din e-mail. Du skriver dig op <b>én gang</b> og får et kundenummer til alle de gratis apps@(WithCode.Count > 0 ? ": " + string.Join(", ", WithCode) : "")
         – og et login til bogshoppen.dk. Nogle apps er helt åbne – der trykker du bare Åbn.</p>
-    <p>De andre apps kan ikke prøves gratis lige nu – men skriv til mig, hvis du er interesseret i en af dem.</p>
+    @* User 2026-10-30: "you dont need to sign up to use most of them yet". *@
+    <p>De fleste hjælpere kræver ingen tilmelding endnu: tryk bare på adressen under hjælperen. Du skal kun skrive til mig, hvis du vil have en udvidet udgave.</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu</p>
     </div>
             <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
@@ -156,6 +159,8 @@
     private string? _info;
 
     private void Toggle(string key) => _info = _info == key ? null : key;
+    // "https://elpriser.itmartin.dk/" -> "elpriser.itmartin.dk": what people can type or remember.
+    private static string Address(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host + u.AbsolutePath.TrimEnd('/') : url;
     [SupplyParameterFromQuery(Name = "app")] public string? App { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool first)
