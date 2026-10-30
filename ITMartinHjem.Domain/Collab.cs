@@ -52,6 +52,28 @@ public sealed class CollabNote
     }
 }
 
+/// <summary>One line in the chat between Martin and the other person (user 2026-10-30: "the chat with per should not be like
+/// mail and name... just him, and me like the snak").</summary>
+public sealed class CollabMessage
+{
+    public const int MaxText = 2000;
+
+    public int Id { get; private set; }
+    public string Space { get; private set; } = "";
+    public string By { get; private set; } = "";
+    public string Text { get; private set; } = "";
+    public DateTime CreatedAt { get; private set; }
+
+    private CollabMessage() { }   // EF
+
+    public static CollabMessage Write(string space, string by, string? text, DateTime now)
+    {
+        var t = (text ?? "").Trim();
+        if (t.Length == 0) throw new ArgumentException("Skriv noget først.");
+        return new CollabMessage { Space = space, By = by, Text = t.Length > MaxText ? t[..MaxText] : t, CreatedAt = now };
+    }
+}
+
 /// <summary>One corner: its address (per), the other person's name (Per) and the code that opens it ("" = open to anyone with the link).</summary>
 public sealed record CollabSpace(string Slug, string Name, string Code)
 {
@@ -62,11 +84,12 @@ public sealed record CollabRoom(string Slug, string Title, string[] Extensions, 
 
 public static class CollabRules
 {
-    public const string Texts = "tekster", Music = "musik";
+    public const string Texts = "tekster", Music = "musik", Chat = "snak";
     public const string Owner = "Martin";
 
     public static readonly IReadOnlyList<CollabRoom> Rooms =
     [
+        new(Chat, "Snak", [], 0, ""),   // a chat, no files
         new(Texts, "Tekster", [".docx", ".doc", ".odt", ".rtf", ".pdf", ".txt", ".md"], 20_000_000, ".docx,.doc,.odt,.rtf,.pdf,.txt,.md"),
         // 90 MB: Cloudflare stops a single upload at 100 MB.
         new(Music, "Musik", [".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac", ".mp4", ".mov"], 90_000_000, "audio/*,.m4a,.mp4,.mov"),
@@ -103,6 +126,8 @@ public static class CollabRules
         if (t.Length == 0) t = "Uden titel";
         return t.Length > CollabFile.MaxTitle ? t[..CollabFile.MaxTitle] : t;
     }
+
+    public static bool IsChat(CollabRoom r) => r.Slug == Chat;
 
     public static bool IsAudio(CollabFile f) => Path.GetExtension(f.FileName).ToLowerInvariant() is ".mp3" or ".m4a" or ".wav" or ".aac" or ".ogg" or ".flac";
     public static bool IsVideo(CollabFile f) => Path.GetExtension(f.FileName).ToLowerInvariant() is ".mp4" or ".mov";

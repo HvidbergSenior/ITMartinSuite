@@ -13,11 +13,13 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
     public DbSet<Feedback> Feedback => Set<Feedback>();   // Kritik (2026-10-29)
     public DbSet<CollabFile> CollabFiles => Set<CollabFile>();   // Samarbejde (2026-10-30)
     public DbSet<CollabNote> CollabNotes => Set<CollabNote>();
+    public DbSet<CollabMessage> CollabMessages => Set<CollabMessage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<CollabFile>().ToTable("CollabFiles").HasKey(x => x.Id);
         b.Entity<CollabNote>().ToTable("CollabNotes").HasKey(x => x.Id);
+        b.Entity<CollabMessage>().ToTable("CollabMessages").HasKey(x => x.Id);
 
         var q = b.Entity<PublicQuestion>();
         q.ToTable("PublicQuestions");
@@ -65,6 +67,11 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
             CREATE TABLE IF NOT EXISTS "CollabNotes" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_CollabNotes" PRIMARY KEY AUTOINCREMENT,
                 "FileId" INTEGER NOT NULL, "By" TEXT NOT NULL, "Text" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL)
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "CollabMessages" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_CollabMessages" PRIMARY KEY AUTOINCREMENT,
+                "Space" TEXT NOT NULL, "By" TEXT NOT NULL, "Text" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL)
             """);
     }
 }
@@ -173,6 +180,21 @@ public sealed class CollabStore(IDbContextFactory<HjemQuestionsDb> dbf) : IColla
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         db.CollabNotes.Add(n);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<CollabMessage>> MessagesAsync(string space, int max, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var newest = await db.CollabMessages.AsNoTracking().Where(m => m.Space == space).OrderByDescending(m => m.Id).Take(max).ToListAsync(ct);
+        newest.Reverse();
+        return newest;
+    }
+
+    public async Task AddMessageAsync(CollabMessage m, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.CollabMessages.Add(m);
         await db.SaveChangesAsync(ct);
     }
 }

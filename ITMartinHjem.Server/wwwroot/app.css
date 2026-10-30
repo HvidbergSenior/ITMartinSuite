@@ -810,3 +810,13 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-collab-tabs a { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; border-radius: 12px;
     color: var(--k-muted); font-size: .95rem; font-weight: 700; text-decoration: none; }
 .hj-collab-tabs a.active { background: var(--k-accent); color: var(--k-accent-text, #fff); }
+/* Snak on /per/snak - like the Snak app: the other one on the left, you on the right, no names to fill in. */
+.hj-chat-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 12px; }
+.hj-chat-line { display: flex; flex-direction: column; align-items: flex-start; }
+.hj-chat-line.mine { align-items: flex-end; }
+.hj-chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: var(--k-border-2, #eef1ef); line-height: 1.4; }
+.hj-chat-line.mine .hj-chat-bubble { border-radius: 16px 16px 4px 16px; background: var(--k-accent); color: var(--k-accent-text, #fff); }
+.hj-chat-meta { font-size: .75rem; color: var(--k-muted); margin-top: 2px; }
+.hj-chat-send { display: flex; gap: 8px; align-items: flex-end; }
+.hj-chat-send textarea { flex: 1; }
+.hj-chat-send .k-btn { min-height: 44px; }

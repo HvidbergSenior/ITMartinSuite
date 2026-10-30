@@ -4,6 +4,7 @@
 @inject CollabSpaces Spaces
 @inject CollabUseCases Collab
 @inject NavigationManager Nav
+@implements IDisposable
 
 @* Samarbejde (2026-10-30): under the page text of /per/tekster and /per/musik. Upload, thoughts and delete are plain form posts
    (CollabEndpoints) that come back here with ?ok= or ?fejl=. Without the code only the "Skriv koden" button shows. *@
@@ -16,6 +17,28 @@
             <h2 class="k-card-title">Kun for @_space.Name og Martin</h2>
             <p>Her ligger @_room.Title.ToLowerInvariant(), og hvad vi tænker om dem. Tryk på knappen og skriv koden, du har fået af Martin.</p>
             <a class="k-btn k-btn-primary" href="/samarbejde/@_space.Slug/login?back=/@_space.Slug/@_room.Slug">Skriv koden</a>
+        </section>
+    }
+    else if (CollabRules.IsChat(_room))
+    {
+        @* Snak (user 2026-10-30: "just him, and me like the snak"): bubbles, no names or mails to fill in. Updates itself. *@
+        <section class="k-card hj-chat" data-nofold>
+            <h2 class="k-card-title">Snak</h2>
+            @if (_chat.Count == 0) { <p class="k-help">Ingen beskeder endnu. Skriv den første.</p> }
+            <div class="hj-chat-list">
+                @foreach (var m in _chat)
+                {
+                    <div class="hj-chat-line @(m.By == _who ? "mine" : "")">
+                        <div class="hj-chat-bubble">@foreach (var line in m.Text.Replace("\r", "").Split('\n')) { <span>@line</span><br /> }</div>
+                        <span class="hj-chat-meta">@(m.By == _who ? "Dig" : m.By) · @Dk(m.CreatedAt)</span>
+                    </div>
+                }
+            </div>
+            @if (_chatError.Length > 0) { <p class="hj-collab-err" role="alert">@_chatError</p> }
+            <div class="hj-chat-send">
+                <textarea class="k-input k-textarea" rows="2" @bind="_say" @bind:event="oninput" maxlength="@CollabMessage.MaxText" placeholder="Skriv en besked" aria-label="Skriv en besked"></textarea>
+                <button class="k-btn k-btn-primary" @onclick="SayAsync" disabled="@_busy">Send</button>
+            </div>
         </section>
     }
     else
@@ -118,8 +141,32 @@
                 "slettet" => "Filen er slettet.",
                 _ => "",
             } : "";
+        if (CollabRules.IsChat(_room))
+        {
+            _chat = await Collab.ChatAsync(_space.Slug);
+            // New lines from the other one show up by themselves, every 5 seconds.
+            _timer ??= new Timer(_ => InvokeAsync(async () => { _chat = await Collab.ChatAsync(_space!.Slug); StateHasChanged(); }), null, 5000, 5000);
+            return;
+        }
         _items = await Collab.ItemsAsync(_space.Slug, _room.Slug);
     }
+
+    private List<CollabMessage> _chat = [];
+    private string _say = "", _chatError = "";
+    private bool _busy;
+    private Timer? _timer;
+
+    private async Task SayAsync()
+    {
+        if (_space is null || _who is null || _busy) return;
+        _busy = true;
+        _chatError = await Collab.SayAsync(_space.Slug, _who, _say) ?? "";
+        if (_chatError.Length == 0) _say = "";
+        _chat = await Collab.ChatAsync(_space.Slug);
+        _busy = false;
+    }
+
+    public void Dispose() => _timer?.Dispose();
 
     private static string Dk(DateTime utc) =>
         TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Danish).ToString("d. MMM 'kl.' HH:mm", new System.Globalization.CultureInfo("da-DK"));

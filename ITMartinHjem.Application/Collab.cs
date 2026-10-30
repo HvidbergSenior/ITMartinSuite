@@ -11,6 +11,9 @@ public interface ICollabStore
     Task DeleteFileAsync(int id, CancellationToken ct = default);
     Task<List<CollabNote>> NotesAsync(IReadOnlyCollection<int> fileIds, CancellationToken ct = default);
     Task AddNoteAsync(CollabNote n, CancellationToken ct = default);
+    /// <summary>The newest messages of a space, oldest first.</summary>
+    Task<List<CollabMessage>> MessagesAsync(string space, int max, CancellationToken ct = default);
+    Task AddMessageAsync(CollabMessage m, CancellationToken ct = default);
 }
 
 // The uploaded files themselves, under <DataDir>/samarbejde/<space>/.
@@ -66,6 +69,19 @@ public sealed class CollabUseCases(ICollabStore store, ICollabDisk disk, IOwnerI
         catch (ArgumentException e) { return e.Message; }
         await store.AddNoteAsync(n, ct);
         await TellMartinAsync(by, $"{by} skrev om \"{f.Title}\" på /{f.Space}/{f.Room}:\n{n.Text}", ct);
+        return null;
+    }
+
+    /// <summary>The chat: the last 200 lines, oldest first (like Snak).</summary>
+    public Task<List<CollabMessage>> ChatAsync(string space, CancellationToken ct = default) => store.MessagesAsync(space, 200, ct);
+
+    public async Task<string?> SayAsync(string space, string by, string? text, CancellationToken ct = default)
+    {
+        CollabMessage m;
+        try { m = CollabMessage.Write(space, by, text, clock.GetUtcNow().UtcDateTime); }
+        catch (ArgumentException e) { return e.Message; }
+        await store.AddMessageAsync(m, ct);
+        await TellMartinAsync(by, $"{by} skrev i Snak på /{space}/snak:\n{m.Text}", ct);
         return null;
     }
 
