@@ -804,3 +804,9 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-collab-note { border-left: 3px solid var(--k-border, #ddd); padding: 2px 0 2px 10px; margin: 0 0 10px; }
 .hj-collab-note.mine { border-left-color: var(--k-accent); }
 .hj-collab-note p { margin: 0 0 4px; }
+/* Tabs between /per, /per/tekster and /per/musik - copied from ElPriser's .bottom-nav (the reference app): text buttons,
+   44 px tall, bold, the active tab filled with the accent, not only coloured. */
+.hj-collab-tabs { display: flex; gap: 6px; margin: 0 0 12px; padding: 6px; background: var(--k-card); border: 1px solid var(--k-border); border-radius: var(--k-radius-lg); box-shadow: var(--k-shadow); }
+.hj-collab-tabs a { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; border-radius: 12px;
+    color: var(--k-muted); font-size: .95rem; font-weight: 700; text-decoration: none; }
+.hj-collab-tabs a.active { background: var(--k-accent); color: var(--k-accent-text, #fff); }

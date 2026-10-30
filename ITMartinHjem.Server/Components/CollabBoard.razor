@@ -9,6 +9,16 @@
    (CollabEndpoints) that come back here with ?ok= or ?fejl=. Without the code only the "Skriv koden" button shows. *@
 @if (_space is not null && _room is not null)
 {
+    @* Between the rooms (user 2026-10-30: "navigation from musik to text for per and me") - buttons, never small links. *@
+    @* The same tabs as ElPriser (user 2026-10-30: "ElPriser is the ONE to look at always"): text, no icons, the active one filled. *@
+    <nav class="hj-collab-tabs" aria-label="@_space.Name og Martin">
+        <a href="/@_space.Slug">Forside</a>
+        @foreach (var r in CollabRules.Rooms)
+        {
+            <a class="@(r.Slug == _room.Slug ? "active" : "")" href="/@_space.Slug/@r.Slug" aria-current="@(r.Slug == _room.Slug ? "page" : null)">@r.Title</a>
+        }
+    </nav>
+
     @if (_who is null)
     {
         <section class="k-card" data-nofold>
