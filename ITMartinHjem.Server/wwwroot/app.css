@@ -795,3 +795,12 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-search{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
 .bs-search .k-input{flex:1 1 14rem}
 .bs-count{font-weight:700;margin:6px 0}
+
+/* Samarbejde (/per/tekster, /per/musik - 2026-10-30): files with thoughts under them. */
+.hj-collab-msg { font-weight: 600; }
+.hj-collab-err { color: var(--k-danger, #b42318); }
+.hj-collab-play { width: 100%; margin: 6px 0 4px; }
+.hj-collab-sub { font-size: 1rem; margin: 14px 0 6px; }
+.hj-collab-note { border-left: 3px solid var(--k-border, #ddd); padding: 2px 0 2px 10px; margin: 0 0 10px; }
+.hj-collab-note.mine { border-left-color: var(--k-accent); }
+.hj-collab-note p { margin: 0 0 4px; }

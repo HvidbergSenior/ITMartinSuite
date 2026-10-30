@@ -34,6 +34,11 @@ else if (_page is not null)
     @* "Følg samarbejdet": the Bogshoppen story (same text as the front box) first, then the page's own news.
        Every "## " part is its own show/hide box (user 2026-10-05). *@
     <SectionBoxes Parts="_parts" />
+    @* Samarbejde (2026-10-30): /per/tekster and /per/musik get their files and thoughts under the page's own text. *@
+    @if (ITMartinHjem.Domain.CollabRules.Split(_page.Slug) is { } collab)
+    {
+        <CollabBoard Space="@collab.Space" Room="@collab.Room" />
+    }
     @if (_children.Count > 0)
     {
         <div class="hj-subpages">

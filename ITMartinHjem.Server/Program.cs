@@ -34,8 +34,9 @@ builder.Services.AddKolibri(k =>
         "På Om mig: rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
         "På Mine hjælpere: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage.",
+        "Har du fået en side sammen med Martin (fx itmartin.dk/per)? Tryk Tekster eller Musik, tryk \"Skriv koden\" og skriv koden fra Martin. Så kan du lægge filer op og skrive dine tanker under hver fil.",
     ];
-    k.Version = "2026.10.29";
+    k.Version = "2026.10.30";
     k.ThemeColor = "#f4f6f5";
 });
 
@@ -56,6 +57,9 @@ Directory.CreateDirectory(dataDir);
 // All of Hjem is layered since 2026-10-20 (Domain / Application / Infrastructure); this project only has the pages and endpoints.
 builder.Services.AddHjemApplication();
 builder.Services.AddSingleton(new HjemOptions());
+// Samarbejde (2026-10-30): private corners like itmartin.dk/per - Hjem__Samarbejde__0__Slug=per, __Name=Per, __Code=... in magic.env.
+builder.Services.AddSingleton(new CollabSpaces(builder.Configuration.GetSection("Hjem:Samarbejde").GetChildren()
+    .Select(c => new CollabSpace(c["Slug"] ?? "", c["Name"] ?? "", c["Code"] ?? ""))));
 builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hjem.db")}", new HjemInfraOptions
 {
     DataDir = dataDir,
@@ -215,6 +219,8 @@ app.MapGet("/api/last-seen", async (VisitUseCases visits) => Results.Ok(await vi
 
 // ── Login: one small form, two kinds (familie = password, ejer = PIN) ───────────────
 app.MapGet("/login", (string? who, string? err) => Results.Content(LoginPage(who == "ejer", err is not null), "text/html"));
+
+app.MapCollab();
 
 app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg, VisitUseCases visits) =>
 {

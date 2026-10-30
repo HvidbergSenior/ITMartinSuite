@@ -1,0 +1,125 @@
+@using ITMartinHjem.Application
+@using ITMartinHjem.Domain
+@using ITMartinHjem.Server.Services
+@inject CollabSpaces Spaces
+@inject CollabUseCases Collab
+@inject NavigationManager Nav
+
+@* Samarbejde (2026-10-30): under the page text of /per/tekster and /per/musik. Upload, thoughts and delete are plain form posts
+   (CollabEndpoints) that come back here with ?ok= or ?fejl=. Without the code only the "Skriv koden" button shows. *@
+@if (_space is not null && _room is not null)
+{
+    @if (_who is null)
+    {
+        <section class="k-card" data-nofold>
+            <h2 class="k-card-title">Kun for @_space.Name og Martin</h2>
+            <p>Her ligger @_room.Title.ToLowerInvariant(), og hvad vi tænker om dem. Tryk på knappen og skriv koden, du har fået af Martin.</p>
+            <a class="k-btn k-btn-primary" href="/samarbejde/@_space.Slug/login?back=/@_space.Slug/@_room.Slug">Skriv koden</a>
+        </section>
+    }
+    else
+    {
+        @if (_message.Length > 0) { <p class="k-card hj-collab-msg @(_isError ? "hj-collab-err" : "")" role="status" data-nofold>@_message</p> }
+
+        <section class="k-card" id="laeg-op" data-nofold>
+            <h2 class="k-card-title">Læg @(_room.Slug == CollabRules.Music ? "et nummer" : "en tekst") op</h2>
+            <p class="k-help"><b>Sådan gør du:</b> tryk Vælg fil, skriv gerne en titel, og tryk Læg op. @(_room.Slug == CollabRules.Music
+                ? "Lyd (mp3, m4a, wav …) eller en lille video, højst 90 MB."
+                : "Word, PDF eller ren tekst, højst 20 MB.") Vi kan begge se den bagefter og skrive vores tanker under den.</p>
+            <form method="post" action="/samarbejde/@_space.Slug/@_room.Slug/upload" enctype="multipart/form-data">
+                <input class="k-input" name="file" type="file" accept="@_room.Accept" required aria-label="Vælg fil" />
+                <input class="k-input k-mt" name="title" maxlength="@CollabFile.MaxTitle" placeholder="Titel (kan undværes – så bruges filnavnet)" aria-label="Titel" />
+                <button class="k-btn k-btn-primary k-mt" type="submit">Læg op</button>
+            </form>
+        </section>
+
+        @if (_items is null) { <p class="k-help">Henter…</p> }
+        else if (_items.Count == 0)
+        {
+            <p class="k-card k-help" data-nofold>Der ligger ikke noget her endnu. Læg det første op ovenfor.</p>
+        }
+        else
+        {
+            @foreach (var item in _items)
+            {
+                var f = item.File;
+                <section class="k-card hj-collab-file" id="fil-@f.Id">
+                    <h2 class="k-card-title">@f.Title</h2>
+                    <p class="k-help">Lagt op af <b>@f.By</b> @Dk(f.CreatedAt) · @f.FileName · @CollabRules.SizeText(f.Size)</p>
+                    @if (CollabRules.IsAudio(f))
+                    {
+                        <audio class="hj-collab-play" controls preload="none" src="/samarbejde/@_space.Slug/fil/@f.Id"></audio>
+                    }
+                    else if (CollabRules.IsVideo(f))
+                    {
+                        <video class="hj-collab-play" controls preload="metadata" playsinline src="/samarbejde/@_space.Slug/fil/@f.Id"></video>
+                    }
+                    else
+                    {
+                        <a class="k-btn" href="/samarbejde/@_space.Slug/fil/@f.Id">Hent teksten</a>
+                    }
+
+                    <h3 class="hj-collab-sub">Tanker (@item.Notes.Count)</h3>
+                    @foreach (var n in item.Notes)
+                    {
+                        <div class="hj-collab-note @(n.By == CollabRules.Owner ? "mine" : "")">
+                            <p class="k-help"><b>@n.By</b> @Dk(n.CreatedAt)</p>
+                            @foreach (var line in n.Text.Replace("\r", "").Split('\n')) { <p>@line</p> }
+                        </div>
+                    }
+                    <form method="post" action="/samarbejde/@_space.Slug/tanke/@f.Id">
+                        <textarea class="k-input k-textarea" name="text" rows="3" maxlength="@CollabNote.MaxText" required
+                                  placeholder="Skriv din tanke om @f.Title" aria-label="Din tanke"></textarea>
+                        <button class="k-btn k-btn-primary k-mt" type="submit">Skriv tanke</button>
+                    </form>
+                    @if (_who == CollabRules.Owner)
+                    {
+                        <form method="post" action="/samarbejde/@_space.Slug/slet/@f.Id" class="k-mt"
+                              onsubmit="return confirm('Slet @f.Title.Replace("'", "") og alle tanker om den?')">
+                            <button class="k-btn k-btn-sm k-btn-ghost" type="submit">Slet filen</button>
+                        </form>
+                    }
+                </section>
+            }
+        }
+    }
+}
+
+@code {
+    [Parameter] public string Space { get; set; } = "";
+    [Parameter] public string Room { get; set; } = "";
+    [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
+
+    private CollabSpace? _space;
+    private CollabRoom? _room;
+    private string? _who;
+    private List<CollabItem>? _items;
+    private string _message = "";
+    private bool _isError;
+
+    private static readonly TimeZoneInfo Danish = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _space = Spaces.Find(Space);
+        _room = CollabRules.Room(Room);
+        if (_space is null || _room is null) return;
+        _who = (AuthTask is null ? null : (await AuthTask).User).Who(_space);
+        if (_who is null) return;
+
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+        _isError = query.TryGetValue("fejl", out var fejl);
+        _message = _isError ? fejl.ToString()
+            : query.TryGetValue("ok", out var ok) ? ok.ToString() switch
+            {
+                "fil" => "Filen ligger her nu.",
+                "tanke" => "Din tanke er skrevet.",
+                "slettet" => "Filen er slettet.",
+                _ => "",
+            } : "";
+        _items = await Collab.ItemsAsync(_space.Slug, _room.Slug);
+    }
+
+    private static string Dk(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Danish).ToString("d. MMM 'kl.' HH:mm", new System.Globalization.CultureInfo("da-DK"));
+}

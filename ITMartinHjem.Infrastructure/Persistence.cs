@@ -11,9 +11,14 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
 {
     public DbSet<PublicQuestion> PublicQuestions => Set<PublicQuestion>();
     public DbSet<Feedback> Feedback => Set<Feedback>();   // Kritik (2026-10-29)
+    public DbSet<CollabFile> CollabFiles => Set<CollabFile>();   // Samarbejde (2026-10-30)
+    public DbSet<CollabNote> CollabNotes => Set<CollabNote>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<CollabFile>().ToTable("CollabFiles").HasKey(x => x.Id);
+        b.Entity<CollabNote>().ToTable("CollabNotes").HasKey(x => x.Id);
+
         var q = b.Entity<PublicQuestion>();
         q.ToTable("PublicQuestions");
         q.HasKey(x => x.Id);
@@ -47,6 +52,19 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_Feedback" PRIMARY KEY AUTOINCREMENT,
                 "Kind" TEXT NOT NULL, "Text" TEXT NOT NULL, "Name" TEXT NOT NULL, "MayShow" INTEGER NOT NULL,
                 "Shown" INTEGER NOT NULL, "Reply" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL)
+            """);
+        // Samarbejde (2026-10-30).
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "CollabFiles" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_CollabFiles" PRIMARY KEY AUTOINCREMENT,
+                "Space" TEXT NOT NULL, "Room" TEXT NOT NULL, "Title" TEXT NOT NULL, "FileName" TEXT NOT NULL,
+                "StoredName" TEXT NOT NULL, "ContentType" TEXT NOT NULL, "Size" INTEGER NOT NULL, "By" TEXT NOT NULL,
+                "CreatedAt" TEXT NOT NULL)
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "CollabNotes" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_CollabNotes" PRIMARY KEY AUTOINCREMENT,
+                "FileId" INTEGER NOT NULL, "By" TEXT NOT NULL, "Text" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL)
             """);
     }
 }
@@ -117,6 +135,74 @@ public sealed class FeedbackStore(IDbContextFactory<HjemQuestionsDb> dbf) : IFee
     }
 }
 
+public sealed class CollabStore(IDbContextFactory<HjemQuestionsDb> dbf) : ICollabStore
+{
+    public async Task<List<CollabFile>> FilesAsync(string space, string room, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.CollabFiles.AsNoTracking().Where(f => f.Space == space && f.Room == room).ToListAsync(ct);
+    }
+
+    public async Task<CollabFile?> FileAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.CollabFiles.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id, ct);
+    }
+
+    public async Task AddFileAsync(CollabFile f, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.CollabFiles.Add(f);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteFileAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.CollabNotes.Where(n => n.FileId == id).ExecuteDeleteAsync(ct);
+        await db.CollabFiles.Where(f => f.Id == id).ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<List<CollabNote>> NotesAsync(IReadOnlyCollection<int> fileIds, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.CollabNotes.AsNoTracking().Where(n => fileIds.Contains(n.FileId)).ToListAsync(ct);
+    }
+
+    public async Task AddNoteAsync(CollabNote n, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.CollabNotes.Add(n);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+// <DataDir>/samarbejde/<space>/<random>.<ending> - the random name means a guessed address never finds a file.
+public sealed class CollabDisk(HjemInfraOptions o) : ICollabDisk
+{
+    private string Dir(string space) => Path.Combine(o.DataDir, "samarbejde", Path.GetFileName(space));
+
+    public async Task<string> SaveAsync(string space, Stream input, string fileName, CancellationToken ct = default)
+    {
+        Directory.CreateDirectory(Dir(space));
+        var stored = Guid.NewGuid().ToString("N") + Path.GetExtension(fileName).ToLowerInvariant();
+        await using var file = File.Create(Path.Combine(Dir(space), stored));
+        await input.CopyToAsync(file, ct);
+        return stored;
+    }
+
+    public string? Find(string space, string storedName)
+    {
+        var path = Path.Combine(Dir(space), Path.GetFileName(storedName));
+        return storedName.Length > 0 && File.Exists(path) ? path : null;
+    }
+
+    public void Delete(string space, string storedName)
+    {
+        if (Find(space, storedName) is { } path) File.Delete(path);
+    }
+}
+
 public static class DependencyInjection
 {
     /// <param name="stemApi">Stem (poll-web) base address, reached over the NAS docker network.</param>
@@ -156,6 +242,8 @@ public static class DependencyInjection
         services.AddDbContextFactory<HjemQuestionsDb>(o => o.UseSqlite(connectionString));
         services.AddSingleton<IPublicQuestionStore, PublicQuestionStore>();
         services.AddSingleton<IFeedbackStore, FeedbackStore>();
+        services.AddSingleton<ICollabStore, CollabStore>();
+        services.AddSingleton<ICollabDisk, CollabDisk>();
         return services;
     }
 
