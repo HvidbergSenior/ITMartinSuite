@@ -38,9 +38,35 @@ var channels = builder.Configuration.GetSection("Kanal:Channels").GetChildren()
     .Select(c => new KanalChannel((c["Slug"] ?? "").ToLowerInvariant(), c["Title"] ?? "", c["Intro"] ?? "",
         c.GetSection("Topics").GetChildren().Select(t => t.Value ?? "").Where(t => t.Length > 0).ToArray())).ToList();
 if (channels.Count == 0)
-    channels.Add(new KanalChannel("datacentre", "Datacentre, AI og grøn energi",
-        "Et uafhængigt sted, hvor alle kan skrive, hvad de tænker om datacentre, AI og grøn energi. Siden er ikke politisk og ikke knyttet til noget parti – alle synspunkter er velkomne.",
-        ["Datacentre", "AI", "Grøn energi"]));
+    // Re-focused 2026-10-30 ("it should not be Pelle. Rather... how digital helpers helped a family with perspective"):
+    // Martin's own family, in his own words (shortened, nothing added).
+    channels.Add(new KanalChannel("familien", "Sådan gav digitale hjælpere vores familie perspektiv",
+        "Vi er en familie med tre unge på 20+, en mor og en far. Her fortæller vi, hvordan fire små digitale hjælpere har ændret den måde, vi ser på vores forbrug – uden tvang, og uden at nogen skal være politiet. Siden er ikke politisk og ikke knyttet til noget parti.",
+        ["ElPriser", "Budget", "Bogshoppen", "FileSorter"],
+        [
+            new("ElPriser – fra mors påmindelser til én knap",
+            [
+                "Før: Mor mindede os om, at det var billigt at starte vaskemaskinen kl. 13 i dag. Vi andre ville gerne gøre hende glad og prøvede – men nogle gange glemte vi det, og andre gange startede vi den senere. Det gav diskussioner, og mor tænkte: Hvorfor er det kun mig, der tænker på det her?",
+                "Nu: Lige når du står ved maskinen, trykker du på en knap på telefonen og ser, hvad det koster nu, hvad det vil koste senere, hvornår det er billigere – og hvor meget du faktisk sparer. Så kan du starte den eller vente.",
+                "Beskederne fortæller også, når det er billigst lige nu – og om det kan betale sig at vente til i aften. Mor behøver ikke længere minde os om det.",
+            ]),
+            new("Budget – indsigt i stedet for regler",
+            [
+                "Før: Vores indtægt faldt drastisk. Børnene skulle selv betale for noget. Men hvad? Skulle de bare betale 1.000 kr om måneden hver? Nej – først ville vi have indsigt i, hvad vi faktisk bruger penge på.",
+                "Budget viste os, at netbankernes apps ikke er gode nok: MobilePay-overførsler og kategorier gemmer sig. Vi fandt ud af, hvor meget vi bruger på abonnementer – og hvor meget vi bruger på parkering i stedet for at cykle, fordi vi fik det præcise beløb at sammenligne med cyklen.",
+            ]),
+            new("Bogshoppen – det er dig, der bestemmer",
+            [
+                "100.000 bøger, film og CD'er kunne være smidt ud. Men de har værdi. Det handler om bæredygtighed: at give tingene et nyt liv i stedet for at smide dem ud.",
+                "Konkurrenterne er Netflix og de andre streamingtjenester. Kan man konkurrere? Ja. En DVD kan afspilles på en PS3, en Blu-ray også. Det er ikke Netflix, der bestemmer, hvad du kan se – det er dig. Ingen censur, ingen manipulation, ingen månedlig betaling.",
+                "Og kan du huske dengang i videobutikken? Lej eller køb fem film og se dem sammen fredag aften – i stedet for at scrolle gennem film uden at vælge én. Så kan familien vælge en film, alle kan lide – også mor.",
+            ]),
+            new("FileSorter – billederne fundet igen",
+            [
+                "Vores billeder lå spredt over gamle harddiske og telefoner – 87.009 filer. Da de var sorteret, var der 34.079 rigtige billeder og videoer tilbage. Resten var dubletter, skærmbilleder og skrammel.",
+                "Nu ligger de sorteret efter år, og vi kan finde dem igen.",
+            ]),
+        ]));
 builder.Services.AddKanalApplication(channels, () => DateTime.UtcNow);
 
 var app = builder.Build();

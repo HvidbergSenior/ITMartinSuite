@@ -20,8 +20,17 @@ else
             Ingen konto, ingen reklamer, ingen sporing.</p>
     </section>
 
+    @* The stories (2026-10-30, the family page) - each its own box, heading first. *@
+    @foreach (var s in _channel.Stories ?? [])
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">@s.Title</h2>
+            @foreach (var p in s.Paragraphs) { <p>@p</p> }
+        </section>
+    }
+
     <section class="k-card" id="skriv" data-nofold>
-        <h2 class="k-card-title">Skriv en kommentar</h2>
+        <h2 class="k-card-title">@(_channel.Stories is { Length: > 0 } ? "Har du prøvet noget lignende?" : "Skriv en kommentar")</h2>
         <p class="k-help"><b>Sådan gør du:</b> vælg et emne, skriv din kommentar og tryk Send. Dit navn kan undværes. Telefonnumre og e-mails bliver fjernet.</p>
         @if (Fejl is { Length: > 0 }) { <p class="ka-msg" role="alert">@Fejl</p> }
         @if (Ok == "1") { <p class="ka-msg" role="status">Tak – din kommentar står nu på siden.</p> }

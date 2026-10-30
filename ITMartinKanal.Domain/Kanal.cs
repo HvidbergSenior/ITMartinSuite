@@ -26,8 +26,12 @@ public sealed class KanalComment
     }
 }
 
-/// <summary>One channel: its address, who it is for, a short intro and the topics people can choose.</summary>
-public sealed record KanalChannel(string Slug, string Title, string Intro, string[] Topics);
+/// <summary>One channel: its address, a short intro, the topics people can choose and - optionally - the stories it tells
+/// (2026-10-30: "how digital helpers helped a family with perspective").</summary>
+public sealed record KanalChannel(string Slug, string Title, string Intro, string[] Topics, KanalStory[]? Stories = null);
+
+/// <summary>One story box: a heading and its paragraphs.</summary>
+public sealed record KanalStory(string Title, string[] Paragraphs);
 
 public sealed class KanalData
 {
