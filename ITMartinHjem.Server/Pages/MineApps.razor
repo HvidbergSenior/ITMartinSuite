@@ -53,7 +53,8 @@
                 @if (open) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name – helt gratis</a> }
                 else if (free) { <TrialForm App="@a.Name" FreeApps="WithCode" /> }
                 @* The app's own address on every card (user 2026-10-30: "users should not contact me for free version... the url of the apps should be there"). *@
-                @if (!showcase && !open) { <div class="k-row k-mt"><span class="k-help">Adresse:</span> <a class="k-btn k-btn-sm" href="@a.Url" target="_blank" rel="noopener">@Address(a.Url)</a></div> }
+                @* Not on a sleeping app - the address would open nothing (user 2026-10-30). *@
+                @if (up && !showcase && !open) { <div class="k-row k-mt"><span class="k-help">Adresse:</span> <a class="k-btn k-btn-sm" href="@a.Url" target="_blank" rel="noopener">@Address(a.Url)</a></div> }
                 @* Contacting Martin is only for the udvidet udgave - the free one needs no contact (user 2026-10-30). *@
                 <div class="hj-app-contact"><b>Vil du have en udvidet udgave af @a.Name?</b> Kontakt mig:
                     <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/chat-med-martin">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
