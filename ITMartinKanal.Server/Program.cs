@@ -67,7 +67,8 @@ if (channels.Count == 0)
             [
                 "Vores billeder lå spredt over gamle harddiske og telefoner – 87.009 filer. Da de var sorteret, var der 34.079 rigtige billeder og videoer tilbage. Resten var dubletter, skærmbilleder og skrammel.",
                 "Nu ligger de sorteret efter år, og vi kan finde dem igen.",
-                "Billeder, videoer og film i skyen fylder mere og mere, og de fleste af os sletter aldrig noget. Hver dublet ligger på en server et sted og bruger strøm. Derfor rydder vi op – så serverne ikke bliver fyldt med det, ingen ser.",
+                "Når lageret er fuldt, bliver telefonen ved med at minde dig om det – igen og igen. Det nemmeste er at trykke Ja til mere plads i skyen. Så processen skubber os til bare at lægge flere filer i datacentrene, i stedet for at rydde op.",
+                "Hver dublet ligger på en server et sted og bruger strøm. Derfor rydder vi op i stedet – så serverne ikke bliver fyldt med det, ingen ser.",
             ]),
         ]));
 builder.Services.AddKanalApplication(channels, () => DateTime.UtcNow);
