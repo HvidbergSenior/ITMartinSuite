@@ -53,4 +53,15 @@ public class KanalTests
         for (var i = 0; i < KanalRules.MaxPerDay; i++) store.Data.Comments.Add(KanalComment.Write(Pelle, "", "", "x" + i, Now.AddMinutes(-i)));
         new KanalUseCases(store, new KanalChannels([Pelle]), () => Now).Write("pelle", "", "", "en til").Should().StartWith("Der er skrevet meget");
     }
+
+    [Test]
+    public void The_page_sleeps_from_23_to_7_Danish_time_and_takes_no_comments()
+    {
+        KanalRules.Asleep(new DateTime(2026, 10, 30, 22, 59, 0)).Should().BeFalse();
+        KanalRules.Asleep(new DateTime(2026, 10, 30, 23, 0, 0)).Should().BeTrue();
+        KanalRules.Asleep(new DateTime(2026, 10, 31, 6, 59, 0)).Should().BeTrue();
+        KanalRules.Asleep(new DateTime(2026, 10, 31, 7, 0, 0)).Should().BeFalse();
+        var night = new DateTime(2026, 10, 30, 23, 30, 0, DateTimeKind.Utc);   // 00:30 Danish time
+        new KanalUseCases(new MemoryStore(), new KanalChannels([Pelle]), () => night).Write("pelle", "", "", "Hej").Should().StartWith("Siden sover");
+    }
 }

@@ -13,6 +13,24 @@
 else
 {
     <PageTitle>@_channel.Title · Kanal</PageTitle>
+    @* The link card on Facebook (user 2026-10-30: "open my familien for people on fb"). *@
+    <HeadContent>
+        <meta name="description" content="@_channel.Intro" />
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content="@_channel.Title" />
+        <meta property="og:description" content="@_channel.Intro" />
+        <meta property="og:url" content="@($"https://kanal.itmartin.dk/{_channel.Slug}")" />
+        <meta property="og:locale" content="da_DK" />
+    </HeadContent>
+    @if (_asleep)
+    {
+        <section class="k-card" data-nofold>
+            <h1 class="k-card-title">Siden sover</h1>
+            <p>@_channel.Title</p>
+            <p>Siden kører på en gammel computer hjemme hos Martin Hvidberg (ITMartin) og sover fra kl. 23 til kl. 7 for at spare strøm. Kom igen i morgen tidlig.</p>
+        </section>
+        return;
+    }
     <section class="k-card" data-nofold>
         <h1 class="k-card-title">@_channel.Title</h1>
         <p>@_channel.Intro</p>
@@ -75,7 +93,7 @@ else
 
     private KanalChannel? _channel;
     private List<KanalComment> _comments = [];
-    private bool _owner;
+    private bool _owner, _asleep;
 
     private static readonly TimeZoneInfo Danish = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
 
@@ -83,6 +101,7 @@ else
     {
         _channel = Kanal.Channel(Slug);
         if (_channel is null) return;
+        _asleep = Kanal.Asleep;
         _comments = Kanal.Comments(_channel.Slug);
         _owner = Http is not null && Program.Owner(Http, Config);
     }

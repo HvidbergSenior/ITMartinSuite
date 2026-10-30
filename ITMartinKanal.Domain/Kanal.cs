@@ -54,6 +54,13 @@ public static partial class KanalRules
     public static List<KanalComment> For(IEnumerable<KanalComment> all, string channel) =>
         all.Where(c => c.Channel == channel).OrderByDescending(c => c.At).ToList();
 
+    /// <summary>The page sleeps at night (23-07 Danish time): it shows "Siden sover" and takes no comments. Only the page
+    /// sleeps - the computer it runs on never may (its USB drive does not survive a suspend).</summary>
+    public static bool Asleep(DateTime danishNow) => danishNow.Hour >= 23 || danishNow.Hour < 7;
+
+    private static readonly TimeZoneInfo Danish = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    public static DateTime DanishNow(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Danish);
+
     /// <summary>A guard against floods: at most this many comments a day per channel.</summary>
     public const int MaxPerDay = 200;
 

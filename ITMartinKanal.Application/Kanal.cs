@@ -21,12 +21,15 @@ public sealed class KanalUseCases(IKanalStore store, KanalChannels channels, Fun
 {
     public KanalChannel? Channel(string? slug) => channels.Find(slug);
 
+    public bool Asleep => KanalRules.Asleep(KanalRules.DanishNow(now()));
+
     public List<KanalComment> Comments(string channel) => KanalRules.For(store.Get().Comments, channel);
 
     /// <summary>Null when saved, else the reason in plain Danish.</summary>
     public string? Write(string channelSlug, string? topic, string? name, string? text)
     {
         if (channels.Find(channelSlug) is not { } ch) return "Kanalen findes ikke.";
+        if (Asleep) return "Siden sover fra kl. 23 til kl. 7 – kom igen i morgen tidlig.";
         if (KanalRules.Full(store.Get().Comments, ch.Slug, now())) return "Der er skrevet meget i dag – prøv igen i morgen.";
         try
         {
