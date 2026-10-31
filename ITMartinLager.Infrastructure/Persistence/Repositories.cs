@@ -125,10 +125,15 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return await q.OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
     }
 
-    // Shop.Listed as SQL: in stock or for sale, copies left, a title. With the box: a test box = only for show (Box.IsTest).
+    // Shop.ForSale / Shop.Listed as SQL: in stock or for sale, copies left, a title (+ sure, or an unsure blad in the Blade
+    // deal). With the box: a test box = only for show (Box.IsTest).
+    private static IQueryable<Item> ForSale(LagerDb db) =>
+        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
+
+    private static readonly string BladeDeal = ShopDeals.Blade.Name;
+
     private static IQueryable<Item> Listed(LagerDb db) =>
-        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != ""
-            && i.Confidence >= Pricing.MinConfidence);
+        ForSale(db).Where(i => i.Confidence >= Pricing.MinConfidence || i.Deal == BladeDeal);
 
     // ShopDeals bands as SQL: Single = priced and in no deal, NoPrice = no price and in no deal, a deal name = that deal.
     private static IQueryable<Item> Listed(LagerDb db, string? band) => band switch
@@ -149,7 +154,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     public async Task<List<Item>> AllListedAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await Listed(db).ToListAsync(ct);
+        return await ForSale(db).ToListAsync(ct);
     }
 
     public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,

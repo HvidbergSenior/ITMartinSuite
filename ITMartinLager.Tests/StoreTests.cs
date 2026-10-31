@@ -63,10 +63,10 @@ public class StoreTests
         foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, []); }
         await Items.UpdateAsync(all, default);
         string[] Numbers(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Number).ToArray();
-        Numbers(ShopDeals.Blade.Name).Should().Equal("12", "14");
+        Numbers(ShopDeals.Blade.Name).Should().Equal("12", "14", "15");
         Numbers(ShopDeals.Single).Should().Equal("13");
-        Numbers(ShopDeals.NoPrice).Should().BeEmpty("15 is unsure: not on bogshoppen.dk until a person has looked");
-        (await Items.ListedPerDealAsync(default)).Should().BeEquivalentTo(new Dictionary<string, int> { [ShopDeals.Blade.Name] = 2 });
+        Numbers(ShopDeals.NoPrice).Should().BeEmpty("15 is unsure: straight in the Blade bin (user 2026-10-31)");
+        (await Items.ListedPerDealAsync(default)).Should().BeEquivalentTo(new Dictionary<string, int> { [ShopDeals.Blade.Name] = 3 });
     }
 
     [Test]

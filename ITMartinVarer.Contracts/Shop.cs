@@ -101,9 +101,11 @@ public static class ShopDeals
     public static readonly ShopDeal Books = new("Bøger", [Kinds.Bog], [new(2, 50), new(5, 100)]);
     public static readonly ShopDeal Blade = new("Blade", [Kinds.AndersAnd, Kinds.Tegneserie, Kinds.Superhelte], [new(4, 50), new(10, 100)]);
     public static readonly ShopDeal Dvds = new("DVD", [Kinds.Dvd], [new(4, 50), new(10, 100)]);
-    /// <summary>User 2026-10-31 "VHS Bundles... for a price" - the price is a guess like DVD until the user says.</summary>
+    /// <summary>User 2026-10-31 "VHS Bundles... for a price" - 4 for 50 10 for 100 like DVD (user said yes 2026-10-31).</summary>
     public static readonly ShopDeal Vhs = new("VHS", [Kinds.Vhs], [new(4, 50), new(10, 100)]);
-    public static readonly IReadOnlyList<ShopDeal> All = [Blade, Books, Dvds, Vhs];
+    /// <summary>User 2026-10-31 yes to "should CDs get the same deal?" - 4 for 50 10 for 100.</summary>
+    public static readonly ShopDeal Cds = new("CD", [Kinds.Cd], [new(4, 50), new(10, 100)]);
+    public static readonly IReadOnlyList<ShopDeal> All = [Blade, Books, Dvds, Vhs, Cds];
 
     /// <summary>The deal for things of this kind, or null.</summary>
     public static ShopDeal? For(string kind) => All.FirstOrDefault(d => d.Kinds.Contains(kind));

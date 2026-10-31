@@ -47,14 +47,18 @@
             @foreach (var i in _items)
             {
                 <li class="bs-shop-card">
-                    <div class="bs-shop-pic">
-                        @* Tap = the full picture in a new tab, to zoom in (user 2026-10-31: "can pictures be magnified?"). *@
-                        @if (i.HasPhoto) { <a class="bs-shop-zoom" href="/varer/foto/@i.Id" target="_blank" rel="noopener" title="Se billedet stort"><img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /></a> }
-                        else { <span class="bs-shop-nopic">@i.Kind</span> }
-                        @if (i.Badge != "") { <span class="bs-shop-badge">@ITMartinHjem.Server.Services.NoEmoji.Strip(i.Badge)</span> }
-                    </div>
                     <div class="bs-shop-body">
+                        @if (i.Badge != "") { <span class="bs-shop-badge">@ITMartinHjem.Server.Services.NoEmoji.Strip(i.Badge)</span> }
                         <h3>@i.Line</h3>
+                        @* The picture folds too (user 2026-10-31: "the pictures should be show/hide as well"); lazy = loads when opened.
+                           Tap = the full picture in a new tab, to zoom in (user 2026-10-31: "can pictures be magnified?"). *@
+                        <details class="bs-shop-more bs-shop-picbox">
+                            <summary>Billede</summary>
+                            <div class="bs-shop-pic">
+                                @if (i.HasPhoto) { <a class="bs-shop-zoom" href="/varer/foto/@i.Id" target="_blank" rel="noopener" title="Se billedet stort"><img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /></a> }
+                                else { <span class="bs-shop-nopic">@i.Kind</span> }
+                            </div>
+                        </details>
                         @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
                         else if (ShopDeals.Named(i.Deal) is { } deal)
                         {

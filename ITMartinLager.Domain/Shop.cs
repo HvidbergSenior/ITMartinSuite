@@ -7,10 +7,13 @@ public static class Shop
 {
     /// <summary>For sale: in stock or til salg, not on an auction, not sold, copies left, a title, and not unsure - an unsure
     /// reading waits for a person (user 2026-10-31, "Demo pc-spil · Anders And & Co." was a cover headline read at 0.4).
-    /// Without a price it is in its own category (ShopDeals.NoPrice, user 2026-10-31: "No pricing yet. We are investigating").</summary>
-    public static bool Listed(Item i) =>
-        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != ""
-        && i.Confidence >= Pricing.MinConfidence;
+    /// Without a price it is in its own category (ShopDeals.NoPrice, user 2026-10-31: "No pricing yet. We are investigating").
+    /// Exception: an unsure blad in the Blade deal is shown (user 2026-10-31 yes - the name hardly matters in a 10 for 100 bin).</summary>
+    public static bool Listed(Item i) => ForSale(i) && (i.Confidence >= Pricing.MinConfidence || i.Deal == ShopDeals.Blade.Name);
+
+    /// <summary>In stock or til salg, copies left, a title - sure or not (what DealFor looks at).</summary>
+    public static bool ForSale(Item i) =>
+        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != "";
 
     /// <summary>The mark buyers see in the marketplace: "🏆 GULD", "🥈 SØLV", "🥉 BRONZE" (its own valued price, or the
     /// gold list) - never "Måske", that is for us.</summary>
@@ -46,10 +49,12 @@ public static class Shop
     /// <summary>Which deal it is sold in (ShopDeals, user 2026-10-31), or "": gold, silver and bronze never - they are sold
     /// one by one ("Impiortant to know if some of them are interesting... If not then..."); an unsure reading never - a
     /// person checks it first ("low confidence should be manual investigation"); no price, or priced at or under the deal's
-    /// MaxSingleKr = the deal of its kind (Blade, Bøger, DVD, VHS); dearer things and other kinds keep their own price.</summary>
+    /// MaxSingleKr = the deal of its kind (Blade, Bøger, DVD, VHS, CD); dearer things and other kinds keep their own price.
+    /// An unsure blad goes straight in the Blade deal (user 2026-10-31 yes), whatever its read price.</summary>
     public static string DealFor(Item i, IReadOnlyList<GoldEntry> gold)
     {
-        if (Badge(gold, i) != "" || i.Confidence < Pricing.MinConfidence) return "";
+        if (Badge(gold, i) != "") return "";
+        if (i.Confidence < Pricing.MinConfidence) return ShopDeals.Blade.Kinds.Contains(i.Kind) ? ShopDeals.Blade.Name : "";
         if (ShopDeals.For(i.Kind) is not { } deal) return "";
         var kr = i.Price ?? i.PriceHint;
         if (kr is > 0) return kr <= deal.MaxSingleKr ? deal.Name : "";
