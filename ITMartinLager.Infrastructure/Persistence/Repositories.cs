@@ -107,6 +107,19 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     public async Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
+        return await Matching(db, text, kind, valuation)
+            .OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
+    }
+
+    // How many match in all - the list stops at max (user 2026-10-31: "says 200 and 196 later").
+    public async Task<int> CountAsync(string text, string? kind, string? valuation, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await Matching(db, text, kind, valuation).CountAsync(ct);
+    }
+
+    private static IQueryable<Item> Matching(LagerDb db, string text, string? kind, string? valuation)
+    {
         var q = db.Items.Include(i => i.Box).AsQueryable();
         if (!string.IsNullOrEmpty(kind)) q = q.Where(i => i.Kind == kind);
         // Item.Valuation, as SQL.
@@ -122,7 +135,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
             var w = word;
             q = q.Where(i => i.Search.Contains(w));
         }
-        return await q.OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
+        return q;
     }
 
     // Shop.ForSale / Shop.Listed as SQL: in stock or for sale, copies left, a title (+ sure, or an unsure blad in the Blade

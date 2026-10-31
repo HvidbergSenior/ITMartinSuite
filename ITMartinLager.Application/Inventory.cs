@@ -70,14 +70,15 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
 
     /// <summary>Every word must match somewhere. Also the dearest find per hit when it is 3x the normal price or more
     /// (user: "if the normal price is 5 kr but on amazon.de it costs 50 kr i want to know that").</summary>
-    public async Task<(List<Item> Hits, Dictionary<int, PriceFind> FarAbove)?> SearchAsync(string text, string? kind, string? valuation = null, CancellationToken ct = default)
+    public async Task<(List<Item> Hits, Dictionary<int, PriceFind> FarAbove, int Total)?> SearchAsync(string text, string? kind, string? valuation = null, CancellationToken ct = default)
     {
         if (text.Trim().Length < 2 && kind is null && valuation is null) return null;
         var hits = (await items.SearchAsync(text, kind, valuation, MaxHits, ct))
             .OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).ToList();
         var priced = hits.Where(i => i.PriceHint is > 0).ToDictionary(i => i.Id);
         var tops = await prices.TopFindsAsync(priced.Keys.ToList(), ct);
-        return (hits, tops.Where(t => t.Value.Kr >= priced[t.Key].PriceHint * 3).ToDictionary(t => t.Key, t => t.Value));
+        var total = hits.Count < MaxHits ? hits.Count : await items.CountAsync(text, kind, valuation, ct);
+        return (hits, tops.Where(t => t.Value.Kr >= priced[t.Key].PriceHint * 3).ToDictionary(t => t.Key, t => t.Value), total);
     }
 
     /// <summary>Every unsold item with its "worth looking into?" line - gold first (user 2026-10-12: "so that I can go

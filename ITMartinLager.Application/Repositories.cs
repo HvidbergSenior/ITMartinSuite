@@ -31,6 +31,8 @@ public interface IItemRepository
     Task<List<Item>> WithTitlesAsync(IReadOnlyCollection<string> titles, CancellationToken ct, IReadOnlyCollection<string>? barcodes = null);
     /// <summary>Every word must be in the item's search text; with its box.</summary>
     Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct);
+    /// <summary>How many SearchAsync would find without the max.</summary>
+    Task<int> CountAsync(string text, string? kind, string? valuation, CancellationToken ct);
     /// <summary>The marketplace: things for sale (Shop.Listed) of these kinds (null = all), new or used (null = both), every word in the search
     /// text, sorted (ShopSorts), one page; and how many match in all.</summary>
     Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,

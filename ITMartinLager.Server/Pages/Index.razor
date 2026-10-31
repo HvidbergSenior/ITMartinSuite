@@ -61,7 +61,8 @@
 @if (_hits is not null)
 {
     <section class="k-card">
-        <h2 class="k-card-title">@(_hits.Count >= Max ? $"De første {Max} fund" : $"{_hits.Count} fund")</h2>
+        @* The real total, also past Max (user 2026-10-31: "says 200 and 196 later"). *@
+        <h2 class="k-card-title">@(_total > _hits.Count ? $"{_total} fund – de første {_hits.Count} vises" : $"{_total} fund")</h2>
         @if (_hits.Count == 0)
         {
             <p>Intet fundet. Prøv færre ord – eller registrér det i <a href="@Vareinfo.Base">📷 Vareinfo</a>.</p>
@@ -88,6 +89,7 @@
     private string _q = "";
     private string? _kind;
     private List<Item>? _hits;
+    private int _total;
     private int _units, _boxes;
     private Dictionary<int, PriceFind> _high = [];
 
@@ -121,6 +123,7 @@
         _interesting = null;
         var found = await Items.SearchAsync(_q, _kind, _valuation);
         _hits = found?.Hits;
+        _total = found?.Total ?? 0;
         _high = found?.FarAbove ?? [];
     }
 }
