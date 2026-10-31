@@ -6,7 +6,7 @@
 <PageTitle>Tilbud – Bogshoppen Salg</PageTitle>
 
 <section class="k-card">
-    <h1 class="k-card-title">🏷️ Dagens tilbud</h1>
+    <h1 class="k-card-title">Dagens tilbud</h1>
     <p>Tilbud, der kører af sig selv på bestemte dage – på bogshoppen.dk, i kurven og ved betalingen. Kun tilbud, der er <b>slået til</b>, gælder.</p>
     <ul>
         <li><b>Procent</b>: fx 50 % på brugte bøger hver mandag. Et tilbud kan gælde brugte ting, nye ting eller begge. Prisen vises ved hver vare den dag.</li>
@@ -34,7 +34,7 @@
             </li>
         }
     </ul>
-    <button class="k-btn k-btn-secondary" @onclick="() => Edit(new Campaign { Kind = CampaignKinds.Bundle, Count = 10 })">➕ Nyt tilbud</button>
+    <button class="k-btn k-btn-secondary" @onclick="() => Edit(new Campaign { Kind = CampaignKinds.Bundle, Count = 10 })">Nyt tilbud</button>
 </section>
 
 @if (_edit is not null)

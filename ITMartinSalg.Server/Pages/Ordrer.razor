@@ -7,9 +7,9 @@
 <PageTitle>Ordrer – Bogshoppen Salg</PageTitle>
 
 <section class="k-card">
-    <h1 class="k-card-title">🧾 Ordrer</h1>
+    <h1 class="k-card-title">Ordrer</h1>
     <p>Her står alt, der er købt med <b>Køb nu</b> på bogshoppen.dk – én ting eller en hel kurv. Når en ordre er betalt, får Bogshoppen Lager besked og trækker tingene fra lageret (den sidste af en slags = Solgt).</p>
-    <p>Pak ordren og tryk <b>📦 Pakket</b>. Når den er afleveret til posten, så skriv pakkens nummer og tryk <b>Sendt</b> – eller tryk <b>Afhentet</b>, når køberen har hentet den. Trykker du forkert, så tryk <b>Fortryd</b>.</p>
+    <p>Pak ordren og tryk <b>Pakket</b>. Når den er afleveret til posten, så skriv pakkens nummer og tryk <b>Sendt</b> – eller tryk <b>Afhentet</b>, når køberen har hentet den. Trykker du forkert, så tryk <b>Fortryd</b>.</p>
     @if (!Shop.CanPay)
     {
         <p class="lg-warn" role="status">⚠ Køb nu er slået fra: Stripe-nøglen (Salg__StripeSecretKey) eller fragt/afhentning (Salg__ShopShippingKr / Salg__ShopPickup) mangler i magic.env.</p>
@@ -46,7 +46,7 @@
                         </span>
                         @if (o.Status == OrderStatuses.Paid)
                         {
-                            <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Step(() => Shop.PackAsync(o.Id))">📦 Pakket</button>
+                            <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Step(() => Shop.PackAsync(o.Id))">Pakket</button>
                         }
                         @if (o.Status is OrderStatuses.Paid or OrderStatuses.Packed)
                         {

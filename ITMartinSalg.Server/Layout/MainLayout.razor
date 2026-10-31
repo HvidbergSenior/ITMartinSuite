@@ -3,10 +3,12 @@
 
 @* Salg = the selling side (2026-10-21 split): the orders and the day offers. The stock itself is in Lager. *@
 <KolibriHeader>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/">🧾 Ordrer</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/tilbud">🏷️ Tilbud</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/interesse">⭐ Interesse</a>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="@Shop.LagerBase">📦 Lager</a>
+    @* Like ElPriser (2026-10-31 "fix css / template"): NavLink = the open tab is filled, words only (no AI emojis). *@
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Ordrer</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/tilbud">Tilbud</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/interesse">Interesse</NavLink>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="@Shop.LagerBase">Lager</a>
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
 </KolibriHeader>
 <div class="k-main"><div class="k-content">
     @Body

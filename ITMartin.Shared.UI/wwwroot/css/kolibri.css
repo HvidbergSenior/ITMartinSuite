@@ -135,7 +135,9 @@ small, .k-small { font-size: var(--k-fs-small); color: var(--k-muted); }
 .k-logo-brand { height: 32px; width: auto; flex: none; background: #fff; border-radius: 6px; padding: 3px 6px; box-sizing: border-box; }
 .k-brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .k-brand b { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-brand span { font-size: 12px; color: var(--k-muted); }
+.k-brand span { font-size: 12px; color: var(--k-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The open tab in the header is filled (2026-10-30 "ElPriser = THE reference": tabs filled when active). */
+.k-header-actions a.k-btn.active { background: var(--k-accent-soft); border-color: var(--k-text); color: var(--k-text); }
 .k-header-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .k-header-actions > * { white-space: nowrap; }
 /* Phone width: the app name stays readable and the tabs stay on one line ("Lav ny" wrapped, "Stem" became "St..."). */
