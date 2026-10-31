@@ -176,7 +176,11 @@ public static partial class Gold
         if (cat is null) return null;
         if (year is not null && list.Where(e => e.Category == cat.Name && e.Number == "" && e.Year == year).MaxBy(e => e.Kr) is { } sameYear)
             return $"🔎 MÅSKE – tjek nærmere: et {cat.Name} fra {year} sælges for ca. {sameYear.Kr} kr. Se om det er dette nummer.";
-        var valuable = list.Where(e => e.Category == cat.Name && e.Kr >= SilverFrom).ToList();
+        // Only the valuable issues it could still be: a number or year we know and that differs rules an entry out
+        // (user 2026-10-31 "I want to fix all Måske" - nr. 5 from 1980 is not nr. 17 from 1973).
+        var num = number.Trim().TrimStart('0');
+        var valuable = list.Where(e => e.Category == cat.Name && e.Kr >= SilverFrom
+            && (e.Number == "" || num == "" || e.Number == num) && (e.Year is null || year is null || e.Year == year)).ToList();
         if (valuable.Count == 0) return null;
         var years = valuable.Where(e => e.Year is not null).Select(e => e.Year!.Value).OrderBy(y => y).ToList();
         var span = years.Count == 0 ? "" : years[0] == years[^1] ? $" fra {years[0]}" : $" fra {years[0]}-{years[^1]}";

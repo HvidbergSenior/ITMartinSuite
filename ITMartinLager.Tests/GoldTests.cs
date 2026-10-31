@@ -74,8 +74,10 @@ public class GoldTests
         var list = Gold.Pick(AndersAnd, [O("Anders And & Co Originalt blad fra marts 1949", 3600), O("Anders And & Co. nr. 17 1973", 400)], "DBA", DateTime.UtcNow);
         Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1949)!.Should().StartWith("🔎 MÅSKE").And.Contain("fra 1949");   // only the year: 52 issues
         Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "17", 1973)!.Should().StartWith("🥈 SØLV");
-        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1980)!.Should().StartWith("🔎 MÅSKE").And.Contain("1949-1973");
-        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1973)!.Should().StartWith("🔎 MÅSKE");   // 1973 but nr. 17 is the dear one
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1980).Should().BeNull("not 1949 and not nr. 17");
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "5", 1973).Should().BeNull("1973 but nr. 17 is the dear one");
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "", 1973)!.Should().StartWith("🔎 MÅSKE", "no number - it could be nr. 17");
+        Gold.Interesting(list, Kinds.AndersAnd, "Anders And & Co.", "", "", null)!.Should().StartWith("🔎 MÅSKE").And.Contain("1949-1973");
         Gold.Interesting(list, Kinds.Bog, "Mort", "", "", 1987).Should().BeNull();
         Gold.Interesting(list, Kinds.Bog, "Mort", "", "", 1987, ownPrice: 250)!.Should().StartWith("🥈 SØLV");
     }
@@ -86,7 +88,8 @@ public class GoldTests
         var list = Gold.Pick(AndersAnd, [O("Anders And & Co. nr. 17 1973", 1500)], "DBA", DateTime.UtcNow);
         Gold.ForAuction(list, Kinds.AndersAnd, "Anders And & Co.", "", "17", 1973).Should().Be("🏆 GULD – sælges for ca. 1500 kr andre steder");
         Gold.ForAuction(list, Kinds.Bog, "Mort", "", "", 1987, 260).Should().Be("🥈 SØLV – sælges for ca. 260 kr andre steder");
-        Gold.ForAuction(list, Kinds.AndersAnd, "Anders And & Co.", "", "3", 1990)!.Should().StartWith("🔎 MÅSKE");
+        Gold.ForAuction(list, Kinds.AndersAnd, "Anders And & Co.", "", "3", 1990).Should().BeNull("not nr. 17 from 1973");
+        Gold.ForAuction(list, Kinds.AndersAnd, "Anders And & Co.", "", "", null)!.Should().StartWith("🔎 MÅSKE");
         Gold.ForAuction(list, Kinds.Bog, "Mort", "", "", 1987, 40).Should().BeNull();
     }
 
