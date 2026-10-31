@@ -60,7 +60,7 @@ public class StoreTests
         await Registration.SaveAsync(box.Id, null, [Aa("12", 1968) with { PriceHint = 5 }, Aa("13", 1968) with { PriceHint = 25 }, Aa("14", 1968),
             Aa("15", 1968) with { Confidence = 0.3 }]);
         var all = await Items.AllListedAsync(default);
-        foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, []); }
+        foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, [], ShopDeals.All); }
         await Items.UpdateAsync(all, default);
         string[] Numbers(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Number).ToArray();
         Numbers(ShopDeals.Blade.Name).Should().Equal("12", "14", "15");
@@ -76,7 +76,7 @@ public class StoreTests
         await Registration.SaveAsync(box.Id, null, [Aa("12", 1968) with { PriceHint = 5 }, Aa("13", 1968) with { PriceHint = 29 },
             Aa("14", 1968) with { PriceHint = 30 }, Aa("16", 1968) with { PriceHint = 100 }]);
         var all = await Items.AllListedAsync(default);
-        foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, []); }
+        foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, [], ShopDeals.All); }
         await Items.UpdateAsync(all, default);
         string[] Numbers(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Number).ToArray();
         Numbers("10-29").Should().Equal("13");

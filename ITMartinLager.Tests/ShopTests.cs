@@ -64,21 +64,23 @@ public class StockForSaleTests
     public void Deals_skip_gold_and_unsure_things_and_wait_for_the_price_search()
     {
         var now = DateTime.UtcNow;
-        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PricesAt = now }, []).Should().Be(ShopDeals.Books.Name);
-        Shop.DealFor(new Item { Kind = Kinds.Dvd, Title = "Heat", Confidence = 1, PricesAt = now }, []).Should().Be(ShopDeals.Dvds.Name);
-        Shop.DealFor(new Item { Kind = Kinds.Dvd, Title = "Heat", Confidence = 1 }, []).Should().Be("", "not searched yet");
-        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 0.3, PricesAt = now }, []).Should().Be("", "unsure - a person looks");
-        Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, []).Should().Be(ShopDeals.Cds.Name);
-        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, PriceHint = 40 }, []).Should().Be(ShopDeals.Blade.Name, "unsure blad = the Blade bin");
+        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Books.Name);
+        Shop.DealFor(new Item { Kind = Kinds.Dvd, Title = "Heat", Confidence = 1, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Dvds.Name);
+        Shop.DealFor(new Item { Kind = Kinds.Dvd, Title = "Heat", Confidence = 1 }, [], ShopDeals.All).Should().Be("", "not searched yet");
+        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 0.3, PricesAt = now }, [], ShopDeals.All).Should().Be("", "unsure - a person looks");
+        Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Cds.Name);
+        Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, []).Should().Be("", "no deals in use");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3 }, []).Should().Be("", "no deals in use");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, PriceHint = 40 }, [], ShopDeals.All).Should().Be(ShopDeals.Blade.Name, "unsure blad = the Blade bin");
         Shop.Listed(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, Status = Statuses.Lager, Deal = ShopDeals.Blade.Name }).Should().BeTrue();
         Shop.Listed(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 0.3, Status = Statuses.Lager }).Should().BeFalse("unsure book waits for a person");
-        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 20, PricesAt = now }, []).Should().Be(ShopDeals.Books.Name, "20 kr alone would undercut 2 for 50");
-        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 25, PricesAt = now }, []).Should().Be(ShopDeals.Books.Name);
-        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 1, PriceHint = 18, PricesAt = now }, []).Should().Be("", "18 kr is more than 4 for 50");
-        Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PriceHint = 7, PricesAt = now }, []).Should().Be(ShopDeals.Cds.Name, "7 kr alone would undercut 4 for 50");
-        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 40, PricesAt = now }, []).Should().Be("", "40 kr is more than 2 for 50 - own price");
-        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 1, PricesAt = now }, []).Should().Be(ShopDeals.Blade.Name);
-        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 150, PricesAt = now }, []).Should().Be("", "bronze and up are sold one by one");
+        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 20, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Books.Name, "20 kr alone would undercut 2 for 50");
+        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 25, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Books.Name);
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 1, PriceHint = 18, PricesAt = now }, [], ShopDeals.All).Should().Be("", "18 kr is more than 4 for 50");
+        Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PriceHint = 7, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Cds.Name, "7 kr alone would undercut 4 for 50");
+        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 40, PricesAt = now }, [], ShopDeals.All).Should().Be("", "40 kr is more than 2 for 50 - own price");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 1, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Blade.Name);
+        Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 1, PriceHint = 150, PricesAt = now }, [], ShopDeals.All).Should().Be("", "bronze and up are sold one by one");
     }
 
     [Test]

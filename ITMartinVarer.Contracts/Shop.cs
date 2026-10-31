@@ -110,8 +110,12 @@ public static class ShopDeals
     public static readonly ShopDeal Cds = new("CD", [Kinds.Cd], [new(4, 50), new(10, 100)]);
     public static readonly IReadOnlyList<ShopDeal> All = [Blade, Books, Dvds, Vhs, Cds];
 
-    /// <summary>The deal for things of this kind, or null.</summary>
-    public static ShopDeal? For(string kind) => All.FirstOrDefault(d => d.Kinds.Contains(kind));
+    /// <summary>The deals in use. None since 2026-10-31 (user: "the 4 for 50 and so should be removed" - every thing its own
+    /// price); All stays so they can come back by listing them here.</summary>
+    public static readonly IReadOnlyList<ShopDeal> Active = [];
+
+    /// <summary>The deal for things of this kind among these deals (default Active), or null.</summary>
+    public static ShopDeal? For(string kind, IReadOnlyList<ShopDeal>? deals = null) => (deals ?? Active).FirstOrDefault(d => d.Kinds.Contains(kind));
 
     public static ShopDeal? Named(string? name) => All.FirstOrDefault(d => d.Name == name);
 

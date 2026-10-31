@@ -50,12 +50,14 @@ public static class Shop
     /// one by one ("Impiortant to know if some of them are interesting... If not then..."); an unsure reading never - a
     /// person checks it first ("low confidence should be manual investigation"); no price, or priced at or under the deal's
     /// MaxSingleKr = the deal of its kind (Blade, Bøger, DVD, VHS, CD); dearer things and other kinds keep their own price.
-    /// An unsure blad goes straight in the Blade deal (user 2026-10-31 yes), whatever its read price.</summary>
-    public static string DealFor(Item i, IReadOnlyList<GoldEntry> gold)
+    /// An unsure blad goes straight in the Blade deal (user 2026-10-31 yes), whatever its read price.
+    /// Deals = ShopDeals.Active unless given (none in use since 2026-10-31).</summary>
+    public static string DealFor(Item i, IReadOnlyList<GoldEntry> gold, IReadOnlyList<ShopDeal>? deals = null)
     {
+        deals ??= ShopDeals.Active;
         if (Badge(gold, i) != "") return "";
-        if (i.Confidence < Pricing.MinConfidence) return ShopDeals.Blade.Kinds.Contains(i.Kind) ? ShopDeals.Blade.Name : "";
-        if (ShopDeals.For(i.Kind) is not { } deal) return "";
+        if (i.Confidence < Pricing.MinConfidence) return deals.Contains(ShopDeals.Blade) && ShopDeals.Blade.Kinds.Contains(i.Kind) ? ShopDeals.Blade.Name : "";
+        if (ShopDeals.For(i.Kind, deals) is not { } deal) return "";
         var kr = i.Price ?? i.PriceHint;
         if (kr is > 0) return kr <= deal.MaxSingleKr ? deal.Name : "";
         return i.PricesAt is null ? "" : deal.Name;   // no price: once searched (not yet = wait for the hunter)
