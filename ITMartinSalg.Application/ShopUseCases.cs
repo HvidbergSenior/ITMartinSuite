@@ -34,7 +34,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     {
         // Each deal and "Ingen pris endnu" are categories of their own across every kind (ShopDeals, user 2026-10-31); a
         // product type shows only its priced things outside the deals. Alle (no type) = everything.
-        var band = ShopDeals.Named(type)?.Name ?? (type == ShopDeals.NoPriceName ? ShopDeals.NoPrice : ShopDeals.Single);
+        var band = ShopDeals.Named(type)?.Name ?? (type == ShopDeals.NoPriceName ? ShopDeals.NoPrice : type == ShopDeals.UnsureName ? ShopDeals.Unsure : ShopDeals.Single);
         var across = band != ShopDeals.Single;
         // A price band (ShopDeals.Prices) narrows the own-priced things - not a deal or Ingen pris endnu.
         var priced = !across && ShopDeals.PriceBand(price) is not null;
@@ -50,6 +50,8 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         types.AddRange(ShopDeals.All.Where(d => deals.GetValueOrDefault(d.Name) > 0).Select(d => new ShopType(d.Name, deals[d.Name])));
         var unpriced = (await stock.PerKindAsync(ct, ShopDeals.NoPrice)).Values.Sum();
         if (unpriced > 0) types.Add(new ShopType(ShopDeals.NoPriceName, unpriced));
+        var unsure = (await stock.PerKindAsync(ct, ShopDeals.Unsure)).Values.Sum();
+        if (unsure > 0) types.Add(new ShopType(ShopDeals.UnsureName, unsure));
         // Subgroups only inside one type or kind - for everything at once they would be too many to read.
         var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct, band);
         return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups);
@@ -226,11 +228,13 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         return list.Select(i =>
         {
             var buyNow = Shop.BuyNowKr(i, options.ShopAutoMaxKr);
+            // Unsure what it is = no price and no reference until a person has looked (Ikke tjekket endnu).
+            var unsure = i.Confidence < Shop.MinConfidence && i.PriceKr is null;
             var day = buyNow is { } kr ? Campaigns.DayPrice(i.Kind, i.Usage, kr, offers, Today) : null;
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
-            return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 ? i.HintKr : null,
+            return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 && !unsure ? i.HintKr : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
-                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), i.Reference, i.Deal);
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), unsure ? null : i.Reference, i.Deal);
         }).ToList();
     }
 }

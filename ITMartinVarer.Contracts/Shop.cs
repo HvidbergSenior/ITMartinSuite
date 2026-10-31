@@ -124,6 +124,10 @@ public static class ShopDeals
     /// person looks - "low confidence should be manual investigation").</summary>
     public const string NoPrice = "uden-pris";
     public const string NoPriceName = "Ingen pris endnu";
+    /// <summary>The unsure readings in one category of their own, without a price (user 2026-10-31: "show them in one
+    /// category") - what the AI read may be another thing, so its price and reference are not shown.</summary>
+    public const string Unsure = "usikker";
+    public const string UnsureName = "Ikke tjekket endnu";
 
     /// <summary>Price search (user 2026-10-31: "price seacrh like 10 - 29 30-49 50-99 99+"): own-priced things (no deal)
     /// from From kr up to under Below kr (null = no top).</summary>
@@ -133,5 +137,5 @@ public static class ShopDeals
     public static ShopPriceBand? PriceBand(string? key) => Prices.FirstOrDefault(p => p.Key == key);
 
     /// <summary>A band Lager knows, else null (= everything).</summary>
-    public static string? Band(string? band) => band is Single or NoPrice || Named(band) is not null || PriceBand(band) is not null ? band : null;
+    public static string? Band(string? band) => band is Single or NoPrice or Unsure || Named(band) is not null || PriceBand(band) is not null ? band : null;
 }

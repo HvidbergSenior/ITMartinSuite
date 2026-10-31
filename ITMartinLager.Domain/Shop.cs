@@ -9,7 +9,12 @@ public static class Shop
     /// reading waits for a person (user 2026-10-31, "Demo pc-spil · Anders And & Co." was a cover headline read at 0.4).
     /// Without a price it is in its own category (ShopDeals.NoPrice, user 2026-10-31: "No pricing yet. We are investigating").
     /// Exception: an unsure blad in the Blade deal is shown (user 2026-10-31 yes - the name hardly matters in a 10 for 100 bin).</summary>
-    public static bool Listed(Item i) => ForSale(i) && (i.Confidence >= Pricing.MinConfidence || i.Deal == ShopDeals.Blade.Name);
+    /// Since 2026-10-31 evening the unsure ones are shown too, in their own category ShopDeals.Unsure without a price
+    /// (user: "there are only 461 products?" -> "show them in one category").
+    public static bool Listed(Item i) => ForSale(i);
+
+    /// <summary>The AI was unsure what it is - shown under ShopDeals.UnsureName, never with a price.</summary>
+    public static bool Unsure(Item i) => i.Confidence < Pricing.MinConfidence;
 
     /// <summary>In stock or til salg, copies left, a title - sure or not (what DealFor looks at).</summary>
     public static bool ForSale(Item i) =>

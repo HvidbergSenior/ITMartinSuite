@@ -53,7 +53,7 @@ public sealed class FakeStock : IStockGateway
         return Task.FromResult(new StockPage(all.Skip(skip).Take(take).ToList(), all.Count));
     }
 
-    public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null) => band == ShopDeals.NoPrice ? Task.FromResult(new Dictionary<string, int>()) :
+    public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null) => band is ShopDeals.NoPrice or ShopDeals.Unsure ? Task.FromResult(new Dictionary<string, int>()) :
         Task.FromResult(Items.GroupBy(i => i.Kind).ToDictionary(g => g.Key, g => g.Count()));
     public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null) => Task.FromResult(new List<ShopGroup>());
     public Task<Dictionary<string, int>> DealsAsync(CancellationToken ct) => Task.FromResult(new Dictionary<string, int>());

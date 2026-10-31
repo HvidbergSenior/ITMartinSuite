@@ -36,7 +36,7 @@
             </div>
         }
         @* Price search (user 2026-10-31: "price seacrh like 10 - 29 30-49 50-99 99+") - own prices; deals have their own buttons. *@
-        @if (ShopDeals.Named(_type) is null && _type != ShopDeals.NoPriceName)
+        @if (ShopDeals.Named(_type) is null && _type != ShopDeals.NoPriceName && _type != ShopDeals.UnsureName)
         {
             <div class="bs-filter bs-prices" role="group" aria-label="Vælg pris">
                 <button class="k-btn k-btn-sm @(_price == "" ? "is-on" : "")" aria-pressed="@(_price == "")" @onclick='() => PickPrice("")'>Alle priser</button>
@@ -175,7 +175,7 @@
             .Take(6).ToList();
     }
 
-    private Task Pick(string type) { _type = type; _text = ""; if (ShopDeals.Named(type) is not null || type == ShopDeals.NoPriceName) _price = ""; return Load(reset: true); }
+    private Task Pick(string type) { _type = type; _text = ""; if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = ""; return Load(reset: true); }
     private Task PickPrice(string key) { _price = key; return Load(reset: true); }
     // A subgroup is a search for its name inside the chosen type; the same chip again shows the whole type.
     private Task PickGroup(string name) { _text = _text == name ? "" : name; return Load(reset: true); }

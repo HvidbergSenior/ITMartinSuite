@@ -151,16 +151,19 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         below is { } b ? q.Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) >= from && (i.Price ?? i.PriceHint) < b)
             : q.Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) >= from);
 
-    private static IQueryable<Item> Listed(LagerDb db) =>
-        ForSale(db).Where(i => i.Confidence >= Pricing.MinConfidence || i.Deal == BladeDeal);
+    private static IQueryable<Item> Listed(LagerDb db) => ForSale(db);
+
+    // Sure readings: everything but the Unsure band.
+    private static IQueryable<Item> Sure(LagerDb db) => ForSale(db).Where(i => i.Confidence >= Pricing.MinConfidence || i.Deal == BladeDeal);
 
     // ShopDeals bands as SQL: Single = priced and in no deal, NoPrice = no price and in no deal, a deal name = that deal.
     private static IQueryable<Item> Listed(LagerDb db, string? band) => band switch
     {
         null => Listed(db),
-        ShopDeals.Single => Listed(db).Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) > 0),
-        ShopDeals.NoPrice => Listed(db).Where(i => i.Deal == "" && ((i.Price ?? i.PriceHint) == null || (i.Price ?? i.PriceHint) <= 0)),
-        _ when ShopDeals.PriceBand(band) is { } p => Priced(Listed(db), p.From, p.Below),
+        ShopDeals.Single => Sure(db).Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) > 0),
+        ShopDeals.NoPrice => Sure(db).Where(i => i.Deal == "" && ((i.Price ?? i.PriceHint) == null || (i.Price ?? i.PriceHint) <= 0)),
+        ShopDeals.Unsure => ForSale(db).Where(i => i.Confidence < Pricing.MinConfidence && i.Deal == ""),
+        _ when ShopDeals.PriceBand(band) is { } p => Priced(Sure(db), p.From, p.Below),
         _ => Listed(db).Where(i => i.Deal == band),
     };
 
