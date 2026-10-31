@@ -27,7 +27,8 @@ public static class StockApi
         api.MapGet("/udvalgte", async (int? antal, StockForSaleUseCases stock) => await stock.FeaturedAsync(antal ?? 12));
 
         api.MapGet("/varer/{id:int}/foto", async (int id, StockForSaleUseCases stock, ItemUseCases items) =>
-            await stock.PhotoPathAsync(id) is not null && await items.PhotoFileAsync(id) is { } file ? Results.File(file, "image/jpeg") : Results.NotFound());
+            await stock.PhotoPathAsync(id) is not null && await items.PhotoFileAsync(id) is { } file ? Results.File(file, "image/jpeg")
+            : await stock.PilePhotoAsync(id) is { } pile ? Results.File(pile, "image/jpeg") : Results.NotFound());
 
         api.MapPost("/solgt", async (StockSale sale, StockForSaleUseCases stock) =>
         {

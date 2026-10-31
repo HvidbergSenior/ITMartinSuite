@@ -6,7 +6,7 @@ namespace ITMartinLager.Application;
 /// paid sale to take out of the stock. Who is listed and what the proof is are rules in the Domain (Shop); the price a
 /// buyer pays, the offers and the orders are Salg's.</summary>
 public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository prices, IGoldRepository gold, ISaleBookingRepository bookings,
-    TimeProvider clock)
+    TimeProvider clock, IVareinfoGateway? vareinfo = null)
 {
     public const int MaxPage = 100;
 
@@ -60,6 +60,12 @@ public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository
     /// <summary>The item's own photo, only while it is for sale.</summary>
     public async Task<string?> PhotoPathAsync(int id, CancellationToken ct = default) =>
         await items.GetAsync(id, ct) is { ItemPhoto.Length: > 0 } i && Shop.Listed(i) ? i.ItemPhoto : null;
+
+    /// <summary>No own photo yet: the pile photo it was read from (Vareinfo), so every thing on bogshoppen.dk has a real
+    /// picture without paying the AI again (user 2026-10-31: "and there are no pictures?" + "no cost on ai").</summary>
+    public async Task<byte[]?> PilePhotoAsync(int id, CancellationToken ct = default) =>
+        vareinfo is not null && await items.GetAsync(id, ct) is { ItemPhoto: "", PhotoId: { } photo } i && Shop.Listed(i)
+            ? await vareinfo.PhotoAsync(photo, null, ct) : null;
 
     /// <summary>A paid sale from Salg: one copy per line leaves the stock (the last one = Solgt). A Ref already booked
     /// changes nothing, so Salg may send it again when it did not get the answer. An item deleted meanwhile is skipped.</summary>
