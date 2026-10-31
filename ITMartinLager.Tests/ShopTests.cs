@@ -70,6 +70,8 @@ public class StockForSaleTests
         ])!.Url.Should().Be("https://n/1");
         Shop.Reference([new PriceFind { Source = "DBA", Kr = 30, Url = "https://dba/2", Similar = true }])!.Url.Should().Be("https://dba/2");
         Shop.Reference([new PriceFind { Source = "eBay", Kr = 30, Url = "https://e/2" }]).Should().BeNull();
+        Shop.Reference([new PriceFind { Source = "GulogGratis", Kr = 1, Url = "https://g/1" }, new PriceFind { Source = "Faraos", Kr = 22, Url = "https://f/2" },
+            new PriceFind { Source = "DBA", Kr = 35, Url = "https://dba/3" }], 30)!.Url.Should().Be("https://dba/3", "never cheaper than our own price");
     }
 
     [Test]

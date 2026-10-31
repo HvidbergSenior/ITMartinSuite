@@ -28,14 +28,18 @@ public static class Shop
 
     /// <summary>The one link shown on every product (user 2026-10-31: "there need to be a reference to something on all
     /// products"): the cheapest exact listing, used first - what our price is set under; else one "magen til". Never eBay
-    /// (user 2026-10-29: "Dont use ebay at all").</summary>
-    public static ShopProof? Reference(IEnumerable<PriceFind> finds)
+    /// (user 2026-10-29: "Dont use ebay at all"). Our price is set UNDER the other sites, so the reference is the cheapest listing at or above our price (2026-10-31:
+    /// "25 kr - lignende koster 1 kr" worked against us); listings under MinReferenceKr are start bids or junk.</summary>
+    public static ShopProof? Reference(IEnumerable<PriceFind> finds, decimal? ourKr = null)
     {
-        var real = finds.Where(f => f.Kr > 0 && f.Url.StartsWith("http") && !f.Source.Equals("eBay", StringComparison.OrdinalIgnoreCase)).ToList();
-        var best = Proof(real, 1).FirstOrDefault()
+        var real = finds.Where(f => f.Kr >= MinReferenceKr && f.Kr >= (ourKr ?? 0) && f.Url.StartsWith("http")
+            && !f.Source.Equals("eBay", StringComparison.OrdinalIgnoreCase)).ToList();
+        var best = real.Where(f => !f.Similar).OrderBy(f => f.IsNew).ThenBy(f => f.Kr).FirstOrDefault()
             ?? real.Where(f => f.Similar).OrderBy(f => f.IsNew).ThenBy(f => f.Kr).FirstOrDefault();
         return best is null ? null : ProofView(best);
     }
+
+    public const int MinReferenceKr = 5;
 
     /// <summary>A thing for sale as Salg gets it.</summary>
     public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null) =>
