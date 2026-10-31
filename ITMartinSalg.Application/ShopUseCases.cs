@@ -33,11 +33,11 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     {
         // "10 for 30 kr" is its own category: the cheap things there, and only there (ShopBatch, user 2026-10-31).
         var batch = type == ShopBatch.Name;
-        var band = batch ? ShopBatch.Batch : ShopBatch.Single;
+        var band = batch ? ShopBatch.Batch : ShopBatch.Single;   // Alle (no type) = everything, the batch too
         IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
             : !batch && !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
         var found = await stock.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),
-            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct, band);
+            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct, kinds is null && !batch ? null : band);
         var perKind = await stock.PerKindAsync(ct, ShopBatch.Single);
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();
