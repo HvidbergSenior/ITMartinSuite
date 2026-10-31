@@ -6,8 +6,9 @@ namespace ITMartinLager.Domain;
 // valued price on the sites" - instead of choosing a box). Worked out from the item, never stored.
 public static class Valuations
 {
-    public const string Valued = "Vurderet", Waiting = "Venter på pris", NoPrice = "Ingen pris fundet";
-    public static readonly string[] All = [Valued, Waiting, NoPrice];
+    // InDeal: sold in a deal (Shop.DealFor) - the deal IS its price (user 2026-10-31: "there should not be any Ingen pris fundet?").
+    public const string Valued = "Vurderet", InDeal = "I tilbud", Waiting = "Venter på pris", NoPrice = "Ingen pris fundet";
+    public static readonly string[] All = [Valued, InDeal, Waiting, NoPrice];
 }
 
 public static class Statuses
@@ -111,7 +112,7 @@ public sealed class Item
         return text == "" ? $"{Id}.jpg" : $"{Id} {text}.jpg";
     }
 
-    public string Valuation => PriceHint is > 0 ? Valuations.Valued : PricesAt is null ? Valuations.Waiting : Valuations.NoPrice;
+    public string Valuation => Deal != "" ? Valuations.InDeal : PriceHint is > 0 ? Valuations.Valued : PricesAt is null ? Valuations.Waiting : Valuations.NoPrice;
 
     // Same thing in the same condition = one row with a higher quantity, so 7 copies of Anders And 12/1968 stay one
     // line however many photos they turned up in. Whether a second photo IS a second copy, the person decides in Vareinfo.

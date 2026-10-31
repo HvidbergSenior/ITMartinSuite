@@ -163,6 +163,7 @@ public class StoreTests
         new Item().Valuation.Should().Be(Valuations.Waiting);
         new Item { PricesAt = DateTime.UtcNow }.Valuation.Should().Be(Valuations.NoPrice);
         new Item { PricesAt = DateTime.UtcNow, PriceHint = 45 }.Valuation.Should().Be(Valuations.Valued);
+        new Item { PricesAt = DateTime.UtcNow, Deal = ShopDeals.Cds.Name }.Valuation.Should().Be(Valuations.InDeal);
     }
 
     [Test]

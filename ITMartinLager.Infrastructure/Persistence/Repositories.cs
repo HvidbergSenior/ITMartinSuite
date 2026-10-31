@@ -125,9 +125,10 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         // Item.Valuation, as SQL.
         q = valuation switch
         {
-            Valuations.Valued => q.Where(i => i.PriceHint > 0),
-            Valuations.Waiting => q.Where(i => (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt == null),
-            Valuations.NoPrice => q.Where(i => (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt != null),
+            Valuations.InDeal => q.Where(i => i.Deal != ""),
+            Valuations.Valued => q.Where(i => i.Deal == "" && i.PriceHint > 0),
+            Valuations.Waiting => q.Where(i => i.Deal == "" && (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt == null),
+            Valuations.NoPrice => q.Where(i => i.Deal == "" && (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt != null),
             _ => q,
         };
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
