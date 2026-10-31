@@ -31,7 +31,7 @@ builder.Services.AddKolibri(k =>
         "⭐ Interesse: de ting, kunderne har markeret som interessante på bogshoppen.dk – flest markeringer øverst. Brug listen, når I vælger ting til en liveauktion.",
         "📦 Lager åbner lageret, hvor tingene og priserne er.",
     ];
-    k.Version = "2026.10.26";
+    k.Version = "2026.10.31";
     k.ThemeColor = "#f4f6f5";
 });
 

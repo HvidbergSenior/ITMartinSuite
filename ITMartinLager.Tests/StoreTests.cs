@@ -47,8 +47,8 @@ public class StoreTests
         // 2026-10-24 bug: the list query did not load the box, so test-box things came out as for sale.
         var test = await Boxes.AddNextAsync("Test kun til visning", default);
         var real = await Boxes.AddNextAsync("Garagen", default);
-        await Registration.SaveAsync(test.Id, null, [Aa("12", 1968)]);
-        await Registration.SaveAsync(real.Id, null, [Aa("13", 1968)]);
+        await Registration.SaveAsync(test.Id, null, [Aa("12", 1968) with { PriceHint = 20 }]);
+        await Registration.SaveAsync(real.Id, null, [Aa("13", 1968) with { PriceHint = 20 }]);
         var (page, _) = await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default);
         page.Select(i => Shop.View(i, []).ForShow).Should().BeEquivalentTo([true, false]);
     }

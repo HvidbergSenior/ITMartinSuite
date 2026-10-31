@@ -45,6 +45,20 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         return tiles;
     }
 
+    // The AI's area is a little loose or tight now and then: 3 % margin, so the edges of the thing are not cut off.
+    public async Task<byte[]?> CropAsync(byte[] jpeg, PhotoArea area, CancellationToken ct)
+    {
+        using var img = Image.Load(jpeg);
+        const double pad = 0.03;
+        int x = (int)(Math.Max(0, area.Left - pad) * img.Width), y = (int)(Math.Max(0, area.Top - pad) * img.Height);
+        int r = (int)(Math.Min(1, area.Right + pad) * img.Width), b = (int)(Math.Min(1, area.Bottom + pad) * img.Height);
+        if (r - x < 40 || b - y < 40) return null;
+        using var part = img.Clone(c => c.Crop(new Rectangle(x, y, r - x, b - y)));
+        using var ms = new MemoryStream();
+        await part.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 85 }, ct);
+        return ms.ToArray();
+    }
+
     public async Task SaveAsync(string path, byte[] jpeg, CancellationToken ct)
     {
         var full = Inside(path) ?? throw new InvalidOperationException("Ugyldig sti til billedet.");

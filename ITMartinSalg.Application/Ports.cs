@@ -15,6 +15,8 @@ public interface IStockGateway
     Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct);
     /// <summary>Things for sale per kind.</summary>
     Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct);
+    /// <summary>Subgroups (series, artist) of these kinds with at least 2 things.</summary>
+    Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct);
     /// <summary>Null = not for sale (sold, on an auction, gone).</summary>
     Task<StockItemPage?> ItemAsync(int id, CancellationToken ct);
     /// <summary>The ones of these that are for sale.</summary>

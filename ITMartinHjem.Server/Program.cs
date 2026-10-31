@@ -36,7 +36,7 @@ builder.Services.AddKolibri(k =>
         "På Mine hjælpere: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage. Under hver hjælper står dens adresse – tryk på den for at åbne den. Du skal ikke kontakte mig for den gratis udgave.",
         "Har du fået en side sammen med Martin (fx itmartin.dk/per)? Tryk Tekster eller Musik, tryk \"Skriv koden\" og skriv koden fra Martin. Så kan du lægge filer op og skrive dine tanker under hver fil.",
     ];
-    k.Version = "2026.10.30";
+    k.Version = "2026.10.31";
     k.ThemeColor = "#f4f6f5";
 });
 

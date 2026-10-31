@@ -313,7 +313,7 @@ window.photoQueue = {
         if (!own) return;
         var label = document.createElement("label");
         label.className = "k-btn k-btn-primary lg-big";
-        label.textContent = "📷 Brug telefonens kamera";
+        label.textContent = "Brug telefonens kamera";
         var input = own.cloneNode(true);
         label.appendChild(input);
         note.appendChild(label);

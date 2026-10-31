@@ -54,7 +54,9 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                           "confidence": { "type": "number", "description": "0-1: how sure the title/number reading is" },
                           "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" },
                           "edition_hint": { "type": "string", "enum": {{JsonSerializer.Serialize(EditionHints.All)}},
-                                            "description": "Books only: what the cover/spine itself shows about the edition, else empty" }
+                                            "description": "Books only: what the cover/spine itself shows about the edition, else empty" },
+                          "area":       { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4,
+                                          "description": "Where the item lies in IMAGE 1 (the whole pile): [left, top, right, bottom] as parts of the width/height, 0-1. Tight around this item only." }
                         },
                         "required": ["kind", "title", "condition", "quantity", "confidence"]
                       }
@@ -106,6 +108,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
         - usage: "Ny" kun når tingen tydeligt er ny og aldrig solgt (forseglet i plastik, butikkens mærkat). Ellers "Brugt".
         - Ens eksemplarer = én post med quantity.
+        - area: hvor varen ligger på billede 1 (hele bunken), [venstre, top, højre, bund] som brøkdele 0-1 af bredde og
+          højde - tæt om netop den vare, så den kan klippes ud som varens eget billede. En ryg = den smalle stribe.
         - Bøger: titel og forfatter præcist som trykt (med æ/ø/å). Kan kun en del læses, så skriv det, der kan læses, og
           sæt confidence lavt - opfind aldrig en titel, der "lyder rigtig".
         - Bøger: edition_hint ud fra hvad omslaget/ryggen SELV viser: "Bogklub" (Bogklubben, Lademann-bogklub, Book Club
@@ -365,7 +369,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         (r.Number ?? "").Trim(), r.Year is > 1800 and < 2100 ? r.Year : null, (r.Platform ?? "").Trim(),
         Conditions.Normalise(r.Condition), Math.Clamp(r.Quantity ?? 1, 1, 999), Math.Clamp(r.Confidence ?? 0.5, 0, 1),
         (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint), Usage: Usages.Normalise(r.Usage),
-        Publisher: (r.Publisher ?? "").Trim());
+        Publisher: (r.Publisher ?? "").Trim(), Area: PhotoArea.From(r.Area));
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
     internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
@@ -399,5 +403,6 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         public string? Note { get; set; }
         public string? Interest { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("edition_hint")] public string? EditionHint { get; set; }
+        public List<double>? Area { get; set; }
     }
 }

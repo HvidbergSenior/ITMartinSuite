@@ -5,9 +5,10 @@ namespace ITMartinLager.Domain;
 // the day offers, the orders and the payment are Salg's.
 public static class Shop
 {
-    /// <summary>For sale: in stock or til salg, not on an auction, not sold, copies left, a title.</summary>
+    /// <summary>For sale: in stock or til salg, not on an auction, not sold, copies left, a title - and a price (user
+    /// 2026-10-31: only priced things on bogshoppen.dk/produkter; the rest waits for the price hunter).</summary>
     public static bool Listed(Item i) =>
-        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != "";
+        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != "" && (i.Price ?? i.PriceHint) > 0;
 
     /// <summary>The mark buyers see in the marketplace: "🏆 GULD", "🥈 SØLV", "🥉 BRONZE" (its own valued price, or the
     /// gold list) - never "Måske", that is for us.</summary>
@@ -25,11 +26,22 @@ public static class Shop
             .OrderBy(f => f.IsNew).ThenBy(f => f.Kr)
             .Take(max).ToList();
 
+    /// <summary>The one link shown on every product (user 2026-10-31: "there need to be a reference to something on all
+    /// products"): the cheapest exact listing, used first - what our price is set under; else one "magen til". Never eBay
+    /// (user 2026-10-29: "Dont use ebay at all").</summary>
+    public static ShopProof? Reference(IEnumerable<PriceFind> finds)
+    {
+        var real = finds.Where(f => f.Kr > 0 && f.Url.StartsWith("http") && !f.Source.Equals("eBay", StringComparison.OrdinalIgnoreCase)).ToList();
+        var best = Proof(real, 1).FirstOrDefault()
+            ?? real.Where(f => f.Similar).OrderBy(f => f.IsNew).ThenBy(f => f.Kr).FirstOrDefault();
+        return best is null ? null : ProofView(best);
+    }
+
     /// <summary>A thing for sale as Salg gets it.</summary>
-    public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold) =>
+    public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null) =>
         new(i.Id, i.Kind, i.Line(), i.Title, i.Interest, i.Condition, i.Year, i.Quantity, i.Usage,
             i.Price is > 0 ? (int)Math.Round(i.Price.Value) : null, i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : null,
-            i.Confidence, i.ItemPhoto != "", Badge(gold, i), i.Box?.IsTest == true);
+            i.Confidence, i.ItemPhoto != "", Badge(gold, i), i.Box?.IsTest == true, reference);
 
     public static ShopProof ProofView(PriceFind f) => new(f.Source, f.Kr, f.Original, f.Url, f.IsNew);
 }

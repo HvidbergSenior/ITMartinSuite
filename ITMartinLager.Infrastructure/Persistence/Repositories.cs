@@ -127,7 +127,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
 
     // Shop.Listed as SQL: in stock or for sale, copies left, a title. With the box: a test box = only for show (Box.IsTest).
     private static IQueryable<Item> Listed(LagerDb db) =>
-        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
+        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != ""
+            && (i.Price ?? i.PriceHint) > 0);
 
     public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct)
     {
@@ -156,6 +157,15 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         return await Listed(db).GroupBy(i => i.Kind).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+    }
+
+    public async Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var q = Listed(db);
+        if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
+        return await q.Select(i => i.Series != "" ? i.Series : i.Artist).Where(g => g != "")
+            .GroupBy(g => g).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
     }
 
     public async Task<List<Item>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct)
@@ -279,6 +289,14 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
 
 public sealed class PriceRepository(IDbContextFactory<LagerDb> dbf) : IPriceRepository
 {
+    public async Task<Dictionary<int, List<PriceFind>>> FindsForAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct)
+    {
+        if (itemIds.Count == 0) return [];
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return (await db.PriceFinds.Where(f => itemIds.Contains(f.ItemId)).ToListAsync(ct))
+            .GroupBy(f => f.ItemId).ToDictionary(g => g.Key, g => g.ToList());
+    }
+
     public async Task<(List<PriceFind> Finds, List<PriceCheck> Checks)> ForItemAsync(int itemId, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

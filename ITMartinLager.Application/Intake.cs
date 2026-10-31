@@ -7,7 +7,8 @@ namespace ITMartinLager.Application;
 /// written on the box). Nothing is read until the person presses Læs: then one AI call per pile photo, under the daily
 /// cap, and the barcodes are looked up on the free sites. What was found goes into its box.</summary>
 public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository intake, IBoxRepository boxes,
-    RegistrationUseCases registration, ICoverReader reader, IBarcodeLookup barcodes, TimeProvider clock, IComicCatalog? comics = null)
+    RegistrationUseCases registration, ICoverReader reader, IBarcodeLookup barcodes, TimeProvider clock, IComicCatalog? comics = null,
+    IPhotoStore? photos = null, IItemRepository? items = null)
 {
     /// <summary>Photos and scans fetched per round - the job runs every minute.</summary>
     public const int FetchPerRound = 200;
@@ -69,7 +70,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             for (var n = 0; n < shot.Tiles; n++)
                 if (await vareinfo.PhotoAsync(shot.VareinfoId, n, ct) is { } t) closeUps.Add(t);
             var found = await reader.ReadPileAsync(jpeg, closeUps, "", ct);
-            if (found.Count > 0) await SaveInBoxAsync(shot.BoxCode, shot.VareinfoId, found, ct);
+            if (found.Count > 0) await SaveInBoxAsync(shot.BoxCode, shot.VareinfoId, found, ct, jpeg);
             shot.Read(found.Count, now);
             await intake.UpdateAsync([shot], ct);
             done++;
@@ -101,14 +102,34 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         return wanted.Count;
     }
 
-    private async Task SaveInBoxAsync(string boxCode, int? photoId, List<Found> found, CancellationToken ct)
+    private async Task SaveInBoxAsync(string boxCode, int? photoId, List<Found> found, CancellationToken ct, byte[]? pile = null)
     {
         var box = await boxes.GetOrAddAsync(boxCode, ct);
         var clean = found.Where(f => !string.IsNullOrWhiteSpace(f.Title))
             .Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition), Quantity = Math.Max(1, f.Quantity) })
             .ToList();
         clean = await WithYearsAsync(clean, ct);
-        await registration.SaveAsync(box.Id, photoId, clean, ct);
+        var placed = new List<(Item Item, Found Found)>();
+        await registration.SaveAsync(box.Id, photoId, clean, ct, placed);
+        if (pile is not null) await CutOutAsync(pile, placed, ct);
+    }
+
+    // Each thing gets its own picture, cut out of the pile photo where the reader saw it (user 2026-10-31: "there should
+    // be pictures on each item") - no extra AI call, the area came with the reading. A photo of its own is never replaced.
+    private async Task CutOutAsync(byte[] pile, List<(Item Item, Found Found)> placed, CancellationToken ct)
+    {
+        if (photos is null || items is null) return;
+        var done = new List<Item>();
+        foreach (var (item, f) in placed)
+        {
+            if (item.ItemPhoto != "" || f.Area is null) continue;
+            if (await photos.CropAsync(pile, f.Area, ct) is not { } jpeg) continue;
+            var path = Path.Combine("photos", "items", $"{item.Id}.jpg");
+            await photos.SaveAsync(path, jpeg, ct);
+            item.ItemPhoto = path;
+            done.Add(item);
+        }
+        if (done.Count > 0) await items.UpdateAsync(done, ct);
     }
 
     /// <summary>Most comic years asked per photo - GCD is run by volunteers, it is asked gently.</summary>

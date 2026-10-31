@@ -33,7 +33,7 @@ builder.Services.AddKolibri(k =>
         "Log ind med din egen kode (du får den af Martin) – eller med dit kundenummer, hvis Martin har gjort dig til hjælper i Kunder.",
         "Tryk Vælg ved den session, du er med i. Martin starter sessionerne, før I går i gang.",
         "Læg 10-20 ting ud med forsiden op, og tryk 📸 Tag billede. Gentag, til alt har været på et billede. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
-        "Har du taget billederne med telefonens eget kamera? Vælg sessionen, tryk 🖼 Tilføj billeder, du allerede har taget, og vælg dem alle på én gang.",
+        "Har du taget billederne med telefonens eget kamera? Vælg sessionen, tryk Tilføj billeder, du allerede har taget, og vælg dem alle på én gang.",
         "Færdig? Tryk ✓ Færdig med billeder – så er du tilbage ved sessionerne. Billederne er gemt, så snart de er sendt.",
         "Vil du bare prøve, mens ingen session er i gang? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
         "Martin: under Sessioner skriver du sted og/eller formål og trykker Start session – den får selv det næste nummer. Vælg under Til, hvis en session kun er til én hjælper. Tryk Luk, når I er færdige (billederne gemmes). Kun en session uden billeder kan slettes.",

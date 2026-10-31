@@ -38,7 +38,9 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var perKind = await stock.PerKindAsync(ct);
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();
-        return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total);
+        // Subgroups only inside one type or kind - for everything at once they would be too many to read.
+        var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct);
+        return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups);
     }
 
     /// <summary>Today's offers, as the buyer reads them.</summary>
@@ -192,7 +194,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
             return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 ? i.HintKr : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
-                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id));
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), i.Reference);
         }).ToList();
     }
 }

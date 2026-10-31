@@ -21,6 +21,15 @@ public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository
 
     public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct = default) => items.ListedPerKindAsync(ct);
 
+    /// <summary>The subgroups of a kind, from what we have (user 2026-10-31: "make subcategories based on data"): each series
+    /// (or artist/author) with at least 2 things, most first, at most MaxGroups.</summary>
+    public async Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct = default) =>
+        (await items.ListedPerGroupAsync(kinds is { Count: > 0 } ? kinds.Select(Kinds.Normalise).ToList() : null, ct))
+            .Where(g => g.Value >= 2).OrderByDescending(g => g.Value).ThenBy(g => g.Key).Take(MaxGroups)
+            .Select(g => new ShopGroup(g.Key, g.Value)).ToList();
+
+    public const int MaxGroups = 12;
+
     public async Task<StockItemPage?> ItemAsync(int id, CancellationToken ct = default)
     {
         if (await items.GetAsync(id, ct) is not { } item || !Shop.Listed(item)) return null;
@@ -69,7 +78,8 @@ public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository
     {
         if (list.Count == 0) return [];
         var goldList = await gold.AllAsync(ct);
-        return list.Select(i => Shop.View(i, goldList)).ToList();
+        var finds = await prices.FindsForAsync(list.Select(i => i.Id).ToList(), ct);
+        return list.Select(i => Shop.View(i, goldList, finds.TryGetValue(i.Id, out var f) ? Shop.Reference(f) : null)).ToList();
     }
 }
 

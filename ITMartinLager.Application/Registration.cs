@@ -10,7 +10,10 @@ public sealed class RegistrationUseCases(IItemRepository items)
     /// <summary>Same thing in the same condition = one row (in the box, when one is given; anywhere in stock otherwise).
     /// In a box the amount is the most seen in ONE photo - another photo of the same thing is the same copy (user 2026-10-24).
     /// Vareinfo only sends a thing we already have when the person said "+1 eksemplar".</summary>
-    public async Task<(int Added, int Merged)> SaveAsync(int? boxId, int? photoId, IEnumerable<Found> found, CancellationToken ct = default)
+    /// <param name="placed">When given: every saved thing that has no own photo yet, with what was read - so the caller
+    /// can cut its picture out of the pile photo (Intake).</param>
+    public async Task<(int Added, int Merged)> SaveAsync(int? boxId, int? photoId, IEnumerable<Found> found, CancellationToken ct = default,
+        List<(Item Item, Found Found)>? placed = null)
     {
         var list = found.ToList();
         var stock = boxId is { } b ? await items.InBoxAsync(b, ct) : await items.WithTitlesAsync(list.Select(f => f.Title).ToList(), ct);
@@ -25,6 +28,7 @@ public sealed class RegistrationUseCases(IItemRepository items)
             // is more the box number"): what looks like the same thing in the same box is one more copy, even when the
             // condition or a detail was read a little differently.
             var same = stock.FirstOrDefault(i => i.SameAs(f)) ?? (boxId is not null ? stock.FirstOrDefault(i => i.LooksLike(f)) : null);
+            if (same is not null && same.ItemPhoto == "" && f.Area is not null) placed?.Add((same, f));
             if (same is not null)
             {
                 if (before.Contains(same))
@@ -43,6 +47,7 @@ public sealed class RegistrationUseCases(IItemRepository items)
             var item = Item.From(f, boxId, photoId);
             stock.Add(item);
             added.Add(item);
+            if (f.Area is not null) placed?.Add((item, f));
         }
         await items.AddAsync(added, ct);
         await items.UpdateAsync(merged, ct);

@@ -53,10 +53,23 @@ public class StockForSaleTests
     [Test]
     public void Only_unsold_items_off_auction_are_listed()
     {
-        Shop.Listed(new Item { Title = "Mort", Status = Statuses.Lager }).Should().BeTrue();
-        Shop.Listed(new Item { Title = "Mort", Status = Statuses.TilSalg }).Should().BeTrue();
-        Shop.Listed(new Item { Title = "Mort", Status = Statuses.PaaAuktion }).Should().BeFalse();
-        Shop.Listed(new Item { Title = "Mort", Status = Statuses.Solgt }).Should().BeFalse();
+        Shop.Listed(new Item { Title = "Mort", PriceHint = 50, Status = Statuses.Lager }).Should().BeTrue();
+        Shop.Listed(new Item { Title = "Mort", PriceHint = 50, Status = Statuses.TilSalg }).Should().BeTrue();
+        Shop.Listed(new Item { Title = "Mort", PriceHint = 50, Status = Statuses.PaaAuktion }).Should().BeFalse();
+        Shop.Listed(new Item { Title = "Mort", PriceHint = 50, Status = Statuses.Solgt }).Should().BeFalse();
+        Shop.Listed(new Item { Title = "Mort", Status = Statuses.Lager }).Should().BeFalse("no price yet - not on bogshoppen.dk");
+    }
+
+    [Test]
+    public void Reference_is_the_cheapest_used_exact_listing_never_ebay_else_a_similar_one()
+    {
+        Shop.Reference([
+            new PriceFind { Source = "eBay", Kr = 5, Url = "https://e/1" },
+            new PriceFind { Source = "DBA", Kr = 60, Url = "https://dba/1" }, new PriceFind { Source = "Nemos", Kr = 40, Url = "https://n/1" },
+            new PriceFind { Source = "Faraos", Kr = 20, Url = "https://f/1", IsNew = true },
+        ])!.Url.Should().Be("https://n/1");
+        Shop.Reference([new PriceFind { Source = "DBA", Kr = 30, Url = "https://dba/2", Similar = true }])!.Url.Should().Be("https://dba/2");
+        Shop.Reference([new PriceFind { Source = "eBay", Kr = 30, Url = "https://e/2" }]).Should().BeNull();
     }
 
     [Test]

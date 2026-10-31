@@ -36,6 +36,8 @@ public interface IItemRepository
     Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct);
     /// <summary>Things for sale per kind.</summary>
     Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct);
+    /// <summary>Things for sale of these kinds (null = all) per series - or artist/author when there is no series.</summary>
+    Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct);
     Task<List<Item>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct);
     Task<int> UnitsAsync(CancellationToken ct);
     Task AddAsync(IEnumerable<Item> items, CancellationToken ct);
@@ -63,6 +65,8 @@ public interface IPriceRepository
     Task ReplaceAsync(int itemId, IEnumerable<PriceCheck> checks, IEnumerable<PriceFind> finds, CancellationToken ct);
     /// <summary>The dearest find per item.</summary>
     Task<Dictionary<int, PriceFind>> TopFindsAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct);
+    /// <summary>All finds of these items, per item.</summary>
+    Task<Dictionary<int, List<PriceFind>>> FindsForAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct);
 }
 
 public interface IBookCheckRepository
