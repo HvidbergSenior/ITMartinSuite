@@ -92,6 +92,9 @@ public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOn
     public int MaxSingleKr => Steps[0].Kr / Steps[0].Count;
 }
 
+/// <summary>One price range in the price search: Key in the URL, Name on the button.</summary>
+public sealed record ShopPriceBand(string Key, string Name, int From, int? Below);
+
 /// <summary>The deals as their own categories (user 2026-10-31, "lets say 50 and 100 kr. Books 2 for 50 5 for 100. Anders
 /// and and basserne and similar 4 for 50 10 for 100. Dvd 4 for 50 10 for 100"): the things of these kinds without a price
 /// or priced at or under the deal's MaxSingleKr, unless gold, silver or bronze. Which thing is in which deal is Lager's rule
@@ -118,6 +121,13 @@ public static class ShopDeals
     public const string NoPrice = "uden-pris";
     public const string NoPriceName = "Ingen pris endnu";
 
+    /// <summary>Price search (user 2026-10-31: "price seacrh like 10 - 29 30-49 50-99 99+"): own-priced things (no deal)
+    /// from From kr up to under Below kr (null = no top).</summary>
+    public static readonly IReadOnlyList<ShopPriceBand> Prices =
+        [new("10-29", "10-29 kr", 10, 30), new("30-49", "30-49 kr", 30, 50), new("50-99", "50-99 kr", 50, 100), new("100+", "100 kr og op", 100, null)];
+
+    public static ShopPriceBand? PriceBand(string? key) => Prices.FirstOrDefault(p => p.Key == key);
+
     /// <summary>A band Lager knows, else null (= everything).</summary>
-    public static string? Band(string? band) => band is Single or NoPrice || Named(band) is not null ? band : null;
+    public static string? Band(string? band) => band is Single or NoPrice || Named(band) is not null || PriceBand(band) is not null ? band : null;
 }

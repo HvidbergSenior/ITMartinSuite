@@ -35,6 +35,17 @@
                 }
             </div>
         }
+        @* Price search (user 2026-10-31: "price seacrh like 10 - 29 30-49 50-99 99+") - own prices; deals have their own buttons. *@
+        @if (ShopDeals.Named(_type) is null && _type != ShopDeals.NoPriceName)
+        {
+            <div class="bs-filter bs-prices" role="group" aria-label="Vælg pris">
+                <button class="k-btn k-btn-sm @(_price == "" ? "is-on" : "")" aria-pressed="@(_price == "")" @onclick='() => PickPrice("")'>Alle priser</button>
+                @foreach (var p in ShopDeals.Prices)
+                {
+                    <button class="k-btn k-btn-sm @(_price == p.Key ? "is-on" : "")" aria-pressed="@(_price == p.Key)" @onclick="() => PickPrice(p.Key)">@p.Name</button>
+                }
+            </div>
+        }
         <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
             <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="Søg, fx Barnaby eller Storm P" @bind="_text" />
             <button class="k-btn k-btn-primary" type="submit">Søg</button>
@@ -122,7 +133,7 @@
     private ShopMarket? _market;
     private readonly List<ShopItem> _items = [];
     private string? _error;
-    private string _type = "", _text = "";
+    private string _type = "", _text = "", _price = "";
     private int _page;      // Salg counts pages from 0 (page 1 skipped the first 33 - "cannot search", 2026-10-29)
     private bool _loading;
 
@@ -162,7 +173,8 @@
             .Take(6).ToList();
     }
 
-    private Task Pick(string type) { _type = type; _text = ""; return Load(reset: true); }
+    private Task Pick(string type) { _type = type; _text = ""; if (ShopDeals.Named(type) is not null || type == ShopDeals.NoPriceName) _price = ""; return Load(reset: true); }
+    private Task PickPrice(string key) { _price = key; return Load(reset: true); }
     // A subgroup is a search for its name inside the chosen type; the same chip again shows the whole type.
     private Task PickGroup(string name) { _text = _text == name ? "" : name; return Load(reset: true); }
     private Task Search() => Load(reset: true);
@@ -172,7 +184,7 @@
     {
         _loading = true;
         if (reset) _page = 0;
-        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, null, _page);
+        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, null, _page, price: _price == "" ? null : _price);
         _loading = false;
         _error = error;
         if (market is null) return;

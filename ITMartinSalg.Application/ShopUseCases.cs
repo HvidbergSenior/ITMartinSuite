@@ -29,16 +29,20 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     /// <summary>The marketplace (user 2026-10-20: "a place where they easily can see products in different categories"):
     /// the product types with how much is for sale in each, today's offers, and one page of things - of one type, one
     /// kind or everything, matching the search.</summary>
-    public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default)
+    public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
+        string? price = null)
     {
         // Each deal and "Ingen pris endnu" are categories of their own across every kind (ShopDeals, user 2026-10-31); a
         // product type shows only its priced things outside the deals. Alle (no type) = everything.
         var band = ShopDeals.Named(type)?.Name ?? (type == ShopDeals.NoPriceName ? ShopDeals.NoPrice : ShopDeals.Single);
         var across = band != ShopDeals.Single;
+        // A price band (ShopDeals.Prices) narrows the own-priced things - not a deal or Ingen pris endnu.
+        var priced = !across && ShopDeals.PriceBand(price) is not null;
+        if (priced) band = price!;
         IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
             : !across && !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
         var found = await stock.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),
-            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct, kinds is null && !across ? null : band);
+            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct, kinds is null && !across && !priced ? null : band);
         var perKind = await stock.PerKindAsync(ct, ShopDeals.Single);
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();

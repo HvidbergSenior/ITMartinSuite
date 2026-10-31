@@ -56,10 +56,11 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
         return await res.Content.ReadFromJsonAsync<ShopOrder>(ct);
     }
 
-    public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default)
+    public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
+        string? price = null)
     {
         static string E(string? s) => Uri.EscapeDataString(s ?? "");
-        return (await http.GetFromJsonAsync<ShopMarket>($"/api/butik/marked?type={E(type)}&art={E(kind)}&brugt={E(usage)}&q={E(text)}&sort={E(sort)}&side={page}", ct))!;
+        return (await http.GetFromJsonAsync<ShopMarket>($"/api/butik/marked?type={E(type)}&art={E(kind)}&brugt={E(usage)}&q={E(text)}&sort={E(sort)}&side={page}&pris={E(price)}", ct))!;
     }
 
     private sealed record BasketIds(IReadOnlyList<int> ItemIds);

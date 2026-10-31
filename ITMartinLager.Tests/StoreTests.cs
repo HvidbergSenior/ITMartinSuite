@@ -70,6 +70,22 @@ public class StoreTests
     }
 
     [Test]
+    public async Task Price_bands_are_own_prices_from_up_to_under()
+    {
+        var box = await Boxes.AddNextAsync("Loppemarked", default);
+        await Registration.SaveAsync(box.Id, null, [Aa("12", 1968) with { PriceHint = 5 }, Aa("13", 1968) with { PriceHint = 29 },
+            Aa("14", 1968) with { PriceHint = 30 }, Aa("16", 1968) with { PriceHint = 100 }]);
+        var all = await Items.AllListedAsync(default);
+        foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, []); }
+        await Items.UpdateAsync(all, default);
+        string[] Numbers(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Number).ToArray();
+        Numbers("10-29").Should().Equal("13");
+        Numbers("30-49").Should().Equal("14");
+        Numbers("50-99").Should().BeEmpty();
+        Numbers("100+").Should().Equal("16");
+    }
+
+    [Test]
     public async Task Boxes_are_numbered_K0001_K0002()
     {
         (await Boxes.AddNextAsync("Garagen", default)).Code.Should().Be("K0001");
