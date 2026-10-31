@@ -184,7 +184,7 @@
     {
         _loading = true;
         if (reset) _page = 0;
-        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, null, _page, price: _price == "" ? null : _price);
+        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, ShopSorts.Title, _page, price: _price == "" ? null : _price);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
         _loading = false;
         _error = error;
         if (market is null) return;
