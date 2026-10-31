@@ -54,6 +54,16 @@ public class StoreTests
     }
 
     [Test]
+    public async Task The_cheap_things_are_their_own_batch()
+    {
+        var box = await Boxes.AddNextAsync("Loppemarked", default);
+        await Registration.SaveAsync(box.Id, null, [Aa("12", 1968) with { PriceHint = 5 }, Aa("13", 1968) with { PriceHint = 25 }]);
+        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.Batch)).Page.Single().PriceHint.Should().Be(5);
+        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.Single)).Page.Single().PriceHint.Should().Be(25);
+        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default)).Total.Should().Be(2);
+    }
+
+    [Test]
     public async Task Boxes_are_numbered_K0001_K0002()
     {
         (await Boxes.AddNextAsync("Garagen", default)).Code.Should().Be("K0001");

@@ -12,12 +12,12 @@ public static class StockApi
     {
         var api = app.MapGroup("/api/salg");
 
-        api.MapGet("/varer", async (string[]? art, string? brugt, string? q, string? sort, int? fra, int? antal, StockForSaleUseCases stock) =>
-            await stock.ListedAsync(art, brugt, q, sort, fra ?? 0, antal ?? 60));
+        api.MapGet("/varer", async (string[]? art, string? brugt, string? q, string? sort, int? fra, int? antal, string? bundt, StockForSaleUseCases stock) =>
+            await stock.ListedAsync(art, brugt, q, sort, fra ?? 0, antal ?? 60, bundt));
 
-        api.MapGet("/arter", async (StockForSaleUseCases stock) => await stock.PerKindAsync());
+        api.MapGet("/arter", async (string? bundt, StockForSaleUseCases stock) => await stock.PerKindAsync(bundt));
 
-        api.MapGet("/grupper", async (string[]? art, StockForSaleUseCases stock) => await stock.GroupsAsync(art));
+        api.MapGet("/grupper", async (string[]? art, string? bundt, StockForSaleUseCases stock) => await stock.GroupsAsync(art, bundt));
 
         api.MapGet("/varer/{id:int}", async (int id, StockForSaleUseCases stock) =>
             await stock.ItemAsync(id) is { } page ? Results.Ok(page) : Results.NotFound());

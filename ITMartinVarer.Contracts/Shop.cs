@@ -77,3 +77,18 @@ public static class ShopSorts
     public const string Newest = "nyeste", Cheapest = "billigst", Dearest = "dyrest", Title = "titel";
     public static readonly string[] All = [Newest, Cheapest, Dearest, Title];
 }
+
+/// <summary>The cheap things as one batch (user 2026-10-31: "under 10 kr should be in one category like 10 for 20 kr...
+/// like a batch... or maybe 10 for 30"): everything priced under UnderKr is sold as Count for Kr, in its own category.
+/// Band = which part of the stock a list shows: Batch (only those), Single (all others), or null (everything).</summary>
+public static class ShopBatch
+{
+    public const int UnderKr = 10;
+    public const int Count = 10;
+    public const int Kr = 30;
+    public const string Name = "10 for 30 kr";
+    public const string Batch = "batch";
+    public const string Single = "enkelt";
+
+    public static bool In(int? kr) => kr is > 0 and < UnderKr;
+}

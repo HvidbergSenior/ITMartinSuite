@@ -12,11 +12,12 @@ public interface IStockGateway
     string PublicBase { get; }
     /// <summary>Things for sale of these kinds (null = all), new or used (null = both), every word in the search text,
     /// sorted (ShopSorts), one page.</summary>
-    Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct);
+    Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
+        string? band = null);
     /// <summary>Things for sale per kind.</summary>
-    Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct);
+    Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null);
     /// <summary>Subgroups (series, artist) of these kinds with at least 2 things.</summary>
-    Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct);
+    Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null);
     /// <summary>Null = not for sale (sold, on an auction, gone).</summary>
     Task<StockItemPage?> ItemAsync(int id, CancellationToken ct);
     /// <summary>The ones of these that are for sale.</summary>

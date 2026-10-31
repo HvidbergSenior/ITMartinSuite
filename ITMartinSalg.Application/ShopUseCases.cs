@@ -31,15 +31,20 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     /// kind or everything, matching the search.</summary>
     public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default)
     {
+        // "10 for 30 kr" is its own category: the cheap things there, and only there (ShopBatch, user 2026-10-31).
+        var batch = type == ShopBatch.Name;
+        var band = batch ? ShopBatch.Batch : ShopBatch.Single;
         IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
-            : !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
+            : !batch && !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
         var found = await stock.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),
-            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct);
-        var perKind = await stock.PerKindAsync(ct);
+            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct, band);
+        var perKind = await stock.PerKindAsync(ct, ShopBatch.Single);
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();
+        var cheap = (await stock.PerKindAsync(ct, ShopBatch.Batch)).Values.Sum();
+        if (cheap > 0) types.Add(new ShopType(ShopBatch.Name, cheap));
         // Subgroups only inside one type or kind - for everything at once they would be too many to read.
-        var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct);
+        var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct, band);
         return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups);
     }
 

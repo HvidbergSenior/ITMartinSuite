@@ -13,17 +13,18 @@ public sealed class LagerStockLink(HttpClient http, IConfiguration cfg) : IStock
 
     private static string E(string? s) => Uri.EscapeDataString(s ?? "");
 
-    public async Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct)
+    public async Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
+        string? band = null)
     {
         var art = string.Concat((kinds ?? []).Select(k => "&art=" + E(k)));
-        return await GetAsync<StockPage>($"/api/salg/varer?q={E(text)}&brugt={E(usage)}&sort={E(sort)}&fra={skip}&antal={take}{art}", ct) ?? new StockPage([], 0);
+        return await GetAsync<StockPage>($"/api/salg/varer?q={E(text)}&brugt={E(usage)}&sort={E(sort)}&fra={skip}&antal={take}{art}&bundt={E(band)}", ct) ?? new StockPage([], 0);
     }
 
-    public async Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct) =>
-        await GetAsync<Dictionary<string, int>>("/api/salg/arter", ct) ?? [];
+    public async Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null) =>
+        await GetAsync<Dictionary<string, int>>("/api/salg/arter?bundt=" + E(band), ct) ?? [];
 
-    public async Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct) =>
-        await GetAsync<List<ShopGroup>>("/api/salg/grupper?" + string.Join("&", kinds.Select(k => "art=" + E(k))), ct) ?? [];
+    public async Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null) =>
+        await GetAsync<List<ShopGroup>>("/api/salg/grupper?bundt=" + E(band) + string.Concat(kinds.Select(k => "&art=" + E(k))), ct) ?? [];
 
     public Task<StockItemPage?> ItemAsync(int id, CancellationToken ct) => GetAsync<StockItemPage>($"/api/salg/varer/{id}", ct);
 

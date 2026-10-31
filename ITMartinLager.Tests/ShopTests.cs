@@ -94,10 +94,10 @@ public class StockForSaleTests
         await Add("Heat", 60, price: 75, kind: Kinds.Dvd);
         var stock = Make();
 
-        var page = await stock.ListedAsync(null, null, null, ShopSorts.Title, 0, 10);
+        var page = await stock.ListedAsync(null, null, null, ShopSorts.Title, 0, 10, null);
         page.Total.Should().Be(2);
         page.Items.Select(i => (i.Title, i.PriceKr, i.HintKr)).Should().Equal(("Heat", 75, 60), ("Mort", null, 90));
-        (await stock.ListedAsync([Kinds.Dvd], null, null, null, 0, 10)).Items.Single().Title.Should().Be("Heat");
+        (await stock.ListedAsync([Kinds.Dvd], null, null, null, 0, 10, null)).Items.Single().Title.Should().Be("Heat");
         (await stock.PerKindAsync()).Should().BeEquivalentTo(new Dictionary<string, int> { [Kinds.Bog] = 1, [Kinds.Dvd] = 1 });
         (await stock.ByIdsAsync([mort.Id, 999])).Single().Id.Should().Be(mort.Id);
     }
@@ -141,7 +141,7 @@ public class StockForSaleTests
         m.Note.Should().Contain("i butikken for 50 kr (ordre 1)");
         var h = (await Items.GetAsync(heat.Id, default))!;
         (h.Status, h.SoldPrice, h.SoldTo).Should().Be((Statuses.Solgt, 60m, "Anna"));
-        (await stock.ListedAsync(null, null, "heat", null, 0, 10)).Items.Should().BeEmpty();
+        (await stock.ListedAsync(null, null, "heat", null, 0, 10, null)).Items.Should().BeEmpty();
     }
 }
 

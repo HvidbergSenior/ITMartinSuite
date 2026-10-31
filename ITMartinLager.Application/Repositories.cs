@@ -33,11 +33,12 @@ public interface IItemRepository
     Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct);
     /// <summary>The marketplace: things for sale (Shop.Listed) of these kinds (null = all), new or used (null = both), every word in the search
     /// text, sorted (ShopSorts), one page; and how many match in all.</summary>
-    Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct);
+    Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
+        string? band = null);
     /// <summary>Things for sale per kind.</summary>
-    Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct);
+    Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct, string? band = null);
     /// <summary>Things for sale of these kinds (null = all) per series - or artist/author when there is no series.</summary>
-    Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct);
+    Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null);
     Task<List<Item>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct);
     Task<int> UnitsAsync(CancellationToken ct);
     Task AddAsync(IEnumerable<Item> items, CancellationToken ct);

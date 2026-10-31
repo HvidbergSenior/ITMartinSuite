@@ -36,7 +36,8 @@ public sealed class FakeStock : IStockGateway
 
     private void Check() { if (Down) throw new SalgException("Lageret svarer ikke lige nu. Prøv igen om lidt."); }
 
-    public Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct)
+    public Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
+        string? band = null)
     {
         Check();
         var q = Items.Where(i => (kinds is null || kinds.Contains(i.Kind)) && (usage is null || i.Usage == usage)
@@ -52,9 +53,9 @@ public sealed class FakeStock : IStockGateway
         return Task.FromResult(new StockPage(all.Skip(skip).Take(take).ToList(), all.Count));
     }
 
-    public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct) =>
+    public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null) => band == ShopBatch.Batch ? Task.FromResult(new Dictionary<string, int>()) :
         Task.FromResult(Items.GroupBy(i => i.Kind).ToDictionary(g => g.Key, g => g.Count()));
-    public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct) => Task.FromResult(new List<ShopGroup>());
+    public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null) => Task.FromResult(new List<ShopGroup>());
 
     public Task<StockItemPage?> ItemAsync(int id, CancellationToken ct) =>
         Task.FromResult(Items.FirstOrDefault(i => i.Id == id) is { } i ? new StockItemPage(i, [new ShopProof("DBA", 95, "95 kr", "https://dba.dk/1", false)]) : null);
