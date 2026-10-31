@@ -144,6 +144,30 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         await orders.UpdateAsync(order, ct);
     }
 
+    // The loppemarked (user 2026-10-31: "on salg I ONLY need a way to make a sale so that it will disappear in produkter and
+    // be registered with price").
+
+    /// <summary>The things for sale that match, A-Z - what is on bogshoppen.dk/produkter.</summary>
+    public async Task<List<StockItem>> FindForSaleAsync(string text, CancellationToken ct = default) =>
+        text.Trim().Length < 2 ? [] : (await stock.ListedAsync(null, null, text.Trim(), ShopSorts.Title, 0, 20, ct)).Items;
+
+    /// <summary>Sold at the market for kr: saved as a done sale and Lager is told at once (the last copy = Solgt, gone from
+    /// the products). If Lager does not answer, the job tells it again - the sale is saved first.</summary>
+    public async Task<Order> SellAtMarketAsync(int itemId, int kr, CancellationToken ct = default)
+    {
+        var item = (await stock.ByIdsAsync([itemId], ct)).FirstOrDefault() ?? throw new SalgException("Varen findes ikke længere – måske er den solgt.");
+        Order order;
+        try { order = Order.AtMarket(item, kr, Now); }
+        catch (InvalidOperationException ex) { throw new SalgException(ex.Message); }
+        await orders.AddAsync(order, ct);
+        await CheckAsync(order, ct);
+        return order;
+    }
+
+    /// <summary>The market sales, newest first.</summary>
+    public async Task<List<Order>> MarketSalesAsync(CancellationToken ct = default) =>
+        (await orders.RecentAsync(500, ct)).Where(o => o.Channel == SaleChannels.Market).ToList();
+
     private async Task<bool> CheckAsync(Order order, CancellationToken ct)
     {
         var changed = false;

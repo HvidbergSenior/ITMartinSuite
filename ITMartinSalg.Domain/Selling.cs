@@ -85,6 +85,21 @@ public sealed class Order
         };
     }
 
+    /// <summary>A sale at the loppemarked (user 2026-10-31: "on salg I ONLY need a way to make a sale so that it will disappear
+    /// in produkter and be registered with price"): paid in cash and taken there and then - so it is done at once, and Lager
+    /// is told like for any paid order. Kr = what it was sold for. Throws without a price or when nothing is left.</summary>
+    public static Order AtMarket(StockItem item, int kr, DateTime now)
+    {
+        if (kr <= 0) throw new InvalidOperationException("Skriv prisen, den blev solgt for.");
+        if (item.Quantity <= 0) throw new InvalidOperationException("Den er allerede solgt.");
+        return new Order
+        {
+            ItemId = item.Id, Line = item.Line, Kr = kr, PaidKr = kr, Channel = SaleChannels.Market, Delivery = SaleChannels.Market,
+            Status = OrderStatuses.PickedUp, CreatedAt = now, ExpiresAt = now, PaidAt = now, DoneAt = now,
+            Lines = [new OrderLine { ItemId = item.Id, Line = item.Line, Kind = item.Kind, Usage = item.Usage, ListKr = item.PriceKr ?? item.HintKr ?? kr, Kr = kr }],
+        };
+    }
+
     /// <summary>Paid: the buyer's details are kept. The copies leave the stock when Lager books Sale().</summary>
     public void Pay(PaymentState s, DateTime utcNow)
     {
@@ -97,7 +112,9 @@ public sealed class Order
 
     /// <summary>What Lager is told when it is paid: one copy per line, with what the item's note should say.</summary>
     public StockSale Sale() => new(Token, Name != "" ? Name : Email,
-        Lines.Select(l => new StockSaleLine(l.ItemId, l.Kr, $"i butikken for {l.Kr} kr (ordre {Id}{(l.Offer != "" ? ", " + l.Offer : "")})")).ToList());
+        Lines.Select(l => new StockSaleLine(l.ItemId, l.Kr, Channel == SaleChannels.Market
+            ? $"på loppemarkedet for {l.Kr} kr (salg {Id})"
+            : $"i butikken for {l.Kr} kr (ordre {Id}{(l.Offer != "" ? ", " + l.Offer : "")})")).ToList());
 
     /// <summary>Paid and Lager does not know yet.</summary>
     public bool NeedsBooking => Paid && !StockBooked;

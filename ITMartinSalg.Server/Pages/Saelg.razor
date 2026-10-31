@@ -1,0 +1,92 @@
+@page "/"
+@page "/saelg"
+@inject ShopUseCases Shop
+
+@* The loppemarked (user 2026-10-31: "on salg I ONLY need a way to make a sale so that it will disappear in produkter and be
+   registered with price"): find it, write what it went for, Solgt. The price field starts at the market price - 25 % off
+   ("tomorrow on the market it will be 75 pct no matter which product"). The rules are on Order.AtMarket (Domain). *@
+<PageTitle>Sælg – Bogshoppen Salg</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Sælg</h1>
+    <p>Søg varen, ret prisen hvis I har lavet en handel, og tryk <b>Solgt</b>. Så forsvinder den fra produkterne på bogshoppen.dk, og salget står herunder med prisen.</p>
+    <p class="k-help">Prisfeltet starter med markedsprisen: 25 % under prisen på bogshoppen.dk.</p>
+    <form class="lg-row" @onsubmit="Find" @onsubmit:preventDefault>
+        <input class="k-input lg-search" type="search" placeholder="Titel, serie, nummer ..." @bind="_q" aria-label="Søg varen" />
+        <button class="k-btn k-btn-primary lg-big" type="submit">Søg</button>
+    </form>
+    @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+    @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+    @if (_hits is not null)
+    {
+        @if (_hits.Count == 0) { <p>Intet fundet. Prøv færre ord, fx kun nummeret eller et ord fra titlen.</p> }
+        <ul class="lg-list">
+            @foreach (var i in _hits)
+            {
+                <li class="lg-order">
+                    <span class="lg-main">
+                        <b>@i.Line</b>
+                        <span class="k-small">@i.Kind@(i.Condition != "" ? $" · {i.Condition}" : "")@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "") · @(Price(i) is { } p ? $"pris {p} kr" : "ingen pris endnu")</span>
+                    </span>
+                    <span class="lg-sell">
+                        <input class="k-input lg-kr" type="number" inputmode="numeric" min="1" @bind="_kr[i.Id]" aria-label="Solgt for kr – @i.Line" /> kr
+                        <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="() => Sell(i)">Solgt</button>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Solgt i dag (@Today.Count)</h2>
+    <p class="lg-total">I alt @Today.Sum(o => o.Kr) kr</p>
+    @if (Today.Count == 0) { <p class="k-help">Intet solgt endnu i dag.</p> }
+    <ul class="lg-list">
+        @foreach (var o in Today)
+        {
+            <li class="lg-order">
+                <span class="lg-main">
+                    <b>@o.Line – @o.Kr kr</b>
+                    <span class="k-small">@o.CreatedAt.ToLocalTime().ToString("HH:mm")@(o.StockBooked ? "" : " · ⚠ Lageret har ikke fået besked endnu – det prøves igen hvert minut")</span>
+                </span>
+            </li>
+        }
+    </ul>
+</section>
+
+@code {
+    private string _q = "";
+    private List<StockItem>? _hits;
+    private readonly Dictionary<int, int?> _kr = [];
+    private List<Order> _sales = [];
+    private string? _error, _msg;
+    private bool _busy;
+
+    private List<Order> Today => _sales.Where(o => o.CreatedAt.ToLocalTime().Date == DateTime.Now.Date).ToList();
+
+    private static int? Price(StockItem i) => i.PriceKr ?? i.HintKr;
+
+    protected override async Task OnInitializedAsync() => _sales = await Shop.MarketSalesAsync();
+
+    private async Task Find()
+    {
+        (_error, _msg) = (null, null);
+        _hits = await Shop.FindForSaleAsync(_q);
+        foreach (var i in _hits) _kr.TryAdd(i.Id, Price(i) is { } p ? Math.Max(1, (int)Math.Round(p * 0.75)) : null);
+    }
+
+    private async Task Sell(StockItem i)
+    {
+        (_error, _msg, _busy) = (null, null, true);
+        try
+        {
+            var o = await Shop.SellAtMarketAsync(i.Id, _kr.GetValueOrDefault(i.Id) ?? 0);
+            _msg = $"Solgt: {o.Line} for {o.Kr} kr.";
+            _sales = await Shop.MarketSalesAsync();
+            _hits = await Shop.FindForSaleAsync(_q);
+        }
+        catch (SalgException ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+}

@@ -25,3 +25,9 @@
     .k-header-actions { margin-left: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
     .k-header-actions .k-btn { white-space: nowrap; flex: none; }
 }
+
+/* Sælg (2026-10-31): search, the price it went for, Solgt - big targets for a phone at the market stand. */
+.lg-search { font-size: 1.2rem; padding: .7rem .8rem; flex: 1 1 14rem; }
+.lg-sell { display: flex; gap: .4rem; align-items: center; }
+.lg-kr { width: 6.5rem; font-size: 1.15rem; }
+.lg-total { font-size: 1.15rem; font-weight: 700; }

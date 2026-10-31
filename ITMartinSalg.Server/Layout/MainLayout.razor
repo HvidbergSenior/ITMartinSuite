@@ -4,10 +4,10 @@
 @* Salg = the selling side (2026-10-21 split): the orders and the day offers. The stock itself is in Lager. *@
 <KolibriHeader>
     @* Like ElPriser (2026-10-31 "fix css / template"): NavLink = the open tab is filled, words only (no AI emojis). *@
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Ordrer</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/tilbud">Tilbud</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/interesse">Interesse</NavLink>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="@Shop.LagerBase">Lager</a>
+    @* Sælg first (user 2026-10-31 "on salg I ONLY need a way to make a sale"); Tilbud and Interesse are off the menu (deals
+       are made at the stand - "only regular prices"), their pages still answer. *@
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Sælg</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/ordrer">Ordrer</NavLink>
     <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
 </KolibriHeader>
 <div class="k-main"><div class="k-content">
