@@ -265,13 +265,8 @@ window.photoQueue = {
         if (!this.cam.stream) return;
         var blob = null;
         if (this.cam.capture) { try { blob = await this.cam.capture.takePhoto(); } catch (e) { blob = null; } }
-        if (!blob && video.videoWidth > 0) {
-            var c = document.createElement("canvas");
-            c.width = video.videoWidth; c.height = video.videoHeight;
-            c.getContext("2d").drawImage(video, 0, 0);
-            blob = await new Promise(function (r) { c.toBlob(r, "image/jpeg", 0.92); });
-        }
-        if (!blob) { note.textContent = "⚠ Billedet blev ikke taget – prøv igen."; return; }
+        if (!blob) blob = await this.grab(video);
+        if (!blob) { this.useOwnCamera(note); return; }
         // How big did it come out? Small = the AI cannot read titles: say so at once.
         var size = "";
         var small = false;
@@ -283,6 +278,45 @@ window.photoQueue = {
             ? "⚠ Billedet blev lille (" + size + ") – titlerne kan måske ikke læses. Gå tættere på, eller brug »Brug telefonens kamera« nedenfor."
             : "✓ " + this.cam.taken + " billede" + (this.cam.taken === 1 ? "" : "r") + " taget" + (size ? " (" + size + ")" : "") + ". Læg de næste ting ud og tag det næste.";
         await this.add(blob, this.cam.url, this.cam.fields);
+    },
+
+    // A still from the video (iPhone Safari has no ImageCapture). 2026-10-31: Vibeke's iPhone said "Billedet blev ikke
+    // taget" every time in her øvesession - the video had no frame yet (play refused, or iOS stopped the camera while
+    // the app was in the background), and a full-size canvas can come back empty on iPhone. So: start the camera again
+    // if it was stopped, wait up to 2 s for a frame, and keep the still at most 4096 px.
+    async grab(video) {
+        var track = this.cam.stream && this.cam.stream.getVideoTracks()[0];
+        if (track && track.readyState === "ended" && track.getSettings) {
+            try { await this.switchLens(track.getSettings().deviceId); } catch (e) { }
+        }
+        if (video.paused) { try { await video.play(); } catch (e) { } }
+        for (var waited = 0; video.videoWidth === 0 && waited < 2000; waited += 100)
+            await new Promise(function (r) { setTimeout(r, 100); });
+        if (video.videoWidth === 0) return null;
+        var sides = [4096, 2048];
+        for (var i = 0; i < sides.length; i++) {
+            var scale = Math.min(1, sides[i] / Math.max(video.videoWidth, video.videoHeight));
+            var c = document.createElement("canvas");
+            c.width = Math.round(video.videoWidth * scale); c.height = Math.round(video.videoHeight * scale);
+            c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+            var blob = await new Promise(function (r) { c.toBlob(r, "image/jpeg", 0.92); });
+            c.width = c.height = 0;   // iPhone keeps canvas memory until told
+            if (blob) return blob;
+        }
+        return null;
+    },
+
+    // The in-page camera gave no picture: say so, and put the phone's own camera right under the words.
+    useOwnCamera(note) {
+        note.textContent = "⚠ Kameraet inde i siden gav ikke et billede på denne telefon. Brug telefonens eget kamera i stedet – billederne kommer med i samme session. ";
+        var own = document.querySelector("label.lg-camera input[capture]");
+        if (!own) return;
+        var label = document.createElement("label");
+        label.className = "k-btn k-btn-primary lg-big";
+        label.textContent = "📷 Brug telefonens kamera";
+        var input = own.cloneNode(true);
+        label.appendChild(input);
+        note.appendChild(label);
     },
 
     // Why the in-page camera did not start, in words a helper can act on (2026-10-29: Vibeke, iPhone, Vareinfo as a
