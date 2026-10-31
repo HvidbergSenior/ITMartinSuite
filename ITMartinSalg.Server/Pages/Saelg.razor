@@ -26,7 +26,7 @@
                 <li class="lg-order">
                     <span class="lg-main">
                         <b>@i.Line</b>
-                        <span class="k-small">@i.Kind@(i.Condition != "" ? $" · {i.Condition}" : "")@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "") · @(Price(i) is { } p ? $"pris {p} kr" : "ingen pris endnu")</span>
+                        <span class="k-small">@i.Kind@(i.Condition != "" ? $" · {i.Condition}" : "")@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "") · @(Price(i) is { } p ? $"pris {p} kr · markedspris {Market(p)} kr" : "ingen pris endnu")</span>
                     </span>
                     <span class="lg-sell">
                         <input class="k-input lg-kr" type="number" inputmode="numeric" min="1" @bind="_kr[i.Id]" aria-label="Solgt for kr – @i.Line" /> kr
@@ -67,13 +67,16 @@
 
     private static int? Price(StockItem i) => i.PriceKr ?? i.HintKr;
 
+    /// <summary>25 % off at the market (pay 75 %), whole kroner.</summary>
+    private static int Market(int kr) => Math.Max(1, (int)Math.Round(kr * 0.75));
+
     protected override async Task OnInitializedAsync() => _sales = await Shop.MarketSalesAsync();
 
     private async Task Find()
     {
         (_error, _msg) = (null, null);
         _hits = await Shop.FindForSaleAsync(_q);
-        foreach (var i in _hits) _kr.TryAdd(i.Id, Price(i) is { } p ? Math.Max(1, (int)Math.Round(p * 0.75)) : null);
+        foreach (var i in _hits) _kr.TryAdd(i.Id, Price(i) is { } p ? Market(p) : null);
     }
 
     private async Task Sell(StockItem i)

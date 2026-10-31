@@ -80,6 +80,8 @@
                         else if ((i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is { } kr)
                         {
                             <p class="bs-shop-price"><b>@kr kr</b>@if (i.DayKr is not null && i.BuyNowKr is { } was) { <s>@was kr</s> }</p>
+                            @* The market price as text (user 2026-10-31: "put the 75 price on as text"). *@
+                            @if (MarketNotice.On) { <p class="bs-shop-market">På loppemarkedet søndag: <b>@MarketNotice.MarketKr(kr) kr</b></p> }
                         }
                         else
                         {

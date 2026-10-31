@@ -855,3 +855,4 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* Loppemarked notice (2026-10-31): stands out by a thick border and words, not colour alone (user is a bit colour-blind). */
 .hj-market { border: 3px solid var(--k-text); }
 .hj-market .k-card-title { font-size: 1.2rem; }
+.bs-shop-market { margin: 0; font-size: 1rem; }

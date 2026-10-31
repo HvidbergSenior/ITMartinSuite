@@ -19,6 +19,12 @@
 
     private static readonly DateOnly MarketDay = new(2026, 11, 1);
 
+    /// <summary>Until the market day is over: the cards also show the market price.</summary>
+    public static bool On => Day is not null;
+
+    /// <summary>The market price: 25 % off (pay 75 %), whole kroner.</summary>
+    public static int MarketKr(int kr) => Math.Max(1, (int)Math.Round(kr * 0.75));
+
     private static string? Day
     {
         get
