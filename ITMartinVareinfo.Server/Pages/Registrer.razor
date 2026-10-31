@@ -93,13 +93,11 @@ else
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
                 <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
             </label>
-            @if (Me.IsAdmin)
-            {
-            <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Vælg billeder fra telefonen
-                <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
-            </label>
-            }
         </div>
+        @* User 2026-10-31: take photos with the phone's own camera first, add them to the session later - many at once. *@
+        <label class="k-btn k-btn-secondary lg-big lg-camera">🖼 Tilføj billeder, du allerede har taget
+            <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
+        </label>
     </section>
 
     @* Barcodes are not a helper's job (user 2026-10-26: "hide stregkoder for helper... something that can be done
