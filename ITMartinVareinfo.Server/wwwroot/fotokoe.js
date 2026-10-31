@@ -358,9 +358,19 @@ window.photoQueue = {
 document.addEventListener("change", function (e) {
     var input = e.target;
     if (!input.matches || !input.matches("input[type=file][data-photo-url]")) return;
-    var fields = JSON.parse(input.dataset.fields || "{}");
-    Array.prototype.slice.call(input.files || []).forEach(function (f) { photoQueue.add(f, input.dataset.photoUrl, fields); });
+    var fields = JSON.parse(input.dataset.fields || "{}"), url = input.dataset.photoUrl;
+    var files = Array.prototype.slice.call(input.files || []);
     input.value = "";
+    // iPhone Safari (2026-10-31, Martin's gallery upload: "Intet billede"): a picked File put in IndexedDB as it is can
+    // come back empty later. Copy its bytes into a plain Blob first - one at a time, so 100 photos do not fill memory.
+    (async function () {
+        for (var i = 0; i < files.length; i++) {
+            try {
+                var copy = new Blob([await files[i].arrayBuffer()], { type: files[i].type || "image/jpeg" });
+                if (copy.size > 0) await photoQueue.add(copy, url, fields);
+            } catch (err) { }
+        }
+    })();
 });
 document.addEventListener("click", function (e) {
     var t = e.target.closest ? e.target.closest("[data-camera-open],[data-camera-shoot],[data-camera-close],[data-photo-adopt]") : null;
