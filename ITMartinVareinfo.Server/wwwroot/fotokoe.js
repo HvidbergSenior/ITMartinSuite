@@ -369,7 +369,11 @@ document.addEventListener("click", function (e) {
     if (t.hasAttribute("data-photo-adopt")) photoQueue.adopt();
     else if (t.hasAttribute("data-camera-open")) photoQueue.openCamera(t);
     else if (t.hasAttribute("data-camera-shoot")) photoQueue.shoot();
-    else photoQueue.closeCamera();
+    else {
+        photoQueue.closeCamera();
+        // Helpers: done = back to the session list. Photos not yet sent wait in IndexedDB and go after the reload.
+        if (t.dataset.doneUrl) location.href = t.dataset.doneUrl;
+    }
 });
 // Photos left from last time (page closed, no network) go as soon as the page is open again.
 window.addEventListener("online", function () { photoQueue.pump(); });

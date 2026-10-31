@@ -45,11 +45,15 @@ else if (_session is null)
         <div data-photo-stranded class="lg-warn" role="status" hidden><p data-photo-stranded-text></p></div>
     </section>
 
+    @* Helpers see the øvesession only while no real session is open (user 2026-10-31: "Only push the new session take pictures thats it"). *@
+    @if (Me.IsAdmin || _choices.Count == 0)
+    {
     <section class="k-card">
         <h2 class="k-card-title">Min øvesession</h2>
         <p>Vil du bare prøve? Din egen øvesession er kun din, og tingene i den bliver <b>kun vist</b> – de bliver aldrig solgt. Tryk <b>Min øvesession</b> og tag billeder af hvad som helst.</p>
         <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="Practice" disabled="@_busy">Min øvesession</button>
     </section>
+    }
 }
 else
 {
@@ -65,13 +69,15 @@ else
             <div id="foto-cam-tools" class="lg-row lg-cam-tools"></div>
             <button type="button" class="k-btn k-btn-primary lg-big" data-camera-shoot>📸 Tag billede</button>
             <p id="foto-cam-note" class="lg-answer" role="status"></p>
-            <button type="button" class="k-btn k-btn-secondary" data-camera-close>✓ Færdig med billeder</button>
+            <button type="button" class="k-btn k-btn-secondary lg-big" data-camera-close data-done-url="@(Me.IsAdmin ? null : "/")">✓ Færdig med billeder</button>
         </div>
         <p data-photo-status role="status" hidden></p>
         <div data-photo-stranded class="lg-warn" role="status" hidden>
             <p data-photo-stranded-text></p>
             <button type="button" class="k-btn k-btn-primary" data-photo-adopt>Send dem til denne session</button>
         </div>
+        @if (Me.IsAdmin)
+        {
         <details class="lg-more-tips">
             <summary>Gode råd</summary>
             <ul>
@@ -81,13 +87,18 @@ else
                 <li>Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.</li>
             </ul>
         </details>
+        }
+        @* "Brug telefonens kamera" stays for everybody: fotokoe.js shows it big when the in-page camera gives no picture. *@
         <div class="lg-row">
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
                 <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
             </label>
+            @if (Me.IsAdmin)
+            {
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Vælg billeder fra telefonen
                 <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
             </label>
+            }
         </div>
     </section>
 
@@ -113,11 +124,15 @@ else
     </section>
     }
 
+    @* A helper's way out is "Færdig med billeder" (user 2026-10-31: "vælg session, tag billede, færdig med billeder"). *@
+    @if (Me.IsAdmin)
+    {
     <section class="k-card">
         <h2 class="k-card-title">Færdig her?</h2>
         <p>Billederne er gemt, så snart de er sendt. Martin lukker sessionen, når I er færdige.</p>
         <button class="k-btn k-btn-secondary lg-big" @onclick="Leave">Vælg en anden session</button>
     </section>
+    }
 }
 
 @code {

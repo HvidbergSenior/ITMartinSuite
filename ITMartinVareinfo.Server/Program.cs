@@ -33,14 +33,15 @@ builder.Services.AddKolibri(k =>
         "Log ind med din egen kode (du får den af Martin) – eller med dit kundenummer, hvis Martin har gjort dig til hjælper i Kunder.",
         "Tryk Vælg ved den session, du er med i. Martin starter sessionerne, før I går i gang.",
         "Læg 10-20 ting ud med forsiden op, og tryk 📸 Tag billede. Gentag, til alt har været på et billede. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
-        "Færdig? Tryk Vælg en anden session. Billederne er gemt, så snart de er sendt.",
-        "Vil du bare prøve? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
+        "Færdig? Tryk ✓ Færdig med billeder – så er du tilbage ved sessionerne. Billederne er gemt, så snart de er sendt.",
+        "Vil du bare prøve, mens ingen session er i gang? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
         "Martin: under Sessioner skriver du sted og/eller formål og trykker Start session – den får selv det næste nummer. Vælg under Til, hvis en session kun er til én hjælper. Tryk Luk, når I er færdige (billederne gemmes). Kun en session uden billeder kan slettes.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
+        "Giver kameraet inde i siden ikke et billede, kommer en stor knap »Brug telefonens kamera« frem – billederne kommer med i samme session.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
         "Er en session blevet slettet, mens billeder ventede på telefonen, bliver de på telefonen: vælg en session, og tryk Send dem til denne session.",
     ];
-    k.Version = "2026.10.29";
+    k.Version = "2026.10.31";
     k.ThemeColor = "#f4f6f5";
 });
 
