@@ -115,6 +115,9 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         item.EditionHint = EditionHints.Normalise(item.EditionHint);
         item.Barcode = Barcodes.ToIsbn13(item.Barcode ?? "");   // ISBN-10 (also ending in X) becomes ISBN-13
         if (Pricing.SearchKey(item) != Pricing.SearchKey(before)) item.PricesAt = null;
+        // A person has looked at it (the item page says "tjek den mod billedet"): no longer unsure - it may go on
+        // bogshoppen.dk and into a deal (user 2026-10-31: "low confidence should be manual investigation").
+        item.Confidence = Math.Max(item.Confidence, 1);
         item.Touch();
         await items.UpdateAsync([item], ct);
     }

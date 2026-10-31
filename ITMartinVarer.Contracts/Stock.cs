@@ -14,7 +14,7 @@ public static class StockHeaders
 /// or "". Usage = Usages.</summary>
 public sealed record StockItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
     int Quantity, string Usage, int? PriceKr, int? HintKr, double Confidence, bool HasPhoto, string Badge, bool ForShow = false,
-    ShopProof? Reference = null);
+    ShopProof? Reference = null, string Deal = "");
 
 /// <summary>One page of things for sale and how many match in all.</summary>
 public sealed record StockPage(List<StockItem> Items, int Total);

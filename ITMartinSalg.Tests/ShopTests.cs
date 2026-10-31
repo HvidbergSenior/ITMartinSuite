@@ -53,9 +53,10 @@ public sealed class FakeStock : IStockGateway
         return Task.FromResult(new StockPage(all.Skip(skip).Take(take).ToList(), all.Count));
     }
 
-    public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null) => band is ShopBatch.Batch or ShopBatch.NoPrice ? Task.FromResult(new Dictionary<string, int>()) :
+    public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null) => band == ShopDeals.NoPrice ? Task.FromResult(new Dictionary<string, int>()) :
         Task.FromResult(Items.GroupBy(i => i.Kind).ToDictionary(g => g.Key, g => g.Count()));
     public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null) => Task.FromResult(new List<ShopGroup>());
+    public Task<Dictionary<string, int>> DealsAsync(CancellationToken ct) => Task.FromResult(new Dictionary<string, int>());
 
     public Task<StockItemPage?> ItemAsync(int id, CancellationToken ct) =>
         Task.FromResult(Items.FirstOrDefault(i => i.Id == id) is { } i ? new StockItemPage(i, [new ShopProof("DBA", 95, "95 kr", "https://dba.dk/1", false)]) : null);

@@ -19,6 +19,8 @@ public static class StockApi
 
         api.MapGet("/grupper", async (string[]? art, string? bundt, StockForSaleUseCases stock) => await stock.GroupsAsync(art, bundt));
 
+        api.MapGet("/tilbud", async (StockForSaleUseCases stock) => await stock.DealsAsync());
+
         api.MapGet("/varer/{id:int}", async (int id, StockForSaleUseCases stock) =>
             await stock.ItemAsync(id) is { } page ? Results.Ok(page) : Results.NotFound());
 

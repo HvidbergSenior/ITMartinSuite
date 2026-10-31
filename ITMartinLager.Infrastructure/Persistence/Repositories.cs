@@ -127,16 +127,30 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
 
     // Shop.Listed as SQL: in stock or for sale, copies left, a title. With the box: a test box = only for show (Box.IsTest).
     private static IQueryable<Item> Listed(LagerDb db) =>
-        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
+        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != ""
+            && i.Confidence >= Pricing.MinConfidence);
 
-    // ShopBatch as SQL: Batch = priced under ShopBatch.UnderKr, Single = priced from it, NoPrice = no price yet, null = all.
+    // ShopDeals bands as SQL: Single = priced and in no deal, NoPrice = no price and in no deal, a deal name = that deal.
     private static IQueryable<Item> Listed(LagerDb db, string? band) => band switch
     {
-        ShopBatch.Batch => Listed(db).Where(i => (i.Price ?? i.PriceHint) > 0 && (i.Price ?? i.PriceHint) < ShopBatch.UnderKr),
-        ShopBatch.Single => Listed(db).Where(i => (i.Price ?? i.PriceHint) >= ShopBatch.UnderKr),
-        ShopBatch.NoPrice => Listed(db).Where(i => (i.Price ?? i.PriceHint) == null || (i.Price ?? i.PriceHint) <= 0),
-        _ => Listed(db),
+        null => Listed(db),
+        ShopDeals.Single => Listed(db).Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) > 0),
+        ShopDeals.NoPrice => Listed(db).Where(i => i.Deal == "" && ((i.Price ?? i.PriceHint) == null || (i.Price ?? i.PriceHint) <= 0)),
+        _ => Listed(db).Where(i => i.Deal == band),
     };
+
+    public async Task<Dictionary<string, int>> ListedPerDealAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await Listed(db).Where(i => i.Deal != "").GroupBy(i => i.Deal).Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+    }
+
+    public async Task<List<Item>> AllListedAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await Listed(db).ToListAsync(ct);
+    }
 
     public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
         string? band = null)

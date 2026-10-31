@@ -31,21 +31,21 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     /// kind or everything, matching the search.</summary>
     public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default)
     {
-        // "10 for 30 kr" is its own category: the cheap things there, and only there (ShopBatch, user 2026-10-31).
-        // "Ingen pris endnu" likewise: the unpriced things, shown but not for sale (user 2026-10-31).
-        var band = type == ShopBatch.Name ? ShopBatch.Batch : type == ShopBatch.NoPriceName ? ShopBatch.NoPrice : ShopBatch.Single;
-        var across = band != ShopBatch.Single;   // these two are categories across every kind; Alle (no type) = everything
+        // Each deal and "Ingen pris endnu" are categories of their own across every kind (ShopDeals, user 2026-10-31); a
+        // product type shows only its priced things outside the deals. Alle (no type) = everything.
+        var band = ShopDeals.Named(type)?.Name ?? (type == ShopDeals.NoPriceName ? ShopDeals.NoPrice : ShopDeals.Single);
+        var across = band != ShopDeals.Single;
         IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
             : !across && !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
         var found = await stock.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),
             ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct, kinds is null && !across ? null : band);
-        var perKind = await stock.PerKindAsync(ct, ShopBatch.Single);
+        var perKind = await stock.PerKindAsync(ct, ShopDeals.Single);
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();
-        var cheap = (await stock.PerKindAsync(ct, ShopBatch.Batch)).Values.Sum();
-        if (cheap > 0) types.Add(new ShopType(ShopBatch.Name, cheap));
-        var unpriced = (await stock.PerKindAsync(ct, ShopBatch.NoPrice)).Values.Sum();
-        if (unpriced > 0) types.Add(new ShopType(ShopBatch.NoPriceName, unpriced));
+        var deals = await stock.DealsAsync(ct);
+        types.AddRange(ShopDeals.All.Where(d => deals.GetValueOrDefault(d.Name) > 0).Select(d => new ShopType(d.Name, deals[d.Name])));
+        var unpriced = (await stock.PerKindAsync(ct, ShopDeals.NoPrice)).Values.Sum();
+        if (unpriced > 0) types.Add(new ShopType(ShopDeals.NoPriceName, unpriced));
         // Subgroups only inside one type or kind - for everything at once they would be too many to read.
         var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct, band);
         return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups);
@@ -202,7 +202,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
             return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 ? i.HintKr : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
-                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), i.Reference);
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), i.Reference, i.Deal);
         }).ToList();
     }
 }

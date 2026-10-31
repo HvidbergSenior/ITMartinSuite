@@ -92,6 +92,7 @@ public static class LagerDbInitializer
             ("SoldPrice", "REAL NULL"), ("SoldTo", "TEXT NOT NULL DEFAULT ''"), ("SoldAt", "TEXT NULL"),
             ("PriceHint", "REAL NULL"), ("MagicRef", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"),
             ("PricesAt", "TEXT NULL"), ("KolofonPhoto", "TEXT NOT NULL DEFAULT ''"), ("KolofonAt", "TEXT NULL"),
+            ("Deal", "TEXT NOT NULL DEFAULT ''"),
             ("Edition", "TEXT NOT NULL DEFAULT ''"), ("Publisher", "TEXT NOT NULL DEFAULT ''"), ("EditionHint", "TEXT NOT NULL DEFAULT ''"),
             ("SimilarHint", "REAL NULL"), ("FeaturedAt", "TEXT NULL"), ("Usage", "TEXT NOT NULL DEFAULT 'Brugt'"),
             ("Want", "INTEGER NULL"), ("Have", "INTEGER NULL"),

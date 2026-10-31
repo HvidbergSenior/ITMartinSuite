@@ -54,15 +54,19 @@ public class StoreTests
     }
 
     [Test]
-    public async Task The_cheap_things_are_their_own_batch()
+    public async Task Each_deal_and_the_unpriced_are_their_own_band()
     {
         var box = await Boxes.AddNextAsync("Loppemarked", default);
-        await Registration.SaveAsync(box.Id, null, [Aa("12", 1968) with { PriceHint = 5 }, Aa("13", 1968) with { PriceHint = 25 }]);
-        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.Batch)).Page.Single().PriceHint.Should().Be(5);
-        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.Single)).Page.Single().PriceHint.Should().Be(25);
-        await Registration.SaveAsync(box.Id, null, [Aa("14", 1968)]);
-        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.NoPrice)).Page.Single().PriceHint.Should().BeNull();
-        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default)).Total.Should().Be(3);
+        await Registration.SaveAsync(box.Id, null, [Aa("12", 1968) with { PriceHint = 5 }, Aa("13", 1968) with { PriceHint = 25 }, Aa("14", 1968),
+            Aa("15", 1968) with { Confidence = 0.3 }]);
+        var all = await Items.AllListedAsync(default);
+        foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, []); }
+        await Items.UpdateAsync(all, default);
+        string[] Numbers(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Number).ToArray();
+        Numbers(ShopDeals.Blade.Name).Should().Equal("12", "14");
+        Numbers(ShopDeals.Single).Should().Equal("13");
+        Numbers(ShopDeals.NoPrice).Should().BeEmpty("15 is unsure: not on bogshoppen.dk until a person has looked");
+        (await Items.ListedPerDealAsync(default)).Should().BeEquivalentTo(new Dictionary<string, int> { [ShopDeals.Blade.Name] = 2 });
     }
 
     [Test]

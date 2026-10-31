@@ -5,10 +5,12 @@ namespace ITMartinLager.Domain;
 // the day offers, the orders and the payment are Salg's.
 public static class Shop
 {
-    /// <summary>For sale: in stock or til salg, not on an auction, not sold, copies left, a title. Without a price it is in
-    /// its own category (ShopBatch.NoPrice, user 2026-10-31: "No pricing yet. We are investigating").</summary>
+    /// <summary>For sale: in stock or til salg, not on an auction, not sold, copies left, a title, and not unsure - an unsure
+    /// reading waits for a person (user 2026-10-31, "Demo pc-spil · Anders And & Co." was a cover headline read at 0.4).
+    /// Without a price it is in its own category (ShopDeals.NoPrice, user 2026-10-31: "No pricing yet. We are investigating").</summary>
     public static bool Listed(Item i) =>
-        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != "";
+        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != ""
+        && i.Confidence >= Pricing.MinConfidence;
 
     /// <summary>The mark buyers see in the marketplace: "🏆 GULD", "🥈 SØLV", "🥉 BRONZE" (its own valued price, or the
     /// gold list) - never "Måske", that is for us.</summary>
@@ -41,11 +43,24 @@ public static class Shop
 
     public const int MinReferenceKr = 5;
 
+    /// <summary>Which deal it is sold in (ShopDeals, user 2026-10-31), or "": gold, silver and bronze never - they are sold
+    /// one by one ("Impiortant to know if some of them are interesting... If not then..."); an unsure reading never - a
+    /// person checks it first ("low confidence should be manual investigation"); no price, or priced under
+    /// ShopDeals.CheapUnderKr = the deal of its kind (Blade, Bøger, DVD, VHS); other kinds keep their own price.</summary>
+    public static string DealFor(Item i, IReadOnlyList<GoldEntry> gold)
+    {
+        if (Badge(gold, i) != "" || i.Confidence < Pricing.MinConfidence) return "";
+        var kr = i.Price ?? i.PriceHint;
+        if (kr >= ShopDeals.CheapUnderKr) return "";
+        if (kr is not > 0 && i.PricesAt is null) return "";   // not searched yet: wait for the hunter
+        return ShopDeals.For(i.Kind)?.Name ?? "";
+    }
+
     /// <summary>A thing for sale as Salg gets it.</summary>
     public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null) =>
         new(i.Id, i.Kind, i.Line(), i.Title, i.Interest, i.Condition, i.Year, i.Quantity, i.Usage,
             i.Price is > 0 ? (int)Math.Round(i.Price.Value) : null, i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : null,
-            i.Confidence, i.ItemPhoto != "" || i.PhotoId is not null, Badge(gold, i), i.Box?.IsTest == true, reference);
+            i.Confidence, i.ItemPhoto != "" || i.PhotoId is not null, Badge(gold, i), i.Box?.IsTest == true, reference, i.Deal);
 
     public static ShopProof ProofView(PriceFind f) => new(f.Source, f.Kr, f.Original, f.Url, f.IsNew);
 }

@@ -26,6 +26,9 @@ public sealed class LagerStockLink(HttpClient http, IConfiguration cfg) : IStock
     public async Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null) =>
         await GetAsync<List<ShopGroup>>("/api/salg/grupper?bundt=" + E(band) + string.Concat(kinds.Select(k => "&art=" + E(k))), ct) ?? [];
 
+    public async Task<Dictionary<string, int>> DealsAsync(CancellationToken ct) =>
+        await GetAsync<Dictionary<string, int>>("/api/salg/tilbud", ct) ?? [];
+
     public Task<StockItemPage?> ItemAsync(int id, CancellationToken ct) => GetAsync<StockItemPage>($"/api/salg/varer/{id}", ct);
 
     public async Task<List<StockItem>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct)

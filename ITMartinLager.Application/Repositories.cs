@@ -39,6 +39,10 @@ public interface IItemRepository
     Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct, string? band = null);
     /// <summary>Things for sale of these kinds (null = all) per series - or artist/author when there is no series.</summary>
     Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null);
+    /// <summary>Things for sale per deal (ShopDeals), only the ones in a deal.</summary>
+    Task<Dictionary<string, int>> ListedPerDealAsync(CancellationToken ct);
+    /// <summary>Every thing for sale, with its box (for Shop.DealFor).</summary>
+    Task<List<Item>> AllListedAsync(CancellationToken ct);
     Task<List<Item>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct);
     Task<int> UnitsAsync(CancellationToken ct);
     Task AddAsync(IEnumerable<Item> items, CancellationToken ct);

@@ -14,7 +14,7 @@ public static class ShopHeaders
 /// marked it "interessant" on the marketplace.</summary>
 public sealed record ShopItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
     int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto, string Type = "", int? DayKr = null, string DayOffer = "", string Badge = "",
-    string Usage = "", bool ForShow = false, int Interested = 0, ShopProof? Reference = null);
+    string Usage = "", bool ForShow = false, int Interested = 0, ShopProof? Reference = null, string Deal = "");
 
 /// <summary>The proof for the price promise: one listing on another site.</summary>
 public sealed record ShopProof(string Source, int Kr, string Original, string Url, bool IsNew);
@@ -78,20 +78,40 @@ public static class ShopSorts
     public static readonly string[] All = [Newest, Cheapest, Dearest, Title];
 }
 
-/// <summary>The cheap things as one batch (user 2026-10-31: "under 10 kr should be in one category like 10 for 20 kr...
-/// like a batch... or maybe 10 for 30"): everything priced under UnderKr is sold as Count for Kr, in its own category.
-/// Band = which part of the stock a list shows: Batch (only those), Single (priced from UnderKr), NoPrice (no price yet), or null (everything).</summary>
-public static class ShopBatch
+/// <summary>One step of a deal: Count things for Kr kr in all.</summary>
+public sealed record ShopDealStep(int Count, int Kr);
+
+/// <summary>A deal for one group of kinds, with its steps: "Bøger: 2 for 50 · 5 for 100 kr".</summary>
+public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOnlyList<ShopDealStep> Steps)
 {
-    public const int UnderKr = 10;
-    public const int Count = 10;
-    public const int Kr = 30;
-    public const string Name = "10 for 30 kr";
-    public const string Batch = "batch";
+    public string Name => $"{Group}: {string.Join(" · ", Steps.Select(s => $"{s.Count} for {s.Kr}"))} kr";
+}
+
+/// <summary>The deals as their own categories (user 2026-10-31, "lets say 50 and 100 kr. Books 2 for 50 5 for 100. Anders
+/// and and basserne and similar 4 for 50 10 for 100. Dvd 4 for 50 10 for 100"): the things of these kinds without a price
+/// or priced under CheapUnderKr, unless gold, silver or bronze. Which thing is in which deal is Lager's rule
+/// (Shop.DealFor); a list shows one band: a deal's Name, Single (priced, no deal), NoPrice, or null (all).</summary>
+public static class ShopDeals
+{
+    public const int CheapUnderKr = 10;
+    public static readonly ShopDeal Books = new("Bøger", [Kinds.Bog], [new(2, 50), new(5, 100)]);
+    public static readonly ShopDeal Blade = new("Blade", [Kinds.AndersAnd, Kinds.Tegneserie, Kinds.Superhelte], [new(4, 50), new(10, 100)]);
+    public static readonly ShopDeal Dvds = new("DVD", [Kinds.Dvd], [new(4, 50), new(10, 100)]);
+    /// <summary>User 2026-10-31 "VHS Bundles... for a price" - the price is a guess like DVD until the user says.</summary>
+    public static readonly ShopDeal Vhs = new("VHS", [Kinds.Vhs], [new(4, 50), new(10, 100)]);
+    public static readonly IReadOnlyList<ShopDeal> All = [Blade, Books, Dvds, Vhs];
+
+    /// <summary>The deal for things of this kind, or null.</summary>
+    public static ShopDeal? For(string kind) => All.FirstOrDefault(d => d.Kinds.Contains(kind));
+
+    public static ShopDeal? Named(string? name) => All.FirstOrDefault(d => d.Name == name);
+
     public const string Single = "enkelt";
-    /// <summary>Not priced yet (user 2026-10-31: "a category called... No pricing yet. We are investigating").</summary>
+    /// <summary>Not priced and in no deal (user 2026-10-31: "No pricing yet. We are investigating"; unsure readings = a
+    /// person looks - "low confidence should be manual investigation").</summary>
     public const string NoPrice = "uden-pris";
     public const string NoPriceName = "Ingen pris endnu";
 
-    public static bool In(int? kr) => kr is > 0 and < UnderKr;
+    /// <summary>A band Lager knows, else null (= everything).</summary>
+    public static string? Band(string? band) => band is Single or NoPrice || Named(band) is not null ? band : null;
 }

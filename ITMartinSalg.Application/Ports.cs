@@ -18,6 +18,8 @@ public interface IStockGateway
     Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null);
     /// <summary>Subgroups (series, artist) of these kinds with at least 2 things.</summary>
     Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null);
+    /// <summary>Things per deal (ShopDeals), by name.</summary>
+    Task<Dictionary<string, int>> DealsAsync(CancellationToken ct);
     /// <summary>Null = not for sale (sold, on an auction, gone).</summary>
     Task<StockItemPage?> ItemAsync(int id, CancellationToken ct);
     /// <summary>The ones of these that are for sale.</summary>
