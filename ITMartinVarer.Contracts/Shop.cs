@@ -85,15 +85,19 @@ public sealed record ShopDealStep(int Count, int Kr);
 public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOnlyList<ShopDealStep> Steps)
 {
     public string Name => $"{Group}: {string.Join(" · ", Steps.Select(s => $"{s.Count} for {s.Kr}"))} kr";
+
+    /// <summary>What one thing costs in the first step (2 for 50 = 25 kr). A thing priced at or under this is sold in the
+    /// deal - else it would cost less alone than in the deal (user 2026-10-31: "books should not cost 20 kr one place and
+    /// 2 for 50 another").</summary>
+    public int MaxSingleKr => Steps[0].Kr / Steps[0].Count;
 }
 
 /// <summary>The deals as their own categories (user 2026-10-31, "lets say 50 and 100 kr. Books 2 for 50 5 for 100. Anders
 /// and and basserne and similar 4 for 50 10 for 100. Dvd 4 for 50 10 for 100"): the things of these kinds without a price
-/// or priced under CheapUnderKr, unless gold, silver or bronze. Which thing is in which deal is Lager's rule
+/// or priced at or under the deal's MaxSingleKr, unless gold, silver or bronze. Which thing is in which deal is Lager's rule
 /// (Shop.DealFor); a list shows one band: a deal's Name, Single (priced, no deal), NoPrice, or null (all).</summary>
 public static class ShopDeals
 {
-    public const int CheapUnderKr = 10;
     public static readonly ShopDeal Books = new("Bøger", [Kinds.Bog], [new(2, 50), new(5, 100)]);
     public static readonly ShopDeal Blade = new("Blade", [Kinds.AndersAnd, Kinds.Tegneserie, Kinds.Superhelte], [new(4, 50), new(10, 100)]);
     public static readonly ShopDeal Dvds = new("DVD", [Kinds.Dvd], [new(4, 50), new(10, 100)]);

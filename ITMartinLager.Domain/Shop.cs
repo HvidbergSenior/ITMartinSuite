@@ -45,15 +45,15 @@ public static class Shop
 
     /// <summary>Which deal it is sold in (ShopDeals, user 2026-10-31), or "": gold, silver and bronze never - they are sold
     /// one by one ("Impiortant to know if some of them are interesting... If not then..."); an unsure reading never - a
-    /// person checks it first ("low confidence should be manual investigation"); no price, or priced under
-    /// ShopDeals.CheapUnderKr = the deal of its kind (Blade, Bøger, DVD, VHS); other kinds keep their own price.</summary>
+    /// person checks it first ("low confidence should be manual investigation"); no price, or priced at or under the deal's
+    /// MaxSingleKr = the deal of its kind (Blade, Bøger, DVD, VHS); dearer things and other kinds keep their own price.</summary>
     public static string DealFor(Item i, IReadOnlyList<GoldEntry> gold)
     {
         if (Badge(gold, i) != "" || i.Confidence < Pricing.MinConfidence) return "";
+        if (ShopDeals.For(i.Kind) is not { } deal) return "";
         var kr = i.Price ?? i.PriceHint;
-        if (kr >= ShopDeals.CheapUnderKr) return "";
-        if (kr is not > 0 && i.PricesAt is null) return "";   // not searched yet: wait for the hunter
-        return ShopDeals.For(i.Kind)?.Name ?? "";
+        if (kr is > 0) return kr <= deal.MaxSingleKr ? deal.Name : "";
+        return i.PricesAt is null ? "" : deal.Name;   // no price: once searched (not yet = wait for the hunter)
     }
 
     /// <summary>A thing for sale as Salg gets it.</summary>
