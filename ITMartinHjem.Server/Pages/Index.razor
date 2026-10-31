@@ -39,6 +39,8 @@
     @if (_owner) { <a class="k-btn k-btn-sm @(_waiting > 0 ? "k-btn-primary" : "")" href="/admin">Min side@(_waiting > 0 ? $" ({_waiting} venter)" : "")</a> }
 </header>
 
+<MarketNotice ShowLink="true" />
+
 <CascadingValue Name="Plain" Value="true">
 @* One open "Vidste du …" right under the head box (user 2026-10-19: "there used to be a lot of vidste du"). Shared box
    (Components/VidsteDu) - it starts on one of the concrete ones (SiteFacts.ItMartin). *@

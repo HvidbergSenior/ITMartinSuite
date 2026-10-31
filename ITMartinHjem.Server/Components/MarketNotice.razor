@@ -1,0 +1,32 @@
+@* The loppemarked in Skejbyen (user 2026-10-31: "tomorrow these products will be available on market Skejbyen 10-14 ... the
+   prices here is the prices BUT tomorrow on the market it will be 75 pct no matter which product" = pay 75 %, 25 % off).
+   On bogshoppen.dk/produkter and the itmartin.dk front page; says "I morgen" on the 31st, "I dag" on the 1st, gone after. *@
+@if (Day is { } day)
+{
+    <section class="k-card hj-market" aria-label="Loppemarked">
+        <h2 class="k-card-title">@day søndag 1. november kl. 10-14: loppemarked i Skejbyen</h2>
+        <p>Alle produkterne på bogshoppen.dk er med. Priserne her er vores priser – <b>men på markedet giver vi 25 % rabat på alt</b>, uanset hvad det er. Også tilbuddene.</p>
+        @if (ShowLink)
+        {
+            <a class="k-btn k-btn-primary" href="https://bogshoppen.dk/produkter">Se produkterne</a>
+        }
+    </section>
+}
+
+@code {
+    /// <summary>The button to the products - not needed on the products page itself.</summary>
+    [Parameter] public bool ShowLink { get; set; }
+
+    private static readonly DateOnly MarketDay = new(2026, 11, 1);
+
+    private static string? Day
+    {
+        get
+        {
+            var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow, Copenhagen));
+            return today == MarketDay ? "I dag" : today == MarketDay.AddDays(-1) ? "I morgen" : today < MarketDay ? "På" : null;
+        }
+    }
+
+    private static readonly TimeZoneInfo Copenhagen = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+}
