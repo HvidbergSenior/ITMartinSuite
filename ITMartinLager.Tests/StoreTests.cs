@@ -60,7 +60,9 @@ public class StoreTests
         await Registration.SaveAsync(box.Id, null, [Aa("12", 1968) with { PriceHint = 5 }, Aa("13", 1968) with { PriceHint = 25 }]);
         (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.Batch)).Page.Single().PriceHint.Should().Be(5);
         (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.Single)).Page.Single().PriceHint.Should().Be(25);
-        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default)).Total.Should().Be(2);
+        await Registration.SaveAsync(box.Id, null, [Aa("14", 1968)]);
+        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopBatch.NoPrice)).Page.Single().PriceHint.Should().BeNull();
+        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default)).Total.Should().Be(3);
     }
 
     [Test]

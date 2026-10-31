@@ -80,7 +80,7 @@ public static class ShopSorts
 
 /// <summary>The cheap things as one batch (user 2026-10-31: "under 10 kr should be in one category like 10 for 20 kr...
 /// like a batch... or maybe 10 for 30"): everything priced under UnderKr is sold as Count for Kr, in its own category.
-/// Band = which part of the stock a list shows: Batch (only those), Single (all others), or null (everything).</summary>
+/// Band = which part of the stock a list shows: Batch (only those), Single (priced from UnderKr), NoPrice (no price yet), or null (everything).</summary>
 public static class ShopBatch
 {
     public const int UnderKr = 10;
@@ -89,6 +89,9 @@ public static class ShopBatch
     public const string Name = "10 for 30 kr";
     public const string Batch = "batch";
     public const string Single = "enkelt";
+    /// <summary>Not priced yet (user 2026-10-31: "a category called... No pricing yet. We are investigating").</summary>
+    public const string NoPrice = "uden-pris";
+    public const string NoPriceName = "Ingen pris endnu";
 
     public static bool In(int? kr) => kr is > 0 and < UnderKr;
 }

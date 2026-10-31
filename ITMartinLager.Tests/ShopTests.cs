@@ -57,7 +57,7 @@ public class StockForSaleTests
         Shop.Listed(new Item { Title = "Mort", PriceHint = 50, Status = Statuses.TilSalg }).Should().BeTrue();
         Shop.Listed(new Item { Title = "Mort", PriceHint = 50, Status = Statuses.PaaAuktion }).Should().BeFalse();
         Shop.Listed(new Item { Title = "Mort", PriceHint = 50, Status = Statuses.Solgt }).Should().BeFalse();
-        Shop.Listed(new Item { Title = "Mort", Status = Statuses.Lager }).Should().BeFalse("no price yet - not on bogshoppen.dk");
+        Shop.Listed(new Item { Title = "Mort", Status = Statuses.Lager }).Should().BeTrue("no price yet = the Ingen pris endnu category");
     }
 
     [Test]

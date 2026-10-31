@@ -3,9 +3,9 @@
 @* The products from Lager on bogshoppen.dk/produkter (user 2026-10-29: "i want to see the products on bogshoppen.dk as a
    produkter - You can not buy them... It should say TESTING", "important data from lager should be on the products").
    Not a webshop: no basket, no buy button - what Lager knows about each thing, and a test price that is not checked yet. *@
-<section class="k-card bs-card bs-products" id="alle">
+<section class="k-card bs-card bs-shop" id="alle">
     <h2 class="k-card-title">Alle produkter</h2>
-    <p class="k-help">Hver ting har vores pris. Under prisen står, hvad lignende koster andre steder – tryk på den, så ser du selv. Er du interesseret i noget, så tryk <b>Jeg er interesseret</b>.</p>
+    <p class="k-help">Under vores pris står, hvad lignende koster andre steder – tryk på den, så ser du selv. Ting uden pris endnu ligger under <b>@ShopBatch.NoPriceName</b>: dem undersøger vi stadig. Er du interesseret i noget, så tryk <b>Jeg er interesseret</b>.</p>
 
     @if (_error is not null)
     {
@@ -63,6 +63,11 @@
                         else if ((i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is { } kr)
                         {
                             <p class="bs-shop-price"><b>@kr kr</b>@if (i.DayKr is not null && i.BuyNowKr is { } was) { <s>@was kr</s> }</p>
+                        }
+                        else
+                        {
+                            @* Not priced yet (user 2026-10-31: "No pricing yet. We are investigating" - "but the products cannot be sold"). *@
+                            <p class="bs-shop-noprice"><b>@ShopBatch.NoPriceName</b> – vi undersøger det. Kan ikke købes endnu.</p>
                         }
                         @if (i.Reference is { } r)
                         {

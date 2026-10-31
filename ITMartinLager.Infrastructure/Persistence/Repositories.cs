@@ -127,14 +127,14 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
 
     // Shop.Listed as SQL: in stock or for sale, copies left, a title. With the box: a test box = only for show (Box.IsTest).
     private static IQueryable<Item> Listed(LagerDb db) =>
-        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != ""
-            && (i.Price ?? i.PriceHint) > 0);
+        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
 
-    // ShopBatch as SQL: Batch = priced under ShopBatch.UnderKr, Single = the rest, null = all.
+    // ShopBatch as SQL: Batch = priced under ShopBatch.UnderKr, Single = priced from it, NoPrice = no price yet, null = all.
     private static IQueryable<Item> Listed(LagerDb db, string? band) => band switch
     {
-        ShopBatch.Batch => Listed(db).Where(i => (i.Price ?? i.PriceHint) < ShopBatch.UnderKr),
+        ShopBatch.Batch => Listed(db).Where(i => (i.Price ?? i.PriceHint) > 0 && (i.Price ?? i.PriceHint) < ShopBatch.UnderKr),
         ShopBatch.Single => Listed(db).Where(i => (i.Price ?? i.PriceHint) >= ShopBatch.UnderKr),
+        ShopBatch.NoPrice => Listed(db).Where(i => (i.Price ?? i.PriceHint) == null || (i.Price ?? i.PriceHint) <= 0),
         _ => Listed(db),
     };
 

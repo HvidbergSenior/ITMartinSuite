@@ -21,7 +21,7 @@ public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository
 
     public Task<Dictionary<string, int>> PerKindAsync(string? band = null, CancellationToken ct = default) => items.ListedPerKindAsync(ct, Band(band));
 
-    private static string? Band(string? band) => band is ShopBatch.Batch or ShopBatch.Single ? band : null;
+    private static string? Band(string? band) => band is ShopBatch.Batch or ShopBatch.Single or ShopBatch.NoPrice ? band : null;
 
     /// <summary>The subgroups of a kind, from what we have (user 2026-10-31: "make subcategories based on data"): each series
     /// (or artist/author) with at least 2 things, most first, at most MaxGroups.</summary>

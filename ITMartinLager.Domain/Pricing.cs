@@ -32,6 +32,21 @@ public static partial class Pricing
         return p < 20 ? (int)Math.Max(1, Math.Round(p)) : (int)(Math.Floor(p / 5) * 5);
     }
 
+    /// <summary>The lowest price an estimate gets (user 2026-10-29: "minimum price is a fact").</summary>
+    public const int MinimumKr = 10;
+
+    /// <summary>An estimate from our own stock for a thing no site has (2026-10-31): the middle price of our priced things in
+    /// the same series, else of the same kind (2 or more needed), never under MinimumKr. No AI. NOT used yet - the user
+    /// chose "Ingen pris endnu" without a number; kept for when an estimate is wanted.</summary>
+    public static int Estimate(Item item, IEnumerable<Item> priced)
+    {
+        static int? Middle(List<decimal> v) => v.Count < 2 ? null : (int)Math.Round(v.OrderBy(x => x).ElementAt(v.Count / 2));
+        var real = priced.Where(p => p.Id != item.Id && p.PriceHint > 0 && p.Kind == item.Kind).ToList();
+        var sameSeries = item.Series.Trim() == "" ? null
+            : Middle(real.Where(p => p.Series.Equals(item.Series, StringComparison.OrdinalIgnoreCase)).Select(p => p.PriceHint!.Value).ToList());
+        return Math.Max(MinimumKr, sameSeries ?? Middle(real.Select(p => p.PriceHint!.Value).ToList()) ?? MinimumKr);
+    }
+
     // Not searched again for this long; nothing answered = try again tomorrow.
     public static readonly TimeSpan StaleAfter = TimeSpan.FromDays(30);
 

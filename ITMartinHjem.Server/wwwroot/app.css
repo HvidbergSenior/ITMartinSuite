@@ -843,3 +843,4 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-shop-ref{align-self:flex-start;white-space:normal;text-align:left;border:2px solid var(--k-text);font-weight:700}
 .bs-shop-interest{font-size:.92rem;color:var(--k-muted)}
 .bs-shop-card .bs-found-actions{padding-top:6px}
+.bs-shop-noprice{padding:6px 10px;border:2px dashed var(--k-text);border-radius:10px;font-size:.95rem}

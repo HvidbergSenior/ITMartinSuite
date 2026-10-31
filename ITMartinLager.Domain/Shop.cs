@@ -5,10 +5,10 @@ namespace ITMartinLager.Domain;
 // the day offers, the orders and the payment are Salg's.
 public static class Shop
 {
-    /// <summary>For sale: in stock or til salg, not on an auction, not sold, copies left, a title - and a price (user
-    /// 2026-10-31: only priced things on bogshoppen.dk/produkter; the rest waits for the price hunter).</summary>
+    /// <summary>For sale: in stock or til salg, not on an auction, not sold, copies left, a title. Without a price it is in
+    /// its own category (ShopBatch.NoPrice, user 2026-10-31: "No pricing yet. We are investigating").</summary>
     public static bool Listed(Item i) =>
-        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != "" && (i.Price ?? i.PriceHint) > 0;
+        (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title.Trim() != "";
 
     /// <summary>The mark buyers see in the marketplace: "🏆 GULD", "🥈 SØLV", "🥉 BRONZE" (its own valued price, or the
     /// gold list) - never "Måske", that is for us.</summary>
