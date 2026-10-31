@@ -100,6 +100,26 @@ public sealed class Order
         };
     }
 
+    /// <summary>A market sale without finding the thing (user 2026-10-31: "what about just take a picture on the product in
+    /// salg?" -> "yes to free"): a photo and the price, no AI. Not tied to a thing in Lager, so nothing leaves the products
+    /// and Lager is not told (StockBooked from the start). What = an optional word or two; else "Solgt uden søgning".</summary>
+    public static Order FreeAtMarket(string what, int kr, DateTime now)
+    {
+        if (kr <= 0) throw new InvalidOperationException("Skriv prisen, den blev solgt for.");
+        var line = string.IsNullOrWhiteSpace(what) ? FreeLine : what.Trim();
+        return new Order
+        {
+            Line = line, Kr = kr, PaidKr = kr, Channel = SaleChannels.Market, Delivery = SaleChannels.Market, Status = OrderStatuses.PickedUp,
+            CreatedAt = now, ExpiresAt = now, PaidAt = now, DoneAt = now, StockBooked = true,
+            Lines = [new OrderLine { Line = line, ListKr = kr, Kr = kr }],
+        };
+    }
+
+    public const string FreeLine = "Solgt uden søgning";
+
+    /// <summary>A sale not tied to a thing in Lager (FreeAtMarket).</summary>
+    public bool Free => ItemId == 0;
+
     /// <summary>Paid: the buyer's details are kept. The copies leave the stock when Lager books Sale().</summary>
     public void Pay(PaymentState s, DateTime utcNow)
     {

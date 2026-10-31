@@ -1,6 +1,7 @@
 @page "/"
 @page "/saelg"
 @inject ShopUseCases Shop
+@inject MarketUseCases FreeSales
 
 @* The loppemarked (user 2026-10-31: "on salg I ONLY need a way to make a sale so that it will disappear in produkter and be
    registered with price"): find it, write what it went for, Solgt. The price field starts at the market price - 25 % off
@@ -38,6 +39,24 @@
     }
 </section>
 
+@* Without search (user 2026-10-31: "just take a picture on the product in salg?" -> "yes to free"): photo + price, no AI.
+   Not tied to a thing in Lager - for what is quicker to snap than to find. *@
+<section class="k-card" data-fold-closed="true">
+    <h2 class="k-card-title">Sælg uden søgning</h2>
+    <p>Kan du ikke finde den hurtigt? Tag et billede, skriv prisen og tryk <b>Solgt</b>. Salget tæller med i dagens salg, men varen bliver stående på bogshoppen.dk – ret den i Lager bagefter.</p>
+    <label class="k-btn lg-big lg-camera">
+        @(_photo is null ? "Tag billede" : "Billede taget – tag et nyt")
+        <InputFile class="lg-hidden-file" accept="image/*" capture="environment" OnChange="PickPhoto" />
+    </label>
+    <div class="lg-row">
+        <input class="k-input" placeholder="Hvad er det? (kan springes over)" @bind="_what" aria-label="Hvad er det" />
+        <span class="lg-sell">
+            <input class="k-input lg-kr" type="number" inputmode="numeric" min="1" @bind="_freeKr" aria-label="Solgt for kr" /> kr
+            <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="SellFree">Solgt</button>
+        </span>
+    </div>
+</section>
+
 <section class="k-card">
     <h2 class="k-card-title">Solgt i dag (@Today.Count)</h2>
     <p class="lg-total">I alt @Today.Sum(o => o.Kr) kr</p>
@@ -48,8 +67,9 @@
             <li class="lg-order">
                 <span class="lg-main">
                     <b>@o.Line – @o.Kr kr</b>
-                    <span class="k-small">@o.CreatedAt.ToLocalTime().ToString("HH:mm")@(o.StockBooked ? "" : " · ⚠ Lageret har ikke fået besked endnu – det prøves igen hvert minut")</span>
+                    <span class="k-small">@o.CreatedAt.ToLocalTime().ToString("HH:mm")@(o.Free ? " · uden søgning" : "")@(o.StockBooked ? "" : " · ⚠ Lageret har ikke fået besked endnu – det prøves igen hvert minut")</span>
                 </span>
+                @if (o.Free) { <a href="/markedsfoto/@o.Id" target="_blank" rel="noopener"><img class="lg-thumb" src="/markedsfoto/@o.Id" alt="Billede af @o.Line" loading="lazy" onerror="this.parentElement.remove()" /></a> }
             </li>
         }
     </ul>
@@ -62,6 +82,9 @@
     private List<Order> _sales = [];
     private string? _error, _msg;
     private bool _busy;
+    private string _what = "";
+    private int? _freeKr;
+    private byte[]? _photo;
 
     private List<Order> Today => _sales.Where(o => o.CreatedAt.ToLocalTime().Date == DateTime.Now.Date).ToList();
 
@@ -77,6 +100,33 @@
         (_error, _msg) = (null, null);
         _hits = await Shop.FindForSaleAsync(_q);
         foreach (var i in _hits) _kr.TryAdd(i.Id, Price(i) is { } p ? Market(p) : null);
+    }
+
+    private async Task PickPhoto(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        try
+        {
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(MarketUseCases.MaxPhotoBytes).CopyToAsync(ms);
+            _photo = ms.ToArray();
+        }
+        catch (IOException) { _error = "Billedet er for stort – prøv igen."; }
+    }
+
+    private async Task SellFree()
+    {
+        (_error, _msg, _busy) = (null, null, true);
+        try
+        {
+            using var photo = _photo is null ? null : new MemoryStream(_photo);
+            var o = await FreeSales.SellFreeAsync(_what, _freeKr ?? 0, photo);
+            _msg = $"Solgt: {o.Line} for {o.Kr} kr.";
+            (_what, _freeKr, _photo) = ("", null, null);
+            _sales = await Shop.MarketSalesAsync();
+        }
+        catch (SalgException ex) { _error = ex.Message; }
+        finally { _busy = false; }
     }
 
     private async Task Sell(StockItem i)

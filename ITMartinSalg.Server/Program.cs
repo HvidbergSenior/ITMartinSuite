@@ -97,6 +97,9 @@ app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, 
     ]));
 });
 
+app.MapGet("/markedsfoto/{id:int}", async (int id, MarketUseCases market) =>
+    await market.PhotoAsync(id) is { } bytes ? Results.File(bytes, "image/jpeg") : Results.NotFound());
+
 app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("salg_auth"); return Results.Redirect("/login"); });
 
 app.MapShopApi();

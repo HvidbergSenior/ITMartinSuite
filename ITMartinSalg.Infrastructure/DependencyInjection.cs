@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddHttpClient<IStockGateway, LagerStockLink>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddKunderClient(cfg, dataDir);
         services.AddScoped<ICustomerRecord, KunderBuyers>();
+        services.AddSingleton<IMarketPhotos>(new Files.MarketPhotoFiles(dataDir));
 
         services.AddSingleton(new SalgOptions
         {

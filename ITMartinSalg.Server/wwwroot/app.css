@@ -31,3 +31,6 @@
 .lg-sell { display: flex; gap: .4rem; align-items: center; }
 .lg-kr { width: 6.5rem; font-size: 1.15rem; }
 .lg-total { font-size: 1.15rem; font-weight: 700; }
+.lg-camera { display: inline-flex; position: relative; margin: .4rem 0; cursor: pointer; }
+.lg-hidden-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.lg-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 2px solid var(--k-text); }

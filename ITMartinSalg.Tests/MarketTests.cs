@@ -20,6 +20,15 @@ public class MarketTests
     }
 
     [Test]
+    public void A_sale_without_search_is_done_and_never_told_to_Lager()
+    {
+        var o = Order.FreeAtMarket("", 15, DateTime.UtcNow);
+        (o.Free, o.Line, o.Kr, o.Paid, o.NeedsBooking, o.Channel).Should().Be((true, Order.FreeLine, 15, true, false, SaleChannels.Market));
+        Order.FreeAtMarket(" kasse blade ", 50, DateTime.UtcNow).Line.Should().Be("kasse blade");
+        FluentActions.Invoking(() => Order.FreeAtMarket("x", 0, DateTime.UtcNow)).Should().Throw<InvalidOperationException>();
+    }
+
+    [Test]
     public void No_price_or_nothing_left_is_not_a_sale()
     {
         var now = DateTime.UtcNow;

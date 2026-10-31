@@ -99,3 +99,10 @@ public sealed record SalgOptions
 
 /// <summary>A message for the person, in Danish - shown as it is.</summary>
 public sealed class SalgException(string message) : Exception(message);
+
+/// <summary>The photo of a market sale without search (Order.FreeAtMarket), by the order's id.</summary>
+public interface IMarketPhotos
+{
+    Task SaveAsync(int orderId, Stream photo, CancellationToken ct);
+    Task<byte[]?> GetAsync(int orderId, CancellationToken ct);
+}
