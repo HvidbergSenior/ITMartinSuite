@@ -41,8 +41,9 @@ public static partial class Gold
     // not gold. Up to 50 per tier per category.
     public const int GoldFrom = 500, SilverFrom = 200, BronzeFrom = 100;
     public const string GoldTier = "Guld", SilverTier = "Sølv", BronzeTier = "Bronze";
-    public const int PerCategory = 150;
-    public const int PerTier = 50;
+    // Expanded 2026-10-31 (user: "expand gold list and silver and bronze?"): 100 per tier.
+    public const int PerCategory = 300;
+    public const int PerTier = 100;
 
     public static string TierOf(int kr) => kr >= GoldFrom ? GoldTier : kr >= SilverFrom ? SilverTier : BronzeTier;
     public static string BadgeOf(string tier) => tier switch { GoldTier => "🏆 GULD", SilverTier => "🥈 SØLV", _ => "🥉 BRONZE" };
@@ -56,6 +57,8 @@ public static partial class Gold
 
     public static readonly GoldCategory[] Categories =
     [
+        // Ekstra before & Co. - the first category whose words fit is the one (2026-10-31: 14 in stock).
+        new(Kinds.AndersAnd, "Anders And Ekstra", "anders and ekstra", ["anders", "and", "ekstra"], false),
         new(Kinds.AndersAnd, "Anders And & Co.", "anders and & co", ["anders", "and"], false),
         new(Kinds.Jumbobog, "Jumbobøger", "jumbobog", ["jumbobog"], true),
         new(Kinds.Tegneserie, "Tintin", "tintin", ["tintin"], false),
@@ -65,12 +68,21 @@ public static partial class Gold
         new(Kinds.Tegneserie, "Superserien", "superserien", ["superserien"], false),
         new(Kinds.Tegneserie, "Storm P.", "storm p", ["storm"], false),
         new(Kinds.Tegneserie, "Gyldenspjæt", "gyldenspjæt", ["gyldenspjæt"], false),
+        // The series in stock 2026-10-31 (user: "expand gold list and silver and bronze?").
+        new(Kinds.Tegneserie, "Jonah Hex", "jonah hex", ["jonah", "hex"], false),
+        new(Kinds.Tegneserie, "Basserne", "basserne", ["basserne"], false),
+        new(Kinds.Tegneserie, "Kong Kylie", "kong kylie", ["kylie"], false),
+        new(Kinds.Tegneserie, "Skipper Skræk", "skipper skræk", ["skipper", "skræk"], false),
+        new(Kinds.Tegneserie, "Rasmus Klump", "rasmus klump", ["rasmus", "klump"], false),
+        new(Kinds.Tegneserie, "Prins Valiant", "prins valiant", ["valiant"], false),
         // Superhelte - numbered issues, like the blade.
         new(Kinds.Superhelte, "X-Men", "x-men", ["men"], true),
         new(Kinds.Superhelte, "Spider-Man", "spider-man", ["spider"], true),
         new(Kinds.Superhelte, "Batman", "batman", ["batman"], true),
         new(Kinds.Superhelte, "Superman", "superman", ["superman"], true),
         new(Kinds.Superhelte, "Fantastic Four", "fantastic four", ["fantastic"], true),
+        new(Kinds.Superhelte, "Edderkoppen", "edderkoppen", ["edderkoppen"], true),
+        new(Kinds.Superhelte, "Legionnaires", "legionnaires", ["legionnaires"], true),
         // One title each.
         new(Kinds.Bog, "Bøger – 1. udgave", "1. udgave", ["udgave"], false, ByTitle: true),
         new(Kinds.Bog, "Bøger – signeret", "signeret bog", ["signeret"], false, ByTitle: true),
