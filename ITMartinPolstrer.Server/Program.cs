@@ -96,9 +96,13 @@ app.Use(async (ctx, next) =>
     ctx.Response.Redirect("/login");
 });
 
-app.MapPost("/api/auth/login", (HttpContext ctx, [FromForm] string pin) =>
+// Five wrong PINs from one address lock it for 15 minutes (PinGuard). Behind Cloudflare the real address is CF-Connecting-IP.
+app.MapPost("/api/auth/login", (HttpContext ctx, [FromForm] string pin, PinGuard guard) =>
 {
-    if (pin == adminPin)
+    var address = ctx.Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "?";
+    var result = guard.Check(pin, adminPin, address);
+    if (result == PinResult.Locked) return Results.Redirect("/login?error=2");
+    if (result == PinResult.Ok)
     {
         ctx.Response.Cookies.Append("polstrer_auth", adminPin, new CookieOptions
         {

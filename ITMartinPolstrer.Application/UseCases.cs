@@ -192,6 +192,7 @@ public static class DependencyInjection
         services.AddScoped<Journal>();
         services.AddScoped<Experience>();
         services.AddScoped<WorkshopBoard>();
+        services.AddSingleton<PinGuard>();
         return services;
     }
 }

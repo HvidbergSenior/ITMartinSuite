@@ -11,6 +11,10 @@
         {
             <div class="login-error">Forkert PIN – prøv igen</div>
         }
+        else if (Error == "2")
+        {
+            <div class="login-error">For mange forkerte forsøg. Vent et kvarter og prøv igen.</div>
+        }
         <form method="post" action="/api/auth/login">
             <input type="password" name="pin" class="login-field" placeholder="PIN-kode" autofocus maxlength="30" />
             <button type="submit" class="btn btn-primary btn-block">Log ind</button>
