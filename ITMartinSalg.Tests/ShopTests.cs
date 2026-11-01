@@ -34,12 +34,16 @@ public sealed class FakeStock : IStockGateway
         return i;
     }
 
+    /// <summary>The band the last list asked Lager for.</summary>
+    public string? LastBand;
+
     private void Check() { if (Down) throw new SalgException("Lageret svarer ikke lige nu. Prøv igen om lidt."); }
 
     public Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
         string? band = null)
     {
         Check();
+        LastBand = band;
         var q = Items.Where(i => (kinds is null || kinds.Contains(i.Kind)) && (usage is null || i.Usage == usage)
             && text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => i.Title.ToLowerInvariant().Contains(w)));
         q = sort switch
@@ -322,6 +326,22 @@ public class ShopTests
         var music = await shop.MarketAsync(ProductTypes.Musik, null, null, "abbey", ShopSorts.Cheapest, 0);
         music.Items.Select(i => (i.Kind, i.BuyNowKr)).Should().Equal((Kinds.Cd, 60), (Kinds.Vinyl, 200));
         music.Items.Should().OnlyContain(i => i.Type == ProductTypes.Musik);
+    }
+
+    [Test]
+    public async Task Alle_med_pris_asks_Lager_for_own_priced_things_across_all_kinds()
+    {
+        _stock.Add(Kinds.Bog, "Mort", price: 50);
+        var (shop, _) = Make();
+
+        await shop.MarketAsync(null, null, null, null, ShopSorts.Title, 0, price: ShopDeals.WithPrice);
+        _stock.LastBand.Should().Be(ShopDeals.Single);
+
+        await shop.MarketAsync(null, null, null, null, ShopSorts.Title, 0);
+        _stock.LastBand.Should().BeNull("plain Alle (and Salg's own Sælg search) still lists everything");
+
+        await shop.MarketAsync(ShopDeals.NoPriceName, null, null, null, ShopSorts.Title, 0, price: ShopDeals.WithPrice);
+        _stock.LastBand.Should().Be(ShopDeals.NoPrice);
     }
 
     [Test]

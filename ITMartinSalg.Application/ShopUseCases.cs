@@ -37,8 +37,9 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var band = ShopDeals.Named(type)?.Name ?? (type == ShopDeals.NoPriceName ? ShopDeals.NoPrice : type == ShopDeals.UnsureName ? ShopDeals.Unsure : ShopDeals.Single);
         var across = band != ShopDeals.Single;
         // A price band (ShopDeals.Prices) narrows the own-priced things - not a deal or Ingen pris endnu.
-        var priced = !across && ShopDeals.PriceBand(price) is not null;
-        if (priced) band = price!;
+        var withPrice = !across && price == ShopDeals.WithPrice;
+        var priced = !across && (withPrice || ShopDeals.PriceBand(price) is not null);
+        if (priced) band = withPrice ? ShopDeals.Single : price!;
         IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
             : !across && !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
         var found = await stock.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),

@@ -6,7 +6,7 @@
 <section class="k-card bs-card bs-shop" id="alle">
     <h2 class="k-card-title">Alle produkter</h2>
     @* "Jeg er interesseret" removed for now (user 2026-10-31). *@
-    <p class="k-help">Under vores pris står, hvad lignende koster andre steder – tryk på den, så ser du selv. Ting uden pris endnu ligger under <b>@ShopDeals.NoPriceName</b>: dem undersøger vi stadig.</p>
+    <p class="k-help">Tryk på et billede for at se det stort. Under <b>Mere om den</b> står stand og hvad lignende koster andre steder. Ting uden pris endnu ligger under <b>@ShopDeals.NoPriceName</b>.</p>
 
     @if (_error is not null)
     {
@@ -19,7 +19,7 @@
     else
     {
         <div class="bs-filter" role="group" aria-label="Vælg slags">
-            <button class="k-btn k-btn-sm @(_type == "" ? "is-on" : "")" aria-pressed="@(_type == "")" @onclick='() => Pick("")'>Alle (@_market.Types.Sum(t => t.Count))</button>
+            <button class="k-btn k-btn-sm @(_type == "" ? "is-on" : "")" aria-pressed="@(_type == "")" @onclick='() => Pick("")'>Alle med pris (@PricedCount)</button>
             @foreach (var t in _market.Types)
             {
                 <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
@@ -54,48 +54,47 @@
         <p class="bs-count" role="status">@ResultText</p>
         @* The shop window (user 2026-10-31: "Wauvv effect for a customer"): picture first, our price big, and on every
            thing one listing elsewhere as the reference ("so like similar products cost this") - every link in a new tab. *@
+        @* Picture grid (user 2026-11-01: "nicer and better... more easy to look at products", chose "Picture grid"): the
+           picture is always shown (replaces the 2026-10-31 "Billede" fold), then title and price; everything else - stand,
+           Lignende koster, Se flere priser - in ONE fold per card. 2 columns on a phone, 4-5 on a PC. *@
         <ul class="bs-shop-grid">
             @foreach (var i in _items)
             {
                 <li class="bs-shop-card">
-                    <div class="bs-shop-body">
+                    <div class="bs-shop-pic">
+                        @if (i.HasPhoto) { <a class="bs-shop-zoom" href="/varer/foto/@i.Id" target="_blank" rel="noopener" title="Se billedet stort"><img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /></a> }
+                        else { <span class="bs-shop-nopic">@i.Kind</span> }
                         @if (i.Badge != "") { <span class="bs-shop-badge">@ITMartinHjem.Server.Services.NoEmoji.Strip(i.Badge)</span> }
+                    </div>
+                    <div class="bs-shop-body">
                         <h3>@i.Line</h3>
-                        @* The picture folds too (user 2026-10-31: "the pictures should be show/hide as well"); lazy = loads when opened.
-                           Tap = the full picture in a new tab, to zoom in (user 2026-10-31: "can pictures be magnified?"). *@
-                        <details class="bs-shop-more bs-shop-picbox">
-                            <summary>Billede</summary>
-                            <div class="bs-shop-pic">
-                                @if (i.HasPhoto) { <a class="bs-shop-zoom" href="/varer/foto/@i.Id" target="_blank" rel="noopener" title="Se billedet stort"><img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /></a> }
-                                else { <span class="bs-shop-nopic">@i.Kind</span> }
-                            </div>
-                        </details>
                         @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
                         else if (ShopDeals.Named(i.Deal) is { } deal)
                         {
-                            @* In a deal (user 2026-10-31: "Books 2 for 50 5 for 100 ... Dvd 4 for 50 10 for 100"). *@
                             <p class="bs-shop-price">@foreach (var s in deal.Steps) { <b>@s.Count for @s.Kr kr</b> }</p>
-                            <p class="k-help">Bland frit mellem alle @deal.Group.ToLowerInvariant() i tilbuddet.</p>
                         }
                         else if ((i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is { } kr)
                         {
                             <p class="bs-shop-price"><b>@kr kr</b>@if (i.DayKr is not null && i.BuyNowKr is { } was) { <s>@was kr</s> }</p>
-                            @* The market price as text (user 2026-10-31: "put the 75 price on as text"). *@
-                            @if (MarketNotice.On) { <p class="bs-shop-market">På loppemarkedet søndag: <b>@MarketNotice.MarketKr(kr) kr</b></p> }
+                            @if (MarketNotice.On) { <p class="bs-shop-market">På loppemarkedet: <b>@MarketNotice.MarketKr(kr) kr</b></p> }
                         }
                         else
                         {
-                            @* Not priced yet (user 2026-10-31: "No pricing yet. We are investigating" - "but the products cannot be sold"). *@
-                            <p class="bs-shop-noprice"><b>@ShopDeals.NoPriceName</b> – vi undersøger det. Kan ikke købes endnu.</p>
+                            <p class="bs-shop-noprice">@ShopDeals.NoPriceName</p>
                         }
-                        @if (i.Reference is { } r)
-                        {
-                            <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
-                        }
-                        @* The rest folds away (user 2026-10-31: "the products need to be show/hide boxes as well"). *@
-                        <details class="bs-shop-more">
+                        @* Own fold memory per thing (kolibri.js keys on the summary text, so one opened = all 60 opened). *@
+                        <details class="bs-shop-more" data-remember="produkt-@i.Id">
                             <summary>Mere om den</summary>
                             <p class="k-help">@Facts(i)</p>
+                            @if (ShopDeals.Named(i.Deal) is { } d2) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
+                            @if (!i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
+                            {
+                                <p class="k-help">Vi undersøger prisen. Den kan ikke købes endnu.</p>
+                            }
+                            @if (i.Reference is { } r)
+                            {
+                                <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
+                            }
                             @if (i.Interest != "") { <p class="bs-shop-interest">@i.Interest</p> }
                             @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
                             @if (_proof.TryGetValue(i.Id, out var proof))
@@ -140,6 +139,9 @@
     private bool _loading;
 
     protected override Task OnInitializedAsync() => Load(reset: true);
+
+    /// <summary>Alle = the things with a price; "Ingen pris endnu" and "Ikke tjekket endnu" keep their own buttons.</summary>
+    private int PricedCount => _market?.Types.Where(t => t.Type is not ShopDeals.NoPriceName and not ShopDeals.UnsureName).Sum(t => t.Count) ?? 0;
 
     private string ResultText => _market is null ? "" : _market.Total switch
     {
@@ -186,7 +188,8 @@
     {
         _loading = true;
         if (reset) _page = 0;
-        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, ShopSorts.Title, _page, price: _price == "" ? null : _price);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
+        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, ShopSorts.Title, _page,
+            price: _price != "" ? _price : _type == "" ? ShopDeals.WithPrice : null);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
         _loading = false;
         _error = error;
         if (market is null) return;

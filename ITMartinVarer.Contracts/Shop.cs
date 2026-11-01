@@ -123,6 +123,9 @@ public static class ShopDeals
     /// <summary>Not priced and in no deal (user 2026-10-31: "No pricing yet. We are investigating"; unsure readings = a
     /// person looks - "low confidence should be manual investigation").</summary>
     public const string NoPrice = "uden-pris";
+    /// <summary>"Alle" on bogshoppen.dk/produkter as a price key: every own-priced thing across all kinds, so the shop window
+    /// shows things you can buy first (user 2026-11-01 "nicer and better... more easy to look at products").</summary>
+    public const string WithPrice = "med-pris";
     public const string NoPriceName = "Ingen pris endnu";
     /// <summary>The unsure readings in one category of their own, without a price (user 2026-10-31: "show them in one
     /// category") - what the AI read may be another thing, so its price and reference are not shown.</summary>
