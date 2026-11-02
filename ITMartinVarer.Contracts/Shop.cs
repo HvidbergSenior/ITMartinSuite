@@ -83,9 +83,10 @@ public sealed record ShopDealStep(int Count, int Kr);
 
 /// <summary>A deal for one group of kinds, with its steps: "Bøger: 2 for 50 · 5 for 100 kr".</summary>
 /// AlsoSeries = series of other kinds that are in it too ("Basserne" is a Tegneserie). EveryPrice = every thing that matches
-/// is in it whatever its own price (a fixed price per piece) - only gold, silver and bronze keep their own.
+/// is in it whatever its own price (a fixed price per piece) - only gold, silver and bronze keep their own, and with OwnFromKr
+/// also a sure thing whose exact copies cost that much or more.
 public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOnlyList<ShopDealStep> Steps,
-    IReadOnlyList<string>? AlsoSeries = null, bool EveryPrice = false)
+    IReadOnlyList<string>? AlsoSeries = null, bool EveryPrice = false, int? OwnFromKr = null)
 {
     public string Name => Steps is [{ Count: 1 } one]
         ? $"{Group}: {one.Kr} kr stk."
@@ -121,8 +122,14 @@ public static class ShopDeals
 
     /// <summary>User 2026-11-02 after the loppemarked: "anders and blade and basserne should be sold for 3 kr a piece... So
     /// only if rare blad there should be links" - every Anders And-blad and every Basserne for 3 kr, whatever its own price;
-    /// a rare one (gold, silver, bronze) keeps its own price and its links.</summary>
-    public static readonly ShopDeal PerPiece = new("Anders And og Basserne", [Kinds.AndersAnd], [new(1, 3)], AlsoSeries: ["Basserne"], EveryPrice: true);
+    /// a rare one (gold, silver, bronze) keeps its own price and its links. Same day: "if an exact copy costs like 25+ then
+    /// they should be on the page" - OwnFromKr 25 (PriceHint = exact copies). The 3 kr ones are not on bogshoppen.dk.</summary>
+    public static readonly ShopDeal PerPiece = new("Anders And og Basserne", [Kinds.AndersAnd], [new(1, 3)], AlsoSeries: ["Basserne"], EveryPrice: true,
+        OwnFromKr: 25);
+
+    /// <summary>Anders And-blade with their own price shown on bogshoppen.dk: only the dearest this many (user 2026-11-02: "there
+    /// must always ONLY be shown 10-20 rare anders and blade").</summary>
+    public const int MaxRareAndersAndOnPage = 20;
 
     /// <summary>Every deal there is (PerPiece + All) - for names and the category chips.</summary>
     public static readonly IReadOnlyList<ShopDeal> Known = [PerPiece, .. All];

@@ -66,9 +66,13 @@ public class StockForSaleTests
         var now = DateTime.UtcNow;
         ShopDeals.PerPiece.Name.Should().Be("Anders And og Basserne: 3 kr stk.");
         Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Number = "12", Year = 1985, Confidence = 1, PriceHint = 18, PricesAt = now }, [])
-            .Should().Be(ShopDeals.PerPiece.Name, "its own price does not matter");
+            .Should().Be(ShopDeals.PerPiece.Name, "under 25 kr = the 3 kr bin");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Number = "1", Year = 1949, Confidence = 1, PriceHint = 25, PricesAt = now }, [])
+            .Should().Be("", "exact copies cost 25+ = own price, on the page");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, PriceHint = 60, PricesAt = now }, [])
+            .Should().Be(ShopDeals.PerPiece.Name, "an unsure reading's price is not trusted");
         Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 1 }, []).Should().Be(ShopDeals.PerPiece.Name, "not searched yet either");
-        Shop.DealFor(new Item { Kind = Kinds.Tegneserie, Title = "Rødøje", Series = "Basserne", Number = "612", Confidence = 1, PriceHint = 25, PricesAt = now }, [])
+        Shop.DealFor(new Item { Kind = Kinds.Tegneserie, Title = "Rødøje", Series = "Basserne", Number = "612", Confidence = 1, PriceHint = 20, PricesAt = now }, [])
             .Should().Be(ShopDeals.PerPiece.Name);
         Shop.DealFor(new Item { Kind = Kinds.Tegneserie, Title = "Asterix og Kleopatra", Series = "Asterix", Confidence = 1, PriceHint = 25, PricesAt = now }, [])
             .Should().Be("", "other comics keep their own price");

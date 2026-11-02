@@ -62,8 +62,10 @@ public static class Shop
         deals ??= ShopDeals.Active;
         if (Badge(gold, i) != "") return "";
         var deal = ShopDeals.For(i.Kind, i.Series, deals);
-        // A fixed price per piece (ShopDeals.PerPiece, 2026-11-02): every one that is not rare, sure or not, priced or not.
-        if (deal is { EveryPrice: true }) return deal.Name;
+        // A fixed price per piece (ShopDeals.PerPiece, 2026-11-02): every one that is not rare - unless it is a sure reading
+        // whose exact copies cost OwnFromKr or more (then its own price, and it is on the page).
+        if (deal is { EveryPrice: true })
+            return deal.OwnFromKr is { } own && i.Confidence >= Pricing.MinConfidence && (i.Price ?? i.PriceHint) >= own ? "" : deal.Name;
         if (i.Confidence < Pricing.MinConfidence) return deals.Contains(ShopDeals.Blade) && ShopDeals.Blade.Kinds.Contains(i.Kind) ? ShopDeals.Blade.Name : "";
         if (deal is null) return "";
         var kr = i.Price ?? i.PriceHint;

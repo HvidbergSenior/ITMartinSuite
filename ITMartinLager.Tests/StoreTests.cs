@@ -70,6 +70,22 @@ public class StoreTests
     }
 
     [Test]
+    public async Task The_3_kr_bin_is_not_on_the_page_and_only_the_dearest_rare_blade_are()
+    {
+        var box = await Boxes.AddNextAsync("Loppemarked", default);
+        // 24 blade at 25-48 kr (own price) + one at 10 kr (the 3 kr bin).
+        await Registration.SaveAsync(box.Id, null, [.. Enumerable.Range(1, 24).Select(n => Aa(n.ToString(), 1968) with { PriceHint = 24 + n }),
+            Aa("99", 1968) with { PriceHint = 10 }]);
+        var all = await Items.AllListedAsync(default);
+        foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, []); }
+        await Items.UpdateAsync(all, default);
+        var (page, total) = await Items.ListedAsync(null, null, "", ShopSorts.Dearest, 0, 50, default);
+        total.Should().Be(ShopDeals.MaxRareAndersAndOnPage);
+        page.Select(i => i.Number).Should().NotContain("99", "the 3 kr bin is not on the page").And.NotContain(["1", "2", "3", "4"], "only the dearest 20");
+        (await Items.ListedPerDealAsync(default)).Should().BeEmpty();
+    }
+
+    [Test]
     public async Task Price_bands_are_own_prices_from_up_to_under()
     {
         var box = await Boxes.AddNextAsync("Loppemarked", default);

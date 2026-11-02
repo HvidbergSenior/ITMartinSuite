@@ -151,10 +151,21 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         below is { } b ? q.Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) >= from && (i.Price ?? i.PriceHint) < b)
             : q.Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) >= from);
 
-    private static IQueryable<Item> Listed(LagerDb db) => ForSale(db);
+    private static readonly string PerPieceDeal = ShopDeals.PerPiece.Name;
+
+    // What bogshoppen.dk shows (user 2026-11-02): not the 3 kr Anders And/Basserne bin, and of the Anders And-blade with their
+    // own price only the dearest ShopDeals.MaxRareAndersAndOnPage.
+    private static IQueryable<Item> OnPage(LagerDb db)
+    {
+        var rare = ForSale(db).Where(i => i.Kind == Kinds.AndersAnd && i.Deal == "" && (i.Price ?? i.PriceHint) > 0)
+            .OrderByDescending(i => i.Price ?? i.PriceHint).ThenBy(i => i.Id).Take(ShopDeals.MaxRareAndersAndOnPage).Select(i => i.Id);
+        return ForSale(db).Where(i => i.Deal != PerPieceDeal && (i.Kind != Kinds.AndersAnd || i.Deal != "" || rare.Contains(i.Id)));
+    }
+
+    private static IQueryable<Item> Listed(LagerDb db) => OnPage(db);
 
     // Sure readings: everything but the Unsure band.
-    private static IQueryable<Item> Sure(LagerDb db) => ForSale(db).Where(i => i.Confidence >= Pricing.MinConfidence || i.Deal == BladeDeal);
+    private static IQueryable<Item> Sure(LagerDb db) => OnPage(db).Where(i => i.Confidence >= Pricing.MinConfidence || i.Deal == BladeDeal);
 
     // ShopDeals bands as SQL: Single = priced and in no deal, NoPrice = no price and in no deal, a deal name = that deal.
     private static IQueryable<Item> Listed(LagerDb db, string? band) => band switch
@@ -162,7 +173,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         null => Listed(db),
         ShopDeals.Single => Sure(db).Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) > 0),
         ShopDeals.NoPrice => Sure(db).Where(i => i.Deal == "" && ((i.Price ?? i.PriceHint) == null || (i.Price ?? i.PriceHint) <= 0)),
-        ShopDeals.Unsure => ForSale(db).Where(i => i.Confidence < Pricing.MinConfidence && i.Deal == ""),
+        ShopDeals.Unsure => OnPage(db).Where(i => i.Confidence < Pricing.MinConfidence && i.Deal == ""),
         _ when ShopDeals.PriceBand(band) is { } p => Priced(Sure(db), p.From, p.Below),
         _ => Listed(db).Where(i => i.Deal == band),
     };
