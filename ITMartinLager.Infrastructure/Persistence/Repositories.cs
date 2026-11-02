@@ -181,7 +181,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     public async Task<Dictionary<string, int>> ListedPerDealAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await Listed(db).Where(i => i.Deal != "").GroupBy(i => i.Deal).Select(g => new { g.Key, Count = g.Count() })
+        // ForSale, not OnPage: the 3 kr bin is off the page but its count makes the online packs.
+        return await ForSale(db).Where(i => i.Deal != "").GroupBy(i => i.Deal).Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
     }
 

@@ -51,6 +51,23 @@
             <button class="k-btn k-btn-primary" type="submit">Søg</button>
         </form>
 
+        @* The 3 kr bin online as packs (user 2026-11-02: "online sale need to have some kind of rare and batch of", chose fixed
+           packs) - on Alle and on Anders And-blade, not while searching. Not a webshop: you write to us for a pack. *@
+        @if (_market.Packs is { Count: > 0 } packs && _text == "" && (_type == "" || _type == ProductTypes.AndersAnd))
+        {
+            <div class="bs-packs">
+                @foreach (var p in packs)
+                {
+                    <div class="bs-pack">
+                        <h3>@p.Name</h3>
+                        <p class="bs-shop-price"><b>@p.Kr kr</b></p>
+                        <p class="k-help">Blandet fra vores kasse – vi har til @p.Left @(p.Left == 1 ? "pakke" : "pakker").</p>
+                    </div>
+                }
+                <div class="bs-packs-ask"><a class="k-btn k-btn-primary bs-btn" href="@BogshoppenHome.AskUrl">Vil du have en pakke? Skriv til os</a></div>
+            </div>
+        }
+
         <p class="bs-count" role="status">@ResultText</p>
         @* The shop window (user 2026-10-31: "Wauvv effect for a customer"): picture first, our price big, and on every
            thing one listing elsewhere as the reference ("so like similar products cost this") - every link in a new tab. *@

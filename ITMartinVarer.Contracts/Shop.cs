@@ -56,7 +56,11 @@ public sealed record ShopOffer(string Name, string Text, string When);
 
 /// <summary>One page of the marketplace: the types (with counts), today's offers, and the things that match.</summary>
 public sealed record ShopMarket(bool CanPay, List<ShopType> Types, List<ShopOffer> Today, List<ShopItem> Items, int Total,
-    List<ShopGroup>? Groups = null);
+    List<ShopGroup>? Groups = null, List<ShopPack>? Packs = null);
+
+/// <summary>A pack from a per-piece deal, sold online as one thing (user 2026-11-02: "online sale need to have some kind of
+/// rare and batch of", chose fixed packs): Count mixed things for Kr kr, and how many such packs we can make (Left).</summary>
+public sealed record ShopPack(string Name, int Count, int Kr, int Left);
 
 /// <summary>A basket priced for today: each copy, what it costs today and why, and the total.</summary>
 public sealed record ShopQuote(bool CanPay, List<ShopQuoteLine> Lines, int Total, int Saved, List<ShopOffer> Today, List<int> Gone);
@@ -86,8 +90,12 @@ public sealed record ShopDealStep(int Count, int Kr);
 /// is in it whatever its own price (a fixed price per piece) - only gold, silver and bronze keep their own, and with OwnFromKr
 /// also a sure thing whose exact copies cost that much or more.
 public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOnlyList<ShopDealStep> Steps,
-    IReadOnlyList<string>? AlsoSeries = null, bool EveryPrice = false, int? OwnFromKr = null)
+    IReadOnlyList<string>? AlsoSeries = null, bool EveryPrice = false, int? OwnFromKr = null, IReadOnlyList<int>? PackSizes = null)
 {
+    /// <summary>The packs sold online from this deal, with how many full packs these things make.</summary>
+    public List<ShopPack> Packs(int things) => (PackSizes ?? []).Where(n => things >= n)
+        .Select(n => new ShopPack($"Pakke: {n} blandede blade – {Group}", n, n * Steps[0].Kr / Steps[0].Count, things / n)).ToList();
+
     public string Name => Steps is [{ Count: 1 } one]
         ? $"{Group}: {one.Kr} kr stk."
         : $"{Group}: {string.Join(" · ", Steps.Select(s => $"{s.Count} for {s.Kr}"))} kr";
@@ -125,7 +133,7 @@ public static class ShopDeals
     /// a rare one (gold, silver, bronze) keeps its own price and its links. Same day: "if an exact copy costs like 25+ then
     /// they should be on the page" - OwnFromKr 25 (PriceHint = exact copies). The 3 kr ones are not on bogshoppen.dk.</summary>
     public static readonly ShopDeal PerPiece = new("Anders And og Basserne", [Kinds.AndersAnd], [new(1, 3)], AlsoSeries: ["Basserne"], EveryPrice: true,
-        OwnFromKr: 25);
+        OwnFromKr: 25, PackSizes: [10, 25]);
 
     /// <summary>Anders And-blade with their own price shown on bogshoppen.dk: only the dearest this many (user 2026-11-02: "there
     /// must always ONLY be shown 10-20 rare anders and blade").</summary>

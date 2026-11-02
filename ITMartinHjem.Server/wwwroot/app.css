@@ -825,6 +825,12 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
    one reference per thing ("similar products cost this"). Theme tokens only, so light/dark both work. */
 .bs-groups{margin-top:0}
 .bs-groups .k-btn{font-weight:600}
+/* Online packs of the 3 kr bin (2026-11-02): same border as the product cards, side by side from 500px. */
+.bs-packs{display:grid;gap:12px;margin:12px 0 0;grid-template-columns:minmax(0,1fr)}
+@media (min-width:500px){.bs-packs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bs-pack{border:2px solid var(--k-text);border-radius:16px;padding:12px 14px;background:var(--k-card);color:var(--k-text)}
+.bs-pack h3{margin:0 0 4px;font-size:1.05rem}
+.bs-packs > .bs-packs-ask{grid-column:1/-1;margin:0}
 .bs-shop-grid{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (min-width:700px){.bs-shop-grid{gap:16px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
   /* Picture grid 2026-11-01: the shop section breaks out of the 640px column to ~1100px on a PC (4-5 per row). */

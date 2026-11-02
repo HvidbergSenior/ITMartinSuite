@@ -82,7 +82,8 @@ public class StoreTests
         var (page, total) = await Items.ListedAsync(null, null, "", ShopSorts.Dearest, 0, 50, default);
         total.Should().Be(ShopDeals.MaxRareAndersAndOnPage);
         page.Select(i => i.Number).Should().NotContain("99", "the 3 kr bin is not on the page").And.NotContain(["1", "2", "3", "4"], "only the dearest 20");
-        (await Items.ListedPerDealAsync(default)).Should().BeEmpty();
+        (await Items.ListedPerDealAsync(default)).Should().BeEquivalentTo(new Dictionary<string, int> { [ShopDeals.PerPiece.Name] = 1 },
+            "the bin is counted for the online packs");
     }
 
     [Test]

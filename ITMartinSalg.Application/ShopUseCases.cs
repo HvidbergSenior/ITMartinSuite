@@ -48,14 +48,16 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();
         var deals = await stock.DealsAsync(ct);
-        types.AddRange(ShopDeals.Known.Where(d => deals.GetValueOrDefault(d.Name) > 0).Select(d => new ShopType(d.Name, deals[d.Name])));
+        // A per-piece deal (the 3 kr Anders And bin) is not a category - its things are not on the page, its packs are.
+        types.AddRange(ShopDeals.Known.Where(d => !d.EveryPrice && deals.GetValueOrDefault(d.Name) > 0).Select(d => new ShopType(d.Name, deals[d.Name])));
+        var packs = ShopDeals.Active.Where(d => d.EveryPrice).SelectMany(d => d.Packs(deals.GetValueOrDefault(d.Name))).ToList();
         var unpriced = (await stock.PerKindAsync(ct, ShopDeals.NoPrice)).Values.Sum();
         if (unpriced > 0) types.Add(new ShopType(ShopDeals.NoPriceName, unpriced));
         var unsure = (await stock.PerKindAsync(ct, ShopDeals.Unsure)).Values.Sum();
         if (unsure > 0) types.Add(new ShopType(ShopDeals.UnsureName, unsure));
         // Subgroups only inside one type or kind - for everything at once they would be too many to read.
         var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct, band);
-        return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups);
+        return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups, packs);
     }
 
     /// <summary>Today's offers, as the buyer reads them.</summary>

@@ -81,6 +81,18 @@ public class StockForSaleTests
     }
 
     [Test]
+    public void The_3_kr_bin_is_sold_online_in_packs_of_10_and_25()
+    {
+        ShopDeals.PerPiece.Packs(180).Should().BeEquivalentTo(new[]
+        {
+            new ShopPack("Pakke: 10 blandede blade – Anders And og Basserne", 10, 30, 18),
+            new ShopPack("Pakke: 25 blandede blade – Anders And og Basserne", 25, 75, 7),
+        });
+        ShopDeals.PerPiece.Packs(12).Select(p => p.Count).Should().Equal(10);
+        ShopDeals.PerPiece.Packs(0).Should().BeEmpty();
+    }
+
+    [Test]
     public void A_listing_of_another_product_type_is_not_this_product()
     {
         Pricing.OtherFormat(Kinds.Bog, "Garfield Farvealbum Nr. 9 Blå mandag").Should().BeTrue();
