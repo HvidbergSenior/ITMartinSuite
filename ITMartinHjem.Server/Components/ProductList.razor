@@ -18,17 +18,22 @@
     }
     else
     {
+        @* Clearer buttons (user 2026-11-02: "better buttons when searching... maybe colors"): each row has a label, the chosen
+           button is filled in the theme colour with a tick (not colour alone - the user is a bit colour-blind), and the two
+           status categories (no price / not checked) are dashed so they read as "other" than a kind of product. *@
         <div class="bs-filter" role="group" aria-label="Vælg slags">
+            <span class="bs-filter-label">Slags</span>
             <button class="k-btn k-btn-sm @(_type == "" ? "is-on" : "")" aria-pressed="@(_type == "")" @onclick='() => Pick("")'>Alle med pris (@PricedCount)</button>
             @foreach (var t in _market.Types)
             {
-                <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
+                <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "") @(t.Type is ShopDeals.NoPriceName or ShopDeals.UnsureName ? "bs-chip-status" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
             }
         </div>
         @* Subgroups from the data (user 2026-10-31: "make subcategories based on data"): the series or artists we have 2+ of. *@
         @if (_market.Groups is { Count: > 0 } groups)
         {
             <div class="bs-filter bs-groups" role="group" aria-label="Vælg serie eller kunstner">
+                <span class="bs-filter-label">Serie eller kunstner</span>
                 @foreach (var g in groups)
                 {
                     <button class="k-btn k-btn-sm @(_text == g.Name ? "is-on" : "")" aria-pressed="@(_text == g.Name)" @onclick="() => PickGroup(g.Name)">@g.Name (@g.Count)</button>
@@ -39,6 +44,7 @@
         @if (ShopDeals.Named(_type) is null && _type != ShopDeals.NoPriceName && _type != ShopDeals.UnsureName)
         {
             <div class="bs-filter bs-prices" role="group" aria-label="Vælg pris">
+                <span class="bs-filter-label">Pris</span>
                 <button class="k-btn k-btn-sm @(_price == "" ? "is-on" : "")" aria-pressed="@(_price == "")" @onclick='() => PickPrice("")'>Alle priser</button>
                 @foreach (var p in ShopDeals.Prices)
                 {
