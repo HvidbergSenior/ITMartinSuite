@@ -106,6 +106,13 @@ public static class Barcodes
 // The product-type services (user 2026-10-20: "separate services for each producttype and the lager and vareinfo should
 // be the shared base"): which one looks after a kind - identification, catalogue fields, price sources, gold lists.
 // Lager decides the kind when it reads a photo, and this decides where it belongs.
+/// <summary>Film on bogshoppen.dk is DVD, Blu-ray and Sæsoner (user 2026-11-02: "film should be DVD, Blueray and Seasons"):
+/// a season box carries SeasonWord in its search text (Lager's Films.IsSeason), and the Sæsoner button searches it.</summary>
+public static class FilmShelves
+{
+    public const string SeasonWord = "sæsoner";
+}
+
 public static class ProductTypes
 {
     // Anders And-blade and Jumbobøger are two categories (user 2026-11-02: "categroies need to be better Anders And and

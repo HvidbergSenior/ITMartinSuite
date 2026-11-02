@@ -190,7 +190,21 @@ public sealed class Item
     {
         UpdatedAt = DateTime.UtcNow;
         Search = string.Join(' ', Title, Artist, Series, Number, Year?.ToString() ?? "", Platform, Kind, Note, Interest, Barcode, Edition, Publisher, EditionHint).ToLowerInvariant();
+        if (Films.IsSeason(Kind, Title)) Search += " " + Films.SeasonWord;
     }
+}
+
+/// <summary>Film on bogshoppen.dk is DVD, Blu-ray and Sæsoner (user 2026-11-02: "film should be DVD, Blueray and Seasons").
+/// A season box is a DVD or Blu-ray whose title says so; its search text gets SeasonWord, which the Sæsoner button searches.</summary>
+public static partial class Films
+{
+    public const string SeasonWord = FilmShelves.SeasonWord;
+
+    public static bool IsSeason(string kind, string title) => kind is Kinds.Dvd or Kinds.BluRay && SeasonRx().IsMatch(title);
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b(seasons?|sæson(er)?|sesong|staffel|säsong|complete\s+\w+\s+series|komplet(te)?\s+serie|kollektionen|hele\s+serien)\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex SeasonRx();
 }
 
 // One registration photo (kept, so a wrong reading can be checked against the picture).

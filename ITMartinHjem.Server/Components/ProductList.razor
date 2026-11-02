@@ -29,8 +29,19 @@
                 <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "") @(t.Type is ShopDeals.NoPriceName or ShopDeals.UnsureName ? "bs-chip-status" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
             }
         </div>
+        @* Film = DVD, Blu-ray and Sæsoner (user 2026-11-02: "film should be DVD, Blueray and Seasons"). *@
+        @if (_type == ProductTypes.Film)
+        {
+            <div class="bs-filter" role="group" aria-label="Vælg slags film">
+                <span class="bs-filter-label">Slags film</span>
+                <button class="k-btn k-btn-sm @(_kind == "" && _text != FilmShelves.SeasonWord ? "is-on" : "")" @onclick='() => PickFilm("", "")'>Alle film</button>
+                <button class="k-btn k-btn-sm @(_kind == Kinds.Dvd ? "is-on" : "")" @onclick="() => PickFilm(Kinds.Dvd, string.Empty)">DVD</button>
+                <button class="k-btn k-btn-sm @(_kind == Kinds.BluRay ? "is-on" : "")" @onclick="() => PickFilm(Kinds.BluRay, string.Empty)">Blu-ray</button>
+                <button class="k-btn k-btn-sm @(_text == FilmShelves.SeasonWord ? "is-on" : "")" @onclick="() => PickFilm(string.Empty, FilmShelves.SeasonWord)">Sæsoner</button>
+            </div>
+        }
         @* Subgroups from the data (user 2026-10-31: "make subcategories based on data"): the series or artists we have 2+ of. *@
-        @if (_market.Groups is { Count: > 0 } groups)
+        @if (_type != ProductTypes.Film && _market.Groups is { Count: > 0 } groups)
         {
             <div class="bs-filter bs-groups" role="group" aria-label="Vælg serie eller kunstner">
                 <span class="bs-filter-label">Serie eller kunstner</span>
@@ -161,7 +172,7 @@
     private ShopMarket? _market;
     private readonly List<ShopItem> _items = [];
     private string? _error;
-    private string _type = "", _text = "", _price = "";
+    private string _type = "", _text = "", _price = "", _kind = "";
     private int _page;      // Salg counts pages from 0 (page 1 skipped the first 33 - "cannot search", 2026-10-29)
     private bool _loading;
 
@@ -204,7 +215,8 @@
             .Take(6).ToList();
     }
 
-    private Task Pick(string type) { _type = type; _text = ""; if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = ""; return Load(reset: true); }
+    private Task PickFilm(string kind, string text) { _kind = kind; _text = text; return Load(reset: true); }
+    private Task Pick(string type) { _type = type; _text = ""; _kind = ""; if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = ""; return Load(reset: true); }
     private Task PickPrice(string key) { _price = key; return Load(reset: true); }
     // A subgroup is a search for its name inside the chosen type; the same chip again shows the whole type.
     private Task PickGroup(string name) { _text = _text == name ? "" : name; return Load(reset: true); }
@@ -215,7 +227,7 @@
     {
         _loading = true;
         if (reset) _page = 0;
-        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, ShopSorts.Title, _page,
+        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, _kind == "" ? null : _kind, null, _text, ShopSorts.Title, _page,
             price: _price != "" ? _price : _type == "" ? ShopDeals.WithPrice : null);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
         _loading = false;
         _error = error;

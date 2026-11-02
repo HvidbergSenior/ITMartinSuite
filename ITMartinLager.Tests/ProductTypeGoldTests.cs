@@ -24,6 +24,25 @@ public class ProductTypeGoldTests
     [TestCase(Kinds.Konsolspil, ProductTypes.Andet)]
     public void Every_kind_belongs_to_one_product_type(string kind, string type) => ProductTypes.For(kind).Should().Be(type);
 
+    [TestCase("Criminal Minds – The First Season", true)]
+    [TestCase("CSI: Miami – Hele første sæson", true)]
+    [TestCase("Alias – The Complete Second Series", true)]
+    [TestCase("Matador – Matador Kollektionen 1978-1982", true)]
+    [TestCase("The Chris Rock Show – Seasons 1&2", true)]
+    [TestCase("Heat", false)]
+    public void A_season_box_is_found_by_its_title(string title, bool season) => Films.IsSeason(Kinds.Dvd, title).Should().Be(season);
+
+    [Test]
+    public void A_season_box_gets_the_season_word_in_its_search()
+    {
+        var i = new Item { Kind = Kinds.Dvd, Title = "Lost – The Complete Fourth Season" };
+        i.Touch();
+        i.Search.Should().EndWith(" " + Films.SeasonWord);
+        var book = new Item { Kind = Kinds.Bog, Title = "Sæson for mord" };
+        book.Touch();
+        book.Search.Should().NotContain(Films.SeasonWord);
+    }
+
     [Test]
     public void An_Anders_And_and_Co_read_as_a_comic_is_an_Anders_And_blad()
     {
