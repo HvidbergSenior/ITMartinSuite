@@ -44,6 +44,17 @@ public class RealisticPriceTests
     }
 
     [Test]
+    public void A_mint_listing_counts_when_our_copy_is_like_new()
+    {
+        var mint = new Item { Kind = Kinds.Tegneserie, Title = "Som i et æventyr", Series = "Birger og Viola", Number = "3", Condition = "Som ny" };
+        Pricing.CollectorCopy(mint, "Birger og Viola Nr. 3 Som i et æventyr (Near Mint)").Should().BeFalse();
+        Pricing.CollectorReason(mint, "Birger og Viola Nr. 3 Som i et æventyr (1. udgave, Near Mint)").Should().Be("1. udgave", "a first edition is still another thing");
+        var used = new Item { Kind = Kinds.Tegneserie, Title = "Som i et æventyr", Series = "Birger og Viola", Number = "3", Condition = "Slidt" };
+        Pricing.CollectorReason(used, "Birger og Viola Nr. 3 (Near Mint)").Should().Be("mint");
+        Pricing.CollectorReason(used, "Projekt X Klassiker nr. 2").Should().Be("samlerudgave");
+    }
+
+    [Test]
     public void One_vote_per_site_and_the_unrealistic_asks_left_out()
     {
         // One site full of dear listings does not decide it.

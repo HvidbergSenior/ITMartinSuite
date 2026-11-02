@@ -218,15 +218,24 @@ public static partial class Pricing
     // ours is one too.
     [System.Text.RegularExpressions.GeneratedRegex(@"\b1\.?\s*(udgave|udg\.?|oplag)\b|første\s*udgave|førsteudgave|first\s+edition|1st\s+edition|erstausgabe|first\s+printing", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
     private static partial System.Text.RegularExpressions.Regex FirstEditionRx();
-    [System.Text.RegularExpressions.GeneratedRegex(@"near\s*mint|very\s*fine|\bnm\+?(?=\W|$)|\bvf(?=\W|$)|\bmint\b|\bungelesen\b|\bklassiker\b|\blimited\b|\blimiteret\b|samlerudgave|collector", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
-    private static partial System.Text.RegularExpressions.Regex CollectorRx();
+    // The grade of a copy (mint, near mint, very fine, unread) - and the special editions (limited, samlerudgave ...).
+    [System.Text.RegularExpressions.GeneratedRegex(@"near\s*mint|very\s*fine|\bnm\+?(?=\W|$)|\bvf(?=\W|$)|\bmint\b|\bungelesen\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex GradeRx();
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bklassiker\b|\blimited\b|\blimiteret\b|samlerudgave|collector", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex SpecialRx();
 
     /// <summary>A first edition or a graded/special copy, when the item itself is not one.</summary>
-    public static bool CollectorCopy(Item item, string listing)
+    public static bool CollectorCopy(Item item, string listing) => CollectorReason(item, listing) is not null;
+
+    /// <summary>Why a listing is a collector price for this item, or null: "1. udgave", "mint" or "samlerudgave". A mint or
+    /// near mint listing counts when OUR copy is "Som ny" (user 2026-11-02: "what about mint?" - chose "our copy is mint").</summary>
+    public static string? CollectorReason(Item item, string listing)
     {
         var ours = $"{item.Title} {item.Series} {item.Edition} {item.EditionHint}";
-        if (FirstEditionRx().IsMatch(listing) && !FirstEditionRx().IsMatch(ours)) return true;
-        return CollectorRx().IsMatch(listing) && !CollectorRx().IsMatch(ours);
+        if (FirstEditionRx().IsMatch(listing) && !FirstEditionRx().IsMatch(ours)) return "1. udgave";
+        var oursMint = item.Condition == Conditions.All[0] || GradeRx().IsMatch(ours);
+        if (GradeRx().IsMatch(listing) && !oursMint) return "mint";
+        return SpecialRx().IsMatch(listing) && !SpecialRx().IsMatch(ours) ? "samlerudgave" : null;
     }
 
     [System.Text.RegularExpressions.GeneratedRegex(@"[\s(\[/,+-]lps?[\s)\]/,.:+-]", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
