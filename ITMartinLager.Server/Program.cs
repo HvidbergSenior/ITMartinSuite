@@ -41,7 +41,7 @@ builder.Services.AddKolibri(k =>
         "Hjælpere logger ind med deres kundenummer (Martin sætter dem som hjælper i Kunder). De ser kun Søg og Kasser: de kan trykke Læs og rette varer, men ser ingen priser og kan ikke slette eller ændre en kasses placering.",
         "Bøger: tryk 📚 Bøger og tag et billede af en bunke – så ser du pris, efterspørgsel og om bogen er værd at sælge.",
     ];
-    k.Version = "2026.10.31";
+    k.Version = "2026.11.02";
     k.ThemeColor = "#f4f6f5";
 });
 

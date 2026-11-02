@@ -61,6 +61,29 @@ public class StockForSaleTests
     }
 
     [Test]
+    public void Anders_And_and_Basserne_are_3_kr_a_piece_unless_rare()
+    {
+        var now = DateTime.UtcNow;
+        ShopDeals.PerPiece.Name.Should().Be("Anders And og Basserne: 3 kr stk.");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Number = "12", Year = 1985, Confidence = 1, PriceHint = 18, PricesAt = now }, [])
+            .Should().Be(ShopDeals.PerPiece.Name, "its own price does not matter");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 1 }, []).Should().Be(ShopDeals.PerPiece.Name, "not searched yet either");
+        Shop.DealFor(new Item { Kind = Kinds.Tegneserie, Title = "Rødøje", Series = "Basserne", Number = "612", Confidence = 1, PriceHint = 25, PricesAt = now }, [])
+            .Should().Be(ShopDeals.PerPiece.Name);
+        Shop.DealFor(new Item { Kind = Kinds.Tegneserie, Title = "Asterix og Kleopatra", Series = "Asterix", Confidence = 1, PriceHint = 25, PricesAt = now }, [])
+            .Should().Be("", "other comics keep their own price");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 1, PriceHint = 150, PricesAt = now }, [])
+            .Should().Be("", "rare (bronze and up) keeps its own price and links");
+    }
+
+    [Test]
+    public void A_novel_is_not_priced_from_a_comic_album_of_the_same_name()
+    {
+        Pricing.OtherFormat(Kinds.Bog, "Garfield Farvealbum Nr. 9 Blå mandag").Should().BeTrue();
+        Pricing.OtherFormat(Kinds.Bog, "Blå mandag - Nicci French").Should().BeFalse();
+    }
+
+    [Test]
     public void Deals_skip_gold_and_unsure_things_and_wait_for_the_price_search()
     {
         var now = DateTime.UtcNow;
@@ -70,7 +93,7 @@ public class StockForSaleTests
         Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 0.3, PricesAt = now }, [], ShopDeals.All).Should().Be("", "unsure - a person looks");
         Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Cds.Name);
         Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, []).Should().Be("", "no deals in use");
-        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3 }, []).Should().Be("", "no deals in use");
+        Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3 }, []).Should().Be(ShopDeals.PerPiece.Name, "every blad is 3 kr");
         Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, PriceHint = 40 }, [], ShopDeals.All).Should().Be(ShopDeals.Blade.Name, "unsure blad = the Blade bin");
         Shop.Listed(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, Status = Statuses.Lager, Deal = ShopDeals.Blade.Name }).Should().BeTrue();
         Shop.Listed(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 0.3, Status = Statuses.Lager }).Should().BeTrue("shown under Ikke tjekket endnu");

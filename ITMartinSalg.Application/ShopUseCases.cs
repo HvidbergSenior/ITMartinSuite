@@ -48,7 +48,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
             .Where(t => t.Count > 0).ToList();
         var deals = await stock.DealsAsync(ct);
-        types.AddRange(ShopDeals.All.Where(d => deals.GetValueOrDefault(d.Name) > 0).Select(d => new ShopType(d.Name, deals[d.Name])));
+        types.AddRange(ShopDeals.Known.Where(d => deals.GetValueOrDefault(d.Name) > 0).Select(d => new ShopType(d.Name, deals[d.Name])));
         var unpriced = (await stock.PerKindAsync(ct, ShopDeals.NoPrice)).Values.Sum();
         if (unpriced > 0) types.Add(new ShopType(ShopDeals.NoPriceName, unpriced));
         var unsure = (await stock.PerKindAsync(ct, ShopDeals.Unsure)).Values.Sum();

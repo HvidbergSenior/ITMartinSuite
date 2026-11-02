@@ -37,7 +37,7 @@ builder.Services.AddKolibri(k =>
         "På bogshoppen.dk/produkter: vælg en slags eller søg. Tryk på et billede for at se det stort, og på \"Mere om den\" for stand og priser andre steder. Ting uden pris står under \"Ingen pris endnu\".",
         "Har du fået en side sammen med Martin (fx itmartin.dk/per)? Tryk Tekster eller Musik, tryk \"Skriv koden\" og skriv koden fra Martin. Så kan du lægge filer op og skrive dine tanker under hver fil.",
     ];
-    k.Version = "2026.11.01";
+    k.Version = "2026.11.02";
     k.ThemeColor = "#f4f6f5";
 });
 

@@ -71,7 +71,8 @@
                         @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
                         else if (ShopDeals.Named(i.Deal) is { } deal)
                         {
-                            <p class="bs-shop-price">@foreach (var s in deal.Steps) { <b>@s.Count for @s.Kr kr</b> }</p>
+                            @if (deal.Steps is [{ Count: 1 } one]) { <p class="bs-shop-price"><b>@one.Kr kr</b></p> }
+                            else { <p class="bs-shop-price">@foreach (var s in deal.Steps) { <b>@s.Count for @s.Kr kr</b> }</p> }
                         }
                         else if ((i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is { } kr)
                         {
@@ -86,18 +87,21 @@
                         <details class="bs-shop-more" data-remember="produkt-@i.Id">
                             <summary>Mere om den</summary>
                             <p class="k-help">@Facts(i)</p>
-                            @if (ShopDeals.Named(i.Deal) is { } d2) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
+                            @if (ShopDeals.Named(i.Deal) is { } d2 && d2.Steps.Count > 1) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
                             @if (!i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
                             {
                                 <p class="k-help">Vi undersøger prisen. Den kan ikke købes endnu.</p>
                             }
-                            @if (i.Reference is { } r)
+                            @* Links only on things with their own price (user 2026-11-02: "only if rare blad there should be links") -
+                               a 3 kr blad gets none. *@
+                            @if (i.Deal == "" && i.Reference is { } r)
                             {
                                 <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
                             }
                             @if (i.Interest != "") { <p class="bs-shop-interest">@i.Interest</p> }
                             @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
-                            @if (_proof.TryGetValue(i.Id, out var proof))
+                            @if (i.Deal != "") { }
+                            else if (_proof.TryGetValue(i.Id, out var proof))
                             {
                                 @if (proof.Count == 0)
                                 {

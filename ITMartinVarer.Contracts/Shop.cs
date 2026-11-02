@@ -82,9 +82,18 @@ public static class ShopSorts
 public sealed record ShopDealStep(int Count, int Kr);
 
 /// <summary>A deal for one group of kinds, with its steps: "Bøger: 2 for 50 · 5 for 100 kr".</summary>
-public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOnlyList<ShopDealStep> Steps)
+/// AlsoSeries = series of other kinds that are in it too ("Basserne" is a Tegneserie). EveryPrice = every thing that matches
+/// is in it whatever its own price (a fixed price per piece) - only gold, silver and bronze keep their own.
+public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOnlyList<ShopDealStep> Steps,
+    IReadOnlyList<string>? AlsoSeries = null, bool EveryPrice = false)
 {
-    public string Name => $"{Group}: {string.Join(" · ", Steps.Select(s => $"{s.Count} for {s.Kr}"))} kr";
+    public string Name => Steps is [{ Count: 1 } one]
+        ? $"{Group}: {one.Kr} kr stk."
+        : $"{Group}: {string.Join(" · ", Steps.Select(s => $"{s.Count} for {s.Kr}"))} kr";
+
+    /// <summary>A thing of this kind and series is in the deal.</summary>
+    public bool Matches(string kind, string? series) =>
+        Kinds.Contains(kind) || (series is { Length: > 0 } s && AlsoSeries?.Contains(s.Trim(), StringComparer.OrdinalIgnoreCase) == true);
 
     /// <summary>What one thing costs in the first step (2 for 50 = 25 kr). A thing priced at or under this is sold in the
     /// deal - else it would cost less alone than in the deal (user 2026-10-31: "books should not cost 20 kr one place and
@@ -110,14 +119,26 @@ public static class ShopDeals
     public static readonly ShopDeal Cds = new("CD", [Kinds.Cd], [new(4, 50), new(10, 100)]);
     public static readonly IReadOnlyList<ShopDeal> All = [Blade, Books, Dvds, Vhs, Cds];
 
-    /// <summary>The deals in use. None since 2026-10-31 (user: "the 4 for 50 and so should be removed" - every thing its own
-    /// price); All stays so they can come back by listing them here.</summary>
-    public static readonly IReadOnlyList<ShopDeal> Active = [];
+    /// <summary>User 2026-11-02 after the loppemarked: "anders and blade and basserne should be sold for 3 kr a piece... So
+    /// only if rare blad there should be links" - every Anders And-blad and every Basserne for 3 kr, whatever its own price;
+    /// a rare one (gold, silver, bronze) keeps its own price and its links.</summary>
+    public static readonly ShopDeal PerPiece = new("Anders And og Basserne", [Kinds.AndersAnd], [new(1, 3)], AlsoSeries: ["Basserne"], EveryPrice: true);
+
+    /// <summary>Every deal there is (PerPiece + All) - for names and the category chips.</summary>
+    public static readonly IReadOnlyList<ShopDeal> Known = [PerPiece, .. All];
+
+    /// <summary>The deals in use: only PerPiece since 2026-11-02 (the 4 for 50 deals went 2026-10-31: "the 4 for 50 and so
+    /// should be removed" - every thing its own price); All stays so they can come back by listing them here.</summary>
+    public static readonly IReadOnlyList<ShopDeal> Active = [PerPiece];
 
     /// <summary>The deal for things of this kind among these deals (default Active), or null.</summary>
-    public static ShopDeal? For(string kind, IReadOnlyList<ShopDeal>? deals = null) => (deals ?? Active).FirstOrDefault(d => d.Kinds.Contains(kind));
+    public static ShopDeal? For(string kind, IReadOnlyList<ShopDeal>? deals = null) => For(kind, null, deals);
 
-    public static ShopDeal? Named(string? name) => All.FirstOrDefault(d => d.Name == name);
+    /// <summary>The deal for a thing of this kind and series among these deals (default Active), or null.</summary>
+    public static ShopDeal? For(string kind, string? series, IReadOnlyList<ShopDeal>? deals = null) =>
+        (deals ?? Active).FirstOrDefault(d => d.Matches(kind, series));
+
+    public static ShopDeal? Named(string? name) => Known.FirstOrDefault(d => d.Name == name);
 
     public const string Single = "enkelt";
     /// <summary>Not priced and in no deal (user 2026-10-31: "No pricing yet. We are investigating"; unsure readings = a

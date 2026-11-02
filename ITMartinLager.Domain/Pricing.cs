@@ -184,13 +184,17 @@ public static partial class Pricing
         [Kinds.Tegneserie] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
         [Kinds.Superhelte] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
         [Kinds.Vhs] = ["dvd", "blu", "bluray", "uhd", "vinyl", "soundtrack"],
+        // A novel is not the comic album of the same name (2026-11-02: Nicci French "Blå mandag" priced 345 kr from Faraos'
+        // "Garfield Farvealbum Nr. 9 Blå mandag", 385 kr), nor its film.
+        [Kinds.Bog] = ["farvealbum", "album", "seriealbum", "tegneserie", "tegneserier", "garfield", "dvd", "blu", "bluray", "vhs"],
     };
 
     /// <summary>The listing is of another format than the item (a CD item and an LP listing, a DVD and a Blu-ray ...).</summary>
     public static bool OtherFormat(string kind, string listing)
     {
         if (!OtherFormats.TryGetValue(kind, out var other)) return false;
-        if (ListingParse.Words(listing).Any(w => other.Contains(w) || NotTheRecord.Contains(w))) return true;
+        if (ListingParse.Words(listing).Any(w => other.Contains(w) || (kind != Kinds.Bog && NotTheRecord.Contains(w)))) return true;
+        if (kind == Kinds.Bog) return false;   // a book: only its word list - "LP"/"CD" short words are about records
         // Short words Words() leaves out: "LP", "CD", "4K" and 7"/12" singles.
         var low = " " + listing.ToLowerInvariant() + " ";
         if (kind != Kinds.Vinyl && (LpRx().IsMatch(low) || SingleRx().IsMatch(low))) return true;
