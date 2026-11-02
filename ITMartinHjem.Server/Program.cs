@@ -34,10 +34,10 @@ builder.Services.AddKolibri(k =>
         "På Om mig: rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
         "På Mine hjælpere: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage. Under hver hjælper står dens adresse – tryk på den for at åbne den. Du skal ikke kontakte mig for den gratis udgave.",
-        "På bogshoppen.dk/produkter: vælg en slags eller søg. Tryk på et billede for at se det stort, og på \"Mere om den\" for standen. Der står ingen priser på siden.",
+        "På bogshoppen.dk/produkter: vælg en slags eller søg. Tryk på et billede for at se det stort, og på \"Mere om den\" for stand og priser andre steder. Ting uden pris står under \"Ingen pris endnu\".",
         "Har du fået en side sammen med Martin (fx itmartin.dk/per)? Tryk Tekster eller Musik, tryk \"Skriv koden\" og skriv koden fra Martin. Så kan du lægge filer op og skrive dine tanker under hver fil.",
     ];
-    k.Version = "2026.11.02";
+    k.Version = "2026.11.01";
     k.ThemeColor = "#f4f6f5";
 });
 
