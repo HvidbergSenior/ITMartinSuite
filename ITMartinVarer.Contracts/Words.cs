@@ -97,10 +97,12 @@ public static class Barcodes
 // Lager decides the kind when it reads a photo, and this decides where it belongs.
 public static class ProductTypes
 {
-    public const string Magic = "Magic", Film = "Film", Musik = "Musik", Tegneserier = "Tegneserier", Blade = "Blade",
-        Superhelte = "Superhelte", Boeger = "Bøger", Andet = "Andet";
+    // Anders And-blade and Jumbobøger are two categories (user 2026-11-02: "categroies need to be better Anders And and
+    // Jumbøbøger not same category") - "Blade" held both plus magazines; a magazine is Andet (none in stock).
+    public const string Magic = "Magic", Film = "Film", Musik = "Musik", Tegneserier = "Tegneserier", AndersAnd = "Anders And-blade",
+        Jumbo = "Jumbobøger", Superhelte = "Superhelte", Boeger = "Bøger", Andet = "Andet";
 
-    public static readonly string[] All = [Boeger, Blade, Tegneserier, Superhelte, Musik, Film, Magic, Andet];
+    public static readonly string[] All = [Boeger, AndersAnd, Jumbo, Tegneserier, Superhelte, Musik, Film, Magic, Andet];
 
     public static string For(string kind) => kind switch
     {
@@ -108,7 +110,8 @@ public static class ProductTypes
         Kinds.Dvd or Kinds.BluRay or Kinds.Vhs => Film,
         Kinds.Cd or Kinds.Vinyl or Kinds.Kassette => Musik,
         Kinds.Tegneserie => Tegneserier,
-        Kinds.AndersAnd or Kinds.Jumbobog or Kinds.Magasin => Blade,
+        Kinds.AndersAnd => AndersAnd,
+        Kinds.Jumbobog => Jumbo,
         Kinds.Superhelte => Superhelte,
         Kinds.Bog => Boeger,
         _ => Andet,   // console games, merchandise, the rest - no service yet
