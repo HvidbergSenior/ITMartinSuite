@@ -25,7 +25,7 @@ public static class Shop
     public static string Badge(IReadOnlyList<GoldEntry> gold, Item i)
     {
         var note = Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint);
-        return note is null || Gold.Rank(note) > 2 ? "" : note.Split(" – ")[0];
+        return note is null || Gold.Rank(note) > Gold.LastShownRank ? "" : note.Split(" – ")[0];
     }
 
     /// <summary>The proof for the price promise: the cheapest listing per site, exact matches only, cheapest first.</summary>
@@ -60,8 +60,10 @@ public static class Shop
     public static string DealFor(Item i, IReadOnlyList<GoldEntry> gold, IReadOnlyList<ShopDeal>? deals = null)
     {
         deals ??= ShopDeals.Active;
-        if (Badge(gold, i) != "") return "";
         var deal = ShopDeals.For(i.Kind, i.Series, deals);
+        // An unsure reading's price says nothing (a Platin mark from it would lift it out of the 3 kr bin).
+        if (deal is { EveryPrice: true } && i.Confidence < Pricing.MinConfidence) return deal.Name;
+        if (Badge(gold, i) != "") return "";
         // A fixed price per piece (ShopDeals.PerPiece, 2026-11-02): every one that is not rare - unless it is a sure reading
         // whose exact copies cost OwnFromKr or more (then its own price, and it is on the page).
         if (deal is { EveryPrice: true })

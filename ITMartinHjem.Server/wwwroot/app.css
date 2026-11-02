@@ -799,6 +799,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-filter .k-btn.is-on{background:var(--k-accent);border-color:var(--k-accent);color:var(--k-accent-text);font-weight:800}
 .bs-filter .k-btn.is-on::before{content:"\2713\00a0"}
 .bs-filter .k-btn.bs-chip-status{border-style:dashed}
+.bs-filter .k-btn.bs-chip-rare:not(.is-on){border-color:var(--k-accent);border-width:3px}
 .bs-filter .k-btn:focus-visible{outline:3px solid var(--k-text);outline-offset:2px}
 .bs-search{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
 .bs-search .k-input{flex:1 1 14rem}

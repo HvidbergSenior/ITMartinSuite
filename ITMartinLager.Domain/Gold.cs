@@ -39,20 +39,22 @@ public static partial class Gold
     // Three tiers by price (user 2026-10-12: "what about a silver as well? Like not the highest price but valuable...
     // And the bronze. Interesting"). By kroner, not by rank in the category - the dearest Fantomet at 400 kr is silver,
     // not gold. Up to 50 per tier per category.
-    public const int GoldFrom = 500, SilverFrom = 200, BronzeFrom = 100;
-    public const string GoldTier = "Guld", SilverTier = "Sølv", BronzeTier = "Bronze";
+    // A fourth, wider tier (user 2026-11-02: "make them a bit wider so platinum will be 50-99"): from PlatinFrom up to bronze.
+    // The gold LIST still only keeps 100 kr and up; platinum comes from a thing's own price.
+    public const int GoldFrom = 500, SilverFrom = 200, BronzeFrom = 100, PlatinFrom = 50;
+    public const string GoldTier = "Guld", SilverTier = "Sølv", BronzeTier = "Bronze", PlatinTier = "Platin";
     // Expanded 2026-10-31 (user: "expand gold list and silver and bronze?"): 100 per tier.
     public const int PerCategory = 300;
     public const int PerTier = 100;
 
-    public static string TierOf(int kr) => kr >= GoldFrom ? GoldTier : kr >= SilverFrom ? SilverTier : BronzeTier;
-    public static string BadgeOf(string tier) => tier switch { GoldTier => "🏆 GULD", SilverTier => "🥈 SØLV", _ => "🥉 BRONZE" };
+    public static string TierOf(int kr) => kr >= GoldFrom ? GoldTier : kr >= SilverFrom ? SilverTier : kr >= BronzeFrom ? BronzeTier : PlatinTier;
+    public static string BadgeOf(string tier) => tier switch { GoldTier => "🏆 GULD", SilverTier => "🥈 SØLV", BronzeTier => "🥉 BRONZE", _ => "💎 PLATIN" };
 
     // Collectors' demand (Discogs want/have, user 2026-10-21): many want it and no more have it than want it = put it first.
     // A hot item goes one tier up (bronze -> silver -> gold), and is at least bronze even when it is cheap today.
     public const int HotWant = 10;
     public static bool Hot(int? want, int? have) => want is { } w && w >= HotWant && w >= (have ?? 0);
-    public static string Up(string tier) => tier == BronzeTier ? SilverTier : GoldTier;
+    public static string Up(string tier) => tier == PlatinTier ? BronzeTier : tier == BronzeTier ? SilverTier : GoldTier;
     public static string DemandText(int? want, int? have) => $"🔥 {want} samlere ønsker den på Discogs, {have ?? 0} har den";
 
     public static readonly GoldCategory[] Categories =
@@ -179,7 +181,7 @@ public static partial class Gold
         int? want = null, int? have = null)
     {
         var hot = Hot(want, have);
-        if (ownPrice is { } p && p >= BronzeFrom)
+        if (ownPrice is { } p && p >= PlatinFrom)
             return hot ? $"{BadgeOf(Up(TierOf((int)p)))} – vurderet til ca. {p:0} kr · {DemandText(want, have)}" : $"{BadgeOf(TierOf((int)p))} – vurderet til ca. {p:0} kr";
         if (hot) return $"{BadgeOf(BronzeTier)} – {DemandText(want, have)}" + (ownPrice is { } low ? $" (vurderet til ca. {low:0} kr)" : "");
         if (Match(list, kind, title, series, number, year) is { } e) return $"{e.Badge} – {e.Category} {e.Issue} sælges for ca. {e.Kr} kr";
@@ -206,7 +208,7 @@ public static partial class Gold
         int? want = null, int? have = null)
     {
         var hot = Hot(want, have);
-        if (ownPrice is { } p && p >= BronzeFrom)
+        if (ownPrice is { } p && p >= PlatinFrom)
             return $"{BadgeOf(hot ? Up(TierOf((int)p)) : TierOf((int)p))} – sælges for ca. {p:0} kr andre steder" + (hot ? " · eftertragtet af samlere" : "");
         if (hot) return $"{BadgeOf(BronzeTier)} – eftertragtet af samlere";
         if (Match(list, kind, title, series, number, year) is { } e) return $"{e.Badge} – sælges for ca. {e.Kr} kr andre steder";
@@ -215,9 +217,11 @@ public static partial class Gold
     }
 
     /// <summary>Order for "go through all interesting in one go": gold, silver, bronze, then "tjek nærmere".</summary>
-    public static int Rank(string note) => note.StartsWith("🏆") ? 0 : note.StartsWith("🥈") ? 1 : note.StartsWith("🥉") ? 2 : 3;
-    /// <summary>The four kinds of "interesting", in order, for buttons: Guld, Sølv, Bronze, Måske (user 2026-10-12).</summary>
-    public static readonly string[] InterestingKinds = ["🏆 Guld", "🥈 Sølv", "🥉 Bronze", "🔎 Måske"];
+    public static int Rank(string note) => note.StartsWith("🏆") ? 0 : note.StartsWith("🥈") ? 1 : note.StartsWith("🥉") ? 2 : note.StartsWith("💎") ? 3 : 4;
+    /// <summary>The highest Rank a mark buyers see can have (Måske is ours).</summary>
+    public const int LastShownRank = 3;
+    /// <summary>The kinds of "interesting", in order, for buttons: Guld, Sølv, Bronze, Platin, Måske (user 2026-10-12, Platin 2026-11-02).</summary>
+    public static readonly string[] InterestingKinds = ["🏆 Guld", "🥈 Sølv", "🥉 Bronze", "💎 Platin", "🔎 Måske"];
 
     /// <summary>Is this thing on the gold list? Same kind, the category's words in its title or series, and the same
     /// issue: number when the entry has one, year when the entry has one.</summary>
@@ -233,7 +237,10 @@ public static partial class Gold
                       && (e.Year is null || e.Year == year)
                       && (e.Number != "" || e.Year is not null)
                       // A weekly blad has 52 issues a year: a listing with only the year is not this issue (2026-10-12).
-                      && (e.Number != "" || kind != Kinds.AndersAnd)))
+                      && (e.Number != "" || kind != Kinds.AndersAnd)
+                      // ... and a number without a year is not either: the numbers start over every year (2026-11-02, one
+                      // "Anders And & Co nr. 51" listing made seven julenumre 1968-2010 bronze).
+                      && (e.Year is not null || kind != Kinds.AndersAnd)))
             .MaxBy(e => e.Kr);
     }
 

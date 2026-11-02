@@ -167,6 +167,10 @@ public static class ShopDeals
     /// category") - what the AI read may be another thing, so its price and reference are not shown.</summary>
     public const string Unsure = "usikker";
     public const string UnsureName = "Ikke tjekket endnu";
+    /// <summary>Everything with a mark (Guld, Sølv, Bronze, Platin) in one category, dearest first (user 2026-11-02: "make
+    /// these products in a categroy i can see").</summary>
+    public const string Rare = "sjaeldne";
+    public const string RareName = "Sjældne";
 
     /// <summary>Price search (user 2026-10-31: "price seacrh like 10 - 29 30-49 50-99 99+"): own-priced things (no deal)
     /// from From kr up to under Below kr (null = no top).</summary>
@@ -176,5 +180,5 @@ public static class ShopDeals
     public static ShopPriceBand? PriceBand(string? key) => Prices.FirstOrDefault(p => p.Key == key);
 
     /// <summary>A band Lager knows, else null (= everything).</summary>
-    public static string? Band(string? band) => band is Single or NoPrice or Unsure || Named(band) is not null || PriceBand(band) is not null ? band : null;
+    public static string? Band(string? band) => band is Single or NoPrice or Unsure or Rare || Named(band) is not null || PriceBand(band) is not null ? band : null;
 }

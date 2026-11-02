@@ -232,7 +232,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         string? band = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var q = Listed(db, band);
+        var q = band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band);
         if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
         if (usage is not null) q = q.Where(i => i.Usage == usage);
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
@@ -252,16 +252,26 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return (await q.Skip(skip).Take(take).ToListAsync(ct), total);
     }
 
+    // ShopDeals.Rare: the things on the page with a mark (Shop.Badge needs the gold list, so it is worked out in memory -
+    // about a thousand rows) as a query of their ids.
+    private static async Task<IQueryable<Item>> RareAsync(LagerDb db, CancellationToken ct)
+    {
+        var gold = await db.GoldEntries.AsNoTracking().ToListAsync(ct);
+        var ids = (await OnPage(db).AsNoTracking().ToListAsync(ct)).Where(i => Shop.Badge(gold, i) != "").Select(i => i.Id).ToList();
+        return OnPage(db).Where(i => ids.Contains(i.Id));
+    }
+
     public async Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct, string? band = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await Listed(db, band).GroupBy(i => i.Kind).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        var q = band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band);
+        return await q.GroupBy(i => i.Kind).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
     }
 
     public async Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        var q = Listed(db, band);
+        var q = band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band);
         if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
         return await q.Select(i => i.Series != "" ? i.Series : i.Artist).Where(g => g != "")
             .GroupBy(g => g).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);

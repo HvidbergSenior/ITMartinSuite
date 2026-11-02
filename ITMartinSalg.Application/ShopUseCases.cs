@@ -34,7 +34,8 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     {
         // Each deal and "Ingen pris endnu" are categories of their own across every kind (ShopDeals, user 2026-10-31); a
         // product type shows only its priced things outside the deals. Alle (no type) = everything.
-        var band = ShopDeals.Named(type)?.Name ?? (type == ShopDeals.NoPriceName ? ShopDeals.NoPrice : type == ShopDeals.UnsureName ? ShopDeals.Unsure : ShopDeals.Single);
+        var band = ShopDeals.Named(type)?.Name ?? (type == ShopDeals.NoPriceName ? ShopDeals.NoPrice : type == ShopDeals.UnsureName ? ShopDeals.Unsure
+            : type == ShopDeals.RareName ? ShopDeals.Rare : ShopDeals.Single);
         var across = band != ShopDeals.Single;
         // A price band (ShopDeals.Prices) narrows the own-priced things - not a deal or Ingen pris endnu.
         var withPrice = !across && price == ShopDeals.WithPrice;
@@ -55,6 +56,9 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         if (unpriced > 0) types.Add(new ShopType(ShopDeals.NoPriceName, unpriced));
         var unsure = (await stock.PerKindAsync(ct, ShopDeals.Unsure)).Values.Sum();
         if (unsure > 0) types.Add(new ShopType(ShopDeals.UnsureName, unsure));
+        // Sjældne first (user 2026-11-02: "make these products in a categroy i can see").
+        var rare = (await stock.PerKindAsync(ct, ShopDeals.Rare)).Values.Sum();
+        if (rare > 0) types.Insert(0, new ShopType(ShopDeals.RareName, rare));
         // Subgroups only inside one type or kind - for everything at once they would be too many to read.
         var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct, band);
         return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups, packs);

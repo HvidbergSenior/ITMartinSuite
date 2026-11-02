@@ -64,6 +64,9 @@ public class GoldTests
     public void Gold_silver_and_bronze_are_by_price()
     {
         (Gold.TierOf(3600), Gold.TierOf(400), Gold.TierOf(150)).Should().Be(("Guld", "Sølv", "Bronze"));
+        Gold.TierOf(60).Should().Be("Platin", "50-99 kr (user 2026-11-02)");
+        Shop.Badge([], new Item { Kind = Kinds.Bog, Title = "Mort", PriceHint = 60 }).Should().Be("💎 PLATIN");
+        Shop.Badge([], new Item { Kind = Kinds.Bog, Title = "Mort", PriceHint = 40 }).Should().Be("");
         Gold.Pick(AndersAnd, [O("Anders And & Co. nr. 3 1960", 90)], "DBA", DateTime.UtcNow).Should().BeEmpty();   // under bronze
         Gold.Pick(AndersAnd, [O("Anders And & Co. nr. 3 1960", 250)], "DBA", DateTime.UtcNow).Single().Badge.Should().Be("🥈 SØLV");
     }
@@ -107,6 +110,15 @@ public class GoldTests
         Gold.Match(list, Kinds.AndersAnd, "Anders And & Co.", "Anders And & Co.", "35", 1966).Should().NotBeNull();
         Gold.Match(list, Kinds.AndersAnd, "Anders And & Co.", "", "35", 1967).Should().BeNull();
         Gold.Match(list, Kinds.Tegneserie, "Tintin", "", "35", 1966).Should().BeNull();
+    }
+
+    [Test]
+    public void An_Anders_And_listing_with_a_number_but_no_year_marks_nothing()
+    {
+        // 2026-11-02: one "Anders And & Co nr. 51" listing made seven julenumre 1968-2010 bronze.
+        var list = Gold.Pick(AndersAnd, [O("Andre samleobjekter, Anders And & Co nr. 51", 150)], "DBA", DateTime.UtcNow);
+        Gold.Match(list, Kinds.AndersAnd, "Årets julenummer", "Anders And & Co.", "51", 2010).Should().BeNull();
+        Gold.Match(list, Kinds.AndersAnd, "Anders And & Co.", "Anders And & Co.", "51", 1968).Should().BeNull();
     }
 
     [Test]
