@@ -25,6 +25,15 @@ public class ProductTypeGoldTests
     public void Every_kind_belongs_to_one_product_type(string kind, string type) => ProductTypes.For(kind).Should().Be(type);
 
     [Test]
+    public void An_Anders_And_and_Co_read_as_a_comic_is_an_Anders_And_blad()
+    {
+        Kinds.Normalise("Tegneserie", "Anders And & Co.").Should().Be(Kinds.AndersAnd);
+        Kinds.Normalise("tegneserie", " anders and ekstra ").Should().Be(Kinds.AndersAnd);
+        Kinds.Normalise("Tegneserie", "Barks Klassiker").Should().Be(Kinds.Tegneserie);
+        Kinds.Normalise("Jumbobog", "Anders And & Co.").Should().Be(Kinds.Jumbobog);
+    }
+
+    [Test]
     public void Every_product_type_with_a_service_has_a_gold_list() =>
         Gold.Types.Should().BeEquivalentTo(ProductTypes.All.Where(t => t != ProductTypes.Andet));
 

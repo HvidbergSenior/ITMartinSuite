@@ -23,6 +23,17 @@ public static class Kinds
 
     public static string Normalise(string? kind) =>
         All.FirstOrDefault(k => string.Equals(k, kind?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? Andet;
+
+    /// <summary>The blad series the reader sometimes files as Tegneserie (user 2026-11-02: "anders and og co is under
+    /// tegneserier" - 13 Anders And & Co. / Anders And Ekstra were).</summary>
+    public static readonly string[] AndersAndSeries = ["Anders And & Co.", "Anders And Ekstra"];
+
+    /// <summary>Normalise, and an Anders And & Co. / Ekstra read as Tegneserie is an Anders And-blad.</summary>
+    public static string Normalise(string? kind, string? series)
+    {
+        var k = Normalise(kind);
+        return k == Tegneserie && AndersAndSeries.Contains(series?.Trim(), StringComparer.OrdinalIgnoreCase) ? AndersAnd : k;
+    }
 }
 
 public static class Conditions

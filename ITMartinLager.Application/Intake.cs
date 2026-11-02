@@ -106,7 +106,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
     {
         var box = await boxes.GetOrAddAsync(boxCode, ct);
         var clean = found.Where(f => !string.IsNullOrWhiteSpace(f.Title))
-            .Select(f => f with { Kind = Kinds.Normalise(f.Kind), Condition = Conditions.Normalise(f.Condition), Quantity = Math.Max(1, f.Quantity) })
+            .Select(f => f with { Kind = Kinds.Normalise(f.Kind, f.Series), Condition = Conditions.Normalise(f.Condition), Quantity = Math.Max(1, f.Quantity) })
             .ToList();
         clean = await WithYearsAsync(clean, ct);
         var placed = new List<(Item Item, Found Found)>();
