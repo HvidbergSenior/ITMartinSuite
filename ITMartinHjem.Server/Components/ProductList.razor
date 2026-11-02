@@ -6,7 +6,9 @@
 <section class="k-card bs-card bs-shop" id="alle">
     <h2 class="k-card-title">Alle produkter</h2>
     @* "Jeg er interesseret" removed for now (user 2026-10-31). *@
-    <p class="k-help">Tryk på et billede for at se det stort. Under <b>Mere om den</b> står stand og hvad lignende koster andre steder. Ting uden pris endnu ligger under <b>@ShopDeals.NoPriceName</b>.</p>
+    @* No prices on the site (user 2026-11-02 after the loppemarked: "The prices on bogshoppen should be removed", chose ALL
+       prices - our own, the price search, and the "Lignende koster"/"Se flere priser" links to other sites). *@
+    <p class="k-help">Tryk på et billede for at se det stort. Under <b>Mere om den</b> står standen.</p>
 
     @if (_error is not null)
     {
@@ -19,7 +21,7 @@
     else
     {
         <div class="bs-filter" role="group" aria-label="Vælg slags">
-            <button class="k-btn k-btn-sm @(_type == "" ? "is-on" : "")" aria-pressed="@(_type == "")" @onclick='() => Pick("")'>Alle med pris (@PricedCount)</button>
+            <button class="k-btn k-btn-sm @(_type == "" ? "is-on" : "")" aria-pressed="@(_type == "")" @onclick='() => Pick("")'>Alle (@PricedCount)</button>
             @foreach (var t in _market.Types)
             {
                 <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
@@ -32,17 +34,6 @@
                 @foreach (var g in groups)
                 {
                     <button class="k-btn k-btn-sm @(_text == g.Name ? "is-on" : "")" aria-pressed="@(_text == g.Name)" @onclick="() => PickGroup(g.Name)">@g.Name (@g.Count)</button>
-                }
-            </div>
-        }
-        @* Price search (user 2026-10-31: "price seacrh like 10 - 29 30-49 50-99 99+") - own prices; deals have their own buttons. *@
-        @if (ShopDeals.Named(_type) is null && _type != ShopDeals.NoPriceName && _type != ShopDeals.UnsureName)
-        {
-            <div class="bs-filter bs-prices" role="group" aria-label="Vælg pris">
-                <button class="k-btn k-btn-sm @(_price == "" ? "is-on" : "")" aria-pressed="@(_price == "")" @onclick='() => PickPrice("")'>Alle priser</button>
-                @foreach (var p in ShopDeals.Prices)
-                {
-                    <button class="k-btn k-btn-sm @(_price == p.Key ? "is-on" : "")" aria-pressed="@(_price == p.Key)" @onclick="() => PickPrice(p.Key)">@p.Name</button>
                 }
             </div>
         }
@@ -69,55 +60,12 @@
                     <div class="bs-shop-body">
                         <h3>@i.Line</h3>
                         @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
-                        else if (ShopDeals.Named(i.Deal) is { } deal)
-                        {
-                            <p class="bs-shop-price">@foreach (var s in deal.Steps) { <b>@s.Count for @s.Kr kr</b> }</p>
-                        }
-                        else if ((i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is { } kr)
-                        {
-                            <p class="bs-shop-price"><b>@kr kr</b>@if (i.DayKr is not null && i.BuyNowKr is { } was) { <s>@was kr</s> }</p>
-                            @if (MarketNotice.On) { <p class="bs-shop-market">På loppemarkedet: <b>@MarketNotice.MarketKr(kr) kr</b></p> }
-                        }
-                        else
-                        {
-                            <p class="bs-shop-noprice">@ShopDeals.NoPriceName</p>
-                        }
                         @* Own fold memory per thing (kolibri.js keys on the summary text, so one opened = all 60 opened). *@
                         <details class="bs-shop-more" data-remember="produkt-@i.Id">
                             <summary>Mere om den</summary>
                             <p class="k-help">@Facts(i)</p>
-                            @if (ShopDeals.Named(i.Deal) is { } d2) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
-                            @if (!i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
-                            {
-                                <p class="k-help">Vi undersøger prisen. Den kan ikke købes endnu.</p>
-                            }
-                            @if (i.Reference is { } r)
-                            {
-                                <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
-                            }
                             @if (i.Interest != "") { <p class="bs-shop-interest">@i.Interest</p> }
                             @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
-                            @if (_proof.TryGetValue(i.Id, out var proof))
-                            {
-                                @if (proof.Count == 0)
-                                {
-                                    <p class="k-help">Vi har ikke fundet den til salg andre steder lige nu.</p>
-                                }
-                                else
-                                {
-                                    <p class="k-help">Kan også købes her:</p>
-                                    <div class="bs-proof">
-                                        @foreach (var p in proof)
-                                        {
-                                            <a class="k-btn k-btn-sm" href="@p.Url" target="_blank" rel="noopener nofollow">@p.Source@(p.IsNew ? " (ny)" : ""): @p.Kr kr</a>
-                                        }
-                                    </div>
-                                }
-                            }
-                            else
-                            {
-                                <button class="k-btn k-btn-sm" @onclick="() => OtherSites(i.Id)" disabled="@(_proofLoading == i.Id)">@(_proofLoading == i.Id ? "Henter ..." : "Se flere priser")</button>
-                            }
                         </details>
                     </div>
                 </li>
@@ -134,7 +82,7 @@
     private ShopMarket? _market;
     private readonly List<ShopItem> _items = [];
     private string? _error;
-    private string _type = "", _text = "", _price = "";
+    private string _type = "", _text = "";
     private int _page;      // Salg counts pages from 0 (page 1 skipped the first 33 - "cannot search", 2026-10-29)
     private bool _loading;
 
@@ -160,25 +108,7 @@
         i.Available > 1 ? $"vi har {i.Available}" : "",
     }.Where(s => s != ""));
 
-    // "user should be able to see prices on other sites" (2026-10-29): the listings Lager found, fetched when pressed.
-    // No eBay (user same day: "Dont use ebay at all" - its asking prices are not what things sell for here). Danish first.
-    private static readonly HashSet<string> Danish = new(StringComparer.OrdinalIgnoreCase) { "DBA", "GulogGratis", "Nemos", "Faraos", "findbogen" };
-    private readonly Dictionary<int, List<ShopProof>> _proof = [];
-    private int? _proofLoading;
-
-    private async Task OtherSites(int id)
-    {
-        _proofLoading = id;
-        var page = await Shop.ItemAsync(id);
-        _proofLoading = null;
-        _proof[id] = (page?.Proof ?? [])
-            .Where(p => !p.Source.Equals("eBay", StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(p => Danish.Contains(p.Source)).ThenBy(p => p.IsNew).ThenBy(p => p.Kr)
-            .Take(6).ToList();
-    }
-
-    private Task Pick(string type) { _type = type; _text = ""; if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = ""; return Load(reset: true); }
-    private Task PickPrice(string key) { _price = key; return Load(reset: true); }
+    private Task Pick(string type) { _type = type; _text = ""; return Load(reset: true); }
     // A subgroup is a search for its name inside the chosen type; the same chip again shows the whole type.
     private Task PickGroup(string name) { _text = _text == name ? "" : name; return Load(reset: true); }
     private Task Search() => Load(reset: true);
@@ -189,7 +119,7 @@
         _loading = true;
         if (reset) _page = 0;
         var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, null, null, _text, ShopSorts.Title, _page,
-            price: _price != "" ? _price : _type == "" ? ShopDeals.WithPrice : null);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
+            price: _type == "" ? ShopDeals.WithPrice : null);   // "Alle" still = the checked things (no prices are shown)   // A-Z (user 2026-10-31: "all products need to have alphateci order")
         _loading = false;
         _error = error;
         if (market is null) return;

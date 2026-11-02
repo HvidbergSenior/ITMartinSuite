@@ -9,7 +9,7 @@
     <section class="k-card bs-card bs-found">
         <h2>Fundet i kasserne</h2>
         <div>
-            <p class="k-help">Ting vi er faldet over, mens vi pakker Bogshoppens kasser ud – og som vi synes er værd at fortælle om. Ved hver ting kan du også se, hvor den ellers kan købes, og hvad den koster der.</p>
+            <p class="k-help">Ting vi er faldet over, mens vi pakker Bogshoppens kasser ud – og som vi synes er værd at fortælle om.</p>
             <ul class="bs-found-list">
                 @foreach (var (i, proof) in _items)
                 {
@@ -18,22 +18,8 @@
                         <h3>@i.Line</h3>
                         <p class="k-help">@i.Kind · @i.Condition stand@(i.Available > 1 ? " · vi har flere" : "")</p>
                         @if (i.Interest != "") { <p>@i.Interest</p> }
-                        <p>
-                            @if (i.ForShow) { <span class="bs-forshow">Kun til visning</span> }
-                            else if (i.BuyNowKr is { } kr) { <span>Hos os: <b>@kr kr</b></span> }
-                            else if (i.ExpectKr is { } ex) { <span>Andre steder omkring @ex kr – hos os efter aftale</span> }
-                            else { <span>Pris efter aftale</span> }
-                        </p>
-                        @if (proof.Count > 0)
-                        {
-                            <p class="k-help">Kan også købes her:</p>
-                            <div class="bs-proof">
-                                @foreach (var p in proof)
-                                {
-                                    <a class="k-btn k-btn-sm" href="@p.Url" target="_blank" rel="noopener nofollow">@p.Source@(p.IsNew ? " (ny)" : ""): @p.Kr kr</a>
-                                }
-                            </div>
-                        }
+                        @* No prices (user 2026-11-02: "The prices on bogshoppen should be removed" - all prices). *@
+                        @if (i.ForShow) { <p><span class="bs-forshow">Kun til visning</span></p> }
                     </li>
                 }
             </ul>
