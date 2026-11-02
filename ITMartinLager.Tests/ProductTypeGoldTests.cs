@@ -50,6 +50,13 @@ public class ProductTypeGoldTests
         Kinds.Normalise("tegneserie", " anders and ekstra ").Should().Be(Kinds.AndersAnd);
         Kinds.Normalise("Tegneserie", "Barks Klassiker").Should().Be(Kinds.Tegneserie);
         Kinds.Normalise("Jumbobog", "Anders And & Co.").Should().Be(Kinds.Jumbobog);
+        Kinds.Normalise("Tegneserie", "Walt Disney's").Should().Be(Kinds.AndersAnd);
+        Kinds.Normalise("Tegneserie", "Mammutbog").Should().Be(Kinds.Jumbobog);
+        Kinds.Normalise("Tegneserie", "Jonah Hex").Should().Be(Kinds.Superhelte, "a blad - shown as Serieblade");
+        Kinds.Normalise("Tegneserie", "Kong Kylie").Should().Be(Kinds.Superhelte);
+        Kinds.Normalise("Tegneserie", "Agent 327").Should().Be(Kinds.Tegneserie, "an album stays");
+        ProductTypes.For(Kinds.Superhelte).Should().Be("Serieblade");
+        Kinds.Label(Kinds.Superhelte).Should().Be("Serieblad");
     }
 
     [Test]

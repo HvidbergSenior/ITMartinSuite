@@ -69,10 +69,11 @@ public static partial class Gold
         new(Kinds.Tegneserie, "Storm P.", "storm p", ["storm"], false),
         new(Kinds.Tegneserie, "Gyldenspjæt", "gyldenspjæt", ["gyldenspjæt"], false),
         // The series in stock 2026-10-31 (user: "expand gold list and silver and bronze?").
-        new(Kinds.Tegneserie, "Jonah Hex", "jonah hex", ["jonah", "hex"], false),
-        new(Kinds.Tegneserie, "Basserne", "basserne", ["basserne"], false),
-        new(Kinds.Tegneserie, "Kong Kylie", "kong kylie", ["kylie"], false),
-        new(Kinds.Tegneserie, "Skipper Skræk", "skipper skræk", ["skipper", "skræk"], false),
+        // Blade, filed with the superhero blade (Serieblade) since 2026-11-02 - Kinds.SeriesKind.
+        new(Kinds.Superhelte, "Jonah Hex", "jonah hex", ["jonah", "hex"], false),
+        new(Kinds.Superhelte, "Basserne", "basserne", ["basserne"], false),
+        new(Kinds.Superhelte, "Kong Kylie", "kong kylie", ["kylie"], false),
+        new(Kinds.Superhelte, "Skipper Skræk", "skipper skræk", ["skipper", "skræk"], false),
         new(Kinds.Tegneserie, "Rasmus Klump", "rasmus klump", ["rasmus", "klump"], false),
         new(Kinds.Tegneserie, "Prins Valiant", "prins valiant", ["valiant"], false),
         // Superhelte - numbered issues, like the blade.

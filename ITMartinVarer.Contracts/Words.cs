@@ -24,16 +24,27 @@ public static class Kinds
     public static string Normalise(string? kind) =>
         All.FirstOrDefault(k => string.Equals(k, kind?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? Andet;
 
-    /// <summary>The blad series the reader sometimes files as Tegneserie (user 2026-11-02: "anders and og co is under
-    /// tegneserier" - 13 Anders And & Co. / Anders And Ekstra were).</summary>
-    public static readonly string[] AndersAndSeries = ["Anders And & Co.", "Anders And Ekstra"];
+    /// <summary>Series the reader files as Tegneserie (an album) that are something else (user 2026-11-02: "anders and og co
+    /// is under tegneserier", "Walt disney must Anders ANd", "Mammutbog are jumbobooks", "jonah hex is et blad", "Kong kylie
+    /// is a blad"). A blad that is not Anders And is filed with the superhero blade = the Serieblade category.</summary>
+    public static readonly IReadOnlyDictionary<string, string> SeriesKind = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Anders And & Co."] = AndersAnd, ["Anders And Ekstra"] = AndersAnd, ["Walt Disney's"] = AndersAnd,
+        ["Walt Disney's månedshæfte"] = AndersAnd,
+        ["Mammutbog"] = Jumbobog,
+        ["Jonah Hex"] = Superhelte, ["Kong Kylie"] = Superhelte, ["Basserne"] = Superhelte, ["Skipper Skræk"] = Superhelte,
+        ["Supermule"] = Superhelte,
+    };
 
-    /// <summary>Normalise, and an Anders And & Co. / Ekstra read as Tegneserie is an Anders And-blad.</summary>
+    /// <summary>Normalise, and a Tegneserie of a series in SeriesKind gets that kind.</summary>
     public static string Normalise(string? kind, string? series)
     {
         var k = Normalise(kind);
-        return k == Tegneserie && AndersAndSeries.Contains(series?.Trim(), StringComparer.OrdinalIgnoreCase) ? AndersAnd : k;
+        return k == Tegneserie && series?.Trim() is { Length: > 0 } s && SeriesKind.TryGetValue(s, out var other) ? other : k;
     }
+
+    /// <summary>The kind as a customer reads it: a Superhelteblad is shown as "Serieblad" (it also holds Jonah Hex and co.).</summary>
+    public static string Label(string kind) => kind == Superhelte ? "Serieblad" : kind;
 }
 
 public static class Conditions
@@ -118,7 +129,7 @@ public static class ProductTypes
     // Anders And-blade and Jumbobøger are two categories (user 2026-11-02: "categroies need to be better Anders And and
     // Jumbøbøger not same category") - "Blade" held both plus magazines; a magazine is Andet (none in stock).
     public const string Magic = "Magic", Film = "Film", Musik = "Musik", Tegneserier = "Tegneserier", AndersAnd = "Anders And-blade",
-        Jumbo = "Jumbobøger", Superhelte = "Superhelte", Boeger = "Bøger", Andet = "Andet";
+        Jumbo = "Jumbobøger", Superhelte = "Serieblade", Boeger = "Bøger", Andet = "Andet";   // Serieblade = superhero blade + Jonah Hex, Kong Kylie ... (2026-11-02)
 
     public static readonly string[] All = [Boeger, AndersAnd, Jumbo, Tegneserier, Superhelte, Musik, Film, Magic, Andet];
 

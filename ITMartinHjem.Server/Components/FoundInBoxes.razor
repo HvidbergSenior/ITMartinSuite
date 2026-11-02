@@ -16,7 +16,7 @@
                     <li class="bs-found-item">
                         @if (i.HasPhoto) { <img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /> }
                         <h3>@i.Line</h3>
-                        <p class="k-help">@i.Kind · @i.Condition stand@(i.Available > 1 ? " · vi har flere" : "")</p>
+                        <p class="k-help">@Kinds.Label(i.Kind) ·@i.Condition stand@(i.Available > 1 ? " · vi har flere" : "")</p>
                         @if (i.Interest != "") { <p>@i.Interest</p> }
                         <p>
                             @if (i.ForShow) { <span class="bs-forshow">Kun til visning</span> }

@@ -97,7 +97,7 @@
                 <li class="bs-shop-card">
                     <div class="bs-shop-pic">
                         @if (i.HasPhoto) { <a class="bs-shop-zoom" href="/varer/foto/@i.Id" target="_blank" rel="noopener" title="Se billedet stort"><img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /></a> }
-                        else { <span class="bs-shop-nopic">@i.Kind</span> }
+                        else { <span class="bs-shop-nopic">@Kinds.Label(i.Kind)</span> }
                         @if (i.Badge != "") { <span class="bs-shop-badge">@ITMartinHjem.Server.Services.NoEmoji.Strip(i.Badge)</span> }
                     </div>
                     <div class="bs-shop-body">
@@ -191,7 +191,7 @@
     /// <summary>The things Lager knows about it, in one line: kind, condition, new/used, year, how many.</summary>
     private static string Facts(ShopItem i) => string.Join(" · ", new[]
     {
-        i.Kind,
+        Kinds.Label(i.Kind),
         i.Condition == "" ? "" : $"{i.Condition} stand",
         i.Usage,
         i.Year is { } y ? y.ToString() : "",
