@@ -178,23 +178,33 @@ public static partial class Pricing
         [Kinds.Cd] = ["vinyl", "vinil", "schallplatte", "kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
         [Kinds.Vinyl] = ["kassette", "kassettebånd", "cassette", "tape", "dvd", "blu", "bluray", "vhs"],
         [Kinds.Kassette] = ["vinyl", "vinil", "schallplatte", "dvd", "blu", "bluray", "vhs"],
-        [Kinds.Dvd] = ["blu", "bluray", "blueray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack", "3d", "dvds", "boks", "samleboks"],
-        [Kinds.BluRay] = ["vhs", "vinyl", "soundtrack"],
+        [Kinds.Dvd] = ["blu", "bluray", "blueray", "vhs", "uhd", "steelbook", "vinyl", "soundtrack", "3d", "dvds", "boks", "samleboks", "bog", "roman", "tegneserie"],
+        [Kinds.BluRay] = ["vhs", "vinyl", "soundtrack", "bog", "roman", "tegneserie"],
         // A comic of the same name is not the TV series, the film or the novel (2026-10-25: "The Walking Dead").
         [Kinds.Tegneserie] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
         [Kinds.Superhelte] = ["dvd", "blu", "bluray", "vhs", "season", "sæson", "sesong", "staffel", "säsong", "kausi", "pokkari", "roman", "novel"],
-        [Kinds.Vhs] = ["dvd", "blu", "bluray", "uhd", "vinyl", "soundtrack"],
+        [Kinds.Vhs] = ["dvd", "blu", "bluray", "uhd", "vinyl", "soundtrack", "bog", "roman", "tegneserie"],
         // A novel is not the comic album of the same name (2026-11-02: Nicci French "Blå mandag" priced 345 kr from Faraos'
         // "Garfield Farvealbum Nr. 9 Blå mandag", 385 kr), nor its film.
-        [Kinds.Bog] = ["farvealbum", "album", "seriealbum", "tegneserie", "tegneserier", "garfield", "dvd", "blu", "bluray", "vhs"],
+        [Kinds.Bog] = ["farvealbum", "seriealbum", "tegneserie", "tegneserier", "garfield", "jumbobog", "lydbog", "lydbøger",
+            "dvd", "blu", "bluray", "vhs"],
+        // The same for every product type (user 2026-11-02: "make this for other products as well"): a listing that names
+        // another type of product is not this one - a blad is not the Jumbobog, a game is not its guide or soundtrack.
+        [Kinds.AndersAnd] = ["jumbobog", "jumbobøger", "jumbo", "pocket", "farvealbum", "seriealbum", "lydbog", "roman", "dvd", "blu", "bluray", "vhs"],
+        [Kinds.Jumbobog] = ["blad", "blade", "hæfte", "farvealbum", "seriealbum", "lydbog", "dvd", "blu", "bluray", "vhs"],
+        [Kinds.Magasin] = ["dvd", "blu", "bluray", "vhs", "vinyl", "lydbog", "roman"],
+        [Kinds.Konsolspil] = ["guide", "strategiguide", "lösungsbuch", "løsningsbog", "soundtrack", "vinyl", "bog", "roman", "plakat", "poster"],
     };
+    // Kinds checked on their word list only - the short-word rules (LP, CD, 7", 4K) and NotTheRecord are about records and films.
+    private static readonly HashSet<string> WordsOnly = [Kinds.Bog, Kinds.AndersAnd, Kinds.Jumbobog, Kinds.Magasin, Kinds.Konsolspil];
 
     /// <summary>The listing is of another format than the item (a CD item and an LP listing, a DVD and a Blu-ray ...).</summary>
     public static bool OtherFormat(string kind, string listing)
     {
         if (!OtherFormats.TryGetValue(kind, out var other)) return false;
-        if (ListingParse.Words(listing).Any(w => other.Contains(w) || (kind != Kinds.Bog && NotTheRecord.Contains(w)))) return true;
-        if (kind == Kinds.Bog) return false;   // a book: only its word list - "LP"/"CD" short words are about records
+        var wordsOnly = WordsOnly.Contains(kind);
+        if (ListingParse.Words(listing).Any(w => other.Contains(w) || (!wordsOnly && NotTheRecord.Contains(w)))) return true;
+        if (wordsOnly) return false;
         // Short words Words() leaves out: "LP", "CD", "4K" and 7"/12" singles.
         var low = " " + listing.ToLowerInvariant() + " ";
         if (kind != Kinds.Vinyl && (LpRx().IsMatch(low) || SingleRx().IsMatch(low))) return true;

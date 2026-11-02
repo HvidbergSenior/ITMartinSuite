@@ -77,10 +77,17 @@ public class StockForSaleTests
     }
 
     [Test]
-    public void A_novel_is_not_priced_from_a_comic_album_of_the_same_name()
+    public void A_listing_of_another_product_type_is_not_this_product()
     {
         Pricing.OtherFormat(Kinds.Bog, "Garfield Farvealbum Nr. 9 Blå mandag").Should().BeTrue();
         Pricing.OtherFormat(Kinds.Bog, "Blå mandag - Nicci French").Should().BeFalse();
+        Pricing.OtherFormat(Kinds.AndersAnd, "Jumbobog 245 Anders And").Should().BeTrue("a blad is not the Jumbobog");
+        Pricing.OtherFormat(Kinds.AndersAnd, "Anders And nr. 12 1985").Should().BeFalse();
+        Pricing.OtherFormat(Kinds.Jumbobog, "Anders And blad nr 245").Should().BeTrue("a Jumbobog is not the blad");
+        Pricing.OtherFormat(Kinds.Konsolspil, "Zelda Ocarina of Time guide").Should().BeTrue("the guide, not the game");
+        Pricing.OtherFormat(Kinds.Dvd, "Matador bog om tv-serien").Should().BeTrue("the book, not the film");
+        Pricing.OtherFormat(Kinds.Dvd, "Matador DVD boks").Should().BeTrue();
+        Pricing.OtherFormat(Kinds.Dvd, "Matador - Kollektionen").Should().BeFalse();
     }
 
     [Test]
