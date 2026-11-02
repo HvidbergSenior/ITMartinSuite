@@ -63,7 +63,7 @@ public class StoreTests
         foreach (var i in all) { i.PricesAt = DateTime.UtcNow; i.Deal = Shop.DealFor(i, [], ShopDeals.All); }
         await Items.UpdateAsync(all, default);
         string[] Numbers(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Number).ToArray();
-        Numbers(ShopDeals.Blade.Name).Should().Equal("12", "14", "15");
+        Numbers(ShopDeals.Blade.Name).Should().Equal("12", "14");   // 15 is unsure: not on the page until checked (2026-11-02)
         Numbers(ShopDeals.Single).Should().Equal("13");
         Numbers(ShopDeals.NoPrice).Should().BeEmpty("15 is unsure: straight in the Blade bin (user 2026-10-31)");
         (await Items.ListedPerDealAsync(default)).Should().BeEquivalentTo(new Dictionary<string, int> { [ShopDeals.Blade.Name] = 3 });
@@ -84,6 +84,24 @@ public class StoreTests
         page.Select(i => i.Number).Should().NotContain("99", "the 3 kr bin is not on the page").And.NotContain(["1", "2", "3", "4"], "only the dearest 20");
         (await Items.ListedPerDealAsync(default)).Should().BeEquivalentTo(new Dictionary<string, int> { [ShopDeals.PerPiece.Name] = 1 },
             "the bin is counted for the online packs");
+    }
+
+    [Test]
+    public async Task A_searched_thing_without_a_price_gets_the_standard_price_and_an_unsure_one_is_hidden()
+    {
+        var box = await Boxes.AddNextAsync("Loppemarked", default);
+        await Registration.SaveAsync(box.Id, null, [
+            new Found(Kinds.Cd, "Abbey Road", "The Beatles", "", "", 1969, "", "God", 1, 1.0, ""),
+            new Found(Kinds.Cd, "Let It Be", "The Beatles", "", "", 1970, "", "God", 1, 0.3, "")]);
+        var all = await Items.AllListedAsync(default);
+        foreach (var i in all) i.PricesAt = DateTime.UtcNow;
+        await Items.UpdateAsync(all, default);
+        var (page, total) = await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopDeals.Single);
+        total.Should().Be(1, "the unsure one waits for a person");
+        page[0].Title.Should().Be("Abbey Road");
+        Shop.View(page[0], []).HintKr.Should().Be(Shop.StandardKr[Kinds.Cd]);
+        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, "10-29")).Total.Should().Be(1, "10 kr is in the 10-29 band");
+        (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopDeals.NoPrice)).Total.Should().Be(0);
     }
 
     [Test]

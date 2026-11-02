@@ -73,10 +73,24 @@ public static class Shop
         return i.PricesAt is null ? "" : deal.Name;   // no price: once searched (not yet = wait for the hunter)
     }
 
+    /// <summary>The standard price per kind when the price hunter found nothing (user 2026-11-02, "what about products without
+    /// price?" - chose a fixed price per type): only for a sure reading that has been searched. Lager still says "Ingen pris
+    /// fundet"; the shop shows this price. Anders And-blade are not here - they are the 3 kr bin.</summary>
+    public static readonly IReadOnlyDictionary<string, int> StandardKr = new Dictionary<string, int>
+    {
+        [Kinds.Cd] = 10, [Kinds.Dvd] = 15, [Kinds.BluRay] = 20, [Kinds.Tegneserie] = 15, [Kinds.Superhelte] = 15,
+        [Kinds.Jumbobog] = 10, [Kinds.Bog] = 20,
+    };
+
+    /// <summary>The standard price for this thing, or null (it has its own, is unsure, not searched yet, or no standard).</summary>
+    public static int? Standard(Item i) =>
+        i.Price is > 0 || i.PriceHint is > 0 || i.PricesAt is null || i.Confidence < Pricing.MinConfidence ? null
+            : StandardKr.TryGetValue(i.Kind, out var kr) ? kr : null;
+
     /// <summary>A thing for sale as Salg gets it.</summary>
     public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null) =>
         new(i.Id, i.Kind, i.Line(), i.Title, i.Interest, i.Condition, i.Year, i.Quantity, i.Usage,
-            i.Price is > 0 ? (int)Math.Round(i.Price.Value) : null, i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : null,
+            i.Price is > 0 ? (int)Math.Round(i.Price.Value) : null, i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : Standard(i),
             i.Confidence, i.ItemPhoto != "" || i.PhotoId is not null, Badge(gold, i), i.Box?.IsTest == true, reference, i.Deal);
 
     public static ShopProof ProofView(PriceFind f) => new(f.Source, f.Kr, f.Original, f.Url, f.IsNew);

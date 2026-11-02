@@ -146,10 +146,44 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
 
     private static readonly string BladeDeal = ShopDeals.Blade.Name;
 
-    // A price band: own price (no deal) from kr up to under below.
-    private static IQueryable<Item> Priced(IQueryable<Item> q, decimal from, decimal? below) =>
-        below is { } b ? q.Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) >= from && (i.Price ?? i.PriceHint) < b)
-            : q.Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) >= from);
+    // The price the shop shows, as SQL: own price, else the suggested one, else the standard price for its kind when it is a
+    // sure reading that has been searched (Shop.StandardKr, user 2026-11-02 "what about products without price?").
+    private static readonly System.Linq.Expressions.Expression<Func<Item, decimal?>> ShopKr = BuildShopKr();
+
+    private static System.Linq.Expressions.Expression<Func<Item, decimal?>> BuildShopKr()
+    {
+        var i = System.Linq.Expressions.Expression.Parameter(typeof(Item), "i");
+        System.Linq.Expressions.Expression Prop(string name) => System.Linq.Expressions.Expression.Property(i, name);
+        var none = System.Linq.Expressions.Expression.Constant(null, typeof(decimal?));
+        var own = System.Linq.Expressions.Expression.Coalesce(Prop(nameof(Item.Price)), Prop(nameof(Item.PriceHint)));
+        System.Linq.Expressions.Expression standard = none;
+        foreach (var (kind, kr) in Shop.StandardKr)
+            standard = System.Linq.Expressions.Expression.Condition(
+                System.Linq.Expressions.Expression.Equal(Prop(nameof(Item.Kind)), System.Linq.Expressions.Expression.Constant(kind)),
+                System.Linq.Expressions.Expression.Constant((decimal?)kr, typeof(decimal?)), standard);
+        var canStandard = System.Linq.Expressions.Expression.AndAlso(
+            System.Linq.Expressions.Expression.NotEqual(Prop(nameof(Item.PricesAt)), System.Linq.Expressions.Expression.Constant(null, typeof(DateTime?))),
+            System.Linq.Expressions.Expression.GreaterThanOrEqual(Prop(nameof(Item.Confidence)), System.Linq.Expressions.Expression.Constant(Pricing.MinConfidence)));
+        var hasOwn = System.Linq.Expressions.Expression.GreaterThan(own, System.Linq.Expressions.Expression.Constant(0m, typeof(decimal?)));
+        var body = System.Linq.Expressions.Expression.Condition(hasOwn, own,
+            System.Linq.Expressions.Expression.Condition(canStandard, standard, none));
+        return System.Linq.Expressions.Expression.Lambda<Func<Item, decimal?>>(body, i);
+    }
+
+    // ShopKr compared with a number, as a Where.
+    private static System.Linq.Expressions.Expression<Func<Item, bool>> Kr(Func<System.Linq.Expressions.Expression, System.Linq.Expressions.Expression, System.Linq.Expressions.BinaryExpression> op, decimal kr) =>
+        System.Linq.Expressions.Expression.Lambda<Func<Item, bool>>(op(ShopKr.Body, System.Linq.Expressions.Expression.Constant((decimal?)kr, typeof(decimal?))), ShopKr.Parameters);
+
+    private static readonly System.Linq.Expressions.Expression<Func<Item, bool>> HasKr = Kr(System.Linq.Expressions.Expression.GreaterThan, 0);
+    private static readonly System.Linq.Expressions.Expression<Func<Item, bool>> NoKr =
+        System.Linq.Expressions.Expression.Lambda<Func<Item, bool>>(System.Linq.Expressions.Expression.Not(HasKr.Body), HasKr.Parameters);
+
+    // A price band: shop price (no deal) from kr up to under below.
+    private static IQueryable<Item> Priced(IQueryable<Item> q, decimal from, decimal? below)
+    {
+        q = q.Where(i => i.Deal == "").Where(Kr(System.Linq.Expressions.Expression.GreaterThanOrEqual, from));
+        return below is { } b ? q.Where(Kr(System.Linq.Expressions.Expression.LessThan, b)) : q;
+    }
 
     private static readonly string PerPieceDeal = ShopDeals.PerPiece.Name;
 
@@ -159,7 +193,9 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     {
         var rare = ForSale(db).Where(i => i.Kind == Kinds.AndersAnd && i.Deal == "" && (i.Price ?? i.PriceHint) > 0)
             .OrderByDescending(i => i.Price ?? i.PriceHint).ThenBy(i => i.Id).Take(ShopDeals.MaxRareAndersAndOnPage).Select(i => i.Id);
-        return ForSale(db).Where(i => i.Deal != PerPieceDeal && (i.Kind != Kinds.AndersAnd || i.Deal != "" || rare.Contains(i.Id)));
+        // ... and not the unsure readings until a person has checked them (user 2026-11-02: "hide until checked").
+        return ForSale(db).Where(i => i.Deal != PerPieceDeal && i.Confidence >= Pricing.MinConfidence
+            && (i.Kind != Kinds.AndersAnd || i.Deal != "" || rare.Contains(i.Id)));
     }
 
     private static IQueryable<Item> Listed(LagerDb db) => OnPage(db);
@@ -171,8 +207,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     private static IQueryable<Item> Listed(LagerDb db, string? band) => band switch
     {
         null => Listed(db),
-        ShopDeals.Single => Sure(db).Where(i => i.Deal == "" && (i.Price ?? i.PriceHint) > 0),
-        ShopDeals.NoPrice => Sure(db).Where(i => i.Deal == "" && ((i.Price ?? i.PriceHint) == null || (i.Price ?? i.PriceHint) <= 0)),
+        ShopDeals.Single => Sure(db).Where(i => i.Deal == "").Where(HasKr),
+        ShopDeals.NoPrice => Sure(db).Where(i => i.Deal == "").Where(NoKr),
         ShopDeals.Unsure => OnPage(db).Where(i => i.Confidence < Pricing.MinConfidence && i.Deal == ""),
         _ when ShopDeals.PriceBand(band) is { } p => Priced(Sure(db), p.From, p.Below),
         _ => Listed(db).Where(i => i.Deal == band),
@@ -208,8 +244,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         // The price a buyer sees: a person's price, else the suggested shop price; things without one last.
         q = sort switch
         {
-            ShopSorts.Cheapest => q.OrderBy(i => (i.Price ?? i.PriceHint) == null).ThenBy(i => i.Price ?? i.PriceHint).ThenBy(i => i.Title),
-            ShopSorts.Dearest => q.OrderBy(i => (i.Price ?? i.PriceHint) == null).ThenByDescending(i => i.Price ?? i.PriceHint).ThenBy(i => i.Title),
+            ShopSorts.Cheapest => q.OrderBy(NoKr).ThenBy(ShopKr).ThenBy(i => i.Title),
+            ShopSorts.Dearest => q.OrderBy(NoKr).ThenByDescending(ShopKr).ThenBy(i => i.Title),
             ShopSorts.Title => q.OrderBy(i => i.Title).ThenBy(i => i.Year).ThenBy(i => i.Number),
             _ => q.OrderByDescending(i => i.CreatedAt).ThenByDescending(i => i.Id),
         };
