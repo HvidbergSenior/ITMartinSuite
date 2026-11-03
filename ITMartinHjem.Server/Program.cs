@@ -42,7 +42,10 @@ builder.Services.AddKolibri(k =>
     k.ThemeColor = "#f4f6f5";
 });
 
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+// 256 KB per message (default 32 KB): /produkter hands its first page of things (~100 KB) from the server drawing to the
+// live page (no flicker, 2026-11-03) - over 32 KB the connection closed and no button worked.
+builder.Services.AddRazorComponents().AddInteractiveServerComponents()
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 256 * 1024);
 // itmartin.dk shows the chat in an iframe: framing is governed by the CSP below instead.
 builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 builder.Services.AddCors(o => o.AddPolicy("itmartin", p => p
