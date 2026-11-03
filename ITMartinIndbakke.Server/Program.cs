@@ -59,7 +59,7 @@ const string LoginBody = """
       <p class="k-help">Skriv din kode for at se din mail.</p>
       <form method="post" action="/ind" class="ib-login">
         <label class="k-label" for="pin">Kode</label>
-        <input class="k-input" id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required>
+        <input class="k-input" id="pin" name="pin" type="password" autocomplete="current-password" required>
         <button class="k-btn k-btn-primary" type="submit">Log ind</button>
       </form>
     </section>
