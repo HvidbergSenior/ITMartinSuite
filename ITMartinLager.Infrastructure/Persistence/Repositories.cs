@@ -277,6 +277,9 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
             q = q.Where(i => i.Search.Contains(w));
         }
         var total = await q.CountAsync(ct);
+        // A-Å is Danish name order (NameOrder) - SQLite cannot do it, so in memory: the things for sale are about a thousand rows.
+        if (sort == ShopSorts.Title)
+            return ((await q.ToListAsync(ct)).Order(NameOrder.Instance).Skip(skip).Take(take).ToList(), total);
         // The price a buyer sees: a person's price, else the suggested shop price; things without one last.
         q = sort switch
         {
