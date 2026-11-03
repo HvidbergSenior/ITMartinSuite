@@ -99,7 +99,7 @@ public class StoreTests
         var (page, total) = await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopDeals.Single);
         total.Should().Be(1, "the unsure one waits for a person");
         page[0].Title.Should().Be("Abbey Road");
-        Shop.View(page[0], []).HintKr.Should().Be(Shop.StandardKr[Kinds.Cd]);
+        Shop.View(page[0], []).HintKr.Should().Be(Shop.StandardKr[ProductTypes.Musik]);
         (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, "10-29")).Total.Should().Be(1, "10 kr is in the 10-29 band");
         (await Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, ShopDeals.NoPrice)).Total.Should().Be(0);
     }

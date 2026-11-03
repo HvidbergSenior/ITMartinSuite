@@ -7,7 +7,9 @@ public static class Shop
 {
     /// <summary>Suggested shop prices from this amount up need a person's price before Køb nu - a wrong match on an
     /// expensive item must never be sold cheaply (Salg__ShopAutoMaxKr).</summary>
-    public const int DefaultAutoMaxKr = 200;
+    // 50 since 2026-11-03 (was 200): from ShopDeals.AssessFromKr a person sets the price ("All the interesting ones, should be
+    // manually looked at by us").
+    public const int DefaultAutoMaxKr = ShopDeals.AssessFromKr;
 
     /// <summary>Under this the AI was unsure what the thing is (StockItem.Confidence) - a person checks it first.</summary>
     public const double MinConfidence = 0.6;
@@ -18,6 +20,7 @@ public static class Shop
     {
         if (i.ForShow) return null;   // a test box: only for show, never sold (user 2026-10-24)
         if (i.PriceKr is > 0) return i.PriceKr;
+        if (i.Badge != "") return null;   // a mark (Guld, Sølv ...) = a person looks first
         if (i.HintKr is > 0 && i.HintKr < autoMaxKr && i.Confidence >= MinConfidence) return i.HintKr;
         return null;
     }

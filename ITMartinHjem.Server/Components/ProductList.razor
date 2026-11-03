@@ -69,6 +69,11 @@
                     </li>
                 }
             </ul>
+            <a class="bs-family bs-family-rare" href="@ShopFamilies.Rare.Path">
+                <b class="bs-family-title">@ShopFamilies.Rare.Name</b>
+                <span class="k-help">@ShopFamilies.Rare.About</span>
+                <span class="bs-family-go">Se dem →</span>
+            </a>
         }
     }
     else
@@ -363,9 +368,10 @@
         _loading = true;
         if (reset) { _page = 0; _market = null; _items.Clear(); }
         // A-Z (user 2026-10-31: "all products need to have alphateci order"); only the shop's categories, or the subcategory's.
-        IReadOnlyCollection<string>? cats = Family is null ? null : _sub?.Category is { } c ? [c] : Family.Types;
-        var (market, error) = await Shop.MarketAsync(null, _sub?.Kind, null, _batch is not null ? BatchWords(_batch) : _query, _sort, _page,
-            price: cats is null ? ShopDeals.WithPrice : null, language: _sub?.Language, categories: cats);
+        var rare = Family == ShopFamilies.Rare;
+        IReadOnlyCollection<string>? cats = Family is null || rare ? null : _sub?.Category is { } c ? [c] : Family.Types;
+        var (market, error) = await Shop.MarketAsync(rare ? ShopDeals.RareName : null, _sub?.Kind, null, _batch is not null ? BatchWords(_batch) : _query, _sort, _page,
+            price: cats is null && !rare ? ShopDeals.WithPrice : null, language: _sub?.Language, categories: cats);
         _loading = false;
         _error = error;
         if (market is null) return;
@@ -437,6 +443,7 @@
             <div class="bs-shop-body">
                 <h3>@i.Line</h3>
                 @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
+                else if (i.Assess) { <p class="bs-shop-noprice bs-assess">@ShopDeals.AssessText</p> }
                 else if (ShopDeals.Named(i.Deal) is { } deal)
                 {
                     @if (deal.Steps is [{ Count: 1 } one]) { <p class="bs-shop-price"><b>@one.Kr kr</b></p> }

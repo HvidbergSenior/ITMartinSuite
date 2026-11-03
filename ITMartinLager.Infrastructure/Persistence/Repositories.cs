@@ -151,6 +151,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         // Item.Valuation, as SQL.
         q = valuation switch
         {
+            Valuations.Assess => q.Where(i => (i.Price == null || i.Price <= 0) && i.PriceHint >= AssessFrom),
             Valuations.InDeal => q.Where(i => i.Deal != ""),
             Valuations.Valued => q.Where(i => i.Deal == "" && i.PriceHint > 0),
             Valuations.Waiting => q.Where(i => i.Deal == "" && (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt == null),
@@ -173,6 +174,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     }
 
     private static readonly System.Text.RegularExpressions.Regex BoxWord = new(@"^k\d{1,4}$");
+    private static readonly decimal AssessFrom = ShopDeals.AssessFromKr;
 
     // Shop.ForSale / Shop.Listed as SQL: in stock or for sale, copies left, a title (+ sure, or an unsure blad in the Blade
     // deal). With the box: a test box = only for show (Box.IsTest).
@@ -192,13 +194,14 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         var none = System.Linq.Expressions.Expression.Constant(null, typeof(decimal?));
         var own = System.Linq.Expressions.Expression.Coalesce(Prop(nameof(Item.Price)), Prop(nameof(Item.PriceHint)));
         System.Linq.Expressions.Expression standard = none;
-        foreach (var (kind, kr) in Shop.StandardKr)
+        foreach (var (category, kr) in Shop.StandardKr)
             standard = System.Linq.Expressions.Expression.Condition(
-                System.Linq.Expressions.Expression.Equal(Prop(nameof(Item.Kind)), System.Linq.Expressions.Expression.Constant(kind)),
+                System.Linq.Expressions.Expression.Equal(Prop(nameof(Item.Category)), System.Linq.Expressions.Expression.Constant(category)),
                 System.Linq.Expressions.Expression.Constant((decimal?)kr, typeof(decimal?)), standard);
-        var canStandard = System.Linq.Expressions.Expression.AndAlso(
+        var canStandard = System.Linq.Expressions.Expression.AndAlso(System.Linq.Expressions.Expression.AndAlso(
             System.Linq.Expressions.Expression.NotEqual(Prop(nameof(Item.PricesAt)), System.Linq.Expressions.Expression.Constant(null, typeof(DateTime?))),
-            System.Linq.Expressions.Expression.GreaterThanOrEqual(Prop(nameof(Item.Confidence)), System.Linq.Expressions.Expression.Constant(Pricing.MinConfidence)));
+            System.Linq.Expressions.Expression.GreaterThanOrEqual(Prop(nameof(Item.Confidence)), System.Linq.Expressions.Expression.Constant(Pricing.MinConfidence))),
+            System.Linq.Expressions.Expression.NotEqual(Prop(nameof(Item.Kind)), System.Linq.Expressions.Expression.Constant(Kinds.AndersAnd)));
         var hasOwn = System.Linq.Expressions.Expression.GreaterThan(own, System.Linq.Expressions.Expression.Constant(0m, typeof(decimal?)));
         var body = System.Linq.Expressions.Expression.Condition(hasOwn, own,
             System.Linq.Expressions.Expression.Condition(canStandard, standard, none));
@@ -296,7 +299,9 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     private static async Task<IQueryable<Item>> RareAsync(LagerDb db, CancellationToken ct)
     {
         var gold = await db.GoldEntries.AsNoTracking().ToListAsync(ct);
-        var ids = (await OnPage(db).AsNoTracking().ToListAsync(ct)).Where(i => Shop.Badge(gold, i) != "").Select(i => i.Id).ToList();
+        // Sjældne = a mark, or found 50 kr+ without an own price (2026-11-03: interesting = a person looks, ShopDeals.AssessFromKr).
+        var ids = (await OnPage(db).AsNoTracking().ToListAsync(ct))
+            .Where(i => Shop.Badge(gold, i) != "" || (i.Price is not > 0 && i.PriceHint >= ShopDeals.AssessFromKr)).Select(i => i.Id).ToList();
         return OnPage(db).Where(i => ids.Contains(i.Id));
     }
 

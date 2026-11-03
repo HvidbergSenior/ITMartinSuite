@@ -267,11 +267,13 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             var buyNow = Shop.BuyNowKr(i, options.ShopAutoMaxKr);
             // Unsure what it is = no price and no reference until a person has looked (Ikke tjekket endnu).
             var unsure = i.Confidence < Shop.MinConfidence && i.PriceKr is null;
+            // Interesting (50 kr+ or a mark, no own price): no automatic price and no reference until a person has looked.
+            var assess = !i.ForShow && ShopDeals.Assess(i.PriceKr, i.HintKr, i.Badge);
             var day = buyNow is { } kr ? Campaigns.DayPrice(i.Kind, i.Usage, kr, offers, Today) : null;
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
-            return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 && !unsure ? i.HintKr : null,
+            return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 && !unsure && !assess ? i.HintKr : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
-                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), unsure ? null : i.Reference, i.Deal);
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), unsure || assess ? null : i.Reference, i.Deal, assess);
         }).ToList();
     }
 }

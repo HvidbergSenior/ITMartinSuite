@@ -8,7 +8,9 @@ public static class Valuations
 {
     // InDeal: sold in a deal (Shop.DealFor) - the deal IS its price (user 2026-10-31: "there should not be any Ingen pris fundet?").
     public const string Valued = "Vurderet", InDeal = "I tilbud", Waiting = "Venter på pris", NoPrice = "Ingen pris fundet";
-    public static readonly string[] All = [Valued, InDeal, Waiting, NoPrice];
+    /// <summary>Found 50 kr or more and no own price yet (ShopDeals.AssessFromKr, 2026-11-03): a person sets the price.</summary>
+    public const string Assess = "Skal vurderes";
+    public static readonly string[] All = [Assess, Valued, InDeal, Waiting, NoPrice];
 }
 
 public static class Statuses

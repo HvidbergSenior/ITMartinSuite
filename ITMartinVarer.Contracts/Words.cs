@@ -265,7 +265,13 @@ public static class ShopFamilies
 
     public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Fantasy, Kort];
 
-    public static ShopFamily? BySlug(string? slug) => All.FirstOrDefault(f => string.Equals(f.Slug, slug?.Trim('/'), StringComparison.OrdinalIgnoreCase));
+    /// <summary>The special category (user 2026-11-03: "All the interesting ones, should be manually looked at by us and be in a
+    /// special categropy"): everything with a mark or found at 50 kr+ (ShopDeals.Rare) across the shops; no own categories.</summary>
+    public static readonly ShopFamily Rare = new("Sjældne fund", "sjaeldne",
+        "Sjældne og dyre ting fra alle butikkerne. Vi kigger på hver enkelt og sætter prisen selv.", [], []);
+
+    public static ShopFamily? BySlug(string? slug) =>
+        All.Append(Rare).FirstOrDefault(f => string.Equals(f.Slug, slug?.Trim('/'), StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The shop a main category is in, or null (Andet - only found by the search).</summary>
     public static ShopFamily? For(string type) => All.FirstOrDefault(f => f.Types.Contains(type));

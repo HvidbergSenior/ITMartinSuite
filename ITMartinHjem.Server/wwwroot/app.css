@@ -928,3 +928,6 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-helpers h3{margin:0;font-size:1.05rem}
 .bs-helper{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .bs-helper-soon[disabled]{border:2px dashed var(--k-text);background:transparent;color:var(--k-text);opacity:.6;cursor:not-allowed}
+/* Sjældne fund (2026-11-03): the special category - a person sets the price. */
+.bs-family-rare{margin:4px 0 10px;border-width:3px;border-color:var(--k-accent)}
+.bs-assess{font-weight:800}

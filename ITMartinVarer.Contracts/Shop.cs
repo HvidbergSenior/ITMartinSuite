@@ -14,7 +14,7 @@ public static class ShopHeaders
 /// marked it "interessant" on the marketplace.</summary>
 public sealed record ShopItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
     int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto, string Type = "", int? DayKr = null, string DayOffer = "", string Badge = "",
-    string Usage = "", bool ForShow = false, int Interested = 0, ShopProof? Reference = null, string Deal = "");
+    string Usage = "", bool ForShow = false, int Interested = 0, ShopProof? Reference = null, string Deal = "", bool Assess = false);
 
 /// <summary>The proof for the price promise: one listing on another site.</summary>
 public sealed record ShopProof(string Source, int Kr, string Original, string Url, bool IsNew);
@@ -177,6 +177,14 @@ public static class ShopDeals
     /// <summary>Everything with a mark (Guld, Sølv, Bronze, Platin) in one category, dearest first (user 2026-11-02: "make
     /// these products in a categroy i can see").</summary>
     public const string Rare = "sjaeldne";
+    /// <summary>Interesting things are looked at by a person (user 2026-11-03: "All the interesting ones, should be manually looked at
+    /// by us and be in a special categropy", chose "50 kr+ or a mark"): a found price from this, or a mark (Guld, Sølv, Bronze,
+    /// Platin), and no price a person set = no automatic price, and they are in Sjældne.</summary>
+    public const int AssessFromKr = 50;
+    public const string AssessText = "Sjælden – vi vurderer prisen";
+
+    /// <summary>A person must set the price first (see AssessFromKr).</summary>
+    public static bool Assess(int? personKr, int? hintKr, string badge) => personKr is not > 0 && (badge != "" || hintKr >= AssessFromKr);
     public const string RareName = "Sjældne";
 
     /// <summary>Price search (user 2026-10-31: "price seacrh like 10 - 29 30-49 50-99 99+"): own-priced things (no deal)

@@ -145,6 +145,12 @@ public class ShopTests
         Shop.BuyNowKr(Item(hint: 90), 200).Should().Be(90);
         Shop.BuyNowKr(Item(hint: 250), 200).Should().BeNull();               // dear: a person decides
         Shop.BuyNowKr(Item(hint: 50, conf: 0.4), 200).Should().BeNull();     // the AI was unsure what it is
+        // 2026-11-03: from 50 kr or with a mark a person sets the price ("All the interesting ones, should be manually looked at").
+        Shop.BuyNowKr(Item(hint: 60), Shop.DefaultAutoMaxKr).Should().BeNull();
+        Shop.BuyNowKr(Item(hint: 40), Shop.DefaultAutoMaxKr).Should().Be(40);
+        ShopDeals.Assess(null, 60, "").Should().BeTrue();
+        ShopDeals.Assess(null, 20, "GULD").Should().BeTrue();
+        ShopDeals.Assess(120, 60, "GULD").Should().BeFalse();   // a person has set it
         Shop.BuyNowKr(Item(), 200).Should().BeNull();
     }
 
@@ -163,7 +169,7 @@ public class ShopTests
     [Test]
     public async Task Buying_reserves_the_copy_and_paying_tells_Lager_once()
     {
-        var item = _stock.Add(Kinds.Bog, "Mort", hint: 80);
+        var item = _stock.Add(Kinds.Bog, "Mort", price: 80);
         var (shop, pay) = Make();
 
         var url = await shop.BuyAsync(item.Id, "https://bogshoppen.dk/");
@@ -193,7 +199,7 @@ public class ShopTests
     [Test]
     public async Task A_payment_while_Lager_is_down_is_kept_and_booked_when_it_is_back()
     {
-        var item = _stock.Add(Kinds.Bog, "Mort", hint: 80);
+        var item = _stock.Add(Kinds.Bog, "Mort", hint: 40);
         var (shop, pay) = Make();
         await shop.BuyAsync(item.Id, "https://bogshoppen.dk");
         pay.Setup(p => p.StateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new PaymentState(true, false, 80, "a@b.dk"));
@@ -225,7 +231,7 @@ public class ShopTests
     [Test]
     public async Task An_expired_checkout_frees_the_copy_and_Lager_hears_nothing()
     {
-        var item = _stock.Add(Kinds.Bog, "Mort", hint: 80);
+        var item = _stock.Add(Kinds.Bog, "Mort", hint: 40);
         var (shop, pay) = Make();
         await shop.BuyAsync(item.Id, "https://bogshoppen.dk");
         pay.Setup(p => p.StateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new PaymentState(false, true));
@@ -243,7 +249,7 @@ public class ShopTests
 
         var off = new ShopUseCases(_stock, new OrderRepository(Factory), Mock.Of<IPaymentGateway>(), new CampaignRepository(Factory), _buyers.Object, new InterestRepository(Factory), _opt, TimeProvider.System);
         off.CanPay.Should().BeFalse();
-        var cheap = _stock.Add(Kinds.Bog, "Mort", hint: 50);
+        var cheap = _stock.Add(Kinds.Bog, "Mort", hint: 40);
         await off.Invoking(s => s.BuyAsync(cheap.Id, "https://bogshoppen.dk")).Should().ThrowAsync<SalgException>().WithMessage("*Betaling*");
     }
 
