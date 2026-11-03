@@ -232,7 +232,7 @@ public static partial class Pricing
     public static string? CollectorReason(Item item, string listing)
     {
         var ours = $"{item.Title} {item.Series} {item.Edition} {item.EditionHint}";
-        if (FirstEditionRx().IsMatch(listing) && !FirstEditionRx().IsMatch(ours)) return "1. udgave";
+        if (FirstEditionRx().IsMatch(listing) && !FirstEditionRx().IsMatch(ours) && !Kolofon.LikelyFirst(item)) return "1. udgave";
         var oursMint = item.Condition == Conditions.All[0] || GradeRx().IsMatch(ours);
         if (GradeRx().IsMatch(listing) && !oursMint) return "mint";
         return SpecialRx().IsMatch(listing) && !SpecialRx().IsMatch(ours) ? "samlerudgave" : null;

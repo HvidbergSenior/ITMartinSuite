@@ -66,7 +66,15 @@ public static class Kolofon
             ? (edition == "" ? before : before == "" ? edition : before)
             : edition.Contains(before, StringComparison.OrdinalIgnoreCase) ? edition : $"{before}; {edition}" }, now);
         if (item.KolofonPhoto == "") item.KolofonPhoto = photoPath;
+        // What the kolofon says changes which listings are this copy (1. udgave or not): the price hunter searches again (free).
+        if (item.Edition.Trim() != before) item.PricesAt = null;
     }
+
+    /// <summary>The kolofon names no udgave or later oplag and its © year is the book's year (Rico's Ansigterne 2026-11-03:
+    /// "© Tove Ditlevsen, 1968", nothing more): a likely 1st edition - later printings normally say "2. oplag". User 2026-11-04:
+    /// "the info on the interesting products need to be added and used when searching for them".</summary>
+    public static bool LikelyFirst(Item i) =>
+        i.Edition.Contains("Ingen udgave/oplag nævnt", StringComparison.OrdinalIgnoreCase) && i.Year is { } y && i.Edition.Contains(y.ToString());
 
     public static void Unreadable(Item item, DateTime now)
     {

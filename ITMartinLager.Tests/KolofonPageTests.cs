@@ -41,6 +41,19 @@ public class KolofonPageTests
         book.Edition.Should().Be("1. udgave; 1. oplag 1968", "the same words twice are not added again");
     }
     [Test]
+    public void A_kolofon_without_a_later_oplag_makes_a_likely_first_edition_and_a_new_search()
+    {
+        var book = new Item { Id = 6, Kind = Kinds.Bog, Title = "Ansigterne", Artist = "Tove Ditlevsen", PricesAt = DateTime.UtcNow };
+        Kolofon.AddPage(book, new KolofonReading("", "Ingen udgave/oplag nævnt (© 1968)", 1968, "", ""), "k.jpg", DateTime.UtcNow);
+        Kolofon.LikelyFirst(book).Should().BeTrue();
+        book.PricesAt.Should().BeNull("the edition changed - search again");
+        Pricing.CollectorCopy(book, "Ansigterne (1. oplag 1968)").Should().BeFalse("ours is likely a 1st too, so first-edition listings count");
+        var later = new Item { Kind = Kinds.Bog, Title = "Ansigterne", Year = 1972, Edition = "Ingen udgave/oplag nævnt (© 1968)" };
+        Kolofon.LikelyFirst(later).Should().BeFalse("a 1972 copy of a 1968 book is a later printing");
+        Pricing.CollectorCopy(new Item { Kind = Kinds.Bog, Title = "Ansigterne" }, "Ansigterne (1. oplag 1968)").Should().BeTrue();
+    }
+
+    [Test]
     public void A_short_title_with_the_same_author_is_the_same_book()
     {
         var mitLiv = new Item { Id = 5, Kind = Kinds.Bog, Title = "Mit liv", Artist = "Jørn Jønke", Year = 1985 };
