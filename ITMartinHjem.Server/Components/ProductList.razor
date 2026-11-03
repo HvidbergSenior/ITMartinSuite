@@ -3,220 +3,167 @@
 @inject PersistentComponentState State
 @implements IDisposable
 
-@* The products from Lager on bogshoppen.dk/produkter (user 2026-10-29: "i want to see the products on bogshoppen.dk as a
-   produkter - You can not buy them... It should say TESTING", "important data from lager should be on the products").
-   Not a webshop: no basket, no buy button - what Lager knows about each thing, and a test price that is not checked yet. *@
+@* The products from Lager on bogshoppen.dk (not a webshop: no basket, no buy button). Simple since 2026-11-03 (user: "the
+   search engine is too complex", "i need all in bogshoppen but not as buttons... Should be more simple"): one search field,
+   then a section per category with its first few things and one "Se alle" box - no filter buttons. *@
 <section class="k-card bs-card bs-shop" id="alle">
-    <h2 class="k-card-title">Alle produkter</h2>
-    @* "Jeg er interesseret" removed for now (user 2026-10-31). *@
     <p class="k-help">Tryk på et billede for at se det stort. Under <b>Mere om den</b> står stand og hvad lignende koster andre steder.</p>
+
+    <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
+        <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="Søg, fx Barnaby eller Storm P" @bind="_text" />
+        <button class="k-btn k-btn-primary" type="submit">Søg</button>
+    </form>
 
     @if (_error is not null)
     {
         <p class="k-alert k-alert-warn">@_error</p>
     }
-    else if (_market is null)
+    else if (_query != "" || _cat is not null)
+    {
+        @* One category, or what the search found. *@
+        <button class="k-btn k-btn-sm bs-back" @onclick="Overview">← Alle kategorier</button>
+        @if (_market is null)
+        {
+            <p class="k-help">Henter produkterne ...</p>
+        }
+        else
+        {
+            <h3 class="bs-shelf">@(_cat is not null ? $"{_cat} ({_market.Total})" : $"Søgning: {_query}")</h3>
+            @if (_cat is not null && _cat != ProductTypes.GamleBlade && ProductTypes.KindsOf(_cat).Contains(Kinds.AndersAnd)) { @Packs(_market.Packs) }
+            <p class="bs-count" role="status">@ResultText</p>
+            <ul class="bs-shop-grid">
+                @foreach (var i in _items) { @Card(i) }
+            </ul>
+            @if (_items.Count < _market.Total)
+            {
+                <button class="k-btn k-mt" @onclick="More" disabled="@_loading">@(_loading ? "Henter ..." : $"Vis flere ({_market.Total - _items.Count} til)")</button>
+            }
+        }
+    }
+    else if (_overview is null)
     {
         <p class="k-help">Henter produkterne ...</p>
     }
     else
     {
-        @* Simple (user 2026-11-03: "the search engine is too complex"): one search field and five categories - no rows for
-           language, price, series or status. Tap one or more categories; the choice is in the address and remembered. *@
-        <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
-            <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="Søg, fx Barnaby eller Storm P" @bind="_text" />
-            <button class="k-btn k-btn-primary" type="submit">Søg</button>
-        </form>
-        <div class="bs-filter bs-tabs" role="group" aria-label="Vælg kategori">
-            <button class="k-btn @(_cats.Count == 0 ? "is-on" : "")" aria-pressed="@(_cats.Count == 0)" @onclick="() => SetCats([])">Alt</button>
-            @foreach (var (shelf, _) in ShopShelves.All)
+        @* A section per category, the dearest first (the interesting ones), and one box to see all of it. *@
+        @foreach (var shelf in _overview.Shelves)
+        {
+            <h3 class="bs-shelf">@shelf.Type (@shelf.Count)</h3>
+            @if (shelf.Type == ProductTypes.Serieblade) { @Packs(_overview.Packs) }
+            <ul class="bs-shop-grid">
+                @foreach (var i in shelf.Items) { @Card(i) }
+            </ul>
+            @if (shelf.Count > shelf.Items.Count)
             {
-                var n = ShelfCount(shelf);
-                if (n == 0) continue;
-                var on = _cats.Contains(shelf);
-                <button class="k-btn @(on ? "is-on" : "")" aria-pressed="@on" @onclick="() => Toggle(shelf)">@shelf</button>
+                <button class="k-btn bs-see-all" @onclick="() => Open(shelf.Type)">Se alle @shelf.Count – @shelf.Type</button>
             }
-        </div>
-
-        @* The 3 kr bin online as packs (user 2026-11-02: "online sale need to have some kind of rare and batch of", chose fixed
-           packs) - on Alle and on Anders And-blade, not while searching. Not a webshop: you write to us for a pack. *@
-        @if (_market.Packs is { Count: > 0 } packs && _text == "" && _type == "" && (_cats.Count == 0 || _cats.Contains(ShopShelves.Tegneserier)))
-        {
-            <div class="bs-packs">
-                @foreach (var p in packs)
-                {
-                    <div class="bs-pack">
-                        <h3>@p.Name</h3>
-                        <p class="bs-shop-price"><b>@p.Kr kr</b></p>
-                        <p class="k-help">Blandet fra vores kasse – vi har til @p.Left @(p.Left == 1 ? "pakke" : "pakker").</p>
-                    </div>
-                }
-                <div class="bs-packs-ask"><a class="k-btn k-btn-primary bs-btn" href="@BogshoppenHome.AskUrl">Vil du have en pakke? Skriv til os</a></div>
-            </div>
-        }
-
-        <p class="bs-count" role="status">@ResultText</p>
-        @* The shop window (user 2026-10-31: "Wauvv effect for a customer"): picture first, our price big, and on every
-           thing one listing elsewhere as the reference ("so like similar products cost this") - every link in a new tab. *@
-        @* Picture grid (user 2026-11-01: "nicer and better... more easy to look at products", chose "Picture grid"): the
-           picture is always shown (replaces the 2026-10-31 "Billede" fold), then title and price; everything else - stand,
-           Lignende koster, Se flere priser - in ONE fold per card. 2 columns on a phone, 4-5 on a PC. *@
-        @* Under a heading per category (2026-11-03), in the order of the buttons. *@
-        @foreach (var shelf in _items.GroupBy(i => ShopShelves.For(i.Type)).OrderBy(g => ShopShelves.Order(g.Key)))
-        {
-        <h3 class="bs-shelf">@(shelf.Key == "" ? "Andet" : shelf.Key)@(ShelfCount(shelf.Key) is > 0 and var total ? $" ({total})" : "")</h3>
-        <ul class="bs-shop-grid">
-            @foreach (var i in shelf)
-            {
-                <li class="bs-shop-card">
-                    <div class="bs-shop-pic">
-                        @if (i.HasPhoto) { <a class="bs-shop-zoom" href="/varer/foto/@i.Id" target="_blank" rel="noopener" title="Se billedet stort"><img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /></a> }
-                        else { <span class="bs-shop-nopic">@Kinds.Label(i.Kind)</span> }
-                        @if (i.Badge != "") { <span class="bs-shop-badge">@ITMartinHjem.Server.Services.NoEmoji.Strip(i.Badge)</span> }
-                    </div>
-                    <div class="bs-shop-body">
-                        <h3>@i.Line</h3>
-                        @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
-                        else if (ShopDeals.Named(i.Deal) is { } deal)
-                        {
-                            @if (deal.Steps is [{ Count: 1 } one]) { <p class="bs-shop-price"><b>@one.Kr kr</b></p> }
-                            else { <p class="bs-shop-price">@foreach (var s in deal.Steps) { <b>@s.Count for @s.Kr kr</b> }</p> }
-                        }
-                        else if ((i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is { } kr)
-                        {
-                            <p class="bs-shop-price"><b>@kr kr</b>@if (i.DayKr is not null && i.BuyNowKr is { } was) { <s>@was kr</s> }</p>
-                            @if (MarketNotice.On) { <p class="bs-shop-market">På loppemarkedet: <b>@MarketNotice.MarketKr(kr) kr</b></p> }
-                        }
-                        else
-                        {
-                            <p class="bs-shop-noprice">@ShopDeals.NoPriceName</p>
-                        }
-                        @* Own fold memory per thing (kolibri.js keys on the summary text, so one opened = all 60 opened). *@
-                        <details class="bs-shop-more" data-remember="produkt-@i.Id">
-                            <summary>Mere om den</summary>
-                            <p class="k-help">@Facts(i)</p>
-                            @if (ShopDeals.Named(i.Deal) is { } d2 && d2.Steps.Count > 1) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
-                            @if (!i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
-                            {
-                                <p class="k-help">Vi undersøger prisen. Den kan ikke købes endnu.</p>
-                            }
-                            @* Links only on things with their own price (user 2026-11-02: "only if rare blad there should be links") -
-                               a 3 kr blad gets none. *@
-                            @if (i.Deal == "" && i.Reference is { } r)
-                            {
-                                <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
-                            }
-                            @if (i.Interest != "") { <p class="bs-shop-interest">@i.Interest</p> }
-                            @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
-                            @if (i.Deal != "") { }
-                            else if (_proof.TryGetValue(i.Id, out var proof))
-                            {
-                                @if (proof.Count == 0)
-                                {
-                                    <p class="k-help">Vi har ikke fundet den til salg andre steder lige nu.</p>
-                                }
-                                else
-                                {
-                                    <p class="k-help">Kan også købes her:</p>
-                                    <div class="bs-proof">
-                                        @foreach (var p in proof)
-                                        {
-                                            <a class="k-btn k-btn-sm" href="@p.Url" target="_blank" rel="noopener nofollow">@p.Source@(p.IsNew ? " (ny)" : ""): @p.Kr kr</a>
-                                        }
-                                    </div>
-                                }
-                            }
-                            else
-                            {
-                                <button class="k-btn k-btn-sm" @onclick="() => OtherSites(i.Id)" disabled="@(_proofLoading == i.Id)">@(_proofLoading == i.Id ? "Henter ..." : "Se flere priser")</button>
-                            }
-                        </details>
-                    </div>
-                </li>
-            }
-        </ul>
-        }
-        @if (_items.Count < _market.Total)
-        {
-            <button class="k-btn k-mt" @onclick="More" disabled="@_loading">@(_loading ? "Henter ..." : $"Vis flere ({_market.Total - _items.Count} til)")</button>
         }
     }
 </section>
 
 @code {
+    private ShopOverview? _overview;
     private ShopMarket? _market;
     private readonly List<ShopItem> _items = [];
     private string? _error;
-    private string _type = "", _text = "", _price = "", _kind = "";
-    private int _page;      // Salg counts pages from 0 (page 1 skipped the first 33 - "cannot search", 2026-10-29)
+    private string _text = "", _query = "";
+    private string? _cat;
+    private int _page;      // Salg counts pages from 0
     private bool _loading;
 
+    /// <summary>?vis=Bøger opens one category (a link can be shared); anything else is the overview.</summary>
     [SupplyParameterFromQuery(Name = "vis")] public string? Vis { get; set; }
-    private List<string> _cats = [];
-    private string? OnlyCat => _cats is [var c] ? c : null;
-    /// <summary>How many things with a price a shelf has (the main categories' counts added up).</summary>
-    private int ShelfCount(string shelf) => _market?.Types.Where(t => ShopShelves.For(t.Type) == shelf && shelf != "").Sum(t => t.Count) ?? 0;
-    private static string Words(List<string> cats) => cats.Count == 1 ? cats[0] : string.Join(", ", cats[..^1]) + " og " + cats[^1];
 
-    // No flicker (user 2026-11-03 "it flickers"): the page is drawn twice (first on the server, then live). What the
-    // first drawing fetched is handed to the live one, so the list is not fetched and drawn again.
-    private sealed record Snapshot(ShopMarket Market, List<ShopItem> Items);
+    // No flicker (2026-11-03): the page is drawn twice (server, then live) - the first drawing's data is handed over.
+    private sealed record Snapshot(ShopOverview? Overview, ShopMarket? Market, List<ShopItem> Items);
     private PersistingComponentStateSubscription _persist;
+    private const string SnapshotKey = "bs-produkter";
 
-    // The chosen categories come from the address (?vis=Bøger,Film) once; a new choice only rewrites the address.
     protected override async Task OnInitializedAsync()
     {
-        _cats = (Vis ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Select(v => ShopShelves.IsShelf(v) ? v : ShopShelves.For(v)).Where(ShopShelves.IsShelf).Distinct().ToList();
+        _cat = ProductTypes.All.Contains(Vis) ? Vis : null;
         _persist = State.RegisterOnPersisting(() =>
         {
-            if (_market is not null) State.PersistAsJson(SnapshotKey, new Snapshot(_market, _items));
+            State.PersistAsJson(SnapshotKey, new Snapshot(_overview, _market, _items));
             return Task.CompletedTask;
         });
-        if (State.TryTakeFromJson<Snapshot>(SnapshotKey, out var snap) && snap is not null)
+        if (State.TryTakeFromJson<Snapshot>(SnapshotKey, out var snap) && snap is not null && (snap.Overview ?? (object?)snap.Market) is not null)
         {
-            _market = snap.Market;
+            (_overview, _market) = (snap.Overview, snap.Market);
             _items.AddRange(snap.Items);
             return;
         }
-        await Load(reset: true);
+        if (_cat is null) await LoadOverview(); else await Load(reset: true);
     }
 
-    private const string SnapshotKey = "bs-produkter";
     public void Dispose() => _persist.Dispose();
 
-    private Task Toggle(string cat) => SetCats(_cats.Contains(cat) ? _cats.Where(c => c != cat).ToList() : [.. _cats, cat]);
-
-    private async Task SetCats(List<string> cats)
+    private async Task LoadOverview()
     {
-        _type = ""; _text = ""; _kind = "";
-        var vis = string.Join(',', ShopShelves.All.Select(x => x.Name).Where(cats.Contains));   // always in the same order
-        _cats = ShopShelves.All.Select(x => x.Name).Where(cats.Contains).ToList();
-        await Address(vis);
+        var (overview, error) = await Shop.OverviewAsync();
+        (_overview, _error) = (overview, error);
+    }
+
+    private async Task Open(string cat)
+    {
+        (_cat, _query, _text) = (cat, "", "");
+        await Address("/produkter?vis=" + Uri.EscapeDataString(cat));
         await Load(reset: true);
     }
 
-    // The address and the memory follow the choice - without a navigation (that redrew the page and jumped to the top).
-    private async Task Address(string vis)
+    private async Task Overview()
+    {
+        (_cat, _query, _text, _market) = (null, "", "", null);
+        _items.Clear();
+        await Address("/produkter");
+        if (_overview is null) await LoadOverview();
+    }
+
+    private async Task Search()
+    {
+        _query = _text.Trim();
+        if (_query == "") { await Overview(); return; }
+        _cat = null;
+        await Address("/produkter");
+        await Load(reset: true);
+    }
+
+    private Task More() { _page++; return Load(reset: false); }
+
+    // The address follows (a shared link opens the same), without a navigation - that redrew the page. Back at the top of the list.
+    private async Task Address(string url)
     {
         try
         {
-            await JS.InvokeVoidAsync("hjem.rememberCategories", vis);
-            await JS.InvokeVoidAsync("hjem.setAddress", vis == "" ? "/produkter" : "/produkter?vis=" + Uri.EscapeDataString(vis));
+            await JS.InvokeVoidAsync("hjem.rememberCategories", "");   // no remembered choice any more - the overview is the start
+            await JS.InvokeVoidAsync("hjem.setAddress", url);
+            await JS.InvokeVoidAsync("hjem.scrollToId", "alle");
         }
         catch (JSException) { }
         catch (InvalidOperationException) { }
     }
 
-    /// <summary>Alle = the things with a price; "Ingen pris endnu" and "Ikke tjekket endnu" keep their own buttons.</summary>
-    private int PricedCount => _market?.Types.Where(t => t.Type is not ShopDeals.NoPriceName and not ShopDeals.UnsureName and not ShopDeals.RareName && ShopDeals.Named(t.Type) is null).Sum(t => t.Count) ?? 0;
-
-    private string ResultText => _market is null ? "" : _market.Total switch
+    private async Task Load(bool reset)
     {
+        _loading = true;
+        if (reset) { _page = 0; _market = null; _items.Clear(); }
+        // A-Z (user 2026-10-31: "all products need to have alphateci order"); a search covers the things with a price.
+        var (market, error) = await Shop.MarketAsync(null, null, null, _query, ShopSorts.Title, _page,
+            price: _cat is null ? ShopDeals.WithPrice : null, categories: _cat is null ? null : [_cat]);
+        _loading = false;
+        _error = error;
+        if (market is null) return;
+        _items.AddRange(market.Items);
+        _market = market;
+    }
+
+    private string ResultText => _market?.Total switch
+    {
+        null => "",
         0 => "Ingen produkter passer.",
         1 => "1 produkt.",
-        var n => $"{n} produkter{(_cats.Count > 0 ? $" i {Words(_cats)}" : _type == "" ? "" : $" i {_type}")}.",
-
+        var n => $"{n} produkter.",
     };
 
     /// <summary>The things Lager knows about it, in one line: kind, condition, new/used, year, how many.</summary>
@@ -230,7 +177,7 @@
     }.Where(s => s != ""));
 
     // "user should be able to see prices on other sites" (2026-10-29): the listings Lager found, fetched when pressed.
-    // No eBay (user same day: "Dont use ebay at all" - its asking prices are not what things sell for here). Danish first.
+    // No eBay (user same day: "Dont use ebay at all"). Danish first.
     private static readonly HashSet<string> Danish = new(StringComparer.OrdinalIgnoreCase) { "DBA", "GulogGratis", "Nemos", "Faraos", "findbogen" };
     private readonly Dictionary<int, List<ShopProof>> _proof = [];
     private int? _proofLoading;
@@ -246,38 +193,88 @@
             .Take(6).ToList();
     }
 
-    private Task PickFilm(string kind, string text) { _kind = kind; _text = text; return Load(reset: true); }
-    // Andet (Sjældne, Ingen pris endnu ...) is one at a time, instead of the categories.
-    private async Task Pick(string type)
+    // The 3 kr bin online as packs (user 2026-11-02, fixed packs) - with the blade. Not a webshop: you write to us for a pack.
+    private RenderFragment Packs(List<ShopPack>? packs) => __builder =>
     {
-        _type = type; _text = ""; _kind = "";
-        if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = "";
-        if (_cats.Count > 0) { _cats = []; await Address(""); }
-        await Load(reset: true);
-    }
-    private Task PickPrice(string key) { _price = key; return Load(reset: true); }
-    private string _language = "", _languageShown = "";
-    private Task PickLanguage(string l) { _language = l; return Load(reset: true); }
-    // A subgroup is a search for its name inside the chosen type; the same chip again shows the whole type.
-    private Task PickGroup(string name) { _text = _text == name ? "" : name; return Load(reset: true); }
-    private Task Search() => Load(reset: true);
-    private Task More() { _page++; return Load(reset: false); }
+        if (packs is not { Count: > 0 }) return;
+        <div class="bs-packs">
+            @foreach (var p in packs)
+            {
+                <div class="bs-pack">
+                    <h3>@p.Name</h3>
+                    <p class="bs-shop-price"><b>@p.Kr kr</b></p>
+                    <p class="k-help">Blandet fra vores kasse – vi har til @p.Left @(p.Left == 1 ? "pakke" : "pakker").</p>
+                </div>
+            }
+            <div class="bs-packs-ask"><a class="k-btn k-btn-primary bs-btn" href="@BogshoppenHome.AskUrl">Vil du have en pakke? Skriv til os</a></div>
+        </div>
+    };
 
-    private async Task Load(bool reset)
+    // One thing (picture grid, user 2026-11-01): picture, title, price; the rest in ONE fold per card with its own memory.
+    private RenderFragment Card(ShopItem i) => __builder =>
     {
-        _loading = true;
-        if (reset) _page = 0;
-        var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, _kind == "" ? null : _kind, null, _text, _type == ShopDeals.RareName ? ShopSorts.Dearest : ShopSorts.Title, _page,
-            price: _price != "" ? _price : _type == "" && _cats.Count == 0 ? ShopDeals.WithPrice : null, language: _language == "" ? null : _language,
-            categories: _cats.Count > 0 ? ShopShelves.TypesOf(_cats) : null);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
-        _loading = false;
-        _error = error;
-        if (market is null) return;
-        if (reset) _items.Clear();
-        _items.AddRange(market.Items);
-        // Keep the type chips with their full counts while a type or a search is chosen.
-        // A new language changes the counts too.
-        _market = reset && _type == "" && _text == "" || _languageShown != _language ? market : market with { Types = _market?.Types ?? market.Types };
-        _languageShown = _language;
-    }
+        <li class="bs-shop-card">
+            <div class="bs-shop-pic">
+                @if (i.HasPhoto) { <a class="bs-shop-zoom" href="/varer/foto/@i.Id" target="_blank" rel="noopener" title="Se billedet stort"><img src="/varer/foto/@i.Id" alt="@i.Title" loading="lazy" /></a> }
+                else { <span class="bs-shop-nopic">@Kinds.Label(i.Kind)</span> }
+                @if (i.Badge != "") { <span class="bs-shop-badge">@ITMartinHjem.Server.Services.NoEmoji.Strip(i.Badge)</span> }
+            </div>
+            <div class="bs-shop-body">
+                <h3>@i.Line</h3>
+                @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
+                else if (ShopDeals.Named(i.Deal) is { } deal)
+                {
+                    @if (deal.Steps is [{ Count: 1 } one]) { <p class="bs-shop-price"><b>@one.Kr kr</b></p> }
+                    else { <p class="bs-shop-price">@foreach (var s in deal.Steps) { <b>@s.Count for @s.Kr kr</b> }</p> }
+                }
+                else if ((i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is { } kr)
+                {
+                    <p class="bs-shop-price"><b>@kr kr</b>@if (i.DayKr is not null && i.BuyNowKr is { } was) { <s>@was kr</s> }</p>
+                    @if (MarketNotice.On) { <p class="bs-shop-market">På loppemarkedet: <b>@MarketNotice.MarketKr(kr) kr</b></p> }
+                }
+                else
+                {
+                    <p class="bs-shop-noprice">@ShopDeals.NoPriceName</p>
+                }
+                <details class="bs-shop-more" data-remember="produkt-@i.Id">
+                    <summary>Mere om den</summary>
+                    <p class="k-help">@Facts(i)</p>
+                    @if (ShopDeals.Named(i.Deal) is { } d2 && d2.Steps.Count > 1) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
+                    @if (!i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
+                    {
+                        <p class="k-help">Vi undersøger prisen. Den kan ikke købes endnu.</p>
+                    }
+                    @* Links only on things with their own price (user 2026-11-02: "only if rare blad there should be links"). *@
+                    @if (i.Deal == "" && i.Reference is { } r)
+                    {
+                        <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
+                    }
+                    @if (i.Interest != "") { <p class="bs-shop-interest">@i.Interest</p> }
+                    @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
+                    @if (i.Deal != "") { }
+                    else if (_proof.TryGetValue(i.Id, out var proof))
+                    {
+                        @if (proof.Count == 0)
+                        {
+                            <p class="k-help">Vi har ikke fundet den til salg andre steder lige nu.</p>
+                        }
+                        else
+                        {
+                            <p class="k-help">Kan også købes her:</p>
+                            <div class="bs-proof">
+                                @foreach (var p in proof)
+                                {
+                                    <a class="k-btn k-btn-sm" href="@p.Url" target="_blank" rel="noopener nofollow">@p.Source@(p.IsNew ? " (ny)" : ""): @p.Kr kr</a>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <button class="k-btn k-btn-sm" @onclick="() => OtherSites(i.Id)" disabled="@(_proofLoading == i.Id)">@(_proofLoading == i.Id ? "Henter ..." : "Se flere priser")</button>
+                    }
+                </details>
+            </div>
+        </li>
+    };
 }

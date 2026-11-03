@@ -64,6 +64,9 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
         return (await http.GetFromJsonAsync<ShopMarket>($"/api/butik/marked?type={E(type)}&art={E(kind)}&brugt={E(usage)}&q={E(text)}&sort={E(sort)}&side={page}&pris={E(price)}&sprog={E(language)}{cats}", ct))!;
     }
 
+    public async Task<ShopOverview> OverviewAsync(int perShelf, CancellationToken ct = default) =>
+        (await http.GetFromJsonAsync<ShopOverview>($"/api/butik/hylder?antal={perShelf}", ct))!;
+
     private sealed record BasketIds(IReadOnlyList<int> ItemIds);
 
     public async Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default)

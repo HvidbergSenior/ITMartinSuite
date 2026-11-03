@@ -336,6 +336,11 @@ public class ShopTests
         var booksAndFilm = await shop.MarketAsync(null, null, null, null, ShopSorts.Title, 0, categories: [ProductTypes.Boeger, ProductTypes.Film]);
         booksAndFilm.Items.Select(i => i.Title).Should().Equal("Eric", "Heat", "Mort");
         booksAndFilm.Groups.Should().BeEmpty("subgroups only inside one category");
+
+        // The overview (user 2026-11-03: "all in bogshoppen but not as buttons"): a section per category, dearest first.
+        var overview = await shop.OverviewAsync(2);
+        overview.Shelves.Select(s => (s.Type, s.Count)).Should().Equal((ProductTypes.Boeger, 2), (ProductTypes.Film, 1), (ProductTypes.Musik, 2));
+        overview.Shelves[0].Items.Select(i => i.Title).Should().Equal("Mort", "Eric");
     }
 
     [Test]

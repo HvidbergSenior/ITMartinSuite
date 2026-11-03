@@ -20,6 +20,8 @@ public interface IShopGateway
     /// <summary>The marketplace: product types with counts, today's offers, one page of things.</summary>
     Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
         string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null);
+    /// <summary>The overview: every category with its first few things.</summary>
+    Task<ShopOverview> OverviewAsync(int perShelf, CancellationToken ct = default);
     /// <summary>The basket priced with today's offers.</summary>
     Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default);
     /// <returns>Stripe's payment page for the whole basket, or the reason in Danish.</returns>
@@ -83,6 +85,13 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
 
     /// <summary>The marketplace (user 2026-10-20: "a place where they easily can see products in different categories").
     /// Køb nu only when the seller is complete - the law wants the seller shown before a sale.</summary>
+    /// <summary>bogshoppen.dk's overview: a section per category (2026-11-03).</summary>
+    public async Task<(ShopOverview? Overview, string? Error)> OverviewAsync(int perShelf = 6, CancellationToken ct = default)
+    {
+        try { return (await lager.OverviewAsync(perShelf, ct), null); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return (null, Unreachable); }
+    }
+
     public async Task<(ShopMarket? Market, string? Error)> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
         string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null)
     {

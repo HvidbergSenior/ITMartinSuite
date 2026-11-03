@@ -72,6 +72,23 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups, packs);
     }
 
+    /// <summary>The overview: each main category with things for sale (own price), its count and its first few - dearest
+    /// first, so the interesting ones show. Andet has no section (it is found by the search).</summary>
+    public async Task<ShopOverview> OverviewAsync(int perShelf = 6, CancellationToken ct = default)
+    {
+        perShelf = Math.Clamp(perShelf, 1, 12);
+        var counts = await stock.PerCategoryAsync(ct, ShopDeals.Single);
+        var shelves = new List<ShopShelf>();
+        foreach (var t in ProductTypes.All.Where(t => t != ProductTypes.Andet && counts.GetValueOrDefault(t) > 0))
+        {
+            var found = await stock.ListedAsync(null, null, "", ShopSorts.Dearest, 0, perShelf, ct, ShopDeals.Single, [t]);
+            shelves.Add(new ShopShelf(t, counts[t], await ViewsAsync(found.Items, ct)));
+        }
+        var deals = await stock.DealsAsync(ct);
+        var packs = ShopDeals.Active.Where(d => d.EveryPrice).SelectMany(d => d.Packs(deals.GetValueOrDefault(d.Name))).ToList();
+        return new ShopOverview(shelves, packs);
+    }
+
     /// <summary>Today's offers, as the buyer reads them.</summary>
     public async Task<List<ShopOffer>> TodayAsync(CancellationToken ct = default) =>
         (await campaigns.AllAsync(ct)).Where(c => c.On(Today)).Select(c => new ShopOffer(c.Name, c.Text, c.When)).ToList();

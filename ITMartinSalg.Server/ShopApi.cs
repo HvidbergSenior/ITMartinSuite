@@ -21,6 +21,8 @@ public static class ShopApi
         api.MapGet("/marked", async (string? type, string? art, string? brugt, string? q, string? sort, int? side, string? pris, string? sprog, string[]? kategori, ShopUseCases shop) =>
             await shop.MarketAsync(type, art, brugt, q, sort, side ?? 0, price: pris, language: sprog, categories: kategori));
 
+        api.MapGet("/hylder", async (int? antal, ShopUseCases shop) => await shop.OverviewAsync(antal ?? 6));
+
         api.MapGet("/forside", async (ShopUseCases shop) =>
             new ShopFront(shop.CanPay, (await shop.FeaturedAsync()).Select(x => new ShopFeatured(x.Item, x.Proof)).ToList()));
 

@@ -22,6 +22,11 @@ window.hjem = (function () {
         // bogshoppen.dk/produkter: the categories the visitor chose, remembered for the next visit (a cookie, so the
         // server can open the page with them at once - no jump). Empty = forget.
         // Rewrites the address bar only (no page change, keeps the history state the picture zoom uses).
+        // Brings an element (the product list) to the top of the screen after a new choice.
+        scrollToId: function (id) {
+            var el = document.getElementById(id);
+            if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' });
+        },
         setAddress: function (url) {
             try { history.replaceState(history.state, '', url); } catch (e) { }
         },
