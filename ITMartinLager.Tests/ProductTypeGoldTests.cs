@@ -76,6 +76,17 @@ public class ProductTypeGoldTests
     public void Blade_go_by_series_and_year(string kind, string series, int? year, string type) =>
         ProductTypes.For(kind, series, year).Should().Be(type);
 
+    // bogshoppen.dk shows five shelves (user 2026-11-03: "the search engine is too complex").
+    [Test]
+    public void Every_category_but_Andet_is_on_one_shelf()
+    {
+        foreach (var t in ProductTypes.All.Where(t => t != ProductTypes.Andet))
+            ShopShelves.All.Count(s => s.Types.Contains(t)).Should().Be(1, t);
+        ShopShelves.For(ProductTypes.GamleBlade).Should().Be(ShopShelves.Tegneserier);
+        ShopShelves.For(ProductTypes.Andet).Should().Be("");
+        ShopShelves.TypesOf([ShopShelves.Boeger, ShopShelves.Film]).Should().Equal(ProductTypes.Boeger, ProductTypes.Film);
+    }
+
     [Test]
     public void Responsible_per_category()
     {

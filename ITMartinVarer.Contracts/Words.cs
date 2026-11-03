@@ -176,6 +176,34 @@ public static class ProductTypes
     };
 }
 
+// What a customer sees on bogshoppen.dk (user 2026-11-03: "the search engine is too complex" -> one search field and five
+// categories): each shelf holds one or more main categories. Andet has no shelf (it is only found by the search).
+public static class ShopShelves
+{
+    public const string Boeger = "Bøger", Tegneserier = "Tegneserier og blade", Film = "Film", Musik = "Musik", Spil = "Spil";
+
+    public static readonly (string Name, string[] Types)[] All =
+    [
+        (Boeger, [ProductTypes.Boeger]),
+        (Tegneserier, [ProductTypes.Tegneserier, ProductTypes.Serieblade, ProductTypes.GamleBlade, ProductTypes.Jumbo, ProductTypes.Superhelte]),
+        (Film, [ProductTypes.Film]),
+        (Musik, [ProductTypes.Musik]),
+        (Spil, [ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Magic]),
+    ];
+
+    public static bool IsShelf(string? name) => All.Any(s => s.Name == name);
+
+    /// <summary>The shelf a main category is on; "" = none (Andet).</summary>
+    public static string For(string type) => All.FirstOrDefault(s => s.Types.Contains(type)).Name ?? "";
+
+    /// <summary>Where a shelf stands on the page (unknown last).</summary>
+    public static int Order(string shelf) => Array.FindIndex(All, s => s.Name == shelf) is >= 0 and var i ? i : All.Length;
+
+    /// <summary>The main categories on these shelves.</summary>
+    public static List<string> TypesOf(IEnumerable<string> shelves) =>
+        All.Where(s => shelves.Contains(s.Name)).SelectMany(s => s.Types).ToList();
+}
+
 // Which language a thing is in (user 2026-11-03: "all cats should have an English"). Read with the pile (no extra AI call);
 // older things get Guess from the title.
 public static class Languages
