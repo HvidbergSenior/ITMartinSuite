@@ -96,8 +96,9 @@
             <ul class="bs-shop-grid">
                 @* Batches (user 2026-11-03: "there is one for each product. there should be batches for instance same type of Anders
                    And should be in one"): a series/artist with 2+ things is ONE card; pressing it shows only that series. *@
-                @foreach (var b in Batches) { @BatchCard(b) }
-                @foreach (var i in _items.Where(i => BatchOf(i) is null)) { @Card(i) }
+                @* A batch stands where its first thing would stand in the chosen order (user 2026-11-03: "batches sorted by price like
+                   everything else"): Dyrest = its dearest, Billigst = its cheapest, A-Å = its first title. *@
+                @foreach (var row in Rows) { if (row.Batch is { } b) { @BatchCard(b) } else { @Card(row.Item!) } }
             </ul>
             @if (_items.Count < _market.Total)
             {
@@ -250,6 +251,28 @@
         await Load(reset: true);
     }
 
+    /// <summary>The cards in the order of the list: a thing alone, or its batch the first time one of its things comes. A batch
+    /// none of whose things is loaded yet comes when they are (further down = later in the order).</summary>
+    private List<(ShopGroup? Batch, ShopItem? Item)> Rows
+    {
+        get
+        {
+            var batches = Batches.ToDictionary(b => b.Name, StringComparer.OrdinalIgnoreCase);
+            var shown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var rows = new List<(ShopGroup?, ShopItem?)>();
+            foreach (var i in _items)
+            {
+                if (BatchOf(i) is not { } name) rows.Add((null, i));
+                else if (shown.Add(name)) rows.Add((batches[name], null));
+            }
+            return rows;
+        }
+    }
+
+    /// <summary>The lowest price among the loaded things of a batch, or null.</summary>
+    private int? FromKr(string batch) => _items.Where(i => BatchOf(i) == batch && !i.ForShow)
+        .Select(i => i.DayKr ?? i.BuyNowKr ?? i.ExpectKr).Where(k => k is not null).Min();
+
     private RenderFragment BatchCard(ShopGroup b) => __builder =>
     {
         var pic = _items.FirstOrDefault(i => i.HasPhoto && BatchOf(i) == b.Name);
@@ -262,6 +285,7 @@
                 </span>
                 <span class="bs-shop-body">
                     <b class="bs-batch-name">@b.Name</b>
+                    @if (FromKr(b.Name) is { } kr) { <span class="bs-shop-price"><b>fra @kr kr</b></span> }
                     <span class="bs-family-go">Se alle @b.Count →</span>
                 </span>
             </button>
