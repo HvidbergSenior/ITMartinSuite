@@ -138,6 +138,13 @@ api.MapPost("/klaret-alle", (FollowUps follow) => Results.Ok(new { antal = follo
 api.MapPost("/fortryd", (FollowUpForm f, FollowUps follow) => Answer(follow.Reopen(f.Id)));
 static IResult Answer(string? error) => error is null ? Results.Ok(new { ok = true }) : Results.BadRequest(new { fejl = error });
 
+// After a restart the overview (in memory only) is gone - scan again by itself, so the page is never empty.
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    var scanner = app.Services.GetRequiredService<MailScanner>();
+    if (scanner.IsConfigured) scanner.Start(12);
+});
+
 app.Run();
 
 record FollowUpForm(string Id, DateOnly? Frist, string? Note);
