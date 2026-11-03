@@ -31,7 +31,7 @@ public class KolofonPageTests
         var book = new Item { Id = 4, Kind = Kinds.Bog, Title = "Ansigterne", Artist = "Tove Ditlevsen" };
         var now = DateTime.UtcNow;
         Kolofon.AddPage(book, new KolofonReading("", "1. udgave", null, "Gyldendal", ""), "photos/kolofon/4-1.jpg", now);
-        Kolofon.AddPage(book, new KolofonReading("", "1. oplag 1968", 1968, "", ""), "photos/kolofon/4-2.jpg", now);
+        Kolofon.AddPage(book, new KolofonReading("", "1. oplag 1968", 1968, "Det Hoffensbergske Etablissement", ""), "photos/kolofon/4-2.jpg", now);
         book.Edition.Should().Be("1. udgave; 1. oplag 1968");
         book.Year.Should().Be(1968);
         book.Publisher.Should().Be("Gyldendal");

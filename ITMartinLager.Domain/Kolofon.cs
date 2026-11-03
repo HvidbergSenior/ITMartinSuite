@@ -58,6 +58,9 @@ public static class Kolofon
     public static void AddPage(Item item, KolofonReading r, string photoPath, DateTime now)
     {
         var before = item.Edition.Trim();
+        // The publisher from the cover stays: an old kolofon often names only the printer (Rico's Ansigterne 2026-11-03:
+        // "Det Hoffensbergske Etablissement" replaced Hasselbalch).
+        if (item.Publisher.Trim() != "") r = r with { Publisher = "" };
         var edition = (r.Edition ?? "").Trim();
         Apply(item, r with { Edition = before == "" || edition == "" || before.Contains(edition, StringComparison.OrdinalIgnoreCase)
             ? (edition == "" ? before : before == "" ? edition : before)
