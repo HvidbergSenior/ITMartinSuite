@@ -93,4 +93,27 @@ public class ShopVisibilityTests
         new ShopVisibility(false, "kort").Visible("kort").Should().BeFalse();   // too short to be a code
         new ShopVisibility(true, "").Visible(null).Should().BeTrue();
     }
+
+    [Test]
+    public void Every_main_category_but_Andet_is_in_exactly_one_shop()
+    {
+        foreach (var t in ProductTypes.All.Where(t => t != ProductTypes.Andet))
+            ShopFamilies.All.Count(f => f.Types.Contains(t)).Should().Be(1, t);
+        ShopFamilies.For(ProductTypes.Andet).Should().BeNull();
+        ShopFamilies.For(ProductTypes.Magic)!.Name.Should().Be("Kortshoppen");   // "and cards - magic"
+    }
+
+    [Test]
+    public void Subcategories_stay_inside_their_shop()
+    {
+        foreach (var f in ShopFamilies.All)
+            foreach (var sub in f.Subs)
+            {
+                if (sub.Category is { } c) f.Types.Should().Contain(c);
+                if (sub.Kind is { } k) f.Types.Should().Contain(ProductTypes.For(k));
+                if (sub.Language is { } l) Languages.All.Should().Contain(l);
+            }
+        ShopFamilies.All.Select(f => f.Slug).Should().OnlyHaveUniqueItems();
+        ShopFamilies.BySlug("/film")!.Sub("dvd")!.Kind.Should().Be(Kinds.Dvd);
+    }
 }

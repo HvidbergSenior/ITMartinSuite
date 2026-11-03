@@ -1,16 +1,27 @@
 @inject ShopUseCases Shop
 @inject IJSRuntime JS
 @inject PersistentComponentState State
+@inject NavigationManager Nav
 @implements IDisposable
 
-@* The products from Lager on bogshoppen.dk (not a webshop: no basket, no buy button). Simple since 2026-11-03 (user: "the
-   search engine is too complex", "i need all in bogshoppen but not as buttons... Should be more simple"): one search field,
-   then a section per category with its first few things and one "Se alle" box - no filter buttons. *@
+@* The products from Lager on bogshoppen.dk (not a webshop: no basket, no buy button). The shops since 2026-11-03 (user: "User
+   can choose BogShoppen, Filmshoppen, Gameshoppen, Musikshoppen etc... and on each there are only products from them... And i
+   need subcategories", "and cards - magic"): /produkter = one search field + a box per shop; a shop (bogshoppen.dk/film) =
+   its subcategories as buttons + all its things A-Z. ShopFamilies (ITMartinVarer.Contracts) says which shop has what. *@
 <section class="k-card bs-card bs-shop" id="alle">
-    <p class="k-help">Tryk på et billede for at se det stort. Under <b>Mere om den</b> står stand og hvad lignende koster andre steder.</p>
+    @if (Family is not null)
+    {
+        <a class="k-btn k-btn-sm bs-back" href="/produkter">← Alle butikker</a>
+        <h2 class="bs-family-name">@Family.Name</h2>
+        <p class="k-help">@Family.About Tryk på et billede for at se det stort. Under <b>Mere om den</b> står stand og hvad lignende koster andre steder.</p>
+    }
+    else
+    {
+        <p class="k-help">Vælg en butik – eller søg i dem alle.</p>
+    }
 
     <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
-        <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="Søg, fx Barnaby eller Storm P" @bind="_text" />
+        <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="@(Family is null ? "Søg i alle butikker, fx Barnaby" : $"Søg i {Family.Name}")" @bind="_text" />
         <button class="k-btn k-btn-primary" type="submit">Søg</button>
     </form>
 
@@ -18,18 +29,57 @@
     {
         <p class="k-alert k-alert-warn">@_error</p>
     }
-    else if (_query != "" || _cat is not null)
+    else if (Family is null && _query == "")
     {
-        @* One category, or what the search found. *@
-        <button class="k-btn k-btn-sm bs-back" @onclick="Overview">← Alle kategorier</button>
+        @if (_overview is null)
+        {
+            <p class="k-help">Henter butikkerne ...</p>
+        }
+        else
+        {
+            @* A box per shop with how much it has and a few of its pictures - the whole box is pressed. *@
+            <ul class="bs-families">
+                @foreach (var f in ShopFamilies.All)
+                {
+                    var count = Count(f);
+                    <li>
+                        <a class="bs-family @(count == 0 ? "bs-family-empty" : "")" href="@f.Path">
+                            <span class="bs-family-pics">
+                                @foreach (var i in Pictures(f)) { <img src="/varer/foto/@i.Id" alt="" loading="lazy" /> }
+                            </span>
+                            <b class="bs-family-title">@f.Name</b>
+                            <span class="k-help">@f.About</span>
+                            <span class="bs-family-go">@(count == 0 ? "Ingen varer med pris endnu" : $"Se {count} {(count == 1 ? "vare" : "varer")} →")</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    }
+    else
+    {
+        @if (Family is not null && _query == "" && _overview is not null && VisibleSubs.Count > 1)
+        {
+            <div class="bs-filter bs-tabs" role="group" aria-label="Underkategorier">
+                <button class="k-btn @(_sub is null ? "is-on" : "")" aria-pressed="@(_sub is null)" @onclick="() => Choose(null)">Alle (@Count(Family))</button>
+                @foreach (var (sub, n) in VisibleSubs)
+                {
+                    <button class="k-btn @(_sub == sub ? "is-on" : "")" aria-pressed="@(_sub == sub)" @onclick="() => Choose(sub)">@sub.Name (@n)</button>
+                }
+            </div>
+        }
+        @if (_query != "")
+        {
+            <button class="k-btn k-btn-sm bs-back" @onclick="ClearSearch">← @(Family is null ? "Alle butikker" : $"Hele {Family.Name}")</button>
+        }
         @if (_market is null)
         {
             <p class="k-help">Henter produkterne ...</p>
         }
         else
         {
-            <h3 class="bs-shelf">@(_cat is not null ? $"{_cat} ({_market.Total})" : $"Søgning: {_query}")</h3>
-            @if (_cat is not null && _cat != ProductTypes.GamleBlade && ProductTypes.KindsOf(_cat).Contains(Kinds.AndersAnd)) { @Packs(_market.Packs) }
+            <h3 class="bs-shelf">@Heading</h3>
+            @if (ShowPacks) { @Packs(_market.Packs) }
             <p class="bs-count" role="status">@ResultText</p>
             <ul class="bs-shop-grid">
                 @foreach (var i in _items) { @Card(i) }
@@ -40,93 +90,112 @@
             }
         }
     }
-    else if (_overview is null)
-    {
-        <p class="k-help">Henter produkterne ...</p>
-    }
-    else
-    {
-        @* A section per category, the dearest first (the interesting ones), and one box to see all of it. *@
-        @foreach (var shelf in _overview.Shelves)
-        {
-            <h3 class="bs-shelf">@shelf.Type (@shelf.Count)</h3>
-            @if (shelf.Type == ProductTypes.Serieblade) { @Packs(_overview.Packs) }
-            <ul class="bs-shop-grid">
-                @foreach (var i in shelf.Items) { @Card(i) }
-            </ul>
-            @if (shelf.Count > shelf.Items.Count)
-            {
-                <button class="k-btn bs-see-all" @onclick="() => Open(shelf.Type)">Se alle @shelf.Count – @shelf.Type</button>
-            }
-        }
-    }
 </section>
 
 @code {
+    /// <summary>The shop this list is (bogshoppen.dk/film); null = /produkter, the boxes for all shops.</summary>
+    [Parameter] public ShopFamily? Family { get; set; }
+
     private ShopOverview? _overview;
     private ShopMarket? _market;
     private readonly List<ShopItem> _items = [];
     private string? _error;
     private string _text = "", _query = "";
-    private string? _cat;
+    private ShopSub? _sub;
     private int _page;      // Salg counts pages from 0
     private bool _loading;
 
-    /// <summary>?vis=Bøger opens one category (a link can be shared); anything else is the overview.</summary>
+    /// <summary>?under=DVD opens one subcategory of the shop (a link can be shared).</summary>
+    [SupplyParameterFromQuery(Name = "under")] public string? Under { get; set; }
+    /// <summary>Old links: /produkter?vis=Film goes to the shop that has it.</summary>
     [SupplyParameterFromQuery(Name = "vis")] public string? Vis { get; set; }
 
     // No flicker (2026-11-03): the page is drawn twice (server, then live) - the first drawing's data is handed over.
     private sealed record Snapshot(ShopOverview? Overview, ShopMarket? Market, List<ShopItem> Items);
     private PersistingComponentStateSubscription _persist;
-    private const string SnapshotKey = "bs-produkter";
+    private string SnapshotKey => "bs-produkter-" + (Family?.Slug ?? "alle");
 
     protected override async Task OnInitializedAsync()
     {
-        _cat = ProductTypes.All.Contains(Vis) ? Vis : null;
+        if (Family is null && Vis is { Length: > 0 } && OldLink(Vis) is { } to) { Nav.NavigateTo(to, replace: true); return; }
+        _sub = Family?.Sub(Under);
         _persist = State.RegisterOnPersisting(() =>
         {
             State.PersistAsJson(SnapshotKey, new Snapshot(_overview, _market, _items));
             return Task.CompletedTask;
         });
-        if (State.TryTakeFromJson<Snapshot>(SnapshotKey, out var snap) && snap is not null && (snap.Overview ?? (object?)snap.Market) is not null)
+        if (State.TryTakeFromJson<Snapshot>(SnapshotKey, out var snap) && snap?.Overview is not null)
         {
             (_overview, _market) = (snap.Overview, snap.Market);
             _items.AddRange(snap.Items);
             return;
         }
-        if (_cat is null) await LoadOverview(); else await Load(reset: true);
+        await LoadOverview();
+        if (Family is not null && _error is null) await Load(reset: true);
     }
 
     public void Dispose() => _persist.Dispose();
 
+    /// <summary>Where an old ?vis= link goes now: its shop, with the subcategory when it is one.</summary>
+    private static string? OldLink(string vis)
+    {
+        if (ShopFamilies.For(vis) is { } f)
+            return f.Sub(vis) is not null ? $"{f.Path}?under={Uri.EscapeDataString(vis)}" : f.Path;
+        return ShopShelves.All.FirstOrDefault(s => s.Name == vis).Types is [var first, ..] && ShopFamilies.For(first) is { } g ? g.Path : null;
+    }
+
     private async Task LoadOverview()
     {
-        var (overview, error) = await Shop.OverviewAsync();
+        var (overview, error) = await Shop.OverviewAsync(3);
         (_overview, _error) = (overview, error);
     }
 
-    private async Task Open(string cat)
-    {
-        (_cat, _query, _text) = (cat, "", "");
-        await Address("/produkter?vis=" + Uri.EscapeDataString(cat));
-        await Load(reset: true);
-    }
+    /// <summary>How many priced things a shop has (its categories' shelves).</summary>
+    private int Count(ShopFamily f) => _overview?.Shelves.Where(s => f.Types.Contains(s.Type)).Sum(s => s.Count) ?? 0;
 
-    private async Task Overview()
+    /// <summary>How many a subcategory has: a category's shelf, a kind's count, or a language within the shop's categories.</summary>
+    private int Count(ShopFamily f, ShopSub sub) => sub switch
     {
-        (_cat, _query, _text, _market) = (null, "", "", null);
-        _items.Clear();
-        await Address("/produkter");
-        if (_overview is null) await LoadOverview();
+        { Category: { } c } => _overview?.Shelves.FirstOrDefault(s => s.Type == c)?.Count ?? 0,
+        { Kind: { } k } => _overview?.KindCounts?.GetValueOrDefault(k) ?? 0,
+        { Language: { } l } => _overview?.LanguageCounts?.GetValueOrDefault(l) is { } per ? f.Types.Sum(t => per.GetValueOrDefault(t)) : 0,
+        _ => 0,
+    };
+
+    /// <summary>The subcategories that have something (and the chosen one, even when empty).</summary>
+    private List<(ShopSub Sub, int Count)> VisibleSubs => Family is null ? []
+        : Family.Subs.Select(s => (Sub: s, Count: Count(Family, s))).Where(x => x.Count > 0 || x.Sub == _sub).ToList();
+
+    /// <summary>Up to three pictures for a shop's box, the dearest first.</summary>
+    private List<ShopItem> Pictures(ShopFamily f) => (_overview?.Shelves ?? []).Where(s => f.Types.Contains(s.Type))
+        .SelectMany(s => s.Items).Where(i => i.HasPhoto).OrderByDescending(i => i.BuyNowKr ?? i.ExpectKr ?? 0).Take(3).ToList();
+
+    private string Heading => _query != "" ? $"Søgning: {_query}" : _sub is not null ? $"{_sub.Name} ({_market?.Total})" : $"Alt i {Family?.Name} ({_market?.Total})";
+
+    // The 3 kr packs go with the blade: the whole Tegneserieshoppen or its Serieblade.
+    private bool ShowPacks => _query == "" && Family == ShopFamilies.Tegneserier && (_sub is null || _sub.Category == ProductTypes.Serieblade);
+
+    private async Task Choose(ShopSub? sub)
+    {
+        (_sub, _query, _text) = (sub, "", "");
+        await Address(Family!.Path + (sub is null ? "" : "?under=" + Uri.EscapeDataString(sub.Name)));
+        await Load(reset: true);
     }
 
     private async Task Search()
     {
         _query = _text.Trim();
-        if (_query == "") { await Overview(); return; }
-        _cat = null;
-        await Address("/produkter");
+        if (_query == "") { await ClearSearch(); return; }
+        _sub = null;
+        await Address(Family?.Path ?? "/produkter");
         await Load(reset: true);
+    }
+
+    private async Task ClearSearch()
+    {
+        (_query, _text) = ("", "");
+        if (Family is null) { (_market, _sub) = (null, null); _items.Clear(); await Address("/produkter"); return; }
+        await Choose(null);
     }
 
     private Task More() { _page++; return Load(reset: false); }
@@ -136,7 +205,6 @@
     {
         try
         {
-            await JS.InvokeVoidAsync("hjem.rememberCategories", "");   // no remembered choice any more - the overview is the start
             await JS.InvokeVoidAsync("hjem.setAddress", url);
             await JS.InvokeVoidAsync("hjem.scrollToId", "alle");
         }
@@ -148,9 +216,10 @@
     {
         _loading = true;
         if (reset) { _page = 0; _market = null; _items.Clear(); }
-        // A-Z (user 2026-10-31: "all products need to have alphateci order"); a search covers the things with a price.
-        var (market, error) = await Shop.MarketAsync(null, null, null, _query, ShopSorts.Title, _page,
-            price: _cat is null ? ShopDeals.WithPrice : null, categories: _cat is null ? null : [_cat]);
+        // A-Z (user 2026-10-31: "all products need to have alphateci order"); only the shop's categories, or the subcategory's.
+        IReadOnlyCollection<string>? cats = Family is null ? null : _sub?.Category is { } c ? [c] : Family.Types;
+        var (market, error) = await Shop.MarketAsync(null, _sub?.Kind, null, _query, ShopSorts.Title, _page,
+            price: cats is null ? ShopDeals.WithPrice : null, language: _sub?.Language, categories: cats);
         _loading = false;
         _error = error;
         if (market is null) return;

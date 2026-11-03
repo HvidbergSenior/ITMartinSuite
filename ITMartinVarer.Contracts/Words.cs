@@ -204,6 +204,52 @@ public static class ShopShelves
         All.Where(s => shelves.Contains(s.Name)).SelectMany(s => s.Types).ToList();
 }
 
+// The shops on bogshoppen.dk (user 2026-11-03: "User can choose BogShoppen, Filmshoppen, Gameshoppen, Musikshoppen etc... and on
+// each there are only products from them... And i need subcategories"): one site, a path per shop (bogshoppen.dk/film), each
+// shop = one or more main categories, split into subcategories (a main category, a kind or a language). Genres come later.
+public sealed record ShopSub(string Name, string? Category = null, string? Kind = null, string? Language = null);
+
+public sealed record ShopFamily(string Name, string Slug, string About, string[] Types, ShopSub[] Subs)
+{
+    public string Path => "/" + Slug;
+
+    /// <summary>The subcategory with this name, or null (= the whole shop).</summary>
+    public ShopSub? Sub(string? name) => Subs.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+}
+
+public static class ShopFamilies
+{
+    public static readonly ShopFamily Boeger = new("Bogshoppen", "boeger", "Romaner, fagbøger og børnebøger – på dansk og engelsk.",
+        [ProductTypes.Boeger], [new("Dansk", Language: Languages.Dansk), new("Engelsk", Language: Languages.Engelsk)]);
+
+    public static readonly ShopFamily Tegneserier = new("Tegneserieshoppen", "tegneserier", "Album, serieblade, gamle blade, jumbobøger og superhelte.",
+        [ProductTypes.Tegneserier, ProductTypes.Serieblade, ProductTypes.GamleBlade, ProductTypes.Jumbo, ProductTypes.Superhelte],
+        [new(ProductTypes.Tegneserier, ProductTypes.Tegneserier), new(ProductTypes.Serieblade, ProductTypes.Serieblade),
+         new(ProductTypes.GamleBlade, ProductTypes.GamleBlade), new(ProductTypes.Jumbo, ProductTypes.Jumbo),
+         new(ProductTypes.Superhelte, ProductTypes.Superhelte)]);
+
+    public static readonly ShopFamily Film = new("Filmshoppen", "film", "Film på DVD, Blu-ray og VHS.",
+        [ProductTypes.Film], [new(Kinds.Dvd, Kind: Kinds.Dvd), new(Kinds.BluRay, Kind: Kinds.BluRay), new(Kinds.Vhs, Kind: Kinds.Vhs)]);
+
+    public static readonly ShopFamily Musik = new("Musikshoppen", "musik", "Musik på CD, vinyl og kassettebånd.",
+        [ProductTypes.Musik], [new(Kinds.Cd, Kind: Kinds.Cd), new(Kinds.Vinyl, Kind: Kinds.Vinyl), new("Kassettebånd", Kind: Kinds.Kassette)]);
+
+    public static readonly ShopFamily Spil = new("Gameshoppen", "spil", "Computerspil, brætspil og kortspil.",
+        [ProductTypes.Computerspil, ProductTypes.Braetspil],
+        [new(ProductTypes.Computerspil, ProductTypes.Computerspil), new(ProductTypes.Braetspil, ProductTypes.Braetspil)]);
+
+    /// <summary>Samlerkort as their own shop (user 2026-11-03: "and cards - magic").</summary>
+    public static readonly ShopFamily Kort = new("Kortshoppen", "kort", "Samlerkort – Magic: The Gathering.",
+        [ProductTypes.Magic], [new("Magic", ProductTypes.Magic)]);
+
+    public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Kort];
+
+    public static ShopFamily? BySlug(string? slug) => All.FirstOrDefault(f => string.Equals(f.Slug, slug?.Trim('/'), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The shop a main category is in, or null (Andet - only found by the search).</summary>
+    public static ShopFamily? For(string type) => All.FirstOrDefault(f => f.Types.Contains(type));
+}
+
 // Which language a thing is in (user 2026-11-03: "all cats should have an English"). Read with the pile (no extra AI call);
 // older things get Guess from the title.
 public static class Languages

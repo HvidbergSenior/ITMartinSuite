@@ -86,7 +86,12 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         }
         var deals = await stock.DealsAsync(ct);
         var packs = ShopDeals.Active.Where(d => d.EveryPrice).SelectMany(d => d.Packs(deals.GetValueOrDefault(d.Name))).ToList();
-        return new ShopOverview(shelves, packs);
+        // The shops' subcategories (2026-11-03): counts per kind and per language, so an empty one is not shown.
+        var perKind = await stock.PerKindAsync(ct, ShopDeals.Single);
+        var perLanguage = new Dictionary<string, Dictionary<string, int>>();
+        foreach (var lang in ShopFamilies.All.SelectMany(f => f.Subs).Select(s => s.Language).OfType<string>().Distinct())
+            perLanguage[lang] = await stock.PerCategoryAsync(ct, ShopDeals.Single, lang);
+        return new ShopOverview(shelves, packs, perKind, perLanguage);
     }
 
     /// <summary>Today's offers, as the buyer reads them.</summary>

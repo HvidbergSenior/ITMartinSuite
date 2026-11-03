@@ -63,9 +63,11 @@ public sealed record ShopMarket(bool CanPay, List<ShopType> Types, List<ShopOffe
 public sealed record ShopPack(string Name, int Count, int Kr, int Left);
 
 /// <summary>bogshoppen.dk's overview (user 2026-11-03: "i need all in bogshoppen but not as buttons... Should be more simple"):
-/// every main category with how many things it has and its first few (dearest first), plus the packs.</summary>
+/// every main category with how many things it has and its first few (dearest first), plus the packs. KindCounts = priced
+/// things per kind (DVD, CD ...), LanguageCounts = per language per category - for the shops' subcategories (2026-11-03).</summary>
 public sealed record ShopShelf(string Type, int Count, List<ShopItem> Items);
-public sealed record ShopOverview(List<ShopShelf> Shelves, List<ShopPack> Packs);
+public sealed record ShopOverview(List<ShopShelf> Shelves, List<ShopPack> Packs, Dictionary<string, int>? KindCounts = null,
+    Dictionary<string, Dictionary<string, int>>? LanguageCounts = null);
 
 /// <summary>A basket priced for today: each copy, what it costs today and why, and the total.</summary>
 public sealed record ShopQuote(bool CanPay, List<ShopQuoteLine> Lines, int Total, int Saved, List<ShopOffer> Today, List<int> Gone);

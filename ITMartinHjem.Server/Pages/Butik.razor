@@ -1,0 +1,31 @@
+@page "/boeger"
+@page "/tegneserier"
+@page "/film"
+@page "/musik"
+@page "/spil"
+@page "/kort"
+@inject NavigationManager Nav
+
+@* One shop on bogshoppen.dk (user 2026-11-03: "User can choose BogShoppen, Filmshoppen, Gameshoppen, Musikshoppen etc... and on
+   each there are only products from them", "and cards - magic"). Which shop = the path; ShopFamilies says what is in it. *@
+<PageTitle>@_family.Name · Bogshoppen</PageTitle>
+
+<header class="bs-head bs-head-varer bs-head-me">
+    <BogshoppenPhoto />
+    <h1>@_family.Name</h1>
+    <p>@_family.About</p>
+    <p class="hj-head-note"><b>Sådan gør du:</b> tryk på en underkategori, eller søg efter en titel. Tryk på billedet for at se det stort, og på <b>Mere om den</b> for stand og priser andre steder. <b>← Alle butikker</b> fører tilbage.</p>
+</header>
+
+<MarketNotice />
+
+<ProductList Family="_family" />
+
+<AuctionTeaser />
+
+@code {
+    private ShopFamily _family = ShopFamilies.Boeger;
+
+    protected override void OnInitialized() =>
+        _family = ShopFamilies.BySlug(new Uri(Nav.Uri).AbsolutePath) ?? ShopFamilies.Boeger;
+}
