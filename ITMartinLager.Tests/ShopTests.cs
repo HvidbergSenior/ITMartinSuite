@@ -153,7 +153,8 @@ public class StockForSaleTests
             new PriceFind { Source = "Nemos", Kr = 10, Url = "https://n/1", Similar = true },
             new PriceFind { Source = "eBay", Kr = 55, Url = "https://e/1" },
         ]);
-        proof.Select(p => (p.Source, p.Kr)).Should().Equal(("DBA", 40), ("eBay", 55), ("Amazon.de", 30));
+        // eBay hidden from buyers since 2026-11-04 ("links to too high prices like Ebay should just be hided").
+        proof.Select(p => (p.Source, p.Kr)).Should().Equal(("DBA", 40), ("Amazon.de", 30));
     }
 
     [Test]

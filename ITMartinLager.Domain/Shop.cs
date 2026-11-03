@@ -30,7 +30,7 @@ public static class Shop
 
     /// <summary>The proof for the price promise: the cheapest listing per site, exact matches only, cheapest first.</summary>
     public static List<PriceFind> Proof(IEnumerable<PriceFind> finds, int max = 6) =>
-        finds.Where(f => !f.Similar && f.Kr > 0 && f.Url.StartsWith("http"))
+        Shown(finds).Where(f => !f.Similar && f.Kr > 0 && f.Url.StartsWith("http"))
             .GroupBy(f => (f.Source, f.IsNew))
             .Select(g => g.OrderBy(f => f.Kr).First())
             .OrderBy(f => f.IsNew).ThenBy(f => f.Kr)
@@ -42,14 +42,25 @@ public static class Shop
     /// "25 kr - lignende koster 1 kr" worked against us); listings under MinReferenceKr are start bids or junk.</summary>
     public static ShopProof? Reference(IEnumerable<PriceFind> finds, decimal? ourKr = null)
     {
-        var real = finds.Where(f => f.Kr >= MinReferenceKr && f.Kr >= (ourKr ?? 0) && f.Url.StartsWith("http")
-            && !f.Source.Equals("eBay", StringComparison.OrdinalIgnoreCase)).ToList();
+        var real = Shown(finds).Where(f => f.Kr >= MinReferenceKr && f.Kr >= (ourKr ?? 0) && f.Url.StartsWith("http")).ToList();
         var best = real.Where(f => !f.Similar).OrderBy(f => f.IsNew).ThenBy(f => f.Kr).FirstOrDefault()
             ?? real.Where(f => f.Similar).OrderBy(f => f.IsNew).ThenBy(f => f.Kr).FirstOrDefault();
         return best is null ? null : ProofView(best);
     }
 
     public const int MinReferenceKr = 5;
+
+    /// <summary>The links a buyer may see (user 2026-11-04: "links to too high prices like Ebay should just be hided"): never eBay
+    /// or Discogs (shops' asking prices, never part of our price - Pricing.NotForNormal), and never a listing over 2x the normal
+    /// price of the used listings. Lager itself still shows every link.</summary>
+    public static List<PriceFind> Shown(IEnumerable<PriceFind> finds)
+    {
+        var list = finds.Where(f => !Pricing.NotForNormal.Contains(f.Source, StringComparer.OrdinalIgnoreCase)).ToList();
+        var normal = Pricing.NormalDanishFirst(list.Where(f => !f.Similar && !f.IsNew && f.Kr > 0).Select(f => (f.Source, f.Kr)).ToList());
+        return normal is { } n ? list.Where(f => f.Kr <= n * TooHighFactor).ToList() : list;
+    }
+
+    public const int TooHighFactor = 2;
 
     /// <summary>Which deal it is sold in (ShopDeals, user 2026-10-31), or "": gold, silver and bronze never - they are sold
     /// one by one ("Impiortant to know if some of them are interesting... If not then..."); an unsure reading never - a
