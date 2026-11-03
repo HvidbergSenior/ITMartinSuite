@@ -40,4 +40,12 @@ public class KolofonPageTests
         Kolofon.AddPage(book, new KolofonReading("", "1. udgave", null, "", ""), "x.jpg", now);
         book.Edition.Should().Be("1. udgave; 1. oplag 1968", "the same words twice are not added again");
     }
+    [Test]
+    public void A_short_title_with_the_same_author_is_the_same_book()
+    {
+        var mitLiv = new Item { Id = 5, Kind = Kinds.Bog, Title = "Mit liv", Artist = "Jørn Jønke", Year = 1985 };
+        mitLiv.LooksLike(new Found(Kinds.Bog, "Mit liv – Tiderne Skifter", "Jønke", "", "", null, "", "God", 1, 0.9, "")).Should().BeTrue();
+        mitLiv.LooksLike(new Found(Kinds.Bog, "Mit liv – Tiderne Skifter", "Karen Blixen", "", "", null, "", "God", 1, 0.9, "")).Should().BeFalse();
+        mitLiv.LooksLike(new Found(Kinds.Bog, "Mit liv", "", "", "", null, "", "God", 1, 0.9, "")).Should().BeTrue("the same title");
+    }
 }

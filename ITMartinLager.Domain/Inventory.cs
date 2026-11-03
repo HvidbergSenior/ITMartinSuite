@@ -186,7 +186,11 @@ public sealed class Item
     {
         if (Barcode != "" && f.Barcode != "" && Barcode == f.Barcode) return true;
         string a = TitleKey(Title), b = TitleKey(f.Title);
-        var titles = a != "" && b != "" && (a == b || (Math.Min(a.Length, b.Length) >= 8 && (a.StartsWith(b) || b.StartsWith(a))));
+        // A short title that starts the other one counts too when the author is the same (Rico's test 2026-11-03: "Mit liv" and
+        // "Mit liv – Tiderne Skifter" by Jørn Jønke / Jønke became two things).
+        var prefix = a != "" && b != "" && (a.StartsWith(b) || b.StartsWith(a));
+        var titles = a != "" && b != "" && (a == b || (prefix && Math.Min(a.Length, b.Length) >= 8)
+            || (prefix && Math.Min(a.Length, b.Length) >= 4 && SameAuthor(Artist, f.Artist)));
         return titles
             && (Number.Trim() == "" || f.Number.Trim() == "" || Eq(Number, f.Number))
             && (Year is null || f.Year is null || Year == f.Year);
@@ -206,6 +210,15 @@ public sealed class Item
     /// <summary>Another row of what looks like the same thing (other box, other condition) - "Vi har flere".</summary>
     public bool LooksLike(Item o) => o.Id != Id && LooksLike(new Found(o.Kind, o.Title, o.Artist, o.Series, o.Number, o.Year,
         o.Platform, o.Condition, o.Quantity, o.Confidence, "", Barcode: o.Barcode));
+
+    /// <summary>Both name an author and share a word of the name ("Jørn Jønke" / "Jønke").</summary>
+    private static bool SameAuthor(string a, string b)
+    {
+        static HashSet<string> Words(string s) => s.ToLowerInvariant().Split(' ', ',', '&', '.', '-')
+            .Select(w => new string(w.Where(char.IsLetter).ToArray())).Where(w => w.Length >= 3).ToHashSet();
+        var x = Words(a);
+        return x.Count > 0 && Words(b).Overlaps(x);
+    }
 
     public static string TitleKey(string title) => new(title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
