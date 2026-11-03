@@ -14,6 +14,21 @@
         <a class="k-btn k-btn-sm bs-back" href="/produkter">← Alle butikker</a>
         <h2 class="bs-family-name">@Family.Name</h2>
         <p class="k-help">@Family.About Tryk på et billede for at se det stort. Under <b>Mere om den</b> står stand og hvad lignende koster andre steder.</p>
+        @* The free helpers for this shop (2026-11-03): a button when it is public, else the same button disabled with "Kommer snart" (user: "Let the be diabled but visible now"). *@
+        @if (Family.Helpers is { Length: > 0 } helpers)
+        {
+            <div class="bs-helpers">
+                <h3>Gratis hjælper</h3>
+                @foreach (var h in helpers)
+                {
+                    <div class="bs-helper">
+                        @if (h.Url is { } url) { <a class="k-btn k-btn-primary bs-btn" href="@url" target="_blank" rel="noopener">@h.Name</a> }
+                        else { <button class="k-btn bs-btn bs-helper-soon" disabled aria-disabled="true">@h.Name · Kommer snart</button> }
+                        <span class="k-help">@h.Text</span>
+                    </div>
+                }
+            </div>
+        }
     }
     else
     {

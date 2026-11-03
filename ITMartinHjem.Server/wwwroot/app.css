@@ -923,3 +923,8 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-batch .bs-shop-pic .bs-shop-nopic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:8px;text-align:center}
 .bs-batch .bs-shop-body{display:flex;flex-direction:column;gap:6px;flex:1}
 .bs-card a.bs-family,.bs-card a.bs-family *{text-decoration:none}
+/* Gratis hjælper per shop (2026-11-03): a button when public, "Kommer snart" (dashed) when not. */
+.bs-helpers{border:2px solid var(--k-text);border-radius:12px;padding:10px 12px;margin:8px 0 10px;display:grid;gap:8px}
+.bs-helpers h3{margin:0;font-size:1.05rem}
+.bs-helper{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.bs-helper-soon[disabled]{border:2px dashed var(--k-text);background:transparent;color:var(--k-text);opacity:.6;cursor:not-allowed}

@@ -212,7 +212,11 @@ public static class ShopShelves
 // shop = one or more main categories, split into subcategories (a main category, a kind or a language). Genres come later.
 public sealed record ShopSub(string Name, string? Category = null, string? Kind = null, string? Language = null);
 
-public sealed record ShopFamily(string Name, string Slug, string About, string[] Types, ShopSub[] Subs)
+/// <summary>A free helper for a shop's things (user 2026-11-03: "i need some kind of reference to my Apps/hjælpere for ech
+/// category", chose a box with "kommer snart"). Url null = not public yet: shown as "Kommer snart".</summary>
+public sealed record ShopHelper(string Name, string Text, string? Url = null);
+
+public sealed record ShopFamily(string Name, string Slug, string About, string[] Types, ShopSub[] Subs, ShopHelper[]? Helpers = null)
 {
     public string Path => "/" + Slug;
 
@@ -223,32 +227,41 @@ public sealed record ShopFamily(string Name, string Slug, string About, string[]
 public static class ShopFamilies
 {
     public static readonly ShopFamily Boeger = new("Bogshoppen", "boeger", "Romaner, fagbøger og børnebøger – på dansk og engelsk.",
-        [ProductTypes.Boeger], [new("Dansk", Language: Languages.Dansk), new("Engelsk", Language: Languages.Engelsk)]);
+        [ProductTypes.Boeger], [new("Dansk", Language: Languages.Dansk), new("Engelsk", Language: Languages.Engelsk)],
+        [new("Kolibri Bibliotek", "Hold styr på dine bøger – hvad du har, og hvad du mangler.")]);
 
     public static readonly ShopFamily Tegneserier = new("Tegneserieshoppen", "tegneserier", "Album, serieblade, gamle blade, jumbobøger og superhelte.",
         [ProductTypes.Tegneserier, ProductTypes.Serieblade, ProductTypes.GamleBlade, ProductTypes.Jumbo, ProductTypes.Superhelte],
         [new(ProductTypes.Tegneserier, ProductTypes.Tegneserier), new(ProductTypes.Serieblade, ProductTypes.Serieblade),
          new(ProductTypes.GamleBlade, ProductTypes.GamleBlade), new(ProductTypes.Jumbo, ProductTypes.Jumbo),
-         new(ProductTypes.Superhelte, ProductTypes.Superhelte)]);
+         new(ProductTypes.Superhelte, ProductTypes.Superhelte)],
+        [new("Kolibri Bibliotek", "Din samling af album og blade – hvilke numre du har, og hvilke du mangler.")]);
 
     public static readonly ShopFamily Film = new("Filmshoppen", "film", "Film på DVD, Blu-ray og VHS.",
-        [ProductTypes.Film], [new(Kinds.Dvd, Kind: Kinds.Dvd), new(Kinds.BluRay, Kind: Kinds.BluRay), new(Kinds.Vhs, Kind: Kinds.Vhs)]);
+        [ProductTypes.Film], [new(Kinds.Dvd, Kind: Kinds.Dvd), new(Kinds.BluRay, Kind: Kinds.BluRay), new(Kinds.Vhs, Kind: Kinds.Vhs)],
+        [new("Kolibri Mine skiver", "Tag et billede af dine film – så ved du, hvad du har.")]);
 
     public static readonly ShopFamily Musik = new("Musikshoppen", "musik", "Musik på CD, vinyl og kassettebånd.",
-        [ProductTypes.Musik], [new(Kinds.Cd, Kind: Kinds.Cd), new(Kinds.Vinyl, Kind: Kinds.Vinyl), new("Kassettebånd", Kind: Kinds.Kassette)]);
+        [ProductTypes.Musik], [new(Kinds.Cd, Kind: Kinds.Cd), new(Kinds.Vinyl, Kind: Kinds.Vinyl), new("Kassettebånd", Kind: Kinds.Kassette)],
+        [new("Kolibri Mine skiver", "Tag et billede af dine cd'er og plader – så ved du, hvad du har."),
+         new("Rip CD", "Læg dine cd'er over på computeren eller telefonen.")]);
 
     public static readonly ShopFamily Spil = new("Gameshoppen", "spil", "Computerspil, brætspil og kortspil.",
         [ProductTypes.Computerspil, ProductTypes.Braetspil],
-        [new(ProductTypes.Computerspil, ProductTypes.Computerspil), new(ProductTypes.Braetspil, ProductTypes.Braetspil)]);
+        [new(ProductTypes.Computerspil, ProductTypes.Computerspil), new(ProductTypes.Braetspil, ProductTypes.Braetspil)],
+        [new("Kolibri Strategi", "Læg en plan for spillet sammen med dit hold.")]);
 
     /// <summary>Samlerkort as their own shop (user 2026-11-03: "and cards - magic").</summary>
     public static readonly ShopFamily Kort = new("Kortshoppen", "kort", "Samlerkort – Magic: The Gathering.",
-        [ProductTypes.Magic], [new("Magic", ProductTypes.Magic)]);
+        [ProductTypes.Magic], [new("Magic", ProductTypes.Magic)],
+        [new("Kolibri Magic-pris", "Hvad er dit kort værd? Søg kortet, og se prisen.")]);
 
     /// <summary>User 2026-11-03 "a category should also be dungeons and dragons", "Fantasy" -> own shop (chose it): D&D and other
     /// rollespil now; fantasy books and films join when the things have genres (step 2).</summary>
     public static readonly ShopFamily Fantasy = new("Fantasyshoppen", "fantasy", "Dungeons & Dragons og andre rollespil – bøger, bokse og terninger.",
-        [ProductTypes.Rollespil], [new("Dungeons & Dragons", ProductTypes.Rollespil)]);
+        [ProductTypes.Rollespil], [new("Dungeons & Dragons", ProductTypes.Rollespil)],
+        [new("Kolibri Character", "Lav din figur til Dungeons & Dragons – sammen med din spilleder.", "https://character.itmartin.dk/"),
+         new("Kolibri Spilleder", "For spillederen: hold styr på figurer, hemmelige beskeder og spillet.", "https://spilleder.itmartin.dk/")]);
 
     public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Fantasy, Kort];
 
