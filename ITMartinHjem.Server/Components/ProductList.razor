@@ -268,12 +268,12 @@
             // A-Å: a batch is read by its own name ("Jonah Hex" under J), so the cards are put in name order - a thing by what
             // its card starts with (the first part of its line), in Danish order like Lager (NameOrder).
             if (_sort == ShopSorts.Title)
-                rows = rows.OrderBy(r => r.Item1?.Name ?? r.Item2!.Line.Split(" · ")[0], Danish).ToList();
+                rows = rows.OrderBy(r => r.Item1?.Name ?? r.Item2!.Line.Split(" · ")[0], DanishOrder).ToList();
             return rows;
         }
     }
 
-    private static readonly StringComparer Danish =
+    private static readonly StringComparer DanishOrder =
         StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("da-DK"), System.Globalization.CompareOptions.IgnoreCase);
 
     /// <summary>The lowest price among the loaded things of a batch, or null.</summary>
