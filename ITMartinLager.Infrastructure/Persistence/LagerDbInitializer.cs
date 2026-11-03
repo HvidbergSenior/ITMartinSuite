@@ -105,6 +105,13 @@ public static class LagerDbInitializer
                 db.Database.ExecuteSqlRaw($"ALTER TABLE Items ADD COLUMN {col} {type}");
         }
         {
+            // The round of scanning a box belongs to (2026-11-03, Iterations).
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Boxes') WHERE name = 'Iteration'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+                db.Database.ExecuteSqlRaw("ALTER TABLE Boxes ADD COLUMN Iteration INTEGER NOT NULL DEFAULT 0");
+        }
+        {
             // A Fund session's box (2026-11-03).
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Boxes') WHERE name = 'Fund'";

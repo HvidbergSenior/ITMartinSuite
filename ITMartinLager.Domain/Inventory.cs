@@ -47,6 +47,25 @@ public sealed record ItemScope(DateTime? SinceUtc = null, int? BoxId = null, str
 }
 
 // A box, shelf or crate with a printed QR label - the only "where is it" the register needs.
+/// <summary>The stock is scanned in rounds (user 2026-11-03: "i will go with iterations... i have like +150000 products... My first
+/// iteration was the loppemarked... second iteration will be 5000 more", "all products right now should be Iteration 1 -> stored in
+/// Malenes basement", "When I begin scanning again the goal is 5000 products"). Goal = how many things the round aims for.</summary>
+public sealed record Iteration(int Number, string Name, string Place, int? Goal);
+
+public static class Iterations
+{
+    public static readonly Iteration[] All =
+    [
+        new(1, "Iteration 1 – loppemarkedet", "Malenes kælder", null),
+        new(2, "Iteration 2", "", 5000),
+    ];
+
+    /// <summary>The round new boxes belong to.</summary>
+    public static Iteration Current => All[^1];
+
+    public static Iteration? Of(int number) => All.FirstOrDefault(i => i.Number == number);
+}
+
 public sealed class Box
 {
     public int Id { get; set; }
@@ -56,6 +75,8 @@ public sealed class Box
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     /// <summary>A Fund session's box (Vareinfo, 2026-11-03): its things are not ours yet.</summary>
     public bool Fund { get; set; }
+    /// <summary>Which round of scanning the box belongs to (Iterations; 0 = before 2026-11-03, set to 1 then).</summary>
+    public int Iteration { get; set; }
 
     public int Number => BoxCodes.Number(Code);
 

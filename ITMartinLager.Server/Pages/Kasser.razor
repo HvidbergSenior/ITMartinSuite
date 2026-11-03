@@ -21,6 +21,21 @@
     </div>
 </section>
 
+@* The rounds of scanning (2026-11-03): how far each has come, against its goal. *@
+<section class="k-card lg-iterations">
+    <h2 class="k-card-title">Iterationer</h2>
+    <ul class="lg-boxfacts">
+        @foreach (var it in Iterations.All)
+        {
+            var units = _cards.Where(c => c.Iteration == it.Number).Sum(c => c.Units);
+            <li>
+                <b>@it.Name</b>@(it.Place != "" ? " · " + it.Place : "") – <b>@units</b> ting@(it.Goal is { } g ? $" af {g}" : "")
+                @if (it.Number == Iterations.Current.Number) { <span class="lg-ok"> (nye kasser kommer her)</span> }
+            </li>
+        }
+    </ul>
+</section>
+
 @if (_cards.Count == 0)
 {
     <section class="k-card"><p>Der er ingen kasser endnu. De kommer, når hjælperne tager billeder i Vareinfo.</p></section>
@@ -44,6 +59,7 @@
                     @if (i.Helpers != "") { <li>Taget af @i.Helpers</li> }
                 }
                 <li><b>@c.Units</b> ting i kassen</li>
+                @if (Iterations.Of(c.Iteration) is { } it) { <li>@it.Name</li> }
             </ul>
             @if (c.Intake?.HasUnread == true)
             {
@@ -70,7 +86,7 @@
 
 @code {
     /// <summary>A box with what came from Vareinfo for it (or a box that only has photos so far).</summary>
-    private sealed record Card(string Code, string Title, bool IsTest, int Units, BoxIntake? Intake)
+    private sealed record Card(string Code, string Title, bool IsTest, int Units, BoxIntake? Intake, int Iteration = 0)
     {
         public int Number => BoxCodes.Number(Code);
     }
@@ -91,7 +107,8 @@
                 var r = rows.GetValueOrDefault(code);
                 var name = r is null ? "" : r.Note != "" ? r.Note + (r.Place != "" && !Box.IsTestName(r.Place) ? " · " + r.Place : "") : r.Place;
                 var title = name == "" ? $"Kasse {BoxCodes.Number(code)}" : name;
-                return new Card(code, title, BoxCodes.IsTest(code) || (r is not null && Box.IsTestName(r.Place)), r?.Units ?? 0, intake.GetValueOrDefault(code));
+                return new Card(code, title, BoxCodes.IsTest(code) || (r is not null && Box.IsTestName(r.Place)), r?.Units ?? 0, intake.GetValueOrDefault(code),
+                    r?.Iteration ?? Iterations.Current.Number);
             })
             // What waits first, then the newest numbers.
             .OrderByDescending(c => c.Intake?.HasUnread == true).ThenBy(c => c.IsTest).ThenByDescending(c => c.Number).ToList();

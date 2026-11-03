@@ -15,7 +15,7 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         {
             await using var db = await dbf.CreateDbContextAsync(ct);
             var last = await db.Boxes.OrderByDescending(b => b.Code).Select(b => b.Code).FirstOrDefaultAsync(ct);
-            var box = new Box { Code = Box.NextCode(last), Place = place };
+            var box = new Box { Code = Box.NextCode(last), Place = place, Iteration = Iterations.Current.Number };
             db.Boxes.Add(box);
             try { await db.SaveChangesAsync(ct); return box; }
             catch (DbUpdateException) when (attempt < 5) { }
@@ -29,7 +29,7 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         {
             await using var db = await dbf.CreateDbContextAsync(ct);
             if (await db.Boxes.FirstOrDefaultAsync(b => b.Code == code, ct) is { } found) return found;
-            var box = new Box { Code = code };
+            var box = new Box { Code = code, Iteration = Iterations.Current.Number };
             db.Boxes.Add(box);
             try { await db.SaveChangesAsync(ct); return box; }
             catch (DbUpdateException) when (attempt < 3) { }   // made at the same moment elsewhere - read it again
@@ -60,7 +60,7 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         var counts = await db.Items.Where(i => i.BoxId != null).GroupBy(i => i.BoxId)
             .Select(g => new { Id = g.Key!.Value, Lines = g.Count(), Units = g.Sum(i => i.Quantity) }).ToDictionaryAsync(x => x.Id, ct);
         return (await db.Boxes.OrderByDescending(b => b.Id).ToListAsync(ct))
-            .Select(b => new BoxSummary(b.Id, b.Code, b.Place, counts.GetValueOrDefault(b.Id)?.Lines ?? 0, counts.GetValueOrDefault(b.Id)?.Units ?? 0, b.Note))
+            .Select(b => new BoxSummary(b.Id, b.Code, b.Place, counts.GetValueOrDefault(b.Id)?.Lines ?? 0, counts.GetValueOrDefault(b.Id)?.Units ?? 0, b.Note, b.Iteration))
             .ToList();
     }
 
