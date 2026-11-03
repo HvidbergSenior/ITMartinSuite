@@ -382,6 +382,7 @@ public class KioskTests
         var now = DateTime.UtcNow;
         var abe = new[] { new SourceAnswer("AbeBooks", false, ListingParse.Summarise([new Offer("Jonah Hex 1977 Numero 49", 192, "u")], "s")) };
         HuntResult.From(1, abe, now, danishOnly: true).Normal.Should().BeNull();
+        HuntResult.From(1, abe, now, danishOnly: true).Finds.Should().BeEmpty("no links to foreign editions");
         var faraos = new[] { new SourceAnswer("Faraos", false, ListingParse.Summarise([new Offer("Jonah Hex 1983 Nr. 49", 8, "u"), new Offer("Jonah Hex 1983 Nr. 49", 10, "v")], "s")) };
         HuntResult.From(1, faraos, now, danishOnly: true).Normal.Should().NotBeNull();
         Pricing.DanishOnly(new Item { Kind = Kinds.Superhelte, Language = Languages.Engelsk }).Should().BeFalse();

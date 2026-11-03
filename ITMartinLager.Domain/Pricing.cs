@@ -584,7 +584,7 @@ public static partial class Pricing
 
     /// <summary>A Danish blad or album is priced from Danish sites only (user 2026-11-03 "jonah hex 49": our Danish Jonah Hex nr. 49
     /// got 170 kr from AbeBooks' "Jonah Hex 1977 Numero 49" - an Italian/Spanish edition; eBay had the American DC originals).
-    /// The foreign listings stay as links.</summary>
+    /// The foreign listings are not shown as links either.</summary>
     public static bool DanishOnly(Item i) =>
         i.Kind is Kinds.AndersAnd or Kinds.Superhelte or Kinds.Jumbobog or Kinds.Tegneserie
         && i.Language is Languages.Dansk or "";
@@ -699,6 +699,9 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             }));
         // One link per listing (the same eBay listing came from both ebay.de and ebay.com).
         finds = finds.DistinctBy(f => (Pricing.ListingKey(f.Url), f.Similar)).ToList();
+        // A Danish blad links only to Danish sites too (user 2026-11-03 "the links that did not work?": Jonah Hex 49 still linked to
+        // twelve American DC editions - another product).
+        if (danishOnly) finds = finds.Where(f => Pricing.DanishSources.Contains(f.Source)).ToList();
         // Danish first here too (2026-10-26: other Basserne gave 40 kr with eBay's 35-304 kr in; Nemos/Faraos say 12-22).
         var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!).Select(o => (a.Source, Kr: (int)o.Price!.Value)))
             .Where(u => !danishOnly || Pricing.DanishSources.Contains(u.Source)).ToList();
