@@ -331,6 +331,7 @@ public static partial class Pricing
         if (item.Kind != Kinds.Merch && words.Any(w => NotTheThing.Contains(w) || (w == "magazine" && item.Kind != Kinds.Magasin))) return false;
         if (item.Kind != Kinds.Konsolspil && words.Any(Consoles.Contains)) return false;
         if (OtherYear(item, o.Name)) return false;
+        if (BladBundle(item, o.Name) || OtherNumber(item, o.Name) || OtherEdition(item, o.Name)) return false;
         if (!SaysFormat(item.Kind, o.Name)) return false;
         if (!AboutThis(item, words)) return false;
         if (item.Kind != Kinds.Merch && WithSomethingElse(item, o.Name)) return false;
@@ -360,6 +361,40 @@ public static partial class Pricing
 
     /// <summary>The listing names our format, when ours is not a default one (DVD, CD, ...).</summary>
     public static bool SaysFormat(string kind, string listing) => !FormatWords.TryGetValue(kind, out var rx) || rx.IsMatch(listing);
+
+    private static bool IsBladKind(string kind) => kind is Kinds.Tegneserie or Kinds.Superhelte or Kinds.AndersAnd or Kinds.Jumbobog;
+
+    // User 2026-11-03 "projekt x is bundle": our Projekt X nr. 33 got 225 kr from "Projekt X, 33 numre" (33 blade for 250 kr), nr. 2
+    // from "Projekt X, 1984 nr. 2 og 3".
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b([2-9]|\d{2,})\s*(numre|blade|hæfter|hefte|ausgaben|issues|comics|album)\b|\bnr\.?\s*\d+\s*(og|,|&|\+|-|til)\s*(nr\.?\s*)?\d+", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex BladBundleRx();
+
+    /// <summary>Several blade in one listing.</summary>
+    public static bool BladBundle(Item item, string listing) => IsBladKind(item.Kind) && BladBundleRx().IsMatch(listing);
+
+    // "Nr. 74", "#74", "nummer 74", "No. 74" - the issue a listing names (Projekt X nr. 72 was priced from nr. 74, 69, 73 and 71).
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?:\bnr\.?|#|\bnummer|\bno\.?)\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex IssueRx();
+
+    /// <summary>A numbered blad whose listing names other issue numbers only.</summary>
+    public static bool OtherNumber(Item item, string listing)
+    {
+        if (!IsBladKind(item.Kind) || !int.TryParse(new string(item.Number.Trim().TakeWhile(char.IsDigit).ToArray()), out var ours)) return false;
+        var named = IssueRx().Matches(listing).Select(m => int.Parse(m.Groups[1].Value)).ToList();
+        return named.Count > 0 && !named.Contains(ours);
+    }
+
+    // "Projekt X Special 1987 Nr. 2" is another series than Projekt X nr. 2.
+    private static readonly HashSet<string> EditionWords = ["special", "ekstra", "extra", "annual", "julehæfte", "julealbum", "sommerhæfte",
+        "giant", "jumbo", "album", "spidsbelastning", "klassikere", "pocket"];
+
+    /// <summary>The listing is a special/extra/annual edition and ours is not.</summary>
+    public static bool OtherEdition(Item item, string listing)
+    {
+        if (!IsBladKind(item.Kind)) return false;
+        var ours = ListingParse.Words($"{item.Title} {item.Series} {item.Edition}").ToHashSet();
+        return ListingParse.Words(listing).Any(w => EditionWords.Contains(w) && !ours.Contains(w));
+    }
 
     /// <summary>A series name shorter than this ("Haha") is too common to find a blad by series and number alone.</summary>
     public const int MinSeriesLetters = 5;
@@ -547,6 +582,14 @@ public static partial class Pricing
     public static readonly string[] DanishSources = ["DBA", "GulogGratis", "Nemos Bibliotek", "Faraos", "Accord"];
     public const int DanishEnough = 2;
 
+    /// <summary>A Danish blad or album is priced from Danish sites only (user 2026-11-03 "jonah hex 49": our Danish Jonah Hex nr. 49
+    /// got 170 kr from AbeBooks' "Jonah Hex 1977 Numero 49" - an Italian/Spanish edition; eBay had the American DC originals).
+    /// The foreign listings stay as links.</summary>
+    public static bool DanishOnly(Item i) =>
+        i.Kind is Kinds.AndersAnd or Kinds.Superhelte or Kinds.Jumbobog or Kinds.Tegneserie
+        && i.Language is Languages.Dansk or "";
+
+
     // Shown as links, never part of our price (user 2026-10-21: "ebay DE is not realistic is it?"): eBay is shops' asking
     // prices, many from abroad, and the API only shows what is for sale, not what sold - a used Californication CD had a
     // middle price of 291 kr there.
@@ -612,7 +655,8 @@ public sealed record SourceAnswer(string Source, bool IsNew, Listings? Result);
 public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, int Answered, int? Normal, int? SimilarNormal = null, int? NewNormal = null,
     int? Want = null, int? Have = null)
 {
-    public static HuntResult From(int itemId, IReadOnlyList<SourceAnswer> answers, DateTime now, IReadOnlyList<SourceAnswer>? similar = null)
+    public static HuntResult From(int itemId, IReadOnlyList<SourceAnswer> answers, DateTime now, IReadOnlyList<SourceAnswer>? similar = null,
+        bool danishOnly = false)
     {
         // ZVAB is AbeBooks' German front - the same listing (same number) is shown once, under AbeBooks.
         var abeIds = answers.Where(a => a.Source == "AbeBooks" && a.Result is not null)
@@ -642,7 +686,8 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         var used = answers.Where(a => !a.IsNew && a.Result is { Ambiguous: false })
             .SelectMany(a => a.Result!.All.Where(o => o.Price is > 0).DistinctBy(o => (o.Url, o.Price))
                 .Where(o => a.Source != "ZVAB" || !abeIds.Contains(Pricing.ListingNumber(o.Url)))
-                .Select(o => (a.Source, Kr: (int)o.Price!.Value))).ToList();
+                .Select(o => (a.Source, Kr: (int)o.Price!.Value)))
+            .Where(u => !danishOnly || Pricing.DanishSources.Contains(u.Source)).ToList();
 
         // "Magen til": kept apart, flagged, and never part of the normal price.
         var like = (similar ?? []).Where(a => !a.IsNew && a.Result is { Ambiguous: false }).ToList();
@@ -655,7 +700,8 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         // One link per listing (the same eBay listing came from both ebay.de and ebay.com).
         finds = finds.DistinctBy(f => (Pricing.ListingKey(f.Url), f.Similar)).ToList();
         // Danish first here too (2026-10-26: other Basserne gave 40 kr with eBay's 35-304 kr in; Nemos/Faraos say 12-22).
-        var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!).Select(o => (a.Source, Kr: (int)o.Price!.Value))).ToList();
+        var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!).Select(o => (a.Source, Kr: (int)o.Price!.Value)))
+            .Where(u => !danishOnly || Pricing.DanishSources.Contains(u.Source)).ToList();
         // New shops (Saxo, Amazon ...): the price a new copy is compared with.
         var fresh = answers.Where(a => a.IsNew && a.Result is { Ambiguous: false }).SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();
         // Discogs want/have: from the first source that knows it (only Discogs today).

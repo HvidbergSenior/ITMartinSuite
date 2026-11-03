@@ -357,4 +357,33 @@ public class KioskTests
         Pricing.SaysFormat(Kinds.Vinyl, "Pink Floyd The Wall").Should().BeFalse();
         Pricing.SaysFormat(Kinds.Dvd, "Babettes gæstebud").Should().BeTrue();   // the default format needs no word
     }
+
+    [Test]
+    public void Bundles_other_issues_and_special_editions_do_not_price_one_blad()
+    {
+        // Live 2026-11-03 "projekt x is bundle".
+        var px33 = new Item { Kind = Kinds.Superhelte, Title = "Projekt X", Series = "Projekt X", Number = "33" };
+        Pricing.IsOneCopyOf(px33, new Offer("Projekt X, 33 numre", 250, "u")).Should().BeFalse();
+        var px2 = new Item { Kind = Kinds.Superhelte, Title = "Projekt X", Series = "Projekt X", Number = "2", Year = 1984 };
+        Pricing.IsOneCopyOf(px2, new Offer("Projekt X, 1984 nr. 2 og 3", 75, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(px2, new Offer("Projekt X Special 1987 Nr. 2", 18, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(px2, new Offer("Projekt X 1984 Nr. 2/84 (2)", 360, "u")).Should().BeTrue();
+        var px72 = new Item { Kind = Kinds.Superhelte, Title = "Projekt X", Series = "Projekt X", Number = "72", Year = 1997 };
+        Pricing.IsOneCopyOf(px72, new Offer("Projekt X 1997 Nr. 74", 12, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(px72, new Offer("Projekt X 1997 Nr. 72", 12, "u")).Should().BeTrue();
+    }
+
+    [Test]
+    public void A_Danish_blad_is_priced_from_Danish_sites_only()
+    {
+        // Live 2026-11-03 "jonah hex 49": 170 kr from AbeBooks' Italian "Jonah Hex 1977 Numero 49".
+        var hex = new Item { Kind = Kinds.Superhelte, Title = "En blodig tak for sidst!", Series = "Jonah Hex", Number = "49", Language = Languages.Dansk };
+        Pricing.DanishOnly(hex).Should().BeTrue();
+        var now = DateTime.UtcNow;
+        var abe = new[] { new SourceAnswer("AbeBooks", false, ListingParse.Summarise([new Offer("Jonah Hex 1977 Numero 49", 192, "u")], "s")) };
+        HuntResult.From(1, abe, now, danishOnly: true).Normal.Should().BeNull();
+        var faraos = new[] { new SourceAnswer("Faraos", false, ListingParse.Summarise([new Offer("Jonah Hex 1983 Nr. 49", 8, "u"), new Offer("Jonah Hex 1983 Nr. 49", 10, "v")], "s")) };
+        HuntResult.From(1, faraos, now, danishOnly: true).Normal.Should().NotBeNull();
+        Pricing.DanishOnly(new Item { Kind = Kinds.Superhelte, Language = Languages.Engelsk }).Should().BeFalse();
+    }
 }

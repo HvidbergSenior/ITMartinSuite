@@ -54,7 +54,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
                 .ToList();
 
         var now = clock.GetUtcNow().UtcDateTime;
-        var result = HuntResult.From(itemId, answers, now, similar);
+        var result = HuntResult.From(itemId, answers, now, similar, Pricing.DanishOnly(item));
         await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
         result.ApplyTo(item, now);
         await items.UpdateAsync([item], ct);
