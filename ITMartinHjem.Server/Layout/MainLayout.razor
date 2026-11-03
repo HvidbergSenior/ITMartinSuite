@@ -31,9 +31,8 @@ else
     <a href="/#foelg">Skriv dig op</a>
     <a href="/produkter">Produkter</a>
     @* No Ros/ris on bogshoppen.dk (user 2026-10-29 "Remove from bogshoppen"): it lives on itmartin.dk/kritik only; old
-       bogshoppen.dk/kritik links still go there (Program.cs). *@
-    @* Light/dark like itmartin.dk (2026-10-29). *@
-    <button id="themeToggleBtn" class="hj-nav-theme" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
+       bogshoppen.dk/kritik links still go there (Program.cs). Light/dark is at the bottom of the page, not a tab
+       (user 2026-11-03: "the theme should be elsewhere not as tab"). *@
 </nav>
 }
 @if (_fest && !_bs)
@@ -46,6 +45,10 @@ else
 <div class="k-main"><div class="k-content">
     @* No emojis anywhere on the sites (user 2026-10-12) - shared components read this. *@
     <CascadingValue Name="Plain" Value="true">@Body</CascadingValue>
+    @if (_bs)
+    {
+        <p class="bs-theme"><button id="themeToggleBtn" class="k-btn k-btn-sm" type="button" data-long="1" title="Skift lys/mørk visning">Lys/mørk visning</button></p>
+    }
 </div></div>
 <KolibriFooter />
 </div>

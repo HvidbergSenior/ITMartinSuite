@@ -53,6 +53,7 @@
         function sync() {
             var btn = document.getElementById('themeToggleBtn');
             var label = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'Mørk' : 'Lys';
+            if (btn && btn.dataset.long) label += ' visning';   // bogshoppen.dk: the button at the bottom says more
             if (btn && btn.textContent !== label) btn.textContent = label;
         }
         document.addEventListener('click', function (e) {
