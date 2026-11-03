@@ -330,6 +330,8 @@ public static partial class Pricing
         if (item.Kind != Kinds.Merch && words.Any(w => w.Length > 6 && (w.EndsWith("plakat") || w.EndsWith("poster")))) return false;
         if (item.Kind != Kinds.Merch && words.Any(w => NotTheThing.Contains(w) || (w == "magazine" && item.Kind != Kinds.Magasin))) return false;
         if (item.Kind != Kinds.Konsolspil && words.Any(Consoles.Contains)) return false;
+        if (OtherYear(item, o.Name)) return false;
+        if (!SaysFormat(item.Kind, o.Name)) return false;
         if (!AboutThis(item, words)) return false;
         if (item.Kind != Kinds.Merch && WithSomethingElse(item, o.Name)) return false;
         // A comic with an issue number: the title must come first (after brand/creator words) - "Edge of X" is another series.
@@ -343,6 +345,35 @@ public static partial class Pricing
             if (title.Count > 0 && (lead.Count == 0 || (lead[0] != title[0] && lead[0] != series))) return false;
         }
         return true;
+    }
+
+    // The formats that are not what a seller means by default (2026-11-03: our VHS "Babettes Gæstebud" was priced from four DBA
+    // listings called only "Babettes gæstebud" - all DVDs): a DVD or a CD is the default, so a VHS, Blu-ray, record or tape must
+    // be named in the listing.
+    private static readonly Dictionary<string, System.Text.RegularExpressions.Regex> FormatWords = new()
+    {
+        [Kinds.Vhs] = new(@"\bvhs\b|video\s*(bånd|kassette|tape)|videobånd|videokassette|videotape|\bpal\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase),
+        [Kinds.BluRay] = new(@"blu[\s-]*ray|blueray|\bbd\b|\buhd\b|4k", System.Text.RegularExpressions.RegexOptions.IgnoreCase),
+        [Kinds.Vinyl] = new(@"\blp\b|\bvinyl|\bvinil|\bplade|\bschallplatte|\b(7|10|12)\s*(""|tommer|inch)|\bsingle\b|\bmaxi\b|\bep\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase),
+        [Kinds.Kassette] = new(@"kassette|cassette|\bmc\b|\btape\b|\bbånd\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase),
+    };
+
+    /// <summary>The listing names our format, when ours is not a default one (DVD, CD, ...).</summary>
+    public static bool SaysFormat(string kind, string listing) => !FormatWords.TryGetValue(kind, out var rx) || rx.IsMatch(listing);
+
+    /// <summary>A series name shorter than this ("Haha") is too common to find a blad by series and number alone.</summary>
+    public const int MinSeriesLetters = 5;
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?<!\d)(19\d{2}|20\d{2})(?!\d)")]
+    private static partial System.Text.RegularExpressions.Regex YearRx();
+
+    /// <summary>A comic or blad whose listing names only years far from ours is another edition or another series ("HaHa #2
+    /// (17/02/2021)" is not our Haha 2 from 1972). Two years either way are allowed (a cover date vs. a printing).</summary>
+    public static bool OtherYear(Item item, string listing)
+    {
+        if (item.Year is not > 0 || item.Kind is not (Kinds.Tegneserie or Kinds.Superhelte or Kinds.AndersAnd or Kinds.Jumbobog)) return false;
+        var years = YearRx().Matches(listing).Select(m => int.Parse(m.Value)).ToList();
+        return years.Count > 0 && years.All(y => Math.Abs(y - item.Year.Value) > 2);
     }
 
     // Not the thing itself but something about it (2026-10-25, Eigil's box: "The Chris Rock Show" found a cap, a zipper pull,
@@ -377,8 +408,11 @@ public static partial class Pricing
         if (!NamedKinds.Contains(item.Kind)) return true;
         // A numbered blad is named by series and number: "Basserne 2001 Nr. 612" is "Rødøje", Basserne 612 (2026-10-26 -
         // the story title the AI read is in no listing).
+        // Not for a short series word (2026-11-03: Danish "Haha" nr. 1 + 2 from 1969/72, "En halv humørtime!", found the American
+        // "HaHa #2" from 2021 and Japanese books - 255 kr and wrong links): then the title must be there too.
         if (item.Kind is Kinds.Tegneserie or Kinds.Superhelte && item.Number.Trim() != "" && listing.Contains(item.Number.Trim().ToLowerInvariant())
-            && ListingParse.Words(item.Series).Where(w => !ListingParse.IsNumber(w) && !Brands.Contains(w)).ToList() is { Count: > 0 } sw && sw.All(listing.Contains))
+            && ListingParse.Words(item.Series).Where(w => !ListingParse.IsNumber(w) && !Brands.Contains(w)).ToList() is { Count: > 0 } sw && sw.All(listing.Contains)
+            && sw.Sum(w => w.Length) >= MinSeriesLetters)
             return true;
         var squashed = string.Concat(listing.Where(w => !ListingParse.IsNumber(w)));
         bool Has(string w) => squashed.Contains(w);

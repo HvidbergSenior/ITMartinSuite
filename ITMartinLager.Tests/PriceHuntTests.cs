@@ -332,4 +332,29 @@ public class KioskTests
         Kiosk.For(new Item { Kind = Kinds.Tegneserie, Title = "Rødøje", Series = "Basserne" }, prices)!.Kr.Should().Be(45);
         Kiosk.For(new Item { Kind = Kinds.Bog, Title = "Genfærd" }, prices).Should().BeNull();
     }
+
+    [Test]
+    public void A_short_series_word_and_another_year_do_not_make_our_blad()
+    {
+        // Live 2026-11-03: Danish "Haha" nr. 2 (1972) found the American HaHa #2 (2021) and AbeBooks' Japanese "Haha" - 180-255 kr.
+        var haha = new Item { Kind = Kinds.Tegneserie, Title = "En halv humørtime! – Knaldperler, Frækkerter, Sexbomber", Series = "Haha", Number = "2", Year = 1972 };
+        Pricing.IsOneCopyOf(haha, new Offer("HaHa #2 - Image Comics", 12, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(haha, new Offer("HAHA #2 (OF 6) CVR B SIMMONDS (MR) (17/02/2021)", 35, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(haha, new Offer("Haha nr. 2 En halv humørtime 1972", 60, "u")).Should().BeTrue();
+        Pricing.OtherYear(haha, "Haha 2 fra 2021").Should().BeTrue();
+        Pricing.OtherYear(haha, "Haha 2 1973").Should().BeFalse();
+        Pricing.OtherYear(haha, "Haha 2").Should().BeFalse();
+    }
+
+    [Test]
+    public void A_VHS_is_only_priced_from_listings_that_say_VHS()
+    {
+        // Live 2026-11-03: four DBA "Babettes gæstebud" were all DVDs.
+        var vhs = new Item { Kind = Kinds.Vhs, Title = "Babettes Gæstebud" };
+        Pricing.IsOneCopyOf(vhs, new Offer("Babettes gæstebud", 30, "u")).Should().BeFalse();
+        Pricing.IsOneCopyOf(vhs, new Offer("Babettes gæstebud VHS", 30, "u")).Should().BeTrue();
+        Pricing.SaysFormat(Kinds.Vinyl, "Pink Floyd The Wall 2 LP").Should().BeTrue();
+        Pricing.SaysFormat(Kinds.Vinyl, "Pink Floyd The Wall").Should().BeFalse();
+        Pricing.SaysFormat(Kinds.Dvd, "Babettes gæstebud").Should().BeTrue();   // the default format needs no word
+    }
 }
