@@ -133,6 +133,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         var q = db.Items.Include(i => i.Box).AsQueryable();
         if (scope?.SinceUtc is { } since) q = q.Where(i => i.CreatedAt >= since);
         if (scope?.BoxId is { } box) q = q.Where(i => i.BoxId == box);
+        if (scope?.Category is { } cat) q = q.Where(i => i.Category == cat);
+        if (scope?.Language is { } lang) q = q.Where(i => i.Language == lang);
         if (!string.IsNullOrEmpty(kind)) q = q.Where(i => i.Kind == kind);
         // Item.Valuation, as SQL.
         q = valuation switch
@@ -250,11 +252,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     }
 
     public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null)
+        string? band = null, string? category = null, string? language = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         var q = band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band);
         if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
+        q = InCategory(q, category, language);
         if (usage is not null) q = q.Where(i => i.Usage == usage);
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
         {
@@ -282,6 +285,21 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return OnPage(db).Where(i => ids.Contains(i.Id));
     }
 
+    // One main category and/or one language (Item.Category / Item.Language, 2026-11-03).
+    private static IQueryable<Item> InCategory(IQueryable<Item> q, string? category, string? language)
+    {
+        if (!string.IsNullOrEmpty(category)) q = q.Where(i => i.Category == category);
+        if (!string.IsNullOrEmpty(language)) q = q.Where(i => i.Language == language);
+        return q;
+    }
+
+    public async Task<Dictionary<string, int>> ListedPerCategoryAsync(CancellationToken ct, string? band = null, string? language = null)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var q = InCategory(band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band), null, language);
+        return await q.GroupBy(i => i.Category).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+    }
+
     public async Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct, string? band = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
@@ -289,11 +307,13 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return await q.GroupBy(i => i.Kind).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
     }
 
-    public async Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null)
+    public async Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null,
+        string? category = null, string? language = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         var q = band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band);
         if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
+        q = InCategory(q, category, language);
         return await q.Select(i => i.Series != "" ? i.Series : i.Artist).Where(g => g != "")
             .GroupBy(g => g).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
     }

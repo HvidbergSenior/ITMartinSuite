@@ -29,6 +29,13 @@
                 <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "") @(t.Type is ShopDeals.NoPriceName or ShopDeals.UnsureName ? "bs-chip-status" : "") @(t.Type == ShopDeals.RareName ? "bs-chip-rare" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
             }
         </div>
+        @* Every category in Danish or English (user 2026-11-03: "all cats should have an English"). *@
+        <div class="bs-filter" role="group" aria-label="Vælg sprog">
+            <span class="bs-filter-label">Sprog</span>
+            <button class="k-btn k-btn-sm @(_language == "" ? "is-on" : "")" aria-pressed="@(_language == "")" @onclick='() => PickLanguage("")'>Alle sprog</button>
+            <button class="k-btn k-btn-sm @(_language == Languages.Dansk ? "is-on" : "")" aria-pressed="@(_language == Languages.Dansk)" @onclick="() => PickLanguage(Languages.Dansk)">Dansk</button>
+            <button class="k-btn k-btn-sm @(_language == Languages.Engelsk ? "is-on" : "")" aria-pressed="@(_language == Languages.Engelsk)" @onclick="() => PickLanguage(Languages.Engelsk)">Engelsk</button>
+        </div>
         @* Film = DVD, Blu-ray and Sæsoner (user 2026-11-02: "film should be DVD, Blueray and Seasons"). *@
         @if (_type == ProductTypes.Film)
         {
@@ -70,7 +77,7 @@
 
         @* The 3 kr bin online as packs (user 2026-11-02: "online sale need to have some kind of rare and batch of", chose fixed
            packs) - on Alle and on Anders And-blade, not while searching. Not a webshop: you write to us for a pack. *@
-        @if (_market.Packs is { Count: > 0 } packs && _text == "" && (_type == "" || _type == ProductTypes.AndersAnd))
+        @if (_market.Packs is { Count: > 0 } packs && _text == "" && (_type == "" || _type == ProductTypes.Serieblade))
         {
             <div class="bs-packs">
                 @foreach (var p in packs)
@@ -218,6 +225,8 @@
     private Task PickFilm(string kind, string text) { _kind = kind; _text = text; return Load(reset: true); }
     private Task Pick(string type) { _type = type; _text = ""; _kind = ""; if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = ""; return Load(reset: true); }
     private Task PickPrice(string key) { _price = key; return Load(reset: true); }
+    private string _language = "", _languageShown = "";
+    private Task PickLanguage(string l) { _language = l; return Load(reset: true); }
     // A subgroup is a search for its name inside the chosen type; the same chip again shows the whole type.
     private Task PickGroup(string name) { _text = _text == name ? "" : name; return Load(reset: true); }
     private Task Search() => Load(reset: true);
@@ -228,13 +237,15 @@
         _loading = true;
         if (reset) _page = 0;
         var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, _kind == "" ? null : _kind, null, _text, _type == ShopDeals.RareName ? ShopSorts.Dearest : ShopSorts.Title, _page,
-            price: _price != "" ? _price : _type == "" ? ShopDeals.WithPrice : null);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
+            price: _price != "" ? _price : _type == "" ? ShopDeals.WithPrice : null, language: _language == "" ? null : _language);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
         _loading = false;
         _error = error;
         if (market is null) return;
         if (reset) _items.Clear();
         _items.AddRange(market.Items);
         // Keep the type chips with their full counts while a type or a search is chosen.
-        _market = reset && _type == "" && _text == "" ? market : market with { Types = _market?.Types ?? market.Types };
+        // A new language changes the counts too.
+        _market = reset && _type == "" && _text == "" || _languageShown != _language ? market : market with { Types = _market?.Types ?? market.Types };
+        _languageShown = _language;
     }
 }

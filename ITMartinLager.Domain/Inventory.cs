@@ -19,11 +19,13 @@ public static class Statuses
 
 // Which items a list looks at (user 2026-11-03: "I could not search for only the new products... i also had to see the
 // existing ones"): all, the ones registered since a moment (today, the last 7 days), and/or one box.
-public sealed record ItemScope(DateTime? SinceUtc = null, int? BoxId = null)
+// Also one main category and/or one language (2026-11-03: "split up in the main categories").
+public sealed record ItemScope(DateTime? SinceUtc = null, int? BoxId = null, string? Category = null, string? Language = null)
 {
     public static readonly ItemScope All = new();
-    public bool IsAll => SinceUtc is null && BoxId is null;
-    public bool Holds(Item i) => (SinceUtc is null || i.CreatedAt >= SinceUtc) && (BoxId is null || i.BoxId == BoxId);
+    public bool IsAll => SinceUtc is null && BoxId is null && Category is null && Language is null;
+    public bool Holds(Item i) => (SinceUtc is null || i.CreatedAt >= SinceUtc) && (BoxId is null || i.BoxId == BoxId)
+        && (Category is null || i.Category == Category) && (Language is null || i.Language == Language);
 
     private static readonly TimeZoneInfo Dk = Find("Europe/Copenhagen");
     private static TimeZoneInfo Find(string id) { try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { return TimeZoneInfo.Utc; } }
@@ -70,6 +72,10 @@ public sealed class Item
     public string Artist { get; set; } = "";     // CDs (and author for books)
     public string Condition { get; set; } = "God";
     public string Usage { get; set; } = Usages.Used;   // Brugt / Ny (Usages) - new = never sold before, priced against new prices
+    // The main category (ProductTypes.For: kind + series + year) and the language (Languages) - kept on the row so lists can
+    // filter on them (user 2026-11-03: "split up in the main categories", "all cats should have an English"). Set by Touch.
+    public string Category { get; set; } = ProductTypes.Andet;
+    public string Language { get; set; } = "";
     // Discogs collectors (2026-10-21): how many want this release and how many have it - demand, not price.
     public int? Want { get; set; }
     public int? Have { get; set; }
@@ -181,7 +187,7 @@ public sealed class Item
             Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
             Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
             Note = f.Note, Interest = f.Interest, Barcode = f.Barcode, PriceHint = f.PriceHint, EditionHint = f.EditionHint,
-            Usage = Usages.Normalise(f.Usage), Publisher = f.Publisher,
+            Usage = Usages.Normalise(f.Usage), Publisher = f.Publisher, Language = Languages.Normalise(f.Language),
             BoxId = boxId, PhotoId = photoId,
         };
         item.Touch();
@@ -210,6 +216,17 @@ public sealed class Item
         UpdatedAt = DateTime.UtcNow;
         Search = string.Join(' ', Title, Artist, Series, Number, Year?.ToString() ?? "", Platform, Kind, Note, Interest, Barcode, Edition, Publisher, EditionHint).ToLowerInvariant();
         if (Films.IsSeason(Kind, Title)) Search += " " + Films.SeasonWord;
+        Classify();
+    }
+
+    /// <summary>Category from kind, series and year; a missing language is guessed from the title. True when something changed.</summary>
+    public bool Classify()
+    {
+        var category = ProductTypes.For(Kind, Series, Year);
+        var language = Languages.Normalise(Language) is { Length: > 0 } l ? l : Languages.Guess(Title, Series);
+        if (category == Category && language == Language) return false;
+        (Category, Language) = (category, language);
+        return true;
     }
 }
 

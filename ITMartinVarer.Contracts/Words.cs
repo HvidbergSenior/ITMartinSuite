@@ -9,16 +9,18 @@ public static class Kinds
         Jumbobog = "Jumbobog", Tegneserie = "Tegneserie", Konsolspil = "Konsolspil", Bog = "Bog",
         Magic = "Magic-kort", Merch = "Merchandise", Andet = "Andet",
         // 2026-10-20 with the product-type services: film on tape, records and tapes, American superhero comics.
-        Vhs = "VHS", Vinyl = "Vinyl", Kassette = "Kassettebånd", Superhelte = "Superhelteblad";
+        Vhs = "VHS", Vinyl = "Vinyl", Kassette = "Kassettebånd", Superhelte = "Superhelteblad",
+        // 2026-11-03 with the main categories: "Brætspil/kortspil".
+        Braetspil = "Brætspil", Kortspil = "Kortspil";
 
     public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Superhelte, Magasin, Bog, Cd, Vinyl, Kassette, Dvd, BluRay, Vhs,
-        Konsolspil, Magic, Merch, Andet];
+        Konsolspil, Braetspil, Kortspil, Magic, Merch, Andet];
 
     public static string Icon(string kind) => kind switch
     {
         Cd or Vinyl => "🎵", Kassette or Vhs => "📼", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆",
         Tegneserie => "💥", Superhelte => "🦸",
-        Konsolspil => "🎮", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
+        Konsolspil => "🎮", Braetspil or Kortspil => "🎲", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
     };
 
     public static string Normalise(string? kind) =>
@@ -43,8 +45,8 @@ public static class Kinds
         return k == Tegneserie && series?.Trim() is { Length: > 0 } s && SeriesKind.TryGetValue(s, out var other) ? other : k;
     }
 
-    /// <summary>The kind as a customer reads it: a Superhelteblad is shown as "Serieblad" (it also holds Jonah Hex and co.).</summary>
-    public static string Label(string kind) => kind == Superhelte ? "Serieblad" : kind;
+    /// <summary>The kind as a customer reads it: a Superhelteblad is shown as "Blad" (it also holds Jonah Hex and co.).</summary>
+    public static string Label(string kind) => kind == Superhelte ? "Blad" : kind;
 }
 
 public static class Conditions
@@ -126,27 +128,86 @@ public static class FilmShelves
 
 public static class ProductTypes
 {
-    // Anders And-blade and Jumbobøger are two categories (user 2026-11-02: "categroies need to be better Anders And and
-    // Jumbøbøger not same category") - "Blade" held both plus magazines; a magazine is Andet (none in stock).
-    public const string Magic = "Magic", Film = "Film", Musik = "Musik", Tegneserier = "Tegneserier", AndersAnd = "Anders And-blade",
-        Jumbo = "Jumbobøger", Superhelte = "Serieblade", Boeger = "Bøger", Andet = "Andet";   // Serieblade = superhero blade + Jonah Hex, Kong Kylie ... (2026-11-02)
+    // The main categories (user 2026-11-03: "When searching and or doing things they should be split up in the main categories.
+    // So that user can follow 1 or more types of products"). Tegneserier = albums (Lucky Luke); Serieblade = Danish blade (Anders
+    // And, Basserne, Jonah Hex, Kong Kylie); Superhelte = Project X, Edderkoppen; Gamle blade = every blad before 1990.
+    public const string Boeger = "Bøger", Tegneserier = "Tegneserier", Serieblade = "Serieblade", GamleBlade = "Gamle blade",
+        Jumbo = "Jumbobøger", Superhelte = "Superhelte", Film = "Film", Musik = "Musik", Computerspil = "Computerspil",
+        Braetspil = "Brætspil og kortspil", Magic = "Magic", Andet = "Andet";
 
-    public static readonly string[] All = [Boeger, AndersAnd, Jumbo, Tegneserier, Superhelte, Musik, Film, Magic, Andet];
+    public static readonly string[] All = [Boeger, Tegneserier, Serieblade, GamleBlade, Jumbo, Superhelte, Film, Musik, Computerspil,
+        Braetspil, Magic, Andet];
 
-    public static string For(string kind) => kind switch
+    /// <summary>A blad from before this year is a Gamle blade (user 2026-11-03: "before 1990 all blade").</summary>
+    public const int OldBefore = 1990;
+
+    /// <summary>Who looks after a category (user 2026-11-03: Rico has Tegneserier, Superhelte and Film; Martin the rest).</summary>
+    public static string Responsible(string type) => type is Tegneserier or Superhelte or Film ? "Rico" : "Martin";
+
+    /// <summary>Blade that are filed with the superhero blade (Kinds.Superhelte) but are Danish serieblade.</summary>
+    public static readonly IReadOnlySet<string> BladSeries = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "Jonah Hex", "Kong Kylie", "Basserne", "Skipper Skræk", "Supermule", "Fantomet" };
+
+    public static bool IsBlad(string kind) => kind is Kinds.AndersAnd or Kinds.Superhelte;
+
+    /// <summary>The main category of a thing - from its kind, and for blade also its series and year.</summary>
+    public static string For(string kind, string? series = null, int? year = null) => kind switch
     {
+        _ when IsBlad(kind) && year is > 0 and < OldBefore => GamleBlade,
+        Kinds.AndersAnd => Serieblade,
+        Kinds.Superhelte => series?.Trim() is { Length: > 0 } s && BladSeries.Contains(s) ? Serieblade : Superhelte,
         Kinds.Magic => Magic,
         Kinds.Dvd or Kinds.BluRay or Kinds.Vhs => Film,
         Kinds.Cd or Kinds.Vinyl or Kinds.Kassette => Musik,
         Kinds.Tegneserie => Tegneserier,
-        Kinds.AndersAnd => AndersAnd,
         Kinds.Jumbobog => Jumbo,
-        Kinds.Superhelte => Superhelte,
         Kinds.Bog => Boeger,
-        _ => Andet,   // console games, merchandise, the rest - no service yet
+        Kinds.Konsolspil => Computerspil,
+        Kinds.Braetspil or Kinds.Kortspil => Braetspil,
+        _ => Andet,   // merchandise, magazines, the rest
     };
 
-    public static string[] KindsOf(string type) => Kinds.All.Where(k => For(k) == type).ToArray();
+    /// <summary>The kinds that can be in a category (a blad kind is in Serieblade, Gamle blade and Superhelte).</summary>
+    public static string[] KindsOf(string type) => type switch
+    {
+        GamleBlade or Serieblade => [Kinds.AndersAnd, Kinds.Superhelte],
+        Superhelte => [Kinds.Superhelte],
+        _ => Kinds.All.Where(k => For(k) == type).ToArray(),
+    };
+}
+
+// Which language a thing is in (user 2026-11-03: "all cats should have an English"). Read with the pile (no extra AI call);
+// older things get Guess from the title.
+public static class Languages
+{
+    public const string Dansk = "Dansk", Engelsk = "Engelsk", Andet = "Andet sprog";
+    public static readonly string[] All = [Dansk, Engelsk, Andet];
+
+    public static string Normalise(string? l) => l?.Trim().ToLowerInvariant() switch
+    {
+        "dansk" or "danish" or "da" => Dansk,
+        "engelsk" or "english" or "en" => Engelsk,
+        null or "" => "",
+        _ => Andet,
+    };
+
+    private static readonly HashSet<string> EnglishWords = ["the", "of", "and", "to", "in", "with", "for", "from", "is", "a", "an",
+        "my", "your", "how", "what", "who", "complete", "season", "guide", "book", "life", "love", "world", "story", "man", "woman"];
+    private static readonly HashSet<string> DanishWords = ["og", "af", "en", "et", "det", "den", "til", "med", "på", "fra", "som", "er",
+        "jeg", "du", "der", "ikke", "de", "for", "bog", "bogen", "historie", "historier", "sæson", "nr"];
+
+    /// <summary>A guess from the words in the title (and series): English words and no Danish ones = Engelsk, else Dansk.
+    /// Only for things read before the reader said the language.</summary>
+    public static string Guess(string title, string series = "")
+    {
+        // "Anders And" is Danish, not the English "and".
+        var text = $"{title} {series}".ToLowerInvariant().Replace("anders and", " ");
+        if (text.Any(c => c is 'æ' or 'ø' or 'å')) return Dansk;
+        var words = System.Text.RegularExpressions.Regex.Matches(text, @"[a-z]+").Select(m => m.Value).ToList();
+        var en = words.Count(EnglishWords.Contains);
+        var da = words.Count(w => DanishWords.Contains(w) && !EnglishWords.Contains(w));
+        return en > 0 && da == 0 ? Engelsk : Dansk;
+    }
 }
 
 // New or used (user 2026-10-20: "there should be a used and new field"). Not the same as the condition ("Som ny" is a

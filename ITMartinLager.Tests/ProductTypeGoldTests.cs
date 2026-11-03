@@ -15,13 +15,15 @@ public class ProductTypeGoldTests
     [TestCase(Kinds.Vinyl, ProductTypes.Musik)]
     [TestCase(Kinds.Kassette, ProductTypes.Musik)]
     [TestCase(Kinds.Superhelte, ProductTypes.Superhelte)]
-    [TestCase(Kinds.AndersAnd, ProductTypes.AndersAnd)]
+    [TestCase(Kinds.AndersAnd, ProductTypes.Serieblade)]
     [TestCase(Kinds.Jumbobog, ProductTypes.Jumbo)]
     [TestCase(Kinds.Magasin, ProductTypes.Andet)]
     [TestCase(Kinds.Tegneserie, ProductTypes.Tegneserier)]
     [TestCase(Kinds.Bog, ProductTypes.Boeger)]
     [TestCase(Kinds.Magic, ProductTypes.Magic)]
-    [TestCase(Kinds.Konsolspil, ProductTypes.Andet)]
+    [TestCase(Kinds.Konsolspil, ProductTypes.Computerspil)]
+    [TestCase(Kinds.Braetspil, ProductTypes.Braetspil)]
+    [TestCase(Kinds.Kortspil, ProductTypes.Braetspil)]
     public void Every_kind_belongs_to_one_product_type(string kind, string type) => ProductTypes.For(kind).Should().Be(type);
 
     [TestCase("Criminal Minds – The First Season", true)]
@@ -55,13 +57,60 @@ public class ProductTypeGoldTests
         Kinds.Normalise("Tegneserie", "Jonah Hex").Should().Be(Kinds.Superhelte, "a blad - shown as Serieblade");
         Kinds.Normalise("Tegneserie", "Kong Kylie").Should().Be(Kinds.Superhelte);
         Kinds.Normalise("Tegneserie", "Agent 327").Should().Be(Kinds.Tegneserie, "an album stays");
-        ProductTypes.For(Kinds.Superhelte).Should().Be("Serieblade");
-        Kinds.Label(Kinds.Superhelte).Should().Be("Serieblad");
+        ProductTypes.For(Kinds.Superhelte, "Jonah Hex").Should().Be(ProductTypes.Serieblade);
+        ProductTypes.For(Kinds.Superhelte, "Edderkoppen").Should().Be(ProductTypes.Superhelte);
+        Kinds.Label(Kinds.Superhelte).Should().Be("Blad");
+    }
+
+    // User 2026-11-03: "Serieblade is Anders And, basserne, jonah hex, kong kylie. Superhelte is Project X, Edderkoppen",
+    // "before 1990 all blade" = Gamle blade.
+    [TestCase(Kinds.AndersAnd, "Anders And & Co.", 1995, ProductTypes.Serieblade)]
+    [TestCase(Kinds.AndersAnd, "Anders And & Co.", 1968, ProductTypes.GamleBlade)]
+    [TestCase(Kinds.AndersAnd, "Anders And & Co.", null, ProductTypes.Serieblade)]
+    [TestCase(Kinds.Superhelte, "Kong Kylie", 1979, ProductTypes.GamleBlade)]
+    [TestCase(Kinds.Superhelte, "Basserne", 1992, ProductTypes.Serieblade)]
+    [TestCase(Kinds.Superhelte, "Project X", 2001, ProductTypes.Superhelte)]
+    [TestCase(Kinds.Superhelte, "Edderkoppen", 1985, ProductTypes.GamleBlade)]
+    [TestCase(Kinds.Tegneserie, "Lucky Luke", 1975, ProductTypes.Tegneserier)]
+    [TestCase(Kinds.Jumbobog, "", 1980, ProductTypes.Jumbo)]
+    public void Blade_go_by_series_and_year(string kind, string series, int? year, string type) =>
+        ProductTypes.For(kind, series, year).Should().Be(type);
+
+    [Test]
+    public void Responsible_per_category()
+    {
+        ProductTypes.Responsible(ProductTypes.Film).Should().Be("Rico");
+        ProductTypes.Responsible(ProductTypes.Tegneserier).Should().Be("Rico");
+        ProductTypes.Responsible(ProductTypes.Serieblade).Should().Be("Martin");
+        ProductTypes.Responsible(ProductTypes.GamleBlade).Should().Be("Martin");
+    }
+
+    [TestCase("Designing the User Interface", "", Languages.Engelsk)]
+    [TestCase("Farewell, Moonshadow", "", Languages.Dansk)]
+    [TestCase("Lawrence of Arabia", "", Languages.Engelsk)]
+    [TestCase("Se mig dog! og andre historier", "", Languages.Dansk)]
+    [TestCase("Kong Arthur – Director's Cut", "", Languages.Dansk)]
+    [TestCase("Anders And & Co.", "Anders And & Co.", Languages.Dansk)]
+    [TestCase("Stage Lighting Design", "", Languages.Dansk)]
+    public void Language_is_guessed_from_the_title(string title, string series, string language) =>
+        Languages.Guess(title, series).Should().Be(language);
+
+    [Test]
+    public void Touch_sorts_an_item_and_keeps_a_read_language()
+    {
+        var i = new Item { Kind = Kinds.AndersAnd, Series = "Anders And & Co.", Year = 1971, Title = "Anders And" };
+        i.Touch();
+        (i.Category, i.Language).Should().Be((ProductTypes.GamleBlade, Languages.Dansk));
+        var b = new Item { Kind = Kinds.Bog, Title = "Stage Lighting Design", Language = Languages.Engelsk };
+        b.Touch();
+        b.Language.Should().Be(Languages.Engelsk, "the reader said so - the guess never overrides it");
+        b.Classify().Should().BeFalse();
     }
 
     [Test]
     public void Every_product_type_with_a_service_has_a_gold_list() =>
-        Gold.Types.Should().BeEquivalentTo(ProductTypes.All.Where(t => t != ProductTypes.Andet));
+        // Gamle blade share the blade lists; Computerspil and Brætspil og kortspil have none yet (2026-11-03).
+        Gold.Types.Should().BeEquivalentTo(ProductTypes.All.Except([ProductTypes.Andet, ProductTypes.GamleBlade, ProductTypes.Computerspil, ProductTypes.Braetspil]));
 
     [Test]
     public void A_record_is_gold_by_its_title_and_the_record_player_is_not_counted()

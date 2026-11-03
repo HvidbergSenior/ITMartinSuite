@@ -28,6 +28,9 @@ public sealed class PriceHunterJob(IServiceScopeFactory scopes, IConfiguration c
                 // The deals follow the prices and the gold list (ShopDeals, 2026-10-31) - a plain pass over the stock.
                 var moved = await scope.ServiceProvider.GetRequiredService<StockForSaleUseCases>().RefreshDealsAsync(stop);
                 if (moved > 0) log.LogInformation("Deals: {Count} things moved", moved);
+                // Main categories + language (2026-11-03), also plain rules.
+                var sorted = await scope.ServiceProvider.GetRequiredService<ItemUseCases>().RefreshCategoriesAsync(stop);
+                if (sorted > 0) log.LogInformation("Categories: {Count} things sorted", sorted);
                 // Nothing waiting: look again in a minute (it was 10 - new items then sat unpriced for up to 10 minutes,
                 // 2026-10-12). The check is one small query.
                 if (ids.Count == 0) { await Task.Delay(TimeSpan.FromMinutes(1), stop); continue; }

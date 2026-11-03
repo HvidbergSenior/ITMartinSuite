@@ -40,11 +40,12 @@ public sealed class FakeStock : IStockGateway
     private void Check() { if (Down) throw new SalgException("Lageret svarer ikke lige nu. Prøv igen om lidt."); }
 
     public Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null)
+        string? band = null, string? category = null, string? language = null)
     {
         Check();
         LastBand = band;
-        var q = Items.Where(i => (kinds is null || kinds.Contains(i.Kind)) && (usage is null || i.Usage == usage)
+        var q = Items.Where(i => (kinds is null || kinds.Contains(i.Kind)) && (category is null || ProductTypes.For(i.Kind) == category)
+            && (usage is null || i.Usage == usage)
             && text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => i.Title.ToLowerInvariant().Contains(w)));
         q = sort switch
         {
@@ -59,7 +60,10 @@ public sealed class FakeStock : IStockGateway
 
     public Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null) => band is ShopDeals.NoPrice or ShopDeals.Unsure or ShopDeals.Rare ? Task.FromResult(new Dictionary<string, int>()) :
         Task.FromResult(Items.GroupBy(i => i.Kind).ToDictionary(g => g.Key, g => g.Count()));
-    public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string> kinds, CancellationToken ct, string? band = null) => Task.FromResult(new List<ShopGroup>());
+    public Task<Dictionary<string, int>> PerCategoryAsync(CancellationToken ct, string? band = null, string? language = null) =>
+        Task.FromResult(Items.GroupBy(i => ProductTypes.For(i.Kind)).ToDictionary(g => g.Key, g => g.Count()));
+    public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null, string? category = null,
+        string? language = null) => Task.FromResult(new List<ShopGroup>());
     public Task<Dictionary<string, int>> DealsAsync(CancellationToken ct) => Task.FromResult(new Dictionary<string, int>());
 
     public Task<StockItemPage?> ItemAsync(int id, CancellationToken ct) =>

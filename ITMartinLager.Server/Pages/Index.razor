@@ -21,11 +21,29 @@
         }
     </div>
     <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år, kasse (K5002) …" autofocus />
+    @* Main categories (user 2026-11-03: "split up in the main categories"); the kinds inside one show under it. *@
     <div class="lg-chips">
-        <button class="k-btn k-btn-sm @(_kind is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetKind(null)">Alle</button>
-        @foreach (var k in Kinds.All)
+        <button class="k-btn k-btn-sm @(_category is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetCategory(null)">Alle kategorier</button>
+        @foreach (var c in ProductTypes.All)
         {
-            <button class="k-btn k-btn-sm @(_kind == k ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetKind(k)">@Kinds.Icon(k) @k</button>
+            <button class="k-btn k-btn-sm @(_category == c ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetCategory(c)">@c</button>
+        }
+    </div>
+    @if (_category is not null && ProductTypes.KindsOf(_category) is { Length: > 1 } kinds)
+    {
+        <div class="lg-chips">
+            <button class="k-btn k-btn-sm @(_kind is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetKind(null)">Alle i @_category</button>
+            @foreach (var k in kinds)
+            {
+                <button class="k-btn k-btn-sm @(_kind == k ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetKind(k)">@Kinds.Icon(k) @k</button>
+            }
+        </div>
+    }
+    <div class="lg-chips">
+        <button class="k-btn k-btn-sm @(_language is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetLanguage(null)">Alle sprog</button>
+        @foreach (var l in Languages.All)
+        {
+            <button class="k-btn k-btn-sm @(_language == l ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetLanguage(l)">@l</button>
         }
     </div>
     <button class="k-btn k-btn-primary" @onclick="ShowInteresting">⭐ Alle interessante – guld, sølv, bronze og måske</button>
@@ -121,13 +139,13 @@
     private int _today, _week;
     private List<(Box Box, int Count)> _newBoxes = [];
     private string _scopeKey = "alle";
-    private ItemScope Scope => _scopeKey switch
+    private ItemScope Scope => (_scopeKey switch
     {
         "idag" => new ItemScope(SinceUtc: _todayUtc),
         "uge" => new ItemScope(SinceUtc: _weekUtc),
         var k when k.StartsWith("kasse-") && int.TryParse(k[6..], out var id) => new ItemScope(SinceUtc: _weekUtc, BoxId: id),
         _ => ItemScope.All,
-    };
+    }) with { Category = _category, Language = _language };
     private string ScopeWords => _scopeKey switch
     {
         "idag" => "blandt dagens nye",
@@ -135,23 +153,23 @@
         var k when k.StartsWith("kasse-") => "blandt de nye i " + (_newBoxes.FirstOrDefault(x => $"kasse-{x.Box.Id}" == k).Box?.Code ?? "kassen"),
         _ => "på lager",
     };
-    private async Task SetScope(string key)
-    {
-        _scopeKey = key;
-        if (_interesting is not null) await ShowInteresting(); else await Find();
-    }
+    private async Task SetScope(string key) { _scopeKey = key; await Refresh(); }
 
     private string? _valuation;
 
-    private async Task SetKind(string? k) { _kind = k; await Find(); }
-    private async Task SetValuation(string? v) { _valuation = v; await Find(); }
+    private async Task SetKind(string? k) { _kind = k; await Refresh(); }
+    private string? _category, _language;
+    private async Task SetCategory(string? c) { _category = c; _kind = null; await Refresh(); }
+    private async Task SetLanguage(string? l) { _language = l; await Refresh(); }
+    private async Task Refresh() { if (_interesting is not null) await ShowInteresting(); else await Find(); }
+    private async Task SetValuation(string? v) { _valuation = v; await Refresh(); }
 
     private List<(Item, string)>? _interesting;
     private int? _rank;
     private async Task ShowInteresting()
     {
         _hits = null;
-        _interesting = await Items.InterestingAsync(_gold, scope: Scope);
+        _interesting = (await Items.InterestingAsync(_gold, scope: Scope)).Where(x => _kind is null || x.Item1.Kind == _kind).ToList();
     }
 
     private List<GoldEntry> _gold = [];

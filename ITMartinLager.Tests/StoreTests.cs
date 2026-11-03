@@ -230,6 +230,10 @@ public class StoreTests
         (await Items.CountAsync("anders", null, null, default, new ItemScope(BoxId: old.Id))).Should().Be(1);
         (await Items.SearchAsync(old.Code.ToLower(), null, null, 100, default)).Count.Should().Be(1);
         (await Items.SearchAsync($"anders k{fresh.Number}", null, null, 100, default)).Count.Should().Be(2);
+        // Aa(..., 1968) = an Anders And blad from before 1990 = Gamle blade, in Danish.
+        (await Items.SearchAsync("", null, null, 100, default, new ItemScope(Category: ProductTypes.GamleBlade))).Count.Should().Be(3);
+        (await Items.SearchAsync("", null, null, 100, default, new ItemScope(Category: ProductTypes.Serieblade))).Should().BeEmpty();
+        (await Items.SearchAsync("", null, null, 100, default, new ItemScope(Language: Languages.Engelsk))).Should().BeEmpty();
         var perBox = await Items.NewPerBoxAsync(since, default);
         perBox.Select(x => (x.Box.Id, x.Count)).Should().BeEquivalentTo([(old.Id, 1), (fresh.Id, 2)]);
     }

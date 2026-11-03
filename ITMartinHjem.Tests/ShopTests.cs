@@ -22,7 +22,7 @@ public class ShopTests
             return Task.FromResult<(string?, string?)>(("https://checkout.stripe.com/x", null));
         }
         public Task<ShopOrder?> OrderAsync(string token, CancellationToken ct = default) => Task.FromResult<ShopOrder?>(null);
-        public Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default, string? price = null) =>
+        public Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default, string? price = null, string? language = null) =>
             down ? throw new HttpRequestException() : Task.FromResult(new ShopMarket(true, [new ShopType("Bøger", 1)], [], [Mort], 1));
         public Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default) =>
             down ? throw new HttpRequestException() : Task.FromResult(new ShopQuote(true, [new ShopQuoteLine(1, Mort.Line, 80, 40, "50 % på bøger")], 40, 40, [], []));

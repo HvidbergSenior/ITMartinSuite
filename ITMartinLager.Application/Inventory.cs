@@ -90,6 +90,15 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
             .Where(x => x.Note is not null).Select(x => (x.Item, x.Note!))
             .OrderBy(x => Gold.Rank(x.Item2)).ThenByDescending(x => x.Item.Price ?? x.Item.PriceHint ?? 0).ToList();
 
+    /// <summary>Puts every item in its main category and language (Item.Classify) - plain rules, no AI; the job runs it every
+    /// round, so rules changed in a new version reach the old rows. Returns how many changed.</summary>
+    public async Task<int> RefreshCategoriesAsync(CancellationToken ct = default)
+    {
+        var changed = (await items.AllAsync(ct)).Where(i => i.Classify()).ToList();
+        if (changed.Count > 0) await items.UpdateAsync(changed, ct);
+        return changed.Count;
+    }
+
     /// <summary>Boxes that got new items since this moment (the "Hvilke varer" chips on Søg).</summary>
     public Task<List<(Box Box, int Count)>> NewPerBoxAsync(DateTime sinceUtc, CancellationToken ct = default) =>
         items.NewPerBoxAsync(sinceUtc, ct);

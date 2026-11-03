@@ -30,7 +30,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     /// the product types with how much is for sale in each, today's offers, and one page of things - of one type, one
     /// kind or everything, matching the search.</summary>
     public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
-        string? price = null)
+        string? price = null, string? language = null)
     {
         // Each deal and "Ingen pris endnu" are categories of their own across every kind (ShopDeals, user 2026-10-31); a
         // product type shows only its priced things outside the deals. Alle (no type) = everything.
@@ -41,13 +41,16 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var withPrice = !across && price == ShopDeals.WithPrice;
         var priced = !across && (withPrice || ShopDeals.PriceBand(price) is not null);
         if (priced) band = withPrice ? ShopDeals.Single : price!;
-        IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)]
-            : !across && !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? ProductTypes.KindsOf(type) : null;
+        // A product type is a main category (Lager's Item.Category, 2026-11-03: kind + series + year - Gamle blade are the blade
+        // before 1990), so it is asked for as one; a kind narrows inside it. A language (Dansk/Engelsk) narrows everything.
+        IReadOnlyCollection<string>? kinds = !string.IsNullOrWhiteSpace(kind) ? [Kinds.Normalise(kind)] : null;
+        var category = !across && !string.IsNullOrWhiteSpace(type) && ProductTypes.All.Contains(type) ? type : null;
+        var lang = Languages.Normalise(language) is { Length: > 0 } l ? l : null;
         var found = await stock.ListedAsync(kinds, string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),
-            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct, kinds is null && !across && !priced ? null : band);
-        var perKind = await stock.PerKindAsync(ct, ShopDeals.Single);
-        var types = ProductTypes.All.Select(t => new ShopType(t, ProductTypes.KindsOf(t).Sum(k => perKind.GetValueOrDefault(k))))
-            .Where(t => t.Count > 0).ToList();
+            ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, page) * MaxResults, MaxResults, ct,
+            kinds is null && category is null && !across && !priced ? null : band, category, lang);
+        var perCategory = await stock.PerCategoryAsync(ct, ShopDeals.Single, lang);
+        var types = ProductTypes.All.Select(t => new ShopType(t, perCategory.GetValueOrDefault(t))).Where(t => t.Count > 0).ToList();
         var deals = await stock.DealsAsync(ct);
         // A per-piece deal (the 3 kr Anders And bin) is not a category - its things are not on the page, its packs are.
         types.AddRange(ShopDeals.Known.Where(d => !d.EveryPrice && deals.GetValueOrDefault(d.Name) > 0).Select(d => new ShopType(d.Name, deals[d.Name])));
@@ -60,7 +63,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var rare = (await stock.PerKindAsync(ct, ShopDeals.Rare)).Values.Sum();
         if (rare > 0) types.Insert(0, new ShopType(ShopDeals.RareName, rare));
         // Subgroups only inside one type or kind - for everything at once they would be too many to read.
-        var groups = kinds is null ? [] : await stock.GroupsAsync(kinds, ct, band);
+        var groups = kinds is null && category is null ? [] : await stock.GroupsAsync(kinds, ct, band, category, lang);
         return new ShopMarket(CanPay, types, await TodayAsync(ct), await ViewsAsync(found.Items, ct), found.Total, groups, packs);
     }
 
