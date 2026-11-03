@@ -146,10 +146,19 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
         {
             var w = word;
-            q = q.Where(i => i.Search.Contains(w));
+            // A box number (K5001, k12) means that box; another word may also be in the box's name (user 2026-11-03:
+            // "when searching I should be able to search for boxes" - fx "lystrup" for Session 2's box).
+            if (BoxWord.IsMatch(w))
+            {
+                var code = BoxCodes.For(BoxCodes.Number(w));
+                q = q.Where(i => i.Box != null && i.Box.Code == code);
+            }
+            else q = q.Where(i => i.Search.Contains(w) || (i.Box != null && i.Box.Note.ToLower().Contains(w)));
         }
         return q;
     }
+
+    private static readonly System.Text.RegularExpressions.Regex BoxWord = new(@"^k\d{1,4}$");
 
     // Shop.ForSale / Shop.Listed as SQL: in stock or for sale, copies left, a title (+ sure, or an unsure blad in the Blade
     // deal). With the box: a test box = only for show (Box.IsTest).

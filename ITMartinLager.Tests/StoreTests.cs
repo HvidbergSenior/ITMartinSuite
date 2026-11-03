@@ -228,6 +228,8 @@ public class StoreTests
         (await Items.SearchAsync("anders", null, null, 100, default, new ItemScope(SinceUtc: DateTime.UtcNow.AddMinutes(1)))).Should().BeEmpty();
         (await Items.SearchAsync("", null, null, 100, default, new ItemScope(BoxId: fresh.Id))).Count.Should().Be(2);
         (await Items.CountAsync("anders", null, null, default, new ItemScope(BoxId: old.Id))).Should().Be(1);
+        (await Items.SearchAsync(old.Code.ToLower(), null, null, 100, default)).Count.Should().Be(1);
+        (await Items.SearchAsync($"anders k{fresh.Number}", null, null, 100, default)).Count.Should().Be(2);
         var perBox = await Items.NewPerBoxAsync(since, default);
         perBox.Select(x => (x.Box.Id, x.Count)).Should().BeEquivalentTo([(old.Id, 1), (fresh.Id, 2)]);
     }

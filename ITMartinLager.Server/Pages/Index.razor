@@ -20,7 +20,7 @@
             <button class="k-btn k-btn-sm @(_scopeKey == key ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetScope(key)">@b.Code@(b.Note != "" ? $" – {b.Note}" : "") (@n nye)</button>
         }
     </div>
-    <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år …" autofocus />
+    <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år, kasse (K5002) …" autofocus />
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_kind is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetKind(null)">Alle</button>
         @foreach (var k in Kinds.All)
