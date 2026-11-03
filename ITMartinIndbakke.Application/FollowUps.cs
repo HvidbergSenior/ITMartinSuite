@@ -32,6 +32,14 @@ public sealed class FollowUps(IFollowUpStore store, MailScanner scanner, TimePro
         return null;
     }
 
+    /// <summary>"Alt er klaret" (user 2026-11-04: "all is klaret. Do i have to push klaret on all?") - everything shown now.</summary>
+    public int MarkAllDone()
+    {
+        var now = Now();
+        foreach (var i in now) store.Save(i.FollowUp.Done());
+        return now.Count;
+    }
+
     public string? Reopen(string messageId)
     {
         if (!Known(messageId)) return "Ukendt brev.";

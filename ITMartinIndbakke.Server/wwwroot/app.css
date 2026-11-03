@@ -30,4 +30,5 @@
 .ib-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .ib-filter .is-on { background: var(--k-accent); border-color: var(--k-accent); color: #fff; }
 .ib-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ib-alldone { margin-top: 12px; }
 .ib-login { display: flex; flex-direction: column; gap: 8px; max-width: 320px; }

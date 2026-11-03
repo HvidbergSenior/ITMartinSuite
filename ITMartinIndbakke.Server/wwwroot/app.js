@@ -59,6 +59,8 @@
     function renderNow(items) {
         var ul = $('ib-now');
         $('ib-now-card').hidden = false;
+        var all = $('ib-alldone');
+        all.hidden = items.length < 2; all.textContent = 'Alt er klaret'; all.removeAttribute('data-sure');
         if (!items.length) { ul.innerHTML = '<li>Intet haster lige nu.</li>'; return; }
         ul.innerHTML = items.map(function (i) {
             var m = i.mail;
@@ -166,6 +168,17 @@
         if (!act) return;
         if (act.getAttribute('data-act') === 'vis-laest') { form.hidden = !form.hidden; return; }
         if (act.getAttribute('data-act') === 'klaret') api('POST', '/api/klaret', { id: id }).then(load);
+    });
+
+    // Two presses, no browser dialog: first press asks, second press marks every line Klaret.
+    $('ib-alldone').addEventListener('click', function () {
+        var b = $('ib-alldone');
+        if (!b.hasAttribute('data-sure')) {
+            b.setAttribute('data-sure', '1');
+            b.textContent = 'Tryk igen: marker alle ' + $('ib-now').children.length + ' som klaret';
+            return;
+        }
+        api('POST', '/api/klaret-alle').then(load);
     });
 
     $('ib-now').addEventListener('submit', function (e) {
