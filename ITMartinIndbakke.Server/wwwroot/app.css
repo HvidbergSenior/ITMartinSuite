@@ -1,0 +1,33 @@
+/* Indbakke - the overview: Det haster nu on top, then Skal svares, then the senders. Text carries the meaning, not colour. */
+.ib-hero { text-align: center; }
+.ib-scanrow { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 12px; }
+.ib-scan { min-width: 220px; min-height: var(--k-tap); font-size: 17px; }
+.ib-months { display: flex; align-items: center; gap: 6px; color: var(--k-muted); }
+.ib-months .k-input { width: auto; }
+.ib-status { margin: 12px 0 0; min-height: 1.4em; }
+.ib-cats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+.ib-cat { border: 1px solid var(--k-border); border-radius: 999px; padding: 4px 12px; font-size: 15px; }
+.ib-cat b { font-variant-numeric: tabular-nums; }
+.ib-list { list-style: none; margin: 0; padding: 0; }
+.ib-list > li { padding: 12px 2px; border-bottom: 1px solid var(--k-border); }
+.ib-list > li:last-child { border-bottom: none; }
+.ib-top { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; }
+.ib-from { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.ib-date { color: var(--k-muted); font-size: 14px; flex: none; }
+.ib-subject { margin-top: 2px; overflow-wrap: anywhere; }
+.ib-sub { color: var(--k-muted); font-size: 14px; margin-top: 2px; }
+.ib-tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-right: 6px; border: 2px solid currentColor; }
+.ib-tag-over { color: #b71c1c; }
+.ib-tag-soon { color: #b45309; }
+.ib-tag-new { color: #b71c1c; }
+.ib-tag-ok { color: var(--k-muted); }
+[data-theme="dark"] .ib-tag-over, [data-theme="dark"] .ib-tag-new { color: #ff8a80; }
+[data-theme="dark"] .ib-tag-soon { color: #ffcc80; }
+.ib-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ib-read { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.ib-read .k-input { width: auto; min-width: 0; }
+.ib-read .ib-note { flex: 1; min-width: 140px; }
+.ib-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ib-filter .is-on { background: var(--k-accent); border-color: var(--k-accent); color: #fff; }
+.ib-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ib-login { display: flex; flex-direction: column; gap: 8px; max-width: 320px; }

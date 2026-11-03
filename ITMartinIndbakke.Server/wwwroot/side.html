@@ -1,0 +1,36 @@
+<section class="k-card ib-hero" data-nofold>
+    <h1>Ryd op i din mail</h1>
+    <p class="k-help">Se hvad der haster, hvem der venter på svar, og hvem der bare fylder.<br>Indbakke læser kun afsender, emne og dato – aldrig selve teksten. Den sletter og flytter intet.</p>
+    <div class="ib-scanrow">
+        <button type="button" class="k-btn k-btn-primary ib-scan" id="ib-scan">Scan min mail</button>
+        <label class="ib-months">Se
+            <select class="k-input" id="ib-months">
+                <option value="3">3 måneder</option>
+                <option value="6">6 måneder</option>
+                <option value="12" selected>12 måneder</option>
+                <option value="24">24 måneder</option>
+            </select>
+            tilbage</label>
+    </div>
+    <p class="ib-status" id="ib-status" aria-live="polite"></p>
+    <div class="ib-cats" id="ib-cats"></div>
+</section>
+
+<section class="k-card ib-now" id="ib-now-card" hidden>
+    <h2 class="k-card-title">Det haster nu</h2>
+    <p class="k-card-sub">Digital Post og breve fra a-kasse, Jobnet, kommune og bank. De bliver her, til du trykker <b>Klaret</b>. Har brevet en frist, så skriv datoen – så står det øverst, når det nærmer sig.</p>
+    <ul class="ib-list" id="ib-now"></ul>
+</section>
+
+<section class="k-card" id="ib-reply-card" hidden>
+    <h2 class="k-card-title">Skal svares</h2>
+    <p class="k-card-sub">Mails fra rigtige mennesker de sidste 60 dage, som du ikke har svaret på.</p>
+    <ul class="ib-list" id="ib-reply"></ul>
+</section>
+
+<section class="k-card" id="ib-senders-card" hidden>
+    <h2 class="k-card-title">Afsendere – hvem fylder mest</h2>
+    <p class="k-card-sub">Alle mails fra én afsender på én linje. <b>Kan afmeldes</b> betyder, at afsenderen tilbyder afmelding – snart med ét tryk her.</p>
+    <div class="ib-filter" id="ib-filter" role="group" aria-label="Vis afsendere"></div>
+    <ul class="ib-list" id="ib-senders"></ul>
+</section>
