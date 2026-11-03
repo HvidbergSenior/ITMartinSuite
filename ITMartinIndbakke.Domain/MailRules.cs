@@ -18,7 +18,7 @@ public static class MailRules
         "kommune.dk", "atp.dk", "udbetalingdanmark.dk", "star.dk", "jobnet.dk", "nets.eu", "mitid.nets.eu",
         "danskebank.dk", "nordea.dk", "nordea.com", "jyskebank.dk", "sydbank.dk", "spks.dk", "lsb.dk", "al-bank.dk", "arbejdernes-landsbank.dk",
         "nykredit.dk", "realkredit.dk", "totalkredit.dk", "lunar.app", "mobilepay.dk",
-        "ase.dk", "3f.dk", "krifa.dk", "dana.dk", "ca.dk", "hk.dk", "fta.dk", "min-a-kasse.dk", "akademikernes.dk", "magistrenes.dk",
+        "aka.dk", "ase.dk", "3f.dk", "krifa.dk", "dana.dk", "ca.dk", "hk.dk", "fta.dk", "min-a-kasse.dk", "akademikernes.dk", "magistrenes.dk",
     ];
 
     internal static readonly string[] UrgentWords =
@@ -45,16 +45,19 @@ public static class MailRules
         "postmaster", "alerts", "alert@", "automated", "system@", "info@", "nyhedsbrev", "newsletter", "news@", "marketing",
     ];
 
-    /// <summary>Sort one mail. <paramref name="wroteTo"/> = addresses the user has written to (from Sendt post).</summary>
-    public static MailCategory Categorize(MailHeader m, ISet<string> wroteTo)
+    /// <summary>Sort one mail. <paramref name="wroteTo"/> = addresses the user has written to (from Sendt post);
+    /// <paramref name="mine"/> = the user's own addresses (the From of Sendt post) - mail from yourself never waits for an answer.</summary>
+    public static MailCategory Categorize(MailHeader m, ISet<string> wroteTo, ISet<string>? mine = null)
     {
         var subject = m.Subject.ToLowerInvariant();
         var from = m.FromAddress.ToLowerInvariant();
+        if (mine?.Contains(from) == true) return MailCategory.Andet;
         var bulk = m.IsMailingList || m.CanUnsubscribe || m.Tab == GmailTab.Promotions;
 
         if (IsDigitalPost(m, subject)) return MailCategory.DigitalPost;
         if (IsAuthority(m.Domain) && !bulk) return MailCategory.Haster;
-        if (!bulk && ContainsAny(subject, UrgentWords)) return MailCategory.Haster;
+        // A deadline word counts from a person or an authority - not from a machine (Google's "Sikkerhedsunderretning" x 84).
+        if (!bulk && ContainsAny(subject, UrgentWords) && !m.IsAutomatic && !ContainsAny(from, MachineSenders)) return MailCategory.Haster;
 
         if (ContainsAny(subject, ReceiptWords) && !(m.Tab == GmailTab.Promotions)) return MailCategory.Kvitteringer;
 
@@ -90,9 +93,9 @@ public static class MailRules
     private static bool ContainsAny(string text, string[] words) => words.Any(text.Contains);
 
     /// <summary>The whole overview from the scanned headers.</summary>
-    public static MailOverview Build(IReadOnlyList<MailHeader> mails, ISet<string> wroteTo, int months, DateTimeOffset now)
+    public static MailOverview Build(IReadOnlyList<MailHeader> mails, ISet<string> wroteTo, int months, DateTimeOffset now, ISet<string>? mine = null)
     {
-        var sorted = mails.Select(m => (Mail: m, Category: Categorize(m, wroteTo))).ToList();
+        var sorted = mails.Select(m => (Mail: m, Category: Categorize(m, wroteTo, mine))).ToList();
 
         var perCategory = Enum.GetValues<MailCategory>().ToDictionary(c => c, c => sorted.Count(s => s.Category == c));
 

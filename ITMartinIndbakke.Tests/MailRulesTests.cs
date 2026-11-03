@@ -42,6 +42,18 @@ public class MailRulesTests
     }
 
     [Test]
+    public void My_own_mail_never_waits_for_reply()
+        => MailRules.Categorize(Mail("itmartin@mensa.dk", "Re: tilbud"), Nobody, new HashSet<string> { "itmartin@mensa.dk" }).Should().Be(MailCategory.Andet);
+
+    [Test]
+    public void Machine_security_notice_is_not_urgent()
+        => MailRules.Categorize(Mail("no-reply@accounts.google.com", "Sikkerhedsunderretning", auto: true), Nobody).Should().NotBe(MailCategory.Haster);
+
+    [Test]
+    public void Aka_is_urgent()
+        => MailRules.Categorize(Mail("kontakt@aka.dk", "Underretning", auto: true, tab: GmailTab.Updates), Nobody).Should().Be(MailCategory.Haster);
+
+    [Test]
     public void Private_mailbox_writing_to_me_is_a_person()
         => MailRules.Categorize(Mail("jytte@hotmail.com", "Spørgsmål om CD"), Nobody).Should().Be(MailCategory.SkalSvares);
 

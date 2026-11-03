@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace ITMartinIndbakke.Application;
 
 /// <summary>What the mailbox gives back: the inbox headers and who the user has written to (from Sendt post).</summary>
-public sealed record MailboxScan(IReadOnlyList<MailHeader> Inbox, ISet<string> WroteTo);
+public sealed record MailboxScan(IReadOnlyList<MailHeader> Inbox, ISet<string> WroteTo, ISet<string> Mine);
 
 /// <summary>The port to the mailbox. v1 is read-only: it never moves, flags or deletes anything.</summary>
 public interface IMailbox
@@ -50,7 +50,7 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(20));
             var progress = new Progress<(int Done, int Total)>(p => { Done = p.Done; Total = p.Total; });
             var scan = await mailbox.ScanAsync(months, progress, cts.Token);
-            Last = MailRules.Build(scan.Inbox, scan.WroteTo, months, clock.GetUtcNow());
+            Last = MailRules.Build(scan.Inbox, scan.WroteTo, months, clock.GetUtcNow(), scan.Mine);
             log.LogInformation("Indbakke scan: {Count} mails, {Senders} senders", Last.Total, Last.Senders.Count);
         }
         catch (Exception e)

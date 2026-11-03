@@ -30,14 +30,18 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
 
         // Who I have written to - "Sendt post" (found by its special-use flag, so the Danish/English name does not matter).
         var wroteTo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var mine = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { me };   // + every From in Sendt post = my aliases
         if ((client.Capabilities & ImapCapabilities.SpecialUse) != 0 && client.GetFolder(SpecialFolder.Sent) is { } sent)
         {
             await sent.OpenAsync(FolderAccess.ReadOnly, ct);
             var sentUids = await sent.SearchAsync(SearchQuery.DeliveredAfter(since.AddMonths(-12)), ct);
             foreach (var chunk in sentUids.Reverse().Take(5000).Chunk(500))
                 foreach (var s in await sent.FetchAsync(chunk, MessageSummaryItems.Envelope, ct))
+                {
+                    foreach (var f in s.Envelope.From.Mailboxes) mine.Add(f.Address.ToLowerInvariant());
                     foreach (var a in s.Envelope.To.Mailboxes.Concat(s.Envelope.Cc.Mailboxes))
                         if (!string.Equals(a.Address, me, StringComparison.OrdinalIgnoreCase)) wroteTo.Add(a.Address.ToLowerInvariant());
+                }
             await sent.CloseAsync(false, ct);
         }
 
@@ -65,7 +69,8 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         }
         await inbox.CloseAsync(false, ct);
         await client.DisconnectAsync(true, ct);
-        return new MailboxScan(mails, wroteTo);
+        wroteTo.ExceptWith(mine);
+        return new MailboxScan(mails, wroteTo, mine);
     }
 
     private static MailHeader ToHeader(IMessageSummary s, string me, Dictionary<uint, GmailTab> tabs)
