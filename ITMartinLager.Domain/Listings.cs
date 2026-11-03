@@ -2,7 +2,8 @@ namespace ITMartinLager.Domain;
 
 // One listing as found - the proof behind a price (user 2026-10-07: "it needs proof"). Original = the price as the
 // site shows it when it is not in kr ("9,37 EUR"), so the proof can be checked against the page.
-public sealed record Offer(string Name, decimal? Price, string Url, string Original = "");
+/// <summary>Image = the listing's own picture when the site gives it (2026-11-04, for the free picture matching).</summary>
+public sealed record Offer(string Name, decimal? Price, string Url, string Original = "", string Image = "");
 
 // Low-High = the realistic asking prices; Wild = the highest "urimelig internetpris" (over 3x the middle), if any.
 // Proof = up to 3 listings nearest the middle price. Ambiguous = the title is too broad to know they are this book

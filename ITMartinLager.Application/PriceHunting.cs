@@ -4,7 +4,8 @@ namespace ITMartinLager.Application;
 
 /// <summary>Asks every price site about one item and keeps what they said (2026-10-10, user: "as many places as possible
 /// ... facts are needed like 'found on X til 45 kr. Link'"). No AI - only the sites' own listings, each with its link.</summary>
-public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository prices, IEnumerable<IPriceSource> sources, TimeProvider clock)
+public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository prices, IEnumerable<IPriceSource> sources, TimeProvider clock,
+    ICoverPrinter? printer = null, IPhotoStore? photos = null)
 {
     private readonly List<IPriceSource> _sources = sources.ToList();
 
@@ -55,10 +56,21 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
 
         var now = clock.GetUtcNow().UtcDateTime;
         var result = HuntResult.From(itemId, answers, now, similar, Pricing.DanishOnly(item));
-        await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
         result.ApplyTo(item, now);
+        await CompareCoversAsync(item, result.Finds, ct);
+        await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
         await items.UpdateAsync([item], ct);
         return result.Answered;
+    }
+
+    /// <summary>The free picture matching (user 2026-11-04): for a thing a person prices (CoverPrints.Worth), each listing picture
+    /// gets a score for how alike it looks to our own picture - so the same edition stands out. At most CoverPrints.MaxPerItem.</summary>
+    private async Task CompareCoversAsync(Item item, List<PriceFind> finds, CancellationToken ct)
+    {
+        if (printer is null || photos is null || !CoverPrints.Worth(item)) return;
+        if (await photos.ReadAsync(item.ItemPhoto, ct) is not { } ours || printer.Of(ours) is not { } mine) return;
+        foreach (var f in finds.Where(f => f.Image != "").OrderBy(f => f.Similar).ThenByDescending(f => f.Kr).Take(CoverPrints.MaxPerItem))
+            if (await printer.OfUrlAsync(f.Image, ct) is { } theirs) f.Look = CoverPrints.Similarity(mine, theirs);
     }
 
     private async Task<List<SourceAnswer>> AskAllAsync(Item item, string title, string isbn, CancellationToken ct)

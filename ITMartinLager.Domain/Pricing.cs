@@ -679,7 +679,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             finds.AddRange(Kept(a).Select(o => new PriceFind
             {
                 ItemId = itemId, Source = a.Source, IsNew = a.IsNew, Name = Cut(o.Name, 300), Kr = (int)o.Price!.Value,
-                Original = o.Original, Url = Pricing.CleanUrl(o.Url), FoundAt = now,
+                Original = o.Original, Url = Pricing.CleanUrl(o.Url), FoundAt = now, Image = Cut(o.Image, 500),
             }));
         }
         // Every matching listing counts for the price (the kept ones are only a sample for the links).
@@ -695,7 +695,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             finds.AddRange(Pricing.Keep(a.Result!, a.Source).Select(o => new PriceFind
             {
                 ItemId = itemId, Source = a.Source, Name = Cut(o.Name, 300), Kr = (int)o.Price!.Value, Original = o.Original,
-                Url = Pricing.CleanUrl(o.Url), FoundAt = now, Similar = true,
+                Url = Pricing.CleanUrl(o.Url), FoundAt = now, Similar = true, Image = Cut(o.Image, 500),
             }));
         // One link per listing (the same eBay listing came from both ebay.de and ebay.com).
         finds = finds.DistinctBy(f => (Pricing.ListingKey(f.Url), f.Similar)).ToList();

@@ -333,6 +333,11 @@ else
             <a class="lg-find" href="@f.Url" target="_blank" rel="noopener">
                 <b>@f.Kr kr</b>@(f.Original != "" ? $" ({f.Original})" : "")@(f.IsNew ? " – ny" : "") · @f.Name
                 <span class="k-small k-muted">på @f.Source – tryk for at se varen</span>
+                @* The free picture matching (2026-11-04): how alike the listing's picture looks to our cover - a hint, not proof. *@
+                @if (f.Look is { } look)
+                {
+                    <span class="k-small @(look >= CoverPrints.AlikeFrom ? "lg-ok" : "k-muted")">Billedet ligner vores: @look %@(look >= CoverPrints.AlikeFrom ? " – måske samme udgave" : "")</span>
+                }
             </a>
             @if (flag != "") { <span class="lg-flag-text">⚠ @flag</span> }
         </li>

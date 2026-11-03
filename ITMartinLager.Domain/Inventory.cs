@@ -363,6 +363,9 @@ public sealed class PriceFind
     // "Magen til" (user 2026-10-12): not this exact one - the same title in another årgang/issue/edition. Shown as a
     // pointer when nothing exact is for sale, never used as proof for our price.
     public bool Similar { get; set; }
+    /// <summary>The listing's own picture, and how alike it looks to our cover, 0-100 (CoverPrints; null = not compared).</summary>
+    public string Image { get; set; } = "";
+    public int? Look { get; set; }
 }
 
 // AI calls per day - the hard cap on spend lives in the database, so a restart does not reset it.

@@ -45,7 +45,7 @@ public static partial class ListingParse
                         if (cur != "DKK") original = Original(price, cur);
                     }
                 }
-                offers.Add(new Offer(name, kr, link, original));
+                offers.Add(new Offer(name, kr, link, original, ImageOf(item)));
             }
         }
         return Summarise(offers, url, !anyName && match.Ambiguous);
@@ -67,6 +67,19 @@ public static partial class ListingParse
     }
 
     // The price as the site shows it, for the proof line: "9,37 EUR".
+    /// <summary>The listing's picture in schema.org: a string, a list of strings, or an object with url.</summary>
+    private static string ImageOf(JsonElement item)
+    {
+        if (!item.TryGetProperty("image", out var im)) return "";
+        var first = im.ValueKind == JsonValueKind.Array ? im.EnumerateArray().FirstOrDefault() : im;
+        return first.ValueKind switch
+        {
+            JsonValueKind.String => first.GetString() ?? "",
+            JsonValueKind.Object when first.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String => u.GetString() ?? "",
+            _ => "",
+        };
+    }
+
     public static string Original(decimal price, string currency) =>
         price.ToString("0.00", CultureInfo.GetCultureInfo("da-DK")) + " " + currency;
 

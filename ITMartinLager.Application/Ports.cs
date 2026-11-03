@@ -29,6 +29,13 @@ public interface IBookValuer
 }
 
 /// <summary>Claude: reads piles of covers and kolofons, writes collector texts - batched, under the daily cap.</summary>
+/// <summary>Free cover fingerprints (2026-11-04): our picture and a listing's picture, compared by CoverPrints. Null = no picture.</summary>
+public interface ICoverPrinter
+{
+    CoverPrint? Of(byte[] jpeg);
+    Task<CoverPrint?> OfUrlAsync(string url, CancellationToken ct);
+}
+
 public interface ICoverReader
 {
     bool Enabled { get; }
