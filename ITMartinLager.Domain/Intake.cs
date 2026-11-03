@@ -26,6 +26,23 @@ public sealed class BoxShot
 }
 
 /// <summary>A barcode scanned into a box in Vareinfo; looked up (free sites, no AI) on Læs.</summary>
+/// <summary>A kolofon page (or back cover) read with a box's photos that found no book yet (2026-11-03: the TestMartin test took the
+/// kolofon of "Sallies historier" BEFORE its cover). It waits in its box and goes on the book when the cover has been read.</summary>
+public sealed class KolofonPage
+{
+    public int Id { get; set; }
+    public int BoxId { get; set; }
+    public string Title { get; set; } = "";
+    public string Author { get; set; } = "";
+    public string Isbn { get; set; } = "";
+    public string Edition { get; set; } = "";
+    public int? Year { get; set; }
+    public string Publisher { get; set; } = "";
+    public string Note { get; set; } = "";
+    public string PhotoPath { get; set; } = "";
+    public DateTime ReadAt { get; set; }
+}
+
 public sealed class BoxScan
 {
     public int Id { get; set; }

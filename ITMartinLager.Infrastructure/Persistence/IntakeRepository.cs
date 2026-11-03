@@ -88,5 +88,28 @@ public sealed class IntakeRepository(IDbContextFactory<LagerDb> dbf) : IIntakeRe
         await using var db = await dbf.CreateDbContextAsync(ct);
         await db.BoxShots.Where(x => x.BoxCode == boxCode).ExecuteDeleteAsync(ct);
         await db.BoxScans.Where(x => x.BoxCode == boxCode).ExecuteDeleteAsync(ct);
+        if (await db.Boxes.Where(b => b.Code == boxCode).Select(b => (int?)b.Id).FirstOrDefaultAsync(ct) is { } id)
+            await db.KolofonPages.Where(p => p.BoxId == id).ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<List<KolofonPage>> WaitingPagesAsync(int boxId, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.KolofonPages.Where(p => p.BoxId == boxId).OrderBy(p => p.Id).ToListAsync(ct);
+    }
+
+    public async Task AddPagesAsync(IEnumerable<KolofonPage> pages, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.KolofonPages.AddRange(pages);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task RemovePagesAsync(IEnumerable<KolofonPage> pages, CancellationToken ct)
+    {
+        var ids = pages.Select(p => p.Id).Where(id => id > 0).ToList();
+        if (ids.Count == 0) return;
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.KolofonPages.Where(p => ids.Contains(p.Id)).ExecuteDeleteAsync(ct);
     }
 }

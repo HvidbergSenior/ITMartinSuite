@@ -56,6 +56,11 @@ public static class LagerDbInitializer
                 "Quantity" INTEGER NOT NULL, "TakenAt" TEXT NOT NULL, "Wanted" INTEGER NOT NULL, "ReadAt" TEXT NULL, "Known" INTEGER NOT NULL);
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_BoxScans_VareinfoId" ON "BoxScans" ("VareinfoId");
             CREATE INDEX IF NOT EXISTS "IX_BoxScans_BoxCode" ON "BoxScans" ("BoxCode");
+            CREATE TABLE IF NOT EXISTS "KolofonPages" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_KolofonPages" PRIMARY KEY AUTOINCREMENT,
+                "BoxId" INTEGER NOT NULL, "Title" TEXT NOT NULL, "Author" TEXT NOT NULL, "Isbn" TEXT NOT NULL, "Edition" TEXT NOT NULL,
+                "Year" INTEGER NULL, "Publisher" TEXT NOT NULL, "Note" TEXT NOT NULL, "PhotoPath" TEXT NOT NULL, "ReadAt" TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS "IX_KolofonPages_BoxId" ON "KolofonPages" ("BoxId");
             CREATE TABLE IF NOT EXISTS "SaleBookings" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_SaleBookings" PRIMARY KEY AUTOINCREMENT,
                 "Ref" TEXT NOT NULL, "BookedAt" TEXT NOT NULL);

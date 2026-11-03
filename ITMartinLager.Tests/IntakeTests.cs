@@ -190,4 +190,33 @@ public class IntakeTests
         FundRules.Rows([I("Billig", 15), I("Venter", null, priced: false), I("Dyr", 250), I("Mellem", 60)], [])
             .Select(r => r.Item.Title).Should().Equal("Dyr", "Mellem", "Billig", "Venter");
     }
+
+    [Test]
+    public async Task A_kolofon_page_taken_before_the_cover_waits_and_lands_on_the_book()
+    {
+        // Live 2026-11-03 (TestMartin): the kolofon of "Sallies historier" came before its cover, and a back cover became a thing.
+        var batch = new CaptureBatch([new CapturedPhoto(21, "K9999", "TestMartin", 0, At), new CapturedPhoto(22, "K9999", "TestMartin", 0, At),
+            new CapturedPhoto(23, "K9999", "TestMartin", 0, At)], []);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        var kolofon = F("Sallies historier") with { Artist = "Kim Fupz Aakeson", Kolofon = true, Edition = "1. oplag, 2. udgave", Barcode = "9788762601819", Year = 2007, Publisher = "Carlsen" };
+        var back = new Found(Kinds.Bog, "", "", "", "", null, "", "God", 1, 0.5, "", Barcode: "9788762601819", Kolofon: true);
+        reader.SetupSequence(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([kolofon])
+            .ReturnsAsync([F("Sallies historier") with { Artist = "Kim Fupz Aakeson" }])
+            .ReturnsAsync([back]);
+        var intake = new IntakeUseCases(Vareinfo(batch).Object, new IntakeRepository(Factory), Boxes, new RegistrationUseCases(Items), reader.Object,
+            Mock.Of<IBarcodeLookup>(), TimeProvider.System, items: Items);
+        await intake.FetchAsync();
+        await intake.WantReadAsync("K9999");
+        await intake.ReadWantedAsync();
+
+        var box = await Boxes.ByCodeAsync("K9999", default);
+        var inBox = await Items.InBoxAsync(box!.Id, default);
+        inBox.Should().ContainSingle("the kolofon page and the back cover are not things of their own");
+        var book = inBox[0];
+        (book.Title, book.Edition, book.Barcode, book.Publisher, book.Year).Should().Be(("Sallies historier", "1. oplag, 2. udgave", "9788762601819", "Carlsen", 2007));
+        book.KolofonAt.Should().NotBeNull();
+        (await new IntakeRepository(Factory).WaitingPagesAsync(box.Id, default)).Should().BeEmpty("the back cover matched by ISBN");
+    }
 }

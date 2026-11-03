@@ -17,6 +17,7 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
     public DbSet<KioskPrice> KioskPrices => Set<KioskPrice>();
     public DbSet<BoxShot> BoxShots => Set<BoxShot>();
     public DbSet<BoxScan> BoxScans => Set<BoxScan>();
+    public DbSet<KolofonPage> KolofonPages => Set<KolofonPage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

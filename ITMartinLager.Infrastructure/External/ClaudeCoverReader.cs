@@ -58,7 +58,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                           "edition_hint": { "type": "string", "enum": {{JsonSerializer.Serialize(EditionHints.All)}},
                                             "description": "Books only: what the cover/spine itself shows about the edition, else empty" },
                           "kolofon":    { "type": "boolean",
-                                          "description": "true when the photo shows an INSIDE page of ONE book (the colophon behind the title page, the title page, or the last page with printing details) - not its cover or spine" },
+                                          "description": "true when the photo shows an INSIDE page of ONE book (the colophon behind the title page, the title page, the last page with printing details) or its BACK cover - not its front cover or spine" },
                           "edition":    { "type": "string", "description": "Only for a kolofon page: edition and printing as printed, e.g. '1. udgave, 1. oplag', '3. oplag 1972'. Empty if not printed." },
                           "isbn":       { "type": "string", "description": "Only for a kolofon page: the ISBN as printed, else empty" },
                           "area":       { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4,
@@ -127,6 +127,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
           tryk-oplysninger), så er det ÉN post med kolofon = true: titel og forfatter som de står på siden, edition =
           udgave og oplag ordret ("1. udgave, 1. oplag", "3. oplag 1972"), isbn som trykt, year = årstallet for udgaven,
           publisher = forlaget. Ellers kolofon = false og edition/isbn tomme. Gæt aldrig en udgave.
+        - En BAGSIDE af en bog (ingen titel på forsiden at se, tekst om bogen, stregkode/ISBN) er IKKE en ny vare: kolofon = true,
+          isbn fra stregkoden, titel og forfatter kun hvis de står der. Opfind aldrig en titel ud fra teksten på bagsiden.
         """;
 
     public async Task<int> CallsTodayAsync(CancellationToken ct)

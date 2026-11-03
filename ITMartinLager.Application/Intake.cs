@@ -119,30 +119,45 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         var placed = new List<(Item Item, Found Found)>();
         await registration.SaveAsync(box.Id, photoId, clean, ct, placed, box.Fund ? Statuses.Fund : null);
         if (pile is not null) await CutOutAsync(pile, placed, ct);
-        if (pages.Count > 0) await AddKolofonPagesAsync(box.Id, photoId, pages, pile, ct);
+        if (pages.Count > 0 || placed.Count > 0) await AddKolofonPagesAsync(box.Id, photoId, pages, pile, ct);
     }
 
     /// <summary>Kolofon pages a helper photographed with the box (2026-11-03): each goes on its book in the box - several pages of
-    /// one book add up. A page that fits no book (or several) is left; the photo is still in Vareinfo.</summary>
+    /// one book add up. The order does not matter: a page that fits no book yet waits in its box (KolofonPage) and is tried again
+    /// every time things are read into the box. Its photo is kept from the start.</summary>
     private async Task AddKolofonPagesAsync(int boxId, int? photoId, List<Found> pages, byte[]? pile, CancellationToken ct)
     {
         if (items is null) return;
-        var inBox = await items.InBoxAsync(boxId, ct);
         var now = clock.GetUtcNow().UtcDateTime;
-        var changed = new List<Item>();
-        foreach (var p in pages)
+        var fresh = new List<KolofonPage>();
+        for (var n = 0; n < pages.Count; n++)
         {
-            if (Kolofon.MatchPage(inBox, p.Title, p.Artist, p.Barcode) is not { } book) continue;
+            var p = pages[n];
             var path = "";
             if (photos is not null && pile is not null)
             {
-                path = Path.Combine("photos", "kolofon", $"{book.Id}-{photoId ?? 0}.jpg");
+                path = Path.Combine("photos", "kolofon", $"box{boxId}-{photoId ?? 0}-{n}.jpg");
                 await photos.SaveAsync(path, pile, ct);
             }
-            Kolofon.AddPage(book, new KolofonReading(p.Barcode, p.Edition, p.Year, p.Publisher, p.Note), path, now);
+            fresh.Add(new KolofonPage { BoxId = boxId, Title = p.Title, Author = p.Artist, Isbn = p.Barcode, Edition = p.Edition, Year = p.Year,
+                Publisher = p.Publisher, Note = p.Note, PhotoPath = path, ReadAt = now });
+        }
+        var waiting = await intake.WaitingPagesAsync(boxId, ct);
+        if (fresh.Count == 0 && waiting.Count == 0) return;
+        var inBox = await items.InBoxAsync(boxId, ct);
+        var changed = new List<Item>();
+        var used = new List<KolofonPage>();
+        foreach (var page in waiting.Concat(fresh))
+        {
+            if (Kolofon.MatchPage(inBox, page.Title, page.Author, page.Isbn) is not { } book) continue;
+            Kolofon.AddPage(book, new KolofonReading(page.Isbn, page.Edition, page.Year, page.Publisher, page.Note), page.PhotoPath, now);
             if (!changed.Contains(book)) changed.Add(book);
+            used.Add(page);
         }
         if (changed.Count > 0) await items.UpdateAsync(changed, ct);
+        await intake.RemovePagesAsync(used.Where(waiting.Contains), ct);
+        var left = fresh.Where(p => !used.Contains(p)).ToList();
+        if (left.Count > 0) await intake.AddPagesAsync(left, ct);
     }
 
     // Each thing gets its own picture, cut out of the pile photo where the reader saw it (user 2026-10-31: "there should

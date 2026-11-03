@@ -88,6 +88,10 @@ public interface IIntakeRepository
     Task UpdateAsync(IEnumerable<BoxScan> scans, CancellationToken ct);
     /// <summary>The photos and scans that came from Vareinfo for this box (a deleted box).</summary>
     Task ForgetBoxAsync(string boxCode, CancellationToken ct);
+    /// <summary>Kolofon pages that found no book yet, per box.</summary>
+    Task<List<KolofonPage>> WaitingPagesAsync(int boxId, CancellationToken ct);
+    Task AddPagesAsync(IEnumerable<KolofonPage> pages, CancellationToken ct);
+    Task RemovePagesAsync(IEnumerable<KolofonPage> pages, CancellationToken ct);
 }
 
 /// <summary>Photo files in the data folder. Paths are relative to it.</summary>
