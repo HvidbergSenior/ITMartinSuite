@@ -106,6 +106,27 @@ public sealed class JsonFollowUpStore(string path) : IFollowUpStore
     private readonly object _gate = new();
     private Dictionary<string, FollowUp>? _items;
 
+    private string BaselinePath => Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path))!, "grundlinje.txt");
+
+    /// <summary>The base line as one ISO date in grundlinje.txt; null = no line (the old file is kept as .fortrudt).</summary>
+    public DateTimeOffset? Baseline
+    {
+        get
+        {
+            lock (_gate)
+                return File.Exists(BaselinePath) && DateTimeOffset.TryParse(File.ReadAllText(BaselinePath).Trim(), out var d) ? d : null;
+        }
+        set
+        {
+            lock (_gate)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(BaselinePath)!);
+                if (value is { } v) File.WriteAllText(BaselinePath, v.ToString("O"));
+                else if (File.Exists(BaselinePath)) File.Move(BaselinePath, BaselinePath + ".fortrudt", overwrite: true);
+            }
+        }
+    }
+
     public IReadOnlyDictionary<string, FollowUp> All()
     {
         lock (_gate) return new Dictionary<string, FollowUp>(Load());

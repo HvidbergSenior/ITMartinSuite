@@ -43,13 +43,16 @@ public static class UrgentRules
     /// An untouched one shows for <paramref name="newDays"/> days - so the first scan of a year is not 80 old e-Boks notices.
     /// </summary>
     public static IReadOnlyList<UrgentItem> Now(IEnumerable<(MailHeader Mail, MailCategory Category)> mails,
-        IReadOnlyDictionary<string, FollowUp> followUps, DateOnly today, int newDays = 45)
+        IReadOnlyDictionary<string, FollowUp> followUps, DateOnly today, int newDays = 45, DateTimeOffset? baseline = null)
     {
         return mails
             .Where(m => m.Category is MailCategory.DigitalPost or MailCategory.Haster)
             .Select(m => new UrgentItem(m.Mail, m.Category,
                 followUps.TryGetValue(m.Mail.MessageId, out var f) ? f : FollowUp.New(m.Mail.MessageId)))
             .Where(i => i.FollowUp.Status != FollowUpStatus.Klaret)
+            // The base line (user 2026-11-04: "a base button - all mails before this are handled"): older mails are gone,
+            // except the ones the user gave a deadline - those were chosen on purpose.
+            .Where(i => baseline is null || i.Mail.Date >= baseline || i.FollowUp is { Status: FollowUpStatus.Laest, Deadline: not null })
             .Where(i => i.FollowUp.Status != FollowUpStatus.Ny || DateOnly.FromDateTime(i.Mail.Date.UtcDateTime) >= today.AddDays(-newDays))
             .OrderBy(i => Rank(i, today))
             .ThenBy(i => i.DaysLeft(today) ?? int.MaxValue)

@@ -113,6 +113,15 @@ public class FollowUpTests
     }
 
     [Test]
+    public void Baseline_hides_older_mails_but_keeps_my_deadlines()
+    {
+        var mails = new[] { Post("gammel", 10), Post("gammelFrist", 10), Post("ny", 1) };
+        var f = new Dictionary<string, FollowUp> { ["gammelFrist"] = FollowUp.New("gammelFrist").Read(Today.AddDays(5), null) };
+        var line = new DateTimeOffset(Today.AddDays(-3).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        UrgentRules.Now(mails, f, Today, baseline: line).Select(i => i.Mail.MessageId).Should().Equal("gammelFrist", "ny");
+    }
+
+    [Test]
     public void Note_is_short()
         => FollowUp.New("x").Read(null, new string('a', 200)).Note.Length.Should().Be(FollowUp.MaxNote);
 }

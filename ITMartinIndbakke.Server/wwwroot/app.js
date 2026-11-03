@@ -56,11 +56,19 @@
         return '<span class="ib-tag ib-tag-ok">Læst – ingen frist</span>';
     }
 
+    function renderBaseline(iso) {
+        var p = $('ib-baseline'), b = $('ib-alldone');
+        b.textContent = 'Alt før i dag er klaret'; b.removeAttribute('data-sure');
+        if (!iso) { p.hidden = true; return; }
+        p.hidden = false;
+        p.innerHTML = 'Alt før ' + new Date(iso).toLocaleString('da-DK', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) +
+            ' er klaret – kun breve, der kommer efter, står her (og dem, du har sat en frist på). ' +
+            '<button type="button" class="k-btn k-btn-sm" id="ib-baseline-undo">Fortryd</button>';
+    }
+
     function renderNow(items) {
         var ul = $('ib-now');
         $('ib-now-card').hidden = false;
-        var all = $('ib-alldone');
-        all.hidden = items.length < 2; all.textContent = 'Alt er klaret'; all.removeAttribute('data-sure');
         if (!items.length) { ul.innerHTML = '<li>Intet haster lige nu.</li>'; return; }
         ul.innerHTML = items.map(function (i) {
             var m = i.mail;
@@ -125,7 +133,7 @@
             data = d;
             status(num(d.ialt) + ' mails de sidste ' + d.maaneder + ' måneder · ' + num(d.ulaeste) + ' ulæste · scannet ' +
                 new Date(d.scannet).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
-            renderCats(); renderNow(d.hasterNu); renderReply(d.skalSvares); renderSenders();
+            renderCats(); renderBaseline(d.grundlinje); renderNow(d.hasterNu); renderReply(d.skalSvares); renderSenders();
         });
     }
 
@@ -170,15 +178,18 @@
         if (act.getAttribute('data-act') === 'klaret') api('POST', '/api/klaret', { id: id }).then(load);
     });
 
-    // Two presses, no browser dialog: first press asks, second press marks every line Klaret.
+    // The base line - two presses, no browser dialog: the first asks, the second sets "everything before now is handled".
     $('ib-alldone').addEventListener('click', function () {
         var b = $('ib-alldone');
         if (!b.hasAttribute('data-sure')) {
             b.setAttribute('data-sure', '1');
-            b.textContent = 'Tryk igen: marker alle ' + $('ib-now').children.length + ' som klaret';
+            b.textContent = 'Tryk igen: alt før nu er klaret';
             return;
         }
-        api('POST', '/api/klaret-alle').then(load);
+        api('POST', '/api/grundlinje').then(load);
+    });
+    $('ib-baseline').addEventListener('click', function (e) {
+        if (e.target.id === 'ib-baseline-undo') api('POST', '/api/grundlinje/fortryd').then(load);
     });
 
     $('ib-now').addEventListener('submit', function (e) {

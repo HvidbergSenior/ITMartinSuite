@@ -26,7 +26,7 @@ builder.Services.AddKolibri(k =>
     k.HowTo =
     [
         "Tryk på Scan min mail. Det tager et par minutter første gang.",
-        "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt er klaret for dem alle på én gang.",
+        "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
         "Under Skal svares står mails fra rigtige mennesker, som du ikke har svaret på endnu.",
         "Under Afsendere kan du se, hvem der sender mest. Står der Kan afmeldes, kan du snart afmelde med ét tryk.",
     ];
@@ -78,7 +78,7 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <title>Indbakke</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
         <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=2">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script>
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=3" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
@@ -116,6 +116,7 @@ api.MapGet("/oversigt", (MailScanner s, FollowUps follow, TimeProvider clock) =>
     };
     return Results.Ok(new
     {
+        grundlinje = follow.Baseline,
         scannet = o.ScannedAt, maaneder = o.Months, ialt = o.Total, ulaeste = o.Unread,
         kategorier = o.PerCategory.ToDictionary(k => k.Key.ToString(), k => k.Value),
         hasterNu = follow.Now().Select(i => new
@@ -134,7 +135,8 @@ api.MapGet("/oversigt", (MailScanner s, FollowUps follow, TimeProvider clock) =>
 
 api.MapPost("/laest", (FollowUpForm f, FollowUps follow) => Answer(follow.MarkRead(f.Id, f.Frist, f.Note)));
 api.MapPost("/klaret", (FollowUpForm f, FollowUps follow) => Answer(follow.MarkDone(f.Id)));
-api.MapPost("/klaret-alle", (FollowUps follow) => Results.Ok(new { antal = follow.MarkAllDone() }));
+api.MapPost("/grundlinje", (FollowUps follow) => { follow.SetBaseline(); return Results.Ok(new { ok = true }); });
+api.MapPost("/grundlinje/fortryd", (FollowUps follow) => { follow.ClearBaseline(); return Results.Ok(new { ok = true }); });
 api.MapPost("/fortryd", (FollowUpForm f, FollowUps follow) => Answer(follow.Reopen(f.Id)));
 static IResult Answer(string? error) => error is null ? Results.Ok(new { ok = true }) : Results.BadRequest(new { fejl = error });
 

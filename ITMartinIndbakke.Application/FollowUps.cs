@@ -7,6 +7,7 @@ public interface IFollowUpStore
 {
     IReadOnlyDictionary<string, FollowUp> All();
     void Save(FollowUp followUp);
+    DateTimeOffset? Baseline { get; set; }
 }
 
 /// <summary>"Det haster nu" + the three presses: Læst (with an optional deadline), Klaret, and Fortryd.</summary>
@@ -15,7 +16,7 @@ public sealed class FollowUps(IFollowUpStore store, MailScanner scanner, TimePro
     private DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 
     public IReadOnlyList<UrgentItem> Now() =>
-        scanner.Last is { } o ? UrgentRules.Now(o.Important, store.All(), Today) : [];
+        scanner.Last is { } o ? UrgentRules.Now(o.Important, store.All(), Today, baseline: store.Baseline) : [];
 
     public string? MarkRead(string messageId, DateOnly? deadline, string? note)
     {
@@ -32,13 +33,13 @@ public sealed class FollowUps(IFollowUpStore store, MailScanner scanner, TimePro
         return null;
     }
 
-    /// <summary>"Alt er klaret" (user 2026-11-04: "all is klaret. Do i have to push klaret on all?") - everything shown now.</summary>
-    public int MarkAllDone()
-    {
-        var now = Now();
-        foreach (var i in now) store.Save(i.FollowUp.Done());
-        return now.Count;
-    }
+    /// <summary>"Alt før i dag er klaret" - the base line (user 2026-11-04: "all is klaret. Do i have to push klaret on all?"
+    /// + "a base button. Meaning all mails before this are handled"). One date, not one press per mail.</summary>
+    public DateTimeOffset? Baseline => store.Baseline;
+
+    public void SetBaseline() => store.Baseline = clock.GetUtcNow();
+
+    public void ClearBaseline() => store.Baseline = null;
 
     public string? Reopen(string messageId)
     {
