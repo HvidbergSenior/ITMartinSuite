@@ -264,12 +264,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     }
 
     public async Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null, string? category = null, string? language = null)
+        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         var q = band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band);
         if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
-        q = InCategory(q, category, language);
+        q = InCategory(q, categories, language);
         if (usage is not null) q = q.Where(i => i.Usage == usage);
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))
         {
@@ -297,10 +297,11 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return OnPage(db).Where(i => ids.Contains(i.Id));
     }
 
-    // One main category and/or one language (Item.Category / Item.Language, 2026-11-03).
-    private static IQueryable<Item> InCategory(IQueryable<Item> q, string? category, string? language)
+    // One or more main categories and/or one language (Item.Category / Item.Language, 2026-11-03: "Interested in books and
+    // dvds... Only those products").
+    private static IQueryable<Item> InCategory(IQueryable<Item> q, IReadOnlyCollection<string>? categories, string? language)
     {
-        if (!string.IsNullOrEmpty(category)) q = q.Where(i => i.Category == category);
+        if (categories is { Count: > 0 }) q = q.Where(i => categories.Contains(i.Category));
         if (!string.IsNullOrEmpty(language)) q = q.Where(i => i.Language == language);
         return q;
     }
@@ -320,12 +321,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     }
 
     public async Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null,
-        string? category = null, string? language = null)
+        IReadOnlyCollection<string>? categories = null, string? language = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         var q = band == ShopDeals.Rare ? await RareAsync(db, ct) : Listed(db, band);
         if (kinds is not null) q = q.Where(i => kinds.Contains(i.Kind));
-        q = InCategory(q, category, language);
+        q = InCategory(q, categories, language);
         return await q.Select(i => i.Series != "" ? i.Series : i.Artist).Where(g => g != "")
             .GroupBy(g => g).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
     }

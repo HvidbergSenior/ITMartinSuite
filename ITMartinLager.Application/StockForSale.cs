@@ -11,19 +11,19 @@ public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository
     public const int MaxPage = 100;
 
     public async Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string? text, string? sort, int skip, int take, string? band,
-        CancellationToken ct = default, string? category = null, string? language = null)
+        CancellationToken ct = default, IReadOnlyCollection<string>? categories = null, string? language = null)
     {
         var (found, total) = await items.ListedAsync(kinds is { Count: > 0 } ? kinds.Select(Kinds.Normalise).ToList() : null,
             string.IsNullOrWhiteSpace(usage) ? null : Usages.Normalise(usage), (text ?? "").Trim(),
             ShopSorts.All.Contains(sort) ? sort! : ShopSorts.Newest, Math.Max(0, skip), Math.Clamp(take, 1, MaxPage), ct, Band(band),
-            Category(category), Language(language));
+            Categories(categories), Language(language));
         return new StockPage(await ViewsAsync(found, ct), total);
     }
 
     public Task<Dictionary<string, int>> PerKindAsync(string? band = null, CancellationToken ct = default) => items.ListedPerKindAsync(ct, Band(band));
 
     private static string? Band(string? band) => ShopDeals.Band(band);
-    private static string? Category(string? c) => c is not null && ProductTypes.All.Contains(c) ? c : null;
+    private static List<string>? Categories(IReadOnlyCollection<string>? c) => c?.Where(ProductTypes.All.Contains).Distinct().ToList() is { Count: > 0 } l ? l : null;
     private static string? Language(string? l) => Languages.Normalise(l) is { Length: > 0 } x ? x : null;
 
     /// <summary>Things for sale per main category, in one language or all.</summary>
@@ -52,8 +52,8 @@ public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository
     /// <summary>The subgroups of a kind, from what we have (user 2026-10-31: "make subcategories based on data"): each series
     /// (or artist/author) with at least 2 things, most first, at most MaxGroups.</summary>
     public async Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, string? band = null, CancellationToken ct = default,
-        string? category = null, string? language = null) =>
-        (await items.ListedPerGroupAsync(kinds is { Count: > 0 } ? kinds.Select(Kinds.Normalise).ToList() : null, ct, Band(band), Category(category), Language(language)))
+        IReadOnlyCollection<string>? categories = null, string? language = null) =>
+        (await items.ListedPerGroupAsync(kinds is { Count: > 0 } ? kinds.Select(Kinds.Normalise).ToList() : null, ct, Band(band), Categories(categories), Language(language)))
             .Where(g => g.Value >= 2).OrderByDescending(g => g.Value).ThenBy(g => g.Key).Take(MaxGroups)
             .Select(g => new ShopGroup(g.Key, g.Value)).ToList();
 

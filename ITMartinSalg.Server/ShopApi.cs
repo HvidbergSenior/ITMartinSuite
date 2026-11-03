@@ -18,8 +18,8 @@ public static class ShopApi
         api.MapGet("/soeg", async (string? q, string? art, ShopUseCases shop) =>
             new ShopSearch(shop.CanPay, await shop.SearchAsync(q, art)));
 
-        api.MapGet("/marked", async (string? type, string? art, string? brugt, string? q, string? sort, int? side, string? pris, string? sprog, ShopUseCases shop) =>
-            await shop.MarketAsync(type, art, brugt, q, sort, side ?? 0, price: pris, language: sprog));
+        api.MapGet("/marked", async (string? type, string? art, string? brugt, string? q, string? sort, int? side, string? pris, string? sprog, string[]? kategori, ShopUseCases shop) =>
+            await shop.MarketAsync(type, art, brugt, q, sort, side ?? 0, price: pris, language: sprog, categories: kategori));
 
         api.MapGet("/forside", async (ShopUseCases shop) =>
             new ShopFront(shop.CanPay, (await shop.FeaturedAsync()).Select(x => new ShopFeatured(x.Item, x.Proof)).ToList()));

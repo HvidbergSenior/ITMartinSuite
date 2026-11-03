@@ -40,11 +40,11 @@ public sealed class FakeStock : IStockGateway
     private void Check() { if (Down) throw new SalgException("Lageret svarer ikke lige nu. Prøv igen om lidt."); }
 
     public Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null, string? category = null, string? language = null)
+        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null)
     {
         Check();
         LastBand = band;
-        var q = Items.Where(i => (kinds is null || kinds.Contains(i.Kind)) && (category is null || ProductTypes.For(i.Kind) == category)
+        var q = Items.Where(i => (kinds is null || kinds.Contains(i.Kind)) && (categories is null || categories.Contains(ProductTypes.For(i.Kind)))
             && (usage is null || i.Usage == usage)
             && text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => i.Title.ToLowerInvariant().Contains(w)));
         q = sort switch
@@ -62,7 +62,7 @@ public sealed class FakeStock : IStockGateway
         Task.FromResult(Items.GroupBy(i => i.Kind).ToDictionary(g => g.Key, g => g.Count()));
     public Task<Dictionary<string, int>> PerCategoryAsync(CancellationToken ct, string? band = null, string? language = null) =>
         Task.FromResult(Items.GroupBy(i => ProductTypes.For(i.Kind)).ToDictionary(g => g.Key, g => g.Count()));
-    public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null, string? category = null,
+    public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null, IReadOnlyCollection<string>? categories = null,
         string? language = null) => Task.FromResult(new List<ShopGroup>());
     public Task<Dictionary<string, int>> DealsAsync(CancellationToken ct) => Task.FromResult(new Dictionary<string, int>());
 
@@ -330,6 +330,12 @@ public class ShopTests
         var music = await shop.MarketAsync(ProductTypes.Musik, null, null, "abbey", ShopSorts.Cheapest, 0);
         music.Items.Select(i => (i.Kind, i.BuyNowKr)).Should().Equal((Kinds.Cd, 60), (Kinds.Vinyl, 200));
         music.Items.Should().OnlyContain(i => i.Type == ProductTypes.Musik);
+
+        // User 2026-11-03: "Interested in books and dvds... Only those products".
+        _stock.Add(Kinds.Dvd, "Heat", price: 30);
+        var booksAndFilm = await shop.MarketAsync(null, null, null, null, ShopSorts.Title, 0, categories: [ProductTypes.Boeger, ProductTypes.Film]);
+        booksAndFilm.Items.Select(i => i.Title).Should().Equal("Eric", "Heat", "Mort");
+        booksAndFilm.Groups.Should().BeEmpty("subgroups only inside one category");
     }
 
     [Test]

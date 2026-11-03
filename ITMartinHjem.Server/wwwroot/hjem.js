@@ -19,6 +19,11 @@ window.hjem = (function () {
     }
 
     return {
+        // bogshoppen.dk/produkter: the categories the visitor chose, remembered for the next visit (a cookie, so the
+        // server can open the page with them at once - no jump). Empty = forget.
+        rememberCategories: function (v) {
+            document.cookie = 'bs-vis=' + encodeURIComponent(v || '') + ';path=/;samesite=lax;max-age=' + (v ? 31536000 : 0);
+        },
         // The visitor's chat identity: kept in this browser only. Private windows get a
         // fresh one each time, which just means a new conversation.
         visitorKey: function () {

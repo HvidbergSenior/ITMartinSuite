@@ -1,4 +1,6 @@
 @inject ShopUseCases Shop
+@inject NavigationManager Nav
+@inject IJSRuntime JS
 
 @* The products from Lager on bogshoppen.dk/produkter (user 2026-10-29: "i want to see the products on bogshoppen.dk as a
    produkter - You can not buy them... It should say TESTING", "important data from lager should be on the products").
@@ -21,14 +23,27 @@
         @* Clearer buttons (user 2026-11-02: "better buttons when searching... maybe colors"): each row has a label, the chosen
            button is filled in the theme colour with a tick (not colour alone - the user is a bit colour-blind), and the two
            status categories (no price / not checked) are dashed so they read as "other" than a kind of product. *@
-        <div class="bs-filter" role="group" aria-label="Vælg slags">
-            <span class="bs-filter-label">Slags</span>
-            <button class="k-btn k-btn-sm @(_type == "" ? "is-on" : "")" aria-pressed="@(_type == "")" @onclick='() => Pick("")'>Alle med pris (@PricedCount)</button>
-            @foreach (var t in _market.Types)
+        @* Simple product tabs (user 2026-11-03: "A user goes to bogshoppen.dk. Interested in books and dvds... Only those
+           products"): tap one or more; the choice is in the address and remembered for the next visit. *@
+        <div class="bs-filter bs-tabs" role="group" aria-label="Hvad er du interesseret i?">
+            <span class="bs-filter-label">Hvad er du interesseret i? Vælg en eller flere</span>
+            <button class="k-btn @(_cats.Count == 0 && _type == "" ? "is-on" : "")" aria-pressed="@(_cats.Count == 0 && _type == "")" @onclick="() => SetCats([])">Alt (@PricedCount)</button>
+            @foreach (var t in _market.Types.Where(t => ProductTypes.All.Contains(t.Type)))
             {
-                <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "") @(t.Type is ShopDeals.NoPriceName or ShopDeals.UnsureName ? "bs-chip-status" : "") @(t.Type == ShopDeals.RareName ? "bs-chip-rare" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
+                var on = _cats.Contains(t.Type);
+                <button class="k-btn @(on ? "is-on" : "")" aria-pressed="@on" @onclick="() => Toggle(t.Type)">@t.Type (@t.Count)</button>
             }
         </div>
+        @if (_market.Types.Any(t => !ProductTypes.All.Contains(t.Type)))
+        {
+            <div class="bs-filter" role="group" aria-label="Andet">
+                <span class="bs-filter-label">Andet</span>
+                @foreach (var t in _market.Types.Where(t => !ProductTypes.All.Contains(t.Type)))
+                {
+                    <button class="k-btn k-btn-sm @(_type == t.Type ? "is-on" : "") @(t.Type is ShopDeals.NoPriceName or ShopDeals.UnsureName ? "bs-chip-status" : "") @(t.Type == ShopDeals.RareName ? "bs-chip-rare" : "")" aria-pressed="@(_type == t.Type)" @onclick="() => Pick(t.Type)">@t.Type (@t.Count)</button>
+                }
+            </div>
+        }
         @* Every category in Danish or English (user 2026-11-03: "all cats should have an English"). *@
         <div class="bs-filter" role="group" aria-label="Vælg sprog">
             <span class="bs-filter-label">Sprog</span>
@@ -37,7 +52,7 @@
             <button class="k-btn k-btn-sm @(_language == Languages.Engelsk ? "is-on" : "")" aria-pressed="@(_language == Languages.Engelsk)" @onclick="() => PickLanguage(Languages.Engelsk)">Engelsk</button>
         </div>
         @* Film = DVD, Blu-ray and Sæsoner (user 2026-11-02: "film should be DVD, Blueray and Seasons"). *@
-        @if (_type == ProductTypes.Film)
+        @if (OnlyCat == ProductTypes.Film)
         {
             <div class="bs-filter" role="group" aria-label="Vælg slags film">
                 <span class="bs-filter-label">Slags film</span>
@@ -48,7 +63,7 @@
             </div>
         }
         @* Subgroups from the data (user 2026-10-31: "make subcategories based on data"): the series or artists we have 2+ of. *@
-        @if (_type != ProductTypes.Film && _market.Groups is { Count: > 0 } groups)
+        @if (OnlyCat != ProductTypes.Film && _market.Groups is { Count: > 0 } groups)
         {
             <div class="bs-filter bs-groups" role="group" aria-label="Vælg serie eller kunstner">
                 <span class="bs-filter-label">Serie eller kunstner</span>
@@ -77,7 +92,7 @@
 
         @* The 3 kr bin online as packs (user 2026-11-02: "online sale need to have some kind of rare and batch of", chose fixed
            packs) - on Alle and on Anders And-blade, not while searching. Not a webshop: you write to us for a pack. *@
-        @if (_market.Packs is { Count: > 0 } packs && _text == "" && (_type == "" || _type == ProductTypes.Serieblade))
+        @if (_market.Packs is { Count: > 0 } packs && _text == "" && _type == "" && (_cats.Count == 0 || _cats.Contains(ProductTypes.Serieblade)))
         {
             <div class="bs-packs">
                 @foreach (var p in packs)
@@ -183,7 +198,30 @@
     private int _page;      // Salg counts pages from 0 (page 1 skipped the first 33 - "cannot search", 2026-10-29)
     private bool _loading;
 
-    protected override Task OnInitializedAsync() => Load(reset: true);
+    [SupplyParameterFromQuery(Name = "vis")] public string? Vis { get; set; }
+    private List<string> _cats = [];
+    private string? OnlyCat => _cats is [var c] ? c : null;
+    private static string Words(List<string> cats) => cats.Count == 1 ? cats[0] : string.Join(", ", cats[..^1]) + " og " + cats[^1];
+
+    // The chosen categories come from the address (?vis=Bøger,Film); a new choice changes the address, which lands here.
+    protected override Task OnParametersSetAsync()
+    {
+        _cats = (Vis ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(ProductTypes.All.Contains).Distinct().ToList();
+        if (_cats.Count > 0) _type = "";
+        return Load(reset: true);
+    }
+
+    private Task Toggle(string cat) => SetCats(_cats.Contains(cat) ? _cats.Where(c => c != cat).ToList() : [.. _cats, cat]);
+
+    private async Task SetCats(List<string> cats)
+    {
+        _type = ""; _text = ""; _kind = "";
+        var vis = string.Join(',', ProductTypes.All.Where(cats.Contains));   // always in the same order
+        try { await JS.InvokeVoidAsync("hjem.rememberCategories", vis); } catch (JSException) { } catch (InvalidOperationException) { }
+        if (vis == string.Join(',', _cats)) { await Load(reset: true); return; }   // same address: no navigation would happen
+        Nav.NavigateTo(vis == "" ? "/produkter" : "/produkter?vis=" + Uri.EscapeDataString(vis), replace: true);
+    }
 
     /// <summary>Alle = the things with a price; "Ingen pris endnu" and "Ikke tjekket endnu" keep their own buttons.</summary>
     private int PricedCount => _market?.Types.Where(t => t.Type is not ShopDeals.NoPriceName and not ShopDeals.UnsureName and not ShopDeals.RareName && ShopDeals.Named(t.Type) is null).Sum(t => t.Count) ?? 0;
@@ -192,7 +230,8 @@
     {
         0 => "Ingen produkter passer.",
         1 => "1 produkt.",
-        var n => $"{n} produkter{(_type == "" ? "" : $" i {_type}")}.",
+        var n => $"{n} produkter{(_cats.Count > 0 ? $" i {Words(_cats)}" : _type == "" ? "" : $" i {_type}")}.",
+
     };
 
     /// <summary>The things Lager knows about it, in one line: kind, condition, new/used, year, how many.</summary>
@@ -223,7 +262,14 @@
     }
 
     private Task PickFilm(string kind, string text) { _kind = kind; _text = text; return Load(reset: true); }
-    private Task Pick(string type) { _type = type; _text = ""; _kind = ""; if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = ""; return Load(reset: true); }
+    // Andet (Sjældne, Ingen pris endnu ...) is one at a time, instead of the categories.
+    private async Task Pick(string type)
+    {
+        _type = type; _text = ""; _kind = "";
+        if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = "";
+        if (_cats.Count > 0) { _cats = []; try { await JS.InvokeVoidAsync("hjem.rememberCategories", ""); } catch (JSException) { } Nav.NavigateTo("/produkter", replace: true); return; }
+        await Load(reset: true);
+    }
     private Task PickPrice(string key) { _price = key; return Load(reset: true); }
     private string _language = "", _languageShown = "";
     private Task PickLanguage(string l) { _language = l; return Load(reset: true); }
@@ -237,7 +283,8 @@
         _loading = true;
         if (reset) _page = 0;
         var (market, error) = await Shop.MarketAsync(_type == "" ? null : _type, _kind == "" ? null : _kind, null, _text, _type == ShopDeals.RareName ? ShopSorts.Dearest : ShopSorts.Title, _page,
-            price: _price != "" ? _price : _type == "" ? ShopDeals.WithPrice : null, language: _language == "" ? null : _language);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
+            price: _price != "" ? _price : _type == "" && _cats.Count == 0 ? ShopDeals.WithPrice : null, language: _language == "" ? null : _language,
+            categories: _cats.Count > 0 ? _cats : null);   // A-Z (user 2026-10-31: "all products need to have alphateci order")
         _loading = false;
         _error = error;
         if (market is null) return;

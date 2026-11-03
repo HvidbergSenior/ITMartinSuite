@@ -35,7 +35,7 @@ builder.Services.AddKolibri(k =>
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
         "På Mine hjælpere: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage. Under hver hjælper står dens adresse – tryk på den for at åbne den. Du skal ikke kontakte mig for den gratis udgave.",
         "På bogshoppen.dk/produkter: vælg en slags eller søg. Tryk på et billede for at se det stort, og på \"Mere om den\" for stand og priser andre steder. Ting uden pris står under \"Ingen pris endnu\".",
-        "På bogshoppen.dk/produkter: vælg en kategori (fx Serieblade, Gamle blade = blade fra før 1990, Superhelte, Tegneserier) og under Sprog Dansk eller Engelsk, så ser du kun dem.",
+        "På bogshoppen.dk/produkter: under »Hvad er du interesseret i?« trykker du på en eller flere (fx Bøger og Film) – så ser du kun dem, og siden husker dit valg til næste gang. Tryk Alt for at se det hele. Gamle blade = blade fra før 1990. Under Sprog vælger du Dansk eller Engelsk.",
         "Har du fået en side sammen med Martin (fx itmartin.dk/per)? Tryk Tekster eller Musik, tryk \"Skriv koden\" og skriv koden fra Martin. Så kan du lægge filer op og skrive dine tanker under hver fil.",
     ];
     k.Version = "2026.11.03";
@@ -198,6 +198,19 @@ app.MapGet("/api/nu", async (SiteUseCases site) =>
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+
+// bogshoppen.dk/produkter opens with the categories the visitor chose last time (cookie bs-vis, set by
+// hjem.rememberCategories) - in the address, so the first page already shows only those (no jump on load).
+app.Use(async (ctx, next) =>
+{
+    if (HttpMethods.IsGet(ctx.Request.Method) && ctx.Request.Path.Equals("/produkter", StringComparison.OrdinalIgnoreCase)
+        && !ctx.Request.Query.ContainsKey("vis") && ctx.Request.Cookies["bs-vis"] is { Length: > 0 } vis)
+    {
+        ctx.Response.Redirect("/produkter?vis=" + Uri.EscapeDataString(vis));
+        return;
+    }
+    await next();
+});
 
 // ── Visit counting (Application/VisitUseCases; numbers on /admin/tal). Apps: the old snippet to stats.itmartin.dk/api/hit.
 // The website itself: wwwroot/t.js, which also sends the time on the page.
