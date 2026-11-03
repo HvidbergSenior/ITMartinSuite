@@ -127,6 +127,9 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
           tryk-oplysninger), så er det ÉN post med kolofon = true: titel og forfatter som de står på siden, edition =
           udgave og oplag ordret ("1. udgave, 1. oplag", "3. oplag 1972"), isbn som trykt, year = årstallet for udgaven,
           publisher = forlaget. Ellers kolofon = false og edition/isbn tomme. Gæt aldrig en udgave.
+        - Kolofonen står tit UDEN titel og uden udgave (ældre bøger: "© Tove Ditlevsen, 1968", omslag, trykkeri). Rapportér den
+          ALLIGEVEL med kolofon = true: artist = navnet efter ©, year = ©-årstallet, publisher/trykkeri i note, og edition ordret -
+          står der intet om udgave eller oplag, så edition = "Ingen udgave/oplag nævnt (© <år>)". title tom, hvis den ikke står der.
         - En BAGSIDE af en bog (ingen titel på forsiden at se, tekst om bogen, stregkode/ISBN) er IKKE en ny vare: kolofon = true,
           isbn fra stregkoden, titel og forfatter kun hvis de står der. Opfind aldrig en titel ud fra teksten på bagsiden.
         """;
@@ -183,7 +186,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         if (tool is null) throw new InvalidOperationException("AI'en svarede ikke med en liste. Prøv et nyt billede.");
         var parsed = JsonSerializer.Deserialize<Report>(JsonSerializer.Serialize(tool.Input), Json) ?? new Report();
         log.LogInformation("Pile read by {Model}: {Count} items, {In}/{Out} tokens", response.Model, parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens);
-        return parsed.Items.Select(Clean).Where(f => f.Title.Length > 0).ToList();
+        return parsed.Items.Select(Clean).Where(f => f.Title.Length > 0 || (f.Kolofon && (f.Artist.Length > 0 || f.Barcode.Length > 0))).ToList();
     }
 
     private const string InterestSystem = """

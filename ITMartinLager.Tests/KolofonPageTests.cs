@@ -19,6 +19,10 @@ public class KolofonPageTests
         Kolofon.MatchPage([Ansigterne, Elsk], "", "", "9788770000000").Should().Be(Elsk);
         Kolofon.MatchPage([Ansigterne, Elsk], "Ansigterne", "Klaus Rifbjerg", "").Should().BeNull("another author");
         Kolofon.MatchPage([Ansigterne, Elsk], "Noget helt andet", "", "").Should().BeNull();
+        // Rico 2026-11-03: "© Tove Ditlevsen, 1968" - no title on the page: the one book by that author in the box.
+        Kolofon.MatchPage([Ansigterne, Elsk, Cd], "", "Tove Ditlevsen", "").Should().Be(Ansigterne);
+        var other = new Item { Id = 9, Kind = Kinds.Bog, Title = "Vilhelms værelse", Artist = "Tove Ditlevsen" };
+        Kolofon.MatchPage([Ansigterne, other], "", "Tove Ditlevsen", "").Should().BeNull("two books by her - a person decides");
     }
 
     [Test]

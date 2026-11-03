@@ -39,8 +39,10 @@ public static class Kolofon
         var code = Barcodes.ToIsbn13(new string(isbn.Where(c => char.IsDigit(c) || c is 'X' or 'x').ToArray()));
         if (Barcodes.IsIsbn(code) && books.Where(b => b.Barcode == code).ToList() is [var byIsbn]) return byIsbn;
         var words = ListingParse.Words(title).Where(w => !ListingParse.IsNumber(w)).ToHashSet();
-        if (words.Count == 0) return null;
         var writer = ListingParse.Words(author).ToHashSet();
+        // No title on the page (an old kolofon: "© Tove Ditlevsen, 1968"): the one book in the box by that author.
+        if (words.Count == 0)
+            return writer.Count > 0 && books.Where(b => ListingParse.Words(b.Artist).Any(writer.Contains)).ToList() is [var byAuthor] ? byAuthor : null;
         var fits = books.Where(b =>
         {
             var mine = ListingParse.Words(Pricing.CleanTitle(b.Title)).Where(w => !ListingParse.IsNumber(w)).ToList();
