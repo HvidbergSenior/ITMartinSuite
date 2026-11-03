@@ -68,7 +68,11 @@
                 }
             </div>
         }
-        @if (_query != "")
+        @if (_batch is not null)
+        {
+            <button class="k-btn k-btn-sm bs-back" @onclick="CloseBatch">← Hele @(_sub?.Name ?? Family?.Name)</button>
+        }
+        else if (_query != "")
         {
             <button class="k-btn k-btn-sm bs-back" @onclick="ClearSearch">← @(Family is null ? "Alle butikker" : $"Hele {Family.Name}")</button>
         }
@@ -90,7 +94,10 @@
             @if (ShowPacks) { @Packs(_market.Packs) }
             <p class="bs-count" role="status">@ResultText</p>
             <ul class="bs-shop-grid">
-                @foreach (var i in _items) { @Card(i) }
+                @* Batches (user 2026-11-03: "there is one for each product. there should be batches for instance same type of Anders
+                   And should be in one"): a series/artist with 2+ things is ONE card; pressing it shows only that series. *@
+                @foreach (var b in Batches) { @BatchCard(b) }
+                @foreach (var i in _items.Where(i => BatchOf(i) is null)) { @Card(i) }
             </ul>
             @if (_items.Count < _market.Total)
             {
@@ -128,6 +135,7 @@
         if (Family is null && Vis is { Length: > 0 } && OldLink(Vis) is { } to) { Nav.NavigateTo(to, replace: true); return; }
         _sub = Family?.Sub(Under);
         _sort = ShopSorts.All.Contains(SortParam) ? SortParam! : ShopSorts.Title;
+        _batch = Family is not null && Serie is { Length: > 0 } ? Serie : null;
         _persist = State.RegisterOnPersisting(() =>
         {
             State.PersistAsJson(SnapshotKey, new Snapshot(_overview, _market, _items));
@@ -179,16 +187,18 @@
     private List<ShopItem> Pictures(ShopFamily f) => (_overview?.Shelves ?? []).Where(s => f.Types.Contains(s.Type))
         .SelectMany(s => s.Items).Where(i => i.HasPhoto).OrderByDescending(i => i.BuyNowKr ?? i.ExpectKr ?? 0).Take(3).ToList();
 
-    private string Heading => _query != "" ? $"Søgning: {_query}" : _sub is not null ? $"{_sub.Name} ({_market?.Total})" : $"Alt i {Family?.Name} ({_market?.Total})";
+    private string Heading => _batch is not null ? $"{_batch} ({_market?.Total})" : _query != "" ? $"Søgning: {_query}" : _sub is not null ? $"{_sub.Name} ({_market?.Total})" : $"Alt i {Family?.Name} ({_market?.Total})";
 
     // The 3 kr packs go with the blade: the whole Tegneserieshoppen or its Serieblade.
-    private bool ShowPacks => _query == "" && Family == ShopFamilies.Tegneserier && (_sub is null || _sub.Category == ProductTypes.Serieblade);
+    private bool ShowPacks => _query == "" && _batch is null && Family == ShopFamilies.Tegneserier && (_sub is null || _sub.Category == ProductTypes.Serieblade);
 
     private static readonly (string Key, string Name)[] SortNames =
         [(ShopSorts.Title, "A–Å"), (ShopSorts.Cheapest, "Billigst"), (ShopSorts.Dearest, "Dyrest"), (ShopSorts.Newest, "Nyeste")];
 
     /// <summary>?sort=billigst (a link can be shared); A-Å when missing.</summary>
     [SupplyParameterFromQuery(Name = "sort")] public string? SortParam { get; set; }
+    /// <summary>?serie=Jonah Hex opens one batch.</summary>
+    [SupplyParameterFromQuery(Name = "serie")] public string? Serie { get; set; }
     private string _sort = ShopSorts.Title;
 
     /// <summary>The address for what is shown now: the shop, its subcategory and the sort order (A-Å is left out).</summary>
@@ -196,9 +206,62 @@
     {
         var q = new List<string>();
         if (_sub is not null) q.Add("under=" + Uri.EscapeDataString(_sub.Name));
+        if (_batch is not null) q.Add("serie=" + Uri.EscapeDataString(_batch));
         if (_sort != ShopSorts.Title) q.Add("sort=" + _sort);
         return (Family?.Path ?? "/produkter") + (q.Count > 0 ? "?" + string.Join("&", q) : "");
     }
+
+    // Batches: the series/artists Salg names for one category (ShopMarket.Groups), 2+ things each. A thing is in a batch when one
+    // part of its line ("Krigsret! · Jonah Hex · nr. 15") is the series' name.
+    private string? _batch;
+    private const int BatchFrom = 2;
+
+    private List<ShopGroup> Batches => _batch is not null || _query != "" || Family is null ? []
+        : (_market?.Groups ?? []).Where(g => g.Count >= BatchFrom && g.Name.Trim() != "").ToList();
+
+    private string? BatchOf(ShopItem i)
+    {
+        var batches = Batches;
+        if (batches.Count == 0) return null;
+        var parts = i.Line.Split(" · ", StringSplitOptions.TrimEntries);
+        return batches.FirstOrDefault(b => parts.Contains(b.Name.Trim(), StringComparer.OrdinalIgnoreCase))?.Name;
+    }
+
+    /// <summary>The search words for a series: letters and digits only ("Anders And & Co." -> "Anders And Co").</summary>
+    private static string BatchWords(string name) => string.Join(' ', name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(w => new string(w.Where(char.IsLetterOrDigit).ToArray())).Where(w => w != ""));
+
+    private async Task OpenBatch(string name)
+    {
+        _batch = name;
+        await Address(Here());
+        await Load(reset: true);
+    }
+
+    private async Task CloseBatch()
+    {
+        _batch = null;
+        await Address(Here());
+        await Load(reset: true);
+    }
+
+    private RenderFragment BatchCard(ShopGroup b) => __builder =>
+    {
+        var pic = _items.FirstOrDefault(i => i.HasPhoto && BatchOf(i) == b.Name);
+        <li class="bs-shop-card bs-batch">
+            <button class="bs-batch-open" @onclick="() => OpenBatch(b.Name)">
+                <span class="bs-shop-pic">
+                    @if (pic is not null) { <img src="/varer/foto/@pic.Id" alt="" loading="lazy" /> }
+                    else { <span class="bs-shop-nopic">@b.Name</span> }
+                    <span class="bs-batch-count">@b.Count stk.</span>
+                </span>
+                <span class="bs-shop-body">
+                    <b class="bs-batch-name">@b.Name</b>
+                    <span class="bs-family-go">Se alle @b.Count →</span>
+                </span>
+            </button>
+        </li>
+    };
 
     private async Task Sort(string key)
     {
@@ -209,7 +272,7 @@
 
     private async Task Choose(ShopSub? sub)
     {
-        (_sub, _query, _text) = (sub, "", "");
+        (_sub, _query, _text, _batch) = (sub, "", "", null);
         await Address(Here());
         await Load(reset: true);
     }
@@ -218,7 +281,7 @@
     {
         _query = _text.Trim();
         if (_query == "") { await ClearSearch(); return; }
-        _sub = null;
+        (_sub, _batch) = (null, null);
         await Address(Here());
         await Load(reset: true);
     }
@@ -250,7 +313,7 @@
         if (reset) { _page = 0; _market = null; _items.Clear(); }
         // A-Z (user 2026-10-31: "all products need to have alphateci order"); only the shop's categories, or the subcategory's.
         IReadOnlyCollection<string>? cats = Family is null ? null : _sub?.Category is { } c ? [c] : Family.Types;
-        var (market, error) = await Shop.MarketAsync(null, _sub?.Kind, null, _query, _sort, _page,
+        var (market, error) = await Shop.MarketAsync(null, _sub?.Kind, null, _batch is not null ? BatchWords(_batch) : _query, _sort, _page,
             price: cats is null ? ShopDeals.WithPrice : null, language: _sub?.Language, categories: cats);
         _loading = false;
         _error = error;

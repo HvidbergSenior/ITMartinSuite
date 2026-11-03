@@ -908,3 +908,11 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-family-go{margin-top:auto;font-weight:800}
 .bs-family-name{font-size:1.4rem;margin:10px 0 2px}
 .bs-sort{margin:4px 0 8px}
+/* Batches (2026-11-03): one card per series/artist with 2+ things - the whole card is a button. */
+.bs-batch-open{all:unset;box-sizing:border-box;display:flex;flex-direction:column;width:100%;height:100%;cursor:pointer;color:var(--k-text)}
+.bs-batch{border:2px solid var(--k-text)}
+.bs-batch-open:hover{background:var(--k-accent-soft)}
+.bs-batch-open:focus-visible{outline:3px solid var(--k-text);outline-offset:2px}
+.bs-batch .bs-shop-pic{position:relative}
+.bs-batch-count{position:absolute;right:6px;bottom:6px;background:var(--k-accent);color:var(--k-accent-text);font-weight:800;padding:2px 8px;border-radius:6px}
+.bs-batch-name{font-size:1.05rem}
