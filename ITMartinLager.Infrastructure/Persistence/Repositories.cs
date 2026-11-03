@@ -82,6 +82,18 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Note, note), ct);
     }
 
+    public async Task SetFundAsync(int id, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Fund, true), ct);
+    }
+
+    public async Task<List<Box>> FundBoxesAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Boxes.Where(b => b.Fund).OrderByDescending(b => b.Id).ToListAsync(ct);
+    }
+
     public async Task DeleteAsync(int id, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
@@ -353,7 +365,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     public async Task<int> UnitsAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Items.SumAsync(i => (int?)i.Quantity, ct) ?? 0;
+        return await db.Items.Where(i => i.Status != Statuses.Fund && i.Status != Statuses.IkkeKoebt).SumAsync(i => (int?)i.Quantity, ct) ?? 0;
     }
 
     public async Task AddAsync(IEnumerable<Item> items, CancellationToken ct)
@@ -401,7 +413,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         return await db.Items
-            .Where(i => kinds.Contains(i.Kind) && i.Status != Statuses.Solgt && (i.Title != "" || i.Series != "")
+            .Where(i => kinds.Contains(i.Kind) && i.Status != Statuses.Solgt && i.Status != Statuses.IkkeKoebt && (i.Title != "" || i.Series != "")
                         && (i.PricesAt == null || i.PricesAt < staleBefore))
             .OrderBy(i => i.PricesAt != null).ThenBy(i => i.PricesAt).ThenBy(i => i.Id)
             .Select(i => i.Id).Take(count).ToListAsync(ct);

@@ -18,7 +18,9 @@ public sealed record CapturedPhoto(int Id, string BoxCode, string Helper, int Ti
 public sealed record CapturedScan(int Id, string BoxCode, string Helper, string Code, int Quantity, DateTime TakenAt);
 
 /// <summary>The name Martin gave a box in a Vareinfo session ("Anders And 1970'erne") - Lager shows it on Kasser.</summary>
-public sealed record CapturedBox(string BoxCode, string Name);
+// Fund (2026-11-03): a session of things that are NOT ours yet - photographed where they are for sale (genbrugsplads),
+// priced, and only the ones Martin takes home become stock. Lager reads its photos at once and keeps the things apart.
+public sealed record CapturedBox(string BoxCode, string Name, bool Fund = false);
 
 public sealed record CaptureBatch(List<CapturedPhoto> Photos, List<CapturedScan> Scans, List<CapturedBox>? Boxes = null);
 

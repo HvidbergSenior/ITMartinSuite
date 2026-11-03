@@ -50,6 +50,15 @@ public class SessionTests
     }
 
     [Test]
+    public async Task A_Fund_session_goes_to_Lager_as_Fund()
+    {
+        var ours = await _sessions.StartAsync("Garagen");
+        var fund = await _sessions.StartAsync("Genbrugsplads Lystrup", fund: true);
+        (await _sessions.BoxesAsync([ours.BoxCode, fund.BoxCode])).Should().BeEquivalentTo(
+            [new CapturedBox(ours.BoxCode, "Session 1 – Garagen"), new CapturedBox(fund.BoxCode, "Session 2 – Genbrugsplads Lystrup", true)]);
+    }
+
+    [Test]
     public async Task Helpers_see_the_open_sessions_and_a_closed_one_leaves_the_list()
     {
         (await _sessions.ChoicesAsync(_bertil)).Should().BeEmpty();

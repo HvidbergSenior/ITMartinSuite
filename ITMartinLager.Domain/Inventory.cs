@@ -13,8 +13,14 @@ public static class Valuations
 
 public static class Statuses
 {
-    public const string Lager = "På lager", TilSalg = "Til salg", PaaAuktion = "På auktion", Solgt = "Solgt";
-    public static readonly string[] All = [Lager, TilSalg, PaaAuktion, Solgt];
+    public const string Lager = "På lager", TilSalg = "Til salg", PaaAuktion = "På auktion", Solgt = "Solgt",
+        // Fund (2026-11-03): seen for sale somewhere else, not ours yet - "Tog den" makes it På lager, Færdig makes the rest
+        // Ikke købt (kept, so the next visit shows what was there and what it was worth). Neither is ever for sale.
+        Fund = "Fund", IkkeKoebt = "Ikke købt";
+    public static readonly string[] All = [Lager, TilSalg, PaaAuktion, Solgt, Fund, IkkeKoebt];
+
+    /// <summary>Ours: everything but Fund and Ikke købt.</summary>
+    public static bool Ours(string status) => status is not (Fund or IkkeKoebt);
 }
 
 // Which items a list looks at (user 2026-11-03: "I could not search for only the new products... i also had to see the
@@ -46,6 +52,8 @@ public sealed class Box
     public string Place { get; set; } = "";      // "Garagen, reol 3"
     public string Note { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>A Fund session's box (Vareinfo, 2026-11-03): its things are not ours yet.</summary>
+    public bool Fund { get; set; }
 
     public int Number => BoxCodes.Number(Code);
 

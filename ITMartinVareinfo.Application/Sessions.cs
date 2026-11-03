@@ -32,13 +32,13 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
         (await sessions.AllAsync(ct)).Where(s => !s.IsPractice).ToList();
 
     /// <summary>"Ny session": the next number, and the place/purpose Martin wrote (may be empty).</summary>
-    public async Task<WorkSession> StartAsync(string? name, CancellationToken ct = default)
+    public async Task<WorkSession> StartAsync(string? name, CancellationToken ct = default, bool fund = false)
     {
         await Gate.WaitAsync(ct);
         try
         {
             var number = WorkSession.NextNumber((await AllAsync(ct)).Select(s => s.Number));
-            var s = Guard(() => WorkSession.Start(number, name, Now));
+            var s = Guard(() => WorkSession.Start(number, name, Now, fund));
             await sessions.SaveAsync(s, ct);
             return s;
         }
@@ -108,8 +108,12 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
 
     /// <summary>The session titles for these Lager codes - Lager shows them on Kasser until it knows sessions.</summary>
     public async Task<Dictionary<string, string>> NamesAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default) =>
+        (await BoxesAsync(codes, ct)).ToDictionary(b => b.BoxCode, b => b.Name);
+
+    /// <summary>The session title and whether it is a Fund session, for these Lager codes.</summary>
+    public async Task<List<CapturedBox>> BoxesAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default) =>
         (await sessions.AllAsync(ct)).Where(s => !s.IsPractice && codes.Contains(s.BoxCode))
-            .GroupBy(s => s.BoxCode).ToDictionary(g => g.Key, g => g.First().Title);
+            .GroupBy(s => s.BoxCode).Select(g => new CapturedBox(g.Key, g.First().Title, g.First().Fund)).ToList();
 
     private async Task ChangeAsync(int id, Action<WorkSession> change, CancellationToken ct)
     {

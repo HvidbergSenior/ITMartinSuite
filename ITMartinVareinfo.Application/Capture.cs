@@ -81,7 +81,7 @@ public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository 
         var codes = batch.Photos.Select(p => p.BoxCode).Concat(batch.Scans.Select(s => s.BoxCode)).ToHashSet();
         if (codes.Count == 0) return batch;
         // The session titles go along, so Lager's Kasser says "Session 3 – Boxit, reol 2" (Lager keeps them per code).
-        return batch with { Boxes = (await sessions.NamesAsync(codes, ct)).Select(n => new CapturedBox(n.Key, n.Value)).ToList() };
+        return batch with { Boxes = await sessions.BoxesAsync(codes, ct) };
     }
 
     public async Task ReceivedAsync(CaptureReceived received, CancellationToken ct = default)

@@ -1,0 +1,163 @@
+@page "/fund"
+@page "/fund/{BoxId:int}"
+@implements IDisposable
+@inject FundUseCases Fund
+
+@* Fund (user 2026-11-03: "an easy take picture, search, find interesting, take the product"): things photographed where they
+   are for sale. Interesting and dearest first, big buttons, no typing. The rules are in FundRules / FundUseCases. *@
+<PageTitle>Fund – Bogshoppen Lager</PageTitle>
+
+@if (Me is not { IsAdmin: true })
+{
+    <section class="k-card"><h1 class="k-card-title">Kun for Martin</h1><p>Her vælger Martin, hvad han tager med hjem.</p></section>
+}
+else if (BoxId is null)
+{
+    <section class="k-card">
+        <h1 class="k-card-title">Fund</h1>
+        <p>Fund er ting, der er til salg et andet sted – fx på genbrugspladsen. De er <b>ikke vores endnu</b> og kommer ikke på bogshoppen.dk.</p>
+        <ol>
+            <li>I Vareinfo: <b>Sessioner</b> → skriv stedet → <b>Start fund – ikke vores endnu</b>.</li>
+            <li>Tag billeder i den session. Lager læser dem med det samme og finder priserne.</li>
+            <li>Åbn sessionen her. De interessante og dyreste står øverst. Tryk <b>Tog den</b> ved det, du tager med.</li>
+            <li>Tryk <b>Færdig</b>, når du går. Resten gemmes som <b>Ikke købt</b>, så du kan se det næste gang.</li>
+        </ol>
+        @if (_trips.Count == 0) { <p class="k-muted">Ingen fund-sessioner endnu.</p> }
+        <ul class="lg-list">
+            @foreach (var t in _trips)
+            {
+                <li>
+                    <a href="/fund/@t.Box.Id">
+                        <span class="lg-main"><b>@(t.Box.Note != "" ? t.Box.Note : t.Box.Code)</b>
+                            <span class="k-small">@t.Open at vælge · @t.Taken taget med · @t.NotBought ikke købt@(t.Waiting > 0 ? $" · {t.Waiting} venter på pris" : "")</span></span>
+                        <span class="lg-box">@t.Box.Code</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </section>
+}
+else if (_trip is not { } trip)
+{
+    <section class="k-card"><h1 class="k-card-title">Fund</h1><p>Den fund-session findes ikke.</p><a class="k-btn k-btn-secondary" href="/fund">Tilbage til Fund</a></section>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="k-card-title">@(trip.Box.Note != "" ? trip.Box.Note : trip.Box.Code)</h1>
+        <p>@trip.Open.Count at vælge · @trip.Taken.Count taget med · @trip.NotBought ikke købt@(Waiting > 0 ? $" · {Waiting} venter på pris" : "")</p>
+        <p class="k-small k-muted">De interessante og dyreste står øverst. Prisen er den, vi kan sælge den for. @(Waiting > 0 ? "Siden opdaterer sig selv, mens priserne kommer." : "")</p>
+        @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
+        <div class="lg-row">
+            <a class="k-btn k-btn-ghost k-btn-sm" href="/fund">← Alle fund</a>
+            <button class="k-btn k-btn-ghost k-btn-sm" @onclick="Load">↻ Opdatér</button>
+        </div>
+    </section>
+
+    @if (trip.Open.Count > 0)
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">At vælge</h2>
+            <ul class="lg-fund">
+                @foreach (var r in trip.Open)
+                {
+                    <li>
+                        @if (PhotoOf(r.Item) is { } src) { <img src="@src" alt="" loading="lazy" /> }
+                        <div class="lg-main">
+                            @if (r.Note is not null) { <b class="lg-fund-note">@r.Note</b> }
+                            <b>@r.Item.Line()</b>
+                            <span class="k-small">@r.Item.Category · @r.Item.Condition@(r.Item.Quantity > 1 ? $" · {r.Item.Quantity} stk." : "")</span>
+                            <span class="lg-fund-kr">@(r.Item.PricesAt is null ? "Venter på pris …" : r.Kr is { } kr ? $"{kr:0} kr" : "Ingen pris fundet")</span>
+                        </div>
+                        <button class="k-btn k-btn-primary lg-fund-btn" disabled="@_busy" @onclick="() => Take(r.Item.Id)">Tog den</button>
+                    </li>
+                }
+            </ul>
+            @if (_confirmFinish)
+            {
+                <p>Resten (@trip.Open.Count) bliver gemt som <b>Ikke købt</b>.</p>
+                <div class="lg-row">
+                    <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="Finish">Ja, færdig</button>
+                    <button class="k-btn k-btn-ghost" @onclick="() => _confirmFinish = false">Nej</button>
+                </div>
+            }
+            else
+            {
+                <button class="k-btn k-btn-secondary" @onclick="() => _confirmFinish = true">Færdig – resten er ikke købt</button>
+            }
+        </section>
+    }
+
+    @if (trip.Taken.Count > 0)
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">Taget med (@trip.Taken.Count)</h2>
+            <p class="k-small k-muted">De er på lager nu. Tryk på en for at se den i Lager.</p>
+            <ul class="lg-fund">
+                @foreach (var r in trip.Taken)
+                {
+                    <li>
+                        @if (PhotoOf(r.Item) is { } src) { <img src="@src" alt="" loading="lazy" /> }
+                        <a class="lg-main" href="/vare/@r.Item.Id"><b>@r.Item.Line()</b><span class="lg-fund-kr">@(r.Kr is { } kr ? $"{kr:0} kr" : "")</span></a>
+                        <button class="k-btn k-btn-ghost k-btn-sm" disabled="@_busy" @onclick="() => Undo(r.Item.Id)">Fortryd</button>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @if (trip.NotBought > 0)
+    {
+        <section class="k-card">
+            <p>@trip.NotBought ting er gemt som <b>Ikke købt</b>.</p>
+            <button class="k-btn k-btn-ghost k-btn-sm" disabled="@_busy" @onclick="Reopen">Sæt dem på listen igen</button>
+        </section>
+    }
+}
+
+@code {
+    [CascadingParameter] public LagerUser? Me { get; set; }
+    [Parameter] public int? BoxId { get; set; }
+
+    private List<FundTrip> _trips = [];
+    private (Box Box, List<FundRow> Open, List<FundRow> Taken, int NotBought)? _trip;
+    private bool _busy, _confirmFinish;
+    private string? _msg;
+    private Timer? _timer;
+
+    private int Waiting => _trip?.Open.Count(r => r.Item.PricesAt is null) ?? 0;
+
+    // The item's own picture, else the pile photo it was read from.
+    private static string? PhotoOf(Item i) => i.ItemPhoto != "" ? $"/varefoto/{i.Id}" : i.PhotoId is { } p ? $"/foto/{p}" : null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _confirmFinish = false;
+        _msg = null;
+        await Load();
+        // While prices are still coming, look again every 20 seconds (the hunter prices a few a minute).
+        _timer ??= new Timer(_ => InvokeAsync(async () => { if (Waiting > 0 && !_busy) { await Load(); StateHasChanged(); } }), null, 20_000, 20_000);
+    }
+
+    private async Task Load()
+    {
+        if (Me is not { IsAdmin: true }) return;
+        if (BoxId is { } id) _trip = await Fund.TripAsync(id);
+        else _trips = await Fund.TripsAsync();
+    }
+
+    private Task Take(int id) => Do(() => Fund.TakeAsync(id), "Taget med – den er på lager nu.");
+    private Task Undo(int id) => Do(() => Fund.UndoAsync(id), "Sat tilbage på listen.");
+    private Task Finish() => Do(async () => { _confirmFinish = false; await Fund.FinishAsync(BoxId!.Value); }, "Færdig. Resten er gemt som Ikke købt.");
+    private Task Reopen() => Do(() => Fund.ReopenAsync(BoxId!.Value), "Sat på listen igen.");
+
+    private async Task Do(Func<Task> work, string done)
+    {
+        if (_busy) return;   // one press = one change (double taps, 2026-11-01)
+        _busy = true;
+        try { await work(); _msg = done; await Load(); }
+        finally { _busy = false; }
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

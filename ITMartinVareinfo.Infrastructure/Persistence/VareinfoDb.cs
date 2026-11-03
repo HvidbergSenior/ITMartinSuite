@@ -41,6 +41,7 @@ public static class VareinfoDbInitializer
         AddColumn(conn, "Sessions", "BoxCode", "TEXT NOT NULL DEFAULT ''");
         AddColumn(conn, "Sessions", "HelperId", "INTEGER NULL");
         AddColumn(conn, "Sessions", "HelperName", "TEXT NOT NULL DEFAULT ''");
+        AddColumn(conn, "Sessions", "Fund", "INTEGER NOT NULL DEFAULT 0");
         // EnsureCreated does nothing when any table exists, so the tables come from the model's own script - on every
         // start, IF NOT EXISTS: a table added later is made in the live file too.
         foreach (var statement in db.Database.GenerateCreateScript().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))

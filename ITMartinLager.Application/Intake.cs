@@ -30,6 +30,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         var owners = batch.Photos.Select(p => (p.BoxCode, p.Helper)).Concat(batch.Scans.Select(s => (s.BoxCode, s.Helper)))
             .GroupBy(x => x.BoxCode).ToDictionary(g => g.Key, g => g.First().Helper);
         var names = (batch.Boxes ?? []).ToDictionary(b => b.BoxCode, b => b.Name);
+        var fund = (batch.Boxes ?? []).Where(b => b.Fund).Select(b => b.BoxCode).ToHashSet();
         foreach (var (code, owner) in owners)
         {
             var box = await boxes.GetOrAddAsync(code, ct);
@@ -37,12 +38,16 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             if (BoxCodes.IsTest(code) && box.Place == "") await boxes.SetPlaceAsync(box.Id, $"Test {owner}".Trim(), ct);
             // The name Martin gave the box in a Vareinfo session (2026-10-26) - only while the box has none here.
             if (names.GetValueOrDefault(code) is { Length: > 0 } name && box.Note == "") await boxes.SetNoteAsync(box.Id, name, ct);
+            if (fund.Contains(code) && !box.Fund) await boxes.SetFundAsync(box.Id, ct);
         }
         await intake.AddAsync(
             batch.Photos.Select(p => new BoxShot { VareinfoId = p.Id, BoxCode = p.BoxCode, Helper = p.Helper, Tiles = p.Tiles, TakenAt = p.TakenAt }),
             batch.Scans.Select(s => new BoxScan { VareinfoId = s.Id, BoxCode = s.BoxCode, Helper = s.Helper, Code = s.Code, Quantity = s.Quantity, TakenAt = s.TakenAt }),
             ct);
         await vareinfo.ReceivedAsync(new CaptureReceived(batch.Photos.Select(p => p.Id).ToList(), batch.Scans.Select(s => s.Id).ToList()), ct);
+        // A Fund session is read at once (user 2026-11-03: "take picture, search, find interesting, take the product") -
+        // the same one call per photo as Læs, under the same daily cap; the prices are needed while standing there.
+        foreach (var code in fund) await intake.WantReadAsync(code, ct);
         return batch.Photos.Count + batch.Scans.Count;
     }
 
@@ -110,7 +115,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             .ToList();
         clean = await WithYearsAsync(clean, ct);
         var placed = new List<(Item Item, Found Found)>();
-        await registration.SaveAsync(box.Id, photoId, clean, ct, placed);
+        await registration.SaveAsync(box.Id, photoId, clean, ct, placed, box.Fund ? Statuses.Fund : null);
         if (pile is not null) await CutOutAsync(pile, placed, ct);
     }
 

@@ -37,12 +37,13 @@ builder.Services.AddKolibri(k =>
         "Færdig? Tryk ✓ Færdig med billeder – så er du tilbage ved sessionerne. Billederne er gemt, så snart de er sendt.",
         "Vil du bare prøve, mens ingen session er i gang? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
         "Martin: under Sessioner skriver du sted og/eller formål og trykker Start session – den får selv det næste nummer. Vælg under Til, hvis en session kun er til én hjælper. Tryk Luk, når I er færdige (billederne gemmes). Kun en session uden billeder kan slettes.",
+        "Fund (ting der er til salg et andet sted, fx på genbrugspladsen): under Sessioner skriver du stedet og trykker Start fund – ikke vores endnu. Tag billeder som altid. Lager læser dem med det samme, og du vælger i Lager under Fund, hvad du tager med.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "Giver kameraet inde i siden ikke et billede, kommer en stor knap »Brug telefonens kamera« frem – billederne kommer med i samme session.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
         "Er en session blevet slettet, mens billeder ventede på telefonen, bliver de på telefonen: vælg en session, og tryk Send dem til denne session.",
     ];
-    k.Version = "2026.10.31";
+    k.Version = "2026.11.03";
     k.ThemeColor = "#f4f6f5";
 });
 

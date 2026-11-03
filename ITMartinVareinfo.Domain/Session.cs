@@ -23,6 +23,9 @@ public sealed class WorkSession
     /// <summary>The helper this session is for (Taker.Id - a kundenummer helper is minus the number). Null = every helper.</summary>
     public int? HelperId { get; set; }
     public string HelperName { get; set; } = "";
+    /// <summary>Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): things for sale somewhere
+    /// else - Lager prices them, and only the ones Martin takes home become stock.</summary>
+    public bool Fund { get; set; }
 
     public bool Open => ClosedAt is null;
     public bool IsPractice => BoxCodes.IsTest(BoxCode);
@@ -30,10 +33,10 @@ public sealed class WorkSession
     /// <summary>"Session 3 – Boxit, reol 2", "Session 3", or "Øvesession – Rico".</summary>
     public string Title => IsPractice ? $"Øvesession – {HelperName}" : Name == "" ? $"Session {Number}" : $"Session {Number} – {Name}";
 
-    public static WorkSession Start(int number, string? name, DateTime now)
+    public static WorkSession Start(int number, string? name, DateTime now, bool fund = false)
     {
         if (number is < 1 or > MaxNumber) throw new InvalidOperationException("Der er ikke flere sessionsnumre.");
-        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now };
+        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Fund = fund };
     }
 
     /// <summary>The next number: one more than the highest so far.</summary>

@@ -25,9 +25,11 @@ else
             <li>Vælg under <b>Til</b>, hvis en session kun er til én hjælper. Står der <b>Alle</b>, kan alle tage billeder i den.</li>
             <li>Når I er færdige, tryk <b>Luk</b>. Billederne bliver gemt.</li>
         </ol>
+        <p><b>Vores lager</b> = ting vi har. <b>Fund</b> = ting der er til salg et andet sted (fx genbrugspladsen): Lager finder prisen med det samme, og kun dem du tager med hjem, bliver til lager.</p>
         <form class="lg-row" @onsubmit="Start">
             <input class="k-input" @bind="_newName" placeholder="Sted og/eller formål, fx Boxit, reol 2" aria-label="Sessionens sted og/eller formål" />
-            <button class="k-btn k-btn-primary" type="submit" disabled="@_busy">Start session</button>
+            <button class="k-btn k-btn-primary" type="submit" disabled="@_busy">Start session – vores lager</button>
+            <button class="k-btn k-btn-primary" type="button" @onclick="StartFund" disabled="@_busy">Start fund – ikke vores endnu</button>
         </form>
         @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
         @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
@@ -59,7 +61,7 @@ else
                             }
                         </select>
                     </label>
-                    <span class="k-small">@(s.Open ? "åben" : "lukket") · @st.Photos billeder@(st.Scans > 0 ? $" · {st.Scans} stregkoder" : "")@(st.Helpers.Count > 0 ? " · " + string.Join(", ", st.Helpers) : "")</span>
+                    <span class="k-small">@(s.Fund ? "Fund · " : "")@(s.Open ? "åben" : "lukket") · @st.Photos billeder@(st.Scans > 0 ? $" · {st.Scans} stregkoder" : "")@(st.Helpers.Count > 0 ? " · " + string.Join(", ", st.Helpers) : "")</span>
                     @if (s.Open) { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Close(s.Id)" disabled="@_busy">Luk</button> }
                     else { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Reopen(s.Id)" disabled="@_busy">Åbn igen</button> }
                     @if (st.Photos + st.Scans == 0)
@@ -102,6 +104,7 @@ else
     }
 
     private Task Start() => Do(async () => { var s = await Sessions.StartAsync(_newName); _newName = ""; _msg = $"{s.Title} er startet. Hjælperne kan vælge den nu."; });
+    private Task StartFund() => Do(async () => { var s = await Sessions.StartAsync(_newName, fund: true); _newName = ""; _msg = $"{s.Title} er startet som fund. Tag billeder – priserne kommer i Lager under Fund."; });
     private Task Rename(int id, string? name) => Do(() => Sessions.RenameAsync(id, name));
 
     private Task Give(int id, string? value) => Do(() =>

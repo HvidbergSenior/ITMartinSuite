@@ -142,4 +142,52 @@ public class IntakeTests
         ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Title = "x", Usage = "Ny" }).Usage.Should().Be(Usages.New);
         ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Title = "x" }).Usage.Should().Be(Usages.Used);
     }
+
+    // Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): a Fund session's photos are read at
+    // once, the things are Fund (not ours, not for sale); Tog den = stock, Færdig = the rest Ikke købt.
+    [Test]
+    public async Task A_Fund_session_is_read_at_once_and_only_what_is_taken_becomes_stock()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(21, "K5003", "MartinAdmin", 0, At)], [], [new CapturedBox("K5003", "Session 3 – Genbrugsplads", Fund: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([F("Mort"), F("Sourcery") with { PriceHint = 120 }, F("Eric")]);
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+
+        await intake.FetchAsync();
+        (await intake.ReadWantedAsync()).Should().Be(1, "no Læs needed for a Fund session");
+        var box = (await Boxes.ByCodeAsync("K5003", default))!;
+        box.Fund.Should().BeTrue();
+        var found = await Items.InBoxAsync(box.Id, default);
+        found.Should().HaveCount(3).And.OnlyContain(i => i.Status == Statuses.Fund);
+        (await Items.UnitsAsync(default)).Should().Be(0, "fund is not our stock");
+        (await new ItemUseCases(Items, Mock.Of<IPriceRepository>(), Mock.Of<IPhotoStore>()).InterestingAsync([])).Should().BeEmpty();
+
+        var fund = new FundUseCases(Boxes, Items, new GoldRepository(Factory));
+        (await fund.TripsAsync()).Single().Should().Match<FundTrip>(t => t.Open == 3 && t.Taken == 0 && t.Waiting == 3);
+        var sourcery = found.Single(i => i.Title == "Sourcery");
+        await fund.TakeAsync(sourcery.Id);
+        await fund.TakeAsync(sourcery.Id);   // a double tap changes nothing
+        (await Items.GetAsync(sourcery.Id, default))!.Status.Should().Be(Statuses.Lager);
+        (await Items.UnitsAsync(default)).Should().Be(1);
+
+        (await fund.FinishAsync(box.Id)).Should().Be(2);
+        var trip = (await fund.TripAsync(box.Id))!.Value;
+        (trip.Open.Count, trip.Taken.Single().Item.Title, trip.NotBought).Should().Be((0, "Sourcery", 2));
+        (await Items.NextToHuntAsync(Pricing.HuntedKinds, DateTime.UtcNow, 10, default)).Should().Equal([sourcery.Id], "what was not bought is never priced again");
+
+        (await fund.ReopenAsync(box.Id)).Should().Be(2);
+        await fund.UndoAsync(sourcery.Id);
+        (await fund.TripAsync(box.Id))!.Value.Open.Should().HaveCount(3);
+    }
+
+    [Test]
+    public void Fund_list_is_interesting_and_dearest_first_and_waiting_last()
+    {
+        var now = DateTime.UtcNow;
+        Item I(string t, decimal? kr, bool priced = true) => new() { Kind = Kinds.Bog, Title = t, PriceHint = kr, PricesAt = priced ? now : null };
+        FundRules.Rows([I("Billig", 15), I("Venter", null, priced: false), I("Dyr", 250), I("Mellem", 60)], [])
+            .Select(r => r.Item.Title).Should().Equal("Dyr", "Mellem", "Billig", "Venter");
+    }
 }

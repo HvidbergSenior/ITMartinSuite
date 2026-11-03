@@ -19,6 +19,9 @@ public interface IBoxRepository
     Task<int> CountAsync(CancellationToken ct);
     Task SetPlaceAsync(int id, string place, CancellationToken ct);
     Task SetNoteAsync(int id, string note, CancellationToken ct);
+    Task SetFundAsync(int id, CancellationToken ct);
+    /// <summary>The Fund boxes, newest first.</summary>
+    Task<List<Box>> FundBoxesAsync(CancellationToken ct);
     Task DeleteAsync(int id, CancellationToken ct);
 }
 
