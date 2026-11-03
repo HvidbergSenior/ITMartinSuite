@@ -4,7 +4,7 @@ namespace ITMartinVarer.Contracts;
 public sealed record Found(string Kind, string Title, string Artist, string Series, string Number, int? Year,
     string Platform, string Condition, int Quantity, double Confidence, string Note, string Interest = "", string Barcode = "",
     decimal? PriceHint = null, string EditionHint = "", string Usage = "", string Publisher = "", PhotoArea? Area = null,
-    string Language = "");
+    string Language = "", bool Kolofon = false, string Edition = "");
 
 // Where one thing lies in the pile photo it was read from, as parts of the width and height (0-1, left/top first) - so
 // Lager can cut out a picture of just that thing (user 2026-10-31: "there should be pictures on each item").

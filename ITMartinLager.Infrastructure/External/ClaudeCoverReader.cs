@@ -57,6 +57,10 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                           "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" },
                           "edition_hint": { "type": "string", "enum": {{JsonSerializer.Serialize(EditionHints.All)}},
                                             "description": "Books only: what the cover/spine itself shows about the edition, else empty" },
+                          "kolofon":    { "type": "boolean",
+                                          "description": "true when the photo shows an INSIDE page of ONE book (the colophon behind the title page, the title page, or the last page with printing details) - not its cover or spine" },
+                          "edition":    { "type": "string", "description": "Only for a kolofon page: edition and printing as printed, e.g. '1. udgave, 1. oplag', '3. oplag 1972'. Empty if not printed." },
+                          "isbn":       { "type": "string", "description": "Only for a kolofon page: the ISBN as printed, else empty" },
                           "area":       { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4,
                                           "description": "Where the item lies in IMAGE 1 (the whole pile): [left, top, right, bottom] as parts of the width/height, 0-1. Tight around this item only." }
                         },
@@ -119,6 +123,10 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
           Edition o.l.), "Billigbog" (paperback-genudgivelse, "Gyldendals Bekkasinbøger", "Lommebog", pris på forsiden fra et
           senere oplag), "Mulig 1. udgave" (originalt forlagsomslag med smudsomslag, gammelt forlagslogo, "1. udgave"
           trykt på omslaget). Ellers tomt. Gæt ikke - tomt er bedre end forkert.
+        - Kolofon: viser billedet en INDERSIDE af én bog (kolofonen bag titelbladet, titelbladet eller sidste side med
+          tryk-oplysninger), så er det ÉN post med kolofon = true: titel og forfatter som de står på siden, edition =
+          udgave og oplag ordret ("1. udgave, 1. oplag", "3. oplag 1972"), isbn som trykt, year = årstallet for udgaven,
+          publisher = forlaget. Ellers kolofon = false og edition/isbn tomme. Gæt aldrig en udgave.
         """;
 
     public async Task<int> CallsTodayAsync(CancellationToken ct)
@@ -372,7 +380,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         (r.Number ?? "").Trim(), r.Year is > 1800 and < 2100 ? r.Year : null, (r.Platform ?? "").Trim(),
         Conditions.Normalise(r.Condition), Math.Clamp(r.Quantity ?? 1, 1, 999), Math.Clamp(r.Confidence ?? 0.5, 0, 1),
         (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint), Usage: Usages.Normalise(r.Usage),
-        Publisher: (r.Publisher ?? "").Trim(), Area: PhotoArea.From(r.Area), Language: Languages.Normalise(r.Language));
+        Publisher: (r.Publisher ?? "").Trim(), Area: PhotoArea.From(r.Area), Language: Languages.Normalise(r.Language),
+        Barcode: r.Kolofon == true ? (r.Isbn ?? "").Trim() : "", Kolofon: r.Kolofon == true, Edition: r.Kolofon == true ? (r.Edition ?? "").Trim() : "");
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
     internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
@@ -408,5 +417,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         public string? Interest { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("edition_hint")] public string? EditionHint { get; set; }
         public List<double>? Area { get; set; }
+        public bool? Kolofon { get; set; }
+        public string? Edition { get; set; }
+        public string? Isbn { get; set; }
     }
 }
