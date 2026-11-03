@@ -79,6 +79,14 @@
         else
         {
             <h3 class="bs-shelf">@Heading</h3>
+            @* Sort order (user 2026-11-03: "there should be some kind of order", chose sort buttons): A-Å first, filled when chosen. *@
+            <div class="bs-filter bs-sort" role="group" aria-label="Sorter">
+                <span class="bs-filter-label">Sorter</span>
+                @foreach (var (key, name) in SortNames)
+                {
+                    <button class="k-btn k-btn-sm @(_sort == key ? "is-on" : "")" aria-pressed="@(_sort == key)" @onclick="() => Sort(key)">@name</button>
+                }
+            </div>
             @if (ShowPacks) { @Packs(_market.Packs) }
             <p class="bs-count" role="status">@ResultText</p>
             <ul class="bs-shop-grid">
@@ -119,6 +127,7 @@
     {
         if (Family is null && Vis is { Length: > 0 } && OldLink(Vis) is { } to) { Nav.NavigateTo(to, replace: true); return; }
         _sub = Family?.Sub(Under);
+        _sort = ShopSorts.All.Contains(SortParam) ? SortParam! : ShopSorts.Title;
         _persist = State.RegisterOnPersisting(() =>
         {
             State.PersistAsJson(SnapshotKey, new Snapshot(_overview, _market, _items));
@@ -175,10 +184,33 @@
     // The 3 kr packs go with the blade: the whole Tegneserieshoppen or its Serieblade.
     private bool ShowPacks => _query == "" && Family == ShopFamilies.Tegneserier && (_sub is null || _sub.Category == ProductTypes.Serieblade);
 
+    private static readonly (string Key, string Name)[] SortNames =
+        [(ShopSorts.Title, "A–Å"), (ShopSorts.Cheapest, "Billigst"), (ShopSorts.Dearest, "Dyrest"), (ShopSorts.Newest, "Nyeste")];
+
+    /// <summary>?sort=billigst (a link can be shared); A-Å when missing.</summary>
+    [SupplyParameterFromQuery(Name = "sort")] public string? SortParam { get; set; }
+    private string _sort = ShopSorts.Title;
+
+    /// <summary>The address for what is shown now: the shop, its subcategory and the sort order (A-Å is left out).</summary>
+    private string Here()
+    {
+        var q = new List<string>();
+        if (_sub is not null) q.Add("under=" + Uri.EscapeDataString(_sub.Name));
+        if (_sort != ShopSorts.Title) q.Add("sort=" + _sort);
+        return (Family?.Path ?? "/produkter") + (q.Count > 0 ? "?" + string.Join("&", q) : "");
+    }
+
+    private async Task Sort(string key)
+    {
+        _sort = key;
+        await Address(Here());
+        await Load(reset: true);
+    }
+
     private async Task Choose(ShopSub? sub)
     {
         (_sub, _query, _text) = (sub, "", "");
-        await Address(Family!.Path + (sub is null ? "" : "?under=" + Uri.EscapeDataString(sub.Name)));
+        await Address(Here());
         await Load(reset: true);
     }
 
@@ -187,7 +219,7 @@
         _query = _text.Trim();
         if (_query == "") { await ClearSearch(); return; }
         _sub = null;
-        await Address(Family?.Path ?? "/produkter");
+        await Address(Here());
         await Load(reset: true);
     }
 
@@ -218,7 +250,7 @@
         if (reset) { _page = 0; _market = null; _items.Clear(); }
         // A-Z (user 2026-10-31: "all products need to have alphateci order"); only the shop's categories, or the subcategory's.
         IReadOnlyCollection<string>? cats = Family is null ? null : _sub?.Category is { } c ? [c] : Family.Types;
-        var (market, error) = await Shop.MarketAsync(null, _sub?.Kind, null, _query, ShopSorts.Title, _page,
+        var (market, error) = await Shop.MarketAsync(null, _sub?.Kind, null, _query, _sort, _page,
             price: cats is null ? ShopDeals.WithPrice : null, language: _sub?.Language, categories: cats);
         _loading = false;
         _error = error;
