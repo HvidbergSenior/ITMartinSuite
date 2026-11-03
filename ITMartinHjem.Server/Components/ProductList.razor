@@ -227,7 +227,9 @@
         var batches = Batches;
         if (batches.Count == 0) return null;
         var parts = i.Line.Split(" · ", StringSplitOptions.TrimEntries);
-        return batches.FirstOrDefault(b => parts.Contains(b.Name.Trim(), StringComparer.OrdinalIgnoreCase))?.Name;
+        // "Supermule og Bjørnebanden" is a Supermule too (seen live 2026-11-03): the part is the name or starts with it and a space.
+        return batches.FirstOrDefault(b => parts.Any(p => p.Equals(b.Name.Trim(), StringComparison.OrdinalIgnoreCase)
+            || p.StartsWith(b.Name.Trim() + " ", StringComparison.OrdinalIgnoreCase)))?.Name;
     }
 
     /// <summary>The search words for a series: letters and digits only ("Anders And & Co." -> "Anders And Co").</summary>
