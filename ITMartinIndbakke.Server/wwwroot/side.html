@@ -1,6 +1,6 @@
 <section class="k-card ib-hero" data-nofold>
     <h1>Ryd op i din mail</h1>
-    <p class="k-help">Se hvad der haster, hvem der venter på svar, og hvem der bare fylder.<br>Indbakke læser kun afsender, emne og dato – aldrig selve teksten. Den sletter og flytter intet.</p>
+    <p class="k-help">Se hvad der haster, hvem der venter på svar, og hvem der bare fylder.<br>Indbakke læser kun afsender, emne og dato – aldrig selve teksten. Den sletter kun, når du selv trykker.</p>
     <div class="ib-scanrow">
         <button type="button" class="k-btn k-btn-primary ib-scan" id="ib-scan">Scan min mail</button>
         <label class="ib-months">Se
@@ -32,9 +32,25 @@
     <ul class="ib-list" id="ib-reply"></ul>
 </section>
 
+<section class="k-card" id="ib-history-card" hidden>
+    <h2 class="k-card-title">Seneste oprydning</h2>
+    <p class="k-card-sub">Det, du har ryddet op. Tryk <b>Fortryd</b> for at lægge mails tilbage i Indbakke (i op til 30 dage).</p>
+    <ul class="ib-list" id="ib-history"></ul>
+</section>
+
 <section class="k-card" id="ib-senders-card" hidden>
     <h2 class="k-card-title">Afsendere – hvem fylder mest</h2>
-    <p class="k-card-sub">Alle mails fra én afsender på én linje. <b>Kan afmeldes</b> betyder, at afsenderen tilbyder afmelding – snart med ét tryk her.</p>
+    <p class="k-card-sub">Alle mails fra én afsender på én linje. Tryk <b>Ryd op</b> for at se, hvad der sker, før det sker – så kan du afmelde og slette med ét tryk.</p>
+    <details class="ib-why">
+        <summary>Hvorfor er det i orden at slette?</summary>
+        <ul>
+            <li><b>Intet forsvinder med det samme.</b> Mails lægges i Gmails papirkurv og kan hentes tilbage i 30 dage – også med Fortryd her på siden.</li>
+            <li><b>Kun det, der kan undværes:</b> reklame, nyhedsbreve og notifikationer. Mails fra mennesker, Digital Post, mails med frist, kvitteringer og mails med stjerne bliver altid liggende.</li>
+            <li><b>Tilbud og nyhedsbreve findes igen</b> på afsenderens hjemmeside, hvis du får brug for dem.</li>
+            <li><b>Dine breve fra det offentlige ligger i e-Boks eller mit.dk</b> – mailen er kun en besked om, at brevet er kommet.</li>
+            <li><b>Kvitteringer gemmes med vilje</b> – en virksomhed skal gemme bilag i 5 år.</li>
+        </ul>
+    </details>
     <div class="ib-filter" id="ib-filter" role="group" aria-label="Vis afsendere"></div>
     <ul class="ib-list" id="ib-senders"></ul>
 </section>

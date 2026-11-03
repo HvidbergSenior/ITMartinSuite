@@ -14,7 +14,7 @@ namespace ITMartinIndbakke.Infrastructure;
 /// Only headers are fetched (Envelope + flags + the list headers) - never the text of a mail.
 /// Gmail's tabs come from Gmail searches (X-GM-RAW "category:promotions"), which also read nothing.
 /// </summary>
-public sealed class GmailImap(string user, string appPassword, int maxMails) : IMailbox
+public sealed class GmailImap(string user, string appPassword, int maxMails) : IMailbox, IMailboxCleaner
 {
     private static readonly string[] ListHeaders = ["List-Unsubscribe", "List-Unsubscribe-Post", "List-Id", "Precedence", "Auto-Submitted"];
 
@@ -73,6 +73,57 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         return new MailboxScan(mails, wroteTo, mine);
     }
 
+    private async Task<ImapClient> ConnectAsync(CancellationToken ct)
+    {
+        var client = new ImapClient { Timeout = 120_000 };
+        await client.ConnectAsync("imap.gmail.com", 993, SecureSocketOptions.SslOnConnect, ct);
+        await client.AuthenticateAsync(user, appPassword.Replace(" ", ""), ct);
+        return client;
+    }
+
+    private static IMailFolder Trash(ImapClient client) =>
+        client.GetFolder(SpecialFolder.Trash) ?? throw new InvalidOperationException("Gmail har ingen papirkurv-mappe.");
+
+    /// <summary>v2: inbox -> Papirkurv (Gmail keeps it 30 days). The ONLY write besides Restore. Hard cap per call.</summary>
+    public async Task<int> MoveToTrashAsync(IReadOnlyList<uint> uids, CancellationToken ct)
+    {
+        if (uids.Count == 0) return 0;
+        if (uids.Count > CleanupRules.MaxPerAction) throw new InvalidOperationException("For mange mails på én gang.");
+        using var client = await ConnectAsync(ct);
+        var inbox = client.Inbox;
+        await inbox.OpenAsync(FolderAccess.ReadWrite, ct);
+        var trash = Trash(client);
+        var moved = 0;
+        foreach (var chunk in uids.Select(u => new UniqueId(u)).Chunk(500))
+        {
+            var map = await inbox.MoveToAsync(chunk, trash, ct);
+            moved += map?.Source.Count ?? chunk.Length;
+        }
+        await client.DisconnectAsync(true, ct);
+        return moved;
+    }
+
+    /// <summary>Fortryd: Papirkurv -> Indbakke, found by Message-ID (UIDs change when a mail moves).</summary>
+    public async Task<int> RestoreAsync(IReadOnlyList<string> messageIds, CancellationToken ct)
+    {
+        if (messageIds.Count == 0) return 0;
+        using var client = await ConnectAsync(ct);
+        var trash = Trash(client);
+        await trash.OpenAsync(FolderAccess.ReadWrite, ct);
+        var back = 0;
+        foreach (var chunk in messageIds.Where(id => !id.StartsWith("uid-")).Chunk(25))
+        {
+            SearchQuery q = SearchQuery.HeaderContains("Message-ID", chunk[0]);
+            foreach (var id in chunk.Skip(1)) q = q.Or(SearchQuery.HeaderContains("Message-ID", id));
+            var found = await trash.SearchAsync(q, ct);
+            if (found.Count == 0) continue;
+            await trash.MoveToAsync(found, client.Inbox, ct);
+            back += found.Count;
+        }
+        await client.DisconnectAsync(true, ct);
+        return back;
+    }
+
     private static MailHeader ToHeader(IMessageSummary s, string me, Dictionary<uint, GmailTab> tabs)
     {
         var env = s.Envelope;
@@ -96,7 +147,8 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
             (h?["List-Unsubscribe-Post"] ?? "").Contains("One-Click", StringComparison.OrdinalIgnoreCase),
             !string.IsNullOrWhiteSpace(h?["List-Id"]) || precedence is "bulk" or "list",
             auto.Length > 0 && auto != "no",
-            tabs.TryGetValue(s.UniqueId.Id, out var t) ? t : GmailTab.None);
+            tabs.TryGetValue(s.UniqueId.Id, out var t) ? t : GmailTab.None,
+            flags.HasFlag(MessageFlags.Flagged));
     }
 }
 
@@ -159,7 +211,12 @@ public static class IndbakkeInfrastructure
 {
     public static IServiceCollection AddIndbakkeInfrastructure(this IServiceCollection services, string user, string appPassword, string dataDir, int maxMails = 20000)
     {
-        services.AddSingleton<IMailbox>(new GmailImap(user, appPassword, maxMails));
+        var gmail = new GmailImap(user, appPassword, maxMails);
+        services.AddSingleton<IMailbox>(gmail);
+        services.AddSingleton<IMailboxCleaner>(gmail);
+        services.AddHttpClient("unsubscribe", c => { c.Timeout = TimeSpan.FromSeconds(20); c.DefaultRequestHeaders.UserAgent.ParseAdd("Kolibri-Indbakke/1.0"); });
+        services.AddSingleton<IUnsubscriber>(sp => new Unsubscriber(sp.GetRequiredService<IHttpClientFactory>().CreateClient("unsubscribe"), user, appPassword));
+        services.AddSingleton<ICleanupLog>(new JsonCleanupLog(Path.Combine(dataDir, "oprydning.json")));
         services.AddSingleton<IFollowUpStore>(new JsonFollowUpStore(Path.Combine(dataDir, "opfoelgning.json")));
         return services;
     }

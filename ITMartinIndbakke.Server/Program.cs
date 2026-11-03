@@ -21,16 +21,17 @@ builder.Services.AddKolibri(k =>
     [
         "Indbakke giver dig overblik over din mail, ligesom FileSorter rydder op i billeder: hvad der haster, hvem der venter på svar, og hvem der bare fylder.",
         "Digital Post og breve fra a-kasse, Jobnet og kommune bliver i Det haster nu, til du selv trykker Klaret. Har brevet en frist, skriver du datoen, så kan du ikke glemme den.",
-        "Indbakke læser kun afsender, emne og dato – aldrig selve teksten i dine mails. Den sletter og flytter intet.",
+        "Indbakke læser kun afsender, emne og dato – aldrig selve teksten i dine mails. Den sletter kun, når du selv trykker – og kun reklame, nyhedsbreve og notifikationer, aldrig mails fra mennesker, Digital Post eller kvitteringer.",
     ];
     k.HowTo =
     [
         "Tryk på Scan min mail. Det tager et par minutter første gang.",
         "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
         "Under Skal svares står mails fra rigtige mennesker, som du ikke har svaret på endnu.",
-        "Under Afsendere kan du se, hvem der sender mest. Står der Kan afmeldes, kan du snart afmelde med ét tryk.",
+        "Under Afsendere kan du se, hvem der sender mest. Tryk Ryd op: du ser først, hvor mange mails det er, og hvilke der bliver gemt. Så kan du afmelde og slette med ét tryk.",
+        "Slettede mails ligger i Gmails papirkurv i 30 dage. Under Seneste oprydning kan du trykke Fortryd og få dem tilbage.",
     ];
-    k.Version = "2026.11";
+    k.Version = "2026.11.2";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -77,8 +78,8 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Indbakke</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=2">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=3" defer></script>
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=4">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=4" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
@@ -138,6 +139,34 @@ api.MapPost("/klaret", (FollowUpForm f, FollowUps follow) => Answer(follow.MarkD
 api.MapPost("/grundlinje", (FollowUps follow) => { follow.SetBaseline(); return Results.Ok(new { ok = true }); });
 api.MapPost("/grundlinje/fortryd", (FollowUps follow) => { follow.ClearBaseline(); return Results.Ok(new { ok = true }); });
 api.MapPost("/fortryd", (FollowUpForm f, FollowUps follow) => Answer(follow.Reopen(f.Id)));
+// v2 - Ryd op per sender: see first, then Afmeld and/or Slet (Papirkurv, 30 days), and Fortryd.
+api.MapGet("/afsender", (string adresse, Cleanup cleanup) =>
+{
+    var p = cleanup.Preview(adresse);
+    if (p is null) return Results.NotFound();
+    return Results.Ok(new
+    {
+        adresse = p.Address, navn = p.Name, slettes = p.ToDelete.Count, aeldste = p.Oldest, eksempler = p.Examples,
+        beholdes = p.Kept.Select(k => new { hvorfor = k.Why, antal = k.Count }),
+        afmeld = p.Unsubscribe?.Kind.ToString(),
+    });
+});
+api.MapPost("/afsender/ryd", async (RydForm f, Cleanup cleanup, CancellationToken ct) =>
+{
+    var r = await cleanup.RunAsync(f.Adresse ?? "", f.Afmeld, f.Slet, ct);
+    return r.Ok ? Results.Ok(new { besked = r.Message, flyttet = r.Moved, aabn = r.OpenPage }) : Results.BadRequest(new { fejl = r.Message });
+});
+api.MapGet("/oprydning", (Cleanup cleanup, TimeProvider clock) => Results.Ok(cleanup.History().Select(a => new
+{
+    id = a.Id, tid = a.At, navn = a.Name, adresse = a.Address, antal = a.MessageIds.Count, afmeldt = a.Unsubscribed,
+    fortrudt = a.Restored, kanFortrydes = a.CanUndo(clock.GetUtcNow()),
+})));
+api.MapPost("/oprydning/fortryd", async (FortrydForm f, Cleanup cleanup, CancellationToken ct) =>
+{
+    var r = await cleanup.UndoAsync(f.Id, ct);
+    return r.Ok ? Results.Ok(new { besked = r.Message }) : Results.BadRequest(new { fejl = r.Message });
+});
+
 static IResult Answer(string? error) => error is null ? Results.Ok(new { ok = true }) : Results.BadRequest(new { fejl = error });
 
 // After a restart the overview (in memory only) is gone - scan again by itself, so the page is never empty.
@@ -150,3 +179,5 @@ app.Lifetime.ApplicationStarted.Register(() =>
 app.Run();
 
 record FollowUpForm(string Id, DateOnly? Frist, string? Note);
+record RydForm(string? Adresse, bool Afmeld, bool Slet);
+record FortrydForm(Guid Id);

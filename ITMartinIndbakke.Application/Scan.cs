@@ -22,6 +22,8 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
 {
     private readonly object _gate = new();
     private Task? _running;
+    private MailboxScan? _scan;
+    private int _months = 12;
 
     public MailOverview? Last { get; private set; }
     public bool Running => _running is { IsCompleted: false };
@@ -43,6 +45,17 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
         }
     }
 
+    /// <summary>Mails moved to Papirkurv leave the overview at once - no new scan needed.</summary>
+    public void Forget(ISet<string> messageIds)
+    {
+        lock (_gate)
+        {
+            if (_scan is null) return;
+            _scan = _scan with { Inbox = _scan.Inbox.Where(m => !messageIds.Contains(m.MessageId)).ToList() };
+            Last = MailRules.Build(_scan.Inbox, _scan.WroteTo, _months, clock.GetUtcNow(), _scan.Mine);
+        }
+    }
+
     private async Task RunAsync(int months)
     {
         try
@@ -50,7 +63,7 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(20));
             var progress = new Progress<(int Done, int Total)>(p => { Done = p.Done; Total = p.Total; });
             var scan = await mailbox.ScanAsync(months, progress, cts.Token);
-            Last = MailRules.Build(scan.Inbox, scan.WroteTo, months, clock.GetUtcNow(), scan.Mine);
+            lock (_gate) { _scan = scan; _months = months; Last = MailRules.Build(scan.Inbox, scan.WroteTo, months, clock.GetUtcNow(), scan.Mine); }
             log.LogInformation("Indbakke scan: {Count} mails, {Senders} senders", Last.Total, Last.Senders.Count);
         }
         catch (Exception e)
@@ -70,6 +83,7 @@ public static class IndbakkeApplication
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<MailScanner>();
         services.AddSingleton<FollowUps>();
+        services.AddSingleton<Cleanup>();
         return services;
     }
 }

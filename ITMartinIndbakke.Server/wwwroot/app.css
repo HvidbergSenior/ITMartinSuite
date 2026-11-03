@@ -31,4 +31,12 @@
 .ib-filter .is-on { background: var(--k-accent); border-color: var(--k-accent); color: #fff; }
 .ib-count { font-weight: 700; font-variant-numeric: tabular-nums; }
 .ib-alldone { margin-top: 12px; }
+.ib-why { margin: 0 0 12px; }
+.ib-why summary { cursor: pointer; font-weight: 600; min-height: var(--k-tap); display: flex; align-items: center; }
+.ib-why ul { margin: 6px 0 0; padding-left: 20px; }
+.ib-why li { margin: 4px 0; }
+.ib-panel { margin-top: 10px; padding: 12px; border: 1px solid var(--k-border); border-radius: var(--k-radius); }
+.ib-panel p { margin: 4px 0; }
+.ib-panel .ib-ex { color: var(--k-muted); font-size: 14px; overflow-wrap: anywhere; }
+.ib-done { font-weight: 600; margin-top: 8px; }
 .ib-login { display: flex; flex-direction: column; gap: 8px; max-width: 320px; }

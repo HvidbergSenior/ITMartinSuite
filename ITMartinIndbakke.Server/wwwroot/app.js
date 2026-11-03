@@ -116,8 +116,66 @@
         $('ib-senders').innerHTML = list.slice(0, 150).map(function (s) {
             return '<li><div class="ib-top"><span class="ib-from">' + esc(s.navn) + '</span><span class="ib-count">' + num(s.antal) + ' mails</span></div>' +
                 '<div class="ib-sub">' + esc(s.adresse) + ' · ' + NAMES[s.kategori] + ' · ' + num(s.ulaeste) + ' ulæste · senest ' + day(s.nyeste) + '</div>' +
-                (s.kanAfmeldes ? '<div class="ib-sub"><b>Kan afmeldes' + (s.etTryk ? ' med ét tryk' : '') + '</b></div>' : '') + '</li>';
+                (s.kanAfmeldes ? '<div class="ib-sub"><b>Kan afmeldes' + (s.etTryk ? ' med ét tryk' : '') + '</b></div>' : '') +
+                '<div class="ib-actions"><button type="button" class="k-btn k-btn-sm" data-ryd="' + esc(s.adresse) + '">Ryd op</button></div>' +
+                '<div class="ib-panel" hidden></div></li>';
         }).join('') || '<li>Ingen afsendere her.</li>';
+    }
+
+    var UNSUB = {
+        OneClick: 'Afmeldes med ét tryk – du skal ikke ind på nogen side.',
+        Mail: 'Afmeldes ved at sende en kort afmeldings-mail fra din Gmail.',
+        Page: 'Afsenderen vil have dig ind på deres side for at afmelde – den åbner vi for dig.'
+    };
+
+    // Ryd op: first SHOW what will happen (count, oldest, examples, what is kept and why), then the presses.
+    function openPanel(li, adresse) {
+        var panel = li.querySelector('.ib-panel');
+        if (!panel.hidden) { panel.hidden = true; return; }
+        panel.hidden = false; panel.textContent = 'Henter …';
+        api('GET', '/api/afsender?adresse=' + encodeURIComponent(adresse)).then(function (p) {
+            var h = '';
+            if (p.slettes) {
+                h += '<p><b>' + num(p.slettes) + ' mails kan slettes</b> – ældste fra ' + day(p.aeldste) + '.</p>';
+                h += p.eksempler.map(function (e) { return '<p class="ib-ex">Fx: ' + esc(e) + '</p>'; }).join('');
+                h += '<p>De lægges i papirkurven. Gmail gemmer dem i 30 dage, og du kan trykke Fortryd her.</p>';
+            } else h += '<p>Ingen mails her kan slettes.</p>';
+            p.beholdes.forEach(function (k) { h += '<p><b>' + num(k.antal) + ' bliver liggende</b> – ' + esc(k.hvorfor) + '.</p>'; });
+            h += '<p>' + (p.afmeld ? UNSUB[p.afmeld] : 'Afsenderen tilbyder ingen afmelding.') + '</p>';
+            h += '<div class="ib-actions">';
+            if (p.slettes && p.afmeld) h += '<button type="button" class="k-btn k-btn-sm k-btn-primary" data-go="begge">Afmeld og slet ' + num(p.slettes) + '</button>';
+            if (p.slettes) h += '<button type="button" class="k-btn k-btn-sm' + (p.afmeld ? '' : ' k-btn-primary') + '" data-go="slet">Kun slet</button>';
+            if (p.afmeld) h += '<button type="button" class="k-btn k-btn-sm" data-go="afmeld">Kun afmeld</button>';
+            h += '</div><p class="ib-done" aria-live="polite"></p>';
+            panel.innerHTML = h;
+            panel.setAttribute('data-adresse', p.adresse);
+        }).catch(function () { panel.textContent = 'Kunne ikke hente afsenderen. Scan igen.'; });
+    }
+
+    function runCleanup(panel, mode) {
+        var done = panel.querySelector('.ib-done');
+        panel.querySelectorAll('[data-go]').forEach(function (b) { b.disabled = true; });
+        done.textContent = 'Arbejder …';
+        api('POST', '/api/afsender/ryd', { adresse: panel.getAttribute('data-adresse'), afmeld: mode !== 'slet', slet: mode !== 'afmeld' })
+            .then(function (r) {
+                if (r.fejl) { done.textContent = r.fejl; return; }
+                done.innerHTML = esc(r.besked) + (r.aabn ? ' <a class="k-btn k-btn-sm" href="' + esc(r.aabn) + '" target="_blank" rel="noopener">Åbn afmeldingssiden</a>' : '');
+                loadHistory();
+                if (r.flyttet) setTimeout(load, 2500);   // the sender's numbers change
+            }).catch(function () { done.textContent = 'Det gik galt. Prøv igen.'; });
+    }
+
+    function loadHistory() {
+        api('GET', '/api/oprydning').then(function (list) {
+            $('ib-history-card').hidden = !list.length;
+            $('ib-history').innerHTML = list.map(function (a) {
+                var what = [a.antal ? num(a.antal) + ' mails i papirkurven' : '', a.afmeldt].filter(Boolean).join(' · ');
+                return '<li><div class="ib-top"><span class="ib-from">' + esc(a.navn) + '</span><span class="ib-date">' + day(a.tid) + '</span></div>' +
+                    '<div class="ib-sub">' + esc(what) + (a.fortrudt ? ' · <b>fortrudt</b>' : '') + '</div>' +
+                    (a.kanFortrydes ? '<div class="ib-actions"><button type="button" class="k-btn k-btn-sm" data-undo="' + a.id + '">Fortryd</button></div>' : '') +
+                    '<p class="ib-done" aria-live="polite"></p></li>';
+            }).join('');
+        });
     }
 
     function renderCats() {
@@ -133,7 +191,7 @@
             data = d;
             status(num(d.ialt) + ' mails de sidste ' + d.maaneder + ' måneder · ' + num(d.ulaeste) + ' ulæste · scannet ' +
                 new Date(d.scannet).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
-            renderCats(); renderBaseline(d.grundlinje); renderNow(d.hasterNu); renderReply(d.skalSvares); renderSenders();
+            renderCats(); loadHistory(); renderBaseline(d.grundlinje); renderNow(d.hasterNu); renderReply(d.skalSvares); renderSenders();
         });
     }
 
@@ -156,6 +214,23 @@
         api('POST', '/api/scan?maaneder=' + $('ib-months').value).then(function (r) {
             if (r.fejl) { status(r.fejl); return; }
             clearTimeout(poll); watch();
+        });
+    });
+
+    $('ib-senders').addEventListener('click', function (e) {
+        var ryd = e.target.closest('[data-ryd]');
+        if (ryd) { openPanel(ryd.closest('li'), ryd.getAttribute('data-ryd')); return; }
+        var go = e.target.closest('[data-go]');
+        if (go) runCleanup(go.closest('.ib-panel'), go.getAttribute('data-go'));
+    });
+
+    $('ib-history').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-undo]'); if (!b) return;
+        var done = b.closest('li').querySelector('.ib-done');
+        b.disabled = true; done.textContent = 'Lægger tilbage …';
+        api('POST', '/api/oprydning/fortryd', { id: b.getAttribute('data-undo') }).then(function (r) {
+            done.textContent = r.fejl || r.besked;
+            setTimeout(function () { loadHistory(); watch(); }, 1500);
         });
     });
 

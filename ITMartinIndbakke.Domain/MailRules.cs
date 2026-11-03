@@ -123,6 +123,6 @@ public static class MailRules
             .OrderByDescending(s => s.Count).ThenByDescending(s => s.Newest)
             .ToList();
 
-        return new MailOverview(now, months, mails.Count, mails.Count(m => !m.Seen), perCategory, important, reply, senders);
+        return new MailOverview(now, months, mails.Count, mails.Count(m => !m.Seen), perCategory, important, reply, senders, sorted);
     }
 }

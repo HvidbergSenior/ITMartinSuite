@@ -24,7 +24,8 @@ public sealed record MailHeader(
     bool OneClickUnsubscribe,
     bool IsMailingList,
     bool IsAutomatic,
-    GmailTab Tab)
+    GmailTab Tab,
+    bool Flagged = false)   // Gmail star = IMAP \Flagged; starred mail is never deleted
 {
     public string Domain => FromAddress.Contains('@') ? FromAddress[(FromAddress.LastIndexOf('@') + 1)..].ToLowerInvariant() : "";
 
@@ -53,4 +54,5 @@ public sealed record MailOverview(
     /// <summary>All Digital Post + Haster mails (newest first) - "Det haster nu" is made from these plus the follow-ups.</summary>
     IReadOnlyList<(MailHeader Mail, MailCategory Category)> Important,
     IReadOnlyList<(MailHeader Mail, MailCategory Category)> NeedsReply,
-    IReadOnlyList<SenderGroup> Senders);
+    IReadOnlyList<SenderGroup> Senders,
+    IReadOnlyList<(MailHeader Mail, MailCategory Category)> All);
