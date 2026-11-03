@@ -17,6 +17,25 @@ public static class Statuses
     public static readonly string[] All = [Lager, TilSalg, PaaAuktion, Solgt];
 }
 
+// Which items a list looks at (user 2026-11-03: "I could not search for only the new products... i also had to see the
+// existing ones"): all, the ones registered since a moment (today, the last 7 days), and/or one box.
+public sealed record ItemScope(DateTime? SinceUtc = null, int? BoxId = null)
+{
+    public static readonly ItemScope All = new();
+    public bool IsAll => SinceUtc is null && BoxId is null;
+    public bool Holds(Item i) => (SinceUtc is null || i.CreatedAt >= SinceUtc) && (BoxId is null || i.BoxId == BoxId);
+
+    private static readonly TimeZoneInfo Dk = Find("Europe/Copenhagen");
+    private static TimeZoneInfo Find(string id) { try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { return TimeZoneInfo.Utc; } }
+
+    /// <summary>Midnight in Denmark, n days back (0 = today), as UTC - CreatedAt is stored in UTC.</summary>
+    public static DateTime DanishMidnightUtc(DateTime nowUtc, int daysBack = 0)
+    {
+        var local = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Dk).Date.AddDays(-daysBack);
+        return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), Dk);
+    }
+}
+
 // A box, shelf or crate with a printed QR label - the only "where is it" the register needs.
 public sealed class Box
 {

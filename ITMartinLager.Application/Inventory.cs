@@ -70,24 +70,29 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
 
     /// <summary>Every word must match somewhere. Also the dearest find per hit when it is 3x the normal price or more
     /// (user: "if the normal price is 5 kr but on amazon.de it costs 50 kr i want to know that").</summary>
-    public async Task<(List<Item> Hits, Dictionary<int, PriceFind> FarAbove, int Total)?> SearchAsync(string text, string? kind, string? valuation = null, CancellationToken ct = default)
+    public async Task<(List<Item> Hits, Dictionary<int, PriceFind> FarAbove, int Total)?> SearchAsync(string text, string? kind, string? valuation = null, CancellationToken ct = default, ItemScope? scope = null)
     {
-        if (text.Trim().Length < 2 && kind is null && valuation is null) return null;
-        var hits = (await items.SearchAsync(text, kind, valuation, MaxHits, ct))
+        scope ??= ItemScope.All;
+        if (text.Trim().Length < 2 && kind is null && valuation is null && scope.IsAll) return null;
+        var hits = (await items.SearchAsync(text, kind, valuation, MaxHits, ct, scope))
             .OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).ToList();
         var priced = hits.Where(i => i.PriceHint is > 0).ToDictionary(i => i.Id);
         var tops = await prices.TopFindsAsync(priced.Keys.ToList(), ct);
-        var total = hits.Count < MaxHits ? hits.Count : await items.CountAsync(text, kind, valuation, ct);
+        var total = hits.Count < MaxHits ? hits.Count : await items.CountAsync(text, kind, valuation, ct, scope);
         return (hits, tops.Where(t => t.Value.Kr >= priced[t.Key].PriceHint * 3).ToDictionary(t => t.Key, t => t.Value), total);
     }
 
     /// <summary>Every unsold item with its "worth looking into?" line - gold first (user 2026-10-12: "so that I can go
     /// through all interesting in one go").</summary>
-    public async Task<List<(Item Item, string Note)>> InterestingAsync(IReadOnlyList<GoldEntry> gold, CancellationToken ct = default) =>
-        (await items.AllAsync(ct)).Where(i => i.Status != Statuses.Solgt)
+    public async Task<List<(Item Item, string Note)>> InterestingAsync(IReadOnlyList<GoldEntry> gold, CancellationToken ct = default, ItemScope? scope = null) =>
+        (await items.AllAsync(ct)).Where(i => i.Status != Statuses.Solgt && (scope ?? ItemScope.All).Holds(i))
             .Select(i => (Item: i, Note: Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint, i.Want, i.Have)))
             .Where(x => x.Note is not null).Select(x => (x.Item, x.Note!))
             .OrderBy(x => Gold.Rank(x.Item2)).ThenByDescending(x => x.Item.Price ?? x.Item.PriceHint ?? 0).ToList();
+
+    /// <summary>Boxes that got new items since this moment (the "Hvilke varer" chips on Søg).</summary>
+    public Task<List<(Box Box, int Count)>> NewPerBoxAsync(DateTime sinceUtc, CancellationToken ct = default) =>
+        items.NewPerBoxAsync(sinceUtc, ct);
 
     public async Task<ItemView?> GetAsync(int id, CancellationToken ct = default)
     {

@@ -104,23 +104,35 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     }
 
     // Every word must match somewhere (title, artist, series, number, year ...): "anders 1968" finds Anders And 1968.
-    public async Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct)
+    public async Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct, ItemScope? scope = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await Matching(db, text, kind, valuation)
+        return await Matching(db, text, kind, valuation, scope)
             .OrderBy(i => i.Series).ThenBy(i => i.Year).ThenBy(i => i.Number).ThenBy(i => i.Title).Take(max).ToListAsync(ct);
     }
 
     // How many match in all - the list stops at max (user 2026-10-31: "says 200 and 196 later").
-    public async Task<int> CountAsync(string text, string? kind, string? valuation, CancellationToken ct)
+    public async Task<int> CountAsync(string text, string? kind, string? valuation, CancellationToken ct, ItemScope? scope = null)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await Matching(db, text, kind, valuation).CountAsync(ct);
+        return await Matching(db, text, kind, valuation, scope).CountAsync(ct);
     }
 
-    private static IQueryable<Item> Matching(LagerDb db, string text, string? kind, string? valuation)
+    public async Task<List<(Box Box, int Count)>> NewPerBoxAsync(DateTime sinceUtc, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var rows = await db.Items.Where(i => i.CreatedAt >= sinceUtc && i.BoxId != null)
+            .GroupBy(i => i.BoxId).Select(g => new { BoxId = g.Key!.Value, Count = g.Count(), Last = g.Max(i => i.CreatedAt) }).ToListAsync(ct);
+        var ids = rows.Select(r => r.BoxId).ToList();
+        var boxes = await db.Boxes.Where(b => ids.Contains(b.Id)).ToDictionaryAsync(b => b.Id, ct);
+        return rows.Where(r => boxes.ContainsKey(r.BoxId)).OrderByDescending(r => r.Last).Select(r => (boxes[r.BoxId], r.Count)).ToList();
+    }
+
+    private static IQueryable<Item> Matching(LagerDb db, string text, string? kind, string? valuation, ItemScope? scope = null)
     {
         var q = db.Items.Include(i => i.Box).AsQueryable();
+        if (scope?.SinceUtc is { } since) q = q.Where(i => i.CreatedAt >= since);
+        if (scope?.BoxId is { } box) q = q.Where(i => i.BoxId == box);
         if (!string.IsNullOrEmpty(kind)) q = q.Where(i => i.Kind == kind);
         // Item.Valuation, as SQL.
         q = valuation switch

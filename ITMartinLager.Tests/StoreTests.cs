@@ -215,6 +215,34 @@ public class StoreTests
         (await Items.SearchAsync("elton 1968", null, null, 100, default)).Count.Should().Be(0);
         (await Items.SearchAsync("", Kinds.Cd, null, 100, default)).Count.Should().Be(1);
     }
+
+    [Test]
+    public async Task Scope_shows_only_the_new_items_or_one_box()
+    {
+        var old = await Boxes.AddNextAsync("", default);
+        var fresh = await Boxes.AddNextAsync("", default);
+        await Registration.SaveAsync(old.Id, null, [Aa("12", 1968)]);
+        await Registration.SaveAsync(fresh.Id, null, [Aa("13", 1968), Aa("14", 1968)]);
+        var since = DateTime.UtcNow.AddMinutes(-1);
+        (await Items.SearchAsync("anders", null, null, 100, default, new ItemScope(SinceUtc: since))).Count.Should().Be(3);
+        (await Items.SearchAsync("anders", null, null, 100, default, new ItemScope(SinceUtc: DateTime.UtcNow.AddMinutes(1)))).Should().BeEmpty();
+        (await Items.SearchAsync("", null, null, 100, default, new ItemScope(BoxId: fresh.Id))).Count.Should().Be(2);
+        (await Items.CountAsync("anders", null, null, default, new ItemScope(BoxId: old.Id))).Should().Be(1);
+        var perBox = await Items.NewPerBoxAsync(since, default);
+        perBox.Select(x => (x.Box.Id, x.Count)).Should().BeEquivalentTo([(old.Id, 1), (fresh.Id, 2)]);
+    }
+
+    [Test]
+    public void Today_starts_at_Danish_midnight()
+    {
+        // 3 Nov 2026 10:00 UTC = 11:00 in Denmark (winter time) -> today began 2 Nov 23:00 UTC.
+        ItemScope.DanishMidnightUtc(new DateTime(2026, 11, 3, 10, 0, 0, DateTimeKind.Utc))
+            .Should().Be(new DateTime(2026, 11, 2, 23, 0, 0));
+        ItemScope.DanishMidnightUtc(new DateTime(2026, 11, 3, 10, 0, 0, DateTimeKind.Utc), 6)
+            .Should().Be(new DateTime(2026, 10, 27, 23, 0, 0));
+        new ItemScope(BoxId: 4).Holds(new Item { BoxId = 5 }).Should().BeFalse();
+        ItemScope.All.Holds(new Item()).Should().BeTrue();
+    }
 }
 
 public class AuctionApplyTests
