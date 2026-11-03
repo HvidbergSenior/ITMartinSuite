@@ -287,6 +287,22 @@ app.Use(async (ctx, next) =>
         ctx.Response.Redirect(ITMartinHjem.Server.Components.BogshoppenHome.AskUrl, permanent: true);
         return;
     }
+    // bogshoppen.dk is ONLY products (user 2026-11-03: "i want all Om bogshoppen/ITMartin on ITMartin.dk. Bogs is only products"):
+    // the front page is Produkter, and the pages about Bogshoppen and ITMartin are on itmartin.dk.
+    if (ITMartinHjem.Server.Components.BogshoppenHome.IsHost(ctx.Request.Host.Host))
+    {
+        if (path == "/" || path == "")
+        {
+            ctx.Response.Redirect("/produkter");
+            return;
+        }
+        foreach (var about in new[] { "/om-bogshoppen", "/om-itmartin", "/baeredygtighed" })
+            if (path.StartsWithSegments(about, StringComparison.OrdinalIgnoreCase))
+            {
+                ctx.Response.Redirect("https://itmartin.dk" + about, permanent: true);
+                return;
+            }
+    }
     // Ros/ris too (2026-10-29): bogshoppen.dk/kritik -> itmartin.dk/kritik.
     if (ITMartinHjem.Server.Components.BogshoppenHome.IsHost(ctx.Request.Host.Host) && path.StartsWithSegments("/kritik", StringComparison.OrdinalIgnoreCase))
     {

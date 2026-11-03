@@ -1,4 +1,5 @@
 @page "/om-bogshoppen"
+@inject SiteUseCases Site
 
 @* bogshoppen.dk third tab (user 2026-10-12: "Bogshoppen stod for hygge, snak og fællesskab ... og videre skal være i en anden tab").
    The manifest is the user's own text - keep it word for word. *@
@@ -8,7 +9,19 @@
     <BogshoppenPhoto />
     <span class="bs-tag">Idéen bag</span>
     <h1>Om Bogshoppen</h1>
+    @* On itmartin.dk since 2026-11-03 (user: "i want all Om bogshoppen/ITMartin on ITMartin.dk. Bogs is only products"). *@
+    <p class="hj-head-note"><b>Bogshoppen er en del af ITMartin.</b> Produkterne står på bogshoppen.dk – alt om os står her.</p>
+    <div class="hj-head-btns">
+        <a class="k-btn k-btn-primary bs-btn bs-head-btn" href="https://bogshoppen.dk/produkter">Se produkterne på bogshoppen.dk</a>
+    </div>
 </header>
+
+<VidsteDu Facts="SiteFacts.ForBogshoppen()" StartAmong="SiteFacts.Bogshoppen.Count" />
+
+@* Who Rico and Martin are (Svar -> Sider -> "bogshoppen-dk") - was on the bogshoppen.dk front page until 2026-11-03. *@
+@{ var (intro, parts) = Sections.Split(_page?.Body); }
+@if (intro.Length > 0) { <section class="k-card hj-page bs-card">@TinyMarkdown.Render(intro)</section> }
+<div class="bs-card"><SectionBoxes Parts="parts" FirstOpen="true" /></div>
 
 @* User's own text 2026-10-11 - keep it word for word. The "Snart kan du købe på mange måder" heading and the list of
    ways were removed 2026-10-12 (user). *@
@@ -36,3 +49,8 @@
         <a class="k-btn k-btn-primary bs-btn" href="/baeredygtighed">Læs om vores grønne tanker</a>
     </div>
 </section>
+
+@code {
+    private Page? _page;
+    protected override async Task OnInitializedAsync() => _page = await Site.PageBySlugAsync(BogshoppenHome.PageSlug);
+}
