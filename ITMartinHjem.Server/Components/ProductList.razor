@@ -215,9 +215,12 @@
     // part of its line ("Krigsret! · Jonah Hex · nr. 15") is the series' name.
     private string? _batch;
     private const int BatchFrom = 2;
+    /// <summary>Not a series: compilations by many artists (live 2026-11-03: "Various", "Diverse kunstnere" became batches).</summary>
+    private static readonly HashSet<string> NotABatch = new(StringComparer.OrdinalIgnoreCase)
+        { "Various", "Various Artists", "Diverse", "Diverse kunstnere", "Div. kunstnere", "Blandede kunstnere", "Ukendt" };
 
     private List<ShopGroup> Batches => _batch is not null || _query != "" || Family is null ? []
-        : (_market?.Groups ?? []).Where(g => g.Count >= BatchFrom && g.Name.Trim() != "").ToList();
+        : (_market?.Groups ?? []).Where(g => g.Count >= BatchFrom && g.Name.Trim() != "" && !NotABatch.Contains(g.Name.Trim())).ToList();
 
     private string? BatchOf(ShopItem i)
     {
