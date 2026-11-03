@@ -24,6 +24,7 @@ public class ProductTypeGoldTests
     [TestCase(Kinds.Konsolspil, ProductTypes.Computerspil)]
     [TestCase(Kinds.Braetspil, ProductTypes.Braetspil)]
     [TestCase(Kinds.Kortspil, ProductTypes.Braetspil)]
+    [TestCase(Kinds.Rollespil, ProductTypes.Rollespil)]
     public void Every_kind_belongs_to_one_product_type(string kind, string type) => ProductTypes.For(kind).Should().Be(type);
 
     [TestCase("Criminal Minds – The First Season", true)]
@@ -120,8 +121,8 @@ public class ProductTypeGoldTests
 
     [Test]
     public void Every_product_type_with_a_service_has_a_gold_list() =>
-        // Gamle blade share the blade lists; Computerspil and Brætspil og kortspil have none yet (2026-11-03).
-        Gold.Types.Should().BeEquivalentTo(ProductTypes.All.Except([ProductTypes.Andet, ProductTypes.GamleBlade, ProductTypes.Computerspil, ProductTypes.Braetspil]));
+        // Gamle blade share the blade lists; Computerspil, Brætspil og kortspil and Rollespil have none yet (2026-11-03).
+        Gold.Types.Should().BeEquivalentTo(ProductTypes.All.Except([ProductTypes.Andet, ProductTypes.GamleBlade, ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil]));
 
     [Test]
     public void A_record_is_gold_by_its_title_and_the_record_player_is_not_counted()

@@ -11,16 +11,18 @@ public static class Kinds
         // 2026-10-20 with the product-type services: film on tape, records and tapes, American superhero comics.
         Vhs = "VHS", Vinyl = "Vinyl", Kassette = "Kassettebånd", Superhelte = "Superhelteblad",
         // 2026-11-03 with the main categories: "Brætspil/kortspil".
-        Braetspil = "Brætspil", Kortspil = "Kortspil";
+        Braetspil = "Brætspil", Kortspil = "Kortspil",
+        // 2026-11-03 "a category should also be dungeons and dragons": rollespil (D&D books, boxes, dice) - Fantasyshoppen.
+        Rollespil = "Rollespil";
 
     public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Superhelte, Magasin, Bog, Cd, Vinyl, Kassette, Dvd, BluRay, Vhs,
-        Konsolspil, Braetspil, Kortspil, Magic, Merch, Andet];
+        Konsolspil, Braetspil, Kortspil, Rollespil, Magic, Merch, Andet];
 
     public static string Icon(string kind) => kind switch
     {
         Cd or Vinyl => "🎵", Kassette or Vhs => "📼", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆",
         Tegneserie => "💥", Superhelte => "🦸",
-        Konsolspil => "🎮", Braetspil or Kortspil => "🎲", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
+        Konsolspil => "🎮", Braetspil or Kortspil or Rollespil => "🎲", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
     };
 
     public static string Normalise(string? kind) =>
@@ -133,10 +135,10 @@ public static class ProductTypes
     // And, Basserne, Jonah Hex, Kong Kylie); Superhelte = Project X, Edderkoppen; Gamle blade = every blad before 1990.
     public const string Boeger = "Bøger", Tegneserier = "Tegneserier", Serieblade = "Serieblade", GamleBlade = "Gamle blade",
         Jumbo = "Jumbobøger", Superhelte = "Superhelte", Film = "Film", Musik = "Musik", Computerspil = "Computerspil",
-        Braetspil = "Brætspil og kortspil", Magic = "Magic", Andet = "Andet";
+        Braetspil = "Brætspil og kortspil", Rollespil = "Rollespil", Magic = "Magic", Andet = "Andet";
 
     public static readonly string[] All = [Boeger, Tegneserier, Serieblade, GamleBlade, Jumbo, Superhelte, Film, Musik, Computerspil,
-        Braetspil, Magic, Andet];
+        Braetspil, Rollespil, Magic, Andet];
 
     /// <summary>A blad from before this year is a Gamle blade (user 2026-11-03: "before 1990 all blade").</summary>
     public const int OldBefore = 1990;
@@ -164,6 +166,7 @@ public static class ProductTypes
         Kinds.Bog => Boeger,
         Kinds.Konsolspil => Computerspil,
         Kinds.Braetspil or Kinds.Kortspil => Braetspil,
+        Kinds.Rollespil => Rollespil,
         _ => Andet,   // merchandise, magazines, the rest
     };
 
@@ -188,7 +191,7 @@ public static class ShopShelves
         (Tegneserier, [ProductTypes.Tegneserier, ProductTypes.Serieblade, ProductTypes.GamleBlade, ProductTypes.Jumbo, ProductTypes.Superhelte]),
         (Film, [ProductTypes.Film]),
         (Musik, [ProductTypes.Musik]),
-        (Spil, [ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Magic]),
+        (Spil, [ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil, ProductTypes.Magic]),
     ];
 
     public static bool IsShelf(string? name) => All.Any(s => s.Name == name);
@@ -242,7 +245,12 @@ public static class ShopFamilies
     public static readonly ShopFamily Kort = new("Kortshoppen", "kort", "Samlerkort – Magic: The Gathering.",
         [ProductTypes.Magic], [new("Magic", ProductTypes.Magic)]);
 
-    public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Kort];
+    /// <summary>User 2026-11-03 "a category should also be dungeons and dragons", "Fantasy" -> own shop (chose it): D&D and other
+    /// rollespil now; fantasy books and films join when the things have genres (step 2).</summary>
+    public static readonly ShopFamily Fantasy = new("Fantasyshoppen", "fantasy", "Dungeons & Dragons og andre rollespil – bøger, bokse og terninger.",
+        [ProductTypes.Rollespil], [new("Dungeons & Dragons", ProductTypes.Rollespil)]);
+
+    public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Fantasy, Kort];
 
     public static ShopFamily? BySlug(string? slug) => All.FirstOrDefault(f => string.Equals(f.Slug, slug?.Trim('/'), StringComparison.OrdinalIgnoreCase));
 
