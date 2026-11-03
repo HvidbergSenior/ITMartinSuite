@@ -21,6 +21,10 @@ window.hjem = (function () {
     return {
         // bogshoppen.dk/produkter: the categories the visitor chose, remembered for the next visit (a cookie, so the
         // server can open the page with them at once - no jump). Empty = forget.
+        // Rewrites the address bar only (no page change, keeps the history state the picture zoom uses).
+        setAddress: function (url) {
+            try { history.replaceState(history.state, '', url); } catch (e) { }
+        },
         rememberCategories: function (v) {
             document.cookie = 'bs-vis=' + encodeURIComponent(v || '') + ';path=/;samesite=lax;max-age=' + (v ? 31536000 : 0);
         },

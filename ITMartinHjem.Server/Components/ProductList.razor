@@ -1,6 +1,7 @@
 @inject ShopUseCases Shop
-@inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject PersistentComponentState State
+@implements IDisposable
 
 @* The products from Lager on bogshoppen.dk/produkter (user 2026-10-29: "i want to see the products on bogshoppen.dk as a
    produkter - You can not buy them... It should say TESTING", "important data from lager should be on the products").
@@ -203,14 +204,32 @@
     private string? OnlyCat => _cats is [var c] ? c : null;
     private static string Words(List<string> cats) => cats.Count == 1 ? cats[0] : string.Join(", ", cats[..^1]) + " og " + cats[^1];
 
-    // The chosen categories come from the address (?vis=Bøger,Film); a new choice changes the address, which lands here.
-    protected override Task OnParametersSetAsync()
+    // No flicker (user 2026-11-03 "it flickers"): the page is drawn twice (first on the server, then live). What the
+    // first drawing fetched is handed to the live one, so the list is not fetched and drawn again.
+    private sealed record Snapshot(ShopMarket Market, List<ShopItem> Items);
+    private PersistingComponentStateSubscription _persist;
+
+    // The chosen categories come from the address (?vis=Bøger,Film) once; a new choice only rewrites the address.
+    protected override async Task OnInitializedAsync()
     {
         _cats = (Vis ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Where(ProductTypes.All.Contains).Distinct().ToList();
-        if (_cats.Count > 0) _type = "";
-        return Load(reset: true);
+        _persist = State.RegisterOnPersisting(() =>
+        {
+            if (_market is not null) State.PersistAsJson(SnapshotKey, new Snapshot(_market, _items));
+            return Task.CompletedTask;
+        });
+        if (State.TryTakeFromJson<Snapshot>(SnapshotKey, out var snap) && snap is not null)
+        {
+            _market = snap.Market;
+            _items.AddRange(snap.Items);
+            return;
+        }
+        await Load(reset: true);
     }
+
+    private const string SnapshotKey = "bs-produkter";
+    public void Dispose() => _persist.Dispose();
 
     private Task Toggle(string cat) => SetCats(_cats.Contains(cat) ? _cats.Where(c => c != cat).ToList() : [.. _cats, cat]);
 
@@ -218,9 +237,21 @@
     {
         _type = ""; _text = ""; _kind = "";
         var vis = string.Join(',', ProductTypes.All.Where(cats.Contains));   // always in the same order
-        try { await JS.InvokeVoidAsync("hjem.rememberCategories", vis); } catch (JSException) { } catch (InvalidOperationException) { }
-        if (vis == string.Join(',', _cats)) { await Load(reset: true); return; }   // same address: no navigation would happen
-        Nav.NavigateTo(vis == "" ? "/produkter" : "/produkter?vis=" + Uri.EscapeDataString(vis), replace: true);
+        _cats = ProductTypes.All.Where(cats.Contains).ToList();
+        await Address(vis);
+        await Load(reset: true);
+    }
+
+    // The address and the memory follow the choice - without a navigation (that redrew the page and jumped to the top).
+    private async Task Address(string vis)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("hjem.rememberCategories", vis);
+            await JS.InvokeVoidAsync("hjem.setAddress", vis == "" ? "/produkter" : "/produkter?vis=" + Uri.EscapeDataString(vis));
+        }
+        catch (JSException) { }
+        catch (InvalidOperationException) { }
     }
 
     /// <summary>Alle = the things with a price; "Ingen pris endnu" and "Ikke tjekket endnu" keep their own buttons.</summary>
@@ -267,7 +298,7 @@
     {
         _type = type; _text = ""; _kind = "";
         if (ShopDeals.Named(type) is not null || type is ShopDeals.NoPriceName or ShopDeals.UnsureName) _price = "";
-        if (_cats.Count > 0) { _cats = []; try { await JS.InvokeVoidAsync("hjem.rememberCategories", ""); } catch (JSException) { } Nav.NavigateTo("/produkter", replace: true); return; }
+        if (_cats.Count > 0) { _cats = []; await Address(""); }
         await Load(reset: true);
     }
     private Task PickPrice(string key) { _price = key; return Load(reset: true); }
