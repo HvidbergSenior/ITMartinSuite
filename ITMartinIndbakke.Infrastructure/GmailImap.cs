@@ -75,7 +75,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
 
     private async Task<ImapClient> ConnectAsync(CancellationToken ct)
     {
-        var client = new ImapClient { Timeout = 120_000 };
+        var client = new ImapClient { Timeout = 600_000 };   // moves of thousands: Gmail is slow per batch (01:32 run timed out at 2 min but Gmail moved all 21,141)
         await client.ConnectAsync("imap.gmail.com", 993, SecureSocketOptions.SslOnConnect, ct);
         await client.AuthenticateAsync(user, appPassword.Replace(" ", ""), ct);
         return client;
@@ -125,16 +125,16 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         var toArchive = mode == OldMode.SletAlt ? new List<UniqueId>() : all.Where(u => !toTrash.Contains(u)).ToList();
 
         // 1. the label first - so Fortryd can always find the whole pile, wherever it went
-        foreach (var chunk in all.Chunk(1000))
+        foreach (var chunk in all.Chunk(200))
             await inbox.StoreAsync(chunk, new StoreLabelsRequest(StoreAction.Add, new[] { label }) { Silent = true }, ct);
         // 2. junk (or everything) -> Papirkurv
         var trashFolder = Trash(client);
-        foreach (var chunk in toTrash.Chunk(1000)) await inbox.MoveToAsync(chunk, trashFolder, ct);
+        foreach (var chunk in toTrash.Chunk(200)) await inbox.MoveToAsync(chunk, trashFolder, ct);
         // 3. the rest -> Arkiv (Gmail: out of Indbakke, still under "Alle mails")
         if (toArchive.Count > 0)
         {
             var archive = client.GetFolder(SpecialFolder.All) ?? throw new InvalidOperationException("Gmail har ingen 'Alle mails'-mappe.");
-            foreach (var chunk in toArchive.Chunk(1000)) await inbox.MoveToAsync(chunk, archive, ct);
+            foreach (var chunk in toArchive.Chunk(200)) await inbox.MoveToAsync(chunk, archive, ct);
         }
         await client.DisconnectAsync(true, ct);
         return (toTrash.Count, toArchive.Count);
@@ -147,7 +147,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         var trash = Trash(client);
         await trash.OpenAsync(FolderAccess.ReadWrite, ct);
         var fromTrash = await trash.SearchAsync(SearchQuery.HasGMailLabel(label), ct);
-        foreach (var chunk in fromTrash.Chunk(1000)) await trash.MoveToAsync(chunk, client.Inbox, ct);
+        foreach (var chunk in fromTrash.Chunk(200)) await trash.MoveToAsync(chunk, client.Inbox, ct);
         back += fromTrash.Count;
         await trash.CloseAsync(false, ct);
         if (client.GetFolder(SpecialFolder.All) is { } archive)
@@ -155,7 +155,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
             await archive.OpenAsync(FolderAccess.ReadWrite, ct);
             var archived = await archive.SearchAsync(SearchQuery.GMailRawSearch("label:" + label + " -in:inbox"), ct);
             // Gmail: a copy into INBOX = the Indbakke label back on the same mail (no duplicate)
-            foreach (var chunk in archived.Chunk(1000)) await archive.CopyToAsync(chunk, client.Inbox, ct);
+            foreach (var chunk in archived.Chunk(200)) await archive.CopyToAsync(chunk, client.Inbox, ct);
             back += archived.Count;
         }
         await client.DisconnectAsync(true, ct);
