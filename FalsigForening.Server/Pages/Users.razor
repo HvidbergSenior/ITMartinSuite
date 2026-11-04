@@ -29,14 +29,14 @@ else
                         </div>
                         @if (!string.IsNullOrWhiteSpace(m.ContactInfo))
                         {
-                            <div class="task-item-desc">📞 @m.ContactInfo</div>
+                            <div class="task-item-desc">@m.ContactInfo</div>
                         }
                         @if (IsAdmin && People.MailConfigured && m.Id != _member.Id)
                         {
                             <div class="task-meta">
                                 @if (EmailAddress.LooksLike(m.Email))
                                 {
-                                    <button class="msg-btn" @onclick="() => Invite(m)" disabled="@(_inviting == m.Id)">📧 @(m.LoginToken is null ? "Inviter" : "Send invitation igen")</button>
+                                    <button class="msg-btn" @onclick="() => Invite(m)" disabled="@(_inviting == m.Id)">@(m.LoginToken is null ? "Inviter" : "Send invitation igen")</button>
                                 }
                                 else { <span>Ingen mail – kan ikke inviteres</span> }
                                 @if (_invited.TryGetValue(m.Id, out var res)) { <span>@res</span> }
@@ -46,7 +46,7 @@ else
                             <span>Tilmeldt @m.JoinedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
                             @if (_openCountByName.TryGetValue(m.Name, out var count) && count > 0)
                             {
-                                <span>📋 @count åbne opgave@(count == 1 ? "" : "r")</span>
+                                <span>@count åbne opgave@(count == 1 ? "" : "r")</span>
                             }
                         </div>
                     </div>
@@ -63,7 +63,7 @@ else
     .task-info { flex: 1; }
     .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
     .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-    .role-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: rgba(59,130,246,.12); border-radius: 999px; padding: 2px 9px; vertical-align: middle; }
+    .role-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: color-mix(in srgb, var(--k-accent) 12%, transparent); border-radius: 999px; padding: 2px 9px; vertical-align: middle; }
     .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
 </style>
 
@@ -77,14 +77,14 @@ else
     private Guid? _inviting;
     private readonly Dictionary<Guid, string> _invited = [];
 
-    // Admin = role containing "Admin" (set in the database / Admin page). Only they see "📧 Inviter".
+    // Admin = role containing "Admin" (set in the database / Admin page). Only they see "Inviter".
     private bool IsAdmin => _member?.IsAdmin == true;
 
     private async Task Invite(Member m)
     {
         _inviting = m.Id; StateHasChanged();
         var ok = await People.InviteAsync(_group!, m, _member!, Nav.BaseUri);
-        _invited[m.Id] = ok ? "✓ Invitation sendt" : "Kunne ikke sende – tjek mailen";
+        _invited[m.Id] = ok ? "Invitation sendt" : "Kunne ikke sende – tjek mailen";
         _inviting = null;
     }
 

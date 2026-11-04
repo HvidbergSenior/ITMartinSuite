@@ -25,8 +25,8 @@
          Historik/Påminder etc. are real features but not what a 30-second
          demo click-through is for. -->
     <div class="club-mode-row">
-        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
-        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">Bruger</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">Medlemmer</a>
     </div>
 }
 else if (ClubGroups.IsBoard(Slug))
@@ -34,19 +34,19 @@ else if (ClubGroups.IsBoard(Slug))
     <!-- Board/association version (Skelagerhøjen, 2026-10-02): messages first, nothing else until it is asked for. -->
     <div class="club-mode-row">
         <a class="club-mode-item @(Active == "forening" ? "active" : "")" href="/g/@Slug/forening">Foreningen</a>
-        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">📣 Beskeder</a>
-        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">✅ Opgaver</a>
-        <a class="club-mode-item @(Active == "moeder" ? "active" : "")" href="/g/@Slug/moeder">📝 Møder</a>
-        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
-        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">Beskeder</a>
+        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">Opgaver</a>
+        <a class="club-mode-item @(Active == "moeder" ? "active" : "")" href="/g/@Slug/moeder">Møder</a>
+        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">Kalender</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">Medlemmer</a>
     </div>
 }
 else if (ClubGroups.IsTasksOnly(Slug))
 {
     <!-- Bogshoppen (2026-10-06): only tasks and addresses - overview and who does what. -->
     <div class="club-mode-row">
-        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">✅ Opgaver</a>
-        <a class="club-mode-item @(Active == "adresser" ? "active" : "")" href="/g/@Slug/adresser">📍 Adresser</a>
+        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">Opgaver</a>
+        <a class="club-mode-item @(Active == "adresser" ? "active" : "")" href="/g/@Slug/adresser">Adresser</a>
     </div>
 }
 else if (Slug == "hvidberg")
@@ -56,10 +56,10 @@ else if (Slug == "hvidberg")
          tasks). Other pages (Admin, Historik, etc.) still work by direct
          URL, they're just not listed here. -->
     <div class="club-mode-row">
-        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
-        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">📣 Beskeder</a>
-        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
-        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">Bruger</a>
+        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">Beskeder</a>
+        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">Historik</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">Medlemmer</a>
     </div>
 }
 else
@@ -69,14 +69,14 @@ else
          page (which already lists completed tasks under "Udførte opgaver"),
          since /docs (session recaps) moved to the gaming app. -->
     <div class="club-mode-row">
-        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
-        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">📣 Beskeder</a>
-        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
-        <a class="club-mode-item @(Active == "storage" ? "active" : "")" href="/g/@Slug/storage">🏬 Lager</a>
-        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
-        <a class="club-mode-item @(Active == "ideas" ? "active" : "")" href="/g/@Slug/ideas">💡 Idéer</a>
-        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
-        <a class="club-mode-item @(Active == "admin" ? "active" : "")" href="/g/@Slug/admin">⚙ Admin</a>
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">Bruger</a>
+        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">Beskeder</a>
+        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">Historik</a>
+        <a class="club-mode-item @(Active == "storage" ? "active" : "")" href="/g/@Slug/storage">Lager</a>
+        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">Kalender</a>
+        <a class="club-mode-item @(Active == "ideas" ? "active" : "")" href="/g/@Slug/ideas">Idéer</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">Medlemmer</a>
+        <a class="club-mode-item @(Active == "admin" ? "active" : "")" href="/g/@Slug/admin">Admin</a>
     </div>
 }
 

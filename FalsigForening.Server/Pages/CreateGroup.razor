@@ -7,8 +7,7 @@
 
 <div class="create-wrap">
     <div class="create-card">
-        <div style="font-size:48px;margin-bottom:12px">🤝</div>
-        <h1 class="create-title">Opret gruppe</h1>
+                <h1 class="create-title">Opret gruppe</h1>
         <p class="create-sub">Én gruppe · Alle samlet ét sted</p>
 
         @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
@@ -40,7 +39,7 @@
     .create-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none; }
     .create-input:focus { border-color: var(--accent); }
     .create-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
-    .create-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .create-btn:hover:not(:disabled) { background: var(--k-accent); }
     .create-btn:disabled { opacity: .5; cursor: default; }
     .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; text-align: left; }
 </style>

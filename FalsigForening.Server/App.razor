@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="da" data-family="bestoever">
 <head>
     <script>
-        // Applied before first paint to avoid a flash of the wrong theme -
-        // must run this early (top of <head>), not deferred like other scripts.
+        // Before first paint (no flash): what the visitor chose with Lys/mørk, else what the phone is set to (like ElPriser).
         (function () {
-            var theme = localStorage.getItem('club_theme') || 'dark';
+            var theme = localStorage.getItem('forening_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -13,13 +12,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0f1117" />
+    <meta name="theme-color" content="#121917" />
     <link rel="manifest" href="/manifest.json" />
-    <title>Club</title>
-    <base href="/" />
+        <base href="/" />
+    <HeadOutlet />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
     <link rel="stylesheet" href="app.css?v=@CacheBuster" />
     <link rel="stylesheet" href="FalsigForening.Server.styles.css?v=@CacheBuster" />
-    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=20260928" defer></script>
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=@CacheBuster" defer></script>
 </head>
 <body>
     <Routes />
@@ -96,24 +96,27 @@
         <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
     </div>
 
-    <button id="themeToggleBtn" title="Skift lys/mørk visning"
-            style="position:fixed;bottom:20px;right:20px;z-index:9999;width:52px;height:52px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
-        🌓
-    </button>
     <script>
+    // The Lys/mørk button sits in the Kolibri header, which Blazor renders again - so the click is caught on the document
+    // and the label kept in step (same as ElPriser).
     (function () {
-        var btn = document.getElementById('themeToggleBtn');
         function sync() {
             var current = document.documentElement.getAttribute('data-theme') || 'dark';
-            btn.textContent = current === 'light' ? '🌙' : '☀️';
+            var btn = document.getElementById('themeToggleBtn');
+            var label = current === 'light' ? 'Mørk' : 'Lys';
+            if (btn && btn.textContent !== label) btn.textContent = label;
+            var meta = document.querySelector('meta[name=theme-color]');
+            if (meta) meta.setAttribute('content', current === 'light' ? '#f4f6f5' : '#121917');
         }
-        btn.addEventListener('click', function () {
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
             var current = document.documentElement.getAttribute('data-theme') || 'dark';
             var next = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('club_theme', next);
+            localStorage.setItem('forening_theme', next);
             sync();
         });
+        new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
         sync();
     })();
     </script>

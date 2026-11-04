@@ -13,35 +13,35 @@
         }
         @if (Task.Assignees.Count == 0)
         {
-            <div class="task-badge task-badge-open">⚡ Ingen har taget den</div>
+            <div class="task-badge task-badge-open">Ingen har taget den</div>
         }
         else
         {
-            <div class="task-badge task-badge-claimed">✋ @Task.AssigneeLabel klarer det</div>
+            <div class="task-badge task-badge-claimed">@Task.AssigneeLabel klarer det</div>
         }
         <div class="task-meta">
             @if (Task.DueDate.HasValue)
             {
-                <span class="@(Task.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @Task.DueDate.Value.ToString("dd MMM yyyy")</span>
+                <span class="@(Task.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">@Task.DueDate.Value.ToString("dd MMM yyyy")</span>
             }
             <span>Oprettet af @Task.CreatedByName</span>
         </div>
         <div class="task-row-actions">
             @if (IsMine)
             {
-                <button class="task-complete-btn" @onclick="OnComplete">Markér som færdig ✓</button>
+                <button class="task-complete-btn" @onclick="OnComplete">Markér som færdig</button>
             }
             else
             {
-                <button class="task-take-btn" @onclick="OnJoin">@(Task.Assignees.Count == 0 ? "Jeg tager den 👋" : "Deltag også 🙋")</button>
+                <button class="task-take-btn" @onclick="OnJoin">@(Task.Assignees.Count == 0 ? "Jeg tager den " : "Deltag også ")</button>
             }
-            <button class="task-decline-btn" @onclick="OnDecline">Jeg kan ikke 🙅</button>
+            <button class="task-decline-btn" @onclick="OnDecline">Jeg kan ikke </button>
         </div>
         @ChildContent
     </div>
     <div class="task-row-buttons">
-        <button class="task-del-btn" @onclick="OnEdit">✏️</button>
-        <button class="task-del-btn" @onclick="OnDelete">✕</button>
+        <button class="task-del-btn" @onclick="OnEdit">Ret</button>
+        <button class="task-del-btn" @onclick="OnDelete">Slet</button>
     </div>
 </div>
 

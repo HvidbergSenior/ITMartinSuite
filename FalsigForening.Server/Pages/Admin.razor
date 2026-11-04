@@ -14,8 +14,7 @@ else if (!_authed)
 {
     <div class="admin-lock">
         <div class="admin-lock-card">
-            <div style="font-size:40px;margin-bottom:12px">🔒</div>
-            <h2>Admin — @_group.Name</h2>
+                        <h2>Admin — @_group.Name</h2>
             @if (_lockedOut)
             {
                 <div class="admin-error">For mange forkerte forsøg. Prøv igen om lidt.</div>
@@ -38,8 +37,8 @@ else
 
             <div class="admin-section">
                 <div class="admin-section-title-row">
-                    <div class="admin-section-title">📅 Opret begivenhed</div>
-                    <button class="admin-hint-toggle" @onclick="() => _showEventHint = !_showEventHint">@(_showEventHint ? "✕ Skjul regel" : "ℹ Vis regel")</button>
+                    <div class="admin-section-title">Opret begivenhed</div>
+                    <button class="admin-hint-toggle" @onclick="() => _showEventHint = !_showEventHint">@(_showEventHint ? "Skjul regel" : "ℹ Vis regel")</button>
                 </div>
                 @if (_showEventHint)
                 {
@@ -70,15 +69,15 @@ else
                                     <div class="admin-event-title">@ev.Title</div>
                                     <div class="admin-event-date">@ev.EventDate.ToLocalTime().ToString("d. MMM yyyy HH:mm")</div>
                                 </div>
-                                <button class="admin-reset-btn" @onclick="() => StartEditEvent(ev)">✏️ Rediger</button>
+                                <button class="admin-reset-btn" @onclick="() => StartEditEvent(ev)">Rediger</button>
                             </div>
                             @if (suggestion is not null)
                             {
                                 var sVotes = _votesBySuggestion.GetValueOrDefault(suggestion.Id, []);
                                 <div class="admin-suggestion-row">
-                                    <span>⏰ @suggestion.SuggestedByName foreslår @suggestion.SuggestedDate.ToLocalTime().ToString("d. MMM HH:mm") (✅@sVotes.Count(v => v.Status == "Yes") ❌@sVotes.Count(v => v.Status == "No"))</span>
-                                    <button class="admin-reset-btn" @onclick="() => ApplySuggestionAsync(ev.Id, suggestion)">✅ Brug</button>
-                                    <button class="admin-del-btn" @onclick="() => DismissSuggestionAsync(suggestion)">✕ Afvis</button>
+                                    <span>@suggestion.SuggestedByName foreslår @suggestion.SuggestedDate.ToLocalTime().ToString("d. MMM HH:mm") (@sVotes.Count(v => v.Status == "Yes") @sVotes.Count(v => v.Status == "No"))</span>
+                                    <button class="admin-reset-btn" @onclick="() => ApplySuggestionAsync(ev.Id, suggestion)">Brug</button>
+                                    <button class="admin-del-btn" @onclick="() => DismissSuggestionAsync(suggestion)">Afvis</button>
                                 </div>
                             }
                         }
@@ -108,7 +107,7 @@ else
                     </div>
                     @if (_pinResetName == m.Name)
                     {
-                        <div class="admin-reset-confirm">✔ PIN nulstillet - @m.Name kan sætte en ny PIN ved næste login.</div>
+                        <div class="admin-reset-confirm">PIN nulstillet - @m.Name kan sætte en ny PIN ved næste login.</div>
                     }
                 }
             </div>
@@ -132,7 +131,7 @@ else
 
                 @if (_postsCleared)
                 {
-                    <div class="admin-reset-confirm">✔ Alle opslag er ryddet.</div>
+                    <div class="admin-reset-confirm">Alle opslag er ryddet.</div>
                 }
                 else if (!_confirmClearPosts)
                 {
@@ -149,7 +148,7 @@ else
 
                 @if (_tasksCleared)
                 {
-                    <div class="admin-reset-confirm">✔ Alle udførte opgaver er ryddet.</div>
+                    <div class="admin-reset-confirm">Alle udførte opgaver er ryddet.</div>
                 }
                 else if (!_confirmClearTasks)
                 {
@@ -220,7 +219,7 @@ else
     .admin-event-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
     .admin-event-title { font-size: 13px; font-weight: 600; color: var(--text); }
     .admin-event-date { font-size: 12px; color: var(--muted); }
-    .admin-suggestion-row { display: flex; align-items: center; gap: 8px; padding: 6px 0 10px; font-size: 12px; color: #60a5fa; flex-wrap: wrap; }
+    .admin-suggestion-row { display: flex; align-items: center; gap: 8px; padding: 6px 0 10px; font-size: 12px; color: var(--k-accent); flex-wrap: wrap; }
 </style>
 
 @code {

@@ -15,7 +15,7 @@ else
         <div class="cal-body">
             <div class="cal-toolbar">
                 <h2 class="cal-title">Kalender</h2>
-                <button class="cal-add-btn" @onclick="ToggleAdding">@(_adding ? "✕ Annuller" : "+ Ny begivenhed")</button>
+                <button class="cal-add-btn" @onclick="ToggleAdding">@(_adding ? "Annuller" : "+ Ny begivenhed")</button>
             </div>
 
             @if (_adding)
@@ -51,19 +51,19 @@ else
                     <div class="cal-event-header">
                         <div class="cal-event-date">@ev.EventDate.ToLocalTime().ToString("dddd d. MMMM yyyy, HH:mm", new System.Globalization.CultureInfo("da-DK"))</div>
                         <div style="display:flex;gap:4px">
-                            <button class="cal-del-btn" @onclick="() => StartEditEvent(ev)">✏️</button>
-                            <button class="cal-del-btn" @onclick="() => DeleteEventAsync(ev.Id)">✕</button>
+                            <button class="cal-del-btn" @onclick="() => StartEditEvent(ev)">Ret</button>
+                            <button class="cal-del-btn" @onclick="() => DeleteEventAsync(ev.Id)">Slet</button>
                         </div>
                     </div>
                     <div class="cal-event-title">@ev.Title</div>
-                    @if (!string.IsNullOrEmpty(ev.Location)) { <div class="cal-event-loc">📍 @ev.Location</div> }
+                    @if (!string.IsNullOrEmpty(ev.Location)) { <div class="cal-event-loc">@ev.Location</div> }
                     @if (!string.IsNullOrEmpty(ev.Description)) { <div class="cal-event-desc">@ev.Description</div> }
                     <div class="cal-event-by">Oprettet af @ev.CreatedByName</div>
 
                     @if (prep is not null)
                     {
                         <div class="prep-box">
-                            <div class="prep-focus">🎯 Fokus: @prep.Focus</div>
+                            <div class="prep-focus">Fokus: @prep.Focus</div>
                             @if (!string.IsNullOrWhiteSpace(prep.Checklist))
                             {
                                 <div class="prep-checklist-label">Inden vi starter:</div>
@@ -89,18 +89,18 @@ else
                     }
                     else
                     {
-                        <button class="prep-add-btn" @onclick="() => StartPrepEdit(ev.Id)">📋 Tilføj forberedelse</button>
+                        <button class="prep-add-btn" @onclick="() => StartPrepEdit(ev.Id)">Tilføj forberedelse</button>
                     }
 
                     <div class="rsvp-row">
-                        <button class="rsvp-btn @(myRsvp?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => SetRsvpAsync(ev.Id, "Yes")'>✅ Ja</button>
-                        <button class="rsvp-btn @(myRsvp?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => SetRsvpAsync(ev.Id, "No")'>❌ Nej</button>
+                        <button class="rsvp-btn @(myRsvp?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => SetRsvpAsync(ev.Id, "Yes")'>Ja</button>
+                        <button class="rsvp-btn @(myRsvp?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => SetRsvpAsync(ev.Id, "No")'>Nej</button>
                     </div>
                     @if (yes.Count > 0 || no.Count > 0)
                     {
                         <div class="rsvp-reactions">
-                            @if (yes.Count > 0) { <div class="rsvp-reaction-line yes">✅ @string.Join(", ", yes.Select(r => r.MemberName))</div> }
-                            @if (no.Count > 0) { <div class="rsvp-reaction-line no">❌ @string.Join(", ", no.Select(r => r.MemberName))</div> }
+                            @if (yes.Count > 0) { <div class="rsvp-reaction-line yes">@string.Join(", ", yes.Select(r => r.MemberName))</div> }
+                            @if (no.Count > 0) { <div class="rsvp-reaction-line no">@string.Join(", ", no.Select(r => r.MemberName))</div> }
                         </div>
                     }
 
@@ -112,16 +112,16 @@ else
                         var sYes = sVotes.Where(v => v.Status == "Yes").ToList();
                         var sNo = sVotes.Where(v => v.Status == "No").ToList();
                         <div class="suggestion-box">
-                            <div class="suggestion-text">⏰ @suggestion.SuggestedByName foreslår @suggestion.SuggestedDate.ToLocalTime().ToString("HH:mm 'i stedet - stem inden' d. MMM HH:mm", new System.Globalization.CultureInfo("da-DK"))</div>
+                            <div class="suggestion-text">@suggestion.SuggestedByName foreslår @suggestion.SuggestedDate.ToLocalTime().ToString("HH:mm 'i stedet - stem inden' d. MMM HH:mm", new System.Globalization.CultureInfo("da-DK"))</div>
                             <div class="rsvp-row">
-                                <button class="rsvp-btn @(myVote?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => VoteTimeAsync(suggestion.Id, "Yes")'>✅ Ja</button>
-                                <button class="rsvp-btn @(myVote?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => VoteTimeAsync(suggestion.Id, "No")'>❌ Nej</button>
+                                <button class="rsvp-btn @(myVote?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => VoteTimeAsync(suggestion.Id, "Yes")'>Ja</button>
+                                <button class="rsvp-btn @(myVote?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => VoteTimeAsync(suggestion.Id, "No")'>Nej</button>
                             </div>
                             @if (sYes.Count > 0 || sNo.Count > 0)
                             {
                                 <div class="rsvp-reactions">
-                                    @if (sYes.Count > 0) { <div class="rsvp-reaction-line yes">✅ @string.Join(", ", sYes.Select(v => v.MemberName))</div> }
-                                    @if (sNo.Count > 0) { <div class="rsvp-reaction-line no">❌ @string.Join(", ", sNo.Select(v => v.MemberName))</div> }
+                                    @if (sYes.Count > 0) { <div class="rsvp-reaction-line yes">@string.Join(", ", sYes.Select(v => v.MemberName))</div> }
+                                    @if (sNo.Count > 0) { <div class="rsvp-reaction-line no">@string.Join(", ", sNo.Select(v => v.MemberName))</div> }
                                 </div>
                             }
                         </div>
@@ -138,7 +138,7 @@ else
                     }
                     else
                     {
-                        <button class="prep-add-btn" @onclick="() => StartTimeSuggestion(ev)">⏰ Foreslå anden tid</button>
+                        <button class="prep-add-btn" @onclick="() => StartTimeSuggestion(ev)">Foreslå anden tid</button>
                     }
                 </div>
             }
@@ -205,8 +205,8 @@ else
     .rsvp-reaction-line.yes { color: var(--green); }
     .rsvp-reaction-line.no { color: var(--red); }
 
-    .suggestion-box { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(96,165,250,.08); border: 1px solid rgba(96,165,250,.25); }
-    .suggestion-text { font-size: 13px; font-weight: 600; color: #60a5fa; margin-bottom: 8px; }
+    .suggestion-box { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--k-accent) 8%, transparent); border: 1px solid color-mix(in srgb, var(--k-accent) 25%, transparent); }
+    .suggestion-text { font-size: 13px; font-weight: 600; color: var(--k-accent); margin-bottom: 8px; }
     .suggestion-form { margin-top: 10px; padding: 12px; background: var(--surface); border-radius: 10px; }
 </style>
 

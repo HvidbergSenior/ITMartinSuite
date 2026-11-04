@@ -6,7 +6,6 @@
 
 <div class="join-wrap">
     <div class="join-card">
-        <div class="join-logo">🤝</div>
         <h1 class="join-title">@(_group?.Name ?? "Club")</h1>
         <p class="join-sub">@(_group?.Description ?? "")</p>
 
@@ -62,7 +61,7 @@
     .join-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 15px; outline: none; }
     .join-input:focus { border-color: var(--accent); }
     .join-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
-    .join-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .join-btn:hover:not(:disabled) { background: var(--k-accent); }
     .join-btn:disabled { opacity: .5; cursor: default; }
     .join-error { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; }
     .join-loading { color: var(--muted); padding: 20px 0; }

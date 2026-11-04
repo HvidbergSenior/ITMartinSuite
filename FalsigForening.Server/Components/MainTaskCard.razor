@@ -11,7 +11,7 @@
     <div class="maintask-header">
         <div class="maintask-title">@MainTask.Title</div>
         <div class="maintask-count">@Tasks.Count</div>
-        <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => OnDeleteMainTask.InvokeAsync(MainTask.Id)" @onclick:stopPropagation="true">✕</button>
+        <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => OnDeleteMainTask.InvokeAsync(MainTask.Id)" @onclick:stopPropagation="true">Slet</button>
     </div>
 
     @if (BadgeText is not null)

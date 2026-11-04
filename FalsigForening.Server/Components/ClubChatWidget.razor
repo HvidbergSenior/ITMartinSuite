@@ -5,7 +5,7 @@
 @implements IAsyncDisposable
 
 <button class="chat-fab" @onclick="Toggle" title="Chat">
-    💬
+    
     @if (!_open && _unseenCount > 0)
     {
         <span class="chat-fab-badge">@_unseenCount</span>
@@ -16,8 +16,8 @@
 {
     <div class="chat-widget">
         <div class="chat-widget-header">
-            <span>💬 Chat</span>
-            <button class="chat-widget-close" @onclick="Toggle">✕</button>
+            <span>Chat</span>
+            <button class="chat-widget-close" @onclick="Toggle">Luk</button>
         </div>
         <div class="chat-widget-messages" id="chat-widget-messages">
             @foreach (var m in _messages)
@@ -39,7 +39,7 @@
             <input class="chat-widget-input" placeholder="Skriv..." value="@_text"
                    @oninput="e => _text = e.Value?.ToString() ?? string.Empty"
                    @onkeydown="OnKey" />
-            <button class="chat-widget-send" @onclick="SendAsync" disabled="@string.IsNullOrWhiteSpace(_text)">➤</button>
+            <button class="chat-widget-send" @onclick="SendAsync" disabled="@string.IsNullOrWhiteSpace(_text)">Send</button>
         </div>
     </div>
 }

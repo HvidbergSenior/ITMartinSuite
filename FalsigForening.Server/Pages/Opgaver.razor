@@ -16,16 +16,16 @@ else
 
         <div class="msg-body">
             <div class="msg-card card">
-                <h2 class="msg-h">✅ Mine opgaver</h2>
-                @if (Mine.Count == 0) { <p class="msg-help">Du har ingen åbne opgaver. 👍</p> }
+                <h2 class="msg-h">Mine opgaver</h2>
+                @if (Mine.Count == 0) { <p class="msg-help">Du har ingen åbne opgaver. </p> }
                 @foreach (var a in Mine) { <TaskLine A="a" Me="@_member.Name" OnDone="Done" OnTake="Take" ShowWho="false" /> }
             </div>
 
-            @if (!_adding) { <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _adding = true">➕ Ny opgave</button> }
+            @if (!_adding) { <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _adding = true">Ny opgave</button> }
             else
             {
                 <div class="msg-card card">
-                    <h3 class="msg-h3">➕ Ny opgave</h3>
+                    <h3 class="msg-h3">Ny opgave</h3>
                     <label class="msg-label">Hvad skal gøres?
                         <input class="msg-input" @bind="_title" @bind:event="oninput" maxlength="200" placeholder="Fx: Kontakt Tom om den tidligere konto" />
                     </label>
@@ -52,7 +52,7 @@ else
             @foreach (var g in Open.GroupBy(a => TopicOf(a)).OrderBy(g => g.Key == "Andet").ThenBy(g => g.Key))
             {
                 <div class="msg-card card">
-                    <h3 class="msg-h3">📌 @g.Key (@g.Count())</h3>
+                    <h3 class="msg-h3">@g.Key (@g.Count())</h3>
                     @foreach (var a in g.OrderBy(a => a.Assignees.Count == 0).ThenBy(a => a.AssigneeLabel).ThenBy(a => a.DueDate ?? DateTime.MaxValue))
                     {
                         <TaskLine A="a" Me="@_member.Name" OnDone="Done" OnTake="Take" ShowWho="true" />
@@ -63,7 +63,7 @@ else
             @if (_done.Count > 0)
             {
                 <div class="msg-card card">
-                    <h3 class="msg-h3">✔️ Udført (@_done.Count)</h3>
+                    <h3 class="msg-h3">Udført (@_done.Count)</h3>
                     @foreach (var a in _done)
                     {
                         <div class="msg-who"><span class="msg-who-name">@a.Title</span><span class="msg-who-state">@a.CompletedByName · @Beskeder.Dk(a.CompletedAt ?? a.CreatedAt).ToString("d/M")</span></div>

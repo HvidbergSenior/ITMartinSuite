@@ -3,11 +3,35 @@ using FalsigForening.Domain;
 using FalsigForening.Infrastructure;
 using FalsigForening.Server;
 using FalsigForening.Server.Services;
+using ITMartin.Shared.UI.Kolibri;
 
 // Club (Bestøver Klub): the thin web layer - pages, login cookies, links, the reminder job. The rules are in .Domain,
 // the use cases in .Application, SQLite/push/mail in .Infrastructure (DDD + Clean, 2026-10-11).
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The shared Kolibri feel (header, footer, /om, /hjaelp) like ElPriser - Foreningsmakker in Martin's own setup (2026-11-04).
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Foreningsmakker";
+    k.KolibriName = "Kolibri Bestøver";
+    k.Family = "bestoever";
+    k.Tagline = "Foreningen samlet ét sted: beskeder, opgaver, møder og kalender.";
+    k.About =
+    [
+        "Foreningsmakker samler foreningens arbejde ét sted: foreningens oplysninger, beskeder med kvittering, opgaver, møder, kalender og medlemmer.",
+        "Det er en ny udgave i ITMartins egen opsætning. Ingen reklamer.",
+    ];
+    k.HowTo =
+    [
+        "Åbn foreningen med linket fra bestyrelsen, og skriv dit navn.",
+        "Foreningen: skriv CVR-nummeret, så hentes navn og adresse. Ret resten, og tryk Gem.",
+        "Beskeder: skriv til alle eller nogle, og se hvem der har læst den.",
+        "Opgaver, Møder og Kalender: tryk på fanen øverst.",
+    ];
+    k.Version = "2026.11.04";
+    k.ThemeColor = "#121917";
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
@@ -29,6 +53,7 @@ app.Services.UpgradeClubDatabase(demoMode);
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 
+app.MapKolibri();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
@@ -130,6 +155,7 @@ app.MapGet("/media/{fileName}", (string fileName) =>
 });
 
 app.MapRazorComponents<FalsigForening.Server.App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();
