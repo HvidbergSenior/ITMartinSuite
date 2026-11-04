@@ -39,6 +39,17 @@
     @if (_owner) { <a class="k-btn k-btn-sm @(_waiting > 0 ? "k-btn-primary" : "")" href="/admin">Min side@(_waiting > 0 ? $" ({_waiting} venter)" : "")</a> }
 </header>
 
+@* "Nyt": the current topic = the page ticked "Vis i menuen" (user 2026-11-04: Valg 2026 now, AI/Serverparker later). *@
+@if (_topic is not null)
+{
+    <a class="k-card hj-subpage hj-topic" href="/@_topic.Slug" data-nofold>
+        <span class="hj-topic-tag">Nyt</span>
+        <b>@NoEmoji.Strip(_topic.Title)</b>
+        <span>@NoEmoji.Strip(PageRules.Teaser(_topic.Body))</span>
+        <span class="k-btn k-btn-sm k-btn-primary hj-topic-btn">Læs den</span>
+    </a>
+}
+
 <MarketNotice ShowLink="true" />
 
 <CascadingValue Name="Plain" Value="true">
@@ -57,6 +68,10 @@
 
 @* More about Martin is one press away (the Om mig tab). *@
 <a class="k-btn k-btn-block hj-more" href="@SiteMenu.About">Læs mere om mig og mit arbejde →</a>
+@* The old tabs, as buttons (2026-11-04 fewer tabs). *@
+<div class="hj-footer-links">
+    @foreach (var l in SiteMenu.FooterLinks) { <a class="k-btn k-btn-sm k-btn-ghost" href="@l.Href">@l.Title</a> }
+</div>
 </CascadingValue>
 
 @code {
@@ -74,6 +89,7 @@
     private Settings _s = new();
     private IReadOnlyList<string> _freeWithCode = [];
     private Page? _hero;   // Svar -> Sider -> "forside": its title is the heading
+    private Page? _topic;  // the "Nyt" box (current topic tab)
     private string _oneThing = "";
     public const string CollabSlug = PageRules.Collab;
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
@@ -112,6 +128,7 @@
         var front = await Site.FrontAsync(_family);
         (_s, _hero) = (front.Settings, front.Hero);
         _oneThing = await Site.OneThingAsync(Today);
+        _topic = await Site.TopicAsync();
     }
 
     private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });

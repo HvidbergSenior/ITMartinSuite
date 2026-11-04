@@ -4,10 +4,10 @@
 @inject IJSRuntime JS
 @inject Customers Kartotek
 
-<PageTitle>Mine hjælpere · Martin Hvidberg</PageTitle>
+<PageTitle>Hjælpershoppen · ITMartin</PageTitle>
 
 @* Principle (user 2026-09-28): every app is useful for free; a paid version is something you ask for. *@
-<PageHead Title="Mine hjælpere" Tag="Gratis at prøve" Line="Små hjælpere til hverdagen – uden reklamer." />
+<PageHead Title="Hjælpershoppen" Tag="Gratis at prøve" Line="Små hjælpere til hverdagen – uden reklamer." />
 @* "Mine apps er webapps" always shown at the top, not hidden in a tile at the bottom (user 2026-10-28: "should be more visible").
    The user's own words. *@
 <section class="k-card hj-webapp-note" data-nofold>
@@ -62,6 +62,45 @@
         </div>
     }
 </div>
+
+@* A real, made-to-order helper as the example (user 2026-11-04: "use the upload/gallery that Annette uses as example").
+   The customer is never named and her own gallery is private - the button opens the public demo gallery. *@
+<section class="k-card hj-example" data-nofold>
+    <h2 class="k-card-title">Ryd op i din sky – og få dine billeder hjem</h2>
+    <p><b>Betaler du hver måned for plads i iCloud, Google Fotos eller OneDrive?</b> Den plads er tit fyldt med det samme billede
+        tre gange, skærmbilleder, memes og billeder fra chats. Og billeder, du har hentet ud fra Facebook, har mistet deres dato.</p>
+    <p><b>Sådan gør vi:</b></p>
+    <ul>
+        <li>Du lægger dine billeder op selv med <b>Upload</b> – bare træk dem ind i browseren, fra telefonen, gamle diske eller skyen.</li>
+        <li>Jeg sorterer dem efter dato, fjerner dubletter og rod og sætter den rigtige dato på igen.</li>
+        <li>Du får dem samlet ét sted: på din egen disk og i et privat <b>Galleri</b>, som kun du og din familie kan se.</li>
+        <li>Bagefter kan du rydde skyen – og måske opsige abonnementet.</li>
+    </ul>
+    <p><b>Et rigtigt eksempel:</b> en kunde fik 1.843 billeder og videoer fra 2002 til 2026 samlet ét sted med den rigtige dato.
+        Hos en anden blev 87.009 filer til 34.079 rigtige billeder, da dubletter og rod var sorteret fra.</p>
+    @* Free version = a smagsprøve like the first customer got (2026-10-16: her first 47 files -> a small private gallery). *@
+    @* 1.000 = what icloud.com lets you download in one go; 5 GB keeps long videos from filling the server (user 2026-11-04:
+       "so that it is easier to know what they can do"). *@
+    <p><b>Gratis smagsprøve:</b> send mig op til <b>1.000 billeder og videoer</b> (højst 5 GB), så laver jeg et lille privat galleri
+        af dem – gratis. Så kan du se, hvordan det bliver, før du bestemmer dig. Vil du have resten med, laver vi en aftale.</p>
+    <p><b>Sådan gør du – 3 trin:</b></p>
+    <ol>
+        <li><b>Skriv til mig</b> – så får du dit eget, private upload-link.</li>
+        <li><b>Hent dine billeder som én zip-fil:</b>
+            <ul>
+                <li><b>iPhone / iCloud:</b> gå ind på icloud.com på en computer, åbn Fotos, vælg op til 1.000 billeder og tryk på hent-knappen (skyen med en pil). Så får du én zip-fil.</li>
+                <li><b>Android / Google Fotos:</b> gå ind på takeout.google.com, tryk "Fravælg alle", sæt kryds ved Google Fotos, vælg ét album eller ét år, og tryk "Næste trin" og "Opret eksport". Du får en mail med zip-filen.</li>
+                <li><b>Billeder på computeren eller en gammel disk:</b> du kan også bare trække dem direkte ind – ingen zip nødvendig.</li>
+            </ul>
+        </li>
+        <li><b>Træk zip-filen ind på dit upload-link.</b> Så går jeg i gang og skriver til dig, når dit galleri er klar.</li>
+    </ol>
+    <p class="k-help">Se hvordan et galleri ser ud:</p>
+    <div class="k-row k-mt">
+        <a class="k-btn k-btn-sm k-btn-primary" href="https://gallery.itmartin.dk/facebook-demo" target="_blank" rel="noopener">Se et eksempel på et galleri</a>
+        <a class="k-btn k-btn-sm" href="/chat-med-martin">Få en gratis smagsprøve – skriv til mig</a>
+    </div>
+</section>
 
 
 @* Apps first, the explaining after (user 2026-10-21: "on apps i want the apps on top... All the show/hide boxes should be
@@ -173,7 +212,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _apps = await Site.ShownAppsAsync();
+        // Only the helpers people can use now (user 2026-11-04: "under hjælpershop only show the ones that people can use").
+        _apps = (await Site.ShownAppsAsync()).Where(a => a.Usable(Apps.IsUp(a.Url))).ToList();
         _free = await Kartotek.FreeAppsAsync();
     }
 }

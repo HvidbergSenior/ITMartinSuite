@@ -20,6 +20,10 @@ public sealed class AppLink
 
     // Svar only saves rows that are filled in.
     public bool IsComplete => Name.Trim().Length > 0 && Url.StartsWith("http");
+
+    /// <summary>Hjælpershoppen shows only helpers people can use right now (user 2026-11-04): an address, woken by Martin,
+    /// and the container answers (<paramref name="up"/> null = not checked yet, counted as up).</summary>
+    public bool Usable(bool? up) => Url.StartsWith("http") && Awake && up != false;
 }
 
 // A normal web page (Om mig, Kontakt, Ydelser …) - moved in from the one.com builder
@@ -161,6 +165,17 @@ public sealed class PushSub
 public static partial class PageRules
 {
     public const string Front = "forside", Week = "denne-uge", Bogshoppen = "bogshoppen";
+
+    /// <summary>First plain sentence of a page body (no headings, pictures or lists), cut at 160 chars - for cards and the "Nyt" box.</summary>
+    public static string Teaser(string body, int max = 160)
+    {
+        var line = body.Replace("\r", "").Split('\n')
+            .Select(l => l.Trim()).FirstOrDefault(l => l.Length > 20 && !l.StartsWith('#') && !l.StartsWith('!') && !l.StartsWith('*')) ?? "";
+        line = line.Replace("**", "");
+        var dot = line.IndexOf(". ", StringComparison.Ordinal);
+        if (dot > 40) line = line[..(dot + 1)];
+        return line.Length > max ? line[..max] + "…" : line;
+    }
     // The "I dag" tab (Components/NowCard).
     public const string Today = "hvad-laver-itkolibrien";
     // "Følg samarbejdet" also shows the Bogshoppen story on top.
@@ -200,20 +215,36 @@ public static class SiteMenu
 
     public sealed record Item(string Title, string Href, bool Pilot = false);
 
+    public const string Products = "/produkter";
+
+    // Fewer tabs (user 2026-11-04: "make ITMartin simpler", "fewer tabs", "I want produkter"): Forside, <topic>, Produkter, Om mig.
+    // The topic tab is whatever page is ticked "Vis i menuen" in Svar -> Sider (user: "nyheder should be Valg 2026... I want the
+    // tab to change later, to for instance AI or Serverparker"). The tab shows the title up to " – " ("Valg 2026 – USA-valget
+    // nemt forklaret" -> "Valg 2026"). Familien, Spørgsmål and Kritik moved to buttons at the bottom of the front page.
     public static List<Item> Build(IEnumerable<Page> menuPages)
     {
-        var middle = menuPages.Select(p => (Sort: p.Sort, Item: new Item(p.Title, "/" + p.Slug)))
-            .Append((Sort: AboutSort, Item: new Item("Om mig", About)))
-            // "I dag" is no longer a tab (user 2026-10-27: "i dag tab remove"); the page stays (Svar writes the plan, the front page
-            // shows the day's ONE thing, the "Hvad laver jeg nu?" tile on Om mig opens it).
-            .Append((Sort: MineAppsSort, Item: new Item("Mine hjælpere", "/mine-apps")))
-            .Append((Sort: MineAppsSort + 1, Item: new Item("Spørgsmål", "/spoergsmaal")))   // Q&A tab (user 2026-10-12: "where is the Q/A?")
-            .Append((Sort: MineAppsSort + 2, Item: new Item("Kritik", "/kritik")))   // ros, ris og forslag (user 2026-10-29)
-            // The family page on Kanal (user 2026-10-30: "should be a tab in itmartin.dk") - how the helpers gave the family
-            // perspective. One place for the stories: the tab opens kanal.itmartin.dk/familien.
-            .Append((Sort: AboutSort + 1, Item: new Item("Familien", Family)))
+        var middle = menuPages.Select(p => (Sort: p.Sort, Item: new Item(TabTitle(p.Title), "/" + p.Slug)))
+            .Append((Sort: 30, Item: new Item("Produkter", Products)))   // two doors: Bogshoppen + Hjælpershoppen
+            .Append((Sort: 60, Item: new Item("Om mig", About)))
             .OrderBy(x => x.Sort).ThenBy(x => x.Item.Title)
             .Select(x => x.Item);
         return [new Item("Forside", "/"), .. middle];   // no emojis in the menu (user 2026-10-12: they look AI-made)
+    }
+
+    /// <summary>The old tabs, now buttons at the bottom of the front page (2026-11-04).</summary>
+    public static readonly IReadOnlyList<Item> FooterLinks =
+    [
+        new("Spørgsmål", "/spoergsmaal"),
+        new("Kritik og forslag", "/kritik"),
+        new("Familien", Family),
+    ];
+
+    /// <summary>Short tab text: the part of the title before " – " (or " - ").</summary>
+    public static string TabTitle(string title)
+    {
+        var t = title.Trim();
+        var cut = t.IndexOf(" – ", StringComparison.Ordinal);
+        if (cut < 0) cut = t.IndexOf(" - ", StringComparison.Ordinal);
+        return cut > 0 ? t[..cut].Trim() : t;
     }
 }

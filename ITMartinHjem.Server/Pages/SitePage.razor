@@ -47,7 +47,7 @@ else if (_page is not null)
         <div class="hj-subpages">
             @foreach (var c in _children)
             {
-                <a class="k-card hj-subpage" href="/@c.Slug" data-nofold><b>@NoEmoji.Strip(c.Title)</b><span>@NoEmoji.Strip(Teaser(c.Body))</span></a>
+                <a class="k-card hj-subpage" href="/@c.Slug" data-nofold><b>@NoEmoji.Strip(c.Title)</b><span>@NoEmoji.Strip(PageRules.Teaser(c.Body, 140))</span></a>
             }
         </div>
     }
@@ -83,14 +83,5 @@ else if (_page is not null)
         _intro = string.Join(Environment.NewLine + Environment.NewLine, new[] { story.Intro, own.Intro }.Where(t => t.Length > 0));
         _parts = [.. story.Parts, .. own.Parts];
         _loaded = true;
-    }
-
-    // First plain sentence of the page, for the sub-page cards.
-    private static string Teaser(string body)
-    {
-        var line = body.Replace("\r", "").Split('\n')
-            .Select(l => l.Trim()).FirstOrDefault(l => l.Length > 20 && !l.StartsWith("#") && !l.StartsWith("!") && !l.StartsWith("*")) ?? "";
-        line = line.Replace("**", "");
-        return line.Length > 140 ? line[..140] + "…" : line;
     }
 }

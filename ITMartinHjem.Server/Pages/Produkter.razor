@@ -3,6 +3,29 @@
 @* bogshoppen.dk = products, itmartin.dk = processes (user 2026-10-29: "bogshoppen should only have Om bogshoppen og forside
    (where you can sign up)", "And also the products", "Bogshoppen is Products. ItMartin is processes"). Not a webshop - no
    basket: what we have (Alle produkter, TEST), and what we found worth telling about. *@
+@inject NavigationManager Nav
+
+@* On itmartin.dk the Produkter tab = two doors side by side (user 2026-11-04: "My products should be next to Bogshoppen",
+   "Hjælpershoppen"). bogshoppen.dk/produkter keeps the shop list below. *@
+@if (!BogshoppenHome.IsHost(new Uri(Nav.Uri).Host))
+{
+    <PageTitle>Produkter · ITMartin</PageTitle>
+    <PageHead Title="Produkter" Tag="ITMartin" Line="To butikker: ting fra kasserne og små hjælpere til hverdagen." />
+    <div class="hj-subpages hj-doors">
+        <a class="k-card hj-subpage" href="https://bogshoppen.dk/produkter" data-nofold>
+            <b>Bogshoppen</b>
+            <span>Bøger, tegneserier, film, musik, spil, fantasy og kort – med billede og vores pris.</span>
+            <span class="k-btn k-btn-sm k-btn-primary hj-topic-btn">Gå til Bogshoppen</span>
+        </a>
+        <a class="k-card hj-subpage" href="/mine-apps" data-nofold>
+            <b>Hjælpershoppen</b>
+            <span>Små hjælpere til hverdagen, du åbner i browseren – uden reklamer. De gratis kan du bruge med det samme.</span>
+            <span class="k-btn k-btn-sm k-btn-primary hj-topic-btn">Gå til Hjælpershoppen</span>
+        </a>
+    </div>
+    <p class="k-help k-center k-mt">Bogshoppen er en del af ITMartin. Dit kundenummer virker begge steder.</p>
+    return;
+}
 <PageTitle>Produkter · Bogshoppen</PageTitle>
 
 <header class="bs-head bs-head-varer bs-head-me">

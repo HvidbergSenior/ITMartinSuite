@@ -55,8 +55,11 @@ public class SiteTests
     public void The_menu_starts_with_Forside_and_slots_in_the_fixed_tabs()
     {
         var menu = SiteMenu.Build([new Page { Title = "Priser", Slug = "apps", Sort = 45 }]);
-        menu.Select(i => i.Title).Should().Equal("Forside", "Om mig", "Familien", "Priser", "Mine hjælpere", "Spørgsmål", "Kritik");
-        menu[1].Href.Should().Be(SiteMenu.About);
+        menu.Select(i => i.Title).Should().Equal("Forside", "Produkter", "Priser", "Om mig");
+        SiteMenu.Build([new Page { Title = "Valg 2026 – USA-valget nemt forklaret", Slug = "valg-2026", Sort = 20 }])
+            .Select(i => i.Title).Should().Equal("Forside", "Valg 2026", "Produkter", "Om mig");
+        menu[^1].Href.Should().Be(SiteMenu.About);
+        SiteMenu.FooterLinks.Select(i => i.Href).Should().Contain(["/spoergsmaal", "/kritik", SiteMenu.Family]);
     }
 
     [Test]

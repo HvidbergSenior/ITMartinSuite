@@ -931,3 +931,12 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* Sjældne fund (2026-11-03): the special category - a person sets the price. */
 .bs-family-rare{margin:4px 0 10px;border-width:3px;border-color:var(--k-accent)}
 .bs-assess{font-weight:800}
+
+/* "Nyt" box on the front page = the current topic tab (2026-11-04). */
+.hj-topic { margin: 0 0 16px; border-left: 4px solid var(--k-accent); }
+.hj-topic-tag { color: var(--k-accent) !important; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: var(--k-fs-small); }
+.hj-topic b { font-size: 1.15rem; }
+.hj-subpage .hj-topic-btn { align-self: flex-start; margin-top: 6px; color: var(--k-text) !important; }
+/* The old tabs as buttons at the bottom of the front page (2026-11-04). */
+.hj-footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 24px; }
+.hj-doors .hj-subpage b { font-size: 1.15rem; }

@@ -15,6 +15,9 @@ public sealed class SiteUseCases(ISettingsRepository settings, IPageRepository p
 
     public async Task<List<SiteMenu.Item>> MenuAsync() => SiteMenu.Build(await pages.InMenuAsync());
 
+    /// <summary>The current topic (the page ticked "Vis i menuen" with the lowest Sort) for the front page's "Nyt" box; null = none.</summary>
+    public async Task<Page?> TopicAsync() => (await pages.InMenuAsync()).OrderBy(p => p.Sort).FirstOrDefault();
+
     public async Task<FrontPage> FrontAsync(bool family) => new(
         await settings.GetAsync(),
         await pages.BySlugAsync(PageRules.Front),
