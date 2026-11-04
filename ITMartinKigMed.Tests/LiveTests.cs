@@ -116,6 +116,34 @@ public class LiveTests
     }
 
     [Test]
+    public void Free_talk_gives_the_floor_at_once_one_at_a_time_and_ends_with_the_session()
+    {
+        var f = new Floor();
+        f.SetFreeTalk(true, T0);
+        f.Raise("j", "Jacob", T0).Should().BeTrue();
+        f.OnStage!.Name.Should().Be("Jacob");
+        f.Raise("a", "Anna", T0);
+        f.OnStage!.Viewer.Should().Be("j");          // one at a time - Anna waits
+        f.Hands.Should().ContainSingle(h => h.Viewer == "a");
+        f.End("j", T0);
+        f.OnStage!.Viewer.Should().Be("a");          // the next in the queue comes on by herself
+        f.Clear();
+        f.FreeTalk.Should().BeFalse();
+        f.Raise("j", "Jacob", T0);
+        f.OnStage.Should().BeNull();                 // back to "Giv ordet"
+    }
+
+    [Test]
+    public void Turning_free_talk_on_lets_the_first_waiting_hand_in()
+    {
+        var f = new Floor();
+        f.Raise("j", "Jacob", T0);
+        f.OnStage.Should().BeNull();
+        f.SetFreeTalk(true, T0);
+        f.OnStage!.Viewer.Should().Be("j");
+    }
+
+    [Test]
     public void Viewers_are_throttled_but_Martin_is_not()
     {
         var (hub, _, clock) = NewHub();

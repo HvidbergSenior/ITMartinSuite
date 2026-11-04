@@ -23,8 +23,10 @@ builder.Services.AddKolibri(k =>
         "Skriv dit navn én gang. Så kan du stille spørgsmål i feltet under videoen.",
         "Når Martin spørger om noget, dukker afstemningen op – tryk på dit svar.",
         "Tryk på en emoji for at reagere, eller send en idé/et billede med 💡.",
+        "Vil du sige noget? Tryk \"Jeg vil gerne sige noget\" – når Martin giver dig ordet, taler I sammen. Har Martin slået Fri tale til, trykker du bare \"Tal nu\".",
+        "Alle bokse kan skjules og vises igen: tryk på overskriften. Telefonen husker det.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.11";
     k.ThemeColor = "#f4f6f5";
 });
 

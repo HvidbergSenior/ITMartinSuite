@@ -57,7 +57,9 @@ public sealed class LiveHub
     public void RaiseHand(string viewer, string name) { lock (_lock) _floor.Raise(viewer, name, Now); Changed?.Invoke(); }
     public void LowerHand(string viewer) { lock (_lock) _floor.Lower(viewer); Changed?.Invoke(); }
     public void GiveFloor(string viewer) { lock (_lock) _floor.Give(viewer, Now); Changed?.Invoke(); }
-    public void EndFloor(string? viewer = null) { lock (_lock) _floor.End(viewer); Changed?.Invoke(); }
+    public void EndFloor(string? viewer = null) { lock (_lock) _floor.End(viewer, Now); Changed?.Invoke(); }
+    public bool FreeTalk { get { lock (_lock) return _floor.FreeTalk; } }
+    public void SetFreeTalk(bool on) { lock (_lock) _floor.SetFreeTalk(on, Now); Changed?.Invoke(); }
     public bool GuestTokenOk(string? token) { lock (_lock) return _floor.TokenOk(token); }
 
     // ── Martin (studio) ──

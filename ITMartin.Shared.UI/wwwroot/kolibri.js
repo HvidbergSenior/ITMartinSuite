@@ -95,7 +95,8 @@
                 card.closest('details, #k-install, [data-nofold]')) return;
             var head = cardHead(card);
             if (!head || !card.children[1]) return;
-            var key = 'card_' + location.pathname + '|' + text(head);
+            // counts like "(3 nye)" change all the time - leave them out of the key so the phone still remembers the box
+            var key = 'card_' + location.pathname + '|' + text(head).replace(/\s*\([^)]*\d[^)]*\)/g, '');
             head.classList.add('k-fold-head');
             head.setAttribute('role', 'button');
             head.setAttribute('tabindex', '0');

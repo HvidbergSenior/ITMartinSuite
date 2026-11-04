@@ -89,8 +89,17 @@
                 else if (_raised)
                 {
                     <div class="k-card-title">Du har rakt hånden op</div>
-                    <p class="k-help">Martin giver dig ordet, når han kan – så dukker en knap op her.</p>
+                    <p class="k-help">@(_freeTalk && _stage is { } now ? $"Du er i køen – du kommer på, når {now.Name} er færdig. Så dukker en knap op her." : "Martin giver dig ordet, når han kan – så dukker en knap op her.")</p>
                     <button class="k-btn" @onclick="() => Hub.LowerHand(_key)">Tag hånden ned</button>
+                }
+                else if (_freeTalk)
+                {
+                    <div class="k-card-title">Du må tale, når du vil</div>
+                    <p class="k-help">Martin har givet lov på forhånd. Tryk <b>Tal nu</b> og tillad mikrofonen – så kan I høre hinanden. Brug gerne høretelefoner, så undgår I ekko.@(_stage is { } other ? $" Lige nu taler {other.Name} – du kommer på bagefter." : "")</p>
+                    <label class="k-row"><input type="checkbox" @bind="_withCam" /> Vis også mit kamera</label>
+                    <button class="k-btn k-btn-primary k-mt" disabled="@(_name.Length == 0 || _busy)" @onclick="TalkNowAsync">Tal nu</button>
+                    @if (_name.Length == 0) { <p class="k-help">Skriv dit navn under spørgsmål først.</p> }
+                    @if (_handNote.Length > 0) { <p class="k-help"><b>@_handNote</b></p> }
                 }
                 else
                 {
@@ -121,7 +130,7 @@
     </section>
 
     <section class="kig-right">
-        <div class="k-card" data-nofold>
+        <div class="k-card">
             <div class="k-card-title">Spørgsmål og kommentarer</div>
             @if (_name.Length == 0)
             {
@@ -183,7 +192,7 @@
 
     // ── "Ræk hånden op" ──
     private Stage? _stage;
-    private bool _raised, _onAir, _withCam, _selfMuted, _busy, _guestPlaying;
+    private bool _freeTalk, _raised, _onAir, _withCam, _selfMuted, _busy, _guestPlaying;
     private string _handNote = "", _guestState = "";
 
     [JSInvokable] public void OnGuestPlayer(string state) => _guestState = state;
@@ -195,6 +204,14 @@
         try { await JS.InvokeAsync<string>("kig.guestStart", st.Token, _withCam); _onAir = true; }
         catch (JSException) { _handNote = "Mikrofonen kunne ikke starte – tjek at browseren må bruge den (hængelåsen i adresselinjen)."; }
         _busy = false;
+    }
+
+    // Fri tale: one press = hand up, the floor (when free) and the microphone in one go.
+    private async Task TalkNowAsync()
+    {
+        Hub.RaiseHand(_key, _name);
+        _stage = Hub.OnStage;
+        if (_stage?.Viewer == _key) await GoOnAirAsync();
     }
 
     private async Task LeaveFloorAsync()
@@ -256,6 +273,7 @@
             s.Questions.TakeLast(80).ToArray(), s.Polls.LastOrDefault(), s.Ideas.LastOrDefault(i => i.Shown)));
         _answering = _questions.LastOrDefault(q => q.Status == "svarer");
         _stage = Hub.OnStage;
+        _freeTalk = Hub.FreeTalk;
         _raised = Hub.Hands().Any(h => h.Viewer == _key);
         _viewers = Hub.Viewers;
     }

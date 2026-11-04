@@ -80,7 +80,7 @@
             @if (_note.Length > 0) { <p class="k-help"><b>@_note</b></p> }
         </div>
 
-        <div class="k-card" data-nofold>
+        <div class="k-card">
             <div class="k-card-title">Inviter seere</div>
             <p class="k-help">Send linket til dem, der skal kigge med – de skal bare åbne det, ingen app eller login. Åbner de det før du går live, starter videoen af sig selv.</p>
             <div class="kig-invite">
@@ -98,7 +98,7 @@
             </div>
         </div>
 
-        <div class="k-card" data-nofold>
+        <div class="k-card">
             <div class="k-card-title">Spørg seerne</div>
             @if (_poll is { Open: true } p)
             {
@@ -124,7 +124,7 @@
             }
         </div>
 
-        <div class="k-card" data-nofold>
+        <div class="k-card">
             <div class="k-card-title">Reaktioner</div>
             <p>@(_reactions.Count == 0 ? "Ingen endnu." : string.Join("   ", _reactions.OrderByDescending(r => r.Value).Select(r => $"{r.Key} {r.Value}")))</p>
         </div>
@@ -133,6 +133,8 @@
     <section class="kig-right">
         <div class="k-card kig-hand" data-nofold>
             <div class="k-card-title">Hvem taler? @(_hands.Count > 0 ? $"({_hands.Count} venter)" : "")</div>
+            <label class="k-row"><input type="checkbox" checked="@_freeTalk" @onchange="e => Hub.SetFreeTalk(e.Value is true)" /> <b>Fri tale</b> – seerne må tale, når de vil</label>
+            <p class="k-help">@(_freeTalk ? "Den, der trykker Tal nu, kommer på med det samme. Én ad gangen – de andre venter i køen og kommer på bagefter. Du kan stadig tage ordet tilbage." : "Slå til, hvis du vil give lov på forhånd – så skal du ikke trykke Giv ordet hver gang.")</p>
             @if (_stageNow is { } g)
             {
                 <div class="kig-studio-guest">
@@ -160,7 +162,7 @@
             }
         </div>
 
-        <div class="k-card" data-nofold>
+        <div class="k-card">
             <div class="k-card-title">Ser med (@_watchers.Count)</div>
             @if (_watchers.Count == 0) { <p class="k-help">Ingen har siden åben lige nu. Send linket under Inviter seere.</p> }
             else
@@ -175,7 +177,7 @@
             }
         </div>
 
-        <div class="k-card" data-nofold>
+        <div class="k-card">
             <div class="k-card-title">Spørgsmål (@_questions.Count(q => q.Status == "ny") nye)</div>
             <p class="k-help">Tryk <b>Svarer nu</b> – så ser alle seere spørgsmålet over videoen, mens du svarer.</p>
             <div class="kig-questions studio">
@@ -201,7 +203,7 @@
             </div>
         </div>
 
-        <div class="k-card" data-nofold>
+        <div class="k-card">
             <div class="k-card-title">Idéer og billeder (@_ideas.Length)</div>
             <p class="k-help">Kun du ser dem. <b>Vis for alle</b> lægger idéen/billedet over videoen hos seerne.</p>
             @foreach (var i in _ideas.AsEnumerable().Reverse())
@@ -284,10 +286,12 @@
         _watchers = Hub.Watchers();
         _hands = Hub.Hands();
         _stageNow = Hub.OnStage;
+        _freeTalk = Hub.FreeTalk;
     }
 
     private List<Hand> _hands = [];
     private Stage? _stageNow;
+    private bool _freeTalk;
     private bool _guestPlaying;
     private string _guestState = "";
     [JSInvokable] public void OnGuestPlayer(string state) { _guestState = state; InvokeAsync(StateHasChanged); }
