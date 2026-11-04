@@ -1,5 +1,6 @@
 @page "/"
 @inject Kundekartotek Kartotek
+@inject SnakRum Snak
 
 @* The one Kundekartotek (2026-10-21). Afmeld keeps the row as proof they said stop; Slet = GDPR erasure. Every customer
    is a fold box: name first, details when opened (user: every box show/hide). *@
@@ -69,6 +70,21 @@
         else
         {
             @if (c.Note != "") { <div>Note: @c.Note</div> }
+            @if (c.SnakLink != "")
+            {
+                <div class="ku-snak">Snak-rum: <a href="@c.SnakLink" target="_blank" rel="noopener">@c.SnakLink</a></div>
+                <div class="ku-row">
+                    <a class="k-btn k-btn-primary" href="@c.SnakLink" target="_blank" rel="noopener">Åbn snak-rummet</a>
+                    <button class="k-btn" onclick="navigator.clipboard.writeText('@c.SnakLink'); this.textContent='Kopieret'">Kopier linket</button>
+                    @if (c.Email != "") { <a class="k-btn" href="@SnakMail.MailTo(c)">Send linket på mail</a> }
+                </div>
+            }
+            else
+            {
+                <div class="ku-row">
+                    <button class="k-btn k-btn-primary" disabled="@(_making == c.Id)" @onclick="() => MakeRoom(c)">@(_making == c.Id ? "Laver rummet …" : "Lav snak-rum")</button>
+                </div>
+            }
             <div class="ku-row">
                 <button class="k-btn k-btn-sm" @onclick="() => Edit(c)">Ret</button>
                 <a class="k-btn k-btn-sm" href="/kunder/@(c.Id).json" download>Hent data</a>
@@ -89,7 +105,7 @@
 @code {
     private List<Customer> _rows = [];
     private string _q = "", _filter = "Alle";
-    private int _confirm, _edit;
+    private int _confirm, _edit, _making;
     private string _name = "", _email = "", _phone = "", _note = "";
     private string? _error;
 
@@ -124,6 +140,15 @@
     private async Task Admin(Customer c, bool on) { await Kartotek.SetAdminAsync(c.Id, on); await LoadAsync(); }
 
     private async Task Unsubscribe(Customer c) { await Kartotek.AdminUnsubscribeAsync(c.Id); await LoadAsync(); }
+
+    // Snak step 2 (2026-11-04): one room per customer, the link goes to them - all talk in one place.
+    private async Task MakeRoom(Customer c)
+    {
+        _making = c.Id;
+        _error = await Snak.MakeAsync(c.Id);
+        _making = 0;
+        await LoadAsync();
+    }
 
     private async Task Delete(Customer c) { await Kartotek.DeleteAsync(c.Id); _confirm = 0; await LoadAsync(); }
 }

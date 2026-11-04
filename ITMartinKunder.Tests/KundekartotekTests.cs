@@ -277,3 +277,53 @@ public class KunderClientTests
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 }
+
+public class SnakRumTests
+{
+    private sealed class FakeSnak(string? link, string? error = null) : ISnakRooms
+    {
+        public (string Title, string Ref)? Asked;
+        public Task<(string? Link, string? Error)> CreateAsync(string title, string customerRef, CancellationToken ct)
+        { Asked = (title, customerRef); return Task.FromResult((link, error)); }
+    }
+
+    private sealed class Factory(DbContextOptions<KunderDb> o) : IDbContextFactory<KunderDb>
+    {
+        public KunderDb CreateDbContext() => new(o);
+    }
+
+    private static async Task<(CustomerRepository Repo, int Id, SqliteConnection Conn)> OneCustomerAsync()
+    {
+        var conn = new SqliteConnection("Data Source=:memory:");
+        conn.Open();
+        var options = new DbContextOptionsBuilder<KunderDb>().UseSqlite(conn).Options;
+        using (var db = new KunderDb(options)) ITMartinKunder.Infrastructure.DependencyInjection.Upgrade(db);
+        var repo = new CustomerRepository(new Factory(options));
+        var k = new Kundekartotek(repo, TimeProvider.System);
+        await k.SignUpAsync(new("alex@example.dk", "Alexander Hansen", Companies.ITMartin, "Hjem", "itmartin.dk", "Ja tak", ""));
+        return (repo, (await repo.ByEmailAsync("alex@example.dk", default))!.Id, conn);
+    }
+
+    [Test]
+    public async Task Lav_snak_rum_puts_the_link_on_the_customer()
+    {
+        var (repo, id, conn) = await OneCustomerAsync();
+        using var _ = conn;
+        var snak = new FakeSnak("https://snak.itmartin.dk/r/abc");
+        (await new SnakRum(repo, snak, TimeProvider.System).MakeAsync(id)).Should().BeNull();
+        snak.Asked.Should().Be(("Alexander Hansen", $"kunde-{id}"));
+        var c = (await repo.GetAsync(id, default))!;
+        c.SnakLink.Should().Be("https://snak.itmartin.dk/r/abc");
+        c.Events.Should().Contain(e => e.Kind == EventKinds.SnakRoom);
+    }
+
+    [Test]
+    public async Task Snak_saying_no_leaves_the_customer_without_a_link_and_tells_why()
+    {
+        var (repo, id, conn) = await OneCustomerAsync();
+        using var _ = conn;
+        (await new SnakRum(repo, new FakeSnak(null, "Snak svarer ikke lige nu."), TimeProvider.System).MakeAsync(id))
+            .Should().Be("Snak svarer ikke lige nu.");
+        (await repo.GetAsync(id, default))!.SnakLink.Should().BeEmpty();
+    }
+}

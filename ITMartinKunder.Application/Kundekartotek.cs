@@ -283,6 +283,7 @@ public static class DependencyInjection
         services.AddScoped<Kundekartotek>();
         services.AddScoped<FreeApps>();
         services.AddScoped<KundeBreve>();
+        services.AddScoped<SnakRum>();
         return services;
     }
 }

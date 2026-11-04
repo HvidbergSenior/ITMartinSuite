@@ -16,6 +16,7 @@ public sealed class Customer
     public string Note { get; set; } = "";           // Martin's own note
     public bool IsHelper { get; set; }               // Martin's tick: may log into Vareinfo + Lager with the kundenummer (2026-10-24)
     public bool IsAdmin { get; set; }                // Martin's tick: the kundenummer opens Vareinfo + Lager as admin (2026-10-26)
+    public string SnakLink { get; set; } = "";       // the customer's own Snak room (user 2026-11-04: all contact in one Snak room per customer)
     public string Code { get; set; } = "";           // kundenummer: 8 random digits, ONE for all free apps (user 2026-10-21) - random, so nobody can guess the next
     public string UnsubscribeToken { get; set; } = NewToken();
     public DateTime? UnsubscribedAt { get; set; }
@@ -76,6 +77,13 @@ public sealed class Customer
     public void ChangeDetails(string name, string email, string phone, string note) =>
         (Name, Email, Phone, Note) = (Cut(name.Trim(), MaxName), email, Cut(phone.Trim(), 40), Cut(note.Trim(), 2000));
 
+    /// <summary>Kunder asked Snak for a room: the link sits on the card and goes to the customer.</summary>
+    public void GotSnakRoom(string link, DateTime utcNow)
+    {
+        SnakLink = Cut(link.Trim(), 300);
+        Events.Add(CustomerEvent.Of(EventKinds.SnakRoom, "Snak", "", "Snak-rum lavet", 0, utcNow));
+    }
+
     public void AddInterests(string interests)
     {
         var i = interests.Trim();
@@ -105,7 +113,7 @@ public sealed class Consent
 
 public static class EventKinds
 {
-    public const string SignedUp = "Tilmeldt", Bought = "Køb", Imported = "Flyttet", Mailed = "Mail";
+    public const string SignedUp = "Tilmeldt", Bought = "Køb", Imported = "Flyttet", Mailed = "Mail", SnakRoom = "Snak-rum";
 }
 
 /// <summary>What happened with a customer in an app: signed up there, bought.</summary>
