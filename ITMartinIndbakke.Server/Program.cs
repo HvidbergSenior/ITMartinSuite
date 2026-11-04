@@ -43,6 +43,8 @@ builder.Services.AddIndbakkeInfrastructure(
     builder.Configuration["Indbakke:AppPassword"] ?? "",
     dataDir);
 
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
 var app = builder.Build();
 app.MapKolibri();
 app.UseStaticFiles();
@@ -78,8 +80,8 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Indbakke</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=5">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=5" defer></script>
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=6">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=6" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
@@ -156,9 +158,22 @@ api.MapPost("/afsender/ryd", async (RydForm f, Cleanup cleanup, CancellationToke
     var r = await cleanup.RunAsync(f.Adresse ?? "", f.Afmeld, f.Slet, ct);
     return r.Ok ? Results.Ok(new { besked = r.Message, flyttet = r.Moved, aabn = r.OpenPage }) : Results.BadRequest(new { fejl = r.Message });
 });
+// "Ryd alt det gamle": numbers first (Gmail searches only), then one press; label + Fortryd for the whole pile.
+api.MapGet("/gammelt", async (DateOnly foer, OldMode maade, Cleanup cleanup, CancellationToken ct) =>
+{
+    var p = await cleanup.PreviewOldAsync(foer, maade, ct);
+    return p is null ? Results.BadRequest(new { fejl = "Datoen ser forkert ud." })
+        : Results.Ok(new { foer = p.Before, ialt = p.Total, papirkurv = p.ToTrash, arkiv = p.ToArchive, stjerne = p.Starred });
+});
+api.MapPost("/gammelt", async (GammeltForm f, Cleanup cleanup, CancellationToken ct) =>
+{
+    var r = await cleanup.ClearOldAsync(f.Foer, f.Maade, ct);
+    return r.Ok ? Results.Ok(new { besked = r.Message, flyttet = r.Moved }) : Results.BadRequest(new { fejl = r.Message });
+});
+
 api.MapGet("/oprydning", (Cleanup cleanup, TimeProvider clock) => Results.Ok(cleanup.History().Select(a => new
 {
-    id = a.Id, tid = a.At, navn = a.Name, adresse = a.Address, antal = a.MessageIds.Count, afmeldt = a.Unsubscribed,
+    id = a.Id, tid = a.At, navn = a.Name, adresse = a.Address, antal = a.MessageIds.Count + a.Trashed, arkiv = a.Archived, etiket = a.Label, afmeldt = a.Unsubscribed,
     fortrudt = a.Restored, kanFortrydes = a.CanUndo(clock.GetUtcNow()),
 })));
 api.MapPost("/oprydning/fortryd", async (FortrydForm f, Cleanup cleanup, CancellationToken ct) =>
@@ -181,3 +196,4 @@ app.Run();
 record FollowUpForm(string Id, DateOnly? Frist, string? Note);
 record RydForm(string? Adresse, bool Afmeld, bool Slet);
 record FortrydForm(Guid Id);
+record GammeltForm(DateOnly Foer, OldMode Maade);

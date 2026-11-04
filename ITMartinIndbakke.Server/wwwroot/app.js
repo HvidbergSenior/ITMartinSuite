@@ -174,7 +174,8 @@
         api('GET', '/api/oprydning').then(function (list) {
             $('ib-history-card').hidden = !list.length;
             $('ib-history').innerHTML = list.map(function (a) {
-                var what = [a.antal ? num(a.antal) + ' mails i papirkurven' : '', a.afmeldt].filter(Boolean).join(' · ');
+                var what = [a.antal ? num(a.antal) + ' mails i papirkurven' : '', a.arkiv ? num(a.arkiv) + ' i arkivet' : '',
+                    a.etiket ? 'Gmail-etiket: ' + a.etiket : '', a.afmeldt].filter(Boolean).join(' · ');
                 return '<li><div class="ib-top"><span class="ib-from">' + esc(a.navn) + '</span><span class="ib-date">' + day(a.tid) + '</span></div>' +
                     '<div class="ib-sub">' + esc(what) + (a.fortrudt ? ' · <b>fortrudt</b>' : '') + '</div>' +
                     (a.kanFortrydes ? '<div class="ib-actions"><button type="button" class="k-btn k-btn-sm" data-undo="' + a.id + '">Fortryd</button></div>' : '') +
@@ -220,6 +221,42 @@
             if (r.fejl) { status(r.fejl); return; }
             clearTimeout(poll); watch();
         });
+    });
+
+    // Ryd alt det gamle: first the numbers, then one press.
+    function oldChoice() {
+        var mode = document.querySelector('input[name=ib-old-mode]:checked');
+        return { foer: $('ib-old-before').value, maade: mode ? mode.value : 'SletReklame' };
+    }
+    function oldReset() { $('ib-old-result').hidden = true; }
+    $('ib-old-before').addEventListener('change', oldReset);
+    document.querySelectorAll('input[name=ib-old-mode]').forEach(function (r) { r.addEventListener('change', oldReset); });
+
+    $('ib-old-preview').addEventListener('click', function () {
+        var c = oldChoice(), box = $('ib-old-result');
+        box.hidden = false; box.textContent = 'Tæller dine mails …';
+        api('GET', '/api/gammelt?foer=' + c.foer + '&maade=' + c.maade).then(function (p) {
+            if (p.fejl) { box.textContent = p.fejl; return; }
+            if (!p.ialt) { box.innerHTML = '<p>Der ligger ingen mails i indbakken fra før ' + day(p.foer) + '.</p>'; return; }
+            var h = '<p><b>' + num(p.ialt) + ' mails</b> i indbakken er fra før ' + day(p.foer) + '.</p>' +
+                '<p><b>' + num(p.papirkurv) + '</b> lægges i papirkurven – Gmail gemmer dem i 30 dage, og du kan trykke Fortryd her.</p>';
+            if (p.arkiv) h += '<p><b>' + num(p.arkiv) + '</b> flyttes til arkivet – ude af indbakken, men du kan altid finde dem i Gmail.</p>';
+            if (p.stjerne) h += '<p><b>' + num(p.stjerne) + '</b> har stjerne og bliver liggende.</p>';
+            h += '<div class="ib-actions"><button type="button" class="k-btn k-btn-primary" id="ib-old-go">Ryd op nu</button></div>' +
+                '<p class="ib-done" aria-live="polite"></p>';
+            box.innerHTML = h;
+        }).catch(function () { box.textContent = 'Kunne ikke tælle. Prøv igen.'; });
+    });
+
+    $('ib-old-result').addEventListener('click', function (e) {
+        if (e.target.id !== 'ib-old-go') return;
+        var box = $('ib-old-result'), done = box.querySelector('.ib-done');
+        e.target.disabled = true; done.textContent = 'Rydder op … det kan tage et minut.';
+        api('POST', '/api/gammelt', oldChoice()).then(function (r) {
+            done.textContent = r.fejl || r.besked;
+            loadHistory();
+            if (!r.fejl) setTimeout(watch, 2000);   // a new scan runs by itself
+        }).catch(function () { done.textContent = 'Det gik galt. Prøv igen.'; e.target.disabled = false; });
     });
 
     $('ib-senders-more').addEventListener('click', function () { senderShow += 30; renderSenders(); });

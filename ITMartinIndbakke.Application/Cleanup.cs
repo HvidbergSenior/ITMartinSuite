@@ -8,6 +8,15 @@ public interface IMailboxCleaner
     /// <summary>Move these inbox mails (by UID from the last scan) to Papirkurv. Returns how many were moved.</summary>
     Task<int> MoveToTrashAsync(IReadOnlyList<uint> uids, CancellationToken ct);
 
+    /// <summary>Count the old pile: (all before the date, the part that would go to Papirkurv, starred).</summary>
+    Task<(int Total, int Trash, int Starred)> CountOldAsync(DateOnly before, OldMode mode, CancellationToken ct);
+
+    /// <summary>Label the old pile, then the trash part -> Papirkurv, the rest (SletReklame) -> Arkiv.</summary>
+    Task<(int Trashed, int Archived)> ClearOldAsync(DateOnly before, OldMode mode, string label, CancellationToken ct);
+
+    /// <summary>Fortryd for the old pile: everything with the label back into Indbakke (from Papirkurv and Arkiv).</summary>
+    Task<int> RestoreLabelAsync(string label, CancellationToken ct);
+
     /// <summary>Move mails back from Papirkurv to Indbakke, found by Message-ID. Returns how many came back.</summary>
     Task<int> RestoreAsync(IReadOnlyList<string> messageIds, CancellationToken ct);
 }
@@ -74,6 +83,30 @@ public sealed class Cleanup(MailScanner scanner, IMailboxCleaner cleaner, IUnsub
         return new(true, text, moved, unsub, openPage);
     }
 
+    private DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
+
+    public async Task<OldPreview?> PreviewOldAsync(DateOnly before, OldMode mode, CancellationToken ct)
+    {
+        if (!OldCleanupRules.IsValid(before, Today)) return null;
+        var (total, trash, starred) = await cleaner.CountOldAsync(before, mode, ct);
+        return new OldPreview(before, total, trash, mode == OldMode.SletAlt ? 0 : Math.Max(0, total - trash - starred), starred);
+    }
+
+    public async Task<CleanupResult> ClearOldAsync(DateOnly before, OldMode mode, CancellationToken ct)
+    {
+        if (!OldCleanupRules.IsValid(before, Today)) return new(false, "Datoen ser forkert ud.", 0, "", null);
+        var now = clock.GetUtcNow();
+        var label = OldCleanupRules.Label(now);
+        var (trashed, archived) = await cleaner.ClearOldAsync(before, mode, label, ct);
+        if (trashed + archived == 0) return new(true, "Der var ingen mails at rydde.", 0, "", null);
+        log.Save(new CleanupAction(Guid.NewGuid(), now, "", "Alt før " + before.ToString("d. MMM yyyy", new System.Globalization.CultureInfo("da-DK")),
+            [], "", false, label, trashed, archived));
+        scanner.Start(scanner.Last?.Months ?? 12);
+        var text = trashed + " mails i papirkurven (kan fortrydes i 30 dage)" + (archived > 0 ? " · " + archived + " lagt i arkivet" : "")
+            + ". I Gmail har de etiketten " + label + ".";
+        return new(true, text, trashed + archived, "", null);
+    }
+
     public IReadOnlyList<CleanupAction> History() =>
         log.All().OrderByDescending(a => a.At).Take(30).ToList();
 
@@ -82,7 +115,7 @@ public sealed class Cleanup(MailScanner scanner, IMailboxCleaner cleaner, IUnsub
         var a = log.All().FirstOrDefault(x => x.Id == id);
         if (a is null) return new(false, "Ukendt oprydning.", 0, "", null);
         if (!a.CanUndo(clock.GetUtcNow())) return new(false, "Den kan ikke fortrydes længere.", 0, "", null);
-        var back = await cleaner.RestoreAsync(a.MessageIds, ct);
+        var back = a.Label is { } label ? await cleaner.RestoreLabelAsync(label, ct) : await cleaner.RestoreAsync(a.MessageIds, ct);
         log.Save(a with { Restored = true });
         scanner.Start(scanner.Last?.Months ?? 12);   // the restored mails come back into the overview
         return new(true, $"{back} mails lagt tilbage i Indbakke." + (a.Unsubscribed.Length > 0 ? " Afmeldingen kan ikke fortrydes her – tilmeld dig igen hos afsenderen, hvis du vil." : ""), back, "", null);

@@ -103,6 +103,65 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         return moved;
     }
 
+    public async Task<(int Total, int Trash, int Starred)> CountOldAsync(DateOnly before, OldMode mode, CancellationToken ct)
+    {
+        using var client = await ConnectAsync(ct);
+        var inbox = client.Inbox;
+        await inbox.OpenAsync(FolderAccess.ReadOnly, ct);
+        var total = (await inbox.SearchAsync(SearchQuery.GMailRawSearch(OldCleanupRules.Before(before)), ct)).Count;
+        var trash = (await inbox.SearchAsync(SearchQuery.GMailRawSearch(OldCleanupRules.TrashQuery(before, mode)), ct)).Count;
+        var starred = (await inbox.SearchAsync(SearchQuery.GMailRawSearch(OldCleanupRules.Before(before) + " is:starred"), ct)).Count;
+        await client.DisconnectAsync(true, ct);
+        return (total, trash, starred);
+    }
+
+    public async Task<(int Trashed, int Archived)> ClearOldAsync(DateOnly before, OldMode mode, string label, CancellationToken ct)
+    {
+        using var client = await ConnectAsync(ct);
+        var inbox = client.Inbox;
+        await inbox.OpenAsync(FolderAccess.ReadWrite, ct);
+        var all = await inbox.SearchAsync(SearchQuery.GMailRawSearch(OldCleanupRules.Before(before) + " -is:starred"), ct);
+        var toTrash = (await inbox.SearchAsync(SearchQuery.GMailRawSearch(OldCleanupRules.TrashQuery(before, mode)), ct)).ToHashSet();
+        var toArchive = mode == OldMode.SletAlt ? new List<UniqueId>() : all.Where(u => !toTrash.Contains(u)).ToList();
+
+        // 1. the label first - so Fortryd can always find the whole pile, wherever it went
+        foreach (var chunk in all.Chunk(1000))
+            await inbox.StoreAsync(chunk, new StoreLabelsRequest(StoreAction.Add, new[] { label }) { Silent = true }, ct);
+        // 2. junk (or everything) -> Papirkurv
+        var trashFolder = Trash(client);
+        foreach (var chunk in toTrash.Chunk(1000)) await inbox.MoveToAsync(chunk, trashFolder, ct);
+        // 3. the rest -> Arkiv (Gmail: out of Indbakke, still under "Alle mails")
+        if (toArchive.Count > 0)
+        {
+            var archive = client.GetFolder(SpecialFolder.All) ?? throw new InvalidOperationException("Gmail har ingen 'Alle mails'-mappe.");
+            foreach (var chunk in toArchive.Chunk(1000)) await inbox.MoveToAsync(chunk, archive, ct);
+        }
+        await client.DisconnectAsync(true, ct);
+        return (toTrash.Count, toArchive.Count);
+    }
+
+    public async Task<int> RestoreLabelAsync(string label, CancellationToken ct)
+    {
+        using var client = await ConnectAsync(ct);
+        var back = 0;
+        var trash = Trash(client);
+        await trash.OpenAsync(FolderAccess.ReadWrite, ct);
+        var fromTrash = await trash.SearchAsync(SearchQuery.HasGMailLabel(label), ct);
+        foreach (var chunk in fromTrash.Chunk(1000)) await trash.MoveToAsync(chunk, client.Inbox, ct);
+        back += fromTrash.Count;
+        await trash.CloseAsync(false, ct);
+        if (client.GetFolder(SpecialFolder.All) is { } archive)
+        {
+            await archive.OpenAsync(FolderAccess.ReadWrite, ct);
+            var archived = await archive.SearchAsync(SearchQuery.GMailRawSearch("label:" + label + " -in:inbox"), ct);
+            // Gmail: a copy into INBOX = the Indbakke label back on the same mail (no duplicate)
+            foreach (var chunk in archived.Chunk(1000)) await archive.CopyToAsync(chunk, client.Inbox, ct);
+            back += archived.Count;
+        }
+        await client.DisconnectAsync(true, ct);
+        return back;
+    }
+
     /// <summary>Fortryd: Papirkurv -> Indbakke, found by Message-ID (UIDs change when a mail moves).</summary>
     public async Task<int> RestoreAsync(IReadOnlyList<string> messageIds, CancellationToken ct)
     {

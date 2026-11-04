@@ -60,3 +60,26 @@ public class CleanupTests
         (a with { Restored = true }).CanUndo(Now).Should().BeFalse();
     }
 }
+
+public class OldCleanupTests
+{
+    [Test]
+    public void Queries_keep_starred_and_authorities()
+    {
+        var d = new DateOnly(2026, 1, 1);
+        OldCleanupRules.TrashQuery(d, OldMode.SletAlt).Should().Be("before:2026/01/01 -is:starred");
+        var q = OldCleanupRules.TrashQuery(d, OldMode.SletReklame);
+        q.Should().StartWith("before:2026/01/01 (category:promotions OR category:social) -is:starred -from:(");
+        q.Should().Contain("aka.dk").And.Contain("e-boks.dk").And.Contain("skat.dk");
+    }
+
+    [Test]
+    public void Date_must_be_sensible_and_undo_works_by_label()
+    {
+        var today = new DateOnly(2026, 11, 4);
+        OldCleanupRules.IsValid(new DateOnly(2026, 1, 1), today).Should().BeTrue();
+        OldCleanupRules.IsValid(new DateOnly(2027, 1, 1), today).Should().BeFalse();
+        var a = new CleanupAction(Guid.NewGuid(), DateTimeOffset.UtcNow, "", "Alt før", [], "", false, "Kolibri-oprydning-x", 10, 5);
+        a.CanUndo(DateTimeOffset.UtcNow).Should().BeTrue();
+    }
+}

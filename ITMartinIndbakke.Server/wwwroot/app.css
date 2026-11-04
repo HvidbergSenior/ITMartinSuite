@@ -42,3 +42,7 @@
 .ib-login { display: flex; flex-direction: column; gap: 8px; max-width: 320px; }
 /* "hidden" must win over display:flex above - else every Læst form shows open */
 .ib-read[hidden], .ib-panel[hidden], .ib-actions[hidden] { display: none; }
+.ib-old-form { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.ib-old-form .k-input { width: auto; margin-left: 6px; }
+.ib-radio { display: flex; gap: 8px; align-items: flex-start; }
+.ib-radio input { margin-top: 4px; flex: none; width: 20px; height: 20px; }

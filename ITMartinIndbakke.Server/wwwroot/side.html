@@ -27,6 +27,24 @@
     </div>
 </section>
 
+<section class="k-card" id="ib-old-card" data-fold-closed>
+    <h2 class="k-card-title">Ryd alt det gamle</h2>
+    <p class="k-card-sub">Ryd alle gamle mails ud af indbakken på én gang. Du ser tallene først, og du kan fortryde i 30 dage.</p>
+    <div class="ib-old-form">
+        <label class="k-label">Alt før
+            <select class="k-input" id="ib-old-before">
+                <option value="2026-01-01">1. januar 2026</option>
+                <option value="2025-01-01">1. januar 2025</option>
+                <option value="2024-01-01">1. januar 2024</option>
+            </select>
+        </label>
+        <label class="ib-radio"><input type="radio" name="ib-old-mode" value="SletReklame" checked> <span><b>Slet reklame, arkivér resten</b> – reklame og sociale medier i papirkurven; mails fra mennesker, Digital Post og kvitteringer flyttes til arkivet (ude af indbakken, men kan altid findes i Gmail)</span></label>
+        <label class="ib-radio"><input type="radio" name="ib-old-mode" value="SletAlt"> <span><b>Slet alt</b> – alt i papirkurven, kun mails med stjerne bliver liggende. Husk: firmaets kvitteringer skal gemmes i 5 år</span></label>
+        <button type="button" class="k-btn" id="ib-old-preview">Se hvad der sker</button>
+    </div>
+    <div class="ib-panel" id="ib-old-result" hidden></div>
+</section>
+
 <section class="k-card" id="ib-senders-card" hidden>
     <h2 class="k-card-title">Ryd op – hvem fylder mest</h2>
     <p class="k-card-sub">Alle mails fra én afsender på én linje. Tryk <b>Ryd op</b> for at se, hvad der sker, før det sker – så kan du afmelde og slette med ét tryk.</p>

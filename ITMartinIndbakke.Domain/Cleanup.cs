@@ -104,8 +104,43 @@ public sealed record CleanupAction(
     string Name,
     IReadOnlyList<string> MessageIds,
     string Unsubscribed,
-    bool Restored)
+    bool Restored,
+    string? Label = null,       // "Ryd alt det gamle": the whole pile has this Gmail label
+    int Trashed = 0,
+    int Archived = 0)
 {
     /// <summary>Gmail empties Papirkurv after 30 days - after that Fortryd cannot work.</summary>
-    public bool CanUndo(DateTimeOffset now) => !Restored && MessageIds.Count > 0 && now - At < TimeSpan.FromDays(29);
+    public bool CanUndo(DateTimeOffset now) => !Restored && (MessageIds.Count > 0 || Label is not null) && now - At < TimeSpan.FromDays(29);
 }
+
+/// <summary>
+/// "Ryd alt det gamle" (user 2026-11-04: "I want to delete all from 2025 and older" + "I don't think 2 years old mails are important").
+/// Done with Gmail searches on the server - no headers fetched, no AI. Two ways, the user picks:
+/// - SletAlt: everything before the date to Papirkurv (only starred mail stays);
+/// - SletReklame: reklame/sociale to Papirkurv, the rest to Arkiv (out of the inbox, kept under "Alle mails").
+/// Every mail gets a Gmail label first, so ONE Fortryd brings the whole pile back (and the user can find it in Gmail).
+/// </summary>
+public enum OldMode { SletReklame, SletAlt }
+
+public static class OldCleanupRules
+{
+    public static string Before(DateOnly before) => "before:" + before.ToString("yyyy/MM/dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>Authorities, a-kasse, bank and Digital Post are never in the "reklame" part, even if Gmail calls it promotions.</summary>
+    public static string NeverJunk() =>
+        "-from:(" + string.Join(" OR ", MailRules.AuthorityDomains.Concat(MailRules.DigitalPostDomains).Distinct()) + ")";
+
+    /// <summary>The Gmail search for the part that goes to Papirkurv.</summary>
+    public static string TrashQuery(DateOnly before, OldMode mode) => mode == OldMode.SletAlt
+        ? Before(before) + " -is:starred"
+        : Before(before) + " (category:promotions OR category:social) -is:starred " + NeverJunk();
+
+    /// <summary>The label every moved mail gets - Fortryd and "find them again in Gmail" both use it.</summary>
+    public static string Label(DateTimeOffset at) =>
+        "Kolibri-oprydning-" + at.ToLocalTime().ToString("yyyy-MM-dd-HHmm", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>Not later than today, not before 2004 (Gmail's start).</summary>
+    public static bool IsValid(DateOnly before, DateOnly today) => before <= today && before.Year >= 2004;
+}
+
+public sealed record OldPreview(DateOnly Before, int Total, int ToTrash, int ToArchive, int Starred);
