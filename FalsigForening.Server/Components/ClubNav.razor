@@ -1,0 +1,94 @@
+<div class="club-header">
+    <div>
+        <div class="club-name">@GroupName</div>
+        <div class="club-member-name">@MemberLabel</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+        @if (OnLogout.HasDelegate)
+        {
+            <button class="club-leave-btn" @onclick="OnLogout">Log ud</button>
+        }
+    </div>
+</div>
+
+<!-- No persistent tab bar - the everyday screen (Overblik) is the only
+     destination common members need. These are deliberate mode switches, not
+     a content tab list: Bruger = live/everyday, Historik = look back at
+     finished tasks, Admin = planning (PIN-gated). The gaming-club nav variant
+     (Ready/Opponents/spilaften status badge) moved to ITMartinR6Club.Server
+     with the rest of the gaming features - this app is Bogshoppen/hvidberg
+     (task-board groups) only now. -->
+@if (Slug == "demo")
+{
+    <!-- Public demo tier - only the two tabs a first-time visitor actually
+         needs to get the idea (everyday tasks + who's in the group). Admin/
+         Historik/Påminder etc. are real features but not what a 30-second
+         demo click-through is for. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+    </div>
+}
+else if (ClubGroups.IsBoard(Slug))
+{
+    <!-- Board/association version (Skelagerhøjen, 2026-10-02): messages first, nothing else until it is asked for. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "forening" ? "active" : "")" href="/g/@Slug/forening">Foreningen</a>
+        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">📣 Beskeder</a>
+        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">✅ Opgaver</a>
+        <a class="club-mode-item @(Active == "moeder" ? "active" : "")" href="/g/@Slug/moeder">📝 Møder</a>
+        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+    </div>
+}
+else if (ClubGroups.IsTasksOnly(Slug))
+{
+    <!-- Bogshoppen (2026-10-06): only tasks and addresses - overview and who does what. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "opgaver" ? "active" : "")" href="/g/@Slug/opgaver">✅ Opgaver</a>
+        <a class="club-mode-item @(Active == "adresser" ? "active" : "")" href="/g/@Slug/adresser">📍 Adresser</a>
+    </div>
+}
+else if (Slug == "hvidberg")
+{
+    <!-- Familien Hvidberg wants a stripped-down nav - just the everyday
+         checklist (which now includes Køretøj/Bad sign-up as ordinary main
+         tasks). Other pages (Admin, Historik, etc.) still work by direct
+         URL, they're just not listed here. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">📣 Beskeder</a>
+        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+    </div>
+}
+else
+{
+    <!-- Bogshoppen (and any future task-board group besides hvidberg) - drop
+         Påminder/Find det from the tab bar. Historik points at the tasks
+         page (which already lists completed tasks under "Udførte opgaver"),
+         since /docs (session recaps) moved to the gaming app. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+        <a class="club-mode-item @(Active == "beskeder" ? "active" : "")" href="/g/@Slug/beskeder">📣 Beskeder</a>
+        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
+        <a class="club-mode-item @(Active == "storage" ? "active" : "")" href="/g/@Slug/storage">🏬 Lager</a>
+        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
+        <a class="club-mode-item @(Active == "ideas" ? "active" : "")" href="/g/@Slug/ideas">💡 Idéer</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+        <a class="club-mode-item @(Active == "admin" ? "active" : "")" href="/g/@Slug/admin">⚙ Admin</a>
+    </div>
+}
+
+@if (Active != "chat" && Slug != "demo" && !ClubGroups.IsTasksOnly(Slug))
+{
+    <ClubChatWidget Slug="@Slug" />
+}
+
+@code {
+    [Parameter, EditorRequired] public string Slug { get; set; } = "";
+    [Parameter, EditorRequired] public string GroupName { get; set; } = "";
+    [Parameter, EditorRequired] public string MemberLabel { get; set; } = "";
+    [Parameter, EditorRequired] public string Active { get; set; } = "";
+    [Parameter] public EventCallback OnLogout { get; set; }
+}

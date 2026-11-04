@@ -1,5 +1,5 @@
 using FluentAssertions;
-using ITMartinClub.Server.Services;
+using ITMartinClub.Application;
 using NUnit.Framework;
 
 namespace ITMartinClub.Tests.Services;
@@ -10,7 +10,7 @@ public class PinRateLimiterTests
     [Test]
     public void Five_wrong_guesses_lock_that_member()
     {
-        var limiter = new MemberPinRateLimiterService();
+        var limiter = new MemberPinLimiter();
         var member = Guid.NewGuid();
         for (var i = 0; i < 4; i++) limiter.RegisterFailure(member);
         limiter.IsLockedOut(member).Should().BeFalse();
@@ -21,7 +21,7 @@ public class PinRateLimiterTests
     [Test]
     public void Other_members_are_not_locked()
     {
-        var limiter = new MemberPinRateLimiterService();
+        var limiter = new MemberPinLimiter();
         var guessed = Guid.NewGuid();
         for (var i = 0; i < 5; i++) limiter.RegisterFailure(guessed);
         limiter.IsLockedOut(Guid.NewGuid()).Should().BeFalse();
@@ -30,7 +30,7 @@ public class PinRateLimiterTests
     [Test]
     public void A_correct_PIN_clears_earlier_wrong_guesses()
     {
-        var limiter = new MemberPinRateLimiterService();
+        var limiter = new MemberPinLimiter();
         var member = Guid.NewGuid();
         for (var i = 0; i < 4; i++) limiter.RegisterFailure(member);
         limiter.RegisterSuccess(member);

@@ -1,5 +1,5 @@
 using FluentAssertions;
-using ITMartinClub.Server.Data.Entities;
+using ITMartinClub.Domain;
 
 namespace ITMartinClub.Tests.Services;
 

@@ -1,7 +1,7 @@
 using FluentAssertions;
-using ITMartinClub.Server.Data;
-using ITMartinClub.Server.Data.Entities;
-using ITMartinClub.Server.Services;
+using ITMartinClub.Domain;
+using ITMartinClub.Infrastructure.Persistence;
+using ITMartinClub.Application;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMartinClub.Tests.Services;
@@ -12,18 +12,14 @@ namespace ITMartinClub.Tests.Services;
 [TestFixture]
 public class AssignmentTaskService_DeleteAndRecategorizeTests
 {
-    private ClubDbContext _db = null!;
-    private AssignmentTaskService _sut = null!;
+    private ClubDb _db = null!;
+    private TaskBoard _sut = null!;
     private Guid _groupId;
 
     [SetUp]
     public void SetUp()
     {
-        var options = new DbContextOptionsBuilder<ClubDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        _db = new ClubDbContext(options);
-        _sut = new AssignmentTaskService(_db, new ClubPushService());
+        (_db, _sut) = TestBoard.Create();
         _groupId = Guid.NewGuid();
     }
 
@@ -47,7 +43,7 @@ public class AssignmentTaskService_DeleteAndRecategorizeTests
 
         await _sut.DeleteAsync(t.Id, _groupId);
 
-        (await _db.Assignments.FindAsync(t.Id)).Should().BeNull();
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id)).Should().BeNull();
     }
 
     [Test]
@@ -58,7 +54,7 @@ public class AssignmentTaskService_DeleteAndRecategorizeTests
 
         await _sut.DeleteAsync(target.Id, _groupId);
 
-        (await _db.Assignments.FindAsync(other.Id)).Should().NotBeNull();
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(other.Id)).Should().NotBeNull();
     }
 
     [Test]
@@ -69,7 +65,7 @@ public class AssignmentTaskService_DeleteAndRecategorizeTests
 
         await _sut.DeleteAsync(t.Id, _groupId);
 
-        (await _db.Assignments.FindAsync(t.Id)).Should().NotBeNull("a task must not be deletable from a different group's session");
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id)).Should().NotBeNull("a task must not be deletable from a different group's session");
     }
 
     [Test]
@@ -89,7 +85,7 @@ public class AssignmentTaskService_DeleteAndRecategorizeTests
 
         await _sut.AssignMainTaskAsync(t.Id, _groupId, mainTaskId);
 
-        (await _db.Assignments.FindAsync(t.Id))!.MainTaskId.Should().Be(mainTaskId);
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.MainTaskId.Should().Be(mainTaskId);
     }
 
     [Test]
@@ -101,7 +97,7 @@ public class AssignmentTaskService_DeleteAndRecategorizeTests
 
         await _sut.AssignMainTaskAsync(t.Id, _groupId, newMainTaskId);
 
-        (await _db.Assignments.FindAsync(t.Id))!.MainTaskId.Should().Be(newMainTaskId);
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.MainTaskId.Should().Be(newMainTaskId);
     }
 
     [Test]
@@ -112,7 +108,7 @@ public class AssignmentTaskService_DeleteAndRecategorizeTests
 
         await _sut.AssignMainTaskAsync(t.Id, _groupId, Guid.NewGuid());
 
-        (await _db.Assignments.FindAsync(t.Id))!.MainTaskId.Should().BeNull();
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.MainTaskId.Should().BeNull();
     }
 
     [Test]

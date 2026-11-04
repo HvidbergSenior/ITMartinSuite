@@ -1,0 +1,24 @@
+@* One board task: title, who, deadline, and the buttons the viewer may use. *@
+<div class="task-line @(Late ? "task-late" : "")">
+    <div class="task-line-main">
+        <div class="msg-item-title">@A.Title</div>
+        <div class="msg-item-meta">
+            @if (ShowWho) { <span>@(A.Assignees.Count == 0 ? "🙋 Ikke fordelt" : "👤 " + A.AssigneeLabel)</span> }
+            @if (A.DueDate is { } d) { <span>@(Late ? "⚠️" : "📅") senest @d.ToString("d/M")</span> }
+            @if (!string.IsNullOrWhiteSpace(A.Description)) { <span>@A.Description</span> }
+        </div>
+    </div>
+    <div class="msg-row">
+        @if (A.Assignees.Count == 0) { <button class="msg-btn" @onclick="() => OnTake.InvokeAsync(A)">Jeg tager den</button> }
+        @if (A.IsAssignedTo(Me)) { <button class="msg-btn msg-btn-primary" @onclick="() => OnDone.InvokeAsync(A)">✅ Færdig</button> }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Assignment A { get; set; } = default!;
+    [Parameter, EditorRequired] public string Me { get; set; } = "";
+    [Parameter] public bool ShowWho { get; set; } = true;
+    [Parameter] public EventCallback<Assignment> OnDone { get; set; }
+    [Parameter] public EventCallback<Assignment> OnTake { get; set; }
+    private bool Late => A.DueDate is { } d && d.Date < DateTime.Today;
+}

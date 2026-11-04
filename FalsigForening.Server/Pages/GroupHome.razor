@@ -1,0 +1,667 @@
+@page "/g/{slug}"
+@rendermode InteractiveServer
+@inject TeamMembers People
+@inject Places PlaceBook
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubBroadcastService Broadcast
+@inject IPushNotifier PushService
+@inject ClubAuthService ClubAuth
+@inject TaskBoard TaskService
+@inject ILogger<GroupHome> Logger
+@implements IDisposable
+
+@if (!_loaded)
+{
+    <div class="club-loading">Indlæser...</div>
+}
+else if (_member == null)
+{
+    <div class="club-loading">Omdirigerer...</div>
+}
+else
+{
+    <div class="club-page @(IsFixedBuckets ? "club-page-wide" : "")">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@($"Hej, {_member.Name} 👋")"
+                 Active="home" OnLogout="LeaveAsync" />
+
+        @if (_pushStatusMessage is not null)
+        {
+            <div class="push-status-banner">@_pushStatusMessage</div>
+        }
+        else
+        {
+            <!-- Some browsers (notably Safari) silently refuse to show the
+                 permission dialog unless requestPermission() runs directly
+                 inside a real click - the automatic attempt on page load
+                 (further down in OnAfterRenderAsync) works for browsers that
+                 don't require that, this button is the fallback for the
+                 ones that do. -->
+            <button class="push-enable-btn" @onclick="EnablePushAsync">🔔 Slå notifikationer til på denne enhed</button>
+        }
+
+        @* This used to be gated on "has any MainTasks" as a proxy for "is a
+           task-board group" - broke the moment a group's categories were
+           ever fully cleared (2026-09-08), hiding task creation itself along
+           with the empty board. Every real group here is task-board style
+           regardless of how many categories it currently has. *@
+        <div class="task-body">
+            <div class="task-toolbar">
+                <h2 class="task-title">Åbne opgaver</h2>
+                @if (_adding)
+                {
+                    <button class="task-add-btn" @onclick="ToggleAdding">✕ Annuller</button>
+                }
+                </div>
+
+                <div class="task-filter-row">
+                    <label>Vis</label>
+                    <select class="task-input" @bind="_filterAssignedTo">
+                        <option value="">Alle</option>
+                        <option value="@_member!.Name">Kun mine opgaver</option>
+                        @foreach (var m in _members.Where(m => m.Name != _member!.Name)) { <option value="@m.Name">@m.Name</option> }
+                    </select>
+                </div>
+
+                @if (_adding)
+                {
+                    <div class="task-form">
+                        <div class="task-field"><label>Opgave</label><input @bind="_newTitle" class="task-input" maxlength="200" placeholder="Hvad skal gøres?" /></div>
+                        <div class="task-field">
+                            <label>Hovedopgave</label>
+                            <select @bind="_newMainTaskId" class="task-input">
+                                <option value="">— vælg hovedopgave —</option>
+                                @foreach (var mt in _mainTasks) { <option value="@mt.Id">@mt.Title</option> }
+                            </select>
+                        </div>
+                        <div class="task-field">
+                            <label>Tildelt til (valgfrit, vælg en eller flere)</label>
+                            <div class="task-assignee-list">
+                                @foreach (var m in _members)
+                                {
+                                    <label class="task-assignee-chip">
+                                        <input type="checkbox" checked="@_newAssignedTo.Contains(m.Name)" @onchange="e => ToggleNewAssignee(m.Name, (bool)e.Value!)" />
+                                        @m.Name
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                        @if (_locations.Any())
+                        {
+                            <div class="task-field">
+                                <label>Opbevaringssted (valgfrit)</label>
+                                <select @bind="_newStorageLocationId" class="task-input">
+                                    <option value="">— ingen —</option>
+                                    @foreach (var loc in _locations) { <option value="@loc.Id">@loc.Name</option> }
+                                </select>
+                            </div>
+                        }
+                        <div class="task-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newDesc" rows="2" class="task-input task-textarea" /></div>
+                        <div class="prep-form-actions">
+                            <button class="task-save-btn" @onclick="AddTaskAsync" disabled="@string.IsNullOrWhiteSpace(_newTitle)">@(_editingTaskId is null ? "Gem opgave" : "Opdater opgave")</button>
+                            @if (_editingTaskId is not null)
+                            {
+                                <button class="task-cancel-btn" @onclick="CancelEditTask">Annuller</button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (_addingMainTask)
+                {
+                    <div class="task-form">
+                        <div class="task-field"><label>Nyt hovedopgave-emne</label><input @bind="_newMainTaskTitle" class="task-input" maxlength="100" placeholder="fx Salg" /></div>
+                        <div class="task-field">
+                            <label>Gentagelse</label>
+                            <select @bind="_newMainTaskRecurrence" class="task-input">
+                                <option value="none">Ingen (almindeligt emne)</option>
+                                <option value="daily">Dagligt</option>
+                                <option value="weekly">Ugentligt — vælg dag(e) nedenfor</option>
+                                <option value="biweekly">Hver 14. dag — vælg dag(e) nedenfor (valgfrit)</option>
+                                <option value="monthly">Månedligt — vælg dag(e) nedenfor (valgfrit)</option>
+                            </select>
+                        </div>
+                        @if (_newMainTaskRecurrence is "weekly" or "biweekly" or "monthly")
+                        {
+                            <div class="task-field">
+                                <label>Hvilke dage</label>
+                                <div class="task-assignee-list">
+                                    @foreach (var day in WeekdaysInOrder)
+                                    {
+                                        <label class="task-assignee-chip">
+                                            <input type="checkbox" checked="@_newMainTaskDays.Contains(day)" @onchange="e => ToggleNewMainTaskDay(day, (bool)e.Value!)" />
+                                            @WeekdayDanish(day)
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        <button class="task-save-btn" @onclick="AddMainTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newMainTaskTitle))">Tilføj hovedopgave</button>
+                    </div>
+                }
+                else if (!IsFixedBuckets)
+                {
+                    <button class="task-add-maintask-btn" @onclick="() => _addingMainTask = true">+ Nyt hovedopgave-emne</button>
+                }
+
+                @if (_tomorrowTasks.Any())
+                {
+                    <div class="tomorrow-section">
+                        <div class="task-section-label">📅 Planlagt til i morgen</div>
+                        @foreach (var t in _tomorrowTasks)
+                        {
+                            <div class="task-row-item">
+                                <div class="task-info">
+                                    <div class="task-item-title">@t.Title</div>
+                                    @if (t.Assignees.Count > 0) { <div class="task-meta"><span>👤 @t.AssigneeLabel</span></div> }
+                                </div>
+                                <button class="task-del-btn" @onclick="() => DeleteTaskAsync(t.Id)">✕</button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @{
+                    // Daily is today's actual work - the most important thing
+                    // to see, so it leads on its own. Weekly/biweekly/monthly
+                    // are lower-urgency by nature (none of them is "due
+                    // today"), so they're grouped together to the right
+                    // instead of each getting an equally-prominent full-width
+                    // row, and collapsible since they don't need to be
+                    // re-scanned every visit the way daily does (2026-09-08 -
+                    // "tasks today is the most important... others should be
+                    // to the right... user should be able to show and hide").
+                    var dailyMainTasks = _mainTasks.Where(m => m.IsDaily).ToList();
+                    var otherRecurring = _recurringMainTasks; // weekly + biweekly + monthly
+
+                    RenderFragment<MainTask> RenderMainTaskCard = mt =>
+                    @<text>
+                        @{
+                            var tasksForMain = _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
+                                .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
+                                .ToList();
+                            var doneThisPeriod = _dailyDoneCounts.GetValueOrDefault(mt.Id);
+                            var totalThisPeriod = doneThisPeriod + tasksForMain.Count;
+                        }
+                        <MainTaskCard MainTask="mt" Tasks="tasksForMain" Color="@_mainTaskColors[mt.Id]" CurrentMemberName="@_member!.Name"
+                                      BadgeText="@BadgeText(mt, tasksForMain.Count, doneThisPeriod, totalThisPeriod)" DoneCount="doneThisPeriod"
+                                      OnAddTask="StartAddTaskForMainTask" OnDeleteMainTask="DeleteMainTaskAsync"
+                                      OnComplete="CompleteTaskAsync" OnDecline="DeclineTaskAsync" OnJoin="JoinTaskAsync"
+                                      OnEditTask="StartEditTask" OnDeleteTask="DeleteTaskAsync" />
+                    </text>;
+                }
+                @if (IsFixedBuckets)
+                {
+                    @* Familien Hvidberg: exactly five fixed columns. "I dag" is
+                       one-off work due tonight; the other four reopen by period. *@
+                    <div class="bucket-grid">
+                    @foreach (var mt in _mainTasks.OrderBy(m => m.SortOrder))
+                    {
+                        <div class="bucket-col">@RenderMainTaskCard(mt)</div>
+                    }
+                    </div>
+                }
+                else
+                {
+                @if (dailyMainTasks.Count > 0)
+                {
+                    <div class="daily-column">
+                        <div class="task-section-label">☀️ Daglige opgaver</div>
+                        <div class="maintask-grid">
+                        @foreach (var mt in dailyMainTasks)
+                        {
+                            @RenderMainTaskCard(mt)
+                        }
+                        </div>
+                    </div>
+                }
+                @if (otherRecurring.Count > 0)
+                {
+                    <div class="weekly-column">
+                        <div class="task-section-label-row">
+                            <div class="task-section-label">🔁 Andre tilbagevendende</div>
+                            <button class="task-take-btn" @onclick="() => _showOtherRecurring = !_showOtherRecurring">@(_showOtherRecurring ? "Skjul" : "Vis")</button>
+                        </div>
+                        @if (_showOtherRecurring)
+                        {
+                            <div class="maintask-grid">
+                            @foreach (var mt in otherRecurring.Where(m => m.IsWeekly))
+                            {
+                                @RenderMainTaskCard(mt)
+                            }
+                            @foreach (var mt in otherRecurring.Where(m => m.IsBiweekly))
+                            {
+                                @RenderMainTaskCard(mt)
+                            }
+                            @foreach (var mt in otherRecurring.Where(m => m.IsMonthly))
+                            {
+                                @RenderMainTaskCard(mt)
+                            }
+                            </div>
+                        }
+                    </div>
+                }
+                }
+
+                <div class="maintask-grid">
+                @{
+                    // Categories with open tasks (after the assignee filter) sort to
+                    // the top; empty ones stay visible but sink to the bottom instead
+                    // of being hidden (2026-09-08 - tried hiding them outright, but the
+                    // ask was actually "keep them, just lower"). OrderBy is stable, so
+                    // ties keep their original SortOrder within each group.
+                    var orderedMainTasks = _mainTasks
+                        .Where(mt => !IsFixedBuckets && !mt.IsRecurringCard && !mt.IsDaily)
+                        .Select(mt => (MainTask: mt, Tasks: _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
+                            .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
+                            .ToList()))
+                        .OrderBy(x => x.Tasks.Count == 0)
+                        .ToList();
+                }
+                @foreach (var (mt, tasksForMain) in orderedMainTasks)
+                {
+                    <MainTaskCard MainTask="mt" Tasks="tasksForMain" Color="@_mainTaskColors[mt.Id]" CurrentMemberName="@_member!.Name"
+                                  OnAddTask="StartAddTaskForMainTask" OnDeleteMainTask="DeleteMainTaskAsync"
+                                  OnComplete="CompleteTaskAsync" OnDecline="DeclineTaskAsync" OnJoin="JoinTaskAsync"
+                                  OnEditTask="StartEditTask" OnDeleteTask="DeleteTaskAsync" />
+                }
+
+                @if (_uncategorizedTasks.Count > 0)
+                {
+                    var uncategorized = _uncategorizedTasks
+                        .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
+                        .ToList();
+                    <div class="maintask-group">
+                        <div class="maintask-header"><div class="maintask-title">Ikke kategoriseret</div></div>
+                        @foreach (var t in uncategorized)
+                        {
+                            <AssignmentRow @key="t.Id" Task="t" IsMine="t.IsAssignedTo(_member!.Name)"
+                                           OnComplete="() => CompleteTaskAsync(t.Id)" OnDecline="() => DeclineTaskAsync(t.Id)" OnJoin="() => JoinTaskAsync(t.Id)"
+                                           OnEdit="() => StartEditTask(t)" OnDelete="() => DeleteTaskAsync(t.Id)">
+                                <select class="task-input task-uncategorized-select" value="" @onchange="e => AssignMainTaskAsync(t.Id, (string)e.Value!)">
+                                    <option value="">— vælg hovedopgave —</option>
+                                    @foreach (var mt in _mainTasks) { <option value="@mt.Id">@mt.Title</option> }
+                                </select>
+                            </AssignmentRow>
+                        }
+                    </div>
+                }
+                </div>
+            </div>
+    </div>
+}
+
+<style>
+    .task-body { padding: 16px; }
+    .task-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .task-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-add-maintask-btn { background: var(--accent); color: white; border: none; border-radius: 14px; padding: 20px 24px; font-size: 20px; font-weight: 800; cursor: pointer; width: 100%; margin-bottom: 20px; }
+    .task-add-maintask-btn:hover { opacity: .9; }
+    .task-filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .task-filter-row label { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .task-filter-row .task-input { width: auto; min-width: 180px; }
+    .task-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .task-field { margin-bottom: 12px; }
+    .task-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .task-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .task-input:focus { border-color: var(--accent); }
+    .task-input option { background: var(--surface); color: var(--text); }
+    .task-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .task-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .task-save-btn:disabled { opacity: .4; cursor: default; }
+    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
+    .task-row-mine { border-color: #6366f1; background: rgba(99,102,241,.08); }
+    .task-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin: 2px 0 6px; }
+    .task-badge-open    { background: var(--red);    color: white; }
+    .task-badge-claimed { background: #d97706;       color: white; }
+    .task-badge-done    { background: var(--green);  color: white; }
+    .task-complete-btn  { width: auto; padding: 8px 16px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-decline-btn { width: auto; padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(245,158,11,.4); background: rgba(245,158,11,.1); color: #f59e0b; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .task-decline-btn:hover { background: rgba(245,158,11,.18); border-color: rgba(245,158,11,.6); }
+    .task-info { flex: 1; }
+    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .task-overdue { color: var(--red) !important; }
+    .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
+    .task-del-btn:hover { color: var(--red); }
+    .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+    .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-assignee-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .task-assignee-chip { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
+    .prep-form-actions { display: flex; gap: 8px; }
+    .prep-form-actions .task-save-btn { width: auto; flex: 1; }
+    .task-cancel-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+    .push-enable-btn { display: block; width: 100%; margin: 12px 0; padding: 10px; border-radius: 10px; border: 1px dashed var(--accent); background: transparent; color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer; }
+    .push-status-banner { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); font-size: 13px; color: var(--text); }
+
+    .bucket-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: start; }
+    @@media (max-width: 1100px) { .bucket-grid { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 640px) { .bucket-grid { grid-template-columns: 1fr; } }
+    .maintask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+    @@media (max-width: 640px) { .maintask-grid { grid-template-columns: 1fr; } }
+    .maintask-group { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 0; }
+    .maintask-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .maintask-group-clickable { cursor: pointer; }
+    .maintask-group-clickable:hover { outline: 2px solid rgba(255,255,255,.15); outline-offset: -1px; }
+    .maintask-title { font-size: 16px; font-weight: 800; color: var(--text); }
+    .maintask-count { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 2px 10px; }
+    .maintask-daily-badge { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+    .maintask-daily-badge.daily-done { color: var(--green); background: rgba(34,197,94,.12); }
+    .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .tomorrow-section { margin-bottom: 20px; }
+    .weekly-column, .daily-column { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .task-section-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .task-section-label-row .task-section-label { margin-bottom: 0; }
+    .task-row-actions { display: flex; gap: 8px; }
+    .task-row-buttons { display: flex; flex-direction: column; gap: 4px; }
+    .task-uncategorized-select { margin-top: 8px; }
+
+    .club-sections { padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+    .club-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .club-empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    // Familien Hvidberg: five fixed columns (Domain FixedBuckets) - the column decides when a task reopens.
+    private bool IsFixedBuckets => FixedBuckets.IsUsedBy(Slug);
+
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    // Task-board-first front page: active once the group has any MainTasks
+    // (see Program.cs seeding for Bogshoppen) - a group with none gets the
+    // minimal fallback in the markup below instead.
+    private string? _pushStatusMessage;
+    private List<MainTask> _mainTasks = [];
+    private List<Assignment> _openTasksFull = [];
+    private List<Member> _members = [];
+    private Dictionary<Guid, int> _dailyDoneCounts = [];
+
+    // Grouped/colored once per RefreshAsync rather than recomputed on every
+    // render (every filter-dropdown change was re-scanning _openTasksFull
+    // once per main task, plus an O(n) IndexOf per row just to pick a color).
+    private Dictionary<Guid, List<Assignment>> _tasksByMainTaskId = [];
+    private Dictionary<Guid, string> _mainTaskColors = [];
+    private List<Assignment> _uncategorizedTasks = [];
+    private List<MainTask> _recurringMainTasks = [];
+    private bool _showOtherRecurring = true;
+    private bool _adding, _addingMainTask;
+    private Guid? _editingTaskId;
+    private string _newTitle = "", _newMainTaskId = "", _newDesc = "", _newMainTaskTitle = "", _newStorageLocationId = "";
+    private string _newMainTaskRecurrence = "none";
+    private HashSet<DayOfWeek> _newMainTaskDays = [];
+    private static DayOfWeek[] WeekdaysInOrder => Weekdays.InOrder;
+    private HashSet<string> _newAssignedTo = [];
+    private List<StorageLocation> _locations = [];
+    private string _filterAssignedTo = "";
+    private string _newScheduleChoice = "today";
+    private DateTime? _newDue;
+    private List<Assignment> _tomorrowTasks = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (ClubGroups.IsBoard(Slug) || ClubGroups.IsTasksOnly(Slug)) { Nav.NavigateTo(ClubGroups.HomePath(Slug), forceLoad: true); return; }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+
+        _member = session.Member;
+        _group = session.Member.Group;
+
+        await RefreshAsync();
+        Broadcast.Subscribe(_group.Id, OnBroadcast);
+        _loaded = true;
+
+        StateHasChanged();
+
+        try
+        {
+            var publicKey = PushService.PublicKey;
+            var status = await JS.InvokeAsync<string>("clubJs.subscribePush", publicKey, _group.Id, _member.Name);
+            // Only surface success/hard-failure from the silent on-load
+            // attempt - leave the banner as the enable button for anything
+            // that just needs the manual click (Safari etc.), rather than
+            // reporting a false "unsupported"/"denied" before that's tried.
+            if (status == "granted")
+            {
+                _pushStatusMessage = PushStatusMessage(status);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Silent push-subscribe attempt failed for {Group}/{Member}", _group.Id, _member.Name);
+        }
+    }
+
+    private async Task EnablePushAsync()
+    {
+        try
+        {
+            var publicKey = PushService.PublicKey;
+            var status = await JS.InvokeAsync<string>("clubJs.subscribePush", publicKey, _group!.Id, _member!.Name);
+            _pushStatusMessage = PushStatusMessage(status);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Manual push-enable click failed for {Group}/{Member}", _group?.Id, _member?.Name);
+            _pushStatusMessage = PushStatusMessage(null);
+        }
+    }
+
+    private static string PushStatusMessage(string? status) => status switch
+    {
+        "granted" => "🔔 Notifikationer er slået til på denne enhed.",
+        "denied" => "🔕 Du har blokeret notifikationer for denne side. Åbn browserens side-indstillinger (tryk på hængelåsen/ikonet ved adressen) → Notifikationer → Tillad, og prøv igen.",
+        "unsupported" => "⚠️ Denne browser understøtter ikke notifikationer her. På iPhone: åbn siden i Safari, tryk Del → 'Føj til hjemmeskærm', og brug appen derfra.",
+        _ => "❌ Noget gik galt. Prøv igen, eller genindlæs siden.",
+    };
+
+    private async Task RefreshAsync()
+    {
+        var board = await TaskService.HomeAsync(_group!);
+        _mainTasks = board.MainTasks;
+        if (_mainTasks.Count == 0) return;
+
+        _recurringMainTasks = _mainTasks.Where(m => m.IsRecurringCard).ToList();
+        _openTasksFull = board.OpenNow;
+        _tasksByMainTaskId = _openTasksFull
+            .Where(t => t.MainTaskId is not null)
+            .GroupBy(t => t.MainTaskId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        _uncategorizedTasks = _openTasksFull.Where(t => t.MainTaskId is null).ToList();
+        _mainTaskColors = _mainTasks
+            .Select((mt, i) => (mt.Id, Color: MainTaskColors[i % MainTaskColors.Length]))
+            .ToDictionary(x => x.Id, x => x.Color);
+        _tomorrowTasks = board.Later;
+        _dailyDoneCounts = board.DoneThisCycle;
+        _members = await People.ListAsync(_group!.Id);
+        _locations = await PlaceBook.ListAsync(_group!.Id);
+    }
+
+    private void ToggleAdding()
+    {
+        if (_adding) CancelEditTask();
+        else _adding = true;
+    }
+
+    private void CancelEditTask()
+    {
+        _editingTaskId = null;
+        _newTitle = ""; _newMainTaskId = ""; _newAssignedTo = []; _newDesc = ""; _newDue = null; _newScheduleChoice = "today"; _newStorageLocationId = ""; _adding = false;
+    }
+
+    // Clicking a category card is a shortcut for "+ Ny opgave" with that
+    // category already picked, instead of opening the blank form and having
+    // to find it again in the dropdown.
+    private void StartAddTaskForMainTask(Guid mainTaskId)
+    {
+        CancelEditTask();
+        _newMainTaskId = mainTaskId.ToString();
+        _adding = true;
+    }
+
+    private async Task StartEditTask(Assignment t)
+    {
+        _editingTaskId = t.Id;
+        var oldMainTaskTitle = t.MainTaskId is { } mtid ? _mainTasks.FirstOrDefault(m => m.Id == mtid)?.Title : null;
+        _newTitle = oldMainTaskTitle is not null ? TaskTitles.WithoutMainTask(t.Title, oldMainTaskTitle) : t.Title;
+        _newMainTaskId = t.MainTaskId?.ToString() ?? "";
+        _newStorageLocationId = t.StorageLocationId?.ToString() ?? "";
+        _newAssignedTo = t.Assignees.ToHashSet();
+        _newDue = t.DueDate?.ToLocalTime();
+        _newDesc = t.Description ?? "";
+        _newScheduleChoice = t.ScheduledFor is not null ? "tomorrow" : "today";
+        _adding = true;
+        // The edit form renders up near the toolbar, not next to the row you
+        // clicked in the main-task grid below - without this, editing a task
+        // further down the board looks like nothing happened.
+        StateHasChanged();
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
+
+    private async Task AddTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newTitle)) return;
+
+        // A main task is a nice-to-have grouping, not a requirement - a group
+        // with none set up yet (or one that's had them all cleared, 2026-09-08)
+        // must still be able to create tasks; they just land in "Ikke
+        // kategoriseret" until assigned a category.
+        Guid? mainTaskId = string.IsNullOrEmpty(_newMainTaskId) ? null : Guid.Parse(_newMainTaskId);
+        var mainTaskTitle = mainTaskId is { } id ? _mainTasks.First(mt => mt.Id == id).Title : null;
+        var dueUtc = _newDue?.ToUniversalTime();
+        if (IsFixedBuckets && dueUtc is null && mainTaskTitle == FixedBuckets.TodayTitle) dueUtc = DanishTime.TonightUtc(DateTime.UtcNow);
+        var locationId = string.IsNullOrEmpty(_newStorageLocationId) ? null : (Guid?)Guid.Parse(_newStorageLocationId);
+        var scheduledFor = _newScheduleChoice == "tomorrow" ? DanishTime.TodayStartUtc(DateTime.UtcNow).AddDays(1) : (DateTime?)null;
+
+        await TaskService.SaveAsync(_group!.Id, _editingTaskId, mainTaskId, mainTaskTitle, locationId,
+            _newTitle.Trim(), _newDesc, _newAssignedTo.ToList(), dueUtc, scheduledFor, _member!.Name);
+        CancelEditTask();
+        await RefreshAsync();
+    }
+
+    private void ToggleNewAssignee(string name, bool isChecked)
+    {
+        if (isChecked) _newAssignedTo.Add(name);
+        else _newAssignedTo.Remove(name);
+    }
+
+    // Every subtask title starts with its main task's name, e.g. "Salg: Skriv
+    // RABAT på skilt" - matches how tasks were already being titled by hand
+    // before MainTask existed as a real field, so it stays readable in lists
+    // that show tasks without their group header.
+    // Subtle tinted backgrounds so main-task cards are visually distinct at a
+    // glance - cycles by list position rather than being stored per-task, so
+    // reordering/renaming a main task doesn't need any data migration.
+    private static readonly string[] MainTaskColors =
+    [
+        "rgba(99,102,241,.10)",  // indigo
+        "rgba(16,185,129,.10)",  // green
+        "rgba(245,158,11,.10)",  // amber
+        "rgba(236,72,153,.10)",  // pink
+        "rgba(56,189,248,.10)",  // sky
+        "rgba(248,113,113,.10)", // red
+        "rgba(168,85,247,.10)",  // purple
+        "rgba(163,163,163,.10)", // gray
+    ];
+
+    private async Task JoinTaskAsync(Guid id)
+    {
+        await TaskService.JoinAsync(id, _group!.Id, _member!.Name);
+        await RefreshAsync();
+    }
+
+    private async Task CompleteTaskAsync(Guid id)
+    {
+        await TaskService.CompleteAsync(id, _group!.Id, _member!.Name);
+        await RefreshAsync();
+    }
+
+    private async Task DeclineTaskAsync(Guid id)
+    {
+        await TaskService.DeclineAsync(id, _group!.Id, _member!.Name);
+        await RefreshAsync();
+    }
+
+    private async Task DeleteTaskAsync(Guid id)
+    {
+        await TaskService.DeleteAsync(id, _group!.Id);
+        await RefreshAsync();
+    }
+
+    private async Task AssignMainTaskAsync(Guid taskId, string mainTaskId)
+    {
+        if (string.IsNullOrEmpty(mainTaskId)) return;
+        await TaskService.AssignMainTaskAsync(taskId, _group!.Id, Guid.Parse(mainTaskId));
+        await RefreshAsync();
+    }
+
+    private async Task AddMainTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newMainTaskTitle)) return;
+        await TaskService.AddMainTaskAsync(_group!.Id, _newMainTaskTitle, _newMainTaskRecurrence, _newMainTaskDays);
+        _newMainTaskTitle = ""; _addingMainTask = false; _newMainTaskRecurrence = "none"; _newMainTaskDays = [];
+        await RefreshAsync();
+    }
+
+    private void ToggleNewMainTaskDay(DayOfWeek day, bool isChecked)
+    {
+        if (isChecked) _newMainTaskDays.Add(day);
+        else _newMainTaskDays.Remove(day);
+    }
+
+    // Tasks still under this category are kept, not deleted - they drop to
+    // "Ikke kategoriseret" instead of disappearing, same as the manual
+    // cleanup done for hvidberg's old categories (2026-09-08).
+    private async Task DeleteMainTaskAsync(Guid id)
+    {
+        await TaskService.DeleteMainTaskAsync(_group!, id);   // the five fixed columns are never deleted
+        await RefreshAsync();
+    }
+
+    private static string WeekdayDanish(DayOfWeek day) => Weekdays.Danish(day);
+
+    private static string RecurrenceLabel(MainTask mt) => TaskRecurrence.Label(mt);
+
+    // Daily phrases its badge around "i dag"/today specifically; the other
+    // three recurring kinds share one generic "done for this cycle" phrasing
+    // since none of weekly/monthly/biweekly has as natural a one-word period
+    // name as "i dag" does.
+    private static string? BadgeText(MainTask mt, int openCount, int doneCount, int totalCount) =>
+        mt.IsDaily
+            ? totalCount == 0 ? "Ingen opgaver i dag endnu" : openCount == 0 ? $"✅ Færdig i dag ({doneCount}/{totalCount})" : $"🕓 {doneCount} af {totalCount} gjort i dag"
+        : mt.IsRecurringCard
+            ? $"{RecurrenceLabel(mt)} {(totalCount == 0 ? "— ingen opgaver endnu" : openCount == 0 ? "— ✅ gjort" : $"— {openCount} tilbage")}"
+        : null;
+
+    private void OnBroadcast() => InvokeAsync(async () =>
+    {
+        await RefreshAsync();
+        StateHasChanged();
+    });
+
+    private async Task LeaveAsync()
+    {
+        await JS.InvokeVoidAsync("clubJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        if (_group != null) Broadcast.Unsubscribe(_group.Id, OnBroadcast);
+    }
+}

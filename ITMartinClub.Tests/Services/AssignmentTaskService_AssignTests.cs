@@ -1,7 +1,7 @@
 using FluentAssertions;
-using ITMartinClub.Server.Data;
-using ITMartinClub.Server.Data.Entities;
-using ITMartinClub.Server.Services;
+using ITMartinClub.Domain;
+using ITMartinClub.Infrastructure.Persistence;
+using ITMartinClub.Application;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMartinClub.Tests.Services;
@@ -11,18 +11,14 @@ namespace ITMartinClub.Tests.Services;
 [TestFixture]
 public class AssignmentTaskService_AssignTests
 {
-    private ClubDbContext _db = null!;
-    private AssignmentTaskService _sut = null!;
+    private ClubDb _db = null!;
+    private TaskBoard _sut = null!;
     private Guid _groupId;
 
     [SetUp]
     public void SetUp()
     {
-        var options = new DbContextOptionsBuilder<ClubDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        _db = new ClubDbContext(options);
-        _sut = new AssignmentTaskService(_db, new ClubPushService());
+        (_db, _sut) = TestBoard.Create();
         _groupId = Guid.NewGuid();
     }
 
@@ -44,7 +40,7 @@ public class AssignmentTaskService_AssignTests
 
         await _sut.JoinAsync(t.Id, _groupId, "Rico");
 
-        (await _db.Assignments.FindAsync(t.Id))!.Assignees.Should().Equal("Rico");
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.Assignees.Should().Equal("Rico");
     }
 
     [Test]
@@ -54,7 +50,7 @@ public class AssignmentTaskService_AssignTests
 
         await _sut.JoinAsync(t.Id, _groupId, "Martin Hvidberg");
 
-        (await _db.Assignments.FindAsync(t.Id))!.Assignees.Should().Equal("Rico", "Martin Hvidberg");
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.Assignees.Should().Equal("Rico", "Martin Hvidberg");
     }
 
     [Test]
@@ -65,7 +61,7 @@ public class AssignmentTaskService_AssignTests
         await _sut.JoinAsync(t.Id, _groupId, "Rico");
         await _sut.JoinAsync(t.Id, _groupId, "Rico");
 
-        (await _db.Assignments.FindAsync(t.Id))!.Assignees.Should().Equal("Rico");
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.Assignees.Should().Equal("Rico");
     }
 
     [Test]
@@ -78,7 +74,7 @@ public class AssignmentTaskService_AssignTests
 
         await _sut.JoinAsync(t.Id, _groupId, "Rico");
 
-        (await _db.Assignments.FindAsync(t.Id))!.Assignees.Should().BeEmpty();
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.Assignees.Should().BeEmpty();
     }
 
     [Test]
@@ -95,6 +91,6 @@ public class AssignmentTaskService_AssignTests
 
         await _sut.JoinAsync(t.Id, _groupId, "Rico");
 
-        (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("claiming a task is not the same as finishing it");
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("claiming a task is not the same as finishing it");
     }
 }

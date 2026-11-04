@@ -1,7 +1,7 @@
 using FluentAssertions;
-using ITMartinClub.Server.Data;
-using ITMartinClub.Server.Data.Entities;
-using ITMartinClub.Server.Services;
+using ITMartinClub.Domain;
+using ITMartinClub.Infrastructure.Persistence;
+using ITMartinClub.Application;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMartinClub.Tests.Services;
@@ -12,18 +12,14 @@ namespace ITMartinClub.Tests.Services;
 [TestFixture]
 public class AssignmentTaskService_SaveTests
 {
-    private ClubDbContext _db = null!;
-    private AssignmentTaskService _sut = null!;
+    private ClubDb _db = null!;
+    private TaskBoard _sut = null!;
     private Guid _groupId;
 
     [SetUp]
     public void SetUp()
     {
-        var options = new DbContextOptionsBuilder<ClubDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        _db = new ClubDbContext(options);
-        _sut = new AssignmentTaskService(_db, new ClubPushService());
+        (_db, _sut) = TestBoard.Create();
         _groupId = Guid.NewGuid();
     }
 
@@ -187,7 +183,7 @@ public class AssignmentTaskService_SaveTests
         await _sut.SaveAsync(_groupId, existing.Id, null, null, null,
             "Ny titel", "ny beskrivelse", ["Rico"], null, null, "Admin");
 
-        var reloaded = await _db.Assignments.FindAsync(existing.Id);
+        var reloaded = await TestBoard.Fresh(_db).Assignments.FindAsync(existing.Id);
         reloaded!.Title.Should().Be("Ny titel");
         reloaded.Description.Should().Be("ny beskrivelse");
         reloaded.AssignedToNames.Should().Be("Rico");
@@ -217,7 +213,7 @@ public class AssignmentTaskService_SaveTests
         await _sut.SaveAsync(_groupId, existing.Id, null, null, null,
             "Forsøgt overskrevet", null, [], null, null, "Nogen");
 
-        (await _db.Assignments.FindAsync(existing.Id))!.Title.Should().Be("Original");
+        (await TestBoard.Fresh(_db).Assignments.FindAsync(existing.Id))!.Title.Should().Be("Original");
     }
 
     [Test]

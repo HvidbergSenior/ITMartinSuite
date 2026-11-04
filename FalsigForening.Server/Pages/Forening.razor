@@ -1,0 +1,145 @@
+@page "/g/{slug}/forening"
+@rendermode InteractiveServer
+@inject ForeningProfile Profile
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@* Tjeklisten 2 "Foreningen": the association's details, filled from CVR. Everyone can read them; only admins change them. *@
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="forening" />
+
+        <div class="msg-body">
+            <h2 class="msg-h">Foreningens oplysninger</h2>
+            <p class="msg-help">Her står de oplysninger, der bestemmer frister, regler og hvilke tilskud foreningen kan søge. Skriv CVR-nummeret, og tryk Hent fra CVR, så udfyldes det meste for jer.@(_member.IsAdmin ? "" : " Kun bestyrelsens administratorer kan rette dem.")</p>
+
+            <div class="msg-card card">
+                <h3 class="msg-h3">Navn og CVR</h3>
+                <label class="msg-label">Foreningens navn <input class="msg-input" @bind="_name" disabled="@ReadOnly" maxlength="100" /></label>
+                <label class="msg-label">CVR-nummer <span class="msg-muted">(8 cifre, eller skriv navnet og søg)</span>
+                    <input class="msg-input" @bind="_p.Cvr" disabled="@ReadOnly" maxlength="100" inputmode="numeric" />
+                </label>
+                @if (!ReadOnly)
+                {
+                    <div class="msg-row">
+                        <button class="msg-btn" @onclick="LookupAsync" disabled="@(_busy || _p.Cvr.Trim().Length == 0)">@(_busy ? "Henter…" : "Hent fra CVR")</button>
+                    </div>
+                }
+                @if (_cvrNote.Length > 0) { <p class="msg-help"><b>@_cvrNote</b></p> }
+                <label class="msg-label">Kommune <input class="msg-input" @bind="_p.Kommune" disabled="@ReadOnly" maxlength="60" placeholder="Fx Ringkøbing-Skjern" /></label>
+                <label class="msg-label">Slags forening
+                    <select class="msg-input" @bind="_p.Type" disabled="@ReadOnly">
+                        @foreach (var t in Enum.GetValues<ForeningsType>()) { <option value="@t">@ForeningRules.Label(t)</option> }
+                    </select>
+                </label>
+                <label class="msg-label">Formål <span class="msg-muted">(som i vedtægterne)</span>
+                    <textarea class="msg-input" rows="3" @bind="_p.Formaal" disabled="@ReadOnly" maxlength="1000"></textarea>
+                </label>
+            </div>
+
+            <div class="msg-card card">
+                <h3 class="msg-h3">Medlemmer og år</h3>
+                <label class="msg-label">Antal medlemmer <input class="msg-input" type="number" min="0" @bind="_p.Medlemstal" disabled="@ReadOnly" /></label>
+                <label class="msg-label">Heraf under 25 år <input class="msg-input" type="number" min="0" @bind="_p.MedlemmerUnder25" disabled="@ReadOnly" /></label>
+                <label class="msg-label">Regnskabsåret starter i
+                    <select class="msg-input" @bind="_p.RegnskabsaarStartMd" disabled="@ReadOnly">
+                        @for (var m = 1; m <= 12; m++) { <option value="@m">@ForeningRules.Months[m - 1]</option> }
+                    </select>
+                </label>
+                <label class="msg-label">Generalforsamlingen er i
+                    <select class="msg-input" @bind="_gfMonth" disabled="@ReadOnly">
+                        <option value="0">Ved ikke</option>
+                        @for (var m = 1; m <= 12; m++) { <option value="@m">@ForeningRules.Months[m - 1]</option> }
+                    </select>
+                </label>
+                <label class="msg-label">Varsel til bestyrelsesmøder (dage) <input class="msg-input" type="number" min="0" max="90" @bind="_p.MoedeVarselDage" disabled="@ReadOnly" /></label>
+                <label class="msg-label">Tegningsregel <span class="msg-muted">(hvem kan skrive under for foreningen)</span>
+                    <input class="msg-input" @bind="_p.Tegningsregel" disabled="@ReadOnly" maxlength="300" />
+                </label>
+            </div>
+
+            <div class="msg-card card">
+                <h3 class="msg-h3">Hvad foreningen gør</h3>
+                <p class="msg-help">Det afgør, hvilke regler og tilskud der gælder for jer.</p>
+                <label class="msg-label"><input type="checkbox" @bind="_p.Folkeoplysende" disabled="@ReadOnly" /> Folkeoplysende forening</label>
+                <label class="msg-label"><input type="checkbox" @bind="_p.ModtagerKommunaltTilskud" disabled="@ReadOnly" /> Får tilskud fra kommunen</label>
+                <label class="msg-label"><input type="checkbox" @bind="_p.HarBoernUnder15" disabled="@ReadOnly" /> Har børn under 15 år</label>
+                <label class="msg-label"><input type="checkbox" @bind="_p.HarAnsatte" disabled="@ReadOnly" /> Har ansatte</label>
+                <label class="msg-label"><input type="checkbox" @bind="_p.HarSalg" disabled="@ReadOnly" /> Sælger noget (fx café eller billetter)</label>
+                <label class="msg-label"><input type="checkbox" @bind="_p.EjerBygning" disabled="@ReadOnly" /> Ejer en bygning</label>
+            </div>
+
+            <div class="msg-card card">
+                <h3 class="msg-h3">Kontakt</h3>
+                <label class="msg-label">Mail <input class="msg-input" type="email" @bind="_p.Email" disabled="@ReadOnly" maxlength="200" /></label>
+                <label class="msg-label">Hjemmeside <input class="msg-input" @bind="_p.Hjemmeside" disabled="@ReadOnly" maxlength="200" placeholder="foreningen.dk" /></label>
+                @if (_p.CvrRegistreret is { } since) { <p class="msg-help">Registreret i CVR siden @since.ToString("d. MMMM yyyy", Da).</p> }
+            </div>
+
+            @if (!ReadOnly)
+            {
+                @foreach (var problem in _problems) { <p class="msg-help"><b>@problem</b></p> }
+                <div class="msg-row">
+                    <button class="msg-btn msg-btn-primary msg-big" @onclick="SaveAsync" disabled="@_busy">Gem oplysningerne</button>
+                </div>
+                @if (_saved) { <p class="msg-help"><b>Gemt.</b></p> }
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private Member? _member;
+    private Group? _group;
+    private ForeningProfil _p = new();
+    private string _name = "", _cvrNote = "";
+    private int _gfMonth;
+    private List<string> _problems = [];
+    private bool _loaded, _busy, _saved;
+
+    private bool ReadOnly => _member?.IsAdmin != true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        _name = _group!.Name;
+        _p = await Profile.GetAsync(_group.Id);
+        _gfMonth = _p.GeneralforsamlingMd ?? 0;
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task LookupAsync()
+    {
+        _busy = true; _cvrNote = ""; _saved = false;
+        var found = await Profile.LookupCvrAsync(_p.Cvr);
+        _busy = false;
+        if (found is null) { _cvrNote = "Fandt ikke foreningen i CVR. Tjek nummeret, eller skriv oplysningerne selv."; return; }
+        _p.FillFromCvr(found);
+        if (_name.Trim().Length == 0 || _name == _group!.Name) _name = found.Name;
+        _cvrNote = found.Ceased
+            ? $"Fundet: {found.Name}. Bemærk: CVR siger, at den er ophørt."
+            : $"Fundet: {found.Name}, {found.Address}, {found.PostalCode} {found.City}. Tjek oplysningerne og tryk Gem.";
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true; _saved = false;
+        _p.GeneralforsamlingMd = _gfMonth == 0 ? null : _gfMonth;
+        var result = await Profile.SaveAsync(_member!, _name, _p);
+        _problems = result.Problems;
+        _saved = result.Saved;
+        if (result.Saved) _group!.Name = _name.Trim();
+        _busy = false;
+    }
+}
