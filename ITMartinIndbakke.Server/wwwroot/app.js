@@ -18,7 +18,8 @@
         DigitalPost: 'Digital Post', Haster: 'Haster', SkalSvares: 'Skal svares', Kvitteringer: 'Kvitteringer',
         Nyhedsbreve: 'Nyhedsbreve', Reklame: 'Reklame', Notifikationer: 'Notifikationer', Andet: 'Andet'
     };
-    var filter = 'alle', data = null, poll = null;
+    var filter = 'alle', data = null, poll = null, nowAll = false, senderShow = 20;
+    var NOW_FIRST = 5;   // a short first page - the rest behind Vis alle
 
     function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
     function day(iso) { return new Date(iso).toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' }); }
@@ -70,7 +71,10 @@
         var ul = $('ib-now');
         $('ib-now-card').hidden = false;
         if (!items.length) { ul.innerHTML = '<li>Intet haster lige nu.</li>'; return; }
-        ul.innerHTML = items.map(function (i) {
+        var more = $('ib-now-more');
+        more.hidden = items.length <= NOW_FIRST;
+        more.textContent = nowAll ? 'Vis færre' : 'Vis alle ' + items.length;
+        ul.innerHTML = (nowAll ? items : items.slice(0, NOW_FIRST)).map(function (i) {
             var m = i.mail;
             return '<li data-id="' + esc(m.id) + '">' +
                 '<div class="ib-top"><span class="ib-from">' + esc(m.fra) + '</span><span class="ib-date">' + day(m.dato) + '</span></div>' +
@@ -113,7 +117,8 @@
         $('ib-senders-card').hidden = false;
         renderFilter();
         var list = data.afsendere.filter(function (s) { return filter === 'alle' || s.kategori === filter; });
-        $('ib-senders').innerHTML = list.slice(0, 150).map(function (s) {
+        $('ib-senders-more').hidden = list.length <= senderShow;
+        $('ib-senders').innerHTML = list.slice(0, senderShow).map(function (s) {
             return '<li><div class="ib-top"><span class="ib-from">' + esc(s.navn) + '</span><span class="ib-count">' + num(s.antal) + ' mails</span></div>' +
                 '<div class="ib-sub">' + esc(s.adresse) + ' · ' + NAMES[s.kategori] + ' · ' + num(s.ulaeste) + ' ulæste · senest ' + day(s.nyeste) + '</div>' +
                 (s.kanAfmeldes ? '<div class="ib-sub"><b>Kan afmeldes' + (s.etTryk ? ' med ét tryk' : '') + '</b></div>' : '') +
@@ -217,6 +222,9 @@
         });
     });
 
+    $('ib-senders-more').addEventListener('click', function () { senderShow += 30; renderSenders(); });
+    $('ib-now-more').addEventListener('click', function () { nowAll = !nowAll; renderNow(data.hasterNu); });
+
     $('ib-senders').addEventListener('click', function (e) {
         var ryd = e.target.closest('[data-ryd]');
         if (ryd) { openPanel(ryd.closest('li'), ryd.getAttribute('data-ryd')); return; }
@@ -236,7 +244,7 @@
 
     $('ib-filter').addEventListener('click', function (e) {
         var b = e.target.closest('[data-cat]'); if (!b) return;
-        filter = b.getAttribute('data-cat'); renderSenders();
+        filter = b.getAttribute('data-cat'); senderShow = 20; renderSenders();
     });
 
     $('ib-now').addEventListener('click', function (e) {

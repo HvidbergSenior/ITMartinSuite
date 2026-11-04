@@ -28,7 +28,7 @@ builder.Services.AddKolibri(k =>
         "Tryk på Scan min mail. Det tager et par minutter første gang.",
         "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
         "Under Skal svares står mails fra rigtige mennesker, som du ikke har svaret på endnu.",
-        "Under Afsendere kan du se, hvem der sender mest. Tryk Ryd op: du ser først, hvor mange mails det er, og hvilke der bliver gemt. Så kan du afmelde og slette med ét tryk.",
+        "Under Ryd op kan du se, hvem der sender mest. Tryk Ryd op: du ser først, hvor mange mails det er, og hvilke der bliver gemt. Så kan du afmelde og slette med ét tryk.",
         "Slettede mails ligger i Gmails papirkurv i 30 dage. Under Seneste oprydning kan du trykke Fortryd og få dem tilbage.",
     ];
     k.Version = "2026.11.2";
@@ -79,7 +79,7 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <title>Indbakke</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
         <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=4">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=4" defer></script>
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=5" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
