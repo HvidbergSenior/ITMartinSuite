@@ -3,17 +3,17 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="description" content="Snak – jeres egen lille gruppe-chat uden Facebook og uden reklamer." />
+    <meta name="description" content="Snak – ét rum til hver sag: chat og opgaver samlet ét sted, uden Facebook og uden reklamer." />
     <meta name="theme-color" content="#f4f6f5" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
-    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=9" />
-    <link rel="stylesheet" href="app.css?v=9" />
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=9" />
+    <link rel="stylesheet" href="/app.css?v=10" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=9" defer></script>
-    <script src="app.js?v=9" defer></script>
+    <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=9" defer></script>
+    <script src="/app.js?v=10" defer></script>
 </head>
 <body>
 <div class="snak">
@@ -24,36 +24,76 @@
         <div class="inapp-body">
             <span><b>Chatten virker fint her i Messenger.</b> Vil du have besked, når der skrives, og Snak på telefonen? Så åbn den i <span id="browserNavn">Safari</span>:</span>
             <a class="k-btn k-btn-sm k-btn-primary" id="aabnBrowser" href="https://snak.itmartin.dk/">Åbn i <span id="browserNavn2">Safari</span></a>
-            <span class="k-help">Virker knappen ikke: tryk på <b>⋯</b> øverst til højre → <b>Åbn i browser</b> (Open in browser). Du skriver koden én gang til derinde.</span>
+            <span class="k-help">Virker knappen ikke: tryk på <b>⋯</b> øverst til højre → <b>Åbn i browser</b> (Open in browser). Du skriver dit navn én gang til derinde.</span>
         </div>
     </details>
 
-    <!-- Login: the group code once, and the name the others will see. -->
+    <!-- A room's door: the link is the key, so only the name the others will see. -->
     <section id="login" class="login" hidden>
-        <h1>Snak</h1>
-        <p class="lead">Jeres egen lille gruppe-chat. Ingen Facebook, ingen reklamer – kun jer.</p>
+        <h1 id="loginTitel">Snak</h1>
+        <p class="lead" id="loginLead">Her skriver du og Martin sammen om din sag. Alt står ét sted, så vi hurtigt får det klaret.</p>
         <form id="loginForm" class="k-stack">
-            <div>
-                <label class="k-label" for="loginKode">Gruppens kode</label>
-                <input class="k-input" id="loginKode" autocomplete="current-password" inputmode="text" required />
-                <p class="k-help">Du har fået koden af den, der inviterede dig.</p>
-            </div>
             <div>
                 <label class="k-label" for="loginNavn">Dit navn</label>
                 <input class="k-input" id="loginNavn" maxlength="30" autocomplete="given-name" required />
-                <p class="k-help">Det er det navn, de andre ser ved dine beskeder.</p>
+                <p class="k-help">Det er det navn, Martin ser ved dine beskeder.</p>
             </div>
             <button class="k-btn k-btn-primary k-btn-block" type="submit">Gå ind</button>
             <p class="fejl" id="loginFejl" hidden></p>
-            <p class="k-help">Når du trykker <b>Gå ind</b>, spørger telefonen, om Snak må give dig besked. Sig <b>Tillad</b>, så får du besked, når der kommer noget nyt.</p>
+            <p class="k-help">Når du trykker <b>Gå ind</b>, spørger telefonen, om Snak må give dig besked. Sig <b>Tillad</b>, så får du besked, når Martin svarer.</p>
         </form>
+    </section>
+
+    <!-- No room in the address: a short explanation, and Martin's own code. -->
+    <section id="forside" class="login" hidden>
+        <h1>Snak</h1>
+        <p class="lead">Snak er et lille, privat rum til én sag. Har du fået et link fra Martin, så åbn det link – så kommer du direkte ind i dit rum.</p>
+        <p>Vil du skrive til Martin? Gå til <b>itmartin.dk</b> og tryk <b>Skriv til mig</b>, eller ring på 31 19 47 30.</p>
+        <details class="k-mt">
+            <summary>Martins indgang</summary>
+            <form id="adminForm" class="k-stack k-mt">
+                <label class="k-label" for="adminKode">Kode</label>
+                <input class="k-input" id="adminKode" type="password" autocomplete="current-password" required />
+                <button class="k-btn k-btn-primary" type="submit">Gå ind</button>
+                <p class="fejl" id="adminFejl" hidden></p>
+            </form>
+        </details>
+    </section>
+
+    <!-- The room is gone (finished and deleted) or the link is wrong. -->
+    <section id="vaek" class="login" hidden>
+        <h1>Rummet findes ikke</h1>
+        <p class="lead">Linket passer ikke, eller sagen er klaret, og rummet er slettet.</p>
+        <p>Er der mere, så skriv til Martin på <b>itmartin.dk</b> eller ring på 31 19 47 30.</p>
+    </section>
+
+    <!-- Martin's overview: every room, the ones waiting for an answer first. -->
+    <section id="rumside" class="app" hidden>
+        <header class="top">
+            <div class="brand"><b>Snak</b><span>Alle rum</span>
+                <button type="button" class="link hjem-knap" id="hjemKnap2" hidden>📲 Læg på telefonen</button>
+            </div>
+        </header>
+        <div id="pushBar2" class="bar" hidden></div>
+        <main class="view">
+            <form id="nytRum" class="k-card ny">
+                <h2 class="k-card-title">Nyt rum</h2>
+                <label class="k-label" for="rumTitel">Hvad handler det om?</label>
+                <input class="k-input" id="rumTitel" maxlength="80" placeholder="fx Jytte – høretelefoner" required />
+                <button class="k-btn k-btn-primary k-mt" type="submit">Lav rummet</button>
+                <div id="nytLink" class="nyt-link" hidden></div>
+            </form>
+            <div id="rumListe" class="opgaver"></div>
+            <button class="k-btn k-btn-ghost k-mt" id="logUd2" type="button">Log ud på denne telefon</button>
+        </main>
     </section>
 
     <!-- The app: two tabs, chat and tasks. -->
     <section id="app" class="app" hidden>
         <header class="top">
             <div class="brand">
-                <b>Snak</b><span id="hvem"></span>
+                <button type="button" class="link tilbage" id="tilbage" hidden>‹ Alle rum</button>
+                <b id="rumNavn">Snak</b><span id="hvem"></span>
                 <button type="button" class="link hjem-knap" id="hjemKnap" hidden>📲 Læg på telefonen</button>
             </div>
             <nav class="tabs" role="tablist">
@@ -62,6 +102,9 @@
                 <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
             </nav>
         </header>
+
+        <!-- Martin: close the case; everyone: the case is closed. -->
+        <div id="klaretBar" class="bar" hidden></div>
 
         <!-- Shown until push works on this phone. -->
         <div id="pushBar" class="bar" hidden></div>
@@ -75,7 +118,7 @@
             <div id="beskeder" class="beskeder" aria-live="polite"></div>
             <div class="tom" id="tomChat">
                 <strong>Ingen beskeder endnu</strong>
-                Skriv den første besked øverst og tryk Send. De andre får den med det samme.
+                Skriv din første besked øverst og tryk Send. Martin får den med det samme.
             </div>
         </main>
 
@@ -124,7 +167,7 @@
                 <details id="hjemIphone">
                     <summary>iPhone og iPad (Safari)</summary>
                     <ol>
-                        <li>Åbn <b>snak.itmartin.dk</b> i <b>Safari</b>, ikke i Facebook eller Messenger.</li>
+                        <li>Åbn dit Snak-link i <b>Safari</b>, ikke i Facebook eller Messenger.</li>
                         <li>Tryk på <b>Del</b>-knappen (firkanten med pilen op) nederst.</li>
                         <li>Rul ned og tryk <b>Føj til hjemmeskærm</b> (Add to Home Screen).</li>
                         <li>Tryk <b>Tilføj</b>. Åbn Snak fra det nye ikon, og tryk <b>Slå beskeder til</b>.</li>
@@ -133,7 +176,7 @@
                 <details id="hjemAndroid">
                     <summary>Android (Chrome)</summary>
                     <ol>
-                        <li>Åbn <b>snak.itmartin.dk</b> i <b>Chrome</b>.</li>
+                        <li>Åbn dit Snak-link i <b>Chrome</b>.</li>
                         <li>Tryk på de <b>tre prikker</b> øverst til højre.</li>
                         <li>Tryk <b>Føj til startskærm</b> eller <b>Installer app</b> (Add to Home screen / Install app).</li>
                         <li>Tryk <b>Installer</b>.</li>
@@ -142,15 +185,16 @@
                 <details id="hjemPc">
                     <summary>Computer (Chrome eller Edge)</summary>
                     <ol>
-                        <li>Åbn <b>snak.itmartin.dk</b>.</li>
+                        <li>Åbn dit Snak-link.</li>
                         <li>Klik på installer-ikonet i adresselinjen (en skærm med en pil), eller menuen <b>⋯</b> → <b>Apps</b> → <b>Installer Snak</b> (Install Snak).</li>
                     </ol>
                 </details>
             </section>
             <section class="k-card">
                 <h2 class="k-card-title">Om Snak</h2>
-                <p>Snak er en lille, privat chat for jeres gruppe. Kun dem med gruppens kode kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
-                <p>Under <b>Opgaver</b> lægger gruppens tovholder opgaver ud. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
+                <p>Snak er et lille, privat rum til én sag. Kun dem med rummets link kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
+                <p>Under <b>Opgaver</b> lægger Martin det ud, der skal gøres. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
+                <p>Når sagen er klaret, bliver rummet slettet efter 14 dage.</p>
                 <p class="k-help">Spørgsmål eller noget der ikke virker: ITMartin@Mensa.dk · 31 19 47 30</p>
                 <button class="k-btn k-btn-ghost" id="logUd" type="button">Log ud på denne telefon</button>
             </section>

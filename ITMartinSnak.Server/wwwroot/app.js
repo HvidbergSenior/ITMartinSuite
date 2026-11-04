@@ -1,4 +1,6 @@
-// Snak - the whole page. Plain JavaScript, no framework: login, chat, tasks, push.
+// Snak - the whole page. Plain JavaScript, no framework.
+// Since 2026-11-04 rooms: /r/<key> = one room (the key is the way in, only a name is asked), / = Martin's overview
+// of all rooms (his code), or a short "open your link" page for everybody else.
 (function () {
     'use strict';
     const $ = id => document.getElementById(id);
@@ -7,8 +9,11 @@
         set(k, v) { try { localStorage.setItem(k, v); } catch { } },
     };
 
+    const keyMatch = location.pathname.match(/^\/r\/([A-Za-z0-9_-]{24})\/?$/);
+    const roomKey = keyMatch ? keyMatch[1] : '';
+    const base = roomKey ? '/api/r/' + roomKey : '';
     let navn = store.get('snak_navn');
-    let admin = false, pushKey = '', endpoint = '';
+    let admin = false, pushKey = '', endpoint = '', vaert = 'Martin', room = null;
     let lastId = 0, tasks = [], editId = 0, live = null;
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -19,10 +24,11 @@
     if (inApp) {
         const android = /android/i.test(navigator.userAgent);
         const name = android ? 'Chrome' : 'Safari';
+        const here = 'snak.itmartin.dk' + location.pathname;
         $('browserNavn').textContent = name; $('browserNavn2').textContent = name;
         $('aabnBrowser').href = android
-            ? 'intent://snak.itmartin.dk/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fsnak.itmartin.dk%2F;end'
-            : 'x-safari-https://snak.itmartin.dk/';
+            ? 'intent://' + here + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent('https://' + here) + ';end'
+            : 'x-safari-https://' + here;
         $('inApp').hidden = false;
     }
 
@@ -32,28 +38,46 @@
             headers: body ? { 'Content-Type': 'application/json' } : {},
             body: body ? JSON.stringify(body) : undefined,
         });
-        if (r.status === 401) { showLogin(); throw new Error('login'); }
+        if (r.status === 404 && roomKey) { showOnly('vaek'); throw new Error('login'); }
+        if (r.status === 401) { boot(); throw new Error('login'); }
         const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
         if (!r.ok) throw new Error((data && data.fejl) || 'Det gik ikke. Prøv igen.');
         return data;
+    }
+
+    function showOnly(id) {
+        for (const s of ['login', 'forside', 'vaek', 'rumside', 'app']) $(s).hidden = s !== id;
+        if (id !== 'app' && live) { live.close(); live = null; }
     }
 
     // ---------- start ----------
 
     async function boot() {
         try {
-            const r = await fetch('/api/me', { credentials: 'same-origin' });
-            if (!r.ok || !navn) return showLogin();
-            const me = await r.json();
-            enter(me);
-        } catch { showLogin(); }
+            if (roomKey) {
+                const r = await fetch(base, { credentials: 'same-origin' });
+                if (r.status === 404) return showOnly('vaek');
+                room = await r.json();
+                admin = !!room.admin; pushKey = room.pushKey || ''; vaert = room.vaert || 'Martin';
+                store.set('snak_rum', roomKey);   // a phone that opens "/" (home-screen icon) comes back here
+                document.title = room.titel + ' · Snak';
+                if (admin) navn = vaert;
+                if (!navn) return showLogin();
+                return enter();
+            }
+            const me = await (await fetch('/api/me', { credentials: 'same-origin' })).json();
+            admin = !!me.admin; pushKey = me.pushKey || ''; vaert = me.vaert || 'Martin';
+            if (admin) return showRooms();
+            const last = store.get('snak_rum');
+            if (last) { location.replace('/r/' + last); return; }
+            showOnly('forside');
+        } catch { showOnly(roomKey ? 'login' : 'forside'); }
     }
 
     function showLogin() {
-        $('app').hidden = true;
-        $('login').hidden = false;
+        showOnly('login');
+        $('loginTitel').textContent = room ? room.titel : 'Snak';
         if (navn) $('loginNavn').value = navn;
-        if (live) { live.close(); live = null; }
     }
 
     $('loginForm').addEventListener('submit', async e => {
@@ -62,42 +86,164 @@
         // Ask for notifications straight away, inside the tap - iPhone only allows the question there.
         const perm = pushPossible && Notification.permission === 'default'
             ? Notification.requestPermission().catch(() => 'default') : Promise.resolve(null);
-        const kode = $('loginKode').value.trim();
         const n = $('loginNavn').value.trim();
+        if (!n) return;
+        navn = n; store.set('snak_navn', n);
+        await perm;
+        enter();
+    });
+
+    $('adminForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        $('adminFejl').hidden = true;
+        const perm = pushPossible && Notification.permission === 'default'
+            ? Notification.requestPermission().catch(() => 'default') : Promise.resolve(null);
         try {
             const r = await fetch('/api/login', {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ kode }),
+                body: JSON.stringify({ kode: $('adminKode').value.trim() }),
             });
             const d = await r.json().catch(() => ({}));
             if (!r.ok) throw new Error(d.fejl || 'Det gik ikke. Prøv igen.');
-            navn = n; store.set('snak_navn', n);
-            const me = await (await fetch('/api/me', { credentials: 'same-origin' })).json();
             await perm;
-            enter(me);
+            boot();
         } catch (err) {
-            $('loginFejl').textContent = err.message;
-            $('loginFejl').hidden = false;
+            $('adminFejl').textContent = err.message;
+            $('adminFejl').hidden = false;
         }
     });
 
-    function enter(me) {
-        admin = !!me.admin; pushKey = me.pushKey || '';
-        $('login').hidden = true;
-        $('app').hidden = false;
-        $('hvem').textContent = navn + (admin ? ' · tovholder' : '');
+    // ---------- Martin's overview of all rooms ----------
+
+    const shortFmt = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const dateFmt = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'long' });
+
+    async function showRooms() {
+        showOnly('rumside');
+        $('hjemKnap2').hidden = standalone || inApp;
+        $('hjemKnap2').onclick = () => { location.href = '/om'; };
+        setupPush(false);
+        await loadRooms();
+    }
+
+    async function loadRooms() {
+        let list = [];
+        try { list = await api('GET', '/api/rum'); } catch { return; }
+        const box = $('rumListe');
+        box.textContent = '';
+        if (!list.length) {
+            const e = document.createElement('div'); e.className = 'tom';
+            e.innerHTML = '<strong>Ingen rum endnu</strong>Lav et rum ovenfor, og send linket til kunden.';
+            box.appendChild(e);
+            return;
+        }
+        for (const r of list) box.appendChild(roomCard(r));
+    }
+
+    function roomCard(r) {
+        const c = document.createElement('article');
+        c.className = 'k-card opgave rum' + (r.waiting ? ' fri' : r.doneAt ? ' done' : ' taget');
+        const h = document.createElement('h3'); h.textContent = r.title; c.appendChild(h);
+        const st = document.createElement('p'); st.className = 'status';
+        st.textContent = r.waiting ? '● Venter på dit svar' : r.doneAt ? '✓ Klaret – slettes ' + dateFmt.format(new Date(r.deleteAt)) : '○ Ingen venter';
+        c.appendChild(st);
+        if (r.lastText) {
+            const p = document.createElement('p'); p.className = 'note';
+            p.textContent = r.lastName + ': ' + r.lastText; c.appendChild(p);
+        }
+        const when = document.createElement('p'); when.className = 'hvem';
+        when.textContent = 'Sidst: ' + shortFmt.format(new Date(r.lastAt)); c.appendChild(when);
+        const row = document.createElement('div'); row.className = 'k-row';
+        const open = document.createElement('a'); open.className = 'k-btn k-btn-primary'; open.href = r.link.replace(/^https?:\/\/[^/]+/, ''); open.textContent = 'Åbn';
+        row.append(open, copyButton(r.link, r.title));
+        if (r.doneAt) {
+            const re = document.createElement('button'); re.type = 'button'; re.className = 'k-btn k-btn-sm k-btn-ghost'; re.textContent = 'Åbn sagen igen';
+            re.onclick = async () => { re.disabled = true; try { await api('POST', '/api/rum/' + r.id + '/genaabn'); } catch { } loadRooms(); };
+            row.appendChild(re);
+        }
+        c.appendChild(row);
+        return c;
+    }
+
+    // Share on a phone (the phone's own share menu), copy on a computer.
+    function copyButton(link, title) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn';
+        b.textContent = navigator.share ? 'Send linket' : 'Kopier linket';
+        b.onclick = async () => {
+            try {
+                if (navigator.share) await navigator.share({ title: 'Snak med Martin', text: title, url: link });
+                else { await navigator.clipboard.writeText(link); b.textContent = 'Kopieret'; setTimeout(() => { b.textContent = 'Kopier linket'; }, 1500); }
+            } catch { }
+        };
+        return b;
+    }
+
+    $('nytRum').addEventListener('submit', async e => {
+        e.preventDefault();
+        try {
+            const r = await api('POST', '/api/rum', { titel: $('rumTitel').value });
+            $('rumTitel').value = '';
+            const box = $('nytLink');
+            box.textContent = '';
+            const p = document.createElement('p'); p.textContent = 'Rummet "' + r.titel + '" er klar. Send linket til kunden:';
+            const code = document.createElement('code'); code.textContent = r.link;
+            box.append(p, code, copyButton(r.link, r.titel));
+            box.hidden = false;
+            loadRooms();
+        } catch (err) { if (err.message !== 'login') alertBar(err.message); }
+    });
+
+    function alertBar(text) { const b = $('pushBar2'); b.textContent = text; b.className = 'bar fejl'; b.hidden = false; }
+
+    $('logUd2').onclick = async () => {
+        try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }); } catch { }
+        location.href = '/';
+    };
+
+    function enter() {
+        showOnly('app');
+        $('rumNavn').textContent = room ? room.titel : 'Snak';
+        $('hvem').textContent = navn;
+        $('tilbage').hidden = !admin;
+        $('tilbage').onclick = () => { location.href = '/'; };
         $('nytNavn').value = navn;
         $('hjemKnap').hidden = standalone || inApp;
         $('hjemKnap').onclick = () => show('mig');
         $('nyOpg').hidden = !admin;
         $('opgIntro').textContent = admin
-            ? 'Læg opgaver ud her. De andre ser dem og trykker "Jeg tager den". Du kan se, hvem der har taget hvad.'
-            : 'Her er opgaverne. Tryk "Jeg tager den" på en opgave, så kan alle se, at du gør den.';
+            ? 'Læg opgaver ud her. Kunden ser dem og trykker "Jeg tager den". Du kan se, hvem der har taget hvad.'
+            : 'Her er det, der skal gøres. Tryk "Jeg tager den" på en opgave, så ved Martin, at du gør den.';
+        klaretBar();
         const tab = store.get('snak_tab') || 'chat';
         show(tab === 'opg' ? 'opg' : 'chat');
         loadMessages(); loadTasks(); connect();
         setupPush(false);
+    }
+
+    // Martin closes the case here; everybody sees that it is closed and when the room goes.
+    function klaretBar() {
+        const bar = $('klaretBar');
+        bar.className = 'bar';
+        bar.textContent = '';
+        if (room && room.klaret) {
+            bar.append('Sagen er klaret. Rummet bliver slettet ' + dateFmt.format(new Date(room.sletDato)) + '. Skriver du igen, åbner sagen igen.');
+            bar.hidden = false;
+        } else if (admin) {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn k-btn-sm'; b.textContent = 'Sagen er klaret';
+            b.onclick = async () => {
+                // Two taps: the first asks, the second closes.
+                if (!b.dataset.sure) {
+                    b.dataset.sure = '1'; b.textContent = 'Ja, sagen er klaret (slettes om 14 dage)'; b.className = 'k-btn k-btn-sm k-btn-primary';
+                    setTimeout(() => { delete b.dataset.sure; b.textContent = 'Sagen er klaret'; b.className = 'k-btn k-btn-sm'; }, 4000);
+                    return;
+                }
+                b.disabled = true;
+                try { await api('POST', '/api/rum/' + room.id + '/klaret'); room = await api('GET', base); klaretBar(); } catch { b.disabled = false; }
+            };
+            bar.append(b);
+            bar.hidden = false;
+        } else bar.hidden = true;
     }
 
     // ---------- tabs ----------
@@ -118,14 +264,16 @@
 
     function connect() {
         if (live) live.close();
-        live = new EventSource('/api/live');
+        live = new EventSource(base + '/live');
         // "hej" comes on every (re)connect: fetch whatever was missed while the line was down.
         live.addEventListener('hej', () => { loadMessages(); loadTasks(); });
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
     }
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState !== 'visible' || $('app').hidden) return;
+        if (document.visibilityState !== 'visible') return;
+        if (!$('rumside').hidden) { loadRooms(); return; }
+        if ($('app').hidden) return;
         if (!live || live.readyState === 2) connect(); else { loadMessages(); loadTasks(); }
     });
 
@@ -136,7 +284,7 @@
     let msgs = [];
 
     async function loadMessages() {
-        try { addMessages(await api('GET', '/api/beskeder?efter=' + lastId)); } catch { }
+        try { addMessages(await api('GET', base + '/beskeder?efter=' + lastId)); } catch { }
     }
 
     // Newest message first, right under the text field (user: "always the latest one first, I only
@@ -165,7 +313,7 @@
                 const el = document.createElement('div'); el.className = 'dag'; el.textContent = d;
                 box.appendChild(el); day = d;
             }
-            const me = m.name.toLowerCase() === navn.toLowerCase();
+            const me = admin ? !!m.host : (!m.host && m.name.toLowerCase() === navn.toLowerCase());
             const el = document.createElement('div'); el.className = 'besked' + (me ? ' mig' : '');
             const meta = document.createElement('div'); meta.className = 'meta';
             meta.textContent = (me ? 'Dig' : m.name) + ' · ' + timeFmt.format(when);
@@ -179,7 +327,8 @@
         if (!t) return;
         $('sendBtn').disabled = true;
         try {
-            const m = await api('POST', '/api/beskeder', { navn, tekst: t, endpoint });
+            const m = await api('POST', base + '/beskeder', { navn, tekst: t, endpoint });
+            if (room && room.klaret) { room.klaret = false; klaretBar(); }
             $('tekst').value = ''; grow();
             addMessages([m]);
             window.scrollTo(0, 0);   // your own message: show it at the top
@@ -206,7 +355,7 @@
     // ---------- tasks ----------
 
     async function loadTasks() {
-        try { tasks = await api('GET', '/api/opgaver'); renderTasks(); } catch { }
+        try { tasks = await api('GET', base + '/opgaver'); renderTasks(); } catch { }
     }
 
     function isMine(t) { return t.takers.some(x => x.toLowerCase() === navn.toLowerCase()); }
@@ -266,13 +415,13 @@
             const take = document.createElement('button'); take.type = 'button';
             take.className = 'k-btn ' + (isMine(t) ? '' : 'k-btn-primary');
             take.textContent = isMine(t) ? 'Jeg kan alligevel ikke' : 'Jeg tager den';
-            take.onclick = () => act(take, () => api('POST', `/api/opgaver/${t.id}/tag`, { navn, endpoint }));
+            take.onclick = () => act(take, () => api('POST', `${base}/opgaver/${t.id}/tag`, { navn, endpoint }));
             row.appendChild(take);
         }
         if (admin) {
             const done = document.createElement('button'); done.type = 'button'; done.className = 'k-btn k-btn-sm';
             done.textContent = t.done ? 'Åbn igen' : 'Færdig';
-            done.onclick = () => act(done, () => api('POST', `/api/opgaver/${t.id}/faerdig`, { faerdig: !t.done }));
+            done.onclick = () => act(done, () => api('POST', `${base}/opgaver/${t.id}/faerdig`, { faerdig: !t.done }));
             const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'k-btn k-btn-sm k-btn-ghost';
             edit.textContent = 'Ret';
             edit.onclick = () => startEdit(t);
@@ -280,7 +429,7 @@
             del.textContent = 'Slet';
             del.onclick = () => {
                 // Two taps: the first asks, the second deletes.
-                if (del.dataset.sure) return act(del, () => api('DELETE', `/api/opgaver/${t.id}`));
+                if (del.dataset.sure) return act(del, () => api('DELETE', `${base}/opgaver/${t.id}`));
                 del.dataset.sure = '1'; del.textContent = 'Ja, slet den'; del.className = 'k-btn k-btn-sm k-btn-danger';
                 setTimeout(() => { delete del.dataset.sure; del.textContent = 'Slet'; del.className = 'k-btn k-btn-sm k-btn-ghost'; }, 4000);
             };
@@ -310,7 +459,7 @@
     $('nyOpg').addEventListener('submit', async e => {
         e.preventDefault();
         const body = { titel: $('opgTitel').value, hvornaar: $('opgHvornaar').value, note: $('opgNote').value, endpoint };
-        await act($('opgGem'), () => editId ? api('PUT', '/api/opgaver/' + editId, body) : api('POST', '/api/opgaver', body));
+        await act($('opgGem'), () => editId ? api('PUT', base + '/opgaver/' + editId, body) : api('POST', base + '/opgaver', body));
         stopEdit();
     });
 
@@ -328,13 +477,14 @@
         if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(pushKey) });
         const j = sub.toJSON();
         endpoint = j.endpoint;
-        await api('POST', '/api/push', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, navn });
+        // Martin's phone: every room. A customer's phone: this room only.
+        await api('POST', roomKey && !admin ? base + '/push' : '/api/push', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, navn });
     }
 
     // Called on every start: if the phone already said yes, (re)register silently; otherwise show
     // one line with what to do. `ask` = the person tapped "Slå beskeder til".
     async function setupPush(ask) {
-        const bar = $('pushBar');
+        const bar = $('rumside').hidden ? $('pushBar') : $('pushBar2');
         bar.className = 'bar';
         if ((store.get('snak_push_fra') && !ask) || inApp) { bar.hidden = true; return; }
         if (!pushPossible) {
@@ -365,7 +515,7 @@
         const s = $('pushStatus');
         const on = pushPossible && Notification.permission === 'granted' && endpoint && !store.get('snak_push_fra');
         $('pushTil').hidden = !!on; $('pushFra').hidden = !on;
-        if (on) s.textContent = 'Slået til. Du får besked, når der kommer en ny besked eller opgave.';
+        if (on) s.textContent = 'Slået til. Du får besked, når der kommer en ny besked eller opgave i rummet.';
         else if (!pushPossible && isIos && !standalone) s.textContent = 'På iPhone skal Snak ligge på hjemmeskærmen, før den kan give besked. Se nedenfor, og åbn så Snak fra ikonet.';
         else if (!pushPossible) s.textContent = 'Denne browser kan ikke give besked. Brug Chrome, Edge eller Safari.';
         else if (Notification.permission === 'denied') s.textContent = isIos
@@ -397,7 +547,7 @@
         const n = $('nytNavn').value.trim();
         if (!n) return;
         navn = n; store.set('snak_navn', n);
-        $('hvem').textContent = navn + (admin ? ' · tovholder' : '');
+        $('hvem').textContent = navn;
         renderTasks(); renderMessages();
         if (endpoint) setupPush(false);
         $('gemNavn').textContent = 'Gemt';
@@ -405,7 +555,8 @@
     };
     $('logUd').onclick = async () => {
         try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }); } catch { }
-        showLogin();
+        store.set('snak_rum', ''); navn = ''; store.set('snak_navn', '');
+        location.href = '/';
     };
 
     boot();

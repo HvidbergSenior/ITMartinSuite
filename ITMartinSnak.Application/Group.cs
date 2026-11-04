@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartinSnak.Application;
 
-// The group's messages and tasks on disk (two small JSON files in Infrastructure).
+// One room's messages and tasks on disk (two small JSON files per room in Infrastructure).
 public interface IGroupStore
 {
     List<Message> LoadMessages();
@@ -14,39 +14,53 @@ public interface IGroupStore
     void SaveTasks(IReadOnlyList<TaskItem> tasks);
 }
 
-// Everyone with the page open gets each change at once (server-sent events in Infrastructure).
+// The list of rooms, and a store per room.
+public interface IRoomStore
+{
+    List<Room> LoadRooms();
+    void SaveRooms(IReadOnlyList<Room> rooms);
+    IGroupStore For(string roomId);
+    void DeleteRoomData(string roomId);
+}
+
+// Everyone with a room open gets each change in that room at once (server-sent events in Infrastructure).
 public interface ILiveFeed
 {
-    void Send(string kind, object data);
-    (Guid Id, ChannelReader<string> Reader) Join();
+    void Send(string room, string kind, object data);
+    (Guid Id, ChannelReader<string> Reader) Join(string room);
     void Leave(Guid id);
 }
 
-// Push to the phones (WebPush in Infrastructure).
+// Push to the phones (WebPush in Infrastructure). A phone belongs to one room, or to the host ("" = every room).
 public interface IPushSender
 {
     string PublicKey { get; }
-    void Subscribe(string endpoint, string p256dh, string auth, string name);
+    void Subscribe(string room, string endpoint, string p256dh, string auth, string name);
     void Unsubscribe(string endpoint);
-    /// <summary>To every phone except the one that caused it; runs in the background.</summary>
-    void SendToOthers(string? exceptEndpoint, string title, string body, string tag);
+    /// <summary>To the room's phones and the host's phones, except the one that caused it; runs in the background.</summary>
+    void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url);
+    void ForgetRoom(string room);
 }
 
-// The chat and the tasks. A few friends write a few hundred messages a month, so everything is held in memory and written
-// to disk on each change. Every change goes live to the open pages and as a push to the other phones.
+// What a Group knows about its room: where it lives, how a push links back, and who to tell when something happens.
+public sealed record RoomContext(string Id, string Title, string Url, Action<bool> Activity);
+
+// One room's chat and tasks. Held in memory and written to disk on each change. Every change goes live to the open
+// pages in that room and as a push to the room's other phones (and Martin's).
 public sealed class Group
 {
     private readonly IGroupStore _store;
     private readonly ILiveFeed _live;
     private readonly IPushSender _push;
     private readonly TimeProvider _clock;
+    private readonly RoomContext _room;
     private readonly object _gate = new();
     private readonly List<Message> _messages;
     private readonly List<TaskItem> _tasks;
 
-    public Group(IGroupStore store, ILiveFeed live, IPushSender push, TimeProvider clock)
+    public Group(IGroupStore store, ILiveFeed live, IPushSender push, TimeProvider clock, RoomContext room)
     {
-        (_store, _live, _push, _clock) = (store, live, push, clock);
+        (_store, _live, _push, _clock, _room) = (store, live, push, clock, room);
         _messages = store.LoadMessages();
         _tasks = store.LoadTasks();
     }
@@ -58,23 +72,27 @@ public sealed class Group
         lock (_gate) return _messages.Where(m => m.Id > afterId).TakeLast(max).ToList();
     }
 
-    public Message? Write(string? name, string? text, string? fromEndpoint = null)
+    public Message? Last { get { lock (_gate) return _messages.Count == 0 ? null : _messages[^1]; } }
+    public bool Waiting { get { lock (_gate) return RoomRules.Waiting(_messages); } }
+
+    public Message? Write(string? name, string? text, string? fromEndpoint = null, bool host = false)
     {
         Message? m;
         lock (_gate)
         {
-            m = GroupRules.NewMessage(_messages, name, text, _clock.GetUtcNow().UtcDateTime);
+            m = GroupRules.NewMessage(_messages, name, text, _clock.GetUtcNow().UtcDateTime, host);
             if (m is null) return null;
             _messages.Add(m);
             GroupRules.Trim(_messages);
             _store.SaveMessages(_messages);
         }
-        _live.Send("besked", m);
-        _push.SendToOthers(fromEndpoint, m.Name, m.Text, "snak-besked");
+        _live.Send(_room.Id, "besked", m);
+        _push.SendToOthers(_room.Id, fromEndpoint, $"{m.Name} · {_room.Title}", m.Text, "snak-" + _room.Id, _room.Url);
+        _room.Activity(true);
         return m;
     }
 
-    // ---- tasks (the admin makes them, everyone can take one) ----
+    // ---- tasks (the host makes them, everyone can take one) ----
 
     public IReadOnlyList<TaskItem> Tasks()
     {
@@ -92,7 +110,8 @@ public sealed class Group
             _store.SaveTasks(_tasks);
         }
         TasksChanged();
-        _push.SendToOthers(fromEndpoint, "Ny opgave", t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opgave");
+        _push.SendToOthers(_room.Id, fromEndpoint, "Ny opgave · " + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
+        _room.Activity(false);
         return GroupRules.Copy(t);
     }
 
@@ -104,7 +123,7 @@ public sealed class Group
     {
         var t = Change(id, x => GroupRules.ToggleTaker(x, name));
         if (t is not null && GroupRules.HasTaker(t, name))
-            _push.SendToOthers(fromEndpoint, "Opgave taget", $"{GroupRules.CleanName(name)} tager: {t.Title}", "snak-opgave");
+            _push.SendToOthers(_room.Id, fromEndpoint, "Opgave taget · " + _room.Title, $"{GroupRules.CleanName(name)} tager: {t.Title}", "snak-opg-" + _room.Id, _room.Url);
         return t;
     }
 
@@ -135,22 +154,148 @@ public sealed class Group
         return GroupRules.Copy(changed);
     }
 
-    private void TasksChanged() => _live.Send("opgaver", Tasks());
+    private void TasksChanged() => _live.Send(_room.Id, "opgaver", Tasks());
 }
 
-public enum LoginResult { Member, Admin, Wrong, Locked }
+// What the host's overview shows per room.
+public sealed record RoomSummary(string Id, string Key, string Title, string CustomerRef, DateTime CreatedAt, DateTime LastAt,
+    DateTime? DoneAt, DateTime? DeleteAt, bool Waiting, string LastName, string LastText);
 
-// Access with the group code / admin code (Snak:Code, Snak:AdminCode). Ten wrong tries from one address lock it for 15 minutes.
-public sealed class Access(string groupCode, string adminCode, TimeProvider clock)
+// All rooms. Martin makes them (or Kunder / itmartin.dk through the API key); the link with the key is the way in.
+public sealed class Rooms
+{
+    private readonly IRoomStore _store;
+    private readonly ILiveFeed _live;
+    private readonly IPushSender _push;
+    private readonly TimeProvider _clock;
+    private readonly string _publicUrl;
+    private readonly object _gate = new();
+    private readonly List<Room> _rooms;
+    private readonly ConcurrentDictionary<string, Group> _groups = new();
+
+    public Rooms(IRoomStore store, ILiveFeed live, IPushSender push, TimeProvider clock, string publicUrl)
+    {
+        (_store, _live, _push, _clock, _publicUrl) = (store, live, push, clock, publicUrl.TrimEnd('/'));
+        _rooms = store.LoadRooms();
+    }
+
+    public string Link(Room r) => $"{_publicUrl}/r/{r.Key}";
+
+    public Room Create(string? title, string? customerRef = null)
+    {
+        var r = RoomRules.New(title, customerRef, _clock.GetUtcNow().UtcDateTime);
+        lock (_gate)
+        {
+            if (_rooms.Count >= RoomRules.MaxRooms) throw new InvalidOperationException("Der er for mange rum. Slet nogle gamle først.");
+            _rooms.Add(r);
+            _store.SaveRooms(_rooms);
+        }
+        return r;
+    }
+
+    public Room? ByKey(string? key)
+    {
+        if (!RoomRules.ValidKey(key)) return null;
+        lock (_gate) return _rooms.FirstOrDefault(r => r.Key == key);
+    }
+
+    public Room? ById(string? id)
+    {
+        if (!RoomRules.ValidId(id)) return null;
+        lock (_gate) return _rooms.FirstOrDefault(r => r.Id == id);
+    }
+
+    public Group GroupOf(Room r) => _groups.GetOrAdd(r.Id, id =>
+        new Group(_store.For(id), _live, _push, _clock, new RoomContext(id, r.Title, $"/r/{r.Key}", msg => Touched(id, msg))));
+
+    /// <summary>Newest activity first; rooms waiting for Martin on top.</summary>
+    public List<RoomSummary> Overview()
+    {
+        List<Room> rooms;
+        lock (_gate) rooms = _rooms.ToList();
+        return rooms.Select(r =>
+            {
+                var g = GroupOf(r);
+                var last = g.Last;
+                return new RoomSummary(r.Id, r.Key, r.Title, r.CustomerRef, r.CreatedAt, r.LastAt, r.DoneAt, r.DeleteAt,
+                    !r.IsDone && g.Waiting, last?.Name ?? "", last is null ? "" : last.Text.Length > 120 ? last.Text[..120] + "…" : last.Text);
+            })
+            .OrderByDescending(s => s.Waiting).ThenBy(s => s.DoneAt is not null).ThenByDescending(s => s.LastAt).ToList();
+    }
+
+    /// <summary>"Sagen er klaret": says so in the room, and the room is deleted 14 days later.</summary>
+    public bool MarkDone(string id, string hostName)
+    {
+        var r = ById(id);
+        if (r is null) return false;
+        GroupOf(r).Write(hostName, RoomRules.DoneText, host: true);
+        Update(id, x => x with { DoneAt = _clock.GetUtcNow().UtcDateTime });
+        return true;
+    }
+
+    public bool Reopen(string id) => Update(id, x => x with { DoneAt = null });
+
+    public bool Rename(string id, string? title) => Update(id, x => x with { Title = RoomRules.CleanTitle(title) });
+
+    public bool Delete(string id)
+    {
+        lock (_gate)
+        {
+            if (_rooms.RemoveAll(r => r.Id == id) == 0) return false;
+            _store.SaveRooms(_rooms);
+        }
+        _groups.TryRemove(id, out _);
+        _store.DeleteRoomData(id);
+        _push.ForgetRoom(id);
+        return true;
+    }
+
+    /// <summary>Rooms finished more than 14 days ago are deleted - messages, tasks and phones.</summary>
+    public int DeleteFinished()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        List<string> due;
+        lock (_gate) due = _rooms.Where(r => RoomRules.ShouldDelete(r, now)).Select(r => r.Id).ToList();
+        foreach (var id in due) Delete(id);
+        return due.Count;
+    }
+
+    // A new message opens a finished room again (the customer had one more question).
+    private void Touched(string id, bool message)
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        Update(id, x =>
+        {
+            var reopen = message && x.IsDone && now - x.DoneAt!.Value > TimeSpan.FromSeconds(5);
+            return x with { LastAt = now, DoneAt = reopen ? null : x.DoneAt };
+        });
+    }
+
+    private bool Update(string id, Func<Room, Room> f)
+    {
+        lock (_gate)
+        {
+            var i = _rooms.FindIndex(r => r.Id == id);
+            if (i < 0) return false;
+            _rooms[i] = f(_rooms[i]);
+            _store.SaveRooms(_rooms);
+            return true;
+        }
+    }
+}
+
+public enum LoginResult { Admin, Wrong, Locked }
+
+// Martin's own code (Snak:AdminCode). Rooms need no code - the link is the way in. Ten wrong tries from one address lock
+// it for 15 minutes. Snak:ApiKey lets Kunder and itmartin.dk make a room.
+public sealed class Access(string adminCode, string apiKey, TimeProvider clock)
 {
     private readonly ConcurrentDictionary<string, (int Count, DateTime First)> _wrong = new();
 
-    public string MemberToken { get; } = AccessRules.Token(groupCode, "medlem");
     public string AdminToken { get; } = AccessRules.Token(adminCode, "admin");
 
     public bool IsAdmin(string? adminCookie) => adminCode.Length >= AccessRules.MinAdminCode && adminCookie == AdminToken;
-    public bool IsMember(string? memberCookie, string? adminCookie) =>
-        IsAdmin(adminCookie) || (groupCode.Length >= AccessRules.MinGroupCode && memberCookie == MemberToken);
+    public bool IsApi(string? key) => apiKey.Length >= 16 && key == apiKey;
 
     public LoginResult Login(string? typed, string clientIp)
     {
@@ -159,7 +304,6 @@ public sealed class Access(string groupCode, string adminCode, TimeProvider cloc
             return LoginResult.Locked;
         var code = (typed ?? "").Trim();
         if (adminCode.Length >= AccessRules.MinAdminCode && code == adminCode) { _wrong.TryRemove(clientIp, out _); return LoginResult.Admin; }
-        if (groupCode.Length >= AccessRules.MinGroupCode && code == groupCode) { _wrong.TryRemove(clientIp, out _); return LoginResult.Member; }
         _wrong.AddOrUpdate(clientIp, _ => (1, now),
             (_, old) => now - old.First > AccessRules.WrongTriesWindow ? (1, now) : (old.Count + 1, old.First));
         return LoginResult.Wrong;
@@ -169,11 +313,12 @@ public sealed class Access(string groupCode, string adminCode, TimeProvider cloc
 public static class DependencyInjection
 {
     /// <summary>The use cases. Ports come from AddSnakInfrastructure.</summary>
-    public static IServiceCollection AddSnakApplication(this IServiceCollection services, string groupCode, string adminCode)
+    public static IServiceCollection AddSnakApplication(this IServiceCollection services, string adminCode, string apiKey, string publicUrl)
     {
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton<Group>();
-        services.AddSingleton(sp => new Access(groupCode, adminCode, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton(sp => new Rooms(sp.GetRequiredService<IRoomStore>(), sp.GetRequiredService<ILiveFeed>(),
+            sp.GetRequiredService<IPushSender>(), sp.GetRequiredService<TimeProvider>(), publicUrl));
+        services.AddSingleton(sp => new Access(adminCode, apiKey, sp.GetRequiredService<TimeProvider>()));
         return services;
     }
 }

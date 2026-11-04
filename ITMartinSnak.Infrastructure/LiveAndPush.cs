@@ -2,23 +2,24 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Threading.Channels;
 using ITMartinSnak.Application;
+using ITMartinSnak.Domain;
 using Microsoft.Extensions.Logging;
 using WebPush;
 
 namespace ITMartinSnak.Infrastructure;
 
-/// <summary>Everyone with the page open gets each change at once (server-sent events).</summary>
+/// <summary>Everyone with a room open gets each change in that room at once (server-sent events).</summary>
 public sealed class SseLiveFeed : ILiveFeed
 {
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
-    private readonly ConcurrentDictionary<Guid, Channel<string>> _listeners = new();
+    private readonly ConcurrentDictionary<Guid, (string Room, Channel<string> Ch)> _listeners = new();
 
-    public (Guid Id, ChannelReader<string> Reader) Join()
+    public (Guid Id, ChannelReader<string> Reader) Join(string room)
     {
         var ch = Channel.CreateBounded<string>(new BoundedChannelOptions(200) { FullMode = BoundedChannelFullMode.DropOldest });
         var id = Guid.NewGuid();
-        _listeners[id] = ch;
+        _listeners[id] = (room, ch);
         return (id, ch.Reader);
     }
 
@@ -26,16 +27,19 @@ public sealed class SseLiveFeed : ILiveFeed
 
     public int Count => _listeners.Count;
 
-    public void Send(string kind, object data)
+    public void Send(string room, string kind, object data)
     {
         var line = $"event: {kind}\ndata: {JsonSerializer.Serialize(data, WebJson)}\n\n";
-        foreach (var ch in _listeners.Values) ch.Writer.TryWrite(line);
+        foreach (var l in _listeners.Values)
+            if (l.Room == room) l.Ch.Writer.TryWrite(line);
     }
 }
 
 /// <summary>
-/// Push to the phones. Keys are made on first start and kept in the data folder, so phones stay
-/// subscribed across deploys. A phone that is gone (410/404) is dropped.
+/// Push to the phones. Keys are made on first start and kept in the data folder, so phones stay subscribed across deploys.
+/// A phone belongs to ONE room - or to the host (Room "" = Martin, every room). Phones subscribed before rooms existed
+/// (2026-10-09 group) belong to the old group's room only, so they never see a customer's messages. A phone that is gone
+/// (410/404) is dropped.
 /// </summary>
 public sealed class WebPushSender : IPushSender
 {
@@ -46,7 +50,7 @@ public sealed class WebPushSender : IPushSender
     private readonly ILogger<WebPushSender> _log;
     private List<Subscriber> _subs = [];
 
-    public sealed record Subscriber(string Endpoint, string P256dh, string Auth, string Name, DateTime AddedAt);
+    public sealed record Subscriber(string Endpoint, string P256dh, string Auth, string Name, DateTime AddedAt, string? Room = null);
     private sealed record VapidKeys(string PublicKey, string PrivateKey);
 
     public WebPushSender(string dataDir, ILogger<WebPushSender> log)
@@ -66,36 +70,45 @@ public sealed class WebPushSender : IPushSender
         _vapid = new VapidDetails("mailto:ITMartin@Mensa.dk", k.PublicKey, k.PrivateKey);
         if (File.Exists(_subsFile))
             try { _subs = JsonSerializer.Deserialize<List<Subscriber>>(File.ReadAllText(_subsFile)) ?? []; } catch { }
+        _subs = _subs.Select(s => s.Room is null ? s with { Room = RoomRules.LegacyRoomId } : s).ToList();
     }
 
     public string PublicKey => _vapid.PublicKey;
     public int Count { get { lock (_gate) return _subs.Count; } }
 
-    public void Subscribe(string endpoint, string p256dh, string auth, string name) =>
-        Add(new Subscriber(endpoint, p256dh, auth, name, DateTime.UtcNow));
-
-    public void Unsubscribe(string endpoint) => Remove(endpoint);
-
-    public void Add(Subscriber s)
+    // One phone can be in several rooms (and be the host's) - one row per phone + room.
+    public void Subscribe(string room, string endpoint, string p256dh, string auth, string name)
     {
-        lock (_gate) { _subs.RemoveAll(x => x.Endpoint == s.Endpoint); _subs.Add(s); Save(); }
+        lock (_gate)
+        {
+            _subs.RemoveAll(x => x.Endpoint == endpoint && x.Room == room);
+            _subs.Add(new Subscriber(endpoint, p256dh, auth, name, DateTime.UtcNow, room));
+            Save();
+        }
     }
 
-    public void Remove(string endpoint)
+    public void Unsubscribe(string endpoint)
     {
         lock (_gate) { _subs.RemoveAll(x => x.Endpoint == endpoint); Save(); }
     }
 
+    public void ForgetRoom(string room)
+    {
+        lock (_gate) { if (_subs.RemoveAll(x => x.Room == room) > 0) Save(); }
+    }
+
     private void Save() => File.WriteAllText(_subsFile, JsonSerializer.Serialize(_subs));
 
-    /// <summary>Sends to every phone except the one that caused it. Runs in the background.</summary>
-    public void SendToOthers(string? exceptEndpoint, string title, string body, string tag)
+    /// <summary>To the room's phones and the host's phones, except the one that caused it. Runs in the background.</summary>
+    public void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url)
     {
         List<Subscriber> targets;
-        lock (_gate) targets = _subs.Where(s => s.Endpoint != exceptEndpoint).ToList();
+        lock (_gate)
+            targets = _subs.Where(s => (s.Room == room || s.Room == "") && s.Endpoint != exceptEndpoint)
+                .GroupBy(s => s.Endpoint).Select(g => g.First()).ToList();
         if (targets.Count == 0) return;
         if (body.Length > 140) body = body[..140] + "…";
-        var payload = JsonSerializer.Serialize(new { title, body, url = "/", tag });
+        var payload = JsonSerializer.Serialize(new { title, body, url, tag });
         _ = Task.Run(async () =>
         {
             foreach (var s in targets)
@@ -106,7 +119,7 @@ public sealed class WebPushSender : IPushSender
                 }
                 catch (WebPushException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Gone or System.Net.HttpStatusCode.NotFound)
                 {
-                    Remove(s.Endpoint);
+                    Unsubscribe(s.Endpoint);
                 }
                 catch (Exception ex)
                 {

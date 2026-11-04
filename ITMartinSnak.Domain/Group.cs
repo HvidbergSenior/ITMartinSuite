@@ -4,7 +4,8 @@ using System.Text;
 namespace ITMartinSnak.Domain;
 
 // The shapes are kept exactly as they were stored in messages.json / tasks.json since 2026-10-09 - existing files read as before.
-public sealed record Message(long Id, string Name, string Text, DateTime At);
+// Host = written by Martin (the room owner) - the overview shows who is waiting for an answer (2026-11-04).
+public sealed record Message(long Id, string Name, string Text, DateTime At, bool Host = false);
 
 public sealed record TaskItem(long Id, string Title, string Note, string When, List<string> Takers, bool Done, DateTime CreatedAt);
 
@@ -19,12 +20,12 @@ public static class GroupRules
     private static string Cut(string s, int max) => s.Length > max ? s[..max] : s;
 
     /// <returns>The new message, or null when the name or the text is missing.</returns>
-    public static Message? NewMessage(IReadOnlyList<Message> existing, string? name, string? text, DateTime nowUtc)
+    public static Message? NewMessage(IReadOnlyList<Message> existing, string? name, string? text, DateTime nowUtc, bool host = false)
     {
         var n = CleanName(name);
         var t = Cut((text ?? "").Trim(), MaxText);
         if (n.Length == 0 || t.Length == 0) return null;
-        return new Message((existing.Count == 0 ? 0 : existing[^1].Id) + 1, n, t, nowUtc);
+        return new Message((existing.Count == 0 ? 0 : existing[^1].Id) + 1, n, t, nowUtc, host);
     }
 
     /// <summary>Only the newest <see cref="MaxMessages"/> are kept.</summary>
