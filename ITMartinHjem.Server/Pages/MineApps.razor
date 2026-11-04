@@ -10,15 +10,6 @@
 <PageHead Title="Hjælpershoppen" Tag="Gratis at prøve" Line="Små hjælpere til hverdagen – uden reklamer." />
 @* "Mine apps er webapps" always shown at the top, not hidden in a tile at the bottom (user 2026-10-28: "should be more visible").
    The user's own words. *@
-<section class="k-card hj-webapp-note" data-nofold>
-    <p class="hj-webapp-title">Mine hjælpere er apps – ikke mobilapps!</p>
-    <p>Det betyder, at du ikke skal downloade eller installere noget. Du åbner bare appen i din browser – på mobilen, din tablet eller din computer.</p>
-    <p>Det er nemt, hurtigt og fungerer på tværs af enheder. Du slipper for appbutikker, installationer og opdateringer. Du bruger bare appen, når du har brug for den.</p>
-    @* User 2026-10-29: "også that you can put it as an icon on your phone". *@
-    <p><b>Du kan også lægge den på telefonen som et ikon</b> – så åbner den med ét tryk, ligesom en app.
-        <b>iPhone:</b> åbn appen i Safari, tryk på Del-knappen og så <b>Føj til hjemmeskærm</b>.
-        <b>Android:</b> åbn appen i Chrome, tryk på de tre prikker og så <b>Føj til startskærm</b>.</p>
-</section>
 <div class="hj-apps">
     @foreach (var a in _apps)
     {
@@ -63,9 +54,17 @@
     }
 </div>
 
+@* Simpler page (user 2026-11-04: "too much info and should be more simple"): the helpers first, everything else as closed headings. *@
+<section class="k-card hj-webapp-note" data-fold-closed>
+    <h2 class="k-card-title">Intet at installere – læg den på telefonen</h2>
+    <p>Du åbner hjælperne i din browser – på mobil, tablet eller computer. Ingen download, ingen appbutik.</p>
+    <p><b>iPhone:</b> åbn hjælperen i Safari, tryk på Del-knappen og så <b>Føj til hjemmeskærm</b>.
+        <b>Android:</b> åbn den i Chrome, tryk på de tre prikker og så <b>Føj til startskærm</b>.</p>
+</section>
+
 @* A real, made-to-order helper as the example (user 2026-11-04: "use the upload/gallery that Annette uses as example").
    The customer is never named and her own gallery is private - the button opens the public demo gallery. *@
-<section class="k-card hj-example" data-nofold>
+<section class="k-card hj-example" data-fold-closed>
     <h2 class="k-card-title">Ryd op i din sky – og få dine billeder hjem</h2>
     <p><b>Betaler du hver måned for plads i iCloud, Google Fotos eller OneDrive?</b> Den plads er tit fyldt med det samme billede
         tre gange, skærmbilleder, memes og billeder fra chats. Og billeder, du har hentet ud fra Facebook, har mistet deres dato.</p>
@@ -107,9 +106,8 @@
    elsewhere and maybe like on frontpage"): small tiles like the front page; a tile opens its text right under the tiles.
    The texts are the user's own (2026-10-14). *@
 @* Its own "Vidste du …" from the Om mine apps texts (user 2026-10-27), after the apps (apps stay on top). *@
-<VidsteDu Facts="SiteFacts.MineApps" />
-<section class="k-card hj-tilegroup" id="om-mine-apps">
-    <h2 class="k-card-title">Om mine hjælpere</h2>
+<section class="k-card hj-tilegroup" id="om-mine-apps" data-fold-closed>
+    <h2 class="k-card-title">Mere om mine hjælpere</h2>
     <nav class="hj-tiles" aria-label="Om mine hjælpere">
         <button class="hj-tile @(_info == "gratis" ? "is-open" : "")" @onclick="@(() => Toggle("gratis"))"><b>Gratis – sådan prøver du en app</b><span class="hj-tile-line">Hvilke apps du kan prøve, og hvordan</span></button>
         <button class="hj-tile @(_info == "forskel" ? "is-open" : "")" @onclick="@(() => Toggle("forskel"))"><b>Mobilapp eller webapp – hvad er forskellen?</b><span class="hj-tile-line">Hvorfor webappen er den store</span></button>
