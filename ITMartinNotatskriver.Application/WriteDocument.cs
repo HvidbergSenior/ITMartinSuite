@@ -49,7 +49,12 @@ public sealed class WriteDocument(IDocumentWriter writer, IAiBudget budget, INam
         try
         {
             var answer = await writer.WriteAsync(request, ct);
-            if (WrittenDocument.IsBlocked(answer.Text)) return new WriteOutcome.Stopped(true, BlockedByAiMessage, []);
+            if (WrittenDocument.IsBlocked(answer.Text))
+            {
+                var reason = WrittenDocument.BlockReason(answer.Text);
+                var why = reason.Length == 0 ? "" : $" Den stoppede ved: «{hider?.Restore(reason) ?? reason}». Fjern eller omskriv det, og prøv igen.";
+                return new WriteOutcome.Stopped(true, BlockedByAiMessage + why, []);
+            }
             var text = hider?.Restore(answer.Text) ?? answer.Text;
             return new WriteOutcome.Written(answer.Truncated ? text + WrittenDocument.TruncatedNote : text);
         }

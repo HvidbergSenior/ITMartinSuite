@@ -99,6 +99,14 @@ public class WriteDocumentTests
     }
 
     [Test]
+    public async Task The_block_names_the_line_to_remove()
+    {
+        var (use, _, _) = Make(new FakeWriter("BLOKERET: Jacob har en diagnose"));
+        var r = await use.ExecuteAsync(Draft("noter"), false, default);
+        r.Should().BeOfType<WriteOutcome.Stopped>().Which.Message.Should().Contain("«Jacob har en diagnose»");
+    }
+
+    [Test]
     public async Task No_AI_call_when_the_daily_budget_is_spent()
     {
         var (use, writer, _) = Make(b: new FakeBudget(ok: false));

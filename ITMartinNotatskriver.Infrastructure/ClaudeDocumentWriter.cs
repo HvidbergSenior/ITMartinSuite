@@ -28,7 +28,9 @@ public sealed class ClaudeDocumentWriter(AnthropicClient client, ILogger<ClaudeD
 
         Spærre: Notatskriver må ikke bruges til patient- eller borgeroplysninger. Hvis materialet (også billederne)
         indeholder CPR-numre eller helbredsoplysninger om en bestemt person (fx notater fra en samtale med en patient
-        eller borger), så skriv INTET dokument og svar kun med ordet {WrittenDocument.BlockedMarker}.
+        eller borger), så skriv INTET dokument. Svar i stedet med én linje: {WrittenDocument.BlockedMarker}: og derefter
+        den linje fra materialet, du stoppede ved (ordret, højst 150 tegn) - eller på et billede en kort beskrivelse
+        af, hvad der ses (fx "et sygesikringskort"). Så ved brugeren, hvad der skal fjernes.
         """;
 
     /// <summary>The text part of the message, in the order the AI reads it. Kept apart so it can be tested.</summary>

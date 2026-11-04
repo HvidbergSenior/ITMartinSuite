@@ -136,7 +136,14 @@ public class WrittenDocumentTests
     [TestCase("BLOKERET", true)]
     [TestCase(" BLOKERET. ", true)]
     [TestCase("Mødereferat\nBLOKERET ved døren", false)]
+    [TestCase("BLOKERET: Jacob har en diagnose", true)]
+    [TestCase("BLOKERET ved døren", false)]
     public void Recognises_the_AI_block(string answer, bool blocked) => WrittenDocument.IsBlocked(answer).Should().Be(blocked);
+
+    [TestCase("BLOKERET", "")]
+    [TestCase("BLOKERET: «Jacob har en diagnose»", "Jacob har en diagnose")]
+    [TestCase("BLOKERET: et sygesikringskort\n", "et sygesikringskort")]
+    public void The_AI_says_where_it_stopped(string answer, string reason) => WrittenDocument.BlockReason(answer).Should().Be(reason);
 
     [Test]
     public void Short_lines_after_a_blank_line_are_headings()
