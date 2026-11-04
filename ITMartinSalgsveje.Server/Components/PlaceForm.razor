@@ -1,0 +1,30 @@
+@* New or edited place on Adresser: name, address, what is there. *@
+<div class="msg-card">
+    <label class="msg-label">Navn
+        <input class="msg-input" value="@Name" @oninput="SetName" maxlength="100" placeholder="Fx: Butikken" />
+    </label>
+    <label class="msg-label">Adresse
+        <input class="msg-input" value="@Address" @oninput="SetAddress" maxlength="200" placeholder="Fx: Skelagervej 222, 8200 Aarhus N" />
+    </label>
+    <label class="msg-label">Hvad er der? <span class="msg-muted">(valgfrit)</span>
+        <input class="msg-input" value="@Contents" @oninput="SetContents" maxlength="300" placeholder="Fx: Tegneserier, kasse 1-40" />
+    </label>
+    <div class="msg-row">
+        <button class="msg-btn msg-btn-primary" @onclick="OnSave" disabled="@string.IsNullOrWhiteSpace(Name)">Gem</button>
+        <button class="msg-btn" @onclick="OnCancel">Annullér</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public string Address { get; set; } = "";
+    [Parameter] public string Contents { get; set; } = "";
+    [Parameter] public EventCallback<string> NameChanged { get; set; }
+    [Parameter] public EventCallback<string> AddressChanged { get; set; }
+    [Parameter] public EventCallback<string> ContentsChanged { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    private Task SetName(ChangeEventArgs e) => NameChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    private Task SetAddress(ChangeEventArgs e) => AddressChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    private Task SetContents(ChangeEventArgs e) => ContentsChanged.InvokeAsync(e.Value?.ToString() ?? "");
+}

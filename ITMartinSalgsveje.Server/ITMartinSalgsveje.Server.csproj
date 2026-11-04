@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- Club (Bestøver Klub): structure your day together - teams, tasks per person and day, messages with receipts,
+         meetings, calendar, places. This is the thin web layer: pages, login cookies, links, the reminder job.
+         The rules are in .Domain, the use cases in .Application, SQLite/push/mail in .Infrastructure. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinSalgsveje.Server</RootNamespace>
+        <AssemblyName>ITMartinSalgsveje.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinSalgsveje.Application\ITMartinSalgsveje.Application.csproj" />
+        <ProjectReference Include="..\ITMartinSalgsveje.Infrastructure\ITMartinSalgsveje.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>

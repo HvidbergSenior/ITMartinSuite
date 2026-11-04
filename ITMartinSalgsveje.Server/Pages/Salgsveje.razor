@@ -1,0 +1,318 @@
+@page "/g/{slug}/salgsveje"
+@rendermode InteractiveServer
+@inject SalesRoutes Routes
+@inject TeamMembers People
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@* Salgsveje (2026-11-04): every way the team sells. Each card = Hvordan, Hvem og hvornår (tasks), Resultat.
+   Næste op = planned, then ideas, then what was tried. Every box folds. *@
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="salgsveje" />
+
+        <div class="msg-body">
+            <h2 class="msg-h">Salgsveje</h2>
+            <p class="msg-help">Her er alle de måder, vi kan sælge på. Tryk på en salgsvej for at se hvordan, hvem og hvornår. Når I har prøvet den, skriver I hvad den gav.</p>
+
+            @if (_cards.Count == 0 && _form is null)
+            {
+                <div class="msg-card">
+                    <h3 class="msg-h3">Ingen salgsveje endnu</h3>
+                    <p class="msg-help">Hent startlisten med 18 forslag: markeder, live-auktion, nettet, tillidsbod, kasser til plejehjem og skoler - og Mariannes strikketøj.</p>
+                    <button class="msg-btn msg-btn-primary msg-big" @onclick="StarterAsync" disabled="@_busy">Hent startlisten</button>
+                </div>
+            }
+
+            @if (_form is null)
+            {
+                <button class="msg-btn msg-btn-primary msg-big" @onclick="NewChannel">Ny salgsvej</button>
+
+                @if (_cards.Count > 0)
+                {
+                    <div class="sv-filter">
+                        <button class="sv-chip @(_kind == "" ? "on" : "")" @onclick='() => _kind = ""'>Alle (@_cards.Count)</button>
+                        @foreach (var k in SalesKinds.All.Where(k => _cards.Any(c => c.Channel.Kind == k)))
+                        {
+                            <button class="sv-chip @(_kind == k ? "on" : "")" @onclick="() => _kind = k">@k (@_cards.Count(c => c.Channel.Kind == k))</button>
+                        }
+                    </div>
+                    @if (_kind != "") { <p class="msg-help">@SalesKinds.Explain(_kind)</p> }
+                }
+
+                @foreach (var (status, heading, help) in Sections)
+                {
+                    var list = Shown.Where(c => c.Channel.Status == status).ToList();
+                    if (list.Count == 0) continue;
+                    <details class="msg-card sv-section" open="@(status != SalesStatus.Tried)">
+                        <summary class="msg-h3">@heading (@list.Count)</summary>
+                        <p class="msg-help">@help</p>
+                        @foreach (var card in list) { @Card(card) }
+                    </details>
+                }
+
+                @if (Total > 0)
+                {
+                    <div class="msg-card"><b>I alt fra de prøvede salgsveje: @Kr(Total)</b></div>
+                }
+            }
+            else
+            {
+                @Form()
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private RenderFragment Card(ChannelCard card) => __builder =>
+    {
+        var c = card.Channel;
+        <details class="sv-card @(c.BookSoon(Today) || c.NeedsResult(Today) ? "sv-attn" : "")">
+            <summary>
+                <span class="msg-item-title">@c.Name</span>
+                <span class="msg-item-meta">
+                    <span class="msg-pill">@c.Kind</span>
+                    @if (c.NextDate is { } d) { <span>@d.ToString("d. MMM yyyy", Da)</span> }
+                    @if (card.Open.SelectMany(t => t.Assignees).Distinct().ToList() is { Count: > 0 } who) { <span>Hvem: @string.Join(", ", who)</span> }
+                    @if (c.EarnedKr is { } kr) { <span>Gav @Kr(kr)</span> }
+                    @if (c.BookSoon(Today)) { <b>Book nu</b> }
+                    @if (c.NeedsResult(Today)) { <b>Skriv resultatet</b> }
+                </span>
+            </summary>
+
+            <details class="sv-box" open>
+                <summary>Hvordan</summary>
+                @if (c.Place.Length > 0) { <p><b>Hvor:</b> @c.Place</p> }
+                @if (c.How.Length > 0) { <p class="msg-text">@c.How</p> }
+                @if (c.Cost.Length > 0) { <p><b>Pris:</b> @c.Cost</p> }
+                @if (c.Booking.Length > 0) { <p><b>Sådan booker I:</b> @c.Booking</p> }
+                @if (c.BookBy is { } b) { <p><b>Book senest:</b> @b.ToString("d. MMMM yyyy", Da)</p> }
+                @if (c.WhatSells.Length > 0) { <p><b>Det sælger godt her:</b> @c.WhatSells</p> }
+                @if (c.Link.Length > 0) { <a class="msg-btn sv-linkbtn" href="@c.Link" target="_blank" rel="noopener">Åbn deres side</a> }
+            </details>
+
+            <details class="sv-box" open="@(card.Open.Count > 0)">
+                <summary>Hvem og hvornår (@card.Open.Count)</summary>
+                @if (card.Open.Count == 0) { <p class="msg-help">Ingen opgaver endnu. Skriv hvad der skal gøres, og hvem der gør det.</p> }
+                @foreach (var t in card.Open)
+                {
+                    <div class="task-line @(t.DueDate is { } due && due.Date < Today ? "task-late" : "")">
+                        <div class="task-line-main">
+                            <div class="msg-item-title">@t.Title</div>
+                            <div class="msg-item-meta">
+                                <span>@(t.Assignees.Count > 0 ? t.AssigneeLabel : "Ingen har taget den")</span>
+                                @if (t.DueDate is { } dd) { <span>@dd.ToString("d. MMM", Da)</span> }
+                            </div>
+                        </div>
+                        @if (!t.IsAssignedTo(_member!.Name)) { <button class="msg-btn" @onclick="() => TakeAsync(t.Id)">Jeg tager den</button> }
+                        <button class="msg-btn" @onclick="() => DoneAsync(t.Id)">Færdig</button>
+                    </div>
+                }
+                @if (card.Done.Count > 0) { <p class="msg-help">Gjort: @string.Join(", ", card.Done.Take(5).Select(t => $"{t.Title} ({t.CompletedByName})"))</p> }
+
+                @if (_taskFor == c.Id)
+                {
+                    <label class="msg-label">Hvad skal gøres? <input class="msg-input" @bind="_tTitle" maxlength="150" placeholder="Fx Book stand, Pak kassen, Kør derud" /></label>
+                    <label class="msg-label">Hvem
+                        <select class="msg-input" @bind="_tWho">
+                            <option value="">Den der har tid</option>
+                            @foreach (var m in _members) { <option value="@m.Name">@m.Name</option> }
+                        </select>
+                    </label>
+                    <label class="msg-label">Hvornår <input class="msg-input" type="date" @bind="_tDue" /></label>
+                    @foreach (var p in _taskProblems) { <p class="msg-help"><b>@p</b></p> }
+                    <div class="msg-row">
+                        <button class="msg-btn msg-btn-primary" @onclick="() => AddTaskAsync(c.Id)" disabled="@_busy">Gem opgaven</button>
+                        <button class="msg-btn" @onclick="() => _taskFor = null">Fortryd</button>
+                    </div>
+                }
+                else
+                {
+                    <button class="msg-btn" @onclick="() => StartTask(c)">Ny opgave</button>
+                }
+            </details>
+
+            <details class="sv-box" open="@(c.Status == SalesStatus.Tried)">
+                <summary>Resultat</summary>
+                @if (c.EarnedKr is null && c.ResultNote.Length == 0 && c.GoAgain is null) { <p class="msg-help">Ikke prøvet endnu. Tryk Ret, når I har prøvet den, og skriv hvad den gav.</p> }
+                @if (c.EarnedKr is { } e) { <p><b>Gav:</b> @Kr(e)</p> }
+                @if (c.GoAgain is { } again) { <p><b>Igen?</b> @(again ? "Ja" : "Nej")</p> }
+                @if (c.ResultNote.Length > 0) { <p class="msg-text">@c.ResultNote</p> }
+            </details>
+
+            <div class="msg-row sv-actions">
+                <button class="msg-btn" @onclick="() => Edit(c)">Ret</button>
+                @if (_member!.IsAdmin && _confirmDelete != c.Id) { <button class="msg-btn" @onclick="() => _confirmDelete = c.Id">Slet</button> }
+                @if (_confirmDelete == c.Id)
+                {
+                    <span class="msg-help">Slet @c.Name? Opgaverne bliver på Opgaver.</span>
+                    <button class="msg-btn msg-btn-primary" @onclick="() => DeleteAsync(c)">Ja, slet</button>
+                    <button class="msg-btn" @onclick="() => _confirmDelete = null">Nej</button>
+                }
+            </div>
+        </details>
+    };
+
+    private RenderFragment Form() => __builder =>
+    {
+        var c = _form!;
+        <div class="msg-card">
+            <h3 class="msg-h3">@(_isNew ? "Ny salgsvej" : $"Ret {c.Name}")</h3>
+            <p class="msg-help">Skriv det I ved. Resten kan I fylde på senere.</p>
+            <label class="msg-label">Navn <input class="msg-input" @bind="c.Name" maxlength="100" placeholder="Fx Loppemarked i Ry" /></label>
+            <label class="msg-label">Slags
+                <select class="msg-input" @bind="c.Kind">
+                    @foreach (var k in SalesKinds.All) { <option value="@k">@k</option> }
+                </select>
+            </label>
+            <p class="msg-help">@SalesKinds.Explain(c.Kind)</p>
+            <label class="msg-label">Hvor står det
+                <select class="msg-input" @bind="c.Status">
+                    <option value="@SalesStatus.Idea">Idé - ikke besluttet</option>
+                    <option value="@SalesStatus.Planned">Planlagt - vi gør det</option>
+                    <option value="@SalesStatus.Tried">Prøvet</option>
+                </select>
+            </label>
+        </div>
+        <div class="msg-card">
+            <h3 class="msg-h3">Hvordan</h3>
+            <label class="msg-label">Hvor <input class="msg-input" @bind="c.Place" maxlength="200" placeholder="By, adresse eller online" /></label>
+            <label class="msg-label">Sådan gør man <textarea class="msg-input" rows="3" @bind="c.How" maxlength="2000"></textarea></label>
+            <label class="msg-label">Pris for os <input class="msg-input" @bind="c.Cost" maxlength="200" placeholder="Fx 250 kr for en stand" /></label>
+            <label class="msg-label">Sådan booker I <input class="msg-input" @bind="c.Booking" maxlength="300" placeholder="Fx SMS til ..." /></label>
+            <label class="msg-label">Det sælger godt her <input class="msg-input" @bind="c.WhatSells" maxlength="300" /></label>
+            <label class="msg-label">Deres side (link) <input class="msg-input" @bind="c.Link" maxlength="500" placeholder="https://" /></label>
+        </div>
+        <div class="msg-card">
+            <h3 class="msg-h3">Hvornår</h3>
+            <label class="msg-label">Dato <input class="msg-input" type="date" @bind="c.NextDate" /></label>
+            <label class="msg-label">Book senest <input class="msg-input" type="date" @bind="c.BookBy" /></label>
+        </div>
+        <div class="msg-card">
+            <h3 class="msg-h3">Resultat</h3>
+            <label class="msg-label">Det gav (kr) <input class="msg-input" type="number" min="0" @bind="c.EarnedKr" /></label>
+            <label class="msg-label">Vil vi igen?
+                <select class="msg-input" @bind="_again">
+                    <option value="">Ved ikke endnu</option>
+                    <option value="ja">Ja</option>
+                    <option value="nej">Nej</option>
+                </select>
+            </label>
+            <label class="msg-label">Hvad lærte vi <textarea class="msg-input" rows="3" @bind="c.ResultNote" maxlength="2000"></textarea></label>
+        </div>
+        @foreach (var p in _problems) { <p class="msg-help"><b>@p</b></p> }
+        <button class="msg-btn msg-btn-primary msg-big" @onclick="SaveAsync" disabled="@_busy">Gem salgsvejen</button>
+        <button class="msg-btn msg-big" @onclick="() => _form = null">Fortryd</button>
+    };
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private static readonly (string Status, string Heading, string Help)[] Sections =
+    [
+        (SalesStatus.Planned, "Næste op", "Det vi har besluttet at gøre. Den første dato står øverst."),
+        (SalesStatus.Idea, "Idéer", "Måder vi kan prøve. Tryk Ret og vælg Planlagt, når I vil gøre det."),
+        (SalesStatus.Tried, "Prøvet", "Det vi har prøvet. Det der gav mest, står øverst."),
+    ];
+
+    private Member? _member;
+    private Group? _group;
+    private List<ChannelCard> _cards = [];
+    private List<Member> _members = [];
+    private string _kind = "";
+    private bool _loaded, _busy, _isNew;
+
+    private SalesChannel? _form;
+    private string _again = "";
+    private List<string> _problems = [];
+
+    private Guid? _taskFor, _confirmDelete;
+    private string _tTitle = "", _tWho = "";
+    private DateTime? _tDue;
+    private List<string> _taskProblems = [];
+
+    private static DateTime Today => DateTime.Today;
+    private IEnumerable<ChannelCard> Shown => _kind == "" ? _cards : _cards.Where(c => c.Channel.Kind == _kind);
+    private int Total => _cards.Where(c => c.Channel.Status == SalesStatus.Tried).Sum(c => c.Channel.EarnedKr ?? 0);
+    private static string Kr(int kr) => $"{kr.ToString("N0", Da)} kr";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        _members = await People.ListAsync(_group!.Id);
+        await ReloadAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task ReloadAsync() => _cards = await Routes.CardsAsync(_group!.Id);
+
+    private async Task StarterAsync()
+    {
+        _busy = true;
+        await Routes.AddStarterListAsync(_member!);
+        await ReloadAsync();
+        _busy = false;
+    }
+
+    private void NewChannel()
+    {
+        _isNew = true; _problems = []; _again = "";
+        _form = new SalesChannel { GroupId = _group!.Id, Kind = _kind == "" ? SalesKinds.Marked : _kind };
+    }
+
+    private void Edit(SalesChannel c)
+    {
+        _isNew = false; _problems = [];
+        _again = c.GoAgain is null ? "" : c.GoAgain.Value ? "ja" : "nej";
+        _form = new SalesChannel
+        {
+            Id = c.Id, GroupId = c.GroupId, Name = c.Name, Kind = c.Kind, Status = c.Status, Place = c.Place, How = c.How,
+            Cost = c.Cost, Booking = c.Booking, WhatSells = c.WhatSells, Link = c.Link, NextDate = c.NextDate, BookBy = c.BookBy,
+            EarnedKr = c.EarnedKr, GoAgain = c.GoAgain, ResultNote = c.ResultNote, MainTaskId = c.MainTaskId, CreatedAt = c.CreatedAt,
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _form!.GoAgain = _again switch { "ja" => true, "nej" => false, _ => null };
+        var r = await Routes.SaveAsync(_member!, _form);
+        _problems = r.Problems;
+        if (r.Saved) { _form = null; await ReloadAsync(); }
+        _busy = false;
+    }
+
+    private async Task DeleteAsync(SalesChannel c)
+    {
+        _confirmDelete = null;
+        await Routes.DeleteAsync(_member!, c.Id);
+        await ReloadAsync();
+    }
+
+    private void StartTask(SalesChannel c)
+    {
+        _taskFor = c.Id; _tTitle = ""; _tWho = ""; _tDue = c.BookBy ?? c.NextDate; _taskProblems = [];
+    }
+
+    private async Task AddTaskAsync(Guid channelId)
+    {
+        _busy = true;
+        _taskProblems = await Routes.AddTaskAsync(_member!, channelId, _tTitle, _tWho, _tDue);
+        if (_taskProblems.Count == 0) { _taskFor = null; await ReloadAsync(); }
+        _busy = false;
+    }
+
+    private async Task TakeAsync(Guid taskId) { await Routes.TakeTaskAsync(_member!, taskId); await ReloadAsync(); }
+    private async Task DoneAsync(Guid taskId) { await Routes.CompleteTaskAsync(_member!, taskId); await ReloadAsync(); }
+}
