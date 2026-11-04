@@ -92,32 +92,67 @@ public sealed class Cleanup(MailScanner scanner, IMailboxCleaner cleaner, IUnsub
         return new OldPreview(before, total, trash, mode == OldMode.SletAlt ? 0 : Math.Max(0, total - trash - starred), starred);
     }
 
-    public async Task<CleanupResult> ClearOldAsync(DateOnly before, OldMode mode, CancellationToken ct)
+    // Big jobs (21,000 mails take minutes) run in the background on the server: Cloudflare cuts a request after 100 s,
+    // and a cut request must never stop a move halfway. The page asks /status until it is done.
+    private readonly object _jobGate = new();
+    private Task? _job;
+    public bool JobRunning => _job is { IsCompleted: false };
+    public string? JobMessage { get; private set; }
+
+    private bool StartJob(string working, Func<Task<string>> work)
     {
-        if (!OldCleanupRules.IsValid(before, Today)) return new(false, "Datoen ser forkert ud.", 0, "", null);
+        lock (_jobGate)
+        {
+            if (JobRunning) return false;
+            JobMessage = working;
+            _job = Task.Run(async () =>
+            {
+                try { JobMessage = await work(); }
+                catch (Exception e) { JobMessage = "Det stoppede undervejs: " + e.Message + " Det, der nåede at blive flyttet, kan du fortryde nedenfor."; }
+            });
+            return true;
+        }
+    }
+
+    /// <summary>Starts "Ryd alt det gamle". The log entry (with the label) is saved FIRST, so Fortryd works even if it stops halfway.</summary>
+    public string? StartClearOld(DateOnly before, OldMode mode)
+    {
+        if (!OldCleanupRules.IsValid(before, Today)) return "Datoen ser forkert ud.";
         var now = clock.GetUtcNow();
         var label = OldCleanupRules.Label(now);
-        var (trashed, archived) = await cleaner.ClearOldAsync(before, mode, label, ct);
-        if (trashed + archived == 0) return new(true, "Der var ingen mails at rydde.", 0, "", null);
-        log.Save(new CleanupAction(Guid.NewGuid(), now, "", "Alt før " + before.ToString("d. MMM yyyy", new System.Globalization.CultureInfo("da-DK")),
-            [], "", false, label, trashed, archived));
-        scanner.Start(scanner.Last?.Months ?? 12);
-        var text = trashed + " mails i papirkurven (kan fortrydes i 30 dage)" + (archived > 0 ? " · " + archived + " lagt i arkivet" : "")
-            + ". I Gmail har de etiketten " + label + ".";
-        return new(true, text, trashed + archived, "", null);
+        var entry = new CleanupAction(Guid.NewGuid(), now, "", "Alt før " + before.ToString("d. MMM yyyy", new System.Globalization.CultureInfo("da-DK")),
+            [], "", false, label);
+        var started = StartJob("Rydder op … det kan tage nogle minutter. Du kan godt lukke siden.", async () =>
+        {
+            log.Save(entry);
+            var (trashed, archived) = await cleaner.ClearOldAsync(before, mode, label, CancellationToken.None);
+            log.Save(entry with { Trashed = trashed, Archived = archived });
+            scanner.Start(scanner.Last?.Months ?? 12);
+            if (trashed + archived == 0) return "Der var ingen mails at rydde.";
+            return trashed + " mails i papirkurven (kan fortrydes i 30 dage)" + (archived > 0 ? " · " + archived + " lagt i arkivet" : "")
+                + ". I Gmail har de etiketten " + label + ".";
+        });
+        return started ? null : "En oprydning kører allerede.";
     }
 
     public IReadOnlyList<CleanupAction> History() =>
         log.All().OrderByDescending(a => a.At).Take(30).ToList();
 
-    public async Task<CleanupResult> UndoAsync(Guid id, CancellationToken ct)
+    /// <summary>Fortryd - in the background too (a whole old pile is thousands of mails).</summary>
+    public string? StartUndo(Guid id)
     {
         var a = log.All().FirstOrDefault(x => x.Id == id);
-        if (a is null) return new(false, "Ukendt oprydning.", 0, "", null);
-        if (!a.CanUndo(clock.GetUtcNow())) return new(false, "Den kan ikke fortrydes længere.", 0, "", null);
-        var back = a.Label is { } label ? await cleaner.RestoreLabelAsync(label, ct) : await cleaner.RestoreAsync(a.MessageIds, ct);
-        log.Save(a with { Restored = true });
-        scanner.Start(scanner.Last?.Months ?? 12);   // the restored mails come back into the overview
-        return new(true, $"{back} mails lagt tilbage i Indbakke." + (a.Unsubscribed.Length > 0 ? " Afmeldingen kan ikke fortrydes her – tilmeld dig igen hos afsenderen, hvis du vil." : ""), back, "", null);
+        if (a is null) return "Ukendt oprydning.";
+        if (!a.CanUndo(clock.GetUtcNow())) return "Den kan ikke fortrydes længere.";
+        var started = StartJob("Lægger mails tilbage … det kan tage nogle minutter.", async () =>
+        {
+            var back = a.Label is { } label
+                ? await cleaner.RestoreLabelAsync(label, CancellationToken.None)
+                : await cleaner.RestoreAsync(a.MessageIds, CancellationToken.None);
+            log.Save(a with { Restored = true });
+            scanner.Start(scanner.Last?.Months ?? 12);   // the restored mails come back into the overview
+            return back + " mails lagt tilbage i Indbakke." + (a.Unsubscribed.Length > 0 ? " Afmeldingen kan ikke fortrydes her – tilmeld dig igen hos afsenderen, hvis du vil." : "");
+        });
+        return started ? null : "En oprydning kører allerede – vent til den er færdig.";
     }
 }

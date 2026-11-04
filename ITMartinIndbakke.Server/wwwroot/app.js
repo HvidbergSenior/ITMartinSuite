@@ -251,13 +251,22 @@
     $('ib-old-result').addEventListener('click', function (e) {
         if (e.target.id !== 'ib-old-go') return;
         var box = $('ib-old-result'), done = box.querySelector('.ib-done');
-        e.target.disabled = true; done.textContent = 'Rydder op … det kan tage et minut.';
+        e.target.disabled = true; done.textContent = 'Starter …';
         api('POST', '/api/gammelt', oldChoice()).then(function (r) {
-            done.textContent = r.fejl || r.besked;
-            loadHistory();
-            if (!r.fejl) setTimeout(watch, 2000);   // a new scan runs by itself
+            if (r.fejl) { done.textContent = r.fejl; e.target.disabled = false; return; }
+            loadHistory();   // the Fortryd line is there from the start
+            followJob(done);
         }).catch(function () { done.textContent = 'Det gik galt. Prøv igen.'; e.target.disabled = false; });
     });
+
+    // A big job runs on the server; ask every 3 s until it is done, then show the result and scan again.
+    function followJob(el) {
+        api('GET', '/api/job').then(function (j) {
+            el.textContent = j.besked || '';
+            if (j.koerer) { setTimeout(function () { followJob(el); }, 3000); return; }
+            loadHistory(); setTimeout(watch, 1500);
+        }).catch(function () { setTimeout(function () { followJob(el); }, 5000); });
+    }
 
     $('ib-senders-more').addEventListener('click', function () { senderShow += 30; renderSenders(); });
     $('ib-now-more').addEventListener('click', function () { nowAll = !nowAll; renderNow(data.hasterNu); });
@@ -272,10 +281,10 @@
     $('ib-history').addEventListener('click', function (e) {
         var b = e.target.closest('[data-undo]'); if (!b) return;
         var done = b.closest('li').querySelector('.ib-done');
-        b.disabled = true; done.textContent = 'Lægger tilbage …';
+        b.disabled = true; done.textContent = 'Starter …';
         api('POST', '/api/oprydning/fortryd', { id: b.getAttribute('data-undo') }).then(function (r) {
-            done.textContent = r.fejl || r.besked;
-            setTimeout(function () { loadHistory(); watch(); }, 1500);
+            if (r.fejl) { done.textContent = r.fejl; b.disabled = false; return; }
+            followJob(done);
         });
     });
 
