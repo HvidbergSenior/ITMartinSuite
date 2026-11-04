@@ -29,6 +29,7 @@ builder.Services.AddKolibri(k =>
         "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
         "Under Skal svares står mails fra rigtige mennesker, som du ikke har svaret på endnu.",
         "Under Ryd op kan du se, hvem der sender mest. Tryk Ryd op: du ser først, hvor mange mails det er, og hvilke der bliver gemt. Så kan du afmelde og slette med ét tryk.",
+        "Under Ryd alt det gamle vælger du en dato og trykker Se hvad der sker. Du ser tallene først – så trykker du Ryd op nu. Alle mails får en Gmail-etiket, så Fortryd kan hente dem alle tilbage.",
         "Slettede mails ligger i Gmails papirkurv i 30 dage. Under Seneste oprydning kan du trykke Fortryd og få dem tilbage.",
     ];
     k.Version = "2026.11.2";
