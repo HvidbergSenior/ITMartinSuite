@@ -40,3 +40,5 @@
 .ib-panel .ib-ex { color: var(--k-muted); font-size: 14px; overflow-wrap: anywhere; }
 .ib-done { font-weight: 600; margin-top: 8px; }
 .ib-login { display: flex; flex-direction: column; gap: 8px; max-width: 320px; }
+/* "hidden" must win over display:flex above - else every Læst form shows open */
+.ib-read[hidden], .ib-panel[hidden], .ib-actions[hidden] { display: none; }
