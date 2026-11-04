@@ -14,8 +14,8 @@ else
 
         <div class="task-body">
             <div class="task-toolbar">
-                <h2 class="task-title">🔍 Find det</h2>
-                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Læg noget")</button>
+                <h2 class="task-title">Find det</h2>
+                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "Annuller" : "+ Læg noget")</button>
             </div>
 
             <input class="task-input" style="margin-bottom:16px" placeholder="Søg efter en ting..."
@@ -48,13 +48,13 @@ else
                     }
                     <div class="task-info">
                         <div class="task-item-title">@item.Name</div>
-                        <div class="task-item-desc">📍 @item.Location</div>
+                        <div class="task-item-desc">@item.Location</div>
                         @if (!string.IsNullOrEmpty(item.Notes)) { <div class="task-item-desc">@item.Notes</div> }
                         <div class="task-meta">
                             <span>@item.StoredByName · @item.StoredAt.ToLocalTime().ToString("dd MMM yyyy")</span>
                         </div>
                     </div>
-                    <button class="task-del-btn" @onclick="() => DeleteAsync(item.Id)">✕</button>
+                    <button class="task-del-btn" @onclick="() => DeleteAsync(item.Id)">Slet</button>
                 </div>
             }
         </div>

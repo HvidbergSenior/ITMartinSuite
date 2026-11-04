@@ -22,8 +22,8 @@ else
 
             <div class="board-filter-row">
                 <button class="board-filter-btn @(_filterTag == null ? "active" : "")" @onclick='() => _filterTag = null'>Alle</button>
-                <button class="board-filter-btn @(_filterTag == "Game" ? "active" : "")" @onclick='() => _filterTag = "Game"'>🎮 Spil</button>
-                <button class="board-filter-btn @(_filterTag == "Personal" ? "active" : "")" @onclick='() => _filterTag = "Personal"'>💬 Privat</button>
+                <button class="board-filter-btn @(_filterTag == "Game" ? "active" : "")" @onclick='() => _filterTag = "Game"'>Spil</button>
+                <button class="board-filter-btn @(_filterTag == "Personal" ? "active" : "")" @onclick='() => _filterTag = "Personal"'>Privat</button>
             </div>
 
             <div class="board-compose">
@@ -31,15 +31,15 @@ else
 
                 <div class="board-tag-row">
                     <button type="button" class="board-tag-pick @(_newTag == "General" ? "active" : "")" @onclick='() => _newTag = "General"'>Generelt</button>
-                    <button type="button" class="board-tag-pick @(_newTag == "Game" ? "active" : "")" @onclick='() => _newTag = "Game"'>🎮 Spil</button>
-                    <button type="button" class="board-tag-pick @(_newTag == "Personal" ? "active" : "")" @onclick='() => _newTag = "Personal"'>💬 Privat</button>
+                    <button type="button" class="board-tag-pick @(_newTag == "Game" ? "active" : "")" @onclick='() => _newTag = "Game"'>Spil</button>
+                    <button type="button" class="board-tag-pick @(_newTag == "Personal" ? "active" : "")" @onclick='() => _newTag = "Personal"'>Privat</button>
                 </div>
 
                 <div class="board-photo-row">
                     <InputFile OnChange="OnImageSelected" accept="image/*" class="board-photo-input" />
                     @if (_pendingImageName is not null)
                     {
-                        <span class="board-photo-selected">📷 @_pendingImageName <button type="button" class="board-photo-clear" @onclick="ClearImage">✕</button></span>
+                        <span class="board-photo-selected">@_pendingImageName <button type="button" class="board-photo-clear" @onclick="ClearImage">Fjern</button></span>
                     }
                 </div>
 
@@ -64,12 +64,12 @@ else
                             <span class="board-post-author">@p.Member.Name</span>
                             @if (p.Tag != "General")
                             {
-                                <span class="board-post-tag">@(p.Tag == "Game" ? "🎮" : "💬")</span>
+                                <span class="board-post-tag">@(p.Tag == "Game" ? "Spil" : "Snak")</span>
                             }
                             <span class="board-post-time">@p.PostedAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
                             @if (p.MemberId == _member.Id)
                             {
-                                <button class="board-del" @onclick="() => DeletePostAsync(p.Id)">✕</button>
+                                <button class="board-del" @onclick="() => DeletePostAsync(p.Id)">Slet</button>
                             }
                         </div>
                         @if (!string.IsNullOrWhiteSpace(p.Content))
@@ -94,12 +94,12 @@ else
     .board-limit-info { font-size: 12px; color: var(--muted); }
     .board-filter-row { display: flex; gap: 8px; margin-bottom: 14px; }
     .board-filter-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
-    .board-filter-btn.active { background: rgba(59,130,246,.15); border-color: var(--accent); color: #60a5fa; }
+    .board-filter-btn.active { background: color-mix(in srgb, var(--k-accent) 15%, transparent); border-color: var(--accent); color: var(--k-accent); }
     .board-compose { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 20px; }
     .board-textarea { width: 100%; background: transparent; border: none; color: var(--text); font-size: 15px; outline: none; resize: none; font-family: inherit; }
     .board-tag-row { display: flex; gap: 6px; margin: 8px 0; }
     .board-tag-pick { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; cursor: pointer; }
-    .board-tag-pick.active { background: rgba(59,130,246,.15); border-color: var(--accent); color: #60a5fa; }
+    .board-tag-pick.active { background: color-mix(in srgb, var(--k-accent) 15%, transparent); border-color: var(--accent); color: var(--k-accent); }
     .board-photo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .board-photo-input { color: var(--muted); font-size: 12px; max-width: 100%; }
     .board-photo-selected { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -109,14 +109,14 @@ else
     .board-quota { font-size: 12px; color: var(--yellow); flex: 1; }
     .board-post-btn { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
     .board-post-btn:disabled { opacity: .4; cursor: default; }
-    .board-post-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .board-post-btn:hover:not(:disabled) { background: var(--k-accent); }
     .board-limit-warn { font-size: 13px; color: var(--red); margin-top: 8px; }
     .board-posts { display: flex; flex-direction: column; gap: 10px; }
     .board-empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 15px; }
     .board-post { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
-    .board-post-mine { border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.06); }
+    .board-post-mine { border-color: color-mix(in srgb, var(--k-accent) 25%, transparent); background: color-mix(in srgb, var(--k-accent) 6%, transparent); }
     .board-post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    .board-post-author { font-size: 13px; font-weight: 700; color: #60a5fa; }
+    .board-post-author { font-size: 13px; font-weight: 700; color: var(--k-accent); }
     .board-post-tag { font-size: 13px; }
     .board-post-time { font-size: 12px; color: var(--muted); flex: 1; }
     .board-post-content { font-size: 15px; white-space: pre-wrap; word-break: break-word; color: var(--text); }

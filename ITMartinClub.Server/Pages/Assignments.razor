@@ -17,7 +17,7 @@ else
         <div class="task-body">
             <div class="task-toolbar">
                 <h2 class="task-title">Opgaver</h2>
-                <button class="task-add-btn" @onclick="ToggleAdding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
+                <button class="task-add-btn" @onclick="ToggleAdding">@(_adding ? "Annuller" : "+ Ny opgave")</button>
             </div>
 
             @if (_adding)
@@ -76,12 +76,12 @@ else
                     <div class="task-row-item task-done-row">
                         <div class="task-info">
                             <div class="task-item-title">@t.Title</div>
-                            <div class="task-badge task-badge-done">✅ Færdig af @t.CompletedByName</div>
+                            <div class="task-badge task-badge-done">Færdig af @t.CompletedByName</div>
                             <div class="task-meta"><span>@t.CompletedAt?.ToString("dd MMM yyyy")</span></div>
                         </div>
                         <div class="task-row-buttons">
-                            <button class="task-del-btn" @onclick="() => StartEditTask(t)">✏️</button>
-                            <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
+                            <button class="task-del-btn" @onclick="() => StartEditTask(t)">Ret</button>
+                            <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">Slet</button>
                         </div>
                     </div>
                 }
@@ -99,7 +99,7 @@ else
             }
             else
             {
-                <div class="task-empty">Ingen åbne opgaver 🎉</div>
+                <div class="task-empty">Ingen åbne opgaver </div>
             }
         </div>
     </div>
@@ -123,7 +123,7 @@ else
     .task-section-label-open { margin-top: 24px; }
     .task-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
     .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
-    .task-row-mine { border-color: #6366f1; background: rgba(99,102,241,.08); }
+    .task-row-mine { border-color: var(--k-accent); background: color-mix(in srgb, var(--k-accent) 8%, transparent); }
     .task-done-row { opacity: .6; }
     .task-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin: 2px 0 6px; }
     .task-badge-open    { background: var(--red);    color: white; }
@@ -139,8 +139,8 @@ else
     .task-overdue { color: var(--red) !important; }
     .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
     .task-del-btn:hover { color: var(--red); }
-    .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
-    .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-take-btn { background: transparent; border: 1px solid color-mix(in srgb, var(--k-accent) 40%, transparent); color: var(--k-accent); border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+    .task-take-btn:hover { background: color-mix(in srgb, var(--k-accent) 10%, transparent); }
     .task-assignee-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .task-assignee-chip { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
     .prep-form-actions { display: flex; gap: 8px; }

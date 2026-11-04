@@ -1,6 +1,11 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
+@* The shared Kolibri frame like ElPriser (the reference): KolibriHeader with Lys/mørk, the page, KolibriFooter (Om, Læg på
+   telefonen, Noget virker ikke?, Vilkår). The association's own nav (ClubNav) stays inside each page. *@
+<KolibriHeader>
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
+</KolibriHeader>
 <div class="club-root">
     @Body
-    <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
 </div>
+<KolibriFooter />

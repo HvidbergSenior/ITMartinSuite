@@ -14,8 +14,8 @@ else
 
         <div class="task-body">
             <div class="task-toolbar">
-                <h2 class="task-title">⏰ Påminder</h2>
-                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny påminder")</button>
+                <h2 class="task-title">Påminder</h2>
+                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "Annuller" : "+ Ny påminder")</button>
             </div>
 
             @if (_adding)
@@ -44,20 +44,20 @@ else
                         <div class="task-info">
                             <div class="task-item-title">@r.Text</div>
                             <div class="task-meta">
-                                <span class="@(r.Date.Date < DateTime.Today ? "task-overdue" : "")">📅 @r.Date.ToString("dd MMM yyyy")</span>
-                                <span>👤 @r.MemberName</span>
+                                <span class="@(r.Date.Date < DateTime.Today ? "task-overdue" : "")">@r.Date.ToString("dd MMM yyyy")</span>
+                                <span>@r.MemberName</span>
                             </div>
                             <div style="display:flex;gap:8px">
-                                <button class="task-complete-btn" @onclick="() => ToggleDoneAsync(r.Id)">Markér som færdig ✓</button>
+                                <button class="task-complete-btn" @onclick="() => ToggleDoneAsync(r.Id)">Markér som færdig</button>
                             </div>
                         </div>
-                        <button class="task-del-btn" @onclick="() => DeleteAsync(r.Id)">✕</button>
+                        <button class="task-del-btn" @onclick="() => DeleteAsync(r.Id)">Slet</button>
                     </div>
                 }
             }
             else
             {
-                <div class="task-empty">Ingen kommende påminder 🎉</div>
+                <div class="task-empty">Ingen kommende påminder </div>
             }
 
             @if (_done.Any())
@@ -68,10 +68,10 @@ else
                     <div class="task-row-item task-done-row">
                         <div class="task-info">
                             <div class="task-item-title">@r.Text</div>
-                            <div class="task-badge task-badge-done">✅ @r.MemberName</div>
+                            <div class="task-badge task-badge-done">@r.MemberName</div>
                             <div class="task-meta"><span>@r.Date.ToString("dd MMM yyyy")</span></div>
                         </div>
-                        <button class="task-del-btn" @onclick="() => DeleteAsync(r.Id)">✕</button>
+                        <button class="task-del-btn" @onclick="() => DeleteAsync(r.Id)">Slet</button>
                     </div>
                 }
             }
@@ -94,7 +94,7 @@ else
     .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
     .task-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
     .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
-    .task-row-mine { border-color: #6366f1; background: rgba(99,102,241,.08); }
+    .task-row-mine { border-color: var(--k-accent); background: color-mix(in srgb, var(--k-accent) 8%, transparent); }
     .task-done-row { opacity: .6; }
     .task-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin: 2px 0 6px; }
     .task-badge-done { background: var(--green); color: white; }

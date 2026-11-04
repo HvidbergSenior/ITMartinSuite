@@ -29,7 +29,7 @@ else
 
         <div class="task-body">
             <div class="task-toolbar">
-                <h2 class="task-title">🏬 Opbevaring & køretøjer</h2>
+                <h2 class="task-title">Opbevaring & køretøjer</h2>
             </div>
 
             @if (_member is null)
@@ -40,7 +40,7 @@ else
                 </div>
             }
 
-            <div class="task-section-label">📦 Opbevaringssteder</div>
+            <div class="task-section-label">Opbevaringssteder</div>
             @if (_addingLocation)
             {
                 <div class="task-form">
@@ -71,9 +71,9 @@ else
                 <div class="task-row-item">
                     <div class="task-info">
                         <div class="task-item-title">@loc.Name</div>
-                        @if (!string.IsNullOrEmpty(loc.Address)) { <div class="task-item-desc">📍 @loc.Address</div> }
-                        @if (!string.IsNullOrEmpty(loc.ApproxSize)) { <div class="task-item-desc">📐 @loc.ApproxSize</div> }
-                        @if (!string.IsNullOrEmpty(loc.Contents)) { <div class="task-item-desc">📦 @loc.Contents</div> }
+                        @if (!string.IsNullOrEmpty(loc.Address)) { <div class="task-item-desc">@loc.Address</div> }
+                        @if (!string.IsNullOrEmpty(loc.ApproxSize)) { <div class="task-item-desc">@loc.ApproxSize</div> }
+                        @if (!string.IsNullOrEmpty(loc.Contents)) { <div class="task-item-desc">@loc.Contents</div> }
                         <div class="task-meta"><span>Tilføjet af @loc.CreatedByName</span></div>
                         @{ var locTasks = _tasksByLocation.GetValueOrDefault(loc.Id, []); }
                         @if (locTasks.Count > 0)
@@ -81,19 +81,19 @@ else
                             <div class="location-task-list">
                                 @foreach (var t in locTasks)
                                 {
-                                    <div class="location-task-row">@(t.IsCompleted ? "✅" : "⚡") @t.Title</div>
+                                    <div class="location-task-row">@(t.IsCompleted ? "" : "") @t.Title</div>
                                 }
                             </div>
                         }
                     </div>
                     <div style="display:flex;flex-direction:column;gap:4px">
-                        <button class="task-del-btn" @onclick="() => StartEditLocation(loc)">✏️</button>
-                        <button class="task-del-btn" @onclick="() => DeleteLocationAsync(loc.Id)">✕</button>
+                        <button class="task-del-btn" @onclick="() => StartEditLocation(loc)">Ret</button>
+                        <button class="task-del-btn" @onclick="() => DeleteLocationAsync(loc.Id)">Slet</button>
                     </div>
                 </div>
             }
 
-            <div class="task-section-label" style="margin-top:24px">🚗 Køretøjer</div>
+            <div class="task-section-label" style="margin-top:24px">Køretøjer</div>
             @if (_addingVehicle)
             {
                 <div class="task-form">
@@ -122,12 +122,12 @@ else
                 <div class="task-row-item">
                     <div class="task-info">
                         <div class="task-item-title">@v.Name</div>
-                        @if (!string.IsNullOrEmpty(v.Availability)) { <div class="task-item-desc">🕓 @v.Availability</div> }
+                        @if (!string.IsNullOrEmpty(v.Availability)) { <div class="task-item-desc">@v.Availability</div> }
                         <div class="task-meta"><span>Tilføjet af @v.CreatedByName</span></div>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:4px">
-                        <button class="task-del-btn" @onclick="() => StartEditVehicle(v)">✏️</button>
-                        <button class="task-del-btn" @onclick="() => DeleteVehicleAsync(v.Id)">✕</button>
+                        <button class="task-del-btn" @onclick="() => StartEditVehicle(v)">Ret</button>
+                        <button class="task-del-btn" @onclick="() => DeleteVehicleAsync(v.Id)">Slet</button>
                     </div>
                 </div>
             }
@@ -155,8 +155,8 @@ else
     .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
     .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
     .task-del-btn:hover { color: var(--red); }
-    .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; margin-bottom: 16px; }
-    .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-take-btn { background: transparent; border: 1px solid color-mix(in srgb, var(--k-accent) 40%, transparent); color: var(--k-accent); border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; margin-bottom: 16px; }
+    .task-take-btn:hover { background: color-mix(in srgb, var(--k-accent) 10%, transparent); }
     .task-textarea { resize: vertical; min-height: 50px; font-family: inherit; }
     .prep-form-actions { display: flex; gap: 8px; }
     .prep-form-actions .task-save-btn { width: auto; flex: 1; }

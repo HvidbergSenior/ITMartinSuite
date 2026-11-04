@@ -13,7 +13,7 @@ else
         <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="beskeder" />
 
         <div class="msg-body">
-            <p><a class="msg-back" href="/g/@Slug/beskeder" data-enhance-nav="false">← Alle beskeder</a></p>
+            <p><a class="msg-back" href="/g/@Slug/beskeder" data-enhance-nav="false">‹ Alle beskeder</a></p>
             @if (_msg is null)
             {
                 <p class="msg-help">Beskeden findes ikke (længere).</p>
@@ -29,11 +29,11 @@ else
                     {
                         @if (_my.ConfirmedAt is null)
                         {
-                            <button class="msg-btn msg-btn-primary msg-big" @onclick="Confirm">✅ Jeg har læst det</button>
+                            <button class="msg-btn msg-btn-primary msg-big" @onclick="Confirm">Jeg har læst det</button>
                         }
                         else
                         {
-                            <div class="msg-ok">✅ Du bekræftede @Beskeder.Dk(_my.ConfirmedAt.Value).ToString("d. MMM 'kl.' HH:mm", Da). @_msg.FromName kan se det.</div>
+                            <div class="msg-ok">Du bekræftede @Beskeder.Dk(_my.ConfirmedAt.Value).ToString("d. MMM 'kl.' HH:mm", Da). @_msg.FromName kan se det.</div>
                         }
                     }
                 </div>
@@ -44,9 +44,9 @@ else
                     <div class="msg-card card">
                         <h3 class="msg-h3">Hvem har fået den?</h3>
                         <p class="msg-sum">
-                            @if (_msg.RequireConfirm) { <span>✅ @_msg.Receipts.Count(r => r.ConfirmedAt != null) bekræftet</span> }
-                            <span>👀 @_msg.Receipts.Count(r => r.SeenAt != null && (r.ConfirmedAt == null || !_msg.RequireConfirm)) set</span>
-                            <span>⏳ @_msg.Receipts.Count(r => r.SeenAt == null) ikke set</span>
+                            @if (_msg.RequireConfirm) { <span>@_msg.Receipts.Count(r => r.ConfirmedAt != null) bekræftet</span> }
+                            <span>@_msg.Receipts.Count(r => r.SeenAt != null && (r.ConfirmedAt == null || !_msg.RequireConfirm)) set</span>
+                            <span>@_msg.Receipts.Count(r => r.SeenAt == null) ikke set</span>
                         </p>
                         @foreach (var r in _msg.Receipts.OrderBy(r => r.ConfirmedAt == null).ThenBy(r => r.SeenAt == null).ThenBy(r => r.MemberName))
                         {
@@ -57,7 +57,7 @@ else
                         }
                         @if (missing > 0)
                         {
-                            <button class="msg-btn" @onclick="Remind" disabled="@_reminding">🔔 Påmind dem, der mangler (@missing)</button>
+                            <button class="msg-btn" @onclick="Remind" disabled="@_reminding">Påmind dem, der mangler (@missing)</button>
                             @if (_msg.RequireConfirm) { <p class="msg-help">Dem, der ikke har bekræftet efter 24 timer, får automatisk én påmindelse.</p> }
                         }
                         @if (_remindMsg is not null) { <p class="msg-help">@_remindMsg</p> }
@@ -92,9 +92,9 @@ else
     }
 
     private string State(MessageReceipt r) =>
-        r.ConfirmedAt is { } c ? $"✅ bekræftet {Beskeder.Dk(c).ToString("d/M HH:mm")}" :
-        r.SeenAt is { } s ? $"👀 set {Beskeder.Dk(s).ToString("d/M HH:mm")}" :
-        r.RemindedAt is not null ? "⏳ ikke set · påmindet" : "⏳ ikke set";
+        r.ConfirmedAt is { } c ? $"bekræftet {Beskeder.Dk(c).ToString("d/M HH:mm")}" :
+        r.SeenAt is { } s ? $"set {Beskeder.Dk(s).ToString("d/M HH:mm")}" :
+        r.RemindedAt is not null ? "ikke set · påmindet" : "ikke set";
 
     private async Task Confirm()
     {
@@ -106,6 +106,6 @@ else
         _reminding = true; StateHasChanged();
         var n = await Messages.RemindMissingAsync(_msg!);
         _reminding = false;
-        _remindMsg = $"🔔 Påmindelse sendt til {n}.";
+        _remindMsg = $"Påmindelse sendt til {n}.";
     }
 }

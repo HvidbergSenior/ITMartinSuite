@@ -17,7 +17,7 @@ else
 
         <div class="msg-body">
             <div class="msg-card card">
-                <h2 class="msg-h">📍 Steder</h2>
+                <h2 class="msg-h">Steder</h2>
                 <p class="msg-help">Hvor tingene står. Tryk på adressen for at få vejen vist.</p>
                 @if (_places.Count == 0) { <p class="msg-help">Ingen steder endnu.</p> }
                 @foreach (var p in _places)
@@ -33,10 +33,10 @@ else
                             <div class="adr-name">@p.Name</div>
                             @if (!string.IsNullOrWhiteSpace(p.Address))
                             {
-                                <a class="adr-link" href="@MapUrl(p.Address)" target="_blank" rel="noopener">🗺️ @p.Address</a>
+                                <a class="adr-link" href="@MapUrl(p.Address)" target="_blank" rel="noopener">@p.Address</a>
                             }
                             @if (!string.IsNullOrWhiteSpace(p.Contents)) { <div class="msg-muted">@p.Contents</div> }
-                            <button class="msg-btn msg-btn-sm" @onclick="() => EditPlace(p)">✏️ Ret</button>
+                            <button class="msg-btn msg-btn-sm" @onclick="() => EditPlace(p)">Ret</button>
                         </div>
                     }
                 }
@@ -47,12 +47,12 @@ else
                 }
                 else if (_editPlace is null)
                 {
-                    <button class="msg-btn" @onclick="NewPlace">➕ Nyt sted</button>
+                    <button class="msg-btn" @onclick="NewPlace">Nyt sted</button>
                 }
             </div>
 
             <div class="msg-card card">
-                <h2 class="msg-h">👥 Folk</h2>
+                <h2 class="msg-h">Folk</h2>
                 <p class="msg-help">Tryk Ring eller SMS – så åbner telefonen det af sig selv.</p>
                 @foreach (var m in _members)
                 {
@@ -62,10 +62,10 @@ else
                         <div class="msg-row">
                             @if (phone is not null)
                             {
-                                <a class="msg-btn msg-btn-sm" href="tel:@phone">📞 Ring @phone</a>
-                                <a class="msg-btn msg-btn-sm" href="sms:@phone">💬 SMS</a>
+                                <a class="msg-btn msg-btn-sm" href="tel:@phone">Ring @phone</a>
+                                <a class="msg-btn msg-btn-sm" href="sms:@phone">SMS</a>
                             }
-                            @if (LooksLikeMail(m.Email)) { <a class="msg-btn msg-btn-sm" href="mailto:@m.Email">✉️ Mail</a> }
+                            @if (LooksLikeMail(m.Email)) { <a class="msg-btn msg-btn-sm" href="mailto:@m.Email">Mail</a> }
                             @if (phone is null && !LooksLikeMail(m.Email)) { <span class="msg-muted">Intet nummer endnu</span> }
                         </div>
                     </div>
@@ -73,7 +73,7 @@ else
             </div>
 
             <div class="msg-card card">
-                <h2 class="msg-h">✏️ Mit nummer</h2>
+                <h2 class="msg-h">Mit nummer</h2>
                 <p class="msg-help">Skriv dit telefonnummer, så de andre kan ringe til dig.</p>
                 <label class="msg-label">Telefon
                     <input class="msg-input" type="tel" @bind="_myPhone" placeholder="Fx 12 34 56 78" maxlength="30" />
@@ -82,13 +82,13 @@ else
                     <input class="msg-input" type="email" @bind="_myMail" maxlength="120" />
                 </label>
                 <button class="msg-btn msg-btn-primary" @onclick="SaveMine">Gem</button>
-                @if (_savedMine) { <span class="msg-muted"> ✓ Gemt</span> }
+                @if (_savedMine) { <span class="msg-muted"> Gemt</span> }
             </div>
 
             @if (IsAdmin)
             {
                 <div class="msg-card card">
-                    <h2 class="msg-h">📲 Invitationer</h2>
+                    <h2 class="msg-h">Invitationer</h2>
                     <p class="msg-help">Hver person får sit eget link. Det logger dem ind uden kode og viser, hvordan de lægger Club på telefonen. Et nyt link gør det gamle ugyldigt.</p>
                     @foreach (var m in _members.Where(m => m.Id != _member.Id))
                     {
@@ -97,16 +97,16 @@ else
                             <div class="adr-name">@m.Name @if (m.LoginToken is not null) { <span class="msg-muted">· har link</span> }</div>
                             @if (m.LoginToken is null)
                             {
-                                <button class="msg-btn msg-btn-sm" @onclick="() => MakeLink(m)">🔗 Lav link</button>
+                                <button class="msg-btn msg-btn-sm" @onclick="() => MakeLink(m)">Lav link</button>
                             }
                             else
                             {
                                 <div class="msg-row">
-                                    @if (phone is not null) { <a class="msg-btn msg-btn-sm msg-btn-primary" href="@SmsUrl(m, phone)">💬 Send på SMS</a> }
-                                    <button class="msg-btn msg-btn-sm" @onclick="() => Copy(m)">📋 Kopiér besked</button>
-                                    <button class="msg-btn msg-btn-sm" @onclick="() => MakeLink(m)">↻ Nyt link</button>
+                                    @if (phone is not null) { <a class="msg-btn msg-btn-sm msg-btn-primary" href="@SmsUrl(m, phone)">Send på SMS</a> }
+                                    <button class="msg-btn msg-btn-sm" @onclick="() => Copy(m)">Kopiér besked</button>
+                                    <button class="msg-btn msg-btn-sm" @onclick="() => MakeLink(m)">Nyt link</button>
                                 </div>
-                                @if (_copied == m.Id) { <div class="msg-muted">✓ Kopieret – sæt den ind i Messenger, SMS eller mail.</div> }
+                                @if (_copied == m.Id) { <div class="msg-muted">Kopieret – sæt den ind i Messenger, SMS eller mail.</div> }
                             }
                             @if (_confirmRemove == m.Id)
                             {
@@ -114,10 +114,10 @@ else
                                     <button class="msg-btn msg-btn-sm" @onclick="() => Remove(m)">Ja, fjern</button>
                                     <button class="msg-btn msg-btn-sm" @onclick="() => _confirmRemove = null">Nej</button></div>
                             }
-                            else { <button class="msg-btn msg-btn-sm" @onclick="() => _confirmRemove = m.Id">🗑️ Fjern</button> }
+                            else { <button class="msg-btn msg-btn-sm" @onclick="() => _confirmRemove = m.Id">Fjern</button> }
                         </div>
                     }
-                    <h3 class="msg-h3">➕ Tilføj person</h3>
+                    <h3 class="msg-h3">Tilføj person</h3>
                     <label class="msg-label">Navn <input class="msg-input" @bind="_newName" @bind:event="oninput" maxlength="60" placeholder="Fx: Malene" /></label>
                     <label class="msg-label">Telefon <span class="msg-muted">(så kan du sende linket på SMS)</span>
                         <input class="msg-input" type="tel" @bind="_newPhone" maxlength="30" placeholder="Fx 12 34 56 78" /></label>
@@ -180,7 +180,7 @@ else
 
     private string InviteText(Member m) =>
         $"Hej {m.Name}! Her er dit link til {_group!.Name} – opgaver og adresser: {Link(m)}\n" +
-        "Åbn det i Chrome (Android) eller Safari (iPhone) og tryk \"📲 Læg på telefonen\". Linket er kun til dig. Hilsen " + _member!.Name;
+        "Åbn det i Chrome (Android) eller Safari (iPhone) og tryk \"Læg på telefonen\". Linket er kun til dig. Hilsen " + _member!.Name;
 
     private string SmsUrl(Member m, string phone) => $"sms:{phone}?&body={Uri.EscapeDataString(InviteText(m))}";
 

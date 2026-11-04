@@ -15,14 +15,14 @@ else
         <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="moeder" />
 
         <div class="msg-body">
-            <h2 class="msg-h">📝 Møder og referater</h2>
+            <h2 class="msg-h">Møder og referater</h2>
             <p class="msg-help">Hvert møde har en referent. Referenten får opgaven "Skriv referat", og når referatet sendes, får alle det som en besked, de skal bekræfte.</p>
 
-            @if (!_adding) { <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _adding = true">➕ Nyt møde</button> }
+            @if (!_adding) { <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _adding = true">Nyt møde</button> }
             else
             {
                 <div class="msg-card card">
-                    <h3 class="msg-h3">➕ Nyt møde</h3>
+                    <h3 class="msg-h3">Nyt møde</h3>
                     <label class="msg-label">Dato og tid <input class="msg-input" type="datetime-local" @bind="_date" /></label>
                     <label class="msg-label">Hvor? <input class="msg-input" @bind="_place" placeholder="Fx: hos Nikolas" /></label>
                     <label class="msg-label">Referent
@@ -45,14 +45,14 @@ else
             {
                 var isReferent = m.ReferentName.Equals(_member.Name, StringComparison.OrdinalIgnoreCase);
                 <div class="msg-card card">
-                    <h3 class="msg-h3">📅 @m.Date.ToString("dddd d. MMMM yyyy 'kl.' HH.mm", Da)@(string.IsNullOrWhiteSpace(m.Place) ? "" : " · " + m.Place)</h3>
-                    <p class="msg-help">Referent: <b>@m.ReferentName</b> · @(m.SentMessageId is not null ? "✅ referatet er sendt" : string.IsNullOrWhiteSpace(m.Referat) ? "⏳ referat mangler" : "✏️ referat i gang")</p>
+                    <h3 class="msg-h3">@m.Date.ToString("dddd d. MMMM yyyy 'kl.' HH.mm", Da)@(string.IsNullOrWhiteSpace(m.Place) ? "" : " · " + m.Place)</h3>
+                    <p class="msg-help">Referent: <b>@m.ReferentName</b> · @(m.SentMessageId is not null ? "referatet er sendt" : string.IsNullOrWhiteSpace(m.Referat) ? "referat mangler" : "referat i gang")</p>
                     @if (!string.IsNullOrWhiteSpace(m.Agenda)) { <div class="msg-label">Dagsorden</div><div class="msg-text">@m.Agenda</div> }
 
                     @if (m.SentMessageId is { } sent)
                     {
                         <div class="msg-label">Referat</div><div class="msg-text">@m.Referat</div>
-                        <a class="msg-back" href="/g/@Slug/beskeder/@sent" data-enhance-nav="false">Se hvem der har læst det →</a>
+                        <a class="msg-back" href="/g/@Slug/beskeder/@sent" data-enhance-nav="false">Se hvem der har læst det </a>
                     }
                     else if (isReferent || IsAdmin)
                     {
@@ -60,7 +60,7 @@ else
                             <textarea class="msg-input" rows="8" @bind="m.Referat" @bind:after="() => Save(m)" placeholder="Hvad blev besluttet? Hvem gør hvad? (gemmes automatisk)"></textarea>
                         </label>
                         <div class="msg-row">
-                            <button class="msg-btn msg-btn-primary" @onclick="() => SendReferat(m)" disabled="@(string.IsNullOrWhiteSpace(m.Referat) || _sending)">📣 Send referatet til alle</button>
+                            <button class="msg-btn msg-btn-primary" @onclick="() => SendReferat(m)" disabled="@(string.IsNullOrWhiteSpace(m.Referat) || _sending)">Send referatet til alle</button>
                         </div>
                     }
                     else if (!string.IsNullOrWhiteSpace(m.Referat))

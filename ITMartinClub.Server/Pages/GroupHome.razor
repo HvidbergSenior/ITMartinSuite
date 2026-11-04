@@ -22,7 +22,7 @@ else if (_member == null)
 else
 {
     <div class="club-page @(IsFixedBuckets ? "club-page-wide" : "")">
-        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@($"Hej, {_member.Name} 👋")"
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@($"Hej, {_member.Name} ")"
                  Active="home" OnLogout="LeaveAsync" />
 
         @if (_pushStatusMessage is not null)
@@ -37,7 +37,7 @@ else
                  (further down in OnAfterRenderAsync) works for browsers that
                  don't require that, this button is the fallback for the
                  ones that do. -->
-            <button class="push-enable-btn" @onclick="EnablePushAsync">🔔 Slå notifikationer til på denne enhed</button>
+            <button class="push-enable-btn" @onclick="EnablePushAsync">Slå notifikationer til på denne enhed</button>
         }
 
         @* This used to be gated on "has any MainTasks" as a proxy for "is a
@@ -50,7 +50,7 @@ else
                 <h2 class="task-title">Åbne opgaver</h2>
                 @if (_adding)
                 {
-                    <button class="task-add-btn" @onclick="ToggleAdding">✕ Annuller</button>
+                    <button class="task-add-btn" @onclick="ToggleAdding">Annuller</button>
                 }
                 </div>
 
@@ -147,15 +147,15 @@ else
                 @if (_tomorrowTasks.Any())
                 {
                     <div class="tomorrow-section">
-                        <div class="task-section-label">📅 Planlagt til i morgen</div>
+                        <div class="task-section-label">Planlagt til i morgen</div>
                         @foreach (var t in _tomorrowTasks)
                         {
                             <div class="task-row-item">
                                 <div class="task-info">
                                     <div class="task-item-title">@t.Title</div>
-                                    @if (t.Assignees.Count > 0) { <div class="task-meta"><span>👤 @t.AssigneeLabel</span></div> }
+                                    @if (t.Assignees.Count > 0) { <div class="task-meta"><span>@t.AssigneeLabel</span></div> }
                                 </div>
-                                <button class="task-del-btn" @onclick="() => DeleteTaskAsync(t.Id)">✕</button>
+                                <button class="task-del-btn" @onclick="() => DeleteTaskAsync(t.Id)">Slet</button>
                             </div>
                         }
                     </div>
@@ -206,7 +206,7 @@ else
                 @if (dailyMainTasks.Count > 0)
                 {
                     <div class="daily-column">
-                        <div class="task-section-label">☀️ Daglige opgaver</div>
+                        <div class="task-section-label">Daglige opgaver</div>
                         <div class="maintask-grid">
                         @foreach (var mt in dailyMainTasks)
                         {
@@ -219,7 +219,7 @@ else
                 {
                     <div class="weekly-column">
                         <div class="task-section-label-row">
-                            <div class="task-section-label">🔁 Andre tilbagevendende</div>
+                            <div class="task-section-label">Andre tilbagevendende</div>
                             <button class="task-take-btn" @onclick="() => _showOtherRecurring = !_showOtherRecurring">@(_showOtherRecurring ? "Skjul" : "Vis")</button>
                         </div>
                         @if (_showOtherRecurring)
@@ -311,7 +311,7 @@ else
     .task-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
     .task-save-btn:disabled { opacity: .4; cursor: default; }
     .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
-    .task-row-mine { border-color: #6366f1; background: rgba(99,102,241,.08); }
+    .task-row-mine { border-color: var(--k-accent); background: color-mix(in srgb, var(--k-accent) 8%, transparent); }
     .task-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin: 2px 0 6px; }
     .task-badge-open    { background: var(--red);    color: white; }
     .task-badge-claimed { background: #d97706;       color: white; }
@@ -326,8 +326,8 @@ else
     .task-overdue { color: var(--red) !important; }
     .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
     .task-del-btn:hover { color: var(--red); }
-    .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
-    .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-take-btn { background: transparent; border: 1px solid color-mix(in srgb, var(--k-accent) 40%, transparent); color: var(--k-accent); border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+    .task-take-btn:hover { background: color-mix(in srgb, var(--k-accent) 10%, transparent); }
     .task-assignee-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .task-assignee-chip { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
     .prep-form-actions { display: flex; gap: 8px; }
@@ -464,10 +464,10 @@ else
 
     private static string PushStatusMessage(string? status) => status switch
     {
-        "granted" => "🔔 Notifikationer er slået til på denne enhed.",
-        "denied" => "🔕 Du har blokeret notifikationer for denne side. Åbn browserens side-indstillinger (tryk på hængelåsen/ikonet ved adressen) → Notifikationer → Tillad, og prøv igen.",
-        "unsupported" => "⚠️ Denne browser understøtter ikke notifikationer her. På iPhone: åbn siden i Safari, tryk Del → 'Føj til hjemmeskærm', og brug appen derfra.",
-        _ => "❌ Noget gik galt. Prøv igen, eller genindlæs siden.",
+        "granted" => "Notifikationer er slået til på denne enhed.",
+        "denied" => "Du har blokeret notifikationer for denne side. Åbn browserens side-indstillinger (tryk på hængelåsen/ikonet ved adressen) Notifikationer Tillad, og prøv igen.",
+        "unsupported" => "Denne browser understøtter ikke notifikationer her. På iPhone: åbn siden i Safari, tryk Del 'Føj til hjemmeskærm', og brug appen derfra.",
+        _ => "Noget gik galt. Prøv igen, eller genindlæs siden.",
     };
 
     private async Task RefreshAsync()
@@ -569,7 +569,7 @@ else
     // reordering/renaming a main task doesn't need any data migration.
     private static readonly string[] MainTaskColors =
     [
-        "rgba(99,102,241,.10)",  // indigo
+        "color-mix(in srgb, var(--k-accent) 10%, transparent)",  // indigo
         "rgba(16,185,129,.10)",  // green
         "rgba(245,158,11,.10)",  // amber
         "rgba(236,72,153,.10)",  // pink
@@ -643,9 +643,9 @@ else
     // name as "i dag" does.
     private static string? BadgeText(MainTask mt, int openCount, int doneCount, int totalCount) =>
         mt.IsDaily
-            ? totalCount == 0 ? "Ingen opgaver i dag endnu" : openCount == 0 ? $"✅ Færdig i dag ({doneCount}/{totalCount})" : $"🕓 {doneCount} af {totalCount} gjort i dag"
+            ? totalCount == 0 ? "Ingen opgaver i dag endnu" : openCount == 0 ? $"Færdig i dag ({doneCount}/{totalCount})" : $"{doneCount} af {totalCount} gjort i dag"
         : mt.IsRecurringCard
-            ? $"{RecurrenceLabel(mt)} {(totalCount == 0 ? "— ingen opgaver endnu" : openCount == 0 ? "— ✅ gjort" : $"— {openCount} tilbage")}"
+            ? $"{RecurrenceLabel(mt)} {(totalCount == 0 ? "— ingen opgaver endnu" : openCount == 0 ? "— gjort" : $"— {openCount} tilbage")}"
         : null;
 
     private void OnBroadcast() => InvokeAsync(async () =>

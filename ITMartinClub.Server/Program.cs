@@ -3,11 +3,35 @@ using ITMartinClub.Domain;
 using ITMartinClub.Infrastructure;
 using ITMartinClub.Server;
 using ITMartinClub.Server.Services;
+using ITMartin.Shared.UI.Kolibri;
 
 // Club (Bestøver Klub): the thin web layer - pages, login cookies, links, the reminder job. The rules are in .Domain,
 // the use cases in .Application, SQLite/push/mail in .Infrastructure (DDD + Clean, 2026-10-11).
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The shared Kolibri feel (header, footer, /om, /hjaelp) like ElPriser (2026-11-04).
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Klub";
+    k.KolibriName = "Kolibri Bestøver";
+    k.Family = "bestoever";
+    k.Tagline = "Hold styr på dagen sammen: opgaver, beskeder, møder og kalender.";
+    k.About =
+    [
+        "Klub samler en gruppe ét sted: opgaver pr. person og dag, beskeder med kvittering, møder, kalender og medlemmer.",
+        "Familier, foreninger og små hold bruger den. Ingen reklamer.",
+    ];
+    k.HowTo =
+    [
+        "Åbn gruppen med linket, skriv dit navn og vælg en PIN første gang.",
+        "Opgaver: tryk Jeg klarer det, og Markér som færdig når den er gjort.",
+        "Beskeder: skriv til alle eller nogle, og se hvem der har læst den.",
+        "Fanerne øverst skifter mellem gruppens sider. Lys/mørk sidder i toppen.",
+    ];
+    k.Version = "2026.11.04";
+    k.ThemeColor = "#121917";
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
@@ -29,6 +53,7 @@ app.Services.UpgradeClubDatabase(demoMode);
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 
+app.MapKolibri();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
@@ -130,6 +155,7 @@ app.MapGet("/media/{fileName}", (string fileName) =>
 });
 
 app.MapRazorComponents<ITMartinClub.Server.App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

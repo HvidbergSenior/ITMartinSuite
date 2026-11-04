@@ -15,8 +15,8 @@ else
 
         <div class="task-body">
             <div class="task-toolbar">
-                <h2 class="task-title">💡 Idéer</h2>
-                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny idé")</button>
+                <h2 class="task-title">Idéer</h2>
+                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "Annuller" : "+ Ny idé")</button>
             </div>
 
             @if (_adding)
@@ -46,17 +46,17 @@ else
                                 <div class="task-item-desc">@idea.Description</div>
                             }
                             <div class="task-meta">
-                                <span>💡 @idea.ProposedByName</span>
+                                <span>@idea.ProposedByName</span>
                                 <span>@idea.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
                             </div>
                         </div>
-                        <button class="task-del-btn" @onclick="() => DeleteAsync(idea.Id)">✕</button>
+                        <button class="task-del-btn" @onclick="() => DeleteAsync(idea.Id)">Slet</button>
                     </div>
                 }
             }
             else
             {
-                <div class="task-empty">Ingen idéer endnu - vær den første 💡</div>
+                <div class="task-empty">Ingen idéer endnu - vær den første </div>
             }
         </div>
     </div>

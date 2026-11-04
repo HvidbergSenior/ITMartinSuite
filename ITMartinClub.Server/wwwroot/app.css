@@ -4,30 +4,19 @@
    hover/active styling underneath it. */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-:root {
-    --bg: #0f1117;
-    --surface: #171a23;
-    --card: #1a1e29;
-    --border: #262b38;
-    --text: #f0f0f0;
-    --muted: #94a3b8;
-    --accent: #3b82f6;
-    --green: #22c55e;
-    --red: #f87171;
-    --yellow: #f59e0b;
-}
-
-/* Light theme - toggled via the floating button in App.razor, state kept in
-   localStorage (same pattern as Musik Studio's theme toggle). Accent/status
-   colors stay the same across both themes - only the neutral bg/surface/
-   card/border/text/muted scale flips. */
-html[data-theme="light"] {
-    --bg: #f4f5f9;
-    --surface: #ffffff;
-    --card: #ffffff;
-    --border: #d7dbe4;
-    --text: #14161f;
-    --muted: #5b6172;
+:root, html[data-theme] {
+    /* The old Club names, now pointing at the shared Kolibri tokens (kolibri.css) - light/dark and the one colour theme
+       (ElPriser's orange-red) come from there (2026-11-04). */
+    --bg: var(--k-bg);
+    --surface: var(--k-bg-deep);
+    --card: var(--k-card);
+    --border: var(--k-border);
+    --text: var(--k-text);
+    --muted: var(--k-muted);
+    --accent: var(--k-accent);
+    --green: var(--k-success);
+    --red: var(--k-danger);
+    --yellow: var(--k-warning);
 }
 
 html, body {
@@ -35,8 +24,8 @@ html, body {
     padding: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 16px;
+    font-family: var(--k-font);
+    font-size: var(--k-fs-body);
 }
 
 #components-reconnect-modal {
@@ -74,7 +63,7 @@ html, body {
     margin-left: 8px;
 }
 
-.club-root { min-height: 100vh; }
+.club-root { min-height: 60vh; }
 
 /* ── Shared page shell + nav (used by every Pages/*.razor via ClubNav.razor) ── */
 .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--muted); }
@@ -97,9 +86,11 @@ html, body {
 /* No more content tab bar - Overblik is the one everyday screen. This is a
    3-way MODE switch instead (Bruger/Historik/Admin), not a list of pages, so
    it's deliberately small and out of the way rather than a prominent tab row. */
-.club-mode-row { display: flex; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.club-mode-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
 .club-mode-item { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none; background: var(--surface); border: 1px solid var(--border); -webkit-tap-highlight-color: transparent; }
-.club-mode-item:hover, .club-mode-item.active { color: var(--text); border-color: var(--accent); }
+.club-mode-item { min-height: var(--k-tap); display: inline-flex; align-items: center; font-size: 14px; }
+.club-mode-item:hover { color: var(--text); border-color: var(--accent); }
+.club-mode-item.active { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text); }
 .club-badge { background: var(--red); color: white; border-radius: 999px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
 
 /* Shared "go do this elsewhere" link, used across Overblik/Ready/Historik. */
