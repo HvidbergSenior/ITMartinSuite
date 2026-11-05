@@ -18,6 +18,23 @@
     });
     sync();
 
+    // Free guide: one mail tab at a time (remembered on this phone). One click = one function.
+    var tabs = document.querySelectorAll('.ib-tabs [data-tab]');
+    if (tabs.length) {
+        var show = function (name) {
+            tabs.forEach(function (t) { var on = t.getAttribute('data-tab') === name; t.classList.toggle('active', on); t.setAttribute('aria-selected', on ? 'true' : 'false'); });
+            document.querySelectorAll('.ib-tab').forEach(function (p) { p.hidden = p.getAttribute('data-tab') !== name; });
+        };
+        var saved = ''; try { saved = localStorage.getItem('indbakke_mail') || ''; } catch (err) { }
+        show(document.querySelector('.ib-tab[data-tab="' + saved + '"]') ? saved : 'gmail');
+        tabs.forEach(function (t) {
+            t.addEventListener('click', function () {
+                var name = t.getAttribute('data-tab'); show(name);
+                try { localStorage.setItem('indbakke_mail', name); } catch (err) { }
+            });
+        });
+    }
+
     if (!$('ib-scan')) return;   // the login page
 
     var NAMES = {

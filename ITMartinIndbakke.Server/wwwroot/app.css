@@ -50,3 +50,9 @@
 /* Free guide (2026-11-05): the search buttons wrap, one per line on a phone. */
 .ib-guide-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 @media (max-width: 480px) { .ib-guide-btns .k-btn { flex: 1 1 100%; } }
+
+/* Mail tabs in the free guide (2026-11-05 "more simple... maybe tabs"): the chosen one is filled, like ElPriser's active tab. */
+.ib-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 10px; }
+.ib-tabs .k-btn.active { background: var(--k-accent-soft); border-color: var(--k-text); color: var(--k-text); font-weight: 700; }
+.ib-tab { margin-top: 6px; }
+.ib-undo { margin-top: 12px; }
