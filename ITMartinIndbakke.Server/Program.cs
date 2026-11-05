@@ -19,12 +19,14 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Ryd op i din mail – se hvad der haster, og hvad du skal svare på.";
     k.About =
     [
+        "Gratis for alle: en guide til at rydde op i din mail selv – Gmail, Outlook og Hotmail, Yahoo, iPhone og andre. Siden ser aldrig din mail; knapperne åbner bare din egen mail med en færdig søgning.",
         "Indbakke giver dig overblik over din mail, ligesom FileSorter rydder op i billeder: hvad der haster, hvem der venter på svar, og hvem der bare fylder.",
         "Digital Post og breve fra a-kasse, Jobnet og kommune bliver i Det haster nu, til du selv trykker Klaret. Har brevet en frist, skriver du datoen, så kan du ikke glemme den.",
         "Indbakke læser kun afsender, emne og dato – aldrig selve teksten i dine mails. Den sletter kun, når du selv trykker – og kun reklame, nyhedsbreve og notifikationer, aldrig mails fra mennesker, Digital Post eller kvitteringer.",
     ];
     k.HowTo =
     [
+        "Gratis: tryk på din mail (fx Gmail eller Outlook), og følg trinene. Start med reklame – det er det letteste.",
         "Tryk på Scan min mail. Det tager et par minutter første gang.",
         "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
         "Under Skal svares står mails fra rigtige mennesker, som du ikke har svaret på endnu.",
@@ -57,17 +59,8 @@ static string Token(string p) => Convert.ToHexString(SHA256.HashData(Encoding.UT
 bool IsOwner(HttpContext ctx) => ownerToken is not null && ctx.Request.Cookies.TryGetValue("indbakke_auth", out var v) && v == ownerToken;
 
 var body = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "side.html"));
-const string LoginBody = """
-    <section class="k-card" data-nofold>
-      <h1>Indbakke</h1>
-      <p class="k-help">Skriv din kode for at se din mail.</p>
-      <form method="post" action="/ind" class="ib-login">
-        <label class="k-label" for="pin">Kode</label>
-        <input class="k-input" id="pin" name="pin" type="password" autocomplete="current-password" required>
-        <button class="k-btn k-btn-primary" type="submit">Log ind</button>
-      </form>
-    </section>
-    """;
+// Everyone but Martin gets the free guide (user 2026-11-05, option 1) - their mail never reaches this server; his code is at the bottom.
+var LoginBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guide.html"));
 const string ThemeButton = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>""";
 
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
@@ -79,10 +72,10 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('indbakke_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-        <title>Indbakke</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
-        <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=6">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=7" defer></script>
+        <title>{(owner ? "Indbakke" : "Ryd op i din mail · Indbakke")}</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
+        {(owner ? "<meta name=\"robots\" content=\"noindex\">" : "")}
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=7">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=8" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");

@@ -4,13 +4,19 @@
     'use strict';
     function $(id) { return document.getElementById(id); }
 
-    // Lys/Mørk in the header - same button and memory as ElPriser and Temperatur.
+    // Lys/Mørk in the header - same button, word and memory as ElPriser and Temperatur: it says what you GET ("Mørk" in light mode).
+    function sync() {
+        var btn = $('themeToggleBtn');
+        if (btn) btn.textContent = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'Mørk' : 'Lys';
+    }
     document.addEventListener('click', function (e) {
         if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
         var next = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', next);
         try { localStorage.setItem('indbakke_theme', next); } catch (err) { }
+        sync();
     });
+    sync();
 
     if (!$('ib-scan')) return;   // the login page
 

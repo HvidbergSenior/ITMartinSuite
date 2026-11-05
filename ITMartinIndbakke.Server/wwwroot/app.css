@@ -46,3 +46,7 @@
 .ib-old-form .k-input { width: auto; margin-left: 6px; }
 .ib-radio { display: flex; gap: 8px; align-items: flex-start; }
 .ib-radio input { margin-top: 4px; flex: none; width: 20px; height: 20px; }
+
+/* Free guide (2026-11-05): the search buttons wrap, one per line on a phone. */
+.ib-guide-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+@media (max-width: 480px) { .ib-guide-btns .k-btn { flex: 1 1 100%; } }
