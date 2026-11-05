@@ -569,8 +569,14 @@ function kolibriFrame() {
     a.innerHTML = '<img src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div><b>FileSorter</b><span>Kolibri Syn</span></div>';
     hdr.insertBefore(a, hdr.firstChild);
     // Readable on any theme: light text on a dark bar, dark text on a light one (the bar is dark even in light mode).
-    const bg = getComputedStyle(hdr).backgroundColor.match(/\d+/g);
-    if (bg) a.style.color = (0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]) < 140 ? '#fff' : '#111';
+    // The colour actually behind the bar: walk up past transparent ones (vaersgo's bar is see-through on a light page).
+    const paint = () => {
+      let el = hdr, bg = null;
+      while (el) { const m = getComputedStyle(el).backgroundColor.match(/[\d.]+/g); if (m && (m.length < 4 || +m[3] > 0.5)) { bg = m; break; } el = el.parentElement; }
+      bg = bg || ['255', '255', '255'];
+      a.style.color = (0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]) < 140 ? '#fff' : '#111';
+    };
+    paint(); setTimeout(paint, 800);   // again when the theme has been set
     const t = document.getElementById('hdrTitle'); if (t) t.style.display = 'none';
   }
   const content = document.querySelector('#browse .content');
