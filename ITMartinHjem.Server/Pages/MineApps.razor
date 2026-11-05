@@ -41,11 +41,10 @@
                 </div>
                 @* "Prøv gratis" only on the free apps Martin has switched on in Kunder (user 2026-10-21: "all others cannot be tried
                    for free"); one sign-up gives all of them. No newsletters. *@
-                @if (open) { <a class="k-btn k-btn-sm k-btn-primary" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name – helt gratis</a> }
-                else if (free) { <TrialForm App="@a.Name" FreeApps="WithCode" /> }
-                @* The app's own address on every card (user 2026-10-30: "users should not contact me for free version... the url of the apps should be there"). *@
-                @* Not on a sleeping app - the address would open nothing (user 2026-10-30). *@
-                @if (up && !showcase && !open) { <div class="k-row k-mt"><span class="k-help">Adresse:</span> <a class="k-btn k-btn-sm" href="@a.Url" target="_blank" rel="noopener">@Address(a.Url)</a></div> }
+                @* ONE card template for every helper (user 2026-11-05: "all my helpers ... should have same template"): a running helper
+                   always ends in the same button; sign-up shows only where the extras need a number. *@
+                @if (up && !showcase) { <a class="k-btn k-btn-primary k-btn-block k-mt" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name – gratis</a> }
+                @if (free && !open) { <TrialForm App="@a.Name" FreeApps="WithCode" /> }
                 @* Contacting Martin is only for the udvidet udgave - the free one needs no contact (user 2026-10-30). *@
                 <div class="hj-app-contact"><b>Vil du have en udvidet udgave af @a.Name?</b> Kontakt mig:
                     <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/chat-med-martin">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
@@ -198,7 +197,6 @@
 
     private void Toggle(string key) => _info = _info == key ? null : key;
     // "https://elpriser.itmartin.dk/" -> "elpriser.itmartin.dk": what people can type or remember.
-    private static string Address(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host + u.AbsolutePath.TrimEnd('/') : url;
     [SupplyParameterFromQuery(Name = "app")] public string? App { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool first)
