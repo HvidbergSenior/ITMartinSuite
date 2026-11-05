@@ -31,13 +31,16 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         // Who I have written to - "Sendt post" (found by its special-use flag, so the Danish/English name does not matter).
         var wroteTo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mine = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { me };   // + every From in Sendt post = my aliases
+        // "Venter på dit svar" (2026-11-05): the newest time I wrote in each Gmail conversation - so a reply from the phone counts too.
+        var iWrote = new Dictionary<ulong, DateTimeOffset>();
         if ((client.Capabilities & ImapCapabilities.SpecialUse) != 0 && client.GetFolder(SpecialFolder.Sent) is { } sent)
         {
             await sent.OpenAsync(FolderAccess.ReadOnly, ct);
             var sentUids = await sent.SearchAsync(SearchQuery.DeliveredAfter(since.AddMonths(-12)), ct);
             foreach (var chunk in sentUids.Reverse().Take(5000).Chunk(500))
-                foreach (var s in await sent.FetchAsync(chunk, MessageSummaryItems.Envelope, ct))
+                foreach (var s in await sent.FetchAsync(chunk, MessageSummaryItems.Envelope | MessageSummaryItems.GMailThreadId | MessageSummaryItems.InternalDate, ct))
                 {
+                    if (s.GMailThreadId is { } thr && (s.Envelope.Date ?? s.InternalDate) is { } at && (!iWrote.TryGetValue(thr, out var was) || at > was)) iWrote[thr] = at;
                     foreach (var f in s.Envelope.From.Mailboxes) mine.Add(f.Address.ToLowerInvariant());
                     foreach (var a in s.Envelope.To.Mailboxes.Concat(s.Envelope.Cc.Mailboxes))
                         if (!string.Equals(a.Address, me, StringComparison.OrdinalIgnoreCase)) wroteTo.Add(a.Address.ToLowerInvariant());
@@ -55,7 +58,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
             foreach (var uid in await inbox.SearchAsync(after.And(SearchQuery.GMailRawSearch("category:" + raw)), ct))
                 tabs.TryAdd(uid.Id, tab);
 
-        var request = new FetchRequest(MessageSummaryItems.UniqueId | MessageSummaryItems.Envelope | MessageSummaryItems.Flags)
+        var request = new FetchRequest(MessageSummaryItems.UniqueId | MessageSummaryItems.Envelope | MessageSummaryItems.Flags | MessageSummaryItems.GMailThreadId)
         {
             Headers = new HeaderSet(ListHeaders),
         };
@@ -64,7 +67,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         foreach (var chunk in uids.Chunk(500))
         {
             foreach (var s in await inbox.FetchAsync(chunk, request, ct))
-                mails.Add(ToHeader(s, me, tabs));
+                mails.Add(ToHeader(s, me, tabs, iWrote));
             progress.Report((mails.Count, uids.Count));
         }
         await inbox.CloseAsync(false, ct);
@@ -183,7 +186,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         return back;
     }
 
-    private static MailHeader ToHeader(IMessageSummary s, string me, Dictionary<uint, GmailTab> tabs)
+    private static MailHeader ToHeader(IMessageSummary s, string me, Dictionary<uint, GmailTab> tabs, IReadOnlyDictionary<ulong, DateTimeOffset>? iWrote = null)
     {
         var env = s.Envelope;
         var from = env.From.Mailboxes.FirstOrDefault();
@@ -207,7 +210,9 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
             !string.IsNullOrWhiteSpace(h?["List-Id"]) || precedence is "bulk" or "list",
             auto.Length > 0 && auto != "no",
             tabs.TryGetValue(s.UniqueId.Id, out var t) ? t : GmailTab.None,
-            flags.HasFlag(MessageFlags.Flagged));
+            flags.HasFlag(MessageFlags.Flagged),
+            RepliedLater: s.GMailThreadId is { } thr && iWrote is not null && iWrote.TryGetValue(thr, out var wrote)
+                && wrote > (env.Date ?? s.InternalDate ?? DateTimeOffset.MinValue));
     }
 }
 

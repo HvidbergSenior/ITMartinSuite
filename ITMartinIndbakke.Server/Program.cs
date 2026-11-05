@@ -31,12 +31,12 @@ builder.Services.AddKolibri(k =>
         "Min Indbakke: lav nøglen (Vis mig hvordan – Gmail), skriv dit nummer, din Gmail og nøglen, og tryk Log ind. Telefonen kan huske nøglen til næste gang.",
         "Tryk på Scan min mail. Det tager et par minutter første gang.",
         "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
-        "Under Skal svares står mails fra rigtige mennesker, som du ikke har svaret på endnu.",
+        "Under Venter på dit svar står mennesker, der har skrevet til dig, hvor du ikke har skrevet tilbage i samtalen – også hvis du svarede fra telefonen. Har du klaret det på en anden måde, så tryk Afsluttet. Fortryd ligger under Afsluttede.",
         "Under Ryd op kan du se, hvem der sender mest. Tryk Ryd op: du ser først, hvor mange mails det er, og hvilke der bliver gemt. Så kan du afmelde og slette med ét tryk.",
         "Under Ryd alt det gamle vælger du en dato og trykker Se hvad der sker. Du ser tallene først – så trykker du Ryd op nu. Alle mails får en Gmail-etiket, så Fortryd kan hente dem alle tilbage.",
         "Slettede mails ligger i Gmails papirkurv i 30 dage. Under Seneste oprydning kan du trykke Fortryd og få dem tilbage.",
     ];
-    k.Version = "2026.11.3";
+    k.Version = "2026.11.4";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -100,7 +100,7 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <title>{(owner ? "Indbakke" : "Ryd op i din mail · Indbakke")}</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         {(owner ? "<meta name=\"robots\" content=\"noindex\">" : "")}
         <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=12">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=10" defer></script>
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=11" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton + (guest is not null || IsOwner(ctx) ? LogoutButton : ""))}<main class="k-main"><div class="k-content">{(owner ? (guest is null ? body : GuestBody(guest.Name)) : Guide(ctx.Request.Query["fejl"]))}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
@@ -168,7 +168,8 @@ api.MapGet("/oversigt", (MailScanner s, FollowUps follow, TimeProvider clock) =>
             mail = Mail(i.Mail, i.Category), status = i.FollowUp.Status.ToString(), frist = i.FollowUp.Deadline,
             dageTilbage = i.DaysLeft(today), note = i.FollowUp.Note,
         }),
-        skalSvares = o.NeedsReply.Select(x => Mail(x.Mail, x.Category)),
+        skalSvares = follow.Waiting().Select(x => Mail(x.Mail, x.Category)),
+        afsluttede = follow.Closed().Take(20).Select(x => Mail(x.Mail, x.Category)),
         afsendere = o.Senders.Take(300).Select(g => new
         {
             adresse = g.Address, navn = g.Name, antal = g.Count, ulaeste = g.Unread, nyeste = g.Newest,

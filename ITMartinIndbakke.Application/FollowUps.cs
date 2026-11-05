@@ -18,6 +18,18 @@ public sealed class FollowUps(IFollowUpStore store, MailScanner scanner, TimePro
     public IReadOnlyList<UrgentItem> Now() =>
         scanner.Last is { } o ? UrgentRules.Now(o.Important, store.All(), Today, baseline: store.Baseline) : [];
 
+    /// <summary>"Venter på dit svar" (2026-11-05): people waiting for me - minus the ones I closed with Afsluttet (same Klaret mark).</summary>
+    public IReadOnlyList<(MailHeader Mail, MailCategory Category)> Waiting() =>
+        scanner.Last is { } o
+            ? o.NeedsReply.Where(x => !(store.All().TryGetValue(x.Mail.MessageId, out var f) && f.Status == FollowUpStatus.Klaret)).ToList()
+            : [];
+
+    /// <summary>Closed with Afsluttet, newest first - so Fortryd can bring one back.</summary>
+    public IReadOnlyList<(MailHeader Mail, MailCategory Category)> Closed() =>
+        scanner.Last is { } o
+            ? o.NeedsReply.Where(x => store.All().TryGetValue(x.Mail.MessageId, out var f) && f.Status == FollowUpStatus.Klaret).ToList()
+            : [];
+
     public string? MarkRead(string messageId, DateOnly? deadline, string? note)
     {
         if (!Known(messageId)) return "Ukendt brev.";
@@ -51,5 +63,7 @@ public sealed class FollowUps(IFollowUpStore store, MailScanner scanner, TimePro
     private FollowUp Get(string id) => store.All().TryGetValue(id, out var f) ? f : FollowUp.New(id);
 
     private bool Known(string id) =>
-        !string.IsNullOrWhiteSpace(id) && (store.All().ContainsKey(id) || scanner.Last?.Important.Any(m => m.Mail.MessageId == id) == true);
+        !string.IsNullOrWhiteSpace(id) && (store.All().ContainsKey(id)
+            || scanner.Last?.Important.Any(m => m.Mail.MessageId == id) == true
+            || scanner.Last?.NeedsReply.Any(m => m.Mail.MessageId == id) == true);   // Afsluttet on "Venter på dit svar"
 }

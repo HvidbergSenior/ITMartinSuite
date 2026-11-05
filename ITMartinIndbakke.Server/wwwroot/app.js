@@ -118,13 +118,29 @@
         }).join('');
     }
 
-    function renderReply(items) {
-        $('ib-reply-card').hidden = false;
-        $('ib-reply').innerHTML = items.length ? items.map(function (m) {
-            return '<li><div class="ib-top"><span class="ib-from">' + esc(m.fra) + '</span><span class="ib-date">' + day(m.dato) + '</span></div>' +
-                '<div class="ib-subject">' + esc(m.emne) + '</div><div class="ib-actions">' + gmailButton(m.id) + '</div></li>';
-        }).join('') : '<li>Ingen venter på svar.</li>';
+    // "Venter på dit svar" (2026-11-05): one press Afsluttet = gone from the list (Klaret mark), Fortryd under "Afsluttede".
+    function replyRow(m, closed) {
+        return '<li data-id="' + esc(m.id) + '"><div class="ib-top"><span class="ib-from">' + esc(m.fra) + '</span><span class="ib-date">' + day(m.dato) + '</span></div>' +
+            '<div class="ib-subject">' + esc(m.emne) + '</div><div class="ib-actions">' + gmailButton(m.id) +
+            (closed ? '<button type="button" class="k-btn k-btn-sm" data-act="fortryd">Fortryd</button>'
+                    : '<button type="button" class="k-btn k-btn-sm k-btn-primary" data-act="afsluttet">Afsluttet</button>') + '</div></li>';
     }
+    function renderReply(items, closed) {
+        $('ib-reply-card').hidden = false;
+        $('ib-reply').innerHTML = items.length ? items.map(function (m) { return replyRow(m, false); }).join('') : '<li>Ingen venter på dit svar.</li>';
+        closed = closed || [];
+        $('ib-closed-box').hidden = !closed.length;
+        $('ib-closed-n').textContent = closed.length;
+        $('ib-closed').innerHTML = closed.map(function (m) { return replyRow(m, true); }).join('');
+    }
+    $('ib-reply-card').addEventListener('click', function (e) {
+        var li = e.target.closest('li[data-id]'), act = e.target.closest('[data-act]');
+        if (!li || !act) return;
+        act.disabled = true;
+        var id = li.getAttribute('data-id');
+        if (act.getAttribute('data-act') === 'afsluttet') api('POST', '/api/klaret', { id: id }).then(load);
+        if (act.getAttribute('data-act') === 'fortryd') api('POST', '/api/fortryd', { id: id }).then(load);
+    });
 
     function renderFilter() {
         var cats = ['alle'].concat(Object.keys(NAMES));
@@ -220,7 +236,7 @@
             data = d;
             status(num(d.ialt) + ' mails de sidste ' + d.maaneder + ' måneder · ' + num(d.ulaeste) + ' ulæste · scannet ' +
                 new Date(d.scannet).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
-            renderCats(); loadHistory(); renderBaseline(d.grundlinje); renderNow(d.hasterNu); renderReply(d.skalSvares); renderSenders();
+            renderCats(); loadHistory(); renderBaseline(d.grundlinje); renderNow(d.hasterNu); renderReply(d.skalSvares, d.afsluttede); renderSenders();
         });
     }
 

@@ -79,9 +79,10 @@ public static class MailRules
         return m.ToMeDirectly && PersonalDomains.Contains(m.Domain);
     }
 
-    /// <summary>"Skal svares" on the list = a person, not answered yet (IMAP \Answered), not older than <paramref name="days"/>.</summary>
+    /// <summary>"Venter på dit svar" = a person, not answered yet - neither Gmail's \Answered mark nor a later mail from me in the
+    /// same conversation (2026-11-05: the mark is missing for replies from the phone) - and not older than <paramref name="days"/>.</summary>
     public static bool WaitsForReply(MailHeader m, MailCategory c, DateTimeOffset now, int days = 60) =>
-        c == MailCategory.SkalSvares && !m.Answered && m.Date >= now.AddDays(-days);
+        c == MailCategory.SkalSvares && !m.Answered && !m.RepliedLater && m.Date >= now.AddDays(-days);
 
     internal static bool IsDigitalPost(MailHeader m, string subject) =>
         DigitalPostDomains.Any(d => m.Domain == d || m.Domain.EndsWith("." + d))
