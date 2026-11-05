@@ -53,6 +53,7 @@
 
 /* Mail tabs in the free guide (2026-11-05 "more simple... maybe tabs"): the chosen one is filled, like ElPriser's active tab. */
 .ib-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 10px; }
-.ib-tabs .k-btn.active { background: var(--k-accent-soft); border-color: var(--k-text); color: var(--k-text); font-weight: 700; }
+.ib-tabs .k-btn { background: transparent; }
+.ib-tabs .k-btn.active { background: var(--k-accent); border-color: var(--k-accent); color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .ib-tab { margin-top: 6px; }
 .ib-undo { margin-top: 12px; }
