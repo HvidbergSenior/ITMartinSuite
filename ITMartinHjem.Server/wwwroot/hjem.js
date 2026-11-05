@@ -101,6 +101,28 @@ window.hjem = (function () {
             } catch (e) { done('Det lykkedes ikke – skriv din e-mail i stedet'); }
         },
 
+        // "Skriv til mig" (2026-11-05): name + first message -> Hjem asks Snak for a room -> the visitor goes into it.
+        // From the /chat bubble (an iframe on itmartin.dk) the whole page goes, not just the little frame.
+        snakStart: function (form) {
+            var btn = form.querySelector('button[type=submit]'), err = form.querySelector('.hj-snak-fejl');
+            var navn = form.navn.value.trim(), besked = form.besked.value.trim();
+            err.hidden = true; btn.disabled = true; btn.textContent = 'Laver dit rum …';
+            fetch('/api/snak/start', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ navn: navn, besked: besked })
+            }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+              .then(function (x) {
+                  if (!x.ok || !x.j.link) throw new Error(x.j.fejl || '');
+                  var to = x.j.link + '?navn=' + encodeURIComponent(navn);
+                  try { window.top.location.href = to; } catch (e) { location.href = to; }
+              })
+              .catch(function (e) {
+                  err.textContent = e.message || 'Det virkede ikke lige nu. Prøv igen om lidt – eller ring eller skriv en mail.';
+                  err.hidden = false; btn.disabled = false; btn.textContent = 'Start snakken';
+              });
+            return false;
+        },
+
         pushTest: async function () {
             await fetch('/api/push/test', { method: 'POST' });
         }

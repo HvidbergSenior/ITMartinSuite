@@ -89,6 +89,8 @@ builder.Services.AddSingleton(new ShopVisibility(builder.Configuration.GetValue<
     builder.Configuration.GetValue<bool>("Hjem:MarketForCustomers")));
 builder.Services.AddMarketGateways(builder.Configuration["Hjem:SalgApi"] ?? builder.Configuration["Hjem:LagerApi"], builder.Configuration["Hjem:SalgShopKey"] ?? builder.Configuration["Hjem:LagerShopKey"]);
 builder.Services.AddHjemMarket();
+// "Skriv til mig" -> a Snak room (2026-11-05). Hjem__SnakKey = Snak__ApiKey (photoserver magic.env), Hjem__SnakUrl optional.
+builder.Services.AddSnakRooms(builder.Configuration["Hjem:SnakUrl"], builder.Configuration["Hjem:SnakKey"]);
 builder.Services.AddSingleton<ITMartinHjem.Server.MarketCookie>();
 builder.Services.AddHjemShop(new ShopSeller(builder.Configuration["Hjem:ShopCompany"] ?? "", builder.Configuration["Hjem:ShopCvr"] ?? "",
     builder.Configuration["Hjem:ShopAddress"] ?? "", builder.Configuration["Hjem:ShopEmail"] ?? "ITMartin@Mensa.dk",
@@ -414,7 +416,14 @@ app.MapPost("/api/push/visitor", async (VisitorSubRequest req, ChatUseCases chat
     await chat.SetVisitorPushAsync(req.VisitorKey, req.Endpoint, req.P256dh, req.Auth) ? Results.Ok() : Results.BadRequest())
     .DisableAntiforgery();
 
-app.MapPost("/api/push/test", async (HttpContext ctx, PushUseCases push) =>
+// "Skriv til mig" (2026-11-05): name + first message -> a Snak room; the page sends the visitor into it (wwwroot/hjem.js snakStart).
+app.MapPost("/api/snak/start", async (SnakStartRequest req, HttpContext ctx, SnakStartUseCases snak) =>
+{
+    var r = await snak.StartAsync(req.Navn ?? "", req.Besked ?? "", ClientIp(ctx), ctx.RequestAborted);
+    return r.Link is { } link ? Results.Ok(new { link }) : Results.BadRequest(new { fejl = r.Error });
+}).DisableAntiforgery();
+
+app.MapPost("/api/push/test",async (HttpContext ctx, PushUseCases push) =>
     ctx.User.IsOwner() ? Results.Ok(await push.SendToOwnerAsync("Martin Hvidberg", "Beskeder virker ✅ – her kommer spørgsmål fra din side.", "/admin")) : Results.Unauthorized())
     .DisableAntiforgery();
 
@@ -448,4 +457,5 @@ static string LoginPage(bool owner, bool err) => $$"""
 """;
 
 public sealed record SubRequest(string Endpoint, string P256dh, string Auth);
+public sealed record SnakStartRequest(string? Navn, string? Besked);
 public sealed record VisitorSubRequest(string VisitorKey, string Endpoint, string P256dh, string Auth);

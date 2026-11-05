@@ -8,14 +8,14 @@
 <PageTitle>Chat med Martin</PageTitle>
 
 @* The same head as the other tabs - gradient, Martin's photo, tag (user 2026-10-28: "need to have the feel"). *@
-<PageHead Title="Chat med Martin" Tag="Første snak er altid gratis" Line="Skriv dit spørgsmål her, så svarer jeg, så snart jeg kan. Står der, at jeg er her nu, svarer jeg med det samme.">
+<PageHead Title="Chat med Martin" Tag="Første snak er altid gratis" Line="Skriv dit navn og dit spørgsmål. Så får du dit eget rum, hvor vi skriver sammen – ét sted, så intet bliver væk.">
     <p class="hj-head-note">Vil du hellere ringe eller skrive en mail?</p>
     <div class="hj-head-btns">
         <a class="k-btn" href="tel:+4531194730">31 19 47 30</a>
         <a class="k-btn" href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a>
     </div>
 </PageHead>
-<ChatBox Available="_available" OwnerName="@_first" Prominent="true" StartOpen="true" />
+<SnakStart Available="_available" OwnerName="@_first" />
 
 @code {
     private bool _available;

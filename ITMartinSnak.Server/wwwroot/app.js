@@ -77,7 +77,9 @@
     function showLogin() {
         showOnly('login');
         $('loginTitel').textContent = room ? room.titel : 'Snak';
-        if (navn) $('loginNavn').value = navn;
+        // From "Skriv til mig" on itmartin.dk the name comes along (?navn=) - one tap, which also asks for notifications.
+        const fra = new URLSearchParams(location.search).get('navn');
+        $('loginNavn').value = navn || (fra || '').slice(0, 60);
     }
 
     $('loginForm').addEventListener('submit', async e => {

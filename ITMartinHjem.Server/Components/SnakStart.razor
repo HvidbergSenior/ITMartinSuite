@@ -1,0 +1,24 @@
+@using ITMartinHjem.Domain
+@* "Skriv til mig" (user 2026-11-05: off Facebook - people reach me through ITMartin, all talk in one place).
+   Name + first message -> Snak makes a room just for this person -> they go straight into it (wwwroot/hjem.js snakStart).
+   A plain form: the JS posts it, so it also works in the /chat bubble on itmartin.dk. *@
+<section class="k-card hj-chat @(Available ? "is-on" : "")" id="chat">
+    <h2 class="k-card-title">Skriv til @OwnerName</h2>
+    <div class="hj-chat-status">
+        <span class="k-dot @(Available ? "on" : "")"></span>
+        @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– han svarer med det samme.</span> }
+        else { <b>@OwnerName er ikke ved skærmen</b> <span class="k-muted">– skriv alligevel. Han får besked på telefonen.</span> }
+    </div>
+    <p class="k-help">Sådan gør du: skriv dit navn og din besked, og tryk "Start snakken". Så får du dit eget rum, hvor vi skriver sammen. Tryk "Slå beskeder til" derinde, så siger telefonen til, når jeg svarer – og "Læg på telefonen", så finder du rummet igen.</p>
+    <form onsubmit="return hjem.snakStart(this)">
+        <input class="k-input k-mt" name="navn" required maxlength="@SnakStartRules.MaxName" placeholder="Dit navn" aria-label="Dit navn" autocomplete="name" />
+        <textarea class="k-input k-textarea k-mt" name="besked" required maxlength="@SnakStartRules.MaxText" placeholder="Hvad kan jeg hjælpe med?" aria-label="Din besked"></textarea>
+        <button type="submit" class="k-btn k-btn-primary k-btn-block k-mt">Start snakken</button>
+        <p class="k-help hj-snak-fejl" role="alert" hidden></p>
+    </form>
+</section>
+
+@code {
+    [Parameter] public bool Available { get; set; }
+    [Parameter] public string OwnerName { get; set; } = "Martin";
+}
