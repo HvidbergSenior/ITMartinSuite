@@ -1,0 +1,38 @@
+<!-- Vurdering: one thing at a time (user 2026-11-05). Gør dette -> du får det. -->
+<section class="k-card vu-head" data-nofold>
+    <h1>Sæt pris – én ad gangen</h1>
+    <p class="k-help"><b>Gør dette:</b> kig på billedet og det, der blev fundet andre steder. Tryk <b>Ok</b> for forslaget, eller skriv din egen pris.
+        <b>Du får:</b> en pris på tingen, så den kan komme på bogshoppen.dk.</p>
+    <div class="vu-piles" role="tablist" aria-label="Vælg bunke">
+        <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="vurderes">Skal vurderes (<span id="vu-n-vurderes">…</span>)</button>
+        <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="ingen">Ingen pris (<span id="vu-n-ingen">…</span>)</button>
+    </div>
+</section>
+
+<section class="k-card vu-card" id="vu-card" data-nofold hidden>
+    <img class="vu-photo" id="vu-photo" alt="Billede af tingen">
+    <h2 class="vu-line" id="vu-line"></h2>
+    <p class="k-help" id="vu-facts"></p>
+    <div class="vu-hint" id="vu-hint"></div>
+    <div class="vu-actions">
+        <button type="button" class="k-btn k-btn-primary vu-big" id="vu-ok"></button>
+        <form class="vu-own" id="vu-own">
+            <label class="k-label" for="vu-price">Din pris (kr)</label>
+            <div class="vu-own-row">
+                <input class="k-input" id="vu-price" inputmode="numeric" autocomplete="off" placeholder="fx 75">
+                <button type="submit" class="k-btn">Gem</button>
+            </div>
+        </form>
+        <button type="button" class="k-btn k-btn-ghost" id="vu-skip">Spring over</button>
+    </div>
+    <p class="vu-msg" id="vu-msg" role="status" aria-live="polite"></p>
+    <details class="vu-finds" id="vu-finds-box">
+        <summary>Fundet andre steder (<span id="vu-finds-n">0</span>)</summary>
+        <ul id="vu-finds"></ul>
+    </details>
+</section>
+
+<section class="k-card" id="vu-empty" data-nofold hidden>
+    <h2 class="k-card-title">Der er ikke flere i bunken</h2>
+    <p>Godt gået. Tryk på den anden bunke – eller gå videre til <b>Læg på lager</b> øverst.</p>
+</section>

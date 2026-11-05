@@ -1,0 +1,17 @@
+/* Vurdering (2026-11-05): one thing big, three clear actions. */
+.vu-piles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.vu-piles .k-btn { background: transparent; }
+.vu-piles .k-btn.active { background: var(--k-accent); border-color: var(--k-accent); color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.vu-card { text-align: center; }
+.vu-photo { display: block; max-width: 100%; max-height: 360px; margin: 0 auto 12px; border-radius: 12px; border: 1px solid var(--k-border-3, #ccc); background: #fff; }
+.vu-line { margin: 0 0 4px; font-size: 1.2rem; }
+.vu-hint { margin: 10px 0 14px; }
+.vu-actions { display: grid; gap: 10px; max-width: 420px; margin: 0 auto; text-align: left; }
+.vu-big { width: 100%; font-size: 1.1rem; padding: 14px; }
+.vu-own-row { display: flex; gap: 8px; }
+.vu-own-row .k-input { flex: 1; }
+.vu-msg { min-height: 1.4em; font-weight: 700; }
+.vu-msg.is-bad { border: 2px solid var(--k-text); border-radius: 10px; padding: 8px; }
+.vu-finds { text-align: left; margin-top: 12px; }
+.vu-finds ul { padding-left: 0; list-style: none; display: grid; gap: 6px; }
+.vu-login { display: grid; gap: 6px; max-width: 360px; }

@@ -89,6 +89,9 @@ async Task<string?> AdminAsync(HttpContext ctx, string? typed)
     return digits.Length == 8 && digits != pin ? await ctx.RequestServices.GetRequiredService<IHelperNumbers>().AdminNameAsync(digits) : null;
 }
 bool FromSalg(HttpContext ctx) => salgKey.Length >= 12 && ctx.Request.Headers[StockHeaders.Key] == salgKey;
+// Vurdering (step 2, 2026-11-05) has its own key - it may only read the things to price and set a price.
+var vurderingKey = app.Configuration["Lager:VurderingKey"] ?? "";
+bool FromVurdering(HttpContext ctx) => vurderingKey.Length >= 12 && ctx.Request.Headers[VurderingHeaders.Key] == vurderingKey;
 
 app.Use(async (ctx, next) =>
 {
@@ -100,6 +103,7 @@ app.Use(async (ctx, next) =>
             || p.StartsWith("/health") || p.StartsWith("/manifest.webmanifest") || p.EndsWith(".css") || p.EndsWith(".js")
             || p.EndsWith(".svg") || p.EndsWith(".png");
     if (p.StartsWith("/api/salg/")) { if (FromSalg(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
+    if (p.StartsWith("/api/vurdering/")) { if (FromVurdering(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (LoggedIn(ctx)) { ctx.Items[nameof(LagerUser)] = new LagerUser("Martin", true); await next(); return; }
     if (open) { await next(); return; }
     if (await AdminAsync(ctx, ctx.Request.Cookies["lager_auth"]) is { } admin)
@@ -154,6 +158,7 @@ app.MapGet("/foto/{id:int}", (int id, VareinfoLinks v) => Results.Redirect(v.Pho
 app.MapGet("/kolofonfoto/{id:int}", async (int id, KolofonUseCases k) => Jpeg(await k.PhotoFileAsync(id)));
 
 app.MapStockApi();
+app.MapVurderingApi();   // Vurdering (step 2)
 
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
     Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));
