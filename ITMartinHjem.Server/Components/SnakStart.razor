@@ -9,7 +9,7 @@
         @if (Available) { <b>@OwnerName er her nu</b> <span class="k-muted">– han svarer med det samme.</span> }
         else { <b>@OwnerName er ikke ved skærmen</b> <span class="k-muted">– skriv alligevel. Han får besked på telefonen.</span> }
     </div>
-    <p class="k-help">Sådan gør du: skriv dit navn og din besked, og tryk "Start snakken". Så får du dit eget rum, hvor vi skriver sammen. Tryk "Slå beskeder til" derinde, så siger telefonen til, når jeg svarer – og "Læg på telefonen", så finder du rummet igen.</p>
+    <p class="k-help">Sådan gør du: skriv dit navn og din besked, og tryk "Start snakken". Så får du dit eget rum, hvor vi skriver sammen. Tryk "Gå ind", og sig <b>Tillad</b>, når telefonen spørger – så siger den til, når jeg svarer. Har du iPhone, så tryk "Læg på telefonen" først.</p>
     <form onsubmit="return hjem.snakStart(this)">
         <input class="k-input k-mt" name="navn" required maxlength="@SnakStartRules.MaxName" placeholder="Dit navn" aria-label="Dit navn" autocomplete="name" />
         <textarea class="k-input k-textarea k-mt" name="besked" required maxlength="@SnakStartRules.MaxText" placeholder="Hvad kan jeg hjælpe med?" aria-label="Din besked"></textarea>
