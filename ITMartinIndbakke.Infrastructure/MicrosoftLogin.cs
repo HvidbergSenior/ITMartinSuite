@@ -19,7 +19,8 @@ public sealed class MicrosoftLogin(HttpClient http, IHttpClientFactory clients, 
     private const string Authority = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
     internal const string Scopes = "offline_access openid email https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send";
 
-    public bool IsConfigured => clientId.Length > 0 && secret.Length > 0;
+    // A secret is optional (user 2026-11-05 "no secret"): a public client with PKCE needs only the client ID.
+    public bool IsConfigured => clientId.Length > 0;
 
     public string AuthorizeUrl(string state, string codeChallenge) =>
         $"{Authority}/authorize?client_id={Uri.EscapeDataString(clientId)}&response_type=code&response_mode=query" +
@@ -32,7 +33,7 @@ public sealed class MicrosoftLogin(HttpClient http, IHttpClientFactory clients, 
     {
         var t = await TokenAsync(new()
         {
-            ["client_id"] = clientId, ["client_secret"] = secret, ["grant_type"] = "authorization_code", ["code"] = authCode,
+            ["client_id"] = clientId, ["grant_type"] = "authorization_code", ["code"] = authCode,
             ["redirect_uri"] = redirectUri, ["code_verifier"] = codeVerifier, ["scope"] = Scopes,
         }, ct);
         if (t?.access_token is null) return (null, null, "Microsoft gav ikke adgang. Prøv igen – og tryk Ja/Tillad hos Microsoft.");
@@ -49,11 +50,12 @@ public sealed class MicrosoftLogin(HttpClient http, IHttpClientFactory clients, 
 
     private Task<TokenAnswer?> RefreshAsync(string refresh, CancellationToken ct) => TokenAsync(new()
     {
-        ["client_id"] = clientId, ["client_secret"] = secret, ["grant_type"] = "refresh_token", ["refresh_token"] = refresh, ["scope"] = Scopes,
+        ["client_id"] = clientId, ["grant_type"] = "refresh_token", ["refresh_token"] = refresh, ["scope"] = Scopes,
     }, ct);
 
     private async Task<TokenAnswer?> TokenAsync(Dictionary<string, string> form, CancellationToken ct)
     {
+        if (secret.Length > 0) form["client_secret"] = secret;   // only for a "Web" registration with a secret
         try
         {
             using var res = await http.PostAsync($"{Authority}/token", new FormUrlEncodedContent(form), ct);
