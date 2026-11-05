@@ -172,7 +172,10 @@
         var open = box.classList.contains('open');
         // The bar until the person says "Ikke nu"; then the small pill, and the bar again after 14 days.
         var later = +(store.get('install_later') || 0);
-        var bar = Date.now() - later > 14 * 864e5;
+        // A site can say <html data-install="quiet"> (itmartin.dk + bogshoppen.dk, user 2026-11-05: no pop-up there) -
+        // then no bar and no floating button; the footer link "Læg på telefonen" still opens the same guide.
+        var quiet = document.documentElement.getAttribute('data-install') === 'quiet';
+        var bar = !quiet && Date.now() - later > 14 * 864e5;
         box.innerHTML =
             (bar ? '<div class="k-install-bar" role="region" aria-label="' + T('Læg på ', 'Add to ') + where + '">' +
                 '<b>' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</b>' +
@@ -183,7 +186,7 @@
                 '<div class="k-install-bar-btns"><button type="button" class="k-install-bar-go" aria-haspopup="dialog">' + T('Vis mig hvordan', 'Show me how') + '</button>' +
                 '<button type="button" class="k-install-bar-later">' + T('Ikke nu', 'Not now') + '</button></div></div>' : '') +
             // PC: no floating button - it sat on top of bottom menus; the footer link opens the same sheet.
-            (bar || hidden || dev.pc ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">' + T('Læg på ', 'Add to ') + where + '</button>') +
+            (bar || hidden || quiet || dev.pc ? '' : '<button type="button" class="k-install-pill" aria-haspopup="dialog">' + T('Læg på ', 'Add to ') + where + '</button>') +
             '<div class="k-install-sheet" role="dialog" aria-modal="true" aria-label="' + T('Læg på ', 'Add to ') + where + '"' + (open ? '' : ' hidden') + '>' +
             '<div class="k-install-card"><button type="button" class="k-install-x" aria-label="' + T('Luk', 'Close') + '">✕</button>' +
             '<h2>📲 ' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</h2>' +
