@@ -124,6 +124,14 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
     }
 }
 
+/// <summary>Prices on bogshoppen.dk (user 2026-11-05: "all prices need to be invisible for user ... Prices will come"):
+/// off until Hjem__ShowPrices=true. Off = no kr anywhere (items, packs, "fra", other sites) + the progress line towards Goal.</summary>
+public sealed record PricesShown(bool On)
+{
+    /// <summary>All of Bogshoppen's stock, roughly (user: 100.000+ things).</summary>
+    public const int Goal = 100_000;
+}
+
 /// <summary>Who sees the shop (user 2026-10-21: "nothing should be on homepages. i want to test it first"): everyone when
 /// Hjem__ShowFound=true, else only a browser that opened /vis-butik?kode=Hjem__ShopPreviewCode (cookie bs_preview).
 /// Customers = Hjem__MarketForCustomers (2026-10-26): a customer logged in with the kundenummer sees the marketplace and

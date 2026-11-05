@@ -1,4 +1,5 @@
 @inject ShopUseCases Shop
+@inject PricesShown Prices
 
 @* "Fundet i kasserne" on bogshoppen.dk AND itmartin.dk (user 2026-10-15: "the webshop should be on both ... I dont want
    to have a webshop feel ... more interest oriented and of course a way of selling to interested people", "remember the
@@ -20,11 +21,12 @@
                         @if (i.Interest != "") { <p>@i.Interest</p> }
                         <p>
                             @if (i.ForShow) { <span class="bs-forshow">Kun til visning</span> }
+                            else if (!Prices.On) { <span>Prisen kommer</span> }
                             else if (i.BuyNowKr is { } kr) { <span>Hos os: <b>@kr kr</b></span> }
                             else if (i.ExpectKr is { } ex) { <span>Andre steder omkring @ex kr – hos os efter aftale</span> }
                             else { <span>Pris efter aftale</span> }
                         </p>
-                        @if (proof.Count > 0)
+                        @if (Prices.On && proof.Count > 0)
                         {
                             <p class="k-help">Kan også købes her:</p>
                             <div class="bs-proof">

@@ -85,6 +85,7 @@ builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hje
 // since 2026-10-21 (same /api/butik as Lager had - Hjem__SalgApi / Hjem__SalgShopKey, the old Lager names still work).
 builder.Services.AddLagerShopGateway(builder.Configuration["Hjem:SalgApi"] ?? builder.Configuration["Hjem:LagerApi"],
     builder.Configuration["Hjem:SalgShopKey"] ?? builder.Configuration["Hjem:LagerShopKey"]);
+builder.Services.AddSingleton(new PricesShown(builder.Configuration.GetValue<bool>("Hjem:ShowPrices")));   // off = no prices on bogshoppen.dk
 builder.Services.AddSingleton(new ShopVisibility(builder.Configuration.GetValue<bool>("Hjem:ShowFound"), builder.Configuration["Hjem:ShopPreviewCode"] ?? "",
     builder.Configuration.GetValue<bool>("Hjem:MarketForCustomers")));
 builder.Services.AddMarketGateways(builder.Configuration["Hjem:SalgApi"] ?? builder.Configuration["Hjem:LagerApi"], builder.Configuration["Hjem:SalgShopKey"] ?? builder.Configuration["Hjem:LagerShopKey"]);

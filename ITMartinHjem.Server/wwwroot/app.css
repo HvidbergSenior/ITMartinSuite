@@ -940,3 +940,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* The old tabs as buttons at the bottom of the front page (2026-11-04). */
 .hj-footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 24px; }
 .hj-doors .hj-subpage b { font-size: 1.15rem; }
+
+/* bogshoppen.dk without prices (2026-11-05): how far we are, on top of the shop. */
+.bs-progress { display: grid; gap: 4px; padding: 12px 14px; margin: 0 0 14px; border: 2px solid var(--k-text); border-radius: 12px; background: var(--k-accent-soft); }
+.bs-progress b { font-size: 1.05rem; }

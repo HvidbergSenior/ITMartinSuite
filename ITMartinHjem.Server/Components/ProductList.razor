@@ -1,4 +1,5 @@
 @inject ShopUseCases Shop
+@inject PricesShown Prices
 @inject IJSRuntime JS
 @inject PersistentComponentState State
 @inject NavigationManager Nav
@@ -9,11 +10,20 @@
    need subcategories", "and cards - magic"): /produkter = one search field + a box per shop; a shop (bogshoppen.dk/film) =
    its subcategories as buttons + all its things A-Z. ShopFamilies (ITMartinVarer.Contracts) says which shop has what. *@
 <section class="k-card bs-card bs-shop" id="alle">
+    @* User 2026-11-05: "all prices need to be invisible... Say something like 10000 produkter - still 99999 to go. Prices will come". *@
+    @if (!Prices.On && _overview is not null)
+    {
+        var shown = _overview.Shelves.Sum(sh => sh.Count);
+        <div class="bs-progress" role="status">
+            <b>@shown.ToString("N0", Da) produkter er lagt ind – @Math.Max(0, PricesShown.Goal - shown).ToString("N0", Da) til at gå.</b>
+            <span>Priserne kommer, når vi er længere. Se dig om, og tryk interessant ved det, du kan lide.</span>
+        </div>
+    }
     @if (Family is not null)
     {
         <a class="k-btn k-btn-sm bs-back" href="/produkter">← Alle butikker</a>
         <h2 class="bs-family-name">@Family.Name</h2>
-        <p class="k-help">@Family.About Tryk på et billede for at se det stort. Under <b>Mere om den</b> står stand og hvad lignende koster andre steder.</p>
+        <p class="k-help">@Family.About Tryk på et billede for at se det stort. Under <b>Mere om den</b> står @(Prices.On ? "stand og hvad lignende koster andre steder" : "mere om standen").</p>
         @* The free helpers for this shop (2026-11-03): a button when it is public, else the same button disabled with "Kommer snart" (user: "Let the be diabled but visible now"). *@
         @if (Family.Helpers is { Length: > 0 } helpers)
         {
@@ -64,7 +74,7 @@
                             </span>
                             <b class="bs-family-title">@f.Name</b>
                             <span class="k-help">@f.About</span>
-                            <span class="bs-family-go">@(count == 0 ? "Ingen varer med pris endnu" : $"Se {count} {(count == 1 ? "vare" : "varer")} →")</span>
+                            <span class="bs-family-go">@(count == 0 ? "Ingen varer endnu" : $"Se {count} {(count == 1 ? "vare" : "varer")} →")</span>
                         </a>
                     </li>
                 }
@@ -106,7 +116,7 @@
             @* Sort order (user 2026-11-03: "there should be some kind of order", chose sort buttons): A-Å first, filled when chosen. *@
             <div class="bs-filter bs-sort" role="group" aria-label="Sorter">
                 <span class="bs-filter-label">Sorter</span>
-                @foreach (var (key, name) in SortNames)
+                @foreach (var (key, name) in SortNames.Where(x => Prices.On || (x.Key != ShopSorts.Cheapest && x.Key != ShopSorts.Dearest)))
                 {
                     <button class="k-btn k-btn-sm @(_sort == key ? "is-on" : "")" aria-pressed="@(_sort == key)" @onclick="() => Sort(key)">@name</button>
                 }
@@ -129,6 +139,7 @@
 </section>
 
 @code {
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
     /// <summary>The shop this list is (bogshoppen.dk/film); null = /produkter, the boxes for all shops.</summary>
     [Parameter] public ShopFamily? Family { get; set; }
 
@@ -156,6 +167,7 @@
         if (Family is null && Vis is { Length: > 0 } && OldLink(Vis) is { } to) { Nav.NavigateTo(to, replace: true); return; }
         _sub = Family?.Sub(Under);
         _sort = ShopSorts.All.Contains(SortParam) ? SortParam! : ShopSorts.Title;
+        if (!Prices.On && (_sort == ShopSorts.Cheapest || _sort == ShopSorts.Dearest)) _sort = ShopSorts.Title;   // no prices = no price order
         _batch = Family is not null && Serie is { Length: > 0 } ? Serie : null;
         _persist = State.RegisterOnPersisting(() =>
         {
@@ -312,7 +324,7 @@
                 </span>
                 <span class="bs-shop-body">
                     <b class="bs-batch-name">@b.Name</b>
-                    @if (FromKr(b.Name) is { } kr) { <span class="bs-shop-price"><b>fra @kr kr</b></span> }
+                    @if (Prices.On && FromKr(b.Name) is { } kr) { <span class="bs-shop-price"><b>fra @kr kr</b></span> }
                     <span class="bs-family-go">Se alle @b.Count →</span>
                 </span>
             </button>
@@ -423,7 +435,7 @@
             {
                 <div class="bs-pack">
                     <h3>@p.Name</h3>
-                    <p class="bs-shop-price"><b>@p.Kr kr</b></p>
+                    @if (Prices.On) { <p class="bs-shop-price"><b>@p.Kr kr</b></p> }
                     <p class="k-help">Blandet fra vores kasse – vi har til @p.Left @(p.Left == 1 ? "pakke" : "pakker").</p>
                 </div>
             }
@@ -444,6 +456,7 @@
                 <h3>@i.Line</h3>
                 @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
                 else if (i.Assess) { <p class="bs-shop-noprice bs-assess">@ShopDeals.AssessText</p> }
+                else if (!Prices.On) { <p class="bs-shop-noprice">Prisen kommer</p> }
                 else if (ShopDeals.Named(i.Deal) is { } deal)
                 {
                     @if (deal.Steps is [{ Count: 1 } one]) { <p class="bs-shop-price"><b>@one.Kr kr</b></p> }
@@ -463,19 +476,19 @@
                     <p class="k-help">@Facts(i)</p>
                     @if (ShopDeals.Named(i.Deal) is { } d2 && d2.Steps.Count > 1) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
                     @if (i.Assess) { <p class="k-help">Den er sjælden eller dyr, så vi kigger på den selv og sætter prisen.</p> }
-                    else if (!i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
+                    else if (Prices.On && !i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
                     {
                         <p class="k-help">Vi undersøger prisen. Den kan ikke købes endnu.</p>
                     }
                     @* Links only on things with their own price (user 2026-11-02: "only if rare blad there should be links"). *@
-                    @if (i.Deal == "" && i.Reference is { } r)
+                    @if (Prices.On && i.Deal == "" && i.Reference is { } r)
                     {
                         <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
                     }
                     @if (i.Interest != "") { <p class="bs-shop-interest">@i.Interest</p> }
                     @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
                     @* A "vurderes" thing shows no other sites until a person has set the price (2026-11-03). *@
-                    @if (i.Deal != "" || i.Assess) { }
+                    @if (i.Deal != "" || i.Assess || !Prices.On) { }
                     else if (_proof.TryGetValue(i.Id, out var proof))
                     {
                         @if (proof.Count == 0)
