@@ -7,6 +7,7 @@
 @page "/fantasy"
 @page "/sjaeldne"
 @inject NavigationManager Nav
+@inject PricesShown Prices
 
 @* One shop on bogshoppen.dk (user 2026-11-03: "User can choose BogShoppen, Filmshoppen, Gameshoppen, Musikshoppen etc... and on
    each there are only products from them", "and cards - magic"). Which shop = the path; ShopFamilies says what is in it. *@
@@ -16,7 +17,7 @@
     <BogshoppenPhoto />
     <h1>@_family.Name</h1>
     <p>@_family.About</p>
-    <p class="hj-head-note"><b>Sådan gør du:</b> tryk på en underkategori, eller søg efter en titel. Under <b>Sorter</b> vælger du A–Å, Billigst, Dyrest eller Nyeste. Har vi flere fra samme serie, står de samlet på ét kort – tryk på det for at se dem alle. Tryk på billedet for at se det stort, og på <b>Mere om den</b> for stand og priser andre steder. <b>← Alle butikker</b> fører tilbage.</p>
+    <p class="hj-head-note"><b>Sådan gør du:</b> tryk på en underkategori, eller søg efter en titel. Under <b>Sorter</b> vælger du @(Prices.On ? "A–Å, Billigst, Dyrest eller Nyeste" : "A–Å eller Nyeste"). Har vi flere fra samme serie, står de samlet på ét kort – tryk på det for at se dem alle. Tryk på billedet for at se det stort, og på <b>Mere om den</b> for @(Prices.On ? "stand og priser andre steder" : "standen"). <b>← Alle butikker</b> fører tilbage.</p>
 </header>
 
 <MarketNotice />
