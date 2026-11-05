@@ -34,9 +34,9 @@ public sealed class MarketUseCases(IMarketCodes codes, IInterestGateway interest
     /// <returns>The kundenummer to remember, or the reason in Danish.</returns>
     public async Task<(string? Customer, string? Error)> LoginAsync(string? typed, CancellationToken ct = default)
     {
-        if (Normalise(typed) is not { } code) return (null, "Dit kundenummer har 8 cifre – du finder det i mailen fra os.");
+        if (Normalise(typed) is not { } code) return (null, "Dit nummer har 8 cifre – du finder det i mailen fra os.");
         var (ok, error) = await codes.CheckAsync(code, ct);
-        return ok ? (code, null) : (null, error == "" ? "Det kundenummer virker ikke." : error);
+        return ok ? (code, null) : (null, error == "" ? "Det nummer virker ikke." : error);
     }
 
     public async Task<ShopInterest> ToggleAsync(string customer, int itemId, CancellationToken ct = default)

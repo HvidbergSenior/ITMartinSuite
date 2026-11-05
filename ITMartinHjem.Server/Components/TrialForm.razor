@@ -7,13 +7,13 @@
     {
         @if (_code != "")
         {
-            <p><b>Tak – du er skrevet op!</b> Dit kundenummer er</p>
+            <p><b>Tak – du er skrevet op!</b> Dit nummer er</p>
             <p class="tf-code">@ITMartinHjem.Domain.SignUpRules.Show(_code)</p>
             <p>Skriv det, når @string.Join(" eller ", FreeApps) beder om det. Vi har også sendt det til <b>@_email</b> (kig i spam-mappen, hvis det ikke kommer).</p>
         }
         else
         {
-            <p><b>Tak – du er skrevet op!</b> Martin sender dit kundenummer til <b>@_email</b> – som regel samme dag. Kig også i spam-mappen.</p>
+            <p><b>Tak – du er skrevet op!</b> Martin sender dit nummer til <b>@_email</b> – som regel samme dag. Kig også i spam-mappen.</p>
         }
     }
     else if (!_open && !Open)
@@ -22,7 +22,7 @@
     }
     else
     {
-        <p class="k-help">Skriv dig op én gang, så får du et kundenummer til alle de gratis apps: <b>@string.Join(", ", FreeApps)</b> –
+        <p class="k-help">Skriv dig op én gang, så får du ét nummer til alle de gratis apps: <b>@string.Join(", ", FreeApps)</b> –
             og et login til bogshoppen.dk.</p>
         <input class="k-input" @bind="_name" maxlength="60" placeholder="Dit navn (valgfrit)" aria-label="Dit navn" autocomplete="name" />
         <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" @bind:event="oninput" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />

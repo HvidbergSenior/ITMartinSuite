@@ -9,7 +9,7 @@
     <div>
         @if (_sent)
         {
-            <p class="bs-done"><b>Tak – du er skrevet op</b>@(_code != "" ? $" Dit kundenummer er {ITMartinHjem.Domain.SignUpRules.Show(_code)}." : "")
+            <p class="bs-done"><b>Tak – du er skrevet op</b>@(_code != "" ? $" Dit nummer er {ITMartinHjem.Domain.SignUpRules.Show(_code)}." : "")
                 Med det kan du senere trykke på de produkter, du er interesseret i, og det giver dig adgang til de gratis apps på itmartin.dk.
                 Vi har sendt det til <b>@_email</b>. Du kan altid afmelde dig.</p>
             <a class="k-btn k-btn-sm" href="/afmeld">Afmeld</a>
@@ -18,7 +18,7 @@
         {
             @* No auction text and no product ticks any more (user 2026-10-29: "this not needed anymore ... They just push products later
                to show interest. But sign up of course"). *@
-            <p>Skriv dig op gratis, så får du dit kundenummer med det samme. Senere kan du trykke på de produkter, du er interesseret i.</p>
+            <p>Skriv dig op gratis, så får du dit nummer med det samme. Senere kan du trykke på de produkter, du er interesseret i.</p>
             <input class="k-input k-mt" @bind="_name" maxlength="60" placeholder="Dit navn" aria-label="Dit navn" autocomplete="name" />
             <input class="k-input k-mt" type="email" inputmode="email" autocomplete="email" @bind="_email" maxlength="120" placeholder="Din e-mail" aria-label="Din e-mail" />
             <textarea class="k-input k-textarea k-mt" @bind="_note" maxlength="280" rows="2" placeholder="Leder du efter noget bestemt? (valgfrit)" aria-label="Leder du efter noget bestemt?"></textarea>

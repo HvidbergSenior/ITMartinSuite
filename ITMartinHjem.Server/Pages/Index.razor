@@ -29,7 +29,7 @@
     <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
     @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
     @* "En del af ITMartin" as one line here instead of its own box (2026-10-27 "Snart ét firma", 2026-10-29 merged); the full box stays on bogshoppen.dk. *@
-    <p class="hj-head-note"><b>Bogshoppen er en del af ITMartin.</b> Dit kundenummer virker begge steder.</p>
+    <p class="hj-head-note"><b>Bogshoppen er en del af ITMartin.</b> Dit nummer virker begge steder.</p>
     @* Clear next steps in the first screen (2026-10-27, /admin/tal: 52 on the front page, only 10 went on to Mine apps).
        "Skriv mig op – gratis" like on bogshoppen.dk (user 2026-10-27: "easier to sign up ... on both sites"). *@
     <div class="hj-head-btns">
@@ -63,7 +63,7 @@
 <section class="k-card hj-signup" id="bliv-kunde">
     <h2 class="k-card-title">Skriv dig op – gratis</h2>
     <p>Ingen reklamer, ingen nyhedsbreve – og du kan altid afmelde dig.</p>
-    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som kunde" Open="true" Topics="true" />
+    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som interesseret" Open="true" Topics="true" />
 </section>
 
 @* More about Martin is one press away (the Om mig tab). *@

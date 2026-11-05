@@ -7,7 +7,7 @@ public static class SignUpRules
 {
     // Stored with the customer as proof of what they agreed to (markedsføringsloven §10, GDPR art. 7).
     public const string ConsentText =
-        "Ja tak – skriv mig op som kunde hos ITMartin og Bogshoppen. Så får jeg adgang til de gratis apps og et login til Bogshoppen, " +
+        "Ja tak – skriv mig op som interesseret hos ITMartin og Bogshoppen. Så får jeg adgang til de gratis apps og et login til Bogshoppen, " +
         "og I husker de produkter, jeg trykker på, så det er nemt for mig at få jeres tilbud. " +
         "Ingen reklamer, ingen nyhedsbreve – og jeg kan afmelde mig når som helst.";
 
@@ -34,15 +34,15 @@ public static class SignUpRules
 
     /// <summary>The mail the person gets at once with their kundenummer (plain text, Danish).</summary>
     public static (string Subject, string Body) WelcomeMail(string name, string code, IEnumerable<string> appsWithCode) =>
-        ("Dit kundenummer hos ITMartin og Bogshoppen",
+        ("Dit nummer hos ITMartin og Bogshoppen",
          $"""
          Hej{(name.Trim().Length > 0 ? " " + name.Trim() : "")}
 
-         Tak fordi du har skrevet dig op. Dit kundenummer er:
+         Tak fordi du har skrevet dig op. Dit nummer er:
 
          {Show(code)}
 
-         Med dit kundenummer kan du bruge de ekstra ting i de gratis apps: {string.Join(", ", appsWithCode)}.
+         Med dit nummer kan du bruge de ekstra ting i de gratis apps: {string.Join(", ", appsWithCode)}.
          Skriv nummeret, når appen beder om det. Du finder dem alle på itmartin.dk under Mine hjælpere.
 
          Det er også dit login på bogshoppen.dk, hvor vi finder nye måder at sælge på – ikke en traditionel webshop.

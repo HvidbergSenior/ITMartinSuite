@@ -44,9 +44,9 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
     {
         var e = (email ?? "").Trim().ToLowerInvariant();
         var n = (name ?? "").Trim();
-        if (e.Length == 0) return new("Skriv din e-mail, så kan vi sende dig dit kundenummer.");
+        if (e.Length == 0) return new("Skriv din e-mail, så kan vi sende dig dit nummer.");
         if (e.Length > TrialRules.MaxEmail || n.Length > TrialRules.MaxName) return new("Navn eller e-mail er for lang.");
-        if (!consent) return new("Sæt flueben, hvis du vil skrives op som kunde – ellers kan du skrive til Martin i chatten.");
+        if (!consent) return new("Sæt flueben, hvis du vil skrives op som interesseret – ellers kan du skrive til Martin i chatten.");
         var free = await kartotek.FreeAppsAsync(ct);
         if (!TrialRules.IsFree(app, free.Select(f => f.Name))) return new(TrialRules.NotFree);
         SignUpResult r;
@@ -79,9 +79,9 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
     {
         var e = (email ?? "").Trim().ToLowerInvariant();
         var n = (name ?? "").Trim();
-        if (e.Length == 0) return new("Skriv din e-mail, så kan vi sende dig dit kundenummer.");
+        if (e.Length == 0) return new("Skriv din e-mail, så kan vi sende dig dit nummer.");
         if (e.Length > TrialRules.MaxEmail || n.Length > TrialRules.MaxName) return new("Navn eller e-mail er for lang.");
-        if (!consent) return new("Sæt flueben, hvis du vil skrives op som kunde.");
+        if (!consent) return new("Sæt flueben, hvis du vil skrives op som interesseret.");
         SignUpResult r;
         try
         {
