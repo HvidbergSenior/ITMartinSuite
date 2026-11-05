@@ -29,6 +29,15 @@ public record Gallery(string Slug, string Name, string Path, string? Password, b
 
     // Galleries__N__RootFolders=Billeder,Videoer: a view-only root shows only these (Annette og Kent 2026-10-16:
     // "ONLY Billeder and Videoer") - no Årbog/Personer/hand-curated albums even when they exist on disk.
+    /// <summary>RootFolders entries that point INTO a folder ("Billeder/2018") - shown as their own cards at the top
+    /// (user 2026-11-05: "i need the years 2018, 2019 instead"). Never "..", never an absolute path.</summary>
+    public IReadOnlyList<string> DeepRootFolders =>
+        string.IsNullOrWhiteSpace(RootFolders) ? [] :
+        RootFolders.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Replace('\\', '/').Trim('/'))
+            .Where(x => x.Contains('/') && !x.Split('/').Any(p => p is "" or "." or ".."))
+            .ToList();
+
     public bool ShowAtRoot(string rel) =>
         string.IsNullOrWhiteSpace(RootFolders) || RootFolders.Split(',', StringSplitOptions.TrimEntries).Contains(rel, StringComparer.OrdinalIgnoreCase);
 

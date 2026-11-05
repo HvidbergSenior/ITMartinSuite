@@ -114,6 +114,14 @@ public sealed class FolderBrowser(ILibraryDisk disk, LibraryLinks links, PeopleI
                 .Select(v => new FolderEntry(v.Name, v.Rel, links.FolderCover(v.Full, r, g.Slug), v.Row, v.Icon))
                 .ToList();
 
+            // "Billeder/2018,Billeder/2019": cards straight into a folder, in the order given (2026-11-05).
+            foreach (var rel in g.DeepRootFolders.Where(x => !ViewOnlyRootFolders.Any(v => v.Rel.Equals(x, StringComparison.OrdinalIgnoreCase))))
+            {
+                var full = Path.Combine(r, rel.Replace('/', Path.DirectorySeparatorChar));
+                if (disk.DirectoryExists(full) && links.HasAnyMediaFile(full))
+                    folders.Add(new FolderEntry(Path.GetFileName(rel), NormalizeRel(rel), links.FolderCover(full, r, g.Slug), 0, "🖼️"));
+            }
+
             var smartRoot = Path.Combine(r, "SmartFolders");
             if (disk.DirectoryExists(smartRoot) && string.IsNullOrWhiteSpace(g.RootFolders))
             {
