@@ -2,6 +2,7 @@
   <!-- Indbakke - the mailbox over IMAP (Gmail, app password), READ-ONLY in v1: headers only, never bodies, never deletes. -->
   <ItemGroup>
     <ProjectReference Include="..\ITMartinIndbakke.Application\ITMartinIndbakke.Application.csproj" />
+    <ProjectReference Include="..\ITMartinKunder.Client\ITMartinKunder.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.8.0" />

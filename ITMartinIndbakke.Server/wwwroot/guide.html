@@ -80,6 +80,31 @@
     <p class="k-help ib-undo">Slettede mails ligger i papirkurven i 30 dage – du kan altid fortryde.</p>
 </section>
 
+<section class="k-card ib-min" data-fold-closed id="min">
+    <h2 class="k-card-title">Min Indbakke – hele din mail ryddet med få tryk</h2>
+    <ol class="ib-steps">
+        <li><b>Lav en nøgle til din mail</b> – 2 minutter, kun første gang.<br><span class="ib-get">Du får: en kode på 16 bogstaver, som kun virker til din mail, og som du selv kan slukke for når som helst.</span>
+            <div class="ib-guide-btns"><a class="k-btn k-btn-sm" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">Vis mig hvordan – Gmail</a></div>
+            <span class="k-help">Google beder dig måske slå totrinsbekræftelse til først. Kald nøglen "Indbakke". Yahoo og iCloud kommer senere.</span></li>
+        <li><b>Log ind med dit nummer og nøglen</b> herunder.<br><span class="ib-get">Du får: din mail scannet på et minut. Telefonen kan huske nøglen, så næste gang er det ét tryk.</span></li>
+        <li><b>Tryk Det haster</b>.<br><span class="ib-get">Du får: breve fra kommune, a-kasse, bank og Digital Post øverst – så du aldrig glemmer en frist.</span></li>
+        <li><b>Tryk Afmeld ved dem, der fylder</b>.<br><span class="ib-get">Du får: ét tryk pr. afsender. Nyhedsbrevet stopper, og de gamle mails ryger i papirkurven.</span></li>
+        <li><b>Tryk Ryd alt det gamle</b>.<br><span class="ib-get">Du får: en tom indbakke. Mails med stjerne, fra mennesker og kvitteringer bliver liggende.</span></li>
+    </ol>
+    <!--FEJL-->
+    <form method="post" action="/min" class="ib-login" autocomplete="on">
+        <label class="k-label" for="kode">Dit nummer (8 cifre)</label>
+        <input class="k-input" id="kode" name="kode" inputmode="numeric" autocomplete="username" required>
+        <label class="k-label" for="mail">Din Gmail-adresse</label>
+        <input class="k-input" id="mail" name="mail" type="email" autocomplete="email" required>
+        <label class="k-label" for="noegle">Nøglen (16 bogstaver)</label>
+        <input class="k-input" id="noegle" name="noegle" type="password" autocomplete="current-password" required>
+        <button class="k-btn k-btn-primary" type="submit">Log ind</button>
+    </form>
+    <p class="k-help"><b>Vi gemmer aldrig din nøgle.</b> Den glemmes, når du logger ud eller ikke har brugt siden i 30 minutter. Vi læser kun afsender, emne og dato – aldrig selve teksten. Slettede mails ligger i papirkurven i 30 dage.</p>
+    <p class="k-help">Har du ikke et nummer til Min Indbakke? <a href="https://itmartin.dk/chat-med-martin" target="_blank" rel="noopener">Skriv til Martin</a>.</p>
+</section>
+
 <section class="k-card" data-fold-closed>
     <h2 class="k-card-title">Hvorfor er det i orden at slette?</h2>
     <ul>

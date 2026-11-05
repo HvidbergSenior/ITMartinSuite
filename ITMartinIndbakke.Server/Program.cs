@@ -19,6 +19,7 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Ryd op i din mail – se hvad der haster, og hvad du skal svare på.";
     k.About =
     [
+        "Min Indbakke (betalt, efter aftale): log ind med dit nummer, din Gmail og en nøgle, du selv laver hos Google – så får du det hele med ét tryk: Det haster, Afmeld og Ryd alt det gamle. Nøglen gemmes aldrig; den glemmes, når du logger ud eller efter 30 minutter.",
         "Gratis for alle: en guide til at rydde op i din mail selv – Gmail, Outlook og Hotmail, Yahoo, iPhone og andre. Siden ser aldrig din mail; knapperne åbner bare din egen mail med en færdig søgning.",
         "Indbakke giver dig overblik over din mail, ligesom FileSorter rydder op i billeder: hvad der haster, hvem der venter på svar, og hvem der bare fylder.",
         "Digital Post og breve fra a-kasse, Jobnet og kommune bliver i Det haster nu, til du selv trykker Klaret. Har brevet en frist, skriver du datoen, så kan du ikke glemme den.",
@@ -27,6 +28,7 @@ builder.Services.AddKolibri(k =>
     k.HowTo =
     [
         "Gratis: tryk på din mail (fx Gmail eller Outlook), og følg trinene. Start med reklame – det er det letteste.",
+        "Min Indbakke: lav nøglen (Vis mig hvordan – Gmail), skriv dit nummer, din Gmail og nøglen, og tryk Log ind. Telefonen kan huske nøglen til næste gang.",
         "Tryk på Scan min mail. Det tager et par minutter første gang.",
         "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
         "Under Skal svares står mails fra rigtige mennesker, som du ikke har svaret på endnu.",
@@ -34,7 +36,7 @@ builder.Services.AddKolibri(k =>
         "Under Ryd alt det gamle vælger du en dato og trykker Se hvad der sker. Du ser tallene først – så trykker du Ryd op nu. Alle mails får en Gmail-etiket, så Fortryd kan hente dem alle tilbage.",
         "Slettede mails ligger i Gmails papirkurv i 30 dage. Under Seneste oprydning kan du trykke Fortryd og få dem tilbage.",
     ];
-    k.Version = "2026.11.2";
+    k.Version = "2026.11.3";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -46,6 +48,22 @@ builder.Services.AddIndbakkeInfrastructure(
     builder.Configuration["Indbakke:AppPassword"] ?? "",
     dataDir);
 
+builder.Services.AddMinIndbakke(builder.Configuration, dataDir);   // Min Indbakke: Indbakke__Kunder = the numbers Martin gave access
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<OwnerGate>();
+// Each request works on ONE mailbox: Martin's (PIN cookie) or the person's own (session cookie, key in memory only).
+// Not logged in = Martin's object is bound but never used - the /api filter answers 401 first.
+builder.Services.AddScoped(sp =>
+{
+    var ctx = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    var owner = sp.GetRequiredService<OwnerMail>().Workspace;
+    if (ctx is null || sp.GetRequiredService<OwnerGate>().IsOwner(ctx)) return owner;
+    return sp.GetRequiredService<MailSessions>().Get(ctx.Request.Cookies[OwnerGate.SessionCookie]) ?? owner;
+});
+builder.Services.AddScoped(sp => sp.GetRequiredService<MailWorkspace>().Scanner);
+builder.Services.AddScoped(sp => sp.GetRequiredService<MailWorkspace>().FollowUps);
+builder.Services.AddScoped(sp => sp.GetRequiredService<MailWorkspace>().Cleanup);
+
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 var app = builder.Build();
@@ -56,18 +74,24 @@ app.UseStaticFiles();
 var pin = app.Configuration["Indbakke:Pin"] ?? "";
 string? ownerToken = pin.Length >= 4 ? Token(pin) : null;
 static string Token(string p) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("indbakke|" + p.Trim())))[..32];
-bool IsOwner(HttpContext ctx) => ownerToken is not null && ctx.Request.Cookies.TryGetValue("indbakke_auth", out var v) && v == ownerToken;
+var gate = app.Services.GetRequiredService<OwnerGate>();
+gate.Token = ownerToken;
+bool IsOwner(HttpContext ctx) => gate.IsOwner(ctx);
+var sessions = app.Services.GetRequiredService<MailSessions>();
+MailWorkspace? Guest(HttpContext ctx) => IsOwner(ctx) ? null : sessions.Get(ctx.Request.Cookies[OwnerGate.SessionCookie]);
 
 var body = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "side.html"));
 // Everyone but Martin gets the free guide (user 2026-11-05, option 1) - their mail never reaches this server; his code is at the bottom.
 var LoginBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guide.html"));
+const string LogoutButton = """<form method="post" action="/ud" style="display:inline"><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form>""";
 const string ThemeButton = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>""";
 
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
 {
     ctx.Response.Headers.CacheControl = "no-cache";
     // ?guide=1: Martin sees the free guide like everyone else (user 2026-11-05: "I still have old" - he was logged in).
-    var owner = IsOwner(ctx) && ctx.Request.Query["guide"] != "1";
+    var guest = Guest(ctx);
+    var owner = (IsOwner(ctx) || guest is not null) && ctx.Request.Query["guide"] != "1";
     return Results.Content($"""
         <!doctype html><html lang="da" data-family="{info.Family}"><head>
         <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('indbakke_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
@@ -75,10 +99,10 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>{(owner ? "Indbakke" : "Ryd op i din mail · Indbakke")}</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         {(owner ? "<meta name=\"robots\" content=\"noindex\">" : "")}
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=11">
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=12">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=10" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
-        <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+        <body>{KolibriStaticPages.Header(info, actions: ThemeButton + (guest is null ? "" : LogoutButton))}<main class="k-main"><div class="k-content">{(owner ? (guest is null ? body : GuestBody(guest.Name)) : Guide(ctx.Request.Query["fejl"]))}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
 });
 
@@ -94,8 +118,29 @@ app.MapPost("/ind", async (HttpContext ctx) =>
     return Results.Redirect("/");
 });
 
+// Min Indbakke: kundenummer + Gmail + key, EVERY time (user 2026-11-05). The key goes into memory only; the cookie holds a random token.
+app.MapPost("/min", async (HttpContext ctx) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var r = await sessions.OpenAsync(form["kode"], form["mail"], form["noegle"], ctx.RequestAborted);
+    if (r.Token is null)
+    {
+        await Task.Delay(600);
+        return Results.Redirect("/?fejl=" + Uri.EscapeDataString(r.Error ?? "Det virkede ikke.") + "#min");
+    }
+    ctx.Response.Cookies.Append(OwnerGate.SessionCookie, r.Token, new CookieOptions { HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Strict });
+    return Results.Redirect("/");
+}).DisableAntiforgery();
+
+app.MapPost("/ud", (HttpContext ctx) =>
+{
+    sessions.Close(ctx.Request.Cookies[OwnerGate.SessionCookie]);
+    ctx.Response.Cookies.Delete(OwnerGate.SessionCookie);
+    return Results.Redirect("/");
+}).DisableAntiforgery();
+
 var api = app.MapGroup("/api").AddEndpointFilter(async (ctx, next) =>
-    IsOwner(ctx.HttpContext) ? await next(ctx) : Results.Unauthorized());
+    IsOwner(ctx.HttpContext) || Guest(ctx.HttpContext) is not null ? await next(ctx) : Results.Unauthorized());
 
 api.MapPost("/scan", (int? maaneder, MailScanner scanner) =>
     !scanner.IsConfigured ? Results.Ok(new { fejl = "Gmail er ikke sat op endnu (Indbakke__User og Indbakke__AppPassword)." })
@@ -176,13 +221,31 @@ static IResult Answer(string? error) => error is null ? Results.Ok(new { ok = tr
 // After a restart the overview (in memory only) is gone - scan again by itself, so the page is never empty.
 app.Lifetime.ApplicationStarted.Register(() =>
 {
-    var scanner = app.Services.GetRequiredService<MailScanner>();
+    var scanner = app.Services.GetRequiredService<OwnerMail>().Workspace.Scanner;
     if (scanner.IsConfigured) scanner.Start(12);
 });
 
 app.Run();
 
+// A failed Min Indbakke login comes back with ?fejl=: that card opens and says why.
+string Guide(string? fejl) => string.IsNullOrWhiteSpace(fejl) ? LoginBody
+    : LoginBody.Replace("<section class=\"k-card ib-min\" data-fold-closed id=\"min\">", "<section class=\"k-card ib-min\" id=\"min\">")
+               .Replace("<!--FEJL-->", $"<p class=\"ib-fejl\" role=\"alert\">{System.Net.WebUtility.HtmlEncode(fejl)}</p>");
+
+// The person's own Indbakke = the same page as Martin's, with whose mail it is on top and without Martin's guide link.
+string GuestBody(string name) =>
+    $"<p class=\"k-help k-center ib-who\">Min Indbakke · {System.Net.WebUtility.HtmlEncode(name)} · din nøgle glemmes, når du logger ud eller lukker siden i 30 minutter.</p>"
+    + body.Replace("<p class=\"k-help k-center ib-guide-link\">", "<p hidden class=\"ib-guide-link\">");
+
 record FollowUpForm(string Id, DateOnly? Frist, string? Note);
 record RydForm(string? Adresse, bool Afmeld, bool Slet);
 record FortrydForm(Guid Id);
 record GammeltForm(DateOnly Foer, OldMode Maade);
+
+/// <summary>Who is Martin (PIN cookie with a hash, never the PIN) - and the name of the Min Indbakke session cookie.</summary>
+sealed class OwnerGate
+{
+    public const string SessionCookie = "indbakke_s";
+    public string? Token { get; set; }
+    public bool IsOwner(HttpContext ctx) => Token is not null && ctx.Request.Cookies.TryGetValue("indbakke_auth", out var v) && v == Token;
+}

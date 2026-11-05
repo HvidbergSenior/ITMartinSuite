@@ -76,14 +76,25 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
     }
 }
 
+/// <summary>Martin's own Indbakke - the workspace behind his PIN.</summary>
+public sealed record OwnerMail(MailWorkspace Workspace);
+
 public static class IndbakkeApplication
 {
     public static IServiceCollection AddIndbakkeApplication(this IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton<MailScanner>();
-        services.AddSingleton<FollowUps>();
-        services.AddSingleton<Cleanup>();
+        // Martin's own mailbox (Indbakke__User/AppPassword) = one workspace for the whole life of the app.
+        services.AddSingleton(sp =>
+        {
+            var clock = sp.GetRequiredService<TimeProvider>();
+            var scanner = new MailScanner(sp.GetRequiredService<IMailbox>(), sp.GetRequiredService<ILogger<MailScanner>>(), clock);
+            return new OwnerMail(new MailWorkspace(scanner,
+                new FollowUps(sp.GetRequiredService<IFollowUpStore>(), scanner, clock),
+                new Cleanup(scanner, sp.GetRequiredService<IMailboxCleaner>(), sp.GetRequiredService<IUnsubscriber>(), sp.GetRequiredService<ICleanupLog>(), clock),
+                "Martin"));
+        });
+        services.AddSingleton<MailSessions>();   // Min Indbakke: one workspace per login, key in memory only
         return services;
     }
 }

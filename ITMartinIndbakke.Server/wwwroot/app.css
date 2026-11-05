@@ -69,3 +69,10 @@
 
 /* A hidden button really disappears (k-btn's display beat [hidden]: an empty "Vis alle" box showed under "Intet haster lige nu", 2026-11-05). */
 .k-btn[hidden] { display: none !important; }
+
+/* Min Indbakke card (2026-11-05): "do this -> you get that", the login under it. */
+.ib-steps { padding-left: 22px; display: grid; gap: 12px; margin: 8px 0 14px; }
+.ib-get { color: var(--k-muted, inherit); }
+.ib-fejl { border: 2px solid var(--k-text); border-radius: 10px; padding: 10px 12px; font-weight: 700; }
+.ib-login { display: grid; gap: 6px; max-width: 420px; }
+.ib-who { margin: 0 0 8px; }
