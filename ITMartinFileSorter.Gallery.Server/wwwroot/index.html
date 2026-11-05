@@ -797,6 +797,12 @@ function renderFolderRows(folders, placeholders) {
   }).join('');
 }
 
+// "Tryk på Billeder eller Videoer" named after the cards that are really there (2026-11-05: the demo has Billeder + Personer).
+function vaersgoCards(folders) {
+  const n = (folders || []).map(f => f.name).filter(Boolean).slice(0, 3);
+  return n.length === 0 ? 'Billeder' : n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' eller ' + n[n.length - 1];
+}
+
 function renderBrowse(data, titleOverride) {
   const { atRoot, folders, hideAddons, viewOnly, theme, headline, tagline } = data;
   let files = data.files || [];
@@ -875,7 +881,7 @@ function renderBrowse(data, titleOverride) {
     vm.style.display = atRoot ? '' : 'none';
     vh.innerHTML = `<div class="v-hero"><div class="v-kicker">Værsgo</div><h1 class="v-name">${esc(headline || galleryDisplayName || 'Jeres billeder')}</h1>`
       + (tagline ? `<p class="v-line">${esc(tagline)}</p>` : '')
-      + `<div class="v-count">Tryk på Billeder eller Videoer for at se dem.</div>`
+      + `<div class="v-count">Tryk på ${esc(vaersgoCards(data.folders))} for at se dem.</div>`
       + `<div class="v-btns">${data.uploadUrl ? `<a class="v-btn" href="${esc(data.uploadUrl)}">📤 Send flere billeder</a>` : ''}<button type="button" class="v-btn alt" id="vPhone">📲 Læg galleriet på telefonen</button></div></div>`;
     let open = true; try { open = localStorage.getItem('vaersgoMoreOpen') !== '0'; } catch (e) {}
     vm.innerHTML = `<details class="v-more"${open ? ' open' : ''}><summary>Det kan I også få, når alle billederne er sorteret ▾</summary>`
