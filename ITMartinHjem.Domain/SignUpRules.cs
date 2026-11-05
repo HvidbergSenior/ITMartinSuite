@@ -32,8 +32,17 @@ public static class SignUpRules
             """);
     }
 
+    /// <summary>"ElPriser, Stem og Indbakke" - Danish list with "og" before the last.</summary>
+    public static string AndList(IEnumerable<string> names)
+    {
+        var l = names.Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+        return l.Count <= 1 ? string.Join("", l) : string.Join(", ", l[..^1]) + " og " + l[^1];
+    }
+
     /// <summary>The mail the person gets at once with their kundenummer (plain text, Danish).</summary>
-    public static (string Subject, string Body) WelcomeMail(string name, string code, IEnumerable<string> appsWithCode) =>
+    /// <param name="helpers">The helpers on Hjælpershoppen right now (user 2026-11-05: "ElPriser, Temperatur, Stem, FileSorter and
+    /// Indbakke" - only what is live; Spilleder etc. are "kommer snart").</param>
+    public static (string Subject, string Body) WelcomeMail(string name, string code, IEnumerable<string> helpers) =>
         ("Dit nummer hos ITMartin og Bogshoppen",
          $"""
          Hej{(name.Trim().Length > 0 ? " " + name.Trim() : "")}
@@ -42,8 +51,8 @@ public static class SignUpRules
 
          {Show(code)}
 
-         Med dit nummer kan du bruge de ekstra ting i de gratis apps: {string.Join(", ", appsWithCode)}.
-         Skriv nummeret, når appen beder om det. Du finder dem alle på itmartin.dk under Mine hjælpere.
+         Mine gratis hjælpere: {AndList(helpers)}.
+         Du finder dem på itmartin.dk under Produkter → Hjælpershoppen. Beder en hjælper om dit nummer, så skriv det – så får du de ekstra ting.
 
          Det er også dit login på bogshoppen.dk, hvor vi finder nye måder at sælge på – ikke en traditionel webshop.
 

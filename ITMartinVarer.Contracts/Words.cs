@@ -261,7 +261,7 @@ public static class ShopFamilies
     public static readonly ShopFamily Fantasy = new("Fantasyshoppen", "fantasy", "Dungeons & Dragons og andre rollespil – bøger, bokse og terninger.",
         [ProductTypes.Rollespil], [new("Dungeons & Dragons", ProductTypes.Rollespil)],
         [new("Kolibri Character", "Lav din figur til Dungeons & Dragons – sammen med din spilleder.", "https://character.itmartin.dk/"),
-         new("Kolibri Spilleder", "For spillederen: hold styr på figurer, hemmelige beskeder og spillet.", "https://spilleder.itmartin.dk/")]);
+         new("Kolibri Spilleder", "For spillederen: hold styr på figurer, hemmelige beskeder og spillet.", null)]);   // Kommer snart (user 2026-11-05)
 
     public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Fantasy, Kort];
 

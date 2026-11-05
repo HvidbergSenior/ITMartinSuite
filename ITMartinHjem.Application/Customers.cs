@@ -31,7 +31,7 @@ public interface IOwnerInbox
     Task NewRequestAsync(string name, string email, string text, CancellationToken ct = default);
 }
 
-public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMailSender mail, HjemOptions options)
+public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMailSender mail, HjemOptions options, IAppLinkRepository? apps = null)
 {
     public const string Unreachable = "Det kunne ikke gemmes lige nu – prøv igen om lidt, eller skriv til ITMartin@Mensa.dk.";
 
@@ -63,7 +63,10 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
     private async Task WelcomeAsync(string name, string email, string code, IReadOnlyList<FreeAppView> free, CancellationToken ct)
     {
         if (code == "") return;
-        var (subject, body) = SignUpRules.WelcomeMail(name, code, free.Where(f => f.NeedsCode).Select(f => f.Name));
+        // The same helpers as Hjælpershoppen shows (shown + woken by Martin + an address) - never one that is "kommer snart".
+        var helpers = apps is null ? free.Where(f => f.NeedsCode).Select(f => f.Name)
+            : (await apps.ShownAsync(ct)).Where(a => a.Awake && a.Url.StartsWith("http")).OrderBy(a => a.Sort).Select(a => a.Name);
+        var (subject, body) = SignUpRules.WelcomeMail(name, code, helpers);
         await mail.SendAsync(email, subject, body, ct);
     }
 

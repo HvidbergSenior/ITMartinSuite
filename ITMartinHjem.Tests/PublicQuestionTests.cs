@@ -163,7 +163,7 @@ public class TrialRequestTests
         (await uc.RequestTrialAsync("elpriser", "Ole", " Ole@Gmail.com ", consent: true)).Should().Be(new SignUpResult(null, "48217730"));
         mail.Sent.Should().HaveCount(2);   // the welcome to the person + the note to Martin (user 2026-10-28)
         mail.Sent.Should().ContainSingle(m => m.To == "ITMartin@Mensa.dk").Which.Body.Should().Contain("ole@gmail.com").And.Contain("4821 7730").And.Contain("itmartin.dk");
-        mail.Sent.Should().ContainSingle(m => m.To == "ole@gmail.com").Which.Body.Should().Contain("4821 7730").And.Contain("ElPriser, Stem").And.NotContain("Temperatur")
+        mail.Sent.Should().ContainSingle(m => m.To == "ole@gmail.com").Which.Body.Should().Contain("4821 7730").And.Contain("ElPriser og Stem").And.NotContain("Temperatur")
             .And.Contain("bogshoppen.dk").And.NotContain("liveauktion").And.Contain("afmeld");
         k.SignedUp.Should().ContainSingle().Which.Should().Be(new CustomerSignUp("ole@gmail.com", "Ole", CustomerOf.ITMartin, "elpriser",
             TrialRules.Source("elpriser"), TrialRules.ConsentText, "elpriser"));
