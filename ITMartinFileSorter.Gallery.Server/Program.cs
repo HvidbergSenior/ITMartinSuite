@@ -194,7 +194,7 @@ app.MapGet("/api/galleries", (string? adminPin, IConfiguration config) =>
 
 // Safe unauthenticated - the caller already has to know the exact slug (from their own link).
 app.MapGet("/api/gallery-info", (string gallery) =>
-    catalog.Find(gallery) is { } g ? Results.Ok(new { g.Name }) : Results.NotFound());
+    catalog.Find(gallery) is { } g ? Results.Ok(new { g.Name, kolibri = g.IsDemo }) : Results.NotFound());
 
 app.MapPost("/api/login", (LoginRequest req, HttpContext ctx) =>
 {

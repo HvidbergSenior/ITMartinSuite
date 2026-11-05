@@ -15,6 +15,10 @@ public record Gallery(string Slug, string Name, string Path, string? Password, b
 
     public bool IsCelebration => !string.IsNullOrEmpty(CelebrationFolder);
 
+    // The public demos (gallery.itmartin.dk/demo, /facebook-demo) wear the ITMartin/Kolibri frame like the other helpers
+    // (user 2026-11-05: "Only the demos") - customers' own galleries keep their own look.
+    public bool IsDemo => Slug == "demo" || Slug.EndsWith("-demo", StringComparison.OrdinalIgnoreCase);
+
     // The view password is the cookie value (gallery_<slug>) or ?token=; no password = open.
     public bool Admits(string? key) => string.IsNullOrEmpty(Password) || key == Password;
 

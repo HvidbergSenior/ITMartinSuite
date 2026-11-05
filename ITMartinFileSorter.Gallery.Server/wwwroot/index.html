@@ -528,7 +528,9 @@ async function startUp() {
 
   if (slug) {
     const infoRes = await fetch(`/api/gallery-info?gallery=${encodeURIComponent(slug)}`);
-    const name = infoRes.ok ? (await infoRes.json()).name : slug;
+    const info = infoRes.ok ? await infoRes.json() : null;
+    const name = info ? info.name : slug;
+    if (info && info.kolibri) kolibriFrame();
     selectGallery(slug, name);
     return;
   }
@@ -539,6 +541,43 @@ async function startUp() {
   }
 
   showNoGalleryState();
+}
+
+// ── The ITMartin/Kolibri frame on the public demos (2026-11-05, "Only the demos"): logo + name in the bar,
+// "Hvad viser siden?" and the same footer as the other helpers. Own small styles, so no gallery theme is touched.
+function kolibriFrame() {
+  if (document.getElementById('itmKBrand')) return;
+  const css = document.createElement('style');
+  css.textContent = `
+    .itm-k-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;margin-right:auto;min-width:0}
+    .itm-k-brand img{height:32px;border-radius:6px;background:#fff;padding:3px 6px}
+    .itm-k-brand b{display:block;font-size:1rem;line-height:1.1}
+    .itm-k-brand span{display:block;font-size:.75rem;opacity:.8}
+    .itm-k-what{margin:12px 0;border:1px solid var(--border,#ccc);border-radius:14px;padding:4px 16px;background:var(--bg-card,transparent)}
+    .itm-k-what summary{cursor:pointer;font-weight:700;padding:10px 0}
+    .itm-k-what p{margin:0 0 12px;line-height:1.5}
+    .itm-k-foot{margin:32px 0 16px;padding:16px;border-top:1px solid var(--border,#ccc);text-align:center;font-size:.9rem;display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center}
+    .itm-k-foot a{color:inherit}`;
+  document.head.appendChild(css);
+  const hdr = document.querySelector('#browse .hdr');
+  if (hdr) {
+    const a = document.createElement('a');
+    a.id = 'itmKBrand'; a.className = 'itm-k-brand'; a.href = 'https://itmartin.dk/mine-apps?app=FileSorter';
+    a.innerHTML = '<img src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div><b>FileSorter</b><span>Kolibri Syn</span></div>';
+    hdr.insertBefore(a, hdr.firstChild);
+    const t = document.getElementById('hdrTitle'); if (t) t.style.display = 'none';
+  }
+  const content = document.querySelector('#browse .content');
+  if (content) {
+    const what = document.createElement('details');
+    what.className = 'itm-k-what';
+    what.innerHTML = '<summary>Hvad viser siden?</summary><p>Et rigtigt eksempel på et galleri, som FileSorter har lavet: billederne samlet ét sted, dubletter fjernet og sorteret efter år.</p><p><b>Sådan:</b> tryk på <b>Billeder</b>, og vælg et år. Vil du have dit eget? Se FileSorter på itmartin.dk.</p>';
+    content.insertBefore(what, content.firstChild);
+    const foot = document.createElement('footer');
+    foot.className = 'itm-k-foot';
+    foot.innerHTML = '<span>© 2026 ITMartin · Den digitale kolibri</span><a href="https://itmartin.dk/mine-apps?app=FileSorter">Om FileSorter</a><a href="https://itmartin.dk/chat-med-martin">Noget virker ikke?</a><a href="https://itmartin.dk/vilkaar">Vilkår &amp; privatliv</a>';
+    document.getElementById('browse').appendChild(foot);
+  }
 }
 
 function showNoGalleryState() {
