@@ -15,8 +15,8 @@
     {
         var shown = _overview.Shelves.Sum(sh => sh.Count);
         <div class="bs-progress" role="status">
-            <b>@shown.ToString("N0", Da) produkter er lagt ind – @Math.Max(0, PricesShown.Goal - shown).ToString("N0", Da) til at gå.</b>
-            <span>Priserne kommer, når vi er længere. Se dig om, og tryk interessant ved det, du kan lide.</span>
+            <b>Vi har lagt @shown.ToString("N0", Da) produkter ind – der mangler @Math.Max(0, PricesShown.Goal - shown).ToString("N0", Da).</b>
+            <span>Priserne kommer, når vi er nået længere. Kig dig bare omkring.</span>
         </div>
     }
     @if (Family is not null)
