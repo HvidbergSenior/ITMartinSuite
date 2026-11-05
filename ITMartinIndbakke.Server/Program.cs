@@ -66,7 +66,8 @@ const string ThemeButton = """<button id="themeToggleBtn" class="k-btn k-btn-gho
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
 {
     ctx.Response.Headers.CacheControl = "no-cache";
-    var owner = IsOwner(ctx);
+    // ?guide=1: Martin sees the free guide like everyone else (user 2026-11-05: "I still have old" - he was logged in).
+    var owner = IsOwner(ctx) && ctx.Request.Query["guide"] != "1";
     return Results.Content($"""
         <!doctype html><html lang="da" data-family="{info.Family}"><head>
         <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('indbakke_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
