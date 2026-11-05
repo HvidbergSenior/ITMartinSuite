@@ -44,7 +44,7 @@
                 @* ONE card template for every helper (user 2026-11-05: "all my helpers ... should have same template"): a running helper
                    always ends in the same button; sign-up shows only where the extras need a number. *@
                 @if (up && !showcase) { <a class="k-btn k-btn-primary k-btn-block k-mt" href="@a.Url" target="_blank" rel="noopener">Åbn @a.Name – gratis</a> }
-                @if (free && !open) { <TrialForm App="@a.Name" FreeApps="WithCode" /> }
+                @* "Prøv gratis" (sign-up) removed from the cards 2026-11-05: ONE button per card - signing up is on the front page. *@
                 @* Contacting Martin is only for the udvidet udgave - the free one needs no contact (user 2026-10-30). *@
                 <div class="hj-app-contact"><b>Vil du have en udvidet udgave af @a.Name?</b> Kontakt mig:
                     <div class="k-row k-mt"><a class="k-btn k-btn-sm" href="/chat-med-martin">Chat</a><a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=@Uri.EscapeDataString("Interesseret i " + a.Name)">Mail</a><a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a></div></div>
