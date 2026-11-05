@@ -18,15 +18,31 @@
 }
 else if (_session is null)
 {
-    <section class="k-card">
-        <h1 class="k-card-title">@(_choices.Count == 1 && !Me.IsAdmin ? "Din session" : "Vælg en session")</h1>
-        @if (_choices.Count == 0)
-        {
-            <p>Hej @Me.Name. Der er ingen session i gang lige nu. Martin starter den, før I går i gang – imens kan du prøve din <b>øvesession</b> nedenfor.@(Me.IsAdmin ? " Du starter en session under Sessioner." : "")</p>
-        }
-        else
-        {
-            <p>Hej @Me.Name. Tryk på den session, du er med i – navnet siger hvor, eller hvad I tager billeder af. I kan godt være flere i samme session.</p>
+    @* Two ways in (user 2026-11-05): no "start a session first" - each button joins today's session of that kind, or starts it. *@
+    <section class="k-card vi-ways">
+        <h1 class="k-card-title">Hvad vil du tage billeder af?</h1>
+        <p>Hej @Me.Name. Vælg én – så er du i gang. I kan godt være flere på samme tid, hver med jeres egen telefon.</p>
+        <div class="vi-way">
+            <h2>Registrér lageret</h2>
+            <p><b>Gør dette:</b> læg 10-20 ting ud med forsiden op, og tag billeder af det hele – jo flere, jo bedre.</p>
+            <p><b>Du får:</b> alle tingene registreret med titel og stand, så de kan få en pris og en kasse.</p>
+            <button type="button" class="k-btn k-btn-primary lg-big" @onclick="() => Today(false)" disabled="@_busy">Registrér lageret</button>
+        </div>
+        <div class="vi-way">
+            <h2>Nye fund</h2>
+            <p><b>Gør dette:</b> tag billeder af det, der står fx på genbrugspladsen eller et loppemarked.</p>
+            <p><b>Du får:</b> en pris på hver ting, så I hurtigt kan se, hvad der er interessant – kun det, I tager med hjem, kommer på lageret.</p>
+            <button type="button" class="k-btn k-btn-primary lg-big" @onclick="() => Today(true)" disabled="@_busy">Nye fund</button>
+        </div>
+        <p class="k-help">Har du taget billederne med telefonens eget kamera? Tryk på en af knapperne, og så <b>Tilføj billeder, du allerede har taget</b> – du kan vælge mange på én gang.</p>
+        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+    </section>
+
+    @if (_choices.Count > 0)
+    {
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Andre sessioner</h2>
+        <p>Er du sat på en bestemt session, så tryk på den her.</p>
             <ul class="lg-list">
                 @foreach (var c in _choices)
                 {
@@ -37,18 +53,22 @@ else if (_session is null)
                     </li>
                 }
             </ul>
-        }
         @if (Me.IsAdmin) { <p><a class="k-btn k-btn-secondary" href="/sessioner">Sessioner – start en ny</a></p> }
-        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
         <p data-photo-status role="status" hidden></p>
         @* Photos whose session is gone wait on the phone (fotokoe.js, 2026-10-29) - choose a session above to send them. *@
         <div data-photo-stranded class="lg-warn" role="status" hidden><p data-photo-stranded-text></p></div>
     </section>
+    }
+    else
+    {
+        <p data-photo-status role="status" hidden></p>
+        <div data-photo-stranded class="lg-warn" role="status" hidden><p data-photo-stranded-text></p></div>
+    }
 
     @* Helpers see the øvesession only while no real session is open (user 2026-10-31: "Only push the new session take pictures thats it"). *@
     @if (Me.IsAdmin || _choices.Count == 0)
     {
-    <section class="k-card">
+    <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">Min øvesession</h2>
         <p>Vil du bare prøve? Din egen øvesession er kun din, og tingene i den bliver <b>kun vist</b> – de bliver aldrig solgt. Tryk <b>Min øvesession</b> og tag billeder af hvad som helst.</p>
         <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="Practice" disabled="@_busy">Min øvesession</button>
@@ -164,6 +184,15 @@ else
     }
 
     private void Open(int id) => Nav.NavigateTo($"/?s={id}");
+
+    private async Task Today(bool fund)
+    {
+        if (Me is null) return;
+        _busy = true; _error = null;
+        try { Nav.NavigateTo($"/?s={(await Sessions.TodayAsync(Me, fund)).Id}"); }
+        catch (Exception e) when (e is VareinfoException or InvalidOperationException) { _error = e.Message; }
+        finally { _busy = false; }
+    }
 
     private async Task Leave()
     {

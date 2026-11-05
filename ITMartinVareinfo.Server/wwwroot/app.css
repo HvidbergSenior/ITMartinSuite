@@ -89,3 +89,9 @@
 .lg-cam-zoom { display: flex; align-items: center; gap: .4rem; flex: 1 1 200px; }
 .lg-cam-zoom input { flex: 1; }
 .lg-cam-lens { max-width: 14rem; }
+
+/* Two ways in (2026-11-05): big, clear choices - "Gør dette" / "Du får". */
+.vi-ways .vi-way { border: 2px solid var(--k-border-3, #ccc); border-radius: 14px; padding: 14px 16px; margin: 12px 0; }
+.vi-ways .vi-way h2 { margin: 0 0 6px; font-size: 1.25rem; }
+.vi-ways .vi-way p { margin: 0 0 8px; }
+.vi-ways .vi-way .lg-big { width: 100%; margin-top: 6px; }

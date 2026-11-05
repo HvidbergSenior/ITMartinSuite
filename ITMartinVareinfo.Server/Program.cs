@@ -30,8 +30,9 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Log ind med din egen kode (du får den af Martin) – eller med dit kundenummer, hvis Martin har gjort dig til hjælper i Kunder.",
-        "Tryk Vælg ved den session, du er med i. Martin starter sessionerne, før I går i gang.",
+        "Log ind med din egen kode (du får den af Martin) – eller med dit nummer, hvis Martin har gjort dig til hjælper i Kunder.",
+        "Tryk Registrér lageret (alle de ting, I har) eller Nye fund (det, der står fx på genbrugspladsen). Så er du i gang – I kan godt være flere på samme tid, hver med jeres egen telefon.",
+        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på knappen og så Tilføj billeder, du allerede har taget – du kan vælge mange på én gang.",
         "Læg 10-20 ting ud med forsiden op, og tryk 📸 Tag billede. Gentag, til alt har været på et billede. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
         "Har du taget billederne med telefonens eget kamera? Vælg sessionen, tryk Tilføj billeder, du allerede har taget, og vælg dem alle på én gang.",
         "Færdig? Tryk ✓ Færdig med billeder – så er du tilbage ved sessionerne. Billederne er gemt, så snart de er sendt.",
@@ -43,7 +44,7 @@ builder.Services.AddKolibri(k =>
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
         "Er en session blevet slettet, mens billeder ventede på telefonen, bliver de på telefonen: vælg en session, og tryk Send dem til denne session.",
     ];
-    k.Version = "2026.11.03";
+    k.Version = "2026.11.05";
     k.ThemeColor = "#f4f6f5";
 });
 

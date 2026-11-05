@@ -39,6 +39,25 @@ public sealed class WorkSession
         return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Fund = fund };
     }
 
+    /// <summary>Today's session of a kind (user 2026-11-05: two ways in, no "start a session first"):
+    /// "Lageret – 5. november" or "Nye fund – 5. november", by Danish date.</summary>
+    public static string TodayName(bool fund, DateTime utcNow)
+    {
+        var dk = TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen);
+        return (fund ? "Nye fund – " : "Lageret – ") + dk.ToString("d. MMMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+    }
+
+    /// <summary>Is this today's session of that kind (same kind, open, made today in Danish time)?</summary>
+    public bool IsToday(bool fund, DateTime utcNow) =>
+        Open && !IsPractice && Fund == fund && TimeZoneInfo.ConvertTimeFromUtc(CreatedAt, Copenhagen).Date == TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen).Date;
+
+    private static readonly TimeZoneInfo Copenhagen = FindCopenhagen();
+    private static TimeZoneInfo FindCopenhagen()
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"); }
+        catch (TimeZoneNotFoundException) { return TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time"); }
+    }
+
     /// <summary>The next number: one more than the highest so far.</summary>
     public static int NextNumber(IEnumerable<int> used) => used.DefaultIfEmpty(0).Max() + 1;
 

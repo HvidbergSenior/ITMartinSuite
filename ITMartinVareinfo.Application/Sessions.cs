@@ -45,6 +45,22 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
         finally { Gate.Release(); }
     }
 
+    /// <summary>"Registrér lageret" / "Nye fund" (user 2026-11-05: a simple flow, and "it should not just be me who takes
+    /// pictures"): today's session of that kind for everyone - joined when it is there, started when it is not.</summary>
+    public async Task<WorkSession> TodayAsync(Taker me, bool fund, CancellationToken ct = default)
+    {
+        await Gate.WaitAsync(ct);
+        try
+        {
+            var all = await AllAsync(ct);
+            if (all.Where(s => s.IsToday(fund, Now) && s.IsFor(me)).OrderByDescending(s => s.CreatedAt).FirstOrDefault() is { } today) return today;
+            var s = Guard(() => WorkSession.Start(WorkSession.NextNumber(all.Select(x => x.Number)), WorkSession.TodayName(fund, Now), Now, fund));
+            await sessions.SaveAsync(s, ct);
+            return s;
+        }
+        finally { Gate.Release(); }
+    }
+
     public Task RenameAsync(int id, string? name, CancellationToken ct = default) => ChangeAsync(id, s => s.Rename(name), ct);
 
     /// <summary>"Til": the session is for this helper only (null = every helper).</summary>

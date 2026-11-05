@@ -21,6 +21,7 @@ public class SessionTests
     [SetUp]
     public void Open()
     {
+        _clock.Now = new(2026, 10, 20, 9, 0, 0, TimeSpan.Zero);   // one fixture instance: a test that moves the day must not move the next
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();
         using (var db = Factory.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
@@ -31,6 +32,37 @@ public class SessionTests
 
     [TearDown]
     public void Close() => _conn.Dispose();
+
+    // Two ways in (2026-11-05): "Registrér lageret" / "Nye fund" join today's session of that kind or start it.
+    [Test]
+    public async Task The_same_button_the_same_day_gives_everyone_the_same_session()
+    {
+        var mine = await _sessions.TodayAsync(_martin, fund: false);
+        var hers = await _sessions.TodayAsync(_bertil, fund: false);   // a helper, own phone - no "start a session first"
+        hers.Id.Should().Be(mine.Id);
+        mine.Title.Should().Be("Session 1 – Lageret – 20. oktober");
+        mine.Fund.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Lageret_and_Nye_fund_are_two_sessions_and_a_new_day_starts_new_ones()
+    {
+        var stock = await _sessions.TodayAsync(_martin, fund: false);
+        var fund = await _sessions.TodayAsync(_bertil, fund: true);
+        fund.Id.Should().NotBe(stock.Id);
+        fund.Fund.Should().BeTrue();
+        fund.Name.Should().StartWith("Nye fund – ");
+        _clock.Now = _clock.Now.AddDays(1);
+        (await _sessions.TodayAsync(_martin, fund: false)).Id.Should().NotBe(stock.Id);
+    }
+
+    [Test]
+    public async Task A_closed_session_is_not_reused_today()
+    {
+        var first = await _sessions.TodayAsync(_martin, fund: false);
+        await _sessions.CloseAsync(first.Id);
+        (await _sessions.TodayAsync(_martin, fund: false)).Id.Should().NotBe(first.Id);
+    }
 
     [Test]
     public async Task Sessions_are_numbered_1_2_3_and_titled_by_place_and_purpose()
