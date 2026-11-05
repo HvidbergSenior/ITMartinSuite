@@ -8,8 +8,8 @@
 <h1>Besked på telefonen</h1>
 <PageHelp Key="help-besked">
     <p>Telefonen får en besked <b>en time før</b> dagens billigste to timer – så du kan nå at fylde vaskemaskinen. Du kan også få en advarsel før de dyreste timer.</p>
-    <p>Beskeder er gratis for kunder: skriv dig op én gang på itmartin.dk (Mine apps → ElPriser → Prøv gratis), så får du et kundenummer på mail. Skriv det her, og tryk Slå beskeder til.</p>
-    <p>Vi gemmer kun telefonens besked-adresse, dit prisområde og dit kundenummer. Stop når som helst nederst på siden.</p>
+    <p>Beskeder er gratis for interesserede: skriv dig op én gang på itmartin.dk (tryk Skriv mig op – gratis på forsiden), så får du et nummer på mail. Skriv det her, og tryk Slå beskeder til.</p>
+    <p>Vi gemmer kun telefonens besked-adresse, dit prisområde og dit nummer. Stop når som helst nederst på siden.</p>
 </PageHelp>
 
 <div class="k-card">
@@ -57,12 +57,12 @@
                 @if (!_hasCode)
                 {
                     <div class="note k-mt">
-                        <b>Skriv dig op gratis</b> – så får du et kundenummer til alle de gratis apps. Dine beskeder fortsætter uanset hvad.
+                        <b>Skriv dig op gratis</b> – så får du et nummer til alle de gratis apps. Dine beskeder fortsætter uanset hvad.
                         <div class="field">
-                            <label>Dit kundenummer (8 cifre – står i mailen, du fik, da du skrev dig op)</label>
+                            <label>Dit nummer (8 cifre – står i mailen, du fik, da du skrev dig op)</label>
                             <input type="text" inputmode="numeric" autocomplete="off" @bind="_code" placeholder="fx 4821 7730" />
                         </div>
-                        <button class="k-btn k-btn-primary k-btn-block" @onclick="AddCodeAsync" disabled="@_busy">Gem kundenummer</button>
+                        <button class="k-btn k-btn-primary k-btn-block" @onclick="AddCodeAsync" disabled="@_busy">Gem nummer</button>
                         <a class="k-btn k-btn-block k-mt" href="https://itmartin.dk/mine-apps?app=ElPriser" target="_blank" rel="noopener">Har du ikke et? Skriv dig op gratis på itmartin.dk</a>
                     </div>
                 }
@@ -70,12 +70,12 @@
             else
             {
                 <div class="field">
-                    <label>Dit kundenummer (8 cifre – står i mailen, du fik, da du skrev dig op)</label>
+                    <label>Dit nummer (8 cifre – står i mailen, du fik, da du skrev dig op)</label>
                     <input type="text" inputmode="numeric" autocomplete="off" @bind="_code" placeholder="fx 4821 7730" />
                 </div>
                 @* While the phone is being checked the form is already there, greyed out - no "Tjekker…" page that jumps away. *@
                 <button class="k-btn k-btn-primary k-btn-block" @onclick="SubscribeAsync" disabled="@(_busy || _state is null)">@(_busy ? "Vent…" : _state is null ? "Tjekker telefonen …" : "Slå beskeder til")</button>
-                <p class="small k-muted">Har du ikke et kundenummer? Det er gratis:</p>
+                <p class="small k-muted">Har du ikke et nummer? Det er gratis:</p>
                 <a class="k-btn k-btn-block" href="https://itmartin.dk/mine-apps?app=ElPriser" target="_blank" rel="noopener">Skriv dig op gratis på itmartin.dk</a>
             }
             @if (_msg is not null) { <div class="note">@_msg</div> }
@@ -86,7 +86,7 @@
 <div class="k-card">
     <div class="k-card-title">Sådan virker det</div>
     <div>
-        Hver dag ca. kl. 13 kommer morgendagens priser. Appen finder de billigste to timer i træk for <b>@Front.Describe()</b> (skift dit hjem på forsiden, og tryk "Gem valg" igen her) og sender en besked én time før. Vi gemmer kun det der skal til for at sende beskeden: telefonens besked-adresse, dit prisområde og dit kundenummer – ingen e-mail.
+        Hver dag ca. kl. 13 kommer morgendagens priser. Appen finder de billigste to timer i træk for <b>@Front.Describe()</b> (skift dit hjem på forsiden, og tryk "Gem valg" igen her) og sender en besked én time før. Vi gemmer kun det der skal til for at sende beskeden: telefonens besked-adresse, dit prisområde og dit nummer – ingen e-mail.
     </div>
 </div>
 
@@ -130,8 +130,8 @@
             if (!ok) { _msg = error; return; }
             try { await JS.InvokeVoidAsync("localStorage.setItem", "elpriser-kundenummer", _code); } catch { }
             var state = await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive, _code);
-            if (state == "on") { _hasCode = true; _msg = "Tak – dit kundenummer er gemt."; }
-            else _msg = "Dit kundenummer kunne ikke gemmes lige nu – prøv igen om lidt.";
+            if (state == "on") { _hasCode = true; _msg = "Tak – dit nummer er gemt."; }
+            else _msg = "Dit nummer kunne ikke gemmes lige nu – prøv igen om lidt.";
         }
         finally { _busy = false; }
     }
@@ -146,7 +146,7 @@
             if (!ok) { _msg = error; return; }
             try { await JS.InvokeVoidAsync("localStorage.setItem", "elpriser-kundenummer", _code); } catch { }
             var state = await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive, _code);
-            if (state == "code") { _msg = "Dit kundenummer kunne ikke tjekkes lige nu – prøv igen om lidt."; return; }
+            if (state == "code") { _msg = "Dit nummer kunne ikke tjekkes lige nu – prøv igen om lidt."; return; }
             _state = state;
             _msg = _state == "on" ? "Tilmeldt. Tryk 'Send test' for at se at det virker." : _state == "denied" ? "Du sagde nej til beskeder – slå dem til i telefonens indstillinger." : "Noget gik galt – prøv igen.";
         }

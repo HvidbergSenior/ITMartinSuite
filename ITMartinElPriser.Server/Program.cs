@@ -17,7 +17,7 @@ builder.Services.AddKolibri(k =>
     [
         "ElPriser viser timeprisen på strøm i dag og i morgen, så du kan lægge vask, opvask og opladning på de billige timer.",
         "Hvorfor ElPriser? Strøm koster mest, når du har mest brug for den. Prisen svinger time for time, og nettariffen er op til 9 gange dyrere kl. 17–21 end om natten. ElPriser viser dig de billige timer, så du kan flytte opvask, vask og opladning – uden at skulle vælge side.",
-        "Besked sender en besked til telefonen en time før dagens billigste to timer – gratis for kunder med et kundenummer.",
+        "Besked sender en besked til telefonen en time før dagens billigste to timer – gratis for interesserede med et nummer.",
         "Prisen nu og de billige timer er gratis og kræver ingen konto. Din elregning forklaret linje for linje findes i MinElpris, den udvidede udgave.",
         "Adresser og kort: © OpenStreetMap-bidragydere (openstreetmap.org/copyright). Nettariffer: Strømligning.",
     ];
@@ -25,11 +25,11 @@ builder.Services.AddKolibri(k =>
     [
         "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
         "Vælg dit hjem og dit elselskab øverst i boksen med prisen (\"Elselskab … skift\"), så er prisen din egen.",
-        "Vil du have besked, når strømmen bliver billig? Skriv dig op gratis på itmartin.dk (Mine apps → ElPriser → Prøv gratis), så får du et kundenummer på mail. Skriv det under Besked, og tryk Slå beskeder til.",
-        "Fik du beskeder, før kundenummeret kom? De fortsætter. Skriv dig op gratis, og skriv dit kundenummer under Besked.",
+        "Vil du have besked, når strømmen bliver billig? Skriv dig op gratis på itmartin.dk (tryk Skriv mig op – gratis på forsiden), så får du et nummer på mail. Skriv det under Besked, og tryk Slå beskeder til.",
+        "Fik du beskeder, før nummeret kom? De fortsætter. Skriv dig op gratis, og skriv dit nummer under Besked.",
         "Vil du have din elregning forklaret? Det er en del af MinElpris – spørg Martin på itmartin.dk.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.11.5";
     k.IconPath = "icon.svg";
     k.ThemeColor = "#0b1220";
 });

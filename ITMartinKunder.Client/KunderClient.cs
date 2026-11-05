@@ -52,7 +52,7 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
     public async Task<CodeCheckResponse> CheckCodeAsync(string? code, string app, CancellationToken ct = default)
     {
         var k = KundeWords.NormalizeCode(code);
-        if (k.Length != 8) return new(false, Error: "Dit kundenummer har 8 cifre – du finder det i mailen fra Martin.");
+        if (k.Length != 8) return new(false, Error: "Dit nummer har 8 cifre – du finder det i mailen fra Martin.");
         var key = app.ToLowerInvariant() + "|" + k;
         if (_codes.TryGetValue(key, out var hit) && DateTime.UtcNow - hit.At < TimeSpan.FromMinutes(10)) return hit.Answer;
         try
@@ -66,7 +66,7 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
         catch (Exception ex) when (Unreachable(ex, ct))
         {
             log.LogWarning("Kunder did not answer the code check ({Message})", ex.Message);
-            return new(false, Error: "Vi kan ikke tjekke dit kundenummer lige nu – prøv igen om et par minutter.");
+            return new(false, Error: "Vi kan ikke tjekke dit nummer lige nu – prøv igen om et par minutter.");
         }
     }
 

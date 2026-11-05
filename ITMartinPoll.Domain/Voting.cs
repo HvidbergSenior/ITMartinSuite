@@ -33,12 +33,12 @@ public static class VoteRules
     // Stored with each customer as proof of what they agreed to (markedsføringsloven §10, GDPR art. 7).
     // Change the text, and new sign-ups get the new text.
     // 2026-10-12 (user: "make it obvious what they sign up to"): says customer + offers + no newsletters + easy to leave.
-    public const string OptInText = "Ja tak – skriv mig op som kunde hos Bogshoppen. Så får jeg et login til liveauktionerne, og I husker, hvad jeg interesserer mig for, så det er nemt for mig at få jeres tilbud. Ingen reklamer, ingen nyhedsbreve – og jeg kan afmelde mig når som helst.";
+    public const string OptInText = "Ja tak – skriv mig op som interesseret hos Bogshoppen. Så får jeg et login til liveauktionerne, og I husker, hvad jeg interesserer mig for, så det er nemt for mig at få jeres tilbud. Ingen reklamer, ingen nyhedsbreve – og jeg kan afmelde mig når som helst.";
 
     // Shown under the e-mail field (GDPR art. 13: who, why, how long, your rights).
     public const string Privacy =
         "INGEN nyhedsbreve – aldrig. Din e-mail vises ikke for andre og bruges kun til at sikre én stemme pr. person. " +
-        "Sætter du flueben, bliver du skrevet op som kunde: et login til liveauktionerne, og vi husker dine interesser – intet andet. " +
+        "Sætter du flueben, bliver du skrevet op som interesseret: et login til liveauktionerne, og vi husker dine interesser – intet andet. " +
         "Afmeld når som helst på bogshoppen.dk/afmeld. " +
         "Dataansvarlig: ITMartin (Martin Hvidberg Nielsen), ITMartin@Mensa.dk. Afstemningen slettes senest 6 måneder efter, den er lukket. " +
         "Du kan altid bede om at se eller få slettet dine oplysninger.";

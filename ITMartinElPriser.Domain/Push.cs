@@ -67,7 +67,7 @@ public static class PushPlan
     /// <summary>One message to a phone that got beskeder before the kundenummer rule: please sign up. Beskeder keep
     /// working either way (user 2026-10-22). Sent in the daytime only, never at night.</summary>
     public static readonly PushMessage AskForCode = new("ElPriser – skriv dig op gratis",
-        "Du får beskeder fra ElPriser. Skriv dig op gratis på itmartin.dk og få et kundenummer – tryk her. Dine beskeder fortsætter uanset hvad.",
+        "Du får beskeder fra ElPriser. Skriv dig op gratis på itmartin.dk og få et nummer – tryk her. Dine beskeder fortsætter uanset hvad.",
         "/besked");
 
     public static bool ShouldAskForCode(PushSubscriber s, DateTime nowDk) =>

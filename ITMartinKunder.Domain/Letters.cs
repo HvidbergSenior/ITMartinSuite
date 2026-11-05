@@ -18,7 +18,7 @@ public static class Letters
 
          Tak fordi du har skrevet dig op hos ITMartin og Bogshoppen. Vi har fået din tilmelding, og du er på listen.
 
-         Dit kundenummer er: {KundeWords.ShowCode(c.Code)}
+         Dit nummer er: {KundeWords.ShowCode(c.Code)}
          Det er dit login til det hele.
 
          Det får du – tre gratis apps, som du finder på itmartin.dk under Mine apps:
@@ -26,19 +26,19 @@ public static class Letters
          ElPriser – elpriser.itmartin.dk
          - Se hvornår strømmen er billigst i dag og i morgen.
          - Se hvornår det er billigst at starte vaskemaskinen eller opvaskeren, og hvor mange timer du skal sætte den til.
-         - Med dit kundenummer: få besked på telefonen, når strømmen er billig.
+         - Med dit nummer: få besked på telefonen, når strømmen er billig.
 
          Temperatur – temperatur.itmartin.dk
          - Den målte temperatur ved den vejrstation, der er nærmest dig – ikke en vejrudsigt, men hvad termometeret viser lige nu.
 
          Stem – stem.itmartin.dk
-         - Med dit kundenummer kan du lave dine egne afstemninger og sende linket til familien, foreningen eller vennerne.
+         - Med dit nummer kan du lave dine egne afstemninger og sende linket til familien, foreningen eller vennerne.
          - Tre slags spørgsmål: vælg et svar (fx Ja/Nej eller A/B), giv karakter fra 1 til 5, eller find de dage, hvor alle kan.
          - Gratis kan du have én åben afstemning ad gangen. Den lukker efter 14 dage.
 
          Og snart:
          - Et lager, hvor du kan se vores varer og markere dem, du synes er interessante. Så ved vi, hvad folk gerne vil have.
-         - Bogshoppen på bogshoppen.dk: nye måder at sælge på – ikke en traditionel webshop. Dit kundenummer er dit login.
+         - Bogshoppen på bogshoppen.dk: nye måder at sælge på – ikke en traditionel webshop. Dit nummer er dit login.
 
          Apps bliver lavet sammen med jer
          Alle apps er lavet for at hjælpe dig – ikke for at sælge dig noget. De bliver bedre, når du siger, hvad du mangler.

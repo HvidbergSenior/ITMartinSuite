@@ -37,7 +37,7 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
     {
         var email = KundeWords.Normalize(r.Email);
         if (!KundeWords.IsRealEmail(email) || email.Length > Customer.MaxEmail) return ("Skriv en rigtig e-mail, fx navn@gmail.com.", "");
-        if (r.ConsentText.Trim().Length == 0) return ("Sæt flueben, hvis du vil skrives op som kunde.", "");
+        if (r.ConsentText.Trim().Length == 0) return ("Sæt flueben, hvis du vil skrives op som interesseret.", "");
         var c = await repo.ByEmailAsync(email, ct);
         if (c is null && await NewEmailErrorAsync(email, ct) is { } error) return (error, "");
         c ??= Customer.New(email, r.Name, Now);
@@ -55,7 +55,7 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
         if (domains is null) return null;
         var domain = email[(email.LastIndexOf('@') + 1)..];
         return await domains.TakesMailAsync(domain, ct) == false
-            ? $"Vi kan ikke finde en mailserver for »{domain}«. Tjek det, der står efter @ – så du får mailen med dit kundenummer."
+            ? $"Vi kan ikke finde en mailserver for »{domain}«. Tjek det, der står efter @ – så du får mailen med dit nummer."
             : null;
     }
 
@@ -66,7 +66,7 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
     public async Task<CodeCheckResponse> CheckCodeAsync(string? code, string app, IReadOnlyList<FreeApp> freeApps, CancellationToken ct = default)
     {
         var k = KundeWords.NormalizeCode(code);
-        if (k.Length != 8) return new(false, Error: "Dit kundenummer har 8 cifre – du finder det i mailen fra Martin.");
+        if (k.Length != 8) return new(false, Error: "Dit nummer har 8 cifre – du finder det i mailen fra Martin.");
         if (string.Equals(app.Trim(), KunderRoles.Admin, StringComparison.OrdinalIgnoreCase))
             return await repo.ByCodeAsync(k, ct) is { AdminWorks: true } a ? new(true, a.Name == "" ? a.Email : a.Name)
                 : new(false, Error: "Det nummer er ikke admin.");
@@ -75,13 +75,13 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
                 : new(false, Error: "Det nummer er ikke en hjælper. Spørg Martin.");
         if (string.Equals(app.Trim(), KunderRoles.Market, StringComparison.OrdinalIgnoreCase))
             return await repo.ByCodeAsync(k, ct) is { } m
-                ? m.CodeWorks ? new(true, m.Name) : new(false, Error: "Du er afmeldt. Skriv dig op igen på bogshoppen.dk, så virker dit kundenummer igen.")
-                : new(false, Error: "Det kundenummer kender vi ikke. Tjek det, eller skriv dig op gratis på bogshoppen.dk.");
+                ? m.CodeWorks ? new(true, m.Name) : new(false, Error: "Du er afmeldt. Skriv dig op igen på bogshoppen.dk, så virker dit nummer igen.")
+                : new(false, Error: "Det nummer kender vi ikke. Tjek det, eller skriv dig op gratis på bogshoppen.dk.");
         if (!freeApps.Any(a => a.Available && string.Equals(a.Name, app.Trim(), StringComparison.OrdinalIgnoreCase)))
             return new(false, Error: "Den app er ikke med i de gratis apps lige nu.");
         var c = await repo.ByCodeAsync(k, ct);
-        if (c is null) return new(false, Error: "Det kundenummer kender vi ikke. Tjek det, eller skriv dig op gratis på itmartin.dk.");
-        if (!c.CodeWorks) return new(false, Error: "Du er afmeldt. Skriv dig op igen på itmartin.dk, så virker dit kundenummer igen.");
+        if (c is null) return new(false, Error: "Det nummer kender vi ikke. Tjek det, eller skriv dig op gratis på itmartin.dk.");
+        if (!c.CodeWorks) return new(false, Error: "Du er afmeldt. Skriv dig op igen på itmartin.dk, så virker dit nummer igen.");
         return new(true, c.Name);
     }
 
@@ -196,7 +196,7 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
             c.Email, c.Name, c.Phone, c.Interests, c.Note, c.Code, c.CreatedAt, c.UnsubscribedAt,
             c.Consents.Select(x => new ConsentExport(x.Company, x.Text, x.Source, x.At, x.WithdrawnAt)).ToList(),
             c.Events.OrderBy(e => e.At).Select(e => new EventExport(e.Kind, e.App, e.What, e.Kr, e.At)).ToList(),
-            $"Det her er alt, hvad ITMartin og Bogshoppen har gemt om dig i kundekartoteket. Afmeldt slettes efter {Retention.UnsubscribedKeepDays} dage, " +
+            $"Det her er alt, hvad ITMartin og Bogshoppen har gemt om dig på vores liste over interesserede. Afmeldt slettes efter {Retention.UnsubscribedKeepDays} dage, " +
             $"køb gemmes i {Retention.PurchaseKeepYears} år (bogføringsloven). Se itmartin.dk/vilkaar.");
 
     /// <summary>Only people with a yes to that company that still stands - for the Bcc line or a mail tool.</summary>

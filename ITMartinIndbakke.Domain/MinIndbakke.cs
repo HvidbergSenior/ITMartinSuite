@@ -14,7 +14,7 @@ public static class MinIndbakkeRules
     /// <returns>A Danish line for the person, or null when the three fields look right.</returns>
     public static string? CheckInput(string code, string email, string appPassword)
     {
-        if (code.Length != 8) return "Dit kundenummer har 8 cifre – du finder det i mailen fra Martin.";
+        if (code.Length != 8) return "Dit nummer har 8 cifre – du finder det i mailen fra Martin.";
         email = email.Trim();
         if (email.Length < 6 || !email.Contains('@') || email.Contains(' ')) return "Skriv din Gmail-adresse, fx navn@gmail.com.";
         var key = appPassword.Replace(" ", "");
