@@ -944,3 +944,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* bogshoppen.dk without prices (2026-11-05): how far we are, on top of the shop. */
 .bs-progress { display: grid; gap: 4px; padding: 12px 14px; margin: 0 0 14px; border: 2px solid var(--k-text); border-radius: 12px; background: var(--k-accent-soft); }
 .bs-progress b { font-size: 1.05rem; }
+
+/* Hjælpershoppen: ONE card per row on every screen (user 2026-11-05 "some are higher than the other" - two columns put
+   buttons at different heights and a closed card next to an open one). Same as the phone. */
+.hj-apps { grid-template-columns: 1fr; max-width: 680px; }
