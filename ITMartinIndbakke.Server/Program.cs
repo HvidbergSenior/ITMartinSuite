@@ -74,7 +74,7 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>{(owner ? "Indbakke" : "Ryd op i din mail · Indbakke")}</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         {(owner ? "<meta name=\"robots\" content=\"noindex\">" : "")}
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=9">
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=10">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=9" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton)}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
