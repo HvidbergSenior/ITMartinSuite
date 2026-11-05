@@ -66,3 +66,6 @@
 .ib-more[open] > summary::after { content: "▾"; }
 .ib-more > :not(summary) { padding: 0 16px; }
 .ib-more > ol { padding-left: 34px; }
+
+/* A hidden button really disappears (k-btn's display beat [hidden]: an empty "Vis alle" box showed under "Intet haster lige nu", 2026-11-05). */
+.k-btn[hidden] { display: none !important; }

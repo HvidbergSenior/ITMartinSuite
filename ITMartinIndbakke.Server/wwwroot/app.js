@@ -93,8 +93,8 @@
     function renderNow(items) {
         var ul = $('ib-now');
         $('ib-now-card').hidden = false;
-        if (!items.length) { ul.innerHTML = '<li>Intet haster lige nu.</li>'; return; }
         var more = $('ib-now-more');
+        if (!items.length) { ul.innerHTML = '<li>Intet haster lige nu.</li>'; more.hidden = true; return; }
         more.hidden = items.length <= NOW_FIRST;
         more.textContent = nowAll ? 'Vis færre' : 'Vis alle ' + items.length;
         ul.innerHTML = (nowAll ? items : items.slice(0, NOW_FIRST)).map(function (i) {
