@@ -102,7 +102,7 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=12">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=10" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
-        <body>{KolibriStaticPages.Header(info, actions: ThemeButton + (guest is null ? "" : LogoutButton))}<main class="k-main"><div class="k-content">{(owner ? (guest is null ? body : GuestBody(guest.Name)) : Guide(ctx.Request.Query["fejl"]))}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+        <body>{KolibriStaticPages.Header(info, actions: ThemeButton + (guest is not null || IsOwner(ctx) ? LogoutButton : ""))}<main class="k-main"><div class="k-content">{(owner ? (guest is null ? body : GuestBody(guest.Name)) : Guide(ctx.Request.Query["fejl"]))}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
 });
 
@@ -136,6 +136,7 @@ app.MapPost("/ud", (HttpContext ctx) =>
 {
     sessions.Close(ctx.Request.Cookies[OwnerGate.SessionCookie]);
     ctx.Response.Cookies.Delete(OwnerGate.SessionCookie);
+    ctx.Response.Cookies.Delete("indbakke_auth");   // Martin too (user 2026-11-05: "i cant logout")
     return Results.Redirect("/");
 }).DisableAntiforgery();
 
