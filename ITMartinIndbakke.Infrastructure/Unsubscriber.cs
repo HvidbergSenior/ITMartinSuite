@@ -11,7 +11,9 @@ namespace ITMartinIndbakke.Infrastructure;
 /// Unsubscribe without visiting a page: RFC 8058 one-click (POST "List-Unsubscribe=One-Click" to the https address),
 /// or a short mail to the list's mailto address, sent from the user's own Gmail (same app password, smtp.gmail.com).
 /// </summary>
-public sealed class Unsubscriber(HttpClient http, string user, string appPassword) : IUnsubscriber
+public sealed class Unsubscriber(HttpClient http, string user, string appPassword,
+    Func<SmtpClient, CancellationToken, Task>? login = null, string smtpHost = "smtp.gmail.com", int smtpPort = 465,
+    SecureSocketOptions smtpSecurity = SecureSocketOptions.SslOnConnect) : IUnsubscriber
 {
     public async Task<bool> UnsubscribeAsync(UnsubscribeTarget target, CancellationToken ct)
     {
@@ -35,8 +37,9 @@ public sealed class Unsubscriber(HttpClient http, string user, string appPasswor
         msg.Subject = string.IsNullOrWhiteSpace(target.MailSubject) ? "unsubscribe" : target.MailSubject;
         msg.Body = new TextPart("plain") { Text = "unsubscribe" };
         using var smtp = new SmtpClient { Timeout = 30_000 };
-        await smtp.ConnectAsync("smtp.gmail.com", 465, SecureSocketOptions.SslOnConnect, ct);
-        await smtp.AuthenticateAsync(user, appPassword.Replace(" ", ""), ct);
+        await smtp.ConnectAsync(smtpHost, smtpPort, smtpSecurity, ct);
+        if (login is not null) await login(smtp, ct);   // Outlook: Microsoft sign-in (OAuth)
+        else await smtp.AuthenticateAsync(user, appPassword.Replace(" ", ""), ct);
         await smtp.SendAsync(msg, ct);
         await smtp.DisconnectAsync(true, ct);
         return true;

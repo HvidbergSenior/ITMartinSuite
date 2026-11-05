@@ -71,6 +71,13 @@ public static class MinIndbakkeInfrastructure
         services.AddSingleton<IMailAccessFactory>(sp => new GmailMailAccessFactory(sp.GetRequiredService<IHttpClientFactory>()));
         services.AddSingleton<IAccountStores>(new JsonAccountStores(dataDir));
         services.AddSingleton<ICustomerCheck>(sp => new KunderCustomerCheck(sp.GetRequiredService<KunderClient>(), allowed));
+        // Outlook.com / Hotmail: "Log ind med Microsoft" - off until both keys are in magic.env.
+        services.AddHttpClient("microsoft", c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddSingleton<IMicrosoftLogin>(sp => new MicrosoftLogin(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("microsoft"), sp.GetRequiredService<IHttpClientFactory>(),
+            cfg["Indbakke:MicrosoftClientId"] ?? "", cfg["Indbakke:MicrosoftSecret"] ?? "",
+            (cfg["Indbakke:PublicUrl"] ?? "https://indbakke.itmartin.dk").TrimEnd('/') + "/microsoft/svar",
+            sp.GetRequiredService<ILogger<MicrosoftLogin>>()));
         return services;
     }
 }

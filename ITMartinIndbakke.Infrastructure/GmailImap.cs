@@ -16,7 +16,7 @@ namespace ITMartinIndbakke.Infrastructure;
 /// </summary>
 public sealed class GmailImap(string user, string appPassword, int maxMails) : IMailbox, IMailboxCleaner
 {
-    private static readonly string[] ListHeaders = ["List-Unsubscribe", "List-Unsubscribe-Post", "List-Id", "Precedence", "Auto-Submitted"];
+    internal static readonly string[] ListHeaders = ["List-Unsubscribe", "List-Unsubscribe-Post", "List-Id", "Precedence", "Auto-Submitted"];
 
     public bool IsConfigured => user.Contains('@') && appPassword.Replace(" ", "").Length >= 16;
 
@@ -186,7 +186,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         return back;
     }
 
-    private static MailHeader ToHeader(IMessageSummary s, string me, Dictionary<uint, GmailTab> tabs, IReadOnlyDictionary<ulong, DateTimeOffset>? iWrote = null)
+    internal static MailHeader ToHeader(IMessageSummary s, string me, Dictionary<uint, GmailTab> tabs, IReadOnlyDictionary<ulong, DateTimeOffset>? iWrote = null)
     {
         var env = s.Envelope;
         var from = env.From.Mailboxes.FirstOrDefault();

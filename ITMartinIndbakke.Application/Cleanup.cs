@@ -5,6 +5,9 @@ namespace ITMartinIndbakke.Application;
 /// <summary>Port: the mailbox changes v2 needs. Delete = Gmail's Papirkurv (30 days), never a real delete.</summary>
 public interface IMailboxCleaner
 {
+    /// <summary>"Ryd alt det gamle" needs Gmail's labels for Fortryd - Outlook says false (2026-11-05).</summary>
+    bool CanClearOld => true;
+
     /// <summary>Move these inbox mails (by UID from the last scan) to Papirkurv. Returns how many were moved.</summary>
     Task<int> MoveToTrashAsync(IReadOnlyList<uint> uids, CancellationToken ct);
 
@@ -40,6 +43,8 @@ public sealed record CleanupResult(bool Ok, string Message, int Moved, string Un
 /// <summary>"Ryd op" per sender: preview, then Afmeld and/or Slet (to Papirkurv), and Fortryd.</summary>
 public sealed class Cleanup(MailScanner scanner, IMailboxCleaner cleaner, IUnsubscriber unsubscriber, ICleanupLog log, TimeProvider clock)
 {
+    public bool CanClearOld => cleaner.CanClearOld;
+
     public CleanupPreview? Preview(string address) =>
         scanner.Last is { } o && !string.IsNullOrWhiteSpace(address) ? CleanupRules.Preview(address.Trim(), o.All) : null;
 

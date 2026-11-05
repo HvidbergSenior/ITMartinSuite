@@ -29,6 +29,7 @@ builder.Services.AddKolibri(k =>
     [
         "Gratis: tryk på din mail (fx Gmail eller Outlook), og følg trinene. Start med reklame – det er det letteste.",
         "Min Indbakke: lav nøglen (Vis mig hvordan – Gmail), skriv dit nummer, din Gmail og nøglen, og tryk Log ind. Telefonen kan huske nøglen til næste gang.",
+        "Outlook, Hotmail eller Live: skriv dit nummer, tryk Log ind med Microsoft, log ind hos Microsoft og tryk Ja. Du laver ingen nøgle. Ryd alt det gamle virker kun med Gmail endnu.",
         "Tryk på Scan min mail. Det tager et par minutter første gang.",
         "Øverst står Det haster nu. Når du har læst brevet, trykker du Læst og skriver fristen, hvis der er en. Når det er ordnet, trykker du Klaret – eller Alt før i dag er klaret, så forsvinder alt det gamle, og kun nye breve kommer frem.",
         "Under Venter på dit svar står mennesker, der har skrevet til dig, hvor du ikke har skrevet tilbage i samtalen – også hvis du svarede fra telefonen. Har du klaret det på en anden måde, så tryk Afsluttet. Fortryd ligger under Afsluttede.",
@@ -36,7 +37,7 @@ builder.Services.AddKolibri(k =>
         "Under Ryd alt det gamle vælger du en dato og trykker Se hvad der sker. Du ser tallene først – så trykker du Ryd op nu. Alle mails får en Gmail-etiket, så Fortryd kan hente dem alle tilbage.",
         "Slettede mails ligger i Gmails papirkurv i 30 dage. Under Seneste oprydning kan du trykke Fortryd og få dem tilbage.",
     ];
-    k.Version = "2026.11.4";
+    k.Version = "2026.11.5";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -83,6 +84,18 @@ MailWorkspace? Guest(HttpContext ctx) => IsOwner(ctx) ? null : sessions.Get(ctx.
 var body = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "side.html"));
 // Everyone but Martin gets the free guide (user 2026-11-05, option 1) - their mail never reaches this server; his code is at the bottom.
 var LoginBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guide.html"));
+const string MicrosoftBox = """
+    <div class="ib-ms">
+      <h3>Har du Outlook, Hotmail eller Live?</h3>
+      <p class="k-help">Så laver du ingen nøgle. Skriv dit nummer, tryk <b>Log ind med Microsoft</b>, log ind hos Microsoft, og tryk <b>Ja</b>. Ryd alt det gamle virker kun med Gmail endnu – resten virker.</p>
+      <form method="post" action="/microsoft" class="ib-login">
+        <label class="k-label" for="kode-ms">Dit nummer (8 cifre)</label>
+        <input class="k-input" id="kode-ms" name="kode" inputmode="numeric" autocomplete="username" required>
+        <button class="k-btn k-btn-primary" type="submit">Log ind med Microsoft</button>
+      </form>
+    </div>
+    """;
+const string MicrosoftSoon = """<p class="k-help">Outlook, Hotmail og Live kommer meget snart.</p>""";
 const string LogoutButton = """<form method="post" action="/ud" style="display:inline"><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form>""";
 const string ThemeButton = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>""";
 
@@ -99,7 +112,7 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>{(owner ? "Indbakke" : "Ryd op i din mail · Indbakke")}</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         {(owner ? "<meta name=\"robots\" content=\"noindex\">" : "")}
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=12">
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=13">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=11" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton + (guest is not null || IsOwner(ctx) ? LogoutButton : ""))}<main class="k-main"><div class="k-content">{(owner ? (guest is null ? body : GuestBody(guest.Name)) : Guide(ctx.Request.Query["fejl"]))}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
@@ -131,6 +144,23 @@ app.MapPost("/min", async (HttpContext ctx) =>
     ctx.Response.Cookies.Append(OwnerGate.SessionCookie, r.Token, new CookieOptions { HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Strict });
     return Results.Redirect("/");
 }).DisableAntiforgery();
+
+// Outlook.com / Hotmail (2026-11-05): number first, then Microsoft's own page ("Tillad"), then back here with a one-time code.
+app.MapPost("/microsoft", async (HttpContext ctx) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var (url, error) = await sessions.BeginMicrosoftAsync(form["kode"], ctx.RequestAborted);
+    if (url is null) { await Task.Delay(600); return Results.Redirect("/?fejl=" + Uri.EscapeDataString(error ?? "Det virkede ikke.") + "#min"); }
+    return Results.Redirect(url);
+}).DisableAntiforgery();
+
+app.MapGet("/microsoft/svar", async (string? code, string? state, string? error, HttpContext ctx) =>
+{
+    var r = await sessions.FinishMicrosoftAsync(state, error is null ? code : null, ctx.RequestAborted);
+    if (r.Token is null) return Results.Redirect("/?fejl=" + Uri.EscapeDataString(r.Error ?? "Det virkede ikke.") + "#min");
+    ctx.Response.Cookies.Append(OwnerGate.SessionCookie, r.Token, new CookieOptions { HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax });
+    return Results.Redirect("/");
+});
 
 app.MapPost("/ud", (HttpContext ctx) =>
 {
@@ -203,12 +233,14 @@ api.MapPost("/afsender/ryd", async (RydForm f, Cleanup cleanup, CancellationToke
 // "Ryd alt det gamle": numbers first (Gmail searches only), then one press; label + Fortryd for the whole pile.
 api.MapGet("/gammelt", async (DateOnly foer, OldMode maade, Cleanup cleanup, CancellationToken ct) =>
 {
+    if (!cleanup.CanClearOld) return Results.BadRequest(new { fejl = "Ryd alt det gamle virker kun med Gmail endnu. Brug Ryd op ved afsenderne – det virker også med Outlook." });
     var p = await cleanup.PreviewOldAsync(foer, maade, ct);
     return p is null ? Results.BadRequest(new { fejl = "Datoen ser forkert ud." })
         : Results.Ok(new { foer = p.Before, ialt = p.Total, papirkurv = p.ToTrash, arkiv = p.ToArchive, stjerne = p.Starred });
 });
 // Big jobs run in the background (Cloudflare cuts a request after 100 s); the page asks /job until it is done.
-api.MapPost("/gammelt", (GammeltForm f, Cleanup cleanup) => Answer(cleanup.StartClearOld(f.Foer, f.Maade)));
+api.MapPost("/gammelt", (GammeltForm f, Cleanup cleanup) => cleanup.CanClearOld ? Answer(cleanup.StartClearOld(f.Foer, f.Maade))
+    : Results.BadRequest(new { fejl = "Ryd alt det gamle virker kun med Gmail endnu." }));
 api.MapGet("/job", (Cleanup cleanup) => Results.Ok(new { koerer = cleanup.JobRunning, besked = cleanup.JobMessage }));
 
 api.MapGet("/oprydning", (Cleanup cleanup, TimeProvider clock) => Results.Ok(cleanup.History().Select(a => new
@@ -230,7 +262,8 @@ app.Lifetime.ApplicationStarted.Register(() =>
 app.Run();
 
 // A failed Min Indbakke login comes back with ?fejl=: that card opens and says why.
-string Guide(string? fejl) => string.IsNullOrWhiteSpace(fejl) ? LoginBody
+string Guide(string? fejl) => GuideBase(fejl).Replace("<!--MICROSOFT-->", sessions.MicrosoftReady ? MicrosoftBox : MicrosoftSoon);
+string GuideBase(string? fejl) => string.IsNullOrWhiteSpace(fejl) ? LoginBody
     : LoginBody.Replace("<section class=\"k-card ib-min\" data-fold-closed id=\"min\">", "<section class=\"k-card ib-min\" id=\"min\">")
                .Replace("<!--FEJL-->", $"<p class=\"ib-fejl\" role=\"alert\">{System.Net.WebUtility.HtmlEncode(fejl)}</p>");
 
