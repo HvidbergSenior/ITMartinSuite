@@ -1,0 +1,33 @@
+@* A row of steps that belong together (user 2026-11-05: "a simple flow ... all should be separate responsibility"): each
+   helper shows the same row, highlights its OWN step and offers one button to the next. It knows nothing about the other
+   helpers - only their names and addresses, given by the caller. *@
+@if (Steps is { Count: > 0 })
+{
+    <nav class="k-steps" aria-label="@Label">
+        <ol>
+            @for (var i = 0; i < Steps.Count; i++)
+            {
+                var s = Steps[i];
+                var no = i + 1;
+                <li class="@(no == Current ? "is-here" : "")">
+                    @if (no == Current) { <span aria-current="step"><b>@no</b> @s.Name</span> }
+                    else { <a href="@s.Url"><b>@no</b> @s.Name</a> }
+                </li>
+            }
+        </ol>
+        @if (Current >= 1 && Current < Steps.Count)
+        {
+            <a class="k-btn k-btn-sm k-steps-next" href="@Steps[Current].Url">Næste: @Steps[Current].Name →</a>
+        }
+    </nav>
+}
+
+@code {
+    /// <summary>The steps in order (1 = first).</summary>
+    [Parameter] public IReadOnlyList<KolibriStep>? Steps { get; set; }
+    /// <summary>This helper's own step, 1-based.</summary>
+    [Parameter] public int Current { get; set; }
+    [Parameter] public string Label { get; set; } = "Trin";
+
+    public sealed record KolibriStep(string Name, string Url);
+}

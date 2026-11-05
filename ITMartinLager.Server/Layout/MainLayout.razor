@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @inject SalgLinks Salg
+@inject NavigationManager Nav
 
 @* Four tabs (user 2026-10-21: "too many tabs"): the daily ones, the rest on /mere. Ordrer opens Salg, where the
    orders live since the split the same day. *@
@@ -17,6 +18,8 @@
     }
     else if (Me is { } who) { <span class="k-small">👤 @who.Name · <a href="/api/logout">Log ud</a></span> }
 </KolibriHeader>
+@* Lager does two of the steps until Vurdering is its own helper: prices on the front page, boxes under Kasser. *@
+@if (Me is { IsAdmin: true }) { <KolibriSteps Steps="Flow" Current="@(Nav.Uri.Contains("/kasse") ? BogshoppenFlow.Lager : BogshoppenFlow.Priser)" Label="Bogshoppen – sådan gør du" /> }
 <div class="k-main"><div class="k-content">
     @Body
 </div></div>
@@ -24,4 +27,7 @@
 
 @code {
     [CascadingParameter] public LagerUser? Me { get; set; }
+    // Bogshoppen's five steps (2026-11-05) - names + addresses only, so the helpers stay separate.
+    private static readonly IReadOnlyList<KolibriSteps.KolibriStep> Flow =
+        BogshoppenFlow.Steps.Select(s => new KolibriSteps.KolibriStep(s.Name, s.Url)).ToList();
 }

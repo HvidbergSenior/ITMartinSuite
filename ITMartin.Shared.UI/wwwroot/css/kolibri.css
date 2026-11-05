@@ -297,3 +297,12 @@ h1:focus, h1:focus-visible, [tabindex="-1"]:focus { outline: none; }
 .itm-pp-label::after { content: ":"; }
 .itm-pp-list { margin: 0; padding-left: 1.1rem; }
 .itm-pp-list li { margin: .1rem 0; }
+
+/* KolibriSteps (2026-11-05): the shared step row - own step filled, the others are buttons, one "Næste" button. */
+.k-steps { max-width: 980px; margin: 10px auto 0; padding: 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.k-steps ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.k-steps li a, .k-steps li span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 2px solid var(--k-border-3, #ccc); color: var(--k-text); text-decoration: none; font-size: .9rem; }
+.k-steps li b { font-weight: 800; }
+.k-steps li.is-here span { background: var(--k-accent); border-color: var(--k-accent); color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.k-steps-next { margin-left: auto; }
+@media (max-width: 560px) { .k-steps-next { margin-left: 0; width: 100%; } }

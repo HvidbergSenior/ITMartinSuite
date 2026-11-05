@@ -11,6 +11,7 @@
     }
     <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud@(Me is null ? "" : $" ({Me.Name})")</a>
 </KolibriHeader>
+@if (Me is { IsAdmin: true }) { <KolibriSteps Steps="Flow" Current="BogshoppenFlow.Vareinfo" Label="Bogshoppen – sådan gør du" /> }
 <div class="k-main"><div class="k-content">
     @Body
 </div></div>
@@ -18,4 +19,7 @@
 
 @code {
     [CascadingParameter] public Taker? Me { get; set; }
+    // Bogshoppen's five steps (2026-11-05) - names + addresses only, so the helpers stay separate.
+    private static readonly IReadOnlyList<KolibriSteps.KolibriStep> Flow =
+        BogshoppenFlow.Steps.Select(s => new KolibriSteps.KolibriStep(s.Name, s.Url)).ToList();
 }

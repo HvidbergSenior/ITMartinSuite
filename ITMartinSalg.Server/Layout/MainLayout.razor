@@ -10,7 +10,14 @@
     <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/ordrer">Ordrer</NavLink>
     <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
 </KolibriHeader>
+<KolibriSteps Steps="Flow" Current="BogshoppenFlow.Salg" Label="Bogshoppen – sådan gør du" />
 <div class="k-main"><div class="k-content">
     @Body
 </div></div>
 <KolibriFooter />
+
+@code {
+    // Bogshoppen's five steps (2026-11-05) - names + addresses only, so the helpers stay separate.
+    private static readonly IReadOnlyList<KolibriSteps.KolibriStep> Flow =
+        BogshoppenFlow.Steps.Select(s => new KolibriSteps.KolibriStep(s.Name, s.Url)).ToList();
+}
