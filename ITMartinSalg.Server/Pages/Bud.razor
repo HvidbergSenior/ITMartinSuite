@@ -1,0 +1,68 @@
+@page "/bud"
+@inject OfferUseCases Offers
+
+@* The marketplace's offers (2026-11-05): Byd (hidden max for the Saturday auction) and Mit bundt (one bid for several things,
+   or "what would you take?"). Kept by OfferUseCases; this page only shows them and marks a bundle answered. *@
+<PageTitle>Bud – Bogshoppen Salg</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Bud fra bogshoppen.dk</h1>
+    <p><b>Gør dette:</b> se, hvad de interesserede vil give. <b>Du får:</b> et overblik over bud på enkelte ting (til lørdagens auktion) og over bundter, du skal svare på.</p>
+    <p class="k-help">Nummeret er personens nummer fra Kunder – slå det op dér for navn og mail. Svar fx "Den er jeres for X kr", og tryk så <b>Besvaret</b>.</p>
+</section>
+
+@if (_error is not null) { <section class="k-card"><p class="lg-warn" role="alert">⚠ @_error</p></section> }
+
+<section class="k-card">
+    <h2 class="k-card-title">@(_bundles is null ? "Henter bundter …" : $"Bundter ({_bundles.Count(b => b.Status == "Ny")} nye)")</h2>
+    @if (_bundles is { Count: 0 }) { <p>Ingen bundter endnu.</p> }
+    else if (_bundles is not null)
+    {
+        <ul class="lg-list">
+            @foreach (var b in _bundles)
+            {
+                <li>
+                    <span class="lg-main">
+                        <b>@(b.Kr is { } kr ? $"Bud: {kr} kr for {b.Lines.Count} ting" : $"Spørger om pris på {b.Lines.Count} ting")</b>
+                        <span class="k-small">Nummer @Show(b.Customer) · @b.At.ToLocalTime().ToString("d/M HH:mm") · @b.Status</span>
+                        <span class="k-small">@string.Join(" · ", b.Lines)</span>
+                    </span>
+                    @if (b.Status == "Ny") { <button class="k-btn k-btn-sm" @onclick="() => Answered(b.Id)">Besvaret</button> }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">@(_bids is null ? "Henter bud …" : $"Bud på enkelte ting ({_bids.Count})")</h2>
+    <p class="k-help">Det højeste skjulte bud pr. ting. Auktionen byder op til det for dem.</p>
+    @if (_bids is { Count: 0 }) { <p>Ingen bud endnu.</p> }
+    else if (_bids is not null)
+    {
+        <ul class="lg-list">
+            @foreach (var r in _bids)
+            {
+                <li><span class="lg-main"><b>@r.Line</b><span class="k-small">Højeste bud @r.TopKr kr · @r.Bidders @(r.Bidders == 1 ? "byder" : "bydere")@(r.ForSale ? "" : " · ikke til salg mere")</span></span></li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private List<BundleRow>? _bundles;
+    private List<BidRow>? _bids;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        try { (_bids, _bundles) = await Offers.OverviewAsync(); _error = null; }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { _error = "Lager svarer ikke lige nu – prøv igen om lidt."; }
+    }
+
+    private async Task Answered(int id) { await Offers.AnsweredAsync(id); await Load(); }
+
+    private static string Show(string code) => code.Length == 8 ? code[..4] + " " + code[4..] : code;
+}

@@ -319,6 +319,26 @@ app.Use(async (ctx, next) =>
     }
     await next();
 });
+// The markedsplads login (2026-11-05: Byd + Mit bundt need to know who): the number is checked in Kunder, then kept in the
+// protected bs_kunde cookie. Back to the page they came from (a local path only).
+app.MapPost("/marked/ind", async (HttpContext ctx, MarketUseCases market, ITMartinHjem.Server.MarketCookie cookie) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var back = form["tilbage"].ToString() is { Length: > 0 } t && t.StartsWith('/') && !t.StartsWith("//") ? t : "/produkter";
+    var (customer, error) = await market.LoginAsync(form["kode"]);
+    if (customer is null) { await Task.Delay(500); return Results.Redirect(back + (back.Contains('?') ? "&" : "?") + "markedfejl=" + Uri.EscapeDataString(error ?? "")); }
+    cookie.Write(ctx, customer);
+    return Results.Redirect(back);
+}).DisableAntiforgery();
+
+app.MapPost("/marked/ud", async (HttpContext ctx) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    ITMartinHjem.Server.MarketCookie.Clear(ctx);
+    var back = form["tilbage"].ToString() is { Length: > 0 } t && t.StartsWith('/') && !t.StartsWith("//") ? t : "/produkter";
+    return Results.Redirect(back);
+}).DisableAntiforgery();
+
 // Open to all since 2026-10-29: the products are shown on bogshoppen.dk/produkter (TEST, nothing to buy).
 app.MapGet("/varer/foto/{id:int}", async (int id, ShopUseCases shop) =>
     await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());

@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddScoped<CampaignUseCases>();
         services.AddScoped<MarketUseCases>();
         services.AddScoped<InterestUseCases>();
+        services.AddScoped<OfferUseCases>();   // Byd + Mit bundt (2026-11-05)
         return services;
     }
 }

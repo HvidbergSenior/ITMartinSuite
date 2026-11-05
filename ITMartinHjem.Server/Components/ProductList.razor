@@ -1,5 +1,8 @@
 @inject ShopUseCases Shop
 @inject PricesShown Prices
+@inject MarketUseCases Market
+@inject BundleDrafts Drafts
+@inject ShopVisibility Visibility
 @inject IJSRuntime JS
 @inject PersistentComponentState State
 @inject NavigationManager Nav
@@ -11,6 +14,32 @@
    its subcategories as buttons + all its things A-Z. ShopFamilies (ITMartinVarer.Contracts) says which shop has what. *@
 <section class="k-card bs-card bs-shop" id="alle">
     @* User 2026-11-05: "all prices need to be invisible... Say something like 10000 produkter - still 99999 to go. Prices will come". *@
+    @* Markedsplads (2026-11-05): log in with the number -> Interessant, Byd (hidden max) and Mit bundt. Only when Hjem__MarketForCustomers=true. *@
+    @if (Visibility.Customers)
+    {
+        <div class="bs-market" id="marked">
+            @if (Customer == "")
+            {
+                <form method="post" action="/marked/ind" class="bs-market-login">
+                    <b>Vil du byde eller lave et bundt?</b> Log ind med dit nummer fra mailen.
+                    <input type="hidden" name="tilbage" value="@BackPath" />
+                    <span class="bs-market-row"><input class="k-input" name="kode" inputmode="numeric" placeholder="Dit nummer (8 cifre)" aria-label="Dit nummer" required />
+                    <button class="k-btn k-btn-primary" type="submit">Log ind</button></span>
+                    @if (!string.IsNullOrEmpty(MarkedFejl)) { <span class="bs-market-err" role="alert">@MarkedFejl</span> }
+                    <span class="k-help">Har du ikke et nummer? <a href="https://itmartin.dk/#bliv-kunde">Skriv dig op som interesseret</a> – det er gratis.</span>
+                </form>
+            }
+            else
+            {
+                <div class="bs-market-in">
+                    <span>Logget ind med @ShowCode(Customer)</span>
+                    <button type="button" class="k-btn k-btn-primary" @onclick="() => _bundleOpen = !_bundleOpen">Mit bundt (@Drafts.Of(Customer).Count)</button>
+                    <form method="post" action="/marked/ud" style="display:inline"><input type="hidden" name="tilbage" value="@BackPath" /><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form>
+                </div>
+                @if (_bundleOpen) { @BundlePanel }
+            }
+        </div>
+    }
     @if (!Prices.On && _overview is not null)
     {
         var shown = _overview.Shelves.Sum(sh => sh.Count);
@@ -139,6 +168,102 @@
 </section>
 
 @code {
+    // ── Markedsplads (2026-11-05) ─────────────────────────────────────────────────
+    [CascadingParameter(Name = "ShopCustomer")] public string Customer { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "markedfejl")] public string? MarkedFejl { get; set; }
+    private HashSet<int> _marked = [];
+    private Dictionary<int, int> _myBids = [];
+    private int? _bidOpen;
+    private string _bidText = "", _bundleKr = "";
+    private readonly Dictionary<int, string> _note = [];
+    private bool _bundleOpen;
+    private string? _bundleMsg;
+    private string BackPath => new Uri(Nav.Uri).PathAndQuery.Split("markedfejl=")[0].TrimEnd('?', '&');
+    private static string ShowCode(string c) => c.Length == 8 ? c[..4] + " " + c[4..] : c;
+
+    private async Task LoadMarket()
+    {
+        if (!Visibility.Customers || Customer == "") return;
+        _marked = await Market.MineAsync(Customer);
+        _myBids = await Market.MyBidsAsync(Customer);
+    }
+
+    private async Task Mark(int id)
+    {
+        var r = await Market.ToggleAsync(Customer, id);
+        if (r.Error is { } e) _note[id] = e; else { if (r.Marked) _marked.Add(id); else _marked.Remove(id); _note.Remove(id); }
+    }
+
+    private void OpenBid(int id)
+    {
+        _bidOpen = _bidOpen == id ? null : id;
+        _bidText = _myBids.TryGetValue(id, out var b) ? b.ToString() : "";
+    }
+
+    private void ToggleBundle(int id) { Drafts.Toggle(Customer, id); _bundleMsg = null; }
+
+    private async Task SendBid(int id)
+    {
+        var digits = new string(_bidText.Where(char.IsDigit).ToArray());
+        int? kr = int.TryParse(digits, out var k) ? k : null;
+        var r = await Market.BidAsync(Customer, id, kr);
+        if (r.Ok && kr is { } got) { _myBids[id] = got; _bidOpen = null; _bidText = ""; _note[id] = $"Dit bud er gemt: højst {got} kr. Ingen kan se det – auktionen byder for dig."; }
+        else _note[id] = r.Error ?? "Det virkede ikke.";
+    }
+
+    private async Task SendBundle(bool ask)
+    {
+        int? kr = null;
+        if (!ask)
+        {
+            if (!int.TryParse(new string(_bundleKr.Where(char.IsDigit).ToArray()), out var k)) { _bundleMsg = "Skriv, hvad du vil give for det hele – eller tryk Spørg om en pris."; return; }
+            kr = k;
+        }
+        var r = await Market.BundleAsync(Customer, Drafts.Of(Customer), kr);
+        if (r.Ok) { Drafts.Clear(Customer); _bundleKr = ""; _bundleMsg = ask ? "Sendt. Vi skriver til dig med en pris." : "Sendt. Vi skriver til dig, om det er en handel."; }
+        else _bundleMsg = r.Error ?? "Det virkede ikke.";
+    }
+
+    private RenderFragment MarketButtons(ShopItem i) => __builder =>
+    {
+        var inBundle = Drafts.Has(Customer, i.Id);
+        var marked = _marked.Contains(i.Id);
+        var hasBid = _myBids.TryGetValue(i.Id, out var mine);
+        <div class="bs-market-btns">
+            <button type="button" class="k-btn k-btn-sm @(marked ? "is-on" : "")" aria-pressed="@marked" @onclick="() => Mark(i.Id)">@(marked ? "Interessant ✓" : "Interessant")</button>
+            <button type="button" class="k-btn k-btn-sm @(inBundle ? "is-on" : "")" aria-pressed="@inBundle" @onclick="() => ToggleBundle(i.Id)">@(inBundle ? "I bundtet ✓" : "Læg i bundt")</button>
+            <button type="button" class="k-btn k-btn-sm" @onclick="() => OpenBid(i.Id)">@(hasBid ? $"Dit bud: {mine} kr" : "Byd")</button>
+        </div>
+        @if (_bidOpen == i.Id)
+        {
+            <div class="bs-market-bid">
+                <label class="k-help" for="bud-@i.Id">Det højeste, du vil give (kr) – ingen kan se det:</label>
+                <span class="bs-market-row"><input class="k-input" id="bud-@i.Id" inputmode="numeric" @bind="_bidText" placeholder="fx 80" />
+                <button type="button" class="k-btn k-btn-primary" @onclick="() => SendBid(i.Id)">Gem bud</button></span>
+            </div>
+        }
+        @if (_note.TryGetValue(i.Id, out var n)) { <p class="k-help bs-market-note" role="status">@n</p> }
+    };
+
+    private RenderFragment BundlePanel => __builder =>
+    {
+        var ids = Drafts.Of(Customer);
+        var known = ids.Select(id => _items.FirstOrDefault(x => x.Id == id)).Where(x => x is not null).ToList();
+        <div class="bs-bundle">
+            <h3>Mit bundt</h3>
+            @if (ids.Count == 0) { <p>Tryk <b>Læg i bundt</b> ved de ting, du vil have sammen.</p> }
+            else
+            {
+                <p><b>@ids.Count ting.</b> Giv ét bud på det hele – eller spørg, hvad vi vil have for det.</p>
+                @if (known.Count > 0) { <ul>@foreach (var k in known) { <li>@k!.Line</li> }</ul> }
+                <span class="bs-market-row"><input class="k-input" inputmode="numeric" @bind="_bundleKr" placeholder="Dit bud for det hele (kr)" aria-label="Dit bud for det hele" />
+                <button type="button" class="k-btn k-btn-primary" @onclick="() => SendBundle(false)">Giv bud</button></span>
+                <button type="button" class="k-btn" @onclick="() => SendBundle(true)">Spørg om en pris</button>
+            }
+            @if (_bundleMsg is { } m) { <p class="bs-market-note" role="status">@m</p> }
+        </div>
+    };
+
     private static readonly System.Globalization.CultureInfo Da = new("da-DK");
     /// <summary>The shop this list is (bogshoppen.dk/film); null = /produkter, the boxes for all shops.</summary>
     [Parameter] public ShopFamily? Family { get; set; }
@@ -169,6 +294,7 @@
         _sort = ShopSorts.All.Contains(SortParam) ? SortParam! : ShopSorts.Title;
         if (!Prices.On && (_sort == ShopSorts.Cheapest || _sort == ShopSorts.Dearest)) _sort = ShopSorts.Title;   // no prices = no price order
         _batch = Family is not null && Serie is { Length: > 0 } ? Serie : null;
+        await LoadMarket();   // the customer's own marks and bids (markedsplads)
         _persist = State.RegisterOnPersisting(() =>
         {
             State.PersistAsJson(SnapshotKey, new Snapshot(_overview, _market, _items));
@@ -471,6 +597,7 @@
                 {
                     <p class="bs-shop-noprice">@ShopDeals.NoPriceName</p>
                 }
+                @if (Visibility.Customers && Customer != "" && !i.ForShow) { @MarketButtons(i) }
                 <details class="bs-shop-more" data-remember="produkt-@i.Id">
                     <summary>Mere om den</summary>
                     <p class="k-help">@Facts(i)</p>

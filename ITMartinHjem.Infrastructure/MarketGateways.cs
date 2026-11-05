@@ -31,6 +31,27 @@ public sealed class SalgInterestGateway(HttpClient http) : IInterestGateway
         (await http.GetFromJsonAsync<ShopMine>($"/api/butik/interesse/{Uri.EscapeDataString(customer)}", ct))?.ItemIds ?? [];
 }
 
+// Byd + Mit bundt (2026-11-05) - Salg's /api/butik with the same key as the shop.
+public sealed class SalgOfferGateway(HttpClient http) : IOfferGateway
+{
+    public async Task<ShopOfferAnswer> BidAsync(string customer, int itemId, int maxKr, CancellationToken ct = default)
+    {
+        using var res = await http.PostAsJsonAsync($"/api/butik/varer/{itemId}/bud", new ShopBidPlace(customer, maxKr), ct);
+        res.EnsureSuccessStatusCode();
+        return (await res.Content.ReadFromJsonAsync<ShopOfferAnswer>(ct))!;
+    }
+
+    public async Task<Dictionary<int, int>> MyBidsAsync(string customer, CancellationToken ct = default) =>
+        (await http.GetFromJsonAsync<ShopMyBids>($"/api/butik/bud/{Uri.EscapeDataString(customer)}", ct))?.MaxKr ?? [];
+
+    public async Task<ShopOfferAnswer> BundleAsync(string customer, IReadOnlyList<int> itemIds, int? kr, CancellationToken ct = default)
+    {
+        using var res = await http.PostAsJsonAsync("/api/butik/bundt", new ShopBundlePlace(customer, itemIds.ToList(), kr), ct);
+        res.EnsureSuccessStatusCode();
+        return (await res.Content.ReadFromJsonAsync<ShopOfferAnswer>(ct))!;
+    }
+}
+
 public static class MarketGatewayRegistration
 {
     public static IServiceCollection AddMarketGateways(this IServiceCollection services, string? salgApi, string? shopKey)
@@ -42,6 +63,13 @@ public static class MarketGatewayRegistration
             c.Timeout = TimeSpan.FromSeconds(20);
             c.DefaultRequestHeaders.Add(ShopHeaders.Key, shopKey ?? "");
         });
+        services.AddHttpClient<IOfferGateway, SalgOfferGateway>(c =>
+        {
+            c.BaseAddress = new Uri(string.IsNullOrWhiteSpace(salgApi) ? "http://10.0.0.200:9154" : salgApi);
+            c.Timeout = TimeSpan.FromSeconds(20);
+            c.DefaultRequestHeaders.Add(ShopHeaders.Key, shopKey ?? "");
+        });
+        services.AddSingleton<BundleDrafts>();
         return services;
     }
 }

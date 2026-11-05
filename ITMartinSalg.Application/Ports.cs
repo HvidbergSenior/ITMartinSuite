@@ -87,6 +87,20 @@ public interface IInterestRepository
     Task<List<(int ItemId, int Count, DateTime LastAt)>> TopAsync(int max, CancellationToken ct);
 }
 
+/// <summary>The marketplace's offers: Byd (one per customer per thing) and Mit bundt.</summary>
+public interface IOfferRepository
+{
+    Task<Bid?> BidAsync(string customer, int itemId, CancellationToken ct);
+    /// <summary>Adds (Id 0) or updates.</summary>
+    Task SaveBidAsync(Bid bid, CancellationToken ct);
+    Task<List<Bid>> MyBidsAsync(string customer, CancellationToken ct);
+    Task<List<Bid>> AllBidsAsync(CancellationToken ct);
+    Task AddBundleAsync(BundleOffer bundle, CancellationToken ct);
+    Task<List<BundleOffer>> BundlesAsync(CancellationToken ct);
+    Task<BundleOffer?> BundleAsync(int id, CancellationToken ct);
+    Task SaveBundleAsync(BundleOffer bundle, CancellationToken ct);
+}
+
 /// <summary>Settings the use cases read (Salg__* in magic.env).</summary>
 public sealed record SalgOptions
 {

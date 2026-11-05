@@ -197,3 +197,11 @@ public static class ShopDeals
     /// <summary>A band Lager knows, else null (= everything).</summary>
     public static string? Band(string? band) => band is Single or NoPrice or Unsure or Rare || Named(band) is not null || PriceBand(band) is not null ? band : null;
 }
+
+// The marketplace's offers (2026-11-05): "Byd" on one thing (hidden max) and "Mit bundt" (several things, one bid or a question).
+public sealed record ShopBidPlace(string Customer, int MaxKr);
+public sealed record ShopBundlePlace(string Customer, List<int> ItemIds, int? Kr);
+/// <summary>Ok, or the reason in Danish.</summary>
+public sealed record ShopOfferAnswer(bool Ok, string? Error = null);
+/// <summary>The customer's own bids (item -> their max), so the page can show "Dit bud: 120 kr".</summary>
+public sealed record ShopMyBids(Dictionary<int, int> MaxKr);

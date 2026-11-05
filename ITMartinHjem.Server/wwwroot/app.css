@@ -948,3 +948,18 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* Hjælpershoppen: ONE card per row on every screen (user 2026-11-05 "some are higher than the other" - two columns put
    buttons at different heights and a closed card next to an open one). Same as the phone. */
 .hj-apps { grid-template-columns: 1fr; max-width: 680px; }
+
+/* Markedsplads on bogshoppen.dk (2026-11-05): login box, Interessant / Læg i bundt / Byd, and Mit bundt. */
+.bs-market { margin: 0 0 14px; padding: 12px 14px; border: 2px solid var(--k-text); border-radius: 12px; }
+.bs-market-login { display: grid; gap: 6px; }
+.bs-market-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.bs-market-row .k-input { flex: 1; min-width: 140px; }
+.bs-market-err { font-weight: 700; }
+.bs-market-in { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bs-market-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.bs-market-btns .k-btn.is-on { background: var(--k-accent); border-color: var(--k-accent); color: #fff; font-weight: 700; }
+.bs-market-bid { display: grid; gap: 4px; margin: 4px 0; }
+.bs-market-note { font-weight: 600; }
+.bs-bundle { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--k-border-3, #ccc); display: grid; gap: 8px; }
+.bs-bundle h3 { margin: 0; }
+.bs-bundle ul { margin: 0; padding-left: 20px; }

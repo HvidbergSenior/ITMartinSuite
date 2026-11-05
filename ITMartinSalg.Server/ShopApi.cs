@@ -44,6 +44,21 @@ public static class ShopApi
         api.MapGet("/interesse/{customer}", async (string customer, InterestUseCases interest) =>
             new ShopMine(await interest.MineAsync(customer)));
 
+        // Byd + Mit bundt (2026-11-05): the site checked the kundenummer in Kunder first, like Interessant.
+        api.MapPost("/varer/{id:int}/bud", async (int id, ShopBidPlace body, OfferUseCases offers) =>
+        {
+            var (ok, error) = await offers.BidAsync(body.Customer, id, body.MaxKr);
+            return new ShopOfferAnswer(ok, error);
+        });
+
+        api.MapGet("/bud/{customer}", async (string customer, OfferUseCases offers) => new ShopMyBids(await offers.MyBidsAsync(customer)));
+
+        api.MapPost("/bundt", async (ShopBundlePlace body, OfferUseCases offers) =>
+        {
+            var (ok, error) = await offers.BundleAsync(body.Customer, body.ItemIds ?? [], body.Kr);
+            return new ShopOfferAnswer(ok, error);
+        });
+
         api.MapGet("/ordrer/{token}", async (string token, ShopUseCases shop) =>
         {
             try
