@@ -241,6 +241,8 @@ html[data-mode="tv"] .k-grid { grid-template-columns: repeat(auto-fit, minmax(38
 
 /* ── Show/hide boxes (kolibri.js) ─────────────────────────────────────────── */
 .k-fold-head { cursor: pointer; display: flex; align-items: center; gap: .5em; user-select: none; }
+/* Every box you can press shows a hand on a PC (user 2026-11-06: "cursor on a box does not change to a hand"). */
+summary, button:not(:disabled), [role="button"] { cursor: pointer; }
 .k-fold-head::after { content: "▾"; margin-left: auto; color: var(--k-muted); font-size: .9em; transition: transform var(--k-transition); }
 .k-folded > .k-fold-head::after { transform: rotate(-90deg); }
 .k-folded > :not(.k-fold-head) { display: none !important; }
