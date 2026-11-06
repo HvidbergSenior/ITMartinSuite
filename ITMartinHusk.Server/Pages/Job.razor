@@ -1,0 +1,123 @@
+@page "/job"
+@inject JobUseCases Jobs
+
+<PageTitle>Job · Husk</PageTitle>
+
+@* Mine job (user 2026-11-06): every job looked at, so nothing is sent twice, and the a-kasse count at a glance. *@
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">Mine job</h1>
+    <p class="k-help"><b>Her står alle de job, du har kigget på</b> – dem du har søgt, dem du overvejer, og dem du har fravalgt.</p>
+    <p class="k-help"><b>Sådan gør du:</b> tryk på et job. Har du søgt det, så tryk <b>Jeg har søgt</b> – og <b>Skrevet i Joblog</b>, når det står i Joblog på Jobnet.</p>
+    <div class="hu-count">
+        <div><b>@_count.ThisWeek</b><span>søgt i denne uge</span></div>
+        <div><b>@_count.Last4Weeks</b><span>søgt de sidste 4 uger</span></div>
+        <div><b>@_count.Advertised4</b><span>heraf opslåede</span></div>
+        <div><b>@_count.PartTime4</b><span>heraf deltid</span></div>
+    </div>
+    @if (_count.NotInJoblog > 0) { <p class="hu-warn"><b>@_count.NotInJoblog søgt, men ikke skrevet i Joblog endnu.</b></p> }
+    <a class="k-btn k-btn-sm k-mt" href="/regler">Se reglerne for jobsøgning</a>
+</section>
+
+<details class="k-card" data-remember="hu-nyt-job">
+    <summary><b>Tilføj et job</b></summary>
+    <label class="k-label" for="nj-title">Jobbet</label>
+    <input class="k-input" id="nj-title" @bind="_title" maxlength="@JobLead.MaxTitle" placeholder="fx Handicaphjælper" />
+    <label class="k-label" for="nj-emp">Hvor? (arbejdsgiver)</label>
+    <input class="k-input" id="nj-emp" @bind="_employer" @bind:after="CheckEmployer" maxlength="@JobLead.MaxTitle" placeholder="fx LOF Aarhus" />
+    @if (_dupe is not null) { <p class="hu-warn">Du søgte allerede hos @_dupe.Employer @(_dupe.AppliedAt?.ToString("d/M")) – "@_dupe.Title".</p> }
+    <label class="k-label" for="nj-place">By</label>
+    <input class="k-input" id="nj-place" @bind="_place" maxlength="@JobLead.MaxTitle" />
+    <label class="k-label" for="nj-url">Link til annoncen</label>
+    <input class="k-input" id="nj-url" @bind="_url" maxlength="@JobLead.MaxUrl" inputmode="url" />
+    <div class="hu-status k-mt">
+        <button class="k-btn k-btn-sm @(_advertised ? "hu-on" : "")" @onclick="() => _advertised = true">Opslået</button>
+        <button class="k-btn k-btn-sm @(!_advertised ? "hu-on" : "")" @onclick="() => _advertised = false">Uopfordret</button>
+        <button class="k-btn k-btn-sm @(!_partTime ? "hu-on" : "")" @onclick="() => _partTime = false">Fuldtid</button>
+        <button class="k-btn k-btn-sm @(_partTime ? "hu-on" : "")" @onclick="() => _partTime = true">Deltid</button>
+    </div>
+    @if (_error.Length > 0) { <p role="alert">@_error</p> }
+    <button class="k-btn k-btn-primary k-mt" @onclick="Add">Gem jobbet</button>
+</details>
+
+@foreach (var state in new[] { JobState.Seen, JobState.Applied, JobState.Skipped })
+{
+    var list = _jobs.Where(j => j.State == state).ToList();
+    <details class="k-card" open="@(state != JobState.Skipped)">
+        <summary><b>@JobRules.Name(state)</b> (@list.Count)</summary>
+        @if (list.Count == 0) { <p class="k-help">Ingen.</p> }
+        @foreach (var j in list)
+        {
+            <div class="hu-ball">
+                <button class="hu-ball-head" @onclick="() => Toggle(j)" aria-expanded="@(_open == j.Id)">
+                    <span class="hu-ball-title">@j.Title</span>
+                    <span class="hu-ball-step">@j.Employer@(j.Place.Length > 0 ? " · " + j.Place : "")</span>
+                    <span class="k-help">@Meta(j)</span>
+                </button>
+                @if (_open == j.Id)
+                {
+                    <div class="hu-ball-edit">
+                        @if (j.Note.Length > 0) { <p class="k-help">@j.Note</p> }
+                        <div class="hu-buttons">
+                            @if (j.Url.Length > 0) { <a class="k-btn" href="@j.Url" target="_blank" rel="noopener">Se annoncen</a> }
+                            @if (j.State == JobState.Applied)
+                            {
+                                <button class="k-btn @(j.InJoblog ? "hu-on" : "")" @onclick="() => Joblog(j)">@(j.InJoblog ? "Står i Joblog" : "Skrevet i Joblog")</button>
+                            }
+                            else
+                            {
+                                <button class="k-btn k-btn-primary" @onclick="() => Applied(j)">Jeg har søgt (i dag)</button>
+                            }
+                        </div>
+                        <div class="hu-buttons">
+                            @if (j.State != JobState.Skipped) { <button class="k-btn k-btn-sm" @onclick="() => Skip(j)">Fravælg</button> }
+                            @if (j.State != JobState.Seen) { <button class="k-btn k-btn-sm" @onclick="() => Reopen(j)">Tilbage til Set</button> }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </details>
+}
+
+@code {
+    private List<JobLead> _jobs = [];
+    private JobCount _count = new(0, 0, 0, 0, 0);
+    private Guid? _open;
+    private JobLead? _dupe;
+    private string _title = "", _employer = "", _place = "", _url = "", _error = "";
+    private bool _advertised = true, _partTime;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        _jobs = Jobs.All();
+        _count = Jobs.Count();
+    }
+
+    private static string Meta(JobLead j)
+    {
+        var parts = new List<string> { j.Advertised ? "opslået" : "uopfordret", j.PartTime ? "deltid" : "fuldtid" };
+        if (j.State == JobState.Applied && j.AppliedAt is { } a) parts.Add($"søgt {a:d/M} (uge {System.Globalization.ISOWeek.GetWeekOfYear(a)})");
+        if (j.State == JobState.Applied && !j.InJoblog) parts.Add("mangler i Joblog");
+        if (j.State == JobState.Seen && j.Deadline is { } d) parts.Add(BallRules.DeadlineText(d, DkTime.Now));
+        return string.Join(" · ", parts);
+    }
+
+    private void CheckEmployer() => _dupe = Jobs.AlreadyApplied(_employer);
+
+    private void Add()
+    {
+        _error = Jobs.Add(_title, _employer, _place, _url, _advertised, _partTime) ?? "";
+        if (_error.Length > 0) return;
+        _title = _employer = _place = _url = "";
+        _dupe = null;
+        Load();
+    }
+
+    private void Toggle(JobLead j) => _open = _open == j.Id ? null : j.Id;
+    private void Applied(JobLead j) { Jobs.Applied(j.Id, DkTime.Now); Load(); }
+    private void Joblog(JobLead j) { Jobs.SetInJoblog(j.Id, !j.InJoblog); Load(); }
+    private void Skip(JobLead j) { Jobs.Skip(j.Id, null); _open = null; Load(); }
+    private void Reopen(JobLead j) { Jobs.Reopen(j.Id); Load(); }
+}

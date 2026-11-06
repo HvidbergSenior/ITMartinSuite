@@ -22,7 +22,7 @@ public static class PinGate
         var pin = app.Configuration["Husk:Pin"] ?? "";
         var token = pin.Length >= 4 ? Token(pin) : null;
         // Bolde i luften: a helper (Claude, for Martin) updates the balls with this key (Husk:ApiKey = Husk__ApiKey in magic.env).
-        // Only /api/bolde, only with the X-Husk-Key header; no key configured = closed.
+        // Only /api/bolde and /api/job, only with the X-Husk-Key header; no key configured = closed.
         var apiKey = app.Configuration["Husk:ApiKey"] ?? "";
         bool KeyOk(HttpContext ctx) => apiKey.Length >= 16 && ctx.Request.Headers.TryGetValue("X-Husk-Key", out var k)
             && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(k.ToString()), Encoding.UTF8.GetBytes(apiKey));
@@ -51,7 +51,7 @@ public static class PinGate
                        || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
                        || path.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
                        || path.StartsWith("/kolibri", StringComparison.OrdinalIgnoreCase);
-            if (path.StartsWith("/api/bolde", StringComparison.OrdinalIgnoreCase) && KeyOk(ctx)) open = true;
+            if ((path.StartsWith("/api/bolde", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/api/job", StringComparison.OrdinalIgnoreCase)) && KeyOk(ctx)) open = true;
             if (open || (token is not null && ctx.Request.Cookies.TryGetValue(Cookie, out var v) && v == token))
             {
                 await next();

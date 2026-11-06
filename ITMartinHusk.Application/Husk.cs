@@ -137,5 +137,6 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddHuskApplication(this IServiceCollection services) =>
         services.AddSingleton(sp => new HuskUseCases(sp.GetRequiredService<IHuskStore>(), sp.GetRequiredService<IPushSender>(), () => DkTime.Now))
-            .AddSingleton(sp => new BallUseCases(sp.GetRequiredService<IHuskStore>(), () => DkTime.Now));
+            .AddSingleton(sp => new BallUseCases(sp.GetRequiredService<IHuskStore>(), () => DkTime.Now))
+            .AddSingleton(sp => new JobUseCases(sp.GetRequiredService<IHuskStore>(), () => DkTime.Now));
 }

@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject HuskUseCases Husk
 @inject BallUseCases Balls
+@inject JobUseCases Jobs
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -79,11 +80,13 @@ else
     <section class="k-card hu-card @(jw < DkTime.Now.Date.AddDays(-6) ? "hu-urgent" : "")" data-nofold>
         <p class="hu-kicker">Ugens jobsøgning · uge @RuleBook.WeekNumber(jw)</p>
         <h2 class="hu-title">Skriv @(Husk.JobsPerWeek == 1 ? "1 job" : $"{Husk.JobsPerWeek} job") i Joblog</h2>
+        <p class="hu-when">Du har søgt @_jobsThisWeek i denne uge</p>
         <p class="k-help">Log ind på Jobnet → Joblog → tilføj jobbet. Du kan vælge datoen, så det lander i uge @RuleBook.WeekNumber(jw).</p>
         <div class="hu-buttons">
             <a class="k-btn" href="@RuleBook.Joblog" target="_blank" rel="noopener">Åbn Jobnet</a>
             <button class="k-btn k-btn-primary" @onclick="JobLogWritten">Det er skrevet ind</button>
         </div>
+        <a class="k-btn k-btn-sm k-mt" href="/job">Mine job</a>
         <a class="k-btn k-btn-sm k-btn-ghost k-mt" href="/regler">Hvorfor? Se reglen</a>
     </section>
 }
@@ -116,6 +119,7 @@ else
         else
         {
             <div class="hu-buttons">
+                @if (b.Link.Length > 0) { <a class="k-btn" href="@b.Link">Åbn</a> }
                 <button class="k-btn" @onclick="SkipBall">Ikke nu</button>
                 <button class="k-btn k-btn-primary" @onclick="OpenStep">Gjort</button>
             </div>
@@ -211,12 +215,14 @@ else
         // "og så" only for a meeting today or tomorrow - never a second piece of post or a second question.
         _next = _today.Cards.Skip(1).FirstOrDefault(c => c.Kind is CardKind.Today or CardKind.Tomorrow);
         _jobWeek = Husk.JobLogWeek();
+        _jobsThisWeek = Jobs.Count().ThisWeek;
         if (!_stepOpen) _ball = Balls.Next(_skipped);   // the 30-second refresh must not swap the ball while you write
         var g = Balls.Groups().Where(x => x.Status != BallStatus.Done && x.Balls.Count > 0);
         _counts = string.Join(" · ", g.Select(x => $"{x.Balls.Count} {x.Name.ToLowerInvariant()}"));
     }
 
     private DateTime? _jobWeek;
+    private int _jobsThisWeek;
 
     private void JobLogWritten()
     {

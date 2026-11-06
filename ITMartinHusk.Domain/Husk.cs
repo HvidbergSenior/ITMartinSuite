@@ -75,6 +75,8 @@ public sealed class HuskData
     public List<HuskSubscriber> Subscribers { get; set; } = [];
     /// <summary>Bolde i luften - every open thing with its one next step.</summary>
     public List<Ball> Balls { get; set; } = [];
+    /// <summary>Mine job - every job seen, applied for or left out.</summary>
+    public List<JobLead> Jobs { get; set; } = [];
     /// <summary>Reminders already sent ("itemId|kind|n"), so a restart never sends twice.</summary>
     public List<string> Sent { get; set; } = [];
     /// <summary>The day ("yyyy-MM-dd") the daily check round was last done.</summary>

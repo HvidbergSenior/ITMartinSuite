@@ -27,3 +27,10 @@
 .hu-status { display: flex; flex-wrap: wrap; gap: 6px; }
 .hu-status .k-btn { min-height: 40px; }
 .hu-status .hu-on { background: var(--k-accent); color: var(--k-accent-text, #fff); border-color: var(--k-accent); font-weight: 800; }
+/* Mine job: the a-kasse count as four big numbers. */
+.hu-count { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0; }
+@media (min-width: 560px) { .hu-count { grid-template-columns: repeat(4, 1fr); } }
+.hu-count > div { background: var(--k-bg-deep); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; }
+.hu-count b { font-size: 1.6rem; }
+.hu-count span { color: var(--k-muted); font-size: .85rem; }
+.hu-warn { border-left: 4px solid var(--k-accent); padding-left: 10px; }

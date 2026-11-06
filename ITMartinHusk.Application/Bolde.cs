@@ -5,7 +5,7 @@ namespace ITMartinHusk.Application;
 /// <summary>What a helper (Claude, for Martin) sends to make or update a ball. Matched on <see cref="Key"/>; null = keep.</summary>
 public sealed record BallInput(
     string? Key, string? Title, string? Area = null, string? Status = null, string? NextStep = null, string? WaitingOn = null,
-    string? Note = null, DateTime? Deadline = null, bool ClearDeadline = false);
+    string? Note = null, DateTime? Deadline = null, bool ClearDeadline = false, string? Link = null);
 
 public sealed record BallSaveResult(int Made, int Changed, List<string> Errors);
 
@@ -88,7 +88,7 @@ public sealed class BallUseCases(IHuskStore store, Func<DateTime> now)
                     var b = d.Balls.FirstOrDefault(x => x.Key == key);
                     var isNew = b is null;
                     b ??= Ball.Create(i.Title, key, now());
-                    b.Change(new BallChange(i.Title, i.Area, status, i.NextStep, i.WaitingOn, i.Note, i.Deadline, i.ClearDeadline), now());
+                    b.Change(new BallChange(i.Title, i.Area, status, i.NextStep, i.WaitingOn, i.Note, i.Deadline, i.ClearDeadline, i.Link), now());
                     if (isNew) { d.Balls.Add(b); made++; } else changed++;
                 }
                 catch (ArgumentException e) { errors.Add($"{key}: {e.Message}"); }

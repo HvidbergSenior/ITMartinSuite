@@ -31,10 +31,11 @@ builder.Services.AddKolibri(k =>
         "Nåede du ikke et møde? Husk spørger et kvarter efter. Skriv eller ring samme dag – så mister du kun den ene dag.",
         "Bolde: under forsiden står det næste skridt i én bold. Tryk Gjort og skriv det næste skridt – eller hvem du nu venter på. Tomt begge steder = bolden er færdig. Ikke nu = vis den næste bold.",
         "Se alle bolde under Bolde. De er delt i I gang, Venter på andre, Parkeret og Færdig. Tryk på en bold for at rette den, eller tryk \"Det er det næste\" for at sætte den forrest.",
-        "Regler: under Regler står reglerne for dagpenge med almindelige ord – hvad de betyder, hvad du gør, og hvor de kommer fra. Skriv dit eget tal for jobsøgning (fra brevet \"Krav til jobsøgning\"), så minder Husk dig fredag kl. 12 og igen mandag kl. 9, hvis ugen mangler i Joblog.",
+        "Job: under Job står alle de job, du har kigget på – Set, Søgt og Fravalgt – og hvor mange du har søgt i denne uge og de sidste 4 uger (heraf opslåede og deltid), som a-kassen tæller. Tryk Jeg har søgt og Skrevet i Joblog. Husk siger til, hvis du allerede har søgt hos samme sted.",
+        "Regler: under Job → Se reglerne står reglerne for dagpenge med almindelige ord – hvad de betyder, hvad du gør, og hvor de kommer fra. Skriv dit eget tal for jobsøgning (fra brevet \"Krav til jobsøgning\"), så minder Husk dig fredag kl. 12 og igen mandag kl. 9, hvis ugen mangler i Joblog.",
         "Tjek-runden kommer én gang om dagen: kig i Jobnet, Mit AKA og Digital Post, et sted ad gangen.",
     ];
-    k.Version = "2026.11.06.2";
+    k.Version = "2026.11.06.3";
     k.ThemeColor = "#0b1220";
 });
 
@@ -71,6 +72,10 @@ var apiJson = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSe
     { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
 app.MapGet("/api/bolde", (BallUseCases balls) => Results.Json(balls.All(), apiJson));
 app.MapPost("/api/bolde", (List<BallInput> req, BallUseCases balls) => Results.Json(balls.Save(req))).DisableAntiforgery();
+
+// ── Mine job: the same key and gate as /api/bolde (PinGate opens /api/bolde* and /api/job* with X-Husk-Key). ──
+app.MapGet("/api/job", (JobUseCases jobs) => Results.Json(jobs.All(), apiJson));
+app.MapPost("/api/job", (List<JobInput> req, JobUseCases jobs) => Results.Json(jobs.Save(req))).DisableAntiforgery();
 
 app.MapKolibri();
 app.MapRazorComponents<ITMartinHusk.Server.App>()

@@ -30,6 +30,8 @@ public sealed class Ball
     /// <summary>Where it stands, in one line.</summary>
     public string Note { get; set; } = "";
     public DateTime? Deadline { get; set; }
+    /// <summary>A page the ball opens with "Åbn" - only a path inside Husk ("/job"), so nothing outside gets in.</summary>
+    public string Link { get; set; } = "";
     /// <summary>"Det er det næste": the person picked this one to come first.</summary>
     public bool Pinned { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -59,6 +61,7 @@ public sealed class Ball
         if (c.NextStep is not null) NextStep = HuskRules.Clean(c.NextStep, MaxText);
         if (c.WaitingOn is not null) WaitingOn = HuskRules.Clean(c.WaitingOn, MaxTitle);
         if (c.Note is not null) Note = HuskRules.Clean(c.Note, MaxText);
+        if (c.Link is not null) Link = c.Link.StartsWith('/') && !c.Link.StartsWith("//") && c.Link.Length <= 60 ? c.Link : "";
         if (c.ClearDeadline) Deadline = null;
         else if (c.Deadline is { } d) Deadline = d.Date;
         if (c.Status is { } s) SetStatus(s, now);
@@ -77,7 +80,7 @@ public sealed class Ball
 /// <summary>A change to a ball; null fields stay as they are.</summary>
 public sealed record BallChange(
     string? Title = null, string? Area = null, BallStatus? Status = null, string? NextStep = null, string? WaitingOn = null,
-    string? Note = null, DateTime? Deadline = null, bool ClearDeadline = false);
+    string? Note = null, DateTime? Deadline = null, bool ClearDeadline = false, string? Link = null);
 
 /// <summary>The groups on the "Bolde" page, in this order.</summary>
 public sealed record BallGroup(BallStatus Status, string Name, string Help, List<Ball> Balls);

@@ -152,6 +152,7 @@
             <input class="k-input" id="e-title" @bind="_eTitle" maxlength="@Ball.MaxTitle" />
             @if (_editError.Length > 0) { <p role="alert">@_editError</p> }
             <div class="hu-buttons">
+                @if (b.Link.Length > 0) { <a class="k-btn" href="@b.Link">Åbn</a> }
                 @if (b.Status == BallStatus.InProgress && !b.Pinned) { <button class="k-btn" @onclick="() => Pin(b)">Det er det næste</button> }
                 <button class="k-btn k-btn-primary" @onclick="() => Save(b)">Gem</button>
             </div>
