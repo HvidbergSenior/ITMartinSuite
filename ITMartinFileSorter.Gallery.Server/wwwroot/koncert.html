@@ -295,7 +295,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px 4
     $('stats').innerHTML = [[photos, photos === 1 ? 'billede' : 'billeder'], [vids, vids === 1 ? 'film' : 'film'],
       ...(t.stats || []).map(s => [s.value, s.label])].map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('');
     $('stats').classList.remove('hidden');
-    $('backBtn').classList.toggle('hidden', (series?.shows?.length || 0) < 1);
+    $('backBtn').classList.toggle('hidden', (series?.shows?.length || 0) < 2);   // only when there is more than one concert
     $('list').classList.add('hidden');
     $('show').classList.remove('hidden');
     $('showHead').textContent = t.heading || 'Fra salen';
