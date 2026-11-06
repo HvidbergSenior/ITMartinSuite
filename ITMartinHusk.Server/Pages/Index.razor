@@ -73,8 +73,23 @@ else
     }
 }
 
+@* Ugens jobsøgning (Regler): from Friday until "Det er skrevet ind" - the week 44 that was missing in Mit AKA. *@
+@if (_jobWeek is { } jw && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
+{
+    <section class="k-card hu-card @(jw < DkTime.Now.Date.AddDays(-6) ? "hu-urgent" : "")" data-nofold>
+        <p class="hu-kicker">Ugens jobsøgning · uge @RuleBook.WeekNumber(jw)</p>
+        <h2 class="hu-title">Skriv @(Husk.JobsPerWeek == 1 ? "1 job" : $"{Husk.JobsPerWeek} job") i Joblog</h2>
+        <p class="k-help">Log ind på Jobnet → Joblog → tilføj jobbet. Du kan vælge datoen, så det lander i uge @RuleBook.WeekNumber(jw).</p>
+        <div class="hu-buttons">
+            <a class="k-btn" href="@RuleBook.Joblog" target="_blank" rel="noopener">Åbn Jobnet</a>
+            <button class="k-btn k-btn-primary" @onclick="JobLogWritten">Det er skrevet ind</button>
+        </div>
+        <a class="k-btn k-btn-sm k-btn-ghost k-mt" href="/regler">Hvorfor? Se reglen</a>
+    </section>
+}
+
 @* Bolde i luften (2026-11-06): ONE ball - its next step, big. Post and "Nåede du det?" come first and hide it until they are done. *@
-@if (_ball is not null && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
+@if (_ball is not null && _jobWeek is null && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
 {
     var b = _ball;
     var overdue = BallRules.Overdue(b, DkTime.Now);
@@ -195,9 +210,18 @@ else
         _first = _today.Cards.FirstOrDefault();
         // "og så" only for a meeting today or tomorrow - never a second piece of post or a second question.
         _next = _today.Cards.Skip(1).FirstOrDefault(c => c.Kind is CardKind.Today or CardKind.Tomorrow);
+        _jobWeek = Husk.JobLogWeek();
         if (!_stepOpen) _ball = Balls.Next(_skipped);   // the 30-second refresh must not swap the ball while you write
         var g = Balls.Groups().Where(x => x.Status != BallStatus.Done && x.Balls.Count > 0);
         _counts = string.Join(" · ", g.Select(x => $"{x.Balls.Count} {x.Name.ToLowerInvariant()}"));
+    }
+
+    private DateTime? _jobWeek;
+
+    private void JobLogWritten()
+    {
+        Husk.JobLogWritten();
+        Load();
     }
 
     // ── Bolde i luften ──

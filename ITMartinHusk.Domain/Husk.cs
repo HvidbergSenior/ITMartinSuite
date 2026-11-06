@@ -79,6 +79,10 @@ public sealed class HuskData
     public List<string> Sent { get; set; } = [];
     /// <summary>The day ("yyyy-MM-dd") the daily check round was last done.</summary>
     public string CheckedDay { get; set; } = "";
+    /// <summary>Job applications per week from the person's own "Krav til jobsøgning" (0 = no weekly reminder).</summary>
+    public int JobsPerWeek { get; set; }
+    /// <summary>Weeks ("2026-W44") the person has said are written in Joblog.</summary>
+    public List<string> JobLogDone { get; set; } = [];
 
     /// <summary>Closed things older than 30 days and their sent-log are forgotten.</summary>
     public void Prune(DateTime now)
@@ -86,6 +90,8 @@ public sealed class HuskData
         var gone = Items.Where(i => !i.IsOpen && i.ClosedAt is { } c && c < now.AddDays(-30)).Select(i => i.Id.ToString()).ToHashSet();
         Items.RemoveAll(i => gone.Contains(i.Id.ToString()));
         Sent.RemoveAll(s => gone.Contains(s.Split('|')[0]));
+        var jobLogKeys = Sent.Where(s => s.StartsWith("joblog|")).ToList();   // the weekly ones: keep the last 20
+        if (jobLogKeys.Count > 20) Sent.RemoveAll(s => jobLogKeys.Take(jobLogKeys.Count - 20).Contains(s));
         Balls.RemoveAll(b => b.DoneAt is { } d && d < now.AddDays(-BallRules.KeepDoneDays));
     }
 }

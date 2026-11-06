@@ -1,0 +1,48 @@
+@page "/regler"
+@inject HuskUseCases Husk
+
+<PageTitle>Regler · Husk</PageTitle>
+
+@* Regler (user 2026-11-06): "on husk the rules should be shown. Understandable". Every rule: what it says, what you do, where it is from. *@
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">Reglerne – med almindelige ord</h1>
+    <p class="k-help"><b>Her står de regler, der gælder, når du får dagpenge</b> – hvad de betyder, og hvad du gør.</p>
+    <p class="k-help"><b>Sådan gør du:</b> tryk på en regel for at læse den. Skriv dit eget tal for jobsøgning nederst, så minder Husk dig hver fredag.</p>
+</section>
+
+@foreach (var r in RuleBook.Dagpenge)
+{
+    <details class="k-card">
+        <summary><b>@r.Title</b></summary>
+        <p>@r.Plain</p>
+        <p><b>Det gør du:</b> @r.WhatToDo</p>
+        <a class="k-btn k-btn-sm" href="@r.Url" target="_blank" rel="noopener">Kilde: @r.Source</a>
+    </details>
+}
+
+<section class="k-card" data-nofold>
+    <h2 class="k-card-title">Dit krav til jobsøgning</h2>
+    <p class="k-help">Tallet står i brevet <b>"Krav til jobsøgning"</b> fra din a-kasse (eller spørg dem). Husk minder dig fredag kl. 12 – og mandag kl. 9, hvis ugen stadig mangler.</p>
+    <label class="k-label" for="hu-jobs">Antal job om ugen</label>
+    <div class="hu-row">
+        <div><input class="k-input" id="hu-jobs" type="number" min="0" max="50" inputmode="numeric" @bind="_jobs" /></div>
+        <div><button class="k-btn k-btn-primary" @onclick="Save">Gem</button></div>
+    </div>
+    @if (_saved.Length > 0) { <p class="k-help" role="status">@_saved</p> }
+</section>
+
+<p class="k-help">@RuleBook.Disclaimer</p>
+
+@code {
+    private int _jobs;
+    private string _saved = "";
+
+    protected override void OnInitialized() => _jobs = Husk.JobsPerWeek;
+
+    private void Save()
+    {
+        Husk.SetJobsPerWeek(_jobs);
+        _jobs = Husk.JobsPerWeek;
+        _saved = _jobs > 0 ? $"Gemt: {_jobs} job om ugen. Husk minder dig hver fredag." : "Påmindelsen om jobsøgning er slået fra.";
+    }
+}

@@ -60,6 +60,26 @@ public sealed class HuskUseCases(IHuskStore store, IPushSender push, Func<DateTi
 
     public void Remove(Guid id) => store.Update(d => d.Items.RemoveAll(i => i.Id == id));
 
+    // ── Ugens jobsøgning (Regler) ──
+    public int JobsPerWeek => store.Get().JobsPerWeek;
+
+    /// <summary>The person's own number from "Krav til jobsøgning"; 0 turns the weekly reminder off.</summary>
+    public void SetJobsPerWeek(int n) => store.Update(d => d.JobsPerWeek = Math.Clamp(n, 0, 50));
+
+    /// <summary>The week the reminder is about now (this week from Friday, else last week), or null when nothing is due.</summary>
+    public DateTime? JobLogWeek()
+    {
+        var d = store.Get();
+        return RuleBook.JobLogDue(d.JobsPerWeek, d.JobLogDone, now()) ? RuleBook.JobWeekMonday(now()) : null;
+    }
+
+    public void JobLogWritten() => store.Update(d =>
+    {
+        var w = RuleBook.WeekKey(RuleBook.JobWeekMonday(now()));
+        if (!d.JobLogDone.Contains(w)) d.JobLogDone.Add(w);
+        if (d.JobLogDone.Count > 60) d.JobLogDone.RemoveRange(0, d.JobLogDone.Count - 60);
+    });
+
     public void CheckRoundDone() => store.Update(d => d.CheckedDay = HuskRules.Day(now()));
 
     /// <summary>Everything still open, soonest first - "Alt" behind a button, for the times you need to look ahead.</summary>
@@ -99,7 +119,9 @@ public sealed class HuskUseCases(IHuskStore store, IPushSender push, Func<DateTi
     public async Task<int> TickAsync(CancellationToken ct = default)
     {
         var d = store.Get();
-        var due = HuskRules.Due(d.Items.ToList(), now(), d.Sent.ToHashSet());
+        var sentSet = d.Sent.ToHashSet();
+        var due = HuskRules.Due(d.Items.ToList(), now(), sentSet);
+        due.AddRange(RuleBook.JobLogPushes(d.JobsPerWeek, d.JobLogDone, now(), sentSet));
         if (due.Count == 0) return 0;
         // Marked as sent first: a phone that is off must not get the same message 60 times when it comes back.
         store.Update(x => x.Sent.AddRange(due.Select(m => m.Key)));
