@@ -8,7 +8,7 @@ namespace ITMartinHjem.Server.Services;
 // Just enough formatting for texts written on the phone:
 //   "* " or "- "   -> list          "## "        -> heading
 //   **bold**       -> bold          [text](url)  -> link (alone on its line -> a button)
-//   ![alt](url) on its own line -> picture;  other lines -> paragraphs.
+//   ![alt](url) on its own line -> picture; [![alt](img)](url) -> picture that opens url;  other lines -> paragraphs.
 //   "### Title | short text" -> a card that folds out (closed by the next ###, ## or a "---" line).
 // Everything is HTML-encoded first; links only to http(s), /, mailto: and tel:.
 public static partial class TinyMarkdown
@@ -18,7 +18,7 @@ public static partial class TinyMarkdown
         var sb = new StringBuilder();
         var inList = false;
         var inCard = false;
-        var media = new List<(string Alt, string Url)>();   // pictures/videos on lines next to each other = one gallery
+        var media = new List<(string Alt, string Url, string? Href)>();   // pictures/videos on lines next to each other = one gallery
         text = NoEmoji.Strip(text);   // no emojis on the sites (2026-10-12), also in text typed in Svar
         foreach (var raw in (text ?? "").Replace("\r", "").Split('\n'))
         {
@@ -27,9 +27,14 @@ public static partial class TinyMarkdown
             if (inList && !item) { sb.Append("</ul>"); inList = false; }
             if (line.Length == 0) continue;   // a blank line does not break a gallery
 
+            if (LinkedImage().Match(line) is { Success: true } li && SafeUrl(li.Groups[2].Value) && SafeUrl(li.Groups[3].Value))
+            {
+                media.Add((li.Groups[1].Value, li.Groups[2].Value, li.Groups[3].Value));
+                continue;
+            }
             if (Image().Match(line) is { Success: true } img && SafeUrl(img.Groups[2].Value))
             {
-                media.Add((img.Groups[1].Value, img.Groups[2].Value));
+                media.Add((img.Groups[1].Value, img.Groups[2].Value, null));
                 continue;
             }
             FlushMedia(sb, media);
@@ -75,18 +80,18 @@ public static partial class TinyMarkdown
     }
 
     // One picture = full width; several = a grid. A .mp4/.webm/.mov line becomes a video player.
-    private static void FlushMedia(StringBuilder sb, List<(string Alt, string Url)> media)
+    private static void FlushMedia(StringBuilder sb, List<(string Alt, string Url, string? Href)> media)
     {
         if (media.Count == 0) return;
         if (media.Count > 1) sb.Append("<div class=\"tm-gallery\">");
-        foreach (var (alt, url) in media)
+        foreach (var (alt, url, href) in media)
         {
             var u = WebUtility.HtmlEncode(url);
             var a = WebUtility.HtmlEncode(alt);
             if (url.EndsWith(".mp4") || url.EndsWith(".webm") || url.EndsWith(".mov"))
                 sb.Append($"<figure class=\"tm-fig\"><video class=\"tm-img\" src=\"{u}\" controls preload=\"metadata\" playsinline></video>");
             else
-                sb.Append($"<figure class=\"tm-fig\"><a href=\"{u}\" target=\"_blank\"><img class=\"tm-img\" loading=\"lazy\" src=\"{u}\" alt=\"{a}\" /></a>");
+                sb.Append($"<figure class=\"tm-fig\"><a href=\"{(href is null ? u : WebUtility.HtmlEncode(href))}\" target=\"_blank\" rel=\"noopener\"><img class=\"tm-img\" loading=\"lazy\" src=\"{u}\" alt=\"{a}\" /></a>");
             if (alt.Length > 0) sb.Append($"<figcaption>{a}</figcaption>");
             sb.Append("</figure>");
         }
@@ -115,6 +120,9 @@ public static partial class TinyMarkdown
 
     [GeneratedRegex(@"\[([^\]]+)\]\(([^)\s]+)\)")]
     private static partial Regex Link();
+
+    [GeneratedRegex(@"^\[!\[([^\]]*)\]\(([^)\s]+)\)\]\(([^)\s]+)\)$")]
+    private static partial Regex LinkedImage();
 
     [GeneratedRegex(@"^!\[([^\]]*)\]\(([^)\s]+)\)$")]
     private static partial Regex Image();
