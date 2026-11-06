@@ -124,4 +124,32 @@ public class BoldeTests
         d.Prune(Fri);
         d.Balls.Select(x => x.Title).Should().Equal("Åben");
     }
+
+    [Test]
+    public void Ball_with_deadline_reminds_the_evening_before_and_on_the_morning()
+    {
+        var b = B("Jobsøgning", deadline: new DateTime(2026, 11, 8));
+        var sent = new List<string>();
+        BallRules.Reminders([b], new DateTime(2026, 11, 7, 18, 59, 0), sent).Should().BeEmpty();
+        var eve = BallRules.Reminders([b], new DateTime(2026, 11, 7, 19, 0, 0), sent);
+        eve.Should().ContainSingle().Which.Message.Title.Should().Be("I morgen: Jobsøgning");
+        sent.Add(eve[0].Key);
+        BallRules.Reminders([b], new DateTime(2026, 11, 7, 22, 0, 0), sent).Should().BeEmpty();   // never twice
+        BallRules.Reminders([b], new DateTime(2026, 11, 8, 7, 0, 0), sent).Should().BeEmpty();
+        var day = BallRules.Reminders([b], new DateTime(2026, 11, 8, 12, 0, 0), sent);           // phone was off at 7.30
+        day.Should().ContainSingle().Which.Message.Body.Should().Be("gør noget");
+        BallRules.Reminders([b], new DateTime(2026, 11, 9, 8, 0, 0), sent.Append(day[0].Key).ToList()).Should().BeEmpty();
+    }
+
+    [Test]
+    public void Done_ball_or_no_deadline_never_reminds_and_a_new_deadline_reminds_again()
+    {
+        var done = B("Færdig", BallStatus.Done, new DateTime(2026, 11, 8));
+        var none = B("Uden frist");
+        BallRules.Reminders([done, none], new DateTime(2026, 11, 8, 9, 0, 0), []).Should().BeEmpty();
+        var b = B("Q-Park", deadline: new DateTime(2026, 11, 8));
+        var k = BallRules.Reminders([b], new DateTime(2026, 11, 8, 9, 0, 0), []).Single().Key;
+        b.Change(new BallChange(Deadline: new DateTime(2026, 11, 20)), Fri);
+        BallRules.Reminders([b], new DateTime(2026, 11, 20, 9, 0, 0), [k]).Should().ContainSingle();
+    }
 }

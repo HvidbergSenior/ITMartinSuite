@@ -27,7 +27,7 @@ builder.Services.AddKolibri(k =>
         "Forsiden viser kun den næste ting. Tryk \"Jeg er klar\", når du er klar, og \"Jeg kom\", når du har været der.",
         "Tilføj et møde: tryk Tilføj, skriv hvad, hvornår og hvor, og tryk Husk det.",
         "Ny post i e-Boks eller Digital Post? Tryk \"Ny post\" på forsiden og skriv, hvem den er fra. Husk minder dig hver halve time, til du trykker Læst.",
-        "Slå beskeder til nederst på forsiden. Så får du en besked aftenen før kl. 19, om morgenen kl. 7.30 og en time før.",
+        "Slå beskeder til nederst på forsiden. Så får du en besked aftenen før kl. 19, om morgenen kl. 7.30 og en time før. Bolde med en frist minder dig aftenen før kl. 19 og om morgenen på dagen kl. 7.30.",
         "Nåede du ikke et møde? Husk spørger et kvarter efter. Skriv eller ring samme dag – så mister du kun den ene dag.",
         "Bolde: under forsiden står det næste skridt i én bold. Tryk Gjort og skriv det næste skridt – eller hvem du nu venter på. Tomt begge steder = bolden er færdig. Ikke nu = vis den næste bold.",
         "Se alle bolde under Bolde. De er delt i I gang, Venter på andre, Parkeret og Færdig. Tryk på en bold for at rette den, eller tryk \"Det er det næste\" for at sætte den forrest.",
@@ -35,7 +35,7 @@ builder.Services.AddKolibri(k =>
         "Regler: under Job → Se reglerne står reglerne for dagpenge med almindelige ord – hvad de betyder, hvad du gør, og hvor de kommer fra. Skriv dit eget tal for jobsøgning (fra brevet \"Krav til jobsøgning\"), så minder Husk dig fredag kl. 12 og igen mandag kl. 9, hvis ugen mangler i Joblog.",
         "Tjek-runden kommer én gang om dagen: kig i Jobnet, Mit AKA og Digital Post, et sted ad gangen.",
     ];
-    k.Version = "2026.11.06.3";
+    k.Version = "2026.11.06.4";
     k.ThemeColor = "#0b1220";
 });
 

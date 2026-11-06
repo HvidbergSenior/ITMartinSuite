@@ -113,7 +113,7 @@ public sealed class HuskUseCases(IHuskStore store, IPushSender push, Func<DateTi
 
     public async Task<bool> TestAsync(string endpoint, CancellationToken ct = default) =>
         store.Get().Subscribers.FirstOrDefault(x => x.Endpoint == endpoint) is { } s
-        && await push.SendAsync(s, new PushMessage("Husk virker", "Sådan ser en påmindelse ud. Du får dem aftenen før, om morgenen og en time før."), ct);
+        && await push.SendAsync(s, new PushMessage("Husk virker", "Sådan ser en påmindelse ud. Du får dem aftenen før, om morgenen og en time før – og for bolde med frist: aftenen før og om morgenen på dagen."), ct);
 
     /// <summary>Every minute: sends what is due to every phone and remembers it, so nothing is sent twice.</summary>
     public async Task<int> TickAsync(CancellationToken ct = default)
@@ -122,6 +122,7 @@ public sealed class HuskUseCases(IHuskStore store, IPushSender push, Func<DateTi
         var sentSet = d.Sent.ToHashSet();
         var due = HuskRules.Due(d.Items.ToList(), now(), sentSet);
         due.AddRange(RuleBook.JobLogPushes(d.JobsPerWeek, d.JobLogDone, now(), sentSet));
+        due.AddRange(BallRules.Reminders(d.Balls.ToList(), now(), sentSet));
         if (due.Count == 0) return 0;
         // Marked as sent first: a phone that is off must not get the same message 60 times when it comes back.
         store.Update(x => x.Sent.AddRange(due.Select(m => m.Key)));

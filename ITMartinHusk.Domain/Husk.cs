@@ -94,6 +94,8 @@ public sealed class HuskData
         Sent.RemoveAll(s => gone.Contains(s.Split('|')[0]));
         var jobLogKeys = Sent.Where(s => s.StartsWith("joblog|")).ToList();   // the weekly ones: keep the last 20
         if (jobLogKeys.Count > 20) Sent.RemoveAll(s => jobLogKeys.Take(jobLogKeys.Count - 20).Contains(s));
+        var cutoff = now.Date.AddDays(-7).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);   // ball reminders: forget them a week after the day
+        Sent.RemoveAll(s => s.StartsWith("ball|") && string.CompareOrdinal(s[(s.LastIndexOf('|') + 1)..], cutoff) < 0);
         Balls.RemoveAll(b => b.DoneAt is { } d && d < now.AddDays(-BallRules.KeepDoneDays));
     }
 }

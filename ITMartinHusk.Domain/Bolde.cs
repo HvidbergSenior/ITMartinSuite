@@ -170,5 +170,29 @@ public static class BallRules
         };
     }
 
+    /// <summary>User 2026-11-06: "I need reminders on the things from it... like day before and on the day".
+    /// A ball with a deadline gets a push the evening before (from 19) and the morning of the day (from 7.30).
+    /// The window lasts the rest of that day, so a phone that was off or a ball given its deadline at noon still gets it.
+    /// The key holds the date: move the deadline and the reminders come again for the new day.</summary>
+    public static List<(string Key, PushMessage Message)> Reminders(IEnumerable<Ball> balls, DateTime now, ICollection<string> sent)
+    {
+        var due = new List<(string, PushMessage)>();
+        foreach (var b in balls.Where(x => x.IsOpen && x.Deadline is not null))
+        {
+            var day = b.Deadline!.Value.Date;
+            var step = b.NextStep.Length > 0 ? b.NextStep : "Se bolden i Husk.";
+            var date = day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            Try("aften", day.AddDays(-1).AddHours(19), day, new($"I morgen: {b.Title}", step, "/bolde"));
+            Try("dagen", day.AddHours(7.5), day.AddDays(1), new($"I dag: {b.Title}", step, "/bolde"));
+
+            void Try(string kind, DateTime from, DateTime until, PushMessage msg)
+            {
+                var key = $"ball|{b.Id}|{kind}|{date}";
+                if (now >= from && now < until && !sent.Contains(key)) due.Add((key, msg));
+            }
+        }
+        return due;
+    }
+
     public static bool Overdue(Ball b, DateTime now) => b.IsOpen && b.Deadline is { } d && d.Date <= now.Date;
 }
