@@ -15,3 +15,6 @@
 .vu-finds { text-align: left; margin-top: 12px; }
 .vu-finds ul { padding-left: 0; list-style: none; display: grid; gap: 6px; }
 .vu-login { display: grid; gap: 6px; max-width: 360px; }
+
+.vu-filter{margin-top:8px;align-items:center}
+.vu-usage{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}

@@ -580,14 +580,20 @@ public static partial class Pricing
     // Danish market first (user 2026-10-12: "always prioritize Danish market ... I dont know if it can pay off to put
     // things on foreign markets"): our price comes from these when they have at least DanishEnough prices.
     public static readonly string[] DanishSources = ["DBA", "GulogGratis", "Nemos Bibliotek", "Faraos", "Accord"];
+    /// <summary>Danish shops selling new copies - kept for Danish-only things too, as the new price to compare with
+    /// (user 2026-11-06: "Bog og Ide and similar comparing will be nice"). Saxo answers 403 to automatic visitors - left out.</summary>
+    public static readonly string[] DanishNewShops = ["Bog & idé", "Fantask"];
+    public static bool IsDanish(string source) => DanishSources.Contains(source) || DanishNewShops.Contains(source);
     public const int DanishEnough = 2;
 
     /// <summary>A Danish blad or album is priced from Danish sites only (user 2026-11-03 "jonah hex 49": our Danish Jonah Hex nr. 49
     /// got 170 kr from AbeBooks' "Jonah Hex 1977 Numero 49" - an Italian/Spanish edition; eBay had the American DC originals).
-    /// The foreign listings are not shown as links either.</summary>
+    /// The foreign listings are not shown as links either.
+    /// Books too, in any language (user 2026-11-06: "For books price should only be based on danish" - eBay/AbeBooks
+    /// prices are not what a book sells for here; we sell on the Danish market).</summary>
     public static bool DanishOnly(Item i) =>
-        i.Kind is Kinds.AndersAnd or Kinds.Superhelte or Kinds.Jumbobog or Kinds.Tegneserie
-        && i.Language is Languages.Dansk or "";
+        i.Kind == Kinds.Bog
+        || (i.Kind is Kinds.AndersAnd or Kinds.Superhelte or Kinds.Jumbobog or Kinds.Tegneserie && i.Language is Languages.Dansk or "");
 
 
     // Shown as links, never part of our price (user 2026-10-21: "ebay DE is not realistic is it?"): eBay is shops' asking
@@ -701,12 +707,13 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
         finds = finds.DistinctBy(f => (Pricing.ListingKey(f.Url), f.Similar)).ToList();
         // A Danish blad links only to Danish sites too (user 2026-11-03 "the links that did not work?": Jonah Hex 49 still linked to
         // twelve American DC editions - another product).
-        if (danishOnly) finds = finds.Where(f => Pricing.DanishSources.Contains(f.Source)).ToList();
+        if (danishOnly) finds = finds.Where(f => Pricing.IsDanish(f.Source)).ToList();
         // Danish first here too (2026-10-26: other Basserne gave 40 kr with eBay's 35-304 kr in; Nemos/Faraos say 12-22).
         var likeKr = like.SelectMany(a => Pricing.Keep(a.Result!).Select(o => (a.Source, Kr: (int)o.Price!.Value)))
             .Where(u => !danishOnly || Pricing.DanishSources.Contains(u.Source)).ToList();
         // New shops (Saxo, Amazon ...): the price a new copy is compared with.
-        var fresh = answers.Where(a => a.IsNew && a.Result is { Ambiguous: false }).SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();
+        var fresh = answers.Where(a => a.IsNew && a.Result is { Ambiguous: false } && (!danishOnly || Pricing.IsDanish(a.Source)))
+            .SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();
         // Discogs want/have: from the first source that knows it (only Discogs today).
         var demand = answers.Select(a => a.Result).FirstOrDefault(r => r?.Want is not null);
         return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalDanishFirst(likeKr),

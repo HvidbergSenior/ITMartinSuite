@@ -7,6 +7,12 @@
         <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="vurderes">Skal vurderes (<span id="vu-n-vurderes">…</span>)</button>
         <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="ingen">Ingen pris (<span id="vu-n-ingen">…</span>)</button>
     </div>
+    <div class="vu-piles vu-filter" role="tablist" aria-label="Vis">
+        <span class="k-help">Vis:</span>
+        <button type="button" class="k-btn k-btn-sm" role="tab" data-filter="">Alle</button>
+        <button type="button" class="k-btn k-btn-sm" role="tab" data-filter="somny">Som ny</button>
+        <button type="button" class="k-btn k-btn-sm" role="tab" data-filter="brugt">Brugt</button>
+    </div>
 </section>
 
 <section class="k-card vu-card" id="vu-card" data-nofold hidden>
@@ -14,6 +20,11 @@
     <h2 class="vu-line" id="vu-line"></h2>
     <p class="k-help" id="vu-facts"></p>
     <div class="vu-hint" id="vu-hint"></div>
+    <div class="vu-hint" id="vu-new" hidden></div>
+    <div class="vu-usage" role="group" aria-label="Stand">
+        <button type="button" class="k-btn k-btn-sm" data-usage="Som ny">Som ny</button>
+        <button type="button" class="k-btn k-btn-sm" data-usage="Brugt">Brugt</button>
+    </div>
     <div class="vu-actions">
         <button type="button" class="k-btn k-btn-primary vu-big" id="vu-ok"></button>
         <form class="vu-own" id="vu-own">

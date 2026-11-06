@@ -387,4 +387,16 @@ public class KioskTests
         HuntResult.From(1, faraos, now, danishOnly: true).Normal.Should().NotBeNull();
         Pricing.DanishOnly(new Item { Kind = Kinds.Superhelte, Language = Languages.Engelsk }).Should().BeFalse();
     }
+
+    [Test]
+    public void A_book_is_priced_from_Danish_sites_only_in_any_language()
+    {
+        // User 2026-11-06: "For books price should only be based on danish".
+        Pricing.DanishOnly(new Item { Kind = Kinds.Bog, Title = "Good Omens", Language = Languages.Engelsk }).Should().BeTrue();
+        Pricing.DanishOnly(new Item { Kind = Kinds.Bog, Title = "Ansigterne", Language = Languages.Dansk }).Should().BeTrue();
+        var now = DateTime.UtcNow;
+        var abe = new[] { new SourceAnswer("AbeBooks", false, ListingParse.Summarise([new Offer("Good Omens", 120, "u"), new Offer("Good Omens", 140, "v")], "s")) };
+        HuntResult.From(1, abe, now, danishOnly: true).Normal.Should().BeNull();
+        Pricing.DanishOnly(new Item { Kind = Kinds.Cd, Title = "Thriller" }).Should().BeFalse();
+    }
 }

@@ -316,9 +316,16 @@ public static class Languages
 // with, which offers cover it, and - for the bookkeeping - brugtmoms (used) or ordinary moms (new).
 public static class Usages
 {
-    public const string Used = "Brugt", New = "Ny";
-    public static readonly string[] All = [Used, New];
+    // "Som ny" (user 2026-11-06: "Lots of the books are as new" + "filter on as new and used"): used, but looks unread.
+    // Priced like used for now; Vurdering shows the new price next to it so the person can judge.
+    public const string Used = "Brugt", New = "Ny", AsNew = "Som ny";
+    public static readonly string[] All = [Used, AsNew, New];
 
     /// <summary>Anything unknown is used - almost everything in the boxes is.</summary>
-    public static string Normalise(string? u) => string.Equals(u?.Trim(), New, StringComparison.OrdinalIgnoreCase) ? New : Used;
+    public static string Normalise(string? u) => u?.Trim().ToLowerInvariant() switch
+    {
+        "ny" => New,
+        "som ny" or "somny" or "som-ny" => AsNew,
+        _ => Used,
+    };
 }

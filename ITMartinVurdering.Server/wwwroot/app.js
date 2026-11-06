@@ -17,8 +17,8 @@
 
     if (!$('vu-card')) return;   // the login page
 
-    var pile = 'vurderes', skip = [], item = null;
-    try { pile = localStorage.getItem('vurdering_pile') || 'vurderes'; } catch (e) { }
+    var pile = 'vurderes', filter = '', skip = [], item = null;
+    try { pile = localStorage.getItem('vurdering_pile') || 'vurderes'; filter = localStorage.getItem('vurdering_filter') || ''; } catch (e) { }
 
     function msg(t, bad) { var m = $('vu-msg'); m.textContent = t || ''; m.classList.toggle('is-bad', !!bad); }
 
@@ -26,11 +26,20 @@
         document.querySelectorAll('.vu-piles [data-pile]').forEach(function (b) {
             var on = b.getAttribute('data-pile') === pile; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
         });
+        document.querySelectorAll('.vu-filter [data-filter]').forEach(function (b) {
+            var on = b.getAttribute('data-filter') === filter; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+    }
+    function showUsage() {
+        document.querySelectorAll('.vu-usage [data-usage]').forEach(function (b) {
+            var on = !!item && b.getAttribute('data-usage') === item.usage;
+            b.classList.toggle('k-btn-primary', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
     }
 
     function load() {
         msg('Henter …');
-        fetch('/api/naeste?bunke=' + pile + '&spring=' + skip.join(','), { credentials: 'same-origin' })
+        fetch('/api/naeste?bunke=' + pile + '&brug=' + filter + '&spring=' + skip.join(','), { credentials: 'same-origin' })
             .then(function (r) { if (!r.ok) throw new Error('Lager svarer ikke lige nu – prøv igen om lidt.'); return r.json(); })
             .then(function (q) {
                 $('vu-n-vurderes').textContent = q.assess; $('vu-n-ingen').textContent = q.noPrice;
@@ -44,6 +53,10 @@
                 var ok = $('vu-ok');
                 if (item.hintKr) { ok.hidden = false; ok.textContent = 'Ok – ' + item.hintKr + ' kr'; $('vu-hint').innerHTML = 'Forslag: <b>' + item.hintKr + ' kr</b> – 10 % under det, andre sider tager.'; }
                 else { ok.hidden = true; $('vu-hint').innerHTML = item.similarKr ? 'Intet forslag. Noget, der ligner, koster omkring <b>' + item.similarKr + ' kr</b>.' : 'Intet forslag – der blev ikke fundet noget andre steder.'; }
+                var nw = $('vu-new');
+                if (item.newKr) { nw.hidden = false; nw.innerHTML = 'Ny hos ' + esc(item.newShop || 'boghandlen') + ': <b>' + item.newKr + ' kr</b> – til sammenligning.'; }
+                else { nw.hidden = true; nw.textContent = ''; }
+                showUsage();
                 $('vu-price').value = '';
                 var finds = item.finds || [];
                 $('vu-finds-n').textContent = finds.length;
@@ -66,6 +79,19 @@
     $('vu-ok').addEventListener('click', function () { if (item) save('/api/ok', { id: item.id, forslag: item.hintKr }); });
     $('vu-own').addEventListener('submit', function (e) { e.preventDefault(); if (item) save('/api/pris', { id: item.id, pris: $('vu-price').value }); });
     $('vu-skip').addEventListener('click', function () { if (item) { skip.push(item.id); load(); } });
+    document.querySelectorAll('.vu-usage [data-usage]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            if (!item) return;
+            var u = b.getAttribute('data-usage');
+            fetch('/api/brug', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, brug: u }) })
+                .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+                .then(function (x) { if (!x.ok) { msg(x.j.fejl || 'Det virkede ikke.', true); return; } item.usage = u; showUsage(); msg(x.j.besked); })
+                .catch(function () { msg('Det virkede ikke – prøv igen.', true); });
+        });
+    });
+    document.querySelectorAll('.vu-filter [data-filter]').forEach(function (b) {
+        b.addEventListener('click', function () { filter = b.getAttribute('data-filter'); skip = []; try { localStorage.setItem('vurdering_filter', filter); } catch (e) { } showPile(); load(); });
+    });
     document.querySelectorAll('.vu-piles [data-pile]').forEach(function (b) {
         b.addEventListener('click', function () { pile = b.getAttribute('data-pile'); skip = []; try { localStorage.setItem('vurdering_pile', pile); } catch (e) { } showPile(); load(); });
     });

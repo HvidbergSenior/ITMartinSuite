@@ -11,11 +11,14 @@ public static class VurderingApi
     {
         var api = app.MapGroup("/api/vurdering");
 
-        api.MapGet("/koe", async (string? bunke, int? antal, string? spring, PriceReviewUseCases review) =>
+        api.MapGet("/koe", async (string? bunke, int? antal, string? spring, string? brug, PriceReviewUseCases review) =>
         {
             var skip = (spring ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
-            return await review.QueueAsync(VurderingPiles.Valid(bunke) ? bunke! : VurderingPiles.Assess, antal ?? 1, skip);
+            return await review.QueueAsync(VurderingPiles.Valid(bunke) ? bunke! : VurderingPiles.Assess, antal ?? 1, skip, default, brug);
         });
+
+        api.MapPost("/varer/{id:int}/brug", async (int id, VurderingUsage body, PriceReviewUseCases review) =>
+            await review.SetUsageAsync(id, body.Usage) is { } error ? Results.BadRequest(error) : Results.Ok());
 
         api.MapPost("/varer/{id:int}/pris", async (int id, VurderingPrice body, PriceReviewUseCases review) =>
             await review.SetAsync(id, body.Kr) is { } error ? Results.BadRequest(error) : Results.Ok());

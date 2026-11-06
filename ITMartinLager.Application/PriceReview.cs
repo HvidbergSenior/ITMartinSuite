@@ -17,10 +17,11 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         (await items.SearchAsync("", null, Valuation(pile), ct))?.Hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt).ToList() ?? [];
 
     /// <summary>The counts of both piles, and the next <paramref name="take"/> things of one (skipping the ones just passed).</summary>
-    public async Task<VurderingQueue> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, CancellationToken ct = default)
+    public async Task<VurderingQueue> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, CancellationToken ct = default, string? usage = null)
     {
-        var assess = await PileAsync(VurderingPiles.Assess, ct);
-        var none = await PileAsync(VurderingPiles.NoPrice, ct);
+        var filter = VurderingFilter.Valid(usage);
+        var assess = (await PileAsync(VurderingPiles.Assess, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage)).ToList();
+        var none = (await PileAsync(VurderingPiles.NoPrice, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage)).ToList();
         var next = (pile == VurderingPiles.NoPrice ? none : assess).Where(i => !skip.Contains(i.Id)).Take(Math.Clamp(take, 1, 10)).ToList();
         var boxes = new Dictionary<int, string>();
         foreach (var b in next.Select(i => i.BoxId).OfType<int>().Distinct())
@@ -33,12 +34,29 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
     private async Task<VurderingItem> CardAsync(Item i, Dictionary<int, string> boxes, CancellationToken ct)
     {
         var finds = (await items.GetAsync(i.Id, ct))?.Finds ?? [];
+        // The new price to compare with: the cheapest new copy at a Danish new shop (not a "magen til").
+        var fresh = finds.Where(f => f.IsNew && !f.Similar && Pricing.DanishNewShops.Contains(f.Source) && f.Kr > 0).OrderBy(f => f.Kr).FirstOrDefault();
+        var shown = finds.Where(f => !f.IsNew).OrderBy(f => f.Kr).Take(MaxFinds)
+            .Concat(finds.Where(f => f.IsNew).OrderBy(f => f.Kr).Take(2)).ToList();
         return new VurderingItem(i.Id, i.Line(), i.Kind, i.Condition, Kr(i.PriceHint), Kr(i.SimilarHint),
             i.BoxId is { } b && boxes.TryGetValue(b, out var code) ? code : "",
-            finds.OrderBy(f => f.Kr).Take(MaxFinds).Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew)).ToList());
+            shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew)).ToList(),
+            Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source);
     }
 
     private static int? Kr(decimal? d) => d is > 0 ? (int)Math.Round(d.Value) : null;
+
+    /// <summary>"Som ny" or "Brugt" from Vurdering. "Ny" (never sold) is set in Lager only.</summary>
+    public async Task<string?> SetUsageAsync(int id, string? usage, CancellationToken ct = default)
+    {
+        var u = Usages.Normalise(usage);
+        if (u == Usages.New) return "Ny sættes i Lager.";
+        if (await items.GetAsync(id, ct) is not { } view) return "Varen findes ikke.";
+        if (!Statuses.Ours(view.Item.Status) || view.Item.Status == Statuses.Solgt) return "Varen er solgt eller ikke vores.";
+        view.Item.Usage = u;
+        await items.SaveAsync(view.Item, ct);
+        return null;
+    }
 
     /// <summary>The person's price. Only a thing that is ours and not sold; 1 to 100.000 kr.</summary>
     public async Task<string?> SetAsync(int id, int kr, CancellationToken ct = default)

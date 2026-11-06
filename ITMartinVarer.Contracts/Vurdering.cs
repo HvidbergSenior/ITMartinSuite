@@ -20,11 +20,28 @@ public static class VurderingPiles
 public sealed record VurderingFind(string Source, string Name, int Kr, string Url, bool IsNew);
 
 /// <summary>One thing to price: what it is, the suggested shop price (HintKr, 10 % under the sites), and what was found.</summary>
+/// Usage = Brugt / Som ny / Ny; NewKr/NewShop = the lowest price at a Danish new shop (Bog & idé, Fantask) to compare with.
 public sealed record VurderingItem(int Id, string Line, string Kind, string Condition, int? HintKr, int? SimilarKr, string Box,
-    List<VurderingFind> Finds);
+    List<VurderingFind> Finds, string Usage = "Brugt", int? NewKr = null, string? NewShop = null);
 
 /// <summary>How many wait in each pile, and the next thing(s).</summary>
 public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items);
 
 /// <summary>The price a person set - Ok = the suggestion, or their own.</summary>
 public sealed record VurderingPrice(int Kr);
+
+/// <summary>"Som ny" or "Brugt" set by the person in Vurdering.</summary>
+public sealed record VurderingUsage(string Usage);
+
+/// <summary>The usage filter on the queue: "" = all, "somny" = only Som ny, "brugt" = only Brugt.</summary>
+public static class VurderingFilter
+{
+    public const string All = "", AsNew = "somny", Used = "brugt";
+    public static string Valid(string? f) => f is AsNew or Used ? f : All;
+    public static bool Shows(string filter, string usage) => filter switch
+    {
+        AsNew => Usages.Normalise(usage) == Usages.AsNew,
+        Used => Usages.Normalise(usage) == Usages.Used,
+        _ => true,
+    };
+}

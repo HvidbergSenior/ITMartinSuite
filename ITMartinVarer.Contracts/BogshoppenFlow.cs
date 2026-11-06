@@ -12,7 +12,7 @@ public static class BogshoppenFlow
     public static readonly IReadOnlyList<(string Name, string Url)> Steps =
     [
         ("Tilføj varer", "https://vareinfo.bogshoppen.dk/"),
-        ("Find priser", "https://lager.bogshoppen.dk/"),   // Lager today; its own Vurdering helper later
+        ("Find priser", "https://vurdering.bogshoppen.dk/"),   // Vurdering (route live 2026-11-06)
         ("Læg på lager", "https://lager.bogshoppen.dk/kasser"),
         ("På bogshoppen.dk", "https://bogshoppen.dk/produkter"),
         ("Sælg", "https://salg.bogshoppen.dk/"),

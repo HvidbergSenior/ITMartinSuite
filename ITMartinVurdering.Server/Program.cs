@@ -19,7 +19,8 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Vurdering er trin 2 af Bogshoppens fem trin: Tilføj varer, Find priser, Læg på lager, På bogshoppen.dk og Sælg.",
-        "Lager har allerede søgt efter prisen andre steder (DBA, eBay, Tradera …). Her ser du én ting ad gangen med forslaget og det, der blev fundet – og du bestemmer.",
+        "Lager har allerede søgt efter prisen andre steder (DBA, Faraos, Nemos …). Her ser du én ting ad gangen med forslaget og det, der blev fundet – og du bestemmer.",
+        "Bøger prissættes kun efter danske sider – og med prisen for en ny hos Bog & idé ved siden af (2026-11-06).",
         "Skal vurderes = fundet til 50 kr eller mere, men uden din pris. Ingen pris = intet fundet nogen steder.",
     ];
     k.HowTo =
@@ -28,8 +29,10 @@ builder.Services.AddKolibri(k =>
         "Vælg bunken: Skal vurderes eller Ingen pris. Øverst står, hvor mange der venter.",
         "Kig på billedet og det, der blev fundet. Tryk Ok for forslaget – eller skriv din egen pris og tryk Gem.",
         "Ved du det ikke? Tryk Spring over, så kommer den næste.",
+        "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
+        "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
     ];
-    k.Version = "2026.11.05";
+    k.Version = "2026.11.06";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -86,8 +89,8 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Vurdering · Bogshoppen</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=5"><link rel="stylesheet" href="/app.css?v=1">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=1" defer></script>
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=5"><link rel="stylesheet" href="/app.css?v=2">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
@@ -109,11 +112,12 @@ app.MapPost("/ud", (HttpContext ctx) => { ctx.Response.Cookies.Delete("vurdering
 
 var api = app.MapGroup("/api").AddEndpointFilter(async (ctx, next) => IsOwner(ctx.HttpContext) ? await next(ctx) : Results.Unauthorized());
 
-api.MapGet("/naeste", async (string? bunke, string? spring, ReviewUseCases review, CancellationToken ct) =>
+api.MapGet("/naeste", async (string? bunke, string? spring, string? brug, ReviewUseCases review, CancellationToken ct) =>
 {
     var skip = (spring ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
-    return await review.NextAsync(bunke, skip, ct) is { } q ? Results.Ok(q) : Results.Problem("Lager svarer ikke lige nu – prøv igen om lidt.", statusCode: 503);
+    return await review.NextAsync(bunke, skip, ct, brug) is { } q ? Results.Ok(q) : Results.Problem("Lager svarer ikke lige nu – prøv igen om lidt.", statusCode: 503);
 });
+api.MapPost("/brug", async (BrugForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.UsageAsync(f.Id, f.Brug, ct)));
 
 api.MapPost("/ok", async (OkForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OkAsync(f.Id, f.Forslag, ct)));
 api.MapPost("/pris", async (PrisForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OwnAsync(f.Id, f.Pris, ct)));
@@ -126,3 +130,4 @@ app.Run();
 
 record OkForm(int Id, int? Forslag);
 record PrisForm(int Id, string? Pris);
+record BrugForm(int Id, string? Brug);

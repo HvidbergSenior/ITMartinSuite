@@ -53,6 +53,19 @@ public class ReviewTests
     {
         var lager = new Mock<ILagerReview>();
         await new ReviewUseCases(lager.Object).NextAsync("hack", []);
-        lager.Verify(l => l.QueueAsync(VurderingPiles.Assess, 1, It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()));
+        lager.Verify(l => l.QueueAsync(VurderingPiles.Assess, 1, It.IsAny<IReadOnlyCollection<int>>(), VurderingFilter.All, It.IsAny<CancellationToken>()));
+    }
+
+    [Test]
+    public async Task Som_ny_and_Brugt_are_saved_and_the_filter_is_passed_on()
+    {
+        var lager = new Mock<ILagerReview>();
+        (await new ReviewUseCases(lager.Object).UsageAsync(7, "som ny")).Ok.Should().BeTrue();
+        lager.Verify(l => l.SetUsageAsync(7, Usages.AsNew, It.IsAny<CancellationToken>()));
+        (await new ReviewUseCases(lager.Object).UsageAsync(7, "Ny")).Ok.Should().BeFalse("Ny is set in Lager only");
+        await new ReviewUseCases(lager.Object).NextAsync("vurderes", [], default, "somny");
+        lager.Verify(l => l.QueueAsync(VurderingPiles.Assess, 1, It.IsAny<IReadOnlyCollection<int>>(), VurderingFilter.AsNew, It.IsAny<CancellationToken>()));
+        VurderingFilter.Shows(VurderingFilter.Used, "Brugt").Should().BeTrue();
+        VurderingFilter.Shows(VurderingFilter.AsNew, "Brugt").Should().BeFalse();
     }
 }

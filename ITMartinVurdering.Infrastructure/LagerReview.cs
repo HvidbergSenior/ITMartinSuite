@@ -10,9 +10,9 @@ namespace ITMartinVurdering.Infrastructure;
 // Lager's /api/vurdering with Vurdering__LagerKey (= Lager__VurderingKey there). Vurdering__LagerUrl = http://lager-web:8080 on the photoserver.
 internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> log) : ILagerReview
 {
-    public async Task<VurderingQueue?> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, CancellationToken ct)
+    public async Task<VurderingQueue?> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, string usage, CancellationToken ct)
     {
-        try { return await http.GetFromJsonAsync<VurderingQueue>($"/api/vurdering/koe?bunke={pile}&antal={take}&spring={string.Join(',', skip)}", ct); }
+        try { return await http.GetFromJsonAsync<VurderingQueue>($"/api/vurdering/koe?bunke={pile}&antal={take}&spring={string.Join(',', skip)}&brug={Uri.EscapeDataString(usage)}", ct); }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         { log.LogWarning(e, "Lager did not answer the queue"); return null; }
     }
@@ -26,6 +26,17 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
         { log.LogWarning(e, "Lager did not save the price"); return "Lager svarer ikke lige nu – prøv igen om lidt."; }
+    }
+
+    public async Task<string?> SetUsageAsync(int itemId, string usage, CancellationToken ct)
+    {
+        try
+        {
+            using var res = await http.PostAsJsonAsync($"/api/vurdering/varer/{itemId}/brug", new VurderingUsage(usage), ct);
+            return res.IsSuccessStatusCode ? null : (await res.Content.ReadAsStringAsync(ct)).Trim('"') is { Length: > 0 } why ? why : "Lager gemte det ikke.";
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        { log.LogWarning(e, "Lager did not save the usage"); return "Lager svarer ikke lige nu – prøv igen om lidt."; }
     }
 
     public async Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct)
