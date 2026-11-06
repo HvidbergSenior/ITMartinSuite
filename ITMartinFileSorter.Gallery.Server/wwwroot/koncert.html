@@ -93,13 +93,13 @@ h2.section{font:400 clamp(1.8rem,6vw,2.6rem)/1 'Bebas Neue',sans-serif;letter-sp
 .stat b{display:block;font:400 2.2rem/1 'Bebas Neue',sans-serif;color:var(--amber)}
 .stat span{font-size:.85rem;color:var(--muted)}
 .wall{columns:3 260px;column-gap:12px}
-.tile{display:block;width:100%;margin:0 0 12px;padding:0;border:0;border-radius:12px;overflow:hidden;background:#000;position:relative;
+.tile{display:block;width:100%;color:var(--ink);margin:0 0 12px;padding:0;border:0;border-radius:12px;overflow:hidden;background:#000;position:relative;
   break-inside:avoid;box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:0;transform:translateY(24px) scale(.98);transition:opacity .6s,transform .6s}
 .tile.in{opacity:1;transform:none}
 .tile img{display:block;width:100%;height:auto;transition:transform .4s,filter .4s}
 .tile:hover img{transform:scale(1.04);filter:brightness(1.12) saturate(1.15)}
 .tile .play{position:absolute;inset:auto 10px 10px auto;background:var(--hot);color:#fff;font-weight:800;font-size:.85rem;padding:6px 12px;border-radius:999px}
-.tile .cap{position:absolute;left:0;right:0;bottom:0;padding:18px 12px 10px;font-size:.9rem;text-align:left;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+.tile .cap{position:absolute;left:0;right:0;bottom:0;padding:22px 12px 10px;font-size:.95rem;font-weight:700;text-align:left;color:#fff6e8;text-shadow:0 1px 3px #000;background:linear-gradient(transparent,rgba(0,0,0,.92) 45%)}
 .tile.novid{aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;color:var(--amber);font:400 2rem 'Bebas Neue',sans-serif}
 /* quotes from the evening (koncert.json "quotes": [{who, text}]) - speech bubbles in the wall */
 .quote{break-inside:avoid;margin:0 0 12px;padding:18px 18px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);
