@@ -119,7 +119,7 @@ app.Use(async (ctx, next) =>
             // A celebration gallery gets its own timeline page instead of the browser.
             ctx.Response.ContentType = "text/html; charset=utf-8";
             ctx.Response.Headers.CacheControl = "no-cache";
-            var page = hit.IsCelebration ? "fejring.html" : "index.html";
+            var page = hit.IsCelebration ? "fejring.html" : hit.IsConcerts ? "koncert.html" : "index.html";
             string html;
             using (var reader = new StreamReader(app.Environment.WebRootFileProvider.GetFileInfo(page).CreateReadStream()))
                 html = await reader.ReadToEndAsync();
@@ -237,6 +237,16 @@ app.MapPost("/api/celebration/edit", (string gallery, CelebrationEdit edit, Http
     if (!g.AllowsEdit(ctx.Request.Headers["X-Edit-Pin"].ToString())) return Results.Unauthorized();
     if (!CelebrationRules.IsValidKey(edit.Key)) return Results.BadRequest();
     return celebrations.SaveEdit(g, edit.Kind, edit.Key, edit.Title, edit.Text, edit.Degrees) ? Results.Ok() : Results.BadRequest();
+});
+
+// KoncertKlanen: the list of concerts, or one concert's stage page (?show=GuldIMund).
+app.MapGet("/api/concerts", (string gallery, string? show, HttpContext ctx, Concerts concerts) =>
+{
+    var g = catalog.FindIgnoreCase(gallery);
+    if (g is null || !g.IsConcerts) return Results.NotFound();
+    if (!g.Admits(Key(ctx, g))) return Results.Unauthorized();
+    if (string.IsNullOrEmpty(show)) return Results.Ok(concerts.Series(g));
+    return concerts.Show(g, show) is { } page ? Results.Ok(page) : Results.NotFound();
 });
 
 // Every other read below: the gallery by its exact slug, then its password.

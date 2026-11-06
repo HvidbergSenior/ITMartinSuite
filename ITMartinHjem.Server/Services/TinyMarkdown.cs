@@ -7,7 +7,7 @@ namespace ITMartinHjem.Server.Services;
 
 // Just enough formatting for texts written on the phone:
 //   "* " or "- "   -> list          "## "        -> heading
-//   **bold**       -> bold          [text](url)  -> link
+//   **bold**       -> bold          [text](url)  -> link (alone on its line -> a button)
 //   ![alt](url) on its own line -> picture;  other lines -> paragraphs.
 //   "### Title | short text" -> a card that folds out (closed by the next ###, ## or a "---" line).
 // Everything is HTML-encoded first; links only to http(s), /, mailto: and tel:.
@@ -50,6 +50,14 @@ public static partial class TinyMarkdown
             if (line.StartsWith("## "))
             {
                 sb.Append("<h2>").Append(Inline(line[3..])).Append("</h2>");
+                continue;
+            }
+            // A line that is only a link = a big button (user rule: visitors press buttons, never inline links).
+            if (!item && Link().Match(line) is { Success: true } lone && lone.Length == line.Length && SafeUrl(WebUtility.HtmlDecode(lone.Groups[2].Value)))
+            {
+                var url = lone.Groups[2].Value;
+                var ext = url.StartsWith("http") ? " target=\"_blank\" rel=\"noopener\"" : "";
+                sb.Append($"<p class=\"tm-btn-row\"><a class=\"k-btn k-btn-primary\" href=\"{WebUtility.HtmlEncode(url)}\"{ext}>{WebUtility.HtmlEncode(lone.Groups[1].Value)}</a></p>");
                 continue;
             }
             var html = Inline(item ? line[2..] : line);

@@ -27,7 +27,8 @@ public static class DependencyInjection
             Theme: s["Theme"], Headline: s["Headline"], Tagline: s["Tagline"],
             CelebrationFolder: s["CelebrationFolder"], CelebrationName: s["CelebrationName"], BirthDate: s["BirthDate"],
             EditPin: s["EditPin"], MusicName: s["MusicName"], RootFolders: s["RootFolders"], UploadUrl: s["UploadUrl"],
-            ClosesAt: DateTime.TryParse(s["ClosesAt"], out var at) ? at : null)));
+            ClosesAt: DateTime.TryParse(s["ClosesAt"], out var at) ? at : null,
+            Concerts: s.GetValue<bool>("Concerts"))));
 
     /// <summary>The disk, manifest, collections, studio.db, TagLib, EXIF and edit-file adapters behind the ports, plus the use cases.</summary>
     public static IServiceCollection AddGallery(this IServiceCollection services, IConfiguration config)
@@ -50,6 +51,7 @@ public static class DependencyInjection
         services.AddSingleton<SongSheets>();
         services.AddSingleton<LibraryFiles>();
         services.AddSingleton<Celebrations>();
+        services.AddSingleton<Concerts>();
         return services;
     }
 }

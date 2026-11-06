@@ -8,12 +8,15 @@ namespace ITMartinGallery.Domain;
 // Theme/Headline/Tagline: a per-gallery look. "koncert" = the stage-style
 // front for the audience versions of the songs (2026-09-17).
 // ClosesAt (Danish local time): see ClosingRule.
-public record Gallery(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null, string? CelebrationFolder = null, string? CelebrationName = null, string? BirthDate = null, string? EditPin = null, string? MusicName = null, string? RootFolders = null, string? UploadUrl = null, DateTime? ClosesAt = null)
+public record Gallery(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null, string? CelebrationFolder = null, string? CelebrationName = null, string? BirthDate = null, string? EditPin = null, string? MusicName = null, string? RootFolders = null, string? UploadUrl = null, DateTime? ClosesAt = null, bool Concerts = false)
 {
     // Served = it has both a slug and a library folder. Entries without a path only count for closing.
     public bool IsServed => !string.IsNullOrWhiteSpace(Slug) && !string.IsNullOrWhiteSpace(Path);
 
     public bool IsCelebration => !string.IsNullOrEmpty(CelebrationFolder);
+
+    // Galleries__N__Concerts=true: KoncertKlanen - one stage page per concert folder (ConcertRules, wwwroot/koncert.html).
+    public bool IsConcerts => Concerts && !IsCelebration;
 
     // The public demos (gallery.itmartin.dk/demo, /facebook-demo) wear the ITMartin/Kolibri frame like the other helpers
     // (user 2026-11-05: "Only the demos") - customers' own galleries keep their own look.
