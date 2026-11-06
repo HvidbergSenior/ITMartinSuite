@@ -1,6 +1,7 @@
 @page "/"
 @implements IDisposable
 @inject HuskUseCases Husk
+@inject BallUseCases Balls
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -8,7 +9,11 @@
 
 @* ONE thing first (user 2026-10-30: "I can only concentrate on today and maybe tomorrow... One thing at a time"). Below it at
    most one "og så". Anything later is hidden - the reminders bring it forward when it is close. *@
-@if (_first is null)
+@if (_first is null && _ball is not null)
+{
+    @* No meeting and no post: the next ball is the one thing. *@
+}
+else if (_first is null)
 {
     <section class="k-card hu-card hu-calm" data-nofold>
         <p class="hu-kicker">I dag og i morgen</p>
@@ -66,6 +71,48 @@ else
             <p class="k-help">Og så: <b>@_next.Item.Title</b> – @_next.When</p>
         </section>
     }
+}
+
+@* Bolde i luften (2026-11-06): ONE ball - its next step, big. Post and "Nåede du det?" come first and hide it until they are done. *@
+@if (_ball is not null && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
+{
+    var b = _ball;
+    var overdue = BallRules.Overdue(b, DkTime.Now);
+    <section class="k-card hu-card @(overdue ? "hu-urgent" : "")" data-nofold>
+        <p class="hu-kicker">Næste skridt · @b.Title</p>
+        <h2 class="hu-title">@(b.NextStep.Length > 0 ? b.NextStep : "Find det næste skridt")</h2>
+        @if (b.Deadline is { } d) { <p class="hu-when">@BallRules.DeadlineText(d, DkTime.Now)</p> }
+        @if (b.Note.Length > 0) { <p class="k-help">@b.Note</p> }
+        @if (b.NextStep.Length == 0) { <p class="k-help">Hvad er det mindste, du kan gøre nu? Tryk Gjort og skriv det – eller ret bolden under Bolde.</p> }
+
+        @if (_stepOpen)
+        {
+            <label class="k-label" for="hu-step">Hvad er det næste skridt nu?</label>
+            <input class="k-input" id="hu-step" @bind="_newStep" maxlength="@Ball.MaxText" placeholder="fx Ring til Q-Park" />
+            <label class="k-label" for="hu-wait">Eller venter du på nogen?</label>
+            <input class="k-input" id="hu-wait" @bind="_waitOn" maxlength="@Ball.MaxTitle" placeholder="fx Q-Park" />
+            <p class="k-help">Tomt begge steder = bolden er færdig.</p>
+            @if (_ballError.Length > 0) { <p role="alert">@_ballError</p> }
+            <div class="hu-buttons">
+                <button class="k-btn" @onclick="() => _stepOpen = false">Fortryd</button>
+                <button class="k-btn k-btn-primary" @onclick="SaveStep">Gem</button>
+            </div>
+        }
+        else
+        {
+            <div class="hu-buttons">
+                <button class="k-btn" @onclick="SkipBall">Ikke nu</button>
+                <button class="k-btn k-btn-primary" @onclick="OpenStep">Gjort</button>
+            </div>
+        }
+    </section>
+}
+@if (_counts.Length > 0)
+{
+    <section class="k-card hu-next" data-nofold>
+        <p class="k-help">Bolde i luften: @_counts</p>
+        <a class="k-btn k-btn-sm" href="/bolde">Se alle bolde</a>
+    </section>
 }
 
 @* The daily check round (Talentmessen was in Jobnet the whole time): one place at a time. *@
@@ -148,6 +195,40 @@ else
         _first = _today.Cards.FirstOrDefault();
         // "og så" only for a meeting today or tomorrow - never a second piece of post or a second question.
         _next = _today.Cards.Skip(1).FirstOrDefault(c => c.Kind is CardKind.Today or CardKind.Tomorrow);
+        if (!_stepOpen) _ball = Balls.Next(_skipped);   // the 30-second refresh must not swap the ball while you write
+        var g = Balls.Groups().Where(x => x.Status != BallStatus.Done && x.Balls.Count > 0);
+        _counts = string.Join(" · ", g.Select(x => $"{x.Balls.Count} {x.Name.ToLowerInvariant()}"));
+    }
+
+    // ── Bolde i luften ──
+    private Ball? _ball;
+    private readonly HashSet<Guid> _skipped = [];
+    private bool _stepOpen;
+    private string _newStep = "", _waitOn = "", _ballError = "", _counts = "";
+
+    /// <summary>"Ikke nu" only for this visit - the ball is not changed.</summary>
+    private void SkipBall()
+    {
+        if (_ball is not null) _skipped.Add(_ball.Id);
+        if (Balls.Next(_skipped) is null) _skipped.Clear();   // went round them all: start again
+        Load();
+    }
+
+    private void OpenStep()
+    {
+        _newStep = "";
+        _waitOn = _ball?.WaitingOn ?? "";
+        _ballError = "";
+        _stepOpen = true;
+    }
+
+    private void SaveStep()
+    {
+        if (_ball is null) return;
+        _ballError = Balls.StepDone(_ball.Id, _newStep, _waitOn) ?? "";
+        if (_ballError.Length > 0) return;
+        _stepOpen = false;
+        Load();
     }
 
     private static string Kicker(HuskCard c) => c.Kind switch

@@ -73,6 +73,8 @@ public sealed class HuskData
 {
     public List<HuskItem> Items { get; set; } = [];
     public List<HuskSubscriber> Subscribers { get; set; } = [];
+    /// <summary>Bolde i luften - every open thing with its one next step.</summary>
+    public List<Ball> Balls { get; set; } = [];
     /// <summary>Reminders already sent ("itemId|kind|n"), so a restart never sends twice.</summary>
     public List<string> Sent { get; set; } = [];
     /// <summary>The day ("yyyy-MM-dd") the daily check round was last done.</summary>
@@ -84,6 +86,7 @@ public sealed class HuskData
         var gone = Items.Where(i => !i.IsOpen && i.ClosedAt is { } c && c < now.AddDays(-30)).Select(i => i.Id.ToString()).ToHashSet();
         Items.RemoveAll(i => gone.Contains(i.Id.ToString()));
         Sent.RemoveAll(s => gone.Contains(s.Split('|')[0]));
+        Balls.RemoveAll(b => b.DoneAt is { } d && d < now.AddDays(-BallRules.KeepDoneDays));
     }
 }
 

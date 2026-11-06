@@ -17,3 +17,13 @@
 #components-reconnect-modal.components-reconnect-show, #components-reconnect-modal.components-reconnect-failed {
     display: flex; position: fixed; inset: 0; z-index: 200; align-items: center; justify-content: center; background: rgba(0,0,0,.6); color: #fff;
 }
+/* Bolde i luften: one line per ball, tap to open; overdue gets the accent edge. */
+.hu-ball { border-bottom: 1px solid var(--k-border); }
+.hu-ball-head { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 12px 0; cursor: pointer; min-height: 44px; }
+.hu-ball-title { font-weight: 700; }
+.hu-ball-step { color: var(--k-text); }
+.hu-ball-late { border-left: 4px solid var(--k-accent); padding-left: 10px; }
+.hu-ball-edit { padding: 0 0 14px; }
+.hu-status { display: flex; flex-wrap: wrap; gap: 6px; }
+.hu-status .k-btn { min-height: 40px; }
+.hu-status .hu-on { background: var(--k-accent); color: var(--k-accent-text, #fff); border-color: var(--k-accent); font-weight: 800; }

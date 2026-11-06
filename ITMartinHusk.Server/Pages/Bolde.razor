@@ -1,0 +1,161 @@
+@page "/bolde"
+@inject BallUseCases Balls
+
+<PageTitle>Bolde · Husk</PageTitle>
+
+@* Bolde i luften (user 2026-11-06): the whole list, but grouped and folded - "I gang" open, the rest closed - so it never lands
+   all at once. Same layout every visit. The front page still shows only one ball. *@
+<section class="k-card" data-nofold>
+    <h1 class="k-card-title">Bolde i luften</h1>
+    <p class="k-help"><b>Her står alt, du har i gang</b> – hver bold med ét næste skridt. Forsiden viser kun én bold ad gangen.</p>
+    <p class="k-help"><b>Sådan gør du:</b> tryk på en bold for at rette den. <b>I gang</b> = du skal gøre noget.
+        <b>Venter på andre</b> = bolden er hos en anden. <b>Parkeret</b> = lagt til side med vilje. <b>Færdig</b> = gjort.</p>
+</section>
+
+<details class="k-card" data-remember="hu-ny-bold">
+    <summary><b>Ny bold</b></summary>
+    <p class="k-help">Skriv hvad det er, og det mindste næste skridt. Resten kan undværes.</p>
+    <label class="k-label" for="nb-title">Hvad er det?</label>
+    <input class="k-input" id="nb-title" @bind="_title" maxlength="@Ball.MaxTitle" placeholder="fx Ny cykellås" />
+    <label class="k-label" for="nb-step">Næste skridt</label>
+    <input class="k-input" id="nb-step" @bind="_step" maxlength="@Ball.MaxText" placeholder="fx Kig på priser i Bilka" />
+    <label class="k-label" for="nb-wait">Venter du på nogen?</label>
+    <input class="k-input" id="nb-wait" @bind="_wait" maxlength="@Ball.MaxTitle" placeholder="fx Kommunen" />
+    <div class="hu-row">
+        <div>
+            <label class="k-label" for="nb-area">Område</label>
+            <select class="k-select" id="nb-area" @bind="_area">
+                <option value="">Vælg</option>
+                @foreach (var a in BallRules.Areas) { <option value="@a">@a</option> }
+            </select>
+        </div>
+        <div><label class="k-label" for="nb-dl">Frist</label><input class="k-input" id="nb-dl" type="date" @bind="_deadline" /></div>
+    </div>
+    @if (_addError.Length > 0) { <p role="alert">@_addError</p> }
+    <button class="k-btn k-btn-primary k-mt" @onclick="Add">Gem bolden</button>
+</details>
+
+@foreach (var g in _groups)
+{
+    <details class="k-card" open="@(g.Status == BallStatus.InProgress)">
+        <summary><b>@g.Name</b> (@g.Balls.Count)</summary>
+        <p class="k-help">@g.Help</p>
+        @if (g.Balls.Count == 0) { <p class="k-help">Ingen lige nu.</p> }
+        @foreach (var b in g.Balls)
+        {
+            <div class="hu-ball @(BallRules.Overdue(b, DkTime.Now) ? "hu-ball-late" : "")">
+                <button class="hu-ball-head" @onclick="() => Toggle(b)" aria-expanded="@(_open == b.Id)">
+                    <span class="hu-ball-title">@b.Title @if (b.Pinned) { <span class="k-tag">Det næste</span> }</span>
+                    @if (b.Status == BallStatus.Waiting && b.WaitingOn.Length > 0) { <span class="hu-ball-step">Venter på @b.WaitingOn</span> }
+                    else if (b.NextStep.Length > 0 && b.IsOpen) { <span class="hu-ball-step">→ @b.NextStep</span> }
+                    <span class="k-help">@Meta(b)</span>
+                </button>
+                @if (_open == b.Id) { @Editor(b) }
+            </div>
+        }
+    </details>
+}
+
+@code {
+    private List<BallGroup> _groups = [];
+    private Guid? _open;
+    private bool _confirmDelete;
+    private string _title = "", _step = "", _wait = "", _area = "", _addError = "", _editError = "";
+    private DateTime? _deadline;
+    // the editor's fields
+    private string _eTitle = "", _eStep = "", _eWait = "", _eArea = "", _eNote = "";
+    private DateTime? _eDeadline;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load() => _groups = Balls.Groups();
+
+    private static string Meta(Ball b)
+    {
+        var parts = new List<string>();
+        if (b.Area.Length > 0) parts.Add(b.Area);
+        if (b.Deadline is { } d && b.IsOpen) parts.Add(BallRules.DeadlineText(d, DkTime.Now));
+        if (b.Status == BallStatus.Done && b.DoneAt is { } done) parts.Add("færdig " + done.ToString("d/M"));
+        return string.Join(" · ", parts);
+    }
+
+    private void Add()
+    {
+        _addError = Balls.Add(_title, _area, _step, _wait, _deadline) ?? "";
+        if (_addError.Length > 0) return;
+        _title = _step = _wait = _area = "";
+        _deadline = null;
+        Load();
+    }
+
+    private void Toggle(Ball b)
+    {
+        _confirmDelete = false;
+        _editError = "";
+        if (_open == b.Id) { _open = null; return; }
+        _open = b.Id;
+        (_eTitle, _eStep, _eWait, _eArea, _eNote, _eDeadline) = (b.Title, b.NextStep, b.WaitingOn, b.Area, b.Note, b.Deadline);
+    }
+
+    private void Save(Ball b)
+    {
+        _editError = Balls.Change(b.Id, new BallChange(_eTitle, _eArea, null, _eStep, _eWait, _eNote, _eDeadline, _eDeadline is null)) ?? "";
+        if (_editError.Length > 0) return;
+        _open = null;
+        Load();
+    }
+
+    private void SetStatus(Ball b, BallStatus s)
+    {
+        Balls.SetStatus(b.Id, s);
+        _open = null;
+        Load();
+    }
+
+    private void Pin(Ball b)
+    {
+        Balls.Pin(b.Id);
+        _open = null;
+        Load();
+    }
+
+    private void Delete(Ball b)
+    {
+        if (!_confirmDelete) { _confirmDelete = true; return; }
+        Balls.Remove(b.Id);
+        _open = null;
+        Load();
+    }
+
+    private RenderFragment Editor(Ball b) => __builder =>
+    {
+        <div class="hu-ball-edit">
+            <p class="k-label">Status</p>
+            <div class="hu-status">
+                @foreach (var s in Enum.GetValues<BallStatus>())
+                {
+                    <button class="k-btn k-btn-sm @(b.Status == s ? "hu-on" : "")" aria-pressed="@(b.Status == s)" @onclick="() => SetStatus(b, s)">@BallRules.Name(s)</button>
+                }
+            </div>
+            <label class="k-label" for="e-step">Næste skridt</label>
+            <input class="k-input" id="e-step" @bind="_eStep" maxlength="@Ball.MaxText" />
+            <label class="k-label" for="e-wait">Venter på</label>
+            <input class="k-input" id="e-wait" @bind="_eWait" maxlength="@Ball.MaxTitle" />
+            <label class="k-label" for="e-note">Hvor står det?</label>
+            <input class="k-input" id="e-note" @bind="_eNote" maxlength="@Ball.MaxText" />
+            <div class="hu-row">
+                <div><label class="k-label" for="e-dl">Frist</label><input class="k-input" id="e-dl" type="date" @bind="_eDeadline" /></div>
+                <div><label class="k-label" for="e-area">Område</label><input class="k-input" id="e-area" @bind="_eArea" maxlength="@Ball.MaxTitle" list="hu-areas" /></div>
+            </div>
+            <datalist id="hu-areas">@foreach (var a in BallRules.Areas) { <option value="@a"></option> }</datalist>
+            <label class="k-label" for="e-title">Navn</label>
+            <input class="k-input" id="e-title" @bind="_eTitle" maxlength="@Ball.MaxTitle" />
+            @if (_editError.Length > 0) { <p role="alert">@_editError</p> }
+            <div class="hu-buttons">
+                @if (b.Status == BallStatus.InProgress && !b.Pinned) { <button class="k-btn" @onclick="() => Pin(b)">Det er det næste</button> }
+                <button class="k-btn k-btn-primary" @onclick="() => Save(b)">Gem</button>
+            </div>
+            <button class="k-btn k-btn-sm k-btn-ghost k-mt" @onclick="() => Delete(b)">@(_confirmDelete ? "Ja, slet bolden" : "Slet")</button>
+        </div>
+    };
+}
