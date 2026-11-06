@@ -101,6 +101,14 @@ h2.section{font:400 clamp(1.8rem,6vw,2.6rem)/1 'Bebas Neue',sans-serif;letter-sp
 .tile .play{position:absolute;inset:auto 10px 10px auto;background:var(--hot);color:#fff;font-weight:800;font-size:.85rem;padding:6px 12px;border-radius:999px}
 .tile .cap{position:absolute;left:0;right:0;bottom:0;padding:18px 12px 10px;font-size:.9rem;text-align:left;background:linear-gradient(transparent,rgba(0,0,0,.85))}
 .tile.novid{aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;color:var(--amber);font:400 2rem 'Bebas Neue',sans-serif}
+/* quotes from the evening (koncert.json "quotes": [{who, text}]) - speech bubbles in the wall */
+.quote{break-inside:avoid;margin:0 0 12px;padding:18px 18px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);
+  position:relative;opacity:0;transform:translateY(24px);transition:opacity .6s,transform .6s;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.quote.in{opacity:1;transform:none}
+.quote::before{content:"C";position:absolute;top:-18px;left:12px;font:400 4.4rem/1 Georgia,serif;color:var(--q,var(--amber))}
+.quote p{margin:6px 0 10px;font-size:1.12rem;line-height:1.45;font-weight:600}
+.quote .who{font:400 1.25rem/1 'Bebas Neue',sans-serif;letter-spacing:.1em;color:var(--q,var(--amber))}
+.quote:nth-of-type(3n+2){--q:var(--hot)}.quote:nth-of-type(3n){--q:#d9b8ff}
 .encore{text-align:center;margin:60px 0 10px}
 .encore .neon{font-size:clamp(2.2rem,9vw,5rem)}
 
@@ -118,7 +126,7 @@ h2.section{font:400 clamp(1.8rem,6vw,2.6rem)/1 'Bebas Neue',sans-serif;letter-sp
 .login input{width:100%;font:inherit;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:#07050c;color:var(--ink);margin:12px 0}
 .err{color:var(--hot);font-weight:700;min-height:1.4em}
 footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px 40px}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.tile{opacity:1;transform:none}.neon .l{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.tile,.quote{opacity:1;transform:none}.neon .l{opacity:1}}
 @media (max-width:520px){.ticket{grid-template-columns:1fr 78px}.ticket .info{right:92px}.ticket .stub b{font-size:1.9rem}.wall{columns:2 140px;column-gap:8px}.tile{margin-bottom:8px}}
 </style>
 <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=20260928" defer></script>
@@ -295,11 +303,19 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px 4
     $('encore').textContent = (t.encore || 'Ekstranummer!').toUpperCase();
     $('encoreText').textContent = t.outro || 'Tak for i aften. Vi ses til næste koncert.';
     document.title = show.title + ' · KoncertKlanen';
+    const quotes = (t.quotes || []).filter(q => q && q.text);
+    const quoteHtml = q => `<figure class="quote"><p>${esc(q.text)}</p><figcaption class="who">${esc(q.who || '')}</figcaption></figure>`;
+    const every = quotes.length ? Math.max(2, Math.floor(items.length / (quotes.length + 1))) : 0;
+    let qi = 0;
     $('wall').innerHTML = items.map((it, i) => {
+      const q = every && i > 0 && i % every === 0 && qi < quotes.length ? quoteHtml(quotes[qi++]) : '';
+      return q + tileHtml(it, i);
+    }).join('') + quotes.slice(qi).map(quoteHtml).join('');
+    function tileHtml(it, i) {
       const cap = it.caption ? `<span class="cap">${esc(it.caption)}</span>` : '';
       if (it.kind === 'vid' && !it.thumb) return `<button class="tile novid" type="button" data-i="${i}">Film ▶${cap}</button>`;
       return `<button class="tile" type="button" data-i="${i}" aria-label="${esc(it.caption || it.name)}"><img loading="lazy" src="${esc(it.thumb || it.url)}" alt="">${it.kind === 'vid' ? '<span class="play">▶ Film</span>' : ''}${cap}</button>`;
-    }).join('');
+    }
     document.querySelectorAll('.tile').forEach(b => b.onclick = () => openLb(+b.dataset.i));
     reveal();
     scrollTo({ top: 0 });
@@ -307,7 +323,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px 4
     setTimeout(() => burst(false), 900);
   }
   function reveal() {
-    const tiles = [...document.querySelectorAll('.tile')];
+    const tiles = [...document.querySelectorAll('.tile, .quote')];
     if (reduce || !('IntersectionObserver' in window)) { tiles.forEach(t => t.classList.add('in')); return; }
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -40px 0px' });
     tiles.forEach((t, i) => { t.style.transitionDelay = `${(i % 3) * 90}ms`; io.observe(t); });
