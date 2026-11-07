@@ -31,6 +31,9 @@ public sealed class PriceHunterJob(IServiceScopeFactory scopes, IConfiguration c
                 // Main categories + language (2026-11-03), also plain rules.
                 var sorted = await scope.ServiceProvider.GetRequiredService<ItemUseCases>().RefreshCategoriesAsync(stop);
                 if (sorted > 0) log.LogInformation("Categories: {Count} things sorted", sorted);
+                // Genres (2026-11-07): a few things a round from free sources (MusicBrainz, TMDb, Open Library), each once.
+                var genres = await scope.ServiceProvider.GetRequiredService<GenreUseCases>().FillAsync(cfg.GetValue("Lager:GenresPerRound", 10), stop);
+                if (genres > 0) log.LogInformation("Genres: {Count} things looked up", genres);
                 // Nothing waiting: look again in a minute (it was 10 - new items then sat unpriced for up to 10 minutes,
                 // 2026-10-12). The check is one small query.
                 if (ids.Count == 0) { await Task.Delay(TimeSpan.FromMinutes(1), stop); continue; }

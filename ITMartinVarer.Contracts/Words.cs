@@ -209,8 +209,34 @@ public static class ShopShelves
 
 // The shops on bogshoppen.dk (user 2026-11-03: "User can choose BogShoppen, Filmshoppen, Gameshoppen, Musikshoppen etc... and on
 // each there are only products from them... And i need subcategories"): one site, a path per shop (bogshoppen.dk/film), each
-// shop = one or more main categories, split into subcategories (a main category, a kind or a language). Genres come later.
+// shop = one or more main categories, split into subcategories (a main category, a kind or a language) and genres (Genres).
 public sealed record ShopSub(string Name, string? Category = null, string? Kind = null, string? Language = null);
+
+/// <summary>Genres in the shops (user 2026-11-07: "i want users to be able to pick sucategoies. like danktop, indie, pop. and on
+/// the other shops as well" + "and alphabetically"): a fixed Danish list per main category, shown A-Å. Lager fills Item.Genre
+/// once per thing from free sources (MusicBrainz, TMDb, Open Library) - no AI. "" = not known (only under Alle).</summary>
+public static class Genres
+{
+    public static readonly string[] Musik = ["Blues", "Børnemusik", "Country", "Dansktop", "Elektronisk", "Folk", "Hip hop", "Indie",
+        "Jazz", "Klassisk", "Metal", "Pop", "Rock", "Soul og R&B", "Soundtrack", "Visesang"];
+    public static readonly string[] Film = ["Action", "Animation", "Børnefilm", "Dokumentar", "Drama", "Fantasy", "Gys", "Komedie",
+        "Krig", "Krimi", "Romantik", "Sci-fi", "Stand-up", "Thriller", "Western"];
+    public static readonly string[] Boeger = ["Biografi", "Børnebøger", "Fagbøger", "Fantasy", "Gys", "Humor", "Krimi", "Kærlighed",
+        "Romaner", "Sci-fi"];
+
+    /// <summary>The main categories that have genres.</summary>
+    public static readonly string[] Categories = [ProductTypes.Musik, ProductTypes.Film, ProductTypes.Boeger];
+
+    public static string[] For(string category) => category switch
+    {
+        ProductTypes.Musik => Musik, ProductTypes.Film => Film, ProductTypes.Boeger => Boeger, _ => [],
+    };
+
+    /// <summary>The genre as written in the list (any case), or null.</summary>
+    public static string? Normalise(string? genre, IEnumerable<string>? categories = null) =>
+        string.IsNullOrWhiteSpace(genre) ? null
+        : (categories ?? Categories).SelectMany(For).FirstOrDefault(g => string.Equals(g, genre.Trim(), StringComparison.OrdinalIgnoreCase));
+}
 
 /// <summary>A free helper for a shop's things (user 2026-11-03: "i need some kind of reference to my Apps/hjælpere for ech
 /// category", chose a box with "kommer snart"). Url null = not public yet: shown as "Kommer snart".</summary>
@@ -222,6 +248,9 @@ public sealed record ShopFamily(string Name, string Slug, string About, string[]
 
     /// <summary>The subcategory with this name, or null (= the whole shop).</summary>
     public ShopSub? Sub(string? name) => Subs.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The shop's genres (Genres), A-Å; empty = the shop has none.</summary>
+    public string[] Genres => Types.SelectMany(ITMartinVarer.Contracts.Genres.For).Distinct().Order(StringComparer.Create(new System.Globalization.CultureInfo("da-DK"), true)).ToArray();
 }
 
 public static class ShopFamilies

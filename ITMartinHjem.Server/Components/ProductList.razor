@@ -57,7 +57,7 @@
         @if (Family.Helpers is { Length: > 0 } helpers)
         {
             <div class="bs-helpers">
-                <h3>Gratis hjælper</h3>
+                <h3>Gratis snebold</h3>
                 @foreach (var h in helpers)
                 {
                     <div class="bs-helper">
@@ -124,6 +124,16 @@
                 @foreach (var (sub, n) in VisibleSubs)
                 {
                     <button class="k-btn @(_sub == sub ? "is-on" : "")" aria-pressed="@(_sub == sub)" @onclick="() => Choose(sub)">@sub.Name (@n)</button>
+                }
+            </div>
+        }
+        @if (Family is not null && _query == "" && _batch is null && VisibleGenres.Count > 0)
+        {
+            <div class="bs-filter bs-tabs bs-genres" role="group" aria-label="Genrer">
+                <button class="k-btn k-btn-sm @(_genre is null ? "is-on" : "")" aria-pressed="@(_genre is null)" @onclick="() => ChooseGenre(null)">Alle genrer</button>
+                @foreach (var (genre, n) in VisibleGenres)
+                {
+                    <button class="k-btn k-btn-sm @(_genre == genre ? "is-on" : "")" aria-pressed="@(_genre == genre)" @onclick="() => ChooseGenre(genre)">@genre (@n)</button>
                 }
             </div>
         }
@@ -279,6 +289,9 @@
 
     /// <summary>?under=DVD opens one subcategory of the shop (a link can be shared).</summary>
     [SupplyParameterFromQuery(Name = "under")] public string? Under { get; set; }
+    /// <summary>?genre=Dansktop opens one genre of the shop (Genres, user 2026-11-07: "danktop, indie, pop").</summary>
+    [SupplyParameterFromQuery(Name = "genre")] public string? GenreParam { get; set; }
+    private string? _genre;
     /// <summary>Old links: /produkter?vis=Film goes to the shop that has it.</summary>
     [SupplyParameterFromQuery(Name = "vis")] public string? Vis { get; set; }
 
@@ -291,6 +304,7 @@
     {
         if (Family is null && Vis is { Length: > 0 } && OldLink(Vis) is { } to) { Nav.NavigateTo(to, replace: true); return; }
         _sub = Family?.Sub(Under);
+        _genre = Family is { Genres.Length: > 0 } ? Family.Genres.FirstOrDefault(g => string.Equals(g, GenreParam, StringComparison.OrdinalIgnoreCase)) : null;
         _sort = ShopSorts.All.Contains(SortParam) ? SortParam! : ShopSorts.Title;
         if (!Prices.On && (_sort == ShopSorts.Cheapest || _sort == ShopSorts.Dearest)) _sort = ShopSorts.Title;   // no prices = no price order
         _batch = Family is not null && Serie is { Length: > 0 } ? Serie : null;
@@ -339,14 +353,29 @@
     };
 
     /// <summary>The subcategories that have something (and the chosen one, even when empty).</summary>
+    // A-Å (user 2026-11-07: "and alphabetically").
+    private static readonly StringComparer DaOrder = StringComparer.Create(new System.Globalization.CultureInfo("da-DK"), true);
     private List<(ShopSub Sub, int Count)> VisibleSubs => Family is null ? []
-        : Family.Subs.Select(s => (Sub: s, Count: Count(Family, s))).Where(x => x.Count > 0 || x.Sub == _sub).ToList();
+        : Family.Subs.Select(s => (Sub: s, Count: Count(Family, s))).Where(x => x.Count > 0 || x.Sub == _sub).OrderBy(x => x.Sub.Name, DaOrder).ToList();
+
+    /// <summary>The shop's genres that have something here (and the chosen one), A-Å - counts from Salg (ShopMarket.Genres).</summary>
+    private List<(string Genre, int Count)> VisibleGenres => Family is null || _market?.Genres is not { } per ? []
+        : Family.Genres.Select(g => (Genre: g, Count: per.GetValueOrDefault(g))).Where(x => x.Count > 0 || x.Genre == _genre).ToList();
+
+    private async Task ChooseGenre(string? genre)
+    {
+        (_genre, _batch) = (genre, null);
+        await Address(Here());
+        await Load(reset: true);
+    }
 
     /// <summary>Up to three pictures for a shop's box, the dearest first.</summary>
     private List<ShopItem> Pictures(ShopFamily f) => (_overview?.Shelves ?? []).Where(s => f.Types.Contains(s.Type))
         .SelectMany(s => s.Items).Where(i => i.HasPhoto).OrderByDescending(i => i.BuyNowKr ?? i.ExpectKr ?? 0).Take(3).ToList();
 
-    private string Heading => _batch is not null ? $"{_batch} ({_market?.Total})" : _query != "" ? $"Søgning: {_query}" : _sub is not null ? $"{_sub.Name} ({_market?.Total})" : $"Alt i {Family?.Name} ({_market?.Total})";
+    private string Heading => _batch is not null ? $"{_batch} ({_market?.Total})" : _query != "" ? $"Søgning: {_query}"
+        : _genre is not null ? $"{(_sub is not null ? _sub.Name + " · " : "")}{_genre} ({_market?.Total})"
+        : _sub is not null ? $"{_sub.Name} ({_market?.Total})" : $"Alt i {Family?.Name} ({_market?.Total})";
 
     // The 3 kr packs go with the blade: the whole Tegneserieshoppen or its Serieblade.
     private bool ShowPacks => _query == "" && _batch is null && Family == ShopFamilies.Tegneserier && (_sub is null || _sub.Category == ProductTypes.Serieblade);
@@ -365,6 +394,7 @@
     {
         var q = new List<string>();
         if (_sub is not null) q.Add("under=" + Uri.EscapeDataString(_sub.Name));
+        if (_genre is not null) q.Add("genre=" + Uri.EscapeDataString(_genre));
         if (_batch is not null) q.Add("serie=" + Uri.EscapeDataString(_batch));
         if (_sort != ShopSorts.Title) q.Add("sort=" + _sort);
         return (Family?.Path ?? "/produkter") + (q.Count > 0 ? "?" + string.Join("&", q) : "");
@@ -475,7 +505,7 @@
     {
         _query = _text.Trim();
         if (_query == "") { await ClearSearch(); return; }
-        (_sub, _batch) = (null, null);
+        (_sub, _batch, _genre) = (null, null, null);
         await Address(Here());
         await Load(reset: true);
     }
@@ -509,7 +539,7 @@
         var rare = Family == ShopFamilies.Rare;
         IReadOnlyCollection<string>? cats = Family is null || rare ? null : _sub?.Category is { } c ? [c] : Family.Types;
         var (market, error) = await Shop.MarketAsync(rare ? ShopDeals.RareName : null, _sub?.Kind, null, _batch is not null ? BatchWords(_batch) : _query, _sort, _page,
-            price: cats is null && !rare ? ShopDeals.WithPrice : null, language: _sub?.Language, categories: cats);
+            price: cats is null && !rare ? ShopDeals.WithPrice : null, language: _sub?.Language, categories: cats, genre: _genre);
         _loading = false;
         _error = error;
         if (market is null) return;

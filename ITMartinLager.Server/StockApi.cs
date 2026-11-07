@@ -12,17 +12,20 @@ public static class StockApi
     {
         var api = app.MapGroup("/api/salg");
 
-        api.MapGet("/varer", async (string[]? art, string? brugt, string? q, string? sort, int? fra, int? antal, string? bundt, string[]? kategori, string? sprog,
+        api.MapGet("/varer", async (string[]? art, string? brugt, string? q, string? sort, int? fra, int? antal, string? bundt, string[]? kategori, string? sprog, string? genre,
             StockForSaleUseCases stock) =>
-            await stock.ListedAsync(art, brugt, q, sort, fra ?? 0, antal ?? 60, bundt, categories: kategori, language: sprog));
+            await stock.ListedAsync(art, brugt, q, sort, fra ?? 0, antal ?? 60, bundt, categories: kategori, language: sprog, genre: genre));
+        // Per genre (2026-11-07) - the genre buttons in a shop.
+        api.MapGet("/genrer", async (string[]? art, string? bundt, string[]? kategori, string? sprog, StockForSaleUseCases stock) =>
+            await stock.PerGenreAsync(art, bundt, categories: kategori, language: sprog));
 
         // Per main category (2026-11-03), in one language (sprog) or all.
         api.MapGet("/kategorier", async (string? bundt, string? sprog, StockForSaleUseCases stock) => await stock.PerCategoryAsync(bundt, sprog));
 
         api.MapGet("/arter", async (string? bundt, StockForSaleUseCases stock) => await stock.PerKindAsync(bundt));
 
-        api.MapGet("/grupper", async (string[]? art, string? bundt, string[]? kategori, string? sprog, StockForSaleUseCases stock) =>
-            await stock.GroupsAsync(art, bundt, categories: kategori, language: sprog));
+        api.MapGet("/grupper", async (string[]? art, string? bundt, string[]? kategori, string? sprog, string? genre, StockForSaleUseCases stock) =>
+            await stock.GroupsAsync(art, bundt, categories: kategori, language: sprog, genre: genre));
 
         api.MapGet("/tilbud", async (StockForSaleUseCases stock) => await stock.DealsAsync());
 

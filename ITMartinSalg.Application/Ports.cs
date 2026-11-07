@@ -13,14 +13,17 @@ public interface IStockGateway
     /// <summary>Things for sale of these kinds (null = all), new or used (null = both), every word in the search text,
     /// sorted (ShopSorts), one page.</summary>
     Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null);
+        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null, string? genre = null);
+    /// <summary>Things for sale per genre (Genres) of these kinds / categories / language - the genre buttons (2026-11-07).</summary>
+    Task<Dictionary<string, int>> PerGenreAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null,
+        IReadOnlyCollection<string>? categories = null, string? language = null);
     /// <summary>Things for sale per kind.</summary>
     Task<Dictionary<string, int>> PerKindAsync(CancellationToken ct, string? band = null);
     /// <summary>Things for sale per main category (ProductTypes), in one language (Languages) or all.</summary>
     Task<Dictionary<string, int>> PerCategoryAsync(CancellationToken ct, string? band = null, string? language = null);
     /// <summary>Subgroups (series, artist) of these kinds and/or this category with at least 2 things.</summary>
     Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null, IReadOnlyCollection<string>? categories = null,
-        string? language = null);
+        string? language = null, string? genre = null);
     /// <summary>Things per deal (ShopDeals), by name.</summary>
     Task<Dictionary<string, int>> DealsAsync(CancellationToken ct);
     /// <summary>Null = not for sale (sold, on an auction, gone).</summary>

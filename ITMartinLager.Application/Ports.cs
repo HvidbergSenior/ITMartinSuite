@@ -59,6 +59,13 @@ public interface IBarcodeLookup
     Task<Found?> LookupAsync(string code, CancellationToken ct);
 }
 
+/// <summary>Genre tags for a thing from free sources (music MusicBrainz, film TMDb, books Open Library - 2026-11-07). Most
+/// telling first where the source has an order. Empty = nothing found; null = the source did not answer (try later).</summary>
+public interface IGenreSource
+{
+    Task<IReadOnlyList<string>?> TagsAsync(Item item, CancellationToken ct);
+}
+
 /// <summary>Kunder (user 2026-10-24): is this kundenummer a helper Martin has ticked? Name = who it is; null = no.</summary>
 public interface IHelperNumbers
 {

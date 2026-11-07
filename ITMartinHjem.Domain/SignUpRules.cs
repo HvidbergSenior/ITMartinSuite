@@ -51,8 +51,8 @@ public static class SignUpRules
 
          {Show(code)}
 
-         Mine gratis hjælpere: {AndList(helpers)}.
-         Du finder dem på itmartin.dk under Produkter → Hjælpershoppen. Beder en hjælper om dit nummer, så skriv det – så får du de ekstra ting.
+         Mine gratis snebolde: {AndList(helpers)}.
+         Du finder dem på itmartin.dk under Produkter → Sneboldshoppen. Beder en snebold om dit nummer, så skriv det – så får du de ekstra ting.
 
          Det er også dit login på bogshoppen.dk, hvor vi finder nye måder at sælge på – ikke en traditionel webshop.
 

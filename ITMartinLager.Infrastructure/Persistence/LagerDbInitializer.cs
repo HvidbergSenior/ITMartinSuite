@@ -102,6 +102,7 @@ public static class LagerDbInitializer
             ("SimilarHint", "REAL NULL"), ("FeaturedAt", "TEXT NULL"), ("Usage", "TEXT NOT NULL DEFAULT 'Brugt'"),
             ("Want", "INTEGER NULL"), ("Have", "INTEGER NULL"),
             ("Category", "TEXT NOT NULL DEFAULT 'Andet'"), ("Language", "TEXT NOT NULL DEFAULT ''"),
+            ("Genre", "TEXT NOT NULL DEFAULT ''"), ("GenreAt", "TEXT NULL"),
         })
         {
             using var cmd = conn.CreateCommand();

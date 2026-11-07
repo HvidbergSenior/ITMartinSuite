@@ -40,12 +40,13 @@ builder.Services.AddKolibri(k =>
         "Find alt igen under Søg – med kassenummer.",
         "Kategorier på Søg: Bøger, Tegneserier (album som Lucky Luke), Serieblade (Anders And, Basserne, Jonah Hex, Kong Kylie), Gamle blade (alle blade fra før 1990), Jumbobøger, Superhelte (Project X, Edderkoppen), Film, Musik, Computerspil, Brætspil og kortspil, Magic og Andet. Vælg også Dansk eller Engelsk. Kategori og sprog sættes af sig selv ud fra varens slags, serie og år – sproget læses med billedet, ældre varer får et gæt ud fra titlen.",
         "Ansvarlig: Rico har Tegneserier, Superhelte og Film; Martin resten.",
+        "Genrer: musik, film og bøger får af sig selv en genre (fx Dansktop, Indie, Pop, Krimi, Børnefilm) fra gratis kilder – MusicBrainz, TMDb og Open Library. Hver ting slås op én gang, uden AI. Kunderne vælger genren i butikken på bogshoppen.dk.",
         "Fund: ting fra en fund-session i Vareinfo (fx genbrugspladsen) er ikke vores endnu. De læses med det samme, får pris og står under Fund – de interessante og dyreste øverst. Tryk Tog den ved det, du tager med (så er det på lager), og Færdig, når du går (resten gemmes som Ikke købt). Fund og Ikke købt kommer aldrig på bogshoppen.dk.",
         "Kun de nye: øverst på Søg vælger du Hele lageret, Nye i dag, Sidste 7 dage eller én kasse med nye ting. Tryk så ⭐ Alle interessante – så ser du kun de værdifulde blandt de nye, med kassen ved siden af, så du kan tage dem fra. Skriv et kassenummer (K5002) eller et ord fra kassens navn (lystrup) i søgefeltet for at se én kasse.",
         "Hjælpere logger ind med deres kundenummer (Martin sætter dem som hjælper i Kunder). De ser kun Søg og Kasser: de kan trykke Læs og rette varer, men ser ingen priser og kan ikke slette eller ændre en kasses placering.",
         "Bøger: tryk 📚 Bøger og tag et billede af en bunke – så ser du pris, efterspørgsel og om bogen er værd at sælge.",
     ];
-    k.Version = "2026.11.03";
+    k.Version = "2026.11.07";
     k.ThemeColor = "#f4f6f5";
 });
 

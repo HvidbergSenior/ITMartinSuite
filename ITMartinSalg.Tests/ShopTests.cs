@@ -40,7 +40,7 @@ public sealed class FakeStock : IStockGateway
     private void Check() { if (Down) throw new SalgException("Lageret svarer ikke lige nu. Prøv igen om lidt."); }
 
     public Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null)
+        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null, string? genre = null)
     {
         Check();
         LastBand = band;
@@ -63,7 +63,10 @@ public sealed class FakeStock : IStockGateway
     public Task<Dictionary<string, int>> PerCategoryAsync(CancellationToken ct, string? band = null, string? language = null) =>
         Task.FromResult(Items.GroupBy(i => ProductTypes.For(i.Kind)).ToDictionary(g => g.Key, g => g.Count()));
     public Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null, IReadOnlyCollection<string>? categories = null,
-        string? language = null) => Task.FromResult(new List<ShopGroup>());
+        string? language = null, string? genre = null) => Task.FromResult(new List<ShopGroup>());
+    public Task<Dictionary<string, int>> PerGenreAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null,
+        IReadOnlyCollection<string>? categories = null, string? language = null) =>
+        Task.FromResult(new Dictionary<string, int> { ["Pop"] = 2, ["Dansktop"] = 1 });
     public Task<Dictionary<string, int>> DealsAsync(CancellationToken ct) => Task.FromResult(new Dictionary<string, int>());
 
     public Task<StockItemPage?> ItemAsync(int id, CancellationToken ct) =>

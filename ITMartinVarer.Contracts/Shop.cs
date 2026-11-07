@@ -56,7 +56,7 @@ public sealed record ShopOffer(string Name, string Text, string When);
 
 /// <summary>One page of the marketplace: the types (with counts), today's offers, and the things that match.</summary>
 public sealed record ShopMarket(bool CanPay, List<ShopType> Types, List<ShopOffer> Today, List<ShopItem> Items, int Total,
-    List<ShopGroup>? Groups = null, List<ShopPack>? Packs = null);
+    List<ShopGroup>? Groups = null, List<ShopPack>? Packs = null, Dictionary<string, int>? Genres = null);
 
 /// <summary>A pack from a per-piece deal, sold online as one thing (user 2026-11-02: "online sale need to have some kind of
 /// rare and batch of", chose fixed packs): Count mixed things for Kr kr, and how many such packs we can make (Left).</summary>

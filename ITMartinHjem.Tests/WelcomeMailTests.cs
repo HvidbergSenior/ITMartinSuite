@@ -7,12 +7,12 @@ namespace ITMartinHjem.Tests;
 public class WelcomeMailTests
 {
     [Test]
-    public void It_lists_the_live_helpers_with_og_and_points_to_Hjaelpershoppen()
+    public void It_lists_the_live_helpers_with_og_and_points_to_Sneboldshoppen()
     {
         var (_, body) = SignUpRules.WelcomeMail("Anna", "48810359", ["ElPriser", "Temperatur", "Stem", "FileSorter", "Indbakke"]);
-        body.Should().Contain("Mine gratis hjælpere: ElPriser, Temperatur, Stem, FileSorter og Indbakke.");
-        body.Should().Contain("Produkter → Hjælpershoppen");
-        body.Should().NotContain("Spilleder").And.NotContain("Mine hjælpere.");
+        body.Should().Contain("Mine gratis snebolde: ElPriser, Temperatur, Stem, FileSorter og Indbakke.");
+        body.Should().Contain("Produkter → Sneboldshoppen");
+        body.Should().NotContain("Spilleder").And.NotContain("Mine snebolde.");
         body.Should().Contain("4881 0359");
     }
 

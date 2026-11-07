@@ -57,11 +57,11 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
     }
 
     public async Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
-        string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null)
+        string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null, string? genre = null)
     {
         static string E(string? s) => Uri.EscapeDataString(s ?? "");
         var cats = string.Concat((categories ?? []).Select(c => "&kategori=" + E(c)));
-        return (await http.GetFromJsonAsync<ShopMarket>($"/api/butik/marked?type={E(type)}&art={E(kind)}&brugt={E(usage)}&q={E(text)}&sort={E(sort)}&side={page}&pris={E(price)}&sprog={E(language)}{cats}", ct))!;
+        return (await http.GetFromJsonAsync<ShopMarket>($"/api/butik/marked?type={E(type)}&art={E(kind)}&brugt={E(usage)}&q={E(text)}&sort={E(sort)}&side={page}&pris={E(price)}&sprog={E(language)}&genre={E(genre)}{cats}", ct))!;
     }
 
     public async Task<ShopOverview> OverviewAsync(int perShelf, CancellationToken ct = default) =>

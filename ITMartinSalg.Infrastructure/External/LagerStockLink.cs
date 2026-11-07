@@ -14,12 +14,17 @@ public sealed class LagerStockLink(HttpClient http, IConfiguration cfg) : IStock
     private static string E(string? s) => Uri.EscapeDataString(s ?? "");
 
     public async Task<StockPage> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null)
+        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null, string? genre = null)
     {
         var art = string.Concat((kinds ?? []).Select(k => "&art=" + E(k)));
         return await GetAsync<StockPage>($"/api/salg/varer?q={E(text)}&brugt={E(usage)}&sort={E(sort)}&fra={skip}&antal={take}{art}&bundt={E(band)}"
-            + Cats(categories) + $"&sprog={E(language)}", ct) ?? new StockPage([], 0);
+            + Cats(categories) + $"&sprog={E(language)}&genre={E(genre)}", ct) ?? new StockPage([], 0);
     }
+
+    public async Task<Dictionary<string, int>> PerGenreAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null,
+        IReadOnlyCollection<string>? categories = null, string? language = null) =>
+        await GetAsync<Dictionary<string, int>>("/api/salg/genrer?bundt=" + E(band) + Cats(categories) + $"&sprog={E(language)}"
+            + string.Concat((kinds ?? []).Select(k => "&art=" + E(k))), ct) ?? [];
 
     public async Task<Dictionary<string, int>> PerCategoryAsync(CancellationToken ct, string? band = null, string? language = null) =>
         await GetAsync<Dictionary<string, int>>($"/api/salg/kategorier?bundt={E(band)}&sprog={E(language)}", ct) ?? [];
@@ -30,8 +35,8 @@ public sealed class LagerStockLink(HttpClient http, IConfiguration cfg) : IStock
     private static string Cats(IReadOnlyCollection<string>? categories) => string.Concat((categories ?? []).Select(c => "&kategori=" + E(c)));
 
     public async Task<List<ShopGroup>> GroupsAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null, IReadOnlyCollection<string>? categories = null,
-        string? language = null) =>
-        await GetAsync<List<ShopGroup>>("/api/salg/grupper?bundt=" + E(band) + Cats(categories) + $"&sprog={E(language)}"
+        string? language = null, string? genre = null) =>
+        await GetAsync<List<ShopGroup>>("/api/salg/grupper?bundt=" + E(band) + Cats(categories) + $"&sprog={E(language)}&genre={E(genre)}"
             + string.Concat((kinds ?? []).Select(k => "&art=" + E(k))), ct) ?? [];
 
     public async Task<Dictionary<string, int>> DealsAsync(CancellationToken ct) =>

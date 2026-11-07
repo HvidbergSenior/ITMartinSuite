@@ -1,13 +1,16 @@
 @page "/mine-apps"
+@* 2026-11-07: the shop is Sneboldshoppen; /hjaelpershoppen was linked in job applications but had no page. *@
+@page "/sneboldshoppen"
+@page "/hjaelpershoppen"
 @inject SiteUseCases Site
 @inject AppLinkUseCases Apps
 @inject IJSRuntime JS
 @inject Customers Kartotek
 
-<PageTitle>Hjælpershoppen · ITMartin</PageTitle>
+<PageTitle>Sneboldshoppen · ITMartin</PageTitle>
 
 @* Principle (user 2026-09-28): every app is useful for free; a paid version is something you ask for. *@
-<PageHead Title="Hjælpershoppen" Tag="Gratis at prøve" Line="Små hjælpere til hverdagen – uden reklamer." />
+<PageHead Title="Sneboldshoppen" Tag="Gratis at prøve" Line="Små snebolde til hverdagen: hver gør én ting, og gør den godt – uden reklamer." />
 @* "Mine apps er webapps" always shown at the top, not hidden in a tile at the bottom (user 2026-10-28: "should be more visible").
    The user's own words. *@
 <div class="hj-apps">
@@ -57,7 +60,7 @@
 @* Coming helpers (user 2026-11-05: "some kind of more helpers will come"): names + one line, NO buttons or links -
    only live helpers get a way in (rule: only prod apps mentioned). *@
 <section class="k-card" data-fold-closed>
-    <h2 class="k-card-title">Flere hjælpere på vej</h2>
+    <h2 class="k-card-title">Flere snebolde på vej</h2>
     <p class="k-help">Dem her arbejder jeg på. De kommer herover, når de er klar.</p>
     <ul class="hj-soon">
         <li><b>Snak</b> – dit eget rum, hvor vi skriver sammen. Ét sted, så intet bliver væk.</li>
@@ -71,8 +74,8 @@
 
 <section class="k-card hj-webapp-note" data-fold-closed>
     <h2 class="k-card-title">Intet at installere – læg den på telefonen</h2>
-    <p>Du åbner hjælperne i din browser – på mobil, tablet eller computer. Ingen download, ingen appbutik.</p>
-    <p><b>iPhone:</b> åbn hjælperen i Safari, tryk på Del-knappen og så <b>Føj til hjemmeskærm</b>.
+    <p>Du åbner sneboldene i din browser – på mobil, tablet eller computer. Ingen download, ingen appbutik.</p>
+    <p><b>iPhone:</b> åbn snebolden i Safari, tryk på Del-knappen og så <b>Føj til hjemmeskærm</b>.
         <b>Android:</b> åbn den i Chrome, tryk på de tre prikker og så <b>Føj til startskærm</b>.</p>
 </section>
 
@@ -121,8 +124,8 @@
    The texts are the user's own (2026-10-14). *@
 @* Its own "Vidste du …" from the Om mine apps texts (user 2026-10-27), after the apps (apps stay on top). *@
 <section class="k-card hj-tilegroup" id="om-mine-apps" data-fold-closed>
-    <h2 class="k-card-title">Mere om mine hjælpere</h2>
-    <nav class="hj-tiles" aria-label="Om mine hjælpere">
+    <h2 class="k-card-title">Mere om mine snebolde</h2>
+    <nav class="hj-tiles" aria-label="Om mine snebolde">
         <button class="hj-tile @(_info == "gratis" ? "is-open" : "")" @onclick="@(() => Toggle("gratis"))"><b>Gratis – sådan prøver du en app</b><span class="hj-tile-line">Hvilke apps du kan prøve, og hvordan</span></button>
         <button class="hj-tile @(_info == "forskel" ? "is-open" : "")" @onclick="@(() => Toggle("forskel"))"><b>Mobilapp eller webapp – hvad er forskellen?</b><span class="hj-tile-line">Hvorfor webappen er den store</span></button>
         <button class="hj-tile @(_info == "telefon" ? "is-open" : "")" @onclick="@(() => Toggle("telefon"))"><b>Prøv lige at kigge på din telefon</b><span class="hj-tile-line">Hvor mange apps har du egentlig?</span></button>
@@ -135,11 +138,11 @@
         <article class="k-card hj-page">
             <h2 class="k-card-title">Gratis – sådan prøver du en app</h2>
             <div>
-    <p>Alle mine hjælpere kan bruges gratis, og den gratis udgave kan sagtens stå alene. Har du brug for mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
+    <p>Alle mine snebolde kan bruges gratis, og den gratis udgave kan sagtens stå alene. Har du brug for mere, findes der en <b>udvidet udgave</b>, som du kan spørge mig om.</p>
     <p><b>Sådan prøver du:</b> Tryk på en af de apps, hvor der står <b>Prøv gratis</b>, og skriv din e-mail. Du skriver dig op <b>én gang</b> og får ét nummer til alle de gratis apps@(WithCode.Count > 0 ? ": " + string.Join(", ", WithCode) : "")
         – og et login til bogshoppen.dk. Nogle apps er helt åbne – der trykker du bare Åbn.</p>
     @* User 2026-10-30: "you dont need to sign up to use most of them yet". *@
-    <p>De fleste hjælpere kræver ingen tilmelding endnu: tryk bare på adressen under hjælperen. Du skal kun skrive til mig, hvis du vil have en udvidet udgave.</p>
+    <p>De fleste snebolde kræver ingen tilmelding endnu: tryk bare på adressen under snebolden. Du skal kun skrive til mig, hvis du vil have en udvidet udgave.</p>
     <p class="k-help"><span class="k-dot on hj-dot"></span> kører nu · <span class="k-dot hj-dot"></span> sover lige nu</p>
     </div>
             <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
@@ -183,7 +186,7 @@
             <h2 class="k-card-title">Prøv lige at kigge på din telefon</h2>
             <div>
     <p>Hvor mange mobilapps har du på din skærm? Hvor lang tid tager det dig at finde lige præcis den app, du skal bruge? Hvor mange af dem bruger du overhovedet længere? Og har du apps, du ikke tør slette, fordi du ikke ved, hvad de gør? LOL</p>
-    <p>Det kan jeg hjælpe dig med. Derfor er mine hjælpere nemmere og mere fokuserede – lavet til mennesker med særlige behov. Og det betyder i det her tilfælde faktisk også alle jer, der læser med :-)</p>
+    <p>Det kan jeg hjælpe dig med. Derfor er mine snebolde nemmere og mere fokuserede – lavet til mennesker med særlige behov. Og det betyder i det her tilfælde faktisk også alle jer, der læser med :-)</p>
     </div>
             <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>
         </article>
@@ -196,7 +199,7 @@
     @* User 2026-10-14: "en udfordring til dem, der har lyst. Find en mobilapp, send navnet til mig og lad mig lave en version af den, som du vil have... :-)" *@
     <p>Find en mobilapp, send navnet til mig – og lad mig lave en version af den, som <b>du</b> vil have den :-)</p>
     <a class="k-btn k-btn-sm" href="/chat-med-martin">Send mig navnet på appen</a>
-    <p class="k-mt"><b>Nysgerrig? Prøv en af mine hjælpere, eller chat med mig, hvis du vil vide mere.</b></p>
+    <p class="k-mt"><b>Nysgerrig? Prøv en af mine snebolde, eller chat med mig, hvis du vil vide mere.</b></p>
     <a class="k-btn k-btn-sm" href="/chat-med-martin">Chat med mig</a>
     </div>
             <button class="k-btn k-btn-sm k-mt" @onclick="() => _info = null">Luk</button>

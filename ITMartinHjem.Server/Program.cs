@@ -33,12 +33,14 @@ builder.Services.AddKolibri(k =>
         "Øverst på forsiden står, hvad jeg skal i dag. Tryk \"Hvad laver jeg nu?\" under Om mig for at se hele dagen.",
         "På Om mig: rul ned gennem tidslinjen, eller fold et år ud.",
         "Tryk \"Skriv til Martin\" for at stille et spørgsmål – eller gå til Spørgsmål og svar (/spoergsmaal), søg om det er besvaret, og stil det under \"Stil et spørgsmål\". Gode spørgsmål kommer op på siden uden navn.",
-        "På Mine hjælpere: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage. Under hver hjælper står dens adresse – tryk på den for at åbne den. Du skal ikke kontakte mig for den gratis udgave.",
+        "På Mine snebolde: tryk på et eksempelbillede for at se det stort – tryk Luk (eller hvor som helst) for at komme tilbage. Under hver snebold står dens adresse – tryk på den for at åbne den. Du skal ikke kontakte mig for den gratis udgave.",
         "På bogshoppen.dk/produkter: vælg en slags eller søg. Tryk på et billede for at se det stort, og på \"Mere om den\" for stand og priser andre steder. Ting uden pris står under \"Ingen pris endnu\".",
         "På bogshoppen.dk: tryk på en butik (Bogshoppen, Tegneserieshoppen, Filmshoppen, Musikshoppen, Gameshoppen, Fantasyshoppen, Kortshoppen) - eller søg i dem alle. I butikken trykker du på en underkategori (fx DVD eller Serieblade), og under Sorter på A–Å eller Nyeste (priserne kommer senere). Flere fra samme serie står samlet på ét kort - tryk på det for at se dem. ← Alle butikker fører tilbage.",
+        "I Musikshoppen, Filmshoppen og Bogshoppen kan du også vælge en genre (fx Dansktop, Indie, Pop, Krimi, Børnefilm) - knapperne står i alfabetisk orden, og Alle genrer viser det hele igen. Underkategorierne står også i alfabetisk orden.",
+        "Mine små programmer hedder snebolde: hver gør én ting, og gør den godt. Du finder dem i Sneboldshoppen (itmartin.dk/sneboldshoppen).",
         "Har du fået en side sammen med Martin (fx itmartin.dk/per)? Tryk Tekster eller Musik, tryk \"Skriv koden\" og skriv koden fra Martin. Så kan du lægge filer op og skrive dine tanker under hver fil.",
     ];
-    k.Version = "2026.11.03";
+    k.Version = "2026.11.07";
     k.ThemeColor = "#f4f6f5";
 });
 

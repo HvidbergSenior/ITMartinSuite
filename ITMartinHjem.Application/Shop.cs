@@ -19,7 +19,7 @@ public interface IShopGateway
     Task<ShopOrder?> OrderAsync(string token, CancellationToken ct = default);
     /// <summary>The marketplace: product types with counts, today's offers, one page of things.</summary>
     Task<ShopMarket> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
-        string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null);
+        string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null, string? genre = null);
     /// <summary>The overview: every category with its first few things.</summary>
     Task<ShopOverview> OverviewAsync(int perShelf, CancellationToken ct = default);
     /// <summary>The basket priced with today's offers.</summary>
@@ -93,11 +93,11 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
     }
 
     public async Task<(ShopMarket? Market, string? Error)> MarketAsync(string? type, string? kind, string? usage, string? text, string? sort, int page, CancellationToken ct = default,
-        string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null)
+        string? price = null, string? language = null, IReadOnlyCollection<string>? categories = null, string? genre = null)
     {
         try
         {
-            var m = await lager.MarketAsync(type, kind, usage, text, sort, page, ct, price, language, categories);
+            var m = await lager.MarketAsync(type, kind, usage, text, sort, page, ct, price, language, categories, genre);
             return (m with { CanPay = m.CanPay && seller.Complete }, null);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return (null, Unreachable); }

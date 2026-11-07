@@ -41,14 +41,19 @@ public interface IItemRepository
     /// <summary>The marketplace: things for sale (Shop.Listed) of these kinds (null = all), new or used (null = both), every word in the search
     /// text, sorted (ShopSorts), one page; and how many match in all.</summary>
     Task<(List<Item> Page, int Total)> ListedAsync(IReadOnlyCollection<string>? kinds, string? usage, string text, string sort, int skip, int take, CancellationToken ct,
-        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null);
+        string? band = null, IReadOnlyCollection<string>? categories = null, string? language = null, string? genre = null);
+    /// <summary>Things for sale per genre (Item.Genre, "" left out) of these kinds / categories / language.</summary>
+    Task<Dictionary<string, int>> ListedPerGenreAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null,
+        IReadOnlyCollection<string>? categories = null, string? language = null);
+    /// <summary>Our things (not sold, not Fund) in these categories whose genre was never looked up, up to max.</summary>
+    Task<List<Item>> WithoutGenreAsync(IReadOnlyCollection<string> categories, int max, CancellationToken ct);
     /// <summary>Things for sale per main category (Item.Category), in one language or all (null).</summary>
     Task<Dictionary<string, int>> ListedPerCategoryAsync(CancellationToken ct, string? band = null, string? language = null);
     /// <summary>Things for sale per kind.</summary>
     Task<Dictionary<string, int>> ListedPerKindAsync(CancellationToken ct, string? band = null);
     /// <summary>Things for sale of these kinds (null = all) per series - or artist/author when there is no series.</summary>
     Task<Dictionary<string, int>> ListedPerGroupAsync(IReadOnlyCollection<string>? kinds, CancellationToken ct, string? band = null,
-        IReadOnlyCollection<string>? categories = null, string? language = null);
+        IReadOnlyCollection<string>? categories = null, string? language = null, string? genre = null);
     /// <summary>Things for sale per deal (ShopDeals), only the ones in a deal.</summary>
     Task<Dictionary<string, int>> ListedPerDealAsync(CancellationToken ct);
     /// <summary>Every thing for sale, with its box (for Shop.DealFor).</summary>

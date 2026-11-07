@@ -107,6 +107,10 @@ public sealed class Item
     // filter on them (user 2026-11-03: "split up in the main categories", "all cats should have an English"). Set by Touch.
     public string Category { get; set; } = ProductTypes.Andet;
     public string Language { get; set; } = "";
+    /// <summary>The genre (Genres, user 2026-11-07: "danktop, indie, pop") - set once from a free source by the genre job;
+    /// GenreAt = when it was looked up (null = not yet), so nothing is asked twice.</summary>
+    public string Genre { get; set; } = "";
+    public DateTime? GenreAt { get; set; }
     // Discogs collectors (2026-10-21): how many want this release and how many have it - demand, not price.
     public int? Want { get; set; }
     public int? Have { get; set; }
@@ -281,6 +285,9 @@ public static partial class Films
     public const string SeasonWord = FilmShelves.SeasonWord;
 
     public static bool IsSeason(string kind, string title) => kind is Kinds.Dvd or Kinds.BluRay && SeasonRx().IsMatch(title);
+
+    /// <summary>The title without "Season 3" / "Kollektionen" words - what a film database knows it by.</summary>
+    public static string SeasonWordsOut(string title) => System.Text.RegularExpressions.Regex.Replace(SeasonRx().Replace(title, " "), @"\s+", " ").Trim();
 
     [System.Text.RegularExpressions.GeneratedRegex(@"\b(seasons?|sæson(er)?|sesong|staffel|säsong|complete\s+\w+\s+series|komplet(te)?\s+serie|kollektionen|hele\s+serien)\b",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase)]

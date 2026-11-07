@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<PriceReviewUseCases>();   // Vurdering (step 2) asks for these
         services.AddScoped<SalgLinks>();
         services.AddScoped<KioskUseCases>();
+        services.AddScoped<GenreUseCases>();
         return services;
     }
 }
