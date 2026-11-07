@@ -217,19 +217,36 @@ public sealed record ShopSub(string Name, string? Category = null, string? Kind 
 /// once per thing from free sources (MusicBrainz, TMDb, Open Library) - no AI. "" = not known (only under Alle).</summary>
 public static class Genres
 {
-    public static readonly string[] Musik = ["Blues", "Børnemusik", "Country", "Dansktop", "Elektronisk", "Folk", "Hip hop", "Indie",
-        "Jazz", "Klassisk", "Metal", "Pop", "Rock", "Soul og R&B", "Soundtrack", "Visesang"];
-    public static readonly string[] Film = ["Action", "Animation", "Børnefilm", "Dokumentar", "Drama", "Fantasy", "Gys", "Komedie",
-        "Krig", "Krimi", "Romantik", "Sci-fi", "Stand-up", "Thriller", "Western"];
-    public static readonly string[] Boeger = ["Biografi", "Børnebøger", "Fagbøger", "Fantasy", "Gys", "Humor", "Krimi", "Kærlighed",
-        "Romaner", "Sci-fi"];
+    // 2026-11-07 later: "i need as many genres for all the shops - krimi, etc?" -> longer lists + comics, games and rollespil.
+    public static readonly string[] Musik = ["Blues", "Børnemusik", "Country", "Dansktop", "Disco", "Elektronisk", "Folk", "Gospel", "Hip hop",
+        "Indie", "Jazz", "Julemusik", "Klassisk", "Latin", "Metal", "Pop", "Punk", "Reggae", "Rock", "Soul og R&B", "Soundtrack",
+        "Verdensmusik", "Visesang"];
+    public static readonly string[] Film = ["Action", "Animation", "Børnefilm", "Dokumentar", "Drama", "Eventyr", "Fantasy", "Gys", "Historie",
+        "Komedie", "Krig", "Krimi", "Musical", "Romantik", "Sci-fi", "Stand-up", "Thriller", "Western"];
+    public static readonly string[] Boeger = ["Biografi", "Børnebøger", "Digte", "Eventyr", "Fagbøger", "Fantasy", "Gys", "Historie", "Hobby",
+        "Humor", "Kogebøger", "Krig", "Krimi", "Kunst og musik", "Kærlighed", "Natur og dyr", "Psykologi og selvhjælp", "Rejser",
+        "Religion og filosofi", "Romaner", "Sci-fi", "Sport", "Thriller", "Ungdomsbøger"];
+    /// <summary>Album, blade, jumbobøger and superhelte - from the series name (no free source knows Danish comics).</summary>
+    public static readonly string[] Tegneserier = ["Disney", "Eventyr", "Fantasy", "Gys", "Humor", "Krig", "Krimi", "Sci-fi", "Superhelte",
+        "Underground", "Western"];
+    public static readonly string[] Computerspil = ["Action", "Eventyr", "Familie", "Platform", "Racing", "Rollespil", "Simulation", "Skydespil",
+        "Sport", "Strategi"];
+    public static readonly string[] Braetspil = ["Børnespil", "Familiespil", "Kortspil", "Quiz", "Samarbejde", "Selskabsspil", "Strategispil"];
+    public static readonly string[] Rollespil = ["Call of Cthulhu", "Dungeons & Dragons", "Pathfinder", "Warhammer", "Andre rollespil"];
+
+    private static readonly string[] Comics = [ProductTypes.Tegneserier, ProductTypes.Serieblade, ProductTypes.GamleBlade, ProductTypes.Jumbo,
+        ProductTypes.Superhelte];
 
     /// <summary>The main categories that have genres.</summary>
-    public static readonly string[] Categories = [ProductTypes.Musik, ProductTypes.Film, ProductTypes.Boeger];
+    public static readonly string[] Categories = [ProductTypes.Musik, ProductTypes.Film, ProductTypes.Boeger, .. Comics,
+        ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil];
 
     public static string[] For(string category) => category switch
     {
-        ProductTypes.Musik => Musik, ProductTypes.Film => Film, ProductTypes.Boeger => Boeger, _ => [],
+        ProductTypes.Musik => Musik, ProductTypes.Film => Film, ProductTypes.Boeger => Boeger,
+        ProductTypes.Computerspil => Computerspil, ProductTypes.Braetspil => Braetspil, ProductTypes.Rollespil => Rollespil,
+        _ when Comics.Contains(category) => Tegneserier,
+        _ => [],
     };
 
     /// <summary>The genre as written in the list (any case), or null.</summary>

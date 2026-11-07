@@ -33,7 +33,8 @@ public class GenreTests
     [TestCase(new[] { "Fiction", "Detective and mystery stories" }, "Krimi")]
     [TestCase(new[] { "Juvenile fiction", "Fantasy" }, "Børnebøger")]
     [TestCase(new[] { "Danish fiction" }, "Romaner")]
-    [TestCase(new[] { "History", "Denmark" }, "Fagbøger")]
+    [TestCase(new[] { "History", "Denmark" }, "Historie")]
+    [TestCase(new[] { "Law", "Economics" }, "Fagbøger")]
     [TestCase(new[] { "Biography", "Musicians" }, "Biografi")]
     [TestCase(new string[0], "")]
     public void Books(string[] tags, string genre) => GenreRules.Pick(B, tags).Should().Be(genre);
@@ -50,7 +51,8 @@ public class GenreTests
     {
         ShopFamilies.Musik.Genres.Should().StartWith(["Blues", "Børnemusik", "Country", "Dansktop"]);
         ShopFamilies.Musik.Genres.Should().HaveCount(Genres.Musik.Length);
-        ShopFamilies.Tegneserier.Genres.Should().BeEmpty();
+        ShopFamilies.Tegneserier.Genres.Should().Contain(["Disney", "Krimi", "Western"]);
+        ShopFamilies.Kort.Genres.Should().BeEmpty();
     }
 
     [Test]
@@ -59,5 +61,57 @@ public class GenreTests
         Genres.Normalise("dansktop").Should().Be("Dansktop");
         Genres.Normalise("Nonsens").Should().BeNull();
         Genres.Normalise("Pop", [ProductTypes.Film]).Should().BeNull();
+    }
+
+    // 2026-11-07 later: "as many genres for all the shops - krimi, etc?"
+    [TestCase(new[] { "punk rock" }, "Punk")]
+    [TestCase(new[] { "christmas", "pop" }, "Julemusik")]
+    [TestCase(new[] { "reggae" }, "Reggae")]
+    [TestCase(new[] { "disco", "pop" }, "Disco")]
+    public void More_music(string[] tags, string genre) => GenreRules.Pick(M, tags).Should().Be(genre);
+
+    [TestCase(new[] { "adventure", "drama" }, "Eventyr")]
+    [TestCase(new[] { "history", "drama" }, "Historie")]
+    [TestCase(new[] { "music", "romance" }, "Musical")]
+    public void More_film(string[] tags, string genre) => GenreRules.Pick(F, tags).Should().Be(genre);
+
+    [TestCase(new[] { "Cooking", "Danish" }, "Kogebøger")]
+    [TestCase(new[] { "World War, 1939-1945", "Denmark" }, "Krig")]
+    [TestCase(new[] { "Spy stories", "Fiction" }, "Thriller")]
+    [TestCase(new[] { "Young adult fiction" }, "Ungdomsbøger")]
+    [TestCase(new[] { "Poetry" }, "Digte")]
+    [TestCase(new[] { "Travel", "Italy" }, "Rejser")]
+    public void More_books(string[] tags, string genre) => GenreRules.Pick(B, tags).Should().Be(genre);
+
+    // Comics from the series (the real series in stock 2026-11-07).
+    [TestCase(ProductTypes.Serieblade, "Anders And & Co.", "Nr. 12", "Disney")]
+    [TestCase(ProductTypes.Jumbo, "Anders And Jumbobog", "Jumbobog 45", "Disney")]
+    [TestCase(ProductTypes.Serieblade, "Jonah Hex", "Krigsret!", "Western")]
+    [TestCase(ProductTypes.Tegneserier, "Blueberry", "Den forsvundne guldmine", "Western")]
+    [TestCase(ProductTypes.Serieblade, "Basserne", "Nr. 3", "Humor")]
+    [TestCase(ProductTypes.GamleBlade, "Kong Kylie", "Nr. 7", "Humor")]
+    [TestCase(ProductTypes.Superhelte, "Projekt X", "Nr. 2", "Superhelte")]
+    [TestCase(ProductTypes.Superhelte, "Unknown hero", "Nr. 1", "Superhelte")]
+    [TestCase(ProductTypes.Tegneserier, "Agent 327", "Dossier Cyclops", "Krimi")]
+    [TestCase(ProductTypes.Tegneserier, "Kystbane Komix", "1", "Underground")]
+    [TestCase(ProductTypes.Tegneserier, "", "Free Comic Book Day 2010", "")]
+    public void Comics(string category, string series, string title, string genre) =>
+        GenreRules.Pick(category, [], title, series).Should().Be(genre);
+
+    [TestCase(ProductTypes.Computerspil, "FIFA 2005", "Sport")]
+    [TestCase(ProductTypes.Computerspil, "Gran Turismo 4", "Racing")]
+    [TestCase(ProductTypes.Computerspil, "Galactic Civilizations IV", "Strategi")]
+    [TestCase(ProductTypes.Braetspil, "Trivial Pursuit Familie", "Quiz")]
+    [TestCase(ProductTypes.Braetspil, "Settlers of Catan", "Strategispil")]
+    [TestCase(ProductTypes.Rollespil, "Dungeons & Dragons Player's Handbook", "Dungeons & Dragons")]
+    [TestCase(ProductTypes.Rollespil, "Mutant: År Noll", "Andre rollespil")]
+    public void Games(string category, string title, string genre) => GenreRules.Pick(category, [], title).Should().Be(genre);
+
+    [Test]
+    public void Comics_and_games_are_read_from_their_name()
+    {
+        GenreRules.FromName(ProductTypes.Serieblade).Should().BeTrue();
+        GenreRules.FromName(ProductTypes.Musik).Should().BeFalse();
+        Genres.Categories.Should().Contain([ProductTypes.Superhelte, ProductTypes.Braetspil]);
     }
 }
