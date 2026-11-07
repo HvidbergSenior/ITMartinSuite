@@ -309,11 +309,11 @@ else
         _item = view?.Item;
         _box = _item?.Box?.Code;
         _others = _item is null ? [] : await Items.OthersLikeAsync(_item);
-        _finds = view?.Finds.Where(f => !f.Similar).ToList() ?? [];
+        _finds = view?.Finds.Where(f => !f.Similar && Pricing.Shown(f.Source)).ToList() ?? [];
         _gold = _item is null ? null : await Gold.MatchAsync(_item);
         _note = _item is null ? null : ITMartinLager.Domain.Gold.Interesting(await Gold.AllAsync(), _item.Kind, _item.Title, _item.Series, _item.Number, _item.Year, _item.Price ?? _item.PriceHint, _item.Want, _item.Have);
-        _similar = view?.Finds.Where(f => f.Similar).ToList() ?? [];
-        _checks = view?.Checks ?? [];
+        _similar = view?.Finds.Where(f => f.Similar && Pricing.Shown(f.Source)).ToList() ?? [];
+        _checks = view?.Checks.Where(c => Pricing.Shown(c.Source)).ToList() ?? [];
         _kiosk = _item is null ? null : await Kiosk.ForAsync(_item);
     }
 

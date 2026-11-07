@@ -603,6 +603,11 @@ public static partial class Pricing
     // collectors want it - its asking prices are shown as links only.
     public static readonly string[] NotForNormal = ["eBay", "eBay USA", "Discogs"];
 
+    /// <summary>Never shown anywhere (2026-11-07, user: "i can still see prices from ebay??"): eBay is no longer asked, and
+    /// the eBay prices items already have are hidden until the next hunt replaces them.</summary>
+    public static readonly string[] Hidden = ["eBay", "eBay USA"];
+    public static bool Shown(string source) => !Hidden.Contains(source, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The normal used price with Danish listings first (user 2026-10-12: "always prioritize Danish market"):
     /// Danish only when there are enough - unless the Danish price is over 2x what the other sites say, then the Danish
     /// listings are the odd ones (2026-10-21) and every site counts. eBay never counts.</summary>

@@ -41,8 +41,8 @@ internal static class PriceSourceRegistration
         Add(sp => new PriceSource("DBA", false, "", (t, a, i, ct) => sp.GetRequiredService<DbaListings>().LookupAsync(t, a, ct),
             (t, a, i) => DbaListings.SearchUrl(Q(t, a))));
         Add(sp => Used(sp.GetRequiredService<GulogGratisListings>(), ""));
-        Add(sp => new PriceSource("eBay", false, "", (t, a, i, ct) => sp.GetRequiredService<EbayListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => sp.GetRequiredService<EbayListings>().SearchUrl(QOrIsbn(t, a, i))));
+        // eBay is out (2026-11-07, user: "Ebay prices should be disabled? ... i can still see prices from ebay"): it never
+        // counted in our price (Pricing.NotForNormal) and its asking prices were 2.5x the Nordic ones. The class stays.
         // 2026-10-25 (user: "the finnish ones should be removed ... actually i want Danish, Tradera and One from ebay"):
         // eBay USA, Discogs, Blocket, Finn.no, Tori.fi, Kleinanzeigen, AbeBooks, ZVAB and Bokbörsen are out. Their
         // classes stay, so one can come back with one line here.

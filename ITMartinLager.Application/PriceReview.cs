@@ -33,7 +33,7 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
 
     private async Task<VurderingItem> CardAsync(Item i, Dictionary<int, string> boxes, CancellationToken ct)
     {
-        var finds = (await items.GetAsync(i.Id, ct))?.Finds ?? [];
+        var finds = ((await items.GetAsync(i.Id, ct))?.Finds ?? []).Where(f => Pricing.Shown(f.Source)).ToList();
         // The new price to compare with: the cheapest new copy at a Danish new shop (not a "magen til").
         var fresh = finds.Where(f => f.IsNew && !f.Similar && Pricing.DanishNewShops.Contains(f.Source) && f.Kr > 0).OrderBy(f => f.Kr).FirstOrDefault();
         var shown = finds.Where(f => !f.IsNew).OrderBy(f => f.Kr).Take(MaxFinds)

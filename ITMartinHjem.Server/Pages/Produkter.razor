@@ -4,6 +4,7 @@
    (where you can sign up)", "And also the products", "Bogshoppen is Products. ItMartin is processes"). Not a webshop - no
    basket: what we have (Alle produkter, TEST), and what we found worth telling about. *@
 @inject NavigationManager Nav
+@inject PricesShown Prices
 
 @* On itmartin.dk the Produkter tab = two doors side by side (user 2026-11-04: "My products should be next to Bogshoppen",
    "Hjælpershoppen"). bogshoppen.dk/produkter keeps the shop list below. *@
@@ -14,7 +15,7 @@
     <div class="hj-subpages hj-doors">
         <a class="k-card hj-subpage" href="https://bogshoppen.dk/produkter" data-nofold>
             <b>Bogshoppen</b>
-            <span>Bøger, tegneserier, film, musik, spil, fantasy og kort – med billede og vores pris.</span>
+            <span>Bøger, tegneserier, film, musik, spil, fantasy og kort@(Prices.On ? " – med billede og vores pris." : " – med billede. Priserne kommer senere.")</span>
             <span class="k-btn k-btn-sm k-btn-primary hj-topic-btn">Gå til Bogshoppen</span>
         </a>
         <a class="k-card hj-subpage" href="/sneboldshoppen" data-nofold>
@@ -31,7 +32,7 @@
 <header class="bs-head bs-head-varer bs-head-me">
     <BogshoppenPhoto />
     <h1>Produkter</h1>
-    <p>Vælg en butik: Bogshoppen, Tegneserieshoppen, Filmshoppen, Musikshoppen, Gameshoppen, Fantasyshoppen og Kortshoppen – med billede og vores pris.</p>
+    <p>Vælg en butik: Bogshoppen, Tegneserieshoppen, Filmshoppen, Musikshoppen, Gameshoppen, Fantasyshoppen og Kortshoppen@(Prices.On ? " – med billede og vores pris." : " – med billede. Priserne kommer senere.")</p>
     <p class="hj-head-note"><b>Sådan gør du:</b> tryk på en butik for at se alt i den, eller søg i dem alle på én gang. I butikken trykker du på en underkategori, fx <b>DVD</b> eller <b>Serieblade</b>.</p>
 </header>
 
