@@ -76,10 +76,35 @@ static bool GoodPush(PushBody b) =>
     !string.IsNullOrWhiteSpace(b.Endpoint) && b.Endpoint.StartsWith("https://") && !string.IsNullOrWhiteSpace(b.P256dh) && !string.IsNullOrWhiteSpace(b.Auth);
 
 // A room's page: the same index.html, never cached; the script reads the key from the address.
-app.MapGet("/r/{key}", (HttpContext c, IWebHostEnvironment env) =>
+// 2026-11-08 (Vibz): the home-screen icon opened "/" (the shared manifest's start_url), and an iPhone home-screen app has its own
+// storage, so it did not know the room -> "open your link". Now each room page points to its OWN manifest that starts in the room.
+app.MapGet("/r/{key}", async (HttpContext c, string key, IWebHostEnvironment env, Rooms rooms) =>
 {
     c.Response.Headers.CacheControl = "no-cache";
-    return Results.File(Path.Combine(env.WebRootPath, "index.html"), "text/html; charset=utf-8");
+    var html = await File.ReadAllTextAsync(Path.Combine(env.WebRootPath, "index.html"));
+    if (rooms.ByKey(key) is { } r)
+        html = html
+            .Replace("href=\"/manifest.webmanifest\"", $"href=\"/r/{r.Key}/manifest.webmanifest\"")
+            .Replace("name=\"apple-mobile-web-app-title\" content=\"Snak\"", $"name=\"apple-mobile-web-app-title\" content=\"{System.Net.WebUtility.HtmlEncode(r.Title)}\"");
+    return Results.Content(html, "text/html; charset=utf-8");
+});
+
+app.MapGet("/r/{key}/manifest.webmanifest", (HttpContext c, string key, Rooms rooms) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    c.Response.Headers.CacheControl = "no-cache";
+    var icon = "/_content/ITMartin.Shared.UI/kolibri-icon.svg";
+    return Results.Json(new
+    {
+        id = $"/r/{r.Key}", name = r.Title + " · Snak", short_name = r.Title.Length > 12 ? "Snak" : r.Title,
+        start_url = $"/r/{r.Key}", scope = "/", display = "standalone",
+        background_color = "#f4f6f5", theme_color = "#f4f6f5", lang = "da",
+        icons = new object[]
+        {
+            new { src = icon, sizes = "any", type = "image/svg+xml", purpose = "any" },
+            new { src = icon, sizes = "any", type = "image/svg+xml", purpose = "maskable" },
+        },
+    }, contentType: "application/manifest+json");
 });
 
 // The easy address (2026-11-08): snak.itmartin.dk/sonja -> the room. Literal routes (/om, /api/...) always win over this one.
