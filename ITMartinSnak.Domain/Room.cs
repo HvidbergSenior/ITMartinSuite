@@ -6,9 +6,14 @@ namespace ITMartinSnak.Domain;
 // Rooms (2026-11-04, user: "a snak with every customer", "temporary chats, which will be removed after they are finished",
 // "created when people contact me ... maybe even on creation of customer"). One room per customer or job. The secret key in
 // the link IS the access - nobody types a code. Martin (the host) sees all rooms.
-public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef)
+// 2026-11-08 SHARED rooms (user: a room for Vibz, Dorthe, Mette, Bent around Sonja, 85, "admin is me", "I create and make tasks",
+// the room has its own admin password, only the admin needs it): Members = the names shown as buttons at the door and offered when a task is
+// given to someone; CodeHash = this room's own admin password (a hash, never the code) - it makes you admin in THIS room only.
+public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
+    List<string>? Members = null, string CodeHash = "", string Slug = "")
 {
     public bool IsDone => DoneAt is not null;
+    public bool HasCode => CodeHash.Length > 0;
     public DateTime? DeleteAt => DoneAt + RoomRules.KeepAfterDone;
 }
 
@@ -39,11 +44,41 @@ public static partial class RoomRules
         return t.Length > MaxTitle ? t[..MaxTitle] : t;
     }
 
-    public static Room New(string? title, string? customerRef, DateTime nowUtc)
+    public const int MaxMembers = 20, MinCode = 6;
+
+    public static Room New(string? title, string? customerRef, DateTime nowUtc, string? members = null, string? code = null, string? slug = null)
     {
+        var easy = CleanSlug(slug);
+        if ((slug ?? "").Trim().Length > 0 && easy.Length == 0)
+            throw new InvalidOperationException("Den nemme adresse må kun have små bogstaver, tal og bindestreg (2-30 tegn), fx sonja.");
         var c = (customerRef ?? "").Trim();
-        return new Room(NewId(), NewKey(), CleanTitle(title), nowUtc, nowUtc, null, c.Length > MaxCustomerRef ? c[..MaxCustomerRef] : c);
+        var id = NewId();
+        var pw = (code ?? "").Trim();
+        if (pw.Length is > 0 and < MinCode) throw new InvalidOperationException($"Adgangskoden skal være mindst {MinCode} tegn.");
+        return new Room(id, NewKey(), CleanTitle(title), nowUtc, nowUtc, null, c.Length > MaxCustomerRef ? c[..MaxCustomerRef] : c,
+            CleanMembers(members), pw.Length == 0 ? "" : CodeHashFor(id, pw), easy);
     }
+
+    // 2026-11-08 user: "make an easy url" - snak.itmartin.dk/sonja leads to the room. Anyone who guesses it gets in (said in the form).
+    private static readonly HashSet<string> Reserved = ["api", "r", "om", "hjaelp", "health", "healthz", "admin", "login", "_content", "kolibri"];
+    [GeneratedRegex("^[a-z0-9][a-z0-9-]{1,29}$")] private static partial Regex SlugShape();
+
+    /// <summary>"Sonja" -> "sonja"; "" when it is not a usable address.</summary>
+    public static string CleanSlug(string? slug)
+    {
+        var s = (slug ?? "").Trim().ToLowerInvariant().Replace('æ', 'a').Replace('ø', 'o').Replace('å', 'a').Replace(' ', '-');
+        return SlugShape().IsMatch(s) && !Reserved.Contains(s) ? s : "";
+    }
+
+    /// <summary>"Vibz, Dorthe; Mette" -> distinct names, max 20, each cut to the name length.</summary>
+    public static List<string> CleanMembers(string? members) =>
+        (members ?? "").Split([',', ';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(GroupRules.CleanName).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).Take(MaxMembers).ToList();
+
+    /// <summary>The room's password as a hash (also the cookie value) - salted with the room id.</summary>
+    public static string CodeHashFor(string roomId, string code) => AccessRules.Token(code.Trim(), "rum:" + roomId);
+
+    public static bool CodeMatches(Room r, string? typed) => r.HasCode && CodeHashFor(r.Id, typed ?? "") == r.CodeHash;
 
     public static bool ShouldDelete(Room r, DateTime nowUtc) => r.DeleteAt is { } d && d <= nowUtc;
 
