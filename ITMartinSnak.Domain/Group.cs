@@ -13,7 +13,7 @@ public sealed record TaskItem(long Id, string Title, string Note, string When, L
 // the others chat, see the tasks and put themselves on one).
 public static class GroupRules
 {
-    public const int MaxMessages = 5000, MaxText = 4000, MaxName = 30, MaxTitle = 120, MaxNote = 1000, MaxWhen = 60;
+    public const int MaxMessages = 5000, MaxText = 4000, MaxName = 40, MaxTitle = 120, MaxNote = 1000, MaxWhen = 60;
 
     public static string CleanName(string? name) => Cut((name ?? "").Trim(), MaxName);
 

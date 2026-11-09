@@ -77,8 +77,19 @@
     function showLogin() {
         showOnly('login');
         $('loginTitel').textContent = room ? room.titel : 'Snak';
-        if (room && room.gruppe)
-            $('loginLead').textContent = 'Her skriver gruppen sammen og deler dokumenter. Skriv dit navn, så de andre kan se, hvem der skriver.';
+        if (room && room.gruppe) {
+            $('loginLead').textContent = 'Her skriver holdet sammen og deler dokumenter. Vælg dit navn, så de andre kan se, hvem der skriver.';
+            $('loginHjaelp').textContent = 'Det er det navn, de andre ser ved dine beskeder og filer.';
+        }
+        const people = (room && room.medlemmer) || [];
+        $('loginListe').hidden = people.length === 0;
+        const box = $('loginNavne');
+        box.textContent = '';
+        for (const m of people) {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn'; b.textContent = m.name;
+            b.onclick = () => { $('loginNavn').value = m.name; $('loginForm').requestSubmit(); };
+            box.appendChild(b);
+        }
         // From "Skriv til mig" on itmartin.dk the name comes along (?navn=) - one tap, which also asks for notifications.
         const fra = new URLSearchParams(location.search).get('navn');
         $('loginNavn').value = navn || (fra || '').slice(0, 60);
@@ -221,8 +232,14 @@
             : 'Her er det, der skal gøres. Tryk "Jeg tager den" på en opgave, så ved Martin, at du gør den.';
         $('omSlet').hidden = !!(room && room.gruppe);
         klaretBar();
+        renderRoster();
+        $('holdAdmin').hidden = !(admin && room && room.gruppe);
+        if (admin && room && room.gruppe) {
+            $('holdMedlemmer').value = (room.medlemmer || []).map(m => m.about ? m.name + ' – ' + m.about : m.name).join('\n');
+            $('holdEmner').value = (room.emner || []).join('\n');
+        }
         const tab = store.get('snak_tab') || 'chat';
-        show(tab === 'opg' || tab === 'fil' ? tab : 'chat');
+        show(['opg', 'fil'].includes(tab) || (tab === 'hold' && !$('tabHold').hidden) ? tab : 'chat');
         loadMessages(); loadTasks(); loadFiles(); connect();
         setupPush(false);
     }
@@ -256,7 +273,7 @@
     // ---------- tabs ----------
 
     function show(which) {
-        for (const [v, t] of [['chat', 'tabChat'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['mig', 'tabMig']]) {
+        for (const [v, t] of [['chat', 'tabChat'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['mig', 'tabMig']]) {
             $('view' + v[0].toUpperCase() + v.slice(1)).hidden = v !== which;
             $(t).setAttribute('aria-selected', String(v === which));
         }
@@ -267,6 +284,7 @@
     $('tabChat').onclick = () => show('chat');
     $('tabOpg').onclick = () => show('opg');
     $('tabFil').onclick = () => show('fil');
+    $('tabHold').onclick = () => show('hold');
     $('tabMig').onclick = () => show('mig');
 
     // ---------- live ----------
@@ -279,6 +297,11 @@
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
         live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
+        live.addEventListener('holdet', e => {
+            const d = JSON.parse(e.data);
+            if (room) { room.medlemmer = d.medlemmer; room.emner = d.emner; }
+            renderRoster(); renderFiles();
+        });
     }
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState !== 'visible') return;
@@ -509,6 +532,19 @@
         $('filBadge').textContent = String(fresh);
         $('filBadge').hidden = onTab || fresh === 0;
 
+        // Topics (the workshops): a choice when uploading, and the list grouped under them in the room's order, Andet last.
+        const topics = (room && room.emner) || [];
+        const sel = $('filEmne');
+        const was = sel.options.length ? sel.value : null;   // first fill: the remembered choice, else the first workshop
+        $('filEmneBoks').hidden = topics.length === 0;
+        sel.textContent = '';
+        for (const t of [...topics, 'Andet']) {
+            const o = document.createElement('option'); o.value = t === 'Andet' ? '' : t; o.textContent = t; sel.appendChild(o);
+        }
+        const saved = store.get('snak_emne_' + roomKey);
+        const has = v => v !== null && [...sel.options].some(o => o.value === v);
+        sel.value = has(was) ? was : has(saved) && saved ? saved : sel.options[0].value;
+
         const box = $('filer');
         box.textContent = '';
         if (!files.length) {
@@ -517,7 +553,18 @@
             box.appendChild(e);
             return;
         }
-        for (const f of files) {
+        const known = t => topics.includes(t) ? t : '';
+        const groups = topics.length ? [...topics, ''] : [null];
+        for (const g of groups) {
+            const inGroup = g === null ? files : files.filter(f => known(f.topic || '') === g);
+            if (!inGroup.length) continue;
+            if (g !== null) { const h = document.createElement('h3'); h.className = 'emne-titel'; h.textContent = g || 'Andet'; box.appendChild(h); }
+            for (const f of inGroup) box.appendChild(fileCard(f));
+        }
+    }
+
+    function fileCard(f) {
+        {
             const c = document.createElement('article'); c.className = 'k-card fil-kort';
             const ic = document.createElement('span'); ic.className = 'ikon'; ic.textContent = icon(f); ic.setAttribute('aria-hidden', 'true');
             const info = document.createElement('div'); info.className = 'info';
@@ -541,9 +588,42 @@
                 };
                 c.appendChild(del);
             }
+            return c;
+        }
+    }
+
+    // ---------- the group's people (2026-11-09) ----------
+
+    function renderRoster() {
+        const people = (room && room.medlemmer) || [];
+        $('tabHold').hidden = people.length === 0;
+        if (!people.length && !$('viewHold').hidden) show('chat');
+        $('holdIntro').textContent = people.length + ' på holdet. Skriv til dem i chatten, eller del en fil under Filer.';
+        const box = $('holdListe');
+        box.textContent = '';
+        for (const m of people) {
+            const c = document.createElement('article');
+            const me = m.name.toLowerCase() === navn.toLowerCase();
+            c.className = 'k-card medlem' + (me ? ' mig-selv' : '');
+            const h = document.createElement('h3'); h.textContent = m.name + (me ? ' (dig)' : '');
+            c.appendChild(h);
+            if (m.about) { const p = document.createElement('p'); p.className = 'note'; p.textContent = m.about; c.appendChild(p); }
             box.appendChild(c);
         }
     }
+
+    $('holdGem').onclick = async () => {
+        $('holdGem').disabled = true;
+        try {
+            await api('PUT', '/api/rum/' + room.id + '/holdet', { medlemmer: $('holdMedlemmer').value, emner: $('holdEmner').value });
+            room = await api('GET', base);
+            renderRoster(); renderFiles();
+            $('holdGemt').hidden = false; setTimeout(() => { $('holdGemt').hidden = true; }, 3000);
+        } catch (err) { if (err.message !== 'login') flash(err.message); }
+        $('holdGem').disabled = false;
+    };
+
+    $('filEmne').addEventListener('change', () => store.set('snak_emne_' + roomKey, $('filEmne').value));
 
     $('filInput').addEventListener('change', async () => {
         const list = [...$('filInput').files];
@@ -555,7 +635,7 @@
             st.textContent = 'Lægger op' + (list.length > 1 ? ` (${i + 1} af ${list.length})` : '') + ': ' + file.name + ' …';
             if (file.size > 25 * 1024 * 1024) { errors.push(file.name + ': for stor (højst 25 MB)'); continue; }
             const fd = new FormData();
-            fd.append('fil', file); fd.append('navn', navn); fd.append('endpoint', endpoint);
+            fd.append('fil', file); fd.append('navn', navn); fd.append('endpoint', endpoint); fd.append('emne', $('filEmne').value);
             try {
                 const r = await fetch(base + '/filer', { method: 'POST', credentials: 'same-origin', body: fd });
                 const d = await r.json().catch(() => null);

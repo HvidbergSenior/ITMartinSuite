@@ -9,7 +9,7 @@ namespace ITMartinSnak.Domain;
 // Gruppe (2026-11-09): a standing group (a course team, a club) instead of one case - no "Sagen er klaret", and the page
 // speaks to the group. Rooms stored before this read as false.
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
-    bool Gruppe = false)
+    bool Gruppe = false, List<Member>? Members = null, List<string>? Topics = null)
 {
     public bool IsDone => DoneAt is not null;
     public DateTime? DeleteAt => DoneAt + RoomRules.KeepAfterDone;

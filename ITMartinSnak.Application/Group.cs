@@ -179,8 +179,9 @@ public sealed class Group
     public Stream? OpenFile(SharedFile f) => _store.OpenContent(f.StoredName);
 
     /// <returns>The new file, or the Danish reason it was not added.</returns>
+    /// <param name="topic">Already checked against the room's topics (RosterRules.TopicFor); "" = Andet.</param>
     public async Task<(SharedFile? File, string? Error)> AddFileAsync(string? fileName, long size, Stream content, string? by,
-        string? fromEndpoint, CancellationToken ct = default)
+        string? fromEndpoint, CancellationToken ct = default, string topic = "")
     {
         var who = GroupRules.CleanName(by);
         if (who.Length == 0) return (null, "Skriv dit navn først.");
@@ -189,7 +190,7 @@ public sealed class Group
         lock (_gate)
         {
             if (FileRules.Check(name, size, _files.Count) is { } err) return (null, err);
-            f = FileRules.New(_files, name, size, who, _clock.GetUtcNow().UtcDateTime);
+            f = FileRules.New(_files, name, size, who, _clock.GetUtcNow().UtcDateTime, topic);
             _files.Add(f);   // holds the id while the bytes are written
         }
         var ok = false;
@@ -305,6 +306,16 @@ public sealed class Rooms
     public bool Reopen(string id) => Update(id, x => x with { DoneAt = null });
 
     public bool Rename(string id, string? title) => Update(id, x => x with { Title = RoomRules.CleanTitle(title) });
+
+    /// <summary>A group's people and topics (Martin pastes them, one per line). Everyone in the room sees the change at once.</summary>
+    public bool SetRoster(string id, string? membersText, string? topicsText)
+    {
+        var members = RosterRules.ParseMembers(membersText);
+        var topics = RosterRules.ParseTopics(topicsText);
+        if (!Update(id, x => x with { Members = members, Topics = topics })) return false;
+        _live.Send(id, "holdet", new { medlemmer = members, emner = topics });
+        return true;
+    }
 
     public bool Delete(string id)
     {

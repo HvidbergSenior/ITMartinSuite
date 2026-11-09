@@ -132,7 +132,11 @@ app.MapPost("/api/rum/{id}/genaabn", (HttpContext c, string id, Access access, R
 app.MapPut("/api/rum/{id}", (HttpContext c, string id, RoomBody b, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.Rename(id, b.Titel) ? Results.Ok() : Results.NotFound());
 
-app.MapDelete("/api/rum/{id}", (HttpContext c, string id, Access access, Rooms rooms) =>
+// A group's people ("Navn – hvad de laver", one per line) and topics (one per line). Martin only.
+app.MapPut("/api/rum/{id}/holdet", (HttpContext c, string id, RosterBody b, Access access, Rooms rooms) =>
+    !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetRoster(id, b.Medlemmer, b.Emner) ? Results.Ok() : Results.NotFound());
+
+app.MapDelete("/api/rum/{id}",(HttpContext c, string id, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.Delete(id) ? Results.Ok() : Results.NotFound());
 
 // Martin's phone gets a push from every room.
@@ -156,7 +160,7 @@ var room = app.MapGroup("/api/r/{key}");
 
 room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSender push) =>
     rooms.ByKey(key) is { } r
-        ? Results.Json(new { id = r.Id, titel = r.Title, gruppe = r.Gruppe, klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsAdmin(c, access), pushKey = push.PublicKey, vaert = HostName }, web)
+        ? Results.Json(new { id = r.Id, titel = r.Title, gruppe = r.Gruppe, medlemmer = r.Members ?? [], emner = r.Topics ?? [], klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsAdmin(c, access), pushKey = push.PublicKey, vaert = HostName }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
 
 room.MapGet("/beskeder", (string key, Rooms rooms, long? efter) =>
@@ -226,7 +230,7 @@ room.MapPost("/filer", async (HttpContext c, string key, Rooms rooms, Access acc
     var host = IsAdmin(c, access);
     await using var s = f.OpenReadStream();
     var (file, err) = await rooms.GroupOf(r).AddFileAsync(f.FileName, f.Length, s, host ? HostName : form["navn"].ToString(),
-        form["endpoint"].ToString(), c.RequestAborted);
+        form["endpoint"].ToString(), c.RequestAborted, RosterRules.TopicFor(r.Topics, form["emne"].ToString()));
     return file is null ? Results.BadRequest(new { fejl = err }) : Results.Json(FileView(file), web);
 });
 
@@ -289,10 +293,11 @@ room.MapPost("/push", (string key, PushBody b, Rooms rooms, IPushSender push) =>
 app.Run();
 
 // What the page sees of a file - never the name on disk.
-static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At };
+static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At, f.Topic };
 
 public sealed record LoginBody(string? Kode);
 public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, bool Gruppe = false);
+public sealed record RosterBody(string? Medlemmer, string? Emner);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint);
 public sealed record DoneBody(bool Faerdig);

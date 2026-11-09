@@ -5,7 +5,9 @@ namespace ITMartinSnak.Domain;
 // Documents in a room (2026-11-09, user: a club group for Acceleratorkursus Hold 36 "there should be chat and also a way to
 // upload documents"). Everyone in the room can add a file and download all of them; the one who added it (same name) or
 // Martin can remove it. StoredName is the file on disk - never the name the person typed.
-public sealed record SharedFile(long Id, string Name, string StoredName, long Size, string ContentType, string By, DateTime At);
+// Topic = one of the room's topics (a workshop), "" = Andet.
+public sealed record SharedFile(long Id, string Name, string StoredName, long Size, string ContentType, string By, DateTime At,
+    string Topic = "");
 
 public static partial class FileRules
 {
@@ -69,10 +71,10 @@ public static partial class FileRules
         return null;
     }
 
-    public static SharedFile New(IReadOnlyList<SharedFile> existing, string cleanName, long size, string by, DateTime nowUtc)
+    public static SharedFile New(IReadOnlyList<SharedFile> existing, string cleanName, long size, string by, DateTime nowUtc, string topic = "")
     {
         var id = (existing.Count == 0 ? 0 : existing.Max(f => f.Id)) + 1;
-        return new SharedFile(id, cleanName, $"{id}{Path.GetExtension(cleanName).ToLowerInvariant()}", size, TypeOf(cleanName)!, by, nowUtc);
+        return new SharedFile(id, cleanName, $"{id}{Path.GetExtension(cleanName).ToLowerInvariant()}", size, TypeOf(cleanName)!, by, nowUtc, topic);
     }
 
     /// <summary>Martin, or the one who added it (same name, case doesn't matter - the room is a trusted circle).</summary>

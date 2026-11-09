@@ -256,4 +256,37 @@ public class GroupTests
         NewRooms().ById(hold.Id)!.Gruppe.Should().BeTrue();
         NewRooms().Overview().Single().Gruppe.Should().BeTrue();
     }
+
+    [Test]
+    public void A_pasted_course_list_becomes_members_and_workshops_with_Andet_never_doubled()
+    {
+        var members = RosterRules.ParseMembers("""
+            Evald Merida Jensen – Psykoterapi
+            • Helena Cristina Daniele Christensen - Eventbureau
+
+            Thomas schaumburg | Pædagogiskbrobygning - støtte til børn
+            evald merida jensen – twice
+            Rasmus Gravesen
+            """);
+        members.Select(m => m.Name).Should().Equal("Evald Merida Jensen", "Helena Cristina Daniele Christensen", "Thomas schaumburg", "Rasmus Gravesen");
+        members[2].About.Should().Be("Pædagogiskbrobygning - støtte til børn");
+        members[3].About.Should().BeEmpty();
+
+        var topics = RosterRules.ParseTopics("Prissætning\nRegnskab\nandet\nprissætning\n");
+        topics.Should().Equal("Prissætning", "Regnskab");
+        RosterRules.TopicFor(topics, "regnskab").Should().Be("Regnskab");
+        RosterRules.TopicFor(topics, "Hacket emne").Should().BeEmpty();
+    }
+
+    [Test]
+    public void A_groups_roster_is_kept_and_goes_live_to_the_room()
+    {
+        var rooms = NewRooms();
+        var hold = rooms.Create("Hold 36", group: true);
+        rooms.SetRoster(hold.Id, "Martin Hvidberg – Digitale hjælpere", "Regnskab").Should().BeTrue();
+        _live.Kinds.Should().Contain("holdet");
+        var again = NewRooms().ById(hold.Id)!;
+        again.Members!.Single().About.Should().Be("Digitale hjælpere");
+        again.Topics.Should().Equal("Regnskab");
+    }
 }

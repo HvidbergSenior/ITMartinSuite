@@ -106,3 +106,12 @@ body { background: var(--k-bg); color: var(--k-text); }
 .fil-kort .hvem { margin: .15rem 0 0; }
 .gruppe-valg { display: flex; gap: .5rem; align-items: flex-start; margin-top: .75rem; font-size: 14px; }
 .gruppe-valg input { margin-top: .2rem; }
+
+/* Group: member list + topics (2026-11-09) */
+.login-liste { margin-bottom: 1rem; }
+.navne { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0; }
+.navne .k-btn { font-weight: 600; }
+.medlem.k-card { margin: 0; }
+.medlem h3 { margin: 0 0 .2rem; font-size: 16px; }
+.medlem.mig-selv { border-left: 4px solid var(--k-accent, currentColor); }
+.emne-titel { font-size: 15px; margin: 1rem 0 .25rem; }
