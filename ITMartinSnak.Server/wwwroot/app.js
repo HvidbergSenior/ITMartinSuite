@@ -273,8 +273,9 @@
         }
         const tab = store.get('snak_tab') || (shared() ? 'opg' : 'chat');
         show(['opg', 'fil'].includes(tab) || (tab === 'hold' && !$('tabHold').hidden) ? tab : 'chat');
-        loadMessages(); loadTasks(); loadFiles(); connect();
-        setupPush(false);
+        $('opsBoks').hidden = !admin;
+        loadMessages(); loadTasks(); loadFiles(); loadReads(); connect();
+        setupPush(false).finally(reportSeen);
     }
 
     // Martin closes the case here; everybody sees that it is closed and when the room goes.
@@ -311,7 +312,8 @@
             $(t).setAttribute('aria-selected', String(v === which));
         }
         if (which !== 'mig') store.set('snak_tab', which);
-        if (which === 'mig') { pushStatus(); openHomeGuide(); }
+        if (which === 'mig') { pushStatus(); openHomeGuide(); if (admin) loadSetup(); }
+        if (which === 'chat') reportSeen();
         if (which === 'fil') { store.set('snak_filer_set_' + roomKey, String(maxFileId())); renderFiles(); }
     }
     $('tabChat').onclick = () => show('chat');
@@ -326,7 +328,8 @@
         if (live) live.close();
         live = new EventSource(base + '/live');
         // "hej" comes on every (re)connect: fetch whatever was missed while the line was down.
-        live.addEventListener('hej', () => { loadMessages(); loadTasks(); loadFiles(); });
+        live.addEventListener('hej', () => { loadMessages(); loadTasks(); loadFiles(); loadReads(); });
+        live.addEventListener('set', e => { reads = JSON.parse(e.data); renderMessages(); });
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
         live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
@@ -341,6 +344,7 @@
         if (!$('rumside').hidden) { loadRooms(); return; }
         if ($('app').hidden) return;
         if (!live || live.readyState === 2) connect(); else { loadMessages(); loadTasks(); loadFiles(); }
+        reportSeen();
     });
 
     // ---------- chat ----------
@@ -364,6 +368,7 @@
         const before = box.scrollHeight, top = window.scrollY;
         renderMessages();
         if (top > 0) window.scrollTo(0, top + (box.scrollHeight - before));
+        reportSeen();
     }
 
     function renderMessages() {
@@ -371,6 +376,8 @@
         $('tomChat').hidden = msgs.length > 0;
         box.textContent = '';
         let day = '';
+        const mine = msgs.filter(m => admin ? !!m.host : (!m.host && m.name.toLowerCase() === navn.toLowerCase()));
+        const myNewest = mine.length ? mine[mine.length - 1].id : -1;
         for (let i = msgs.length - 1; i >= 0; i--) {
             const m = msgs[i];
             const when = new Date(m.at);
@@ -389,9 +396,93 @@
                 const col = document.createElement('div'); col.className = 'besked-kol'; col.append(meta, b);
                 row.append(avatar(m.name, 'lille'), col); el.appendChild(row);
             } else el.append(meta, b);
+            // "Set af": under your own newest message and under the newest message of all.
+            if ((me && m.id === myNewest) || i === msgs.length - 1) { const s = seenLine(m); if (s) el.appendChild(s); }
             box.appendChild(el);
         }
     }
+
+    // ---------- seen (2026-11-09) ----------
+    // The page tells the room how far this person has read (only while the chat is on the screen) and how the phone is
+    // set up, so the one who made the room can help. Everyone sees "Set af ..."; only the room's admin sees phone details.
+
+    let reads = [], seenTimer = 0;
+    async function loadReads() { try { reads = await api('GET', base + '/set'); renderMessages(); } catch { } }
+
+    function author(m) { return m.host ? vaert : m.name; }
+    function seenBy(m) {
+        const a = author(m).toLowerCase(), me = navn.toLowerCase();
+        return reads.filter(r => r.besked >= m.id && r.navn.toLowerCase() !== a && r.navn.toLowerCase() !== me).map(r => r.navn);
+    }
+    function seenLine(m) {
+        const who = seenBy(m);
+        if (!who.length) return null;
+        const d = document.createElement('details'); d.className = 'set-af';
+        const s = document.createElement('summary');
+        const list = who.length === 1 ? who[0] : who.slice(0, -1).join(', ') + ' og ' + who[who.length - 1];
+        if (who.length <= 3) { s.textContent = 'Set af ' + list; d.append(s); }
+        else { s.textContent = 'Set af ' + who.length + ' – tryk for at se hvem'; const p = document.createElement('div'); p.textContent = list; d.append(s, p); }
+        return d;
+    }
+
+    function pushState() {
+        if (inApp || !pushPossible) return 'kan-ikke';
+        if (store.get('snak_push_fra')) return 'fra';
+        if (Notification.permission === 'denied') return 'nej';
+        if (Notification.permission === 'default') return 'ikke-spurgt';
+        return endpoint ? 'til' : 'fra';
+    }
+    function reportSeen() {
+        clearTimeout(seenTimer);
+        seenTimer = setTimeout(() => {
+            if ($('app').hidden || !navn) return;
+            const reading = document.visibilityState === 'visible' && !$('viewChat').hidden;
+            api('POST', base + '/set', {
+                navn, besked: reading ? lastId : 0,
+                enhed: isIos ? 'iphone' : /android/i.test(navigator.userAgent) ? 'android' : 'computer',
+                hjem: standalone, push: pushState(), inApp,
+            }).catch(() => { });
+        }, 1200);
+    }
+
+    // The room admin's "Hvem er klar?" card under ⋯.
+    const pushText = { til: 'Beskeder: til', fra: 'Beskeder: slået fra', nej: 'Beskeder: har sagt nej', 'ikke-spurgt': 'Beskeder: ikke slået til endnu', 'kan-ikke': 'Beskeder: kan ikke på denne telefon' };
+    const deviceText = { iphone: 'iPhone', android: 'Android', computer: 'Computer' };
+    function advice(p) {
+        if (!p.sidstInde) return 'Har ikke åbnet linket endnu. Send linket igen.';
+        if (p.telefoner > 0) return '';
+        if (p.inApp) return 'Har åbnet Snak inde i Messenger/Facebook. Bed dem åbne linket i ' + (p.enhed === 'android' ? 'Chrome' : 'Safari') + '.';
+        if (p.enhed === 'iphone' && !p.hjem) return 'Snak skal på hjemmeskærmen, før iPhone kan give besked (menuen ⋯ eller ☰ → Del → Føj til hjemmeskærm).';
+        if (p.push === 'nej') return p.enhed === 'iphone' ? 'Har sagt nej. Indstillinger → Notifikationer → Snak → Tillad.' : 'Har sagt nej. Låsen ved adressen → Notifikationer → Tillad.';
+        return 'Bed dem trykke Slå beskeder til under ⋯.';
+    }
+    async function loadSetup() {
+        let d;
+        try { d = await api('GET', base + '/opsaetning'); } catch { return; }
+        const rows = d.folk.map(p => ({ ...p, raad: advice(p) }));
+        rows.sort((a, b) => (b.raad ? 1 : 0) - (a.raad ? 1 : 0) || a.navn.localeCompare(b.navn, 'da'));
+        const inde = rows.filter(p => p.sidstInde).length, besked = rows.filter(p => p.telefoner > 0).length;
+        $('opsSum').textContent = inde + ' af ' + rows.length + ' har været inde · ' + besked + ' får beskeder på telefonen.';
+        const box = $('opsListe'); box.textContent = '';
+        for (const p of rows) {
+            const c = document.createElement('div'); c.className = 'ops-raekke ' + (p.raad ? 'mangler' : 'klar');
+            const h = document.createElement('h3'); h.textContent = p.navn;
+            const f = document.createElement('div'); f.className = 'ops-fakta';
+            const facts = [];
+            if (p.sidstInde) {
+                const t = new Date(p.sidstInde);
+                facts.push('Sidst inde ' + dayFmt.format(t) + ' kl. ' + timeFmt.format(t));
+                facts.push(p.telefoner > 0 ? 'Beskeder: til' + (p.telefoner > 1 ? ' (' + p.telefoner + ' enheder)' : '') : (pushText[p.push] || 'Beskeder: fra'));
+                if (p.enhed) facts.push(deviceText[p.enhed] + (p.enhed !== 'computer' ? (p.hjem ? ' · på hjemmeskærmen' : ' · ikke på hjemmeskærmen') : ''));
+                facts.push(p.laest >= d.sidsteBesked ? 'Har læst alt' : 'Har ikke læst de nyeste beskeder');
+            } else facts.push('Ikke inde endnu');
+            for (const t of facts) { const sp = document.createElement('span'); sp.textContent = t; f.appendChild(sp); }
+            c.append(h, f);
+            if (p.raad) { const r = document.createElement('p'); r.className = 'ops-raad'; r.textContent = p.raad; c.appendChild(r); }
+            box.appendChild(c);
+        }
+    }
+    $('opsOpdater').onclick = loadSetup;
 
     async function send() {
         const t = $('tekst').value.trim();
@@ -812,7 +903,7 @@
         else s.textContent = 'Slået fra. Tryk Slå beskeder til, og sig Tillad.';
     }
 
-    $('pushTil').onclick = async () => { store.set('snak_push_fra', ''); await setupPush(true); pushStatus(); };
+    $('pushTil').onclick = async () => { store.set('snak_push_fra', ''); await setupPush(true); pushStatus(); reportSeen(); };
     $('pushFra').onclick = async () => {
         store.set('snak_push_fra', '1');
         try {
@@ -820,7 +911,7 @@
             const sub = await reg.pushManager.getSubscription();
             if (sub) { await api('POST', '/api/push/fra', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
         } catch { }
-        endpoint = ''; $('pushBar').hidden = true; pushStatus();
+        endpoint = ''; $('pushBar').hidden = true; pushStatus(); reportSeen();
     };
 
     function openHomeGuide() {

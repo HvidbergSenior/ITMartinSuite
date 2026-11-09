@@ -18,6 +18,7 @@ public sealed class Group
     private readonly List<Message> _messages;
     private readonly List<TaskItem> _tasks;
     private readonly List<SharedFile> _files;
+    private readonly List<Seen> _seen;
 
     public Group(IGroupStore store, ILiveFeed live, IPushSender push, TimeProvider clock, RoomContext room)
     {
@@ -25,6 +26,7 @@ public sealed class Group
         _messages = store.LoadMessages();
         _tasks = store.LoadTasks();
         _files = store.LoadFiles();
+        _seen = store.LoadSeen();
     }
 
     // ---- chat ----
@@ -52,6 +54,40 @@ public sealed class Group
         _push.SendToOthers(_room.Id, fromEndpoint, $"{m.Name} · {_room.Title}", m.Text, "snak-" + _room.Id, _room.Url);
         _room.Activity(true);
         return m;
+    }
+
+    // ---- seen (2026-11-09): how far each name has read, and how their phone is set up ----
+
+    /// <summary>Everyone in the room gets the read positions (names + message ids only, never the phone details).</summary>
+    public IReadOnlyList<object> ReadPositions()
+    {
+        lock (_gate) return _seen.Select(s => (object)new { navn = s.Name, besked = s.MessageId }).ToList();
+    }
+
+    public IReadOnlyList<Seen> SeenList()
+    {
+        lock (_gate) return _seen.ToList();
+    }
+
+    public Seen? MarkSeen(string? name, long messageId, string? device, bool homeScreen, string? push, bool inApp)
+    {
+        Seen merged;
+        bool moved;
+        lock (_gate)
+        {
+            var last = _messages.Count == 0 ? 0 : _messages[^1].Id;
+            var fresh = SeenRules.Clean(name, Math.Min(messageId, last), _clock.GetUtcNow().UtcDateTime, device, homeScreen, push, inApp);
+            if (fresh is null) return null;
+            var i = _seen.FindIndex(s => string.Equals(s.Name, fresh.Name, StringComparison.OrdinalIgnoreCase));
+            var old = i < 0 ? null : _seen[i];
+            merged = SeenRules.Merge(old, fresh);
+            if (!SeenRules.WorthSaving(old, merged)) return old;
+            if (i < 0) _seen.Add(merged); else _seen[i] = merged;
+            _store.SaveSeen(_seen);
+            moved = old is null || old.MessageId != merged.MessageId;
+        }
+        if (moved) _live.Send(_room.Id, "set", ReadPositions());
+        return merged;
     }
 
     // ---- tasks (the host makes them, everyone can take one) ----

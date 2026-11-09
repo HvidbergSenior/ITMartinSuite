@@ -12,6 +12,8 @@ public interface IGroupStore
     void SaveTasks(IReadOnlyList<TaskItem> tasks);
     List<SharedFile> LoadFiles();
     void SaveFiles(IReadOnlyList<SharedFile> files);
+    List<Seen> LoadSeen();
+    void SaveSeen(IReadOnlyList<Seen> seen);
     /// <summary>Writes the content; false (and nothing kept) when it is empty or bigger than <paramref name="maxBytes"/>.</summary>
     Task<bool> WriteContentAsync(string storedName, Stream content, long maxBytes, CancellationToken ct);
     Stream? OpenContent(string storedName);
@@ -44,4 +46,6 @@ public interface IPushSender
     /// <summary>To the room's phones and the host's phones, except the one that caused it; runs in the background.</summary>
     void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url);
     void ForgetRoom(string room);
+    /// <summary>Per name: how many phones get beskeder from this room (for the setup view).</summary>
+    IReadOnlyDictionary<string, int> PhonesPerName(string room);
 }

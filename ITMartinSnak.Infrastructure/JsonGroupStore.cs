@@ -9,7 +9,7 @@ namespace ITMartinSnak.Infrastructure;
 /// </summary>
 public sealed partial class JsonGroupStore : IGroupStore
 {
-    private readonly string _msgFile, _taskFile, _filesFile, _filesDir;
+    private readonly string _msgFile, _taskFile, _filesFile, _filesDir, _seenFile;
 
     public JsonGroupStore(string dir)
     {
@@ -18,6 +18,7 @@ public sealed partial class JsonGroupStore : IGroupStore
         _taskFile = Path.Combine(dir, "tasks.json");
         _filesFile = Path.Combine(dir, "files.json");
         _filesDir = Path.Combine(dir, "files");
+        _seenFile = Path.Combine(dir, "seen.json");
     }
 
     public List<Message> LoadMessages() => Json.Load<List<Message>>(_msgFile) ?? [];
@@ -26,6 +27,8 @@ public sealed partial class JsonGroupStore : IGroupStore
     public void SaveTasks(IReadOnlyList<TaskItem> tasks) => Json.Save(_taskFile, tasks);
     public List<SharedFile> LoadFiles() => Json.Load<List<SharedFile>>(_filesFile) ?? [];
     public void SaveFiles(IReadOnlyList<SharedFile> files) => Json.Save(_filesFile, files);
+    public List<Seen> LoadSeen() => Json.Load<List<Seen>>(_seenFile) ?? [];
+    public void SaveSeen(IReadOnlyList<Seen> seen) => Json.Save(_seenFile, seen);
 
     // Stored names are "<id>.<ext>" from FileRules.New - checked again here, so a path never leaves files/.
     [System.Text.RegularExpressions.GeneratedRegex(@"^[0-9]{1,9}\.[a-z0-9]{1,5}$")]

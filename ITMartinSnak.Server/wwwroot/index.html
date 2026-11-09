@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=15" />
+    <link rel="stylesheet" href="/app.css?v=16" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=16" defer></script>
+    <script src="/app.js?v=17" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -214,6 +214,14 @@
         </main>
 
         <main id="viewMig" class="view mig" hidden>
+            <!-- 2026-11-09: the room's admin sees who is in, who gets beskeder and how each phone is set up. -->
+            <section class="k-card" id="opsBoks" hidden>
+                <h2 class="k-card-title">Hvem er klar?</h2>
+                <p class="k-help">Her kan du se, hvem der har været inde, hvem der får beskeder, og hvem der mangler hjælp til at sætte Snak op. Øverst står dem, der mangler noget.</p>
+                <p id="opsSum"></p>
+                <div id="opsListe" class="ops-liste"></div>
+                <button class="k-btn k-btn-sm" id="opsOpdater" type="button">Opdater</button>
+            </section>
             <!-- Martin: the group's people and topics, pasted one per line. -->
             <section class="k-card" id="holdAdmin" hidden>
                 <h2 class="k-card-title">Holdet og emner</h2>
@@ -285,6 +293,7 @@
                 <h2 class="k-card-title">Om Snak</h2>
                 <p>Snak er et lille, privat rum til én sag. Kun dem med rummets link kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
                 <p>Under <b>Opgaver</b> lægger Martin det ud, der skal gøres. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
+                <p>Under den nyeste besked står der, hvem der har <b>set</b> den. Snak kan kun se, at du har haft chatten fremme – ikke om du har læst hvert ord.</p>
                 <p>Under <b>Filer</b> kan alle lægge dokumenter op og hente dem. Du kan selv slette de filer, du har lagt op.</p>
                 <p id="omSlet">Når sagen er klaret, bliver rummet slettet efter 14 dage.</p>
                 <p class="k-help">Spørgsmål eller noget der ikke virker: ITMartin@Mensa.dk · 31 19 47 30</p>

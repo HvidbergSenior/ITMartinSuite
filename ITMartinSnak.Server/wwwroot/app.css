@@ -157,3 +157,15 @@ body { background: var(--k-bg); color: var(--k-text); }
 .besked-kol { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
 @media (prefers-reduced-motion: reduce) { .gruppe .navne .k-btn { transition: none; } .gruppe .navne .k-btn:hover { transform: none; } }
+
+/* 2026-11-09 seen + setup view */
+.set-af { font-size: 12px; color: var(--k-muted); }
+.set-af summary { cursor: pointer; list-style: none; }
+.set-af summary::-webkit-details-marker { display: none; }
+.ops-liste { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 12px; }
+.ops-raekke { border: 1px solid var(--k-border); border-radius: 12px; padding: 8px 12px; }
+.ops-raekke.mangler { border-left: 4px solid var(--k-danger, #c2410c); }
+.ops-raekke.klar { border-left: 4px solid var(--k-success, #15803d); }
+.ops-raekke h3 { margin: 0 0 4px; font-size: 16px; }
+.ops-fakta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; }
+.ops-raad { margin: 6px 0 0; font-size: 14px; font-weight: 600; }

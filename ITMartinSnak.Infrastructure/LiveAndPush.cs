@@ -97,6 +97,13 @@ public sealed class WebPushSender : IPushSender
         lock (_gate) { if (_subs.RemoveAll(x => x.Room == room) > 0) Save(); }
     }
 
+    public IReadOnlyDictionary<string, int> PhonesPerName(string room)
+    {
+        lock (_gate)
+            return _subs.Where(s => s.Room == room).GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(s => s.Endpoint).Distinct().Count(), StringComparer.OrdinalIgnoreCase);
+    }
+
     private void Save() => File.WriteAllText(_subsFile, JsonSerializer.Serialize(_subs));
 
     /// <summary>To the room's phones and the host's phones, except the one that caused it. Runs in the background.</summary>

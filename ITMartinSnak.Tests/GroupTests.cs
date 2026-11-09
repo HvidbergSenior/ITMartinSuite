@@ -30,6 +30,8 @@ public class GroupTests
         public void Unsubscribe(string endpoint) { }
         public void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url) => Sent.Add((exceptEndpoint, title, body));
         public void ForgetRoom(string room) => Forgotten.Add(room);
+        public Dictionary<string, int> Phones = new(StringComparer.OrdinalIgnoreCase);
+        public IReadOnlyDictionary<string, int> PhonesPerName(string room) => Phones;
     }
 
     [SetUp]
@@ -370,5 +372,26 @@ public class GroupTests
         g.SetDone(1, true);   // done today: no more
         clock.Now = clock.Now.AddDays(1).AddMinutes(-31);
         g.SendReminders().Should().Be(1);   // next day it is open again
+    }
+
+    [Test]
+    public void Seen_only_moves_forward_and_is_kept_on_disk()
+    {
+        var g = NewGroup();
+        g.Write("Per", "Hej");
+        g.Write("Dorthe", "Hej Per");
+        g.MarkSeen("Per", 2, "iphone", true, "til", false)!.MessageId.Should().Be(2);
+        g.MarkSeen("per", 1, "iphone", true, "til", false)!.MessageId.Should().Be(2);   // a stale page never un-reads
+        g.MarkSeen("Per", 99, "iphone", true, "til", false)!.MessageId.Should().Be(2);  // never past the last message
+        _live.Kinds.Should().Contain("set");
+        NewGroup().SeenList().Should().ContainSingle(s => s.Name == "Per" && s.MessageId == 2 && s.Device == "iphone" && s.HomeScreen);
+    }
+
+    [Test]
+    public void Seen_cleans_what_the_page_says_about_the_phone()
+    {
+        var s = SeenRules.Clean(" Bent ", 3, DateTime.UtcNow, "Nokia", false, "måske", true)!;
+        (s.Name, s.Device, s.Push, s.InApp).Should().Be(("Bent", "", "", true));
+        SeenRules.Clean("", 1, DateTime.UtcNow, "iphone", true, "til", false).Should().BeNull();
     }
 }

@@ -227,6 +227,41 @@ room.MapPost("/beskeder", (HttpContext c, string key, MessageBody b, Rooms rooms
     return m is null ? Results.BadRequest(new { fejl = "Skriv dit navn og en besked." }) : Results.Json(m, web);
 });
 
+// Seen (2026-11-09): the page says how far it has read and how the phone is set up. Everyone gets the read positions;
+// only the room's admin (Martin or the tovholder) sees the setup view.
+room.MapGet("/set", (string key, Rooms rooms) =>
+    rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).ReadPositions(), web) : Results.NotFound());
+
+room.MapPost("/set", (HttpContext c, string key, SeenBody b, Rooms rooms, Access access) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    var name = IsRoomAdmin(c, access, r) ? HostName : b.Navn;
+    return rooms.GroupOf(r).MarkSeen(name, b.Besked, b.Enhed, b.Hjem, b.Push, b.InApp) is null ? Results.BadRequest() : Results.Ok();
+});
+
+room.MapGet("/opsaetning", (HttpContext c, string key, Rooms rooms, Access access, IPushSender push) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    if (!IsRoomAdmin(c, access, r)) return Results.Json(new { fejl = "Kun for tovholderen." }, statusCode: 403);
+    var g = rooms.GroupOf(r);
+    var seen = g.SeenList().ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+    var phones = push.PhonesPerName(r.Id);
+    var names = (r.Members ?? []).Concat(seen.Keys).Concat(phones.Keys)
+        .Where(n => !string.Equals(n, HostName, StringComparison.OrdinalIgnoreCase))
+        .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    var rows = names.Select(n =>
+    {
+        seen.TryGetValue(n, out var s);
+        return new
+        {
+            navn = n, medlem = (r.Members ?? []).Contains(n, StringComparer.OrdinalIgnoreCase),
+            sidstInde = s?.At, laest = s?.MessageId ?? 0, enhed = s?.Device ?? "", hjem = s?.HomeScreen ?? false,
+            push = s?.Push ?? "", inApp = s?.InApp ?? false, telefoner = phones.TryGetValue(n, out var p) ? p : 0,
+        };
+    });
+    return Results.Json(new { sidsteBesked = g.Last?.Id ?? 0, folk = rows }, web);
+});
+
 // Tasks: everyone in the room sees them and can put themselves on one; only Martin makes, edits and removes.
 room.MapGet("/opgaver", (string key, Rooms rooms) =>
     rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).Tasks(), web) : Results.NotFound());
@@ -359,6 +394,7 @@ public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null);
 public sealed record DoneBody(bool Faerdig);
 public sealed record TakeBody(string? Navn, string? Endpoint);
+public sealed record SeenBody(string? Navn, long Besked, string? Enhed, bool Hjem, string? Push, bool InApp);
 public sealed record PushBody(string? Endpoint, string? P256dh, string? Auth, string? Navn);
 
 // Every hour: rooms marked "klaret" more than 14 days ago are deleted (messages, tasks, phones).
