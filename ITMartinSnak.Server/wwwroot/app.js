@@ -870,7 +870,8 @@
             sec.hidden = links.length === 0;
             const row = sec.querySelector('.link-knapper'); row.textContent = '';
             for (const l of links) {
-                const a = document.createElement('a'); a.className = 'k-btn'; a.href = l.url; a.target = '_blank'; a.rel = 'noopener';
+                const a = document.createElement('a'); a.className = 'k-btn'; a.href = l.url;
+                if (/^https?:/.test(l.url)) { a.target = '_blank'; a.rel = 'noopener'; }
                 a.textContent = l.title; row.appendChild(a);
             }
         }

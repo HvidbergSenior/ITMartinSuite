@@ -432,4 +432,12 @@ public class GroupTests
         g.SetMyDone("Per", t.Id, false).Should().BeEmpty();
         g.SetMyDone("Per", 999, true).Should().BeNull();
     }
+
+    [Test]
+    public void Links_can_be_a_mail_or_a_phone()
+    {
+        var l = RosterRules.ParseLinks("Mail Michael – michael@talentmatch.dk\nRing til Michael – 24 24 55 77\nRing til Henrik: +45 20235184\nIngen tal 123");
+        l.Select(x => x.Url).Should().Equal("mailto:michael@talentmatch.dk", "tel:24245577", "tel:+4520235184");
+        l[1].Title.Should().Be("Ring til Michael");
+    }
 }
