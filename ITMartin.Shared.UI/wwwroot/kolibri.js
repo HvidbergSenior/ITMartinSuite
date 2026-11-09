@@ -144,8 +144,8 @@
     // User 2026-10-09: "way too much info" - only the steps for THIS device; the other devices fold away.
     function steps() {
         var btn = promptEvent ? '<button type="button" class="k-btn k-install-now">' + T('Installer ', 'Install ') + appName + '</button>' : '';
-        var ios = T('<li>Åbn siden i <b>Safari</b>.</li><li>Tryk <b>Del</b> ⬆︎ (eller <b>⋯</b> → Del).</li><li>Vælg <b>Føj til hjemmeskærm</b> → <b>Tilføj</b>.</li>',
-                    '<li>Open the page in <b>Safari</b>.</li><li>Tap <b>Share</b> ⬆︎ (or <b>⋯</b> → Share).</li><li>Choose <b>Add to Home Screen</b> → <b>Add</b>.</li>');
+        var ios = T('<li>Åbn siden i <b>Safari</b>.</li><li>Tryk <b>Del</b> ⬆︎ – eller menuen nederst til højre (<b>⋯</b> tre prikker eller <b>☰</b> tre streger) → <b>Del</b>.</li><li>Vælg <b>Føj til hjemmeskærm</b> → <b>Tilføj</b>.</li>',
+                    '<li>Open the page in <b>Safari</b>.</li><li>Tap <b>Share</b> ⬆︎ – or the menu bottom right (<b>⋯</b> three dots or <b>☰</b> three lines) → <b>Share</b>.</li><li>Choose <b>Add to Home Screen</b> → <b>Add</b>.</li>');
         var android = T('<li>Åbn siden i <b>Chrome</b>.</li><li>Tryk <b>⋮</b> øverst til højre.</li><li>Vælg <b>Føj til startskærm</b> → <b>Tilføj</b>.</li>',
                         '<li>Open the page in <b>Chrome</b>.</li><li>Tap <b>⋮</b> top right.</li><li>Choose <b>Add to Home screen</b> → <b>Add</b>.</li>');
         var pc = T('<li>Klik på installer-ikonet i adresselinjen – eller <b>⋮</b> / <b>···</b> → <b>Installer</b>.</li>',
