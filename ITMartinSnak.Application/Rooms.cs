@@ -105,7 +105,7 @@ public sealed class Rooms
     public bool Rename(string id, string? title) => Update(id, x => x with { Title = RoomRules.CleanTitle(title) });
 
     /// <summary>A group's people and topics (Martin pastes them, one per line). Everyone in the room sees the change at once.</summary>
-    public bool SetRoster(string id, string? membersText, string? topicsText, string? linksText = null)
+    public bool SetRoster(string id, string? membersText, string? topicsText, string? linksText = null, string? calendarUrl = null)
     {
         var people = RosterRules.ParseMembers(membersText);
         var topics = RosterRules.ParseTopics(topicsText);
@@ -114,8 +114,9 @@ public sealed class Rooms
         var about = people.Where(m => m.About.Length > 0).ToDictionary(m => m.Name, m => m.About);
         Room? after = null;
         if (!Update(id, x => after = x with { Members = names, About = about, Topics = topics,
-                Links = linksText is null ? x.Links : RosterRules.ParseLinks(linksText) })) return false;
-        _live.Send(id, "holdet", new { medlemmer = names, om = about, emner = topics, links = after?.Links ?? [] });
+                Links = linksText is null ? x.Links : RosterRules.ParseLinks(linksText),
+                CalendarUrl = calendarUrl is null ? x.CalendarUrl : CalendarRules.CleanUrl(calendarUrl) })) return false;
+        _live.Send(id, "holdet", new { medlemmer = names, om = about, emner = topics, links = after?.Links ?? [], harKalender = !string.IsNullOrEmpty(after?.CalendarUrl) });
         return true;
     }
 

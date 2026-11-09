@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=17" />
+    <link rel="stylesheet" href="/app.css?v=18" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=19" defer></script>
+    <script src="/app.js?v=20" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -123,6 +123,7 @@
             </div>
             <nav class="tabs" role="tablist">
                 <button role="tab" id="tabChat" aria-selected="true">Chat</button>
+                <button role="tab" id="tabKal" aria-selected="false" hidden>Kalender</button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
                 <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
                 <button role="tab" id="tabHold" aria-selected="false" hidden>Holdet</button>
@@ -136,6 +137,9 @@
         <!-- Shown until push works on this phone. -->
         <div id="pushBar" class="bar" hidden></div>
 
+        <!-- 2026-11-09: the next course day, on every tab (tap = the whole calendar). -->
+        <button type="button" id="naesteBar" class="bar naeste" hidden></button>
+
         <main id="viewChat" class="view chat">
             <!-- Like a Facebook group: write at the top, newest message right under it, older ones further down. -->
             <form id="skriv" class="skriv">
@@ -147,6 +151,14 @@
                 <strong>Ingen beskeder endnu</strong>
                 Skriv din første besked øverst og tryk Send. Martin får den med det samme.
             </div>
+        </main>
+
+        <!-- The course's own calendar (read from its .ics feed). -->
+        <main id="viewKal" class="view kal" hidden>
+            <p class="opg-intro">Kursets dage – hentet fra kursets egen kalender, så ændringer kommer med af sig selv.</p>
+            <div id="kalListe" class="opgaver"></div>
+            <details id="kalFoer" class="k-card" hidden><summary>Tidligere dage</summary><div id="kalFoerListe" class="opgaver"></div></details>
+            <p class="k-help" id="kalTom" hidden>Kalenderen kunne ikke hentes lige nu. Prøv igen om lidt.</p>
         </main>
 
         <main id="viewOpg" class="view opg" hidden>
@@ -231,6 +243,8 @@
                 <textarea class="k-textarea" id="holdMedlemmer" rows="8"></textarea>
                 <label class="k-label k-mt" for="holdEmner">Emner til filer – én pr. linje (fx workshops). "Andet" kommer selv til sidst.</label>
                 <textarea class="k-textarea" id="holdEmner" rows="6"></textarea>
+                <label class="k-label k-mt" for="holdKalender">Kursets kalender – adressen fra "Abonner på kalender" (webcal:// eller https://…ics)</label>
+                <input class="k-input" id="holdKalender" type="url" placeholder="webcal://calendar.google.com/…/basic.ics" />
                 <label class="k-label k-mt" for="holdLinks">Kursets sider – én pr. linje: <i>Navn – https://...</i> (bliver til knapper under Holdet og Filer)</label>
                 <textarea class="k-textarea" id="holdLinks" rows="4" placeholder="Kursets side – https://acceleratorkursus.dk"></textarea>
                 <div class="k-row k-mt">

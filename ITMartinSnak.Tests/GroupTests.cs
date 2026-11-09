@@ -402,4 +402,20 @@ public class GroupTests
         l.Select(x => x.Title).Should().Equal("Kursets side", "Log ind hold 36", "talentmatch.dk");
         l[1].Url.Should().Be("https://acceleratorkursus.dk/vinter2026");
     }
+
+    [Test]
+    public void Calendar_reads_the_course_feed_in_order()
+    {
+        const string ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20261111T073000Z\r\nDTEND:20261111T140000Z\r\nLOCATION:Damagervej 10\\, 8260 Viby J\r\nSUMMARY:Forretningsstrategi – Jeanette\r\n  Refstrup\r\nEND:VEVENT\r\n" +
+            "BEGIN:VEVENT\r\nDTSTART;TZID=Europe/Copenhagen:20261109T080000\r\nDTEND;TZID=Europe/Copenhagen:20261109T150000\r\nLOCATION:Vestergade 49B\\n8000 Aarhus C\r\nSUMMARY:Intro\r\nEND:VEVENT\r\n" +
+            "BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261218\r\nSUMMARY:Afslutning\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:no start\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        var e = CalendarRules.Parse(ics);
+        e.Select(x => x.Title).Should().Equal("Intro", "Forretningsstrategi – Jeanette Refstrup", "Afslutning");
+        e[0].StartUtc.Should().Be(new DateTime(2026, 11, 9, 7, 0, 0, DateTimeKind.Utc));   // 08:00 Danish winter time
+        e[0].Place.Should().Be("Vestergade 49B, 8000 Aarhus C");
+        e[1].Place.Should().Be("Damagervej 10, 8260 Viby J");
+        e[2].AllDay.Should().BeTrue();
+        CalendarRules.CleanUrl("webcal://calendar.google.com/x/basic.ics").Should().Be("https://calendar.google.com/x/basic.ics");
+        CalendarRules.CleanUrl("javascript:alert(1)").Should().Be("");
+    }
 }

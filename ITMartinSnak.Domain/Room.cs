@@ -13,7 +13,7 @@ namespace ITMartinSnak.Domain;
 // About = what each member works with (the Holdet tab), Topics = the workshops files are sorted under. Older rooms read as before.
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
     List<string>? Members = null, string CodeHash = "", string Slug = "", bool Gruppe = false, Dictionary<string, string>? About = null,
-    List<string>? Topics = null, List<RoomLink>? Links = null)
+    List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null)
 {
     public bool IsDone => DoneAt is not null;
     public bool HasCode => CodeHash.Length > 0;

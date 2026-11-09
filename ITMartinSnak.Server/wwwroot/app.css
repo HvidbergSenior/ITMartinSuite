@@ -171,3 +171,16 @@ body { background: var(--k-bg); color: var(--k-text); }
 .ops-raad { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
 .kursus-links .link-knapper { flex-wrap: wrap; gap: 8px; }
 .kursus-links .k-btn { text-decoration: none; }
+
+/* 2026-11-09 Kalender */
+.bar.naeste { display: block; width: 100%; text-align: left; font: inherit; font-weight: 600; cursor: pointer; border: 0; border-bottom: 1px solid var(--k-border); background: var(--k-accent-soft, var(--k-card)); color: var(--k-text); }
+.kal-dag.k-card { margin: 0; }
+.kal-dag h3 { margin: 2px 0 6px; font-size: 17px; }
+.kal-dato { font-size: 14px; color: var(--k-muted); text-transform: none; }
+.kal-dag.i-dag { border-left: 4px solid var(--k-accent, currentColor); }
+.kal-dag.i-dag .kal-dato { color: var(--k-text); font-weight: 700; }
+.kal-dag.forbi { opacity: .75; }
+.kal-sted { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.kal-sted .k-btn { text-decoration: none; }
+#kalFoer { margin-top: 12px; }
+#kalFoer summary { font-weight: 600; cursor: pointer; min-height: 32px; }

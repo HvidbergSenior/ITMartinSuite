@@ -274,11 +274,15 @@
             $('holdMedlemmer').value = (room.medlemmer || []).map(n => om[n] ? n + ' – ' + om[n] : n).join('\n');
             $('holdEmner').value = (room.emner || []).join('\n');
             $('holdLinks').value = (room.links || []).map(l => l.title + ' – ' + l.url).join('\n');
+            $('holdKalender').value = room.kalender || '';
         }
-        const tab = store.get('snak_tab') || (shared() ? 'opg' : 'chat');
-        show(['opg', 'fil'].includes(tab) || (tab === 'hold' && !$('tabHold').hidden) ? tab : 'chat');
+        calTabs();
+        // A course room opens on its calendar (the "front page"); a family room on its tasks; a customer on the chat.
+        const tab = store.get('snak_tab') || (hasCal() ? 'kal' : shared() && !isGroup() ? 'opg' : 'chat');
+        const ok = t => !$('tab' + t[0].toUpperCase() + t.slice(1)).hidden;
+        show(['kal', 'opg', 'fil', 'hold'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
         $('opsBoks').hidden = !admin;
-        loadMessages(); loadTasks(); loadFiles(); loadReads(); connect();
+        loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); connect();
         setupPush(false).finally(reportSeen);
     }
 
@@ -311,7 +315,7 @@
     // ---------- tabs ----------
 
     function show(which) {
-        for (const [v, t] of [['chat', 'tabChat'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['mig', 'tabMig']]) {
+        for (const [v, t] of [['chat', 'tabChat'], ['kal', 'tabKal'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['mig', 'tabMig']]) {
             $('view' + v[0].toUpperCase() + v.slice(1)).hidden = v !== which;
             $(t).setAttribute('aria-selected', String(v === which));
         }
@@ -322,6 +326,7 @@
     }
     $('tabChat').onclick = () => show('chat');
     $('tabOpg').onclick = () => show('opg');
+    $('tabKal').onclick = () => show('kal');
     $('tabFil').onclick = () => show('fil');
     $('tabHold').onclick = () => show('hold');
     $('tabMig').onclick = () => show('mig');
@@ -332,15 +337,15 @@
         if (live) live.close();
         live = new EventSource(base + '/live');
         // "hej" comes on every (re)connect: fetch whatever was missed while the line was down.
-        live.addEventListener('hej', () => { loadMessages(); loadTasks(); loadFiles(); loadReads(); });
+        live.addEventListener('hej', () => { loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); });
         live.addEventListener('set', e => { reads = JSON.parse(e.data); renderMessages(); });
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
         live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
         live.addEventListener('holdet', e => {
             const d = JSON.parse(e.data);
-            if (room) { room.medlemmer = d.medlemmer; room.om = d.om; room.emner = d.emner; room.links = d.links; }
-            renderRoster(); renderFiles();
+            if (room) { room.medlemmer = d.medlemmer; room.om = d.om; room.emner = d.emner; room.links = d.links; room.harKalender = d.harKalender; }
+            renderRoster(); renderFiles(); calTabs(); loadCalendar();
         });
     }
     document.addEventListener('visibilitychange', () => {
@@ -800,6 +805,71 @@
         }
     }
 
+    // ---------- kalender (2026-11-09) ----------
+    // A group room with the course's calendar shows Kalender instead of Opgaver, and the next day on every tab.
+
+    function hasCal() { return !!(room && room.harKalender); }
+    function calTabs() {
+        $('tabKal').hidden = !hasCal();
+        $('tabOpg').hidden = isGroup();   // a course group has no tasks (user 2026-11-09: "no opgaver here for a start")
+        if (($('tabKal').hidden && !$('viewKal').hidden) || ($('tabOpg').hidden && !$('viewOpg').hidden)) show(hasCal() ? 'kal' : 'chat');
+        if (!hasCal()) $('naesteBar').hidden = true;
+    }
+
+    const kalDag = new Intl.DateTimeFormat('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
+    const kalKort = new Intl.DateTimeFormat('da-DK', { weekday: 'short', day: 'numeric', month: 'short' });
+    let calEvents = [];
+    async function loadCalendar() {
+        if (!hasCal()) return;
+        try { calEvents = await api('GET', base + '/kalender'); } catch { calEvents = []; }
+        renderCalendar();
+    }
+    function sameDay(a, b) { return a.toDateString() === b.toDateString(); }
+    function span(e) {
+        const s = new Date(e.start), t = new Date(e.slut);
+        return e.heleDagen ? 'Hele dagen' : timeFmt.format(s) + '–' + timeFmt.format(t);
+    }
+    function mapsLink(place) {
+        const a = document.createElement('a'); a.className = 'k-btn k-btn-sm'; a.target = '_blank'; a.rel = 'noopener';
+        a.href = 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(place); a.textContent = 'Find vej';
+        return a;
+    }
+    function calCard(e, now) {
+        const s = new Date(e.start), c = document.createElement('article');
+        const today = sameDay(s, now), over = new Date(e.slut) < now;
+        c.className = 'k-card kal-dag' + (today ? ' i-dag' : '') + (over ? ' forbi' : '');
+        const d = document.createElement('div'); d.className = 'kal-dato';
+        d.textContent = (today ? 'I dag · ' : '') + kalDag.format(s) + ' · ' + span(e);
+        const h = document.createElement('h3'); h.textContent = e.titel;
+        c.append(d, h);
+        if (e.sted) {
+            const p = document.createElement('div'); p.className = 'kal-sted';
+            const t = document.createElement('span'); t.textContent = e.sted;
+            p.append(t, mapsLink(e.sted)); c.appendChild(p);
+        }
+        return c;
+    }
+    function renderCalendar() {
+        const now = new Date();
+        const coming = calEvents.filter(e => new Date(e.slut) >= now), past = calEvents.filter(e => new Date(e.slut) < now).reverse();
+        const box = $('kalListe'); box.textContent = '';
+        for (const e of coming) box.appendChild(calCard(e, now));
+        const pb = $('kalFoerListe'); pb.textContent = '';
+        for (const e of past) pb.appendChild(calCard(e, now));
+        $('kalFoer').hidden = past.length === 0;
+        $('kalTom').hidden = calEvents.length > 0;
+        if (!coming.length && calEvents.length) box.innerHTML = '<p class="k-help">Der er ikke flere kursusdage i kalenderen.</p>';
+        // The next day, on every tab.
+        const nb = $('naesteBar'), n = coming[0];
+        nb.hidden = !n;
+        if (n) {
+            const s = new Date(n.start);
+            nb.textContent = (new Date(n.start) <= now ? 'Nu: ' : sameDay(s, now) ? 'I dag: ' : 'Næste gang: ') + kalKort.format(s) + ' ' + span(n) + ' · ' + n.titel + (n.sted ? ' · ' + n.sted.split(',')[0] : '');
+            nb.onclick = () => show('kal');
+        }
+    }
+    setInterval(() => { if (hasCal() && !$('app').hidden) renderCalendar(); }, 60000);
+
     function renderRoster() {
         renderLinks();
         // Only a fixed group has the Holdet tab; a shared family room keeps its names at the door and on the tasks.
@@ -826,7 +896,7 @@
     $('holdGem').onclick = async () => {
         $('holdGem').disabled = true;
         try {
-            await api('PUT', '/api/rum/' + room.id + '/holdet', { medlemmer: $('holdMedlemmer').value, emner: $('holdEmner').value, links: $('holdLinks').value });
+            await api('PUT', '/api/rum/' + room.id + '/holdet', { medlemmer: $('holdMedlemmer').value, emner: $('holdEmner').value, links: $('holdLinks').value, kalender: $('holdKalender').value });
             room = await api('GET', base);
             renderRoster(); renderFiles();
             $('holdGemt').hidden = false; setTimeout(() => { $('holdGemt').hidden = true; }, 3000);

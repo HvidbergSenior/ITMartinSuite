@@ -11,6 +11,7 @@ public static class DependencyInjection
     {
         services.AddSingleton<IRoomStore>(sp => new JsonRoomStore(dataDir, sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton<ILiveFeed, SseLiveFeed>();
+        services.AddSingleton<ICalendarSource, HttpCalendarSource>();
         services.AddSingleton<IPushSender>(sp => new WebPushSender(dataDir, sp.GetRequiredService<ILogger<WebPushSender>>()));
         return services;
     }

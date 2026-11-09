@@ -10,6 +10,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(sp => new Rooms(sp.GetRequiredService<IRoomStore>(), sp.GetRequiredService<ILiveFeed>(),
             sp.GetRequiredService<IPushSender>(), sp.GetRequiredService<TimeProvider>(), publicUrl));
+        services.AddSingleton(sp => new Calendars(sp.GetRequiredService<ICalendarSource>(), sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton(sp => new Access(adminCode, apiKey, sp.GetRequiredService<TimeProvider>()));
         return services;
     }
