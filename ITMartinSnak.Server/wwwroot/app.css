@@ -169,3 +169,5 @@ body { background: var(--k-bg); color: var(--k-text); }
 .ops-raekke h3 { margin: 0 0 4px; font-size: 16px; }
 .ops-fakta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; }
 .ops-raad { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
+.kursus-links .link-knapper { flex-wrap: wrap; gap: 8px; }
+.kursus-links .k-btn { text-decoration: none; }

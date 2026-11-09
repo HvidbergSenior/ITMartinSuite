@@ -168,7 +168,7 @@ app.MapPut("/api/rum/{id}", (HttpContext c, string id, RoomBody b, Access access
 
 // A group's people ("Navn – hvad de laver", one per line) and topics (one per line). Martin only.
 app.MapPut("/api/rum/{id}/holdet", (HttpContext c, string id, RosterBody b, Access access, Rooms rooms) =>
-    !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetRoster(id, b.Medlemmer, b.Emner) ? Results.Ok() : Results.NotFound());
+    !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetRoster(id, b.Medlemmer, b.Emner, b.Links) ? Results.Ok() : Results.NotFound());
 
 app.MapDelete("/api/rum/{id}",(HttpContext c, string id, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.Delete(id) ? Results.Ok() : Results.NotFound());
@@ -198,7 +198,7 @@ room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSen
         {
             id = r.Id, titel = r.Title, klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsRoomAdmin(c, access, r), alleRum = IsAdmin(c, access),
             pushKey = push.PublicKey, vaert = HostName, medlemmer = r.Members ?? [], harKode = r.HasCode,
-            gruppe = r.Gruppe, om = r.About ?? [], emner = r.Topics ?? [],
+            gruppe = r.Gruppe, om = r.About ?? [], emner = r.Topics ?? [], links = r.Links ?? [],
         }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
 
@@ -389,7 +389,7 @@ static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentTyp
 public sealed record LoginBody(string? Kode);
 public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, string? Medlemmer = null, string? Kode = null, string? Adresse = null,
     bool Gruppe = false);
-public sealed record RosterBody(string? Medlemmer, string? Emner);
+public sealed record RosterBody(string? Medlemmer, string? Emner, string? Links = null);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null);
 public sealed record DoneBody(bool Faerdig);

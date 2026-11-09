@@ -5,9 +5,13 @@ namespace ITMartinSnak.Domain;
 // Topics = the workshops: a file is put under one, and the Filer tab is grouped by them. Martin sets both.
 public sealed record Member(string Name, string About);
 
+// 2026-11-09 "add links to the kursus in the app": the course's own pages (the teacher's material stays there, the room is
+// for the participants). Shown as buttons in the Holdet and Filer tabs.
+public sealed record RoomLink(string Title, string Url);
+
 public static class RosterRules
 {
-    public const int MaxMembers = 100, MaxAbout = 200, MaxTopics = 30, MaxTopic = 60;
+    public const int MaxMembers = 100, MaxAbout = 200, MaxTopics = 30, MaxTopic = 60, MaxLinks = 10;
     public const string OtherTopic = "Andet";
 
     private static readonly string[] Separators = [" – ", " — ", " - ", "\t", "|", ":"];
@@ -52,6 +56,26 @@ public static class RosterRules
     {
         var a = (asked ?? "").Trim();
         return topics?.FirstOrDefault(t => string.Equals(t, a, StringComparison.OrdinalIgnoreCase)) ?? "";
+    }
+
+    /// <summary>One link per line: "Titel – https://...". Only http(s); no title = the site's name. Duplicates go.</summary>
+    public static List<RoomLink> ParseLinks(string? text)
+    {
+        var list = new List<RoomLink>();
+        foreach (var raw in Lines(text))
+        {
+            var at = raw.IndexOf("http", StringComparison.OrdinalIgnoreCase);
+            if (at < 0) continue;
+            var url = raw[at..].Split(' ', '\t')[0];
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var u) || (u.Scheme != "https" && u.Scheme != "http")) continue;
+            var title = raw[..at].Trim().TrimEnd('–', '—', '-', '|', ':').Trim();
+            if (title.Length == 0) title = u.Host.StartsWith("www.") ? u.Host[4..] : u.Host;
+            if (title.Length > MaxTopic) title = title[..MaxTopic];
+            if (list.Any(l => l.Url == u.AbsoluteUri)) continue;
+            list.Add(new RoomLink(title, u.AbsoluteUri));
+            if (list.Count == MaxLinks) break;
+        }
+        return list;
     }
 
     public static string MembersText(IEnumerable<Member>? members) =>

@@ -105,15 +105,17 @@ public sealed class Rooms
     public bool Rename(string id, string? title) => Update(id, x => x with { Title = RoomRules.CleanTitle(title) });
 
     /// <summary>A group's people and topics (Martin pastes them, one per line). Everyone in the room sees the change at once.</summary>
-    public bool SetRoster(string id, string? membersText, string? topicsText)
+    public bool SetRoster(string id, string? membersText, string? topicsText, string? linksText = null)
     {
         var people = RosterRules.ParseMembers(membersText);
         var topics = RosterRules.ParseTopics(topicsText);
         // Members stays the plain name list (door buttons, "give the task to"); About holds what each one works with.
         var names = people.Select(m => m.Name).ToList();
         var about = people.Where(m => m.About.Length > 0).ToDictionary(m => m.Name, m => m.About);
-        if (!Update(id, x => x with { Members = names, About = about, Topics = topics })) return false;
-        _live.Send(id, "holdet", new { medlemmer = names, om = about, emner = topics });
+        Room? after = null;
+        if (!Update(id, x => after = x with { Members = names, About = about, Topics = topics,
+                Links = linksText is null ? x.Links : RosterRules.ParseLinks(linksText) })) return false;
+        _live.Send(id, "holdet", new { medlemmer = names, om = about, emner = topics, links = after?.Links ?? [] });
         return true;
     }
 

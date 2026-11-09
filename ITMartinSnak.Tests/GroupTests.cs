@@ -394,4 +394,12 @@ public class GroupTests
         (s.Name, s.Device, s.Push, s.InApp).Should().Be(("Bent", "", "", true));
         SeenRules.Clean("", 1, DateTime.UtcNow, "iphone", true, "til", false).Should().BeNull();
     }
+
+    [Test]
+    public void Links_are_one_per_line_and_only_web_addresses()
+    {
+        var l = RosterRules.ParseLinks("Kursets side – https://acceleratorkursus.dk\nLog ind hold 36: https://acceleratorkursus.dk/vinter2026\nhttps://www.talentmatch.dk\njavascript:alert(1)\nIngen adresse");
+        l.Select(x => x.Title).Should().Equal("Kursets side", "Log ind hold 36", "talentmatch.dk");
+        l[1].Url.Should().Be("https://acceleratorkursus.dk/vinter2026");
+    }
 }

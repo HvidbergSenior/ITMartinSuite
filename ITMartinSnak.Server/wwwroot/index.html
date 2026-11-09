@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=16" />
+    <link rel="stylesheet" href="/app.css?v=17" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=17" defer></script>
+    <script src="/app.js?v=18" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -191,6 +191,7 @@
         <!-- Documents (2026-11-09): everyone adds, everyone downloads. -->
         <main id="viewFil" class="view fil" hidden>
             <p class="opg-intro">Her ligger rummets dokumenter. Alle i rummet kan se og hente dem. Tryk på en fil for at åbne den.</p>
+            <section class="k-card kursus-links" hidden><h2 class="k-card-title">Kursets sider</h2><p class="k-help">Undervisningen og materialet ligger på kursets egen side. Her i Snak taler vi sammen på holdet.</p><div class="k-row link-knapper"></div></section>
             <form id="nyFil" class="k-card ny">
                 <h2 class="k-card-title">Læg en fil op</h2>
                 <p class="k-help">Tryk <b>Vælg fil</b> og find dokumentet på telefonen eller computeren (fx under <b>Filer</b> eller <b>Overførsler</b>). PDF, Word, Excel, PowerPoint, billeder og lyd/video – højst 25 MB pr. fil.</p>
@@ -210,6 +211,7 @@
         <!-- The group's people (like the course's kursistoversigt). -->
         <main id="viewHold" class="view hold" hidden>
             <p class="opg-intro" id="holdIntro"></p>
+            <section class="k-card kursus-links" hidden><h2 class="k-card-title">Kursets sider</h2><p class="k-help">Undervisningen og materialet ligger på kursets egen side. Her i Snak taler vi sammen på holdet.</p><div class="k-row link-knapper"></div></section>
             <div id="holdListe" class="opgaver"></div>
         </main>
 
@@ -229,6 +231,8 @@
                 <textarea class="k-textarea" id="holdMedlemmer" rows="8"></textarea>
                 <label class="k-label k-mt" for="holdEmner">Emner til filer – én pr. linje (fx workshops). "Andet" kommer selv til sidst.</label>
                 <textarea class="k-textarea" id="holdEmner" rows="6"></textarea>
+                <label class="k-label k-mt" for="holdLinks">Kursets sider – én pr. linje: <i>Navn – https://...</i> (bliver til knapper under Holdet og Filer)</label>
+                <textarea class="k-textarea" id="holdLinks" rows="4" placeholder="Kursets side – https://acceleratorkursus.dk"></textarea>
                 <div class="k-row k-mt">
                     <button class="k-btn k-btn-primary" id="holdGem" type="button">Gem</button>
                     <span class="k-help" id="holdGemt" hidden>Gemt – alle i rummet ser det nu.</span>

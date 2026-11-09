@@ -270,6 +270,7 @@
             const om = room.om || {};
             $('holdMedlemmer').value = (room.medlemmer || []).map(n => om[n] ? n + ' – ' + om[n] : n).join('\n');
             $('holdEmner').value = (room.emner || []).join('\n');
+            $('holdLinks').value = (room.links || []).map(l => l.title + ' – ' + l.url).join('\n');
         }
         const tab = store.get('snak_tab') || (shared() ? 'opg' : 'chat');
         show(['opg', 'fil'].includes(tab) || (tab === 'hold' && !$('tabHold').hidden) ? tab : 'chat');
@@ -335,7 +336,7 @@
         live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
         live.addEventListener('holdet', e => {
             const d = JSON.parse(e.data);
-            if (room) { room.medlemmer = d.medlemmer; room.om = d.om; room.emner = d.emner; }
+            if (room) { room.medlemmer = d.medlemmer; room.om = d.om; room.emner = d.emner; room.links = d.links; }
             renderRoster(); renderFiles();
         });
     }
@@ -783,7 +784,21 @@
 
     // ---------- the group's people (2026-11-09) ----------
 
+    // The course's own pages as buttons (Holdet + Filer). They open in a new tab, so the room stays open.
+    function renderLinks() {
+        const links = (room && room.links) || [];
+        for (const sec of document.querySelectorAll('.kursus-links')) {
+            sec.hidden = links.length === 0;
+            const row = sec.querySelector('.link-knapper'); row.textContent = '';
+            for (const l of links) {
+                const a = document.createElement('a'); a.className = 'k-btn'; a.href = l.url; a.target = '_blank'; a.rel = 'noopener';
+                a.textContent = l.title; row.appendChild(a);
+            }
+        }
+    }
+
     function renderRoster() {
+        renderLinks();
         // Only a fixed group has the Holdet tab; a shared family room keeps its names at the door and on the tasks.
         const people = (room && room.gruppe && room.medlemmer) || [];
         const om = (room && room.om) || {};
@@ -808,7 +823,7 @@
     $('holdGem').onclick = async () => {
         $('holdGem').disabled = true;
         try {
-            await api('PUT', '/api/rum/' + room.id + '/holdet', { medlemmer: $('holdMedlemmer').value, emner: $('holdEmner').value });
+            await api('PUT', '/api/rum/' + room.id + '/holdet', { medlemmer: $('holdMedlemmer').value, emner: $('holdEmner').value, links: $('holdLinks').value });
             room = await api('GET', base);
             renderRoster(); renderFiles();
             $('holdGemt').hidden = false; setTimeout(() => { $('holdGemt').hidden = true; }, 3000);
