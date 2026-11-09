@@ -286,7 +286,89 @@ public class GroupTests
         rooms.SetRoster(hold.Id, "Martin Hvidberg – Digitale hjælpere", "Regnskab").Should().BeTrue();
         _live.Kinds.Should().Contain("holdet");
         var again = NewRooms().ById(hold.Id)!;
-        again.Members!.Single().About.Should().Be("Digitale hjælpere");
+        again.Members.Should().Equal("Martin Hvidberg");   // the door's name buttons
+        again.About!["Martin Hvidberg"].Should().Be("Digitale hjælpere");
         again.Topics.Should().Equal("Regnskab");
+        again.Gruppe.Should().BeTrue();
+    }
+
+    // ---- shared rooms + today + reminders (2026-11-08, the room around Sonja) ----
+
+    [Test]
+    public void A_shared_room_has_names_an_easy_address_and_its_own_admin_code()
+    {
+        var rooms = NewRooms();
+        var r = rooms.Create("Omkring Sonja", null, "Vibz, Dorthe; Mette, Bent, dorthe", "TestKode99", "Sonja");
+        r.Members.Should().Equal("Vibz", "Dorthe", "Mette", "Bent");
+        r.Slug.Should().Be("sonja");
+        r.CodeHash.Should().NotContain("TestKode99");
+        rooms.EasyLink(r).Should().Be("https://snak.test/sonja");
+        NewRooms().BySlug("SONJA")!.Id.Should().Be(r.Id);   // survives a restart
+
+        var act = () => rooms.Create("To", slug: "sonja");
+        act.Should().Throw<InvalidOperationException>();
+        RoomRules.CleanSlug("api").Should().BeEmpty();
+
+        var a = new Access("RicoAdmin", "", TimeProvider.System);
+        a.RoomLogin(r, "TestKode99", "1.1.1.1").Should().Be(LoginResult.Admin);
+        a.RoomLogin(r, "forkert", "1.1.1.1").Should().Be(LoginResult.Wrong);
+        a.IsRoomAdmin(r, null, r.CodeHash).Should().BeTrue();
+        a.IsRoomAdmin(rooms.Create("Andet rum"), null, r.CodeHash).Should().BeFalse();   // only that room
+    }
+
+    [Test]
+    public void A_task_given_to_someone_has_their_name_on_it_and_they_get_told()
+    {
+        var g = NewGroup();
+        var t = g.AddTask("Ring til Sonja om pillerne", "", "08:00", to: "Dorthe", daily: true)!;
+        t.Takers.Should().Equal("Dorthe");
+        _push.Sent.Last().Title.Should().StartWith("Ny opgave til Dorthe");
+
+        g.EditTask(t.Id, t.Title, "", "08:00")!.Takers.Should().Equal("Dorthe");   // null = keep
+        g.EditTask(t.Id, t.Title, "", "08:00", to: "Bent")!.Takers.Should().Equal("Bent");
+        _push.Sent.Last().Title.Should().StartWith("Opgave til Bent");
+        g.EditTask(t.Id, t.Title, "", "08:00", to: "")!.Takers.Should().BeEmpty();
+    }
+
+    [Test]
+    public void Today_shows_daily_and_todays_tasks_and_a_daily_tick_only_lasts_that_day()
+    {
+        var today = new DateOnly(2026, 11, 8);
+        var daily = GroupRules.NewTask([], "Medicin", "", "08:00", DateTime.UtcNow, daily: true)!;
+        var monday = GroupRules.NewTask([], "Læge", "", "10:00", DateTime.UtcNow, day: "2026-11-09")!;
+        var free = GroupRules.NewTask([], "Køb mælk", "", "", DateTime.UtcNow)!;
+        GroupRules.IsToday(daily, today).Should().BeTrue();
+        GroupRules.IsToday(monday, today).Should().BeFalse();
+        GroupRules.IsToday(monday, today.AddDays(1)).Should().BeTrue();
+        GroupRules.IsToday(free, today).Should().BeTrue();
+
+        var ticked = GroupRules.SetDone(daily, true, today);
+        ticked.Done.Should().BeFalse();
+        ticked.DoneOn.Should().Be("2026-11-08");   // tomorrow it is open again
+        GroupRules.SetDone(free, true, today).Done.Should().BeTrue();
+        GroupRules.IsToday(GroupRules.SetDone(free, true, today), today).Should().BeFalse();
+    }
+
+    [Test]
+    public void Reminders_go_out_an_hour_and_half_an_hour_before_and_only_once()
+    {
+        // 07:00 UTC = 08:00 in Copenhagen (winter time).
+        var clock = new FakeClock(new DateTime(2026, 11, 8, 7, 0, 0, DateTimeKind.Utc));
+        var g = new Group(new JsonGroupStore(_dir), _live, _push, clock, new RoomContext("abc", "Sonja", "/r/x", _ => { }));
+        g.AddTask("Medicin", "", "09:00", to: "Mette", daily: true);
+        g.AddTask("Uden klokkeslæt", "", "", daily: true);
+        _push.Sent.Clear();
+
+        g.SendReminders().Should().Be(1);
+        _push.Sent.Single().Body.Should().Be("Om en time (kl. 09:00): Medicin – Mette");
+        g.SendReminders().Should().Be(0);   // not twice
+
+        clock.Now = clock.Now.AddMinutes(31);
+        g.SendReminders().Should().Be(1);
+        _push.Sent.Last().Body.Should().StartWith("Om 30 minutter");
+
+        g.SetDone(1, true);   // done today: no more
+        clock.Now = clock.Now.AddDays(1).AddMinutes(-31);
+        g.SendReminders().Should().Be(1);   // next day it is open again
     }
 }

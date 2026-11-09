@@ -107,25 +107,39 @@ public sealed class Group
         lock (_gate) return _tasks.Select(GroupRules.Copy).ToList();
     }
 
-    public TaskItem? AddTask(string? title, string? note, string? when, string? fromEndpoint = null)
+    // Danish time decides what "today" is (the server runs in UTC).
+    private static readonly TimeZoneInfo Dk = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(_clock.GetUtcNow().UtcDateTime, Dk));
+
+    public TaskItem? AddTask(string? title, string? note, string? when, string? fromEndpoint = null, string? to = null, string? day = null, bool daily = false)
     {
         TaskItem? t;
         lock (_gate)
         {
-            t = GroupRules.NewTask(_tasks, title, note, when, _clock.GetUtcNow().UtcDateTime);
+            t = GroupRules.NewTask(_tasks, title, note, when, _clock.GetUtcNow().UtcDateTime, to, day, daily);
             if (t is null) return null;
             _tasks.Add(t);
             _store.SaveTasks(_tasks);
         }
         TasksChanged();
-        _push.SendToOthers(_room.Id, fromEndpoint, "Ny opgave · " + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
+        var head = t.Takers.Count > 0 ? $"Ny opgave til {t.Takers[0]} · " : "Ny opgave · ";
+        _push.SendToOthers(_room.Id, fromEndpoint, head + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
         _room.Activity(false);
         return GroupRules.Copy(t);
     }
 
-    public TaskItem? EditTask(long id, string? title, string? note, string? when) => Change(id, t => GroupRules.Edit(t, title, note, when));
+    /// <param name="to">null = keep who has it; "" = nobody; a name = give it to that person (they get a push).</param>
+    public TaskItem? EditTask(long id, string? title, string? note, string? when, string? to = null, string? fromEndpoint = null, string? day = null, bool? daily = null)
+    {
+        string? before;
+        lock (_gate) before = _tasks.FirstOrDefault(x => x.Id == id) is { } old ? string.Join(",", old.Takers) : null;
+        var t = Change(id, x => GroupRules.Edit(x, title, note, when, to, day, daily));
+        if (t is not null && to is not null && t.Takers.Count > 0 && string.Join(",", t.Takers) != before)
+            _push.SendToOthers(_room.Id, fromEndpoint, $"Opgave til {t.Takers[0]} · " + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
+        return t;
+    }
 
-    public TaskItem? SetDone(long id, bool done) => Change(id, t => t with { Done = done });
+    public TaskItem? SetDone(long id, bool done) => Change(id, t => GroupRules.SetDone(t, done, Today));
 
     public TaskItem? ToggleTaker(long id, string? name, string? fromEndpoint = null)
     {
@@ -225,11 +239,32 @@ public sealed class Group
     }
 
     private void FilesChanged() => _live.Send(_room.Id, "filer", Files());
+
+    // Reminders already sent: "taskId|date|minutes". In memory - after a restart at most one repeat inside the 10-minute window.
+    private readonly HashSet<string> _reminded = [];
+
+    /// <summary>Pushes the reminders that are due now to every phone in the room. Returns how many went out.</summary>
+    public int SendReminders()
+    {
+        var now = TimeZoneInfo.ConvertTimeFromUtc(_clock.GetUtcNow().UtcDateTime, Dk);
+        var due = new List<(TaskItem T, int M)>();
+        lock (_gate)
+        {
+            foreach (var t in _tasks)
+                foreach (var m in GroupRules.DueReminders(t, now))
+                    if (_reminded.Add($"{t.Id}|{now:yyyy-MM-dd}|{m}")) due.Add((GroupRules.Copy(t), m));
+            if (_reminded.Count > 5000) _reminded.Clear();
+        }
+        foreach (var (t, m) in due)
+            _push.SendToOthers(_room.Id, null, "Påmindelse · " + _room.Title, GroupRules.ReminderText(t, m), $"snak-pam-{_room.Id}-{t.Id}", _room.Url);
+        return due.Count;
+    }
 }
 
 // What the host's overview shows per room.
 public sealed record RoomSummary(string Id, string Key, string Title, string CustomerRef, DateTime CreatedAt, DateTime LastAt,
-    DateTime? DoneAt, DateTime? DeleteAt, bool Waiting, string LastName, string LastText, bool Gruppe);
+    DateTime? DoneAt, DateTime? DeleteAt, bool Waiting, string LastName, string LastText, IReadOnlyList<string> Members, bool HasCode, string Slug,
+    bool Gruppe);
 
 // All rooms. Martin makes them (or Kunder / itmartin.dk through the API key); the link with the key is the way in.
 public sealed class Rooms
@@ -251,11 +286,15 @@ public sealed class Rooms
 
     public string Link(Room r) => $"{_publicUrl}/r/{r.Key}";
 
-    public Room Create(string? title, string? customerRef = null, bool group = false)
+    public string? EasyLink(Room r) => r.Slug.Length > 0 ? $"{_publicUrl}/{r.Slug}" : null;
+
+    public Room Create(string? title, string? customerRef = null, string? members = null, string? adminCode = null, string? slug = null,
+        bool group = false)
     {
-        var r = RoomRules.New(title, customerRef, _clock.GetUtcNow().UtcDateTime, group);
+        var r = RoomRules.New(title, customerRef, _clock.GetUtcNow().UtcDateTime, members, adminCode, slug, group);
         lock (_gate)
         {
+            if (r.Slug.Length > 0 && _rooms.Any(x => x.Slug == r.Slug)) throw new InvalidOperationException($"Adressen /{r.Slug} er allerede brugt.");
             if (_rooms.Count >= RoomRules.MaxRooms) throw new InvalidOperationException("Der er for mange rum. Slet nogle gamle først.");
             _rooms.Add(r);
             _store.SaveRooms(_rooms);
@@ -267,6 +306,13 @@ public sealed class Rooms
     {
         if (!RoomRules.ValidKey(key)) return null;
         lock (_gate) return _rooms.FirstOrDefault(r => r.Key == key);
+    }
+
+    public Room? BySlug(string? slug)
+    {
+        var s = RoomRules.CleanSlug(slug);
+        if (s.Length == 0) return null;
+        lock (_gate) return _rooms.FirstOrDefault(r => r.Slug == s);
     }
 
     public Room? ById(string? id)
@@ -288,9 +334,18 @@ public sealed class Rooms
                 var g = GroupOf(r);
                 var last = g.Last;
                 return new RoomSummary(r.Id, r.Key, r.Title, r.CustomerRef, r.CreatedAt, r.LastAt, r.DoneAt, r.DeleteAt,
-                    !r.IsDone && g.Waiting, last?.Name ?? "", last is null ? "" : last.Text.Length > 120 ? last.Text[..120] + "…" : last.Text, r.Gruppe);
+                    !r.IsDone && g.Waiting, last?.Name ?? "", last is null ? "" : last.Text.Length > 120 ? last.Text[..120] + "…" : last.Text,
+                    r.Members ?? [], r.HasCode, r.Slug, r.Gruppe);
             })
             .OrderByDescending(s => s.Waiting).ThenBy(s => s.DoneAt is not null).ThenByDescending(s => s.LastAt).ToList();
+    }
+
+    /// <summary>Every minute: reminders before today's tasks, in every open room.</summary>
+    public int SendReminders()
+    {
+        List<Room> rooms;
+        lock (_gate) rooms = _rooms.Where(r => !r.IsDone).ToList();
+        return rooms.Sum(r => GroupOf(r).SendReminders());
     }
 
     /// <summary>"Sagen er klaret": says so in the room, and the room is deleted 14 days later.</summary>
@@ -310,10 +365,13 @@ public sealed class Rooms
     /// <summary>A group's people and topics (Martin pastes them, one per line). Everyone in the room sees the change at once.</summary>
     public bool SetRoster(string id, string? membersText, string? topicsText)
     {
-        var members = RosterRules.ParseMembers(membersText);
+        var people = RosterRules.ParseMembers(membersText);
         var topics = RosterRules.ParseTopics(topicsText);
-        if (!Update(id, x => x with { Members = members, Topics = topics })) return false;
-        _live.Send(id, "holdet", new { medlemmer = members, emner = topics });
+        // Members stays the plain name list (door buttons, "give the task to"); About holds what each one works with.
+        var names = people.Select(m => m.Name).ToList();
+        var about = people.Where(m => m.About.Length > 0).ToDictionary(m => m.Name, m => m.About);
+        if (!Update(id, x => x with { Members = names, About = about, Topics = topics })) return false;
+        _live.Send(id, "holdet", new { medlemmer = names, om = about, emner = topics });
         return true;
     }
 
@@ -377,13 +435,22 @@ public sealed class Access(string adminCode, string apiKey, TimeProvider clock)
     public bool IsAdmin(string? adminCookie) => adminCode.Length >= AccessRules.MinAdminCode && adminCookie == AdminToken;
     public bool IsApi(string? key) => apiKey.Length >= 16 && key == apiKey;
 
-    public LoginResult Login(string? typed, string clientIp)
+    /// <summary>Admin in this room: Martin's own code (every room), or the room's own admin password (2026-11-08, only that room).</summary>
+    public bool IsRoomAdmin(Room r, string? adminCookie, string? roomCookie) =>
+        IsAdmin(adminCookie) || (r.HasCode && roomCookie == r.CodeHash);
+
+    public LoginResult Login(string? typed, string clientIp) =>
+        Check(clientIp, () => adminCode.Length >= AccessRules.MinAdminCode && (typed ?? "").Trim() == adminCode);
+
+    /// <summary>The room's own admin password - same lockout as Martin's code (10 wrong tries = 15 minutes).</summary>
+    public LoginResult RoomLogin(Room r, string? typed, string clientIp) => Check(clientIp, () => RoomRules.CodeMatches(r, typed));
+
+    private LoginResult Check(string clientIp, Func<bool> right)
     {
         var now = clock.GetUtcNow().UtcDateTime;
         if (_wrong.TryGetValue(clientIp, out var w) && w.Count >= AccessRules.MaxWrongTries && now - w.First < AccessRules.WrongTriesWindow)
             return LoginResult.Locked;
-        var code = (typed ?? "").Trim();
-        if (adminCode.Length >= AccessRules.MinAdminCode && code == adminCode) { _wrong.TryRemove(clientIp, out _); return LoginResult.Admin; }
+        if (right()) { _wrong.TryRemove(clientIp, out _); return LoginResult.Admin; }
         _wrong.AddOrUpdate(clientIp, _ => (1, now),
             (_, old) => now - old.First > AccessRules.WrongTriesWindow ? (1, now) : (old.Count + 1, old.First));
         return LoginResult.Wrong;

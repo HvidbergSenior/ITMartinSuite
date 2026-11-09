@@ -115,3 +115,9 @@ body { background: var(--k-bg); color: var(--k-text); }
 .medlem h3 { margin: 0 0 .2rem; font-size: 16px; }
 .medlem.mig-selv { border-left: 4px solid var(--k-accent, currentColor); }
 .emne-titel { font-size: 15px; margin: 1rem 0 .25rem; }
+/* Shared rooms (2026-11-08): tap your own name at the door */
+.navne { display: flex; flex-wrap: wrap; gap: 8px; }
+.navne .k-btn { flex: 1 1 40%; min-height: 48px; }
+.idag-titel { margin: 0 0 4px; font-size: 22px; }
+.idag-titel::first-letter { text-transform: uppercase; }
+#andreDage > summary { font-weight: 700; cursor: pointer; min-height: 40px; }

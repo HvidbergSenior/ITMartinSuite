@@ -13,7 +13,7 @@
     const roomKey = keyMatch ? keyMatch[1] : '';
     const base = roomKey ? '/api/r/' + roomKey : '';
     let navn = store.get('snak_navn');
-    let admin = false, pushKey = '', endpoint = '', vaert = 'Martin', room = null;
+    let admin = false, alleRum = false, pushKey = '', endpoint = '', vaert = 'Martin', room = null;
     let lastId = 0, tasks = [], editId = 0, live = null;
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -58,7 +58,7 @@
                 const r = await fetch(base, { credentials: 'same-origin' });
                 if (r.status === 404) return showOnly('vaek');
                 room = await r.json();
-                admin = !!room.admin; pushKey = room.pushKey || ''; vaert = room.vaert || 'Martin';
+                admin = !!room.admin; alleRum = !!room.alleRum; pushKey = room.pushKey || ''; vaert = room.vaert || 'Martin';
                 store.set('snak_rum', roomKey);   // a phone that opens "/" (home-screen icon) comes back here
                 document.title = room.titel + ' · Snak';
                 if (admin) navn = vaert;
@@ -66,7 +66,7 @@
                 return enter();
             }
             const me = await (await fetch('/api/me', { credentials: 'same-origin' })).json();
-            admin = !!me.admin; pushKey = me.pushKey || ''; vaert = me.vaert || 'Martin';
+            admin = alleRum = !!me.admin; pushKey = me.pushKey || ''; vaert = me.vaert || 'Martin';
             if (admin) return showRooms();
             const last = store.get('snak_rum');
             if (last) { location.replace('/r/' + last); return; }
@@ -77,23 +77,33 @@
     function showLogin() {
         showOnly('login');
         $('loginTitel').textContent = room ? room.titel : 'Snak';
-        if (room && room.gruppe) {
-            $('loginLead').textContent = 'Her skriver holdet sammen og deler dokumenter. Vælg dit navn, så de andre kan se, hvem der skriver.';
-            $('loginHjaelp').textContent = 'Det er det navn, de andre ser ved dine beskeder og filer.';
-        }
-        const people = (room && room.medlemmer) || [];
-        $('loginListe').hidden = people.length === 0;
-        const box = $('loginNavne');
-        box.textContent = '';
-        for (const m of people) {
-            const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn'; b.textContent = m.name;
-            b.onclick = () => { $('loginNavn').value = m.name; $('loginForm').requestSubmit(); };
-            box.appendChild(b);
-        }
         // From "Skriv til mig" on itmartin.dk the name comes along (?navn=) - one tap, which also asks for notifications.
         const fra = new URLSearchParams(location.search).get('navn');
         $('loginNavn').value = navn || (fra || '').slice(0, 60);
+        // Shared room: the names as big buttons - one tap goes in (and asks for notifications inside that tap).
+        const box = $('loginNavne');
+        box.textContent = '';
+        const names = shared() ? room.medlemmer : [];
+        box.hidden = !names.length;
+        for (const n of names) {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn'; b.textContent = n;
+            b.onclick = () => { $('loginNavn').value = n; $('loginForm').requestSubmit(); };
+            box.appendChild(b);
+        }
+        if (names.length) {
+            $('loginLead').textContent = 'Her skriver I sammen og ser, hvem der gør hvad. Tryk på dit navn.';
+            document.querySelector('label[for=loginNavn]').textContent = 'Eller skriv dit navn';
+            document.querySelector('#loginNavn + .k-help').textContent = 'Det er det navn, de andre ser ved dine beskeder.';
+            document.querySelector('#loginFejl + .k-help').innerHTML = 'Når du går ind, spørger telefonen, om Snak må give dig besked. Sig <b>Tillad</b>, så får du besked om nye opgaver og påmindelser.';
+        }
+        // A fixed group (a course team, a club): the door speaks to the group (2026-11-09).
+        if (room && room.gruppe) {
+            $('loginLead').textContent = 'Her skriver holdet sammen og deler dokumenter. ' + (names.length ? 'Tryk på dit navn.' : 'Skriv dit navn.');
+            document.querySelector('#loginNavn + .k-help').textContent = 'Det er det navn, de andre ser ved dine beskeder og filer.';
+        }
     }
+
+    function shared() { return !!(room && room.medlemmer && room.medlemmer.length); }
 
     $('loginForm').addEventListener('submit', async e => {
         e.preventDefault();
@@ -198,13 +208,13 @@
     $('nytRum').addEventListener('submit', async e => {
         e.preventDefault();
         try {
-            const r = await api('POST', '/api/rum', { titel: $('rumTitel').value, gruppe: $('rumGruppe').checked });
-            $('rumTitel').value = ''; $('rumGruppe').checked = false;
+            const r = await api('POST', '/api/rum', { titel: $('rumTitel').value, medlemmer: $('rumMedlemmer').value, kode: $('rumKode').value, adresse: $('rumAdresse').value, gruppe: $('rumGruppe').checked });
+            $('rumTitel').value = ''; $('rumMedlemmer').value = ''; $('rumKode').value = ''; $('rumAdresse').value = ''; $('rumGruppe').checked = false;
             const box = $('nytLink');
             box.textContent = '';
-            const p = document.createElement('p'); p.textContent = 'Rummet "' + r.titel + '" er klar. Send linket til kunden:';
-            const code = document.createElement('code'); code.textContent = r.link;
-            box.append(p, code, copyButton(r.link, r.titel));
+            const p = document.createElement('p'); p.textContent = 'Rummet "' + r.titel + '" er klar. Send linket til dem, der skal med:';
+            const code = document.createElement('code'); code.textContent = r.nemLink || r.link;
+            box.append(p, code, copyButton(r.nemLink || r.link, r.titel));
             box.hidden = false;
             loadRooms();
         } catch (err) { if (err.message !== 'login') alertBar(err.message); }
@@ -221,24 +231,29 @@
         showOnly('app');
         $('rumNavn').textContent = room ? room.titel : 'Snak';
         $('hvem').textContent = navn;
-        $('tilbage').hidden = !admin;
+        $('tilbage').hidden = !alleRum;
         $('tilbage').onclick = () => { location.href = '/'; };
         $('nytNavn').value = navn;
         $('hjemKnap').hidden = standalone || inApp;
         $('hjemKnap').onclick = () => show('mig');
         $('nyOpg').hidden = !admin;
+        $('tovBoks').hidden = admin || !(room && room.harKode);
+        fillTil('');
         $('opgIntro').textContent = admin
-            ? 'Læg opgaver ud her. Kunden ser dem og trykker "Jeg tager den". Du kan se, hvem der har taget hvad.'
-            : 'Her er det, der skal gøres. Tryk "Jeg tager den" på en opgave, så ved Martin, at du gør den.';
+            ? (shared() ? 'Læg opgaver ud her, og giv dem til en – eller lad den, der har tid, tage den. Alle får besked.'
+                        : 'Læg opgaver ud her. Kunden ser dem og trykker "Jeg tager den". Du kan se, hvem der har taget hvad.')
+            : shared() ? 'Her er det, der skal gøres. Står dit navn på en opgave, er den din. Tryk "Jeg tager den" på en, der mangler nogen.'
+                       : 'Her er det, der skal gøres. Tryk "Jeg tager den" på en opgave, så ved Martin, at du gør den.';
         $('omSlet').hidden = !!(room && room.gruppe);
         klaretBar();
         renderRoster();
-        $('holdAdmin').hidden = !(admin && room && room.gruppe);
-        if (admin && room && room.gruppe) {
-            $('holdMedlemmer').value = (room.medlemmer || []).map(m => m.about ? m.name + ' – ' + m.about : m.name).join('\n');
+        $('holdAdmin').hidden = !(alleRum && room && room.gruppe);
+        if (alleRum && room && room.gruppe) {
+            const om = room.om || {};
+            $('holdMedlemmer').value = (room.medlemmer || []).map(n => om[n] ? n + ' – ' + om[n] : n).join('\n');
             $('holdEmner').value = (room.emner || []).join('\n');
         }
-        const tab = store.get('snak_tab') || 'chat';
+        const tab = store.get('snak_tab') || (shared() ? 'opg' : 'chat');
         show(['opg', 'fil'].includes(tab) || (tab === 'hold' && !$('tabHold').hidden) ? tab : 'chat');
         loadMessages(); loadTasks(); loadFiles(); connect();
         setupPush(false);
@@ -253,7 +268,7 @@
         if (room && room.klaret) {
             bar.append('Sagen er klaret. Rummet bliver slettet ' + dateFmt.format(new Date(room.sletDato)) + '. Skriver du igen, åbner sagen igen.');
             bar.hidden = false;
-        } else if (admin) {
+        } else if (admin && !shared()) {   // a shared room (Sonja) is not a case that closes
             const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn k-btn-sm'; b.textContent = 'Sagen er klaret';
             b.onclick = async () => {
                 // Two taps: the first asks, the second closes.
@@ -299,7 +314,7 @@
         live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
         live.addEventListener('holdet', e => {
             const d = JSON.parse(e.data);
-            if (room) { room.medlemmer = d.medlemmer; room.emner = d.emner; }
+            if (room) { room.medlemmer = d.medlemmer; room.om = d.om; room.emner = d.emner; }
             renderRoster(); renderFiles();
         });
     }
@@ -388,24 +403,58 @@
     // ---------- tasks ----------
 
     async function loadTasks() {
-        try { tasks = await api('GET', base + '/opgaver'); renderTasks(); } catch { }
+        try {
+            if (!todayStr) { try { todayStr = (await api('GET', base + '/idag')).dag; } catch { } }
+            tasks = await api('GET', base + '/opgaver'); renderTasks();
+        } catch { }
+    }
+
+    // ---- today (2026-11-08): the first picture = today's tasks in clock order, the next one at the top ----
+    let todayStr = '';
+    function today() { return todayStr || new Date().toLocaleDateString('sv-SE'); }
+    function isDone(t) { return t.daily ? t.doneOn === today() : t.done; }
+    function isToday(t) { return t.daily || t.day === today() || (!t.day && !t.done); }
+    function clock(t) { return /^\d{2}:\d{2}$/.test(t.when) ? t.when : ''; }
+    function byClock(a, b) {
+        const d = Number(isDone(a)) - Number(isDone(b));
+        if (d) return d;
+        const ca = clock(a) || '99', cb = clock(b) || '99';
+        return ca < cb ? -1 : ca > cb ? 1 : a.id - b.id;
+    }
+    // Midnight: tomorrow's list (daily tasks come back unticked).
+    setInterval(() => { const n = new Date().toLocaleDateString('sv-SE'); if (todayStr && n !== todayStr) { todayStr = ''; loadTasks(); } }, 60000);
+
+    // "Hvem skal gøre det?": the room's people + anyone who has written or taken a task.
+    function fillTil(selected) {
+        const sel = $('opgTil');
+        const names = [];
+        const add = n => { if (n && n !== vaert && !names.some(x => x.toLowerCase() === n.toLowerCase())) names.push(n); };
+        for (const n of (room && room.medlemmer) || []) add(n);
+        for (const m of msgs) if (!m.host) add(m.name);
+        for (const t of tasks) t.takers.forEach(add);
+        sel.textContent = '';
+        const free = document.createElement('option'); free.value = ''; free.textContent = 'Den der har tid (alle kan tage den)'; sel.appendChild(free);
+        for (const n of [vaert, ...names]) { const o = document.createElement('option'); o.value = n; o.textContent = n === vaert ? n + ' (mig)' : n; sel.appendChild(o); }
+        sel.value = selected || '';
     }
 
     function isMine(t) { return t.takers.some(x => x.toLowerCase() === navn.toLowerCase()); }
 
     function renderTasks() {
-        const open = tasks.filter(t => !t.done);
+        const dayList = tasks.filter(isToday);
+        const open = dayList.filter(t => !isDone(t));
         const free = open.filter(t => t.takers.length === 0);
+        $('idagTitel').textContent = 'I dag – ' + dayFmt.format(new Date(today() + 'T12:00'));
         const badge = $('opgBadge');
         badge.textContent = String(free.length);
         badge.hidden = free.length === 0;
         badge.title = free.length + ' opgaver uden nogen på';
 
         const ov = $('opgOversigt');
-        $('opgOversigtBoks').hidden = !(admin && tasks.length);
-        if (admin && tasks.length) {
+        $('opgOversigtBoks').hidden = !(admin && dayList.length);
+        if (admin && dayList.length) {
             ov.textContent = '';
-            for (const [n, label, cls] of [[open.length, 'åbne', ''], [free.length, 'mangler nogen', free.length ? 'advar' : ''], [tasks.length - open.length, 'færdige', '']]) {
+            for (const [n, label, cls] of [[open.length, 'mangler i dag', ''], [free.length, 'uden nogen på', free.length ? 'advar' : ''], [dayList.length - open.length, 'gjort', '']]) {
                 const d = document.createElement('div'); d.className = 'tal ' + cls;
                 const b = document.createElement('b'); b.textContent = n;
                 const s = document.createElement('span'); s.textContent = label;
@@ -413,38 +462,47 @@
             }
         }
 
+        if (admin && !editId) fillTil($('opgTil').value);
         const box = $('opgaver');
         box.textContent = '';
-        if (!tasks.length) {
+        if (!dayList.length) {
             const e = document.createElement('div'); e.className = 'tom';
             e.innerHTML = admin
-                ? '<strong>Ingen opgaver endnu</strong>Skriv den første opgave i boksen ovenfor og tryk "Læg opgaven ud". De andre får besked.'
-                : '<strong>Ingen opgaver endnu</strong>Når tovholderen lægger en opgave ud, kommer den her, og du får besked.';
+                ? '<strong>Ingen opgaver i dag</strong>Skriv en opgave i boksen nedenfor og tryk "Læg opgaven ud". De andre får besked.'
+                : '<strong>Ingen opgaver i dag</strong>Når tovholderen lægger en opgave ud, kommer den her, og du får besked.';
             box.appendChild(e);
-            return;
         }
-        // Free tasks first, then taken, then done.
-        const order = t => t.done ? 2 : (t.takers.length ? 1 : 0);
-        for (const t of [...tasks].sort((a, b) => order(a) - order(b) || a.id - b.id)) box.appendChild(taskCard(t));
+        for (const t of dayList.sort(byClock)) box.appendChild(taskCard(t));
+
+        // The tovholder also sees the other days (coming first, then old ones).
+        const other = tasks.filter(t => !isToday(t));
+        $('andreDage').hidden = !(admin && other.length);
+        const ob = $('opgAndre'); ob.textContent = '';
+        if (admin) for (const t of other.sort((a, b) => (b.day < today()) - (a.day < today()) || (a.day < b.day ? -1 : a.day > b.day ? 1 : byClock(a, b)))) ob.appendChild(taskCard(t));
     }
 
     function taskCard(t) {
         const c = document.createElement('article');
         // k-card + heading first = kolibri.js makes it foldable (tap the title), and remembers it per task.
-        c.className = 'k-card opgave' + (t.done ? ' done' : t.takers.length ? ' taget' : ' fri');
-        const h = document.createElement('h3'); h.textContent = t.title;
+        const done = isDone(t);
+        c.className = 'k-card opgave' + (done ? ' done' : t.takers.length ? ' taget' : ' fri');
+        const h = document.createElement('h3'); h.textContent = (clock(t) ? 'Kl. ' + clock(t) + ' · ' : '') + t.title;
         c.appendChild(h);
         const st = document.createElement('p'); st.className = 'status';
-        st.textContent = t.done ? '✓ Færdig' : t.takers.length ? '● Taget' : '○ Mangler nogen';
+        st.textContent = (done ? '✓ Gjort' : t.takers.length ? '● Taget' : '○ Mangler nogen') + (t.daily ? ' · hver dag' : '');
         c.appendChild(st);
-        if (t.when) { const w = document.createElement('p'); w.className = 'hvornaar'; w.textContent = '🕑 ' + t.when; c.appendChild(w); }
+        const dayText = t.day && t.day !== today() ? dateFmt.format(new Date(t.day + 'T12:00')) : '';
+        if (dayText || (t.when && !clock(t))) {
+            const w = document.createElement('p'); w.className = 'hvornaar';
+            w.textContent = [dayText, clock(t) ? '' : t.when].filter(Boolean).join(' · '); c.appendChild(w);
+        }
         if (t.note) { const n = document.createElement('p'); n.className = 'note'; n.textContent = t.note; c.appendChild(n); }
         const who = document.createElement('p'); who.className = 'hvem';
         who.textContent = t.takers.length ? 'Tager den: ' + t.takers.join(', ') : 'Ingen har taget den endnu.';
         c.appendChild(who);
 
         const row = document.createElement('div'); row.className = 'k-row';
-        if (!t.done) {
+        if (!done) {
             const take = document.createElement('button'); take.type = 'button';
             take.className = 'k-btn ' + (isMine(t) ? '' : 'k-btn-primary');
             take.textContent = isMine(t) ? 'Jeg kan alligevel ikke' : 'Jeg tager den';
@@ -452,9 +510,9 @@
             row.appendChild(take);
         }
         if (admin) {
-            const done = document.createElement('button'); done.type = 'button'; done.className = 'k-btn k-btn-sm';
-            done.textContent = t.done ? 'Åbn igen' : 'Færdig';
-            done.onclick = () => act(done, () => api('POST', `${base}/opgaver/${t.id}/faerdig`, { faerdig: !t.done }));
+            const doneBtn = document.createElement('button'); doneBtn.type = 'button'; doneBtn.className = 'k-btn k-btn-sm';
+            doneBtn.textContent = done ? 'Åbn igen' : t.daily ? 'Gjort i dag' : 'Færdig';
+            doneBtn.onclick = () => act(doneBtn, () => api('POST', `${base}/opgaver/${t.id}/faerdig`, { faerdig: !done }));
             const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'k-btn k-btn-sm k-btn-ghost';
             edit.textContent = 'Ret';
             edit.onclick = () => startEdit(t);
@@ -466,7 +524,7 @@
                 del.dataset.sure = '1'; del.textContent = 'Ja, slet den'; del.className = 'k-btn k-btn-sm k-btn-danger';
                 setTimeout(() => { delete del.dataset.sure; del.textContent = 'Slet'; del.className = 'k-btn k-btn-sm k-btn-ghost'; }, 4000);
             };
-            row.append(done, edit, del);
+            row.append(doneBtn, edit, del);
         }
         c.appendChild(row);
         return c;
@@ -480,18 +538,35 @@
 
     function startEdit(t) {
         editId = t.id;
-        $('opgTitel').value = t.title; $('opgHvornaar').value = t.when; $('opgNote').value = t.note;
+        $('opgTitel').value = t.title; $('opgHvornaar').value = clock(t); $('opgNote').value = t.note;
+        $('opgDag').value = t.daily ? 'hver' : !t.day ? 'ingen' : t.day === today() ? 'idag' : 'anden';
+        $('opgDato').value = t.day || ''; $('opgDato').hidden = $('opgDag').value !== 'anden';
+        // Several on it: the list shows "as it is now", so saving never removes anyone by accident.
+        fillTil(t.takers.length === 1 ? t.takers[0] : '');
+        if (t.takers.length > 1) {
+            const keep = document.createElement('option'); keep.value = '*'; keep.textContent = 'Som nu: ' + t.takers.join(', ');
+            $('opgTil').prepend(keep); $('opgTil').value = '*';
+        }
+        $('opgTil').dataset.was = $('opgTil').value;
         $('nyTitel').textContent = 'Ret opgave'; $('opgGem').textContent = 'Gem ændringen'; $('opgFortryd').hidden = false;
         $('nyOpg').scrollIntoView({ behavior: 'smooth' }); $('opgTitel').focus();
     }
     function stopEdit() {
-        editId = 0; $('nyOpg').reset();
+        editId = 0; $('nyOpg').reset(); fillTil(''); $('opgDato').hidden = true;
         $('nyTitel').textContent = 'Ny opgave'; $('opgGem').textContent = 'Læg opgaven ud'; $('opgFortryd').hidden = true;
     }
     $('opgFortryd').onclick = stopEdit;
+    $('opgDag').onchange = () => { $('opgDato').hidden = $('opgDag').value !== 'anden'; if (!$('opgDato').hidden && !$('opgDato').value) $('opgDato').value = today(); };
     $('nyOpg').addEventListener('submit', async e => {
         e.preventDefault();
-        const body = { titel: $('opgTitel').value, hvornaar: $('opgHvornaar').value, note: $('opgNote').value, endpoint };
+        const til = $('opgTil').value;
+        const dag = $('opgDag').value;
+        const body = {
+            titel: $('opgTitel').value, hvornaar: $('opgHvornaar').value, note: $('opgNote').value, endpoint,
+            hverDag: dag === 'hver', dag: dag === 'idag' ? today() : dag === 'anden' ? $('opgDato').value : '',
+        };
+        // New task: the chosen person. Edit: only when it was changed (null on the server = keep who has it).
+        if (!editId || (til !== '*' && til !== $('opgTil').dataset.was)) body.til = til;
         await act($('opgGem'), () => editId ? api('PUT', base + '/opgaver/' + editId, body) : api('POST', base + '/opgaver', body));
         stopEdit();
     });
@@ -595,19 +670,21 @@
     // ---------- the group's people (2026-11-09) ----------
 
     function renderRoster() {
-        const people = (room && room.medlemmer) || [];
+        // Only a fixed group has the Holdet tab; a shared family room keeps its names at the door and on the tasks.
+        const people = (room && room.gruppe && room.medlemmer) || [];
+        const om = (room && room.om) || {};
         $('tabHold').hidden = people.length === 0;
         if (!people.length && !$('viewHold').hidden) show('chat');
         $('holdIntro').textContent = people.length + ' på holdet. Skriv til dem i chatten, eller del en fil under Filer.';
         const box = $('holdListe');
         box.textContent = '';
-        for (const m of people) {
+        for (const n of people) {
             const c = document.createElement('article');
-            const me = m.name.toLowerCase() === navn.toLowerCase();
+            const me = n.toLowerCase() === navn.toLowerCase();
             c.className = 'k-card medlem' + (me ? ' mig-selv' : '');
-            const h = document.createElement('h3'); h.textContent = m.name + (me ? ' (dig)' : '');
+            const h = document.createElement('h3'); h.textContent = n + (me ? ' (dig)' : '');
             c.appendChild(h);
-            if (m.about) { const p = document.createElement('p'); p.className = 'note'; p.textContent = m.about; c.appendChild(p); }
+            if (om[n]) { const p = document.createElement('p'); p.className = 'note'; p.textContent = om[n]; c.appendChild(p); }
             box.appendChild(c);
         }
     }
@@ -664,7 +741,7 @@
         const j = sub.toJSON();
         endpoint = j.endpoint;
         // Martin's phone: every room. A customer's phone: this room only.
-        await api('POST', roomKey && !admin ? base + '/push' : '/api/push', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, navn });
+        await api('POST', roomKey && !alleRum ? base + '/push' : '/api/push', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, navn });
     }
 
     // Called on every start: if the phone already said yes, (re)register silently; otherwise show
@@ -739,6 +816,19 @@
         $('gemNavn').textContent = 'Gemt';
         setTimeout(() => { $('gemNavn').textContent = 'Gem'; }, 1500);
     };
+    // The room's own tovholder code (2026-11-08): admin in this room only.
+    $('tovForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        $('tovFejl').hidden = true;
+        try {
+            await api('POST', base + '/admin', { kode: $('tovKode').value.trim() });
+            $('tovKode').value = '';
+            room = await api('GET', base);
+            admin = !!room.admin; navn = vaert;
+            enter(); show('opg');
+        } catch (err) { $('tovFejl').textContent = err.message; $('tovFejl').hidden = false; }
+    });
+
     $('logUd').onclick = async () => {
         try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }); } catch { }
         store.set('snak_rum', ''); navn = ''; store.set('snak_navn', '');

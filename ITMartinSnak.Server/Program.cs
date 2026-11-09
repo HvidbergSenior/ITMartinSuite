@@ -22,12 +22,14 @@ builder.Services.AddKolibri(k =>
     [
         "Snak er et lille, privat rum til én sag: dig og Martin (og dem, du vil have med). Alt om sagen står ét sted – beskeder og opgaver.",
         "Kun dem med rummets link kan komme ind. Når sagen er klaret, bliver rummet slettet efter 14 dage. Der er ingen reklamer, og intet bliver solgt eller delt.",
+        "Fælles rum (familie, venner): tovholderen lægger dagens opgaver ud og giver dem til en. Alle ser, hvad der skal ske i dag, i klokkeslæt-orden, og får en påmindelse en time og en halv time før.",
     ];
     k.HowTo =
     [
         "Åbn det link, du har fået af Martin, og skriv dit navn.",
         "Skriv i chatten. Slå beskeder til, så får du besked, når Martin svarer.",
         "Læg Snak på telefonen, så åbner rummet som en app.",
+        "I et fælles rum: tryk på dit navn ved døren. Under Opgaver står dagens opgaver – står dit navn på en, er den din.",
     ];
     // Snak's page is a static index.html, so /om and /hjaelp come as plain HTML (2026-10-19: they gave 404).
     k.StaticPages = true;
@@ -43,6 +45,7 @@ var publicUrl = builder.Configuration["Snak:PublicUrl"] ?? "https://snak.itmarti
 builder.Services.AddSnakApplication(builder.Configuration["Snak:AdminCode"] ?? "", builder.Configuration["Snak:ApiKey"] ?? "", publicUrl);
 builder.Services.AddSnakInfrastructure(dataDir);
 builder.Services.AddHostedService<FinishedRoomsSweeper>();
+builder.Services.AddHostedService<TaskReminders>();
 
 var app = builder.Build();
 app.MapKolibri();
@@ -62,6 +65,8 @@ app.UseStaticFiles(new StaticFileOptions
 var web = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 const string HostName = "Martin";
 bool IsAdmin(HttpContext c, Access a) => a.IsAdmin(c.Request.Cookies["snak_admin"]);
+// In a room: Martin's code, or that room's own admin password (2026-11-08, e.g. Sonja's room).
+bool IsRoomAdmin(HttpContext c, Access a, Room r) => a.IsRoomAdmin(r, c.Request.Cookies["snak_admin"], c.Request.Cookies["snak_ra_" + r.Id]);
 
 // Behind the Cloudflare tunnel every request comes from cloudflared, so the visitor is in this header.
 static string ClientIp(HttpContext c) =>
@@ -71,11 +76,40 @@ static bool GoodPush(PushBody b) =>
     !string.IsNullOrWhiteSpace(b.Endpoint) && b.Endpoint.StartsWith("https://") && !string.IsNullOrWhiteSpace(b.P256dh) && !string.IsNullOrWhiteSpace(b.Auth);
 
 // A room's page: the same index.html, never cached; the script reads the key from the address.
-app.MapGet("/r/{key}", (HttpContext c, IWebHostEnvironment env) =>
+// 2026-11-08 (Vibz): the home-screen icon opened "/" (the shared manifest's start_url), and an iPhone home-screen app has its own
+// storage, so it did not know the room -> "open your link". Now each room page points to its OWN manifest that starts in the room.
+app.MapGet("/r/{key}", async (HttpContext c, string key, IWebHostEnvironment env, Rooms rooms) =>
 {
     c.Response.Headers.CacheControl = "no-cache";
-    return Results.File(Path.Combine(env.WebRootPath, "index.html"), "text/html; charset=utf-8");
+    var html = await File.ReadAllTextAsync(Path.Combine(env.WebRootPath, "index.html"));
+    if (rooms.ByKey(key) is { } r)
+        html = html
+            .Replace("href=\"/manifest.webmanifest\"", $"href=\"/r/{r.Key}/manifest.webmanifest\"")
+            .Replace("name=\"apple-mobile-web-app-title\" content=\"Snak\"", $"name=\"apple-mobile-web-app-title\" content=\"{System.Net.WebUtility.HtmlEncode(r.Title)}\"");
+    return Results.Content(html, "text/html; charset=utf-8");
 });
+
+app.MapGet("/r/{key}/manifest.webmanifest", (HttpContext c, string key, Rooms rooms) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    c.Response.Headers.CacheControl = "no-cache";
+    var icon = "/_content/ITMartin.Shared.UI/kolibri-icon.svg";
+    return Results.Json(new
+    {
+        id = $"/r/{r.Key}", name = r.Title + " · Snak", short_name = r.Title.Length > 12 ? "Snak" : r.Title,
+        start_url = $"/r/{r.Key}", scope = "/", display = "standalone",
+        background_color = "#f4f6f5", theme_color = "#f4f6f5", lang = "da",
+        icons = new object[]
+        {
+            new { src = icon, sizes = "any", type = "image/svg+xml", purpose = "any" },
+            new { src = icon, sizes = "any", type = "image/svg+xml", purpose = "maskable" },
+        },
+    }, contentType: "application/manifest+json");
+});
+
+// The easy address (2026-11-08): snak.itmartin.dk/sonja -> the room. Literal routes (/om, /api/...) always win over this one.
+app.MapGet("/{slug:regex(^[a-z0-9][a-z0-9-]{{1,29}}$)}", (string slug, Rooms rooms) =>
+    rooms.BySlug(slug) is { } r ? Results.Redirect($"/r/{r.Key}") : Results.NotFound());
 
 // ---- Martin ----
 
@@ -105,8 +139,8 @@ app.MapGet("/api/rum", (HttpContext c, Access access, Rooms rooms) =>
     IsAdmin(c, access)
         ? Results.Json(rooms.Overview().Select(r => new
         {
-            r.Id, r.Title, r.CustomerRef, r.CreatedAt, r.LastAt, r.DoneAt, r.DeleteAt, r.Waiting, r.LastName, r.LastText, r.Gruppe,
-            Link = $"{publicUrl}/r/{r.Key}",
+            r.Id, r.Title, r.CustomerRef, r.CreatedAt, r.LastAt, r.DoneAt, r.DeleteAt, r.Waiting, r.LastName, r.LastText, r.Members, r.HasCode,
+            Link = $"{publicUrl}/r/{r.Key}", r.Slug, r.Gruppe,
         }), web)
         : Results.Unauthorized());
 
@@ -116,9 +150,9 @@ app.MapPost("/api/rum", (HttpContext c, RoomBody b, Access access, Rooms rooms) 
     if (!IsAdmin(c, access) && !access.IsApi(c.Request.Headers["X-Snak-Key"].FirstOrDefault())) return Results.Unauthorized();
     try
     {
-        var r = rooms.Create(b.Titel, b.Kunde, b.Gruppe);
+        var r = rooms.Create(b.Titel, b.Kunde, b.Medlemmer, b.Kode, b.Adresse, b.Gruppe);
         if (!string.IsNullOrWhiteSpace(b.Besked)) rooms.GroupOf(r).Write(string.IsNullOrWhiteSpace(b.Navn) ? "Kunde" : b.Navn, b.Besked);
-        return Results.Json(new { id = r.Id, titel = r.Title, link = rooms.Link(r) }, web);
+        return Results.Json(new { id = r.Id, titel = r.Title, link = rooms.Link(r), nemLink = rooms.EasyLink(r) }, web);
     }
     catch (InvalidOperationException ex) { return Results.BadRequest(new { fejl = ex.Message }); }
 });
@@ -160,8 +194,27 @@ var room = app.MapGroup("/api/r/{key}");
 
 room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSender push) =>
     rooms.ByKey(key) is { } r
-        ? Results.Json(new { id = r.Id, titel = r.Title, gruppe = r.Gruppe, medlemmer = r.Members ?? [], emner = r.Topics ?? [], klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsAdmin(c, access), pushKey = push.PublicKey, vaert = HostName }, web)
+        ? Results.Json(new
+        {
+            id = r.Id, titel = r.Title, klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsRoomAdmin(c, access, r), alleRum = IsAdmin(c, access),
+            pushKey = push.PublicKey, vaert = HostName, medlemmer = r.Members ?? [], harKode = r.HasCode,
+            gruppe = r.Gruppe, om = r.About ?? [], emner = r.Topics ?? [],
+        }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
+
+// The room's own admin password (2026-11-08): admin in this room only, remembered on this phone.
+room.MapPost("/admin", (HttpContext c, string key, LoginBody b, Access access, Rooms rooms) =>
+{
+    if (rooms.ByKey(key) is not { } r || !r.HasCode) return Results.NotFound();
+    var result = access.RoomLogin(r, b.Kode, ClientIp(c));
+    if (result == LoginResult.Locked)
+        return Results.Json(new { fejl = "For mange forkerte forsøg. Vent et kvarter og prøv igen." }, statusCode: 429);
+    if (result == LoginResult.Wrong)
+        return Results.Json(new { fejl = "Koden passer ikke." }, statusCode: 403);
+    c.Response.Cookies.Append("snak_ra_" + r.Id, r.CodeHash,
+        new CookieOptions { HttpOnly = true, Secure = c.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(400) });
+    return Results.Ok(new { admin = true });
+});
 
 room.MapGet("/beskeder", (string key, Rooms rooms, long? efter) =>
     rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).MessagesAfter(efter ?? 0), web) : Results.NotFound());
@@ -169,7 +222,7 @@ room.MapGet("/beskeder", (string key, Rooms rooms, long? efter) =>
 room.MapPost("/beskeder", (HttpContext c, string key, MessageBody b, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var host = IsAdmin(c, access);
+    var host = IsRoomAdmin(c, access, r);
     var m = rooms.GroupOf(r).Write(host ? HostName : b.Navn, b.Tekst, b.Endpoint, host);
     return m is null ? Results.BadRequest(new { fejl = "Skriv dit navn og en besked." }) : Results.Json(m, web);
 });
@@ -178,33 +231,36 @@ room.MapPost("/beskeder", (HttpContext c, string key, MessageBody b, Rooms rooms
 room.MapGet("/opgaver", (string key, Rooms rooms) =>
     rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).Tasks(), web) : Results.NotFound());
 
+room.MapGet("/idag", (string key, Rooms rooms) =>
+    rooms.ByKey(key) is { } r ? Results.Json(new { dag = rooms.GroupOf(r).Today.ToString("yyyy-MM-dd") }, web) : Results.NotFound());
+
 room.MapPost("/opgaver", (HttpContext c, string key, TaskBody b, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsAdmin(c, access)) return Results.StatusCode(403);
-    var t = rooms.GroupOf(r).AddTask(b.Titel, b.Note, b.Hvornaar, b.Endpoint);
+    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
+    var t = rooms.GroupOf(r).AddTask(b.Titel, b.Note, b.Hvornaar, b.Endpoint, b.Til, b.Dag, b.HverDag ?? false);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven skal have en titel." }) : Results.Json(t, web);
 });
 
 room.MapPut("/opgaver/{id:long}", (HttpContext c, string key, long id, TaskBody b, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsAdmin(c, access)) return Results.StatusCode(403);
-    var t = rooms.GroupOf(r).EditTask(id, b.Titel, b.Note, b.Hvornaar);
+    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
+    var t = rooms.GroupOf(r).EditTask(id, b.Titel, b.Note, b.Hvornaar, b.Til, b.Endpoint, b.Dag, b.HverDag);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven findes ikke, eller titlen mangler." }) : Results.Json(t, web);
 });
 
 room.MapPost("/opgaver/{id:long}/faerdig", (HttpContext c, string key, long id, DoneBody b, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsAdmin(c, access)) return Results.StatusCode(403);
+    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
     return rooms.GroupOf(r).SetDone(id, b.Faerdig) is null ? Results.NotFound() : Results.Ok();
 });
 
 room.MapDelete("/opgaver/{id:long}", (HttpContext c, string key, long id, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsAdmin(c, access)) return Results.StatusCode(403);
+    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
     return rooms.GroupOf(r).DeleteTask(id) ? Results.Ok() : Results.NotFound();
 });
 
@@ -227,7 +283,7 @@ room.MapPost("/filer", async (HttpContext c, string key, Rooms rooms, Access acc
     if (!c.Request.HasFormContentType) return Results.BadRequest(new { fejl = "Vælg en fil." });
     var form = await c.Request.ReadFormAsync(c.RequestAborted);
     if (form.Files.GetFile("fil") is not { } f) return Results.BadRequest(new { fejl = "Vælg en fil." });
-    var host = IsAdmin(c, access);
+    var host = IsRoomAdmin(c, access, r);
     await using var s = f.OpenReadStream();
     var (file, err) = await rooms.GroupOf(r).AddFileAsync(f.FileName, f.Length, s, host ? HostName : form["navn"].ToString(),
         form["endpoint"].ToString(), c.RequestAborted, RosterRules.TopicFor(r.Topics, form["emne"].ToString()));
@@ -252,7 +308,7 @@ room.MapGet("/filer/{id:long}", (HttpContext c, string key, long id, Rooms rooms
 room.MapDelete("/filer/{id:long}", (HttpContext c, string key, long id, string? navn, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    return rooms.GroupOf(r).DeleteFile(id, navn, IsAdmin(c, access)) ? Results.Ok() : Results.StatusCode(403);
+    return rooms.GroupOf(r).DeleteFile(id, navn, IsRoomAdmin(c, access, r)) ? Results.Ok() : Results.StatusCode(403);
 });
 
 room.MapGet("/live",async (HttpContext c, string key, Rooms rooms, ILiveFeed live) =>
@@ -296,10 +352,11 @@ app.Run();
 static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At, f.Topic };
 
 public sealed record LoginBody(string? Kode);
-public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, bool Gruppe = false);
+public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, string? Medlemmer = null, string? Kode = null, string? Adresse = null,
+    bool Gruppe = false);
 public sealed record RosterBody(string? Medlemmer, string? Emner);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
-public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint);
+public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null);
 public sealed record DoneBody(bool Faerdig);
 public sealed record TakeBody(string? Navn, string? Endpoint);
 public sealed record PushBody(string? Endpoint, string? P256dh, string? Auth, string? Navn);
@@ -315,6 +372,20 @@ public sealed class FinishedRoomsSweeper(Rooms rooms, ILogger<FinishedRoomsSweep
             try { var n = rooms.DeleteFinished(); if (n > 0) log.LogInformation("Deleted {Count} finished rooms", n); }
             catch (Exception ex) { log.LogWarning(ex, "Deleting finished rooms failed"); }
         } while (await timer.WaitForNextTickAsync(ct));
+    }
+}
+
+// Every minute: a push to the room's phones 60 and 30 minutes before a task's clock time today (2026-11-08).
+public sealed class TaskReminders(Rooms rooms, ILogger<TaskReminders> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        while (await timer.WaitForNextTickAsync(ct))
+        {
+            try { var n = rooms.SendReminders(); if (n > 0) log.LogInformation("Sent {Count} task reminders", n); }
+            catch (Exception ex) { log.LogWarning(ex, "Task reminders failed"); }
+        }
     }
 }
 
