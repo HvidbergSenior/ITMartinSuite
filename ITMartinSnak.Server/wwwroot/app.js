@@ -69,8 +69,11 @@
             admin = alleRum = !!me.admin; pushKey = me.pushKey || ''; vaert = me.vaert || 'Martin';
             if (admin) return showRooms();
             const last = store.get('snak_rum');
-            if (last) { location.replace('/r/' + last); return; }
+            // /?indgang always shows Martin's way in, also on a phone that remembers a room (2026-11-09: it forwarded him away).
+            const indgang = new URLSearchParams(location.search).has('indgang');
+            if (last && !indgang) { location.replace('/r/' + last); return; }
             showOnly('forside');
+            if (indgang) { const d = document.querySelector('#forside details'); if (d) d.open = true; }
         } catch { showOnly(roomKey ? 'login' : 'forside'); }
     }
 
