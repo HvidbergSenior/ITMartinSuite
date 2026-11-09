@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="da" data-family="rede">
+<head>
+    <script>
+        // Light/Dark: what the visitor chose, else what the phone is set to - before the first paint (same as ElPriser, Snak).
+        (function () {
+            var t = null; try { t = localStorage.getItem('hj_theme'); } catch (e) { }
+            document.documentElement.setAttribute('data-theme', t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Kolibri Hjemmeside – ret selv tekst og billeder på din hjemmeside, eller få Martin til det." />
+    <meta name="theme-color" content="#f4f6f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Ret siden" />
+    <meta name="robots" content="noindex" />
+    <title>Kolibri Hjemmeside</title>
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
+    <link rel="stylesheet" href="/app.css?v=1" />
+    <link rel="manifest" href="/app.webmanifest" />
+    <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
+    <script src="/app.js?v=1" defer></script>
+</head>
+<body>
+<header class="k-header"><div class="k-header-in"><a href="/" id="hjemLink" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div class="k-brand"><b id="brandNavn">Hjemmeside</b><span>Kolibri Hjemmeside</span></div></a><div class="k-header-actions"><button id="themeBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button></div></div></header>
+
+<div class="k-main"><div class="k-content hj">
+
+    <!-- Waiting for /api/dor: the same height as the door, so nothing jumps. -->
+    <section id="venter" class="k-card"><p class="k-muted">Et øjeblik …</p></section>
+
+    <!-- The door: Martin's code everywhere, the owner's code on their own site. -->
+    <section id="login" class="k-card" hidden>
+        <h1 id="loginTitel">Ret din hjemmeside</h1>
+        <p id="loginLead">Her retter du tekst og billeder på din side. Skriv den kode, du har fået af Martin.</p>
+        <form id="loginForm" class="k-stack">
+            <div>
+                <label class="k-label" for="kode">Kode</label>
+                <input class="k-input" id="kode" type="password" autocomplete="current-password" required />
+            </div>
+            <button class="k-btn k-btn-primary k-btn-block" type="submit">Gå ind</button>
+            <p class="k-alert k-alert-danger" id="loginFejl" hidden></p>
+        </form>
+    </section>
+
+    <!-- Martin: every homepage at a glance. -->
+    <section id="oversigt" hidden>
+        <div class="hj-top">
+            <div>
+                <h1>Dine hjemmesider</h1>
+                <p class="k-muted">Her er alle kunders hjemmesider. Tryk <b>Ret</b> for at ændre en side, <b>Opsætning</b> for navn, farve, domæne, pakke og noter.</p>
+            </div>
+            <button class="k-btn k-btn-primary" id="nyKnap" type="button">Ny hjemmeside</button>
+        </div>
+        <div id="tal" class="hj-tal"></div>
+
+        <details id="nyBoks" class="k-card hj-fold">
+            <summary><b>Ny hjemmeside</b> <span class="k-muted">– klar med Forside, Om os og Kontakt på et minut</span></summary>
+            <form id="nyForm" class="k-stack hj-pad">
+                <div>
+                    <label class="k-label" for="nyNavn">Navn på siden</label>
+                    <input class="k-input" id="nyNavn" maxlength="60" required placeholder="Fx Skovbunden" />
+                </div>
+                <div>
+                    <label class="k-label" for="nyKort">Kortnavn (bruges i prøve-adressen)</label>
+                    <input class="k-input" id="nyKort" maxlength="30" placeholder="skovbunden" />
+                    <p class="k-help">Kun a-z, 0-9 og bindestreg. Tomt = laves af navnet.</p>
+                </div>
+                <div>
+                    <label class="k-label" for="nyPakke">Pakke</label>
+                    <select class="k-input" id="nyPakke">
+                        <option value="Selv">Selv – kunden retter selv (99 kr/md)</option>
+                        <option value="Sammen">Sammen – kunden retter + 1 times hjælp (199 kr/md)</option>
+                        <option value="Fuld">Fuld hjælp – du retter alt (349 kr/md)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="k-label" for="nyKode">Kundens kode (mindst 6 tegn)</label>
+                    <input class="k-input" id="nyKode" minlength="6" autocomplete="off" placeholder="Kan også gives senere" />
+                </div>
+                <div>
+                    <label class="k-label" for="nyDomaene">Domæne (hvis det er klar)</label>
+                    <input class="k-input" id="nyDomaene" placeholder="skovbunden.dk" />
+                </div>
+                <button class="k-btn k-btn-primary" type="submit">Lav hjemmesiden</button>
+                <p class="k-alert k-alert-danger" id="nyFejl" hidden></p>
+            </form>
+        </details>
+
+        <div id="liste" class="k-stack"></div>
+        <p class="k-empty" id="tomListe" hidden>Ingen hjemmesider endnu. Tryk <b>Ny hjemmeside</b>.</p>
+    </section>
+
+    <!-- One site: set-up (Martin) and the pages with their boxes (Martin or the owner). -->
+    <section id="rediger" hidden>
+        <div class="hj-top">
+            <div>
+                <button class="k-btn k-btn-sm k-btn-ghost" id="tilbage" type="button" hidden>Alle hjemmesider</button>
+                <h1 id="sideNavn">Din hjemmeside</h1>
+                <p class="k-muted">Tryk på en side for at åbne den. Ret teksten og tryk <b>Gem</b>. Gik noget galt? Tryk <b>Fortryd</b>.</p>
+            </div>
+        </div>
+        <div class="hj-bar">
+            <a class="k-btn" id="seSiden" target="_blank" rel="noopener">Se siden</a>
+            <button class="k-btn" id="fortryd" type="button">Fortryd</button>
+            <button class="k-btn k-btn-ghost" id="logud" type="button">Log ud</button>
+        </div>
+        <p class="k-alert k-alert-ok" id="besked" hidden></p>
+        <p class="k-alert k-alert-danger" id="fejl" hidden></p>
+
+        <details id="opsaetBoks" class="k-card hj-fold" hidden>
+            <summary><b>Opsætning</b> <span class="k-muted">– navn, farve, domæne, pakke, kode og noter (kun Martin)</span></summary>
+            <form id="opsaetForm" class="k-stack hj-pad">
+                <div><label class="k-label" for="oNavn">Navn</label><input class="k-input" id="oNavn" maxlength="60" required /></div>
+                <div><label class="k-label" for="oUnder">Undertitel (linjen under navnet)</label><input class="k-input" id="oUnder" maxlength="120" /></div>
+                <div class="hj-row">
+                    <div><label class="k-label" for="oFarve">Farve</label><input class="k-input hj-farve" id="oFarve" type="color" /></div>
+                    <div><label class="k-label" for="oLogo">Logo</label><input class="k-input" id="oLogo" type="file" accept="image/*" /></div>
+                </div>
+                <div class="hj-row">
+                    <div><label class="k-label" for="oTlf">Telefon</label><input class="k-input" id="oTlf" maxlength="20" inputmode="tel" /></div>
+                    <div><label class="k-label" for="oMail">Mail</label><input class="k-input" id="oMail" maxlength="100" type="email" /></div>
+                </div>
+                <div>
+                    <label class="k-label" for="oDomaener">Domæner (ét pr. linje)</label>
+                    <textarea class="k-textarea k-input" id="oDomaener" rows="2" placeholder="skovbunden.dk&#10;www.skovbunden.dk"></textarea>
+                    <p class="k-help">Når domænet peger på serveren (Cloudflare-route til hjemmeside-web), er siden live der.</p>
+                </div>
+                <div class="hj-row">
+                    <div>
+                        <label class="k-label" for="oPakke">Pakke</label>
+                        <select class="k-input" id="oPakke">
+                            <option value="Selv">Selv</option><option value="Sammen">Sammen</option><option value="Fuld">Fuld hjælp</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="k-label" for="oPris">Pris pr. måned (kr)</label>
+                        <input class="k-input" id="oPris" type="number" min="0" max="100000" placeholder="Pakkens pris" />
+                        <p class="k-help">Tomt = pakkens pris. 0 = gratis (fx tester).</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="k-label" for="oKode">Ny kode til kunden</label>
+                    <input class="k-input" id="oKode" minlength="6" autocomplete="off" placeholder="Tomt = behold den nuværende" />
+                    <p class="k-help" id="oKodeInfo"></p>
+                </div>
+                <div>
+                    <label class="k-label" for="oNote">Dine noter (kun du ser dem)</label>
+                    <textarea class="k-textarea k-input" id="oNote" rows="4" maxlength="2000" placeholder="Fx: tester – gratis opsætning mod feedback og citat. Næste: billeder fra hende."></textarea>
+                </div>
+                <div class="hj-bar">
+                    <button class="k-btn k-btn-primary" type="submit">Gem opsætning</button>
+                    <a class="k-btn" id="zip">Hent hele siden (zip)</a>
+                </div>
+            </form>
+        </details>
+
+        <p class="k-help" id="plads"></p>
+        <div id="sider" class="k-stack"></div>
+
+        <details class="k-card hj-fold">
+            <summary><b>Ny side</b> <span class="k-muted">– fx Priser eller Åbningstider</span></summary>
+            <form id="nySideForm" class="hj-pad hj-bar">
+                <input class="k-input" id="nySideTitel" maxlength="40" required placeholder="Sidens navn" />
+                <button class="k-btn k-btn-primary" type="submit">Lav siden</button>
+            </form>
+        </details>
+
+        <details class="k-card hj-fold">
+            <summary><b>Sådan skriver du</b> <span class="k-muted">– overskrifter, punkter og fed skrift</span></summary>
+            <div class="hj-pad">
+                <p>Tom linje = nyt afsnit.</p>
+                <p><code>## Åbningstider</code> = en overskrift.</p>
+                <p><code>- Mandag 10-17</code> = et punkt i en liste.</p>
+                <p><code>**vigtigt**</code> = <b>fed skrift</b>.</p>
+            </div>
+        </details>
+    </section>
+</div></div>
+
+<footer class="k-footer"><span>&copy; <span id="kYear">2026</span> ITMartin · Den digitale kolibri</span> <a href="/om">Om Kolibri Hjemmeside</a> <a href="#k-install" class="k-footer-install">Læg på telefonen</a> <a href="/hjaelp">Noget virker ikke?</a> <a href="https://itmartin.dk/vilkaar" target="_blank" rel="noopener">Vilkår &amp; privatliv</a></footer>
+</body>
+</html>
