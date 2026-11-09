@@ -835,5 +835,20 @@
         location.href = '/';
     };
 
+    // ---------- light/dark (the button in the Kolibri header) ----------
+
+    function syncTheme() {
+        const cur = document.documentElement.getAttribute('data-theme') || 'light';
+        $('themeToggleBtn').textContent = cur === 'light' ? 'Mørk' : 'Lys';
+        document.querySelector('meta[name=theme-color]')?.setAttribute('content', cur === 'light' ? '#f4f6f5' : '#0b1220');
+    }
+    $('themeToggleBtn').onclick = () => {
+        const next = (document.documentElement.getAttribute('data-theme') || 'light') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        store.set('snak_theme', next);
+        syncTheme();
+    };
+    syncTheme();
+
     boot();
 })();
