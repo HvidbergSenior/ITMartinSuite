@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=18" />
+    <link rel="stylesheet" href="/app.css?v=19" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=20" defer></script>
+    <script src="/app.js?v=21" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -122,8 +122,8 @@
                 <button type="button" class="link hjem-knap" id="hjemKnap" hidden>📲 Læg på telefonen</button>
             </div>
             <nav class="tabs" role="tablist">
-                <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabKal" aria-selected="false" hidden>Kalender</button>
+                <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
                 <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
                 <button role="tab" id="tabHold" aria-selected="false" hidden>Holdet</button>
@@ -138,7 +138,16 @@
         <div id="pushBar" class="bar" hidden></div>
 
         <!-- 2026-11-09: the next course day, on every tab (tap = the whole calendar). -->
-        <button type="button" id="naesteBar" class="bar naeste" hidden></button>
+        <section id="naesteBar" class="naeste" hidden aria-live="polite">
+            <div class="naeste-hvornaar" id="naesteHvornaar"></div>
+            <div class="naeste-dag" id="naesteDag"></div>
+            <div class="naeste-hvad" id="naesteHvad"></div>
+            <div class="naeste-sted"><span id="naesteSted"></span></div>
+            <div class="k-row naeste-knapper">
+                <a class="k-btn k-btn-sm k-btn-primary" id="naesteVej" target="_blank" rel="noopener">Find vej</a>
+                <button type="button" class="k-btn k-btn-sm" id="naesteAlle">Hele kalenderen</button>
+            </div>
+        </section>
 
         <main id="viewChat" class="view chat">
             <!-- Like a Facebook group: write at the top, newest message right under it, older ones further down. -->

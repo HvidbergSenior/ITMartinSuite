@@ -173,7 +173,15 @@ body { background: var(--k-bg); color: var(--k-text); }
 .kursus-links .k-btn { text-decoration: none; }
 
 /* 2026-11-09 Kalender */
-.bar.naeste { display: block; width: 100%; text-align: left; font: inherit; font-weight: 600; cursor: pointer; border: 0; border-bottom: 1px solid var(--k-border); background: var(--k-accent-soft, var(--k-card)); color: var(--k-text); }
+.naeste { margin: 10px 16px 4px; padding: 12px 14px; border-radius: var(--k-radius, 14px); border: 1px solid var(--k-border);
+    border-left: 6px solid var(--k-accent, currentColor); background: var(--k-card); color: var(--k-text); box-shadow: var(--k-shadow, none); }
+.naeste.snart { background: var(--k-accent-soft, var(--k-card)); }
+.naeste-hvornaar { font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--k-accent-text, var(--k-accent)); }
+.naeste-dag { font-size: 20px; font-weight: 800; margin-top: 2px; }
+.naeste-hvad { font-size: 17px; font-weight: 600; margin-top: 2px; }
+.naeste-sted { font-size: 15px; color: var(--k-muted); margin-top: 2px; }
+.naeste-knapper { margin-top: 10px; gap: 8px; flex-wrap: wrap; }
+.naeste-knapper a { text-decoration: none; }
 .kal-dag.k-card { margin: 0; }
 .kal-dag h3 { margin: 2px 0 6px; font-size: 17px; }
 .kal-dato { font-size: 14px; color: var(--k-muted); text-transform: none; }

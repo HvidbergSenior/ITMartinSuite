@@ -817,11 +817,16 @@
     }
 
     const kalDag = new Intl.DateTimeFormat('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
-    const kalKort = new Intl.DateTimeFormat('da-DK', { weekday: 'short', day: 'numeric', month: 'short' });
     let calEvents = [];
     async function loadCalendar() {
         if (!hasCal()) return;
-        try { calEvents = await api('GET', base + '/kalender'); } catch { calEvents = []; }
+        // Last copy first, so the Næste gang card is there at once and nothing jumps when the fresh list arrives.
+        if (!calEvents.length) { try { calEvents = JSON.parse(store.get('snak_kal_' + roomKey) || '[]'); } catch { } if (calEvents.length) renderCalendar(); }
+        try {
+            const fresh = await api('GET', base + '/kalender');
+            if (fresh.length || !calEvents.length) calEvents = fresh;
+            store.set('snak_kal_' + roomKey, JSON.stringify(calEvents));
+        } catch { }
         renderCalendar();
     }
     function sameDay(a, b) { return a.toDateString() === b.toDateString(); }
@@ -864,8 +869,17 @@
         nb.hidden = !n;
         if (n) {
             const s = new Date(n.start);
-            nb.textContent = (new Date(n.start) <= now ? 'Nu: ' : sameDay(s, now) ? 'I dag: ' : 'Næste gang: ') + kalKort.format(s) + ' ' + span(n) + ' · ' + n.titel + (n.sted ? ' · ' + n.sted.split(',')[0] : '');
-            nb.onclick = () => show('kal');
+            const days = Math.round((new Date(s.toDateString()) - new Date(now.toDateString())) / 86400000);
+            $('naesteHvornaar').textContent = s <= now ? 'I gang nu' : days === 0 ? 'Næste gang · i dag' : days === 1 ? 'Næste gang · i morgen'
+                : 'Næste gang · om ' + days + ' dage';
+            const dag = kalDag.format(s);
+            $('naesteDag').textContent = dag.charAt(0).toUpperCase() + dag.slice(1) + ' · ' + span(n);
+            $('naesteHvad').textContent = n.titel;
+            $('naesteSted').textContent = n.sted || '';
+            $('naesteVej').hidden = !n.sted;
+            $('naesteVej').href = 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(n.sted || '');
+            nb.classList.toggle('snart', days <= 1);
+            $('naesteAlle').onclick = () => show('kal');
         }
     }
     setInterval(() => { if (hasCal() && !$('app').hidden) renderCalendar(); }, 60000);
