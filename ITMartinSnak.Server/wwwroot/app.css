@@ -95,3 +95,10 @@ body { background: var(--k-bg); color: var(--k-text); }
 .nyt-link { margin-top: .75rem; display: grid; gap: .5rem; }
 .nyt-link code { word-break: break-all; padding: .5rem; border-radius: 8px; background: var(--k-surface-2, rgba(0,0,0,.06)); }
 .rum .k-row a.k-btn { text-decoration: none; }
+
+/* Shared rooms (2026-11-08): tap your own name at the door */
+.navne { display: flex; flex-wrap: wrap; gap: 8px; }
+.navne .k-btn { flex: 1 1 40%; min-height: 48px; }
+.idag-titel { margin: 0 0 4px; font-size: 22px; }
+.idag-titel::first-letter { text-transform: uppercase; }
+#andreDage > summary { font-weight: 700; cursor: pointer; min-height: 40px; }
