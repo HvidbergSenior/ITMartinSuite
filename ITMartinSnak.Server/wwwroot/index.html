@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="da" data-family="kommunikere">
 <head>
+    <script>
+        // Light/Dark: what the visitor chose, else what the phone is set to - set before the first paint (same as ElPriser, Spilleder).
+        (function () {
+            var t = null; try { t = localStorage.getItem('snak_theme'); } catch (e) { }
+            document.documentElement.setAttribute('data-theme', t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="description" content="Snak – ét rum til hver sag: chat og opgaver samlet ét sted, uden Facebook og uden reklamer." />
@@ -8,14 +15,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
-    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=9" />
-    <link rel="stylesheet" href="/app.css?v=11" />
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
+    <link rel="stylesheet" href="/app.css?v=15" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=9" defer></script>
-    <script src="/app.js?v=12" defer></script>
+    <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=10" defer></script>
+    <script src="/app.js?v=16" defer></script>
 </head>
 <body>
+<!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
+<header class="k-header"><div class="k-header-in"><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin"><div class="k-brand"><b>Snak</b><span>Kolibri Kommunikere</span></div></a><div class="k-header-actions"><button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button></div></div></header>
 <div class="snak">
 
     <!-- Opened from a Messenger/Facebook link: that browser cannot install or give notifications. -->
@@ -37,7 +46,7 @@
             <div id="loginNavne" class="navne" hidden></div>
             <div>
                 <label class="k-label" for="loginNavn">Dit navn</label>
-                <input class="k-input" id="loginNavn" maxlength="30" autocomplete="given-name" required />
+                <input class="k-input" id="loginNavn" maxlength="40" autocomplete="given-name" required />
                 <p class="k-help">Det er det navn, Martin ser ved dine beskeder.</p>
             </div>
             <button class="k-btn k-btn-primary k-btn-block" type="submit">Gå ind</button>
@@ -94,6 +103,7 @@
                     <label class="k-label" for="rumKode">Tovholder-kode til dette rum <span class="valgfri">(kan undværes)</span></label>
                     <input class="k-input" id="rumKode" maxlength="60" autocomplete="off" />
                     <p class="k-help">Med koden er man tovholder i dette rum: laver, giver, retter og afslutter opgaver. De andre bruger bare linket.</p>
+                    <label class="gruppe-valg"><input type="checkbox" id="rumGruppe" /> Det er en fast gruppe (fx et hold eller en klub) – den bliver aldrig "klaret" og slettet, og den får fanen Holdet og filer sorteret efter emne</label>
                 </details>
                 <button class="k-btn k-btn-primary k-mt" type="submit">Lav rummet</button>
                 <div id="nytLink" class="nyt-link" hidden></div>
@@ -114,6 +124,8 @@
             <nav class="tabs" role="tablist">
                 <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
+                <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
+                <button role="tab" id="tabHold" aria-selected="false" hidden>Holdet</button>
                 <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
             </nav>
         </header>
@@ -176,11 +188,48 @@
             </details>
         </main>
 
+        <!-- Documents (2026-11-09): everyone adds, everyone downloads. -->
+        <main id="viewFil" class="view fil" hidden>
+            <p class="opg-intro">Her ligger rummets dokumenter. Alle i rummet kan se og hente dem. Tryk på en fil for at åbne den.</p>
+            <form id="nyFil" class="k-card ny">
+                <h2 class="k-card-title">Læg en fil op</h2>
+                <p class="k-help">Tryk <b>Vælg fil</b> og find dokumentet på telefonen eller computeren (fx under <b>Filer</b> eller <b>Overførsler</b>). PDF, Word, Excel, PowerPoint, billeder og lyd/video – højst 25 MB pr. fil.</p>
+                <div id="filEmneBoks" hidden>
+                    <label class="k-label" for="filEmne">Hvilken workshop hører filen til?</label>
+                    <select class="k-input" id="filEmne"></select>
+                </div>
+                <label class="k-btn k-btn-primary fil-vaelg">
+                    Vælg fil
+                    <input type="file" id="filInput" multiple hidden />
+                </label>
+                <p id="filStatus" class="k-help" aria-live="polite" hidden></p>
+            </form>
+            <div id="filer" class="opgaver"></div>
+        </main>
+
+        <!-- The group's people (like the course's kursistoversigt). -->
+        <main id="viewHold" class="view hold" hidden>
+            <p class="opg-intro" id="holdIntro"></p>
+            <div id="holdListe" class="opgaver"></div>
+        </main>
+
         <main id="viewMig" class="view mig" hidden>
+            <!-- Martin: the group's people and topics, pasted one per line. -->
+            <section class="k-card" id="holdAdmin" hidden>
+                <h2 class="k-card-title">Holdet og emner</h2>
+                <label class="k-label" for="holdMedlemmer">Deltagere – én pr. linje: <i>Navn – hvad de laver</i></label>
+                <textarea class="k-textarea" id="holdMedlemmer" rows="8"></textarea>
+                <label class="k-label k-mt" for="holdEmner">Emner til filer – én pr. linje (fx workshops). "Andet" kommer selv til sidst.</label>
+                <textarea class="k-textarea" id="holdEmner" rows="6"></textarea>
+                <div class="k-row k-mt">
+                    <button class="k-btn k-btn-primary" id="holdGem" type="button">Gem</button>
+                    <span class="k-help" id="holdGemt" hidden>Gemt – alle i rummet ser det nu.</span>
+                </div>
+            </section>
             <section class="k-card">
                 <h2 class="k-card-title">Dit navn</h2>
                 <div class="k-row">
-                    <input class="k-input navn-input" id="nytNavn" maxlength="30" aria-label="Dit navn" />
+                    <input class="k-input navn-input" id="nytNavn" maxlength="40" aria-label="Dit navn" />
                     <button class="k-btn" id="gemNavn" type="button">Gem</button>
                 </div>
                 <p class="k-help">Gamle beskeder beholder det navn, de blev skrevet med.</p>
@@ -235,7 +284,8 @@
                 <h2 class="k-card-title">Om Snak</h2>
                 <p>Snak er et lille, privat rum til én sag. Kun dem med rummets link kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
                 <p>Under <b>Opgaver</b> lægger Martin det ud, der skal gøres. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
-                <p>Når sagen er klaret, bliver rummet slettet efter 14 dage.</p>
+                <p>Under <b>Filer</b> kan alle lægge dokumenter op og hente dem. Du kan selv slette de filer, du har lagt op.</p>
+                <p id="omSlet">Når sagen er klaret, bliver rummet slettet efter 14 dage.</p>
                 <p class="k-help">Spørgsmål eller noget der ikke virker: ITMartin@Mensa.dk · 31 19 47 30</p>
                 <button class="k-btn k-btn-ghost" id="logUd" type="button">Log ud på denne telefon</button>
             </section>

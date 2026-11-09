@@ -9,8 +9,11 @@ namespace ITMartinSnak.Domain;
 // 2026-11-08 SHARED rooms (user: a room for Vibz, Dorthe, Mette, Bent around Sonja, 85, "admin is me", "I create and make tasks",
 // the room has its own admin password, only the admin needs it): Members = the names shown as buttons at the door and offered when a task is
 // given to someone; CodeHash = this room's own admin password (a hash, never the code) - it makes you admin in THIS room only.
+// 2026-11-09 GRUPPE (Acceleratorkursus Hold 36, replaces their Facebook group): a standing group - no "Sagen er klaret", never deleted;
+// About = what each member works with (the Holdet tab), Topics = the workshops files are sorted under. Older rooms read as before.
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
-    List<string>? Members = null, string CodeHash = "", string Slug = "")
+    List<string>? Members = null, string CodeHash = "", string Slug = "", bool Gruppe = false, Dictionary<string, string>? About = null,
+    List<string>? Topics = null)
 {
     public bool IsDone => DoneAt is not null;
     public bool HasCode => CodeHash.Length > 0;
@@ -46,7 +49,8 @@ public static partial class RoomRules
 
     public const int MaxMembers = 20, MinCode = 6;
 
-    public static Room New(string? title, string? customerRef, DateTime nowUtc, string? members = null, string? code = null, string? slug = null)
+    public static Room New(string? title, string? customerRef, DateTime nowUtc, string? members = null, string? code = null, string? slug = null,
+        bool group = false)
     {
         var easy = CleanSlug(slug);
         if ((slug ?? "").Trim().Length > 0 && easy.Length == 0)
@@ -56,7 +60,7 @@ public static partial class RoomRules
         var pw = (code ?? "").Trim();
         if (pw.Length is > 0 and < MinCode) throw new InvalidOperationException($"Adgangskoden skal være mindst {MinCode} tegn.");
         return new Room(id, NewKey(), CleanTitle(title), nowUtc, nowUtc, null, c.Length > MaxCustomerRef ? c[..MaxCustomerRef] : c,
-            CleanMembers(members), pw.Length == 0 ? "" : CodeHashFor(id, pw), easy);
+            CleanMembers(members), pw.Length == 0 ? "" : CodeHashFor(id, pw), easy, group);
     }
 
     // 2026-11-08 user: "make an easy url" - snak.itmartin.dk/sonja leads to the room. Anyone who guesses it gets in (said in the form).

@@ -200,6 +200,98 @@ public class GroupTests
         NewRooms().Overview().Should().ContainSingle();   // a second start does not move it again
     }
 
+    private static MemoryStream Bytes(int n) => new(Enumerable.Repeat((byte)'x', n).ToArray());
+
+    [Test]
+    public async Task A_file_is_stored_under_its_own_name_downloads_again_and_survives_a_restart()
+    {
+        var g = NewGroup();
+        var (f, err) = await g.AddFileAsync(@"C:\fakepath\..\Hold 36 program.pdf", 1000, Bytes(1000), "Sonja", "phone-1");
+        err.Should().BeNull();
+        f!.Name.Should().Be("Hold 36 program.pdf");
+        f.StoredName.Should().Be("1.pdf");
+        _live.Kinds.Should().Contain("filer");
+        _push.Sent.Should().Contain(p => p.Except == "phone-1" && p.Body.Contains("Hold 36 program.pdf"));
+
+        var again = NewGroup();
+        var back = again.Files().Single();
+        await using var s = again.OpenFile(back)!;
+        s.Length.Should().Be(1000);
+    }
+
+    [Test]
+    public async Task Programs_too_big_and_nameless_files_are_refused_and_nothing_is_left_behind()
+    {
+        var g = NewGroup();
+        (await g.AddFileAsync("virus.exe", 10, Bytes(10), "Sonja", null)).Error.Should().Contain("kan ikke");
+        (await g.AddFileAsync("stor.pdf", FileRules.MaxSize + 1, Bytes(10), "Sonja", null)).Error.Should().Contain("25 MB");
+        (await g.AddFileAsync("a.pdf", 10, Bytes(10), " ", null)).Error.Should().Contain("navn");
+        // The browser says small, the bytes are bigger: stopped while writing.
+        (await g.AddFileAsync("lyver.pdf", 10, Bytes((int)FileRules.MaxSize + 10), "Sonja", null)).Error.Should().NotBeNull();
+        g.Files().Should().BeEmpty();
+        Directory.GetFiles(Path.Combine(_dir, "files")).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Only_the_one_who_added_a_file_or_Martin_can_delete_it()
+    {
+        var g = NewGroup();
+        var f = (await g.AddFileAsync("noter.docx", 5, Bytes(5), "Sonja", null)).File!;
+        g.DeleteFile(f.Id, "Bent", host: false).Should().BeFalse();
+        g.DeleteFile(f.Id, "sonja", host: false).Should().BeTrue();
+        g.Files().Should().BeEmpty();
+        File.Exists(Path.Combine(_dir, "files", f.StoredName)).Should().BeFalse();
+
+        var f2 = (await g.AddFileAsync("b.png", 5, Bytes(5), "Sonja", null)).File!;
+        f2.Id.Should().Be(1);   // ids count from what is left
+        g.DeleteFile(f2.Id, "Martin", host: true).Should().BeTrue();
+    }
+
+    [Test]
+    public void A_group_room_cannot_be_closed_as_a_finished_case()
+    {
+        var rooms = NewRooms();
+        var hold = rooms.Create("Hold 36", group: true);
+        rooms.MarkDone(hold.Id, "Martin").Should().BeFalse();
+        NewRooms().ById(hold.Id)!.Gruppe.Should().BeTrue();
+        NewRooms().Overview().Single().Gruppe.Should().BeTrue();
+    }
+
+    [Test]
+    public void A_pasted_course_list_becomes_members_and_workshops_with_Andet_never_doubled()
+    {
+        var members = RosterRules.ParseMembers("""
+            Evald Merida Jensen – Psykoterapi
+            • Helena Cristina Daniele Christensen - Eventbureau
+
+            Thomas schaumburg | Pædagogiskbrobygning - støtte til børn
+            evald merida jensen – twice
+            Rasmus Gravesen
+            """);
+        members.Select(m => m.Name).Should().Equal("Evald Merida Jensen", "Helena Cristina Daniele Christensen", "Thomas schaumburg", "Rasmus Gravesen");
+        members[2].About.Should().Be("Pædagogiskbrobygning - støtte til børn");
+        members[3].About.Should().BeEmpty();
+
+        var topics = RosterRules.ParseTopics("Prissætning\nRegnskab\nandet\nprissætning\n");
+        topics.Should().Equal("Prissætning", "Regnskab");
+        RosterRules.TopicFor(topics, "regnskab").Should().Be("Regnskab");
+        RosterRules.TopicFor(topics, "Hacket emne").Should().BeEmpty();
+    }
+
+    [Test]
+    public void A_groups_roster_is_kept_and_goes_live_to_the_room()
+    {
+        var rooms = NewRooms();
+        var hold = rooms.Create("Hold 36", group: true);
+        rooms.SetRoster(hold.Id, "Martin Hvidberg – Digitale hjælpere", "Regnskab").Should().BeTrue();
+        _live.Kinds.Should().Contain("holdet");
+        var again = NewRooms().ById(hold.Id)!;
+        again.Members.Should().Equal("Martin Hvidberg");   // the door's name buttons
+        again.About!["Martin Hvidberg"].Should().Be("Digitale hjælpere");
+        again.Topics.Should().Equal("Regnskab");
+        again.Gruppe.Should().BeTrue();
+    }
+
     // ---- shared rooms + today + reminders (2026-11-08, the room around Sonja) ----
 
     [Test]

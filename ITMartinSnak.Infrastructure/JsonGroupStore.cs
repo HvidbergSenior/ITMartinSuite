@@ -7,21 +7,74 @@ namespace ITMartinSnak.Infrastructure;
 /// <summary>
 /// One room's messages and tasks in two small JSON files. Written via a temp file, so a crash never leaves half a file.
 /// </summary>
-public sealed class JsonGroupStore : IGroupStore
+public sealed partial class JsonGroupStore : IGroupStore
 {
-    private readonly string _msgFile, _taskFile;
+    private readonly string _msgFile, _taskFile, _filesFile, _filesDir;
 
     public JsonGroupStore(string dir)
     {
         Directory.CreateDirectory(dir);
         _msgFile = Path.Combine(dir, "messages.json");
         _taskFile = Path.Combine(dir, "tasks.json");
+        _filesFile = Path.Combine(dir, "files.json");
+        _filesDir = Path.Combine(dir, "files");
     }
 
     public List<Message> LoadMessages() => Json.Load<List<Message>>(_msgFile) ?? [];
     public void SaveMessages(IReadOnlyList<Message> messages) => Json.Save(_msgFile, messages);
     public List<TaskItem> LoadTasks() => Json.Load<List<TaskItem>>(_taskFile) ?? [];
     public void SaveTasks(IReadOnlyList<TaskItem> tasks) => Json.Save(_taskFile, tasks);
+    public List<SharedFile> LoadFiles() => Json.Load<List<SharedFile>>(_filesFile) ?? [];
+    public void SaveFiles(IReadOnlyList<SharedFile> files) => Json.Save(_filesFile, files);
+
+    // Stored names are "<id>.<ext>" from FileRules.New - checked again here, so a path never leaves files/.
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[0-9]{1,9}\.[a-z0-9]{1,5}$")]
+    private static partial System.Text.RegularExpressions.Regex StoredShape();
+
+    private string Content(string storedName) =>
+        StoredShape().IsMatch(storedName) ? Path.Combine(_filesDir, storedName) : throw new ArgumentException("Bad file name", nameof(storedName));
+
+    public async Task<bool> WriteContentAsync(string storedName, Stream content, long maxBytes, CancellationToken ct)
+    {
+        Directory.CreateDirectory(_filesDir);
+        var file = Content(storedName);
+        var tmp = file + ".tmp";
+        long total = 0;
+        try
+        {
+            await using (var output = File.Create(tmp))
+            {
+                var buf = new byte[81920];
+                int n;
+                while ((n = await content.ReadAsync(buf, ct)) > 0)
+                {
+                    total += n;
+                    if (total > maxBytes) break;
+                    await output.WriteAsync(buf.AsMemory(0, n), ct);
+                }
+            }
+            if (total == 0 || total > maxBytes) { File.Delete(tmp); return false; }
+            File.Move(tmp, file, true);
+            return true;
+        }
+        catch
+        {
+            try { File.Delete(tmp); } catch { }
+            throw;
+        }
+    }
+
+    public Stream? OpenContent(string storedName)
+    {
+        var f = Content(storedName);
+        return File.Exists(f) ? File.OpenRead(f) : null;
+    }
+
+    public void DeleteContent(string storedName)
+    {
+        var f = Content(storedName);
+        if (File.Exists(f)) File.Delete(f);
+    }
 }
 
 /// <summary>

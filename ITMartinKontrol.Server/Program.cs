@@ -24,8 +24,19 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Alle apps og servere på ét sted - tænd, sluk, og få besked når noget falder.";
     k.Version = "2026.09";
     k.ThemeColor = "#0a0d14";
-    k.OwnOmPage = true;
-    k.OwnHjaelpPage = true;
+    // The page is a static index.html, so /om and /hjaelp come as plain HTML (2026-11-09: they gave 404).
+    k.StaticPages = true;
+    k.About =
+    [
+        "Kontrol viser alle apps og servere på NAS'en og photoserveren ét sted: hvad kører, hvad bruger de, og hvad er faldet.",
+        "Du kan tænde, slukke og genstarte en app, og telefonen får besked, når noget går ned eller backuppen er for gammel.",
+    ];
+    k.HowTo =
+    [
+        "Tryk Tænd, Sluk eller Genstart ved en app. Første gang beder Kontrol om din PIN.",
+        "Tryk 🔔 Alarmer for at få besked på telefonen, når noget falder.",
+        "Tryk ✏️ ved en app for at rette beskrivelsen.",
+    ];
     k.HealthChecks = sp =>
     {
         var b = BackupStatus.Read(sp.GetRequiredService<IConfiguration>());

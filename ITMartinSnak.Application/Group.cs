@@ -12,6 +12,12 @@ public interface IGroupStore
     void SaveMessages(IReadOnlyList<Message> messages);
     List<TaskItem> LoadTasks();
     void SaveTasks(IReadOnlyList<TaskItem> tasks);
+    List<SharedFile> LoadFiles();
+    void SaveFiles(IReadOnlyList<SharedFile> files);
+    /// <summary>Writes the content; false (and nothing kept) when it is empty or bigger than <paramref name="maxBytes"/>.</summary>
+    Task<bool> WriteContentAsync(string storedName, Stream content, long maxBytes, CancellationToken ct);
+    Stream? OpenContent(string storedName);
+    void DeleteContent(string storedName);
 }
 
 // The list of rooms, and a store per room.
@@ -57,12 +63,14 @@ public sealed class Group
     private readonly object _gate = new();
     private readonly List<Message> _messages;
     private readonly List<TaskItem> _tasks;
+    private readonly List<SharedFile> _files;
 
     public Group(IGroupStore store, ILiveFeed live, IPushSender push, TimeProvider clock, RoomContext room)
     {
         (_store, _live, _push, _clock, _room) = (store, live, push, clock, room);
         _messages = store.LoadMessages();
         _tasks = store.LoadTasks();
+        _files = store.LoadFiles();
     }
 
     // ---- chat ----
@@ -170,6 +178,68 @@ public sealed class Group
 
     private void TasksChanged() => _live.Send(_room.Id, "opgaver", Tasks());
 
+    // ---- documents (everyone adds and downloads; the one who added it, or Martin, removes it) ----
+
+    public IReadOnlyList<SharedFile> Files()
+    {
+        lock (_gate) return _files.OrderByDescending(f => f.Id).ToList();
+    }
+
+    public SharedFile? File(long id)
+    {
+        lock (_gate) return _files.FirstOrDefault(f => f.Id == id);
+    }
+
+    public Stream? OpenFile(SharedFile f) => _store.OpenContent(f.StoredName);
+
+    /// <returns>The new file, or the Danish reason it was not added.</returns>
+    /// <param name="topic">Already checked against the room's topics (RosterRules.TopicFor); "" = Andet.</param>
+    public async Task<(SharedFile? File, string? Error)> AddFileAsync(string? fileName, long size, Stream content, string? by,
+        string? fromEndpoint, CancellationToken ct = default, string topic = "")
+    {
+        var who = GroupRules.CleanName(by);
+        if (who.Length == 0) return (null, "Skriv dit navn først.");
+        var name = FileRules.CleanName(fileName);
+        SharedFile f;
+        lock (_gate)
+        {
+            if (FileRules.Check(name, size, _files.Count) is { } err) return (null, err);
+            f = FileRules.New(_files, name, size, who, _clock.GetUtcNow().UtcDateTime, topic);
+            _files.Add(f);   // holds the id while the bytes are written
+        }
+        var ok = false;
+        try { ok = await _store.WriteContentAsync(f.StoredName, content, FileRules.MaxSize, ct); }
+        finally
+        {
+            lock (_gate)
+            {
+                if (ok) _store.SaveFiles(_files); else _files.Remove(f);
+            }
+        }
+        if (!ok) return (null, "Filen er tom eller for stor. Den må højst være 25 MB.");
+        FilesChanged();
+        _push.SendToOthers(_room.Id, fromEndpoint, "Ny fil · " + _room.Title, $"{who} har lagt {f.Name} op", "snak-fil-" + _room.Id, _room.Url);
+        _room.Activity(false);
+        return (f, null);
+    }
+
+    public bool DeleteFile(long id, string? name, bool host)
+    {
+        SharedFile? f;
+        lock (_gate)
+        {
+            f = _files.FirstOrDefault(x => x.Id == id);
+            if (f is null || !FileRules.MayDelete(f, name, host)) return false;
+            _files.Remove(f);
+            _store.SaveFiles(_files);
+        }
+        _store.DeleteContent(f.StoredName);
+        FilesChanged();
+        return true;
+    }
+
+    private void FilesChanged() => _live.Send(_room.Id, "filer", Files());
+
     // Reminders already sent: "taskId|date|minutes". In memory - after a restart at most one repeat inside the 10-minute window.
     private readonly HashSet<string> _reminded = [];
 
@@ -193,7 +263,8 @@ public sealed class Group
 
 // What the host's overview shows per room.
 public sealed record RoomSummary(string Id, string Key, string Title, string CustomerRef, DateTime CreatedAt, DateTime LastAt,
-    DateTime? DoneAt, DateTime? DeleteAt, bool Waiting, string LastName, string LastText, IReadOnlyList<string> Members, bool HasCode, string Slug);
+    DateTime? DoneAt, DateTime? DeleteAt, bool Waiting, string LastName, string LastText, IReadOnlyList<string> Members, bool HasCode, string Slug,
+    bool Gruppe);
 
 // All rooms. Martin makes them (or Kunder / itmartin.dk through the API key); the link with the key is the way in.
 public sealed class Rooms
@@ -217,9 +288,10 @@ public sealed class Rooms
 
     public string? EasyLink(Room r) => r.Slug.Length > 0 ? $"{_publicUrl}/{r.Slug}" : null;
 
-    public Room Create(string? title, string? customerRef = null, string? members = null, string? adminCode = null, string? slug = null)
+    public Room Create(string? title, string? customerRef = null, string? members = null, string? adminCode = null, string? slug = null,
+        bool group = false)
     {
-        var r = RoomRules.New(title, customerRef, _clock.GetUtcNow().UtcDateTime, members, adminCode, slug);
+        var r = RoomRules.New(title, customerRef, _clock.GetUtcNow().UtcDateTime, members, adminCode, slug, group);
         lock (_gate)
         {
             if (r.Slug.Length > 0 && _rooms.Any(x => x.Slug == r.Slug)) throw new InvalidOperationException($"Adressen /{r.Slug} er allerede brugt.");
@@ -263,7 +335,7 @@ public sealed class Rooms
                 var last = g.Last;
                 return new RoomSummary(r.Id, r.Key, r.Title, r.CustomerRef, r.CreatedAt, r.LastAt, r.DoneAt, r.DeleteAt,
                     !r.IsDone && g.Waiting, last?.Name ?? "", last is null ? "" : last.Text.Length > 120 ? last.Text[..120] + "…" : last.Text,
-                    r.Members ?? [], r.HasCode, r.Slug);
+                    r.Members ?? [], r.HasCode, r.Slug, r.Gruppe);
             })
             .OrderByDescending(s => s.Waiting).ThenBy(s => s.DoneAt is not null).ThenByDescending(s => s.LastAt).ToList();
     }
@@ -280,7 +352,7 @@ public sealed class Rooms
     public bool MarkDone(string id, string hostName)
     {
         var r = ById(id);
-        if (r is null) return false;
+        if (r is null || r.Gruppe) return false;   // a group has no end
         GroupOf(r).Write(hostName, RoomRules.DoneText, host: true);
         Update(id, x => x with { DoneAt = _clock.GetUtcNow().UtcDateTime });
         return true;
@@ -289,6 +361,19 @@ public sealed class Rooms
     public bool Reopen(string id) => Update(id, x => x with { DoneAt = null });
 
     public bool Rename(string id, string? title) => Update(id, x => x with { Title = RoomRules.CleanTitle(title) });
+
+    /// <summary>A group's people and topics (Martin pastes them, one per line). Everyone in the room sees the change at once.</summary>
+    public bool SetRoster(string id, string? membersText, string? topicsText)
+    {
+        var people = RosterRules.ParseMembers(membersText);
+        var topics = RosterRules.ParseTopics(topicsText);
+        // Members stays the plain name list (door buttons, "give the task to"); About holds what each one works with.
+        var names = people.Select(m => m.Name).ToList();
+        var about = people.Where(m => m.About.Length > 0).ToDictionary(m => m.Name, m => m.About);
+        if (!Update(id, x => x with { Members = names, About = about, Topics = topics })) return false;
+        _live.Send(id, "holdet", new { medlemmer = names, om = about, emner = topics });
+        return true;
+    }
 
     public bool Delete(string id)
     {

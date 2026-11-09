@@ -1,11 +1,9 @@
 @inherits LayoutComponentBase
-<KolibriTitle />
+<KolibriHeader>
+    <a href="/api/auth/logout" class="k-btn k-btn-ghost k-btn-sm">Log out</a>
+</KolibriHeader>
 
 <div class="page">
-    <header class="topbar">
-        <a href="/" class="brand">♟️ Strategy</a>
-        <a href="/api/auth/logout" class="muted small">Log out</a>
-    </header>
     @Body
     <KolibriFooter />
 </div>

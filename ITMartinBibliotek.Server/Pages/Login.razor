@@ -3,6 +3,9 @@
 
 <PageTitle>Log ind – Bibliotek</PageTitle>
 
+@* The ITMartin/Kolibri header on the login page too (user 2026-11-09: all apps the same template). *@
+<KolibriHeader />
+
 <div class="login-wrap">
     <div class="login-box">
         <img class="login-icon" src="/_content/ITMartin.Shared.UI/kolibri-icon.svg" alt="" />
@@ -17,6 +20,8 @@
         </form>
     </div>
 </div>
+
+<KolibriFooter />
 
 @code {
     [SupplyParameterFromQuery] public string? Error { get; set; }
