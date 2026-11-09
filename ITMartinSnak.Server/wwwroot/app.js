@@ -85,8 +85,11 @@
         box.textContent = '';
         const names = shared() ? room.medlemmer : [];
         box.hidden = !names.length;
+        document.body.classList.toggle('gruppe', isGroup());
         for (const n of names) {
-            const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn'; b.textContent = n;
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn';
+            if (isGroup()) { const t = document.createElement('span'); t.className = 'navn-tekst'; t.textContent = n; b.append(avatar(n), t); }
+            else b.textContent = n;
             b.onclick = () => { $('loginNavn').value = n; $('loginForm').requestSubmit(); };
             box.appendChild(b);
         }
@@ -98,10 +101,24 @@
         }
         // A fixed group (a course team, a club): the door speaks to the group (2026-11-09).
         if (room && room.gruppe) {
-            $('loginLead').textContent = 'Her skriver holdet sammen og deler dokumenter. ' + (names.length ? 'Tryk på dit navn.' : 'Skriv dit navn.');
+            $('loginLead').textContent = 'Velkommen! Her skriver holdet sammen og deler dokumenter. ' + (names.length ? `I er ${names.length} på holdet – tryk på dit navn.` : 'Skriv dit navn.');
             document.querySelector('#loginNavn + .k-help').textContent = 'Det er det navn, de andre ser ved dine beskeder og filer.';
         }
     }
+
+    // Group rooms (2026-11-09, user: "make it prettier", "more wow"): every person gets a round badge with initials,
+    // in a colour of their own that stays the same on the door, in Holdet and in the chat.
+    function initials(n) {
+        const parts = String(n || '?').trim().split(/\s+/);
+        return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+    }
+    function avatar(n, size) {
+        let h = 0; for (const ch of String(n).toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) % 360;
+        const a = document.createElement('span'); a.className = 'avatar' + (size ? ' ' + size : ''); a.setAttribute('aria-hidden', 'true');
+        a.style.setProperty('--h', String(h)); a.textContent = initials(n);
+        return a;
+    }
+    function isGroup() { return !!(room && room.gruppe); }
 
     function shared() { return !!(room && room.medlemmer && room.medlemmer.length); }
 
@@ -245,6 +262,7 @@
             : shared() ? 'Her er det, der skal gøres. Står dit navn på en opgave, er den din. Tryk "Jeg tager den" på en, der mangler nogen.'
                        : 'Her er det, der skal gøres. Tryk "Jeg tager den" på en opgave, så ved Martin, at du gør den.';
         $('omSlet').hidden = !!(room && room.gruppe);
+        document.body.classList.toggle('gruppe', isGroup());
         klaretBar();
         renderRoster();
         $('holdAdmin').hidden = !(alleRum && room && room.gruppe);
@@ -366,7 +384,12 @@
             const meta = document.createElement('div'); meta.className = 'meta';
             meta.textContent = (me ? 'Dig' : m.name) + ' · ' + timeFmt.format(when);
             const b = document.createElement('div'); b.className = 'boble'; b.textContent = m.text;
-            el.append(meta, b); box.appendChild(el);
+            if (isGroup() && !me) {
+                const row = document.createElement('div'); row.className = 'besked-raekke';
+                const col = document.createElement('div'); col.className = 'besked-kol'; col.append(meta, b);
+                row.append(avatar(m.name, 'lille'), col); el.appendChild(row);
+            } else el.append(meta, b);
+            box.appendChild(el);
         }
     }
 
@@ -682,9 +705,11 @@
             const c = document.createElement('article');
             const me = n.toLowerCase() === navn.toLowerCase();
             c.className = 'k-card medlem' + (me ? ' mig-selv' : '');
+            const txt = document.createElement('div'); txt.className = 'medlem-tekst';
             const h = document.createElement('h3'); h.textContent = n + (me ? ' (dig)' : '');
-            c.appendChild(h);
-            if (om[n]) { const p = document.createElement('p'); p.className = 'note'; p.textContent = om[n]; c.appendChild(p); }
+            txt.appendChild(h);
+            if (om[n]) { const p = document.createElement('p'); p.className = 'note'; p.textContent = om[n]; txt.appendChild(p); }
+            c.append(avatar(n, 'stor'), txt);
             box.appendChild(c);
         }
     }

@@ -121,3 +121,39 @@ body { background: var(--k-bg); color: var(--k-text); }
 .idag-titel { margin: 0 0 4px; font-size: 22px; }
 .idag-titel::first-letter { text-transform: uppercase; }
 #andreDage > summary { font-weight: 700; cursor: pointer; min-height: 40px; }
+
+/* ---- Group rooms: the "wow" look (2026-11-09, user: "make it prettier", group rooms only). Kolibri tokens, so light + dark work. ---- */
+.avatar { --h: 200; flex: none; width: 36px; height: 36px; border-radius: 50%; display: inline-grid; place-items: center;
+    background: hsl(var(--h) 55% 45%); color: #fff; font-weight: 800; font-size: 14px; letter-spacing: .02em;
+    box-shadow: 0 0 0 3px color-mix(in srgb, hsl(var(--h) 55% 45%) 22%, transparent); }
+.avatar.lille { width: 28px; height: 28px; font-size: 11px; box-shadow: none; margin-top: 18px; }
+.avatar.stor { width: 52px; height: 52px; font-size: 18px; }
+
+/* The door: a welcome band and big name cards */
+.gruppe .login { max-width: 760px; }
+.gruppe .login h1 { font-size: clamp(1.8rem, 5vw, 2.8rem); line-height: 1.1; margin: 0 0 8px; }
+.gruppe #login { position: relative; }
+.gruppe #login::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 190px; z-index: -1; border-radius: 0 0 28px 28px;
+    background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--k-accent) 30%, transparent), transparent 60%),
+                radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--k-accent-dark) 22%, transparent), transparent 55%); }
+.gruppe .login .lead { font-size: 1.05rem; color: var(--k-text); opacity: .85; }
+.gruppe .navne { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.gruppe .navne .k-btn { display: flex; align-items: center; justify-content: flex-start; gap: 12px; min-height: 60px; padding: 10px 14px;
+    border-radius: 16px; background: var(--k-card); border: 1px solid var(--k-border); color: var(--k-text); text-align: left;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.gruppe .navne .k-btn:hover, .gruppe .navne .k-btn:focus-visible { transform: translateY(-2px); border-color: var(--k-accent);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--k-accent) 18%, transparent); }
+.gruppe .navn-tekst { font-weight: 700; line-height: 1.2; }
+
+/* Holdet: a grid of people cards */
+.gruppe #holdListe { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gruppe .medlem.k-card { display: flex; gap: 14px; align-items: flex-start; border-radius: 18px; padding: 16px; }
+.gruppe .medlem h3 { font-size: 16px; margin: 2px 0 4px; }
+.gruppe .medlem .note { margin: 0; color: var(--k-muted); font-size: 14px; line-height: 1.4; }
+.gruppe .medlem.mig-selv { border-left: 1px solid var(--k-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--k-accent) 35%, transparent); }
+
+/* Chat: the badge next to the others' messages */
+.besked-raekke { display: flex; gap: 8px; align-items: flex-start; }
+.besked-kol { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+@media (prefers-reduced-motion: reduce) { .gruppe .navne .k-btn { transition: none; } .gruppe .navne .k-btn:hover { transform: none; } }
