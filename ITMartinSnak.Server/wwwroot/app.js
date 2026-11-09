@@ -284,7 +284,7 @@
         const ok = t => !$('tab' + t[0].toUpperCase() + t.slice(1)).hidden;
         show(['kal', 'ng', 'opg', 'fil', 'hold'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
         $('opsBoks').hidden = !admin;
-        loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); connect();
+        loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); loadProfiles(); connect();
         setupPush(false).finally(reportSeen);
     }
 
@@ -343,6 +343,7 @@
         // "hej" comes on every (re)connect: fetch whatever was missed while the line was down.
         live.addEventListener('hej', () => { loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); });
         live.addEventListener('set', e => { reads = JSON.parse(e.data); renderMessages(); });
+        live.addEventListener('profiler', e => { profiles = JSON.parse(e.data); if (!document.querySelector('.profil-form')) renderRoster(); });
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
         live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
@@ -1015,6 +1016,54 @@
     }
     setInterval(() => { if (hasCal() && !$('app').hidden) renderCalendar(); }, 60000);
 
+    // ---------- profiles (2026-11-09): each person's own card ----------
+    let profiles = [];
+    async function loadProfiles() { if (!isGroup()) return; try { profiles = await api('GET', base + '/profiler'); renderRoster(); } catch { } }
+    function profileOf(n) { return profiles.find(p => p.name.toLowerCase() === n.toLowerCase()); }
+    function contactButtons(p) {
+        if (!p) return null;
+        const row = document.createElement('div'); row.className = 'kontakt';
+        const add = (label, href, ext) => {
+            if (!href) return;
+            const a = document.createElement('a'); a.className = 'k-btn k-btn-sm'; a.href = href; a.textContent = label;
+            if (ext) { a.target = '_blank'; a.rel = 'noopener'; }
+            row.appendChild(a);
+        };
+        add('Mail', p.mail && 'mailto:' + p.mail);
+        add('Ring', p.phone && 'tel:' + p.phone);
+        add('Hjemmeside', p.web, true);
+        add('LinkedIn', p.linkedIn, true);
+        return row.children.length ? row : null;
+    }
+    function openProfileForm(card, n, p, about) {
+        if (card.querySelector('form')) return;
+        const f = document.createElement('form'); f.className = 'profil-form';
+        const field = (id, label, type, value, ph) =>
+            `<label class="k-label" for="${id}">${label}</label><input class="k-input" id="${id}" type="${type}" value="" placeholder="${ph}" autocomplete="off" />`;
+        f.innerHTML = '<p class="k-help">Alt kan undværes. Skriv kun det, du gerne vil dele – kun holdet kan se det.</p>' +
+            field('pMail', 'Mail', 'email', '', 'navn@firma.dk') + field('pTlf', 'Telefon', 'tel', '', '12 34 56 78') +
+            field('pWeb', 'Hjemmeside', 'text', '', 'www.mitfirma.dk') + field('pLi', 'LinkedIn', 'text', '', 'linkedin.com/in/ditnavn') +
+            '<label class="k-label" for="pOm">Hvad laver du?</label><textarea class="k-textarea" id="pOm" maxlength="300" rows="3"></textarea>' +
+            '<p class="fejl" hidden></p><div class="k-row"><button class="k-btn k-btn-primary" type="submit">Gem</button>' +
+            '<button class="k-btn k-btn-ghost" type="button">Fortryd</button></div>';
+        // Values set as properties, never as HTML.
+        f.querySelector('#pMail').value = (p && p.mail) || ''; f.querySelector('#pTlf').value = (p && p.phone) || '';
+        f.querySelector('#pWeb').value = (p && p.web) || ''; f.querySelector('#pLi').value = (p && p.linkedIn) || '';
+        f.querySelector('#pOm').value = about || '';
+        f.querySelector('.k-btn-ghost').onclick = () => f.remove();
+        f.addEventListener('submit', async e => {
+            e.preventDefault();
+            const err = f.querySelector('.fejl'); err.hidden = true;
+            try {
+                await api('PUT', base + '/profil', { navn: n, mail: f.querySelector('#pMail').value, telefon: f.querySelector('#pTlf').value,
+                    web: f.querySelector('#pWeb').value, linkedIn: f.querySelector('#pLi').value, om: f.querySelector('#pOm').value });
+                await loadProfiles();
+            } catch (x) { if (x.message !== 'login') { err.textContent = x.message; err.hidden = false; } }
+        });
+        card.appendChild(f);
+        f.querySelector('#pMail').focus();
+    }
+
     function renderRoster() {
         renderLinks();
         // Only a fixed group has the Holdet tab; a shared family room keeps its names at the door and on the tasks.
@@ -1025,14 +1074,26 @@
         $('holdIntro').textContent = people.length + ' på holdet. Skriv til dem i chatten, eller del en fil under Filer.';
         const box = $('holdListe');
         box.textContent = '';
-        for (const n of people) {
+        // Your own card first, so it is easy to fill in.
+        const sorted = [...people].sort((a, b) => (b.toLowerCase() === navn.toLowerCase()) - (a.toLowerCase() === navn.toLowerCase()));
+        for (const n of sorted) {
             const c = document.createElement('article');
             const me = n.toLowerCase() === navn.toLowerCase();
+            const pr = profileOf(n);
             c.className = 'k-card medlem' + (me ? ' mig-selv' : '');
             const txt = document.createElement('div'); txt.className = 'medlem-tekst';
             const h = document.createElement('h3'); h.textContent = n + (me ? ' (dig)' : '');
             txt.appendChild(h);
-            if (om[n]) { const p = document.createElement('p'); p.className = 'note'; p.textContent = om[n]; txt.appendChild(p); }
+            const about = (pr && pr.about) || om[n];
+            if (about) { const p = document.createElement('p'); p.className = 'note'; p.textContent = about; txt.appendChild(p); }
+            const btns = contactButtons(pr);
+            if (btns) txt.appendChild(btns);
+            if (me) {
+                const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'k-btn k-btn-sm ret-mig';
+                ed.textContent = pr ? 'Ret mine oplysninger' : 'Tilføj mail, telefon og hjemmeside';
+                ed.onclick = () => openProfileForm(c, n, pr, about);
+                txt.appendChild(ed);
+            }
             c.append(avatar(n, 'stor'), txt);
             box.appendChild(c);
         }

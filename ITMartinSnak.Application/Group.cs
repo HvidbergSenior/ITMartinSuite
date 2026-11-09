@@ -20,6 +20,7 @@ public sealed class Group
     private readonly List<SharedFile> _files;
     private readonly List<Seen> _seen;
     private readonly Dictionary<string, List<long>> _mine;
+    private readonly List<Profile> _profiles;
 
     public Group(IGroupStore store, ILiveFeed live, IPushSender push, TimeProvider clock, RoomContext room)
     {
@@ -29,6 +30,7 @@ public sealed class Group
         _files = store.LoadFiles();
         _seen = store.LoadSeen();
         _mine = new(store.LoadMine(), StringComparer.OrdinalIgnoreCase);
+        _profiles = store.LoadProfiles();
     }
 
     // ---- chat ----
@@ -56,6 +58,28 @@ public sealed class Group
         _push.SendToOthers(_room.Id, fromEndpoint, $"{m.Name} · {_room.Title}", m.Text, "snak-" + _room.Id, _room.Url);
         _room.Activity(true);
         return m;
+    }
+
+    // ---- profiles (2026-11-09): what each participant chooses to share - mail, phone, website, LinkedIn, a line about them ----
+
+    public IReadOnlyList<Profile> Profiles()
+    {
+        lock (_gate) return _profiles.ToList();
+    }
+
+    /// <summary>Saves the person's own card; an all-empty card is removed. Everyone in the room sees it at once.</summary>
+    public (Profile? Profile, string? Error) SaveProfile(string? name, string? mail, string? phone, string? web, string? linkedIn, string? about)
+    {
+        var (p, err) = ProfileRules.Clean(name, mail, phone, web, linkedIn, about);
+        if (p is null) return (null, err);
+        lock (_gate)
+        {
+            _profiles.RemoveAll(x => string.Equals(x.Name, p.Name, StringComparison.OrdinalIgnoreCase));
+            if (!ProfileRules.IsEmpty(p)) _profiles.Add(p);
+            _store.SaveProfiles(_profiles);
+        }
+        _live.Send(_room.Id, "profiler", Profiles());
+        return (p, null);
     }
 
     // ---- "Til næste gang" (2026-11-09, course groups): Martin adds the assignment, each person ticks it for themselves.

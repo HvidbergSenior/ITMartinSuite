@@ -440,4 +440,19 @@ public class GroupTests
         l.Select(x => x.Url).Should().Equal("mailto:michael@talentmatch.dk", "tel:24245577", "tel:+4520235184");
         l[1].Title.Should().Be("Ring til Michael");
     }
+
+    [Test]
+    public void Profiles_are_cleaned_and_only_what_is_given()
+    {
+        var g = NewGroup();
+        var (p, err) = g.SaveProfile("Per", " per@firma.dk ", "24 24 55 77", "www.firma.dk", "", "Laver kaffe");
+        err.Should().BeNull();
+        (p!.Mail, p.Phone, p.Web, p.LinkedIn).Should().Be(("per@firma.dk", "24245577", "https://www.firma.dk/", ""));
+        g.SaveProfile("Per", "ikke en mail", "", "", "", "").Error.Should().Contain("Mail");
+        g.SaveProfile("Per", "", "123", "", "", "").Error.Should().Contain("8 cifre");
+        g.SaveProfile("Per", "", "", "javascript:alert(1)", "", "").Error.Should().NotBeNull();
+        NewGroup().Profiles().Should().ContainSingle(x => x.Name == "Per");
+        g.SaveProfile("Per", "", "", "", "", "");   // all empty = the card goes
+        g.Profiles().Should().BeEmpty();
+    }
 }
