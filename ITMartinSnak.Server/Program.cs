@@ -271,6 +271,14 @@ room.MapGet("/kalender", async (string key, Rooms rooms, Calendars cal, Cancella
     return Results.Json(events.Select(e => new { start = e.StartUtc, slut = e.EndUtc, titel = e.Title, sted = e.Place, heleDagen = e.AllDay }), web);
 });
 
+// "Til næste gang": each person's own ticks (only they ask for their own name).
+room.MapGet("/mine", (string key, string? navn, Rooms rooms) =>
+    rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).MyDone(navn), web) : Results.NotFound());
+
+room.MapPost("/opgaver/{id:long}/mig", (string key, long id, MineBody b, Rooms rooms) =>
+    rooms.ByKey(key) is not { } r ? Results.NotFound()
+        : rooms.GroupOf(r).SetMyDone(b.Navn, id, b.Gjort) is { } ids ? Results.Json(ids, web) : Results.BadRequest());
+
 // Tasks: everyone in the room sees them and can put themselves on one; only Martin makes, edits and removes.
 room.MapGet("/opgaver", (string key, Rooms rooms) =>
     rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).Tasks(), web) : Results.NotFound());
@@ -403,6 +411,7 @@ public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null);
 public sealed record DoneBody(bool Faerdig);
 public sealed record TakeBody(string? Navn, string? Endpoint);
+public sealed record MineBody(string? Navn, bool Gjort);
 public sealed record SeenBody(string? Navn, long Besked, string? Enhed, bool Hjem, string? Push, bool InApp);
 public sealed record PushBody(string? Endpoint, string? P256dh, string? Auth, string? Navn);
 

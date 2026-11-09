@@ -18,7 +18,9 @@ body { background: var(--k-bg); color: var(--k-text); }
 .brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .brand b { font-size: 20px; }
 .brand span { font-size: 13px; color: var(--k-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tabs { display: flex; gap: 4px; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: 0 0 auto; white-space: nowrap; }
 .tabs button { font: inherit; font-weight: 600; min-height: 40px; padding: 6px 14px; border-radius: 999px;
     border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; }
@@ -192,3 +194,12 @@ body { background: var(--k-bg); color: var(--k-text); }
 .kal-sted .k-btn { text-decoration: none; }
 #kalFoer { margin-top: 12px; }
 #kalFoer summary { font-weight: 600; cursor: pointer; min-height: 32px; }
+
+/* 2026-11-09 Til næste gang */
+.ng-opg.k-card { margin: 0; }
+.ng-raekke { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.ng-raekke input[type=checkbox] { width: 26px; height: 26px; margin-top: 2px; flex: 0 0 auto; accent-color: var(--k-accent); }
+.ng-raekke h3 { margin: 0 0 2px; font-size: 17px; }
+.ng-opg.gjort h3 { text-decoration: line-through; color: var(--k-muted); }
+.ng-opg .k-btn-ghost { margin-top: 6px; }
+#ngGjort summary { font-weight: 600; cursor: pointer; min-height: 32px; }

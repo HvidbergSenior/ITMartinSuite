@@ -418,4 +418,18 @@ public class GroupTests
         CalendarRules.CleanUrl("webcal://calendar.google.com/x/basic.ics").Should().Be("https://calendar.google.com/x/basic.ics");
         CalendarRules.CleanUrl("javascript:alert(1)").Should().Be("");
     }
+
+    [Test]
+    public void Own_ticks_are_per_person_and_kept()
+    {
+        var g = NewGroup();
+        var t = g.AddTask("Skriv din pitch", "", "", day: "2026-11-11")!;
+        g.SetMyDone("Per", t.Id, true).Should().Equal(t.Id);
+        g.MyDone("per").Should().Equal(t.Id);
+        g.MyDone("Bent").Should().BeEmpty();                 // nobody else's tick
+        g.Tasks().Single().Done.Should().BeFalse();          // the shared task is not touched
+        NewGroup().MyDone("Per").Should().Equal(t.Id);       // on disk
+        g.SetMyDone("Per", t.Id, false).Should().BeEmpty();
+        g.SetMyDone("Per", 999, true).Should().BeNull();
+    }
 }

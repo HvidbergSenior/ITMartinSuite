@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=19" />
+    <link rel="stylesheet" href="/app.css?v=20" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=21" defer></script>
+    <script src="/app.js?v=22" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -123,6 +123,7 @@
             </div>
             <nav class="tabs" role="tablist">
                 <button role="tab" id="tabKal" aria-selected="false" hidden>Kalender</button>
+                <button role="tab" id="tabNg" aria-selected="false" hidden>Til næste gang <span class="badge" id="ngBadge" hidden></span></button>
                 <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
                 <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
@@ -168,6 +169,25 @@
             <div id="kalListe" class="opgaver"></div>
             <details id="kalFoer" class="k-card" hidden><summary>Tidligere dage</summary><div id="kalFoerListe" class="opgaver"></div></details>
             <p class="k-help" id="kalTom" hidden>Kalenderen kunne ikke hentes lige nu. Prøv igen om lidt.</p>
+        </main>
+
+        <!-- 2026-11-09 course groups: what to prepare before a course day. Martin adds; each person ticks their own (only they see it). -->
+        <main id="viewNg" class="view ng" hidden>
+            <p class="opg-intro">Det, du skal forberede til kursusdagene. Sæt flueben, når du har gjort det – det er kun dig, der kan se dine flueben.</p>
+            <div id="ngListe" class="opgaver"></div>
+            <p class="tom" id="ngTom" hidden><strong>Ingen opgaver endnu</strong>Når der er noget at forberede, står det her.</p>
+            <details id="ngGjort" class="k-card k-mt" hidden><summary>Gjort</summary><div id="ngGjortListe" class="opgaver"></div></details>
+            <form id="ngNy" class="k-card ny k-mt" hidden>
+                <h2 class="k-card-title">Ny opgave til næste gang</h2>
+                <label class="k-label" for="ngTitel">Hvad skal man forberede?</label>
+                <input class="k-input" id="ngTitel" maxlength="120" required />
+                <label class="k-label" for="ngDag">Til hvilken kursusdag?</label>
+                <select class="k-input" id="ngDag"></select>
+                <label class="k-label" for="ngNote">Mere om det <span class="valgfri">(kan undværes)</span></label>
+                <textarea class="k-textarea" id="ngNote" maxlength="1000"></textarea>
+                <div class="k-row"><button class="k-btn k-btn-primary" type="submit" id="ngGem">Læg den ud</button></div>
+                <p class="k-help">Alle i rummet får besked om den nye opgave.</p>
+            </form>
         </main>
 
         <main id="viewOpg" class="view opg" hidden>
@@ -320,6 +340,7 @@
                 <h2 class="k-card-title">Om Snak</h2>
                 <p>Snak er et lille, privat rum til én sag. Kun dem med rummets link kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
                 <p>Under <b>Opgaver</b> lægger Martin det ud, der skal gøres. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
+                <p>I et kursusrum står kursusdagene under <b>Kalender</b>, og det, du skal forberede, under <b>Til næste gang</b>. Dine flueben er kun dine – ingen andre kan se dem.</p>
                 <p>Under den nyeste besked står der, hvem der har <b>set</b> den. Snak kan kun se, at du har haft chatten fremme – ikke om du har læst hvert ord.</p>
                 <p>Under <b>Filer</b> kan alle lægge dokumenter op og hente dem. Du kan selv slette de filer, du har lagt op.</p>
                 <p id="omSlet">Når sagen er klaret, bliver rummet slettet efter 14 dage.</p>

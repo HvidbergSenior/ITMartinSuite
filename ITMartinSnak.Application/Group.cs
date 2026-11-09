@@ -19,6 +19,7 @@ public sealed class Group
     private readonly List<TaskItem> _tasks;
     private readonly List<SharedFile> _files;
     private readonly List<Seen> _seen;
+    private readonly Dictionary<string, List<long>> _mine;
 
     public Group(IGroupStore store, ILiveFeed live, IPushSender push, TimeProvider clock, RoomContext room)
     {
@@ -27,6 +28,7 @@ public sealed class Group
         _tasks = store.LoadTasks();
         _files = store.LoadFiles();
         _seen = store.LoadSeen();
+        _mine = new(store.LoadMine(), StringComparer.OrdinalIgnoreCase);
     }
 
     // ---- chat ----
@@ -54,6 +56,30 @@ public sealed class Group
         _push.SendToOthers(_room.Id, fromEndpoint, $"{m.Name} · {_room.Title}", m.Text, "snak-" + _room.Id, _room.Url);
         _room.Activity(true);
         return m;
+    }
+
+    // ---- "Til næste gang" (2026-11-09, course groups): Martin adds the assignment, each person ticks it for themselves.
+    // The tick is only theirs - nobody else sees it (user: "each ticks own", no pressure).
+
+    public IReadOnlyList<long> MyDone(string? name)
+    {
+        var n = GroupRules.CleanName(name);
+        lock (_gate) return n.Length > 0 && _mine.TryGetValue(n, out var ids) ? ids.ToList() : [];
+    }
+
+    public IReadOnlyList<long>? SetMyDone(string? name, long taskId, bool done)
+    {
+        var n = GroupRules.CleanName(name);
+        if (n.Length == 0) return null;
+        lock (_gate)
+        {
+            if (!_tasks.Any(t => t.Id == taskId)) return null;
+            var ids = _mine.TryGetValue(n, out var l) ? l : _mine[n] = [];
+            ids.Remove(taskId);
+            if (done) ids.Add(taskId);
+            _store.SaveMine(_mine);
+            return ids.ToList();
+        }
     }
 
     // ---- seen (2026-11-09): how far each name has read, and how their phone is set up ----

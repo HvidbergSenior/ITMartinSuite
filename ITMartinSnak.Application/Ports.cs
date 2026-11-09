@@ -13,6 +13,8 @@ public interface IGroupStore
     List<SharedFile> LoadFiles();
     void SaveFiles(IReadOnlyList<SharedFile> files);
     List<Seen> LoadSeen();
+    Dictionary<string, List<long>> LoadMine();
+    void SaveMine(IReadOnlyDictionary<string, List<long>> mine);
     void SaveSeen(IReadOnlyList<Seen> seen);
     /// <summary>Writes the content; false (and nothing kept) when it is empty or bigger than <paramref name="maxBytes"/>.</summary>
     Task<bool> WriteContentAsync(string storedName, Stream content, long maxBytes, CancellationToken ct);

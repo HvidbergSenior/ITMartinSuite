@@ -280,7 +280,7 @@
         // A course room opens on its calendar (the "front page"); a family room on its tasks; a customer on the chat.
         const tab = store.get('snak_tab') || (hasCal() ? 'kal' : shared() && !isGroup() ? 'opg' : 'chat');
         const ok = t => !$('tab' + t[0].toUpperCase() + t.slice(1)).hidden;
-        show(['kal', 'opg', 'fil', 'hold'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
+        show(['kal', 'ng', 'opg', 'fil', 'hold'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
         $('opsBoks').hidden = !admin;
         loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); connect();
         setupPush(false).finally(reportSeen);
@@ -315,7 +315,7 @@
     // ---------- tabs ----------
 
     function show(which) {
-        for (const [v, t] of [['chat', 'tabChat'], ['kal', 'tabKal'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['mig', 'tabMig']]) {
+        for (const [v, t] of [['chat', 'tabChat'], ['kal', 'tabKal'], ['ng', 'tabNg'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['mig', 'tabMig']]) {
             $('view' + v[0].toUpperCase() + v.slice(1)).hidden = v !== which;
             $(t).setAttribute('aria-selected', String(v === which));
         }
@@ -327,6 +327,7 @@
     $('tabChat').onclick = () => show('chat');
     $('tabOpg').onclick = () => show('opg');
     $('tabKal').onclick = () => show('kal');
+    $('tabNg').onclick = () => show('ng');
     $('tabFil').onclick = () => show('fil');
     $('tabHold').onclick = () => show('hold');
     $('tabMig').onclick = () => show('mig');
@@ -528,7 +529,9 @@
     async function loadTasks() {
         try {
             if (!todayStr) { try { todayStr = (await api('GET', base + '/idag')).dag; } catch { } }
-            tasks = await api('GET', base + '/opgaver'); renderTasks();
+            tasks = await api('GET', base + '/opgaver');
+            if (isGroup()) { try { mine = await api('GET', base + '/mine?navn=' + encodeURIComponent(navn)); } catch { } }
+            renderTasks();
         } catch { }
     }
 
@@ -563,7 +566,75 @@
 
     function isMine(t) { return t.takers.some(x => x.toLowerCase() === navn.toLowerCase()); }
 
+    // ---------- Til næste gang (course groups) ----------
+    let mine = [];
+    function ngDay(t) {
+        // The course day it is for: the calendar's day with that date, else just the date.
+        if (!t.day) return null;
+        const e = calEvents.find(x => new Date(x.start).toLocaleDateString('sv-SE') === t.day);
+        const d = new Date(t.day + 'T12:00:00'), txt = kalDag.format(d);
+        return 'Til ' + txt + (e ? ' – ' + e.titel : '');
+    }
+    function ngCard(t) {
+        const c = document.createElement('article'), done = mine.includes(t.id);
+        c.className = 'k-card ng-opg' + (done ? ' gjort' : '');
+        const row = document.createElement('label'); row.className = 'ng-raekke';
+        const box = document.createElement('input'); box.type = 'checkbox'; box.checked = done;
+        box.setAttribute('aria-label', 'Gjort: ' + t.title);
+        box.onchange = async () => {
+            box.disabled = true;
+            try { mine = await api('POST', base + '/opgaver/' + t.id + '/mig', { navn, gjort: box.checked }); renderNg(); }
+            catch { box.checked = !box.checked; box.disabled = false; }
+        };
+        const txt = document.createElement('div');
+        const h = document.createElement('h3'); h.textContent = t.title; txt.appendChild(h);
+        const when = ngDay(t);
+        if (when) { const w = document.createElement('div'); w.className = 'kal-dato'; w.textContent = when; txt.appendChild(w); }
+        if (t.note) { const p = document.createElement('p'); p.className = 'note'; p.textContent = t.note; txt.appendChild(p); }
+        row.append(box, txt); c.appendChild(row);
+        if (admin) {
+            const del = document.createElement('button'); del.type = 'button'; del.className = 'k-btn k-btn-ghost k-btn-sm'; del.textContent = 'Fjern';
+            del.onclick = async () => {
+                if (!del.dataset.sure) { del.dataset.sure = '1'; del.textContent = 'Ja, fjern den'; setTimeout(() => { delete del.dataset.sure; del.textContent = 'Fjern'; }, 4000); return; }
+                try { await api('DELETE', base + '/opgaver/' + t.id); } catch { }
+            };
+            c.appendChild(del);
+        }
+        return c;
+    }
+    function renderNg() {
+        if (!isGroup()) return;
+        const by = (a, b) => (a.day || '9999') < (b.day || '9999') ? -1 : (a.day || '9999') > (b.day || '9999') ? 1 : a.id - b.id;
+        const open = tasks.filter(t => !mine.includes(t.id)).sort(by), done = tasks.filter(t => mine.includes(t.id)).sort(by);
+        const l = $('ngListe'); l.textContent = ''; for (const t of open) l.appendChild(ngCard(t));
+        const g = $('ngGjortListe'); g.textContent = ''; for (const t of done) g.appendChild(ngCard(t));
+        $('ngGjort').hidden = done.length === 0;
+        $('ngTom').hidden = tasks.length > 0;
+        $('ngBadge').textContent = String(open.length); $('ngBadge').hidden = open.length === 0;
+        // Admin's form: the coming course days from the calendar.
+        const sel = $('ngDag'), keep = sel.value, now = new Date();
+        sel.textContent = '';
+        const none = document.createElement('option'); none.value = ''; none.textContent = 'Ingen bestemt dag'; sel.appendChild(none);
+        for (const e of calEvents.filter(x => new Date(x.slut) >= now)) {
+            const o = document.createElement('option'); o.value = new Date(e.start).toLocaleDateString('sv-SE');
+            o.textContent = kalDag.format(new Date(e.start)) + ' – ' + e.titel; sel.appendChild(o);
+        }
+        if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+        else if (sel.options.length > 1) sel.selectedIndex = 1;
+    }
+    $('ngNy').addEventListener('submit', async e => {
+        e.preventDefault();
+        $('ngGem').disabled = true;
+        try {
+            const d = $('ngDag').value;
+            await api('POST', base + '/opgaver', { titel: $('ngTitel').value, note: $('ngNote').value, dag: d || null, endpoint });
+            $('ngTitel').value = ''; $('ngNote').value = '';
+        } catch (err) { if (err.message !== 'login') flash(err.message); }
+        $('ngGem').disabled = false;
+    });
+
     function renderTasks() {
+        if (isGroup()) { renderNg(); return; }
         const dayList = tasks.filter(isToday);
         const open = dayList.filter(t => !isDone(t));
         const free = open.filter(t => t.takers.length === 0);
@@ -812,6 +883,8 @@
     function calTabs() {
         $('tabKal').hidden = !hasCal();
         $('tabOpg').hidden = isGroup();   // a course group has no tasks (user 2026-11-09: "no opgaver here for a start")
+        $('tabNg').hidden = !isGroup();   // ...but "Til næste gang": assignments for the course days
+        $('ngNy').hidden = !admin;
         if (($('tabKal').hidden && !$('viewKal').hidden) || ($('tabOpg').hidden && !$('viewOpg').hidden)) show(hasCal() ? 'kal' : 'chat');
         if (!hasCal()) $('naesteBar').hidden = true;
     }
@@ -863,6 +936,7 @@
         for (const e of past) pb.appendChild(calCard(e, now));
         $('kalFoer').hidden = past.length === 0;
         $('kalTom').hidden = calEvents.length > 0;
+        if (isGroup()) renderNg();
         if (!coming.length && calEvents.length) box.innerHTML = '<p class="k-help">Der er ikke flere kursusdage i kalenderen.</p>';
         // The next day, on every tab.
         const nb = $('naesteBar'), n = coming[0];
