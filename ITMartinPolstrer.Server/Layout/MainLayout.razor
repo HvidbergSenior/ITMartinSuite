@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
-<KolibriTitle />
+<KolibriHeader>
+    <button type="button" class="k-btn k-btn-ghost k-btn-sm" onclick="polstrerToggleTheme()" title="Skift mellem lyst og mørkt">Lys/mørk</button>
+</KolibriHeader>
 
 <div class="page">
     @Body
@@ -9,5 +11,4 @@
 <nav class="bottom-nav">
     <NavLink href="/" Match="NavLinkMatch.All" class="nav-primary">Tag billede</NavLink>
     <NavLink href="/erfaring">Erfaring</NavLink>
-    <button type="button" class="nav-theme" onclick="polstrerToggleTheme()" title="Skift mellem lyst og mørkt">Tema</button>
 </nav>

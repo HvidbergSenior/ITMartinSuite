@@ -206,7 +206,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
 .bottom-nav a.active { background: var(--accent); color: var(--k-accent-text, #fff); }
 
 /* ---- login ---- */
-.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.login-wrap { min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .login-box { width: 100%; max-width: 320px; text-align: center; }
 .login-icon { font-size: 56px; }
 .login-title { font-size: 22px; font-weight: 600; margin: 8px 0 20px; }
