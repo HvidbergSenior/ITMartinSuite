@@ -199,7 +199,7 @@ room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSen
             id = r.Id, titel = r.Title, klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsRoomAdmin(c, access, r), alleRum = IsAdmin(c, access),
             pushKey = push.PublicKey, vaert = HostName, medlemmer = r.Members ?? [], harKode = r.HasCode,
             gruppe = r.Gruppe, om = r.About ?? [], emner = r.Topics ?? [], links = r.Links ?? [],
-            harKalender = !string.IsNullOrEmpty(r.CalendarUrl), kalender = IsAdmin(c, access) ? r.CalendarUrl ?? "" : "",
+            harKalender = !string.IsNullOrEmpty(r.CalendarUrl), kalender = IsAdmin(c, access) ? r.CalendarUrl ?? "" : "", adresse = r.Slug,
         }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
 
@@ -224,7 +224,8 @@ room.MapPost("/beskeder", (HttpContext c, string key, MessageBody b, Rooms rooms
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var host = IsRoomAdmin(c, access, r);
-    var m = rooms.GroupOf(r).Write(host ? HostName : b.Navn, b.Tekst, b.Endpoint, host);
+    var asMember = AsMember(r, b.Navn);
+    var m = rooms.GroupOf(r).Write(host && !asMember ? HostName : b.Navn, b.Tekst, b.Endpoint, host && !asMember);
     return m is null ? Results.BadRequest(new { fejl = "Skriv dit navn og en besked." }) : Results.Json(m, web);
 });
 
@@ -236,7 +237,7 @@ room.MapGet("/set", (string key, Rooms rooms) =>
 room.MapPost("/set", (HttpContext c, string key, SeenBody b, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var name = IsRoomAdmin(c, access, r) ? HostName : b.Navn;
+    var name = IsRoomAdmin(c, access, r) && !AsMember(r, b.Navn) ? HostName : b.Navn;
     return rooms.GroupOf(r).MarkSeen(name, b.Besked, b.Enhed, b.Hjem, b.Push, b.InApp) is null ? Results.BadRequest() : Results.Ok();
 });
 
@@ -337,7 +338,7 @@ room.MapPost("/filer", async (HttpContext c, string key, Rooms rooms, Access acc
     if (form.Files.GetFile("fil") is not { } f) return Results.BadRequest(new { fejl = "Vælg en fil." });
     var host = IsRoomAdmin(c, access, r);
     await using var s = f.OpenReadStream();
-    var (file, err) = await rooms.GroupOf(r).AddFileAsync(f.FileName, f.Length, s, host ? HostName : form["navn"].ToString(),
+    var (file, err) = await rooms.GroupOf(r).AddFileAsync(f.FileName, f.Length, s, host && !AsMember(r, form["navn"]) ? HostName : form["navn"].ToString(),
         form["endpoint"].ToString(), c.RequestAborted, RosterRules.TopicFor(r.Topics, form["emne"].ToString()));
     return file is null ? Results.BadRequest(new { fejl = err }) : Results.Json(FileView(file), web);
 });
@@ -399,6 +400,11 @@ room.MapPost("/push", (string key, PushBody b, Rooms rooms, IPushSender push) =>
 });
 
 app.Run();
+
+// 2026-11-09: in a group (Hold 36) Martin is one of the participants - he writes under his own name on the list
+// ("Martin Hvidberg"), not as the host. Anywhere else the room's admin writes as the host.
+static bool AsMember(Room r, string? name) =>
+    r.Gruppe && !string.IsNullOrWhiteSpace(name) && (r.Members ?? []).Contains(name.Trim(), StringComparer.OrdinalIgnoreCase);
 
 // What the page sees of a file - never the name on disk.
 static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At, f.Topic };

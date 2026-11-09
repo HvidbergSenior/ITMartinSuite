@@ -61,7 +61,9 @@
                 admin = !!room.admin; alleRum = !!room.alleRum; pushKey = room.pushKey || ''; vaert = room.vaert || 'Martin';
                 store.set('snak_rum', roomKey);   // a phone that opens "/" (home-screen icon) comes back here
                 document.title = room.titel + ' · Snak';
-                if (admin) navn = vaert;
+                // In a group the admin is a participant too: he picks his own name at the door (2026-11-09).
+                const member = n => (room.medlemmer || []).some(x => x.toLowerCase() === (n || '').toLowerCase());
+                if (admin) navn = room.gruppe ? (member(navn) ? navn : '') : vaert;
                 if (!navn) return showLogin();
                 return enter();
             }
@@ -320,6 +322,7 @@
             $(t).setAttribute('aria-selected', String(v === which));
         }
         if (which !== 'mig') store.set('snak_tab', which);
+        const nb = $('naesteBar'); if (nb) nb.hidden = !nb.dataset.har || which === 'kal';
         if (which === 'mig') { pushStatus(); openHomeGuide(); if (admin) loadSetup(); }
         if (which === 'chat') reportSeen();
         if (which === 'fil') { store.set('snak_filer_set_' + roomKey, String(maxFileId())); renderFiles(); }
@@ -386,7 +389,7 @@
         $('tomChat').hidden = msgs.length > 0;
         box.textContent = '';
         let day = '';
-        const mine = msgs.filter(m => admin ? !!m.host : (!m.host && m.name.toLowerCase() === navn.toLowerCase()));
+        const mine = msgs.filter(isMyMsg);
         const myNewest = mine.length ? mine[mine.length - 1].id : -1;
         for (let i = msgs.length - 1; i >= 0; i--) {
             const m = msgs[i];
@@ -396,7 +399,7 @@
                 const el = document.createElement('div'); el.className = 'dag'; el.textContent = d;
                 box.appendChild(el); day = d;
             }
-            const me = admin ? !!m.host : (!m.host && m.name.toLowerCase() === navn.toLowerCase());
+            const me = isMyMsg(m);
             const el = document.createElement('div'); el.className = 'besked' + (me ? ' mig' : '');
             const meta = document.createElement('div'); meta.className = 'meta';
             meta.textContent = (me ? 'Dig' : m.name) + ' · ' + timeFmt.format(when);
@@ -420,6 +423,8 @@
     async function loadReads() { try { reads = await api('GET', base + '/set'); renderMessages(); } catch { } }
 
     function author(m) { return m.host ? vaert : m.name; }
+    // Mine: the host's messages when I am the host; otherwise the ones under my name (in a group also when I am admin).
+    function isMyMsg(m) { return admin && !isGroup() ? !!m.host : (!m.host && m.name.toLowerCase() === navn.toLowerCase()); }
     function seenBy(m) {
         const a = author(m).toLowerCase(), me = navn.toLowerCase();
         return reads.filter(r => r.besked >= m.id && r.navn.toLowerCase() !== a && r.navn.toLowerCase() !== me).map(r => r.navn);
@@ -474,7 +479,16 @@
         const inde = rows.filter(p => p.sidstInde).length, besked = rows.filter(p => p.telefoner > 0).length;
         $('opsSum').textContent = inde + ' af ' + rows.length + ' har været inde · ' + besked + ' får beskeder på telefonen.';
         const box = $('opsListe'); box.textContent = '';
-        for (const p of rows) {
+        // Not in yet: one short block with the names (the advice is the same for all of them).
+        const ude = rows.filter(p => !p.sidstInde);
+        if (ude.length) {
+            const c = document.createElement('div'); c.className = 'ops-raekke mangler';
+            const h = document.createElement('h3'); h.textContent = 'Ikke inde endnu (' + ude.length + ')';
+            const n = document.createElement('p'); n.className = 'ops-navne'; n.textContent = ude.map(p => p.navn).join(', ');
+            const r = document.createElement('p'); r.className = 'ops-raad'; r.textContent = 'Send dem linket igen: snak.itmartin.dk/' + (room.adresse || 'r/' + roomKey);
+            c.append(h, n, r); box.appendChild(c);
+        }
+        for (const p of rows.filter(p => p.sidstInde)) {
             const c = document.createElement('div'); c.className = 'ops-raekke ' + (p.raad ? 'mangler' : 'klar');
             const h = document.createElement('h3'); h.textContent = p.navn;
             const f = document.createElement('div'); f.className = 'ops-fakta';
@@ -913,42 +927,84 @@
         a.href = 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(place); a.textContent = 'Find vej';
         return a;
     }
-    function calCard(e, now) {
+    // Several slots with the same title on the same day (pitch training, 4 at a time) = one card with the times.
+    function groupDays(list) {
+        const out = [];
+        for (const e of list) {
+            const last = out[out.length - 1];
+            if (last && last.titel === e.titel && sameDay(new Date(last.start), new Date(e.start))) last.slots.push(e);
+            else out.push({ ...e, slots: [e] });
+        }
+        return out;
+    }
+    // ISO week number - Danish calendars count weeks this way.
+    function weekNo(d) {
+        const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+        return Math.ceil(((t - new Date(Date.UTC(t.getUTCFullYear(), 0, 1))) / 86400000 + 1) / 7);
+    }
+    const kalMd = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'long' });
+    function weekHead(d) {
+        const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+        const h = document.createElement('h2'); h.className = 'kal-uge';
+        h.textContent = 'Uge ' + weekNo(d) + ' · ' + (mon.getMonth() === sun.getMonth() ? mon.getDate() + '.–' + kalMd.format(sun) : kalMd.format(mon) + ' – ' + kalMd.format(sun));
+        return h;
+    }
+    function calCard(e, now, next) {
         const s = new Date(e.start), c = document.createElement('article');
-        const today = sameDay(s, now), over = new Date(e.slut) < now;
-        c.className = 'k-card kal-dag' + (today ? ' i-dag' : '') + (over ? ' forbi' : '');
+        const today = sameDay(s, now), over = new Date(e.slots[e.slots.length - 1].slut) < now;
+        c.className = 'k-card kal-dag' + (next ? ' naest' : '') + (today ? ' i-dag' : '') + (over ? ' forbi' : '');
+        if (next || today) { const tag = document.createElement('div'); tag.className = 'kal-tag'; tag.textContent = today ? 'I dag' : 'Næste gang'; c.appendChild(tag); }
+        const dag = kalDag.format(s);
         const d = document.createElement('div'); d.className = 'kal-dato';
-        d.textContent = (today ? 'I dag · ' : '') + kalDag.format(s) + ' · ' + span(e);
+        d.textContent = dag.charAt(0).toUpperCase() + dag.slice(1) + (e.slots.length === 1 ? ' · ' + span(e) : '');
         const h = document.createElement('h3'); h.textContent = e.titel;
         c.append(d, h);
+        if (e.slots.length > 1) {
+            const t = document.createElement('div'); t.className = 'kal-tider';
+            t.textContent = 'Tider: ' + e.slots.map(span).join(' · ');
+            c.appendChild(t);
+        }
         if (e.sted) {
             const p = document.createElement('div'); p.className = 'kal-sted';
             const t = document.createElement('span'); t.textContent = e.sted;
-            p.append(t, mapsLink(e.sted)); c.appendChild(p);
+            const a = mapsLink(e.sted); a.className = 'k-btn k-btn-sm k-btn-ghost';
+            p.append(t, a); c.appendChild(p);
         }
         return c;
     }
+    function renderList(box, list, now, markNext) {
+        box.textContent = '';
+        let week = -1;
+        list.forEach((e, i) => {
+            const d = new Date(e.start), w = weekNo(d);
+            if (w !== week) { box.appendChild(weekHead(d)); week = w; }
+            box.appendChild(calCard(e, now, markNext && i === 0));
+        });
+    }
     function renderCalendar() {
         const now = new Date();
-        const coming = calEvents.filter(e => new Date(e.slut) >= now), past = calEvents.filter(e => new Date(e.slut) < now).reverse();
-        const box = $('kalListe'); box.textContent = '';
-        for (const e of coming) box.appendChild(calCard(e, now));
-        const pb = $('kalFoerListe'); pb.textContent = '';
-        for (const e of past) pb.appendChild(calCard(e, now));
+        const coming = calEvents.filter(e => new Date(e.slut) >= now), past = calEvents.filter(e => new Date(e.slut) < now);
+        const box = $('kalListe');
+        renderList(box, groupDays(coming), now, true);
+        renderList($('kalFoerListe'), groupDays(past).reverse(), now, false);
         $('kalFoer').hidden = past.length === 0;
         $('kalTom').hidden = calEvents.length > 0;
         if (isGroup()) renderNg();
         if (!coming.length && calEvents.length) box.innerHTML = '<p class="k-help">Der er ikke flere kursusdage i kalenderen.</p>';
-        // The next day, on every tab.
+        // The next day as a big card on the other tabs (the Kalender tab marks it in the list instead).
         const nb = $('naesteBar'), n = coming[0];
-        nb.hidden = !n;
+        nb.dataset.har = n ? '1' : '';
+        nb.hidden = !n || !$('viewKal').hidden;
         if (n) {
             const s = new Date(n.start);
             const days = Math.round((new Date(s.toDateString()) - new Date(now.toDateString())) / 86400000);
             $('naesteHvornaar').textContent = s <= now ? 'I gang nu' : days === 0 ? 'Næste gang · i dag' : days === 1 ? 'Næste gang · i morgen'
                 : 'Næste gang · om ' + days + ' dage';
             const dag = kalDag.format(s);
-            $('naesteDag').textContent = dag.charAt(0).toUpperCase() + dag.slice(1) + ' · ' + span(n);
+            const nd = $('naesteDag'); nd.textContent = dag.charAt(0).toUpperCase() + dag.slice(1) + ' · ';
+            const tid = document.createElement('span'); tid.className = 'naeste-tid'; tid.textContent = span(n); nd.appendChild(tid);
             $('naesteHvad').textContent = n.titel;
             $('naesteSted').textContent = n.sted || '';
             $('naesteVej').hidden = !n.sted;

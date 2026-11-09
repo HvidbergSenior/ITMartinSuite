@@ -18,7 +18,7 @@ body { background: var(--k-bg); color: var(--k-text); }
 .brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .brand b { font-size: 20px; }
 .brand span { font-size: 13px; color: var(--k-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs button { flex: 0 0 auto; white-space: nowrap; }
 .tabs button { font: inherit; font-weight: 600; min-height: 40px; padding: 6px 14px; border-radius: 999px;
@@ -52,7 +52,7 @@ body { background: var(--k-bg); color: var(--k-text); }
 .skriv .k-textarea { font-size: 16px; flex: 1; min-width: 0; min-height: 44px; max-height: 160px; resize: none; margin: 0; }
 
 /* tasks */
-.opg, .mig { padding: 12px 16px 24px; gap: 12px; }
+.opg, .mig, .kal, .ng, .fil, .hold { padding: 12px 16px 24px; gap: 12px; }
 .opg-intro { margin: 0; color: var(--k-muted); }
 .valgfri { font-weight: 400; color: var(--k-muted); }
 .oversigt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -175,25 +175,33 @@ body { background: var(--k-bg); color: var(--k-text); }
 .kursus-links .k-btn { text-decoration: none; }
 
 /* 2026-11-09 Kalender */
-.naeste { margin: 10px 16px 4px; padding: 12px 14px; border-radius: var(--k-radius, 14px); border: 1px solid var(--k-border);
+.naeste { margin: 12px 16px 0; padding: 14px 16px; border-radius: var(--k-radius, 14px); border: 1px solid var(--k-border);
     border-left: 6px solid var(--k-accent, currentColor); background: var(--k-card); color: var(--k-text); box-shadow: var(--k-shadow, none); }
 .naeste.snart { background: var(--k-accent-soft, var(--k-card)); }
-.naeste-hvornaar { font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--k-accent-text, var(--k-accent)); }
+.naeste-hvornaar { font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--k-accent-dark, var(--k-accent)); }
 .naeste-dag { font-size: 20px; font-weight: 800; margin-top: 2px; }
 .naeste-hvad { font-size: 17px; font-weight: 600; margin-top: 2px; }
 .naeste-sted { font-size: 15px; color: var(--k-muted); margin-top: 2px; }
 .naeste-knapper { margin-top: 10px; gap: 8px; flex-wrap: wrap; }
 .naeste-knapper a { text-decoration: none; }
-.kal-dag.k-card { margin: 0; }
-.kal-dag h3 { margin: 2px 0 6px; font-size: 17px; }
-.kal-dato { font-size: 14px; color: var(--k-muted); text-transform: none; }
-.kal-dag.i-dag { border-left: 4px solid var(--k-accent, currentColor); }
-.kal-dag.i-dag .kal-dato { color: var(--k-text); font-weight: 700; }
-.kal-dag.forbi { opacity: .75; }
-.kal-sted { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
-.kal-sted .k-btn { text-decoration: none; }
-#kalFoer { margin-top: 12px; }
+.kal .opgaver, .ng .opgaver { gap: 10px; }
+.kal-uge { margin: 14px 2px 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--k-muted); }
+.kal-uge:first-child { margin-top: 2px; }
+.kal-dag.k-card { margin: 0; padding: 14px 16px; }
+.kal-tag { display: inline-block; margin-bottom: 6px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    letter-spacing: .03em; text-transform: uppercase; background: var(--k-accent-dark, var(--k-accent)); color: #fff; }
+.kal-dato { font-size: 14px; color: var(--k-muted); }
+.kal-dag h3 { margin: 4px 0 0; font-size: 17px; line-height: 1.3; }
+.kal-tider { margin-top: 6px; font-size: 14px; color: var(--k-text); }
+.kal-sted { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--k-border); font-size: 14px; color: var(--k-muted); }
+.kal-sted .k-btn { text-decoration: none; flex: 0 0 auto; }
+.kal-dag.naest, .kal-dag.i-dag { border-left: 5px solid var(--k-accent, currentColor); background: var(--k-accent-soft, var(--k-card)); }
+.kal-dag.naest .kal-dato, .kal-dag.i-dag .kal-dato { color: var(--k-text); font-weight: 600; }
+.kal-dag.forbi { opacity: .7; }
+#kalFoer { margin-top: 18px; }
 #kalFoer summary { font-weight: 600; cursor: pointer; min-height: 32px; }
+#kalFoer[open] summary { margin-bottom: 8px; }
 
 /* 2026-11-09 Til næste gang */
 .ng-opg.k-card { margin: 0; }
@@ -203,3 +211,25 @@ body { background: var(--k-bg); color: var(--k-text); }
 .ng-opg.gjort h3 { text-decoration: line-through; color: var(--k-muted); }
 .ng-opg .k-btn-ghost { margin-top: 6px; }
 #ngGjort summary { font-weight: 600; cursor: pointer; min-height: 32px; }
+
+/* 2026-11-09 polish: even spacing on every tab */
+.view > .opg-intro { margin: 0 2px; line-height: 1.45; }
+.ng-opg.k-card { padding: 14px 16px; }
+.ng-raekke .kal-dato { margin-top: 2px; }
+.ng-raekke .note { margin: 6px 0 0; }
+.kursus-links .link-knapper { margin-top: 4px; }
+.kursus-links.k-card { margin: 0; }
+
+/* Phones: all tabs visible (two rows if needed), times never split */
+.naeste-tid { white-space: nowrap; }
+@media (max-width: 480px) {
+    .tabs { gap: 6px 4px; }
+    .tabs button { padding: 6px 12px; min-height: 38px; }
+    .naeste { margin: 10px 12px 0; }
+    .opg, .mig, .kal, .ng, .fil, .hold { padding: 10px 12px 24px; }
+    .naeste-dag { font-size: 18px; }
+    .kursus-links .link-knapper { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .kursus-links .link-knapper .k-btn { justify-content: center; text-align: center; padding: 8px 10px; min-height: 40px; font-size: 14px; white-space: normal; line-height: 1.2; }
+}
+.ops-navne { margin: 0; font-size: 14px; line-height: 1.5; color: var(--k-text); }
+.ops-raad, .ops-navne { overflow-wrap: anywhere; }
