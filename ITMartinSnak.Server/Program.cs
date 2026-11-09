@@ -105,7 +105,7 @@ app.MapGet("/api/rum", (HttpContext c, Access access, Rooms rooms) =>
     IsAdmin(c, access)
         ? Results.Json(rooms.Overview().Select(r => new
         {
-            r.Id, r.Title, r.CustomerRef, r.CreatedAt, r.LastAt, r.DoneAt, r.DeleteAt, r.Waiting, r.LastName, r.LastText,
+            r.Id, r.Title, r.CustomerRef, r.CreatedAt, r.LastAt, r.DoneAt, r.DeleteAt, r.Waiting, r.LastName, r.LastText, r.Gruppe,
             Link = $"{publicUrl}/r/{r.Key}",
         }), web)
         : Results.Unauthorized());
@@ -116,7 +116,7 @@ app.MapPost("/api/rum", (HttpContext c, RoomBody b, Access access, Rooms rooms) 
     if (!IsAdmin(c, access) && !access.IsApi(c.Request.Headers["X-Snak-Key"].FirstOrDefault())) return Results.Unauthorized();
     try
     {
-        var r = rooms.Create(b.Titel, b.Kunde);
+        var r = rooms.Create(b.Titel, b.Kunde, b.Gruppe);
         if (!string.IsNullOrWhiteSpace(b.Besked)) rooms.GroupOf(r).Write(string.IsNullOrWhiteSpace(b.Navn) ? "Kunde" : b.Navn, b.Besked);
         return Results.Json(new { id = r.Id, titel = r.Title, link = rooms.Link(r) }, web);
     }
@@ -156,7 +156,7 @@ var room = app.MapGroup("/api/r/{key}");
 
 room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSender push) =>
     rooms.ByKey(key) is { } r
-        ? Results.Json(new { id = r.Id, titel = r.Title, klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsAdmin(c, access), pushKey = push.PublicKey, vaert = HostName }, web)
+        ? Results.Json(new { id = r.Id, titel = r.Title, gruppe = r.Gruppe, klaret = r.IsDone, sletDato = r.DeleteAt, admin = IsAdmin(c, access), pushKey = push.PublicKey, vaert = HostName }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
 
 room.MapGet("/beskeder", (string key, Rooms rooms, long? efter) =>
@@ -211,7 +211,47 @@ room.MapPost("/opgaver/{id:long}/tag", (string key, long id, TakeBody b, Rooms r
     return t is null ? Results.BadRequest(new { fejl = "Skriv dit navn først." }) : Results.Json(t, web);
 });
 
-room.MapGet("/live", async (HttpContext c, string key, Rooms rooms, ILiveFeed live) =>
+// Documents: everyone in the room adds and downloads; the one who added it (same name) or Martin removes it.
+room.MapGet("/filer", (string key, Rooms rooms) =>
+    rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).Files().Select(FileView), web) : Results.NotFound());
+
+// multipart/form-data: fil + navn (+ endpoint). The form is read by hand, so no antiforgery token is needed (same as the
+// JSON endpoints - the room key in the address is the access).
+room.MapPost("/filer", async (HttpContext c, string key, Rooms rooms, Access access) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    if (!c.Request.HasFormContentType) return Results.BadRequest(new { fejl = "Vælg en fil." });
+    var form = await c.Request.ReadFormAsync(c.RequestAborted);
+    if (form.Files.GetFile("fil") is not { } f) return Results.BadRequest(new { fejl = "Vælg en fil." });
+    var host = IsAdmin(c, access);
+    await using var s = f.OpenReadStream();
+    var (file, err) = await rooms.GroupOf(r).AddFileAsync(f.FileName, f.Length, s, host ? HostName : form["navn"].ToString(),
+        form["endpoint"].ToString(), c.RequestAborted);
+    return file is null ? Results.BadRequest(new { fejl = err }) : Results.Json(FileView(file), web);
+});
+
+room.MapGet("/filer/{id:long}", (HttpContext c, string key, long id, Rooms rooms) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    var g = rooms.GroupOf(r);
+    if (g.File(id) is not { } f || g.OpenFile(f) is not { } s) return Results.NotFound();
+    c.Response.Headers.XContentTypeOptions = "nosniff";
+    c.Response.Headers.CacheControl = "private, max-age=3600";
+    // PDF and pictures open in the phone's viewer; everything else is saved.
+    var inline = f.ContentType == "application/pdf" || f.ContentType.StartsWith("image/");
+    var disp = new Microsoft.Net.Http.Headers.ContentDispositionHeaderValue(inline ? "inline" : "attachment");
+    disp.SetHttpFileName(f.Name);
+    c.Response.Headers.ContentDisposition = disp.ToString();
+    return Results.Stream(s, f.ContentType, enableRangeProcessing: true);
+});
+
+room.MapDelete("/filer/{id:long}", (HttpContext c, string key, long id, string? navn, Rooms rooms, Access access) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    return rooms.GroupOf(r).DeleteFile(id, navn, IsAdmin(c, access)) ? Results.Ok() : Results.StatusCode(403);
+});
+
+room.MapGet("/live",async (HttpContext c, string key, Rooms rooms, ILiveFeed live) =>
 {
     if (rooms.ByKey(key) is not { } r) { c.Response.StatusCode = 404; return; }
     c.Response.Headers.ContentType = "text/event-stream";
@@ -248,8 +288,11 @@ room.MapPost("/push", (string key, PushBody b, Rooms rooms, IPushSender push) =>
 
 app.Run();
 
+// What the page sees of a file - never the name on disk.
+static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At };
+
 public sealed record LoginBody(string? Kode);
-public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked);
+public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, bool Gruppe = false);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint);
 public sealed record DoneBody(bool Faerdig);

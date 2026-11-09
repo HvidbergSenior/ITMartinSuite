@@ -77,6 +77,8 @@
     function showLogin() {
         showOnly('login');
         $('loginTitel').textContent = room ? room.titel : 'Snak';
+        if (room && room.gruppe)
+            $('loginLead').textContent = 'Her skriver gruppen sammen og deler dokumenter. Skriv dit navn, så de andre kan se, hvem der skriver.';
         // From "Skriv til mig" on itmartin.dk the name comes along (?navn=) - one tap, which also asks for notifications.
         const fra = new URLSearchParams(location.search).get('navn');
         $('loginNavn').value = navn || (fra || '').slice(0, 60);
@@ -148,7 +150,8 @@
         c.className = 'k-card opgave rum' + (r.waiting ? ' fri' : r.doneAt ? ' done' : ' taget');
         const h = document.createElement('h3'); h.textContent = r.title; c.appendChild(h);
         const st = document.createElement('p'); st.className = 'status';
-        st.textContent = r.waiting ? '● Venter på dit svar' : r.doneAt ? '✓ Klaret – slettes ' + dateFmt.format(new Date(r.deleteAt)) : '○ Ingen venter';
+        st.textContent = (r.gruppe ? '👥 Gruppe · ' : '') +
+            (r.waiting ? '● Venter på dit svar' : r.doneAt ? '✓ Klaret – slettes ' + dateFmt.format(new Date(r.deleteAt)) : '○ Ingen venter');
         c.appendChild(st);
         if (r.lastText) {
             const p = document.createElement('p'); p.className = 'note';
@@ -184,8 +187,8 @@
     $('nytRum').addEventListener('submit', async e => {
         e.preventDefault();
         try {
-            const r = await api('POST', '/api/rum', { titel: $('rumTitel').value });
-            $('rumTitel').value = '';
+            const r = await api('POST', '/api/rum', { titel: $('rumTitel').value, gruppe: $('rumGruppe').checked });
+            $('rumTitel').value = ''; $('rumGruppe').checked = false;
             const box = $('nytLink');
             box.textContent = '';
             const p = document.createElement('p'); p.textContent = 'Rummet "' + r.titel + '" er klar. Send linket til kunden:';
@@ -216,10 +219,11 @@
         $('opgIntro').textContent = admin
             ? 'Læg opgaver ud her. Kunden ser dem og trykker "Jeg tager den". Du kan se, hvem der har taget hvad.'
             : 'Her er det, der skal gøres. Tryk "Jeg tager den" på en opgave, så ved Martin, at du gør den.';
+        $('omSlet').hidden = !!(room && room.gruppe);
         klaretBar();
         const tab = store.get('snak_tab') || 'chat';
-        show(tab === 'opg' ? 'opg' : 'chat');
-        loadMessages(); loadTasks(); connect();
+        show(tab === 'opg' || tab === 'fil' ? tab : 'chat');
+        loadMessages(); loadTasks(); loadFiles(); connect();
         setupPush(false);
     }
 
@@ -228,6 +232,7 @@
         const bar = $('klaretBar');
         bar.className = 'bar';
         bar.textContent = '';
+        if (room && room.gruppe) { bar.hidden = true; return; }   // a group has no end
         if (room && room.klaret) {
             bar.append('Sagen er klaret. Rummet bliver slettet ' + dateFmt.format(new Date(room.sletDato)) + '. Skriver du igen, åbner sagen igen.');
             bar.hidden = false;
@@ -251,15 +256,17 @@
     // ---------- tabs ----------
 
     function show(which) {
-        for (const [v, t] of [['chat', 'tabChat'], ['opg', 'tabOpg'], ['mig', 'tabMig']]) {
+        for (const [v, t] of [['chat', 'tabChat'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['mig', 'tabMig']]) {
             $('view' + v[0].toUpperCase() + v.slice(1)).hidden = v !== which;
             $(t).setAttribute('aria-selected', String(v === which));
         }
         if (which !== 'mig') store.set('snak_tab', which);
         if (which === 'mig') { pushStatus(); openHomeGuide(); }
+        if (which === 'fil') { store.set('snak_filer_set_' + roomKey, String(maxFileId())); renderFiles(); }
     }
     $('tabChat').onclick = () => show('chat');
     $('tabOpg').onclick = () => show('opg');
+    $('tabFil').onclick = () => show('fil');
     $('tabMig').onclick = () => show('mig');
 
     // ---------- live ----------
@@ -268,15 +275,16 @@
         if (live) live.close();
         live = new EventSource(base + '/live');
         // "hej" comes on every (re)connect: fetch whatever was missed while the line was down.
-        live.addEventListener('hej', () => { loadMessages(); loadTasks(); });
+        live.addEventListener('hej', () => { loadMessages(); loadTasks(); loadFiles(); });
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
+        live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
     }
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState !== 'visible') return;
         if (!$('rumside').hidden) { loadRooms(); return; }
         if ($('app').hidden) return;
-        if (!live || live.readyState === 2) connect(); else { loadMessages(); loadTasks(); }
+        if (!live || live.readyState === 2) connect(); else { loadMessages(); loadTasks(); loadFiles(); }
     });
 
     // ---------- chat ----------
@@ -463,6 +471,102 @@
         const body = { titel: $('opgTitel').value, hvornaar: $('opgHvornaar').value, note: $('opgNote').value, endpoint };
         await act($('opgGem'), () => editId ? api('PUT', base + '/opgaver/' + editId, body) : api('POST', base + '/opgaver', body));
         stopEdit();
+    });
+
+    // ---------- files (2026-11-09) ----------
+
+    let files = [];
+    const maxFileId = () => files.reduce((m, f) => Math.max(m, f.id), 0);
+
+    async function loadFiles() {
+        try { files = await api('GET', base + '/filer'); renderFiles(); } catch { }
+    }
+
+    function size(n) {
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+        return (n / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB';
+    }
+
+    function icon(f) {
+        const t = f.contentType;
+        if (t === 'application/pdf') return '📕';
+        if (t.startsWith('image/')) return '🖼️';
+        if (t.startsWith('audio/')) return '🎵';
+        if (t.startsWith('video/')) return '🎬';
+        if (/sheet|excel|csv/.test(t)) return '📊';
+        if (/presentation|powerpoint/.test(t)) return '📽️';
+        if (t === 'application/zip') return '🗜️';
+        return '📄';
+    }
+
+    function renderFiles() {
+        // Badge = files added by others since this phone last looked at the tab.
+        const seen = Number(store.get('snak_filer_set_' + roomKey) || 0);
+        const fresh = files.filter(f => f.id > seen && f.by.toLowerCase() !== navn.toLowerCase()).length;
+        const onTab = !$('viewFil').hidden;
+        if (onTab) store.set('snak_filer_set_' + roomKey, String(maxFileId()));
+        $('filBadge').textContent = String(fresh);
+        $('filBadge').hidden = onTab || fresh === 0;
+
+        const box = $('filer');
+        box.textContent = '';
+        if (!files.length) {
+            const e = document.createElement('div'); e.className = 'tom';
+            e.innerHTML = '<strong>Ingen filer endnu</strong>Tryk "Vælg fil" ovenfor for at lægge det første dokument op. De andre får besked.';
+            box.appendChild(e);
+            return;
+        }
+        for (const f of files) {
+            const c = document.createElement('article'); c.className = 'k-card fil-kort';
+            const ic = document.createElement('span'); ic.className = 'ikon'; ic.textContent = icon(f); ic.setAttribute('aria-hidden', 'true');
+            const info = document.createElement('div'); info.className = 'info';
+            const a = document.createElement('a'); a.className = 'navn'; a.href = base + '/filer/' + f.id; a.textContent = f.name;
+            a.target = '_blank'; a.rel = 'noopener';
+            const who = document.createElement('p'); who.className = 'hvem';
+            who.textContent = (f.by.toLowerCase() === navn.toLowerCase() ? 'Dig' : f.by) + ' · ' + shortFmt.format(new Date(f.at)) + ' · ' + size(f.size);
+            info.append(a, who);
+            c.append(ic, info);
+            if (admin || f.by.toLowerCase() === navn.toLowerCase()) {
+                const del = document.createElement('button'); del.type = 'button'; del.className = 'k-btn k-btn-sm k-btn-ghost'; del.textContent = 'Slet';
+                del.onclick = async () => {
+                    if (!del.dataset.sure) {
+                        del.dataset.sure = '1'; del.textContent = 'Ja, slet'; del.className = 'k-btn k-btn-sm k-btn-danger';
+                        setTimeout(() => { delete del.dataset.sure; del.textContent = 'Slet'; del.className = 'k-btn k-btn-sm k-btn-ghost'; }, 4000);
+                        return;
+                    }
+                    del.disabled = true;
+                    try { await api('DELETE', base + '/filer/' + f.id + '?navn=' + encodeURIComponent(navn)); await loadFiles(); }
+                    catch (err) { if (err.message !== 'login') flash('Filen kunne ikke slettes.'); del.disabled = false; }
+                };
+                c.appendChild(del);
+            }
+            box.appendChild(c);
+        }
+    }
+
+    $('filInput').addEventListener('change', async () => {
+        const list = [...$('filInput').files];
+        $('filInput').value = '';
+        const st = $('filStatus');
+        st.hidden = false; st.className = 'k-help';
+        let ok = 0; const errors = [];
+        for (const [i, file] of list.entries()) {
+            st.textContent = 'Lægger op' + (list.length > 1 ? ` (${i + 1} af ${list.length})` : '') + ': ' + file.name + ' …';
+            if (file.size > 25 * 1024 * 1024) { errors.push(file.name + ': for stor (højst 25 MB)'); continue; }
+            const fd = new FormData();
+            fd.append('fil', file); fd.append('navn', navn); fd.append('endpoint', endpoint);
+            try {
+                const r = await fetch(base + '/filer', { method: 'POST', credentials: 'same-origin', body: fd });
+                const d = await r.json().catch(() => null);
+                if (!r.ok) throw new Error((d && d.fejl) || 'Det gik ikke. Prøv igen.');
+                ok++;
+            } catch (err) { errors.push(file.name + ': ' + err.message); }
+        }
+        await loadFiles();
+        st.textContent = (ok ? (ok === 1 ? 'Filen er lagt op. ' : ok + ' filer er lagt op. ') : '') + errors.join(' · ');
+        if (errors.length) st.className = 'k-help fejl';
+        setTimeout(() => { if (!errors.length) st.hidden = true; }, 5000);
     });
 
     // ---------- push (on by default) ----------

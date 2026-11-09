@@ -6,7 +6,10 @@ namespace ITMartinSnak.Domain;
 // Rooms (2026-11-04, user: "a snak with every customer", "temporary chats, which will be removed after they are finished",
 // "created when people contact me ... maybe even on creation of customer"). One room per customer or job. The secret key in
 // the link IS the access - nobody types a code. Martin (the host) sees all rooms.
-public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef)
+// Gruppe (2026-11-09): a standing group (a course team, a club) instead of one case - no "Sagen er klaret", and the page
+// speaks to the group. Rooms stored before this read as false.
+public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
+    bool Gruppe = false)
 {
     public bool IsDone => DoneAt is not null;
     public DateTime? DeleteAt => DoneAt + RoomRules.KeepAfterDone;
@@ -39,10 +42,10 @@ public static partial class RoomRules
         return t.Length > MaxTitle ? t[..MaxTitle] : t;
     }
 
-    public static Room New(string? title, string? customerRef, DateTime nowUtc)
+    public static Room New(string? title, string? customerRef, DateTime nowUtc, bool group = false)
     {
         var c = (customerRef ?? "").Trim();
-        return new Room(NewId(), NewKey(), CleanTitle(title), nowUtc, nowUtc, null, c.Length > MaxCustomerRef ? c[..MaxCustomerRef] : c);
+        return new Room(NewId(), NewKey(), CleanTitle(title), nowUtc, nowUtc, null, c.Length > MaxCustomerRef ? c[..MaxCustomerRef] : c, group);
     }
 
     public static bool ShouldDelete(Room r, DateTime nowUtc) => r.DeleteAt is { } d && d <= nowUtc;

@@ -95,3 +95,14 @@ body { background: var(--k-bg); color: var(--k-text); }
 .nyt-link { margin-top: .75rem; display: grid; gap: .5rem; }
 .nyt-link code { word-break: break-all; padding: .5rem; border-radius: 8px; background: var(--k-surface-2, rgba(0,0,0,.06)); }
 .rum .k-row a.k-btn { text-decoration: none; }
+
+/* Files (2026-11-09) */
+.fil-vaelg { cursor: pointer; align-self: flex-start; display: inline-flex; }
+.fil .ny { display: flex; flex-direction: column; gap: .5rem; }
+.fil-kort { display: flex; gap: .75rem; align-items: center; }
+.fil-kort .ikon { font-size: 1.6rem; flex: none; }
+.fil-kort .info { flex: 1; min-width: 0; }
+.fil-kort a.navn { font-weight: 700; word-break: break-word; }
+.fil-kort .hvem { margin: .15rem 0 0; }
+.gruppe-valg { display: flex; gap: .5rem; align-items: flex-start; margin-top: .75rem; font-size: 14px; }
+.gruppe-valg input { margin-top: .2rem; }

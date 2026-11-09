@@ -9,11 +9,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=9" />
-    <link rel="stylesheet" href="/app.css?v=10" />
+    <link rel="stylesheet" href="/app.css?v=11" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=9" defer></script>
-    <script src="/app.js?v=11" defer></script>
+    <script src="/app.js?v=12" defer></script>
 </head>
 <body>
 <div class="snak">
@@ -80,6 +80,7 @@
                 <h2 class="k-card-title">Nyt rum</h2>
                 <label class="k-label" for="rumTitel">Hvad handler det om?</label>
                 <input class="k-input" id="rumTitel" maxlength="80" placeholder="fx Jytte – høretelefoner" required />
+                <label class="gruppe-valg"><input type="checkbox" id="rumGruppe" /> Det er en gruppe (fx et hold eller en klub) – den lukker ikke, når en sag er klaret</label>
                 <button class="k-btn k-btn-primary k-mt" type="submit">Lav rummet</button>
                 <div id="nytLink" class="nyt-link" hidden></div>
             </form>
@@ -99,6 +100,7 @@
             <nav class="tabs" role="tablist">
                 <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
+                <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
                 <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
             </nav>
         </header>
@@ -142,6 +144,21 @@
                 </div>
             </form>
             <div id="opgaver" class="opgaver"></div>
+        </main>
+
+        <!-- Documents (2026-11-09): everyone adds, everyone downloads. -->
+        <main id="viewFil" class="view fil" hidden>
+            <p class="opg-intro">Her ligger rummets dokumenter. Alle i rummet kan se og hente dem. Tryk på en fil for at åbne den.</p>
+            <form id="nyFil" class="k-card ny">
+                <h2 class="k-card-title">Læg en fil op</h2>
+                <p class="k-help">Tryk <b>Vælg fil</b> og find dokumentet på telefonen eller computeren (fx under <b>Filer</b> eller <b>Overførsler</b>). PDF, Word, Excel, PowerPoint, billeder og lyd/video – højst 25 MB pr. fil.</p>
+                <label class="k-btn k-btn-primary fil-vaelg">
+                    Vælg fil
+                    <input type="file" id="filInput" multiple hidden />
+                </label>
+                <p id="filStatus" class="k-help" aria-live="polite" hidden></p>
+            </form>
+            <div id="filer" class="opgaver"></div>
         </main>
 
         <main id="viewMig" class="view mig" hidden>
@@ -194,7 +211,8 @@
                 <h2 class="k-card-title">Om Snak</h2>
                 <p>Snak er et lille, privat rum til én sag. Kun dem med rummets link kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
                 <p>Under <b>Opgaver</b> lægger Martin det ud, der skal gøres. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
-                <p>Når sagen er klaret, bliver rummet slettet efter 14 dage.</p>
+                <p>Under <b>Filer</b> kan alle lægge dokumenter op og hente dem. Du kan selv slette de filer, du har lagt op.</p>
+                <p id="omSlet">Når sagen er klaret, bliver rummet slettet efter 14 dage.</p>
                 <p class="k-help">Spørgsmål eller noget der ikke virker: ITMartin@Mensa.dk · 31 19 47 30</p>
                 <button class="k-btn k-btn-ghost" id="logUd" type="button">Log ud på denne telefon</button>
             </section>
