@@ -154,7 +154,7 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         await items.GetAsync(id, ct) is { } i ? photos.FullPath(i.ItemPhoto) : null;
 
     /// <summary>Strikkeshoppen (2026-11-10): a hand-knitted thing a maker sells through ITMartin. A person sets what it is,
-    /// the price and whose it is - no AI, no price hunt (Strik is not a hunted kind). For sale at once.</summary>
+    /// the price (or none yet) and whose it is - no AI, no price hunt (Strik is not a hunted kind). For sale at once.</summary>
     public async Task<Item> AddHandmadeAsync(string? title, string? genre, decimal? price, string? seller, string? note,
         Stream? photo, CancellationToken ct = default)
     {
@@ -162,12 +162,13 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         if (t.Length == 0) throw new LagerException("Skriv, hvad det er – fx Blå sweater med snoninger.");
         if (Genres.Strik.FirstOrDefault(g => string.Equals(g, genre?.Trim(), StringComparison.OrdinalIgnoreCase)) is not { } g)
             throw new LagerException("Vælg, hvilken slags strik det er.");
-        if (price is not > 0) throw new LagerException("Skriv en pris i kroner.");
+        // No price yet is fine (user 2026-11-10: "no prices yet") - it is set later on the item, like any other thing.
+        if (price is < 0) throw new LagerException("Prisen kan ikke være under 0 kr.");
         var who = (seller ?? "").Trim();
         if (who.Length == 0) throw new LagerException("Skriv, hvem der har strikket det – så ved vi, hvem pengene skal til.");
         var item = new Item
         {
-            Kind = Kinds.Strik, Title = t.Length > 200 ? t[..200] : t, Genre = g, GenreAt = DateTime.UtcNow, Price = Math.Round(price.Value),
+            Kind = Kinds.Strik, Title = t.Length > 200 ? t[..200] : t, Genre = g, GenreAt = DateTime.UtcNow, Price = price is > 0 ? Math.Round(price.Value) : null,
             Seller = who.Length > 80 ? who[..80] : who, Usage = Usages.New, Condition = "Ny", Note = (note ?? "").Trim(),
             Language = Languages.Dansk, Status = Statuses.Lager,
         };

@@ -114,6 +114,7 @@ public class UseCaseTests
         Shop.View(saved, []).Seller.Should().Be("Inge");
         ShopFamilies.For(ProductTypes.Strik)!.Slug.Should().Be("strik");
         (await uses.HandmadeAsync()).Should().ContainSingle(i => i.Id == item.Id);
+        (await uses.AddHandmadeAsync("Hue", "Huer", null, "Inge", null, null)).Price.Should().BeNull();   // "no prices yet"
         Pricing.HuntedKinds.Should().NotContain(Kinds.Strik);
     }
 
