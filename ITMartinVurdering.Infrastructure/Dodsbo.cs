@@ -138,12 +138,11 @@ public sealed class ClaudeThingValuer(IConfiguration cfg, ILogger<ClaudeThingVal
         Name = "report_things",
         Description = "Report what each numbered photo shows, its value in kr and what to do with it",
         Strict = true,
-        InputSchema = new()
-        {
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["items"] = JsonDocument.Parse("""
-                    { "type": "array", "items": { "type": "object",
+        // Strict tools need additionalProperties false on EVERY object, the top one too - so the whole schema is raw JSON.
+        InputSchema = InputSchema.FromRawUnchecked(JsonSerializer.Deserialize<Dictionary<string, JsonElement>>("""
+            { "type": "object", "additionalProperties": false, "required": ["items"],
+              "properties": { "items":
+            { "type": "array", "items": { "type": "object",
                       "properties": {
                         "index":       { "type": "integer" },
                         "what":        { "type": "string" },
@@ -157,10 +156,8 @@ public sealed class ClaudeThingValuer(IConfiguration cfg, ILogger<ClaudeThingVal
                         "story":       { "type": "string" } },
                       "required": ["index", "what", "details", "low", "high", "verdict", "where", "reason", "searchWords", "story"],
                       "additionalProperties": false } }
-                    """).RootElement,
-            },
-            Required = ["items"],
-        },
+              } }
+            """)!),
     };
 
     private sealed class Report { public List<Item> Items { get; set; } = []; }
