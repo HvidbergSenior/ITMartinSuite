@@ -22,7 +22,7 @@ body { background: var(--k-bg); }
 .k-card h2.k-card-title { font-size: 1.15rem; }
 
 /* Blazor puts focus on the page's h1 after each navigation - no orange frame around the first heading. */
-h1:focus, h1:focus-visible, .k-fold-head:focus:not(:focus-visible) { outline: none; }
+h1:focus, h1:focus-visible, h1.k-fold-head:focus-visible, .k-fold-head:focus:not(:focus-visible) { outline: none; }
 
 /* Buttons: white with a thin line; the main one (and a chosen one) filled dark orange with white text, like Snak */
 .k-btn {
@@ -71,3 +71,7 @@ details.kr-more[open] > summary::after { content: " ▴"; }
     :root:not([data-theme="light"]) { --kr-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .25); }
 }
 :root[data-theme="dark"] { --kr-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .25); }
+
+/* The menu item you are on: soft, no hard frame (Salg's Sælg/Ordrer/Bud) */
+.k-header-actions a.k-btn.active { background: var(--k-accent-soft); border-color: transparent; color: var(--k-accent-dark); box-shadow: none; }
+.k-header-actions .k-btn { box-shadow: none; }
