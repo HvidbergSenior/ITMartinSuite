@@ -3,6 +3,7 @@ using System.Text;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinVarer.Contracts;
 using ITMartinVurdering.Application;
+using ITMartinVurdering.Domain;
 using ITMartinVurdering.Infrastructure;
 
 // Bogshoppen Vurdering (Kolibri Rede) - step 2 of 5, 2026-11-05 (user: "should finding prices be an app?" -> yes; "all should be
@@ -22,6 +23,7 @@ builder.Services.AddKolibri(k =>
         "Lager har allerede søgt efter prisen andre steder (DBA, Faraos, Nemos …). Her ser du én ting ad gangen med forslaget og det, der blev fundet – og du bestemmer.",
         "Bøger prissættes kun efter danske sider – og med prisen for en ny hos Bog & idé ved siden af (2026-11-06).",
         "Skal vurderes = fundet til 50 kr eller mere, men uden din pris. Ingen pris = intet fundet nogen steder.",
+        "Dødsbo og loft: tag et billede af hver ting fra et dødsbo, et loft eller en kælder. AI'en fortæller, hvad det er, hvad det cirka er værd brugt i Danmark, og om du skal sælge det, sælge det samlet, give det væk, smide det ud eller spørge en ekspert – og hvor det sælges bedst.",
     ];
     k.HowTo =
     [
@@ -31,8 +33,9 @@ builder.Services.AddKolibri(k =>
         "Ved du det ikke? Tryk Spring over, så kommer den næste.",
         "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
         "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
+        "Dødsbo og loft: tryk Dødsbo og loft øverst, lav en sag (fx Mariannes ting), tag et billede af hver ting og tryk Vurdér de nye. Op til 8 billeder vurderes ad gangen. Ret prisen selv, hvis du ved bedre – og brug knapperne Søg på DBA og Søg på Lauritz for at se, hvad lignende ting koster.",
     ];
-    k.Version = "2026.11.06";
+    k.Version = "2026.11.10";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -79,7 +82,13 @@ static string Steps()
     return sb.Append($"""</ol><a class="k-btn k-btn-sm k-steps-next" href="{nextUrl}">Næste: {System.Net.WebUtility.HtmlEncode(nextName)} →</a></nav>""").ToString();
 }
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
+var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dodsbo.html"));
+
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=2"));
+// Dødsbo og loft (2026-11-10): the same login, its own page.
+app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=1"));
+
+IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string script)
 {
     ctx.Response.Headers.CacheControl = "no-cache";
     var owner = IsOwner(ctx);
@@ -90,11 +99,11 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <title>Vurdering · Bogshoppen</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
         <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=5"><link rel="stylesheet" href="/app.css?v=2">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script>
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="{script}" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
-        <body>{KolibriStaticPages.Header(info, actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+        <body>{KolibriStaticPages.Header(info, actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? pageBody : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
-});
+}
 
 app.MapPost("/ind", async (HttpContext ctx) =>
 {
@@ -124,6 +133,45 @@ api.MapPost("/pris", async (PrisForm f, ReviewUseCases review, CancellationToken
 api.MapGet("/foto/{id:int}", async (int id, ReviewUseCases review, CancellationToken ct) =>
     await review.PhotoAsync(id, ct) is { } bytes ? Results.File(bytes, "image/jpeg") : Results.NotFound());
 
+// ── Dødsbo og loft ──
+api.MapGet("/dodsbo", (DodsboUseCases d) => Results.Ok(d.All().Select(s => new
+{
+    s.Id, s.Name, Ting = s.Ting.Count, Venter = s.Ting.Count(t => t.Waiting), Vaerdi = DodsboRules.Range(s.Total().Low, s.Total().High),
+})));
+api.MapPost("/dodsbo", (NySag f, DodsboUseCases d) => d.New(f.Navn) is var (s, error) && s is not null ? Results.Ok(new { s.Id }) : Results.BadRequest(new { fejl = error }));
+api.MapGet("/dodsbo/{id}", (string id, DodsboUseCases d) => d.Get(id) is { } s ? Results.Ok(SagView(s)) : Results.NotFound());
+api.MapPost("/dodsbo/{id}/foto", async (string id, HttpRequest req, DodsboUseCases d) =>
+{
+    var form = await req.ReadFormAsync();
+    if (form.Files.GetFile("foto") is not { Length: > 0 and <= 15 * 1024 * 1024 } file) return Results.BadRequest(new { fejl = "Vælg et billede (højst 15 MB)." });
+    using var ms = new MemoryStream();
+    await file.CopyToAsync(ms);
+    return Done(d.AddPhoto(id, ms.ToArray(), form["hint"]));
+}).DisableAntiforgery();
+api.MapPost("/dodsbo/{id}/vurder", async (string id, DodsboUseCases d, CancellationToken ct) => Done(await d.ValueWaitingAsync(id, ct)));
+api.MapPost("/dodsbo/{id}/ting/{tid}/egen", (string id, string tid, EgenForm f, DodsboUseCases d) =>
+    Done(d.Own(id, tid, int.TryParse((f.Kr ?? "").Replace(".", "").Replace("kr", "").Trim(), out var kr) ? kr : null, f.Note)));
+api.MapPost("/dodsbo/{id}/ting/{tid}/fjern", (string id, string tid, DodsboUseCases d) => Done(d.Remove(id, tid)));
+api.MapGet("/dodsbo/{id}/foto/{tid}", (string id, string tid, DodsboUseCases d) =>
+    d.Photo(id, tid) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+
+static IResult Done(DodsboResult r) => r.Ok ? Results.Ok(new { besked = r.Message }) : Results.BadRequest(new { fejl = r.Message });
+
+static object SagView(Sag s)
+{
+    var (low, high) = s.Total();
+    return new
+    {
+        s.Id, s.Name, Vaerdi = DodsboRules.Range(low, high), Venter = s.Ting.Count(t => t.Waiting),
+        Ting = s.Ting.OrderByDescending(t => t.AddedAt).Select(t => new
+        {
+            t.Id, t.Hint, Venter = t.Waiting, t.What, t.Details, Pris = DodsboRules.Range(t.LowKr, t.HighKr),
+            Dom = t.Verdict is { } v ? DodsboRules.Text(v) : "", DomKode = t.Verdict?.ToString() ?? "", t.Where, t.Reason, t.SearchWords,
+            Egen = t.OwnKr, t.OwnNote,
+        }),
+    };
+}
+
 static IResult Answer(ReviewResult r) => r.Ok ? Results.Ok(new { besked = r.Message }) : Results.BadRequest(new { fejl = r.Message });
 
 app.Run();
@@ -131,3 +179,5 @@ app.Run();
 record OkForm(int Id, int? Forslag);
 record PrisForm(int Id, string? Pris);
 record BrugForm(int Id, string? Brug);
+record NySag(string? Navn);
+record EgenForm(string? Kr, string? Note);

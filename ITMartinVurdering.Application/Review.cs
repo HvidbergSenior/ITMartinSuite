@@ -46,5 +46,6 @@ public sealed class ReviewUseCases(ILagerReview lager)
 
 public static class VurderingApplication
 {
-    public static IServiceCollection AddVurderingApplication(this IServiceCollection services) => services.AddScoped<ReviewUseCases>();
+    public static IServiceCollection AddVurderingApplication(this IServiceCollection services) => services.AddScoped<ReviewUseCases>()
+        .AddSingleton(sp => new DodsboUseCases(sp.GetRequiredService<ISagStore>(), sp.GetRequiredService<IThingValuer>(), () => DateTime.Now));
 }

@@ -1,0 +1,35 @@
+<!-- Dødsbo og loft (user 2026-11-10): one Sag, a photo per thing, then what it is, what it is worth and what to do. -->
+<section class="k-card" data-nofold>
+    <h1>Dødsbo og loft</h1>
+    <p class="k-help"><b>Gør dette:</b> lav en sag, tag et billede af hver ting, og tryk <b>Vurdér de nye</b>.
+        <b>Du får:</b> hvad tingen er, hvad den cirka er værd brugt i Danmark, og om du skal sælge den, give den væk eller spørge en ekspert.</p>
+    <p class="k-help">Op til 8 billeder vurderes ad gangen. Prisen er et skøn – ret den selv, hvis du ved bedre.</p>
+    <a class="k-btn k-btn-sm" href="/">← Tilbage til Sæt pris</a>
+</section>
+
+<section class="k-card" id="db-list" data-nofold>
+    <h2 class="k-card-title">Dine sager</h2>
+    <div id="db-sager" class="db-sager"><p class="k-help">Henter …</p></div>
+    <label class="k-label" for="db-new">Ny sag</label>
+    <div class="vu-own-row">
+        <input class="k-input" id="db-new" maxlength="80" placeholder="fx Mariannes ting, Loftet i Risskov">
+        <button class="k-btn k-btn-primary" type="button" id="db-make">Lav sag</button>
+    </div>
+</section>
+
+<section class="k-card" id="db-sag" data-nofold hidden>
+    <h2 class="k-card-title" id="db-name"></h2>
+    <p class="db-total" id="db-total"></p>
+    <label class="k-label" for="db-hint">Noget om tingen? (frivilligt – hjælper vurderingen)</label>
+    <input class="k-input" id="db-hint" maxlength="300" placeholder="fx stod i kælderen, mormors, stempel i bunden">
+    <div class="db-actions">
+        <label class="k-btn k-btn-primary db-camera">
+            Tag billede af en ting
+            <input type="file" id="db-photo" accept="image/*" capture="environment" multiple hidden>
+        </label>
+        <button class="k-btn" type="button" id="db-value">Vurdér de nye</button>
+    </div>
+    <p class="vu-msg" id="db-msg" role="status" aria-live="polite"></p>
+    <div id="db-ting" class="db-ting"></div>
+    <button class="k-btn k-btn-sm k-btn-ghost k-mt" type="button" id="db-back">← Alle sager</button>
+</section>

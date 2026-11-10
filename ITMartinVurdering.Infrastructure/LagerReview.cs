@@ -56,6 +56,8 @@ public static class VurderingInfrastructure
             c.Timeout = TimeSpan.FromSeconds(30);
             c.DefaultRequestHeaders.Add(VurderingHeaders.Key, cfg["Vurdering:LagerKey"] ?? "");
         });
+        services.AddSingleton<ISagStore, JsonSagStore>();
+        services.AddSingleton<IThingValuer, ClaudeThingValuer>();
         return services;
     }
 }
