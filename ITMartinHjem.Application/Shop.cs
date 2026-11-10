@@ -124,6 +124,10 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
     }
 }
 
+/// <summary>The "Din egen hjemmeside" box with prices on Sneboldshoppen (user 2026-11-10: "not live yet but when I go live with
+/// all ... it should be there"): hidden until Hjem__ShowHomepages=true, so another deploy before the go-live does not show it.</summary>
+public sealed record HomepagesShown(bool On);
+
 /// <summary>Prices on bogshoppen.dk (user 2026-11-05: "all prices need to be invisible for user ... Prices will come"):
 /// off until Hjem__ShowPrices=true. Off = no kr anywhere (items, packs, "fra", other sites) + the progress line towards Goal.</summary>
 public sealed record PricesShown(bool On)

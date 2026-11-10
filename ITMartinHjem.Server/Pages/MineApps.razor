@@ -6,6 +6,7 @@
 @inject AppLinkUseCases Apps
 @inject IJSRuntime JS
 @inject Customers Kartotek
+@inject HomepagesShown Homepages
 
 <PageTitle>Sneboldshoppen · ITMartin</PageTitle>
 
@@ -120,6 +121,8 @@
 
 @* Kolibri Hjemmeside (user 2026-11-10: "prices on homesites" -> show them on itmartin.dk). Monthly prices and picture room are
    the ones in ITMartinHjemmeside.Domain (Site.NormalPrice, Quota); the start prices are Martin's draft 2026-11-09. *@
+@if (Homepages.On)
+{
 <section class="k-card hj-example" id="hjemmeside" data-fold-closed>
     <h2 class="k-card-title">Din egen hjemmeside – med en du kender</h2>
     <p><b>Vil du have en hjemmeside til din forening, din lille forretning eller dig selv?</b> Jeg laver den sammen med dig:
@@ -144,6 +147,7 @@
         <a class="k-btn k-btn-sm" href="tel:+4531194730">31 19 47 30</a>
     </div>
 </section>
+}
 
 
 @* Apps first, the explaining after (user 2026-10-21: "on apps i want the apps on top... All the show/hide boxes should be
