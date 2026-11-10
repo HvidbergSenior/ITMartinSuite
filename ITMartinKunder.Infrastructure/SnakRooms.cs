@@ -37,4 +37,28 @@ internal sealed class HttpSnakRooms(HttpClient http, IConfiguration cfg, ILogger
             return (null, "Snak svarer ikke lige nu. Prøv igen om lidt.");
         }
     }
+
+    public async Task<string?> InviteAsync(string link, string mail, string name, CancellationToken ct)
+    {
+        if (Key.Length < 16) return "Snak-nøglen er ikke sat (Kunder__SnakKey og Snak__ApiKey i magic.env).";
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{Url}/api/rum/inviter")
+            {
+                Content = JsonContent.Create(new { link, mail, navn = name }),
+            };
+            req.Headers.Add("X-Snak-Key", Key);
+            using var res = await http.SendAsync(req, ct);
+            if (res.IsSuccessStatusCode) return null;
+            if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized) return "Snak kender ikke nøglen. Tjek at Kunder__SnakKey og Snak__ApiKey er ens.";
+            var a = await res.Content.ReadFromJsonAsync<Answer>(ct);
+            log.LogWarning("Snak said {Status} to an invitation", (int)res.StatusCode);
+            return a?.Fejl ?? "Snak sendte ikke mailen. Prøv igen om lidt.";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            log.LogWarning(ex, "Snak not reached");
+            return "Snak svarer ikke lige nu. Prøv igen om lidt.";
+        }
+    }
 }

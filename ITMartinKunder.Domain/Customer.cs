@@ -84,6 +84,15 @@ public sealed class Customer
         Events.Add(CustomerEvent.Of(EventKinds.SnakRoom, "Snak", "", "Snak-rum lavet", 0, utcNow));
     }
 
+    /// <summary>The room link went out by mail (2026-11-10) - each customer gets it once; "Send igen" is Martin's choice.</summary>
+    public bool SnakLinkSent => Events.Any(e => e.Kind == EventKinds.SnakMailed);
+
+    /// <summary>Waiting for the room link by mail: has a room, a mail address and still says yes.</summary>
+    public bool WaitsForSnakLink => SnakLink != "" && Email != "" && Active && !SnakLinkSent;
+
+    public void SentSnakLink(DateTime utcNow) =>
+        Events.Add(CustomerEvent.Of(EventKinds.SnakMailed, "Snak", "", "Snak-link sendt på mail", 0, utcNow));
+
     public void AddInterests(string interests)
     {
         var i = interests.Trim();
@@ -113,7 +122,7 @@ public sealed class Consent
 
 public static class EventKinds
 {
-    public const string SignedUp = "Tilmeldt", Bought = "Køb", Imported = "Flyttet", Mailed = "Mail", SnakRoom = "Snak-rum";
+    public const string SignedUp = "Tilmeldt", Bought = "Køb", Imported = "Flyttet", Mailed = "Mail", SnakRoom = "Snak-rum", SnakMailed = "Snak-link sendt";
 }
 
 /// <summary>What happened with a customer in an app: signed up there, bought.</summary>

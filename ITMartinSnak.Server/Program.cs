@@ -27,7 +27,7 @@ builder.Services.AddKolibri(k =>
     k.HowTo =
     [
         "Åbn det link, du har fået af Martin, og skriv dit navn.",
-        "Skriv i chatten. Slå beskeder til, så får du besked, når Martin svarer.",
+        "Skriv i chatten. Slå beskeder til, så får du besked, når Martin svarer. Uden beskeder får du én mail, når Martin har skrevet, og du ikke har læst det.",
         "Læg Snak på telefonen, så åbner rummet som en app.",
         "I et fælles rum: tryk på dit navn ved døren. Under Opgaver står dagens opgaver – står dit navn på en, er den din.",
     ];
@@ -43,9 +43,14 @@ builder.Services.AddKolibri(k =>
 var dataDir = builder.Configuration["Snak:DataDir"] ?? "/data";
 var publicUrl = builder.Configuration["Snak:PublicUrl"] ?? "https://snak.itmartin.dk";
 builder.Services.AddSnakApplication(builder.Configuration["Snak:AdminCode"] ?? "", builder.Configuration["Snak:ApiKey"] ?? "", publicUrl);
-builder.Services.AddSnakInfrastructure(dataDir);
+// Mail to customers (2026-11-10): the same one.com mailbox as Kunder - Snak__Smtp__* or else Kunder__Smtp__* from magic.env.
+string? Smtp(string k) => builder.Configuration["Snak:Smtp:" + k] ?? builder.Configuration["Kunder:Smtp:" + k];
+builder.Services.AddSnakInfrastructure(dataDir, new SmtpSettings(Smtp("Host") ?? "send.one.com",
+    int.TryParse(Smtp("Port"), out var smtpPort) ? smtpPort : 587, Smtp("User") ?? "info@itmartin.dk", Smtp("Password"),
+    Smtp("ReplyTo") ?? "ITMartin@Mensa.dk"));
 builder.Services.AddHostedService<FinishedRoomsSweeper>();
 builder.Services.AddHostedService<TaskReminders>();
+builder.Services.AddHostedService<MailNudges>();
 
 var app = builder.Build();
 app.MapKolibri();
@@ -155,6 +160,14 @@ app.MapPost("/api/rum", (HttpContext c, RoomBody b, Access access, Rooms rooms) 
         return Results.Json(new { id = r.Id, titel = r.Title, link = rooms.Link(r), nemLink = rooms.EasyLink(r) }, web);
     }
     catch (InvalidOperationException ex) { return Results.BadRequest(new { fejl = ex.Message }); }
+});
+
+// Kunder (2026-11-10): mail the room link to the customer, and keep the address for "Martin har skrevet" mails.
+app.MapPost("/api/rum/inviter", async (HttpContext c, InviteBody b, Access access, RoomMails mails, CancellationToken ct) =>
+{
+    if (!IsAdmin(c, access) && !access.IsApi(c.Request.Headers["X-Snak-Key"].FirstOrDefault())) return Results.Unauthorized();
+    var error = await mails.InviteAsync(b.Link, b.Mail, b.Navn, ct);
+    return error is null ? Results.Ok(new { sendt = true }) : Results.BadRequest(new { fejl = error });
 });
 
 app.MapPost("/api/rum/{id}/klaret", (HttpContext c, string id, Access access, Rooms rooms) =>
@@ -423,6 +436,7 @@ static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentTyp
 public sealed record LoginBody(string? Kode);
 public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, string? Medlemmer = null, string? Kode = null, string? Adresse = null,
     bool Gruppe = false);
+public sealed record InviteBody(string? Link, string? Mail, string? Navn);
 public sealed record RosterBody(string? Medlemmer, string? Emner, string? Links = null, string? Kalender = null);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null);
@@ -457,6 +471,20 @@ public sealed class TaskReminders(Rooms rooms, ILogger<TaskReminders> log) : Bac
         {
             try { var n = rooms.SendReminders(); if (n > 0) log.LogInformation("Sent {Count} task reminders", n); }
             catch (Exception ex) { log.LogWarning(ex, "Task reminders failed"); }
+        }
+    }
+}
+
+// Every minute (2026-11-10): one mail to a customer who has not read Martin's newest message and gets no beskeder.
+public sealed class MailNudges(RoomMails mails, ILogger<MailNudges> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        while (await timer.WaitForNextTickAsync(ct))
+        {
+            try { var n = await mails.NudgeAsync(ct); if (n > 0) log.LogInformation("Sent {Count} 'Martin har skrevet' mails", n); }
+            catch (Exception ex) { log.LogWarning(ex, "Mail nudges failed"); }
         }
     }
 }

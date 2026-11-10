@@ -27,6 +27,18 @@
 </section>
 
 @if (_error is not null) { <p class="ku-warn">@_error</p> }
+@if (_done is not null) { <p class="k-help">@_done</p> }
+
+@if (_rows.Count(c => c.WaitsForSnakLink) is > 0 and var waiting)
+{
+    @* 2026-11-10 user: "also for existing customers" - one press sends the room link to everyone who has a room but never got it by mail. *@
+    <section class="k-card">
+        <h2 class="k-card-title">Snak-links, der ikke er sendt (@waiting)</h2>
+        <p class="k-help">@waiting @(waiting == 1 ? "kunde har" : "kunder har") et snak-rum, men har ikke fået linket på mail. Tryk, så får hver af dem én mail med linket til sit eget rum.
+            Skriver du i rummet, og de ikke har slået beskeder til, får de en mail 10 minutter efter – én gang, til de har været inde igen.</p>
+        <button class="k-btn k-btn-primary" disabled="@_sendingAll" @onclick="SendAll">@(_sendingAll ? "Sender …" : $"Send linket til alle {waiting}")</button>
+    </section>
+}
 
 @if (_rows.Count == 0)
 {
@@ -76,8 +88,12 @@
                 <div class="ku-row">
                     <a class="k-btn k-btn-primary" href="@c.SnakLink" target="_blank" rel="noopener">Åbn snak-rummet</a>
                     <button class="k-btn" onclick="navigator.clipboard.writeText('@c.SnakLink'); this.textContent='Kopieret'">Kopier linket</button>
-                    @if (c.Email != "") { <a class="k-btn" href="@SnakMail.MailTo(c)">Send linket på mail</a> }
+                    @if (c.Email != "" && c.Active)
+                    {
+                        <button class="k-btn" disabled="@(_sending == c.Id)" @onclick="() => SendLink(c)">@(_sending == c.Id ? "Sender …" : c.SnakLinkSent ? "Send linket igen" : "Send linket på mail")</button>
+                    }
                 </div>
+                @if (c.Events.LastOrDefault(e => e.Kind == EventKinds.SnakMailed) is { } sentEv) { <div class="k-help">Linket er sendt på mail @Dk(sentEv.At).</div> }
             }
             else
             {
@@ -105,7 +121,9 @@
 @code {
     private List<Customer> _rows = [];
     private string _q = "", _filter = "Alle";
-    private int _confirm, _edit, _making;
+    private int _confirm, _edit, _making, _sending;
+    private bool _sendingAll;
+    private string? _done;
     private string _name = "", _email = "", _phone = "", _note = "";
     private string? _error;
 
@@ -146,7 +164,26 @@
     {
         _making = c.Id;
         _error = await Snak.MakeAsync(c.Id);
+        _done = _error is null && c.Email != "" ? $"Rummet er lavet, og linket er sendt til {c.Email}." : null;
         _making = 0;
+        await LoadAsync();
+    }
+
+    private async Task SendLink(Customer c)
+    {
+        _sending = c.Id; _done = null;
+        _error = await Snak.SendLinkAsync(c.Id);
+        if (_error is null) _done = $"Linket er sendt til {c.Email}.";
+        _sending = 0;
+        await LoadAsync();
+    }
+
+    private async Task SendAll()
+    {
+        _sendingAll = true; _done = null; _error = null;
+        var (sent, failed) = await Snak.SendAllWaitingAsync();
+        _done = $"Sendt til {sent}." + (failed > 0 ? $" {failed} kom ikke af sted – prøv igen om lidt." : "");
+        _sendingAll = false;
         await LoadAsync();
     }
 

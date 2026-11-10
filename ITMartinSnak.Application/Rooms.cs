@@ -120,6 +120,14 @@ public sealed class Rooms
         return true;
     }
 
+    /// <summary>The customer's mail address (Kunder sends it with the invitation).</summary>
+    public bool SetMail(string id, string mail) => Update(id, x => x with { Mail = mail });
+
+    public bool MarkMailed(string id) => Update(id, x => x with { MailedAt = _clock.GetUtcNow().UtcDateTime });
+
+    /// <summary>Rooms that are still going (not klaret).</summary>
+    public List<Room> Open() { lock (_gate) return _rooms.Where(r => !r.IsDone).ToList(); }
+
     public bool Delete(string id)
     {
         lock (_gate)

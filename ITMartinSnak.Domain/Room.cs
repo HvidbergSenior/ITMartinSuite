@@ -11,9 +11,10 @@ namespace ITMartinSnak.Domain;
 // given to someone; CodeHash = this room's own admin password (a hash, never the code) - it makes you admin in THIS room only.
 // 2026-11-09 GRUPPE (Acceleratorkursus Hold 36, replaces their Facebook group): a standing group - no "Sagen er klaret", never deleted;
 // About = what each member works with (the Holdet tab), Topics = the workshops files are sorted under. Older rooms read as before.
+// 2026-11-10 MAIL (user: "they should get mail"): Mail = the customer's address (from Kunder), MailedAt = the last "Martin har skrevet" mail.
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
     List<string>? Members = null, string CodeHash = "", string Slug = "", bool Gruppe = false, Dictionary<string, string>? About = null,
-    List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null)
+    List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null, string Mail = "", DateTime? MailedAt = null)
 {
     public bool IsDone => DoneAt is not null;
     public bool HasCode => CodeHash.Length > 0;

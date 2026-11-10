@@ -53,3 +53,9 @@ public interface IPushSender
     /// <summary>Per name: how many phones get beskeder from this room (for the setup view).</summary>
     IReadOnlyDictionary<string, int> PhonesPerName(string room);
 }
+
+// Plain-text mail to a customer (SMTP in Infrastructure). False = not sent (no password set, or the mail server said no).
+public interface IRoomMailer
+{
+    Task<bool> SendAsync(string to, string subject, string body, CancellationToken ct = default);
+}

@@ -285,6 +285,10 @@ public class SnakRumTests
         public (string Title, string Ref)? Asked;
         public Task<(string? Link, string? Error)> CreateAsync(string title, string customerRef, CancellationToken ct)
         { Asked = (title, customerRef); return Task.FromResult((link, error)); }
+        public List<(string Link, string Mail)> Invited = [];
+        public string? InviteError;
+        public Task<string?> InviteAsync(string l, string mail, string name, CancellationToken ct)
+        { if (InviteError is null) Invited.Add((l, mail)); return Task.FromResult(InviteError); }
     }
 
     private sealed class Factory(DbContextOptions<KunderDb> o) : IDbContextFactory<KunderDb>
@@ -315,6 +319,28 @@ public class SnakRumTests
         var c = (await repo.GetAsync(id, default))!;
         c.SnakLink.Should().Be("https://snak.itmartin.dk/r/abc");
         c.Events.Should().Contain(e => e.Kind == EventKinds.SnakRoom);
+        snak.Invited.Should().Equal(("https://snak.itmartin.dk/r/abc", "alex@example.dk"));   // the link went out by mail at once
+        c.SnakLinkSent.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Send_til_alle_mails_older_customers_once_and_keeps_failures_waiting()
+    {
+        var (repo, id, conn) = await OneCustomerAsync();
+        using var _ = conn;
+        var c = (await repo.GetAsync(id, default))!;
+        c.GotSnakRoom("https://snak.itmartin.dk/r/old", DateTime.UtcNow);   // a room from before 2026-11-10, never mailed
+        await repo.SaveAsync(c, default);
+        var snak = new FakeSnak(null) { InviteError = "Snak svarer ikke lige nu." };
+        var rum = new SnakRum(repo, snak, TimeProvider.System);
+
+        (await rum.SendAllWaitingAsync()).Should().Be((0, 1));
+        (await repo.GetAsync(id, default))!.WaitsForSnakLink.Should().BeTrue();
+
+        snak.InviteError = null;
+        (await rum.SendAllWaitingAsync()).Should().Be((1, 0));
+        (await rum.SendAllWaitingAsync()).Should().Be((0, 0));               // only once
+        snak.Invited.Should().ContainSingle();
     }
 
     [Test]
