@@ -112,6 +112,12 @@ public sealed class Sag
 
     public void StopSharing() => (ShareToken, SharePrices) = ("", false);
 
+    /// <summary>Today's quick check (user 2026-11-10: "In a dødsbo or when my wife gets a new chair. I want to find out if it is
+    /// interesting? also on a genbrugsplads with furniture... quick"): one Sag per day, made by itself - "Tjek – 10. november".</summary>
+    public static string TodayName(DateTime now) => "Tjek – " + now.ToString("d. MMMM", new System.Globalization.CultureInfo("da-DK"));
+
+    public bool IsToday(DateTime now) => Name == TodayName(now) && CreatedAt.Date == now.Date;
+
     public static Sag New(string? name, DateTime at)
     {
         var n = DodsboRules.Clean(name, DodsboRules.MaxName);

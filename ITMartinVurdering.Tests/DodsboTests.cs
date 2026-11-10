@@ -47,6 +47,21 @@ public class DodsboTests
         return (uses, store, ai, sag!);
     }
 
+    // Vareinfo's "Møbler og ting" (2026-11-10): one Tjek Sag per day, made by itself.
+    [Test]
+    public void Today_is_one_Tjek_sag_per_day_made_by_itself()
+    {
+        var store = new MemoryStore();
+        var day = Tue;
+        var uses = new DodsboUseCases(store, new FakeValuer(), () => day);
+        var first = uses.Today();
+        first.Name.Should().Be("Tjek – 10. november");
+        uses.Today().Id.Should().Be(first.Id);
+        day = Tue.AddDays(1);
+        uses.Today().Id.Should().NotBe(first.Id);
+        store.All().Should().HaveCount(2);
+    }
+
     [Test]
     public void A_sag_needs_a_name_and_an_empty_photo_is_refused()
     {

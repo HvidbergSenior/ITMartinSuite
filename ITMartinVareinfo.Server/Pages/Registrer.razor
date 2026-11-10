@@ -40,6 +40,12 @@ else if (_session is null)
                 <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="() => Today(k.Name)" disabled="@_busy">@k.Name</button>
             }
         </div>
+        @if (_check)
+        {
+            @* Furniture and things (2026-11-10): Vurdering's dødsbo AI says what it is, what it is worth and what to do - today's Tjek there. *@
+            <p class="k-help">Møbler, lamper, glas, kunst og andre ting – du får at vide, hvad det er, hvad det er værd, og om det er interessant:</p>
+            <a class="k-btn k-btn-secondary lg-big vi-wide" href="@($"{BogshoppenFlow.Steps[BogshoppenFlow.Priser - 1].Url.TrimEnd('/')}/dodsbo/i-dag")">Møbler og ting</a>
+        }
         @if (Me.IsAdmin && !_check)
         {
             @* Strik and Ting go in one at a time with price and maker (Lager, 2026-11-10) - not as a pile. *@

@@ -149,7 +149,9 @@
                 return api('/' + sag.id + '/foto', { method: 'POST', body: fd });
             });
         }, Promise.resolve()).then(function () {
-            $('db-hint').value = ''; msg('Gemt. Tag det næste billede – eller tryk Vurdér de nye.'); open(sag.id);
+            // Quick answer (2026-11-10): the saved photos are valued at once - one AI call for up to 8, as with the button.
+            $('db-hint').value = ''; msg('Gemt – vurderer nu … det tager typisk et halvt minut.'); open(sag.id);
+            return post('/' + sag.id + '/vurder').then(function (r) { msg(r.besked); open(sag.id); });
         }).catch(function (er) { msg(er.message, true); open(sag.id); });
     });
     $('db-value').addEventListener('click', function () {
@@ -159,7 +161,7 @@
             .catch(function (er) { msg(er.message, true); $('db-value').disabled = false; });
     });
 
-    var last = null;
+    var asked = new URLSearchParams(location.search).get('sag'), last = null;
     try { last = localStorage.getItem('dodsbo_sag'); } catch (e) { }
-    if (last) open(last); else list();
+    if (asked) open(asked); else if (last) open(last); else list();
 })();

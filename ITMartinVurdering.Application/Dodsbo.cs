@@ -49,6 +49,16 @@ public sealed class DodsboUseCases(ISagStore store, IThingValuer valuer, Func<Da
         catch (ArgumentException e) { return (null, e.Message); }
     }
 
+    /// <summary>Today's Tjek Sag (Vareinfo's "Møbler og ting" button): the one made today, or a new one - nothing to name.</summary>
+    public Sag Today()
+    {
+        var at = now();
+        if (store.All().Where(s => s.IsToday(at)).OrderByDescending(s => s.CreatedAt).FirstOrDefault() is { } today) return today;
+        var s = Sag.New(Sag.TodayName(at), at);
+        store.Save(s);
+        return s;
+    }
+
     public DodsboResult AddPhoto(string sagId, byte[] jpeg, string? hint)
     {
         if (store.Get(sagId) is not { } s) return new(false, "Sagen findes ikke længere.");

@@ -85,7 +85,11 @@ var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dod
 
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=2"));
 // Dødsbo og loft (2026-11-10): the same login, its own page.
-app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=3"));
+app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=4"));
+// Vareinfo's Tjek -> "Møbler og ting" (2026-11-10): straight into today's Tjek Sag, made by itself.
+app.MapGet("/dodsbo/i-dag", (KolibriAppInfo info, HttpContext ctx, DodsboUseCases d) => IsOwner(ctx)
+    ? Results.Redirect("/dodsbo?sag=" + Uri.EscapeDataString(d.Today().Id))
+    : Page(info, ctx, dodsboBody, "/dodsbo.js?v=4"));   // the login, here - after it the same address again
 
 IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string script)
 {
@@ -113,7 +117,10 @@ app.MapPost("/ind", async (HttpContext ctx) =>
         return Results.Redirect("/");
     }
     ctx.Response.Cookies.Append("vurdering_auth", ownerToken, new CookieOptions { HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365) });
-    return Results.Redirect("/");
+    // Back to the page the login was shown on (fx /dodsbo/i-dag from Vareinfo) - only an address on this site.
+    var back = Uri.TryCreate(ctx.Request.Headers.Referer.ToString(), UriKind.Absolute, out var r) && r.Host == ctx.Request.Host.Host
+        && r.AbsolutePath.StartsWith("/dodsbo") ? r.PathAndQuery : "/";
+    return Results.Redirect(back);
 }).DisableAntiforgery();
 
 app.MapPost("/ud", (HttpContext ctx) => { ctx.Response.Cookies.Delete("vurdering_auth"); return Results.Redirect("/"); }).DisableAntiforgery();
