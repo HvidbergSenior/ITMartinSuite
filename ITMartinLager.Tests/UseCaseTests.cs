@@ -116,6 +116,14 @@ public class UseCaseTests
         (await uses.HandmadeAsync()).Should().ContainSingle(i => i.Id == item.Id);
         (await uses.AddHandmadeAsync("Hue", "Huer", null, "Inge", null, null)).Price.Should().BeNull();   // "no prices yet"
         Pricing.HuntedKinds.Should().NotContain(Kinds.Strik);
+
+        // Tingshoppen: the same for an old thing - used, its own kinds, its own shop.
+        var vase = await uses.AddForSellerAsync(Kinds.Ting, "Rubinglas-vase", "glas", null, "Marianne", null, null);
+        (vase.Category, vase.Genre, vase.Usage, vase.Seller).Should().Be((ProductTypes.Ting, "Glas", Usages.Used, "Marianne"));
+        await uses.Invoking(u => u.AddForSellerAsync(Kinds.Ting, "Vase", "Sweatre", null, "Marianne", null, null)).Should().ThrowAsync<LagerException>();
+        await uses.Invoking(u => u.AddForSellerAsync(Kinds.Bog, "Bog", "Krimi", null, "Marianne", null, null)).Should().ThrowAsync<LagerException>();
+        ShopFamilies.For(ProductTypes.Ting)!.Slug.Should().Be("ting");
+        Pricing.HuntedKinds.Should().NotContain(Kinds.Ting);
     }
 
     [Test]

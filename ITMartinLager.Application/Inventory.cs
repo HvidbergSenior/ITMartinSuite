@@ -153,24 +153,36 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     public async Task<string?> PhotoFileAsync(int id, CancellationToken ct = default) =>
         await items.GetAsync(id, ct) is { } i ? photos.FullPath(i.ItemPhoto) : null;
 
-    /// <summary>Strikkeshoppen (2026-11-10): a hand-knitted thing a maker sells through ITMartin. A person sets what it is,
-    /// the price (or none yet) and whose it is - no AI, no price hunt (Strik is not a hunted kind). For sale at once.</summary>
-    public async Task<Item> AddHandmadeAsync(string? title, string? genre, decimal? price, string? seller, string? note,
+    /// <summary>The kinds a maker or an owner sells through ITMartin (Item.Seller): Strikkeshoppen and Tingshoppen (2026-11-10).</summary>
+    public static readonly string[] SellerKinds = [Kinds.Strik, Kinds.Ting];
+
+    /// <summary>Strikkeshoppen (2026-11-10): a hand-knitted thing a maker sells through ITMartin.</summary>
+    public Task<Item> AddHandmadeAsync(string? title, string? genre, decimal? price, string? seller, string? note,
+        Stream? photo, CancellationToken ct = default) => AddForSellerAsync(Kinds.Strik, title, genre, price, seller, note, photo, ct);
+
+    /// <summary>Strikkeshoppen / Tingshoppen (2026-11-10): a thing someone else owns and Martin sells for them. A person sets what
+    /// it is, the price (or none yet) and whose it is - no AI, no price hunt (neither is a hunted kind). For sale at once.
+    /// Strik is new (hand-made); Ting is used (from a dødsbo or a loft).</summary>
+    public async Task<Item> AddForSellerAsync(string kind, string? title, string? genre, decimal? price, string? seller, string? note,
         Stream? photo, CancellationToken ct = default)
     {
+        if (!SellerKinds.Contains(kind)) throw new LagerException("Den slags kan ikke lægges ind her.");
+        var strik = kind == Kinds.Strik;
         var t = (title ?? "").Trim();
-        if (t.Length == 0) throw new LagerException("Skriv, hvad det er – fx Blå sweater med snoninger.");
-        if (Genres.Strik.FirstOrDefault(g => string.Equals(g, genre?.Trim(), StringComparison.OrdinalIgnoreCase)) is not { } g)
-            throw new LagerException("Vælg, hvilken slags strik det er.");
+        if (t.Length == 0) throw new LagerException(strik ? "Skriv, hvad det er – fx Blå sweater med snoninger." : "Skriv, hvad det er – fx Rubinglas-vase, böhmisk.");
+        var list = strik ? Genres.Strik : Genres.Ting;
+        if (list.FirstOrDefault(g => string.Equals(g, genre?.Trim(), StringComparison.OrdinalIgnoreCase)) is not { } g)
+            throw new LagerException(strik ? "Vælg, hvilken slags strik det er." : "Vælg, hvilken slags ting det er.");
         // No price yet is fine (user 2026-11-10: "no prices yet") - it is set later on the item, like any other thing.
         if (price is < 0) throw new LagerException("Prisen kan ikke være under 0 kr.");
         var who = (seller ?? "").Trim();
-        if (who.Length == 0) throw new LagerException("Skriv, hvem der har strikket det – så ved vi, hvem pengene skal til.");
+        if (who.Length == 0) throw new LagerException(strik ? "Skriv, hvem der har strikket det – så ved vi, hvem pengene skal til."
+            : "Skriv, hvem tingen er fra – så ved vi, hvem pengene skal til.");
         var item = new Item
         {
-            Kind = Kinds.Strik, Title = t.Length > 200 ? t[..200] : t, Genre = g, GenreAt = DateTime.UtcNow, Price = price is > 0 ? Math.Round(price.Value) : null,
-            Seller = who.Length > 80 ? who[..80] : who, Usage = Usages.New, Condition = "Ny", Note = (note ?? "").Trim(),
-            Language = Languages.Dansk, Status = Statuses.Lager,
+            Kind = kind, Title = t.Length > 200 ? t[..200] : t, Genre = g, GenreAt = DateTime.UtcNow, Price = price is > 0 ? Math.Round(price.Value) : null,
+            Seller = who.Length > 80 ? who[..80] : who, Usage = strik ? Usages.New : Usages.Used, Condition = strik ? "Ny" : "God",
+            Note = (note ?? "").Trim(), Language = Languages.Dansk, Status = Statuses.Lager,
         };
         item.Touch();
         await items.AddAsync([item], ct);
@@ -178,8 +190,9 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         return item;
     }
 
-    /// <summary>Every knitted thing (for sale and sold), newest first - the Strik page in Lager.</summary>
+    /// <summary>Every thing of one seller kind (for sale and sold), newest first - the Strik and Ting pages in Lager.</summary>
     public Task<List<Item>> HandmadeAsync(CancellationToken ct = default) => items.OfKindAsync(Kinds.Strik, ct);
+    public Task<List<Item>> ForSellerAsync(string kind, CancellationToken ct = default) => items.OfKindAsync(kind, ct);
 
     /// <summary>A photo of just this item, for auctions and the shop.</summary>
     public async Task<string> SavePhotoAsync(int id, Stream photo, CancellationToken ct = default)

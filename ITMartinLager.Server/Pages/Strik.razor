@@ -1,14 +1,16 @@
 @page "/strik"
+@page "/ting"
 @inject ItemUseCases Items
+@inject NavigationManager Nav
 
-<PageTitle>Strik – Bogshoppen Lager</PageTitle>
+<PageTitle>@W.Name – Bogshoppen Lager</PageTitle>
 
 @* Strikkeshoppen (user 2026-11-10): a maker with a lot of hand-knitting - her things, sold by Martin for a share. A person puts
    each thing in here: a picture, what it is, the price and who knitted it. No AI, no price hunt. It is on bogshoppen.dk/strik at once. *@
 <section class="k-card">
-    <h1 class="k-card-title">🧶 Strik – læg en ting ind</h1>
-    <p><b>Sådan gør du:</b> tag et billede, skriv hvad det er, vælg slags og hvem der har strikket det, og tryk Læg i Strikkeshoppen. Prisen kan vente.
-        Så står den på bogshoppen.dk/strik med det samme – med "Strikket af" og navnet.</p>
+    <h1 class="k-card-title">@W.Icon @W.Name – læg en ting ind</h1>
+    <p><b>Sådan gør du:</b> tag et billede, skriv hvad det er, vælg slags og hvem @W.WhoVerb, og tryk Læg i @W.Shop. Prisen kan vente.
+        Så står den på bogshoppen.dk/@W.Slug med det samme – med "@W.Label" og navnet.</p>
 
     <label class="k-btn k-btn-secondary lg-camera">
         @(_photo is null ? "📷 Tag billede" : "📷 Tag et andet billede")
@@ -17,34 +19,34 @@
     @if (_photo is not null) { <p class="k-small">Billedet er klar (@(_photo.Length / 1024) KB).</p> }
 
     <label class="k-label" for="st-title">Hvad er det?</label>
-    <input class="k-input" id="st-title" @bind="_title" maxlength="200" placeholder="fx Blå sweater med snoninger, str. M" />
+    <input class="k-input" id="st-title" @bind="_title" maxlength="200" placeholder="@W.TitleHint" />
 
     <label class="k-label" for="st-genre">Slags</label>
     <select class="k-input" id="st-genre" @bind="_genre">
         <option value="">Vælg …</option>
-        @foreach (var g in Genres.Strik) { <option value="@g">@g</option> }
+        @foreach (var g in W.Genres) { <option value="@g">@g</option> }
     </select>
 
     <label class="k-label" for="st-price">Pris i kr. (frivilligt – kan sættes senere)</label>
     <input class="k-input" id="st-price" type="number" min="1" step="1" inputmode="numeric" @bind="_price" />
 
-    <label class="k-label" for="st-seller">Strikket af</label>
+    <label class="k-label" for="st-seller">@W.Label</label>
     <input class="k-input" id="st-seller" @bind="_seller" maxlength="80" placeholder="Fornavn" />
 
     <label class="k-label" for="st-note">Mere om den (frivilligt)</label>
-    <input class="k-input" id="st-note" @bind="_note" maxlength="300" placeholder="fx 100 % uld, kan vaskes på uldprogram" />
+    <input class="k-input" id="st-note" @bind="_note" maxlength="300" placeholder="@W.NoteHint" />
 
     @if (_err is not null) { <p role="alert"><b>@_err</b></p> }
     @if (_msg is not null) { <p>@_msg</p> }
-    <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="Save">@(_busy ? "⏳ Gemmer …" : "Læg i Strikkeshoppen")</button>
+    <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="Save">@(_busy ? "⏳ Gemmer …" : "Læg i " + W.Shop)</button>
 </section>
 
 <section class="k-card">
-    <h2 class="k-card-title">Al strik (@_list.Count)</h2>
-    @if (_list.Count == 0) { <p>Der er ikke lagt noget strik ind endnu.</p> }
+    <h2 class="k-card-title">Alt i @W.Shop (@_list.Count)</h2>
+    @if (_list.Count == 0) { <p>Der er ikke lagt noget ind endnu.</p> }
     @foreach (var g in _list.GroupBy(i => i.Seller).OrderBy(g => g.Key))
     {
-        <p><b>Strikket af @g.Key</b> – @g.Count(i => i.Status != Statuses.Solgt) til salg, @g.Count(i => i.Status == Statuses.Solgt) solgt
+        <p><b>@W.Label @g.Key</b> – @g.Count(i => i.Status != Statuses.Solgt) til salg, @g.Count(i => i.Status == Statuses.Solgt) solgt
             (@g.Where(i => i.Status == Statuses.Solgt).Sum(i => i.SoldPrice ?? i.Price ?? 0).ToString("N0") kr.)</p>
         <ul>
             @foreach (var i in g)
@@ -63,7 +65,16 @@
     private string? _err, _msg;
     private List<Item> _list = [];
 
-    protected override async Task OnInitializedAsync() => _list = await Items.HandmadeAsync();
+    // Strikkeshoppen and Tingshoppen (2026-11-10): one page, the words follow the address.
+    private sealed record Words(string Kind, string Name, string Shop, string Slug, string Icon, string Label, string WhoVerb,
+        string TitleHint, string NoteHint, string[] Genres);
+    private static readonly Words StrikWords = new(Kinds.Strik, "Strik", "Strikkeshoppen", "strik", "🧶", "Strikket af", "der har strikket det",
+        "fx Blå sweater med snoninger, str. M", "fx 100 % uld, kan vaskes på uldprogram", Genres.Strik);
+    private static readonly Words TingWords = new(Kinds.Ting, "Ting", "Tingshoppen", "ting", "🏺", "Sælges for", "tingen er fra",
+        "fx Rubinglas-vase, böhmisk, slebet", "fx historien fra Vurdering, stempel i bunden, lille skår", Genres.Ting);
+    private Words W => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("ting", StringComparison.OrdinalIgnoreCase) ? TingWords : StrikWords;
+
+    protected override async Task OnInitializedAsync() => _list = await Items.ForSellerAsync(W.Kind);
 
     private async Task PickPhoto(InputFileChangeEventArgs e)
     {
@@ -83,10 +94,10 @@
         try
         {
             using var photo = _photo is null ? null : new MemoryStream(_photo);
-            var item = await Items.AddHandmadeAsync(_title, _genre, _price, _seller, _note, photo);
-            _msg = $"\"{item.Title}\" ligger nu i Strikkeshoppen.";
+            var item = await Items.AddForSellerAsync(W.Kind, _title, _genre, _price, _seller, _note, photo);
+            _msg = $"\"{item.Title}\" ligger nu i {W.Shop}.";
             _title = ""; _note = ""; _price = null; _photo = null;   // the maker and kind stay - the next thing is often hers too
-            _list = await Items.HandmadeAsync();
+            _list = await Items.ForSellerAsync(W.Kind);
         }
         catch (LagerException ex) { _err = ex.Message; }
         finally { _busy = false; }

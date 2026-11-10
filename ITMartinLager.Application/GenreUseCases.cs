@@ -27,7 +27,7 @@ public sealed class GenreUseCases(IItemRepository items, IGenreSource source, Ti
         // Music, film, books: a free source. One that does not answer (MusicBrainz "busy") waits; the others go on.
         // A few of each category a round, so 700 records do not keep the films and books waiting.
         // Strik is picked by a person when it is put in (2026-11-10) - never looked up.
-        var looked = Genres.Categories.Where(c => !GenreRules.FromName(c) && c != ProductTypes.Strik).ToList();
+        var looked = Genres.Categories.Where(c => !GenreRules.FromName(c) && c is not (ProductTypes.Strik or ProductTypes.Ting)).ToList();
         var each = Math.Max(1, Math.Clamp(max, 1, MaxPerRound) / looked.Count);
         foreach (var category in looked)
             foreach (var item in await items.WithoutGenreAsync([category], each, ct))
