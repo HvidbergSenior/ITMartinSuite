@@ -343,8 +343,8 @@ app.MapPost("/marked/ud", async (HttpContext ctx) =>
 }).DisableAntiforgery();
 
 // Open to all since 2026-10-29: the products are shown on bogshoppen.dk/produkter (TEST, nothing to buy).
-app.MapGet("/varer/foto/{id:int}", async (int id, ShopUseCases shop) =>
-    await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+app.MapGet("/varer/foto/{id:int}", async (int id, int? n, ShopUseCases shop) =>
+    await shop.PhotoAsync(id, n ?? 1) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 
 app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibility) =>
 {

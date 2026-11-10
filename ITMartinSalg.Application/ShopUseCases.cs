@@ -118,6 +118,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     }
 
     public Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default) => stock.PhotoAsync(id, ct);
+    public Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct = default) => stock.PhotoAsync(id, n, ct);
 
     /// <summary>The basket priced for today: what each thing costs with today's offers, and the ones that are gone
     /// (sold, reserved, no price) - the basket page shows them so the buyer knows.</summary>
@@ -278,7 +279,7 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
             var dayOffer = day is null ? "" : Campaigns.DayOffer(i.Kind, i.Usage, offers, Today)!.Text;
             return new ShopItem(i.Id, i.Kind, i.Line, i.Title, i.Interest, i.Condition, i.Year, buyNow, i.HintKr is > 0 && !unsure && !assess ? i.HintKr : null,
                 Math.Max(0, i.Quantity - reserved.GetValueOrDefault(i.Id)), i.HasPhoto,
-                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), unsure || assess ? null : i.Reference, i.Deal, assess, i.Seller);
+                ProductTypes.For(i.Kind), day, dayOffer, i.Badge, i.Usage, i.ForShow, marked.GetValueOrDefault(i.Id), unsure || assess ? null : i.Reference, i.Deal, assess, i.Seller, i.Photos);
         }).ToList();
     }
 }

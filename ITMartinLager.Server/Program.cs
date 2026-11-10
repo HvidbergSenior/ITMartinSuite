@@ -154,7 +154,7 @@ app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("la
 
 // Photos: the item's own photo and its kolofon are here; the box photos are in Vareinfo (old links are sent on).
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
-app.MapGet("/varefoto/{id:int}", async (int id, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id)));
+app.MapGet("/varefoto/{id:int}", async (int id, int? n, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id, n ?? 1)));
 app.MapGet("/foto/{id:int}", (int id, VareinfoLinks v) => Results.Redirect(v.Photo(id)));
 app.MapGet("/kolofonfoto/{id:int}", async (int id, KolofonUseCases k) => Jpeg(await k.PhotoFileAsync(id)));
 

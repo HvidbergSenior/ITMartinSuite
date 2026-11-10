@@ -33,6 +33,8 @@ public interface IStockGateway
     /// <summary>"Fundet i kasserne": the things a person chose for the front page, with their proof.</summary>
     Task<List<StockItemPage>> FeaturedAsync(int max, CancellationToken ct);
     Task<byte[]?> PhotoAsync(int id, CancellationToken ct);
+    /// <summary>Photo n (2.. = the extra photos of the same thing).</summary>
+    Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct) => n <= 1 ? PhotoAsync(id, ct) : Task.FromResult<byte[]?>(null);
     /// <summary>A paid sale: the copies leave the stock. The same sale twice changes nothing.</summary>
     Task BookAsync(StockSale sale, CancellationToken ct);
 }

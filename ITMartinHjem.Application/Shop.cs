@@ -12,6 +12,8 @@ public interface IShopGateway
     /// <summary>Null = not for sale (sold, on auction, or never existed).</summary>
     Task<(bool CanPay, ShopItem Item, List<ShopProof> Proof)?> ItemAsync(int id, CancellationToken ct = default);
     Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default);
+    /// <summary>Photo n (2.. = the extra photos of the same thing, 2026-11-10).</summary>
+    Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct = default) => n <= 1 ? PhotoAsync(id, ct) : Task.FromResult<byte[]?>(null);
     /// <summary>The items chosen in Lager for the front pages, each with its proof links.</summary>
     Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(CancellationToken ct = default);
     /// <returns>Stripe's payment page, or the reason in Danish.</returns>
@@ -67,6 +69,12 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
     public async Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default)
     {
         try { return await lager.PhotoAsync(id, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+    }
+
+    public async Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct = default)
+    {
+        try { return await lager.PhotoAsync(id, n, ct); }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
     }
 

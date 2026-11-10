@@ -124,6 +124,16 @@ public class UseCaseTests
         await uses.Invoking(u => u.AddForSellerAsync(Kinds.Bog, "Bog", "Krimi", null, "Marianne", null, null)).Should().ThrowAsync<LagerException>();
         ShopFamilies.For(ProductTypes.Ting)!.Slug.Should().Be("ting");
         Pricing.HuntedKinds.Should().NotContain(Kinds.Ting);
+
+        // More than one picture: the first is the main one, the rest are -2, -3 ...; the shop gets how many there are.
+        store.Setup(s => s.FullPath(It.IsAny<string>())).Returns((string x) => "/data/" + x);
+        var sweater = await uses.AddForSellerWithPhotosAsync(Kinds.Strik, "Stribet sweater", "Sweatre", null, "StrikkeMarianne", null,
+            [new MemoryStream([1]), new MemoryStream([2]), new MemoryStream([3])]);
+        (sweater.ItemPhoto, sweater.MorePhotos).Should().Be((Path.Combine("photos", "items", sweater.Id + ".jpg"), 2));
+        Shop.View(sweater, []).Photos.Should().Be(3);
+        (await uses.PhotoFileAsync(sweater.Id, 3)).Should().EndWith(sweater.Id + "-3.jpg");
+        (await uses.PhotoFileAsync(sweater.Id, 4)).Should().BeNull();
+        store.Verify(s => s.SaveAsync(Path.Combine("photos", "items", sweater.Id + "-2.jpg"), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

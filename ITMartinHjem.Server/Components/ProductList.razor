@@ -610,6 +610,17 @@
                 else { <span class="bs-shop-nopic">@Kinds.Label(i.Kind)</span> }
                 @if (i.Badge != "") { <span class="bs-shop-badge">@ITMartinHjem.Server.Services.NoEmoji.Strip(i.Badge)</span> }
             </div>
+            @* More photos of the same thing (2026-11-10): small ones under the big one, each opens large. *@
+            @if (i.Photos > 1)
+            {
+                <div class="bs-shop-more" aria-label="Flere billeder">
+                    @for (var n = 2; n <= i.Photos; n++)
+                    {
+                        var k = n;
+                        <a href="/varer/foto/@i.Id?n=@k" target="_blank" rel="noopener" title="Billede @k"><img src="/varer/foto/@i.Id?n=@k" alt="@i.Title – billede @k" loading="lazy" /></a>
+                    }
+                </div>
+            }
             <div class="bs-shop-body">
                 <h3>@i.Line</h3>
                 @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }

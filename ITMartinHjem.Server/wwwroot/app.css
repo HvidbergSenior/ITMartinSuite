@@ -963,3 +963,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-bundle { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--k-border-3, #ccc); display: grid; gap: 8px; }
 .bs-bundle h3 { margin: 0; }
 .bs-bundle ul { margin: 0; padding-left: 20px; }
+
+/* More photos of the same thing (2026-11-10) */
+.bs-shop-more { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 0; }
+.bs-shop-more img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--k-border-3, #ccc); background: #fff; }

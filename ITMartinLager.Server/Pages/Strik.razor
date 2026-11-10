@@ -13,10 +13,14 @@
         Så står den på bogshoppen.dk/@W.Slug med det samme – med "@W.Label" og navnet.</p>
 
     <label class="k-btn k-btn-secondary lg-camera">
-        @(_photo is null ? "📷 Tag billede" : "📷 Tag et andet billede")
-        <InputFile OnChange="PickPhoto" accept="image/*" capture="environment" class="lg-hidden-file" />
+        @(_photos.Count == 0 ? "📷 Tag billeder" : "📷 Tag et billede mere")
+        <InputFile OnChange="PickPhotos" accept="image/*" multiple class="lg-hidden-file" />
     </label>
-    @if (_photo is not null) { <p class="k-small">Billedet er klar (@(_photo.Length / 1024) KB).</p> }
+    @if (_photos.Count > 0)
+    {
+        <p class="k-small">@_photos.Count @(_photos.Count == 1 ? "billede" : "billeder") klar – det første bliver det store.
+            <button type="button" class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _photos.Clear()">Tag dem væk</button></p>
+    }
 
     <label class="k-label" for="st-title">Hvad er det?</label>
     <input class="k-input" id="st-title" @bind="_title" maxlength="200" placeholder="@W.TitleHint" />
@@ -51,7 +55,10 @@
         <ul>
             @foreach (var i in g)
             {
-                <li><a href="/vare/@i.Id">@i.Title</a> · @i.Genre · @(i.Price is > 0 ? i.Price.Value.ToString("N0") + " kr." : "ingen pris endnu") · @i.Status</li>
+                <li><a href="/vare/@i.Id">@i.Title</a> · @i.Genre · @(i.Price is > 0 ? i.Price.Value.ToString("N0") + " kr." : "ingen pris endnu") · @i.Status
+                    · @(i.ItemPhoto == "" ? 0 : i.MorePhotos + 1) billede@(i.ItemPhoto != "" && i.MorePhotos == 0 ? "" : "r")
+                    <label class="k-btn k-btn-sm k-btn-ghost lg-camera">+ billede
+                        <InputFile OnChange="e => AddMore(i.Id, e)" accept="image/*" multiple class="lg-hidden-file" /></label></li>
             }
         </ul>
     }
@@ -60,7 +67,7 @@
 @code {
     private string _title = "", _genre = "", _seller = "", _note = "";
     private decimal? _price;
-    private byte[]? _photo;
+    private readonly List<byte[]> _photos = [];
     private bool _busy;
     private string? _err, _msg;
     private List<Item> _list = [];
@@ -76,16 +83,41 @@
 
     protected override async Task OnInitializedAsync() => _list = await Items.ForSellerAsync(W.Kind);
 
-    private async Task PickPhoto(InputFileChangeEventArgs e)
+    // More than one picture (user 2026-11-10): pick several at once, or one at a time - the first is the big one.
+    private async Task PickPhotos(InputFileChangeEventArgs e)
     {
         _err = null;
         try
         {
-            using var ms = new MemoryStream();
-            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await s.CopyToAsync(ms);
-            _photo = ms.ToArray();
+            foreach (var f in e.GetMultipleFiles(Item.MaxMorePhotos + 1 - _photos.Count))
+            {
+                using var ms = new MemoryStream();
+                await using (var s = f.OpenReadStream(30 * 1024 * 1024)) await s.CopyToAsync(ms);
+                _photos.Add(ms.ToArray());
+            }
         }
         catch (Exception ex) { _err = ex.Message; }
+    }
+
+    private async Task AddMore(int id, InputFileChangeEventArgs e)
+    {
+        _err = null; _msg = null;
+        try
+        {
+            var n = 0;
+            foreach (var f in e.GetMultipleFiles(Item.MaxMorePhotos + 1))
+            {
+                using var ms = new MemoryStream();
+                await using (var s = f.OpenReadStream(30 * 1024 * 1024)) await s.CopyToAsync(ms);
+                ms.Position = 0;
+                await Items.AddPhotoAsync(id, ms);
+                n++;
+            }
+            _msg = n == 1 ? "Billedet er lagt på." : $"{n} billeder er lagt på.";
+            _list = await Items.ForSellerAsync(W.Kind);
+        }
+        catch (LagerException ex) { _err = ex.Message; }
+        catch (InvalidOperationException) { _err = $"Højst {Item.MaxMorePhotos + 1} billeder ad gangen."; }
     }
 
     private async Task Save()
@@ -93,10 +125,11 @@
         _busy = true; _err = null; _msg = null;
         try
         {
-            using var photo = _photo is null ? null : new MemoryStream(_photo);
-            var item = await Items.AddForSellerAsync(W.Kind, _title, _genre, _price, _seller, _note, photo);
-            _msg = $"\"{item.Title}\" ligger nu i {W.Shop}.";
-            _title = ""; _note = ""; _price = null; _photo = null;   // the maker and kind stay - the next thing is often hers too
+            var streams = _photos.Select(b => (Stream)new MemoryStream(b)).ToList();
+            var item = await Items.AddForSellerWithPhotosAsync(W.Kind, _title, _genre, _price, _seller, _note, streams);
+            foreach (var st in streams) st.Dispose();
+            _msg = $"\"{item.Title}\" ligger nu i {W.Shop}" + (_photos.Count > 1 ? $" med {_photos.Count} billeder." : ".");
+            _title = ""; _note = ""; _price = null; _photos.Clear();   // the maker and kind stay - the next thing is often hers too
             _list = await Items.ForSellerAsync(W.Kind);
         }
         catch (LagerException ex) { _err = ex.Message; }

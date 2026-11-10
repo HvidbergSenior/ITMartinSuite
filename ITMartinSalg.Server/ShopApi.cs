@@ -30,8 +30,8 @@ public static class ShopApi
         api.MapGet("/varer/{id:int}", async (int id, ShopUseCases shop) =>
             await shop.ItemAsync(id) is { } x ? Results.Ok(new ShopItemPage(shop.CanPay, x.Item, x.Proof)) : Results.NotFound());
 
-        api.MapGet("/varer/{id:int}/foto", async (int id, ShopUseCases shop) =>
-            await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+        api.MapGet("/varer/{id:int}/foto", async (int id, int? n, ShopUseCases shop) =>
+            await shop.PhotoAsync(id, n ?? 1) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 
         api.MapPost("/kurv", async (BasketIds body, ShopUseCases shop) => await shop.QuoteAsync(body.ItemIds ?? []));
 

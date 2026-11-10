@@ -150,6 +150,28 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     public Task DeleteAsync(int id, CancellationToken ct = default) => items.DeleteAsync(id, ct);
 
     /// <summary>The file of the item's own photo, or null. (Pile and kolofon photos are kept in Vareinfo.)</summary>
+    /// <summary>Photo n of the item: 1 = the main one, 2.. = the extra ones.</summary>
+    public async Task<string?> PhotoFileAsync(int id, int n, CancellationToken ct = default)
+    {
+        if (n <= 1) return await PhotoFileAsync(id, ct);
+        return await items.GetAsync(id, ct) is { ItemPhoto.Length: > 0 } i && n <= i.MorePhotos + 1
+            ? photos.FullPath(Path.Combine("photos", "items", $"{id}-{n}.jpg")) : null;
+    }
+
+    /// <summary>One more photo of the same thing; the first photo always becomes the main one.</summary>
+    public async Task<int> AddPhotoAsync(int id, Stream photo, CancellationToken ct = default)
+    {
+        var item = await items.GetAsync(id, ct) ?? throw new LagerException("Varen findes ikke længere.");
+        if (item.ItemPhoto == "") { await SavePhotoAsync(id, photo, ct); return 1; }
+        if (item.MorePhotos >= Item.MaxMorePhotos) throw new LagerException($"Der kan højst være {Item.MaxMorePhotos + 1} billeder af en ting.");
+        var n = item.MorePhotos + 2;
+        await photos.SaveAsync(Path.Combine("photos", "items", $"{id}-{n}.jpg"), await photos.ShrinkAsync(photo, ct), ct);
+        item.MorePhotos++;
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        return n;
+    }
+
     public async Task<string?> PhotoFileAsync(int id, CancellationToken ct = default) =>
         await items.GetAsync(id, ct) is { } i ? photos.FullPath(i.ItemPhoto) : null;
 
@@ -163,8 +185,13 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     /// <summary>Strikkeshoppen / Tingshoppen (2026-11-10): a thing someone else owns and Martin sells for them. A person sets what
     /// it is, the price (or none yet) and whose it is - no AI, no price hunt (neither is a hunted kind). For sale at once.
     /// Strik is new (hand-made); Ting is used (from a dødsbo or a loft).</summary>
-    public async Task<Item> AddForSellerAsync(string kind, string? title, string? genre, decimal? price, string? seller, string? note,
-        Stream? photo, CancellationToken ct = default)
+    public Task<Item> AddForSellerAsync(string kind, string? title, string? genre, decimal? price, string? seller, string? note,
+        Stream? photo, CancellationToken ct = default) =>
+        AddForSellerWithPhotosAsync(kind, title, genre, price, seller, note, photo is null ? [] : [photo], ct);
+
+    /// <summary>The same with several photos - the first is the main one, the rest are extra photos of the same thing.</summary>
+    public async Task<Item> AddForSellerWithPhotosAsync(string kind, string? title, string? genre, decimal? price, string? seller, string? note,
+        IReadOnlyList<Stream> photos, CancellationToken ct = default)
     {
         if (!SellerKinds.Contains(kind)) throw new LagerException("Den slags kan ikke lægges ind her.");
         var strik = kind == Kinds.Strik;
@@ -186,8 +213,8 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         };
         item.Touch();
         await items.AddAsync([item], ct);
-        if (photo is not null) await SavePhotoAsync(item.Id, photo, ct);
-        return item;
+        foreach (var p in photos.Take(Item.MaxMorePhotos + 1)) await AddPhotoAsync(item.Id, p, ct);
+        return photos.Count == 0 ? item : await items.GetAsync(item.Id, ct) ?? item;
     }
 
     /// <summary>Every thing of one seller kind (for sale and sold), newest first - the Strik and Ting pages in Lager.</summary>

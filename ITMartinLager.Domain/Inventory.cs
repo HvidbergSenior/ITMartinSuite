@@ -112,6 +112,10 @@ public sealed class Item
     public string Genre { get; set; } = "";
     /// <summary>The maker who owns it and gets the money when it sells ("" = ITMartin's own). 2026-11-10 Strikkeshoppen: her things, sold by Martin for a share.</summary>
     public string Seller { get; set; } = "";
+    /// <summary>More photos of the same thing after the main one (ItemPhoto): photos/items/&lt;id&gt;-2.jpg, -3 ... (user 2026-11-10:
+    /// "make it possible to add more than one picture"). At most Item.MaxMorePhotos.</summary>
+    public int MorePhotos { get; set; }
+    public const int MaxMorePhotos = 7;
     public DateTime? GenreAt { get; set; }
     // Discogs collectors (2026-10-21): how many want this release and how many have it - demand, not price.
     public int? Want { get; set; }

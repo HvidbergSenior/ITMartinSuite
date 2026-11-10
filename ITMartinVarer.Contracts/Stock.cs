@@ -14,7 +14,7 @@ public static class StockHeaders
 /// or "". Usage = Usages. Seller = the maker who owns it and gets the money ("" = ITMartin's own), e.g. Strikkeshoppen.</summary>
 public sealed record StockItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
     int Quantity, string Usage, int? PriceKr, int? HintKr, double Confidence, bool HasPhoto, string Badge, bool ForShow = false,
-    ShopProof? Reference = null, string Deal = "", string Seller = "");
+    ShopProof? Reference = null, string Deal = "", string Seller = "", int Photos = 1);
 
 /// <summary>One page of things for sale and how many match in all.</summary>
 public sealed record StockPage(List<StockItem> Items, int Total);
