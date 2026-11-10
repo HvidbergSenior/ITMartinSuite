@@ -115,7 +115,6 @@ public class SessionTests
     {
         var one = await _sessions.StartAsync(" Boxit, reol 2 ");
         var two = await _sessions.StartAsync(null);
-        await _sessions.PracticeAsync(_bertil);   // a practice session takes no number
         var three = await _sessions.StartAsync("Loppemarked lørdag");
 
         (one.Number, two.Number, three.Number).Should().Be((1, 2, 3));
@@ -134,54 +133,6 @@ public class SessionTests
         var fund = await _sessions.StartAsync("Genbrugsplads Lystrup", fund: true);
         (await _sessions.BoxesAsync([ours.BoxCode, fund.BoxCode])).Should().BeEquivalentTo(
             [new CapturedBox(ours.BoxCode, "Session 1 – Garagen"), new CapturedBox(fund.BoxCode, "Session 2 – Genbrugsplads Lystrup", true)]);
-    }
-
-    [Test]
-    public async Task Helpers_see_the_open_sessions_and_a_closed_one_leaves_the_list()
-    {
-        (await _sessions.ChoicesAsync(_bertil)).Should().BeEmpty();
-        var s = await _sessions.StartAsync("Boxit, reol 2");
-        await _capture.StoreAsync(new MemoryStream([1]), s.Id, _vibeke);
-
-        (await _sessions.ChoicesAsync(_bertil)).Should().Equal(new SessionChoice(s.Id, "Session 1 – Boxit, reol 2", 1));
-        (await _sessions.OpenForAsync(s.Id, _bertil)).Should().NotBeNull();
-
-        await _sessions.CloseAsync(s.Id);
-        (await _sessions.ChoicesAsync(_bertil)).Should().BeEmpty();
-        (await _sessions.OpenForAsync(s.Id, _bertil)).Should().BeNull();
-        await _sessions.ReopenAsync(s.Id);
-        (await _sessions.ChoicesAsync(_bertil)).Should().HaveCount(1);
-    }
-
-    [Test]
-    public async Task A_session_given_to_a_helper_is_only_theirs_and_the_others_see_the_rest()
-    {
-        var a = await _sessions.StartAsync("Hos Marianne");
-        var b = await _sessions.StartAsync("Boxit");
-        await _sessions.GiveAsync(a.Id, new HelperChoice(_bertil.Id, "Bertil"));
-
-        (await _sessions.ChoicesAsync(_bertil)).Select(c => c.Id).Should().Equal(a.Id);   // only his own
-        (await _sessions.ChoicesAsync(_vibeke)).Select(c => c.Id).Should().Equal(b.Id);   // the ones for everybody
-        (await _sessions.ChoicesAsync(_martin)).Should().HaveCount(2);                     // Martin sees all
-
-        await _sessions.GiveAsync(a.Id, null);   // back to Alle
-        (await _sessions.ChoicesAsync(_vibeke)).Should().HaveCount(2);
-    }
-
-    [Test]
-    public async Task Everyone_has_their_own_practice_session_the_same_every_time()
-    {
-        var bertils = await _sessions.PracticeAsync(_bertil);
-        var vibekes = await _sessions.PracticeAsync(_vibeke);
-        (bertils.BoxCode, vibekes.BoxCode).Should().Be(("K9999", "K9998"));
-        bertils.Title.Should().Be("Øvesession – Bertil");
-
-        _clock.Now = _clock.Now.AddDays(3);
-        (await _sessions.PracticeAsync(_bertil)).Id.Should().Be(bertils.Id);
-        (await _sessions.OpenForAsync(bertils.Id, _vibeke)).Should().BeNull();
-        (await _sessions.OpenForAsync(bertils.Id, _martin)).Should().BeNull();   // not even Martin's
-        (await _sessions.ChoicesAsync(_martin)).Should().BeEmpty();
-        (await _sessions.AllAsync()).Should().BeEmpty();
     }
 
     [Test]

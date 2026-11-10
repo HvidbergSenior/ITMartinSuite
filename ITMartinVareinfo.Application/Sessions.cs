@@ -14,9 +14,6 @@ public interface ISessionRepository
     Task DeleteAsync(int sessionId, CancellationToken ct);
 }
 
-/// <summary>Someone Martin can give a session to: Taker.Id (minus the kundenummer for Kunder's helpers) and the name.</summary>
-public sealed record HelperChoice(int Id, string Name);
-
 /// <summary>One button on the helper's list.</summary>
 public sealed record SessionChoice(int Id, string Title, int Photos);
 
@@ -76,9 +73,6 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
 
     public Task RenameAsync(int id, string? name, CancellationToken ct = default) => ChangeAsync(id, s => s.Rename(name), ct);
 
-    /// <summary>"Til": the session is for this helper only (null = every helper).</summary>
-    public Task GiveAsync(int id, HelperChoice? helper, CancellationToken ct = default) => ChangeAsync(id, s => s.GiveTo(helper?.Id, helper?.Name), ct);
-
     /// <summary>Closed: it leaves the helpers' list (the photos are kept, and photos still on a phone still come in).</summary>
     public Task CloseAsync(int id, CancellationToken ct = default) => ChangeAsync(id, s => s.Close(Now), ct);
 
@@ -99,7 +93,6 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
     {
         // Today's button sessions are reached by their buttons, and earlier days' are closed - only Martin's own sessions are listed.
         var open = (await AllAsync(ct)).Where(s => s.Open && !s.IsDaily && s.IsFor(me)).OrderBy(s => s.Number).ToList();
-        if (!me.IsAdmin && open.Any(s => s.HelperId == me.Id)) open = open.Where(s => s.HelperId == me.Id).ToList();
         if (open.Count == 0) return [];
         var counts = await photos.PerSessionAsync(ct);
         return open.Select(s => new SessionChoice(s.Id, s.Title, counts.Where(t => t.SessionId == s.Id).Sum(t => t.Count))).ToList();
@@ -112,24 +105,6 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
     /// <summary>The session, open or closed, when it is for this person.</summary>
     public async Task<WorkSession?> ForAsync(int id, Taker me, CancellationToken ct = default) =>
         await sessions.GetAsync(id, ct) is { } s && s.IsFor(me) ? s : null;
-
-    /// <summary>"Min øvesession": the person's own - the same one every time, made the first time (codes from 9999 down).</summary>
-    public async Task<WorkSession> PracticeAsync(Taker me, CancellationToken ct = default)
-    {
-        await Gate.WaitAsync(ct);
-        try
-        {
-            var all = (await sessions.AllAsync(ct)).Where(s => s.IsPractice).ToList();
-            if (all.FirstOrDefault(s => s.HelperId == me.Id) is { } mine) return mine;
-            var used = all.Select(s => BoxCodes.Number(s.BoxCode)).ToHashSet();
-            var free = Enumerable.Range(BoxCodes.FirstTest, 9999 - BoxCodes.FirstTest + 1).Reverse().FirstOrDefault(n => !used.Contains(n));
-            if (free == 0) throw new VareinfoException("Der er ikke flere øvesessioner - spørg Martin.");
-            var s = WorkSession.Practice(me, free, Now);
-            await sessions.SaveAsync(s, ct);
-            return s;
-        }
-        finally { Gate.Release(); }
-    }
 
     /// <summary>Martin's overview: every session with its photos, scans and helpers - open ones first.</summary>
     public async Task<List<SessionStatus>> OverviewAsync(CancellationToken ct = default)

@@ -6,7 +6,6 @@
     @if (Me is { IsAdmin: true })
     {
         <a class="k-btn k-btn-ghost k-btn-sm" href="/sessioner">Sessioner</a>
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/hjaelpere">Hjælpere</a>
         <a class="k-btn k-btn-ghost k-btn-sm" href="@Helpers.LagerBase">Lager</a>
     }
     <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud@(Me is null ? "" : $" ({Me.Name})")</a>

@@ -152,67 +152,21 @@ public class CaptureTests
         (await capture.CountAsync(_session.Id)).Photos.Should().Be(1);
     }
 
-    [Test]
-    public async Task Nobody_uploads_into_a_session_that_is_not_for_them()
+    // Only Martin (2026-11-10, "the hjælpere feature should be deleted"): the PIN or an admin kundenummer - nothing else opens it.
+    private sealed class OneAdmin : IHelperNumbers
     {
-        var sessions = Sessions();
-        await sessions.GiveAsync(_session.Id, new HelperChoice(_anna.Id, "Anna"));
-        var ricos = await sessions.PracticeAsync(_rico);
-
-        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), _session.Id, _rico)).Should().ThrowAsync<SessionGoneException>();
-        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), ricos.Id, _anna)).Should().ThrowAsync<SessionGoneException>();
-        await Capture().StoreAsync(new MemoryStream([1]), _session.Id, _anna);
-    }
-
-    private sealed class OneHelper : IHelperNumbers
-    {
-        public Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default) =>
-            Task.FromResult(kundenummer == "48217730" ? "Jonas" : null);
-    }
-
-    [Test]
-    public async Task A_helper_ticked_in_Kunder_signs_in_with_the_kundenummer()
-    {
-        var helpers = new HelperUseCases(new HelperRepository(Factory), new VareinfoOptions { AdminPin = "246810" }, new OneHelper());
-        var me = await helpers.SignInAsync("4821 7730");
-        me.Should().Be(new Taker(-48217730, "Jonas"));
-        me!.IsAdmin.Should().BeFalse();
-        (await helpers.SignInAsync("11112222")).Should().BeNull();   // a kundenummer that is not a helper
-    }
-
-    private sealed class HelperAndAdmin : IHelperNumbers
-    {
-        public Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default) =>
-            Task.FromResult(kundenummer == "48217730" ? "Martin" : null);
         public Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) =>
             Task.FromResult(kundenummer == "55556666" ? "MartinAdmin" : null);
     }
 
     [Test]
-    public async Task An_admin_ticked_in_Kunder_signs_in_as_admin_and_a_helper_as_a_helper()
+    public async Task Only_Martin_signs_in_with_the_PIN_or_an_admin_kundenummer()
     {
-        var helpers = new HelperUseCases(new HelperRepository(Factory), new VareinfoOptions { AdminPin = "246810" }, new HelperAndAdmin());
-        (await helpers.SignInAsync("5555 6666")).Should().Be(new Taker(0, "MartinAdmin"));
-        (await helpers.SignInAsync("48217730"))!.IsAdmin.Should().BeFalse();
-    }
-
-    [Test]
-    public async Task Helpers_sign_in_with_their_own_code_and_a_removed_code_stops_working()
-    {
-        var helpers = new HelperUseCases(new HelperRepository(Factory), new VareinfoOptions { AdminPin = "246810" });
-        var rico = await helpers.AddAsync(" Rico ");
-        rico.Code.Should().MatchRegex("^[0-9]{6}$");
-        rico.Name.Should().Be("Rico");
-
-        (await helpers.SignInAsync(rico.Code)).Should().Be(new Taker(rico.Id, "Rico"));
-        (await helpers.SignInAsync("246810")).Should().Be(new Taker(0, "Martin"));
-        (await helpers.SignInAsync("246810"))!.IsAdmin.Should().BeTrue();
-        (await helpers.SignInAsync("000")).Should().BeNull();
-        await helpers.Invoking(h => h.AddAsync("  ")).Should().ThrowAsync<VareinfoException>();
-
-        await helpers.RemoveAsync(rico.Id);
-        (await helpers.SignInAsync(rico.Code)).Should().BeNull();
-        (await helpers.AllAsync()).Should().BeEmpty();
+        var signIn = new HelperUseCases(new VareinfoOptions { AdminPin = "246810" }, new OneAdmin());
+        (await signIn.SignInAsync("246810")).Should().Be(new Taker(0, "Martin"));
+        (await signIn.SignInAsync("5555 6666")).Should().Be(new Taker(0, "MartinAdmin"));
+        (await signIn.SignInAsync("48217730")).Should().BeNull("a helper's kundenummer no longer opens it");
+        (await signIn.SignInAsync("123456")).Should().BeNull("an old helper code no longer opens it");
     }
 
     [Test]
@@ -235,7 +189,6 @@ public class CaptureTests
         VareinfoDbInitializer.Upgrade(db);   // a second start changes nothing
 
         db.Photos.Should().BeEmpty();
-        db.Helpers.Should().BeEmpty();
         using var check = conn.CreateCommand();
         check.CommandText = """SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'Old_Photos_%'""";
         Convert.ToInt32(check.ExecuteScalar()).Should().Be(1);

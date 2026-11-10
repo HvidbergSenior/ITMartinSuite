@@ -21,15 +21,6 @@ public interface IPhotoStore
     string? FullPath(string path);
 }
 
-public interface IHelperRepository
-{
-    Task<List<Helper>> ActiveAsync(CancellationToken ct);
-    Task<Helper?> ByCodeAsync(string code, CancellationToken ct);
-    Task<Helper?> GetAsync(int id, CancellationToken ct);
-    Task AddAsync(Helper helper, CancellationToken ct);
-    Task UpdateAsync(Helper helper, CancellationToken ct);
-}
-
 public interface IPhotoRepository
 {
     Task<Photo> AddAsync(Photo photo, CancellationToken ct);
@@ -59,7 +50,7 @@ public interface IScanRepository
 /// <summary>Settings the use cases read (Vareinfo__* in magic.env).</summary>
 public sealed record VareinfoOptions
 {
-    /// <summary>Martin's PIN (Vareinfo__Pin): signs in as "Martin" and opens the Hjælpere page.</summary>
+    /// <summary>Martin's PIN (Vareinfo__Pin): signs in as "Martin" (the only one since 2026-11-10).</summary>
     public string AdminPin { get; init; } = "";
     public string AdminName { get; init; } = "Martin";
     /// <summary>The link to Lager a person clicks (Vareinfo__LagerPublicUrl).</summary>

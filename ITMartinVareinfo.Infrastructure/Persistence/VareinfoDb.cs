@@ -6,7 +6,6 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
 {
     public DbSet<Photo> Photos => Set<Photo>();
     public DbSet<Scan> Scans => Set<Scan>();
-    public DbSet<Helper> Helpers => Set<Helper>();
     public DbSet<WorkSession> Sessions => Set<WorkSession>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -15,7 +14,6 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
         b.Entity<Photo>().HasIndex(x => new { x.Ready, x.SentAt });
         b.Entity<Scan>().HasIndex(x => x.SessionId);
         b.Entity<Scan>().HasIndex(x => x.SentAt);
-        b.Entity<Helper>().HasIndex(x => x.Code).IsUnique();
         b.Entity<WorkSession>().Ignore(s => s.Open).Ignore(s => s.IsPractice).Ignore(s => s.IsDaily).Ignore(s => s.Title);
     }
 }

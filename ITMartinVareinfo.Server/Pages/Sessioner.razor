@@ -1,6 +1,5 @@
 @page "/sessioner"
 @inject SessionUseCases Sessions
-@inject HelperUseCases Helpers
 
 @* Martin's page (user 2026-10-29: "Session 1, 2, 3, etc... A session should be named something like location and/or
    intent" - no boxes). The rules are in WorkSession / SessionUseCases; this page only calls them. *@
@@ -10,7 +9,7 @@
 {
     <section class="k-card">
         <h1 class="k-card-title">Kun for Martin</h1>
-        <p>Her starter Martin sessionerne til hjælperne.</p>
+        <p>Normalt behøver du ikke denne side: knapperne på forsiden laver dagens sessioner af sig selv. Her kan du give en dag et særligt navn.</p>
         <a class="k-btn k-btn-secondary" href="/">📷 Tilbage til billederne</a>
     </section>
 }
@@ -21,8 +20,7 @@ else
         <p>En session er en gang, I tager billeder – fx <i>Session 3 – Boxit, reol 2</i>. Sessionerne får numre af sig selv (1, 2, 3 …). Giv hver et navn efter <b>stedet</b> og/eller <b>hvad I tager billeder af</b> – så kan tingene findes igen bagefter.</p>
         <ol>
             <li>Skriv sted og/eller formål, og tryk <b>Start session</b>.</li>
-            <li>Hjælperne ser de åbne sessioner og trykker bare på den, de er med i. I kan godt være flere i samme session.</li>
-            <li>Vælg under <b>Til</b>, hvis en session kun er til én hjælper. Står der <b>Alle</b>, kan alle tage billeder i den.</li>
+            <li>Den står under <b>Andre sessioner</b> på forsiden – tryk på den, og tag billeder.</li>
             <li>Når I er færdige, tryk <b>Luk</b>. Billederne bliver gemt.</li>
         </ol>
         <p><b>Vores lager</b> = ting vi har. <b>Fund</b> = ting der er til salg et andet sted (fx genbrugspladsen): Lager finder prisen med det samme, og kun dem du tager med hjem, bliver til lager.</p>
@@ -48,20 +46,7 @@ else
                     <span class="lg-box">@s.Number</span>
                     <input class="k-input" value="@s.Name" placeholder="Sted og/eller formål" aria-label="Navn på session @s.Number"
                            @onchange="e => Rename(s.Id, e.Value?.ToString())" />
-                    <label class="k-small">Til
-                        <select class="k-input" aria-label="Hvem session @s.Number er til" @onchange="e => Give(s.Id, e.Value?.ToString())">
-                            <option value="" selected="@(s.HelperId is null)">Alle</option>
-                            @foreach (var h in _helpers)
-                            {
-                                <option value="@h.Id" selected="@(s.HelperId == h.Id)">@h.Name</option>
-                            }
-                            @if (s.HelperId is { } given && _helpers.All(h => h.Id != given))
-                            {
-                                <option value="@given" selected>@s.HelperName</option>
-                            }
-                        </select>
-                    </label>
-                    <span class="k-small">@(s.Fund ? "Fund · " : "")@(s.Open ? "åben" : "lukket") · @st.Photos billeder@(st.Scans > 0 ? $" · {st.Scans} stregkoder" : "")@(st.Helpers.Count > 0 ? " · " + string.Join(", ", st.Helpers) : "")</span>
+                    <span class="k-small">@(s.Fund ? "Fund · " : "")@(s.Open ? "åben" : "lukket") · @st.Photos billeder@(st.Scans > 0 ? $" · {st.Scans} stregkoder" : "")</span>
                     @if (s.Open) { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Close(s.Id)" disabled="@_busy">Luk</button> }
                     else { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Reopen(s.Id)" disabled="@_busy">Åbn igen</button> }
                     @if (st.Photos + st.Scans == 0)
@@ -90,7 +75,6 @@ else
     private List<SessionStatus> _list = [];
     private string _newName = "";
     private int? _confirmDelete;
-    private List<HelperChoice> _helpers = [];
     private bool _busy;
     private string? _error, _msg;
 
@@ -100,18 +84,14 @@ else
     {
         if (Me is not { IsAdmin: true }) return;
         _list = await Sessions.OverviewAsync();
-        _helpers = await Helpers.ChoicesAsync();
     }
 
-    private Task Start() => Do(async () => { var s = await Sessions.StartAsync(_newName); _newName = ""; _msg = $"{s.Title} er startet. Hjælperne kan vælge den nu."; });
-    private Task StartFund() => Do(async () => { var s = await Sessions.StartAsync(_newName, fund: true); _newName = ""; _msg = $"{s.Title} er startet som fund. Tag billeder – priserne kommer i Lager under Fund."; });
+    private Task Start() => Do(async () => { var s = await Sessions.StartAsync(_newName); _newName = ""; _msg = $"{s.Title} er startet."; });
+    private Task StartFund() => Do(async () => { var s = await Sessions.StartAsync(_newName, fund: true); _newName = ""; _msg = $"{s.Title} er startet som tjek. Tag billeder – svarene kommer under billederne."; });
     private Task Rename(int id, string? name) => Do(() => Sessions.RenameAsync(id, name));
 
-    private Task Give(int id, string? value) => Do(() =>
-        Sessions.GiveAsync(id, int.TryParse(value, out var h) ? _helpers.FirstOrDefault(x => x.Id == h) ?? new HelperChoice(h, "") : null));
-
     private Task Delete(int id) => Do(async () => { await Sessions.DeleteAsync(id); _confirmDelete = null; _msg = "Sessionen er slettet."; });
-    private Task Close(int id) => Do(async () => { await Sessions.CloseAsync(id); _msg = "Sessionen er lukket. Hjælperne ser den ikke mere – billederne er gemt."; });
+    private Task Close(int id) => Do(async () => { await Sessions.CloseAsync(id); _msg = "Sessionen er lukket – billederne er gemt."; });
     private Task Reopen(int id) => Do(() => Sessions.ReopenAsync(id));
 
     private async Task Do(Func<Task> action)

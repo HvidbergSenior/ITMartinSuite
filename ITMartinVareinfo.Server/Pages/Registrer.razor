@@ -57,7 +57,7 @@ else if (_session is null)
     {
     <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">Andre sessioner</h2>
-        <p>Har Martin sat dig på en bestemt session, så tryk på den her.</p>
+        <p>Sessioner, du selv har startet under Sessioner.</p>
             <ul class="lg-list">
                 @foreach (var c in _choices)
                 {
@@ -80,15 +80,6 @@ else if (_session is null)
         <div data-photo-stranded class="lg-warn" role="status" hidden><p data-photo-stranded-text></p></div>
     }
 
-    @* Helpers see the øvesession only while no real session is open (user 2026-10-31: "Only push the new session take pictures thats it"). *@
-    @if (Me.IsAdmin || _choices.Count == 0)
-    {
-    <section class="k-card" data-fold-closed>
-        <h2 class="k-card-title">Min øvesession</h2>
-        <p>Vil du bare prøve? Din egen øvesession er kun din, og tingene i den bliver <b>kun vist</b> – de bliver aldrig solgt. Tryk <b>Min øvesession</b> og tag billeder af hvad som helst.</p>
-        <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="Practice" disabled="@_busy">Min øvesession</button>
-    </section>
-    }
 }
 else
 {
@@ -236,7 +227,7 @@ else
     private DateTime _lastAt;
     private DotNetObjectReference<Registrer>? _ref;
 
-    // The address says which session (?s=12): after a reload, or a tap on Vælg / Min øvesession.
+    // The address says which session (?s=12): after a reload, or a tap on a button or Vælg.
     protected override async Task OnParametersSetAsync()
     {
         if (Me is null) return;
@@ -295,15 +286,6 @@ else
         await StopScan();
         try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
         Nav.NavigateTo("/");
-    }
-
-    private async Task Practice()
-    {
-        if (Me is null) return;
-        _busy = true; _error = null;
-        try { Open((await Sessions.PracticeAsync(Me)).Id); }
-        catch (VareinfoException ex) { _error = ex.Message; }
-        finally { _busy = false; }
     }
 
     // Each photo carries its own session, so photos still waiting on the phone land in the right one.

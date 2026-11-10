@@ -74,19 +74,10 @@ public sealed class WorkSession
     /// <summary>The next number: one more than the highest so far.</summary>
     public static int NextNumber(IEnumerable<int> used) => used.DefaultIfEmpty(0).Max() + 1;
 
-    /// <summary>A person's own practice session (user 2026-10-25: "i want all helpers to have their own Testbox... Also
-    /// myself") - only theirs, never closed; its things are only for show in Lager, never sold.</summary>
-    public static WorkSession Practice(Taker me, int testNumber, DateTime now) => new()
-    {
-        BoxCode = BoxCodes.For(testNumber), HelperId = me.Id, HelperName = me.Name, CreatedAt = now,
-    };
-
     public void Rename(string? name) => Name = Clean(name);
 
     /// <summary>Martin sees every session; a helper the sessions given to them, or the ones for everybody.</summary>
     public bool IsFor(Taker me) => IsPractice ? HelperId == me.Id : me.IsAdmin || HelperId is null || HelperId == me.Id;
-
-    public void GiveTo(int? helperId, string? name) => (HelperId, HelperName) = helperId is null ? (null, "") : (helperId, (name ?? "").Trim());
 
     public void Close(DateTime now) => ClosedAt ??= now;
 

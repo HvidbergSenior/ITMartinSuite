@@ -5,27 +5,10 @@ namespace ITMartinVareinfo.Domain;
 // taps a session and takes photos. Nothing is read here - Lager fetches the photos and reads them when Martin says so.
 // The shared words (BoxCodes, Barcodes, CapturedPhoto ...) are in ITMartinVarer.Contracts.
 
-/// <summary>Who took it: a helper, or Martin (Id 0, the main PIN).</summary>
+/// <summary>Who took it: Martin (Id 0) - the main PIN or an admin kundenummer (user 2026-11-10: "i also think the hjælpere feature should be deleted" -> only Martin).</summary>
 public sealed record Taker(int Id, string Name)
 {
     public bool IsAdmin => Id == 0;
-}
-
-/// <summary>A person who takes photos, with their own code (made on the Hjælpere page, one per person).</summary>
-public sealed class Helper
-{
-    public const int CodeLength = 6;
-
-    public int Id { get; set; }
-    public string Name { get; set; } = "";
-    public string Code { get; set; } = "";
-    public bool Active { get; set; } = true;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    public Taker AsTaker => new(Id, Name);
-
-    /// <summary>Six digits - easy to type on a phone, and one in a million to guess.</summary>
-    public static string NewCode(Random random) => random.Next(0, 1_000_000).ToString("D6");
 }
 
 /// <summary>A photo taken in a session. Uploaded as it is (fast, so 100 phones are never kept waiting) and made
