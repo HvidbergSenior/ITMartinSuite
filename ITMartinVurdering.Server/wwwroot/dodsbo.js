@@ -65,7 +65,26 @@
         $('db-value').textContent = sag.venter ? 'Vurdér de nye (' + sag.venter + ')' : 'Vurdér de nye';
         $('db-value').disabled = !sag.venter;
         $('db-ting').innerHTML = sag.ting.map(card).join('') || '<p class="k-help">Ingen billeder endnu. Tryk Tag billede af en ting.</p>';
+        var shared = !!sag.delt;
+        $('db-share-state').textContent = shared ? '– delt' + (sag.sharePrices ? ' med priser' : ' uden priser') : '';
+        $('db-share-prices').checked = !!sag.sharePrices;
+        $('db-share-make').textContent = shared ? 'Gem valget' : 'Lav et link';
+        $('db-share-stop').hidden = !shared;
+        $('db-share-row').hidden = !shared;
+        $('db-share-url').value = shared ? location.origin + sag.delt : '';
     }
+    $('db-share-make').addEventListener('click', function () {
+        post('/' + sag.id + '/del', { priser: $('db-share-prices').checked })
+            .then(function () { msg('Linket er klar – kopiér det og send det.'); open(sag.id); }).catch(function (er) { msg(er.message, true); });
+    });
+    $('db-share-stop').addEventListener('click', function () {
+        post('/' + sag.id + '/stopdel').then(function (r) { msg(r.besked); open(sag.id); }).catch(function (er) { msg(er.message, true); });
+    });
+    $('db-share-copy').addEventListener('click', function () {
+        var u = $('db-share-url'); u.select();
+        (navigator.clipboard ? navigator.clipboard.writeText(u.value) : Promise.reject()).then(function () { msg('Linket er kopieret.'); },
+            function () { document.execCommand('copy'); msg('Linket er kopieret.'); });
+    });
     function card(t) {
         var photo = '<img class="db-photo" loading="lazy" alt="Billede af tingen" src="/api/dodsbo/' + encodeURIComponent(sag.id) + '/foto/' + encodeURIComponent(t.id) + '">';
         if (t.venter) {

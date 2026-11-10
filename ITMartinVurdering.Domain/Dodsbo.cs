@@ -11,7 +11,8 @@ public static class DodsboRules
 {
     /// <summary>Photos read in one AI call.</summary>
     public const int PerCall = 8;
-    public const int MaxText = 300, MaxName = 80, MaxStory = 1200;
+    public const int MaxText = 300, MaxName = 80, MaxStory = 1200, MaxDetails = 800;
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
 
     public static string Text(Verdict v) => v switch
     {
@@ -40,10 +41,10 @@ public static class DodsboRules
     /// <summary>"300–600 kr." / "ca. 400 kr." / "" - the range as the person reads it.</summary>
     public static string Range(int? low, int? high) => (low is > 0 ? low : null, high is > 0 ? high : null) switch
     {
-        ({ } l, { } h) when l == h => $"ca. {l:N0} kr.",
-        ({ } l, { } h) => $"{l:N0}–{h:N0} kr.",
-        ({ } l, null) => $"fra {l:N0} kr.",
-        (null, { } h) => $"op til {h:N0} kr.",
+        ({ } l, { } h) when l == h => $"ca. {l.ToString("N0", Da)} kr.",
+        ({ } l, { } h) => $"{l.ToString("N0", Da)}–{h.ToString("N0", Da)} kr.",
+        ({ } l, null) => $"fra {l.ToString("N0", Da)} kr.",
+        (null, { } h) => $"op til {h.ToString("N0", Da)} kr.",
         _ => "",
     };
 }
@@ -78,7 +79,7 @@ public sealed class Ting
     {
         Story = DodsboRules.Clean(story, DodsboRules.MaxStory);
         What = DodsboRules.Clean(what, DodsboRules.MaxName);
-        Details = DodsboRules.Clean(details, DodsboRules.MaxText);
+        Details = DodsboRules.Clean(details, DodsboRules.MaxDetails);
         (LowKr, HighKr) = (low is > 0 ? low : null, high is > 0 ? high : null);
         if (LowKr > HighKr) (LowKr, HighKr) = (HighKr, LowKr);
         Verdict = verdict;
@@ -95,6 +96,21 @@ public sealed class Sag
     public string Name { get; set; } = "";
     public DateTime CreatedAt { get; set; }
     public List<Ting> Ting { get; set; } = [];
+    /// <summary>"Del med ejeren" (user 2026-11-10: "share this with the one who provided me with the things. the stories are
+    /// interesting not only money"): a read-only page at /del/&lt;token&gt;. "" = not shared. Prices only when the owner says so.</summary>
+    public string ShareToken { get; set; } = "";
+    public bool SharePrices { get; set; }
+
+    public bool Shared => ShareToken.Length > 0;
+
+    /// <summary>The same link stays when only the price choice changes, so a link already sent keeps working.</summary>
+    public void Share(bool prices, string newToken)
+    {
+        if (ShareToken.Length == 0) ShareToken = newToken;
+        SharePrices = prices;
+    }
+
+    public void StopSharing() => (ShareToken, SharePrices) = ("", false);
 
     public static Sag New(string? name, DateTime at)
     {

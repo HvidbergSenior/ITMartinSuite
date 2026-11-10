@@ -115,4 +115,26 @@ public sealed class DodsboUseCases(ISagStore store, IThingValuer valuer, Func<Da
     }
 
     public byte[]? Photo(string sagId, string tingId) => store.Photo(sagId, tingId);
+
+    // ── Del med ejeren ──
+    /// <returns>The share token, or null when the Sag is gone.</returns>
+    public string? Share(string sagId, bool prices)
+    {
+        if (store.Get(sagId) is not { } s) return null;
+        s.Share(prices, Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(12)).ToLowerInvariant());
+        store.Save(s);
+        return s.ShareToken;
+    }
+
+    public void StopSharing(string sagId)
+    {
+        if (store.Get(sagId) is not { } s) return;
+        s.StopSharing();
+        store.Save(s);
+    }
+
+    /// <summary>The shared Sag behind a link, or null (wrong, stopped or too short a token).</summary>
+    public Sag? Shared(string? token) =>
+        token is { Length: >= 16 } t ? store.All().FirstOrDefault(s => s.Shared && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(s.ShareToken), System.Text.Encoding.UTF8.GetBytes(t))) : null;
 }

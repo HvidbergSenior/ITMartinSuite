@@ -110,6 +110,22 @@ public class DodsboTests
     }
 
     [Test]
+    public void A_share_link_shows_the_sag_until_it_is_stopped_and_keeps_its_token_when_prices_change()
+    {
+        var (uses, _, _, sag) = New();
+        uses.Shared(null).Should().BeNull();
+        var token = uses.Share(sag.Id, prices: false)!;
+        token.Length.Should().BeGreaterThanOrEqualTo(16);
+        uses.Shared(token)!.Id.Should().Be(sag.Id);
+        uses.Shared(token[..^1] + "x").Should().BeNull();
+        uses.Share(sag.Id, prices: true).Should().Be(token);   // a link already sent keeps working
+        uses.Shared(token)!.SharePrices.Should().BeTrue();
+        uses.StopSharing(sag.Id);
+        uses.Shared(token).Should().BeNull();
+        DodsboRules.Range(800, 2050).Should().Be("800–2.050 kr.");   // Danish thousands
+    }
+
+    [Test]
     public void Removing_a_thing_removes_its_photo()
     {
         var (uses, store, _, sag) = New();
