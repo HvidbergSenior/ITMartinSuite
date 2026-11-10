@@ -44,7 +44,8 @@ h1:focus, h1:focus-visible, h1.k-fold-head:focus-visible, .k-fold-head:focus:not
 .k-input:focus, .k-select:focus, .k-textarea:focus { border-color: var(--k-accent); outline: 2px solid var(--k-accent-soft); }
 
 /* The apps' row = Snak's tabs: one per app, the one you are in filled. No numbers, no "Næste". */
-.k-steps { margin: 12px auto 4px; }
+/* Same left edge as the logo and the cards (the screenshot 2026-11-10: the tabs started further left). */
+.k-steps { max-width: calc(var(--k-content-max) + 32px); margin: 14px auto 0; padding: 0 16px; box-sizing: border-box; }
 .k-steps ol { gap: 6px; }
 .k-steps li a, .k-steps li span {
     min-height: 40px; padding: 6px 16px; border: 1px solid var(--k-border); background: var(--k-card);
