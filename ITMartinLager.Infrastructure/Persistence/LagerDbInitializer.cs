@@ -102,7 +102,7 @@ public static class LagerDbInitializer
             ("SimilarHint", "REAL NULL"), ("FeaturedAt", "TEXT NULL"), ("Usage", "TEXT NOT NULL DEFAULT 'Brugt'"),
             ("Want", "INTEGER NULL"), ("Have", "INTEGER NULL"),
             ("Category", "TEXT NOT NULL DEFAULT 'Andet'"), ("Language", "TEXT NOT NULL DEFAULT ''"),
-            ("Genre", "TEXT NOT NULL DEFAULT ''"), ("GenreAt", "TEXT NULL"), ("Seller", "TEXT NOT NULL DEFAULT ''"), ("MorePhotos", "INTEGER NOT NULL DEFAULT 0"),
+            ("Genre", "TEXT NOT NULL DEFAULT ''"), ("GenreAt", "TEXT NULL"), ("DescribedAt", "TEXT NULL"), ("Seller", "TEXT NOT NULL DEFAULT ''"), ("MorePhotos", "INTEGER NOT NULL DEFAULT 0"),
         })
         {
             using var cmd = conn.CreateCommand();
@@ -145,5 +145,8 @@ public static class LagerDbInitializer
             if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
                 db.Database.ExecuteSqlRaw("ALTER TABLE PriceFinds ADD COLUMN Similar INTEGER NOT NULL DEFAULT 0");
         }
+        // Ting/Strik: the text typed on the Strik/Ting page sat in Note, which the shop never shows (2026-11-10) - it becomes the
+        // buyers' text. Only where there is none yet, so it is a no-op from the second start on.
+        db.Database.ExecuteSqlRaw("UPDATE Items SET Interest = Note WHERE Kind IN ('Ting', 'Strik') AND Interest = '' AND Note <> ''");
     }
 }

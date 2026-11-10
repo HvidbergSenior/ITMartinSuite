@@ -41,6 +41,7 @@ builder.Services.AddKolibri(k =>
 });
 builder.Services.AddVurderingApplication();
 builder.Services.AddVurderingInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<ITMartinVurdering.Server.DescribeJob>();   // Ting/Strik descriptions (2026-11-10)
 
 var app = builder.Build();
 app.MapKolibri();

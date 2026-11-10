@@ -13,6 +13,10 @@ public interface ILagerReview
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetPriceAsync(int itemId, int kr, CancellationToken ct);
     Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct);
+    /// <summary>Ting/Strik things waiting for a description (2026-11-10). Null = Lager did not answer.</summary>
+    Task<List<VurderingDescribe>?> WaitingDescriptionsAsync(int take, CancellationToken ct);
+    /// <returns>True when Lager kept it.</returns>
+    Task<bool> SetDescriptionAsync(int itemId, VurderingDescription d, CancellationToken ct);
 }
 
 public sealed record ReviewResult(bool Ok, string Message);
@@ -47,5 +51,6 @@ public sealed class ReviewUseCases(ILagerReview lager)
 public static class VurderingApplication
 {
     public static IServiceCollection AddVurderingApplication(this IServiceCollection services) => services.AddScoped<ReviewUseCases>()
+        .AddScoped<DescribeUseCases>()
         .AddSingleton(sp => new DodsboUseCases(sp.GetRequiredService<ISagStore>(), sp.GetRequiredService<IThingValuer>(), () => DateTime.Now));
 }

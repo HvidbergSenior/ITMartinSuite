@@ -124,6 +124,8 @@ public sealed class Item
     public int MorePhotos { get; set; }
     public const int MaxMorePhotos = 7;
     public DateTime? GenreAt { get; set; }
+    /// <summary>When Vurdering's AI looked at this Ting/Strik thing for a description (ThingText) - null = not yet.</summary>
+    public DateTime? DescribedAt { get; set; }
     // Discogs collectors (2026-10-21): how many want this release and how many have it - demand, not price.
     public int? Want { get; set; }
     public int? Have { get; set; }

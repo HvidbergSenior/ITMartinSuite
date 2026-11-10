@@ -209,7 +209,8 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         {
             Kind = kind, Title = t.Length > 200 ? t[..200] : t, Genre = g, GenreAt = DateTime.UtcNow, Price = price is > 0 ? Math.Round(price.Value) : null,
             Seller = who.Length > 80 ? who[..80] : who, Usage = strik ? Usages.New : Usages.Used, Condition = strik ? "Ny" : "God",
-            Note = (note ?? "").Trim(), Language = Languages.Dansk, Status = Statuses.Lager,
+            // The text typed here is for buyers (2026-11-10: "why no description?" - it sat in Note, which the shop never shows).
+            Note = (note ?? "").Trim(), Interest = (note ?? "").Trim(), Language = Languages.Dansk, Status = Statuses.Lager,
         };
         item.Touch();
         await items.AddAsync([item], ct);
