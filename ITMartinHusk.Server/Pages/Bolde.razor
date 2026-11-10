@@ -35,6 +35,18 @@
     <button class="k-btn k-btn-primary k-mt" @onclick="Add">Gem bolden</button>
 </details>
 
+@* Hent fra Todoist (2026-11-10): people moving from Todoist bring their projects instead of starting from zero. *@
+<details class="k-card" data-remember="hu-todoist">
+    <summary><b>Hent fra Todoist</b></summary>
+    <p class="k-help"><b>Kommer du fra Todoist?</b> Så tag dine opgaver med. Hver opgave bliver en bold, en sektion bliver et område,
+        og den første delopgave bliver det næste skridt.</p>
+    <p class="k-help"><b>Sådan gør du:</b> åbn projektet i Todoist på en computer → tryk på de tre prikker (⋯) ved projektets navn →
+        <b>Eksportér som skabelon</b> → <b>Eksportér som CSV-fil</b>. Vælg filen herunder. Har du flere projekter, så tag dem én ad gangen.</p>
+    <p class="k-help">Bolde, du allerede har, bliver ikke rørt – du kan roligt hente den samme fil igen.</p>
+    <InputFile OnChange="ImportTodoist" accept=".csv,text/csv" class="k-input" />
+    @if (_importMsg.Length > 0) { <p role="status"><b>@_importMsg</b></p> }
+</details>
+
 @foreach (var g in _groups)
 {
     <details class="k-card" open="@(g.Status == BallStatus.InProgress)">
@@ -67,6 +79,22 @@
     private DateTime? _eDeadline;
 
     protected override void OnInitialized() => Load();
+
+    private string _importMsg = "";
+
+    private async Task ImportTodoist(InputFileChangeEventArgs e)
+    {
+        _importMsg = "";
+        try
+        {
+            using var reader = new StreamReader(e.File.OpenReadStream(2 * 1024 * 1024), System.Text.Encoding.UTF8);
+            var (made, already, error) = Balls.ImportTodoist(await reader.ReadToEndAsync(), e.File.Name);
+            _importMsg = error is not null && made == 0 ? error
+                : $"{made} {(made == 1 ? "bold" : "bolde")} hentet fra Todoist" + (already > 0 ? $" ({already} havde du i forvejen)." : ".");
+            Load();
+        }
+        catch (IOException) { _importMsg = "Filen er for stor (højst 2 MB) – tag ét projekt ad gangen."; }
+    }
 
     private void Load() => _groups = Balls.Groups();
 

@@ -97,6 +97,19 @@ public sealed class BallUseCases(IHuskStore store, Func<DateTime> now)
         return new BallSaveResult(made, changed, errors);
     }
 
+    /// <summary>"Hent fra Todoist": the balls from a Todoist CSV. A ball whose name is already in the list is left alone (never
+    /// overwritten) - so importing the same file twice changes nothing.</summary>
+    public (int Made, int Already, string? Error) ImportTodoist(string? csv, string? fileName)
+    {
+        var parsed = TodoistImport.Parse(csv, fileName, now());
+        if (parsed.Error is not null) return (0, 0, parsed.Error);
+        var have = store.Get().Balls.Select(b => b.Key).ToHashSet();
+        var fresh = parsed.Balls.Where(b => BallRules.Key(b.Title).Length > 0).DistinctBy(b => BallRules.Key(b.Title))
+            .Where(b => !have.Contains(BallRules.Key(b.Title))).ToList();
+        var saved = Save(fresh);
+        return (saved.Made, parsed.Balls.Count - fresh.Count, saved.Errors.Count > 0 ? string.Join(" ", saved.Errors.Take(3)) : null);
+    }
+
     private static string UniqueKey(HuskData d, string key)
     {
         var k = key;
