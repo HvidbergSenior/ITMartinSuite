@@ -92,11 +92,18 @@ else if (_session is null)
 }
 else
 {
+    @* User 2026-11-10: "I do not want to say done with or end session... That should happen automatically pr day... I just want to
+       take pictures" + "boxes are not relevant only days/sessions -> i write on the box: sessionname". So: the name for the box at
+       the top, Tag billeder + Upload, and a small way back - nothing to finish or close. *@
     <section class="k-card">
         <h1 class="k-card-title">@_session.Title</h1>
-        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(Me.IsAdmin ? $" og {_scans} stregkoder" : "") taget i sessionen.</p>
-        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Gentag, til alt har været på et billede.
-            @(_session.Fund ? "Svaret på hver ting kommer længere nede på siden." : _session.IsDaily ? "Tingene bliver læst med det samme og kommer på bogshoppen.dk af sig selv." : "")</p>
+        @if (!_session.Fund && !_session.IsPractice)
+        {
+            <p class="vi-boxname">Skriv på kassen: <b>@_session.Title</b></p>
+        }
+        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(Me.IsAdmin && _scans > 0 ? $" og {_scans} stregkoder" : "") i dag.</p>
+        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Tag så mange billeder, du vil – det samme to gange gør ikke noget.
+            @(_session.Fund ? "Svaret på hver ting kommer længere nede på siden." : _session.IsDaily ? "Tingene bliver læst af sig selv og kommer på bogshoppen.dk." : "")</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
         @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
         <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@SessionFields">Tag billeder</button>
@@ -105,7 +112,6 @@ else
             <div id="foto-cam-tools" class="lg-row lg-cam-tools"></div>
             <button type="button" class="k-btn k-btn-primary lg-big" data-camera-shoot>Tag billede</button>
             <p id="foto-cam-note" class="lg-answer" role="status"></p>
-            <button type="button" class="k-btn k-btn-secondary lg-big" data-camera-close data-done-url="@(Me.IsAdmin ? null : "/")">Færdig med billeder</button>
         </div>
         <p data-photo-status role="status" hidden></p>
         <div data-photo-stranded class="lg-warn" role="status" hidden>
@@ -126,7 +132,8 @@ else
         </details>
         }
         @* "Brug telefonens kamera" stays for everybody: fotokoe.js shows it big when the in-page camera gives no picture. *@
-        <div class="lg-row">
+        @* Hidden: fotokoe.js copies its input into a big button only when the in-page camera gives no picture. *@
+        <div class="lg-row" hidden>
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
                 <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
             </label>
@@ -165,7 +172,6 @@ else
                         </div>
                         <div class="vi-answer-btns">
                             <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="() => Press(a.ItemId, CheckUseCases.Take)">Tog den</button>
-                            <button class="k-btn k-btn-ghost" disabled="@_busy" @onclick="() => Press(a.ItemId, CheckUseCases.No)">Nej tak</button>
                         </div>
                     </li>
                 }
@@ -210,15 +216,7 @@ else
     </section>
     }
 
-    @* A helper's way out is "Færdig med billeder" (user 2026-10-31: "vælg session, tag billede, færdig med billeder"). *@
-    @if (Me.IsAdmin)
-    {
-    <section class="k-card">
-        <h2 class="k-card-title">Færdig her?</h2>
-        <p>Billederne er gemt, så snart de er sendt. Martin lukker sessionen, når I er færdige.</p>
-        <button class="k-btn k-btn-secondary lg-big" @onclick="Leave">Vælg en anden session</button>
-    </section>
-    }
+    <p class="vi-back"><button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="Leave">Tag billeder af noget andet</button></p>
 }
 
 @code {
@@ -247,7 +245,7 @@ else
         {
             _session = SessionId is { } id ? await Sessions.OpenForAsync(id, Me) : null;
             if (SessionId is not null && _session is null) _error = "Den session er lukket eller ikke din – vælg en på listen.";
-            if (_session is null) _choices = await Sessions.ChoicesAsync(Me);
+            if (_session is null) { _choices = await Sessions.ChoicesAsync(Me); _answers = null; }
             await Count();
             await LoadAnswers();
             // Tjek: look again every 15 seconds while the page is open - the reading and prices come in the background.
@@ -268,7 +266,7 @@ else
 
     private string AnswersLine => _answers is not { } a ? ""
         : a.Open.Count == 0 && a.Taken.Count == 0 ? "Billederne bliver læst – svaret kommer her efter et minut eller to. Siden opdaterer sig selv."
-        : $"{a.Open.Count} at vælge · {a.Taken.Count} taget med · {a.NotBought} nej tak. De interessante står øverst.";
+        : $"{a.Open.Count} at vælge · {a.Taken.Count} taget med. De interessante står øverst. Tryk Tog den ved det, du tager med – resten glemmes af sig selv i nat.";
 
     private static string KrText(CheckAnswer a) => a.Waiting ? "Venter på pris …" : a.Kr is { } kr ? $"ca. {kr:0} kr" : "Ingen pris fundet";
 
@@ -381,6 +379,7 @@ else
     public async ValueTask DisposeAsync()
     {
         _answerTimer?.Dispose();
+        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
         _scanning = false;
         try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
         try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }

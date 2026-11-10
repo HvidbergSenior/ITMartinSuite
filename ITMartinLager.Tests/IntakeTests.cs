@@ -195,6 +195,20 @@ public class IntakeTests
         (await fund.InBoxAsync(mort.Id, "K5020")).Should().BeTrue();
         (await fund.InBoxAsync(mort.Id, "K5021")).Should().BeFalse("Vareinfo may only change the things of the session it shows");
         (await fund.TripByCodeAsync("K9999")).Should().BeNull();
+
+        // The day is over: what was not taken becomes Ikke købt by itself; what was taken stays ours.
+        var eric = (await fund.TripByCodeAsync("K5020"))!.Value.Open.Single(r => r.Item.Title == "Eric").Item;
+        await fund.TakeAsync(eric.Id);
+        var later = new FundUseCases(Boxes, Items, new GoldRepository(Factory), new FixedClock(DateTime.UtcNow.AddDays(1)));
+        (await fund.ForgetOldDaysAsync()).Should().Be(0, "still the same day");
+        (await later.ForgetOldDaysAsync()).Should().Be(1);
+        (await Items.GetAsync(mort.Id, default))!.Status.Should().Be(Statuses.IkkeKoebt);
+        (await Items.GetAsync(eric.Id, default))!.Status.Should().Be(Statuses.Lager);
+    }
+
+    private sealed class FixedClock(DateTime utc) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(utc, TimeSpan.Zero);
     }
 
     // Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): a Fund session's photos are read at

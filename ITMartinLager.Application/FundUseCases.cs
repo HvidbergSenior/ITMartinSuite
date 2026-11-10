@@ -5,8 +5,20 @@ namespace ITMartinLager.Application;
 /// <summary>Fund (user 2026-11-03): things photographed where they are for sale (a Fund session in Vareinfo) are priced like
 /// stock but are not ours. Martin picks: "Tog den" = it becomes stock; "Færdig" = the rest is Ikke købt (kept, hidden).
 /// No AI here - the reading and prices are the ones Lager makes anyway.</summary>
-public sealed class FundUseCases(IBoxRepository boxes, IItemRepository items, IGoldRepository gold)
+public sealed class FundUseCases(IBoxRepository boxes, IItemRepository items, IGoldRepository gold, TimeProvider? clock = null)
 {
+    /// <summary>A Tjek day is over (user 2026-11-10: "I do not want to say done with or end session... That should happen
+    /// automatically pr day"): what was not taken from an earlier day's Tjek box becomes Ikke købt by itself. Only day sessions
+    /// (Box.Kind set) - a Fund box Martin made by hand still waits for Færdig. Returns how many.</summary>
+    public async Task<int> ForgetOldDaysAsync(CancellationToken ct = default)
+    {
+        var today = ItemScope.DanishMidnightUtc((clock ?? TimeProvider.System).GetUtcNow().UtcDateTime);
+        var moved = 0;
+        foreach (var box in (await boxes.FundBoxesAsync(ct)).Where(b => b.Kind != "" && b.CreatedAt < today))
+            moved += await MoveAllAsync(box.Id, Statuses.Fund, Statuses.IkkeKoebt, ct);
+        return moved;
+    }
+
     /// <summary>Every Fund session's box with its counts, newest first.</summary>
     public async Task<List<FundTrip>> TripsAsync(CancellationToken ct = default)
     {

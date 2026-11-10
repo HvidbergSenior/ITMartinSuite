@@ -83,6 +83,10 @@ public sealed class Box
 
     public int Number => BoxCodes.Number(Code);
 
+    /// <summary>What a person calls the box: the session name written on it ("Blade og album – 10. november", user 2026-11-10:
+    /// "boxes are not relevant only days/sessions - i write on the box: sessionname"), else its code.</summary>
+    public string Label => Note.Trim() != "" ? Note.Trim() : Code;
+
     /// <summary>A test box (user 2026-10-24: "when I call it something like Test ... the products are only for show"):
     /// its placering starts with "Test". Its things can be shown in the shop but are never sold.</summary>
     public bool IsTest => IsTestName(Place) || BoxCodes.IsTest(Code);

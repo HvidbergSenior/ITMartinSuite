@@ -120,6 +120,8 @@ public sealed class IntakeJob(IServiceScopeFactory scopes, IConfiguration cfg, I
             {
                 var read = await intake.ReadWantedAsync(stop);
                 if (read > 0) log.LogInformation("Box photos and scans read: {Count}", read);
+                var forgotten = await scope.ServiceProvider.GetRequiredService<FundUseCases>().ForgetOldDaysAsync(stop);
+                if (forgotten > 0) log.LogInformation("Tjek: {Count} not taken from earlier days are Ikke købt", forgotten);
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
             catch (Exception ex) { log.LogWarning("Reading box photos failed: {Message}", ex.Message); }   // cap reached - try again later

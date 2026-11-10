@@ -122,3 +122,7 @@
   .vi-answer-btns { grid-column: 1 / -1; flex-direction: row; }
   .vi-answer-btns .k-btn { flex: 1; }
 }
+
+/* The name to write on the box (2026-11-10: "i write on the box: sessionname"). */
+.vi-boxname { font-size: 1.1rem; padding: 8px 12px; border: 2px dashed var(--k-border-3, #999); border-radius: 10px; display: inline-block; }
+.vi-back { margin: 4px 0 16px; }
