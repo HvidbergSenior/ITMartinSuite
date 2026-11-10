@@ -218,8 +218,9 @@ public static partial class SiteRules
 
     public const int MaxNote = 2000;
 
-    /// <summary>The normal monthly price per package (2026-11-09 draft prices).</summary>
-    public static int NormalPrice(Package p) => p switch { Package.Selv => 99, Package.Sammen => 199, _ => 349 };
+    /// <summary>The normal monthly price per package. 2026-11-10 user: "half price of others" - firms that build and run a site
+    /// take ~300-800 kr/md, builders ~100-400 kr/md. Making the site is free; the price is only for hosting it on Martin's server (no start price).</summary>
+    public static int NormalPrice(Package p) => p switch { Package.Selv => 49, Package.Sammen => 99, _ => 149 };
 
     public static string PackageName(Package p) => p switch
     {
