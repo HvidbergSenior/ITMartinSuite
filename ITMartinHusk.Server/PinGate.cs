@@ -163,6 +163,7 @@ public static class PinGate
         <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('husk_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
         </head><body>{{header}}<main class="k-content" style="max-width:440px;margin:24px auto;padding:0 16px">
         <section class="k-card" data-nofold><h1 class="k-card-title">Din egen Husk</h1>
+        <p><b>Lavet af en med ADHD – til dig med ADHD.</b></p>
         <p>Husk holder styr på dine aftaler og alt det, du har i gang – én ting ad gangen. Kun du kan se din liste.</p>
         <p class="k-help"><b>Sådan gør du:</b> skriv dit kundenummer (8 cifre – det står i mailen fra Martin), og tryk Åbn min Husk.</p>
         {{(error.Length > 0 ? $"<p role=\"alert\"><b>{WebUtility.HtmlEncode(error)}</b></p>" : "")}}

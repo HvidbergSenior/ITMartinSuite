@@ -15,6 +15,8 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Kun i dag og i morgen – én ting ad gangen.";
     k.About =
     [
+        // The selling line (user 2026-11-10): what none of the others (Todoist, Apple Påmindelser, Evernote) have.
+        "Lavet af en med ADHD – til dig med ADHD.",
         "Husk minder dig om dine aftaler med a-kassen, kommunen og andre – og om ny post. Den er ikke en kalender: den viser kun i dag og i morgen, én ting ad gangen.",
         "Hvorfor Husk? Den 29. oktober 2026 var jeg indkaldt til en jobmesse. Jeg havde bekræftet mødet i Jobnet og havde påmindelser slået til alle steder – men påmindelsen kom ikke, og jeg glemte det. Jeg har ADHD og kan kun overskue i dag og måske i morgen. Dagen efter var jeg meldt udeblevet til a-kassen. Husk er det værktøj, jeg selv manglede. – Martin",
         "Bolde i luften: alt det, du har i gang, står under Bolde – hver ting med ét næste skridt, hvem du venter på og en frist. Forsiden viser kun én bold ad gangen, så du ikke skal holde styr på det hele i hovedet.",
@@ -38,7 +40,7 @@ builder.Services.AddKolibri(k =>
         "Regler: under Job → Se reglerne står reglerne for dagpenge med almindelige ord – hvad de betyder, hvad du gør, og hvor de kommer fra. Skriv dit eget tal for jobsøgning (fra brevet \"Krav til jobsøgning\"), så minder Husk dig fredag kl. 12 og igen mandag kl. 9, hvis ugen mangler i Joblog.",
         "Tjek-runden kommer én gang om dagen: kig i Jobnet, Mit AKA og Digital Post, et sted ad gangen.",
     ];
-    k.Version = "2026.11.10.1";
+    k.Version = "2026.11.10.2";
     k.ThemeColor = "#0b1220";
 });
 
