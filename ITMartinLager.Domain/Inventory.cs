@@ -110,6 +110,8 @@ public sealed class Item
     /// <summary>The genre (Genres, user 2026-11-07: "danktop, indie, pop") - set once from a free source by the genre job;
     /// GenreAt = when it was looked up (null = not yet), so nothing is asked twice.</summary>
     public string Genre { get; set; } = "";
+    /// <summary>The maker who owns it and gets the money when it sells ("" = ITMartin's own). 2026-11-10 Strikkeshoppen: her things, sold by Martin for a share.</summary>
+    public string Seller { get; set; } = "";
     public DateTime? GenreAt { get; set; }
     // Discogs collectors (2026-10-21): how many want this release and how many have it - demand, not price.
     public int? Want { get; set; }

@@ -61,6 +61,8 @@ public interface IItemRepository
     Task<List<Item>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct);
     Task<int> UnitsAsync(CancellationToken ct);
     Task AddAsync(IEnumerable<Item> items, CancellationToken ct);
+    /// <summary>Every thing of one kind, newest first (Strikkeshoppen's own list).</summary>
+    Task<List<Item>> OfKindAsync(string kind, CancellationToken ct);
     Task UpdateAsync(IEnumerable<Item> items, CancellationToken ct);
     /// <summary>The item and its prices.</summary>
     Task DeleteAsync(int id, CancellationToken ct);

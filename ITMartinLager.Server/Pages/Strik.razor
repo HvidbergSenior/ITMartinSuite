@@ -1,0 +1,94 @@
+@page "/strik"
+@inject ItemUseCases Items
+
+<PageTitle>Strik – Bogshoppen Lager</PageTitle>
+
+@* Strikkeshoppen (user 2026-11-10): a maker with a lot of hand-knitting - her things, sold by Martin for a share. A person puts
+   each thing in here: a picture, what it is, the price and who knitted it. No AI, no price hunt. It is on bogshoppen.dk/strik at once. *@
+<section class="k-card">
+    <h1 class="k-card-title">🧶 Strik – læg en ting ind</h1>
+    <p><b>Sådan gør du:</b> tag et billede, skriv hvad det er, vælg slags, skriv prisen og hvem der har strikket det, og tryk Læg i Strikkeshoppen.
+        Så står den på bogshoppen.dk/strik med det samme – med "Strikket af" og navnet.</p>
+
+    <label class="k-btn k-btn-secondary lg-camera">
+        @(_photo is null ? "📷 Tag billede" : "📷 Tag et andet billede")
+        <InputFile OnChange="PickPhoto" accept="image/*" capture="environment" class="lg-hidden-file" />
+    </label>
+    @if (_photo is not null) { <p class="k-small">Billedet er klar (@(_photo.Length / 1024) KB).</p> }
+
+    <label class="k-label" for="st-title">Hvad er det?</label>
+    <input class="k-input" id="st-title" @bind="_title" maxlength="200" placeholder="fx Blå sweater med snoninger, str. M" />
+
+    <label class="k-label" for="st-genre">Slags</label>
+    <select class="k-input" id="st-genre" @bind="_genre">
+        <option value="">Vælg …</option>
+        @foreach (var g in Genres.Strik) { <option value="@g">@g</option> }
+    </select>
+
+    <label class="k-label" for="st-price">Pris i kr.</label>
+    <input class="k-input" id="st-price" type="number" min="1" step="1" inputmode="numeric" @bind="_price" />
+
+    <label class="k-label" for="st-seller">Strikket af</label>
+    <input class="k-input" id="st-seller" @bind="_seller" maxlength="80" placeholder="Fornavn" />
+
+    <label class="k-label" for="st-note">Mere om den (frivilligt)</label>
+    <input class="k-input" id="st-note" @bind="_note" maxlength="300" placeholder="fx 100 % uld, kan vaskes på uldprogram" />
+
+    @if (_err is not null) { <p role="alert"><b>@_err</b></p> }
+    @if (_msg is not null) { <p>@_msg</p> }
+    <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="Save">@(_busy ? "⏳ Gemmer …" : "Læg i Strikkeshoppen")</button>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Al strik (@_list.Count)</h2>
+    @if (_list.Count == 0) { <p>Der er ikke lagt noget strik ind endnu.</p> }
+    @foreach (var g in _list.GroupBy(i => i.Seller).OrderBy(g => g.Key))
+    {
+        <p><b>Strikket af @g.Key</b> – @g.Count(i => i.Status != Statuses.Solgt) til salg, @g.Count(i => i.Status == Statuses.Solgt) solgt
+            (@g.Where(i => i.Status == Statuses.Solgt).Sum(i => i.SoldPrice ?? i.Price ?? 0).ToString("N0") kr.)</p>
+        <ul>
+            @foreach (var i in g)
+            {
+                <li><a href="/vare/@i.Id">@i.Title</a> · @i.Genre · @((i.Price ?? 0).ToString("N0")) kr. · @i.Status</li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private string _title = "", _genre = "", _seller = "", _note = "";
+    private decimal? _price;
+    private byte[]? _photo;
+    private bool _busy;
+    private string? _err, _msg;
+    private List<Item> _list = [];
+
+    protected override async Task OnInitializedAsync() => _list = await Items.HandmadeAsync();
+
+    private async Task PickPhoto(InputFileChangeEventArgs e)
+    {
+        _err = null;
+        try
+        {
+            using var ms = new MemoryStream();
+            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) await s.CopyToAsync(ms);
+            _photo = ms.ToArray();
+        }
+        catch (Exception ex) { _err = ex.Message; }
+    }
+
+    private async Task Save()
+    {
+        _busy = true; _err = null; _msg = null;
+        try
+        {
+            using var photo = _photo is null ? null : new MemoryStream(_photo);
+            var item = await Items.AddHandmadeAsync(_title, _genre, _price, _seller, _note, photo);
+            _msg = $"\"{item.Title}\" ligger nu i Strikkeshoppen.";
+            _title = ""; _note = ""; _price = null; _photo = null;   // the maker and kind stay - the next thing is often hers too
+            _list = await Items.HandmadeAsync();
+        }
+        catch (LagerException ex) { _err = ex.Message; }
+        finally { _busy = false; }
+    }
+}

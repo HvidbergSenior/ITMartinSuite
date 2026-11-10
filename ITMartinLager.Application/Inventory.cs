@@ -153,6 +153,33 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     public async Task<string?> PhotoFileAsync(int id, CancellationToken ct = default) =>
         await items.GetAsync(id, ct) is { } i ? photos.FullPath(i.ItemPhoto) : null;
 
+    /// <summary>Strikkeshoppen (2026-11-10): a hand-knitted thing a maker sells through ITMartin. A person sets what it is,
+    /// the price and whose it is - no AI, no price hunt (Strik is not a hunted kind). For sale at once.</summary>
+    public async Task<Item> AddHandmadeAsync(string? title, string? genre, decimal? price, string? seller, string? note,
+        Stream? photo, CancellationToken ct = default)
+    {
+        var t = (title ?? "").Trim();
+        if (t.Length == 0) throw new LagerException("Skriv, hvad det er – fx Blå sweater med snoninger.");
+        if (Genres.Strik.FirstOrDefault(g => string.Equals(g, genre?.Trim(), StringComparison.OrdinalIgnoreCase)) is not { } g)
+            throw new LagerException("Vælg, hvilken slags strik det er.");
+        if (price is not > 0) throw new LagerException("Skriv en pris i kroner.");
+        var who = (seller ?? "").Trim();
+        if (who.Length == 0) throw new LagerException("Skriv, hvem der har strikket det – så ved vi, hvem pengene skal til.");
+        var item = new Item
+        {
+            Kind = Kinds.Strik, Title = t.Length > 200 ? t[..200] : t, Genre = g, GenreAt = DateTime.UtcNow, Price = Math.Round(price.Value),
+            Seller = who.Length > 80 ? who[..80] : who, Usage = Usages.New, Condition = "Ny", Note = (note ?? "").Trim(),
+            Language = Languages.Dansk, Status = Statuses.Lager,
+        };
+        item.Touch();
+        await items.AddAsync([item], ct);
+        if (photo is not null) await SavePhotoAsync(item.Id, photo, ct);
+        return item;
+    }
+
+    /// <summary>Every knitted thing (for sale and sold), newest first - the Strik page in Lager.</summary>
+    public Task<List<Item>> HandmadeAsync(CancellationToken ct = default) => items.OfKindAsync(Kinds.Strik, ct);
+
     /// <summary>A photo of just this item, for auctions and the shop.</summary>
     public async Task<string> SavePhotoAsync(int id, Stream photo, CancellationToken ct = default)
     {

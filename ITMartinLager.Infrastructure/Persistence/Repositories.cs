@@ -396,6 +396,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         return await db.Items.Where(i => i.Status != Statuses.Fund && i.Status != Statuses.IkkeKoebt).SumAsync(i => (int?)i.Quantity, ct) ?? 0;
     }
 
+    public async Task<List<Item>> OfKindAsync(string kind, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Items.Where(i => i.Kind == kind).OrderByDescending(i => i.Id).ToListAsync(ct);
+    }
+
     public async Task AddAsync(IEnumerable<Item> items, CancellationToken ct)
     {
         var list = items.ToList();

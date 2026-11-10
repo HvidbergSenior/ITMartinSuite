@@ -11,10 +11,10 @@ public static class StockHeaders
 
 /// <summary>One thing for sale, as Lager knows it. PriceKr = the price a person set; HintKr = the suggested shop price
 /// (10 % under the other sites); Confidence = how sure the AI was what it is. Badge = "🏆 GULD" / "🥈 SØLV" / "🥉 BRONZE"
-/// or "". Usage = Usages.</summary>
+/// or "". Usage = Usages. Seller = the maker who owns it and gets the money ("" = ITMartin's own), e.g. Strikkeshoppen.</summary>
 public sealed record StockItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
     int Quantity, string Usage, int? PriceKr, int? HintKr, double Confidence, bool HasPhoto, string Badge, bool ForShow = false,
-    ShopProof? Reference = null, string Deal = "");
+    ShopProof? Reference = null, string Deal = "", string Seller = "");
 
 /// <summary>One page of things for sale and how many match in all.</summary>
 public sealed record StockPage(List<StockItem> Items, int Total);

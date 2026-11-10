@@ -14,7 +14,8 @@ public static class ShopHeaders
 /// marked it "interessant" on the marketplace.</summary>
 public sealed record ShopItem(int Id, string Kind, string Line, string Title, string Interest, string Condition, int? Year,
     int? BuyNowKr, int? ExpectKr, int Available, bool HasPhoto, string Type = "", int? DayKr = null, string DayOffer = "", string Badge = "",
-    string Usage = "", bool ForShow = false, int Interested = 0, ShopProof? Reference = null, string Deal = "", bool Assess = false);
+    string Usage = "", bool ForShow = false, int Interested = 0, ShopProof? Reference = null, string Deal = "", bool Assess = false,
+    string Seller = "");
 
 /// <summary>The proof for the price promise: one listing on another site.</summary>
 public sealed record ShopProof(string Source, int Kr, string Original, string Url, bool IsNew);

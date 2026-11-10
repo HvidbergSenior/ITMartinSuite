@@ -98,6 +98,26 @@ public class UseCaseTests
     }
 
     [Test]
+    public async Task A_knitted_thing_goes_into_Strikkeshoppen_with_the_makers_name_and_is_never_price_hunted()
+    {
+        var store = new Mock<IPhotoStore>();
+        store.Setup(s => s.ShrinkAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>())).ReturnsAsync([1]);
+        var uses = new ItemUseCases(Items, Prices, store.Object);
+        await uses.Invoking(u => u.AddHandmadeAsync("Sweater", "Sweatre", 300, "", null, null)).Should().ThrowAsync<LagerException>();   // whose?
+        await uses.Invoking(u => u.AddHandmadeAsync("Sweater", "Bukser", 300, "Inge", null, null)).Should().ThrowAsync<LagerException>(); // not a kind of strik
+
+        var item = await uses.AddHandmadeAsync(" Blå sweater med snoninger ", "sweatre", 349.6m, "Inge", "100 % uld", new MemoryStream([1]));
+        var saved = (await Items.GetAsync(item.Id, default))!;
+        (saved.Kind, saved.Category, saved.Genre, saved.Seller, saved.Price, saved.Usage).Should()
+            .Be((Kinds.Strik, ProductTypes.Strik, "Sweatre", "Inge", 350m, Usages.New));
+        saved.ItemPhoto.Should().StartWith("photos");
+        Shop.View(saved, []).Seller.Should().Be("Inge");
+        ShopFamilies.For(ProductTypes.Strik)!.Slug.Should().Be("strik");
+        (await uses.HandmadeAsync()).Should().ContainSingle(i => i.Id == item.Id);
+        Pricing.HuntedKinds.Should().NotContain(Kinds.Strik);
+    }
+
+    [Test]
     public async Task A_book_found_dear_or_with_a_first_edition_cover_goes_on_the_kolofon_list()
     {
         var dear = await Book();

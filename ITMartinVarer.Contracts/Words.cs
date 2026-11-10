@@ -13,16 +13,18 @@ public static class Kinds
         // 2026-11-03 with the main categories: "Brætspil/kortspil".
         Braetspil = "Brætspil", Kortspil = "Kortspil",
         // 2026-11-03 "a category should also be dungeons and dragons": rollespil (D&D books, boxes, dice) - Fantasyshoppen.
-        Rollespil = "Rollespil";
+        Rollespil = "Rollespil",
+        // 2026-11-10 Strikkeshoppen: hand-knitted things a maker sells through ITMartin (Item.Seller) - never price-hunted.
+        Strik = "Strik";
 
     public static readonly string[] All = [AndersAnd, Jumbobog, Tegneserie, Superhelte, Magasin, Bog, Cd, Vinyl, Kassette, Dvd, BluRay, Vhs,
-        Konsolspil, Braetspil, Kortspil, Rollespil, Magic, Merch, Andet];
+        Konsolspil, Braetspil, Kortspil, Rollespil, Magic, Strik, Merch, Andet];
 
     public static string Icon(string kind) => kind switch
     {
         Cd or Vinyl => "🎵", Kassette or Vhs => "📼", Dvd or BluRay => "💿", Magasin => "📰", AndersAnd or Jumbobog => "🦆",
         Tegneserie => "💥", Superhelte => "🦸",
-        Konsolspil => "🎮", Braetspil or Kortspil or Rollespil => "🎲", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
+        Konsolspil => "🎮", Braetspil or Kortspil or Rollespil => "🎲", Strik => "🧶", Bog => "📚", Magic => "🃏", Merch => "🧸", _ => "📦",
     };
 
     public static string Normalise(string? kind) =>
@@ -135,10 +137,10 @@ public static class ProductTypes
     // And, Basserne, Jonah Hex, Kong Kylie); Superhelte = Project X, Edderkoppen; Gamle blade = every blad before 1990.
     public const string Boeger = "Bøger", Tegneserier = "Tegneserier", Serieblade = "Serieblade", GamleBlade = "Gamle blade",
         Jumbo = "Jumbobøger", Superhelte = "Superhelte", Film = "Film", Musik = "Musik", Computerspil = "Computerspil",
-        Braetspil = "Brætspil og kortspil", Rollespil = "Rollespil", Magic = "Magic", Andet = "Andet";
+        Braetspil = "Brætspil og kortspil", Rollespil = "Rollespil", Magic = "Magic", Strik = "Strik", Andet = "Andet";
 
     public static readonly string[] All = [Boeger, Tegneserier, Serieblade, GamleBlade, Jumbo, Superhelte, Film, Musik, Computerspil,
-        Braetspil, Rollespil, Magic, Andet];
+        Braetspil, Rollespil, Magic, Strik, Andet];
 
     /// <summary>A blad from before this year is a Gamle blade (user 2026-11-03: "before 1990 all blade").</summary>
     public const int OldBefore = 1990;
@@ -167,6 +169,7 @@ public static class ProductTypes
         Kinds.Konsolspil => Computerspil,
         Kinds.Braetspil or Kinds.Kortspil => Braetspil,
         Kinds.Rollespil => Rollespil,
+        Kinds.Strik => Strik,
         _ => Andet,   // merchandise, magazines, the rest
     };
 
@@ -183,7 +186,7 @@ public static class ProductTypes
 // categories): each shelf holds one or more main categories. Andet has no shelf (it is only found by the search).
 public static class ShopShelves
 {
-    public const string Boeger = "Bøger", Tegneserier = "Tegneserier og blade", Film = "Film", Musik = "Musik", Spil = "Spil";
+    public const string Boeger = "Bøger", Tegneserier = "Tegneserier og blade", Film = "Film", Musik = "Musik", Spil = "Spil", Strik = "Strik";
 
     public static readonly (string Name, string[] Types)[] All =
     [
@@ -192,6 +195,7 @@ public static class ShopShelves
         (Film, [ProductTypes.Film]),
         (Musik, [ProductTypes.Musik]),
         (Spil, [ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil, ProductTypes.Magic]),
+        (Strik, [ProductTypes.Strik]),
     ];
 
     public static bool IsShelf(string? name) => All.Any(s => s.Name == name);
@@ -233,18 +237,22 @@ public static class Genres
         "Sport", "Strategi"];
     public static readonly string[] Braetspil = ["Børnespil", "Familiespil", "Kortspil", "Quiz", "Samarbejde", "Selskabsspil", "Strategispil"];
     public static readonly string[] Rollespil = ["Call of Cthulhu", "Dungeons & Dragons", "Pathfinder", "Warhammer", "Andre rollespil"];
+    /// <summary>Strikkeshoppen (2026-11-10): what the knitted thing is - picked by a person when it is put in, never looked up.</summary>
+    public static readonly string[] Strik = ["Babytøj", "Cardigans", "Halstørklæder", "Huer", "Puder og tæpper", "Sokker", "Sweatre",
+        "Vanter og handsker", "Andet strik"];
 
     private static readonly string[] Comics = [ProductTypes.Tegneserier, ProductTypes.Serieblade, ProductTypes.GamleBlade, ProductTypes.Jumbo,
         ProductTypes.Superhelte];
 
     /// <summary>The main categories that have genres.</summary>
     public static readonly string[] Categories = [ProductTypes.Musik, ProductTypes.Film, ProductTypes.Boeger, .. Comics,
-        ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil];
+        ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil, ProductTypes.Strik];
 
     public static string[] For(string category) => category switch
     {
         ProductTypes.Musik => Musik, ProductTypes.Film => Film, ProductTypes.Boeger => Boeger,
         ProductTypes.Computerspil => Computerspil, ProductTypes.Braetspil => Braetspil, ProductTypes.Rollespil => Rollespil,
+        ProductTypes.Strik => Strik,
         _ when Comics.Contains(category) => Tegneserier,
         _ => [],
     };
@@ -309,7 +317,11 @@ public static class ShopFamilies
         [new("Kolibri Character", "Lav din figur til Dungeons & Dragons – sammen med din spilleder.", "https://character.itmartin.dk/"),
          new("Kolibri Spilleder", "For spillederen: hold styr på figurer, hemmelige beskeder og spillet.", null)]);   // Kommer snart (user 2026-11-05)
 
-    public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Fantasy, Kort];
+    /// <summary>User 2026-11-10: a maker with a lot of hand-knitting - her things, sold by Martin for a share (Item.Seller = her name).</summary>
+    public static readonly ShopFamily Strik = new("Strikkeshoppen", "strik", "Håndstrikket – sweatre, huer, sokker, vanter og babytøj. Hver ting er strikket i hånden.",
+        [ProductTypes.Strik], [new("Strik", ProductTypes.Strik)]);
+
+    public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Fantasy, Kort, Strik];
 
     /// <summary>The special category (user 2026-11-03: "All the interesting ones, should be manually looked at by us and be in a
     /// special categropy"): everything with a mark or found at 50 kr+ (ShopDeals.Rare) across the shops; no own categories.</summary>

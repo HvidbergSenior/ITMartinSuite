@@ -121,8 +121,9 @@ public class ProductTypeGoldTests
 
     [Test]
     public void Every_product_type_with_a_service_has_a_gold_list() =>
-        // Gamle blade share the blade lists; Computerspil, Brætspil og kortspil and Rollespil have none yet (2026-11-03).
-        Gold.Types.Should().BeEquivalentTo(ProductTypes.All.Except([ProductTypes.Andet, ProductTypes.GamleBlade, ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil]));
+        // Gamle blade share the blade lists; Computerspil, Brætspil og kortspil and Rollespil have none yet (2026-11-03);
+        // Strik is hand-made (2026-11-10) - nothing to collect, so never a gold list.
+        Gold.Types.Should().BeEquivalentTo(ProductTypes.All.Except([ProductTypes.Andet, ProductTypes.GamleBlade, ProductTypes.Computerspil, ProductTypes.Braetspil, ProductTypes.Rollespil, ProductTypes.Strik]));
 
     [Test]
     public void A_record_is_gold_by_its_title_and_the_record_player_is_not_counted()
