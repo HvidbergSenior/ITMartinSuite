@@ -66,20 +66,19 @@ const string LoginBody = """
 const string Buttons = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Mørk</button>""";
 const string Logout = """<form method="post" action="/ud" style="display:inline"><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form>""";
 
-// The shared step row (KolibriSteps markup) - step 2 is ours.
+// The apps' tabs (KolibriSteps markup, 2026-11-10) - Priser is ours.
 static string Steps()
 {
-    var sb = new StringBuilder("""<nav class="k-steps" aria-label="Bogshoppen – sådan gør du"><ol>""");
+    var sb = new StringBuilder("""<nav class="k-steps" aria-label="Bogshoppens apps"><ol>""");
     for (var i = 0; i < BogshoppenFlow.Steps.Count; i++)
     {
         var (name, url) = BogshoppenFlow.Steps[i];
         var e = System.Net.WebUtility.HtmlEncode(name);
         sb.Append(i + 1 == BogshoppenFlow.Priser
-            ? $"""<li class="is-here"><span aria-current="step"><b>{i + 1}</b> {e}</span></li>"""
-            : $"""<li><a href="{url}"><b>{i + 1}</b> {e}</a></li>""");
+            ? $"""<li class="is-here"><span aria-current="page">{e}</span></li>"""
+            : $"""<li><a href="{url}">{e}</a></li>""");
     }
-    var (nextName, nextUrl) = BogshoppenFlow.Steps[BogshoppenFlow.Priser];
-    return sb.Append($"""</ol><a class="k-btn k-btn-sm k-steps-next" href="{nextUrl}">Næste: {System.Net.WebUtility.HtmlEncode(nextName)} →</a></nav>""").ToString();
+    return sb.Append("</ol></nav>").ToString();
 }
 
 var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dodsbo.html"));
@@ -98,7 +97,7 @@ IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string scrip
         <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Vurdering · Bogshoppen</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=5"><link rel="stylesheet" href="/app.css?v=3">
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=1"><link rel="stylesheet" href="/app.css?v=3">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="{script}" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? pageBody : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
@@ -206,7 +205,7 @@ static string SharePage(KolibriAppInfo info, string title, string pageBody) => $
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('vurdering_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>{H(title)}</title><meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="{info.ThemeColor}">
-    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=5"><link rel="stylesheet" href="/app.css?v=3">
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=1"><link rel="stylesheet" href="/app.css?v=3">
     <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script></head>
     <body>{KolibriStaticPages.Header(info, actions: Buttons)}<main class="k-main"><div class="k-content">{pageBody}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
     """;

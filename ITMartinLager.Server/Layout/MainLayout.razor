@@ -5,21 +5,18 @@
 @* Four tabs (user 2026-10-21: "too many tabs"): the daily ones, the rest on /mere. Ordrer opens Salg, where the
    orders live since the split the same day. *@
 <KolibriHeader>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/">🔎 Søg</a>
+    <a class="k-btn k-btn-ghost k-btn-sm" href="/">Søg</a>
     @* Helpers (kundenummer): only Søg - the things (2026-10-26). *@
     @if (Me is { IsAdmin: true })
     {
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/fund">Fund</a>
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/kasser">📦 Kasser</a>
-        <a class="k-btn k-btn-ghost k-btn-sm" href="@Salg.Orders">🧾 Ordrer</a>
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">☰ Mere</a>
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/kasser">Kasser</a>
+        <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">Mere</a>
         @* Admins could not log out (user 2026-10-26: "cannot logout of lager") - needed to switch to a test login. *@
         <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud (@Me.Name)</a>
     }
     else if (Me is { } who) { <span class="k-small">👤 @who.Name · <a href="/api/logout">Log ud</a></span> }
 </KolibriHeader>
-@* Lager does two of the steps until Vurdering is its own helper: prices on the front page, boxes under Kasser. *@
-@if (Me is { IsAdmin: true }) { <KolibriSteps Steps="Flow" Current="@(Nav.Uri.Contains("/kasse") ? BogshoppenFlow.Lager : BogshoppenFlow.Priser)" Label="Bogshoppen – sådan gør du" /> }
+@if (Me is { IsAdmin: true }) { <KolibriSteps Steps="Flow" Current="BogshoppenFlow.Lager" Label="Bogshoppens apps" /> }
 <div class="k-main"><div class="k-content">
     @Body
 </div></div>

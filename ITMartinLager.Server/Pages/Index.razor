@@ -7,9 +7,13 @@
 <PageTitle>Søg – Bogshoppen Lager</PageTitle>
 
 <section class="k-card">
-    <h1 class="k-card-title">🔎 Find en vare</h1>
+    @* Simple first (user 2026-11-10: "It should be simple for me"): the search field, and every filter folded under "Flere valg". *@
+    <h1 class="k-card-title">Find en vare</h1>
     <p class="lg-answer">@_units.ToString("N0") ting i @_boxes kasser</p>
-    <p class="k-small k-muted">Hvilke varer: hele lageret, kun dem der er registreret i dag eller de sidste 7 dage, eller én kasse. Valget gælder både søgningen og ⭐ interessante.</p>
+    <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år …" autofocus />
+    <details class="kr-more" open="@FiltersOn">
+    <summary>Flere valg – kasse, kategori, sprog og pris</summary>
+    <p class="kr-label">Hvilke varer</p>
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_scopeKey == "alle" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => SetScope("alle")'>Hele lageret</button>
         <button class="k-btn k-btn-sm @(_scopeKey == "idag" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => SetScope("idag")'>Nye i dag (@_today)</button>
@@ -17,11 +21,11 @@
         @foreach (var (b, n) in _newBoxes)
         {
             var key = $"kasse-{b.Id}";
-            <button class="k-btn k-btn-sm @(_scopeKey == key ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetScope(key)">@b.Code@(b.Note != "" ? $" – {b.Note}" : "") (@n nye)</button>
+            <button class="k-btn k-btn-sm @(_scopeKey == key ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetScope(key)">@b.Label (@n nye)</button>
         }
     </div>
-    <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år, kasse (K5002) …" autofocus />
     @* Main categories (user 2026-11-03: "split up in the main categories"); the kinds inside one show under it. *@
+    <p class="kr-label">Kategori</p>
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_category is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetCategory(null)">Alle kategorier</button>
         @foreach (var c in ProductTypes.All)
@@ -39,6 +43,7 @@
             }
         </div>
     }
+    <p class="kr-label">Sprog</p>
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_language is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetLanguage(null)">Alle sprog</button>
         @foreach (var l in Languages.All)
@@ -46,7 +51,7 @@
             <button class="k-btn k-btn-sm @(_language == l ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetLanguage(l)">@l</button>
         }
     </div>
-    <button class="k-btn k-btn-primary" @onclick="ShowInteresting">⭐ Alle interessante – guld, sølv, bronze og måske</button>
+    <p class="kr-label">Pris</p>
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_valuation is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetValuation(null)">Alle priser</button>
         @foreach (var v in Valuations.All)
@@ -54,12 +59,14 @@
             <button class="k-btn k-btn-sm @(_valuation == v ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetValuation(v)">@ValIcon(v) @v</button>
         }
     </div>
+    </details>
+    <button class="k-btn k-btn-secondary k-mt" @onclick="ShowInteresting">Vis de interessante – guld, sølv, bronze og måske</button>
 </section>
 
 @if (_interesting is not null)
 {
     <section class="k-card">
-        <h2 class="k-card-title">⭐ @_interesting.Count interessante @ScopeWords</h2>
+        <h2 class="k-card-title">@_interesting.Count interessante @ScopeWords</h2>
         <div class="lg-chips">
             <button class="k-btn k-btn-sm @(_rank is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => _rank = null">Alle (@_interesting.Count)</button>
             @for (var r = 0; r < ITMartinLager.Domain.Gold.InterestingKinds.Length; r++)
@@ -112,6 +119,9 @@
 }
 
 @code {
+    // "Flere valg" stays open while a filter is chosen, so it is clear why the list is shorter.
+    private bool FiltersOn => _scopeKey != "alle" || _category is not null || _language is not null || _valuation is not null;
+
     [CascadingParameter] public LagerUser? Me { get; set; }
     private bool Admin => Me is { IsAdmin: true };
     private const int Max = ItemUseCases.MaxHits;

@@ -99,7 +99,6 @@
 /* One press (2026-11-10): purpose first (Mine varer / Tjek), then what the pictures are of - big buttons, two per row on a phone. */
 .vi-purpose { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
 .vi-purpose .lg-big, .vi-kinds .lg-big { width: 100%; }
-.vi-purpose [aria-pressed="true"] { outline: 3px solid var(--k-accent, currentColor); outline-offset: 2px; }
 .vi-kinds-title { margin: 16px 0 8px; font-size: 1.2rem; }
 .vi-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: 8px; margin: 8px 0; }
 .vi-kinds .k-btn { white-space: normal; }
