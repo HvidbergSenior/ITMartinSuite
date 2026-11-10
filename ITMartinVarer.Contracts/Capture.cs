@@ -3,7 +3,7 @@ namespace ITMartinVarer.Contracts;
 // Capture (2026-10-20, user: "One app for just taking pictures and storing ... select the relevant box number ... 100
 // people on 100 boxes with own phone each"): Vareinfo only takes and keeps the photos and scans, box by box. Lager pulls
 // what is new (GET /api/lager/nye), says what it has (POST /api/lager/modtaget), and fetches a photo when it reads it.
-// Vareinfo never calls Lager.
+// Vareinfo calls Lager only for the Tjek answers (CheckAnswers below, 2026-11-10).
 
 public static class CaptureHeaders
 {
@@ -54,3 +54,15 @@ public static class CaptureKinds
 public sealed record CaptureBatch(List<CapturedPhoto> Photos, List<CapturedScan> Scans, List<CapturedBox>? Boxes = null);
 
 public sealed record CaptureReceived(List<int> PhotoIds, List<int> ScanIds);
+
+// Tjek (user 2026-11-10: "Take picture -> get quick price and/or if something is interesting"): the answers for a Tjek session,
+// shown in Vareinfo under the pictures. Vareinfo asks Lager (GET /api/vareinfo/tjek/{boxCode}, the same CaptureHeaders.Key as
+// /api/lager/* the other way) and passes on Tog den / Nej tak / Fortryd. Lager decides - Vareinfo only shows and passes on.
+
+/// <summary>One thing found in a Tjek session. Note = "GULD – ..." (interesting) or ""; Kr = what we could sell it for;
+/// Waiting = no price yet. OwnPhoto = Lager has its cut-out (GET .../varer/{id}/foto), else PhotoId = Vareinfo's pile photo.</summary>
+public sealed record CheckAnswer(int ItemId, string Line, string Category, string Condition, int Quantity, string Note, decimal? Kr,
+    bool Waiting, bool OwnPhoto, int? PhotoId);
+
+/// <summary>A Tjek session's things: still to decide (interesting and dearest first), taken home, and how many said no to.</summary>
+public sealed record CheckAnswers(List<CheckAnswer> Open, List<CheckAnswer> Taken, int NotBought);

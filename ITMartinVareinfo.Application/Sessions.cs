@@ -109,6 +109,10 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
     public async Task<WorkSession?> OpenForAsync(int id, Taker me, CancellationToken ct = default) =>
         await sessions.GetAsync(id, ct) is { Open: true } s && s.IsFor(me) ? s : null;
 
+    /// <summary>The session, open or closed, when it is for this person.</summary>
+    public async Task<WorkSession?> ForAsync(int id, Taker me, CancellationToken ct = default) =>
+        await sessions.GetAsync(id, ct) is { } s && s.IsFor(me) ? s : null;
+
     /// <summary>"Min øvesession": the person's own - the same one every time, made the first time (codes from 9999 down).</summary>
     public async Task<WorkSession> PracticeAsync(Taker me, CancellationToken ct = default)
     {

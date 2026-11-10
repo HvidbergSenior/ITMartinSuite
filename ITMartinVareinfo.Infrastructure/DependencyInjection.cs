@@ -26,6 +26,8 @@ public static class DependencyInjection
         // Helpers log in with their kundenummer (Kunder__Url / Kunder__ApiKey, user 2026-10-24).
         services.AddKunderClient(cfg, dataDir);
         services.AddScoped<IHelperNumbers, KunderHelperNumbers>();
+        // Tjek answers from Lager (2026-11-10).
+        services.AddHttpClient<ICheckAnswers, LagerCheckAnswers>(c => c.Timeout = TimeSpan.FromSeconds(10));
 
         services.AddSingleton(new VareinfoOptions
         {

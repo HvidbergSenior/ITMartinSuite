@@ -167,6 +167,36 @@ public class IntakeTests
         (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
     }
 
+    // Tjek in Vareinfo (2026-11-10): Nej tak per thing, Fortryd back on the list, and only the things of that box.
+    [Test]
+    public async Task Tjek_says_no_per_thing_takes_it_back_and_knows_its_box()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(41, "K5020", "Rico", 0, At)], [], [new CapturedBox("K5020", "Tjek: Blandet – 10. november", Fund: true, Kind: "Blandet", ReadNow: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([F("Mort"), F("Eric")]);
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+        await intake.FetchAsync();
+        await intake.ReadWantedAsync();
+        var fund = new FundUseCases(Boxes, Items, new GoldRepository(Factory));
+        var trip = (await fund.TripByCodeAsync("K5020"))!.Value;
+        trip.Open.Should().HaveCount(2);
+        var mort = trip.Open.Single(r => r.Item.Title == "Mort").Item;
+
+        await fund.DeclineAsync(mort.Id);
+        (await fund.TripByCodeAsync("K5020"))!.Value.Should().Match<(Box Box, List<FundRow> Open, List<FundRow> Taken, int NotBought)>(t => t.Open.Count == 1 && t.NotBought == 1);
+        await fund.BackAsync(mort.Id);
+        (await Items.GetAsync(mort.Id, default))!.Status.Should().Be(Statuses.Fund);
+        await fund.TakeAsync(mort.Id);
+        await fund.BackAsync(mort.Id);
+        (await Items.GetAsync(mort.Id, default))!.Status.Should().Be(Statuses.Fund, "Fortryd also after Tog den");
+
+        (await fund.InBoxAsync(mort.Id, "K5020")).Should().BeTrue();
+        (await fund.InBoxAsync(mort.Id, "K5021")).Should().BeFalse("Vareinfo may only change the things of the session it shows");
+        (await fund.TripByCodeAsync("K9999")).Should().BeNull();
+    }
+
     // Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): a Fund session's photos are read at
     // once, the things are Fund (not ours, not for sale); Tog den = stock, Færdig = the rest Ikke købt.
     [Test]

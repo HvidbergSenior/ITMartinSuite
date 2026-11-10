@@ -59,6 +59,26 @@ public class SessionTests
         (await _sessions.TodayAsync(_martin, fund: false, "Blade og album")).Id.Should().NotBe(blade.Id);
     }
 
+    // Tjek answers (2026-11-10): only a Tjek session asks Lager, with its own box code; another session gets nothing.
+    [Test]
+    public async Task Only_a_Tjek_session_gets_answers_and_presses_go_to_its_own_box()
+    {
+        var lager = new Mock<ICheckAnswers>();
+        lager.Setup(l => l.ForAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new CheckAnswers([], [], 0));
+        lager.Setup(l => l.PressAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var check = new CheckUseCases(lager.Object, _sessions, _capture);
+        var tjek = await _sessions.TodayAsync(_bertil, fund: true, "Blandet");
+        var mine = await _sessions.TodayAsync(_bertil, fund: false, "Blandet");
+
+        (await check.AnswersAsync(tjek.Id, _bertil)).Should().NotBeNull();
+        (await check.AnswersAsync(mine.Id, _bertil)).Should().BeNull("Mine varer has no answers to pick from");
+        (await check.PressAsync(tjek.Id, 7, CheckUseCases.Take, _bertil)).Should().BeNull();
+        lager.Verify(l => l.PressAsync(tjek.BoxCode, 7, "tog", It.IsAny<CancellationToken>()), Times.Once);
+        (await check.PressAsync(mine.Id, 7, CheckUseCases.Take, _bertil)).Should().NotBeNull();
+        (await check.PressAsync(tjek.Id, 7, "slet", _bertil)).Should().Be("Ukendt knap.");
+        lager.Verify(l => l.ForAsync(mine.BoxCode, It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Test]
     public async Task Yesterdays_day_sessions_close_by_themselves_and_are_not_on_the_list()
     {

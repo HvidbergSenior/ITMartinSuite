@@ -93,6 +93,9 @@ bool FromSalg(HttpContext ctx) => salgKey.Length >= 12 && ctx.Request.Headers[St
 // Vurdering (step 2, 2026-11-05) has its own key - it may only read the things to price and set a price.
 var vurderingKey = app.Configuration["Lager:VurderingKey"] ?? "";
 bool FromVurdering(HttpContext ctx) => vurderingKey.Length >= 12 && ctx.Request.Headers[VurderingHeaders.Key] == vurderingKey;
+// Vareinfo's Tjek page (2026-11-10) asks with the key Lager uses towards Vareinfo (Lager__InfoKey = Vareinfo__LagerKey).
+var infoKey = app.Configuration["Lager:InfoKey"] ?? "";
+bool FromVareinfo(HttpContext ctx) => infoKey.Length >= 12 && ctx.Request.Headers[CaptureHeaders.Key] == infoKey;
 
 app.Use(async (ctx, next) =>
 {
@@ -105,6 +108,7 @@ app.Use(async (ctx, next) =>
             || p.EndsWith(".svg") || p.EndsWith(".png");
     if (p.StartsWith("/api/salg/")) { if (FromSalg(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (p.StartsWith("/api/vurdering/")) { if (FromVurdering(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
+    if (p.StartsWith("/api/vareinfo/")) { if (FromVareinfo(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (LoggedIn(ctx)) { ctx.Items[nameof(LagerUser)] = new LagerUser("Martin", true); await next(); return; }
     if (open) { await next(); return; }
     if (await AdminAsync(ctx, ctx.Request.Cookies["lager_auth"]) is { } admin)
@@ -160,6 +164,7 @@ app.MapGet("/kolofonfoto/{id:int}", async (int id, KolofonUseCases k) => Jpeg(aw
 
 app.MapStockApi();
 app.MapVurderingApi();   // Vurdering (step 2)
+app.MapTjekApi();        // Vareinfo's Tjek answers (2026-11-10)
 
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
     Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));

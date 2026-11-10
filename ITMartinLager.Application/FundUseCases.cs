@@ -32,6 +32,24 @@ public sealed class FundUseCases(IBoxRepository boxes, IItemRepository items, IG
     /// <summary>"Fortryd": back on the Fund list.</summary>
     public Task UndoAsync(int itemId, CancellationToken ct = default) => ChangeAsync(itemId, Statuses.Lager, Statuses.Fund, ct);
 
+    /// <summary>"Nej tak" (Vareinfo's Tjek, 2026-11-10): this one is not bought - kept, hidden, recognised next time.</summary>
+    public Task DeclineAsync(int itemId, CancellationToken ct = default) => ChangeAsync(itemId, Statuses.Fund, Statuses.IkkeKoebt, ct);
+
+    /// <summary>"Fortryd" in Vareinfo: a thing taken or said no to is back on the list.</summary>
+    public async Task BackAsync(int itemId, CancellationToken ct = default)
+    {
+        await ChangeAsync(itemId, Statuses.Lager, Statuses.Fund, ct);
+        await ChangeAsync(itemId, Statuses.IkkeKoebt, Statuses.Fund, ct);
+    }
+
+    /// <summary>The Tjek session's box by its code (Vareinfo knows the code, not Lager's id). Null = not a Fund box (yet).</summary>
+    public async Task<(Box Box, List<FundRow> Open, List<FundRow> Taken, int NotBought)?> TripByCodeAsync(string boxCode, CancellationToken ct = default) =>
+        await boxes.ByCodeAsync(boxCode, ct) is { Fund: true } box ? await TripAsync(box.Id, ct) : null;
+
+    /// <summary>Is this thing in that Fund box? (Vareinfo may only change the things of the session it shows.)</summary>
+    public async Task<bool> InBoxAsync(int itemId, string boxCode, CancellationToken ct = default) =>
+        await items.GetAsync(itemId, ct) is { Box: { Fund: true } b } && b.Code == boxCode;
+
     /// <summary>"Færdig": the rest was not bought. Returns how many.</summary>
     public Task<int> FinishAsync(int boxId, CancellationToken ct = default) => MoveAllAsync(boxId, Statuses.Fund, Statuses.IkkeKoebt, ct);
 

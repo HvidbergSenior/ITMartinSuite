@@ -37,7 +37,7 @@ builder.Services.AddKolibri(k =>
         "Færdig? Tryk Færdig med billeder – så er du tilbage ved start. Billederne er gemt, så snart de er sendt.",
         "Vil du bare prøve, mens ingen session er i gang? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
         "Martin: vil du sætte en hjælper på et bestemt sted, så skriv stedet under Sessioner, tryk Start session og vælg hjælperen under Til. Den slags sessioner lukker du selv med Luk (billederne gemmes), og du læser dem i Lager med Læs. Strik og Ting lægges ind én ad gangen i Lager.",
-        "Tjek: billederne læses med det samme, og du vælger i Lager under Fund, hvad du tager med (Tog den). Resten bliver aldrig sat til salg.",
+        "Tjek: billederne læses med det samme, og svaret kommer på samme side under billederne – de interessante øverst. Tryk Tog den ved det, du tager med (så kommer det på lager), eller Nej tak. Fortryd sætter den tilbage. Resten bliver aldrig sat til salg.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "Giver kameraet inde i siden ikke et billede, kommer en stor knap »Brug telefonens kamera« frem – billederne kommer med i samme session.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
@@ -142,6 +142,15 @@ app.MapPost("/api/foto", async (HttpContext ctx, CaptureUseCases capture) =>
 // A session photo, for Lager's item page ("billedet af bunken den blev registreret fra").
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
 app.MapGet("/foto/{id:int}", async (int id, CaptureUseCases capture) => Jpeg(await capture.PhotoFileAsync(id, null)));
+
+// A thing's picture on the Tjek page (2026-11-10): Lager's cut-out of it, else the pile photo it was read from.
+app.MapGet("/tjek/{sessionId:int}/foto/{itemId:int}", async (HttpContext ctx, int sessionId, int itemId, int? bunke, CheckUseCases check) =>
+    await check.PhotoAsync(sessionId, itemId, bunke, (Taker)ctx.Items[nameof(Taker)]!) switch
+    {
+        ({ } jpeg, _) => Results.File(jpeg, "image/jpeg"),
+        (_, { } file) => Results.File(file, "image/jpeg"),
+        _ => Results.NotFound(),
+    });
 
 // Lager's side (CaptureHeaders.Key): what is new, what it has taken over, and a photo or close-up when it reads it.
 app.MapGet("/api/lager/nye", async (int? antal, CaptureUseCases capture) => await capture.NewForLagerAsync(Math.Clamp(antal ?? 100, 1, 500)));
