@@ -81,6 +81,7 @@
             + '<p><span class="k-tag db-dom" data-dom="' + esc(t.domKode) + '">' + esc(t.dom) + '</span>' + (t.where ? ' · sælges bedst på <b>' + esc(t.where) + '</b>' : '') + '</p>'
             + (t.reason ? '<p class="k-help">' + esc(t.reason) + '</p>' : '')
             + (t.details ? '<p class="k-help"><b>Kig efter:</b> ' + esc(t.details) + '</p>' : '')
+            + (t.story ? '<details class="db-story" open><summary><b>Hvad er det – historien bag</b></summary><p>' + esc(t.story) + '</p></details>' : '')
             + '<div class="db-actions">'
             + '<a class="k-btn k-btn-sm" target="_blank" rel="noopener" href="https://www.dba.dk/soeg/?soeg=' + q + '">Søg på DBA</a>'
             + '<a class="k-btn k-btn-sm" target="_blank" rel="noopener" href="https://www.lauritz.com/da/soeg?q=' + q + '">Søg på Lauritz</a></div>'

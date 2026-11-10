@@ -11,7 +11,7 @@ public static class DodsboRules
 {
     /// <summary>Photos read in one AI call.</summary>
     public const int PerCall = 8;
-    public const int MaxText = 300, MaxName = 80;
+    public const int MaxText = 300, MaxName = 80, MaxStory = 1200;
 
     public static string Text(Verdict v) => v switch
     {
@@ -62,6 +62,9 @@ public sealed class Ting
     public Verdict? Verdict { get; set; }
     public string Where { get; set; } = "";
     public string Reason { get; set; } = "";
+    /// <summary>What it is and the history behind it (user 2026-11-10: "description of the things found... the history behind") -
+    /// maker, period, how it was made and used; comes in the same AI call, no extra cost.</summary>
+    public string Story { get; set; } = "";
     /// <summary>Words to search for it on DBA / Lauritz (the buttons under the thing).</summary>
     public string SearchWords { get; set; } = "";
     /// <summary>The person's own price - wins over the AI's range.</summary>
@@ -70,8 +73,10 @@ public sealed class Ting
 
     public bool Waiting => ValuedAt is null;
 
-    public void Valued(string? what, string? details, int? low, int? high, Verdict verdict, string? where, string? reason, string? search, DateTime at)
+    public void Valued(string? what, string? details, int? low, int? high, Verdict verdict, string? where, string? reason, string? search, DateTime at,
+        string? story = null)
     {
+        Story = DodsboRules.Clean(story, DodsboRules.MaxStory);
         What = DodsboRules.Clean(what, DodsboRules.MaxName);
         Details = DodsboRules.Clean(details, DodsboRules.MaxText);
         (LowKr, HighKr) = (low is > 0 ? low : null, high is > 0 ? high : null);

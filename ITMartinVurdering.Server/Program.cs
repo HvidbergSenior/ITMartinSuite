@@ -23,7 +23,7 @@ builder.Services.AddKolibri(k =>
         "Lager har allerede søgt efter prisen andre steder (DBA, Faraos, Nemos …). Her ser du én ting ad gangen med forslaget og det, der blev fundet – og du bestemmer.",
         "Bøger prissættes kun efter danske sider – og med prisen for en ny hos Bog & idé ved siden af (2026-11-06).",
         "Skal vurderes = fundet til 50 kr eller mere, men uden din pris. Ingen pris = intet fundet nogen steder.",
-        "Dødsbo og loft: tag et billede af hver ting fra et dødsbo, et loft eller en kælder. AI'en fortæller, hvad det er, hvad det cirka er værd brugt i Danmark, og om du skal sælge det, sælge det samlet, give det væk, smide det ud eller spørge en ekspert – og hvor det sælges bedst.",
+        "Dødsbo og loft: tag et billede af hver ting fra et dødsbo, et loft eller en kælder. AI'en fortæller, hvad det er og historien bag det, hvad det cirka er værd brugt i Danmark, og om du skal sælge det, sælge det samlet, give det væk, smide det ud eller spørge en ekspert – og hvor det sælges bedst.",
     ];
     k.HowTo =
     [
@@ -35,7 +35,7 @@ builder.Services.AddKolibri(k =>
         "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
         "Dødsbo og loft: tryk Dødsbo og loft øverst, lav en sag (fx Mariannes ting), tag et billede af hver ting og tryk Vurdér de nye. Op til 8 billeder vurderes ad gangen. Ret prisen selv, hvis du ved bedre – og brug knapperne Søg på DBA og Søg på Lauritz for at se, hvad lignende ting koster.",
     ];
-    k.Version = "2026.11.10";
+    k.Version = "2026.11.10.2";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -86,7 +86,7 @@ var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dod
 
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=2"));
 // Dødsbo og loft (2026-11-10): the same login, its own page.
-app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=1"));
+app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=2"));
 
 IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string script)
 {
@@ -166,7 +166,7 @@ static object SagView(Sag s)
         Ting = s.Ting.OrderByDescending(t => t.AddedAt).Select(t => new
         {
             t.Id, t.Hint, Venter = t.Waiting, t.What, t.Details, Pris = DodsboRules.Range(t.LowKr, t.HighKr),
-            Dom = t.Verdict is { } v ? DodsboRules.Text(v) : "", DomKode = t.Verdict?.ToString() ?? "", t.Where, t.Reason, t.SearchWords,
+            Dom = t.Verdict is { } v ? DodsboRules.Text(v) : "", DomKode = t.Verdict?.ToString() ?? "", t.Where, t.Reason, t.SearchWords, t.Story,
             Egen = t.OwnKr, t.OwnNote,
         }),
     };

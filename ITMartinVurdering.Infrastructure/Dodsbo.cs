@@ -125,6 +125,10 @@ public sealed class ClaudeThingValuer(IConfiguration cfg, ILogger<ClaudeThingVal
         - where: det bedste sted at sælge: DBA, Lauritz.com, Bruun Rasmussen (kun dyre, kendte ting), Loppemarked, Bogshoppen (bøger, blade, plader, film, spil), Genbrugsbutik.
         - reason: én kort sætning på dansk om, hvorfor.
         - searchWords: 2-5 søgeord til DBA/Lauritz (fx "böhmisk rubinglas vase").
+        - story: hvad tingen er og historien bag den, 3-5 sætninger på almindeligt dansk, så sælgeren kan fortælle om den:
+          hvor og hvornår den slags blev lavet, af hvem (fabrik, kunstner, egn), hvordan den blev lavet og brugt, og hvorfor
+          folk samler på den. Skriv kun det, du er sikker på - er du i tvivl, så skriv det generelle om typen og sig, at det
+          afhænger af stempel eller signatur.
         Gæt aldrig et navn, en signatur eller et stempel, du ikke kan læse. Hellere "spørg en ekspert" end en forkert lav pris.
         Svar ved at kalde værktøjet report_things med én post pr. billede.
         """;
@@ -149,8 +153,9 @@ public sealed class ClaudeThingValuer(IConfiguration cfg, ILogger<ClaudeThingVal
                         "verdict":     { "type": "string", "enum": ["sælg", "sælg samlet", "giv væk", "smid ud", "spørg en ekspert"] },
                         "where":       { "type": "string", "enum": ["DBA", "Lauritz.com", "Bruun Rasmussen", "Loppemarked", "Bogshoppen", "Genbrugsbutik"] },
                         "reason":      { "type": "string" },
-                        "searchWords": { "type": "string" } },
-                      "required": ["index", "what", "details", "low", "high", "verdict", "where", "reason", "searchWords"],
+                        "searchWords": { "type": "string" },
+                        "story":       { "type": "string" } },
+                      "required": ["index", "what", "details", "low", "high", "verdict", "where", "reason", "searchWords", "story"],
                       "additionalProperties": false } }
                     """).RootElement,
             },
@@ -170,6 +175,7 @@ public sealed class ClaudeThingValuer(IConfiguration cfg, ILogger<ClaudeThingVal
         public string Where { get; set; } = "";
         public string Reason { get; set; } = "";
         public string SearchWords { get; set; } = "";
+        public string Story { get; set; } = "";
     }
 
     public async Task<List<ThingValue>> ValueAsync(IReadOnlyList<ThingPhoto> photos, CancellationToken ct)
@@ -206,6 +212,6 @@ public sealed class ClaudeThingValuer(IConfiguration cfg, ILogger<ClaudeThingVal
         var tool = response.Content.Select(b => b.Value).OfType<BetaToolUseBlock>().FirstOrDefault();
         if (tool is null) throw new InvalidOperationException("AI'en gav ikke et svar på billederne. Prøv igen om lidt.");
         var report = JsonSerializer.Deserialize<Report>(JsonSerializer.Serialize(tool.Input), Json) ?? new Report();
-        return report.Items.Select(i => new ThingValue(i.Index, i.What, i.Details, i.Low, i.High, i.Verdict, i.Where, i.Reason, i.SearchWords)).ToList();
+        return report.Items.Select(i => new ThingValue(i.Index, i.What, i.Details, i.Low, i.High, i.Verdict, i.Where, i.Reason, i.SearchWords, i.Story)).ToList();
     }
 }

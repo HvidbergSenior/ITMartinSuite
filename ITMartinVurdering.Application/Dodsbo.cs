@@ -18,7 +18,7 @@ public sealed record ThingPhoto(int Index, byte[] Jpeg, string Hint);
 
 /// <summary>What the AI says about one numbered photo. Verdict = sælg / sælg samlet / giv væk / smid ud / spørg en ekspert.</summary>
 public sealed record ThingValue(int Index, string What, string Details, int? Low, int? High, string Verdict, string Where,
-    string Reason, string SearchWords);
+    string Reason, string SearchWords, string Story = "");
 
 /// <summary>Values several photos in ONE call, under a hard daily cap (Vurdering:MaxAiCallsPerDay).</summary>
 public interface IThingValuer
@@ -80,7 +80,7 @@ public sealed class DodsboUseCases(ISagStore store, IThingValuer valuer, Func<Da
             {
                 if (a.Index < 0 || a.Index >= waiting.Count) continue;
                 waiting[a.Index].Valued(a.What, a.Details, a.Low, a.High, DodsboRules.ParseVerdict(a.Verdict) ?? Verdict.SpoergEkspert,
-                    a.Where, a.Reason, a.SearchWords, at);
+                    a.Where, a.Reason, a.SearchWords, at, a.Story);
                 done++;
             }
             store.Save(s);

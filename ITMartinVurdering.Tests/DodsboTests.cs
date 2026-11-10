@@ -31,7 +31,8 @@ public class DodsboTests
         {
             Calls++; Left--; Sizes.Add(photos.Count);
             return Task.FromResult(photos.Select(p => p.Index == 0
-                ? new ThingValue(0, "Rubinglas-vase, böhmisk", "Se efter stempel i bunden", 600, 300, "sælg", "lauritz.com", "Eftertragtet glas", "böhmisk rubinglas vase")
+                ? new ThingValue(0, "Rubinglas-vase, böhmisk", "Se efter stempel i bunden", 600, 300, "sælg", "lauritz.com", "Eftertragtet glas", "böhmisk rubinglas vase",
+                    "Slebet rubinglas blev lavet i Böhmen fra 1800-tallet.")
                 : new ThingValue(p.Index, "Plasticdukke", "", null, null, "giv væk", "Loppemarked", "Lav værdi", "dukke")).ToList());
         }
     }
@@ -85,6 +86,7 @@ public class DodsboTests
         (vase.LowKr, vase.HighKr, vase.Verdict, vase.Where).Should().Be((300, 600, Verdict.Saelg, "Lauritz.com"));   // swapped, place normalised
         DodsboRules.Range(vase.LowKr, vase.HighKr).Should().Be("300–600 kr.");
         DodsboRules.Range(0, 0).Should().Be("");   // nothing worth selling yet
+        vase.Story.Should().StartWith("Slebet rubinglas");
         s.Total().Should().Be((300, 600));   // the doll is "giv væk" - not counted
 
         uses.Own(sag.Id, vase.Id, 450, "Solgt til naboen").Ok.Should().BeTrue();
