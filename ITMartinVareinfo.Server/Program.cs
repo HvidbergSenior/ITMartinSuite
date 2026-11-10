@@ -24,27 +24,26 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Bogshoppen Vareinfo er kameraet til Bogshoppens ting: bøger, Anders And-blade, tegneserier, blade, CD'er, plader, film, spil og Magic-kort.",
-        "Der tages billeder i sessioner: Session 1, 2, 3 … med et navn efter stedet og/eller formålet, fx »Session 3 – Boxit, reol 2«. Så kan tingene findes igen bagefter.",
+        "Du trykker bare på det, du tager billeder af – fx Blade og album. Så er du i dagens session for det, fx »Blade og album – 10. november«. Den laves af sig selv og lukker af sig selv ved midnat.",
         "Mange kan tage billeder på samme tid – hver med sin egen telefon, også i samme session.",
-        "Billederne gemmes bare. Bagefter læses de på Bogshoppen Lager, hvor tingene får en pris.",
+        "Mine varer: billederne læses med det samme på Bogshoppen Lager, tingene får en pris og kommer på bogshoppen.dk af sig selv. Tjek: du får at vide, hvad der er interessant og en pris – kun det, du tager med hjem, bliver dit.",
     ];
     k.HowTo =
     [
         "Log ind med din egen kode (du får den af Martin) – eller med dit nummer, hvis Martin har gjort dig til hjælper i Kunder.",
-        "Tryk Registrér lageret (alle de ting, I har) eller Nye fund (det, der står fx på genbrugspladsen). Så er du i gang – I kan godt være flere på samme tid, hver med jeres egen telefon.",
-        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på knappen og så Tilføj billeder, du allerede har taget – du kan vælge mange på én gang.",
-        "Læg 10-20 ting ud med forsiden op, og tryk 📸 Tag billede. Gentag, til alt har været på et billede. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
-        "Har du taget billederne med telefonens eget kamera? Vælg sessionen, tryk Tilføj billeder, du allerede har taget, og vælg dem alle på én gang.",
-        "Færdig? Tryk ✓ Færdig med billeder – så er du tilbage ved sessionerne. Billederne er gemt, så snart de er sendt.",
+        "Vælg Mine varer til Bogshoppen (jeres egne ting) eller Tjek – er det noget værd? (det, der står fx på genbrugspladsen). Tryk så på det, du tager billeder af: Bøger, Blade og album, Film, Musik, Spil, Rollespil, Magic-kort eller Blandet. Så er du i gang – I kan godt være flere på samme tid, hver med jeres egen telefon.",
+        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på det, de er af, og så Upload billeder fra telefonen – du kan vælge mange på én gang.",
+        "Læg 10-20 ting ud med forsiden op, og tryk Tag billede. Gentag, til alt har været på et billede. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
+        "Færdig? Tryk Færdig med billeder – så er du tilbage ved start. Billederne er gemt, så snart de er sendt.",
         "Vil du bare prøve, mens ingen session er i gang? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
-        "Martin: under Sessioner skriver du sted og/eller formål og trykker Start session – den får selv det næste nummer. Vælg under Til, hvis en session kun er til én hjælper. Tryk Luk, når I er færdige (billederne gemmes). Kun en session uden billeder kan slettes.",
-        "Fund (ting der er til salg et andet sted, fx på genbrugspladsen): under Sessioner skriver du stedet og trykker Start fund – ikke vores endnu. Tag billeder som altid. Lager læser dem med det samme, og du vælger i Lager under Fund, hvad du tager med.",
+        "Martin: vil du sætte en hjælper på et bestemt sted, så skriv stedet under Sessioner, tryk Start session og vælg hjælperen under Til. Den slags sessioner lukker du selv med Luk (billederne gemmes), og du læser dem i Lager med Læs. Strik og Ting lægges ind én ad gangen i Lager.",
+        "Tjek: billederne læses med det samme, og du vælger i Lager under Fund, hvad du tager med (Tog den). Resten bliver aldrig sat til salg.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "Giver kameraet inde i siden ikke et billede, kommer en stor knap »Brug telefonens kamera« frem – billederne kommer med i samme session.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
         "Er en session blevet slettet, mens billeder ventede på telefonen, bliver de på telefonen: vælg en session, og tryk Send dem til denne session.",
     ];
-    k.Version = "2026.11.05";
+    k.Version = "2026.11.10";
     k.ThemeColor = "#f4f6f5";
 });
 

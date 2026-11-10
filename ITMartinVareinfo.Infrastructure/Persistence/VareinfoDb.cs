@@ -16,7 +16,7 @@ public sealed class VareinfoDb(DbContextOptions<VareinfoDb> options) : DbContext
         b.Entity<Scan>().HasIndex(x => x.SessionId);
         b.Entity<Scan>().HasIndex(x => x.SentAt);
         b.Entity<Helper>().HasIndex(x => x.Code).IsUnique();
-        b.Entity<WorkSession>().Ignore(s => s.Open).Ignore(s => s.IsPractice).Ignore(s => s.Title);
+        b.Entity<WorkSession>().Ignore(s => s.Open).Ignore(s => s.IsPractice).Ignore(s => s.IsDaily).Ignore(s => s.Title);
     }
 }
 
@@ -42,6 +42,7 @@ public static class VareinfoDbInitializer
         AddColumn(conn, "Sessions", "HelperId", "INTEGER NULL");
         AddColumn(conn, "Sessions", "HelperName", "TEXT NOT NULL DEFAULT ''");
         AddColumn(conn, "Sessions", "Fund", "INTEGER NOT NULL DEFAULT 0");
+        AddColumn(conn, "Sessions", "Kind", "TEXT NOT NULL DEFAULT ''");   // 2026-11-10 the start-screen button
         // EnsureCreated does nothing when any table exists, so the tables come from the model's own script - on every
         // start, IF NOT EXISTS: a table added later is made in the live file too.
         foreach (var statement in db.Database.GenerateCreateScript().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))

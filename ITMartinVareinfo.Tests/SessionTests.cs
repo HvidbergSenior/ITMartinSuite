@@ -2,6 +2,7 @@ using FluentAssertions;
 using ITMartinVareinfo.Application;
 using ITMartinVareinfo.Domain;
 using ITMartinVareinfo.Infrastructure.Persistence;
+using ITMartinVarer.Contracts;
 using Microsoft.Data.Sqlite;
 using Moq;
 
@@ -33,35 +34,60 @@ public class SessionTests
     [TearDown]
     public void Close() => _conn.Dispose();
 
-    // Two ways in (2026-11-05): "Registrér lageret" / "Nye fund" join today's session of that kind or start it.
+    // One press (2026-11-10): Mine varer / Tjek + a button join today's session of that button, or make it.
     [Test]
     public async Task The_same_button_the_same_day_gives_everyone_the_same_session()
     {
-        var mine = await _sessions.TodayAsync(_martin, fund: false);
-        var hers = await _sessions.TodayAsync(_bertil, fund: false);   // a helper, own phone - no "start a session first"
+        var mine = await _sessions.TodayAsync(_martin, fund: false, "Blade og album");
+        var hers = await _sessions.TodayAsync(_bertil, fund: false, "Blade og album");   // a helper, own phone - no "start a session first"
         hers.Id.Should().Be(mine.Id);
-        mine.Title.Should().Be("Session 1 – Lageret – 20. oktober");
+        mine.Title.Should().Be("Blade og album – 20. oktober");
+        mine.Kind.Should().Be("Blade og album");
         mine.Fund.Should().BeFalse();
     }
 
     [Test]
-    public async Task Lageret_and_Nye_fund_are_two_sessions_and_a_new_day_starts_new_ones()
+    public async Task Each_button_and_Tjek_are_their_own_sessions_and_a_new_day_starts_new_ones()
     {
-        var stock = await _sessions.TodayAsync(_martin, fund: false);
-        var fund = await _sessions.TodayAsync(_bertil, fund: true);
-        fund.Id.Should().NotBe(stock.Id);
-        fund.Fund.Should().BeTrue();
-        fund.Name.Should().StartWith("Nye fund – ");
+        var blade = await _sessions.TodayAsync(_martin, fund: false, "Blade og album");
+        var books = await _sessions.TodayAsync(_martin, fund: false, "Bøger");
+        var check = await _sessions.TodayAsync(_bertil, fund: true, "Blade og album");
+        new[] { blade.Id, books.Id, check.Id }.Should().OnlyHaveUniqueItems();
+        check.Fund.Should().BeTrue();
+        check.Title.Should().Be("Tjek: Blade og album – 20. oktober");
         _clock.Now = _clock.Now.AddDays(1);
-        (await _sessions.TodayAsync(_martin, fund: false)).Id.Should().NotBe(stock.Id);
+        (await _sessions.TodayAsync(_martin, fund: false, "Blade og album")).Id.Should().NotBe(blade.Id);
+    }
+
+    [Test]
+    public async Task Yesterdays_day_sessions_close_by_themselves_and_are_not_on_the_list()
+    {
+        var blade = await _sessions.TodayAsync(_martin, fund: false, "Blade og album");
+        var handMade = await _sessions.StartAsync("Boxit, reol 2");
+        (await _sessions.ChoicesAsync(_martin)).Select(c => c.Id).Should().Equal(handMade.Id);   // today's button session is reached by its button
+        _clock.Now = _clock.Now.AddDays(1);
+        await _sessions.TodayAsync(_martin, fund: false, "Bøger");
+        (await _sessions.OpenForAsync(blade.Id, _martin)).Should().BeNull();
+        (await _sessions.OpenForAsync(handMade.Id, _martin)).Should().NotBeNull();   // Martin's own sessions stay open
+    }
+
+    [Test]
+    public async Task An_unknown_button_is_Blandet_and_a_day_session_goes_to_Lager_to_be_read_at_once()
+    {
+        var s = await _sessions.TodayAsync(_martin, fund: false, "noget andet");
+        s.Kind.Should().Be("Blandet");
+        var boxes = await _sessions.BoxesAsync([s.BoxCode]);
+        boxes.Single().Should().Be(new CapturedBox(s.BoxCode, "Blandet – 20. oktober", false, "Blandet", true));
+        var old = await _sessions.StartAsync("Boxit");
+        (await _sessions.BoxesAsync([old.BoxCode])).Single().ReadNow.Should().BeFalse();
     }
 
     [Test]
     public async Task A_closed_session_is_not_reused_today()
     {
-        var first = await _sessions.TodayAsync(_martin, fund: false);
+        var first = await _sessions.TodayAsync(_martin, fund: false, "Film");
         await _sessions.CloseAsync(first.Id);
-        (await _sessions.TodayAsync(_martin, fund: false)).Id.Should().NotBe(first.Id);
+        (await _sessions.TodayAsync(_martin, fund: false, "Film")).Id.Should().NotBe(first.Id);
     }
 
     [Test]

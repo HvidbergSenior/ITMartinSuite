@@ -143,6 +143,30 @@ public class IntakeTests
         ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Title = "x" }).Usage.Should().Be(Usages.Used);
     }
 
+    // Day sessions (user 2026-11-10: "take pictures of my products -> and on Bogshoppen"): read at once, no Læs, and the reader is
+    // told what the pile mostly is from the button. The things are ordinary stock (they go on bogshoppen.dk by themselves).
+    [Test]
+    public async Task A_day_session_is_read_at_once_with_its_button_as_the_hint()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(31, "K5012", "Rico", 0, At), new CapturedPhoto(32, "K5013", "Rico", 0, At)], [],
+            [new CapturedBox("K5012", "Blade og album – 10. november", Kind: "Blade og album", ReadNow: true),
+             new CapturedBox("K5013", "Blandet – 10. november", Kind: "Blandet", ReadNow: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([F("Jonah Hex 49")]);
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+
+        await intake.FetchAsync();
+        (await intake.ReadWantedAsync()).Should().Be(2, "no Læs needed for a day session");
+        reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), CaptureKinds.HintFor("Blade og album"), It.IsAny<CancellationToken>()), Times.Once);
+        reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), "", It.IsAny<CancellationToken>()), Times.Once);
+        var box = await Boxes.GetOrAddAsync("K5012", default);
+        box.Kind.Should().Be("Blade og album");
+        box.Fund.Should().BeFalse();
+        (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
+    }
+
     // Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): a Fund session's photos are read at
     // once, the things are Fund (not ours, not for sale); Tog den = stock, Færdig = the rest Ikke købt.
     [Test]

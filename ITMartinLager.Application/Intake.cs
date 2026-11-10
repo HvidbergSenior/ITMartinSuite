@@ -31,6 +31,10 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             .GroupBy(x => x.BoxCode).ToDictionary(g => g.Key, g => g.First().Helper);
         var names = (batch.Boxes ?? []).ToDictionary(b => b.BoxCode, b => b.Name);
         var fund = (batch.Boxes ?? []).Where(b => b.Fund).Select(b => b.BoxCode).ToHashSet();
+        var kinds = (batch.Boxes ?? []).Where(b => b.Kind != "").ToDictionary(b => b.BoxCode, b => b.Kind);
+        // Read at once: Fund (the prices are needed while standing there) and the day sessions (user 2026-11-10: "take pictures
+        // of my products -> and on Bogshoppen") - the same one call per photo as Læs, under the same daily cap.
+        var readNow = (batch.Boxes ?? []).Where(b => b.Fund || b.ReadNow).Select(b => b.BoxCode).ToHashSet();
         foreach (var (code, owner) in owners)
         {
             var box = await boxes.GetOrAddAsync(code, ct);
@@ -39,15 +43,14 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             // The name Martin gave the box in a Vareinfo session (2026-10-26) - only while the box has none here.
             if (names.GetValueOrDefault(code) is { Length: > 0 } name && box.Note == "") await boxes.SetNoteAsync(box.Id, name, ct);
             if (fund.Contains(code) && !box.Fund) await boxes.SetFundAsync(box.Id, ct);
+            if (kinds.GetValueOrDefault(code) is { } kind && box.Kind == "") await boxes.SetKindAsync(box.Id, kind, ct);
         }
         await intake.AddAsync(
             batch.Photos.Select(p => new BoxShot { VareinfoId = p.Id, BoxCode = p.BoxCode, Helper = p.Helper, Tiles = p.Tiles, TakenAt = p.TakenAt }),
             batch.Scans.Select(s => new BoxScan { VareinfoId = s.Id, BoxCode = s.BoxCode, Helper = s.Helper, Code = s.Code, Quantity = s.Quantity, TakenAt = s.TakenAt }),
             ct);
         await vareinfo.ReceivedAsync(new CaptureReceived(batch.Photos.Select(p => p.Id).ToList(), batch.Scans.Select(s => s.Id).ToList()), ct);
-        // A Fund session is read at once (user 2026-11-03: "take picture, search, find interesting, take the product") -
-        // the same one call per photo as Læs, under the same daily cap; the prices are needed while standing there.
-        foreach (var code in fund) await intake.WantReadAsync(code, ct);
+        foreach (var code in readNow) await intake.WantReadAsync(code, ct);
         return batch.Photos.Count + batch.Scans.Count;
     }
 
@@ -62,6 +65,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
     {
         var done = await LookUpScansAsync(ct);
         if (!reader.Enabled) return done;
+        var hints = new Dictionary<string, string>();
         foreach (var shot in await intake.WantedShotsAsync(ReadPerRound, ct))
         {
             var now = clock.GetUtcNow().UtcDateTime;
@@ -74,7 +78,10 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             var closeUps = new List<byte[]>();
             for (var n = 0; n < shot.Tiles; n++)
                 if (await vareinfo.PhotoAsync(shot.VareinfoId, n, ct) is { } t) closeUps.Add(t);
-            var found = await reader.ReadPileAsync(jpeg, closeUps, "", ct);
+            // What the pile mostly is - the button the photo was taken under (2026-11-10); "" = the reader decides per thing.
+            if (!hints.TryGetValue(shot.BoxCode, out var hint))
+                hints[shot.BoxCode] = hint = CaptureKinds.HintFor((await boxes.GetOrAddAsync(shot.BoxCode, ct))?.Kind);
+            var found = await reader.ReadPileAsync(jpeg, closeUps, hint, ct);
             if (found.Count > 0) await SaveInBoxAsync(shot.BoxCode, shot.VareinfoId, found, ct, jpeg);
             shot.Read(found.Count, now);
             await intake.UpdateAsync([shot], ct);

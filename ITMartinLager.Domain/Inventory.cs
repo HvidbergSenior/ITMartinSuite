@@ -74,6 +74,9 @@ public sealed class Box
     public string Note { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     /// <summary>A Fund session's box (Vareinfo, 2026-11-03): its things are not ours yet.</summary>
+    /// <summary>The Vareinfo button the photos were taken under ("Blade og album", "Blandet") - the reader is told what the
+    /// pile mostly is (2026-11-10). "" = an old or hand-made box.</summary>
+    public string Kind { get; set; } = "";
     public bool Fund { get; set; }
     /// <summary>Which round of scanning the box belongs to (Iterations; 0 = before 2026-11-03, set to 1 then).</summary>
     public int Iteration { get; set; }
