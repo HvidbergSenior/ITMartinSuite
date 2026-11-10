@@ -13,9 +13,11 @@ public interface IHuskStore
 public interface IPushSender
 {
     string PublicKey { get; }
-    /// <summary>False when the phone is gone (it is then removed).</summary>
-    Task<bool> SendAsync(HuskSubscriber to, PushMessage msg, CancellationToken ct = default);
+    /// <summary>Gone = the phone said no for good (the caller removes it).</summary>
+    Task<PushResult> SendAsync(HuskSubscriber to, PushMessage msg, CancellationToken ct = default);
 }
+
+public enum PushResult { Sent, Gone, Failed }
 
 public sealed record PushSignup(string Endpoint, string P256dh, string Auth);
 
@@ -113,7 +115,7 @@ public sealed class HuskUseCases(IHuskStore store, IPushSender push, Func<DateTi
 
     public async Task<bool> TestAsync(string endpoint, CancellationToken ct = default) =>
         store.Get().Subscribers.FirstOrDefault(x => x.Endpoint == endpoint) is { } s
-        && await push.SendAsync(s, new PushMessage("Husk virker", "Sådan ser en påmindelse ud. Du får dem aftenen før, om morgenen og en time før – og for bolde med frist: aftenen før og om morgenen på dagen."), ct);
+        && await SendAsync(s, new PushMessage("Husk virker", "Sådan ser en påmindelse ud. Du får dem aftenen før, om morgenen og en time før – og for bolde med frist: aftenen før og om morgenen på dagen."), ct);
 
     /// <summary>Every minute: sends what is due to every phone and remembers it, so nothing is sent twice.</summary>
     public async Task<int> TickAsync(CancellationToken ct = default)
@@ -128,16 +130,31 @@ public sealed class HuskUseCases(IHuskStore store, IPushSender push, Func<DateTi
         store.Update(x => x.Sent.AddRange(due.Select(m => m.Key)));
         foreach (var (_, msg) in due)
             foreach (var s in store.Get().Subscribers.ToList())
-                await push.SendAsync(s, msg, ct);
+                await SendAsync(s, msg, ct);
         store.Update(x => x.Prune(now()));
         return due.Count;
+    }
+
+    /// <summary>One message to one phone; a phone that is gone is removed from THIS person's list.</summary>
+    private async Task<bool> SendAsync(HuskSubscriber s, PushMessage msg, CancellationToken ct)
+    {
+        var r = await push.SendAsync(s, msg, ct);
+        if (r == PushResult.Gone) store.Update(d => d.Subscribers.RemoveAll(x => x.Id == s.Id));
+        else if (r == PushResult.Failed) store.Update(d => { if (d.Subscribers.FirstOrDefault(x => x.Id == s.Id) is { } sub) sub.Failures++; });
+        return r == PushResult.Sent;
     }
 }
 
 public static class DependencyInjection
 {
+    /// <summary>One Husk per person: the use cases a page or request gets are those of the person in <see cref="HuskPerson"/>.</summary>
     public static IServiceCollection AddHuskApplication(this IServiceCollection services) =>
-        services.AddSingleton(sp => new HuskUseCases(sp.GetRequiredService<IHuskStore>(), sp.GetRequiredService<IPushSender>(), () => DkTime.Now))
-            .AddSingleton(sp => new BallUseCases(sp.GetRequiredService<IHuskStore>(), () => DkTime.Now))
-            .AddSingleton(sp => new JobUseCases(sp.GetRequiredService<IHuskStore>(), () => DkTime.Now));
+        services.AddSingleton(sp => new HuskSpaces(sp.GetRequiredService<IHuskStoreFactory>(), sp.GetRequiredService<IPushSender>(), () => DkTime.Now))
+            .AddScoped<HuskPerson>()
+            .AddScoped(sp => Space(sp).Husk)
+            .AddScoped(sp => Space(sp).Balls)
+            .AddScoped(sp => Space(sp).Jobs);
+
+    private static HuskSpace Space(IServiceProvider sp) =>
+        sp.GetRequiredService<HuskSpaces>().For(sp.GetRequiredService<HuskPerson>().Id);
 }

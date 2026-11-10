@@ -1,6 +1,19 @@
+@inject HuskPerson Who
+
+@* One Husk per person: the person from App.razor is set before any page asks for its list (MainLayout shows only
+   /om and /hjaelp to someone who is not logged in). *@
 <Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    [Parameter] public string Person { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        if (Who.Id.Length == 0 && HuskPeople.IsValid(Person)) Who.Set(Person);
+    }
+}

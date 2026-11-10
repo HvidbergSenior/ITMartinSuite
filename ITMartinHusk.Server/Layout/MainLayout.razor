@@ -1,16 +1,48 @@
 @inherits LayoutComponentBase
+@inject HuskPerson Who
+@inject NavigationManager Nav
 
 @* The same frame as ElPriser (the reference app): KolibriHeader with the tabs, k-main/k-content, KolibriFooter.
-   The active tab is filled, not only coloured. *@
+   The active tab is filled, not only coloured. Job is Martin's own (a-kasse); everyone else has I dag, Bolde, Tilføj, Alt. *@
 <KolibriHeader>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">I dag</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/bolde">Bolde</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/tilfoej">Tilføj</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/alt">Alt</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/job">Job</NavLink>
+    @if (Who.Id.Length > 0)
+    {
+        <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">I dag</NavLink>
+        <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/bolde">Bolde</NavLink>
+        <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/tilfoej">Tilføj</NavLink>
+        <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/alt">Alt</NavLink>
+        @if (Who.IsMartin) { <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/job">Job</NavLink> }
+    }
+    else
+    {
+        <button class="k-btn k-btn-ghost k-btn-sm" type="button" @onclick='() => Nav.NavigateTo("/login", forceLoad: true)'>Log ind</button>
+    }
     <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
 </KolibriHeader>
 <div class="k-main"><div class="k-content">
-    @Body
+    @if (Who.Id.Length > 0 || OpenPage)
+    {
+        @Body
+    }
+    else
+    {
+        <section class="k-card" data-nofold>
+            <h1 class="k-card-title">Log ind</h1>
+            <p>Husk viser din egen liste. Log ind med dit kundenummer – eller se et eksempel.</p>
+            <button class="k-btn k-btn-primary" @onclick='() => Nav.NavigateTo("/login", forceLoad: true)'>Log ind</button>
+        </section>
+    }
 </div></div>
 <KolibriFooter />
+
+@code {
+    private bool OpenPage
+    {
+        get
+        {
+            var path = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].TrimEnd('/');
+            if (path.StartsWith("/kolibri/", StringComparison.OrdinalIgnoreCase)) path = path["/kolibri".Length..];
+            return path.Equals("/om", StringComparison.OrdinalIgnoreCase) || path.Equals("/hjaelp", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+}

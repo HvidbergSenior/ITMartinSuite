@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ITMartinHusk.Domain\ITMartinHusk.Domain.csproj" />
     <ProjectReference Include="..\ITMartinHusk.Application\ITMartinHusk.Application.csproj" />
+    <ProjectReference Include="..\ITMartinHusk.Infrastructure\ITMartinHusk.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
