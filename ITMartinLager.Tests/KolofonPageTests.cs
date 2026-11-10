@@ -77,4 +77,18 @@ public class KolofonPageTests
         new Item { Id = 9, Kind = Kinds.AndersAnd, Title = "Anders And", Series = "Anders And & Co.", Number = "12" }
             .LooksLike(F("Anders And", "Anders And & Co.", "13")).Should().BeFalse("another number is another blad");
     }
+
+    // User's 3rd test 2026-11-10: a letter or two read wrong on another photo of the same pile.
+    [Test]
+    public void A_letter_or_two_read_wrong_is_the_same_thing_but_never_another_number()
+    {
+        static Found F(string title, string artist = "") => new(Kinds.Bog, title, artist, "", "", null, "", "God", 1, 0.6, "");
+        new Item { Id = 1, Kind = Kinds.Bog, Title = "Sallies historier", Artist = "Kim Fupz Aakeson" }
+            .LooksLike(F("Sallie historier", "Kim Fupz Aakeson")).Should().BeTrue("1 letter of 16");
+        new Item { Id = 2, Kind = Kinds.Tegneserie, Title = "Flip & Flop – Elasticina" }
+            .LooksLike(F("Flip & Flop – Elastiena")).Should().BeTrue("2 letters of 17");
+        new Item { Id = 3, Kind = Kinds.Tegneserie, Title = "Lucky Luke 12" }.LooksLike(F("Lucky Luke 13")).Should().BeFalse("a digit differs");
+        new Item { Id = 4, Kind = Kinds.Bog, Title = "Mort" }.LooksLike(F("Mord")).Should().BeFalse("too short to guess");
+        new Item { Id = 5, Kind = Kinds.Tegneserie, Title = "Asterix og goterne" }.LooksLike(F("Asterix og briterne")).Should().BeFalse();
+    }
 }

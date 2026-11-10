@@ -208,7 +208,10 @@ public sealed class Item
         // series + title is the same, or one title ends with the other (at least 8 letters).
         var withSeries = TitleKey(Series + Title) is var sa && TitleKey(f.Series + f.Title) is var sb && (sa == b || sb == a || sa == sb);
         var suffix = (a.EndsWith(b) || b.EndsWith(a)) && Math.Min(a.Length, b.Length) >= 8;
-        var titles = a == b || withSeries || suffix || (prefix && Math.Min(a.Length, b.Length) >= 8)
+        // A letter or two read wrong (user's test 2026-11-10: "Sallies historier" / "Sallie historier", "Elasticina" / "Elastiena"):
+        // 1 letter from 8 letters, 2 from 14 - never when a digit differs ("Lucky Luke 12" / "Lucky Luke 13" are two things).
+        var misread = Digits(a) == Digits(b) && Distance(a, b) <= (Math.Min(a.Length, b.Length) >= 14 ? 2 : Math.Min(a.Length, b.Length) >= 8 ? 1 : 0);
+        var titles = a == b || withSeries || suffix || misread || (prefix && Math.Min(a.Length, b.Length) >= 8)
             || (prefix && Math.Min(a.Length, b.Length) >= 4 && SameAuthor(Artist, f.Artist));
         return titles
             && (Number.Trim() == "" || f.Number.Trim() == "" || Eq(Number, f.Number))
@@ -237,6 +240,24 @@ public sealed class Item
             .Select(w => new string(w.Where(char.IsLetter).ToArray())).Where(w => w.Length >= 3).ToHashSet();
         var x = Words(a);
         return x.Count > 0 && Words(b).Overlaps(x);
+    }
+
+    private static string Digits(string key) => new(key.Where(char.IsDigit).ToArray());
+
+    /// <summary>Letters to change, add or remove to get from one title key to the other (Levenshtein; the keys are short).</summary>
+    private static int Distance(string a, string b)
+    {
+        if (Math.Abs(a.Length - b.Length) > 2) return 3;   // more than LooksLike ever allows
+        var prev = Enumerable.Range(0, b.Length + 1).ToArray();
+        for (var i = 1; i <= a.Length; i++)
+        {
+            var cur = new int[b.Length + 1];
+            cur[0] = i;
+            for (var j = 1; j <= b.Length; j++)
+                cur[j] = Math.Min(Math.Min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+            prev = cur;
+        }
+        return prev[b.Length];
     }
 
     public static string TitleKey(string title) => new(title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
