@@ -61,4 +61,20 @@ public class KolofonPageTests
         mitLiv.LooksLike(new Found(Kinds.Bog, "Mit liv – Tiderne Skifter", "Karen Blixen", "", "", null, "", "God", 1, 0.9, "")).Should().BeFalse();
         mitLiv.LooksLike(new Found(Kinds.Bog, "Mit liv", "", "", "", null, "", "God", 1, 0.9, "")).Should().BeTrue("the same title");
     }
+
+    // User's test 2026-11-10: the same book on two photos of one pile, read once with the series in the title and once with
+    // the series apart, became two things.
+    [Test]
+    public void The_series_in_the_title_or_apart_is_the_same_thing()
+    {
+        static Found F(string title, string series = "", string number = "") => new(Kinds.Bog, title, "", series, number, null, "", "God", 1, 0.8, "");
+        var apart = new Item { Id = 7, Kind = Kinds.Bog, Title = "Anker på fryseren", Series = "Morgenthalers Dyrefabler" };
+        apart.LooksLike(F("Morgenthalers dyrefabler – Anker på fryseren")).Should().BeTrue("series + title = the other title");
+        var inTitle = new Item { Id = 8, Kind = Kinds.Bog, Title = "Morgenthalers dyrefabler – Anker på fryseren" };
+        inTitle.LooksLike(F("Anker på fryseren", "Morgenthalers Dyrefabler")).Should().BeTrue();
+        inTitle.LooksLike(F("Anker på fryseren")).Should().BeTrue("one title ends with the other (8+ letters)");
+        apart.LooksLike(F("Anker")).Should().BeFalse("too short to be sure");
+        new Item { Id = 9, Kind = Kinds.AndersAnd, Title = "Anders And", Series = "Anders And & Co.", Number = "12" }
+            .LooksLike(F("Anders And", "Anders And & Co.", "13")).Should().BeFalse("another number is another blad");
+    }
 }

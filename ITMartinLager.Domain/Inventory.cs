@@ -199,11 +199,17 @@ public sealed class Item
     {
         if (Barcode != "" && f.Barcode != "" && Barcode == f.Barcode) return true;
         string a = TitleKey(Title), b = TitleKey(f.Title);
+        if (a == "" || b == "") return false;
         // A short title that starts the other one counts too when the author is the same (Rico's test 2026-11-03: "Mit liv" and
         // "Mit liv – Tiderne Skifter" by Jørn Jønke / Jønke became two things).
-        var prefix = a != "" && b != "" && (a.StartsWith(b) || b.StartsWith(a));
-        var titles = a != "" && b != "" && (a == b || (prefix && Math.Min(a.Length, b.Length) >= 8)
-            || (prefix && Math.Min(a.Length, b.Length) >= 4 && SameAuthor(Artist, f.Artist)));
+        var prefix = a.StartsWith(b) || b.StartsWith(a);
+        // The series in front of the title, read once into the title and once into the series (user's test 2026-11-10: "Morgenthalers
+        // dyrefabler – Anker på fryseren" and "Anker på fryseren" in series "Morgenthalers Dyrefabler" became two things): the
+        // series + title is the same, or one title ends with the other (at least 8 letters).
+        var withSeries = TitleKey(Series + Title) is var sa && TitleKey(f.Series + f.Title) is var sb && (sa == b || sb == a || sa == sb);
+        var suffix = (a.EndsWith(b) || b.EndsWith(a)) && Math.Min(a.Length, b.Length) >= 8;
+        var titles = a == b || withSeries || suffix || (prefix && Math.Min(a.Length, b.Length) >= 8)
+            || (prefix && Math.Min(a.Length, b.Length) >= 4 && SameAuthor(Artist, f.Artist));
         return titles
             && (Number.Trim() == "" || f.Number.Trim() == "" || Eq(Number, f.Number))
             && (Year is null || f.Year is null || Year == f.Year);
