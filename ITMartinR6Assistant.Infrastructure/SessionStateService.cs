@@ -120,13 +120,32 @@ public class SessionStateService
         NotifyStateChanged();
     }
 
-    public bool IsSectionOn(string key) => _team.ExtraSections.Contains(key, StringComparer.OrdinalIgnoreCase);
+    // Shown to the other players? (the owner sees everything regardless - see CoachService.IsOwner)
+    public bool IsSectionOn(string key)
+    {
+        if (_team.Visibility.TryGetValue(key, out var on)) return on;
+        if (_team.ExtraSections.Contains(key, StringComparer.OrdinalIgnoreCase)) return true;
+        return !AppSection.HiddenByDefault.Contains(key);
+    }
 
     public void ToggleSection(string key)
     {
         lock (_lock)
         {
-            if (_team.ExtraSections.RemoveAll(k => k.Equals(key, StringComparison.OrdinalIgnoreCase)) == 0) _team.ExtraSections.Add(key);
+            _team.Visibility[key] = !IsSectionOn(key);
+            SaveTeamSettings();
+        }
+        NotifyStateChanged();
+    }
+
+    public bool IsOwnerDevice(string? deviceId) => deviceId is not null && _team.OwnerDevices.Contains(deviceId);
+
+    public void SetOwnerDevice(string deviceId, bool owner)
+    {
+        lock (_lock)
+        {
+            _team.OwnerDevices.Remove(deviceId);
+            if (owner) _team.OwnerDevices.Add(deviceId);
             SaveTeamSettings();
         }
         NotifyStateChanged();
@@ -209,6 +228,21 @@ public class SessionStateService
         }
         NotifyStateChanged();
         return stored;
+    }
+
+    // Owner's per-match picks for the others (Domain ShareSelection).
+    public ShareSelection Shared { get; } = new();
+
+    public void ToggleShownMap(string map)
+    {
+        lock (_lock) Shared.ToggleMap(map);
+        NotifyStateChanged();
+    }
+
+    public void ToggleShownOp(string op)
+    {
+        lock (_lock) Shared.ToggleOperator(op);
+        NotifyStateChanged();
     }
 
     public void ToggleMapBan(string map)
@@ -537,6 +571,7 @@ public class SessionStateService
             Side = "Attack";
             Bans.Clear();
             MapBans.Clear();
+            Shared.Clear();
             ActivePlan = null;
             _rounds.Clear();
             Round = 1;

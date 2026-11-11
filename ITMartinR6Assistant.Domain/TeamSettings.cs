@@ -9,8 +9,14 @@ public class TeamSettings
 {
     public bool ShowBanners { get; set; } = true;
 
-    // Extra sections Admin has switched on (AppSection keys); empty = only maps + statistics.
+    // Old on-list (2026-10-14), still read: keys here count as shown unless Visibility says otherwise.
     public List<string> ExtraSections { get; set; } = new();
+
+    // What the other players see: box/page key -> shown. Missing = AppSection default. Only the owner changes it.
+    public Dictionary<string, bool> Visibility { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    // Devices (browser ids) unlocked as owner with the PIN on /admin.
+    public List<string> OwnerDevices { get; set; } = new();
 
     // Standing map-ban plan: map name -> "ban" (vote to ban it) or "play"
     // (vote to keep it). In ranked 5 maps are offered and every teammate has

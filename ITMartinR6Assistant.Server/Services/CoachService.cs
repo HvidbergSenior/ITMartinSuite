@@ -26,6 +26,26 @@ public class CoachService
     public bool Synced => _session.CoachId is not null;
     public bool CanControl => !Synced || IsCoach;
 
+    // Owner = the one who chooses what the others see (user 2026-11-11). Unlocked per device with the PIN on /admin.
+    public bool IsOwner => _session.IsOwnerDevice(_deviceId);
+    public bool Loaded => _deviceId is not null;
+
+    public bool TryUnlockOwner(string pin)
+    {
+        var expected = _config["R6:CoachPin"] is { Length: > 0 } p ? p : _config["R6:UpdatePin"];
+        if (_deviceId is null || string.IsNullOrEmpty(expected) || pin.Trim() != expected) return false;
+        _session.SetOwnerDevice(_deviceId, true);
+        return true;
+    }
+
+    public void LockOwner()
+    {
+        if (_deviceId is not null) _session.SetOwnerDevice(_deviceId, false);
+    }
+
+    // Shown on this device: owner sees all, others only what the owner switched on.
+    public bool CanSee(string key) => IsOwner || _session.IsSectionOn(key);
+
     public Task EnsureLoadedAsync() => _loadTask ??= LoadAsync();
 
     private async Task LoadAsync()

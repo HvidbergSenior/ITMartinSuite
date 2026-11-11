@@ -1,18 +1,29 @@
 namespace ITMartinR6Assistant.Domain;
 
-// The app shows only maps + statistics by default (user 2026-10-14); Admin can switch these extra sections on for the team.
+// What the OTHER players see (user 2026-11-11: "I will choose what can be seen by others", "frontpage simple overview for
+// others", "statistikker mm should be clickable by me"). The owner (device unlocked with the PIN on /admin) always sees
+// everything and switches each box (Fold Key) and menu page on/off for the others. Unknown keys are shown by default.
 public static class AppSection
 {
+    // Menu pages
+    public const string Maps = "maps";
     public const string Operators = "operatorer";
     public const string Weapons = "vaaben";
-    public const string Loadouts = "loadouts";
-    public const string PcCheck = "pc";
 
-    public static readonly (string Key, string Label)[] Extras =
+    // Kamp boxes that need the Fold key outside the Fold
+    public const string Loadouts = "k-loadouts";
+    public const string PcCheck = "k-pc";
+
+    public static readonly (string Key, string Label)[] Pages =
     {
+        (Maps, "Maps"),
         (Operators, "Operatører"),
         (Weapons, "Våben"),
-        (Loadouts, "Loadouts"),
-        (PcCheck, "PC-tjek og Siege-indstillinger"),
+    };
+
+    // Simple front page for the others: map, map-ban, bans/good ops and sites. Statistics only when the owner shows them.
+    public static readonly HashSet<string> HiddenByDefault = new(StringComparer.OrdinalIgnoreCase)
+    {
+        Operators, Weapons, Loadouts, PcCheck, "k-stats", "k-match", "k-send",
     };
 }
