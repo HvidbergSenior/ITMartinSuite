@@ -75,29 +75,28 @@
                     @foreach (var (title, side, set) in new[] { ("Ban en defender (når vi angriber)", "Defense", defenders), ("Ban en attacker (når vi forsvarer)", "Attack", attackers) })
                     {
                         // Owner sees all and shares with "Vis for andre"; the others only see the shared operators (user 2026-11-11).
-                        var proBans = Session.Shared.VisibleOperators(pms?.OperatorBanPct.Where(kv => set.Contains(kv.Key)).OrderByDescending(kv => kv.Value).Take(6)
-                            ?? Enumerable.Empty<KeyValuePair<string, double>>(), kv => kv.Key, Coach.IsOwner).ToList();
+                        var proBans = Session.Shared.VisibleOperators(MapBanAdvice.For(opMap, pms, set), b => b.Operator, Coach.IsOwner).ToList();
                         var theyKill = Session.Shared.VisibleOperators(ReplayStats.Threats(mapReplays, opMap.Name).Where(t => set.Contains(t.Operator)).Take(4),
                             t => t.Operator, Coach.IsOwner).ToList();
                         <div class="info-box info-box-bad">
                             <div class="info-box-title">@title</div>
                             @if (proBans.Count > 0)
                             {
-                                <div class="small muted">Pro league banner på @opMap.Name:</div>
+                                <div class="small muted">@(proBans[0].FromPro ? $"Pro league banner på {opMap.Name}:" : $"Foreslået på {opMap.Name}s sites (ingen pro-data):")</div>
                                 <ol class="rank-list rank-list-why">
                                     @foreach (var kv in proBans)
                                     {
-                                        var op = _gameData.Operators.FirstOrDefault(o => o.Name.Equals(kv.Key, StringComparison.OrdinalIgnoreCase));
+                                        var op = _gameData.Operators.FirstOrDefault(o => o.Name.Equals(kv.Operator, StringComparison.OrdinalIgnoreCase));
                                         <li>
-                                            <span class="rank-name">@kv.Key</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(kv.Value, proBans[0].Value)%"></span></span><b>@kv.Value.ToString("0") %</b>
+                                            <span class="rank-name">@kv.Operator</span><span class="rank-bar rank-bar-bad"><span style="width:@Bar(kv.Score, proBans.Max(x => x.Score))%"></span></span><b>@kv.Label</b>
                                             @if (op is { Threat.Length: > 0 }) { <div class="rank-why">@op.Threat</div> }
-                                            @if (Coach.IsOwner) { var opName = kv.Key; <button class="share-btn @(Session.Shared.IsOperatorShown(opName) ? "share-btn-on" : "")" @onclick="() => Session.ToggleShownOp(opName)">@(Session.Shared.IsOperatorShown(opName) ? "Vises for andre" : "Vis for andre")</button> }
+                                            @if (Coach.IsOwner) { var opName = kv.Operator; <button class="share-btn @(Session.Shared.IsOperatorShown(opName) ? "share-btn-on" : "")" @onclick="() => Session.ToggleShownOp(opName)">@(Session.Shared.IsOperatorShown(opName) ? "Vises for andre" : "Vis for andre")</button> }
                                         </li>
                                     }
                                 </ol>
                             }
                             else if (!Coach.IsOwner) { <div class="small muted">Holdlederen har ikke valgt bans endnu.</div> }
-                            else { <div class="small muted">Ingen pro-data for @opMap.Name.</div> }
+                            else { <div class="small muted">Ingen ban-forslag for @opMap.Name endnu.</div> }
                             <div class="small muted" style="margin-top:6px">Dræber os mest her (replays):</div>
                             @if (theyKill.Count == 0) { <div class="small muted">Ingen replays fra @opMap.Name endnu.</div> }
                             else

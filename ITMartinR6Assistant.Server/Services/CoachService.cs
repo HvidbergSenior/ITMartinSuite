@@ -16,18 +16,28 @@ public class CoachService
     private Task? _loadTask;
     private string? _deviceId;
 
-    public CoachService(IJSRuntime js, IConfiguration config, SessionStateService session, PlayerIdentityService identity)
+    private const string DeviceCookie = "r6device";
+
+    public CoachService(IJSRuntime js, IConfiguration config, SessionStateService session, PlayerIdentityService identity,
+        IHttpContextAccessor http)
     {
         _js = js; _config = config; _session = session; _identity = identity;
+        // The device id also lives in a cookie, so the server knows the owner from the very first render (prerender and
+        // circuit start) - without it the owner saw the player view for 1-3 s on every page load (user 2026-11-11:
+        // "when choosing tab I am not admin anymore").
+        _cookieId = http.HttpContext?.Request.Cookies[DeviceCookie];
     }
 
-    public bool IsCoach => _deviceId is not null && _session.CoachId == _deviceId;
+    private readonly string? _cookieId;
+    private string? DeviceId => _deviceId ?? _cookieId;
+
+    public bool IsCoach => DeviceId is not null && _session.CoachId == DeviceId;
     // Someone is coach: the phase screen follows the coach's choices.
     public bool Synced => _session.CoachId is not null;
     public bool CanControl => !Synced || IsCoach;
 
     // Owner = the one who chooses what the others see (user 2026-11-11). Unlocked per device with the PIN on /admin.
-    public bool IsOwner => _session.IsOwnerDevice(_deviceId);
+    public bool IsOwner => _session.IsOwnerDevice(DeviceId);
     public bool Loaded => _deviceId is not null;
 
     public bool TryUnlockOwner(string pin)
@@ -56,6 +66,8 @@ public class CoachService
             _deviceId = Guid.NewGuid().ToString("N");
             await _js.InvokeVoidAsync("localStorage.setItem", DeviceKey, _deviceId);
         }
+        if (_cookieId != _deviceId)
+            await _js.InvokeVoidAsync("eval", $"document.cookie='{DeviceCookie}={_deviceId}; path=/; max-age=31536000; samesite=lax; secure'");
     }
 
     public bool TryClaim(string pin)
