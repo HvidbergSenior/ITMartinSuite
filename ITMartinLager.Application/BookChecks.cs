@@ -185,6 +185,13 @@ public sealed class BookCheckUseCases(
         links.Add(("eBay solgte", $"https://www.ebay.com/sch/i.html?_nkw={Uri.EscapeDataString(query)}&LH_Sold=1&LH_Complete=1"));
         links.Add(("antikvariat.net", $"https://www.antikvariat.net/da/actions/biblio-search/default/search?author={Uri.EscapeDataString(b.Author)}&title={Uri.EscapeDataString(b.Title)}&currency=DKK"));
         links.Add(("Bogbasen", $"https://bogbasen.dk/search?forfatter={Uri.EscapeDataString(b.Author)}&titel={Uri.EscapeDataString(b.Title)}"));
+        // 2026-11-12 (user wanted Bogreolen + Plusbog as price sources): Bogreolen.dk has closed and sends people to Gucca
+        // (used books); Plusbog sells new books (a ceiling, like Bog & idé). Both forbid automatic searches in robots.txt,
+        // so they are buttons for a person only - never read by the price hunt. Plusbog's search is an overlay on the
+        // front page with no address of its own, so its button is a Google search on plusbog.dk.
+        var isbnOrQuery = Uri.EscapeDataString(b.Barcode != "" ? b.Barcode : query);
+        links.Add(("Gucca", $"https://www.gucca.dk/soegning?search={isbnOrQuery}"));
+        links.Add(("Plusbog (ny)", $"https://www.google.com/search?q={Uri.EscapeDataString("site:plusbog.dk " + query)}"));
         return links;
     }
 }
