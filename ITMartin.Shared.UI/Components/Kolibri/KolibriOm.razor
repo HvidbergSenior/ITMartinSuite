@@ -8,7 +8,13 @@
     @if (!string.IsNullOrWhiteSpace(Info.KolibriName)) { <span class="k-tag">@Info.KolibriName</span> }
     <h1 style="margin-top:8px">@Info.Name</h1>
     @if (!string.IsNullOrWhiteSpace(Info.Tagline)) { <p class="k-muted" style="font-size:19px">@Info.Tagline</p> }
-    @foreach (var p in Info.About) { <p>@p</p> }
+    @* "Formål" as its own heading on every app (user 2026-11-12: "There should be an instructions and Formål on each"). *@
+    @if (Info.About.Length > 0)
+    {
+        <div class="k-card"><div class="k-card-title">@Info.T("Formål", "Purpose")</div>
+            @foreach (var p in Info.About) { <p style="margin:6px 0">@p</p> }
+        </div>
+    }
     @if (Info.HowTo.Length > 0)
     {
         <div class="k-card"><div class="k-card-title">@Info.T("Sådan bruger du den", "How to use it")</div>

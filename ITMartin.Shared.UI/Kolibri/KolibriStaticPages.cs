@@ -46,11 +46,17 @@ public static class KolibriStaticPages
         var sb = new StringBuilder();
         sb.Append($"""<section class="k-card" data-nofold><h1 class="k-card-title">{E(info.Name)}</h1>""");
         if (info.Tagline.Length > 0) sb.Append($"<p><b>{E(info.Tagline)}</b></p>");
-        foreach (var p in info.About) sb.Append($"<p>{E(p)}</p>");
         sb.Append("</section>");
+        // "Formål" + "Sådan bruger du den" on every app, same words as the Blazor /om (user 2026-11-12).
+        if (info.About.Length > 0)
+        {
+            sb.Append($"""<section class="k-card" data-nofold><h2 class="k-card-title">{E(info.T("Formål", "Purpose"))}</h2>""");
+            foreach (var p in info.About) sb.Append($"<p>{E(p)}</p>");
+            sb.Append("</section>");
+        }
         if (info.HowTo.Length > 0)
         {
-            sb.Append($"""<section class="k-card" data-nofold><h2 class="k-card-title">{E(info.T("Sådan gør du", "How to"))}</h2><ol>""");
+            sb.Append($"""<section class="k-card" data-nofold><h2 class="k-card-title">{E(info.T("Sådan bruger du den", "How to use it"))}</h2><ol>""");
             foreach (var s in info.HowTo) sb.Append($"<li>{E(s)}</li>");
             sb.Append("</ol></section>");
         }
