@@ -88,12 +88,23 @@ public sealed class HuskStoreFactory(HuskInfraOptions o) : IHuskStoreFactory
 
 // Kunder on the photoserver (Kunder__Url / Kunder__ApiKey, as ElPriser) answers whether a kundenummer opens Husk.
 // Husk must be in Kunder's free apps and switched on.
+// The client remembers a yes for 10 minutes, so a new "Husk: betalt" tick in Kunder shows within 10 minutes.
 internal sealed class KunderCodes(KunderClient kunder) : ICustomerCodes
 {
-    public async Task<(bool Ok, string Error)> CheckAsync(string code, CancellationToken ct = default)
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> LastPaid = new();
+
+    public async Task<(bool Ok, string Error, bool Paid)> CheckAsync(string code, CancellationToken ct = default)
     {
         var r = await kunder.CheckCodeAsync(code, "Husk", ct);
-        return (r.Ok, r.Error ?? "");
+        if (r.Ok) LastPaid[code] = r.Paid;
+        return (r.Ok, r.Error ?? "", r.Ok && r.Paid);
+    }
+
+    public async Task<bool> PaidAsync(string code, CancellationToken ct = default)
+    {
+        var r = await kunder.CheckCodeAsync(code, "Husk", ct);
+        if (r.Ok) return LastPaid[code] = r.Paid;
+        return LastPaid.TryGetValue(code, out var last) && last;   // Kunder slow or down: the last answer stands
     }
 }
 

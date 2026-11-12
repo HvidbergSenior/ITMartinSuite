@@ -45,8 +45,9 @@ public static class KunderRoles
     /// mark them "interessant"): ok for every customer whose kundenummer works - not one of the free apps.</summary>
     public const string Market = "Bogshoppen";
 }
-/// <summary>Ok, or Error (Danish, for the person).</summary>
-public sealed record CodeCheckResponse(bool Ok, string Name = "", string Error = "");
+/// <summary>Ok, or Error (Danish, for the person). Paid = Martin has ticked this app as paid for them (2026-11-12: the free
+/// part works for every kundenummer, the paid part - fx Min Husk - only with the tick).</summary>
+public sealed record CodeCheckResponse(bool Ok, string Name = "", string Error = "", bool Paid = false);
 
 /// <summary>Who the customer said yes to. One yes to ITMartin covers ALL free apps (user 2026-10-21:
 /// "customer should sign up for all free apps in one go"); Bogshoppen (Martin and Rico) is its own yes.</summary>

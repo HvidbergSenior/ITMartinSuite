@@ -23,6 +23,7 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
+        "Gratis og Min Husk: med dit kundenummer får du gratis I dag (i dag og i morgen, én ting ad gangen), Tilføj og Ny post. Min Husk giver også Bolde i luften og Alt. Intet abonnement – du betaler kun for den tid, du vil have det. Skriv til Martin, så slår han det til.",
         "Log ind: skriv dit kundenummer (8 cifre – det står i mailen fra Martin) og tryk Åbn min Husk. Telefonen husker dig bagefter. Log ud nederst på forsiden.",
         "Se et eksempel: tryk Se et eksempel på login-siden. Så ser du en Husk med opdigtede ting og kan prøve alle knapperne. Tryk Luk eksemplet, når du er færdig.",
         "Forsiden viser kun den næste ting. Tryk \"Jeg er klar\", når du er klar, og \"Jeg kom\", når du har været der.",
@@ -37,7 +38,7 @@ builder.Services.AddKolibri(k =>
         "Regler: under Job → Se reglerne står reglerne for dagpenge med almindelige ord – hvad de betyder, hvad du gør, og hvor de kommer fra. Skriv dit eget tal for jobsøgning (fra brevet \"Krav til jobsøgning\"), så minder Husk dig fredag kl. 12 og igen mandag kl. 9, hvis ugen mangler i Joblog.",
         "Tjek-runden kommer én gang om dagen: kig i Jobnet, Mit AKA og Digital Post, et sted ad gangen.",
     ];
-    k.Version = "2026.11.10.3";
+    k.Version = "2026.11.12.1";
     k.ThemeColor = "#0b1220";
 });
 

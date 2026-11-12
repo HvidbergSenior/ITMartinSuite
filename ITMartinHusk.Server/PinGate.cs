@@ -21,6 +21,7 @@ public static class PinGate
     private const string KundeCookie = "husk_kunde";
     private const string DemoCookie = "husk_eksempel";
     public const string PersonItem = "husk-person";
+    public const string PaidItem = "husk-paid";
 
     private static readonly string[] OpenPaths = ["/login", "/om", "/hjaelp", "/manifest.json", "/sw.js", "/icon.svg", "/eksempel", "/luk-eksempel", "/logud"];
     private static readonly string[] MartinOnly = ["/job", "/regler", "/api/bolde", "/api/job"];
@@ -76,7 +77,7 @@ public static class PinGate
             var nr = new string(typed.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray());
             if (HuskPeople.IsKundenummer(nr))
             {
-                var (ok, error) = await codes.CheckAsync(nr, ctx.RequestAborted);
+                var (ok, error, _) = await codes.CheckAsync(nr, ctx.RequestAborted);
                 if (ok)
                 {
                     ctx.Response.Cookies.Append(KundeCookie, Sign(nr), Keep(ctx, TimeSpan.FromDays(365)));
@@ -126,8 +127,18 @@ public static class PinGate
                     ctx.Response.Redirect("/");
                     return;
                 }
+                var who = ctx.RequestServices.GetRequiredService<HuskPerson>();
+                who.Set(person);
+                if (who.Kundenummer is { } knr)
+                    who.SetPaid(await ctx.RequestServices.GetRequiredService<ICustomerCodes>().PaidAsync(knr, ctx.RequestAborted));
+                // Free vs paid (2026-11-12): Bolde and Alt are Min Husk - a free customer lands on the front page.
+                if (!who.MinHusk && HuskParts.IsMinHuskPath(path))
+                {
+                    ctx.Response.Redirect("/");
+                    return;
+                }
                 ctx.Items[PersonItem] = person;
-                ctx.RequestServices.GetRequiredService<HuskPerson>().Set(person);
+                ctx.Items[PaidItem] = who.Paid;
                 await next();
                 return;
             }

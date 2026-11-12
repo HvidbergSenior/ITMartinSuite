@@ -38,15 +38,35 @@ public sealed class HuskPerson
         Id = id;
     }
 
+    /// <summary>Martin has ticked Husk as paid for this customer in Kunder (2026-11-12 free vs paid).</summary>
+    public bool Paid { get; private set; }
+    public void SetPaid(bool paid) => Paid = paid;
+
+    /// <summary>Min Husk (Bolde, Alt): Martin, the example (it shows everything) and a customer with Martin's tick.
+    /// The free Husk is I dag (today + tomorrow, one thing) and Tilføj.</summary>
+    public bool MinHusk => IsMartin || IsDemo || (Kundenummer is not null && Paid);
+
     public bool IsMartin => Id == HuskPeople.Martin;
     public bool IsDemo => HuskPeople.IsDemo(Id);
     public string? Kundenummer => HuskPeople.Kundenummer(Id);
 }
 
-/// <summary>Does Kunder know this kundenummer, and is Husk switched on for customers?</summary>
+/// <summary>Does Kunder know this kundenummer, and is Husk switched on for customers? Paid = Martin's "Husk: betalt" tick.</summary>
 public interface ICustomerCodes
 {
-    Task<(bool Ok, string Error)> CheckAsync(string code, CancellationToken ct = default);
+    Task<(bool Ok, string Error, bool Paid)> CheckAsync(string code, CancellationToken ct = default);
+    /// <summary>The paid tick for someone already logged in. When Kunder does not answer, the last known answer stands.</summary>
+    Task<bool> PaidAsync(string code, CancellationToken ct = default);
+}
+
+/// <summary>Free vs paid (2026-11-12): the pages that belong to Min Husk. A free customer is sent to the front page,
+/// where a quiet box says what Min Husk gives.</summary>
+public static class HuskParts
+{
+    public static readonly IReadOnlyList<string> MinHuskPaths = ["/bolde", "/alt"];
+
+    public static bool IsMinHuskPath(string path) =>
+        MinHuskPaths.Any(p => path.Equals(p, StringComparison.OrdinalIgnoreCase) || path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>Where each person's list is kept.</summary>

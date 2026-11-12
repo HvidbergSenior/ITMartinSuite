@@ -202,6 +202,24 @@ public class KundekartotekTests
         (await _k.CheckCodeAsync(code, KunderRoles.Helper, apps)).Ok.Should().BeFalse();   // afmeldt = no more access
     }
 
+    [Test]
+    public async Task Every_kundenummer_opens_the_free_part_and_only_Martins_tick_opens_the_paid_part()
+    {
+        var (_, code) = await _k.SignUpWithCodeAsync(Yes("ole@gmail.com", "Husk"));
+        await _apps.SaveAsync(new FreeApp { Name = "Husk", Url = "https://husk.itmartin.dk", Text = "Husk", Available = true, NeedsCode = true, Sort = 40 });
+        var apps = await _apps.AllAsync();
+        var free = await _k.CheckCodeAsync(code, "Husk", apps);
+        (free.Ok, free.Paid).Should().Be((true, false));
+        var ole = (await _k.ListAsync()).Single();
+        await _k.SetPaidAsync(ole.Id, "Husk", true);
+        (await _k.CheckCodeAsync(code, "husk", apps)).Paid.Should().BeTrue();
+        (await _k.CheckCodeAsync(code, "ElPriser", apps)).Paid.Should().BeFalse();   // the tick is per app
+        (await _k.ListAsync()).Single().PaidApps.Should().Be("Husk");
+        await _k.SetPaidAsync(ole.Id, "Husk", false);   // no subscription: off = closed again, the free part stays
+        var off = await _k.CheckCodeAsync(code, "Husk", apps);
+        (off.Ok, off.Paid).Should().Be((true, false));
+    }
+
     private sealed class FakeMail : IMailSender
     {
         public bool Works = true;

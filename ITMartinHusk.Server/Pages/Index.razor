@@ -37,7 +37,7 @@ else if (_first is null && _empty && !Who.IsMartin)
         <p class="k-help">Har du en aftale? Tryk Tilføj et møde. Har du noget i gang – fx et brev, du skal svare på? Tryk Tilføj en bold.
             Husk viser dig så én ting ad gangen her.</p>
         <div class="hu-buttons">
-            <a class="k-btn" href="/bolde">Tilføj en bold</a>
+            @if (Who.MinHusk) { <a class="k-btn" href="/bolde">Tilføj en bold</a> }
             <a class="k-btn k-btn-primary" href="/tilfoej">Tilføj et møde</a>
         </div>
     </section>
@@ -217,6 +217,22 @@ else
 </details>
 }
 
+@* Free vs paid (2026-11-12): a free customer sees, quietly, what Min Husk gives - no pop-up, no nagging. *@
+@if (!Who.MinHusk && Who.Kundenummer is not null)
+{
+    <details class="k-card" data-remember="hu-minhusk">
+        <summary><b>Det får du i Min Husk</b></summary>
+        <p>Din gratis Husk viser i dag og i morgen – én ting ad gangen – og du kan tilføje møder og ny post.</p>
+        <p>Min Husk giver dig også:</p>
+        <ul>
+            <li><b>Bolde i luften</b> – alt det, du har i gang, med ét næste skridt ad gangen og en frist, der minder dig.</li>
+            <li><b>Alt</b> – alle dine aftaler samlet ét sted, også dem længere ude i tiden.</li>
+        </ul>
+        <p class="k-help">Intet abonnement: du betaler kun for den tid, du vil have det. Skriv til mig, så slår jeg det til.</p>
+        <a class="k-btn" href="https://itmartin.dk/chat-med-martin" target="_blank" rel="noopener">Skriv til mig</a>
+    </details>
+}
+
 @if (Who.Kundenummer is { } nr)
 {
     <section class="k-card hu-next" data-nofold>
@@ -255,8 +271,8 @@ else
         _next = _today.Cards.Skip(1).FirstOrDefault(c => c.Kind is CardKind.Today or CardKind.Tomorrow);
         _jobWeek = Husk.JobLogWeek();
         _jobsThisWeek = Jobs.Count().ThisWeek;
-        if (!_stepOpen) _ball = Balls.Next(_skipped);   // the 30-second refresh must not swap the ball while you write
-        var g = Balls.Groups().Where(x => x.Status != BallStatus.Done && x.Balls.Count > 0);
+        if (!_stepOpen) _ball = Who.MinHusk ? Balls.Next(_skipped) : null;   // the 30-second refresh must not swap the ball while you write
+        var g = Balls.Groups().Where(x => Who.MinHusk && x.Status != BallStatus.Done && x.Balls.Count > 0);
         _counts = string.Join(" · ", g.Select(x => $"{x.Balls.Count} {x.Name.ToLowerInvariant()}"));
         _empty = _today.Cards.Count == 0 && _ball is null && Husk.AllOpen().Count == 0;
     }

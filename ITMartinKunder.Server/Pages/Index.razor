@@ -1,6 +1,7 @@
 @page "/"
 @inject Kundekartotek Kartotek
 @inject SnakRum Snak
+@inject FreeApps Apps
 
 @* The one Kundekartotek (2026-10-21). Afmeld keeps the row as proof they said stop; Slet = GDPR erasure. Every customer
    is a fold box: name first, details when opened (user: every box show/hide). *@
@@ -48,7 +49,7 @@
 @foreach (var c in Shown)
 {
     <section class="k-card ku-cust @(c.Active ? "" : "is-off")" data-fold-closed="1">
-        <h3 class="k-card-title">@(c.Name == "" ? c.Email : c.Name) @if (!c.Active) { <span class="ku-tag">AFMELDT</span> } @if (c.IsHelper) { <span class="ku-tag">HJÆLPER</span> } @if (c.IsAdmin) { <span class="ku-tag">ADMIN</span> } @if (_doubles.ContainsKey(c.Id)) { <span class="ku-tag">MÅSKE DOBBELT</span> }</h3>
+        <h3 class="k-card-title">@(c.Name == "" ? c.Email : c.Name) @if (!c.Active) { <span class="ku-tag">AFMELDT</span> } @if (c.IsHelper) { <span class="ku-tag">HJÆLPER</span> } @if (c.IsAdmin) { <span class="ku-tag">ADMIN</span> } @foreach (var pa in c.PaidList) { <span class="ku-tag">BETALT @pa.ToUpperInvariant()</span> } @if (_doubles.ContainsKey(c.Id)) { <span class="ku-tag">MÅSKE DOBBELT</span> }</h3>
         <div>@c.Email @if (c.Phone != "") { <span> · @c.Phone</span> }</div>
         @if (_doubles.TryGetValue(c.Id, out var other) && _rows.FirstOrDefault(o => o.Id == other) is { } o)
         {
@@ -101,6 +102,18 @@
                     <button class="k-btn k-btn-primary" disabled="@(_making == c.Id)" @onclick="() => MakeRoom(c)">@(_making == c.Id ? "Laver rummet …" : "Lav snak-rum")</button>
                 </div>
             }
+            @if (_paidApps.Count > 0)
+            {
+                @* Free vs paid (2026-11-12): every kundenummer opens the free part; the tick opens the paid part (fx Min Husk). *@
+                <div class="k-help">Betalte apps – tryk for at slå til eller fra:</div>
+                <div class="ku-row">
+                    @foreach (var app in _paidApps)
+                    {
+                        var on = c.HasPaid(app);
+                        <button class="k-btn k-btn-sm @(on ? "k-btn-primary" : "")" @onclick="() => Paid(c, app, !on)">@(on ? $"{app}: betalt" : $"{app}: gratis")</button>
+                    }
+                </div>
+            }
             <div class="ku-row">
                 <button class="k-btn k-btn-sm" @onclick="() => Edit(c)">Ret</button>
                 <a class="k-btn k-btn-sm" href="/kunder/@(c.Id).json" download>Hent data</a>
@@ -142,7 +155,19 @@
 
     protected override Task OnInitializedAsync() => LoadAsync();
     private Dictionary<int, int> _doubles = [];   // customer id -> another that may be the same person
-    private async Task LoadAsync() { _rows = await Kartotek.ListAsync(); _doubles = await Kartotek.PossibleDoublesAsync(); }
+    private async Task LoadAsync()
+    {
+        _rows = await Kartotek.ListAsync();
+        _doubles = await Kartotek.PossibleDoublesAsync();
+        var free = await Apps.AllAsync();
+        _paidApps = PaidPart.Where(a => free.Any(f => string.Equals(f.Name, a, StringComparison.OrdinalIgnoreCase))).ToList();
+    }
+
+    // The apps that have a paid part so far (Husk first, 2026-11-12) - the rest follow the same pattern.
+    private static readonly string[] PaidPart = ["Husk"];
+    private List<string> _paidApps = [];
+
+    private async Task Paid(Customer c, string app, bool on) { await Kartotek.SetPaidAsync(c.Id, app, on); await LoadAsync(); }
 
     private void Edit(Customer c) { (_edit, _name, _email, _phone, _note, _error) = (c.Id, c.Name, c.Email, c.Phone, c.Note, null); }
 

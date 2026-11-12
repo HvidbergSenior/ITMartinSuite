@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="app.css?v=@CacheBuster" />
     </head>
 <body>
-    <Routes @rendermode="InteractiveServer" Person="@_person" />
+    <Routes @rendermode="InteractiveServer" Person="@_person" Paid="@_paid" />
     <script src="_framework/blazor.server.js"></script>
     <script src="js/push.js?v=@CacheBuster"></script>
     <script>
@@ -83,6 +83,11 @@
     // so it cannot be changed in the browser - because the connection itself has no cookies to read.
     [CascadingParameter] private HttpContext? Ctx { get; set; }
     private string _person = "";
+    private bool _paid;
 
-    protected override void OnInitialized() => _person = Ctx?.Items[PinGate.PersonItem] as string ?? "";
+    protected override void OnInitialized()
+    {
+        _person = Ctx?.Items[PinGate.PersonItem] as string ?? "";
+        _paid = Ctx?.Items[PinGate.PaidItem] is true;
+    }
 }

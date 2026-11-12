@@ -11,9 +11,10 @@
 
 @code {
     [Parameter] public string Person { get; set; } = "";
+    [Parameter] public bool Paid { get; set; }
 
     protected override void OnInitialized()
     {
-        if (Who.Id.Length == 0 && HuskPeople.IsValid(Person)) Who.Set(Person);
+        if (Who.Id.Length == 0 && HuskPeople.IsValid(Person)) { Who.Set(Person); Who.SetPaid(Paid); }
     }
 }

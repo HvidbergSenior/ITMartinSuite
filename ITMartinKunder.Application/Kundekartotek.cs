@@ -82,7 +82,7 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
         var c = await repo.ByCodeAsync(k, ct);
         if (c is null) return new(false, Error: "Det nummer kender vi ikke. Tjek det, eller skriv dig op gratis på itmartin.dk.");
         if (!c.CodeWorks) return new(false, Error: "Du er afmeldt. Skriv dig op igen på itmartin.dk, så virker dit nummer igen.");
-        return new(true, c.Name);
+        return new(true, c.Name, Paid: c.HasPaid(app));
     }
 
     public async Task<string?> BoughtAsync(PurchaseRequest r, CancellationToken ct = default)
@@ -158,6 +158,14 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
     {
         if (await repo.GetAsync(id, ct) is not { } c) return;
         c.IsAdmin = admin;
+        await repo.SaveAsync(c, ct);
+    }
+
+    /// <summary>Martin's "Betalt" tick for one app on the customer's card (2026-11-12).</summary>
+    public async Task SetPaidAsync(int id, string app, bool paid, CancellationToken ct = default)
+    {
+        if (await repo.GetAsync(id, ct) is not { } c) return;
+        c.SetPaid(app, paid);
         await repo.SaveAsync(c, ct);
     }
 

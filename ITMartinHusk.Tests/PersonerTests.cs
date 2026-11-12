@@ -45,6 +45,23 @@ public class PersonerTests
     }
 
     [Test]
+    public void Min_Husk_is_for_Martin_the_example_and_a_customer_with_the_paid_tick()
+    {
+        var free = new HuskPerson(); free.Set("kunde-12345678");
+        free.MinHusk.Should().BeFalse();
+        var paid = new HuskPerson(); paid.Set("kunde-12345678"); paid.SetPaid(true);
+        paid.MinHusk.Should().BeTrue();
+        var martin = new HuskPerson(); martin.Set(HuskPeople.Martin);
+        martin.MinHusk.Should().BeTrue();
+        var demo = new HuskPerson(); demo.Set(HuskPeople.Demo("ab12"));
+        demo.MinHusk.Should().BeTrue();
+        HuskParts.IsMinHuskPath("/bolde").Should().BeTrue();
+        HuskParts.IsMinHuskPath("/Alt").Should().BeTrue();
+        HuskParts.IsMinHuskPath("/tilfoej").Should().BeFalse();
+        HuskParts.IsMinHuskPath("/").Should().BeFalse();
+    }
+
+    [Test]
     public void Martin_keeps_husk_json_and_each_customer_gets_an_own_list()
     {
         var (spaces, stores, _) = New();

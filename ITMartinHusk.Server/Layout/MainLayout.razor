@@ -9,9 +9,9 @@
     @if (Who.Id.Length > 0)
     {
         <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">I dag</NavLink>
-        <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/bolde">Bolde</NavLink>
+        @if (Who.MinHusk) { <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/bolde">Bolde</NavLink> }
         <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/tilfoej">Tilføj</NavLink>
-        <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/alt">Alt</NavLink>
+        @if (Who.MinHusk) { <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/alt">Alt</NavLink> }
         @if (Who.IsMartin) { <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/job">Job</NavLink> }
     }
     else

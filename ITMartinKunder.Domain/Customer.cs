@@ -16,6 +16,7 @@ public sealed class Customer
     public string Note { get; set; } = "";           // Martin's own note
     public bool IsHelper { get; set; }               // Martin's tick: may log into Vareinfo + Lager with the kundenummer (2026-10-24)
     public bool IsAdmin { get; set; }                // Martin's tick: the kundenummer opens Vareinfo + Lager as admin (2026-10-26)
+    public string PaidApps { get; set; } = "";       // Martin's tick per app (2026-11-12 free vs paid): "Husk;ElPriser" - the paid part of those apps opens
     public string SnakLink { get; set; } = "";       // the customer's own Snak room (user 2026-11-04: all contact in one Snak room per customer)
     public string Code { get; set; } = "";           // kundenummer: 8 random digits, ONE for all free apps (user 2026-10-21) - random, so nobody can guess the next
     public string UnsubscribeToken { get; set; } = NewToken();
@@ -35,6 +36,21 @@ public sealed class Customer
     /// <summary>Admin login (user 2026-10-26: "a customer Martin and a customer MartinAdmin so i can test ui for each"):
     /// sessions, boxes, labels - while Martin's tick stands and the kundenummer works.</summary>
     public bool AdminWorks => IsAdmin && CodeWorks;
+
+    /// <summary>Has Martin ticked this app as paid for the customer? (Min Husk etc. - the free part needs no tick.)</summary>
+    public bool HasPaid(string app) => PaidList.Contains(app.Trim(), StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyList<string> PaidList => PaidApps.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>Martin's "Betalt" tick for one app - on or off (no subscription: off = the paid part closes, the free part stays).</summary>
+    public void SetPaid(string app, bool on)
+    {
+        var a = app.Trim();
+        if (a.Length == 0 || a.Contains(';')) return;
+        var list = PaidList.Where(x => !string.Equals(x, a, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (on) list.Add(a);
+        PaidApps = Cut(string.Join(";", list.Order(StringComparer.OrdinalIgnoreCase)), 400);
+    }
 
     public bool SaidYesTo(string company) => Active && Consents.Any(c => c.Company == company && c.WithdrawnAt is null);
     public IEnumerable<string> Apps => Events.Select(e => e.App).Where(a => a != "").Distinct();
