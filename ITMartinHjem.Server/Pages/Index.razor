@@ -56,6 +56,31 @@
     </div>
     </details>
 
+    @* Undervisning (user 2026-11-12: "i also make undervisning like AI --- show LOF and my 5 steps"): the LOF course and its
+       5 evenings as 5 steps - only his own text, no dates/time/place (user: "dont mention dates but just my text"); the full red thread is on /lof-aftener. Shown until the last evening has passed. *@
+    @if (News.Show(News.LofAi, DateOnly.FromDateTime(DateTime.Today)))
+    {
+    <details class="hj-sec" open data-remember="hj-undervisning">
+    <summary><h2 class="hj-sec-title">Undervisning</h2>
+    <p class="hj-sec-sub">Jeg underviser i AI og IT – roligt og uden forkundskaber.</p></summary>
+    <div class="hj-tile hj-teach">
+        <span class="hj-tile-price">5 aftener hos LOF Aarhus</span>
+        <b class="hj-tile-title">@News.LofAi.Title</b>
+        <span class="hj-tile-text">@News.LofAi.Teaser</span>
+        <ol class="hj-steps">
+            @foreach (var e in News.LofEvenings)
+            {
+                <li><b>@e.Title</b> – @e.Make</li>
+            }
+        </ol>
+        <div class="hj-head-btns">
+            <a class="k-btn k-btn-primary" href="@News.Page">Se de 5 aftener</a>
+            <a class="k-btn" href="@News.LofAi.Href" target="_blank" rel="noopener">Tilmeld dig hos LOF</a>
+        </div>
+    </div>
+    </details>
+    }
+
     <details class="hj-sec" open data-remember="hj-snebolde">
     <summary><h2 class="hj-sec-title">Gratis snebolde</h2>
     <p class="hj-sec-sub">Små hjælpere i din browser – uden reklamer. Tryk og læs, hvad de kan.</p></summary>

@@ -1043,3 +1043,8 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-sb-part { font-size: .92rem; line-height: 1.4; color: var(--k-text); }
 .hj-sb-paid { border-left: 3px solid var(--k-accent); padding-left: 8px; }
 @media (max-width:520px) { .hj-grid-4 { grid-template-columns: 1fr; } }
+
+/* Undervisning on the front page (2026-11-12): the LOF course as one wide tile with the 5 evenings as numbered steps. */
+.hj-teach .hj-tile-price { font-size: 1.3rem; }
+.hj-steps { margin: 4px 0 0; padding-left: 22px; }
+.hj-steps li { margin: 6px 0; line-height: 1.4; }
