@@ -11,13 +11,13 @@ public static class PriceList
 {
     // The buttons open each app's /om (Formål + Sådan bruger du den), not the app itself (user 2026-11-12: "the links go to some
     // of my personal links" - on Martin's own phone the apps open his own Husk list / Snak rooms; a visitor should read first).
-    public static readonly IReadOnlyList<(string Name, string Href)> FreeSnebolde =
+    // Temperatur left out of the front page (user 2026-11-12 "Just leave temperatur out here"). One line each = what it does.
+    public static readonly IReadOnlyList<(string Name, string Text, string Href)> FreeSnebolde =
     [
-        ("ElPriser", "https://elpriser.itmartin.dk/om"),
-        ("Temperatur", "https://temperatur.itmartin.dk/om"),
-        ("Stem", "https://stem.itmartin.dk/om"),
-        ("Snak", "https://snak.itmartin.dk/om"),
-        ("Husk", "https://husk.itmartin.dk/om"),
+        ("ElPriser", "Se, hvornår strømmen er billigst i dag og i morgen.", "https://elpriser.itmartin.dk/om"),
+        ("Stem", "Lav en afstemning for familien eller foreningen.", "https://stem.itmartin.dk/om"),
+        ("Snak", "Et privat rum til én sag – uden reklamer.", "https://snak.itmartin.dk/om"),
+        ("Husk", "Din egen huskeliste – lavet af en med ADHD.", "https://husk.itmartin.dk/om"),
     ];
 
     public static readonly IReadOnlyList<Offer> Offers =
