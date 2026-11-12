@@ -1010,9 +1010,31 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-tile-title { font-size: 1.1rem; }
 .hj-tile-text { color: var(--k-muted); flex: 1; }
 .hj-tile-btn { align-self: flex-start; margin-top: 6px; }
+/* Front page sections fold (2026-11-12): the heading is the button; an arrow shows open/closed, text says Vis/Skjul. */
+.hj-sec > summary { list-style: none; cursor: pointer; text-align: center; }
+.hj-sec > summary::-webkit-details-marker { display: none; }
+.hj-sec > summary .hj-sec-title::after { content: " ▾"; font-size: .8em; color: var(--k-muted); }
+.hj-sec:not([open]) > summary .hj-sec-title::after { content: " ▸ Vis"; }
+.hj-sec:not([open]) > summary { margin-bottom: 8px; }
 /* What you save by choosing me (2026-11-12): bold text in a framed band - not colour alone (the user is a bit colour-blind). */
 .hj-tile-save { font-weight: 800; color: var(--k-text); border: 2px solid var(--k-accent); border-radius: 10px; padding: 8px 10px; }
 .hj-tile-free { border-top-color: var(--k-border); }
 .hj-tile-free .hj-tile-price { font-size: 1.1rem; color: var(--k-muted); }
 .hj-tile-wide { margin-top: 16px; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top-width: 1px; }
 .hj-tile-wide > span:first-child { display: flex; flex-direction: column; gap: 4px; }
+
+/* Front page spacing (user 2026-11-12 "look at spacing on my homepage"): the folding sections keep their big headings,
+   get clear air between them, the price wraps evenly, and on a phone the photo text no longer touches the name. */
+.hj-prices .hj-sec { margin-top: 34px; }
+.hj-prices .hj-sec:first-child { margin-top: 26px; }
+.hj-prices .hj-sec > summary { margin-bottom: 16px; }
+.hj-prices .hj-sec > summary .hj-sec-title { display: inline; font-size: 1.6rem; margin: 0; }
+.hj-prices .hj-sec > summary .hj-sec-sub { margin: 4px 0 0; }
+.hj-prices .hj-tile-wide { margin-top: 0; }
+.hj-tile-price { text-wrap: balance; }
+.hj-signup { margin-top: 34px; }
+@media (max-width:520px) {
+  .hj-head-photo { margin-bottom: 18px; }
+  .hj-head-me h1 { margin-top: 12px; }
+  .hj-prices .hj-sec > summary .hj-sec-title { font-size: 1.4rem; }
+}

@@ -37,8 +37,11 @@
 @* WOW + columns (user 2026-11-12: "this should be more Wauv... more obvious for customers... more columns"): wide on a pc,
    3 paid offers side by side with a big price, the free snebolde as small cards; stacks on a phone. *@
 <div class="hj-wide hj-prices">
-    <h2 class="hj-sec-title">Det sælger jeg</h2>
-    <p class="hj-sec-sub">Alle priser er inkl. moms – og intet abonnement.</p>
+    @* Show/hide (user 2026-11-12 "remember show/hide boxes ... also on homepage"): every section folds, open by default,
+       and kolibri.js remembers open/closed per device (data-remember). *@
+    <details class="hj-sec" open data-remember="hj-saelger">
+    <summary><h2 class="hj-sec-title">Det sælger jeg</h2>
+    <p class="hj-sec-sub">Alle priser er inkl. moms – og intet abonnement.</p></summary>
     <div class="hj-grid hj-grid-3">
         @foreach (var o in PriceList.Offers.Where(o => o.Href.StartsWith("/")))
         {
@@ -51,9 +54,11 @@
             </a>
         }
     </div>
+    </details>
 
-    <h2 class="hj-sec-title">Gratis snebolde</h2>
-    <p class="hj-sec-sub">Små hjælpere i din browser – uden reklamer. Tryk og læs, hvad de kan.</p>
+    <details class="hj-sec" open data-remember="hj-snebolde">
+    <summary><h2 class="hj-sec-title">Gratis snebolde</h2>
+    <p class="hj-sec-sub">Små hjælpere i din browser – uden reklamer. Tryk og læs, hvad de kan.</p></summary>
     <div class="hj-grid hj-grid-4">
         @foreach (var (name, text, href) in PriceList.FreeSnebolde)
         {
@@ -64,7 +69,10 @@
             </a>
         }
     </div>
+    </details>
 
+    <details class="hj-sec" open data-remember="hj-bogshoppen">
+    <summary><h2 class="hj-sec-title">Bogshoppen</h2></summary>
     @foreach (var o in PriceList.Offers.Where(o => !o.Href.StartsWith("/")))
     {
         <a class="hj-tile hj-tile-wide" href="@o.Href">
@@ -72,6 +80,7 @@
             <span class="k-btn hj-tile-btn">@o.Button</span>
         </a>
     }
+    </details>
 </div>
 
 @* Sign-up stays (other pages link to /#bliv-kunde - soft sign-up rule), but closed: one quiet line. *@
