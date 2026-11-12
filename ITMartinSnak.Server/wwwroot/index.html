@@ -20,7 +20,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=34" defer></script>
+    <script src="/app.js?v=35" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -224,6 +224,11 @@
                 <h2 class="k-card-title">Overblik</h2>
                 <div id="opgOversigt" class="oversigt"></div>
             </section>
+            <!-- The other days (coming first) - above the form (user 2026-11-12). -->
+            <details id="andreDage" class="k-mt" hidden>
+                <summary>Andre dage</summary>
+                <div id="opgAndre" class="opgaver k-mt"></div>
+            </details>
             <form id="nyOpg" class="k-card ny k-mt" hidden>
                 <h2 class="k-card-title" id="nyTitel">Ny opgave</h2>
                 <!-- 2026-11-12 user: "You just write. Dentist. 13/11. 1400" - one line, read by simple rules (no AI), one button. -->
@@ -265,11 +270,6 @@
                 </div>
                 </details>
             </form>
-            <!-- Only the tovholder sees the other days. -->
-            <details id="andreDage" class="k-mt" hidden>
-                <summary>Andre dage</summary>
-                <div id="opgAndre" class="opgaver k-mt"></div>
-            </details>
         </main>
 
         <!-- Documents (2026-11-09): everyone adds, everyone downloads. -->
