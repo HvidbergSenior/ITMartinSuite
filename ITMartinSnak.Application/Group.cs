@@ -151,29 +151,32 @@ public sealed class Group
     private static readonly TimeZoneInfo Dk = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(_clock.GetUtcNow().UtcDateTime, Dk));
 
-    public TaskItem? AddTask(string? title, string? note, string? when, string? fromEndpoint = null, string? to = null, string? day = null, bool daily = false)
+    /// <param name="by">A member who adds it themselves (shared rooms, 2026-11-12) - "" = the host.</param>
+    public TaskItem? AddTask(string? title, string? note, string? when, string? fromEndpoint = null, string? to = null, string? day = null, bool daily = false,
+        string? by = null, bool yearly = false)
     {
         TaskItem? t;
         lock (_gate)
         {
-            t = GroupRules.NewTask(_tasks, title, note, when, _clock.GetUtcNow().UtcDateTime, to, day, daily);
+            t = GroupRules.NewTask(_tasks, title, note, when, _clock.GetUtcNow().UtcDateTime, to, day, daily, by, yearly);
             if (t is null) return null;
             _tasks.Add(t);
             _store.SaveTasks(_tasks);
         }
         TasksChanged();
-        var head = t.Takers.Count > 0 ? $"Ny opgave til {t.Takers[0]} · " : "Ny opgave · ";
+        var head = t.By.Length > 0 ? $"{t.By} har lagt noget ind · " : t.Takers.Count > 0 ? $"Ny opgave til {t.Takers[0]} · " : "Ny opgave · ";
         _push.SendToOthers(_room.Id, fromEndpoint, head + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
         _room.Activity(false);
         return GroupRules.Copy(t);
     }
 
     /// <param name="to">null = keep who has it; "" = nobody; a name = give it to that person (they get a push).</param>
-    public TaskItem? EditTask(long id, string? title, string? note, string? when, string? to = null, string? fromEndpoint = null, string? day = null, bool? daily = null)
+    public TaskItem? EditTask(long id, string? title, string? note, string? when, string? to = null, string? fromEndpoint = null, string? day = null, bool? daily = null,
+        bool? yearly = null)
     {
         string? before;
         lock (_gate) before = _tasks.FirstOrDefault(x => x.Id == id) is { } old ? string.Join(",", old.Takers) : null;
-        var t = Change(id, x => GroupRules.Edit(x, title, note, when, to, day, daily));
+        var t = Change(id, x => GroupRules.Edit(x, title, note, when, to, day, daily, yearly));
         if (t is not null && to is not null && t.Takers.Count > 0 && string.Join(",", t.Takers) != before)
             _push.SendToOthers(_room.Id, fromEndpoint, $"Opgave til {t.Takers[0]} · " + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
         return t;
@@ -198,6 +201,12 @@ public sealed class Group
         }
         TasksChanged();
         return true;
+    }
+
+    /// <summary>May this name (or the host) change or remove the task? Members only what they added themselves.</summary>
+    public bool MayChangeTask(long id, string? name, bool host)
+    {
+        lock (_gate) return _tasks.FirstOrDefault(t => t.Id == id) is { } t && GroupRules.MayChange(t, name, host);
     }
 
     private TaskItem? Change(long id, Func<TaskItem, TaskItem?> f)

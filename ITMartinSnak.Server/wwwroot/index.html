@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=27" />
+    <link rel="stylesheet" href="/app.css?v=28" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=29" defer></script>
+    <script src="/app.js?v=30" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -191,6 +191,11 @@
         </main>
 
         <main id="viewOpg" class="view opg" hidden>
+            <!-- 2026-11-12: the coming 7 days first, so everyone sees what is soon (a birthday, the dentist, a visit). -->
+            <section id="snartBoks" class="k-card snart" hidden>
+                <h2 class="k-card-title">Snart</h2>
+                <ul id="snartListe" class="snart-liste"></ul>
+            </section>
             <h2 class="idag-titel" id="idagTitel">I dag</h2>
             <p class="opg-intro" id="opgIntro"></p>
             <div id="opgaver" class="opgaver"></div>
@@ -200,7 +205,16 @@
             </section>
             <form id="nyOpg" class="k-card ny k-mt" hidden>
                 <h2 class="k-card-title" id="nyTitel">Ny opgave</h2>
-                <label class="k-label" for="opgTitel">Hvad skal gøres?</label>
+                <!-- 2026-11-12 user: "You just write. Dentist. 13/11. 1400" - one line, read by simple rules (no AI), one button. -->
+                <div id="hurtigBoks">
+                    <label class="k-label" for="hurtig">Skriv det kort</label>
+                    <input class="k-input" id="hurtig" maxlength="200" autocomplete="off" placeholder="Fx: Tandlæge Eigil 13/11 kl 14" />
+                    <p class="k-help" id="hurtigViser">Skriv hvad, hvem, dag og klokkeslæt – i den rækkefølge du vil. Fx "Julius fødselsdag 12/4 hvert år".</p>
+                    <div class="k-row"><button class="k-btn k-btn-primary" type="button" id="hurtigGem" disabled>Læg det ind</button></div>
+                </div>
+                <details id="flereValg" class="k-mt">
+                <summary>Flere valg (skriv det i felter i stedet)</summary>
+                <label class="k-label" for="opgTitel">Hvad skal gøres – eller hvad sker der?</label>
                 <input class="k-input" id="opgTitel" maxlength="120" required />
                 <label class="k-label" for="opgTil">Hvem skal gøre det?</label>
                 <select class="k-input" id="opgTil"></select>
@@ -209,18 +223,20 @@
                     <option value="idag">I dag</option>
                     <option value="hver">Hver dag (fx medicin)</option>
                     <option value="anden">En anden dag</option>
+                    <option value="aar">Hvert år (fx en fødselsdag)</option>
                     <option value="ingen">Ingen bestemt dag</option>
                 </select>
                 <input class="k-input" id="opgDato" type="date" hidden aria-label="Dato" />
                 <label class="k-label" for="opgHvornaar">Klokken <span class="valgfri">(kan undværes)</span></label>
                 <input class="k-input" id="opgHvornaar" type="time" />
-                <p class="k-help">Med et klokkeslæt får alle i rummet en påmindelse en time før og en halv time før.</p>
+                <p class="k-help">Med et klokkeslæt får alle i rummet en påmindelse en time før og en halv time før. Hvert år uden klokkeslæt: en besked om morgenen på dagen.</p>
                 <label class="k-label" for="opgNote">Mere om det <span class="valgfri">(kan undværes)</span></label>
                 <textarea class="k-textarea" id="opgNote" maxlength="1000"></textarea>
                 <div class="k-row">
                     <button class="k-btn k-btn-primary" type="submit" id="opgGem">Læg opgaven ud</button>
                     <button class="k-btn k-btn-ghost" type="button" id="opgFortryd" hidden>Fortryd</button>
                 </div>
+                </details>
             </form>
             <!-- Only the tovholder sees the other days. -->
             <details id="andreDage" class="k-mt" hidden>
@@ -340,6 +356,7 @@
                 <h2 class="k-card-title">Om Snak</h2>
                 <p>Snak er et lille, privat rum til én sag. Kun dem med rummets link kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
                 <p>Under <b>Opgaver</b> lægger Martin det ud, der skal gøres. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
+                <p>I et fælles rum (fx familien) kan alle selv lægge datoer og opgaver ind: skriv det kort, fx "Tandlæge Eigil 13/11 kl 14" eller "Julius fødselsdag 12/4 hvert år", og tryk <b>Læg det ind</b>. Det, du selv har lagt ind, kan du rette og slette. Øverst under <b>Snart</b> står det, der sker de næste 7 dage. En fødselsdag uden klokkeslæt giver en besked om morgenen på dagen.</p>
                 <p>Under <b>Holdet</b> kan du selv tilføje din mail, telefon, hjemmeside og LinkedIn på dit navn. Alt kan undværes, og kun dem i rummet kan se det.</p>
                 <p>I et kursusrum står kursusdagene under <b>Kalender</b>, og det, du skal forberede, under <b>Til næste gang</b>. Dine flueben er kun dine – ingen andre kan se dem.</p>
                 <p>Under den nyeste besked står der, hvem der har <b>set</b> den. Snak kan kun se, at du har haft chatten fremme – ikke om du har læst hvert ord.</p>

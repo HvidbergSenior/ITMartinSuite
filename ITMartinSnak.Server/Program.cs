@@ -311,19 +311,24 @@ room.MapGet("/opgaver", (string key, Rooms rooms) =>
 room.MapGet("/idag", (string key, Rooms rooms) =>
     rooms.ByKey(key) is { } r ? Results.Json(new { dag = rooms.GroupOf(r).Today.ToString("yyyy-MM-dd") }, web) : Results.NotFound());
 
+// 2026-11-12: in a shared room (named people, not a course group) everyone adds dates and tasks themselves, and changes or
+// removes their own; the host still does everything.
 room.MapPost("/opgaver", (HttpContext c, string key, TaskBody b, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
-    var t = rooms.GroupOf(r).AddTask(b.Titel, b.Note, b.Hvornaar, b.Endpoint, b.Til, b.Dag, b.HverDag ?? false);
+    var host = IsRoomAdmin(c, access, r);
+    if (!host && !SharedMember(r, b.Navn)) return Results.StatusCode(403);
+    var t = rooms.GroupOf(r).AddTask(b.Titel, b.Note, b.Hvornaar, b.Endpoint, b.Til, b.Dag, b.HverDag ?? false,
+        host ? null : b.Navn, b.HvertAar ?? false);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven skal have en titel." }) : Results.Json(t, web);
 });
 
 room.MapPut("/opgaver/{id:long}", (HttpContext c, string key, long id, TaskBody b, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
-    var t = rooms.GroupOf(r).EditTask(id, b.Titel, b.Note, b.Hvornaar, b.Til, b.Endpoint, b.Dag, b.HverDag);
+    var host = IsRoomAdmin(c, access, r);
+    if (!host && !(SharedMember(r, b.Navn) && rooms.GroupOf(r).MayChangeTask(id, b.Navn, false))) return Results.StatusCode(403);
+    var t = rooms.GroupOf(r).EditTask(id, b.Titel, b.Note, b.Hvornaar, b.Til, b.Endpoint, b.Dag, b.HverDag, b.HvertAar);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven findes ikke, eller titlen mangler." }) : Results.Json(t, web);
 });
 
@@ -334,10 +339,10 @@ room.MapPost("/opgaver/{id:long}/faerdig", (HttpContext c, string key, long id, 
     return rooms.GroupOf(r).SetDone(id, b.Faerdig) is null ? Results.NotFound() : Results.Ok();
 });
 
-room.MapDelete("/opgaver/{id:long}", (HttpContext c, string key, long id, Access access, Rooms rooms) =>
+room.MapDelete("/opgaver/{id:long}", (HttpContext c, string key, long id, string? navn, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
+    if (!IsRoomAdmin(c, access, r) && !(SharedMember(r, navn) && rooms.GroupOf(r).MayChangeTask(id, navn, false))) return Results.StatusCode(403);
     return rooms.GroupOf(r).DeleteTask(id) ? Results.Ok() : Results.NotFound();
 });
 
@@ -430,6 +435,10 @@ app.Run();
 static bool AsMember(Room r, string? name) =>
     r.Gruppe && !string.IsNullOrWhiteSpace(name) && (r.Members ?? []).Contains(name.Trim(), StringComparer.OrdinalIgnoreCase);
 
+// One of the named people in a shared room that is not a course group (family, Sonja's circle) - they add their own dates.
+static bool SharedMember(Room r, string? name) =>
+    !r.Gruppe && !string.IsNullOrWhiteSpace(name) && (r.Members ?? []).Contains(name.Trim(), StringComparer.OrdinalIgnoreCase);
+
 // What the page sees of a file - never the name on disk.
 static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At, f.Topic };
 
@@ -439,7 +448,8 @@ public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string
 public sealed record InviteBody(string? Link, string? Mail, string? Navn);
 public sealed record RosterBody(string? Medlemmer, string? Emner, string? Links = null, string? Kalender = null);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint);
-public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null);
+public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null,
+    string? Navn = null, bool? HvertAar = null);
 public sealed record DoneBody(bool Faerdig);
 public sealed record TakeBody(string? Navn, string? Endpoint);
 public sealed record ProfileBody(string? Navn, string? Mail, string? Telefon, string? Web, string? LinkedIn, string? Om);

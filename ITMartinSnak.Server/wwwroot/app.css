@@ -241,3 +241,11 @@ body { background: var(--k-bg); color: var(--k-text); }
 .medlem.k-card { flex-wrap: wrap; }
 .profil-form { flex: 1 1 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--k-border); }
 .profil-form .k-row { margin-top: 8px; gap: 8px; }
+
+/* 2026-11-12 "Snart": the coming 7 days at the top of the first page. */
+.snart-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.snart-liste li { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--k-border); }
+.snart-liste li:first-child { border-top: 0; padding-top: 0; }
+.snart-liste .snart-hvornaar { font-size: 14px; color: var(--k-muted); }
+.snart-liste .snart-hvornaar.i-morgen { color: var(--k-text); font-weight: 600; }
+.snart-liste .snart-hvad { font-weight: 600; }

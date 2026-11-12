@@ -127,6 +127,12 @@
 
     function shared() { return !!(room && room.medlemmer && room.medlemmer.length); }
 
+    // 2026-11-12: in a shared room (family, Sonja's circle) everyone adds dates and tasks and changes their own.
+    function isMember() { return (room && room.medlemmer || []).some(x => x.toLowerCase() === (navn || '').toLowerCase()); }
+    function canAdd() { return admin || (shared() && !isGroup() && isMember()); }
+    function isMineBy(t) { return !!t.by && t.by.toLowerCase() === (navn || '').toLowerCase(); }
+    function mayChange(t) { return admin || isMineBy(t); }
+
     $('loginForm').addEventListener('submit', async e => {
         e.preventDefault();
         $('loginFejl').hidden = true;
@@ -258,13 +264,14 @@
         $('nytNavn').value = navn;
         $('hjemKnap').hidden = standalone || inApp;
         $('hjemKnap').onclick = () => show('mig');
-        $('nyOpg').hidden = !admin;
+        $('nyOpg').hidden = !canAdd();
         $('tovBoks').hidden = admin || !(room && room.harKode);
         fillTil('');
         $('opgIntro').textContent = admin
             ? (shared() ? 'Læg opgaver ud her, og giv dem til en – eller lad den, der har tid, tage den. Alle får besked.'
                         : 'Læg opgaver ud her. Kunden ser dem og trykker "Jeg tager den". Du kan se, hvem der har taget hvad.')
-            : shared() ? 'Her er det, der skal gøres. Står dit navn på en opgave, er den din. Tryk "Jeg tager den" på en, der mangler nogen.'
+            : shared() ? 'Her er dagens aftaler og opgaver. Står dit navn på en, er den din. Tryk "Jeg tager den" på en, der mangler nogen.'
+                         + (canAdd() ? ' Du kan også selv lægge en dato eller opgave ind nederst – fx en fødselsdag.' : '')
                        : 'Her er det, der skal gøres. Tryk "Jeg tager den" på en opgave, så ved Martin, at du gør den.';
         $('omSlet').hidden = !!(room && room.gruppe);
         document.body.classList.toggle('gruppe', isGroup());
@@ -553,8 +560,20 @@
     // ---- today (2026-11-08): the first picture = today's tasks in clock order, the next one at the top ----
     let todayStr = '';
     function today() { return todayStr || new Date().toLocaleDateString('sv-SE'); }
-    function isDone(t) { return t.daily ? t.doneOn === today() : t.done; }
-    function isToday(t) { return t.daily || t.day === today() || (!t.day && !t.done); }
+    function isDone(t) { return t.daily || t.yearly ? t.doneOn === today() : t.done; }
+    // A yearly day (birthday) falls on the same day and month every year; 29 February on the 28th in other years.
+    function yearDay(t, y) {
+        const [, m, d] = t.day.split('-').map(Number);
+        const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+        return y + '-' + String(m).padStart(2, '0') + '-' + String(m === 2 && d === 29 && !leap ? 28 : d).padStart(2, '0');
+    }
+    // The next date it falls on (today included).
+    function nextDay(t) {
+        if (!t.yearly || !t.day) return t.day;
+        const y = Number(today().slice(0, 4)), d = yearDay(t, y);
+        return d >= today() ? d : yearDay(t, y + 1);
+    }
+    function isToday(t) { return t.daily || nextDay(t) === today() || (!t.day && !t.done); }
     function clock(t) { return /^\d{2}:\d{2}$/.test(t.when) ? t.when : ''; }
     function byClock(a, b) {
         const d = Number(isDone(a)) - Number(isDone(b));
@@ -569,13 +588,15 @@
     function fillTil(selected) {
         const sel = $('opgTil');
         const names = [];
-        const add = n => { if (n && n !== vaert && !names.some(x => x.toLowerCase() === n.toLowerCase())) names.push(n); };
+        const add = n => { if (n && !names.some(x => x.toLowerCase() === n.toLowerCase())) names.push(n); };
+        if (admin) add(vaert);
         for (const n of (room && room.medlemmer) || []) add(n);
         for (const m of msgs) if (!m.host) add(m.name);
         for (const t of tasks) t.takers.forEach(add);
+        const me = (admin ? vaert : navn).toLowerCase();
         sel.textContent = '';
         const free = document.createElement('option'); free.value = ''; free.textContent = 'Den der har tid (alle kan tage den)'; sel.appendChild(free);
-        for (const n of [vaert, ...names]) { const o = document.createElement('option'); o.value = n; o.textContent = n === vaert ? n + ' (mig)' : n; sel.appendChild(o); }
+        for (const n of names) { const o = document.createElement('option'); o.value = n; o.textContent = n.toLowerCase() === me ? n + ' (mig)' : n; sel.appendChild(o); }
         sel.value = selected || '';
     }
 
@@ -648,8 +669,28 @@
         $('ngGem').disabled = false;
     });
 
+    // "Snart" (2026-11-12): what is on the coming 7 days, for everyone in the room.
+    const snartFmt = new Intl.DateTimeFormat('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
+    function addDays(day, n) { const d = new Date(day + 'T12:00'); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); }
+    function renderSnart() {
+        const from = today(), to = addDays(from, 7), tomorrow = addDays(from, 1);
+        const soon = tasks.filter(t => !t.daily && t.day && nextDay(t) > from && nextDay(t) <= to && !(t.done && !t.yearly))
+            .sort((a, b) => nextDay(a) < nextDay(b) ? -1 : nextDay(a) > nextDay(b) ? 1 : byClock(a, b));
+        $('snartBoks').hidden = soon.length === 0;
+        const l = $('snartListe'); l.textContent = '';
+        for (const t of soon) {
+            const li = document.createElement('li'), nd = nextDay(t);
+            const w = document.createElement('span'); w.className = 'snart-hvornaar' + (nd === tomorrow ? ' i-morgen' : '');
+            w.textContent = (nd === tomorrow ? 'I morgen' : snartFmt.format(new Date(nd + 'T12:00'))) + (clock(t) ? ' · kl. ' + clock(t) : '');
+            const h = document.createElement('span'); h.className = 'snart-hvad';
+            h.textContent = t.title + (t.takers.length ? ' – ' + t.takers.join(', ') : '');
+            li.append(w, h); l.appendChild(li);
+        }
+    }
+
     function renderTasks() {
         if (isGroup()) { renderNg(); return; }
+        renderSnart();
         const dayList = tasks.filter(isToday);
         const open = dayList.filter(t => !isDone(t));
         const free = open.filter(t => t.takers.length === 0);
@@ -671,12 +712,12 @@
             }
         }
 
-        if (admin && !editId) fillTil($('opgTil').value);
+        if (canAdd() && !editId) fillTil($('opgTil').value);
         const box = $('opgaver');
         box.textContent = '';
         if (!dayList.length) {
             const e = document.createElement('div'); e.className = 'tom';
-            e.innerHTML = admin
+            e.innerHTML = canAdd()
                 ? '<strong>Ingen opgaver i dag</strong>Skriv en opgave i boksen nedenfor og tryk "Læg opgaven ud". De andre får besked.'
                 : '<strong>Ingen opgaver i dag</strong>Når tovholderen lægger en opgave ud, kommer den her, og du får besked.';
             box.appendChild(e);
@@ -684,10 +725,11 @@
         for (const t of dayList.sort(byClock)) box.appendChild(taskCard(t));
 
         // The tovholder also sees the other days (coming first, then old ones).
-        const other = tasks.filter(t => !isToday(t));
-        $('andreDage').hidden = !(admin && other.length);
+        // The tovholder sees all other days; the others in a shared room see the coming ones (birthdays, visits).
+        const other = tasks.filter(t => !isToday(t) && (admin || (shared() && nextDay(t) > today())));
+        $('andreDage').hidden = !other.length;
         const ob = $('opgAndre'); ob.textContent = '';
-        if (admin) for (const t of other.sort((a, b) => (b.day < today()) - (a.day < today()) || (a.day < b.day ? -1 : a.day > b.day ? 1 : byClock(a, b)))) ob.appendChild(taskCard(t));
+        for (const t of other.sort((a, b) => { const x = nextDay(a), y = nextDay(b); return (y < today()) - (x < today()) || (x < y ? -1 : x > y ? 1 : byClock(a, b)); })) ob.appendChild(taskCard(t));
     }
 
     function taskCard(t) {
@@ -698,9 +740,10 @@
         const h = document.createElement('h3'); h.textContent = (clock(t) ? 'Kl. ' + clock(t) + ' · ' : '') + t.title;
         c.appendChild(h);
         const st = document.createElement('p'); st.className = 'status';
-        st.textContent = (done ? '✓ Gjort' : t.takers.length ? '● Taget' : '○ Mangler nogen') + (t.daily ? ' · hver dag' : '');
+        st.textContent = (done ? '✓ Gjort' : t.takers.length ? '● Taget' : '○ Mangler nogen') + (t.daily ? ' · hver dag' : t.yearly ? ' · hvert år' : '');
         c.appendChild(st);
-        const dayText = t.day && t.day !== today() ? dateFmt.format(new Date(t.day + 'T12:00')) : '';
+        const nd = nextDay(t);
+        const dayText = nd && nd !== today() ? dayFmt.format(new Date(nd + 'T12:00')) : '';
         if (dayText || (t.when && !clock(t))) {
             const w = document.createElement('p'); w.className = 'hvornaar';
             w.textContent = [dayText, clock(t) ? '' : t.when].filter(Boolean).join(' · '); c.appendChild(w);
@@ -709,6 +752,7 @@
         const who = document.createElement('p'); who.className = 'hvem';
         who.textContent = t.takers.length ? 'Tager den: ' + t.takers.join(', ') : 'Ingen har taget den endnu.';
         c.appendChild(who);
+        if (t.by) { const b = document.createElement('p'); b.className = 'hvem'; b.textContent = 'Lagt ind af ' + t.by; c.appendChild(b); }
 
         const row = document.createElement('div'); row.className = 'k-row';
         if (!done) {
@@ -722,6 +766,9 @@
             const doneBtn = document.createElement('button'); doneBtn.type = 'button'; doneBtn.className = 'k-btn k-btn-sm';
             doneBtn.textContent = done ? 'Åbn igen' : t.daily ? 'Gjort i dag' : 'Færdig';
             doneBtn.onclick = () => act(doneBtn, () => api('POST', `${base}/opgaver/${t.id}/faerdig`, { faerdig: !done }));
+            row.appendChild(doneBtn);
+        }
+        if (mayChange(t)) {
             const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'k-btn k-btn-sm k-btn-ghost';
             edit.textContent = 'Ret';
             edit.onclick = () => startEdit(t);
@@ -729,11 +776,11 @@
             del.textContent = 'Slet';
             del.onclick = () => {
                 // Two taps: the first asks, the second deletes.
-                if (del.dataset.sure) return act(del, () => api('DELETE', `${base}/opgaver/${t.id}`));
+                if (del.dataset.sure) return act(del, () => api('DELETE', `${base}/opgaver/${t.id}?navn=${encodeURIComponent(navn)}`));
                 del.dataset.sure = '1'; del.textContent = 'Ja, slet den'; del.className = 'k-btn k-btn-sm k-btn-danger';
                 setTimeout(() => { delete del.dataset.sure; del.textContent = 'Slet'; del.className = 'k-btn k-btn-sm k-btn-ghost'; }, 4000);
             };
-            row.append(doneBtn, edit, del);
+            row.append(edit, del);
         }
         c.appendChild(row);
         return c;
@@ -748,8 +795,8 @@
     function startEdit(t) {
         editId = t.id;
         $('opgTitel').value = t.title; $('opgHvornaar').value = clock(t); $('opgNote').value = t.note;
-        $('opgDag').value = t.daily ? 'hver' : !t.day ? 'ingen' : t.day === today() ? 'idag' : 'anden';
-        $('opgDato').value = t.day || ''; $('opgDato').hidden = $('opgDag').value !== 'anden';
+        $('opgDag').value = t.daily ? 'hver' : t.yearly ? 'aar' : !t.day ? 'ingen' : t.day === today() ? 'idag' : 'anden';
+        $('opgDato').value = t.day || ''; $('opgDato').hidden = !['anden', 'aar'].includes($('opgDag').value);
         // Several on it: the list shows "as it is now", so saving never removes anyone by accident.
         fillTil(t.takers.length === 1 ? t.takers[0] : '');
         if (t.takers.length > 1) {
@@ -758,21 +805,100 @@
         }
         $('opgTil').dataset.was = $('opgTil').value;
         $('nyTitel').textContent = 'Ret opgave'; $('opgGem').textContent = 'Gem ændringen'; $('opgFortryd').hidden = false;
+        $('flereValg').open = true; $('hurtigBoks').hidden = true;
         $('nyOpg').scrollIntoView({ behavior: 'smooth' }); $('opgTitel').focus();
     }
     function stopEdit() {
         editId = 0; $('nyOpg').reset(); fillTil(''); $('opgDato').hidden = true;
         $('nyTitel').textContent = 'Ny opgave'; $('opgGem').textContent = 'Læg opgaven ud'; $('opgFortryd').hidden = true;
+        $('hurtigBoks').hidden = false;
     }
     $('opgFortryd').onclick = stopEdit;
-    $('opgDag').onchange = () => { $('opgDato').hidden = $('opgDag').value !== 'anden'; if (!$('opgDato').hidden && !$('opgDato').value) $('opgDato').value = today(); };
+
+    // ---- "Skriv det kort" (2026-11-12): one line -> what, who, day, clock. Simple rules in the page, no AI. ----
+    const maaneder = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    const ugedage = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
+    function parseQuick(text) {
+        let s = ' ' + (text || '').replace(/\s+/g, ' ') + ' ';
+        const cut = re => { const m = s.match(re); if (m) s = s.replace(m[0], ' '); return m; };
+        const r = { titel: '', dag: '', hvornaar: '', til: '', hvertAar: false };
+        if (cut(/\s(hvert år|hvert aar|årligt)(?=[\s.,!])/i)) r.hvertAar = true;
+        if (/fødselsdag|fdag|bryllupsdag|mærkedag/i.test(s)) r.hvertAar = true;
+        const t0 = today(), y0 = Number(t0.slice(0, 4));
+        const iso = (y, m, d) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        const ok = (y, m, d) => { const x = new Date(y, m - 1, d); return x.getMonth() === m - 1 && x.getDate() === d; };
+        // A date without a year that has passed this year is next year's (not for a yearly day - it keeps its date).
+        const fix = (m, d, y) => {
+            if (!(m >= 1 && m <= 12)) return '';
+            let year = y ? (y < 100 ? 2000 + y : y) : y0;
+            if (!ok(year, m, d)) return '';
+            if (!y && !r.hvertAar && iso(year, m, d) < t0) year++;
+            return iso(year, m, d);
+        };
+        let m;
+        const hhmm = (h, mi) => (h >= 0 && h < 24 && mi >= 0 && mi < 60) ? String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') : '';
+        // "kl 18.30" first, so 18.30 is never read as a date.
+        if ((m = cut(/\s(?:kl\.?|klokken)\s*(\d{1,2})(?:[.:](\d{2}))?(?=[\s.,!])/i))) r.hvornaar = hhmm(+m[1], m[2] ? +m[2] : 0);
+        // A date is only taken when it is a real one (18.30 is not).
+        const dm = s.match(/\s(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?(?=[\s.,!])/);
+        const dd = dm ? fix(+dm[2], +dm[1], dm[3] ? +dm[3] : 0) : '';
+        if (dd) { r.dag = dd; s = s.replace(dm[0], ' '); }
+        else if ((m = cut(/\s(\d{1,2})\.?\s*(januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|okt|nov|dec)\.?(?:\s+(\d{4}))?(?=[\s.,!])/i)))
+            r.dag = fix(maaneder.indexOf(m[2].slice(0, 3).toLowerCase()) + 1, +m[1], m[3] ? +m[3] : 0);
+        else if (cut(/\s(i dag|idag)(?=[\s.,!])/i)) r.dag = t0;
+        else if (cut(/\s(i overmorgen|overmorgen)(?=[\s.,!])/i)) r.dag = addDays(t0, 2);
+        else if (cut(/\s(i morgen|imorgen)(?=[\s.,!])/i)) r.dag = addDays(t0, 1);
+        else if ((m = cut(/\s(på\s+)?(mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag)(?=[\s.,!])/i))) {
+            const want = ugedage.indexOf(m[2].toLowerCase());
+            for (let i = 0; i < 7; i++) { const d = addDays(t0, i); if (new Date(d + 'T12:00').getDay() === want) { r.dag = d; break; } }
+        }
+        if (r.hvornaar) { }
+        else if ((m = cut(/\s(\d{1,2})[.:](\d{2})(?=[\s.,!])/))) r.hvornaar = hhmm(+m[1], +m[2]);
+        else if ((m = cut(/\s(\d{2})(\d{2})(?=[\s.,!])/))) r.hvornaar = hhmm(+m[1], +m[2]);
+        // A name from the room = who it is for (a yearly day keeps the name in its title: "Julius fødselsdag").
+        for (const n of (room && room.medlemmer) || []) {
+            const re = new RegExp('\\s' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=[\\s.,!:])', 'i');
+            if (re.test(s)) { if (!r.hvertAar) { r.til = n; s = s.replace(re, ' '); } break; }
+        }
+        s = s.replace(/\s(den|d\.|på|til|kl\.?|klokken)(?=\s)/gi, ' ').replace(/[\s.,!:]+/g, ' ').trim();
+        r.titel = s ? s[0].toUpperCase() + s.slice(1) : '';
+        return r;
+    }
+    function quickText(q) {
+        if (!q.titel) return 'Skriv hvad det er – fx "Tandlæge".';
+        const parts = [q.titel];
+        if (q.dag) parts.push((q.hvertAar ? 'hvert år, næste gang ' : '') + snartFmt.format(new Date(nextDay({ day: q.dag, yearly: q.hvertAar }) + 'T12:00')));
+        if (q.hvornaar) parts.push('kl. ' + q.hvornaar);
+        if (q.til) parts.push(q.til);
+        let tip = '';
+        if (!q.dag) tip = ' Mangler en dag – skriv fx 13/11, fredag eller i morgen. Uden dag står den bare på listen.';
+        else if (!q.hvornaar && !q.hvertAar) tip = ' Skriv også klokken (fx kl 14), så får alle en påmindelse før.';
+        else if (!q.til && !q.hvertAar && shared()) tip = ' Skriv evt. et navn, så ved alle, hvem det gælder.';
+        return 'Forstået: ' + parts.join(' · ') + '.' + tip;
+    }
+    $('hurtig').addEventListener('input', () => {
+        const v = $('hurtig').value.trim();
+        $('hurtigGem').disabled = !v || !parseQuick(v).titel;
+        $('hurtigViser').textContent = v ? quickText(parseQuick(v)) : 'Skriv hvad, hvem, dag og klokkeslæt – i den rækkefølge du vil. Fx "Julius fødselsdag 12/4 hvert år".';
+    });
+    $('hurtig').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (!$('hurtigGem').disabled) $('hurtigGem').click(); } });
+    $('hurtigGem').onclick = async () => {
+        const q = parseQuick($('hurtig').value);
+        if (!q.titel) return;
+        await act($('hurtigGem'), () => api('POST', base + '/opgaver', { titel: q.titel, hvornaar: q.hvornaar, note: '', endpoint, til: q.til,
+            dag: q.dag, hvertAar: q.hvertAar && !!q.dag, hverDag: false, navn }));
+        $('hurtig').value = ''; $('hurtigGem').disabled = true;
+        $('hurtigViser').textContent = 'Lagt ind. Alle i rummet får besked.';
+    };
+    $('opgDag').onchange = () => { $('opgDato').hidden = !['anden', 'aar'].includes($('opgDag').value); if (!$('opgDato').hidden && !$('opgDato').value) $('opgDato').value = today(); };
     $('nyOpg').addEventListener('submit', async e => {
         e.preventDefault();
         const til = $('opgTil').value;
         const dag = $('opgDag').value;
         const body = {
             titel: $('opgTitel').value, hvornaar: $('opgHvornaar').value, note: $('opgNote').value, endpoint,
-            hverDag: dag === 'hver', dag: dag === 'idag' ? today() : dag === 'anden' ? $('opgDato').value : '',
+            hverDag: dag === 'hver', hvertAar: dag === 'aar', dag: dag === 'idag' ? today() : dag === 'anden' || dag === 'aar' ? $('opgDato').value : '',
+            navn,
         };
         // New task: the chosen person. Edit: only when it was changed (null on the server = keep who has it).
         if (!editId || (til !== '*' && til !== $('opgTil').dataset.was)) body.til = til;
