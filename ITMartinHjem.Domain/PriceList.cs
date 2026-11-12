@@ -17,7 +17,7 @@ public static class PriceList
         ("ElPriser", "Se, hvornår strømmen er billigst i dag og i morgen.", "https://elpriser.itmartin.dk/om"),
         ("Stem", "Lav en afstemning for familien eller foreningen.", "https://stem.itmartin.dk/om"),
         ("Snak", "Et privat rum til én sag – uden reklamer.", "https://snak.itmartin.dk/om"),
-        ("Husk", "Din egen huskeliste – lavet af en med ADHD.", "https://husk.itmartin.dk/om"),
+        ("Husk", "Din egen huskeliste – lavet af en med ADHD. Min Husk med Bolde: 5 kr. om ugen, mens den er tændt.", "https://husk.itmartin.dk/om"),
     ];
 
     public static readonly IReadOnlyList<Offer> Offers =
