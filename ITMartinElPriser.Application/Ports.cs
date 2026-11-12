@@ -4,6 +4,13 @@ namespace ITMartinElPriser.Application;
 
 /// <summary>Kunder (the Kundekartotek for all apps): is this kundenummer good for ElPriser's extras? (user 2026-10-21:
 /// beskeder need the kundenummer you get when you sign up for free on itmartin.dk.)</summary>
+/// <summary>MinElpris (2026-11-12, free vs paid): a new account needs a kundenummer Martin has ticked "MinElpris: betalt" in Kunder.</summary>
+public interface IPaidCodes
+{
+    /// <returns>Ok, or an error for the person (Danish).</returns>
+    Task<(bool Ok, string Error)> CheckPaidAsync(string code, CancellationToken ct = default);
+}
+
 public interface ICustomerCodes
 {
     /// <returns>Ok, or an error for the person (Danish).</returns>

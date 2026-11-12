@@ -77,9 +77,11 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
             return await repo.ByCodeAsync(k, ct) is { } m
                 ? m.CodeWorks ? new(true, m.Name) : new(false, Error: "Du er afmeldt. Skriv dig op igen på bogshoppen.dk, så virker dit nummer igen.")
                 : new(false, Error: "Det nummer kender vi ikke. Tjek det, eller skriv dig op gratis på bogshoppen.dk.");
+        var c = await repo.ByCodeAsync(k, ct);
+        // A paid-only app (MinElpris, 2026-11-12): Martin's "betalt" tick is the access - it need not be a free app.
+        if (c is { CodeWorks: true } && c.HasPaid(app)) return new(true, c.Name, Paid: true);
         if (!freeApps.Any(a => a.Available && string.Equals(a.Name, app.Trim(), StringComparison.OrdinalIgnoreCase)))
             return new(false, Error: "Den app er ikke med i de gratis apps lige nu.");
-        var c = await repo.ByCodeAsync(k, ct);
         if (c is null) return new(false, Error: "Det nummer kender vi ikke. Tjek det, eller skriv dig op gratis på itmartin.dk.");
         if (!c.CodeWorks) return new(false, Error: "Du er afmeldt. Skriv dig op igen på itmartin.dk, så virker dit nummer igen.");
         return new(true, c.Name, Paid: c.HasPaid(app));

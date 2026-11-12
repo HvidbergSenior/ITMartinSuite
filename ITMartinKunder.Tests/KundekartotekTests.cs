@@ -220,6 +220,20 @@ public class KundekartotekTests
         (off.Ok, off.Paid).Should().Be((true, false));
     }
 
+    [Test]
+    public async Task A_paid_only_app_opens_with_Martins_tick_and_closes_without_it()
+    {
+        var (_, code) = await _k.SignUpWithCodeAsync(Yes("ole@gmail.com", "ElPriser"));
+        var apps = await _apps.AllAsync();
+        (await _k.CheckCodeAsync(code, "MinElpris", apps)).Ok.Should().BeFalse();   // not a free app, no tick
+        var ole = (await _k.ListAsync()).Single();
+        await _k.SetPaidAsync(ole.Id, "MinElpris", true);
+        var paid = await _k.CheckCodeAsync(code, "MinElpris", apps);
+        (paid.Ok, paid.Paid).Should().Be((true, true));
+        await _k.UnsubscribeAsync("ole@gmail.com");
+        (await _k.CheckCodeAsync(code, "MinElpris", apps)).Ok.Should().BeFalse();   // afmeldt = closed, tick or not
+    }
+
     private sealed class FakeMail : IMailSender
     {
         public bool Works = true;

@@ -2,6 +2,7 @@
 using PushSubscriber = ITMartinMitEl.Server.Services.PushSubscriber;
 using Microsoft.AspNetCore.DataProtection;
 using ITMartinElPriser.Infrastructure;
+using ITMartinElPriser.Application;
 using ITMartin.Shared.UI.Kolibri;
 using System.Security.Claims;
 using ITMartinMitEl.Server.Data;
@@ -44,6 +45,7 @@ builder.Services.AddKolibri(k =>
 // registration would throw the cache away every call.
 // The four price/CO2/supplier/grid sources once each, by type and by port (the same as the free app).
 builder.Services.AddElPriserSources();
+builder.Services.AddMinElprisPaid(builder.Configuration);   // free vs paid (2026-11-12): sign-up needs the paid tick in Kunder
 // Accounts and per-household data (phase 2). The stores are resolved per request
 // from the signed-in user's household, so a page can only ever read its own home.
 var dbPath = builder.Configuration["MitEl:DbPath"]
@@ -159,23 +161,30 @@ app.MapPost("/login", async (HttpContext ctx, AccountService accounts) =>
     return Results.Redirect(result.User.Role == UserRoles.Advisor ? "/kunder" : "/");
 }).AllowAnonymous();
 
-// Sign-up by invitation: with MitEl:SignupCode set, a new account needs that code (user 2026-10-09).
-// Empty = open sign-up as before. Existing accounts and the read-only /demo are not affected.
+// Sign-up (free vs paid, user 2026-11-12): a new account needs a kundenummer that Martin has ticked "MinElpris: betalt" in
+// Kunder (5 kr. om ugen, mens den er tændt). MitEl:SignupCode (2026-10-09 invitation code) still works for Martin himself.
+// Existing accounts and the read-only /demo are not affected.
 var signupCode = (app.Configuration["MitEl:SignupCode"] ?? "").Trim();
 
 app.MapGet("/opret", (HttpContext ctx) => Results.Content(LoginPages.Register(
     error: ctx.Request.Query["fejl"].ToString() is { Length: > 0 } e ? e : null,
     email: ctx.Request.Query["mail"].ToString(),
-    needsCode: signupCode.Length > 0), "text/html")).AllowAnonymous();
+    needsCode: true), "text/html")).AllowAnonymous();
 
-app.MapPost("/opret", async (HttpContext ctx, AccountService accounts) =>
+app.MapPost("/opret", async (HttpContext ctx, AccountService accounts, IPaidCodes paid) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     var email = form["email"].ToString();
-    if (signupCode.Length > 0 && !string.Equals(form["code"].ToString().Trim(), signupCode, StringComparison.OrdinalIgnoreCase))
+    var typed = form["code"].ToString().Trim();
+    var martins = signupCode.Length > 0 && string.Equals(typed, signupCode, StringComparison.OrdinalIgnoreCase);
+    if (!martins)
     {
-        await Task.Delay(1000);   // slows down guessing
-        return Results.Redirect($"/opret?fejl={Uri.EscapeDataString("Koden passer ikke. Du får en kode af Martin – ring 31 19 47 30 eller skriv til ITMartin@Mensa.dk.")}&mail={Uri.EscapeDataString(email)}");
+        var (ok, error) = await paid.CheckPaidAsync(typed, ctx.RequestAborted);
+        if (!ok)
+        {
+            await Task.Delay(1000);   // slows down guessing
+            return Results.Redirect($"/opret?fejl={Uri.EscapeDataString(error)}&mail={Uri.EscapeDataString(email)}");
+        }
     }
     var result = await accounts.RegisterAsync(email, form["password"].ToString(), form["name"].ToString(), form["home"].ToString());
 

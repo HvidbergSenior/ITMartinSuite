@@ -23,6 +23,14 @@ public static class DependencyInjection
         return services;
     }
 
+    /// <summary>MinElpris: Kunder answers whether a kundenummer has the paid tick (sign-up gate, 2026-11-12).</summary>
+    public static IServiceCollection AddMinElprisPaid(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddKunderClient(config, config["DataDir"] ?? "/data");
+        services.AddSingleton<IPaidCodes, KunderPaidCodes>();
+        return services;
+    }
+
     /// <summary>The free ElPriser app's own adapters: who wants a message (DataDir/subscribers.json), Web Push, PDF text,
     /// and Kunder for the kundenummer.</summary>
     public static IServiceCollection AddElPriserApp(this IServiceCollection services, IConfiguration config)

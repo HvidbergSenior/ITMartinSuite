@@ -160,11 +160,12 @@
         _rows = await Kartotek.ListAsync();
         _doubles = await Kartotek.PossibleDoublesAsync();
         var free = await Apps.AllAsync();
-        _paidApps = PaidPart.Where(a => free.Any(f => string.Equals(f.Name, a, StringComparison.OrdinalIgnoreCase))).ToList();
+        // Husk shows once it is a free app; MinElpris is paid only, so it is always there.
+        _paidApps = PaidPart.Where(a => a == "MinElpris" || free.Any(f => string.Equals(f.Name, a, StringComparison.OrdinalIgnoreCase))).ToList();
     }
 
     // The apps that have a paid part so far (Husk first, 2026-11-12) - the rest follow the same pattern.
-    private static readonly string[] PaidPart = ["Husk"];
+    private static readonly string[] PaidPart = ["Husk", "MinElpris"];
     private List<string> _paidApps = [];
 
     private async Task Paid(Customer c, string app, bool on) { await Kartotek.SetPaidAsync(c.Id, app, on); await LoadAsync(); }

@@ -35,9 +35,9 @@ public static class LoginPages
             <p class="sub">Din egen side med dit forbrug. Dine tal er kun dine.</p>
             {Message(error, null)}
             {(needsCode ? """
-            <label for="code">Kode fra Martin</label>
-            <input id="code" name="code" autocomplete="off" required>
-            <p class="alt small">MinElpris er kun for inviterede. Har du ingen kode, så ring 31 19 47 30 eller skriv til ITMartin@Mensa.dk. Den gratis ElPriser kan alle bruge: <a href="https://elpriser.itmartin.dk">elpriser.itmartin.dk</a></p>
+            <label for="code">Dit kundenummer</label>
+            <input id="code" name="code" autocomplete="off" inputmode="numeric" placeholder="fx 1234 5678" required>
+            <p class="alt small">MinElpris koster 5 kr. om ugen, mens den er tændt – intet abonnement. Skriv eller ring til Martin (31 19 47 30), så slår han den til på dit kundenummer. Den gratis ElPriser kan alle bruge: <a href="https://elpriser.itmartin.dk">elpriser.itmartin.dk</a></p>
             """ : "")}
             <label for="name">Dit navn</label>
             <input id="name" name="name" autocomplete="name">
