@@ -20,11 +20,11 @@ public static class PriceList
 
     public static readonly IReadOnlyList<Offer> Offers =
     [
-        new("Hjælp til din pc eller telefon",
-            "Jeg kigger med på din skærm og hjælper dig – mens du sidder hjemme.",
+        new("Hjælp til din pc",
+            "Jeg kigger med på din skærm og hjælper dig – mens du sidder hjemme. Kun på pc.",
             "200 kr. for 1 time", "Sådan gør vi", "/hjaelp-over-skaermen"),
         new("Billeder og film fra Facebook, Instagram og Snapchat – sorteret",
-            "Jeg henter alle dine filer, og vi sorterer dem – med den rigtige dato, efter år, i ét galleri. 1 time sammen over skærmen, så er det gjort.",
+            "Jeg henter alle dine filer, og vi sorterer dem – med den rigtige dato, efter år, i ét galleri. 1 time sammen over skærmen på din pc, så er det gjort.",
             "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen"),
         new("Din egen hjemmeside",
             "Jeg laver den gratis. Du betaler kun for, at den ligger på min server – ingen binding.",
