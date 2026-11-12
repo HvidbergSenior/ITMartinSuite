@@ -74,7 +74,7 @@ public class SiteTests
     [Test]
     public void The_price_list_has_the_users_prices()
     {
-        PriceList.Offers.Select(o => o.Price).Should().Contain(["200 kr. for 1 time", "500 kr. i alt pr. tjeneste", "2 / 4 / 5 kr. om dagen"]);
+        PriceList.Offers.Select(o => o.Price).Should().Contain(["300 kr. pr. gang", "500 kr. i alt pr. tjeneste", "10 / 30 / 40 kr. om ugen"]);
         PriceList.FreeSnebolde.Select(s => s.Name).Should().Equal("ElPriser", "Temperatur", "Stem", "Snak", "Husk");
     }
 
