@@ -1,7 +1,9 @@
 namespace ITMartinHjem.Domain;
 
 /// <summary>One line on the front page's price list: what Martin sells, what it costs, and where to go for it.</summary>
-public sealed record Offer(string Title, string Text, string Price, string Button, string Href);
+/// <param name="Saving">What you save by choosing me (user 2026-11-12: "the savings to use me should be on frontpage") - shown
+/// on the tile; the numbers come from the like-for-like comparison on the offer's own page.</param>
+public sealed record Offer(string Title, string Text, string Price, string Button, string Href, string Saving = "");
 
 /// <summary>The front page = what I sell + prices (user 2026-11-12: "I need to make my itmartin.dk super simple ...
 /// What do I sell -> prices etc"). Prices are the user's own and ALL include moms: remote help = 300 kr per session until satisfied (later 12.11: "price for one session... until done", "i dont like hours"; was 200 kr/hour), photos collected/sorted =
@@ -30,7 +32,8 @@ public static class PriceList
             "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen"),
         new("Din egen hjemmeside – som du vil have den",
             "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon. Har du en side i forvejen, flytter jeg den for 500 kr. i alt.",
-            "10 / 30 / 40 kr. om ugen", "Sådan gør vi", "/din-hjemmeside"),
+            "10 / 30 / 40 kr. om ugen", "Sådan gør vi", "/din-hjemmeside",
+            "Spar ca. 150–2.270 kr. om året i forhold til one.com, Wix og Simply"),
         new("Bøger, tegneserier, film og musik",
             "Brugte ting fra Bogshoppen – med billede.",
             "Spørg om prisen", "Gå til Bogshoppen", "https://bogshoppen.dk"),

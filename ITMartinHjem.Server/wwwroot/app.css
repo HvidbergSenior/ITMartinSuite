@@ -1010,6 +1010,8 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-tile-title { font-size: 1.1rem; }
 .hj-tile-text { color: var(--k-muted); flex: 1; }
 .hj-tile-btn { align-self: flex-start; margin-top: 6px; }
+/* What you save by choosing me (2026-11-12): bold text in a framed band - not colour alone (the user is a bit colour-blind). */
+.hj-tile-save { font-weight: 800; color: var(--k-text); border: 2px solid var(--k-accent); border-radius: 10px; padding: 8px 10px; }
 .hj-tile-free { border-top-color: var(--k-border); }
 .hj-tile-free .hj-tile-price { font-size: 1.1rem; color: var(--k-muted); }
 .hj-tile-wide { margin-top: 16px; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top-width: 1px; }

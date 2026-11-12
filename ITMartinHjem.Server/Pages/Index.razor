@@ -46,6 +46,7 @@
                 <span class="hj-tile-price">@o.Price</span>
                 <b class="hj-tile-title">@o.Title</b>
                 <span class="hj-tile-text">@o.Text</span>
+                @if (o.Saving.Length > 0) { <span class="hj-tile-save">@o.Saving</span> }
                 <span class="k-btn k-btn-primary hj-tile-btn">@o.Button</span>
             </a>
         }
