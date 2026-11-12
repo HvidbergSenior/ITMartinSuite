@@ -63,18 +63,13 @@
     <details class="hj-sec" open data-remember="hj-undervisning">
     <summary><h2 class="hj-sec-title">Undervisning</h2>
     <p class="hj-sec-sub">Jeg underviser i AI og IT – roligt og uden forkundskaber.</p></summary>
+    @* Short (user 2026-11-12: "jus write something like - My presentation"): the whole text is on /lof-aftener. *@
     <div class="hj-tile hj-teach">
-        <span class="hj-tile-price">5 aftener hos LOF Aarhus</span>
+        <span class="hj-tile-price">Hos LOF Aarhus</span>
         <b class="hj-tile-title">@News.LofAi.Title</b>
-        <span class="hj-tile-text">@News.LofAi.Teaser</span>
-        <ol class="hj-steps">
-            @foreach (var e in News.LofEvenings)
-            {
-                <li><b>@e.Title</b> – @e.Make</li>
-            }
-        </ol>
+        <span class="hj-teach-p">@News.Intro[0]</span>
         <div class="hj-head-btns">
-            <a class="k-btn k-btn-primary" href="@News.Page">Se de 5 aftener</a>
+            <a class="k-btn k-btn-primary" href="@News.Page">Min præsentation</a>
             <a class="k-btn" href="@News.LofAi.Href" target="_blank" rel="noopener">Tilmeld dig hos LOF</a>
         </div>
     </div>

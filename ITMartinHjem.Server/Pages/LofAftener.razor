@@ -5,21 +5,30 @@
 <PageTitle>Mine LOF-aftener · ITMartin</PageTitle>
 
 <PageHead Title="Mine LOF-aftener" Tag="Aftenhold hos LOF Aarhus" />
-<section class="k-card hj-news" data-nofold>
+<section class="k-card hj-news">
     <h2 class="k-card-title">@News.LofAi.Title</h2>
-    <p>@News.LofAi.Teaser</p>
-    <p class="hj-news-when"><b>@News.LofAi.Time</b>: @News.DateLine(News.LofAi)<br />@News.LofAi.Place</p>
+    @foreach (var t in News.Intro) { <p>@t</p> }
     <p class="k-help">Du tilmelder dig hos LOF Aarhus – tryk på knappen og søg efter holdet.</p>
     <a class="k-btn k-btn-primary" href="@News.LofAi.Href">Tilmeld dig hos LOF Aarhus</a>
+</section>
+
+@* Martin's own course text (pasted 2026-11-12), word for word. Every box folds. *@
+<section class="k-card">
+    <h2 class="k-card-title">Bekymret for AI?</h2>
+    @foreach (var t in News.Why) { <p>@t</p> }
+</section>
+<section class="k-card">
+    <h2 class="k-card-title">@News.EveryEveningTitle</h2>
+    @foreach (var t in News.EveryEvening) { <p>@t</p> }
 </section>
 
 @* The red thread: each evening -> the snebolde it uses -> Martin's own pages (Facebook/Snapchat exit, doomscrolling, datacenters). *@
 <h2 class="hj-lof-h">De 5 aftener – og hvor du kan læse mere</h2>
 @foreach (var e in News.LofEvenings)
 {
-    <section class="k-card hj-offer-card" data-nofold>
+    <section class="k-card hj-offer-card">
         <h3 class="k-card-title">@e.Number. @e.Title</h3>
-        <p><b>Vi laver:</b> @e.Make</p>
+        <p><b>@e.Make</b> @e.More</p>
         <p><b>Hvorfor?</b> @e.Why</p>
         @if (e.Snebolde.Count > 0)
         {
@@ -30,3 +39,12 @@
         <div class="hj-offer-btns">@foreach (var (n, h) in e.Read) { <a class="k-btn k-btn-sm k-btn-ghost" href="@h">@n</a> }</div>
     </section>
 }
+
+<section class="k-card">
+    <h2 class="k-card-title">Ingen forkundskaber</h2>
+    @foreach (var t in News.NoPrior) { <p>@t</p> }
+</section>
+<section class="k-card">
+    <h2 class="k-card-title">Om underviseren</h2>
+    <p>@News.Teacher</p>
+</section>

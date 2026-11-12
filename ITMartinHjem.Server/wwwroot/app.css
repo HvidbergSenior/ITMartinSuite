@@ -1048,3 +1048,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-teach .hj-tile-price { font-size: 1.3rem; }
 .hj-steps { margin: 4px 0 0; padding-left: 22px; }
 .hj-steps li { margin: 6px 0; line-height: 1.4; }
+.hj-teach-p { line-height: 1.5; }
+.hj-teach-more { border-top: 1px solid var(--k-border); padding-top: 8px; }
+.hj-teach-more > summary { cursor: pointer; padding: 4px 0; }
+.hj-teach-more p { margin: 6px 0; line-height: 1.5; }
