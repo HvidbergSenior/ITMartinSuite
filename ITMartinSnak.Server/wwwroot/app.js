@@ -718,7 +718,7 @@
         if (!dayList.length) {
             const e = document.createElement('div'); e.className = 'tom';
             e.innerHTML = canAdd()
-                ? '<strong>Ingen opgaver i dag</strong>Skriv en opgave i boksen nedenfor og tryk "Læg opgaven ud". De andre får besked.'
+                ? '<strong>Ingen opgaver i dag</strong>Skriv det kort i boksen nedenfor – fx "Tandlæge Eigil 13/11 kl 14" – og tryk "Læg det ind". De andre får besked.'
                 : '<strong>Ingen opgaver i dag</strong>Når tovholderen lægger en opgave ud, kommer den her, og du får besked.';
             box.appendChild(e);
         }
