@@ -5,7 +5,7 @@ public sealed record Offer(string Title, string Text, string Price, string Butto
 
 /// <summary>The front page = what I sell + prices (user 2026-11-12: "I need to make my itmartin.dk super simple ...
 /// What do I sell -> prices etc"). Prices are the user's own and ALL include moms: remote help = 300 kr per session until satisfied (later 12.11: "price for one session... until done", "i dont like hours"; was 200 kr/hour), photos collected/sorted =
-/// 500 kr per cloud in total (one session until done + the sorting, user: "Get it done... And sorted... 500 ialt incl moms"), homepage: first page free, then 10/30/40 kr per WEEK it is switched on (Selv/Sammen/Fuld hjælp; user later 12.11, was 2/4/5 a day, before that 49/99/149 a month). Free snebolde = only the live ones that
+/// 500 kr per cloud in total (one session until done + the sorting, user: "Get it done... And sorted... 500 ialt incl moms"), homepage: first page free, then 10/30/40 kr per WEEK it is switched on (Selv/Sammen/Fuld hjælp; user later 12.11, was 2/4/5 a day, before that 49/99/149 a month; moving an existing site = 500 kr in total, one session like the photos, user 12.11). Free snebolde = only the live ones that
 /// others use (ElPriser, Temperatur, Stem, Snak, Husk).</summary>
 public static class PriceList
 {
@@ -29,7 +29,7 @@ public static class PriceList
             "Jeg henter alle dine filer, og vi sorterer dem – med den rigtige dato, efter år, i ét galleri. Én gang sammen over skærmen på din pc, til det er gjort.",
             "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen"),
         new("Din egen hjemmeside – som du vil have den",
-            "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon.",
+            "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon. Har du en side i forvejen, flytter jeg den for 500 kr. i alt.",
             "10 / 30 / 40 kr. om ugen", "Sådan gør vi", "/din-hjemmeside"),
         new("Bøger, tegneserier, film og musik",
             "Brugte ting fra Bogshoppen – med billede.",
