@@ -11,7 +11,7 @@ public sealed record Offer(string Title, string Text, string Price, string Butto
 /// others use (ElPriser, Temperatur, Stem, Snak, Husk).</summary>
 /// <summary>A free snebold on the front page (user 2026-11-12: "all snebolde should have prices for paid and description on the
 /// differences"): what the free part gives, and - when there is one - the paid part's name and what it adds. Stem has no paid part
-/// (user: "It should not be paid").</summary>
+/// (user: "It should not be paid") and is off the front page (user 2026-11-12 "remove stem").</summary>
 public sealed record Snebold(string Name, string Text, string Href, string Free, string PaidName, string Paid)
 {
     public bool HasPaid => PaidName.Length > 0;
@@ -27,8 +27,6 @@ public static class PriceList
         new("ElPriser", "Se, hvornår strømmen er billigst i dag og i morgen.", "https://elpriser.itmartin.dk/om",
             "Prisen nu, de billigste timer og en besked, når strømmen er billig.",
             "MinElpris", "Dine egne apparater: hvad koster det at vaske, lade bilen eller tænde ovnen – og hvornår er det billigst?"),
-        new("Stem", "Lav en afstemning for familien eller foreningen.", "https://stem.itmartin.dk/om",
-            "Alt er gratis – lav en afstemning, del linket, og se hvad folk vælger.", "", ""),
         new("Snak", "Et privat rum til én sag – uden reklamer.", "https://snak.itmartin.dk/om",
             "Et rum til én sag med beskeder og opgaver. Det smelter, når I er færdige.",
             "Min Snak", "Alle dine rum samlet ét sted, dit eget navn på dem, og de bliver gemt længere. (Kommer snart.)"),
