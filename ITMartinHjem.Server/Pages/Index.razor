@@ -60,12 +60,17 @@
     <summary><h2 class="hj-sec-title">Gratis snebolde</h2>
     <p class="hj-sec-sub">Små hjælpere i din browser – uden reklamer. Tryk og læs, hvad de kan.</p></summary>
     <div class="hj-grid hj-grid-4">
-        @foreach (var (name, text, href) in PriceList.FreeSnebolde)
+        @foreach (var sb in PriceList.FreeSnebolde)
         {
-            <a class="hj-tile hj-tile-free" href="@href">
-                <span class="hj-tile-price">0 kr.</span>
-                <b class="hj-tile-title">@name</b>
-                <span class="hj-tile-text">@text</span>
+            <a class="hj-tile hj-tile-free" href="@sb.Href">
+                <span class="hj-tile-price">0 kr.@(sb.HasPaid ? "" : " – helt gratis")</span>
+                <b class="hj-tile-title">@sb.Name</b>
+                <span class="hj-tile-text">@sb.Text</span>
+                <span class="hj-sb-part"><b>Gratis:</b> @sb.Free</span>
+                @if (sb.HasPaid)
+                {
+                    <span class="hj-sb-part hj-sb-paid"><b>@sb.PaidName – @PriceList.PaidPrice:</b> @sb.Paid</span>
+                }
             </a>
         }
     </div>
