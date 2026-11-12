@@ -13,6 +13,8 @@
         <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/tilfoej">Tilføj</NavLink>
         @if (Who.MinHusk) { <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/alt">Alt</NavLink> }
         @if (Who.IsMartin) { <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/job">Job</NavLink> }
+        @* Log out for everyone (user 2026-11-12 "you need to logout of the apps") - also Martin, so he can test as a customer. *@
+        <button class="k-btn k-btn-ghost k-btn-sm" type="button" @onclick='() => Nav.NavigateTo(Who.IsDemo ? "/luk-eksempel" : "/logud", forceLoad: true)'>@(Who.IsDemo ? "Luk eksemplet" : "Log ud")</button>
     }
     else
     {
