@@ -26,10 +26,15 @@ public static class PriceList
     [
         new("Hjælp til din pc",
             "Jeg kigger med på din skærm og hjælper dig, mens du sidder hjemme – til du er tilfreds. Kun på pc.",
-            "300 kr. pr. gang", "Sådan gør vi", "/hjaelp-over-skaermen"),
+            "300 kr. pr. gang", "Sådan gør vi", "/hjaelp-over-skaermen",
+            // Like for like (user 12.11): other remote PC help costs ca. 200-500 kr. per task (Handyhand price data) - no honest kr
+            // saving, so the band says what is really different: a fixed price until you are satisfied.
+            "Fast pris til du er tilfreds – det bliver ikke dyrere, hvis det tager længere tid"),
         new("Billeder og film fra Facebook, Instagram og Snapchat – sorteret",
             "Jeg henter alle dine filer, og vi sorterer dem – med den rigtige dato, efter år, i ét galleri. Én gang sammen over skærmen på din pc, til det er gjort.",
-            "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen"),
+            "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen",
+            // No Danish market price found for sorting photos (12.11) - so no kr number, only the fixed price.
+            "Fast pris: 500 kr. i alt – uanset hvor mange billeder, og hvor lang tid det tager"),
         new("Din egen hjemmeside – som du vil have den",
             "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon. Har du en side i forvejen, flytter jeg den for 500 kr. i alt.",
             "10 / 30 / 40 kr. om ugen", "Sådan gør vi", "/din-hjemmeside",
