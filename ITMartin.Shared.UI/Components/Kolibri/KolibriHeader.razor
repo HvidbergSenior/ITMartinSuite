@@ -3,9 +3,10 @@
 @* Standard header: logo + app name + kolibri name. Put page-specific buttons in ChildContent. *@
 <header class="k-header">
     <div class="k-header-in @(Wide ? "wide" : "")">
+        @* The ITMartin logo top-left goes HOME to itmartin.dk from every app (user 2026-11-12: "navigation from apps to ITMartin -
+           and pushing the ITMartin in the top left"); the app's name next to it goes to the app's own front page. *@
+        <a href="https://itmartin.dk/" title="Til ITMartin.dk" style="display:flex;flex:none"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin – til forsiden" /></a>
         <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0">
-            @* The ITMartin brand logo top-left in every app (user 2026-10-22: "my own ITMartin Kolibri... the text can be there"). *@
-            <img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin" />
             <div class="k-brand">
                 <b>@(string.IsNullOrWhiteSpace(Title) ? Info.Name : Title)</b>
                 @if (!string.IsNullOrWhiteSpace(Info.KolibriName)) { <span>@Info.KolibriName@(string.IsNullOrWhiteSpace(Info.Tenant) ? "" : $" · {Info.Tenant}")</span> }
