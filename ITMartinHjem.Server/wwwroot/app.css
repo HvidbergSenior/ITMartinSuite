@@ -985,3 +985,6 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
   background: var(--k-card); color: var(--k-text); border: 1px solid var(--k-border); border-radius: 10px; box-shadow: var(--k-shadow); padding: 6px 0; }
 .hj-nav .hj-nav-more-list a { color: var(--k-text); padding: 10px 16px; }
 .hj-nav .hj-nav-more-list a:hover { background: var(--k-bg); }
+.hj-news { border-left: 4px solid var(--k-accent); }
+.hj-news p { margin: 6px 0; }
+.hj-news-when { color: var(--k-text); }

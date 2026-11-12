@@ -4,8 +4,8 @@ namespace ITMartinHjem.Domain;
 public sealed record Offer(string Title, string Text, string Price, string Button, string Href);
 
 /// <summary>The front page = what I sell + prices (user 2026-11-12: "I need to make my itmartin.dk super simple ...
-/// What do I sell -> prices etc"). Prices are the user's own: remote help 1 hour = 200 kr, photos collected/sorted =
-/// 500 kr per cloud, homepage hosting 49/99/149 kr a month (Kolibri Hjemmeside). Free snebolde = only the live ones that
+/// What do I sell -> prices etc"). Prices are the user's own and ALL include moms: remote help 1 hour = 200 kr, photos collected/sorted =
+/// 500 kr per cloud in total (1 hour remote + the sorting, user: "Get it done... And sorted... 500 ialt incl moms"), homepage hosting 49/99/149 kr a month (Kolibri Hjemmeside). Free snebolde = only the live ones that
 /// others use (ElPriser, Temperatur, Stem, Snak, Husk).</summary>
 public static class PriceList
 {
@@ -23,9 +23,9 @@ public static class PriceList
         new("Hjælp til din pc eller telefon",
             "Jeg kigger med på din skærm og hjælper dig – mens du sidder hjemme.",
             "200 kr. for 1 time", "Skriv til mig", "/chat-med-martin"),
-        new("Dine billeder samlet og sorteret",
-            "Jeg henter dine billeder ud af en sky (fx iCloud, Google Fotos eller Facebook), sætter den rigtige dato på og sorterer dem efter år i ét galleri.",
-            "500 kr. pr. sky", "Se et eksempel", "https://gallery.itmartin.dk/facebook-demo"),
+        new("Dine billeder hjem fra en sky – og sorteret",
+            "1 time sammen over skærmen: vi henter dine billeder ud af skyen (fx iCloud, Google Fotos eller Facebook), og jeg sætter den rigtige dato på og sorterer dem efter år i ét galleri. Så er det gjort.",
+            "500 kr. i alt pr. sky", "Se et eksempel", "https://gallery.itmartin.dk/facebook-demo"),
         new("Din egen hjemmeside",
             "Jeg laver den gratis. Du betaler kun for, at den ligger på min server – ingen binding.",
             "49 / 99 / 149 kr. om måneden", "Læs mere", "https://hjemmeside.itmartin.dk"),
