@@ -231,7 +231,12 @@ public static class SiteMenu
         return [new Item("Forside", "/"), .. middle];   // no emojis in the menu (user 2026-10-12: they look AI-made)
     }
 
-    /// <summary>The old tabs, now buttons at the bottom of the front page (2026-11-04).</summary>
+    /// <summary>Super simple (user 2026-11-12: "all the why did i do that ... should not be on homepage -> more dots so you
+    /// can find it if you want"): the top menu shows only Forside; everything else sits behind "Mere ⋯" - the topic tab(s),
+    /// Produkter, Om mig and the old footer buttons.</summary>
+    public static List<Item> More(IReadOnlyList<Item> menu) => [.. menu.Where(i => i.Href != "/"), .. FooterLinks];
+
+    /// <summary>The old tabs (2026-11-04 buttons at the bottom of the front page; since 2026-11-12 inside "Mere ⋯").</summary>
     public static readonly IReadOnlyList<Item> FooterLinks =
     [
         new("Spørgsmål", "/spoergsmaal"),

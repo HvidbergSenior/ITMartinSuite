@@ -18,60 +18,51 @@
 @* Temporary birthday front - switches itself off after Hjem:FestUntil (default 2026-09-30 23:59). *@
 <Fest />
 
-@* Martin's own face in the head box instead of the sun (user 2026-10-27: "i should have a picture of me on the frontpage");
-   his own picks, changing every minute (Services/MartinPhotos). *@
+@* SUPER SIMPLE front page (user 2026-11-12: "I need to make my itmartin.dk super simple ... What do I sell -> prices"):
+   who I am, what I sell with the price, how to reach me. The prices live in the Domain (ITMartinHjem.Domain/PriceList).
+   "Nyt", "Vidste du ..." and the market notice are gone from here - they are on the Om mig / topic tabs. *@
 <header class="hj-head hj-head-me">
     <span class="hj-head-photo"><img src="@_photo.Src" alt="Martin Hvidberg@(_photo.Place.Length > 0 ? " – " + _photo.Place : "")" width="150" height="150" />@if (_photo.Place.Length > 0) { <span class="hj-head-place">@_photo.Place</span> }</span>
-    @* Theme "idag" (user 2026-10-05) + the date and the day's ONE thing from I dag (user 2026-10-27: "Det er tirsdag den...
-       og jeg skal.... Kode en App", "Only ONE thing each day"). *@
-    <span class="hj-tagline">Det er @Today.ToString("dddd 'den' d. MMMM", Da)@(_oneThing.Length > 0 ? ", og jeg skal " + char.ToLower(_oneThing[0], Da) + _oneThing[1..] : "")</span>
-    @* The heading is the "Forside" page's title in Svar -> Sider (user: "ITMartin - Den digitale kolibri"). *@
-    <h1>@(_hero?.Title is { Length: > 0 } t && t != "Forside" ? t : _s.Name)</h1>
-    @if (_s.Intro.Length > 0) { <p class="hj-intro">@_s.Intro</p> }
-    @* "En del af ITMartin" as one line here instead of its own box (2026-10-27 "Snart ét firma", 2026-10-29 merged); the full box stays on bogshoppen.dk. *@
-    <p class="hj-head-note"><b>Bogshoppen er en del af ITMartin.</b> Dit nummer virker begge steder.</p>
-    @* Clear next steps in the first screen (2026-10-27, /admin/tal: 52 on the front page, only 10 went on to Mine apps).
-       "Skriv mig op – gratis" like on bogshoppen.dk (user 2026-10-27: "easier to sign up ... on both sites"). *@
+    <h1>ITMartin – Martin Hvidberg</h1>
+    <p class="hj-intro">Jeg hjælper dig med IT – enkelt, ærligt og uden reklamer.</p>
     <div class="hj-head-btns">
-        <a class="k-btn k-btn-primary" href="#bliv-kunde">Skriv mig op – gratis</a>
-        <a class="k-btn" href="/mine-apps">Se mine gratis apps</a>
+        <a class="k-btn k-btn-primary" href="/chat-med-martin">Skriv til mig</a>
+        <a class="k-btn" href="tel:+4531194730">Ring 31 19 47 30</a>
     </div>
     @if (_owner) { <a class="k-btn k-btn-sm @(_waiting > 0 ? "k-btn-primary" : "")" href="/admin">Min side@(_waiting > 0 ? $" ({_waiting} venter)" : "")</a> }
 </header>
 
-@* "Nyt": the current topic = the page ticked "Vis i menuen" (user 2026-11-04: Valg 2026 now, AI/Serverparker later). *@
-@if (_topic is not null)
-{
-    <a class="k-card hj-subpage hj-topic" href="/@_topic.Slug" data-nofold>
-        <span class="hj-topic-tag">Nyt</span>
-        <b>@NoEmoji.Strip(_topic.Title)</b>
-        <span>@NoEmoji.Strip(PageRules.Teaser(_topic.Body))</span>
-        <span class="k-btn k-btn-sm k-btn-primary hj-topic-btn">Læs den</span>
-    </a>
-}
-
-<MarketNotice ShowLink="true" />
-
 <CascadingValue Name="Plain" Value="true">
-@* One open "Vidste du …" right under the head box (user 2026-10-19: "there used to be a lot of vidste du"). Shared box
-   (Components/VidsteDu) - it starts on one of the concrete ones (SiteFacts.ItMartin). *@
-<VidsteDu Facts="Facts" StartAmong="SiteFacts.ItMartin.Count" />
+<section class="k-card hj-prices" data-nofold>
+    <h2 class="k-card-title">Det sælger jeg</h2>
+    <p class="k-help">Her er prisen på det hele. Tryk på knappen ved det, du vil vide mere om.</p>
 
-@* Sign up as a customer right on the front page (user 2026-10-22) - the same one yes as Mine apps and bogshoppen.dk:
-   a kundenummer for all the free apps + the live-auction login. Starts open and can be closed like every box (user
-   2026-10-27: "not clickable show/hide"); the head box's "Skriv mig op – gratis" opens it again (kolibri.js). *@
-<section class="k-card hj-signup" id="bliv-kunde">
-    <h2 class="k-card-title">Skriv dig op – gratis</h2>
-    <p>Ingen reklamer, ingen nyhedsbreve – og du kan altid afmelde dig.</p>
-    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som interesseret" Open="true" Topics="true" />
+    <div class="hj-offer">
+        <div class="hj-offer-top"><b>Gratis snebolde</b><span class="hj-price">0 kr.</span></div>
+        <p>Små hjælpere i din browser – uden reklamer. Brug dem med det samme.</p>
+        <div class="hj-offer-btns">
+            @foreach (var (name, href) in PriceList.FreeSnebolde) { <a class="k-btn k-btn-sm" href="@href">@name</a> }
+        </div>
+    </div>
+
+    @foreach (var o in PriceList.Offers)
+    {
+        <div class="hj-offer">
+            <div class="hj-offer-top"><b>@o.Title</b><span class="hj-price">@o.Price</span></div>
+            <p>@o.Text</p>
+            <div class="hj-offer-btns"><a class="k-btn k-btn-sm" href="@o.Href">@o.Button</a></div>
+        </div>
+    }
 </section>
 
-@* More about Martin is one press away (the Om mig tab). *@
-<a class="k-btn k-btn-block hj-more" href="@SiteMenu.About">Læs mere om mig og mit arbejde →</a>
-@* The old tabs, as buttons (2026-11-04 fewer tabs). *@
-<div class="hj-footer-links">
-    @foreach (var l in SiteMenu.FooterLinks) { <a class="k-btn k-btn-sm k-btn-ghost" href="@l.Href">@l.Title</a> }
-</div>
+@* Sign-up stays (other pages link to /#bliv-kunde - soft sign-up rule), but closed: one quiet line. *@
+<section class="k-card hj-signup" id="bliv-kunde">
+    <h2 class="k-card-title">Skriv mig op – hvis du har lyst</h2>
+    <p>Ingen reklamer, ingen nyhedsbreve – og du kan altid afmelde dig.</p>
+    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som interesseret" Topics="true" />
+</section>
+
+@* Om mig, AI og tænkning, Spørgsmål, Kritik, Familien: in the menu under "Mere ⋯" (2026-11-12). *@
 </CascadingValue>
 
 @code {

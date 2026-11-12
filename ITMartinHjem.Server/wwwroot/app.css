@@ -967,3 +967,21 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* More photos of the same thing (2026-11-10) */
 .bs-shop-more { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 0; }
 .bs-shop-more img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--k-border-3, #ccc); background: #fff; }
+
+/* Front page price list (2026-11-12 "super simple": what I sell -> prices). */
+.hj-offer { padding: 12px 0; border-top: 1px solid var(--k-border); }
+.hj-offer:first-of-type { border-top: 0; }
+.hj-offer-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.hj-offer-top b { font-size: 1.05rem; }
+.hj-price { font-weight: 800; white-space: nowrap; color: var(--k-text); }
+.hj-offer p { margin: 4px 0 8px; color: var(--k-muted); }
+.hj-offer-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* "Mere ⋯" in the top menu (2026-11-12 super simple): only Forside shows, the rest opens below. */
+.hj-nav-more { position: relative; }
+.hj-nav-more > summary { list-style: none; cursor: pointer; font-weight: 600; padding: 4px 0; }
+.hj-nav-more > summary::-webkit-details-marker { display: none; }
+.hj-nav-more-list { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 200px; display: flex; flex-direction: column;
+  background: var(--k-card); color: var(--k-text); border: 1px solid var(--k-border); border-radius: 10px; box-shadow: var(--k-shadow); padding: 6px 0; }
+.hj-nav .hj-nav-more-list a { color: var(--k-text); padding: 10px 16px; }
+.hj-nav .hj-nav-more-list a:hover { background: var(--k-bg); }
