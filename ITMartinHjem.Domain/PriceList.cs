@@ -29,7 +29,7 @@ public static class PriceList
             "Jeg henter alle dine filer, og vi sorterer dem – med den rigtige dato, efter år, i ét galleri. 1 time sammen over skærmen på din pc, så er det gjort.",
             "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen"),
         new("Din egen hjemmeside – som du vil have den",
-            "Første side er gratis. Bagefter betaler du kun for de dage, den er tændt – ingen binding, og ingen skabelon.",
+            "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon.",
             "2 / 4 / 5 kr. om dagen", "Sådan gør vi", "/din-hjemmeside"),
         new("Bøger, tegneserier, film og musik",
             "Brugte ting fra Bogshoppen – med billede.",
