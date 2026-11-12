@@ -1026,6 +1026,18 @@
         };
         let m;
         const hhmm = (h, mi) => (h >= 0 && h < 24 && mi >= 0 && mi < 60) ? String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') : '';
+        // "indtil 12" / "til kl. 12" / "frem til 14.30" = when something ENDS (user 2026-11-12: "Har møder indtil 12" became a 12:00
+        // start with reminders). It stays in the title, sets no clock and gives no reminders.
+        let slutTekst = '';
+        if ((m = s.match(/\s(indtil|frem til|til)\s+(kl\.?\s*|klokken\s+)?(\d{1,2})(?:[.:](\d{2}))?(?![\/\d-]|\.\d)(?=[\s,!]|\.\s|\.$)/i)) && (m[1].toLowerCase() !== 'til' || m[2])) {
+            const h = +m[3], mi = m[4] ? +m[4] : 0;
+            // "indtil 7.11" without kl. is a date (7 November), not a time.
+            const looksLikeDate = !m[2] && m[4] && m[0].includes(".") && mi >= 1 && mi <= 12;
+            if (h < 24 && mi < 60 && !looksLikeDate) {
+                slutTekst = m[1].toLowerCase() + ' kl. ' + h + (m[4] ? '.' + m[4] : '');
+                s = s.replace(m[0], ' §SLUT§ ');
+            }
+        }
         // "kl 18.30" first, so 18.30 is never read as a date.
         if ((m = cut(/\s(?:kl\.?|klokken)\s*(\d{1,2})(?:[.:](\d{2}))?(?=[\s.,!])/i))) r.hvornaar = hhmm(+m[1], m[2] ? +m[2] : 0);
         // Several days (trin 2): "4/11-7/11", "4-7/11", "4.-7. november", "fra 4/11 til 7/11".
@@ -1071,7 +1083,7 @@
         }
         // Where (trin 2): "i Kbh", "på Rådhuset", "i Tivoli Friheden" - a place starts with a capital letter.
         if ((m = cut(/\s(?:i|på|hos)\s+([A-ZÆØÅ0-9][\wæøåÆØÅ'.-]*(?:\s+[A-ZÆØÅ][\wæøåÆØÅ'.-]*){0,3})(?=[\s.,!]|$)/))) r.sted = m[1];
-        s = s.replace(/\s(den|d\.|på|til|kl\.?|klokken)(?=\s)/gi, ' ').replace(/[\s.,!:]+/g, ' ').trim();
+        s = s.replace(/\s(den|d\.|på|til|kl\.?|klokken)(?=\s)/gi, ' ').replace(/[\s.,!:]+/g, ' ').trim().replace('§SLUT§', slutTekst).trim();
         r.titel = s ? s[0].toUpperCase() + s.slice(1) : '';
         return r;
     }
