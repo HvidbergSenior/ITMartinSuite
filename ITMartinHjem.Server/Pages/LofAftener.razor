@@ -12,3 +12,21 @@
     <p class="k-help">Du tilmelder dig hos LOF Aarhus – tryk på knappen og søg efter holdet.</p>
     <a class="k-btn k-btn-primary" href="@News.LofAi.Href">Tilmeld dig hos LOF Aarhus</a>
 </section>
+
+@* The red thread: each evening -> the snebolde it uses -> Martin's own pages (Facebook/Snapchat exit, doomscrolling, datacenters). *@
+<h2 class="hj-lof-h">De 5 aftener – og hvor du kan læse mere</h2>
+@foreach (var e in News.LofEvenings)
+{
+    <section class="k-card hj-offer-card" data-nofold>
+        <h3 class="k-card-title">@e.Number. @e.Title</h3>
+        <p><b>Vi laver:</b> @e.Make</p>
+        <p><b>Hvorfor?</b> @e.Why</p>
+        @if (e.Snebolde.Count > 0)
+        {
+            <p class="k-help">Snebolde, du kan prøve:</p>
+            <div class="hj-offer-btns">@foreach (var (n, h) in e.Snebolde) { <a class="k-btn k-btn-sm" href="@h">@n</a> }</div>
+        }
+        <p class="k-help">Læs mere:</p>
+        <div class="hj-offer-btns">@foreach (var (n, h) in e.Read) { <a class="k-btn k-btn-sm k-btn-ghost" href="@h">@n</a> }</div>
+    </section>
+}

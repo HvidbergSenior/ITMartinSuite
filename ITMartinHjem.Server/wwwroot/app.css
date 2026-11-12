@@ -992,3 +992,5 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-pay p, .hj-pay ul { margin: 6px 0; }
 .hj-cmp .hj-price { white-space: normal; text-align: left; font-weight: 700; flex-basis: 100%; }
 .hj-cmp-me { border-top: 2px solid var(--k-accent); }
+.hj-lof-h { margin: 22px 4px 10px; font-size: 1.2rem; }
+.hj-offer-card p { margin: 6px 0; }
