@@ -988,3 +988,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-news { border-left: 4px solid var(--k-accent); }
 .hj-news p { margin: 6px 0; }
 .hj-news-when { color: var(--k-text); }
+.hj-pay { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--k-border); border-radius: 10px; background: var(--k-bg); }
+.hj-pay p, .hj-pay ul { margin: 6px 0; }
+.hj-cmp .hj-price { white-space: normal; text-align: left; font-weight: 700; flex-basis: 100%; }
+.hj-cmp-me { border-top: 2px solid var(--k-accent); }

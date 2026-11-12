@@ -1,0 +1,15 @@
+@* How customers pay (user 2026-11-12: "where do they pay and how? I have an account in Jyske Bank" + "and Stripe" -> chose Stripe +
+   bank transfer). The account number is NOT on the public page - it is on the mail/receipt each customer gets. When Martin has made
+   Stripe payment links, the mail carries the link; nothing on this page takes payment by itself. *@
+<div class="hj-pay">
+    <b>Sådan betaler du</b>
+    <p>@What Du betaler bagefter – på en af to måder:</p>
+    <ul>
+        <li><b>Kort eller MobilePay:</b> tryk på betalingslinket i mailen fra mig.</li>
+        <li><b>Bankoverførsel:</b> overfør til min konto i Jyske Bank – kontonummeret står i mailen.</li>
+    </ul>
+</div>
+
+@code {
+    [Parameter] public string What { get; set; } = "Du får en mail fra mig, når vi er færdige.";
+}

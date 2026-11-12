@@ -5,7 +5,7 @@ public sealed record Offer(string Title, string Text, string Price, string Butto
 
 /// <summary>The front page = what I sell + prices (user 2026-11-12: "I need to make my itmartin.dk super simple ...
 /// What do I sell -> prices etc"). Prices are the user's own and ALL include moms: remote help 1 hour = 200 kr, photos collected/sorted =
-/// 500 kr per cloud in total (1 hour remote + the sorting, user: "Get it done... And sorted... 500 ialt incl moms"), homepage hosting 49/99/149 kr a month (Kolibri Hjemmeside). Free snebolde = only the live ones that
+/// 500 kr per cloud in total (1 hour remote + the sorting, user: "Get it done... And sorted... 500 ialt incl moms"), homepage: first page free, then 2/4/5 kr per day it is switched on (Selv/Sammen/Fuld hjælp; user 2026-11-12, was 49/99/149 a month). Free snebolde = only the live ones that
 /// others use (ElPriser, Temperatur, Stem, Snak, Husk).</summary>
 public static class PriceList
 {
@@ -28,9 +28,9 @@ public static class PriceList
         new("Billeder og film fra Facebook, Instagram og Snapchat – sorteret",
             "Jeg henter alle dine filer, og vi sorterer dem – med den rigtige dato, efter år, i ét galleri. 1 time sammen over skærmen på din pc, så er det gjort.",
             "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen"),
-        new("Din egen hjemmeside",
-            "Jeg laver den gratis. Du betaler kun for, at den ligger på min server – ingen binding.",
-            "49 / 99 / 149 kr. om måneden", "Sådan gør vi", "/din-hjemmeside"),
+        new("Din egen hjemmeside – som du vil have den",
+            "Første side er gratis. Bagefter betaler du kun for de dage, den er tændt – ingen binding, og ingen skabelon.",
+            "2 / 4 / 5 kr. om dagen", "Sådan gør vi", "/din-hjemmeside"),
         new("Bøger, tegneserier, film og musik",
             "Brugte ting fra Bogshoppen – med billede.",
             "Spørg om prisen", "Gå til Bogshoppen", "https://bogshoppen.dk"),

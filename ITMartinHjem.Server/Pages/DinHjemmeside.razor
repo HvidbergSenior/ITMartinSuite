@@ -1,32 +1,67 @@
 @page "/din-hjemmeside"
 
-@* The homepage product in plain words (2026-11-12: the price list's button went to hjemmeside.itmartin.dk, which is only a code
-   page). Prices from Kolibri Hjemmeside: free to make, Selv 49 / Sammen 99 / Fuld hjælp 149 kr a month, no binding. *@
+@* The homepage product (user 2026-11-12): the first page is free; you only pay for the days it is switched on - 2 / 4 / 5 kr a day
+   (Selv / Sammen / Fuld hjælp, incl. moms); not in use for a while -> Martin switches it off and it costs nothing. Compared with
+   one.com, Simply.com and freelancers ("they are generic ... like mine ... the personal feel"). Market prices checked 12.11.2026
+   (TechRadar one.com review + sponsored 2026 piece, quasa.io Simply 22.10.2026, Handyhand freelancer bids) - check again yearly.
+   Payment: Stripe link (card/MobilePay) or bank transfer (Jyske Bank) - see PaymentInfo. *@
 <PageTitle>Din egen hjemmeside · ITMartin</PageTitle>
 
-<PageHead Title="Din egen hjemmeside" Tag="Jeg laver den gratis" Line="Du betaler kun for, at den ligger på min server – ingen binding." />
+<PageHead Title="Din egen hjemmeside" Tag="Første side er gratis" Line="Du betaler kun for de dage, den er tændt – fra 2 kr. om dagen." />
 
 <section class="k-card" data-nofold>
     <h2 class="k-card-title">Formål</h2>
-    <p>En enkel hjemmeside på dit eget domæne – til din forening, din lille virksomhed eller dig selv. Uden reklamer, uden sporing
-        og uden dyre tilkøb. Siden ligger på min egen server i Danmark og bliver taget backup af hver nat. Domænet er dit, og du kan
-        altid få hele siden med dig som en zip-fil.</p>
+    <p>En hjemmeside, der ligner <b>dig</b> – ikke en skabelon. Til din forening, din lille virksomhed eller dig selv. Jeg laver den,
+        som du vil have den, med dine egne billeder og dine egne ord. Uden reklamer, uden sporing og uden dyre tilkøb.</p>
+    <p>Siden ligger på min egen server i Danmark og bliver taget backup af hver nat. Domænet er dit, og du kan altid få hele siden
+        med dig som en zip-fil.</p>
 </section>
 
 <section class="k-card" data-nofold>
-    <h2 class="k-card-title">Det koster det – pr. måned, inkl. moms</h2>
-    <div class="hj-offer"><div class="hj-offer-top"><b>Selv</b><span class="hj-price">49 kr.</span></div><p>Du retter selv tekst og billeder – også fra telefonen.</p></div>
-    <div class="hj-offer"><div class="hj-offer-top"><b>Sammen</b><span class="hj-price">99 kr.</span></div><p>Du retter selv, og jeg hjælper en gang imellem.</p></div>
-    <div class="hj-offer"><div class="hj-offer-top"><b>Fuld hjælp</b><span class="hj-price">149 kr.</span></div><p>Du sender mig det nye, og jeg gør det hele.</p></div>
+    <h2 class="k-card-title">Det koster det – inkl. moms</h2>
+    <p class="k-help">Den første side laver jeg gratis. Bagefter betaler du kun for de dage, siden er tændt. Bruger du den ikke i en
+        periode, slukker jeg den – så koster den ingenting.</p>
+    <div class="hj-offer"><div class="hj-offer-top"><b>Selv</b><span class="hj-price">2 kr. om dagen</span></div>
+        <p>Du retter selv tekst og billeder – også fra telefonen. Ca. 60 kr. for en hel måned.</p></div>
+    <div class="hj-offer"><div class="hj-offer-top"><b>Sammen</b><span class="hj-price">4 kr. om dagen</span></div>
+        <p>Du retter selv, og jeg hjælper, når du spørger. Ca. 120 kr. for en hel måned.</p></div>
+    <div class="hj-offer"><div class="hj-offer-top"><b>Fuld hjælp</b><span class="hj-price">5 kr. om dagen</span></div>
+        <p>Du sender mig det nye, og jeg gør det hele. Ca. 150 kr. for en hel måned.</p></div>
+</section>
+
+<section class="k-card" data-nofold>
+    <h2 class="k-card-title">Hvorfor betale – hvad får du?</h2>
+    <ul>
+        <li><b>En side, der er din.</b> Den er lavet til dig – ikke valgt i en liste med skabeloner.</li>
+        <li><b>Et menneske, du kan ringe til.</b> Ingen chatbot og ingen supportkø – du skriver eller ringer til mig.</li>
+        <li><b>Den virker.</b> Jeg holder den opdateret, sikker og i gang, og der bliver taget backup hver nat.</li>
+        <li><b>Ingen binding og ingen overraskelser.</b> Prisen stiger ikke efter første år, og du betaler ikke for de dage, den er slukket.</li>
+    </ul>
+</section>
+
+<section class="k-card" data-nofold>
+    <h2 class="k-card-title">Sammenlignet med de andre</h2>
+    <p class="k-help">Priser fundet i november 2026 – ca.-tal.</p>
+    <div class="hj-cmp">
+        <div class="hj-offer"><div class="hj-offer-top"><b>one.com</b><span class="hj-price">ca. 19–29 kr./md. første år, så ca. 49–79 kr.</span></div>
+            <p>Du bygger selv siden ud fra en skabelon. Prisen stiger, når første år er gået.</p></div>
+        <div class="hj-offer"><div class="hj-offer-top"><b>Simply.com</b><span class="hj-price">ca. 4 kr./md. første år, så ca. 56 kr.</span></div>
+            <p>Billigt webhotel – men du skal selv bygge og passe siden. Prisen stiger, når første år er gået.</p></div>
+        <div class="hj-offer"><div class="hj-offer-top"><b>En webdesigner</b><span class="hj-price">ca. 2.000–5.000 kr. én gang</span></div>
+            <p>Bygger siden for dig – plus webhotel bagefter. Rettelser koster ekstra.</p></div>
+        <div class="hj-offer hj-cmp-me"><div class="hj-offer-top"><b>ITMartin</b><span class="hj-price">0 kr. for første side, så 2–5 kr. om dagen</span></div>
+            <p>Jeg bygger den, som du vil have den. Du betaler kun, når den er tændt – og du kan altid ringe til mig.</p></div>
+    </div>
 </section>
 
 <section class="k-card" data-nofold>
     <h2 class="k-card-title">Sådan gør vi</h2>
     <ol>
         <li>Skriv til mig, hvad siden skal handle om – og send gerne tekst og billeder.</li>
-        <li>Jeg laver siden gratis, og du ser den, før den kommer ud.</li>
-        <li>Du vælger Selv, Sammen eller Fuld hjælp. Du kan skifte eller stoppe, når du vil.</li>
+        <li>Jeg laver den første side gratis, og du ser den, før den kommer ud.</li>
+        <li>Du vælger Selv, Sammen eller Fuld hjælp. Du kan skifte, slukke eller stoppe, når du vil.</li>
         <li>Vil du rette selv: skriv <b>/ret</b> efter adressen (fx minside.dk/ret) og din kode. Gik noget galt, trykker du Fortryd.</li>
     </ol>
+    <PaymentInfo What="Du får en opgørelse over de dage, siden har været tændt, en gang om måneden." />
     <div class="hj-offer-btns"><a class="k-btn k-btn-primary" href="/chat-med-martin">Skriv til mig</a></div>
 </section>
