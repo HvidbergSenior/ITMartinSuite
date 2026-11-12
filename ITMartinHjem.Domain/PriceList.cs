@@ -9,13 +9,15 @@ public sealed record Offer(string Title, string Text, string Price, string Butto
 /// others use (ElPriser, Temperatur, Stem, Snak, Husk).</summary>
 public static class PriceList
 {
+    // The buttons open each app's /om (Formål + Sådan bruger du den), not the app itself (user 2026-11-12: "the links go to some
+    // of my personal links" - on Martin's own phone the apps open his own Husk list / Snak rooms; a visitor should read first).
     public static readonly IReadOnlyList<(string Name, string Href)> FreeSnebolde =
     [
-        ("ElPriser", "https://elpriser.itmartin.dk"),
-        ("Temperatur", "https://temperatur.itmartin.dk"),
-        ("Stem", "https://stem.itmartin.dk"),
-        ("Snak", "https://snak.itmartin.dk"),
-        ("Husk", "https://husk.itmartin.dk"),
+        ("ElPriser", "https://elpriser.itmartin.dk/om"),
+        ("Temperatur", "https://temperatur.itmartin.dk/om"),
+        ("Stem", "https://stem.itmartin.dk/om"),
+        ("Snak", "https://snak.itmartin.dk/om"),
+        ("Husk", "https://husk.itmartin.dk/om"),
     ];
 
     public static readonly IReadOnlyList<Offer> Offers =
