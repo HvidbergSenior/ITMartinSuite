@@ -5,7 +5,11 @@ namespace ITMartinSnak.Domain;
 
 // The shapes are kept exactly as they were stored in messages.json / tasks.json since 2026-10-09 - existing files read as before.
 // Host = written by Martin (the room owner) - the overview shows who is waiting for an answer (2026-11-04).
-public sealed record Message(long Id, string Name, string Text, DateTime At, bool Host = false);
+// 2026-11-12 trin 2 (user: "reply to a message, reactions/fun pictures, search history"): ReplyTo = the message it answers,
+// FileId = a picture or file put straight into the chat (it lives under Filer too, and melts with the room),
+// Reactions = emoji -> the names who gave it (tap again = take it back).
+public sealed record Message(long Id, string Name, string Text, DateTime At, bool Host = false, long? ReplyTo = null, long? FileId = null,
+    Dictionary<string, List<string>>? Reactions = null);
 
 // 2026-11-08 TODAY (user: "combine with today. So all people can see what happens today and today only"): Day = the date it is
 // for ("yyyy-MM-dd", "" = no day), Daily = every day (medicine, a phone call) - its tick (DoneOn) only counts for that day.
@@ -13,25 +17,59 @@ public sealed record Message(long Id, string Name, string Text, DateTime At, boo
 // ("" = the host) - that person may change and remove it too; Yearly = comes back on the same date every year (birthdays),
 // its tick (DoneOn) only counts for that year's day, like Daily.
 public sealed record TaskItem(long Id, string Title, string Note, string When, List<string> Takers, bool Done, DateTime CreatedAt,
-    string Day = "", bool Daily = false, string DoneOn = "", string By = "", bool Yearly = false);
+    string Day = "", bool Daily = false, string DoneOn = "", string By = "", bool Yearly = false, string EndDay = "", string Place = "");
+// 2026-11-12 trin 2 (user: "4/11-7/11 i Kbh"): EndDay = the last day of something that lasts several days ("" = one day),
+// Place = where it is. A multi-day thing is on every day from Day to EndDay; its clock time and reminders belong to the first day.
 
 // The group's rules (user 2026-10-09: a small chat for a few friends instead of a Facebook group; Martin makes the tasks,
 // the others chat, see the tasks and put themselves on one).
 public static class GroupRules
 {
-    public const int MaxMessages = 5000, MaxText = 4000, MaxName = 40, MaxTitle = 120, MaxNote = 1000, MaxWhen = 60;
+    public const int MaxMessages = 5000, MaxText = 4000, MaxName = 40, MaxTitle = 120, MaxNote = 1000, MaxWhen = 60, MaxPlace = 80,
+        MaxSpanDays = 366, MaxSearch = 50;
+
+    // The reactions anyone can give - a small, fixed set (no picture search, no AI, no outside service).
+    public static readonly string[] ReactionEmoji = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
 
     public static string CleanName(string? name) => Cut((name ?? "").Trim(), MaxName);
 
     private static string Cut(string s, int max) => s.Length > max ? s[..max] : s;
 
     /// <returns>The new message, or null when the name or the text is missing.</returns>
-    public static Message? NewMessage(IReadOnlyList<Message> existing, string? name, string? text, DateTime nowUtc, bool host = false)
+    /// <param name="replyTo">Only kept when that message is in the list.</param>
+    /// <param name="fileId">A file in the room - then the text may be empty (a picture says it all).</param>
+    public static Message? NewMessage(IReadOnlyList<Message> existing, string? name, string? text, DateTime nowUtc, bool host = false,
+        long? replyTo = null, long? fileId = null)
     {
         var n = CleanName(name);
         var t = Cut((text ?? "").Trim(), MaxText);
-        if (n.Length == 0 || t.Length == 0) return null;
-        return new Message((existing.Count == 0 ? 0 : existing[^1].Id) + 1, n, t, nowUtc, host);
+        if (n.Length == 0 || (t.Length == 0 && fileId is null)) return null;
+        var re = replyTo is { } r && existing.Any(m => m.Id == r) ? replyTo : null;
+        return new Message((existing.Count == 0 ? 0 : existing[^1].Id) + 1, n, t, nowUtc, host, re, fileId);
+    }
+
+    /// <summary>Gives the reaction, or takes it back when this name already gave it. Null = not one of the allowed ones.</summary>
+    public static Message? React(Message m, string? emoji, string? name)
+    {
+        var n = CleanName(name);
+        var e = (emoji ?? "").Trim();
+        if (n.Length == 0 || !ReactionEmoji.Contains(e)) return null;
+        var all = (m.Reactions ?? []).ToDictionary(kv => kv.Key, kv => kv.Value.ToList());
+        var list = all.TryGetValue(e, out var l) ? l : all[e] = [];
+        var i = list.FindIndex(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase));
+        if (i >= 0) list.RemoveAt(i); else list.Add(n);
+        if (list.Count == 0) all.Remove(e);
+        return m with { Reactions = all.Count == 0 ? null : all };
+    }
+
+    /// <summary>Search the history: every word must be in the text or the name (case doesn't matter). Newest first.</summary>
+    public static List<Message> Search(IReadOnlyList<Message> messages, string? query)
+    {
+        var words = (query ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (words.Length == 0 || string.Join(' ', words).Length < 2) return [];
+        return messages.Where(m => words.All(w => m.Text.Contains(w, StringComparison.CurrentCultureIgnoreCase)
+                                               || m.Name.Contains(w, StringComparison.CurrentCultureIgnoreCase)))
+            .Reverse().Take(MaxSearch).ToList();
     }
 
     /// <summary>Only the newest <see cref="MaxMessages"/> are kept.</summary>
@@ -44,14 +82,35 @@ public static class GroupRules
     /// <param name="by">The member who adds it ("" = the host).</param>
     /// <param name="yearly">Every year on the day's date - only with a real day, never together with daily.</param>
     public static TaskItem? NewTask(IReadOnlyList<TaskItem> existing, string? title, string? note, string? when, DateTime nowUtc, string? to = null,
-        string? day = null, bool daily = false, string? by = null, bool yearly = false)
+        string? day = null, bool daily = false, string? by = null, bool yearly = false, string? endDay = null, string? place = null)
     {
         var ti = (title ?? "").Trim();
         if (ti.Length == 0) return null;
         var n = CleanName(to);
         var d = daily ? "" : CleanDay(day);
+        var y = yearly && d.Length > 0;
         return new TaskItem((existing.Count == 0 ? 0 : existing.Max(x => x.Id)) + 1, Cut(ti, MaxTitle), Cut((note ?? "").Trim(), MaxNote),
-            Cut((when ?? "").Trim(), MaxWhen), n.Length > 0 ? [n] : [], false, nowUtc, d, daily, "", CleanName(by), yearly && d.Length > 0);
+            Cut((when ?? "").Trim(), MaxWhen), n.Length > 0 ? [n] : [], false, nowUtc, d, daily, "", CleanName(by), y,
+            y ? "" : CleanEnd(d, endDay), CleanPlace(place));
+    }
+
+    /// <summary>The last day of a multi-day thing: a real date after the first day, at most a year on; else "" (one day).</summary>
+    public static string CleanEnd(string day, string? endDay)
+    {
+        if (!DateOnly.TryParseExact(day, "yyyy-MM-dd", out var d)) return "";
+        var e = CleanDay(endDay);
+        if (e.Length == 0) return "";
+        var end = DateOnly.Parse(e);
+        return end > d && end.DayNumber - d.DayNumber <= MaxSpanDays ? e : "";
+    }
+
+    public static string CleanPlace(string? place) => Cut((place ?? "").Trim(), MaxPlace);
+
+    /// <summary>On a day of a multi-day thing (first day to last day).</summary>
+    private static bool InSpan(TaskItem t, DateOnly date)
+    {
+        var s = date.ToString("yyyy-MM-dd");
+        return t.EndDay.Length > 0 && string.CompareOrdinal(t.Day, s) <= 0 && string.CompareOrdinal(s, t.EndDay) <= 0;
     }
 
     /// <summary>Only a real date "yyyy-MM-dd" is kept.</summary>
@@ -63,7 +122,7 @@ public static class GroupRules
     public static bool IsOn(TaskItem t, DateOnly date)
     {
         if (t.Daily) return true;
-        if (!t.Yearly) return t.Day == date.ToString("yyyy-MM-dd");
+        if (!t.Yearly) return t.Day == date.ToString("yyyy-MM-dd") || InSpan(t, date);
         if (!DateOnly.TryParseExact(t.Day, "yyyy-MM-dd", out var d)) return false;
         var day = d.Month == 2 && d.Day == 29 && !DateTime.IsLeapYear(date.Year) ? 28 : d.Day;
         return date.Month == d.Month && date.Day == day;
@@ -72,7 +131,7 @@ public static class GroupRules
     /// <summary>The next date it falls on, today included ("" = no day). A yearly one moves to the coming year.</summary>
     public static string NextDay(TaskItem t, DateOnly today)
     {
-        if (!t.Yearly) return t.Day;
+        if (!t.Yearly) return InSpan(t, today) ? today.ToString("yyyy-MM-dd") : t.Day;
         for (var y = today.Year; y <= today.Year + 1; y++)
         {
             var d = DateOnly.Parse(t.Day);
@@ -96,8 +155,10 @@ public static class GroupRules
 
     /// <param name="to">null = keep who has it; "" = nobody; a name = give it to that person.</param>
     /// <param name="yearly">null = keep; a yearly task needs a day and is never daily.</param>
+    /// <param name="endDay">null = keep; "" = one day.</param>
+    /// <param name="place">null = keep.</param>
     public static TaskItem? Edit(TaskItem t, string? title, string? note, string? when, string? to = null, string? day = null, bool? daily = null,
-        bool? yearly = null)
+        bool? yearly = null, string? endDay = null, string? place = null)
     {
         var ti = (title ?? "").Trim();
         if (ti.Length == 0) return null;
@@ -109,6 +170,7 @@ public static class GroupRules
         {
             Title = Cut(ti, MaxTitle), Note = Cut((note ?? "").Trim(), MaxNote), When = Cut((when ?? "").Trim(), MaxWhen), Takers = takers,
             Daily = d, Yearly = y, Day = newDay, DoneOn = d || y ? t.DoneOn : "",
+            EndDay = y || d ? "" : CleanEnd(newDay, endDay ?? t.EndDay), Place = place is null ? t.Place : CleanPlace(place),
         };
     }
 
@@ -131,6 +193,8 @@ public static class GroupRules
         t.Takers.Contains(CleanName(name), StringComparer.OrdinalIgnoreCase);
 
     public static TaskItem Copy(TaskItem t) => t with { Takers = t.Takers.ToList() };
+
+    public static Message Copy(Message m) => m with { Reactions = m.Reactions?.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()) };
 
     // 2026-11-08 user: "reminders and hour before tasks", "half an hour" - a push 60 and 30 minutes before a task's clock time.
     public static readonly int[] RemindMinutesBefore = [60, 30];
@@ -155,6 +219,7 @@ public static class GroupRules
             if (t.Yearly && nowLocal >= morning && nowLocal < morning + RemindWindow) yield return 0;
             yield break;
         }
+        if (t.EndDay.Length > 0 && t.Day != today.ToString("yyyy-MM-dd")) yield break;   // several days: the clock is the first day's
         var at = today.ToDateTime(c);
         foreach (var m in RemindMinutesBefore)
         {

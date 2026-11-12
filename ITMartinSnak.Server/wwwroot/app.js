@@ -13,7 +13,9 @@
     const roomKey = keyMatch ? keyMatch[1] : '';
     const base = roomKey ? '/api/r/' + roomKey : '';
     let navn = store.get('snak_navn');
-    let admin = false, alleRum = false, pushKey = '', endpoint = '', vaert = 'Martin', room = null;
+    let admin = false, alleRum = false, pushKey = '', endpoint = '', vaert = 'Martin', firma = 'ITMartin', room = null;
+    // 2026-11-12 trin 2: the host writes as himself ("mig") or as the company ("firma") - remembered on this phone.
+    let rolle = store.get('snak_rolle') === 'firma' ? 'firma' : 'mig', svarPaa = 0;
     let lastId = 0, tasks = [], editId = 0, live = null;
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -58,7 +60,8 @@
                 const r = await fetch(base, { credentials: 'same-origin' });
                 if (r.status === 404) return showOnly('vaek');
                 room = await r.json();
-                admin = !!room.admin; alleRum = !!room.alleRum; pushKey = room.pushKey || ''; vaert = room.vaert || 'Martin';
+                admin = !!room.admin; alleRum = !!room.alleRum; pushKey = room.pushKey || ''; vaert = room.vaert || 'Martin'; firma = room.firma || 'ITMartin';
+                document.body.classList.add('wow');
                 store.set('snak_rum', roomKey);   // a phone that opens "/" (home-screen icon) comes back here
                 document.title = room.titel + ' · Snak';
                 // In a group the admin is a participant too: he picks his own name at the door (2026-11-09).
@@ -93,8 +96,7 @@
         document.body.classList.toggle('gruppe', isGroup());
         for (const n of names) {
             const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn';
-            if (isGroup()) { const t = document.createElement('span'); t.className = 'navn-tekst'; t.textContent = n; b.append(avatar(n), t); }
-            else b.textContent = n;
+            const t = document.createElement('span'); t.className = 'navn-tekst'; t.textContent = n; b.append(avatar(n), t);
             b.onclick = () => { $('loginNavn').value = n; $('loginForm').requestSubmit(); };
             box.appendChild(b);
         }
@@ -265,6 +267,7 @@
         $('hjemKnap').hidden = standalone || inApp;
         $('hjemKnap').onclick = () => show('mig');
         $('nyOpg').hidden = !canAdd();
+        renderRolle();
         $('tovBoks').hidden = admin || !(room && room.harKode);
         fillTil('');
         $('opgIntro').textContent = admin
@@ -348,12 +351,16 @@
         if (live) live.close();
         live = new EventSource(base + '/live');
         // "hej" comes on every (re)connect: fetch whatever was missed while the line was down.
-        live.addEventListener('hej', () => { loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); });
+        live.addEventListener('hej', () => { loadMessages(true); loadTasks(); loadFiles(); loadReads(); loadCalendar(); });
+        live.addEventListener('besked-ret', e => {
+            const m = JSON.parse(e.data), i = msgs.findIndex(x => x.id === m.id);
+            if (i >= 0) { msgs[i] = m; keepPlace(renderMessages); }
+        });
         live.addEventListener('set', e => { reads = JSON.parse(e.data); renderMessages(); });
         live.addEventListener('profiler', e => { profiles = JSON.parse(e.data); if (!document.querySelector('.profil-form')) renderRoster(); });
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
-        live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); });
+        live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); if (msgs.some(m => m.fileId)) keepPlace(renderMessages); });
         live.addEventListener('holdet', e => {
             const d = JSON.parse(e.data);
             if (room) { room.medlemmer = d.medlemmer; room.om = d.om; room.emner = d.emner; room.links = d.links; room.harKalender = d.harKalender; }
@@ -374,8 +381,19 @@
     const timeFmt = new Intl.DateTimeFormat('da-DK', { hour: '2-digit', minute: '2-digit' });
     let msgs = [];
 
-    async function loadMessages() {
-        try { addMessages(await api('GET', base + '/beskeder?efter=' + lastId)); } catch { }
+    // all = after a lost line: fetch everything again, so reactions given meanwhile come along too.
+    async function loadMessages(all) {
+        try {
+            const list = await api('GET', base + '/beskeder?efter=' + (all ? 0 : lastId));
+            if (all) { msgs = list; lastId = list.reduce((x, m) => Math.max(x, m.id), 0); keepPlace(renderMessages); reportSeen(); }
+            else addMessages(list);
+        } catch { }
+    }
+    // Re-draw without moving what the person is reading.
+    function keepPlace(fn) {
+        const box = $('beskeder'), before = box.scrollHeight, top = window.scrollY;
+        fn();
+        if (top > 0) window.scrollTo(0, top + (box.scrollHeight - before));
     }
 
     // Newest message first, right under the text field (user: "always the latest one first, I only
@@ -408,15 +426,27 @@
                 box.appendChild(el); day = d;
             }
             const me = isMyMsg(m);
-            const el = document.createElement('div'); el.className = 'besked' + (me ? ' mig' : '');
+            const el = document.createElement('div'); el.className = 'besked' + (me ? ' mig' : ''); el.id = 'm' + m.id;
             const meta = document.createElement('div'); meta.className = 'meta';
-            meta.textContent = (me ? 'Dig' : m.name) + ' · ' + timeFmt.format(when);
-            const b = document.createElement('div'); b.className = 'boble'; b.textContent = m.text;
-            if (isGroup() && !me) {
+            meta.textContent = (me ? (admin && m.name === firma ? 'Dig som ' + firma : 'Dig') : m.name) + ' · ' + timeFmt.format(when);
+            const col = document.createElement('div'); col.className = 'besked-kol'; col.appendChild(meta);
+            if (m.replyTo) col.appendChild(quote(m.replyTo));
+            if (m.fileId) col.appendChild(chatFile(m.fileId));
+            if (m.text) {
+                const b = document.createElement('div'); b.className = 'boble'; b.textContent = m.text;
+                b.title = 'Tryk for at svare eller give en reaktion';
+                b.onclick = () => toggleActions(el, m);
+                col.appendChild(b);
+            } else col.lastChild.addEventListener('contextmenu', e => { e.preventDefault(); toggleActions(el, m); });
+            const rx = reactionRow(m); if (rx) col.appendChild(rx);
+            if (!me) {
                 const row = document.createElement('div'); row.className = 'besked-raekke';
-                const col = document.createElement('div'); col.className = 'besked-kol'; col.append(meta, b);
                 row.append(avatar(m.name, 'lille'), col); el.appendChild(row);
-            } else el.append(meta, b);
+            } else el.appendChild(col);
+            if (!m.text) {   // a picture alone: a small "Svar" under it
+                const s = document.createElement('button'); s.type = 'button'; s.className = 'link lille-svar'; s.textContent = 'Svar · reager';
+                s.onclick = () => toggleActions(el, m); el.appendChild(s);
+            }
             // "Set af": under your own newest message and under the newest message of all.
             if ((me && m.id === myNewest) || i === msgs.length - 1) { const s = seenLine(m); if (s) el.appendChild(s); }
             box.appendChild(el);
@@ -447,6 +477,155 @@
         else { s.textContent = 'Set af ' + who.length + ' – tryk for at se hvem'; const p = document.createElement('div'); p.textContent = list; d.append(s, p); }
         return d;
     }
+
+    // ---------- trin 2 (2026-11-12): reply, reactions, pictures in the chat, search ----------
+
+    const reactions = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
+    function myName() { return admin && !isGroup() ? (rolle === 'firma' ? firma : vaert) : navn; }
+
+    function quote(id) {
+        const q = msgs.find(x => x.id === id);
+        const d = document.createElement('button'); d.type = 'button'; d.className = 'citat';
+        const who = document.createElement('b'); who.textContent = q ? q.name : 'En tidligere besked';
+        const txt = document.createElement('span'); txt.textContent = q ? (q.text || (q.fileId ? 'Billede eller fil' : '')).slice(0, 90) : '';
+        d.append(who, txt);
+        d.onclick = () => jumpTo(id);
+        return d;
+    }
+    function jumpTo(id) {
+        const el = $('m' + id);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('fremhaev'); setTimeout(() => el.classList.remove('fremhaev'), 2200);
+    }
+
+    function chatFile(id) {
+        const f = files.find(x => x.id === id);
+        if (!f) { const p = document.createElement('div'); p.className = 'boble slettet'; p.textContent = 'Filen er slettet.'; return p; }
+        const a = document.createElement('a'); a.href = base + '/filer/' + f.id; a.target = '_blank'; a.rel = 'noopener';
+        if (f.contentType.startsWith('image/') && f.contentType !== 'image/heic') {
+            a.className = 'chat-billede';
+            const img = document.createElement('img'); img.src = a.href; img.alt = f.name; img.loading = 'lazy';
+            a.appendChild(img);
+        } else {
+            a.className = 'chat-fil';
+            const ic = document.createElement('span'); ic.className = 'ikon'; ic.textContent = icon(f); ic.setAttribute('aria-hidden', 'true');
+            const t = document.createElement('span'); t.className = 'chat-fil-tekst';
+            const n = document.createElement('b'); n.textContent = f.name;
+            const s = document.createElement('small'); s.textContent = size(f.size) + ' · tryk for at hente';
+            t.append(n, s); a.append(ic, t);
+        }
+        return a;
+    }
+
+    function reactionRow(m) {
+        const r = m.reactions || {};
+        const keys = reactions.filter(e => r[e] && r[e].length);
+        if (!keys.length) return null;
+        const row = document.createElement('div'); row.className = 'reaktioner';
+        const me = myName().toLowerCase();
+        for (const e of keys) {
+            const b = document.createElement('button'); b.type = 'button';
+            const mine = r[e].some(n => n.toLowerCase() === me);
+            b.className = 'reak' + (mine ? ' min' : '');
+            b.textContent = e + ' ' + r[e].length;
+            b.title = r[e].join(', ');
+            b.setAttribute('aria-label', e + ' fra ' + r[e].join(', ') + (mine ? ' – tryk for at tage din tilbage' : ''));
+            b.onclick = () => react(m.id, e);
+            row.appendChild(b);
+        }
+        return row;
+    }
+    async function react(id, emoji) {
+        try {
+            const m = await api('POST', base + '/beskeder/' + id + '/reaktion', { navn, emoji, rolle });
+            const i = msgs.findIndex(x => x.id === m.id); if (i >= 0) { msgs[i] = m; keepPlace(renderMessages); }
+        } catch (err) { if (err.message !== 'login') flash(err.message); }
+    }
+
+    // Tap a message: the six reactions + Svar right under it. Tap again (or another one) and it goes.
+    function toggleActions(el, m) {
+        const open = el.querySelector('.handling');
+        document.querySelectorAll('.besked .handling').forEach(x => x.remove());
+        if (open) return;
+        const bar = document.createElement('div'); bar.className = 'handling';
+        for (const e of reactions) {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'reak-valg'; b.textContent = e;
+            b.setAttribute('aria-label', 'Giv ' + e);
+            b.onclick = () => { bar.remove(); react(m.id, e); };
+            bar.appendChild(b);
+        }
+        const s = document.createElement('button'); s.type = 'button'; s.className = 'k-btn k-btn-sm'; s.textContent = 'Svar';
+        s.onclick = () => { bar.remove(); startReply(m); };
+        bar.appendChild(s);
+        el.appendChild(bar);
+    }
+    function startReply(m) {
+        svarPaa = m.id;
+        $('svarTekst').textContent = 'Svarer ' + m.name + ': ' + (m.text || 'billede eller fil').slice(0, 70);
+        $('svarBar').hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        $('tekst').focus();
+    }
+    function stopReply() { svarPaa = 0; $('svarBar').hidden = true; }
+    $('svarFortryd').onclick = stopReply;
+
+    // Two roles (user: "Martin Hvidberg (user) + ITMartin (admin)"): the room's admin picks who is writing.
+    function renderRolle() {
+        const box = $('rolleValg');
+        box.hidden = !admin;
+        if (!admin) return;
+        $('rolleMig').textContent = isGroup() ? (navn || vaert) : vaert;
+        $('rolleFirma').textContent = firma;
+        $('rolleMig').setAttribute('aria-pressed', String(rolle !== 'firma'));
+        $('rolleFirma').setAttribute('aria-pressed', String(rolle === 'firma'));
+    }
+    $('rolleMig').onclick = () => { rolle = 'mig'; store.set('snak_rolle', 'mig'); renderRolle(); };
+    $('rolleFirma').onclick = () => { rolle = 'firma'; store.set('snak_rolle', 'firma'); renderRolle(); };
+
+    // A picture or file straight into the chat: it is put under Filer too (and goes when the room goes).
+    $('chatFil').addEventListener('change', async () => {
+        const file = $('chatFil').files[0];
+        $('chatFil').value = '';
+        if (!file) return;
+        const st = $('chatFilStatus'); st.hidden = false; st.className = 'k-help';
+        if (file.size > 90 * 1024 * 1024) { st.textContent = file.name + ': for stor (højst 90 MB).'; st.className = 'k-help fejl'; return; }
+        st.textContent = 'Sender ' + file.name + ' …';
+        try {
+            const fd = new FormData();
+            fd.append('fil', file); fd.append('navn', navn); fd.append('endpoint', endpoint); fd.append('chat', '1'); fd.append('rolle', rolle);
+            const r = await fetch(base + '/filer', { method: 'POST', credentials: 'same-origin', body: fd });
+            const d = await r.json().catch(() => null);
+            if (!r.ok) throw new Error((d && d.fejl) || 'Det gik ikke. Prøv igen.');
+            if (!files.some(f => f.id === d.id)) files.unshift(d);
+            const m = await api('POST', base + '/beskeder', { navn, tekst: $('tekst').value.trim(), endpoint, fil: d.id, svarPaa: svarPaa || null, rolle });
+            $('tekst').value = ''; grow(); stopReply();
+            addMessages([m]); window.scrollTo(0, 0);
+            st.hidden = true;
+        } catch (err) { st.textContent = err.message; st.className = 'k-help fejl'; }
+    });
+
+    // Search the whole history (also what is older than the page has loaded).
+    let soegTimer = 0;
+    $('soegFelt').addEventListener('input', () => {
+        clearTimeout(soegTimer);
+        soegTimer = setTimeout(async () => {
+            const q = $('soegFelt').value.trim(), box = $('soegListe');
+            box.textContent = '';
+            if (q.length < 2) return;
+            let list = [];
+            try { list = await api('GET', base + '/soeg?q=' + encodeURIComponent(q)); } catch { return; }
+            if (!list.length) { const p = document.createElement('p'); p.className = 'k-help'; p.textContent = 'Ingen beskeder med "' + q + '".'; box.appendChild(p); return; }
+            for (const m of list) {
+                const b = document.createElement('button'); b.type = 'button'; b.className = 'soeg-hit';
+                const h = document.createElement('small'); h.textContent = m.name + ' · ' + shortFmt.format(new Date(m.at));
+                const t = document.createElement('span'); t.textContent = m.text || 'Billede eller fil';
+                b.append(h, t);
+                b.onclick = () => { $('soegBoks').open = false; jumpTo(m.id); };
+                box.appendChild(b);
+            }
+        }, 300);
+    });
 
     function pushState() {
         if (inApp || !pushPossible) return 'kan-ikke';
@@ -521,9 +700,9 @@
         if (!t) return;
         $('sendBtn').disabled = true;
         try {
-            const m = await api('POST', base + '/beskeder', { navn, tekst: t, endpoint });
+            const m = await api('POST', base + '/beskeder', { navn, tekst: t, endpoint, svarPaa: svarPaa || null, rolle });
             if (room && room.klaret) { room.klaret = false; klaretBar(); }
-            $('tekst').value = ''; grow();
+            $('tekst').value = ''; grow(); stopReply();
             addMessages([m]);
             window.scrollTo(0, 0);   // your own message: show it at the top
         } catch (err) {
@@ -569,6 +748,7 @@
     }
     // The next date it falls on (today included).
     function nextDay(t) {
+        if (t.endDay && t.day <= today() && today() <= t.endDay) return today();   // several days, going on now
         if (!t.yearly || !t.day) return t.day;
         const y = Number(today().slice(0, 4)), d = yearDay(t, y);
         return d >= today() ? d : yearDay(t, y + 1);
@@ -681,7 +861,8 @@
         for (const t of soon) {
             const li = document.createElement('li'), nd = nextDay(t);
             const w = document.createElement('span'); w.className = 'snart-hvornaar' + (nd === tomorrow ? ' i-morgen' : '');
-            w.textContent = (nd === tomorrow ? 'I morgen' : snartFmt.format(new Date(nd + 'T12:00'))) + (clock(t) ? ' · kl. ' + clock(t) : '');
+            w.textContent = (t.endDay ? spanText(t) : nd === tomorrow ? 'I morgen' : snartFmt.format(new Date(nd + 'T12:00'))) + (clock(t) ? ' · kl. ' + clock(t) : '')
+                + (t.place ? ' · ' + t.place : '');
             const h = document.createElement('span'); h.className = 'snart-hvad';
             h.textContent = t.title + (t.takers.length ? ' – ' + t.takers.join(', ') : '');
             li.append(w, h); l.appendChild(li);
@@ -743,10 +924,17 @@
         st.textContent = (done ? '✓ Gjort' : t.takers.length ? '● Taget' : '○ Mangler nogen') + (t.daily ? ' · hver dag' : t.yearly ? ' · hvert år' : '');
         c.appendChild(st);
         const nd = nextDay(t);
-        const dayText = nd && nd !== today() ? dayFmt.format(new Date(nd + 'T12:00')) : '';
+        const dayText = t.endDay ? spanText(t) : nd && nd !== today() ? dayFmt.format(new Date(nd + 'T12:00')) : '';
         if (dayText || (t.when && !clock(t))) {
             const w = document.createElement('p'); w.className = 'hvornaar';
             w.textContent = [dayText, clock(t) ? '' : t.when].filter(Boolean).join(' · '); c.appendChild(w);
+        }
+        if (t.place) {
+            const p = document.createElement('p'); p.className = 'sted';
+            const s = document.createElement('span'); s.textContent = t.place;
+            const a = document.createElement('a'); a.className = 'k-btn k-btn-sm k-btn-ghost'; a.target = '_blank'; a.rel = 'noopener';
+            a.href = 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(t.place); a.textContent = 'Find vej';
+            p.append(s, a); c.appendChild(p);
         }
         if (t.note) { const n = document.createElement('p'); n.className = 'note'; n.textContent = t.note; c.appendChild(n); }
         const who = document.createElement('p'); who.className = 'hvem';
@@ -797,6 +985,7 @@
         $('opgTitel').value = t.title; $('opgHvornaar').value = clock(t); $('opgNote').value = t.note;
         $('opgDag').value = t.daily ? 'hver' : t.yearly ? 'aar' : !t.day ? 'ingen' : t.day === today() ? 'idag' : 'anden';
         $('opgDato').value = t.day || ''; $('opgDato').hidden = !['anden', 'aar'].includes($('opgDag').value);
+        $('opgSlut').value = t.endDay || ''; $('opgSlutBoks').hidden = $('opgDag').value !== 'anden'; $('opgSted').value = t.place || '';
         // Several on it: the list shows "as it is now", so saving never removes anyone by accident.
         fillTil(t.takers.length === 1 ? t.takers[0] : '');
         if (t.takers.length > 1) {
@@ -809,7 +998,7 @@
         $('nyOpg').scrollIntoView({ behavior: 'smooth' }); $('opgTitel').focus();
     }
     function stopEdit() {
-        editId = 0; $('nyOpg').reset(); fillTil(''); $('opgDato').hidden = true;
+        editId = 0; $('nyOpg').reset(); fillTil(''); $('opgDato').hidden = true; $('opgSlutBoks').hidden = true;
         $('nyTitel').textContent = 'Ny opgave'; $('opgGem').textContent = 'Læg opgaven ud'; $('opgFortryd').hidden = true;
         $('hurtigBoks').hidden = false;
     }
@@ -821,7 +1010,7 @@
     function parseQuick(text) {
         let s = ' ' + (text || '').replace(/\s+/g, ' ') + ' ';
         const cut = re => { const m = s.match(re); if (m) s = s.replace(m[0], ' '); return m; };
-        const r = { titel: '', dag: '', hvornaar: '', til: '', hvertAar: false };
+        const r = { titel: '', dag: '', slut: '', hvornaar: '', til: '', sted: '', hvertAar: false };
         if (cut(/\s(hvert år|hvert aar|årligt)(?=[\s.,!])/i)) r.hvertAar = true;
         if (/fødselsdag|fdag|bryllupsdag|mærkedag/i.test(s)) r.hvertAar = true;
         const t0 = today(), y0 = Number(t0.slice(0, 4));
@@ -839,10 +1028,30 @@
         const hhmm = (h, mi) => (h >= 0 && h < 24 && mi >= 0 && mi < 60) ? String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') : '';
         // "kl 18.30" first, so 18.30 is never read as a date.
         if ((m = cut(/\s(?:kl\.?|klokken)\s*(\d{1,2})(?:[.:](\d{2}))?(?=[\s.,!])/i))) r.hvornaar = hhmm(+m[1], m[2] ? +m[2] : 0);
+        // Several days (trin 2): "4/11-7/11", "4-7/11", "4.-7. november", "fra 4/11 til 7/11".
+        const mon = '(januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|okt|nov|dec)';
+        const monNo = w => maaneder.indexOf(w.slice(0, 3).toLowerCase()) + 1;
+        const span = (d1, m1, d2, m2, y) => {
+            // Still going, or not over yet this year: this year (only a span that is all over moves to next year).
+            if (!y && m1 <= m2 && ok(y0, m2, d2) && iso(y0, m2, d2) >= t0) y = y0;
+            const a = fix(m1, d1, y); if (!a) return false;
+            let b = fix(m2, d2, y || Number(a.slice(0, 4)));
+            if (b && b < a) b = fix(m2, d2, Number(a.slice(0, 4)) + 1);   // 28/12-2/1 runs into the new year
+            if (!b || b <= a) return false;
+            r.dag = a; r.slut = b; return true;
+        };
+        const til = '\\s*(?:-|–|til)\\s*';
+        if ((m = s.match(new RegExp('\\s(?:fra\\s+)?(\\d{1,2})[\\/.](\\d{1,2})' + til + '(\\d{1,2})[\\/.](\\d{1,2})(?:[\\/.](\\d{2,4}))?(?=[\\s.,!])', 'i')))
+            && span(+m[1], +m[2], +m[3], +m[4], m[5] ? +m[5] : 0)) s = s.replace(m[0], ' ');
+        else if ((m = s.match(new RegExp('\\s(?:fra\\s+)?(\\d{1,2})\\.?' + til + '(\\d{1,2})[\\/.](\\d{1,2})(?:[\\/.](\\d{2,4}))?(?=[\\s.,!])', 'i')))
+            && span(+m[1], +m[3], +m[2], +m[3], m[4] ? +m[4] : 0)) s = s.replace(m[0], ' ');
+        else if ((m = s.match(new RegExp('\\s(?:fra\\s+)?(\\d{1,2})\\.?(?:\\s*' + mon + '\\.?)?' + til + '(\\d{1,2})\\.?\\s*' + mon + '\\.?(?:\\s+(\\d{4}))?(?=[\\s.,!])', 'i')))
+            && span(+m[1], m[2] ? monNo(m[2]) : monNo(m[4]), +m[3], monNo(m[4]), m[5] ? +m[5] : 0)) s = s.replace(m[0], ' ');
         // A date is only taken when it is a real one (18.30 is not).
-        const dm = s.match(/\s(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?(?=[\s.,!])/);
+        const dm = r.dag ? null : s.match(/\s(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?(?=[\s.,!])/);
         const dd = dm ? fix(+dm[2], +dm[1], dm[3] ? +dm[3] : 0) : '';
-        if (dd) { r.dag = dd; s = s.replace(dm[0], ' '); }
+        if (r.dag) { }
+        else if (dd) { r.dag = dd; s = s.replace(dm[0], ' '); }
         else if ((m = cut(/\s(\d{1,2})\.?\s*(januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|okt|nov|dec)\.?(?:\s+(\d{4}))?(?=[\s.,!])/i)))
             r.dag = fix(maaneder.indexOf(m[2].slice(0, 3).toLowerCase()) + 1, +m[1], m[3] ? +m[3] : 0);
         else if (cut(/\s(i dag|idag)(?=[\s.,!])/i)) r.dag = t0;
@@ -860,6 +1069,8 @@
             const re = new RegExp('\\s' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=[\\s.,!:])', 'i');
             if (re.test(s)) { if (!r.hvertAar) { r.til = n; s = s.replace(re, ' '); } break; }
         }
+        // Where (trin 2): "i Kbh", "på Rådhuset", "i Tivoli Friheden" - a place starts with a capital letter.
+        if ((m = cut(/\s(?:i|på|hos)\s+([A-ZÆØÅ0-9][\wæøåÆØÅ'.-]*(?:\s+[A-ZÆØÅ][\wæøåÆØÅ'.-]*){0,3})(?=[\s.,!]|$)/))) r.sted = m[1];
         s = s.replace(/\s(den|d\.|på|til|kl\.?|klokken)(?=\s)/gi, ' ').replace(/[\s.,!:]+/g, ' ').trim();
         r.titel = s ? s[0].toUpperCase() + s.slice(1) : '';
         return r;
@@ -867,9 +1078,11 @@
     function quickText(q) {
         if (!q.titel) return 'Skriv hvad det er – fx "Tandlæge".';
         const parts = [q.titel];
-        if (q.dag) parts.push((q.hvertAar ? 'hvert år, næste gang ' : '') + snartFmt.format(new Date(nextDay({ day: q.dag, yearly: q.hvertAar }) + 'T12:00')));
+        if (q.slut) parts.push(spanText({ day: q.dag, endDay: q.slut }));
+        else if (q.dag) parts.push((q.hvertAar ? 'hvert år, næste gang ' : '') + snartFmt.format(new Date(nextDay({ day: q.dag, yearly: q.hvertAar }) + 'T12:00')));
         if (q.hvornaar) parts.push('kl. ' + q.hvornaar);
         if (q.til) parts.push(q.til);
+        if (q.sted) parts.push(q.sted);
         let tip = '';
         if (!q.dag) tip = ' Mangler en dag – skriv fx 13/11, fredag eller i morgen. Uden dag står den bare på listen.';
         else if (!q.hvornaar && !q.hvertAar) tip = ' Skriv også klokken (fx kl 14), så får alle en påmindelse før.';
@@ -879,18 +1092,27 @@
     $('hurtig').addEventListener('input', () => {
         const v = $('hurtig').value.trim();
         $('hurtigGem').disabled = !v || !parseQuick(v).titel;
-        $('hurtigViser').textContent = v ? quickText(parseQuick(v)) : 'Skriv hvad, hvem, dag og klokkeslæt – i den rækkefølge du vil. Fx "Julius fødselsdag 12/4 hvert år".';
+        $('hurtigViser').textContent = v ? quickText(parseQuick(v)) : 'Skriv hvad, hvem, dag, klokkeslæt og sted – i den rækkefølge du vil. Fx "Julius fødselsdag 12/4 hvert år" eller "Ferie 4/11-7/11 i Kbh".';
     });
     $('hurtig').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (!$('hurtigGem').disabled) $('hurtigGem').click(); } });
     $('hurtigGem').onclick = async () => {
         const q = parseQuick($('hurtig').value);
         if (!q.titel) return;
         await act($('hurtigGem'), () => api('POST', base + '/opgaver', { titel: q.titel, hvornaar: q.hvornaar, note: '', endpoint, til: q.til,
-            dag: q.dag, hvertAar: q.hvertAar && !!q.dag, hverDag: false, navn }));
+            dag: q.dag, slut: q.slut, sted: q.sted, hvertAar: q.hvertAar && !!q.dag && !q.slut, hverDag: false, navn }));
         $('hurtig').value = ''; $('hurtigGem').disabled = true;
         $('hurtigViser').textContent = 'Lagt ind. Alle i rummet får besked.';
     };
-    $('opgDag').onchange = () => { $('opgDato').hidden = !['anden', 'aar'].includes($('opgDag').value); if (!$('opgDato').hidden && !$('opgDato').value) $('opgDato').value = today(); };
+    $('opgDag').onchange = () => {
+        $('opgDato').hidden = !['anden', 'aar'].includes($('opgDag').value);
+        $('opgSlutBoks').hidden = $('opgDag').value !== 'anden';
+        if (!$('opgDato').hidden && !$('opgDato').value) $('opgDato').value = today();
+    };
+    // "4. – 7. november" / "28. december – 2. januar".
+    function spanText(t) {
+        const a = new Date(t.day + 'T12:00'), b = new Date(t.endDay + 'T12:00');
+        return (a.getMonth() === b.getMonth() ? a.getDate() + '.' : kalMd.format(a)) + ' – ' + kalMd.format(b);
+    }
     $('nyOpg').addEventListener('submit', async e => {
         e.preventDefault();
         const til = $('opgTil').value;
@@ -898,6 +1120,7 @@
         const body = {
             titel: $('opgTitel').value, hvornaar: $('opgHvornaar').value, note: $('opgNote').value, endpoint,
             hverDag: dag === 'hver', hvertAar: dag === 'aar', dag: dag === 'idag' ? today() : dag === 'anden' || dag === 'aar' ? $('opgDato').value : '',
+            slut: dag === 'anden' ? $('opgSlut').value : '', sted: $('opgSted').value,
             navn,
         };
         // New task: the chosen person. Edit: only when it was changed (null on the server = keep who has it).
@@ -1144,7 +1367,7 @@
 
     // ---------- profiles (2026-11-09): each person's own card ----------
     let profiles = [];
-    async function loadProfiles() { if (!isGroup()) return; try { profiles = await api('GET', base + '/profiler'); renderRoster(); } catch { } }
+    async function loadProfiles() { if (!shared()) return; try { profiles = await api('GET', base + '/profiler'); renderRoster(); } catch { } }
     function profileOf(n) { return profiles.find(p => p.name.toLowerCase() === n.toLowerCase()); }
     function contactButtons(p) {
         if (!p) return null;
@@ -1166,10 +1389,10 @@
         const f = document.createElement('form'); f.className = 'profil-form';
         const field = (id, label, type, value, ph) =>
             `<label class="k-label" for="${id}">${label}</label><input class="k-input" id="${id}" type="${type}" value="" placeholder="${ph}" autocomplete="off" />`;
-        f.innerHTML = '<p class="k-help">Alt kan undværes. Skriv kun det, du gerne vil dele – kun holdet kan se det.</p>' +
+        f.innerHTML = '<p class="k-help">Alt kan undværes. Skriv kun det, du gerne vil dele – kun dem i rummet kan se det.</p>' +
             field('pMail', 'Mail', 'email', '', 'navn@firma.dk') + field('pTlf', 'Telefon', 'tel', '', '12 34 56 78') +
             field('pWeb', 'Hjemmeside', 'text', '', 'www.mitfirma.dk') + field('pLi', 'LinkedIn', 'text', '', 'linkedin.com/in/ditnavn') +
-            '<label class="k-label" for="pOm">Hvad laver du?</label><textarea class="k-textarea" id="pOm" maxlength="300" rows="3"></textarea>' +
+            '<label class="k-label" for="pOm">' + (isGroup() ? 'Hvad laver du?' : 'Lidt om dig') + '</label><textarea class="k-textarea" id="pOm" maxlength="300" rows="3"></textarea>' +
             '<p class="fejl" hidden></p><div class="k-row"><button class="k-btn k-btn-primary" type="submit">Gem</button>' +
             '<button class="k-btn k-btn-ghost" type="button">Fortryd</button></div>';
         // Values set as properties, never as HTML.
@@ -1192,12 +1415,14 @@
 
     function renderRoster() {
         renderLinks();
-        // Only a fixed group has the Holdet tab; a shared family room keeps its names at the door and on the tasks.
-        const people = (room && room.gruppe && room.medlemmer) || [];
+        // Trin 2 (2026-11-12): every shared room has its people tab - "Holdet" in a course group, "Personer" in a family room.
+        const people = (shared() && room.medlemmer) || [];
         const om = (room && room.om) || {};
         $('tabHold').hidden = people.length === 0;
+        $('tabHold').textContent = isGroup() ? 'Holdet' : 'Personer';
         if (!people.length && !$('viewHold').hidden) show('chat');
-        $('holdIntro').textContent = people.length + ' på holdet. Skriv til dem i chatten, eller del en fil under Filer.';
+        $('holdIntro').textContent = isGroup() ? people.length + ' på holdet. Skriv til dem i chatten, eller del en fil under Filer.'
+            : people.length + ' i rummet. Tryk på dit eget kort og skriv, hvad du vil dele – telefon, mail eller lidt om dig. Kun dem i rummet kan se det.';
         const box = $('holdListe');
         box.textContent = '';
         // Your own card first, so it is easy to fill in.
@@ -1246,7 +1471,7 @@
         let ok = 0; const errors = [];
         for (const [i, file] of list.entries()) {
             st.textContent = 'Lægger op' + (list.length > 1 ? ` (${i + 1} af ${list.length})` : '') + ': ' + file.name + ' …';
-            if (file.size > 25 * 1024 * 1024) { errors.push(file.name + ': for stor (højst 25 MB)'); continue; }
+            if (file.size > 90 * 1024 * 1024) { errors.push(file.name + ': for stor (højst 90 MB)'); continue; }
             const fd = new FormData();
             fd.append('fil', file); fd.append('navn', navn); fd.append('endpoint', endpoint); fd.append('emne', $('filEmne').value);
             try {

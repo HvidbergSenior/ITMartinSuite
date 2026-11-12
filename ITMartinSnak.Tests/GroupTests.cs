@@ -226,7 +226,7 @@ public class GroupTests
     {
         var g = NewGroup();
         (await g.AddFileAsync("virus.exe", 10, Bytes(10), "Sonja", null)).Error.Should().Contain("kan ikke");
-        (await g.AddFileAsync("stor.pdf", FileRules.MaxSize + 1, Bytes(10), "Sonja", null)).Error.Should().Contain("25 MB");
+        (await g.AddFileAsync("stor.pdf", FileRules.MaxSize + 1, Bytes(10), "Sonja", null)).Error.Should().Contain("90 MB");
         (await g.AddFileAsync("a.pdf", 10, Bytes(10), " ", null)).Error.Should().Contain("navn");
         // The browser says small, the bytes are bigger: stopped while writing.
         (await g.AddFileAsync("lyver.pdf", 10, Bytes((int)FileRules.MaxSize + 10), "Sonja", null)).Error.Should().NotBeNull();

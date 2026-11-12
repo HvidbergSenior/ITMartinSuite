@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=28" />
+    <link rel="stylesheet" href="/app.css?v=29" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=31" defer></script>
+    <script src="/app.js?v=32" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -124,8 +124,8 @@
             <nav class="tabs" role="tablist">
                 <button role="tab" id="tabKal" aria-selected="false" hidden>Kalender</button>
                 <button role="tab" id="tabNg" aria-selected="false" hidden>Til næste gang <span class="badge" id="ngBadge" hidden></span></button>
-                <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
+                <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
                 <button role="tab" id="tabHold" aria-selected="false" hidden>Holdet</button>
                 <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
@@ -153,9 +153,28 @@
         <main id="viewChat" class="view chat">
             <!-- Like a Facebook group: write at the top, newest message right under it, older ones further down. -->
             <form id="skriv" class="skriv">
-                <textarea id="tekst" class="k-textarea" rows="1" placeholder="Skriv en besked…" aria-label="Besked"></textarea>
-                <button class="k-btn k-btn-primary" type="submit" id="sendBtn">Send</button>
+                <!-- Trin 2: the room's admin writes as himself or as the company. -->
+                <div id="rolleValg" class="rolle-valg" role="group" aria-label="Skriv som" hidden>
+                    <span>Skriv som</span>
+                    <button type="button" id="rolleMig" aria-pressed="true"></button>
+                    <button type="button" id="rolleFirma" aria-pressed="false"></button>
+                </div>
+                <div id="svarBar" class="svar-bar" hidden><span id="svarTekst"></span><button type="button" class="link" id="svarFortryd">Fortryd</button></div>
+                <div class="skriv-raekke">
+                    <label class="k-btn vedhaeft" title="Send et billede eller en fil">
+                        <span aria-hidden="true">+</span><span class="sr">Send et billede eller en fil</span>
+                        <input type="file" id="chatFil" hidden />
+                    </label>
+                    <textarea id="tekst" class="k-textarea" rows="1" placeholder="Skriv en besked…" aria-label="Besked"></textarea>
+                    <button class="k-btn k-btn-primary" type="submit" id="sendBtn">Send</button>
+                </div>
+                <p id="chatFilStatus" class="k-help" aria-live="polite" hidden></p>
             </form>
+            <details id="soegBoks" class="soeg">
+                <summary>Søg i beskederne</summary>
+                <input class="k-input" id="soegFelt" type="search" placeholder="Fx turboweekend" autocomplete="off" aria-label="Søg i beskederne" />
+                <div id="soegListe" class="soeg-liste"></div>
+            </details>
             <div id="beskeder" class="beskeder" aria-live="polite"></div>
             <div class="tom" id="tomChat">
                 <strong>Ingen beskeder endnu</strong>
@@ -227,6 +246,12 @@
                     <option value="ingen">Ingen bestemt dag</option>
                 </select>
                 <input class="k-input" id="opgDato" type="date" hidden aria-label="Dato" />
+                <div id="opgSlutBoks" hidden>
+                    <label class="k-label" for="opgSlut">Til og med <span class="valgfri">(hvis det varer flere dage)</span></label>
+                    <input class="k-input" id="opgSlut" type="date" />
+                </div>
+                <label class="k-label" for="opgSted">Hvor? <span class="valgfri">(kan undværes)</span></label>
+                <input class="k-input" id="opgSted" maxlength="80" placeholder="Fx Kbh eller Tivoli Friheden" />
                 <label class="k-label" for="opgHvornaar">Klokken <span class="valgfri">(kan undværes)</span></label>
                 <input class="k-input" id="opgHvornaar" type="time" />
                 <p class="k-help">Med et klokkeslæt får alle i rummet en påmindelse en time før og en halv time før. Hvert år uden klokkeslæt: en besked om morgenen på dagen.</p>
@@ -251,7 +276,7 @@
             <section class="k-card kursus-links" hidden><h2 class="k-card-title">Kursets sider</h2><p class="k-help">Undervisningen og materialet ligger på kursets egen side. Her i Snak taler vi sammen på holdet.</p><div class="k-row link-knapper"></div></section>
             <form id="nyFil" class="k-card ny">
                 <h2 class="k-card-title">Læg en fil op</h2>
-                <p class="k-help">Tryk <b>Vælg fil</b> og find dokumentet på telefonen eller computeren (fx under <b>Filer</b> eller <b>Overførsler</b>). PDF, Word, Excel, PowerPoint, billeder og lyd/video – højst 25 MB pr. fil.</p>
+                <p class="k-help">Tryk <b>Vælg fil</b> og find dokumentet på telefonen eller computeren (fx under <b>Filer</b> eller <b>Overførsler</b>). Alle slags filer – PDF, Word, billeder, lyd og video – højst 90 MB pr. fil (ikke programmer). Filerne bliver slettet sammen med rummet.</p>
                 <div id="filEmneBoks" hidden>
                     <label class="k-label" for="filEmne">Hvilken workshop hører filen til?</label>
                     <select class="k-input" id="filEmne"></select>

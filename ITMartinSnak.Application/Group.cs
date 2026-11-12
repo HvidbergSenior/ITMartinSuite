@@ -37,25 +37,59 @@ public sealed class Group
 
     public IReadOnlyList<Message> MessagesAfter(long afterId, int max = 300)
     {
-        lock (_gate) return _messages.Where(m => m.Id > afterId).TakeLast(max).ToList();
+        lock (_gate) return _messages.Where(m => m.Id > afterId).TakeLast(max).Select(GroupRules.Copy).ToList();
+    }
+
+    /// <summary>Search the whole history (trin 2, 2026-11-12) - also what is older than the page has loaded.</summary>
+    public IReadOnlyList<Message> Search(string? query)
+    {
+        lock (_gate) return GroupRules.Search(_messages, query).Select(GroupRules.Copy).ToList();
+    }
+
+    /// <summary>A reaction on a message (tap again = take it back). Everyone sees it at once; no push (it is not news).</summary>
+    public Message? React(long id, string? emoji, string? name)
+    {
+        Message? m;
+        lock (_gate)
+        {
+            var i = _messages.FindIndex(x => x.Id == id);
+            if (i < 0) return null;
+            m = GroupRules.React(_messages[i], emoji, name);
+            if (m is null) return null;
+            _messages[i] = m;
+            _store.SaveMessages(_messages);
+            m = GroupRules.Copy(m);
+        }
+        _live.Send(_room.Id, "besked-ret", m);
+        return m;
     }
 
     public Message? Last { get { lock (_gate) return _messages.Count == 0 ? null : _messages[^1]; } }
     public bool Waiting { get { lock (_gate) return RoomRules.Waiting(_messages); } }
 
-    public Message? Write(string? name, string? text, string? fromEndpoint = null, bool host = false)
+    /// <param name="replyTo">The message it answers (trin 2).</param>
+    /// <param name="fileId">A picture or file from the room's Filer, shown in the chat.</param>
+    public Message? Write(string? name, string? text, string? fromEndpoint = null, bool host = false, long? replyTo = null, long? fileId = null)
     {
         Message? m;
+        string? fileName = null;
         lock (_gate)
         {
-            m = GroupRules.NewMessage(_messages, name, text, _clock.GetUtcNow().UtcDateTime, host);
+            if (fileId is { } fid)
+            {
+                if (_files.FirstOrDefault(f => f.Id == fid) is not { } file) return null;
+                fileName = file.Name;
+            }
+            m = GroupRules.NewMessage(_messages, name, text, _clock.GetUtcNow().UtcDateTime, host, replyTo, fileId);
             if (m is null) return null;
             _messages.Add(m);
             GroupRules.Trim(_messages);
             _store.SaveMessages(_messages);
         }
         _live.Send(_room.Id, "besked", m);
-        _push.SendToOthers(_room.Id, fromEndpoint, $"{m.Name} · {_room.Title}", m.Text, "snak-" + _room.Id, _room.Url);
+        var body = m.Text.Length > 0 ? m.Text : fileName is not null && FileRules.TypeOf(fileName) is { } ct && ct.StartsWith("image/")
+            ? "Har sendt et billede" : $"Har sendt {fileName}";
+        _push.SendToOthers(_room.Id, fromEndpoint, $"{m.Name} · {_room.Title}", body, "snak-" + _room.Id, _room.Url);
         _room.Activity(true);
         return m;
     }
@@ -153,12 +187,12 @@ public sealed class Group
 
     /// <param name="by">A member who adds it themselves (shared rooms, 2026-11-12) - "" = the host.</param>
     public TaskItem? AddTask(string? title, string? note, string? when, string? fromEndpoint = null, string? to = null, string? day = null, bool daily = false,
-        string? by = null, bool yearly = false)
+        string? by = null, bool yearly = false, string? endDay = null, string? place = null)
     {
         TaskItem? t;
         lock (_gate)
         {
-            t = GroupRules.NewTask(_tasks, title, note, when, _clock.GetUtcNow().UtcDateTime, to, day, daily, by, yearly);
+            t = GroupRules.NewTask(_tasks, title, note, when, _clock.GetUtcNow().UtcDateTime, to, day, daily, by, yearly, endDay, place);
             if (t is null) return null;
             _tasks.Add(t);
             _store.SaveTasks(_tasks);
@@ -172,11 +206,11 @@ public sealed class Group
 
     /// <param name="to">null = keep who has it; "" = nobody; a name = give it to that person (they get a push).</param>
     public TaskItem? EditTask(long id, string? title, string? note, string? when, string? to = null, string? fromEndpoint = null, string? day = null, bool? daily = null,
-        bool? yearly = null)
+        bool? yearly = null, string? endDay = null, string? place = null)
     {
         string? before;
         lock (_gate) before = _tasks.FirstOrDefault(x => x.Id == id) is { } old ? string.Join(",", old.Takers) : null;
-        var t = Change(id, x => GroupRules.Edit(x, title, note, when, to, day, daily, yearly));
+        var t = Change(id, x => GroupRules.Edit(x, title, note, when, to, day, daily, yearly, endDay, place));
         if (t is not null && to is not null && t.Takers.Count > 0 && string.Join(",", t.Takers) != before)
             _push.SendToOthers(_room.Id, fromEndpoint, $"Opgave til {t.Takers[0]} · " + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
         return t;
@@ -244,7 +278,7 @@ public sealed class Group
     /// <returns>The new file, or the Danish reason it was not added.</returns>
     /// <param name="topic">Already checked against the room's topics (RosterRules.TopicFor); "" = Andet.</param>
     public async Task<(SharedFile? File, string? Error)> AddFileAsync(string? fileName, long size, Stream content, string? by,
-        string? fromEndpoint, CancellationToken ct = default, string topic = "")
+        string? fromEndpoint, CancellationToken ct = default, string topic = "", bool push = true)
     {
         var who = GroupRules.CleanName(by);
         if (who.Length == 0) return (null, "Skriv dit navn først.");
@@ -252,7 +286,7 @@ public sealed class Group
         SharedFile f;
         lock (_gate)
         {
-            if (FileRules.Check(name, size, _files.Count) is { } err) return (null, err);
+            if (FileRules.Check(name, size, _files.Count, _files.Sum(x => x.Size)) is { } err) return (null, err);
             f = FileRules.New(_files, name, size, who, _clock.GetUtcNow().UtcDateTime, topic);
             _files.Add(f);   // holds the id while the bytes are written
         }
@@ -265,9 +299,10 @@ public sealed class Group
                 if (ok) _store.SaveFiles(_files); else _files.Remove(f);
             }
         }
-        if (!ok) return (null, "Filen er tom eller for stor. Den må højst være 25 MB.");
+        if (!ok) return (null, "Filen er tom eller for stor. " + FileRules.TooBig[19..]);
         FilesChanged();
-        _push.SendToOthers(_room.Id, fromEndpoint, "Ny fil · " + _room.Title, $"{who} har lagt {f.Name} op", "snak-fil-" + _room.Id, _room.Url);
+        // A picture sent in the chat: the chat message gives the push, not the file as well.
+        if (push) _push.SendToOthers(_room.Id, fromEndpoint, "Ny fil · " + _room.Title, $"{who} har lagt {f.Name} op", "snak-fil-" + _room.Id, _room.Url);
         _room.Activity(false);
         return (f, null);
     }
