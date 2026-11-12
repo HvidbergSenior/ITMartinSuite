@@ -28,6 +28,7 @@ builder.Services.AddKolibri(k =>
         "Alle i et fælles rum kan selv lægge datoer ind – også noget, der varer flere dage, og hvor det er (\"Ferie 4/12-7/12 i Kbh\"). Hver person har sit eget kort under Personer.",
         "I chatten kan du svare på en bestemt besked, give en reaktion, sende billeder og filer og søge i alt, der er skrevet. Filer (højst 90 MB) bliver slettet sammen med rummet.",
         "Martin skriver enten som sig selv (Martin Hvidberg) eller som firmaet (ITMartin), så du kan se, hvem der taler.",
+        "I et familierum er hvert navn låst til sin telefon – kun dem på listen kommer ind, og ingen kan skrive som en anden. En ny telefon godkender tovholderen med ét tryk.",
     ];
     k.HowTo =
     [
@@ -223,6 +224,26 @@ app.MapPost("/api/push/fra", (PushBody b, IPushSender push) =>
 
 var room = app.MapGroup("/api/r/{key}");
 
+// 2026-11-12 the door of a family room (DoorRules): only a phone that holds one of the names gets past the door; everything it does
+// is done under THAT name (whatever the page sends). The room's admin always gets in. Course groups and customer rooms: as before.
+room.AddEndpointFilter(async (ctx, next) =>
+{
+    var c = ctx.HttpContext;
+    var key = c.Request.RouteValues["key"] as string;
+    var rooms = c.RequestServices.GetRequiredService<Rooms>();
+    if (rooms.ByKey(key) is { } r && DoorRules.Locked(r) && !IsRoomAdmin(c, c.RequestServices.GetRequiredService<Access>(), r))
+    {
+        var rest = (c.Request.Path.Value ?? "")[("/api/r/" + key).Length..].TrimEnd('/');
+        if (rest is not ("" or "/doer" or "/admin"))
+        {
+            if (DoorRules.NameOf(r, DeviceHash(c)) is not { } held)
+                return Results.Json(new { fejl = "Tryk på dit navn ved døren først.", doer = true }, statusCode: 403);
+            c.Items["snak_navn"] = held;
+        }
+    }
+    return await next(ctx);
+});
+
 room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSender push) =>
     rooms.ByKey(key) is { } r
         ? Results.Json(new
@@ -231,8 +252,40 @@ room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSen
             pushKey = push.PublicKey, vaert = HostName, firma = CompanyName, medlemmer = r.Members ?? [], harKode = r.HasCode,
             gruppe = r.Gruppe, om = r.About ?? [], emner = r.Topics ?? [], links = r.Links ?? [],
             harKalender = !string.IsNullOrEmpty(r.CalendarUrl), kalender = IsAdmin(c, access) ? r.CalendarUrl ?? "" : "", adresse = r.Slug,
+            laast = DoorRules.Locked(r), mitNavn = DoorRules.NameOf(r, DeviceHash(c)),
         }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
+
+// The door (2026-11-12): the phone taps a name. First phone on a name takes it; another phone waits for the admin ("venter").
+room.MapPost("/doer", (HttpContext c, string key, DoorBody b, Rooms rooms) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    if (!DoorRules.Locked(r)) return Results.Json(new { resultat = "ind", navn = GroupRules.CleanName(b.Navn) }, web);
+    var token = c.Request.Cookies["snak_d"];
+    if (string.IsNullOrEmpty(token) || token.Length < 20)
+    {
+        token = DoorRules.NewToken();
+        c.Response.Cookies.Append("snak_d", token,
+            new CookieOptions { HttpOnly = true, Secure = c.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(400), Path = "/" });
+    }
+    var result = rooms.Knock(r.Id, b.Navn, DoorRules.Hash(token), b.Enhed);
+    return Results.Json(new
+    {
+        resultat = result switch { DoorResult.In => "ind", DoorResult.Waiting => "venter", _ => "ikke-paa-listen" },
+        navn = DoorRules.MemberName(r, b.Navn),
+    }, web);
+});
+
+// The admin approves or turns away a waiting phone, or frees a name.
+room.MapPost("/doer/godkend", (HttpContext c, string key, DoorAdminBody b, Rooms rooms, Access access) =>
+    rooms.ByKey(key) is not { } r ? Results.NotFound() : !IsRoomAdmin(c, access, r) ? Results.StatusCode(403)
+        : rooms.ApproveDevice(r.Id, b.Id ?? "") ? Results.Ok() : Results.NotFound());
+room.MapPost("/doer/afvis", (HttpContext c, string key, DoorAdminBody b, Rooms rooms, Access access) =>
+    rooms.ByKey(key) is not { } r ? Results.NotFound() : !IsRoomAdmin(c, access, r) ? Results.StatusCode(403)
+        : rooms.RejectDevice(r.Id, b.Id ?? "") ? Results.Ok() : Results.NotFound());
+room.MapPost("/doer/frigiv", (HttpContext c, string key, DoorAdminBody b, Rooms rooms, Access access) =>
+    rooms.ByKey(key) is not { } r ? Results.NotFound() : !IsRoomAdmin(c, access, r) ? Results.StatusCode(403)
+        : rooms.ReleaseName(r.Id, b.Navn) ? Results.Ok() : Results.NotFound());
 
 // The room's own admin password (2026-11-08): admin in this room only, remembered on this phone.
 room.MapPost("/admin", (HttpContext c, string key, LoginBody b, Access access, Rooms rooms) =>
@@ -254,7 +307,7 @@ room.MapGet("/beskeder", (string key, Rooms rooms, long? efter) =>
 room.MapPost("/beskeder", (HttpContext c, string key, MessageBody b, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var (name, asHost) = Writer(r, IsRoomAdmin(c, access, r), b.Navn, b.Rolle);
+    var (name, asHost) = Writer(r, IsRoomAdmin(c, access, r), Who(c, b.Navn), b.Rolle);
     var m = rooms.GroupOf(r).Write(name, b.Tekst, b.Endpoint, asHost, b.SvarPaa, b.Fil);
     return m is null ? Results.BadRequest(new { fejl = "Skriv dit navn og en besked." }) : Results.Json(m, web);
 });
@@ -263,7 +316,7 @@ room.MapPost("/beskeder", (HttpContext c, string key, MessageBody b, Rooms rooms
 room.MapPost("/beskeder/{id:long}/reaktion", (HttpContext c, string key, long id, ReactBody b, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var (name, _) = Writer(r, IsRoomAdmin(c, access, r), b.Navn, b.Rolle);
+    var (name, _) = Writer(r, IsRoomAdmin(c, access, r), Who(c, b.Navn), b.Rolle);
     var m = rooms.GroupOf(r).React(id, b.Emoji, name);
     return m is null ? Results.BadRequest() : Results.Json(m, web);
 });
@@ -280,7 +333,7 @@ room.MapGet("/set", (string key, Rooms rooms) =>
 room.MapPost("/set", (HttpContext c, string key, SeenBody b, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var name = Writer(r, IsRoomAdmin(c, access, r), b.Navn, null).Name;
+    var name = Writer(r, IsRoomAdmin(c, access, r), Who(c, b.Navn), null).Name;
     return rooms.GroupOf(r).MarkSeen(name, b.Besked, b.Enhed, b.Hjem, b.Push, b.InApp) is null ? Results.BadRequest() : Results.Ok();
 });
 
@@ -305,7 +358,12 @@ room.MapGet("/opsaetning", (HttpContext c, string key, Rooms rooms, Access acces
             push = s?.Push ?? "", inApp = s?.InApp ?? false, telefoner = phones.TryGetValue(n, out var p) ? p : 0,
         };
     });
-    return Results.Json(new { sidsteBesked = g.Last?.Id ?? 0, folk = rows }, web);
+    var door = DoorRules.Locked(r) ? new
+    {
+        telefoner = (r.Members ?? []).ToDictionary(m => m, m => r.Claims is { } cl && cl.TryGetValue(m, out var d) ? d.Count : 0),
+        venter = (r.Pending ?? []).Select(p => new { id = p.Id, navn = p.Name, enhed = p.Kind, at = p.At }),
+    } : null;
+    return Results.Json(new { sidsteBesked = g.Last?.Id ?? 0, folk = rows, doer = door }, web);
 });
 
 // The course's own calendar (2026-11-09): the room's .ics feed, read through Calendars (kept 20 min). Danish dates on the page.
@@ -320,20 +378,20 @@ room.MapGet("/kalender", async (string key, Rooms rooms, Calendars cal, Cancella
 room.MapGet("/profiler", (string key, Rooms rooms) =>
     rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).Profiles(), web) : Results.NotFound());
 
-room.MapPut("/profil", (string key, ProfileBody b, Rooms rooms) =>
+room.MapPut("/profil", (HttpContext c, string key, ProfileBody b, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var (p, err) = rooms.GroupOf(r).SaveProfile(b.Navn, b.Mail, b.Telefon, b.Web, b.LinkedIn, b.Om);
+    var (p, err) = rooms.GroupOf(r).SaveProfile(Who(c, b.Navn), b.Mail, b.Telefon, b.Web, b.LinkedIn, b.Om);
     return p is null ? Results.BadRequest(new { fejl = err }) : Results.Json(p, web);
 });
 
 // "Til næste gang": each person's own ticks (only they ask for their own name).
-room.MapGet("/mine", (string key, string? navn, Rooms rooms) =>
-    rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).MyDone(navn), web) : Results.NotFound());
+room.MapGet("/mine", (HttpContext c, string key, string? navn, Rooms rooms) =>
+    rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).MyDone(Who(c, navn)), web) : Results.NotFound());
 
-room.MapPost("/opgaver/{id:long}/mig", (string key, long id, MineBody b, Rooms rooms) =>
+room.MapPost("/opgaver/{id:long}/mig", (HttpContext c, string key, long id, MineBody b, Rooms rooms) =>
     rooms.ByKey(key) is not { } r ? Results.NotFound()
-        : rooms.GroupOf(r).SetMyDone(b.Navn, id, b.Gjort) is { } ids ? Results.Json(ids, web) : Results.BadRequest());
+        : rooms.GroupOf(r).SetMyDone(Who(c, b.Navn), id, b.Gjort) is { } ids ? Results.Json(ids, web) : Results.BadRequest());
 
 // Tasks: everyone in the room sees them and can put themselves on one; only Martin makes, edits and removes.
 room.MapGet("/opgaver", (string key, Rooms rooms) =>
@@ -348,9 +406,9 @@ room.MapPost("/opgaver", (HttpContext c, string key, TaskBody b, Access access, 
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var host = IsRoomAdmin(c, access, r);
-    if (!host && !SharedMember(r, b.Navn)) return Results.StatusCode(403);
+    if (!host && !SharedMember(r, Who(c, b.Navn))) return Results.StatusCode(403);
     var t = rooms.GroupOf(r).AddTask(b.Titel, b.Note, b.Hvornaar, b.Endpoint, b.Til, b.Dag, b.HverDag ?? false,
-        host ? null : b.Navn, b.HvertAar ?? false, b.Slut, b.Sted);
+        host ? null : Who(c, b.Navn), b.HvertAar ?? false, b.Slut, b.Sted);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven skal have en titel." }) : Results.Json(t, web);
 });
 
@@ -358,7 +416,7 @@ room.MapPut("/opgaver/{id:long}", (HttpContext c, string key, long id, TaskBody 
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var host = IsRoomAdmin(c, access, r);
-    if (!host && !(SharedMember(r, b.Navn) && rooms.GroupOf(r).MayChangeTask(id, b.Navn, false))) return Results.StatusCode(403);
+    if (!host && !(SharedMember(r, Who(c, b.Navn)) && rooms.GroupOf(r).MayChangeTask(id, Who(c, b.Navn), false))) return Results.StatusCode(403);
     var t = rooms.GroupOf(r).EditTask(id, b.Titel, b.Note, b.Hvornaar, b.Til, b.Endpoint, b.Dag, b.HverDag, b.HvertAar, b.Slut, b.Sted);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven findes ikke, eller titlen mangler." }) : Results.Json(t, web);
 });
@@ -373,14 +431,14 @@ room.MapPost("/opgaver/{id:long}/faerdig", (HttpContext c, string key, long id, 
 room.MapDelete("/opgaver/{id:long}", (HttpContext c, string key, long id, string? navn, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsRoomAdmin(c, access, r) && !(SharedMember(r, navn) && rooms.GroupOf(r).MayChangeTask(id, navn, false))) return Results.StatusCode(403);
+    if (!IsRoomAdmin(c, access, r) && !(SharedMember(r, Who(c, navn)) && rooms.GroupOf(r).MayChangeTask(id, Who(c, navn), false))) return Results.StatusCode(403);
     return rooms.GroupOf(r).DeleteTask(id) ? Results.Ok() : Results.NotFound();
 });
 
-room.MapPost("/opgaver/{id:long}/tag", (string key, long id, TakeBody b, Rooms rooms) =>
+room.MapPost("/opgaver/{id:long}/tag", (HttpContext c, string key, long id, TakeBody b, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var t = rooms.GroupOf(r).ToggleTaker(id, b.Navn, b.Endpoint);
+    var t = rooms.GroupOf(r).ToggleTaker(id, Who(c, b.Navn), b.Endpoint);
     return t is null ? Results.BadRequest(new { fejl = "Skriv dit navn først." }) : Results.Json(t, web);
 });
 
@@ -396,7 +454,7 @@ room.MapPost("/filer", async (HttpContext c, string key, Rooms rooms, Access acc
     if (!c.Request.HasFormContentType) return Results.BadRequest(new { fejl = "Vælg en fil." });
     var form = await c.Request.ReadFormAsync(c.RequestAborted);
     if (form.Files.GetFile("fil") is not { } f) return Results.BadRequest(new { fejl = "Vælg en fil." });
-    var (who, _) = Writer(r, IsRoomAdmin(c, access, r), form["navn"].ToString(), form["rolle"].ToString());
+    var (who, _) = Writer(r, IsRoomAdmin(c, access, r), Who(c, form["navn"].ToString()), form["rolle"].ToString());
     await using var s = f.OpenReadStream();
     // "chat" = sent from the chat: the chat message gives the push.
     var (file, err) = await rooms.GroupOf(r).AddFileAsync(f.FileName, f.Length, s, who,
@@ -422,7 +480,7 @@ room.MapGet("/filer/{id:long}", (HttpContext c, string key, long id, Rooms rooms
 room.MapDelete("/filer/{id:long}", (HttpContext c, string key, long id, string? navn, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    return rooms.GroupOf(r).DeleteFile(id, navn, IsRoomAdmin(c, access, r)) ? Results.Ok() : Results.StatusCode(403);
+    return rooms.GroupOf(r).DeleteFile(id, Who(c, navn), IsRoomAdmin(c, access, r)) ? Results.Ok() : Results.StatusCode(403);
 });
 
 room.MapGet("/live",async (HttpContext c, string key, Rooms rooms, ILiveFeed live) =>
@@ -452,11 +510,11 @@ room.MapGet("/live",async (HttpContext c, string key, Rooms rooms, ILiveFeed liv
     finally { live.Leave(id); }
 });
 
-room.MapPost("/push", (string key, PushBody b, Rooms rooms, IPushSender push) =>
+room.MapPost("/push", (HttpContext c, string key, PushBody b, Rooms rooms, IPushSender push) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     if (!GoodPush(b)) return Results.BadRequest();
-    push.Subscribe(r.Id, b.Endpoint!, b.P256dh!, b.Auth!, GroupRules.CleanName(b.Navn));
+    push.Subscribe(r.Id, b.Endpoint!, b.P256dh!, b.Auth!, GroupRules.CleanName(Who(c, b.Navn)));
     return Results.Ok();
 });
 
@@ -471,6 +529,13 @@ static bool AsMember(Room r, string? name) =>
 static bool SharedMember(Room r, string? name) =>
     !r.Gruppe && !string.IsNullOrWhiteSpace(name) && (r.Members ?? []).Contains(name.Trim(), StringComparer.OrdinalIgnoreCase);
 
+// In a family room the name is always the one this phone holds (set by the door filter), whatever the page sends.
+static string? Who(HttpContext c, string? sent) => c.Items["snak_navn"] as string ?? sent;
+
+// The phone's door token (cookie) as the hash the room keeps.
+static string? DeviceHash(HttpContext c) =>
+    c.Request.Cookies["snak_d"] is { Length: >= 20 } t ? DoorRules.Hash(t) : null;
+
 // What the page sees of a file - never the name on disk.
 static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At, f.Topic };
 
@@ -480,6 +545,8 @@ public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string
 public sealed record InviteBody(string? Link, string? Mail, string? Navn);
 public sealed record RosterBody(string? Medlemmer, string? Emner, string? Links = null, string? Kalender = null);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint, long? SvarPaa = null, long? Fil = null, string? Rolle = null);
+public sealed record DoorBody(string? Navn, string? Enhed);
+public sealed record DoorAdminBody(string? Id, string? Navn);
 public sealed record ReactBody(string? Navn, string? Emoji, string? Rolle = null);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null,
     string? Navn = null, bool? HvertAar = null, string? Slut = null, string? Sted = null);

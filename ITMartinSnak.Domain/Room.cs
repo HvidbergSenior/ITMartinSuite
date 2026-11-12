@@ -12,9 +12,11 @@ namespace ITMartinSnak.Domain;
 // 2026-11-09 GRUPPE (Acceleratorkursus Hold 36, replaces their Facebook group): a standing group - no "Sagen er klaret", never deleted;
 // About = what each member works with (the Holdet tab), Topics = the workshops files are sorted under. Older rooms read as before.
 // 2026-11-10 MAIL (user: "they should get mail"): Mail = the customer's address (from Kunder), MailedAt = the last "Martin har skrevet" mail.
+// 2026-11-12 DOOR (family rooms): Claims = member name -> the phones that hold it (token hashes), Pending = phones waiting for approval (DoorRules).
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
     List<string>? Members = null, string CodeHash = "", string Slug = "", bool Gruppe = false, Dictionary<string, string>? About = null,
-    List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null, string Mail = "", DateTime? MailedAt = null)
+    List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null, string Mail = "", DateTime? MailedAt = null,
+    Dictionary<string, List<Device>>? Claims = null, List<PendingDevice>? Pending = null)
 {
     public bool IsDone => DoneAt is not null;
     public bool HasCode => CodeHash.Length > 0;

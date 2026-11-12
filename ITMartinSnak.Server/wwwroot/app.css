@@ -330,3 +330,8 @@ body { background: var(--k-bg); color: var(--k-text); }
 .opgave .sted { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--k-muted); font-size: 15px; }
 .opgave .sted .k-btn { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .handling { animation: none; } .besked { transition: none; } }
+
+/* 2026-11-12 the door of a family room */
+.doer-vent { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--k-accent-soft); border-left: 4px solid var(--k-accent-dark); font-weight: 600; }
+.doer-ny { border-left-width: 6px; }
+.doer-laas { margin-top: 6px; gap: 8px; align-items: center; flex-wrap: wrap; }

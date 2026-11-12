@@ -120,6 +120,42 @@ public sealed class Rooms
         return true;
     }
 
+    // ---- the door of a family room (2026-11-12): each name locked to its phones, the admin approves a new phone ----
+
+    /// <summary>A phone taps a name. A phone that has to wait tells Martin (a push to his phones only).</summary>
+    public DoorResult Knock(string id, string? name, string tokenHash, string? kind)
+    {
+        var result = DoorResult.NotOnList;
+        Room? asked = null;
+        Update(id, x =>
+        {
+            var (after, res) = DoorRules.Knock(x, name, tokenHash, kind, _clock.GetUtcNow().UtcDateTime);
+            result = res;
+            if (res == DoorResult.Waiting && (after.Pending?.Count ?? 0) > (x.Pending?.Count ?? 0)) asked = after;
+            return after;
+        });
+        if (asked is not null)
+            _push.SendToOthers("", null, "Ny telefon · " + asked.Title, $"{DoorRules.MemberName(asked, name)} vil ind på en ny telefon. Godkend under ⋯ Hvem er klar?",
+                "snak-doer-" + id, $"/r/{asked.Key}");
+        return result;
+    }
+
+    public bool ApproveDevice(string id, string pendingId)
+    {
+        var ok = false;
+        Update(id, x =>
+        {
+            if (DoorRules.Approve(x, pendingId) is not { } r) return x;
+            ok = true;
+            return r;
+        });
+        return ok;
+    }
+
+    public bool RejectDevice(string id, string pendingId) => Update(id, x => DoorRules.Reject(x, pendingId));
+
+    public bool ReleaseName(string id, string? name) => Update(id, x => DoorRules.Release(x, name));
+
     /// <summary>The customer's mail address (Kunder sends it with the invitation).</summary>
     public bool SetMail(string id, string mail) => Update(id, x => x with { Mail = mail });
 

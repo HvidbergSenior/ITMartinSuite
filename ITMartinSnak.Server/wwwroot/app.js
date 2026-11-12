@@ -41,6 +41,10 @@
             body: body ? JSON.stringify(body) : undefined,
         });
         if (r.status === 404 && roomKey) { showOnly('vaek'); throw new Error('login'); }
+        if (r.status === 403 && roomKey) {
+            const d = await r.clone().json().catch(() => null);
+            if (d && d.doer) { showLogin(); throw new Error('login'); }
+        }
         if (r.status === 401) { boot(); throw new Error('login'); }
         const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
         if (!r.ok) throw new Error((data && data.fejl) || 'Det gik ikke. Prøv igen.');
@@ -66,6 +70,12 @@
                 document.title = room.titel + ' · Snak';
                 // In a group the admin is a participant too: he picks his own name at the door (2026-11-09).
                 const member = n => (room.medlemmer || []).some(x => x.toLowerCase() === (n || '').toLowerCase());
+                // 2026-11-12 family room: this phone's own name, or knock with the one it remembers (first phone takes it).
+                if (room.laast && !admin) {
+                    if (room.mitNavn) { navn = room.mitNavn; store.set('snak_navn', navn); return enter(); }
+                    if (member(navn) && await knock(navn) === 'ind') return enter();
+                    return showLogin();
+                }
                 if (admin) navn = room.gruppe ? (member(navn) ? navn : '') : vaert;
                 if (!navn) return showLogin();
                 return enter();
@@ -106,6 +116,11 @@
             document.querySelector('#loginNavn + .k-help').textContent = 'Det er det navn, de andre ser ved dine beskeder.';
             document.querySelector('#loginFejl + .k-help').innerHTML = 'Når du går ind, spørger telefonen, om Snak må give dig besked. Sig <b>Tillad</b>, så får du besked om nye opgaver og påmindelser.';
         }
+        // A family room: only the names - no typed name, no Gå ind button (2026-11-12).
+        const locked = !!(room && room.laast && !admin);
+        $('loginFrit').hidden = locked; $('loginGaa').hidden = locked;
+        $('loginNavn').required = !locked;
+        if (locked) $('loginLead').textContent = 'Her skriver vi sammen og ser, hvem der gør hvad. Tryk på dit navn – så husker telefonen dig.';
         // A fixed group (a course team, a club): the door speaks to the group (2026-11-09).
         if (room && room.gruppe) {
             $('loginLead').textContent = 'Velkommen! Her skriver holdet sammen og deler dokumenter. ' + (names.length ? `I er ${names.length} på holdet – tryk på dit navn.` : 'Skriv dit navn.');
@@ -145,8 +160,29 @@
         if (!n) return;
         navn = n; store.set('snak_navn', n);
         await perm;
+        if (room && room.laast && !admin && await knock(n) !== 'ind') return;
         enter();
     });
+
+    // The door of a family room: the first phone takes the name; another phone waits until the room's admin says yes.
+    async function knock(n) {
+        $('doerVent').hidden = true;
+        try {
+            const r = await fetch(base + '/doer', {
+                method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ navn: n, enhed: isIos ? 'iphone' : /android/i.test(navigator.userAgent) ? 'android' : 'computer' }),
+            });
+            const d = await r.json();
+            if (d.resultat === 'ind') { if (d.navn) { navn = d.navn; store.set('snak_navn', navn); } return 'ind'; }
+            const w = $('doerVent');
+            w.textContent = d.resultat === 'venter'
+                ? (n + ' er allerede i brug på en anden telefon. ' + vaert + ' har fået besked og kan godkende denne telefon. Prøv igen om lidt.'
+                   + (isIos && standalone ? ' (Ikonet på hjemmeskærmen tæller som en ny telefon.)' : ''))
+                : 'Kun navnene her i rummet kan komme ind.';
+            w.hidden = false;
+            return d.resultat;
+        } catch { return 'fejl'; }
+    }
 
     $('adminForm').addEventListener('submit', async e => {
         e.preventDefault();
@@ -268,6 +304,7 @@
         $('hjemKnap').onclick = () => show('mig');
         $('nyOpg').hidden = !canAdd();
         renderRolle();
+        $('navnBoks').hidden = !!(room && room.laast && !admin);   // the name belongs to the phone in a family room
         $('tovBoks').hidden = admin || !(room && room.harKode);
         fillTil('');
         $('opgIntro').textContent = admin
@@ -666,6 +703,20 @@
         const inde = rows.filter(p => p.sidstInde).length, besked = rows.filter(p => p.telefoner > 0).length;
         $('opsSum').textContent = inde + ' af ' + rows.length + ' har været inde · ' + besked + ' får beskeder på telefonen.';
         const box = $('opsListe'); box.textContent = '';
+        // 2026-11-12 the door: phones waiting for a yes, at the very top.
+        for (const v of (d.doer && d.doer.venter) || []) {
+            const c = document.createElement('div'); c.className = 'ops-raekke mangler doer-ny';
+            const h = document.createElement('h3'); h.textContent = v.navn + ' vil ind på en ny ' + (v.enhed === 'computer' ? 'computer' : 'telefon');
+            const p = document.createElement('p'); p.className = 'ops-raad';
+            p.textContent = (deviceText[v.enhed] || 'Ukendt enhed') + ' · ' + dayFmt.format(new Date(v.at)) + ' kl. ' + timeFmt.format(new Date(v.at))
+                + '. Er det ' + v.navn + ' selv (fx ikonet på hjemmeskærmen eller en ny telefon)? Så tryk Godkend.';
+            const row = document.createElement('div'); row.className = 'k-row';
+            const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'k-btn k-btn-sm k-btn-primary'; ok.textContent = 'Godkend';
+            ok.onclick = async () => { ok.disabled = true; try { await api('POST', base + '/doer/godkend', { id: v.id }); } catch { } loadSetup(); };
+            const no = document.createElement('button'); no.type = 'button'; no.className = 'k-btn k-btn-sm k-btn-ghost'; no.textContent = 'Afvis';
+            no.onclick = async () => { no.disabled = true; try { await api('POST', base + '/doer/afvis', { id: v.id }); } catch { } loadSetup(); };
+            row.append(ok, no); c.append(h, p, row); box.appendChild(c);
+        }
         // Not in yet: one short block with the names (the advice is the same for all of them).
         const ude = rows.filter(p => !p.sidstInde);
         if (ude.length) {
@@ -689,6 +740,22 @@
             } else facts.push('Ikke inde endnu');
             for (const t of facts) { const sp = document.createElement('span'); sp.textContent = t; f.appendChild(sp); }
             c.append(h, f);
+            if (d.doer && p.medlem) {
+                const n = d.doer.telefoner[Object.keys(d.doer.telefoner).find(k => k.toLowerCase() === p.navn.toLowerCase())] || 0;
+                const l = document.createElement('div'); l.className = 'k-row doer-laas';
+                const t = document.createElement('span'); t.className = 'k-help';
+                t.textContent = n ? 'Navnet er låst til ' + n + (n === 1 ? ' telefon' : ' telefoner') + '.' : 'Navnet er frit – den første, der trykker på det, får det.';
+                l.appendChild(t);
+                if (n) {
+                    const fr = document.createElement('button'); fr.type = 'button'; fr.className = 'k-btn k-btn-sm k-btn-ghost'; fr.textContent = 'Frigiv navnet';
+                    fr.onclick = async () => {
+                        if (!fr.dataset.sure) { fr.dataset.sure = '1'; fr.textContent = 'Ja, frigiv (alle telefoner skal trykke igen)'; setTimeout(() => { delete fr.dataset.sure; fr.textContent = 'Frigiv navnet'; }, 4000); return; }
+                        fr.disabled = true; try { await api('POST', base + '/doer/frigiv', { navn: p.navn }); } catch { } loadSetup();
+                    };
+                    l.appendChild(fr);
+                }
+                c.appendChild(l);
+            }
             if (p.raad) { const r = document.createElement('p'); r.className = 'ops-raad'; r.textContent = p.raad; c.appendChild(r); }
             box.appendChild(c);
         }

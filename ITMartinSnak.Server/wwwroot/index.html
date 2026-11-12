@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=29" />
+    <link rel="stylesheet" href="/app.css?v=30" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=33" defer></script>
+    <script src="/app.js?v=34" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -44,12 +44,14 @@
         <form id="loginForm" class="k-stack">
             <!-- Shared room (2026-11-08): one tap on your own name. -->
             <div id="loginNavne" class="navne" hidden></div>
-            <div>
+            <!-- 2026-11-12 family room: the door has only the names (each name locked to its phone). -->
+            <p id="doerVent" class="doer-vent" role="status" hidden></p>
+            <div id="loginFrit">
                 <label class="k-label" for="loginNavn">Dit navn</label>
                 <input class="k-input" id="loginNavn" maxlength="40" autocomplete="given-name" required />
                 <p class="k-help">Det er det navn, Martin ser ved dine beskeder.</p>
             </div>
-            <button class="k-btn k-btn-primary k-btn-block" type="submit">Gå ind</button>
+            <button class="k-btn k-btn-primary k-btn-block" type="submit" id="loginGaa">Gå ind</button>
             <p class="fejl" id="loginFejl" hidden></p>
             <p class="k-help">Når du trykker <b>Gå ind</b>, spørger telefonen, om Snak må give dig besked. Sig <b>Tillad</b>, så får du besked, når Martin svarer.</p>
         </form>
@@ -322,7 +324,7 @@
                     <span class="k-help" id="holdGemt" hidden>Gemt – alle i rummet ser det nu.</span>
                 </div>
             </section>
-            <section class="k-card">
+            <section class="k-card" id="navnBoks">
                 <h2 class="k-card-title">Dit navn</h2>
                 <div class="k-row">
                     <input class="k-input navn-input" id="nytNavn" maxlength="40" aria-label="Dit navn" />
@@ -382,6 +384,7 @@
                 <p>Snak er et lille, privat rum til én sag. Kun dem med rummets link kan komme ind. Der er ingen reklamer, og intet bliver solgt eller delt.</p>
                 <p>Under <b>Opgaver</b> lægger Martin det ud, der skal gøres. Tryk <b>Jeg tager den</b> på en opgave, så kan alle se, at du gør den.</p>
                 <p>I et fælles rum (fx familien) kan alle selv lægge datoer og opgaver ind: skriv det kort, fx "Tandlæge Eigil 13/11 kl 14" eller "Julius fødselsdag 12/4 hvert år", og tryk <b>Læg det ind</b>. Det, du selv har lagt ind, kan du rette og slette. Øverst under <b>Snart</b> står det, der sker de næste 7 dage. En fødselsdag uden klokkeslæt giver en besked om morgenen på dagen.</p>
+                <p>I et familierum er dit navn låst til din telefon, så ingen andre kan skrive som dig. Får du en ny telefon (eller lægger Snak på hjemmeskærmen på en iPhone), godkender tovholderen den med ét tryk.</p>
                 <p>Under <b>Holdet</b> kan du selv tilføje din mail, telefon, hjemmeside og LinkedIn på dit navn. Alt kan undværes, og kun dem i rummet kan se det.</p>
                 <p>I et kursusrum står kursusdagene under <b>Kalender</b>, og det, du skal forberede, under <b>Til næste gang</b>. Dine flueben er kun dine – ingen andre kan se dem.</p>
                 <p>Under den nyeste besked står der, hvem der har <b>set</b> den. Snak kan kun se, at du har haft chatten fremme – ikke om du har læst hvert ord.</p>
