@@ -18,7 +18,7 @@ builder.Services.AddKolibri(k =>
     k.KolibriName = "Kolibri Kommunikere";
     k.Family = "kommunikere";
     k.Tagline = "Ét rum til hver sag – chat og opgaver samlet ét sted, uden Facebook og uden reklamer.";
-    k.Version = "2026.11";
+    k.Version = "2026.11.12";
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
@@ -29,7 +29,9 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Åbn det link, du har fået af Martin, og skriv dit navn.",
+        // A visitor from itmartin.dk has no link yet (user 2026-11-12 "snak link ?"): rooms are made by Martin, so say how to get one.
+        "Har du ikke et link endnu? Skriv til Martin på itmartin.dk/chat-med-martin eller ring 31 19 47 30, så laver han et rum til dig – det er gratis.",
+        "Åbn linket, du har fået af Martin, og skriv dit navn.",
         "Skriv i chatten. Slå beskeder til, så får du besked, når Martin svarer. Uden beskeder får du én mail, når Martin har skrevet, og du ikke har læst det.",
         "Læg Snak på telefonen, så åbner rummet som en app.",
         "I et fælles rum: tryk på dit navn ved døren. Under Opgaver står dagens opgaver – står dit navn på en, er den din.",
