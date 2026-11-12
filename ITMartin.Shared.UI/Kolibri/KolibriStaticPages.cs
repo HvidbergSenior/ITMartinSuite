@@ -24,6 +24,14 @@ public static class KolibriStaticPages
 
     private static string E(string s) => WebUtility.HtmlEncode(s);
 
+    /// <summary>The ONE "Tilbage" (user 2026-11-12: Snak's was different, and it should go back to where you came from, fx
+    /// itmartin.dk): bottom, centred, back in the browser history - the app's front page only when there is nothing to go back to.
+    /// The same markup as KolibriOm/KolibriHjaelp.</summary>
+    public const string BackScript = "if(document.referrer&&history.length>1){history.back();return false}";
+
+    private static string BackButton(KolibriAppInfo info) =>
+        $"""<p class="k-center"><a class="k-btn" href="/" onclick="{BackScript}">{E(info.T("Tilbage", "Back"))}</a></p>""";
+
     /// <param name="actions">Raw HTML for the right side (like KolibriHeader's ChildContent), e.g. the Lys/Mørk button.</param>
     public static string Header(KolibriAppInfo info, string? title = null, string actions = "") =>
         $"""<header class="k-header"><div class="k-header-in"><a href="https://itmartin.dk/" title="Til ITMartin.dk" style="display:flex;flex:none"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin – til forsiden"></a><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><div class="k-brand"><b>{E(title ?? info.Name)}</b>{(info.KolibriName.Length > 0 ? $"<span>{E(info.KolibriName)}</span>" : "")}</div></a>{(actions.Length > 0 ? $"<div class=\"k-header-actions\">{actions}</div>" : "")}</div></header>""";
@@ -37,8 +45,7 @@ public static class KolibriStaticPages
         <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css"><script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{E(info.IconPath.TrimStart('/'))}"></head>
         <body>{Header(info, title)}<div class="k-main"><div class="k-content">
-        <a class="k-btn k-btn-sm" href="/" style="margin-bottom:12px">{E(info.T("Tilbage til ", "Back to ") + info.Name)}</a>
-        {body}</div></div>{Footer(info)}</body></html>
+        {body}{BackButton(info)}</div></div>{Footer(info)}</body></html>
         """;
 
     // Show/hide (user 2026-11-12 "Show hide boxes"): every box under the name folds like in the Blazor apps (kolibri.js); only the head stays fixed.
