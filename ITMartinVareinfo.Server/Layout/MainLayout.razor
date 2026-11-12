@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject HelperUseCases Helpers
 
+<KolibriTitle />   @* tab title fallback - here, not in KolibriHeader, so the page's own <PageTitle> wins *@
 <KolibriHeader>
     @if (Me is { IsAdmin: true })
     {
