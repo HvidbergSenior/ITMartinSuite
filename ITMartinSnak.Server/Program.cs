@@ -22,13 +22,10 @@ builder.Services.AddKolibri(k =>
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
-        "Snak er et lille, privat rum til én sag: dig og Martin (og dem, du vil have med). Alt om sagen står ét sted – beskeder og opgaver.",
-        "Kun dem med rummets link kan komme ind. Når sagen er klaret, bliver rummet slettet efter 14 dage. Der er ingen reklamer, og intet bliver solgt eller delt.",
-        "Fælles rum (familie, venner): tovholderen lægger dagens opgaver ud og giver dem til en. Alle ser, hvad der skal ske i dag, i klokkeslæt-orden, og får en påmindelse en time og en halv time før.",
-        "Alle i et fælles rum kan selv lægge datoer ind – også noget, der varer flere dage, og hvor det er (\"Ferie 4/12-7/12 i Kbh\"). Hver person har sit eget kort under Personer.",
-        "I chatten kan du svare på en bestemt besked, give en reaktion, sende billeder og filer og søge i alt, der er skrevet. Filer (højst 90 MB) bliver slettet sammen med rummet.",
-        "Martin skriver enten som sig selv (Martin Hvidberg) eller som firmaet (ITMartin), så du kan se, hvem der taler.",
-        "I et familierum er hvert navn låst til sin telefon – kun dem på listen kommer ind, og ingen kan skrive som en anden. En ny telefon godkender tovholderen med ét tryk.",
+        // Short and plain (user 2026-11-12: "The formål description need to be shorter and more understandable"); details live in HowTo.
+        "Et lille, privat rum til én sag – kun for dem, du vælger.",
+        "Skriv sammen, del billeder og hold styr på aftaler ét sted. Ingen reklamer, og intet bliver solgt.",
+        "Når sagen er klaret, smelter rummet: det bliver slettet efter 14 dage.",
     ];
     k.HowTo =
     [

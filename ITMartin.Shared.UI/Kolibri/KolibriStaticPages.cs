@@ -41,6 +41,7 @@ public static class KolibriStaticPages
         {body}</div></div>{Footer(info)}</body></html>
         """;
 
+    // Show/hide (user 2026-11-12 "Show hide boxes"): every box under the name folds like in the Blazor apps (kolibri.js); only the head stays fixed.
     private static string Om(KolibriAppInfo info)
     {
         var sb = new StringBuilder();
@@ -50,17 +51,17 @@ public static class KolibriStaticPages
         // "Formål" + "Sådan bruger du den" on every app, same words as the Blazor /om (user 2026-11-12).
         if (info.About.Length > 0)
         {
-            sb.Append($"""<section class="k-card" data-nofold><h2 class="k-card-title">{E(info.T("Formål", "Purpose"))}</h2>""");
+            sb.Append($"""<section class="k-card"><h2 class="k-card-title">{E(info.T("Formål", "Purpose"))}</h2>""");
             foreach (var p in info.About) sb.Append($"<p>{E(p)}</p>");
             sb.Append("</section>");
         }
         if (info.HowTo.Length > 0)
         {
-            sb.Append($"""<section class="k-card" data-nofold><h2 class="k-card-title">{E(info.T("Sådan bruger du den", "How to use it"))}</h2><ol>""");
+            sb.Append($"""<section class="k-card"><h2 class="k-card-title">{E(info.T("Sådan bruger du den", "How to use it"))}</h2><ol>""");
             foreach (var s in info.HowTo) sb.Append($"<li>{E(s)}</li>");
             sb.Append("</ol></section>");
         }
-        sb.Append($"""<section class="k-card" data-nofold><h2 class="k-card-title">{E(info.T("Kontakt", "Contact"))}</h2><p>{E(info.ContactName)}<br>{E(info.ContactMail)} · {E(info.ContactPhone)}</p><p class="k-muted">{E(info.T("Version", "Version"))} {E(info.Version)}</p></section>""");
+        sb.Append($"""<section class="k-card"><h2 class="k-card-title">{E(info.T("Kontakt", "Contact"))}</h2><p>{E(info.ContactName)}<br>{E(info.ContactMail)} · {E(info.ContactPhone)}</p><p class="k-muted">{E(info.T("Version", "Version"))} {E(info.Version)}</p></section>""");
         return sb.ToString();
     }
 

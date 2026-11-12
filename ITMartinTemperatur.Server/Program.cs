@@ -15,8 +15,9 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Hvor varmt er det lige her – målt, ikke gættet.";
     k.About =
     [
-        "Temperatur viser, hvad termometeret siger på den nærmeste rigtige vejrstation – ikke hvad en vejrudsigt regner med.",
-        "I Danmark kommer målingerne fra DMI, i Tyskland fra den tyske vejrtjeneste DWD, i Spanien fra AEMET og i Frankrig fra Météo-France. Andre steder viser appen en beregnet temperatur og skriver det tydeligt.",
+        // Short and plain (user 2026-11-12: "The formål description need to be shorter and more understandable"); details live in HowTo.
+        "Se, hvor varmt det er lige der, hvor du er – målt på den nærmeste rigtige vejrstation, ikke en vejrudsigt.",
+        "Målingerne kommer fra DMI og vejrtjenesterne i nabolandene.",
     ];
     k.HowTo =
     [

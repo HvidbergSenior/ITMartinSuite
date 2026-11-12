@@ -23,9 +23,10 @@ builder.Services.AddKolibri(k =>
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
-        "Kolibri Hjemmeside er en enkel hjemmeside på dit eget domæne. Du vælger, hvor meget du selv vil: rette alt selv, få hjælp en gang imellem, eller lade Martin gøre det hele.",
-        "Siden ligger på ITMartins egen server i Danmark og bliver taget backup af hver nat. Domænet er dit, og du kan altid få hele siden med dig som en zip-fil.",
-        "Ingen reklamer, ingen sporing, ingen tilkøbs-apps.",
+        // Short and plain (user 2026-11-12: "The formål description need to be shorter and more understandable"); details live in HowTo.
+        "En hjemmeside, der ligner dig – lavet til dig, ikke en skabelon.",
+        "Intet abonnement: første side er gratis, og bagefter betaler du kun for de uger, den er tændt.",
+        "Den ligger på min server i Danmark med backup hver nat – og domænet er dit.",
     ];
     k.HowTo =
     [

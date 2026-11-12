@@ -15,15 +15,11 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Kun i dag og i morgen – én ting ad gangen.";
     k.About =
     [
-        // The selling line (user 2026-11-10): what none of the others (Todoist, Apple Påmindelser, Evernote) have.
+        // Short and plain (user 2026-11-12: "The formål description need to be shorter and more understandable"); details live in HowTo.
         "Lavet af en med ADHD – til dig med ADHD.",
-        "Husk minder dig om dine aftaler med a-kassen, kommunen og andre – og om ny post. Den er ikke en kalender: den viser kun i dag og i morgen, én ting ad gangen.",
-        "Hvorfor Husk? Den 29. oktober 2026 var jeg indkaldt til en jobmesse. Jeg havde bekræftet mødet i Jobnet og havde påmindelser slået til alle steder – men påmindelsen kom ikke, og jeg glemte det. Jeg har ADHD og kan kun overskue i dag og måske i morgen. Dagen efter var jeg meldt udeblevet til a-kassen. Husk er det værktøj, jeg selv manglede. – Martin",
-        "Bolde i luften: alt det, du har i gang, står under Bolde – hver ting med ét næste skridt, hvem du venter på og en frist. Forsiden viser kun én bold ad gangen, så du ikke skal holde styr på det hele i hovedet.",
-        "Husk er lavet til mennesker med ADHD og autisme – og alle andre, der har mange bolde i luften: samme opbygning hver gang, enkle ord, ingen pop-ups og altid ét klart næste skridt.",
-        "Husk peger ikke fingre ad nogen. Systemerne virker hver for sig – Husk samler overblikket et sted.",
-        "Husk er til alle: log ind med dit kundenummer, så får du din egen liste, som kun du kan se. Vil du se den først, så tryk Se et eksempel – der er alt opdigtet, og intet bliver gemt.",
-        "Husk gemmer kun det, du selv skriver: en titel, et tidspunkt, et sted og hvem det er fra. Aldrig dine breve, dit CPR-nummer eller indholdet af en sag.",
+        "Husk minder dig om dine aftaler – med a-kassen, kommunen og andre. Kun i dag og i morgen, én ting ad gangen.",
+        "Hvorfor? Jeg glemte selv en jobmesse, fordi påmindelsen aldrig kom. Husk er det værktøj, jeg selv manglede. – Martin",
+        "Kun du kan se din liste, og Husk gemmer kun det, du selv skriver – aldrig breve eller CPR-nummer.",
     ];
     k.HowTo =
     [

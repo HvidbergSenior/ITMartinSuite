@@ -15,11 +15,10 @@ builder.Services.AddKolibri(k =>
     k.Tagline = "Hvad koster strømmen lige nu – og hvornår er den billig?";
     k.About =
     [
-        "ElPriser viser timeprisen på strøm i dag og i morgen, så du kan lægge vask, opvask og opladning på de billige timer.",
-        "Hvorfor ElPriser? Strøm koster mest, når du har mest brug for den. Prisen svinger time for time, og nettariffen er op til 9 gange dyrere kl. 17–21 end om natten. ElPriser viser dig de billige timer, så du kan flytte opvask, vask og opladning – uden at skulle vælge side.",
-        "Besked sender en besked til telefonen en time før dagens billigste to timer – gratis for interesserede med et nummer.",
-        "Prisen nu og de billige timer er gratis og kræver ingen konto. Din elregning forklaret linje for linje findes i MinElpris, den udvidede udgave.",
-        "Adresser og kort: © OpenStreetMap-bidragydere (openstreetmap.org/copyright). Nettariffer: Strømligning.",
+        // Short and plain (user 2026-11-12: "The formål description need to be shorter and more understandable"); details live in HowTo.
+        "Se, hvornår strømmen er billigst i dag og i morgen – så du kan vaske, tage opvask og lade bilen i de billige timer.",
+        "Det er gratis og kræver ingen konto. Vil du have en besked, før de billige timer starter, så skriv dig op gratis.",
+        "Kort og adresser: © OpenStreetMap-bidragydere. Nettariffer: Strømligning.",
     ];
     k.HowTo =
     [
