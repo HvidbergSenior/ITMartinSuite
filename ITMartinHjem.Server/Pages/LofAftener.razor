@@ -1,0 +1,14 @@
+@page "/lof-aftener"
+
+@* My LOF evenings (user 2026-11-12: "Kunstig intelligens for begyndere ... also as dots") - reached from "Mere ⋯", not the front page.
+   The text is in ITMartinHjem.Domain/News. *@
+<PageTitle>Mine LOF-aftener · ITMartin</PageTitle>
+
+<PageHead Title="Mine LOF-aftener" Tag="Aftenhold hos LOF Aarhus" />
+<section class="k-card hj-news" data-nofold>
+    <h2 class="k-card-title">@News.LofAi.Title</h2>
+    <p>@News.LofAi.Teaser</p>
+    <p class="hj-news-when"><b>@News.LofAi.Time</b>: @News.DateLine(News.LofAi)<br />@News.LofAi.Place</p>
+    <p class="k-help">Du tilmelder dig hos LOF Aarhus – tryk på knappen og søg efter holdet.</p>
+    <a class="k-btn k-btn-primary" href="@News.LofAi.Href">Tilmeld dig hos LOF Aarhus</a>
+</section>

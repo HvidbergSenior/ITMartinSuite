@@ -5,6 +5,8 @@ namespace ITMartinHjem.Domain;
 /// are not settled yet - add them here when they are. Shown until the last evening has passed.</summary>
 public static class News
 {
+    public const string Page = "/lof-aftener";
+
     public sealed record Course(string Title, string Teaser, string Place, string Time, IReadOnlyList<DateOnly> Dates, string Href);
 
     public static readonly Course LofAi = new(

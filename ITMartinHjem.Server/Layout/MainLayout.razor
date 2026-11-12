@@ -19,7 +19,7 @@
     <details class="hj-nav-more">
         <summary>Mere ⋯</summary>
         <div class="hj-nav-more-list">
-            @foreach (var i in SiteMenu.More(_menu)) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href">@i.Title</a> }
+            @foreach (var i in SiteMenu.More(_menu, DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen")))) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href" onclick="this.closest('details').open=false">@i.Title</a> }
         </div>
     </details>
     @* Light/dark like the apps (App.razor's script listens for clicks on it). *@

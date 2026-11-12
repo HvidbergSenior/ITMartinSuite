@@ -234,7 +234,12 @@ public static class SiteMenu
     /// <summary>Super simple (user 2026-11-12: "all the why did i do that ... should not be on homepage -> more dots so you
     /// can find it if you want"): the top menu shows only Forside; everything else sits behind "Mere ⋯" - the topic tab(s),
     /// Produkter, Om mig and the old footer buttons.</summary>
-    public static List<Item> More(IReadOnlyList<Item> menu) => [.. menu.Where(i => i.Href != "/"), .. FooterLinks];
+    public static List<Item> More(IReadOnlyList<Item> menu, DateOnly today) =>
+    [
+        // The LOF evenings live here too, not on the front page (user 2026-11-12 "also as dots"), until the last evening.
+        .. News.Show(News.LofAi, today) ? [new Item("Mine LOF-aftener", News.Page)] : Array.Empty<Item>(),
+        .. menu.Where(i => i.Href != "/"), .. FooterLinks,
+    ];
 
     /// <summary>The old tabs (2026-11-04 buttons at the bottom of the front page; since 2026-11-12 inside "Mere ⋯").</summary>
     public static readonly IReadOnlyList<Item> FooterLinks =

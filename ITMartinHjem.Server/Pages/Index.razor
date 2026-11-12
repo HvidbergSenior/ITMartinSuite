@@ -33,18 +33,7 @@
 </header>
 
 <CascadingValue Name="Plain" Value="true">
-@* Nyt: my LOF evenings (user 2026-11-12) - ITMartinHjem.Domain/News, hides itself after the last evening. *@
-@if (News.Show(News.LofAi, DateOnly.FromDateTime(Today)))
-{
-    <section class="k-card hj-news" data-nofold>
-        <span class="hj-topic-tag">Nyt</span>
-        <h2 class="k-card-title">@News.LofAi.Title</h2>
-        <p>@News.LofAi.Teaser</p>
-        <p class="hj-news-when"><b>@News.LofAi.Time</b>: @News.DateLine(News.LofAi)<br />@News.LofAi.Place</p>
-        <a class="k-btn k-btn-sm k-btn-primary" href="@News.LofAi.Href">Tilmeld dig hos LOF Aarhus</a>
-    </section>
-}
-
+@* The LOF evenings are under "Mere ⋯" (Pages/LofAftener, user 2026-11-12 "also as dots"). *@
 <section class="k-card hj-prices" data-nofold>
     <h2 class="k-card-title">Det sælger jeg</h2>
     <p class="k-help">Her er prisen på det hele – alle priser er inkl. moms. Tryk på knappen ved det, du vil vide mere om.</p>
