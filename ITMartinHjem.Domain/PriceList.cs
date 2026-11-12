@@ -52,7 +52,7 @@ public static class PriceList
             // No Danish market price found for sorting photos (12.11) - so no kr number, only the fixed price.
             "Fast pris: 500 kr. i alt – uanset hvor mange billeder, og hvor lang tid det tager"),
         new("Din egen hjemmeside – som du vil have den",
-            "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon. Har du en side i forvejen, flytter jeg den for 500 kr. i alt.",
+            "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon. Siden ligger på min server i Danmark. Har du en side et andet sted, flytter jeg den for 500 kr. i alt.",
             "10 / 30 / 40 kr. om ugen", "Sådan gør vi", "/din-hjemmeside",
             "Spar ca. 150–2.270 kr. om året i forhold til one.com, Wix og Simply"),
         new("Bøger, tegneserier, film og musik",
