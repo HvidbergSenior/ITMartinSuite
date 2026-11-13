@@ -7,7 +7,7 @@ public sealed record Offer(string Title, string Text, string Price, string Butto
 
 /// <summary>The front page = what I sell + prices (user 2026-11-12: "I need to make my itmartin.dk super simple ...
 /// What do I sell -> prices etc"). Prices are the user's own and ALL include moms: remote help = 300 kr per session until satisfied (later 12.11: "price for one session... until done", "i dont like hours"; was 200 kr/hour), photos collected/sorted =
-/// 500 kr per cloud in total (one session until done + the sorting, user: "Get it done... And sorted... 500 ialt incl moms"), homepage: first page free, then 10/30/40 kr per WEEK it is switched on (Selv/Sammen/Fuld hjælp; user later 12.11, was 2/4/5 a day, before that 49/99/149 a month; moving an existing site = 500 kr in total, one session like the photos, user 12.11). Free snebolde = only the live ones that
+/// 500 kr per cloud in total (one session until done + the sorting, user: "Get it done... And sorted... 500 ialt incl moms"), homepage (2026-11-13): first page free, then 50 % of what you pay today, help 200 kr/time also weekends (before: 10/30/40 kr per WEEK (Selv/Sammen/Fuld hjælp; user later 12.11, was 2/4/5 a day, before that 49/99/149 a month); moving an existing site = 500 kr in total, one session like the photos, user 12.11). Free snebolde = only the live ones that
 /// others use (ElPriser, Temperatur, Stem, Snak, Husk).</summary>
 /// <summary>A free snebold on the front page (user 2026-11-12: "all snebolde should have prices for paid and description on the
 /// differences"): what the free part gives, and - when there is one - the paid part's name and what it adds. Stem has no paid part
@@ -52,9 +52,10 @@ public static class PriceList
             // No Danish market price found for sorting photos (12.11) - so no kr number, only the fixed price.
             "Fast pris: 500 kr. i alt – uanset hvor mange billeder, og hvor lang tid det tager"),
         new("Din egen hjemmeside – som du vil have den",
-            "Intet abonnement: du betaler kun for den tid, du vil have den. Første side er gratis – og den er lavet til dig, ikke en skabelon. Siden ligger på min server i Danmark. Har du en side et andet sted, flytter jeg den for 500 kr. i alt.",
-            "10 / 30 / 40 kr. om ugen", "Sådan gør vi", "/din-hjemmeside",
-            "Spar ca. 150–2.270 kr. om året i forhold til one.com, Wix og Simply"),
+            // User 2026-11-13: first version with one page free, then half of what you pay today; help 200 kr/time also weekends.
+            "Jeg sætter den første version op med én side – gratis. Derefter betaler du det halve af det, du betaler i dag – og kun mens den er tændt. Hjælp koster 200 kr. i timen, også i weekenden. Har du en side et andet sted, flytter jeg den for 500 kr. i alt.",
+            "Første side gratis – så det halve", "Sådan gør vi", "/din-hjemmeside",
+            "Du sparer altid halvdelen af det, du betaler i dag"),
         new("Bøger, tegneserier, film og musik",
             "Brugte ting fra Bogshoppen – med billede.",
             "Spørg om prisen", "Gå til Bogshoppen", "https://bogshoppen.dk"),
