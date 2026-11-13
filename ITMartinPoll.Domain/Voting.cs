@@ -5,7 +5,7 @@ namespace ITMartinPoll.Domain;
 // A poll as seen by someone about to vote: the question, the choices and the votes so far.
 public sealed record Ballot(
     int Id, string Title, string Body, bool AllowMultiple, bool RequireContact, bool IsActive, DateTime? DeadlineUtc,
-    IReadOnlyList<BallotOption> Options, IReadOnlyList<CastVote> Votes)
+    IReadOnlyList<BallotOption> Options, IReadOnlyList<CastVote> Votes, string Kind = "")
 {
     public bool IsOpen(DateTime nowUtc) => IsActive && (DeadlineUtc is null || DeadlineUtc.Value > nowUtc);
 }
@@ -29,6 +29,7 @@ public sealed record CustomerOptIn(string Email, string Name, string Source, str
 public static class VoteRules
 {
     public const int MaxName = 60, MaxEmail = 120, MaxComment = 280;
+    public const string NameForDays = "Skriv dit navn, så den der spurgte kan se, hvem der kan hvilke dage.";
 
     // Stored with each customer as proof of what they agreed to (markedsføringsloven §10, GDPR art. 7).
     // Change the text, and new sign-ups get the new text.
@@ -54,6 +55,8 @@ public static class VoteRules
         var name = Cut((req.Name ?? "").Trim(), MaxName);
         var email = Cut((req.Email ?? "").Trim().ToLowerInvariant(), MaxEmail);
         var comment = Cut((req.Comment ?? "").Trim(), MaxComment);
+        // "Vælg dage" (user 2026-11-13, Marianne's poll): the maker must see who can which day, so the name is needed.
+        if (poll.Kind == QuestionKinds.Days && name.Length < 2) return (NameForDays, null);
         if (poll.RequireContact)
         {
             if (name.Length == 0) return ("Skriv dit navn.", null);

@@ -56,8 +56,9 @@ builder.Services.AddKolibri(k =>
         "Har du valgt et svar, kan du skrive en kommentar til netop det svar. Har du valgt flere, kan du give ét af dem en stjerne (★ Mit første valg).",
         "Svar med flere spørgsmål kan du give uden navn – tryk bare Fortsæt. Telefonen husker dine svar, så du kan rette dem.",
         "Laver du en afstemning, kan hvert svar få et billede: tryk Billede ved svaret og vælg et foto. Telefonen gør det lille, før det sendes.",
+        "Vælg dage: skriv dit navn, når du svarer. Den, der lavede afstemningen, ser under Mine afstemninger, hvem der kan hvilke dage.",
     ];
-    k.Version = "2026.11.5";
+    k.Version = "2026.11.13";
     k.ThemeColor = "#f4f6f5";
 });
 

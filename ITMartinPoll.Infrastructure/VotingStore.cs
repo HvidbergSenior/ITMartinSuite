@@ -21,7 +21,7 @@ public sealed class VotingStore(IDbContextFactory<PollDb> dbf) : IVotingStore
         return new Ballot(p.Id, p.Title, p.Body, p.AllowMultiple, p.RequireContact, p.IsActive,
             p.Deadline?.ToUniversalTime(),   // stored as local time, read the same way as Poll.HasDeadlinePassed
             options.Select(o => new BallotOption(o.Id, o.Label, o.SortOrder)).ToList(),
-            votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc), v.Priority, v.Comment)).ToList());
+            votes.Select(v => new CastVote(v.OptionId, v.VoterName, v.Email, DateTime.SpecifyKind(v.VotedAt, DateTimeKind.Utc), v.Priority, v.Comment)).ToList(), p.Kind ?? "");
     }
 
     public async Task SaveAsync(int pollId, AcceptedVote vote, CancellationToken ct = default)

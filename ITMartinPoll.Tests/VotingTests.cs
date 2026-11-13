@@ -345,4 +345,14 @@ public class CustomerExtrasTests
         var one = VoteRules.Accept(ballot, new VoteRequest([10], "Mads", null, "", false, 10), Now).Vote!;
         one.Rows.Single().Priority.Should().Be(0);   // a star needs two answers
     }
+
+    [Test]
+    public void A_days_poll_needs_a_name_so_the_maker_sees_who_can_which_day()
+    {
+        var days = new Ballot(1, "Mørbrad", "", true, false, true, null,
+            [new BallotOption(10, "Fre", 0), new BallotOption(11, "Lør", 1)], [], QuestionKinds.Days);
+        VoteRules.Accept(days, new VoteRequest([10], " ", null, "", false), Now).Error.Should().Be(VoteRules.NameForDays);
+        VoteRules.Accept(days, new VoteRequest([10, 11], "Lise", null, "", false), Now).Error.Should().BeNull();
+        VoteRules.Accept(days with { Kind = QuestionKinds.Choose }, new VoteRequest([10], "", null, "", false), Now).Error.Should().BeNull();
+    }
 }

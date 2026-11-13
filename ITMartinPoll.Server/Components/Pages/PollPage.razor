@@ -136,11 +136,12 @@
                     @if (_selected.Count > 0)
                     {
                         <input class="poll-input session-name-input"
-                               placeholder="@(_poll.RequireContact ? "Dit navn" : "Dit navn (valgfrit)")"
+                               placeholder="@(_poll.RequireContact || IsDays ? "Dit navn" : "Dit navn (valgfrit)")"
                                maxlength="60"
                                @bind="_voterName"
                                @bind:event="oninput"
                                @onchange="SaveName" />
+                        @if (IsDays) { <p class="poll-privacy">Skriv dit navn. Den, der sendte dig linket, kan så se, hvem der kan hvilke dage.</p> }
                         @if (_poll.RequireContact)
                         {
                             <input class="poll-input session-name-input" type="email" inputmode="email" autocomplete="email"
@@ -193,7 +194,9 @@
     // People, not rows: a multi-choice voter has one Vote row per chosen option.
     private int People => _poll is null ? 0 : _poll.Votes.Select(v => v.Email != "" ? v.Email : (v.VoterName + "|" + v.VotedAt.Ticks)).Distinct().Count();
 
-    private int _firstSel;                                    // the star among several answers, 0 = none
+    private bool IsDays => _poll?.Kind == ITMartinPoll.Domain.QuestionKinds.Days;
+
+    private int _firstSel;                                  // the star among several answers, 0 = none
     private Dictionary<int, string> _optComments = [];        // a comment per chosen answer (several answers)
 
     private void Toggle(int optId)
