@@ -141,3 +141,32 @@
 
 /* The old video frame, tuned to the card */
 .mg-cam .scanner-wrapper { border-radius: var(--k-radius-lg); overflow: hidden; }
+
+/* ---------- Sæt og kort pages (2026-11-13, user: "hard to read text in the black boxes") ----------
+   Magic.css painted these boxes near-black with grey text in both themes. Here they get the Kolibri card colours and
+   full-strength text, so they read well in light and dark (the user is a bit colour-blind: no grey-on-black). */
+.k-content .magic-kpi, .k-content .magic-panel, .k-content .magic-set-card, .k-content .magic-stat,
+.k-content .knowledge-editor, .k-content .knowledge-section, .k-content .magic-learn-next {
+    background: var(--k-card); color: var(--k-text); border: 1px solid var(--k-border); border-radius: var(--k-radius-lg);
+    box-shadow: var(--k-shadow);
+}
+.k-content .magic-kpi:hover { border-color: var(--k-accent); }
+.k-content .magic-kpi-label, .k-content .magic-stat-label, .k-content .magic-panel-subtitle, .k-content .magic-set-description,
+.k-content .meta, .k-content .category-summary-count {
+    color: var(--k-text); opacity: .8; letter-spacing: .5px;
+}
+.k-content .magic-kpi-value, .k-content .magic-stat-value, .k-content .magic-panel-title, .k-content .magic-set-name,
+.k-content .knowledge-section-title, .k-content .page-title { color: var(--k-text); }
+.k-content .magic-kpi-primary .magic-kpi-value, .k-content .magic-set-code { color: var(--k-accent); }
+.k-content .magic-kpi-success .magic-kpi-value { color: var(--k-success); }
+.k-content .magic-kpi-warning .magic-kpi-value { color: var(--k-warning); }
+.k-content .progress { background: var(--k-border-2); }
+.k-content .progress-bar { background: var(--k-accent); }
+@media (max-width: 700px) { .k-content .magic-kpi-grid { grid-template-columns: repeat(2, 1fr); gap: var(--k-space-2); } .k-content .magic-kpi { padding: var(--k-space-3); } .k-content .magic-kpi-value { font-size: 28px; } }
+
+/* Bootstrap bits on those pages follow the theme too */
+.k-content .form-control, .k-content .form-select { background: var(--k-card); color: var(--k-text); border-color: var(--k-border); }
+.k-content .list-group-item { background: var(--k-card); color: var(--k-text); border-color: var(--k-border-2); }
+.k-content .table { color: var(--k-text); --bs-table-bg: transparent; --bs-table-color: var(--k-text); }
+.k-content .text-muted { color: var(--k-text) !important; opacity: .75; }
+.k-content .btn-primary { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text, #fff); }
