@@ -41,7 +41,7 @@
        and kolibri.js remembers open/closed per device (data-remember). *@
     <details class="hj-sec" open data-remember="hj-saelger">
     <summary><h2 class="hj-sec-title">Det sælger jeg</h2>
-    <p class="hj-sec-sub">Alle priser er inkl. moms – og intet abonnement.</p></summary>
+    <p class="hj-sec-sub">@PriceList.SharedTerms</p></summary>
     <div class="hj-grid hj-grid-3">
         @foreach (var o in PriceList.Offers.Where(o => o.Href.StartsWith("/")))
         {

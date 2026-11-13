@@ -40,22 +40,22 @@ public static class PriceList
     public const string PaidPrice = "prisen aftaler vi sammen";
     public const string PaidPriceWhy = "Prisen aftaler vi sammen – den afhænger af, hvem du er, hvad du vil bruge den til, og hvor mange funktioner du vil have. Intet abonnement.";
 
+    /// <summary>What the three services share - said once above the tiles (2026-11-13).</summary>
+    public const string SharedTerms = "Alle priser er inkl. moms. Intet abonnement. Også i weekenden. Fast pris – vi bliver ved, til du er tilfreds, og det bliver ikke dyrere, hvis det tager længere tid.";
+
     public static readonly IReadOnlyList<Offer> Offers =
     [
         new("Hjælp til din pc",
-            "Jeg kigger med på din skærm og hjælper dig, mens du sidder hjemme – til du er tilfreds. Kun på pc.",
-            "300 kr. pr. gang", "Sådan gør vi", "/hjaelp-over-skaermen",
-            // Like for like (user 12.11): other remote PC help costs ca. 200-500 kr. per task (Handyhand price data) - no honest kr
-            // saving, so the band says what is really different: a fixed price until you are satisfied.
-            "Fast pris til du er tilfreds – det bliver ikke dyrere, hvis det tager længere tid"),
+            // Merged texts (user 2026-11-13 "merge the three tjenester ... the text on them"): what all three share - inkl. moms,
+            // intet abonnement, også weekenden, fixed price - is ONE line above the tiles (SharedTerms); each tile says only its own.
+            "Jeg kigger med på din skærm og hjælper dig, mens du sidder hjemme. Kun på pc.",
+            "300 kr. pr. gang", "Sådan gør vi", "/hjaelp-over-skaermen", ""),
         new("Billeder og film fra Facebook, Instagram og Snapchat – sorteret",
-            "Jeg henter alle dine filer, og vi sorterer dem – med den rigtige dato, efter år, i ét galleri. Én gang sammen over skærmen på din pc, til det er gjort.",
-            "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen",
-            // No Danish market price found for sorting photos (12.11) - so no kr number, only the fixed price.
-            "Fast pris: 500 kr. i alt – uanset hvor mange billeder, og hvor lang tid det tager"),
+            "Jeg henter alle dine billeder og film, og vi sorterer dem efter år i ét galleri – uanset hvor mange der er.",
+            "500 kr. i alt pr. tjeneste", "Sådan gør vi", "/billeder-fra-skyen", ""),
         new("Din egen hjemmeside – som du vil have den",
             // User 2026-11-13: first version with one page free, then half of what you pay today; help 200 kr/time also weekends.
-            "Jeg sætter den første version op med én side – gratis. Derefter betaler du det halve af det, du betaler i dag – og kun mens den er tændt. Hjælp koster 300 kr. pr. gang, også i weekenden. Har du en side et andet sted, flytter jeg den for 500 kr. i alt.",
+            "Jeg sætter den første version op med én side – gratis. Derefter betaler du det halve af det, du betaler i dag. Flytter du fra en anden side: 500 kr. i alt.",
             "Første side gratis – så det halve", "Sådan gør vi", "/din-hjemmeside",
             "Du sparer altid halvdelen af det, du betaler i dag"),
         new("Bøger, tegneserier, film og musik",
