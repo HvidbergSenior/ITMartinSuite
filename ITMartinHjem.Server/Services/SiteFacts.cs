@@ -74,7 +74,7 @@ public static class SiteFacts
     public static readonly IReadOnlyList<Fact> MineApps =
     [
         new("Om mine snebolde", "#om-mine-apps", "… at mine apps ikke skal downloades? Du åbner dem bare i browseren – på mobilen, tabletten eller computeren."),
-        new("Skriv mig op – gratis", "/#bliv-kunde", "… at du skriver dig op én gang – og så får et kundenummer til alle de gratis apps?"),
+        new("Skriv mig op – gratis", "/skriv-mig-op", "… at du skriver dig op én gang – og så får et kundenummer til alle de gratis apps?"),
         new("Om mine snebolde", "#om-mine-apps", "… at det er webappen, man laver først? Mobilappen laver man senere – og den mister faktisk nogle af funktionerne på vejen."),
         new("Om mine snebolde", "#om-mine-apps", "… at vi typisk sad 10–15 mand på webappen i de store it-systemer – og én fyr lavede mobildelen?"),
         new("Om mine snebolde", "#om-mine-apps", "… at mobilappen tit er den måde, man lettest holder fast i kunderne – så de bliver ved med at betale og give deres oplysninger fra sig?"),

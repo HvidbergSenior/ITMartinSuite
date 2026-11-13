@@ -247,6 +247,7 @@ public static class SiteMenu
     /// <summary>The old tabs (2026-11-04 buttons at the bottom of the front page; since 2026-11-12 inside "Mere ⋯").</summary>
     public static readonly IReadOnlyList<Item> FooterLinks =
     [
+        new("Skriv mig op", "/skriv-mig-op"),   // own page since 2026-11-13 (off the front page, but findable)
         new("Spørgsmål", "/spoergsmaal"),
         new("Kritik og forslag", "/kritik"),
         new("Familien", Family),

@@ -62,7 +62,7 @@
     {
     <details class="hj-sec" open data-remember="hj-undervisning">
     <summary><h2 class="hj-sec-title">Undervisning</h2>
-    <p class="hj-sec-sub">Jeg underviser i AI og IT – roligt og uden forkundskaber.</p></summary>
+    <p class="hj-sec-sub">Jeg underviser i AI og IT – roligt og i dit tempo. Du behøver ingen forkundskaber.</p></summary>
     @* Short (user 2026-11-12: "jus write something like - My presentation"): the whole text is on /lof-aftener. *@
     <div class="hj-tile hj-teach">
         <span class="hj-tile-price">Hos LOF Aarhus</span>
@@ -94,26 +94,12 @@
             </a>
         }
     </div>
-    </details>
-
-    <details class="hj-sec" open data-remember="hj-bogshoppen">
-    <summary><h2 class="hj-sec-title">Bogshoppen</h2></summary>
-    @foreach (var o in PriceList.Offers.Where(o => !o.Href.StartsWith("/")))
-    {
-        <a class="hj-tile hj-tile-wide" href="@o.Href">
-            <span><b class="hj-tile-title">@o.Title</b><span class="hj-tile-text">@o.Text</span></span>
-            <span class="k-btn hj-tile-btn">@o.Button</span>
-        </a>
-    }
+    <p class="k-help">@PriceList.PaidPriceWhy</p>
     </details>
 </div>
 
-@* Sign-up stays (other pages link to /#bliv-kunde - soft sign-up rule), but closed: one quiet line. *@
-<section class="k-card hj-signup hj-wide" id="bliv-kunde">
-    <h2 class="k-card-title">Skriv mig op – hvis du har lyst</h2>
-    <p>Ingen reklamer, ingen nyhedsbreve – og du kan altid afmelde dig.</p>
-    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som interesseret" Topics="true" />
-</section>
+@* Bogshoppen box and "Skriv mig op" removed from the front page (user 2026-11-13); "Skriv mig op" is its own page
+   /skriv-mig-op (in Mere ⋯); old /#bliv-kunde links are sent there below. *@
 
 @* Om mig, AI og tænkning, Spørgsmål, Kritik, Familien: in the menu under "Mere ⋯" (2026-11-12). *@
 </CascadingValue>
@@ -123,7 +109,7 @@
     protected override async Task OnAfterRenderAsync(bool first)
     {
         if (!first) return;
-        try { await JS.InvokeVoidAsync("eval", "if (location.hash === '#chat') location.replace('/chat-med-martin')"); }
+        try { await JS.InvokeVoidAsync("eval", "if (location.hash === '#chat') location.replace('/chat-med-martin'); else if (location.hash === '#bliv-kunde') location.replace('/skriv-mig-op')"); }
         catch (JSException) { }
     }
 

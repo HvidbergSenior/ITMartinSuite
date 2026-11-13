@@ -37,7 +37,7 @@ public static class LoginPages
             {(needsCode ? """
             <label for="code">Dit kundenummer</label>
             <input id="code" name="code" autocomplete="off" inputmode="numeric" placeholder="fx 1234 5678" required>
-            <p class="alt small">MinElpris koster 5 kr. om ugen, mens den er tændt – intet abonnement. Skriv eller ring til Martin (31 19 47 30), så slår han den til på dit kundenummer. Den gratis ElPriser kan alle bruge: <a href="https://elpriser.itmartin.dk">elpriser.itmartin.dk</a></p>
+            <p class="alt small">Prisen på MinElpris aftaler vi sammen – den afhænger af, hvad du vil bruge den til. Intet abonnement. Skriv eller ring til Martin (31 19 47 30), så slår han den til på dit kundenummer. Den gratis ElPriser kan alle bruge: <a href="https://elpriser.itmartin.dk">elpriser.itmartin.dk</a></p>
             """ : "")}
             <label for="name">Dit navn</label>
             <input id="name" name="name" autocomplete="name">

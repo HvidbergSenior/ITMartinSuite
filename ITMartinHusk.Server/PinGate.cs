@@ -186,7 +186,7 @@ public static class PinGate
         <p class="k-help">Se en Husk med opdigtede ting. Tryk gerne på alle knapperne – intet bliver gemt.</p>
         <a class="k-btn" style="width:100%" href="/eksempel">Se et eksempel</a>
         <p class="k-help" style="margin-top:14px">Har du ikke et kundenummer? Det er gratis.</p>
-        <a class="k-btn k-btn-ghost" style="width:100%" href="https://itmartin.dk/#bliv-kunde">Skriv mig op – hvis du har lyst</a>
+        <a class="k-btn k-btn-ghost" style="width:100%" href="https://itmartin.dk/skriv-mig-op">Skriv mig op – hvis du har lyst</a>
         </section></main>{{footer}}</body></html>
         """;
 }

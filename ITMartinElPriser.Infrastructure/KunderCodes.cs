@@ -21,7 +21,7 @@ internal sealed class KunderPaidCodes(KunderClient kunder) : IPaidCodes
         var r = await kunder.CheckCodeAsync(code, "MinElpris", ct);
         if (r.Ok && r.Paid) return (true, "");
         if (r.Error.StartsWith("Den app er ikke med", StringComparison.Ordinal))
-            return (false, "Dit nummer har ikke MinElpris endnu. Den koster 5 kr. om ugen, mens den er tændt – skriv eller ring til Martin (31 19 47 30), så slår han den til.");
+            return (false, "Dit nummer har ikke MinElpris endnu. Prisen aftaler I sammen – skriv eller ring til Martin (31 19 47 30), så slår han den til.");
         return (false, r.Error.Length > 0 ? r.Error : "Det nummer virker ikke i MinElpris. Spørg Martin.");
     }
 }

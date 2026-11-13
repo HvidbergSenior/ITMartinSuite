@@ -1,0 +1,24 @@
+@page "/skriv-mig-op"
+@inject Customers Kartotek
+
+@* "Skriv mig op" moved off the front page to its own page (user 2026-11-13: "remove ... skriv mig op" + "skriv mig op should be
+   findable") - in Mere ⋯, and every old /#bliv-kunde link lands here. Soft sign-up: no pressure, no pop-ups. *@
+<PageTitle>Skriv mig op · ITMartin</PageTitle>
+
+<PageHead Title="Skriv mig op" Tag="Kun hvis du har lyst" Line="Skriv dig op én gang – så får du et kundenummer til de gratis apps. Ingen reklamer, ingen nyhedsbreve, og du kan altid afmelde dig." />
+
+<section class="k-card" id="bliv-kunde">
+    <h2 class="k-card-title">Sådan gør du</h2>
+    <p>Skriv dit navn og hvordan jeg kan få fat i dig, og sæt flueben ved det, du er interesseret i. Så får du dit kundenummer.</p>
+    <TrialForm App="@ITMartinHjem.Domain.TrialRules.FrontPage" FreeApps="_freeWithCode" Button="Skriv mig op som interesseret" Topics="true" />
+</section>
+
+@code {
+    private IReadOnlyList<string> _freeWithCode = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _freeWithCode = (await Kartotek.FreeAppsAsync()).Where(f => f.NeedsCode).Select(f => f.Name).ToList(); }
+        catch { _freeWithCode = []; }
+    }
+}

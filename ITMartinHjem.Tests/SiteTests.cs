@@ -67,7 +67,7 @@ public class SiteTests
     {
         var menu = SiteMenu.Build([new Page { Title = "AI og tænkning – mine pointer", Slug = "ai", Sort = 20 }]);
         SiteMenu.More(menu, new DateOnly(2026, 11, 12)).Select(i => i.Title).Should()
-            .Equal("Mine LOF-aftener", "AI og tænkning", "Produkter", "Om mig", "Spørgsmål", "Kritik og forslag", "Familien");
+            .Equal("Mine LOF-aftener", "AI og tænkning", "Produkter", "Om mig", "Skriv mig op", "Spørgsmål", "Kritik og forslag", "Familien");
         SiteMenu.More(menu, new DateOnly(2027, 3, 10)).Select(i => i.Title).Should().NotContain("Mine LOF-aftener");
     }
 

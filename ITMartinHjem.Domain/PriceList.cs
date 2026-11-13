@@ -35,8 +35,10 @@ public static class PriceList
             "Min Husk", "Bolde i luften: alt det, du har i gang, med ét næste skridt – og alle dine aftaler samlet under Alt."),
     ];
 
-    /// <summary>The paid part of every snebold costs the same (user 2026-11-12: "5 kr./uge for alle") - only while it is on.</summary>
-    public const string PaidPrice = "5 kr. om ugen, mens den er tændt";
+    /// <summary>No fixed price on the paid parts yet (user 2026-11-13: "the paid versions cannot have a price yet... It will be
+    /// subjective... Who are you? What do you intend to use it for? How many features you want?"). Was 5 kr/uge (12.11).</summary>
+    public const string PaidPrice = "prisen aftaler vi sammen";
+    public const string PaidPriceWhy = "Prisen aftaler vi sammen – den afhænger af, hvem du er, hvad du vil bruge den til, og hvor mange funktioner du vil have. Intet abonnement.";
 
     public static readonly IReadOnlyList<Offer> Offers =
     [
@@ -53,7 +55,7 @@ public static class PriceList
             "Fast pris: 500 kr. i alt – uanset hvor mange billeder, og hvor lang tid det tager"),
         new("Din egen hjemmeside – som du vil have den",
             // User 2026-11-13: first version with one page free, then half of what you pay today; help 200 kr/time also weekends.
-            "Jeg sætter den første version op med én side – gratis. Derefter betaler du det halve af det, du betaler i dag – og kun mens den er tændt. Hjælp koster 200 kr. i timen, også i weekenden. Har du en side et andet sted, flytter jeg den for 500 kr. i alt.",
+            "Jeg sætter den første version op med én side – gratis. Derefter betaler du det halve af det, du betaler i dag – og kun mens den er tændt. Hjælp koster 300 kr. pr. gang, også i weekenden. Har du en side et andet sted, flytter jeg den for 500 kr. i alt.",
             "Første side gratis – så det halve", "Sådan gør vi", "/din-hjemmeside",
             "Du sparer altid halvdelen af det, du betaler i dag"),
         new("Bøger, tegneserier, film og musik",

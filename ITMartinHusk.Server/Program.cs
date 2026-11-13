@@ -28,7 +28,7 @@ builder.Services.AddKolibri(k =>
         "Log ind med dit kundenummer. Vil du se først? Tryk Se et eksempel.",
         "Forsiden viser kun den næste ting. Tryk Tilføj for et møde – og Ny post, når der er kommet post.",
         "Slå beskeder til nederst på forsiden. Så minder Husk dig.",
-        "Min Husk (5 kr. om ugen, mens den er tændt) giver også Bolde i luften og Alt. Skriv til Martin, så slår han den til.",
+        "Min Husk giver også Bolde i luften og Alt. Prisen aftaler I sammen – skriv til Martin, så slår han den til.",
     ];
     k.Version = "2026.11.12.4";
     k.ThemeColor = "#0b1220";
