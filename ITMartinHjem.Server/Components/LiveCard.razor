@@ -20,13 +20,20 @@
     else
     {
         @* Not live: the chat hours planned on /admin every Sunday decide what the strip says (user 2026-11-13). *@
-        <div class="hj-livestrip @(_chat.Open ? "chat" : "")">
+        @* More POW (user 2026-11-13): LIVE badge + the time/topic big, one strong button; chat time as a small second line. *@
+        <div class="hj-livestrip pow">
+            <a class="hj-ls-live" href="@Url" target="_blank" rel="noopener">
+                <span class="hj-ls-badge">LIVE</span>
+                <span class="hj-ls-text">
+                    <b>@(_s is not null && _s.Next.Trim().Length > 0 ? _s.Next : "Live med Martin – hver uge, samme tid")</b>
+                    <span>Mød mig, hør mine idéer – og du kan selv være med og tale.</span>
+                </span>
+                <span class="hj-livestrip-btn hj-ls-go">Kig med</span>
+            </a>
             @if (_chat.Text.Length > 0)
             {
-                <a href="/chat-med-martin"><b>@_chat.Text</b></a>
-                <a class="hj-livestrip-btn" href="/chat-med-martin">Skriv til mig</a>
+                <a class="hj-ls-chat @(_chat.Open ? "open" : "")" href="/chat-med-martin">@_chat.Text · <u>Skriv til mig</u></a>
             }
-            <a href="@Url" target="_blank" rel="noopener"><span>Live med Martin – mine idéer og hvem jeg er@(_s is not null && _s.Next.Trim().Length > 0 ? $": {_s.Next}" : ".")</span></a>
         </div>
     }
 }
