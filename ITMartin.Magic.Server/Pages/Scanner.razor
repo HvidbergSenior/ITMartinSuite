@@ -216,11 +216,15 @@
             @{ var ready = !string.IsNullOrWhiteSpace(_ownerName) && (!string.IsNullOrWhiteSpace(_selectedSetCode) || NoSetSymbol); }
             <div class="mg-ways">
                 @* Upload (user 2026-11-13: "I want to use my regular camera and just upload like the other products"). *@
-                <label class="mg-way mg-way-main @(ready && !_uploading ? "" : "is-off")">
+                @* A normal, visible file field (2026-11-13: the invisible field laid over the box could not be tapped on the phone). *@
+                <div class="mg-way mg-way-main @(ready && !_uploading ? "" : "is-off")">
                     <span class="mg-way-title">@(_uploading ? "Henter billeder..." : "Hent billeder")</span>
                     <span class="mg-way-text">Fra dit almindelige kamera eller billeder – højst @MaxUpload ad gangen</span>
-                    <InputFile OnChange="UploadPhotos" multiple accept="image/*" class="mg-file" disabled="@(!ready || _uploading)" />
-                </label>
+                    @if (ready && !_uploading)
+                    {
+                        <InputFile OnChange="UploadPhotos" multiple accept="image/*" class="mg-file-visible" />
+                    }
+                </div>
                 <button type="button" class="mg-way" @onclick="StartCamera" disabled="@(!ready)">
                     <span class="mg-way-title">Brug kameraet her</span>
                     <span class="mg-way-text">Scan ét kort ad gangen i siden</span>

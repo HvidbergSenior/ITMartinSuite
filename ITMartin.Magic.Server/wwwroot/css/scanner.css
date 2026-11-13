@@ -176,3 +176,11 @@
 .mg-sets-mine { max-height: none; margin-bottom: var(--k-space-2); }
 .mg-set-mine { border-color: var(--k-accent); background: var(--k-accent-soft); }
 .mg-names { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--k-space-2) 0; }
+
+/* The visible file field inside the orange box (replaces the invisible overlay) */
+.mg-way-main { cursor: default; }
+.mg-file-visible { margin-top: var(--k-space-3); width: 100%; font: inherit; font-size: 16px; color: var(--k-accent-text, #fff); }
+.mg-file-visible::file-selector-button {
+    font: inherit; font-weight: 800; font-size: 18px; padding: 12px 18px; margin-right: 12px; min-height: var(--k-tap);
+    border: 2px solid #fff; border-radius: var(--k-radius); background: #fff; color: var(--k-accent-dark); cursor: pointer;
+}
