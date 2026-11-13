@@ -15,6 +15,14 @@ public sealed class OwnerUseCases(ISettingsRepository settings, IDayNoteReposito
     public Task<Settings> SettingsAsync() => settings.GetAsync();
 
     /// <summary>The texts or pictures changed: "opdateret" moves on, and open front pages reload.</summary>
+    /// <summary>The week's chat hours (planned on Sundays). Does not move "opdateret" - it is not a new text.</summary>
+    public async Task SaveChatHoursAsync(Settings s, string hours)
+    {
+        s.ChatHours = (hours ?? "").Trim();
+        await settings.SaveAsync(s);
+        chat.RaiseAvailability();
+    }
+
     public async Task SaveSettingsAsync(Settings s)
     {
         s.NowUpdated = DateTime.UtcNow;

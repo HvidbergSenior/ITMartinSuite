@@ -66,6 +66,9 @@ public sealed class Settings
     public DateTime NowUpdated { get; set; } = DateTime.UtcNow;
     public bool Available { get; set; }
 
+    /// <summary>When Martin can chat this week (user 2026-11-13: planned every Sunday on /admin) - see <see cref="Domain.ChatHours"/>.</summary>
+    public string ChatHours { get; set; } = "fre 12-13";
+
     // "Lige nu" can carry one uploaded picture/film, or a link to a video or live stream.
     // Added after launch: the Infrastructure schema upgrade adds these to an existing hjem.db.
     public string NowMediaName { get; set; } = "";

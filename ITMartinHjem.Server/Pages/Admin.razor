@@ -40,6 +40,7 @@
         <span class="k-help">@(_s.Available ? "Besøgende ser, at du svarer med det samme." : "Besøgende kan stadig skrive – du får en besked på telefonen.")</span></span>
     </label>
     @if (_unread == 0 && _kritik.Count == 0) { <p class="k-help">Der venter ikke noget lige nu.</p> }
+
     @if (_unread > 0)
     {
         @* Tapping it opens the newest waiting conversation (user 2026-09-29: "kan ikke åbne de ventende beskeder"). *@
@@ -56,6 +57,17 @@
         </ul>
         <a class="k-btn k-btn-primary" href="/kritik">Svar på Kritik</a>
     }
+</section>
+
+@* Chat hours for the coming week (user 2026-11-13: "every sunday i will plan this for the coming week") - shown by itself on
+   every itmartin.dk page and on Chat med Martin. *@
+<section class="k-card" data-nofold>
+    <div class="k-card-title">Mine snak-tider i denne uge</div>
+    <p class="k-help">Planlæg dem hver søndag. Skriv dag og tid, adskilt med semikolon – fx <b>man 10-12; ons 19-20:30; fre 12-13</b>.
+        Siden viser selv "Jeg kan snakke nu" eller næste gang.</p>
+    <input class="k-input" @bind="_hours" maxlength="300" aria-label="Snak-tider" />
+    <p class="k-help">@(ChatHours.Parse(_hours) is var ph && ph.Slots.Count > 0 ? "Vises som: " + ph.Week() : "Ingen tider – så vises der ingen snak-tid.")</p>
+    <button class="k-btn k-btn-primary" @onclick="SaveHoursAsync">Gem snak-tider</button> <span class="k-help">@_hoursNote</span>
 </section>
 
 <section class="k-card">
@@ -381,6 +393,7 @@ else if (_review is { } rv)
         _owner = (AuthTask is null ? null : (await AuthTask).User).IsOwner();
         if (!_owner) return;
         _s = await Owner.SettingsAsync();
+        _hours = _s.ChatHours;
         await LoadThreadsAsync();
         _kritik = await Feedbacks.WaitingAsync();
         await LoadQaAsync();
@@ -416,7 +429,8 @@ else if (_review is { } rv)
         await Owner.SetAvailableAsync(_s, e.Value is true);
     }
 
-    private string _nowNote = "";
+    private string _nowNote = "", _hours = "", _hoursNote = "";
+    private async Task SaveHoursAsync() { await Owner.SaveChatHoursAsync(_s, _hours); _hoursNote = "Gemt."; }
 
     private async Task OnNowFileAsync(InputFileChangeEventArgs e)
     {

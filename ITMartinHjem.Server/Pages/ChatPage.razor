@@ -15,10 +15,20 @@
         <a class="k-btn" href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a>
     </div>
 </PageHead>
+@* Exactly when Martin can chat - planned every Sunday on /admin (user 2026-11-13). *@
+@if (_hours.Slots.Count > 0)
+{
+    <section class="k-card" data-nofold>
+        <h2 class="k-card-title">Hvornår kan jeg snakke?</h2>
+        <p><b>@_hours.Describe(ITMartinHjem.Domain.Dk.Now).Text.</b></p>
+        <p class="k-help">I denne uge: @_hours.Week(). Du kan altid skrive – så svarer jeg i næste snak-tid.</p>
+    </section>
+}
 <SnakStart Available="_available" OwnerName="@_first" />
 
 @code {
     private bool _available;
+    private ITMartinHjem.Domain.ChatHours _hours = ITMartinHjem.Domain.ChatHours.Parse("");
     private string _first = "Martin";
 
     protected override async Task OnInitializedAsync()
@@ -32,6 +42,7 @@
         var s = await Site.SettingsAsync();
         _available = s.Available;
         _first = s.Name.Split(' ')[0];
+        _hours = ITMartinHjem.Domain.ChatHours.Parse(s.ChatHours);
     }
 
     private void OnAvailability() => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });

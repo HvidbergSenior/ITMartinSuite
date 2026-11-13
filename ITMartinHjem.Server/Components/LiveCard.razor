@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject IHttpClientFactory Http
 @inject IConfiguration Config
+@inject SiteUseCases Site
 
 @* Kig med on the front page: a big red box while Martin streams (topic = the studio's "Hvad laver du?"),
    a small line otherwise. Status from kigmed-web over the LAN (Hjem:KigMedStatus), checked every 30 s. *@
@@ -18,10 +19,15 @@
     }
     else
     {
-        <a class="hj-livestrip" href="@Url" target="_blank" rel="noopener">
-            <b>Live med Martin</b> <span>Mine idéer – og hvem jeg er. Hver uge, samme tid@(_s is not null && _s.Next.Trim().Length > 0 ? $" – næste gang: {_s.Next}" : "").</span>
-            <span class="hj-livestrip-btn">Kig med</span>
-        </a>
+        @* Not live: the chat hours planned on /admin every Sunday decide what the strip says (user 2026-11-13). *@
+        <div class="hj-livestrip @(_chat.Open ? "chat" : "")">
+            @if (_chat.Text.Length > 0)
+            {
+                <a href="/chat-med-martin"><b>@_chat.Text</b></a>
+                <a class="hj-livestrip-btn" href="/chat-med-martin">Skriv til mig</a>
+            }
+            <a href="@Url" target="_blank" rel="noopener"><span>Live med Martin – mine idéer og hvem jeg er@(_s is not null && _s.Next.Trim().Length > 0 ? $": {_s.Next}" : ".")</span></a>
+        </div>
     }
 }
 else if (_s is { Live: true } s)
@@ -50,6 +56,7 @@ else if (_s is not null)
     private const string Url = "https://kigmed.itmartin.dk";
     private sealed record Status(bool Live, string Title, string Next, int Viewers);
     private Status? _s;
+    private (bool Open, string Text) _chat = (false, "");
     private Timer? _timer;
 
     protected override async Task OnInitializedAsync()
@@ -60,6 +67,8 @@ else if (_s is not null)
 
     private async Task LoadAsync()
     {
+        try { _chat = ITMartinHjem.Domain.ChatHours.Parse((await Site.SettingsAsync()).ChatHours).Describe(ITMartinHjem.Domain.Dk.Now); }
+        catch { _chat = (false, ""); }
         try
         {
             using var c = Http.CreateClient();

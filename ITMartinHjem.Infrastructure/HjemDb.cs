@@ -29,6 +29,7 @@ internal static class Schema
         ("Settings", "NowMediaType", "TEXT NOT NULL DEFAULT ''"),
         ("Settings", "NowLink", "TEXT NOT NULL DEFAULT ''"),
         ("Settings", "NowPhotos", "TEXT NOT NULL DEFAULT ''"),
+        ("Settings", "ChatHours", "TEXT NOT NULL DEFAULT 'fre 12-13'"),
         ("Threads", "VisitorEmail", "TEXT NOT NULL DEFAULT ''"),
         ("Threads", "VisitorPush", "TEXT NOT NULL DEFAULT ''"),
         ("Threads", "NotifiedAt", "TEXT NULL"),

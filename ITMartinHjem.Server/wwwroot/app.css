@@ -1061,3 +1061,6 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-livestrip.on b{color:#d62828}
 .hj-livestrip .hj-live-dot{width:11px;height:11px}
 .hj-livestrip-btn{border:1px solid var(--k-border);border-radius:999px;padding:2px 12px;font-weight:600;white-space:nowrap}
+.hj-livestrip a{color:var(--k-text);text-decoration:none}
+.hj-livestrip a:hover{text-decoration:underline}
+.hj-livestrip.chat{border-bottom:2px solid var(--k-success,#2a9d55);background:color-mix(in srgb,var(--k-success,#2a9d55) 10%,var(--k-card))}
