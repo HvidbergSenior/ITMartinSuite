@@ -1052,3 +1052,12 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-teach-more { border-top: 1px solid var(--k-border); padding-top: 8px; }
 .hj-teach-more > summary { cursor: pointer; padding: 4px 0; }
 .hj-teach-more p { margin: 6px 0; line-height: 1.5; }
+
+/* Live strip under the menu on every itmartin.dk page (2026-11-13): weekly live, red when on. Text = --k-text (colour-blind user). */
+.hj-livestrip{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:center;padding:8px 16px;text-decoration:none;
+  color:var(--k-text);background:var(--k-card);border-bottom:1px solid var(--k-border);font-size:.95rem;text-align:center}
+.hj-livestrip:hover{background:color-mix(in srgb,var(--k-accent) 8%,var(--k-card))}
+.hj-livestrip.on{border-bottom:2px solid #d62828;background:linear-gradient(90deg,rgba(214,40,40,.12),transparent)}
+.hj-livestrip.on b{color:#d62828}
+.hj-livestrip .hj-live-dot{width:11px;height:11px}
+.hj-livestrip-btn{border:1px solid var(--k-border);border-radius:999px;padding:2px 12px;font-weight:600;white-space:nowrap}

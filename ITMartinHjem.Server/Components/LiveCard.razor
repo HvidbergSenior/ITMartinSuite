@@ -4,7 +4,27 @@
 
 @* Kig med on the front page: a big red box while Martin streams (topic = the studio's "Hvad laver du?"),
    a small line otherwise. Status from kigmed-web over the LAN (Hjem:KigMedStatus), checked every 30 s. *@
-@if (_s is { Live: true } s)
+@* Strip = the slim line under the menu on EVERY itmartin.dk page (user 2026-11-13: "put it on ITMartin somewhere where it shows
+   all the time") - weekly live where Martin presents his ideas and who he is. Shown even when Kig med cannot be reached. *@
+@if (Strip)
+{
+    @if (_s is { Live: true } ls)
+    {
+        <a class="hj-livestrip on" href="@Url" target="_blank" rel="noopener">
+            <span class="hj-live-dot" aria-hidden="true"></span>
+            <b>Jeg er live nu</b> <span>@(ls.Title.Trim().Length > 0 ? ls.Title : "Mine idéer – og hvem jeg er")</span>
+            <span class="hj-livestrip-btn">Kig med</span>
+        </a>
+    }
+    else
+    {
+        <a class="hj-livestrip" href="@Url" target="_blank" rel="noopener">
+            <b>Live med Martin</b> <span>Mine idéer – og hvem jeg er. Hver uge, samme tid@(_s is not null && _s.Next.Trim().Length > 0 ? $" – næste gang: {_s.Next}" : "").</span>
+            <span class="hj-livestrip-btn">Kig med</span>
+        </a>
+    }
+}
+else if (_s is { Live: true } s)
 {
     <a class="k-card hj-live on" href="@Url" target="_blank" rel="noopener" data-nofold>
         <span class="hj-live-dot" aria-hidden="true"></span>
@@ -24,6 +44,7 @@ else if (_s is not null)
 
 @code {
     // itmartin.dk front page: no emojis - they look AI-made; it should feel personal (user 2026-10-12). Set by Index.
+    [Parameter] public bool Strip { get; set; }
     [CascadingParameter(Name = "Plain")] public bool Plain { get; set; }
     private string E(string emoji) => Plain ? "" : emoji + " ";
     private const string Url = "https://kigmed.itmartin.dk";
