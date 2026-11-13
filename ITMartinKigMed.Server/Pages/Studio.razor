@@ -377,7 +377,8 @@
         await JS.InvokeVoidAsync("kig.unpublish");
         _sending = false;
         Hub.EndLive();
-        _note = "Live er stoppet. Spørgsmål og idéer er gemt.";
+        (_title, _next) = Hub.Read(s => (s.Title, s.Next));
+        _note = "Live er stoppet. Alt fra denne gang er slettet – spørgsmål, idéer, billeder og afstemninger.";
     }
 
     private void StartPoll()

@@ -19,16 +19,17 @@ public class LiveTests
     private sealed class MemoryStore : ISessionStore
     {
         public LiveSession Saved = new();
-        public readonly Dictionary<string, LiveSession> Archived = [];
+        public int ArchiveWipes;
         public LiveSession Load() => Saved;
         public void Save(LiveSession session) => Saved = session;
-        public void Archive(LiveSession session, string name) => Archived[name] = session;
+        public void DeleteArchives() => ArchiveWipes++;
     }
 
     private sealed class NoPictures : IPictureStore
     {
         public Task<string> SaveAsync(Stream jpeg, CancellationToken ct = default) => Task.FromResult("x.jpg");
         public string? PathOf(string name) => name == "a.jpg" ? "/data/a.jpg" : null;
+        public void DeleteAll() { }
     }
 
     private sealed class Probe : IMediaProbe
@@ -168,18 +169,19 @@ public class LiveTests
     }
 
     [Test]
-    public void Ending_archives_the_session_and_clears_the_floor()
+    public void Ending_wipes_the_session_and_clears_the_floor()
     {
         var (hub, store, _) = NewHub();
-        hub.GoLive("Test");
+        hub.SetTexts("", "fre kl. 12");
+        hub.GoLive("Snakker med Anton");
+        hub.Ask("v", "V", "Hej?");
         hub.RaiseHand("v", "V");
         hub.GiveFloor("v");
         hub.EndLive();
         hub.OnStage.Should().BeNull();
-        store.Archived.Should().ContainKey("2026-10-12_1800.json");
         store.Saved.Live.Should().BeFalse();
-        hub.EndLive();
-        store.Archived.Should().HaveCount(1);
+        store.Saved.HasContent.Should().BeFalse();
+        store.Saved.Next.Should().Be("fre kl. 12");
     }
 
     [Test]
@@ -211,7 +213,7 @@ public class LiveTests
         clock.Now = T0.AddMinutes(11);
         await video.CheckAsync(default);
         hub.Read(s => s.Live).Should().BeFalse();
-        store.Archived.Should().HaveCount(1);
+        store.Saved.HasContent.Should().BeFalse();
     }
 
     [Test]

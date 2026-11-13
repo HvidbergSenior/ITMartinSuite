@@ -28,6 +28,8 @@ public sealed class JsonSessionStore : ISessionStore
 
     public void Save(LiveSession session) => File.WriteAllText(_file, JsonSerializer.Serialize(session));
 
-    public void Archive(LiveSession session, string name) =>
-        File.WriteAllText(Path.Combine(_archive, name), JsonSerializer.Serialize(session, new JsonSerializerOptions { WriteIndented = true }));
+    public void DeleteArchives()
+    {
+        foreach (var f in Directory.EnumerateFiles(_archive, "*.json")) File.Delete(f);
+    }
 }

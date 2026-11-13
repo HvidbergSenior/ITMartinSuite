@@ -7,7 +7,7 @@ public interface ISessionStore
 {
     LiveSession Load();
     void Save(LiveSession session);
-    void Archive(LiveSession session, string name);
+    void DeleteArchives();   // old saved sessions (from before 2026-11-13) - nothing is archived any more
 }
 
 // Pictures viewers send in with an idea. Names are random; the store only accepts its own names back.
@@ -15,6 +15,7 @@ public interface IPictureStore
 {
     Task<string> SaveAsync(Stream jpeg, CancellationToken ct = default);
     string? PathOf(string name);   // null = not a picture name we made, or the file is gone
+    void DeleteAll();              // Stop live: the viewers' pictures go with the session
 }
 
 // The video server: is Martin's video actually arriving right now?

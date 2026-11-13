@@ -57,6 +57,16 @@ public sealed class LiveSession
         return true;
     }
 
+    /// <summary>Stop live = everything from the session goes (user 2026-11-13: "all info from a kigmed should be removed when I
+    /// push something"). Only Next stays - it is the schedule, not session content.</summary>
+    public void Wipe()
+    {
+        Live = false; Title = ""; StartedAt = null;
+        Questions.Clear(); Ideas.Clear(); Polls.Clear(); Reactions.Clear();
+    }
+
+    public bool HasContent => Title.Length > 0 || Questions.Count > 0 || Ideas.Count > 0 || Polls.Count > 0 || Reactions.Count > 0;
+
     public string ArchiveName(DateTime now) => (StartedAt ?? now).ToString("yyyy-MM-dd_HHmm") + ".json";
 
     public void SetTexts(string title, string next) { Title = Texts.Clip(title, 120); Next = Texts.Clip(next, 200); }

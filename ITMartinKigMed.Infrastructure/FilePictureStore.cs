@@ -29,6 +29,11 @@ public sealed partial class FilePictureStore : IPictureStore
         return File.Exists(file) ? file : null;
     }
 
+    public void DeleteAll()
+    {
+        foreach (var f in Directory.EnumerateFiles(_dir).Where(f => PictureName().IsMatch(Path.GetFileName(f)))) File.Delete(f);
+    }
+
     [GeneratedRegex("^[0-9a-f]{32}\\.jpg$")]
     private static partial Regex PictureName();
 }

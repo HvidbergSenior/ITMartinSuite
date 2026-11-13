@@ -28,6 +28,17 @@ public sealed class LiveHub
     {
         (_store, _pictures, _clock, _log) = (store, pictures, clock, log);
         _s = store.Load();
+        if (!_s.Live) WipeStored();   // leftovers from an earlier session (fx the Anton talk) go at start
+    }
+
+    // Everything from the session: session.json, old archives and the pictures.
+    private void WipeStored()
+    {
+        _s.Wipe();
+        _floor.Clear();
+        try { _store.DeleteArchives(); _pictures.DeleteAll(); }
+        catch (Exception ex) { _log.LogWarning(ex, "Could not delete old session files"); }
+        try { _store.Save(_s); } catch (Exception ex) { _log.LogWarning(ex, "Could not save the wiped session"); }
     }
 
     private DateTime Now => _clock.GetUtcNow().UtcDateTime;
@@ -65,17 +76,12 @@ public sealed class LiveHub
     // ── Martin (studio) ──
     public void GoLive(string title) => Change(s => s.GoLive(title, Now));
 
-    // Ends the session and archives it (questions, ideas, polls) to sessions/<start>.json.
+    // Stop live = the session is wiped: title, questions, ideas + pictures, polls, reactions - nothing is kept (2026-11-13).
+    // Also works when not live, so the studio can clear leftovers.
     public void EndLive()
     {
-        lock (_lock)
-        {
-            if (!_s.End()) return;
-            _floor.Clear();
-            try { _store.Archive(_s, _s.ArchiveName(Now)); }
-            catch (Exception ex) { _log.LogWarning(ex, "Could not archive the session"); }
-        }
-        Save();
+        lock (_lock) WipeStored();
+        Changed?.Invoke();
     }
 
     public void SetTexts(string title, string next) => Change(s => s.SetTexts(title, next));
