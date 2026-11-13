@@ -9,6 +9,7 @@ namespace ITMartinHusk.Server;
 /// <summary>
 /// Husk for everyone (2026-11-10): each person sees only their own list.
 /// - Martin: his PIN (Husk:Pin = Husk__Pin in magic.env), the same cookie as before - his list is DataDir/husk.json as always.
+///   His own kundenummer (Husk:MartinKundenummer, the MartinAdmin number) opens the same list.
 /// - A customer: the kundenummer (8 digits), checked in Kunder (Husk must be on in Kunder's free apps) - own list.
 /// - "Se et eksempel": a made-up list in memory, until the browser is closed or "Luk eksemplet".
 /// One field takes both the PIN and the kundenummer. Open without a login: /health, the shared look, /om and /hjaelp, the
@@ -37,6 +38,10 @@ public static class PinGate
         var apiKey = app.Configuration["Husk:ApiKey"] ?? "";
         bool KeyOk(HttpContext ctx) => apiKey.Length >= 16 && ctx.Request.Headers.TryGetValue("X-Husk-Key", out var k)
             && Same(k.ToString(), apiKey);
+        // Martin's own kundenummer (2026-11-13, "as my ITMartinAdmin"): Husk:MartinKundenummer = Husk__MartinKundenummer in
+        // magic.env. That one number opens Martin's own list, the same as the PIN. Empty = only the PIN does.
+        var martinNr = new string((app.Configuration["Husk:MartinKundenummer"] ?? "").Where(char.IsAsciiDigit).ToArray());
+        bool IsMartinNr(string nr) => token is not null && HuskPeople.IsKundenummer(martinNr) && Same(nr, martinNr);
 
         // The customer and example cookies are signed with a secret made once and kept in the data folder.
         var secret = Secret(app.Configuration["DataDir"] ?? "/data");
@@ -53,7 +58,8 @@ public static class PinGate
         {
             if (Unsign(ctx.Request.Cookies[DemoCookie]) is { } demo && HuskPeople.IsDemo(HuskPeople.Demo(demo))) return HuskPeople.Demo(demo);
             if (token is not null && ctx.Request.Cookies.TryGetValue(MartinCookie, out var m) && Same(m, token)) return HuskPeople.Martin;
-            if (Unsign(ctx.Request.Cookies[KundeCookie]) is { } nr && HuskPeople.IsKundenummer(nr)) return HuskPeople.Kunde(nr);
+            if (Unsign(ctx.Request.Cookies[KundeCookie]) is { } nr && HuskPeople.IsKundenummer(nr))
+                return IsMartinNr(nr) ? HuskPeople.Martin : HuskPeople.Kunde(nr);
             return null;
         }
 
@@ -75,6 +81,11 @@ public static class PinGate
                 return Results.Redirect("/");
             }
             var nr = new string(typed.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray());
+            if (IsMartinNr(nr))
+            {
+                ctx.Response.Cookies.Append(MartinCookie, token!, Keep(ctx, TimeSpan.FromDays(365)));
+                return Results.Redirect("/");
+            }
             if (HuskPeople.IsKundenummer(nr))
             {
                 var (ok, error, _) = await codes.CheckAsync(nr, ctx.RequestAborted);
