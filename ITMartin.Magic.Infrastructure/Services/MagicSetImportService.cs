@@ -96,6 +96,8 @@ public sealed class MagicSetImportService
             "altr", "ltc", "tltc", "pltc", "fltr", "pltr", "altc", "tltr", "ltr", "mltr",
             // Duel Masters crossover promos
             "pmda",
+            // Marvel (user 2026-11-13 "what is Marvel then?" - only real Magic sets)
+            "mdd",
         };
 
         var eligible = response.Data
