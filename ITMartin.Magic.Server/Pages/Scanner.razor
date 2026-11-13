@@ -14,435 +14,318 @@
 @inject IMagicCardRepository CardRepository
 @implements IAsyncDisposable
 
-<PageTitle>MTG Scanner</PageTitle>
+<PageTitle>Magic-kort · Scan</PageTitle>
 
-<div class="scanner-page">
+@* Kolibri look (2026-11-13, user: "much prettier and wauw - look at the template and css and spacing"): k-cards in the ElPriser
+   rhythm, numbered steps, no emojis, the cards you scanned shown as real card pictures with the price on top. *@
+<div class="mg">
 
-    <div class="scanner-brand">
-        itmartin.dk
-    </div>
-
-    <ProblemPurposeBanner
-        Problem="At finde priser på Magic-kort er besværligt. Priser findes forskellige steder, og det er svært at afgøre præcis hvilket sæt et kort er fra."
-        Formaal="Gør processen hurtigere. Ét sted at finde prisen — og du kan stole på den." />
+    <section class="k-card mg-hero" data-nofold>
+        <div class="mg-hero-text">
+            <h1 class="mg-title">Magic-kort</h1>
+            <p class="mg-sub">Tag et billede af dine kort – så finder vi navn, sæt og pris.</p>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_ownerName))
+        {
+            <div class="mg-owner">
+                <span class="k-muted">Samling</span>
+                <strong>@_ownerName</strong>
+                <button class="k-btn k-btn-ghost k-btn-sm" @onclick="ChangeOwnerName">Skift</button>
+            </div>
+        }
+    </section>
 
     @if (string.IsNullOrWhiteSpace(_ownerName))
     {
-        <div class="alert alert-warning mt-2">
-            <div class="fw-bold mb-1">👤 Hvem scanner?</div>
-            <div class="small mb-2">Dine kort gemmes under dit navn, så din samling ikke blandes sammen med andres.</div>
-            <div class="d-flex gap-2">
-                <input class="form-control" placeholder="Dit navn" @bind="_ownerInput" @bind:event="oninput" />
-                <button class="btn btn-primary" @onclick="SaveOwnerName" disabled="@string.IsNullOrWhiteSpace(_ownerInput)">Gem</button>
+        <section class="k-card" data-nofold>
+            <h2 class="k-card-title"><span class="mg-step">1</span> Hvem scanner?</h2>
+            <p class="k-card-sub">Dine kort gemmes under dit navn, så din samling ikke blandes sammen med andres.</p>
+            <div class="mg-inline">
+                <input class="k-input" placeholder="Dit navn" @bind="_ownerInput" @bind:event="oninput" />
+                <button class="k-btn k-btn-primary" @onclick="SaveOwnerName" disabled="@string.IsNullOrWhiteSpace(_ownerInput)">Gem</button>
             </div>
-        </div>
+        </section>
     }
-    else
-    {
-        <div class="text-muted small mt-1">
-            👤 Scanner som <strong>@_ownerName</strong> — <button class="btn btn-link btn-sm p-0" @onclick="ChangeOwnerName">skift</button>
-        </div>
-    }
-
-    @if (!_cameraStarted && _completedCount == 0)
-    {
-        <div class="alert alert-info mt-2">
-            📷 <strong>Sådan virker det:</strong> Vælg sæt → start kameraet → tryk "Scan kort" for hvert kort du vil have med (de lægges i en bunke, se tallet på knappen).
-            Tryk "▶️ Behandl X kort" når du er klar til at få dem genkendt og prissat — helt op til dig hvornår.
-            <br />📁 <strong>Eller med dit almindelige kamera:</strong> tag ét billede pr. kort, vælg sæt her, og tryk "Hent billeder" — så bliver de genkendt med det samme.
-        </div>
-    }
-
-    <hr class="scanner-divider" />
 
     @if (!_cameraStarted && _completedCount > 0 && !_showSetPicker)
     {
-        <div class="session-summary fade-in-panel">
-            <h5 class="mb-2">📋 Denne session — @_completedCount kort</h5>
-            @if (_queuedCount > 0)
-            {
-                <div class="badge bg-info text-dark mb-2">🔄 @_queuedCount kort behandles endnu...</div>
-            }
-            @{
-                var sessionTotal = _recentResults
-                    .Select(r => r.Result?.ScryfallMatchResult?.EurPrice)
-                    .Where(p => p.HasValue)
-                    .Sum(p => p!.Value);
-            }
-            @if (sessionTotal > 0)
-            {
-                <div class="session-total mb-2">Samlet værdi: <strong>€@sessionTotal.ToString("F2")</strong></div>
-            }
-            <ul class="list-group mb-3">
+        var sessionTotal = _recentResults
+            .Select(r => r.Result?.ScryfallMatchResult?.EurPrice)
+            .Where(p => p.HasValue)
+            .Sum(p => p!.Value);
+
+        <section class="k-card mg-session" data-nofold>
+            <div class="mg-session-head">
+                <div>
+                    <h2 class="k-card-title">Denne session</h2>
+                    <p class="k-card-sub">@_completedCount kort gemt @(_queuedCount > 0 ? $"· {_queuedCount} behandles endnu" : "")</p>
+                </div>
+                @if (sessionTotal > 0)
+                {
+                    <div class="mg-total">
+                        <span class="mg-total-label">Samlet værdi</span>
+                        <span class="mg-total-value">€@sessionTotal.ToString("F2")</span>
+                    </div>
+                }
+            </div>
+            @if (_queuedCount > 0) { <div class="mg-progress"><span></span></div> }
+
+            <div class="mg-cards">
                 @foreach (var item in _recentResults)
                 {
-                    <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning") @(item.Result is not null ? "feed-item-clickable" : "")"
-                        @onclick="() => SelectFeedItem(item)">
-                        @item.Text
-                        @if (item.Result is not null)
+                    var m = item.Result?.ScryfallMatchResult;
+                    <button type="button" class="mg-card @(item.Success ? "" : "mg-card-fail") @(item.Result == _scanResult ? "is-on" : "")"
+                            @onclick="() => SelectFeedItem(item)" disabled="@(item.Result is null)">
+                        @if (m is not null && !string.IsNullOrEmpty(m.ImageUrl))
                         {
-                            <span class="feed-item-hint">Tryk for detaljer →</span>
+                            <img src="@m.ImageUrl" alt="@m.Name" loading="lazy" />
                         }
-                    </li>
+                        else
+                        {
+                            <span class="mg-card-blank">Ikke genkendt</span>
+                        }
+                        @if (m is not null)
+                        {
+                            <span class="mg-card-price">@(m.EurPrice.HasValue ? $"€{m.EurPrice.Value:F2}" : "–")</span>
+                        }
+                        <span class="mg-card-name">@(m?.Name ?? item.Text)</span>
+                    </button>
                 }
-            </ul>
-            <button class="btn btn-primary w-100 mb-2"
-                    @onclick="StartCamera"
-                    disabled="@(string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)">
-                📷 Scan flere kort
-            </button>
-            <div class="text-center">
-                <button class="btn btn-link btn-sm" @onclick="() => _showSetPicker = true">Skift sæt</button>
             </div>
-        </div>
+
+            <div class="mg-actions">
+                <button class="k-btn k-btn-primary" @onclick="() => _showSetPicker = true">Tilføj flere kort</button>
+            </div>
+        </section>
     }
     else if (!_cameraStarted)
     {
-        <div class="scanner-setup">
+        <section class="k-card" data-nofold>
+            <h2 class="k-card-title"><span class="mg-step">@(string.IsNullOrWhiteSpace(_ownerName) ? "2" : "1")</span> Vælg sæt</h2>
+            <p class="k-card-sub">Alle kort i en omgang skal være fra samme sæt. Gamle kort uden symbol: vælg Kort uden sætsymbol.</p>
 
-            <label class="form-label fw-bold">
-                🃏 Sæt
-            </label>
-
-            <div class="set-mode-toggle">
-                <button type="button"
-                        class="@(!NoSetSymbol ? "set-mode-btn active" : "set-mode-btn")"
-                        @onclick="() => NoSetSymbol = false">
-                    Vælg sæt
-                </button>
-                <button type="button"
-                        class="@(NoSetSymbol ? "set-mode-btn active" : "set-mode-btn")"
-                        @onclick="() => NoSetSymbol = true">
-                    Kort uden sætsymbol
-                </button>
+            <div class="mg-seg" role="group" aria-label="Sæt">
+                <button type="button" class="@(!NoSetSymbol ? "is-on" : "")" @onclick="() => NoSetSymbol = false">Vælg sæt</button>
+                <button type="button" class="@(NoSetSymbol ? "is-on" : "")" @onclick="() => NoSetSymbol = true">Kort uden sætsymbol</button>
             </div>
 
             @if (!NoSetSymbol)
             {
-                <input class="form-control mt-2"
-                       placeholder="🔍 Søg sæt..."
-                       @bind="_setSearch" @bind:event="oninput" />
-
                 @if (_selectedSetCode != null)
                 {
                     var sel = _sets.FirstOrDefault(s => s.SetCode == _selectedSetCode);
-                    <div class="selected-set-display">
+                    <div class="mg-chosen">
                         @if (!string.IsNullOrEmpty(sel?.IconSvgUri))
                         {
-                            <img src="@($"/api/set-icon/{_selectedSetCode}")" class="selected-set-icon" width="28" height="28" alt="@_selectedSetCode" />
+                            <img src="@($"/api/set-icon/{_selectedSetCode}")" width="32" height="32" alt="" />
                         }
-                        <div class="selected-set-text">
-                            <div class="selected-set-name">@(sel?.SetName ?? _selectedSetCode)</div>
-                            <div class="selected-set-code">@_selectedSetCode.ToUpperInvariant()</div>
+                        <div class="mg-chosen-text">
+                            <strong>@(sel?.SetName ?? _selectedSetCode)</strong>
+                            <span class="k-muted">@_selectedSetCode.ToUpperInvariant()</span>
                         </div>
-                        <button class="selected-set-clear" @onclick="() => _selectedSetCode = null">✕</button>
+                        <button class="k-btn k-btn-ghost k-btn-sm" @onclick="() => _selectedSetCode = null">Skift</button>
                     </div>
                 }
-
-                <div class="set-icon-grid">
-                    @foreach (var set in FilteredSets)
-                    {
-                        <div class="set-tile @(set.SetCode == _selectedSetCode ? "set-tile-selected" : "")"
-                             @onclick="() => _selectedSetCode = set.SetCode"
-                             title="@set.SetName">
-                            @if (!string.IsNullOrEmpty(set.IconSvgUri))
-                            {
-                                <img src="@($"/api/set-icon/{set.SetCode}")" class="set-tile-icon" width="22" height="22" alt="@set.SetCode" />
-                            }
-                            <div class="set-tile-code">@set.SetCode.ToUpper()</div>
-                            <div class="set-tile-name">@set.SetName</div>
-                        </div>
-                    }
-                    @if (!FilteredSets.Any())
-                    {
-                        <div class="text-muted small p-2">Ingen sæt matcher søgningen.</div>
-                    }
-                </div>
+                else
+                {
+                    <input class="k-input mg-search" placeholder="Søg sæt, fx Dominaria eller DOM" @bind="_setSearch" @bind:event="oninput" />
+                    <div class="mg-sets">
+                        @foreach (var set in FilteredSets)
+                        {
+                            <button type="button" class="mg-set" @onclick="() => _selectedSetCode = set.SetCode" title="@set.SetName">
+                                @if (!string.IsNullOrEmpty(set.IconSvgUri))
+                                {
+                                    <img src="@($"/api/set-icon/{set.SetCode}")" width="24" height="24" alt="" loading="lazy" />
+                                }
+                                <span class="mg-set-code">@set.SetCode.ToUpper()</span>
+                                <span class="mg-set-name">@set.SetName</span>
+                            </button>
+                        }
+                        @if (!FilteredSets.Any())
+                        {
+                            <p class="k-muted">Ingen sæt matcher søgningen.</p>
+                        }
+                    </div>
+                }
             }
             else
             {
-                <div class="alert alert-info mt-2">
-                    Scanner kort uden sætsymboler.
-                </div>
+                <div class="mg-chosen"><div class="mg-chosen-text"><strong>Kort uden sætsymbol</strong>
+                    <span class="k-muted">Alpha, Beta, Unlimited, Revised, 4th og 5th Edition</span></div></div>
             }
+        </section>
 
-            @if (!string.IsNullOrWhiteSpace(_cameraError))
-            {
-                <div class="alert alert-danger mt-3 mb-0">⚠️ @_cameraError</div>
-            }
+        <section class="k-card" data-nofold>
+            <h2 class="k-card-title"><span class="mg-step">@(string.IsNullOrWhiteSpace(_ownerName) ? "3" : "2")</span> Tilføj kort</h2>
+            <p class="k-card-sub">Ét kort pr. billede, på et roligt underlag. De bliver genkendt og prissat med det samme.</p>
 
-            <button class="btn btn-primary mt-3 w-100"
-                    @onclick="StartCamera"
-                    disabled="@(string.IsNullOrWhiteSpace(_ownerName) || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
-                📷 Start kamera
-            </button>
+            @{ var ready = !string.IsNullOrWhiteSpace(_ownerName) && (!string.IsNullOrWhiteSpace(_selectedSetCode) || NoSetSymbol); }
+            <div class="mg-ways">
+                @* Upload (user 2026-11-13: "I want to use my regular camera and just upload like the other products"). *@
+                <label class="mg-way mg-way-main @(ready && !_uploading ? "" : "is-off")">
+                    <span class="mg-way-title">@(_uploading ? "Henter billeder..." : "Hent billeder")</span>
+                    <span class="mg-way-text">Fra dit almindelige kamera eller billeder – højst @MaxUpload ad gangen</span>
+                    <InputFile OnChange="UploadPhotos" multiple accept="image/*" class="mg-file" disabled="@(!ready || _uploading)" />
+                </label>
+                <button type="button" class="mg-way" @onclick="StartCamera" disabled="@(!ready)">
+                    <span class="mg-way-title">Brug kameraet her</span>
+                    <span class="mg-way-text">Scan ét kort ad gangen i siden</span>
+                </button>
+            </div>
+
             @if (string.IsNullOrWhiteSpace(_ownerName))
             {
-                <div class="text-warning small mt-1 text-center">Skriv dit navn under "Hvem scanner?" øverst og tryk Gem først.</div>
+                <p class="k-help">Skriv dit navn øverst og tryk Gem først.</p>
             }
             else if (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)
             {
-                <div class="text-muted small mt-1 text-center">Vælg et sæt først.</div>
+                <p class="k-help">Vælg et sæt først.</p>
             }
-
-            @* Upload (user 2026-11-13: "I want to use my regular camera and just upload like the other products"):
-               photos from the phone's own camera/gallery go into the same pipeline as the webcam frames. *@
-            <div class="mt-4">
-                <label class="form-label fw-bold" for="magic-upload">📁 Eller: hent billeder fra telefonen</label>
-                <div class="text-muted small mb-1">Tag billederne med dit almindelige kamera – ét kort pr. billede, alle fra det valgte sæt.
-                    Vælg dem her (højst @MaxUpload ad gangen). De bliver genkendt og prissat med det samme.</div>
-                <InputFile id="magic-upload" OnChange="UploadPhotos" multiple accept="image/*" class="form-control"
-                           disabled="@(_uploading || string.IsNullOrWhiteSpace(_ownerName) || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))" />
-                @if (_uploading) { <div class="text-muted small mt-1">Henter billeder...</div> }
-                @if (_queuedCount > 0) { <div class="badge bg-info text-dark mt-2">🔄 @_queuedCount kort behandles...</div> }
-                @if (!string.IsNullOrEmpty(_uploadMessage)) { <div class="small mt-1">@_uploadMessage</div> }
-            </div>
-
-        </div>
+            @if (_queuedCount > 0)
+            {
+                <div class="mg-progress"><span></span></div>
+                <p class="k-help">@_queuedCount kort behandles...</p>
+            }
+            @if (!string.IsNullOrEmpty(_uploadMessage)) { <p class="k-help"><strong>@_uploadMessage</strong></p> }
+            @if (!string.IsNullOrWhiteSpace(_cameraError)) { <div class="k-alert k-alert-danger">@_cameraError</div> }
+        </section>
     }
     else
     {
-        <div class="set-bar">
-            <div class="set-bar-info">
-                <div class="set-bar-label">Sæt</div>
-                <div class="set-bar-name">
+        <section class="k-card mg-cam" data-nofold>
+            <div class="mg-chosen">
+                <div class="mg-chosen-text">
+                    <span class="k-muted">Sæt</span>
                     @if (NoSetSymbol)
                     {
-                        <span>Uden sætsymbol</span>
+                        <strong>Uden sætsymbol</strong>
                     }
                     else
                     {
                         var sel = _sets.FirstOrDefault(s => s.SetCode == _selectedSetCode);
-                        <span>@(sel?.SetName ?? _selectedSetCode) <span class="set-bar-code">(@_selectedSetCode?.ToUpperInvariant())</span></span>
+                        <strong>@(sel?.SetName ?? _selectedSetCode) <span class="k-muted">@_selectedSetCode?.ToUpperInvariant()</span></strong>
                     }
                 </div>
-            </div>
-            <button class="set-bar-change" @onclick="ChangeSet">Skift sæt</button>
-        </div>
-
-        @if (_pendingFrames.Count > 0)
-        {
-            <button class="btn btn-primary w-100 mb-2 behandl-button" @onclick="SendPendingFrames">
-                ▶️ Behandl @_pendingFrames.Count kort
-            </button>
-        }
-
-        <div class="scanner-wrapper">
-            <video id="video"
-                   autoplay
-                   muted
-                   playsinline
-                   webkit-playsinline
-                   class="scanner-video">
-            </video>
-
-            <div class="scanner-guide">
-                <div class="guide-text">
-                    Placer kort inden for rammen
-                </div>
+                <button class="k-btn k-btn-ghost k-btn-sm" @onclick="ChangeSet">Skift sæt</button>
             </div>
 
-            @if (_justCaptured)
+            <div class="scanner-wrapper">
+                <video id="video" autoplay muted playsinline webkit-playsinline class="scanner-video"></video>
+                <div class="scanner-guide"><div class="guide-text">Placer kortet inden for rammen</div></div>
+                @if (_justCaptured) { <div class="capture-flash">Taget – klar til næste kort</div> }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_detectedText) && !_justCaptured)
             {
-                <div class="capture-flash">
-                    ✅ Taget! Klar til næste kort
-                </div>
-            }
-        </div>
-
-        @if (!string.IsNullOrWhiteSpace(_detectedText) && !_justCaptured)
-        {
-            <div class="alert alert-danger mt-2">
-                ⚠️ @_detectedText
-            </div>
-        }
-
-        <div class="scanner-buttons">
-
-            @if (_queuedCount > 0 || _completedCount > 0)
-            {
-                <div class="scanner-status-row">
-                    @if (_queuedCount > 0)
-                    {
-                        <span class="badge bg-info text-dark">
-                            🔄 @_queuedCount kort behandles...
-                        </span>
-                    }
-
-                    @if (_completedCount > 0)
-                    {
-                        <span class="badge bg-success">
-                            ✅ @_completedCount gemt denne session
-                        </span>
-
-                        <button class="btn btn-outline-light btn-sm" @onclick="StopAndShowResults">
-                            👁️ Se resultater
-                        </button>
-                    }
-                </div>
+                <div class="k-alert k-alert-danger">@_detectedText</div>
             }
 
-            <button class="@(_justCaptured ? "btn btn-lg scan-button scan-button-flash" : "btn btn-success btn-lg scan-button")"
-                    @onclick="() => Capture()"
-                    disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
-                @(_justCaptured ? "✅ Taget!" : "📷 Scan kort")
+            <div class="mg-cam-buttons">
+                <button class="k-btn k-btn-primary mg-shoot @(_justCaptured ? "is-flash" : "")" @onclick="() => Capture()"
+                        disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
+                    @(_justCaptured ? "Taget" : "Scan kort")
+                    @if (_pendingFrames.Count > 0) { <span class="mg-badge">@_pendingFrames.Count</span> }
+                </button>
                 @if (_pendingFrames.Count > 0)
                 {
-                    <span class="pending-count-badge">@_pendingFrames.Count</span>
+                    <button class="k-btn" @onclick="SendPendingFrames">Behandl @_pendingFrames.Count kort</button>
                 }
-            </button>
+                @if (_completedCount > 0 || _queuedCount > 0)
+                {
+                    <button class="k-btn k-btn-ghost" @onclick="StopAndShowResults">Se resultater (@_completedCount)</button>
+                }
+            </div>
+            @if (_queuedCount > 0) { <div class="mg-progress"><span></span></div> }
 
-        </div>
-    }
-
-    @if (_recentResults.Count > 0 && _cameraStarted)
-    {
-        <ul class="list-group mt-3">
-            @* Live feed while actively scanning stays compact on purpose - the
-               full, uncapped list is what the "Denne session" summary panel
-               shows once you stop. *@
-            @foreach (var item in _recentResults.Take(10))
+            @if (_recentResults.Count > 0)
             {
-                <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning") @(item.Result is not null ? "feed-item-clickable" : "")"
-                    @onclick="() => SelectFeedItem(item)">
-                    @item.Text
-                    @if (item.Result is not null)
+                <ul class="k-list mg-feed">
+                    @foreach (var item in _recentResults.Take(6))
                     {
-                        <span class="feed-item-hint">Tryk for detaljer →</span>
+                        var m = item.Result?.ScryfallMatchResult;
+                        <li class="@(item.Success ? "" : "mg-feed-fail")">
+                            <span class="k-dot"></span>
+                            <span class="mg-feed-name">@(m?.Name ?? item.Text)</span>
+                            @if (m is not null) { <span class="mg-feed-price">@(m.EurPrice.HasValue ? $"€{m.EurPrice.Value:F2}" : "–")</span> }
+                        </li>
                     }
-                </li>
+                </ul>
             }
-        </ul>
+        </section>
     }
 
-
-    @* Full result detail only shows once you stop scanning — a "scan session" (camera +
-       compact feed only, distraction-free) followed by a "results session" (full detail,
-       reviewed afterward) rather than the last result popping up mid-capture of the next card. *@
-    @if (_scanResult != null && !_cameraStarted)
+    @* Full detail only once you stop scanning, so the last result never pops up mid-capture of the next card. *@
+    @if (_scanResult?.ScryfallMatchResult is { } match && !_cameraStarted)
     {
-        <div class="result-panel fade-in-panel">
-
-            @if (_scanResult.ScryfallMatchResult != null)
+        var setIcon = _sets.FirstOrDefault(s => s.SetCode == match.SetCode)?.IconSvgUri;
+        <section class="k-card mg-detail" data-nofold>
+            @if (!string.IsNullOrEmpty(match.ImageUrl))
             {
-                var match = _scanResult.ScryfallMatchResult;
-                var setIcon = _sets.FirstOrDefault(s => s.SetCode == match.SetCode)?.IconSvgUri;
-
-                <div class="card-result card-result-compact">
-
-                    <div class="card-details">
-
-                        <div class="card-name-row">
-                            @if (!string.IsNullOrEmpty(match.ImageUrl))
-                            {
-                                <img src="@match.ImageUrl" class="card-thumb" alt="@match.Name" />
-                            }
-                            <h2 class="card-name">
-                                @match.Name
-                            </h2>
-                        </div>
-
-                        <div class="set-line">
-                            @if (!string.IsNullOrEmpty(setIcon))
-                            {
-                                <img src="@($"/api/set-icon/{match.SetCode}")" width="18" height="18" alt="@match.SetCode" />
-                            }
-                            @(match.SetName ?? match.SetCode?.ToUpperInvariant()) (@match.SetCode?.ToUpperInvariant())
-                            ·
-                            #@match.CollectorNumber
-                        </div>
-
-                        @if (match.IsAmbiguous)
-                        {
-                            <div class="alert alert-warning mt-1 mb-2 py-1 px-2 small">
-                                ⚠️ Usikker udgave — flere printninger ser ens ud herfra. Tjek "Andre mulige udgaver" nedenfor.
-                            </div>
-                        }
-
-                        <div class="price-hero">
-                            @(match.EurPrice.HasValue ? $"€{match.EurPrice.Value:F2}" : "Ingen pris")
-                        </div>
-
-                        <div class="price-sub">
-                            @if (match.UsdPrice.HasValue)
-                            {
-                                <span>$@match.UsdPrice.Value.ToString("F2") USD</span>
-                            }
-                            @if (match.EurFoilPrice.HasValue)
-                            {
-                                <span>· €@match.EurFoilPrice.Value.ToString("F2") Foil</span>
-                            }
-                        </div>
-
-                        <button class="btn btn-outline-danger btn-sm mt-2" @onclick="() => _showWrongResultForm = !_showWrongResultForm">
-                            🐛 Marker som forkert resultat
-                        </button>
-
-                        @if (_showWrongResultForm)
-                        {
-                            <div class="mt-2 p-2 border rounded">
-                                <label class="form-label small">Hvad skulle kortet rigtigt have været? (valgfrit)</label>
-                                <input class="form-control form-control-sm mb-2" @bind="_wrongResultNote" placeholder="F.eks. 'Skulle være Revised, ikke Unlimited'" />
-                                <button class="btn btn-sm btn-danger" @onclick="SaveBadScan">Gem til test-data</button>
-                                @if (_badScanSaved)
-                                {
-                                    <span class="text-success ms-2">✅ Gemt</span>
-                                }
-                            </div>
-                        }
-
-                    </div>
-
+                <img class="mg-detail-img" src="@match.ImageUrl" alt="@match.Name" />
+            }
+            <div class="mg-detail-body">
+                <h2 class="mg-detail-name">@match.Name</h2>
+                <div class="mg-detail-set">
+                    @if (!string.IsNullOrEmpty(setIcon)) { <img src="@($"/api/set-icon/{match.SetCode}")" width="20" height="20" alt="" /> }
+                    @(match.SetName ?? match.SetCode?.ToUpperInvariant()) · @match.SetCode?.ToUpperInvariant() · nr. @match.CollectorNumber
+                </div>
+                <div class="mg-price">@(match.EurPrice.HasValue ? $"€{match.EurPrice.Value:F2}" : "Ingen pris")</div>
+                <div class="k-row mg-price-sub">
+                    @if (match.UsdPrice.HasValue) { <span class="k-tag">$@match.UsdPrice.Value.ToString("F2") USD</span> }
+                    @if (match.EurFoilPrice.HasValue) { <span class="k-tag">€@match.EurFoilPrice.Value.ToString("F2") foil</span> }
+                    <span class="k-muted">Cardmarket via Scryfall</span>
                 </div>
 
-                @if (_scanResult.OtherPrintings.Count > 0)
+                @if (match.IsAmbiguous)
                 {
-                    <div class="mt-3">
-                        <div class="fw-bold small text-muted mb-1">Andre mulige udgaver — tjek disse detaljer for at se forskel:</div>
-
-                        @if (_scanResult.OtherPrintings.Any(a => OldFrameSets.Contains(a.SetCode)) || OldFrameSets.Contains(match.SetCode ?? ""))
-                        {
-                            <div class="alert alert-secondary small py-2 px-2 mb-2">
-                                💡 <strong>Gamle udgaver kan ligne hinanden:</strong>
-                                Alpha har <em>runde hjørner</em> (unikt for Alpha).
-                                Sort ramme = Alpha/Beta/4th Ed. Foreign Black Border.
-                                Hvid ramme = Unlimited/Revised/4th Edition/5th Edition.
-                                Revised har <em>ingen</em> synlig copyright-årstal og intet under kunstner-linjen — 4th Edition har begge dele.
-                            </div>
-                        }
-
-                        <ul class="list-group">
-                            @foreach (var alt in _scanResult.OtherPrintings.Take(6))
-                            {
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span>
-                                        @(alt.SetName != "" ? alt.SetName : alt.SetCode.ToUpperInvariant())
-                                        (@alt.SetCode.ToUpperInvariant())
-                                        @if (!string.IsNullOrWhiteSpace(alt.ReleasedAt) && alt.ReleasedAt.Length >= 4)
-                                        {
-                                            <span class="text-muted">— udgivet @alt.ReleasedAt[..4]</span>
-                                        }
-                                        #@alt.CollectorNumber
-                                    </span>
-                                    <span>@(alt.EurPrice.HasValue ? $"€{alt.EurPrice.Value:F2}" : "Ingen pris")</span>
-                                </li>
-                            }
-                        </ul>
-                    </div>
+                    <div class="k-alert k-alert-warn">Usikker udgave – flere printninger ser ens ud. Tjek Andre mulige udgaver herunder.</div>
                 }
 
-            }
+                <button class="k-btn k-btn-ghost k-btn-sm k-mt" @onclick="() => _showWrongResultForm = !_showWrongResultForm">Forkert kort?</button>
+                @if (_showWrongResultForm)
+                {
+                    <label class="k-label">Hvad skulle kortet have været? (valgfrit)</label>
+                    <input class="k-input" @bind="_wrongResultNote" placeholder="Fx Skulle være Revised, ikke Unlimited" />
+                    <div class="k-row k-mt">
+                        <button class="k-btn k-btn-sm" @onclick="SaveBadScan">Gem til test</button>
+                        @if (_badScanSaved) { <span class="k-tag">Gemt</span> }
+                    </div>
+                }
+            </div>
+        </section>
 
-        </div>
+        @if (_scanResult.OtherPrintings.Count > 0)
+        {
+            <section class="k-card">
+                <h2 class="k-card-title">Andre mulige udgaver</h2>
+                <p class="k-card-sub">Tjek detaljerne på kortet for at se forskel.</p>
+                @if (_scanResult.OtherPrintings.Any(a => OldFrameSets.Contains(a.SetCode)) || OldFrameSets.Contains(match.SetCode ?? ""))
+                {
+                    <div class="k-alert k-alert-info">
+                        <strong>Gamle udgaver ligner hinanden.</strong> Alpha har runde hjørner. Sort ramme = Alpha, Beta, 4th Ed. Foreign Black Border.
+                        Hvid ramme = Unlimited, Revised, 4th og 5th Edition. Revised har intet copyright-årstal – 4th Edition har.
+                    </div>
+                }
+                <ul class="k-list">
+                    @foreach (var alt in _scanResult.OtherPrintings.Take(6))
+                    {
+                        <li>
+                            <span class="mg-feed-name">
+                                @(alt.SetName != "" ? alt.SetName : alt.SetCode.ToUpperInvariant())
+                                <span class="k-muted">@alt.SetCode.ToUpperInvariant()@(alt.ReleasedAt is { Length: >= 4 } r ? $" · {r[..4]}" : "") · nr. @alt.CollectorNumber</span>
+                            </span>
+                            <span class="mg-feed-price">@(alt.EurPrice.HasValue ? $"€{alt.EurPrice.Value:F2}" : "–")</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
     }
     @if (_scanResult is { Failed: true } && !_cameraStarted)
     {
-        <div class="alert alert-warning mt-3">
-            <strong>⚠️ Ikke genkendt</strong>
-            @if (!string.IsNullOrWhiteSpace(_scanResult.CardName))
-            {
-                <div>AI læste navnet som: <em>"@_scanResult.CardName"</em></div>
-            }
+        <div class="k-alert k-alert-warn">
+            <strong>Ikke genkendt.</strong>
+            @if (!string.IsNullOrWhiteSpace(_scanResult.CardName)) { <span>Navnet blev læst som "@_scanResult.CardName".</span> }
             <div>@_scanResult.FailureReason</div>
         </div>
     }
@@ -569,6 +452,7 @@
         try
         {
             _cameraError = null;
+            _showSetPicker = false;
             _cameraStarted = true;
             StateHasChanged();
             await Task.Delay(300);
@@ -653,12 +537,12 @@
                         _detectedText = null;
                         _completedCount++;
                         var price = m.EurPrice.HasValue ? $"€{m.EurPrice.Value:F2}" : "ingen pris fundet";
-                        AddFeedItem($"✅ {m.Name} ({m.SetCode?.ToUpperInvariant()}) — {price}", success: true, result);
+                        AddFeedItem($"{m.Name} ({m.SetCode?.ToUpperInvariant()}) — {price}", success: true, result);
                     }
                     else if (result.Failed)
                     {
                         _detectedText = result.FailureReason;
-                        AddFeedItem($"⚠️ Kunne ikke genkendes: {result.FailureReason}", success: false, null);
+                        AddFeedItem($"Ikke genkendt: {result.FailureReason}", success: false, null);
                     }
 
                     StateHasChanged();
@@ -670,7 +554,7 @@
                 {
                     _queuedCount = Math.Max(0, _queuedCount - 1);
                     _detectedText = ex.Message;
-                    AddFeedItem($"⚠️ Fejl under behandling: {ex.Message}", success: false, null);
+                    AddFeedItem($"Fejl: {ex.Message}", success: false, null);
                     StateHasChanged();
                 });
             }
@@ -791,6 +675,7 @@
     {
         if (_disposed || string.IsNullOrWhiteSpace(_ownerName) || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)) return;
         _uploading = true;
+        _showSetPicker = false;
         _uploadMessage = "";
         StateHasChanged();
         var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "frames");

@@ -1,6 +1,6 @@
 ﻿@using ITMartin.Magic.Server.Layout
 
-<Router AppAssembly="typeof(Program).Assembly">
+<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
     <Found Context="routeData">
         <RouteView RouteData="routeData"
                    DefaultLayout="typeof(MagicLayout)" />
@@ -8,7 +8,8 @@
     </Found>
     <NotFound>
         <LayoutView Layout="typeof(MagicLayout)">
-            <p>Sorry, page not found.</p>
+            <section class="k-card" data-nofold><h1 class="k-card-title">Siden findes ikke</h1>
+                <a class="k-btn k-btn-primary" href="/">Til scanneren</a></section>
         </LayoutView>
     </NotFound>
 </Router>

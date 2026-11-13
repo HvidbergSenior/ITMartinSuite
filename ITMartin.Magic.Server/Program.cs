@@ -1,4 +1,5 @@
 using ITMartin.Ai;
+using ITMartin.Shared.UI.Kolibri;
 using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Services;
 using ITMartin.Magic.Application;
@@ -37,6 +38,31 @@ builder.Services.AddOcr();
 // =========================
 // SERVICES
 // =========================
+
+// The shared Kolibri frame (2026-11-13, user: "should be much prettier and wauw - look at the template"): same header, footer,
+// /om and light/dark as ElPriser; family "rede" like Lager and Vareinfo, because the cards end up in the shop.
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "Magic-kort";
+    k.KolibriName = "Kolibri Rede";
+    k.Family = "rede";
+    k.Tagline = "Scan dine Magic-kort – se navn, sæt og pris med det samme.";
+    k.About =
+    [
+        "At finde prisen på et Magic-kort er besværligt: priserne står forskellige steder, og det er svært at se præcis hvilket sæt kortet er fra.",
+        "Magic-kort finder kortet og prisen for dig – ét sted. Prisen er Cardmarkets trendpris via Scryfall.",
+        "Dine kort gemmes under dit navn, så din samling ikke blandes med andres.",
+    ];
+    k.HowTo =
+    [
+        "Skriv dit navn og vælg sættet (eller Kort uden sætsymbol).",
+        "Tag billeder med dit almindelige kamera – ét kort pr. billede – og tryk Hent billeder. Højst 50 ad gangen.",
+        "Eller tryk Start kamera og Scan kort for hvert kort, og så Behandl.",
+        "Se kortene, prisen og den samlede værdi under Denne session. Tryk på et kort for detaljer.",
+    ];
+    k.Version = "2026.11.13";
+    k.ThemeColor = "#0b1220";
+});
 
 builder.Services
     .AddRazorComponents()
@@ -228,7 +254,9 @@ app.MapGet("/api/lager/cards", async (HttpContext ctx, string owner, MagicDbCont
 // BLAZOR
 // =========================
 
+app.MapKolibri();
 app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly)
     .AddInteractiveServerRenderMode();
 
 // =========================

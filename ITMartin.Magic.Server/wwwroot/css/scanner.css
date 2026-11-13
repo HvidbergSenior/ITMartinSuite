@@ -1,0 +1,143 @@
+/* Magic-kort scanner in the Kolibri look (2026-11-13). Only Kolibri tokens (--k-*), so light/dark and the family colour
+   follow the rest of the suite. The video frame rules (.scanner-wrapper, .scanner-video, .scanner-guide, .capture-flash)
+   still come from Magic.css. */
+
+.mg { display: flex; flex-direction: column; gap: var(--k-space-3); }
+.mg .k-card { margin-bottom: 0; }
+
+/* Hero */
+.mg-hero {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3); flex-wrap: wrap;
+    background: linear-gradient(135deg, var(--k-accent-soft), var(--k-card) 70%);
+    border-color: var(--k-border-2);
+}
+.mg-title { font-size: var(--k-fs-h1); font-weight: 800; margin: 0; letter-spacing: -.5px; }
+.mg-sub { margin: 4px 0 0; color: var(--k-muted); }
+.mg-owner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Numbered steps */
+.mg-step {
+    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-right: 6px;
+    border-radius: 50%; background: var(--k-accent); color: var(--k-accent-text, #fff); font-size: 15px; font-weight: 800;
+    vertical-align: 2px;
+}
+
+.mg-inline { display: flex; gap: var(--k-space-2); }
+.mg-inline .k-input { flex: 1; }
+
+/* Segmented choice */
+.mg-seg {
+    display: inline-flex; padding: 4px; gap: 4px; border-radius: var(--k-radius); background: var(--k-bg); border: 1px solid var(--k-border);
+    margin-bottom: var(--k-space-3); max-width: 100%;
+}
+.mg-seg button {
+    border: 0; background: transparent; color: var(--k-text); font: inherit; font-weight: 600; padding: 8px 14px;
+    border-radius: var(--k-radius-sm); cursor: pointer; min-height: 40px;
+}
+.mg-seg button.is-on { background: var(--k-accent); color: var(--k-accent-text, #fff); }
+
+/* Chosen set */
+.mg-chosen {
+    display: flex; align-items: center; gap: var(--k-space-3); padding: var(--k-space-3);
+    border-radius: var(--k-radius); background: var(--k-accent-soft); border: 1px solid var(--k-border-2);
+}
+.mg-chosen img { flex: none; }
+.mg-chosen-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+[data-theme="dark"] .mg-chosen img, [data-theme="dark"] .mg-set img, [data-theme="dark"] .mg-detail-set img { filter: invert(1); }
+
+/* Set grid */
+.mg-search { margin-bottom: var(--k-space-2); }
+.mg-sets {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--k-space-2);
+    max-height: 360px; overflow-y: auto; padding: 2px;
+}
+.mg-set {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px;
+    border: 1px solid var(--k-border); border-radius: var(--k-radius); background: var(--k-card); color: var(--k-text);
+    font: inherit; cursor: pointer; transition: border-color var(--k-transition), transform .05s;
+}
+.mg-set:hover { border-color: var(--k-accent); }
+.mg-set:active { transform: scale(.98); }
+.mg-set-code { font-weight: 800; font-size: 13px; letter-spacing: .5px; }
+.mg-set-name { font-size: 12px; color: var(--k-muted); text-align: center; line-height: 1.2;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Two ways to add cards */
+.mg-ways { display: grid; grid-template-columns: 2fr 1fr; gap: var(--k-space-3); }
+@media (max-width: 560px) { .mg-ways { grid-template-columns: 1fr; } }
+.mg-way {
+    position: relative; display: flex; flex-direction: column; gap: 4px; padding: var(--k-space-4);
+    border: 2px solid var(--k-border); border-radius: var(--k-radius-lg); background: var(--k-card); color: var(--k-text);
+    font: inherit; text-align: left; cursor: pointer; transition: border-color var(--k-transition), transform .05s;
+}
+.mg-way:hover { border-color: var(--k-accent); }
+.mg-way:active { transform: scale(.99); }
+.mg-way:disabled, .mg-way.is-off { opacity: .5; cursor: not-allowed; }
+.mg-way-main { background: var(--k-accent); border-color: var(--k-accent); color: var(--k-accent-text, #fff); }
+.mg-way-main:hover { border-color: var(--k-accent-dark); background: var(--k-accent-dark); }
+.mg-way-title { font-size: 20px; font-weight: 800; }
+.mg-way-text { font-size: var(--k-fs-small); opacity: .85; }
+.mg-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.mg-way.is-off .mg-file { cursor: not-allowed; }
+
+/* Working bar */
+.mg-progress { height: 4px; border-radius: 4px; background: var(--k-border-2); overflow: hidden; margin-top: var(--k-space-3); }
+.mg-progress span { display: block; height: 100%; width: 40%; background: var(--k-accent); border-radius: 4px; animation: mg-run 1.2s ease-in-out infinite; }
+@keyframes mg-run { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+
+/* Session: the cards as real pictures */
+.mg-session-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--k-space-3); flex-wrap: wrap; }
+.mg-total { display: flex; flex-direction: column; align-items: flex-end; }
+.mg-total-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--k-muted); }
+.mg-total-value { font-size: 34px; font-weight: 800; color: var(--k-accent); line-height: 1.1; }
+.mg-cards {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--k-space-3); margin-top: var(--k-space-3);
+}
+.mg-card {
+    position: relative; display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none;
+    color: var(--k-text); font: inherit; text-align: left; cursor: pointer;
+}
+.mg-card img {
+    width: 100%; aspect-ratio: 488 / 680; object-fit: cover; border-radius: 4.75% / 3.5%;
+    box-shadow: 0 6px 18px rgba(0,0,0,.25); transition: transform .15s ease, box-shadow .15s ease;
+}
+.mg-card:hover img, .mg-card.is-on img { transform: translateY(-4px) rotate(-1deg); box-shadow: 0 12px 26px rgba(0,0,0,.35); }
+.mg-card.is-on img { outline: 3px solid var(--k-accent); outline-offset: 2px; }
+.mg-card-price {
+    position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: 999px; font-size: 13px; font-weight: 800;
+    background: rgba(0,0,0,.78); color: #fff;
+}
+.mg-card-name { font-size: 13px; font-weight: 600; line-height: 1.25; }
+.mg-card-blank {
+    display: flex; align-items: center; justify-content: center; aspect-ratio: 488 / 680; border-radius: 12px;
+    border: 2px dashed var(--k-border); color: var(--k-muted); font-size: 13px; text-align: center; padding: 8px;
+}
+.mg-card-fail .mg-card-name { color: var(--k-muted); font-weight: 400; }
+.mg-card:disabled { cursor: default; }
+.mg-actions { margin-top: var(--k-space-4); display: flex; gap: var(--k-space-2); flex-wrap: wrap; }
+
+/* Camera */
+.mg-cam .mg-chosen { margin-bottom: var(--k-space-3); }
+.mg-cam-buttons { display: flex; gap: var(--k-space-2); flex-wrap: wrap; margin-top: var(--k-space-3); }
+.mg-shoot { flex: 1 1 100%; min-height: 60px; font-size: 20px; position: relative; }
+.mg-shoot.is-flash { background: var(--k-success); border-color: var(--k-success); }
+.mg-badge {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 6px;
+    border-radius: 999px; background: var(--k-card); color: var(--k-text); font-size: 14px;
+}
+.mg-feed li { gap: 10px; }
+.mg-feed-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mg-feed-price { font-weight: 800; white-space: nowrap; }
+.mg-feed-fail { color: var(--k-muted); }
+
+/* Detail */
+.mg-detail { display: grid; grid-template-columns: minmax(160px, 240px) 1fr; gap: var(--k-space-4); align-items: start; }
+@media (max-width: 560px) { .mg-detail { grid-template-columns: 1fr; } .mg-detail-img { max-width: 260px; margin: 0 auto; } }
+.mg-detail-img { width: 100%; border-radius: 4.75% / 3.5%; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.mg-detail-name { font-size: var(--k-fs-h1); font-weight: 800; margin: 0 0 6px; line-height: 1.15; }
+.mg-detail-set { display: flex; align-items: center; gap: 8px; color: var(--k-muted); flex-wrap: wrap; }
+.mg-price { font-size: 44px; font-weight: 800; color: var(--k-accent); margin-top: var(--k-space-3); line-height: 1; }
+.mg-price-sub { margin-top: var(--k-space-2); gap: var(--k-space-2); }
+
+/* The old video frame, tuned to the card */
+.mg-cam .scanner-wrapper { border-radius: var(--k-radius-lg); overflow: hidden; }

@@ -1,16 +1,14 @@
-﻿
-@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
 
-<div class="app-shell">
-    <header class="app-header">
-        <div class="header-title">
-            IT Martin
-        </div>
-    </header>
-
-    <main class="app-main">
-        @Body
-    </main>
-
-    <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
-</div>
+@* The same frame as ElPriser (the reference app, 2026-11-13): KolibriHeader with tabs, k-main/k-content, KolibriFooter.
+   The active tab is filled, not only coloured. *@
+<KolibriTitle />
+<KolibriHeader>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Scan</NavLink>
+    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/knowledge">Sæt og kort</NavLink>
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
+</KolibriHeader>
+<div class="k-main"><div class="k-content">
+    @Body
+</div></div>
+<KolibriFooter />

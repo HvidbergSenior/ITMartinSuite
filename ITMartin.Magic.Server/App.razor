@@ -1,11 +1,12 @@
 ﻿@using static Microsoft.AspNetCore.Components.Web.RenderMode
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="da" data-family="rede">
 <head>
     <script>
         (function () {
-            var theme = localStorage.getItem('magic_theme') || 'dark';
+            // What the visitor chose with Lys/Mørk, else what the phone is set to (same as ElPriser).
+            var theme = localStorage.getItem('magic_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -13,22 +14,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="apple-mobile-web-app-title" content="Magic-kort" />
+    <meta name="theme-color" content="#0b1220" />
     <link rel="manifest" href="/manifest.json" />
 
     <base href="/" />
 
-    <link rel="stylesheet"
-          href="bootstrap/css/bootstrap.min.css?v=@CacheBuster" />
-
-    <link rel="stylesheet"
-          href="_content/ITMartin.Shared.UI/css/Shared.css" />
-
-    <link rel="stylesheet"
-          href="css/Magic.css?v=@CacheBuster" />
-
-    <link rel="stylesheet"
-          href="ITMartin.Magic.Server.styles.css" />
+    @* Bootstrap + Magic.css are still used by the Sæt og kort pages; the scanner is pure Kolibri (scanner.css). *@
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="css/Magic.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css?v=@CacheBuster" />
+    <script src="_content/ITMartin.Shared.UI/kolibri.js?v=@CacheBuster" defer></script>
+    <link rel="stylesheet" href="css/scanner.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="ITMartin.Magic.Server.styles.css" />
 
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
@@ -55,42 +53,37 @@
         }).catch(function(){});
     }
     track(location.pathname + location.search, document.title, document.referrer);
-    document.addEventListener('click', function(e) {
-        var a = e.target.closest('a');
-        if (!a || !a.href || a.href.startsWith('javascript')) return;
-        var href = a.getAttribute('href') || a.href;
-        track('click:' + href, a.textContent.trim().slice(0, 80), location.pathname);
-    }, true);
 })();
 </script>
 
-    <button id="themeToggleBtn" title="Skift lys/mørk visning"
-            style="position:fixed;bottom:20px;right:20px;z-index:9999;width:52px;height:52px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
-        🌓
-    </button>
-    <script>
-    (function () {
+<script>
+// The light/dark button is in the Kolibri header, which Blazor renders again - so the click is caught on the document
+// and the label is kept in step whenever the page changes (same as Husk/ElPriser).
+(function () {
+    function sync() {
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
         var btn = document.getElementById('themeToggleBtn');
-        function sync() {
-            var current = document.documentElement.getAttribute('data-theme') || 'dark';
-            btn.textContent = current === 'light' ? '🌙' : '☀️';
-        }
-        btn.addEventListener('click', function () {
-            var current = document.documentElement.getAttribute('data-theme') || 'dark';
-            var next = current === 'light' ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('magic_theme', next);
-            sync();
-        });
+        var label = current === 'light' ? 'Mørk' : 'Lys';
+        if (btn && btn.textContent !== label) btn.textContent = label;
+        var meta = document.querySelector('meta[name=theme-color]');
+        if (meta) meta.setAttribute('content', current === 'light' ? '#f5f5f7' : '#0b1220');
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
+        var next = current === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('magic_theme', next);
         sync();
-    })();
-    </script>
+    });
+    new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
+    sync();
+})();
+</script>
 </body>
 </html>
 
 @code {
-    // Set once per process (i.e. per deploy/restart) - forces browsers and Cloudflare's
-    // edge cache to fetch fresh static assets after every deploy instead of potentially
-    // serving a stale cached copy indefinitely, since these files had no versioning at all.
+    // Set once per process (per deploy/restart) so browsers and Cloudflare fetch fresh static files after a deploy.
     private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
 }
