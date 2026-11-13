@@ -52,7 +52,7 @@ public static class SignUpRules
          {Show(code)}
 
          Mine gratis snebolde: {AndList(helpers)}.
-         Du finder dem på itmartin.dk under Produkter → Sneboldshoppen. Beder en snebold om dit nummer, så skriv det – så får du de ekstra ting.
+         Du finder dem på itmartin.dk. Beder en snebold om dit nummer, så skriv det – så får du de ekstra ting.
 
          Det er også dit login på bogshoppen.dk, hvor vi finder nye måder at sælge på – ikke en traditionel webshop.
 

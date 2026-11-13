@@ -37,7 +37,7 @@ builder.Services.AddKolibri(k =>
         "På bogshoppen.dk/produkter: vælg en slags eller søg. Tryk på et billede for at se det stort, og på \"Mere om den\" for stand og priser andre steder. Ting uden pris står under \"Ingen pris endnu\".",
         "På bogshoppen.dk: tryk på en butik (Bogshoppen, Tegneserieshoppen, Filmshoppen, Musikshoppen, Gameshoppen, Fantasyshoppen, Kortshoppen) - eller søg i dem alle. I butikken trykker du på en underkategori (fx DVD eller Serieblade), og under Sorter på A–Å eller Nyeste (priserne kommer senere). Flere fra samme serie står samlet på ét kort - tryk på det for at se dem. ← Alle butikker fører tilbage.",
         "I butikkerne kan du også vælge en genre (fx Dansktop, Punk, Krimi, Børnefilm, Western, Disney, Superhelte, Strategispil) - knapperne står i alfabetisk orden, og Alle genrer viser det hele igen. Underkategorierne står også i alfabetisk orden.",
-        "Mine små programmer hedder snebolde: hver gør én ting, og gør den godt. Du finder dem i Sneboldshoppen (itmartin.dk/sneboldshoppen).",
+        "Mine små programmer hedder snebolde: hver gør én ting, og gør den godt.",
         "Har du fået en side sammen med Martin (fx itmartin.dk/per)? Tryk Tekster eller Musik, tryk \"Skriv koden\" og skriv koden fra Martin. Så kan du lægge filer op og skrive dine tanker under hver fil.",
     ];
     k.Version = "2026.11.07";
@@ -256,6 +256,10 @@ app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg, VisitUseCases 
     if (owner) await visits.MarkOwnerIpAsync(ClientIp(ctx));   // Martin's own visits are not counted from this IP
     return Results.Redirect(owner ? "/admin" : "/");
 }).DisableAntiforgery();
+
+// Sneboldshoppen removed (user 2026-11-13): links already sent in mails and job applications land on the front page.
+app.MapGet("/sneboldshoppen", () => Results.Redirect("/"));
+app.MapGet("/hjaelpershoppen", () => Results.Redirect("/"));
 
 app.MapGet("/logout", async (HttpContext ctx) =>
 {

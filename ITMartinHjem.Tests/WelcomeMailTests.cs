@@ -7,11 +7,11 @@ namespace ITMartinHjem.Tests;
 public class WelcomeMailTests
 {
     [Test]
-    public void It_lists_the_live_helpers_with_og_and_points_to_Sneboldshoppen()
+    public void It_lists_the_live_helpers_with_og_and_points_to_itmartin_dk()
     {
         var (_, body) = SignUpRules.WelcomeMail("Anna", "48810359", ["ElPriser", "Temperatur", "Stem", "FileSorter", "Indbakke"]);
         body.Should().Contain("Mine gratis snebolde: ElPriser, Temperatur, Stem, FileSorter og Indbakke.");
-        body.Should().Contain("Produkter → Sneboldshoppen");
+        body.Should().Contain("Du finder dem på itmartin.dk.").And.NotContain("Sneboldshoppen");
         body.Should().NotContain("Spilleder").And.NotContain("Mine snebolde.");
         body.Should().Contain("4881 0359");
     }
