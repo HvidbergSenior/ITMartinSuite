@@ -259,7 +259,8 @@ window.kig = (() => {
     function float(stageId, emoji) {
         const stage = document.getElementById(stageId); if (!stage) return;
         const e = document.createElement('span');
-        e.className = 'kig-float'; e.textContent = emoji;
+        e.className = 'kig-float';
+        e.innerHTML = '<svg viewBox="0 0 64 64"><use href="#feel-' + String(emoji).replace(/[^a-z]/g, '') + '"/></svg>';
         e.style.left = (10 + Math.random() * 80) + '%';
         e.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
         stage.appendChild(e); setTimeout(() => e.remove(), 2600);

@@ -126,7 +126,16 @@
 
         <div class="k-card">
             <div class="k-card-title">Reaktioner</div>
-            <p>@(_reactions.Count == 0 ? "Ingen endnu." : string.Join("   ", _reactions.OrderByDescending(r => r.Value).Select(r => $"{r.Key} {r.Value}")))</p>
+            @if (_reactions.Count == 0) { <p>Ingen endnu.</p> }
+            else
+            {
+                <div class="kig-feel-counts">
+                    @foreach (var r in _reactions.OrderByDescending(r => r.Value))
+                    {
+                        <span><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#feel-@r.Key" /></svg> @LiveSession.LabelOf(r.Key) <b>@r.Value</b></span>
+                    }
+                </div>
+            }
         </div>
     </section>
 

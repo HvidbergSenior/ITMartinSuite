@@ -53,9 +53,11 @@
         {
             <p class="k-help kig-conn">@PlayerText · @_viewers ser med</p>
             <div class="kig-reactions" role="group" aria-label="Reager">
-                @foreach (var e in LiveSession.Emojis)
+                @foreach (var f in LiveSession.Feelings)
                 {
-                    <button @onclick="() => Hub.React(_key, e)" aria-label="Reager med @e">@e</button>
+                    <button @onclick="() => Hub.React(_key, f.Id)" title="@f.Label" aria-label="@f.Label">
+                        <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#feel-@f.Id" /></svg><span>@f.Label</span>
+                    </button>
                 }
             </div>
         }

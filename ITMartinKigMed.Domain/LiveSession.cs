@@ -30,7 +30,16 @@ public sealed class Poll
 public sealed class LiveSession
 {
     public const int MaxQuestions = 500, MaxIdeas = 200, MaxIdeasPerViewer = 10, MaxText = 400, MaxPollOptions = 6;
-    public static readonly string[] Emojis = ["👍", "❤️", "😂", "🔥", "👏", "🎸", "🤯", "🐦"];
+    /// <summary>ITMartin's own reactions: a Kolibri in BIG feelings (user 2026-11-13, "VERY ADHD feelings") - drawn by the
+    /// Server's KolibriFeelings sprite. Id = what is stored and sent; Label = what people read.</summary>
+    public sealed record Feeling(string Id, string Label);
+    public static readonly Feeling[] Feelings =
+    [
+        new("glad", "MEGA glad"), new("elsker", "ELSKER det"), new("griner", "GRINER så jeg græder"), new("hyperfokus", "HYPERFOKUS"),
+        new("koger", "Hjernen KOGER"), new("forvirret", "TOTALT forvirret"), new("irriteret", "VILDT irriteret"), new("keder", "Keder mig VILDT"),
+    ];
+    public static readonly string[] Emojis = Feelings.Select(f => f.Id).ToArray();
+    public static string LabelOf(string id) => Feelings.FirstOrDefault(f => f.Id == id)?.Label ?? id;
 
     public bool Live { get; set; }
     public string Title { get; set; } = "";

@@ -160,12 +160,12 @@ public class LiveTests
     public void Reactions_are_limited_to_eight_per_five_seconds()
     {
         var (hub, _, clock) = NewHub();
-        for (var i = 0; i < 12; i++) hub.React("v", "👍");
+        for (var i = 0; i < 12; i++) hub.React("v", "glad");
         hub.React("v", "💩");
-        hub.Read(s => s.Reactions["👍"]).Should().Be(8);
+        hub.Read(s => s.Reactions["glad"]).Should().Be(8);
         clock.Now = T0.AddSeconds(6);
-        hub.React("v", "👍");
-        hub.Read(s => s.Reactions["👍"]).Should().Be(9);
+        hub.React("v", "glad");
+        hub.Read(s => s.Reactions["glad"]).Should().Be(9);
     }
 
     [Test]

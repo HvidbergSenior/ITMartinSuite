@@ -57,3 +57,14 @@
 .kig-hands li{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-radius:10px;background:var(--k-accent-soft)}
 .kig-studio-guest{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .kig-studio-guest video{width:180px;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:#222}
+
+/* Kolibri feelings (2026-11-13): own birds instead of emojis */
+.kig-reactions button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;font-weight:700;line-height:1.1;padding:6px 6px 5px;width:84px;color:var(--k-text)}
+.kig-reactions button svg{width:46px;height:46px}
+.kig-reactions button:hover svg .kig-wing,.kig-float .kig-wing{animation:kig-flap .18s ease-in-out infinite alternate;transform-origin:30px 33px}
+.kig-float svg{width:64px;height:64px;display:block}
+.kig-feel-counts{display:flex;flex-wrap:wrap;gap:8px 14px}
+.kig-feel-counts span{display:inline-flex;align-items:center;gap:4px}
+.kig-feel-counts svg{width:28px;height:28px}
+@keyframes kig-flap{to{transform:scaleY(.45)}}
+@media (prefers-reduced-motion:reduce){.kig-wing{animation:none!important}}
