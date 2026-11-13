@@ -128,11 +128,31 @@
                 }
                 else
                 {
+                    @* Dine sæt (user 2026-11-13: "hard to find the exact edition - maybe the already used"): the sets you scanned
+                       before, newest first, so the next pile is one tap. *@
+                    @if (_mySets.Count > 0 && string.IsNullOrWhiteSpace(_setSearch))
+                    {
+                        <div class="mg-mine-label">Dine sæt</div>
+                        <div class="mg-sets mg-sets-mine">
+                            @foreach (var set in _mySets)
+                            {
+                                <button type="button" class="mg-set mg-set-mine" @onclick="() => PickSet(set.SetCode)" title="@set.SetName">
+                                    @if (!string.IsNullOrEmpty(set.IconSvgUri))
+                                    {
+                                        <img src="@($"/api/set-icon/{set.SetCode}")" width="24" height="24" alt="" loading="lazy" />
+                                    }
+                                    <span class="mg-set-code">@set.SetCode.ToUpper()</span>
+                                    <span class="mg-set-name">@set.SetName</span>
+                                </button>
+                            }
+                        </div>
+                        <div class="mg-mine-label">Alle sæt</div>
+                    }
                     <input class="k-input mg-search" placeholder="Søg sæt, fx Dominaria eller DOM" @bind="_setSearch" @bind:event="oninput" />
                     <div class="mg-sets">
                         @foreach (var set in FilteredSets)
                         {
-                            <button type="button" class="mg-set" @onclick="() => _selectedSetCode = set.SetCode" title="@set.SetName">
+                            <button type="button" class="mg-set" @onclick="() => PickSet(set.SetCode)" title="@set.SetName">
                                 @if (!string.IsNullOrEmpty(set.IconSvgUri))
                                 {
                                     <img src="@($"/api/set-icon/{set.SetCode}")" width="24" height="24" alt="" loading="lazy" />
@@ -409,7 +429,7 @@
     protected override async Task OnInitializedAsync()
     {
         _sets = (await MagicKnowledgeService.GetSetDefinitionsAsync())
-            .OrderByDescending(x => x.SetCode)
+            .OrderBy(x => x.SetName, StringComparer.CurrentCultureIgnoreCase)   // A-Å by name: easier to find than by code
             .ToList();
 
         try
@@ -417,6 +437,7 @@
             _ownerName = await JS.InvokeAsync<string?>("localStorage.getItem", "magic_owner_name") ?? "";
         }
         catch { }
+        await LoadMySetsAsync();
 
         // Multiple concurrent workers draining the same channel - a full batch submitted
         // via "Behandl" would otherwise process strictly one-at-a-time, making later cards
@@ -431,7 +452,37 @@
     {
         if (string.IsNullOrWhiteSpace(_ownerInput)) return;
         _ownerName = _ownerInput.Trim();
+        await LoadMySetsAsync();
         try { await JS.InvokeVoidAsync("localStorage.setItem", "magic_owner_name", _ownerName); } catch { }
+    }
+
+    private List<MagicSetSymbolDefinition> _mySets = [];
+
+    // The owner's sets from the cards already saved, last scanned first (max 8), so the next pile is one tap.
+    private async Task LoadMySetsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_ownerName)) { _mySets = []; return; }
+        IEnumerable<MagicCard> cards;
+        await _dbWriteLock.WaitAsync();   // the same EF context as the scan workers
+        try { cards = await CardRepository.GetByOwnerAsync(_ownerName); }
+        catch { return; }
+        finally { _dbWriteLock.Release(); }
+        var byCode = _sets.ToDictionary(s => s.SetCode, StringComparer.OrdinalIgnoreCase);
+        _mySets = cards.GroupBy(c => c.SetCode, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Max(c => c.LastSeenAt))
+            .Select(g => byCode.GetValueOrDefault(g.Key))
+            .Where(s => s is not null).Select(s => s!).Take(8).ToList();
+    }
+
+    private void PickSet(string code)
+    {
+        _selectedSetCode = code;
+        _setSearch = "";
+        var set = _sets.FirstOrDefault(s => string.Equals(s.SetCode, code, StringComparison.OrdinalIgnoreCase));
+        if (set is null) return;
+        _mySets.RemoveAll(s => s.SetCode == set.SetCode);
+        _mySets.Insert(0, set);
+        if (_mySets.Count > 8) _mySets.RemoveAt(8);
     }
 
     private void ChangeOwnerName()
