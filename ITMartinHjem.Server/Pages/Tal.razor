@@ -37,12 +37,50 @@
             <button class="k-btn k-btn-sm @(d == _days ? "k-btn-primary" : "k-btn-ghost")" @onclick="() => SetDays(d)">@(d == 1 ? "I dag" : $"{d} dage")</button>
         }
     </div>
-    <p class="hj-tal-big k-mt">
-        <b>@_siteVisitors</b> besøgende på itmartin.dk ·
-        <b>@_appVisitors</b> i apps
-    </p>
-    <p class="k-help">@PeriodText. En besøgende er én telefon eller PC – kommer den igen en anden dag, tæller den igen den dag.</p>
+    @* Overblik in plain words (user 2026-11-13: "more easy to understand... How many but also how many the same user"). *@
+    @if (_sum is { } ov)
+    {
+        <div class="hj-tal-grid k-mt">
+            <div><b>@ov.People</b><span>personer</span></div>
+            <div><b>@ov.New</b><span>nye – første gang</span></div>
+            <div><b>@ov.Returning</b><span>kom igen</span></div>
+            <div><b>@ov.Visits</b><span>besøg i alt</span></div>
+        </div>
+        <p class="k-help">@PeriodText (itmartin.dk og alle apps). <b>@ov.Loyal</b> har været her @VisitOverview.LoyalDays dage eller flere.
+            I snit @(ov.Visits == 0 ? 0 : Math.Round((double)ov.Pages / ov.Visits, 1)) sider pr. besøg.</p>
+        <p class="k-help"><b>Sådan tæller vi:</b> en person = én browser på én side eller app. Bruger den samme til både Stem og itmartin.dk,
+            tæller den som 2. Besøg = en person på én dag.</p>
+    }
+    <p class="k-help">Kun itmartin.dk: <b>@_siteVisitors</b> besøg · i apps: <b>@_appVisitors</b> besøg.</p>
 </section>
+
+@* "I still do not know if some of them are myself" (user 2026-11-13): the people who came back, anonymous, with "Det er mig". *@
+@if (_sum is { Top.Count: > 0 } sum)
+{
+<section class="k-card" data-nofold>
+    <div class="k-card-title">Hvem kommer igen – og er det dig?</div>
+    <p class="k-card-sub">De samme personer, der kommer igen. "Sandsynligvis dig" = har åbnet en side, kun du bruger (studio, admin, login).
+        Er det dig, så tryk <b>Det er mig</b> – så tæller den browser aldrig mere, og dens besøg bliver fjernet.</p>
+    <table class="hj-tal">
+        <thead><tr><th>Hvem</th><th>Dage</th><th>Sider</th><th>Hvor</th><th>Sidst</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var p in sum.Top)
+            {
+                <tr class="@(p.LikelyOwner ? "hj-tal-me" : "")">
+                    <td><b>@p.Label</b> · @p.Device@(p.LikelyOwner ? " · Sandsynligvis dig" : "")<br />
+                        <span class="k-help">første gang @Dk.Local(p.FirstEver).ToString("d/M")</span></td>
+                    <td>@p.DaysInPeriod@(p.DaysEver > p.DaysInPeriod ? $" ({p.DaysEver} i alt)" : "")</td>
+                    <td>@p.Pages</td>
+                    <td>@string.Join(", ", p.Hosts)</td>
+                    <td>@Dk.Local(p.Last).ToString("d/M HH:mm")</td>
+                    <td>@if (p.CanMark) { <button class="k-btn k-btn-sm @(p.LikelyOwner ? "k-btn-primary" : "")" @onclick="() => ItsMeAsync(p)">Det er mig</button> }</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (_meNote.Length > 0) { <p class="k-help k-mt"><b>@_meNote</b></p> }
+</section>
+}
 
 <section class="k-card">
     <div class="k-card-title">📄 Hjemmesiden – sider</div>
@@ -115,6 +153,16 @@
     private bool _owner, _confirm;
     private int? _deleted;
     private int _days = 7, _siteVisitors, _appVisitors;
+    private VisitOverview.Summary? _sum;
+    private Dictionary<string, string> _names = [];
+    private string _meNote = "";
+
+    private async Task ItsMeAsync(VisitOverview.Person p)
+    {
+        var removed = await Visits.MarkOwnerVisitorAsync(p.Key);
+        _meNote = $"{p.Label} tælles ikke mere – {removed} besøg fjernet.";
+        await LoadAsync();
+    }
     private List<Hit> _all = [];
     private List<PageRow> _pages = [];
     private List<(string Name, int Count)> _sources = [];
@@ -133,7 +181,7 @@
 
     private async Task LoadAsync()
     {
-        var numbers = await Visits.NumbersAsync(90);
+        var numbers = await Visits.NumbersAsync(VisitRules.KeepDays);   // the whole history: who is new, who came back
         _all = numbers.Hits;
         var links = numbers.Apps;
 
@@ -141,6 +189,7 @@
         var names = links.Where(l => Uri.TryCreate(l.Url, UriKind.Absolute, out _))
             .GroupBy(l => new Uri(l.Url).Host.ToLowerInvariant()).ToDictionary(g => g.Key, g => $"{g.First().Icon} {g.First().Name}".Trim());
         foreach (var (host, name) in VisitRules.KnownApps) names.TryAdd(host, name);
+        _names = names;
         var hosts = _all.Select(h => h.Host).Where(h => h != VisitRules.Site).Concat(names.Keys.Where(h => h != VisitRules.Site)).Distinct();
         _apps = hosts.Select(host =>
         {
@@ -162,6 +211,7 @@
         var site = period.Where(h => h.Host == VisitRules.Site && !h.Path.StartsWith("/admin")).ToList();
         _siteVisitors = DayVisitors(site);
         _appVisitors = DayVisitors(period.Where(h => h.Host != VisitRules.Site));
+        _sum = VisitOverview.Build(_all, from, host => host == VisitRules.Site ? "itmartin.dk" : _names.GetValueOrDefault(host, host));
 
         _pages = site.GroupBy(h => h.Path).Select(g =>
         {

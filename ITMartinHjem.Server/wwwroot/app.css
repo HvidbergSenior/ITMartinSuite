@@ -1078,3 +1078,9 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 @keyframes hj-ls-pulse{50%{box-shadow:0 0 0 6px rgba(214,40,40,0)}0%,100%{box-shadow:0 0 0 0 rgba(214,40,40,.45)}}
 @media (prefers-reduced-motion:reduce){.hj-ls-badge{animation:none}}
 @media (max-width:520px){.hj-ls-text{text-align:center}.hj-ls-text b{font-size:1.05rem}}
+/* /admin/tal Overblik (2026-11-13) */
+.hj-tal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.hj-tal-grid>div{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--k-border);border-radius:12px;background:var(--k-card);text-align:center}
+.hj-tal-grid b{font-size:2rem;line-height:1.1;color:var(--k-text)}
+.hj-tal-grid span{font-size:.9rem;color:var(--k-text)}
+.hj-tal-me td{background:color-mix(in srgb,var(--k-accent) 10%,var(--k-card))}
