@@ -175,3 +175,4 @@
 .mg-mine-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--k-text); opacity: .8; margin: var(--k-space-2) 0 6px; }
 .mg-sets-mine { max-height: none; margin-bottom: var(--k-space-2); }
 .mg-set-mine { border-color: var(--k-accent); background: var(--k-accent-soft); }
+.mg-names { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--k-space-2) 0; }

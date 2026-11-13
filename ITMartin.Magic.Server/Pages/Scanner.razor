@@ -12,6 +12,7 @@
 @inject ICardScanOrchestrator CardScanOrchestrator
 @inject IMagicKnowledgeService MagicKnowledgeService
 @inject IMagicCardRepository CardRepository
+@inject IScryfallService Scryfall
 @implements IAsyncDisposable
 
 <PageTitle>Magic-kort · Scan</PageTitle>
@@ -128,6 +129,39 @@
                 }
                 else
                 {
+                    @* Find by card name (user 2026-11-13: "maybe search by name and editions appear"): type the name of one card
+                       from the pile, pick it, and only the sets it was printed in are shown. Scryfall, free - no AI. *@
+                    <label class="mg-mine-label" for="mg-name">Find sættet ud fra et kortnavn</label>
+                    <input id="mg-name" class="k-input" placeholder="Skriv kortets navn, fx Llanowar Elves" value="@_nameSearch"
+                           @oninput="OnNameInput" autocomplete="off" />
+                    @if (_nameHits.Count > 0)
+                    {
+                        <div class="mg-names">
+                            @foreach (var n in _nameHits)
+                            {
+                                <button type="button" class="k-btn k-btn-sm @(n == _cardName ? "k-btn-primary" : "")" @onclick="() => PickCardName(n)">@n</button>
+                            }
+                        </div>
+                    }
+                    @if (_cardName.Length > 0)
+                    {
+                        <div class="mg-mine-label">@_cardName findes i @_cardSets.Count @(_cardSets.Count == 1 ? "sæt" : "sæt") – tryk på dit</div>
+                        @if (_cardSets.Count == 0) { <p class="k-help">Ingen af sættene her. Måske et særligt sæt – vælg Kort uden sætsymbol, eller søg herunder.</p> }
+                        <div class="mg-sets mg-sets-mine">
+                            @foreach (var set in _cardSets)
+                            {
+                                <button type="button" class="mg-set mg-set-mine" @onclick="() => PickSet(set.SetCode)" title="@set.SetName">
+                                    @if (!string.IsNullOrEmpty(set.IconSvgUri))
+                                    {
+                                        <img src="@($"/api/set-icon/{set.SetCode}")" width="24" height="24" alt="" loading="lazy" />
+                                    }
+                                    <span class="mg-set-code">@set.SetCode.ToUpper()</span>
+                                    <span class="mg-set-name">@set.SetName</span>
+                                </button>
+                            }
+                        </div>
+                    }
+
                     @* Dine sæt (user 2026-11-13: "hard to find the exact edition - maybe the already used"): the sets you scanned
                        before, newest first, so the next pile is one tap. *@
                     @if (_mySets.Count > 0 && string.IsNullOrWhiteSpace(_setSearch))
@@ -457,6 +491,37 @@
     }
 
     private List<MagicSetSymbolDefinition> _mySets = [];
+
+    // Find the set by card name: autocomplete while typing (after a short pause), then the printings of the picked name.
+    private string _nameSearch = "";
+    private List<string> _nameHits = [];
+    private string _cardName = "";
+    private List<MagicSetSymbolDefinition> _cardSets = [];
+    private CancellationTokenSource? _nameCts;
+
+    private async Task OnNameInput(ChangeEventArgs e)
+    {
+        _nameSearch = e.Value?.ToString() ?? "";
+        _nameCts?.Cancel();
+        var cts = _nameCts = new CancellationTokenSource();
+        if (_nameSearch.Trim().Length < 3) { _nameHits = []; return; }
+        try
+        {
+            await Task.Delay(350, cts.Token);   // wait until the typing pauses - one Scryfall call, not one per letter
+            _nameHits = await Scryfall.AutocompleteAsync(_nameSearch, cts.Token);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task PickCardName(string name)
+    {
+        _cardName = name;
+        _nameSearch = name;
+        _nameHits = [];
+        var codes = await Scryfall.PrintingSetCodesAsync(name, CancellationToken.None);
+        var byCode = _sets.ToDictionary(s => s.SetCode, StringComparer.OrdinalIgnoreCase);
+        _cardSets = codes.Select(c => byCode.GetValueOrDefault(c)).Where(s => s is not null).Select(s => s!).ToList();
+    }
 
     // The owner's sets from the cards already saved, last scanned first (max 8), so the next pile is one tap.
     private async Task LoadMySetsAsync()

@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using ITMartin.Ai.Models;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
@@ -27,6 +27,40 @@ public sealed class ScryfallService
         _matchScoringService = matchScoringService;
         _printingEliminationService = printingEliminationService;
         _logger = logger;
+    }
+
+    public async Task<List<string>> AutocompleteAsync(string text, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(text) || text.Trim().Length < 2) return [];
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(await _httpClient.GetStringAsync(
+                $"cards/autocomplete?q={Uri.EscapeDataString(text.Trim())}", cancellationToken));
+            return doc.RootElement.GetProperty("data").EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x != "").Take(8).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or KeyNotFoundException)
+        {
+            _logger.LogWarning(ex, "Scryfall autocomplete failed");
+            return [];
+        }
+    }
+
+    public async Task<List<string>> PrintingSetCodesAsync(string cardName, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(cardName)) return [];
+        try
+        {
+            var q = Uri.EscapeDataString($"!\"{cardName.Trim()}\"");
+            using var doc = System.Text.Json.JsonDocument.Parse(await _httpClient.GetStringAsync(
+                $"cards/search?q={q}&unique=prints&order=released", cancellationToken));
+            return doc.RootElement.GetProperty("data").EnumerateArray()
+                .Select(x => x.TryGetProperty("set", out var s) ? s.GetString() ?? "" : "").Where(x => x != "").Distinct().ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or KeyNotFoundException)
+        {
+            _logger.LogWarning(ex, "Scryfall printings failed for {Name}", cardName);
+            return [];
+        }
     }
 
     public async Task<CardSearchResult?> SearchAsync(
