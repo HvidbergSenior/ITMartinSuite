@@ -49,6 +49,7 @@
         <div class="alert alert-info mt-2">
             📷 <strong>Sådan virker det:</strong> Vælg sæt → start kameraet → tryk "Scan kort" for hvert kort du vil have med (de lægges i en bunke, se tallet på knappen).
             Tryk "▶️ Behandl X kort" når du er klar til at få dem genkendt og prissat — helt op til dig hvornår.
+            <br />📁 <strong>Eller med dit almindelige kamera:</strong> tag ét billede pr. kort, vælg sæt her, og tryk "Hent billeder" — så bliver de genkendt med det samme.
         </div>
     }
 
@@ -58,6 +59,10 @@
     {
         <div class="session-summary fade-in-panel">
             <h5 class="mb-2">📋 Denne session — @_completedCount kort</h5>
+            @if (_queuedCount > 0)
+            {
+                <div class="badge bg-info text-dark mb-2">🔄 @_queuedCount kort behandles endnu...</div>
+            }
             @{
                 var sessionTotal = _recentResults
                     .Select(r => r.Result?.ScryfallMatchResult?.EurPrice)
@@ -179,6 +184,19 @@
             {
                 <div class="text-muted small mt-1 text-center">Vælg et sæt først.</div>
             }
+
+            @* Upload (user 2026-11-13: "I want to use my regular camera and just upload like the other products"):
+               photos from the phone's own camera/gallery go into the same pipeline as the webcam frames. *@
+            <div class="mt-4">
+                <label class="form-label fw-bold" for="magic-upload">📁 Eller: hent billeder fra telefonen</label>
+                <div class="text-muted small mb-1">Tag billederne med dit almindelige kamera – ét kort pr. billede, alle fra det valgte sæt.
+                    Vælg dem her (højst @MaxUpload ad gangen). De bliver genkendt og prissat med det samme.</div>
+                <InputFile id="magic-upload" OnChange="UploadPhotos" multiple accept="image/*" class="form-control"
+                           disabled="@(_uploading || string.IsNullOrWhiteSpace(_ownerName) || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))" />
+                @if (_uploading) { <div class="text-muted small mt-1">Henter billeder...</div> }
+                @if (_queuedCount > 0) { <div class="badge bg-info text-dark mt-2">🔄 @_queuedCount kort behandles...</div> }
+                @if (!string.IsNullOrEmpty(_uploadMessage)) { <div class="small mt-1">@_uploadMessage</div> }
+            </div>
 
         </div>
     }
@@ -761,6 +779,44 @@
         }
 
         _pendingFrames.Clear();
+        StateHasChanged();
+    }
+
+    // Hard cap per upload: each card is one recognition call, so a big gallery pick must not run up the AI bill.
+    private const int MaxUpload = 50;
+    private bool _uploading;
+    private string _uploadMessage = "";
+
+    private async Task UploadPhotos(InputFileChangeEventArgs e)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(_ownerName) || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)) return;
+        _uploading = true;
+        _uploadMessage = "";
+        StateHasChanged();
+        var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "frames");
+        Directory.CreateDirectory(folder);
+        int added = 0, failed = 0;
+        var files = e.GetMultipleFiles(MaxUpload + 1000);
+        foreach (var file in files.Take(MaxUpload))
+        {
+            try
+            {
+                // The browser turns the photo upright and makes it small (a phone photo is 3-5 MB) before it is sent.
+                var small = await file.RequestImageFileAsync("image/jpeg", 1600, 1600);
+                var framePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+                await using (var read = small.OpenReadStream(15 * 1024 * 1024))
+                await using (var write = File.Create(framePath))
+                    await read.CopyToAsync(write);
+                _workChannel.Writer.TryWrite(framePath);
+                _queuedCount++;
+                added++;
+            }
+            catch { failed++; }
+        }
+        _uploading = false;
+        _uploadMessage = $"{added} billeder sendt til genkendelse."
+            + (failed > 0 ? $" {failed} kunne ikke hentes." : "")
+            + (files.Count > MaxUpload ? $" Kun de første {MaxUpload} – tag resten bagefter." : "");
         StateHasChanged();
     }
 
