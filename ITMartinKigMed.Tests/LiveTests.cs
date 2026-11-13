@@ -185,6 +185,17 @@ public class LiveTests
     }
 
     [Test]
+    public void A_new_live_lets_listeners_talk()
+    {
+        var (hub, _, _) = NewHub();
+        hub.GoLive("Test");
+        hub.FreeTalk.Should().BeTrue();
+        hub.SetFreeTalk(false);
+        hub.GoLive("Ny titel");
+        hub.FreeTalk.Should().BeFalse();
+    }
+
+    [Test]
     public void Unshown_pictures_are_for_the_studio_only()
     {
         var (hub, _, _) = NewHub();

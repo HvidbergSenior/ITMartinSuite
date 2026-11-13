@@ -74,7 +74,14 @@ public sealed class LiveHub
     public bool GuestTokenOk(string? token) { lock (_lock) return _floor.TokenOk(token); }
 
     // ── Martin (studio) ──
-    public void GoLive(string title) => Change(s => s.GoLive(title, Now));
+    // A new live starts with Fri tale ON (user 2026-11-13: "as listener you can join") - Martin can still switch it off.
+    public void GoLive(string title)
+    {
+        bool fresh;
+        lock (_lock) fresh = !_s.Live;
+        Change(s => s.GoLive(title, Now));
+        if (fresh) SetFreeTalk(true);
+    }
 
     // Stop live = the session is wiped: title, questions, ideas + pictures, polls, reactions - nothing is kept (2026-11-13).
     // Also works when not live, so the studio can clear leftovers.
