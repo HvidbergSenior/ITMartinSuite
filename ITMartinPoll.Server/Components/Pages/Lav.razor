@@ -12,15 +12,18 @@
 <PageTitle>Lav din egen afstemning – Stem</PageTitle>
 
 <div class="lav">
+    @if (!Embedded)
+    {
     <PageHelp>
         <p>Her laver du din egen afstemning og ser, hvad folk har svaret.</p>
         <p><b>Sådan gør du:</b> skriv hvad det handler om, tilføj dine spørgsmål og tryk Lav afstemningen. Send linket til dem, der skal svare.</p>
-        <p>Tre slags spørgsmål: <b>Vælg svar</b> (fx Ja/Nej eller A/B), <b>Giv karakter</b> (1–5 og en kommentar til hver) og <b>Vælg dage</b> (fx weekender de næste 3 måneder).
+        <p>Tre slags spørgsmål: <b>Vælg svar</b> (fx Ja/Nej eller A/B), <b>Giv karakter</b> (1–5 og en kommentar til hver) og <b>Vælg dage</b> (fx hvilken dag I kan spise hos os i næste uge).
            Vil du vise noget, kan hvert svar få et <b>billede</b> – tryk Billede ved svaret.</p>
         <p>Folk kan skrive en kommentar til hvert svar, de vælger, og give deres første valg en stjerne.</p>
         <p>Gratis: én åben afstemning af hver slags ad gangen, og den lukker efter højst 14 dage.</p>
         <p>Vi spørger ikke efter e-mails på din afstemning – navnet er frivilligt.</p>
     </PageHelp>
+    }
 
     @if (!Customer.Ready)
     {
@@ -59,6 +62,26 @@
                     <button class="k-btn" @onclick="() => CopyAsync(_made)">@(_copied == _made.Path ? "Kopieret" : "Kopiér linket")</button>
                     <a class="k-btn" href="@Link(_made)" target="_blank" rel="noopener">Se den</a>
                 </div>
+                <div class="btn-pair">
+                    <a class="k-btn" href="@($"sms:?&body={Uri.EscapeDataString("Stem her: " + Link(_made))}")">Send som SMS</a>
+                    <a class="k-btn" href="@($"mailto:?subject={Uri.EscapeDataString(_made.Title)}&body={Uri.EscapeDataString("Stem her: " + Link(_made))}")">Send som mail</a>
+                </div>
+                @* How to send it, fx on Messenger (user 2026-11-13: "send linket på feks messenger should be in stem... And how"). *@
+                <details class="lav-how" open>
+                    <summary><b>Sådan sender du linket – fx på Messenger</b></summary>
+                    <p><b>På telefonen:</b></p>
+                    <ol>
+                        <li>Tryk <b>Del linket</b>.</li>
+                        <li>Vælg <b>Messenger</b> (eller SMS, mail …) i listen, der kommer op.</li>
+                        <li>Vælg dem, der skal svare – og tryk Send.</li>
+                    </ol>
+                    <p><b>På pc:</b></p>
+                    <ol>
+                        <li>Tryk <b>Kopiér linket</b>.</li>
+                        <li>Åbn Messenger og samtalen med dem, der skal svare.</li>
+                        <li>Klik i skrivefeltet, tryk <b>Ctrl+V</b> for at sætte linket ind – og tryk Enter.</li>
+                    </ol>
+                </details>
             </section>
         }
         else if (QuestionKinds.All.All(busy.Contains))
@@ -86,6 +109,13 @@
                 <p class="k-help">Du har allerede en åben med @string.Join(" og ", QuestionKinds.All.Where(busy.Contains).Select(k => $"„{QuestionKinds.Name(k)}“")) –
                    i den gratis udgave én af hver slags. De andre slags kan du godt lave nu.</p>
             }
+            @* Big Fortryd + Start forfra (user 2026-11-13: "a big RESET and UNDO button. So that if you get confused app will help
+               you"). Every change is remembered (Track, after each render); Start forfra can be undone too. Sticks to the top. *@
+            <div class="lav-safety" role="group" aria-label="Hjælp hvis du er gået i stå">
+                <button class="k-btn lav-safety-btn" disabled="@(_history.Count == 0)" @onclick="Undo">↶ Fortryd</button>
+                <button class="k-btn lav-safety-btn" @onclick="Reset">⟲ Start forfra</button>
+            </div>
+            @if (_safetyNote.Length > 0) { <p class="k-help lav-safety-note">@_safetyNote</p> }
             <section class="k-card lav-step" data-nofold>
                 <h2 class="k-card-title"><span class="lav-num">1</span> Hvad handler det om?</h2>
                 <input class="k-input lav-big" @bind="_title" maxlength="120" placeholder="fx Sommerfest i foreningen" />
@@ -98,7 +128,10 @@
                 if (busy.Contains(q.Kind)) q.Kind = FreeKind(busy);   // never start on a kind that is open already
                 <section class="k-card lav-step" data-nofold>
                     <h2 class="k-card-title"><span class="lav-num">2</span> Spørgsmål @(number)</h2>
-                    <div class="lav-kinds" role="group" aria-label="Slags spørgsmål">
+                    @* Guide (user 2026-11-13): "1: Vælg en af følgende afstemningsmetoder, 2: Vælg hvilke svar man accepterer" -
+                       "just so user knows what the choices are": each method has one line saying what people do. *@
+                    <div class="lav-sub"><span class="lav-subnum">1</span> Vælg en af følgende afstemningsmetoder:</div>
+                    <div class="lav-kinds" role="group" aria-label="Afstemningsmetode">
                         @foreach (var kind in QuestionKinds.All)
                         {
                             var k = kind;
@@ -107,18 +140,24 @@
                                     @onclick="() => q.Kind = k">@QuestionKinds.Name(k)@(taken ? " (har en åben)" : "")</button>
                         }
                     </div>
+                    <ul class="lav-kind-help">
+                        <li class="@(q.Kind == QuestionKinds.Days ? "on" : "")"><b>Vælg dage</b> – folk krydser af, hvilke dage de kan (fx spise hos jer i næste uge).</li>
+                        <li class="@(q.Kind == QuestionKinds.Choose ? "on" : "")"><b>Vælg svar</b> – folk sætter kryds ved det svar, de vil have (fx Ja / Nej).</li>
+                        <li class="@(q.Kind == QuestionKinds.Grade ? "on" : "")"><b>Giv karakter</b> – folk giver hver ting 1–5 og kan skrive en kommentar.</li>
+                    </ul>
+                    <div class="lav-sub">Skriv dit spørgsmål:</div>
                     <input class="k-input lav-big" @bind="q.Text" maxlength="120"
-                           placeholder="@(q.Kind == QuestionKinds.Grade ? "fx Hvilket mærke er pænest?" : q.Kind == QuestionKinds.Days ? "fx Hvilke dage kan du?" : "fx Hvor skal vi holde festen?")" />
+                           placeholder="@(q.Kind == QuestionKinds.Grade ? "fx Hvilket mærke er pænest?" : q.Kind == QuestionKinds.Days ? "fx Hvilken dag kan I spise hos os i næste uge?" : "fx Hvor skal vi holde festen?")" />
 
                     @if (q.Kind == QuestionKinds.Days)
                     {
                         @* The days in a period on the chosen weekdays become the answers. *@
-                        <div class="lav-sub">Hvilken periode?</div>
+                        <div class="lav-sub"><span class="lav-subnum">2</span> Vælg hvilke svar man accepterer – hvilken periode?</div>
                         <div class="lav-chips">
-                            @foreach (var (label, months) in Periods)
+                            @foreach (var (label, key) in Periods)
                             {
-                                var mo = months;
-                                <button class="k-btn k-btn-sm @(q.Months == mo ? "k-btn-primary" : "")" @onclick="() => q.Months = mo">@label</button>
+                                var pk = key;
+                                <button class="k-btn k-btn-sm @(q.Period == pk ? "k-btn-primary" : "")" @onclick="() => q.Period = pk">@label</button>
                             }
                         </div>
                         <div class="lav-sub">Hvilke dage?</div>
@@ -140,7 +179,7 @@
                     }
                     else
                     {
-                        <div class="lav-sub">@(q.Kind == QuestionKinds.Grade ? "Hvad skal have karakter?" : "Hvad kan man svare?")</div>
+                        <div class="lav-sub"><span class="lav-subnum">2</span> Vælg hvilke svar man accepterer@(q.Kind == QuestionKinds.Grade ? " – hvad skal have karakter?" : ":")</div>
                         @if (q.Kind == QuestionKinds.Choose)
                         {
                             <div class="lav-chips">
@@ -244,19 +283,21 @@
     private List<QuestionForm> _questions = [new()];
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
-    private static readonly (string Label, int Months)[] Periods = [("Næste måned", 1), ("Næste 3 måneder", 3), ("Næste 6 måneder", 6)];
+    // "Næste uge" = the coming calendar week Mon-Sun (user 2026-11-13: "fx Hvilken dag kan I spise hos os i næste uge?").
+    private static readonly (string Label, string Key)[] Periods = [("Næste uge", "uge"), ("De næste 2 uger", "2uger"), ("Næste måned", "1"), ("Næste 3 måneder", "3")];
+    [Parameter] public bool Embedded { get; set; }   // shown on the front page (one page) - its own help box is hidden there
     private static readonly DayOfWeek[] WeekOrder = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
     private static readonly string[] DayNames = ["Søn", "Man", "Tir", "Ons", "Tor", "Fre", "Lør"];
 
     // One question while it is being written (UI state only; the rules are in CustomerPollRules / DayRules).
     private sealed class QuestionForm
     {
-        public string Kind { get; set; } = QuestionKinds.Choose;
+        public string Kind { get; set; } = QuestionKinds.Days;
         public string Text { get; set; } = "";
         public List<string> Options { get; set; } = ["", ""];
         public bool Multi { get; set; }
-        public int Months { get; set; } = 3;
-        public HashSet<DayOfWeek> Days { get; } = [DayOfWeek.Saturday, DayOfWeek.Sunday];
+        public string Period { get; set; } = "uge";
+        public HashSet<DayOfWeek> Days { get; } = [.. Enum.GetValues<DayOfWeek>()];   // all days: "hvilken dag kan I spise hos os"
 
         public List<string?> Images { get; } = [];   // same order as Options; null = no picture
 
@@ -266,7 +307,17 @@
 
         public void SetDays(IEnumerable<DayOfWeek> days) { Days.Clear(); Days.UnionWith(days); }
         public void Toggle(DayOfWeek d) { if (!Days.Remove(d)) Days.Add(d); }
-        public List<string> DayOptions(DateOnly today) => DayRules.Days(today, today.AddMonths(Months), Days);
+        public List<string> DayOptions(DateOnly today)
+        {
+            if (Period == "uge")   // the coming calendar week, Monday-Sunday
+            {
+                var toMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
+                var monday = today.AddDays(toMonday == 0 ? 7 : toMonday);
+                return DayRules.Days(monday, monday.AddDays(6), Days);
+            }
+            var end = Period switch { "2uger" => today.AddDays(14), "1" => today.AddMonths(1), _ => today.AddMonths(3) };
+            return DayRules.Days(today, end, Days);
+        }
 
         public QuestionDraft Draft(DateOnly today) => Kind == QuestionKinds.Days
             ? new QuestionDraft(Text, DayOptions(today), true, Kind)
@@ -301,7 +352,61 @@
 
     // The kundenummer is read once per visit (CustomerSession, from MainLayout): opened from the menu it is known already.
     protected override void OnInitialized() => Customer.Changed += OnCustomerChanged;
-    protected override Task OnAfterRenderAsync(bool first) => first ? Customer.StartAsync() : Task.CompletedTask;
+    protected override Task OnAfterRenderAsync(bool first)
+    {
+        Track();
+        return first ? Customer.StartAsync() : Task.CompletedTask;
+    }
+
+    // ── Fortryd / Start forfra: the whole form as a snapshot after every change ──
+    private sealed record QuestionSnap(string Kind, string Text, List<string> Options, bool Multi, string Period, List<DayOfWeek> Days, List<string?> Images);
+    private sealed record FormSnap(string Title, string Body, DateTime? End, List<QuestionSnap> Questions);
+    private readonly Stack<string> _history = new();
+    private string? _last;
+    private string _safetyNote = "";
+
+    private string Snap() => System.Text.Json.JsonSerializer.Serialize(new FormSnap(_title, _body, _end,
+        _questions.Select(q => new QuestionSnap(q.Kind, q.Text, q.Options.ToList(), q.Multi, q.Period, q.Days.ToList(), q.Images.ToList())).ToList()));
+
+    private void Track()
+    {
+        var now = Snap();
+        if (_last is null) { _last = now; return; }
+        if (now == _last) return;
+        _history.Push(_last);
+        _last = now;
+        _safetyNote = "";
+        StateHasChanged();   // Fortryd becomes pressable
+    }
+
+    private void Restore(string json)
+    {
+        var s = System.Text.Json.JsonSerializer.Deserialize<FormSnap>(json)!;
+        (_title, _body, _end) = (s.Title, s.Body, s.End);
+        _questions = s.Questions.Select(q =>
+        {
+            var f = new QuestionForm { Kind = q.Kind, Text = q.Text, Options = q.Options, Multi = q.Multi, Period = q.Period };
+            f.SetDays(q.Days);
+            for (var i = 0; i < q.Images.Count; i++) f.SetImage(i, q.Images[i]);
+            return f;
+        }).ToList();
+        _last = json;
+    }
+
+    private void Undo()
+    {
+        if (_history.Count == 0) return;
+        Restore(_history.Pop());
+        _error = "";
+        _safetyNote = "Fortrudt – sådan så det ud før.";
+    }
+
+    private void Reset()
+    {
+        _title = _body = ""; _end = null; _error = "";
+        _questions = [new()];
+        _safetyNote = "Alt er tomt igen. Fortrød du? Tryk Fortryd.";
+    }
     private void OnCustomerChanged() => InvokeAsync(StateHasChanged);
     public void Dispose() => Customer.Changed -= OnCustomerChanged;
 

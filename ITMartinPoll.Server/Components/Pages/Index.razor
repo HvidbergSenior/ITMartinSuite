@@ -16,20 +16,17 @@
         @if (Session.IsAdmin) { <div class="poll-empty"><p>Ingen aktive meningsmålinger lige nu</p></div> }
         else
         {
-            <PageHelp>
+            @* Simpler (user 2026-11-13): you open the address and the maker (Lav) is right there; "Hvad viser siden" and "Har du fået et
+               link" are hidden in one closed line underneath. *@
+            @* "Only one page the afstemning" (user 2026-11-13): the maker itself is the front page - no click to /lav first. *@
+            <Lav Embedded="true" />
+            <details class="k-card stem-more">
+                <summary><b>Har du fået et link?</b> · Hvad er Stem?</summary>
+                <p><b>Har du fået et link?</b> Afstemningerne her er private, så de står ikke på listen. Åbn linket, du har fået – så kommer du lige derhen.</p>
                 <p>Stem er til, når flere skal beslutte noget sammen: en dato, hvor festen skal holdes, hvilket billede der skal på væggen.</p>
                 <p><b>Sådan stemmer du:</b> åbn linket, du har fået, sæt dit kryds og tryk Stem. Du skal ikke oprette noget.</p>
-                <p><b>Sådan spørger du selv:</b> tryk Lav ny øverst. Det er gratis, hvis du er skrevet op som interesseret – du skal bruge dit nummer.</p>
-            </PageHelp>
-            <section class="k-card">
-                <h2 class="k-card-title">Har du fået et link?</h2>
-                <p>Afstemningerne her er private, så de står ikke på listen. Åbn linket, du har fået – så kommer du lige derhen.</p>
-            </section>
-            <section class="k-card">
-                <h2 class="k-card-title">Lav din egen afstemning</h2>
-                <p>Spørg familien, foreningen eller vennerne – og se hvad de vælger. Gratis for interesserede hos ITMartin og Bogshoppen.</p>
-                <a class="k-btn k-btn-primary k-btn-block" href="/lav">Lav din egen afstemning</a>
-            </section>
+                <p><b>Sådan spørger du selv:</b> tryk Lav afstemning. Det er gratis, hvis du er skrevet op som interesseret – du skal bruge dit nummer.</p>
+            </details>
         }
     }
     else

@@ -109,7 +109,7 @@ public static class QuestionKinds
 {
     public const string Choose = "", Grade = "karakter", Days = "dage";
     public const int MaxScore = 5, MaxDays = 93;   // every day for 3 months
-    public static readonly string[] All = [Choose, Grade, Days];
+    public static readonly string[] All = [Days, Choose, Grade];   // Vælg dage first (user 2026-11-13)
     public static bool Valid(string kind) => kind is Choose or Grade or Days;
     public static string Name(string kind) => kind switch { Grade => "Giv karakter", Days => "Vælg dage", _ => "Vælg svar" };
 }
