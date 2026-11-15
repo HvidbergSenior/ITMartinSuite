@@ -335,3 +335,10 @@ body { background: var(--k-bg); color: var(--k-text); }
 .doer-vent { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--k-accent-soft); border-left: 4px solid var(--k-accent-dark); font-weight: 600; }
 .doer-ny { border-left-width: 6px; }
 .doer-laas { margin-top: 6px; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Picture on top of the room (2026-11-15: no new tab - a home-screen app cannot go back from one). */
+.billede-visning { position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+.billede-visning img { max-width: 100%; max-height: calc(100vh - 140px); object-fit: contain; border-radius: 8px; }
+.billede-tilbage { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 12px; min-height: 48px; font-size: 1.1rem; }
+.billede-hent { color: #fff; border-color: rgba(255, 255, 255, .5); }

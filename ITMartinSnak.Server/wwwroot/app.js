@@ -536,12 +536,44 @@
         el.classList.add('fremhaev'); setTimeout(() => el.classList.remove('fremhaev'), 2200);
     }
 
+    // A picture opens on top of the room, not in a new tab (user 2026-11-15: "When i open the picture on fx SonjaSnak i can
+    // not navigate back" - a home-screen app has no back button for a new tab). Tilbage, a tap outside, Esc or the phone's
+    // own back all close it.
+    function isPicture(f) { return f.contentType.startsWith('image/') && f.contentType !== 'image/heic'; }
+
+    function showPicture(url, name) {
+        if (document.querySelector('.billede-visning')) return;
+        const box = document.createElement('div'); box.className = 'billede-visning';
+        box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', name || 'Billede');
+        const back = document.createElement('button'); back.type = 'button'; back.className = 'k-btn k-btn-primary billede-tilbage'; back.textContent = 'Tilbage';
+        const img = document.createElement('img'); img.src = url; img.alt = name || '';
+        const get = document.createElement('a'); get.className = 'k-btn k-btn-sm k-btn-ghost billede-hent'; get.href = url; get.download = name || ''; get.textContent = 'Gem billedet';
+        box.append(back, img, get);
+        let open = true;
+        const close = fromHistory => {
+            if (!open) return; open = false;
+            box.remove(); document.removeEventListener('keydown', onKey); window.removeEventListener('popstate', onPop);
+            if (!fromHistory && history.state && history.state.billede) history.back();
+        };
+        const onKey = e => { if (e.key === 'Escape') close(false); };
+        const onPop = () => close(true);
+        back.onclick = () => close(false);
+        box.onclick = e => { if (e.target === box) close(false); };
+        document.addEventListener('keydown', onKey);
+        history.pushState({ billede: true }, '');
+        window.addEventListener('popstate', onPop);
+        document.body.appendChild(box);
+        back.focus();
+    }
+
     function chatFile(id) {
         const f = files.find(x => x.id === id);
         if (!f) { const p = document.createElement('div'); p.className = 'boble slettet'; p.textContent = 'Filen er slettet.'; return p; }
         const a = document.createElement('a'); a.href = base + '/filer/' + f.id; a.target = '_blank'; a.rel = 'noopener';
-        if (f.contentType.startsWith('image/') && f.contentType !== 'image/heic') {
+        if (isPicture(f)) {
             a.className = 'chat-billede';
+            a.removeAttribute('target');
+            a.onclick = e => { e.preventDefault(); showPicture(a.href, f.name); };
             const img = document.createElement('img'); img.src = a.href; img.alt = f.name; img.loading = 'lazy';
             a.appendChild(img);
         } else {
@@ -1281,7 +1313,8 @@
             const ic = document.createElement('span'); ic.className = 'ikon'; ic.textContent = icon(f); ic.setAttribute('aria-hidden', 'true');
             const info = document.createElement('div'); info.className = 'info';
             const a = document.createElement('a'); a.className = 'navn'; a.href = base + '/filer/' + f.id; a.textContent = f.name;
-            a.target = '_blank'; a.rel = 'noopener';
+            if (isPicture(f)) a.onclick = e => { e.preventDefault(); showPicture(a.href, f.name); };
+            else { a.target = '_blank'; a.rel = 'noopener'; }
             const who = document.createElement('p'); who.className = 'hvem';
             who.textContent = (f.by.toLowerCase() === navn.toLowerCase() ? 'Dig' : f.by) + ' · ' + shortFmt.format(new Date(f.at)) + ' · ' + size(f.size);
             info.append(a, who);
