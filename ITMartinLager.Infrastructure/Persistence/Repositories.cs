@@ -469,21 +469,6 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
             .Select(i => i.Id).Take(count).ToListAsync(ct);
     }
 
-    public async Task<List<(Item Item, int TopKr)>> KolofonWantedAsync(int fromKr, int max, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        var top = await db.PriceFinds.Where(f => !f.IsNew && !f.Similar)
-            .GroupBy(f => f.ItemId).Select(g => new { ItemId = g.Key, Top = g.Max(f => f.Kr) })
-            .Where(x => x.Top >= fromKr).ToDictionaryAsync(x => x.ItemId, x => x.Top, ct);
-        var ids = top.Keys.ToList();
-        var items = await db.Items.Include(i => i.Box)
-            .Where(i => (ids.Contains(i.Id) || i.EditionHint == EditionHints.First)
-                        && i.Kind == Kinds.Bog && i.KolofonPhoto == "" && i.Status != Statuses.Solgt)
-            .ToListAsync(ct);
-        return items.Select(i => (i, top.GetValueOrDefault(i.Id)))
-            .OrderByDescending(x => x.i.EditionHint == EditionHints.First).ThenByDescending(x => x.Item2).Take(max).ToList();
-    }
-
     public async Task<List<Item>> KolofonWaitingAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

@@ -1,6 +1,5 @@
 @page "/kasse/{Code}"
 @inject BoxUseCases Boxes
-@inject VareinfoLinks Vareinfo
 @inject NavigationManager Nav
 
 <PageTitle>@Code – Bogshoppen Lager</PageTitle>
@@ -24,8 +23,6 @@ else
         }
         else if (_box.Place != "") { <p>Placering: <b>@_box.Place</b></p> }
         <div class="lg-row">
-            <a class="k-btn k-btn-primary" href="@Vareinfo.Base">📷 Læg flere ting i (Vareinfo)</a>
-            <a class="k-btn k-btn-secondary" href="/kasse/@_box.Code/label" target="_blank">🏷️ Print label</a>
             @if (_items.Count(i => i.ItemPhoto != "") is > 0 and var photos)
             {
                 <a class="k-btn k-btn-secondary" href="/api/varefotos.zip?kasse=@_box.Code" download>⬇️ Hent varefotos (@photos)</a>

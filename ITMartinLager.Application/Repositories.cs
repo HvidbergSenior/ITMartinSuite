@@ -74,7 +74,6 @@ public interface IItemRepository
     /// <summary>Hunted kinds, never priced first, then priced before staleBefore.</summary>
     Task<List<int>> NextToHuntAsync(string[] kinds, DateTime staleBefore, int count, CancellationToken ct);
     /// <summary>Books without a kolofon photo that have a used find at fromKr or more, or a 1st-edition cover; highest find first.</summary>
-    Task<List<(Item Item, int TopKr)>> KolofonWantedAsync(int fromKr, int max, CancellationToken ct);
     /// <summary>Books with a kolofon photo that is not read yet, oldest first; with their boxes.</summary>
     Task<List<Item>> KolofonWaitingAsync(int max, CancellationToken ct);
     /// <summary>Everything, with boxes, for the CSV export.</summary>

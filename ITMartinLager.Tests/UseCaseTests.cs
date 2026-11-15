@@ -80,10 +80,8 @@ public class UseCaseTests
             .ReturnsAsync((IReadOnlyList<byte[]> j, CancellationToken _) =>
                 Enumerable.Range(0, j.Count).ToDictionary(i => i, _ => new KolofonReading("9780552131063", "1. udgave", 1987, "Gyldendal", null)));
         var kolofon = new KolofonUseCases(Items, store.Object, reader.Object, new LagerOptions(), TimeProvider.System);
-        (await kolofon.WantedAsync()).Should().ContainSingle();
 
         (await kolofon.SavePhotoAsync(first.Id, new MemoryStream([1]))).Should().StartWith("photos");
-        (await kolofon.WantedAsync()).Should().BeEmpty();
         (await kolofon.WaitingAsync()).Should().HaveCount(12);   // "venter på at blive læst"
 
         (await kolofon.ReadWaitingAsync()).Should().Be(Kolofon.PerCall);
@@ -134,21 +132,6 @@ public class UseCaseTests
         (await uses.PhotoFileAsync(sweater.Id, 3)).Should().EndWith(sweater.Id + "-3.jpg");
         (await uses.PhotoFileAsync(sweater.Id, 4)).Should().BeNull();
         store.Verify(s => s.SaveAsync(Path.Combine("photos", "items", sweater.Id + "-2.jpg"), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Test]
-    public async Task A_book_found_dear_or_with_a_first_edition_cover_goes_on_the_kolofon_list()
-    {
-        var dear = await Book();
-        var first = new Item { Kind = Kinds.Bog, Title = "Ternet Ninja", EditionHint = EditionHints.First };
-        var cheap = new Item { Kind = Kinds.Bog, Title = "Billig" };
-        first.Touch(); cheap.Touch();
-        await Items.AddAsync([first, cheap], default);
-        await Prices.ReplaceAsync(dear.Id, [], [new PriceFind { ItemId = dear.Id, Source = "AbeBooks", Kr = 400, Url = "u" }], default);
-        await Prices.ReplaceAsync(cheap.Id, [], [new PriceFind { ItemId = cheap.Id, Source = "DBA", Kr = 20, Url = "u" }], default);
-
-        var wanted = await Items.KolofonWantedAsync(150, 200, default);
-        wanted.Select(w => (w.Item.Title, w.TopKr)).Should().Equal(("Ternet Ninja", 0), ("Mort", 400));
     }
 
     [Test]

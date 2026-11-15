@@ -9,7 +9,6 @@ public sealed class KolofonUseCases(IItemRepository items, IPhotoStore photos, I
 {
     public int FromKr => options.KolofonFromKr;
 
-    public Task<List<(Item Item, int TopKr)>> WantedAsync(CancellationToken ct = default) => items.KolofonWantedAsync(FromKr, 200, ct);
 
     public Task<List<Item>> WaitingAsync(CancellationToken ct = default) => items.KolofonWaitingAsync(200, ct);
 

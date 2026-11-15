@@ -18,36 +18,27 @@ builder.Services.AddKolibri(k =>
     k.Name = "Bogshoppen Lager";
     k.KolibriName = "Kolibri Rede";
     k.Family = "rede";
-    k.Tagline = "Tag et billede af en bunke – så står det hele på lageret.";
+    k.Tagline = "Alt det, vi har: find en vare, se den, ret den.";
     k.About =
     [
-        "Bogshoppen Lager er registret over alt det, Bogshoppen sælger: bøger, Anders And-blade, Jumbobøger, tegneserier, magasiner, CD'er, DVD'er, Blu-rays, konsolspil og Magic-kort.",
-        "Billederne tages i Vareinfo: hver hjælper har sin egen kasse og tager billeder af 10-20 ting ad gangen. Når du trykker Læs, læser AI'en titel, nummer, år og stand på dem alle, og de lægges i kassen her.",
-        "Hver kasse har et nummer og en QR-label, så alt kan findes igen med søgningen. Webshop, auktioner og markedspladser bygger senere på det samme register.",
+        "Bogshoppen Lager er registret over alt det, Bogshoppen har: bøger, Anders And-blade, Jumbobøger, tegneserier, magasiner, CD'er, DVD'er, Blu-rays, spil og Magic-kort. Formål: find en vare, se den, ret den.",
+        "Billederne tages i Vareinfo (genvejen på iPhone eller Upload). De kommer herind af sig selv og læses med det samme: titel, nummer, år og stand. Hver dag er én kasse, fx »15. november« – skriv navnet på kassen, så tingene kan findes igen.",
     ];
     k.HowTo =
     [
-        "Hjælperne tager billeder af kasserne i Vareinfo (📷 Registrér) – hver med sin egen kode og sit eget kassenummer.",
-        "Nye billeder kommer herind af sig selv hvert minut. Under 📦 Kasser trykker du Læs ved en kasse – så læser AI'en billederne og lægger tingene i kassen.",
+        "Søg: skriv titel, kunstner, serie, nummer eller år. Nye i dag viser dagens ting, og Vis de interessante viser guld, sølv, bronze og måske. Flere valg har kasse, kategori, sprog og pris.",
+        "Kasser: hver dag fra Vareinfo er én kasse. Skriv kassens navn (fx 15. november) i søgefeltet for at se alt fra den.",
         "Mangler en dansk tegneserie sit år, slår Lager serien og nummeret op i Grand Comics Database - året sættes kun på, når det er sikkert.",
         "Ret det, AI'en har læst forkert, på varens side. Står der ⚠ Tjek navn ved en vare, var AI'en usikker – se efter på billedet, ret navnet og tryk Gem. Først da kommer den på bogshoppen.dk.",
         "Priserne findes på DBA, GulogGratis, Accord (brugte cd'er og plader), Nemos Bibliotek, Faraos, Tradera og AbeBooks (antikvariater – kun de 2 mest realistiske vises). Nypriser: Bog & idé (bøger) og Fantask (tegneserier) - en brugt bliver aldrig dyrere. Discogs viser hvilken plade det er, og hvor mange samlere der ønsker den, men tæller ikke med i prisen.",
         "Prislinks viser kun annoncer for netop den ting alene: ikke plakater, kasketter, samlekort, puslespil, flere stk. i én annonce, tingen sammen med noget andet (+, inkl., og ...), en liste af titler (\"Rød hals, Politi, Genfærd ...\") eller tv-serien af samme navn. En dvd-boks (Matador Kollektionen) sammenlignes med andre bokse. Anders And-blade søges som serie, nummer og år – ikke overskriften på forsiden. Tryk på en pris, så åbner selve annoncen – ikke bare butikkens forside.",
         "Er netop dette nummer ikke til salg nogen steder, viser Lager hvad andre numre af samme serie koster (fx andre Basserne på Nemos) – som pejlemærke, ikke som pris, med en linje om hvad de koster på hver side (danske først). Var AI'en usikker på en vare, men en annonce har samme serie og nummer, får den alligevel sin pris.",
-        "Ny i kiosken (under Mere): skriv hvad det nyeste nummer af et blad koster nyt i dag (fx Anders And & Co. 40 kr). Prisen står på varens side ved alle blade fra serien.",
-        "Testkasser: alle (også Martin) har deres egen testkasse i Vareinfo (nr. 9000-9999). Den hedder Test og navnet her, og tingene i den bliver kun vist – aldrig solgt.",
-        "Kasser fra en session i Vareinfo får det navn, Martin gav dem dér (fx Anders And 1970'erne). Labels til en session printes fra Vareinfo – 🖨️ Print labels åbner arket her.",
-        "Find alt igen under Søg – med kassenummer.",
         "Kategorier på Søg: Bøger, Tegneserier (album som Lucky Luke), Serieblade (Anders And, Basserne, Jonah Hex, Kong Kylie), Gamle blade (alle blade fra før 1990), Jumbobøger, Superhelte (Project X, Edderkoppen), Film, Musik, Computerspil, Brætspil og kortspil, Magic og Andet. Vælg også Dansk eller Engelsk. Kategori og sprog sættes af sig selv ud fra varens slags, serie og år – sproget læses med billedet, ældre varer får et gæt ud fra titlen.",
         "Ansvarlig: Rico har Tegneserier, Superhelte og Film; Martin resten.",
         "Genrer: musik, film og bøger får af sig selv en genre (fx Dansktop, Punk, Krimi, Børnefilm) fra gratis kilder – MusicBrainz, TMDb og Open Library. Tegneserier, blade og spil får genren ud fra serien og titlen (fx Jonah Hex = Western, Basserne = Humor, Anders And = Disney). Hver ting slås op én gang, uden AI. Kunderne vælger genren i butikken på bogshoppen.dk.",
-        "Fund: ting fra en fund-session i Vareinfo (fx genbrugspladsen) er ikke vores endnu. De læses med det samme, får pris og står under Fund – de interessante og dyreste øverst. Tryk Tog den ved det, du tager med (så er det på lager), og Færdig, når du går (resten gemmes som Ikke købt). Fund og Ikke købt kommer aldrig på bogshoppen.dk.",
-        "Kun de nye: øverst på Søg vælger du Hele lageret, Nye i dag, Sidste 7 dage eller én kasse med nye ting. Tryk så ⭐ Alle interessante – så ser du kun de værdifulde blandt de nye, med kassen ved siden af, så du kan tage dem fra. Skriv et kassenummer (K5002) eller et ord fra kassens navn (lystrup) i søgefeltet for at se én kasse.",
-        "Hjælpere logger ind med deres kundenummer (Martin sætter dem som hjælper i Kunder). De ser kun Søg og Kasser: de kan trykke Læs og rette varer, men ser ingen priser og kan ikke slette eller ændre en kasses placering.",
-        "Bøger: tryk 📚 Bøger og tag et billede af en bunke – så ser du pris, efterspørgsel og om bogen er værd at sælge.",
-        "Under hver bog er der også knapper til at søge selv: Gucca (brugte bøger – Bogreolen.dk er lukket og henviser dertil) og Plusbog (nye bøger, så en brugt bliver aldrig dyrere). De to sider tillader ikke automatisk søgning, så deres priser tæller ikke med – du ser selv efter.",
+        "Prisværktøjerne (Guld, Bøger, Ny i kiosken), Dagens tilbud, Strik, Ting og Magic står under Mere, indtil de flytter til Vurdering, Salg og deres egne apps.",
     ];
-    k.Version = "2026.11.12";
+    k.Version = "2026.11.15";
     k.ThemeColor = "#f4f6f5";
 });
 

@@ -9,31 +9,6 @@ public sealed class BoxUseCases(IBoxRepository boxes, IItemRepository items, IIn
     public Task<List<Box>> RecentAsync(int count, CancellationToken ct = default) => boxes.RecentAsync(count, ct);
     public Task<Box?> ByCodeAsync(string code, CancellationToken ct = default) => boxes.ByCodeAsync(code, ct);
 
-    /// <summary>A label sheet for boxes from..to (at most BoxCodes.MaxSheet): the boxes are made when missing, so every QR opens a box.</summary>
-    public async Task<List<Box>> LabelSheetAsync(int from, int to, CancellationToken ct = default)
-    {
-        var list = new List<Box>();
-        foreach (var code in BoxCodes.Range(from, to)) list.Add(await boxes.GetOrAddAsync(code, ct));
-        return list;
-    }
-    /// <summary>A label sheet for the boxes of a Vareinfo session (2026-10-26: "after a session with 20 boxes ... an easy
-    /// way to make qr labels on each"): "K0021~Anders And,K0022~Bøger" - made when missing, the name kept as the box's note
-    /// while it has none.</summary>
-    public async Task<List<Box>> LabelSheetAsync(string? sheet, CancellationToken ct = default)
-    {
-        var list = new List<Box>();
-        foreach (var part in (sheet ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(BoxCodes.MaxSheet))
-        {
-            var (code, name) = part.IndexOf('~') is var i and > 0 ? (part[..i], part[(i + 1)..].Trim()) : (part, "");
-            var n = BoxCodes.Number(code);
-            if (n is < 1 or >= BoxCodes.FirstTest) continue;
-            var box = await boxes.GetOrAddAsync(BoxCodes.For(n), ct);
-            if (name != "" && box.Note == "") { await boxes.SetNoteAsync(box.Id, name, ct); box.Note = name; }
-            list.Add(box);
-        }
-        return list;
-    }
-
     public Task<List<BoxSummary>> AllAsync(CancellationToken ct = default) => boxes.SummariesAsync(ct);
 
     /// <summary>Admin (user 2026-10-26: "as admin user i should be able to delete kasser etc"): the box, the things in it

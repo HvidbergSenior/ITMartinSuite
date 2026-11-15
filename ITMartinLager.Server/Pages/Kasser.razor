@@ -71,13 +71,12 @@
 
 <section class="k-card" data-fold-closed>
     <h2 class="k-card-title">Værktøjer</h2>
-    <p>Lav en kasse uden Vareinfo, print labels, eller hent lageret som regneark og fotos.</p>
+    <p>Lav en kasse uden Vareinfo, eller hent lageret som regneark og fotos.</p>
     <div class="lg-row">
         <input class="k-input" @bind="_place" placeholder="Hvor står den? (fx Garagen, reol 2)" aria-label="Placering af den nye kasse" />
         <button class="k-btn k-btn-secondary" @onclick="New">➕ Ny kasse</button>
     </div>
     <div class="lg-row">
-        <a class="k-btn k-btn-secondary" href="/kasser/labels" target="_blank">🏷️ Print labels til mange kasser</a>
         <a class="k-btn k-btn-secondary" href="/api/eksport.csv">⬇️ Hele lageret som regneark</a>
         <a class="k-btn k-btn-secondary" href="/api/varefotos.zip" download>⬇️ Alle varefotos (zip)</a>
     </div>

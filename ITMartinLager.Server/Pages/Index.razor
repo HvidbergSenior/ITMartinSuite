@@ -1,7 +1,6 @@
 @page "/"
 @inject BoxUseCases Boxes
 @inject ItemUseCases Items
-@inject VareinfoLinks Vareinfo
 @inject GoldUseCases Gold
 
 <PageTitle>Søg – Bogshoppen Lager</PageTitle>
@@ -60,7 +59,10 @@
         }
     </div>
     </details>
-    <button class="k-btn k-btn-secondary k-mt" @onclick="ShowInteresting">Vis de interessante – guld, sølv, bronze og måske</button>
+    <div class="lg-row k-mt">
+        <button class="k-btn @(_scopeKey == "idag" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => SetScope("idag")'>Nye i dag (@_today)</button>
+        <button class="k-btn k-btn-secondary" @onclick="ShowInteresting">Vis de interessante – guld, sølv, bronze og måske</button>
+    </div>
 </section>
 
 @if (_interesting is not null)
@@ -101,7 +103,7 @@
         <h2 class="k-card-title">@(_total > _hits.Count ? $"{_total} fund – de første {_hits.Count} vises" : $"{_total} fund")</h2>
         @if (_hits.Count == 0)
         {
-            <p>Intet fundet. Prøv færre ord – eller registrér det i <a href="@Vareinfo.Base">📷 Vareinfo</a>.</p>
+            <p>Intet fundet. Prøv færre ord.</p>
         }
         <ul class="lg-list">
             @foreach (var i in _hits)
