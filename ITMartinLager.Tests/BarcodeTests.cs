@@ -75,9 +75,9 @@ public class DiscogsFormatTests
         }
     }
 
-    // 2026-10-25 (user): "Danish, Tradera and One from ebay"; eBay out 2026-11-07 - nothing else is searched.
+    // 2026-10-25 (user): "Danish, Tradera and One from ebay"; eBay out 2026-11-07, Tradera out 2026-11-15 ("not realistic").
     [Test]
-    public void The_Danish_sites_Tradera_and_AbeBooks_are_searched_not_eBay() =>
+    public void The_Danish_sites_and_AbeBooks_are_searched_not_eBay_or_Tradera() =>
         Sources().Select(s => s.Name).Distinct().Should().BeEquivalentTo(
-            ["DBA", "GulogGratis", "Discogs", "Accord", "Tradera", "Nemos Bibliotek", "Faraos", "AbeBooks", "Fantask", "Bog & idé"]);
+            ["DBA", "GulogGratis", "Discogs", "Accord", "Nemos Bibliotek", "Faraos", "AbeBooks", "Fantask", "Bog & idé"]);
 }

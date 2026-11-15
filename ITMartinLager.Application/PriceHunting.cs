@@ -11,7 +11,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
 
     public int SourceCount => _sources.Select(s => s.Name).Distinct().Count();   // Discogs is one site with a source per format
 
-    /// <summary>"Brugt: DBA, eBay, Tradera (Sverige) ... Ny: Bog &amp; idé."</summary>
+    /// <summary>"Brugt: DBA, GulogGratis ... Ny: Bog &amp; idé."</summary>
     public string SourceList
     {
         get

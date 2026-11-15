@@ -55,8 +55,8 @@ internal static class PriceSourceRegistration
         foreach (var (kind, format) in new[] { (Kinds.Cd, AccordListings.Cd), (Kinds.Vinyl, AccordListings.Vinyl), (Kinds.Kassette, AccordListings.Cassette) })
             Add(sp => new PriceSource("Accord", false, "", (t, a, i, ct) => sp.GetRequiredService<AccordListings>().LookupAsync(t, a, format, ct),
                 (t, a, i) => AccordListings.SearchUrl($"{a} {t}".Trim()), [kind]));
-        Add(sp => new PriceSource("Tradera", false, "Sverige", (t, a, i, ct) => sp.GetRequiredService<TraderaListings>().LookupAsync(t, a, i, ct),
-            (t, a, i) => TraderaListings.SearchUrl(QOrIsbn(t, a, i))));
+        // Tradera is out (2026-11-15, user: "remove tradera... The prices are not realistic"): Swedish prices did not fit
+        // the Danish market. The class stays, so it can come back with one line here.
         Add(sp => new PriceSource("Nemos Bibliotek", false, "", (t, a, i, ct) => sp.GetRequiredService<NemosListings>().LookupAsync(t, a, ct),
             (t, a, i) => NemosListings.SearchUrl(t), paper));
         Add(sp => new PriceSource("Faraos", false, "", (t, a, i, ct) => sp.GetRequiredService<FaraosListings>().LookupAsync(t, a, ct),
