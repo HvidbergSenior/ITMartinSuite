@@ -143,12 +143,23 @@
         <ul class="lg-list">
             @foreach (var i in _hits)
             {
-                <li>
+                <li class="@(_removed.ContainsKey(i.Id) ? "lg-removed" : "")">
                     <a href="/vare/@i.Id">
                         <span class="lg-icon">@Kinds.Icon(i.Kind)</span>
                         <span class="lg-main"><b>@i.Line()</b>@if (NoteOf(i) is { } note) { <span class="k-small"><b>@note</b></span> }@if (i.Interest != "") { <span class="lg-int">✨ @i.Interest</span> }<span class="k-small k-muted">@i.Kind · @i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")</span>@if (Admin) { <span class="k-small"><b>@ValIcon(i.Valuation) @(i.Deal != "" ? $"{Valuations.InDeal}: {i.Deal}" : i.Price is { } p ? $"{p:0} kr (sat af dig)" : i.PriceHint is { } h ? $"Vores pris {h:0} kr" : i.SimilarHint is { } s ? $"{i.Valuation} – magen til ca. {s:0} kr" : i.Valuation)</b></span>@if (_high.TryGetValue(i.Id, out var top)) { <span class="k-small"><b>⚠ @top.Source: @top.Kr kr</b> – @Pricing.Flag(top.Kr, (int?)i.PriceHint)</span> } }</span>
                         <span class="lg-box">@(i.Box?.Label ?? "–")</span>
                     </a>
+                    @if (Admin)
+                    {
+                        @if (_removed.ContainsKey(i.Id))
+                        {
+                            <button class="k-btn k-btn-sm k-btn-primary lg-fjern" @onclick="() => UndoRemove(i)">Fortryd</button>
+                        }
+                        else
+                        {
+                            <button class="k-btn k-btn-sm k-btn-secondary lg-fjern" title="Fjern fra lageret – den gemmes som Ikke købt" @onclick="() => Remove(i)">Fjern</button>
+                        }
+                    }
                 </li>
             }
         </ul>
@@ -174,6 +185,15 @@
     private int _total;
     private int _units, _boxes;
     private Dictionary<int, PriceFind> _high = [];
+    private readonly Dictionary<int, string> _removed = [];   // Fjern pressed: id -> the status it had (for Fortryd)
+
+    private async Task Remove(Item i) => _removed[i.Id] = await Items.RemoveAsync(i.Id);
+
+    private async Task UndoRemove(Item i)
+    {
+        if (!_removed.Remove(i.Id, out var status)) return;
+        await Items.UndoRemoveAsync(i.Id, status);
+    }
     private List<int> _unsure = [];
     private (int NotSent, int Sent) _waiting;
     private List<ITMartinLager.Domain.BoxShot> _unreadable = [];

@@ -197,6 +197,20 @@ public class StockForSaleTests
     }
 
     [Test]
+    public async Task Fjern_hides_an_item_from_the_stock_without_deleting_it_and_Fortryd_brings_it_back()
+    {
+        var junk = await Add("..es", 0);
+        var items = new ItemUseCases(Items, new PriceRepository(Factory), Mock.Of<IPhotoStore>());
+
+        var before = await items.RemoveAsync(junk.Id);
+        (await Items.GetAsync(junk.Id, default))!.Status.Should().Be(Statuses.IkkeKoebt);
+        (await items.SearchAsync("es", null))!.Value.Hits.Should().NotContain(i => i.Id == junk.Id);
+
+        await items.UndoRemoveAsync(junk.Id, before);
+        (await Items.GetAsync(junk.Id, default))!.Status.Should().Be(before);
+    }
+
+    [Test]
     public async Task A_paid_sale_takes_one_copy_per_line_and_the_same_sale_twice_changes_nothing()
     {
         var mort = await Add("Mort", 80, qty: 2);

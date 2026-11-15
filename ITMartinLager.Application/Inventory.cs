@@ -123,6 +123,28 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         await items.UpdateAsync([item], ct);
     }
 
+    /// <summary>"Fjern" in the list (user 2026-11-15, misreadings like "..es"): the item leaves the stock but is kept as
+    /// Ikke købt - never deleted - so Fortryd brings it back. Returns the status it had.</summary>
+    public async Task<string> RemoveAsync(int id, CancellationToken ct = default)
+    {
+        var item = await items.GetAsync(id, ct) ?? throw new LagerException("Varen findes ikke længere.");
+        var before = item.Status;
+        item.Status = Statuses.IkkeKoebt;
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        return before;
+    }
+
+    /// <summary>Fortryd after Fjern: the item gets the status it had back.</summary>
+    public async Task UndoRemoveAsync(int id, string status, CancellationToken ct = default)
+    {
+        var item = await items.GetAsync(id, ct) ?? throw new LagerException("Varen findes ikke længere.");
+        if (item.Status != Statuses.IkkeKoebt || !Statuses.All.Contains(status)) return;
+        item.Status = status;
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+    }
+
     /// <summary>"Vis på forsiden" on or off.</summary>
     public async Task<Item> FeatureAsync(int id, bool on, CancellationToken ct = default)
     {

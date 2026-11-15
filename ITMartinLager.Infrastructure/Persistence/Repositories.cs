@@ -148,7 +148,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
 
     private static IQueryable<Item> Matching(LagerDb db, string text, string? kind, string? valuation, ItemScope? scope = null)
     {
-        var q = db.Items.Include(i => i.Box).AsQueryable();
+        // Ikke købt is out of the list (2026-11-15, the new Fjern button): kept in the register, never shown as stock.
+        var q = db.Items.Include(i => i.Box).Where(i => i.Status != Statuses.IkkeKoebt);
         if (scope?.SinceUtc is { } since) q = q.Where(i => i.CreatedAt >= since);
         if (scope?.BoxId is { } box) q = q.Where(i => i.BoxId == box);
         if (scope?.Category is { } cat) q = q.Where(i => i.Category == cat);
