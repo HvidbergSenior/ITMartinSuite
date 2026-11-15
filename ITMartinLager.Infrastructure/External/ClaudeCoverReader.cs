@@ -142,6 +142,12 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         return (await db.AiDays.FindAsync(today))?.Calls ?? 0;
     }
 
+    // Prompt caching (user 2026-11-15: "add caching"): the tools and the instructions are the same on every call, so they are
+    // marked for the cache - after the first photo they cost about a tenth (Sonnet 5.5 reads $0.10/MTok). Photos come in bursts
+    // (a Shortcut session, a restart), so the 5-minute cache is the right one. Below the model's minimum it simply does not cache.
+    private static MessageCreateParamsSystem Cached(string system) =>
+        new List<TextBlockParam> { new() { Text = system, CacheControl = new CacheControlEphemeral() } };
+
     // One call per photo: the whole pile plus up to four close-ups of it in the same message (never a call per close-up).
     public async Task<List<Found>> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct)
     {
@@ -170,7 +176,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
             {
                 Model = Model,
                 MaxTokens = 12000,
-                System = System,
+                System = Cached(System),
                 Tools = [ReportTool],
                 ToolChoice = new ToolChoiceTool { Name = "report_items" },
                 Messages = [new() { Role = Role.User, Content = content }],
@@ -186,7 +192,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         }
         if (tool is null) throw new InvalidOperationException("AI'en svarede ikke med en liste. Prøv et nyt billede.");
         var parsed = JsonSerializer.Deserialize<Report>(JsonSerializer.Serialize(tool.Input), Json) ?? new Report();
-        log.LogInformation("Pile read by {Model}: {Count} items, {In}/{Out} tokens", response.Model, parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens);
+        log.LogInformation("Pile read by {Model}: {Count} items, {In}/{Out} tokens, cache read {CacheRead} / written {CacheWrite}", response.Model, parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens, response.Usage.CacheReadInputTokens, response.Usage.CacheCreationInputTokens);
         return parsed.Items.Select(Clean).Where(f => f.Title.Length > 0 || (f.Kolofon && (f.Artist.Length > 0 || f.Barcode.Length > 0))).ToList();
     }
 
@@ -252,7 +258,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
             {
                 Model = accurateModel,
                 MaxTokens = 16000,
-                System = system,
+                System = Cached(system),
                 Tools = [tool],
                 ToolChoice = new ToolChoiceAuto(),
                 OutputConfig = new OutputConfig { Effort = Effort.Low },
@@ -272,7 +278,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         {
             Model = Model,
             MaxTokens = 8000,
-            System = system,
+            System = Cached(system),
             Tools = [tool],
             ToolChoice = new ToolChoiceTool { Name = tool.Name },
             Messages = [new() { Role = Role.User, Content = ask }],
@@ -340,7 +346,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         {
             Model = Model,
             MaxTokens = 4000,
-            System = KolofonSystem,
+            System = Cached(KolofonSystem),
             Tools = [KolofonTool],
             ToolChoice = new ToolChoiceTool { Name = "report_kolofon" },
             Messages = [new() { Role = Role.User, Content = content }],
