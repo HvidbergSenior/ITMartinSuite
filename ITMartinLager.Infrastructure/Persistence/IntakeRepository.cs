@@ -60,7 +60,32 @@ public sealed class IntakeRepository(IDbContextFactory<LagerDb> dbf) : IIntakeRe
     public async Task<List<BoxShot>> WantedShotsAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.BoxShots.Where(s => s.ReadAt == null && s.Wanted).OrderBy(s => s.Id).Take(max).ToListAsync(ct);
+        return await db.BoxShots.Where(s => s.ReadAt == null && s.Wanted && s.BatchId == "").OrderBy(s => s.Id).Take(max).ToListAsync(ct);
+    }
+
+    public async Task<List<string>> OpenBatchIdsAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.BoxShots.Where(s => s.ReadAt == null && s.BatchId != "").Select(s => s.BatchId).Distinct().ToListAsync(ct);
+    }
+
+    public async Task<List<BoxShot>> ShotsInBatchAsync(string batchId, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.BoxShots.Where(s => s.ReadAt == null && s.BatchId == batchId).OrderBy(s => s.Id).ToListAsync(ct);
+    }
+
+    public async Task<DateTime?> LastBatchedAtAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.BoxShots.Where(s => s.BatchedAt != null).MaxAsync(s => s.BatchedAt, ct);
+    }
+
+    public async Task<(int NotSent, int Sent)> WaitingAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var open = db.BoxShots.Where(s => s.ReadAt == null && s.Wanted);
+        return (await open.CountAsync(s => s.BatchId == "", ct), await open.CountAsync(s => s.BatchId != "", ct));
     }
 
     public async Task<List<BoxShot>> UnreadableShotsAsync(DateTime since, int max, CancellationToken ct)

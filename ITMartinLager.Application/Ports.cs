@@ -36,12 +36,21 @@ public interface ICoverPrinter
     Task<CoverPrint?> OfUrlAsync(string url, CancellationToken ct);
 }
 
+/// <summary>One pile photo in a batch: Id comes back with its answer.</summary>
+public sealed record PileRequest(string Id, byte[] Jpeg, IReadOnlyList<byte[]> CloseUps, string Hint);
+
 public interface ICoverReader
 {
     bool Enabled { get; }
     int MaxCallsPerDay { get; }
     Task<int> CallsTodayAsync(CancellationToken ct);
     Task<PileReading> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct);
+    /// <summary>Lager__AiBatch (default on, 2026-11-15): pile photos go through the Batch API at half price instead of one call each at once.</summary>
+    bool Batch { get; }
+    /// <summary>Sends the piles as one batch (each counts against the daily cap). Returns the batch id.</summary>
+    Task<string> SubmitPileBatchAsync(IReadOnlyList<PileRequest> piles, CancellationToken ct);
+    /// <summary>Null = the batch is not done yet. Else the reading per PileRequest.Id; an id that is missing failed and is sent again.</summary>
+    Task<Dictionary<string, PileReading>?> PileBatchResultsAsync(string batchId, CancellationToken ct);
     Task<Dictionary<int, string>> WriteInterestAsync(IReadOnlyList<string> lines, CancellationToken ct);
     Task<Dictionary<int, KolofonReading>> ReadKolofonsAsync(IReadOnlyList<byte[]> jpegs, CancellationToken ct);
 }
@@ -97,6 +106,12 @@ public interface IIntakeRepository
     /// <summary>Marks the unread photos and scans of one box (null = every box) to be read. Returns how many.</summary>
     Task<int> WantReadAsync(string? boxCode, CancellationToken ct);
     Task<List<BoxShot>> WantedShotsAsync(int max, CancellationToken ct);
+    /// <summary>Batch ids with photos still waiting for their answer.</summary>
+    Task<List<string>> OpenBatchIdsAsync(CancellationToken ct);
+    Task<List<BoxShot>> ShotsInBatchAsync(string batchId, CancellationToken ct);
+    Task<DateTime?> LastBatchedAtAsync(CancellationToken ct);
+    /// <summary>Photos waiting to be read: not sent yet, and sent but not answered yet.</summary>
+    Task<(int NotSent, int Sent)> WaitingAsync(CancellationToken ct);
     /// <summary>Photos read since this time that gave nothing (Readings.CannotRead), newest first.</summary>
     Task<List<BoxShot>> UnreadableShotsAsync(DateTime since, int max, CancellationToken ct);
     Task<List<BoxScan>> WantedScansAsync(int max, CancellationToken ct);

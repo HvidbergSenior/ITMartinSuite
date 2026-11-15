@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Models.Messages;
+using Anthropic.Models.Messages.Batches;
 using ITMartinLager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -160,19 +161,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
 
         await ReserveCallAsync(ct);
         var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
-        var text = "Registrér alle varer på billedet." + (string.IsNullOrWhiteSpace(hint) ? "" : $" Det er mest: {hint}.")
-            + (closeUps.Count == 0 ? "" :
-                $" Billede 1 er hele bunken. Billede 2-{closeUps.Count + 1} er nærbilleder af SAMME bunke i høj opløsning"
-                + " (øverst til venstre, øverst til højre, nederst til venstre, nederst til højre - de overlapper lidt)."
-                + " Brug hele billedet til at tælle varerne og nærbillederne til at læse titel, forfatter og nummer bogstav for bogstav."
-                + " En vare, der ses på flere billeder, er stadig ÉN vare.");
-        var content = new List<ContentBlockParam>
-        {
-            new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(jpeg), MediaType = "image/jpeg" } },
-        };
-        foreach (var c in closeUps)
-            content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(c), MediaType = "image/jpeg" } });
-        content.Add(new TextBlockParam { Text = text });
+        var content = PileContent(jpeg, closeUps, hint);
         ToolUseBlock? tool;
         Message response;
         if (PileModel == Model)
@@ -196,10 +185,98 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
             response = r!;
         }
         if (tool is null) throw new InvalidOperationException("AI'en svarede ikke med en liste. Prøv et nyt billede.");
+        var reading = ParsePile(tool);
+        log.LogInformation("Pile read by {Model}: {Count} items, {In}/{Out} tokens, cache read {CacheRead} / written {CacheWrite}", response.Model, reading.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens, response.Usage.CacheReadInputTokens, response.Usage.CacheCreationInputTokens);
+        return reading;
+    }
+
+    // The photo, its close-ups and the ask - the same for a read at once and for a batch.
+    private static List<ContentBlockParam> PileContent(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint)
+    {
+        var text = "Registrér alle varer på billedet." + (string.IsNullOrWhiteSpace(hint) ? "" : $" Det er mest: {hint}.")
+            + (closeUps.Count == 0 ? "" :
+                $" Billede 1 er hele bunken. Billede 2-{closeUps.Count + 1} er nærbilleder af SAMME bunke i høj opløsning"
+                + " (øverst til venstre, øverst til højre, nederst til venstre, nederst til højre - de overlapper lidt)."
+                + " Brug hele billedet til at tælle varerne og nærbillederne til at læse titel, forfatter og nummer bogstav for bogstav."
+                + " En vare, der ses på flere billeder, er stadig ÉN vare.");
+        var content = new List<ContentBlockParam>
+        {
+            new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(jpeg), MediaType = "image/jpeg" } },
+        };
+        foreach (var c in closeUps)
+            content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(c), MediaType = "image/jpeg" } });
+        content.Add(new TextBlockParam { Text = text });
+        return content;
+    }
+
+    private static PileReading ParsePile(ToolUseBlock tool)
+    {
         var parsed = JsonSerializer.Deserialize<Report>(JsonSerializer.Serialize(tool.Input), Json) ?? new Report();
-        log.LogInformation("Pile read by {Model}: {Count} items, {In}/{Out} tokens, cache read {CacheRead} / written {CacheWrite}", response.Model, parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens, response.Usage.CacheReadInputTokens, response.Usage.CacheCreationInputTokens);
         return new PileReading(parsed.Items.Select(Clean).Where(f => f.Title.Length > 0 || (f.Kolofon && (f.Artist.Length > 0 || f.Barcode.Length > 0))).ToList(),
             (parsed.Retake ?? "").Trim());
+    }
+
+    // ---- The Batch API (user 2026-11-15: "take a lot of pictures. And then api on as many as possible fewer calls") ----
+    // Half price; the answers come within the hour as a rule. Each photo still counts against the daily cap when it is sent.
+    public bool Batch => cfg.GetValue("Lager:AiBatch", true);
+
+    public async Task<string> SubmitPileBatchAsync(IReadOnlyList<PileRequest> piles, CancellationToken ct)
+    {
+        foreach (var _ in piles) await ReserveCallAsync(ct);
+        var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
+        var forced = PileModel == Model;   // the cheap model takes a forced call; Sonnet/Opus 5.5 do not, so the ask says it
+        var requests = piles.Select(p =>
+        {
+            var content = PileContent(p.Jpeg, p.CloseUps, p.Hint);
+            if (!forced) content.Add(new TextBlockParam { Text = "Svar ved at kalde report_items." });
+            return new Request
+            {
+                CustomID = p.Id,
+                Params = new()
+                {
+                    Model = PileModel,
+                    MaxTokens = 12000,
+                    System = new List<TextBlockParam> { new() { Text = System, CacheControl = new CacheControlEphemeral() } },
+                    Tools = [ReportTool],
+                    ToolChoice = forced ? new ToolChoiceTool { Name = "report_items" } : new ToolChoiceAuto(),
+                    OutputConfig = forced ? null : new OutputConfig { Effort = Effort.Low },
+                    Messages = [new() { Role = Role.User, Content = content }],
+                },
+            };
+        }).ToList();
+        var batch = await client.Messages.Batches.Create(new BatchCreateParams { Requests = requests }, ct);
+        log.LogInformation("Pile batch {Id} sent: {Count} photos", batch.ID, piles.Count);
+        return batch.ID;
+    }
+
+    public async Task<Dictionary<string, PileReading>?> PileBatchResultsAsync(string batchId, CancellationToken ct)
+    {
+        var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
+        var batch = await client.Messages.Batches.Retrieve(batchId, cancellationToken: ct);
+        if (batch.ProcessingStatus != "ended") return null;
+        var answers = new Dictionary<string, PileReading>();
+        long tokensIn = 0, tokensOut = 0;
+        await foreach (var r in client.Messages.Batches.ResultsStreaming(batchId, cancellationToken: ct))
+        {
+            if (!r.Result.TryPickSucceeded(out var ok)) continue;   // errored/canceled/expired - sent again with the next batch
+            tokensIn += ok.Message.Usage.InputTokens; tokensOut += ok.Message.Usage.OutputTokens;
+            if (ok.Message.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault() is { } tool)
+                answers[r.CustomID] = ParsePile(tool);
+        }
+        await CountBatchTokensAsync(tokensIn, tokensOut, ct);
+        log.LogInformation("Pile batch {Id} answered: {Count} photos, {In}/{Out} tokens (half price)", batchId, answers.Count, tokensIn, tokensOut);
+        return answers;
+    }
+
+    private async Task CountBatchTokensAsync(long tokensIn, long tokensOut, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var day = await db.AiDays.FindAsync([today], ct);
+        if (day is null) db.AiDays.Add(day = new AiDay { Day = today });
+        day.InputTokens += tokensIn;
+        day.OutputTokens += tokensOut;
+        await db.SaveChangesAsync(ct);
     }
 
     private const string InterestSystem = """

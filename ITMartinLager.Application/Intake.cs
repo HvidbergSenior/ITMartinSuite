@@ -68,7 +68,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
     public async Task<int> ReadWantedAsync(CancellationToken ct = default)
     {
         var done = await LookUpScansAsync(ct);
-        if (!reader.Enabled) return done;
+        if (!reader.Enabled || reader.Batch) return done;   // with the Batch API the piles go in the evening batch (SendBatchAsync)
         var hints = new Dictionary<string, string>();
         foreach (var shot in await intake.WantedShotsAsync(ReadPerRound, ct))
         {
@@ -94,6 +94,72 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         }
         return done;
     }
+
+    /// <summary>Sends the waiting pile photos as one Batch API batch when it is time (AiBatching.Due). Returns how many were sent.</summary>
+    public async Task<int> SendBatchAsync(CancellationToken ct = default)
+    {
+        if (!reader.Enabled || !reader.Batch) return 0;
+        var now = clock.GetUtcNow().UtcDateTime;
+        var waiting = await intake.WantedShotsAsync(AiBatching.Max, ct);
+        if (!AiBatching.Due(now, await intake.LastBatchedAtAsync(ct), waiting.Count)) return 0;
+        var piles = new List<PileRequest>();
+        var hints = new Dictionary<string, string>();
+        var sent = new List<BoxShot>();
+        foreach (var shot in waiting)
+        {
+            if (await vareinfo.PhotoAsync(shot.VareinfoId, null, ct) is not { } jpeg)
+            {
+                shot.Read(0, now);   // the photo is gone in Vareinfo
+                await intake.UpdateAsync([shot], ct);
+                continue;
+            }
+            var closeUps = new List<byte[]>();
+            for (var n = 0; n < shot.Tiles; n++)
+                if (await vareinfo.PhotoAsync(shot.VareinfoId, n, ct) is { } t) closeUps.Add(t);
+            if (!hints.TryGetValue(shot.BoxCode, out var hint))
+                hints[shot.BoxCode] = hint = CaptureKinds.HintFor((await boxes.GetOrAddAsync(shot.BoxCode, ct))?.Kind);
+            piles.Add(new PileRequest(shot.Id.ToString(), jpeg, closeUps, hint));
+            sent.Add(shot);
+        }
+        if (piles.Count == 0) return 0;
+        var batchId = await reader.SubmitPileBatchAsync(piles, ct);
+        foreach (var shot in sent) { shot.BatchId = batchId; shot.BatchedAt = now; }
+        await intake.UpdateAsync(sent, ct);
+        return sent.Count;
+    }
+
+    /// <summary>Takes in the answers of finished batches - the same as a photo read at once. A photo whose answer failed is
+    /// sent again with the next batch. Returns how many photos were read.</summary>
+    public async Task<int> CollectBatchesAsync(CancellationToken ct = default)
+    {
+        if (!reader.Enabled) return 0;
+        var done = 0;
+        foreach (var batchId in await intake.OpenBatchIdsAsync(ct))
+        {
+            if (await reader.PileBatchResultsAsync(batchId, ct) is not { } answers) continue;   // not done yet
+            var now = clock.GetUtcNow().UtcDateTime;
+            foreach (var shot in await intake.ShotsInBatchAsync(batchId, ct))
+            {
+                if (!answers.TryGetValue(shot.Id.ToString(), out var reading))
+                {
+                    (shot.BatchId, shot.BatchedAt) = ("", null);   // failed - the next batch takes it
+                    await intake.UpdateAsync([shot], ct);
+                    continue;
+                }
+                var found = reading.Usable;
+                if (found.Count > 0)
+                    await SaveInBoxAsync(shot.BoxCode, shot.VareinfoId, found, ct, await vareinfo.PhotoAsync(shot.VareinfoId, null, ct));
+                shot.Read(found.Count, now, reading.Retake);
+                await intake.UpdateAsync([shot], ct);
+                done++;
+            }
+        }
+        return done;
+    }
+
+    /// <summary>For the front page: photos waiting for the evening batch, and photos sent and waiting for the answer.</summary>
+    public Task<(int NotSent, int Sent)> WaitingAsync(CancellationToken ct = default) => intake.WaitingAsync(ct);
+    public bool Batching => reader.Enabled && reader.Batch;
 
     // A code no source knows is NOT saved as an item (user 2026-10-21): it is usually a Danish DVD/CD whose cover photo
     // already found it, so an "Ukendt" item would count it twice. The scan stays (Known = false) and Kasser shows the count.

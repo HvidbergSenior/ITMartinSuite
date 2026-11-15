@@ -26,6 +26,32 @@ public sealed record PileReading(List<Found> Items, string Retake = "")
     public List<Found> Usable => TakeAgain ? [] : Items.Where(Readings.Readable).ToList();
 }
 
+/// <summary>The Batch API (user 2026-11-15: "i would rather take a lot of pictures. And then api on as many as possible fewer
+/// calls" -> "i want batch"): the day's photos are read together at half price. Sent at SendHour (Danish time) or as soon as
+/// Max are waiting; the answers come back within the hour as a rule (at most 24 hours).</summary>
+public static class AiBatching
+{
+    public const int SendHour = 21, Max = 100;
+
+    public static bool Due(DateTime utcNow, DateTime? lastSentUtc, int waiting)
+    {
+        if (waiting == 0) return false;
+        if (waiting >= Max) return true;
+        var now = TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen);
+        if (now.Hour < SendHour) return false;
+        if (lastSentUtc is not { } last) return true;
+        var sent = TimeZoneInfo.ConvertTimeFromUtc(last, Copenhagen);
+        return sent < now.Date.AddHours(SendHour);   // nothing sent since this evening's send time
+    }
+
+    private static readonly TimeZoneInfo Copenhagen = Find();
+    private static TimeZoneInfo Find()
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"); }
+        catch (TimeZoneNotFoundException) { return TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time"); }
+    }
+}
+
 public sealed class BoxShot
 {
     public int Id { get; set; }
@@ -39,6 +65,9 @@ public sealed class BoxShot
     public int Found { get; set; }
     /// <summary>"drejet", "uskarpt" ... - the AI's reason to take the photo again; "" = it was fine (2026-11-15).</summary>
     public string Retake { get; set; } = "";
+    /// <summary>The Batch API batch it is in ("" = not sent yet), and when it was sent (2026-11-15).</summary>
+    public string BatchId { get; set; } = "";
+    public DateTime? BatchedAt { get; set; }
 
     public void Read(int found, DateTime now, string retake = "")
     {

@@ -168,6 +168,50 @@ public class IntakeTests
         (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
     }
 
+    // The Batch API (2026-11-15: "i want batch"): nothing is read at once; the evening batch sends the photos, the answers come in
+    // later - then the things are made just as before. A photo whose answer failed waits for the next batch.
+    [Test]
+    public async Task Photos_wait_for_the_batch_and_its_answers_make_the_things()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(61, "K5040", "Martin", 0, At), new CapturedPhoto(62, "K5040", "Martin", 0, At)], [],
+            [new CapturedBox("K5040", "16. november", Kind: "Blandet", ReadNow: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.SetupGet(r => r.Batch).Returns(true);
+        reader.Setup(r => r.SubmitPileBatchAsync(It.IsAny<IReadOnlyList<PileRequest>>(), It.IsAny<CancellationToken>())).ReturnsAsync("b1");
+        reader.SetupSequence(r => r.PileBatchResultsAsync("b1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Dictionary<string, PileReading>?)null)                         // not done yet
+            .ReturnsAsync(new Dictionary<string, PileReading>());                          // placeholder, replaced below
+        var intake = new IntakeUseCases(Vareinfo(batch).Object, new IntakeRepository(Factory), Boxes, new RegistrationUseCases(Items), reader.Object,
+            Mock.Of<IBarcodeLookup>(), new FixedClock(new DateTime(2026, 11, 16, 20, 30, 0, DateTimeKind.Utc)));   // 21:30 in Copenhagen
+
+        await intake.FetchAsync();
+        (await intake.ReadWantedAsync()).Should().Be(0);                                  // not at once
+        reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        (await intake.SendBatchAsync()).Should().Be(2);
+        (await intake.WaitingAsync()).Should().Be((0, 2));
+        (await intake.CollectBatchesAsync()).Should().Be(0);                               // the batch is still running
+
+        var shots = await new IntakeRepository(Factory).ShotsInBatchAsync("b1", default);
+        reader.Setup(r => r.PileBatchResultsAsync("b1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, PileReading> { [shots[0].Id.ToString()] = Pile(F("Mort"), F("Eric")) });   // the second failed
+        (await intake.CollectBatchesAsync()).Should().Be(1);
+        (await Items.InBoxAsync((await Boxes.GetOrAddAsync("K5040", default)).Id, default)).Select(i => i.Title).Should().BeEquivalentTo("Mort", "Eric");
+        (await intake.WaitingAsync()).Should().Be((1, 0));                                 // the failed one waits for the next batch
+    }
+
+    [Test]
+    public void The_batch_goes_in_the_evening_or_when_100_wait()
+    {
+        DateTime Dk(int h, int day = 16) => new DateTime(2026, 11, day, h, 0, 0, DateTimeKind.Utc).AddHours(-1);   // CET = UTC+1
+        AiBatching.Due(Dk(14), null, 5).Should().BeFalse();
+        AiBatching.Due(Dk(14), null, 100).Should().BeTrue();
+        AiBatching.Due(Dk(21), null, 5).Should().BeTrue();
+        AiBatching.Due(Dk(22), Dk(21), 3).Should().BeFalse();       // already sent this evening
+        AiBatching.Due(Dk(21), Dk(22, 15), 3).Should().BeTrue();    // last one was yesterday
+        AiBatching.Due(Dk(23), null, 0).Should().BeFalse();
+    }
+
     // "Tag igen" (2026-11-15: "if the picture is rotated and so on it should be taken again"): nothing is made, the reason is kept.
     [Test]
     public async Task A_rotated_photo_makes_nothing_and_says_take_it_again()

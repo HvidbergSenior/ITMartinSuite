@@ -10,6 +10,11 @@
 @* Lager's job (2026-11-15): fix the difficult ones - first on the page. *@
 <section class="k-card">
     <h1 class="k-card-title">Ret de svære</h1>
+    @if (_waiting.NotSent + _waiting.Sent > 0)
+    {
+        @* The Batch API (2026-11-15): half price, read in the evening. *@
+        <p class="k-small" role="status">@(_waiting.NotSent > 0 ? $"{_waiting.NotSent} billeder venter på aftenens læsning (kl. {ITMartinLager.Domain.AiBatching.SendHour} – til halv pris). " : "")@(_waiting.Sent > 0 ? $"{_waiting.Sent} er sendt og bliver læst nu – de kommer her af sig selv." : "")</p>
+    }
     @if (_unsure.Count == 0)
     {
         <p class="lg-ok" role="status">Færdig – AI'en var sikker på alt. Der er intet at rette.</p>
@@ -170,12 +175,14 @@
     private int _units, _boxes;
     private Dictionary<int, PriceFind> _high = [];
     private List<int> _unsure = [];
+    private (int NotSent, int Sent) _waiting;
     private List<ITMartinLager.Domain.BoxShot> _unreadable = [];
 
     protected override async Task OnInitializedAsync()
     {
         (_units, _boxes) = await Boxes.StockAsync();
         _unsure = await Items.UnsureAsync();
+        _waiting = await Intake.WaitingAsync();
         _unreadable = await Intake.UnreadableAsync();
         _gold = await Gold.AllAsync();
         var now = DateTime.UtcNow;

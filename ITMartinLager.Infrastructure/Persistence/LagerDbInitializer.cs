@@ -111,6 +111,14 @@ public static class LagerDbInitializer
             if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
                 db.Database.ExecuteSqlRaw($"ALTER TABLE Items ADD COLUMN {col} {type}");
         }
+        foreach (var (col, type) in new[] { ("BatchId", "TEXT NOT NULL DEFAULT ''"), ("BatchedAt", "TEXT NULL") })
+        {
+            // The Batch API (2026-11-15).
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('BoxShots') WHERE name = '{col}'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+                db.Database.ExecuteSqlRaw($"ALTER TABLE BoxShots ADD COLUMN {col} {type}");
+        }
         {
             // Why a photo must be taken again (2026-11-15, "Tag igen").
             using var cmd = conn.CreateCommand();

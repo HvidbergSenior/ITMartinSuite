@@ -27,6 +27,7 @@ builder.Services.AddKolibri(k =>
     k.HowTo =
     [
         "Ret de svære (øverst på forsiden): de ting, hvor AI'en var usikker – én ad gangen. Se på billedet, ret det, der er forkert, og tryk Gem og næste (eller Spring over). Står der Færdig, er der intet at rette. Priserne sættes i Vurdering.",
+        "Billederne læses om aftenen (kl. 21, eller når 100 venter) i én samlet omgang til halv pris – svarene kommer som regel inden for en time. Indtil da står der øverst, hvor mange der venter. Billeder, der skal tages igen (drejet, uskarpt, for langt væk …), står under Tag igen med grunden.",
         "Søg: skriv titel, kunstner, serie, nummer eller år. Nye i dag viser dagens ting, og Vis de interessante viser guld, sølv, bronze og måske. Flere valg har kasse, kategori, sprog og pris.",
         "Kasser: hver dag fra Vareinfo er én kasse. Skriv kassens navn (fx 15. november) i søgefeltet for at se alt fra den.",
         "Mangler en dansk tegneserie sit år, slår Lager serien og nummeret op i Grand Comics Database - året sættes kun på, når det er sikkert.",
