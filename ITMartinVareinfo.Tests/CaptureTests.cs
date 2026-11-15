@@ -152,6 +152,21 @@ public class CaptureTests
         (await capture.CountAsync(_session.Id)).Photos.Should().Be(1);
     }
 
+    // The iPhone Shortcut (2026-11-15): a JPEG lands in today's session by itself; HEIC is refused with words, never kept.
+    [Test]
+    public async Task A_Shortcut_photo_goes_into_todays_session_and_HEIC_is_refused()
+    {
+        var capture = Capture();
+        var title = await capture.StoreTodayAsync([0xFF, 0xD8, 0xFF, 0xE0, 1], _rico);
+        title.Should().Be("20. oktober");
+        var today = await Sessions().TodayAsync(_rico, "Blandet");
+        (await capture.CountAsync(today.Id)).Photos.Should().Be(1);
+
+        var heic = new byte[] { 0, 0, 0, 0x18, (byte)'f', (byte)'t', (byte)'y', (byte)'p', (byte)'h', (byte)'e', (byte)'i', (byte)'c' };
+        await capture.Invoking(c => c.StoreTodayAsync(heic, _rico)).Should().ThrowAsync<VareinfoException>().WithMessage("*JPEG*");
+        (await capture.CountAsync(today.Id)).Photos.Should().Be(1);
+    }
+
     // Only Martin (2026-11-10, "the hjælpere feature should be deleted"): the PIN or an admin kundenummer - nothing else opens it.
     private sealed class OneAdmin : IHelperNumbers
     {

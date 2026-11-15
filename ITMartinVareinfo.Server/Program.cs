@@ -33,6 +33,7 @@ builder.Services.AddKolibri(k =>
         "Tag billederne med telefonens eget kamera: 10-20 ting med forsiden op på hvert, til alt har været på et billede.",
         "Åbn Vareinfo, tryk Upload billeder fra telefonen, og vælg billederne – mange på én gang. Skriv dagens navn på kassen.",
         "Du skal aldrig trykke Færdig eller lukke noget: billederne er gemt, så snart de er sendt, og de bliver læst bagefter.",
+        "iPhone: lav genvejen »Bogshoppen foto« én gang (vejledningen står på siden under Genvej på iPhone). Så åbner ikonet telefonens eget kamera, og hvert billede sendes med det samme – billederne kommer ikke i dine egne fotos.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "Venter der billeder fra en session, der er lukket, så tryk Send dem til denne session.",
     ];
@@ -61,6 +62,7 @@ app.UseStaticFiles();
 // Each helper signs in with their own code (Martin's = Vareinfo__Pin); the cookie holds the code, and who it is goes in
 // HttpContext.Items for the pages and the upload. Lager calls /api/lager/* with its key instead.
 const string Cookie = "vareinfo_auth";
+const string ShortcutHeader = "X-Vareinfo-Kode";
 var lagerKey = app.Configuration["Vareinfo:LagerKey"] ?? "";
 bool FromLager(HttpContext ctx) => lagerKey.Length >= 12 && ctx.Request.Headers[CaptureHeaders.Key] == lagerKey;
 
@@ -75,7 +77,9 @@ app.Use(async (ctx, next) =>
             || p.EndsWith(".svg") || p.EndsWith(".png");
     if (p.StartsWith("/api/lager/")) { if (FromLager(ctx)) await next(); else ctx.Response.StatusCode = 401; return; }
     if (open) { await next(); return; }
-    if (await ctx.RequestServices.GetRequiredService<HelperUseCases>().SignInAsync(ctx.Request.Cookies[Cookie]) is { } me)
+    // The iPhone Shortcut sends the code in a header (2026-11-15) - same codes as the login, no new secret.
+    var code = ctx.Request.Cookies[Cookie] ?? ctx.Request.Headers[ShortcutHeader].FirstOrDefault();
+    if (await ctx.RequestServices.GetRequiredService<HelperUseCases>().SignInAsync(code) is { } me)
     {
         ctx.Items[nameof(Taker)] = me;
         await next();
@@ -133,6 +137,20 @@ app.MapPost("/api/foto", async (HttpContext ctx, CaptureUseCases capture) =>
 }).DisableAntiforgery();
 
 // A session photo, for Lager's item page ("billedet af bunken den blev registreret fra").
+// The iPhone Shortcut "Bogshoppen foto" (2026-11-15): the phone's own camera, each photo straight here as the request body
+// (or a form file) - into today's session. Answers the text the Shortcut can show: "Gemt i 15. november".
+app.MapPost("/api/genvej/foto", async (HttpContext ctx, CaptureUseCases capture) =>
+{
+    using var ms = new MemoryStream();
+    if (ctx.Request.HasFormContentType && (await ctx.Request.ReadFormAsync()).Files is { Count: > 0 } files)
+        await files[0].CopyToAsync(ms);
+    else
+        await ctx.Request.Body.CopyToAsync(ms);
+    if (ms.Length == 0) return Results.BadRequest("Intet billede.");
+    try { return Results.Text("Gemt i " + await capture.StoreTodayAsync(ms.ToArray(), (Taker)ctx.Items[nameof(Taker)]!)); }
+    catch (VareinfoException ex) { return Results.BadRequest(ex.Message); }
+}).DisableAntiforgery();
+
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
 app.MapGet("/foto/{id:int}", async (int id, CaptureUseCases capture) => Jpeg(await capture.PhotoFileAsync(id, null)));
 

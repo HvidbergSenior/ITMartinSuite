@@ -43,6 +43,22 @@ else
         </label>
     </section>
 
+    @* The iPhone Shortcut (2026-11-15: "a small app that take pictures with my own cam and send immediately"): own camera, each
+       photo straight to /api/genvej/foto - no Upload, nothing in the camera roll. Set up once; the code is the login code. *@
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Genvej på iPhone: tag billeder – de sendes med det samme</h2>
+        <p>Et ikon på hjemmeskærmen, der åbner telefonens eget kamera. Hvert billede sendes med det samme hertil, og kameraet åbner igen. Tryk <b>Annuller</b>, når du er færdig. Billederne kommer ikke i dine egne fotos.</p>
+        <ol>
+            <li>Åbn appen <b>Genveje</b> (Shortcuts), og tryk <b>+</b> øverst. Kald genvejen <b>Bogshoppen foto</b>.</li>
+            <li>Tilføj handlingen <b>Gentag</b> (Repeat), og sæt den til <b>200</b> gange.</li>
+            <li>Inde i Gentag: tilføj <b>Tag foto</b> (Take Photo) – lad <b>Vis kameraeksempel</b> være slået til.</li>
+            <li>Under den: tilføj <b>Konverter billede</b> (Convert Image) til <b>JPEG</b>.</li>
+            <li>Under den: tilføj <b>Hent indhold af URL</b> (Get Contents of URL) med adressen <b>https://vareinfo.bogshoppen.dk/api/genvej/foto</b>. Tryk på pilen: <b>Metode</b> = POST, <b>Overskrifter</b> (Headers): tilføj <b>X-Vareinfo-Kode</b> med din kode (den du logger ind med), <b>Anmodningstekst</b> (Request Body) = <b>Fil</b> og vælg <b>Konverteret billede</b>.</li>
+            <li>Tryk på delingsknappen nederst, og vælg <b>Føj til hjemmeskærm</b> (Add to Home Screen).</li>
+        </ol>
+        <p class="k-help">Første gang spørger telefonen, om genvejen må bruge kameraet og sende til vareinfo.bogshoppen.dk – tryk <b>Tillad</b> / <b>Tillad altid</b>. Billederne kommer i dagens session (@_session.Title) og bliver læst bagefter.</p>
+    </section>
+
     @* Barcodes (2026-10-26: "something that can be done afterwards") - folded, under the photos. *@
     <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">Stregkoder</h2>

@@ -22,6 +22,20 @@ public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository 
         await photoRows.AddAsync(new Photo { SessionId = s.Id, BoxCode = s.BoxCode, HelperId = me.Id, Helper = me.Name, RawPath = raw, TakenAt = now }, ct);
     }
 
+    /// <summary>The iPhone Shortcut "Bogshoppen foto" (user 2026-11-15: "a small app that take pictures with my own cam and send
+    /// immediately"): one JPEG straight into today's session - nothing to choose. HEIC is refused here with words, because the
+    /// background job could not open it later (the Shortcut converts to JPEG first). Returns today's session title.</summary>
+    public async Task<string> StoreTodayAsync(byte[] jpeg, Taker me, CancellationToken ct = default)
+    {
+        if (!IsJpeg(jpeg)) throw new VareinfoException("Billedet er ikke JPEG - sæt »Konverter billede til JPEG« ind i genvejen før »Hent indhold af URL«.");
+        var today = await sessions.TodayAsync(me, CaptureKinds.Mixed, ct);
+        await StoreAsync(new MemoryStream(jpeg), today.Id, me, ct);
+        return today.Title;
+    }
+
+    /// <summary>JPEG starts with FF D8 FF.</summary>
+    public static bool IsJpeg(byte[] b) => b.Length > 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF;
+
     /// <summary>A barcode in the session - just stored ("beep beep beep"). Returns how many copies of it the session now has.</summary>
     public async Task<int> ScanAsync(string code, int sessionId, Taker me, CancellationToken ct = default)
     {
