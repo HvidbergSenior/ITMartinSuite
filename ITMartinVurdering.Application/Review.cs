@@ -13,6 +13,8 @@ public interface ILagerReview
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetPriceAsync(int itemId, int kr, CancellationToken ct);
     Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct);
+    /// <summary>Lager asks every price site again for this thing. Sites that answered; null = Lager did not answer.</summary>
+    Task<int?> FindPricesAsync(int itemId, CancellationToken ct);
     /// <summary>Ting/Strik things waiting for a description (2026-11-10). Null = Lager did not answer.</summary>
     Task<List<VurderingDescribe>?> WaitingDescriptionsAsync(int take, CancellationToken ct);
     /// <returns>True when Lager kept it.</returns>
@@ -46,6 +48,12 @@ public sealed class ReviewUseCases(ILagerReview lager)
         await lager.SetPriceAsync(itemId, kr, ct) is { } error ? new(false, error) : new(true, $"Gemt: {kr} kr.");
 
     public Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct = default) => lager.PhotoAsync(itemId, ct);
+
+    /// <summary>"Find priser nu" (2026-11-15, moved from Lager's Vare page): the prices are found again, then the thing is shown anew.</summary>
+    public async Task<ReviewResult> FindPricesAsync(int itemId, CancellationToken ct = default) =>
+        await lager.FindPricesAsync(itemId, ct) is { } sites
+            ? new(true, sites == 0 ? "Ingen sider svarede – prøv igen om lidt." : $"Spurgt {sites} sider – priserne er opdateret.")
+            : new(false, "Lager svarer ikke lige nu – prøv igen om lidt.");
 }
 
 public static class VurderingApplication

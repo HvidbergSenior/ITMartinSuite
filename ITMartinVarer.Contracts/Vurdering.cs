@@ -28,6 +28,9 @@ public sealed record VurderingItem(int Id, string Line, string Kind, string Cond
 public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items);
 
 /// <summary>The price a person set - Ok = the suggestion, or their own.</summary>
+/// <summary>Answer to "Find priser nu" (2026-11-15): how many sites answered.</summary>
+public sealed record VurderingHunted(int Sites);
+
 public sealed record VurderingPrice(int Kr);
 
 /// <summary>"Som ny" or "Brugt" set by the person in Vurdering.</summary>

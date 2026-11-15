@@ -23,6 +23,10 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/pris", async (int id, VurderingPrice body, PriceReviewUseCases review) =>
             await review.SetAsync(id, body.Kr) is { } error ? Results.BadRequest(error) : Results.Ok());
 
+        // "Find priser nu" moved here from Lager's Vare page (2026-11-15: "pricing should be in pricing"): asks every site again.
+        api.MapPost("/varer/{id:int}/find", async (int id, PriceHuntUseCases hunt, CancellationToken ct) =>
+            Results.Ok(new VurderingHunted(await hunt.HuntAsync(id, ct))));
+
         // Descriptions for Ting/Strik (2026-11-10): what waits, and what the AI saw.
         api.MapGet("/beskriv", async (int? antal, ThingDescriptionUseCases things) => await things.WaitingAsync(antal ?? ThingDescriptionUseCases.MaxPerAsk));
         api.MapPost("/varer/{id:int}/beskrivelse", async (int id, VurderingDescription body, ThingDescriptionUseCases things) =>

@@ -2,10 +2,7 @@
 @inject ItemUseCases Items
 @inject NavigationManager Nav
 @inject AuctionUseCases Auction
-@inject PriceHuntUseCases Hunt
 @inject VareinfoLinks Vareinfo
-@inject GoldUseCases Gold
-@inject KioskUseCases Kiosk
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
 
@@ -76,103 +73,10 @@ else
         @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
     </section>
 
+    @* Prices live in Vurdering (user 2026-11-15: "pricing should be in pricing"). *@
     @if (Admin && Pricing.HuntedKinds.Contains(_item.Kind))
     {
-        <section class="k-card" data-fold-closed>
-            <h2 class="k-card-title">Priser – flytter til Vurdering</h2>
-            @if (_item.Want is { } want && !ITMartinLager.Domain.Gold.Hot(_item.Want, _item.Have))
-            {
-                <p class="k-small k-muted">Discogs: @want samlere ønsker den, @(_item.Have ?? 0) har den. Eftertragtet = mindst @ITMartinLager.Domain.Gold.HotWant ønsker, og flere ønsker end har.</p>
-            }
-            @if (_note is { } note)
-            {
-                <div class="lg-gold">
-                    <p class="lg-answer">@note</p>
-                    @if (_gold is { } g)
-                    {
-                        <p class="k-small">@(g.Tier switch { "Guld" => "Guld = 500 kr eller mere.", "Sølv" => "Sølv = 200-499 kr – værd at sælge for sig.", _ => "Bronze = 100-199 kr – interessant." }) Fra @g.Source (@g.Listings annonce@(g.Listings == 1 ? "" : "r")). Tjek at det er netop dette nummer og år – og standen. <a href="@g.Url" target="_blank" rel="noopener">Se annoncen</a> · <a href="/guld">Hele listen</a></p>
-                    }
-                </div>
-            }
-            <div class="lg-row">
-                <label>Pris (kr)@(_item.PriceHint is { } ph ? $" – forslag {ph:0} kr" : "") <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
-                <button class="k-btn k-btn-secondary" @onclick="Save">Gem prisen</button>
-            </div>
-            @if (_kiosk is { } kp)
-            {
-                <p class="k-small">🗞️ <b>Nyt @kp.Series koster @kp.Kr kr i kiosken i dag</b>@(kp.Note != "" ? $" ({kp.Note})" : "").
-                    Et gammelt blad kan være mere værd end et nyt, hvis samlere søger det – men et almindeligt brugt blad sælges sjældent over kioskprisen.</p>
-            }
-            @if (_finds.Count == 0 && _checks.Count == 0)
-            {
-                <p>Ikke slået op endnu. Prisjægeren gør det af sig selv i baggrunden (et par varer i minuttet) – eller tryk herunder.</p>
-            }
-            else
-            {
-                var used = _finds.Where(f => !f.IsNew).ToList();
-                var normal = Pricing.NormalDanishFirst(used.Select(f => (f.Source, f.Kr)).ToList());
-                var danishCount = used.Count(f => Pricing.DanishSources.Contains(f.Source));
-                @if (normal is { } n)
-                {
-                    <p class="lg-answer">Normalpris brugt: ca. @n kr · vores pris: @Pricing.ShopPrice(n) kr</p>
-                    <p class="k-small k-muted">@(danishCount >= Pricing.DanishEnough ? $"Midten af {danishCount} danske udbudspriser (DBA, GulogGratis, Nemos, Faraos) – det danske marked først; de udenlandske står herunder som pejlemærke." : $"Midten af {used.Count} udbudspriser – for få danske, så de udenlandske tæller med.") Det er det, sælgere beder om – ikke hvad der faktisk er solgt for. Vores pris er 10 % under, og linkene herunder viser det.</p>
-                }
-                else
-                {
-                    <p class="lg-answer">Lige præcis denne er ikke til salg nogen steder lige nu</p>
-                    @if (_similar.Count > 0)
-                    {
-                        var like = Pricing.NormalDanishFirst(_similar.Select(f => (f.Source, f.Kr)).ToList()) ?? Pricing.NormalOf(_similar.Select(f => f.Kr).ToList());
-                        var what = Pricing.SeriesItemFor(_item) is { } s && _similar.Any(f => f.Name.Contains(s.Title, StringComparison.OrdinalIgnoreCase))
-                            ? $"andre numre af {s.Title}" : $"{Pricing.SimilarTitleFor(_item)} i en anden årgang, et andet nummer eller en anden udgave";
-                        <div class="lg-proof">
-                            <p><b>Men magen til koster ca. @like kr</b> – @what (midten af @_similar.Count annoncer, danske først).
-                               Det er et pejlemærke, ikke bevis for netop denne – derfor sætter Lager ingen pris af sig selv. Skriv selv prisen ovenfor.</p>
-                            @* "Basserne cost this and this for this and this" (user 2026-10-26) - per site, Danish first, from the listings themselves. *@
-                            <p class="k-small">@SimilarSummary()</p>
-                            <ul class="lg-prices">
-                                @foreach (var f in _similar.OrderBy(f => f.Kr).Take(8)) { @Find(f, like) }
-                            </ul>
-                        </div>
-                    }
-                }
-                @if (_finds.Count > 0)
-                {
-                    // First screen: the 3 cheapest and every far-off price. The rest folds away.
-                    var all = _finds.OrderBy(f => f.IsNew).ThenBy(f => f.Kr).ToList();
-                    var flagged = all.Where(f => Pricing.Flag(f.Kr, normal) != "").ToList();
-                    var first = all.Where(f => !f.IsNew).Take(3).Concat(all.Where(f => f.IsNew).Take(1)).Concat(flagged).Distinct().ToList();
-                    <ul class="lg-prices">
-                        @foreach (var f in first) { @Find(f, normal) }
-                    </ul>
-                    @if (all.Count > first.Count)
-                    {
-                        <details class="lg-more">
-                            <summary>Vis alle @all.Count fund</summary>
-                            <ul class="lg-prices">@foreach (var f in all) { @Find(f, normal) }</ul>
-                        </details>
-                    }
-                }
-                <p class="k-small k-muted">Slået op @_checks.Max(c => c.CheckedAt).ToLocalTime().ToString("d/M HH:mm"). Hver side:</p>
-                <ul class="k-small lg-sources">
-                    @foreach (var c in _checks.OrderBy(c => c.Source))
-                    {
-                        <li><b>@c.Source</b>:
-                            @(!c.Ok ? "kunne ikke spørges (blokeret eller nede)"
-                              : c.Ambiguous ? $"{c.Count} fund, men titlen er for bred til at vide om det er denne"
-                              : c.Count == 0 ? "ingen til salg"
-                              : c.Low is null ? $"{c.Count} fund uden pris"
-                              : $"{c.Count} fund, {c.Low}-{c.High} kr" + (c.Wild is { } w ? $", op til {w} kr" : ""))</li>
-                    }
-                </ul>
-            }
-            <button class="k-btn k-btn-secondary" @onclick="HuntNow" disabled="@_hunting">@(_hunting ? $"⏳ Spørger {Hunt.SourceCount} sider …" : "🔄 Find priser nu")</button>
-            <p class="k-small k-muted">Siderne – @Hunt.SourceList Med ISBN rammer søgningen præcis den udgave – skriv det i feltet ISBN ovenfor (det står bag på bogen eller på kolofonsiden).</p>
-            @if (Pricing.PegasusFits(_item))
-            {
-                <p class="k-small">Tjek også <a href="@Pricing.PegasusUrl" target="_blank" rel="noopener">Pegasus</a> – tegneseriebutikken i København. Den kan ikke spørges automatisk, så skriv <strong>@Pricing.TitleFor(_item)</strong> i feltet Søgning på deres side.</p>
-            }
-        </section>
+        <p class="k-small k-muted">Prisen sættes i <a href="@VurderingUrl">Vurdering</a>@(_item.Price is { } kr ? $" – nu {kr:0} kr" : _item.PriceHint is { } h ? $" – forslag {h:0} kr" : "").</p>
     }
 
 
@@ -249,6 +153,7 @@ else
 @code {
     [CascadingParameter] public LagerUser? Me { get; set; }
     private bool Admin => Me is { IsAdmin: true };
+    private static string VurderingUrl => BogshoppenFlow.Steps[BogshoppenFlow.Priser - 1].Url;
     private bool Has(string field) => _item is { } i && ItemFields.Shows(i, field);
     [Parameter] public int Id { get; set; }
     // ?ret=1 = going through "Ret de svære" one at a time (2026-11-15).
@@ -263,13 +168,6 @@ else
     private int _lot = 1;
     private bool _busy;
     private long _photoVer = DateTime.UtcNow.Ticks;
-    private GoldEntry? _gold;
-    private string? _note;
-    private List<PriceFind> _similar = [];
-    private List<PriceFind> _finds = [];
-    private KioskPrice? _kiosk;
-    private List<PriceCheck> _checks = [];
-    private bool _hunting;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -305,53 +203,6 @@ else
         _box = _item?.Box?.Code;
         _boxLabel = _item?.Box?.Label;
         _others = _item is null ? [] : await Items.OthersLikeAsync(_item);
-        _finds = view?.Finds.Where(f => !f.Similar && Pricing.Shown(f.Source)).ToList() ?? [];
-        _gold = _item is null ? null : await Gold.MatchAsync(_item);
-        _note = _item is null ? null : ITMartinLager.Domain.Gold.Interesting(await Gold.AllAsync(), _item.Kind, _item.Title, _item.Series, _item.Number, _item.Year, _item.Price ?? _item.PriceHint, _item.Want, _item.Have);
-        _similar = view?.Finds.Where(f => f.Similar && Pricing.Shown(f.Source)).ToList() ?? [];
-        _checks = view?.Checks.Where(c => Pricing.Shown(c.Source)).ToList() ?? [];
-        _kiosk = _item is null ? null : await Kiosk.ForAsync(_item);
-    }
-
-    // "Faraos: 12-22 kr (8 annoncer) · Nemos: 8-47 kr (12) · eBay (udland): 35-304 kr (10)."
-    private string SimilarSummary() =>
-        string.Join(" · ", _similar.GroupBy(f => f.Source)
-            .OrderBy(g => Pricing.DanishSources.Contains(g.Key) ? 0 : 1).ThenBy(g => g.Min(f => f.Kr))
-            .Select(g => $"{g.Key}{(Pricing.DanishSources.Contains(g.Key) ? "" : " (udland)")}: "
-                         + (g.Min(f => f.Kr) == g.Max(f => f.Kr) ? $"{g.Min(f => f.Kr)} kr" : $"{g.Min(f => f.Kr)}-{g.Max(f => f.Kr)} kr")
-                         + $" ({g.Count()} annonce{(g.Count() == 1 ? "" : "r")})")) + ".";
-
-    private static RenderFragment Find(PriceFind f, int? normal) => __builder =>
-    {
-        var flag = Pricing.Flag(f.Kr, normal);
-        // The whole row opens the listing itself - never the shop's front page or a search (user 2026-10-26).
-        <li class="@(flag != "" ? "lg-flag" : "")">
-            <a class="lg-find" href="@f.Url" target="_blank" rel="noopener">
-                <b>@f.Kr kr</b>@(f.Original != "" ? $" ({f.Original})" : "")@(f.IsNew ? " – ny" : "") · @f.Name
-                <span class="k-small k-muted">på @f.Source – tryk for at se varen</span>
-                @* The free picture matching (2026-11-04): how alike the listing's picture looks to our cover - a hint, not proof. *@
-                @if (f.Look is { } look)
-                {
-                    <span class="k-small @(look >= CoverPrints.AlikeFrom ? "lg-ok" : "k-muted")">Billedet ligner vores: @look %@(look >= CoverPrints.AlikeFrom ? " – måske samme udgave" : "")</span>
-                }
-            </a>
-            @if (flag != "") { <span class="lg-flag-text">⚠ @flag</span> }
-        </li>
-    };
-
-    private async Task HuntNow()
-    {
-        _hunting = true; _err = null;
-        StateHasChanged();
-        try
-        {
-            await Save();   // a corrected title or ISBN is what gets searched
-            var ok = await Hunt.HuntAsync(Id);
-            await Load();
-            _msg = $"{ok} af {Hunt.SourceCount} sider svarede.";
-        }
-        catch (Exception ex) { _err = ex.Message; }
-        finally { _hunting = false; }
     }
 
     private async Task Save()

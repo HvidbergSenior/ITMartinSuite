@@ -31,11 +31,12 @@ builder.Services.AddKolibri(k =>
         "Vælg bunken: Skal vurderes eller Ingen pris. Øverst står, hvor mange der venter.",
         "Kig på billedet og det, der blev fundet. Tryk Ok for forslaget – eller skriv din egen pris og tryk Gem.",
         "Ved du det ikke? Tryk Spring over, så kommer den næste.",
+        "Find priser nu: Lager spørger alle prissiderne igen for netop den ting (tager op til et minut) – fx når du har rettet titlen eller ISBN i Lager. Priserne sættes kun her, ikke i Lager.",
         "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
         "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
         "Dødsbo og loft: tryk Dødsbo og loft øverst, lav en sag (fx Mariannes ting), tag et billede af hver ting og tryk Vurdér de nye. Op til 8 billeder vurderes ad gangen. Ret prisen selv, hvis du ved bedre – og brug knapperne Søg på DBA og Søg på Lauritz for at se, hvad lignende ting koster.",
     ];
-    k.Version = "2026.11.10.2";
+    k.Version = "2026.11.15";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -84,7 +85,7 @@ static string Steps()
 
 var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dodsbo.html"));
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=2"));
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=3"));
 // Dødsbo og loft (2026-11-10): the same login, its own page.
 app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=4"));
 // Vareinfo's Tjek -> "Møbler og ting" (2026-11-10): straight into today's Tjek Sag, made by itself.
@@ -137,6 +138,7 @@ api.MapPost("/brug", async (BrugForm f, ReviewUseCases review, CancellationToken
 
 api.MapPost("/ok", async (OkForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OkAsync(f.Id, f.Forslag, ct)));
 api.MapPost("/pris", async (PrisForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OwnAsync(f.Id, f.Pris, ct)));
+api.MapPost("/find", async (FindForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.FindPricesAsync(f.Id, ct)));
 api.MapGet("/foto/{id:int}", async (int id, ReviewUseCases review, CancellationToken ct) =>
     await review.PhotoAsync(id, ct) is { } bytes ? Results.File(bytes, "image/jpeg") : Results.NotFound());
 
@@ -243,6 +245,7 @@ app.Run();
 record OkForm(int Id, int? Forslag);
 record PrisForm(int Id, string? Pris);
 record BrugForm(int Id, string? Brug);
+record FindForm(int Id);
 record NySag(string? Navn);
 record EgenForm(string? Kr, string? Note);
 record DelForm(bool Priser);

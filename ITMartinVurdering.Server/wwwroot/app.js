@@ -78,6 +78,16 @@
 
     $('vu-ok').addEventListener('click', function () { if (item) save('/api/ok', { id: item.id, forslag: item.hintKr }); });
     $('vu-own').addEventListener('submit', function (e) { e.preventDefault(); if (item) save('/api/pris', { id: item.id, pris: $('vu-price').value }); });
+    // "Find priser nu" (2026-11-15, moved from Lager): every site is asked again - takes up to a minute.
+    $('vu-find').addEventListener('click', function () {
+        if (!item) return;
+        var b = $('vu-find'); b.disabled = true; b.textContent = 'Spørger siderne … (op til et minut)'; msg('');
+        fetch('/api/find', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id }) })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (x) { if (!x.ok) { msg(x.j.fejl || 'Det virkede ikke.', true); return; } load(); setTimeout(function () { msg(x.j.besked); }, 300); })
+            .catch(function () { msg('Det virkede ikke – prøv igen.', true); })
+            .finally(function () { b.disabled = false; b.textContent = 'Find priser nu'; });
+    });
     $('vu-skip').addEventListener('click', function () { if (item) { skip.push(item.id); load(); } });
     document.querySelectorAll('.vu-usage [data-usage]').forEach(function (b) {
         b.addEventListener('click', function () {

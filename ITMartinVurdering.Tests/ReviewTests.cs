@@ -68,4 +68,15 @@ public class ReviewTests
         VurderingFilter.Shows(VurderingFilter.Used, "Brugt").Should().BeTrue();
         VurderingFilter.Shows(VurderingFilter.AsNew, "Brugt").Should().BeFalse();
     }
+
+    // "Find priser nu" moved from Lager's Vare page (2026-11-15): Lager asks the sites; the person is told how it went.
+    [Test]
+    public async Task Find_prices_says_how_many_sites_answered_or_that_Lager_is_down()
+    {
+        var lager = new Mock<ILagerReview>();
+        lager.Setup(l => l.FindPricesAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(9);
+        var uc = new ReviewUseCases(lager.Object);
+        (await uc.FindPricesAsync(7)).Should().Be(new ReviewResult(true, "Spurgt 9 sider – priserne er opdateret."));
+        (await uc.FindPricesAsync(8)).Ok.Should().BeFalse();   // null = Lager did not answer
+    }
 }

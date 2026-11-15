@@ -17,6 +17,17 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
         { log.LogWarning(e, "Lager did not answer the queue"); return null; }
     }
 
+    public async Task<int?> FindPricesAsync(int itemId, CancellationToken ct)
+    {
+        try
+        {
+            using var res = await http.PostAsync($"/api/vurdering/varer/{itemId}/find", null, ct);
+            return res.IsSuccessStatusCode && await res.Content.ReadFromJsonAsync<VurderingHunted>(ct) is { } h ? h.Sites : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        { log.LogWarning(e, "Lager did not hunt the prices"); return null; }
+    }
+
     public async Task<string?> SetPriceAsync(int itemId, int kr, CancellationToken ct)
     {
         try
@@ -66,7 +77,7 @@ public static class VurderingInfrastructure
         services.AddHttpClient<ILagerReview, HttpLagerReview>(c =>
         {
             c.BaseAddress = new Uri(cfg["Vurdering:LagerUrl"] ?? "http://lager-web:8080");
-            c.Timeout = TimeSpan.FromSeconds(30);
+            c.Timeout = TimeSpan.FromSeconds(120);   // "Find priser nu" asks every site - up to a minute or so
             c.DefaultRequestHeaders.Add(VurderingHeaders.Key, cfg["Vurdering:LagerKey"] ?? "");
         });
         services.AddSingleton<ISagStore, JsonSagStore>();
