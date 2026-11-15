@@ -2,16 +2,14 @@
 @inject SalgLinks Salg
 @inject NavigationManager Nav
 
-@* Four tabs (user 2026-10-21: "too many tabs"): the daily ones, the rest on /mere. Ordrer opens Salg, where the
-   orders live since the split the same day. *@
+@* Menu = Søg + Log ud (user 2026-11-15: "also all that kasser, mere?" -> yes). Kasser is found by typing the day's name in
+   Søg; Mere is a small link at the bottom of the front page until its tools have moved to their own apps. *@
 <KolibriTitle />   @* tab title fallback - here, not in KolibriHeader, so the page's own <PageTitle> wins *@
 <KolibriHeader>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/">Søg</a>
     @* Helpers (kundenummer): only Søg - the things (2026-10-26). *@
     @if (Me is { IsAdmin: true })
     {
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/kasser">Kasser</a>
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/mere">Mere</a>
         @* Admins could not log out (user 2026-10-26: "cannot logout of lager") - needed to switch to a test login. *@
         <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud</a>
     }

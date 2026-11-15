@@ -150,6 +150,12 @@
     </section>
 }
 
+@if (Admin)
+{
+    @* Until Guld, Bøger, Kiosk, Tilbud, Strik, Ting and Magic have moved (2026-11-15): small, at the bottom. Kasser stays reachable too. *@
+    <p class="k-small k-muted lg-bottom-links"><a href="/kasser">Alle kasser</a> · <a href="/mere">Værktøjer, der flytter snart</a></p>
+}
+
 @code {
     // "Flere valg" stays open while a filter is chosen, so it is clear why the list is shorter.
     private bool FiltersOn => _scopeKey != "alle" || _category is not null || _language is not null || _valuation is not null;

@@ -37,7 +37,7 @@ builder.Services.AddKolibri(k =>
         "Kategorier på Søg: Bøger, Tegneserier (album som Lucky Luke), Serieblade (Anders And, Basserne, Jonah Hex, Kong Kylie), Gamle blade (alle blade fra før 1990), Jumbobøger, Superhelte (Project X, Edderkoppen), Film, Musik, Computerspil, Brætspil og kortspil, Magic og Andet. Vælg også Dansk eller Engelsk. Kategori og sprog sættes af sig selv ud fra varens slags, serie og år – sproget læses med billedet, ældre varer får et gæt ud fra titlen.",
         "Ansvarlig: Rico har Tegneserier, Superhelte og Film; Martin resten.",
         "Genrer: musik, film og bøger får af sig selv en genre (fx Dansktop, Punk, Krimi, Børnefilm) fra gratis kilder – MusicBrainz, TMDb og Open Library. Tegneserier, blade og spil får genren ud fra serien og titlen (fx Jonah Hex = Western, Basserne = Humor, Anders And = Disney). Hver ting slås op én gang, uden AI. Kunderne vælger genren i butikken på bogshoppen.dk.",
-        "Prisværktøjerne (Guld, Bøger, Ny i kiosken), Dagens tilbud, Strik, Ting og Magic står under Mere, indtil de flytter til Vurdering, Salg og deres egne apps.",
+        "Prisværktøjerne (Guld, Bøger, Ny i kiosken), Dagens tilbud, Strik, Ting og Magic står under »Værktøjer, der flytter snart« nederst på forsiden, indtil de flytter til Vurdering, Salg og deres egne apps.",
     ];
     k.Version = "2026.11.15";
     k.ThemeColor = "#f4f6f5";
