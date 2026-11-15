@@ -41,14 +41,21 @@ public static partial class Gold
     // not gold. Up to 50 per tier per category.
     // A fourth, wider tier (user 2026-11-02: "make them a bit wider so platinum will be 50-99"): from PlatinFrom up to bronze.
     // The gold LIST still only keeps 100 kr and up; platinum comes from a thing's own price.
-    public const int GoldFrom = 500, SilverFrom = 200, BronzeFrom = 100, PlatinFrom = 50;
-    public const string GoldTier = "Guld", SilverTier = "Sølv", BronzeTier = "Bronze", PlatinTier = "Platin";
+    // The top tier (user 2026-11-15: "Maybe a category that is called SUPER DIAMOND!!"): 5000 kr and up.
+    public const int SuperFrom = 5000, GoldFrom = 500, SilverFrom = 200, BronzeFrom = 100, PlatinFrom = 50;
+    public const string SuperTier = "Super diamant", GoldTier = "Guld", SilverTier = "Sølv", BronzeTier = "Bronze", PlatinTier = "Platin";
+
+    // The list must be trustworthy (user 2026-11-15: "but the prices are very high?" - 1381 of 1489 entries were ONE ad, among them
+    // "Over 192 LP'er", "9500 dvd", a Børge Mogensen chair and "gratis vurdering"): an issue or title counts only when at least
+    // MinListings ads ask for it - one person's dream price never decides.
+    public const int MinListings = 2;
+    public static bool Trusted(GoldEntry e) => e.Listings >= MinListings && !Junk(e.Name);
     // Expanded 2026-10-31 (user: "expand gold list and silver and bronze?"): 100 per tier.
     public const int PerCategory = 300;
     public const int PerTier = 100;
 
-    public static string TierOf(int kr) => kr >= GoldFrom ? GoldTier : kr >= SilverFrom ? SilverTier : kr >= BronzeFrom ? BronzeTier : PlatinTier;
-    public static string BadgeOf(string tier) => tier switch { GoldTier => "🏆 GULD", SilverTier => "🥈 SØLV", BronzeTier => "🥉 BRONZE", _ => "💎 PLATIN" };
+    public static string TierOf(int kr) => kr >= SuperFrom ? SuperTier : kr >= GoldFrom ? GoldTier : kr >= SilverFrom ? SilverTier : kr >= BronzeFrom ? BronzeTier : PlatinTier;
+    public static string BadgeOf(string tier) => tier switch { SuperTier => "💠 SUPER DIAMANT", GoldTier => "🏆 GULD", SilverTier => "🥈 SØLV", BronzeTier => "🥉 BRONZE", _ => "💎 PLATIN" };
 
     // Collectors' demand (Discogs want/have, user 2026-10-21): many want it and no more have it than want it = put it first.
     // A hot item goes one tier up (bronze -> silver -> gold), and is at least bronze even when it is cheap today.
@@ -107,6 +114,16 @@ public static partial class Gold
         // The 2026-10-13 list still had "1961, 48 numre", "155 blade", "52 hæfter i alt", "3 dtk." and bound years at the top.
         "numre", "blade", "hæfter", "dtk", "indbundet", "indbundne"];
 
+    // Not one thing at all (2026-11-15 list): furniture, machines, services and "N LP'er / N dvd" heaps.
+    private static readonly string[] NotAThing = ["stol", "lænestol", "sofa", "bord", "skab", "reol", "møbel", "møbler", "fodskammel",
+        "maskine", "udlejningsmaskine", "vurdering", "vurderes", "køber", "købes", "opkøb", "pladesamling", "filmsamling", "bogsamling",
+        "samlet", "salg", "dødsbo",
+        // still on the cleaned list: "Commander decks", a Corgi Batmobile toy, a Samsung 3D home cinema
+        "decks", "toys", "corgi", "dinky", "hjemmebiograf", "surround", "afspiller", "blu-ray-afspiller"];
+    [GeneratedRegex(@"\b\d{2,}\s*(?:stk\.?\s*)?(?:lp|lp'er|lp’er|plader|cd|cd'er|dvd|dvd'er|vhs|film|bøger|blade|kort|tegneserier)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex HeapRx();
+    public static bool Junk(string name) => HeapRx().IsMatch(name) || ListingParse.Words(name).Any(w => NotAThing.Contains(w));
+
     // A reprint is not the issue it copies: "Genoptryk af nr. 1 marts 1949" sold as gold for nr. 1 1949 (2026-10-13).
     private static readonly string[] Reprints = ["genoptryk", "genoptrykt", "nyoptryk", "faksimile", "reprint"];
 
@@ -141,7 +158,7 @@ public static partial class Gold
             if (o.Price is not { } kr || kr <= 0 || ListingParse.Placeholder(kr)) continue;
             var words = ListingParse.Words(o.Name);
             if (!c.MustHave.All(m => words.Any(w => w.StartsWith(m)))) continue;
-            if (words.Any(w => Lots.Contains(w) || not.Contains(w) || Reprints.Contains(w))
+            if (Junk(o.Name) || words.Any(w => Lots.Contains(w) || not.Contains(w) || Reprints.Contains(w))
                 || RangeRx().IsMatch(o.Name) || DecadeRx().IsMatch(o.Name)) continue;
             if (c.ByTitle)
             {
@@ -217,11 +234,11 @@ public static partial class Gold
     }
 
     /// <summary>Order for "go through all interesting in one go": gold, silver, bronze, then "tjek nærmere".</summary>
-    public static int Rank(string note) => note.StartsWith("🏆") ? 0 : note.StartsWith("🥈") ? 1 : note.StartsWith("🥉") ? 2 : note.StartsWith("💎") ? 3 : 4;
+    public static int Rank(string note) => note.StartsWith("💠") ? 0 : note.StartsWith("🏆") ? 1 : note.StartsWith("🥈") ? 2 : note.StartsWith("🥉") ? 3 : note.StartsWith("💎") ? 4 : 5;
     /// <summary>The highest Rank a mark buyers see can have (Måske is ours).</summary>
-    public const int LastShownRank = 3;
+    public const int LastShownRank = 4;
     /// <summary>The kinds of "interesting", in order, for buttons: Guld, Sølv, Bronze, Platin, Måske (user 2026-10-12, Platin 2026-11-02).</summary>
-    public static readonly string[] InterestingKinds = ["🏆 Guld", "🥈 Sølv", "🥉 Bronze", "💎 Platin", "🔎 Måske"];
+    public static readonly string[] InterestingKinds = ["💠 Super diamant", "🏆 Guld", "🥈 Sølv", "🥉 Bronze", "💎 Platin", "🔎 Måske"];
 
     /// <summary>Is this thing on the gold list? Same kind, the category's words in its title or series, and the same
     /// issue: number when the entry has one, year when the entry has one.</summary>

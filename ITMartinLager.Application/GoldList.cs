@@ -21,7 +21,8 @@ public sealed class GoldUseCases(IEnumerable<IDearestListings> sites, IGoldRepos
     public const int Pages = 10;   // silver and bronze sit further down the "dearest first" list
     private List<GoldEntry>? _cache;
 
-    public async Task<List<GoldEntry>> AllAsync(CancellationToken ct = default) => _cache ??= await gold.AllAsync(ct);
+    // Gold.Trusted also on what is already saved (2026-11-15), so the old one-ad entries are gone without asking DBA again.
+    public async Task<List<GoldEntry>> AllAsync(CancellationToken ct = default) => _cache ??= (await gold.AllAsync(ct)).Where(Gold.Trusted).ToList();
 
     /// <summary>Asks every site for the dearest listings in each category and keeps the top 50 issues. Returns how many.</summary>
     public async Task<int> RefreshAsync(CancellationToken ct = default)

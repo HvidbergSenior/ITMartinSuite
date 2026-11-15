@@ -64,6 +64,7 @@ public class GoldTests
     public void Gold_silver_and_bronze_are_by_price()
     {
         (Gold.TierOf(3600), Gold.TierOf(400), Gold.TierOf(150)).Should().Be(("Guld", "Sølv", "Bronze"));
+        Gold.TierOf(95000).Should().Be("Super diamant", "user 2026-11-15: SUPER DIAMOND from 5000 kr");
         Gold.TierOf(60).Should().Be("Platin", "50-99 kr (user 2026-11-02)");
         Shop.Badge([], new Item { Kind = Kinds.Bog, Title = "Mort", PriceHint = 60 }).Should().Be("💎 PLATIN");
         Shop.Badge([], new Item { Kind = Kinds.Bog, Title = "Mort", PriceHint = 40 }).Should().Be("");
@@ -163,5 +164,32 @@ public class DemandHuntTests
         var item = new Item { Kind = Kinds.Cd, Title = "For If You Cannot Fly", Artist = "Small Factory" };
         HuntResult.From(1, [new SourceAnswer("Discogs", false, discogs), new SourceAnswer("DBA", false, null)], DateTime.UtcNow).ApplyTo(item, DateTime.UtcNow);
         (item.Want, item.Have).Should().Be((31, 12));
+    }
+}
+
+// "but the prices are very high?" (2026-11-15): real names from the list that day - one ad, heaps, furniture, services.
+public class TrustedGoldTests
+{
+    private static Offer O(string name, decimal kr) => new(name, kr, "https://dba.dk/" + kr);
+    private static readonly GoldCategory Vinyl = Gold.Categories.First(c => c.Kind == Kinds.Vinyl);
+
+    [TestCase("Over 192 LP'er")]
+    [TestCase("9500 dvd , kun  samlet salg")]
+    [TestCase("gratis vurdering af pladesamling lp vinyler")]
+    [TestCase("Børge Mogensen lænestol og fodskammel i sjælden flot udgave 2254 og 2248")]
+    [TestCase("Sjælden VHS-udlejningsmaskine + lædertaske")]
+    [TestCase("Magic: The Gathering Commander decks")]
+    [TestCase("Batman Batmobile Corgi Toys No. 267 – Rocket Firing – Original æske")]
+    [TestCase("Topmodellen serie 9000 Samsung 3D blueray hjemmebiograf med 7.1 surround lyd.")]
+    public void A_heap_furniture_a_toy_or_a_service_is_junk(string name) => Gold.Junk(name).Should().BeTrue();
+
+    [Test]
+    public void One_ad_alone_never_makes_the_list_two_do()
+    {
+        Gold.Pick(Vinyl, [O("Beatles Abbey Road LP", 3000)], "DBA", DateTime.UtcNow).Where(Gold.Trusted).Should().BeEmpty();
+        Gold.Pick(Vinyl, [O("Beatles Abbey Road LP", 3000), O("Beatles Abbey Road LP", 2000)], "DBA", DateTime.UtcNow).Where(Gold.Trusted).Should().ContainSingle();
+        Gold.Trusted(new GoldEntry { Name = "Over 192 LP'er", Listings = 5 }).Should().BeFalse();
+        Gold.Trusted(new GoldEntry { Name = "Anders And & Co. nr. 1 1949", Listings = 1 }).Should().BeFalse();
+        Gold.Trusted(new GoldEntry { Name = "Anders And & Co. nr. 1 1949", Listings = 2 }).Should().BeTrue();
     }
 }

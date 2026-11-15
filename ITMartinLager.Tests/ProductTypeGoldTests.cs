@@ -163,6 +163,6 @@ public class ProductTypeGoldTests
     {
         var picked = Gold.Pick(Cat("Magic-kort"), [O("Black Lotus Unlimited MTG", 90000), O("Dominaria booster display", 1200)], "DBA", DateTime.UtcNow);
         picked.Should().ContainSingle().Which.Name.Should().StartWith("Black Lotus");
-        Gold.Interesting(picked, Kinds.Magic, "Black Lotus", "", "", null).Should().StartWith("🏆 GULD");
+        Gold.Interesting(picked, Kinds.Magic, "Black Lotus", "", "", null).Should().StartWith("💠 SUPER DIAMANT");   // 90000 kr - from 5000 kr since 2026-11-15
     }
 }

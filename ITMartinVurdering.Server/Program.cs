@@ -32,7 +32,7 @@ builder.Services.AddKolibri(k =>
         "Kig på billedet og det, der blev fundet. Tryk Ok for forslaget – eller skriv din egen pris og tryk Gem.",
         "Står der en pris på selve tingen (et prismærke), læses den med billedet: Der står 69 kr på den. Tryk Brug prisen på mærket for at bruge den.",
         "Ved du det ikke? Tryk Spring over, så kommer den næste.",
-        "Guld, sølv og bronze: de dyreste enkelte numre og titler lige nu (fra DBA, en gang om ugen) – søg, og vælg Guld, Sølv eller Bronze. Ting på listen får mærket af sig selv.",
+        "Guld, sølv og bronze: de dyreste blade, bøger, film, plader og kort på DBA (hver uge) – Super diamant fra 5.000 kr, Guld fra 500, Sølv fra 200, Bronze fra 100. Kun numre og titler, som mindst 2 annoncer beder om. Ting på listen får mærket af sig selv.",
         "Ny i kiosken: skriv hvad det nyeste nummer af et blad koster nyt i dag (fx Anders And & Co. 40 kr). Samme navn igen retter prisen.",
         "Find priser nu: Lager spørger alle prissiderne igen for netop den ting (tager op til et minut) – fx når du har rettet titlen eller ISBN i Lager. Priserne sættes kun her, ikke i Lager.",
         "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
@@ -92,7 +92,7 @@ var kioskBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "kios
 
 app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=5"));
 // Guld/sølv/bronze + Ny i kiosken (2026-11-15, moved from Lager): the same login, own pages.
-app.MapGet("/guld", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, guldBody, "/guld.js?v=1"));
+app.MapGet("/guld", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, guldBody, "/guld.js?v=2"));
 app.MapGet("/kiosk", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, kioskBody, "/kiosk.js?v=1"));
 // Dødsbo og loft (2026-11-10): the same login, its own page.
 app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=4"));
