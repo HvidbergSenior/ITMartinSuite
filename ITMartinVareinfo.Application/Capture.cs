@@ -36,14 +36,6 @@ public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository 
     /// <summary>JPEG starts with FF D8 FF.</summary>
     public static bool IsJpeg(byte[] b) => b.Length > 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF;
 
-    /// <summary>A barcode in the session - just stored ("beep beep beep"). Returns how many copies of it the session now has.</summary>
-    public async Task<int> ScanAsync(string code, int sessionId, Taker me, CancellationToken ct = default)
-    {
-        var clean = Barcodes.Clean(code);
-        if (clean.Length < 8) throw new VareinfoException("Stregkoden kunne ikke læses - prøv igen.");
-        return await scans.AddOrCountAsync(clean, await SessionAsync(sessionId, me, ct), me, ct);
-    }
-
     /// <summary>Photos and scans in one session so far.</summary>
     public async Task<(int Photos, int Scans)> CountAsync(int sessionId, CancellationToken ct = default) =>
         (await photoRows.CountAsync(sessionId, ct), await scans.CountAsync(sessionId, ct));

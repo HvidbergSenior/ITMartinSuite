@@ -81,15 +81,14 @@ public class SessionTests
     }
 
     [Test]
-    public async Task The_overview_shows_photos_scans_and_helpers_per_session()
+    public async Task The_overview_shows_photos_and_helpers_per_session()
     {
         var s = await _sessions.TodayAsync(_martin, "Film");
         await _capture.StoreAsync(new MemoryStream([1]), s.Id, _bertil);
         await _capture.StoreAsync(new MemoryStream([1]), s.Id, _vibeke);
-        await _capture.ScanAsync("9780552131063", s.Id, _martin);
 
         var st = (await _sessions.OverviewAsync()).Single();
-        (st.Photos, st.Scans).Should().Be((2, 1));
+        (st.Photos, st.Scans).Should().Be((2, 0));
         st.Helpers.Should().Equal("Bertil", "Vibeke");
     }
 }

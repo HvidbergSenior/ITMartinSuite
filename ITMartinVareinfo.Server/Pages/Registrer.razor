@@ -28,7 +28,7 @@ else
     <section class="k-card">
         <h1 class="k-card-title">@_session.Title</h1>
         <p class="vi-boxname">Skriv på kassen: <b>@_session.Title</b></p>
-        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(_scans > 0 ? $" og {_scans} stregkoder" : "") i dag.</p>
+        <p class="lg-answer" role="status"><b>@_photos billeder</b> i dag.</p>
         <p>Tag billeder med telefonens kamera – 10-20 ting med forsiden op på hvert. Tryk så <b>Upload billeder fra telefonen</b>, og vælg dem – mange på én gang.
             Det samme to gange gør ikke noget. Tingene bliver læst af sig selv og kommer på lager.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
@@ -59,36 +59,14 @@ else
         <p class="k-help">Første gang spørger telefonen, om genvejen må bruge kameraet og sende til vareinfo.bogshoppen.dk – tryk <b>Tillad</b> / <b>Tillad altid</b>. Billederne kommer i dagens session (@_session.Title) og bliver læst bagefter.</p>
     </section>
 
-    @* Barcodes (2026-10-26: "something that can be done afterwards") - folded, under the photos. *@
-    <section class="k-card" data-fold-closed>
-        <h2 class="k-card-title">Stregkoder</h2>
-        <p>Bedst til DVD, Blu-ray, CD, spil og bøger. Hold stregkoden foran kameraet – <b>bip</b> – næste. Samme stregkode igen = ét eksemplar mere.</p>
-        @if (!_scanning)
-        {
-            <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">Scan stregkoder</button>
-        }
-        else
-        {
-            <div class="lg-scan">
-                <video id="scan-video" muted playsinline></video>
-                <p class="lg-answer" role="status">@_scanStatus</p>
-                <button class="k-btn k-btn-primary" @onclick="StopScan">Færdig med at scanne</button>
-            </div>
-        }
-    </section>
-
 }
 
 @code {
     [CascadingParameter] public Taker? Me { get; set; }
 
     private WorkSession? _session;
-    private int _photos, _scans;
-    private bool _scanning;
+    private int _photos;
     private string? _error;
-    private string _scanStatus = "";
-    private string _lastCode = "";
-    private DateTime _lastAt;
     private DotNetObjectReference<Registrer>? _ref;
 
     // Today's session, joined or made - nothing to choose (2026-11-15).
@@ -125,59 +103,12 @@ else
     private async Task Count()
     {
         if (_session is null) return;
-        try { (_photos, _scans) = await Capture.CountAsync(_session.Id); }
+        try { _photos = (await Capture.CountAsync(_session.Id)).Photos; }
         catch (Exception ex) { _error = ex.Message; }
-    }
-
-    private async Task StartScan()
-    {
-        _error = null;
-        _scanning = true;
-        _scanStatus = "Hold stregkoden foran kameraet …";
-        StateHasChanged();
-        _ref ??= DotNetObjectReference.Create(this);
-        try { await JS.InvokeVoidAsync("scanner.start", _ref); }
-        catch (Exception ex) { _scanning = false; _error = "Kameraet kunne ikke startes: " + ex.Message; }
-    }
-
-    private async Task StopScan()
-    {
-        if (!_scanning) return;
-        _scanning = false;
-        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
-        await Count();
-    }
-
-    // Called by scanner.js for each code. The same code twice within 4 s = the camera saw it again, not a second copy.
-    [JSInvokable]
-    public async Task OnBarcode(string raw)
-    {
-        var code = Barcodes.Clean(raw);
-        var again = code == _lastCode && (DateTime.Now - _lastAt).TotalSeconds < 4;
-        _lastCode = code; _lastAt = DateTime.Now;
-        if (!again && code.Length >= 8 && _session is not null && Me is not null)
-        {
-            try
-            {
-                var copies = await Capture.ScanAsync(code, _session.Id, Me);
-                _ = JS.InvokeVoidAsync("scanner.beep");
-                _scanStatus = copies > 1 ? $"{code} – nu {copies} stk. i sessionen" : $"{code} gemt";
-                await Count();
-            }
-            catch (Exception ex) { _scanStatus = ex.Message; }
-        }
-        StateHasChanged();
-        if (_scanning)
-        {
-            await Task.Delay(800);
-            try { if (_scanning) await JS.InvokeVoidAsync("scanner.start", _ref); } catch { }
-        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        _scanning = false;
-        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
         try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }
         _ref?.Dispose();
     }

@@ -109,25 +109,21 @@ public class CaptureTests
     }
 
     [Test]
-    public async Task Lager_gets_each_photo_and_scan_with_the_session_title_until_it_says_it_has_them()
+    public async Task Lager_gets_each_photo_with_the_session_title_until_it_says_it_has_them()
     {
         var capture = Capture();
         await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
         await capture.ProcessWaitingAsync(10, 1);
-        (await capture.ScanAsync("9780552131063", _session.Id, _rico)).Should().Be(1);
-        (await capture.ScanAsync("9780552131063", _session.Id, _rico)).Should().Be(2);   // same code again = one more copy
-        await capture.Invoking(c => c.ScanAsync("12", _session.Id, _rico)).Should().ThrowAsync<VareinfoException>();
 
         var first = await capture.NewForLagerAsync(10);
         (await capture.NewForLagerAsync(10)).Should().BeEquivalentTo(first);         // asked again before saying OK: the same
-        first.Scans.Single().Quantity.Should().Be(2);
+        first.Photos.Should().HaveCount(1);
         first.Boxes.Should().Equal(new CapturedBox("K5001", "Blade og album – 20. oktober", false, "Blade og album", true));
 
         await capture.ReceivedAsync(new CaptureReceived(first.Photos.Select(p => p.Id).ToList(), first.Scans.Select(s => s.Id).ToList()));
         var after = await capture.NewForLagerAsync(10);
         after.Photos.Should().BeEmpty();
         after.Scans.Should().BeEmpty();
-        (await capture.ScanAsync("9780552131063", _session.Id, _rico)).Should().Be(1);   // Lager has the first two - a new row
     }
 
     // 2026-10-29: Vibeke's first photos waited on her phone while the session was deleted - and were thrown away as "afvist".

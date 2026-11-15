@@ -15,7 +15,6 @@
 </head>
 <body>
     <Routes @rendermode="InteractiveServer" Me="@(HttpContext?.Items[nameof(Taker)] as Taker)" />
-    <script src="_content/ITMartin.Shared.UI/scanner.js?v=@CacheBuster"></script>
     <script src="fotokoe.js?v=@CacheBuster"></script>
     <script src="_framework/blazor.server.js"></script>
     <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/kolibri-sw.js").catch(function(){});}</script>
