@@ -233,13 +233,12 @@
 
     private void Remember()
     {
-        var url = Nav.GetUriWithQueryParameters("/", new Dictionary<string, object?>
+        var url = Nav.GetUriWithQueryParameters(Nav.BaseUri, new Dictionary<string, object?>
         {
             ["q"] = _q == "" ? null : _q, ["vis"] = _scopeKey == "alle" ? null : _scopeKey, ["kat"] = _category, ["type"] = _kind,
             ["sprog"] = _language, ["pris"] = _valuation, ["int"] = _interesting is null ? null : "1",
         });
-        if (Nav.ToBaseRelativePath(url) != Nav.ToBaseRelativePath(Nav.Uri))
-            Nav.NavigateTo(url, new NavigationOptions { ReplaceHistoryEntry = true });
+        if (url != Nav.Uri) Nav.NavigateTo(url, new NavigationOptions { ReplaceHistoryEntry = true });
     }
 
     // "Hvilke varer" (user 2026-11-03: "I could not search for only the new products").
