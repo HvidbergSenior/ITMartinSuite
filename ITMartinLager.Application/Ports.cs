@@ -134,7 +134,8 @@ public interface IPhotoStore
     /// ~1568 px. Empty when the photo is too small for close-ups to show more than the whole picture.</summary>
     Task<List<byte[]>> TilesAsync(Stream photo, CancellationToken ct);
     /// <summary>One thing cut out of a pile photo (a little margin around the area), as JPEG. Null when too small.</summary>
-    Task<byte[]?> CropAsync(byte[] jpeg, PhotoArea area, CancellationToken ct);
+    /// <param name="cover">A price sticker in the same photo (2026-11-15): painted over in the colour around it before the cut.</param>
+    Task<byte[]?> CropAsync(byte[] jpeg, PhotoArea area, CancellationToken ct, PhotoArea? cover = null);
     Task SaveAsync(string path, byte[] jpeg, CancellationToken ct);
     Task<byte[]?> ReadAsync(string path, CancellationToken ct);
     /// <summary>The full file name when the path is inside the data folder and exists, else null.</summary>

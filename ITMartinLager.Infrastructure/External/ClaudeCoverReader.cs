@@ -57,6 +57,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                           "confidence": { "type": "number", "description": "0-1: how sure the title/number reading is" },
                           "note":       { "type": "string", "description": "Short note if something is unreadable or damaged" },
                           "sticker_kr": { "type": ["integer", "null"], "description": "A price written ON the item itself: a price sticker, label, stamp or pencil mark (e.g. '69', '69,-', 'kr. 25'). Only the number in kroner. null when none is seen. Never the price printed by the publisher as part of the cover design." },
+                          "sticker_area": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4,
+                                            "description": "Only when sticker_kr is set: where that sticker/label/pencil price lies in IMAGE 1, [left, top, right, bottom] as parts of the width/height, 0-1, tight around it. It is covered on the item's picture." },
                           "edition_hint": { "type": "string", "enum": {{JsonSerializer.Serialize(EditionHints.All)}},
                                             "description": "Books only: what the cover/spine itself shows about the edition, else empty" },
                           "kolofon":    { "type": "boolean",
@@ -477,7 +479,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         (r.Note ?? "").Trim(), (r.Interest ?? "").Trim(), EditionHint: EditionHints.Normalise(r.EditionHint), Usage: Usages.Normalise(r.Usage),
         Publisher: (r.Publisher ?? "").Trim(), Area: PhotoArea.From(r.Area), Language: Languages.Normalise(r.Language),
         Barcode: r.Kolofon == true ? (r.Isbn ?? "").Trim() : "", Kolofon: r.Kolofon == true, Edition: r.Kolofon == true ? (r.Edition ?? "").Trim() : "",
-        StickerKr: r.StickerKr is > 0 and < 100000 ? r.StickerKr : null);
+        StickerKr: r.StickerKr is > 0 and < 100000 ? r.StickerKr : null,
+        StickerArea: r.StickerKr is > 0 and < 100000 ? PhotoArea.From(r.StickerArea, 0.004) : null);
 
     internal sealed class Report { public List<RawItem> Items { get; set; } = []; public string? Retake { get; set; } }
     internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
@@ -517,5 +520,6 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         public string? Edition { get; set; }
         public string? Isbn { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("sticker_kr")] public int? StickerKr { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("sticker_area")] public List<double>? StickerArea { get; set; }
     }
 }

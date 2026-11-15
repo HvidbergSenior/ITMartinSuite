@@ -1,5 +1,6 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
 namespace ITMartinLager.Infrastructure.External;
@@ -46,9 +47,10 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
     }
 
     // The AI's area is a little loose or tight now and then: 3 % margin, so the edges of the thing are not cut off.
-    public async Task<byte[]?> CropAsync(byte[] jpeg, PhotoArea area, CancellationToken ct)
+    public async Task<byte[]?> CropAsync(byte[] jpeg, PhotoArea area, CancellationToken ct, PhotoArea? cover = null)
     {
-        using var img = Image.Load(jpeg);
+        using var img = Image.Load<Rgb24>(jpeg);
+        if (cover is not null) Cover(img, cover);
         const double pad = 0.03;
         int x = (int)(Math.Max(0, area.Left - pad) * img.Width), y = (int)(Math.Max(0, area.Top - pad) * img.Height);
         int r = (int)(Math.Min(1, area.Right + pad) * img.Width), b = (int)(Math.Min(1, area.Bottom + pad) * img.Height);
@@ -57,6 +59,33 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         using var ms = new MemoryStream();
         await part.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 85 }, ct);
         return ms.ToArray();
+    }
+
+    // The price sticker off the picture (user 2026-11-15, "1" = cover it, no AI editing): the area, a little bigger, gets
+    // the average colour of a thin ring just outside it - a calm patch in the item's own colour instead of "69,-".
+    internal static void Cover(Image<Rgb24> img, PhotoArea a)
+    {
+        int padX = Math.Max(3, (int)((a.Right - a.Left) * img.Width * 0.15)), padY = Math.Max(3, (int)((a.Bottom - a.Top) * img.Height * 0.15));
+        int x0 = Math.Max(0, (int)(a.Left * img.Width) - padX), y0 = Math.Max(0, (int)(a.Top * img.Height) - padY);
+        int x1 = Math.Min(img.Width - 1, (int)(a.Right * img.Width) + padX), y1 = Math.Min(img.Height - 1, (int)(a.Bottom * img.Height) + padY);
+        if (x1 <= x0 || y1 <= y0) return;
+        const int ring = 6;
+        long r = 0, g = 0, b = 0, n = 0;
+        img.ProcessPixelRows(rows =>
+        {
+            for (var y = Math.Max(0, y0 - ring); y <= Math.Min(img.Height - 1, y1 + ring); y++)
+            {
+                var row = rows.GetRowSpan(y);
+                for (var x = Math.Max(0, x0 - ring); x <= Math.Min(img.Width - 1, x1 + ring); x++)
+                {
+                    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) continue;   // only the ring outside the sticker
+                    r += row[x].R; g += row[x].G; b += row[x].B; n++;
+                }
+            }
+            if (n == 0) return;
+            var fill = new Rgb24((byte)(r / n), (byte)(g / n), (byte)(b / n));
+            for (var y = y0; y <= y1; y++) rows.GetRowSpan(y).Slice(x0, x1 - x0 + 1).Fill(fill);
+        });
     }
 
     public async Task SaveAsync(string path, byte[] jpeg, CancellationToken ct)

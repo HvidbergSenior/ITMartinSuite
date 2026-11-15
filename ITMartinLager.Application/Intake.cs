@@ -247,7 +247,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         foreach (var (item, f) in placed)
         {
             if (item.ItemPhoto != "" || f.Area is null) continue;
-            if (await photos.CropAsync(pile, f.Area, ct) is not { } jpeg) continue;
+            if (await photos.CropAsync(pile, f.Area, ct, f.StickerArea) is not { } jpeg) continue;
             var path = Path.Combine("photos", "items", $"{item.Id}.jpg");
             await photos.SaveAsync(path, jpeg, ct);
             item.ItemPhoto = path;

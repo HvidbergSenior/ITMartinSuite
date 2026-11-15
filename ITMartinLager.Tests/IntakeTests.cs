@@ -240,6 +240,27 @@ public class IntakeTests
         ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = Kinds.Bog, Title = "X", StickerKr = 0 }).StickerKr.Should().BeNull();
     }
 
+    // Option 1 (2026-11-15, "cover the sticker"): where the sticker is comes with the same reading - only with a price.
+    [Test]
+    public void The_sticker_area_comes_only_with_a_sticker_price()
+    {
+        var box = new List<double> { 0.40, 0.40, 0.45, 0.43 };
+        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = Kinds.Bog, Title = "A", StickerKr = 69, StickerArea = box })
+            .StickerArea.Should().Be(new ITMartinVarer.Contracts.PhotoArea(0.40, 0.40, 0.45, 0.43));
+        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = Kinds.Bog, Title = "A", StickerArea = box }).StickerArea.Should().BeNull();
+    }
+
+    // The sticker is painted over in the colour just around it, and the rest of the picture is left alone.
+    [Test]
+    public void A_sticker_is_covered_in_the_colour_around_it()
+    {
+        using var img = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgb24>(200, 200, new SixLabors.ImageSharp.PixelFormats.Rgb24(30, 60, 200));
+        for (var y = 90; y < 110; y++) for (var x = 90; x < 110; x++) img[x, y] = new SixLabors.ImageSharp.PixelFormats.Rgb24(255, 255, 255);   // "69,-"
+        FilePhotoStore.Cover(img, new ITMartinVarer.Contracts.PhotoArea(0.45, 0.45, 0.55, 0.55));
+        img[100, 100].Should().Be(new SixLabors.ImageSharp.PixelFormats.Rgb24(30, 60, 200));
+        img[10, 10].Should().Be(new SixLabors.ImageSharp.PixelFormats.Rgb24(30, 60, 200));
+    }
+
     // "if picture is too bad and nothing can be read... It should not fill it out" (2026-11-15): a reading below Readings.CannotRead
     // makes nothing; a photo that gave nothing is listed as "kunne ikke læses".
     [Test]

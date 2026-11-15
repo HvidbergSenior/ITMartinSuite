@@ -4,6 +4,7 @@
 @inject IntakeUseCases Intake
 @inject VareinfoLinks Vareinfo
 @inject GoldUseCases Gold
+@inject NavigationManager Nav
 
 <PageTitle>Søg – Bogshoppen Lager</PageTitle>
 
@@ -211,6 +212,34 @@
         _newBoxes = await Items.NewPerBoxAsync(_weekUtc);
         _today = (await Items.NewPerBoxAsync(_todayUtc)).Sum(x => x.Count);
         _week = _newBoxes.Sum(x => x.Count);
+        // Back from a vare (user 2026-11-15: "I can not go back"): the search and the filters come from the address.
+        _q = Q ?? ""; _scopeKey = Vis ?? "alle"; _category = Kat; _kind = Type; _language = Sprog; _valuation = Pris;
+        if (Int == "1") await ShowInteresting();
+        else if (_q != "" || _scopeKey != "alle" || _category is not null || _kind is not null || _language is not null || _valuation is not null) await Find();
+    }
+
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "vis")] public string? Vis { get; set; }
+    [SupplyParameterFromQuery(Name = "kat")] public string? Kat { get; set; }
+    [SupplyParameterFromQuery(Name = "type")] public string? Type { get; set; }
+    [SupplyParameterFromQuery(Name = "sprog")] public string? Sprog { get; set; }
+    [SupplyParameterFromQuery(Name = "pris")] public string? Pris { get; set; }
+    [SupplyParameterFromQuery(Name = "int")] public string? Int { get; set; }
+
+    // The list's state goes into the address (replaced, not a new history step), so the browser's back from a vare and
+    // the vare's "Tilbage til listen" land on the same list.
+    private bool _live;   // .NET 8: no RendererInfo - the address is only changed once the page runs in the browser
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) _live = true; }
+
+    private void Remember()
+    {
+        var url = Nav.GetUriWithQueryParameters("/", new Dictionary<string, object?>
+        {
+            ["q"] = _q == "" ? null : _q, ["vis"] = _scopeKey == "alle" ? null : _scopeKey, ["kat"] = _category, ["type"] = _kind,
+            ["sprog"] = _language, ["pris"] = _valuation, ["int"] = _interesting is null ? null : "1",
+        });
+        if (Nav.ToBaseRelativePath(url) != Nav.ToBaseRelativePath(Nav.Uri))
+            Nav.NavigateTo(url, new NavigationOptions { ReplaceHistoryEntry = true });
     }
 
     // "Hvilke varer" (user 2026-11-03: "I could not search for only the new products").
@@ -249,6 +278,7 @@
     {
         _hits = null;
         _interesting = (await Items.InterestingAsync(_gold, scope: Scope)).Where(x => _kind is null || x.Item1.Kind == _kind).ToList();
+        if (_live) Remember();
     }
 
     private List<GoldEntry> _gold = [];
@@ -264,5 +294,6 @@
         _hits = found?.Hits;
         _total = found?.Total ?? 0;
         _high = found?.FarAbove ?? [];
+        if (_live) Remember();
     }
 }

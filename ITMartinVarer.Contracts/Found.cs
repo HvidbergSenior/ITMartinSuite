@@ -6,18 +6,21 @@ public sealed record Found(string Kind, string Title, string Artist, string Seri
     decimal? PriceHint = null, string EditionHint = "", string Usage = "", string Publisher = "", PhotoArea? Area = null,
     string Language = "", bool Kolofon = false, string Edition = "",
     // The price written on the thing itself (user 2026-11-15: "for instance agression book says 69 on it") - a sticker, label or pencil.
-    int? StickerKr = null);
+    int? StickerKr = null,
+    // Where that price sticker sits in the pile photo (user 2026-11-15, option 1: "cover the sticker") - covered on the cut-out.
+    PhotoArea? StickerArea = null);
 
 // Where one thing lies in the pile photo it was read from, as parts of the width and height (0-1, left/top first) - so
 // Lager can cut out a picture of just that thing (user 2026-10-31: "there should be pictures on each item").
 public sealed record PhotoArea(double Left, double Top, double Right, double Bottom)
 {
     /// <summary>Null when the numbers are not a real area inside the photo.</summary>
-    public static PhotoArea? From(IReadOnlyList<double>? box)
+    /// <param name="min">Smallest width/height that counts - a price sticker in a pile photo is small, so it asks for less.</param>
+    public static PhotoArea? From(IReadOnlyList<double>? box, double min = 0.02)
     {
         if (box is not { Count: 4 }) return null;
         double l = Math.Clamp(box[0], 0, 1), t = Math.Clamp(box[1], 0, 1), r = Math.Clamp(box[2], 0, 1), b = Math.Clamp(box[3], 0, 1);
-        return r - l >= 0.02 && b - t >= 0.02 ? new(l, t, r, b) : null;
+        return r - l >= min && b - t >= min ? new(l, t, r, b) : null;
     }
 }
 
