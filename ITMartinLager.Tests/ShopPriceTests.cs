@@ -2,17 +2,25 @@ using FluentAssertions;
 
 namespace ITMartinLager.Tests;
 
-// "We sell 10 pct below other sites" (user 2026-10-12).
+// "We sell 10 pct below other sites" (user 2026-10-12) - and since 2026-11-15 ordinary things 25 % under ("Like a loppemarked" -> "25").
 public class ShopPriceTests
 {
-    [TestCase(50, 45)]
-    [TestCase(100, 90)]
-    [TestCase(57, 50)]    // 51.3 -> down to 50, never above 90 %
-    [TestCase(11, 10)]
-    [TestCase(3, 3)]      // a cheap Magic card keeps whole kroner
-    [TestCase(1, 1)]
-    public void The_shop_price_is_10_percent_under_the_market(int market, int shop) =>
+    [TestCase(40, 30)]    // "found on DBA 40 kr. Our price 25 pct -> 30 kr"
+    [TestCase(99, 70)]    // 74.25 -> down to 70
+    [TestCase(11, 8)]     // 8.25 -> whole kroner
+    [TestCase(3, 2)]      // a cheap Magic card keeps whole kroner (2.25 -> 2)
+    [TestCase(1, 1)]      // never under 1 kr
+    [TestCase(100, 90)]   // bronze and up: 10 % under
+    [TestCase(557, 500)]  // 501.3 -> down to 500
+    public void Ordinary_things_are_25_percent_under_and_interesting_ones_10_percent_under(int market, int shop) =>
         ITMartinLager.Domain.Pricing.ShopPrice(market).Should().Be(shop);
+
+    [Test]
+    public void The_rule_is_said_in_words()
+    {
+        ITMartinLager.Domain.Pricing.ShopRule(40).Should().Be("25 % under (loppemarked)");
+        ITMartinLager.Domain.Pricing.ShopRule(300).Should().Be("10 % under");
+    }
 
     [Test]
     public void No_market_means_no_shop_price() => ITMartinLager.Domain.Pricing.ShopPrice(null).Should().BeNull();

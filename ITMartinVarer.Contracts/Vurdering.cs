@@ -19,10 +19,12 @@ public static class VurderingPiles
 /// <summary>A listing found on another site, shown so the person can judge.</summary>
 public sealed record VurderingFind(string Source, string Name, int Kr, string Url, bool IsNew);
 
-/// <summary>One thing to price: what it is, the suggested shop price (HintKr, 10 % under the sites), and what was found.</summary>
+/// <summary>One thing to price: what it is, the suggested shop price (HintKr, Pricing.ShopPrice: 25 % under below 100 kr, else 10 %), and what was found.</summary>
 /// Usage = Brugt / Som ny / Ny; NewKr/NewShop = the lowest price at a Danish new shop (Bog & idé, Fantask) to compare with.
 public sealed record VurderingItem(int Id, string Line, string Kind, string Condition, int? HintKr, int? SimilarKr, string Box,
-    List<VurderingFind> Finds, string Usage = "Brugt", int? NewKr = null, string? NewShop = null, int? StickerKr = null);
+    List<VurderingFind> Finds, string Usage = "Brugt", int? NewKr = null, string? NewShop = null, int? StickerKr = null,
+    // "Fundet på DBA 40 kr -> vores pris (halv pris) 20 kr" (2026-11-15): the market the suggestion came from, and the rule in words.
+    int? MarketKr = null, string HintRule = "");
 
 /// <summary>How many wait in each pile, and the next thing(s).</summary>
 public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items);

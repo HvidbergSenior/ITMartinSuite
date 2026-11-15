@@ -42,7 +42,7 @@ public sealed class CheckedBook
     public int? Market() => Pricing.NormalDanishFirst(Sites.Where(s => s.Value is { Ambiguous: false })
         .SelectMany(s => s.Value!.All.Where(o => o.Price is > 0).Select(o => (s.Key, (int)o.Price!.Value))).ToList());
 
-    /// <summary>Our price in the shop: 10 % under the market. Null = no site has it - then nobody can prove a price.</summary>
+    /// <summary>Our price in the shop (Pricing.ShopPrice: 25 % under below 100 kr, else 10 % under). Null = no site has it - then nobody can prove a price.</summary>
     public int? ShopPrice() => Pricing.ShopPrice(Market());
 
     public int Rank => Value?.Verdict switch { "Sælg" => 0, BookValue.Unsure => 1, "Kasse" => 2, "Genbrug" => 3, _ => 4 };
@@ -56,7 +56,7 @@ public sealed class CheckedBook
     private string SaveNote(DateTime today)
     {
         var parts = new List<string>();
-        if (ShopPrice() is { } p) parts.Add($"Vores pris {p} kr (10 % under markedet ca. {Market()} kr)");
+        if (ShopPrice() is { } p) parts.Add($"Vores pris {p} kr ({Pricing.ShopRule(Market())} markedet ca. {Market()} kr)");
         if (Value is { } v) parts.Add($"{v.Verdict}" + (v.Low is { } lo ? $" · {lo}-{v.High} kr" : "") + $" · efterspørgsel {v.Demand} · {v.Reason}");
         foreach (var s in new[] { "DBA", "AbeBooks", "Bokbörsen" })
             if (Site(s) is { Count: > 0 } l) parts.Add($"{s} {today:d/M}: {l.Text}");

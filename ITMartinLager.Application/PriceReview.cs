@@ -38,10 +38,12 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         var fresh = finds.Where(f => f.IsNew && !f.Similar && Pricing.DanishNewShops.Contains(f.Source) && f.Kr > 0).OrderBy(f => f.Kr).FirstOrDefault();
         var shown = finds.Where(f => !f.IsNew).OrderBy(f => f.Kr).Take(MaxFinds)
             .Concat(finds.Where(f => f.IsNew).OrderBy(f => f.Kr).Take(2)).ToList();
+        // The market the suggestion came from (2026-11-15: "found on DBA 40 kr. Our price 25 pct -> 30 kr"): the same Danish-first middle as the hunt.
+        var market = Pricing.NormalDanishFirst(finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).Select(f => (f.Source, f.Kr)).ToList());
         return new VurderingItem(i.Id, i.Line(), i.Kind, i.Condition, Kr(i.PriceHint), Kr(i.SimilarHint),
             i.BoxId is { } b && boxes.TryGetValue(b, out var code) ? code : "",
             shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew)).ToList(),
-            Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr);
+            Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr, market, market is { } m ? Pricing.ShopRule(m) : "");
     }
 
     private static int? Kr(decimal? d) => d is > 0 ? (int)Math.Round(d.Value) : null;

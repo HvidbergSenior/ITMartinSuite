@@ -134,7 +134,7 @@ public sealed class Item
     public Box? Box { get; set; }
     public int? PhotoId { get; set; }
     public decimal? Price { get; set; }          // kr, set by a person
-    public decimal? PriceHint { get; set; }      // kr, the suggested SHOP price: 10 % under the other sites (Pricing.ShopPrice)
+    public decimal? PriceHint { get; set; }      // kr, the suggested SHOP price: 25 % under the other sites below 100 kr, else 10 % (Pricing.ShopPrice)
     public int? StickerKr { get; set; }          // kr written on the thing itself (a price sticker) - read with the photo, 2026-11-15
     public string Deal { get; set; } = "";       // ShopDeal.Name it is sold in (Shop.DealFor, kept fresh by the price hunter job)
     public decimal? SimilarHint { get; set; }    // kr, the middle price of "magen til" when nothing exact is for sale - a pointer, not a price

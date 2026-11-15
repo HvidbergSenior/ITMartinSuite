@@ -14,7 +14,7 @@ public static class Shop
     /// <summary>Under this the AI was unsure what the thing is (StockItem.Confidence) - a person checks it first.</summary>
     public const double MinConfidence = 0.6;
 
-    /// <summary>The Køb nu price: the price a person set, else the suggested shop price (10 % under the other sites)
+    /// <summary>The Køb nu price: the price a person set, else the suggested shop price (Pricing.ShopPrice: 25 % under below 100 kr, else 10 %)
     /// when it is under autoMaxKr and the AI was sure what the thing is. Null = no Køb nu yet.</summary>
     public static int? BuyNowKr(StockItem i, int autoMaxKr)
     {

@@ -59,7 +59,7 @@ public class UseCaseTests
         checks.Select(c => (c.Source, c.Ok)).Should().BeEquivalentTo(new[] { ("DBA", true), ("eBay", false), ("Amazon.de", true) });
         finds.Should().HaveCount(3);   // a book: the Danish DBA listings only - Amazon.de is foreign (user 2026-11-06)
         var saved = await Items.GetAsync(item.Id, default);
-        saved!.PriceHint.Should().Be(45);          // 10 % under the used normal price 50; the new price is not a used price
+        saved!.PriceHint.Should().Be(35);          // 25 % under the used normal price 50 (ordinary, 2026-11-15); the new price is not a used price
         saved.PricesAt.Should().NotBeNull();
         hunt.SourceList.Should().Be("Brugt: DBA og eBay. Ny: Amazon.de.");   // names from the test sources above
     }

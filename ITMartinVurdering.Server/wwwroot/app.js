@@ -51,7 +51,7 @@
                 $('vu-line').textContent = item.line;
                 $('vu-facts').textContent = [item.kind, item.condition ? 'stand: ' + item.condition : '', item.box ? 'kasse ' + item.box : ''].filter(Boolean).join(' · ');
                 var ok = $('vu-ok');
-                if (item.hintKr) { ok.hidden = false; ok.textContent = 'Ok – ' + item.hintKr + ' kr'; $('vu-hint').innerHTML = 'Forslag: <b>' + item.hintKr + ' kr</b> – 10 % under det, andre sider tager.'; }
+                if (item.hintKr) { ok.hidden = false; ok.textContent = 'Ok – ' + item.hintKr + ' kr'; $('vu-hint').innerHTML = (item.marketKr ? 'Fundet andre steder: ca. <b>' + item.marketKr + ' kr</b> → vores pris (' + esc(item.hintRule) + '): <b>' + item.hintKr + ' kr</b>.' : 'Forslag: <b>' + item.hintKr + ' kr</b>.'); }
                 else { ok.hidden = true; $('vu-hint').innerHTML = item.similarKr ? 'Intet forslag. Noget, der ligner, koster omkring <b>' + item.similarKr + ' kr</b>.' : 'Intet forslag – der blev ikke fundet noget andre steder.'; }
                 // The price written on the thing (2026-11-15: "agression book says 69 on it").
                 var st = $('vu-sticker'), use = $('vu-use-sticker');

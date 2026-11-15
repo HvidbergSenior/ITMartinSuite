@@ -94,7 +94,7 @@ public class RealisticPriceTests
             new("Kleinanzeigen", false, L(O("Californication CD", 30), O("Californication CD", 67))),
         };
         HuntResult.From(1, answers, Now).ApplyTo(item, Now);
-        item.PriceHint.Should().BeInRange(20, 40);
+        item.PriceHint.Should().BeInRange(15, 30);
     }
 
     [Test]

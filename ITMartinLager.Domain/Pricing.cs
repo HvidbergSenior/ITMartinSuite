@@ -17,9 +17,16 @@ public static partial class Pricing
     public const string PegasusUrl = "https://www.pegasus.dk";
     public static bool PegasusFits(Item i) => i.Kind is Kinds.Tegneserie or Kinds.Superhelte or Kinds.Jumbobog or Kinds.AndersAnd;
 
-    // The shop sells 10 % under the other sites (user 2026-10-12: "We sell 10 pct below other sites"), and shows the
-    // customer the links that prove it.
-    public const decimal ShopFactor = 0.9m;
+    // Our price (user 2026-10-12: "We sell 10 pct below other sites"; 2026-11-15: "found on DBA 40 kr ... or even half price ... on
+    // ordinary products, not interesting ... Like a loppemarked" -> "25"): ordinary things (the market under Gold.BronzeFrom, 100 kr)
+    // are 25 % under, the interesting ones (bronze and up) 10 % under. The customer sees the links that prove it.
+    public const decimal ShopFactor = 0.9m, LoppeFactor = 0.75m;
+
+    /// <summary>Ordinary = under bronze (100 kr) - loppemarked prices.</summary>
+    public static bool Ordinary(decimal market) => market < Gold.BronzeFrom;
+
+    /// <summary>"25 % under (loppemarked)" or "10 % under" - the words for how our price came from the market.</summary>
+    public static string ShopRule(decimal? market) => market is { } m && Ordinary(m) ? "25 % under (loppemarked)" : "10 % under";
 
     /// <summary>Under this the AI was unsure what the thing is - no suggested price until a person has looked (2026-10-21).</summary>
     public const double MinConfidence = 0.6;
@@ -28,7 +35,7 @@ public static partial class Pricing
     public static int? ShopPrice(decimal? market)
     {
         if (market is not { } m || m <= 0) return null;
-        var p = m * ShopFactor;
+        var p = m * (Ordinary(m) ? LoppeFactor : ShopFactor);
         return p < 20 ? (int)Math.Max(1, Math.Round(p)) : (int)(Math.Floor(p / 5) * 5);
     }
 
