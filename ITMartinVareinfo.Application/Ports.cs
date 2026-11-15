@@ -17,6 +17,8 @@ public interface IPhotoStore
     Task SaveAsync(string path, byte[] jpeg, CancellationToken ct);
     Task<byte[]?> ReadAsync(string path, CancellationToken ct);
     void Delete(string path);
+    /// <summary>Moves a file inside the data folder (makes folders on the way). Nothing when the source is not there.</summary>
+    void Move(string from, string to);
     /// <summary>The full file name when the path is inside the data folder and exists, else null.</summary>
     string? FullPath(string path);
 }
@@ -32,6 +34,10 @@ public interface IPhotoRepository
     Task<List<Photo>> UnsentAsync(int max, CancellationToken ct);
     Task MarkSentAsync(IReadOnlyCollection<int> ids, DateTime now, CancellationToken ct);
     Task<int> CountAsync(int sessionId, CancellationToken ct);
+    /// <summary>The session's photos Lager has fetched (SentAt set).</summary>
+    Task<int> CountAtLagerAsync(int sessionId, CancellationToken ct);
+    /// <summary>Photos Lager has had since before this time and whose close-ups are still on disk, oldest first.</summary>
+    Task<List<Photo>> WithOldTilesAsync(DateTime sentBefore, int max, CancellationToken ct);
     /// <summary>Per session and helper: photos and the latest.</summary>
     Task<List<HelperTally>> PerSessionAsync(CancellationToken ct);
 }

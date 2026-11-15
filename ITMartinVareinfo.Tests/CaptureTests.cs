@@ -85,11 +85,31 @@ public class CaptureTests
         (await capture.CountAsync(_session.Id)).Should().Be((2, 0));
 
         (await capture.ProcessWaitingAsync(10, 4)).Should().Be(2);
-        store.Verify(s => s.Delete(It.Is<string>(p => p.StartsWith("inbox"))), Times.Exactly(2));             // the upload is not kept
+        store.Verify(s => s.Move(It.Is<string>(p => p.StartsWith("inbox")), It.Is<string>(p => p.StartsWith("til-nas"))), Times.Exactly(2));   // the original waits for the NAS
         var batch = await capture.NewForLagerAsync(10);
         batch.Photos.Should().HaveCount(2).And.OnlyContain(p => p.BoxCode == "K5001" && p.Helper == "Rico" && p.Tiles == 4);
         (await capture.PhotoFileAsync(batch.Photos[0].Id, 3)).Should().EndWith("-t3.jpg");
         (await capture.PhotoFileAsync(batch.Photos[0].Id, 4)).Should().BeNull();
+    }
+
+    // 2026-11-15: no piles on the photoserver - a week after Lager has the photo, its close-ups go; the reading copy stays.
+    [Test]
+    public async Task Close_ups_go_a_week_after_Lager_has_the_photo()
+    {
+        var store = Store();
+        var capture = Capture(store.Object);
+        await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
+        await capture.ProcessWaitingAsync(10, 1);
+        var batch = await capture.NewForLagerAsync(10);
+        await capture.ReceivedAsync(new CaptureReceived(batch.Photos.Select(p => p.Id).ToList(), []));
+        (await capture.CountAsync(_session.Id)).Should().Be((1, 1));
+
+        _clock.Now = _clock.Now.AddDays(6);
+        (await capture.CleanOldTilesAsync(10)).Should().Be(0);
+        _clock.Now = _clock.Now.AddDays(2);
+        (await capture.CleanOldTilesAsync(10)).Should().Be(1);
+        store.Verify(s => s.Delete(It.Is<string>(p => p.Contains("-t"))), Times.Exactly(4));
+        (await capture.CleanOldTilesAsync(10)).Should().Be(0);
     }
 
     [Test]

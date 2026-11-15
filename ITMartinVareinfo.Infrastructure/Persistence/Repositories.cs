@@ -52,6 +52,18 @@ public sealed class PhotoRepository(IDbContextFactory<VareinfoDb> dbf) : IPhotoR
         return await db.Photos.CountAsync(p => p.SessionId == sessionId, ct);
     }
 
+    public async Task<int> CountAtLagerAsync(int sessionId, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Photos.CountAsync(p => p.SessionId == sessionId && p.SentAt != null, ct);
+    }
+
+    public async Task<List<Photo>> WithOldTilesAsync(DateTime sentBefore, int max, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Photos.Where(p => p.Tiles > 0 && p.SentAt != null && p.SentAt < sentBefore).OrderBy(p => p.Id).Take(max).ToListAsync(ct);
+    }
+
     public async Task<List<HelperTally>> PerSessionAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

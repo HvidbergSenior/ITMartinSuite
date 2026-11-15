@@ -28,7 +28,8 @@ else
     <section class="k-card">
         <h1 class="k-card-title">@_session.Title</h1>
         <p class="vi-boxname">Skriv på kassen: <b>@_session.Title</b></p>
-        <p class="lg-answer" role="status"><b>@_photos billeder</b> i dag.</p>
+        @* User 2026-11-15: "so the 4 billeder i dag means they have been done? No need to upload?" + "maybe write done". *@
+        <p class="lg-answer" role="status"><b>@_photos billeder i dag</b>@DoneText</p>
         <p>Tag billeder med telefonens kamera – 10-20 ting med forsiden op på hvert. Tryk så <b>Upload billeder fra telefonen</b>, og vælg dem – mange på én gang.
             Det samme to gange gør ikke noget. Tingene bliver læst af sig selv og kommer på lager.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
@@ -65,7 +66,8 @@ else
     [CascadingParameter] public Taker? Me { get; set; }
 
     private WorkSession? _session;
-    private int _photos;
+    private int _photos, _atLager;
+    private Timer? _refresh;
     private string? _error;
     private DotNetObjectReference<Registrer>? _ref;
 
@@ -78,9 +80,15 @@ else
         {
             _session = await Sessions.TodayAsync(Me, CaptureKinds.Mixed);
             await Count();
+            // Photos from the Shortcut arrive outside this page, and Lager takes them a little later - look again every 10 s.
+            _refresh ??= new Timer(_ => InvokeAsync(async () => { await Count(); StateHasChanged(); }), null, 10_000, 10_000);
         }
         catch (Exception ex) { _error = ex.Message; }
     }
+
+    private string DoneText => _photos == 0 ? "."
+        : _atLager >= _photos ? " – færdig. Lager har dem alle, du skal ikke gøre mere."
+        : $" – {_atLager} er hos Lager, {_photos - _atLager} er på vej. Du skal ikke gøre mere.";
 
     // Each photo carries its own session, so photos still waiting on the phone land in the right one.
     private string SessionFields => _session is null ? "{}" : JsonSerializer.Serialize(new { sessionId = _session.Id });
@@ -103,12 +111,13 @@ else
     private async Task Count()
     {
         if (_session is null) return;
-        try { _photos = (await Capture.CountAsync(_session.Id)).Photos; }
+        try { (_photos, _atLager) = await Capture.CountAsync(_session.Id); }
         catch (Exception ex) { _error = ex.Message; }
     }
 
     public async ValueTask DisposeAsync()
     {
+        _refresh?.Dispose();
         try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }
         _ref?.Dispose();
     }

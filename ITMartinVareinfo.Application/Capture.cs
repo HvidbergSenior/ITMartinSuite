@@ -37,8 +37,23 @@ public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository 
     public static bool IsJpeg(byte[] b) => b.Length > 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF;
 
     /// <summary>Photos and scans in one session so far.</summary>
-    public async Task<(int Photos, int Scans)> CountAsync(int sessionId, CancellationToken ct = default) =>
-        (await photoRows.CountAsync(sessionId, ct), await scans.CountAsync(sessionId, ct));
+    /// <summary>Photos in the session, and how many of them Lager already has ("færdig" on the page, user 2026-11-15).</summary>
+    public async Task<(int Photos, int AtLager)> CountAsync(int sessionId, CancellationToken ct = default) =>
+        (await photoRows.CountAsync(sessionId, ct), await photoRows.CountAtLagerAsync(sessionId, ct));
+
+    /// <summary>Deletes the close-ups of photos Lager has had for a week - the reading copy stays (bogshoppen.dk can show it).
+    /// Returns how many photos were cleaned.</summary>
+    public async Task<int> CleanOldTilesAsync(int max, CancellationToken ct = default)
+    {
+        var old = await photoRows.WithOldTilesAsync(Now - Photo.TilesKeptFor, max, ct);
+        foreach (var p in old)
+        {
+            for (var n = 0; n < p.Tiles; n++) photos.Delete(Photo.TilePath(p.Path, n));
+            p.Tiles = 0;
+            await photoRows.UpdateAsync(p, ct);
+        }
+        return old.Count;
+    }
 
     /// <summary>Makes up to max uploads ready (reading copy + close-ups), parallel at most at a time. The upload is
     /// deleted once the copies are saved. Returns how many were done.</summary>
@@ -69,7 +84,7 @@ public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository 
                 var raw = p.RawPath;
                 p.MadeReady(path, tiles.Count);
                 await photoRows.UpdateAsync(p, ct);
-                photos.Delete(raw);
+                photos.Move(raw, p.NasPath);   // the original goes to the NAS (sync script), not deleted
                 return;
             }
         }

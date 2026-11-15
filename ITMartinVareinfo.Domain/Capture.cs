@@ -12,7 +12,9 @@ public sealed record Taker(int Id, string Name)
 }
 
 /// <summary>A photo taken in a session. Uploaded as it is (fast, so 100 phones are never kept waiting) and made
-/// ready in the background: a shrunk copy for reading plus close-ups (Path with -t0..-t3). The original is not kept.</summary>
+/// ready in the background: a shrunk copy for reading plus close-ups (Path with -t0..-t3). The original goes to the NAS
+/// (user 2026-11-15: files on the NAS, processing on the photoserver): it waits in til-nas/ until the NAS sync takes it.
+/// The close-ups are deleted a week after Lager has the photo - only the reading copy stays here.</summary>
 public sealed class Photo
 {
     public const int MaxAttempts = 3;
@@ -29,6 +31,12 @@ public sealed class Photo
     public int Attempts { get; set; }
     public DateTime TakenAt { get; set; } = DateTime.UtcNow;
     public DateTime? SentAt { get; set; }        // Lager has it
+
+    /// <summary>Where the original waits for the NAS sync: til-nas/2026-11/2026-11-15-412.jpg.</summary>
+    public string NasPath => System.IO.Path.Combine("til-nas", TakenAt.ToString("yyyy-MM"), $"{TakenAt:yyyy-MM-dd}-{Id}.jpg");
+
+    /// <summary>How long the close-ups stay after Lager has the photo (it reads at once; a week is plenty).</summary>
+    public static readonly TimeSpan TilesKeptFor = TimeSpan.FromDays(7);
 
     public static string TilePath(string path, int n) => System.IO.Path.ChangeExtension(path, null) + $"-t{n}.jpg";
 

@@ -59,6 +59,14 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         if (Inside(path) is { } full && File.Exists(full)) File.Delete(full);
     }
 
+    public void Move(string from, string to)
+    {
+        if (Inside(from) is not { } src || !File.Exists(src)) return;
+        var dst = Inside(to) ?? throw new InvalidOperationException("Ugyldig sti til billedet.");
+        Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
+        File.Move(src, dst, overwrite: true);
+    }
+
     public async Task SaveAsync(string path, byte[] jpeg, CancellationToken ct)
     {
         var full = Inside(path) ?? throw new InvalidOperationException("Ugyldig sti til billedet.");

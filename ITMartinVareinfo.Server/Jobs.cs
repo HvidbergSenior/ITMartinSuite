@@ -11,13 +11,22 @@ public sealed class PhotoJob(IServiceScopeFactory scopes, IConfiguration cfg, IL
     {
         var workers = Math.Clamp(cfg.GetValue("Vareinfo:PhotoWorkers", Environment.ProcessorCount / 2), 1, 16);
         log.LogInformation("Photo job: {Workers} at a time", workers);
+        var nextClean = DateTime.UtcNow;
         while (!stop.IsCancellationRequested)
         {
             var done = 0;
             try
             {
                 using var scope = scopes.CreateScope();
-                done = await scope.ServiceProvider.GetRequiredService<CaptureUseCases>().ProcessWaitingAsync(workers * 4, workers, stop);
+                var capture = scope.ServiceProvider.GetRequiredService<CaptureUseCases>();
+                done = await capture.ProcessWaitingAsync(workers * 4, workers, stop);
+                // Once an hour: close-ups Lager has had for a week go (2026-11-15: no piles of pictures on the photoserver).
+                if (done == 0 && DateTime.UtcNow >= nextClean)
+                {
+                    nextClean = DateTime.UtcNow.AddHours(1);
+                    var cleaned = await capture.CleanOldTilesAsync(500, stop);
+                    if (cleaned > 0) log.LogInformation("Close-ups cleaned: {Count} photos", cleaned);
+                }
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
             catch (Exception ex) { log.LogWarning("Photo round failed: {Message}", ex.Message); }
