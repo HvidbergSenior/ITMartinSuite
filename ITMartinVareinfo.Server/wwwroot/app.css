@@ -42,9 +42,7 @@
 .lg-steps li { margin: .3rem 0; }
 .lg-scan { display: grid; gap: .5rem; margin: .6rem 0; }
 .lg-scan video { width: 100%; max-height: 50vh; background: #000; border-radius: 10px; object-fit: cover; }
-.lg-scan video.is-flash { animation: lg-flash .25s ease-out; }
-@keyframes lg-flash { from { filter: brightness(2.5); } to { filter: none; } }
-.lg-scan[hidden], [data-camera-open][hidden], [data-photo-status][hidden] { display: none !important; }
+.lg-scan[hidden], [data-photo-status][hidden] { display: none !important; }
 
 /* Bøger: verdict colour on the left edge, so the good ones stand out while scrolling */
 .lg-book { border-left-width: 6px; }
@@ -83,12 +81,6 @@
 
 /* A helper's code on the Hjælpere page: big and spaced, easy to read out loud. */
 .lg-code { font-family: ui-monospace, monospace; font-size: 1.15em; letter-spacing: 0.12em; }
-/* The photo camera shows the whole picture it will take (cover cut the edges off), 2026-10-21. */
-.lg-scan video.lg-cam-video { object-fit: contain; max-height: 60vh; }
-.lg-cam-tools { gap: .5rem; align-items: center; flex-wrap: wrap; }
-.lg-cam-zoom { display: flex; align-items: center; gap: .4rem; flex: 1 1 200px; }
-.lg-cam-zoom input { flex: 1; }
-.lg-cam-lens { max-width: 14rem; }
 
 /* What you take pictures of (2026-11-15: Mine varer only + Strik, Ting): big buttons, two per row on a phone. */
 .vi-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: 8px; margin: 8px 0; }

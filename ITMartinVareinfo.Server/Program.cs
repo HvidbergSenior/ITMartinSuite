@@ -31,13 +31,11 @@ builder.Services.AddKolibri(k =>
     [
         "Log ind med din kode.",
         "Tryk på det, du tager billeder af: Bøger, Blade og album, Film, Musik, Spil, Rollespil, Magic-kort, Blandet, Strik eller Ting.",
-        "Læg 10-20 ting ud med forsiden op, og tryk Tag billede. Gentag, til alt har været på et billede.",
-        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på det, de er af, og så Upload billeder fra telefonen – du kan vælge mange på én gang.",
+        "Tag billederne med telefonens eget kamera: 10-20 ting med forsiden op på hvert, til alt har været på et billede.",
+        "Tryk så Upload billeder fra telefonen, og vælg billederne – mange på én gang.",
         "Strik og Ting: siden i Lager åbner – tag et billede, skriv hvad det er, prisen og hvem der har lavet det.",
         "Du skal aldrig trykke Færdig eller lukke noget: billederne er gemt, så snart de er sendt, og dagens sessioner lukker af sig selv ved midnat. Vil du tage billeder af noget andet, så tryk Tag billeder af noget andet.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
-        "Giver kameraet inde i siden ikke et billede, kommer en stor knap »Brug telefonens kamera« frem – billederne kommer med i samme session.",
-        "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
         "Er en session lukket, mens billeder ventede på telefonen, bliver de på telefonen: tryk på det, de er billeder af, og tryk Send dem til denne session.",
     ];
     k.Version = "2026.11.15";

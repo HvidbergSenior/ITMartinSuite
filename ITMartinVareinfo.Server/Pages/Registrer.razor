@@ -33,7 +33,7 @@ else if (_session is null)
             <a class="k-btn k-btn-secondary lg-big" href="@($"{Helpers.LagerBase}/ting")">Ting</a>
         </div>
         <p class="k-help">Strik og Ting lægges ind én ad gangen med pris og hvem der har lavet det.</p>
-        <p class="k-help">Har du taget billederne med telefonens eget kamera? Tryk på det, de er af, og så <b>Upload billeder fra telefonen</b> – du kan vælge mange på én gang.</p>
+        <p class="k-help">Tag billederne med telefonens kamera. Tryk så på det, de er af, og <b>Upload billeder fra telefonen</b> – du kan vælge mange på én gang.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
         <p data-photo-status role="status" hidden></p>
         @* Photos whose session is gone wait on the phone (fotokoe.js, 2026-10-29) - tap a button above to send them there. *@
@@ -44,46 +44,21 @@ else
 {
     @* User 2026-11-10: "I do not want to say done with or end session... That should happen automatically pr day... I just want to
        take pictures" + "boxes are not relevant only days/sessions -> i write on the box: sessionname". So: the name for the box at
-       the top, Tag billeder + Upload, and a small way back - nothing to finish or close. *@
+       the top, Upload (2026-11-15: "only upload from photos" - no camera inside the page), and a small way back. *@
     <section class="k-card">
         <h1 class="k-card-title">@_session.Title</h1>
         <p class="vi-boxname">Skriv på kassen: <b>@_session.Title</b></p>
         <p class="lg-answer" role="status"><b>@_photos billeder</b>@(_scans > 0 ? $" og {_scans} stregkoder" : "") i dag.</p>
-        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Tag så mange billeder, du vil – det samme to gange gør ikke noget.
-            Tingene bliver læst af sig selv og kommer på lager.</p>
+        <p>Tag billeder med telefonens kamera – 10-20 ting med forsiden op på hvert. Tryk så <b>Upload billeder fra telefonen</b>, og vælg dem – mange på én gang.
+            Det samme to gange gør ikke noget. Tingene bliver læst af sig selv og kommer på lager.</p>
         @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
-        @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
-        <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@SessionFields">Tag billeder</button>
-        <div id="foto-cam" class="lg-scan" hidden>
-            <video id="foto-video" class="lg-cam-video" muted playsinline></video>
-            <div id="foto-cam-tools" class="lg-row lg-cam-tools"></div>
-            <button type="button" class="k-btn k-btn-primary lg-big" data-camera-shoot>Tag billede</button>
-            <p id="foto-cam-note" class="lg-answer" role="status"></p>
-        </div>
         <p data-photo-status role="status" hidden></p>
         <div data-photo-stranded class="lg-warn" role="status" hidden>
             <p data-photo-stranded-text></p>
             <button type="button" class="k-btn k-btn-primary" data-photo-adopt>Send dem til denne session</button>
         </div>
-        <details class="lg-more-tips">
-            <summary>Gode råd</summary>
-            <ul>
-                <li>Tag billedet lige ovenfra, så alt kan ses.</li>
-                <li><b>CD'er, DVD'er, LP'er og bøger på række:</b> stil dem tæt med ryggen mod dig, og tag ét billede af 20-30 rygge – gå tæt på, så teksten kan læses.</li>
-                <li>Kameraet bliver åbent, så du kan tage det ene billede efter det andet.</li>
-                <li><b>Gamle eller fine bøger:</b> tag først et billede af forsiden, og så af siden bag titelbladet og den sidste side – der står udgave og oplag. Tag gerne flere billeder af samme bog.</li>
-                <li>Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.</li>
-            </ul>
-        </details>
-        @* "Brug telefonens kamera" stays for everybody: fotokoe.js shows it big when the in-page camera gives no picture. *@
-        @* Hidden: fotokoe.js copies its input into a big button only when the in-page camera gives no picture. *@
-        <div class="lg-row" hidden>
-            <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
-                <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
-            </label>
-        </div>
-        @* User 2026-10-31: take photos with the phone's own camera first, add them to the session later - many at once. *@
-        <label class="k-btn k-btn-secondary lg-big lg-camera">Upload billeder fra telefonen
+        @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
+        <label class="k-btn k-btn-primary lg-big lg-camera">Upload billeder fra telefonen
             <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
         </label>
     </section>
@@ -148,7 +123,6 @@ else
     private async Task Leave()
     {
         await StopScan();
-        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
         Nav.NavigateTo("/");
     }
 
@@ -224,7 +198,6 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
         _scanning = false;
         try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
         try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }
