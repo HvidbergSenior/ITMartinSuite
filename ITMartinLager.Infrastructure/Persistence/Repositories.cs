@@ -255,6 +255,13 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     private static IQueryable<Item> Listed(LagerDb db) => OnPage(db);
 
     // Sure readings: everything but the Unsure band.
+    public async Task<List<int>> UnsureIdsAsync(int max, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Items.Where(i => i.Confidence < Pricing.MinConfidence && (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg))
+            .OrderBy(i => i.Id).Select(i => i.Id).Take(max).ToListAsync(ct);
+    }
+
     private static IQueryable<Item> Sure(LagerDb db) => OnPage(db).Where(i => i.Confidence >= Pricing.MinConfidence || i.Deal == BladeDeal);
 
     // ShopDeals bands as SQL: Single = priced and in no deal, NoPrice = no price and in no deal, a deal name = that deal.

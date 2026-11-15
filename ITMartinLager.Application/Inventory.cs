@@ -43,6 +43,17 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
 {
     public const int MaxHits = 200;
 
+    /// <summary>Lager's job (user 2026-11-15: "correct ones that are a little difficult"): the things the AI was unsure of.
+    /// Gem sets the confidence to 1, so a fixed thing leaves the list by itself.</summary>
+    public Task<List<int>> UnsureAsync(CancellationToken ct = default) => items.UnsureIdsAsync(500, ct);
+
+    /// <summary>The next difficult one after this id (round again from the start), or null when there are none left but this one.</summary>
+    public async Task<int?> NextUnsureAsync(int afterId, CancellationToken ct = default)
+    {
+        var ids = await UnsureAsync(ct);
+        return ids.FirstOrDefault(i => i > afterId) is var next and > 0 ? next : ids.FirstOrDefault(i => i != afterId) is var first and > 0 ? first : null;
+    }
+
     /// <summary>Every word must match somewhere. Also the dearest find per hit when it is 3x the normal price or more
     /// (user: "if the normal price is 5 kr but on amazon.de it costs 50 kr i want to know that").</summary>
     public async Task<(List<Item> Hits, Dictionary<int, PriceFind> FarAbove, int Total)?> SearchAsync(string text, string? kind, string? valuation = null, CancellationToken ct = default, ItemScope? scope = null)

@@ -19,7 +19,7 @@ else
        folded at the bottom until Vurdering and Salg have them. *@
     <section class="k-card">
         <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @_item.Line()</h1>
-        @if (_item.ItemPhoto != "") { <img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /> }
+        @if (_item.ItemPhoto != "") { <a href="/varefoto/@_item.Id?v=@_photoVer" target="_blank" rel="noopener" title="Se billedet i fuld størrelse"><img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /></a> }
         <label class="k-btn k-btn-secondary lg-camera">
             @(_busy ? "⏳ Gemmer …" : _item.ItemPhoto == "" ? "📷 Tag billede af varen" : "📷 Tag nyt billede")
             <InputFile OnChange="SavePhoto" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
@@ -36,6 +36,7 @@ else
             </p>
         }
         @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
+        @if (Fixing) { <p class="k-small"><a href="/">Stop – tilbage til Søg</a></p> }
 
         <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
         <div class="lg-form">
@@ -60,7 +61,15 @@ else
             <label>Note <input class="k-input" @bind="_item.Note" /></label>
         </div>
         <div class="lg-row">
-            <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
+            @if (Fixing)
+            {
+                <button class="k-btn k-btn-primary" @onclick="SaveAndNext">Gem og næste</button>
+                <button class="k-btn k-btn-secondary" @onclick="Skip">Spring over</button>
+            }
+            else
+            {
+                <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
+            }
             @if (Admin) { <button class="k-btn k-btn-ghost" @onclick="Delete">🗑️ Slet</button> }
         </div>
         @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
@@ -242,6 +251,9 @@ else
     private bool Admin => Me is { IsAdmin: true };
     private bool Has(string field) => _item is { } i && ItemFields.Shows(i, field);
     [Parameter] public int Id { get; set; }
+    // ?ret=1 = going through "Ret de svære" one at a time (2026-11-15).
+    [SupplyParameterFromQuery(Name = "ret")] public int? Ret { get; set; }
+    private bool Fixing => Ret == 1;
     private Item? _item;
     private string? _box, _boxLabel, _msg, _err;
     private List<AuctionSessionInfo>? _sessions;
@@ -350,6 +362,21 @@ else
             _msg = "Gemt."; _err = null;
         }
         catch (Exception ex) { _err = ex.Message; }
+    }
+
+    // Gem sets the confidence to 1 (ItemUseCases.SaveAsync), so it leaves the list; then the next difficult one, or Søg when done.
+    private async Task SaveAndNext()
+    {
+        await Save();
+        if (_err is null) await GoNext();
+    }
+
+    private Task Skip() => GoNext();
+
+    private async Task GoNext()
+    {
+        var next = await Items.NextUnsureAsync(Id);
+        Nav.NavigateTo(next is { } n && n != Id ? $"/vare/{n}?ret=1" : "/");
     }
 
     private async Task SavePhoto(InputFileChangeEventArgs e)

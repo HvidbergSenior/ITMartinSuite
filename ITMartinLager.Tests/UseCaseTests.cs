@@ -134,6 +134,26 @@ public class UseCaseTests
         store.Verify(s => s.SaveAsync(Path.Combine("photos", "items", sweater.Id + "-2.jpg"), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // "Ret de svære" (2026-11-15): only our unsure ones, oldest first; Gem takes one off the list.
+    [Test]
+    public async Task The_difficult_ones_are_our_unsure_things_and_Gem_takes_one_off()
+    {
+        var a = new Item { Kind = Kinds.Bog, Title = "Usikker 1", Confidence = 0.3 };
+        var b = new Item { Kind = Kinds.Bog, Title = "Usikker 2", Confidence = 0.5 };
+        var sure = new Item { Kind = Kinds.Bog, Title = "Sikker", Confidence = 0.9 };
+        var sold = new Item { Kind = Kinds.Bog, Title = "Solgt", Confidence = 0.2, Status = Statuses.Solgt };
+        await Items.AddAsync([a, b, sure, sold], default);
+        var uc = new ItemUseCases(Items, Prices, new Mock<IPhotoStore>().Object);
+
+        (await uc.UnsureAsync()).Should().Equal(a.Id, b.Id);
+        (await uc.NextUnsureAsync(a.Id)).Should().Be(b.Id);
+        (await uc.NextUnsureAsync(b.Id)).Should().Be(a.Id);   // round again
+
+        await uc.SaveAsync(a);
+        (await uc.UnsureAsync()).Should().Equal(b.Id);
+        (await uc.NextUnsureAsync(b.Id)).Should().BeNull();
+    }
+
     [Test]
     public async Task Item_photos_download_as_a_zip_named_after_the_items()
     {

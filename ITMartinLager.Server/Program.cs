@@ -18,7 +18,7 @@ builder.Services.AddKolibri(k =>
     k.Name = "Bogshoppen Lager";
     k.KolibriName = "Kolibri Rede";
     k.Family = "rede";
-    k.Tagline = "Alt det, vi har: find en vare, se den, ret den.";
+    k.Tagline = "Alt det, vi har – og ret de svære.";
     k.About =
     [
         "Bogshoppen Lager er registret over alt det, Bogshoppen har: bøger, Anders And-blade, Jumbobøger, tegneserier, magasiner, CD'er, DVD'er, Blu-rays, spil og Magic-kort. Formål: find en vare, se den, ret den.",
@@ -26,6 +26,7 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
+        "Ret de svære (øverst på forsiden): de ting, hvor AI'en var usikker – én ad gangen. Se på billedet, ret det, der er forkert, og tryk Gem og næste (eller Spring over). Står der Færdig, er der intet at rette. Priserne sættes i Vurdering.",
         "Søg: skriv titel, kunstner, serie, nummer eller år. Nye i dag viser dagens ting, og Vis de interessante viser guld, sølv, bronze og måske. Flere valg har kasse, kategori, sprog og pris.",
         "Kasser: hver dag fra Vareinfo er én kasse. Skriv kassens navn (fx 15. november) i søgefeltet for at se alt fra den.",
         "Mangler en dansk tegneserie sit år, slår Lager serien og nummeret op i Grand Comics Database - året sættes kun på, når det er sikkert.",

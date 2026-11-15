@@ -5,9 +5,23 @@
 
 <PageTitle>Søg – Bogshoppen Lager</PageTitle>
 
+@* Lager's job (2026-11-15): fix the difficult ones - first on the page. *@
+<section class="k-card">
+    <h1 class="k-card-title">Ret de svære</h1>
+    @if (_unsure.Count == 0)
+    {
+        <p class="lg-ok" role="status">Færdig – AI'en var sikker på alt. Der er intet at rette.</p>
+    }
+    else
+    {
+        <p>@_unsure.Count ting, hvor AI'en var usikker. Se på billedet, ret det, der er forkert, og tryk <b>Gem og næste</b>.</p>
+        <a class="k-btn k-btn-primary lg-big" href="/vare/@_unsure[0]?ret=1">Ret de svære (@_unsure.Count)</a>
+    }
+</section>
+
 <section class="k-card">
     @* Simple first (user 2026-11-10: "It should be simple for me"): the search field, and every filter folded under "Flere valg". *@
-    <h1 class="k-card-title">Find en vare</h1>
+    <h2 class="k-card-title">Find en vare</h2>
     <p class="lg-answer">@_units.ToString("N0") ting i @_boxes kasser</p>
     <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år …" autofocus />
     <details class="kr-more" open="@FiltersOn">
@@ -133,10 +147,12 @@
     private int _total;
     private int _units, _boxes;
     private Dictionary<int, PriceFind> _high = [];
+    private List<int> _unsure = [];
 
     protected override async Task OnInitializedAsync()
     {
         (_units, _boxes) = await Boxes.StockAsync();
+        _unsure = await Items.UnsureAsync();
         _gold = await Gold.AllAsync();
         var now = DateTime.UtcNow;
         _todayUtc = ItemScope.DanishMidnightUtc(now);

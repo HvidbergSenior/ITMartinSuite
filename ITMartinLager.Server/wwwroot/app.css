@@ -34,7 +34,7 @@
 .lg-rgrid .lg-short { flex: 0 1 5.5rem; }
 .lg-form { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
 .lg-form label { display: grid; gap: .2rem; font-weight: 600; }
-.lg-photo { width: 100%; border-radius: 8px; }
+.lg-photo { display: block; width: auto; max-width: min(100%, 320px); max-height: 40vh; object-fit: contain; border-radius: 8px; }
 .lg-login { max-width: 26rem; margin: 12vh auto; padding: 0 16px; }
 .lg-pin { font-size: 1.4rem; margin: .4rem 0 .8rem; width: 100%; }
 .lg-label { width: 90mm; border: 2px solid #000; border-radius: 4mm; padding: 5mm; margin: 10mm auto; text-align: center; color: #000; background: #fff; font-family: system-ui, sans-serif; }
