@@ -63,6 +63,12 @@ public sealed class IntakeRepository(IDbContextFactory<LagerDb> dbf) : IIntakeRe
         return await db.BoxShots.Where(s => s.ReadAt == null && s.Wanted).OrderBy(s => s.Id).Take(max).ToListAsync(ct);
     }
 
+    public async Task<List<BoxShot>> UnreadableShotsAsync(DateTime since, int max, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.BoxShots.Where(s => s.ReadAt != null && s.ReadAt >= since && s.Found == 0).OrderByDescending(s => s.Id).Take(max).ToListAsync(ct);
+    }
+
     public async Task<List<BoxScan>> WantedScansAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

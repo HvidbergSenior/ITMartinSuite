@@ -59,6 +59,10 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
     /// <summary>"Læs" - one box, or every box (null). The job does the reading.</summary>
     public Task<int> WantReadAsync(string? boxCode, CancellationToken ct = default) => intake.WantReadAsync(boxCode, ct);
 
+    /// <summary>The last week's photos the AI could not read - nothing was made from them (front page, 2026-11-15).</summary>
+    public Task<List<BoxShot>> UnreadableAsync(CancellationToken ct = default) =>
+        intake.UnreadableShotsAsync(clock.GetUtcNow().UtcDateTime - Readings.ListedFor, 50, ct);
+
     /// <summary>Looks up the wanted scans and reads up to ReadPerRound wanted photos into their boxes. A photo is marked
     /// read only after its things are in the box. Stops at the daily cap (the reader throws).</summary>
     public async Task<int> ReadWantedAsync(CancellationToken ct = default)
@@ -81,7 +85,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             // What the pile mostly is - the button the photo was taken under (2026-11-10); "" = the reader decides per thing.
             if (!hints.TryGetValue(shot.BoxCode, out var hint))
                 hints[shot.BoxCode] = hint = CaptureKinds.HintFor((await boxes.GetOrAddAsync(shot.BoxCode, ct))?.Kind);
-            var found = await reader.ReadPileAsync(jpeg, closeUps, hint, ct);
+            var found = (await reader.ReadPileAsync(jpeg, closeUps, hint, ct)).Where(Readings.Readable).ToList();
             if (found.Count > 0) await SaveInBoxAsync(shot.BoxCode, shot.VareinfoId, found, ct, jpeg);
             shot.Read(found.Count, now);
             await intake.UpdateAsync([shot], ct);

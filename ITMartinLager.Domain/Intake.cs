@@ -5,6 +5,18 @@ namespace ITMartinLager.Domain;
 // photo, under the daily cap). What was read goes into that box - Lager is where it is checked and priced.
 
 /// <summary>A pile photo taken in Vareinfo. VareinfoId = its id there (the photo itself stays there).</summary>
+/// <summary>When the AI could not really read a photo (user 2026-11-15: "if picture is too bad and nothing can be read... It
+/// should not fill it out"). Measured on 437 photos the same day: blur and darkness do not predict it (the blurriest were still
+/// read at 0.6-0.7), the AI's own confidence does. Below CannotRead nothing is made - the photo is listed as "kunne ikke læses".
+/// 0.35-0.59 is made and goes to "Ret de svære".</summary>
+public static class Readings
+{
+    public const double CannotRead = 0.35;
+    public static bool Readable(Found f) => f.Confidence >= CannotRead;
+    /// <summary>How long a photo that could not be read is listed on the front page.</summary>
+    public static readonly TimeSpan ListedFor = TimeSpan.FromDays(7);
+}
+
 public sealed class BoxShot
 {
     public int Id { get; set; }

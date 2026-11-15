@@ -97,6 +97,8 @@ public interface IIntakeRepository
     /// <summary>Marks the unread photos and scans of one box (null = every box) to be read. Returns how many.</summary>
     Task<int> WantReadAsync(string? boxCode, CancellationToken ct);
     Task<List<BoxShot>> WantedShotsAsync(int max, CancellationToken ct);
+    /// <summary>Photos read since this time that gave nothing (Readings.CannotRead), newest first.</summary>
+    Task<List<BoxShot>> UnreadableShotsAsync(DateTime since, int max, CancellationToken ct);
     Task<List<BoxScan>> WantedScansAsync(int max, CancellationToken ct);
     Task UpdateAsync(IEnumerable<BoxShot> shots, CancellationToken ct);
     Task UpdateAsync(IEnumerable<BoxScan> scans, CancellationToken ct);

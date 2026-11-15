@@ -167,6 +167,28 @@ public class IntakeTests
         (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
     }
 
+    // "if picture is too bad and nothing can be read... It should not fill it out" (2026-11-15): a reading below Readings.CannotRead
+    // makes nothing; a photo that gave nothing is listed as "kunne ikke læses".
+    [Test]
+    public async Task What_the_AI_could_not_read_is_not_made_and_the_photo_is_listed()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(41, "K5020", "Martin", 0, At), new CapturedPhoto(42, "K5020", "Martin", 0, At)], [],
+            [new CapturedBox("K5020", "15. november", Kind: "Blandet", ReadNow: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.SetupSequence(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([F("Mort"), F("Blandede kort i bunke") with { Confidence = 0.3 }, F("Usikker") with { Confidence = 0.4 }])
+            .ReturnsAsync([F("Noget utydeligt") with { Confidence = 0.2 }]);
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+
+        await intake.FetchAsync();
+        await intake.ReadWantedAsync();
+
+        var box = await Boxes.GetOrAddAsync("K5020", default);
+        (await Items.InBoxAsync(box.Id, default)).Select(i => i.Title).Should().BeEquivalentTo("Mort", "Usikker");   // 0.4 goes to Ret de svære
+        (await intake.UnreadableAsync()).Select(s => s.VareinfoId).Should().Equal(42);
+    }
+
     // Tjek in Vareinfo (2026-11-10): Nej tak per thing, Fortryd back on the list, and only the things of that box.
     [Test]
     public async Task Tjek_says_no_per_thing_takes_it_back_and_knows_its_box()

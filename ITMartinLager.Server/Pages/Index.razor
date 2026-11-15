@@ -1,6 +1,8 @@
 @page "/"
 @inject BoxUseCases Boxes
 @inject ItemUseCases Items
+@inject IntakeUseCases Intake
+@inject VareinfoLinks Vareinfo
 @inject GoldUseCases Gold
 
 <PageTitle>Søg – Bogshoppen Lager</PageTitle>
@@ -16,6 +18,20 @@
     {
         <p>@_unsure.Count ting, hvor AI'en var usikker. Se på billedet, ret det, der er forkert, og tryk <b>Gem og næste</b>.</p>
         <a class="k-btn k-btn-primary lg-big" href="/vare/@_unsure[0]?ret=1">Ret de svære (@_unsure.Count)</a>
+    }
+    @* "if picture is too bad and nothing can be read... It should not fill it out" (2026-11-15): nothing made, shown here. *@
+    @if (_unreadable.Count > 0)
+    {
+        <details class="kr-more">
+            <summary>@_unreadable.Count @(_unreadable.Count == 1 ? "billede" : "billeder") kunne ikke læses den sidste uge</summary>
+            <p class="k-small">AI'en kunne ikke se, hvad der var på dem, så der er ikke lavet noget. Tag dem igen, tættere på og med forsiden op.</p>
+            <div class="lg-unreadable">
+                @foreach (var u in _unreadable)
+                {
+                    <a href="@Vareinfo.Photo(u.VareinfoId)" target="_blank" rel="noopener" title="@u.TakenAt.ToLocalTime().ToString("d/M HH:mm")"><img src="@Vareinfo.Photo(u.VareinfoId)" alt="Billede der ikke kunne læses" loading="lazy" /></a>
+                }
+            </div>
+        </details>
     }
 </section>
 
@@ -148,11 +164,13 @@
     private int _units, _boxes;
     private Dictionary<int, PriceFind> _high = [];
     private List<int> _unsure = [];
+    private List<ITMartinLager.Domain.BoxShot> _unreadable = [];
 
     protected override async Task OnInitializedAsync()
     {
         (_units, _boxes) = await Boxes.StockAsync();
         _unsure = await Items.UnsureAsync();
+        _unreadable = await Intake.UnreadableAsync();
         _gold = await Gold.AllAsync();
         var now = DateTime.UtcNow;
         _todayUtc = ItemScope.DanishMidnightUtc(now);
