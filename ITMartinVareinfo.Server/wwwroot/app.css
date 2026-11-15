@@ -90,40 +90,12 @@
 .lg-cam-zoom input { flex: 1; }
 .lg-cam-lens { max-width: 14rem; }
 
-/* Two ways in (2026-11-05): big, clear choices - "Gør dette" / "Du får". */
-.vi-ways .vi-way { border: 2px solid var(--k-border-3, #ccc); border-radius: 14px; padding: 14px 16px; margin: 12px 0; }
-.vi-ways .vi-way h2 { margin: 0 0 6px; font-size: 1.25rem; }
-.vi-ways .vi-way p { margin: 0 0 8px; }
-.vi-ways .vi-way .lg-big { width: 100%; margin-top: 6px; }
-
-/* One press (2026-11-10): purpose first (Mine varer / Tjek), then what the pictures are of - big buttons, two per row on a phone. */
-.vi-purpose { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
-.vi-purpose .lg-big, .vi-kinds .lg-big { width: 100%; }
-.vi-kinds-title { margin: 16px 0 8px; font-size: 1.2rem; }
+/* What you take pictures of (2026-11-15: Mine varer only + Strik, Ting): big buttons, two per row on a phone. */
 .vi-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: 8px; margin: 8px 0; }
-.vi-kinds .k-btn { white-space: normal; }
-@media (max-width: 420px) { .vi-purpose { grid-template-columns: 1fr; } }
-
-/* Tjek answers (2026-11-10): picture, what it is, then the two buttons - on a phone the buttons go under the text. */
-.vi-answers { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 10px; }
-.vi-answers li { display: grid; grid-template-columns: 72px 1fr auto; gap: 10px; align-items: center; border: 1px solid var(--k-border-3, #ccc); border-radius: 12px; padding: 8px; }
-.vi-answers img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: var(--k-surface-2, #eee); }
-.vi-answer-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
-.vi-answer-note { font-size: 1.05rem; }
-.vi-answer-kr { font-weight: 700; }
-.vi-answer-btns { display: flex; flex-direction: column; gap: 6px; }
-.vi-answers-sub { margin: 14px 0 6px; font-size: 1.05rem; }
-.vi-answers-taken li { grid-template-columns: 48px 1fr auto; }
-.vi-answers-taken img { width: 48px; height: 48px; }
-@media (max-width: 480px) {
-  .vi-answers li { grid-template-columns: 64px 1fr; }
-  .vi-answers img { width: 64px; height: 64px; }
-  .vi-answer-btns { grid-column: 1 / -1; flex-direction: row; }
-  .vi-answer-btns .k-btn { flex: 1; }
-}
+.vi-kinds .lg-big { width: 100%; }
+.vi-kinds .k-btn { white-space: normal; justify-content: center; text-align: center; }
 
 /* The name to write on the box (2026-11-10: "i write on the box: sessionname"). */
 .vi-boxname { font-size: 1.1rem; padding: 8px 12px; border: 2px dashed var(--k-border-3, #999); border-radius: 10px; display: inline-block; }
 .vi-back { margin: 4px 0 16px; }
 
-.vi-wide { display: flex; width: 100%; margin: 4px 0 8px; }

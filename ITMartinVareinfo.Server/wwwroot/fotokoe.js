@@ -79,7 +79,7 @@ window.photoQueue = {
             box.hidden = waiting === 0;
             var text = box.querySelector("[data-photo-stranded-text]");
             if (text) text.textContent = "⚠ " + waiting + " billede" + (waiting === 1 ? "" : "r") + " venter på telefonen: den session, de blev taget i, findes ikke længere. "
-                + (canAdopt ? "Tryk »Send dem til denne session«, så kommer de med her." : "Vælg en session ovenfor, så kan du sende dem dertil.");
+                + (canAdopt ? "Tryk »Send dem til denne session«, så kommer de med her." : "Tryk på det, de er billeder af, så kan du sende dem dertil.");
             var btn = box.querySelector("[data-photo-adopt]");
             if (btn) btn.hidden = !canAdopt;
         });

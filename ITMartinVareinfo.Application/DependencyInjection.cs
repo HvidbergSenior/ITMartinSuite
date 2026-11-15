@@ -11,7 +11,6 @@ public static class DependencyInjection
         services.AddScoped<SessionUseCases>();
         services.AddScoped<CaptureUseCases>();
         services.AddScoped<HelperUseCases>();
-        services.AddScoped<CheckUseCases>();
         return services;
     }
 }

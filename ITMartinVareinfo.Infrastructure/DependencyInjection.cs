@@ -25,8 +25,6 @@ public static class DependencyInjection
         // An admin kundenummer opens it like the PIN (Kunder__Url / Kunder__ApiKey); helpers removed 2026-11-10.
         services.AddKunderClient(cfg, dataDir);
         services.AddScoped<IHelperNumbers, KunderHelperNumbers>();
-        // Tjek answers from Lager (2026-11-10).
-        services.AddHttpClient<ICheckAnswers, LagerCheckAnswers>(c => c.Timeout = TimeSpan.FromSeconds(10));
 
         services.AddSingleton(new VareinfoOptions
         {

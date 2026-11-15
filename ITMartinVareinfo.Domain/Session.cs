@@ -23,8 +23,8 @@ public sealed class WorkSession
     /// <summary>The helper this session is for (Taker.Id - a kundenummer helper is minus the number). Null = every helper.</summary>
     public int? HelperId { get; set; }
     public string HelperName { get; set; } = "";
-    /// <summary>Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): things for sale somewhere
-    /// else - Lager prices them, and only the ones Martin takes home become stock.</summary>
+    /// <summary>Fund / Tjek (user 2026-11-03: "The pictures today are NOT products from our storage") - only old rows; Vareinfo
+    /// makes no new ones since 2026-11-15 ("i want an app for only tjek"). Lager still gets the flag for them.</summary>
     public bool Fund { get; set; }
     /// <summary>The button on the start screen (CaptureKinds: "Blade og album", "Blandet" ...) - user 2026-11-10: "These sessions
     /// could be all things magazines, strikke, ting, etc" + "maybe automatic session on days". "" = a session Martin started by hand.</summary>
@@ -40,23 +40,22 @@ public sealed class WorkSession
     public string Title => IsPractice ? $"Øvesession – {HelperName}" : IsDaily && Name != "" ? Name
         : Name == "" ? $"Session {Number}" : $"Session {Number} – {Name}";
 
-    public static WorkSession Start(int number, string? name, DateTime now, bool fund = false, string kind = "")
+    public static WorkSession Start(int number, string? name, DateTime now, string kind = "")
     {
         if (number is < 1 or > MaxNumber) throw new InvalidOperationException("Der er ikke flere sessionsnumre.");
-        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Fund = fund, Kind = Clean(kind) };
+        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Kind = Clean(kind) };
     }
 
-    /// <summary>Today's session of a button, by Danish date: "Blade og album – 10. november", or for Tjek
-    /// "Tjek: Blade og album – 10. november" (user 2026-11-10: "Take picture -> get quick price and/or if something is interesting").</summary>
-    public static string TodayName(bool fund, string kind, DateTime utcNow)
+    /// <summary>Today's session of a button, by Danish date: "Blade og album – 10. november".</summary>
+    public static string TodayName(string kind, DateTime utcNow)
     {
         var dk = TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen);
-        return (fund ? "Tjek: " : "") + Clean(kind) + " – " + dk.ToString("d. MMMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+        return Clean(kind) + " – " + dk.ToString("d. MMMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
     }
 
-    /// <summary>Is this today's session of that button (same purpose and button, open, made today in Danish time)?</summary>
-    public bool IsToday(bool fund, string kind, DateTime utcNow) =>
-        Open && !IsPractice && Fund == fund && Kind == Clean(kind) && SameDay(CreatedAt, utcNow);
+    /// <summary>Is this today's session of that button (a Mine varer session, same button, open, made today in Danish time)?</summary>
+    public bool IsToday(string kind, DateTime utcNow) =>
+        Open && !IsPractice && !Fund && Kind == Clean(kind) && SameDay(CreatedAt, utcNow);
 
     /// <summary>A day session from an earlier day - it closes by itself (no one has to press Luk).</summary>
     public bool IsOldDaily(DateTime utcNow) => Open && IsDaily && !SameDay(CreatedAt, utcNow);
@@ -73,8 +72,6 @@ public sealed class WorkSession
 
     /// <summary>The next number: one more than the highest so far.</summary>
     public static int NextNumber(IEnumerable<int> used) => used.DefaultIfEmpty(0).Max() + 1;
-
-    public void Rename(string? name) => Name = Clean(name);
 
     /// <summary>Martin sees every session; a helper the sessions given to them, or the ones for everybody.</summary>
     public bool IsFor(Taker me) => IsPractice ? HelperId == me.Id : me.IsAdmin || HelperId is null || HelperId == me.Id;

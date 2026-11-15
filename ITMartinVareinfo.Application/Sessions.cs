@@ -2,8 +2,8 @@ using ITMartinVareinfo.Domain;
 
 namespace ITMartinVareinfo.Application;
 
-/// <summary>The scanning sessions (user 2026-10-29: "Session 1, 2, 3, etc... named something like location and/or
-/// intent"). Martin starts one; every helper it is for sees it while it is open and taps it.</summary>
+/// <summary>The day sessions (user 2026-11-10: "automatic session on days"; 2026-11-15: "remove sessioner from this") - one per
+/// day per button, made by the button, closed by the next day. Nobody starts, names or closes one by hand.</summary>
 public interface ISessionRepository
 {
     /// <summary>Newest first, practice sessions included.</summary>
@@ -11,11 +11,7 @@ public interface ISessionRepository
     Task<WorkSession?> GetAsync(int id, CancellationToken ct);
     /// <summary>Adds (Id 0) or updates.</summary>
     Task SaveAsync(WorkSession session, CancellationToken ct);
-    Task DeleteAsync(int sessionId, CancellationToken ct);
 }
-
-/// <summary>One button on the helper's list.</summary>
-public sealed record SessionChoice(int Id, string Title, int Photos);
 
 public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepository photos, IScanRepository scans, TimeProvider clock)
 {
@@ -28,24 +24,10 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
     public async Task<List<WorkSession>> AllAsync(CancellationToken ct = default) =>
         (await sessions.AllAsync(ct)).Where(s => !s.IsPractice).ToList();
 
-    /// <summary>"Ny session": the next number, and the place/purpose Martin wrote (may be empty).</summary>
-    public async Task<WorkSession> StartAsync(string? name, CancellationToken ct = default, bool fund = false)
-    {
-        await Gate.WaitAsync(ct);
-        try
-        {
-            var number = WorkSession.NextNumber((await AllAsync(ct)).Select(s => s.Number));
-            var s = Guard(() => WorkSession.Start(number, name, Now, fund));
-            await sessions.SaveAsync(s, ct);
-            return s;
-        }
-        finally { Gate.Release(); }
-    }
-
     /// <summary>One press on the start screen (user 2026-11-10: "maybe automatic session on days"): today's session of that
-    /// purpose (Mine varer / Tjek) and that button ("Blade og album") for everyone - joined when it is there, made when it
-    /// is not. Day sessions from earlier days are closed on the way (photos still on a phone still come in).</summary>
-    public async Task<WorkSession> TodayAsync(Taker me, bool fund, string? kind = null, CancellationToken ct = default)
+    /// button ("Blade og album") - joined when it is there, made when it is not. Day sessions from earlier days are closed on
+    /// the way (photos still on a phone still come in). Tjek is its own app now (2026-11-15), so these are always Mine varer.</summary>
+    public async Task<WorkSession> TodayAsync(Taker me, string? kind = null, CancellationToken ct = default)
     {
         kind = CaptureKinds.IsKind(kind) ? kind! : CaptureKinds.Mixed;
         await Gate.WaitAsync(ct);
@@ -53,8 +35,8 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
         {
             var all = await AllAsync(ct);
             await CloseOldDaysAsync(all, ct);
-            if (all.Where(s => s.IsToday(fund, kind, Now) && s.IsFor(me)).OrderByDescending(s => s.CreatedAt).FirstOrDefault() is { } today) return today;
-            var s = Guard(() => WorkSession.Start(WorkSession.NextNumber(all.Select(x => x.Number)), WorkSession.TodayName(fund, kind, Now), Now, fund, kind));
+            if (all.Where(s => s.IsToday(kind, Now) && s.IsFor(me)).OrderByDescending(s => s.CreatedAt).FirstOrDefault() is { } today) return today;
+            var s = Guard(() => WorkSession.Start(WorkSession.NextNumber(all.Select(x => x.Number)), WorkSession.TodayName(kind, Now), Now, kind));
             await sessions.SaveAsync(s, ct);
             return s;
         }
@@ -71,40 +53,9 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
         }
     }
 
-    public Task RenameAsync(int id, string? name, CancellationToken ct = default) => ChangeAsync(id, s => s.Rename(name), ct);
-
-    /// <summary>Closed: it leaves the helpers' list (the photos are kept, and photos still on a phone still come in).</summary>
-    public Task CloseAsync(int id, CancellationToken ct = default) => ChangeAsync(id, s => s.Close(Now), ct);
-
-    public Task ReopenAsync(int id, CancellationToken ct = default) => ChangeAsync(id, s => s.ClosedAt = null, ct);
-
-    /// <summary>Only a session nobody took a photo or scan in - one with photos is closed instead, so a product can
-    /// always be found again by its session.</summary>
-    public async Task DeleteAsync(int id, CancellationToken ct = default)
-    {
-        if (await photos.CountAsync(id, ct) + await scans.CountAsync(id, ct) > 0)
-            throw new VareinfoException("Der er taget billeder i sessionen - luk den i stedet. Så kan tingene findes igen.");
-        await sessions.DeleteAsync(id, ct);
-    }
-
-    /// <summary>The helper's list: the open sessions for them. A helper who was given sessions sees only those; the
-    /// others see the ones for everybody. Martin sees all.</summary>
-    public async Task<List<SessionChoice>> ChoicesAsync(Taker me, CancellationToken ct = default)
-    {
-        // Today's button sessions are reached by their buttons, and earlier days' are closed - only Martin's own sessions are listed.
-        var open = (await AllAsync(ct)).Where(s => s.Open && !s.IsDaily && s.IsFor(me)).OrderBy(s => s.Number).ToList();
-        if (open.Count == 0) return [];
-        var counts = await photos.PerSessionAsync(ct);
-        return open.Select(s => new SessionChoice(s.Id, s.Title, counts.Where(t => t.SessionId == s.Id).Sum(t => t.Count))).ToList();
-    }
-
-    /// <summary>The session the helper opened (the page keeps its id in the address), when it is open and for them.</summary>
+    /// <summary>The session that is open on the page (its id is in the address), when it is still open.</summary>
     public async Task<WorkSession?> OpenForAsync(int id, Taker me, CancellationToken ct = default) =>
         await sessions.GetAsync(id, ct) is { Open: true } s && s.IsFor(me) ? s : null;
-
-    /// <summary>The session, open or closed, when it is for this person.</summary>
-    public async Task<WorkSession?> ForAsync(int id, Taker me, CancellationToken ct = default) =>
-        await sessions.GetAsync(id, ct) is { } s && s.IsFor(me) ? s : null;
 
     /// <summary>Martin's overview: every session with its photos, scans and helpers - open ones first.</summary>
     public async Task<List<SessionStatus>> OverviewAsync(CancellationToken ct = default)
@@ -115,21 +66,10 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
             .OrderByDescending(s => s.Session.Open).ThenByDescending(s => s.Session.Number).ToList();
     }
 
-    /// <summary>The session titles for these Lager codes - Lager shows them on Kasser until it knows sessions.</summary>
-    public async Task<Dictionary<string, string>> NamesAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default) =>
-        (await BoxesAsync(codes, ct)).ToDictionary(b => b.BoxCode, b => b.Name);
-
     /// <summary>The session title and whether it is a Fund session, for these Lager codes.</summary>
     public async Task<List<CapturedBox>> BoxesAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default) =>
         (await sessions.AllAsync(ct)).Where(s => !s.IsPractice && codes.Contains(s.BoxCode))
             .GroupBy(s => s.BoxCode).Select(g => new CapturedBox(g.Key, g.First().Title, g.First().Fund, g.First().Kind, g.First().IsDaily)).ToList();
-
-    private async Task ChangeAsync(int id, Action<WorkSession> change, CancellationToken ct)
-    {
-        if (await sessions.GetAsync(id, ct) is not { } s) return;
-        change(s);
-        await sessions.SaveAsync(s, ct);
-    }
 
     private static T Guard<T>(Func<T> rule)
     {

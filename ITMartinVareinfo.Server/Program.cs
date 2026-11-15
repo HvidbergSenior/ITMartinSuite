@@ -20,28 +20,27 @@ builder.Services.AddKolibri(k =>
     k.Name = "Bogshoppen Vareinfo";
     k.KolibriName = "Kolibri Rede";
     k.Family = "rede";
-    k.Tagline = "Vælg sessionen – og tag billeder af alt.";
+    k.Tagline = "Tag billeder af dine ting – så kommer de på lager.";
     k.About =
     [
-        "Bogshoppen Vareinfo er kameraet til Bogshoppens ting: bøger, Anders And-blade, tegneserier, blade, CD'er, plader, film, spil og Magic-kort.",
-        "Du trykker bare på det, du tager billeder af – fx Blade og album. Så er du i dagens session for det, fx »Blade og album – 10. november«. Den laves af sig selv og lukker af sig selv ved midnat. Skriv sessionens navn på kassen, så tingene kan findes igen.",
-        "Mine varer: billederne læses med det samme på Bogshoppen Lager, tingene får en pris og kommer på bogshoppen.dk af sig selv. Tjek: du får at vide, hvad der er interessant og en pris – kun det, du tager med hjem, bliver dit.",
+        "Bogshoppen Vareinfo er kameraet til Bogshoppens egne ting. Formål: tag billeder, og læg tingene på lager.",
+        "Du trykker bare på det, du tager billeder af – fx Blade og album. Så er du i dagens session for det, fx »Blade og album – 15. november«. Den laves af sig selv og lukker af sig selv ved midnat. Skriv navnet på kassen, så tingene kan findes igen.",
+        "Billederne læses med det samme på Bogshoppen Lager, og tingene kommer på lager af sig selv. Strik og Ting lægges ind én ad gangen i Lager med pris og hvem der har lavet det.",
     ];
     k.HowTo =
     [
         "Log ind med din kode.",
-        "Vælg Mine varer til Bogshoppen (jeres egne ting) eller Tjek – er det noget værd? (det, der står fx på genbrugspladsen). Tryk så på det, du tager billeder af: Bøger, Blade og album, Film, Musik, Spil, Rollespil, Magic-kort eller Blandet. Så er du i gang.",
-        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på det, de er af, og så Upload billeder fra telefonen – du kan vælge mange på én gang.",
+        "Tryk på det, du tager billeder af: Bøger, Blade og album, Film, Musik, Spil, Rollespil, Magic-kort, Blandet, Strik eller Ting.",
         "Læg 10-20 ting ud med forsiden op, og tryk Tag billede. Gentag, til alt har været på et billede.",
+        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på det, de er af, og så Upload billeder fra telefonen – du kan vælge mange på én gang.",
+        "Strik og Ting: siden i Lager åbner – tag et billede, skriv hvad det er, prisen og hvem der har lavet det.",
         "Du skal aldrig trykke Færdig eller lukke noget: billederne er gemt, så snart de er sendt, og dagens sessioner lukker af sig selv ved midnat. Vil du tage billeder af noget andet, så tryk Tag billeder af noget andet.",
-        "Vil du give en dag et særligt navn, så skriv det under Sessioner og tryk Start session. Den slags sessioner lukker du selv med Luk (billederne gemmes), og du læser dem i Lager med Læs. Strik og Ting lægges ind én ad gangen i Lager.",
-        "Tjek: billederne læses med det samme, og svaret kommer på samme side under billederne – de interessante øverst. Tryk Tog den ved det, du tager med (så kommer det på lager). Fortryd sætter den tilbage. Resten gemmes som Ikke købt af sig selv i nat og bliver aldrig sat til salg.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "Giver kameraet inde i siden ikke et billede, kommer en stor knap »Brug telefonens kamera« frem – billederne kommer med i samme session.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
-        "Er en session blevet slettet, mens billeder ventede på telefonen, bliver de på telefonen: vælg en session, og tryk Send dem til denne session.",
+        "Er en session lukket, mens billeder ventede på telefonen, bliver de på telefonen: tryk på det, de er billeder af, og tryk Send dem til denne session.",
     ];
-    k.Version = "2026.11.10";
+    k.Version = "2026.11.15";
     k.ThemeColor = "#f4f6f5";
 });
 
@@ -107,8 +106,8 @@ app.MapGet(ITMartinAdmin.Contracts.AdminStatusApi.Path, async (HttpContext ctx, 
     var open = (await sessions.OverviewAsync()).Where(s => s.Session.Open).ToList();
     return Results.Ok(new ITMartinAdmin.Contracts.AppStatus("Vareinfo",
     [
-        new("åbne sessioner", open.Count, false, "https://vareinfo.bogshoppen.dk/sessioner"),
-        new("billeder i de åbne sessioner", open.Sum(s => s.Photos), false, "https://vareinfo.bogshoppen.dk/hjaelpere"),
+        new("åbne sessioner", open.Count, false, "https://vareinfo.bogshoppen.dk/"),
+        new("billeder i de åbne sessioner", open.Sum(s => s.Photos), false, "https://vareinfo.bogshoppen.dk/"),
     ]));
 });
 
@@ -142,15 +141,6 @@ static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results
 app.MapGet("/foto/{id:int}", async (int id, CaptureUseCases capture) => Jpeg(await capture.PhotoFileAsync(id, null)));
 
 // A thing's picture on the Tjek page (2026-11-10): Lager's cut-out of it, else the pile photo it was read from.
-app.MapGet("/tjek/{sessionId:int}/foto/{itemId:int}", async (HttpContext ctx, int sessionId, int itemId, int? bunke, CheckUseCases check) =>
-    await check.PhotoAsync(sessionId, itemId, bunke, (Taker)ctx.Items[nameof(Taker)]!) switch
-    {
-        ({ } jpeg, _) => Results.File(jpeg, "image/jpeg"),
-        (_, { } file) => Results.File(file, "image/jpeg"),
-        _ => Results.NotFound(),
-    });
-
-// Lager's side (CaptureHeaders.Key): what is new, what it has taken over, and a photo or close-up when it reads it.
 app.MapGet("/api/lager/nye", async (int? antal, CaptureUseCases capture) => await capture.NewForLagerAsync(Math.Clamp(antal ?? 100, 1, 500)));
 app.MapPost("/api/lager/modtaget", async (CaptureReceived body, CaptureUseCases capture) => { await capture.ReceivedAsync(body); return Results.Ok(); });
 app.MapGet("/api/lager/foto/{id:int}", async (int id, int? del, CaptureUseCases capture) => Jpeg(await capture.PhotoFileAsync(id, del)));

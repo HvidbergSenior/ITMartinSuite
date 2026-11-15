@@ -122,10 +122,4 @@ public sealed class SessionRepository(IDbContextFactory<VareinfoDb> dbf) : ISess
         else db.Sessions.Update(session);
         await db.SaveChangesAsync(ct);
     }
-
-    public async Task DeleteAsync(int sessionId, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        await db.Sessions.Where(s => s.Id == sessionId).ExecuteDeleteAsync(ct);
-    }
 }

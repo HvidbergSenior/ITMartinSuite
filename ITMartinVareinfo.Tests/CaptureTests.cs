@@ -31,10 +31,11 @@ public class CaptureTests
     [SetUp]
     public async Task Open()
     {
+        _clock.Now = new(2026, 10, 20, 9, 0, 0, TimeSpan.Zero);   // a test that moves the day must not move the next
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();
         using (var db = Factory.CreateDbContext()) VareinfoDbInitializer.Upgrade(db);
-        _session = await Sessions().StartAsync("Boxit, reol 2");
+        _session = await Sessions().TodayAsync(_rico, "Blade og album");
     }
 
     private SessionUseCases Sessions() =>
@@ -120,7 +121,7 @@ public class CaptureTests
         var first = await capture.NewForLagerAsync(10);
         (await capture.NewForLagerAsync(10)).Should().BeEquivalentTo(first);         // asked again before saying OK: the same
         first.Scans.Single().Quantity.Should().Be(2);
-        first.Boxes.Should().Equal(new CapturedBox("K5001", "Session 1 – Boxit, reol 2"));
+        first.Boxes.Should().Equal(new CapturedBox("K5001", "Blade og album – 20. oktober", false, "Blade og album", true));
 
         await capture.ReceivedAsync(new CaptureReceived(first.Photos.Select(p => p.Id).ToList(), first.Scans.Select(s => s.Id).ToList()));
         var after = await capture.NewForLagerAsync(10);
@@ -132,19 +133,18 @@ public class CaptureTests
     // 2026-10-29: Vibeke's first photos waited on her phone while the session was deleted - and were thrown away as "afvist".
     // A gone session is its own answer, so the phone keeps the photo and asks for a session instead.
     [Test]
-    public async Task A_photo_for_a_deleted_session_is_told_apart_from_a_bad_photo()
+    public async Task A_photo_for_a_session_that_is_not_there_is_told_apart_from_a_bad_photo()
     {
-        var gone = await Sessions().StartAsync("Slettes");
-        await Sessions().DeleteAsync(gone.Id);
-
-        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), gone.Id, _rico)).Should().ThrowAsync<SessionGoneException>();
+        await Capture().Invoking(c => c.StoreAsync(new MemoryStream([1]), 999, _rico)).Should().ThrowAsync<SessionGoneException>();
     }
 
     [Test]
     public async Task A_photo_still_on_the_phone_lands_in_its_session_even_after_it_was_closed()
     {
         var capture = Capture();
-        await Sessions().CloseAsync(_session.Id);
+        _clock.Now = _clock.Now.AddDays(1);
+        await Sessions().TodayAsync(_rico, "Bøger");   // the next day closes yesterday's session
+        (await Sessions().OpenForAsync(_session.Id, _rico)).Should().BeNull();
 
         await capture.StoreAsync(new MemoryStream([1]), _session.Id, _rico);
         await capture.Invoking(c => c.StoreAsync(new MemoryStream([1]), 0, _rico)).Should().ThrowAsync<SessionGoneException>();

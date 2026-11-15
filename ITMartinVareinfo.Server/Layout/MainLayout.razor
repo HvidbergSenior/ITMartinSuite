@@ -3,13 +3,9 @@
 
 <KolibriTitle />   @* tab title fallback - here, not in KolibriHeader, so the page's own <PageTitle> wins *@
 <KolibriHeader>
-    @if (Me is { IsAdmin: true })
-    {
-        <a class="k-btn k-btn-ghost k-btn-sm" href="/sessioner">Sessioner</a>
-    }
     <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud</a>
 </KolibriHeader>
-@if (Me is { IsAdmin: true }) { <KolibriSteps Steps="Flow" Current="BogshoppenFlow.Vareinfo" Label="Bogshoppens apps" /> }
+@if (Me is not null) { <KolibriSteps Steps="Flow" Current="BogshoppenFlow.Vareinfo" Label="Bogshoppens apps" /> }
 <div class="k-main"><div class="k-content">
     @Body
 </div></div>
