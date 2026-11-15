@@ -19,12 +19,7 @@
 .lg-order .lg-main { display: flex; flex-direction: column; gap: .15rem; }
 .lg-more { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 
-/* Header on a phone: the menu gets its own row under the logo and scrolls sideways - never on top of the name. */
-@media (max-width: 760px) {
-    .k-header-in { flex-wrap: wrap; row-gap: 6px; }
-    .k-header-actions { margin-left: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
-    .k-header-actions .k-btn { white-space: nowrap; flex: none; }
-}
+/* Phone header: shared in kolibri-rolig.css (2026-11-15, the four apps look the same). */
 
 /* Sælg (2026-10-31): search, the price it went for, Solgt - big targets for a phone at the market stand. */
 .lg-search { font-size: 1.2rem; padding: .7rem .8rem; flex: 1 1 14rem; }

@@ -5,9 +5,10 @@
 @* Menu = Søg + Log ud (user 2026-11-15: "also all that kasser, mere?" -> yes). Kasser is found by typing the day's name in
    Søg; Mere is a small link at the bottom of the front page until its tools have moved to their own apps. *@
 <KolibriTitle />   @* tab title fallback - here, not in KolibriHeader, so the page's own <PageTitle> wins *@
-<KolibriHeader>
-    <a class="k-btn k-btn-ghost k-btn-sm" href="/">Søg</a>
-    @* Helpers (kundenummer): only Søg - the things (2026-10-26). *@
+@* The same header in all four Bogshoppen apps (2026-11-15): the tab's name, then Lys/mørk + Log ud. "Søg" is gone from
+   the menu - the front page IS the search, and the name top-left goes there. *@
+<KolibriHeader Title="@BogshoppenFlow.Title(BogshoppenFlow.Lager)">
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
     @if (Me is { IsAdmin: true })
     {
         @* Admins could not log out (user 2026-10-26: "cannot logout of lager") - needed to switch to a test login. *@

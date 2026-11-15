@@ -2,7 +2,9 @@
 @inject HelperUseCases Helpers
 
 <KolibriTitle />   @* tab title fallback - here, not in KolibriHeader, so the page's own <PageTitle> wins *@
-<KolibriHeader>
+@* The same header in all four Bogshoppen apps (2026-11-15): the tab's name, then Lys/mørk + Log ud. *@
+<KolibriHeader Title="@BogshoppenFlow.Title(BogshoppenFlow.Vareinfo)">
+    <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud</a>
 </KolibriHeader>
 @if (Me is not null) { <KolibriSteps Steps="Flow" Current="BogshoppenFlow.Vareinfo" Label="Bogshoppens apps" /> }

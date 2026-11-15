@@ -54,6 +54,22 @@ h1:focus, h1:focus-visible, h1.k-fold-head:focus-visible, .k-fold-head:focus:not
 .k-steps li a:hover { border-color: var(--k-accent); }
 .k-steps li.is-here span { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; text-decoration: none; }
 .k-steps li b, .k-steps-next { display: none; }
+/* Forrige / Næste under the tabs (user 2026-11-15: "navigation from all the 4 apps forward back"). */
+.k-steps-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.k-steps-nav a { font-weight: 600; font-size: .9rem; color: var(--k-accent-dark); text-decoration: none; padding: 4px 0; }
+.k-steps-nav a:hover { text-decoration: underline; }
+.k-steps-nav .is-next { margin-left: auto; }
+
+/* The four Bogshoppen apps look EXACTLY the same on a phone (user 2026-11-15) - so the phone rules live here, not in each
+   app.css. Header: the menu gets its own row under the logo and scrolls sideways - never on top of the name (2026-10-12). */
+@media (max-width: 760px) {
+    .k-header-in { flex-wrap: wrap; row-gap: 6px; }
+    .k-brand { flex: 1 1 auto; }
+    .k-header-actions { margin-left: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+    .k-header-actions .k-btn, .k-header-actions form { white-space: nowrap; flex: none; }
+}
+/* Nothing makes the page wider than the phone: a long address or word breaks instead of scrolling the page sideways. */
+.k-content { overflow-wrap: anywhere; }
 
 /* Small capital headings over a group, like Snak's "UGE 46" */
 .kr-label { margin: 18px 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--k-muted); }

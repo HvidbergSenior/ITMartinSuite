@@ -68,7 +68,7 @@ const string LoginBody = """
       </form>
     </section>
     """;
-const string Buttons = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Mørk</button>""";
+const string Buttons = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>""";
 const string Logout = """<form method="post" action="/ud" style="display:inline"><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form>""";
 
 // The apps' tabs (KolibriSteps markup, 2026-11-10) - Priser is ours.
@@ -83,7 +83,12 @@ static string Steps()
             ? $"""<li class="is-here"><span aria-current="page">{e}</span></li>"""
             : $"""<li><a href="{url}">{e}</a></li>""");
     }
-    return sb.Append("</ol></nav>").ToString();
+    sb.Append("</ol>");
+    // Forrige / Næste, the same as KolibriSteps (2026-11-15).
+    var (pn, pu) = BogshoppenFlow.Steps[BogshoppenFlow.Priser - 2];
+    var (nn, nu) = BogshoppenFlow.Steps[BogshoppenFlow.Priser];
+    sb.Append($"""<div class="k-steps-nav"><a href="{pu}">← {System.Net.WebUtility.HtmlEncode(pn)}</a><a class="is-next" href="{nu}">{System.Net.WebUtility.HtmlEncode(nn)} →</a></div>""");
+    return sb.Append("</nav>").ToString();
 }
 
 var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dodsbo.html"));
@@ -111,10 +116,10 @@ IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string scrip
         <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Vurdering · Bogshoppen</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=1"><link rel="stylesheet" href="/app.css?v=3">
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=2"><link rel="stylesheet" href="/app.css?v=3">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="{script}" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
-        <body>{KolibriStaticPages.Header(info, actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? pageBody : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+        <body>{KolibriStaticPages.Header(info, title: BogshoppenFlow.Title(BogshoppenFlow.Priser), actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? pageBody : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
 }
 
@@ -229,7 +234,7 @@ static string SharePage(KolibriAppInfo info, string title, string pageBody) => $
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('vurdering_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>{H(title)}</title><meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="{info.ThemeColor}">
-    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=1"><link rel="stylesheet" href="/app.css?v=3">
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=2"><link rel="stylesheet" href="/app.css?v=3">
     <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script></head>
     <body>{KolibriStaticPages.Header(info, actions: Buttons)}<main class="k-main"><div class="k-content">{pageBody}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
     """;

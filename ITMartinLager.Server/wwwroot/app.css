@@ -85,13 +85,7 @@
 .lg-more { margin: .3rem 0 .8rem; }
 .lg-more summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 
-/* Header on a phone (2026-10-12: the menu sat on top of "Bogshoppen Lager / Kolibri Rede"): the menu gets its own row
-   under the logo and scrolls sideways when it is longer than the screen - never on top of the name. */
-@media (max-width: 760px) {
-    .k-header-in { flex-wrap: wrap; row-gap: 6px; }
-    .k-header-actions { margin-left: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
-    .k-header-actions .k-btn { white-space: nowrap; flex: none; }
-}
+/* Phone header: shared in kolibri-rolig.css (2026-11-15, the four apps look the same). */
 .lg-order { display: flex; gap: .6rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .lg-order .lg-main { display: flex; flex-direction: column; gap: .15rem; }
 /* /mere: big buttons, one per tool, with what it is for (2026-10-21). */

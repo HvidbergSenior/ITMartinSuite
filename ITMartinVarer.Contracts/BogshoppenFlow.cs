@@ -19,4 +19,7 @@ public static class BogshoppenFlow
         ("Salg", "https://salg.bogshoppen.dk/"),
         ("bogshoppen.dk", "https://bogshoppen.dk/produkter"),
     ];
+
+    /// <summary>The header name = the tab's name (user 2026-11-15: "Vareinfo" on top but "Tag billeder" on the tab).</summary>
+    public static string Title(int step) => "Bogshoppen " + Steps[step - 1].Name;
 }
