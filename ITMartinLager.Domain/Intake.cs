@@ -17,6 +17,15 @@ public static class Readings
     public static readonly TimeSpan ListedFor = TimeSpan.FromDays(7);
 }
 
+/// <summary>What the AI said about one pile photo. Retake = why it must be taken again (user 2026-11-15: "if the picture is
+/// rotated and so on it should be taken again") - then nothing is made from it, whatever it thought it saw.</summary>
+public sealed record PileReading(List<Found> Items, string Retake = "")
+{
+    public bool TakeAgain => Retake.Trim() != "";
+    /// <summary>The things to make: none when the photo must be taken again, else only what could really be read.</summary>
+    public List<Found> Usable => TakeAgain ? [] : Items.Where(Readings.Readable).ToList();
+}
+
 public sealed class BoxShot
 {
     public int Id { get; set; }
@@ -28,10 +37,13 @@ public sealed class BoxShot
     public bool Wanted { get; set; }             // the person pressed Læs - the job takes it
     public DateTime? ReadAt { get; set; }        // null = not read yet
     public int Found { get; set; }
+    /// <summary>"drejet", "uskarpt" ... - the AI's reason to take the photo again; "" = it was fine (2026-11-15).</summary>
+    public string Retake { get; set; } = "";
 
-    public void Read(int found, DateTime now)
+    public void Read(int found, DateTime now, string retake = "")
     {
         Found = found;
+        Retake = retake.Trim();
         ReadAt = now;
         Wanted = false;
     }

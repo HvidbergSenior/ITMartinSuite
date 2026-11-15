@@ -104,7 +104,7 @@ public sealed class BookCheckUseCases(
         var jpeg = await photos.ShrinkAsync(original, ct);
         original.Position = 0;
         var closeUps = await photos.TilesAsync(original, ct);
-        return await reader.ReadPileAsync(jpeg, closeUps, "bøger", ct);
+        return (await reader.ReadPileAsync(jpeg, closeUps, "bøger", ct)).Items;
     }
 
     public Task<Found?> LookupBarcodeAsync(string code, CancellationToken ct = default) => barcodes.LookupAsync(Barcodes.Clean(code), ct);

@@ -107,4 +107,5 @@
 .lg-boxfacts b { font-size: 1.05rem; }
 /* Photos that could not be read (2026-11-15) - small, tap opens it. */
 .lg-unreadable { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.lg-unreadable a { display: flex; flex-direction: column; align-items: center; gap: 2px; text-decoration: none; color: inherit; }
 .lg-unreadable img { width: 96px; height: 96px; object-fit: cover; border-radius: 8px; }

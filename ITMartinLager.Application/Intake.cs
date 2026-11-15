@@ -85,9 +85,10 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             // What the pile mostly is - the button the photo was taken under (2026-11-10); "" = the reader decides per thing.
             if (!hints.TryGetValue(shot.BoxCode, out var hint))
                 hints[shot.BoxCode] = hint = CaptureKinds.HintFor((await boxes.GetOrAddAsync(shot.BoxCode, ct))?.Kind);
-            var found = (await reader.ReadPileAsync(jpeg, closeUps, hint, ct)).Where(Readings.Readable).ToList();
+            var reading = await reader.ReadPileAsync(jpeg, closeUps, hint, ct);
+            var found = reading.Usable;
             if (found.Count > 0) await SaveInBoxAsync(shot.BoxCode, shot.VareinfoId, found, ct, jpeg);
-            shot.Read(found.Count, now);
+            shot.Read(found.Count, now, reading.Retake);
             await intake.UpdateAsync([shot], ct);
             done++;
         }

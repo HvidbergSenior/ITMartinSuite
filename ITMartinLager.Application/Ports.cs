@@ -41,7 +41,7 @@ public interface ICoverReader
     bool Enabled { get; }
     int MaxCallsPerDay { get; }
     Task<int> CallsTodayAsync(CancellationToken ct);
-    Task<List<Found>> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct);
+    Task<PileReading> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct);
     Task<Dictionary<int, string>> WriteInterestAsync(IReadOnlyList<string> lines, CancellationToken ct);
     Task<Dictionary<int, KolofonReading>> ReadKolofonsAsync(IReadOnlyList<byte[]> jpegs, CancellationToken ct);
 }

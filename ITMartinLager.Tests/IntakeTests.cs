@@ -28,6 +28,7 @@ public class IntakeTests
     [TearDown]
     public void Close() => _conn.Dispose();
 
+    private static PileReading Pile(params Found[] f) => new([.. f]);
     private static Found F(string t) => new(Kinds.Bog, t, "", "", "", null, "", "God", 1, 0.9, "");
     private static readonly DateTime At = new(2026, 10, 20, 9, 0, 0, DateTimeKind.Utc);
 
@@ -52,7 +53,7 @@ public class IntakeTests
         var reader = new Mock<ICoverReader>();
         reader.SetupGet(r => r.Enabled).Returns(true);
         reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([F("Mort"), F("Sourcery")]);
+            .ReturnsAsync(Pile(F("Mort"), F("Sourcery")));
         var intake = Intake(vareinfo.Object, reader.Object);
 
         (await intake.FetchAsync()).Should().Be(3);
@@ -154,7 +155,7 @@ public class IntakeTests
         var reader = new Mock<ICoverReader>();
         reader.SetupGet(r => r.Enabled).Returns(true);
         reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([F("Jonah Hex 49")]);
+            .ReturnsAsync(Pile(F("Jonah Hex 49")));
         var intake = Intake(Vareinfo(batch).Object, reader.Object);
 
         await intake.FetchAsync();
@@ -165,6 +166,24 @@ public class IntakeTests
         box.Kind.Should().Be("Blade og album");
         box.Fund.Should().BeFalse();
         (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
+    }
+
+    // "Tag igen" (2026-11-15: "if the picture is rotated and so on it should be taken again"): nothing is made, the reason is kept.
+    [Test]
+    public async Task A_rotated_photo_makes_nothing_and_says_take_it_again()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(51, "K5030", "Martin", 0, At)], [], [new CapturedBox("K5030", "16. november", Kind: "Blandet", ReadNow: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PileReading([F("Mort")], "drejet"));
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+
+        await intake.FetchAsync();
+        await intake.ReadWantedAsync();
+
+        (await Items.InBoxAsync((await Boxes.GetOrAddAsync("K5030", default)).Id, default)).Should().BeEmpty();
+        (await intake.UnreadableAsync()).Single().Retake.Should().Be("drejet");
     }
 
     // "for instance agression book says 69 on it" (2026-11-15): the sticker price is read with the photo and kept on the thing.
@@ -187,8 +206,8 @@ public class IntakeTests
         var reader = new Mock<ICoverReader>();
         reader.SetupGet(r => r.Enabled).Returns(true);
         reader.SetupSequence(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([F("Mort"), F("Blandede kort i bunke") with { Confidence = 0.3 }, F("Usikker") with { Confidence = 0.4 }])
-            .ReturnsAsync([F("Noget utydeligt") with { Confidence = 0.2 }]);
+            .ReturnsAsync(Pile(F("Mort"), F("Blandede kort i bunke") with { Confidence = 0.3 }, F("Usikker") with { Confidence = 0.4 }))
+            .ReturnsAsync(Pile(F("Noget utydeligt") with { Confidence = 0.2 }));
         var intake = Intake(Vareinfo(batch).Object, reader.Object);
 
         await intake.FetchAsync();
@@ -207,7 +226,7 @@ public class IntakeTests
         var reader = new Mock<ICoverReader>();
         reader.SetupGet(r => r.Enabled).Returns(true);
         reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([F("Mort"), F("Eric")]);
+            .ReturnsAsync(Pile(F("Mort"), F("Eric")));
         var intake = Intake(Vareinfo(batch).Object, reader.Object);
         await intake.FetchAsync();
         await intake.ReadWantedAsync();
@@ -252,7 +271,7 @@ public class IntakeTests
         var reader = new Mock<ICoverReader>();
         reader.SetupGet(r => r.Enabled).Returns(true);
         reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([F("Mort"), F("Sourcery") with { PriceHint = 120 }, F("Eric")]);
+            .ReturnsAsync(Pile(F("Mort"), F("Sourcery") with { PriceHint = 120 }, F("Eric")));
         var intake = Intake(Vareinfo(batch).Object, reader.Object);
 
         await intake.FetchAsync();
@@ -302,9 +321,9 @@ public class IntakeTests
         var kolofon = F("Sallies historier") with { Artist = "Kim Fupz Aakeson", Kolofon = true, Edition = "1. oplag, 2. udgave", Barcode = "9788762601819", Year = 2007, Publisher = "Carlsen" };
         var back = new Found(Kinds.Bog, "", "", "", "", null, "", "God", 1, 0.5, "", Barcode: "9788762601819", Kolofon: true);
         reader.SetupSequence(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([kolofon])
-            .ReturnsAsync([F("Sallies historier") with { Artist = "Kim Fupz Aakeson" }])
-            .ReturnsAsync([back]);
+            .ReturnsAsync(Pile(kolofon))
+            .ReturnsAsync(Pile(F("Sallies historier") with { Artist = "Kim Fupz Aakeson" }))
+            .ReturnsAsync(Pile(back));
         var intake = new IntakeUseCases(Vareinfo(batch).Object, new IntakeRepository(Factory), Boxes, new RegistrationUseCases(Items), reader.Object,
             Mock.Of<IBarcodeLookup>(), TimeProvider.System, items: Items);
         await intake.FetchAsync();

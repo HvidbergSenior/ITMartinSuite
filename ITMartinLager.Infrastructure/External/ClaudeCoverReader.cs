@@ -69,6 +69,11 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                       }
                     }
                     """).RootElement,
+                // "Tag igen" (user 2026-11-15: "if the picture is rotated and so on it should be taken again") - same call, no extra cost.
+                ["retake"] = JsonDocument.Parse("""
+                    { "type": "string",
+                      "description": "Only when the PHOTO itself is bad: a short Danish reason it must be taken again - 'drejet' (sideways or upside down), 'uskarpt', 'for langt væk', 'skåret af', 'for mørkt', 'blænder'. Empty when the photo is fine, even if a single item is hard to read." }
+                    """).RootElement,
             },
             Required = ["items"],
         },
@@ -149,7 +154,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         new List<TextBlockParam> { new() { Text = system, CacheControl = new CacheControlEphemeral() } };
 
     // One call per photo: the whole pile plus up to four close-ups of it in the same message (never a call per close-up).
-    public async Task<List<Found>> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct)
+    public async Task<PileReading> ReadPileAsync(byte[] jpeg, IReadOnlyList<byte[]> closeUps, string hint, CancellationToken ct)
     {
         if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
 
@@ -193,7 +198,8 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         if (tool is null) throw new InvalidOperationException("AI'en svarede ikke med en liste. Prøv et nyt billede.");
         var parsed = JsonSerializer.Deserialize<Report>(JsonSerializer.Serialize(tool.Input), Json) ?? new Report();
         log.LogInformation("Pile read by {Model}: {Count} items, {In}/{Out} tokens, cache read {CacheRead} / written {CacheWrite}", response.Model, parsed.Items.Count, response.Usage.InputTokens, response.Usage.OutputTokens, response.Usage.CacheReadInputTokens, response.Usage.CacheCreationInputTokens);
-        return parsed.Items.Select(Clean).Where(f => f.Title.Length > 0 || (f.Kolofon && (f.Artist.Length > 0 || f.Barcode.Length > 0))).ToList();
+        return new PileReading(parsed.Items.Select(Clean).Where(f => f.Title.Length > 0 || (f.Kolofon && (f.Artist.Length > 0 || f.Barcode.Length > 0))).ToList(),
+            (parsed.Retake ?? "").Trim());
     }
 
     private const string InterestSystem = """
@@ -396,7 +402,7 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         Barcode: r.Kolofon == true ? (r.Isbn ?? "").Trim() : "", Kolofon: r.Kolofon == true, Edition: r.Kolofon == true ? (r.Edition ?? "").Trim() : "",
         StickerKr: r.StickerKr is > 0 and < 100000 ? r.StickerKr : null);
 
-    internal sealed class Report { public List<RawItem> Items { get; set; } = []; }
+    internal sealed class Report { public List<RawItem> Items { get; set; } = []; public string? Retake { get; set; } }
     internal sealed class KolofonReport { public List<KolofonRow> Items { get; set; } = []; }
     internal sealed class KolofonRow
     {

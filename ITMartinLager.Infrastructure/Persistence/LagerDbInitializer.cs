@@ -112,6 +112,13 @@ public static class LagerDbInitializer
                 db.Database.ExecuteSqlRaw($"ALTER TABLE Items ADD COLUMN {col} {type}");
         }
         {
+            // Why a photo must be taken again (2026-11-15, "Tag igen").
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('BoxShots') WHERE name = 'Retake'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+                db.Database.ExecuteSqlRaw("ALTER TABLE BoxShots ADD COLUMN Retake TEXT NOT NULL DEFAULT ''");
+        }
+        {
             // The round of scanning a box belongs to (2026-11-03, Iterations).
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Boxes') WHERE name = 'Iteration'";

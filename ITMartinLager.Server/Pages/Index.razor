@@ -23,12 +23,12 @@
     @if (_unreadable.Count > 0)
     {
         <details class="kr-more">
-            <summary>@_unreadable.Count @(_unreadable.Count == 1 ? "billede" : "billeder") kunne ikke læses den sidste uge</summary>
-            <p class="k-small">AI'en kunne ikke se, hvad der var på dem, så der er ikke lavet noget. Tag dem igen, tættere på og med forsiden op.</p>
+            <summary>Tag igen: @_unreadable.Count @(_unreadable.Count == 1 ? "billede" : "billeder") den sidste uge</summary>
+            <p class="k-small">Der er ikke lavet noget af dem. Tag dem igen – lige, skarpt, tæt på og med forsiden op.</p>
             <div class="lg-unreadable">
                 @foreach (var u in _unreadable)
                 {
-                    <a href="@Vareinfo.Photo(u.VareinfoId)" target="_blank" rel="noopener" title="@u.TakenAt.ToLocalTime().ToString("d/M HH:mm")"><img src="@Vareinfo.Photo(u.VareinfoId)" alt="Billede der ikke kunne læses" loading="lazy" /></a>
+                    <a href="@Vareinfo.Photo(u.VareinfoId)" target="_blank" rel="noopener" title="@u.TakenAt.ToLocalTime().ToString("d/M HH:mm")"><img src="@Vareinfo.Photo(u.VareinfoId)" alt="Billede der skal tages igen" loading="lazy" /><span class="k-small">@(u.Retake != "" ? u.Retake : "kunne ikke læses")</span></a>
                 }
             </div>
         </details>
