@@ -5,7 +5,6 @@
 @inject PriceHuntUseCases Hunt
 @inject VareinfoLinks Vareinfo
 @inject GoldUseCases Gold
-@inject KolofonUseCases Kolofons
 @inject KioskUseCases Kiosk
 
 <PageTitle>Vare – Bogshoppen Lager</PageTitle>
@@ -16,8 +15,16 @@
 }
 else
 {
+    @* User 2026-11-15 "only relevant stuff": the picture, what it is, the fields that fit its kind, Gem. Prices and selling are
+       folded at the bottom until Vurdering and Salg have them. *@
     <section class="k-card">
         <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @_item.Line()</h1>
+        @if (_item.ItemPhoto != "") { <img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /> }
+        <label class="k-btn k-btn-secondary lg-camera">
+            @(_busy ? "⏳ Gemmer …" : _item.ItemPhoto == "" ? "📷 Tag billede af varen" : "📷 Tag nyt billede")
+            <InputFile OnChange="SavePhoto" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
+        </label>
+
         <p>Ligger i <a href="/kasse/@_box"><b>@(_boxLabel ?? "ingen kasse")</b></a> · @(_item.Quantity > 1 ? "flere stk." : "1 stk.") · <b>@_item.Status</b>@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
         @if (_others.Count > 0)
         {
@@ -28,42 +35,26 @@ else
                 }
             </p>
         }
-        @if (Admin)
-        {
-        <div class="lg-row">
-            @if (_item.FeaturedAt is null)
-            {
-                <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Feature(true)" disabled="@(_item.Status is Statuses.Solgt or Statuses.PaaAuktion)">⭐ Vis på forsiden</button>
-                <span class="k-small k-muted">Så kommer den med under "Fundet i kasserne" på bogshoppen.dk og itmartin.dk – med billede, det interessante og links til andre sider.</span>
-            }
-            else
-            {
-                <span class="lg-ok">⭐ Vises på forsiden</span>
-                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Feature(false)">Tag den af forsiden</button>
-            }
-        </div>
-        }
         @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
 
         <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
         <div class="lg-form">
             <label>Type <select class="k-input" @bind="_item.Kind">@foreach (var k in Kinds.All) { <option value="@k">@k</option> }</select></label>
-            <label>Titel <input class="k-input" @bind="_item.Title" /></label>
-            <label>Kunstner / forfatter <input class="k-input" @bind="_item.Artist" /></label>
-            <label>Serie / blad <input class="k-input" @bind="_item.Series" /></label>
-            <label>Nummer <input class="k-input" @bind="_item.Number" /></label>
-            <label>År <input class="k-input" type="number" @bind="_item.Year" /></label>
-            <label>ISBN / stregkode <input class="k-input" inputmode="numeric" @bind="_item.Barcode" placeholder="978…" /></label>
-            <label>Omslaget siger <select class="k-input" @bind="_item.EditionHint">@foreach (var h in EditionHints.All) { <option value="@h">@(h == "" ? "(intet)" : h)</option> }</select></label>
-            <label>Udgave / oplag <input class="k-input" @bind="_item.Edition" placeholder="1. udgave, 1. oplag" /></label>
-            <label>Forlag <input class="k-input" @bind="_item.Publisher" /></label>
-            <label>Konsol <input class="k-input" @bind="_item.Platform" /></label>
+            @if (Has(ItemFields.Title)) { <label>Titel <input class="k-input" @bind="_item.Title" /></label> }
+            @if (Has(ItemFields.Artist)) { <label>@ItemFields.ArtistLabel(_item.Kind) <input class="k-input" @bind="_item.Artist" /></label> }
+            @if (Has(ItemFields.Series)) { <label>@(_item.Kind == Kinds.Magic ? "Sæt" : "Serie / blad") <input class="k-input" @bind="_item.Series" /></label> }
+            @if (Has(ItemFields.Number)) { <label>Nummer <input class="k-input" @bind="_item.Number" /></label> }
+            @if (Has(ItemFields.Year)) { <label>År <input class="k-input" type="number" @bind="_item.Year" /></label> }
+            @if (Has(ItemFields.Barcode)) { <label>@(_item.Kind == Kinds.Bog ? "ISBN" : "Stregkode") <input class="k-input" inputmode="numeric" @bind="_item.Barcode" placeholder="@(_item.Kind == Kinds.Bog ? "978…" : "")" /></label> }
+            @if (Has(ItemFields.EditionHint)) { <label>Omslaget siger <select class="k-input" @bind="_item.EditionHint">@foreach (var h in EditionHints.All) { <option value="@h">@(h == "" ? "(intet)" : h)</option> }</select></label> }
+            @if (Has(ItemFields.Edition)) { <label>Udgave / oplag <input class="k-input" @bind="_item.Edition" placeholder="1. udgave, 1. oplag" /></label> }
+            @if (Has(ItemFields.Publisher)) { <label>Forlag <input class="k-input" @bind="_item.Publisher" /></label> }
+            @if (Has(ItemFields.Platform)) { <label>Konsol <input class="k-input" @bind="_item.Platform" /></label> }
             <label>Ny eller brugt <select class="k-input" @bind="_item.Usage">@foreach (var u in Usages.All) { <option value="@u">@u</option> }</select></label>
             <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
             <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
             @if (Admin)
             {
-                <label>Pris (kr)@(_item.PriceHint is { } ph ? $" – forslag {ph:0} kr" : "") <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
                 <label>Status <select class="k-input" @bind="_item.Status">@foreach (var s in Statuses.All) { <option value="@s">@s</option> }</select></label>
             }
             <label>Note <input class="k-input" @bind="_item.Note" /></label>
@@ -78,22 +69,26 @@ else
 
     @if (Admin && Pricing.HuntedKinds.Contains(_item.Kind))
     {
-        @if (_item.Want is { } want && !ITMartinLager.Domain.Gold.Hot(_item.Want, _item.Have))
-        {
-            <p class="k-small k-muted">Discogs: @want samlere ønsker den, @(_item.Have ?? 0) har den. Eftertragtet = mindst @ITMartinLager.Domain.Gold.HotWant ønsker, og flere ønsker end har.</p>
-        }
-        @if (_note is { } note)
-        {
-            <section class="k-card lg-gold">
-                <p class="lg-answer">@note</p>
-                @if (_gold is { } g)
-                {
-                    <p class="k-small">@(g.Tier switch { "Guld" => "Guld = 500 kr eller mere.", "Sølv" => "Sølv = 200-499 kr – værd at sælge for sig.", _ => "Bronze = 100-199 kr – interessant." }) Fra @g.Source (@g.Listings annonce@(g.Listings == 1 ? "" : "r")). Tjek at det er netop dette nummer og år – og standen. <a href="@g.Url" target="_blank" rel="noopener">Se annoncen</a> · <a href="/guld">Hele listen</a></p>
-                }
-            </section>
-        }
-        <section class="k-card">
-            <h2 class="k-card-title">💰 Priser fundet på nettet</h2>
+        <section class="k-card" data-fold-closed>
+            <h2 class="k-card-title">Priser – flytter til Vurdering</h2>
+            @if (_item.Want is { } want && !ITMartinLager.Domain.Gold.Hot(_item.Want, _item.Have))
+            {
+                <p class="k-small k-muted">Discogs: @want samlere ønsker den, @(_item.Have ?? 0) har den. Eftertragtet = mindst @ITMartinLager.Domain.Gold.HotWant ønsker, og flere ønsker end har.</p>
+            }
+            @if (_note is { } note)
+            {
+                <div class="lg-gold">
+                    <p class="lg-answer">@note</p>
+                    @if (_gold is { } g)
+                    {
+                        <p class="k-small">@(g.Tier switch { "Guld" => "Guld = 500 kr eller mere.", "Sølv" => "Sølv = 200-499 kr – værd at sælge for sig.", _ => "Bronze = 100-199 kr – interessant." }) Fra @g.Source (@g.Listings annonce@(g.Listings == 1 ? "" : "r")). Tjek at det er netop dette nummer og år – og standen. <a href="@g.Url" target="_blank" rel="noopener">Se annoncen</a> · <a href="/guld">Hele listen</a></p>
+                    }
+                </div>
+            }
+            <div class="lg-row">
+                <label>Pris (kr)@(_item.PriceHint is { } ph ? $" – forslag {ph:0} kr" : "") <input class="k-input" type="number" step="5" @bind="_item.Price" /></label>
+                <button class="k-btn k-btn-secondary" @onclick="Save">Gem prisen</button>
+            </div>
             @if (_kiosk is { } kp)
             {
                 <p class="k-small">🗞️ <b>Nyt @kp.Series koster @kp.Kr kr i kiosken i dag</b>@(kp.Note != "" ? $" ({kp.Note})" : "").
@@ -171,37 +166,24 @@ else
         </section>
     }
 
-    @if (_item.Kind == Kinds.Bog)
-    {
-        <section class="k-card" data-fold-closed>
-            <h2 class="k-card-title">📖 Kolofon (udgave og oplag)</h2>
-            <p>Kun for bøger, hvor udgaven kan betyde noget for prisen. Slå op på bagsiden af titelbladet og tag billedet tæt på, så teksten er skarp. AI'en læser udgave, oplag, år, forlag og ISBN inden for et par minutter og skriver det her.</p>
-            @if (_item.KolofonPhoto != "")
-            {
-                <p>@(_item.KolofonAt is { } k ? $"Læst {k.ToLocalTime():d/M HH:mm}." : "⏳ Venter på at blive læst.")@(_item.Edition != "" ? $" Udgave: {_item.Edition}." : "")</p>
-                <img class="lg-photo" src="/kolofonfoto/@_item.Id?v=@_photoVer" alt="Kolofonen" loading="lazy" />
-            }
-            <label class="k-btn k-btn-secondary lg-camera">
-                @(_busy ? "⏳ Gemmer …" : _item.KolofonPhoto == "" ? "📷 Tag billede af kolofonen" : "📷 Tag nyt billede af kolofonen")
-                <InputFile OnChange="SaveKolofon" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
-            </label>
-        </section>
-    }
-
-    <section class="k-card">
-        <h2 class="k-card-title">📷 Billede af varen</h2>
-        <p>Et billede af lige præcis den her – til auktion og butik. (Billedet af bunken bruges ikke, det viser for mange ting.)</p>
-        @if (_item.ItemPhoto != "") { <img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /> }
-        <label class="k-btn k-btn-secondary lg-camera">
-            @(_busy ? "⏳ Gemmer …" : _item.ItemPhoto == "" ? "📷 Tag billede af varen" : "📷 Tag nyt billede")
-            <InputFile OnChange="SavePhoto" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
-        </label>
-    </section>
 
     @if (Admin)
     {
-    <section class="k-card">
-        <h2 class="k-card-title">🔨 Sæt på auktion</h2>
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Sælg – flytter til Salg</h2>
+        <div class="lg-row">
+            @if (_item.FeaturedAt is null)
+            {
+                <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Feature(true)" disabled="@(_item.Status is Statuses.Solgt or Statuses.PaaAuktion)">⭐ Vis på forsiden</button>
+                <span class="k-small k-muted">Så kommer den med under "Fundet i kasserne" på bogshoppen.dk og itmartin.dk – med billede, det interessante og links til andre sider.</span>
+            }
+            else
+            {
+                <span class="lg-ok">⭐ Vises på forsiden</span>
+                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Feature(false)">Tag den af forsiden</button>
+            }
+        </div>
+        <h3>Sæt på auktion</h3>
         @if (_item.Status == Statuses.PaaAuktion && _item.AuctionCode != "")
         {
             <p class="lg-answer">På auktion <b>@_item.AuctionCode</b>.</p>
@@ -258,6 +240,7 @@ else
 @code {
     [CascadingParameter] public LagerUser? Me { get; set; }
     private bool Admin => Me is { IsAdmin: true };
+    private bool Has(string field) => _item is { } i && ItemFields.Shows(i, field);
     [Parameter] public int Id { get; set; }
     private Item? _item;
     private string? _box, _boxLabel, _msg, _err;
@@ -383,20 +366,6 @@ else
         finally { _busy = false; }
     }
 
-    private async Task SaveKolofon(InputFileChangeEventArgs e)
-    {
-        _busy = true; _err = null;
-        try
-        {
-            await Save();
-            await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) _item!.KolofonPhoto = await Kolofons.SavePhotoAsync(Id, s);
-            _item.KolofonAt = null;
-            _photoVer = DateTime.UtcNow.Ticks;
-            _msg = "Kolofonen er gemt og bliver læst om et par minutter.";
-        }
-        catch (Exception ex) { _err = ex.Message; }
-        finally { _busy = false; }
-    }
 
     private async Task SendToAuction()
     {
