@@ -24,19 +24,17 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Bogshoppen Vareinfo er kameraet til Bogshoppens egne ting. Formål: tag billeder, og læg tingene på lager.",
-        "Du trykker bare på det, du tager billeder af – fx Blade og album. Så er du i dagens session for det, fx »Blade og album – 15. november«. Den laves af sig selv og lukker af sig selv ved midnat. Skriv navnet på kassen, så tingene kan findes igen.",
-        "Billederne læses med det samme på Bogshoppen Lager, og tingene kommer på lager af sig selv. Strik og Ting lægges ind én ad gangen i Lager med pris og hvem der har lavet det.",
+        "Du tager billederne med telefonens eget kamera – så mange du vil – og uploader dem her. Der er intet at vælge: dagens session hedder bare datoen, fx »15. november«, laves af sig selv og lukker ved midnat. Skriv navnet på kassen, så tingene kan findes igen.",
+        "Billederne læses bagefter på Bogshoppen Lager, og tingene kommer på lager af sig selv.",
     ];
     k.HowTo =
     [
         "Log ind med din kode.",
-        "Tryk på det, du tager billeder af: Bøger, Blade og album, Film, Musik, Spil, Rollespil, Magic-kort, Blandet, Strik eller Ting.",
         "Tag billederne med telefonens eget kamera: 10-20 ting med forsiden op på hvert, til alt har været på et billede.",
-        "Tryk så Upload billeder fra telefonen, og vælg billederne – mange på én gang.",
-        "Strik og Ting: siden i Lager åbner – tag et billede, skriv hvad det er, prisen og hvem der har lavet det.",
-        "Du skal aldrig trykke Færdig eller lukke noget: billederne er gemt, så snart de er sendt, og dagens sessioner lukker af sig selv ved midnat. Vil du tage billeder af noget andet, så tryk Tag billeder af noget andet.",
+        "Åbn Vareinfo, tryk Upload billeder fra telefonen, og vælg billederne – mange på én gang. Skriv dagens navn på kassen.",
+        "Du skal aldrig trykke Færdig eller lukke noget: billederne er gemt, så snart de er sendt, og de bliver læst bagefter.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
-        "Er en session lukket, mens billeder ventede på telefonen, bliver de på telefonen: tryk på det, de er billeder af, og tryk Send dem til denne session.",
+        "Venter der billeder fra en session, der er lukket, så tryk Send dem til denne session.",
     ];
     k.Version = "2026.11.15";
     k.ThemeColor = "#f4f6f5";

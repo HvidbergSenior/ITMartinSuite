@@ -82,12 +82,6 @@
 /* A helper's code on the Hjælpere page: big and spaced, easy to read out loud. */
 .lg-code { font-family: ui-monospace, monospace; font-size: 1.15em; letter-spacing: 0.12em; }
 
-/* What you take pictures of (2026-11-15: Mine varer only + Strik, Ting): big buttons, two per row on a phone. */
-.vi-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: 8px; margin: 8px 0; }
-.vi-kinds .lg-big { width: 100%; }
-.vi-kinds .k-btn { white-space: normal; justify-content: center; text-align: center; }
-
 /* The name to write on the box (2026-11-10: "i write on the box: sessionname"). */
 .vi-boxname { font-size: 1.1rem; padding: 8px 12px; border: 2px dashed var(--k-border-3, #999); border-radius: 10px; display: inline-block; }
-.vi-back { margin: 4px 0 16px; }
 

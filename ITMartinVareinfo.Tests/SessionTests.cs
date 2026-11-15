@@ -77,7 +77,7 @@ public class SessionTests
         var s = await _sessions.TodayAsync(_martin, "noget andet");
         s.Kind.Should().Be("Blandet");
         var boxes = await _sessions.BoxesAsync([s.BoxCode]);
-        boxes.Single().Should().Be(new CapturedBox(s.BoxCode, "Blandet – 20. oktober", false, "Blandet", true));
+        boxes.Single().Should().Be(new CapturedBox(s.BoxCode, "20. oktober", false, "Blandet", true));
     }
 
     [Test]

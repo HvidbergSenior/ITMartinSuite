@@ -46,11 +46,11 @@ public sealed class WorkSession
         return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Kind = Clean(kind) };
     }
 
-    /// <summary>Today's session of a button, by Danish date: "Blade og album – 10. november".</summary>
+    /// <summary>Today's session by Danish date: "15. november" (Blandet - since 2026-11-15 the only one), "Blade og album – 10. november" (old buttons).</summary>
     public static string TodayName(string kind, DateTime utcNow)
     {
         var dk = TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen);
-        return Clean(kind) + " – " + dk.ToString("d. MMMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+        return (Clean(kind) is "" or CaptureKinds.Mixed ? "" : Clean(kind) + " – ") + dk.ToString("d. MMMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
     }
 
     /// <summary>Is this today's session of that button (a Mine varer session, same button, open, made today in Danish time)?</summary>

@@ -2,15 +2,13 @@
 @page "/registrer"
 @inject CaptureUseCases Capture
 @inject SessionUseCases Sessions
-@inject HelperUseCases Helpers
-@inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @using System.Text.Json
 
-@* Vareinfo's one job (user 2026-11-15): "Take photos and put into lager". Front page = what you take pictures of; the button opens
-   today's session for it (?s=12 in the address, so a reload lands in it again). Lager reads the photos at once. Tjek is its own
-   app, Sessioner is gone - nothing to start, name or close. *@
+@* Vareinfo's one job (user 2026-11-15): "Take photos and put into lager" + "why not just blandet? So no selection?" + "strik and
+   ting should be different apps". One page: today's session (made by itself, closed by itself at midnight) and Upload. Photos
+   are taken with the phone's own camera; Lager reads them in the background. Tjek, Strik and Ting are their own apps. *@
 <PageTitle>Tag billeder – Bogshoppen Vareinfo</PageTitle>
 
 @if (Me is null)
@@ -19,32 +17,14 @@
 }
 else if (_session is null)
 {
-    @* User 2026-11-15: "Mine varer only" + "choose what to take pictures of. add strik and ting". Each pile button joins today's
-       session of that button, or makes it. Strik and Ting are one thing at a time with price and maker, so they open Lager's page. *@
     <section class="k-card">
-        <h1 class="k-card-title">Hvad tager du billeder af?</h1>
-        <p class="k-help">Dine egne ting til Bogshoppen. Tryk på det, du tager billeder af – billederne bliver læst med det samme og kommer på lager af sig selv.</p>
-        <div class="vi-kinds">
-            @foreach (var k in CaptureKinds.All)
-            {
-                <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="() => Today(k.Name)" disabled="@_busy">@k.Name</button>
-            }
-            <a class="k-btn k-btn-secondary lg-big" href="@($"{Helpers.LagerBase}/strik")">Strik</a>
-            <a class="k-btn k-btn-secondary lg-big" href="@($"{Helpers.LagerBase}/ting")">Ting</a>
-        </div>
-        <p class="k-help">Strik og Ting lægges ind én ad gangen med pris og hvem der har lavet det.</p>
-        <p class="k-help">Tag billederne med telefonens kamera. Tryk så på det, de er af, og <b>Upload billeder fra telefonen</b> – du kan vælge mange på én gang.</p>
-        @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
-        <p data-photo-status role="status" hidden></p>
-        @* Photos whose session is gone wait on the phone (fotokoe.js, 2026-10-29) - tap a button above to send them there. *@
-        <div data-photo-stranded class="lg-warn" role="status" hidden><p data-photo-stranded-text></p></div>
+        <p class="lg-warn" role="alert">@(_error ?? "Et øjeblik …")</p>
     </section>
 }
 else
 {
-    @* User 2026-11-10: "I do not want to say done with or end session... That should happen automatically pr day... I just want to
-       take pictures" + "boxes are not relevant only days/sessions -> i write on the box: sessionname". So: the name for the box at
-       the top, Upload (2026-11-15: "only upload from photos" - no camera inside the page), and a small way back. *@
+    @* User 2026-11-10: "I do not want to say done with or end session... That should happen automatically pr day" + "i write on
+       the box: sessionname". So: the name for the box at the top, then Upload (2026-11-15: "only upload from photos"). *@
     <section class="k-card">
         <h1 class="k-card-title">@_session.Title</h1>
         <p class="vi-boxname">Skriv på kassen: <b>@_session.Title</b></p>
@@ -81,49 +61,31 @@ else
         }
     </section>
 
-    <p class="vi-back"><button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="Leave">Tag billeder af noget andet</button></p>
 }
 
 @code {
     [CascadingParameter] public Taker? Me { get; set; }
-    [SupplyParameterFromQuery(Name = "s")] public int? SessionId { get; set; }
 
     private WorkSession? _session;
     private int _photos, _scans;
-    private bool _busy, _scanning;
+    private bool _scanning;
     private string? _error;
     private string _scanStatus = "";
     private string _lastCode = "";
     private DateTime _lastAt;
     private DotNetObjectReference<Registrer>? _ref;
 
-    // The address says which session (?s=12): after a reload, or a tap on a button or Vælg.
+    // Today's session, joined or made - nothing to choose (2026-11-15).
     protected override async Task OnParametersSetAsync()
     {
         if (Me is null) return;
         _error = null;
         try
         {
-            _session = SessionId is { } id ? await Sessions.OpenForAsync(id, Me) : null;
-            if (SessionId is not null && _session is null) _error = "Den dag er slut – tryk på det, du tager billeder af, så starter i dag.";
+            _session = await Sessions.TodayAsync(Me, CaptureKinds.Mixed);
             await Count();
         }
         catch (Exception ex) { _error = ex.Message; }
-    }
-
-    private async Task Today(string kind)
-    {
-        if (Me is null) return;
-        _busy = true; _error = null;
-        try { Nav.NavigateTo($"/?s={(await Sessions.TodayAsync(Me, kind)).Id}"); }
-        catch (Exception e) when (e is VareinfoException or InvalidOperationException) { _error = e.Message; }
-        finally { _busy = false; }
-    }
-
-    private async Task Leave()
-    {
-        await StopScan();
-        Nav.NavigateTo("/");
     }
 
     // Each photo carries its own session, so photos still waiting on the phone land in the right one.
