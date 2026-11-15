@@ -142,10 +142,12 @@ app.MapPost("/api/foto", async (HttpContext ctx, CaptureUseCases capture) =>
 app.MapPost("/api/genvej/foto", async (HttpContext ctx, CaptureUseCases capture) =>
 {
     using var ms = new MemoryStream();
-    if (ctx.Request.HasFormContentType && (await ctx.Request.ReadFormAsync()).Files is { Count: > 0 } files)
-        await files[0].CopyToAsync(ms);
-    else
-        await ctx.Request.Body.CopyToAsync(ms);
+    // Multipart = a form file; anything else (image/jpeg, or no type at all) = the photo is the body itself.
+    if (ctx.Request.ContentType?.StartsWith("multipart/form-data") == true)
+    {
+        if ((await ctx.Request.ReadFormAsync()).Files is { Count: > 0 } files) await files[0].CopyToAsync(ms);
+    }
+    else await ctx.Request.Body.CopyToAsync(ms);
     if (ms.Length == 0) return Results.BadRequest("Intet billede.");
     try { return Results.Text("Gemt i " + await capture.StoreTodayAsync(ms.ToArray(), (Taker)ctx.Items[nameof(Taker)]!)); }
     catch (VareinfoException ex) { return Results.BadRequest(ex.Message); }
