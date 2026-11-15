@@ -55,7 +55,7 @@ h1:focus, h1:focus-visible, h1.k-fold-head:focus-visible, .k-fold-head:focus:not
 .k-steps li.is-here span { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; text-decoration: none; }
 .k-steps li b, .k-steps-next { display: none; }
 /* Forrige / Næste under the tabs (user 2026-11-15: "navigation from all the 4 apps forward back"). */
-.k-steps-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.k-steps-nav { display: flex; flex: 1 1 100%; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .k-steps-nav a { font-weight: 600; font-size: .9rem; color: var(--k-accent-dark); text-decoration: none; padding: 4px 0; }
 .k-steps-nav a:hover { text-decoration: underline; }
 .k-steps-nav .is-next { margin-left: auto; }
