@@ -3,7 +3,11 @@
     <h1>Sæt pris – én ad gangen</h1>
     <p class="k-help"><b>Gør dette:</b> kig på billedet og det, der blev fundet andre steder. Tryk <b>Ok</b> for forslaget, eller skriv din egen pris.
         <b>Du får:</b> en pris på tingen, så den kan komme på bogshoppen.dk.</p>
-    <a class="k-btn k-btn-sm k-mt" href="/dodsbo">Dødsbo og loft – hvad er tingene værd? →</a>
+    <div class="vu-links">
+        <a class="k-btn k-btn-sm" href="/guld">Guld, sølv og bronze</a>
+        <a class="k-btn k-btn-sm" href="/kiosk">Ny i kiosken</a>
+        <a class="k-btn k-btn-sm" href="/dodsbo">Dødsbo og loft</a>
+    </div>
     <div class="vu-piles" role="tablist" aria-label="Vælg bunke">
         <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="vurderes">Skal vurderes (<span id="vu-n-vurderes">…</span>)</button>
         <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="ingen">Ingen pris (<span id="vu-n-ingen">…</span>)</button>
@@ -27,6 +31,8 @@
         <button type="button" class="k-btn k-btn-sm" data-usage="Brugt">Brugt</button>
     </div>
     <div class="vu-actions">
+        <p class="vu-sticker" id="vu-sticker" hidden></p>
+        <button type="button" class="k-btn k-btn-secondary vu-big" id="vu-use-sticker" hidden></button>
         <button type="button" class="k-btn k-btn-primary vu-big" id="vu-ok"></button>
         <form class="vu-own" id="vu-own">
             <label class="k-label" for="vu-price">Din pris (kr)</label>

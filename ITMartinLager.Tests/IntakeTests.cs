@@ -167,6 +167,16 @@ public class IntakeTests
         (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
     }
 
+    // "for instance agression book says 69 on it" (2026-11-15): the sticker price is read with the photo and kept on the thing.
+    [Test]
+    public void A_price_sticker_on_the_thing_is_kept_and_nonsense_is_not()
+    {
+        var f = ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = Kinds.Bog, Title = "Aggression", Condition = "God", Quantity = 1, Confidence = 0.9, StickerKr = 69 });
+        f.StickerKr.Should().Be(69);
+        Item.From(f, null, null).StickerKr.Should().Be(69);
+        ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Kind = Kinds.Bog, Title = "X", StickerKr = 0 }).StickerKr.Should().BeNull();
+    }
+
     // "if picture is too bad and nothing can be read... It should not fill it out" (2026-11-15): a reading below Readings.CannotRead
     // makes nothing; a photo that gave nothing is listed as "kunne ikke læses".
     [Test]

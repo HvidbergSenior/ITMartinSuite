@@ -8,8 +8,36 @@ using Microsoft.Extensions.Logging;
 namespace ITMartinVurdering.Infrastructure;
 
 // Lager's /api/vurdering with Vurdering__LagerKey (= Lager__VurderingKey there). Vurdering__LagerUrl = http://lager-web:8080 on the photoserver.
-internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> log) : ILagerReview
+internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> log) : ILagerReview, ILagerPriceLists
 {
+    public async Task<List<VurderingGold>?> GoldAsync(CancellationToken ct)
+    {
+        try { return await http.GetFromJsonAsync<List<VurderingGold>>("/api/vurdering/guld", ct); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException) { log.LogWarning(e, "Lager did not answer the gold list"); return null; }
+    }
+
+    public async Task<List<VurderingKiosk>?> KioskAsync(CancellationToken ct)
+    {
+        try { return await http.GetFromJsonAsync<List<VurderingKiosk>>("/api/vurdering/kiosk", ct); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException) { log.LogWarning(e, "Lager did not answer the kiosk prices"); return null; }
+    }
+
+    public async Task<string?> SaveKioskAsync(VurderingKioskSave price, CancellationToken ct)
+    {
+        try
+        {
+            using var res = await http.PostAsJsonAsync("/api/vurdering/kiosk", price, ct);
+            return res.IsSuccessStatusCode ? null : (await res.Content.ReadAsStringAsync(ct)).Trim('"') is { Length: > 0 } why ? why : "Lager gemte ikke prisen.";
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return "Lager svarer ikke lige nu – prøv igen om lidt."; }
+    }
+
+    public async Task<bool> DeleteKioskAsync(int id, CancellationToken ct)
+    {
+        try { using var res = await http.DeleteAsync($"/api/vurdering/kiosk/{id}", ct); return res.IsSuccessStatusCode; }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return false; }
+    }
+
     public async Task<VurderingQueue?> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, string usage, CancellationToken ct)
     {
         try { return await http.GetFromJsonAsync<VurderingQueue>($"/api/vurdering/koe?bunke={pile}&antal={take}&spring={string.Join(',', skip)}&brug={Uri.EscapeDataString(usage)}", ct); }
@@ -74,6 +102,7 @@ public static class VurderingInfrastructure
 {
     public static IServiceCollection AddVurderingInfrastructure(this IServiceCollection services, IConfiguration cfg)
     {
+        services.AddTransient<ILagerPriceLists>(sp => (HttpLagerReview)sp.GetRequiredService<ILagerReview>());
         services.AddHttpClient<ILagerReview, HttpLagerReview>(c =>
         {
             c.BaseAddress = new Uri(cfg["Vurdering:LagerUrl"] ?? "http://lager-web:8080");

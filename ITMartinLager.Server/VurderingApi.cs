@@ -27,6 +27,19 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/find", async (int id, PriceHuntUseCases hunt, CancellationToken ct) =>
             Results.Ok(new VurderingHunted(await hunt.HuntAsync(id, ct))));
 
+        // Guld/sølv/bronze and Ny i kiosken moved to Vurdering (2026-11-15: "pricing should be in pricing"); the data stays here.
+        api.MapGet("/guld", async (GoldUseCases gold) => (await gold.AllAsync())
+            .Select(e => new VurderingGold(e.Tier, e.Badge, ProductTypes.For(e.Kind), e.Category, e.Issue, e.Name, e.Kr, e.Listings, e.Source, e.Url, e.SeenAt))
+            .OrderByDescending(e => e.Kr).ToList());
+        api.MapGet("/kiosk", async (KioskUseCases kiosk) => (await kiosk.ListAsync())
+            .Select(p => new VurderingKiosk(p.Id, p.Series, p.Kr, p.Note, p.UpdatedAt)).OrderBy(p => p.Series).ToList());
+        api.MapPost("/kiosk", async (VurderingKioskSave body, KioskUseCases kiosk) =>
+        {
+            try { await kiosk.SaveAsync(body.Series ?? "", body.Kr, body.Note ?? ""); return Results.Ok(); }
+            catch (LagerException ex) { return Results.BadRequest(ex.Message); }
+        });
+        api.MapDelete("/kiosk/{id:int}", async (int id, KioskUseCases kiosk) => { await kiosk.DeleteAsync(id); return Results.Ok(); });
+
         // Descriptions for Ting/Strik (2026-11-10): what waits, and what the AI saw.
         api.MapGet("/beskriv", async (int? antal, ThingDescriptionUseCases things) => await things.WaitingAsync(antal ?? ThingDescriptionUseCases.MaxPerAsk));
         api.MapPost("/varer/{id:int}/beskrivelse", async (int id, VurderingDescription body, ThingDescriptionUseCases things) =>

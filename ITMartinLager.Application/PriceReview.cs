@@ -41,7 +41,7 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         return new VurderingItem(i.Id, i.Line(), i.Kind, i.Condition, Kr(i.PriceHint), Kr(i.SimilarHint),
             i.BoxId is { } b && boxes.TryGetValue(b, out var code) ? code : "",
             shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew)).ToList(),
-            Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source);
+            Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr);
     }
 
     private static int? Kr(decimal? d) => d is > 0 ? (int)Math.Round(d.Value) : null;

@@ -1,0 +1,18 @@
+<!-- Ny i kiosken (moved from Lager /kiosk, 2026-11-15). -->
+<section class="k-card" data-nofold>
+    <h1>Ny i kiosken</h1>
+    <p class="k-help"><b>Gør dette:</b> skriv hvad det nyeste nummer af et blad koster nyt i dag, og tryk <b>Gem pris</b>.
+        <b>Du får:</b> prisen ved alle blade fra serien, når du sætter pris. Et gammelt blad kan være mere værd – det er kun til sammenligning.</p>
+    <a class="k-btn k-btn-sm" href="/">← Tilbage til Sæt pris</a>
+    <form class="ki-form" id="ki-form">
+        <label class="k-label" for="ki-blad">Blad</label><input class="k-input" id="ki-blad" placeholder="Anders And &amp; Co." autocomplete="off">
+        <label class="k-label" for="ki-pris">Pris i kr.</label><input class="k-input" id="ki-pris" inputmode="numeric" placeholder="40" autocomplete="off">
+        <label class="k-label" for="ki-hvor">Hvor fra (frivilligt)</label><input class="k-input" id="ki-hvor" placeholder="forsiden, nov. 2026" autocomplete="off">
+        <button type="submit" class="k-btn k-btn-primary k-mt">Gem pris</button>
+    </form>
+    <p class="vu-msg" id="ki-msg" role="status" aria-live="polite"></p>
+</section>
+<section class="k-card" data-nofold>
+    <h2 class="k-card-title">Priserne</h2>
+    <ul class="gu-list" id="ki-list"><li class="k-help">Henter …</li></ul>
+</section>

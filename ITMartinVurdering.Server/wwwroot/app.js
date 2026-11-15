@@ -53,6 +53,10 @@
                 var ok = $('vu-ok');
                 if (item.hintKr) { ok.hidden = false; ok.textContent = 'Ok – ' + item.hintKr + ' kr'; $('vu-hint').innerHTML = 'Forslag: <b>' + item.hintKr + ' kr</b> – 10 % under det, andre sider tager.'; }
                 else { ok.hidden = true; $('vu-hint').innerHTML = item.similarKr ? 'Intet forslag. Noget, der ligner, koster omkring <b>' + item.similarKr + ' kr</b>.' : 'Intet forslag – der blev ikke fundet noget andre steder.'; }
+                // The price written on the thing (2026-11-15: "agression book says 69 on it").
+                var st = $('vu-sticker'), use = $('vu-use-sticker');
+                st.hidden = use.hidden = !item.stickerKr;
+                if (item.stickerKr) { st.innerHTML = 'Der står <b>' + item.stickerKr + ' kr</b> på den (et prismærke på billedet).'; use.textContent = 'Brug prisen på mærket – ' + item.stickerKr + ' kr'; }
                 var nw = $('vu-new');
                 if (item.newKr) { nw.hidden = false; nw.innerHTML = 'Ny hos ' + esc(item.newShop || 'boghandlen') + ': <b>' + item.newKr + ' kr</b> – til sammenligning.'; }
                 else { nw.hidden = true; nw.textContent = ''; }
@@ -77,6 +81,7 @@
     }
 
     $('vu-ok').addEventListener('click', function () { if (item) save('/api/ok', { id: item.id, forslag: item.hintKr }); });
+    $('vu-use-sticker').addEventListener('click', function () { if (item && item.stickerKr) save('/api/pris', { id: item.id, pris: String(item.stickerKr) }); });
     $('vu-own').addEventListener('submit', function (e) { e.preventDefault(); if (item) save('/api/pris', { id: item.id, pris: $('vu-price').value }); });
     // "Find priser nu" (2026-11-15, moved from Lager): every site is asked again - takes up to a minute.
     $('vu-find').addEventListener('click', function () {

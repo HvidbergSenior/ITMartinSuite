@@ -79,4 +79,16 @@ public class ReviewTests
         (await uc.FindPricesAsync(7)).Should().Be(new ReviewResult(true, "Spurgt 9 sider – priserne er opdateret."));
         (await uc.FindPricesAsync(8)).Ok.Should().BeFalse();   // null = Lager did not answer
     }
+
+    // Ny i kiosken moved from Lager (2026-11-15): a name and whole kroner, then Lager keeps it.
+    [Test]
+    public async Task A_kiosk_price_needs_a_name_and_whole_kroner()
+    {
+        var lager = new Mock<ILagerPriceLists>();
+        var uc = new PriceListUseCases(lager.Object);
+        (await uc.SaveKioskAsync("", "40", "")).Ok.Should().BeFalse();
+        (await uc.SaveKioskAsync("Basserne", "fyrre", "")).Ok.Should().BeFalse();
+        (await uc.SaveKioskAsync(" Basserne ", "40", "forsiden")).Should().Be(new ReviewResult(true, "Gemt: Basserne 40 kr."));
+        lager.Verify(l => l.SaveKioskAsync(new VurderingKioskSave("Basserne", 40, "forsiden"), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

@@ -22,12 +22,20 @@ public sealed record VurderingFind(string Source, string Name, int Kr, string Ur
 /// <summary>One thing to price: what it is, the suggested shop price (HintKr, 10 % under the sites), and what was found.</summary>
 /// Usage = Brugt / Som ny / Ny; NewKr/NewShop = the lowest price at a Danish new shop (Bog & idé, Fantask) to compare with.
 public sealed record VurderingItem(int Id, string Line, string Kind, string Condition, int? HintKr, int? SimilarKr, string Box,
-    List<VurderingFind> Finds, string Usage = "Brugt", int? NewKr = null, string? NewShop = null);
+    List<VurderingFind> Finds, string Usage = "Brugt", int? NewKr = null, string? NewShop = null, int? StickerKr = null);
 
 /// <summary>How many wait in each pile, and the next thing(s).</summary>
 public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items);
 
 /// <summary>The price a person set - Ok = the suggestion, or their own.</summary>
+/// <summary>One line of the gold list, shown in Vurdering (moved from Lager /guld, 2026-11-15). Badge = "🏆 GULD" etc.</summary>
+public sealed record VurderingGold(string Tier, string Badge, string Type, string Category, string Issue, string Name, int Kr,
+    int Listings, string Source, string Url, DateTime SeenAt);
+
+/// <summary>What the newest issue of a blad costs new in the kiosk today (moved from Lager /kiosk, 2026-11-15).</summary>
+public sealed record VurderingKiosk(int Id, string Series, int Kr, string Note, DateTime UpdatedAt);
+public sealed record VurderingKioskSave(string Series, int Kr, string Note);
+
 /// <summary>Answer to "Find priser nu" (2026-11-15): how many sites answered.</summary>
 public sealed record VurderingHunted(int Sites);
 
