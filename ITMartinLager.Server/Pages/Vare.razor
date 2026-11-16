@@ -16,12 +16,15 @@ else
     @* User 2026-11-15 "only relevant stuff": the picture, what it is, the fields that fit its kind, Gem. Prices and selling are
        folded at the bottom until Vurdering and Salg have them. *@
     @* Back to the list it came from (user 2026-11-15: "I can not go back") - the list keeps its search in the address. *@
-    <p class="lg-back"><a href="/" onclick="if (history.length > 1) { history.back(); return false; }">← Tilbage til listen</a></p>
+    @* One way back (user 2026-11-16: "look at all the buttons and links ... Are they all relevant"): while fixing the difficult
+       ones there is no list - Stop goes to the front page; else back to the list it came from. *@
+    @if (Fixing) { <p class="lg-back"><a href="/">← Stop – tilbage til forsiden</a></p> }
+    else { <p class="lg-back"><a href="/" onclick="if (history.length > 1) { history.back(); return false; }">← Tilbage til listen</a></p> }
     <section class="k-card">
         @* Calm (user 2026-11-16: "i mean there are a lot of info.."): name, one line, the picture, the fields that decide what it is
            and its price - everything else under "Flere oplysninger", closed. *@
         <h1 class="k-card-title">@_item.Line()</h1>
-        <p class="k-small">nr. @_item.Id · <a href="/kasse/@_box">@(_boxLabel ?? "ingen kasse")</a> · @(_item.Quantity > 1 ? $"{_item.Quantity} stk." : "1 stk.") · @_item.Status@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
+        <p class="k-small">nr. @_item.Id · @(_boxLabel ?? "ingen kasse") · @(_item.Quantity > 1 ? $"{_item.Quantity} stk." : "1 stk.") · @_item.Status@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
         @if (_item.ItemPhoto != "") { <a href="/varefoto/@_item.Id?v=@_photoVer" target="_blank" rel="noopener" title="Se billedet i fuld størrelse"><img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /></a> }
         <label class="k-btn k-btn-sm k-btn-secondary lg-camera">
             @(_busy ? "Gemmer …" : _item.ItemPhoto == "" ? "Tag billede af varen" : "Tag nyt billede")
@@ -67,7 +70,6 @@ else
             <label class="lg-interest-label">Det interessante (vises i butikken – kun hvis den er speciel for en samler) <textarea class="k-input lg-interest" rows="2" @bind="_item.Interest" placeholder="fx 1. udgave, signeret, med plakat"></textarea></label>
             <label class="lg-check"><input type="checkbox" @bind="_item.Rare" /> Sjælden – vurderes manuelt (ud af 3 kr-kassen, pris sættes i Priser)</label>
         </details>
-        @if (Fixing) { <p class="k-small"><a href="/">Stop – tilbage til Søg</a></p> }
         <div class="lg-row">
             @if (Fixing)
             {
