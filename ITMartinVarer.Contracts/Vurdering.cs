@@ -33,7 +33,9 @@ public sealed record VurderingItem(int Id, string Line, string Kind, string Cond
     // bogshoppen.dk, Covered = a mark was painted over (Fortryd brings the original back).
     bool OwnPhoto = false, bool PhotoHidden = false, bool Covered = false,
     // OnPile = the pile photo it was read from still exists, so the cut-out can be made again (Ret udsnittet).
-    bool OnPile = false);
+    bool OnPile = false,
+    // Where the reader saw it on the pile photo (fractions), or null for older things - Ret udsnittet frames it.
+    PhotoArea? PileArea = null);
 
 /// <summary>Kassér (2026-11-16, "so i should be able to say discard"): the status the thing had, for Fortryd.</summary>
 public sealed record VurderingDiscarded(string Was);

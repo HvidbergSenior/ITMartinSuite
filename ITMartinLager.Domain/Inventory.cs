@@ -144,6 +144,16 @@ public sealed class Item
     // A bad photo is not shown on bogshoppen.dk (user 2026-11-16: "I want a way to not show the bad pictures") - the thing is
     // still for sale, "billede kommer" until a new photo is taken. Kept in Lager, so it can be shown again.
     public bool PhotoHidden { get; set; }
+    // Where on the pile photo the reader saw it, "left;top;right;bottom" as fractions (user 2026-11-16: "how can i see which one
+    // it is" -> "yes build it") - so Ret udsnittet can frame it. Kept from the reading at no extra cost; "" for older things.
+    public string PileArea { get; set; } = "";
+
+    public PhotoArea? PileBox => PileArea.Split(';') is { Length: 4 } p
+        && p.All(x => double.TryParse(x, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+        ? PhotoArea.From(p.Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToList(), 0.005) : null;
+
+    public static string AreaText(PhotoArea? a) => a is null ? ""
+        : string.Join(';', new[] { a.Left, a.Top, a.Right, a.Bottom }.Select(v => Math.Round(v, 4).ToString(System.Globalization.CultureInfo.InvariantCulture)));
     public decimal? SimilarHint { get; set; }    // kr, the middle price of "magen til" when nothing exact is for sale - a pointer, not a price
     public string MagicRef { get; set; } = "";
     public string Barcode { get; set; } = "";    // EAN/ISBN when scanned   // card id in the MTG Scanner, so a new fetch updates instead of duplicating
@@ -285,6 +295,7 @@ public sealed class Item
             Kind = f.Kind, Title = f.Title, Artist = f.Artist, Series = f.Series, Number = f.Number, Year = f.Year,
             Platform = f.Platform, Condition = f.Condition, Quantity = f.Quantity, Confidence = f.Confidence,
             Note = f.Note, Interest = f.Interest, Barcode = f.Barcode, PriceHint = f.PriceHint, EditionHint = f.EditionHint, StickerKr = f.StickerKr,
+            PileArea = AreaText(f.Area),
             Usage = Usages.Normalise(f.Usage), Publisher = f.Publisher, Language = Languages.Normalise(f.Language),
             BoxId = boxId, PhotoId = photoId,
         };

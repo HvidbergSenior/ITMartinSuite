@@ -24,6 +24,7 @@ public sealed class ItemPhotoUseCases(IItemRepository items, IPhotoStore photos,
             await photos.SaveAsync(ItemUseCases.OriginalPath(id), before, ct);
         await photos.SaveAsync(path, cut, ct);
         item.ItemPhoto = path;
+        item.PileArea = Item.AreaText(area);   // the person showed where it is - remembered for next time
         item.Touch();
         await items.UpdateAsync([item], ct);
         return null;

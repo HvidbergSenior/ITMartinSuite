@@ -74,6 +74,16 @@ public class MarketCategoryTests
     public void A_collected_volume_is_not_the_blad(string listing, bool one) =>
         Pricing.IsOneCopyOf(new Item { Kind = Kinds.Superhelte, Title = "X-Force", Number = "4" }, new Offer(listing, 30, "")).Should().Be(one);
 
+    // Where the reader saw it on the pile photo is kept (2026-11-16), so Ret udsnittet can frame it.
+    [Test]
+    public void The_reading_area_is_kept_on_the_thing()
+    {
+        var item = Item.From(new Found(Kinds.AndersAnd, "Anders And & Co.", "", "", "3", 1953, "", "Slidt", 1, 0.9, "", Area: new PhotoArea(0.33, 0.7, 0.456, 0.945)), null, 347);
+        item.PileArea.Should().Be("0.33;0.7;0.456;0.945");
+        item.PileBox.Should().Be(new PhotoArea(0.33, 0.7, 0.456, 0.945));
+        new Item().PileBox.Should().BeNull();
+    }
+
     // Every price-hunted kind has a category on both sites - but Merchandise and Andet, which can be anything.
     [Test]
     public void Every_hunted_kind_has_a_category() =>

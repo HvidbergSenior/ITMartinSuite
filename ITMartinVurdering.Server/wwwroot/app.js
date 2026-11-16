@@ -198,9 +198,18 @@
         $('vu-find-note').textContent = item.note ? 'Note: ' + item.note : '';
         var old = $('vu-old-cut'); old.hidden = !item.ownPhoto; if (item.ownPhoto) old.src = '/api/foto/' + item.id + '?v=' + Date.now();
         $('vu-find-this').hidden = false;
-        $('vu-photo').src = '/api/bunkefoto/' + item.id;
         $('vu-photo-wrap').classList.add('is-cut');
         startMark('cut');
+        // The reader's own frame (2026-11-16, new photos): drawn at once, "Lav nyt billede" ready - drag a new one to change it.
+        var pa = item.pileArea, img = $('vu-photo');
+        img.onload = function () {
+            img.onload = null;
+            if (!pa || mode !== 'cut') return;
+            area = { l: pa.left, t: pa.top, r: pa.right, b: pa.bottom }; draw();
+            $('vu-mark-save').hidden = false;
+            $('vu-mark-help').innerHTML = '<b>Rammen</b> er der, hvor tingen blev læst. Passer den, så tryk <b>Lav nyt billede</b> – ellers træk en ny firkant.';
+        };
+        img.src = '/api/bunkefoto/' + item.id;
     });
     $('vu-mark-cancel').addEventListener('click', endMark);
     $('vu-photo').addEventListener('pointerdown', function (e) {
