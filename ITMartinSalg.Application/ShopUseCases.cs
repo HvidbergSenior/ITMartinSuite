@@ -125,10 +125,14 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     public async Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default)
     {
         var (lines, gone) = await BasketAsync(itemIds, ct);
-        var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList(), await campaigns.AllAsync(ct), Today);
+        var basket = lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList();
+        var priced = QuantityRabat.Apply(Campaigns.Price(basket, await campaigns.AllAsync(ct), Today), basket);
+        var count = priced.Lines.Count;
         return new ShopQuote(CanPay,
             priced.Lines.Select((p, n) => new ShopQuoteLine(p.ItemId, lines[n].Item.Line, p.ListKr, p.Kr, p.Offer)).ToList(),
-            priced.Total, priced.Saved, await TodayAsync(ct), gone.Select(g => g.Id).Distinct().ToList());
+            priced.Total, priced.Saved, await TodayAsync(ct), gone.Select(g => g.Id).Distinct().ToList(),
+            new ShopRabat(count, QuantityRabat.PercentFor(count), QuantityRabat.Next(count)?.More, QuantityRabat.Next(count)?.Percent,
+                QuantityRabat.Steps.Select(s => new ShopRabatStep(s.From, s.Percent)).ToList()));
     }
 
     /// <summary>Køb nu for one thing.</summary>
@@ -142,7 +146,8 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var (lines, gone) = await BasketAsync(itemIds, ct);
         if (lines.Count == 0 && gone.Count == 0) throw new SalgException("Kurven er tom.");
         if (gone.Count > 0) throw new SalgException(itemIds.Count == 1 ? gone[0].Why : "Noget i kurven er lige blevet solgt eller reserveret. Se kurven igen.");
-        var priced = Campaigns.Price(lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList(), await campaigns.AllAsync(ct), Today);
+        var basket = lines.Select(l => new BasketLine(l.Item.Id, l.Item.Kind, l.Kr, l.Item.Usage)).ToList();
+        var priced = QuantityRabat.Apply(Campaigns.Price(basket, await campaigns.AllAsync(ct), Today), basket);
         var order = Order.For(lines.Select((l, n) => (l.Item, priced.Lines[n])).ToList(), Now);
         await orders.AddAsync(order, ct);
         var site = siteBase.TrimEnd('/');

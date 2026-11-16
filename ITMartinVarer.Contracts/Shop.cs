@@ -71,7 +71,13 @@ public sealed record ShopOverview(List<ShopShelf> Shelves, List<ShopPack> Packs,
     Dictionary<string, Dictionary<string, int>>? LanguageCounts = null);
 
 /// <summary>A basket priced for today: each copy, what it costs today and why, and the total.</summary>
-public sealed record ShopQuote(bool CanPay, List<ShopQuoteLine> Lines, int Total, int Saved, List<ShopOffer> Today, List<int> Gone);
+public sealed record ShopQuote(bool CanPay, List<ShopQuoteLine> Lines, int Total, int Saved, List<ShopOffer> Today, List<int> Gone,
+    ShopRabat? Rabat = null);
+
+/// <summary>Mængderabat for the page (2026-11-16, "the amount should be reflected on the page for user"): how many things, the
+/// percent now, how many more for the next step and its percent (null at the top), and every step for the little table.</summary>
+public sealed record ShopRabat(int Count, int Percent, int? NextMore, int? NextPercent, List<ShopRabatStep> Steps);
+public sealed record ShopRabatStep(int From, int Percent);
 public sealed record ShopQuoteLine(int Id, string Line, int ListKr, int Kr, string Offer);
 
 // "Interessant" (user 2026-10-24): a customer logged in with the kundenummer marks things - no buying yet.
