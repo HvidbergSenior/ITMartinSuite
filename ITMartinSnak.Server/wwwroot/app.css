@@ -18,7 +18,9 @@ body { background: var(--k-bg); color: var(--k-text); }
 .brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .brand b { font-size: 20px; }
 .brand span { font-size: 13px; color: var(--k-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tabs { display: flex; gap: 4px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: 0 0 auto; white-space: nowrap; }
 .tabs button { font: inherit; font-weight: 600; min-height: 40px; padding: 6px 14px; border-radius: 999px;
     border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; }
@@ -45,12 +47,12 @@ body { background: var(--k-bg); color: var(--k-text); }
 .besked.mig .boble { background: var(--k-accent-dark, #6d28d9); border-color: var(--k-accent-dark, #6d28d9); color: #fff; border-radius: 16px 16px 4px 16px; }
 .tom { margin: auto; text-align: center; color: var(--k-muted); max-width: 34ch; padding: 24px 0; }
 .tom strong { display: block; color: var(--k-text); font-size: 18px; margin-bottom: 4px; }
-.skriv { display: flex; gap: 8px; align-items: flex-end; padding: 10px 16px;
+.skriv { display: flex; flex-direction: column; gap: 8px; padding: 10px 16px;
     border-bottom: 1px solid var(--k-border); background: var(--k-card); }
 .skriv .k-textarea { font-size: 16px; flex: 1; min-width: 0; min-height: 44px; max-height: 160px; resize: none; margin: 0; }
 
 /* tasks */
-.opg, .mig { padding: 12px 16px 24px; gap: 12px; }
+.opg, .mig, .kal, .ng, .fil, .hold { padding: 12px 16px 24px; gap: 12px; }
 .opg-intro { margin: 0; color: var(--k-muted); }
 .valgfri { font-weight: 400; color: var(--k-muted); }
 .oversigt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -130,30 +132,206 @@ body { background: var(--k-bg); color: var(--k-text); }
 .avatar.stor { width: 52px; height: 52px; font-size: 18px; }
 
 /* The door: a welcome band and big name cards */
-.gruppe .login { max-width: 760px; }
-.gruppe .login h1 { font-size: clamp(1.8rem, 5vw, 2.8rem); line-height: 1.1; margin: 0 0 8px; }
-.gruppe #login { position: relative; }
-.gruppe #login::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 190px; z-index: -1; border-radius: 0 0 28px 28px;
+.wow .login { max-width: 760px; }
+.wow .login h1 { font-size: clamp(1.8rem, 5vw, 2.8rem); line-height: 1.1; margin: 0 0 8px; }
+.wow #login { position: relative; }
+.wow #login::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 190px; z-index: -1; border-radius: 0 0 28px 28px;
     background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--k-accent) 30%, transparent), transparent 60%),
                 radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--k-accent-dark) 22%, transparent), transparent 55%); }
-.gruppe .login .lead { font-size: 1.05rem; color: var(--k-text); opacity: .85; }
-.gruppe .navne { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
-.gruppe .navne .k-btn { display: flex; align-items: center; justify-content: flex-start; gap: 12px; min-height: 60px; padding: 10px 14px;
+.wow .login .lead { font-size: 1.05rem; color: var(--k-text); opacity: .85; }
+.wow .navne { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.wow .navne .k-btn { display: flex; align-items: center; justify-content: flex-start; gap: 12px; min-height: 60px; padding: 10px 14px;
     border-radius: 16px; background: var(--k-card); border: 1px solid var(--k-border); color: var(--k-text); text-align: left;
     transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
-.gruppe .navne .k-btn:hover, .gruppe .navne .k-btn:focus-visible { transform: translateY(-2px); border-color: var(--k-accent);
+.wow .navne .k-btn:hover, .wow .navne .k-btn:focus-visible { transform: translateY(-2px); border-color: var(--k-accent);
     box-shadow: 0 6px 18px color-mix(in srgb, var(--k-accent) 18%, transparent); }
-.gruppe .navn-tekst { font-weight: 700; line-height: 1.2; }
+.wow .navn-tekst { font-weight: 700; line-height: 1.2; }
 
 /* Holdet: a grid of people cards */
-.gruppe #holdListe { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.gruppe .medlem.k-card { display: flex; gap: 14px; align-items: flex-start; border-radius: 18px; padding: 16px; }
-.gruppe .medlem h3 { font-size: 16px; margin: 2px 0 4px; }
-.gruppe .medlem .note { margin: 0; color: var(--k-muted); font-size: 14px; line-height: 1.4; }
-.gruppe .medlem.mig-selv { border-left: 1px solid var(--k-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--k-accent) 35%, transparent); }
+.wow #holdListe { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.wow .medlem.k-card { display: flex; gap: 14px; align-items: flex-start; border-radius: 18px; padding: 16px; }
+.wow .medlem h3 { font-size: 16px; margin: 2px 0 4px; }
+.wow .medlem .note { margin: 0; color: var(--k-muted); font-size: 14px; line-height: 1.4; }
+.wow .medlem.mig-selv { border-left: 1px solid var(--k-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--k-accent) 35%, transparent); }
 
 /* Chat: the badge next to the others' messages */
 .besked-raekke { display: flex; gap: 8px; align-items: flex-start; }
 .besked-kol { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
-@media (prefers-reduced-motion: reduce) { .gruppe .navne .k-btn { transition: none; } .gruppe .navne .k-btn:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .wow .navne .k-btn { transition: none; } .wow .navne .k-btn:hover { transform: none; } }
+
+/* 2026-11-09 seen + setup view */
+.set-af { font-size: 12px; color: var(--k-muted); }
+.set-af summary { cursor: pointer; list-style: none; }
+.set-af summary::-webkit-details-marker { display: none; }
+.ops-liste { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 12px; }
+.ops-raekke { border: 1px solid var(--k-border); border-radius: 12px; padding: 8px 12px; }
+.ops-raekke.mangler { border-left: 4px solid var(--k-danger, #c2410c); }
+.ops-raekke.klar { border-left: 4px solid var(--k-success, #15803d); }
+.ops-raekke h3 { margin: 0 0 4px; font-size: 16px; }
+.ops-fakta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; }
+.ops-raad { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
+.kursus-links .link-knapper { flex-wrap: wrap; gap: 8px; }
+.kursus-links .k-btn { text-decoration: none; }
+
+/* 2026-11-09 Kalender */
+.naeste { margin: 12px 16px 0; padding: 14px 16px; border-radius: var(--k-radius, 14px); border: 1px solid var(--k-border);
+    border-left: 6px solid var(--k-accent, currentColor); background: var(--k-card); color: var(--k-text); box-shadow: var(--k-shadow, none); }
+.naeste.snart { background: var(--k-accent-soft, var(--k-card)); }
+.naeste-hvornaar { font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--k-accent-dark, var(--k-accent)); }
+.naeste-dag { font-size: 20px; font-weight: 800; margin-top: 2px; }
+.naeste-hvad { font-size: 17px; font-weight: 600; margin-top: 2px; }
+.naeste-sted { font-size: 15px; color: var(--k-muted); margin-top: 2px; }
+.naeste-knapper { margin-top: 10px; gap: 8px; flex-wrap: wrap; }
+.naeste-knapper a { text-decoration: none; }
+.kal .opgaver, .ng .opgaver { gap: 10px; }
+.kal-uge { margin: 14px 2px 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--k-muted); }
+.kal-uge:first-child { margin-top: 2px; }
+.kal-dag.k-card { margin: 0; padding: 14px 16px; }
+.kal-tag { display: inline-block; margin-bottom: 6px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    letter-spacing: .03em; text-transform: uppercase; background: var(--k-accent-dark, var(--k-accent)); color: #fff; }
+.kal-dato { font-size: 14px; color: var(--k-muted); }
+.kal-dag h3 { margin: 4px 0 0; font-size: 17px; line-height: 1.3; }
+.kal-tider { margin-top: 6px; font-size: 14px; color: var(--k-text); }
+.kal-sted { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--k-border); font-size: 14px; color: var(--k-muted); }
+.kal-sted .k-btn { text-decoration: none; flex: 0 0 auto; }
+.kal-dag.naest, .kal-dag.i-dag { border-left: 5px solid var(--k-accent, currentColor); background: var(--k-accent-soft, var(--k-card)); }
+.kal-dag.naest .kal-dato, .kal-dag.i-dag .kal-dato { color: var(--k-text); font-weight: 600; }
+.kal-dag.forbi { opacity: .7; }
+#kalFoer { margin-top: 18px; }
+#kalFoer summary { font-weight: 600; cursor: pointer; min-height: 32px; }
+#kalFoer[open] summary { margin-bottom: 8px; }
+
+/* 2026-11-09 Til næste gang */
+.ng-opg.k-card { margin: 0; }
+.ng-raekke { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.ng-raekke input[type=checkbox] { width: 26px; height: 26px; margin-top: 2px; flex: 0 0 auto; accent-color: var(--k-accent); }
+.ng-raekke h3 { margin: 0 0 2px; font-size: 17px; }
+.ng-opg.gjort h3 { text-decoration: line-through; color: var(--k-muted); }
+.ng-opg .k-btn-ghost { margin-top: 6px; }
+#ngGjort summary { font-weight: 600; cursor: pointer; min-height: 32px; }
+
+/* 2026-11-09 polish: even spacing on every tab */
+.view > .opg-intro { margin: 0 2px; line-height: 1.45; }
+.ng-opg.k-card { padding: 14px 16px; }
+.ng-raekke .kal-dato { margin-top: 2px; }
+.ng-raekke .note { margin: 6px 0 0; }
+.kursus-links .link-knapper { margin-top: 4px; }
+.kursus-links.k-card { margin: 0; }
+
+/* Phones: all tabs visible (two rows if needed), times never split */
+.naeste-tid { white-space: nowrap; }
+@media (max-width: 480px) {
+    .tabs { gap: 6px 4px; }
+    .tabs button { padding: 6px 12px; min-height: 38px; }
+    .naeste { margin: 10px 12px 0; }
+    .opg, .mig, .kal, .ng, .fil, .hold { padding: 10px 12px 24px; }
+    .naeste-dag { font-size: 18px; }
+    .kursus-links .link-knapper { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .kursus-links .link-knapper .k-btn { justify-content: center; text-align: center; padding: 8px 10px; min-height: 40px; font-size: 14px; white-space: normal; line-height: 1.2; }
+}
+.ops-navne { margin: 0; font-size: 14px; line-height: 1.5; color: var(--k-text); }
+.ops-raad, .ops-navne { overflow-wrap: anywhere; }
+
+/* 2026-11-09 each person's own card */
+.medlem .kontakt { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.medlem .kontakt .k-btn { text-decoration: none; }
+.medlem .ret-mig { margin-top: 10px; }
+.medlem.k-card { flex-wrap: wrap; }
+.profil-form { flex: 1 1 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--k-border); }
+.profil-form .k-row { margin-top: 8px; gap: 8px; }
+
+/* 2026-11-12 "Snart": the coming 7 days at the top of the first page. */
+.snart-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.snart-liste li { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--k-border); }
+.snart-liste li:first-child { border-top: 0; padding-top: 0; }
+.snart-liste .snart-hvornaar { font-size: 14px; color: var(--k-muted); }
+.snart-liste .snart-hvornaar.i-morgen { color: var(--k-text); font-weight: 600; }
+.snart-liste .snart-hvad { font-weight: 600; }
+
+/* ---- 2026-11-12 trin 2: the wow look in EVERY room (user: "make the feel wauv... like some of the other apps") ---- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wow .top { background: linear-gradient(135deg, color-mix(in srgb, var(--k-accent) 14%, var(--k-card)), var(--k-card) 60%);
+    box-shadow: 0 2px 14px color-mix(in srgb, var(--k-text) 7%, transparent); border-bottom-color: transparent; }
+.wow .brand b { font-size: 21px; letter-spacing: -.01em; }
+.wow .tabs button { transition: background .15s ease, transform .12s ease; }
+.wow .tabs button:active { transform: scale(.97); }
+.wow .tabs button[aria-selected="true"] { box-shadow: 0 4px 12px color-mix(in srgb, var(--k-accent-dark) 30%, transparent); }
+
+/* Chat bubbles: soft depth, your own in the accent */
+.wow .besked .boble { border-radius: 18px 18px 18px 6px; box-shadow: 0 1px 3px color-mix(in srgb, var(--k-text) 8%, transparent); cursor: pointer; }
+.wow .besked.mig .boble { border-radius: 18px 18px 6px 18px;
+    background: linear-gradient(135deg, var(--k-accent-dark), color-mix(in srgb, var(--k-accent-dark) 78%, var(--k-accent))); }
+.besked { scroll-margin: 120px; transition: background .3s ease; border-radius: 14px; }
+.besked.fremhaev { background: var(--k-accent-soft); outline: 6px solid var(--k-accent-soft); }
+.besked.mig .besked-kol { align-items: flex-end; }
+
+/* The composer: + for a picture or file, Send, who you write as, what you answer */
+.skriv-raekke { display: flex; gap: 8px; align-items: flex-end; }
+.vedhaeft { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0; justify-content: center; font-size: 24px; font-weight: 700;
+    border-radius: 50%; cursor: pointer; display: inline-flex; align-items: center; }
+.rolle-valg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--k-muted); }
+.rolle-valg button { font: inherit; font-weight: 600; min-height: 32px; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); }
+.rolle-valg button[aria-pressed="true"] { background: var(--k-text); border-color: var(--k-text); color: var(--k-card); }
+.svar-bar { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 6px 10px; border-radius: 10px;
+    background: var(--k-accent-soft); border-left: 4px solid var(--k-accent-dark); font-size: 14px; }
+.svar-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* A reply shows what it answers; tap = jump there */
+.citat { font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 1px; max-width: 100%;
+    padding: 5px 10px; margin: 2px 0; border: 0; border-left: 3px solid var(--k-accent-dark); border-radius: 8px;
+    background: color-mix(in srgb, var(--k-accent-soft) 70%, var(--k-card)); color: var(--k-text); font-size: 13px; }
+.citat span { color: var(--k-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Pictures and files in the chat */
+.chat-billede { display: block; border-radius: 16px; overflow: hidden; max-width: min(280px, 70vw); border: 1px solid var(--k-border);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--k-text) 10%, transparent); }
+.chat-billede img { display: block; width: 100%; height: auto; max-height: 360px; object-fit: cover; }
+.chat-fil { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--k-border);
+    background: var(--k-card); color: var(--k-text); text-decoration: none; max-width: 100%; }
+.chat-fil .ikon { font-size: 1.6rem; }
+.chat-fil-tekst { display: flex; flex-direction: column; min-width: 0; }
+.chat-fil-tekst b { overflow-wrap: anywhere; }
+.chat-fil-tekst small { color: var(--k-muted); }
+.boble.slettet { font-style: italic; color: var(--k-muted); cursor: default; }
+.lille-svar { font-size: 12px; color: var(--k-muted); font-weight: 500; margin-top: 2px; }
+
+/* Reactions */
+.reaktioner { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.reak { font: inherit; font-size: 13px; padding: 2px 8px; min-height: 28px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); }
+.reak.min { border-color: var(--k-accent-dark); background: var(--k-accent-soft); font-weight: 700; }
+.handling { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; padding: 6px; border-radius: 999px;
+    background: var(--k-card); border: 1px solid var(--k-border); box-shadow: 0 6px 18px color-mix(in srgb, var(--k-text) 14%, transparent);
+    animation: pop .14s ease-out; }
+.reak-valg { font-size: 22px; line-height: 1; width: 40px; height: 40px; border-radius: 50%; border: 0; background: none; cursor: pointer; }
+.reak-valg:hover, .reak-valg:focus-visible { background: var(--k-accent-soft); }
+@keyframes pop { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Search */
+.soeg { margin: 0 16px; padding: 4px 0; }
+.soeg summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--k-muted); min-height: 36px; display: flex; align-items: center; }
+.soeg-liste { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.soeg-hit { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); }
+.soeg-hit small { color: var(--k-muted); }
+.soeg-hit span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Tasks: cards with a coloured edge per state, a hero "Snart" */
+.wow .opgave { border-radius: 16px; box-shadow: 0 1px 4px color-mix(in srgb, var(--k-text) 7%, transparent); }
+.wow .opgave.fri { border: 1px solid var(--k-border); border-left: 6px solid var(--k-text); }
+.wow .opgave.taget { border-left: 6px solid var(--k-accent-dark); }
+.wow .snart { border-radius: 18px; border: 0;
+    background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--k-accent) 22%, var(--k-card)), var(--k-card) 70%);
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--k-accent-dark) 14%, transparent); }
+.wow .idag-titel { font-size: 24px; letter-spacing: -.01em; }
+.opgave .sted { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--k-muted); font-size: 15px; }
+.opgave .sted .k-btn { text-decoration: none; }
+@media (prefers-reduced-motion: reduce) { .handling { animation: none; } .besked { transition: none; } }
+
+/* 2026-11-12 the door of a family room */
+.doer-vent { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--k-accent-soft); border-left: 4px solid var(--k-accent-dark); font-weight: 600; }
+.doer-ny { border-left-width: 6px; }
+.doer-laas { margin-top: 6px; gap: 8px; align-items: center; flex-wrap: wrap; }

@@ -30,6 +30,8 @@ public class GroupTests
         public void Unsubscribe(string endpoint) { }
         public void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url) => Sent.Add((exceptEndpoint, title, body));
         public void ForgetRoom(string room) => Forgotten.Add(room);
+        public Dictionary<string, int> Phones = new(StringComparer.OrdinalIgnoreCase);
+        public IReadOnlyDictionary<string, int> PhonesPerName(string room) => Phones;
     }
 
     [SetUp]
@@ -224,7 +226,7 @@ public class GroupTests
     {
         var g = NewGroup();
         (await g.AddFileAsync("virus.exe", 10, Bytes(10), "Sonja", null)).Error.Should().Contain("kan ikke");
-        (await g.AddFileAsync("stor.pdf", FileRules.MaxSize + 1, Bytes(10), "Sonja", null)).Error.Should().Contain("25 MB");
+        (await g.AddFileAsync("stor.pdf", FileRules.MaxSize + 1, Bytes(10), "Sonja", null)).Error.Should().Contain("90 MB");
         (await g.AddFileAsync("a.pdf", 10, Bytes(10), " ", null)).Error.Should().Contain("navn");
         // The browser says small, the bytes are bigger: stopped while writing.
         (await g.AddFileAsync("lyver.pdf", 10, Bytes((int)FileRules.MaxSize + 10), "Sonja", null)).Error.Should().NotBeNull();
@@ -370,5 +372,87 @@ public class GroupTests
         g.SetDone(1, true);   // done today: no more
         clock.Now = clock.Now.AddDays(1).AddMinutes(-31);
         g.SendReminders().Should().Be(1);   // next day it is open again
+    }
+
+    [Test]
+    public void Seen_only_moves_forward_and_is_kept_on_disk()
+    {
+        var g = NewGroup();
+        g.Write("Per", "Hej");
+        g.Write("Dorthe", "Hej Per");
+        g.MarkSeen("Per", 2, "iphone", true, "til", false)!.MessageId.Should().Be(2);
+        g.MarkSeen("per", 1, "iphone", true, "til", false)!.MessageId.Should().Be(2);   // a stale page never un-reads
+        g.MarkSeen("Per", 99, "iphone", true, "til", false)!.MessageId.Should().Be(2);  // never past the last message
+        _live.Kinds.Should().Contain("set");
+        NewGroup().SeenList().Should().ContainSingle(s => s.Name == "Per" && s.MessageId == 2 && s.Device == "iphone" && s.HomeScreen);
+    }
+
+    [Test]
+    public void Seen_cleans_what_the_page_says_about_the_phone()
+    {
+        var s = SeenRules.Clean(" Bent ", 3, DateTime.UtcNow, "Nokia", false, "måske", true)!;
+        (s.Name, s.Device, s.Push, s.InApp).Should().Be(("Bent", "", "", true));
+        SeenRules.Clean("", 1, DateTime.UtcNow, "iphone", true, "til", false).Should().BeNull();
+    }
+
+    [Test]
+    public void Links_are_one_per_line_and_only_web_addresses()
+    {
+        var l = RosterRules.ParseLinks("Kursets side – https://acceleratorkursus.dk\nLog ind hold 36: https://acceleratorkursus.dk/vinter2026\nhttps://www.talentmatch.dk\njavascript:alert(1)\nIngen adresse");
+        l.Select(x => x.Title).Should().Equal("Kursets side", "Log ind hold 36", "talentmatch.dk");
+        l[1].Url.Should().Be("https://acceleratorkursus.dk/vinter2026");
+    }
+
+    [Test]
+    public void Calendar_reads_the_course_feed_in_order()
+    {
+        const string ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20261111T073000Z\r\nDTEND:20261111T140000Z\r\nLOCATION:Damagervej 10\\, 8260 Viby J\r\nSUMMARY:Forretningsstrategi – Jeanette\r\n  Refstrup\r\nEND:VEVENT\r\n" +
+            "BEGIN:VEVENT\r\nDTSTART;TZID=Europe/Copenhagen:20261109T080000\r\nDTEND;TZID=Europe/Copenhagen:20261109T150000\r\nLOCATION:Vestergade 49B\\n8000 Aarhus C\r\nSUMMARY:Intro\r\nEND:VEVENT\r\n" +
+            "BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261218\r\nSUMMARY:Afslutning\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:no start\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        var e = CalendarRules.Parse(ics);
+        e.Select(x => x.Title).Should().Equal("Intro", "Forretningsstrategi – Jeanette Refstrup", "Afslutning");
+        e[0].StartUtc.Should().Be(new DateTime(2026, 11, 9, 7, 0, 0, DateTimeKind.Utc));   // 08:00 Danish winter time
+        e[0].Place.Should().Be("Vestergade 49B, 8000 Aarhus C");
+        e[1].Place.Should().Be("Damagervej 10, 8260 Viby J");
+        e[2].AllDay.Should().BeTrue();
+        CalendarRules.CleanUrl("webcal://calendar.google.com/x/basic.ics").Should().Be("https://calendar.google.com/x/basic.ics");
+        CalendarRules.CleanUrl("javascript:alert(1)").Should().Be("");
+    }
+
+    [Test]
+    public void Own_ticks_are_per_person_and_kept()
+    {
+        var g = NewGroup();
+        var t = g.AddTask("Skriv din pitch", "", "", day: "2026-11-11")!;
+        g.SetMyDone("Per", t.Id, true).Should().Equal(t.Id);
+        g.MyDone("per").Should().Equal(t.Id);
+        g.MyDone("Bent").Should().BeEmpty();                 // nobody else's tick
+        g.Tasks().Single().Done.Should().BeFalse();          // the shared task is not touched
+        NewGroup().MyDone("Per").Should().Equal(t.Id);       // on disk
+        g.SetMyDone("Per", t.Id, false).Should().BeEmpty();
+        g.SetMyDone("Per", 999, true).Should().BeNull();
+    }
+
+    [Test]
+    public void Links_can_be_a_mail_or_a_phone()
+    {
+        var l = RosterRules.ParseLinks("Mail Michael – michael@talentmatch.dk\nRing til Michael – 24 24 55 77\nRing til Henrik: +45 20235184\nIngen tal 123");
+        l.Select(x => x.Url).Should().Equal("mailto:michael@talentmatch.dk", "tel:24245577", "tel:+4520235184");
+        l[1].Title.Should().Be("Ring til Michael");
+    }
+
+    [Test]
+    public void Profiles_are_cleaned_and_only_what_is_given()
+    {
+        var g = NewGroup();
+        var (p, err) = g.SaveProfile("Per", " per@firma.dk ", "24 24 55 77", "www.firma.dk", "", "Laver kaffe");
+        err.Should().BeNull();
+        (p!.Mail, p.Phone, p.Web, p.LinkedIn).Should().Be(("per@firma.dk", "24245577", "https://www.firma.dk/", ""));
+        g.SaveProfile("Per", "ikke en mail", "", "", "", "").Error.Should().Contain("Mail");
+        g.SaveProfile("Per", "", "123", "", "", "").Error.Should().Contain("8 cifre");
+        g.SaveProfile("Per", "", "", "javascript:alert(1)", "", "").Error.Should().NotBeNull();
+        NewGroup().Profiles().Should().ContainSingle(x => x.Name == "Per");
+        g.SaveProfile("Per", "", "", "", "", "");   // all empty = the card goes
+        g.Profiles().Should().BeEmpty();
     }
 }

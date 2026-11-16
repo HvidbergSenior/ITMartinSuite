@@ -5,9 +5,13 @@ namespace ITMartinSnak.Domain;
 // Topics = the workshops: a file is put under one, and the Filer tab is grouped by them. Martin sets both.
 public sealed record Member(string Name, string About);
 
+// 2026-11-09 "add links to the kursus in the app": the course's own pages (the teacher's material stays there, the room is
+// for the participants). Shown as buttons in the Holdet and Filer tabs.
+public sealed record RoomLink(string Title, string Url);
+
 public static class RosterRules
 {
-    public const int MaxMembers = 100, MaxAbout = 200, MaxTopics = 30, MaxTopic = 60;
+    public const int MaxMembers = 100, MaxAbout = 200, MaxTopics = 30, MaxTopic = 60, MaxLinks = 10;
     public const string OtherTopic = "Andet";
 
     private static readonly string[] Separators = [" – ", " — ", " - ", "\t", "|", ":"];
@@ -52,6 +56,37 @@ public static class RosterRules
     {
         var a = (asked ?? "").Trim();
         return topics?.FirstOrDefault(t => string.Equals(t, a, StringComparison.OrdinalIgnoreCase)) ?? "";
+    }
+
+    /// <summary>One link per line: "Titel – https://..." - also a mail address ("Mail Michael – navn@firma.dk") or a phone
+    /// number ("Ring til Michael – 24 24 55 77"), so a contact is one tap. Only http(s)/mailto/tel; duplicates go.</summary>
+    public static List<RoomLink> ParseLinks(string? text)
+    {
+        var list = new List<RoomLink>();
+        foreach (var raw in Lines(text))
+        {
+            var (at, url) = FindTarget(raw);
+            if (at < 0 || !Uri.TryCreate(url, UriKind.Absolute, out var u) || u.Scheme is not ("https" or "http" or "mailto" or "tel")) continue;
+            var title = raw[..at].Trim().TrimEnd('–', '—', '-', '|', ':').Trim();
+            if (title.Length == 0) title = u.Scheme is "mailto" or "tel" ? raw[at..].Trim() : u.Host.StartsWith("www.") ? u.Host[4..] : u.Host;
+            if (title.Length > MaxTopic) title = title[..MaxTopic];
+            if (list.Any(l => l.Url == u.AbsoluteUri)) continue;
+            list.Add(new RoomLink(title, u.AbsoluteUri));
+            if (list.Count == MaxLinks) break;
+        }
+        return list;
+    }
+
+    // Where the target starts and what it is: a web address, a mail address, or a Danish phone number (8 digits, spaces/+45 ok).
+    private static (int At, string Url) FindTarget(string line)
+    {
+        var at = line.IndexOf("http", StringComparison.OrdinalIgnoreCase);
+        if (at >= 0) return (at, line[at..].Split(' ', '\t')[0]);
+        var mail = System.Text.RegularExpressions.Regex.Match(line, @"(mailto:)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}");
+        if (mail.Success) return (mail.Index, mail.Value.StartsWith("mailto:") ? mail.Value : "mailto:" + mail.Value);
+        var tel = System.Text.RegularExpressions.Regex.Match(line, @"(\+45\s?)?(\d\s?){7}\d\s*$");
+        if (tel.Success) return (tel.Index, "tel:" + System.Text.RegularExpressions.Regex.Replace(tel.Value, @"\s", ""));
+        return (-1, "");
     }
 
     public static string MembersText(IEnumerable<Member>? members) =>
