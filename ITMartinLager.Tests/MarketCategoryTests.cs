@@ -45,6 +45,28 @@ public class MarketCategoryTests
     public void The_title_match(string title, string listing, bool same) =>
         ListingParse.Matcher(title, "").Matches(listing).Should().Be(same);
 
+    // Several products in one DBA ad (2026-11-16, user: "compare with something on dba where there are more than one product").
+    [TestCase("Bog", "Rødt vand", "John Hart", "Et spind af løgne, Rødt vand, Det sidste barn og Jernhuset", false)]
+    [TestCase("Bog", "Dronningeofret", "Hanne-Vibeke Holst", "Hanne-Vibeke Holst romaner trilogi Kronprinsessen / Dronningeofret / Kongemordet", false)]
+    [TestCase("Bog", "Eget ansvar", "Elsebeth Egholm", "Elsebeth Egholm krimibøger – Eget ansvar, Nærmeste pårørende, Liv og legeme", false)]
+    [TestCase("Bog", "Grand Avenue", "Joy Fielding", "Kærlighedskoden, Grand Avenue m.m., Joy Fielding", false)]
+    [TestCase("Tegneserie", "Ferd'nand", "", "Ferd'nand Tegneseriebøger Blandet Sæt", false)]
+    [TestCase("Tegneserie", "Ferd'nand", "", "KØBES Gamle malebøger af disney, Storm p, ferdnand, blondie, knold og tot", false)]
+    [TestCase("CD", "Stærk Tobak!!!", "Shu-bi-dua", "SHU BI DUA 3 CD SÆT ; Stærk Tobak", false)]
+    // ... and single copies that look a bit like lists.
+    [TestCase("Bog", "En torn i øjet", "Julie Hastrup", "En torn i øjet, Julie Hastrup, genre: krimi og spænding", true)]
+    [TestCase("Tegneserie", "Kasket Karl", "", "Humor, Kasket Karl, af Smythe", true)]
+    [TestCase("VHS", "Far til fire – Julebal i Nisseland", "", "Videofilm ,VHS-bånd, Julebal i nisseland, far til fire 1956, fin stand.", true)]
+    [TestCase("DVD", "Søren Ryges Bedste Haver", "Søren Ryge", "Søren Ryges bedste haver, DVDD, K301", true)]
+    public void One_copy_or_several(string kind, string title, string artist, string listing, bool one) =>
+        Pricing.IsOneCopyOf(new Item { Kind = kind, Title = title, Artist = artist }, new Offer(listing, 30, "")).Should().Be(one);
+
+    // Comic albums with their creators after a comma (real items have series + number).
+    [TestCase("De blå får på puklen", "Blåfrakkerne Blutch & Chester", "17", "Blåfrakkerne 17 - De blå får på puklen, Cauvin & Lambil, Tegneserie")]
+    [TestCase("Elfenbensjægerne", "Bummelum, Junglens Herre", "2", "Bummelum, Junglens Herre nr.2: Elfenbensjægerne, Cauvin & Mazel")]
+    public void An_album_with_its_creators_is_one_copy(string title, string series, string number, string listing) =>
+        Pricing.IsOneCopyOf(new Item { Kind = Kinds.Tegneserie, Title = title, Series = series, Number = number }, new Offer(listing, 30, "")).Should().BeTrue();
+
     // Every price-hunted kind has a category on both sites - but Merchandise and Andet, which can be anything.
     [Test]
     public void Every_hunted_kind_has_a_category() =>

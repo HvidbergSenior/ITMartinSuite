@@ -169,7 +169,10 @@ public static partial class Pricing
     // covers and postcards - none of them the comic on the table.)
     private static readonly HashSet<string> NotOneCopy = ["set", "sets", "lot", "lots", "run", "complete", "komplett", "komplettsatz",
         "sammlung", "collection", "bundle", "samling", "komplet", "cgc", "cbcs", "pgx", "graded", "variant", "variante", "incentive",
-        "postcard", "postkarte", "ansichtskarte", "postkort", "poster", "books", "bücher", "issues", "hefte"];
+        "postcard", "postkarte", "ansichtskarte", "postkort", "poster", "books", "bücher", "issues", "hefte",
+        // 2026-11-16 (user: "compare with something on dba where there are more than one product"): Danish set words,
+        // and wanted ads ("KØBES Gamle malebøger ... 1000 kr") are no price at all.
+        "sæt", "trilogi", "trilogien", "blandet", "blandede", "bunke", "kassevis", "købes", "søges", "ønskes", "wanted", "suche"];
 
     // Brand, publisher and creator words a seller may put before a comic's title.
     private static readonly HashSet<string> Brands = ["marvel", "comics", "comic", "walt", "disney", "disneys", "tegneserie", "tegneserier",
@@ -315,11 +318,40 @@ public static partial class Pricing
     private static bool TitleList(Item item, string listing)
     {
         var parts = listing.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 3 && !ListingParse.Words(listing).Any(w => w == "diverse" || w.EndsWith("pakke"))) return false;
         var mine = ListingParse.Words($"{CleanTitle(item.Title)} {item.Artist} {item.Series} {item.Publisher}").ToHashSet();
+        if (OtherTitles(mine, listing) >= 2) return true;
+        if (parts.Length < 3 && !ListingParse.Words(listing).Any(w => w == "diverse" || w.EndsWith("pakke"))) return false;
         var others = parts.Count(p => System.Text.RegularExpressions.Regex.Matches(p, @"\b\p{Lu}[\p{L}]+")
             .Any(m => m.Value.ToLowerInvariant() is var w && w.Length >= 3 && !mine.Contains(w) && !AboutTheCopy.Contains(w) && !Brands.Contains(w)));
         return others >= 3 || (others >= 2 && ListingParse.Words(listing).Any(w => w == "diverse" || w.EndsWith("pakke")));
+    }
+
+    // DBA's own tail ", genre: krimi og spænding" / ", emne: kunst og kultur" and "(Bog)" are no titles.
+    [System.Text.RegularExpressions.GeneratedRegex(@",\s*(genre|emne|type|stand)\s*:.*$|\([^)]*\)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex DbaTailRx();
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s*(?:,|\s/\s|\s(?:og|&)\s)\s*", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex ListSplitRx();
+    private static readonly HashSet<string> NotATitle = ["bog", "bøger", "roman", "romaner", "krimi", "thriller", "spænding", "tegneserie",
+        "tegneserier", "skrevet", "dansk", "danske", "engelsk", "paperback", "hardback", "indbundet", "sælges", "pris", "som", "kun", "stk",
+        "humor", "fantasy", "western", "science", "fiction", "ungdom", "børnebog", "videofilm", "film", "vhs", "bånd", "videobånd", "dvd",
+        "cd", "lp", "vinyl", "plade", "single", "kassette", "blu", "ray", "stand", "album", "hæfte", "blad", "blade"];
+    // "Cauvin & Lambil", "Cauvin og Mazel" - the creators of a comic, not two more titles; "af Smythe" is the author.
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\p{Lu}\p{Ll}+\s*(?:&|og)\s*\p{Lu}\p{Ll}+$|^(?i:af)\s")]
+    private static partial System.Text.RegularExpressions.Regex CreatorPartRx();
+
+    /// <summary>"Et spind af løgne, Rødt vand, Det sidste barn og Jernhuset" (2026-11-16, 4 books for 100 kr): how many parts of
+    /// a list (3+ parts split by comma or " / ") name a title of their own - words that are not ours, not the author's and not
+    /// about the copy. A plain "Titel, Forfatter" or "Titel af A og B" is never a list.</summary>
+    public static int OtherTitles(HashSet<string> mine, string listing)
+    {
+        var clean = DbaTailRx().Replace(listing, "");
+        var big = clean.Split([",", " / "], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (big.Length < 3) return 0;
+        // A title word is letters only (not "K301", not "DVDD") and not a genre, format or copy word.
+        bool Titleish(string x) => x.All(char.IsLetter) && !x.StartsWith("dvd") && !AboutTheCopy.Contains(x) && !Brands.Contains(x) && !NotATitle.Contains(x);
+        return big.Where(b => !CreatorPartRx().IsMatch(b.Trim()))
+            .SelectMany(b => ListSplitRx().Split(b))
+            .Count(p => ListingParse.Words(p) is var w && !w.Any(mine.Contains) && w.Any(Titleish));
     }
 
     public static bool IsOneCopyOf(Item item, Offer o)
@@ -492,6 +524,8 @@ public static partial class Pricing
     public static bool WithSomethingElse(Item item, string listing)
     {
         if (System.Text.RegularExpressions.Regex.IsMatch(listing, @"\s\+\s|\s\+\d|\bm/\s*\w")) return true;
+        // "Kærlighedskoden, Grand Avenue m.m." - "and more" (2026-11-16).
+        if (System.Text.RegularExpressions.Regex.IsMatch(listing, @"\bm\.\s?m\.?(?!\p{L})|\bmv\.?(?!\p{L})|\bm\.v\.?(?!\p{L})", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return true;
         // "Guardians of the Galaxy / The Amazing Spider-Man 1+2": a slash between titles (not "AC/DC", not "1/2").
         // "Eddie Izzard / Dress To Kill" is artist / title - only a part with two words of its own is another product.
         if (System.Text.RegularExpressions.Regex.IsMatch(listing, @"\s/\s") && !$" {CleanTitle(item.Title)} {item.Artist} ".Contains(" / "))
