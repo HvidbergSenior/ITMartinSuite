@@ -18,28 +18,17 @@ else
     @* Back to the list it came from (user 2026-11-15: "I can not go back") - the list keeps its search in the address. *@
     <p class="lg-back"><a href="/" onclick="if (history.length > 1) { history.back(); return false; }">← Tilbage til listen</a></p>
     <section class="k-card">
-        <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @_item.Line()</h1>
-        <p class="k-help">Vare nr. @_item.Id – skriv nummeret i søgefeltet i Lager eller Vurdering for at finde den igen.</p>
+        @* Calm (user 2026-11-16: "i mean there are a lot of info.."): name, one line, the picture, the fields that decide what it is
+           and its price - everything else under "Flere oplysninger", closed. *@
+        <h1 class="k-card-title">@_item.Line()</h1>
+        <p class="k-small">nr. @_item.Id · <a href="/kasse/@_box">@(_boxLabel ?? "ingen kasse")</a> · @(_item.Quantity > 1 ? $"{_item.Quantity} stk." : "1 stk.") · @_item.Status@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
         @if (_item.ItemPhoto != "") { <a href="/varefoto/@_item.Id?v=@_photoVer" target="_blank" rel="noopener" title="Se billedet i fuld størrelse"><img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /></a> }
-        <label class="k-btn k-btn-secondary lg-camera">
-            @(_busy ? "⏳ Gemmer …" : _item.ItemPhoto == "" ? "📷 Tag billede af varen" : "📷 Tag nyt billede")
+        <label class="k-btn k-btn-sm k-btn-secondary lg-camera">
+            @(_busy ? "Gemmer …" : _item.ItemPhoto == "" ? "Tag billede af varen" : "Tag nyt billede")
             <InputFile OnChange="SavePhoto" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
         </label>
+        @if (_item.Confidence < 0.6) { <p class="lg-check">AI'en var usikker – ret det, der er forkert. Er det ikke en rigtig ting, så tryk <b>Slet</b>.</p> }
 
-        <p>Ligger i <a href="/kasse/@_box"><b>@(_boxLabel ?? "ingen kasse")</b></a> · @(_item.Quantity > 1 ? "flere stk." : "1 stk.") · <b>@_item.Status</b>@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
-        @if (_others.Count > 0)
-        {
-            <p class="lg-ok" role="status"><b>Vi har flere:</b>
-                @foreach (var o in _others)
-                {
-                    <a class="k-btn k-btn-sm k-btn-secondary" href="/vare/@o.Id">@(o.Box is { } ob ? ob.Label : "Uden kasse")@(o.Condition != _item.Condition ? $" · {o.Condition}" : "")</a>
-                }
-            </p>
-        }
-        @if (_item.Confidence < 0.6) { <p class="lg-check">⚠ AI'en var usikker på denne – tjek den mod billedet.</p> }
-        @if (Fixing) { <p class="k-small"><a href="/">Stop – tilbage til Søg</a></p> }
-
-        <label class="lg-interest-label">✨ Det interessante <textarea class="k-input lg-interest" rows="3" @bind="_item.Interest" placeholder="Hvad gør netop den her spændende for en samler?"></textarea></label>
         <div class="lg-form">
             <label>Type <select class="k-input" @bind="_item.Kind">@foreach (var k in Kinds.All) { <option value="@k">@k</option> }</select></label>
             @if (Has(ItemFields.Title)) { <label>Titel <input class="k-input" @bind="_item.Title" /></label> }
@@ -47,21 +36,38 @@ else
             @if (Has(ItemFields.Series)) { <label>@(_item.Kind == Kinds.Magic ? "Sæt" : "Serie / blad") <input class="k-input" @bind="_item.Series" /></label> }
             @if (Has(ItemFields.Number)) { <label>Nummer <input class="k-input" @bind="_item.Number" /></label> }
             @if (Has(ItemFields.Year)) { <label>År <input class="k-input" type="number" @bind="_item.Year" /></label> }
-            @if (Has(ItemFields.Barcode)) { <label>@(_item.Kind == Kinds.Bog ? "ISBN" : "Stregkode") <input class="k-input" inputmode="numeric" @bind="_item.Barcode" placeholder="@(_item.Kind == Kinds.Bog ? "978…" : "")" /></label> }
-            @if (Has(ItemFields.EditionHint)) { <label>Omslaget siger <select class="k-input" @bind="_item.EditionHint">@foreach (var h in EditionHints.All) { <option value="@h">@(h == "" ? "(intet)" : h)</option> }</select></label> }
-            @if (Has(ItemFields.Edition)) { <label>Udgave / oplag <input class="k-input" @bind="_item.Edition" placeholder="1. udgave, 1. oplag" /></label> }
-            @if (Has(ItemFields.Publisher)) { <label>Forlag <input class="k-input" @bind="_item.Publisher" /></label> }
-            @if (Has(ItemFields.Platform)) { <label>Konsol <input class="k-input" @bind="_item.Platform" /></label> }
-            <label>Ny eller brugt <select class="k-input" @bind="_item.Usage">@foreach (var u in Usages.All) { <option value="@u">@u</option> }</select></label>
-            <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
-            <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
-            @if (Admin)
-            {
-                <label>Status <select class="k-input" @bind="_item.Status">@foreach (var s in Statuses.All) { <option value="@s">@s</option> }</select></label>
-            }
-            <label>Note <input class="k-input" @bind="_item.Note" /></label>
-            <label class="lg-check"><input type="checkbox" @bind="_item.Rare" /> 💎 Sjælden – vurderes manuelt (ud af 3 kr-kassen, pris sættes i Vurdering)</label>
         </div>
+
+        <details class="kr-more">
+            <summary>Flere oplysninger</summary>
+            @if (_others.Count > 0)
+            {
+                <p class="k-small"><b>Vi har flere:</b>
+                    @foreach (var o in _others)
+                    {
+                        <a class="k-btn k-btn-sm k-btn-secondary" href="/vare/@o.Id">@(o.Box is { } ob ? ob.Label : "Uden kasse")@(o.Condition != _item.Condition ? $" · {o.Condition}" : "")</a>
+                    }
+                </p>
+            }
+            <div class="lg-form">
+                @if (Has(ItemFields.Barcode)) { <label>@(_item.Kind == Kinds.Bog ? "ISBN" : "Stregkode") <input class="k-input" inputmode="numeric" @bind="_item.Barcode" placeholder="@(_item.Kind == Kinds.Bog ? "978…" : "")" /></label> }
+                @if (Has(ItemFields.EditionHint)) { <label>Omslaget siger <select class="k-input" @bind="_item.EditionHint">@foreach (var h in EditionHints.All) { <option value="@h">@(h == "" ? "(intet)" : h)</option> }</select></label> }
+                @if (Has(ItemFields.Edition)) { <label>Udgave / oplag <input class="k-input" @bind="_item.Edition" placeholder="1. udgave, 1. oplag" /></label> }
+                @if (Has(ItemFields.Publisher)) { <label>Forlag <input class="k-input" @bind="_item.Publisher" /></label> }
+                @if (Has(ItemFields.Platform)) { <label>Konsol <input class="k-input" @bind="_item.Platform" /></label> }
+                <label>Ny eller brugt <select class="k-input" @bind="_item.Usage">@foreach (var u in Usages.All) { <option value="@u">@u</option> }</select></label>
+                <label>Stand <select class="k-input" @bind="_item.Condition">@foreach (var c in Conditions.All) { <option value="@c">@c</option> }</select></label>
+                <label>Antal <input class="k-input" type="number" min="0" @bind="_item.Quantity" /></label>
+                @if (Admin)
+                {
+                    <label>Status <select class="k-input" @bind="_item.Status">@foreach (var st in Statuses.All) { <option value="@st">@st</option> }</select></label>
+                }
+                <label>Note <input class="k-input" @bind="_item.Note" /></label>
+            </div>
+            <label class="lg-interest-label">Det interessante (vises i butikken – kun hvis den er speciel for en samler) <textarea class="k-input lg-interest" rows="2" @bind="_item.Interest" placeholder="fx 1. udgave, signeret, med plakat"></textarea></label>
+            <label class="lg-check"><input type="checkbox" @bind="_item.Rare" /> Sjælden – vurderes manuelt (ud af 3 kr-kassen, pris sættes i Priser)</label>
+        </details>
+        @if (Fixing) { <p class="k-small"><a href="/">Stop – tilbage til Søg</a></p> }
         <div class="lg-row">
             @if (Fixing)
             {
