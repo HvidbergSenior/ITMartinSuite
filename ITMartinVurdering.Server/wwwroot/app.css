@@ -49,3 +49,5 @@
 .vu-search { margin-top: 10px; }
 .vu-search .vu-own-row { flex-wrap: wrap; }
 .vu-search .k-input { min-width: 12rem; }
+/* A hidden button stays hidden (the k-btn display rule beat [hidden]: "Tilbage til bunken" showed without a search, 2026-11-16). */
+[hidden] { display: none !important; }
