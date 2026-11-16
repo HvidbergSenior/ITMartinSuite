@@ -50,7 +50,11 @@
                 $('vu-card').hidden = !item; $('vu-empty').hidden = !!item || !!query;
                 msg(!item && query ? (skip.length ? 'Ikke flere, der passer på »' + query + '«.' : 'Fandt ingen ting, der passer på »' + query + '«.') : '');
                 if (!item) return;
-                $('vu-photo').src = '/api/foto/' + item.id;
+                $('vu-photo').src = '/api/foto/' + item.id + '?v=' + Date.now();
+                endMark();
+                $('vu-hidden-tag').hidden = !item.photoHidden;
+                $('vu-hide-photo').textContent = item.photoHidden ? 'Vis billedet igen' : 'Skjul billedet';
+                $('vu-uncover').hidden = !item.covered;
                 $('vu-line').textContent = item.line;
                 $('vu-facts').textContent = ['nr. ' + item.id, item.kind, item.condition ? 'stand: ' + item.condition : '', item.box ? 'kasse ' + item.box : ''].filter(Boolean).join(' · ');
                 var ok = $('vu-ok');
@@ -129,6 +133,47 @@
     document.querySelectorAll('.vu-piles [data-pile]').forEach(function (b) {
         b.addEventListener('click', function () { pile = b.getAttribute('data-pile'); skip = []; try { localStorage.setItem('vurdering_pile', pile); } catch (e) { } showPile(); load(); });
     });
+
+    // The photo (2026-11-16): drag a box over a price mark -> Lager paints over it; hide a bad photo from bogshoppen.dk.
+    var marking = false, start = null, area = null;
+    function endMark() {
+        marking = false; start = null; area = null;
+        $('vu-mark-box').hidden = true; $('vu-mark-help').hidden = true; $('vu-mark-save').hidden = true; $('vu-mark-cancel').hidden = true;
+        $('vu-photo-wrap').classList.remove('is-marking');
+        $('vu-mark').hidden = !(item && item.ownPhoto);
+    }
+    function at(e) {
+        var r = $('vu-photo').getBoundingClientRect();
+        return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };
+    }
+    function draw() {
+        var img = $('vu-photo'), box = $('vu-mark-box'), w = img.clientWidth, h = img.clientHeight;
+        box.style.left = (img.offsetLeft + area.l * w) + 'px'; box.style.top = (img.offsetTop + area.t * h) + 'px';
+        box.style.width = ((area.r - area.l) * w) + 'px'; box.style.height = ((area.b - area.t) * h) + 'px';
+        box.hidden = false;
+    }
+    $('vu-mark').addEventListener('click', function () {
+        marking = true; $('vu-mark').hidden = true; $('vu-mark-help').hidden = false; $('vu-mark-cancel').hidden = false;
+        $('vu-photo-wrap').classList.add('is-marking');
+    });
+    $('vu-mark-cancel').addEventListener('click', endMark);
+    $('vu-photo').addEventListener('pointerdown', function (e) {
+        if (!marking) return; e.preventDefault(); start = at(e); $('vu-photo').setPointerCapture(e.pointerId);
+    });
+    $('vu-photo').addEventListener('pointermove', function (e) {
+        if (!marking || !start) return; var p = at(e);
+        area = { l: Math.min(start.x, p.x), t: Math.min(start.y, p.y), r: Math.max(start.x, p.x), b: Math.max(start.y, p.y) };
+        draw();
+    });
+    $('vu-photo').addEventListener('pointerup', function () {
+        if (!marking || !start) return; start = null;
+        $('vu-mark-save').hidden = !(area && area.r - area.l > 0.005 && area.b - area.t > 0.005);
+    });
+    $('vu-mark-save').addEventListener('click', function () {
+        if (item && area) save('/api/maerke', { id: item.id, venstre: area.l, top: area.t, hoejre: area.r, bund: area.b });
+    });
+    $('vu-uncover').addEventListener('click', function () { if (item) save('/api/maerke/fortryd', { id: item.id }); });
+    $('vu-hide-photo').addEventListener('click', function () { if (item) save('/api/skjulfoto', { id: item.id, skjul: !item.photoHidden }); });
 
     $('vu-search').addEventListener('submit', function (e) {
         e.preventDefault(); query = $('vu-q').value.trim(); skip = []; $('vu-q-clear').hidden = !query; load();

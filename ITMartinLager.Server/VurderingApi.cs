@@ -38,6 +38,15 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/note", async (int id, VurderingNote body, PriceReviewUseCases review) =>
             await review.SetNoteAsync(id, body.Note) is { } error ? Results.BadRequest(error) : Results.Ok());
 
+        // The photo (2026-11-16): hide a bad one from bogshoppen.dk, paint over a price mark, or bring the original back.
+        api.MapPost("/varer/{id:int}/skjulfoto", async (int id, VurderingPhotoHidden body, ItemUseCases items) =>
+            await items.SetPhotoHiddenAsync(id, body.Hidden) is { } error ? Results.BadRequest(error) : Results.Ok());
+        api.MapPost("/varer/{id:int}/maerke", async (int id, PhotoArea body, ItemUseCases items) =>
+            PhotoArea.From([body.Left, body.Top, body.Right, body.Bottom], 0.005) is not { } area ? Results.BadRequest("Træk en firkant hen over mærket.")
+            : await items.CoverMarkAsync(id, area) is { } error ? Results.BadRequest(error) : Results.Ok());
+        api.MapPost("/varer/{id:int}/maerke/fortryd", async (int id, ItemUseCases items) =>
+            await items.UncoverAsync(id) is { } error ? Results.BadRequest(error) : Results.Ok());
+
         // "Find priser nu" moved here from Lager's Vare page (2026-11-15: "pricing should be in pricing"): asks every site again.
         api.MapPost("/varer/{id:int}/find", async (int id, PriceHuntUseCases hunt, CancellationToken ct) =>
             Results.Ok(new VurderingHunted(await hunt.HuntAsync(id, ct))));

@@ -28,7 +28,13 @@ public sealed record VurderingItem(int Id, string Line, string Kind, string Cond
     int? MarketKr = null, string HintRule = "",
     // Marked rare by a person (2026-11-16: "all interesting to be manually step", "make comments on them and maybe add to auction"):
     // Rare = it waits for a person; Note = the person's comment; Year/Number help to look it up.
-    bool Rare = false, string Note = "");
+    bool Rare = false, string Note = "",
+    // Photo (2026-11-16): OwnPhoto = a cut-out of just this thing (a mark can be painted over), PhotoHidden = not shown on
+    // bogshoppen.dk, Covered = a mark was painted over (Fortryd brings the original back).
+    bool OwnPhoto = false, bool PhotoHidden = false, bool Covered = false);
+
+/// <summary>Show or hide the thing's photo on bogshoppen.dk.</summary>
+public sealed record VurderingPhotoHidden(bool Hidden);
 
 /// <summary>Mark or unmark a thing as rare ("Sjælden – vurderes manuelt").</summary>
 public sealed record VurderingRare(bool Rare);

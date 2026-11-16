@@ -173,6 +173,33 @@ public class StockForSaleTests
         (await stock.ByIdsAsync([mort.Id, 999])).Single().Id.Should().Be(mort.Id);
     }
 
+    // A bad photo hidden (2026-11-16): the thing is still for sale, without a photo; a price mark painted over, Fortryd = the original.
+    [Test]
+    public async Task A_hidden_photo_is_not_shown_and_a_mark_can_be_painted_over_and_back()
+    {
+        var item = await Add("X-Force", 40, kind: Kinds.Superhelte);
+        item.ItemPhoto = "photos/items/1.jpg";
+        await Items.UpdateAsync([item], default);
+        var files = new Dictionary<string, byte[]> { ["photos/items/1.jpg"] = [1, 2, 3] };
+        var store = new Mock<IPhotoStore>();
+        store.Setup(p => p.ReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((string p, CancellationToken _) => files.GetValueOrDefault(p));
+        store.Setup(p => p.SaveAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .Callback((string p, byte[] b, CancellationToken _) => files[p] = b).Returns(Task.CompletedTask);
+        store.Setup(p => p.CropAsync(It.IsAny<byte[]>(), It.IsAny<PhotoArea>(), It.IsAny<CancellationToken>(), It.IsAny<PhotoArea?>())).ReturnsAsync(new byte[] { 9 });
+        var items = new ItemUseCases(Items, new PriceRepository(Factory), store.Object);
+
+        (await items.SetPhotoHiddenAsync(item.Id, true)).Should().BeNull();
+        Shop.View((await Items.GetAsync(item.Id, default))!, []).HasPhoto.Should().BeFalse();
+        await items.SetPhotoHiddenAsync(item.Id, false);
+        Shop.View((await Items.GetAsync(item.Id, default))!, []).HasPhoto.Should().BeTrue();
+
+        (await items.CoverMarkAsync(item.Id, new PhotoArea(.1, .1, .2, .2))).Should().BeNull();
+        files["photos/items/1.jpg"].Should().Equal(9);
+        (await items.CoveredAsync(item.Id)).Should().BeTrue();
+        (await items.UncoverAsync(item.Id)).Should().BeNull();
+        files["photos/items/1.jpg"].Should().Equal(1, 2, 3);
+    }
+
     // Vurdering's Find en ting (2026-11-16): a number opens that thing, words give the matches one at a time, sold ones never.
     [Test]
     public async Task Vurdering_finds_one_thing_by_number_or_words()

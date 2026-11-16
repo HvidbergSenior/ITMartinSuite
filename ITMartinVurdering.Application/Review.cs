@@ -19,6 +19,12 @@ public interface ILagerReview
     Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct);
+    /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
+    Task<string?> SetPhotoHiddenAsync(int itemId, bool hidden, CancellationToken ct);
+    /// <returns>Null when the mark was painted over, else Lager's (Danish) reason.</returns>
+    Task<string?> CoverMarkAsync(int itemId, PhotoArea area, CancellationToken ct);
+    /// <returns>Null when the original photo is back, else Lager's (Danish) reason.</returns>
+    Task<string?> UncoverAsync(int itemId, CancellationToken ct);
     /// <summary>Lager asks every price site again for this thing. Sites that answered; null = Lager did not answer.</summary>
     Task<int?> FindPricesAsync(int itemId, CancellationToken ct);
     /// <summary>Ting/Strik things waiting for a description (2026-11-10). Null = Lager did not answer.</summary>
@@ -67,6 +73,19 @@ public sealed class ReviewUseCases(ILagerReview lager)
     /// <summary>The person's comment on the thing.</summary>
     public async Task<ReviewResult> NoteAsync(int itemId, string? note, CancellationToken ct = default) =>
         await lager.SetNoteAsync(itemId, (note ?? "").Trim(), ct) is { } error ? new(false, error) : new(true, "Kommentaren er gemt.");
+
+    /// <summary>A bad photo off bogshoppen.dk, or back on (2026-11-16: "I want a way to not show the bad pictures").</summary>
+    public async Task<ReviewResult> PhotoHiddenAsync(int itemId, bool hidden, CancellationToken ct = default) =>
+        await lager.SetPhotoHiddenAsync(itemId, hidden, ct) is { } error ? new(false, error)
+        : new(true, hidden ? "Billedet vises ikke på bogshoppen.dk – tag et nyt i Lager, når du har tid." : "Billedet vises igen på bogshoppen.dk.");
+
+    /// <summary>Paint over the price mark the person dragged a box around (2026-11-16: "The mark should be gone from pictures").</summary>
+    public async Task<ReviewResult> CoverMarkAsync(int itemId, PhotoArea? area, CancellationToken ct = default) =>
+        area is null ? new(false, "Træk en firkant hen over mærket først.")
+        : await lager.CoverMarkAsync(itemId, area, ct) is { } error ? new(false, error) : new(true, "Mærket er malet over.");
+
+    public async Task<ReviewResult> UncoverAsync(int itemId, CancellationToken ct = default) =>
+        await lager.UncoverAsync(itemId, ct) is { } error ? new(false, error) : new(true, "Billedet er som før.");
 
     /// <summary>"Find priser nu" (2026-11-15, moved from Lager's Vare page): the prices are found again, then the thing is shown anew.</summary>
     public async Task<ReviewResult> FindPricesAsync(int itemId, CancellationToken ct = default) =>

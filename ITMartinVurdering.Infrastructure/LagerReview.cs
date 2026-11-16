@@ -77,6 +77,15 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
     public Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct) =>
         PostAsync($"/api/vurdering/varer/{itemId}/sjaelden", new VurderingRare(rare), "Lager gemte ikke mærket.", ct);
 
+    public Task<string?> SetPhotoHiddenAsync(int itemId, bool hidden, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/skjulfoto", new VurderingPhotoHidden(hidden), "Lager gemte det ikke.", ct);
+
+    public Task<string?> CoverMarkAsync(int itemId, PhotoArea area, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/maerke", area, "Lager kunne ikke rette billedet.", ct);
+
+    public Task<string?> UncoverAsync(int itemId, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/maerke/fortryd", new { }, "Lager kunne ikke hente billedet tilbage.", ct);
+
     public Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct) =>
         PostAsync($"/api/vurdering/varer/{itemId}/note", new VurderingNote(note), "Lager gemte ikke kommentaren.", ct);
 

@@ -182,6 +182,48 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         return n;
     }
 
+    /// <summary>Show or hide the photo on bogshoppen.dk (2026-11-16). Null = saved, else the (Danish) reason.</summary>
+    public async Task<string?> SetPhotoHiddenAsync(int id, bool hidden, CancellationToken ct = default)
+    {
+        if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
+        item.PhotoHidden = hidden;
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        return null;
+    }
+
+    private static string OriginalPath(int id) => Path.Combine("photos", "items", $"{id}-original.jpg");
+
+    /// <summary>Paint over a price mark a person marked on the thing's own photo (2026-11-16: "The mark should be gone from
+    /// pictures" - the old photos have no sticker area from the reader). The first time, the photo is kept as it was, so
+    /// UncoverAsync can bring it back. Null = done, else the (Danish) reason.</summary>
+    public async Task<string?> CoverMarkAsync(int id, PhotoArea area, CancellationToken ct = default)
+    {
+        if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
+        if (item.ItemPhoto == "" || await photos.ReadAsync(item.ItemPhoto, ct) is not { } jpeg)
+            return "Tingen har kun billedet af hele bunken – tag et billede af den alene først (i Lager).";
+        if (await photos.ReadAsync(OriginalPath(id), ct) is null) await photos.SaveAsync(OriginalPath(id), jpeg, ct);
+        if (await photos.CropAsync(jpeg, new PhotoArea(0, 0, 1, 1), ct, area) is not { } covered) return "Billedet kunne ikke rettes.";
+        await photos.SaveAsync(item.ItemPhoto, covered, ct);
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        return null;
+    }
+
+    /// <summary>The photo as it was before any mark was painted over. Null = done, else the (Danish) reason.</summary>
+    public async Task<string?> UncoverAsync(int id, CancellationToken ct = default)
+    {
+        if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
+        if (item.ItemPhoto == "" || await photos.ReadAsync(OriginalPath(id), ct) is not { } original) return "Der er ikke malet over noget på billedet.";
+        await photos.SaveAsync(item.ItemPhoto, original, ct);
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        return null;
+    }
+
+    /// <summary>Whether a mark has been painted over (the original is kept).</summary>
+    public async Task<bool> CoveredAsync(int id, CancellationToken ct = default) => await photos.ReadAsync(OriginalPath(id), ct) is not null;
+
     public async Task<string?> PhotoFileAsync(int id, CancellationToken ct = default) =>
         await items.GetAsync(id, ct) is { } i ? photos.FullPath(i.ItemPhoto) : null;
 

@@ -141,6 +141,9 @@ public sealed class Item
     // maybe add to auction"): a person marked it rare - never in a deal (not the 3 kr bin), never an automatic price, waits in
     // Vurdering's "Skal vurderes" until a person sets the price, sends it to auction, or says "Ikke sjælden". Comment = Note.
     public bool Rare { get; set; }
+    // A bad photo is not shown on bogshoppen.dk (user 2026-11-16: "I want a way to not show the bad pictures") - the thing is
+    // still for sale, "billede kommer" until a new photo is taken. Kept in Lager, so it can be shown again.
+    public bool PhotoHidden { get; set; }
     public decimal? SimilarHint { get; set; }    // kr, the middle price of "magen til" when nothing exact is for sale - a pointer, not a price
     public string MagicRef { get; set; } = "";
     public string Barcode { get; set; } = "";    // EAN/ISBN when scanned   // card id in the MTG Scanner, so a new fetch updates instead of duplicating
