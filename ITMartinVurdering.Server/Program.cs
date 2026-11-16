@@ -37,6 +37,7 @@ builder.Services.AddKolibri(k =>
         "Ny i kiosken: skriv hvad det nyeste nummer af et blad koster nyt i dag (fx Anders And & Co. 40 kr). Samme navn igen retter prisen.",
         "Find en ting: skriv nummeret (fx 3372) eller titlen (fx X-Force) øverst og tryk Find – så kommer netop den ting frem. Spring over viser den næste, der passer. »Tilbage til bunken« går tilbage.",
         "Kun sikre læsninger kommer her: er AI'en usikker (fx kun en halv ryg), rettes tingen først i Lager under »Ret de svære«. »Kassér« fjerner en ting, der ikke er en rigtig ting eller er for dårligt læst – den gemmes i Lager som Ikke købt, og »Fortryd« henter den tilbage.",
+        "»Drej ↻« drejer billedet en kvart omgang med uret – tryk igen, til det vender rigtigt. »Fortryd« giver det gamle billede tilbage.",
         "Billedet: »Ret udsnittet« viser hele billedet af bunken – træk en firkant rundt om tingen, så bliver det dens nye billede. »Fjern prismærket« – træk en firkant hen over mærket med fingeren og tryk »Mal over mærket«; det males over i tingens egen farve. »Fortryd« giver det gamle billede tilbage. »Skjul billedet« – et dårligt billede vises ikke på bogshoppen.dk (tingen er stadig til salg), indtil du trykker »Vis billedet igen«.",
         "Find priser nu: Lager spørger alle prissiderne igen for netop den ting (tager op til et minut) – fx når du har rettet titlen eller ISBN i Lager. Priserne sættes kun her, ikke i Lager.",
         "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
@@ -99,7 +100,7 @@ var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dod
 var guldBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guld.html"));
 var kioskBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "kiosk.html"));
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=14"));
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=15"));
 // Guld/sølv/bronze + Ny i kiosken (2026-11-15, moved from Lager): the same login, own pages.
 app.MapGet("/guld", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, guldBody, "/guld.js?v=2"));
 app.MapGet("/kiosk", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, kioskBody, "/kiosk.js?v=1"));
@@ -162,6 +163,7 @@ api.MapPost("/ok", async (OkForm f, ReviewUseCases review, CancellationToken ct)
 api.MapPost("/pris", async (PrisForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OwnAsync(f.Id, f.Pris, ct)));
 api.MapPost("/find", async (FindForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.FindPricesAsync(f.Id, ct)));
 api.MapPost("/sjaelden", async (SjaeldenForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.RareAsync(f.Id, f.Sjaelden, ct)));
+api.MapPost("/drej", async (DrejForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.RotateAsync(f.Id, f.Grader, ct)));
 api.MapPost("/kasser", async (FindForm f, ReviewUseCases review, CancellationToken ct) =>
     await review.DiscardAsync(f.Id, ct) is { } was ? Results.Ok(new { besked = "Kasseret – den er ikke på lager længere.", was })
     : Results.BadRequest(new { fejl = "Lager kunne ikke kassere den – prøv igen." }));
@@ -292,6 +294,7 @@ record SjaeldenForm(int Id, bool Sjaelden);
 record NoteForm(int Id, string? Note);
 record SkjulForm(int Id, bool Skjul);
 record FortrydForm(int Id, string? Was);
+record DrejForm(int Id, int Grader);
 record MaerkeForm(int Id, double Venstre, double Top, double Hoejre, double Bund);
 record KioskForm(string? Blad, string? Pris, string? Hvorfra);
 record NySag(string? Navn);

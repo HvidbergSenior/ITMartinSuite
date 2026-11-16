@@ -92,6 +92,15 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         });
     }
 
+    public async Task<byte[]> RotateAsync(byte[] jpeg, int degrees, CancellationToken ct)
+    {
+        using var img = Image.Load<Rgb24>(jpeg);
+        img.Mutate(x => x.Rotate(degrees == 270 ? RotateMode.Rotate270 : degrees == 180 ? RotateMode.Rotate180 : RotateMode.Rotate90));
+        using var ms = new MemoryStream();
+        await img.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 90 }, ct);
+        return ms.ToArray();
+    }
+
     public async Task<(int W, int H)?> SizeAsync(string path, CancellationToken ct)
     {
         if (Inside(path) is not { } full || !File.Exists(full)) return null;

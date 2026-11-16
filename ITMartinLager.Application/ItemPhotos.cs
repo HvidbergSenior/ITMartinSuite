@@ -8,6 +8,21 @@ namespace ITMartinLager.Application;
 /// painted-over price mark), so ItemUseCases.UncoverAsync brings it back.</summary>
 public sealed class ItemPhotoUseCases(IItemRepository items, IPhotoStore photos, IVareinfoGateway? vareinfo = null)
 {
+    /// <summary>Turn the thing's own photo (user 2026-11-16: "add a way to rotate pictures" + "could be manually"): a quarter
+    /// clockwise (90) or back (270). The photo before is kept the first time, so Fortryd brings it back. Null = done.</summary>
+    public async Task<string?> RotateAsync(int id, int degrees, CancellationToken ct = default)
+    {
+        if (degrees is not (90 or 180 or 270)) return "Drej 90, 180 eller 270 grader.";
+        if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
+        if (item.ItemPhoto == "" || await photos.ReadAsync(item.ItemPhoto, ct) is not { } jpeg)
+            return "Tingen har kun billedet af hele bunken – lav først et udsnit med »Ret udsnittet«.";
+        if (await photos.ReadAsync(ItemUseCases.OriginalPath(id), ct) is null) await photos.SaveAsync(ItemUseCases.OriginalPath(id), jpeg, ct);
+        await photos.SaveAsync(item.ItemPhoto, await photos.RotateAsync(jpeg, degrees, ct), ct);
+        item.Touch();   // PhotoCheckJob measures it again (width and height swap)
+        await items.UpdateAsync([item], ct);
+        return null;
+    }
+
     /// <summary>Measure the photos that are new or changed (PhotoCheckJob, no AI - only the file headers). Returns how many.
     /// UpdatedAt is kept, so measuring is not itself a change.</summary>
     public async Task<int> MeasureAsync(int max = 500, CancellationToken ct = default)

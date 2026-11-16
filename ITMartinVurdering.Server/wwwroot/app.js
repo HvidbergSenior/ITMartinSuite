@@ -57,6 +57,7 @@
                 $('vu-hide-photo').textContent = item.photoHidden ? 'Vis billedet igen' : 'Skjul billedet';
                 $('vu-uncover').hidden = !item.covered;
                 $('vu-recut').hidden = !item.onPile;
+                $('vu-rotate').hidden = !item.ownPhoto;
                 $('vu-line').textContent = item.line;
                 $('vu-facts').textContent = ['nr. ' + item.id, item.kind, item.condition ? 'stand: ' + item.condition : '', item.box ? 'kasse ' + item.box : ''].filter(Boolean).join(' · ');
                 var ok = $('vu-ok');
@@ -166,6 +167,7 @@
         $('vu-find-this').hidden = true; $('vu-photo-wrap').classList.remove('is-cut');
         marking = false; start = null; area = null; mode = 'mark';
         $('vu-recut').hidden = !(item && item.onPile);
+        $('vu-rotate').hidden = !(item && item.ownPhoto);
         $('vu-mark-box').hidden = true; $('vu-mark-help').hidden = true; $('vu-mark-save').hidden = true; $('vu-mark-cancel').hidden = true;
         $('vu-photo-wrap').classList.remove('is-marking');
         $('vu-mark').hidden = !(item && item.ownPhoto);
@@ -227,6 +229,7 @@
     $('vu-mark-save').addEventListener('click', function () {
         if (item && area) save(mode === 'cut' ? '/api/udsnit' : '/api/maerke', { id: item.id, venstre: area.l, top: area.t, hoejre: area.r, bund: area.b });
     });
+    $('vu-rotate').addEventListener('click', function () { if (item) save('/api/drej', { id: item.id, grader: 90 }); });
     $('vu-uncover').addEventListener('click', function () { if (item) save('/api/maerke/fortryd', { id: item.id }); });
     $('vu-hide-photo').addEventListener('click', function () { if (item) save('/api/skjulfoto', { id: item.id, skjul: !item.photoHidden }); });
 

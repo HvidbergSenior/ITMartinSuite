@@ -274,6 +274,27 @@ public class StockForSaleTests
         (await items.NextUnsureAsync(a.Id)).Should().Be(b.Id);
     }
 
+    // Drej (2026-11-16, "add a way to rotate pictures" + "could be manually"): a quarter turn, the photo before kept for Fortryd.
+    [Test]
+    public async Task A_photo_is_turned_and_the_old_one_kept()
+    {
+        var item = await Add("Okay", 20, kind: Kinds.Dvd);
+        item.ItemPhoto = "photos/items/9.jpg";
+        await Items.UpdateAsync([item], default);
+        var files = new Dictionary<string, byte[]> { ["photos/items/9.jpg"] = [1] };
+        var store = new Mock<IPhotoStore>();
+        store.Setup(p => p.ReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((string p, CancellationToken _) => files.GetValueOrDefault(p));
+        store.Setup(p => p.SaveAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .Callback((string p, byte[] b, CancellationToken _) => files[p] = b).Returns(Task.CompletedTask);
+        store.Setup(p => p.RotateAsync(It.IsAny<byte[]>(), 90, It.IsAny<CancellationToken>())).ReturnsAsync(new byte[] { 2 });
+        var photos = new ItemPhotoUseCases(Items, store.Object);
+
+        (await photos.RotateAsync(item.Id, 90)).Should().BeNull();
+        files["photos/items/9.jpg"].Should().Equal(2);
+        files[ItemUseCases.OriginalPath(item.Id)].Should().Equal(1);
+        (await photos.RotateAsync(item.Id, 45)).Should().NotBeNull();
+    }
+
     // Vurdering's Find en ting (2026-11-16): a number opens that thing, words give the matches one at a time, sold ones never.
     [Test]
     public async Task Vurdering_finds_one_thing_by_number_or_words()

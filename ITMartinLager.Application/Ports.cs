@@ -143,6 +143,8 @@ public interface IPhotoStore
     Task<byte[]?> ReadAsync(string path, CancellationToken ct);
     /// <summary>The full file name when the path is inside the data folder and exists, else null.</summary>
     string? FullPath(string path);
+    /// <summary>The photo turned a quarter clockwise (90) or back (270), as JPEG.</summary>
+    Task<byte[]> RotateAsync(byte[] jpeg, int degrees, CancellationToken ct);
     /// <summary>Width and height from the file's header (nothing decoded), or null when it cannot be read.</summary>
     Task<(int W, int H)?> SizeAsync(string path, CancellationToken ct);
 }

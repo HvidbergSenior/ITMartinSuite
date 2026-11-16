@@ -19,6 +19,8 @@ public interface ILagerReview
     Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct);
+    /// <returns>Null when the photo was turned, else Lager's (Danish) reason.</returns>
+    Task<string?> RotateAsync(int itemId, int degrees, CancellationToken ct);
     /// <summary>Kassér: the status the thing had (for Fortryd), or null when Lager did not do it.</summary>
     Task<string?> DiscardAsync(int itemId, CancellationToken ct);
     /// <returns>Null when the thing is back, else Lager's (Danish) reason.</returns>
@@ -80,6 +82,10 @@ public sealed class ReviewUseCases(ILagerReview lager)
     /// <summary>The person's comment on the thing.</summary>
     public async Task<ReviewResult> NoteAsync(int itemId, string? note, CancellationToken ct = default) =>
         await lager.SetNoteAsync(itemId, (note ?? "").Trim(), ct) is { } error ? new(false, error) : new(true, "Kommentaren er gemt.");
+
+    /// <summary>Drej (user 2026-11-16: "add a way to rotate pictures" + "could be manually").</summary>
+    public async Task<ReviewResult> RotateAsync(int itemId, int degrees, CancellationToken ct = default) =>
+        await lager.RotateAsync(itemId, degrees, ct) is { } error ? new(false, error) : new(true, "Billedet er drejet.");
 
     /// <summary>Kassér (user 2026-11-16: "so i should be able to say discard"): a bad reading leaves the stock, kept in Lager as
     /// Ikke købt. Returns the status it had, so Fortryd can bring it back; null = it did not happen.</summary>

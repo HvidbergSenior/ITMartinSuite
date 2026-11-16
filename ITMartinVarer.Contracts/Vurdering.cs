@@ -42,6 +42,9 @@ public sealed record VurderingItem(int Id, string Line, string Kind, string Cond
 /// <summary>Kassér (2026-11-16, "so i should be able to say discard"): the status the thing had, for Fortryd.</summary>
 public sealed record VurderingDiscarded(string Was);
 
+/// <summary>Turn the photo: 90 = a quarter clockwise, 270 = back.</summary>
+public sealed record VurderingRotate(int Degrees);
+
 /// <summary>Show or hide the thing's photo on bogshoppen.dk.</summary>
 public sealed record VurderingPhotoHidden(bool Hidden);
 

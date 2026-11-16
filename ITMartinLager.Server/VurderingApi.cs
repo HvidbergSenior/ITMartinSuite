@@ -44,6 +44,10 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/maerke", async (int id, PhotoArea body, ItemUseCases items) =>
             PhotoArea.From([body.Left, body.Top, body.Right, body.Bottom], 0.005) is not { } area ? Results.BadRequest("Træk en firkant hen over mærket.")
             : await items.CoverMarkAsync(id, area) is { } error ? Results.BadRequest(error) : Results.Ok());
+        // Drej (2026-11-16, "add a way to rotate pictures"): a quarter turn.
+        api.MapPost("/varer/{id:int}/drej", async (int id, VurderingRotate body, ItemPhotoUseCases photos) =>
+            await photos.RotateAsync(id, body.Degrees) is { } error ? Results.BadRequest(error) : Results.Ok());
+
         // Kassér (2026-11-16): a reading that is no real thing leaves the stock as Ikke købt (never deleted) - Fortryd = back.
         api.MapPost("/varer/{id:int}/kasser", async (int id, ItemUseCases items) =>
         {
