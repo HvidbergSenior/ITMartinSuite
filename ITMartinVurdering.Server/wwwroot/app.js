@@ -81,7 +81,8 @@
                 $('vu-finds-n').textContent = same.length + (other.length ? ' + ' + other.length + ' andre numre' : '');
                 $('vu-finds-box').hidden = !all.length;
                 $('vu-finds').innerHTML = same.length ? same.map(li).join('') : '<li class="k-help">Netop denne ting er ikke fundet til salg.</li>';
-                $('vu-similar-head').hidden = !other.length;
+                // Folded away (user 2026-11-16 "fold"): only opened when a guide is wanted.
+                $('vu-similar-box').hidden = !other.length; $('vu-similar-box').open = false; $('vu-similar-n').textContent = other.length;
                 $('vu-similar').innerHTML = other.map(li).join('');
             })
             .catch(function (e) { msg(e.message, true); });
