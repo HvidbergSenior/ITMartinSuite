@@ -26,13 +26,32 @@ else
            and its price - everything else under "Flere oplysninger", closed. *@
         <h1 class="k-card-title">@_item.Line()</h1>
         <p class="k-small">nr. @_item.Id · @(_boxLabel ?? "ingen kasse") · @(_item.Quantity > 1 ? $"{_item.Quantity} stk." : "1 stk.") · @_item.Status@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
-        @if (_item.ItemPhoto != "") { <a href="/varefoto/@_item.Id?v=@_photoVer" target="_blank" rel="noopener" title="Se billedet i fuld størrelse"><img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /></a> }
+        @if (_item.ItemPhoto != "")
+        {
+            @* While marking, the photo is not a link - a drag draws the box over the price sticker (maerke.js). *@
+            <div class="lg-photo-wrap">
+                @if (_marking) { <img id="lg-photo" class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" draggable="false" /> }
+                else { <a href="/varefoto/@_item.Id?v=@_photoVer" target="_blank" rel="noopener" title="Se billedet i fuld størrelse"><img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /></a> }
+                <div id="lg-mark-box" class="lg-mark-box" hidden></div>
+            </div>
+        }
         <label class="k-btn k-btn-sm k-btn-secondary lg-camera">
             @(_busy ? "Gemmer …" : _item.ItemPhoto == "" ? "Tag billede af varen" : "Tag nyt billede")
             <InputFile OnChange="SavePhoto" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
         </label>
         @* Drej (user 2026-11-16: "rotation?" - it was only in Priser): a quarter clockwise each press; Fortryd in Priser. *@
-        @if (_item.ItemPhoto != "") { <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="Rotate" title="Drej billedet en kvart omgang med uret">Drej ↻</button> }
+        @if (_item.ItemPhoto != "")
+        {
+            <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="Rotate" title="Drej billedet en kvart omgang med uret">Drej ↻</button>
+            @* "and the farvening" (2026-11-16): Fjern prismærket here too - drag a box, Lager paints over it in the thing's own colour. *@
+            @if (!_marking) { <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="StartMark">Fjern prismærket</button> }
+            else
+            {
+                <span class="k-small"><b>Træk en firkant</b> hen over mærket på billedet.</span>
+                @if (_markArea is not null) { <button class="k-btn k-btn-sm k-btn-primary" disabled="@_busy" @onclick="SaveMark">Mal over mærket</button> }
+                <button class="k-btn k-btn-sm k-btn-ghost" @onclick="StopMark">Annuller</button>
+            }
+        }
         @if (_item.Confidence < 0.6) { <p class="lg-check">AI'en var usikker – ret det, der er forkert. Er det ikke en rigtig ting, så tryk <b>Slet</b>.</p> }
 
         <div class="lg-form">
@@ -271,6 +290,48 @@ else
         }
         catch (Exception ex) { _err = ex.Message; }
         finally { _busy = false; }
+    }
+
+    private bool _marking;
+    private PhotoArea? _markArea;
+    private DotNetObjectReference<Vare>? _self;
+
+    private bool _hookMark;
+
+    private void StartMark() { _marking = true; _markArea = null; _hookMark = true; }
+
+    // The photo without its link is drawn first - then the drag is hooked onto it.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_hookMark) return;
+        _hookMark = false;
+        _self ??= DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("lagerMaerke.start", "lg-photo", "lg-mark-box", _self);
+    }
+
+    [JSInvokable]
+    public Task MarkDrawn(double l, double t, double r, double b)
+    {
+        _markArea = PhotoArea.From([l, t, r, b], 0.005);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StopMark()
+    {
+        await JS.InvokeVoidAsync("lagerMaerke.stop", "lg-photo", "lg-mark-box");
+        _marking = false; _markArea = null;
+    }
+
+    private async Task SaveMark()
+    {
+        if (_markArea is not { } area) return;
+        _busy = true; _err = null;
+        try
+        {
+            if (await Items.CoverMarkAsync(Id, area) is { } error) _err = error;
+            else { _photoVer++; _msg = "Mærket er malet over. Fortryd ligger i Priser."; }
+        }
+        finally { _busy = false; await StopMark(); }
     }
 
     private async Task Rotate()
