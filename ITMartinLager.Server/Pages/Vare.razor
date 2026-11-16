@@ -1,6 +1,7 @@
 @page "/vare/{Id:int}"
 @inject IJSRuntime JS
 @inject ItemUseCases Items
+@inject ItemPhotoUseCases ItemPhotos
 @inject NavigationManager Nav
 @inject AuctionUseCases Auction
 @inject VareinfoLinks Vareinfo
@@ -30,6 +31,8 @@ else
             @(_busy ? "Gemmer …" : _item.ItemPhoto == "" ? "Tag billede af varen" : "Tag nyt billede")
             <InputFile OnChange="SavePhoto" accept="image/*" capture="environment" disabled="@_busy" class="lg-hidden-file" />
         </label>
+        @* Drej (user 2026-11-16: "rotation?" - it was only in Priser): a quarter clockwise each press; Fortryd in Priser. *@
+        @if (_item.ItemPhoto != "") { <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="Rotate" title="Drej billedet en kvart omgang med uret">Drej ↻</button> }
         @if (_item.Confidence < 0.6) { <p class="lg-check">AI'en var usikker – ret det, der er forkert. Er det ikke en rigtig ting, så tryk <b>Slet</b>.</p> }
 
         <div class="lg-form">
@@ -267,6 +270,17 @@ else
             _msg = $"Sat på auktion {_code}.";
         }
         catch (Exception ex) { _err = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task Rotate()
+    {
+        _busy = true; _err = null;
+        try
+        {
+            if (await ItemPhotos.RotateAsync(Id, 90) is { } error) _err = error;
+            else _photoVer++;
+        }
         finally { _busy = false; }
     }
 
