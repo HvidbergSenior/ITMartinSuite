@@ -46,14 +46,18 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         return tiles;
     }
 
-    // The AI's area is a little loose or tight now and then: 3 % margin, so the edges of the thing are not cut off.
+    // The AI's area is a little loose or tight now and then: a margin so the edges are not cut off - 6 % of THE THING's own
+    // size (2026-11-16, user: "why are they so bad? it should only be one product"): it was 3 % of the whole photo, ~47 px on
+    // each side of a 1568 px pile photo, wider than a CD spine (~40 px), so every spine came out with its neighbours.
+    internal const double Margin = 0.06;
+
     public async Task<byte[]?> CropAsync(byte[] jpeg, PhotoArea area, CancellationToken ct, PhotoArea? cover = null)
     {
         using var img = Image.Load<Rgb24>(jpeg);
         if (cover is not null) Cover(img, cover);
-        const double pad = 0.03;
-        int x = (int)(Math.Max(0, area.Left - pad) * img.Width), y = (int)(Math.Max(0, area.Top - pad) * img.Height);
-        int r = (int)(Math.Min(1, area.Right + pad) * img.Width), b = (int)(Math.Min(1, area.Bottom + pad) * img.Height);
+        double padX = Math.Max(0.003, (area.Right - area.Left) * Margin), padY = Math.Max(0.003, (area.Bottom - area.Top) * Margin);
+        int x = (int)(Math.Max(0, area.Left - padX) * img.Width), y = (int)(Math.Max(0, area.Top - padY) * img.Height);
+        int r = (int)(Math.Min(1, area.Right + padX) * img.Width), b = (int)(Math.Min(1, area.Bottom + padY) * img.Height);
         if (r - x < 40 || b - y < 40) return null;
         using var part = img.Clone(c => c.Crop(new Rectangle(x, y, r - x, b - y)));
         using var ms = new MemoryStream();

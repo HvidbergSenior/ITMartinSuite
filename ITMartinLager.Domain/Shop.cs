@@ -112,7 +112,7 @@ public static class Shop
     /// price suggestions in Lager): a CD is not a record, a DVD is not a VHS. A kind not here falls back to StandardKr.</summary>
     public static readonly IReadOnlyDictionary<string, int> StandardKrByKind = new Dictionary<string, int>
     {
-        [Kinds.Cd] = 15, [Kinds.Dvd] = 20, [Kinds.Vinyl] = 20, [Kinds.Vhs] = 10, [Kinds.BluRay] = 25,
+        [Kinds.Cd] = 15, [Kinds.Dvd] = 20, [Kinds.Vinyl] = 20, [Kinds.Vhs] = 5, [Kinds.BluRay] = 25,
         [Kinds.Bog] = 25, [Kinds.Tegneserie] = 25, [Kinds.Superhelte] = 40, [Kinds.Jumbobog] = 20,
     };
 

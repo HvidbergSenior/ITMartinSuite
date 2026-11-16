@@ -18,7 +18,7 @@ public class ShopPriceTests
     // "ja til priserne" (user 2026-11-16): a standard per kind first, the category's only for kinds without one.
     [TestCase(ITMartinVarer.Contracts.Kinds.Cd, ITMartinVarer.Contracts.ProductTypes.Musik, 15)]
     [TestCase(ITMartinVarer.Contracts.Kinds.Vinyl, ITMartinVarer.Contracts.ProductTypes.Musik, 20)]
-    [TestCase(ITMartinVarer.Contracts.Kinds.Vhs, ITMartinVarer.Contracts.ProductTypes.Film, 10)]
+    [TestCase(ITMartinVarer.Contracts.Kinds.Vhs, ITMartinVarer.Contracts.ProductTypes.Film, 5)]
     [TestCase(ITMartinVarer.Contracts.Kinds.Superhelte, ITMartinVarer.Contracts.ProductTypes.Superhelte, 40)]
     [TestCase(ITMartinVarer.Contracts.Kinds.Bog, ITMartinVarer.Contracts.ProductTypes.Boeger, 25)]
     [TestCase(ITMartinVarer.Contracts.Kinds.Rollespil, ITMartinVarer.Contracts.ProductTypes.Rollespil, 50)]

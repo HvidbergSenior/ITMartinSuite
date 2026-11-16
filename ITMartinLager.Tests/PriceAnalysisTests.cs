@@ -83,4 +83,21 @@ public class PriceAnalysisTests
     [Test]
     public void A_photo_not_measured_yet_is_shown() =>
         new Item { ItemPhoto = "photos/items/1.jpg", Title = "X" }.ShopPhotoProblem.Should().BeEmpty();
+
+    // "all vhs should be sold for 5 kr no pictures" (2026-11-16): every VHS in the 5 kr bin, not on the page one by one.
+    [Test]
+    public void Every_VHS_is_in_the_5_kr_bin()
+    {
+        var vhs = new Item { Kind = Kinds.Vhs, Title = "Cirkeline", Confidence = 0.9, PriceHint = 40 };
+        Shop.DealFor(vhs, []).Should().Be("VHS: 5 kr stk.");
+        Shop.DealFor(new Item { Kind = Kinds.Vhs, Title = "Sjælden", Confidence = 0.9, Rare = true }, []).Should().BeEmpty();
+        ShopDeals.VhsPerPiece.Packs(23).Single().Name.Should().Be("Pakke: 10 blandede VHS-film – VHS");
+        ShopDeals.PerPiece.Packs(10).Single().Name.Should().Be("Pakke: 10 blandede blade – Anders And og Basserne");
+    }
+
+    // The margin around a cut-out is the thing's own, not the whole photo's - a CD spine no longer brings its neighbours.
+    [Test]
+    public void A_cut_out_margin_follows_the_thing() =>
+        ITMartinLager.Infrastructure.External.FilePhotoStore.Margin.Should().BeLessThan(0.1);
 }
+

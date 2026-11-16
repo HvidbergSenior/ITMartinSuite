@@ -98,11 +98,12 @@ public sealed record ShopDealStep(int Count, int Kr);
 /// is in it whatever its own price (a fixed price per piece) - only gold, silver and bronze keep their own, and with OwnFromKr
 /// also a sure thing whose exact copies cost that much or more.
 public sealed record ShopDeal(string Group, IReadOnlyList<string> Kinds, IReadOnlyList<ShopDealStep> Steps,
-    IReadOnlyList<string>? AlsoSeries = null, bool EveryPrice = false, int? OwnFromKr = null, IReadOnlyList<int>? PackSizes = null)
+    IReadOnlyList<string>? AlsoSeries = null, bool EveryPrice = false, int? OwnFromKr = null, IReadOnlyList<int>? PackSizes = null,
+    string PackWord = "blade")
 {
     /// <summary>The packs sold online from this deal, with how many full packs these things make.</summary>
     public List<ShopPack> Packs(int things) => (PackSizes ?? []).Where(n => things >= n)
-        .Select(n => new ShopPack($"Pakke: {n} blandede blade – {Group}", n, n * Steps[0].Kr / Steps[0].Count, things / n)).ToList();
+        .Select(n => new ShopPack($"Pakke: {n} blandede {PackWord} – {Group}", n, n * Steps[0].Kr / Steps[0].Count, things / n)).ToList();
 
     public string Name => Steps is [{ Count: 1 } one]
         ? $"{Group}: {one.Kr} kr stk."
@@ -143,16 +144,20 @@ public static class ShopDeals
     public static readonly ShopDeal PerPiece = new("Anders And og Basserne", [Kinds.AndersAnd], [new(1, 3)], AlsoSeries: ["Basserne"], EveryPrice: true,
         OwnFromKr: 25, PackSizes: [10, 25]);
 
+    /// <summary>User 2026-11-16: "all vhs should be sold for 5 kr no pictures" - every VHS 5 kr a piece, like the Anders And bin: not
+    /// shown one by one (so no pictures), sold as packs of 10 online. A person-marked rare one keeps its own price.</summary>
+    public static readonly ShopDeal VhsPerPiece = new("VHS", [Kinds.Vhs], [new(1, 5)], EveryPrice: true, PackSizes: [10], PackWord: "VHS-film");
+
     /// <summary>Anders And-blade with their own price shown on bogshoppen.dk: only the dearest this many (user 2026-11-02: "there
     /// must always ONLY be shown 10-20 rare anders and blade").</summary>
     public const int MaxRareAndersAndOnPage = 20;
 
     /// <summary>Every deal there is (PerPiece + All) - for names and the category chips.</summary>
-    public static readonly IReadOnlyList<ShopDeal> Known = [PerPiece, .. All];
+    public static readonly IReadOnlyList<ShopDeal> Known = [PerPiece, VhsPerPiece, .. All];
 
     /// <summary>The deals in use: only PerPiece since 2026-11-02 (the 4 for 50 deals went 2026-10-31: "the 4 for 50 and so
     /// should be removed" - every thing its own price); All stays so they can come back by listing them here.</summary>
-    public static readonly IReadOnlyList<ShopDeal> Active = [PerPiece];
+    public static readonly IReadOnlyList<ShopDeal> Active = [PerPiece, VhsPerPiece];
 
     /// <summary>The deal for things of this kind among these deals (default Active), or null.</summary>
     public static ShopDeal? For(string kind, IReadOnlyList<ShopDeal>? deals = null) => For(kind, null, deals);
