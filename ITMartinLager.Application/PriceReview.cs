@@ -14,7 +14,12 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
     private string Valuation(string pile) => pile == VurderingPiles.NoPrice ? Valuations.NoPrice : Valuations.Assess;
 
     private async Task<List<Item>> PileAsync(string pile, CancellationToken ct) =>
-        (await items.SearchAsync("", null, Valuation(pile), ct))?.Hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt).ToList() ?? [];
+        (await items.SearchAsync("", null, Valuation(pile), ct))?.Hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt && Sure(i)).ToList() ?? [];
+
+    /// <summary>Only things the reader was sure of come to Priser (user 2026-11-16: "pictures that look like this should not be
+    /// found" - "Søs &amp; Kirsten", 0.3, "kun ryg delvist synlig"). Unsure ones are put right in Lager's "Ret de svære" first.
+    /// A thing a person marked rare or priced always comes.</summary>
+    public static bool Sure(Item i) => i.Rare || i.Price is > 0 || i.Confidence >= Pricing.MinConfidence;
 
     /// <summary>The counts of both piles, and the next <paramref name="take"/> things of one (skipping the ones just passed).</summary>
     public async Task<VurderingQueue> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, CancellationToken ct = default, string? usage = null)
@@ -42,13 +47,15 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         var hits = new List<Item>();
         if (t != "" && int.TryParse(t, out var id) && await items.GetAsync(id, ct) is { } one) hits.Add(one.Item);
         if (t != "") hits.AddRange(((await items.SearchAsync(t, null, null, ct))?.Hits ?? []).Where(i => hits.All(h => h.Id != i.Id)));
-        var next = hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt && !skip.Contains(i.Id)).Take(1).ToList();
+        var ours = hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt).ToList();
+        var next = ours.Where(i => Sure(i) && !skip.Contains(i.Id)).Take(1).ToList();
         var boxes = new Dictionary<int, string>();
         foreach (var b in next.Select(i => i.BoxId).OfType<int>().Distinct())
             if (await boxRepo.GetAsync(b, ct) is { } box) boxes[b] = box.Code;
         var cards = new List<VurderingItem>();
         foreach (var i in next) cards.Add(await CardAsync(i, boxes, ct));
-        return new VurderingQueue((await PileAsync(VurderingPiles.Assess, ct)).Count, (await PileAsync(VurderingPiles.NoPrice, ct)).Count, cards);
+        return new VurderingQueue((await PileAsync(VurderingPiles.Assess, ct)).Count, (await PileAsync(VurderingPiles.NoPrice, ct)).Count, cards,
+            ours.Count(i => !Sure(i)));
     }
 
     private async Task<VurderingItem> CardAsync(Item i, Dictionary<int, string> boxes, CancellationToken ct)
@@ -64,7 +71,7 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
             i.BoxId is { } b && boxes.TryGetValue(b, out var code) ? code : "",
             shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew, f.Similar)).ToList(),
             Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr, market, market is { } m ? Pricing.ShopRule(m) : "",
-            i.Rare, i.Note, i.ItemPhoto != "", i.PhotoHidden, i.ItemPhoto != "" && await items.CoveredAsync(i.Id, ct));
+            i.Rare, i.Note, i.ItemPhoto != "", i.PhotoHidden, i.ItemPhoto != "" && await items.CoveredAsync(i.Id, ct), i.PhotoId is not null);
     }
 
     public const int MaxNote = 1000, MaxMarkAtOnce = 200;

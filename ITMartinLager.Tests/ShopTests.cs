@@ -200,6 +200,45 @@ public class StockForSaleTests
         files["photos/items/1.jpg"].Should().Equal(1, 2, 3);
     }
 
+    // Only sure readings come to Priser (2026-11-16, "Søs & Kirsten" read at 0.3 from half a spine): the search tells how many unsure.
+    [Test]
+    public async Task Priser_shows_only_sure_readings_and_counts_the_unsure()
+    {
+        var sure = await Add("Søs og Kirsten", 40, kind: Kinds.Dvd);
+        var unsure = await Add("Søs og Kirsten – Med på en kigg", 40, kind: Kinds.Dvd);
+        unsure.Confidence = 0.3;
+        await Items.UpdateAsync([unsure], default);
+        var review = new PriceReviewUseCases(new ItemUseCases(Items, new PriceRepository(Factory), Mock.Of<IPhotoStore>()), new BoxRepository(Factory));
+
+        var q = await review.SearchAsync("søs", []);
+        q.Items.Single().Id.Should().Be(sure.Id);
+        q.Unsure.Should().Be(1);
+        (await review.SearchAsync("søs", [sure.Id])).Items.Should().BeEmpty();
+    }
+
+    // Ret udsnittet (2026-11-16, "the picture is wrong"): a new cut-out from the pile photo; the photo before is kept for Fortryd.
+    [Test]
+    public async Task A_wrong_cut_out_is_made_again_from_the_pile_photo()
+    {
+        var item = await Add("Anders And & Co.", 40, kind: Kinds.AndersAnd);
+        item.PhotoId = 347;
+        await Items.UpdateAsync([item], default);
+        var files = new Dictionary<string, byte[]>();
+        var store = new Mock<IPhotoStore>();
+        store.Setup(p => p.ReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((string p, CancellationToken _) => files.GetValueOrDefault(p));
+        store.Setup(p => p.SaveAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .Callback((string p, byte[] b, CancellationToken _) => files[p] = b).Returns(Task.CompletedTask);
+        store.Setup(p => p.CropAsync(It.IsAny<byte[]>(), It.IsAny<PhotoArea>(), It.IsAny<CancellationToken>(), It.IsAny<PhotoArea?>())).ReturnsAsync(new byte[] { 7 });
+        var pile = new Mock<IVareinfoGateway>();
+        pile.Setup(v => v.PhotoAsync(347, null, It.IsAny<CancellationToken>())).ReturnsAsync(new byte[] { 1 });
+        var photos = new ItemPhotoUseCases(Items, store.Object, pile.Object);
+
+        (await photos.RecutAsync(item.Id, new PhotoArea(.1, .1, .4, .5))).Should().BeNull();
+        var after = (await Items.GetAsync(item.Id, default))!;
+        after.ItemPhoto.Should().NotBeEmpty();
+        files[after.ItemPhoto].Should().Equal(7);
+    }
+
     // Vurdering's Find en ting (2026-11-16): a number opens that thing, words give the matches one at a time, sold ones never.
     [Test]
     public async Task Vurdering_finds_one_thing_by_number_or_words()

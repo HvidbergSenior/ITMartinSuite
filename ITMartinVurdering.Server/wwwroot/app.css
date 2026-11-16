@@ -58,3 +58,5 @@
 .vu-hidden-tag { text-align: center; font-weight: 800; border: 2px dashed var(--k-text); border-radius: 10px; padding: 6px; margin: 0 auto 8px; max-width: 26rem; }
 /* Buttons as big as in Lager (user 2026-11-16 "still priser is bigger buttons"): small buttons, only as wide as their words - not bars across the card. */
 .vu-actions > .k-btn { justify-self: start; }
+/* Kassér + Fortryd (2026-11-16): the last discarded thing, with its undo, above the card. */
+.vu-undo-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; border: 2px dashed var(--k-text); border-radius: 10px; padding: 6px 10px; }

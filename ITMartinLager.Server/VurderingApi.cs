@@ -44,6 +44,24 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/maerke", async (int id, PhotoArea body, ItemUseCases items) =>
             PhotoArea.From([body.Left, body.Top, body.Right, body.Bottom], 0.005) is not { } area ? Results.BadRequest("Træk en firkant hen over mærket.")
             : await items.CoverMarkAsync(id, area) is { } error ? Results.BadRequest(error) : Results.Ok());
+        // Kassér (2026-11-16): a reading that is no real thing leaves the stock as Ikke købt (never deleted) - Fortryd = back.
+        api.MapPost("/varer/{id:int}/kasser", async (int id, ItemUseCases items) =>
+        {
+            try { return Results.Ok(new VurderingDiscarded(await items.RemoveAsync(id))); }
+            catch (LagerException e) { return Results.BadRequest(e.Message); }
+        });
+        api.MapPost("/varer/{id:int}/kasser/fortryd", async (int id, VurderingDiscarded body, ItemUseCases items) =>
+        {
+            try { await items.UndoRemoveAsync(id, body.Was); return Results.Ok(); }
+            catch (LagerException e) { return Results.BadRequest(e.Message); }
+        });
+
+        // Ret udsnittet (2026-11-16, "the picture is wrong"): the whole pile photo, and a new cut-out from it.
+        api.MapGet("/varer/{id:int}/bunkefoto", async (int id, ItemPhotoUseCases photos) =>
+            await photos.PileAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+        api.MapPost("/varer/{id:int}/udsnit", async (int id, PhotoArea body, ItemPhotoUseCases photos) =>
+            PhotoArea.From([body.Left, body.Top, body.Right, body.Bottom], 0.02) is not { } area ? Results.BadRequest("Træk en firkant rundt om hele tingen.")
+            : await photos.RecutAsync(id, area) is { } error ? Results.BadRequest(error) : Results.Ok());
         api.MapPost("/varer/{id:int}/maerke/fortryd", async (int id, ItemUseCases items) =>
             await items.UncoverAsync(id) is { } error ? Results.BadRequest(error) : Results.Ok());
 

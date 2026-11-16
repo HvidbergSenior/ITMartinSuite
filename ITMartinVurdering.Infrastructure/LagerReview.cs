@@ -77,6 +77,33 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
     public Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct) =>
         PostAsync($"/api/vurdering/varer/{itemId}/sjaelden", new VurderingRare(rare), "Lager gemte ikke mærket.", ct);
 
+    public async Task<string?> DiscardAsync(int itemId, CancellationToken ct)
+    {
+        try
+        {
+            using var res = await http.PostAsync($"/api/vurdering/varer/{itemId}/kasser", null, ct);
+            return res.IsSuccessStatusCode && await res.Content.ReadFromJsonAsync<VurderingDiscarded>(ct) is { } d ? d.Was : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        { log.LogWarning(e, "Lager did not discard {Id}", itemId); return null; }
+    }
+
+    public Task<string?> UndoDiscardAsync(int itemId, string was, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/kasser/fortryd", new VurderingDiscarded(was), "Lager kunne ikke hente den tilbage.", ct);
+
+    public Task<string?> RecutAsync(int itemId, PhotoArea area, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/udsnit", area, "Lager kunne ikke lave det nye billede.", ct);
+
+    public async Task<byte[]?> PileAsync(int itemId, CancellationToken ct)
+    {
+        try
+        {
+            using var res = await http.GetAsync($"/api/vurdering/varer/{itemId}/bunkefoto", ct);
+            return res.IsSuccessStatusCode ? await res.Content.ReadAsByteArrayAsync(ct) : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { log.LogWarning(e, "Lager did not send the pile photo"); return null; }
+    }
+
     public Task<string?> SetPhotoHiddenAsync(int itemId, bool hidden, CancellationToken ct) =>
         PostAsync($"/api/vurdering/varer/{itemId}/skjulfoto", new VurderingPhotoHidden(hidden), "Lager gemte det ikke.", ct);
 

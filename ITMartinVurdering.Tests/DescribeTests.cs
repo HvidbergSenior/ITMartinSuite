@@ -15,6 +15,10 @@ public class DescribeTests
         public Task<string?> SetPhotoHiddenAsync(int itemId, bool hidden, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> CoverMarkAsync(int itemId, PhotoArea area, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> UncoverAsync(int itemId, CancellationToken ct) => Task.FromResult<string?>(null);
+        public Task<string?> DiscardAsync(int itemId, CancellationToken ct) => Task.FromResult<string?>(null);
+        public Task<string?> UndoDiscardAsync(int itemId, string was, CancellationToken ct) => Task.FromResult<string?>(null);
+        public Task<string?> RecutAsync(int itemId, PhotoArea area, CancellationToken ct) => Task.FromResult<string?>(null);
+        public Task<byte[]?> PileAsync(int itemId, CancellationToken ct) => Task.FromResult<byte[]?>(null);
         public Task<string?> SetUsageAsync(int itemId, string usage, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> SetPriceAsync(int itemId, int kr, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct) => Task.FromResult<byte[]?>(itemId == 3 ? null : [1, 2]);

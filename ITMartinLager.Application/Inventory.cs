@@ -192,7 +192,7 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         return null;
     }
 
-    private static string OriginalPath(int id) => Path.Combine("photos", "items", $"{id}-original.jpg");
+    public static string OriginalPath(int id) => Path.Combine("photos", "items", $"{id}-original.jpg");
 
     /// <summary>Paint over a price mark a person marked on the thing's own photo (2026-11-16: "The mark should be gone from
     /// pictures" - the old photos have no sticker area from the reader). The first time, the photo is kept as it was, so
@@ -214,7 +214,7 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     public async Task<string?> UncoverAsync(int id, CancellationToken ct = default)
     {
         if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
-        if (item.ItemPhoto == "" || await photos.ReadAsync(OriginalPath(id), ct) is not { } original) return "Der er ikke malet over noget på billedet.";
+        if (item.ItemPhoto == "" || await photos.ReadAsync(OriginalPath(id), ct) is not { } original) return "Billedet er ikke rettet.";
         await photos.SaveAsync(item.ItemPhoto, original, ct);
         item.Touch();
         await items.UpdateAsync([item], ct);

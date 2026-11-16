@@ -19,6 +19,13 @@ public interface ILagerReview
     Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct);
+    /// <summary>Kassér: the status the thing had (for Fortryd), or null when Lager did not do it.</summary>
+    Task<string?> DiscardAsync(int itemId, CancellationToken ct);
+    /// <returns>Null when the thing is back, else Lager's (Danish) reason.</returns>
+    Task<string?> UndoDiscardAsync(int itemId, string was, CancellationToken ct);
+    /// <returns>Null when the cut-out was made, else Lager's (Danish) reason.</returns>
+    Task<string?> RecutAsync(int itemId, PhotoArea area, CancellationToken ct);
+    Task<byte[]?> PileAsync(int itemId, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetPhotoHiddenAsync(int itemId, bool hidden, CancellationToken ct);
     /// <returns>Null when the mark was painted over, else Lager's (Danish) reason.</returns>
@@ -73,6 +80,21 @@ public sealed class ReviewUseCases(ILagerReview lager)
     /// <summary>The person's comment on the thing.</summary>
     public async Task<ReviewResult> NoteAsync(int itemId, string? note, CancellationToken ct = default) =>
         await lager.SetNoteAsync(itemId, (note ?? "").Trim(), ct) is { } error ? new(false, error) : new(true, "Kommentaren er gemt.");
+
+    /// <summary>Kassér (user 2026-11-16: "so i should be able to say discard"): a bad reading leaves the stock, kept in Lager as
+    /// Ikke købt. Returns the status it had, so Fortryd can bring it back; null = it did not happen.</summary>
+    public Task<string?> DiscardAsync(int itemId, CancellationToken ct = default) => lager.DiscardAsync(itemId, ct);
+
+    public async Task<ReviewResult> UndoDiscardAsync(int itemId, string? was, CancellationToken ct = default) =>
+        string.IsNullOrWhiteSpace(was) ? new(false, "Der er intet at fortryde.")
+        : await lager.UndoDiscardAsync(itemId, was, ct) is { } error ? new(false, error) : new(true, "Den er tilbage på lager.");
+
+    /// <summary>Ret udsnittet (2026-11-16, "the picture is wrong"): a new cut-out from the pile photo the thing was read from.</summary>
+    public async Task<ReviewResult> RecutAsync(int itemId, PhotoArea? area, CancellationToken ct = default) =>
+        area is null ? new(false, "Træk en firkant rundt om hele tingen først.")
+        : await lager.RecutAsync(itemId, area, ct) is { } error ? new(false, error) : new(true, "Nyt billede lavet. »Fortryd« giver det gamle tilbage.");
+
+    public Task<byte[]?> PileAsync(int itemId, CancellationToken ct = default) => lager.PileAsync(itemId, ct);
 
     /// <summary>A bad photo off bogshoppen.dk, or back on (2026-11-16: "I want a way to not show the bad pictures").</summary>
     public async Task<ReviewResult> PhotoHiddenAsync(int itemId, bool hidden, CancellationToken ct = default) =>

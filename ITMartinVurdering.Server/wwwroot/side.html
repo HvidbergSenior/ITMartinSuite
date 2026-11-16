@@ -28,6 +28,8 @@
     </div>
 </section>
 
+<p class="vu-undo-row" id="vu-undo-row" hidden><span id="vu-undo-text"></span> <button type="button" class="k-btn k-btn-sm" id="vu-undo">Fortryd</button></p>
+
 <section class="k-card vu-card" id="vu-card" data-nofold hidden>
     <div class="vu-photo-wrap" id="vu-photo-wrap">
         <img class="vu-photo" id="vu-photo" alt="Billede af tingen" draggable="false">
@@ -37,9 +39,11 @@
     <p class="k-help" id="vu-mark-help" hidden><b>Træk en firkant</b> hen over prismærket med fingeren eller musen – tryk så <b>Mal over mærket</b>.</p>
     <div class="vu-photo-tools">
         <button type="button" class="k-btn k-btn-sm" id="vu-mark">Fjern prismærket</button>
+        <button type="button" class="k-btn k-btn-sm" id="vu-recut" hidden>Ret udsnittet</button>
         <button type="button" class="k-btn k-btn-sm k-btn-primary" id="vu-mark-save" hidden>Mal over mærket</button>
         <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="vu-mark-cancel" hidden>Annuller</button>
         <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="vu-uncover" hidden>Fortryd – billedet som før</button>
+        <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="vu-discard" title="Ikke en rigtig ting, eller for dårligt læst - den forsvinder fra lageret, men kan fortrydes">Kassér</button>
         <button type="button" class="k-btn k-btn-sm" id="vu-hide-photo">Skjul billedet</button>
     </div>
     <h2 class="vu-line" id="vu-line"></h2>

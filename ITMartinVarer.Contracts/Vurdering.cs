@@ -31,7 +31,12 @@ public sealed record VurderingItem(int Id, string Line, string Kind, string Cond
     bool Rare = false, string Note = "",
     // Photo (2026-11-16): OwnPhoto = a cut-out of just this thing (a mark can be painted over), PhotoHidden = not shown on
     // bogshoppen.dk, Covered = a mark was painted over (Fortryd brings the original back).
-    bool OwnPhoto = false, bool PhotoHidden = false, bool Covered = false);
+    bool OwnPhoto = false, bool PhotoHidden = false, bool Covered = false,
+    // OnPile = the pile photo it was read from still exists, so the cut-out can be made again (Ret udsnittet).
+    bool OnPile = false);
+
+/// <summary>Kassér (2026-11-16, "so i should be able to say discard"): the status the thing had, for Fortryd.</summary>
+public sealed record VurderingDiscarded(string Was);
 
 /// <summary>Show or hide the thing's photo on bogshoppen.dk.</summary>
 public sealed record VurderingPhotoHidden(bool Hidden);
@@ -46,7 +51,8 @@ public sealed record VurderingRareIds(List<int> Ids);
 public sealed record VurderingNote(string Note);
 
 /// <summary>How many wait in each pile, and the next thing(s).</summary>
-public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items);
+/// <summary>Unsure = things a search found that the reader was unsure of - put right in Lager's "Ret de svære" first, not shown here.</summary>
+public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items, int Unsure = 0);
 
 /// <summary>The price a person set - Ok = the suggestion, or their own.</summary>
 /// <summary>One line of the gold list, shown in Vurdering (moved from Lager /guld, 2026-11-15). Badge = "🏆 GULD" etc.</summary>

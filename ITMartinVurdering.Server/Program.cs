@@ -36,7 +36,8 @@ builder.Services.AddKolibri(k =>
         "Guld, sølv og bronze: de dyreste blade, bøger, film, plader og kort på DBA (hver uge) – Super diamant fra 5.000 kr, Guld fra 500, Sølv fra 200, Bronze fra 100. Kun numre og titler, som mindst 2 annoncer beder om. Ting på listen får mærket af sig selv.",
         "Ny i kiosken: skriv hvad det nyeste nummer af et blad koster nyt i dag (fx Anders And & Co. 40 kr). Samme navn igen retter prisen.",
         "Find en ting: skriv nummeret (fx 3372) eller titlen (fx X-Force) øverst og tryk Find – så kommer netop den ting frem. Spring over viser den næste, der passer. »Tilbage til bunken« går tilbage.",
-        "Billedet: »Fjern prismærket« – træk en firkant hen over mærket med fingeren og tryk »Mal over mærket«; det males over i tingens egen farve. »Fortryd« giver det gamle billede tilbage. »Skjul billedet« – et dårligt billede vises ikke på bogshoppen.dk (tingen er stadig til salg), indtil du trykker »Vis billedet igen«.",
+        "Kun sikre læsninger kommer her: er AI'en usikker (fx kun en halv ryg), rettes tingen først i Lager under »Ret de svære«. »Kassér« fjerner en ting, der ikke er en rigtig ting eller er for dårligt læst – den gemmes i Lager som Ikke købt, og »Fortryd« henter den tilbage.",
+        "Billedet: »Ret udsnittet« viser hele billedet af bunken – træk en firkant rundt om tingen, så bliver det dens nye billede. »Fjern prismærket« – træk en firkant hen over mærket med fingeren og tryk »Mal over mærket«; det males over i tingens egen farve. »Fortryd« giver det gamle billede tilbage. »Skjul billedet« – et dårligt billede vises ikke på bogshoppen.dk (tingen er stadig til salg), indtil du trykker »Vis billedet igen«.",
         "Find priser nu: Lager spørger alle prissiderne igen for netop den ting (tager op til et minut) – fx når du har rettet titlen eller ISBN i Lager. Priserne sættes kun her, ikke i Lager.",
         "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
         "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
@@ -98,7 +99,7 @@ var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dod
 var guldBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guld.html"));
 var kioskBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "kiosk.html"));
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=10"));
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=11"));
 // Guld/sølv/bronze + Ny i kiosken (2026-11-15, moved from Lager): the same login, own pages.
 app.MapGet("/guld", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, guldBody, "/guld.js?v=2"));
 app.MapGet("/kiosk", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, kioskBody, "/kiosk.js?v=1"));
@@ -119,7 +120,7 @@ IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string scrip
         <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Vurdering · Bogshoppen</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=7">
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=8">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="{script}" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, title: BogshoppenFlow.Title(BogshoppenFlow.Priser), actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? pageBody : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
@@ -161,6 +162,14 @@ api.MapPost("/ok", async (OkForm f, ReviewUseCases review, CancellationToken ct)
 api.MapPost("/pris", async (PrisForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OwnAsync(f.Id, f.Pris, ct)));
 api.MapPost("/find", async (FindForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.FindPricesAsync(f.Id, ct)));
 api.MapPost("/sjaelden", async (SjaeldenForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.RareAsync(f.Id, f.Sjaelden, ct)));
+api.MapPost("/kasser", async (FindForm f, ReviewUseCases review, CancellationToken ct) =>
+    await review.DiscardAsync(f.Id, ct) is { } was ? Results.Ok(new { besked = "Kasseret – den er ikke på lager længere.", was })
+    : Results.BadRequest(new { fejl = "Lager kunne ikke kassere den – prøv igen." }));
+api.MapPost("/kasser/fortryd", async (FortrydForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.UndoDiscardAsync(f.Id, f.Was, ct)));
+api.MapPost("/udsnit", async (MaerkeForm f, ReviewUseCases review, CancellationToken ct) =>
+    Answer(await review.RecutAsync(f.Id, PhotoArea.From([f.Venstre, f.Top, f.Hoejre, f.Bund], 0.02), ct)));
+api.MapGet("/bunkefoto/{id:int}", async (int id, ReviewUseCases review, CancellationToken ct) =>
+    await review.PileAsync(id, ct) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 api.MapPost("/skjulfoto", async (SkjulForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.PhotoHiddenAsync(f.Id, f.Skjul, ct)));
 api.MapPost("/maerke", async (MaerkeForm f, ReviewUseCases review, CancellationToken ct) =>
     Answer(await review.CoverMarkAsync(f.Id, PhotoArea.From([f.Venstre, f.Top, f.Hoejre, f.Bund], 0.005), ct)));
@@ -248,7 +257,7 @@ static string SharePage(KolibriAppInfo info, string title, string pageBody) => $
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('vurdering_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>{H(title)}</title><meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="{info.ThemeColor}">
-    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=7">
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=8">
     <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script></head>
     <body>{KolibriStaticPages.Header(info, actions: Buttons)}<main class="k-main"><div class="k-content">{pageBody}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
     """;
@@ -282,6 +291,7 @@ record FindForm(int Id);
 record SjaeldenForm(int Id, bool Sjaelden);
 record NoteForm(int Id, string? Note);
 record SkjulForm(int Id, bool Skjul);
+record FortrydForm(int Id, string? Was);
 record MaerkeForm(int Id, double Venstre, double Top, double Hoejre, double Bund);
 record KioskForm(string? Blad, string? Pris, string? Hvorfra);
 record NySag(string? Navn);
