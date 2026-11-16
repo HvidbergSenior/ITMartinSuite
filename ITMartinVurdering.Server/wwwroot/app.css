@@ -7,7 +7,6 @@
 .vu-line { margin: 0 0 4px; font-size: 1.2rem; }
 .vu-hint { margin: 10px 0 14px; }
 .vu-actions { display: grid; gap: 10px; max-width: 420px; margin: 0 auto; text-align: left; }
-.vu-big { width: 100%; font-size: 1.1rem; padding: 14px; }
 .vu-own-row { display: flex; gap: 8px; }
 .vu-own-row .k-input { flex: 1; }
 .vu-msg { min-height: 1.4em; font-weight: 700; }
@@ -57,3 +56,5 @@
 .vu-mark-box { position: absolute; border: 3px solid var(--k-accent); background: rgba(255,255,255,.35); pointer-events: none; border-radius: 4px; }
 .vu-photo-tools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0 0 12px; }
 .vu-hidden-tag { text-align: center; font-weight: 800; border: 2px dashed var(--k-text); border-radius: 10px; padding: 6px; margin: 0 auto 8px; max-width: 26rem; }
+/* Buttons as big as in Lager (user 2026-11-16 "still priser is bigger buttons"): small buttons, only as wide as their words - not bars across the card. */
+.vu-actions > .k-btn { justify-self: start; }
