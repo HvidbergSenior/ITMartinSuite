@@ -8,6 +8,21 @@ namespace ITMartinLager.Application;
 /// painted-over price mark), so ItemUseCases.UncoverAsync brings it back.</summary>
 public sealed class ItemPhotoUseCases(IItemRepository items, IPhotoStore photos, IVareinfoGateway? vareinfo = null)
 {
+    /// <summary>Beskær (user 2026-11-16: "also some way to cut things off pictures"): keep only the part a person dragged a box
+    /// around - a neighbour, a table edge. The photo before is kept the first time, so Fortryd brings it back. Null = done.</summary>
+    public async Task<string?> CropOwnAsync(int id, PhotoArea keep, CancellationToken ct = default)
+    {
+        if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
+        if (item.ItemPhoto == "" || await photos.ReadAsync(item.ItemPhoto, ct) is not { } jpeg)
+            return "Tingen har kun billedet af hele bunken – brug »Ret udsnittet«.";
+        if (await photos.CropAsync(jpeg, keep, ct) is not { } cut) return "Firkanten er for lille – træk den rundt om det, der skal blive.";
+        if (await photos.ReadAsync(ItemUseCases.OriginalPath(id), ct) is null) await photos.SaveAsync(ItemUseCases.OriginalPath(id), jpeg, ct);
+        await photos.SaveAsync(item.ItemPhoto, cut, ct);
+        item.Touch();   // measured again by PhotoCheckJob
+        await items.UpdateAsync([item], ct);
+        return null;
+    }
+
     /// <summary>Turn the thing's own photo (user 2026-11-16: "add a way to rotate pictures" + "could be manually"): a quarter
     /// clockwise (90) or back (270). The photo before is kept the first time, so Fortryd brings it back. Null = done.</summary>
     public async Task<string?> RotateAsync(int id, int degrees, CancellationToken ct = default)

@@ -58,6 +58,7 @@
                 $('vu-uncover').hidden = !item.covered;
                 $('vu-recut').hidden = !item.onPile;
                 $('vu-rotate').hidden = !item.ownPhoto;
+                $('vu-crop').hidden = !item.ownPhoto;
                 $('vu-line').textContent = item.line;
                 $('vu-facts').textContent = ['nr. ' + item.id, item.kind, item.condition ? 'stand: ' + item.condition : '', item.box ? 'kasse ' + item.box : ''].filter(Boolean).join(' · ');
                 var ok = $('vu-ok');
@@ -168,6 +169,7 @@
         marking = false; start = null; area = null; mode = 'mark';
         $('vu-recut').hidden = !(item && item.onPile);
         $('vu-rotate').hidden = !(item && item.ownPhoto);
+        $('vu-crop').hidden = !(item && item.ownPhoto);
         $('vu-mark-box').hidden = true; $('vu-mark-help').hidden = true; $('vu-mark-save').hidden = true; $('vu-mark-cancel').hidden = true;
         $('vu-photo-wrap').classList.remove('is-marking');
         $('vu-mark').hidden = !(item && item.ownPhoto);
@@ -183,15 +185,17 @@
         box.hidden = false;
     }
     function startMark(m) {
-        mode = m; marking = true; $('vu-mark').hidden = true; $('vu-recut').hidden = true; $('vu-mark-cancel').hidden = false;
+        mode = m; marking = true; $('vu-mark').hidden = true; $('vu-recut').hidden = true; $('vu-crop').hidden = true; $('vu-mark-cancel').hidden = false;
         $('vu-mark-help').innerHTML = m === 'cut'
             ? 'Her er hele billedet af bunken. <b>Træk en firkant rundt om tingen</b> – tryk så <b>Lav nyt billede</b>.'
+            : m === 'crop' ? '<b>Træk en firkant rundt om det, der skal blive</b> – resten skæres væk. Tryk så <b>Beskær</b>.'
             : '<b>Træk en firkant</b> hen over prismærket med fingeren eller musen – tryk så <b>Mal over mærket</b>.';
-        $('vu-mark-save').textContent = m === 'cut' ? 'Lav nyt billede' : 'Mal over mærket';
+        $('vu-mark-save').textContent = m === 'cut' ? 'Lav nyt billede' : m === 'crop' ? 'Beskær' : 'Mal over mærket';
         $('vu-mark-help').hidden = false;
         $('vu-photo-wrap').classList.add('is-marking');
     }
     $('vu-mark').addEventListener('click', function () { startMark('mark'); });
+    $('vu-crop').addEventListener('click', function () { startMark('crop'); });
     // Which one is it? (user 2026-11-16: "but how can i see which one it is") - Lager does not keep where on the pile it was,
     // so: its name big, the reader's note (often "under X", "nederst til venstre"), the old cut-out, and the pile photo large.
     $('vu-recut').addEventListener('click', function () {
@@ -227,7 +231,7 @@
         $('vu-mark-save').hidden = !(area && area.r - area.l > 0.005 && area.b - area.t > 0.005);
     });
     $('vu-mark-save').addEventListener('click', function () {
-        if (item && area) save(mode === 'cut' ? '/api/udsnit' : '/api/maerke', { id: item.id, venstre: area.l, top: area.t, hoejre: area.r, bund: area.b });
+        if (item && area) save(mode === 'cut' ? '/api/udsnit' : mode === 'crop' ? '/api/beskaer' : '/api/maerke', { id: item.id, venstre: area.l, top: area.t, hoejre: area.r, bund: area.b });
     });
     $('vu-rotate').addEventListener('click', function () { if (item) save('/api/drej', { id: item.id, grader: 90 }); });
     $('vu-uncover').addEventListener('click', function () { if (item) save('/api/maerke/fortryd', { id: item.id }); });

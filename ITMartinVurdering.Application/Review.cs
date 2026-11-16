@@ -19,6 +19,8 @@ public interface ILagerReview
     Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct);
+    /// <returns>Null when the photo was cut, else Lager's (Danish) reason.</returns>
+    Task<string?> CropOwnAsync(int itemId, PhotoArea keep, CancellationToken ct);
     /// <returns>Null when the photo was turned, else Lager's (Danish) reason.</returns>
     Task<string?> RotateAsync(int itemId, int degrees, CancellationToken ct);
     /// <summary>Kassér: the status the thing had (for Fortryd), or null when Lager did not do it.</summary>
@@ -82,6 +84,11 @@ public sealed class ReviewUseCases(ILagerReview lager)
     /// <summary>The person's comment on the thing.</summary>
     public async Task<ReviewResult> NoteAsync(int itemId, string? note, CancellationToken ct = default) =>
         await lager.SetNoteAsync(itemId, (note ?? "").Trim(), ct) is { } error ? new(false, error) : new(true, "Kommentaren er gemt.");
+
+    /// <summary>Beskær (user 2026-11-16: "also some way to cut things off pictures").</summary>
+    public async Task<ReviewResult> CropOwnAsync(int itemId, PhotoArea? keep, CancellationToken ct = default) =>
+        keep is null ? new(false, "Træk en firkant rundt om det, der skal blive.")
+        : await lager.CropOwnAsync(itemId, keep, ct) is { } error ? new(false, error) : new(true, "Billedet er beskåret. »Fortryd« giver det gamle tilbage.");
 
     /// <summary>Drej (user 2026-11-16: "add a way to rotate pictures" + "could be manually").</summary>
     public async Task<ReviewResult> RotateAsync(int itemId, int degrees, CancellationToken ct = default) =>

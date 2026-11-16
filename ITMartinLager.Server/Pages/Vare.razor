@@ -44,11 +44,16 @@ else
         {
             <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="Rotate" title="Drej billedet en kvart omgang med uret">Drej ↻</button>
             @* "and the farvening" (2026-11-16): Fjern prismærket here too - drag a box, Lager paints over it in the thing's own colour. *@
-            @if (!_marking) { <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="StartMark">Fjern prismærket</button> }
+            @if (!_marking)
+            {
+                <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="() => StartMark(false)">Fjern prismærket</button>
+                @* "also some way to cut things off pictures" (2026-11-16): keep the part inside the box. *@
+                <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="() => StartMark(true)">Beskær</button>
+            }
             else
             {
-                <span class="k-small"><b>Træk en firkant</b> hen over mærket på billedet.</span>
-                @if (_markArea is not null) { <button class="k-btn k-btn-sm k-btn-primary" disabled="@_busy" @onclick="SaveMark">Mal over mærket</button> }
+                <span class="k-small">@(_cropping ? "Træk en firkant rundt om det, der skal blive – resten skæres væk." : "Træk en firkant hen over mærket på billedet.")</span>
+                @if (_markArea is not null) { <button class="k-btn k-btn-sm k-btn-primary" disabled="@_busy" @onclick="SaveMark">@(_cropping ? "Beskær" : "Mal over mærket")</button> }
                 <button class="k-btn k-btn-sm k-btn-ghost" @onclick="StopMark">Annuller</button>
             }
         }
@@ -298,7 +303,8 @@ else
 
     private bool _hookMark;
 
-    private void StartMark() { _marking = true; _markArea = null; _hookMark = true; }
+    private bool _cropping;
+    private void StartMark(bool crop) { _marking = true; _cropping = crop; _markArea = null; _hookMark = true; }
 
     // The photo without its link is drawn first - then the drag is hooked onto it.
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -328,8 +334,9 @@ else
         _busy = true; _err = null;
         try
         {
-            if (await Items.CoverMarkAsync(Id, area) is { } error) _err = error;
-            else { _photoVer++; _msg = "Mærket er malet over. Fortryd ligger i Priser."; }
+            var error = _cropping ? await ItemPhotos.CropOwnAsync(Id, area) : await Items.CoverMarkAsync(Id, area);
+            if (error is not null) _err = error;
+            else { _photoVer++; _msg = _cropping ? "Billedet er beskåret. Fortryd ligger i Priser." : "Mærket er malet over. Fortryd ligger i Priser."; }
         }
         finally { _busy = false; await StopMark(); }
     }
