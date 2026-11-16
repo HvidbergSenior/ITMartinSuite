@@ -46,11 +46,18 @@
         <button type="button" class="k-btn k-btn-sm" id="vu-recut" hidden>Ret udsnittet</button>
         <button type="button" class="k-btn k-btn-sm" id="vu-rotate" hidden title="Drej billedet en kvart omgang med uret">Drej ↻</button>
         <button type="button" class="k-btn k-btn-sm" id="vu-crop" hidden title="Skær det væk, der ikke hører til tingen">Beskær</button>
+        <button type="button" class="k-btn k-btn-sm" id="vu-skaev" hidden title="Drej billedet få grader, så det står lige">Ret skævheden</button>
         <button type="button" class="k-btn k-btn-sm k-btn-primary" id="vu-mark-save" hidden>Mal over mærket</button>
         <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="vu-mark-cancel" hidden>Annuller</button>
         <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="vu-uncover" hidden>Fortryd – billedet som før</button>
         <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="vu-discard" title="Ikke en rigtig ting, eller for dårligt læst - den forsvinder fra lageret, men kan fortrydes">Kassér</button>
         <button type="button" class="k-btn k-btn-sm" id="vu-hide-photo">Skjul billedet</button>
+    </div>
+    <div class="vu-skaev-row" id="vu-skaev-row" hidden>
+        <label class="k-small" for="vu-skaev-range">Skæv: <b id="vu-skaev-deg">0</b>°</label>
+        <input type="range" id="vu-skaev-range" min="-15" max="15" step="1" value="0">
+        <button type="button" class="k-btn k-btn-sm k-btn-primary" id="vu-skaev-save">Gem</button>
+        <button type="button" class="k-btn k-btn-sm k-btn-ghost" id="vu-skaev-cancel">Annuller</button>
     </div>
     <h2 class="vu-line" id="vu-line"></h2>
     <p class="k-help" id="vu-facts"></p>

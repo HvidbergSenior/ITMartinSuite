@@ -65,3 +65,6 @@
 .vu-find-title { margin: 0; font-size: 1.05rem; }
 .vu-old-cut { width: 72px; height: 72px; object-fit: contain; border-radius: 8px; border: 1px solid var(--k-border-3, #ccc); background: #fff; flex: none; }
 .vu-photo-wrap.is-cut .vu-photo { max-height: 85vh; }
+/* Ret skævheden (2026-11-16): the slider row under the photo. */
+.vu-skaev-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin: 0 0 12px; }
+.vu-skaev-row input[type=range] { width: min(260px, 60vw); }

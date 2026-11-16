@@ -30,7 +30,7 @@ else
         {
             @* While marking, the photo is not a link - a drag draws the box over the price sticker (maerke.js). *@
             <div class="lg-photo-wrap">
-                @if (_marking) { <img id="lg-photo" class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" draggable="false" /> }
+                @if (_marking || _skaev) { <img id="lg-photo" class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" draggable="false" style="@(_skaev ? $"transform: rotate({_skaevDeg}deg)" : null)" /> }
                 else { <a href="/varefoto/@_item.Id?v=@_photoVer" target="_blank" rel="noopener" title="Se billedet i fuld størrelse"><img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /></a> }
                 <div id="lg-mark-box" class="lg-mark-box" hidden></div>
             </div>
@@ -49,6 +49,15 @@ else
                 <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="() => StartMark(false)">Fjern prismærket</button>
                 @* "also some way to cut things off pictures" (2026-11-16): keep the part inside the box. *@
                 <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="() => StartMark(true)">Beskær</button>
+                @if (!_skaev) { <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="() => _skaev = true">Ret skævheden</button> }
+                else
+                {
+                    @* Ret skævheden (2026-11-16): the photo turns live while sliding; Gem saves it. *@
+                    <span class="lg-skaev"><span class="k-small">Skæv: <b>@_skaevDeg</b>°</span>
+                        <input type="range" min="-15" max="15" step="1" @bind="_skaevDeg" @bind:event="oninput" />
+                        <button class="k-btn k-btn-sm k-btn-primary" disabled="@_busy" @onclick="SaveSkaev">Gem</button>
+                        <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => { _skaev = false; _skaevDeg = 0; }">Annuller</button></span>
+                }
             }
             else
             {
@@ -303,7 +312,20 @@ else
 
     private bool _hookMark;
 
-    private bool _cropping;
+    private bool _cropping, _skaev;
+    private int _skaevDeg;
+
+    private async Task SaveSkaev()
+    {
+        if (_skaevDeg == 0) { _skaev = false; return; }
+        _busy = true; _err = null;
+        try
+        {
+            if (await ItemPhotos.StraightenAsync(Id, _skaevDeg) is { } error) _err = error;
+            else { _photoVer++; _msg = "Billedet er rettet op. Fortryd ligger i Priser."; }
+        }
+        finally { _busy = false; _skaev = false; _skaevDeg = 0; }
+    }
     private void StartMark(bool crop) { _marking = true; _cropping = crop; _markArea = null; _hookMark = true; }
 
     // The photo without its link is drawn first - then the drag is hooked onto it.

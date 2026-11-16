@@ -77,6 +77,9 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
     public Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct) =>
         PostAsync($"/api/vurdering/varer/{itemId}/sjaelden", new VurderingRare(rare), "Lager gemte ikke mærket.", ct);
 
+    public Task<string?> StraightenAsync(int itemId, int degrees, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/skaev", new VurderingRotate(degrees), "Lager kunne ikke rette billedet op.", ct);
+
     public Task<string?> CropOwnAsync(int itemId, PhotoArea keep, CancellationToken ct) =>
         PostAsync($"/api/vurdering/varer/{itemId}/beskaer", keep, "Lager kunne ikke beskære billedet.", ct);
 

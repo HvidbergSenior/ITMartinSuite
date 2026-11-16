@@ -59,6 +59,8 @@
                 $('vu-recut').hidden = !item.onPile;
                 $('vu-rotate').hidden = !item.ownPhoto;
                 $('vu-crop').hidden = !item.ownPhoto;
+                $('vu-skaev').hidden = !item.ownPhoto;
+                endSkaev();
                 $('vu-line').textContent = item.line;
                 $('vu-facts').textContent = ['nr. ' + item.id, item.kind, item.condition ? 'stand: ' + item.condition : '', item.box ? 'kasse ' + item.box : ''].filter(Boolean).join(' · ');
                 var ok = $('vu-ok');
@@ -196,6 +198,17 @@
     }
     $('vu-mark').addEventListener('click', function () { startMark('mark'); });
     $('vu-crop').addEventListener('click', function () { startMark('crop'); });
+    // Ret skævheden (2026-11-16): the photo turns live while the slider moves; Gem saves it.
+    function endSkaev() { $('vu-skaev-row').hidden = true; $('vu-skaev-range').value = 0; $('vu-skaev-deg').textContent = '0'; $('vu-photo').style.transform = ''; }
+    $('vu-skaev').addEventListener('click', function () { $('vu-skaev-row').hidden = false; });
+    $('vu-skaev-range').addEventListener('input', function () {
+        var d = +$('vu-skaev-range').value; $('vu-skaev-deg').textContent = d; $('vu-photo').style.transform = 'rotate(' + d + 'deg)';
+    });
+    $('vu-skaev-cancel').addEventListener('click', endSkaev);
+    $('vu-skaev-save').addEventListener('click', function () {
+        var d = +$('vu-skaev-range').value; if (!item || !d) { endSkaev(); return; }
+        save('/api/skaev', { id: item.id, grader: d });
+    });
     // Which one is it? (user 2026-11-16: "but how can i see which one it is") - Lager does not keep where on the pile it was,
     // so: its name big, the reader's note (often "under X", "nederst til venstre"), the old cut-out, and the pile photo large.
     $('vu-recut').addEventListener('click', function () {

@@ -44,6 +44,10 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/maerke", async (int id, PhotoArea body, ItemUseCases items) =>
             PhotoArea.From([body.Left, body.Top, body.Right, body.Bottom], 0.005) is not { } area ? Results.BadRequest("Træk en firkant hen over mærket.")
             : await items.CoverMarkAsync(id, area) is { } error ? Results.BadRequest(error) : Results.Ok());
+        // Ret skævheden (2026-11-16): a few degrees, the corners trimmed.
+        api.MapPost("/varer/{id:int}/skaev", async (int id, VurderingRotate body, ItemPhotoUseCases photos) =>
+            await photos.StraightenAsync(id, body.Degrees) is { } error ? Results.BadRequest(error) : Results.Ok());
+
         // Beskær (2026-11-16, "cut things off pictures"): keep the part inside the box.
         api.MapPost("/varer/{id:int}/beskaer", async (int id, PhotoArea body, ItemPhotoUseCases photos) =>
             PhotoArea.From([body.Left, body.Top, body.Right, body.Bottom], 0.05) is not { } keep ? Results.BadRequest("Træk en firkant rundt om det, der skal blive.")

@@ -8,6 +8,23 @@ namespace ITMartinLager.Application;
 /// painted-over price mark), so ItemUseCases.UncoverAsync brings it back.</summary>
 public sealed class ItemPhotoUseCases(IItemRepository items, IPhotoStore photos, IVareinfoGateway? vareinfo = null)
 {
+    public const int MaxStraighten = 15;
+
+    /// <summary>Ret skævheden (user 2026-11-16, the Bamse CD lay a little crooked; "yes"): turn by up to MaxStraighten degrees and
+    /// trim the corners. The photo before is kept the first time, so Fortryd brings it back. Null = done.</summary>
+    public async Task<string?> StraightenAsync(int id, int degrees, CancellationToken ct = default)
+    {
+        if (degrees == 0 || Math.Abs(degrees) > MaxStraighten) return $"Ret mellem -{MaxStraighten} og {MaxStraighten} grader.";
+        if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
+        if (item.ItemPhoto == "" || await photos.ReadAsync(item.ItemPhoto, ct) is not { } jpeg)
+            return "Tingen har kun billedet af hele bunken – brug »Ret udsnittet«.";
+        if (await photos.ReadAsync(ItemUseCases.OriginalPath(id), ct) is null) await photos.SaveAsync(ItemUseCases.OriginalPath(id), jpeg, ct);
+        await photos.SaveAsync(item.ItemPhoto, await photos.StraightenAsync(jpeg, degrees, ct), ct);
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        return null;
+    }
+
     /// <summary>Beskær (user 2026-11-16: "also some way to cut things off pictures"): keep only the part a person dragged a box
     /// around - a neighbour, a table edge. The photo before is kept the first time, so Fortryd brings it back. Null = done.</summary>
     public async Task<string?> CropOwnAsync(int id, PhotoArea keep, CancellationToken ct = default)

@@ -19,6 +19,8 @@ public interface ILagerReview
     Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct);
+    /// <returns>Null when the photo was straightened, else Lager's (Danish) reason.</returns>
+    Task<string?> StraightenAsync(int itemId, int degrees, CancellationToken ct);
     /// <returns>Null when the photo was cut, else Lager's (Danish) reason.</returns>
     Task<string?> CropOwnAsync(int itemId, PhotoArea keep, CancellationToken ct);
     /// <returns>Null when the photo was turned, else Lager's (Danish) reason.</returns>
@@ -84,6 +86,10 @@ public sealed class ReviewUseCases(ILagerReview lager)
     /// <summary>The person's comment on the thing.</summary>
     public async Task<ReviewResult> NoteAsync(int itemId, string? note, CancellationToken ct = default) =>
         await lager.SetNoteAsync(itemId, (note ?? "").Trim(), ct) is { } error ? new(false, error) : new(true, "Kommentaren er gemt.");
+
+    /// <summary>Ret skævheden (user 2026-11-16): a few degrees.</summary>
+    public async Task<ReviewResult> StraightenAsync(int itemId, int degrees, CancellationToken ct = default) =>
+        await lager.StraightenAsync(itemId, degrees, ct) is { } error ? new(false, error) : new(true, "Billedet er rettet op. »Fortryd« giver det gamle tilbage.");
 
     /// <summary>Beskær (user 2026-11-16: "also some way to cut things off pictures").</summary>
     public async Task<ReviewResult> CropOwnAsync(int itemId, PhotoArea? keep, CancellationToken ct = default) =>

@@ -295,6 +295,27 @@ public class StockForSaleTests
         (await photos.RotateAsync(item.Id, 45)).Should().NotBeNull();
     }
 
+    // Ret skævheden (2026-11-16): a few degrees only, the photo before kept.
+    [Test]
+    public async Task A_crooked_photo_is_straightened_within_15_degrees()
+    {
+        var item = await Add("Always on My Mind", 20, kind: Kinds.Cd);
+        item.ItemPhoto = "photos/items/7.jpg";
+        await Items.UpdateAsync([item], default);
+        var files = new Dictionary<string, byte[]> { ["photos/items/7.jpg"] = [1] };
+        var store = new Mock<IPhotoStore>();
+        store.Setup(p => p.ReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((string p, CancellationToken _) => files.GetValueOrDefault(p));
+        store.Setup(p => p.SaveAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .Callback((string p, byte[] b, CancellationToken _) => files[p] = b).Returns(Task.CompletedTask);
+        store.Setup(p => p.StraightenAsync(It.IsAny<byte[]>(), -8, It.IsAny<CancellationToken>())).ReturnsAsync(new byte[] { 3 });
+        var photos = new ItemPhotoUseCases(Items, store.Object);
+
+        (await photos.StraightenAsync(item.Id, -8)).Should().BeNull();
+        files["photos/items/7.jpg"].Should().Equal(3);
+        (await photos.StraightenAsync(item.Id, 30)).Should().NotBeNull();
+        (await photos.StraightenAsync(item.Id, 0)).Should().NotBeNull();
+    }
+
     // Vurdering's Find en ting (2026-11-16): a number opens that thing, words give the matches one at a time, sold ones never.
     [Test]
     public async Task Vurdering_finds_one_thing_by_number_or_words()

@@ -92,6 +92,21 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         });
     }
 
+    public async Task<byte[]> StraightenAsync(byte[] jpeg, double degrees, CancellationToken ct)
+    {
+        using var img = Image.Load<Rgb24>(jpeg);
+        int w = img.Width, h = img.Height;
+        img.Mutate(x => x.Rotate((float)degrees));
+        // The largest upright rectangle inside the turned photo (for small angles): no white wedges in the corners.
+        double a = Math.Abs(degrees) * Math.PI / 180, cos = Math.Cos(a), sin = Math.Sin(a);
+        int keepW = (int)(w * cos - h * sin), keepH = (int)(h * cos - w * sin);
+        if (keepW > 40 && keepH > 40)
+            img.Mutate(x => x.Crop(new Rectangle((img.Width - keepW) / 2, (img.Height - keepH) / 2, keepW, keepH)));
+        using var ms = new MemoryStream();
+        await img.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 90 }, ct);
+        return ms.ToArray();
+    }
+
     public async Task<byte[]> RotateAsync(byte[] jpeg, int degrees, CancellationToken ct)
     {
         using var img = Image.Load<Rgb24>(jpeg);

@@ -18,6 +18,7 @@ public class DescribeTests
         public Task<string?> DiscardAsync(int itemId, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> RotateAsync(int itemId, int degrees, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> CropOwnAsync(int itemId, PhotoArea keep, CancellationToken ct) => Task.FromResult<string?>(null);
+        public Task<string?> StraightenAsync(int itemId, int degrees, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> UndoDiscardAsync(int itemId, string was, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> RecutAsync(int itemId, PhotoArea area, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<byte[]?> PileAsync(int itemId, CancellationToken ct) => Task.FromResult<byte[]?>(null);
