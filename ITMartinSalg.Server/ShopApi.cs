@@ -56,8 +56,7 @@ public static class ShopApi
 
         api.MapPost("/bundt", async (ShopBundlePlace body, OfferUseCases offers) =>
         {
-            var (ok, error) = await offers.BundleAsync(body.Customer, body.ItemIds ?? [], body.Kr);
-            return new ShopOfferAnswer(ok, error);
+            return await offers.BundleAnswerAsync(body.Customer, body.ItemIds ?? [], body.Kr);
         });
 
         api.MapGet("/ordrer/{token}", async (string token, ShopUseCases shop) =>

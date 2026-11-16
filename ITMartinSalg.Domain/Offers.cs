@@ -36,6 +36,9 @@ public sealed class BundleOffer
     /// <summary>Their bid for all of them; null = they ask for a price.</summary>
     public int? Kr { get; set; }
     public string Status { get; set; } = New;
+    /// <summary>The answer given at once to "Spørg om en pris" (2026-11-16): the price for all of it, and the random extra %.</summary>
+    public int? AnswerKr { get; set; }
+    public int? ExtraPercent { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public IReadOnlyList<int> Ids => ItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList();
@@ -51,4 +54,10 @@ public sealed class BundleOffer
     }
 
     public void MarkAnswered() => Status = Answered;
+
+    /// <summary>Answered by the shop itself: the price is the customer's to say yes to (a bid at that price).</summary>
+    public void AnswerAutomatically(int kr, int extraPercent)
+    {
+        AnswerKr = kr; ExtraPercent = extraPercent; Status = Answered;
+    }
 }

@@ -76,6 +76,25 @@ public sealed record ShopQuote(bool CanPay, List<ShopQuoteLine> Lines, int Total
 
 /// <summary>Mængderabat for the page (2026-11-16, "the amount should be reflected on the page for user"): how many things, the
 /// percent now, how many more for the next step and its percent (null at the top), and every step for the little table.</summary>
+/// <summary>Mængderabat steps and the flea-market bundle answer (user 2026-11-16) - the one rule Salg and bogshoppen.dk share.</summary>
+public static class RabatRules
+{
+    public static readonly IReadOnlyList<(int From, int Percent)> Steps = [(5, 10), (10, 20), (20, 30), (50, 40), (100, 50)];
+    public static int PercentFor(int count) => Steps.LastOrDefault(s => count >= s.From).Percent;
+    public static (int More, int Percent)? Next(int count) =>
+        Steps.FirstOrDefault(s => s.From > count) is { From: > 0 } n ? (n.From - count, n.Percent) : null;
+
+    /// <summary>"Hvad vil du have for det hele?" (user 2026-11-16: "like a flea market", "a random percent... 5-15"): on top of the
+    /// mængderabat, a random extra between these.</summary>
+    public const int ExtraFrom = 5, ExtraTo = 15;
+
+    /// <summary>A price a customer is told: down to the nearest 5 kr ("17 -> 15"), never up; under 5 kr whole kroner, at least 1.</summary>
+    public static int Round(decimal kr) => kr < 5 ? (int)Math.Max(1, Math.Floor(kr)) : (int)(Math.Floor(kr / 5) * 5);
+
+    /// <summary>The bundle answer: the basket total after mængderabat, then the extra percent off, rounded down to 5 kr.</summary>
+    public static int BundleKr(int totalAfterRabat, int extraPercent) => Round(totalAfterRabat * (100 - extraPercent) / 100m);
+}
+
 public sealed record ShopRabat(int Count, int Percent, int? NextMore, int? NextPercent, List<ShopRabatStep> Steps);
 public sealed record ShopRabatStep(int From, int Percent);
 public sealed record ShopQuoteLine(int Id, string Line, int ListKr, int Kr, string Offer);
@@ -214,6 +233,6 @@ public static class ShopDeals
 public sealed record ShopBidPlace(string Customer, int MaxKr);
 public sealed record ShopBundlePlace(string Customer, List<int> ItemIds, int? Kr);
 /// <summary>Ok, or the reason in Danish.</summary>
-public sealed record ShopOfferAnswer(bool Ok, string? Error = null);
+public sealed record ShopOfferAnswer(bool Ok, string? Error = null, int? AnswerKr = null, int? ExtraPercent = null);
 /// <summary>The customer's own bids (item -> their max), so the page can show "Dit bud: 120 kr".</summary>
 public sealed record ShopMyBids(Dictionary<int, int> MaxKr);

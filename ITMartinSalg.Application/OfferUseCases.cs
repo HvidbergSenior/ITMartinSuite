@@ -1,18 +1,20 @@
 using ITMartinSalg.Domain;
+using ITMartinVarer.Contracts;
 
 namespace ITMartinSalg.Application;
 
 /// <summary>One line on Salg's Bud page: the thing, the highest hidden bid, and how many bid.</summary>
 public sealed record BidRow(int ItemId, string Line, int TopKr, int Bidders, DateTime LastAt, bool ForSale);
 /// <summary>One bundle on the Bud page: who, what (the lines), their bid or "spørger om pris", and its status.</summary>
-public sealed record BundleRow(int Id, string Customer, IReadOnlyList<string> Lines, int? Kr, string Status, DateTime At);
+public sealed record BundleRow(int Id, string Customer, IReadOnlyList<string> Lines, int? Kr, string Status, DateTime At,
+    int? AnswerKr = null, int? ExtraPercent = null);
 
 /// <summary>
 /// The marketplace's offers (user 2026-11-05: built on live auction + marketplace, and "make batches of items"): Byd = a hidden
 /// maximum for the Saturday auction, Mit bundt = several things with one bid or a question. Only things that are for sale.
 /// bogshoppen.dk checks the kundenummer in Kunder; this keeps the offers.
 /// </summary>
-public sealed class OfferUseCases(IOfferRepository offers, IStockGateway stock, TimeProvider clock)
+public sealed class OfferUseCases(IOfferRepository offers, IStockGateway stock, TimeProvider clock, ShopUseCases? shop = null, Random? random = null)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -34,15 +36,30 @@ public sealed class OfferUseCases(IOfferRepository offers, IStockGateway stock, 
 
     public async Task<(bool Ok, string? Error)> BundleAsync(string? customer, IReadOnlyCollection<int> itemIds, int? kr, CancellationToken ct = default)
     {
+        var r = await BundleAnswerAsync(customer, itemIds, kr, ct);
+        return (r.Ok, r.Error);
+    }
+
+    /// <summary>Mit bundt. A question for a price is answered at once like at a flea market (user 2026-11-16: "what do you want for
+    /// all this" + "a random percent... 5-15" + "rounded ... 17 -> 15"): the basket with mængderabat, then a random 5-15 % more,
+    /// down to 5 kr. Things without a price -> no automatic answer; Martin answers on the Bud page.</summary>
+    public async Task<ShopOfferAnswer> BundleAnswerAsync(string? customer, IReadOnlyCollection<int> itemIds, int? kr, CancellationToken ct = default)
+    {
         try
         {
             var bundle = BundleOffer.Make(customer, itemIds, kr, Now);
             var forSale = (await stock.ByIdsAsync(bundle.Ids.ToList(), ct)).Select(i => i.Id).ToHashSet();
-            if (bundle.Ids.Any(id => !forSale.Contains(id))) return (false, "En af tingene er her ikke mere – tag den ud af bundtet.");
+            if (bundle.Ids.Any(id => !forSale.Contains(id))) return new(false, "En af tingene er her ikke mere – tag den ud af bundtet.");
+            if (bundle.AsksForPrice && shop is not null
+                && await shop.QuoteAsync(bundle.Ids, ct) is { Gone.Count: 0, Total: > 0 } quote && quote.Lines.Count == bundle.Ids.Count)
+            {
+                var extra = (random ?? Random.Shared).Next(RabatRules.ExtraFrom, RabatRules.ExtraTo + 1);
+                bundle.AnswerAutomatically(RabatRules.BundleKr(quote.Total, extra), extra);
+            }
             await offers.AddBundleAsync(bundle, ct);
-            return (true, null);
+            return new(true, null, bundle.AnswerKr, bundle.ExtraPercent);
         }
-        catch (InvalidOperationException e) { return (false, e.Message); }
+        catch (InvalidOperationException e) { return new(false, e.Message); }
     }
 
     /// <summary>Martin's Bud page: things with bids, highest first, and the bundles, newest first.</summary>
@@ -57,7 +74,7 @@ public sealed class OfferUseCases(IOfferRepository offers, IStockGateway stock, 
             .Select(g => new BidRow(g.Key, Line(g.Key), g.Max(b => b.MaxKr), g.Count(), g.Max(b => b.PlacedAt), lines.ContainsKey(g.Key)))
             .OrderByDescending(r => r.TopKr).ToList();
         var bundleRows = bundles.OrderByDescending(b => b.CreatedAt)
-            .Select(b => new BundleRow(b.Id, b.Customer, b.Ids.Select(Line).ToList(), b.Kr, b.Status, b.CreatedAt)).ToList();
+            .Select(b => new BundleRow(b.Id, b.Customer, b.Ids.Select(Line).ToList(), b.Kr, b.Status, b.CreatedAt, b.AnswerKr, b.ExtraPercent)).ToList();
         return (bidRows, bundleRows);
     }
 

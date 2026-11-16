@@ -41,6 +41,9 @@ public static class SalgDbInitializer
             Exec(conn, statement.Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
                 .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS "));
         Exec(conn, "PRAGMA journal_mode=WAL;");
+        // Columns added later to tables that already exist (the create script above only makes missing tables).
+        foreach (var (table, col, type) in new[] { ("Bundles", "AnswerKr", "INTEGER NULL"), ("Bundles", "ExtraPercent", "INTEGER NULL") })
+            if (!HasColumn(conn, table, col)) Exec(conn, $"ALTER TABLE \"{table}\" ADD COLUMN \"{col}\" {type}");
 
         if (importLagerDb is not null && File.Exists(importLagerDb) && Count(conn, "Orders") == 0 && Count(conn, "Campaigns") == 0)
         {
@@ -71,6 +74,13 @@ public static class SalgDbInitializer
             db.SaveChanges();
         }
         if (opened) conn.Close();
+    }
+
+    private static bool HasColumn(System.Data.Common.DbConnection conn, string table, string column)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'";
+        return Convert.ToInt64(cmd.ExecuteScalar()) > 0;
     }
 
     private static long Count(System.Data.Common.DbConnection conn, string table)

@@ -24,6 +24,7 @@
                 <li>
                     <span class="lg-main">
                         <b>@(b.Kr is { } kr ? $"Bud: {kr} kr for {b.Lines.Count} ting" : $"Spørger om pris på {b.Lines.Count} ting")</b>
+                        @if (b.AnswerKr is { } ans) { <span class="k-small">Svaret med det samme: <b>@ans kr</b> (mængderabat + @b.ExtraPercent % ekstra) – siger kunden ja, kommer det som et bud.</span> }
                         <span class="k-small">Nummer @Show(b.Customer) · @b.At.ToLocalTime().ToString("d/M HH:mm") · @b.Status</span>
                         <span class="k-small">@string.Join(" · ", b.Lines)</span>
                     </span>

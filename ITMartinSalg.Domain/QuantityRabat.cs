@@ -6,16 +6,15 @@ namespace ITMartinSalg.Domain;
 /// Worked out after the day's campaigns; a line that got a campaign keeps the better of the two.</summary>
 public static class QuantityRabat
 {
-    public static readonly IReadOnlyList<(int From, int Percent)> Steps = [(5, 10), (10, 20), (20, 30), (50, 40), (100, 50)];
+    public static IReadOnlyList<(int From, int Percent)> Steps => ITMartinVarer.Contracts.RabatRules.Steps;
 
     /// <summary>The kinds whose price is a fixed bin price (ShopDeals with one price per piece) - counted, never discounted.</summary>
     public static readonly string[] BinKinds = [ITMartinVarer.Contracts.Kinds.AndersAnd, ITMartinVarer.Contracts.Kinds.Vhs];
 
-    public static int PercentFor(int count) => Steps.LastOrDefault(s => count >= s.From).Percent;
+    public static int PercentFor(int count) => ITMartinVarer.Contracts.RabatRules.PercentFor(count);
 
     /// <summary>The next step after this many things: how many more, and the percent there - null at the top.</summary>
-    public static (int More, int Percent)? Next(int count) =>
-        Steps.FirstOrDefault(s => s.From > count) is { From: > 0 } n ? (n.From - count, n.Percent) : null;
+    public static (int More, int Percent)? Next(int count) => ITMartinVarer.Contracts.RabatRules.Next(count);
 
     public static string Words(int percent) => $"Mængderabat {percent} %";
 
