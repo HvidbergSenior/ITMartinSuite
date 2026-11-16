@@ -22,19 +22,43 @@
     }
     else
     {
-        <p>@_unsure.Count ting, hvor AI'en var usikker. Se på billedet, ret det, der er forkert, og tryk <b>Gem og næste</b>.</p>
-        <a class="k-btn k-btn-primary lg-big" href="/vare/@_unsure[0]?ret=1">Ret de svære (@_unsure.Count)</a>
+        <p>@Dk(_unsure.Count) ting, hvor AI'en var usikker – de værste først. Se på billedet, ret det, der er forkert, og tryk <b>Gem og næste</b>.</p>
+        <a class="k-btn k-btn-primary lg-big" href="/vare/@_unsure[0]?ret=1">Ret de svære (@Dk(_unsure.Count))</a>
+    }
+    @* "Kassér de værste" (2026-11-16): readings below Readings.HopelessBelow are "Ukendt" / "kun kanten synlig" - out in one go,
+       kept in Lager as Ikke købt, Fortryd brings them all back. *@
+    @if (_hopeless.Count > 0)
+    {
+        <details class="kr-more">
+            <summary>De værste: @_hopeless.Count kan næsten ikke læses</summary>
+            <p class="k-small">AI'en var under @((int)(Readings.HopelessBelow * 100)) % sikker. Kig dem igennem – er de ikke til at bruge, så kassér dem alle på én gang. De bliver gemt i Lager som Ikke købt, så du kan fortryde.</p>
+            <ul class="lg-hopeless">
+                @foreach (var h in _hopeless)
+                {
+                    <li><a href="/vare/@h.Id">@h.Line()</a> <span class="k-small k-muted">@h.Kind@(h.Note != "" ? " – " + h.Note : "")</span></li>
+                }
+            </ul>
+            <button class="k-btn k-btn-secondary" @onclick="DiscardHopeless">Kassér alle @_hopeless.Count</button>
+        </details>
+    }
+    @if (_discarded.Count > 0)
+    {
+        <p class="lg-ok" role="status">@_discarded.Count kasseret. <button class="k-btn k-btn-sm" @onclick="UndoHopeless">Fortryd</button></p>
     }
     @* "if picture is too bad and nothing can be read... It should not fill it out" (2026-11-15): nothing made, shown here. *@
     @if (_unreadable.Count > 0)
     {
         <details class="kr-more">
             <summary>Tag igen: @_unreadable.Count @(_unreadable.Count == 1 ? "billede" : "billeder") den sidste uge</summary>
-            <p class="k-small">Der er ikke lavet noget af dem. Tag dem igen – lige, skarpt, tæt på og med forsiden op.</p>
+            <p class="k-small">Der er ikke lavet noget af dem. Tag dem igen – lige, skarpt, tæt på og med forsiden op. <b>Fjern</b> tager et billede af listen (selve billedet bliver på NAS'en).</p>
             <div class="lg-unreadable">
                 @foreach (var u in _unreadable)
                 {
-                    <a href="@Vareinfo.Photo(u.VareinfoId)" target="_blank" rel="noopener" title="@u.TakenAt.ToLocalTime().ToString("d/M HH:mm")"><img src="@Vareinfo.Photo(u.VareinfoId)" alt="Billede der skal tages igen" loading="lazy" /><span class="k-small">@(u.Retake != "" ? u.Retake : "kunne ikke læses")</span></a>
+                    <div class="lg-unreadable-one">
+                        <a href="@Vareinfo.Photo(u.VareinfoId)" target="_blank" rel="noopener" title="@u.TakenAt.ToLocalTime().ToString("d/M HH:mm")"><img src="@Vareinfo.Photo(u.VareinfoId)" alt="Billede der skal tages igen" loading="lazy" /><span class="k-small">@(u.Retake != "" ? u.Retake : "kunne ikke læses")</span></a>
+                        @* "i should be able to say delete" (2026-11-16): off the list - the original stays on the NAS. *@
+                        <button class="k-btn k-btn-sm k-btn-ghost" title="Fjern fra listen – billedet bliver liggende på NAS'en" @onclick="() => Dismiss(u)">Fjern</button>
+                    </div>
                 }
             </div>
         </details>
@@ -44,7 +68,7 @@
 <section class="k-card">
     @* Simple first (user 2026-11-10: "It should be simple for me"): the search field, and every filter folded under "Flere valg". *@
     <h2 class="k-card-title">Find en vare</h2>
-    <p class="lg-answer">@_units.ToString("N0") ting i @_boxes kasser</p>
+    <p class="lg-answer">@Dk(_units) ting i @Dk(_boxes) kasser</p>
     <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år – eller varens nr. (3372)" autofocus />
     @if (_byNumber is { } byNr)
     {
@@ -52,7 +76,7 @@
         <p><a class="k-btn k-btn-primary" href="/vare/@byNr.Id">Vare nr. @byNr.Id: @byNr.Line() – åbn</a></p>
     }
     <details class="kr-more" open="@FiltersOn">
-    <summary>Flere valg – kasse, kategori, sprog og pris</summary>
+    <summary>Flere valg – kasse, kategori og sprog</summary>
     <p class="kr-label">Hvilke varer</p>
     <div class="lg-chips">
         <button class="k-btn k-btn-sm @(_scopeKey == "alle" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => SetScope("alle")'>Hele lageret</button>
@@ -91,14 +115,7 @@
             <button class="k-btn k-btn-sm @(_language == l ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetLanguage(l)">@l</button>
         }
     </div>
-    <p class="kr-label">Pris</p>
-    <div class="lg-chips">
-        <button class="k-btn k-btn-sm @(_valuation is null ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetValuation(null)">Alle priser</button>
-        @foreach (var v in Valuations.All)
-        {
-            <button class="k-btn k-btn-sm @(_valuation == v ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => SetValuation(v)">@ValIcon(v) @v</button>
-        }
-    </div>
+    @* The Pris row is gone (2026-11-16): prices are set in Priser, whose piles are the same lists. *@
     </details>
     <div class="lg-row k-mt">
         <button class="k-btn @(_scopeKey == "idag" ? "k-btn-primary" : "k-btn-secondary")" @onclick='() => SetScope("idag")'>Nye i dag (@_today)</button>
@@ -152,7 +169,7 @@
                 <li class="@(_removed.ContainsKey(i.Id) ? "lg-removed" : "")">
                     <a href="/vare/@i.Id">
                         <span class="lg-icon">@Kinds.Icon(i.Kind)</span>
-                        <span class="lg-main"><b>@i.Line()</b>@if (NoteOf(i) is { } note) { <span class="k-small"><b>@note</b></span> }@if (i.Interest != "") { <span class="lg-int">✨ @i.Interest</span> }<span class="k-small k-muted">@i.Kind · @i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")</span>@if (Admin) { <span class="k-small"><b>@ValIcon(i.Valuation) @(i.Deal != "" ? $"{Valuations.InDeal}: {i.Deal}" : i.Price is { } p ? $"{p:0} kr (sat af dig)" : i.PriceHint is { } h ? $"Vores pris {h:0} kr" : i.SimilarHint is { } s ? $"{i.Valuation} – magen til ca. {s:0} kr" : i.Valuation)</b></span>@if (_high.TryGetValue(i.Id, out var top)) { <span class="k-small"><b>⚠ @top.Source: @top.Kr kr</b> – @Pricing.Flag(top.Kr, (int?)i.PriceHint)</span> } }</span>
+                        <span class="lg-main"><b>@i.Line()</b>@if (NoteOf(i) is { } note) { <span class="k-small"><b>@note</b></span> }@if (i.Interest != "") { <span class="lg-int">✨ @i.Interest</span> }<span class="k-small k-muted">@i.Kind · @i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")</span>@if (Admin) { <span class="k-small"><b>@(i.Deal != "" ? $"{Valuations.InDeal}: {i.Deal}" : i.Price is { } p ? $"{p:0} kr (sat af dig)" : i.PriceHint is { } h ? $"Vores pris {h:0} kr" : i.SimilarHint is { } s ? $"{i.Valuation} – magen til ca. {s:0} kr" : i.Valuation)</b></span>@if (_high.TryGetValue(i.Id, out var top)) { <span class="k-small"><b>⚠ @top.Source: @top.Kr kr</b> – @Pricing.Flag(top.Kr, (int?)i.PriceHint)</span> } }</span>
                         <span class="lg-box">@(i.Box?.Label ?? "–")</span>
                     </a>
                     @if (Admin)
@@ -204,6 +221,30 @@
     private List<int> _unsure = [];
     private (int NotSent, int Sent) _waiting;
     private List<ITMartinLager.Domain.BoxShot> _unreadable = [];
+    private List<Item> _hopeless = [];
+    private Dictionary<int, string> _discarded = [];
+    private static readonly System.Globalization.CultureInfo Danish = System.Globalization.CultureInfo.GetCultureInfo("da-DK");
+    private static string Dk(int n) => n.ToString("N0", Danish);   // 3.915, not 3,915
+
+    private async Task Dismiss(ITMartinLager.Domain.BoxShot u)
+    {
+        if (await Intake.DismissUnreadableAsync(u.Id)) _unreadable.Remove(u);
+    }
+
+    private async Task DiscardHopeless()
+    {
+        _discarded = await Items.RemoveManyAsync(_hopeless.Select(h => h.Id).ToList());
+        _hopeless = await Items.HopelessAsync();
+        _unsure = await Items.UnsureAsync();
+    }
+
+    private async Task UndoHopeless()
+    {
+        foreach (var (id, status) in _discarded) await Items.UndoRemoveAsync(id, status);
+        _discarded = [];
+        _hopeless = await Items.HopelessAsync();
+        _unsure = await Items.UnsureAsync();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -211,6 +252,7 @@
         _unsure = await Items.UnsureAsync();
         _waiting = await Intake.WaitingAsync();
         _unreadable = await Intake.UnreadableAsync();
+        _hopeless = await Items.HopelessAsync();
         _gold = await Gold.AllAsync();
         var now = DateTime.UtcNow;
         _todayUtc = ItemScope.DanishMidnightUtc(now);

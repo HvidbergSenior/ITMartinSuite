@@ -91,7 +91,17 @@ public sealed class IntakeRepository(IDbContextFactory<LagerDb> dbf) : IIntakeRe
     public async Task<List<BoxShot>> UnreadableShotsAsync(DateTime since, int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.BoxShots.Where(s => s.ReadAt != null && s.ReadAt >= since && s.Found == 0).OrderByDescending(s => s.Id).Take(max).ToListAsync(ct);
+        return await db.BoxShots.Where(s => s.ReadAt != null && s.ReadAt >= since && s.Found == 0 && s.DismissedAt == null)
+            .OrderByDescending(s => s.Id).Take(max).ToListAsync(ct);
+    }
+
+    public async Task<bool> DismissShotAsync(int id, DateTime now, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        if (await db.BoxShots.FirstOrDefaultAsync(s => s.Id == id, ct) is not { } shot) return false;
+        shot.DismissedAt = now;
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task<List<BoxScan>> WantedScansAsync(int max, CancellationToken ct)

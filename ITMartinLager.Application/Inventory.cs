@@ -45,7 +45,22 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
 
     /// <summary>Lager's job (user 2026-11-15: "correct ones that are a little difficult"): the things the AI was unsure of.
     /// Gem sets the confidence to 1, so a fixed thing leaves the list by itself.</summary>
-    public Task<List<int>> UnsureAsync(CancellationToken ct = default) => items.UnsureIdsAsync(500, ct);
+    // Worst first, and the real count (2026-11-16: it said 500 - the cap - while there were 586).
+    public Task<List<int>> UnsureAsync(CancellationToken ct = default) => items.UnsureIdsAsync(10_000, ct);
+
+    /// <summary>The hopeless readings (below Readings.HopelessBelow) that nobody marked rare or priced - "Kassér de værste".</summary>
+    public async Task<List<Item>> HopelessAsync(CancellationToken ct = default) =>
+        (await items.ByIdsAsync(await items.UnsureIdsAsync(10_000, ct), ct))
+            .Where(i => i.Confidence < Readings.HopelessBelow && !i.Rare && i.Price is not > 0).OrderBy(i => i.Confidence).ThenBy(i => i.Id).ToList();
+
+    /// <summary>Kassér many at once: each leaves the stock as Ikke købt (never deleted). Returns id -> the status it had, for Fortryd.</summary>
+    public async Task<Dictionary<int, string>> RemoveManyAsync(IEnumerable<int> ids, CancellationToken ct = default)
+    {
+        var was = new Dictionary<int, string>();
+        foreach (var id in ids)
+            try { was[id] = await RemoveAsync(id, ct); } catch (LagerException) { }
+        return was;
+    }
 
     /// <summary>The next difficult one after this id (round again from the start), or null when there are none left but this one.</summary>
     public async Task<int?> NextUnsureAsync(int afterId, CancellationToken ct = default)

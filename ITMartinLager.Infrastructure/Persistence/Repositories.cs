@@ -266,7 +266,7 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         return await db.Items.Where(i => i.Confidence < Pricing.MinConfidence && (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg))
-            .OrderBy(i => i.Id).Select(i => i.Id).Take(max).ToListAsync(ct);
+            .OrderBy(i => i.Confidence).ThenBy(i => i.Id).Select(i => i.Id).Take(max).ToListAsync(ct);
     }
 
     private static IQueryable<Item> Sure(LagerDb db) => OnPage(db).Where(i => i.Confidence >= Pricing.MinConfidence || i.Deal == BladeDeal);

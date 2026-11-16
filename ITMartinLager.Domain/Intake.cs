@@ -12,6 +12,9 @@ namespace ITMartinLager.Domain;
 public static class Readings
 {
     public const double CannotRead = 0.35;
+    // "Kassér de værste" in Lager (2026-11-16): below this an old reading is "Ukendt" / "kun kanten synlig" - the 0.3 band
+    // still has real ones ("Anders And & Co., 27. juni 1983"), so a person fixes those one at a time.
+    public const double HopelessBelow = 0.25;
     public static bool Readable(Found f) => f.Confidence >= CannotRead;
     /// <summary>How long a photo that could not be read is listed on the front page.</summary>
     public static readonly TimeSpan ListedFor = TimeSpan.FromDays(7);
@@ -68,6 +71,9 @@ public sealed class BoxShot
     /// <summary>The Batch API batch it is in ("" = not sent yet), and when it was sent (2026-11-15).</summary>
     public string BatchId { get; set; } = "";
     public DateTime? BatchedAt { get; set; }
+    // "Tag igen" -> Fjern (user 2026-11-16: "i should be able to say delete"): off the list. Only the list - the original
+    // photo stays on the NAS (originals are never deleted).
+    public DateTime? DismissedAt { get; set; }
 
     public void Read(int found, DateTime now, string retake = "")
     {

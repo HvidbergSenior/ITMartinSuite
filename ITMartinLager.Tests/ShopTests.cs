@@ -239,6 +239,26 @@ public class StockForSaleTests
         files[after.ItemPhoto].Should().Equal(7);
     }
 
+    // "Kassér de værste" (2026-11-16): below Readings.HopelessBelow, not rare, not priced; all out at once, Fortryd = all back.
+    [Test]
+    public async Task The_hopeless_readings_are_discarded_together_and_come_back()
+    {
+        var bad = await Add("Ukendt (kun kanten synlig)", null, kind: Kinds.Dvd);
+        var unsure = await Add("Anders And & Co.", null, kind: Kinds.AndersAnd);
+        var rare = await Add("Ukendt gammelt blad", null, kind: Kinds.AndersAnd);
+        bad.Confidence = 0.1; unsure.Confidence = 0.3; rare.Confidence = 0.1; rare.Rare = true;
+        await Items.UpdateAsync([bad, unsure, rare], default);
+        var items = new ItemUseCases(Items, new PriceRepository(Factory), Mock.Of<IPhotoStore>());
+
+        (await items.UnsureAsync()).First().Should().BeOneOf(bad.Id, rare.Id);          // worst first
+        var hopeless = await items.HopelessAsync();
+        hopeless.Select(i => i.Id).Should().Equal(bad.Id);
+        var was = await items.RemoveManyAsync(hopeless.Select(i => i.Id));
+        (await items.HopelessAsync()).Should().BeEmpty();
+        foreach (var (id, status) in was) await items.UndoRemoveAsync(id, status);
+        (await items.HopelessAsync()).Select(i => i.Id).Should().Equal(bad.Id);
+    }
+
     // Vurdering's Find en ting (2026-11-16): a number opens that thing, words give the matches one at a time, sold ones never.
     [Test]
     public async Task Vurdering_finds_one_thing_by_number_or_words()

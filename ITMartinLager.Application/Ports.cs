@@ -115,6 +115,8 @@ public interface IIntakeRepository
     Task<(int NotSent, int Sent)> WaitingAsync(CancellationToken ct);
     /// <summary>Photos read since this time that gave nothing (Readings.CannotRead), newest first.</summary>
     Task<List<BoxShot>> UnreadableShotsAsync(DateTime since, int max, CancellationToken ct);
+    /// <summary>Off the "Tag igen" list (the photo itself stays). False = no such photo.</summary>
+    Task<bool> DismissShotAsync(int id, DateTime now, CancellationToken ct);
     Task<List<BoxScan>> WantedScansAsync(int max, CancellationToken ct);
     Task UpdateAsync(IEnumerable<BoxShot> shots, CancellationToken ct);
     Task UpdateAsync(IEnumerable<BoxScan> scans, CancellationToken ct);

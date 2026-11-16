@@ -56,6 +56,10 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
 
     public Task<List<BoxIntake>> BoxesAsync(CancellationToken ct = default) => intake.PerBoxAsync(ct);
 
+    /// <summary>"Fjern" on a Tag igen photo (2026-11-16): off the list; the original stays on the NAS.</summary>
+    public Task<bool> DismissUnreadableAsync(int shotId, CancellationToken ct = default) =>
+        intake.DismissShotAsync(shotId, clock.GetUtcNow().UtcDateTime, ct);
+
     /// <summary>"Læs" - one box, or every box (null). The job does the reading.</summary>
     public Task<int> WantReadAsync(string? boxCode, CancellationToken ct = default) => intake.WantReadAsync(boxCode, ct);
 

@@ -227,7 +227,11 @@ public class IntakeTests
         await intake.ReadWantedAsync();
 
         (await Items.InBoxAsync((await Boxes.GetOrAddAsync("K5030", default)).Id, default)).Should().BeEmpty();
-        (await intake.UnreadableAsync()).Single().Retake.Should().Be("drejet");
+        var shot = (await intake.UnreadableAsync()).Single();
+        shot.Retake.Should().Be("drejet");
+        // "Fjern" (2026-11-16): off the Tag igen list.
+        (await intake.DismissUnreadableAsync(shot.Id)).Should().BeTrue();
+        (await intake.UnreadableAsync()).Should().BeEmpty();
     }
 
     // "for instance agression book says 69 on it" (2026-11-15): the sticker price is read with the photo and kept on the thing.
