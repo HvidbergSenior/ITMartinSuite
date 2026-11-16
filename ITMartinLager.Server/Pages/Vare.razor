@@ -84,17 +84,12 @@ else
         @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
     </section>
 
-    @* Prices live in Vurdering (user 2026-11-15: "pricing should be in pricing"). *@
-    @if (Admin && Pricing.HuntedKinds.Contains(_item.Kind))
-    {
-        <p class="k-small k-muted">Prisen sættes i <a href="@VurderingUrl">Vurdering</a>@(_item.Price is { } kr ? $" – nu {kr:0} kr" : _item.PriceHint is { } h ? $" – forslag {h:0} kr" : "").</p>
-    }
-
-
-    @if (Admin)
+    @* Calm (2026-11-16): prices live in Priser, so no price line here; the auction box only for a thing marked rare - the only
+       ones that go to auction (Priser's "Til auktion (i Lager)" leads here). *@
+    @if (Admin && _item.Rare)
     {
     <section class="k-card" data-fold-closed>
-        <h2 class="k-card-title">Sælg – flytter til Salg</h2>
+        <h2 class="k-card-title">Til auktion</h2>
         <div class="lg-row">
             @if (_item.FeaturedAt is null)
             {
@@ -155,7 +150,7 @@ else
     @if (_item.PhotoId is { } pid)
     {
         <section class="k-card" data-fold-closed>
-            <h2 class="k-card-title">🗂️ Billedet af bunken den blev registreret fra</h2>
+            <h2 class="k-card-title">Billedet af bunken den blev læst fra</h2>
             <img class="lg-photo" src="@Vareinfo.Photo(pid)" alt="Registreringsbillede" loading="lazy" />
         </section>
     }
