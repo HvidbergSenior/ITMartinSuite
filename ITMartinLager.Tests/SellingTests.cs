@@ -23,7 +23,7 @@ public class UsageTests
     {
         var answers = new List<SourceAnswer>
         {
-            new("DBA", false, ListingParse.Summarise([O("Mort", 50), O("Mort", 60)], "u")),
+            new("GulogGratis", false, ListingParse.Summarise([O("Mort", 50), O("Mort", 60)], "u")),
             new("Saxo", true, ListingParse.Summarise([O("Mort", 200)], "u")),
         };
         var used = new Item { Kind = Kinds.Bog, Title = "Mort" };

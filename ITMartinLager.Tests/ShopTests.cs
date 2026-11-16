@@ -135,26 +135,26 @@ public class StockForSaleTests
     {
         Shop.Reference([
             new PriceFind { Source = "eBay", Kr = 5, Url = "https://e/1" },
-            new PriceFind { Source = "DBA", Kr = 60, Url = "https://dba/1" }, new PriceFind { Source = "Nemos", Kr = 40, Url = "https://n/1" },
+            new PriceFind { Source = "GulogGratis", Kr = 60, Url = "https://dba/1" }, new PriceFind { Source = "Nemos", Kr = 40, Url = "https://n/1" },
             new PriceFind { Source = "Faraos", Kr = 20, Url = "https://f/1", IsNew = true },
         ])!.Url.Should().Be("https://n/1");
-        Shop.Reference([new PriceFind { Source = "DBA", Kr = 30, Url = "https://dba/2", Similar = true }])!.Url.Should().Be("https://dba/2");
+        Shop.Reference([new PriceFind { Source = "GulogGratis", Kr = 30, Url = "https://dba/2", Similar = true }])!.Url.Should().Be("https://dba/2");
         Shop.Reference([new PriceFind { Source = "eBay", Kr = 30, Url = "https://e/2" }]).Should().BeNull();
         Shop.Reference([new PriceFind { Source = "GulogGratis", Kr = 1, Url = "https://g/1" }, new PriceFind { Source = "Faraos", Kr = 22, Url = "https://f/2" },
-            new PriceFind { Source = "DBA", Kr = 35, Url = "https://dba/3" }], 30)!.Url.Should().Be("https://dba/3", "never cheaper than our own price");
+            new PriceFind { Source = "Nemos Bibliotek", Kr = 35, Url = "https://dba/3" }], 30)!.Url.Should().Be("https://dba/3", "never cheaper than our own price");
     }
 
     [Test]
     public void Proof_is_the_cheapest_exact_listing_per_site_used_first()
     {
         var proof = Shop.Proof([
-            new PriceFind { Source = "DBA", Kr = 60, Url = "https://dba/1" }, new PriceFind { Source = "DBA", Kr = 40, Url = "https://dba/2" },
+            new PriceFind { Source = "GulogGratis", Kr = 60, Url = "https://dba/1" }, new PriceFind { Source = "GulogGratis", Kr = 40, Url = "https://dba/2" },
             new PriceFind { Source = "Amazon.de", Kr = 30, Url = "https://a/1", IsNew = true },
             new PriceFind { Source = "Nemos", Kr = 10, Url = "https://n/1", Similar = true },
             new PriceFind { Source = "eBay", Kr = 55, Url = "https://e/1" },
         ]);
         // eBay hidden from buyers since 2026-11-04 ("links to too high prices like Ebay should just be hided").
-        proof.Select(p => (p.Source, p.Kr)).Should().Equal(("DBA", 40), ("Amazon.de", 30));
+        proof.Select(p => (p.Source, p.Kr)).Should().Equal(("GulogGratis", 40), ("Amazon.de", 30));
     }
 
     [Test]
@@ -282,7 +282,7 @@ public class StockForSaleTests
         var mort = await Add("Mort", 80);
         await Add("Snuff", 90);
         var sold = await Add("Eric", 70, status: Statuses.Solgt);
-        await new PriceRepository(Factory).ReplaceAsync(mort.Id, [], [new PriceFind { ItemId = mort.Id, Source = "DBA", Kr = 95, Url = "https://dba.dk/1" }], default);
+        await new PriceRepository(Factory).ReplaceAsync(mort.Id, [], [new PriceFind { ItemId = mort.Id, Source = "GulogGratis", Kr = 95, Url = "https://dba.dk/1" }], default);
         var items = new ItemUseCases(Items, new PriceRepository(Factory), Mock.Of<IPhotoStore>());
         await items.FeatureAsync(mort.Id, true);
         await items.FeatureAsync(sold.Id, true);

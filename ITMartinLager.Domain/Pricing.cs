@@ -644,7 +644,10 @@ public static partial class Pricing
     // middle price of 291 kr there.
     // Discogs (2026-10-25, user: Danish + Tradera + one eBay for prices): it tells which record it is and how many
     // collectors want it - its asking prices are shown as links only.
-    public static readonly string[] NotForNormal = ["eBay", "eBay USA", "Discogs"];
+    // DBA (2026-11-16, user: "I dont like dbas prices" -> "Only as a link"): its asking prices were behind 650 of 1,075 hints -
+    // dreamers (a 1000 kr CD that Discogs has at 8-20 kr), bundles, other things of the same name. Still searched and shown as
+    // a link with how many are for sale; the price comes from the other sites or the standard price per kind.
+    public static readonly string[] NotForNormal = ["eBay", "eBay USA", "Discogs", "DBA"];
 
     /// <summary>Never shown anywhere (2026-11-07, user: "i can still see prices from ebay??"): eBay is no longer asked, and
     /// the eBay prices items already have are hidden until the next hunt replaces them.</summary>
