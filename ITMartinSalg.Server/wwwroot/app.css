@@ -29,3 +29,11 @@
 .lg-camera { display: inline-flex; position: relative; margin: .4rem 0; cursor: pointer; }
 .lg-hidden-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .lg-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 2px solid var(--k-text); }
+/* 2026-11-16 "salg should look like the others": Sælg / Ordrer / Bud as a row in the page (like Vurdering's piles), the open one filled. */
+.sa-sub { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.sa-sub .k-btn { background: transparent; }
+.sa-sub .k-btn.active { background: var(--k-accent); border-color: var(--k-accent); color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+/* Price + Solgt stay together on one line ("So/lgt" and "k/r" were squeezed - the .lg-row input rule hit the kr box too). */
+.lg-sell { display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto; white-space: nowrap; }
+.lg-row .lg-sell .k-input.lg-kr { flex: 0 0 6rem; width: 6rem; min-width: 0; }
+.lg-sell .k-btn { white-space: nowrap; }

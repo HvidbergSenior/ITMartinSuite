@@ -4,17 +4,20 @@
 @* Salg = the selling side (2026-10-21 split): the orders and the day offers. The stock itself is in Lager. *@
 <KolibriTitle />   @* tab title fallback - here, not in KolibriHeader, so the page's own <PageTitle> wins *@
 <KolibriHeader Title="@BogshoppenFlow.Title(BogshoppenFlow.Salg)">
-    @* Like ElPriser (2026-10-31 "fix css / template"): NavLink = the open tab is filled, words only (no AI emojis). *@
-    @* Sælg first (user 2026-10-31 "on salg I ONLY need a way to make a sale"); Tilbud and Interesse are off the menu (deals
-       are made at the stand - "only regular prices"), their pages still answer. *@
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/" Match="NavLinkMatch.All">Sælg</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/ordrer">Ordrer</NavLink>
-    <NavLink class="k-btn k-btn-ghost k-btn-sm" href="/bud">Bud</NavLink>
+    @* The same header in all four Bogshoppen apps (2026-11-16, user: "salg should look like the others"): the tab's name, then
+       Lys/mørk + Log ud. Sælg / Ordrer / Bud moved down into the page, as a row like Vurdering's piles. *@
     <button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
     <a class="k-btn k-btn-ghost k-btn-sm" href="/api/logout">Log ud</a>
 </KolibriHeader>
 <KolibriSteps Steps="Flow" Current="BogshoppenFlow.Salg" Label="Bogshoppens apps" />
 <div class="k-main"><div class="k-content">
+    @* Sælg first (user 2026-10-31 "on salg I ONLY need a way to make a sale"); Tilbud and Interesse are off the menu (deals
+       are made at the stand - "only regular prices"), their pages still answer. NavLink = the open one is filled. *@
+    <nav class="sa-sub" aria-label="Salg">
+        <NavLink class="k-btn k-btn-sm" href="/" Match="NavLinkMatch.All">Sælg</NavLink>
+        <NavLink class="k-btn k-btn-sm" href="/ordrer">Ordrer</NavLink>
+        <NavLink class="k-btn k-btn-sm" href="/bud">Bud</NavLink>
+    </nav>
     @Body
 </div></div>
 <KolibriFooter />

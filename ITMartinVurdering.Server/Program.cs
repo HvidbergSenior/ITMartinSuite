@@ -61,7 +61,7 @@ bool IsOwner(HttpContext ctx) => ownerToken is not null && ctx.Request.Cookies.T
 var body = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "side.html"));
 const string LoginBody = """
     <section class="k-card" data-nofold>
-      <h1>Vurdering</h1>
+      <h1 class="k-card-title">Vurdering</h1>
       <p class="k-help">Skriv koden – den samme som til Lager.</p>
       <form method="post" action="/ind" class="vu-login">
         <label class="k-label" for="pin">Kode</label>
@@ -202,7 +202,7 @@ app.MapGet("/del/{token}", (string token, DodsboUseCases d, KolibriAppInfo info,
     ctx.Response.Headers.CacheControl = "no-store";
     ctx.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
     if (d.Shared(token) is not { } s)
-        return Results.Content(SharePage(info, "Linket virker ikke", "<section class=\"k-card\" data-nofold><h1>Linket virker ikke længere</h1><p>Spørg den, der sendte det, om et nyt.</p></section>"), "text/html; charset=utf-8", statusCode: 404);
+        return Results.Content(SharePage(info, "Linket virker ikke", "<section class=\"k-card\" data-nofold><h1 class=\"k-card-title\">Linket virker ikke længere</h1><p>Spørg den, der sendte det, om et nyt.</p></section>"), "text/html; charset=utf-8", statusCode: 404);
     return Results.Content(SharePage(info, s.Name, ShareBody(s, token)), "text/html; charset=utf-8");
 });
 app.MapGet("/del/{token}/foto/{tid}", (string token, string tid, DodsboUseCases d) =>
@@ -215,7 +215,7 @@ static string ShareBody(Sag s, string token)
     var sb = new StringBuilder();
     sb.Append($"""
         <section class="k-card" data-nofold>
-          <h1>{H(s.Name)}</h1>
+          <h1 class="k-card-title">{H(s.Name)}</h1>
           <p>Her er tingene – hvad de er, og historien bag dem. Tryk på et billede for at se det stort.</p>
           {(s.SharePrices && s.Total() is var (lo, hi) && hi > 0 ? $"<p><b>Det, der er værd at sælge, er samlet cirka {H(DodsboRules.Range(lo, hi))}</b> – et skøn, ikke en pris.</p>" : "")}
         </section>
