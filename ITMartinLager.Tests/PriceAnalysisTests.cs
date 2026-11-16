@@ -66,4 +66,21 @@ public class PriceAnalysisTests
         item.SellCopy(15, "", DateTime.UtcNow, "Kontant");
         item.HintAtSale.Should().Be(20);
     }
+
+    // Only proper cut-outs in the shop (2026-11-16, "all the bad pictures I can not have in the shop").
+    [TestCase("photos/items/1.jpg", 400, 600, false, "")]
+    [TestCase("photos/items/1.jpg", 176, 1220, false, "smal stribe")]
+    [TestCase("photos/items/1.jpg", 100, 200, false, "for lille")]
+    [TestCase("", 0, 0, false, "hele bunken")]
+    [TestCase("photos/items/1.jpg", 400, 600, true, "skjult")]
+    public void The_shop_shows_only_proper_cut_outs(string photo, int w, int h, bool hidden, string problem)
+    {
+        var item = new Item { ItemPhoto = photo, PhotoId = 347, PhotoHidden = hidden, PhotoW = w > 0 ? w : null, PhotoH = h > 0 ? h : null, Title = "X" };
+        item.ShopPhotoProblem.Should().Be(problem);
+        Shop.View(item, []).HasPhoto.Should().Be(problem == "");
+    }
+
+    [Test]
+    public void A_photo_not_measured_yet_is_shown() =>
+        new Item { ItemPhoto = "photos/items/1.jpg", Title = "X" }.ShopPhotoProblem.Should().BeEmpty();
 }

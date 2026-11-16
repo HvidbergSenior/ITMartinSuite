@@ -150,6 +150,22 @@ public sealed class Item
     // Our suggested price when it sold (2026-11-16 price analysis, "learn from own sales"): what really sells vs what we said.
     public int? HintAtSale { get; set; }
 
+    // The own photo's size (2026-11-16, user: "all the bad pictures I can not have in the shop"): measured from the file by
+    // PhotoCheckJob (no AI), again whenever the thing changed after the last measure (a new cut-out, a mark painted over).
+    public int? PhotoW { get; set; }
+    public int? PhotoH { get; set; }
+    public DateTime? PhotoMeasuredAt { get; set; }
+
+    /// <summary>Why the shop shows no photo, or "" when it is fine: hidden by a person, only the whole pile photo, a thin strip
+    /// (more than ShopPhotos.MaxRatio), or too small. Not measured yet = fine (the job measures new ones within minutes).</summary>
+    public string ShopPhotoProblem =>
+        PhotoHidden ? "skjult"
+        : ItemPhoto == "" ? (PhotoId is not null ? "hele bunken" : "intet billede")
+        : PhotoW is not { } w || PhotoH is not { } h ? ""
+        : Math.Min(w, h) < ShopPhotos.MinSide ? "for lille"
+        : (double)Math.Max(w, h) / Math.Max(1, Math.Min(w, h)) > ShopPhotos.MaxRatio ? "smal stribe"
+        : "";
+
     public PhotoArea? PileBox => PileArea.Split(';') is { Length: 4 } p
         && p.All(x => double.TryParse(x, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
         ? PhotoArea.From(p.Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToList(), 0.005) : null;

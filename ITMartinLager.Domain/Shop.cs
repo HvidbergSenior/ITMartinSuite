@@ -129,8 +129,8 @@ public static class Shop
     public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null) =>
         new(i.Id, i.Kind, i.Line(), i.Title, i.Interest, i.Condition, i.Year, i.Quantity, i.Usage,
             i.Price is > 0 ? (int)Math.Round(i.Price.Value) : null, i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : Standard(i),
-            i.Confidence, !i.PhotoHidden && (i.ItemPhoto != "" || i.PhotoId is not null), Badge(gold, i), i.Box?.IsTest == true, reference, i.Deal, i.Seller,
-            i.PhotoHidden ? 0 : (i.ItemPhoto != "" || i.PhotoId is not null ? 1 : 0) + (i.ItemPhoto != "" ? i.MorePhotos : 0));
+            i.Confidence, i.ShopPhotoProblem == "", Badge(gold, i), i.Box?.IsTest == true, reference, i.Deal, i.Seller,
+            i.ShopPhotoProblem == "" ? 1 + i.MorePhotos : 0);
 
     public static ShopProof ProofView(PriceFind f) => new(f.Source, f.Kr, f.Original, f.Url, f.IsNew);
 }

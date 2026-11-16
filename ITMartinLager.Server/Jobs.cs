@@ -50,6 +50,26 @@ public sealed class PriceHunterJob(IServiceScopeFactory scopes, IConfiguration c
 
 // Every 2 minutes: fetch results for items that are up for auction, so a sale is in the register long before
 // Live Auktion cleans the auction away.
+// Shop photos (2026-11-16, "all the bad pictures I can not have in the shop"): every 5 minutes the new or changed photos are
+// measured from their file headers - the shop shows only proper cut-outs (Item.ShopPhotoProblem). No AI.
+public sealed class PhotoCheckJob(IServiceScopeFactory scopes, ILogger<PhotoCheckJob> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
+        do
+        {
+            try
+            {
+                using var scope = scopes.CreateScope();
+                var n = await scope.ServiceProvider.GetRequiredService<ItemPhotoUseCases>().MeasureAsync(ct: ct);
+                if (n > 0) log.LogInformation("Photo check: {Count} photos measured", n);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException) { log.LogWarning(ex, "Photo check failed"); }
+        } while (await timer.WaitForNextTickAsync(ct));
+    }
+}
+
 public sealed class AuctionSyncJob(IServiceScopeFactory scopes, ILogger<AuctionSyncJob> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)

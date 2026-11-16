@@ -108,6 +108,7 @@ public static class LagerDbInitializer
             ("PhotoHidden", "INTEGER NOT NULL DEFAULT 0"),
             ("PileArea", "TEXT NOT NULL DEFAULT ''"),
             ("HintAtSale", "INTEGER NULL"),
+            ("PhotoW", "INTEGER NULL"), ("PhotoH", "INTEGER NULL"), ("PhotoMeasuredAt", "TEXT NULL"),
         })
         {
             using var cmd = conn.CreateCommand();

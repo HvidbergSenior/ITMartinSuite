@@ -8,6 +8,21 @@ namespace ITMartinLager.Application;
 /// painted-over price mark), so ItemUseCases.UncoverAsync brings it back.</summary>
 public sealed class ItemPhotoUseCases(IItemRepository items, IPhotoStore photos, IVareinfoGateway? vareinfo = null)
 {
+    /// <summary>Measure the photos that are new or changed (PhotoCheckJob, no AI - only the file headers). Returns how many.
+    /// UpdatedAt is kept, so measuring is not itself a change.</summary>
+    public async Task<int> MeasureAsync(int max = 500, CancellationToken ct = default)
+    {
+        var todo = await items.PhotosToMeasureAsync(max, ct);
+        foreach (var i in todo)
+        {
+            var size = await photos.SizeAsync(i.ItemPhoto, ct);
+            i.PhotoW = size?.W; i.PhotoH = size?.H;
+            i.PhotoMeasuredAt = i.UpdatedAt > DateTime.UtcNow ? i.UpdatedAt : DateTime.UtcNow;
+        }
+        if (todo.Count > 0) await items.UpdateAsync(todo, ct);
+        return todo.Count;
+    }
+
     /// <summary>The pile photo the thing was read from (Vareinfo's reading copy), or null.</summary>
     public async Task<byte[]?> PileAsync(int id, CancellationToken ct = default) =>
         vareinfo is not null && await items.GetAsync(id, ct) is { PhotoId: { } photo } ? await vareinfo.PhotoAsync(photo, null, ct) : null;

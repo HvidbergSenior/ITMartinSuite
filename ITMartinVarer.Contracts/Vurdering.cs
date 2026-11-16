@@ -35,7 +35,9 @@ public sealed record VurderingItem(int Id, string Line, string Kind, string Cond
     // OnPile = the pile photo it was read from still exists, so the cut-out can be made again (Ret udsnittet).
     bool OnPile = false,
     // Where the reader saw it on the pile photo (fractions), or null for older things - Ret udsnittet frames it.
-    PhotoArea? PileArea = null);
+    PhotoArea? PileArea = null,
+    // Why bogshoppen.dk shows no photo for it, in words - "" when the photo is shown (2026-11-16).
+    string ShopPhoto = "");
 
 /// <summary>Kassér (2026-11-16, "so i should be able to say discard"): the status the thing had, for Fortryd.</summary>
 public sealed record VurderingDiscarded(string Was);

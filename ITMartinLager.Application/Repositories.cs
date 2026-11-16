@@ -39,6 +39,8 @@ public interface IItemRepository
     Task<List<int>> UnsureIdsAsync(int max, CancellationToken ct);
     /// <summary>Sold things with the suggestion they had (SalesCalibration).</summary>
     Task<List<(string Kind, int Hint, int Sold)>> SalesWithHintAsync(CancellationToken ct);
+    /// <summary>Things whose own photo was never measured, or changed after the last measure.</summary>
+    Task<List<Item>> PhotosToMeasureAsync(int max, CancellationToken ct);
     /// <summary>How many SearchAsync would find without the max.</summary>
     Task<int> CountAsync(string text, string? kind, string? valuation, CancellationToken ct, ItemScope? scope = null);
     /// <summary>Boxes that got items registered since this moment, with how many - newest first.</summary>

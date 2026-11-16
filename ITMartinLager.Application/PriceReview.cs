@@ -71,7 +71,7 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
             i.BoxId is { } b && boxes.TryGetValue(b, out var code) ? code : "",
             shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew, f.Similar)).ToList(),
             Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr, market, market is { } m ? Pricing.ShopRule(m) : "",
-            i.Rare, i.Note, i.ItemPhoto != "", i.PhotoHidden, i.ItemPhoto != "" && await items.CoveredAsync(i.Id, ct), i.PhotoId is not null, i.PileBox);
+            i.Rare, i.Note, i.ItemPhoto != "", i.PhotoHidden, i.ItemPhoto != "" && await items.CoveredAsync(i.Id, ct), i.PhotoId is not null, i.PileBox, ShopPhotos.Words(i.ShopPhotoProblem));
     }
 
     public const int MaxNote = 1000, MaxMarkAtOnce = 200;

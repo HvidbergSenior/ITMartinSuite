@@ -88,6 +88,13 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         });
     }
 
+    public async Task<(int W, int H)?> SizeAsync(string path, CancellationToken ct)
+    {
+        if (Inside(path) is not { } full || !File.Exists(full)) return null;
+        try { var info = await Image.IdentifyAsync(full, ct); return (info.Width, info.Height); }
+        catch (Exception e) when (e is not OperationCanceledException) { return null; }
+    }
+
     public async Task SaveAsync(string path, byte[] jpeg, CancellationToken ct)
     {
         var full = Inside(path) ?? throw new InvalidOperationException("Ugyldig sti til billedet.");

@@ -53,7 +53,7 @@
                 if (!item) return;
                 $('vu-photo').src = '/api/foto/' + item.id + '?v=' + Date.now();
                 endMark();
-                $('vu-hidden-tag').hidden = !item.photoHidden;
+                $('vu-hidden-tag').hidden = !item.shopPhoto; $('vu-hidden-tag').textContent = item.shopPhoto || '';
                 $('vu-hide-photo').textContent = item.photoHidden ? 'Vis billedet igen' : 'Skjul billedet';
                 $('vu-uncover').hidden = !item.covered;
                 $('vu-recut').hidden = !item.onPile;

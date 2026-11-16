@@ -35,6 +35,7 @@ builder.Services.AddKolibri(k =>
         "Priserne findes på DBA, GulogGratis, Accord (brugte cd'er og plader), Nemos Bibliotek, Faraos og AbeBooks (antikvariater – kun de 2 mest realistiske vises). Nypriser: Bog & idé (bøger) og Fantask (tegneserier) - en brugt bliver aldrig dyrere. Discogs viser hvilken plade det er, og hvor mange samlere der ønsker den, men tæller ikke med i prisen.",
         "DBA og GulogGratis søges kun i den kategori, tingen hører til: blade og bøger under Bøger og Samlerobjekter, film og musik under Musik og film, spil under spil. Så finder »E-Man« ikke længere lastbiler, og »Vox« ikke forstærkere. Et navn med bindestreg (X-Men, E-Man, X-Force) skal stå helt i annoncen, og korte ord skal være hele ord – »man« tæller ikke i »Manhattan«.",
         "Ret de svære: de værste først. Under »De værste« står dem, AI'en næsten ikke kunne læse (under 25 %) – »Kassér alle« fjerner dem på én gang (gemt som Ikke købt, »Fortryd« henter dem tilbage). »Tag igen«: »Fjern« tager et billede af listen; selve billedet bliver på NAS'en.",
+        "Billeder i butikken: bogshoppen.dk viser kun rigtige udsnit – ikke hele bunken, ikke smalle striber (fx kun ryggen af en cd) og ikke små billeder. Tingen er stadig til salg (»billede kommer«). I Priser står der hvorfor, og »Ret udsnittet« eller et nyt billede retter det.",
         "Priser sættes i Priser (Vurdering) – derfor er der ikke længere et Pris-filter i Lager.",
         "Sådan findes prisen (prisanalysen 16. november): annoncer (DBA og GulogGratis) vises kun som links – de er det, sælgerne håber på, ofte 2-5 gange mere end det, ting faktisk sælges for. Cd'er og plader: Discogs. Tegneserier og blade: Faraos og Nemos. Film: standardprisen. Ny og Som ny bøger: 25 % under Bog & idé, med Bog & idés link og pris som bevis. Når en slags har 50 salg, retter forslaget sig efter det, der faktisk blev solgt for.",
         "Find en vare: skriv titel, serie, år – eller varens nr. (står under overskriften på varen, fx 3372). Er det et varenummer, kommer den vare øverst som en knap.",
@@ -57,6 +58,7 @@ builder.Services.AddLagerInfrastructure(builder.Configuration);
 builder.Services.AddLagerApplication();
 builder.Services.AddHostedService<PriceHunterJob>();
 builder.Services.AddHostedService<AuctionSyncJob>();
+builder.Services.AddHostedService<PhotoCheckJob>();
 builder.Services.AddHostedService<GoldListJob>();
 builder.Services.AddHostedService<IntakeJob>();
 builder.Services.AddHostedService<KolofonJob>();
