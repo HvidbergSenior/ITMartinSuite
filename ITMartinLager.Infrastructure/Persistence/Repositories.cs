@@ -205,6 +205,11 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
             standard = System.Linq.Expressions.Expression.Condition(
                 System.Linq.Expressions.Expression.Equal(Prop(nameof(Item.Category)), System.Linq.Expressions.Expression.Constant(category)),
                 System.Linq.Expressions.Expression.Constant((decimal?)kr, typeof(decimal?)), standard);
+        // The kind's own standard wins over the category's (Shop.StandardFor): checked outermost.
+        foreach (var (kind, kr) in Shop.StandardKrByKind)
+            standard = System.Linq.Expressions.Expression.Condition(
+                System.Linq.Expressions.Expression.Equal(Prop(nameof(Item.Kind)), System.Linq.Expressions.Expression.Constant(kind)),
+                System.Linq.Expressions.Expression.Constant((decimal?)kr, typeof(decimal?)), standard);
         var canStandard = System.Linq.Expressions.Expression.AndAlso(System.Linq.Expressions.Expression.AndAlso(
             System.Linq.Expressions.Expression.NotEqual(Prop(nameof(Item.PricesAt)), System.Linq.Expressions.Expression.Constant(null, typeof(DateTime?))),
             System.Linq.Expressions.Expression.GreaterThanOrEqual(Prop(nameof(Item.Confidence)), System.Linq.Expressions.Expression.Constant(Pricing.MinConfidence))),

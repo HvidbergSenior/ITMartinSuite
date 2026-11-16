@@ -15,6 +15,16 @@ public class ShopPriceTests
     public void Ordinary_things_are_25_percent_under_and_interesting_ones_10_percent_under(int market, int shop) =>
         ITMartinLager.Domain.Pricing.ShopPrice(market).Should().Be(shop);
 
+    // "ja til priserne" (user 2026-11-16): a standard per kind first, the category's only for kinds without one.
+    [TestCase(ITMartinVarer.Contracts.Kinds.Cd, ITMartinVarer.Contracts.ProductTypes.Musik, 15)]
+    [TestCase(ITMartinVarer.Contracts.Kinds.Vinyl, ITMartinVarer.Contracts.ProductTypes.Musik, 20)]
+    [TestCase(ITMartinVarer.Contracts.Kinds.Vhs, ITMartinVarer.Contracts.ProductTypes.Film, 10)]
+    [TestCase(ITMartinVarer.Contracts.Kinds.Superhelte, ITMartinVarer.Contracts.ProductTypes.Superhelte, 40)]
+    [TestCase(ITMartinVarer.Contracts.Kinds.Bog, ITMartinVarer.Contracts.ProductTypes.Boeger, 25)]
+    [TestCase(ITMartinVarer.Contracts.Kinds.Rollespil, ITMartinVarer.Contracts.ProductTypes.Rollespil, 50)]
+    public void The_standard_price_is_the_kinds_own_before_the_categorys(string kind, string category, int kr) =>
+        ITMartinLager.Domain.Shop.StandardFor(kind, category).Should().Be(kr);
+
     [Test]
     public void The_rule_is_said_in_words()
     {

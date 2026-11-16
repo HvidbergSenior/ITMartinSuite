@@ -38,9 +38,10 @@ builder.Services.AddKolibri(k =>
         "Kategorier på Søg: Bøger, Tegneserier (album som Lucky Luke), Serieblade (Anders And, Basserne, Jonah Hex, Kong Kylie), Gamle blade (alle blade fra før 1990), Jumbobøger, Superhelte (Project X, Edderkoppen), Film, Musik, Computerspil, Brætspil og kortspil, Magic og Andet. Vælg også Dansk eller Engelsk. Kategori og sprog sættes af sig selv ud fra varens slags, serie og år – sproget læses med billedet, ældre varer får et gæt ud fra titlen.",
         "Ansvarlig: Rico har Tegneserier, Superhelte og Film; Martin resten.",
         "Genrer: musik, film og bøger får af sig selv en genre (fx Dansktop, Punk, Krimi, Børnefilm) fra gratis kilder – MusicBrainz, TMDb og Open Library. Tegneserier, blade og spil får genren ud fra serien og titlen (fx Jonah Hex = Western, Basserne = Humor, Anders And = Disney). Hver ting slås op én gang, uden AI. Kunderne vælger genren i butikken på bogshoppen.dk.",
+        "Standardpris, når der ikke er fundet en pris (sikker læsning, søgt): cd 15 kr, dvd 20, vinyl 20, vhs 10, blu-ray 25, bog 25, tegneserie 25, superhelteblad 40, jumbobog 20 – andre slags får kategoriens pris. Anders And-blade er 3 kr stk. Er AI'en usikker, venter varen på en person.",
         "Guld, sølv og bronze og Ny i kiosken er flyttet til Vurdering. Bøger, Dagens tilbud, Strik, Ting og Magic står under »Værktøjer, der flytter snart« nederst på forsiden, indtil de flytter til Vurdering, Salg og deres egne apps.",
     ];
-    k.Version = "2026.11.15";
+    k.Version = "2026.11.16";
     k.ThemeColor = "#f4f6f5";
 });
 

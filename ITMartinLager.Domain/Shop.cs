@@ -98,10 +98,22 @@ public static class Shop
         [ProductTypes.Andet] = 20,
     };
 
+    /// <summary>The standard price per kind, before the category's (user 2026-11-16 "ja til priserne", from the median of the
+    /// price suggestions in Lager): a CD is not a record, a DVD is not a VHS. A kind not here falls back to StandardKr.</summary>
+    public static readonly IReadOnlyDictionary<string, int> StandardKrByKind = new Dictionary<string, int>
+    {
+        [Kinds.Cd] = 15, [Kinds.Dvd] = 20, [Kinds.Vinyl] = 20, [Kinds.Vhs] = 10, [Kinds.BluRay] = 25,
+        [Kinds.Bog] = 25, [Kinds.Tegneserie] = 25, [Kinds.Superhelte] = 40, [Kinds.Jumbobog] = 20,
+    };
+
+    /// <summary>The standard kr for a kind and category: the kind's own, else the category's, else null.</summary>
+    public static int? StandardFor(string kind, string category) =>
+        StandardKrByKind.TryGetValue(kind, out var k) ? k : StandardKr.TryGetValue(category, out var c) ? c : null;
+
     /// <summary>The standard price for this thing, or null (own price, unsure, not searched yet, an Anders And-blad, or no standard).</summary>
     public static int? Standard(Item i) =>
         i.Price is > 0 || i.PriceHint is > 0 || i.PricesAt is null || i.Confidence < Pricing.MinConfidence || i.Kind == Kinds.AndersAnd ? null
-            : StandardKr.TryGetValue(i.Category, out var kr) ? kr : null;
+            : StandardFor(i.Kind, i.Category);
 
     /// <summary>A thing for sale as Salg gets it.</summary>
     public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null) =>
