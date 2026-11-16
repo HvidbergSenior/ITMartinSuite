@@ -13,6 +13,10 @@ public interface ILagerReview
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetPriceAsync(int itemId, int kr, CancellationToken ct);
     Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct);
+    /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
+    Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct);
+    /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
+    Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct);
     /// <summary>Lager asks every price site again for this thing. Sites that answered; null = Lager did not answer.</summary>
     Task<int?> FindPricesAsync(int itemId, CancellationToken ct);
     /// <summary>Ting/Strik things waiting for a description (2026-11-10). Null = Lager did not answer.</summary>
@@ -48,6 +52,15 @@ public sealed class ReviewUseCases(ILagerReview lager)
         await lager.SetPriceAsync(itemId, kr, ct) is { } error ? new(false, error) : new(true, $"Gemt: {kr} kr.");
 
     public Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct = default) => lager.PhotoAsync(itemId, ct);
+
+    /// <summary>"Sjælden – vurderes manuelt" on or off (2026-11-16). Rare = out of the 3 kr bin, waits here for a person's price.</summary>
+    public async Task<ReviewResult> RareAsync(int itemId, bool rare, CancellationToken ct = default) =>
+        await lager.SetRareAsync(itemId, rare, ct) is { } error ? new(false, error)
+        : new(true, rare ? "Markeret som sjælden." : "Ikke sjælden længere – den går tilbage til sin normale pris.");
+
+    /// <summary>The person's comment on the thing.</summary>
+    public async Task<ReviewResult> NoteAsync(int itemId, string? note, CancellationToken ct = default) =>
+        await lager.SetNoteAsync(itemId, (note ?? "").Trim(), ct) is { } error ? new(false, error) : new(true, "Kommentaren er gemt.");
 
     /// <summary>"Find priser nu" (2026-11-15, moved from Lager's Vare page): the prices are found again, then the thing is shown anew.</summary>
     public async Task<ReviewResult> FindPricesAsync(int itemId, CancellationToken ct = default) =>

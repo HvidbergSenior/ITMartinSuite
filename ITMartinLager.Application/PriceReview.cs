@@ -20,7 +20,9 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
     public async Task<VurderingQueue> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, CancellationToken ct = default, string? usage = null)
     {
         var filter = VurderingFilter.Valid(usage);
-        var assess = (await PileAsync(VurderingPiles.Assess, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage)).ToList();
+        // The ones a person marked rare first (2026-11-16) - they are why the pile exists.
+        var assess = (await PileAsync(VurderingPiles.Assess, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage))
+            .OrderByDescending(i => i.Rare).ToList();
         var none = (await PileAsync(VurderingPiles.NoPrice, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage)).ToList();
         var next = (pile == VurderingPiles.NoPrice ? none : assess).Where(i => !skip.Contains(i.Id)).Take(Math.Clamp(take, 1, 10)).ToList();
         var boxes = new Dictionary<int, string>();
@@ -43,7 +45,43 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         return new VurderingItem(i.Id, i.Line(), i.Kind, i.Condition, Kr(i.PriceHint), Kr(i.SimilarHint),
             i.BoxId is { } b && boxes.TryGetValue(b, out var code) ? code : "",
             shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew)).ToList(),
-            Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr, market, market is { } m ? Pricing.ShopRule(m) : "");
+            Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr, market, market is { } m ? Pricing.ShopRule(m) : "",
+            i.Rare, i.Note);
+    }
+
+    public const int MaxNote = 1000, MaxMarkAtOnce = 200;
+
+    /// <summary>Mark or unmark one thing rare. Rare = out of every deal at once (the 3 kr bin), waits for a person's price.
+    /// Unmarked = back to the deal of its kind; the price hunter keeps it fresh from then on.</summary>
+    public async Task<string?> SetRareAsync(int id, bool rare, CancellationToken ct = default)
+    {
+        if (await items.GetAsync(id, ct) is not { } view) return "Varen findes ikke.";
+        var item = view.Item;
+        if (!Statuses.Ours(item.Status) || item.Status == Statuses.Solgt) return "Varen er solgt eller ikke vores.";
+        item.Rare = rare;
+        item.Deal = Shop.DealFor(item, []);
+        await items.SaveAsync(item, ct);
+        return null;
+    }
+
+    /// <summary>Mark many rare at once. Returns how many were marked (sold and unknown ones are skipped).</summary>
+    public async Task<int> MarkRareAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default)
+    {
+        var marked = 0;
+        foreach (var id in ids.Distinct().Take(MaxMarkAtOnce))
+            if (await SetRareAsync(id, true, ct) is null) marked++;
+        return marked;
+    }
+
+    /// <summary>The person's comment (Item.Note), trimmed, at most MaxNote characters.</summary>
+    public async Task<string?> SetNoteAsync(int id, string? note, CancellationToken ct = default)
+    {
+        var text = (note ?? "").Trim();
+        if (text.Length > MaxNote) return $"Kommentaren må højst være {MaxNote} tegn.";
+        if (await items.GetAsync(id, ct) is not { } view) return "Varen findes ikke.";
+        view.Item.Note = text;
+        await items.SaveAsync(view.Item, ct);
+        return null;
     }
 
     private static int? Kr(decimal? d) => d is > 0 ? (int)Math.Round(d.Value) : null;

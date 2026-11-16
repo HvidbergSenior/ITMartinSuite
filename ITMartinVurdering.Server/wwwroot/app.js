@@ -61,6 +61,11 @@
                 if (item.newKr) { nw.hidden = false; nw.innerHTML = 'Ny hos ' + esc(item.newShop || 'boghandlen') + ': <b>' + item.newKr + ' kr</b> – til sammenligning.'; }
                 else { nw.hidden = true; nw.textContent = ''; }
                 showUsage();
+                // Sjælden - vurderes manuelt (2026-11-16): the mark, the person's comment, and auction in Lager.
+                $('vu-rare-tag').hidden = !item.rare;
+                $('vu-note').value = item.note || '';
+                $('vu-rare-toggle').textContent = item.rare ? 'Ikke sjælden' : 'Marker som sjælden';
+                $('vu-auction').href = 'https://lager.bogshoppen.dk/vare/' + item.id;
                 $('vu-price').value = '';
                 var finds = item.finds || [];
                 $('vu-finds-n').textContent = finds.length;
@@ -94,6 +99,14 @@
             .finally(function () { b.disabled = false; b.textContent = 'Find priser nu'; });
     });
     $('vu-skip').addEventListener('click', function () { if (item) { skip.push(item.id); load(); } });
+    $('vu-note-save').addEventListener('click', function () {
+        if (!item) return;
+        fetch('/api/note', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, note: $('vu-note').value }) })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (x) { if (!x.ok) { msg(x.j.fejl || 'Det virkede ikke.', true); return; } item.note = $('vu-note').value; msg(x.j.besked); })
+            .catch(function () { msg('Det virkede ikke – prøv igen.', true); });
+    });
+    $('vu-rare-toggle').addEventListener('click', function () { if (item) save('/api/sjaelden', { id: item.id, sjaelden: !item.rare }); });
     document.querySelectorAll('.vu-usage [data-usage]').forEach(function (b) {
         b.addEventListener('click', function () {
             if (!item) return;

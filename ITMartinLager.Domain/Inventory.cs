@@ -137,6 +137,10 @@ public sealed class Item
     public decimal? PriceHint { get; set; }      // kr, the suggested SHOP price: 25 % under the other sites below 100 kr, else 10 % (Pricing.ShopPrice)
     public int? StickerKr { get; set; }          // kr written on the thing itself (a price sticker) - read with the photo, 2026-11-15
     public string Deal { get; set; } = "";       // ShopDeal.Name it is sold in (Shop.DealFor, kept fresh by the price hunter job)
+    // "Sjælden – vurderes manuelt" (user 2026-11-16: "i want all interesting to be manually step", "make comments on them and
+    // maybe add to auction"): a person marked it rare - never in a deal (not the 3 kr bin), never an automatic price, waits in
+    // Vurdering's "Skal vurderes" until a person sets the price, sends it to auction, or says "Ikke sjælden". Comment = Note.
+    public bool Rare { get; set; }
     public decimal? SimilarHint { get; set; }    // kr, the middle price of "magen til" when nothing exact is for sale - a pointer, not a price
     public string MagicRef { get; set; } = "";
     public string Barcode { get; set; } = "";    // EAN/ISBN when scanned   // card id in the MTG Scanner, so a new fetch updates instead of duplicating
@@ -188,7 +192,7 @@ public sealed class Item
         return text == "" ? $"{Id}.jpg" : $"{Id} {text}.jpg";
     }
 
-    public string Valuation => Deal != "" ? Valuations.InDeal : PriceHint is > 0 ? Valuations.Valued : PricesAt is null ? Valuations.Waiting : Valuations.NoPrice;
+    public string Valuation => Rare && Price is not > 0 ? Valuations.Assess : Deal != "" ? Valuations.InDeal : PriceHint is > 0 ? Valuations.Valued : PricesAt is null ? Valuations.Waiting : Valuations.NoPrice;
 
     // Same thing in the same condition = one row with a higher quantity, so 7 copies of Anders And 12/1968 stay one
     // line however many photos they turned up in. Whether a second photo IS a second copy, the person decides in Vareinfo.

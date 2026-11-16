@@ -24,7 +24,19 @@ public sealed record VurderingFind(string Source, string Name, int Kr, string Ur
 public sealed record VurderingItem(int Id, string Line, string Kind, string Condition, int? HintKr, int? SimilarKr, string Box,
     List<VurderingFind> Finds, string Usage = "Brugt", int? NewKr = null, string? NewShop = null, int? StickerKr = null,
     // "Fundet på DBA 40 kr -> vores pris (halv pris) 20 kr" (2026-11-15): the market the suggestion came from, and the rule in words.
-    int? MarketKr = null, string HintRule = "");
+    int? MarketKr = null, string HintRule = "",
+    // Marked rare by a person (2026-11-16: "all interesting to be manually step", "make comments on them and maybe add to auction"):
+    // Rare = it waits for a person; Note = the person's comment; Year/Number help to look it up.
+    bool Rare = false, string Note = "");
+
+/// <summary>Mark or unmark a thing as rare ("Sjælden – vurderes manuelt").</summary>
+public sealed record VurderingRare(bool Rare);
+
+/// <summary>Mark many things rare at once (e.g. the Anders And-blade picked from the covers).</summary>
+public sealed record VurderingRareIds(List<int> Ids);
+
+/// <summary>The person's comment on a thing ("julehæfte, kalenderen er med").</summary>
+public sealed record VurderingNote(string Note);
 
 /// <summary>How many wait in each pile, and the next thing(s).</summary>
 public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items);

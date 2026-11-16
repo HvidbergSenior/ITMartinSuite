@@ -101,6 +101,21 @@ public class StoreTests
     }
 
     [Test]
+    public async Task A_thing_marked_rare_is_in_the_Skal_vurderes_pile_until_a_person_prices_it()
+    {
+        var box = await Boxes.AddNextAsync("Loppemarked", default);
+        await Registration.SaveAsync(box.Id, null, [Aa("26", 1956)]);
+        var blad = (await Items.AllListedAsync(default)).Single();
+        blad.PricesAt = DateTime.UtcNow;
+        blad.Deal = ShopDeals.PerPiece.Name;
+        blad.Rare = true;
+        await new ItemUseCases(Items, null!, null!).SaveAsync(blad);
+        (await Items.SearchAsync("", null, Valuations.Assess, 50, default)).Select(i => i.Id).Should().Contain(blad.Id);
+        (await Items.SearchAsync("", null, Valuations.NoPrice, 50, default)).Should().BeEmpty();
+        (await Items.GetAsync(blad.Id, default))!.Deal.Should().Be("", "saved as rare = out of the 3 kr bin at once");
+    }
+
+    [Test]
     public async Task A_searched_thing_without_a_price_gets_the_standard_price_and_an_unsure_one_is_hidden()
     {
         var box = await Boxes.AddNextAsync("Loppemarked", default);

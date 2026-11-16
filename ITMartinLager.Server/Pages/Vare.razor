@@ -58,6 +58,7 @@ else
                 <label>Status <select class="k-input" @bind="_item.Status">@foreach (var s in Statuses.All) { <option value="@s">@s</option> }</select></label>
             }
             <label>Note <input class="k-input" @bind="_item.Note" /></label>
+            <label class="lg-check"><input type="checkbox" @bind="_item.Rare" /> 💎 Sjælden – vurderes manuelt (ud af 3 kr-kassen, pris sættes i Vurdering)</label>
         </div>
         <div class="lg-row">
             @if (Fixing)

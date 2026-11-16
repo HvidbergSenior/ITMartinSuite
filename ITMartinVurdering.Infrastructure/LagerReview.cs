@@ -67,6 +67,24 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
         { log.LogWarning(e, "Lager did not save the price"); return "Lager svarer ikke lige nu – prøv igen om lidt."; }
     }
 
+    public Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/sjaelden", new VurderingRare(rare), "Lager gemte ikke mærket.", ct);
+
+    public Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct) =>
+        PostAsync($"/api/vurdering/varer/{itemId}/note", new VurderingNote(note), "Lager gemte ikke kommentaren.", ct);
+
+    // POST to Lager: null = saved, else Lager's reason (or the fallback, or "Lager svarer ikke").
+    private async Task<string?> PostAsync<T>(string url, T body, string fallback, CancellationToken ct)
+    {
+        try
+        {
+            using var res = await http.PostAsJsonAsync(url, body, ct);
+            return res.IsSuccessStatusCode ? null : (await res.Content.ReadAsStringAsync(ct)).Trim('"') is { Length: > 0 } why ? why : fallback;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        { log.LogWarning(e, "Lager did not answer {Url}", url); return "Lager svarer ikke lige nu – prøv igen om lidt."; }
+    }
+
     public async Task<string?> SetUsageAsync(int itemId, string usage, CancellationToken ct)
     {
         try

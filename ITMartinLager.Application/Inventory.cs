@@ -119,6 +119,8 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
         // A person has looked at it (the item page says "tjek den mod billedet"): no longer unsure - it may go on
         // bogshoppen.dk and into a deal (user 2026-10-31: "low confidence should be manual investigation").
         item.Confidence = Math.Max(item.Confidence, 1);
+        // Marked rare (Item.Rare, 2026-11-16): out of every deal at once - the price hunter would only do it at its next round.
+        if (item.Rare) item.Deal = "";
         item.Touch();
         await items.UpdateAsync([item], ct);
     }

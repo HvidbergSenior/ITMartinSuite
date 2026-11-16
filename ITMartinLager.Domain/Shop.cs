@@ -25,8 +25,13 @@ public static class Shop
     public static string Badge(IReadOnlyList<GoldEntry> gold, Item i)
     {
         var note = Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint);
-        return note is null || Gold.Rank(note) > Gold.LastShownRank ? "" : note.Split(" – ")[0];
+        var badge = note is null || Gold.Rank(note) > Gold.LastShownRank ? "" : note.Split(" – ")[0];
+        // Marked rare by a person (Item.Rare): always a mark, so the shop says "Sjælden – vi vurderer prisen" until it is priced.
+        return badge == "" && i.Rare ? RareBadge : badge;
     }
+
+    /// <summary>The mark of a thing a person marked rare (Item.Rare) and that has no gold-list mark of its own.</summary>
+    public const string RareBadge = "💎 SJÆLDEN";
 
     /// <summary>The proof for the price promise: the cheapest listing per site, exact matches only, cheapest first.</summary>
     public static List<PriceFind> Proof(IEnumerable<PriceFind> finds, int max = 6) =>
@@ -70,6 +75,8 @@ public static class Shop
     /// Deals = ShopDeals.Active unless given (none in use since 2026-10-31).</summary>
     public static string DealFor(Item i, IReadOnlyList<GoldEntry> gold, IReadOnlyList<ShopDeal>? deals = null)
     {
+        // Marked rare by a person (Item.Rare, 2026-11-16): sold one by one, never in a deal.
+        if (i.Rare) return "";
         deals ??= ShopDeals.Active;
         var deal = ShopDeals.For(i.Kind, i.Series, deals);
         // An unsure reading's price says nothing (a Platin mark from it would lift it out of the 3 kr bin).
@@ -110,9 +117,9 @@ public static class Shop
     public static int? StandardFor(string kind, string category) =>
         StandardKrByKind.TryGetValue(kind, out var k) ? k : StandardKr.TryGetValue(category, out var c) ? c : null;
 
-    /// <summary>The standard price for this thing, or null (own price, unsure, not searched yet, an Anders And-blad, or no standard).</summary>
+    /// <summary>The standard price for this thing, or null (own price, rare = a person prices it, unsure, not searched yet, an Anders And-blad, or no standard).</summary>
     public static int? Standard(Item i) =>
-        i.Price is > 0 || i.PriceHint is > 0 || i.PricesAt is null || i.Confidence < Pricing.MinConfidence || i.Kind == Kinds.AndersAnd ? null
+        i.Price is > 0 || i.Rare || i.PriceHint is > 0 || i.PricesAt is null || i.Confidence < Pricing.MinConfidence || i.Kind == Kinds.AndersAnd ? null
             : StandardFor(i.Kind, i.Category);
 
     /// <summary>A thing for sale as Salg gets it.</summary>

@@ -14,6 +14,8 @@ public class DescribeTests
         public Task<string?> SetUsageAsync(int itemId, string usage, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> SetPriceAsync(int itemId, int kr, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct) => Task.FromResult<byte[]?>(itemId == 3 ? null : [1, 2]);
+        public Task<string?> SetRareAsync(int itemId, bool rare, CancellationToken ct) => Task.FromResult<string?>(null);
+        public Task<string?> SetNoteAsync(int itemId, string note, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<int?> FindPricesAsync(int itemId, CancellationToken ct) => Task.FromResult<int?>(null);
         public Task<List<VurderingDescribe>?> WaitingDescriptionsAsync(int take, CancellationToken ct) => Task.FromResult<List<VurderingDescribe>?>(waiting.Take(take).ToList());
         public Task<bool> SetDescriptionAsync(int itemId, VurderingDescription d, CancellationToken ct) { Kept[itemId] = d; return Task.FromResult(true); }

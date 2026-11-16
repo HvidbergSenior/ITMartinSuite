@@ -22,7 +22,8 @@ builder.Services.AddKolibri(k =>
         "Vurdering er trin 2 af Bogshoppens fem trin: Tilføj varer, Find priser, Læg på lager, På bogshoppen.dk og Sælg.",
         "Lager har allerede søgt efter prisen andre steder (DBA, Faraos, Nemos …). Her ser du én ting ad gangen med forslaget og det, der blev fundet – og du bestemmer.",
         "Bøger prissættes kun efter danske sider – og med prisen for en ny hos Bog & idé ved siden af (2026-11-06).",
-        "Skal vurderes = fundet til 50 kr eller mere, men uden din pris. Ingen pris = intet fundet nogen steder.",
+        "Skal vurderes = fundet til 50 kr eller mere, eller markeret som 💎 Sjælden, men uden din pris. Ingen pris = intet fundet nogen steder. De sjældne kommer først.",
+        "Sjælden: skriv en kommentar (fx \"julehæfte – kalenderen er med\"), sæt din pris, tryk Til auktion (åbner varen i Lager) – eller Ikke sjælden, så går den tilbage til sin normale pris.",
         "Dødsbo og loft: tag et billede af hver ting fra et dødsbo, et loft eller en kælder. AI'en fortæller, hvad det er og historien bag det, hvad det cirka er værd brugt i Danmark, og om du skal sælge det, sælge det samlet, give det væk, smide det ud eller spørge en ekspert – og hvor det sælges bedst.",
     ];
     k.HowTo =
@@ -39,7 +40,7 @@ builder.Services.AddKolibri(k =>
         "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
         "Dødsbo og loft: tryk Dødsbo og loft øverst, lav en sag (fx Mariannes ting), tag et billede af hver ting og tryk Vurdér de nye. Op til 8 billeder vurderes ad gangen. Ret prisen selv, hvis du ved bedre – og brug knapperne Søg på DBA og Søg på Lauritz for at se, hvad lignende ting koster.",
     ];
-    k.Version = "2026.11.15";
+    k.Version = "2026.11.16";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -95,7 +96,7 @@ var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dod
 var guldBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guld.html"));
 var kioskBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "kiosk.html"));
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=5"));
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=6"));
 // Guld/sølv/bronze + Ny i kiosken (2026-11-15, moved from Lager): the same login, own pages.
 app.MapGet("/guld", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, guldBody, "/guld.js?v=2"));
 app.MapGet("/kiosk", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, kioskBody, "/kiosk.js?v=1"));
@@ -152,6 +153,8 @@ api.MapPost("/brug", async (BrugForm f, ReviewUseCases review, CancellationToken
 api.MapPost("/ok", async (OkForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OkAsync(f.Id, f.Forslag, ct)));
 api.MapPost("/pris", async (PrisForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.OwnAsync(f.Id, f.Pris, ct)));
 api.MapPost("/find", async (FindForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.FindPricesAsync(f.Id, ct)));
+api.MapPost("/sjaelden", async (SjaeldenForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.RareAsync(f.Id, f.Sjaelden, ct)));
+api.MapPost("/note", async (NoteForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.NoteAsync(f.Id, f.Note, ct)));
 api.MapGet("/guld", async (PriceListUseCases lists, CancellationToken ct) =>
     await lists.GoldAsync(ct) is { } g ? Results.Ok(g) : Results.Problem("Lager svarer ikke lige nu – prøv igen om lidt.", statusCode: 503));
 api.MapGet("/kiosk", async (PriceListUseCases lists, CancellationToken ct) =>
@@ -265,6 +268,8 @@ record OkForm(int Id, int? Forslag);
 record PrisForm(int Id, string? Pris);
 record BrugForm(int Id, string? Brug);
 record FindForm(int Id);
+record SjaeldenForm(int Id, bool Sjaelden);
+record NoteForm(int Id, string? Note);
 record KioskForm(string? Blad, string? Pris, string? Hvorfra);
 record NySag(string? Navn);
 record EgenForm(string? Kr, string? Note);

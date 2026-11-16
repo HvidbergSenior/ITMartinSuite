@@ -39,6 +39,7 @@ builder.Services.AddKolibri(k =>
         "Ansvarlig: Rico har Tegneserier, Superhelte og Film; Martin resten.",
         "Genrer: musik, film og bøger får af sig selv en genre (fx Dansktop, Punk, Krimi, Børnefilm) fra gratis kilder – MusicBrainz, TMDb og Open Library. Tegneserier, blade og spil får genren ud fra serien og titlen (fx Jonah Hex = Western, Basserne = Humor, Anders And = Disney). Hver ting slås op én gang, uden AI. Kunderne vælger genren i butikken på bogshoppen.dk.",
         "Standardpris, når der ikke er fundet en pris (sikker læsning, søgt): cd 15 kr, dvd 20, vinyl 20, vhs 10, blu-ray 25, bog 25, tegneserie 25, superhelteblad 40, jumbobog 20 – andre slags får kategoriens pris. Anders And-blade er 3 kr stk. Er AI'en usikker, venter varen på en person.",
+        "💎 Sjælden – vurderes manuelt: sæt hak på en vare (fx et gammelt Anders And-blad). Den kommer ud af 3 kr-kassen, får ingen automatisk pris og venter i Vurdering under Skal vurderes, hvor du skriver en kommentar, sætter prisen eller sender den på auktion.",
         "Guld, sølv og bronze og Ny i kiosken er flyttet til Vurdering. Bøger, Dagens tilbud, Strik, Ting og Magic står under »Værktøjer, der flytter snart« nederst på forsiden, indtil de flytter til Vurdering, Salg og deres egne apps.",
     ];
     k.Version = "2026.11.16";

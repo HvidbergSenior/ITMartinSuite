@@ -158,11 +158,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
         // Item.Valuation, as SQL.
         q = valuation switch
         {
-            Valuations.Assess => q.Where(i => (i.Price == null || i.Price <= 0) && i.PriceHint >= AssessFrom),
-            Valuations.InDeal => q.Where(i => i.Deal != ""),
-            Valuations.Valued => q.Where(i => i.Deal == "" && i.PriceHint > 0),
-            Valuations.Waiting => q.Where(i => i.Deal == "" && (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt == null),
-            Valuations.NoPrice => q.Where(i => i.Deal == "" && (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt != null),
+            // A thing marked rare (Item.Rare) waits here too until a person prices it - and is in none of the other piles meanwhile.
+            Valuations.Assess => q.Where(i => (i.Price == null || i.Price <= 0) && (i.Rare || i.PriceHint >= AssessFrom)),
+            Valuations.InDeal => q.Where(i => i.Deal != "" && !(i.Rare && (i.Price == null || i.Price <= 0))),
+            Valuations.Valued => q.Where(i => i.Deal == "" && i.PriceHint > 0 && !(i.Rare && (i.Price == null || i.Price <= 0))),
+            Valuations.Waiting => q.Where(i => i.Deal == "" && (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt == null && !(i.Rare && (i.Price == null || i.Price <= 0))),
+            Valuations.NoPrice => q.Where(i => i.Deal == "" && (i.PriceHint == null || i.PriceHint <= 0) && i.PricesAt != null && !(i.Rare && (i.Price == null || i.Price <= 0))),
             _ => q,
         };
         foreach (var word in text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(6))

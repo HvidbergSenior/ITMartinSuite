@@ -25,6 +25,31 @@ public class ShopPriceTests
     public void The_standard_price_is_the_kinds_own_before_the_categorys(string kind, string category, int kr) =>
         ITMartinLager.Domain.Shop.StandardFor(kind, category).Should().Be(kr);
 
+    // "Sjælden – vurderes manuelt" (user 2026-11-16): out of the 3 kr bin, no automatic price, waits for a person.
+    [Test]
+    public void A_blad_marked_rare_leaves_the_3_kr_bin_and_waits_for_a_person()
+    {
+        var blad = new ITMartinLager.Domain.Item { Kind = ITMartinVarer.Contracts.Kinds.AndersAnd, Series = "Anders And & Co.", Number = "26",
+            Year = 1956, Confidence = 0.9, PricesAt = DateTime.UtcNow };
+        ITMartinLager.Domain.Shop.DealFor(blad, []).Should().Be(ITMartinVarer.Contracts.ShopDeals.PerPiece.Name, "an ordinary blad is in the bin");
+        blad.Rare = true;
+        ITMartinLager.Domain.Shop.DealFor(blad, []).Should().Be("", "rare is sold one by one");
+        ITMartinLager.Domain.Shop.Badge([], blad).Should().Be(ITMartinLager.Domain.Shop.RareBadge);
+        blad.Valuation.Should().Be(ITMartinLager.Domain.Valuations.Assess);
+        blad.Price = 350;
+        blad.Valuation.Should().NotBe(ITMartinLager.Domain.Valuations.Assess, "a person has set the price");
+    }
+
+    [Test]
+    public void A_rare_cd_gets_no_standard_price()
+    {
+        var cd = new ITMartinLager.Domain.Item { Kind = ITMartinVarer.Contracts.Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = DateTime.UtcNow,
+            Category = ITMartinVarer.Contracts.ProductTypes.Musik };
+        ITMartinLager.Domain.Shop.Standard(cd).Should().Be(15);
+        cd.Rare = true;
+        ITMartinLager.Domain.Shop.Standard(cd).Should().BeNull("a person prices a rare thing");
+    }
+
     [Test]
     public void The_rule_is_said_in_words()
     {

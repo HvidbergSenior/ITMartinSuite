@@ -23,6 +23,14 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/pris", async (int id, VurderingPrice body, PriceReviewUseCases review) =>
             await review.SetAsync(id, body.Kr) is { } error ? Results.BadRequest(error) : Results.Ok());
 
+        // Sjælden - vurderes manuelt (2026-11-16): mark/unmark one, mark many, and the person's comment.
+        api.MapPost("/varer/{id:int}/sjaelden", async (int id, VurderingRare body, PriceReviewUseCases review) =>
+            await review.SetRareAsync(id, body.Rare) is { } error ? Results.BadRequest(error) : Results.Ok());
+        api.MapPost("/sjaelden", async (VurderingRareIds body, PriceReviewUseCases review) =>
+            Results.Ok(new { marked = await review.MarkRareAsync(body.Ids ?? []) }));
+        api.MapPost("/varer/{id:int}/note", async (int id, VurderingNote body, PriceReviewUseCases review) =>
+            await review.SetNoteAsync(id, body.Note) is { } error ? Results.BadRequest(error) : Results.Ok());
+
         // "Find priser nu" moved here from Lager's Vare page (2026-11-15: "pricing should be in pricing"): asks every site again.
         api.MapPost("/varer/{id:int}/find", async (int id, PriceHuntUseCases hunt, CancellationToken ct) =>
             Results.Ok(new VurderingHunted(await hunt.HuntAsync(id, ct))));
