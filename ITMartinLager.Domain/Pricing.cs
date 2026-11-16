@@ -425,7 +425,9 @@ public static partial class Pricing
 
     // "Projekt X Special 1987 Nr. 2" is another series than Projekt X nr. 2.
     private static readonly HashSet<string> EditionWords = ["special", "ekstra", "extra", "annual", "julehæfte", "julealbum", "sommerhæfte",
-        "giant", "jumbo", "album", "spidsbelastning", "klassikere", "pocket"];
+        "giant", "jumbo", "album", "spidsbelastning", "klassikere", "pocket",
+        // A collected book is not the blad (2026-11-16: X-Force nr. 4 got Bog & idé's "X-force by Benjamin Percy Vol. 4", 670 kr).
+        "vol", "volume", "omnibus", "tpb", "hardcover", "paperback"];
 
     /// <summary>The listing is a special/extra/annual edition and ours is not.</summary>
     public static bool OtherEdition(Item item, string listing)

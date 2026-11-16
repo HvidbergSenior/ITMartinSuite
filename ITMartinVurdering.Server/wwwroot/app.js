@@ -70,12 +70,15 @@
                 $('vu-rare-toggle').textContent = item.rare ? 'Ikke sjælden' : 'Marker som sjælden';
                 $('vu-auction').href = 'https://lager.bogshoppen.dk/vare/' + item.id;
                 $('vu-price').value = '';
-                var finds = item.finds || [];
-                $('vu-finds-n').textContent = finds.length;
-                $('vu-finds-box').hidden = !finds.length;
-                $('vu-finds').innerHTML = finds.map(function (f) {
-                    return '<li><a class="k-btn k-btn-sm" href="' + esc(f.url) + '" target="_blank" rel="noopener nofollow">' + esc(f.source) + (f.isNew ? ' (ny)' : '') + ': ' + f.kr + ' kr</a> <span class="k-help">' + esc(f.name) + '</span></li>';
-                }).join('');
+                // The same thing first; other issues of the series apart, as a pointer only (2026-11-16: "it finds three wrong titles").
+                var all = item.finds || [];
+                var same = all.filter(function (f) { return !f.similar; }), other = all.filter(function (f) { return f.similar; });
+                function li(f) { return '<li><a class="k-btn k-btn-sm" href="' + esc(f.url) + '" target="_blank" rel="noopener nofollow">' + esc(f.source) + (f.isNew ? ' (ny)' : '') + ': ' + f.kr + ' kr</a> <span class="k-help">' + esc(f.name) + '</span></li>'; }
+                $('vu-finds-n').textContent = same.length + (other.length ? ' + ' + other.length + ' andre numre' : '');
+                $('vu-finds-box').hidden = !all.length;
+                $('vu-finds').innerHTML = same.length ? same.map(li).join('') : '<li class="k-help">Netop denne ting er ikke fundet til salg.</li>';
+                $('vu-similar-head').hidden = !other.length;
+                $('vu-similar').innerHTML = other.map(li).join('');
             })
             .catch(function (e) { msg(e.message, true); });
     }

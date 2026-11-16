@@ -62,7 +62,7 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         var market = Pricing.NormalDanishFirst(finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).Select(f => (f.Source, f.Kr)).ToList());
         return new VurderingItem(i.Id, i.Line(), i.Kind, i.Condition, Kr(i.PriceHint), Kr(i.SimilarHint),
             i.BoxId is { } b && boxes.TryGetValue(b, out var code) ? code : "",
-            shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew)).ToList(),
+            shown.Select(f => new VurderingFind(f.Source, f.Name, f.Kr, f.Url, f.IsNew, f.Similar)).ToList(),
             Usages.Normalise(i.Usage), fresh?.Kr, fresh?.Source, i.StickerKr, market, market is { } m ? Pricing.ShopRule(m) : "",
             i.Rare, i.Note);
     }

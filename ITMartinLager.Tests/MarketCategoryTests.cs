@@ -67,6 +67,13 @@ public class MarketCategoryTests
     public void An_album_with_its_creators_is_one_copy(string title, string series, string number, string listing) =>
         Pricing.IsOneCopyOf(new Item { Kind = Kinds.Tegneserie, Title = title, Series = series, Number = number }, new Offer(listing, 30, "")).Should().BeTrue();
 
+    // A collected book is not the blad (2026-11-16: X-Force nr. 4 got "X-force by Benjamin Percy Vol. 4", 670 kr).
+    [TestCase("X-force by Benjamin Percy Vol. 4", false)]
+    [TestCase("X-Force Omnibus 4", false)]
+    [TestCase("X-Force nr. 4 Marvel 1992", true)]
+    public void A_collected_volume_is_not_the_blad(string listing, bool one) =>
+        Pricing.IsOneCopyOf(new Item { Kind = Kinds.Superhelte, Title = "X-Force", Number = "4" }, new Offer(listing, 30, "")).Should().Be(one);
+
     // Every price-hunted kind has a category on both sites - but Merchandise and Andet, which can be anything.
     [Test]
     public void Every_hunted_kind_has_a_category() =>

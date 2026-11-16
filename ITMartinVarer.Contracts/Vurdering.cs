@@ -17,7 +17,8 @@ public static class VurderingPiles
 }
 
 /// <summary>A listing found on another site, shown so the person can judge.</summary>
-public sealed record VurderingFind(string Source, string Name, int Kr, string Url, bool IsNew);
+/// <summary>Similar = another issue/edition of the same series (a pointer, never this thing's price) - shown apart (2026-11-16).</summary>
+public sealed record VurderingFind(string Source, string Name, int Kr, string Url, bool IsNew, bool Similar = false);
 
 /// <summary>One thing to price: what it is, the suggested shop price (HintKr, Pricing.ShopPrice: 25 % under below 100 kr, else 10 %), and what was found.</summary>
 /// Usage = Brugt / Som ny / Ny; NewKr/NewShop = the lowest price at a Danish new shop (Bog & idé, Fantask) to compare with.
