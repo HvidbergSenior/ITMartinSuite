@@ -99,40 +99,6 @@ public sealed class ScanRepository(IDbContextFactory<VareinfoDb> dbf) : IScanRep
     }
 }
 
-public sealed class HelperRepository(IDbContextFactory<VareinfoDb> dbf) : IHelperRepository
-{
-    public async Task<List<Helper>> ActiveAsync(CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Helpers.Where(h => h.Active).OrderBy(h => h.Name).ToListAsync(ct);
-    }
-
-    public async Task<Helper?> ByCodeAsync(string code, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Helpers.FirstOrDefaultAsync(h => h.Code == code, ct);
-    }
-
-    public async Task<Helper?> GetAsync(int id, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        return await db.Helpers.FindAsync([id], ct);
-    }
-
-    public async Task AddAsync(Helper helper, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        db.Helpers.Add(helper);
-        await db.SaveChangesAsync(ct);
-    }
-
-    public async Task UpdateAsync(Helper helper, CancellationToken ct)
-    {
-        await using var db = await dbf.CreateDbContextAsync(ct);
-        db.Helpers.Update(helper);
-        await db.SaveChangesAsync(ct);
-    }
-}
 
 // The scanning sessions (2026-10-29: numbered, named after place and/or purpose).
 public sealed class SessionRepository(IDbContextFactory<VareinfoDb> dbf) : ISessionRepository

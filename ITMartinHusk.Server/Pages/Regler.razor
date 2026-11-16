@@ -1,4 +1,6 @@
 @page "/regler"
+@inject HuskPerson Who
+@inject NavigationManager Nav
 @inject HuskUseCases Husk
 
 <PageTitle>Regler · Husk</PageTitle>
@@ -37,7 +39,11 @@
     private int _jobs;
     private string _saved = "";
 
-    protected override void OnInitialized() => _jobs = Husk.JobsPerWeek;
+    protected override void OnInitialized()
+    {
+        if (!Who.IsMartin) { Nav.NavigateTo("/"); return; }   // Martin's own (a-kasse) - the gate also says no to /regler
+        _jobs = Husk.JobsPerWeek;
+    }
 
     private void Save()
     {

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- "Kolibri Hjemmeside", 2026-11-09: customers' own homepages, like itmartin.dk and bogshoppen.dk, in one small app.
+         Two doors: Martin sets sites up and helps (/), the owner changes texts and pictures on their own domain (/ret). -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinHjemmeside.Server</RootNamespace>
+        <AssemblyName>ITMartinHjemmeside.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinHjemmeside.Application\ITMartinHjemmeside.Application.csproj" />
+        <ProjectReference Include="..\ITMartinHjemmeside.Infrastructure\ITMartinHjemmeside.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ITMartinHjemmeside.Tests" />
+    </ItemGroup>
+
+</Project>

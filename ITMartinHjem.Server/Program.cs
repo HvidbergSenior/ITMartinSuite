@@ -88,6 +88,7 @@ builder.Services.AddHjemInfrastructure($"Data Source={Path.Combine(dataDir, "hje
 builder.Services.AddLagerShopGateway(builder.Configuration["Hjem:SalgApi"] ?? builder.Configuration["Hjem:LagerApi"],
     builder.Configuration["Hjem:SalgShopKey"] ?? builder.Configuration["Hjem:LagerShopKey"]);
 builder.Services.AddSingleton(new PricesShown(builder.Configuration.GetValue<bool>("Hjem:ShowPrices")));   // off = no prices on bogshoppen.dk
+builder.Services.AddSingleton(new HomepagesShown(builder.Configuration.GetValue<bool>("Hjem:ShowHomepages")));   // off = no homepage box yet
 builder.Services.AddSingleton(new ShopVisibility(builder.Configuration.GetValue<bool>("Hjem:ShowFound"), builder.Configuration["Hjem:ShopPreviewCode"] ?? "",
     builder.Configuration.GetValue<bool>("Hjem:MarketForCustomers")));
 builder.Services.AddMarketGateways(builder.Configuration["Hjem:SalgApi"] ?? builder.Configuration["Hjem:LagerApi"], builder.Configuration["Hjem:SalgShopKey"] ?? builder.Configuration["Hjem:LagerShopKey"]);
@@ -342,8 +343,8 @@ app.MapPost("/marked/ud", async (HttpContext ctx) =>
 }).DisableAntiforgery();
 
 // Open to all since 2026-10-29: the products are shown on bogshoppen.dk/produkter (TEST, nothing to buy).
-app.MapGet("/varer/foto/{id:int}", async (int id, ShopUseCases shop) =>
-    await shop.PhotoAsync(id) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+app.MapGet("/varer/foto/{id:int}", async (int id, int? n, ShopUseCases shop) =>
+    await shop.PhotoAsync(id, n ?? 1) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
 
 app.MapGet("/vis-butik", (string? kode, HttpContext ctx, ShopVisibility visibility) =>
 {

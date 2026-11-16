@@ -54,9 +54,11 @@ public sealed class LagerStockLink(HttpClient http, IConfiguration cfg) : IStock
     public async Task<List<StockItemPage>> FeaturedAsync(int max, CancellationToken ct) =>
         await GetAsync<List<StockItemPage>>($"/api/salg/udvalgte?antal={max}", ct) ?? [];
 
-    public async Task<byte[]?> PhotoAsync(int id, CancellationToken ct)
+    public Task<byte[]?> PhotoAsync(int id, CancellationToken ct) => PhotoAsync(id, 1, ct);
+
+    public async Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct)
     {
-        using var res = await SendAsync(HttpMethod.Get, $"/api/salg/varer/{id}/foto", null, ct, notFoundOk: true);
+        using var res = await SendAsync(HttpMethod.Get, $"/api/salg/varer/{id}/foto" + (n > 1 ? $"?n={n}" : ""), null, ct, notFoundOk: true);
         return res.StatusCode == HttpStatusCode.NotFound ? null : await res.Content.ReadAsByteArrayAsync(ct);
     }
 

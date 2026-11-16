@@ -24,27 +24,24 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Bogshoppen Vareinfo er kameraet til Bogshoppens ting: bøger, Anders And-blade, tegneserier, blade, CD'er, plader, film, spil og Magic-kort.",
-        "Der tages billeder i sessioner: Session 1, 2, 3 … med et navn efter stedet og/eller formålet, fx »Session 3 – Boxit, reol 2«. Så kan tingene findes igen bagefter.",
-        "Mange kan tage billeder på samme tid – hver med sin egen telefon, også i samme session.",
-        "Billederne gemmes bare. Bagefter læses de på Bogshoppen Lager, hvor tingene får en pris.",
+        "Du trykker bare på det, du tager billeder af – fx Blade og album. Så er du i dagens session for det, fx »Blade og album – 10. november«. Den laves af sig selv og lukker af sig selv ved midnat. Skriv sessionens navn på kassen, så tingene kan findes igen.",
+        "Mine varer: billederne læses med det samme på Bogshoppen Lager, tingene får en pris og kommer på bogshoppen.dk af sig selv. Tjek: du får at vide, hvad der er interessant og en pris – kun det, du tager med hjem, bliver dit.",
     ];
     k.HowTo =
     [
-        "Log ind med din egen kode (du får den af Martin) – eller med dit nummer, hvis Martin har gjort dig til hjælper i Kunder.",
-        "Tryk Registrér lageret (alle de ting, I har) eller Nye fund (det, der står fx på genbrugspladsen). Så er du i gang – I kan godt være flere på samme tid, hver med jeres egen telefon.",
-        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på knappen og så Tilføj billeder, du allerede har taget – du kan vælge mange på én gang.",
-        "Læg 10-20 ting ud med forsiden op, og tryk 📸 Tag billede. Gentag, til alt har været på et billede. Stregkoder scanner Martin bagefter – det er ikke hjælpernes opgave.",
-        "Har du taget billederne med telefonens eget kamera? Vælg sessionen, tryk Tilføj billeder, du allerede har taget, og vælg dem alle på én gang.",
-        "Færdig? Tryk ✓ Færdig med billeder – så er du tilbage ved sessionerne. Billederne er gemt, så snart de er sendt.",
-        "Vil du bare prøve, mens ingen session er i gang? Tryk Min øvesession. Den er kun din, og tingene i den bliver kun vist – aldrig solgt.",
-        "Martin: under Sessioner skriver du sted og/eller formål og trykker Start session – den får selv det næste nummer. Vælg under Til, hvis en session kun er til én hjælper. Tryk Luk, når I er færdige (billederne gemmes). Kun en session uden billeder kan slettes.",
-        "Fund (ting der er til salg et andet sted, fx på genbrugspladsen): under Sessioner skriver du stedet og trykker Start fund – ikke vores endnu. Tag billeder som altid. Lager læser dem med det samme, og du vælger i Lager under Fund, hvad du tager med.",
+        "Log ind med din kode.",
+        "Vælg Mine varer til Bogshoppen (jeres egne ting) eller Tjek – er det noget værd? (det, der står fx på genbrugspladsen). Tryk så på det, du tager billeder af: Bøger, Blade og album, Film, Musik, Spil, Rollespil, Magic-kort eller Blandet. Så er du i gang.",
+        "Har du taget billederne med telefonens eget kamera, fx i en pause? Tryk på det, de er af, og så Upload billeder fra telefonen – du kan vælge mange på én gang.",
+        "Læg 10-20 ting ud med forsiden op, og tryk Tag billede. Gentag, til alt har været på et billede.",
+        "Du skal aldrig trykke Færdig eller lukke noget: billederne er gemt, så snart de er sendt, og dagens sessioner lukker af sig selv ved midnat. Vil du tage billeder af noget andet, så tryk Tag billeder af noget andet.",
+        "Vil du give en dag et særligt navn, så skriv det under Sessioner og tryk Start session. Den slags sessioner lukker du selv med Luk (billederne gemmes), og du læser dem i Lager med Læs. Strik og Ting lægges ind én ad gangen i Lager.",
+        "Tjek: billederne læses med det samme, og svaret kommer på samme side under billederne – de interessante øverst. Tryk Tog den ved det, du tager med (så kommer det på lager). Fortryd sætter den tilbage. Resten gemmes som Ikke købt af sig selv i nat og bliver aldrig sat til salg.",
         "Mister du forbindelsen, venter billederne på telefonen og sendes, når den er tilbage.",
         "Giver kameraet inde i siden ikke et billede, kommer en stor knap »Brug telefonens kamera« frem – billederne kommer med i samme session.",
         "iPhone: tryk Tillad, når Safari spørger om kameraet. Er feltet sort, så tryk på det én gang – eller brug »Brug telefonens kamera«. Har du Vareinfo som ikon på hjemmeskærmen, spørger den hver gang: trykkede du »Tillad ikke«, så luk Vareinfo helt og åbn den igen.",
         "Er en session blevet slettet, mens billeder ventede på telefonen, bliver de på telefonen: vælg en session, og tryk Send dem til denne session.",
     ];
-    k.Version = "2026.11.05";
+    k.Version = "2026.11.10";
     k.ThemeColor = "#f4f6f5";
 });
 
@@ -143,6 +140,15 @@ app.MapPost("/api/foto", async (HttpContext ctx, CaptureUseCases capture) =>
 // A session photo, for Lager's item page ("billedet af bunken den blev registreret fra").
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
 app.MapGet("/foto/{id:int}", async (int id, CaptureUseCases capture) => Jpeg(await capture.PhotoFileAsync(id, null)));
+
+// A thing's picture on the Tjek page (2026-11-10): Lager's cut-out of it, else the pile photo it was read from.
+app.MapGet("/tjek/{sessionId:int}/foto/{itemId:int}", async (HttpContext ctx, int sessionId, int itemId, int? bunke, CheckUseCases check) =>
+    await check.PhotoAsync(sessionId, itemId, bunke, (Taker)ctx.Items[nameof(Taker)]!) switch
+    {
+        ({ } jpeg, _) => Results.File(jpeg, "image/jpeg"),
+        (_, { } file) => Results.File(file, "image/jpeg"),
+        _ => Results.NotFound(),
+    });
 
 // Lager's side (CaptureHeaders.Key): what is new, what it has taken over, and a photo or close-up when it reads it.
 app.MapGet("/api/lager/nye", async (int? antal, CaptureUseCases capture) => await capture.NewForLagerAsync(Math.Clamp(antal ?? 100, 1, 500)));

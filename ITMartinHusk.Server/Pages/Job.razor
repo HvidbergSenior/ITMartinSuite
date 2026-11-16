@@ -1,4 +1,6 @@
 @page "/job"
+@inject HuskPerson Who
+@inject NavigationManager Nav
 @inject JobUseCases Jobs
 
 <PageTitle>Job · Husk</PageTitle>
@@ -87,7 +89,11 @@
     private string _title = "", _employer = "", _place = "", _url = "", _error = "";
     private bool _advertised = true, _partTime;
 
-    protected override void OnInitialized() => Load();
+    protected override void OnInitialized()
+    {
+        if (!Who.IsMartin) { Nav.NavigateTo("/"); return; }   // Martin's own (a-kasse) - the gate also says no to /job
+        Load();
+    }
 
     private void Load()
     {

@@ -29,7 +29,7 @@ builder.Services.AddKolibri(k =>
         "Se øverst, om noget venter på dig. Tryk på knappen ved det, så kommer du direkte til siden.",
         "Under Bogshoppen, ITMartin og Drift er knapperne til alle admin-siderne. Hver side beder stadig om sin egen kode første gang.",
         "Svarer en app ikke, står der det – den er måske stoppet i Kontrol.",
-        "Læg siden på telefonen: iPhone – Safari, Del, Føj til hjemmeskærm. Android – Chrome, de tre prikker, Føj til startskærm.",
+        "Læg siden på telefonen: iPhone – Safari, Del (eller menuen ⋯ / ☰ → Del), Føj til hjemmeskærm. Android – Chrome, de tre prikker (eller tre streger), Føj til startskærm.",
     ];
     k.Version = "2026.10.26";
     k.ThemeColor = "#f4f6f5";

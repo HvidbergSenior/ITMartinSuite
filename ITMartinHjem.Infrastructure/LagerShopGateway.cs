@@ -31,9 +31,11 @@ public sealed class LagerShopGateway(HttpClient http) : IShopGateway
         return (b?.Items ?? []).Select(x => (x.Item, x.Proof)).ToList();
     }
 
-    public async Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default)
+    public Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default) => PhotoAsync(id, 1, ct);
+
+    public async Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct = default)
     {
-        using var res = await http.GetAsync($"/api/butik/varer/{id}/foto", ct);
+        using var res = await http.GetAsync($"/api/butik/varer/{id}/foto" + (n > 1 ? $"?n={n}" : ""), ct);
         return res.IsSuccessStatusCode ? await res.Content.ReadAsByteArrayAsync(ct) : null;
     }
 

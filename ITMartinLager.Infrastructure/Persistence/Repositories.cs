@@ -88,6 +88,12 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Fund, true), ct);
     }
 
+    public async Task SetKindAsync(int id, string kind, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Kind, kind), ct);
+    }
+
     public async Task<List<Box>> FundBoxesAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
@@ -216,6 +222,16 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     private static readonly System.Linq.Expressions.Expression<Func<Item, bool>> NoKr =
         System.Linq.Expressions.Expression.Lambda<Func<Item, bool>>(System.Linq.Expressions.Expression.Not(HasKr.Body), HasKr.Parameters);
 
+    // Strikkeshoppen / Tingshoppen (2026-11-10, "no prices yet"): a thing sold for someone else is shown with the single things
+    // even before it has a price - so not in the "no price" pile as well (it would show twice).
+    private static readonly System.Linq.Expressions.Expression ForSellerBody = System.Linq.Expressions.Expression.OrElse(
+        System.Linq.Expressions.Expression.Equal(System.Linq.Expressions.Expression.Property(HasKr.Parameters[0], nameof(Item.Kind)), System.Linq.Expressions.Expression.Constant(Kinds.Strik)),
+        System.Linq.Expressions.Expression.Equal(System.Linq.Expressions.Expression.Property(HasKr.Parameters[0], nameof(Item.Kind)), System.Linq.Expressions.Expression.Constant(Kinds.Ting)));
+    private static readonly System.Linq.Expressions.Expression<Func<Item, bool>> SingleShown = System.Linq.Expressions.Expression.Lambda<Func<Item, bool>>(
+        System.Linq.Expressions.Expression.OrElse(HasKr.Body, ForSellerBody), HasKr.Parameters);
+    private static readonly System.Linq.Expressions.Expression<Func<Item, bool>> NoPriceShown = System.Linq.Expressions.Expression.Lambda<Func<Item, bool>>(
+        System.Linq.Expressions.Expression.AndAlso(NoKr.Body, System.Linq.Expressions.Expression.Not(ForSellerBody)), HasKr.Parameters);
+
     // A price band: shop price (no deal) from kr up to under below.
     private static IQueryable<Item> Priced(IQueryable<Item> q, decimal from, decimal? below)
     {
@@ -245,8 +261,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     private static IQueryable<Item> Listed(LagerDb db, string? band) => band switch
     {
         null => Listed(db),
-        ShopDeals.Single => Sure(db).Where(i => i.Deal == "").Where(HasKr),
-        ShopDeals.NoPrice => Sure(db).Where(i => i.Deal == "").Where(NoKr),
+        ShopDeals.Single => Sure(db).Where(i => i.Deal == "").Where(SingleShown),
+        ShopDeals.NoPrice => Sure(db).Where(i => i.Deal == "").Where(NoPriceShown),
         ShopDeals.Unsure => OnPage(db).Where(i => i.Confidence < Pricing.MinConfidence && i.Deal == ""),
         _ when ShopDeals.PriceBand(band) is { } p => Priced(Sure(db), p.From, p.Below),
         _ => Listed(db).Where(i => i.Deal == band),
@@ -394,6 +410,12 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     {
         await using var db = await dbf.CreateDbContextAsync(ct);
         return await db.Items.Where(i => i.Status != Statuses.Fund && i.Status != Statuses.IkkeKoebt).SumAsync(i => (int?)i.Quantity, ct) ?? 0;
+    }
+
+    public async Task<List<Item>> OfKindAsync(string kind, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Items.Where(i => i.Kind == kind).OrderByDescending(i => i.Id).ToListAsync(ct);
     }
 
     public async Task AddAsync(IEnumerable<Item> items, CancellationToken ct)

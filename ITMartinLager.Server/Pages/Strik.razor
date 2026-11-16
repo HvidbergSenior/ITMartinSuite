@@ -1,0 +1,138 @@
+@page "/strik"
+@page "/ting"
+@inject ItemUseCases Items
+@inject NavigationManager Nav
+
+<PageTitle>@W.Name – Bogshoppen Lager</PageTitle>
+
+@* Strikkeshoppen (user 2026-11-10): a maker with a lot of hand-knitting - her things, sold by Martin for a share. A person puts
+   each thing in here: a picture, what it is, the price and who knitted it. No AI, no price hunt. It is on bogshoppen.dk/strik at once. *@
+<section class="k-card">
+    <h1 class="k-card-title">@W.Icon @W.Name – læg en ting ind</h1>
+    <p><b>Sådan gør du:</b> tag et billede, skriv hvad det er, vælg slags og hvem @W.WhoVerb, og tryk Læg i @W.Shop. Prisen kan vente.
+        Så står den på bogshoppen.dk/@W.Slug med det samme – med "@W.Label" og navnet.</p>
+
+    <label class="k-btn k-btn-secondary lg-camera">
+        @(_photos.Count == 0 ? "📷 Tag billeder" : "📷 Tag et billede mere")
+        <InputFile OnChange="PickPhotos" accept="image/*" multiple class="lg-hidden-file" />
+    </label>
+    @if (_photos.Count > 0)
+    {
+        <p class="k-small">@_photos.Count @(_photos.Count == 1 ? "billede" : "billeder") klar – det første bliver det store.
+            <button type="button" class="k-btn k-btn-sm k-btn-ghost" @onclick="() => _photos.Clear()">Tag dem væk</button></p>
+    }
+
+    <label class="k-label" for="st-title">Hvad er det?</label>
+    <input class="k-input" id="st-title" @bind="_title" maxlength="200" placeholder="@W.TitleHint" />
+
+    <label class="k-label" for="st-genre">Slags</label>
+    <select class="k-input" id="st-genre" @bind="_genre">
+        <option value="">Vælg …</option>
+        @foreach (var g in W.Genres) { <option value="@g">@g</option> }
+    </select>
+
+    <label class="k-label" for="st-price">Pris i kr. (frivilligt – kan sættes senere)</label>
+    <input class="k-input" id="st-price" type="number" min="1" step="1" inputmode="numeric" @bind="_price" />
+
+    <label class="k-label" for="st-seller">@W.Label</label>
+    <input class="k-input" id="st-seller" @bind="_seller" maxlength="80" placeholder="Fornavn" />
+
+    <label class="k-label" for="st-note">Mere om den (frivilligt)</label>
+    <input class="k-input" id="st-note" @bind="_note" maxlength="300" placeholder="@W.NoteHint" />
+
+    @if (_err is not null) { <p role="alert"><b>@_err</b></p> }
+    @if (_msg is not null) { <p>@_msg</p> }
+    <button class="k-btn k-btn-primary k-mt" disabled="@_busy" @onclick="Save">@(_busy ? "⏳ Gemmer …" : "Læg i " + W.Shop)</button>
+</section>
+
+<section class="k-card">
+    <h2 class="k-card-title">Alt i @W.Shop (@_list.Count)</h2>
+    @if (_list.Count == 0) { <p>Der er ikke lagt noget ind endnu.</p> }
+    @foreach (var g in _list.GroupBy(i => i.Seller).OrderBy(g => g.Key))
+    {
+        <p><b>@W.Label @g.Key</b> – @g.Count(i => i.Status != Statuses.Solgt) til salg, @g.Count(i => i.Status == Statuses.Solgt) solgt
+            (@g.Where(i => i.Status == Statuses.Solgt).Sum(i => i.SoldPrice ?? i.Price ?? 0).ToString("N0") kr.)</p>
+        <ul>
+            @foreach (var i in g)
+            {
+                <li><a href="/vare/@i.Id">@i.Title</a> · @i.Genre · @(i.Price is > 0 ? i.Price.Value.ToString("N0") + " kr." : "ingen pris endnu") · @i.Status
+                    · @(i.ItemPhoto == "" ? 0 : i.MorePhotos + 1) billede@(i.ItemPhoto != "" && i.MorePhotos == 0 ? "" : "r")
+                    <label class="k-btn k-btn-sm k-btn-ghost lg-camera">+ billede
+                        <InputFile OnChange="e => AddMore(i.Id, e)" accept="image/*" multiple class="lg-hidden-file" /></label></li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private string _title = "", _genre = "", _seller = "", _note = "";
+    private decimal? _price;
+    private readonly List<byte[]> _photos = [];
+    private bool _busy;
+    private string? _err, _msg;
+    private List<Item> _list = [];
+
+    // Strikkeshoppen and Tingshoppen (2026-11-10): one page, the words follow the address.
+    private sealed record Words(string Kind, string Name, string Shop, string Slug, string Icon, string Label, string WhoVerb,
+        string TitleHint, string NoteHint, string[] Genres);
+    private static readonly Words StrikWords = new(Kinds.Strik, "Strik", "Strikkeshoppen", "strik", "🧶", "Strikket af", "der har strikket det",
+        "fx Blå sweater med snoninger, str. M", "fx 100 % uld, kan vaskes på uldprogram", Genres.Strik);
+    private static readonly Words TingWords = new(Kinds.Ting, "Ting", "Tingshoppen", "ting", "🏺", "Sælges for", "tingen er fra",
+        "fx Rubinglas-vase, böhmisk, slebet", "fx historien fra Vurdering, stempel i bunden, lille skår", Genres.Ting);
+    private Words W => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("ting", StringComparison.OrdinalIgnoreCase) ? TingWords : StrikWords;
+
+    protected override async Task OnInitializedAsync() => _list = await Items.ForSellerAsync(W.Kind);
+
+    // More than one picture (user 2026-11-10): pick several at once, or one at a time - the first is the big one.
+    private async Task PickPhotos(InputFileChangeEventArgs e)
+    {
+        _err = null;
+        try
+        {
+            foreach (var f in e.GetMultipleFiles(Item.MaxMorePhotos + 1 - _photos.Count))
+            {
+                using var ms = new MemoryStream();
+                await using (var s = f.OpenReadStream(30 * 1024 * 1024)) await s.CopyToAsync(ms);
+                _photos.Add(ms.ToArray());
+            }
+        }
+        catch (Exception ex) { _err = ex.Message; }
+    }
+
+    private async Task AddMore(int id, InputFileChangeEventArgs e)
+    {
+        _err = null; _msg = null;
+        try
+        {
+            var n = 0;
+            foreach (var f in e.GetMultipleFiles(Item.MaxMorePhotos + 1))
+            {
+                using var ms = new MemoryStream();
+                await using (var s = f.OpenReadStream(30 * 1024 * 1024)) await s.CopyToAsync(ms);
+                ms.Position = 0;
+                await Items.AddPhotoAsync(id, ms);
+                n++;
+            }
+            _msg = n == 1 ? "Billedet er lagt på." : $"{n} billeder er lagt på.";
+            _list = await Items.ForSellerAsync(W.Kind);
+        }
+        catch (LagerException ex) { _err = ex.Message; }
+        catch (InvalidOperationException) { _err = $"Højst {Item.MaxMorePhotos + 1} billeder ad gangen."; }
+    }
+
+    private async Task Save()
+    {
+        _busy = true; _err = null; _msg = null;
+        try
+        {
+            var streams = _photos.Select(b => (Stream)new MemoryStream(b)).ToList();
+            var item = await Items.AddForSellerWithPhotosAsync(W.Kind, _title, _genre, _price, _seller, _note, streams);
+            foreach (var st in streams) st.Dispose();
+            _msg = $"\"{item.Title}\" ligger nu i {W.Shop}" + (_photos.Count > 1 ? $" med {_photos.Count} billeder." : ".");
+            _title = ""; _note = ""; _price = null; _photos.Clear();   // the maker and kind stay - the next thing is often hers too
+            _list = await Items.ForSellerAsync(W.Kind);
+        }
+        catch (LagerException ex) { _err = ex.Message; }
+        finally { _busy = false; }
+    }
+}

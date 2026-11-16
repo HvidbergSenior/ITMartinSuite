@@ -1,0 +1,78 @@
+/* Kolibri "rolig" - the calm Snak look for the Bogshoppen apps (Vareinfo, Lager, Vurdering, Salg).
+   User 2026-11-10: "look at css and spacing and simpleness on the four apps... It should be simple for me" + "make it look pretty...
+   like the snak hold36 wise" + "I want it to reflect that it is the same apps... I need to get ITMartin feel on all".
+   Loaded AFTER kolibri.css only by those four apps - the other apps keep the 2px-frame buttons (2026-10-29).
+   Snak's rules: light page, white cards with a soft shadow and no hard frame, round pill tabs, the chosen one filled dark orange
+   with white text, small capital headings, air between things. */
+
+:root {
+    --kr-shadow: 0 1px 2px rgba(23, 33, 29, .06), 0 6px 18px rgba(23, 33, 29, .06);
+    --kr-radius: 18px;
+}
+
+body { background: var(--k-bg); }
+.k-main { padding-top: 6px; }
+
+/* Cards: white, soft shadow, no frame, more air */
+.k-card {
+    border: 0; border-radius: var(--kr-radius); box-shadow: var(--kr-shadow);
+    padding: 20px 20px 18px; margin-bottom: 16px;
+}
+.k-card-title { font-size: 1.3rem; letter-spacing: -.01em; margin-bottom: 10px; }
+.k-card h2.k-card-title { font-size: 1.15rem; }
+
+/* Blazor puts focus on the page's h1 after each navigation - no orange frame around the first heading. */
+h1:focus, h1:focus-visible, h1.k-fold-head:focus-visible, .k-fold-head:focus:not(:focus-visible) { outline: none; }
+
+/* Buttons: white with a thin line; the main one (and a chosen one) filled dark orange with white text, like Snak */
+.k-btn {
+    border: 1px solid var(--k-border-3); background: var(--k-card); color: var(--k-text);
+    border-radius: 14px; font-weight: 600; box-shadow: 0 1px 2px rgba(23, 33, 29, .05);
+}
+.k-btn:hover { background: var(--k-card); border-color: var(--k-accent); }
+.k-btn-primary, .k-btn[aria-pressed="true"] {
+    background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff;
+}
+.k-btn-primary:hover, .k-btn[aria-pressed="true"]:hover { background: var(--k-accent); border-color: var(--k-accent); color: #fff; }
+.k-btn-ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--k-accent-dark); }
+.k-btn-ghost:hover { background: var(--k-accent-soft); border-color: transparent; }
+.k-btn-sm { border-radius: 999px; min-height: 38px; padding: 6px 14px; }
+.k-btn-danger { background: var(--k-danger); border-color: var(--k-danger); color: #fff; }
+
+/* Inputs: the same soft line and round corners */
+.k-input, .k-select, .k-textarea { border: 1px solid var(--k-border-3); border-radius: 14px; box-shadow: none; }
+.k-input:focus, .k-select:focus, .k-textarea:focus { border-color: var(--k-accent); outline: 2px solid var(--k-accent-soft); }
+
+/* The apps' row = Snak's tabs: one per app, the one you are in filled. No numbers, no "Næste". */
+/* Same left edge as the logo and the cards (the screenshot 2026-11-10: the tabs started further left). */
+.k-steps { max-width: calc(var(--k-content-max) + 32px); margin: 14px auto 0; padding: 0 16px; box-sizing: border-box; }
+.k-steps ol { gap: 6px; }
+.k-steps li a, .k-steps li span {
+    min-height: 40px; padding: 6px 16px; border: 1px solid var(--k-border); background: var(--k-card);
+    color: var(--k-text); font-weight: 600; font-size: .95rem;
+}
+.k-steps li a:hover { border-color: var(--k-accent); }
+.k-steps li.is-here span { background: var(--k-accent-dark); border-color: var(--k-accent-dark); color: #fff; text-decoration: none; }
+.k-steps li b, .k-steps-next { display: none; }
+
+/* Small capital headings over a group, like Snak's "UGE 46" */
+.kr-label { margin: 18px 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--k-muted); }
+
+/* Warnings and OK lines: soft, not a hard bar */
+.lg-warn, .lg-ok { border-left: 4px solid var(--k-accent); background: var(--k-accent-soft); border-radius: 10px; padding: 8px 12px; }
+
+/* "Flere valg": the extra filters fold away under one quiet line */
+details.kr-more { margin-top: 12px; }
+details.kr-more > summary { cursor: pointer; color: var(--k-accent-dark); font-weight: 600; padding: 6px 0; list-style: none; }
+details.kr-more > summary::-webkit-details-marker { display: none; }
+details.kr-more > summary::after { content: " ▾"; }
+details.kr-more[open] > summary::after { content: " ▴"; }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --kr-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .25); }
+}
+:root[data-theme="dark"] { --kr-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .25); }
+
+/* The menu item you are on: soft, no hard frame (Salg's Sælg/Ordrer/Bud) */
+.k-header-actions a.k-btn.active { background: var(--k-accent-soft); border-color: transparent; color: var(--k-accent-dark); box-shadow: none; }
+.k-header-actions .k-btn { box-shadow: none; }

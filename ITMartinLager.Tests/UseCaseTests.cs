@@ -98,6 +98,45 @@ public class UseCaseTests
     }
 
     [Test]
+    public async Task A_knitted_thing_goes_into_Strikkeshoppen_with_the_makers_name_and_is_never_price_hunted()
+    {
+        var store = new Mock<IPhotoStore>();
+        store.Setup(s => s.ShrinkAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>())).ReturnsAsync([1]);
+        var uses = new ItemUseCases(Items, Prices, store.Object);
+        await uses.Invoking(u => u.AddHandmadeAsync("Sweater", "Sweatre", 300, "", null, null)).Should().ThrowAsync<LagerException>();   // whose?
+        await uses.Invoking(u => u.AddHandmadeAsync("Sweater", "Bukser", 300, "Inge", null, null)).Should().ThrowAsync<LagerException>(); // not a kind of strik
+
+        var item = await uses.AddHandmadeAsync(" Blå sweater med snoninger ", "sweatre", 349.6m, "Inge", "100 % uld", new MemoryStream([1]));
+        var saved = (await Items.GetAsync(item.Id, default))!;
+        (saved.Kind, saved.Category, saved.Genre, saved.Seller, saved.Price, saved.Usage).Should()
+            .Be((Kinds.Strik, ProductTypes.Strik, "Sweatre", "Inge", 350m, Usages.New));
+        saved.ItemPhoto.Should().StartWith("photos");
+        Shop.View(saved, []).Seller.Should().Be("Inge");
+        ShopFamilies.For(ProductTypes.Strik)!.Slug.Should().Be("strik");
+        (await uses.HandmadeAsync()).Should().ContainSingle(i => i.Id == item.Id);
+        (await uses.AddHandmadeAsync("Hue", "Huer", null, "Inge", null, null)).Price.Should().BeNull();   // "no prices yet"
+        Pricing.HuntedKinds.Should().NotContain(Kinds.Strik);
+
+        // Tingshoppen: the same for an old thing - used, its own kinds, its own shop.
+        var vase = await uses.AddForSellerAsync(Kinds.Ting, "Rubinglas-vase", "glas", null, "Marianne", null, null);
+        (vase.Category, vase.Genre, vase.Usage, vase.Seller).Should().Be((ProductTypes.Ting, "Glas", Usages.Used, "Marianne"));
+        await uses.Invoking(u => u.AddForSellerAsync(Kinds.Ting, "Vase", "Sweatre", null, "Marianne", null, null)).Should().ThrowAsync<LagerException>();
+        await uses.Invoking(u => u.AddForSellerAsync(Kinds.Bog, "Bog", "Krimi", null, "Marianne", null, null)).Should().ThrowAsync<LagerException>();
+        ShopFamilies.For(ProductTypes.Ting)!.Slug.Should().Be("ting");
+        Pricing.HuntedKinds.Should().NotContain(Kinds.Ting);
+
+        // More than one picture: the first is the main one, the rest are -2, -3 ...; the shop gets how many there are.
+        store.Setup(s => s.FullPath(It.IsAny<string>())).Returns((string x) => "/data/" + x);
+        var sweater = await uses.AddForSellerWithPhotosAsync(Kinds.Strik, "Stribet sweater", "Sweatre", null, "StrikkeMarianne", null,
+            [new MemoryStream([1]), new MemoryStream([2]), new MemoryStream([3])]);
+        (sweater.ItemPhoto, sweater.MorePhotos).Should().Be((Path.Combine("photos", "items", sweater.Id + ".jpg"), 2));
+        Shop.View(sweater, []).Photos.Should().Be(3);
+        (await uses.PhotoFileAsync(sweater.Id, 3)).Should().EndWith(sweater.Id + "-3.jpg");
+        (await uses.PhotoFileAsync(sweater.Id, 4)).Should().BeNull();
+        store.Verify(s => s.SaveAsync(Path.Combine("photos", "items", sweater.Id + "-2.jpg"), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
     public async Task A_book_found_dear_or_with_a_first_edition_cover_goes_on_the_kolofon_list()
     {
         var dear = await Book();

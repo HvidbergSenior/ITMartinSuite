@@ -103,67 +103,24 @@ public sealed class CaptureUseCases(IPhotoRepository photoRows, IScanRepository 
         await sessionRows.GetAsync(sessionId, ct) is { } s && s.IsFor(me) ? s : throw new SessionGoneException();
 }
 
-/// <summary>The helpers and their codes (Martin's Hjælpere page), and signing in with a code.</summary>
-/// <summary>Kunder (user 2026-10-24): is this kundenummer a helper Martin has ticked? Name = who it is; null = no.</summary>
+/// <summary>Kunder (2026-10-26): is this kundenummer an admin (Kunder's Admin tick)? Name = who it is; null = no.</summary>
 public interface IHelperNumbers
 {
-    Task<string?> HelperNameAsync(string kundenummer, CancellationToken ct = default);
-
-    /// <summary>Kunder's Admin tick (2026-10-26): the kundenummer opens the app as admin. Name = who it is; null = no.</summary>
-    Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default) => Task.FromResult<string?>(null);
-
-    /// <summary>Kunder's ticked helpers (kundenummer, name) - for the helper choice per session. Empty when unknown.</summary>
-    Task<List<(string Kundenummer, string Name)>> AllAsync(CancellationToken ct = default) => Task.FromResult(new List<(string, string)>());
+    Task<string?> AdminNameAsync(string kundenummer, CancellationToken ct = default);
 }
 
-public sealed class HelperUseCases(IHelperRepository helpers, VareinfoOptions options, IHelperNumbers? numbers = null)
+/// <summary>Signing in - only Martin (user 2026-11-10: "i also think the hjælpere feature should be deleted" -> only Martin): the main PIN, or a kundenummer with Kunder's Admin tick.</summary>
+public sealed class HelperUseCases(VareinfoOptions options, IHelperNumbers? numbers = null)
 {
     public string LagerBase => options.LagerPublicUrl.TrimEnd('/');
 
-    /// <summary>The main PIN = Martin (Id 0); otherwise a helper's own code. Null = no one.</summary>
+    /// <summary>The main PIN or an admin's kundenummer = Martin (Id 0). Null = no one.</summary>
     public async Task<Taker?> SignInAsync(string? code, CancellationToken ct = default)
     {
         code = (code ?? "").Trim();
-        if (code.Length < Helper.CodeLength) return null;
         if (options.AdminPin.Length >= 6 && code == options.AdminPin) return new Taker(0, options.AdminName);
-        if (await helpers.ByCodeAsync(code, ct) is { Active: true } h) return h.AsTaker;
-        // A helper's kundenummer (8 digits, spaces allowed): Id = minus the number, so it never meets a code helper's Id.
         var digits = new string(code.Where(char.IsDigit).ToArray());
         if (digits.Length != 8 || numbers is null) return null;
-        // An admin's kundenummer (Kunder's Admin tick, 2026-10-26) opens it like the main PIN.
-        if (await numbers.AdminNameAsync(digits, ct) is { } admin) return new Taker(0, admin);
-        return await numbers.HelperNameAsync(digits, ct) is { } name ? new Taker(-int.Parse(digits), name) : null;
-    }
-
-    public Task<List<Helper>> AllAsync(CancellationToken ct = default) => helpers.ActiveAsync(ct);
-
-    /// <summary>Everyone Martin can give a session to: Kunder's ticked helpers and the helpers with their own code here.</summary>
-    public async Task<List<HelperChoice>> ChoicesAsync(CancellationToken ct = default)
-    {
-        var fromKunder = numbers is null ? [] : await numbers.AllAsync(ct);
-        return fromKunder.Select(h => new HelperChoice(-int.Parse(h.Kundenummer), h.Name))
-            .Concat((await helpers.ActiveAsync(ct)).Select(h => new HelperChoice(h.Id, h.Name)))
-            .OrderBy(h => h.Name).ToList();
-    }
-
-    /// <summary>A new helper with a new six-digit code (never Martin's PIN, never another helper's).</summary>
-    public async Task<Helper> AddAsync(string name, CancellationToken ct = default)
-    {
-        name = name.Trim();
-        if (name.Length == 0) throw new VareinfoException("Skriv hjælperens navn.");
-        string code;
-        do code = Helper.NewCode(Random.Shared);
-        while (code == options.AdminPin || await helpers.ByCodeAsync(code, ct) is not null);
-        var helper = new Helper { Name = name, Code = code };
-        await helpers.AddAsync(helper, ct);
-        return helper;
-    }
-
-    /// <summary>The code stops working at once; the photos the helper took are kept.</summary>
-    public async Task RemoveAsync(int id, CancellationToken ct = default)
-    {
-        if (await helpers.GetAsync(id, ct) is not { } h) return;
-        h.Active = false;
-        await helpers.UpdateAsync(h, ct);
+        return await numbers.AdminNameAsync(digits, ct) is { } admin ? new Taker(0, admin) : null;
     }
 }

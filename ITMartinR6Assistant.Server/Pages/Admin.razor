@@ -2,8 +2,28 @@
 @layout R6AssistantLayout
 @inject IR6DataService DataService
 @inject SessionStateService Session
+@inject CoachService Coach
 @implements IDisposable
 
+@* Only the owner (user 2026-11-11: "I will choose what can be seen by others"). Others get the PIN box only. *@
+@if (!_loaded)
+{
+    <div class="admin-loading">Loader...</div>
+}
+else if (!Coach.IsOwner)
+{
+    <div class="info-box" style="max-width:420px;margin:24px auto">
+        <div class="info-box-title">Kun for ejeren</div>
+        <div class="small muted">Her vælger ejeren, hvad de andre spillere kan se. Skriv PIN for at låse op på denne enhed.</div>
+        <form class="r6-name-form" style="margin-top:10px" @onsubmit="Unlock">
+            <input type="password" inputmode="numeric" @bind="_pin" placeholder="PIN" />
+            <button type="submit" class="player-name-save-btn">Lås op</button>
+        </form>
+        @if (_pinWrong) { <div class="small bad" style="margin-top:6px">Forkert PIN.</div> }
+    </div>
+}
+else
+{
 <div class="admin-page">
 
     @* Top toolbar *@
@@ -20,15 +40,16 @@
 
     @* The app shows only maps + statistics (user 2026-10-14); the rest is switched on here, for the whole team. *@
     <div class="info-box">
-        <div class="info-box-title">Vis i appen</div>
-        <div class="small muted">Kamp, Maps og statistik vises altid. Tryk på en knap for at vise eller skjule resten for hele holdet.</div>
+        <div class="info-box-title">Hvad de andre ser</div>
+        <div class="small muted">Du ser alt. På Kamp-siden har hver boks en knap i overskriften: <b>Vises for andre</b> / <b>Skjult for andre</b> &ndash; tryk for at skifte. Her vælger du sider i menuen.</div>
         <div class="site-chips">
-            @foreach (var (key, label) in AppSection.Extras)
+            @foreach (var (key, label) in AppSection.Pages)
             {
                 var k = key;
                 <button class="site-chip @(Session.IsSectionOn(k) ? "site-chip-on" : "")" @onclick="() => Session.ToggleSection(k)">@label <span class="muted small">@(Session.IsSectionOn(k) ? "vises" : "skjult")</span></button>
             }
         </div>
+        <div style="margin-top:8px"><button class="site-chip" @onclick="Coach.LockOwner">Lås denne enhed (se det de andre ser)</button></div>
     </div>
 
     @if (_gameData is null)
@@ -214,9 +235,26 @@
     }
 
 </div>
+}
 
 @code {
     private R6GameData? _gameData;
+    private bool _loaded, _pinWrong;
+    private string _pin = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Coach.EnsureLoadedAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private void Unlock()
+    {
+        _pinWrong = !Coach.TryUnlockOwner(_pin);
+        _pin = "";
+    }
 
     protected override async Task OnInitializedAsync()
     {

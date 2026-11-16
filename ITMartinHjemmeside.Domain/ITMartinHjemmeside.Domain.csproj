@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Kolibri Hjemmeside - the domain: a customer's site (pages, text and picture blocks, package, look) and its rules
+       (slugs, limits, quota per package, who may edit). No files, no HTTP. 2026-11-09. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinHjemmeside.Tests" />
+  </ItemGroup>
+
+</Project>

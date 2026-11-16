@@ -12,6 +12,8 @@ public interface IShopGateway
     /// <summary>Null = not for sale (sold, on auction, or never existed).</summary>
     Task<(bool CanPay, ShopItem Item, List<ShopProof> Proof)?> ItemAsync(int id, CancellationToken ct = default);
     Task<byte[]?> PhotoAsync(int id, CancellationToken ct = default);
+    /// <summary>Photo n (2.. = the extra photos of the same thing, 2026-11-10).</summary>
+    Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct = default) => n <= 1 ? PhotoAsync(id, ct) : Task.FromResult<byte[]?>(null);
     /// <summary>The items chosen in Lager for the front pages, each with its proof links.</summary>
     Task<List<(ShopItem Item, List<ShopProof> Proof)>> FeaturedAsync(CancellationToken ct = default);
     /// <returns>Stripe's payment page, or the reason in Danish.</returns>
@@ -70,6 +72,12 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
     }
 
+    public async Task<byte[]?> PhotoAsync(int id, int n, CancellationToken ct = default)
+    {
+        try { return await lager.PhotoAsync(id, n, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return null; }
+    }
+
     public async Task<(string? Url, string? Error)> BuyAsync(int id, string siteBase, CancellationToken ct = default)
     {
         if (!seller.Complete) return (null, "Køb nu er ikke åbnet endnu.");
@@ -123,6 +131,10 @@ public sealed class ShopUseCases(IShopGateway lager, ShopSeller seller)
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return (null, Unreachable); }
     }
 }
+
+/// <summary>The "Din egen hjemmeside" box with prices on Sneboldshoppen (user 2026-11-10: "not live yet but when I go live with
+/// all ... it should be there"): hidden until Hjem__ShowHomepages=true, so another deploy before the go-live does not show it.</summary>
+public sealed record HomepagesShown(bool On);
 
 /// <summary>Prices on bogshoppen.dk (user 2026-11-05: "all prices need to be invisible for user ... Prices will come"):
 /// off until Hjem__ShowPrices=true. Off = no kr anywhere (items, packs, "fra", other sites) + the progress line towards Goal.</summary>

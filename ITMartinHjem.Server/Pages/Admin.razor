@@ -345,7 +345,7 @@ else if (_review is { } rv)
     <label class="k-label">Intro (under navnet)</label><textarea class="k-input k-textarea" @bind="_s.Intro" maxlength="400"></textarea>
     <button class="k-btn k-btn-primary k-mt" @onclick="SaveNowTextAsync">Gem navn og intro</button>
     <div class="k-label k-mt">Besked på telefonen</div>
-    <p class="k-help">Slå det til på den telefon, du vil have besked på, når nogen skriver. <b>iPhone:</b> læg først siden på hjemskærmen (Del → Føj til hjemmeskærm), og åbn den derfra. <b>Android/PC:</b> tryk bare på knappen.</p>
+    <p class="k-help">Slå det til på den telefon, du vil have besked på, når nogen skriver. <b>iPhone:</b> læg først siden på hjemskærmen (Del – eller menuen ⋯ / ☰ → Del – → Føj til hjemmeskærm), og åbn den derfra. <b>Android/PC:</b> tryk bare på knappen.</p>
     <p>Status: <b>@PushLabel</b></p>
     <div class="k-row">
         @if (_push is "off" or "error") { <button class="k-btn k-btn-primary" @onclick="SubscribeAsync">Slå beskeder til</button> }

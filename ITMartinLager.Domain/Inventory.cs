@@ -74,11 +74,18 @@ public sealed class Box
     public string Note { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     /// <summary>A Fund session's box (Vareinfo, 2026-11-03): its things are not ours yet.</summary>
+    /// <summary>The Vareinfo button the photos were taken under ("Blade og album", "Blandet") - the reader is told what the
+    /// pile mostly is (2026-11-10). "" = an old or hand-made box.</summary>
+    public string Kind { get; set; } = "";
     public bool Fund { get; set; }
     /// <summary>Which round of scanning the box belongs to (Iterations; 0 = before 2026-11-03, set to 1 then).</summary>
     public int Iteration { get; set; }
 
     public int Number => BoxCodes.Number(Code);
+
+    /// <summary>What a person calls the box: the session name written on it ("Blade og album – 10. november", user 2026-11-10:
+    /// "boxes are not relevant only days/sessions - i write on the box: sessionname"), else its code.</summary>
+    public string Label => Note.Trim() != "" ? Note.Trim() : Code;
 
     /// <summary>A test box (user 2026-10-24: "when I call it something like Test ... the products are only for show"):
     /// its placering starts with "Test". Its things can be shown in the shop but are never sold.</summary>
@@ -110,7 +117,15 @@ public sealed class Item
     /// <summary>The genre (Genres, user 2026-11-07: "danktop, indie, pop") - set once from a free source by the genre job;
     /// GenreAt = when it was looked up (null = not yet), so nothing is asked twice.</summary>
     public string Genre { get; set; } = "";
+    /// <summary>The maker who owns it and gets the money when it sells ("" = ITMartin's own). 2026-11-10 Strikkeshoppen: her things, sold by Martin for a share.</summary>
+    public string Seller { get; set; } = "";
+    /// <summary>More photos of the same thing after the main one (ItemPhoto): photos/items/&lt;id&gt;-2.jpg, -3 ... (user 2026-11-10:
+    /// "make it possible to add more than one picture"). At most Item.MaxMorePhotos.</summary>
+    public int MorePhotos { get; set; }
+    public const int MaxMorePhotos = 7;
     public DateTime? GenreAt { get; set; }
+    /// <summary>When Vurdering's AI looked at this Ting/Strik thing for a description (ThingText) - null = not yet.</summary>
+    public DateTime? DescribedAt { get; set; }
     // Discogs collectors (2026-10-21): how many want this release and how many have it - demand, not price.
     public int? Want { get; set; }
     public int? Have { get; set; }
@@ -190,11 +205,20 @@ public sealed class Item
     {
         if (Barcode != "" && f.Barcode != "" && Barcode == f.Barcode) return true;
         string a = TitleKey(Title), b = TitleKey(f.Title);
+        if (a == "" || b == "") return false;
         // A short title that starts the other one counts too when the author is the same (Rico's test 2026-11-03: "Mit liv" and
         // "Mit liv – Tiderne Skifter" by Jørn Jønke / Jønke became two things).
-        var prefix = a != "" && b != "" && (a.StartsWith(b) || b.StartsWith(a));
-        var titles = a != "" && b != "" && (a == b || (prefix && Math.Min(a.Length, b.Length) >= 8)
-            || (prefix && Math.Min(a.Length, b.Length) >= 4 && SameAuthor(Artist, f.Artist)));
+        var prefix = a.StartsWith(b) || b.StartsWith(a);
+        // The series in front of the title, read once into the title and once into the series (user's test 2026-11-10: "Morgenthalers
+        // dyrefabler – Anker på fryseren" and "Anker på fryseren" in series "Morgenthalers Dyrefabler" became two things): the
+        // series + title is the same, or one title ends with the other (at least 8 letters).
+        var withSeries = TitleKey(Series + Title) is var sa && TitleKey(f.Series + f.Title) is var sb && (sa == b || sb == a || sa == sb);
+        var suffix = (a.EndsWith(b) || b.EndsWith(a)) && Math.Min(a.Length, b.Length) >= 8;
+        // A letter or two read wrong (user's test 2026-11-10: "Sallies historier" / "Sallie historier", "Elasticina" / "Elastiena"):
+        // 1 letter from 8 letters, 2 from 14 - never when a digit differs ("Lucky Luke 12" / "Lucky Luke 13" are two things).
+        var misread = Digits(a) == Digits(b) && Distance(a, b) <= (Math.Min(a.Length, b.Length) >= 14 ? 2 : Math.Min(a.Length, b.Length) >= 8 ? 1 : 0);
+        var titles = a == b || withSeries || suffix || misread || (prefix && Math.Min(a.Length, b.Length) >= 8)
+            || (prefix && Math.Min(a.Length, b.Length) >= 4 && SameAuthor(Artist, f.Artist));
         return titles
             && (Number.Trim() == "" || f.Number.Trim() == "" || Eq(Number, f.Number))
             && (Year is null || f.Year is null || Year == f.Year);
@@ -222,6 +246,24 @@ public sealed class Item
             .Select(w => new string(w.Where(char.IsLetter).ToArray())).Where(w => w.Length >= 3).ToHashSet();
         var x = Words(a);
         return x.Count > 0 && Words(b).Overlaps(x);
+    }
+
+    private static string Digits(string key) => new(key.Where(char.IsDigit).ToArray());
+
+    /// <summary>Letters to change, add or remove to get from one title key to the other (Levenshtein; the keys are short).</summary>
+    private static int Distance(string a, string b)
+    {
+        if (Math.Abs(a.Length - b.Length) > 2) return 3;   // more than LooksLike ever allows
+        var prev = Enumerable.Range(0, b.Length + 1).ToArray();
+        for (var i = 1; i <= a.Length; i++)
+        {
+            var cur = new int[b.Length + 1];
+            cur[0] = i;
+            for (var j = 1; j <= b.Length; j++)
+                cur[j] = Math.Min(Math.Min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+            prev = cur;
+        }
+        return prev[b.Length];
     }
 
     public static string TitleKey(string title) => new(title.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());

@@ -2,6 +2,8 @@
 @page "/registrer"
 @inject CaptureUseCases Capture
 @inject SessionUseCases Sessions
+@inject HelperUseCases Helpers
+@inject CheckUseCases Check
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -18,31 +20,50 @@
 }
 else if (_session is null)
 {
-    @* Two ways in (user 2026-11-05): no "start a session first" - each button joins today's session of that kind, or starts it. *@
+    @* One press (user 2026-11-10: "take pictures of my products -> and on Bogshoppen" + "Take picture -> get quick price and/or
+       if something is interesting" + "These sessions could be all things" + "automatic session on days"): pick the purpose, then
+       what the pictures are of. Each button joins today's session of that button, or makes it - nothing to name, start or close. *@
     <section class="k-card vi-ways">
-        <h1 class="k-card-title">Hvad vil du tage billeder af?</h1>
-        <p>Hej @Me.Name. Vælg én – så er du i gang. I kan godt være flere på samme tid, hver med jeres egen telefon.</p>
-        <div class="vi-way">
-            <h2>Registrér lageret</h2>
-            <p><b>Gør dette:</b> læg 10-20 ting ud med forsiden op, og tag billeder af det hele – jo flere, jo bedre.</p>
-            <p><b>Du får:</b> alle tingene registreret med titel og stand, så de kan få en pris og en kasse.</p>
-            <button type="button" class="k-btn k-btn-primary lg-big" @onclick="() => Today(false)" disabled="@_busy">Registrér lageret</button>
+        <h1 class="k-card-title">Hvad vil du?</h1>
+        <div class="vi-purpose" role="group" aria-label="Hvad vil du?">
+            <button type="button" class="k-btn @(_check ? "k-btn-secondary" : "k-btn-primary") lg-big" aria-pressed="@(!_check)" @onclick="() => _check = false">Mine varer til Bogshoppen</button>
+            <button type="button" class="k-btn @(_check ? "k-btn-primary" : "k-btn-secondary") lg-big" aria-pressed="@_check" @onclick="() => _check = true">Tjek – er det noget værd?</button>
         </div>
-        <div class="vi-way">
-            <h2>Nye fund</h2>
-            <p><b>Gør dette:</b> tag billeder af det, der står fx på genbrugspladsen eller et loppemarked.</p>
-            <p><b>Du får:</b> en pris på hver ting, så I hurtigt kan se, hvad der er interessant – kun det, I tager med hjem, kommer på lageret.</p>
-            <button type="button" class="k-btn k-btn-primary lg-big" @onclick="() => Today(true)" disabled="@_busy">Nye fund</button>
+        <p class="k-help">@(_check
+            ? "Tag billeder af det, der står fx på genbrugspladsen. Du får at vide, hvad der er interessant og en pris – kun det, du tager med hjem, bliver dit."
+            : "Tag billeder af dine egne ting. De bliver læst med det samme og kommer på bogshoppen.dk af sig selv.")</p>
+
+        <h2 class="vi-kinds-title">Hvad tager du billeder af?</h2>
+        <div class="vi-kinds">
+            @foreach (var k in CaptureKinds.All)
+            {
+                <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="() => Today(k.Name)" disabled="@_busy">@k.Name</button>
+            }
         </div>
-        <p class="k-help">Har du taget billederne med telefonens eget kamera? Tryk på en af knapperne, og så <b>Tilføj billeder, du allerede har taget</b> – du kan vælge mange på én gang.</p>
-        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+        @if (_check)
+        {
+            @* Furniture and things (2026-11-10): Vurdering's dødsbo AI says what it is, what it is worth and what to do - today's Tjek there. *@
+            <p class="k-help">Møbler, lamper, glas, kunst og andre ting – du får at vide, hvad det er, hvad det er værd, og om det er interessant:</p>
+            <a class="k-btn k-btn-secondary lg-big vi-wide" href="@($"{BogshoppenFlow.Steps[BogshoppenFlow.Priser - 1].Url.TrimEnd('/')}/dodsbo/i-dag")">Møbler og ting</a>
+        }
+        @if (Me.IsAdmin && !_check)
+        {
+            @* Strik and Ting go in one at a time with price and maker (Lager, 2026-11-10) - not as a pile. *@
+            <p class="k-help">Strik og ting fra dødsboer lægges ind én ad gangen med pris:</p>
+            <div class="vi-kinds">
+                <a class="k-btn k-btn-ghost" href="@($"{Helpers.LagerBase}/strik")">Strik</a>
+                <a class="k-btn k-btn-ghost" href="@($"{Helpers.LagerBase}/ting")">Ting</a>
+            </div>
+        }
+        <p class="k-help">Har du taget billederne med telefonens eget kamera? Tryk på det, de er af, og så <b>Upload billeder fra telefonen</b> – du kan vælge mange på én gang.</p>
+        @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
     </section>
 
     @if (_choices.Count > 0)
     {
     <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">Andre sessioner</h2>
-        <p>Er du sat på en bestemt session, så tryk på den her.</p>
+        <p>Sessioner, du selv har startet under Sessioner.</p>
             <ul class="lg-list">
                 @foreach (var c in _choices)
                 {
@@ -65,31 +86,29 @@ else if (_session is null)
         <div data-photo-stranded class="lg-warn" role="status" hidden><p data-photo-stranded-text></p></div>
     }
 
-    @* Helpers see the øvesession only while no real session is open (user 2026-10-31: "Only push the new session take pictures thats it"). *@
-    @if (Me.IsAdmin || _choices.Count == 0)
-    {
-    <section class="k-card" data-fold-closed>
-        <h2 class="k-card-title">Min øvesession</h2>
-        <p>Vil du bare prøve? Din egen øvesession er kun din, og tingene i den bliver <b>kun vist</b> – de bliver aldrig solgt. Tryk <b>Min øvesession</b> og tag billeder af hvad som helst.</p>
-        <button type="button" class="k-btn k-btn-secondary lg-big" @onclick="Practice" disabled="@_busy">Min øvesession</button>
-    </section>
-    }
 }
 else
 {
+    @* User 2026-11-10: "I do not want to say done with or end session... That should happen automatically pr day... I just want to
+       take pictures" + "boxes are not relevant only days/sessions -> i write on the box: sessionname". So: the name for the box at
+       the top, Tag billeder + Upload, and a small way back - nothing to finish or close. *@
     <section class="k-card">
         <h1 class="k-card-title">@_session.Title</h1>
-        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(Me.IsAdmin ? $" og {_scans} stregkoder" : "") taget i sessionen.</p>
-        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Gentag, til alt har været på et billede.</p>
-        @if (_error is not null) { <p class="lg-warn" role="alert">⚠ @_error</p> }
+        @if (!_session.Fund && !_session.IsPractice)
+        {
+            <p class="vi-boxname">Skriv på kassen: <b>@_session.Title</b></p>
+        }
+        <p class="lg-answer" role="status"><b>@_photos billeder</b>@(Me.IsAdmin && _scans > 0 ? $" og {_scans} stregkoder" : "") i dag.</p>
+        <p>Læg 10-20 ting ud med forsiden op, og tryk <b>Tag billeder</b>. Tag så mange billeder, du vil – det samme to gange gør ikke noget.
+            @(_session.Fund ? "Svaret på hver ting kommer længere nede på siden." : _session.IsDaily ? "Tingene bliver læst af sig selv og kommer på bogshoppen.dk." : "")</p>
+        @if (_error is not null) { <p class="lg-warn" role="alert">@_error</p> }
         @* Plain HTML + fotokoe.js, not InputFile: the photo is kept on the phone until the server has it (2026-10-19). *@
-        <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@SessionFields">📷 Tag billeder</button>
+        <button type="button" class="k-btn k-btn-primary lg-big" data-camera-open data-photo-url="/api/foto" data-fields="@SessionFields">Tag billeder</button>
         <div id="foto-cam" class="lg-scan" hidden>
             <video id="foto-video" class="lg-cam-video" muted playsinline></video>
             <div id="foto-cam-tools" class="lg-row lg-cam-tools"></div>
-            <button type="button" class="k-btn k-btn-primary lg-big" data-camera-shoot>📸 Tag billede</button>
+            <button type="button" class="k-btn k-btn-primary lg-big" data-camera-shoot>Tag billede</button>
             <p id="foto-cam-note" class="lg-answer" role="status"></p>
-            <button type="button" class="k-btn k-btn-secondary lg-big" data-camera-close data-done-url="@(Me.IsAdmin ? null : "/")">✓ Færdig med billeder</button>
         </div>
         <p data-photo-status role="status" hidden></p>
         <div data-photo-stranded class="lg-warn" role="status" hidden>
@@ -110,48 +129,91 @@ else
         </details>
         }
         @* "Brug telefonens kamera" stays for everybody: fotokoe.js shows it big when the in-page camera gives no picture. *@
-        <div class="lg-row">
+        @* Hidden: fotokoe.js copies its input into a big button only when the in-page camera gives no picture. *@
+        <div class="lg-row" hidden>
             <label class="k-btn k-btn-ghost k-btn-sm lg-camera">Brug telefonens kamera
                 <input type="file" accept="image/*" capture="environment" class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
             </label>
         </div>
         @* User 2026-10-31: take photos with the phone's own camera first, add them to the session later - many at once. *@
-        <label class="k-btn k-btn-secondary lg-big lg-camera">Tilføj billeder, du allerede har taget
+        <label class="k-btn k-btn-secondary lg-big lg-camera">Upload billeder fra telefonen
             <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
         </label>
     </section>
+
+    @* Tjek (user 2026-11-10: "Take picture -> get quick price and/or if something is interesting"): the answers under the pictures -
+       interesting and dearest first. Lager reads and prices; here the person only presses Tog den / Nej tak. Helpers see no prices
+       (2026-10-24), only what is interesting. *@
+    @if (_session.Fund)
+    {
+    <section class="k-card" aria-live="polite">
+        <h2 class="k-card-title">Svar på dine billeder</h2>
+        @if (_answers is null)
+        {
+            <p>@(_answersDown ? "Lager svarer ikke lige nu – siden prøver igen af sig selv." : "Tag et billede – svaret kommer her efter et minut eller to.")</p>
+        }
+        else
+        {
+            <p class="k-help">@AnswersLine</p>
+            @if (_pressError is not null) { <p class="lg-warn" role="alert">@_pressError</p> }
+            <ul class="vi-answers">
+                @foreach (var a in _answers.Open)
+                {
+                    <li>
+                        <img src="@PhotoUrl(a)" alt="" loading="lazy" />
+                        <div class="vi-answer-text">
+                            @if (a.Note != "") { <b class="vi-answer-note">@a.Note</b> } else { <span class="k-small">Almindelig</span> }
+                            <b>@a.Line</b>
+                            <span class="k-small">@a.Category · @a.Condition@(a.Quantity > 1 ? $" · {a.Quantity} stk." : "")</span>
+                            @if (Me.IsAdmin) { <span class="vi-answer-kr">@KrText(a)</span> }
+                        </div>
+                        <div class="vi-answer-btns">
+                            <button class="k-btn k-btn-primary" disabled="@_busy" @onclick="() => Press(a.ItemId, CheckUseCases.Take)">Tog den</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+            @if (_answers.Taken.Count > 0)
+            {
+                <h3 class="vi-answers-sub">Taget med – de er på lager nu</h3>
+                <ul class="vi-answers vi-answers-taken">
+                    @foreach (var a in _answers.Taken)
+                    {
+                        <li>
+                            <img src="@PhotoUrl(a)" alt="" loading="lazy" />
+                            <div class="vi-answer-text"><b>@a.Line</b></div>
+                            <button class="k-btn k-btn-ghost k-btn-sm" disabled="@_busy" @onclick="() => Press(a.ItemId, CheckUseCases.Back)">Fortryd</button>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </section>
+    }
 
     @* Barcodes are not a helper's job (user 2026-10-26: "hide stregkoder for helper... something that can be done
        afterwards") - only Martin sees them. *@
     @if (Me.IsAdmin)
     {
     <section class="k-card" data-fold-closed>
-        <h2 class="k-card-title">▮▯▮ Stregkoder</h2>
+        <h2 class="k-card-title">Stregkoder</h2>
         <p>Bedst til DVD, Blu-ray, CD, spil og bøger. Hold stregkoden foran kameraet – <b>bip</b> – næste. Samme stregkode igen = ét eksemplar mere.</p>
         @if (!_scanning)
         {
-            <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">▮▯▮ Scan stregkoder</button>
+            <button class="k-btn k-btn-secondary lg-big" @onclick="StartScan">Scan stregkoder</button>
         }
         else
         {
             <div class="lg-scan">
                 <video id="scan-video" muted playsinline></video>
                 <p class="lg-answer" role="status">@_scanStatus</p>
-                <button class="k-btn k-btn-primary" @onclick="StopScan">✓ Færdig med at scanne</button>
+                <button class="k-btn k-btn-primary" @onclick="StopScan">Færdig med at scanne</button>
             </div>
         }
     </section>
     }
 
-    @* A helper's way out is "Færdig med billeder" (user 2026-10-31: "vælg session, tag billede, færdig med billeder"). *@
-    @if (Me.IsAdmin)
-    {
-    <section class="k-card">
-        <h2 class="k-card-title">Færdig her?</h2>
-        <p>Billederne er gemt, så snart de er sendt. Martin lukker sessionen, når I er færdige.</p>
-        <button class="k-btn k-btn-secondary lg-big" @onclick="Leave">Vælg en anden session</button>
-    </section>
-    }
+    <p class="vi-back"><button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="Leave">Tag billeder af noget andet</button></p>
 }
 
 @code {
@@ -161,14 +223,17 @@ else
     private WorkSession? _session;
     private List<SessionChoice> _choices = [];
     private int _photos, _scans;
-    private bool _busy, _scanning;
+    private bool _busy, _scanning, _check, _answersDown;
+    private CheckAnswers? _answers;
+    private string? _pressError;
+    private Timer? _answerTimer;
     private string? _error;
     private string _scanStatus = "";
     private string _lastCode = "";
     private DateTime _lastAt;
     private DotNetObjectReference<Registrer>? _ref;
 
-    // The address says which session (?s=12): after a reload, or a tap on Vælg / Min øvesession.
+    // The address says which session (?s=12): after a reload, or a tap on a button or Vælg.
     protected override async Task OnParametersSetAsync()
     {
         if (Me is null) return;
@@ -177,19 +242,47 @@ else
         {
             _session = SessionId is { } id ? await Sessions.OpenForAsync(id, Me) : null;
             if (SessionId is not null && _session is null) _error = "Den session er lukket eller ikke din – vælg en på listen.";
-            if (_session is null) _choices = await Sessions.ChoicesAsync(Me);
+            if (_session is null) { _choices = await Sessions.ChoicesAsync(Me); _answers = null; }
             await Count();
+            await LoadAnswers();
+            // Tjek: look again every 15 seconds while the page is open - the reading and prices come in the background.
+            if (_session is { Fund: true }) _answerTimer ??= new Timer(_ => InvokeAsync(async () => { if (!_busy) { await LoadAnswers(); StateHasChanged(); } }), null, 15_000, 15_000);
         }
         catch (Exception ex) { _error = ex.Message; }
     }
 
     private void Open(int id) => Nav.NavigateTo($"/?s={id}");
 
-    private async Task Today(bool fund)
+    private async Task LoadAnswers()
+    {
+        if (_session is not { Fund: true } || Me is null) return;
+        var got = await Check.AnswersAsync(_session.Id, Me);
+        _answersDown = got is null;
+        if (got is not null) _answers = got;
+    }
+
+    private string AnswersLine => _answers is not { } a ? ""
+        : a.Open.Count == 0 && a.Taken.Count == 0 ? "Billederne bliver læst – svaret kommer her efter et minut eller to. Siden opdaterer sig selv."
+        : $"{a.Open.Count} at vælge · {a.Taken.Count} taget med. De interessante står øverst. Tryk Tog den ved det, du tager med – resten glemmes af sig selv i nat.";
+
+    private static string KrText(CheckAnswer a) => a.Waiting ? "Venter på pris …" : a.Kr is { } kr ? $"ca. {kr:0} kr" : "Ingen pris fundet";
+
+    private string PhotoUrl(CheckAnswer a) => $"/tjek/{_session!.Id}/foto/{a.ItemId}" + (a.PhotoId is { } p ? $"?bunke={p}" : "");
+
+    // One press = one change (double taps, 2026-11-01).
+    private async Task Press(int itemId, string action)
+    {
+        if (_busy || _session is null || Me is null) return;
+        _busy = true; _pressError = null;
+        try { _pressError = await Check.PressAsync(_session.Id, itemId, action, Me); await LoadAnswers(); }
+        finally { _busy = false; }
+    }
+
+    private async Task Today(string kind)
     {
         if (Me is null) return;
         _busy = true; _error = null;
-        try { Nav.NavigateTo($"/?s={(await Sessions.TodayAsync(Me, fund)).Id}"); }
+        try { Nav.NavigateTo($"/?s={(await Sessions.TodayAsync(Me, _check, kind)).Id}"); }
         catch (Exception e) when (e is VareinfoException or InvalidOperationException) { _error = e.Message; }
         finally { _busy = false; }
     }
@@ -199,15 +292,6 @@ else
         await StopScan();
         try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
         Nav.NavigateTo("/");
-    }
-
-    private async Task Practice()
-    {
-        if (Me is null) return;
-        _busy = true; _error = null;
-        try { Open((await Sessions.PracticeAsync(Me)).Id); }
-        catch (VareinfoException ex) { _error = ex.Message; }
-        finally { _busy = false; }
     }
 
     // Each photo carries its own session, so photos still waiting on the phone land in the right one.
@@ -267,10 +351,10 @@ else
             {
                 var copies = await Capture.ScanAsync(code, _session.Id, Me);
                 _ = JS.InvokeVoidAsync("scanner.beep");
-                _scanStatus = copies > 1 ? $"✓ {code} – nu {copies} stk. i sessionen" : $"✓ {code} gemt";
+                _scanStatus = copies > 1 ? $"{code} – nu {copies} stk. i sessionen" : $"{code} gemt";
                 await Count();
             }
-            catch (Exception ex) { _scanStatus = "⚠ " + ex.Message; }
+            catch (Exception ex) { _scanStatus = ex.Message; }
         }
         StateHasChanged();
         if (_scanning)
@@ -282,6 +366,8 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        _answerTimer?.Dispose();
+        try { await JS.InvokeVoidAsync("photoQueue.closeCamera"); } catch { }
         _scanning = false;
         try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
         try { if (_ref is not null) await JS.InvokeVoidAsync("photoQueue.unlisten", _ref); } catch { }

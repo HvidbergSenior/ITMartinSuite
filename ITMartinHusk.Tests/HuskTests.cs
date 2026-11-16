@@ -20,7 +20,7 @@ public class HuskTests
     {
         public List<string> Titles = [];
         public string PublicKey => "key";
-        public Task<bool> SendAsync(HuskSubscriber to, PushMessage msg, CancellationToken ct = default) { Titles.Add(msg.Title); return Task.FromResult(true); }
+        public Task<PushResult> SendAsync(HuskSubscriber to, PushMessage msg, CancellationToken ct = default) { Titles.Add(msg.Title); return Task.FromResult(PushResult.Sent); }
     }
 
     private static (HuskUseCases Husk, MemoryStore Store, RecordingPush Push, Func<DateTime> Set) New(DateTime start)

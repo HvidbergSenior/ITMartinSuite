@@ -3,6 +3,7 @@ using System.Text;
 using ITMartin.Shared.UI.Kolibri;
 using ITMartinVarer.Contracts;
 using ITMartinVurdering.Application;
+using ITMartinVurdering.Domain;
 using ITMartinVurdering.Infrastructure;
 
 // Bogshoppen Vurdering (Kolibri Rede) - step 2 of 5, 2026-11-05 (user: "should finding prices be an app?" -> yes; "all should be
@@ -22,6 +23,7 @@ builder.Services.AddKolibri(k =>
         "Lager har allerede søgt efter prisen andre steder (DBA, Faraos, Nemos …). Her ser du én ting ad gangen med forslaget og det, der blev fundet – og du bestemmer.",
         "Bøger prissættes kun efter danske sider – og med prisen for en ny hos Bog & idé ved siden af (2026-11-06).",
         "Skal vurderes = fundet til 50 kr eller mere, men uden din pris. Ingen pris = intet fundet nogen steder.",
+        "Dødsbo og loft: tag et billede af hver ting fra et dødsbo, et loft eller en kælder. AI'en fortæller, hvad det er og historien bag det, hvad det cirka er værd brugt i Danmark, og om du skal sælge det, sælge det samlet, give det væk, smide det ud eller spørge en ekspert – og hvor det sælges bedst.",
     ];
     k.HowTo =
     [
@@ -31,13 +33,15 @@ builder.Services.AddKolibri(k =>
         "Ved du det ikke? Tryk Spring over, så kommer den næste.",
         "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
         "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
+        "Dødsbo og loft: tryk Dødsbo og loft øverst, lav en sag (fx Mariannes ting), tag et billede af hver ting og tryk Vurdér de nye. Op til 8 billeder vurderes ad gangen. Ret prisen selv, hvis du ved bedre – og brug knapperne Søg på DBA og Søg på Lauritz for at se, hvad lignende ting koster.",
     ];
-    k.Version = "2026.11.06";
+    k.Version = "2026.11.10.2";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
 builder.Services.AddVurderingApplication();
 builder.Services.AddVurderingInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<ITMartinVurdering.Server.DescribeJob>();   // Ting/Strik descriptions (2026-11-10)
 
 var app = builder.Build();
 app.MapKolibri();
@@ -63,23 +67,32 @@ const string LoginBody = """
 const string Buttons = """<button id="themeToggleBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Mørk</button>""";
 const string Logout = """<form method="post" action="/ud" style="display:inline"><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form>""";
 
-// The shared step row (KolibriSteps markup) - step 2 is ours.
+// The apps' tabs (KolibriSteps markup, 2026-11-10) - Priser is ours.
 static string Steps()
 {
-    var sb = new StringBuilder("""<nav class="k-steps" aria-label="Bogshoppen – sådan gør du"><ol>""");
+    var sb = new StringBuilder("""<nav class="k-steps" aria-label="Bogshoppens apps"><ol>""");
     for (var i = 0; i < BogshoppenFlow.Steps.Count; i++)
     {
         var (name, url) = BogshoppenFlow.Steps[i];
         var e = System.Net.WebUtility.HtmlEncode(name);
         sb.Append(i + 1 == BogshoppenFlow.Priser
-            ? $"""<li class="is-here"><span aria-current="step"><b>{i + 1}</b> {e}</span></li>"""
-            : $"""<li><a href="{url}"><b>{i + 1}</b> {e}</a></li>""");
+            ? $"""<li class="is-here"><span aria-current="page">{e}</span></li>"""
+            : $"""<li><a href="{url}">{e}</a></li>""");
     }
-    var (nextName, nextUrl) = BogshoppenFlow.Steps[BogshoppenFlow.Priser];
-    return sb.Append($"""</ol><a class="k-btn k-btn-sm k-steps-next" href="{nextUrl}">Næste: {System.Net.WebUtility.HtmlEncode(nextName)} →</a></nav>""").ToString();
+    return sb.Append("</ol></nav>").ToString();
 }
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
+var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dodsbo.html"));
+
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=2"));
+// Dødsbo og loft (2026-11-10): the same login, its own page.
+app.MapGet("/dodsbo", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, dodsboBody, "/dodsbo.js?v=4"));
+// Vareinfo's Tjek -> "Møbler og ting" (2026-11-10): straight into today's Tjek Sag, made by itself.
+app.MapGet("/dodsbo/i-dag", (KolibriAppInfo info, HttpContext ctx, DodsboUseCases d) => IsOwner(ctx)
+    ? Results.Redirect("/dodsbo?sag=" + Uri.EscapeDataString(d.Today().Id))
+    : Page(info, ctx, dodsboBody, "/dodsbo.js?v=4"));   // the login, here - after it the same address again
+
+IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string script)
 {
     ctx.Response.Headers.CacheControl = "no-cache";
     var owner = IsOwner(ctx);
@@ -89,12 +102,12 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Vurdering · Bogshoppen</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=5"><link rel="stylesheet" href="/app.css?v=2">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script>
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=1"><link rel="stylesheet" href="/app.css?v=3">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="{script}" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
-        <body>{KolibriStaticPages.Header(info, actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? body : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+        <body>{KolibriStaticPages.Header(info, actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? pageBody : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
-});
+}
 
 app.MapPost("/ind", async (HttpContext ctx) =>
 {
@@ -105,7 +118,10 @@ app.MapPost("/ind", async (HttpContext ctx) =>
         return Results.Redirect("/");
     }
     ctx.Response.Cookies.Append("vurdering_auth", ownerToken, new CookieOptions { HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365) });
-    return Results.Redirect("/");
+    // Back to the page the login was shown on (fx /dodsbo/i-dag from Vareinfo) - only an address on this site.
+    var back = Uri.TryCreate(ctx.Request.Headers.Referer.ToString(), UriKind.Absolute, out var r) && r.Host == ctx.Request.Host.Host
+        && r.AbsolutePath.StartsWith("/dodsbo") ? r.PathAndQuery : "/";
+    return Results.Redirect(back);
 }).DisableAntiforgery();
 
 app.MapPost("/ud", (HttpContext ctx) => { ctx.Response.Cookies.Delete("vurdering_auth"); return Results.Redirect("/"); }).DisableAntiforgery();
@@ -124,6 +140,102 @@ api.MapPost("/pris", async (PrisForm f, ReviewUseCases review, CancellationToken
 api.MapGet("/foto/{id:int}", async (int id, ReviewUseCases review, CancellationToken ct) =>
     await review.PhotoAsync(id, ct) is { } bytes ? Results.File(bytes, "image/jpeg") : Results.NotFound());
 
+// ── Dødsbo og loft ──
+api.MapGet("/dodsbo", (DodsboUseCases d) => Results.Ok(d.All().Select(s => new
+{
+    s.Id, s.Name, Ting = s.Ting.Count, Venter = s.Ting.Count(t => t.Waiting), Vaerdi = DodsboRules.Range(s.Total().Low, s.Total().High),
+})));
+api.MapPost("/dodsbo", (NySag f, DodsboUseCases d) => d.New(f.Navn) is var (s, error) && s is not null ? Results.Ok(new { s.Id }) : Results.BadRequest(new { fejl = error }));
+api.MapGet("/dodsbo/{id}", (string id, DodsboUseCases d) => d.Get(id) is { } s ? Results.Ok(SagView(s)) : Results.NotFound());
+api.MapPost("/dodsbo/{id}/foto", async (string id, HttpRequest req, DodsboUseCases d) =>
+{
+    var form = await req.ReadFormAsync();
+    if (form.Files.GetFile("foto") is not { Length: > 0 and <= 15 * 1024 * 1024 } file) return Results.BadRequest(new { fejl = "Vælg et billede (højst 15 MB)." });
+    using var ms = new MemoryStream();
+    await file.CopyToAsync(ms);
+    return Done(d.AddPhoto(id, ms.ToArray(), form["hint"]));
+}).DisableAntiforgery();
+api.MapPost("/dodsbo/{id}/vurder", async (string id, DodsboUseCases d, CancellationToken ct) => Done(await d.ValueWaitingAsync(id, ct)));
+api.MapPost("/dodsbo/{id}/ting/{tid}/egen", (string id, string tid, EgenForm f, DodsboUseCases d) =>
+    Done(d.Own(id, tid, int.TryParse((f.Kr ?? "").Replace(".", "").Replace("kr", "").Trim(), out var kr) ? kr : null, f.Note)));
+api.MapPost("/dodsbo/{id}/ting/{tid}/fjern", (string id, string tid, DodsboUseCases d) => Done(d.Remove(id, tid)));
+api.MapGet("/dodsbo/{id}/foto/{tid}", (string id, string tid, DodsboUseCases d) =>
+    d.Photo(id, tid) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+
+// Del med ejeren: Martin makes / changes / stops the link; the page itself is open to whoever has the link (read-only).
+api.MapPost("/dodsbo/{id}/del", (string id, DelForm f, DodsboUseCases d, HttpRequest req) =>
+    d.Share(id, f.Priser) is { } token ? Results.Ok(new { url = $"{req.Scheme}://{req.Host}/del/{token}" }) : Results.NotFound());
+api.MapPost("/dodsbo/{id}/stopdel", (string id, DodsboUseCases d) => { d.StopSharing(id); return Results.Ok(new { besked = "Linket virker ikke længere." }); });
+
+app.MapGet("/del/{token}", (string token, DodsboUseCases d, KolibriAppInfo info, HttpContext ctx) =>
+{
+    ctx.Response.Headers.CacheControl = "no-store";
+    ctx.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+    if (d.Shared(token) is not { } s)
+        return Results.Content(SharePage(info, "Linket virker ikke", "<section class=\"k-card\" data-nofold><h1>Linket virker ikke længere</h1><p>Spørg den, der sendte det, om et nyt.</p></section>"), "text/html; charset=utf-8", statusCode: 404);
+    return Results.Content(SharePage(info, s.Name, ShareBody(s, token)), "text/html; charset=utf-8");
+});
+app.MapGet("/del/{token}/foto/{tid}", (string token, string tid, DodsboUseCases d) =>
+    d.Shared(token) is { } s && s.Ting.Any(t => t.Id == tid) && d.Photo(s.Id, tid) is { } jpeg ? Results.File(jpeg, "image/jpeg") : Results.NotFound());
+
+static string H(string? x) => System.Net.WebUtility.HtmlEncode(x ?? "");
+
+static string ShareBody(Sag s, string token)
+{
+    var sb = new StringBuilder();
+    sb.Append($"""
+        <section class="k-card" data-nofold>
+          <h1>{H(s.Name)}</h1>
+          <p>Her er tingene – hvad de er, og historien bag dem. Tryk på et billede for at se det stort.</p>
+          {(s.SharePrices && s.Total() is var (lo, hi) && hi > 0 ? $"<p><b>Det, der er værd at sælge, er samlet cirka {H(DodsboRules.Range(lo, hi))}</b> – et skøn, ikke en pris.</p>" : "")}
+        </section>
+        """);
+    foreach (var t in s.Ting.Where(t => !t.Waiting).OrderBy(t => t.AddedAt))
+    {
+        var price = !s.SharePrices ? "" : t.OwnKr is > 0 ? DodsboRules.Range(t.OwnKr, t.OwnKr) : DodsboRules.Range(t.LowKr, t.HighKr);
+        var photo = $"/del/{token}/foto/{t.Id}";
+        sb.Append($"""
+            <section class="k-card db-share" data-nofold>
+              <a href="{photo}" target="_blank" rel="noopener"><img class="db-share-photo" src="{photo}" alt="{H(t.What)}" loading="lazy"></a>
+              <h2 class="k-card-title">{H(t.What)}</h2>
+              {(price.Length > 0 ? $"<p><b>Skøn: {H(price)}</b></p>" : "")}
+              {(t.Story.Length > 0 ? $"<p>{H(t.Story)}</p>" : "")}
+              {(t.Details.Length > 0 ? $"<p class=\"k-help\"><b>Det kan du kigge efter:</b> {H(t.Details)}</p>" : "")}
+            </section>
+            """);
+    }
+    if (s.Ting.Any(t => t.Waiting)) sb.Append("<p class=\"k-help\">Der kommer flere ting på, når de er kigget på.</p>");
+    return sb.ToString();
+}
+
+static string SharePage(KolibriAppInfo info, string title, string pageBody) => $"""
+    <!doctype html><html lang="da" data-family="{info.Family}"><head>
+    <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('vurdering_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>{H(title)}</title><meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="{info.ThemeColor}">
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=1"><link rel="stylesheet" href="/app.css?v=3">
+    <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script></head>
+    <body>{KolibriStaticPages.Header(info, actions: Buttons)}<main class="k-main"><div class="k-content">{pageBody}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
+    """;
+
+static IResult Done(DodsboResult r) => r.Ok ? Results.Ok(new { besked = r.Message }) : Results.BadRequest(new { fejl = r.Message });
+
+static object SagView(Sag s)
+{
+    var (low, high) = s.Total();
+    return new
+    {
+        s.Id, s.Name, Vaerdi = DodsboRules.Range(low, high), Venter = s.Ting.Count(t => t.Waiting),
+        Delt = s.Shared ? $"/del/{s.ShareToken}" : "", s.SharePrices,
+        Ting = s.Ting.OrderByDescending(t => t.AddedAt).Select(t => new
+        {
+            t.Id, t.Hint, Venter = t.Waiting, t.What, t.Details, Pris = DodsboRules.Range(t.LowKr, t.HighKr),
+            Dom = t.Verdict is { } v ? DodsboRules.Text(v) : "", DomKode = t.Verdict?.ToString() ?? "", t.Where, t.Reason, t.SearchWords, t.Story,
+            Egen = t.OwnKr, t.OwnNote,
+        }),
+    };
+}
+
 static IResult Answer(ReviewResult r) => r.Ok ? Results.Ok(new { besked = r.Message }) : Results.BadRequest(new { fejl = r.Message });
 
 app.Run();
@@ -131,3 +243,6 @@ app.Run();
 record OkForm(int Id, int? Forslag);
 record PrisForm(int Id, string? Pris);
 record BrugForm(int Id, string? Brug);
+record NySag(string? Navn);
+record EgenForm(string? Kr, string? Note);
+record DelForm(bool Priser);

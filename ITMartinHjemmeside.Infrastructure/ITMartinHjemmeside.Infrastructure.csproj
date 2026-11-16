@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Kolibri Hjemmeside - one folder per site (site.json, history/, billeder/) and the picture shrinker (ImageSharp). -->
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinHjemmeside.Application\ITMartinHjemmeside.Application.csproj" />
+    <ProjectReference Include="..\ITMartinHjemmeside.Domain\ITMartinHjemmeside.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ITMartinHjemmeside.Tests" />
+  </ItemGroup>
+
+</Project>

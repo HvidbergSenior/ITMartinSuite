@@ -10,15 +10,11 @@
                 var s = Steps[i];
                 var no = i + 1;
                 <li class="@(no == Current ? "is-here" : "")">
-                    @if (no == Current) { <span aria-current="step"><b>@no</b> @s.Name</span> }
-                    else { <a href="@s.Url"><b>@no</b> @s.Name</a> }
+                    @if (no == Current) { <span aria-current="page">@s.Name</span> }
+                    else { <a href="@s.Url">@s.Name</a> }
                 </li>
             }
         </ol>
-        @if (Current >= 1 && Current < Steps.Count)
-        {
-            <a class="k-btn k-btn-sm k-steps-next" href="@Steps[Current].Url">Næste: @Steps[Current].Name →</a>
-        }
     </nav>
 }
 

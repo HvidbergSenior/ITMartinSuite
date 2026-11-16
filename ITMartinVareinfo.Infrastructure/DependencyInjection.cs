@@ -20,12 +20,13 @@ public static class DependencyInjection
         services.AddDbContextFactory<VareinfoDb>(o => o.UseSqlite($"Data Source={Path.Combine(dataDir, "vareinfo.db")};Default Timeout=30"));
         services.AddScoped<IPhotoRepository, PhotoRepository>();
         services.AddScoped<IScanRepository, ScanRepository>();
-        services.AddScoped<IHelperRepository, HelperRepository>();
         services.AddScoped<ISessionRepository, SessionRepository>();
         services.AddSingleton<IPhotoStore>(new FilePhotoStore(dataDir));
-        // Helpers log in with their kundenummer (Kunder__Url / Kunder__ApiKey, user 2026-10-24).
+        // An admin kundenummer opens it like the PIN (Kunder__Url / Kunder__ApiKey); helpers removed 2026-11-10.
         services.AddKunderClient(cfg, dataDir);
         services.AddScoped<IHelperNumbers, KunderHelperNumbers>();
+        // Tjek answers from Lager (2026-11-10).
+        services.AddHttpClient<ICheckAnswers, LagerCheckAnswers>(c => c.Timeout = TimeSpan.FromSeconds(10));
 
         services.AddSingleton(new VareinfoOptions
         {

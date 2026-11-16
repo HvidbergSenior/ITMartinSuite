@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="app.css?v=@CacheBuster" />
     </head>
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveServer" Person="@_person" />
     <script src="_framework/blazor.server.js"></script>
     <script src="js/push.js?v=@CacheBuster"></script>
     <script>
@@ -78,4 +78,11 @@
 
 @code {
     private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+
+    // Who is looking (set by PinGate from the cookie). It goes into the page connection as a parameter - Blazor signs it,
+    // so it cannot be changed in the browser - because the connection itself has no cookies to read.
+    [CascadingParameter] private HttpContext? Ctx { get; set; }
+    private string _person = "";
+
+    protected override void OnInitialized() => _person = Ctx?.Items[PinGate.PersonItem] as string ?? "";
 }

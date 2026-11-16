@@ -54,6 +54,20 @@ public class StoreTests
     }
 
     [Test]
+    public async Task A_thing_sold_for_someone_else_is_with_the_single_things_even_without_a_price()
+    {
+        // 2026-11-10 bug: StrikkeMarianne's 4 things had no price yet and bogshoppen.dk/strik said "Ingen produkter passer".
+        var strik = new Item { Kind = Kinds.Strik, Title = "Stribet sweater", Seller = "StrikkeMarianne" };
+        var ting = new Item { Kind = Kinds.Ting, Title = "Rubinglas-vase", Seller = "Marianne" };
+        var bog = new Item { Kind = Kinds.Bog, Title = "Uden pris" };
+        strik.Touch(); ting.Touch(); bog.Touch();
+        await Items.AddAsync([strik, ting, bog], default);
+        string[] Titles(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Title).ToArray();
+        Titles(ShopDeals.Single).Should().BeEquivalentTo(["Stribet sweater", "Rubinglas-vase"]);
+        Titles(ShopDeals.NoPrice).Should().NotContain(["Stribet sweater", "Rubinglas-vase"]);   // never twice
+    }
+
+    [Test]
     public async Task Each_deal_and_the_unpriced_are_their_own_band()
     {
         var box = await Boxes.AddNextAsync("Loppemarked", default);

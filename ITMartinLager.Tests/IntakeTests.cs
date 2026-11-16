@@ -143,6 +143,74 @@ public class IntakeTests
         ClaudeCoverReader.Clean(new ClaudeCoverReader.RawItem { Title = "x" }).Usage.Should().Be(Usages.Used);
     }
 
+    // Day sessions (user 2026-11-10: "take pictures of my products -> and on Bogshoppen"): read at once, no Læs, and the reader is
+    // told what the pile mostly is from the button. The things are ordinary stock (they go on bogshoppen.dk by themselves).
+    [Test]
+    public async Task A_day_session_is_read_at_once_with_its_button_as_the_hint()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(31, "K5012", "Rico", 0, At), new CapturedPhoto(32, "K5013", "Rico", 0, At)], [],
+            [new CapturedBox("K5012", "Blade og album – 10. november", Kind: "Blade og album", ReadNow: true),
+             new CapturedBox("K5013", "Blandet – 10. november", Kind: "Blandet", ReadNow: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([F("Jonah Hex 49")]);
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+
+        await intake.FetchAsync();
+        (await intake.ReadWantedAsync()).Should().Be(2, "no Læs needed for a day session");
+        reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), CaptureKinds.HintFor("Blade og album"), It.IsAny<CancellationToken>()), Times.Once);
+        reader.Verify(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), "", It.IsAny<CancellationToken>()), Times.Once);
+        var box = await Boxes.GetOrAddAsync("K5012", default);
+        box.Kind.Should().Be("Blade og album");
+        box.Fund.Should().BeFalse();
+        (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
+    }
+
+    // Tjek in Vareinfo (2026-11-10): Nej tak per thing, Fortryd back on the list, and only the things of that box.
+    [Test]
+    public async Task Tjek_says_no_per_thing_takes_it_back_and_knows_its_box()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(41, "K5020", "Rico", 0, At)], [], [new CapturedBox("K5020", "Tjek: Blandet – 10. november", Fund: true, Kind: "Blandet", ReadNow: true)]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([F("Mort"), F("Eric")]);
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+        await intake.FetchAsync();
+        await intake.ReadWantedAsync();
+        var fund = new FundUseCases(Boxes, Items, new GoldRepository(Factory));
+        var trip = (await fund.TripByCodeAsync("K5020"))!.Value;
+        trip.Open.Should().HaveCount(2);
+        var mort = trip.Open.Single(r => r.Item.Title == "Mort").Item;
+
+        await fund.DeclineAsync(mort.Id);
+        (await fund.TripByCodeAsync("K5020"))!.Value.Should().Match<(Box Box, List<FundRow> Open, List<FundRow> Taken, int NotBought)>(t => t.Open.Count == 1 && t.NotBought == 1);
+        await fund.BackAsync(mort.Id);
+        (await Items.GetAsync(mort.Id, default))!.Status.Should().Be(Statuses.Fund);
+        await fund.TakeAsync(mort.Id);
+        await fund.BackAsync(mort.Id);
+        (await Items.GetAsync(mort.Id, default))!.Status.Should().Be(Statuses.Fund, "Fortryd also after Tog den");
+
+        (await fund.InBoxAsync(mort.Id, "K5020")).Should().BeTrue();
+        (await fund.InBoxAsync(mort.Id, "K5021")).Should().BeFalse("Vareinfo may only change the things of the session it shows");
+        (await fund.TripByCodeAsync("K9999")).Should().BeNull();
+
+        // The day is over: what was not taken becomes Ikke købt by itself; what was taken stays ours.
+        var eric = (await fund.TripByCodeAsync("K5020"))!.Value.Open.Single(r => r.Item.Title == "Eric").Item;
+        await fund.TakeAsync(eric.Id);
+        var later = new FundUseCases(Boxes, Items, new GoldRepository(Factory), new FixedClock(DateTime.UtcNow.AddDays(1)));
+        (await fund.ForgetOldDaysAsync()).Should().Be(0, "still the same day");
+        (await later.ForgetOldDaysAsync()).Should().Be(1);
+        (await Items.GetAsync(mort.Id, default))!.Status.Should().Be(Statuses.IkkeKoebt);
+        (await Items.GetAsync(eric.Id, default))!.Status.Should().Be(Statuses.Lager);
+    }
+
+    private sealed class FixedClock(DateTime utc) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(utc, TimeSpan.Zero);
+    }
+
     // Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): a Fund session's photos are read at
     // once, the things are Fund (not ours, not for sale); Tog den = stock, Færdig = the rest Ikke købt.
     [Test]

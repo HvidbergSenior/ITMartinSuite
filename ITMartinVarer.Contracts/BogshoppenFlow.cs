@@ -7,14 +7,16 @@ namespace ITMartinVarer.Contracts;
 /// </summary>
 public static class BogshoppenFlow
 {
-    public const int Vareinfo = 1, Priser = 2, Lager = 3, Produkter = 4, Salg = 5;
+    // 2026-11-10 ("I want it to reflect that it is the same apps"): shown as tabs, one per app, in the order the work goes now -
+    // pictures, then (by themselves) stock and prices, then the sale; bogshoppen.dk last.
+    public const int Vareinfo = 1, Lager = 2, Priser = 3, Salg = 4, Produkter = 5;
 
     public static readonly IReadOnlyList<(string Name, string Url)> Steps =
     [
-        ("Tilføj varer", "https://vareinfo.bogshoppen.dk/"),
-        ("Find priser", "https://vurdering.bogshoppen.dk/"),   // Vurdering (route live 2026-11-06)
-        ("Læg på lager", "https://lager.bogshoppen.dk/kasser"),
-        ("På bogshoppen.dk", "https://bogshoppen.dk/produkter"),
-        ("Sælg", "https://salg.bogshoppen.dk/"),
+        ("Tag billeder", "https://vareinfo.bogshoppen.dk/"),
+        ("Lager", "https://lager.bogshoppen.dk/"),
+        ("Priser", "https://vurdering.bogshoppen.dk/"),
+        ("Salg", "https://salg.bogshoppen.dk/"),
+        ("bogshoppen.dk", "https://bogshoppen.dk/produkter"),
     ];
 }

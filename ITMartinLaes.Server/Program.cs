@@ -32,7 +32,7 @@ builder.Services.AddKolibri(k =>
         "Tryk på bogen. Tryk 📖 Læs bogen – bladr med pilene, piletasterne eller ved at stryge til siden.",
         "Resuméet kommer af sig selv efter ca. 10 minutter (en lang bog lidt mere). Siden viser, hvor langt AI'en er.",
         "Tryk Gå til siden ved et kapitel for at læse det i bogen.",
-        "Læg appen på telefonen: åbn den i Safari/Chrome, tryk Del (⬆) eller menuen ⋮ og vælg Føj til hjemmeskærm.",
+        "Læg appen på telefonen: åbn den i Safari/Chrome, tryk Del (⬆) eller menuen (⋯ / ⋮ tre prikker eller ☰ tre streger) og vælg Føj til hjemmeskærm.",
     ];
     k.Version = "2026.10.25";
     k.ThemeColor = "#121917";

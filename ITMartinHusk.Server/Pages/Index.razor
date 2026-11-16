@@ -3,16 +3,44 @@
 @inject HuskUseCases Husk
 @inject BallUseCases Balls
 @inject JobUseCases Jobs
+@inject HuskPerson Who
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
 <PageTitle>Husk</PageTitle>
+
+@* "Se et eksempel" (2026-11-10): the same app with a made-up list, kept in memory only. *@
+@if (Who.IsDemo)
+{
+    <section class="k-card hu-next" data-nofold>
+        <p class="hu-kicker">Et eksempel</p>
+        <p>Det her er en Husk med opdigtede ting, så du kan se, hvordan den virker. Tryk gerne på alle knapperne – intet bliver gemt eller sendt.</p>
+        <div class="hu-buttons">
+            <button class="k-btn" @onclick='() => Nav.NavigateTo("/luk-eksempel", forceLoad: true)'>Luk eksemplet</button>
+            <button class="k-btn k-btn-primary" @onclick='() => Nav.NavigateTo("/login", forceLoad: true)'>Få din egen Husk</button>
+        </div>
+    </section>
+}
 
 @* ONE thing first (user 2026-10-30: "I can only concentrate on today and maybe tomorrow... One thing at a time"). Below it at
    most one "og så". Anything later is hidden - the reminders bring it forward when it is close. *@
 @if (_first is null && _ball is not null)
 {
     @* No meeting and no post: the next ball is the one thing. *@
+}
+else if (_first is null && _empty && !Who.IsMartin)
+{
+    @* A new list: one calm first step, never a tour. *@
+    <section class="k-card hu-card hu-calm" data-nofold>
+        <p class="hu-kicker">Velkommen til din Husk</p>
+        <h1 class="hu-title">Skriv den første ting</h1>
+        <p class="k-help">Har du en aftale? Tryk Tilføj et møde. Har du noget i gang – fx et brev, du skal svare på? Tryk Tilføj en bold.
+            Husk viser dig så én ting ad gangen her.</p>
+        <div class="hu-buttons">
+            <a class="k-btn" href="/bolde">Tilføj en bold</a>
+            <a class="k-btn k-btn-primary" href="/tilfoej">Tilføj et møde</a>
+        </div>
+    </section>
 }
 else if (_first is null)
 {
@@ -75,7 +103,7 @@ else
 }
 
 @* Ugens jobsøgning (Regler): from Friday until "Det er skrevet ind" - the week 44 that was missing in Mit AKA. *@
-@if (_jobWeek is { } jw && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
+@if (Who.IsMartin && _jobWeek is { } jw && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
 {
     <section class="k-card hu-card @(jw < DkTime.Now.Date.AddDays(-6) ? "hu-urgent" : "")" data-nofold>
         <p class="hu-kicker">Ugens jobsøgning · uge @RuleBook.WeekNumber(jw)</p>
@@ -92,7 +120,7 @@ else
 }
 
 @* Bolde i luften (2026-11-06): ONE ball - its next step, big. Post and "Nåede du det?" come first and hide it until they are done. *@
-@if (_ball is not null && _jobWeek is null && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
+@if (_ball is not null && (_jobWeek is null || !Who.IsMartin) && _first?.Kind is not (CardKind.Post or CardKind.DidYouGo))
 {
     var b = _ball;
     var overdue = BallRules.Overdue(b, DkTime.Now);
@@ -135,7 +163,7 @@ else
 }
 
 @* The daily check round (Talentmessen was in Jobnet the whole time): one place at a time. *@
-@if (_today?.CheckRoundDue == true && _step < HuskRules.Places.Count)
+@if (Who.IsMartin && _today?.CheckRoundDue == true && _step < HuskRules.Places.Count)
 {
     var p = HuskRules.Places[_step];
     <section class="k-card" data-nofold>
@@ -158,6 +186,8 @@ else
     <button class="k-btn k-btn-primary k-mt" @onclick="AddPost">Ny post</button>
 </details>
 
+@if (!Who.IsDemo)
+{
 <details class="k-card" data-remember="hu-push">
     <summary><b>Beskeder på telefonen</b> @(_push == "on" ? "– slået til" : "")</summary>
     @switch (_push)
@@ -170,7 +200,7 @@ else
             </div>
             break;
         case "ios-needs-homescreen":
-            <p>På iPhone skal Husk først lægges på hjemmeskærmen: tryk Del (firkanten med pilen) → <b>Føj til hjemmeskærm</b>. Åbn Husk derfra og slå beskeder til.</p>
+            <p>På iPhone skal Husk først lægges på hjemmeskærmen: tryk Del (firkanten med pilen) – eller menuen nederst til højre (⋯ tre prikker eller ☰ tre streger) → Del → <b>Føj til hjemmeskærm</b>. Åbn Husk derfra og slå beskeder til.</p>
             break;
         case "denied":
             <p>Telefonen har sagt nej til beskeder fra Husk. Slå dem til i telefonens indstillinger (Settings) under Husk eller browseren.</p>
@@ -185,6 +215,15 @@ else
     }
     @if (_pushNote.Length > 0) { <p class="k-help">@_pushNote</p> }
 </details>
+}
+
+@if (Who.Kundenummer is { } nr)
+{
+    <section class="k-card hu-next" data-nofold>
+        <p class="k-help">Din egen Husk · kundenummer @nr[..4] @nr[4..]. Kun du kan se den.</p>
+        <button class="k-btn k-btn-sm k-btn-ghost" @onclick='() => Nav.NavigateTo("/logud", forceLoad: true)'>Log ud</button>
+    </section>
+}
 
 @code {
     private HuskToday? _today;
@@ -219,7 +258,10 @@ else
         if (!_stepOpen) _ball = Balls.Next(_skipped);   // the 30-second refresh must not swap the ball while you write
         var g = Balls.Groups().Where(x => x.Status != BallStatus.Done && x.Balls.Count > 0);
         _counts = string.Join(" · ", g.Select(x => $"{x.Balls.Count} {x.Name.ToLowerInvariant()}"));
+        _empty = _today.Cards.Count == 0 && _ball is null && Husk.AllOpen().Count == 0;
     }
+
+    private bool _empty;
 
     private DateTime? _jobWeek;
     private int _jobsThisWeek;

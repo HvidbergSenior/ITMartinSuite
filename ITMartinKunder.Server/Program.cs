@@ -32,10 +32,10 @@ builder.Services.AddKolibri(k =>
         "Hjælpere: tryk \"Gør til hjælper\" på en kunde. Så logger de ind på Vareinfo og Lager med deres kundenummer (Lager: kun kasser og varer, ingen priser). \"Fjern som hjælper\" lukker igen inden for 10 minutter.",
         "Hent data: på en kunde giver \"Hent data\" alt, vi har om personen (som fil) – send den, når nogen beder om deres data.",
         "Afmeldte slettes af sig selv efter 30 dage; køb gemmes i 5 år (bogføringsloven). Slet sletter med det samme.",
-        "Snak-rum: tryk \"Lav snak-rum\" på en kunde. Så laver Snak et rum kun til den kunde, og linket står på kunden. Tryk \"Send linket på mail\" eller \"Kopier linket\" og send det - så skriver I sammen ét sted.",
+        "Snak-rum: tryk \"Lav snak-rum\" på en kunde. Så laver Snak et rum kun til den kunde, og linket står på kunden. Linket bliver sendt på mail til kunden med det samme. \"Send linket igen\" sender det en gang til, og \"Send linket til alle\" sender det til ældre kunder, der har et rum, men ikke har fået linket. Skriver du i rummet, og kunden ikke har slået beskeder til, får kunden én mail 10 minutter efter.",
         "Skriv: send mailen \"Vi har fået din tilmelding\" til alle, der ikke har fået den – én mail pr. kunde med deres eget kundenummer og afmeld-link. Tryk Send og så Ja; ingen får den to gange.",
     ];
-    k.Version = "2026.11.04";
+    k.Version = "2026.11.10";
     k.ThemeColor = "#f4f6f5";
 });
 

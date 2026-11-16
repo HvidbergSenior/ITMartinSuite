@@ -23,6 +23,11 @@ public static class VurderingApi
         api.MapPost("/varer/{id:int}/pris", async (int id, VurderingPrice body, PriceReviewUseCases review) =>
             await review.SetAsync(id, body.Kr) is { } error ? Results.BadRequest(error) : Results.Ok());
 
+        // Descriptions for Ting/Strik (2026-11-10): what waits, and what the AI saw.
+        api.MapGet("/beskriv", async (int? antal, ThingDescriptionUseCases things) => await things.WaitingAsync(antal ?? ThingDescriptionUseCases.MaxPerAsk));
+        api.MapPost("/varer/{id:int}/beskrivelse", async (int id, VurderingDescription body, ThingDescriptionUseCases things) =>
+            await things.KeepAsync(id, body) ? Results.Ok() : Results.NotFound());
+
         api.MapGet("/varer/{id:int}/foto", async (int id, ItemUseCases items, StockForSaleUseCases stock) =>
             await items.PhotoFileAsync(id) is { } file ? Results.File(file, "image/jpeg")
             : await stock.PilePhotoAsync(id) is { } pile ? Results.File(pile, "image/jpeg") : Results.NotFound());

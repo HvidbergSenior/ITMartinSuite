@@ -45,3 +45,14 @@ public static class VurderingFilter
         _ => true,
     };
 }
+
+// Descriptions for Tingshoppen and Strikkeshoppen (user 2026-11-10: "why no description?" + "i want to have ai look on the
+// things"): Lager lists the Ting/Strik things with a picture and no text for buyers; Vurdering's dødsbo AI looks at them
+// (several in one call, its daily cap) and sends back a title, the text and a price range. Lager decides what it keeps.
+
+/// <summary>A thing waiting for a description. Kind = Ting or Strik; Title = what the person typed.</summary>
+public sealed record VurderingDescribe(int Id, string Kind, string Title);
+
+/// <summary>What the AI saw: a title, the text for buyers (the story), and a price range in kr (null = not sure).
+/// Empty Title and Text = the AI gave no answer - Lager only notes that it was looked at.</summary>
+public sealed record VurderingDescription(string Title, string Text, int? Low, int? High);

@@ -38,10 +38,11 @@
             {
                 <nav class="r6-nav" aria-label="Hovedmenu">
                     <NavLink href="/" Match="NavLinkMatch.All">🎮 <span>Kamp</span></NavLink>
-                    <NavLink href="/maps">🗺 <span>Maps</span></NavLink>
-                    @if (Session.IsSectionOn(AppSection.Operators)) { <NavLink href="/operatorer">👤 <span>Operatører</span></NavLink> }
-                    @if (Session.IsSectionOn(AppSection.Weapons)) { <NavLink href="/vaaben">🔫 <span>Våben</span></NavLink> }
-                    <NavLink href="/admin">🛠 <span>Admin</span></NavLink>
+                    @* Pages the owner switched off are gone for the others; Admin only for the owner (/admin = PIN to unlock). *@
+                    @if (Coach.CanSee(AppSection.Maps)) { <NavLink href="/maps">🗺 <span>Maps</span></NavLink> }
+                    @if (Coach.CanSee(AppSection.Operators)) { <NavLink href="/operatorer">👤 <span>Operatører</span></NavLink> }
+                    @if (Coach.CanSee(AppSection.Weapons)) { <NavLink href="/vaaben">🔫 <span>Våben</span></NavLink> }
+                    @if (Coach.IsOwner) { <NavLink href="/admin">🛠 <span>Admin</span></NavLink> }
                 </nav>
             }
         </div>
@@ -80,9 +81,14 @@
     }
 
     // Followers stay on the Kamp screen; other pages (Maps, Operatører, Våben, Admin) send them back.
+    // Also: the others cannot open pages the owner switched off, nor the owner's own pages (/admin stays open for the PIN).
     private void KeepFollowerOnKamp()
     {
-        if (Follower && Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Length > 0) Nav.NavigateTo("/");
+        var path = Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Split('/')[0].ToLowerInvariant();
+        if (path.Length == 0 || path == "admin") return;
+        var key = path switch { "maps" or "map" => AppSection.Maps, "operatorer" => AppSection.Operators, "vaaben" => AppSection.Weapons, _ => path };
+        var ownerOnly = path is "rediger";
+        if (Follower || (_loaded && !Coach.IsOwner && (ownerOnly || !Session.IsSectionOn(key)))) Nav.NavigateTo("/");
     }
 
     private void OnIdentityChanged() => InvokeAsync(StateHasChanged);

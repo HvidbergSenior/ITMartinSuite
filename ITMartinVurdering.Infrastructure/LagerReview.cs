@@ -39,6 +39,19 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
         { log.LogWarning(e, "Lager did not save the usage"); return "Lager svarer ikke lige nu – prøv igen om lidt."; }
     }
 
+    public async Task<List<VurderingDescribe>?> WaitingDescriptionsAsync(int take, CancellationToken ct)
+    {
+        try { return await http.GetFromJsonAsync<List<VurderingDescribe>>($"/api/vurdering/beskriv?antal={take}", ct); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        { log.LogWarning(e, "Lager did not answer the descriptions"); return null; }
+    }
+
+    public async Task<bool> SetDescriptionAsync(int itemId, VurderingDescription d, CancellationToken ct)
+    {
+        try { using var res = await http.PostAsJsonAsync($"/api/vurdering/varer/{itemId}/beskrivelse", d, ct); return res.IsSuccessStatusCode; }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return false; }
+    }
+
     public async Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct)
     {
         try { using var res = await http.GetAsync($"/api/vurdering/varer/{itemId}/foto", ct); return res.IsSuccessStatusCode ? await res.Content.ReadAsByteArrayAsync(ct) : null; }
@@ -56,6 +69,8 @@ public static class VurderingInfrastructure
             c.Timeout = TimeSpan.FromSeconds(30);
             c.DefaultRequestHeaders.Add(VurderingHeaders.Key, cfg["Vurdering:LagerKey"] ?? "");
         });
+        services.AddSingleton<ISagStore, JsonSagStore>();
+        services.AddSingleton<IThingValuer, ClaudeThingValuer>();
         return services;
     }
 }

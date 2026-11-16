@@ -1,15 +1,28 @@
 @using ITMartinR6Assistant.Domain
 @inject SessionStateService Session
+@inject CoachService Coach
+@implements IDisposable
 
 @* Map-ban box (pro pick/ban, pro vs us per map, map tiles). On top before a map is chosen; below the map, bans and
    sites once it is (user 2026-10-13: "the relevant stuff on top").
    Map tiles first, stats under them (user 2026-10-14: "first thing should be to pick map"). *@
 @{
-    var ranked = Data.Maps.Any(m => m.IsRanked) ? Data.Maps.Where(m => m.IsRanked).ToList() : Data.Maps.ToList();
+    var allRanked = Data.Maps.Any(m => m.IsRanked) ? Data.Maps.Where(m => m.IsRanked).ToList() : Data.Maps.ToList();
+    // Owner sees every map; the others only the maps the owner shared (the 5 the game offers).
+    var owner = Coach.IsOwner;
+    var ranked = Session.Shared.VisibleMaps(allRanked, m => m.Name, owner).ToList();
     var proMaps = Data.Pro.Maps.Where(m => m.Value.Vetoes >= 10 && ranked.Any(r => r.Name.Equals(m.Key, StringComparison.OrdinalIgnoreCase))).ToList();
     var _gameData = Data;
 }
 <Fold Key="k-mapban" Title="Vælg map (map-ban: pro league og os)" Class="mapban-card">
+    @if (owner)
+    {
+        <div class="owner-hint">Du ser alle maps. Tryk <b>Vis for andre</b> på de 5 maps, spillet giver jer &ndash; de andre ser kun statistik for dem. <span class="muted">(@Session.Shared.Maps.Count valgt)</span></div>
+    }
+    else if (ranked.Count == 0)
+    {
+        <div class="owner-hint">Venter på at holdlederen viser de 5 maps, spillet giver jer.</div>
+    }
     <div class="mapban-hint">Spillet viser 5 maps, og alle har én stemme. <b>Tryk på det map, I ender med</b> &ndash; så viser siden bans og gode operatører for det. ✕ markerer et bannet map.</div>
 
     <div class="mapban-grid">
@@ -40,11 +53,16 @@
                     }
                 </button>
                 <button class="mapban-play @(banned ? "mapban-play-banned" : "")" @onclick="() => Session.ToggleMapBan(name)">@(banned ? "Fortryd ban" : "✕ Bannet")</button>
+                @if (owner)
+                {
+                    var shown = Session.Shared.IsMapShown(name);
+                    <button class="share-btn share-btn-tile @(shown ? "share-btn-on" : "")" @onclick="() => Session.ToggleShownMap(name)">@(shown ? "Vises for andre" : "Vis for andre")</button>
+                }
             </div>
         }
     </div>
 
-    @if (proMaps.Count > 0)
+    @if (proMaps.Count > 0 && ranked.Count > 0)
     {
         <div class="box-grid">
             <div class="info-box">
@@ -70,6 +88,8 @@
     }
 
     @* Pro vs us per map (user: "compare pro vs our teams"). Our numbers = logged matches incl. replay imports. *@
+    @if (ranked.Count > 0)
+    {
     <div class="info-box">
         <div class="info-box-title">Pro vs os pr. map</div>
         <div class="table-scroll"><table class="maps-sites">
@@ -94,11 +114,22 @@
         </table></div>
         <div class="muted small">ATK/DEF = % af runderne vundet på angreb / forsvar. Vores tal kommer fra replays og loggede kampe.</div>
     </div>
+    }
 
 </Fold>
 
 @code {
     [Parameter, EditorRequired] public R6GameData Data { get; set; } = default!;
+
+    protected override void OnInitialized() => Session.OnStateChanged += OnChanged;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Coach.EnsureLoadedAsync();
+        StateHasChanged();
+    }
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.OnStateChanged -= OnChanged;
 
     private static string Bar(double v, double max) => (max > 0 ? Math.Max(4, 100 * v / max) : 0).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
     private static string Cls(int pct) => pct >= 55 ? "good" : pct <= 45 ? "bad" : "";

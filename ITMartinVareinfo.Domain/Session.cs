@@ -26,30 +26,43 @@ public sealed class WorkSession
     /// <summary>Fund (user 2026-11-03: "The pictures today are NOT products from our storage"): things for sale somewhere
     /// else - Lager prices them, and only the ones Martin takes home become stock.</summary>
     public bool Fund { get; set; }
+    /// <summary>The button on the start screen (CaptureKinds: "Blade og album", "Blandet" ...) - user 2026-11-10: "These sessions
+    /// could be all things magazines, strikke, ting, etc" + "maybe automatic session on days". "" = a session Martin started by hand.</summary>
+    public string Kind { get; set; } = "";
 
     public bool Open => ClosedAt is null;
     public bool IsPractice => BoxCodes.IsTest(BoxCode);
 
-    /// <summary>"Session 3 – Boxit, reol 2", "Session 3", or "Øvesession – Rico".</summary>
-    public string Title => IsPractice ? $"Øvesession – {HelperName}" : Name == "" ? $"Session {Number}" : $"Session {Number} – {Name}";
+    /// <summary>A day session (made by a button, one per day per button) - its photos are read at once.</summary>
+    public bool IsDaily => Kind != "";
 
-    public static WorkSession Start(int number, string? name, DateTime now, bool fund = false)
+    /// <summary>"Blade og album – 10. november", "Session 3 – Boxit, reol 2", "Session 3", or "Øvesession – Rico".</summary>
+    public string Title => IsPractice ? $"Øvesession – {HelperName}" : IsDaily && Name != "" ? Name
+        : Name == "" ? $"Session {Number}" : $"Session {Number} – {Name}";
+
+    public static WorkSession Start(int number, string? name, DateTime now, bool fund = false, string kind = "")
     {
         if (number is < 1 or > MaxNumber) throw new InvalidOperationException("Der er ikke flere sessionsnumre.");
-        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Fund = fund };
+        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Fund = fund, Kind = Clean(kind) };
     }
 
-    /// <summary>Today's session of a kind (user 2026-11-05: two ways in, no "start a session first"):
-    /// "Lageret – 5. november" or "Nye fund – 5. november", by Danish date.</summary>
-    public static string TodayName(bool fund, DateTime utcNow)
+    /// <summary>Today's session of a button, by Danish date: "Blade og album – 10. november", or for Tjek
+    /// "Tjek: Blade og album – 10. november" (user 2026-11-10: "Take picture -> get quick price and/or if something is interesting").</summary>
+    public static string TodayName(bool fund, string kind, DateTime utcNow)
     {
         var dk = TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen);
-        return (fund ? "Nye fund – " : "Lageret – ") + dk.ToString("d. MMMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+        return (fund ? "Tjek: " : "") + Clean(kind) + " – " + dk.ToString("d. MMMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
     }
 
-    /// <summary>Is this today's session of that kind (same kind, open, made today in Danish time)?</summary>
-    public bool IsToday(bool fund, DateTime utcNow) =>
-        Open && !IsPractice && Fund == fund && TimeZoneInfo.ConvertTimeFromUtc(CreatedAt, Copenhagen).Date == TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen).Date;
+    /// <summary>Is this today's session of that button (same purpose and button, open, made today in Danish time)?</summary>
+    public bool IsToday(bool fund, string kind, DateTime utcNow) =>
+        Open && !IsPractice && Fund == fund && Kind == Clean(kind) && SameDay(CreatedAt, utcNow);
+
+    /// <summary>A day session from an earlier day - it closes by itself (no one has to press Luk).</summary>
+    public bool IsOldDaily(DateTime utcNow) => Open && IsDaily && !SameDay(CreatedAt, utcNow);
+
+    private static bool SameDay(DateTime a, DateTime b) =>
+        TimeZoneInfo.ConvertTimeFromUtc(a, Copenhagen).Date == TimeZoneInfo.ConvertTimeFromUtc(b, Copenhagen).Date;
 
     private static readonly TimeZoneInfo Copenhagen = FindCopenhagen();
     private static TimeZoneInfo FindCopenhagen()
@@ -61,19 +74,10 @@ public sealed class WorkSession
     /// <summary>The next number: one more than the highest so far.</summary>
     public static int NextNumber(IEnumerable<int> used) => used.DefaultIfEmpty(0).Max() + 1;
 
-    /// <summary>A person's own practice session (user 2026-10-25: "i want all helpers to have their own Testbox... Also
-    /// myself") - only theirs, never closed; its things are only for show in Lager, never sold.</summary>
-    public static WorkSession Practice(Taker me, int testNumber, DateTime now) => new()
-    {
-        BoxCode = BoxCodes.For(testNumber), HelperId = me.Id, HelperName = me.Name, CreatedAt = now,
-    };
-
     public void Rename(string? name) => Name = Clean(name);
 
     /// <summary>Martin sees every session; a helper the sessions given to them, or the ones for everybody.</summary>
     public bool IsFor(Taker me) => IsPractice ? HelperId == me.Id : me.IsAdmin || HelperId is null || HelperId == me.Id;
-
-    public void GiveTo(int? helperId, string? name) => (HelperId, HelperName) = helperId is null ? (null, "") : (helperId, (name ?? "").Trim());
 
     public void Close(DateTime now) => ClosedAt ??= now;
 
