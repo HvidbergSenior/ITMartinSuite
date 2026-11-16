@@ -163,6 +163,7 @@
     var marking = false, start = null, area = null, mode = 'mark';
     function endMark() {
         if (mode === 'cut' && item) $('vu-photo').src = '/api/foto/' + item.id + '?v=' + Date.now();
+        $('vu-find-this').hidden = true; $('vu-photo-wrap').classList.remove('is-cut');
         marking = false; start = null; area = null; mode = 'mark';
         $('vu-recut').hidden = !(item && item.onPile);
         $('vu-mark-box').hidden = true; $('vu-mark-help').hidden = true; $('vu-mark-save').hidden = true; $('vu-mark-cancel').hidden = true;
@@ -189,9 +190,16 @@
         $('vu-photo-wrap').classList.add('is-marking');
     }
     $('vu-mark').addEventListener('click', function () { startMark('mark'); });
+    // Which one is it? (user 2026-11-16: "but how can i see which one it is") - Lager does not keep where on the pile it was,
+    // so: its name big, the reader's note (often "under X", "nederst til venstre"), the old cut-out, and the pile photo large.
     $('vu-recut').addEventListener('click', function () {
         if (!item) return;
+        $('vu-find-line').textContent = item.line;
+        $('vu-find-note').textContent = item.note ? 'Note: ' + item.note : '';
+        var old = $('vu-old-cut'); old.hidden = !item.ownPhoto; if (item.ownPhoto) old.src = '/api/foto/' + item.id + '?v=' + Date.now();
+        $('vu-find-this').hidden = false;
         $('vu-photo').src = '/api/bunkefoto/' + item.id;
+        $('vu-photo-wrap').classList.add('is-cut');
         startMark('cut');
     });
     $('vu-mark-cancel').addEventListener('click', endMark);

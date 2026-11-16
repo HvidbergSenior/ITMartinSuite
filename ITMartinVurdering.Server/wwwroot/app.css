@@ -60,3 +60,8 @@
 .vu-actions > .k-btn { justify-self: start; }
 /* Kassér + Fortryd (2026-11-16): the last discarded thing, with its undo, above the card. */
 .vu-undo-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; border: 2px dashed var(--k-text); border-radius: 10px; padding: 6px 10px; }
+/* Ret udsnittet: which one to find - its name, the reader's note, the old cut-out - and the pile photo large. */
+.vu-find-this { display: flex; gap: 10px; align-items: center; justify-content: center; border: 2px solid var(--k-accent); border-radius: 12px; padding: 8px 10px; margin: 0 0 10px; }
+.vu-find-title { margin: 0; font-size: 1.05rem; }
+.vu-old-cut { width: 72px; height: 72px; object-fit: contain; border-radius: 8px; border: 1px solid var(--k-border-3, #ccc); background: #fff; flex: none; }
+.vu-photo-wrap.is-cut .vu-photo { max-height: 85vh; }
