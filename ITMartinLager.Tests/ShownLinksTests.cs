@@ -12,8 +12,8 @@ public class ShownLinksTests
     [Test]
     public void Buyers_see_no_eBay_Discogs_or_far_too_dear_listings()
     {
-        var finds = new[] { F("GulogGratis", 40), F("GulogGratis", 50), F("Faraos", 45), F("GulogGratis", 400), F("eBay", 30), F("Discogs", 35) };
-        Shop.Shown(finds).Select(f => (f.Source, f.Kr)).Should().BeEquivalentTo(new[] { ("GulogGratis", 40), ("GulogGratis", 50), ("Faraos", 45) });
+        var finds = new[] { F("Accord", 40), F("Accord", 50), F("Faraos", 45), F("Accord", 400), F("eBay", 30), F("Discogs", 35) };
+        Shop.Shown(finds).Select(f => (f.Source, f.Kr)).Should().BeEquivalentTo(new[] { ("Accord", 40), ("Accord", 50), ("Faraos", 45) });
         Shop.Reference(finds)!.Source.Should().NotBe("eBay");
         Shop.Proof(finds).Should().NotContain(f => f.Kr == 400 || f.Source == "eBay" || f.Source == "Discogs");
     }

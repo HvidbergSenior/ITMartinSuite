@@ -60,7 +60,7 @@ public class RealisticPriceTests
         // One site full of dear listings does not decide it.
         Pricing.Realistic([("Tradera", 20), ("Tradera", 30), ("Kleinanzeigen", 25), ("Finn.no", 40), ("Finn.no", 600), ("Finn.no", 700)])
             .Should().Be(25);
-        Pricing.Realistic([("GulogGratis", 50)]).Should().Be(50);
+        Pricing.Realistic([("Accord", 50)]).Should().Be(50);
         Pricing.Realistic([]).Should().BeNull();
     }
 
@@ -75,10 +75,10 @@ public class RealisticPriceTests
     public void A_Danish_price_far_over_the_rest_is_not_trusted_alone()
     {
         // DBA's leftover listings say 170, four other used markets say 40-70.
-        Pricing.NormalDanishFirst([("GulogGratis", 150), ("GulogGratis", 170), ("GulogGratis", 190), ("Tradera", 40), ("Tradera", 54), ("Kleinanzeigen", 67), ("Tori.fi", 60)])
+        Pricing.NormalDanishFirst([("Accord", 150), ("Accord", 170), ("Accord", 190), ("Tradera", 40), ("Tradera", 54), ("Kleinanzeigen", 67), ("Tori.fi", 60)])
             .Should().BeLessThan(100);
         // Cheaper in Denmark: Danish first as always.
-        Pricing.NormalDanishFirst([("GulogGratis", 40), ("GulogGratis", 60), ("AbeBooks", 400), ("ZVAB", 450)]).Should().Be(40);
+        Pricing.NormalDanishFirst([("Accord", 40), ("Accord", 60), ("AbeBooks", 400), ("ZVAB", 450)]).Should().Be(40);
     }
 
     // DBA is a link only (2026-11-16, user: "I dont like dbas prices"): a DBA dreamer alone never sets our price.
@@ -96,7 +96,7 @@ public class RealisticPriceTests
         Listings L(params Offer[] o) => Pricing.OnlyThisItem(item, ListingParse.Summarise(o.ToList(), "u"));
         var answers = new List<SourceAnswer>
         {
-            new("GulogGratis", false, L(O("Red Hot Chili Peppers - Californication LP", 250), O("Californication vinyl", 300), O("RHCP Californication CD", 30), O("Californication, rock", 40))),
+            new("Accord", false, L(O("Red Hot Chili Peppers - Californication LP", 250), O("Californication vinyl", 300), O("RHCP Californication CD", 30), O("Californication, rock", 40))),
             new("eBay", false, L(O("Californication CD Zustand gut", 27), O("Californication CD", 291), O("Californication CD", 556))),
             new("Tradera", false, L(O("Red Hot Chili Peppers - Californication (CD)", 24), O("CD Red Hot Chili Peppers Californication", 27))),
             new("Kleinanzeigen", false, L(O("Californication CD", 30), O("Californication CD", 67))),

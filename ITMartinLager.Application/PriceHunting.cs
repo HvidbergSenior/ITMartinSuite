@@ -55,8 +55,11 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
                 .ToList();
 
         var now = clock.GetUtcNow().UtcDateTime;
-        var result = HuntResult.From(itemId, answers, now, similar, Pricing.DanishOnly(item));
+        var result = HuntResult.From(itemId, answers, now, similar, Pricing.DanishOnly(item), item.Kind);
         result.ApplyTo(item, now);
+        // What really sells (SalesCalibration): 1 until a kind has enough sales of its own.
+        item.PriceHint = SalesCalibration.Apply(item.PriceHint is > 0 ? (int)item.PriceHint.Value : null,
+            SalesCalibration.Factor(await items.SalesWithHintAsync(ct), item.Kind));
         await CompareCoversAsync(item, result.Finds, ct);
         await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
         await items.UpdateAsync([item], ct);

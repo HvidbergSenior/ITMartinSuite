@@ -23,7 +23,7 @@ public class UsageTests
     {
         var answers = new List<SourceAnswer>
         {
-            new("GulogGratis", false, ListingParse.Summarise([O("Mort", 50), O("Mort", 60)], "u")),
+            new("Accord", false, ListingParse.Summarise([O("Mort", 50), O("Mort", 60)], "u")),
             new("Saxo", true, ListingParse.Summarise([O("Mort", 200)], "u")),
         };
         var used = new Item { Kind = Kinds.Bog, Title = "Mort" };
@@ -31,7 +31,7 @@ public class UsageTests
         HuntResult.From(1, answers, Now).ApplyTo(used, Now);
         HuntResult.From(2, answers, Now).ApplyTo(fresh, Now);
         used.PriceHint.Should().BeLessThan(60);
-        fresh.PriceHint.Should().Be(180);   // 10 % under the new shop
+        fresh.PriceHint.Should().Be(150);   // 25 % under the new shop (2026-11-16 "25 pct off")
     }
 
     [Test]

@@ -118,8 +118,14 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         if (u == Usages.New) return "Ny sættes i Lager.";
         if (await items.GetAsync(id, ct) is not { } view) return "Varen findes ikke.";
         if (!Statuses.Ours(view.Item.Status) || view.Item.Status == Statuses.Solgt) return "Varen er solgt eller ikke vores.";
-        view.Item.Usage = u;
-        await items.SaveAsync(view.Item, ct);
+        var item = view.Item;
+        item.Usage = u;
+        // Priced again at once (2026-11-16, "25 pct off" Bog & idé): Som ny = 25 % under the new price found for the same book;
+        // back to Brugt = the price hunter works out the used price again soon (no AI).
+        var fresh = Pricing.NormalOf(view.Finds.Where(f => f.IsNew && !f.Similar && f.Kr > 0 && Pricing.DanishNewShops.Contains(f.Source)).Select(f => f.Kr).ToList());
+        if (Pricing.LikeNew(u) && Pricing.AsNewPrice(fresh) is { } asNew && asNew > (item.PriceHint ?? 0)) item.PriceHint = asNew;
+        else if (!Pricing.LikeNew(u)) item.PricesAt = null;
+        await items.SaveAsync(item, ct);
         return null;
     }
 

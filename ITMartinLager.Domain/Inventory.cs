@@ -147,6 +147,8 @@ public sealed class Item
     // Where on the pile photo the reader saw it, "left;top;right;bottom" as fractions (user 2026-11-16: "how can i see which one
     // it is" -> "yes build it") - so Ret udsnittet can frame it. Kept from the reading at no extra cost; "" for older things.
     public string PileArea { get; set; } = "";
+    // Our suggested price when it sold (2026-11-16 price analysis, "learn from own sales"): what really sells vs what we said.
+    public int? HintAtSale { get; set; }
 
     public PhotoArea? PileBox => PileArea.Split(';') is { Length: 4 } p
         && p.All(x => double.TryParse(x, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
@@ -308,6 +310,7 @@ public sealed class Item
     public void SellCopy(int kr, string buyer, DateTime now, string how)
     {
         Quantity = Math.Max(0, Quantity - 1);
+        HintAtSale = PriceHint is > 0 ? (int)Math.Round(PriceHint.Value) : HintAtSale;
         if (Quantity == 0)
         {
             Status = Statuses.Solgt;

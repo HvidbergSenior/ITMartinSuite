@@ -22,6 +22,12 @@ public static partial class Pricing
     // are 25 % under, the interesting ones (bronze and up) 10 % under. The customer sees the links that prove it.
     public const decimal ShopFactor = 0.9m, LoppeFactor = 0.75m;
 
+    /// <summary>Ny / Som ny with a new price for the same book (user 2026-11-16: "all new books should be compared to Bog og Ide
+    /// with link and price. And 25 pct off"): 25 % under the new price, down to the nearest 5 kr.</summary>
+    public const decimal AsNewFactor = 0.75m;
+    public static bool LikeNew(string usage) => usage is Usages.New or Usages.AsNew;
+    public static int? AsNewPrice(int? newKr) => newKr is > 0 ? (int)(Math.Floor(newKr.Value * AsNewFactor / 5) * 5) : null;
+
     /// <summary>Ordinary = under bronze (100 kr) - loppemarked prices.</summary>
     public static bool Ordinary(decimal market) => market < Gold.BronzeFrom;
 
@@ -647,7 +653,18 @@ public static partial class Pricing
     // DBA (2026-11-16, user: "I dont like dbas prices" -> "Only as a link"): its asking prices were behind 650 of 1,075 hints -
     // dreamers (a 1000 kr CD that Discogs has at 8-20 kr), bundles, other things of the same name. Still searched and shown as
     // a link with how many are for sale; the price comes from the other sites or the standard price per kind.
-    public static readonly string[] NotForNormal = ["eBay", "eBay USA", "Discogs", "DBA"];
+    public static readonly string[] NotForNormal = ["eBay", "eBay USA", "Discogs", "DBA", "GulogGratis"];
+
+    // The price analysis (2026-11-16, user "make analysis how to find the correct prices" -> "do all 4"): classified ads
+    // (DBA, GulogGratis) are what sellers hope for - 2-5x the places where things change hands (CD: ads 25-40, Discogs 11;
+    // blade: ads 50-60, Faraos/Nemos 10-32). So they never count. Discogs counts for records - the exact edition on a real
+    // marketplace. Dealers (Faraos, Nemos, Accord, AbeBooks) count as before. Film has no honest source - the standard price.
+    public static readonly string[] ClassifiedAds = ["DBA", "GulogGratis"];
+    public static readonly string[] MusicKinds = [Kinds.Cd, Kinds.Vinyl, Kinds.Kassette];
+
+    /// <summary>Whether a site's asking prices count in our price for this kind.</summary>
+    public static bool Counts(string source, string kind) =>
+        source == "Discogs" ? MusicKinds.Contains(kind) : !NotForNormal.Contains(source);
 
     /// <summary>Never shown anywhere (2026-11-07, user: "i can still see prices from ebay??"): eBay is no longer asked, and
     /// the eBay prices items already have are hidden until the next hunt replaces them.</summary>
@@ -657,9 +674,9 @@ public static partial class Pricing
     /// <summary>The normal used price with Danish listings first (user 2026-10-12: "always prioritize Danish market"):
     /// Danish only when there are enough - unless the Danish price is over 2x what the other sites say, then the Danish
     /// listings are the odd ones (2026-10-21) and every site counts. eBay never counts.</summary>
-    public static int? NormalDanishFirst(IReadOnlyCollection<(string Source, int Kr)> used)
+    public static int? NormalDanishFirst(IReadOnlyCollection<(string Source, int Kr)> used, string kind = "")
     {
-        var counted = used.Where(u => !NotForNormal.Contains(u.Source)).ToList();
+        var counted = used.Where(u => Counts(u.Source, kind)).ToList();
         var danish = counted.Where(u => DanishSources.Contains(u.Source)).ToList();
         var all = Realistic(counted);
         if (danish.Count < DanishEnough) return all;
@@ -713,7 +730,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
     int? Want = null, int? Have = null)
 {
     public static HuntResult From(int itemId, IReadOnlyList<SourceAnswer> answers, DateTime now, IReadOnlyList<SourceAnswer>? similar = null,
-        bool danishOnly = false)
+        bool danishOnly = false, string kind = "")
     {
         // ZVAB is AbeBooks' German front - the same listing (same number) is shown once, under AbeBooks.
         var abeIds = answers.Where(a => a.Source == "AbeBooks" && a.Result is not null)
@@ -767,7 +784,7 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             .SelectMany(a => Kept(a).Select(o => (int)o.Price!.Value)).ToList();
         // Discogs want/have: from the first source that knows it (only Discogs today).
         var demand = answers.Select(a => a.Result).FirstOrDefault(r => r?.Want is not null);
-        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used), Pricing.NormalDanishFirst(likeKr),
+        return new HuntResult(checks, finds, answers.Count(a => a.Result is not null), Pricing.NormalDanishFirst(used, kind), Pricing.NormalDanishFirst(likeKr, kind),
             Pricing.NormalOf(fresh), demand?.Want, demand?.Have);
     }
 
@@ -788,8 +805,10 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             item.SimilarHint = Pricing.SeriesItemFor(item) is not null ? SimilarNormal : null;
             return;
         }
-        var market = item.Usage == Usages.New ? NewNormal ?? Normal : Normal;
-        item.PriceHint = ShopPrice(market);
+        item.PriceHint = ShopPrice(Normal);
+        // Ny / Som ny and the same book is sold new (2026-11-16, user: "BUSINESS IDEA IS WHEN I HAVE EXACT BOOK THAT IS AS NEW!" +
+        // "compared to Bog og Ide ... 25 pct off"): 25 % under the new price - never under what a used copy would get.
+        if (Pricing.LikeNew(item.Usage) && Pricing.AsNewPrice(NewNormal) is { } asNew && asNew > (item.PriceHint ?? 0)) item.PriceHint = asNew;
         item.SimilarHint = Normal is null ? SimilarNormal : null;
     }
 

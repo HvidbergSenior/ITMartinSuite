@@ -262,6 +262,13 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     private static IQueryable<Item> Listed(LagerDb db) => OnPage(db);
 
     // Sure readings: everything but the Unsure band.
+    public async Task<List<(string Kind, int Hint, int Sold)>> SalesWithHintAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return (await db.Items.Where(i => i.HintAtSale > 0 && i.SoldPrice > 0).Select(i => new { i.Kind, i.HintAtSale, i.SoldPrice }).ToListAsync(ct))
+            .Select(x => (x.Kind, x.HintAtSale!.Value, (int)Math.Round(x.SoldPrice!.Value))).ToList();
+    }
+
     public async Task<List<int>> UnsureIdsAsync(int max, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

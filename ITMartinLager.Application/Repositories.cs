@@ -37,6 +37,8 @@ public interface IItemRepository
     Task<List<Item>> SearchAsync(string text, string? kind, string? valuation, int max, CancellationToken ct, ItemScope? scope = null);
     /// <summary>"Ret de svære" (2026-11-15): ours (På lager / Til salg) and the AI was unsure (below Pricing.MinConfidence), oldest first.</summary>
     Task<List<int>> UnsureIdsAsync(int max, CancellationToken ct);
+    /// <summary>Sold things with the suggestion they had (SalesCalibration).</summary>
+    Task<List<(string Kind, int Hint, int Sold)>> SalesWithHintAsync(CancellationToken ct);
     /// <summary>How many SearchAsync would find without the max.</summary>
     Task<int> CountAsync(string text, string? kind, string? valuation, CancellationToken ct, ItemScope? scope = null);
     /// <summary>Boxes that got items registered since this moment, with how many - newest first.</summary>

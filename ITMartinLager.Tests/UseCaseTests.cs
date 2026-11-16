@@ -52,16 +52,16 @@ public class UseCaseTests
     {
         var item = await Book();
         var hunt = new PriceHuntUseCases(Items, Prices,
-            [Site("GulogGratis", false, Offers(40, 50, 60)), Site("eBay", false, null), Site("Amazon.de", true, Offers(120))], TimeProvider.System);
+            [Site("Accord", false, Offers(40, 50, 60)), Site("eBay", false, null), Site("Amazon.de", true, Offers(120))], TimeProvider.System);
 
         (await hunt.HuntAsync(item.Id)).Should().Be(2);
         var (finds, checks) = await Prices.ForItemAsync(item.Id, default);
-        checks.Select(c => (c.Source, c.Ok)).Should().BeEquivalentTo(new[] { ("GulogGratis", true), ("eBay", false), ("Amazon.de", true) });
+        checks.Select(c => (c.Source, c.Ok)).Should().BeEquivalentTo(new[] { ("Accord", true), ("eBay", false), ("Amazon.de", true) });
         finds.Should().HaveCount(3);   // a book: the Danish listings only - Amazon.de is foreign (user 2026-11-06)
         var saved = await Items.GetAsync(item.Id, default);
         saved!.PriceHint.Should().Be(35);          // 25 % under the used normal price 50 (ordinary, 2026-11-15); the new price is not a used price
         saved.PricesAt.Should().NotBeNull();
-        hunt.SourceList.Should().Be("Brugt: GulogGratis og eBay. Ny: Amazon.de.");   // names from the test sources above
+        hunt.SourceList.Should().Be("Brugt: Accord og eBay. Ny: Amazon.de.");   // names from the test sources above
     }
 
     [Test]
