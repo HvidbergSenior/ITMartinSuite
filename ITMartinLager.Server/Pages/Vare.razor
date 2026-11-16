@@ -1,4 +1,5 @@
 @page "/vare/{Id:int}"
+@inject IJSRuntime JS
 @inject ItemUseCases Items
 @inject NavigationManager Nav
 @inject AuctionUseCases Auction
@@ -71,7 +72,7 @@ else
             {
                 <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
             }
-            @if (Admin) { <button class="k-btn k-btn-ghost" @onclick="Delete">🗑️ Slet</button> }
+            @if (Admin) { <button class="k-btn k-btn-ghost" @onclick="Delete" title="Ud af lageret – gemmes som Ikke købt, slettes ikke">Slet</button> }
         </div>
         @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
         @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
@@ -269,7 +270,10 @@ else
     private async Task Delete()
     {
         if (!Admin) return;   // helpers cannot delete (2026-10-24)
-        await Items.DeleteAsync(Id);
-        Nav.NavigateTo(_box is null ? "/" : $"/kasse/{_box}");
+        // Never deleted (2026-11-16, user: "push slet ... bad navigation" - it deleted for good and jumped to the whole box of
+        // ~2,300 things): out of the stock as Ikke købt like Fjern/Kassér, then back where the person came from.
+        await Items.RemoveAsync(Id);
+        if (Ret is not null) { await GoNext(); return; }
+        await JS.InvokeVoidAsync("eval", "history.length > 1 ? history.back() : location.assign('/')");
     }
 }

@@ -259,6 +259,21 @@ public class StockForSaleTests
         (await items.HopelessAsync()).Select(i => i.Id).Should().Equal(bad.Id);
     }
 
+    // Ret de svære goes worst first, so Spring over takes the next ON THE LIST, not the next number (2026-11-16).
+    [Test]
+    public async Task Spring_over_takes_the_next_on_the_list()
+    {
+        var a = await Add("A", null); var b = await Add("B", null); var c = await Add("C", null);
+        a.Confidence = 0.5; b.Confidence = 0.1; c.Confidence = 0.3;
+        await Items.UpdateAsync([a, b, c], default);
+        var items = new ItemUseCases(Items, new PriceRepository(Factory), Mock.Of<IPhotoStore>());
+
+        (await items.UnsureAsync()).Should().Equal(b.Id, c.Id, a.Id);
+        (await items.NextUnsureAsync(b.Id)).Should().Be(c.Id);
+        (await items.NextUnsureAsync(c.Id)).Should().Be(a.Id);
+        (await items.NextUnsureAsync(a.Id)).Should().Be(b.Id);
+    }
+
     // Vurdering's Find en ting (2026-11-16): a number opens that thing, words give the matches one at a time, sold ones never.
     [Test]
     public async Task Vurdering_finds_one_thing_by_number_or_words()

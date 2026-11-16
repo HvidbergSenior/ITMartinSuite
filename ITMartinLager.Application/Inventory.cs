@@ -65,8 +65,10 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     /// <summary>The next difficult one after this id (round again from the start), or null when there are none left but this one.</summary>
     public async Task<int?> NextUnsureAsync(int afterId, CancellationToken ct = default)
     {
+        // The next on the list (worst first since 2026-11-16) - not the next number. Saved ones have left the list: the first one.
         var ids = await UnsureAsync(ct);
-        return ids.FirstOrDefault(i => i > afterId) is var next and > 0 ? next : ids.FirstOrDefault(i => i != afterId) is var first and > 0 ? first : null;
+        var at = ids.IndexOf(afterId);
+        return at >= 0 && at + 1 < ids.Count ? ids[at + 1] : ids.FirstOrDefault(i => i != afterId) is var first and > 0 ? first : null;
     }
 
     /// <summary>Every word must match somewhere. Also the dearest find per hit when it is 3x the normal price or more
