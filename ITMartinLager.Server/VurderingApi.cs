@@ -17,6 +17,13 @@ public static class VurderingApi
             return await review.QueueAsync(VurderingPiles.Valid(bunke) ? bunke! : VurderingPiles.Assess, antal ?? 1, skip, default, brug);
         });
 
+        // Søg (2026-11-16): one thing by number or words, instead of clicking through the pile.
+        api.MapGet("/soeg", async (string? q, string? spring, PriceReviewUseCases review) =>
+        {
+            var skip = (spring ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
+            return await review.SearchAsync(q ?? "", skip);
+        });
+
         api.MapPost("/varer/{id:int}/brug", async (int id, VurderingUsage body, PriceReviewUseCases review) =>
             await review.SetUsageAsync(id, body.Usage) is { } error ? Results.BadRequest(error) : Results.Ok());
 

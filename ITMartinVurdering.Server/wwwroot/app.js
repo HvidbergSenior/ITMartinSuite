@@ -17,7 +17,7 @@
 
     if (!$('vu-card')) return;   // the login page
 
-    var pile = 'vurderes', filter = '', skip = [], item = null;
+    var pile = 'vurderes', filter = '', skip = [], item = null, query = '';
     try { pile = localStorage.getItem('vurdering_pile') || 'vurderes'; filter = localStorage.getItem('vurdering_filter') || ''; } catch (e) { }
 
     function msg(t, bad) { var m = $('vu-msg'); m.textContent = t || ''; m.classList.toggle('is-bad', !!bad); }
@@ -39,17 +39,20 @@
 
     function load() {
         msg('Henter …');
-        fetch('/api/naeste?bunke=' + pile + '&brug=' + filter + '&spring=' + skip.join(','), { credentials: 'same-origin' })
+        // Søg (2026-11-16): while a search is on, the card shows its hits one at a time (Spring over = the next hit).
+        var url = query ? '/api/soeg?q=' + encodeURIComponent(query) + '&spring=' + skip.join(',')
+            : '/api/naeste?bunke=' + pile + '&brug=' + filter + '&spring=' + skip.join(',');
+        fetch(url, { credentials: 'same-origin' })
             .then(function (r) { if (!r.ok) throw new Error('Lager svarer ikke lige nu – prøv igen om lidt.'); return r.json(); })
             .then(function (q) {
                 $('vu-n-vurderes').textContent = q.assess; $('vu-n-ingen').textContent = q.noPrice;
                 item = q.items && q.items[0];
-                $('vu-card').hidden = !item; $('vu-empty').hidden = !!item;
-                msg('');
+                $('vu-card').hidden = !item; $('vu-empty').hidden = !!item || !!query;
+                msg(!item && query ? (skip.length ? 'Ikke flere, der passer på »' + query + '«.' : 'Fandt ingen ting, der passer på »' + query + '«.') : '');
                 if (!item) return;
                 $('vu-photo').src = '/api/foto/' + item.id;
                 $('vu-line').textContent = item.line;
-                $('vu-facts').textContent = [item.kind, item.condition ? 'stand: ' + item.condition : '', item.box ? 'kasse ' + item.box : ''].filter(Boolean).join(' · ');
+                $('vu-facts').textContent = ['nr. ' + item.id, item.kind, item.condition ? 'stand: ' + item.condition : '', item.box ? 'kasse ' + item.box : ''].filter(Boolean).join(' · ');
                 var ok = $('vu-ok');
                 if (item.hintKr) { ok.hidden = false; ok.textContent = 'Ok – ' + item.hintKr + ' kr'; $('vu-hint').innerHTML = (item.marketKr ? 'Fundet andre steder: ca. <b>' + item.marketKr + ' kr</b> → vores pris (' + esc(item.hintRule) + '): <b>' + item.hintKr + ' kr</b>.' : 'Forslag: <b>' + item.hintKr + ' kr</b>.'); }
                 else { ok.hidden = true; $('vu-hint').innerHTML = item.similarKr ? 'Intet forslag. Noget, der ligner, koster omkring <b>' + item.similarKr + ' kr</b>.' : 'Intet forslag – der blev ikke fundet noget andre steder.'; }
@@ -123,6 +126,11 @@
     document.querySelectorAll('.vu-piles [data-pile]').forEach(function (b) {
         b.addEventListener('click', function () { pile = b.getAttribute('data-pile'); skip = []; try { localStorage.setItem('vurdering_pile', pile); } catch (e) { } showPile(); load(); });
     });
+
+    $('vu-search').addEventListener('submit', function (e) {
+        e.preventDefault(); query = $('vu-q').value.trim(); skip = []; $('vu-q-clear').hidden = !query; load();
+    });
+    $('vu-q-clear').addEventListener('click', function () { query = ''; $('vu-q').value = ''; skip = []; $('vu-q-clear').hidden = true; load(); });
 
     showPile(); load();
 })();

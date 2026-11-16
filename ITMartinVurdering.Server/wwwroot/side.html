@@ -8,6 +8,14 @@
         <a class="k-btn k-btn-sm" href="/kiosk">Ny i kiosken</a>
         <a class="k-btn k-btn-sm" href="/dodsbo">Dødsbo og loft</a>
     </div>
+    <form class="vu-search" id="vu-search" role="search">
+        <label class="k-label" for="vu-q">Find en ting</label>
+        <div class="vu-own-row">
+            <input class="k-input" id="vu-q" type="search" inputmode="search" autocomplete="off" placeholder="nummer (3372) eller titel (X-Force)">
+            <button class="k-btn k-btn-primary k-btn-sm" type="submit">Find</button>
+            <button class="k-btn k-btn-ghost k-btn-sm" type="button" id="vu-q-clear" hidden>Tilbage til bunken</button>
+        </div>
+    </form>
     <div class="vu-piles" role="tablist" aria-label="Vælg bunke">
         <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="vurderes">Skal vurderes (<span id="vu-n-vurderes">…</span>)</button>
         <button type="button" class="k-btn k-btn-sm" role="tab" data-pile="ingen">Ingen pris (<span id="vu-n-ingen">…</span>)</button>

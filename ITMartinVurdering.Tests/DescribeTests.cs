@@ -11,6 +11,7 @@ public class DescribeTests
     {
         public readonly Dictionary<int, VurderingDescription> Kept = [];
         public Task<VurderingQueue?> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, string usage, CancellationToken ct) => Task.FromResult<VurderingQueue?>(null);
+        public Task<VurderingQueue?> SearchAsync(string text, IReadOnlyCollection<int> skip, CancellationToken ct) => Task.FromResult<VurderingQueue?>(null);
         public Task<string?> SetUsageAsync(int itemId, string usage, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<string?> SetPriceAsync(int itemId, int kr, CancellationToken ct) => Task.FromResult<string?>(null);
         public Task<byte[]?> PhotoAsync(int itemId, CancellationToken ct) => Task.FromResult<byte[]?>(itemId == 3 ? null : [1, 2]);

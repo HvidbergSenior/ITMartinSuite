@@ -46,3 +46,6 @@
 .gu-list a { color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
 .ki-btns { margin-top: 6px; }
 .ki-form { display: grid; gap: 4px; max-width: 28rem; margin-top: 12px; }
+.vu-search { margin-top: 10px; }
+.vu-search .vu-own-row { flex-wrap: wrap; }
+.vu-search .k-input { min-width: 12rem; }

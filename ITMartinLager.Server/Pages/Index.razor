@@ -45,7 +45,12 @@
     @* Simple first (user 2026-11-10: "It should be simple for me"): the search field, and every filter folded under "Flere valg". *@
     <h2 class="k-card-title">Find en vare</h2>
     <p class="lg-answer">@_units.ToString("N0") ting i @_boxes kasser</p>
-    <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år …" autofocus />
+    <input class="k-input lg-search" @bind="_q" @bind:event="oninput" @bind:after="Find" placeholder="Søg: titel, kunstner, serie, nummer, år – eller varens nr. (3372)" autofocus />
+    @if (_byNumber is { } byNr)
+    {
+        @* The thing's own number (2026-11-16, "an easy find something and do something about it" in all 4 apps). *@
+        <p><a class="k-btn k-btn-primary" href="/vare/@byNr.Id">Vare nr. @byNr.Id: @byNr.Line() – åbn</a></p>
+    }
     <details class="kr-more" open="@FiltersOn">
     <summary>Flere valg – kasse, kategori, sprog og pris</summary>
     <p class="kr-label">Hvilke varer</p>
@@ -183,6 +188,7 @@
     private string _q = "";
     private string? _kind;
     private List<Item>? _hits;
+    private Item? _byNumber;
     private int _total;
     private int _units, _boxes;
     private Dictionary<int, PriceFind> _high = [];
@@ -289,6 +295,7 @@
     private async Task Find()
     {
         _interesting = null;
+        _byNumber = int.TryParse(_q.Trim().TrimStart('#'), out var nr) && nr > 0 ? (await Items.GetAsync(nr))?.Item : null;
         var found = await Items.SearchAsync(_q, _kind, _valuation, scope: Scope);
         _hits = found?.Hits;
         _total = found?.Total ?? 0;

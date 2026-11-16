@@ -35,6 +35,7 @@ builder.Services.AddKolibri(k =>
         "Ved du det ikke? Tryk Spring over, så kommer den næste.",
         "Guld, sølv og bronze: de dyreste blade, bøger, film, plader og kort på DBA (hver uge) – Super diamant fra 5.000 kr, Guld fra 500, Sølv fra 200, Bronze fra 100. Kun numre og titler, som mindst 2 annoncer beder om. Ting på listen får mærket af sig selv.",
         "Ny i kiosken: skriv hvad det nyeste nummer af et blad koster nyt i dag (fx Anders And & Co. 40 kr). Samme navn igen retter prisen.",
+        "Find en ting: skriv nummeret (fx 3372) eller titlen (fx X-Force) øverst og tryk Find – så kommer netop den ting frem. Spring over viser den næste, der passer. »Tilbage til bunken« går tilbage.",
         "Find priser nu: Lager spørger alle prissiderne igen for netop den ting (tager op til et minut) – fx når du har rettet titlen eller ISBN i Lager. Priserne sættes kun her, ikke i Lager.",
         "Ser bogen ulæst ud? Tryk Som ny – ellers Brugt. Ovenfor kan du vise kun Som ny eller kun Brugt.",
         "Under forslaget står, hvad den koster ny hos Bog & idé (eller Fantask), så du kan sammenligne. Bøger prissættes kun efter danske sider.",
@@ -96,7 +97,7 @@ var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dod
 var guldBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guld.html"));
 var kioskBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "kiosk.html"));
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=6"));
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=7"));
 // Guld/sølv/bronze + Ny i kiosken (2026-11-15, moved from Lager): the same login, own pages.
 app.MapGet("/guld", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, guldBody, "/guld.js?v=2"));
 app.MapGet("/kiosk", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, kioskBody, "/kiosk.js?v=1"));
@@ -117,7 +118,7 @@ IResult Page(KolibriAppInfo info, HttpContext ctx, string pageBody, string scrip
         <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>Vurdering · Bogshoppen</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         <meta name="robots" content="noindex">
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=3">
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=4">
         <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="{script}" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, title: BogshoppenFlow.Title(BogshoppenFlow.Priser), actions: Buttons + (owner ? Logout : ""))}{(owner ? Steps() : "")}<main class="k-main"><div class="k-content">{(owner ? pageBody : LoginBody)}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
@@ -147,6 +148,11 @@ api.MapGet("/naeste", async (string? bunke, string? spring, string? brug, Review
 {
     var skip = (spring ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
     return await review.NextAsync(bunke, skip, ct, brug) is { } q ? Results.Ok(q) : Results.Problem("Lager svarer ikke lige nu – prøv igen om lidt.", statusCode: 503);
+});
+api.MapGet("/soeg", async (string? q, string? spring, ReviewUseCases review, CancellationToken ct) =>
+{
+    var skip = (spring ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
+    return await review.SearchAsync(q, skip, ct) is { } r ? Results.Ok(r) : Results.Problem("Lager svarer ikke lige nu – prøv igen om lidt.", statusCode: 503);
 });
 api.MapPost("/brug", async (BrugForm f, ReviewUseCases review, CancellationToken ct) => Answer(await review.UsageAsync(f.Id, f.Brug, ct)));
 
@@ -237,7 +243,7 @@ static string SharePage(KolibriAppInfo info, string title, string pageBody) => $
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('vurdering_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));</script>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>{H(title)}</title><meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="{info.ThemeColor}">
-    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=3">
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=6"><link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri-rolig.css?v=3"><link rel="stylesheet" href="/app.css?v=4">
     <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=2" defer></script></head>
     <body>{KolibriStaticPages.Header(info, actions: Buttons)}<main class="k-main"><div class="k-content">{pageBody}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
     """;

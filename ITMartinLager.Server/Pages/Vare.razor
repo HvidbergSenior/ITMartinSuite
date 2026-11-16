@@ -18,6 +18,7 @@ else
     <p class="lg-back"><a href="/" onclick="if (history.length > 1) { history.back(); return false; }">← Tilbage til listen</a></p>
     <section class="k-card">
         <h1 class="k-card-title">@Kinds.Icon(_item.Kind) @_item.Line()</h1>
+        <p class="k-help">Vare nr. @_item.Id – skriv nummeret i søgefeltet i Lager eller Vurdering for at finde den igen.</p>
         @if (_item.ItemPhoto != "") { <a href="/varefoto/@_item.Id?v=@_photoVer" target="_blank" rel="noopener" title="Se billedet i fuld størrelse"><img class="lg-photo" src="/varefoto/@_item.Id?v=@_photoVer" alt="Billede af varen" /></a> }
         <label class="k-btn k-btn-secondary lg-camera">
             @(_busy ? "⏳ Gemmer …" : _item.ItemPhoto == "" ? "📷 Tag billede af varen" : "📷 Tag nyt billede")

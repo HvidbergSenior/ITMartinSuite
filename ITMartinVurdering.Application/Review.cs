@@ -8,6 +8,8 @@ namespace ITMartinVurdering.Application;
 public interface ILagerReview
 {
     Task<VurderingQueue?> QueueAsync(string pile, int take, IReadOnlyCollection<int> skip, string usage, CancellationToken ct);
+    /// <summary>One thing by its number or words (2026-11-16 Søg). Null = Lager did not answer.</summary>
+    Task<VurderingQueue?> SearchAsync(string text, IReadOnlyCollection<int> skip, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
     Task<string?> SetUsageAsync(int itemId, string usage, CancellationToken ct);
     /// <returns>Null when saved, else Lager's (Danish) reason.</returns>
@@ -32,6 +34,10 @@ public sealed class ReviewUseCases(ILagerReview lager)
 {
     public Task<VurderingQueue?> NextAsync(string? pile, IReadOnlyCollection<int> skip, CancellationToken ct = default, string? usage = null) =>
         lager.QueueAsync(VurderingPiles.Valid(pile) ? pile! : VurderingPiles.Assess, 1, skip, VurderingFilter.Valid(usage), ct);
+
+    /// <summary>Søg (user 2026-11-16: "not easy to search for"): a number opens that thing, words the matching ones in turn.</summary>
+    public Task<VurderingQueue?> SearchAsync(string? text, IReadOnlyCollection<int> skip, CancellationToken ct = default) =>
+        lager.SearchAsync((text ?? "").Trim(), skip, ct);
 
     /// <summary>"Som ny" / "Brugt" on the thing shown.</summary>
     public async Task<ReviewResult> UsageAsync(int itemId, string? usage, CancellationToken ct = default)

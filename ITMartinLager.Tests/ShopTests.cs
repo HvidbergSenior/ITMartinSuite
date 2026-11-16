@@ -173,6 +173,23 @@ public class StockForSaleTests
         (await stock.ByIdsAsync([mort.Id, 999])).Single().Id.Should().Be(mort.Id);
     }
 
+    // Vurdering's Find en ting (2026-11-16): a number opens that thing, words give the matches one at a time, sold ones never.
+    [Test]
+    public async Task Vurdering_finds_one_thing_by_number_or_words()
+    {
+        var a = await Add("X-Force", 40, kind: Kinds.Superhelte);
+        var b = await Add("X-Force Annual", 50, kind: Kinds.Superhelte);
+        await Add("X-Force solgt", 50, kind: Kinds.Superhelte, status: Statuses.Solgt);
+        var review = new PriceReviewUseCases(new ItemUseCases(Items, new PriceRepository(Factory), Mock.Of<IPhotoStore>()), new BoxRepository(Factory));
+
+        (await review.SearchAsync("#" + b.Id, [])).Items.Single().Id.Should().Be(b.Id);
+        var first = (await review.SearchAsync("x-force", [])).Items.Single();
+        var second = (await review.SearchAsync("x-force", [first.Id])).Items.Single();
+        new[] { first.Id, second.Id }.Should().BeEquivalentTo([a.Id, b.Id]);
+        (await review.SearchAsync("x-force", [a.Id, b.Id])).Items.Should().BeEmpty();
+        (await review.SearchAsync("", [])).Items.Should().BeEmpty();
+    }
+
     [Test]
     public async Task Only_items_chosen_for_the_front_page_are_shown_there_with_their_links()
     {

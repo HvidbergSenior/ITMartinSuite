@@ -45,6 +45,13 @@ internal sealed class HttpLagerReview(HttpClient http, ILogger<HttpLagerReview> 
         { log.LogWarning(e, "Lager did not answer the queue"); return null; }
     }
 
+    public async Task<VurderingQueue?> SearchAsync(string text, IReadOnlyCollection<int> skip, CancellationToken ct)
+    {
+        try { return await http.GetFromJsonAsync<VurderingQueue>($"/api/vurdering/soeg?q={Uri.EscapeDataString(text)}&spring={string.Join(',', skip)}", ct); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        { log.LogWarning(e, "Lager did not answer the search"); return null; }
+    }
+
     public async Task<int?> FindPricesAsync(int itemId, CancellationToken ct)
     {
         try
