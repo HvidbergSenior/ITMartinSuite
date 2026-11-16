@@ -15,14 +15,7 @@
                 </li>
             }
         </ol>
-        @* Forrige / Næste (user 2026-11-15: "forward back") - the neighbours of this helper's own step. *@
-        @if (Current >= 1 && Current <= Steps.Count)
-        {
-            <div class="k-steps-nav">
-                @if (Current > 1) { <a href="@Steps[Current - 2].Url">← @Steps[Current - 2].Name</a> }
-                @if (Current < Steps.Count) { <a class="is-next" href="@Steps[Current].Url">@Steps[Current].Name →</a> }
-            </div>
-        }
+        @* Forrige / Næste removed 2026-11-16 (user: "remove duplicates") - the tabs above already go to every step. *@
     </nav>
 }
 

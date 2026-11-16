@@ -89,10 +89,7 @@ static string Steps()
             : $"""<li><a href="{url}">{e}</a></li>""");
     }
     sb.Append("</ol>");
-    // Forrige / Næste, the same as KolibriSteps (2026-11-15).
-    var (pn, pu) = BogshoppenFlow.Steps[BogshoppenFlow.Priser - 2];
-    var (nn, nu) = BogshoppenFlow.Steps[BogshoppenFlow.Priser];
-    sb.Append($"""<div class="k-steps-nav"><a href="{pu}">← {System.Net.WebUtility.HtmlEncode(pn)}</a><a class="is-next" href="{nu}">{System.Net.WebUtility.HtmlEncode(nn)} →</a></div>""");
+    // Forrige / Næste removed 2026-11-16 ("remove duplicates") - the tabs go to every step, like KolibriSteps.
     return sb.Append("</nav>").ToString();
 }
 
