@@ -66,7 +66,7 @@ public class DiscogsFormatTests
             var item = new ITMartinLager.Domain.Item { Kind = Kinds.Dvd, Title = title };
             foreach (var s in Sources().Where(s => s.Name is "DBA" or "GulogGratis"))
             {
-                var r = await s.LookupAsync(title, ITMartinLager.Domain.Pricing.SearchFormat(item.Kind), "", CancellationToken.None);
+                var r = await s.LookupAsync(title, ITMartinLager.Domain.Pricing.SearchFormat(item.Kind), "", item.Kind, CancellationToken.None);
                 if (r is null) { TestContext.Out.WriteLine($"{title} | {s.Name} | no answer"); continue; }
                 var kept = ITMartinLager.Domain.Pricing.OnlyThisItem(item, r, s.Name, searchedWithFormat: true);
                 TestContext.Out.WriteLine($"{title} | {s.Name} | {r.All.Count} found, {kept.All.Count} kept");

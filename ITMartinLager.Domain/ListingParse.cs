@@ -88,6 +88,11 @@ public static partial class ListingParse
         WordRx().Matches(s.ToLowerInvariant()).Select(m => m.Value)
             .Where(w => (w.Length >= 3 || IsNumber(w)) && !Stop.Contains(w)).Distinct().ToList();
 
+    // For the title match only (2026-11-16): a hyphenated name is one word - "E-Man" is "eman", not "man" (which found
+    // Emanuele and Manhattan), "X-Force" is "xforce", not "force" (Air Force). Both sides are read the same way, and
+    // "Spider Man" still finds "Spider-Man" because neighbouring words may be written together.
+    public static List<string> MatchWords(string s) => Words(HyphenRx().Replace(s, ""));
+
     public static bool IsNumber(string w) => w.All(char.IsAsciiDigit);
 
     public sealed record TitleMatch(List<string> Words, string Surname, bool Ambiguous)
@@ -98,15 +103,20 @@ public static partial class ListingParse
         public bool Matches(string name)
         {
             if (Words.Count == 0) return false;
-            var listing = ListingParse.Words(name);
+            var listing = MatchWords(name);
             if (listing.Any(NotABook.Contains)) return false;
             // A collection holding the title (luksusbind, "Den Komplette Samling") is another item - unless the book is one.
             if (listing.Any(w => Collection.Contains(w) && !Words.Contains(w))) return false;
             var squashed = string.Concat(listing.Where(w => !IsNumber(w)));
             // Numbers must be the same whole number; words may be written together ("Amager digte" = "Amagerdigte").
             // A one-word title must be whole words: "Mort" is not "Mortimer", but "Amager Digte" is "Amagerdigte".
-            var found = Words.Count == 1 ? (Joined(listing).Contains(Words[0]) ? 1 : 0)
-                : Words.Count(w => IsNumber(w) ? listing.Contains(w) : squashed.Contains(w));
+            // A short word (up to 4 letters) must be a whole word too, or written together with its neighbour in the title
+            // ("Spider Man" = "Spiderman"): "eman" is not in "Emanuele", "man" not in "Manhattan" (2026-11-16).
+            var joined = Joined(listing);
+            bool Short(int i) => joined.Contains(Words[i]) || (i > 0 && joined.Contains(Words[i - 1] + Words[i]))
+                || (i < Words.Count - 1 && joined.Contains(Words[i] + Words[i + 1]));
+            var found = Words.Count == 1 ? (joined.Contains(Words[0]) ? 1 : 0)
+                : Words.Select((w, i) => IsNumber(w) ? listing.Contains(w) : w.Length <= 4 ? Short(i) : squashed.Contains(w)).Count(x => x);
             if (Words.Where(IsNumber).Any(n => !listing.Contains(n))) return false;
             var ok = found >= (Words.Count >= 5 ? Words.Count - 1 : Words.Count);
             return ok && (Words.Count > 1 || Surname == "" || squashed.Contains(Surname));
@@ -139,7 +149,7 @@ public static partial class ListingParse
     // A long one-word title ("Papegøjemysteriet") is specific enough on its own.
     public static TitleMatch Matcher(string title, string author)
     {
-        var words = Words(title);
+        var words = MatchWords(title);
         var surname = Words(author).LastOrDefault() ?? "";
         var named = words.Where(w => !IsNumber(w)).ToList();
         return new TitleMatch(words, surname, named.Count <= 1 && surname == "" && (named.FirstOrDefault()?.Length ?? 0) < 10
@@ -151,4 +161,10 @@ public static partial class ListingParse
 
     [GeneratedRegex(@"[\p{L}\p{N}]+")]
     private static partial Regex WordRx();
+
+    [GeneratedRegex(@"(?<=\p{L})-(?=\p{L})")]
+    private static partial Regex HyphenRx();
+
+    /// <summary>Every word however short, for a site's own search address ("E-Man 11" -> e, man, 11).</summary>
+    public static List<string> SearchWords(string s) => WordRx().Matches(s.ToLowerInvariant()).Select(m => m.Value).ToList();
 }

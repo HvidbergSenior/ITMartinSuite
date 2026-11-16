@@ -6,7 +6,7 @@ namespace ITMartinLager.Application;
 public interface IDearestListings
 {
     string Name { get; }
-    Task<List<Offer>> DearestAsync(string query, int pages, CancellationToken ct);
+    Task<List<Offer>> DearestAsync(string query, string kind, int pages, CancellationToken ct);
 }
 
 public interface IGoldRepository
@@ -35,7 +35,7 @@ public sealed class GoldUseCases(IEnumerable<IDearestListings> sites, IGoldRepos
             foreach (var site in sites)
             {
                 List<Offer> offers;
-                try { offers = await site.DearestAsync(c.Query, Pages, ct); }
+                try { offers = await site.DearestAsync(c.Query, c.Kind, Pages, ct); }
                 catch (Exception) when (!ct.IsCancellationRequested) { continue; }   // a site down = try next week
                 entries.AddRange(Gold.Pick(c, offers, site.Name, now));
             }

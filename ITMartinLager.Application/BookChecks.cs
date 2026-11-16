@@ -114,7 +114,7 @@ public sealed class BookCheckUseCases(
     public async Task LookUpAsync(CheckedBook b, CancellationToken ct = default)
     {
         b.Looking = true;
-        var asked = _sites.Select(s => (s.Name, s.LookupAsync(b.Title, b.Author, b.Barcode, ct))).ToList();
+        var asked = _sites.Select(s => (s.Name, s.LookupAsync(b.Title, b.Author, b.Barcode, Kinds.Bog, ct))).ToList();
         var sites = new Dictionary<string, Listings?>();
         foreach (var (name, lookup) in asked)
         {
@@ -181,7 +181,7 @@ public sealed class BookCheckUseCases(
     public List<(string Name, string Url)> Links(CheckedBook b)
     {
         var query = Pricing.QueryFor(b.Title, b.Author);
-        var links = _sites.Select(s => (s.Name == "Nemos Bibliotek" ? "Nemos" : s.Name, s.SearchUrl(b.Title, b.Author, b.Barcode))).ToList();
+        var links = _sites.Select(s => (s.Name == "Nemos Bibliotek" ? "Nemos" : s.Name, s.SearchUrl(b.Title, b.Author, b.Barcode, Kinds.Bog))).ToList();
         links.Add(("eBay solgte", $"https://www.ebay.com/sch/i.html?_nkw={Uri.EscapeDataString(query)}&LH_Sold=1&LH_Complete=1"));
         links.Add(("antikvariat.net", $"https://www.antikvariat.net/da/actions/biblio-search/default/search?author={Uri.EscapeDataString(b.Author)}&title={Uri.EscapeDataString(b.Title)}&currency=DKK"));
         links.Add(("Bogbasen", $"https://bogbasen.dk/search?forfatter={Uri.EscapeDataString(b.Author)}&titel={Uri.EscapeDataString(b.Title)}"));

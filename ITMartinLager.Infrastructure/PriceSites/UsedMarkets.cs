@@ -19,15 +19,17 @@ public abstract class UsedMarket(HttpClient http, ILogger log)
     protected virtual string Currency => "DKK";
     protected virtual string AcceptLanguage => "da-DK,da;q=0.9";
     public abstract string UrlFor(string query);
+    /// <summary>Only the category the kind is sold in, where the site has one (MarketCategories).</summary>
+    public virtual string UrlFor(string query, string kind) => UrlFor(query);
 
     // Most of them carry the results as schema.org JSON-LD (name + offers.price/priceCurrency).
     protected virtual Listings Parse(string html, string title, string author, string url, decimal? rate) =>
         ListingParse.Parse(html, title, author, url, cur => cur == "DKK" ? 1m : cur == Currency ? rate : null);
 
-    public async Task<Listings?> LookupAsync(string title, string author, CancellationToken ct = default)
+    public async Task<Listings?> LookupAsync(string title, string author, string kind = "", CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(title)) return null;
-        var url = UrlFor(Pricing.QueryFor(title, author));
+        var url = UrlFor(Pricing.QueryFor(title, author), kind);
         if (Cache.TryGetValue(url, out var hit) && hit.At > DateTime.UtcNow.AddDays(-1)) return hit.Result;
 
         var gate = Gates.GetOrAdd(Name, _ => new SemaphoreSlim(2, 2));
@@ -81,12 +83,15 @@ public sealed class BlocketListings(HttpClient http, ILogger<BlocketListings> lo
 }
 
 // GulogGratis - Denmark's other big classifieds site. robots.txt: Allow: /. Results are a JSON-LD ItemList.
-// The search is /s/q-word-word - "/s?q=" is ignored and shows the front page's ads (2026-10-10).
+// The search is /kategori/q-word-word (2026-11-16; the old /s/q-... now answers 301 to it) - "/s?q=" is ignored.
+// With a kind only its category: /kategori/underholdning-og-laering/musik/q-abba (MarketCategories).
 public sealed class GulogGratisListings(HttpClient http, ILogger<GulogGratisListings> log) : UsedMarket(http, log)
 {
     public override string Name => "GulogGratis";
-    public override string UrlFor(string query) =>
-        "https://www.guloggratis.dk/s/q-" + Uri.EscapeDataString(string.Join('-', ListingParse.Words(query)));
+    public override string UrlFor(string query) => UrlFor(query, "");
+    public override string UrlFor(string query, string kind) =>
+        "https://www.guloggratis.dk/kategori/" + MarketCategories.GulogGratis(kind) + "q-"
+        + Uri.EscapeDataString(string.Join('-', ListingParse.SearchWords(query)));
 }
 
 // Kleinanzeigen - Germany's classifieds (formerly eBay Kleinanzeigen). robots.txt allows the /s-... searches. No

@@ -12,9 +12,10 @@ public interface IPriceSource
     bool IsNew { get; }
     /// <summary>Where it is: "Sverige", "Tyskland" ... or "".</summary>
     string Country { get; }
-    Task<Listings?> LookupAsync(string title, string author, string isbn, CancellationToken ct);
+    /// <summary>kind: a used market searches only the category such things are sold in (MarketCategories).</summary>
+    Task<Listings?> LookupAsync(string title, string author, string isbn, string kind, CancellationToken ct);
     /// <summary>The site's own search page for the book, for a person to check.</summary>
-    string SearchUrl(string title, string author, string isbn);
+    string SearchUrl(string title, string author, string isbn, string kind);
     /// <summary>Whether this site has this kind of thing at all (HipComic only comics, Discogs only CDs ...).</summary>
     bool Fits(string kind) => true;
 }

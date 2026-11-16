@@ -12,7 +12,7 @@ public sealed class DbaListings(HttpClient http, ILogger<DbaListings> log) : IDe
 
     // The gold list (2026-10-12): DBA's "dearest first" (sort=PRICE_DESC), a few pages. Every listing, unfiltered -
     // Gold.Pick decides what is one issue.
-    public async Task<List<Offer>> DearestAsync(string query, int pages, CancellationToken ct)
+    public async Task<List<Offer>> DearestAsync(string query, string kind, int pages, CancellationToken ct)
     {
         var all = new List<Offer>();
         for (var page = 1; page <= pages; page++)
@@ -20,7 +20,7 @@ public sealed class DbaListings(HttpClient http, ILogger<DbaListings> log) : IDe
             await Gate.WaitAsync(ct);
             try
             {
-                var url = SearchUrl(query) + "&sort=PRICE_DESC" + (page > 1 ? $"&page={page}" : "");
+                var url = SearchUrl(query, kind) + "&sort=PRICE_DESC" + (page > 1 ? $"&page={page}" : "");
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.UserAgent.ParseAdd(Ua);
                 req.Headers.AcceptLanguage.ParseAdd("da-DK,da;q=0.9");
@@ -40,26 +40,28 @@ public sealed class DbaListings(HttpClient http, ILogger<DbaListings> log) : IDe
     private static readonly SemaphoreSlim Gate = new(2, 2);
     private static readonly ConcurrentDictionary<string, (DateTime At, Listings Result)> Cache = new();
 
-    public static string SearchUrl(string query) =>
-        "https://www.dba.dk/recommerce/forsale/search?q=" + Uri.EscapeDataString(query);
+    // Only the category the kind is sold in (MarketCategories, 2026-11-16) - "E-Man" alone found MAN trucks.
+    public static string SearchUrl(string query, string kind = "") =>
+        "https://www.dba.dk/recommerce/forsale/search?q=" + Uri.EscapeDataString(query) + MarketCategories.DbaQuery(kind);
 
     // Author's surname + title is what sellers write ("Amagerdigte, Klaus Rifbjerg").
-    public async Task<Listings?> LookupAsync(string title, string author, CancellationToken ct = default)
+    public async Task<Listings?> LookupAsync(string title, string author, string kind = "", CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(title)) return null;
         var query = Pricing.QueryFor(title, author);
-        var key = query.ToLowerInvariant();
+        var url = SearchUrl(query, kind);
+        var key = url.ToLowerInvariant();
         if (Cache.TryGetValue(key, out var hit) && hit.At > DateTime.UtcNow.AddDays(-1)) return hit.Result;
 
         await Gate.WaitAsync(ct);
         try
         {
-            using var req = new HttpRequestMessage(HttpMethod.Get, SearchUrl(query));
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.UserAgent.ParseAdd(Ua);
             req.Headers.AcceptLanguage.ParseAdd("da-DK,da;q=0.9");
             using var res = await http.SendAsync(req, ct);
             if (!res.IsSuccessStatusCode) { log.LogInformation("DBA {Status} for {Query}", res.StatusCode, query); return null; }
-            var result = ListingParse.Parse(await res.Content.ReadAsStringAsync(ct), title, author, SearchUrl(query), _ => 1m);
+            var result = ListingParse.Parse(await res.Content.ReadAsStringAsync(ct), title, author, url, _ => 1m);
             Cache[key] = (DateTime.UtcNow, result);
             return result;
         }

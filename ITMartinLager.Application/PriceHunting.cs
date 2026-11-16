@@ -79,7 +79,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         // sellers seldom write DVD in the title): the format goes where the author would, so "dvd Guardians of the Galaxy".
         var format = Pricing.SearchFormat(item.Kind);
         var asked = _sources.Where(s => s.Fits(item.Kind))
-            .Select(s => (s, s.LookupAsync(title, format != "" && !Pricing.FormatSure.Contains(s.Name) ? format : item.Artist, isbn, ct))).ToList();
+            .Select(s => (s, s.LookupAsync(title, format != "" && !Pricing.FormatSure.Contains(s.Name) ? format : item.Artist, isbn, item.Kind, ct))).ToList();
         var answers = new List<SourceAnswer>();
         foreach (var (source, lookup) in asked)
         {

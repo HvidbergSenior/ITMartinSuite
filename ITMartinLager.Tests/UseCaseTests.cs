@@ -33,7 +33,7 @@ public class UseCaseTests
         s.SetupGet(x => x.IsNew).Returns(isNew);
         s.SetupGet(x => x.Country).Returns("");
         s.Setup(x => x.Fits(It.IsAny<string>())).Returns(true);
-        s.Setup(x => x.LookupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(answer);
+        s.Setup(x => x.LookupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(answer);
         return s.Object;
     }
 
