@@ -1126,7 +1126,8 @@
     function renderDato() {
         if (!closesOwn()) return;
         const from = today(), until = addDays(from, 60);
-        const coming = tasks.filter(t => !t.daily && t.day && !isDone(t) && nextDay(t) >= from && nextDay(t) <= until)
+        // The next one always shows, however far away (next vaccination in May); the short list only the coming 60 days.
+        const coming = tasks.filter(t => !t.daily && t.day && !isDone(t) && nextDay(t) >= from)
             .sort((a, b) => nextDay(a) < nextDay(b) ? -1 : nextDay(a) > nextDay(b) ? 1 : byClock(a, b));
         const when = t => {
             const nd = nextDay(t);
@@ -1146,7 +1147,7 @@
             const b = document.createElement('span'); b.className = 'snart-hvad'; b.textContent = h;
             li.append(a, b); ul.appendChild(li);
         };
-        const rest = coming.slice(1, 8), kl = $('datoKommerListe'); kl.textContent = '';
+        const rest = coming.slice(1).filter(t => nextDay(t) <= until).slice(0, 7), kl = $('datoKommerListe'); kl.textContent = '';
         for (const t of rest) line(kl, when(t), t.title + (t.takers.length ? ' – ' + t.takers.join(', ') : ''));
         $('datoKommer').hidden = !rest.length;
         // A closed task sits on its own day (if it had one), else on the day it was closed; newest first, only the last 8.
