@@ -18,7 +18,7 @@ builder.Services.AddKolibri(k =>
     k.KolibriName = "Kolibri Kommunikere";
     k.Family = "kommunikere";
     k.Tagline = "Ét rum til hver sag – chat og opgaver samlet ét sted, uden Facebook og uden reklamer.";
-    k.Version = "2026.11.17.1";
+    k.Version = "2026.11.17.2";
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
@@ -195,6 +195,10 @@ app.MapPost("/api/rum/{id}/genaabn", (HttpContext c, string id, Access access, R
 app.MapPut("/api/rum/{id}", (HttpContext c, string id, RoomBody b, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.Rename(id, b.Titel) ? Results.Ok() : Results.NotFound());
 
+// Only the chat, or the chat with Opgaver and Filer (2026-11-17). Martin only.
+app.MapPut("/api/rum/{id}/kunchat", (HttpContext c, string id, KunChatBody b, Access access, Rooms rooms) =>
+    !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetKunChat(id, b.KunChat) ? Results.Ok() : Results.NotFound());
+
 // A group's people ("Navn – hvad de laver", one per line) and topics (one per line). Martin only.
 app.MapPut("/api/rum/{id}/holdet", (HttpContext c, string id, RosterBody b, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetRoster(id, b.Medlemmer, b.Emner, b.Links, b.Kalender) ? Results.Ok() : Results.NotFound());
@@ -249,7 +253,7 @@ room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSen
             pushKey = push.PublicKey, vaert = HostName, firma = CompanyName, medlemmer = r.Members ?? [], harKode = r.HasCode,
             gruppe = r.Gruppe, om = r.About ?? [], emner = r.Topics ?? [], links = r.Links ?? [],
             harKalender = !string.IsNullOrEmpty(r.CalendarUrl), kalender = IsAdmin(c, access) ? r.CalendarUrl ?? "" : "", adresse = r.Slug,
-            laast = DoorRules.Locked(r), mitNavn = DoorRules.NameOf(r, DeviceHash(c)),
+            laast = DoorRules.Locked(r), mitNavn = DoorRules.NameOf(r, DeviceHash(c)), kunChat = r.KunChat,
         }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
 
@@ -542,6 +546,7 @@ static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentTyp
 public sealed record LoginBody(string? Kode);
 public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, string? Medlemmer = null, string? Kode = null, string? Adresse = null,
     bool Gruppe = false);
+public sealed record KunChatBody(bool KunChat);
 public sealed record InviteBody(string? Link, string? Mail, string? Navn);
 public sealed record RosterBody(string? Medlemmer, string? Emner, string? Links = null, string? Kalender = null);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint, long? SvarPaa = null, long? Fil = null, string? Rolle = null);

@@ -104,6 +104,9 @@ public sealed class Rooms
 
     public bool Rename(string id, string? title) => Update(id, x => x with { Title = RoomRules.CleanTitle(title) });
 
+    /// <summary>Only the chat (the new-room template), or the chat with Opgaver and Filer.</summary>
+    public bool SetKunChat(string id, bool kunChat) => Update(id, x => x with { KunChat = kunChat });
+
     /// <summary>A group's people and topics (Martin pastes them, one per line). Everyone in the room sees the change at once.</summary>
     public bool SetRoster(string id, string? membersText, string? topicsText, string? linksText = null, string? calendarUrl = null)
     {

@@ -12,11 +12,13 @@ namespace ITMartinSnak.Domain;
 // 2026-11-09 GRUPPE (Acceleratorkursus Hold 36, replaces their Facebook group): a standing group - no "Sagen er klaret", never deleted;
 // About = what each member works with (the Holdet tab), Topics = the workshops files are sorted under. Older rooms read as before.
 // 2026-11-10 MAIL (user: "they should get mail"): Mail = the customer's address (from Kunder), MailedAt = the last "Martin har skrevet" mail.
+// 2026-11-17 KUN CHAT (user: "that should be the template... only chat room"): a new plain room (no names, not a group) is only the chat -
+// no Opgaver, no Filer. Martin can turn them on in the room. Older rooms read as false, so they keep their tabs.
 // 2026-11-12 DOOR (family rooms): Claims = member name -> the phones that hold it (token hashes), Pending = phones waiting for approval (DoorRules).
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
     List<string>? Members = null, string CodeHash = "", string Slug = "", bool Gruppe = false, Dictionary<string, string>? About = null,
     List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null, string Mail = "", DateTime? MailedAt = null,
-    Dictionary<string, List<Device>>? Claims = null, List<PendingDevice>? Pending = null)
+    Dictionary<string, List<Device>>? Claims = null, List<PendingDevice>? Pending = null, bool KunChat = false)
 {
     public bool IsDone => DoneAt is not null;
     public bool HasCode => CodeHash.Length > 0;
@@ -62,8 +64,9 @@ public static partial class RoomRules
         var id = NewId();
         var pw = (code ?? "").Trim();
         if (pw.Length is > 0 and < MinCode) throw new InvalidOperationException($"Adgangskoden skal være mindst {MinCode} tegn.");
+        var names = CleanMembers(members);
         return new Room(id, NewKey(), CleanTitle(title), nowUtc, nowUtc, null, c.Length > MaxCustomerRef ? c[..MaxCustomerRef] : c,
-            CleanMembers(members), pw.Length == 0 ? "" : CodeHashFor(id, pw), easy, group);
+            names, pw.Length == 0 ? "" : CodeHashFor(id, pw), easy, group, KunChat: !group && names.Count == 0);
     }
 
     // 2026-11-08 user: "make an easy url" - snak.itmartin.dk/sonja leads to the room. Anyone who guesses it gets in (said in the form).

@@ -363,6 +363,16 @@
             bar.append(b);
             bar.hidden = false;
         } else bar.hidden = true;
+        if (alleRum && room && !room.gruppe) {   // Martin: only the chat, or the chat with Opgaver and Filer
+            const t = document.createElement('button'); t.type = 'button'; t.className = 'k-btn k-btn-sm k-btn-ghost';
+            t.textContent = room.kunChat ? 'Slå Opgaver og Filer til' : 'Kun chat';
+            t.onclick = async () => {
+                t.disabled = true;
+                try { await api('PUT', '/api/rum/' + room.id + '/kunchat', { kunChat: !room.kunChat }); room = await api('GET', base); klaretBar(); calTabs(); } catch { t.disabled = false; }
+            };
+            bar.append(t);
+            bar.hidden = false;
+        }
     }
 
     // ---------- tabs ----------
@@ -1444,6 +1454,7 @@
     // A group room with the course's calendar shows Kalender instead of Opgaver, and the next day on every tab.
 
     function hasCal() { return !!(room && room.harKalender); }
+    function kunChat() { return !!(room && room.kunChat); }
     function calTabs() {
         $('tabKal').hidden = !hasCal();
         $('tabOpg').hidden = isGroup();   // a course group has no tasks (user 2026-11-09: "no opgaver here for a start")
@@ -1452,6 +1463,10 @@
         $('opgHjaelp').hidden = !closesOwn();
         if ($('tabDato').hidden && !$('viewDato').hidden) show('opg');
         $('ngNy').hidden = !admin;
+        if (kunChat()) {   // 2026-11-17: the new-room template is only the chat
+            for (const t of ['tabOpg', 'tabFil', 'tabDato', 'tabNg']) $(t).hidden = true;
+            if ($('viewChat').hidden) show('chat');
+        }
         if (($('tabKal').hidden && !$('viewKal').hidden) || ($('tabOpg').hidden && !$('viewOpg').hidden)) show(hasCal() ? 'kal' : 'chat');
         if (!hasCal()) $('naesteBar').hidden = true;
     }
