@@ -18,7 +18,7 @@ builder.Services.AddKolibri(k =>
     k.KolibriName = "Kolibri Kommunikere";
     k.Family = "kommunikere";
     k.Tagline = "Ét rum til hver sag – chat og opgaver samlet ét sted, uden Facebook og uden reklamer.";
-    k.Version = "2026.11.12.2";
+    k.Version = "2026.11.17.1";
     k.ThemeColor = "#f4f6f5";
     k.About =
     [
@@ -34,7 +34,7 @@ builder.Services.AddKolibri(k =>
         "Åbn linket og skriv dit navn.",
         "Skriv i chatten. Tryk + for at sende et billede eller en fil.",
         "Slå beskeder til, så ved du, når der er svar.",
-        "Under Opgaver skriver du kort, fx \"Tandlæge 13/11 kl 14\" – Snak finder selv dag og tid.",
+        "Under Opgaver skriver du kort, fx \"Tandlæge 13/11 kl 14\" – Snak finder selv dag og tid. Når den er klaret, skriver du kort hvordan, og den kan komme i Kalender.",
     ];
     // Snak's page is a static index.html, so /om and /hjaelp come as plain HTML (2026-10-19: they gave 404).
     k.StaticPages = true;
@@ -421,8 +421,11 @@ room.MapPut("/opgaver/{id:long}", (HttpContext c, string key, long id, TaskBody 
 room.MapPost("/opgaver/{id:long}/faerdig", (HttpContext c, string key, long id, DoneBody b, Access access, Rooms rooms) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    if (!IsRoomAdmin(c, access, r)) return Results.StatusCode(403);
-    return rooms.GroupOf(r).SetDone(id, b.Faerdig) is null ? Results.NotFound() : Results.Ok();
+    // 2026-11-17: in a shared room (named people) everyone closes tasks and says how ("Vaccination d. 17.11"); the host as before.
+    var host = IsRoomAdmin(c, access, r);
+    if (!host && !SharedMember(r, Who(c, b.Navn))) return Results.StatusCode(403);
+    var by = Who(c, b.Navn) is { Length: > 0 } n ? n : host ? "Martin" : "";
+    return rooms.GroupOf(r).SetDone(id, b.Faerdig, b.Hvordan, by, b.Kalender ?? false, b.NaesteGang, b.Endpoint) is null ? Results.NotFound() : Results.Ok();
 });
 
 room.MapDelete("/opgaver/{id:long}", (HttpContext c, string key, long id, string? navn, Access access, Rooms rooms) =>
@@ -547,7 +550,8 @@ public sealed record DoorAdminBody(string? Id, string? Navn);
 public sealed record ReactBody(string? Navn, string? Emoji, string? Rolle = null);
 public sealed record TaskBody(string? Titel, string? Note, string? Hvornaar, string? Endpoint, string? Til = null, string? Dag = null, bool? HverDag = null,
     string? Navn = null, bool? HvertAar = null, string? Slut = null, string? Sted = null);
-public sealed record DoneBody(bool Faerdig);
+public sealed record DoneBody(bool Faerdig, string? Hvordan = null, bool? Kalender = null, string? NaesteGang = null, string? Navn = null,
+    string? Endpoint = null);
 public sealed record TakeBody(string? Navn, string? Endpoint);
 public sealed record ProfileBody(string? Navn, string? Mail, string? Telefon, string? Web, string? LinkedIn, string? Om);
 public sealed record MineBody(string? Navn, bool Gjort);

@@ -149,6 +149,10 @@
     function canAdd() { return admin || (shared() && !isGroup() && isMember()); }
     function isMineBy(t) { return !!t.by && t.by.toLowerCase() === (navn || '').toLowerCase(); }
     function mayChange(t) { return admin || isMineBy(t); }
+    // 2026-11-17: in a shared room (not a course group) everyone closes tasks and says how; the host everywhere.
+    function closesOwn() { return shared() && !isGroup(); }
+    function mayClose() { return admin || (closesOwn() && isMember()); }
+    function mayReopen(t) { return admin || (!!t.doneBy && t.doneBy.toLowerCase() === (navn || '').toLowerCase()); }
 
     $('loginForm').addEventListener('submit', async e => {
         e.preventDefault();
@@ -329,7 +333,7 @@
         // A course room opens on its calendar (the "front page"); a family room on its tasks; a customer on the chat.
         const tab = store.get('snak_tab') || (hasCal() ? 'kal' : shared() && !isGroup() ? 'opg' : 'chat');
         const ok = t => !$('tab' + t[0].toUpperCase() + t.slice(1)).hidden;
-        show(['kal', 'ng', 'opg', 'fil', 'hold'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
+        show(['kal', 'ng', 'opg', 'fil', 'hold', 'dato'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
         $('opsBoks').hidden = !admin;
         loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); loadProfiles(); connect();
         setupPush(false).finally(reportSeen);
@@ -364,7 +368,7 @@
     // ---------- tabs ----------
 
     function show(which) {
-        for (const [v, t] of [['chat', 'tabChat'], ['kal', 'tabKal'], ['ng', 'tabNg'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['mig', 'tabMig']]) {
+        for (const [v, t] of [['chat', 'tabChat'], ['kal', 'tabKal'], ['ng', 'tabNg'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['dato', 'tabDato'], ['mig', 'tabMig']]) {
             $('view' + v[0].toUpperCase() + v.slice(1)).hidden = v !== which;
             $(t).setAttribute('aria-selected', String(v === which));
         }
@@ -380,6 +384,7 @@
     $('tabNg').onclick = () => show('ng');
     $('tabFil').onclick = () => show('fil');
     $('tabHold').onclick = () => show('hold');
+    $('tabDato').onclick = () => show('dato');
     $('tabMig').onclick = () => show('mig');
 
     // ---------- live ----------
@@ -971,6 +976,7 @@
     function renderTasks() {
         if (isGroup()) { renderNg(); return; }
         renderSnart();
+        renderDato();
         const dayList = tasks.filter(isToday);
         const open = dayList.filter(t => !isDone(t));
         const free = open.filter(t => t.takers.length === 0);
@@ -1040,6 +1046,12 @@
         who.textContent = t.takers.length ? 'Tager den: ' + t.takers.join(', ') : 'Ingen har taget den endnu.';
         c.appendChild(who);
         if (t.by) { const b = document.createElement('p'); b.className = 'hvem'; b.textContent = 'Lagt ind af ' + t.by; c.appendChild(b); }
+        if (done && (t.doneNote || t.doneBy)) {
+            const k = document.createElement('p'); k.className = 'klaret';
+            k.textContent = '✓ ' + (t.doneBy ? 'Klaret af ' + t.doneBy : 'Klaret') + (t.doneDay ? ' ' + shortDay(t.doneDay) : '')
+                + (t.doneNote ? ': ' + t.doneNote : '') + (t.inCalendar ? ' · i kalenderen' : '');
+            c.appendChild(k);
+        }
 
         const row = document.createElement('div'); row.className = 'k-row';
         if (!done) {
@@ -1049,10 +1061,12 @@
             take.onclick = () => act(take, () => api('POST', `${base}/opgaver/${t.id}/tag`, { navn, endpoint }));
             row.appendChild(take);
         }
-        if (admin) {
+        if (done ? mayReopen(t) : mayClose()) {
             const doneBtn = document.createElement('button'); doneBtn.type = 'button'; doneBtn.className = 'k-btn k-btn-sm';
             doneBtn.textContent = done ? 'Åbn igen' : t.daily ? 'Gjort i dag' : 'Færdig';
-            doneBtn.onclick = () => act(doneBtn, () => api('POST', `${base}/opgaver/${t.id}/faerdig`, { faerdig: !done }));
+            doneBtn.onclick = done
+                ? () => act(doneBtn, () => api('POST', `${base}/opgaver/${t.id}/faerdig`, { faerdig: false, navn }))
+                : () => { const f = c.querySelector('.luk'); if (f) { f.remove(); return; } c.appendChild(closeForm(t)); c.querySelector('.luk input').focus(); };
             row.appendChild(doneBtn);
         }
         if (mayChange(t)) {
@@ -1071,6 +1085,78 @@
         }
         c.appendChild(row);
         return c;
+    }
+
+    // ---------- closing a task (2026-11-17) ----------
+    // User: "a field where they say how they closed it. Like Vaccination d. 17" + "if a task has a date you can add to calendar when done".
+    const dmFmt = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'numeric' });
+    function shortDay(d) { return 'd. ' + dmFmt.format(new Date(d + 'T12:00')); }
+    function closeForm(t) {
+        const f = document.createElement('form'); f.className = 'luk';
+        const id = 'luk' + t.id;
+        const l = document.createElement('label'); l.className = 'k-label'; l.htmlFor = id + 'h'; l.textContent = 'Hvordan blev det klaret?';
+        const how = document.createElement('input'); how.className = 'k-input'; how.id = id + 'h'; how.maxLength = 300;
+        how.placeholder = t.daily ? 'fx Pillerne taget kl. 8' : 'fx Vaccination givet d. ' + dmFmt.format(new Date());
+        f.append(l, how);
+        let cal = null, next = null;
+        if (!t.daily) {
+            const cl = document.createElement('label'); cl.className = 'luk-kal';
+            cal = document.createElement('input'); cal.type = 'checkbox'; cal.checked = !!t.day;
+            cl.append(cal, document.createTextNode('Sæt den i kalenderen'));
+            const nl = document.createElement('label'); nl.className = 'k-label'; nl.htmlFor = id + 'n';
+            nl.innerHTML = 'Næste gang <span class="valgfri">(hvis det skal ske igen)</span>';
+            next = document.createElement('input'); next.type = 'date'; next.className = 'k-input'; next.id = id + 'n'; next.min = addDays(today(), 1);
+            f.append(cl, nl, next);
+        }
+        const row = document.createElement('div'); row.className = 'k-row';
+        const ok = document.createElement('button'); ok.type = 'submit'; ok.className = 'k-btn k-btn-primary'; ok.textContent = 'Gem – det er klaret';
+        const no = document.createElement('button'); no.type = 'button'; no.className = 'k-btn k-btn-ghost'; no.textContent = 'Fortryd';
+        no.onclick = () => f.remove();
+        row.append(ok, no); f.appendChild(row);
+        f.onsubmit = e => {
+            e.preventDefault();
+            act(ok, () => api('POST', `${base}/opgaver/${t.id}/faerdig`,
+                { faerdig: true, hvordan: how.value, kalender: !!(cal && cal.checked), naesteGang: (next && next.value) || null, navn, endpoint }));
+        };
+        return f;
+    }
+
+    // ---------- Kalender in shared rooms (2026-11-17) ----------
+    // "a calendar on the last tab where you can see the next important thing... Not too much": the next one big, a short list, what was closed.
+    function renderDato() {
+        if (!closesOwn()) return;
+        const from = today(), until = addDays(from, 60);
+        const coming = tasks.filter(t => !t.daily && t.day && !isDone(t) && nextDay(t) >= from && nextDay(t) <= until)
+            .sort((a, b) => nextDay(a) < nextDay(b) ? -1 : nextDay(a) > nextDay(b) ? 1 : byClock(a, b));
+        const when = t => {
+            const nd = nextDay(t);
+            return (t.endDay ? spanText(t) : nd === from ? 'I dag' : nd === addDays(from, 1) ? 'I morgen' : snartFmt.format(new Date(nd + 'T12:00')))
+                + (clock(t) ? ' · kl. ' + clock(t) : '') + (t.place ? ' · ' + t.place : '');
+        };
+        const first = coming[0];
+        $('datoNaeste').hidden = !first;
+        if (first) {
+            $('datoNaesteHvornaar').textContent = when(first);
+            $('datoNaesteHvad').textContent = first.title;
+            $('datoNaesteHvem').textContent = first.takers.length ? 'Tager den: ' + first.takers.join(', ') : 'Ingen har taget den endnu.';
+        }
+        const line = (ul, w, h) => {
+            const li = document.createElement('li');
+            const a = document.createElement('span'); a.className = 'snart-hvornaar'; a.textContent = w;
+            const b = document.createElement('span'); b.className = 'snart-hvad'; b.textContent = h;
+            li.append(a, b); ul.appendChild(li);
+        };
+        const rest = coming.slice(1, 8), kl = $('datoKommerListe'); kl.textContent = '';
+        for (const t of rest) line(kl, when(t), t.title + (t.takers.length ? ' – ' + t.takers.join(', ') : ''));
+        $('datoKommer').hidden = !rest.length;
+        // A closed task sits on its own day (if it had one), else on the day it was closed; newest first, only the last 8.
+        const closedDay = t => t.day && !t.yearly && t.day <= t.doneDay ? t.day : t.doneDay;
+        const closed = tasks.filter(t => t.inCalendar && t.doneDay).sort((a, b) => closedDay(a) < closedDay(b) ? 1 : -1).slice(0, 8);
+        const cl = $('datoKlaretListe'); cl.textContent = '';
+        for (const t of closed) line(cl, snartFmt.format(new Date(closedDay(t) + 'T12:00')),
+            t.title + (t.doneNote ? ': ' + t.doneNote : '') + (t.doneBy ? ' – ' + t.doneBy : ''));
+        $('datoKlaret').hidden = !closed.length;
+        $('datoTom').hidden = !!(first || closed.length);
     }
 
     async function act(btn, fn) {
@@ -1361,6 +1447,9 @@
         $('tabKal').hidden = !hasCal();
         $('tabOpg').hidden = isGroup();   // a course group has no tasks (user 2026-11-09: "no opgaver here for a start")
         $('tabNg').hidden = !isGroup();   // ...but "Til næste gang": assignments for the course days
+        $('tabDato').hidden = !closesOwn();   // 2026-11-17: shared rooms get their own small calendar (dates from the tasks)
+        $('opgHjaelp').hidden = !closesOwn();
+        if ($('tabDato').hidden && !$('viewDato').hidden) show('opg');
         $('ngNy').hidden = !admin;
         if (($('tabKal').hidden && !$('viewKal').hidden) || ($('tabOpg').hidden && !$('viewOpg').hidden)) show(hasCal() ? 'kal' : 'chat');
         if (!hasCal()) $('naesteBar').hidden = true;

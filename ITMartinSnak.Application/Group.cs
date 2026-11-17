@@ -216,7 +216,20 @@ public sealed class Group
         return t;
     }
 
-    public TaskItem? SetDone(long id, bool done) => Change(id, t => GroupRules.SetDone(t, done, Today));
+    /// <param name="note">How it was closed (2026-11-17), shown on the task and in the Kalender tab.</param>
+    /// <param name="nextDay">"Næste gang": the same thing again on that day (yyyy-MM-dd, after today) - a new task in the calendar.</param>
+    public TaskItem? SetDone(long id, bool done, string? note = null, string? by = null, bool calendar = false, string? nextDay = null,
+        string? fromEndpoint = null)
+    {
+        var t = Change(id, x => GroupRules.SetDone(x, done, Today, note, by, calendar));
+        if (t is null || !done) return t;
+        var who = GroupRules.CleanName(by);
+        _push.SendToOthers(_room.Id, fromEndpoint, (who.Length > 0 ? who + " har klaret det · " : "Klaret · ") + _room.Title,
+            t.Title + (t.DoneNote.Length > 0 ? " – " + t.DoneNote : ""), "snak-opg-" + _room.Id, _room.Url);
+        if (GroupRules.CleanNextDay(nextDay, Today) is { } next)
+            AddTask(t.Title, t.Note, t.When, fromEndpoint, null, next, false, who.Length > 0 ? who : null, false, null, t.Place);
+        return t;
+    }
 
     public TaskItem? ToggleTaker(long id, string? name, string? fromEndpoint = null)
     {

@@ -17,7 +17,11 @@ public sealed record Message(long Id, string Name, string Text, DateTime At, boo
 // ("" = the host) - that person may change and remove it too; Yearly = comes back on the same date every year (birthdays),
 // its tick (DoneOn) only counts for that year's day, like Daily.
 public sealed record TaskItem(long Id, string Title, string Note, string When, List<string> Takers, bool Done, DateTime CreatedAt,
-    string Day = "", bool Daily = false, string DoneOn = "", string By = "", bool Yearly = false, string EndDay = "", string Place = "");
+    string Day = "", bool Daily = false, string DoneOn = "", string By = "", bool Yearly = false, string EndDay = "", string Place = "",
+    string DoneNote = "", string DoneBy = "", string DoneDay = "", bool InCalendar = false);
+// 2026-11-17 (user, Sonja room): "when people are done there should be a field where they say how they closed it. Like Vaccination d. 17"
+// + "if a task has a date you can add to calendar when done". DoneNote = how it was closed, DoneBy = who, DoneDay = the day it was
+// closed, InCalendar = show it in the room's Kalender tab (on its own day, else the day it was closed).
 // 2026-11-12 trin 2 (user: "4/11-7/11 i Kbh"): EndDay = the last day of something that lasts several days ("" = one day),
 // Place = where it is. A multi-day thing is on every day from Day to EndDay; its clock time and reminders belong to the first day.
 
@@ -146,8 +150,23 @@ public static class GroupRules
         t.Daily || t.Yearly ? t.DoneOn == today.ToString("yyyy-MM-dd") : t.Done;
 
     /// <summary>Ticked off: a daily task only for today (it comes back tomorrow), a yearly one only for this year's day, any other for good.</summary>
-    public static TaskItem SetDone(TaskItem t, bool done, DateOnly today) =>
-        t.Daily || t.Yearly ? t with { Done = false, DoneOn = done ? today.ToString("yyyy-MM-dd") : "" } : t with { Done = done };
+    public const int MaxDoneNote = 300;
+
+    /// <param name="note">How it was closed ("Vaccination givet d. 17.11"); null = keep, ignored when reopened.</param>
+    /// <param name="by">Who closed it.</param>
+    /// <param name="calendar">Show it in the Kalender tab afterwards.</param>
+    public static TaskItem SetDone(TaskItem t, bool done, DateOnly today, string? note = null, string? by = null, bool calendar = false)
+    {
+        var d = today.ToString("yyyy-MM-dd");
+        var closed = !done
+            ? t with { DoneNote = "", DoneBy = "", DoneDay = "", InCalendar = false }
+            : t with { DoneNote = note is null ? t.DoneNote : Cut(note.Trim(), MaxDoneNote), DoneBy = CleanName(by), DoneDay = d, InCalendar = calendar };
+        return t.Daily || t.Yearly ? closed with { Done = false, DoneOn = done ? d : "" } : closed with { Done = done };
+    }
+
+    /// <summary>"Næste gang" when closing: the same thing again on a new day (no one on it yet).</summary>
+    public static string? CleanNextDay(string? day, DateOnly today) =>
+        DateOnly.TryParseExact((day ?? "").Trim(), "yyyy-MM-dd", out var n) && n > today ? n.ToString("yyyy-MM-dd") : null;
 
     /// <summary>What "I dag" shows: daily tasks, today's (also yearly ones), and the ones with no day that are not done.</summary>
     public static bool IsToday(TaskItem t, DateOnly today) =>

@@ -16,11 +16,11 @@
     <meta name="apple-mobile-web-app-title" content="Snak" />
     <title>Snak</title>
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
-    <link rel="stylesheet" href="/app.css?v=31" />
+    <link rel="stylesheet" href="/app.css?v=32" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
     <script src="/_content/ITMartin.Shared.UI/kolibri.js?v=11" defer></script>
-    <script src="/app.js?v=36" defer></script>
+    <script src="/app.js?v=37" defer></script>
 </head>
 <body>
 <!-- The ITMartin/Kolibri header every app has (KolibriHeader; copied here because Snak's page is static, like Spilleder). -->
@@ -130,6 +130,7 @@
                 <button role="tab" id="tabChat" aria-selected="true">Chat</button>
                 <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
                 <button role="tab" id="tabHold" aria-selected="false" hidden>Holdet</button>
+                <button role="tab" id="tabDato" aria-selected="false" hidden>Kalender</button>
                 <button role="tab" id="tabMig" aria-selected="false" aria-label="Indstillinger og hjælp">⋯</button>
             </nav>
         </header>
@@ -229,6 +230,16 @@
                 <summary>Andre dage</summary>
                 <div id="opgAndre" class="opgaver k-mt"></div>
             </details>
+            <!-- 2026-11-17 user: explain how it works, in Danish, right where the tasks are. -->
+            <section id="opgHjaelp" class="k-card k-mt" hidden>
+                <h2 class="k-card-title">Sådan virker det</h2>
+                <ol class="hjaelp-liste">
+                    <li><b>Jeg tager den</b> – så ved de andre, at du gør det. Står dit navn på en opgave, er den din.</li>
+                    <li><b>Færdig</b> – skriv kort, hvordan det blev klaret, fx "Vaccination givet d. 17.11" eller "Pillerne er hentet".</li>
+                    <li>Har opgaven en dato, kan du sætte den i <b>Kalender</b>. Skal det ske igen, så vælg <b>Næste gang</b> – så kommer den nye dato også i kalenderen.</li>
+                    <li>Alle i rummet får besked, når noget bliver lagt ind eller klaret. En påmindelse kommer en time og en halv time før.</li>
+                </ol>
+            </section>
             <form id="nyOpg" class="k-card ny k-mt" hidden>
                 <h2 class="k-card-title" id="nyTitel">Ny opgave</h2>
                 <!-- 2026-11-12 user: "You just write. Dentist. 13/11. 1400" - one line, read by simple rules (no AI), one button. -->
@@ -297,6 +308,25 @@
             <p class="opg-intro" id="holdIntro"></p>
             <section class="k-card kursus-links" hidden><h2 class="k-card-title">Kursets sider</h2><p class="k-help">Undervisningen og materialet ligger på kursets egen side. Her i Snak taler vi sammen på holdet.</p><div class="k-row link-knapper"></div></section>
             <div id="holdListe" class="opgaver"></div>
+        </main>
+
+        <!-- 2026-11-17 shared rooms (Sonja): the next important thing, the coming dates and what was closed - kept short on purpose. -->
+        <main id="viewDato" class="view dato" hidden>
+            <section id="datoNaeste" class="k-card naeste-kort" hidden>
+                <h2 class="k-card-title">Det næste</h2>
+                <p class="naeste-hvornaar" id="datoNaesteHvornaar"></p>
+                <p class="naeste-hvad" id="datoNaesteHvad"></p>
+                <p class="hvem" id="datoNaesteHvem"></p>
+            </section>
+            <p class="tom" id="datoTom" hidden><strong>Intet i kalenderen endnu</strong>Når en opgave får en dato, kommer den her. Når nogen klarer en opgave og sætter den i kalenderen, står den under "Klaret".</p>
+            <section id="datoKommer" class="k-card" hidden>
+                <h2 class="k-card-title">Det kommer</h2>
+                <ul id="datoKommerListe" class="snart-liste"></ul>
+            </section>
+            <section id="datoKlaret" class="k-card" hidden>
+                <h2 class="k-card-title">Klaret</h2>
+                <ul id="datoKlaretListe" class="snart-liste"></ul>
+            </section>
         </main>
 
         <main id="viewMig" class="view mig" hidden>
