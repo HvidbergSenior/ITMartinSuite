@@ -66,7 +66,7 @@
             $("soeg-info").textContent = "Søger …";
             api("/api/steder?" + p).then(function (r) {
                 $("soeg-info").textContent = r.antal === 0 ? "Ingen steder fundet. Prøv en anden by eller slå filteret fra."
-                    : r.antal + (r.antal === 1 ? " sted" : " steder") + (r.antal > r.steder.length ? " – de første " + r.steder.length + " vises" : "") + (pos ? ", nærmeste først." : ".");
+                    : r.antal + (r.antal === 1 ? " sted" : " steder") + (r.ved ? " inden for 30 km af " + r.ved : "") + (r.antal > r.steder.length ? " – de " + r.steder.length + " nærmeste vises" : "") + (pos || r.ved ? ", nærmeste først." : ".");
                 $("resultater").innerHTML = r.steder.map(function (s) {
                     return '<a class="ep-sted" href="/sted/' + encodeURIComponent(s.id) + '"><span class="ep-sted-navn">' + esc(s.navn) + "</span>"
                         + '<span class="k-muted">' + esc(s.kategori) + (s.by ? " · " + esc(s.by) : "") + (s.km != null ? " · " + String(s.km).replace(".", ",") + " km" : "") + "</span>"
@@ -196,9 +196,10 @@
                 var passer = r.steder.filter(function (s) { return s.pasning === "Passer" || !pas.length; });
                 var tjek = pas.length ? r.steder.filter(function (s) { return s.pasning === "TjekSelv"; }) : [];
                 var ikke = pas.length ? r.steder.filter(function (s) { return s.pasning === "PasserIkke"; }) : [];
-                $("g5-svar").textContent = r.antal === 0 ? "Vi fandt ingen steder her endnu. Prøv en anden by, eller tryk Det er lige meget."
+                var ved = r.ved ? " nær " + r.ved : "";
+                $("g5-svar").textContent = r.antal === 0 ? "Vi fandt ingen steder" + ved + " endnu. Prøv en større by i nærheden, eller tryk Nær mig."
                     : !pas.length ? "Her er " + passer.length + (passer.length === 1 ? " sted" : " steder")
-                    : passer.length ? passer.length + (passer.length === 1 ? " sted passer" : " steder passer") + " til dig"
+                    : passer.length ? passer.length + (passer.length === 1 ? " sted passer" : " steder passer") + " til dig" + ved
                     : "Ingen steder er tjekket helt endnu – men se dem herunder";
                 $("g5-passer").innerHTML = passer.map(kort).join("");
                 $("g5-tjek-titel").hidden = $("g5-tjek-tekst").hidden = !tjek.length;
@@ -231,11 +232,13 @@
             html += '<div class="ep-row">'
                 + (s.telefon ? '<a class="k-btn k-btn-primary" href="tel:' + esc(s.telefon.replace(/\s/g, "")) + '">Ring: ' + esc(s.telefon) + "</a>" : "")
                 + (s.hjemmeside ? '<a class="k-btn k-btn-secondary" href="' + esc(/^https?:/.test(s.hjemmeside) ? s.hjemmeside : "https://" + s.hjemmeside) + '" target="_blank" rel="noopener">Stedets hjemmeside</a>' : "")
+                + (s.lat != null ? '<a class="k-btn k-btn-secondary" href="https://www.openstreetmap.org/?mlat=' + s.lat + "&mlon=" + s.lng + "#map=17/" + s.lat + "/" + s.lng + '" target="_blank" rel="noopener">Se på kort</a>' : "")
                 + '<button id="tur-knap" class="k-btn k-btn-secondary" type="button">' + (paaTur ? "Fjern fra min tur" : "Læg på min tur") + "</button></div>"
                 + '<details class="ep-alt"><summary>Alt om stedet</summary><table class="ep-table"><tbody>'
                 + d.faciliteter.map(function (f) { return "<tr><th scope=\"row\">" + esc(f.navn) + '</th><td class="ep-svar-' + (f.svar === "Ja" ? "ja" : f.svar === "Nej" ? "nej" : "ukendt") + '">' + esc(f.svar) + "</td></tr>"; }).join("")
                 + "</tbody></table>"
-                + (s.sidstTjekket ? '<p class="k-muted">Sidst tjekket ' + new Date(s.sidstTjekket).toLocaleDateString("da-DK") + " · kilde: " + esc(s.kilde) + "</p>" : "")
+                + (s.sidstTjekket ? '<p class="k-muted">Sidst tjekket ' + new Date(s.sidstTjekket).toLocaleDateString("da-DK") + " · kilde: "
+                    + (s.kilde === "OpenStreetMap" ? 'OpenStreetMap © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-bidragydere</a>' : esc(s.kilde)) + "</p>" : "")
                 + "</details>";
             $("sted-kort").innerHTML = html;
             $("tur-knap").addEventListener("click", function () {
@@ -350,7 +353,12 @@
             adm("/api/admin/beskeder/" + b.getAttribute("data-klaret") + "/klaret", { method: "POST" }).then(beskeder);
         });
 
+        function osmStatus() { adm("/api/admin/osm").then(function (r) { $("osm-status").textContent = r.status; if (/Henter/.test(r.status)) setTimeout(osmStatus, 5000); }); }
+        $("osm-hent").addEventListener("click", function () {
+            adm("/api/admin/osm", { method: "POST" }).then(function () { setTimeout(osmStatus, 1000); }).catch(function (e) { $("osm-status").textContent = e.message; });
+        });
         function start() {
+            osmStatus();
             beskeder();
             katalogP().then(function (k) {
                 $("s-kategori").innerHTML = k.kategorier.map(function (c) { return "<option>" + esc(c) + "</option>"; }).join("");

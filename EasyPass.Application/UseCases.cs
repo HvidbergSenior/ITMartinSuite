@@ -9,14 +9,38 @@ public sealed record StedDetalje(Sted Sted, MatchResultat Match, TurPlan Plan, I
 
 public sealed record FacilitetLinje(string Noegle, string Navn, string Svar);
 
-public sealed record SoegResultat(int Antal, IReadOnlyList<StedKort> Steder);
+/// <summary>Ved = the town the search was sorted around ("Nærmeste ved Hammel"), or null.</summary>
+public sealed record SoegResultat(int Antal, IReadOnlyList<StedKort> Steder, string? Ved = null);
 
 /// <summary>Find steder: text (name/by/postnr), category, "kun dem der passer", nearest first when a position is given.</summary>
-public sealed class FindSteder(IStedStore store)
+public sealed class FindSteder(IStedStore store, IByOpslag byer)
 {
     public const int Max = 60;
+    public const double RadiusKm = 30;
 
-    public SoegResultat Udfoer(string? q, string? kategori, string? behov, bool kunPasser, double? lat, double? lng)
+    /// <summary>
+    /// Text that matches a place's name/by/kategori = those places. Text that matches nothing (or a postnummer) = a town:
+    /// we look it up and show the nearest places within 30 km. Most places from OpenStreetMap have a position but no address.
+    /// </summary>
+    public async Task<SoegResultat> UdfoerAsync(string? q, string? kategori, string? behov, bool kunPasser, double? lat, double? lng, CancellationToken ct = default)
+    {
+        var tekst = (q ?? "").Trim();
+        if (tekst.Length > 0 && lat is null)
+        {
+            var erPostnr = tekst.Length == 4 && tekst.All(char.IsDigit);
+            var direkte = Udfoer(tekst, kategori, behov, kunPasser, null, null);
+            if (direkte.Antal > 0 && !erPostnr) return direkte;
+            if (await byer.FindAsync(tekst, ct) is { } p)
+            {
+                var naer = Udfoer(null, kategori, behov, kunPasser, p.Lat, p.Lng, RadiusKm);
+                return naer with { Ved = p.Navn };
+            }
+            return direkte;
+        }
+        return Udfoer(tekst, kategori, behov, kunPasser, lat, lng, lat is null ? null : RadiusKm * 2);
+    }
+
+    public SoegResultat Udfoer(string? q, string? kategori, string? behov, bool kunPasser, double? lat, double? lng, double? maxKm = null)
     {
         var mine = Katalog.Laes(behov);
         var tekst = (q ?? "").Trim();
@@ -29,6 +53,7 @@ public sealed class FindSteder(IStedStore store)
             var m = Matcher.Vurder(s, mine);
             if (kunPasser && m.Pasning == Pasning.PasserIkke) continue;
             double? km = lat is { } la && lng is { } lo && s.Lat is { } sl && s.Lng is { } sg ? Math.Round(StedRegler.Km(la, lo, sl, sg), 1) : null;
+            if (maxKm is { } mk && (km is null || km > mk)) continue;
             kort.Add(new StedKort(s.Id, s.Navn, s.Kategori, s.By, km, m.Pasning.ToString(), m.Ord, m.Mangler.Count, s.ErEksempel));
         }
 

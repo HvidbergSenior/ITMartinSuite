@@ -75,6 +75,75 @@ public class PlanTests
     public void Every_facility_has_a_question() => Katalog.Faciliteter.Should().OnlyContain(f => f.Spoergsmaal.EndsWith("?"));
 }
 
+public class OpenStreetMapTests
+{
+    private sealed class Mem : IStedStore
+    {
+        public Dictionary<string, Sted> Items { get; } = [];
+        public IReadOnlyList<Sted> Alle() => Items.Values.ToList();
+        public Sted? Hent(string id) => Items.GetValueOrDefault(id);
+        public void Gem(Sted s) => Items[s.Id] = s;
+        public void GemMange(IEnumerable<Sted> l) { foreach (var s in l) Items[s.Id] = s; }
+        public bool Slet(string id) => Items.Remove(id);
+    }
+
+    private sealed class FakeOsm(params Sted[] steder) : IOpenStreetMapKilde
+    {
+        public Task<IReadOnlyList<Sted>> HentAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Sted>>(steder);
+    }
+
+    private sealed class FakeBy(Punkt? p) : IByOpslag
+    {
+        public Task<Punkt?> FindAsync(string tekst, CancellationToken ct = default) => Task.FromResult(p);
+    }
+
+    private static Sted Osm(string id, string navn, double lat = 56.25, double lng = 9.86) =>
+        new() { OsmId = id, Navn = navn, Lat = lat, Lng = lng, Kilde = "OpenStreetMap", Faciliteter = new() { ["niveaufri"] = Svar.Ja } };
+
+    [Test]
+    public void Overpass_tags_become_facts()
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse("""
+            {"type":"way","id":7,"center":{"lat":56.1,"lon":10.2},"tags":{"name":"Byens Bibliotek","amenity":"library","wheelchair":"yes","toilets:wheelchair":"no","hearing_loop":"yes"}}
+            """);
+        var s = EasyPass.Infrastructure.OverpassKilde.Map(doc.RootElement)!;
+        s.OsmId.Should().Be("way/7");
+        s.Kategori.Should().Be("Kultur og teater");
+        s.Har("niveaufri").Should().Be(Svar.Ja);
+        s.Har("toilet").Should().Be(Svar.Nej);
+        s.Har("teleslynge").Should().Be(Svar.Ja);
+        StedRegler.Problemer(s).Should().BeEmpty();   // position is enough, no address needed
+    }
+
+    [Test]
+    public async Task Refresh_adds_updates_never_overwrites_our_edits_and_removes_examples()
+    {
+        var store = new Mem();
+        store.Gem(new Sted { Navn = "Eksempel: X", By = "Aarhus", Kilde = "Eksempel" });
+        var rettet = Osm("node/2", "Rettet af os"); rettet.Kilde = "Stedet selv"; store.Gem(rettet);
+        var r = await new OpdaterFraOpenStreetMap(store, new FakeOsm(Osm("node/1", "Nyt"), Osm("node/2", "Fra OSM")), TimeProvider.System).UdfoerAsync();
+        r.Nye.Should().Be(1);
+        r.EksemplerSlettet.Should().Be(1);
+        store.Alle().Single(s => s.OsmId == "node/2").Navn.Should().Be("Rettet af os");
+
+        var tom = await new OpdaterFraOpenStreetMap(store, new FakeOsm(), TimeProvider.System).UdfoerAsync();
+        tom.Fjernet.Should().Be(0);   // an empty answer never wipes the places
+        store.Alle().Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task A_town_with_no_name_match_shows_the_nearest_places()
+    {
+        var store = new Mem();
+        store.Gem(Osm("node/1", "Café ved søen", 56.26, 9.87));    // ~1.5 km from Hammel
+        store.Gem(Osm("node/2", "Langt væk", 55.0, 12.5));
+        var find = new FindSteder(store, new FakeBy(new Punkt("Hammel", 56.257, 9.862)));
+        var r = await find.UdfoerAsync("Hammel", null, "korestol", false, null, null);
+        r.Ved.Should().Be("Hammel");
+        r.Steder.Should().ContainSingle().Which.Navn.Should().Be("Café ved søen");
+    }
+}
+
 public class RulesTests
 {
     [Test]
@@ -141,6 +210,7 @@ public class ApiTests
         {
             b.UseSetting("EasyPass:DataDir", _dir);
             b.UseSetting("EasyPass:AdminPin", "123456");
+            b.UseSetting("EasyPass:OsmAuto", "false");
         });
     }
 

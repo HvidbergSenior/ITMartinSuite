@@ -18,13 +18,18 @@ public sealed class Sted
     /// <summary>Facility key -> Ja/Nej. A key that is not here = Ukendt.</summary>
     public Dictionary<string, Svar> Faciliteter { get; set; } = [];
 
-    /// <summary>Where the facts come from: "Eksempel", "Easy-Pass", "Stedet selv", "Besøgende".</summary>
+    /// <summary>OpenStreetMap id ("node/123") for places that came from there - the next refresh updates them.</summary>
+    public string? OsmId { get; set; }
+
+    /// <summary>Where the facts come from: "Eksempel", "OpenStreetMap", "Easy-Pass", "Stedet selv".</summary>
     public string Kilde { get; set; } = "Eksempel";
     public DateTime? SidstTjekket { get; set; }
 
     public Svar Har(string facilitet) => Faciliteter.GetValueOrDefault(facilitet, Svar.Ukendt);
 
     public bool ErEksempel => Kilde == "Eksempel";
+
+    public bool FraOpenStreetMap => Kilde == "OpenStreetMap";
 }
 
 public static class StedRegler
@@ -34,7 +39,7 @@ public static class StedRegler
     {
         var p = new List<string>();
         if (string.IsNullOrWhiteSpace(s.Navn)) p.Add("Stedet skal have et navn.");
-        if (string.IsNullOrWhiteSpace(s.By) && string.IsNullOrWhiteSpace(s.Postnr)) p.Add("Skriv by eller postnummer.");
+        if (string.IsNullOrWhiteSpace(s.By) && string.IsNullOrWhiteSpace(s.Postnr) && (s.Lat is null || s.Lng is null)) p.Add("Skriv by eller postnummer (eller placering).");
         if (s.Postnr.Length > 0 && !(s.Postnr.Length == 4 && s.Postnr.All(char.IsDigit))) p.Add("Postnummer er fire cifre.");
         if (!Katalog.Kategorier.Contains(s.Kategori)) p.Add("Vælg en kategori fra listen.");
         if (s.Lat is < 54 or > 58 || s.Lng is < 7 or > 16) p.Add("Placeringen ligger ikke i Danmark.");

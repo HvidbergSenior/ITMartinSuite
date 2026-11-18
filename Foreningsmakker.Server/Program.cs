@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Foreningsmakker.Application;
 using Foreningsmakker.Domain;
 using Foreningsmakker.Infrastructure;
@@ -24,13 +25,14 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
+        "Ny forening: skriv foreningens navn, dit navn og din mail. Så er du admin og får en mail med dit personlige link.",
         "Log ind: tryk på linket i din invitation, eller skriv din mail på log ind-siden og tryk \"Send mig et link\". Ingen adgangskode.",
         "Medlemmer (for admin): skriv navn, mail og rolle under \"Inviter en ny person\", så får personen en mail med et link.",
         "Foreningen: skriv CVR-nummeret, så hentes navn og adresse. Ret resten, og tryk Gem.",
         "Beskeder: skriv til alle eller nogle, og se hvem der har læst den.",
         "Opgaver, Møder og Kalender: tryk på fanen øverst.",
     ];
-    k.Version = "2026.11.18";
+    k.Version = "2026.11.18b";
     k.ThemeColor = "#121917";
 });
 
@@ -46,6 +48,10 @@ builder.Services.AddSingleton<ClubBroadcastService>();
 builder.Services.AddScoped<ClubAuthService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<MessageReminderJob>();
+// Login cookies/antiforgery keys live with the data, so a restart or a new image does not log people out or break open pages.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Foreningsmakker.Infrastructure.DependencyInjection.DataDir(builder.Configuration), "keys")))
+    .SetApplicationName("foreningsmakker");
 
 var app = builder.Build();
 

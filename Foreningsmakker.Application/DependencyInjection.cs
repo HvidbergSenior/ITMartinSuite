@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddSingleton(new ClubOptions { DemoMode = demoMode });
         services.AddSingleton<AdminPinLimiter>();
         services.AddSingleton<MemberPinLimiter>();
+        services.AddSingleton<MailLinkLimiter>();
         services.AddScoped<TeamAccess>();
         services.AddScoped<TaskBoard>();
         services.AddScoped<TeamMessages>();

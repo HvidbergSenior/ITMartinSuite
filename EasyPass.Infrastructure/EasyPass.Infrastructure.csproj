@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Easy-Pass storage: JSON files in EasyPass__DataDir (no database server, no outside services). -->
+  <!-- Easy-Pass storage: JSON files in EasyPass__DataDir. Outside: OpenStreetMap Overpass (places) + Nominatim (town -> point), both free. -->
   <ItemGroup>
     <ProjectReference Include="..\EasyPass.Application\EasyPass.Application.csproj" />
     <ProjectReference Include="..\EasyPass.Domain\EasyPass.Domain.csproj" />
@@ -9,6 +9,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
   </ItemGroup>
 
   <PropertyGroup>

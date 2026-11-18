@@ -22,6 +22,11 @@
         {
             <div class="join-error">Gruppen findes ikke.</div>
         }
+        else if (!_hasMembers)
+        {
+            <p class="join-hint">Der er ingen i foreningen endnu. Du er den første - så bliver du admin.</p>
+            <FoundForm Slug="@Slug" ButtonText="Bliv foreningens admin" />
+        }
         else
         {
             <section class="join-mail">
@@ -99,6 +104,7 @@
     private string? _error;
     private bool _joining;
     private bool _loaded;
+    private bool _hasMembers = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -111,6 +117,7 @@
         }
 
         _group = await Access.GroupAsync(Slug);
+        _hasMembers = _group is null || await Access.HasMembersAsync(_group);
         _loaded = true;
         StateHasChanged();
     }

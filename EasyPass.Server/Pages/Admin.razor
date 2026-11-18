@@ -54,6 +54,13 @@
         </section>
 
         <section class="k-card">
+            <h2 class="k-card-title">Steder fra OpenStreetMap</h2>
+            <p class="k-muted">Hentes af sig selv én gang om ugen: alle steder i Danmark med kørestolsoplysninger. Steder, I har rettet her, bliver aldrig overskrevet.</p>
+            <p id="osm-status" aria-live="polite"></p>
+            <button id="osm-hent" class="k-btn k-btn-primary" type="button">Hent nu</button>
+        </section>
+
+        <section class="k-card">
             <h2 class="k-card-title">Hent steder fra en CSV-fil</h2>
             <p class="k-muted">Fx eksporten fra den gamle Easy-Pass. Kolonner findes på navnet: navn, kategori, adresse, postnr, by, lat, lng, hjemmeside, telefon, beskrivelse – og en kolonne pr. facilitet med ja/nej. Samme navn og postnr opdaterer stedet.</p>
             <input id="csv-fil" type="file" accept=".csv,text/csv" aria-label="Vælg CSV-fil" />

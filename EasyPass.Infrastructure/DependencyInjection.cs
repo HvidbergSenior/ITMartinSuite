@@ -14,6 +14,12 @@ public static class DependencyInjection
         if (steder.Tom) steder.GemMange(Eksempler.Alle());
 
         services.AddSingleton(TimeProvider.System);
+        services.AddMemoryCache();
+        // OpenStreetMap's services ask for a real User-Agent with a way to reach the operator.
+        const string ua = "ITMartin-EasyPass/1.0 (+https://easypass.itmartin.dk/om)";
+        services.AddHttpClient<IOpenStreetMapKilde, OverpassKilde>(c => { c.Timeout = TimeSpan.FromMinutes(6); c.DefaultRequestHeaders.UserAgent.ParseAdd(ua); });
+        services.AddHttpClient<IByOpslag, NominatimByOpslag>(c => { c.Timeout = TimeSpan.FromSeconds(10); c.DefaultRequestHeaders.UserAgent.ParseAdd(ua); });
+        services.AddTransient<OpdaterFraOpenStreetMap>();
         services.AddSingleton<IStedStore>(steder);
         services.AddSingleton<ITilbagemeldingStore>(new JsonTilbagemeldingStore(dir));
         services.AddTransient<FindSteder>();

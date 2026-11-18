@@ -49,6 +49,16 @@ public class MailLoginTests
     }
 
     [Test]
+    public async Task A_fourth_link_within_15_minutes_is_refused_for_any_mail()
+    {
+        var (access, _, mail, group) = await CreateAsync();
+        for (var i = 0; i < 3; i++) await access.SendLoginLinkAsync(group, "ole@mail.dk", "https://f.test/");
+        (await access.SendLoginLinkAsync(group, "ole@mail.dk", "https://f.test/")).Should().Contain("vent 15 minutter");
+        mail.Sent.Should().HaveCount(3);
+        (await access.SendLoginLinkAsync(group, "ukendt@mail.dk", "https://f.test/")).Should().Be(TeamAccess.MailLoginSent);
+    }
+
+    [Test]
     public async Task Known_mail_gets_a_link_that_logs_in_once()
     {
         var (access, _, mail, group) = await CreateAsync();
@@ -77,6 +87,22 @@ public class MailLoginTests
         again.Error.Should().Contain("allerede");
     }
 
+    [Test]
+    public async Task The_first_person_becomes_admin_gets_logged_in_and_mailed_but_only_once()
+    {
+        var (access, _, mail, _) = await CreateAsync();
+        var r = await access.FoundAsync("hammel", "Borgerforeningen", "Martin", "Martin@Mail.dk", "", "https://f.test/");
+        r.Error.Should().BeNull();
+        r.Session.Should().NotBeNull();
+        r.AdminPin.Should().HaveLength(6);
+        mail.Sent.Should().ContainSingle().Which.Body.Should().Contain("/l/").And.Contain(r.AdminPin!);
+        var g = (await access.GroupAsync("hammel"))!;
+        access.UnlockAdmin(g, r.AdminPin!).Should().Be(AdminUnlock.Ok);
+
+        var again = await access.FoundAsync("hammel", "", "Fremmed", "x@mail.dk", "", "https://f.test/");
+        again.Error.Should().Contain("allerede medlemmer");
+    }
+
     private static async Task<(TeamAccess, TeamMembers, FakeMail, Group)> CreateAsync()
     {
         var connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=False");
@@ -88,7 +114,7 @@ public class MailLoginTests
         await teams.AddGroupAsync(group);
         await teams.AddMemberAsync(new Member { GroupId = group.Id, Name = "Ole", Email = "ole@mail.dk" });
         var mail = new FakeMail();
-        var access = new TeamAccess(teams, new AdminPinLimiter(), new MemberPinLimiter(), new ClubOptions(), new FixedClock(Now), mail);
+        var access = new TeamAccess(teams, new AdminPinLimiter(), new MemberPinLimiter(), new ClubOptions(), new FixedClock(Now), mail, new MailLinkLimiter(new FixedClock(Now)));
         return (access, new TeamMembers(teams, mail), mail, group);
     }
 

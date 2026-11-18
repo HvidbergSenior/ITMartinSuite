@@ -7,24 +7,9 @@
 
 <div class="create-wrap">
     <div class="create-card">
-                <h1 class="create-title">Opret gruppe</h1>
-        <p class="create-sub">Én gruppe · Alle samlet ét sted</p>
-
-        @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
-
-        <div class="create-field"><label>Gruppenavn</label><input @bind="_name" placeholder="fx Fredagsklubben" class="create-input" maxlength="100" /></div>
-        <div class="create-field"><label>Beskrivelse (valgfrit)</label><input @bind="_desc" class="create-input" maxlength="200" /></div>
-        <div class="create-field">
-            <label>Adgangskode til gruppen</label>
-            <input @bind="_invite" placeholder="f.eks. sommer2026" class="create-input" maxlength="40" />
-            <div class="create-hint-text">Den kode som nye medlemmer skal bruge for at tilmelde sig gruppen.</div>
-        </div>
-        <div class="create-field">
-            <label>Din personlige PIN</label>
-            <input @bind="_pin" type="password" placeholder="min. 4 cifre" class="create-input" maxlength="20" />
-            <div class="create-hint-text">Kun du kender den — bruges til at ændre gruppeindstillinger og redigere indhold.</div>
-        </div>
-        <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">@(_creating ? "Opretter..." : "Opret gruppe")</button>
+                <h1 class="create-title">Opret jeres forening</h1>
+        <p class="create-sub">Skriv tre ting, så er I i gang. Du bliver admin og kan invitere de andre bagefter.</p>
+        <FoundForm Slug="@_slug" AskForeningName="true" />
     </div>
 </div>
 
@@ -45,9 +30,6 @@
 </style>
 
 @code {
-    private string _name = "", _desc = "", _invite = "", _pin = "";
-    private string? _error;
-    private bool _creating;
     private string _slug = "";
 
     // Legacy domains from the standalone ADHD/Family apps, retired in favor of
@@ -83,26 +65,5 @@
         var group = await Access.GroupAsync(_slug);
         if (group is not null)
             Nav.NavigateTo($"/g/{group.Slug}", forceLoad: true);
-    }
-
-    private async Task CreateAsync()
-    {
-        _error = null;
-        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv et gruppenavn."; return; }
-
-        _creating = true;
-        StateHasChanged();
-
-        try
-        {
-            _error = await Access.CreateGroupAsync(_slug, _name, _desc, _invite, _pin);
-            if (_error is not null) { _creating = false; return; }
-            Nav.NavigateTo($"/g/{_slug}/join", forceLoad: true);
-        }
-        catch (Exception ex)
-        {
-            _error = $"Noget gik galt: {ex.Message}";
-            _creating = false;
-        }
     }
 }

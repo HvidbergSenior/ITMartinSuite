@@ -17,7 +17,7 @@ public sealed record JoinResult(MemberSession? Session, string? Error);
 public enum AdminUnlock { Ok, Wrong, LockedOut }
 
 // Logging in: browser session, server cookie, invitation link (/l/), message link (/m/), join with name + PIN, admin PIN.
-public sealed class TeamAccess(ITeamStore teams, AdminPinLimiter adminPins, MemberPinLimiter memberPins, ClubOptions options, TimeProvider clock, IMailSender mail)
+public sealed class TeamAccess(ITeamStore teams, AdminPinLimiter adminPins, MemberPinLimiter memberPins, ClubOptions options, TimeProvider clock, IMailSender mail, MailLinkLimiter mailLinks)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -74,6 +74,60 @@ public sealed class TeamAccess(ITeamStore teams, AdminPinLimiter adminPins, Memb
         return session;
     }
 
+    /// <summary>Result of starting a forening: the founder's session, the settings PIN to show once, or an error.</summary>
+    public sealed record FoundResult(MemberSession? Session, string? AdminPin, bool Mailed, string? Error);
+
+    public async Task<bool> HasMembersAsync(Group group) => (await teams.MembersAsync(group.Id)).Count > 0;
+
+    /// <summary>
+    /// The first person in a forening (new, or created with nobody in it yet) becomes its admin in one step: name + mail,
+    /// logged in at once, and a welcome mail with their personal link + the settings PIN. No invite code or PIN to think up.
+    /// Refused if the forening already has members - then you need an invitation.
+    /// </summary>
+    public async Task<FoundResult> FoundAsync(string slug, string foreningNavn, string navn, string email, string rolle, string baseUrl)
+    {
+        navn = navn.Trim(); email = EmailAddress.Normalize(email); rolle = rolle.Trim();
+        if (navn.Length == 0) return new(null, null, false, "Skriv dit navn.");
+        if (!EmailAddress.LooksLike(email)) return new(null, null, false, "Skriv din mail, fx navn@mail.dk - så kan du altid komme ind igen.");
+
+        var group = await teams.GroupAsync(slug);
+        var pin = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+        if (group is null)
+        {
+            if (string.IsNullOrWhiteSpace(foreningNavn)) return new(null, null, false, "Skriv foreningens navn.");
+            await teams.AddGroupAsync(new Group
+            {
+                Slug = slug, Name = foreningNavn.Trim(), Description = "",
+                InviteCode = Tokens.New()[..8], AdminPin = SecretHasher.Hash(pin),
+            });
+            group = await teams.GroupAsync(slug);
+        }
+        else
+        {
+            if ((await teams.MembersAsync(group.Id)).Count > 0) return new(null, null, false, "Foreningen har allerede medlemmer. Bed en fra bestyrelsen om en invitation.");
+            if (!string.IsNullOrWhiteSpace(foreningNavn)) group.Name = foreningNavn.Trim();
+            group.AdminPin = SecretHasher.Hash(pin);
+            await teams.UpdateGroupAsync(group);
+        }
+
+        var me = new Member { GroupId = group!.Id, Name = navn, Pin = "", Email = email, ContactInfo = email,
+            Role = (rolle.Length == 0 ? "Formand" : rolle) + ", Admin" };
+        me.NewLoginToken();
+        await teams.AddMemberAsync(me);
+        var session = new MemberSession { MemberId = me.Id };
+        await teams.AddSessionAsync(session);
+
+        var link = $"{baseUrl.TrimEnd('/')}/l/{me.LoginToken}";
+        var text =
+            $"Hej {navn}\n\n" +
+            $"{group.Name} er oprettet i Foreningsmakker, og du er admin.\n\n" +
+            $"Dit personlige link (gem mailen - så kommer du altid ind, også på en ny telefon):\n{link}\n\n" +
+            $"Din PIN til foreningens indstillinger: {pin}\n\n" +
+            $"Næste skridt: tryk Medlemmer og Inviter en ny person - skriv navn, mail og rolle.\n";
+        var mailed = await mail.SendAsync(email, "Foreningsmakker", $"Velkommen: {group.Name}", text);
+        return new(session, pin, mailed, null);
+    }
+
     /// <summary>The same answer whether or not the mail is known, so nobody can test who is a member.</summary>
     public const string MailLoginSent =
         "Hvis din mail er kendt i foreningen, har vi sendt dig et link nu. Det virker i 30 minutter og kun én gang. Tjek også spam.";
@@ -85,6 +139,7 @@ public sealed class TeamAccess(ITeamStore teams, AdminPinLimiter adminPins, Memb
     {
         email = EmailAddress.Normalize(email);
         if (!EmailAddress.LooksLike(email)) return "Skriv din mail, fx navn@mail.dk.";
+        if (!mailLinks.TryUse(email)) return "Vi har lige sendt links til den mail. Tjek din indbakke og spam - eller vent 15 minutter og prøv igen.";
         var found = await teams.MemberByEmailAsync(group.Id, email);
         if (found is null) return MailLoginSent;
         var member = await teams.MemberAsync(group.Id, found.Id) ?? found;

@@ -2,7 +2,9 @@ using EasyPass.Application;
 using EasyPass.Domain;
 using EasyPass.Infrastructure;
 using EasyPass.Server;
+using System.Threading.RateLimiting;
 using ITMartin.Shared.UI.Kolibri;
+using Microsoft.AspNetCore.DataProtection;
 
 // Easy-Pass - our version (2026-11-18). Jacob's Easy-Pass (Base44 + the old tourism-app repo) is the spec, not the code:
 // "Mit pas" (your needs, kept in your own browser), find places that fit you, one page per place with what it has,
@@ -21,6 +23,7 @@ builder.Services.AddKolibri(k =>
         "Du sætter kryds i Mit pas én gang. Så står der ved hvert sted: Passer til dig, Tjek selv eller Passer ikke – og hvorfor.",
         "Mit pas og Min tur gemmes kun i din egen browser. Ingen konto, ingen reklamer.",
         "Ikke tjekket betyder, at ingen har tjekket det endnu. Vi lover aldrig noget, ingen har tjekket.",
+        "Mange steder og deres kørestolsoplysninger kommer fra OpenStreetMap © OpenStreetMap-bidragydere (ODbL). Er noget forkert, så skriv det på stedets side.",
     ];
     k.HowTo =
     [
@@ -29,12 +32,28 @@ builder.Services.AddKolibri(k =>
         "Tryk på et sted. Der står din plan: hvad du skal spørge om, hvad du skal tage med, og en knap der viser dit pas stort ved indgangen.",
         "Bagefter trykker du Det passede eller Noget passede ikke. Det hjælper den næste.",
     ];
-    k.Version = "2026.11.18";
+    k.Version = "2026.11.18b";
     k.ThemeColor = "#f4f6f5";
 });
 
 builder.Services.AddRazorComponents();
 builder.Services.AddEasyPass(builder.Configuration);
+builder.Services.AddSingleton<OsmJob>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<OsmJob>());
+
+// Keys for antiforgery etc. live with the data, so a restart or a new image does not break open pages.
+var dataDir = builder.Configuration["EasyPass:DataDir"] ?? Path.Combine(AppContext.BaseDirectory, "data");
+builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys"))).SetApplicationName("easypass");
+
+// Spam guard: messages and admin tries per visitor (Cloudflare passes the real address in CF-Connecting-IP).
+static string Visitor(HttpContext ctx) => ctx.Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "?";
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = 429;
+    o.OnRejected = async (ctx, ct) => await ctx.HttpContext.Response.WriteAsJsonAsync(new { fejl = "Du har sendt mange på kort tid. Vent lidt, og prøv igen." }, ct);
+    o.AddPolicy("besked", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10) }));
+    o.AddPolicy("admin", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(5) }));
+});
 
 var app = builder.Build();
 app.MapKolibri();
@@ -43,6 +62,7 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 
 app.UseStaticFiles();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 // --- for everyone ---------------------------------------------------------------------------------------------------
@@ -53,8 +73,8 @@ app.MapGet("/api/katalog", () => Results.Ok(new
     kategorier = Katalog.Kategorier,
 }));
 
-app.MapGet("/api/steder", (string? q, string? kategori, string? behov, bool? kunPasser, double? lat, double? lng, FindSteder find) =>
-    Results.Ok(find.Udfoer(q, kategori, behov, kunPasser == true, lat, lng)));
+app.MapGet("/api/steder", async (string? q, string? kategori, string? behov, bool? kunPasser, double? lat, double? lng, FindSteder find, CancellationToken ct) =>
+    Results.Ok(await find.UdfoerAsync(q, kategori, behov, kunPasser == true, lat, lng, ct)));
 
 app.MapGet("/api/steder/{id}", (string id, string? behov, VisSted vis) =>
     vis.Udfoer(id, behov) is { } d ? Results.Ok(d) : Results.NotFound(new { fejl = "Stedet findes ikke." }));
@@ -63,13 +83,13 @@ app.MapPost("/api/steder/{id}/besked", (string id, BeskedRequest r, SendTilbagem
 {
     var type = r.Godt ? TilbagemeldingType.Godt : r.Ejer ? TilbagemeldingType.Ejer : TilbagemeldingType.Fejl;
     return send.Udfoer(id, type, r.Tekst ?? "", r.Mail) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok();
-}).DisableAntiforgery();
+}).DisableAntiforgery().RequireRateLimiting("besked");
 
 // --- admin (EasyPass__AdminPin, 6+ chars; none set = nobody can change anything) ----------------------------------------
 var adminPin = app.Configuration["EasyPass:AdminPin"] ?? "";
 bool IsAdmin(HttpContext ctx) => adminPin.Length >= 6 && ctx.Request.Headers["X-Pin"] == adminPin;
 
-var admin = app.MapGroup("/api/admin").DisableAntiforgery()
+var admin = app.MapGroup("/api/admin").DisableAntiforgery().RequireRateLimiting("admin")
     .AddEndpointFilter(async (ctx, next) => IsAdmin(ctx.HttpContext) ? await next(ctx) : Results.StatusCode(401));
 
 admin.MapPost("/tjek", () => Results.Ok());
@@ -85,6 +105,8 @@ admin.MapPost("/slet-eksempler", (IStedStore steder, StedAdmin a) =>
     var n = steder.Alle().Where(s => s.ErEksempel).Count(s => a.Slet(s.Id));
     return Results.Ok(new { slettet = n });
 });
+admin.MapGet("/osm", (OsmJob job) => Results.Ok(new { status = job.Status }));
+admin.MapPost("/osm", (OsmJob job) => job.Start() ? Results.Accepted() : Results.Conflict(new { fejl = "Den kører allerede." }));
 admin.MapPost("/import", async (HttpRequest req, ImportSteder import) =>
 {
     using var reader = new StreamReader(req.Body);

@@ -1,0 +1,62 @@
+@inject TeamAccess Access
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@* One step for the first person in a forening: name + mail (+ role) -> admin, logged in, welcome mail with link + PIN.
+   Used on the front page (new forening) and on the join page when a forening has nobody in it yet. *@
+<div class="found">
+    @if (_pin is null)
+    {
+        @if (AskForeningName)
+        {
+            <div class="create-field"><label for="f-forening">Foreningens navn</label><input id="f-forening" @bind="_forening" class="create-input" maxlength="100" placeholder="fx Borgerforeningen i Hammel" /></div>
+        }
+        <div class="create-field"><label for="f-navn">Dit navn</label><input id="f-navn" @bind="_navn" class="create-input" maxlength="60" placeholder="Fornavn Efternavn" /></div>
+        <div class="create-field"><label for="f-mail">Din mail</label><input id="f-mail" @bind="_mail" type="email" class="create-input" maxlength="120" placeholder="navn@mail.dk" />
+            <div class="create-hint-text">Du får en mail med dit personlige link. Så kommer du altid ind igen - ingen adgangskode.</div></div>
+        <div class="create-field"><label for="f-rolle">Din rolle</label><input id="f-rolle" @bind="_rolle" list="f-roller" class="create-input" maxlength="40" />
+            <datalist id="f-roller">@foreach (var r in ForeningRoller.Forslag.Where(r => r != "Admin")) { <option value="@r"></option> }</datalist></div>
+        @if (_error is not null) { <div class="create-error">@_error</div> }
+        <button class="create-btn" @onclick="StartAsync" disabled="@_busy">@(_busy ? "Opretter..." : ButtonText)</button>
+    }
+    else
+    {
+        <h2 class="found-ok">Du er inde, og du er admin.</h2>
+        <p>@(_mailed ? "Vi har sendt dig en mail med dit personlige link. Gem den." : "Mailen kunne ikke sendes lige nu - skriv PIN'en ned herunder.")</p>
+        <p>Din PIN til foreningens indstillinger: <b class="found-pin">@_pin</b></p>
+        <p>Næste skridt: tryk <b>Medlemmer</b> og <b>Inviter en ny person</b>.</p>
+        <button class="create-btn" @onclick="Go">Gå til foreningen</button>
+    }
+</div>
+
+<style>
+    .found { text-align: left; }
+    .found-ok { font-size: 20px; margin: 0 0 8px; }
+    .found-pin { font-size: 22px; letter-spacing: .1em; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [Parameter] public bool AskForeningName { get; set; }
+    [Parameter] public string ButtonText { get; set; } = "Opret foreningen";
+
+    private string _forening = "", _navn = "", _mail = "", _rolle = "Formand";
+    private string? _error, _pin;
+    private bool _busy, _mailed;
+
+    private async Task StartAsync()
+    {
+        _busy = true; _error = null; StateHasChanged();
+        try
+        {
+            var r = await Access.FoundAsync(Slug, _forening, _navn, _mail, _rolle, Nav.BaseUri);
+            if (r.Error is not null) { _error = r.Error; return; }
+            await JS.InvokeVoidAsync("clubJs.setSession", r.Session!.Id.ToString());
+            _pin = r.AdminPin; _mailed = r.Mailed;
+        }
+        catch (Exception ex) { _error = $"Noget gik galt: {ex.Message}"; }
+        finally { _busy = false; }
+    }
+
+    private void Go() => Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
+}
