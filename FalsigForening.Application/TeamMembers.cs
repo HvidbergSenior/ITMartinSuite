@@ -19,13 +19,15 @@ public sealed class TeamMembers(ITeamStore teams, IMailSender mail)
         var link = $"{baseUrl.TrimEnd('/')}/l/{member.LoginToken}";
         var text =
             $"Hej {member.Name}\n\n" +
-            $"{from.Name} har inviteret dig til {group.Name} i Club.\n\n" +
-            "Her kommer vigtige beskeder fra bestyrelsen – og du trykker \"✅ Jeg har læst det\", så vi ved, at alle har fået dem.\n\n" +
-            $"Tryk på linket for at komme ind (ingen kode):\n{link}\n\n" +
-            "Få Club på telefonen eller PC'en: åbn linket og tryk på knappen \"📲 Læg på telefonen\" nederst på siden.\n" +
-            "Tryk også på \"🔔 Slå notifikationer til\", så får du beskederne med det samme.\n\n" +
-            "Linket er dit personlige – del det ikke med andre.\n";
-        return await mail.SendAsync(member.Email!, from.Name, $"Invitation: {group.Name} i Club", text);
+            $"{from.Name} har inviteret dig til {group.Name}" +
+            (string.IsNullOrWhiteSpace(member.Role) ? "" : $" som {member.Role}") +
+            ".\n\n" +
+            "Her finder du foreningens beskeder, møder, opgaver og dokumenter samlet ét sted.\n\n" +
+            $"Tryk på linket for at komme ind (ingen adgangskode):\n{link}\n\n" +
+            "Næste gang kan du også bare skrive din mail på log ind-siden, så får du et nyt link.\n" +
+            "Læg den på telefonen: åbn linket og tryk \"Læg på telefonen\" nederst på siden.\n\n" +
+            "Linket er dit personlige - del det ikke med andre.\n";
+        return await mail.SendAsync(member.Email!, from.Name, $"Invitation: {group.Name}", text);
     }
 
     /// <summary>A new invitation link for the member (Adresser: "🔗 Lav link" / "↻ Nyt link").</summary>
@@ -45,6 +47,21 @@ public sealed class TeamMembers(ITeamStore teams, IMailSender mail)
         m.NewLoginToken();
         await teams.AddMemberAsync(m);
         return null;
+    }
+
+    /// <summary>Admin adds a person with mail + role and the invitation goes out at once. (Error, Mailed) - Error null = added.</summary>
+    public async Task<(string? Error, bool Mailed)> AddAndInviteAsync(Group group, string name, string email, string role, Member from, string baseUrl)
+    {
+        name = name.Trim(); email = EmailAddress.Normalize(email); role = role.Trim();
+        if (name.Length == 0) return ("Skriv et navn.", false);
+        if (!EmailAddress.LooksLike(email)) return ("Skriv en mail, fx navn@mail.dk - invitationen sendes dertil.", false);
+        var all = await teams.MembersAsync(group.Id);
+        if (all.Any(m => EmailAddress.Normalize(m.Email) == email)) return ($"{email} er allerede med.", false);
+        if (all.Any(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return ($"{name} er her allerede.", false);
+        var person = new Member { GroupId = group.Id, Name = name, Pin = "", Email = email, ContactInfo = email, Role = role.Length == 0 ? "Medlem" : role };
+        person.NewLoginToken();
+        await teams.AddMemberAsync(person);
+        return (null, await InviteAsync(group, person, from, baseUrl));
     }
 
     /// <summary>Sessions and posts go with the member; tasks keep the name as text.</summary>

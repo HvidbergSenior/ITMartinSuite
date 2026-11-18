@@ -6,7 +6,7 @@
 
 <div class="join-wrap">
     <div class="join-card">
-        <h1 class="join-title">@(_group?.Name ?? "Club")</h1>
+        <h1 class="join-title">@(_group?.Name ?? "Foreningsmakker")</h1>
         <p class="join-sub">@(_group?.Description ?? "")</p>
 
         @if (_error != null)
@@ -24,6 +24,19 @@
         }
         else
         {
+            <section class="join-mail">
+                <h2 class="join-mail-title">Log ind med din mail</h2>
+                <p class="join-hint">Skriv den mail, foreningen har på dig. Du får et link - ingen adgangskode.</p>
+                <div class="join-field">
+                    <label for="login-mail">Mail</label>
+                    <input id="login-mail" @bind="_mail" type="email" placeholder="navn@mail.dk" class="join-input" maxlength="120" @onkeydown="OnMailKey" />
+                </div>
+                <button class="join-btn" @onclick="SendLinkAsync" disabled="@_sending">@(_sending ? "Sender..." : "Send mig et link")</button>
+                @if (_mailResult is not null) { <p class="join-mail-result">@_mailResult</p> }
+            </section>
+
+            <details class="join-pin">
+                <summary>Log ind med navn og PIN i stedet</summary>
             <div class="join-field">
                 <label>Dit navn</label>
                 <input @bind="_name" placeholder="Fornavn Efternavn" class="join-input" maxlength="60" />
@@ -46,6 +59,7 @@
             <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
                 @(_joining ? "Tilmelder..." : "Tilmeld")
             </button>
+            </details>
         }
     </div>
 </div>
@@ -65,6 +79,11 @@
     .join-btn:disabled { opacity: .5; cursor: default; }
     .join-error { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; }
     .join-loading { color: var(--muted); padding: 20px 0; }
+    .join-mail { text-align: left; display: grid; gap: 8px; margin-bottom: 20px; }
+    .join-mail-title { font-size: 18px; margin: 0; }
+    .join-mail-result { font-size: 14px; margin: 0; color: var(--text); }
+    .join-pin { text-align: left; border-top: 1px solid var(--border); padding-top: 14px; }
+    .join-pin summary { cursor: pointer; color: var(--muted); font-size: 14px; margin-bottom: 12px; }
     .join-hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
 </style>
 
@@ -94,6 +113,22 @@
         _group = await Access.GroupAsync(Slug);
         _loaded = true;
         StateHasChanged();
+    }
+
+    private string _mail = "";
+    private string? _mailResult;
+    private bool _sending;
+
+    private async Task OnMailKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SendLinkAsync(); }
+
+    private async Task SendLinkAsync()
+    {
+        if (_group is null) return;
+        _sending = true; _mailResult = null; StateHasChanged();
+        _mailResult = Access.MailConfigured
+            ? await Access.SendLoginLinkAsync(_group, _mail, Nav.BaseUri)
+            : "Mail er ikke sat op endnu. Brug navn og PIN herunder, eller bed en fra bestyrelsen om dit personlige link.";
+        _sending = false;
     }
 
     private async Task OnPinKey(KeyboardEventArgs e) { if (e.Key == "Enter") await JoinAsync(); }

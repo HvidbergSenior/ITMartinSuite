@@ -16,6 +16,23 @@ else
         <div class="task-body">
             <h2 class="task-title" style="margin-bottom:16px">Medlemmer (@_members.Count)</h2>
 
+            @if (IsAdmin)
+            {
+                <section class="invite-box">
+                    <h3 class="invite-title">Inviter en ny person</h3>
+                    <p class="invite-help">Skriv navn, mail og rolle. Personen får en mail med et link og kommer ind uden adgangskode.</p>
+                    <div class="invite-grid">
+                        <label for="inv-name">Navn<input id="inv-name" class="invite-input" @bind="_newName" maxlength="60" placeholder="Fornavn Efternavn" /></label>
+                        <label for="inv-mail">Mail<input id="inv-mail" class="invite-input" @bind="_newEmail" type="email" maxlength="120" placeholder="navn@mail.dk" /></label>
+                        <label for="inv-role">Rolle<input id="inv-role" class="invite-input" @bind="_newRole" list="roller" maxlength="40" placeholder="Medlem" /></label>
+                    </div>
+                    <datalist id="roller">@foreach (var r in ForeningRoller.Forslag) { <option value="@r"></option> }</datalist>
+                    <button class="msg-btn invite-send" @onclick="AddAndInvite" disabled="@_adding">@(_adding ? "Sender..." : "Tilføj og send invitation")</button>
+                    @if (!People.MailConfigured) { <p class="invite-help">Mail er ikke sat op endnu - personen bliver tilføjet, men får ingen mail.</p> }
+                    @if (_addResult is not null) { <p class="invite-result">@_addResult</p> }
+                </section>
+            }
+
             @foreach (var m in _members)
             {
                 <div class="task-row-item">
@@ -30,6 +47,14 @@ else
                         @if (!string.IsNullOrWhiteSpace(m.ContactInfo))
                         {
                             <div class="task-item-desc">@m.ContactInfo</div>
+                        }
+                        @if (IsAdmin && m.Id != _member.Id)
+                        {
+                            <div class="task-meta">
+                                <label for="role-@m.Id">Rolle</label>
+                                <input id="role-@m.Id" class="invite-input role-input" value="@m.Role" list="roller" maxlength="40"
+                                       @onchange="e => SetRole(m, e.Value?.ToString() ?? string.Empty)" />
+                            </div>
                         }
                         @if (IsAdmin && People.MailConfigured && m.Id != _member.Id)
                         {
@@ -64,7 +89,16 @@ else
     .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
     .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
     .role-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: color-mix(in srgb, var(--k-accent) 12%, transparent); border-radius: 999px; padding: 2px 9px; vertical-align: middle; }
-    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .invite-box { border: 1px solid var(--border); background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 16px; display: grid; gap: 10px; }
+    .invite-title { margin: 0; font-size: 16px; color: var(--text); }
+    .invite-help, .invite-result { margin: 0; font-size: 13px; color: var(--muted); }
+    .invite-result { color: var(--text); font-weight: 600; }
+    .invite-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .invite-grid label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+    .invite-input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; color: var(--text); font-size: 15px; min-width: 0; }
+    .role-input { padding: 4px 8px; font-size: 13px; max-width: 180px; }
+    .invite-send { justify-self: start; }
+    .task-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
 </style>
 
 @code {
@@ -79,6 +113,30 @@ else
 
     // Admin = role containing "Admin" (set in the database / Admin page). Only they see "Inviter".
     private bool IsAdmin => _member?.IsAdmin == true;
+
+    private string _newName = "", _newEmail = "", _newRole = "Medlem";
+    private string? _addResult;
+    private bool _adding;
+
+    private async Task AddAndInvite()
+    {
+        _adding = true; _addResult = null; StateHasChanged();
+        var (error, mailed) = await People.AddAndInviteAsync(_group!, _newName, _newEmail, _newRole, _member!, Nav.BaseUri);
+        if (error is not null) _addResult = error;
+        else
+        {
+            _addResult = mailed ? $"{_newName.Trim()} er tilføjet, og invitationen er sendt." : $"{_newName.Trim()} er tilføjet, men mailen kunne ikke sendes.";
+            _newName = ""; _newEmail = ""; _newRole = "Medlem";
+            _members = await People.ListAsync(_group!.Id);
+        }
+        _adding = false;
+    }
+
+    private async Task SetRole(Member m, string role)
+    {
+        await People.SetRoleAsync(_group!.Id, m.Id, role);
+        m.Role = string.IsNullOrWhiteSpace(role) ? null : role.Trim();
+    }
 
     private async Task Invite(Member m)
     {

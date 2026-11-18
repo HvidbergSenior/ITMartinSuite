@@ -24,12 +24,13 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Åbn foreningen med linket fra bestyrelsen, og skriv dit navn.",
+        "Log ind: tryk på linket i din invitation, eller skriv din mail på log ind-siden og tryk \"Send mig et link\". Ingen adgangskode.",
+        "Medlemmer (for admin): skriv navn, mail og rolle under \"Inviter en ny person\", så får personen en mail med et link.",
         "Foreningen: skriv CVR-nummeret, så hentes navn og adresse. Ret resten, og tryk Gem.",
         "Beskeder: skriv til alle eller nogle, og se hvem der har læst den.",
         "Opgaver, Møder og Kalender: tryk på fanen øverst.",
     ];
-    k.Version = "2026.11.04";
+    k.Version = "2026.11.18";
     k.ThemeColor = "#121917";
 });
 
@@ -111,6 +112,18 @@ app.MapGet("/m/{token}", async (string token, TeamMessages messages, TeamAccess 
 app.MapGet("/l/{token}", async (string token, TeamAccess access, HttpContext ctx) =>
 {
     var session = await access.LoginByLinkAsync(token);
+    if (session is null) return Results.Redirect("/");
+    ctx.Response.Cookies.Append("club_session_srv", session.Id.ToString(), new CookieOptions
+    {
+        HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365), Path = "/",
+    });
+    return Results.Redirect(ClubGroups.HomePath(session.Member.Group.Slug));
+});
+
+// "Log ind med mail": one-time link, 30 minutes. Used or old -> the front page.
+app.MapGet("/k/{token}", async (string token, TeamAccess access, HttpContext ctx) =>
+{
+    var session = await access.LoginByMailLinkAsync(token);
     if (session is null) return Results.Redirect("/");
     ctx.Response.Cookies.Append("club_session_srv", session.Id.ToString(), new CookieOptions
     {

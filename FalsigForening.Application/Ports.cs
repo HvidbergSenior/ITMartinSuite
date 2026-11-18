@@ -30,6 +30,10 @@ public interface ITeamStore
     Task<Member?> MemberByNameAsync(Guid groupId, string name, CancellationToken ct = default);
     /// <summary>With its group.</summary>
     Task<Member?> MemberByLoginTokenAsync(string token, CancellationToken ct = default);
+    /// <summary>"Log ind med mail": the member in this group with this mail (case-insensitive).</summary>
+    Task<Member?> MemberByEmailAsync(Guid groupId, string email, CancellationToken ct = default);
+    /// <summary>With its group.</summary>
+    Task<Member?> MemberByMailLoginTokenAsync(string token, CancellationToken ct = default);
     /// <summary>The first member of the team with this role (by name) - with its group.</summary>
     Task<Member?> FirstWithRoleAsync(string slug, string role, CancellationToken ct = default);
     Task AddMemberAsync(Member member, CancellationToken ct = default);

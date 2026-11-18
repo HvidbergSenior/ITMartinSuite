@@ -9,10 +9,20 @@ public static class Tokens
     public static string New() => Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
 }
 
+/// <summary>The usual roles in a Danish forening - suggestions only, the role stays free text. "Admin" in a role = may invite and manage people.</summary>
+public static class ForeningRoller
+{
+    public static readonly IReadOnlyList<string> Forslag =
+        ["Formand", "Næstformand", "Kasserer", "Sekretær", "Bestyrelsesmedlem", "Suppleant", "Revisor", "Frivillig", "Medlem", "Admin"];
+}
+
 public static class EmailAddress
 {
     public static bool LooksLike(string? s) =>
         s is { Length: > 5 and < 200 } && Regex.IsMatch(s, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
+    /// <summary>Trimmed + lower case, so "Ole@Mail.dk " finds "ole@mail.dk".</summary>
+    public static string Normalize(string? s) => (s ?? "").Trim().ToLowerInvariant();
 }
 
 public static class Weekdays

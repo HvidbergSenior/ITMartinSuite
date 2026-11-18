@@ -17,7 +17,7 @@ public sealed record JoinResult(MemberSession? Session, string? Error);
 public enum AdminUnlock { Ok, Wrong, LockedOut }
 
 // Logging in: browser session, server cookie, invitation link (/l/), message link (/m/), join with name + PIN, admin PIN.
-public sealed class TeamAccess(ITeamStore teams, AdminPinLimiter adminPins, MemberPinLimiter memberPins, ClubOptions options, TimeProvider clock)
+public sealed class TeamAccess(ITeamStore teams, AdminPinLimiter adminPins, MemberPinLimiter memberPins, ClubOptions options, TimeProvider clock, IMailSender mail)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -70,6 +70,48 @@ public sealed class TeamAccess(ITeamStore teams, AdminPinLimiter adminPins, Memb
         var member = await teams.MemberByLoginTokenAsync(token);
         if (member is null) return null;
         var session = new MemberSession { MemberId = member.Id, Member = member };
+        await teams.AddSessionAsync(session);
+        return session;
+    }
+
+    /// <summary>The same answer whether or not the mail is known, so nobody can test who is a member.</summary>
+    public const string MailLoginSent =
+        "Hvis din mail er kendt i foreningen, har vi sendt dig et link nu. Det virker i 30 minutter og kun én gang. Tjek også spam.";
+
+    public bool MailConfigured => mail.Configured;
+
+    /// <summary>"Log ind med mail": mails a one-time link (/k/{token}) to a known member. Returns the text to show.</summary>
+    public async Task<string> SendLoginLinkAsync(Group group, string email, string baseUrl)
+    {
+        email = EmailAddress.Normalize(email);
+        if (!EmailAddress.LooksLike(email)) return "Skriv din mail, fx navn@mail.dk.";
+        var found = await teams.MemberByEmailAsync(group.Id, email);
+        if (found is null) return MailLoginSent;
+        var member = await teams.MemberAsync(group.Id, found.Id) ?? found;
+        var token = member.StartMailLogin(Now);
+        await teams.UpdateMemberAsync(member);
+        var link = $"{baseUrl.TrimEnd('/')}/k/{token}";
+        var text =
+            $"Hej {member.Name}\n\n" +
+            $"Tryk på linket for at logge ind i {group.Name}:\n{link}\n\n" +
+            "Linket virker i 30 minutter og kun én gang.\n" +
+            "Har du ikke bedt om det, kan du bare slette mailen.\n";
+        await mail.SendAsync(member.Email!, group.Name, $"Log ind: {group.Name}", text);
+        return MailLoginSent;
+    }
+
+    /// <summary>The one-time mail link /k/{token}: a new session, or null if it is wrong, used or too old.</summary>
+    public async Task<MemberSession?> LoginByMailLinkAsync(string token)
+    {
+        if (token.Length < 20) return null;
+        var withGroup = await teams.MemberByMailLoginTokenAsync(token);
+        if (withGroup is null) return null;
+        var member = await teams.MemberAsync(withGroup.GroupId, withGroup.Id);
+        if (member is null) return null;
+        var ok = member.UseMailLogin(token, Now);
+        await teams.UpdateMemberAsync(member);   // used up either way
+        if (!ok) return null;
+        var session = new MemberSession { MemberId = member.Id, Member = withGroup };
         await teams.AddSessionAsync(session);
         return session;
     }

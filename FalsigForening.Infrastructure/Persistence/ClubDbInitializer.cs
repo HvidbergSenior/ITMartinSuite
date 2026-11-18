@@ -93,6 +93,12 @@ internal static class ClubDbInitializer
             db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Email TEXT NULL");
         if (db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'LoginToken'").AsEnumerable().First() == 0)
             db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN LoginToken TEXT NULL");
+        // Log ind med mail (2026-11-18)
+        if (db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'MailLoginToken'").AsEnumerable().First() == 0)
+        {
+            db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN MailLoginToken TEXT NULL");
+            db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN MailLoginExpiresAt TEXT NULL");
+        }
         db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS "Messages" (
                 "Id"             TEXT NOT NULL PRIMARY KEY,

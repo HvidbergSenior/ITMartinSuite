@@ -144,6 +144,8 @@ public class ForeningProfileTests
         public Task<Member?> MemberAsync(Guid groupId, Guid memberId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Member?> MemberByNameAsync(Guid groupId, string name, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Member?> MemberByLoginTokenAsync(string token, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Member?> MemberByEmailAsync(Guid groupId, string email, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Member?> MemberByMailLoginTokenAsync(string token, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Member?> FirstWithRoleAsync(string slug, string role, CancellationToken ct = default) => throw new NotSupportedException();
         public Task AddMemberAsync(Member member, CancellationToken ct = default) => throw new NotSupportedException();
         public Task UpdateMemberAsync(Member member, CancellationToken ct = default) => throw new NotSupportedException();

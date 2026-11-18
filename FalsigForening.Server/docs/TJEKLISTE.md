@@ -11,10 +11,10 @@ Kilde i Jacobs kode: `web/app/...` (sider), `web/app/*-actions.ts` (handlinger),
 
 | Færdig | Funktion | Jacob | Club |
 |---|---|---|---|
-| [ ] | Log ind med link på mail (ingen adgangskode) | `login`, `auth/callback`, `sendLoginLink`, `logUd` | delvis (PIN) |
-| [ ] | Invitation af personer til foreningen | `invitation`, `inviterPerson`, `gensendInvitation` | ja (Join) |
-| [ ] | Personer med adgang + roller | `forening/[id]/adgang`, `skiftRolle`, `fjernAdgang` | delvis |
-| [ ] | Administratorer (Jacob/Martin) | `ADMIN_EMAILS` | ja (Admin) |
+| [x] | Log ind med link på mail (ingen adgangskode) | `login`, `auth/callback`, `sendLoginLink`, `logUd` | delvis (PIN) |
+| [x] | Invitation af personer til foreningen | `invitation`, `inviterPerson`, `gensendInvitation` | ja (Join) |
+| [x] | Personer med adgang + roller | `forening/[id]/adgang`, `skiftRolle`, `fjernAdgang` | delvis |
+| [x] | Administratorer (Jacob/Martin) | `ADMIN_EMAILS` | ja (Admin) |
 
 ## 2. Foreningen
 

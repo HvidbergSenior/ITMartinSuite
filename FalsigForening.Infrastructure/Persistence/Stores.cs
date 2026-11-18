@@ -103,6 +103,19 @@ internal sealed class TeamStore(IDbContextFactory<ClubDb> dbf) : ITeamStore
         return await db.Members.AsNoTracking().FirstOrDefaultAsync(m => m.GroupId == groupId && m.Name == name, ct);
     }
 
+    public async Task<Member?> MemberByEmailAsync(Guid groupId, string email, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var members = await db.Members.AsNoTracking().Where(m => m.GroupId == groupId && m.Email != null).ToListAsync(ct);
+        return members.FirstOrDefault(m => EmailAddress.Normalize(m.Email) == email);
+    }
+
+    public async Task<Member?> MemberByMailLoginTokenAsync(string token, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Members.AsNoTracking().Include(m => m.Group).FirstOrDefaultAsync(m => m.MailLoginToken == token, ct);
+    }
+
     public async Task<Member?> MemberByLoginTokenAsync(string token, CancellationToken ct = default)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

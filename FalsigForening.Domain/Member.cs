@@ -9,6 +9,8 @@ public sealed class Member
     public string? ContactInfo { get; set; }
     public string? Email { get; set; }   // messages are also mailed here (with a personal log-in link)
     public string? LoginToken { get; set; }   // invitation link /l/{token} - logs in without PIN; new token = old link stops working
+    public string? MailLoginToken { get; set; }   // "Log ind med mail": one-time link /k/{token}, short-lived
+    public DateTime? MailLoginExpiresAt { get; set; }
 
     // Free-text, not an enum - vocabulary differs per group (Leder/Medlem for a
     // club, Ejer/Medarbejder for a shop, Selv/Støtte for the ADHD use case).
@@ -26,6 +28,26 @@ public sealed class Member
 
     /// <summary>A new invitation link (/l/{token}); the old one stops working.</summary>
     public void NewLoginToken() => LoginToken = Tokens.New();
+
+    /// <summary>How long a "Log ind med mail" link works.</summary>
+    public static readonly TimeSpan MailLoginLifetime = TimeSpan.FromMinutes(30);
+
+    /// <summary>A new one-time login link for "Log ind med mail" (/k/{token}); an earlier one stops working.</summary>
+    public string StartMailLogin(DateTime nowUtc)
+    {
+        MailLoginToken = Tokens.New();
+        MailLoginExpiresAt = nowUtc.Add(MailLoginLifetime);
+        return MailLoginToken;
+    }
+
+    /// <summary>True once for the right, unexpired token - then the link is used up.</summary>
+    public bool UseMailLogin(string token, DateTime nowUtc)
+    {
+        var ok = MailLoginToken is not null && MailLoginToken == token && MailLoginExpiresAt is { } exp && exp >= nowUtc;
+        MailLoginToken = null;
+        MailLoginExpiresAt = null;
+        return ok;
+    }
 
     /// <summary>ContactInfo is free text ("ITMartin@Mensa.dk, 31194730"): the first Danish-looking number in it.</summary>
     public string? Phone
