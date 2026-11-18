@@ -167,7 +167,7 @@ public sealed class CategoryRuleService : ICategoryRuleService
         _db.Transactions.AsNoTracking()
             .Where(x => x.LedgerId == ledgerId)
             .Select(x => new Application.Services.CategoryTransaction(
-                x.Date, x.Description, x.Amount, x.RawDetails, x.NormalizedDescription, x.UserCategoryName, x.Scope))
+                x.Id, x.Date, x.Description, x.Amount, x.RawDetails, x.NormalizedDescription, x.UserCategoryName, x.Scope))
             .ToListAsync(cancellationToken);
 
     public Task<Dictionary<string, Application.Models.InvestigationResult>> GetInvestigationsAsync(string ledgerId, CancellationToken cancellationToken = default) =>
@@ -175,6 +175,16 @@ public sealed class CategoryRuleService : ICategoryRuleService
             .Where(x => x.LedgerId == ledgerId)
             .ToDictionaryAsync(x => x.Pattern,
                 x => new Application.Models.InvestigationResult(x.Reasoning, x.SuggestedScope, x.Confidence), cancellationToken);
+
+    // Only this one posting - the payee's rule (if any) is left alone.
+    public async Task SetTransactionCategoryAsync(string ledgerId, int transactionId, string categoryName, TransactionScope scope, CancellationToken cancellationToken = default)
+    {
+        var tx = await _db.Transactions.FirstOrDefaultAsync(x => x.LedgerId == ledgerId && x.Id == transactionId, cancellationToken)
+            ?? throw new InvalidOperationException("Betalingen findes ikke.");
+        tx.UserCategoryName = categoryName;
+        tx.Scope = scope;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task SaveInvestigationAsync(string ledgerId, string pattern, Application.Models.InvestigationResult result, CancellationToken cancellationToken = default)
     {

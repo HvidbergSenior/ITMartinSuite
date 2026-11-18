@@ -68,5 +68,7 @@ public interface ICategoryRuleService
 
     Task<Dictionary<string, Models.InvestigationResult>> GetInvestigationsAsync(string ledgerId, CancellationToken cancellationToken = default);
 
+    Task SetTransactionCategoryAsync(string ledgerId, int transactionId, string categoryName, TransactionScope scope, CancellationToken cancellationToken = default);
+
     Task SaveInvestigationAsync(string ledgerId, string pattern, Models.InvestigationResult result, CancellationToken cancellationToken = default);
 }

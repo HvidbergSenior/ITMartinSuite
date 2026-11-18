@@ -19,6 +19,7 @@
     <summary class="mb-sum"><span class="k-card-title">Om siden</span></summary>
     <p>Siden viser dit forbrug og dine indtægter i @_data?.Year, delt i dine egne kategorier og pr. måned.</p>
     <p><b>Sådan gør du:</b> tryk på en gruppe for at se kategorierne i den. Tryk på en kategori for at se hver betaling. Er du i tvivl om en betaling, så tryk <b>Spørg AI</b>. Svaret bliver gemt.</p>
+    <p><b>Flyt en betaling:</b> tryk <b>Flyt</b> ved betalingen, vælg eller skriv kategorien og vælg, om det kun gælder den betaling eller alle betalinger til samme modtager. Skriv "Gruppe · Under", fx "Børn · Bertil", så samles de under én gruppe.</p>
 </details>
 
 <div class="mb-filter" role="group" aria-label="Vis">
@@ -54,6 +55,15 @@ else
     }
 }
 
+<datalist id="mbCategories">
+    @foreach (var n in _names) { <option value="@n"></option> }
+</datalist>
+
+@if (_saved is not null)
+{
+    <div class="k-alert k-alert-ok mb-toast" role="status">@_saved</div>
+}
+
 @code {
     [Parameter] public string? LedgerId { get; set; }
 
@@ -69,11 +79,46 @@ else
     private readonly HashSet<string> _asking = new();
     private readonly HashSet<string> _failed = new();
 
+    private IReadOnlyList<string> _names = [];
+    private CategoryTransaction? _moving;
+    private string _moveTo = "";
+    private bool _moveWhole;
+    private bool _saving;
+    private string? _moveError;
+    private string? _saved;
+
     protected override async Task OnParametersSetAsync()
     {
         _ledger = LedgerId ?? Config["Budget:DefaultLedger"] ?? "familie-2026";
         _data = await Overview.GetOverviewAsync(_ledger, _filter);
         _answers = await Overview.GetSavedAnswersAsync(_ledger);
+        _names = await Overview.GetCategoryNamesAsync(_ledger);
+    }
+
+    private void StartMove(CategoryTransaction tx)
+    {
+        _moving = tx; _moveTo = ""; _moveWhole = false; _moveError = null; _saved = null;
+    }
+
+    private async Task SaveMove()
+    {
+        if (_moving is null) return;
+        _saving = true; _moveError = null;
+        try
+        {
+            var tx = _moving;
+            await Overview.MoveAsync(_ledger, tx, _moveTo, _moveWhole);
+            var target = CategoryOverviewService.Clean(_moveTo);
+            _saved = _moveWhole ? $"Alle betalinger til \"{tx.Description}\" er flyttet til {target}." : $"Betalingen er flyttet til {target}.";
+            _moving = null;
+            // The numbers change, so everything is read again; open category lists are fetched fresh.
+            _txs.Clear();
+            _data = await Overview.GetOverviewAsync(_ledger, _filter);
+            _names = await Overview.GetCategoryNamesAsync(_ledger);
+        }
+        catch (ArgumentException ex) { _moveError = ex.Message; }
+        catch { _moveError = "Det lykkedes ikke at gemme. Prøv igen."; }
+        finally { _saving = false; }
     }
 
     private async Task SetFilter(ScopeFilter f)
@@ -137,10 +182,25 @@ else
                                         <span class="mb-date">@tx.Date.ToString("d. MMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"))</span>
                                         <span class="mb-text">@tx.Description</span>
                                         <span class="mb-amount @(tx.Amount < 0 ? "neg" : "pos")">@Kr2(tx.Amount) kr</span>
+                                        <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => StartMove(tx)">Flyt</button>
                                         <button type="button" class="k-btn k-btn-ghost k-btn-sm" disabled="@_asking.Contains(tx.Pattern)" @onclick="() => Ask(tx)">
                                             @(_asking.Contains(tx.Pattern) ? "AI tænker..." : "Spørg AI")
                                         </button>
                                     </div>
+                                    @if (_moving?.Id == tx.Id)
+                                    {
+                                        <div class="mb-move">
+                                            <label class="k-label" for="moveTo">Flyt til kategori</label>
+                                            <input id="moveTo" class="k-input" list="mbCategories" @bind="_moveTo" @bind:event="oninput" placeholder="fx Transport · Brændstof" />
+                                            <label class="mb-radio"><input type="radio" name="moveWhole" checked="@(!_moveWhole)" @onchange="() => _moveWhole = false" /> Kun denne betaling</label>
+                                            <label class="mb-radio"><input type="radio" name="moveWhole" checked="@_moveWhole" @onchange="() => _moveWhole = true" /> Alle betalinger til "@tx.Description" (også nye)</label>
+                                            @if (_moveError is not null) { <div class="k-alert k-alert-danger">@_moveError</div> }
+                                            <div class="mb-move-btns">
+                                                <button type="button" class="k-btn k-btn-primary k-btn-sm" disabled="@_saving" @onclick="SaveMove">@(_saving ? "Gemmer..." : "Gem")</button>
+                                                <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => _moving = null">Fortryd</button>
+                                            </div>
+                                        </div>
+                                    }
                                     @if (_answers.TryGetValue(tx.Pattern, out var a))
                                     {
                                         <p class="mb-ai">@a.Reasoning <span class="k-muted">(Gæt: @ScopeDa(a.SuggestedScope) · sikkerhed @ConfDa(a.Confidence))</span></p>

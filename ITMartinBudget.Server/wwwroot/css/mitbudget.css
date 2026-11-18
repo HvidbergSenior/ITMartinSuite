@@ -35,3 +35,7 @@ details:not([open]) > .mb-sum::after { transform: rotate(-90deg); }
 .mb-fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--k-space-2); }
 .mb-radio { display: flex; align-items: center; gap: var(--k-space-2); cursor: pointer; }
 .mb-radio input { width: 20px; height: 20px; accent-color: var(--k-accent); }
+.mb-move { margin-top: var(--k-space-2); padding: var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius); display: flex; flex-direction: column; gap: var(--k-space-2); }
+.mb-move .k-label { margin-top: 0; }
+.mb-move-btns { display: flex; gap: var(--k-space-2); flex-wrap: wrap; }
+.mb-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 50; max-width: calc(100% - 32px); box-shadow: var(--k-shadow); }

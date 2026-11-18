@@ -7,7 +7,7 @@ namespace ITMartinBudget.Application.Services;
 // One posting as the Kategorier page shows it. Pattern = the bank text the
 // app groups by (several postings to the same person share one pattern).
 public sealed record CategoryTransaction(
-    DateTime Date, string Description, decimal Amount, string RawDetails, string Pattern,
+    int Id, DateTime Date, string Description, decimal Amount, string RawDetails, string Pattern,
     string? Category, TransactionScope Scope);
 
 public sealed record CategoryLine(
@@ -51,6 +51,34 @@ public sealed class CategoryOverviewService
             .Where(t => t.Category == category)
             .OrderByDescending(t => t.Date)
             .ToList();
+
+    public async Task<IReadOnlyList<string>> GetCategoryNamesAsync(string ledgerId, CancellationToken ct = default)
+        => (await _rules.GetLedgerTransactionsAsync(ledgerId, ct))
+            .Where(t => t.Category is not null).Select(t => t.Category!).Distinct()
+            .OrderBy(n => n, StringComparer.Create(new System.Globalization.CultureInfo("da-DK"), true)).ToList();
+
+    // Move ONE posting, or every posting to the same payee (a rule, so new CSV files sort themselves too).
+    public async Task MoveAsync(string ledgerId, CategoryTransaction tx, string category, bool wholePayee, CancellationToken ct = default)
+    {
+        category = Clean(category);
+        if (category.Length == 0) throw new ArgumentException("Skriv en kategori.");
+        var all = await _rules.GetLedgerTransactionsAsync(ledgerId, ct);
+        var scope = ScopeFor(category, all);
+        if (wholePayee) await _rules.AssignAsync(ledgerId, tx.Pattern, category, scope, ct);
+        else await _rules.SetTransactionCategoryAsync(ledgerId, tx.Id, category, scope, ct);
+    }
+
+    // "  børn ·  eigil " -> "børn · eigil": one space around the dot, no double spaces.
+    public static string Clean(string category) =>
+        string.Join(Separator, (category ?? "").Split('·').Select(p => System.Text.RegularExpressions.Regex.Replace(p.Trim(), @"\s+", " ")).Where(p => p.Length > 0));
+
+    // An existing category keeps its Privat/Forretning; a new one is Forretning only under the Forretning group.
+    public static TransactionScope ScopeFor(string category, IEnumerable<CategoryTransaction> all)
+    {
+        var existing = all.FirstOrDefault(t => t.Category == category && t.Scope != TransactionScope.Unknown);
+        if (existing is not null) return existing.Scope;
+        return GroupOf(category) == "Forretning" ? TransactionScope.Business : TransactionScope.Private;
+    }
 
     public Task<Dictionary<string, InvestigationResult>> GetSavedAnswersAsync(string ledgerId, CancellationToken ct = default)
         => _rules.GetInvestigationsAsync(ledgerId, ct);

@@ -10,7 +10,7 @@ namespace ITMartinBudget.Tests.Services;
 public class CategoryOverviewServiceTests
 {
     private static CategoryTransaction Tx(string date, decimal amount, string category, TransactionScope scope = TransactionScope.Private) =>
-        new(DateTime.Parse(date), "tekst", amount, "Andet", "p", category, scope);
+        new(0, DateTime.Parse(date), "tekst", amount, "Andet", "p", category, scope);
 
     private static readonly CategoryTransaction[] Sample =
     [
@@ -52,6 +52,22 @@ public class CategoryOverviewServiceTests
             .Should().ContainSingle(g => g.Name == "Forretning");
         CategoryOverviewService.Build(Sample, ScopeFilter.Private).Spending
             .Should().NotContain(g => g.Name == "Forretning");
+    }
+
+    [Test]
+    public void Clean_puts_one_space_around_the_dot()
+    {
+        CategoryOverviewService.Clean("  Børn ·Eigil  ").Should().Be("Børn · Eigil");
+        CategoryOverviewService.Clean("Transport  ·  Brændstof").Should().Be("Transport · Brændstof");
+        CategoryOverviewService.Clean("Pension").Should().Be("Pension");
+    }
+
+    [Test]
+    public void New_category_is_business_only_under_Forretning_and_existing_keeps_its_scope()
+    {
+        CategoryOverviewService.ScopeFor("Forretning · Telefon", Sample).Should().Be(TransactionScope.Business);
+        CategoryOverviewService.ScopeFor("Kæledyr", Sample).Should().Be(TransactionScope.Private);
+        CategoryOverviewService.ScopeFor("Forretning · Lager (Boxit)", Sample).Should().Be(TransactionScope.Business);
     }
 
     [Test]
