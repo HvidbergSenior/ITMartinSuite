@@ -113,7 +113,10 @@ public sealed class Secretary(MailScanner scanner, IMailText text, ISecretarySto
 
     /// <summary>"Datoer fundet i dine mails": new ones from today on, nearest first.</summary>
     public IReadOnlyList<MailDate> Dates() =>
-        store.Dates().Where(d => d.Status == DateStatus.Ny && d.Date >= Today).OrderBy(d => d.Date).ThenBy(d => d.Time).ToList();
+        store.Dates().Where(d => d.Status == DateStatus.Ny && d.Date >= Today)
+            // the same date from the same person in several mails of a conversation = one line
+            .GroupBy(d => (d.Date, d.Time, d.From)).Select(g => g.OrderByDescending(x => x.FoundAt).First())
+            .OrderBy(d => d.Date).ThenBy(d => d.Time).ToList();
 
     /// <summary>OK (optionally with a corrected date/time) -> a ball in Husk with that date, so Husk reminds the day before + on the day.</summary>
     public async Task<string?> OkAsync(string id, DateOnly? date, TimeOnly? time, CancellationToken ct)

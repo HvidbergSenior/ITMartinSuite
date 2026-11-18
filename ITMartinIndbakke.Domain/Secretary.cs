@@ -116,7 +116,13 @@ public static partial class DateFinder
         {
             y = today.Year;
             if (day > DateTime.DaysInMonth(y, month)) return null;
-            if (new DateOnly(y, month, day) < today) y++;
+            // No year and already passed = it was in the past ("starter 9.11"), NOT next year - except around New Year:
+            // in Oct-Dec a date in Jan-Mar means next year ("holdet starter 2.2").
+            if (new DateOnly(y, month, day) < today)
+            {
+                if (today.Month >= 10 && month <= 3) y++;
+                else return null;
+            }
         }
         return day <= DateTime.DaysInMonth(y, month) ? new DateOnly(y, month, day) : null;
     }

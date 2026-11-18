@@ -41,6 +41,8 @@ public class SecretaryTests
     [TestCase("Ordre 12.11 er sendt med GLS.")]        // no keyword near it
     [TestCase("Mødet var den 3.11, tak for i dag.")]   // in the past
     [TestCase("Version 1.2.3 er klar.")]               // not a date
+    [TestCase("Kurset starter 9.11 kl. 8.")]           // passed this year - not next year
+    [TestCase("Mødet i august, den 3.8.")]
     public void Ignores_dates_without_a_reason(string text) =>
         DateFinder.Find(text, Today).Should().BeEmpty();
 
