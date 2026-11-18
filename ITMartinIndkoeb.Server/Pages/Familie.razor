@@ -16,6 +16,11 @@
     <section class="k-card">
         <h2 class="k-card-title">Har du handlet?</h2>
         <form id="koeb-form" class="ui-form" autocomplete="off">
+            <div id="kv-boks" class="ui-kv" hidden>
+                <label class="k-btn k-btn-secondary ui-big ui-kv-btn" for="kv-fil">Tag billede af kvitteringen</label>
+                <input id="kv-fil" type="file" accept="image/*" capture="environment" class="ui-sr" />
+                <p id="kv-svar" class="ui-kv-svar" aria-live="polite"></p>
+            </div>
             <label for="k-beloeb">Beløb (kr)</label>
             <input id="k-beloeb" class="ui-input ui-amount" inputmode="decimal" placeholder="fx 245" />
             <span class="ui-label">Butik</span>

@@ -56,6 +56,44 @@ public class UgeTests
     }
 }
 
+public class KvitteringTests
+{
+    private sealed class Mem : IHusstandStore
+    {
+        public Dictionary<string, Husstand> H { get; } = [];
+        public Husstand? Hent(string n) => H.GetValueOrDefault(n);
+        public void Gem(Husstand h) => H[h.Noegle] = h;
+    }
+
+    private sealed class FakeLaeser(KvitteringForslag svar) : IKvitteringLaeser
+    {
+        public int Kald;
+        public bool Klar => true;
+        public Task<KvitteringForslag> LaesAsync(Stream b, string f, CancellationToken ct = default) { Kald++; return Task.FromResult(svar); }
+    }
+
+    [TestCase("LIDL DANMARK K/S", "Lidl")]
+    [TestCase("føtex Skejby", "Føtex")]
+    [TestCase("REMA1000 Risskov", "Rema 1000")]
+    [TestCase("Bilka", "Andet")]
+    public void The_shop_is_found_in_the_merchant_name(string m, string butik) => Regler.ButikFra(m).Should().Be(butik);
+
+    [Test]
+    public async Task A_receipt_becomes_a_suggestion_and_the_daily_cap_holds()
+    {
+        var store = new Mem(); var h = Husstand.Ny("X", DateTime.UtcNow); store.Gem(h);
+        var fake = new FakeLaeser(new KvitteringForslag(312.45m, null, DateOnly.FromDateTime(DateTime.UtcNow), "LIDL DANMARK", null));
+        var uc = new LaesKvittering(store, fake, TimeProvider.System);
+        var f = await uc.UdfoerAsync(h.Noegle, new MemoryStream([1]), "k.jpg");
+        f.Beloeb.Should().Be(312.45m);
+        f.Butik.Should().Be("Lidl");
+        h.Koeb.Should().BeEmpty();   // only a suggestion - nothing saved
+        for (var i = 1; i < LaesKvittering.MaxPrDag; i++) await uc.UdfoerAsync(h.Noegle, new MemoryStream([1]), "k.jpg");
+        (await uc.UdfoerAsync(h.Noegle, new MemoryStream([1]), "k.jpg")).Fejl.Should().Contain("kvitteringer i dag");
+        fake.Kald.Should().Be(LaesKvittering.MaxPrDag);
+    }
+}
+
 public class ApiTests
 {
     private WebApplicationFactory<Program> _app = null!;

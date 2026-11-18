@@ -29,5 +29,11 @@
 .ui-item span { color: var(--k-muted); font-size: .9rem; }
 .ui-item.ok { border-left: 4px solid var(--k-success); }
 .ui-item.over { border-left: 4px solid var(--k-danger); }
+.ui-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.ui-kv { display: grid; gap: 6px; }
+.ui-kv-btn { text-align: center; cursor: pointer; }
+.ui-kv-svar:empty { display: none; }
+.ui-kv-svar { margin: 0; font-weight: 600; }
+.ui-shop.forslag { border-width: 3px; border-color: var(--k-text); background: var(--k-accent-soft); }
 .ui-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .ui-grow { flex: 1 1 220px; }

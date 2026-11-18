@@ -59,6 +59,7 @@
         $("u-next").textContent = u.naesteSkridt;
         $("u-warn").innerHTML = u.advarsler.map(function (a) { return "<li>" + esc(a) + "</li>"; }).join("");
 
+        $("kv-boks").hidden = !data.kvittering;
         if (!$("k-butikker").children.length)
             $("k-butikker").innerHTML = data.butikker.map(function (b) { return '<button type="button" class="k-btn k-btn-secondary ui-shop" data-b="' + esc(b) + '">' + esc(b) + "</button>"; }).join("");
 
@@ -81,6 +82,24 @@
         }
     }
 
+    // Kvittering: read the photo, fill amount/date, mark the suggested shop. The family confirms by pressing the shop.
+    $("kv-fil").addEventListener("change", function () {
+        var f = this.files[0]; if (!f) return;
+        var fd = new FormData(); fd.append("billede", f, f.name || "kvittering.jpg");
+        $("kv-svar").textContent = "Læser kvitteringen … (op til et halvt minut)";
+        [].forEach.call(document.querySelectorAll(".ui-shop"), function (b) { b.classList.remove("forslag"); });
+        api(base + "/kvittering", { method: "POST", body: fd }).then(function (r) {
+            $("k-beloeb").value = String(r.beloeb).replace(".", ",");
+            if (r.dato) { $("k-dato").value = r.dato; }
+            var btn = document.querySelector('.ui-shop[data-b="' + (r.butik || "Andet") + '"]');
+            if (btn) btn.classList.add("forslag");
+            $("kv-svar").textContent = (r.forretning ? r.forretning + ": " : "") + kr(r.beloeb) + " kr"
+                + (r.dato ? " · " + new Date(r.dato).toLocaleDateString("da-DK", { day: "numeric", month: "short" }) : "")
+                + ". Passer det? Tryk " + (r.butik || "butikken") + " for at gemme.";
+        }).catch(function (er) { $("kv-svar").textContent = er.message; })
+          .then(function () { $("kv-fil").value = ""; });
+    });
+
     // One press: amount typed, then the shop button saves it.
     $("k-butikker").addEventListener("click", function (e) {
         var b = e.target.closest("[data-b]"); if (!b) return;
@@ -90,7 +109,8 @@
         $("k-svar").textContent = "Gemmer …";
         api(base + "/koeb", { method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ beloeb: beloeb, butik: b.getAttribute("data-b"), hvem: hvem, dato: $("k-dato").value || null }) })
-            .then(function () { $("k-beloeb").value = ""; $("k-svar").textContent = "Gemt: " + kr(beloeb) + " kr i " + b.getAttribute("data-b") + "."; return load(); })
+            .then(function () { $("k-beloeb").value = ""; $("k-dato").value = ""; $("kv-svar").textContent = "";
+                [].forEach.call(document.querySelectorAll(".ui-shop"), function (x) { x.classList.remove("forslag"); }); $("k-svar").textContent = "Gemt: " + kr(beloeb) + " kr i " + b.getAttribute("data-b") + "."; return load(); })
             .catch(function (er) { $("k-svar").textContent = er.message; });
     });
     $("koeb-form").addEventListener("submit", function (e) { e.preventDefault(); $("k-svar").textContent = "Tryk på butikken for at gemme."; });

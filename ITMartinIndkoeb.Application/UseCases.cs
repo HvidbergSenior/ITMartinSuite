@@ -11,7 +11,7 @@ public interface IHusstandStore
 public sealed record KoebVisning(string Id, DateOnly Dato, decimal Beloeb, string Butik, string Hvem, string Type, bool OverGraense);
 
 public sealed record Overblik(string Navn, Maal Maal, UgeStatus Uge, IReadOnlyList<KoebVisning> DenneUge,
-    IReadOnlyList<MaanedStatus> Maaneder, IReadOnlyList<string> Butikker);
+    IReadOnlyList<MaanedStatus> Maaneder, IReadOnlyList<string> Butikker, bool Kvittering = false);
 
 /// <summary>Everything the family page shows, plus adding/removing a purchase and changing the goal.</summary>
 public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)

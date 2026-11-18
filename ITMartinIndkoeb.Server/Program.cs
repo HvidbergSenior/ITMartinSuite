@@ -26,7 +26,7 @@ builder.Services.AddKolibri(k =>
     k.HowTo =
     [
         "Åbn familiens side fra jeres Snak-rum (knappen Ugens indkøb), eller fra linket.",
-        "Har du handlet: skriv beløbet, tryk butikken. Færdig.",
+        "Har du handlet: skriv beløbet, tryk butikken. Færdig. Eller tag et billede af kvitteringen – så står beløb og butik der, og du trykker bare på butikken.",
         "Øverst står, hvor meget der er tilbage i ugen, og hvad I skal gøre nu – fx \"Lav ugens store indkøb\".",
         "Under Ugemål kan I ændre beløbet, antal ture og grænsen for en supplering.",
     ];
@@ -63,7 +63,20 @@ app.MapPost("/api/husstand", (OpretRequest r, Indkoeb uc) =>
 }).DisableAntiforgery().RequireRateLimiting("opret");
 
 var h = app.MapGroup("/api/h/{key}").DisableAntiforgery().RequireRateLimiting("skriv");
-h.MapGet("", (string key, Indkoeb uc) => uc.Vis(key) is { } o ? Results.Ok(o) : Results.NotFound(new { fejl = "Siden findes ikke. Tjek linket." }));
+h.MapGet("", (string key, Indkoeb uc, LaesKvittering kv) => uc.Vis(key) is { } o ? Results.Ok(o with { Kvittering = kv.Klar }) : Results.NotFound(new { fejl = "Siden findes ikke. Tjek linket." }));
+
+// "Tag billede af kvitteringen": the photo goes to Kvittering, the answer is a SUGGESTION the family confirms with the shop button.
+h.MapPost("/kvittering", async (string key, HttpRequest req, LaesKvittering kv, CancellationToken ct) =>
+{
+    if (!req.HasFormContentType) return Results.BadRequest(new { fejl = "Vælg et billede." });
+    var form = await req.ReadFormAsync(ct);
+    var fil = form.Files.FirstOrDefault();
+    if (fil is null || fil.Length == 0) return Results.BadRequest(new { fejl = "Vælg et billede." });
+    if (fil.Length > 12 * 1024 * 1024) return Results.BadRequest(new { fejl = "Billedet er for stort (højst 12 MB)." });
+    await using var s = fil.OpenReadStream();
+    var f = await kv.UdfoerAsync(key, s, fil.FileName, ct);
+    return f.Fejl is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok(f);
+});
 h.MapPost("/koeb", (string key, KoebRequest r, Indkoeb uc) =>
     uc.LaegInd(key, r.Beloeb, r.Butik, r.Hvem, r.Dato) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
 h.MapDelete("/koeb/{id}", (string key, string id, Indkoeb uc) => uc.Slet(key, id) ? Results.Ok() : Results.NotFound());

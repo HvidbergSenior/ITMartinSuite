@@ -78,6 +78,8 @@ app.UseAntiforgery();
 Directory.CreateDirectory("data");
 Directory.CreateDirectory("data/receipts");
 
+app.MapScanApi();   // POST /api/scan for Ugens indkøb (2026-11-19)
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

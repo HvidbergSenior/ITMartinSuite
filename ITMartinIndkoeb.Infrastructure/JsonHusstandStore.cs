@@ -46,6 +46,9 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IHusstandStore>(new JsonHusstandStore(dir));
         services.AddTransient<Indkoeb>();
+        // A receipt read can take a while (OCR + one AI read in Kvittering).
+        services.AddHttpClient<IKvitteringLaeser, KvitteringKlient>(c => c.Timeout = TimeSpan.FromSeconds(90));
+        services.AddTransient<LaesKvittering>();
         return services;
     }
 }

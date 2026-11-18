@@ -11,6 +11,7 @@
         <ProjectReference Include="..\ITMartin.OCR\ITMartin.OCR.csproj" />
         <ProjectReference Include="..\ITMartin.Receipt.Application\ITMartin.Receipt.Application.csproj" />
         <ProjectReference Include="..\ITMartin.Receipt.Domain\ITMartin.Receipt.Domain.csproj" />
+        <ProjectReference Include="..\ITMartin.Receipt.Contracts\ITMartin.Receipt.Contracts.csproj" />
         <ProjectReference Include="..\ITMartin.Receipt.Infrastructure\ITMartin.Receipt.Infrastructure.csproj" />
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
     </ItemGroup>

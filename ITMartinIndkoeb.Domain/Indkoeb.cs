@@ -67,6 +67,18 @@ public static class Regler
 {
     public static readonly string[] Butikker = ["Lidl", "Føtex", "Netto", "Rema 1000", "Løvbjerg", "Andet"];
 
+    /// <summary>"LIDL DANMARK K/S" -> "Lidl", "føtex Skejby" -> "Føtex"; anything else -> "Andet".</summary>
+    public static string ButikFra(string? forretning)
+    {
+        var f = (forretning ?? "").ToLowerInvariant();
+        if (f.Contains("lidl")) return "Lidl";
+        if (f.Contains("føtex") || f.Contains("fotex") || f.Contains("foetex")) return "Føtex";
+        if (f.Contains("netto")) return "Netto";
+        if (f.Contains("rema")) return "Rema 1000";
+        if (f.Contains("løvbjerg") || f.Contains("lovbjerg") || f.Contains("loevbjerg")) return "Løvbjerg";
+        return "Andet";
+    }
+
     public static DateOnly Mandag(DateOnly d) => d.AddDays(-(((int)d.DayOfWeek + 6) % 7));
 
     /// <summary>Error text, or null.</summary>
