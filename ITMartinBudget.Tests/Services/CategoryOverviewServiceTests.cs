@@ -71,6 +71,35 @@ public class CategoryOverviewServiceTests
     }
 
     [Test]
+    public void Pace_gives_average_purchase_average_week_and_this_week()
+    {
+        // Wed 18.11.2026: this week = Mon 16.11 - today. Two full weeks before it (2.11 and 9.11).
+        var rows = new[]
+        {
+            Tx("2026-11-03", -300m, "Mad og indkøb · Dagligvarer"),
+            Tx("2026-11-05", -100m, "Mad og indkøb · Dagligvarer"),
+            Tx("2026-11-10", -200m, "Mad og indkøb · Dagligvarer"),
+            Tx("2026-11-12", 50m, "Mad og indkøb · Dagligvarer"),   // a refund is not a purchase
+            Tx("2026-11-17", -400m, "Mad og indkøb · Dagligvarer"),
+        };
+        var pace = CategoryOverviewService.Pace(rows, new DateTime(2026, 11, 18))!;
+
+        pace.AveragePurchase.Should().Be(250m);
+        pace.WeeksCounted.Should().Be(2);
+        pace.AverageWeek.Should().Be(300m);
+        pace.ThisWeek.Should().Be(400m);
+        pace.LeftThisWeek.Should().Be(-100m);
+        pace.IsAbove(400m).Should().BeTrue();
+        pace.IsAbove(100m).Should().BeFalse();
+    }
+
+    [Test]
+    public void Pace_is_null_without_purchases()
+    {
+        CategoryOverviewService.Pace([Tx("2026-11-12", 50m, "X")], new DateTime(2026, 11, 18)).Should().BeNull();
+    }
+
+    [Test]
     public void Biggest_spending_group_comes_first()
     {
         var o = CategoryOverviewService.Build(Sample, ScopeFilter.All);

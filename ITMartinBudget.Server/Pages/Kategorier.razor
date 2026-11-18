@@ -140,6 +140,7 @@ else
         finally { _asking.Remove(tx.Pattern); }
     }
 
+    private static readonly System.Globalization.CultureInfo Da = System.Globalization.CultureInfo.GetCultureInfo("da-DK");
     private static string Kr(decimal v) => Math.Round(v).ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
     private static string Kr2(decimal v) => v.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
     private static string ScopeDa(string s) => s switch { "Business" => "Forretning", "Private" => "Privat", _ => "Ved ikke" };
@@ -174,6 +175,25 @@ else
                     </summary>
                     @if (_txs.TryGetValue(l.Name, out var txs))
                     {
+                        var pace = sign < 0 ? CategoryOverviewService.Pace(txs, DateTime.Today) : null;
+                        @if (pace is not null)
+                        {
+                            <div class="mb-pace">
+                                <div><span>Et køb koster i snit</span><b>@Kr(pace.AveragePurchase) kr</b></div>
+                                <div><span>En uge koster i snit</span><b>@Kr(pace.AverageWeek) kr</b></div>
+                                <div><span>Denne uge (fra @pace.WeekStart.ToString("d. MMM", Da))</span><b>@Kr(pace.ThisWeek) kr</b></div>
+                            </div>
+                            <p class="mb-pace-say @(pace.LeftThisWeek >= 0 ? "good" : "bad")">
+                                @if (pace.LeftThisWeek >= 0)
+                                {
+                                    <text>Du er under en normal uge. Der er @Kr(pace.LeftThisWeek) kr tilbage, før du rammer snittet.</text>
+                                }
+                                else
+                                {
+                                    <text>Du er @Kr(-pace.LeftThisWeek) kr over en normal uge. Kan resten vente til næste uge?</text>
+                                }
+                            </p>
+                        }
                         <ul class="mb-txs">
                             @foreach (var tx in txs)
                             {
@@ -182,6 +202,10 @@ else
                                         <span class="mb-date">@tx.Date.ToString("d. MMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"))</span>
                                         <span class="mb-text">@tx.Description</span>
                                         <span class="mb-amount @(tx.Amount < 0 ? "neg" : "pos")">@Kr2(tx.Amount) kr</span>
+                                        @if (pace is not null && tx.Amount < 0)
+                                        {
+                                            <span class="mb-chip @(pace.IsAbove(-tx.Amount) ? "bad" : "good")">@(pace.IsAbove(-tx.Amount) ? "Over snit" : "Under snit")</span>
+                                        }
                                         <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => StartMove(tx)">Flyt</button>
                                         <button type="button" class="k-btn k-btn-ghost k-btn-sm" disabled="@_asking.Contains(tx.Pattern)" @onclick="() => Ask(tx)">
                                             @(_asking.Contains(tx.Pattern) ? "AI tænker..." : "Spørg AI")

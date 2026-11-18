@@ -26,6 +26,15 @@ public sealed record CategoryOverview(
 
 public enum ScopeFilter { All, Private, Business }
 
+// "Is this purchase normal?" for one category (user 2026-11-18, groceries: below average is nice, above not so good -
+// a way to say "I'll wait with the shopping until next week"). Amounts are positive kroner spent.
+public sealed record SpendingPace(
+    decimal AveragePurchase, decimal AverageWeek, decimal ThisWeek, int WeeksCounted, DateTime WeekStart)
+{
+    public decimal LeftThisWeek => AverageWeek - ThisWeek;
+    public bool IsAbove(decimal spent) => spent > AveragePurchase;
+}
+
 // Use case behind /kategorier: categories folded in groups, each with its
 // months, and the postings behind a category. "Spørg AI" is ONE call per
 // press (never looped), and the answer is saved per pattern so it shows
@@ -89,6 +98,21 @@ public sealed class CategoryOverviewService
         var answer = await _ai().InvestigateAsync(tx.Description, details, 1, tx.Amount, ct);
         await _rules.SaveInvestigationAsync(ledgerId, tx.Pattern, answer, ct);
         return answer;
+    }
+
+    // Pure: average purchase + average week (weeks Monday-Sunday, only full weeks before this one, from the first
+    // purchase on) and what is spent this week. Refunds (plus amounts) are not purchases. Null when nothing is spent.
+    public static SpendingPace? Pace(IEnumerable<CategoryTransaction> rows, DateTime today)
+    {
+        var buys = rows.Where(t => t.Amount < 0).Select(t => (t.Date.Date, Kr: -t.Amount)).ToList();
+        if (buys.Count == 0) return null;
+        var weekStart = today.Date.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+        var first = buys.Min(b => b.Date);
+        var firstWeek = first.AddDays(-(((int)first.DayOfWeek + 6) % 7));
+        var weeks = Math.Max(1, (int)((weekStart - firstWeek).TotalDays / 7));
+        var before = buys.Where(b => b.Date < weekStart).Sum(b => b.Kr);
+        var thisWeek = buys.Where(b => b.Date >= weekStart && b.Date <= today.Date).Sum(b => b.Kr);
+        return new SpendingPace(Math.Round(buys.Average(b => b.Kr), 2), Math.Round(before / weeks, 2), thisWeek, weeks, weekStart);
     }
 
     // Pure: grouping and month sums, tested without a database.
