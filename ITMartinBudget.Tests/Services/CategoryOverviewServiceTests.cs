@@ -105,4 +105,18 @@ public class CategoryOverviewServiceTests
         var o = CategoryOverviewService.Build(Sample, ScopeFilter.All);
         o.Spending.First().Name.Should().Be("Forretning");
     }
+
+    // 2026-11-18 Sortér betalinger: what is left, oldest first; the payee's own category is the first choice ("Bliv i ...").
+    [Test]
+    public void The_sort_queue_shows_unsorted_payments_oldest_first_and_counts_progress()
+    {
+        CategoryTransaction T(int id, string d, decimal a, bool byHand = false) =>
+            new(id, DateTime.Parse(d), "MobilePay Eigil", a, "", "mobilepay eigil", "Børn · Eigil", TransactionScope.Private, byHand);
+        var q = CategoryOverviewService.Queue([T(1, "2026-11-16", -136.50m), T(2, "2026-03-01", -60m), T(3, "2026-05-01", -40m, byHand: true), T(4, "2026-06-01", 200m)], "Børn · Eigil");
+        q.Total.Should().Be(3);   // money IN from him is not sorted
+        q.Sorted.Should().Be(1);
+        q.Left.Select(t => t.Id).Should().Equal(2, 1);
+        q.Choices[0].Should().Be("Børn · Eigil");
+        q.Choices.Should().Contain("Mad og indkøb · Dagligvarer").And.Contain("Transport · Brændstof");
+    }
 }

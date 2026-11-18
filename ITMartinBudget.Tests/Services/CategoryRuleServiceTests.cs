@@ -163,4 +163,22 @@ public class CategoryRuleServiceTests
 
         _db.CategoryRules.Single(r => r.Pattern == "husleje").Scope.Should().Be(TransactionScope.Private);
     }
+
+    // 2026-11-18 Sortér betalinger: a posting sorted by hand keeps its category when the payee gets a rule.
+    [Test]
+    public async Task A_payee_rule_never_moves_a_posting_sorted_by_hand()
+    {
+        var a = new BankTransaction { LedgerId = LedgerId, NormalizedDescription = "mobilepay eigil hvidberg", Description = "MobilePay Eigil", Amount = -136.50m, Date = new DateTime(2026, 11, 16) };
+        var b = new BankTransaction { LedgerId = LedgerId, NormalizedDescription = "mobilepay eigil hvidberg", Description = "MobilePay Eigil", Amount = -50m, Date = new DateTime(2026, 11, 17) };
+        _db.Transactions.AddRange(a, b);
+        await _db.SaveChangesAsync();
+        var sut = new CategoryRuleService(_db);
+
+        await sut.SetTransactionCategoryAsync(LedgerId, a.Id, "Mad og indkøb · Dagligvarer", TransactionScope.Private);
+        await sut.AssignAsync(LedgerId, "mobilepay eigil hvidberg", "Børn · Eigil", TransactionScope.Private);
+
+        (await _db.Transactions.FindAsync(a.Id))!.UserCategoryName.Should().Be("Mad og indkøb · Dagligvarer");
+        (await _db.Transactions.FindAsync(b.Id))!.UserCategoryName.Should().Be("Børn · Eigil");
+        (await sut.GetLedgerTransactionsAsync(LedgerId)).Single(t => t.Id == a.Id).ByHand.Should().BeTrue();
+    }
 }

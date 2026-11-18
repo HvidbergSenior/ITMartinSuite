@@ -1,0 +1,161 @@
+@page "/sorter"
+@page "/sorter/{LedgerId}"
+@layout ITMartinBudget.Server.Layout.KolibriLayout
+@rendermode InteractiveServer
+@using ITMartinBudget.Application.Services
+@inject CategoryOverviewService Overview
+@inject IConfiguration Config
+@inject NavigationManager Nav
+
+<PageTitle>Sortér betalinger – MitBudget</PageTitle>
+
+@* "Sortér betalinger" (2026-11-18, user: Eigil buys groceries and asks for the money afterwards, the bank only says
+   "MobilePay Eigil"): ONE posting at a time, big buttons, MobilePay open next to it. Only this posting moves; it is
+   marked as sorted by hand, so a rule never moves it back. *@
+
+<details class="k-card mb-box">
+    <summary class="mb-sum"><span class="k-card-title">Sådan gør du</span></summary>
+    <p>Banken viser kun "MobilePay Eigil" – ikke hvad pengene var til. Det står i beskeden i MobilePay.</p>
+    <p><b>1.</b> Vælg hvem eller hvad, du vil sortere. <b>2.</b> Åbn MobilePay på telefonen, og find betalingen på samme dato og beløb. <b>3.</b> Tryk på den knap, der passer. Så kommer den næste.</p>
+    <p>Hver betaling flytter for sig selv. Det, du har sorteret, bliver liggende – også når du lægger et nyt kontoudtog ind.</p>
+</details>
+
+@if (_categories.Count == 0)
+{
+    <p class="k-muted">Henter...</p>
+}
+else
+{
+    <section class="k-card">
+        <h1 class="sr-h1">Hvad vil du sortere?</h1>
+        <div class="sr-picks">
+            @foreach (var c in _quick)
+            {
+                <button type="button" class="k-btn @(c == _category ? "k-btn-primary" : "k-btn-secondary") sr-pick" @onclick="() => Pick(c)">@CategoryOverviewService.SubOf(c)</button>
+            }
+        </div>
+        <label class="k-label" for="sr-other">Eller vælg en anden kategori</label>
+        <select id="sr-other" class="k-input" @onchange="e => Pick(e.Value?.ToString() ?? string.Empty)">
+            <option value="">Vælg …</option>
+            @foreach (var c in _categories) { <option value="@c" selected="@(c == _category)">@c</option> }
+        </select>
+    </section>
+
+    @if (_queue is not null)
+    {
+        <section class="k-card sr-card" aria-live="polite">
+            <p class="sr-progress"><b>@_queue.Sorted af @_queue.Total</b> sorteret · @_queue.Category</p>
+            <div class="sr-bar" role="progressbar" aria-valuemin="0" aria-valuemax="@_queue.Total" aria-valuenow="@_queue.Sorted">
+                <span style="width:@(_queue.Total == 0 ? 100 : _queue.Sorted * 100 / _queue.Total)%"></span>
+            </div>
+
+            @if (Current is { } tx)
+            {
+                <p class="sr-date">@tx.Date.ToString("dddd d. MMMM yyyy", Da)</p>
+                <p class="sr-amount">@Kr(-tx.Amount) kr</p>
+                <p class="k-muted">@tx.Description</p>
+                <p class="sr-hint">Find den i MobilePay: samme dato og @Kr(-tx.Amount) kr. Hvad stod der i beskeden?</p>
+
+                <div class="sr-choices">
+                    @foreach (var c in _queue.Choices)
+                    {
+                        <button type="button" class="k-btn @(c == _queue.Category ? "k-btn-secondary" : "k-btn-primary") sr-choice" disabled="@_saving" @onclick="() => Sort(tx, c)">
+                            @(c == _queue.Category ? $"Bliv i {CategoryOverviewService.SubOf(c)}" : CategoryOverviewService.SubOf(c))
+                        </button>
+                    }
+                </div>
+
+                <details class="sr-more">
+                    <summary>Anden kategori</summary>
+                    <div class="sr-other">
+                        <input class="k-input" list="srCategories" @bind="_custom" aria-label="Anden kategori" placeholder="fx Fritid · Gaver og velgørenhed" />
+                        <button type="button" class="k-btn k-btn-primary" disabled="@_saving" @onclick="() => Sort(tx, _custom)">Gem</button>
+                    </div>
+                </details>
+
+                <div class="sr-nav">
+                    <button type="button" class="k-btn k-btn-ghost" @onclick="Skip">Spring over</button>
+                    @if (_last is not null)
+                    {
+                        <button type="button" class="k-btn k-btn-ghost" disabled="@_saving" @onclick="Undo">Fortryd: @_last.Value.Tx.Date.ToString("d. MMM", Da) @Kr(-_last.Value.Tx.Amount) kr</button>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="sr-done">Færdig – alt i @_queue.Category er sorteret.@(_skipped.Count > 0 ? $" ({_skipped.Count} sprunget over – åbn siden igen for at tage dem.)" : "")</p>
+                <a class="k-btn k-btn-primary" href="/">Se kategorierne</a>
+            }
+            @if (_error is not null) { <p class="k-error">@_error</p> }
+        </section>
+    }
+}
+
+<datalist id="srCategories">@foreach (var n in _categories) { <option value="@n"></option> }</datalist>
+
+@code {
+    [Parameter] public string? LedgerId { get; set; }
+    [SupplyParameterFromQuery(Name = "kategori")] public string? Start { get; set; }
+
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private string _ledger = "";
+    private IReadOnlyList<string> _categories = [];
+    private List<string> _quick = [];
+    private string _category = "";
+    private SortQueue? _queue;
+    private readonly HashSet<int> _skipped = [];
+    private (CategoryTransaction Tx, string From)? _last;
+    private string _custom = "";
+    private bool _saving;
+    private string? _error;
+
+    private CategoryTransaction? Current => _queue?.Left.FirstOrDefault(t => !_skipped.Contains(t.Id));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _ledger = LedgerId ?? Config["Budget:DefaultLedger"] ?? "familie-2026";
+        _categories = await Overview.GetCategoryNamesAsync(_ledger);
+        // People first: the MobilePay payees ("Børn · Eigil") and "MobilePay til andre" are what the bank cannot explain.
+        _quick = _categories.Where(c => c.StartsWith("Børn", StringComparison.Ordinal) || c.StartsWith("MobilePay til andre", StringComparison.Ordinal) || c == "Familie").ToList();
+        if (!string.IsNullOrWhiteSpace(Start) && _categories.Contains(Start)) await Pick(Start);
+    }
+
+    private async Task Pick(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category)) return;
+        _category = category; _skipped.Clear(); _last = null; _error = null;
+        _queue = await Overview.GetSortQueueAsync(_ledger, category);
+    }
+
+    private async Task Sort(CategoryTransaction tx, string category)
+    {
+        _saving = true; _error = null;
+        try
+        {
+            await Overview.SortOneAsync(_ledger, tx, category);
+            _last = (tx, _queue!.Category);
+            _custom = "";
+            _queue = await Overview.GetSortQueueAsync(_ledger, _category);
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+
+    private void Skip() { if (Current is { } tx) _skipped.Add(tx.Id); }
+
+    // Undo = back to where it was, and back in the queue.
+    private async Task Undo()
+    {
+        if (_last is not { } l) return;
+        _saving = true;
+        try
+        {
+            await Overview.UndoSortAsync(_ledger, l.Tx, l.From);
+            _last = null;
+            _queue = await Overview.GetSortQueueAsync(_ledger, _category);
+        }
+        finally { _saving = false; }
+    }
+
+    private static string Kr(decimal v) => v.ToString("#,##0.00", Da);
+}

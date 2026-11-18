@@ -8,7 +8,12 @@ namespace ITMartinBudget.Application.Services;
 // app groups by (several postings to the same person share one pattern).
 public sealed record CategoryTransaction(
     int Id, DateTime Date, string Description, decimal Amount, string RawDetails, string Pattern,
-    string? Category, TransactionScope Scope);
+    string? Category, TransactionScope Scope, bool ByHand = false);
+
+// "Sortér betalinger" (2026-11-18, user: Eigil buys groceries and requests the money afterwards - the bank only says
+// "MobilePay Eigil"): one category's postings, one at a time, each sorted by a big button. Choices = the categories most
+// such paybacks turn out to be, plus "keep where it is". Sorted ones are marked by hand and never moved by a rule.
+public sealed record SortQueue(string Category, int Total, int Sorted, IReadOnlyList<CategoryTransaction> Left, IReadOnlyList<string> Choices);
 
 public sealed record CategoryLine(
     string Name, string Sub, int Count, decimal Sum, TransactionScope Scope,
@@ -75,6 +80,37 @@ public sealed class CategoryOverviewService
         var scope = ScopeFor(category, all);
         if (wholePayee) await _rules.AssignAsync(ledgerId, tx.Pattern, category, scope, ct);
         else await _rules.SetTransactionCategoryAsync(ledgerId, tx.Id, category, scope, ct);
+    }
+
+    public static readonly IReadOnlyList<string> CommonPaybacks =
+        ["Mad og indkøb · Dagligvarer", "Transport · Brændstof", "Mad og indkøb · Take away og fast food", "Fritid · Café, restaurant og bar"];
+
+    // Pure: what is left to sort in one category, oldest first (the order the MobilePay app scrolls back in).
+    public static SortQueue Queue(IEnumerable<CategoryTransaction> all, string category)
+    {
+        var rows = all.Where(t => t.Category == category).ToList();
+        var left = rows.Where(t => !t.ByHand && t.Amount < 0).OrderBy(t => t.Date).ThenBy(t => t.Id).ToList();
+        var choices = CommonPaybacks.Where(c => c != category).Prepend(category).ToList();
+        return new SortQueue(category, rows.Count(t => t.Amount < 0), rows.Count(t => t.ByHand && t.Amount < 0), left, choices);
+    }
+
+    public async Task<SortQueue> GetSortQueueAsync(string ledgerId, string category, CancellationToken ct = default)
+        => Queue(await _rules.GetLedgerTransactionsAsync(ledgerId, ct), category);
+
+    // One press: this posting goes to that category (or stays, marked as sorted) - only this posting.
+    public async Task SortOneAsync(string ledgerId, CategoryTransaction tx, string category, CancellationToken ct = default)
+    {
+        category = Clean(category);
+        if (category.Length == 0) throw new ArgumentException("Vælg en kategori.");
+        var all = await _rules.GetLedgerTransactionsAsync(ledgerId, ct);
+        await _rules.SetTransactionCategoryAsync(ledgerId, tx.Id, category, ScopeFor(category, all), ct);
+    }
+
+    // "Fortryd": back where it was AND back in the queue (not marked as sorted).
+    public async Task UndoSortAsync(string ledgerId, CategoryTransaction tx, string category, CancellationToken ct = default)
+    {
+        var all = await _rules.GetLedgerTransactionsAsync(ledgerId, ct);
+        await _rules.SetTransactionCategoryAsync(ledgerId, tx.Id, category, ScopeFor(category, all), ct, byHand: false);
     }
 
     // "  børn ·  eigil " -> "børn · eigil": one space around the dot, no double spaces.

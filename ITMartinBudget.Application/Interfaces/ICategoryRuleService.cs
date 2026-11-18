@@ -68,7 +68,8 @@ public interface ICategoryRuleService
 
     Task<Dictionary<string, Models.InvestigationResult>> GetInvestigationsAsync(string ledgerId, CancellationToken cancellationToken = default);
 
-    Task SetTransactionCategoryAsync(string ledgerId, int transactionId, string categoryName, TransactionScope scope, CancellationToken cancellationToken = default);
+    // byHand = mark it as sorted by hand (a payee rule never moves it); false = "Fortryd" puts it back in the queue.
+    Task SetTransactionCategoryAsync(string ledgerId, int transactionId, string categoryName, TransactionScope scope, CancellationToken cancellationToken = default, bool byHand = true);
 
     Task SaveInvestigationAsync(string ledgerId, string pattern, Models.InvestigationResult result, CancellationToken cancellationToken = default);
 }

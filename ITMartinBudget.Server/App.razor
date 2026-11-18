@@ -114,7 +114,7 @@
         get
         {
             var path = HttpContext?.Request.Path.Value ?? "/";
-            return path == "/" || path.StartsWith("/kategorier", StringComparison.OrdinalIgnoreCase)
+            return path == "/" || path.StartsWith("/kategorier", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/sorter", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/shop-upload", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/laeg-ind", StringComparison.OrdinalIgnoreCase)

@@ -82,7 +82,7 @@ public sealed class CategoryRuleService : ICategoryRuleService
         rule.Scope = scope;
 
         var matching = await _db.Transactions
-            .Where(x => x.LedgerId == ledgerId && x.NormalizedDescription == pattern)
+            .Where(x => x.LedgerId == ledgerId && x.NormalizedDescription == pattern && !x.CategoryByHand)
             .ToListAsync(cancellationToken);
 
         foreach (var tx in matching)
@@ -167,7 +167,7 @@ public sealed class CategoryRuleService : ICategoryRuleService
         _db.Transactions.AsNoTracking()
             .Where(x => x.LedgerId == ledgerId)
             .Select(x => new Application.Services.CategoryTransaction(
-                x.Id, x.Date, x.Description, x.Amount, x.RawDetails, x.NormalizedDescription, x.UserCategoryName, x.Scope))
+                x.Id, x.Date, x.Description, x.Amount, x.RawDetails, x.NormalizedDescription, x.UserCategoryName, x.Scope, x.CategoryByHand))
             .ToListAsync(cancellationToken);
 
     public Task<Dictionary<string, Application.Models.InvestigationResult>> GetInvestigationsAsync(string ledgerId, CancellationToken cancellationToken = default) =>
@@ -177,12 +177,13 @@ public sealed class CategoryRuleService : ICategoryRuleService
                 x => new Application.Models.InvestigationResult(x.Reasoning, x.SuggestedScope, x.Confidence), cancellationToken);
 
     // Only this one posting - the payee's rule (if any) is left alone.
-    public async Task SetTransactionCategoryAsync(string ledgerId, int transactionId, string categoryName, TransactionScope scope, CancellationToken cancellationToken = default)
+    public async Task SetTransactionCategoryAsync(string ledgerId, int transactionId, string categoryName, TransactionScope scope, CancellationToken cancellationToken = default, bool byHand = true)
     {
         var tx = await _db.Transactions.FirstOrDefaultAsync(x => x.LedgerId == ledgerId && x.Id == transactionId, cancellationToken)
             ?? throw new InvalidOperationException("Betalingen findes ikke.");
         tx.UserCategoryName = categoryName;
         tx.Scope = scope;
+        tx.CategoryByHand = byHand;
         await _db.SaveChangesAsync(cancellationToken);
     }
 

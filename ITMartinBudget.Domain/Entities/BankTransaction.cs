@@ -1,4 +1,4 @@
-﻿using ITMartinBudget.Domain.Enums;
+using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Domain.Entities;
 
@@ -62,4 +62,8 @@ public class BankTransaction
     // auto-classified BusinessCategory/Category when present, since it's the
     // user's own final word on what this recurring item actually is.
     public string? UserCategoryName { get; set; }
+
+    // 2026-11-18: true = the user sorted THIS posting by hand ("Sortér betalinger", Flyt "kun denne betaling").
+    // A payee rule never overwrites it - Eigil's grocery payback stays Dagligvarer even if "Eigil" becomes "Børn · Eigil".
+    public bool CategoryByHand { get; set; }
 }
