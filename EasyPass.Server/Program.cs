@@ -30,6 +30,7 @@ builder.Services.AddKolibri(k =>
         "Svar på fire små spørgsmål: hvad der er svært for dig, hvad der passer på dig, hvor du vil hen, og hvad du har lyst til.",
         "Så får du de steder, der passer til dig, først. Steder hvor ikke alt er tjekket står under Ring og spørg først.",
         "Tryk på et sted. Der står din plan: hvad du skal spørge om, hvad du skal tage med, og en knap der viser dit pas stort ved indgangen.",
+        "Skal du af sted med en pædagog, ledsager eller pårørende? Tryk Planlæg turen sammen. Så får I et fælles rum med planen som opgaver på de rigtige dage. Rummet slettes af sig selv efter turen.",
         "Bagefter trykker du Det passede eller Noget passede ikke. Det hjælper den næste.",
     ];
     k.Version = "2026.11.18b";
@@ -52,6 +53,7 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = 429;
     o.OnRejected = async (ctx, ct) => await ctx.HttpContext.Response.WriteAsJsonAsync(new { fejl = "Du har sendt mange på kort tid. Vent lidt, og prøv igen." }, ct);
     o.AddPolicy("besked", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10) }));
+    o.AddPolicy("rum", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(24) }));
     o.AddPolicy("admin", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(5) }));
 });
 
@@ -84,6 +86,14 @@ app.MapPost("/api/steder/{id}/besked", (string id, BeskedRequest r, SendTilbagem
     var type = r.Godt ? TilbagemeldingType.Godt : r.Ejer ? TilbagemeldingType.Ejer : TilbagemeldingType.Fejl;
     return send.Udfoer(id, type, r.Tekst ?? "", r.Mail) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok();
 }).DisableAntiforgery().RequireRateLimiting("besked");
+
+// "Planlæg turen sammen": a Snak room for the person + their helper (5 per visitor per day).
+app.MapGet("/api/funktioner", (PlanlaegSammen p) => Results.Ok(new { sammen = p.Klar }));
+app.MapPost("/api/steder/{id}/planlaeg", async (string id, PlanlaegRequest r, PlanlaegSammen p, CancellationToken ct) =>
+{
+    var res = await p.UdfoerAsync(id, r.Behov, r.Dato, r.MitNavn, r.Hjaelper, ct);
+    return res.Fejl is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok(new { link = res.Link });
+}).DisableAntiforgery().RequireRateLimiting("rum");
 
 // --- admin (EasyPass__AdminPin, 6+ chars; none set = nobody can change anything) ----------------------------------------
 var adminPin = app.Configuration["EasyPass:AdminPin"] ?? "";

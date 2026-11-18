@@ -171,7 +171,10 @@ app.MapPost("/api/rum", (HttpContext c, RoomBody b, Access access, Rooms rooms) 
     if (!IsAdmin(c, access) && !access.IsApi(c.Request.Headers["X-Snak-Key"].FirstOrDefault())) return Results.Unauthorized();
     try
     {
-        var r = rooms.Create(b.Titel, b.Kunde, b.Medlemmer, b.Kode, b.Adresse, b.Gruppe);
+        // Easy-Pass trip rooms (2026-11-18): tasks on days + a melt day, through the API key only.
+        var r = b.Opgaver is { Count: > 0 } || !string.IsNullOrWhiteSpace(b.SlutDag)
+            ? rooms.CreatePlanned(b.Titel, b.Kunde, b.Medlemmer, (b.Opgaver ?? []).Select(o => (o.Titel ?? "", o.Note ?? "", o.Dag ?? "", o.Hvornaar ?? "")), b.SlutDag)
+            : rooms.Create(b.Titel, b.Kunde, b.Medlemmer, b.Kode, b.Adresse, b.Gruppe);
         if (!string.IsNullOrWhiteSpace(b.Besked)) rooms.GroupOf(r).Write(string.IsNullOrWhiteSpace(b.Navn) ? "Kunde" : b.Navn, b.Besked);
         return Results.Json(new { id = r.Id, titel = r.Title, link = rooms.Link(r), nemLink = rooms.EasyLink(r) }, web);
     }
@@ -545,7 +548,8 @@ static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentTyp
 
 public sealed record LoginBody(string? Kode);
 public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, string? Medlemmer = null, string? Kode = null, string? Adresse = null,
-    bool Gruppe = false);
+    bool Gruppe = false, List<PlannedTaskBody>? Opgaver = null, string? SlutDag = null);
+public sealed record PlannedTaskBody(string? Titel, string? Note, string? Dag, string? Hvornaar);
 public sealed record KunChatBody(bool KunChat);
 public sealed record InviteBody(string? Link, string? Mail, string? Navn);
 public sealed record RosterBody(string? Medlemmer, string? Emner, string? Links = null, string? Kalender = null);
@@ -571,7 +575,11 @@ public sealed class FinishedRoomsSweeper(Rooms rooms, ILogger<FinishedRoomsSweep
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
         do
         {
-            try { var n = rooms.DeleteFinished(); if (n > 0) log.LogInformation("Deleted {Count} finished rooms", n); }
+            try
+            {
+                var m = rooms.MeltDue(); if (m > 0) log.LogInformation("Melted {Count} rooms past their last day", m);
+                var n = rooms.DeleteFinished(); if (n > 0) log.LogInformation("Deleted {Count} finished rooms", n);
+            }
             catch (Exception ex) { log.LogWarning(ex, "Deleting finished rooms failed"); }
         } while (await timer.WaitForNextTickAsync(ct));
     }

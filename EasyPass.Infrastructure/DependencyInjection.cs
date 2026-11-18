@@ -20,6 +20,8 @@ public static class DependencyInjection
         services.AddHttpClient<IOpenStreetMapKilde, OverpassKilde>(c => { c.Timeout = TimeSpan.FromMinutes(6); c.DefaultRequestHeaders.UserAgent.ParseAdd(ua); });
         services.AddHttpClient<IByOpslag, NominatimByOpslag>(c => { c.Timeout = TimeSpan.FromSeconds(10); c.DefaultRequestHeaders.UserAgent.ParseAdd(ua); });
         services.AddTransient<OpdaterFraOpenStreetMap>();
+        services.AddHttpClient<ISnakRum, SnakRumKlient>(c => c.Timeout = TimeSpan.FromSeconds(15));
+        services.AddTransient<PlanlaegSammen>();
         services.AddSingleton<IStedStore>(steder);
         services.AddSingleton<ITilbagemeldingStore>(new JsonTilbagemeldingStore(dir));
         services.AddTransient<FindSteder>();

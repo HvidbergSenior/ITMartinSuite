@@ -32,3 +32,27 @@ public static class Planlaegger
         return new TurPlan(spoerg, tagMed, raad);
     }
 }
+
+/// <summary>One step of the trip as a task in a shared room: what, a short note, which day (yyyy-MM-dd), clock time ("" = none).</summary>
+public sealed record TurTrin(string Titel, string Note, string Dag, string Hvornaar = "");
+
+public static class TurTrinRegler
+{
+    /// <summary>
+    /// The plan as steps on days, for the person and their helper (pædagog, ledsager): call the place two days before,
+    /// pack the day before, go on the day, and say how it went. A step that would land before today lands today.
+    /// </summary>
+    public static IReadOnlyList<TurTrin> Lav(Sted sted, IReadOnlyList<Behov> behov, DateOnly dato, DateOnly idag)
+    {
+        var plan = Planlaegger.Lav(sted, behov);
+        string Dag(int foer) { var d = dato.AddDays(-foer); return (d < idag ? idag : d).ToString("yyyy-MM-dd"); }
+        var trin = new List<TurTrin>();
+        if (plan.SpoergOm.Count > 0)
+            trin.Add(new($"Ring til {sted.Navn} og spørg", string.Join(" ", plan.SpoergOm) + (sted.Telefon.Length > 0 ? $" Telefon: {sted.Telefon}" : ""), Dag(2)));
+        trin.Add(new("Pak til turen", string.Join(", ", new[] { "Telefonen med dit pas" }.Concat(plan.TagMed)), Dag(1)));
+        var hvor = string.Join(", ", new[] { sted.Adresse, $"{sted.Postnr} {sted.By}".Trim() }.Where(x => x.Length > 0));
+        trin.Add(new($"Tag af sted til {sted.Navn}", (hvor.Length > 0 ? hvor + ". " : "") + "Vis dit pas ved indgangen.", Dag(0)));
+        trin.Add(new("Hvordan gik det?", "Skriv kort, hvordan det gik. Tryk også Det passede eller Noget passede ikke på stedets side i Easy-Pass.", Dag(0)));
+        return trin;
+    }
+}

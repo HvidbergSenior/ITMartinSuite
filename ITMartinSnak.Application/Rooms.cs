@@ -180,6 +180,38 @@ public sealed class Rooms
         return true;
     }
 
+    private static readonly TimeZoneInfo Dk = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    private DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(_clock.GetUtcNow().UtcDateTime, Dk));
+
+    /// <summary>
+    /// A planned room (Easy-Pass trip): named people, the steps as tasks on their days, and a melt day. Used through the API key.
+    /// </summary>
+    public Room CreatePlanned(string? title, string? customerRef, string? members, IEnumerable<(string Title, string Note, string Day, string When)> tasks, string? meltOn)
+    {
+        var r = Create(title, customerRef, members);
+        var melt = RoomRules.CleanMeltOn(meltOn, Today);
+        if (melt.Length > 0) Update(r.Id, x => x with { MeltOn = melt, KunChat = false });
+        else if (r.KunChat) Update(r.Id, x => x with { KunChat = false });
+        var g = GroupOf(r);
+        foreach (var t in tasks.Take(20)) g.AddTask(t.Title, t.Note, t.When, null, null, t.Day);
+        return ById(r.Id) ?? r;
+    }
+
+    /// <summary>Every hour: rooms whose melt day is over finish by themselves (then the 14-day delete takes them).</summary>
+    public int MeltDue()
+    {
+        var today = Today;
+        List<string> due;
+        lock (_gate) due = _rooms.Where(r => RoomRules.ShouldMelt(r, today)).Select(r => r.Id).ToList();
+        foreach (var id in due)
+        {
+            if (ById(id) is not { } r) continue;
+            GroupOf(r).Write("Snak", RoomRules.MeltText, host: true);
+            Update(id, x => x with { DoneAt = _clock.GetUtcNow().UtcDateTime });
+        }
+        return due.Count;
+    }
+
     /// <summary>Rooms finished more than 14 days ago are deleted - messages, tasks and phones.</summary>
     public int DeleteFinished()
     {

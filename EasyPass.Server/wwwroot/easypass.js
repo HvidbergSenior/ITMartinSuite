@@ -265,6 +265,28 @@
                 .map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
         }).catch(function (e) { $("sted-kort").innerHTML = "<p>" + esc(e.message) + '</p><a class="k-btn k-btn-secondary" href="/">Find et sted</a>'; });
 
+        api("/api/funktioner").then(function (f) {
+            if (!f.sammen) return;
+            $("sammen").hidden = false;
+            var d = new Date(); d.setDate(d.getDate() + 7);
+            var iso = function (x) { return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+            $("s-dato").min = iso(new Date()); $("s-dato").value = iso(d);
+            try { $("s-mig").value = localStorage.getItem("ep-navn") || ""; } catch (e) { }
+        }).catch(function () { });
+        $("sammen-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            $("sammen-svar").textContent = "Laver jeres rum …";
+            try { localStorage.setItem("ep-navn", $("s-mig").value.trim()); } catch (er) { }
+            api("/api/steder/" + encodeURIComponent(id) + "/planlaeg", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ behov: pas.join(","), dato: $("s-dato").value, mitNavn: $("s-mig").value, hjaelper: $("s-hjaelper").value }),
+            }).then(function (r) {
+                $("sammen-form").hidden = true; $("sammen-klar").hidden = false;
+                $("sammen-link").value = r.link; $("sammen-aabn").href = r.link;
+            }).catch(function (er) { $("sammen-svar").textContent = er.message; });
+        });
+        copy($("sammen-link"), $("sammen-kopier"));
+
         $("vis-pas").addEventListener("click", function () {
             katalogP().then(function (k) {
                 var valgt = k.behov.filter(function (b) { return pas.indexOf(b.noegle) >= 0; });

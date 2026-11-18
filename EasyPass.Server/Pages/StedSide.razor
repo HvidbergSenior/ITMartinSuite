@@ -37,6 +37,31 @@
         </ol>
     </section>
 
+    <section class="k-card" id="sammen" hidden>
+        <h2 class="k-card-title">Planlæg turen sammen</h2>
+        <p>Skal du af sted med en pædagog, ledsager eller en fra familien? Så får I et fælles rum i Snak med planen som opgaver på de rigtige dage. I kan begge sætte flueben og skrive sammen.</p>
+        <p class="k-muted">Kun fornavne. Rummet slettes af sig selv efter turen.</p>
+        <form id="sammen-form" class="ep-form">
+            <label for="s-dato">Hvornår skal I af sted?</label>
+            <input id="s-dato" class="ep-input ep-big-input" type="date" />
+            <label for="s-mig">Dit fornavn</label>
+            <input id="s-mig" class="ep-input" maxlength="30" autocomplete="given-name" />
+            <label for="s-hjaelper">Din hjælpers navn (fx Lise, pædagog)</label>
+            <input id="s-hjaelper" class="ep-input" maxlength="30" />
+            <button class="k-btn k-btn-primary ep-big" type="submit">Lav vores rum</button>
+            <p id="sammen-svar" aria-live="polite"></p>
+        </form>
+        <div id="sammen-klar" hidden>
+            <p class="ep-ok">Jeres rum er klar. Send linket til din hjælper.</p>
+            <div class="ep-row">
+                <input id="sammen-link" class="ep-input ep-grow" readonly aria-label="Link til jeres rum" />
+                <button id="sammen-kopier" class="k-btn k-btn-secondary" type="button">Kopiér</button>
+            </div>
+            <a id="sammen-aabn" class="k-btn k-btn-primary ep-big" href="#" target="_blank" rel="noopener">Åbn jeres rum</a>
+            <p class="k-muted">I rummet trykker I hver på jeres navn første gang.</p>
+        </div>
+    </section>
+
     <div id="stort-pas" class="ep-overlay" hidden role="dialog" aria-modal="true" aria-label="Mit pas">
         <div class="ep-overlay-in">
             <div id="stort-pas-tekst"></div>

@@ -155,6 +155,67 @@ public class OpenStreetMapTests
     }
 }
 
+public class SammenTests
+{
+    private sealed class FakeSnak : ISnakRum
+    {
+        public bool Klar => true;
+        public List<(string Titel, IReadOnlyList<string> Navne, IReadOnlyList<TurTrin> Trin, string Slut)> Lavet { get; } = [];
+        public Task<string?> OpretAsync(string titel, IReadOnlyList<string> navne, IReadOnlyList<TurTrin> trin, string slutDag, CancellationToken ct = default)
+        {
+            Lavet.Add((titel, navne, trin, slutDag));
+            return Task.FromResult<string?>("https://snak.test/r/abc");
+        }
+    }
+
+    private sealed class Mem : IStedStore
+    {
+        public Dictionary<string, Sted> Items { get; } = [];
+        public IReadOnlyList<Sted> Alle() => Items.Values.ToList();
+        public Sted? Hent(string id) => Items.GetValueOrDefault(id);
+        public void Gem(Sted s) => Items[s.Id] = s;
+        public void GemMange(IEnumerable<Sted> l) { foreach (var s in l) Items[s.Id] = s; }
+        public bool Slet(string id) => Items.Remove(id);
+    }
+
+    private sealed class Clock(DateTime now) : TimeProvider { public override DateTimeOffset GetUtcNow() => new(now); }
+
+    [Test]
+    public void The_trip_becomes_steps_on_the_right_days()
+    {
+        var sted = new Sted { Navn = "Kystmuseet", By = "Skagen", Telefon = "98 44 22 33", Faciliteter = new() { ["niveaufri"] = Svar.Ja } };
+        var trin = TurTrinRegler.Lav(sted, Katalog.Laes("korestol,ledsager"), new DateOnly(2026, 12, 12), new DateOnly(2026, 12, 1));
+        trin.Select(t => t.Dag).Should().Equal("2026-12-10", "2026-12-11", "2026-12-12", "2026-12-12");
+        trin[0].Note.Should().Contain("Har I et handicaptoilet?").And.Contain("98 44 22 33");
+        trin[1].Note.Should().Contain("Dit ledsagerkort");
+    }
+
+    [Test]
+    public void A_trip_tomorrow_puts_the_call_today_not_in_the_past()
+    {
+        var sted = new Sted { Navn = "X", By = "Aarhus" };
+        TurTrinRegler.Lav(sted, Katalog.Laes("toilet"), new DateOnly(2026, 12, 2), new DateOnly(2026, 12, 1))[0].Dag.Should().Be("2026-12-01");
+    }
+
+    [Test]
+    public async Task Plan_together_makes_one_room_with_both_names_that_melts_after_the_trip()
+    {
+        var store = new Mem();
+        var sted = new Sted { Navn = "Kystmuseet", By = "Skagen" };
+        store.Gem(sted);
+        var snak = new FakeSnak();
+        var p = new PlanlaegSammen(store, snak, new Clock(new DateTime(2026, 12, 1, 9, 0, 0, DateTimeKind.Utc)));
+        (await p.UdfoerAsync(sted.Id, "korestol", "2026-11-30", "Ali", "Lise")).Fejl.Should().Contain("Vælg den dag");
+        (await p.UdfoerAsync(sted.Id, "korestol", "2026-12-12", "  ", "Lise")).Fejl.Should().Contain("fornavn");
+        var ok = await p.UdfoerAsync(sted.Id, "korestol", "2026-12-12", "Ali", "Lise (pædagog)");
+        ok.Link.Should().Be("https://snak.test/r/abc");
+        snak.Lavet.Should().ContainSingle();
+        snak.Lavet[0].Navne.Should().Equal("Ali", "Lise (pædagog)");
+        snak.Lavet[0].Slut.Should().Be("2026-12-15");
+        snak.Lavet[0].Titel.Should().Be("Tur: Kystmuseet 12.12.");
+    }
+}
+
 public class RulesTests
 {
     [Test]

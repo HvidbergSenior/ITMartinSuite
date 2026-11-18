@@ -14,11 +14,13 @@ namespace ITMartinSnak.Domain;
 // 2026-11-10 MAIL (user: "they should get mail"): Mail = the customer's address (from Kunder), MailedAt = the last "Martin har skrevet" mail.
 // 2026-11-17 KUN CHAT (user: "that should be the template... only chat room"): a new plain room (no names, not a group) is only the chat -
 // no Opgaver, no Filer. Martin can turn them on in the room. Older rooms read as false, so they keep their tabs.
+// 2026-11-18 MELT (Easy-Pass "Planlæg turen sammen", user: pædagog/user rooms): MeltOn = the last day of the room (yyyy-MM-dd,
+// "" = none). The day after, the room finishes by itself and is deleted 14 days later - a trip room never lingers.
 // 2026-11-12 DOOR (family rooms): Claims = member name -> the phones that hold it (token hashes), Pending = phones waiting for approval (DoorRules).
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
     List<string>? Members = null, string CodeHash = "", string Slug = "", bool Gruppe = false, Dictionary<string, string>? About = null,
     List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null, string Mail = "", DateTime? MailedAt = null,
-    Dictionary<string, List<Device>>? Claims = null, List<PendingDevice>? Pending = null, bool KunChat = false)
+    Dictionary<string, List<Device>>? Claims = null, List<PendingDevice>? Pending = null, bool KunChat = false, string MeltOn = "")
 {
     public bool IsDone => DoneAt is not null;
     public bool HasCode => CodeHash.Length > 0;
@@ -91,6 +93,16 @@ public static partial class RoomRules
     public static bool CodeMatches(Room r, string? typed) => r.HasCode && CodeHashFor(r.Id, typed ?? "") == r.CodeHash;
 
     public static bool ShouldDelete(Room r, DateTime nowUtc) => r.DeleteAt is { } d && d <= nowUtc;
+
+    public const string MeltText = "Rummet er slut nu og bliver slettet om 14 dage. Gem det, I gerne vil beholde. Skriver I igen, åbner det igen.";
+
+    /// <summary>"2026-12-12" -> the same; anything else -> "" (no melt day). Not before today, not more than a year ahead.</summary>
+    public static string CleanMeltOn(string? day, DateOnly today) =>
+        DateOnly.TryParseExact((day ?? "").Trim(), "yyyy-MM-dd", out var d) && d >= today && d <= today.AddYears(1) ? d.ToString("yyyy-MM-dd") : "";
+
+    /// <summary>The melt day is over (Danish date) and the room is still open.</summary>
+    public static bool ShouldMelt(Room r, DateOnly today) =>
+        !r.IsDone && !r.Gruppe && DateOnly.TryParseExact(r.MeltOn, "yyyy-MM-dd", out var d) && d < today;
 
     /// <summary>The overview: who waits for Martin = the newest message is not his.</summary>
     public static bool Waiting(IReadOnlyList<Message> messages) => messages.Count > 0 && !messages[^1].Host;

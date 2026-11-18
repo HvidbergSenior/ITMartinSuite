@@ -165,6 +165,38 @@ public class GroupTests
         public override DateTimeOffset GetUtcNow() => new(Now, TimeSpan.Zero);
     }
 
+    // 2026-11-18 Easy-Pass "Planlæg turen sammen": named people, the plan as tasks on their days, melts after the last day.
+    [Test]
+    public void A_planned_trip_room_has_the_steps_and_melts_after_its_last_day()
+    {
+        var clock = new FakeClock(new DateTime(2026, 12, 1, 10, 0, 0, DateTimeKind.Utc));
+        var rooms = NewRooms(clock);
+        var r = rooms.CreatePlanned("Tur: Kystmuseet 12.12", "easypass", "Ali, Lise",
+            [("Ring og spørg", "Har I handicaptoilet?", "2026-12-10", ""), ("Tag af sted", "", "2026-12-12", "10:00")], "2026-12-12");
+        r.MeltOn.Should().Be("2026-12-12");
+        r.KunChat.Should().BeFalse();
+        r.Members.Should().Equal("Ali", "Lise");
+        rooms.GroupOf(r).Tasks().Select(t => t.Day).Should().Equal("2026-12-10", "2026-12-12");
+
+        clock.Now = new DateTime(2026, 12, 12, 20, 0, 0, DateTimeKind.Utc);   // the trip day itself: still open
+        rooms.MeltDue().Should().Be(0);
+        clock.Now = new DateTime(2026, 12, 13, 8, 0, 0, DateTimeKind.Utc);
+        rooms.MeltDue().Should().Be(1);
+        rooms.ById(r.Id)!.IsDone.Should().BeTrue();
+        clock.Now = clock.Now.AddDays(15);
+        rooms.DeleteFinished().Should().Be(1);
+    }
+
+    [Test]
+    public void A_melt_day_must_be_a_real_day_within_a_year() 
+    {
+        var today = new DateOnly(2026, 12, 1);
+        RoomRules.CleanMeltOn("2026-11-30", today).Should().Be("");
+        RoomRules.CleanMeltOn("i morgen", today).Should().Be("");
+        RoomRules.CleanMeltOn("2028-01-01", today).Should().Be("");
+        RoomRules.CleanMeltOn("2026-12-24", today).Should().Be("2026-12-24");
+    }
+
     [Test]
     public void A_finished_room_is_deleted_after_14_days_unless_someone_writes_again()
     {
